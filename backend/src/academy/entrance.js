@@ -89,7 +89,8 @@ export function programProjection(program, data, user, roles, start, end, now, d
           ...(row.classNames || []), ...(row.teacherNames || [row.teacherName])].filter(Boolean);
         if(compatibilityDetails){event.teacherName=(row.teacherNames||[row.teacherName]).filter(Boolean).join(', ');event.group=(row.classNames||[]).join(', ');}
       }
-      if (mayView && (involved || oversight) && row.zoomLink) {
+      if ((mayView && (involved || oversight) || !user && program.publicFree) && row.zoomLink) {
+        if(!user&&program.publicFree)event.publicJoin=true;
         event.joinKey = JSON.stringify(['PROGRAM', program.id, publication.id, occurrenceIndex, date]);
         if (joinWindowOpen(event, now)) event.joinUrl = row.zoomLink;
       }
@@ -115,7 +116,7 @@ export function programProjection(program, data, user, roles, start, end, now, d
       resources: globalAdmin(user) ? `/programs/library.html?program=${encodeURIComponent(program.id)}` : '' } };
 }
 
-export async function buildEntrance({ tables, programs, rolesByProgram, rolesByCourse = null, loadProgram, user, input = {}, now = new Date(), programLifecycle = 'DRAFT', rangeDays = 7, detailedTimetable = false }) {
+export async function buildEntrance({ tables, programs, rolesByProgram, rolesByCourse = null, loadProgram, user, input = {}, now = new Date(), programLifecycle = 'DRAFT', rangeDays = 7, detailedTimetable = false, publicJoining = false }) {
   const timezone = tables.PlatformConfig.find(row => key(row.ConfigKey) === 'PLATFORMTIMEZONE')?.ConfigValue || 'Africa/Johannesburg';
   const start = clean(input.startDate) || dateInTimezone(now, timezone);
   if (!validDate(start)) throw problem('Choose a valid timetable date.');
@@ -189,7 +190,9 @@ export async function buildEntrance({ tables, programs, rolesByProgram, rolesByC
           if(detailedTimetable)projected.teacherName=event.teacherName||'';
         }
         // Keep the shared/legacy timetable gate unchanged. The new website opens five minutes early.
-        if (user && (relevant || oversight) && event.visibilityLevel === 'DETAIL' && published[index]?.zoomlink) {
+        const publicFree=publicJoining&&!user&&(run.AccessModel?run.AccessModel==='FREE':platform.policies.some(p=>key(p.SubjectID)===key(subject.SubjectID)&&active(p.Active)&&p.AccessModel==='FREE'));
+        if ((user && (relevant || oversight) && event.visibilityLevel === 'DETAIL' || publicFree) && published[index]?.zoomlink) {
+          if(publicFree)projected.publicJoin=true;
           projected.joinKey = JSON.stringify(['COURSE', subject.SubjectID, run.RunID,
             resolved.publication?.publicationid || published[index].publicationid,
             published[index].sourcesessionid || published[index].publishedsessionid, event.date]);

@@ -216,6 +216,7 @@
     }
     for (let index = localStorage.length - 1; index >= 0; index -= 1) {
       const key = localStorage.key(index);
+      if (key?.startsWith("m4l_library_v1:") && key.includes(":personal:")) localStorage.removeItem(key);
       if (key && ["m4l_app_cache_", "maktab_timetable_cache_", "m4l_academy_timetable_"].some(prefix => key.startsWith(prefix))) {
         localStorage.removeItem(key);
       }

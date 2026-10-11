@@ -1,21 +1,23 @@
 import {academyD1Repository,rehearsalError} from './repository.js';
 import {d1Entrance} from './entrance.js';
+import {lessonTimes} from '../entrance.js';
 
 export function publicTimetableDay(now=new Date()) {
   const start=new Date(now);start.setUTCHours(0,0,0,0);
   return {startDate:start.toISOString().slice(0,10),expiresAt:new Date(start.getTime()+86400000).toISOString()};
 }
-export const publicTimetableKey=(env,period)=>`academy-public-timetable/v1/${encodeURIComponent(env.ENVIRONMENT)}/${encodeURIComponent(env.ACADEMY_D1_RUN_ID||'rehearsal')}/${period.startDate}.json`;
+export const publicTimetableKey=(env,period)=>`academy-public-timetable/v2/${encodeURIComponent(env.ENVIRONMENT)}/${encodeURIComponent(env.ACADEMY_D1_RUN_ID||'rehearsal')}/${period.startDate}.json`;
 
 // This is a marketing snapshot, never a copy of an authenticated response.
 // Whitelist on both creation and retrieval; no accounts, classes, teachers,
-// memberships, media, meeting IDs, links or permission metadata are stored.
+// memberships, media or meeting URLs are stored. Free lessons include only
+// an opaque published reference and clock boundaries for click-time joining.
 export function publicTimetableSnapshot(data,period,now=new Date()) {
-  return {success:true,snapshotVersion:1,snapshotDate:period.startDate,expiresAt:period.expiresAt,generatedAt:data.generatedAt||now.toISOString(),
+  return {success:true,snapshotVersion:2,snapshotDate:period.startDate,expiresAt:period.expiresAt,generatedAt:data.generatedAt||now.toISOString(),
     signedIn:false,globalAdmin:false,student:false,startDate:data.startDate,endDate:data.endDate,timezone:data.timezone,
     activities:[],personalActivities:[],activityPages:[],personalTimetable:[],activity:null,warnings:[],calendarEvents:[],
     timetable:data.timetable.filter(row=>row.status==='SCHEDULED').map(row=>({kind:row.kind,activityId:row.activityId,
-      activityName:row.activityName,title:row.activityName||row.title,date:row.date,startTime:row.startTime,endTime:row.endTime,timezone:row.timezone,status:'SCHEDULED'}))};
+      activityName:row.activityName,title:row.activityName||row.title,date:row.date,startTime:row.startTime,endTime:row.endTime,timezone:row.timezone,status:'SCHEDULED',...(row.publicJoin===true&&typeof row.joinKey==='string'?{publicJoin:true,joinKey:row.joinKey,...lessonTimes(row)}:{})}))};
 }
 
 export async function publicTimetable(request,env,now=new Date(),edgeCache=globalThis.caches?.default) {
@@ -26,7 +28,7 @@ export async function publicTimetable(request,env,now=new Date(),edgeCache=globa
     throw rehearsalError('Academy activation configuration is incomplete.',503,'ACTIVATION_REQUIRED');
   const period=publicTimetableDay(now),key=publicTimetableKey(env,period);
   const cacheKey=new Request(new URL('/api/academy/entrance/public-snapshot/'+key,new URL(request.url).origin),{method:'GET'});
-  const valid=data=>data?.snapshotVersion===1&&data.snapshotDate===period.startDate&&data.signedIn===false&&Array.isArray(data.timetable);
+  const valid=data=>data?.snapshotVersion===2&&data.snapshotDate===period.startDate&&data.signedIn===false&&Array.isArray(data.timetable);
   let snapshot,edgeHit=false;
   if(edgeCache)try { const cached=await edgeCache.match(cacheKey);if(cached){const data=await cached.json();if(valid(data)){snapshot=publicTimetableSnapshot(data,period,now);edgeHit=true;}} }catch { /* R2 remains the durable snapshot. */ }
   if(!snapshot&&env.MEDIA_BUCKET){

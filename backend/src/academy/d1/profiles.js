@@ -1,6 +1,7 @@
 import { payloadHash } from '../../programs/timetable-model.js';
 import { planProfileChange } from '../../profiles/model.js';
 import { managementStore,managementError,rowChanged,same,liveRoles,pendingRoles,profileDTO } from './management-store.js';
+import {optionalSchema} from './schema-probe.js';
 import {teacherDesignations,academyTeacher} from './teachers.js';
 
 const editableRoles=['STUDENT','TEACHER','PROGRAM_ADMIN'];
@@ -32,15 +33,15 @@ export async function scopeDTO(data,a) {
 export function d1Profiles(repository,auth) {
   const store=managementStore(repository,auth),p=store.p;
   const load=async()=>{
-    const teachers=await teacherDesignations(repository);
-    return {...await store.load({teachers:teachers.statement,coursePolicies:p('SELECT * FROM course_settings'),subscriptions:p(`SELECT * FROM ${await repository.subscriptionSource()}`)}),teacherDesignationsAvailable:teachers.available};
+    const teachers=await teacherDesignations(repository),contactsAvailable=await optionalSchema(repository.db,'SELECT account_id FROM account_contact_details WHERE 0');
+    return {...await store.load({teachers:teachers.statement,credentials:p('SELECT account_id,pin_setup,credential_epoch FROM account_credentials'),contacts:p(contactsAvailable?'SELECT account_id,whatsapp_number FROM account_contact_details':'SELECT account_id FROM accounts WHERE 0'),coursePolicies:p('SELECT * FROM course_settings'),subscriptions:p(`SELECT * FROM ${await repository.subscriptionSource()}`)}),teacherDesignationsAvailable:teachers.available,contactsAvailable};
   };
-  const accountProfile=(data,a)=>({...profileDTO(data,a),...(a&&data.teacherDesignationsAvailable?{academyTeacher:academyTeacher(data,a.account_id)}:{})});
+  const accountProfile=(data,a)=>({...profileDTO(data,a),...(a?{uniqueId:a.login_link_id,whatsappNumber:data.contacts.find(c=>same(c.account_id,a.account_id))?.whatsapp_number||'',pinSetup:Boolean(data.credentials.find(c=>same(c.account_id,a.account_id))?.pin_setup),credentialEpoch:data.credentials.find(c=>same(c.account_id,a.account_id))?.credential_epoch}:{}),...(a&&data.teacherDesignationsAvailable?{academyTeacher:academyTeacher(data,a.account_id)}:{})});
   async function directory(data) {
     const activities=data.activities.filter(a=>['PROGRAM','COURSE'].includes(a.kind));
     return {accounts:await Promise.all(data.accounts.map(async a=>({...accountProfile(data,a),revision:await payloadHash(accountProfile(data,a)),assignments:await Promise.all(activities.map(activity=>assignmentDTO(data,a,activity)))}))),
       scopes:await Promise.all(activities.map(a=>scopeDTO(data,a))),roles:editableRoles,prepared:true,needsSync:false,
-      stage:'SETUP',reviewCount:data.reviews.filter(r=>r.status==='REQUIRED'&&!data.mappings.some(m=>m.source_role===r.source_value)).length,policyEditable:false,teacherDesignationEditable:data.teacherDesignationsAvailable,adminDesignationEditable:Boolean(auth.state.account.global_admin),currentAccountId:auth.user.accountid,store:'D1',emptyRevision:await payloadHash(null)};
+      stage:'SETUP',reviewCount:data.reviews.filter(r=>r.status==='REQUIRED'&&!data.mappings.some(m=>m.source_role===r.source_value)).length,policyEditable:false,teacherDesignationEditable:data.teacherDesignationsAvailable,adminDesignationEditable:Boolean(auth.state.account.global_admin),currentAccountId:auth.user.accountid,resetPinEditable:Boolean(auth.state.account.global_admin),whatsappEditable:data.contactsAvailable,store:'D1',emptyRevision:await payloadHash(null)};
   }
   async function profile(data,input,statements) {
     const source=data.accounts.map(a=>({AccountID:a.account_id,DisplayName:a.display_name,UniqueID:a.login_link_id,Active:Boolean(a.active),PlatformRole:profileDTO(data,a).academyAdmin?'GLOBAL_ADMIN':''}));
@@ -58,18 +59,28 @@ export function d1Profiles(repository,auth) {
       if(!data.teacherDesignationsAvailable)throw managementError('Global Teacher designation needs its database upgrade.',503,'TEACHER_SCHEMA_REQUIRED');
       if(input.academyTeacher&&!input.active&&!academyTeacher(data,input.accountId))throw managementError('Reactivate this account before designating it a Global Teacher.');
     }
-    const planned=await planProfileChange({tables:{UserAccounts:source}},{...input,baseRevision:await payloadHash(current?profileDTO(data,current):null)},auth.user);
+    if(input.whatsappNumber!==undefined){
+      if(typeof input.whatsappNumber!=='string'||input.whatsappNumber.length>32||input.whatsappNumber.trim()&&!/^\+?[0-9][0-9 ()-]*$/.test(input.whatsappNumber.trim()))throw managementError('Enter a WhatsApp number using digits, with an optional country code, or leave it blank.',400,'INVALID_WHATSAPP');
+      if(!data.contactsAvailable&&input.whatsappNumber.trim())throw managementError('WhatsApp editing needs its database upgrade.',503,'CONTACT_SCHEMA_REQUIRED');
+    }
+    const planned=await planProfileChange({tables:{UserAccounts:source}},{...input,baseRevision:await payloadHash(current?{accountId:current.account_id,displayName:current.display_name,uniqueId:current.login_link_id,active:Boolean(current.active),academyAdmin:profileDTO(data,current).academyAdmin}:null)},auth.user);
     const record=planned.changes.find(c=>c.table==='UserAccounts').record,now=new Date().toISOString();
     if(input.creating) {
       statements.push(p('INSERT INTO accounts(account_id,display_name,login_link_id,active,created_at,updated_at,created_by_source_id,modified_by_source_id,revision) VALUES(?,?,?,?,?,?,?,?,1)',record.AccountID,record.DisplayName,record.UniqueID,Number(record.Active),now,now,auth.user.accountid,auth.user.accountid),
         p('INSERT INTO account_credentials(account_id,pin_setup,credential_epoch) VALUES(?,0,1)',record.AccountID));
       data.accounts.push({account_id:record.AccountID,display_name:record.DisplayName,login_link_id:record.UniqueID,active:Number(record.Active),revision:1});
+      data.credentials.push({account_id:record.AccountID,pin_setup:0,credential_epoch:1});
       planned.result.profile.assignments=await Promise.all(data.activities.filter(a=>['PROGRAM','COURSE'].includes(a.kind)).map(a=>assignmentDTO(data,data.accounts.at(-1),a)));
     } else {
       const account=data.accounts.find(a=>same(a.account_id,record.AccountID));
-      statements.push(p('UPDATE accounts SET display_name=?,active=?,revision=revision+1,updated_at=?,modified_by_source_id=? WHERE account_id=?',record.DisplayName,Number(record.Active),now,auth.user.accountid,account.account_id));
+      statements.push(p('UPDATE accounts SET display_name=?,login_link_id=?,active=?,revision=revision+1,updated_at=?,modified_by_source_id=? WHERE account_id=?',record.DisplayName,record.UniqueID,Number(record.Active),now,auth.user.accountid,account.account_id));
       if(!record.Active)statements.push(p('UPDATE account_sessions SET revoked_at=? WHERE account_id=? AND revoked_at IS NULL',now,account.account_id));
-      Object.assign(account,{display_name:record.DisplayName,active:Number(record.Active),revision:account.revision+1});
+      Object.assign(account,{display_name:record.DisplayName,login_link_id:record.UniqueID,active:Number(record.Active),revision:account.revision+1});
+    }
+    if(data.contactsAvailable&&input.whatsappNumber!==undefined&&input.whatsappNumber.trim()!==(currentProfile?.whatsappNumber||'')){
+      const number=input.whatsappNumber.trim();
+      statements.push(p(`INSERT INTO account_contact_details(account_id,whatsapp_number,updated_at,updated_by_account_id) VALUES(?,?,?,?) ON CONFLICT(account_id) DO UPDATE SET whatsapp_number=excluded.whatsapp_number,updated_at=excluded.updated_at,updated_by_account_id=excluded.updated_by_account_id`,record.AccountID,number,now,auth.user.accountid));
+      data.contacts=data.contacts.filter(c=>!same(c.account_id,record.AccountID));data.contacts.push({account_id:record.AccountID,whatsapp_number:number});
     }
     if(input.academyTeacher!==undefined&&input.academyTeacher!==academyTeacher(data,record.AccountID)){
       statements.push(p(`INSERT INTO academy_teacher_designations(account_id,active,updated_at,updated_by_account_id) VALUES(?,?,?,?) ON CONFLICT(account_id) DO UPDATE SET active=excluded.active,revision=academy_teacher_designations.revision+1,updated_at=excluded.updated_at,updated_by_account_id=excluded.updated_by_account_id`,record.AccountID,Number(input.academyTeacher),now,auth.user.accountid));
@@ -131,13 +142,30 @@ export function d1Profiles(repository,auth) {
         if(!account)throw managementError('Choose an existing account.',404);
         return {loginPath:`/account/${encodeURIComponent(account.login_link_id)}`};
       }
+      if(action==='save' && input.mode==='reset-pin') {
+        if(!auth.state.account.global_admin)throw managementError('Only a Global Admin can reset a PIN.',403,'FORBIDDEN');
+        return store.change('USER_PROFILES','ACADEMY','reset-pin',input,async()=>{
+          const data=await load(),account=data.accounts.find(a=>same(a.account_id,input.accountId));
+          if(!account)throw managementError('Choose an existing account.',404);
+          if(same(account.account_id,auth.user.accountid))throw managementError('Another Global Admin must reset your own PIN.',409,'OWN_PIN_RESET');
+          const current=accountProfile(data,account),revision=await payloadHash(current);
+          if(input.baseRevision!==revision)throw rowChanged(current,revision);
+          const guard=crypto.randomUUID(),now=new Date().toISOString();
+          return {data,statements:[
+            p('INSERT INTO academy_write_guards(guard_id,accepted) VALUES(?,(SELECT credential_epoch=? FROM account_credentials WHERE account_id=?))',guard,current.credentialEpoch,account.account_id),
+            p("UPDATE account_credentials SET pin_hash='',pin_setup=0,credential_epoch=credential_epoch+1,updated_at=? WHERE account_id=?",now,account.account_id),
+            p('UPDATE account_sessions SET revoked_at=? WHERE account_id=? AND revoked_at IS NULL',now,account.account_id),
+            p('DELETE FROM academy_write_guards WHERE guard_id=?',guard)
+          ],result:{reset:true,accountId:account.account_id,loginPath:`/account/${encodeURIComponent(account.login_link_id)}`},fields:['AuthenticationCredential','AccountSessions']};
+        });
+      }
       const courseRoles=action==='course-roles';
       if(courseRoles) {
         const key='COURSE:'+String(input.scopeId||'');
         if(input.mode!=='matrix-roles'||input.scopeType!=='SUBJECT'||!auth.state.account.global_admin&&!auth.state.roles.some(r=>same(r.activity_key,key)&&r.role==='PROGRAM_ADMIN'))throw managementError('Choose a Course you administer.',403,'FORBIDDEN');
       } else if(action!=='save')throw managementError('Unknown profile action.',404);
       if(['matrix-policy','matrix-prepare'].includes(input.mode))throw managementError('Access-policy decisions must be reviewed before they change D1 access.',501,'ACCESS_POLICY_REVIEW_REQUIRED');
-      return store.change(courseRoles?'COURSE_MANAGEMENT':'USER_PROFILES',courseRoles?'COURSE:'+input.scopeId:'ACADEMY',action,input,async()=>{
+      try { return await store.change(courseRoles?'COURSE_MANAGEMENT':'USER_PROFILES',courseRoles?'COURSE:'+input.scopeId:'ACADEMY',action,input,async()=>{
         const data=await load(),guardAccounts=data.accounts.map(a=>({...a})),statements=[],results=[];
         const entries=input.mode==='batch'?input.entries:[input];
         if(!Array.isArray(entries)||!entries.length||entries.length>80||entries.some(e=>!e||!['profile','matrix-roles'].includes(e.mode)))throw managementError('Save between 1 and 80 profile or role entries together.');
@@ -148,8 +176,8 @@ export function d1Profiles(repository,auth) {
           catch(error){error.entryKey=entryKey(entry);throw error;}
         }
         if(!data.accounts.some(a=>a.active&&profileDTO(data,a).academyAdmin))throw managementError('Keep at least one active Global Admin.',409,'LAST_ADMIN');
-        return {data:{...data,accounts:guardAccounts},statements,result:input.mode==='batch'?{results}:Object.fromEntries(Object.entries(results[0]).filter(([key])=>key!=='entryKey')),fields:['DisplayName','Active','GlobalAdmin','GlobalTeacher','ActivityRoleAssignments']};
-      });
+        return {data:{...data,accounts:guardAccounts},statements,result:input.mode==='batch'?{results}:Object.fromEntries(Object.entries(results[0]).filter(([key])=>key!=='entryKey')),fields:['DisplayName','UniqueID','WhatsAppNumber','Active','GlobalAdmin','GlobalTeacher','ActivityRoleAssignments']};
+      }); } catch(error) { if(/UNIQUE constraint failed: accounts.login_link_id/.test(error.message))throw managementError('This Login ID is already used by another account. Choose a unique ID.',409,'DUPLICATE_LOGIN_ID');throw error; }
     }
   };
 }

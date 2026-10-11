@@ -114,7 +114,7 @@
       $('course-management-back').textContent=globalAdmin?'← Academy administration':'← My Courses';$('course-management-back').href=globalAdmin?'/academy/#administration':'/academy/#workshops';
       await list();if(generation!==state.generation)return;
       const query=new URLSearchParams(location.search),courseId=query.get('course'),runId=query.get('run'),first=state.courses.find(c=>c.courseId===courseId&&(!runId||c.runId===runId))||state.courses.find(c=>!['ARCHIVED','CANCELLED'].includes(c.stage))||state.courses[0];
-      if(first)await select(first.courseId,first.runId,query.get('view')==='scheduling'?'sessions':'details');
+      if(first)await select(first.courseId,first.runId,query.get('tab')==='participants'?'participants':query.get('view')==='scheduling'?'sessions':'details');
     }catch(error){if(generation!==state.generation)return;lock(error.message);$('course-access-retry').hidden=false;}
   }
   function newCourse(){state.selection++;state.course={courseId:'',runId:'',stage:'DRAFT',displayStage:'DRAFT',revision:'0'};state.draft={name:'',categoryKey:'',accessModel:'',timezone:state.timezone,weekdays:[],startDate:'',endDate:'',startTime:'',endTime:'',teacherId:'',zoomLink:'',sessions:[]};state.dirty=false;state.review=null;state.participants=null;state.personDrafts.clear();state.media=[];state.calendarWarnings=[];state.tab='details';rememberSelection();renderList();renderEditor();$('course-editor').querySelector('[data-field="name"]')?.focus();}

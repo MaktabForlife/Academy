@@ -10,6 +10,10 @@
   const state = { rows: [], view: 'you', category: 'ALL', covers: new Map(), observer: null, openRow: null,
     learningAreaRefs: new Set() };
 
+  const cache = window.M4L_LIBRARY_CACHE;
+  let generation = 0;
+  let personalOwner = '';
+
   function matchesCategory(type) {
     if (state.category === 'ALL') return true;
     if (state.category === 'PDF') return type === 'EBOOK' || type === 'PRINTABLE';
@@ -98,6 +102,10 @@
   }
 
   function showSignedOut() {
+    generation++;
+    personalOwner = '';
+    $('al-refresh').disabled = false;
+    cache.clearPersonal();
     state.rows = [];
     state.openRow = null;
     state.covers.clear();
@@ -113,11 +121,12 @@
   }
 
   window.addEventListener('storage', event => {
-    if (event.key === 'm4l_account_token') { showSignedOut(); if (event.newValue) void start(); }
+    if (event.key === 'm4l_account_token' || event.key === null) { showSignedOut(); if (event.newValue) void start(); }
   });
   window.addEventListener('pageshow', () => {
     if (!localStorage.getItem('m4l_account_token')) showSignedOut();
   });
+  window.addEventListener('m4l-academy-session', () => { showSignedOut(); if (localStorage.getItem('m4l_account_token')) void start(); });
 
   function card(row) {
     const cover = state.covers.get(row.id);
@@ -258,25 +267,8 @@
     select.value = [...select.options].some(option => option.value === selected) ? selected : 'ALL';
   }
 
-  async function loadArchiveBooks() {
-    const sessionToken = localStorage.getItem('m4l_account_token');
-    let archiveBooks = [];
-    let archiveUnavailable = false;
-    try {
-      const response = await fetch('/academy/open-library/catalogue');
-      if (!response.ok) throw new Error('Archive.org catalogue unavailable');
-      const data = await response.json();
-      if (!Array.isArray(data.books)) throw new Error('Invalid Archive.org catalogue');
-      archiveBooks = data.books;
-    } catch (_error) {
-      archiveUnavailable = true;
-    }
-    let records = [];
-    try {
-      const response = await fetch(`${window.M4L_CONFIG?.API_BASE || ''}/api/academy/open-library/metadata/public`);
-      if (response.ok) records = (await response.json()).records || [];
-    } catch { /* Archive books remain available if Academy details cannot load. */ }
-    if (!sessionToken || sessionToken !== localStorage.getItem('m4l_account_token')) return;
+  function applyArchiveBooks(snapshot) {
+    const {books:archiveBooks,records} = snapshot.data;
     const byId = new Map(records.map(record => [record.id, record]));
     const edited = archiveBooks.map(book => {
       const record = byId.get(book.id);
@@ -293,37 +285,57 @@
       ...[...edited.map(archiveRow), ...records.map(linkRow)].filter(row => row && !existing.has(row.id))];
     refreshSources();
     render();
-    if (archiveUnavailable) $('al-status').textContent = `${$('al-status').textContent} Public Archive.org books are temporarily unavailable.`.trim();
+    if (snapshot.message) $('al-status').textContent = snapshot.message;
   }
 
-  async function showManageBooksForAdmin() {
-    const token = localStorage.getItem('m4l_account_token');
-    if (!token) return;
-    try {
-      const response = await fetch(`${window.M4L_CONFIG?.API_BASE || ''}/api/academy/open-library/metadata/list`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: '{}'
-      });
-      if (response.ok && (await response.json()).success && token === localStorage.getItem('m4l_account_token')) $('al-manage-books').hidden = false;
-    } catch { /* Management stays hidden when unavailable. */ }
+  function applyPersonal(data) {
+    state.rows = Array.isArray(data.resources) ? data.resources : [];
+    state.learningAreaRefs = new Set(data.learningAreaRefs || []);
+    $('al-manage-books').hidden = !data.canManage;
+    refreshSources();
+    $('al-content').hidden = false;
+    $('al-status').textContent = data.warnings?.join(' ') || '';
+    render();
+    const publicSaved = cache.read('public');
+    if (publicSaved) applyArchiveBooks(publicSaved);
   }
 
-  async function start() {
+  async function start(force = false) {
+    const current = ++generation, session = localStorage.getItem('m4l_account_token');
+    if (!session) return showSignedOut();
+    $('al-refresh').disabled = true;
+    const owner = await cache.owner(session);
+    if (current !== generation || session !== localStorage.getItem('m4l_account_token')) return;
+    personalOwner = owner;
+    const saved = owner && cache.read('personal:' + owner);
+    if (saved) applyPersonal(saved.data);
     try {
-      const result = await api('catalogue');
-      if (!localStorage.getItem('m4l_account_token')) return showSignedOut();
-      state.rows = Array.isArray(result.resources) ? result.resources : [];
-      state.learningAreaRefs = new Set(Array.isArray(result.learningAreaRefs) ? result.learningAreaRefs : []);
-      refreshSources();
-      $('al-content').hidden = false;
-      $('al-status').textContent = result.warnings?.length ? result.warnings.join(' ') : '';
-      render();
-      void loadArchiveBooks();
-      void showManageBooksForAdmin();
+      if (force || !saved || saved.stale) {
+        $('al-status').textContent = 'Updating Library…';
+        const result = await api('catalogue');
+        if (current !== generation || session !== localStorage.getItem('m4l_account_token')) return;
+        // Persist catalogue labels only. File access and signed URLs are never cached here.
+        const fields = ['id','name','subject','module','level','source','sourceName','type','description','author','publisher','hasCover','locked','forYou','learningAreas'];
+        const data = {resources:(result.resources || []).map(row=>Object.fromEntries(fields.filter(key=>key in row).map(key=>[key,row[key]]))),learningAreaRefs:result.learningAreaRefs||[],warnings:result.warnings||[],canManage:false};
+        applyPersonal(data);
+        try {
+          const response = await fetch(`${window.M4L_CONFIG?.API_BASE || ''}/api/academy/open-library/metadata/list`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session}`},body:'{}'});
+          data.canManage = response.ok && (await response.json()).success;
+        } catch {}
+        if (current !== generation || session !== localStorage.getItem('m4l_account_token')) return;
+        $('al-manage-books').hidden = !data.canManage;
+        if (owner && !data.warnings.length) cache.write('personal:' + owner,data);
+      }
+      const snapshot = await cache.publicList(force);
+      if (current !== generation || session !== localStorage.getItem('m4l_account_token')) return;
+      applyArchiveBooks(snapshot);
     } catch (error) {
-      $('al-status').innerHTML = `${esc(error.message)} <a href="/academy/#overview">Sign in to Academy →</a>`;
-    }
+      if (current !== generation || session !== localStorage.getItem('m4l_account_token')) return;
+      $('al-status').textContent = saved ? 'Library update unavailable. Showing your saved list; refresh to try again.' : error.message;
+    } finally { if (current === generation) $('al-refresh').disabled = false; }
   }
 
+  $('al-refresh').addEventListener('click', () => void start(true));
   for (const id of ['al-search', 'al-source']) $(id).addEventListener('input', render);
   $('al-categories').addEventListener('click', event => {
     const button = event.target.closest('[data-category]');

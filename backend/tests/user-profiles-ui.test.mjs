@@ -152,7 +152,7 @@ console.log('Profiles UI: one Save all resolves a shared policy revision for mul
     if(action==='save'){const g=data.accounts[0].assignments.find(g=>g.scopeType===body.scopeType);g.roles=[...body.roles];return {ok:true,status:200,json:async()=>({success:true,assignment:g})};}
     return {ok:true,status:200,json:async()=>({success:true,...data})};
   }});await settled();
-  assert.equal((element('up-users').innerHTML.match(/>Program Admin ▾/g)||[]).length,2);
+  assert.equal((element('up-users').innerHTML.match(/>Admin ▾/g)||[]).length,2);
   for(const scope of ['PROGRAM:P','SUBJECT:C']) {
     element('up-users').onclick({target:{closest:()=>({dataset:{editScope:scope,account:'GLOBAL'}})}});await settled();
     assert.match(element('up-users').innerHTML,/data-role="PROGRAM_ADMIN" checked[^>]*disabled/);
@@ -162,7 +162,7 @@ console.log('Profiles UI: one Save all resolves a shared policy revision for mul
     element('up-save-all').onclick();await settled();
     assert.equal(requests.filter(r=>r.action==='save').at(-1).body.scopeType,scopeType);
     assert.deepEqual(requests.filter(r=>r.action==='save').at(-1).body.roles,['TEACHER']);
-    assert.match(element('up-users').innerHTML,/>Program Admin · Teacher ▾/);
+    assert.match(element('up-users').innerHTML,/>Admin · Teacher ▾/);
   }
   assert.doesNotMatch(element('up-users').innerHTML,/data-global-teacher/);
   element('up-global-status').onclick();

@@ -41,11 +41,22 @@
     clear();
     if (!session) return;
     try {
-      const response = await fetch(`${window.M4L_CONFIG?.API_BASE || ''}/api/academy/entrance`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session}` }, body: '{}'
-      });
-      const result = await response.json();
-      if (pending !== generation || session !== token() || !response.ok || !result.success || !result.signedIn) return;
+      let result, owner = '';
+      try {
+        owner = [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(session)))].map(b=>b.toString(16).padStart(2,'0')).join('');
+        const saved = JSON.parse(sessionStorage.getItem('m4l_academy_daily_timetable_10610') || 'null');
+        const home = saved?.owner === owner && saved.entries?.HOME;
+        const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:home?.timezone || 'Africa/Johannesburg',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(p=>[p.type,p.value]));
+        if (home?.cacheDay === `${parts.year}-${parts.month}-${parts.day}` && home.signedIn) result = home;
+      } catch {}
+      if (!result) {
+        const response = await fetch(`${window.M4L_CONFIG?.API_BASE || ''}/api/academy/entrance`, {
+          method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session}`},body:'{}'
+        });
+        result = await response.json();
+        if (!response.ok) return;
+      }
+      if (pending !== generation || session !== token() || !result.success || !result.signedIn) return;
       d1Session = result.sessionStore === 'D1' ? session : '';
       $('ac-library').href = '/academy/library/';
       $('ac-progress').hidden = !result.student;
@@ -56,7 +67,7 @@
       const programs = activities.filter(row => row.kind === 'PROGRAM');
       const courses = activities.filter(row => row.kind === 'COURSE');
       strip.innerHTML = programs.map(row => `<a href="/academy/#activity/${row.kind}/${encodeURIComponent(row.id)}"${row.kind === 'PROGRAM' && row.id === currentProgram ? ' aria-current="page"' : ''}><span>${esc(row.name)}</span><small>${esc(roles(row.roles))}</small></a>`).join('') +
-        (result.signedIn ? `<a href="/academy/#workshops"><span>Courses</span><small>${esc(roles(result.globalAdmin ? ['GLOBAL_ADMIN','PROGRAM_ADMIN'] : [...new Set(courses.flatMap(row => row.roles))]) || 'None')}</small></a>` : '');
+        (result.signedIn && (result.globalAdmin || courses.some(row=>row.roles?.length)) ? `<a href="/academy/#workshops"><span>Courses</span><small>${esc(roles(result.globalAdmin ? ['GLOBAL_ADMIN','PROGRAM_ADMIN'] : [...new Set(courses.flatMap(row => row.roles))]) || 'None')}</small></a>` : '');
       strip.hidden = !result.signedIn;
     } catch { /* Public navigation stays available while account information is unavailable. */ }
   }
@@ -76,17 +87,18 @@
     for (const key of ['m4l_account_token', 'm4l_account_context', 'm4l_account_contexts', 'm4l_account_workspace', 'maktab_token', 'maktab_user_type']) localStorage.removeItem(key);
     for (let index = localStorage.length - 1; index >= 0; index--) {
       const key = localStorage.key(index);
+      if (key?.startsWith('m4l_library_v1:') && key.includes(':personal:')) localStorage.removeItem(key);
       if (key && ['m4l_app_cache_', 'maktab_timetable_cache_', 'm4l_academy_timetable_'].some(prefix => key.startsWith(prefix))) localStorage.removeItem(key);
     }
     for (let index = sessionStorage.length - 1; index >= 0; index--) {
       const key = sessionStorage.key(index);
-      if (key?.startsWith('m4l_admin_progress_dashboard_')) sessionStorage.removeItem(key);
+      if (key?.startsWith('m4l_admin_progress_dashboard_') || key === 'm4l_academy_daily_timetable_10610') sessionStorage.removeItem(key);
     }
     window.dispatchEvent(new Event('m4l-academy-session'));
     location.href = '/academy/#overview';
   });
   window.addEventListener('storage', event => { if (event.key === 'm4l_account_token' || event.key === null) void refresh(); });
   window.addEventListener('m4l-academy-session', () => { void refresh(); });
-  window.addEventListener('pageshow', () => { void refresh(); });
+  window.addEventListener('pageshow', event => { if (event.persisted) void refresh(); });
   void refresh();
 })();

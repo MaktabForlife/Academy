@@ -14,6 +14,9 @@
     }
   ];
 
+  const curatedBooks = books.slice();
+  const cache = window.M4L_LIBRARY_CACHE;
+  let loadGeneration = 0;
   const $ = id => document.getElementById(id);
   const mediaIcons = { EBOOK: '/icons/ebook.svg', PRINTABLE: '/icons/printable.svg',
     AUDIO: '/icons/audio.svg', VIDEO: '/icons/video.svg', OTHER: '/icons/other.svg' };
@@ -224,32 +227,21 @@
   });
 
   render();
-  async function loadAcademyMetadata() {
-    try {
-      const base = window.M4L_CONFIG?.API_BASE || '';
-      const response = await fetch(`${base}/api/academy/open-library/metadata/public`);
-      if (!response.ok) return [];
-      const data = await response.json();
-      return Array.isArray(data.records) ? data.records : [];
-    } catch { return []; }
+  async function loadArchiveBooks(force = false) {
+    const generation = ++loadGeneration;
+    const button = $('ol-refresh');
+    button.disabled = true;
+    status.textContent = 'Updating Library…';
+    const snapshot = await cache.publicList(force);
+    if (generation !== loadGeneration) return;
+    applySnapshot(snapshot);
+    button.disabled = false;
   }
-  async function loadArchiveBooks() {
-    status.textContent = 'Loading media from Internet Archive…';
-    let archiveBooks = [];
-    let archiveUnavailable = false;
-    try {
-      const response = await fetch('/academy/open-library/catalogue');
-      if (!response.ok) throw new Error('Archive.org catalogue unavailable');
-      const data = await response.json();
-      if (!Array.isArray(data.books)) throw new Error('Invalid Archive.org catalogue');
-      archiveBooks = data.books;
-    } catch (_error) {
-      archiveUnavailable = true;
-    }
-    const metadata = await loadAcademyMetadata();
+  function applySnapshot(snapshot) {
+    const {books:archiveBooks, records:metadata} = snapshot.data;
     const byId = new Map(metadata.filter(record => typeof record.id === 'string')
       .map(record => [record.id, record]));
-    books = [...books, ...archiveBooks].map(book => {
+    books = [...curatedBooks, ...archiveBooks].map(book => {
       const record = byId.get(book.id);
       if (!record) return book;
       return {
@@ -269,12 +261,14 @@
         module: record.module || '', learningAreas: record.learningAreas || [], source: 'Website',
         details: record.author || '', description: record.description || '',
         coverUrl: record.coverUrl || '', resourceType: 'OTHER', linkUrl: record.linkUrl })));
-    status.textContent = archiveUnavailable ? 'Archive.org media are temporarily unavailable. Other links remain available.' :
-      archiveBooks.length ? '' : 'No public media are available in the Archive.org list yet.';
+    status.textContent = snapshot.message || (archiveBooks.length ? '' : 'No public media are available in the Archive.org list yet.');
     render();
     const linkedBook = books.find(book => book.id === new URLSearchParams(window.location.search).get('resource'));
-    if (linkedBook && !linkedBook.linkUrl) open(linkedBook, new URLSearchParams(window.location.search).get('volume'));
+    if (linkedBook && !linkedBook.linkUrl && !dialog.open) open(linkedBook, new URLSearchParams(window.location.search).get('volume'));
   }
+  $('ol-refresh').addEventListener('click', () => void loadArchiveBooks(true));
+  const saved = cache.read('public');
+  if (saved) applySnapshot(saved);
+  if (!saved || saved.stale) void loadArchiveBooks();
 
-  loadArchiveBooks();
 })();

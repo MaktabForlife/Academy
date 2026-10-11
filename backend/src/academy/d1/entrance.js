@@ -14,7 +14,7 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
   const courseWorkflows=config.courseWorkflows??await courseCalendarAvailable(repository.db,true);
   const end=addDays(start,days-1);
   const [activities,publications,subjects,modules,classes,memberships,runs,runStates,lifecycles,calendar,suppressions]=await repository.homeData(state,start,end,courseWorkflows);
-  const programs=activities.filter(a=>a.kind==='PROGRAM').map(a=>({id:a.activity_id,name:a.name,mode:'PROGRAM',status:'ACTIVE',timezone:a.timezone,capabilities:{attendance:true}}));
+  const programs=activities.filter(a=>a.kind==='PROGRAM').map(a=>({id:a.activity_id,name:a.name,mode:'PROGRAM',status:'ACTIVE',timezone:a.timezone,publicFree:a.program_access_model==='FREE',capabilities:{attendance:true}}));
   const tables={UserAccounts:state?[repository.publicAccount(state.account)]:[],PlatformConfig:[{ConfigKey:'PlatformTimezone',ConfigValue:config.setting_value}],
     GlobalSubjectList:activities.filter(a=>a.kind==='COURSE').map(a=>({SubjectID:a.activity_id,SubjectName:a.name,Active:true})),
     GlobalModuleList:modules.filter(m=>m.activity_key.startsWith('COURSE:')).map(m=>({ModuleID:m.module_id,SubjectID:m.activity_key.slice(7),ModuleName:m.name,Active:true})),
@@ -31,7 +31,7 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
   }
   const rolesByProgram=Object.fromEntries(programs.map(p=>[p.id,state?[{AccountID:state.account.account_id,Active:true,Roles:state.roles.filter(r=>r.activity_key.toUpperCase()===`PROGRAM:${p.id}`.toUpperCase()).map(r=>r.role)}]:[]]));
   const rolesByCourse=courseWorkflows?Object.fromEntries(activities.filter(a=>a.kind==='COURSE').map(a=>[a.activity_id.toUpperCase(),state?.roles.filter(r=>r.activity_key.toUpperCase()===a.activity_key.toUpperCase()).map(r=>r.role)||[]])):null;
-  const result=await buildEntrance({tables,programs,rolesByProgram,rolesByCourse,user,input,now,programLifecycle:'ACTIVE',rangeDays:days,detailedTimetable:detailed,loadProgram:async program=>{
+  const result=await buildEntrance({tables,programs,rolesByProgram,rolesByCourse,user,input,now,programLifecycle:'ACTIVE',rangeDays:days,detailedTimetable:detailed,publicJoining:true,loadProgram:async program=>{
     const activity=`PROGRAM:${program.id}`,scope=rows=>rows.filter(r=>r.activity_key===activity);
     return {prepared:true,subjects:scope(subjects).map(s=>({SubjectID:s.subject_id,SubjectName:s.subject_name})),tables:{
       ProgramSubjects:scope(subjects).map(s=>({ProgramSubjectID:s.program_subject_id,CourseID:program.id,SubjectID:s.subject_id,Active:true})),

@@ -1,3 +1,15 @@
+# V106.11 — Role tools, cached Libraries and account controls
+
+All 137 local regression test files and the development Worker dry-run build pass. Contact migration 0011 is applied to main without replacing existing accounts or permissions. [Website development handoff](docs/WEBSITE-DEVELOPMENT-HANDOFF-106.11.md) records the current deployment, agreed rules and unfinished work.
+
+Program and Course landing pages have visible Admin, Teach and Learn tool rows according to current authority, their own scoped timetable, and My Timetable for the complete permitted Academy schedule. Remove redundant curriculum and placeholder panels. Hide Courses navigation without Course access. Tools whose workflows are not built yet use compact on-demand notices.
+
+Cache public and personal Library catalogues in the browser for seven days, show saved resources immediately, and add Refresh icons. Keep cards equal in size. Cached private records contain metadata only; every protected file opening still checks current server-side access. Sign-out and account changes clear personal cache entries.
+
+User profiles uses Name, UNIQUEID, WhatsApp number, Status, Actions and narrower Program/Course columns. Show scoped Program Admin as Admin, retain inherited Global Admin authority, and add an Active only learning-area toggle. Global Admin can edit unique alphanumeric Login IDs (case-insensitive uniqueness) and reset another user's PIN after explicit confirmation. PIN reset revokes all sessions and lets the user set a new PIN through their sign-in link. Retried resets are idempotent and cannot erase a subsequently chosen PIN. Migration 0011 adds private WhatsApp contact storage; no existing accounts or permissions are replaced.
+
+Free published Program/Course lessons can be joined by public homepage visitors from five minutes before their start until their end. Browser clocks update the button locally; an uncached server check on click validates the current publication, Free/Paid setting, cancellation and time window. Paid lessons never expose a public joining reference or meeting URL. Public snapshot v2 remains shared daily and contains no meeting URLs. No background database polling is added.
+
 # V106.10 — Global Admin controls and Subjects & Modules
 
 User profiles includes a Global status pill. Search for a user, select them and save their Global Admin or Global Teacher designation in a compact editor. Global Admins inherit Program Admin authority across every Program and Course without replacing scoped roles or credentials. Another Global Admin must remove your own designation; inactive accounts cannot receive new Global Admin authority. Existing revision checks, atomic saves, audit records and retry receipts apply.

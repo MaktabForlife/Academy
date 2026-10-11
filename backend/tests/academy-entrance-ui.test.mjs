@@ -44,9 +44,11 @@ const stamp = event => {
   if (Date.parse(fixtureNow)<result.joinAvailableAt || Date.parse(fixtureNow)>=endsAt || result.status!=='SCHEDULED') delete result.joinUrl;
   return result;
 };
-let deferNext=false, release, hasWorkshops=true, globalAdmin=false, programRole='STUDENT', roomFixture=false, colourFixture=false, cacheFixture=false, failNext=false, quotaNext=false, warningFixture=false;
+let deferNext=false, release, hasWorkshops=true, globalAdmin=false, programRole='STUDENT', roomFixture=false, colourFixture=false, cacheFixture=false, failNext=false, quotaNext=false, warningFixture=false, publicFreeFixture=false;
+const publicJoins=[];
 const fetch = async (_url, options) => {
   const signedIn = Boolean(options.headers?.Authorization), body = JSON.parse(options.body||'{}');
+  if (_url.endsWith('/api/academy/public-lesson/join')) { assert.equal(signedIn,false); publicJoins.push(body); return {ok:true,status:200,json:async()=>({success:true,joinUrl:'https://zoom.test/free-current-checked'})}; }
   if(!signedIn){assert.ok(_url.endsWith('/api/academy/entrance/public-snapshot'));assert.equal(options.method,'GET');}
   if (_url.endsWith('/api/academy/lesson/join')) { joins.push(body); return {ok:!joinFailure,status:joinFailure?403:200,json:async()=>joinFailure?{success:false,error:'This lesson is no longer available. Refresh the timetable.'}:{success:true,joinUrl:'https://zoom.test/current-checked'}}; }
   if (_url.endsWith('/api/academy/courses/catalogue')) {
@@ -86,7 +88,13 @@ const fetch = async (_url, options) => {
     {...base,activityId:'CANCELLED',title:'Cancelled item',status:'CANCELLED'}];
   const result = { success:true,signedIn,globalAdmin:signedIn&&globalAdmin,student:signedIn&&activities.some(item=>item.roles.includes('STUDENT')),startDate:body.startDate||'2026-10-05',endDate:'2026-10-11',warnings:[],
     activities,personalActivities:signedIn?activities.filter(item=>item.roles.length):[],timetable:homeTimetable.map(event=>{const publicEvent={...event};delete publicEvent.joinUrl;return publicEvent;}),activity:body.id?activities.find(item=>item.id===body.id):null };
-  if(!signedIn)result.snapshotDate='2026-10-05';
+  if(!signedIn){
+    result.snapshotDate='2026-10-05';
+    if(publicFreeFixture)result.timetable=result.timetable.map(event=>{
+      if(event.title!=='Lesson <one>')return event;
+      const {joinUrl,...free}=stamp({...event,joinUrl:'https://zoom.test/free'});return {...free,publicJoin:true};
+    });
+  }
   result.calendarEvents=[{description:'Holiday <script>',startDate:'2026-10-07',endDate:'2026-10-07',teachingImpact:'NO_TEACHING'}];
   result.personalTimetable=signedIn ? (globalAdmin ? result.timetable.filter(event=>event.status!=='CANCELLED').map(stamp) : body.id ? [
     ...row.timetable.map(stamp),
@@ -160,7 +168,7 @@ assert.equal(timers.size,0);
 let count=requests.length;
 documentHandlers.get('visibilitychange')();await flush();
 assert.equal(requests.length,count,'Returning to the public homepage never refreshes its daily snapshot');
-assert.doesNotMatch(html,/id="(?:activity-sessions|workshops-sessions|personal-refresh|workshops-refresh)"/,'Timetable panels exist only on home and its full view');
+assert.match(html,/id="activity-sessions"/);assert.doesNotMatch(html,/id="(?:activity-classes|activity-curriculum|activity-coming)"/,'Landing pages show tools and their scoped timetable only');
 assert.ok(html.indexOf('id="login-preview"')<html.indexOf('class="intro-feature"'));
 await navigate('#workshops');assert.match($('workshops-message').textContent,/Sign in/);assert.equal(catalogueRequests.length,0);
 
@@ -169,7 +177,7 @@ assert.equal($('personal-activities').hidden,false);assert.equal($('public-snaps
 assert.equal($('academy-progress-nav').hidden,false);assert.equal(catalogueRequests.length,1);
 assert.match($('workshop-pills').innerHTML,/Barakah|Complete|Media · coming soon/);
 assert.doesNotMatch($('workshop-pills').innerHTML,/Program Admin|Teacher|User|COURSE-DRAFT|<small>Student/);
-assert.equal($('course-list-scope-wrap').hidden,true);assert.equal($('workshop-management').hidden,false);
+assert.equal($('course-list-scope-wrap').hidden,true);assert.match($('workshop-tools').innerHTML,/aria-label="Teach tools"/);
 assert.equal(timers.size,0,'Courses have no background timetable timer');
 $('course-list-stage').value='COMPLETE';$('course-list-stage').listeners.get('input')();
 assert.match($('workshop-pills').innerHTML,/Salaah/);assert.doesNotMatch($('workshop-pills').innerHTML,/Barakah/);
@@ -178,20 +186,21 @@ assert.match($('workshop-pills').innerHTML,/Barakah/);assert.doesNotMatch($('wor
 $('course-list-search').value='';$('course-list-search').listeners.get('input')();
 await navigate('#overview');await navigate('#workshops');assert.equal(catalogueRequests.length,1);
 await navigate('#activity/PROGRAM/'+activity.id);
-assert.equal($('activity-title').textContent,'Reboot');assert.equal($('activity-admin').innerHTML,'');
-assert.doesNotMatch($('activity-menu').innerHTML,/Library|Explore|Attendance|Lesson prep/);
-assert.match($('activity-menu').innerHTML,/Courses|Progress|Calendar|Announcements/);
-assert.equal(timers.size,0,'Program pages do not poll the timetable');
+assert.equal($('activity-title').textContent,'Reboot');assert.doesNotMatch($('activity-menu').innerHTML,/aria-label="Admin tools"/);
+assert.doesNotMatch($('activity-menu').innerHTML,/Explore|Attendance|Lesson prep|Teach tools/);
+assert.match($('activity-menu').innerHTML,/Learn tools/);for(const label of ['Library','My Progress','My Assessment','Calendar','Announcements','My Timetable'])assert.ok($('activity-menu').innerHTML.includes(`>${label}<`));
+assert.doesNotMatch($('activity-sessions').innerHTML,/Course item|Barakah|Salaah/);assert.match($('activity-sessions').innerHTML,/Reboot/);
+assert.equal(timers.size,1,'Scoped timetable has a local lesson-boundary timer, without polling');
 count=requests.length;documentHandlers.get('visibilitychange')();await flush();assert.equal(requests.length,count);
-await navigate('#activity/COURSE/COURSE-SALAAH');assert.equal(timers.size,0);
+await navigate('#activity/COURSE/COURSE-SALAAH');assert.equal(timers.size,1);assert.doesNotMatch($('activity-sessions').innerHTML,/Reboot|Barakah/);
 
 hasWorkshops=false;programRole='TEACHER';location.hash='#activity/PROGRAM/'+activity.id;await refresh();
-assert.match($('activity-admin').innerHTML,/<summary>Admin/);assert.match($('activity-admin').innerHTML,/>Attendance<|>Lesson prep</);
-assert.equal($('activity-menu').innerHTML,'');assert.equal($('activity-curriculum-section').hidden,false);
-assert.match($('personal-pills').innerHTML,/<span>Courses<\/span><small>None<\/small>/);
+assert.match($('activity-menu').innerHTML,/Teach tools/);assert.doesNotMatch($('activity-menu').innerHTML,/Admin tools|Learn tools/);for(const label of ['Attendance','Progress','Assessment','Plan','Announcements','My Timetable'])assert.ok($('activity-menu').innerHTML.includes(`>${label}<`));
+assert.doesNotMatch($('personal-pills').innerHTML,/<span>Courses<\/span>/,'No Course access means no Courses pill');assert.doesNotMatch($('activity-switcher').innerHTML,/<span>Courses<\/span>/);
 await navigate('#workshops');assert.equal($('workshop-pills').innerHTML,'');assert.match($('course-list-message').textContent,/No Courses/);
 hasWorkshops=true;globalAdmin=true;location.hash='#activity/PROGRAM/'+activity.id;await refresh();
-for(const label of ['Program','Users','Courses','Timetable','Library','Subjects & Modules'])assert.ok($('activity-admin').innerHTML.includes(`>${label.replace('&','&amp;')}</a>`));
+assert.match($('activity-menu').innerHTML,/Admin tools/);assert.match($('activity-menu').innerHTML,/Teach tools/);assert.doesNotMatch($('activity-menu').innerHTML,/Learn tools/);for(const label of ['Users','Programs','Courses','Library','Academy'])assert.ok($('activity-menu').innerHTML.includes(`>${label}<`));
+documentHandlers.get('click')({target:{closest:selector=>selector==='[data-workspace-tool]'?{dataset:{workspaceTool:'academy'}}:null}});assert.match($('workspace-tool-body').innerHTML,/Subjects &amp; Modules/);$('workspace-tool-close').listeners.get('click')();
 await navigate('#workshops');assert.equal($('course-list-scope-wrap').hidden,false);assert.equal($('course-list-title').textContent,'All Courses');
 assert.match($('workshop-pills').innerHTML,/Unpublished &lt;draft&gt;/);assert.doesNotMatch($('workshop-pills').innerHTML,/<draft>/);
 $('course-list-scope').value='MINE';$('course-list-scope').listeners.get('input')();assert.doesNotMatch($('workshop-pills').innerHTML,/Unpublished/);
@@ -229,7 +238,8 @@ count=requests.length;documentHandlers.get('visibilitychange')();await flush();a
 window.dispatchEvent(new Event('m4l-academy-session'));await flush();assert.equal(requests.length,count,'Restoring the same signed-in session reuses the daily snapshot');
 $('upcoming-next').listeners.get('click')();assert.equal($('academy-preview-sessions').lastScroll.left,400);
 count=requests.length;await navigate('#activity/COURSE/COURSE-BARAKAH');await navigate('#activity/PROGRAM/'+activity.id);
-assert.equal(requests.length,count,'Program and Course navigation reuse account-scoped page metadata');assert.equal(timers.size,0);
+assert.equal(requests.length,count,'Program and Course navigation reuse account-scoped page metadata');assert.equal(timers.size,1);assert.match($('activity-sessions').innerHTML,/Reboot/);assert.doesNotMatch($('activity-sessions').innerHTML,/Barakah|Salaah/);
+count=requests.length;await navigate('#timetable');assert.match($('academy-sessions').innerHTML,/Barakah|Salaah/);assert.equal(requests.length,count);await navigate('#activity/PROGRAM/'+activity.id);
 fixtureNow='2026-10-05T10:56:01Z';handlers.get('hashchange')();await flush();assert.equal(requests.length,count,'Lesson boundaries do not refresh pages without a timetable');
 fixtureNow='2026-10-05T11:01:01Z';handlers.get('hashchange')();await flush();assert.equal(requests.length,count,'Daily page metadata is reused after lesson starts');
 await navigate('#overview');quotaNext=true;$('timetable-refresh').listeners.get('click')();await flush();
@@ -242,10 +252,25 @@ $('course-list-retry').listeners.get('click')();await flush();assert.match($('wo
 fixtureNow='2026-10-05T11:04:04Z';deferCatalogue=true;handlers.get('hashchange')();await flush();
 storage.clear();window.dispatchEvent(new Event('m4l-academy-session'));releaseCatalogue();await flush();
 assert.equal($('workshop-pills').innerHTML,'','A late Course response cannot restore the previous account');
-assert.equal($('activity-admin').innerHTML,'');assert.equal($('workshop-management').hidden,true);
+assert.equal($('activity-menu').innerHTML,'');assert.equal($('workshop-tools').innerHTML,'');
 assert.doesNotMatch($('academy-preview-sessions').innerHTML,/Join lesson|data-information|Teacher A/);
 assert.equal($('lesson-information').open,false);assert.equal(timers.size,0);
 fixtureNow='2026-10-06T10:00:00Z';storage.set('m4l_account_token','NEW-SESSION');location.hash='#overview';await refresh();count=requests.length;
 fixtureNow='2026-10-07T10:00:00Z';documentHandlers.get('visibilitychange')();await flush();assert.equal(requests.length,count+1,'Next Academy day loads one new timetable');
 assert.equal($('timetable-refresh').hidden,false);storage.clear();window.dispatchEvent(new Event('m4l-academy-session'));await flush();assert.equal(tabStore.size,0,'Signing out removes the protected daily snapshot');
-console.log('Daily cached, manual refresh, server-checked joining, home-only timetables, cached public snapshot, scoped Admin tools, Course history, metadata cache, timed joining and sign-out checks passed.');
+// Free public joining wakes the local clock and checks the server only on click.
+publicFreeFixture=true;cacheFixture=false;location.hash='#overview';fixtureNow='2026-10-05T10:54:30Z';await refresh();
+assert.match($('academy-preview-sessions').innerHTML,/data-public-join[^>]+disabled/);
+assert.doesNotMatch($('academy-preview-sessions').innerHTML,/zoom\.test|Teacher A/);
+assert.equal([...timers.values()][0].delay,30000);count=requests.length;
+fixtureNow='2026-10-05T10:55:00Z';timer=[...timers.values()][0];timers.clear();timer.fn();await flush();
+assert.match($('academy-preview-sessions').innerHTML,/class="preview-pill is-open"/);
+assert.doesNotMatch($('academy-preview-sessions').innerHTML,/data-public-join[^>]+disabled/);
+assert.equal(requests.length,count,'Public joining opens without refreshing the snapshot');
+const publicControl={dataset:{publicJoin:/data-public-join="([^"]+)"/.exec($('academy-preview-sessions').innerHTML)[1]},textContent:'Join',disabled:false};
+documentHandlers.get('click')({target:{closest:selector=>selector==='[data-public-join]'?publicControl:null}});await flush();
+assert.equal(publicJoins.length,1);assert.equal(popup.url,'https://zoom.test/free-current-checked');assert.equal(requests.length,count);
+fixtureNow='2026-10-05T12:00:00Z';timer=[...timers.values()][0];timers.clear();timer.fn();await flush();
+assert.doesNotMatch($('academy-preview-sessions').innerHTML,/data-public-join|is-open/,'Expired Free lessons cannot be joined');
+documentHandlers.get('visibilitychange')();await flush();assert.equal(requests.length,count,'Returning to a Free public timetable does not poll');
+console.log('Daily cached, manual refresh, server-checked joining, scoped activity timetables and complete My Timetable, cached public snapshot, scoped Admin tools, Course history, metadata cache, timed joining and sign-out checks passed.');

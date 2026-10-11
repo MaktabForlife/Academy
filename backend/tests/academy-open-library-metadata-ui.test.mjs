@@ -13,7 +13,7 @@ function element(tagName = '') {
     showModal() { this.open = true; }, close() { this.open = false; this.listeners.close?.(); }
   };
 }
-const ids = ['ol-results', 'ol-preview', 'ol-viewer', 'ol-status', 'ol-search', 'ol-empty',
+const ids = ['ol-refresh', 'ol-results', 'ol-preview', 'ol-viewer', 'ol-status', 'ol-search', 'ol-empty',
   'ol-original', 'ol-source', 'ol-title', 'ol-details', 'ol-volume-wrap', 'ol-volume-label', 'ol-volume', 'ol-close', 'ol-media', 'ol-categories'];
 const nodes = Object.fromEntries(ids.map(id => [id, element()]));
 const categoryButtons = ['ALL', 'PDF', 'AUDIOVISUAL', 'OTHER'].map(category => ({ dataset: { category }, setAttribute() {} }));
@@ -54,9 +54,11 @@ const fetch = async url => {
   throw new Error(`Unexpected URL: ${url}`);
 };
 const document = { getElementById: id => nodes[id], createElement: element };
-const window = { M4L_CONFIG: { API_BASE: 'https://worker.test' }, location: { href: 'https://academy.test/academy/open-library/' } };
+const window = { addEventListener() {}, M4L_CONFIG: { API_BASE: 'https://worker.test' }, location: { href: 'https://academy.test/academy/open-library/' } };
 const script = await readFile(new URL('../../js/m4l-open-library.js', import.meta.url), 'utf8');
-runInNewContext(script, { document, window, fetch, URL, URLSearchParams, TextEncoder, btoa, history: { replaceState() {} } });
+const cacheScript = await readFile(new URL('../../js/m4l-library-cache.js',import.meta.url),'utf8');
+const context = { document, window, fetch, URL, URLSearchParams, TextEncoder, btoa, localStorage:{getItem:()=>null,setItem(){}}, history: { replaceState() {} } };
+runInNewContext(cacheScript,context);runInNewContext(script,context);
 await new Promise(resolve => setImmediate(resolve));
 assert.deepEqual(calls, ['/academy/open-library/catalogue', 'https://worker.test/api/academy/open-library/metadata/public']);
 const sections = nodes['ol-results'].children;

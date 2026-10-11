@@ -538,7 +538,7 @@ try{
   {title:'GlobalSubjectAccessPolicy',sheetId:800,rows:[PLATFORM_SHEET_HEADERS.GlobalSubjectAccessPolicy,['POLICY-TF','TAFSEER','SUBSCRIPTION',true]]},
   {title:'GlobalSubjectAccessMatrix',sheetId:801,rows:[['AccountID','TAFSEER','OTHER'],['ACCOUNT1',true,true],['ACCOUNT2',false,true],['TEACHER-1',false,false]]}
  );
- let directory=await profiles('get');assert(!JSON.stringify(directory).includes(hash));assert(!JSON.stringify(directory).includes('ADMIN-LINK'));
+ let directory=await profiles('get');assert(!JSON.stringify(directory).includes(hash));assert.equal(directory.accounts.find(a=>a.accountId==='ACCOUNT1').uniqueId,'ADMIN-LINK');
  assert.equal(directory.prepared,false);
  const beforeMatrixSetup=structuredClone([table(platformId,'UserCourseAccess'),table(platformId,'GlobalSubjectAccessMatrix'),table(platformId,'GlobalSubjectAccessPolicy')]);
  await profiles('save',{mode:'matrix-prepare',operationId:crypto.randomUUID()});directory=await profiles('get');assert(directory.prepared);assert(directory.reviewCount>0);

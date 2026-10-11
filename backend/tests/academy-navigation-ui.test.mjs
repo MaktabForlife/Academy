@@ -55,7 +55,7 @@ assert.equal(app.forYou.hidden,false);
 assert.equal(app.nodes.get('ac-progress').hidden,true);
 assert.equal(app.nodes.get('ac-recorder').hidden,true);
 assert.equal(app.children[1].hidden,false);
-assert.match(app.children[1].innerHTML,/<span>Courses<\/span><small>None<\/small>/);
+assert.doesNotMatch(app.children[1].innerHTML,/<span>Courses<\/span>/);
 app.setOk(false);app.refresh();await flush();
 assert.equal(app.forYou.hidden,true);
 assert.equal(app.nodes.get('ac-library').href,'/academy/open-library/');
