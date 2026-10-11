@@ -1,3 +1,7 @@
+# V106.18 — HifzHelper shortcut in the Hifz pill
+
+The Academy's top Hifz pill and homepage Hifz activity pill now include **HifzHelper ↗**, opening the signed-in user's personal HifzHelper address in a new tab. The Hifz title still opens its Academy page. The existing verified identity and role checks are reused, with no additional requests or database reads. All **138/138 local regression files**, the development Worker dry-run build, syntax, version consistency and diff checks pass. Browser visual testing was not performed. The owner authorised pushing this update to `feature/105.3.4.13`. [Release details](docs/ACADEMY-HIFZ-PILL-106.18.md).
+
 # V106.17 — Independent HifzHelper button
 
 The Hifz Program's Learn or Teach row includes **HifzHelper ↗** for its Students, Teachers and Program Admins, including inherited Global Admin access. It opens `https://maktab.hifz-helper.app/<UNIQUEID>` in a new tab, using the verified Academy login ID already available in the page. HifzHelper handles its own PIN and permissions. No shared login, journal connection, attendance synchronisation or extra background lookup is added. The integration pilot is paused at the owner's request. The owner authorised this release for `feature/105.3.4.13`; no schema migration or live data correction is required. [Release details](docs/ACADEMY-HIFZ-BUTTON-106.17.md).

@@ -294,31 +294,57 @@ let personalLoginId='F1CJW7';
 window.M4L_ACADEMY_LOGIN={currentId:()=>personalLoginId};
 activity.id=window.M4L_CONFIG.HIFZ_PROGRAM_ID;activity.name='Hifz';
 publicFreeFixture=false;cacheFixture=true;globalAdmin=false;storage.set('m4l_account_token','HIFZ-SESSION');location.hash='#activity/PROGRAM/'+activity.id;
+const assertHifzPill = (target, id, current = false) => {
+  const markup=$(target).innerHTML;
+  assert.ok(markup.includes(`href="https://maktab.hifz-helper.app/${id}" target="_blank" rel="noopener noreferrer"`),'The pill opens this account’s HifzHelper in a new tab');
+  assert.ok(markup.includes(`href="#activity/PROGRAM/${activity.id}"${current ? ' aria-current="page"' : ''}`),'The Hifz Academy page remains accessible');
+  assert.equal((markup.match(/>HifzHelper ↗<\/a>/g)||[]).length,1);
+  assert.doesNotMatch(markup,/HIFZ-SESSION|\?token=|\?pin=/);
+  let open=false;
+  for (const tag of markup.matchAll(/<\/?a\b[^>]*>/g)) {
+    const closing=tag[0].startsWith('</');
+    assert.equal(open,closing,'Links must be siblings, never nested or left open');
+    open=!closing;
+  }
+  assert.equal(open,false);
+};
 for(const role of ['STUDENT','TEACHER','PROGRAM_ADMIN']) {
   programRole=role;await refresh();
   const markup=$('activity-menu').innerHTML;
   assert.match(markup,/href="https:\/\/maktab\.hifz-helper\.app\/F1CJW7" target="_blank" rel="noopener noreferrer"/);
   assert.equal((markup.match(/>HifzHelper ↗<\/a>/g)||[]).length,1);
   assert.doesNotMatch(markup,/HIFZ-SESSION|\?token=|\?pin=/);
+  assertHifzPill('activity-switcher','F1CJW7',true);
+  assertHifzPill('personal-pills','F1CJW7');
 }
 globalAdmin=true;personalLoginId='ABCDEFG';await refresh();
 assert.match($('activity-menu').innerHTML,/hifz-helper\.app\/ABCDEFG/,'Global Admin inherits Hifz access');
+assertHifzPill('activity-switcher','ABCDEFG',true);
+assertHifzPill('personal-pills','ABCDEFG');
+assert.doesNotMatch($('activity-switcher').innerHTML,/hifz-helper\.app\/F1CJW7/,'The shortcut follows the current identity');
 await navigate('#activity/COURSE/COURSE-BARAKAH');assert.doesNotMatch($('activity-menu').innerHTML,/HifzHelper/,'Courses do not inherit the Hifz destination');
+assertHifzPill('activity-switcher','ABCDEFG');
 location.hash='#activity/PROGRAM/'+activity.id;globalAdmin=false;
 for(const role of ['', 'GLOBAL_TEACHER']) {
   programRole=role;await refresh();assert.doesNotMatch($('activity-menu').innerHTML,/HifzHelper/,'No Hifz assignment means no Hifz button');
+  for(const target of ['activity-switcher','personal-pills'])assert.doesNotMatch($(target).innerHTML,/HifzHelper/,'No assignment means no personal shortcut');
 }
 programRole='STUDENT';
 for(const id of ['', 'bad/id', 'bad?token=value']) {
   personalLoginId=id;await refresh();assert.doesNotMatch($('activity-menu').innerHTML,/HifzHelper/,'A missing or invalid personal ID cannot create a destination');
+  for(const target of ['activity-switcher','personal-pills'])assert.doesNotMatch($(target).innerHTML,/HifzHelper/,'Invalid identity cannot create a pill shortcut');
 }
 personalLoginId='F1CJW7';activity.id='UNRELATED-PROGRAM';location.hash='#activity/PROGRAM/'+activity.id;await refresh();
 assert.doesNotMatch($('activity-menu').innerHTML,/HifzHelper/,'A matching display name does not grant Hifz access');
+for(const target of ['activity-switcher','personal-pills'])assert.doesNotMatch($(target).innerHTML,/HifzHelper/,'Only the registered Hifz Program receives a shortcut');
 activity.id=window.M4L_CONFIG.HIFZ_PROGRAM_ID;location.hash='#activity/PROGRAM/'+activity.id;await refresh();
 assert.match($('activity-menu').innerHTML,/hifz-helper\.app\/F1CJW7/);
 await navigate('#workshops');await navigate('#activity/PROGRAM/'+activity.id);
 count=fetchUrls.length;await navigate('#workshops');await navigate('#activity/PROGRAM/'+activity.id);
+await navigate('#overview');assertHifzPill('personal-pills','F1CJW7');
+await navigate('#activity/PROGRAM/'+activity.id);assertHifzPill('activity-switcher','F1CJW7',true);
 assert.equal(fetchUrls.length,count,'The link adds no connection checks or account lookups');
 assert.ok(fetchUrls.every(url=>url.startsWith('https://test/')),'No Hifz requests occur until the user follows the link');
 storage.clear();window.dispatchEvent(new Event('m4l-academy-session'));await flush();assert.doesNotMatch($('activity-menu').innerHTML,/HifzHelper/,'Sign-out removes the personal link');
+for(const target of ['activity-switcher','personal-pills'])assert.doesNotMatch($(target).innerHTML,/HifzHelper/,'Sign-out removes the personal pill shortcut');
 console.log('Academy timetable, scoped tools, cache, joining, sign-out and independent personal HifzHelper links passed.');

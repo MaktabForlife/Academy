@@ -24,6 +24,19 @@
   const staffRoles = roles => roles.some(role => ['TEACHER', 'PROGRAM_ADMIN', 'ADMIN', 'SENIOR', 'GLOBAL_ADMIN'].includes(role));
   const roleName = roles => roles.map(role => ({ GLOBAL_ADMIN: 'Global Admin', PROGRAM_ADMIN: 'Program Admin', ADMIN: 'Program Admin', SENIOR: 'Senior', TEACHER: 'Teacher', STUDENT: 'Student' })[role]).filter(Boolean).join(' · ') || 'None';
   const activityPill = (href, name, roles, current = false) => `<a href="${href}"${current ? ' aria-current="page"' : ''}><span>${esc(name)}</span><small>${esc(roleName(roles))}</small></a>`;
+  function hifzHelperLink(row, className = '') {
+    const roles = row.roles || [], url = window.M4L_CONFIG?.HIFZHELPER_URL;
+    const loginId = window.M4L_ACADEMY_LOGIN?.currentId() || '';
+    if (!state.home?.signedIn || row.kind !== 'PROGRAM' || row.id !== window.M4L_CONFIG?.HIFZ_PROGRAM_ID ||
+      !(state.home.globalAdmin || staffRoles(roles) || roles.includes('STUDENT')) || !/^[A-Za-z0-9]+$/.test(loginId) ||
+      typeof url !== 'string' || !/^https:\/\//.test(url)) return '';
+    return `<a${className ? ` class="${className}"` : ''} href="${esc(url.replace(/\/$/, '') + '/' + encodeURIComponent(loginId))}" target="_blank" rel="noopener noreferrer" aria-label="HifzHelper (opens in a new tab)">HifzHelper ↗</a>`;
+  }
+  function programPill(row, current = false) {
+    const pill = activityPill(activityHref(row), row.name, row.roles, current);
+    const shortcut = hifzHelperLink(row, 'activity-pill-shortcut');
+    return shortcut ? `<div class="activity-pill-with-shortcut"${current ? ' data-current="true"' : ''}>${pill}${shortcut}</div>` : pill;
+  }
   const safeLink = url => typeof url === 'string' && (/^https:\/\//.test(url) || /^\/(?!\/)/.test(url));
   const scheduleRows = data => {
     const rows = data.signedIn ? data.personalTimetable : data.timetable;
@@ -210,7 +223,7 @@
     const courses = activities.filter(row => row.kind === 'COURSE');
     $('personal-empty').hidden = Boolean(activities.length || data.globalAdmin);
     $('personal-pills').innerHTML = activities.filter(row => row.kind === 'PROGRAM')
-      .map(row => activityPill(activityHref(row), row.name, row.roles)).join('') +
+      .map(row => programPill(row)).join('') +
       (data.signedIn && (data.globalAdmin || courses.some(row=>row.roles.length)) ? activityPill('#workshops', 'Courses', data.globalAdmin ? ['GLOBAL_ADMIN', 'PROGRAM_ADMIN'] : [...new Set(courses.flatMap(row => row.roles))]) : '') +
       (data.globalAdmin ? activityPill('#administration', 'Academy administration', ['GLOBAL_ADMIN']) : '');
     renderSubscriptions(activities);
@@ -242,7 +255,7 @@
     }
     const programs = activities.filter(item => item.kind === 'PROGRAM');
     const courses = activities.filter(item => item.kind === 'COURSE');
-    strip.innerHTML = programs.map(item => activityPill(activityHref(item), item.name, item.roles,
+    strip.innerHTML = programs.map(item => programPill(item,
       Boolean(current && item.id === current.id && current.kind === 'PROGRAM'))).join('') +
       (state.home?.signedIn && (state.home.globalAdmin || courses.some(row=>row.roles.length)) ? activityPill('#workshops', 'Courses', state.home.globalAdmin ? ['GLOBAL_ADMIN', 'PROGRAM_ADMIN'] : [...new Set(courses.flatMap(item => item.roles))],
         view === 'workshops' || current?.kind === 'COURSE') : '');
@@ -253,11 +266,7 @@
   function roleTools(row) {
     const roles = row.roles || [], global = Boolean(state.home?.globalAdmin), admin = global || adminRoles(roles);
     const staff = admin || staffRoles(roles), learner = roles.includes('STUDENT');
-    const hifzUrl = window.M4L_CONFIG?.HIFZHELPER_URL;
-    const loginId = window.M4L_ACADEMY_LOGIN?.currentId() || '';
-    const hifzHelper = state.home?.signedIn && row.kind === 'PROGRAM' && row.id === window.M4L_CONFIG?.HIFZ_PROGRAM_ID &&
-      (staff || learner) && /^[A-Za-z0-9]+$/.test(loginId) && typeof hifzUrl === 'string' && /^https:\/\//.test(hifzUrl)
-      ? `<a href="${esc(hifzUrl.replace(/\/$/, '') + '/' + encodeURIComponent(loginId))}" target="_blank" rel="noopener noreferrer" aria-label="HifzHelper (opens in a new tab)">HifzHelper ↗</a>` : '';
+    const hifzHelper = hifzHelperLink(row);
     const link = (name, href) => safeLink(href) || href?.startsWith('#') ? `<a href="${esc(href)}">${esc(name)}</a>` : '';
     const tool = (name, key) => `<button type="button" data-workspace-tool="${key}">${esc(name)}</button>`;
     const group = (name, content) => `<nav class="academy-tool-row" aria-label="${name} tools"><span class="academy-tool-label">${name}</span><div class="academy-tool-pills">${content}</div></nav>`;

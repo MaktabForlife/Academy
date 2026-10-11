@@ -155,3 +155,13 @@
 .academy-view-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
 .academy-home-icon,.academy-close-view{display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border:1px solid var(--line);border-radius:14px;background:var(--paper);color:var(--rose-dark);text-decoration:none;margin-bottom:12px}
 .academy-home-icon svg{width:34px;height:34px}.academy-close-view{font:400 36px/1 Arial,sans-serif}.academy-view-actions>a{margin-bottom:0}.academy-home-icon:hover,.academy-close-view:hover{background:var(--rose-soft)}
+
+/* Keep the Hifz page and its independent journal shortcut as separate links. */
+.activity-pills .activity-pill-with-shortcut{display:flex;flex-direction:column;justify-content:center;min-width:0;border:1px solid #b78bc5;border-radius:100px;background:#ead6ef;color:#58305f}
+.activity-switcher .activity-pill-with-shortcut{flex:0 0 140px;width:140px;min-height:68px;scroll-snap-align:start}
+.personal-activities .activity-pill-with-shortcut,.activity-pill-with-shortcut[data-current="true"]{background:#783e87;border-color:#673274;color:#fff}
+.personal-activities .activity-pill-with-shortcut{min-height:92px;border-radius:18px;box-shadow:0 4px 12px rgba(90,43,104,.14)}
+.activity-pills .activity-pill-with-shortcut>a{flex:0 0 auto;width:auto;min-height:0;height:auto;border:0;background:transparent;box-shadow:none;color:inherit;padding:8px 12px 4px}
+.activity-pills .activity-pill-with-shortcut>a.activity-pill-shortcut{align-self:center;padding:3px 9px 8px;font-size:11px;text-decoration:underline;text-underline-offset:2px;white-space:nowrap}
+.personal-activities .activity-pill-with-shortcut small,.activity-pill-with-shortcut[data-current="true"] small{color:inherit}
+.activity-pills .activity-pill-with-shortcut>a:hover{text-decoration:underline}.activity-pills .activity-pill-with-shortcut>a:focus-visible{outline:3px solid #b78bc5;outline-offset:-3px}
