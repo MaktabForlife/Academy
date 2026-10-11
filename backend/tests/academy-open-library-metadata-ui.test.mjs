@@ -36,9 +36,10 @@ const archiveVideo = { id: 'EXTERNAL:INTERNET_ARCHIVE:Video1', title: 'History l
   mediaUrl: 'https://archive.org/download/Video1/history.mp4', mediaFiles: [1, 2].map(number => ({
     number, label: `History ${number}`, mediaUrl: `https://archive.org/download/Video1/history${number}.mp4` })) };
 const calls = [];
+let archiveUnavailable = false;
 const fetch = async url => {
   calls.push(url);
-  if (url === '/academy/open-library/catalogue') return { ok: true, json: async () => ({ books: [archiveBook, archiveAudio, archiveVideo] }) };
+  if (url === '/academy/open-library/catalogue') return { ok: !archiveUnavailable, json: async () => ({ books: [archiveBook, archiveAudio, archiveVideo] }) };
   if (url === 'https://worker.test/api/academy/open-library/metadata/public') return {
     ok: true, json: async () => ({ success: true, records: [{
       id: archiveBook.id, title: 'Academy title', subject: 'Tafseer',
@@ -57,21 +58,24 @@ const document = { getElementById: id => nodes[id], createElement: element };
 const window = { addEventListener() {}, M4L_CONFIG: { API_BASE: 'https://worker.test' }, location: { href: 'https://academy.test/academy/open-library/' } };
 const script = await readFile(new URL('../../js/m4l-open-library.js', import.meta.url), 'utf8');
 const cacheScript = await readFile(new URL('../../js/m4l-library-cache.js',import.meta.url),'utf8');
-const context = { document, window, fetch, URL, URLSearchParams, TextEncoder, btoa, localStorage:{getItem:()=>null,setItem(){}}, history: { replaceState() {} } };
+const storage = new Map();
+const context = { document, window, fetch, URL, URLSearchParams, TextEncoder, btoa, localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value)}, history: { replaceState() {} } };
 runInNewContext(cacheScript,context);runInNewContext(script,context);
+assert.equal(nodes['ol-results'].children.length,0,'No embedded PDF appears before the catalogue loads');
 await new Promise(resolve => setImmediate(resolve));
 assert.deepEqual(calls, ['/academy/open-library/catalogue', 'https://worker.test/api/academy/open-library/metadata/public']);
 const sections = nodes['ol-results'].children;
-assert.deepEqual(sections.map(section => section.children[0].textContent), ['Duas', 'History', 'Quran', 'Tafseer', 'Websites']);
+assert.deepEqual(sections.map(section => section.children[0].textContent), ['History', 'Quran', 'Tafseer', 'Websites']);
+assert.doesNotMatch(JSON.stringify(sections),/Essential Duas for Muslims|EXTERNAL:TALIMI_BOARD_KZN/);
 assert(sections.every(section => section.className === 'ol-subject'));
-const card = sections[3].children[1].children[0];
+const card = sections[2].children[1].children[0];
 assert(card);
 assert.equal(card.dataset.resource, archiveBook.id);
 assert.equal(card.children[1].children[0].children[0].src, '/icons/printable.svg');
 assert.equal(card.children[1].children[0].children[1].textContent, 'Academy title');
 assert.equal(card.children[1].children[1].textContent, '2 volumes →');
 assert.equal(card.children[0].children[0].src, 'https://worker.test/cover?id=Book1');
-const linkCard = sections[4].children[1].children[0];
+const linkCard = sections[3].children[1].children[0];
 assert.equal(linkCard.tagName, 'a');
 assert.equal(linkCard.href, 'https://example.org/learning');
 assert.equal(linkCard.target, '_blank');
@@ -81,9 +85,8 @@ assert.equal(linkCard.children[1].children[0].children[0].src, '/icons/other.svg
 assert.equal(linkCard.children[1].children.at(-1).textContent, 'Visit website ↗');
 assert.equal(sections[0].children[1].children[0].children[1].children.length, 2,
   'Each card shows an icon with its title and reading action');
-assert.equal(sections[0].children[1].children[0].children[1].children[0].children[0].src, '/icons/ebook.svg');
-assert.equal(sections[1].children[1].children[0].children[1].children[0].children[0].src, '/icons/video.svg');
-assert.equal(sections[2].children[1].children[0].children[1].children[0].children[0].src, '/icons/audio.svg');
+assert.equal(sections[0].children[1].children[0].children[1].children[0].children[0].src, '/icons/video.svg');
+assert.equal(sections[1].children[1].children[0].children[1].children[0].children[0].src, '/icons/audio.svg');
 assert.equal(JSON.stringify(sections).includes('Aalimiya'), false);
 assert.equal(JSON.stringify(sections).includes('Quran +1'), false);
 assert.equal(JSON.stringify(sections).includes('Internet Archive'), false);
@@ -99,7 +102,7 @@ assert.deepEqual(nodes['ol-results'].children.map(section => section.children[0]
 assert.equal(nodes['ol-status'].textContent, '');
 nodes['ol-search'].value = '';
 chooseCategory('PDF');
-assert.deepEqual(nodes['ol-results'].children.map(section => section.children[0].textContent), ['Duas','Tafseer'],'PDF combines eBooks and Printables');
+assert.deepEqual(nodes['ol-results'].children.map(section => section.children[0].textContent), ['Tafseer'],'PDF combines eBooks and Printables');
 chooseCategory('AUDIOVISUAL');
 assert.deepEqual(nodes['ol-results'].children.map(section => section.children[0].textContent), ['History','Quran'],'AudioVisual combines audio and video');
 assert.equal(nodes['ol-results'].children[1].children[1].children[0].children[1].children.at(-1).textContent, '2 recordings · Listen →');
@@ -125,4 +128,21 @@ assert.doesNotMatch(html, /Selected public books, audio and video|appear here au
 assert.match(html, /data-category="PDF"/);
 assert.match(html,/data-category="AUDIOVISUAL"[^>]*>AudioVisual/);
 assert.doesNotMatch(html,/data-category="EBOOK"|data-category="PRINTABLE"|data-category="AUDIO"|data-category="VIDEO"/);
-console.log('Public Open Library applies Academy metadata while retaining the Archive PDF.');
+
+nodes['ol-preview'].close();
+const requestsBeforeReload=calls.length;
+runInNewContext(script,context);
+assert.equal(calls.length,requestsBeforeReload,'The existing weekly cache remains usable without a new catalogue request');
+assert.deepEqual(nodes['ol-results'].children.map(section=>section.children[0].textContent),['History','Quran','Tafseer','Websites']);
+assert.doesNotMatch(JSON.stringify(nodes['ol-results'].children),/Essential Duas for Muslims|EXTERNAL:TALIMI_BOARD_KZN/,'A warm cache does not reinsert the removed PDF');
+archiveUnavailable=true;
+nodes['ol-refresh'].listeners.click();
+await new Promise(resolve=>setImmediate(resolve));
+assert.match(nodes['ol-status'].textContent,/saved resources/);
+assert.doesNotMatch(JSON.stringify(nodes['ol-results'].children),/Essential Duas for Muslims|EXTERNAL:TALIMI_BOARD_KZN/,'A failed refresh cannot restore the hardcoded PDF');
+storage.clear();
+runInNewContext(script,context);
+await new Promise(resolve=>setImmediate(resolve));
+assert.deepEqual(nodes['ol-results'].children.map(section=>section.children[0].textContent),['Websites'],'Admin-added website links remain when Archive.org is unavailable and no snapshot exists');
+assert.equal(nodes['ol-results'].children[0].children[1].children[0].target,'_blank');
+console.log('Public Open Library uses Archive media and website links, including cached and unavailable-source states.');

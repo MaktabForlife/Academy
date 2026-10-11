@@ -1,3 +1,7 @@
+# V106.23 — Remove the hardcoded Library PDF
+
+Remove the embedded Essential Duas for Muslims card and its publisher-specific PDF proxy exception. Public media continues to come from the Archive.org catalogue; admin-added Other website links still open in a new tab. Existing weekly catalogue caches remain usable. All **140/140 local regression files**, the Pages Functions build and the development Worker dry-run build pass. The owner authorised deployment when complete. No database migration or data correction is required. [Release details](docs/ACADEMY-LIBRARY-SOURCES-106.23.md).
+
 # V106.22 — Surah and Dua memorisation
 
 Add module cards designed for adult ladies to the Academy Progress page, with separate swipeable Surah and Dua rows, learner task marking, teacher confirmation grids and Global Admin Excel/CSV uploads with subject and level review. The supplied list seeds 12 modules and 120 tasks in D1 through the shared Academy catalogue. Read-only checks found no migrated learner memorisation: zero task definitions and four separate class curriculum progress records. The owner authorised deployment when ready. This release requires only the additive memorisation migration. [Release details](docs/ACADEMY-MEMORISATION-106.22.md).

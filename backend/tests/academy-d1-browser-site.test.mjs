@@ -49,6 +49,7 @@ assert.equal(assetPath('/js/%ZZ'),null);assert.equal(assetPath('/js/../backend/s
 const encode=url=>Buffer.from(url).toString('base64url');
 assert.equal(publicPdfTarget(encode('https://archive.org/download/book/file.pdf')),true);
 for(const url of ['https://drive.google.com/file/d/private','https://secret.r2.dev/private.pdf','https://devrebootworker.maktab4life.workers.dev/api/library/drive/file/private?access=secret',
+  'https://talimiboardkzn.org/wp-content/uploads/2018/10/essential_duas_for_muslims_gr_1-7.pdf',
   'https://user:password@archive.org/download/book/file.pdf','https://archive.org:444/download/book/file.pdf','https://archive.org/download/book/file.pdf?private=1']) {
   assert.equal(publicPdfTarget(encode(url)),false);assert.equal((await call('/pdf-file/'+encode(url))).status,403);
 }

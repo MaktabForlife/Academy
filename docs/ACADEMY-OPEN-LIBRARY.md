@@ -1,5 +1,7 @@
 # Academy Open Library
 
+**Current update — V106.23:** The hardcoded Essential Duas for Muslims entry and its publisher-specific PDF proxy exception have been removed. Public media uses the Archive.org catalogue; admin-added Other website links remain available and open in a new tab. Existing weekly catalogue caches remain valid. The pilot notes below describe earlier behaviour. See [the current release](ACADEMY-LIBRARY-SOURCES-106.23.md).
+
 8 October 2026 · V105.4.2.25 feature branch candidate
 
 The resource editor has a search field above its existing resource selector. Public, signed-in Academy, Program and Reboot/Global viewing Libraries filter through All, PDF, Audio Visual and Other pills. These group the existing eBook/Printable and Audio/Video resource types without changing the saved category or access rules. Multi-file Archive.org audio/video cards show the recording count. The public Library has a shorter introduction.

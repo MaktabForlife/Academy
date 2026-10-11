@@ -3,7 +3,6 @@ import {onRequestGet as publicPdf} from '../../../functions/pdf-file/[encoded].j
 
 const DIRECTORIES = new Set(['academy','account','admin','student','programs','users','js','css','icons','images','pdf-viewer','recorder']);
 const ROOT_ASSET = /^(?:academy|ummabbadacademy|logo)\.png$|^(?:admin|student)-(?:apple-touch-icon\.png|favicon(?:-\d+x\d+\.png|\.ico)|icon-\d+\.png|manifest\.json)$|^(?:app\.js|styles\.css|version\.json)$/;
-const DUAS = 'https://talimiboardkzn.org/wp-content/uploads/2018/10/essential_duas_for_muslims_gr_1-7.pdf';
 
 export function publicPdfTarget(encoded) {
   try {
@@ -11,7 +10,7 @@ export function publicPdfTarget(encoded) {
     const bytes=Uint8Array.from(atob(encoded.replaceAll('-','+').replaceAll('_','/')),c=>c.charCodeAt(0));
     const url=new URL(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
     if(url.protocol!=='https:'||url.username||url.password||url.port)return false;
-    return url.href===DUAS || (url.hostname==='archive.org' && url.pathname.startsWith('/download/') && !url.search && !url.hash);
+    return url.hostname==='archive.org' && url.pathname.startsWith('/download/') && !url.search && !url.hash;
   } catch {return false;}
 }
 

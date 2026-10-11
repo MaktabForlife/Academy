@@ -1,20 +1,7 @@
 (() => {
   'use strict';
 
-  // Curated public links. Add each book once, even when its source lists it for several grades.
-  let books = [
-    {
-      id: 'EXTERNAL:TALIMI_BOARD_KZN:ESSENTIAL_DUAS_GR_1_7',
-      title: 'Essential Duas for Muslims (Grades 1–7)',
-      subject: 'Duas',
-      source: 'Ta’limi Board KZN',
-      details: 'Jamiatul Ulama (KZN) Ta’limi Board',
-      description: 'Duas for learners in Grades 1–7.',
-      pdfUrl: 'https://talimiboardkzn.org/wp-content/uploads/2018/10/essential_duas_for_muslims_gr_1-7.pdf'
-    }
-  ];
-
-  const curatedBooks = books.slice();
+  let books = [];
   const cache = window.M4L_LIBRARY_CACHE;
   let loadGeneration = 0;
   const $ = id => document.getElementById(id);
@@ -241,7 +228,7 @@
     const {books:archiveBooks, records:metadata} = snapshot.data;
     const byId = new Map(metadata.filter(record => typeof record.id === 'string')
       .map(record => [record.id, record]));
-    books = [...curatedBooks, ...archiveBooks].map(book => {
+    books = archiveBooks.map(book => {
       const record = byId.get(book.id);
       if (!record) return book;
       return {
