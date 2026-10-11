@@ -1,3 +1,7 @@
+# V106.20 — Active D1 service version
+
+Synchronise the active D1 health response with the Attendance website release after the final live check found its old V106.18 label. Regression checks now compare both D1 health URLs in rehearsal and active modes with the package version. Attendance behaviour is unchanged; no database changes are required. The owner authorised deployment and will verify the roster afterward. There is no attendance history to verify. [Release details](docs/ACADEMY-RELEASE-VERSION-106.20.md).
+
 # V106.19 — Academy Attendance integration
 
 Restore the public Attendance editor with Program pills, adjacent class registers, one/all lesson submissions, corrections, completion and day summaries through the existing D1 service. Home and Program return links follow the selected Program for teachers and administrators. Interrupted submissions retain an exact session-bound retry across reload; conflicting forms require refresh and unsubmitted changes warn before being discarded.

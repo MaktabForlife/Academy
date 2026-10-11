@@ -13,6 +13,7 @@ import {mkdtempSync,readFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {nativeBinding} from './fixtures/academy-d1-fixture.mjs';
+const releaseVersion=JSON.parse(readFileSync(new URL('../package.json',import.meta.url),'utf8')).version;
 
 async function post(env,path,input={},token='') {
   const response=await worker.fetch(new Request('https://academy.invalid'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),env);
@@ -43,6 +44,10 @@ test('activation needs explicit evidence and cannot be enabled by an environment
 }));
 
 test('reviewed activation is atomic, auditable, replayable and invalidates staging sessions',()=>use(async({env,db})=>{
+  for(const path of ['/','/api/health']) {
+    const health=await worker.fetch(new Request('https://academy.invalid'+path),env);assert.equal(health.status,200);
+    const body=await health.json();assert.equal(body.store,'D1_REHEARSAL');assert.equal(body.version,releaseVersion);
+  }
   const old=await login(env,'0002'),credentials=db.prepare('SELECT * FROM account_credentials ORDER BY account_id').all(),roles=db.prepare('SELECT * FROM role_assignments ORDER BY assignment_id').all();
   const plan=buildCoreActivationPlan(db,review(db));assert.equal(plan.readyToApply,true,JSON.stringify(plan.blockers));
   const result=applyCoreActivationLocally(db,plan);assert.equal(result.runId,plan.runId);
@@ -55,7 +60,10 @@ test('reviewed activation is atomic, auditable, replayable and invalidates stagi
   assert.equal((await post(env,'/api/account/check',{uniqueid:'login-0002'})).status,503,'Rehearsal rejects active ownership');
   const live=active(env,db);assert.equal((await post(live,'/api/account/session',{},old)).status,401);
   const signed=await login(live,'0002');assert.equal(ok(await post(live,'/api/academy/entrance',{},signed)).signedIn,true);
-  const health=await worker.fetch(new Request('https://academy.invalid/api/health'),live);assert.equal(health.status,200);assert.equal((await health.json()).store,'D1_ACTIVE');
+  for(const path of ['/','/api/health']) {
+    const health=await worker.fetch(new Request('https://academy.invalid'+path),live);assert.equal(health.status,200);
+    const body=await health.json();assert.equal(body.store,'D1_ACTIVE');assert.equal(body.version,releaseVersion);
+  }
   assert.equal((await post({...live,ACADEMY_D1_RUN_ID:'wrong-run'},'/api/account/session',{},signed)).status,503);
   db.prepare("UPDATE data_ownership SET phase='RECOVERY' WHERE scope_key=?").run('PROGRAM:'+PROGRAM_IDS[0]);
   assert.equal((await post(live,'/api/account/session',{},signed)).body.code,'ACTIVATION_REQUIRED');
