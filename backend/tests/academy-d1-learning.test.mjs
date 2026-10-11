@@ -143,7 +143,7 @@ test('the existing timetable, attendance and Library screens use the D1 contract
   function screen(markupPath,scriptPath,token,helpers=[]) {
     const markup=readFileSync(new URL(markupPath,import.meta.url),'utf8'),ids=new Set([...markup.matchAll(/id="([^"]+)"/g)].map(m=>m[1])),elements=new Map(),storage=new Map(),requests=[];
     const element=id=>{assert.ok(ids.has(id),`Missing element ${id}`);if(!elements.has(id))elements.set(id,{hidden:false,disabled:false,value:'',textContent:'',innerHTML:'',dataset:{},listeners:{},classList:{toggle(){},add(){},remove(){}},focus(){},removeAttribute(){},setAttribute(){},showModal(){this.open=true;},close(){this.open=false;},querySelectorAll:()=>[],querySelector:()=>null,addEventListener(type,fn){this.listeners[type]=fn;}});return elements.get(id);};
-    const context={console,URL,URLSearchParams,structuredClone,crypto,setTimeout,clearTimeout,Image:class{},
+    const context={console,URL,URLSearchParams,structuredClone,crypto,TextEncoder,setTimeout,clearTimeout,Image:class{},
       location:{search:`?program=${id}`,host:'localhost',origin:'http://localhost'},history:{replaceState(){}},window:{M4L_CONFIG:{API_BASE:''},addEventListener(){}},
       localStorage:{getItem:k=>k==='m4l_account_token'?token:storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},sessionStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},
       document:{getElementById:element,querySelectorAll:()=>[],querySelector:()=>null,addEventListener(){}},
@@ -156,7 +156,7 @@ test('the existing timetable, attendance and Library screens use the D1 contract
   timetable.element('tt-effective-from').value=today();await timetable.element('tt-publish').onclick();await settle();
   assert.match(timetable.element('tt-message').textContent,/Version 2 published/);
   assert.equal(db.prepare('SELECT max(version_no) v FROM timetable_publications WHERE activity_key=?').get(activity).v,2);
-  const attendance=screen('./fixtures/program-attendance-editor.html','../../js/m4l-program-attendance.js',teacher);await settle();
+  const attendance=screen('../../programs/attendance.html','../../js/m4l-program-attendance.js',teacher);await settle();
   assert.match(attendance.element('pa-classes').innerHTML,/Synthetic class/);
   attendance.element('pa-classes').listeners.click({target:{closest:()=>({dataset:{submit:'class-1'}})}});await settle();
   assert.equal(db.prepare('SELECT count(*) n FROM attendance_registers').get().n,1,attendance.element('pa-message').textContent);

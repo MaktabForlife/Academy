@@ -1,3 +1,9 @@
+# V106.19 — Academy Attendance integration
+
+Restore the public Attendance editor with Program pills, adjacent class registers, one/all lesson submissions, corrections, completion and day summaries through the existing D1 service. Home and Program return links follow the selected Program for teachers and administrators. Interrupted submissions retain an exact session-bound retry across reload; conflicting forms require refresh and unsubmitted changes warn before being discarded.
+
+All **139/139 local regression files**, synthetic desktop/mobile Chrome checks, the development Worker dry-run build, syntax, version consistency and diff checks pass. The owner authorised deployment on V106.18 to `feature/105.3.4.13` and the existing Academy development website and service. No schema migration or live data correction is required. There is no attendance history to verify; the owner will check the roster after deployment. Reporting, Excused percentage policy and timezone decisions remain outstanding. Library remains Coming soon. [Release details](docs/ACADEMY-ATTENDANCE-INTEGRATION-106.19.md).
+
 # V106.18 — HifzHelper shortcut in the Hifz pill
 
 The Academy's top Hifz pill and homepage Hifz activity pill now include **HifzHelper ↗**, opening the signed-in user's personal HifzHelper address in a new tab. The Hifz title still opens its Academy page. The existing verified identity and role checks are reused, with no additional requests or database reads. All **138/138 local regression files**, the development Worker dry-run build, syntax, version consistency and diff checks pass. Browser visual testing was not performed. The owner authorised pushing this update to `feature/105.3.4.13`. [Release details](docs/ACADEMY-HIFZ-PILL-106.18.md).

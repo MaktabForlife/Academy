@@ -89,6 +89,11 @@ const standalone=fixture('/recorder/');assert.equal(standalone.children.length,0
 const recorder=fixture('/recorder/','?academy=1');assert.equal(recorder.children.length,2);
 const program=fixture('/programs/attendance.html','?program=Pilot-actual-id');program.localStorage.setItem('m4l_account_token','staff');program.refresh();await flush();
 assert.match(program.children[1].innerHTML,/Pilot-actual-id" aria-current="page"/);
+const first={dataset:{academyProgram:'Pilot-actual-id'},attrs:{'aria-current':'page'},setAttribute(k,v){this.attrs[k]=v;},removeAttribute(k){delete this.attrs[k];}};
+const second={...first,dataset:{academyProgram:'next-program'},attrs:{}};
+program.children[1].querySelectorAll=()=>[first,second];
+const initialRequests=program.requests.length;program.location.search='?program=next-program';program.handlers.get('m4l-program-selection')();
+assert.equal(first.attrs['aria-current'],undefined);assert.equal(second.attrs['aria-current'],'page');assert.equal(program.requests.length,initialRequests,'Program selection updates the activity strip without another account lookup');
 for(const file of ['academy/library/index.html','academy/open-library/index.html','academy/library/manage/index.html','programs/index.html','programs/manage.html','programs/timetable.html','programs/attendance.html','programs/library.html','programs/library-view.html','users/index.html','recorder/index.html']) {
   const html=await readFile(new URL(`../../${file}`,import.meta.url),'utf8');
   assert.match(html,/m4l-academy-navigation\.js/);assert.match(html,/m4l-academy-navigation\.css/);
@@ -99,12 +104,12 @@ console.log('Academy shared navigation: public/private links, actual subscribed 
 const programNav=await readFile(new URL('../../js/m4l-program-management-navigation.js',import.meta.url),'utf8');
 const programId='PRG-11111111-1111-4111-8111-111111111111';
 async function programHeader(path,globalAdmin=true,options={}) {
-  const headers=[],classes=new Set(),handlers=new Map(),tokens=storage({m4l_account_token:'staff'});
+  const headers=[],classes=new Set(),handlers=new Map(),tokens=storage({m4l_account_token:'staff'}),requests=[];
   const document={querySelector:()=>({prepend:header=>headers.push(header)}),createElement:()=>({remove(){headers.splice(headers.indexOf(this),1);}}),body:{classList:{add:name=>classes.add(name),remove:name=>classes.delete(name)}}};
   const window={addEventListener:(type,fn)=>handlers.set(type,fn)};
   runInNewContext(programNav,{document,window,location:{pathname:path,search:'?program='+programId},localStorage:tokens,URLSearchParams,
-    fetch:async()=>({ok:true,json:async()=>({success:true,store:'D1',globalAdmin,programs:[{id:programId,name:'Synthetic <Program>',status:'ACTIVE'}],...options})})});
-  await flush();return {headers,classes,handlers,tokens};
+    fetch:async()=>{requests.push('list');return {ok:true,json:async()=>({success:true,store:'D1',globalAdmin,programs:[{id:programId,name:'Synthetic <Program>',status:'ACTIVE'}],...options})};}});
+  await flush();return {headers,classes,handlers,tokens,window,requests};
 }
 for(const [page,label] of [['timetable','Timetable'],['manage','People'],['media','Library'],['library','Library'],['library-view','Library'],['attendance','Attendance']]) {
   for(const ending of ['', '.html', '/']) {
@@ -123,8 +128,15 @@ const scopedHeader=await programHeader('/programs/manage',false);
 assert.match(scopedHeader.headers[0].innerHTML,/aria-current="page">People/);
 const inaccessible=await programHeader('/programs/manage',false,{programs:[]});
 assert.equal(inaccessible.headers.length,0,'No Program identity or management header is inferred without access');
+const nextId='PRG-22222222-2222-4222-8222-222222222222';
+const switched=await programHeader('/programs/attendance',true,{programs:[{id:programId,name:'First Program',status:'ACTIVE'},{id:nextId,name:'Second Program',status:'ACTIVE'}]});
+switched.window.M4L_PROGRAM_MANAGEMENT_NAV.select(nextId);await flush();
+assert.equal(switched.headers.length,1);assert.match(switched.headers[0].innerHTML,/Second Program/);assert.doesNotMatch(switched.headers[0].innerHTML,new RegExp(programId));
+assert.match(switched.headers[0].innerHTML,new RegExp('href="/programs/\\?program='+nextId+'">Back to Program management'));
+assert.equal(switched.requests.length,1,'Switching between already authorised Programs reuses the current session’s navigation lookup');
+switched.window.M4L_PROGRAM_MANAGEMENT_NAV.select('outside-access');await flush();assert.equal(switched.headers.length,0);
 console.log('Program navigation: canonical and .html current tabs, four management tabs, labelled return and scoped identity passed.');
-for(const page of ['media','attendance']) {
+for(const page of ['media']) {
  const html=await readFile(new URL('../../programs/'+page+'.html',import.meta.url),'utf8');
  assert.match(html,/<section class="pgm-media-card"[^>]*><p>Coming soon<\/p><\/section>/);
  assert.doesNotMatch(html,/m4l-program-attendance\.js|Submit attendance|Open public Library|My Library|Private media attachments/);
@@ -132,4 +144,7 @@ for(const page of ['media','attendance']) {
 const timetablePage=await readFile(new URL('../../programs/timetable.html',import.meta.url),'utf8');
 assert.doesNotMatch(timetablePage,/pw-name|pw-save-name|pw-program-zoom|pw-save-zoom|pw-access-model/,'Program settings live on the Program list, outside the timetable editor');
 assert.match(timetablePage,/id="pw-card-editor"/,'Public card editing belongs in Timetable');
-console.log('Program Library and Attendance tabs show only Coming soon; timetable owns the public card and omits duplicated Program settings.');
+const attendancePage=await readFile(new URL('../../programs/attendance.html',import.meta.url),'utf8');
+assert.match(attendancePage,/m4l-program-attendance\.js\?v=106\.19/);
+assert.match(attendancePage,/id="pa-classes"/);assert.doesNotMatch(attendancePage,/Coming soon/);
+console.log('Program Library stays Coming soon; Attendance loads its real editor; timetable owns the public card and omits duplicated Program settings.');

@@ -18,7 +18,7 @@
   document.body.classList.add('academy-connected');
   document.body.prepend(side, strip);
   const $ = id => document.getElementById(id);
-  const currentProgram = new URLSearchParams(location.search).get('program');
+  let currentProgram = new URLSearchParams(location.search).get('program');
   const isLibrary = location.pathname.includes('/library/') || location.pathname.startsWith('/academy/open-library/');
   if (isLibrary) $('ac-library').setAttribute('aria-current', 'page');
   if (location.pathname.startsWith('/recorder/')) $('ac-recorder').setAttribute('aria-current', 'page');
@@ -66,7 +66,7 @@
       const activities = (result.personalActivities || []).filter(row => ['PROGRAM', 'COURSE'].includes(row.kind) && row.id && row.roles?.length);
       const programs = activities.filter(row => row.kind === 'PROGRAM');
       const courses = activities.filter(row => row.kind === 'COURSE');
-      strip.innerHTML = programs.map(row => `<a href="/academy/#activity/${row.kind}/${encodeURIComponent(row.id)}"${row.kind === 'PROGRAM' && row.id === currentProgram ? ' aria-current="page"' : ''}><span>${esc(row.name)}</span><small>${esc(roles(row.roles))}</small></a>`).join('') +
+      strip.innerHTML = programs.map(row => `<a data-academy-program="${esc(row.id)}" href="/academy/#activity/${row.kind}/${encodeURIComponent(row.id)}"${row.kind === 'PROGRAM' && row.id === currentProgram ? ' aria-current="page"' : ''}><span>${esc(row.name)}</span><small>${esc(roles(row.roles))}</small></a>`).join('') +
         (result.signedIn && (result.globalAdmin || courses.some(row=>row.roles?.length)) ? `<a href="/academy/#workshops"><span>Courses</span><small>${esc(roles(result.globalAdmin ? ['GLOBAL_ADMIN','PROGRAM_ADMIN'] : [...new Set(courses.flatMap(row => row.roles))]) || 'None')}</small></a>` : '');
       strip.hidden = !result.signedIn;
     } catch { /* Public navigation stays available while account information is unavailable. */ }
@@ -99,6 +99,13 @@
   });
   window.addEventListener('storage', event => { if (event.key === 'm4l_account_token' || event.key === null) void refresh(); });
   window.addEventListener('m4l-academy-session', () => { void refresh(); });
+  window.addEventListener('m4l-program-selection', () => {
+    currentProgram = new URLSearchParams(location.search).get('program');
+    for (const link of strip.querySelectorAll('[data-academy-program]')) {
+      if (link.dataset.academyProgram === currentProgram) link.setAttribute('aria-current', 'page');
+      else link.removeAttribute('aria-current');
+    }
+  });
   window.addEventListener('pageshow', event => { if (event.persisted) void refresh(); });
   void refresh();
 })();

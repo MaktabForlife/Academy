@@ -26,3 +26,9 @@
 .pa-navigation{display:flex;flex-wrap:wrap;gap:18px;align-items:center;margin:8px 0 12px}
 .pa-navigation a{color:var(--pb-purple);font-weight:650;text-decoration:none}
 .pa-navigation a:hover{text-decoration:underline}
+.pgm-layout #pa-navigation{display:none}
+.pa-help{font-size:12px;color:var(--pb-muted)}
+.pa-class .pa-lesson-label select{width:100%;min-width:0;text-overflow:ellipsis}
+.pa-learners select{flex-shrink:0;min-height:44px}
+.pa-class h2,.pa-summary span{overflow-wrap:anywhere}
+@media(max-width:700px){.pa-class{flex-basis:min(100%,390px);padding:14px}.pa-programs button{min-height:44px}}
