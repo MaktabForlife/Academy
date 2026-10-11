@@ -227,3 +227,52 @@ test('Program Zoom saves independently of a published timetable and current join
  assert.equal(fresh.program.programZoomLink,first);assert.equal(ok(await post(env,tt+'get',{id:freshId},admin)).draft.programZoomLink,first);
  assert.equal(db.prepare('SELECT setting_value FROM academy_settings WHERE setting_key=?').get('ProgramZoom:'+activity).setting_value,'');
 }));
+
+test('Publish follow-up refreshes the public snapshot within the Free-plan budget and exact retries do not republish',()=>use(async({env,db,queries})=>{
+ const objects=new Map();let puts=0;
+ env.MEDIA_BUCKET={get:async key=>objects.has(key)?{etag:String(puts),json:async()=>JSON.parse(objects.get(key))}:null,
+  put:async(key,value,options)=>{if(options.onlyIf.etagMatches!==undefined?options.onlyIf.etagMatches!==String(puts):objects.has(key))return null;puts++;objects.set(key,value);return {etag:String(puts)};}};
+ db.prepare('INSERT INTO academy_teacher_designations VALUES(?,1,1,?,?)').run('account-0006',new Date().toISOString(),'account-0001');
+ const token=await login(env,'0004');await save(env,token,{...draft(),rules:draft().rules.map(r=>({...r,startTime:'13:00',endTime:'14:00',additionalTeacherIds:['account-0005','account-0006']}))});const current=await get(env,token),publicationCount=db.prepare('SELECT count(*) n FROM timetable_publications').get().n;
+ const snapshot=()=>worker.fetch(new Request('https://synthetic.invalid/api/academy/entrance/public-snapshot'),env);
+ assert.equal((await snapshot()).status,200);assert.equal(puts,1);
+ const input={id,draft:current.draft,revision:current.revision,effectiveFrom:tomorrow(),operationId:crypto.randomUUID()};
+ let before=queries.length;const result=ok(await post(env,tt+'publish',input,token));
+ assert.ok(queries.length-before<=50,`Publication used ${queries.length-before} queries`);console.log(`Publication with three teachers: ${queries.length-before} D1 queries`);assert.equal(puts,1,'The committed publication is confirmed before the separate snapshot request');
+ before=queries.length;ok(await post(env,tt+'refresh-public',{id,publicationId:result.publicationId},token));
+ assert.ok(queries.length-before<=50,`Snapshot refresh used ${queries.length-before} queries`);console.log(`Publication snapshot follow-up: ${queries.length-before} D1 queries`);assert.equal(puts,2);assert.equal(result.effectiveFrom,tomorrow());
+ const preview=await (await snapshot()).json();assert.ok(preview.timetable.some(row=>row.activityId===id&&row.date===tomorrow()));
+ assert.ok(preview.timetable.filter(row=>row.activityId===id&&row.startTime==='13:00').every(row=>row.date>=tomorrow()),'New hours wait until the effective date; the older publication can remain in effect today');
+ assert.doesNotMatch(JSON.stringify(preview),/zoom\.|teacherId|classId|account_id|joinUrl|teacherName|classNames/);
+ const retry=ok(await post(env,tt+'publish',input,token));assert.equal(retry.publicationId,result.publicationId);ok(await post(env,tt+'refresh-public',{id,publicationId:retry.publicationId},token));
+ assert.equal(db.prepare('SELECT count(*) n FROM timetable_publications').get().n,publicationCount+1);
+ assert.equal((await post(env,'/api/admin/platform/public-timetable/refresh',{},token)).status,403,'Publication follow-up does not widen manual Academy authority');
+ assert.equal((await post(env,tt+'refresh-public',{id:PROGRAM_IDS[1],publicationId:result.publicationId},token)).status,403);
+ assert.equal((await post(env,tt+'refresh-public',{id,publicationId:'uncommitted'},token)).status,409);
+ const student=await login(env,'0002');assert.equal((await post(env,tt+'refresh-public',{id,publicationId:result.publicationId},student)).status,403);
+ db.prepare("DELETE FROM role_assignments WHERE account_id='account-0004' AND role='PROGRAM_ADMIN'").run();
+ db.prepare("UPDATE role_import_reviews SET status='REJECTED',reviewed_by_account_id='account-0001',reviewed_at=? WHERE account_id='account-0004'").run(new Date().toISOString());
+ assert.equal((await post(env,tt+'refresh-public',{id,publicationId:result.publicationId},token)).status,401,'Current authority is required again after publication');
+}));
+
+test('failed publication never refreshes; failed snapshot replacement cannot turn a committed publication into a failed save',()=>use(async({env,db})=>{
+ let puts=0;env.MEDIA_BUCKET={get:async()=>null,put:async()=>{puts++;throw Error('Synthetic R2 outage');}};
+ const admin=await login(env);await save(env,admin);let current=await get(env,admin);
+ const invalid={id,revision:current.revision,draft:current.draft,effectiveFrom:programToday('Africa/Johannesburg'),operationId:crypto.randomUUID()};
+ assert.equal((await post(env,tt+'publish',invalid,admin)).status,409);assert.equal(puts,0);
+ const input={...invalid,effectiveFrom:tomorrow(),operationId:crypto.randomUUID()},published=ok(await post(env,tt+'publish',input,admin));
+ assert.equal(puts,0);assert.equal((await post(env,tt+'refresh-public',{id,publicationId:published.publicationId},admin)).status,503);assert.equal(puts,1);
+ assert.equal((await get(env,admin)).timetableStatus,'PUBLISHED');assert.ok(db.prepare('SELECT publication_id FROM timetable_publications WHERE publication_id=?').get(published.publicationId));
+ env.MEDIA_BUCKET.put=async()=>({etag:'recovered'});
+ const retry=ok(await post(env,tt+'publish',input,admin));assert.equal(retry.publicationId,published.publicationId);ok(await post(env,tt+'refresh-public',{id,publicationId:retry.publicationId},admin));
+}));
+
+test('People availability lists preserve Global and scoped teacher editing authority',()=>use(async({env,db})=>{
+ const admin=await login(env),scoped=await login(env,'0004');
+ const read=async token=>ok(await post(env,tt+'manage-get',{id,includeOverview:true},token)).teacherAvailability;
+ assert.ok((await read(admin)).teachers.some(t=>t.id==='account-0003'));
+ assert.ok((await read(scoped)).teachers.some(t=>t.id==='account-0003'));
+ db.prepare("DELETE FROM role_assignments WHERE account_id='account-0003'").run();db.prepare("DELETE FROM class_teacher_assignments WHERE account_id='account-0003'").run();
+ db.prepare('DELETE FROM timetable_drafts').run();
+ const current=await read(scoped);assert.ok(!current.teachers.some(t=>t.id==='account-0003'));assert.ok(!current.availability.some(a=>a.teacherId==='account-0003'));
+}));

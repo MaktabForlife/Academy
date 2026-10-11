@@ -32,6 +32,7 @@
       const data = await api("list");
       state.store = data.store || "SHEETS";
       byId('program-access-label').hidden=state.store!=='D1';
+      byId('program-zoom-label').hidden=state.store!=='D1';
       state.learningWorkflowsReady = Boolean(data.learningWorkflowsReady);
       state.statuses = data.statuses || ["DRAFT", "ARCHIVED"];
       if (state.store === "D1") {
@@ -67,6 +68,7 @@
       <td>${editable ? `<button type="button" class="pb-program-select" data-action="select" aria-label="Select ${escape(row.name || "new Program")}" aria-pressed="${state.selected === row.id}" ${state.busy ? "disabled" : ""}>${index}</button>` : index}</td><td>${input("name", "Program name", 'class="pb-name" maxlength="160"')}</td>
       <td hidden>${editable ? input("durationYears", "Duration in years", 'type="number" min="1" max="30" step="1"') : "—"}</td>
       <td ${state.store!=='D1'?'hidden':''}>${state.store==='D1'?`<select data-field="accessModel" aria-label="Free or Paid for ${escape(row.name||'new Program')}" title="Free enables public joining during the joining window. Paid has no public Join link." ${state.busy?'disabled':''}>${!['FREE','PAID'].includes(row.accessModel)?'<option value="UNKNOWN" selected disabled>Choose Free or Paid</option>':''}<option value="FREE" ${row.accessModel==='FREE'?'selected':''}>Free</option><option value="PAID" ${row.accessModel==='PAID'?'selected':''}>Paid</option></select>`:''}</td>
+      <td ${state.store!=='D1'?'hidden':''}>${state.store==='D1'?input('programZoomLink','Program Zoom link','type="url" maxlength="2048" placeholder="Optional"'):''}</td>
       <td>${editable ? `<select data-field="status" aria-label="Status for ${escape(row.name || "new Program")}" ${state.busy ? "disabled" : ""}>${state.statuses.map(value => `<option value="${value}" ${row.status === value ? "selected" : ""}>${value === "DRAFT" ? "Draft" : value === "ACTIVE" ? "Active" : "Archived"}</option>`).join("")}</select>` : escape(row.status === "ACTIVE" ? "Active" : "Inactive")}</td>
       <td hidden>${state.store === "D1" ? (row.saved ? "Ready" : "New Program") : row.saved ? `<a href="https://docs.google.com/spreadsheets/d/${encodeURIComponent(row.spreadsheetId)}/edit" target="_blank" rel="noopener noreferrer">Open spreadsheet ↗</a>` : input("spreadsheetId", "Spreadsheet link or ID", 'placeholder="Paste Google Sheets link"')} </td>
       <td><div class="pb-actions"><span class="pb-state">${!editable ? "Existing workspace" : row.error ? "Save failed" : dirty(row) ? "Unsaved" : "Saved"}</span>
@@ -83,9 +85,7 @@
     const readiness = state.readiness[row.id];
     if(state.store==='D1'){
       panel.innerHTML=`<div class="pb-detail-header"><div><h2>${escape(row.name||'New Program')}</h2><small>${escape(row.id)}</small></div>${row.saved?`<a class="pb-management-open" ${dirty(row)?'hidden':''} href="/programs/${state.learningWorkflowsReady?'timetable':'manage'}.html?program=${encodeURIComponent(row.id)}">Open Program management →</a>`:''}</div>
-      <div class="pb-program-settings"><label>Program Zoom link<input id="program-zoom-link" data-setting="programZoomLink" type="url" maxlength="2048" placeholder="Optional · otherwise use session or class links" value="${escape(row.programZoomLink)}" ${state.busy?'disabled':''}></label><button type="button" data-action="save" ${state.busy||!dirty(row)?'disabled':''}>Save Program</button><button type="button" data-action="discard" class="pb-secondary" ${state.busy||!dirty(row)?'disabled':''}>Discard</button></div>
-      <p class="pb-settings-help">One link for every session. Leave empty to use session links, then class links. Name and Free/Paid are edited in the row above.</p>
-      ${row.publicCardEditable?`<details class="pb-public-card"><summary>Public timetable card</summary><div class="pb-card-fields"><label>Time · 12 characters<input data-card-field="time" maxlength="12" value="${escape(row.publicCard?.time)}" placeholder="7am" ${state.busy?'disabled':''}></label><label>Title · 80 characters<input data-card-field="title" maxlength="80" value="${escape(row.publicCard?.title)}" placeholder="Ladies Alimiyah" ${state.busy?'disabled':''}></label><label>Short description · 240 characters<textarea data-card-field="description" maxlength="240" rows="2" ${state.busy?'disabled':''}>${escape(row.publicCard?.description)}</textarea></label></div><p class="pb-settings-help">Enter all three fields exactly as they should appear, or leave all empty to hide the card. Use **text** for bold. Save Program above.</p><div id="program-card-preview" class="pb-card-preview" aria-label="Public card preview">${cardPreview(row.publicCard)}</div></details>`:''}`;
+      `;
       return;
     }
     panel.innerHTML = `<div class="pb-detail-header"><div><h2>${escape(row.name || "New Program")}</h2><small>${escape(row.id)}</small></div>
@@ -95,7 +95,6 @@
       <div class="pb-checks">${(readiness?.checks || [{ label: state.store === "D1" ? "Program records ready" : "Spreadsheet not checked", ok: state.store === "D1" }]).filter(check => !/time\s*zone/i.test(check.label)).map(check => `<span class="pb-check ${check.ok ? "is-ready" : ""}">${check.ok ? "✓" : "○"} ${escape(check.label)}</span>`).join("")}</div>
       <div class="pb-capabilities" aria-label="Capability availability"><span>✓ Configuration</span><span>✓ Curriculum management</span>${state.store === "D1" ? "<span>✓ Classes and enrolments</span>" : ""}${state.store !== "D1" || state.learningWorkflowsReady ? "<span>✓ Library management</span><span>✓ Library viewer</span><span>✓ Timetable builder</span><span>✓ Attendance registers</span>" : ""}${(state.store === "D1" && !state.learningWorkflowsReady ? ["Library", "Timetable editing", "Attendance", "Planner"] : []).map(name => `<span>${name} · Later stage</span>`).join("")}</div>`;
   }
-  function cardPreview(card={}){return card.title?`<strong>${escape(card.time)}</strong><div><b>${escape(card.title)}</b><p>${escape(card.description).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')}</p></div>`:'';}
   function add() {
     if (state.busy) return;
     const id = `PRG-${crypto.randomUUID()}`;
@@ -117,7 +116,6 @@
       const payload=Object.fromEntries(["id", "revision", ...fields].map(field => [field, row[field]]));
       if(state.store!=='D1'||!['FREE','PAID'].includes(row.accessModel)||row.saved&&row.accessModel===row.saved.accessModel)delete payload.accessModel;
       if(state.store!=='D1'||row.saved&&row.programZoomLink===row.saved.programZoomLink)delete payload.programZoomLink;
-      if(state.store==='D1'&&row.publicCardEditable&&JSON.stringify(row.publicCard||{})!==JSON.stringify(row.saved?.publicCard||{}))payload.publicCard=row.publicCard;
       payload.timezone=timezone;
       if (state.store === "D1") payload.operationId = row.operationId ||= crypto.randomUUID();
       const result = await api(row.saved ? "save" : "create", payload);
@@ -157,18 +155,6 @@
     });
     renderDetail();
   }
-  function editSettings(event){
-    const control=event.target.closest('[data-setting],[data-card-field]'),row=state.rows.find(r=>r.id===state.selected);
-    if(!control||!row||state.busy)return;
-    if(control.dataset.cardField)row.publicCard={...row.publicCard,[control.dataset.cardField]:control.value};
-    else row.programZoomLink=control.value;
-    row.operationId=null;row.error='';
-    const tr=document.querySelector(`[data-id="${row.id}"]`);
-    if(tr){tr.querySelector('.pb-state').textContent=dirty(row)?'Unsaved':'Saved';tr.querySelectorAll('[data-action="save"],[data-action="discard"]').forEach(button=>{button.disabled=!dirty(row);});tr.querySelector('.pb-row-error')?.remove();}
-    const panel=byId('program-detail');panel.querySelectorAll('[data-action="save"],[data-action="discard"]').forEach(button=>{button.disabled=!dirty(row);});
-    const open=panel.querySelector('.pb-management-open');if(open)open.hidden=dirty(row);
-    const preview=byId('program-card-preview');if(preview)preview.innerHTML=cardPreview(row.publicCard);
-  }
   async function init() {
     byId("program-add").addEventListener("click", add);
     byId("program-refresh").addEventListener("click", () => {
@@ -183,8 +169,6 @@
     byId("program-filter").addEventListener("change", event => { state.filter = event.target.value; render(); });
     byId("program-builder").addEventListener("input", edit);
     byId("program-builder").addEventListener("change", edit);
-    byId('program-detail').addEventListener('input',editSettings);
-    byId('program-detail').addEventListener('change',editSettings);
     byId("program-builder").addEventListener("click", event => {
       const button = event.target.closest("[data-action]");
       if (!button || state.busy) return;

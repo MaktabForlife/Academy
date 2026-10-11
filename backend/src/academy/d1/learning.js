@@ -28,7 +28,7 @@ export function d1Learning(repository,auth,now=()=>new Date()) {
   const store=managementStore(repository,auth),p=store.p,programs=d1Programs(repository,auth);
   let readiness;
   const ready=()=>readiness??=requireLearning(repository.db);
-  async function load(id) {
+  async function load(id,{timetableOnly=false}={}) {
     await ready();
     const activity=`PROGRAM:${id}`;
     const workspace=await workspaceQueries(repository,activity);
@@ -37,8 +37,8 @@ export function d1Learning(repository,auth,now=()=>new Date()) {
       publications:p('SELECT * FROM timetable_publications WHERE activity_key=? ORDER BY version_no',activity),
       pointer:p('SELECT * FROM program_publication_state WHERE activity_key=?',activity),
       registers:p('SELECT * FROM attendance_registers WHERE activity_key=? ORDER BY sequence',activity),
-      marks:p('SELECT * FROM attendance_marks WHERE activity_key=?',activity)
-    });
+      ...(!timetableOnly?{marks:p('SELECT * FROM attendance_marks WHERE activity_key=?',activity)}:{})
+    },{timetableOnly});
     const roles=liveRoles(loaded.data,auth.user.accountid,loaded.a.activity_key);
     loaded.roles=roles;
     if(loaded.data.teacherStaff){
@@ -54,7 +54,7 @@ export function d1Learning(repository,auth,now=()=>new Date()) {
     tables.ProgramTimetableOperations=[];
     loaded.attendance={prepared:true,source:loaded.viewData,tables:{
       ProgramAttendanceRegisters:loaded.data.registers.map(r=>({RegisterID:r.register_id,CourseID:loaded.program.id,AttendanceDate:r.attendance_date,PublicationID:r.publication_id,LessonAnchor:r.lesson_anchor,LessonJSON:r.lesson_json,LearnerCount:r.learner_count,SubmittedDate:r.submitted_at,SubmittedByAccountID:r.submitted_by_account_id||r.source_actor_id,OperationID:r.operation_id})),
-      ProgramAttendanceMarks:loaded.data.marks.map(r=>({RegisterID:r.register_id,AccountID:r.account_id,DisplayName:r.display_name,Status:r.status})),ProgramAttendanceOperations:[]}};
+      ProgramAttendanceMarks:(loaded.data.marks||[]).map(r=>({RegisterID:r.register_id,AccountID:r.account_id,DisplayName:r.display_name,Status:r.status})),ProgramAttendanceOperations:[]}};
     return loaded;
   }
   const timetable=loaded=>timetableService({load:async()=>loaded.viewData,catalog:async()=>workspaceCatalog(loaded,learningCatalog(loaded)),managementReferences:async()=>loaded.shared,
@@ -126,7 +126,7 @@ export function d1Learning(repository,auth,now=()=>new Date()) {
         return {data:loaded.data,statements,result,fields:['Timetable',action]};
       });
       if(write)return store.change('PROGRAM_TIMETABLE',`PROGRAM:${String(input.id).toUpperCase()}`,action,input,async()=>{
-        const loaded=await load(input.id);requireRole(loaded,['PROGRAM_ADMIN']);
+        const loaded=await load(input.id,{timetableOnly:true});requireRole(loaded,['PROGRAM_ADMIN']);
         input={...input,draft:applyProgramZoom(input.draft,loaded.program)};
         let timetableId,review;
         if(loaded.data.workspaceRecords){
@@ -142,7 +142,12 @@ export function d1Learning(repository,auth,now=()=>new Date()) {
         const planned=await timetable(loaded).plan(action,input,auth.user,await payloadHash({action,input}));
         const statements=await timetableStatements(loaded,planned.plan);
         if(timetableId){statements.push(recordStatement(p,loaded,timetableId,normalizeWeeklyDraft(input.draft),action==='publish'?'PUBLISHED':'DRAFT',null,planned.result.publicationId,review?.validationHash));
-          if(action==='publish')for(const teacher of new Set((review.occurrences||[]).flatMap(r=>r.teacherIds||[])))statements.push(p("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state,granted_at,granted_by_account_id,revision) SELECT ?,?,?,'TEACHER',1,'CONFIRMED',?,?,1 WHERE NOT EXISTS(SELECT 1 FROM effective_activity_roles WHERE account_id=? AND activity_key=? AND role='TEACHER')",crypto.randomUUID(),teacher,loaded.a.activity_key,new Date().toISOString(),auth.user.accountid,teacher,loaded.a.activity_key));
+          if(action==='publish'){
+            const teachers=[...new Set((review.occurrences||[]).flatMap(r=>r.teacherIds||[]))].map(teacherId=>({teacherId,assignmentId:crypto.randomUUID()}));
+            if(teachers.length)statements.push(p(`INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state,granted_at,granted_by_account_id,revision)
+              SELECT json_extract(j.value,'$.assignmentId'),json_extract(j.value,'$.teacherId'),?,'TEACHER',1,'CONFIRMED',?,?,1 FROM json_each(?) j
+              WHERE NOT EXISTS(SELECT 1 FROM effective_activity_roles WHERE account_id=json_extract(j.value,'$.teacherId') AND activity_key=? AND role='TEACHER')`,loaded.a.activity_key,new Date().toISOString(),auth.user.accountid,JSON.stringify(teachers),loaded.a.activity_key));
+          }
         }
         const publishedProgram=action==='publish'?{...loaded.program,active:true,status:'ACTIVE',revision:String(loaded.a.revision+Number(!loaded.a.active||loaded.a.lifecycle!=='ACTIVE'))}:null;
         return {data:loaded.data,statements,result:{...planned.result,...(timetableId?{timetableId}: {}),...(publishedProgram?{program:publishedProgram}:{})},fields:['Timetable',...(action==='publish'?['Publication',...(loaded.a.lifecycle==='DRAFT'?['ProgramLifecycle']:[])]:[])]};
@@ -173,6 +178,12 @@ export function d1Learning(repository,auth,now=()=>new Date()) {
           const review=r.status==='VALID'?await workspaceValidation(loaded,JSON.parse(r.draft_json),catalog,programToday(loaded.program.timezone,now())):null;
           return {id:r.timetable_id,status:review&&(!review.valid||review.validationHash!==r.validation_hash)?'DRAFT':r.status,sourceId:r.source_id,publicationId:r.publication_id,updatedAt:r.updated_at};
         }));
+      }
+      if(action==='manage-get'&&loaded.data.workspaceRecords){
+        const catalog=workspaceCatalog(loaded,learningCatalog(loaded));
+        const authority={...loaded.data,teachers:loaded.data.teacherStaff,classes:loaded.data.teachers.filter(t=>catalog.classes.some(c=>c.active&&same(c.id,t.class_id)))};
+        const teachers=catalog.teachers.filter(t=>canEditTeacherAvailability(authority,auth.user.accountid,t.id));
+        result.teacherAvailability={teachers,availability:loaded.data.availability.filter(a=>teachers.some(t=>same(t.id,a.account_id))).map(a=>({teacherId:a.account_id,ranges:JSON.parse(a.ranges_json),revision:a.revision}))};
       }
       return {...(action==='manage-get'?await subjectView(result,auth.state.account.global_admin):result),...(action==='manage-get'&&loaded.data.academyModules?{sharedModules:loaded.data.academyModules.map(m=>({id:m.module_id,name:m.name,subjectId:loaded.data.subjects.find(s=>same(s.subject_key,m.subject_key))?.subject_id||'',active:Boolean(m.active)}))}:{}),program:loaded.program,store:'D1',coordinatorAvailable:true,managementEditable:loaded.a.lifecycle!=='ARCHIVED',globalProfilesAvailable:Boolean(auth.state.account.global_admin),learningWorkflowsReady:true};
     },

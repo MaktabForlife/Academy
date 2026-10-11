@@ -18,6 +18,7 @@
   const tabs=[['overview','Overview'],['modules','Modules'],['subjects','Subjects'],['tasks','Tasks'],['classes','Classes'],['profiles','User profiles']];
   const tabKind=kind=>({progress:'modules',levels:'modules',enrollments:'profiles',teachers:'profiles'})[kind]||kind;
   const state={data:null,kind:new URLSearchParams(location.search).get('tab')==='classes'?'classes':'subjects',overview:new URLSearchParams(location.search).get('tab')!=='classes',timetable:null,preview:null,timetableError:false,edit:null,busy:false,pending:null,search:'',importPreview:null,importPending:null,expanded:new Set(),refreshWaiting:false,refreshTimer:null,profileAccountId:null,classDrafts:{},classPending:null,classDraftsLoaded:false};
+  const availability=window.M4L_TEACHER_AVAILABILITY?.mount({getData:()=>state.data?.teacherAvailability});
   const modernPeople=()=>state.data?.store==='D1'&&state.data.learningWorkflowsReady;
   const enrolledAccountIds=()=>new Set((state.data?.accounts||[]).filter(account=>active(account.Active)&&(account.Roles||[]).includes('STUDENT')).map(account=>account.AccountID));
   const message=(text,error=false)=>{$('pm-message').textContent=text;$('pm-message').classList.toggle('is-error',error);};
@@ -28,6 +29,7 @@
     if(!response.ok||!result.success)throw Object.assign(new Error(result.error||'The change could not be confirmed.'),{status:response.status,code:result.code,currentRecord:result.currentRecord,rowRevision:result.rowRevision,entryKey:result.entryKey,retryable:result.retryable,retryAfterMs:result.retryAfterMs,reference:result.reference});return result;
   }
   function controls(){
+    $('pm-availability-open').disabled=state.busy;
     const locked=state.busy||Boolean(state.pending)||Boolean(state.importPending),editable=state.data?.prepared&&state.data?.coordinatorAvailable&&(state.data.managementEditable??state.data?.program.status==='DRAFT')&&(state.kind!=='tasks'||state.data.libraryPrepared);
     $('pm-editor').disabled=locked||!editable||Boolean(state.edit&&!visibleEdit());
     $('pm-add').disabled=locked||!editable||Boolean(state.edit)||Boolean(state.classPending);
@@ -185,7 +187,9 @@
     if('Active' in merged)merged.Active=active(merged.Active);
     edit.record=merged;edit.baseRecord=structuredClone(currentRecord);edit.baseRowRevision=rowRevision;delete edit.conflict;return true;
   }
-  function render(){baseline();rememberDraft();renderConflict();if(!state.data){controls();return;}
+  function render(){
+    $('pm-availability-open').hidden=!modernPeople();
+    availability?.update();baseline();rememberDraft();renderConflict();if(!state.data){controls();return;}
     // Keep earlier unfinished entries recoverable, then return to the current People view.
     if(modernPeople()&&!state.edit&&!state.importPending){state.overview=false;state.kind='profiles';}
     const moduleMode=['modules','progress'].includes(state.kind),gridKind=moduleMode?'modules':state.kind,def=defs[gridKind],edit=visibleEdit();

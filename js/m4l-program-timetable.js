@@ -61,7 +61,7 @@
     $('tt-planner').disabled=locked||!ready||!editable;
     for(const name of ['save','validate','preview'])$(`tt-${name}`).disabled=locked||!ready||(name!=='preview'&&!editable);
     $('tt-save').disabled||=!dirty()||sharedConflict;
-    $('tt-open-publish').disabled=locked||!ready||!editable||!state.preview?.valid||sharedConflict||Boolean(state.calendarView?.history);
+    $('tt-open-publish').disabled=locked||!ready||!editable||!state.preview?.valid||workspace?.hasEdits()||sharedConflict||Boolean(state.calendarView?.history);
     $('tt-publish').disabled=locked||!ready||sharedConflict;
     $('tt-effective-from').disabled=locked;$('tt-preview-type').disabled=locked;$('tt-preview-target').disabled=locked||$('tt-preview-type').value==='program'||!$('tt-preview-target').value;
     for(const name of ['reload','discard-all','history','prepare','convert'])$(`tt-${name}`).disabled=state.busy;
@@ -69,6 +69,7 @@
     $('tt-pending').hidden=!state.pending;$('tt-conversion').hidden=!needsReview;
     if(needsReview)$('tt-conversion-message').textContent=`The previous draft contains ${state.conversion.oneOffCount} one-off lessons and ${state.conversion.exceptionCount} dated exceptions. Use weekly lessons to continue with its recurring rows. The original draft and published history remain preserved.`;
     if($('pw-copy'))for(const action of ['copy','archive','cancel'])$('pw-'+action).disabled=locked||!state.data?.workspaceReady||dirty();
+    workspace?.controls();
     $('tt-save-state').textContent=state.data?.workspaceReady? (dirty()?'Draft · unsaved':state.data.timetableStatus==='VALID'?'Valid · ready to publish':state.data.timetableStatus.toLowerCase()):state.pending?'Change not confirmed':dirty()?'Unsaved draft changes':'Saved draft';
   }
   async function work(fn){if(state.busy)return;state.busy=true;controls();try{await fn();}catch(error){message(error.message,true);}finally{state.busy=false;controls();}}
@@ -122,7 +123,7 @@
     if(state.pending)state.draft=displayDraft(state.pending.body.draft);
     planner?.reset?.();
     $('tt-workspace').hidden=!result.prepared;$('tt-prepare').hidden=result.prepared;$('tt-preview-panel').hidden=true;closePublishDialog();$('tt-validation').hidden=true;
-    render();remember(true);if(result.workspaceReady)void workspace?.notices();message(!result.prepared?'Prepare the empty timetable tables to begin.':!result.coordinatorAvailable?'Saving is unavailable until the backend coordinator is configured.':dirty()?'Your unfinished timetable is kept.':!result.catalog.subjects.length?'No subjects yet. Open Program management to add subjects and classes.':'Build the weekly pattern, preview it, then choose its effective date when publishing.');
+    render();remember(true);message(!result.prepared?'Prepare the empty timetable tables to begin.':!result.coordinatorAvailable?'Saving is unavailable until the backend coordinator is configured.':dirty()?'Your unfinished timetable is kept.':!result.catalog.subjects.length?'No subjects yet. Open Program management to add subjects and classes.':'Build the weekly pattern, preview it, then choose its effective date when publishing.');
   }
   function clearPending(){state.pending=null;sessionStorage.removeItem(storageKey);}
   async function mutate(action,retried=false){
@@ -139,7 +140,13 @@
       if(result.publications)state.data.publications=result.publications;
       if(state.data.workspaceReady){state.data.timetableStatus=wasPublish?'PUBLISHED':'DRAFT';state.data.timetableEditable=!wasPublish;}
       state.baseline=JSON.stringify(state.draft);clearPending();state.conversion=null;state.converted=false;remember(true);invalidate();render();
-      message(wasPublish?`Version ${result.version} published, effective ${result.effectiveFrom||'as originally recorded'}.`:'Weekly draft saved. The timetable in effect is unchanged.');
+      let refreshNote='';
+      if(wasPublish&&state.data.workspaceReady){
+        message(`Version ${result.version} published. Refreshing the public timetable…`);
+        try{await api('refresh-public',{publicationId:result.publicationId});refreshNote=' Public timetable refreshed.';}
+        catch{refreshNote=' Public snapshot could not refresh. A Global Admin can retry from Academy actions.';}
+      }
+      message(wasPublish?`Version ${result.version} published, effective ${result.effectiveFrom||'as originally recorded'}.${refreshNote}`:'Weekly draft saved. The timetable in effect is unchanged.');
     }catch(error){
       if(error.status&&error.status<500){clearPending();if(error.status!==409||action!=='save')remember();}
       if(action==='save'&&!retried&&error.status===409&&!sharedConflict){
@@ -267,7 +274,7 @@
     location.href='/programs/timetable.html?program='+encodeURIComponent(selected);
   };
   $('tt-open-publish').onclick=()=>{
-    if($('tt-open-publish').disabled)return;
+    if($('tt-open-publish').disabled)return;if(workspace?.hasEdits()){message('Save or discard the class and card changes first.',true);return;}
     $('tt-effective-from').value=state.effectiveFrom||state.data.today;
     $('tt-effective-from').min=state.data.workspaceReady?nextDay(state.data.today):state.data.today;
     $('tt-publish-error').hidden=true;

@@ -20,8 +20,8 @@ export function managementStore(repository,auth) {
   const tables={accounts:'accounts',admins:'global_role_assignments',activities:'activities',roles:'role_assignments',reviews:'role_import_reviews',policies:'activity_policy_imports',programs:'program_settings',mappings:'role_mapping_decisions',evidence:'legacy_access_evidence'};
   return {
     db,p,
-    async load(extra={}) {
-      const names=Object.keys(tables),extras=Object.keys(extra).filter(name=>!names.includes(name));
+    async load(extra={},unused={}) {
+      const names=Object.keys(tables),extras=Object.keys(extra).filter(name=>!names.includes(name)&&!Object.hasOwn(unused,name));
       let result;
       try {result=await db.batch([
         p('SELECT version FROM academy_write_state WHERE singleton=1'),
@@ -29,7 +29,7 @@ export function managementStore(repository,auth) {
         ...extras.map(name=>extra[name])
       ]);}catch(error){if(/no such table: academy_write_state/.test(error.message))throw managementError('Management storage needs its database upgrade.',503,'MANAGEMENT_SCHEMA_REQUIRED');throw error;}
       if(!result[0].results.length)throw managementError('Management storage is unavailable.',503,'MANAGEMENT_SCHEMA_REQUIRED');
-      return {version:result[0].results[0].version,...Object.fromEntries([...names,...extras].map((name,i)=>[name,result[i+1].results]))};
+      return {...unused,version:result[0].results[0].version,...Object.fromEntries([...names,...extras].map((name,i)=>[name,result[i+1].results]))};
     },
     async receipt(dataset,scope,operationId,hash) {
       const row=await p('SELECT payload_sha256,result_json,actor_account_id FROM operation_receipts WHERE dataset_key=? AND scope_key=? AND operation_id=?',dataset,scope,operationId).first();

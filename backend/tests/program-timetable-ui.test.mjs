@@ -8,9 +8,10 @@ import {timetableCoordinator} from '../src/programs/timetable-coordination.js';
 const source=await readFile(new URL('../../js/m4l-program-timetable.js',import.meta.url),'utf8'),plannerSource=await readFile(new URL('../../js/m4l-timetable-planner.js',import.meta.url),'utf8'),presentationSource=await readFile(new URL('../../js/m4l-timetable-presentation.js',import.meta.url),'utf8'),syncSource=await readFile(new URL('../../js/m4l-timetable-sync.js',import.meta.url),'utf8'),markup=await readFile(new URL('../../programs/timetable.html',import.meta.url),'utf8');
 assert.match(markup,/js\/m4l-timetable-planner\.js/);assert.match(markup,/id="tt-planner"/);assert.match(markup,/id="tt-board"/);
 assert.doesNotMatch(markup,/id="tt-editor"|id="tt-rules"|id="tt-breaks"/);
-assert(markup.indexOf('id="tt-save"')<markup.indexOf('id="tt-board"'));
+assert(markup.indexOf('id="tt-save"')>markup.indexOf('id="tt-board"'));
 assert(markup.indexOf('id="tt-publish"')<markup.indexOf('id="tt-board"'));
-assert(markup.indexOf('id="tt-open-publish"')>markup.indexOf('id="tt-preview-panel"'));
+assert(markup.indexOf('id="tt-open-publish"')>markup.indexOf('id="tt-board"'));
+assert(markup.indexOf('id="tt-open-publish"')<markup.indexOf('id="tt-preview-panel"'));
 assert(markup.indexOf('id="tt-open-publish"')<markup.indexOf('<h2>Timetable history</h2>'));
 assert.match(markup,/id="tt-publish-dialog"/);
 assert.doesNotMatch(markup,/id="tt-publish-options"|The current version continues until then/);
@@ -29,10 +30,11 @@ f.catalog.classes[0].zoomLink='https://zoom.us/j/111';
 const draft=readWeeklyDraft(f.draft).draft;draft.rules[0].teacherId='';draft.rules[0].zoomLink='';
 await coordinator.run('save',{id:f.program.id,draft,revision:'',operationId:crypto.randomUUID()},'token');
 function element(id){assert(ids.has(id),`Missing ${id}`);if(!elements.has(id))elements.set(id,{hidden:false,disabled:false,value:'',textContent:'',innerHTML:'',events:{},classList:{toggle(){}},setAttribute(){},querySelectorAll(){return [];},showModal(){this.open=true;},close(){this.open=false;},addEventListener(event,fn){this.events[event]=fn;}});return elements.get(id);}
-const blockOptions=[],windowEvents={};let blockDatePreview=false;
+const blockOptions=[],windowEvents={};let blockDatePreview=false,snapshotOutage=false;
 const context={console,URL,Image:class{constructor(){this.complete=false;}},URLSearchParams,structuredClone,crypto,location:{search:`?program=${f.program.id}`,href:`https://example.test/programs/timetable.html?program=${f.program.id}`},document:{getElementById:element,querySelectorAll:()=>[],addEventListener(){},fonts:{ready:Promise.resolve()}},localStorage:{getItem:k=>k==='m4l_account_token'?'token':sharedStorage.get(k)||null,setItem:(k,v)=>sharedStorage.set(k,v),removeItem:k=>sharedStorage.delete(k)},sessionStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},window:{M4L_CONFIG:{API_BASE:''},M4L_TIMEZONES:{options:z=>`<option>${z}</option>`,defaultZone:'Asia/Riyadh'},addEventListener:(name,fn)=>{windowEvents[name]=fn;}},fetch:async(url,options)=>{
  const action=url.split('/').at(-1),body=JSON.parse(options.body);requests.push({action,body});
  if(url.endsWith('/api/admin/platform/programs/list'))return {ok:true,status:200,json:async()=>({success:true,programs:[{...f.program,mode:'PROGRAM'},otherProgram]})};
+ if(action==='refresh-public')return {ok:!snapshotOutage,status:snapshotOutage?503:200,json:async()=>({success:!snapshotOutage,error:'Synthetic snapshot outage'})};
  if(action==='preview'&&blockDatePreview&&body.effectiveFrom==='2026-10-05')return {ok:true,status:200,json:async()=>({success:true,valid:false,issues:[{message:'Date needs review'}],conflicts:[],warnings:[]})};
  try{const result=['save','publish','recover','prepare'].includes(action)?await coordinator.run(action,body,'token'):await service.read(action,body);return {ok:true,status:200,json:async()=>({success:true,coordinatorAvailable:true,...result})};}
  catch(error){return {ok:false,status:error.status||503,json:async()=>({success:false,error:error.message})};}
@@ -168,4 +170,18 @@ assert.equal(plannerState.draft.rules[0].startTime,'02:00','discard returns to t
 assert.equal(element('tt-quick-lesson-dialog').open,false,'discard closes an unfinished lesson editor');
 assert.equal(element('tt-save').disabled,true);
 assert.equal((await service.read('get',{id:f.program.id})).draft.rules[0].startTime,'02:00','discard does not change the saved draft');
-console.log('Timetable UI: board-only editing, top publication controls, draft saving, effective-date publication, exact retry and history passed.');
+// Modern D1 publication confirms its transaction before the separate public refresh.
+plannerState.data.workspaceReady=true;plannerState.data.timetableEditable=true;plannerState.data.timetableStatus='DRAFT';plannerState.data.availability=[];
+await click('tt-preview');await click('tt-open-publish');element('tt-effective-from').value='2026-10-06';
+snapshotOutage=true;await click('tt-publish');
+assert.deepEqual(requests.slice(-2).map(r=>r.action),['publish','refresh-public']);
+assert.equal(element('tt-pending').hidden,true,'Snapshot failure cannot leave a committed publication pending');
+assert.equal(plannerState.data.timetableStatus,'PUBLISHED');
+assert.match(element('tt-message').textContent,/published.*Public snapshot could not refresh/);
+assert.equal(requests.at(-1).body.publicationId,f.tables.ProgramTimetablePublications.at(-1).PublicationID);
+plannerState.data.timetableEditable=true;plannerState.data.timetableStatus='DRAFT';plannerState.data.availability=[];
+await click('tt-preview');await click('tt-open-publish');element('tt-effective-from').value='2026-10-07';
+snapshotOutage=false;await click('tt-publish');
+assert.deepEqual(requests.slice(-2).map(r=>r.action),['publish','refresh-public']);
+assert.match(element('tt-message').textContent,/published.*Public timetable refreshed/);
+console.log('Timetable UI: board-only editing, actions below the planner, draft saving, effective-date publication, exact retry and history passed.');

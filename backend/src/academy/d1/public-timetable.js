@@ -58,18 +58,38 @@ export async function publicTimetable(request,env,now=new Date(),edgeCache=globa
   return response;
 }
 
-// Rebuild only on an explicit Global Admin action. Visitors still read one
-// durable daily snapshot; short edge caching propagates a manual replacement
-// across regions without adding visitor D1 reads or background polling.
-export async function refreshPublicTimetable(request,env,repository,auth,now=new Date(),edgeCache=globalThis.caches?.default){
- if(!auth.state.account.global_admin)throw rehearsalError('Only a Global Admin can refresh the public timetable.',403,'FORBIDDEN');
+// Visitors still read one durable daily snapshot. Explicit administration and
+// successful Program publication share the same conditional replacement.
+async function replaceSnapshot(request,env,repository,authorize,now,edgeCache){
+ await authorize();
  if(!env.MEDIA_BUCKET)throw rehearsalError('The public timetable snapshot store is unavailable.');
  const period=publicTimetableDay(now),key=publicTimetableKey(env,period),previous=await env.MEDIA_BUCKET.get(key);
  const snapshot=await buildSnapshot(repository,period,now);
- const current=await authenticatedD1Account(request,env,repository);
- if(!current.state.account.global_admin)throw rehearsalError('Only a Global Admin can refresh the public timetable.',403,'FORBIDDEN');
+ await authorize();
  const written=await env.MEDIA_BUCKET.put(key,JSON.stringify(snapshot),{httpMetadata:{contentType:'application/json'},onlyIf:previous?{etagMatches:previous.etag}:{etagDoesNotMatch:'*'}});
  if(!written)throw rehearsalError('The public timetable changed during refresh. Please refresh it again.',409,'SNAPSHOT_CHANGED');
  if(edgeCache)try{await edgeCache.put(cacheKeyFor(request,key),snapshotResponse(snapshot,period,now));}catch{/* Other regions receive the durable replacement within one minute. */}
  return {snapshotDate:period.startDate,generatedAt:snapshot.generatedAt,lessons:snapshot.timetable.length,refreshWithinSeconds:60};
+}
+export async function refreshPublicTimetable(request,env,repository,auth,now=new Date(),edgeCache=globalThis.caches?.default){
+ if(!auth.state.account.global_admin)throw rehearsalError('Only a Global Admin can refresh the public timetable.',403,'FORBIDDEN');
+ return replaceSnapshot(request,env,repository,async()=>{
+  const current=await authenticatedD1Account(request,env,repository);
+  if(!current.state.account.global_admin)throw rehearsalError('Only a Global Admin can refresh the public timetable.',403,'FORBIDDEN');
+ },now,edgeCache);
+}
+// The Publish button follows its confirmed transaction with a separate request
+// to stay within the Free plan's per-invocation D1 budget. Require a committed
+// publication in the actor's scope; this does not widen manual Academy access.
+export async function refreshPublishedTimetable(request,env,repository,auth,input,now=new Date(),edgeCache=globalThis.caches?.default){
+ const activity='PROGRAM:'+String(input.id||'');
+ const permitted=state=>state.account.global_admin||state.roles.some(r=>r.role==='PROGRAM_ADMIN'&&r.activity_key.toUpperCase()===activity.toUpperCase());
+ if(!permitted(auth.state))throw rehearsalError('This publication requires an authorised Program administrator.',403,'FORBIDDEN');
+ if(typeof input.publicationId!=='string'||input.publicationId.length>200||!await repository.db.prepare('SELECT 1 FROM timetable_publications WHERE activity_key=? AND publication_id=?').bind(activity,input.publicationId).first())
+  throw rehearsalError('Publish this Program timetable before refreshing its public snapshot.',409,'PUBLICATION_REQUIRED');
+ return replaceSnapshot(request,env,repository,async()=>{
+  const current=await authenticatedD1Account(request,env,repository);
+  if(!permitted(current.state))
+   throw rehearsalError('This publication requires an authorised Program administrator.',403,'FORBIDDEN');
+ },now,edgeCache);
 }

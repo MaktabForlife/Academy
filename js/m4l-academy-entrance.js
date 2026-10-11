@@ -274,7 +274,8 @@
     $('workspace-tool-title').textContent = names[key];
     if (key === 'academy') {
       $('workspace-tool-body').innerHTML = (state.home.globalAdmin ? '<div class="academy-tool-pills"><a href="/academy/subjects/">Subjects &amp; Modules</a></div>' : '') +
-        '<div class="academy-tool-pills"><button type="button" data-workspace-tool="calendar">Calendar</button><button type="button" data-workspace-tool="announcements">Announcements</button><button type="button" data-workspace-tool="progress">Progress</button></div>';
+        '<div class="academy-tool-pills"><button type="button" data-workspace-tool="calendar">Calendar</button><button type="button" data-workspace-tool="announcements">Announcements</button><button type="button" data-workspace-tool="progress">Progress</button>'+ (state.home.globalAdmin?'<button id="public-timetable-refresh" type="button">↻ Refresh public timetable</button>':'')+'</div><p id="public-timetable-refresh-message" role="status" aria-live="polite"></p>';
+      bindPublicTimetableRefresh();
     } else if (key === 'calendar') {
       const events = state.home.calendarEvents || [];
       $('workspace-tool-body').innerHTML = events.length ? `<ul class="activity-calendar-list">${events.map(event=>`<li><strong>${esc(event.description)}</strong> · ${esc(formatDate(event.startDate))}${event.endDate!==event.startDate?' – '+esc(formatDate(event.endDate)):''}</li>`).join('')}</ul>` : '<p>No Academy events in this week.</p>';
@@ -607,7 +608,10 @@
     let view = $('administration');
     if (!view) { view = document.createElement('section'); view.id = 'administration'; view.className = 'view active'; document.querySelector('.container').appendChild(view); }
     view.classList.add('active');
-    view.innerHTML = '<div class="page-heading"><h1>Academy administration</h1></div>' + (state.home?.globalAdmin ? '<div class="activity-pills"><a href="/users/">User profiles</a><a href="/academy/subjects/">Subjects &amp; Modules</a><a href="/programs/">Manage Programs</a><a href="/academy/courses/manage/">Course management</a><a href="/academy/courses/manage/?view=scheduling">Course scheduling</a><a href="/academy/library/manage/">Manage Library</a></div><p><button id="public-timetable-refresh" type="button" class="button secondary">↻ Refresh public timetable</button></p><p id="public-timetable-refresh-message" role="status" aria-live="polite"></p>' : '<p>This page requires an authenticated Global Admin account.</p>');
+    view.innerHTML = '<div class="page-heading"><h1>Academy administration</h1></div>' + (state.home?.globalAdmin ? '<div class="activity-pills"><a href="/users/">User profiles</a><a href="/academy/subjects/">Subjects &amp; Modules</a><a href="/programs/">Manage Programs</a><a href="/academy/courses/manage/">Course management</a><a href="/academy/courses/manage/?view=scheduling">Course scheduling</a><a href="/academy/library/manage/">Manage Library</a></div>' : '<p>This page requires an authenticated Global Admin account.</p>');
+  }
+
+  function bindPublicTimetableRefresh(){
     const button=$('public-timetable-refresh');
     if(button)button.onclick=async()=>{
       if(button.disabled)return;const session=token(),epoch=pageCache.epoch;button.disabled=true;

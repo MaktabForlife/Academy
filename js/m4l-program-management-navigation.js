@@ -15,7 +15,7 @@
    const response=await fetch((window.M4L_CONFIG?.API_BASE||'')+'/api/admin/platform/programs/list',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session},body:'{}'}),result=await response.json();
    if(pending!==generation||session!==token()||!response.ok||!result.success||result.store!=='D1')return;
    const program=result.programs.find(row=>row.id===id);if(!program)return;
-   const tabs=[['timetable','Timetable','/programs/timetable.html'+suffix],['people','People & classes','/programs/manage.html'+suffix+'&tab=profiles'],['library','Library','/programs/media.html'+suffix],['attendance','Attendance','/programs/attendance.html'+suffix]];
+   const tabs=[['timetable','Timetable','/programs/timetable.html'+suffix],['people','People','/programs/manage.html'+suffix+'&tab=profiles'],['library','Library','/programs/media.html'+suffix],['attendance','Attendance','/programs/attendance.html'+suffix]];
    const page=location.pathname.replace(/\/+$/,'').replace(/\.html$/,'');
    const current=({'/programs/timetable':'timetable','/programs/manage':'people','/programs/media':'library','/programs/library':'library','/programs/library-view':'library','/programs/attendance':'attendance'})[page];
    header=document.createElement('header');header.className='pgm-header';

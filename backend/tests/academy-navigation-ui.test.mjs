@@ -106,7 +106,7 @@ async function programHeader(path,globalAdmin=true,options={}) {
     fetch:async()=>({ok:true,json:async()=>({success:true,store:'D1',globalAdmin,programs:[{id:programId,name:'Synthetic <Program>',status:'ACTIVE'}],...options})})});
   await flush();return {headers,classes,handlers,tokens};
 }
-for(const [page,label] of [['timetable','Timetable'],['manage','People &amp; classes'],['media','Library'],['library','Library'],['library-view','Library'],['attendance','Attendance']]) {
+for(const [page,label] of [['timetable','Timetable'],['manage','People'],['media','Library'],['library','Library'],['library-view','Library'],['attendance','Attendance']]) {
   for(const ending of ['', '.html', '/']) {
     const view=await programHeader('/programs/'+page+ending);
     assert.equal(view.headers.length,1);const html=view.headers[0].innerHTML;
@@ -120,7 +120,7 @@ for(const [page,label] of [['timetable','Timetable'],['manage','People &amp; cla
 const profilesHeader=await programHeader('/users/');
 assert.doesNotMatch(profilesHeader.headers[0].innerHTML,/aria-current="page"/,'User profiles does not falsely highlight Timetable');
 const scopedHeader=await programHeader('/programs/manage',false);
-assert.match(scopedHeader.headers[0].innerHTML,/aria-current="page">People &amp; classes/);
+assert.match(scopedHeader.headers[0].innerHTML,/aria-current="page">People/);
 const inaccessible=await programHeader('/programs/manage',false,{programs:[]});
 assert.equal(inaccessible.headers.length,0,'No Program identity or management header is inferred without access');
 console.log('Program navigation: canonical and .html current tabs, four management tabs, labelled return and scoped identity passed.');
@@ -130,5 +130,6 @@ for(const page of ['media','attendance']) {
  assert.doesNotMatch(html,/m4l-program-attendance\.js|Submit attendance|Open public Library|My Library|Private media attachments/);
 }
 const timetablePage=await readFile(new URL('../../programs/timetable.html',import.meta.url),'utf8');
-assert.doesNotMatch(timetablePage,/pw-name|pw-save-name|pw-program-zoom|pw-save-zoom|pw-card-editor|pw-access-model/,'Program settings live on the Program list, outside the timetable editor');
-console.log('Program Library and Attendance tabs show only Coming soon; timetable omits duplicated Program settings.');
+assert.doesNotMatch(timetablePage,/pw-name|pw-save-name|pw-program-zoom|pw-save-zoom|pw-access-model/,'Program settings live on the Program list, outside the timetable editor');
+assert.match(timetablePage,/id="pw-card-editor"/,'Public card editing belongs in Timetable');
+console.log('Program Library and Attendance tabs show only Coming soon; timetable owns the public card and omits duplicated Program settings.');

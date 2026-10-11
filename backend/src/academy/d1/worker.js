@@ -6,7 +6,7 @@ import { createAuthRateLimitKey, createSaltedPinHash, createSessionToken, isVali
 import { academyD1Repository, rehearsalError } from './repository.js';
 import { d1Entrance } from './entrance.js';
 import {d1LessonJoin,websiteEntrance} from './lesson-join.js';
-import {publicTimetable,refreshPublicTimetable} from './public-timetable.js';
+import {publicTimetable,refreshPublicTimetable,refreshPublishedTimetable} from './public-timetable.js';
 import { d1Profiles } from './profiles.js';
 import { d1Programs } from './programs.js';
 import {d1Learning} from './learning.js';
@@ -52,7 +52,7 @@ async function dispatch(request,env) {
   const path=new URL(request.url).pathname;
   await repository.ready();
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'rebootworker',version:'106.14',
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'rebootworker',version:'106.15',
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   const openLibraryAction=path.match(/^\/api\/academy\/open-library\/metadata\/(public|cover|list|save|options)$/)?.[1];
@@ -102,6 +102,7 @@ async function dispatch(request,env) {
   if(path==='/api/academy/public-lesson/join')return {success:true,...await d1LessonJoin(repository,null,input)};
   const auth=await authenticated(request,env,repository);
   if(path==='/api/admin/platform/public-timetable/refresh')return {success:true,...await refreshPublicTimetable(request,env,repository,auth)};
+  if(path==='/api/admin/platform/program-timetable/refresh-public')return {success:true,...await refreshPublishedTimetable(request,env,repository,auth,input)};
   if(path==='/api/academy/lesson/join')return {success:true,...await d1LessonJoin(repository,auth,input)};
   if(path==='/api/academy/courses/catalogue')return {success:true,...await d1CourseCatalogue(repository,auth)};
   if(publicLibraryOnly&&path==='/api/academy/library/catalogue')return {success:true,resources:[],

@@ -61,7 +61,15 @@ export function d1Programs(repository,auth) {
     const shared={...(all.academyModules?{academyModules:all.academyModules,moduleUsage:all.moduleUsage}:{}),subjects:data.subjects.map(s=>({SubjectID:s.subject_id,SubjectName:s.name,Active:Boolean(s.active),Legacy:s.source_namespace!=='ACADEMY'})),accounts,grantedTeachers:accounts.filter(a=>a.Active&&(designated.some(t=>same(t.accountId,a.AccountID))||a.Roles.some(r=>['TEACHER','ADMIN'].includes(r)))).map(a=>({AccountID:a.AccountID}))};
     return {data,a,program,current,viewData:{tables,prepared:true,libraryPrepared:true},shared};
   }
-  async function loadManagement(id,extra={}) {const c=await moduleCatalogueQueries(repository),staff=c.available?await teacherDesignations(repository):{available:false};return projectManagement(await store.load({...queriesFor(`PROGRAM:${id}`),...(staff.available?{teacherStaff:staff.statement}:{}),...(c.available?c.queries:{}),...extra}),id);}
+  async function loadManagement(id,extra={}, {timetableOnly=false}={}) {
+    const c=timetableOnly?{available:false}:await moduleCatalogueQueries(repository);
+    const staff=c.available&&!Object.hasOwn(extra,'teacherStaff')?await teacherDesignations(repository):{available:false};
+    // Publication needs current references, permissions and attendance dates,
+    // but no Library, task, progress or curriculum-editor payloads. Keep all
+    // authority/version reads in the same guarded planning transaction.
+    const unused=timetableOnly?{revision:[],legacyTeachers:[],resources:[],roots:[],ProgramTasks:[],ProgramModuleProgress:[]}:{};
+    return projectManagement(await store.load({...queriesFor(`PROGRAM:${id}`),...(staff.available?{teacherStaff:staff.statement}:{}),...(c.available?c.queries:{}),...extra},unused),id);
+  }
   async function persist(loaded,snapshot) {
     const statements=[],activity=loaded.a.activity_key;
     for(const [name,spec] of Object.entries(shape))for(const record of snapshot[name]) {

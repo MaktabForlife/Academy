@@ -1,3 +1,11 @@
+# V106.15 — Compact Program tables and automatic public snapshot refresh
+
+Edit Program Zoom in the Programs grid. The public card editor returns to Timetable, above compact inline Classes and Content tables. Move timetable actions below the planner. Rename People & classes to **People** and open teacher availability in a searchable popup with the existing scoped editing permissions.
+
+Publishing automatically refreshes the public homepage snapshot after the publication is confirmed. Separate requests keep both actions within Cloudflare Free limits; snapshot failures leave publication saved. Global Admins can refresh manually from the **Academy actions popup**. Future dates, Free/Paid joining rules and snapshot privacy remain intact.
+
+All **138/138 local regression files**, synthetic desktop/mobile Chrome checks and the development Worker dry-run build pass. No schema upgrade or live data correction is required. The owner authorised this recorded batch for `feature/105.3.4.13`. Library and Attendance stay Coming soon; private media, subscriptions and the remaining teaching tools are unfinished. [Release details](docs/ACADEMY-PROGRAM-TABLES-106.15.md).
+
 # V106.14 — Program settings and management navigation
 
 Edit Program name, Free/Paid, Zoom and the public timetable card from the Program list and selected Program panel. Remove the duplicate settings row from Timetable. Program Zoom now saves independently of a published timetable, using the existing settings table, and current joining keeps Program → session → class precedence without rewriting publications. Free/Paid uses the same current value shown in User profiles and preserves public joining windows, scoped permissions and imported evidence.
