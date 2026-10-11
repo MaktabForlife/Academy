@@ -396,7 +396,7 @@
         if(row.kind==='PROGRAM'&&(!card?.time||!card.title||!card.description))return '';
         const label = esc(card?.title || row.activityName || row.title);
         const open=row.publicJoin&&row.joinKey&&now>=row.joinAvailableAt&&now<row.endsAt;
-        return `<li class="preview-pill${open?' is-open':''}">${card?`<span class="preview-clock"><span>${esc(card.time)}</span></span>`:previewTime(row.startTime)}<span class="preview-copy"><span class="preview-name" title="${label}">${label}</span>${card?`<span class="preview-description">${esc(card.description).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')}</span>`:''}</span>${row.publicJoin?`<button type="button" data-public-join="${id}:${row.publicIndex}" ${open?'':'disabled'} aria-label="Join ${label}">${open?'Join':'Opens 5 min before'}</button>`:''}</li>`;
+        return `<li class="preview-pill${open?' is-open':''}"><span class="preview-copy"><span class="preview-name" title="${label}">${label}</span>${card?`<span class="preview-description">${esc(card.description).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')}</span>`:''}</span><span class="preview-controls">${card?`<span class="preview-clock"><span>${esc(card.time)}</span></span>`:previewTime(row.startTime)}${row.publicJoin?`<button type="button" data-public-join="${id}:${row.publicIndex}" ${open?'':'disabled'} aria-label="Join ${label}">${open?'Join':'Opens 5 min before'}</button>`:''}</span></li>`;
       }).join('')}</ul></li>`).join('')}</ol>`;
       return;
     }

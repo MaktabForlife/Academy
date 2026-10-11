@@ -1,3 +1,9 @@
+# V106.16 — Readable public timetable cards
+
+Public timetable cards give the entered title and description their full width, with time and joining controls on a separate wrapping row. This prevents the Steps to My Rabb card from collapsing into a vertical column of letters. Time stays readable when joining is open. Card JSON, Free/Paid access, joining windows and snapshot caching are unchanged.
+
+All **138/138 local regression files**, synthetic Chrome checks at six desktop/mobile widths and the development Worker dry-run build pass. No database migration or live data correction is required. The owner authorised this card fix for `feature/105.3.4.13`. [Release details](docs/ACADEMY-PUBLIC-CARDS-106.16.md).
+
 # V106.15 — Compact Program tables and automatic public snapshot refresh
 
 Edit Program Zoom in the Programs grid. The public card editor returns to Timetable, above compact inline Classes and Content tables. Move timetable actions below the planner. Rename People & classes to **People** and open teacher availability in a searchable popup with the existing scoped editing permissions.
