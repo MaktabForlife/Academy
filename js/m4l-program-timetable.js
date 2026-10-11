@@ -59,8 +59,6 @@
     const locked=state.busy||Boolean(state.pending),needsReview=state.conversion?.required&&!state.converted,ready=state.data?.prepared&&state.data?.coordinatorAvailable&&(state.data.managementEditable??state.data.program.status==='DRAFT')&&!needsReview;
     const editable=state.data?.timetableEditable!==false;
     $('tt-planner').disabled=locked||!ready||!editable;
-    if($('pw-program-zoom'))$('pw-program-zoom').disabled=locked||!editable;
-    if($('pw-save-zoom'))$('pw-save-zoom').disabled=locked||!editable;
     for(const name of ['save','validate','preview'])$(`tt-${name}`).disabled=locked||!ready||(name!=='preview'&&!editable);
     $('tt-save').disabled||=!dirty()||sharedConflict;
     $('tt-open-publish').disabled=locked||!ready||!editable||!state.preview?.valid||sharedConflict||Boolean(state.calendarView?.history);

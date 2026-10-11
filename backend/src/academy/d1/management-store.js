@@ -1,5 +1,7 @@
 import { payloadHash } from '../../programs/timetable-model.js';
 import { rehearsalError } from './repository.js';
+import {policyReadSQL} from './program-access.js';
+import {programSettingsReadSQL} from './program-zoom.js';
 
 export const managementError=(message,status=400,code='INVALID_MANAGEMENT_REQUEST')=>rehearsalError(message,status,code);
 export const rowChanged=(record,revision,entryKey)=>Object.assign(managementError('This entry changed elsewhere. Your draft is kept; review the saved entry.',409,'ROW_CHANGED'),{currentRecord:record,rowRevision:revision,...(entryKey?{entryKey}:{})});
@@ -23,7 +25,7 @@ export function managementStore(repository,auth) {
       let result;
       try {result=await db.batch([
         p('SELECT version FROM academy_write_state WHERE singleton=1'),
-        ...names.map(name=>extra[name]||p(`SELECT * FROM ${tables[name]}`)),
+        ...names.map(name=>extra[name]||p(name==='policies'?policyReadSQL:name==='programs'?programSettingsReadSQL:`SELECT * FROM ${tables[name]}`)),
         ...extras.map(name=>extra[name])
       ]);}catch(error){if(/no such table: academy_write_state/.test(error.message))throw managementError('Management storage needs its database upgrade.',503,'MANAGEMENT_SCHEMA_REQUIRED');throw error;}
       if(!result[0].results.length)throw managementError('Management storage is unavailable.',503,'MANAGEMENT_SCHEMA_REQUIRED');

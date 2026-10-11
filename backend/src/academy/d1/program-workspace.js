@@ -4,6 +4,7 @@ import {managementError,same} from './management-store.js';
 import {normalizeZoomLink} from '../../programs/zoom-links.js';
 import {payloadHash} from '../../programs/timetable-model.js';
 import {normalizeWeeklyDraft,validateWeeklyTimetable,weeklyPattern} from '../../programs/weekly-timetable.js';
+import {applyProgramZoom} from './program-zoom.js';
 
 export async function workspaceQueries(repository,activity) {
  if(!await programWorkspaceAvailable(repository))return {};
@@ -19,6 +20,7 @@ export function workspaceCatalog(loaded,catalog) {
  return {...catalog,requireTeacher:true,teachers:[...new Map([...catalog.teachers,...teachers].map(t=>[t.id,t])).values()]};
 }
 export async function workspaceValidation(loaded,draft,catalog,date) {
+ draft=applyProgramZoom(draft,loaded.program);
  const validationDraft=draft.planner?{...draft,planner:{...draft.planner,availability:[]}}:draft;
  const result=validateWeeklyTimetable(validationDraft,catalog,loaded.program,date);
  const review=reviewAvailability(draft,catalog,loaded.data.availability);

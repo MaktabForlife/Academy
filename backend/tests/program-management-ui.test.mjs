@@ -10,7 +10,7 @@ const coordinator=timetableCoordinator(f.journal,async()=>({service,user:{accoun
 const markup=await readFile(new URL('../../programs/manage.html',import.meta.url),'utf8');
 const elementIds=new Set([...markup.matchAll(/id="([^"]+)"/g)].map(m=>m[1]));
 const elements=new Map(),storage=new Map(),requests=[];
-let renameConflict=false;let failing=0,failReadAfterSave=false,serviceFailure=null,holdDelays=false;const delays=[],scheduled=[],readFailures=[];
+let renameConflict=false;let failing=0,failReadAfterSave=false,serviceFailure=null,holdDelays=false,modernD1=false,profilesAvailable=true;const delays=[],scheduled=[],readFailures=[];
 function element(id){assert(elementIds.has(id),`Missing HTML element ${id}`);if(!elements.has(id))elements.set(id,{hidden:false,disabled:false,value:'',textContent:'',innerHTML:'',listeners:{},classList:{toggle(){}},querySelectorAll:()=>[],querySelector:()=>null,addEventListener(type,fn){this.listeners[type]=fn;}});return elements.get(id);}
 const context={console,URL,URLSearchParams,structuredClone,crypto,setTimeout:(fn,ms)=>{if(ms>=1000){delays.push(ms);if(holdDelays){scheduled.push({fn,ms});return scheduled.length;}return setTimeout(fn,0);}return setTimeout(fn,ms);},location:{search:'?program='+f.program.id},localStorage:{getItem:()=> 'token'},sessionStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},document:{getElementById:element,addEventListener(){}},window:{M4L_CONFIG:{API_BASE:''},M4L_PROGRAM_OVERVIEW:{build:()=>[]},addEventListener(){}},fetch:async(url,options)=>{
   const action=url.split('/').at(-1),body=JSON.parse(options.body);requests.push({action,body});
@@ -26,7 +26,7 @@ const context={console,URL,URLSearchParams,structuredClone,crypto,setTimeout:(fn
     }
     const result=['manage-save','recover'].includes(action)?await coordinator.run(action,body,'token'):await service.read(action,body);
     if(action==='manage-save'&&failReadAfterSave===true)failReadAfterSave='ready';
-    return {ok:true,status:200,json:async()=>({success:true,coordinatorAvailable:true,...result})};
+    return {ok:true,status:200,json:async()=>({success:true,coordinatorAvailable:true,...result,...(modernD1?{store:'D1',learningWorkflowsReady:true,globalProfilesAvailable:profilesAvailable}:{})})};
   }catch(error){if(!error.publicMessage)throw error;return {ok:false,status:error.status,json:async()=>({success:false,error:error.message,code:error.code,currentRecord:error.currentRecord,rowRevision:error.rowRevision,entryKey:error.entryKey})};}
 }};
 vm.runInNewContext(await readFile(new URL('../../js/m4l-program-overview.js',import.meta.url),'utf8'),context);
@@ -308,3 +308,24 @@ assert.equal(element('pm-conflict').hidden,false);assert.match(element('pm-confl
 await element('pm-use-mine').onclick();await settled();assert.equal(f.shared.subjects[0].SubjectName,'Renamed subject');
 const renameRequest=requests.findLast(r=>r.body.mode==='rename');assert.equal(renameRequest.body.subjectId,'TAFSEER');assert.equal(renameRequest.body.baseRevision,'renamed-elsewhere');
 console.log('Management subject rename: editable name, stable ID and explicit conflict review passed.');
+
+// Current D1 People & classes opens directly, without the retired curriculum tab row.
+modernD1=true;vm.runInNewContext(source,context);await settled();
+assert.equal(element('pm-tabs').hidden,true);assert.equal(element('pm-tabs').innerHTML,'');
+assert.equal(element('pm-overview').hidden,true);assert.equal(element('pm-caption').textContent,'Enrolled students');
+assert.match(element('pm-rows').innerHTML,/Demo learner/);assert.equal(element('pm-shared-profiles').hidden,false);
+assert.equal(element('pm-shared-profiles').href,`/users/?program=${encodeURIComponent(f.program.id)}`);
+assert.match(markup,/<a id="pm-shared-profiles" class="pb-management-open"[^>]*>User profiles<\/a>/);
+// Unsaved student classes survive reloads in the simplified view.
+element('pm-rows').listeners.change({target:{dataset:{groupAccount:'LEARNER-2'},value:'CLASS-1'}});
+vm.runInNewContext(source,context);await settled();
+assert.match(element('pm-rows').innerHTML,/Unsaved change/);assert.equal(element('pm-tabs').hidden,true);
+await clickRow({groupSave:'LEARNER-2'});assert(!element('pm-rows').innerHTML.includes('Unsaved change'));
+// A pre-upgrade class draft can still be finished or discarded, then returns to People.
+storage.set(`m4l-management-pending:${f.program.id}:draft`,JSON.stringify({kind:'classes',edit:{record:{ClassID:'CLS-OLD',Name:'Earlier class entry',Active:true},creating:true,originalId:'CLS-OLD'}}));
+vm.runInNewContext(source,context);await settled();
+assert.match(element('pm-rows').innerHTML,/Earlier class entry/);assert.equal(element('pm-tabs').hidden,true);
+await clickRow({'data-cancel':true});assert.equal(element('pm-caption').textContent,'Enrolled students');
+profilesAvailable=false;await element('pm-reload').onclick();
+assert.equal(element('pm-shared-profiles').hidden,true,'Scoped Program Admin cannot open Academy-wide User profiles');
+console.log('Current D1 People: direct student classes, no legacy tabs, User profiles button authority and preserved drafts passed.');

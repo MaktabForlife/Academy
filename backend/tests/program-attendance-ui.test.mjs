@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 
-const markup=await readFile(new URL('../../programs/attendance.html',import.meta.url),'utf8');
+const markup=await readFile(new URL('./fixtures/program-attendance-editor.html',import.meta.url),'utf8');
 const source=await readFile(new URL('../../js/m4l-program-attendance.js',import.meta.url),'utf8');
 const ids=new Set([...markup.matchAll(/id="([^"]+)"/g)].map(match=>match[1]));
 const elements=new Map(),storage=new Map(),requests=[];

@@ -6,7 +6,7 @@
  const token=()=>localStorage.getItem('m4l_account_token')||'';
  let header=null,generation=0;
  const suffix='?program='+encodeURIComponent(id);
- const home='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9"/></svg>',back='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 5-7 7 7 7M3 12h18"/></svg>';
+ const home='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9"/></svg>';
  function clear(){generation++;header?.remove();header=null;document.body.classList.remove('pgm-layout');}
  function update(program){if(header&&program.id===id){header.querySelector('[data-program-name]').textContent=program.name;header.querySelector('[data-program-status]').textContent=program.status==='ACTIVE'?'Active':program.status==='ARCHIVED'?'Archived':'Draft';}}
  async function load(){
@@ -15,10 +15,11 @@
    const response=await fetch((window.M4L_CONFIG?.API_BASE||'')+'/api/admin/platform/programs/list',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session},body:'{}'}),result=await response.json();
    if(pending!==generation||session!==token()||!response.ok||!result.success||result.store!=='D1')return;
    const program=result.programs.find(row=>row.id===id);if(!program)return;
-   const tabs=[['timetable','Timetable','/programs/timetable.html'+suffix],['people','People & classes','/programs/manage.html'+suffix+'&tab=profiles'],['library','Library','/programs/media.html'+suffix],['attendance','Attendance','/programs/attendance.html'+suffix],...(result.globalAdmin?[['profiles','User profiles','/users/'+suffix]]:[])];
-   const current=location.pathname.startsWith('/users/')?'profiles':location.pathname.includes('manage.html')?'people':location.pathname.includes('attendance.html')?'attendance':/library|media/.test(location.pathname)?'library':'timetable';
+   const tabs=[['timetable','Timetable','/programs/timetable.html'+suffix],['people','People & classes','/programs/manage.html'+suffix+'&tab=profiles'],['library','Library','/programs/media.html'+suffix],['attendance','Attendance','/programs/attendance.html'+suffix]];
+   const page=location.pathname.replace(/\/+$/,'').replace(/\.html$/,'');
+   const current=({'/programs/timetable':'timetable','/programs/manage':'people','/programs/media':'library','/programs/library':'library','/programs/library-view':'library','/programs/attendance':'attendance'})[page];
    header=document.createElement('header');header.className='pgm-header';
-   header.innerHTML=`<div class="pgm-heading"><div><span class="pgm-label">Program management</span><h1 data-program-name>${esc(program.name)}</h1><div class="pgm-identity"><small>${esc(id)}</small><span data-program-status>${esc(program.status==='ACTIVE'?'Active':program.status==='ARCHIVED'?'Archived':'Draft')}</span></div></div><nav class="pgm-icons" aria-label="Page navigation"><a href="/academy/#overview" aria-label="Academy home" title="Academy home">${home}</a><a href="/academy/#activity/PROGRAM/${encodeURIComponent(id)}" aria-label="Return to Program page" title="Return to Program page">${back}</a></nav></div><nav class="pgm-tabs" aria-label="Program management">${tabs.map(([key,label,href])=>`<a href="${esc(href)}"${key===current?' aria-current="page"':''}>${esc(label)}</a>`).join('')}</nav>`;
+   header.innerHTML=`<div class="pgm-heading"><div><span class="pgm-label">Program management</span><h1 data-program-name>${esc(program.name)}</h1><div class="pgm-identity"><small>${esc(id)}</small><span data-program-status>${esc(program.status==='ACTIVE'?'Active':program.status==='ARCHIVED'?'Archived':'Draft')}</span></div></div><nav class="pgm-icons" aria-label="Page navigation"><a href="/academy/#overview" aria-label="Academy home" title="Academy home">${home}</a><a class="pgm-back" href="/programs/${suffix}">Back to Program management</a></nav></div><nav class="pgm-tabs" aria-label="Program management">${tabs.map(([key,label,href])=>`<a href="${esc(href)}"${key===current?' aria-current="page"':''}>${esc(label)}</a>`).join('')}</nav>`;
    main.prepend(header);document.body.classList.add('pgm-layout');
   }catch{/* Existing page/session errors remain visible; no scope is inferred. */}
  }

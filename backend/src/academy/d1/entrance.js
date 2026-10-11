@@ -3,6 +3,7 @@ import { dateInTimezone } from '../../lib/global-subject-delivery.js';
 import { rehearsalError } from './repository.js';
 import {courseCalendarAvailable,calendarRows} from './course-calendar.js';
 import {buildAcademyCalendarEvents} from '../../lib/academy-calendar.js';
+import {currentProgramZoom} from './program-zoom.js';
 
 const samePublication=(a,b)=>String(a).toUpperCase()===String(b).toUpperCase();
 // Adapt normalized D1 records at the repository boundary. Reuse the established
@@ -35,7 +36,8 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
   const rolesByCourse=courseWorkflows?Object.fromEntries(activities.filter(a=>a.kind==='COURSE').map(a=>[a.activity_id.toUpperCase(),state?.roles.filter(r=>r.activity_key.toUpperCase()===a.activity_key.toUpperCase()).map(r=>r.role)||[]])):null;
   const result=await buildEntrance({tables,programs,rolesByProgram,rolesByCourse,user,input,now,programLifecycle:'ACTIVE',rangeDays:days,detailedTimetable:detailed,publicJoining:true,loadProgram:async program=>{
     const activity=`PROGRAM:${program.id}`,scope=rows=>rows.filter(r=>r.activity_key===activity);
-    return {prepared:true,subjects:scope(subjects).map(s=>({SubjectID:s.subject_id,SubjectName:s.subject_name})),tables:{
+    const override=activities.find(a=>a.activity_key===activity)?.program_zoom_override;
+    return {prepared:true,zoomLinkForLesson:(row,publication)=>currentProgramZoom(override,row,publication,scope(classes)),subjects:scope(subjects).map(s=>({SubjectID:s.subject_id,SubjectName:s.subject_name})),tables:{
       ProgramSubjects:scope(subjects).map(s=>({ProgramSubjectID:s.program_subject_id,CourseID:program.id,SubjectID:s.subject_id,Active:true})),
       ProgramLevels:[],ProgramModules:scope(modules).map(m=>({ProgramModuleID:m.module_id,ProgramSubjectID:m.program_subject_id,Name:m.name,Active:true})),
       ProgramClasses:scope(classes).map(c=>({ClassID:c.class_id,CourseID:program.id,Name:c.name,Active:true})),

@@ -1,3 +1,11 @@
+# V106.14 — Program settings and management navigation
+
+Edit Program name, Free/Paid, Zoom and the public timetable card from the Program list and selected Program panel. Remove the duplicate settings row from Timetable. Program Zoom now saves independently of a published timetable, using the existing settings table, and current joining keeps Program → session → class precedence without rewriting publications. Free/Paid uses the same current value shown in User profiles and preserves public joining windows, scoped permissions and imported evidence.
+
+Fix deployed tab highlighting, remove the legacy curriculum row and duplicate User profiles tab, and show a User profiles button inside People & classes. **Back to Program management** retains the selected Program. Library and Attendance tabs show only **Coming soon**.
+
+All **138/138 local regression files**, synthetic desktop/mobile browser checks and the development Worker dry-run build pass. No schema upgrade or live data correction is required. The owner authorised this complete batch for `feature/105.3.4.13`. Private media, subscriptions and remaining teaching tools stay unfinished. [Change details](docs/ACADEMY-PROGRAM-ACCESS-106.14.md).
+
 # V106.13 — Program management and timetable fixes
 
 Open each Program through one management link, with Timetable, People & classes, Library, Attendance and authorised User profiles tabs. Fix Program Zoom saving, older Programs without a default class, class-teacher validation, selected Subjects/Modules layout and scoped administrator availability editing. Publishing now activates a Draft Program atomically; the already-published Steps to My Rabb Program has also received a backed-up, guarded correction without changing its future effective date or publication.

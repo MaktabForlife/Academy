@@ -69,6 +69,7 @@ export function programProjection(program, data, user, roles, start, end, now, d
       if (row.kind === 'BREAK' || row.status === 'CANCELLED' ||
         !(publication.pattern === 'WEEKLY' ? row.weekday === weekday : row.date === date)) continue;
       const classIds = row.classIds || [];
+      const zoomLink=data.zoomLinkForLesson?data.zoomLinkForLesson(row,publication):row.zoomLink;
       const teaching = staff(roles) && (row.teacherIds || [row.teacherId]).some(id => key(id) === key(user?.accountid));
       const enrolled = roles.includes('STUDENT') && enrolments.some(item => participant(item, user?.accountid, date, classIds));
       const oversight = roles.some(role => ['GLOBAL_ADMIN', 'PROGRAM_ADMIN', 'ADMIN', 'SENIOR'].includes(role));
@@ -84,15 +85,15 @@ export function programProjection(program, data, user, roles, start, end, now, d
         event.moduleName = row.moduleName || '';
         event.classNames = (row.classNames || []).filter(Boolean);
         event.teacherNames = (row.teacherNames || [row.teacherName]).filter(Boolean);
-        event.meetingGroup = groupZoom(row.zoomLink);
+        event.meetingGroup = groupZoom(zoomLink);
         event.information = [row.subjectName, row.moduleName, row.levelName,
           ...(row.classNames || []), ...(row.teacherNames || [row.teacherName])].filter(Boolean);
         if(compatibilityDetails){event.teacherName=(row.teacherNames||[row.teacherName]).filter(Boolean).join(', ');event.group=(row.classNames||[]).join(', ');}
       }
-      if ((mayView && (involved || oversight) || !user && program.publicFree) && row.zoomLink) {
+      if ((mayView && (involved || oversight) || !user && program.publicFree) && zoomLink) {
         if(!user&&program.publicFree)event.publicJoin=true;
         event.joinKey = JSON.stringify(['PROGRAM', program.id, publication.id, occurrenceIndex, date]);
-        if (joinWindowOpen(event, now)) event.joinUrl = row.zoomLink;
+        if (joinWindowOpen(event, now)) event.joinUrl = zoomLink;
       }
       timetable.push(event);
     }

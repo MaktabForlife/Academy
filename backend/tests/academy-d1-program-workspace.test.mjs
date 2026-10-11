@@ -185,3 +185,45 @@ test('publishing a new draft Program activates it atomically and exposes future 
  for(const n of ['0001','0003']){const freshToken=await login(env,n),home=ok(await post(env,'/api/academy/entrance',{},freshToken));assert.ok(home.personalTimetable.some(l=>l.activityId===newId),JSON.stringify(home.personalTimetable));}
  const before=ok(await post(env,'/api/academy/entrance',{startDate:programToday('Africa/Johannesburg')},admin));assert.ok(!before.personalTimetable.some(l=>l.activityId===newId&&l.date<input.effectiveFrom),'Future publication does not expose earlier occurrences');
 }));
+
+test('Program Zoom saves independently of a published timetable and current joining uses Program, session then class links',()=>use(async({env,db})=>{
+ const admin=await login(env),scoped=await login(env,'0004'),teacher=await login(env,'0003');
+ const registry='/api/admin/platform/programs/',currentProgram=async()=>ok(await post(env,registry+'list',{},admin)).programs.find(p=>p.id===id);
+ const input=(p,link)=>({id,name:p.name,status:p.status,timezone:p.timezone,durationYears:p.durationYears,revision:p.revision,programZoomLink:link,operationId:crypto.randomUUID()});
+ const legacy='https://zoom.us/j/99999999999?pwd=legacy',first='https://zoom.us/j/88888888888?pwd=first',second='https://zoom.us/j/77777777777?pwd=second',classLink='https://zoom.us/j/22222222222';
+ await save(env,admin,{...draft(),programZoomLink:legacy});
+ let program=await currentProgram();assert.equal(program.programZoomLink,legacy);assert.equal(program.programZoomConfigured,false,'An older draft link is preserved before an explicit Program decision');
+ const sourceDrafts=db.prepare('SELECT * FROM timetable_drafts ORDER BY activity_key,scope_key').all();
+ const request={...input(program,first),accessModel:'FREE'};
+ assert.equal((await post(env,registry+'save',request,teacher)).status,403);
+ assert.equal((await post(env,registry+'save',{...request,id:PROGRAM_IDS[1]},scoped)).status,403);
+ const saved=ok(await post(env,registry+'save',request,scoped));assert.equal(saved.program.programZoomLink,first);assert.equal(saved.program.programZoomConfigured,true);
+ assert.equal(ok(await post(env,registry+'save',request,scoped)).replayed,true);
+ assert.deepEqual(db.prepare('SELECT * FROM timetable_drafts ORDER BY activity_key,scope_key').all(),sourceDrafts,'A Program setting save does not edit the timetable draft');
+ let current=await get(env,admin);assert.equal(current.draft.programZoomLink,first);
+ const preview=ok(await post(env,tt+'preview',{id,draft:{...current.draft,programZoomLink:legacy},effectiveFrom:tomorrow()},admin));assert.equal(preview.valid,true);assert.ok(preview.occurrences.every(r=>r.zoomLink===first),'The current Program setting overrides an older client draft');
+ ok(await change(env,tt+'publish',{id,revision:current.revision,draft:current.draft,effectiveFrom:tomorrow()},admin));
+ current=await get(env,admin);assert.equal(current.timetableEditable,false);
+ const frozen=db.prepare('SELECT * FROM timetable_publications ORDER BY activity_key,publication_id').all(),records=db.prepare('SELECT * FROM program_timetable_records ORDER BY timetable_id').all();
+ program=await currentProgram();ok(await post(env,registry+'save',input(program,second),scoped));
+ const {academyD1Repository}=await import('../src/academy/d1/repository.js'),{d1Entrance}=await import('../src/academy/d1/entrance.js'),{d1LessonJoin,websiteEntrance}=await import('../src/academy/d1/lesson-join.js'),{publicTimetableSnapshot,publicTimetableDay}=await import('../src/academy/d1/public-timetable.js');
+ const repository=academyD1Repository(env),now=new Date(tomorrow()+'T08:00:00Z');
+ const data=await d1Entrance(repository,null,null,{startDate:tomorrow()},now),lesson=data.timetable.find(r=>r.activityId===id),join={joinKey:lesson.joinKey,date:lesson.date};
+ assert.equal((await d1LessonJoin(repository,null,join,now)).joinUrl,second,'A published lesson uses the changed Program link without republishing');
+ assert.doesNotMatch(JSON.stringify(websiteEntrance(data)),/zoom\.us/);assert.doesNotMatch(JSON.stringify(publicTimetableSnapshot(data,publicTimetableDay(now),now)),/zoom\.us/);
+ program=await currentProgram();ok(await post(env,registry+'save',input(program,''),scoped));
+ assert.equal((await d1LessonJoin(repository,null,join,now)).joinUrl,draft().rules[0].zoomLink,'Clearing the Program link restores the published session link');
+ current=await get(env,admin);assert.equal(current.draft.programZoomLink,'','Clearing does not resurrect the old draft link');assert.equal(current.timetableEditable,false);
+ db.prepare('UPDATE classes SET zoom_link=? WHERE activity_key=? AND class_id=?').run(classLink,activity,'class-1');
+ const withoutSession={...draft(),programZoomLink:legacy};withoutSession.rules[0].zoomLink='';
+ const fallback=ok(await post(env,tt+'preview',{id,draft:withoutSession},admin));assert.ok(fallback.occurrences.every(r=>r.zoomLink===classLink),'Cleared Program plus no session link uses the class link');
+ assert.deepEqual(db.prepare('SELECT * FROM timetable_publications ORDER BY activity_key,publication_id').all(),frozen);assert.deepEqual(db.prepare('SELECT * FROM program_timetable_records ORDER BY timetable_id').all(),records,'Program Zoom saves keep immutable timetable records unchanged');
+ assert.equal((await post(env,registry+'save',input(program,first),scoped)).status,409,'An old revision cannot restore a previous Program link');
+ program=await currentProgram();assert.equal((await post(env,registry+'save',input(program,'javascript:alert(1)'),admin)).status,400);assert.equal((await post(env,registry+'save',input(program,'https://user:password@zoom.us/j/1'),admin)).status,400);
+ const receipts=db.prepare('SELECT count(*) n FROM operation_receipts').get().n;
+ db.exec("CREATE TRIGGER reject_program_zoom_audit BEFORE INSERT ON audit_events WHEN NEW.record_kind='PROGRAM_REGISTRY' BEGIN SELECT RAISE(ABORT,'late Program Zoom audit failure'); END");
+ assert.equal((await post(env,registry+'save',input(program,first),admin)).status,503);assert.equal((await currentProgram()).programZoomLink,'');assert.equal((await currentProgram()).revision,program.revision);assert.equal(db.prepare('SELECT count(*) n FROM operation_receipts').get().n,receipts);db.exec('DROP TRIGGER reject_program_zoom_audit');
+ const freshId='PRG-'+crypto.randomUUID(),fresh=ok(await change(env,registry+'create',{id:freshId,name:'Program with link before timetable',status:'DRAFT',programZoomLink:first},admin));
+ assert.equal(fresh.program.programZoomLink,first);assert.equal(ok(await post(env,tt+'get',{id:freshId},admin)).draft.programZoomLink,first);
+ assert.equal(db.prepare('SELECT setting_value FROM academy_settings WHERE setting_key=?').get('ProgramZoom:'+activity).setting_value,'');
+}));

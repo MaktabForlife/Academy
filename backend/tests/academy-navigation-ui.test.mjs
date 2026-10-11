@@ -94,3 +94,41 @@ for(const file of ['academy/library/index.html','academy/open-library/index.html
   assert.match(html,/m4l-academy-navigation\.js/);assert.match(html,/m4l-academy-navigation\.css/);
 }
 console.log('Academy shared navigation: public/private links, actual subscribed IDs, all-role Library tabs, stale-response sign-out, tool coverage and standalone recorder isolation passed.');
+
+// Cloudflare Pages serves canonical extensionless addresses; all page tabs must match them.
+const programNav=await readFile(new URL('../../js/m4l-program-management-navigation.js',import.meta.url),'utf8');
+const programId='PRG-11111111-1111-4111-8111-111111111111';
+async function programHeader(path,globalAdmin=true,options={}) {
+  const headers=[],classes=new Set(),handlers=new Map(),tokens=storage({m4l_account_token:'staff'});
+  const document={querySelector:()=>({prepend:header=>headers.push(header)}),createElement:()=>({remove(){headers.splice(headers.indexOf(this),1);}}),body:{classList:{add:name=>classes.add(name),remove:name=>classes.delete(name)}}};
+  const window={addEventListener:(type,fn)=>handlers.set(type,fn)};
+  runInNewContext(programNav,{document,window,location:{pathname:path,search:'?program='+programId},localStorage:tokens,URLSearchParams,
+    fetch:async()=>({ok:true,json:async()=>({success:true,store:'D1',globalAdmin,programs:[{id:programId,name:'Synthetic <Program>',status:'ACTIVE'}],...options})})});
+  await flush();return {headers,classes,handlers,tokens};
+}
+for(const [page,label] of [['timetable','Timetable'],['manage','People &amp; classes'],['media','Library'],['library','Library'],['library-view','Library'],['attendance','Attendance']]) {
+  for(const ending of ['', '.html', '/']) {
+    const view=await programHeader('/programs/'+page+ending);
+    assert.equal(view.headers.length,1);const html=view.headers[0].innerHTML;
+    const selected=[...html.matchAll(/<a [^>]*aria-current="page"[^>]*>([^<]+)<\/a>/g)].map(m=>m[1]);
+    assert.deepEqual(selected,[label],`Correct current tab at ${page+ending}`);
+    assert.equal((html.match(/<nav class="pgm-tabs"[\s\S]*?<\/nav>/)?.[0].match(/<a /g)||[]).length,4);
+    assert.doesNotMatch(html,/>User profiles</);assert.match(html,/Synthetic &lt;Program&gt;/);
+    assert.match(html,new RegExp('href="/programs/\\?program='+programId+'">Back to Program management'));
+  }
+}
+const profilesHeader=await programHeader('/users/');
+assert.doesNotMatch(profilesHeader.headers[0].innerHTML,/aria-current="page"/,'User profiles does not falsely highlight Timetable');
+const scopedHeader=await programHeader('/programs/manage',false);
+assert.match(scopedHeader.headers[0].innerHTML,/aria-current="page">People &amp; classes/);
+const inaccessible=await programHeader('/programs/manage',false,{programs:[]});
+assert.equal(inaccessible.headers.length,0,'No Program identity or management header is inferred without access');
+console.log('Program navigation: canonical and .html current tabs, four management tabs, labelled return and scoped identity passed.');
+for(const page of ['media','attendance']) {
+ const html=await readFile(new URL('../../programs/'+page+'.html',import.meta.url),'utf8');
+ assert.match(html,/<section class="pgm-media-card"[^>]*><p>Coming soon<\/p><\/section>/);
+ assert.doesNotMatch(html,/m4l-program-attendance\.js|Submit attendance|Open public Library|My Library|Private media attachments/);
+}
+const timetablePage=await readFile(new URL('../../programs/timetable.html',import.meta.url),'utf8');
+assert.doesNotMatch(timetablePage,/pw-name|pw-save-name|pw-program-zoom|pw-save-zoom|pw-card-editor|pw-access-model/,'Program settings live on the Program list, outside the timetable editor');
+console.log('Program Library and Attendance tabs show only Coming soon; timetable omits duplicated Program settings.');

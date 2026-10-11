@@ -156,7 +156,7 @@ test('the existing timetable, attendance and Library screens use the D1 contract
   timetable.element('tt-effective-from').value=today();await timetable.element('tt-publish').onclick();await settle();
   assert.match(timetable.element('tt-message').textContent,/Version 2 published/);
   assert.equal(db.prepare('SELECT max(version_no) v FROM timetable_publications WHERE activity_key=?').get(activity).v,2);
-  const attendance=screen('../../programs/attendance.html','../../js/m4l-program-attendance.js',teacher);await settle();
+  const attendance=screen('./fixtures/program-attendance-editor.html','../../js/m4l-program-attendance.js',teacher);await settle();
   assert.match(attendance.element('pa-classes').innerHTML,/Synthetic class/);
   attendance.element('pa-classes').listeners.click({target:{closest:()=>({dataset:{submit:'class-1'}})}});await settle();
   assert.equal(db.prepare('SELECT count(*) n FROM attendance_registers').get().n,1,attendance.element('pa-message').textContent);

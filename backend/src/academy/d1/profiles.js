@@ -23,7 +23,7 @@ export async function assignmentDTO(data,account,a) {
   const displayRoles=[...new Set([...inheritedRoles,...result.roles,...(a.kind==='COURSE'&&subscription?['STUDENT']:[])])];
   return {...result,inheritedRoles,displayRoles,revision:await payloadHash(result),accessAllowed:Boolean(account.active&&a.active&&a.lifecycle==='ACTIVE'&&(academyAdmin||result.roles.length||accessModel(data,a)==='FREE'||subscription))};
 }
-function accessModel(data,a){return (a.kind==='COURSE'?data.coursePolicies.find(p=>same(p.activity_key,a.activity_key))?.legacy_access_model:undefined)||data.policies.find(p=>same(p.activity_key,a.activity_key))?.source_access_model||'UNKNOWN';}
+function accessModel(data,a){return (a.kind==='COURSE'?data.coursePolicies.find(p=>same(p.activity_key,a.activity_key))?.legacy_access_model:undefined)||data.policies.find(p=>same(p.activity_key,a.activity_key))?.access_model||'UNKNOWN';}
 export async function scopeDTO(data,a) {
   const result={...scopeOf(a),name:a.name,active:Boolean(a.active&&a.lifecycle==='ACTIVE'),prepared:true,
     accessModel:accessModel(data,a),reviewStatus:'REQUIRED',stage:'SETUP',policyEditable:false,rolesEditable:true};

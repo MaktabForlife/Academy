@@ -7,11 +7,14 @@ import { MANAGEMENT_KINDS,managementView,managementRowRevision,studentClassRevis
 import { payloadHash } from '../../programs/timetable-model.js';
 import { managementStore,managementError,rowChanged,same,liveRoles } from './management-store.js';
 import {learningAvailable} from './learning-state.js';
+import {programAccessKey} from './program-access.js';
+import {programZoomKey} from './program-zoom.js';
+import {normalizeZoomLink} from '../../programs/zoom-links.js';
 
 const dto=(data,a)=>{
   const settings=data.programs.find(p=>same(p.activity_key,a.activity_key));
   return {id:a.activity_id,name:a.name,mode:'PROGRAM',active:Boolean(a.active),status:a.lifecycle,
-    publicCard:JSON.parse(settings?.public_card_json||'{}'),durationYears:settings?.duration_years??'',timezone:settings?.timezone||'Africa/Johannesburg',revision:String(a.revision),spreadsheetId:'',store:'D1'};
+    programZoomLink:settings?.program_zoom_link||'',programZoomConfigured:Boolean(settings?.program_zoom_configured),publicCardEditable:Object.hasOwn(settings||{},'public_card_json'),accessModel:data.policies.find(p=>same(p.activity_key,a.activity_key))?.access_model||'UNKNOWN',publicCard:JSON.parse(settings?.public_card_json||'{}'),durationYears:settings?.duration_years??'',timezone:settings?.timezone||'Africa/Johannesburg',revision:String(a.revision),spreadsheetId:'',store:'D1'};
 };
 const writableKinds=new Set(['subjects','levels','modules','tasks','classes','enrollments','progress','student-class','student-classes','subject-import']);
 const plain=r=>JSON.stringify(r);
@@ -109,6 +112,7 @@ export function d1Programs(repository,auth) {
         if(action==='save'&&!existing)throw managementError('Program not found.',404);
         if(existing&&String(input.revision)!==String(existing.revision))throw rowChanged(dto(data,existing),String(existing.revision));
         const id=existing?.activity_id||programId(input.id),activity=`PROGRAM:${id}`,now=new Date().toISOString(),statements=[];
+        if(Object.hasOwn(input,'accessModel')&&!['FREE','PAID'].includes(input.accessModel))throw managementError('Choose Free or Paid.');
         if(existing)statements.push(p('UPDATE activities SET name=?,lifecycle=?,active=?,website_visible=CASE WHEN ?=1 AND EXISTS(SELECT 1 FROM timetable_publications WHERE activity_key=?) THEN 1 ELSE 0 END,revision=revision+1,updated_at=? WHERE activity_key=?',config.name,status,Number(status==='ACTIVE'),Number(status==='ACTIVE'),activity,now,activity),
           p('UPDATE program_settings SET duration_years=?,timezone=?,revision=revision+1 WHERE activity_key=?',config.durationYears===''?null:config.durationYears,config.timezone,activity));
         else statements.push(p("INSERT INTO activities(activity_key,activity_id,kind,name,active,lifecycle,website_visible,created_at,updated_at,revision) VALUES(?,?,'PROGRAM',?,0,'DRAFT',0,?,?,1)",activity,id,config.name,now,now),
@@ -128,8 +132,19 @@ export function d1Programs(repository,auth) {
           publicCard=JSON.stringify(card);statements.push(p('UPDATE program_settings SET public_card_json=? WHERE activity_key=?',publicCard,activity));
         }
         const updated={activity_key:activity,activity_id:id,name:config.name,active:Number(status==='ACTIVE'),lifecycle:status,revision:(existing?.revision||0)+1};
-        const next={...data,programs:[...data.programs.filter(s=>!same(s.activity_key,activity)),{activity_key:activity,duration_years:config.durationYears,timezone:config.timezone,public_card_json:publicCard}]};
-        return {data,statements,result:{program:dto(next,updated)},fields:['Name','DurationYears','Timezone','Lifecycle',...(Object.hasOwn(input,'publicCard')?['PublicCard']:[])]};
+        const settings=data.programs.find(s=>same(s.activity_key,activity))||{};
+        const nextSettings={...settings,activity_key:activity,duration_years:config.durationYears,timezone:config.timezone,...(cardsReady?{public_card_json:publicCard}:{})};
+        if(Object.hasOwn(input,'programZoomLink')){
+          const link=normalizeZoomLink(input.programZoomLink);
+          statements.push(p('INSERT INTO academy_settings(setting_key,setting_value,updated_at,updated_by_account_id) VALUES(?,?,?,?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value,updated_at=excluded.updated_at,updated_by_account_id=excluded.updated_by_account_id',programZoomKey(activity),link,now,auth.user.accountid));
+          nextSettings.program_zoom_link=link;nextSettings.program_zoom_configured=1;
+        }
+        const next={...data,programs:[...data.programs.filter(s=>!same(s.activity_key,activity)),nextSettings]};
+        if(Object.hasOwn(input,'accessModel')){
+          statements.push(p('INSERT INTO academy_settings(setting_key,setting_value,updated_at,updated_by_account_id) VALUES(?,?,?,?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value,updated_at=excluded.updated_at,updated_by_account_id=excluded.updated_by_account_id',programAccessKey(activity),input.accessModel,now,auth.user.accountid));
+          next.policies=[...data.policies.filter(s=>!same(s.activity_key,activity)),{activity_key:activity,access_model:input.accessModel}];
+        }
+        return {data,statements,result:{program:dto(next,updated)},fields:['Name','DurationYears','Timezone','Lifecycle',...(Object.hasOwn(input,'publicCard')?['PublicCard']:[]),...(Object.hasOwn(input,'accessModel')?['AccessModel']:[]),...(Object.hasOwn(input,'programZoomLink')?['ProgramZoomLink']:[])]};
       });
     },
     async management(action,input,verifyLibraryChange,extra={},initialLoaded=null) {

@@ -18,6 +18,7 @@
   const tabs=[['overview','Overview'],['modules','Modules'],['subjects','Subjects'],['tasks','Tasks'],['classes','Classes'],['profiles','User profiles']];
   const tabKind=kind=>({progress:'modules',levels:'modules',enrollments:'profiles',teachers:'profiles'})[kind]||kind;
   const state={data:null,kind:new URLSearchParams(location.search).get('tab')==='classes'?'classes':'subjects',overview:new URLSearchParams(location.search).get('tab')!=='classes',timetable:null,preview:null,timetableError:false,edit:null,busy:false,pending:null,search:'',importPreview:null,importPending:null,expanded:new Set(),refreshWaiting:false,refreshTimer:null,profileAccountId:null,classDrafts:{},classPending:null,classDraftsLoaded:false};
+  const modernPeople=()=>state.data?.store==='D1'&&state.data.learningWorkflowsReady;
   const enrolledAccountIds=()=>new Set((state.data?.accounts||[]).filter(account=>active(account.Active)&&(account.Roles||[]).includes('STUDENT')).map(account=>account.AccountID));
   const message=(text,error=false)=>{$('pm-message').textContent=text;$('pm-message').classList.toggle('is-error',error);};
   async function api(action,body={},shared=false){
@@ -42,7 +43,7 @@
     $('pm-pending').hidden=!state.pending;renderConflict();
     const otherDraft=Boolean(state.edit&&!visibleEdit())||Boolean(state.importPending&&state.kind!=='subjects')||Boolean(Object.keys(state.classDrafts).length&&state.kind!=='profiles');
     $('pm-draft-notice').hidden=!otherDraft;
-    $('pm-draft-text').textContent=state.edit?`Your ${defs[state.edit.kind||state.kind].singular} entry is kept. You can browse other sections; return to finish it before editing another row.`:state.importPending?'Your subject import is pending. You can browse other sections; return to Subjects to finish it.':'Your student class changes are kept. Return to User profiles to save them.';
+    $('pm-draft-text').textContent=state.edit?`Your ${defs[state.edit.kind||state.kind].singular} entry is kept. You can browse other sections; return to finish it before editing another row.`:state.importPending?'Your subject import is pending. You can browse other sections; return to Subjects to finish it.':`Your student class changes are kept. Return to ${modernPeople()?'People & classes':'User profiles'} to save them.`;
     $('pm-return').disabled=state.busy;
     $('pm-overview').querySelectorAll('button').forEach(button=>{button.disabled=locked||!editable||Boolean(state.edit);});
     // A quota cooldown pauses network actions, while browsing and typing stay available.
@@ -128,9 +129,9 @@
     const enrolled=enrolledAccountIds(),records=state.data.accounts.filter(account=>enrolled.has(account.AccountID)),search=state.search.trim().toLowerCase();
     const filtered=records.filter(account=>[account.DisplayName,account.AccountID].some(value=>String(value).toLowerCase().includes(search)));
     const classes=state.data.rows.classes.filter(row=>active(row.Active));
-    $('pm-caption').textContent='Enrolled students';$('pm-help').textContent='Students enrolled through shared User profiles are listed here. Choose one class per student, then save that row or Save all changed rows.';
+    $('pm-caption').textContent='Enrolled students';$('pm-help').textContent='Choose one class per student, then save the row or Save all changes.';
     const unavailable=Object.keys(state.classDrafts).filter(id=>!enrolled.has(id)).length;
-    $('pm-section-note').textContent='Grant Student roles in shared User profiles. Assign optional class teachers in Classes and lesson teachers in the timetable.'+(unavailable?` ${unavailable} unsaved class ${unavailable===1?'choice belongs':'choices belong'} to ${unavailable===1?'a student who is':'students who are'} no longer enrolled; restore the Student role before saving.`:'');$('pm-section-note').hidden=false;
+    $('pm-section-note').textContent=(state.data.globalProfilesAvailable===false?'': 'Manage Student and Teacher roles in User profiles. ')+(modernPeople()?'Edit classes and teachers in Timetable.':'Assign optional class teachers in Classes and lesson teachers in the timetable.')+(unavailable?` ${unavailable} unsaved class ${unavailable===1?'choice belongs':'choices belong'} to ${unavailable===1?'a student who is':'students who are'} no longer enrolled; restore the Student role before saving.`:'');$('pm-section-note').hidden=false;
     $('pm-count').textContent=`${filtered.length} of ${records.length} enrolled students`;
     $('pm-head').innerHTML='<tr><th scope="col">Student</th><th scope="col">Class</th><th scope="col">Changes</th></tr>';
     $('pm-rows').innerHTML=filtered.map(account=>{
@@ -185,6 +186,8 @@
     edit.record=merged;edit.baseRecord=structuredClone(currentRecord);edit.baseRowRevision=rowRevision;delete edit.conflict;return true;
   }
   function render(){baseline();rememberDraft();renderConflict();if(!state.data){controls();return;}
+    // Keep earlier unfinished entries recoverable, then return to the current People view.
+    if(modernPeople()&&!state.edit&&!state.importPending){state.overview=false;state.kind='profiles';}
     const moduleMode=['modules','progress'].includes(state.kind),gridKind=moduleMode?'modules':state.kind,def=defs[gridKind],edit=visibleEdit();
     $('pm-title').textContent=`${state.data.program.name} · Management`;
     $('pm-timetable').href=`/programs/timetable.html?program=${encodeURIComponent(programId)}`;
@@ -192,7 +195,8 @@
     $('pm-library').hidden=state.data.store==='D1'&&!state.data.learningWorkflowsReady;
     $('pm-workspace').hidden=!state.data.prepared;$('pm-prepare').hidden=state.data.prepared;
     $('pm-library-prepare').hidden=!state.data.prepared||state.data.libraryPrepared;
-    $('pm-tabs').innerHTML=tabs.map(([key,label])=>`<button type="button" data-tab="${key}" aria-current="${state.overview?key==='overview':key===tabKind(state.kind)}">${label}</button>`).join('');
+    $('pm-tabs').hidden=Boolean(modernPeople());
+    $('pm-tabs').innerHTML=modernPeople()?'':tabs.map(([key,label])=>`<button type="button" data-tab="${key}" aria-current="${state.overview?key==='overview':key===tabKind(state.kind)}">${label}</button>`).join('');
     $('pm-overview').hidden=!state.overview;$('pm-editor').hidden=state.overview;
     $('pm-add').hidden=!state.overview&&['profiles','teachers','levels'].includes(state.kind);
     $('pm-save-all').hidden=state.overview||state.kind!=='profiles';

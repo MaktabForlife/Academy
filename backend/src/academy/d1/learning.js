@@ -1,4 +1,5 @@
 import {workspaceQueries,workspaceCatalog,workspaceValidation,workspaceId,recordStatement,assertWorkspaceDraft,snapshotDraft,canEditWorkspace} from './program-workspace.js';
+import {applyProgramZoom} from './program-zoom.js';
 import {normalizeWeeklyDraft} from '../../programs/weekly-timetable.js';
 import {canEditTeacherAvailability} from './teacher-availability.js';
 import {subjectView} from './subjects.js';
@@ -48,7 +49,7 @@ export function d1Learning(repository,auth,now=()=>new Date()) {
     if(!auth.state.account.global_admin&&(loaded.a.lifecycle!=='ACTIVE'||!roles.length))throw managementError('This Program is unavailable to your account.',403,'FORBIDDEN');
     loaded.program.timetableEditable=loaded.a.lifecycle!=='ARCHIVED';
     const tables=loaded.viewData.tables;
-    tables.ProgramTimetableState=loaded.data.drafts.map(r=>({CourseID:loaded.program.id,SchemaVersion:JSON.parse(r.draft_json).format===WEEKLY_SCHEMA?WEEKLY_SCHEMA:TIMETABLE_SCHEMA,Revision:r.source_revision||'',Sequence:r.source_sequence,DraftJSON:r.draft_json,CurrentPublicationID:loaded.data.pointer[0]?.latest_publication_id||''}));
+    tables.ProgramTimetableState=loaded.data.drafts.map(r=>({CourseID:loaded.program.id,SchemaVersion:JSON.parse(r.draft_json).format===WEEKLY_SCHEMA?WEEKLY_SCHEMA:TIMETABLE_SCHEMA,Revision:r.source_revision||'',Sequence:r.source_sequence,DraftJSON:JSON.stringify(applyProgramZoom(JSON.parse(r.draft_json),loaded.program)),CurrentPublicationID:loaded.data.pointer[0]?.latest_publication_id||''}));
     tables.ProgramTimetablePublications=loaded.data.publications.map(r=>({Lifecycle:loaded.data.publicationLifecycle?.find(l=>same(l.publication_id,r.publication_id))?.status||'',PublicationID:r.publication_id,CourseID:loaded.program.id,VersionNo:r.version_no,PublishedDate:r.published_at,PublishedByAccountID:r.published_by_source_id,SnapshotJSON:r.snapshot_json}));
     tables.ProgramTimetableOperations=[];
     loaded.attendance={prepared:true,source:loaded.viewData,tables:{
@@ -126,6 +127,7 @@ export function d1Learning(repository,auth,now=()=>new Date()) {
       });
       if(write)return store.change('PROGRAM_TIMETABLE',`PROGRAM:${String(input.id).toUpperCase()}`,action,input,async()=>{
         const loaded=await load(input.id);requireRole(loaded,['PROGRAM_ADMIN']);
+        input={...input,draft:applyProgramZoom(input.draft,loaded.program)};
         let timetableId,review;
         if(loaded.data.workspaceRecords){
           timetableId=assertWorkspaceDraft(loaded,input);
@@ -159,6 +161,7 @@ export function d1Learning(repository,auth,now=()=>new Date()) {
         const catalog=workspaceCatalog(loaded,learningCatalog(loaded));
         if(['validate','preview'].includes(action))result=await workspaceValidation(loaded,input.draft,catalog,input.effectiveFrom||programToday(loaded.program.timezone,now()));
         if(action==='get'){
+          result.draft=applyProgramZoom(result.draft,loaded.program);
           result.draft.timetableId=workspaceId(loaded);
           const record=loaded.data.workspaceRecords.find(r=>r.timetable_id===result.draft.timetableId);
           const checked=record?.status==='VALID'?await workspaceValidation(loaded,result.draft,catalog,programToday(loaded.program.timezone,now())):null;
