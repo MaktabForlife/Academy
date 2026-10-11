@@ -65,7 +65,7 @@ const fetch = async (_url, options) => {
   }
   requests.push(body);
   const row = structuredClone(activity);
-  if (signedIn) row.roles=globalAdmin?['GLOBAL_ADMIN']:programRole?[programRole]:[];
+  if (signedIn) row.roles=globalAdmin?['GLOBAL_ADMIN','PROGRAM_ADMIN']:Array.isArray(programRole)?programRole:programRole?[programRole]:[];
   if (signedIn && (globalAdmin || programRole!=='STUDENT')) {
     row.tools.attendance=`/programs/attendance.html?program=${encodeURIComponent(row.id)}`;
     // A cached older backend may still advertise its wider Program Library editor.
@@ -151,7 +151,7 @@ const fetch = async (_url, options) => {
 };
 const RealDate = Date;
 class FixtureDate extends RealDate { static now(){return RealDate.parse(fixtureNow);} constructor(...args) { super(...(args.length?args:[fixtureNow])); } }
-vm.runInNewContext(script, { window, document, location, localStorage:{getItem:key=>storage.get(key)||null}, fetch, Event,
+vm.runInNewContext(script, { window, document, location, history:{replaceState(_state,_title,hash){location.hash=hash;}}, localStorage:{getItem:key=>storage.get(key)||null}, fetch, Event,
   crypto:webcrypto,TextEncoder,Uint8Array,sessionStorage:{getItem:key=>tabStore.get(key)||null,setItem:(key,value)=>tabStore.set(key,value),removeItem:key=>tabStore.delete(key)},Intl, Date:FixtureDate, setInterval() {}, setTimeout(fn,delay) { const id=++nextTimer;timers.set(id,{fn,delay});return id; }, clearTimeout(id) {timers.delete(id);}, matchMedia:()=>({matches:false}) });
 await flush();
 const countPills=id=>($(id).innerHTML.match(/<li class="preview-pill timetable-pill /g)||[]).length;
@@ -347,4 +347,19 @@ assert.equal(fetchUrls.length,count,'The link adds no connection checks or accou
 assert.ok(fetchUrls.every(url=>url.startsWith('https://test/')),'No Hifz requests occur until the user follows the link');
 storage.clear();window.dispatchEvent(new Event('m4l-academy-session'));await flush();assert.doesNotMatch($('activity-menu').innerHTML,/HifzHelper/,'Sign-out removes the personal link');
 for(const target of ['activity-switcher','personal-pills'])assert.doesNotMatch($(target).innerHTML,/HifzHelper/,'Sign-out removes the personal pill shortcut');
-console.log('Academy timetable, scoped tools, cache, joining, sign-out and independent personal HifzHelper links passed.');
+storage.set('m4l_account_token','inline-account');cacheFixture=true;globalAdmin=false;programRole='TEACHER';await refresh();
+const inlineCalls=[];let allowLeave=true;
+window.M4L_PROGRAM_ATTENDANCE={open:options=>inlineCalls.push(options),reset(){},canLeave:()=>allowLeave};
+const programHash='#activity/PROGRAM/'+activity.id;
+await navigate(programHash);assert.equal($('pa-main').hidden,true);assert.match($('activity-menu').innerHTML,/\/attendance" aria-expanded="false"/);
+await navigate(programHash+'/attendance');assert.equal($('pa-main').hidden,false);assert.equal(inlineCalls.at(-1).id,activity.id);assert.equal($('pa-close').href,programHash);
+assert.equal($('workspace-tool').open,false,'Attendance stays on the Program page');assert.doesNotMatch($('activity-menu').innerHTML,/\/programs\/attendance/);
+assert.match($('activity-switcher').innerHTML,/\/attendance"/,'Program pills keep the Attendance view selected');
+allowLeave=false;await navigate('#overview');assert.equal(location.hash,programHash+'/attendance');assert.equal($('pa-main').hidden,false,'Rejected navigation retains the open register');
+allowLeave=true;await navigate('#overview');assert.equal($('pa-main').hidden,true);
+for(const [roles,label] of [[['STUDENT','TEACHER'],'Teacher'],[['TEACHER','STUDENT','PROGRAM_ADMIN'],'Program Admin']]) {
+  programRole=roles;await refresh();assert.match($('personal-pills').innerHTML,new RegExp('<small>'+label+'</small>'));assert.doesNotMatch($('personal-pills').innerHTML,/<small>[^<]* · /);
+}
+globalAdmin=true;await refresh();assert.match($('personal-pills').innerHTML,/<small>Global Admin<\/small>/);assert.doesNotMatch($('personal-pills').innerHTML,/<small>[^<]* · /);
+globalAdmin=false;programRole='STUDENT';await refresh();await navigate(programHash+'/attendance');assert.equal($('pa-main').hidden,true,'Students cannot open the staff register');
+console.log('Academy timetable, inline Attendance routing and draft guards, highest pill access, scoped tools, cache, joining, sign-out and personal HifzHelper links passed.');

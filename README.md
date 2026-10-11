@@ -1,3 +1,7 @@
+# V106.21 — Inline Attendance and compact access pills
+
+Open Attendance inside the Academy Program page, keeping its header, Program pills and teaching tools. Date controls, 240-pixel class registers and the day summary appear on that page. Program switching retains the Attendance view, with draft and interrupted-save protection. Navigation pills show only the highest access level; no access means no pill. Existing shared submissions remain available for corrections with an explanation. No database changes are required. [Release details](docs/ACADEMY-INLINE-ATTENDANCE-106.21.md).
+
 # V106.20 — Active D1 service version
 
 Synchronise the active D1 health response with the Attendance website release after the final live check found its old V106.18 label. Regression checks now compare both D1 health URLs in rehearsal and active modes with the package version. Attendance behaviour is unchanged; no database changes are required. The owner authorised deployment and will verify the roster afterward. There is no attendance history to verify. [Release details](docs/ACADEMY-RELEASE-VERSION-106.20.md).

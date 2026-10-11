@@ -5,17 +5,20 @@ import worker from '../src/worker.js';
 import {attendanceIntegrationFixture,attendanceProgramId as id,attendanceDate,previousAttendanceDate} from './fixtures/academy-attendance-fixture.mjs';
 const markup=readFileSync(new URL('../../programs/attendance.html',import.meta.url),'utf8'),source=readFileSync(new URL('../../js/m4l-program-attendance.js',import.meta.url),'utf8');
 const ids=new Set([...markup.matchAll(/id="([^"]+)"/g)].map(m=>m[1]));
+const academyIds=new Set([...readFileSync(new URL('../../academy/index.html',import.meta.url),'utf8').matchAll(/id="([^"]+)"/g)].map(m=>m[1]));
 const settle=async()=>{for(let i=0;i<25;i++)await new Promise(resolve=>setTimeout(resolve,2));};
 const f=await attendanceIntegrationFixture(),externalFetch=globalThis.fetch;let external=0;
 globalThis.fetch=async()=>{external++;throw Error('No external requests allowed');};
 const post=async(path,body,token='')=>worker.fetch(new Request('http://localhost'+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(body)}),f.env);
 const login=async(suffix)=>{const result=await post('/api/account/login',{uniqueid:'login-'+suffix,pin:'1234'});assert.equal(result.status,200);return (await result.json()).token;};
-function screen(token,storage=new Map()){
+function screen(token,storage=new Map(),embedded=false){
   const elements=new Map(),requests=[];let loseNext=false;
-  const element=id=>{assert(ids.has(id));if(!elements.has(id))elements.set(id,{hidden:false,disabled:false,value:'',textContent:'',innerHTML:'',listeners:{},classList:{toggle(){}},addEventListener(type,fn){this.listeners[type]=fn;}});return elements.get(id);};
+  const element=id=>{assert((embedded?academyIds:ids).has(id));if(!elements.has(id))elements.set(id,{dataset:id==='pa-main'&&embedded?{embedded:'true'}:{},hidden:false,disabled:false,value:'',textContent:'',innerHTML:'',listeners:{},classList:{toggle(){}},addEventListener(type,fn){this.listeners[type]=fn;}});return elements.get(id);};
+  const window={M4L_CONFIG:{API_BASE:''},confirm:()=>true,addEventListener(){}};
   vm.runInNewContext(source,{crypto,TextEncoder,URLSearchParams,console,location:{search:'?program='+id,pathname:'/programs/attendance.html'},history:{replaceState(){}},
-    localStorage:{getItem:()=>token},sessionStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},document:{getElementById:element},window:{M4L_CONFIG:{API_BASE:''},confirm:()=>true,addEventListener(){}},
+    localStorage:{getItem:()=>token},sessionStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},document:{getElementById:element},window,
     fetch:async(url,options)=>{const result=await worker.fetch(new Request('http://localhost'+url,options),f.env),body=await result.clone().json();requests.push({url,input:JSON.parse(options.body),body,status:result.status});if(loseNext&&url.endsWith('/submit')){loseNext=false;throw Error('Lost acknowledgement');}return result;}});
+  if(embedded)window.M4L_PROGRAM_ATTENDANCE.open({id,programs:[{id,name:'Synthetic Program',role:'TEACHER'}]});
   return {element,requests,storage,loseAcknowledgement:()=>{loseNext=true;},
     change:(klass,account,value)=>element('pa-classes').listeners.change({target:{matches:s=>s==='[data-mark]',dataset:{class:klass,account},value}}),
     lesson:(klass,value)=>element('pa-classes').listeners.change({target:{matches:s=>s==='[data-lesson]',dataset:{class:klass},value}}),
@@ -53,6 +56,10 @@ try{
   const scoped=screen(await login('0004'));await settle();assert.equal((scoped.element('pa-programs').innerHTML.match(/data-program=/g)||[]).length,1);
   const global=screen(await login('0001'));await settle();assert.equal((global.element('pa-programs').innerHTML.match(/data-program=/g)||[]).length,2);
   assert.equal((await post('/api/program-attendance/get',{id,date:attendanceDate()},await login('0002'))).status,403);
+  const inline=screen(teacher,new Map(),true);await settle();assert.match(inline.element('pa-classes').innerHTML,/Class A.*Class B/);
+  assert.equal(inline.requests.some(r=>r.url.endsWith('/available')),false,'The inline editor reuses the Academy scope');
+  inline.lesson('class-1',anchor);inline.change('class-1','account-0002','EXCUSED');inline.save('class-1');await settle();
+  const inlineSave=inline.requests.filter(r=>r.url.endsWith('/submit')).at(-1);assert.equal(inlineSave.status,200);assert.equal(inlineSave.body.editedLessons,1);assert.equal(inlineSave.body.submittedLessons,0);
   assert.equal(external,0);assert.equal(f.db.prepare('PRAGMA foreign_key_check').all().length,0);assert.equal(f.db.prepare('SELECT count(*) n FROM academy_write_guards').get().n,0);
   console.log('Public Attendance + D1: shared class registers, one/all lessons, active memberships, Unknown/completion, lost-ack replay, conflicting forms, original-roster historical corrections and teacher/student/admin scopes passed.');
 }finally{globalThis.fetch=externalFetch;f.db.close();}

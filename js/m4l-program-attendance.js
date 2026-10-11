@@ -1,5 +1,7 @@
 (()=>{'use strict';
   const $=id=>document.getElementById(id);
+  const embedded=$('pa-main')?.dataset?.embedded==='true';
+  let hostedOptions=null;
   const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const token=()=>localStorage.getItem('m4l_account_token')||'';
   const state={programs:[],id:'',accountPath:'',session:'',owner:'',data:null,busy:false,pending:null,stale:false,selection:new Map(),draft:new Map(),draftBase:new Map()};
@@ -30,17 +32,19 @@
   function render(){
     const locked=state.busy||Boolean(state.pending),program=state.programs.find(row=>row.id===state.id);
     const admin=['GLOBAL_ADMIN','PROGRAM_ADMIN','ADMIN'].includes(program?.role);
-    $('pa-account').hidden=!state.accountPath;$('pa-account').href=state.accountPath||'/academy/#overview';
-    $('pa-return').textContent=admin?'Back to Program management':'Back to Program';
-    $('pa-return').href=state.id?(admin?`/programs/?program=${encodeURIComponent(state.id)}`:`/academy/#activity/PROGRAM/${encodeURIComponent(state.id)}`):'/academy/#overview';
-    if(state.id)window.M4L_PROGRAM_MANAGEMENT_NAV?.select(state.id);
-    $('pa-programs').innerHTML=state.programs.map(row=>`<button type="button" data-program="${esc(row.id)}" aria-pressed="${row.id===state.id}" ${locked?'disabled':''}>${esc(row.name)}</button>`).join('');
+    if(!embedded){
+      $('pa-account').hidden=!state.accountPath;$('pa-account').href=state.accountPath||'/academy/#overview';
+      $('pa-return').textContent=admin?'Back to Program management':'Back to Program';
+      $('pa-return').href=state.id?(admin?`/programs/?program=${encodeURIComponent(state.id)}`:`/academy/#activity/PROGRAM/${encodeURIComponent(state.id)}`):'/academy/#overview';
+      if(state.id)window.M4L_PROGRAM_MANAGEMENT_NAV?.select(state.id);
+      $('pa-programs').innerHTML=state.programs.map(row=>`<button type="button" data-program="${esc(row.id)}" aria-pressed="${row.id===state.id}" ${locked?'disabled':''}>${esc(row.name)}</button>`).join('');
+    }
     $('pa-pending').hidden=!state.pending;$('pa-retry').disabled=state.busy;
     $('pa-date').disabled=locked;$('pa-refresh').disabled=locked;
     const data=state.data;
     $('pa-workspace').hidden=!data;
-    if(!data){$('pa-classes').innerHTML='';$('pa-summary').innerHTML='';$('pa-title').textContent='Attendance';return;}
-    $('pa-title').textContent=`${data.program.name} attendance`;
+    if(!data){$('pa-classes').innerHTML='';$('pa-summary').innerHTML='';if(!embedded)$('pa-title').textContent='Attendance';return;}
+    if(!embedded)$('pa-title').textContent=`${data.program.name} attendance`;
     $('pa-date').max=data.today;$('pa-date').value=data.date;
     $('pa-prepare').hidden=data.prepared||!data.canPrepare;$('pa-prepare').disabled=locked;
     if(!data.prepared){$('pa-completion').textContent='Attendance storage needs preparation.';$('pa-classes').innerHTML='';$('pa-summary').innerHTML='';return;}
@@ -62,7 +66,7 @@
         return `<li><strong>${esc(learner.name)}</strong><select data-mark data-class="${esc(klass.id)}" data-account="${esc(accountId)}" aria-label="${esc(learner.name)} attendance in ${esc(klass.name)}" ${locked||state.stale||!canSave?'disabled':''}>${value==='MIXED'?'<option value="MIXED" selected>Mixed · keep</option>':''}<option value="PRESENT" ${value==='PRESENT'?'selected':''}>Present</option><option value="ABSENT" ${value==='ABSENT'?'selected':''}>Absent</option><option value="EXCUSED" ${value==='EXCUSED'?'selected':''}>Excused</option></select></li>`;
       }).join('');
       const status=selected.map(row=>`<span class="${row.submitted?'pa-submitted':'pa-unknown'}">${esc(lessonName(row))}: ${row.submitted?'Submitted':'Not submitted · unknown'}</span>`).join('');
-      return `<section class="pa-class"><h2>${esc(klass.name)}</h2><label class="pa-lesson-label">Lesson<select data-lesson data-class="${esc(klass.id)}" ${locked||!rows.length?'disabled':''}>${options}</select></label><button class="pa-submit" data-submit="${esc(klass.id)}" type="button" ${locked||state.stale||!canSave?'disabled':''}>${selected.some(row=>row.submitted)?'Submit attendance changes':'Submit attendance'}</button><p class="pa-register-state">${status||'No lessons scheduled for this class.'}</p><ul class="pa-learners">${marks||'<li class="pa-empty">No learners in this selection. Check class enrolments if learners are missing.</li>'}</ul></section>`;
+      return `<section class="pa-class"><h2>${esc(klass.name)}</h2>${klass.id==='COMBINED'?'<p class="pa-help">An earlier shared lesson submission, kept together for corrections.</p>':''}<label class="pa-lesson-label">Lesson<select data-lesson data-class="${esc(klass.id)}" ${locked||!rows.length?'disabled':''}>${options}</select></label><button class="pa-submit" data-submit="${esc(klass.id)}" type="button" ${locked||state.stale||!canSave?'disabled':''}>${selected.some(row=>row.submitted)?'Save changes':'Submit'}</button><p class="pa-register-state">${status||'No lessons scheduled for this class.'}</p><ul class="pa-learners">${marks||'<li class="pa-empty">No learners in this selection. Check class enrolments if learners are missing.</li>'}</ul></section>`;
     }).join('')||'<p class="pa-empty">No classes are assigned to you for this Program.</p>';
     $('pa-summary').innerHTML=data.learners.length?`<ul>${data.learners.map(row=>`<li><span>${esc(row.name)}</span><strong>${esc(row.status==='UNKNOWN'?'Unknown':row.status[0]+row.status.slice(1).toLowerCase())}</strong></li>`).join('')}</ul>`:'<p>No learners have a scheduled or submitted lesson in this view.</p>';
   }
@@ -129,7 +133,7 @@
       message(error.message+(state.stale?' Refresh before submitting again.':''),true);
     }finally{if(current(run)){state.busy=false;render();}}
   }
-  $('pa-programs').addEventListener('click',event=>{const id=event.target.closest('[data-program]')?.dataset.program;if(id)chooseProgram(id);});
+  if(!embedded)$('pa-programs').addEventListener('click',event=>{const id=event.target.closest('[data-program]')?.dataset.program;if(id)chooseProgram(id);});
   $('pa-classes').addEventListener('change',event=>{
     if(state.busy||state.pending)return;
     if(event.target.matches('[data-lesson]')){state.selection.set(event.target.dataset.class,event.target.value);render();return;}
@@ -156,7 +160,7 @@
     catch(error){if(current(run))message(error.message,true);}
     finally{if(current(run)){state.busy=false;render();}}
   });
-  async function initialise(){
+  async function initialise(options){
     const run=++generation;
     state.session=token();state.id='';state.programs=[];state.accountPath='';state.data=null;state.pending=null;state.owner='';state.stale=false;state.busy=true;state.selection.clear();clearDraft();render();
     message(state.session?'Loading Programs…':'Sign in to your Academy account first.');
@@ -166,22 +170,39 @@
       const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(state.session));
       if(!current(run))return;
       state.owner=[...new Uint8Array(hash)].map(byte=>byte.toString(16).padStart(2,'0')).join('');
-      const result=await api('program-library/available');
+      const result=options?{programs:options.programs,store:'D1'}:await api('program-library/available');
       if(!current(run))return;
       state.programs=(result.programs||[]).filter(row=>['GLOBAL_ADMIN','PROGRAM_ADMIN','ADMIN','TEACHER','SENIOR'].includes(row.role)||result.store!=='D1'&&!row.role);
       state.accountPath=result.accountPath||'';
       if(!state.programs.length){message('No teaching Programs are available to your account.');return;}
-      const requested=new URLSearchParams(location.search).get('program');
+      const requested=options?.id||new URLSearchParams(location.search).get('program');
       if(requested&&!state.programs.some(row=>row.id===requested)){message('This Program is unavailable to your account. Select one of your teaching Programs.',true);return;}
       state.id=requested||state.programs[0].id;restorePending();
-      history.replaceState(null,'',`${location.pathname}?program=${encodeURIComponent(state.id)}`);
+      if(!embedded)history.replaceState(null,'',`${location.pathname}?program=${encodeURIComponent(state.id)}`);
       await load(state.pending?.date);
     }catch(error){if(current(run))message(error.message,true);}
     finally{if(current(run)){state.busy=false;render();}}
   }
+  function reset(){
+    generation++;hostedOptions=null;state.session=token();state.id='';state.programs=[];state.data=null;state.pending=null;state.busy=false;state.stale=false;state.selection.clear();clearDraft();render();message('');
+  }
+  window.M4L_PROGRAM_ATTENDANCE={
+    open(options){
+      hostedOptions=options;
+      if(state.id===options.id&&state.session===token()&&(state.data||state.busy||state.pending))return;
+      void initialise(options);
+    },
+    canLeave(){
+      if(!hostedOptions)return true;
+      if(state.busy||state.pending){message(state.pending?'Retry the pending submission before leaving Attendance.':'Wait for attendance to finish loading or saving.');return false;}
+      return discard();
+    },
+    reset
+  };
   window.addEventListener('beforeunload',event=>{if(state.draft.size||state.pending){event.preventDefault();event.returnValue='';}});
-  window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)void initialise();});
-  window.addEventListener('m4l-academy-session',()=>void initialise());
-  window.addEventListener('pageshow',event=>{if(event.persisted)void initialise();});
-  void initialise();
+  const sessionChanged=()=>embedded?reset():void initialise();
+  window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)sessionChanged();});
+  window.addEventListener('m4l-academy-session',sessionChanged);
+  window.addEventListener('pageshow',event=>{if(event.persisted)sessionChanged();});
+  if(!embedded)void initialise();
 })();

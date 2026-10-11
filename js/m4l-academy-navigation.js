@@ -3,7 +3,7 @@
   // The standalone recorder remains unchanged outside its Academy entry point.
   if (location.pathname.startsWith('/recorder/') && new URLSearchParams(location.search).get('academy') !== '1') return;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
-  const roles = values => (values || []).map(role => ({ GLOBAL_ADMIN: 'Global Admin', PROGRAM_ADMIN: 'Program Admin', ADMIN: 'Program Admin', SENIOR: 'Senior', TEACHER: 'Teacher', STUDENT: 'Student' })[role]).filter(Boolean).join(' · ');
+  const roles = (values = []) => values.includes('GLOBAL_ADMIN') ? 'Global Admin' : values.some(role=>['PROGRAM_ADMIN','ADMIN'].includes(role)) ? 'Program Admin' : values.some(role=>['TEACHER','SENIOR'].includes(role)) ? 'Teacher' : values.includes('STUDENT') ? 'Student' : '';
   const token = () => localStorage.getItem('m4l_account_token') || '';
   const side = document.createElement('aside');
   side.className = 'academy-connected-sidebar';
@@ -63,10 +63,10 @@
       $('ac-recorder').hidden = !result.student;
       $('ac-signout').hidden = false;
       if ($('library-for-you')) $('library-for-you').hidden = false;
-      const activities = (result.personalActivities || []).filter(row => ['PROGRAM', 'COURSE'].includes(row.kind) && row.id && row.roles?.length);
+      const activities = (result.personalActivities || []).filter(row => ['PROGRAM', 'COURSE'].includes(row.kind) && row.id && (result.globalAdmin || roles(row.roles)));
       const programs = activities.filter(row => row.kind === 'PROGRAM');
       const courses = activities.filter(row => row.kind === 'COURSE');
-      strip.innerHTML = programs.map(row => `<a data-academy-program="${esc(row.id)}" href="/academy/#activity/${row.kind}/${encodeURIComponent(row.id)}"${row.kind === 'PROGRAM' && row.id === currentProgram ? ' aria-current="page"' : ''}><span>${esc(row.name)}</span><small>${esc(roles(row.roles))}</small></a>`).join('') +
+      strip.innerHTML = programs.map(row => `<a data-academy-program="${esc(row.id)}" href="/academy/#activity/${row.kind}/${encodeURIComponent(row.id)}"${row.kind === 'PROGRAM' && row.id === currentProgram ? ' aria-current="page"' : ''}><span>${esc(row.name)}</span><small>${esc(roles(result.globalAdmin ? ['GLOBAL_ADMIN'] : row.roles))}</small></a>`).join('') +
         (result.signedIn && (result.globalAdmin || courses.some(row=>row.roles?.length)) ? `<a href="/academy/#workshops"><span>Courses</span><small>${esc(roles(result.globalAdmin ? ['GLOBAL_ADMIN','PROGRAM_ADMIN'] : [...new Set(courses.flatMap(row => row.roles))]) || 'None')}</small></a>` : '');
       strip.hidden = !result.signedIn;
     } catch { /* Public navigation stays available while account information is unavailable. */ }

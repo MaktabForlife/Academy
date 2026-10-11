@@ -18,7 +18,7 @@
    }
    const program=programs.find(row=>row.id===id);if(!program)return;
    const suffix='?program='+encodeURIComponent(id);
-   const tabs=[['timetable','Timetable','/programs/timetable.html'+suffix],['people','People','/programs/manage.html'+suffix+'&tab=profiles'],['library','Library','/programs/media.html'+suffix],['attendance','Attendance','/programs/attendance.html'+suffix]];
+   const tabs=[['timetable','Timetable','/programs/timetable.html'+suffix],['people','People','/programs/manage.html'+suffix+'&tab=profiles'],['library','Library','/programs/media.html'+suffix],['attendance','Attendance','/academy/#activity/PROGRAM/'+encodeURIComponent(id)+'/attendance']];
    const page=location.pathname.replace(/\/+$/,'').replace(/\.html$/,'');
    const current=({'/programs/timetable':'timetable','/programs/manage':'people','/programs/media':'library','/programs/library':'library','/programs/library-view':'library','/programs/attendance':'attendance'})[page];
    header=document.createElement('header');header.className='pgm-header';

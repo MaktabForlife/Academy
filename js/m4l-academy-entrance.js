@@ -17,13 +17,14 @@
   const homeIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h5v-7h4v7h5V9"/></svg>';
   const TIMETABLE_RETURN_KEY = 'm4l_academy_timetable_return';
   let lastRouteHash = '', navigationSession = token();
-  const validReturnHash = hash => typeof hash === 'string' && (hash !== '#timetable' && Boolean(titles[hash.slice(1)]) || /^#activity\/(PROGRAM|COURSE)\/[^#]+$/.test(hash));
+  const validReturnHash = hash => typeof hash === 'string' && (hash !== '#timetable' && Boolean(titles[hash.slice(1)]) || /^#activity\/(PROGRAM|COURSE)\/[^/#]+(?:\/attendance)?$/.test(hash));
   const titles = { overview: 'Academy home', timetable: 'Academy timetable', learning: 'Programs and Courses', workshops: 'Courses', activity: 'Activity',
     prospectus: '2026 Prospectus', about: 'About', contact: 'Contact', progress: 'Dua and Surah Progress', recorder: 'Voice Recorder', administration: 'Academy administration' };
   const activityHref = row => `#activity/${row.kind}/${encodeURIComponent(row.id)}`;
   const staffRoles = roles => roles.some(role => ['TEACHER', 'PROGRAM_ADMIN', 'ADMIN', 'SENIOR', 'GLOBAL_ADMIN'].includes(role));
   const roleName = roles => roles.map(role => ({ GLOBAL_ADMIN: 'Global Admin', PROGRAM_ADMIN: 'Program Admin', ADMIN: 'Program Admin', SENIOR: 'Senior', TEACHER: 'Teacher', STUDENT: 'Student' })[role]).filter(Boolean).join(' · ') || 'None';
-  const activityPill = (href, name, roles, current = false) => `<a href="${href}"${current ? ' aria-current="page"' : ''}><span>${esc(name)}</span><small>${esc(roleName(roles))}</small></a>`;
+  const highestAccess = roles => state.home?.globalAdmin || roles.includes('GLOBAL_ADMIN') ? 'Global Admin' : roles.some(role=>['PROGRAM_ADMIN','ADMIN'].includes(role)) ? 'Program Admin' : roles.some(role=>['TEACHER','SENIOR'].includes(role)) ? 'Teacher' : roles.includes('STUDENT') ? 'Student' : '';
+  const activityPill = (href, name, roles, current = false) => highestAccess(roles) ? `<a href="${href}"${current ? ' aria-current="page"' : ''}><span>${esc(name)}</span><small>${esc(highestAccess(roles))}</small></a>` : '';
   function hifzHelperLink(row, className = '') {
     const roles = row.roles || [], url = window.M4L_CONFIG?.HIFZHELPER_URL;
     const loginId = window.M4L_ACADEMY_LOGIN?.currentId() || '';
@@ -33,7 +34,9 @@
     return `<a${className ? ` class="${className}"` : ''} href="${esc(url.replace(/\/$/, '') + '/' + encodeURIComponent(loginId))}" target="_blank" rel="noopener noreferrer" aria-label="HifzHelper (opens in a new tab)">HifzHelper ↗</a>`;
   }
   function programPill(row, current = false) {
-    const pill = activityPill(activityHref(row), row.name, row.roles, current);
+    if (!highestAccess(row.roles || [])) return '';
+    const attendance = location.hash.endsWith('/attendance') && (state.home?.globalAdmin || staffRoles(row.roles || []));
+    const pill = activityPill(activityHref(row) + (attendance ? '/attendance' : ''), row.name, row.roles, current);
     const shortcut = hifzHelperLink(row, 'activity-pill-shortcut');
     return shortcut ? `<div class="activity-pill-with-shortcut"${current ? ' data-current="true"' : ''}>${pill}${shortcut}</div>` : pill;
   }
@@ -275,8 +278,16 @@
     return (admin ? group('Admin', link('Users', users) + link('Library', global ? '/academy/library/manage/' : row.tools?.resources || '/academy/library/') +
       link('Programs', global ? '/programs/' : row.kind === 'PROGRAM' && row.id ? `/programs/timetable.html?program=${encodeURIComponent(row.id)}` : '') +
       link('Courses', global || row.kind !== 'PROGRAM' ? '/academy/courses/manage/' : '') + tool('Academy','academy')) : '') +
-      (staff ? group('Teach', hifzHelper + (link('Attendance',row.tools?.attendance) || tool('Attendance','attendance')) + tool('Progress','progress') + tool('Assessment','assessment') + tool('Planning','plan') + tool('Announcements','announcements') + link('My Timetable','#timetable') + link('Edit availability','/academy/teaching/')) : '') +
+      (staff ? group('Teach', hifzHelper + (row.kind === 'PROGRAM' ? `<a href="${activityHref(row)}/attendance" aria-expanded="${location.hash.endsWith('/attendance')}" aria-controls="pa-main">Attendance</a>` : tool('Attendance','attendance')) + tool('Progress','progress') + tool('Assessment','assessment') + tool('Planning','plan') + tool('Announcements','announcements') + link('My Timetable','#timetable') + link('Edit availability','/academy/teaching/')) : '') +
       (!staff && learner ? group('Learn', hifzHelper + link('Library','/academy/library/') + tool('My Progress','progress') + tool('My Assessment','assessment') + tool('Calendar','calendar') + tool('Announcements','announcements') + link('My Timetable','#timetable')) : '');
+  }
+
+  function syncAttendance(row) {
+    const open = location.hash === `${activityHref(row)}/attendance` && row.kind === 'PROGRAM' && !row.unavailable && state.home?.signedIn && (state.home.globalAdmin || staffRoles(row.roles || []));
+    $('pa-main').hidden = !open;
+    if (!open) { window.M4L_PROGRAM_ATTENDANCE?.reset(); return; }
+    $('pa-close').href = activityHref(row);
+    window.M4L_PROGRAM_ATTENDANCE?.open({id:row.id,programs:state.home.personalActivities.filter(item=>item.kind==='PROGRAM' && (state.home.globalAdmin || staffRoles(item.roles || []))).map(item=>({id:item.id,name:item.name,role:state.home.globalAdmin?'GLOBAL_ADMIN':item.roles.find(role=>['PROGRAM_ADMIN','ADMIN','TEACHER','SENIOR'].includes(role))}))});
   }
 
   function openWorkspaceTool(key) {
@@ -507,6 +518,7 @@
       const message = row.unavailable ? 'This activity is temporarily unavailable. Please try again.' : !row.roles.length ? 'Sign in with an authorised Academy account to open protected lessons and tools.' : '';
       $('activity-status').textContent = [message,...result.warnings].filter(Boolean).join(' ');
       $('activity-menu').innerHTML = row.roles.length ? roleTools(row) : '';
+      syncAttendance(row);
       renderActivityTimetable();
     } catch (error) {
       if (generation !== state.activityGeneration) return;
@@ -517,6 +529,8 @@
       $('activity-menu').replaceChildren();
       $('activity-sessions').replaceChildren();
       $('activity-schedule').hidden = true;
+      $('pa-main').hidden = true;
+      window.M4L_PROGRAM_ATTENDANCE?.reset();
     }
   }
 
@@ -591,6 +605,11 @@
 
   function route() {
     const hash = location.hash || '#overview';
+    if (lastRouteHash && hash !== lastRouteHash) {
+      if (window.M4L_PROGRAM_ATTENDANCE?.canLeave() === false) { history.replaceState(null,'',lastRouteHash); return; }
+      window.M4L_PROGRAM_ATTENDANCE?.reset();
+      $('pa-main').hidden = true;
+    }
     if(hash === '#timetable'){
       let previous = '#overview';
       try{previous = sessionStorage.getItem(TIMETABLE_RETURN_KEY) || previous;}catch{}
@@ -641,6 +660,8 @@
   }
 
   function clearPersonal() {
+    window.M4L_PROGRAM_ATTENDANCE?.reset();
+    $('pa-main').hidden = true;
     lastRouteHash = '';
     if(!token() || navigationSession !== token())try{sessionStorage.removeItem(TIMETABLE_RETURN_KEY);}catch{}
     navigationSession = token();

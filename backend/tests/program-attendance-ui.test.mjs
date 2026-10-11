@@ -4,8 +4,9 @@ import {readFile} from 'node:fs/promises';
 
 const markup=await readFile(new URL('../../programs/attendance.html',import.meta.url),'utf8');
 const source=await readFile(new URL('../../js/m4l-program-attendance.js',import.meta.url),'utf8');
+const academyMarkup=await readFile(new URL('../../academy/index.html',import.meta.url),'utf8');
 const ids=new Set([...markup.matchAll(/id="([^"]+)"/g)].map(match=>match[1]));
-assert.match(markup,/m4l-program-attendance\.js\?v=106\.19/);
+assert.match(markup,/m4l-program-attendance\.js\?v=106\.21/);
 assert.doesNotMatch(markup,/Coming soon/);
 const lesson=(anchor,classId,name,accountId,submitted=false,status=null)=>({
   lesson:{anchor,classId,moduleName:name,subjectName:'Arabic',startTime:'09:00',endTime:'10:00'},
@@ -21,12 +22,13 @@ const views=()=>({
     scheduledLessons:1,submittedLessons:1,complete:true,learners:[{name:'Learner S3',status:'PRESENT'}]}
 });
 const settle=async()=>{for(let index=0;index<15;index++)await new Promise(resolve=>setTimeout(resolve,1));};
-function fixture({storage=new Map(),requested='P1',role='TEACHER',session='first-session'}={}){
+function fixture({storage=new Map(),requested='P1',role='TEACHER',session='first-session',embedded=false}={}){
   const elements=new Map(),handlers=new Map(),requests=[],selected=[],data=views();
+  const publicIds=embedded?new Set([...academyMarkup.matchAll(/id="([^"]+)"/g)].map(match=>match[1])):ids;
   let account=session,acceptDiscard=true,submitError=null,getError=null,holdNext='',release,storageBlocked=false;
   function element(id){
-    assert(ids.has(id),`Missing public attendance element ${id}`);
-    if(!elements.has(id))elements.set(id,{hidden:false,disabled:false,href:'',value:'',textContent:'',innerHTML:'',listeners:{},classList:{toggle(){}},addEventListener(type,fn){this.listeners[type]=fn;}});
+    assert(publicIds.has(id),`Missing public attendance element ${id}`);
+    if(!elements.has(id))elements.set(id,{dataset:id==='pa-main'&&embedded?{embedded:'true'}:{},hidden:false,disabled:false,href:'',value:'',textContent:'',innerHTML:'',listeners:{},classList:{toggle(){}},addEventListener(type,fn){this.listeners[type]=fn;}});
     return elements.get(id);
   }
   const location={search:requested?`?program=${requested}`:'',pathname:'/programs/attendance'};
@@ -53,7 +55,7 @@ function fixture({storage=new Map(),requested='P1',role='TEACHER',session='first
   const save=classId=>element('pa-classes').listeners.click({target:{closest:()=>({dataset:{submit:classId}})}});
   const choose=id=>element('pa-programs').listeners.click({target:{closest:()=>({dataset:{program:id}})}});
   const date=value=>element('pa-date').listeners.change({target:{value}});
-  return {element,requests,storage,handlers,location,selected,data,change,chooseLesson,save,choose,date,
+  return {element,requests,storage,handlers,location,selected,data,change,chooseLesson,save,choose,date,controller:context.window.M4L_PROGRAM_ATTENDANCE,
     setDiscard:value=>{acceptDiscard=value;},setSubmitError:value=>{submitError=value;},setGetError:value=>{getError=value;},
     hold:action=>{holdNext=action;},release:()=>release(),blockStorage:()=>{storageBlocked=true;},
     signout:()=>{account='';handlers.get('m4l-academy-session')();}};
@@ -112,4 +114,14 @@ for(const action of ['get','submit']){
   await settle();signedout.signout();signedout.release();await settle();
   assert.equal(signedout.element('pa-workspace').hidden,true);assert.equal(signedout.element('pa-classes').innerHTML,'');assert.match(signedout.element('pa-message').textContent,/Sign in/);
 }
-console.log('Public Attendance editor: class/lesson saves, mixed marks, scoped navigation, historical corrections, draft guards, exact reload retries, stale revisions, read/storage failures and delayed sign-out responses passed.');
+const inline=fixture({embedded:true});await settle();assert.equal(inline.requests.length,0,'Attendance does not load before the inline tool is opened');
+const inlineOptions={id:'P1',programs:[{id:'P1',name:'Alimiyah',role:'TEACHER'}]};
+inline.controller.open(inlineOptions);await settle();assert.equal(inline.requests.length,1);assert.equal(inline.requests[0].action,'get','Reuse the verified Academy Program list');
+assert.equal(inline.location.search,'?program=P1','The embedded editor leaves its host address alone');
+inline.change('C1','S1','ABSENT');inline.setDiscard(false);assert.equal(inline.controller.canLeave(),false);inline.setDiscard(true);assert.equal(inline.controller.canLeave(),true);
+inline.setSubmitError({status:0,message:'Connection interrupted'});inline.save('C1');await settle();assert.equal(inline.controller.canLeave(),false,'Pending submissions lock inline navigation');
+const pendingInline=inline.requests.find(r=>r.action==='submit').body;inline.controller.reset();assert.equal(inline.element('pa-classes').innerHTML,'');
+inline.controller.open(inlineOptions);await settle();assert.equal(inline.element('pa-pending').hidden,false);inline.setSubmitError(null);inline.element('pa-retry').listeners.click();await settle();
+assert.deepEqual(inline.requests.filter(r=>r.action==='submit').at(-1).body,pendingInline,'Inline reopen retries the exact saved operation');
+inline.signout();await settle();assert.equal(inline.element('pa-workspace').hidden,true);assert.equal(inline.element('pa-classes').innerHTML,'');
+console.log('Public and inline Attendance: class/lesson saves, lazy scoped loading, navigation guards, mixed marks, historical corrections, exact reload retries, stale revisions, read/storage failures and delayed sign-out responses passed.');

@@ -48,6 +48,12 @@ assert.match(app.children[1].innerHTML,/href="\/academy\/#workshops"/);
 assert.equal((app.children[1].innerHTML.match(/<span>Courses<\/span>/g)||[]).length,1);
 assert.doesNotMatch(app.children[1].innerHTML,/Course-actual-id|Barakah/);
 assert.match(app.children[1].innerHTML,/<small>Teacher<\/small>/);
+for(const [assigned,label] of [[['STUDENT','TEACHER'],'Teacher'],[['TEACHER','STUDENT','PROGRAM_ADMIN'],'Program Admin'],[['STUDENT','PROGRAM_ADMIN','GLOBAL_ADMIN'],'Global Admin']]) {
+  app.setResult({success:true,signedIn:true,student:true,personalActivities:[{id:'Pilot-actual-id',name:'Reboot',kind:'PROGRAM',roles:assigned}]});app.refresh();await flush();
+  assert.match(app.children[1].innerHTML,new RegExp('<small>'+label+'</small>'));assert.doesNotMatch(app.children[1].innerHTML,/<small>[^<]* · /);
+}
+app.setResult({success:true,signedIn:true,student:false,personalActivities:[{id:'no-access',name:'Hidden Program',kind:'PROGRAM',roles:[]},{id:'designation-only',name:'No Program assignment',kind:'PROGRAM',roles:['GLOBAL_TEACHER']}]});app.refresh();await flush();
+assert.doesNotMatch(app.children[1].innerHTML,/Hidden Program|No Program assignment|Visitor|None/,'No access means no pill');
 assert.doesNotMatch(app.children[0].innerHTML,/>Programs and Courses<|>Timetable</);
 // Every account role can move between For You and Explore; student-only tools stay scoped.
 app.setResult({success:true,signedIn:true,student:false,personalActivities:[]});app.refresh();await flush();
@@ -145,6 +151,6 @@ const timetablePage=await readFile(new URL('../../programs/timetable.html',impor
 assert.doesNotMatch(timetablePage,/pw-name|pw-save-name|pw-program-zoom|pw-save-zoom|pw-access-model/,'Program settings live on the Program list, outside the timetable editor');
 assert.match(timetablePage,/id="pw-card-editor"/,'Public card editing belongs in Timetable');
 const attendancePage=await readFile(new URL('../../programs/attendance.html',import.meta.url),'utf8');
-assert.match(attendancePage,/m4l-program-attendance\.js\?v=106\.19/);
+assert.match(attendancePage,/m4l-program-attendance\.js\?v=106\.21/);
 assert.match(attendancePage,/id="pa-classes"/);assert.doesNotMatch(attendancePage,/Coming soon/);
 console.log('Program Library stays Coming soon; Attendance loads its real editor; timetable owns the public card and omits duplicated Program settings.');

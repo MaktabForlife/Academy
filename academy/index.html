@@ -244,6 +244,7 @@
     @media(max-width:700px){body.academy-signed-in .topbar{flex-wrap:wrap}body.academy-signed-in .top-actions{width:100%;justify-content:flex-end}body.academy-signed-in .demo-pill{margin-right:auto}}
   </style>
 <link rel="stylesheet" href="/css/m4l-academy-entrance.css?v=106.18">
+<link rel="stylesheet" href="/css/m4l-program-attendance.css?v=106.21">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -263,7 +264,7 @@
 <a class="text-link" href="https://ummabbadacademy.com" target="_blank" rel="noopener noreferrer">Original Academy site ↗</a>
 </aside>
 <main id="main">
-<header class="topbar"><div class="breadcrumbs">Umm Abbad Academy / <strong id="current-view">Academy home</strong></div><div class="top-actions"><span class="academy-header-name" id="academy-header-name" hidden></span><span class="site-version">Website V106.20</span><button class="academy-sign-out" id="academy-sign-out" type="button" hidden>Sign out</button><div class="avatar" id="academy-avatar" aria-label="Academy account">A</div></div></header>
+<header class="topbar"><div class="breadcrumbs">Umm Abbad Academy / <strong id="current-view">Academy home</strong></div><div class="top-actions"><span class="academy-header-name" id="academy-header-name" hidden></span><span class="site-version">Website V106.21</span><button class="academy-sign-out" id="academy-sign-out" type="button" hidden>Sign out</button><div class="avatar" id="academy-avatar" aria-label="Academy account">A</div></div></header>
 <div class="academy-global-strip"><nav class="activity-pills activity-switcher" id="activity-switcher" aria-label="Your subscribed Programs and Courses" hidden></nav></div>
 <div class="container">
 <div class="entrance-status" id="entrance-status" role="status" aria-live="polite"><span id="entrance-message">Loading Academy information…</span><button type="button" class="button secondary small" id="entrance-retry" hidden>Try again</button></div>
@@ -376,6 +377,18 @@
   <a href="#overview" id="activity-back-link" class="academy-home-icon" aria-label="Academy home" title="Academy home"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h5v-7h4v7h5V9"/></svg></a>
   <div class="page-heading activity-heading"><div class="activity-identity"><span class="eyebrow" id="activity-kind"></span><div class="academy-title-row"><h1 id="activity-title"></h1></div><p id="activity-role"></p></div></div>
   <p id="activity-status" role="status"></p><div class="academy-role-tools" id="activity-menu"></div>
+  <section id="pa-main" class="card card-pad academy-attendance" data-embedded="true" hidden aria-labelledby="pa-title">
+    <div class="section-title"><h2 id="pa-title">Attendance</h2><a id="pa-close" class="text-link" href="#overview">Close</a></div>
+    <p id="pa-message" class="pb-message" role="status" aria-live="polite"></p>
+    <div id="pa-pending" class="pb-refresh-warning" hidden><span>The last submission needs confirmation.</span><button id="pa-retry" type="button">Retry submission</button></div>
+    <div id="pa-workspace" hidden>
+      <div class="pa-toolbar"><label>Date <input id="pa-date" type="date" aria-describedby="pa-date-help"></label><button id="pa-refresh" class="pb-secondary" type="button">Refresh</button><button id="pa-prepare" class="pb-secondary" type="button" hidden>Prepare attendance</button></div>
+      <p id="pa-date-help" class="pa-help">Everyone starts Present; mark Absent or Excused exceptions, then submit each class. All lessons submits that class’s lessons together. Attendance stays Unknown until submitted.</p>
+      <p class="pa-help">Dates follow Academy time in Johannesburg. Earlier dates allow corrections to submitted registers.</p>
+      <p id="pa-completion" class="pa-completion"></p><div id="pa-classes" class="pa-classes" role="region" aria-label="Class registers" tabindex="0"></div>
+      <section class="pa-summary"><h2>Day summary</h2><p>Day results appear when every scheduled register shown here has been submitted.</p><div id="pa-summary"></div></section>
+    </div>
+  </section>
   <section class="card card-pad academy-personal-schedule" id="activity-schedule" hidden aria-labelledby="activity-schedule-title"><div class="section-title"><h2 id="activity-schedule-title">Timetable</h2><div class="upcoming-controls"><button type="button" id="activity-refresh" aria-label="Refresh this timetable" title="Refresh timetable">↻</button><button type="button" id="activity-previous" aria-label="Earlier timetable dates">←</button><button type="button" id="activity-next" aria-label="Later timetable dates">→</button></div></div><div id="activity-sessions" class="upcoming-strip" tabindex="0" role="region" aria-label="This learning area's timetable"></div></section>
 </section>
 <section id="prospectus" class="view" aria-labelledby="prospectus-title">
@@ -409,7 +422,8 @@
 <dialog id="workspace-tool" aria-labelledby="workspace-tool-title"><div class="section-title"><h2 id="workspace-tool-title"></h2><button class="button secondary small" id="workspace-tool-close" type="button">Close</button></div><div id="workspace-tool-body"></div></dialog>
 <dialog id="lesson-information" aria-labelledby="lesson-information-title"><div class="section-title"><h2 id="lesson-information-title">Lesson information</h2><button class="button secondary small" id="lesson-information-close" type="button">Close</button></div><div id="lesson-information-body"></div></dialog>
 <script src="/js/m4l-config.js?v=106.17"></script>
-<script src="/js/m4l-academy-entrance.js?v=106.18"></script>
+<script src="/js/m4l-program-attendance.js?v=106.21"></script>
+<script src="/js/m4l-academy-entrance.js?v=106.21"></script>
 <script src="/js/m4l-academy-catalogue.js?v=106.1"></script>
 <script src="/js/m4l-academy-login.js?v=106.17"></script>
 </body></html>
