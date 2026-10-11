@@ -74,15 +74,15 @@ export function academyD1Repository(env) {
     subscriptionSource,
     publicAccount,
     async homeConfiguration(){
-      if(activation)return {setting_value:activation.timezone,courseWorkflows:true,programWorkspace:activation.program_workspace==='1'};
-      return prepare("SELECT setting_value,(SELECT setting_value FROM academy_settings WHERE setting_key='ProgramWorkspace') AS program_workspace FROM academy_settings WHERE setting_key='PlatformTimezone'").first().then(r=>r?{...r,programWorkspace:r.program_workspace==='1'}:null);
+      if(activation)return {setting_value:activation.timezone,courseWorkflows:true,programWorkspace:activation.program_workspace==='1',memorisationCards:activation.memorisation_cards==='1'};
+      return prepare("SELECT setting_value,(SELECT setting_value FROM academy_settings WHERE setting_key='ProgramWorkspace') AS program_workspace,(SELECT setting_value FROM academy_settings WHERE setting_key='PersonalMemorisationCards') AS memorisation_cards FROM academy_settings WHERE setting_key='PlatformTimezone'").first().then(r=>r?{...r,programWorkspace:r.program_workspace==='1',memorisationCards:r.memorisation_cards==='1'}:null);
     },
     async ready(){
       if(env.ACADEMY_D1_MODE==='ACTIVE') {
         // WHERE 0 validates that required schema objects compile without scanning
         // sqlite_schema or subscription rows. All live ownership/evidence guards remain.
         const result=await prepare(`SELECT m.run_id,
-          1 AS mapped_roles,(SELECT setting_value FROM academy_settings WHERE setting_key='ProgramWorkspace') AS program_workspace,
+          1 AS mapped_roles,(SELECT setting_value FROM academy_settings WHERE setting_key='ProgramWorkspace') AS program_workspace,(SELECT setting_value FROM academy_settings WHERE setting_key='PersonalMemorisationCards') AS memorisation_cards,
           (SELECT setting_value FROM academy_settings WHERE setting_key='PlatformTimezone') AS timezone FROM migration_runs m
           JOIN learning_imports l ON l.base_run_id=m.run_id AND l.singleton=1 AND l.source_sha256=m.source_snapshot_sha256
           JOIN course_workflow_imports c ON c.base_run_id=m.run_id AND c.singleton=1 AND c.source_sha256=m.source_snapshot_sha256

@@ -1,3 +1,7 @@
+# V106.24 — Surahs and Duas administration and class cards
+
+Separate personal tracking, inline Program teaching and a modern Progress Admin page. Add module editing/uploads, public or Program/Course availability, user-card switches, learning-area exclusions and configurable numbered cards for large classes. Unregistered visitors can try public cards without saving. Apply only additive migration 0014; existing progress is preserved. All **140/140 local regression files**, synthetic desktop/mobile browser acceptance, the Worker dry-run build and diff/version checks pass. The owner authorised deployment when ready. [Release details](docs/ACADEMY-MEMORISATION-ADMIN-106.24.md).
+
 # V106.23 — Remove the hardcoded Library PDF
 
 Remove the embedded Essential Duas for Muslims card and its publisher-specific PDF proxy exception. Public media continues to come from the Archive.org catalogue; admin-added Other website links still open in a new tab. Existing weekly catalogue caches remain usable. All **140/140 local regression files**, the Pages Functions build and the development Worker dry-run build pass. The owner authorised deployment when complete. No database migration or data correction is required. [Release details](docs/ACADEMY-LIBRARY-SOURCES-106.23.md).

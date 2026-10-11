@@ -58,7 +58,7 @@ assert.doesNotMatch(app.children[0].innerHTML,/>Programs and Courses<|>Timetable
 // Every account role can move between For You and Explore; student-only tools stay scoped.
 app.setResult({success:true,signedIn:true,student:false,personalActivities:[]});app.refresh();await flush();
 assert.equal(app.forYou.hidden,false);
-assert.equal(app.nodes.get('ac-progress').hidden,true);
+assert.equal(app.nodes.get('ac-progress').hidden,false);
 assert.equal(app.nodes.get('ac-recorder').hidden,true);
 assert.equal(app.children[1].hidden,false);
 assert.doesNotMatch(app.children[1].innerHTML,/<span>Courses<\/span>/);

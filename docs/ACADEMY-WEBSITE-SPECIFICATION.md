@@ -14,7 +14,7 @@ Use that Program ID consistently for Reboot’s new Program timetable, Library, 
 
 Exclude legacy Reboot screens and data from website integration. Do not link to them, read their records as website data, or use them as a fallback for missing new Program functionality.
 
-Where the new Program framework lacks a required feature or integration, display **Coming soon**. Surah/Dua memorisation progress is integrated in [V106.22](ACADEMY-MEMORISATION-106.22.md); other progress features remain outside that release.
+Where the new Program framework lacks a required feature or integration, display **Coming soon**. Surah/Dua memorisation progress is integrated in [V106.22](ACADEMY-MEMORISATION-106.22.md), with separate personal, inline Program teaching and administration views in [V106.24](ACADEMY-MEMORISATION-ADMIN-106.24.md). Other progress features remain outside these releases.
 
 Leave legacy Reboot untouched. This website work does not authorise changes to legacy screens, services, permissions or records, or migration of legacy data.
 
@@ -124,7 +124,7 @@ Display the new Reboot Pilot Program pill as **Reboot** and bind it to the Pilot
 
 A person can hold different roles in different Programs and Courses. Preserve the existing scope of each role and entitlement. **Workshops** is a home navigation grouping only; it does not merge memberships, permissions or underlying Course records.
 
-Place the universal student activities **Dua and Surah Progress** and **Voice Recorder** in the Academy menu for signed-in students. Do not repeat them among the home Program and Course activity pills. Hide these menu items for visitors and accounts without student access, and clear them on sign-out. Show **Coming soon** when a required integration is unavailable.
+Place **Surahs and Duas** in the Academy menu for unregistered visitors and registered users. Visitors can interact with public cards without saving. Registered users can save personal progress unless an administrator deactivates their card. Keep **Voice Recorder** limited to signed-in students and clear it on sign-out. Do not repeat these tools among home activity pills. Program Admin/Teach/Learn rows open administration, inline class cards, and personal progress respectively. Show **Coming soon** for unavailable integrations.
 
 Provide:
 
@@ -249,7 +249,7 @@ Reuse existing Academy and new Program Library functionality, but verify its com
 
 ## 7. Universal student progress
 
-Dua and Surah Progress applies to **all students**, regardless of Program.
+**Surahs and Duas** applies to all registered users, with a public visitor preview. Global Admins can restrict modules to selected Programs/Courses, deactivate personal cards, exclude areas from class progress and configure numbered cards for large Program classes. Courses do not create class grids. See [V106.24](ACADEMY-MEMORISATION-ADMIN-106.24.md).
 
 The intended result is one Academy progress record per student, with authorised staff views.
 

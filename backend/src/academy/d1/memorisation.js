@@ -8,46 +8,74 @@ const rolesSQL=`SELECT account_id,activity_key,role FROM effective_activity_role
  JOIN role_import_reviews v ON v.account_id=e.account_id AND v.activity_key=e.activity_key AND v.source_value=e.source_role
  JOIN role_mapping_decisions m ON m.source_role=e.source_role WHERE e.source_effective=1 AND v.status='REQUIRED'`;
 const adminSQL=`EXISTS(SELECT 1 FROM global_role_assignments g WHERE g.account_id=? AND g.active=1 AND g.role='GLOBAL_ADMIN' AND g.review_state='CONFIRMED')`;
-const studentSQL=`(EXISTS(SELECT 1 FROM (${rolesSQL}) r JOIN activities a USING(activity_key) WHERE r.account_id=? AND r.role='STUDENT' AND a.active=1 AND a.lifecycle='ACTIVE')
- OR EXISTS(SELECT 1 FROM effective_course_subscriptions s JOIN activities a USING(activity_key) WHERE s.account_id=? AND a.active=1 AND a.lifecycle='ACTIVE')
- OR EXISTS(SELECT 1 FROM course_settings s JOIN activities a USING(activity_key) WHERE s.legacy_access_model='FREE' AND a.active=1 AND a.lifecycle='ACTIVE'))`;
-const classAccessSQL=`SELECT c.activity_key,c.class_id,c.name,a.name activity_name FROM classes c JOIN activities a USING(activity_key)
- WHERE c.active=1 AND a.active=1 AND a.lifecycle='ACTIVE' AND (${adminSQL} OR
+const studentSQL=`EXISTS(SELECT 1 FROM accounts a WHERE a.account_id=? AND a.active=1) AND NOT EXISTS(SELECT 1 FROM memorisation_account_settings s WHERE s.account_id=? AND s.active=0)`;
+const classAccessSQL=`SELECT c.activity_key,c.class_id,c.name,a.name activity_name,coalesce((SELECT learners_per_card FROM memorisation_activity_settings z WHERE z.activity_key=c.activity_key),20) learners_per_card FROM classes c JOIN activities a USING(activity_key)
+ WHERE a.kind='PROGRAM' AND NOT EXISTS(SELECT 1 FROM memorisation_activity_settings z WHERE z.activity_key=a.activity_key AND z.active=0) AND c.active=1 AND a.active=1 AND a.lifecycle='ACTIVE' AND (${adminSQL} OR
  EXISTS(SELECT 1 FROM (${rolesSQL}) r WHERE r.account_id=? AND r.activity_key=c.activity_key AND
  (r.role='PROGRAM_ADMIN' OR r.role='TEACHER' AND (EXISTS(SELECT 1 FROM class_teacher_assignments t WHERE t.activity_key=c.activity_key AND t.class_id=c.class_id AND t.account_id=r.account_id)
  OR EXISTS(SELECT 1 FROM program_publication_state ps JOIN published_lesson_classes lc ON lc.activity_key=ps.activity_key AND lc.publication_id=ps.latest_publication_id
  JOIN published_lesson_teachers lt ON lt.activity_key=lc.activity_key AND lt.publication_id=lc.publication_id AND lt.lesson_anchor=lc.lesson_anchor
- WHERE lc.activity_key=c.activity_key AND lc.class_id=c.class_id AND lt.account_id=r.account_id)))))
- UNION SELECT a.activity_key,'COURSE',a.name,a.name FROM activities a WHERE a.kind='COURSE' AND a.active=1 AND a.lifecycle='ACTIVE'
- AND (${adminSQL} OR EXISTS(SELECT 1 FROM (${rolesSQL}) r WHERE r.account_id=? AND r.activity_key=a.activity_key AND r.role IN ('TEACHER','PROGRAM_ADMIN')))`;
+ WHERE lc.activity_key=c.activity_key AND lc.class_id=c.class_id AND lt.account_id=r.account_id)))))`;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const progressDTO=r=>({accountId:r.account_id,taskId:r.task_id,complete:Boolean(r.complete),confirmed:Boolean(r.confirmed),revision:r.revision,completedAt:r.completed_at,confirmedAt:r.confirmed_at});
 const text=(v,max,label)=>{if(typeof v!=='string'||!v.trim()||v.trim().length>max)throw fail(`Enter ${label} of up to ${max} characters.`);return v.trim();};
 
-export function d1Memorisation(repository,auth) {
-  const db=repository.db,p=(sql,...v)=>db.prepare(sql).bind(...v),actor=auth.user.accountid;
-  const today=programToday('Africa/Johannesburg');
-  const classes=async()=> (await p(classAccessSQL,actor,actor,actor,actor).all()).results;
-  const isStudent=async()=>Boolean((!auth.state.account.global_admin||auth.state.roles.some(r=>r.role==='STUDENT')||auth.state.subscriptions.length)&&await p(`SELECT 1 ok WHERE ${studentSQL}`,actor,actor).first());
-  async function catalogue(){
+async function memorisationCatalogue(db){
+  const p=(sql,...v)=>db.prepare(sql).bind(...v);
     let result;
     try{result=await db.batch([p('SELECT revision FROM memorisation_catalogue_state WHERE singleton=1'),
       p(`SELECT m.module_id,c.name,m.subject,m.level,m.sort_order FROM memorisation_modules m JOIN academy_module_catalogue c USING(module_id)
          JOIN subject_catalog s USING(subject_key) WHERE c.active=1 AND s.active=1 ORDER BY m.subject DESC,m.sort_order,c.name LIMIT 201`),
       p(`SELECT t.* FROM memorisation_tasks t JOIN memorisation_modules m USING(module_id) JOIN academy_module_catalogue c USING(module_id)
-         JOIN subject_catalog s USING(subject_key) WHERE c.active=1 AND s.active=1 ORDER BY t.sort_order LIMIT 5001`)]);
+         JOIN subject_catalog s USING(subject_key) WHERE c.active=1 AND s.active=1 ORDER BY t.sort_order LIMIT 5001`),p('SELECT module_id,activity_key FROM memorisation_module_activities')]);
     }catch(e){if(/no such table: memorisation_/.test(e.message))throw fail('Memorisation progress is being prepared. Please try again shortly.',503,'MEMORISATION_SCHEMA_REQUIRED');throw e;}
     if(!result[0].results.length)throw fail('Memorisation storage is unavailable.',503,'MEMORISATION_SCHEMA_REQUIRED');
     if(result[1].results.length>200||result[2].results.length>5000)throw fail('The memorisation catalogue needs to be split into smaller collections.',409);
-    return {revision:result[0].results[0].revision,modules:result[1].results.map(m=>({id:m.module_id,name:m.name,subject:m.subject,level:m.level,
+    return {revision:result[0].results[0].revision,modules:result[1].results.map(m=>({id:m.module_id,name:m.name,subject:m.subject,level:m.level,activityKeys:result[3].results.filter(a=>same(a.module_id,m.module_id)).map(a=>a.activity_key),
       tasks:result[2].results.filter(t=>same(t.module_id,m.module_id)).map(t=>({id:t.task_id,name:t.name}))}))};
   }
+
+const moduleInActivity=(m,activity)=>!m.activityKeys.length||m.activityKeys.some(k=>same(k,activity));
+const moduleForUser=(m,allowed)=>!m.activityKeys.length||allowed===null||m.activityKeys.some(k=>allowed.some(a=>same(a,k)));
+export async function d1MemorisationPreview(repository){
+  const cat=await memorisationCatalogue(repository.db),modules=cat.modules.filter(m=>!m.activityKeys.length).map(({activityKeys,...m})=>m);
+  return {modules,visitor:true,accountId:'VISITOR',student:true,personalActive:true,canImport:false,classes:[],records:[],store:'PREVIEW'};
+}
+
+export function d1Memorisation(repository,auth) {
+  const db=repository.db,p=(sql,...v)=>db.prepare(sql).bind(...v),actor=auth.user.accountid;
+  const today=programToday('Africa/Johannesburg');
+  const classes=async()=> (await p(classAccessSQL,actor,actor).all()).results;
+  const isStudent=async()=>Boolean(await p(`SELECT 1 ok WHERE ${studentSQL}`,actor,actor).first());
+  const catalogue=()=>memorisationCatalogue(db);
+  async function accessibleActivities(){
+    if(auth.state.account.global_admin)return null;
+    return (await p(`SELECT a.activity_key FROM activities a WHERE a.active=1 AND a.lifecycle='ACTIVE' AND a.kind IN ('PROGRAM','COURSE') AND
+      (EXISTS(SELECT 1 FROM (${rolesSQL}) r WHERE r.account_id=? AND r.activity_key=a.activity_key)
+      OR EXISTS(SELECT 1 FROM effective_course_subscriptions s WHERE s.account_id=? AND s.activity_key=a.activity_key))`,actor,actor).all()).results.map(a=>a.activity_key);
+  }
+  let activityChoices;
+  async function activityOptions(){return activityChoices ||= (async()=> (await p(`SELECT a.activity_key,a.kind,a.name,coalesce(s.active,1) progress_active,coalesce(s.revision,0) revision,coalesce(s.learners_per_card,20) learners_per_card FROM activities a LEFT JOIN memorisation_activity_settings s USING(activity_key)
+    WHERE a.kind IN ('PROGRAM','COURSE') AND a.active=1 AND a.lifecycle='ACTIVE' ORDER BY a.kind DESC,a.name`).all()).results.map(a=>({id:a.activity_key,kind:a.kind,name:a.name,active:Boolean(a.progress_active),revision:a.revision,learnersPerCard:a.learners_per_card})))();}
+  async function assignments(value,fallback=[]){
+    const keys=value===undefined?fallback:value;
+    if(!Array.isArray(keys)||keys.length>200||keys.some(k=>typeof k!=='string'||k.length>200)||new Set(keys.map(k=>k.toUpperCase())).size!==keys.length)throw fail('Choose valid Programs or Courses for this module.');
+    const choices=await activityOptions();return keys.map(k=>{const a=choices.find(a=>same(a.id,k));if(!a)throw fail('Choose a current Program or Course.');return a.id;});
+  }
+  function assignmentStatements(moduleId,keys){return [p('DELETE FROM memorisation_module_activities WHERE module_id=?',moduleId),p(`INSERT INTO memorisation_module_activities(module_id,activity_key) SELECT ?,value FROM json_each(?)`,moduleId,JSON.stringify(keys))];}
   function roster(scope,classId){
     return p(`SELECT DISTINCT a.account_id,a.display_name FROM accounts a WHERE a.active=1 AND
-     (EXISTS(SELECT 1 FROM effective_activity_roles r WHERE r.account_id=a.account_id AND r.activity_key=? AND r.role='STUDENT')
-       OR (?='COURSE' AND EXISTS(SELECT 1 FROM effective_course_subscriptions s WHERE s.account_id=a.account_id AND s.activity_key=?)))
+     (EXISTS(SELECT 1 FROM (${rolesSQL}) r WHERE r.account_id=a.account_id AND r.activity_key=? AND r.role='STUDENT')
+       OR EXISTS(SELECT 1 FROM effective_course_subscriptions s WHERE s.account_id=a.account_id AND s.activity_key=?))
      AND (?='COURSE' OR EXISTS(SELECT 1 FROM class_memberships m WHERE m.account_id=a.account_id AND m.activity_key=? AND m.class_id=? AND m.active=1
-       AND (m.start_date IS NULL OR m.start_date<=?) AND (m.end_date IS NULL OR m.end_date>=?))) LIMIT 10001`,scope,classId,scope,classId,scope,classId,today,today);
+       AND (m.start_date IS NULL OR m.start_date<=?) AND (m.end_date IS NULL OR m.end_date>=?))) LIMIT 10001`,scope,scope,classId,scope,classId,today,today);
+  }
+  async function classCounts(groups){
+    if(!groups.length)return [];
+    return (await p(`SELECT m.activity_key,m.class_id,count(DISTINCT a.account_id) total FROM class_memberships m JOIN accounts a USING(account_id)
+      JOIN json_each(?) j ON m.activity_key=json_extract(j.value,'$.activity_key') AND m.class_id=json_extract(j.value,'$.class_id')
+      WHERE a.active=1 AND m.active=1 AND (m.start_date IS NULL OR m.start_date<=?) AND (m.end_date IS NULL OR m.end_date>=?)
+      AND EXISTS(SELECT 1 FROM (${rolesSQL}) r WHERE r.account_id=a.account_id AND r.activity_key=m.activity_key AND r.role='STUDENT') GROUP BY m.activity_key,m.class_id`,JSON.stringify(groups),today,today).all()).results;
   }
   async function requireClass(input){
     const found=(await classes()).find(c=>same(c.activity_key,input.activityKey)&&same(c.class_id,input.classId));
@@ -92,9 +120,10 @@ export function d1Memorisation(repository,auth) {
     const scope=review?`${input.activityKey}:${input.classId}`:`LEARNER:${actor}`;
     return change(action,input,scope,async()=>{
       const cat=await catalogue();if(input.catalogueRevision!==cat.revision)throw fail('The module list changed. Refresh before saving.',409,'CATALOGUE_CHANGED');
-      if(review)await requireClass(input);else if(!await isStudent())throw fail('Memorisation marking is available to Academy students.',403,'FORBIDDEN');
+      if(review)await requireClass(input);else if(!await isStudent())throw fail('Your personal memorisation card is inactive.',403,'FORBIDDEN');
       const members=review?(await roster(input.activityKey,input.classId).all()).results:null;
-      const tasks=new Set(cat.modules.flatMap(m=>m.tasks.map(t=>t.id))),seen=new Set(),statements=[],records=[],rows=[],now=new Date().toISOString();
+      const allowed=review?null:await accessibleActivities();
+      const tasks=new Set(cat.modules.filter(m=>review?moduleInActivity(m,input.activityKey):moduleForUser(m,allowed)).flatMap(m=>m.tasks.map(t=>t.id))),seen=new Set(),statements=[],records=[],rows=[],now=new Date().toISOString();
       if(input.updates.some(u=>!u||typeof u!=='object'||Array.isArray(u)))throw fail('A task change is invalid.');
       const targets=input.updates.map(u=>({accountId:review?u.accountId:actor,taskId:u.taskId}));
       const previous=(await p(`SELECT p.* FROM learner_task_progress p JOIN json_each(?) j ON p.account_id=json_extract(j.value,'$.accountId') AND p.task_id=json_extract(j.value,'$.taskId')`,JSON.stringify(targets)).all()).results;
@@ -119,7 +148,7 @@ export function d1Memorisation(repository,auth) {
         ON CONFLICT(account_id,task_id) DO UPDATE SET complete=excluded.complete,confirmed=excluded.confirmed,revision=excluded.revision,completed_at=excluded.completed_at,confirmed_at=excluded.confirmed_at,confirmed_by=excluded.confirmed_by,updated_at=excluded.updated_at`,JSON.stringify(rows)));
       return {statements,result:{records,store:'D1'},authority:review?(auth.state.account.global_admin?'GLOBAL_ADMIN':auth.state.roles.some(r=>same(r.activity_key,input.activityKey)&&r.role==='PROGRAM_ADMIN')?'PROGRAM_ADMIN':'TEACHER'):'STUDENT',fields:records.map(r=>({accountId:r.accountId,taskId:r.taskId,complete:r.complete,confirmed:r.confirmed})),
         authoritySQL:review?`EXISTS(SELECT 1 FROM (${classAccessSQL}) x WHERE x.activity_key=? AND x.class_id=?)`:`${studentSQL}`,
-        authorityValues:review?[actor,actor,actor,actor,input.activityKey,input.classId]:[actor,actor]};
+        authorityValues:review?[actor,actor,input.activityKey,input.classId]:[actor,actor]};
     });
   }
   async function upload(input){
@@ -127,7 +156,7 @@ export function d1Memorisation(repository,auth) {
     return change('import',input,'ACADEMY',async()=>{
       const cat=await catalogue();if(input.catalogueRevision!==cat.revision)throw fail('The module list changed. Refresh before importing.',409,'CATALOGUE_CHANGED');
       if(!Array.isArray(input.modules)||!input.modules.length||input.modules.length>30||!['ADD','REPLACE'].includes(input.mode))throw fail('Upload 1 to 30 modules and choose an import option.');
-      let taskCount=0;const seen=new Set(),statements=[],resultModules=[],moduleRows=[],taskRows=[],replaceIds=[];
+      let taskCount=0;const seen=new Set(),statements=[],resultModules=[],moduleRows=[],taskRows=[],replaceIds=[],accessRows=[];
       const subjects=(await p("SELECT subject_key,name FROM subject_catalog WHERE source_namespace='ACADEMY' AND lower(trim(name)) IN ('surahs','duas') AND active=1").all()).results;
       const existing=(await p(`SELECT c.*,EXISTS(SELECT 1 FROM memorisation_modules m WHERE m.module_id=c.module_id) registered
         FROM academy_module_catalogue c WHERE c.subject_key IN(SELECT value FROM json_each(?))
@@ -143,6 +172,7 @@ export function d1Memorisation(repository,auth) {
         const current=existing.find(c=>same(c.subject_key,subjectRow.subject_key)&&c.name_key===name.toLowerCase()),registered=current?.registered;
         if(registered&&input.mode!=='REPLACE')throw fail(`${name} already exists. Choose Replace matching modules to reset its task list.`,409,'MODULE_EXISTS');
         const id=current?.module_id||'AM-'+crypto.randomUUID();
+        const access=await assignments(m.activityKeys,cat.modules.find(m=>m.id===id)?.activityKeys||[]);accessRows.push(...access.map(activityKey=>({moduleId:id,activityKey})));
         if(registered)replaceIds.push(id);
         moduleRows.push({id,subjectKey:subjectRow.subject_key,name,nameKey:name.toLowerCase(),subject,level,sortOrder:cat.modules.findIndex(m=>m.id===id)>=0?cat.modules.findIndex(m=>m.id===id):cat.modules.length+resultModules.length});
         const names=new Set();m.tasks.forEach((t,i)=>{const task=text(t,240,'a task name');if(names.has(task.toLowerCase()))throw fail(`Repeated task in ${name}: ${task}`);names.add(task.toLowerCase());taskRows.push({id:'MT-'+crypto.randomUUID(),moduleId:id,name:task,sortOrder:i});});
@@ -160,28 +190,116 @@ export function d1Memorisation(repository,auth) {
         p(`INSERT INTO memorisation_modules(module_id,subject,level,sort_order) SELECT json_extract(value,'$.id'),json_extract(value,'$.subject'),json_extract(value,'$.level'),json_extract(value,'$.sortOrder') FROM json_each(?) WHERE 1
           ON CONFLICT(module_id) DO UPDATE SET subject=excluded.subject,level=excluded.level`,JSON.stringify(moduleRows)),
         p(`INSERT INTO memorisation_tasks(task_id,module_id,name,sort_order) SELECT json_extract(value,'$.id'),json_extract(value,'$.moduleId'),json_extract(value,'$.name'),json_extract(value,'$.sortOrder') FROM json_each(?)`,JSON.stringify(taskRows)));
-      statements.push(p('UPDATE memorisation_catalogue_state SET revision=revision+1 WHERE singleton=1'));
+      statements.push(p(`DELETE FROM memorisation_module_activities WHERE module_id IN(SELECT json_extract(value,'$.id') FROM json_each(?))`,JSON.stringify(moduleRows)),p(`INSERT INTO memorisation_module_activities(module_id,activity_key) SELECT json_extract(value,'$.moduleId'),json_extract(value,'$.activityKey') FROM json_each(?)`,JSON.stringify(accessRows)),p('UPDATE memorisation_catalogue_state SET revision=revision+1 WHERE singleton=1'));
       return {statements,result:{modules:resultModules,catalogueRevision:cat.revision+1,store:'D1'},authoritySQL:adminSQL,authorityValues:[actor],authority:'GLOBAL_ADMIN',fields:['MemorisationModules',input.mode]};
     });
   }
+  async function editModule(input){
+    if(!auth.state.account.global_admin)throw fail('Shared module editing requires a Global Admin.',403,'FORBIDDEN');
+    return change('module-save',input,'ACADEMY',async()=>{
+      const cat=await catalogue();if(input.catalogueRevision!==cat.revision)throw fail('The module list changed. Refresh and review your edits.',409,'CATALOGUE_CHANGED');
+      const old=input.moduleId?cat.modules.find(m=>same(m.id,input.moduleId)):null;
+      if(input.moduleId&&!old)throw fail('This module is no longer available.',409,'MODULE_CHANGED');
+      const activityKeys=await assignments(input.activityKeys,old?.activityKeys||[]);
+      const name=text(input.name,160,'a module name'),level=text(input.level,60,'a level'),subject=input.subject;
+      if(!['SURAHS','DUAS'].includes(subject)||!Array.isArray(input.tasks)||!input.tasks.length||input.tasks.length>100)throw fail('Choose a subject and include 1 to 100 items.');
+      const s=await p("SELECT subject_key FROM subject_catalog WHERE source_namespace='ACADEMY' AND lower(trim(name))=? AND active=1",subject.toLowerCase()).first();
+      if(!s)throw fail('Create the Subject in Subjects & Modules first.',409);
+      const id=old?.id||'AM-'+crypto.randomUUID(),collision=await p('SELECT module_id FROM academy_module_catalogue WHERE subject_key=? AND name_key=? AND module_id<>?',s.subject_key,name.toLowerCase(),id).first();
+      if(collision)throw fail('A module with this name already exists in this subject.',409,'MODULE_EXISTS');
+      if(!old&&cat.modules.length>=200)throw fail('Keep the catalogue within 200 modules.');
+      const used=new Set(),rows=input.tasks.map((t,i)=>{
+        if(!t||typeof t!=='object')throw fail('An item is invalid.');
+        if(t.id&&(!old?.tasks.some(o=>o.id===t.id)||used.has(t.id)))throw fail('An edited item is invalid.');
+        if(t.id)used.add(t.id);
+        const target=t.moduleId||id;if(target!==id&&!cat.modules.some(m=>m.id===target))throw fail('Choose a current destination module.');
+        return {id:t.id||'MT-'+crypto.randomUUID(),moduleId:target,name:text(t.name,240,'an item name'),sortOrder:target===id?i:(cat.modules.find(m=>m.id===target)?.tasks.length||0)+i};
+      });
+      const removed=(old?.tasks||[]).filter(t=>!used.has(t.id)).map(t=>t.id);
+      if(removed.length&&!input.confirmRemoval)throw fail('Confirm the removal of these items and their saved progress.');
+      const remaining=cat.modules.flatMap(m=>m.tasks.filter(t=>m.id!==id).map(t=>({id:t.id,moduleId:m.id,name:t.name}))).concat(rows),names=new Set();
+      for(const t of remaining){const k=t.moduleId+':'+t.name.toLowerCase();if(names.has(k))throw fail('An item name is repeated in its destination module.');names.add(k);}
+      if(remaining.length>5000)throw fail('Keep the catalogue within 5,000 items.');
+      for(const target of new Set(rows.map(t=>t.moduleId)))if(remaining.filter(t=>t.moduleId===target).length>100)throw fail('Keep each module within 100 items.');
+      if(!rows.some(t=>t.moduleId===id))throw fail('Keep at least one item in this module.');
+      const statements=[p(`INSERT INTO academy_module_catalogue(module_id,subject_key,name,name_key,active,revision) VALUES(?,?,?,?,1,1)
+        ON CONFLICT(module_id) DO UPDATE SET subject_key=excluded.subject_key,name=excluded.name,name_key=excluded.name_key,revision=revision+1`,id,s.subject_key,name,name.toLowerCase()),
+        p(`INSERT INTO memorisation_modules(module_id,subject,level,sort_order) VALUES(?,?,?,?) ON CONFLICT(module_id) DO UPDATE SET subject=excluded.subject,level=excluded.level`,id,subject,level,old?cat.modules.findIndex(m=>m.id===id):cat.modules.length),
+        p('DELETE FROM learner_task_progress WHERE task_id IN(SELECT value FROM json_each(?))',JSON.stringify(removed)),
+        p('DELETE FROM memorisation_tasks WHERE task_id IN(SELECT value FROM json_each(?))',JSON.stringify(removed)),
+        p("UPDATE memorisation_tasks SET name='__editing_'||task_id WHERE task_id IN(SELECT value FROM json_each(?))",JSON.stringify([...used])),
+        p(`INSERT INTO memorisation_tasks(task_id,module_id,name,sort_order) SELECT json_extract(value,'$.id'),json_extract(value,'$.moduleId'),json_extract(value,'$.name'),json_extract(value,'$.sortOrder') FROM json_each(?) WHERE 1
+          ON CONFLICT(task_id) DO UPDATE SET module_id=excluded.module_id,name=excluded.name,sort_order=excluded.sort_order`,JSON.stringify(rows)),
+        ...assignmentStatements(id,activityKeys),p('UPDATE memorisation_catalogue_state SET revision=revision+1 WHERE singleton=1')];
+      return {statements,result:{moduleId:id,catalogueRevision:cat.revision+1,removed:removed.length,store:'D1'},authoritySQL:adminSQL,authorityValues:[actor],authority:'GLOBAL_ADMIN',fields:['ModuleName','Subject','Level','Tasks','ModuleAccess']};
+    });
+  }
+  async function userCards(input){
+    if(!auth.state.account.global_admin)throw fail('User card controls require a Global Admin.',403,'FORBIDDEN');
+    const query=String(input.query||'').trim();if(query.length>80)throw fail('Search using up to 80 characters.');
+    const offset=Number(input.offset||0);if(!Number.isInteger(offset)||offset<0||offset>100000)throw fail('Choose a valid user page.');
+    const term='%'+query.replace(/[\\%_]/g,c=>'\\'+c)+'%';
+    const filter="(a.display_name LIKE ? ESCAPE '\\' OR a.login_link_id LIKE ? ESCAPE '\\')";
+    const result=await db.batch([p(`SELECT count(*) total FROM accounts a WHERE ${filter}`,term,term),p(`SELECT a.account_id,a.display_name,a.login_link_id,a.active account_active,coalesce(s.active,1) card_active,coalesce(s.revision,0) revision,
+      EXISTS(SELECT 1 FROM global_role_assignments g WHERE g.account_id=a.account_id AND g.active=1 AND g.review_state='CONFIRMED') global_admin,
+      (SELECT group_concat(DISTINCT r.role) FROM (${rolesSQL}) r WHERE r.account_id=a.account_id) roles
+      FROM accounts a LEFT JOIN memorisation_account_settings s USING(account_id) WHERE ${filter} ORDER BY a.display_name,a.account_id LIMIT 20 OFFSET ?`,term,term,offset)]);
+    return {users:result[1].results.map(a=>({id:a.account_id,name:a.display_name,loginId:a.login_link_id,accountActive:Boolean(a.account_active),active:Boolean(a.card_active),revision:a.revision,roles:a.global_admin?['GLOBAL_ADMIN']:(a.roles||'').split(',').filter(Boolean)})),offset,total:result[0].results[0].total,store:'D1'};
+  }
+  async function setCard(input){
+    if(!auth.state.account.global_admin)throw fail('User card controls require a Global Admin.',403,'FORBIDDEN');
+    return change('card-active',input,'ACADEMY',async()=>{
+      if(typeof input.active!=='boolean'||!Number.isInteger(input.revision)||input.revision<0)throw fail('Choose a valid card setting.');
+      const account=await p('SELECT account_id FROM accounts WHERE account_id=?',text(input.accountId,160,'an account')).first();if(!account)throw fail('This user is unavailable.',404);
+      const old=await p('SELECT revision FROM memorisation_account_settings WHERE account_id=?',account.account_id).first();if((old?.revision||0)!==input.revision)throw fail('This card changed elsewhere. Refresh and review.',409,'ROW_CHANGED');
+      const statements=[p(`INSERT INTO memorisation_account_settings(account_id,active,revision,updated_at,updated_by) VALUES(?,?,?,?,?)
+        ON CONFLICT(account_id) DO UPDATE SET active=excluded.active,revision=excluded.revision,updated_at=excluded.updated_at,updated_by=excluded.updated_by`,account.account_id,Number(input.active),input.revision+1,new Date().toISOString(),actor)];
+      return {statements,result:{accountId:account.account_id,active:input.active,revision:input.revision+1,store:'D1'},authoritySQL:adminSQL,authorityValues:[actor],authority:'GLOBAL_ADMIN',fields:['PersonalMemorisationCardActive']};
+    });
+  }
+  async function setActivity(input){
+    if(!auth.state.account.global_admin)throw fail('Learning area controls require a Global Admin.',403,'FORBIDDEN');
+    return change('activity-active',input,'ACADEMY',async()=>{
+      if(typeof input.active!=='boolean'||!Number.isInteger(input.revision)||input.revision<0)throw fail('Choose a valid learning area setting.');
+      const activity=(await activityOptions()).find(a=>same(a.id,input.activityKey));if(!activity)throw fail('Choose a current Program or Course.',404);
+      const limit=input.learnersPerCard??activity.learnersPerCard;if(!Number.isInteger(limit)||limit<5||limit>50)throw fail('Show between 5 and 50 learners per class card.');
+      if(activity.revision!==input.revision)throw fail('This learning area changed elsewhere. Refresh and review.',409,'ROW_CHANGED');
+      return {statements:[p(`INSERT INTO memorisation_activity_settings(activity_key,active,revision,updated_at,updated_by,learners_per_card) VALUES(?,?,?,?,?,?)
+        ON CONFLICT(activity_key) DO UPDATE SET active=excluded.active,revision=excluded.revision,updated_at=excluded.updated_at,updated_by=excluded.updated_by,learners_per_card=excluded.learners_per_card`,activity.id,Number(input.active),input.revision+1,new Date().toISOString(),actor,limit)],
+        result:{learnersPerCard:limit,activityKey:activity.id,active:input.active,revision:input.revision+1,store:'D1'},authoritySQL:adminSQL,authorityValues:[actor],authority:'GLOBAL_ADMIN',fields:['ClassProgressActive','LearnersPerCard']};
+    });
+  }
   return {async run(action,input){
+    if(action==='activity-active')return setActivity(input);
+    if(action==='module-save')return editModule(input);
+    if(action==='cards')return userCards(input);
+    if(action==='card-active')return setCard(input);
     if(['mark','confirm'].includes(action))return save(action,input);
     if(action==='import')return upload(input);
     const cat=await catalogue();
     if(action==='get'){
-      const student=await isStudent(),groups=await classes();
-      if(!student&&!groups.length&&!auth.state.account.global_admin)throw fail('Progress is available to Academy students and their teaching teams.',403,'FORBIDDEN');
-      return {...cat,accountId:actor,student,canImport:Boolean(auth.state.account.global_admin),classes:groups.map(c=>({activityKey:c.activity_key,id:c.class_id,name:c.name,activityName:c.activity_name})),
-        records:student?(await p('SELECT * FROM learner_task_progress WHERE account_id=?',actor).all()).results.map(progressDTO):[],store:'D1'};
+      const view=input.view||'self';if(!['self','teach','admin'].includes(view))throw fail('Choose a Surahs and Duas page.');
+      const activityKey=input.activityKey||'';if(typeof activityKey!=='string'||activityKey.length>200)throw fail('Choose a valid learning area.');
+      const student=await isStudent(),setting=await p('SELECT active FROM memorisation_account_settings WHERE account_id=?',actor).first();
+      const scopedAdmins=(await p(`SELECT DISTINCT r.activity_key FROM (${rolesSQL}) r JOIN activities a USING(activity_key)
+        WHERE r.account_id=? AND r.role='PROGRAM_ADMIN' AND a.active=1 AND a.lifecycle='ACTIVE'`,actor).all()).results;
+      const canAdmin=Boolean(auth.state.account.global_admin||scopedAdmins.some(a=>activityKey?same(a.activity_key,activityKey):input.kind==='COURSE'?a.activity_key.startsWith('COURSE:'):true));
+      if(view==='admin'&&!canAdmin)throw fail('Module administration requires an authorised administrator.',403,'FORBIDDEN');
+      const groups=view==='teach'?(await classes()).filter(c=>activityKey?same(c.activity_key,activityKey):input.kind==='COURSE'?c.activity_key.startsWith('COURSE:'):true).sort((a,b)=>a.name.localeCompare(b.name)):[];
+      if(!student&&!groups.length&&!auth.state.account.global_admin&&setting?.active!==0&&view!=='admin')throw fail('Progress is available to Academy students and their teaching teams.',403,'FORBIDDEN');
+      const allowed=await accessibleActivities(),visible=cat.modules.filter(m=>view==='admin'&&auth.state.account.global_admin?true:view==='teach'?groups.some(c=>moduleInActivity(m,c.activity_key)):moduleForUser(m,allowed));
+      const visibleTasks=new Set(visible.flatMap(m=>m.tasks.map(t=>t.id))),counts=await classCounts(groups);
+      return {...cat,modules:visible,...(view==='admin'&&auth.state.account.global_admin?{activities:await activityOptions()}:{}),accountId:actor,student,personalActive:setting?.active!==0,canImport:view==='admin'&&Boolean(auth.state.account.global_admin),classes:groups.map(c=>({activityKey:c.activity_key,id:c.class_id,name:c.name,activityName:c.activity_name,learnersPerCard:c.learners_per_card,learnerCount:counts.find(n=>same(n.activity_key,c.activity_key)&&same(n.class_id,c.class_id))?.total||0})),
+        records:view==='self'&&student?(await p('SELECT * FROM learner_task_progress WHERE account_id=?',actor).all()).results.filter(r=>visibleTasks.has(r.task_id)).map(progressDTO):[],store:'D1'};
     }
     if(action==='grid'){
-      await requireClass(input);const module=cat.modules.find(m=>m.id===input.moduleId);if(!module)throw fail('Choose a memorisation module.',404);
+      const classInfo=await requireClass(input);const module=cat.modules.find(m=>m.id===input.moduleId&&moduleInActivity(m,input.activityKey));if(!module)throw fail('Choose a memorisation module.',404);
       const offset=Number(input.offset||0);if(!Number.isInteger(offset)||offset<0||offset>10000)throw fail('Choose a valid class page.');
       const members=(await roster(input.activityKey,input.classId).all()).results.sort((a,b)=>a.display_name.localeCompare(b.display_name));
       if(members.length>10000)throw fail('This class is too large. Split it into smaller classes before using the grid.',409);
-      const page=members.slice(offset,offset+20),ids=JSON.stringify(page.map(a=>a.account_id));
+      const pageSize=classInfo.learners_per_card,page=members.slice(offset,offset+pageSize),ids=JSON.stringify(page.map(a=>a.account_id));
       const records=(await p(`SELECT p.* FROM learner_task_progress p JOIN memorisation_tasks t USING(task_id) WHERE t.module_id=? AND p.account_id IN(SELECT value FROM json_each(?))`,module.id,ids).all()).results;
-      return {catalogueRevision:cat.revision,module,learners:page.map(a=>({id:a.account_id,name:a.display_name})),records:records.map(progressDTO),offset,total:members.length,store:'D1'};
+      return {catalogueRevision:cat.revision,module,learners:page.map(a=>({id:a.account_id,name:a.display_name})),records:records.map(progressDTO),pageSize,offset,total:members.length,store:'D1'};
     }
     throw fail('Unknown memorisation action.',404);
   }};

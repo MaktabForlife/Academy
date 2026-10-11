@@ -45,6 +45,10 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
       ProgramTeachers:[],ProgramResources:[],ProgramTasks:[],ProgramModuleProgress:[],ProgramLibraryRoots:[],
       ProgramTimetablePublications:scope(publications).map(p=>({Lifecycle:stopped.find(l=>l.activity_key===p.activity_key&&samePublication(l.publication_id,p.publication_id))?.status||'',PublicationID:p.publication_id,VersionNo:p.version_no,SnapshotJSON:p.snapshot_json,PublishedDate:p.published_at,PublishedByAccountID:p.published_by_source_id}))}};
   }});
+  if(state&&config.memorisationCards){
+    const setting=await repository.db.prepare('SELECT active FROM memorisation_account_settings WHERE account_id=?').bind(state.account.account_id).first();
+    result.memorisationActive=setting?.active!==0;
+  }
   if(config.programWorkspace)result.timetable=result.timetable.map(row=>row.kind==='PROGRAM'?{...row,publicCard:JSON.parse(activities.find(a=>a.kind==='PROGRAM'&&samePublication(a.activity_id,row.activityId))?.public_card_json||'{}')}:row);
   return courseWorkflows?{...result,calendarEvents:buildAcademyCalendarEvents(calendarRows(calendar,suppressions),start,end)}:result;
 }

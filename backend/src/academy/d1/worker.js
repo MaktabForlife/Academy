@@ -1,4 +1,4 @@
-import {d1Memorisation} from './memorisation.js';
+import {d1Memorisation,d1MemorisationPreview} from './memorisation.js';
 import {teacherAvailability} from './teacher-availability.js';
 import {d1Subjects} from './subjects.js';
 import {d1LearningCatalogue,saveLearningModule} from './learning-catalogue.js';
@@ -53,9 +53,10 @@ async function dispatch(request,env) {
   const path=new URL(request.url).pathname;
   await repository.ready();
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'rebootworker',version:'106.23',
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'rebootworker',version:'106.24',
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
+  if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(repository)};
   const openLibraryAction=path.match(/^\/api\/academy\/open-library\/metadata\/(public|cover|list|save|options)$/)?.[1];
   if(openLibraryAction)return openLibraryMetadataEndpoint(openLibraryAction)(request,env);
   // Account/attendance screens reuse this authenticated Program selector. It
@@ -111,7 +112,7 @@ async function dispatch(request,env) {
     libraryMode:'PUBLIC_ONLY',mediaSubscriptionsAvailable:false,store:'D1'};
   const availabilityAction=path.match(/^\/api\/academy\/teacher-availability\/(get|save)$/)?.[1];
   if(availabilityAction)return {success:true,...await teacherAvailability(repository,auth,availabilityAction,input)};
-  const progressAction=path.match(/^\/api\/academy\/progress\/(get|grid|mark|confirm|import)$/)?.[1];
+  const progressAction=path.match(/^\/api\/academy\/progress\/(get|grid|mark|confirm|import|module-save|cards|card-active|activity-active)$/)?.[1];
   if(progressAction)return {success:true,...await d1Memorisation(repository,auth).run(progressAction,input)};
   if(path==='/api/academy/timetable')return {success:true,...await d1AccountTimetable(repository,auth,input)};
   if(['/api/account/workspace','/api/account/global-workspace'].includes(path)){
