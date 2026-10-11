@@ -1,3 +1,7 @@
+# V106.25 — Compact Progress Admin settings
+
+Narrow the Programs and Courses table and align every inclusion switch and learner-limit control in consistent columns. Long names wrap without moving the switches; mobile layouts keep the switches aligned. No database changes are required. Affected regressions, synthetic Chrome checks at seven desktop/mobile widths, control saves and the Worker dry-run build pass. [Release details](docs/ACADEMY-PROGRESS-SETTINGS-106.25.md).
+
 # V106.24 — Surahs and Duas administration and class cards
 
 Separate personal tracking, inline Program teaching and a modern Progress Admin page. Add module editing/uploads, public or Program/Course availability, user-card switches, learning-area exclusions and configurable numbered cards for large classes. Unregistered visitors can try public cards without saving. Apply only additive migration 0014; existing progress is preserved. All **140/140 local regression files**, synthetic desktop/mobile browser acceptance, the Worker dry-run build and diff/version checks pass. The owner authorised deployment when ready. [Release details](docs/ACADEMY-MEMORISATION-ADMIN-106.24.md).

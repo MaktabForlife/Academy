@@ -20,3 +20,13 @@
 .ma-card-limit{max-width:190px;flex:none}.ma-card-limit select{margin-top:6px}@media(max-width:760px){.ma-card-limit{max-width:none;width:100%}}
 
 .ma-switch-track{pointer-events:none}
+
+/* Keep learning-area settings compact, with consistent control columns. */
+.ma-areas-panel{max-width:720px}
+.ma-area-row{display:grid;grid-template-columns:minmax(0,1fr) 116px 150px;gap:20px;padding:14px 0}
+.ma-area-row>div{min-width:0;overflow-wrap:anywhere}
+.ma-area-row .ma-switch{width:116px;min-height:44px}
+.ma-area-row .ma-switch-track{flex:none}
+.ma-area-row .ma-card-limit{width:150px;max-width:100%;font-size:12px;color:var(--ma-muted)}
+@media(max-width:1000px){.ma-area-row{grid-template-columns:minmax(0,1fr) 106px 124px;gap:14px}.ma-area-row .ma-switch{width:106px}.ma-area-row .ma-card-limit{width:124px}}
+@media(max-width:600px){.ma-area-row{grid-template-columns:minmax(0,1fr) 106px;gap:8px 12px}.ma-area-row .ma-card-limit{grid-column:1/-1;width:100%;display:grid;grid-template-columns:minmax(0,1fr) 106px;align-items:center;gap:12px}.ma-area-row .ma-card-limit select{margin-top:0}}
