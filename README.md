@@ -1,3 +1,7 @@
+# V106.22 — Surah and Dua memorisation
+
+Add module cards designed for adult ladies to the Academy Progress page, with separate swipeable Surah and Dua rows, learner task marking, teacher confirmation grids and Global Admin Excel/CSV uploads with subject and level review. The supplied list seeds 12 modules and 120 tasks in D1 through the shared Academy catalogue. Read-only checks found no migrated learner memorisation: zero task definitions and four separate class curriculum progress records. The owner authorised deployment when ready. This release requires only the additive memorisation migration. [Release details](docs/ACADEMY-MEMORISATION-106.22.md).
+
 # V106.21 — Inline Attendance and compact access pills
 
 Open Attendance inside the Academy Program page, keeping its header, Program pills and teaching tools. Date controls, 240-pixel class registers and the day summary appear on that page. Program switching retains the Attendance view, with draft and interrupted-save protection. Navigation pills show only the highest access level; no access means no pill. Existing shared submissions remain available for corrections with an explanation. No database changes are required. [Release details](docs/ACADEMY-INLINE-ATTENDANCE-106.21.md).

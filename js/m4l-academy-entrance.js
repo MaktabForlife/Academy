@@ -220,7 +220,7 @@
   function renderHome() {
     const data = state.home;
     $('personal-activities').hidden = !data.signedIn;
-    $('academy-progress-nav').hidden = !(data.signedIn && data.student);
+    $('academy-progress-nav').hidden = !(data.signedIn && (data.student || data.globalAdmin || data.personalActivities.some(a=>staffRoles(a.roles || []))));
     $('academy-recorder-nav').hidden = !(data.signedIn && data.student);
     const activities = data.signedIn ? data.personalActivities : [];
     const courses = activities.filter(row => row.kind === 'COURSE');
@@ -296,6 +296,7 @@
     const names = {academy:'Academy',attendance:'Attendance',progress:'Progress',assessment:'Assessment',plan:'Planning',announcements:'Announcements',calendar:'Calendar'};
     if (!names[key] || key === 'academy' && !(state.home.globalAdmin || adminRoles(row.roles))) return;
     if (['attendance','plan'].includes(key) && !staffRoles(row.roles) && !state.home.globalAdmin) return;
+    if (key === 'progress') { $('workspace-tool').close(); location.hash = '#progress'; return; }
     $('workspace-tool-title').textContent = names[key];
     if (key === 'academy') {
       $('workspace-tool-body').innerHTML = (state.home.globalAdmin ? '<div class="academy-tool-pills"><a href="/academy/subjects/">Subjects &amp; Modules</a></div>' : '') +
@@ -606,8 +607,9 @@
   function route() {
     const hash = location.hash || '#overview';
     if (lastRouteHash && hash !== lastRouteHash) {
-      if (window.M4L_PROGRAM_ATTENDANCE?.canLeave() === false) { history.replaceState(null,'',lastRouteHash); return; }
+      if (window.M4L_PROGRAM_ATTENDANCE?.canLeave() === false || window.M4L_ACADEMY_PROGRESS?.canLeave() === false) { history.replaceState(null,'',lastRouteHash); return; }
       window.M4L_PROGRAM_ATTENDANCE?.reset();
+      window.M4L_ACADEMY_PROGRESS?.reset();
       $('pa-main').hidden = true;
     }
     if(hash === '#timetable'){
@@ -630,6 +632,7 @@
     });
     $('current-view').textContent = titles[name];
     if (requested === 'learning') $('learning').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    if (name === 'progress') void window.M4L_ACADEMY_PROGRESS?.open();
     if (name === 'workshops') renderWorkshops();
     if (name === 'activity' && encodedId && state.home) { try { void loadActivity(decodeURIComponent(encodedId)); } catch { $('activity-status').textContent = 'This activity link is invalid.'; } }
     if (name === 'recorder') $('recorder-card').innerHTML = state.home?.student ? '<p>Select an existing lesson image, record your voice, then preview and share your video.</p><a class="button" href="/recorder/?academy=1">Open Voice Recorder →</a>' : '<p>Voice Recorder is available to signed-in Academy students.</p>';
@@ -641,7 +644,7 @@
     let view = $('administration');
     if (!view) { view = document.createElement('section'); view.id = 'administration'; view.className = 'view active'; document.querySelector('.container').appendChild(view); }
     view.classList.add('active');
-    view.innerHTML = '<div class="page-heading"><h1>Academy administration</h1></div>' + (state.home?.globalAdmin ? '<div class="activity-pills"><a href="/users/">User profiles</a><a href="/academy/subjects/">Subjects &amp; Modules</a><a href="/programs/">Manage Programs</a><a href="/academy/courses/manage/">Course management</a><a href="/academy/courses/manage/?view=scheduling">Course scheduling</a><a href="/academy/library/manage/">Manage Library</a></div>' : '<p>This page requires an authenticated Global Admin account.</p>');
+    view.innerHTML = '<div class="page-heading"><h1>Academy administration</h1></div>' + (state.home?.globalAdmin ? '<div class="activity-pills"><a href="/users/">User profiles</a><a href="/academy/subjects/">Subjects &amp; Modules</a><a href="#progress">Memorisation modules</a><a href="/programs/">Manage Programs</a><a href="/academy/courses/manage/">Course management</a><a href="/academy/courses/manage/?view=scheduling">Course scheduling</a><a href="/academy/library/manage/">Manage Library</a></div>' : '<p>This page requires an authenticated Global Admin account.</p>');
   }
 
   function bindPublicTimetableRefresh(){
@@ -660,6 +663,7 @@
   }
 
   function clearPersonal() {
+    window.M4L_ACADEMY_PROGRESS?.reset();
     window.M4L_PROGRAM_ATTENDANCE?.reset();
     $('pa-main').hidden = true;
     lastRouteHash = '';

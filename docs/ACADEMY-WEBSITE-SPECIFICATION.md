@@ -14,7 +14,7 @@ Use that Program ID consistently for Reboot’s new Program timetable, Library, 
 
 Exclude legacy Reboot screens and data from website integration. Do not link to them, read their records as website data, or use them as a fallback for missing new Program functionality.
 
-Where the new Program framework lacks a required feature or integration, display **Coming soon**, including universal student progress integration.
+Where the new Program framework lacks a required feature or integration, display **Coming soon**. Surah/Dua memorisation progress is integrated in [V106.22](ACADEMY-MEMORISATION-106.22.md); other progress features remain outside that release.
 
 Leave legacy Reboot untouched. This website work does not authorise changes to legacy screens, services, permissions or records, or migration of legacy data.
 

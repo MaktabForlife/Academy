@@ -59,7 +59,7 @@
       if (pending !== generation || session !== token() || !result.success || !result.signedIn) return;
       d1Session = result.sessionStore === 'D1' ? session : '';
       $('ac-library').href = '/academy/library/';
-      $('ac-progress').hidden = !result.student;
+      $('ac-progress').hidden = !(result.student || result.globalAdmin || result.personalActivities.some(a=>(a.roles || []).some(r=>['TEACHER','PROGRAM_ADMIN','GLOBAL_ADMIN'].includes(r))));
       $('ac-recorder').hidden = !result.student;
       $('ac-signout').hidden = false;
       if ($('library-for-you')) $('library-for-you').hidden = false;

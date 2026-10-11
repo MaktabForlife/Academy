@@ -1,0 +1,85 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {memorisationFixture} from './fixtures/academy-memorisation-fixture.mjs';
+import {attendanceProgramId} from './fixtures/academy-attendance-fixture.mjs';
+import worker from '../src/worker.js';
+const path='/api/academy/progress/',scope='PROGRAM:'+attendanceProgramId;
+const post=async(env,action,input={},token='')=>{const r=await worker.fetch(new Request('http://localhost'+(action.startsWith('/')?action:path+action),{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),env);return {status:r.status,body:await r.json()};};
+const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
+const login=async(env,suffix)=>ok(await post(env,'/api/account/login',{uniqueid:'login-'+suffix,pin:'1234'})).token;
+async function use(fn){const f=await memorisationFixture(),previous=globalThis.fetch;globalThis.fetch=async()=>{throw Error('Unexpected external call');};try{await fn(f);assert.deepEqual(f.db.prepare('PRAGMA foreign_key_check').all(),[]);assert.equal(f.db.prepare('SELECT count(*) n FROM academy_write_guards').get().n,0);}finally{f.db.close();globalThis.fetch=previous;}}
+const update=(task,revision=0,complete=true)=>({taskId:task,revision,complete});
+test('workbook tasks seed shared modules without invented learner progress',()=>use(async({env,db,queries})=>{
+  const student=await login(env,'0002'),before=queries.length,data=ok(await post(env,'get',{},student));
+  assert.equal(data.modules.length,12);assert.equal(data.modules.flatMap(m=>m.tasks).length,120);assert.equal(data.records.length,0);assert.equal(data.student,true);
+  assert.ok(queries.length-before<25,'Progress uses bounded, scoped reads');
+  const source=JSON.parse(readFileSync(new URL('../data/academy-memorisation-modules.json',import.meta.url)));
+  for(const m of source.modules)assert.deepEqual(data.modules.find(c=>c.name===m.name).tasks.map(t=>t.name),m.tasks);
+  assert.equal(db.prepare('SELECT count(*) n FROM memorisation_modules m JOIN academy_module_catalogue c USING(module_id)').get().n,12);
+  assert.equal((await post(env,'get')).status,401);
+}));
+test('learner marks own tasks, teacher confirms, deselection removes confirmation and retry is exact',()=>use(async({env,db})=>{
+  const student=await login(env,'0002'),teacher=await login(env,'0003'),other=await login(env,'0005');
+  const data=ok(await post(env,'get',{},student)),task=data.modules[0].tasks[0].id;
+  const input={catalogueRevision:data.revision,updates:[update(task)],operationId:crypto.randomUUID()};
+  assert.equal((await post(env,'mark',{...input,updates:[{...update(task),accountId:'account-0008'}]},student)).status,403);
+  assert.equal((await post(env,'confirm',{...input,activityKey:scope,classId:'class-1',updates:[{taskId:task,accountId:'account-0002',revision:0,confirmed:true}]},teacher)).body.code,'NOT_MEMORISED');
+  const saved=ok(await post(env,'mark',input,student));assert.equal(saved.records[0].confirmed,false);assert.equal(ok(await post(env,'mark',input,student)).replayed,true);
+  assert.equal((await post(env,'mark',{...input,updates:[update(task,0,false)]},student)).body.code,'OPERATION_ID_REUSED');
+  const confirm={catalogueRevision:data.revision,activityKey:scope,classId:'class-1',updates:[{taskId:task,accountId:'account-0002',revision:1,confirmed:true}],operationId:crypto.randomUUID()};
+  assert.equal((await post(env,'confirm',confirm,student)).status,403);assert.equal((await post(env,'confirm',confirm,other)).status,403);
+  assert.equal((await post(env,'grid',{activityKey:'PROGRAM:unassigned',classId:'class-shared',moduleId:data.modules[0].id},teacher)).status,403);
+  assert.equal(ok(await post(env,'confirm',confirm,teacher)).records[0].confirmed,true);assert.equal(ok(await post(env,'confirm',confirm,teacher)).replayed,true);
+  const grid=ok(await post(env,'grid',{activityKey:scope,classId:'class-1',moduleId:data.modules[0].id},teacher));assert.deepEqual(grid.learners.map(a=>a.id),['account-0002']);assert.equal(grid.records[0].confirmed,true);
+  assert.equal((await post(env,'mark',{...input,operationId:crypto.randomUUID()},student)).body.code,'ROW_CHANGED');
+  ok(await post(env,'mark',{...input,updates:[update(task,2,false)],operationId:crypto.randomUUID()},student));
+  const record=db.prepare('SELECT * FROM learner_task_progress WHERE account_id=? AND task_id=?').get('account-0002',task);
+  assert.equal(record.confirmed,0);assert.equal(record.completed_at,null);assert.equal(record.confirmed_by,null);assert.equal(record.confirmed_at,null);
+  assert.equal(db.prepare("SELECT count(*) n FROM audit_events WHERE record_kind='MEMORISATION'").get().n,3);
+}));
+test('confirmation scope honours admins, active dated class rosters and Course roles',()=>use(async({env,db})=>{
+  const admin=await login(env,'0001'),scoped=await login(env,'0004'),student=await login(env,'0002');
+  const data=ok(await post(env,'get',{},admin));assert.equal(data.canImport,true);assert.ok(data.classes.some(c=>c.id==='class-shared'));
+  const own=ok(await post(env,'get',{},scoped));assert.equal(own.canImport,false);assert.ok(own.classes.some(c=>c.id==='class-shared'));assert.ok(own.classes.every(c=>c.activityKey===scope));
+  const input={activityKey:scope,classId:'class-1',moduleId:data.modules[0].id};
+  db.prepare("UPDATE class_memberships SET start_date='2999-01-01' WHERE account_id='account-0002'").run();assert.equal(ok(await post(env,'grid',input,scoped)).total,0);
+  assert.equal((await post(env,'grid',input,student)).status,403);
+  db.prepare("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state,revision) SELECT 'course-teacher','account-0003',activity_key,'TEACHER',1,'CONFIRMED',1 FROM activities WHERE kind='COURSE' LIMIT 1").run();
+  const teacher=await login(env,'0003');assert.ok(ok(await post(env,'get',{},teacher)).classes.some(c=>c.id==='COURSE'));
+}));
+test('concurrent forms conflict and failed multi-task saves roll back marks, receipts and audit',()=>use(async({env,db})=>{
+  const token=await login(env,'0002'),data=ok(await post(env,'get',{},token)),tasks=data.modules[0].tasks;
+  const make=()=>({catalogueRevision:data.revision,updates:[update(tasks[0].id)],operationId:crypto.randomUUID()});
+  const result=await Promise.all([post(env,'mark',make(),token),post(env,'mark',make(),token)]);assert.deepEqual(result.map(r=>r.status).sort(),[200,409]);
+  db.exec(`CREATE TRIGGER synthetic_failure BEFORE INSERT ON learner_task_progress WHEN NEW.task_id='${tasks[2].id}' BEGIN SELECT RAISE(ABORT,'synthetic failure'); END;`);
+  const count=db.prepare('SELECT count(*) n FROM operation_receipts').get().n;
+  assert.equal((await post(env,'mark',{catalogueRevision:data.revision,updates:[update(tasks[1].id),update(tasks[2].id)],operationId:crypto.randomUUID()},token)).status,503);
+  assert.equal(db.prepare('SELECT count(*) n FROM learner_task_progress').get().n,1);assert.equal(db.prepare('SELECT count(*) n FROM operation_receipts').get().n,count);
+}));
+test('Global Admin imports classify modules, exact retries and matching replacement reset only that module',()=>use(async({env,db})=>{
+  const admin=await login(env,'0001'),teacher=await login(env,'0003'),student=await login(env,'0002'),data=ok(await post(env,'get',{},admin));
+  const input={catalogueRevision:data.revision,mode:'ADD',modules:[{name:'New duas',subject:'DUAS',level:'Foundation',tasks:['First dua','Second dua']}],operationId:crypto.randomUUID()};
+  assert.equal((await post(env,'import',input,teacher)).status,403);
+  assert.equal((await post(env,'import',{...input,modules:[{...input.modules[0],subject:'OTHER'}]},admin)).status,400);
+  assert.equal((await post(env,'import',{...input,modules:[{...input.modules[0],tasks:['Repeat','repeat']}]},admin)).status,400);
+  assert.equal(db.prepare('SELECT count(*) n FROM memorisation_modules').get().n,12);
+  ok(await post(env,'import',input,admin));assert.equal(ok(await post(env,'import',input,admin)).replayed,true);
+  const next=ok(await post(env,'get',{},student)),m=next.modules.find(m=>m.name==='New duas'),other=next.modules.find(m=>m.name==='Surahs 1');
+  ok(await post(env,'mark',{catalogueRevision:next.revision,updates:[update(m.tasks[0].id),update(other.tasks[0].id)],operationId:crypto.randomUUID()},student));
+  assert.equal((await post(env,'import',{...input,operationId:crypto.randomUUID()},admin)).body.code,'CATALOGUE_CHANGED');
+  assert.equal((await post(env,'import',{...input,catalogueRevision:next.revision,operationId:crypto.randomUUID()},admin)).body.code,'MODULE_EXISTS');
+  ok(await post(env,'import',{...input,catalogueRevision:next.revision,mode:'REPLACE',modules:[{...input.modules[0],tasks:['Replacement']}],operationId:crypto.randomUUID()},admin));
+  const last=ok(await post(env,'get',{},student));assert.equal(last.records.length,1);assert.equal(last.records[0].taskId,other.tasks[0].id);assert.equal(last.modules.find(m=>m.name==='New duas').tasks[0].name,'Replacement');
+}));
+test('large imports and 100-task learner/teacher saves stay within the Free D1 invocation budget',()=>use(async({env,queries})=>{
+  const admin=await login(env,'0001'),student=await login(env,'0002'),teacher=await login(env,'0003'),data=ok(await post(env,'get',{},admin));
+  let before=queries.length;
+  ok(await post(env,'import',{catalogueRevision:data.revision,mode:'ADD',modules:Array.from({length:5},(_,i)=>({name:'Large module '+i,subject:'DUAS',level:'Extension',tasks:Array.from({length:100},(_,n)=>'Task '+n)})),operationId:crypto.randomUUID()},admin));
+  assert.ok(queries.length-before<=50,`500-task upload used ${queries.length-before} D1 queries`);
+  const cat=ok(await post(env,'get',{},student)),tasks=cat.modules.flatMap(m=>m.tasks).slice(0,100);before=queries.length;
+  ok(await post(env,'mark',{catalogueRevision:cat.revision,updates:tasks.map(t=>update(t.id)),operationId:crypto.randomUUID()},student));
+  assert.ok(queries.length-before<=50,`100-task marking used ${queries.length-before} D1 queries`);before=queries.length;
+  ok(await post(env,'confirm',{catalogueRevision:cat.revision,activityKey:scope,classId:'class-1',updates:tasks.map(t=>({taskId:t.id,accountId:'account-0002',revision:1,confirmed:true})),operationId:crypto.randomUUID()},teacher));
+  assert.ok(queries.length-before<=50,`100-task confirmation used ${queries.length-before} D1 queries`);
+}));
