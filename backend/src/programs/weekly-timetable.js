@@ -129,8 +129,8 @@ export function effectiveLessonTeacherId(row,classes){
   const assigned=row.classIds.map(id=>classes.get(id)?.classTeacherId||'');
   return assigned.length&&assigned[0]&&assigned.every(id=>id===assigned[0])?assigned[0]:'';
 }
-export function lessonTeacherGroups(row,classes){
-  if(row.teacherMode==='NONE'||row.teacherId)return [{classIds:row.classIds,teacherId:row.teacherMode==='NONE'?'':row.teacherId,teacherIds:row.teacherMode==='NONE'?[]:[row.teacherId,...(row.additionalTeacherIds||[])]}];
+export function lessonTeacherGroups(row,classes,requireTeacher=false){
+  if(row.teacherMode==='NONE'&&!requireTeacher||row.teacherId)return [{classIds:row.classIds,teacherId:row.teacherMode==='NONE'?'':row.teacherId,teacherIds:row.teacherMode==='NONE'?[]:[row.teacherId,...(row.additionalTeacherIds||[])]}];
   const groups=new Map();
   for(const id of row.classIds){const teacherId=classes.get(id)?.classTeacherId||'';if(!groups.has(teacherId))groups.set(teacherId,[]);groups.get(teacherId).push(id);}
   return [...groups].map(([teacherId,classIds])=>({teacherId,teacherIds:teacherId?[teacherId]:[],classIds}));
@@ -147,7 +147,7 @@ export function validateWeeklyTimetable(input,catalog,program,fromDate){
   const linked=[];
   for(const row of draft.rules){
     const before=issues.length,module=modules.get(row.moduleId),subject=subjects.get(module?.programSubjectId||row.programSubjectId),level=levels.get(module?.levelId);
-    const groups=lessonTeacherGroups(row,classes);
+    const groups=lessonTeacherGroups(row,classes,catalog.requireTeacher);
     if(!subject?.active||!text(subject?.name)||subject.courseId!==program.id||row.moduleId&&(!module?.active||!text(module.name))||row.programSubjectId&&module&&module.programSubjectId!==row.programSubjectId)issue(row.id,'moduleId','Select an active subject or module belonging to this Program.');
     if(module?.levelId&&(!level?.active||!text(level?.name)||level.programSubjectId!==module.programSubjectId))issue(row.id,'moduleId','The module’s optional level must belong to the same subject.');
     if(!row.classIds.length||new Set(row.classIds).size!==row.classIds.length||row.classIds.some(id=>!classes.get(id)?.active||!text(classes.get(id)?.name)||classes.get(id).courseId!==program.id))issue(row.id,'classIds','Select one or more distinct active classes in this Program.');
@@ -158,7 +158,7 @@ export function validateWeeklyTimetable(input,catalog,program,fromDate){
     const zooms=groups.map(({classIds})=>{try{return draft.programZoomLink?{zoomLink:draft.programZoomLink,zoomSource:'PROGRAM'}:lessonZoom({...row,classIds},classes);}catch(error){issue(row.id,'zoomLink',error.message);return {zoomLink:'',zoomSource:'NONE'};}});
     if(before===issues.length)groups.forEach(({teacherId,teacherIds,classIds},groupIndex)=>{
       const zoom=zooms[groupIndex];
-      linked.push({...row,id:groups.length===1?row.id:groupedRuleId(row.id,groupIndex),sourceRuleId:row.id,assignmentMode:row.teacherMode==='NONE'?'NONE':row.teacherId?'EXPLICIT':'CLASS',teacherId,teacherIds,teacherNames:teacherIds.map(id=>teachers.get(id).name),classIds,zoomLink:normalizeZoomLink(row.zoomLink),effectiveZoomLink:zoom.zoomLink,zoomSource:zoom.zoomSource,programSubjectId:subject.id,subjectId:subject.subjectId,levelId:module?.levelId||'',subjectName:subject.name,moduleName:module?.name||subject.name,levelName:level?.name||'',classNames:classIds.map(id=>classes.get(id).name),teacherName:teacherId?teachers.get(teacherId).name:''});
+      linked.push({...row,id:groups.length===1?row.id:groupedRuleId(row.id,groupIndex),sourceRuleId:row.id,assignmentMode:row.teacherMode==='NONE'&&!catalog.requireTeacher?'NONE':row.teacherId?'EXPLICIT':'CLASS',teacherId,teacherIds,teacherNames:teacherIds.map(id=>teachers.get(id).name),classIds,zoomLink:normalizeZoomLink(row.zoomLink),effectiveZoomLink:zoom.zoomLink,zoomSource:zoom.zoomSource,programSubjectId:subject.id,subjectId:subject.subjectId,levelId:module?.levelId||'',subjectName:subject.name,moduleName:module?.name||subject.name,levelName:level?.name||'',classNames:classIds.map(id=>classes.get(id).name),teacherName:teacherId?teachers.get(teacherId).name:''});
     });
   }
   const enrollments=(catalog.enrollments||[]).filter(e=>e.active);

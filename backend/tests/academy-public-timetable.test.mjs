@@ -7,8 +7,8 @@ import worker from '../src/worker.js';
 function snapshotStores() {
   const objects=new Map(),responses=new Map();let gets=0,puts=0;
   return {objects,responses,get gets(){return gets;},get puts(){return puts;},
-    bucket:{get:async key=>{gets++;return objects.has(key)?{json:async()=>JSON.parse(objects.get(key))}:null;},
-      put:async(key,value,options)=>{assert.equal(options.onlyIf.etagDoesNotMatch,'*');if(objects.has(key))return null;puts++;objects.set(key,value);return {key};}},
+    bucket:{get:async key=>{gets++;return objects.has(key)?{etag:String(puts),json:async()=>JSON.parse(objects.get(key))}:null;},
+      put:async(key,value,options)=>{if(options.onlyIf.etagMatches!==undefined){if(options.onlyIf.etagMatches!==String(puts))return null;}else{assert.equal(options.onlyIf.etagDoesNotMatch,'*');if(objects.has(key))return null;}puts++;objects.set(key,value);return {key};}},
     edge:{match:async request=>responses.get(request.url)?.clone(),put:async(request,response)=>{responses.set(request.url,response.clone());}}};
 }
 const request=(suffix='',headers={})=>new Request('https://academy.invalid/api/academy/entrance/public-snapshot'+suffix,{headers});
@@ -63,4 +63,34 @@ test('a failed new-day build is not saved or cached',async()=>{
     await assert.rejects(publicTimetable(request(),{...f.env,MEDIA_BUCKET:stores.bucket,ACADEMY_DB:broken},new Date('2026-10-19T12:00:00Z'),stores.edge),/daily row read limit/);
     assert.equal(stores.puts,0);assert.equal(stores.responses.size,0);
   } finally {f.db.close();}
+});
+
+const post=async(env,path,body={},token='')=>{const response=await worker.fetch(new Request('https://academy.invalid'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(body)}),env);return {status:response.status,body:await response.json()};};
+const login=async(env,n)=>{const response=await post(env,'/api/account/login',{uniqueid:'login-'+n,pin:'1234'});assert.equal(response.status,200,JSON.stringify(response));return response.body.token;};
+
+test('Global Admin can manually rebuild the daily public snapshot without exposing private data or adding visitor D1 reads',async()=>{
+ const f=await fixtureDatabase(),stores=snapshotStores(),env={...f.env,MEDIA_BUCKET:stores.bucket},original=globalThis.caches;
+ globalThis.caches={default:stores.edge};
+ try{
+  const admin=await login(env,'0001'),teacher=await login(env,'0003'),scoped=await login(env,'0004');
+  const first=await (await publicTimetable(request(),env,new Date(),stores.edge)).json();const stored=JSON.stringify(first),endpoint='/api/admin/platform/public-timetable/refresh';
+  for(const token of ['',teacher,scoped])assert.ok([401,403].includes((await post(env,endpoint,{},token)).status));
+  assert.equal(stores.puts,1);assert.equal([...stores.objects.values()][0],stored);
+  f.db.prepare("UPDATE activities SET name='Manually refreshed public name' WHERE kind='PROGRAM'").run();
+  assert.deepEqual(await (await publicTimetable(request(),env,new Date(),stores.edge)).json(),first,'Ordinary reload reads the existing daily snapshot');
+  const refreshed=await post(env,endpoint,{},admin);assert.equal(refreshed.status,200,JSON.stringify(refreshed));assert.equal(refreshed.body.refreshWithinSeconds,60);assert.equal(stores.puts,2);
+  const reads=f.queries.length,quota={...env,ACADEMY_DB:broken};
+  for(const edge of [stores.edge,null]){const response=await publicTimetable(request(),quota,new Date(),edge),latest=await response.json();assert.ok(latest.timetable.some(row=>row.activityName==='Manually refreshed public name'));assert.equal(response.headers.get('Cache-Control'),'public, max-age=60');assert.doesNotMatch(JSON.stringify(latest),/pin_hash|teacherId|classId|account_id|meetingGroup|joinUrl|teacherName|classNames/);}
+  assert.equal(f.queries.length,reads,'Refresh replacements are still served from edge/R2 without D1');
+ }finally{globalThis.caches=original;f.db.close();}
+});
+
+test('manual public refresh rejects competing replacements and rechecks revoked Global Admin authority before writing',async()=>{
+ const f=await fixtureDatabase(),stores=snapshotStores(),env={...f.env,MEDIA_BUCKET:stores.bucket};
+ try{
+  const admin=await login(env,'0001'),endpoint='/api/admin/platform/public-timetable/refresh';await publicTimetable(request(),env,new Date(),null);const previous=[...stores.objects.values()][0],put=stores.bucket.put,get=stores.bucket.get;
+  stores.bucket.put=async()=>null;assert.equal((await post(env,endpoint,{},admin)).status,409);assert.equal([...stores.objects.values()][0],previous);
+  stores.bucket.put=put;stores.bucket.get=async key=>{const result=await get(key);f.db.prepare("UPDATE global_role_assignments SET active=0 WHERE account_id='account-0001'").run();return result;};
+  assert.ok([401,403].includes((await post(env,endpoint,{},admin)).status));assert.equal(stores.puts,1);assert.equal([...stores.objects.values()][0],previous);
+ }finally{f.db.close();}
 });

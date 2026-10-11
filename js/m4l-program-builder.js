@@ -78,6 +78,10 @@
       || !`${row.name} ${row.id}`.toLowerCase().includes(state.search.toLowerCase());
     if (panel.hidden) return;
     const readiness = state.readiness[row.id];
+    if(state.store==='D1'){
+      panel.innerHTML=`<div class="pb-detail-header"><div><h2>${escape(row.name||'New Program')}</h2><small>${escape(row.id)}</small></div>${row.saved&&!dirty(row)?`<a class="pb-management-open" href="/programs/${state.learningWorkflowsReady?'timetable':'manage'}.html?program=${encodeURIComponent(row.id)}">Open Program management →</a>`:''}</div>`;
+      return;
+    }
     panel.innerHTML = `<div class="pb-detail-header"><div><h2>${escape(row.name || "New Program")}</h2><small>${escape(row.id)}</small></div>
       <div class="pb-actions">${row.saved && !dirty(row) ? `<a href="/programs/${state.store==='D1'&&!state.learningWorkflowsReady?'manage':'timetable'}.html?program=${encodeURIComponent(row.id)}">Open Program Admin →</a><a href="/programs/manage.html?program=${encodeURIComponent(row.id)}&tab=profiles">People →</a>${state.store === "D1" && !state.learningWorkflowsReady ? "" : `<a href="/programs/library.html?program=${encodeURIComponent(row.id)}">Manage Library →</a><a href="/programs/timetable.html?program=${encodeURIComponent(row.id)}">Open timetable →</a><a href="/programs/attendance.html?program=${encodeURIComponent(row.id)}">Attendance →</a>`}` : ""}<button type="button" data-action="check" class="pb-secondary" ${state.busy || !row.saved || dirty(row) ? "disabled" : ""}>Check readiness</button>
       <button type="button" data-action="prepare" ${state.store === "D1" ? "hidden" : ""} ${state.busy || !row.saved || dirty(row) || readiness?.prepared ? "disabled" : ""}>Prepare spreadsheet</button></div></div>

@@ -1,12 +1,20 @@
 import {academyD1Repository,rehearsalError} from './repository.js';
 import {d1Entrance} from './entrance.js';
 import {lessonTimes} from '../entrance.js';
+import {authenticatedD1Account} from './session.js';
 
 export function publicTimetableDay(now=new Date()) {
   const start=new Date(now);start.setUTCHours(0,0,0,0);
   return {startDate:start.toISOString().slice(0,10),expiresAt:new Date(start.getTime()+86400000).toISOString()};
 }
 export const publicTimetableKey=(env,period)=>`academy-public-timetable/v3/${encodeURIComponent(env.ENVIRONMENT)}/${encodeURIComponent(env.ACADEMY_D1_RUN_ID||'rehearsal')}/${period.startDate}.json`;
+const cacheKeyFor=(request,key)=>new Request(new URL('/api/academy/entrance/public-snapshot/'+key+'?refreshable=1',new URL(request.url).origin),{method:'GET'});
+const snapshotResponse=(snapshot,period,now)=>new Response(JSON.stringify(snapshot),{headers:{'Content-Type':'application/json','Cache-Control':`public, max-age=${Math.min(60,Math.max(0,Math.floor((Date.parse(period.expiresAt)-now.getTime())/1000)))}`}});
+async function buildSnapshot(repository,period,now){
+ const data=await d1Entrance(repository,null,null,{startDate:period.startDate},now,{days:7});
+ if(data.warnings.some(warning=>warning.endsWith('timetable is unavailable.')))throw rehearsalError('The public timetable snapshot could not be prepared.');
+ return publicTimetableSnapshot(data,period,now);
+}
 
 // This is a marketing snapshot, never a copy of an authenticated response.
 // Whitelist on both creation and retrieval; no accounts, classes, teachers,
@@ -27,7 +35,7 @@ export async function publicTimetable(request,env,now=new Date(),edgeCache=globa
     env.ACADEMY_D1_MODE==='ACTIVE'&&(!env.ACADEMY_D1_RUN_ID||env.ACADEMY_LIBRARY_MODE!=='PUBLIC_ONLY'))
     throw rehearsalError('Academy activation configuration is incomplete.',503,'ACTIVATION_REQUIRED');
   const period=publicTimetableDay(now),key=publicTimetableKey(env,period);
-  const cacheKey=new Request(new URL('/api/academy/entrance/public-snapshot/'+key,new URL(request.url).origin),{method:'GET'});
+  const cacheKey=cacheKeyFor(request,key);
   const valid=data=>data?.snapshotVersion===3&&data.snapshotDate===period.startDate&&data.signedIn===false&&Array.isArray(data.timetable);
   let snapshot,edgeHit=false;
   if(edgeCache)try { const cached=await edgeCache.match(cacheKey);if(cached){const data=await cached.json();if(valid(data)){snapshot=publicTimetableSnapshot(data,period,now);edgeHit=true;}} }catch { /* R2 remains the durable snapshot. */ }
@@ -39,16 +47,29 @@ export async function publicTimetable(request,env,now=new Date(),edgeCache=globa
     if(!env.MEDIA_BUCKET&&env.ENVIRONMENT!=='local')throw rehearsalError('The public timetable snapshot store is unavailable.');
     const repository=academyD1Repository(env);await repository.ready();
     // The public preview covers the next seven days.
-    const data=await d1Entrance(repository,null,null,{startDate:period.startDate},now,{days:7});
-    if(data.warnings.some(warning=>warning.endsWith('timetable is unavailable.')))throw rehearsalError('The public timetable snapshot could not be prepared.');
-    snapshot=publicTimetableSnapshot(data,period,now);
+    snapshot=await buildSnapshot(repository,period,now);
     if(env.MEDIA_BUCKET){
       const written=await env.MEDIA_BUCKET.put(key,JSON.stringify(snapshot),{httpMetadata:{contentType:'application/json'},onlyIf:{etagDoesNotMatch:'*'}});
       if(!written){const existing=await env.MEDIA_BUCKET.get(key);const winner=existing&&await existing.json();if(valid(winner))snapshot=publicTimetableSnapshot(winner,period,now);}
     }
   }
-  const maxAge=Math.max(0,Math.floor((Date.parse(period.expiresAt)-now.getTime())/1000));
-  const response=new Response(JSON.stringify(snapshot),{headers:{'Content-Type':'application/json','Cache-Control':`public, max-age=${maxAge}`}});
+  const response=snapshotResponse(snapshot,period,now);
   if(edgeCache&&!edgeHit)try { await edgeCache.put(cacheKey,response.clone()); }catch { /* Serving R2 does not require an edge-cache write. */ }
   return response;
+}
+
+// Rebuild only on an explicit Global Admin action. Visitors still read one
+// durable daily snapshot; short edge caching propagates a manual replacement
+// across regions without adding visitor D1 reads or background polling.
+export async function refreshPublicTimetable(request,env,repository,auth,now=new Date(),edgeCache=globalThis.caches?.default){
+ if(!auth.state.account.global_admin)throw rehearsalError('Only a Global Admin can refresh the public timetable.',403,'FORBIDDEN');
+ if(!env.MEDIA_BUCKET)throw rehearsalError('The public timetable snapshot store is unavailable.');
+ const period=publicTimetableDay(now),key=publicTimetableKey(env,period),previous=await env.MEDIA_BUCKET.get(key);
+ const snapshot=await buildSnapshot(repository,period,now);
+ const current=await authenticatedD1Account(request,env,repository);
+ if(!current.state.account.global_admin)throw rehearsalError('Only a Global Admin can refresh the public timetable.',403,'FORBIDDEN');
+ const written=await env.MEDIA_BUCKET.put(key,JSON.stringify(snapshot),{httpMetadata:{contentType:'application/json'},onlyIf:previous?{etagMatches:previous.etag}:{etagDoesNotMatch:'*'}});
+ if(!written)throw rehearsalError('The public timetable changed during refresh. Please refresh it again.',409,'SNAPSHOT_CHANGED');
+ if(edgeCache)try{await edgeCache.put(cacheKeyFor(request,key),snapshotResponse(snapshot,period,now));}catch{/* Other regions receive the durable replacement within one minute. */}
+ return {snapshotDate:period.startDate,generatedAt:snapshot.generatedAt,lessons:snapshot.timetable.length,refreshWithinSeconds:60};
 }

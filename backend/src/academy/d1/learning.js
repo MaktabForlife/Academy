@@ -1,5 +1,6 @@
 import {workspaceQueries,workspaceCatalog,workspaceValidation,workspaceId,recordStatement,assertWorkspaceDraft,snapshotDraft,canEditWorkspace} from './program-workspace.js';
 import {normalizeWeeklyDraft} from '../../programs/weekly-timetable.js';
+import {canEditTeacherAvailability} from './teacher-availability.js';
 import {subjectView} from './subjects.js';
 import {d1Programs} from './programs.js';
 import {managementStore,managementError,liveRoles,same} from './management-store.js';
@@ -74,7 +75,9 @@ export function d1Learning(repository,auth,now=()=>new Date()) {
           for(const id of new Set([l.teacherId,...(l.teacherIds||[])].filter(Boolean)))teachers.push({activity_key:activity,publication_id:pub.id,lesson_anchor:l.anchor,account_id:id});
         }
         statements.push(...insertRecords(p,'published_lessons',lessons),...insertRecords(p,'published_lesson_classes',classes),...insertRecords(p,'published_lesson_teachers',teachers));
-        statements.push(p("UPDATE activities SET website_visible=CASE WHEN active=1 AND lifecycle='ACTIVE' THEN 1 ELSE 0 END WHERE activity_key=?",activity));
+        // Publication opens a new Program as well as its schedule. Both changes
+        // commit together, so Home cannot be left with a published inactive draft.
+        statements.push(p("UPDATE activities SET active=1,lifecycle='ACTIVE',website_visible=1,revision=revision+CASE WHEN active=0 OR lifecycle<>'ACTIVE' THEN 1 ELSE 0 END,updated_at=? WHERE activity_key=? AND lifecycle<>'ARCHIVED'",new Date().toISOString(),activity));
       }
       if(table==='ProgramTimetableState')statements.push(p(`INSERT INTO timetable_drafts(activity_key,scope_key,source_revision,source_sequence,draft_json,source_draft_sha256,modified_at) VALUES(?,?,?,?,?,?,?)
         ON CONFLICT(activity_key,scope_key) DO UPDATE SET source_revision=excluded.source_revision,source_sequence=excluded.source_sequence,draft_json=excluded.draft_json,source_draft_sha256=excluded.source_draft_sha256,modified_at=excluded.modified_at`,activity,activity,r.Revision,r.Sequence,r.DraftJSON,await payloadHash(JSON.parse(r.DraftJSON)),r.ModifiedDate),
@@ -139,7 +142,8 @@ export function d1Learning(repository,auth,now=()=>new Date()) {
         if(timetableId){statements.push(recordStatement(p,loaded,timetableId,normalizeWeeklyDraft(input.draft),action==='publish'?'PUBLISHED':'DRAFT',null,planned.result.publicationId,review?.validationHash));
           if(action==='publish')for(const teacher of new Set((review.occurrences||[]).flatMap(r=>r.teacherIds||[])))statements.push(p("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state,granted_at,granted_by_account_id,revision) SELECT ?,?,?,'TEACHER',1,'CONFIRMED',?,?,1 WHERE NOT EXISTS(SELECT 1 FROM effective_activity_roles WHERE account_id=? AND activity_key=? AND role='TEACHER')",crypto.randomUUID(),teacher,loaded.a.activity_key,new Date().toISOString(),auth.user.accountid,teacher,loaded.a.activity_key));
         }
-        return {data:loaded.data,statements,result:{...planned.result,...(timetableId?{timetableId}: {})},fields:['Timetable',...(action==='publish'?['Publication']:[])]};
+        const publishedProgram=action==='publish'?{...loaded.program,active:true,status:'ACTIVE',revision:String(loaded.a.revision+Number(!loaded.a.active||loaded.a.lifecycle!=='ACTIVE'))}:null;
+        return {data:loaded.data,statements,result:{...planned.result,...(timetableId?{timetableId}: {}),...(publishedProgram?{program:publishedProgram}:{})},fields:['Timetable',...(action==='publish'?['Publication',...(loaded.a.lifecycle==='DRAFT'?['ProgramLifecycle']:[])]:[])]};
       });
       const loaded=await load(input.id);requireRole(loaded,['PROGRAM_ADMIN']);
       if(['prepare','prepare-library'].includes(action))return {prepared:true,libraryPrepared:true};
@@ -158,7 +162,9 @@ export function d1Learning(repository,auth,now=()=>new Date()) {
           result.draft.timetableId=workspaceId(loaded);
           const record=loaded.data.workspaceRecords.find(r=>r.timetable_id===result.draft.timetableId);
           const checked=record?.status==='VALID'?await workspaceValidation(loaded,result.draft,catalog,programToday(loaded.program.timezone,now())):null;
-          result={...result,catalog,workspaceReady:true,timetableId:result.draft.timetableId,timetableStatus:record?.status==='VALID'&&(!checked.valid||checked.validationHash!==record.validation_hash)?'DRAFT':record?.status||'DRAFT',timetableEditable:canEditWorkspace(loaded),availability:loaded.data.availability.map(a=>({teacherId:a.account_id,ranges:JSON.parse(a.ranges_json),revision:a.revision})),setup:{...await subjectView(await timetable(loaded).read('manage-get'),auth.state.account.global_admin),sharedModules:(loaded.data.academyModules||[]).map(m=>({id:m.module_id,name:m.name,subjectId:loaded.data.subjects.find(s=>same(s.subject_key,m.subject_key))?.subject_id,active:Boolean(m.active)}))}};
+          const availabilityData={...loaded.data,teachers:loaded.data.teacherStaff,classes:loaded.data.teachers.filter(t=>catalog.classes.some(c=>c.active&&same(c.id,t.class_id)))};
+          const displayCatalog={...catalog,teachers:catalog.teachers.map(t=>({...t,availabilityEditable:canEditTeacherAvailability(availabilityData,auth.user.accountid,t.id)}))};
+          result={...result,catalog:displayCatalog,workspaceReady:true,timetableId:result.draft.timetableId,timetableStatus:record?.status==='VALID'&&(!checked.valid||checked.validationHash!==record.validation_hash)?'DRAFT':record?.status||'DRAFT',timetableEditable:canEditWorkspace(loaded),availability:loaded.data.availability.map(a=>({teacherId:a.account_id,ranges:JSON.parse(a.ranges_json),revision:a.revision})),setup:{...await subjectView(await timetable(loaded).read('manage-get'),auth.state.account.global_admin),sharedModules:(loaded.data.academyModules||[]).map(m=>({id:m.module_id,name:m.name,subjectId:loaded.data.subjects.find(s=>same(s.subject_key,m.subject_key))?.subject_id,active:Boolean(m.active)}))}};
         }
         if(action==='history')result.records=await Promise.all(loaded.data.workspaceRecords.map(async r=>{
           const review=r.status==='VALID'?await workspaceValidation(loaded,JSON.parse(r.draft_json),catalog,programToday(loaded.program.timezone,now())):null;

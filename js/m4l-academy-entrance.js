@@ -14,6 +14,10 @@
       year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(instant)).map(part=>[part.type,part.value]));
     return `${parts.year}-${parts.month}-${parts.day}`;
   };
+  const homeIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h5v-7h4v7h5V9"/></svg>';
+  const TIMETABLE_RETURN_KEY = 'm4l_academy_timetable_return';
+  let lastRouteHash = '', navigationSession = token();
+  const validReturnHash = hash => typeof hash === 'string' && (hash !== '#timetable' && Boolean(titles[hash.slice(1)]) || /^#activity\/(PROGRAM|COURSE)\/[^#]+$/.test(hash));
   const titles = { overview: 'Academy home', timetable: 'Academy timetable', learning: 'Programs and Courses', workshops: 'Courses', activity: 'Activity',
     prospectus: '2026 Prospectus', about: 'About', contact: 'Contact', progress: 'Dua and Surah Progress', recorder: 'Voice Recorder', administration: 'Academy administration' };
   const activityHref = row => `#activity/${row.kind}/${encodeURIComponent(row.id)}`;
@@ -84,7 +88,7 @@
     if (pageCache.pending.has(key)) return pageCache.pending.get(key);
     const pending = (async () => {
       const response = await fetch(`${window.M4L_CONFIG?.API_BASE || ''}/api/academy/entrance${session ? '' : '/public-snapshot'}`, session ? { method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session}` }, body: JSON.stringify(body) } : {method:'GET'});
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session}` }, body: JSON.stringify(body) } : {method:'GET',cache:'no-cache'});
       const result = await response.json();
       if (token() !== session || pageCache.epoch !== epoch) throw new Error('The Academy account has changed.');
       if (!response.ok || !result.success) {
@@ -257,14 +261,14 @@
     return (admin ? group('Admin', link('Users', users) + link('Library', global ? '/academy/library/manage/' : row.tools?.resources || '/academy/library/') +
       link('Programs', global ? '/programs/' : row.kind === 'PROGRAM' && row.id ? `/programs/timetable.html?program=${encodeURIComponent(row.id)}` : '') +
       link('Courses', global || row.kind !== 'PROGRAM' ? '/academy/courses/manage/' : '') + tool('Academy','academy')) : '') +
-      (staff ? group('Teach', (link('Attendance',row.tools?.attendance) || tool('Attendance','attendance')) + tool('Progress','progress') + tool('Assessment','assessment') + tool('Plan','plan') + tool('Announcements','announcements') + link('My Timetable','#timetable') + link('Edit availability','/academy/teaching/')) : '') +
+      (staff ? group('Teach', (link('Attendance',row.tools?.attendance) || tool('Attendance','attendance')) + tool('Progress','progress') + tool('Assessment','assessment') + tool('Planning','plan') + tool('Announcements','announcements') + link('My Timetable','#timetable') + link('Edit availability','/academy/teaching/')) : '') +
       (!staff && learner ? group('Learn', link('Library','/academy/library/') + tool('My Progress','progress') + tool('My Assessment','assessment') + tool('Calendar','calendar') + tool('Announcements','announcements') + link('My Timetable','#timetable')) : '');
   }
 
   function openWorkspaceTool(key) {
     const row = location.hash.startsWith('#activity/') ? state.activity : {name:'Courses',roles:state.home?.personalActivities.filter(a=>a.kind==='COURSE').flatMap(a=>a.roles)||[]};
     if (!state.home?.signedIn || !row || !(row.roles?.length || state.home.globalAdmin)) return;
-    const names = {academy:'Academy',attendance:'Attendance',progress:'Progress',assessment:'Assessment',plan:'Plan',announcements:'Announcements',calendar:'Calendar'};
+    const names = {academy:'Academy',attendance:'Attendance',progress:'Progress',assessment:'Assessment',plan:'Planning',announcements:'Announcements',calendar:'Calendar'};
     if (!names[key] || key === 'academy' && !(state.home.globalAdmin || adminRoles(row.roles))) return;
     if (['attendance','plan'].includes(key) && !staffRoles(row.roles) && !state.home.globalAdmin) return;
     $('workspace-tool-title').textContent = names[key];
@@ -475,7 +479,11 @@
       // The same authorised Academy snapshot supplies every scoped timetable.
       if (!cached) { state.home = result; state.scheduleTimetable = scheduleRows(result); }
       $('activity-back-link').href = row.kind === 'COURSE' ? '#workshops' : '#overview';
-      $('activity-back-link').textContent = row.kind === 'COURSE' ? '← Courses' : '← My Academy';
+      $('activity-back-link').innerHTML = row.kind === 'COURSE' ? '← Courses' : homeIcon;
+      $('activity-back-link').classList.toggle('academy-home-icon',row.kind !== 'COURSE');
+      $('activity-back-link').classList.toggle('text-link',row.kind === 'COURSE');
+      $('activity-back-link').setAttribute('aria-label',row.kind === 'COURSE'?'Back to Courses':'Academy home');
+      $('activity-back-link').setAttribute('title',row.kind === 'COURSE'?'Back to Courses':'Academy home');
       $('activity-title').textContent = row.name;
       $('activity-kind').textContent = row.kind === 'PROGRAM' ? 'Program' : 'Course';
       $('activity-role').textContent = roleName(row.roles);
@@ -567,6 +575,16 @@
   }
 
   function route() {
+    const hash = location.hash || '#overview';
+    if(hash === '#timetable'){
+      let previous = '#overview';
+      try{previous = sessionStorage.getItem(TIMETABLE_RETURN_KEY) || previous;}catch{}
+      if(lastRouteHash && lastRouteHash !== hash)previous = lastRouteHash;
+      if(!validReturnHash(previous))previous = '#overview';
+      $('timetable-close').href = previous;
+      if(token())try{sessionStorage.setItem(TIMETABLE_RETURN_KEY,previous);}catch{}
+    }
+    lastRouteHash = hash;
     const [requested, , encodedId] = location.hash.slice(1).split('/');
     if (requested !== 'activity') { clearTimeout(state.activityTimer); state.activityGeneration++; renderSubscriptions(state.home?.signedIn ? state.home.personalActivities : []); }
     const name = requested === 'learning' ? 'overview' : titles[requested] ? requested : 'overview';
@@ -589,10 +607,26 @@
     let view = $('administration');
     if (!view) { view = document.createElement('section'); view.id = 'administration'; view.className = 'view active'; document.querySelector('.container').appendChild(view); }
     view.classList.add('active');
-    view.innerHTML = '<div class="page-heading"><h1>Academy administration</h1></div>' + (state.home?.globalAdmin ? '<div class="activity-pills"><a href="/users/">User profiles</a><a href="/academy/subjects/">Subjects &amp; Modules</a><a href="/programs/">Manage Programs</a><a href="/academy/courses/manage/">Course management</a><a href="/academy/courses/manage/?view=scheduling">Course scheduling</a><a href="/academy/library/manage/">Manage Library</a></div>' : '<p>This page requires an authenticated Global Admin account.</p>');
+    view.innerHTML = '<div class="page-heading"><h1>Academy administration</h1></div>' + (state.home?.globalAdmin ? '<div class="activity-pills"><a href="/users/">User profiles</a><a href="/academy/subjects/">Subjects &amp; Modules</a><a href="/programs/">Manage Programs</a><a href="/academy/courses/manage/">Course management</a><a href="/academy/courses/manage/?view=scheduling">Course scheduling</a><a href="/academy/library/manage/">Manage Library</a></div><p><button id="public-timetable-refresh" type="button" class="button secondary">↻ Refresh public timetable</button></p><p id="public-timetable-refresh-message" role="status" aria-live="polite"></p>' : '<p>This page requires an authenticated Global Admin account.</p>');
+    const button=$('public-timetable-refresh');
+    if(button)button.onclick=async()=>{
+      if(button.disabled)return;const session=token(),epoch=pageCache.epoch;button.disabled=true;
+      const status=$('public-timetable-refresh-message');status.textContent='Refreshing the public timetable…';
+      try{
+        const response=await fetch(`${window.M4L_CONFIG?.API_BASE||''}/api/admin/platform/public-timetable/refresh`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session}`},body:'{}'}),result=await response.json();
+        if(session!==token()||epoch!==pageCache.epoch)return;
+        if(!response.ok||!result.success)throw Error(result.error||'The public timetable could not be refreshed.');
+        status.textContent='Public timetable refreshed. Visitors will see the update within one minute.';
+      }catch(error){if(session===token()&&epoch===pageCache.epoch)status.textContent=error.message;}
+      finally{button.disabled=false;}
+    };
   }
 
   function clearPersonal() {
+    lastRouteHash = '';
+    if(!token() || navigationSession !== token())try{sessionStorage.removeItem(TIMETABLE_RETURN_KEY);}catch{}
+    navigationSession = token();
+    $('timetable-close').href = '#overview';
     pageCache.epoch++;
     pageCache.snapshot = null;
     pageCache.pending.clear();
@@ -623,7 +657,11 @@
     $('course-list-scope-wrap').hidden = true;
     $('course-list-retry').hidden = true;
     $('activity-back-link').href = '#overview';
-    $('activity-back-link').textContent = '← My Academy';
+    $('activity-back-link').innerHTML = homeIcon;
+    $('activity-back-link').classList.add('academy-home-icon');
+    $('activity-back-link').classList.remove('text-link');
+    $('activity-back-link').setAttribute('aria-label','Academy home');
+    $('activity-back-link').setAttribute('title','Academy home');
     $('preview-timetable-link').hidden = true;
     $('timetable-refresh').hidden = true;
     $('schedule-refresh').hidden = true;

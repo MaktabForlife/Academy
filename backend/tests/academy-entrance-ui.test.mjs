@@ -195,10 +195,19 @@ assert.match($('activity-menu').innerHTML,/Learn tools/);for(const label of ['Li
 assert.doesNotMatch($('activity-sessions').innerHTML,/Course item|Barakah|Salaah/);assert.match($('activity-sessions').innerHTML,/Reboot/);
 assert.equal(timers.size,1,'Scoped timetable has a local lesson-boundary timer, without polling');
 count=requests.length;documentHandlers.get('visibilitychange')();await flush();assert.equal(requests.length,count);
+const programOrigin='#activity/PROGRAM/'+activity.id;const navigationReads=requests.length;
+await navigate('#timetable');assert.equal(requests.length,navigationReads,'Opening the complete timetable adds no read');assert.equal($('timetable-close').href,programOrigin);assert.equal(tabStore.get('m4l_academy_timetable_return'),programOrigin);
+window.dispatchEvent(new Event('m4l-academy-session'));await flush();assert.equal($('timetable-close').href,programOrigin,'Restoring the same account session preserves the return destination');
+await navigate($('timetable-close').href);assert.equal($('activity-title').textContent,'Reboot');
+assert.match($('activity-back-link').innerHTML,/<svg/);assert.doesNotMatch($('activity-back-link').innerHTML,/My Academy/);
 await navigate('#activity/COURSE/COURSE-SALAAH');assert.equal(timers.size,1);assert.doesNotMatch($('activity-sessions').innerHTML,/Reboot|Barakah/);
 
+await navigate('#timetable');assert.equal($('timetable-close').href,'#activity/COURSE/COURSE-SALAAH');
+await navigate($('timetable-close').href);assert.equal($('activity-title').textContent,'Salaah');
+await navigate('#overview');await navigate('#timetable');assert.equal($('timetable-close').href,'#overview');
+tabStore.set('m4l_academy_timetable_return','https://outside.invalid');await navigate('#timetable');assert.equal($('timetable-close').href,'#overview','Stored navigation accepts local Academy views only');
 hasWorkshops=false;programRole='TEACHER';location.hash='#activity/PROGRAM/'+activity.id;await refresh();
-assert.match($('activity-menu').innerHTML,/Teach tools/);assert.doesNotMatch($('activity-menu').innerHTML,/Admin tools|Learn tools/);for(const label of ['Attendance','Progress','Assessment','Plan','Announcements','My Timetable'])assert.ok($('activity-menu').innerHTML.includes(`>${label}<`));
+assert.match($('activity-menu').innerHTML,/Teach tools/);assert.doesNotMatch($('activity-menu').innerHTML,/Admin tools|Learn tools/);for(const label of ['Attendance','Progress','Assessment','Planning','Announcements','My Timetable'])assert.ok($('activity-menu').innerHTML.includes(`>${label}<`));
 assert.doesNotMatch($('personal-pills').innerHTML,/<span>Courses<\/span>/,'No Course access means no Courses pill');assert.doesNotMatch($('activity-switcher').innerHTML,/<span>Courses<\/span>/);
 await navigate('#workshops');assert.equal($('workshop-pills').innerHTML,'');assert.match($('course-list-message').textContent,/No Courses/);
 hasWorkshops=true;globalAdmin=true;location.hash='#activity/PROGRAM/'+activity.id;await refresh();
@@ -228,6 +237,7 @@ assert.doesNotMatch($('academy-preview-sessions').innerHTML,/style=|hsl\(|linear
 assert.match(css,/\.timetable-pill\.join-open\{background:var\(--rose-dark\)/);
 
 roomFixture=false;programRole='STUDENT';cacheFixture=true;fixtureNow='2026-10-05T10:54:30Z';await refresh();
+await navigate('#activity/PROGRAM/'+activity.id);const cachedNavigationReads=requests.length;await navigate('#timetable');await navigate($('timetable-close').href);assert.equal(requests.length,cachedNavigationReads,'Returning from My Timetable retains the daily activity cache');await navigate('#overview');
 assert.equal([...timers.values()][0].delay,30000,'Browser wakes at the five-minute joining boundary');count=requests.length;
 fixtureNow='2026-10-05T10:55:00Z';let timer=[...timers.values()][0];timers.clear();timer.fn();await flush();
 assert.match($('academy-preview-sessions').innerHTML,/join-open|Join lesson/);

@@ -27,10 +27,12 @@ test('Program drafts require only a name and create one editable class atomicall
  const changed=ok(await change(env,'/api/admin/platform/programs/save',{id,name:'Scoped name change',status:'ARCHIVED',revision:current.program.revision,durationYears:'',timezone:current.program.timezone},scoped));assert.equal(changed.program.name,'Scoped name change');assert.equal(changed.program.status,'ACTIVE');
  assert.equal((await change(env,'/api/admin/platform/programs/create',{...request,id:'PRG-'+crypto.randomUUID()},scoped)).status,403);
 }));
-test('teaching availability is self-only, validates ranges, records scoped notices and replays exactly',()=>use(async({env,db})=>{
+test('teachers edit only their own availability; ranges, notices and exact retries are retained',()=>use(async({env,db})=>{
  const teacher=await login(env,'0003'),admin=await login(env),scoped=await login(env,'0004'),student=await login(env,'0002');
  const initial=ok(await post(env,av+'get',{},teacher));assert.equal(initial.available,true);assert.equal(initial.configured,false);
- const ranges=[{id:'AVAIL-synthetic',weekday:1,startTime:'830',endTime:'11h30'}],input={revision:0,ranges,accountId:'account-0002',operationId:crypto.randomUUID()};
+ const ranges=[{id:'AVAIL-synthetic',weekday:1,startTime:'830',endTime:'11h30'}],input={revision:0,ranges,operationId:crypto.randomUUID()};
+ assert.equal((await post(env,av+'get',{accountId:'account-0005'},teacher)).status,403);
+ assert.equal((await post(env,av+'save',{...input,accountId:'account-0005'},teacher)).status,403);
  const result=ok(await post(env,av+'save',input,teacher));assert.equal(result.ranges[0].startTime,'08:30');assert.ok(result.notified>=2);
  assert.equal(ok(await post(env,av+'save',input,teacher)).replayed,true);assert.equal(db.prepare('SELECT count(*) n FROM teacher_availability_changes').get().n,1);
  assert.equal(db.prepare('SELECT count(*) n FROM teacher_availability WHERE account_id=?').get('account-0002').n,0);
@@ -42,7 +44,9 @@ test('teaching availability is self-only, validates ranges, records scoped notic
 test('sessions require teachers, obey Zoom precedence and central availability at publication',()=>use(async({env,db})=>{
  const admin=await login(env),teacher=await login(env,'0003'),current=await get(env,admin),d={...draft(),timetableId:current.timetableId,programZoomLink:'https://zoom.us/j/99999999999'};
  let review=ok(await post(env,tt+'preview',{id,draft:d,effectiveFrom:tomorrow()},admin));assert.equal(review.valid,true,JSON.stringify(review));assert.ok(review.occurrences.every(r=>r.zoomLink===d.programZoomLink));assert.ok(!review.warnings.some(w=>/not entered/.test(w)));
- const unassigned=structuredClone(d);unassigned.rules[0].teacherMode='NONE';unassigned.rules[0].teacherId='';review=ok(await post(env,tt+'preview',{id,draft:unassigned},admin));assert.equal(review.valid,false);assert.ok(review.issues.some(i=>/at least one teacher/.test(i.message)));assert.ok(review.occurrences.length>0,'An unvalidated draft remains shareable');assert.ok(review.occurrences.every(r=>r.teacherIds.length===0));
+ const unassigned=structuredClone(d);unassigned.rules[0].teacherMode='NONE';unassigned.rules[0].teacherId='';
+ db.prepare('DELETE FROM class_teacher_assignments WHERE activity_key=? AND class_id=?').run(activity,'class-1');
+ review=ok(await post(env,tt+'preview',{id,draft:unassigned},admin));assert.equal(review.valid,false);assert.ok(review.issues.some(i=>/at least one teacher/.test(i.message)));assert.ok(review.occurrences.length>0,'An unvalidated draft remains shareable');assert.ok(review.occurrences.every(r=>r.teacherIds.length===0));
  await save(env,admin,d);const saved=await get(env,admin);const input={id,draft:saved.draft,revision:saved.revision,effectiveFrom:tomorrow()};
  assert.equal((await change(env,tt+'publish',{...input,effectiveFrom:programToday('Africa/Johannesburg')},admin)).status,409);
  ok(await change(env,av+'save',{revision:0,ranges:[{id:'AVAIL-limited',weekday:1,startTime:'08:00',endTime:'09:00'}]},teacher));
@@ -91,4 +95,93 @@ test('public cards are saved together as JSON and never inferred from lesson tim
  const snapshot=publicTimetableSnapshot(data,publicTimetableDay(now),now),card=snapshot.timetable.find(row=>row.activityId===id);assert.deepEqual(card.publicCard,publicCard);assert.ok(!JSON.stringify(snapshot).includes('zoom.us'));
  // Stored snapshot reads whitelist the JSON again; unexpected keys cannot leak.
  card.publicCard.privateUrl='https://private.invalid';assert.deepEqual(publicTimetableSnapshot(snapshot,publicTimetableDay(now),now).timetable.find(row=>row.activityId===id).publicCard,publicCard);
+}));
+
+test('Global Admin edits all teachers, scoped Admin edits assigned teachers, and notices name the changed teacher',()=>use(async({env,db})=>{
+ const admin=await login(env),scoped=await login(env,'0004'),teacher=await login(env,'0003');
+ db.prepare('INSERT INTO academy_teacher_designations VALUES(?,1,1,?,?)').run('account-0009',new Date().toISOString(),'account-0001');
+ const target='account-0009';
+ assert.equal((await post(env,av+'get',{accountId:target},scoped)).status,403);
+ assert.equal((await change(env,av+'save',{accountId:target,revision:0,ranges:[]},scoped)).status,403);
+ assert.equal(ok(await post(env,av+'get',{accountId:target},admin)).available,true);
+ const input={accountId:target,revision:0,ranges:[{id:'AVAIL-admin',weekday:4,startTime:'2030',endTime:'21h30'}],operationId:crypto.randomUUID()};
+ const changed=ok(await post(env,av+'save',input,admin));assert.equal(changed.accountId,target);assert.equal(changed.teacherName,'Synthetic learner 9');assert.equal(changed.ranges[0].startTime,'20:30');
+ assert.equal(ok(await post(env,av+'save',input,admin)).replayed,true);
+ assert.equal(db.prepare('SELECT count(*) n FROM teacher_availability WHERE account_id=?').get('account-0001').n,0);
+ assert.equal(db.prepare('SELECT account_id FROM teacher_availability_changes').get().account_id,target);
+ assert.equal(db.prepare("SELECT actor_account_id FROM audit_events WHERE record_kind='TEACHER_AVAILABILITY'").get().actor_account_id,'account-0001');
+ assert.equal((await post(env,av+'get',{accountId:target},teacher)).status,403);
+ assert.equal((await post(env,av+'get',{accountId:'account-0002'},admin)).status,403,'A Student does not become a teacher through this endpoint');
+ let own=ok(await post(env,av+'get',{accountId:'account-0003'},scoped));assert.equal(own.available,true);
+ ok(await change(env,av+'save',{accountId:'account-0003',revision:own.revision,ranges:[{id:'AVAIL-scoped',weekday:1,startTime:'09:00',endTime:'12:00'}]},scoped));
+ assert.equal(ok(await post(env,av+'get',{},teacher)).ranges[0].startTime,'09:00');
+ assert.ok(ok(await post(env,av+'get',{},scoped)).notices.some(n=>n.teacher==='Synthetic learner 3'));
+ assert.equal((await change(env,av+'save',{accountId:'account-0003',revision:own.revision,ranges:[]},admin)).status,409);
+ // A designated teacher becomes editable through a default class assignment.
+ db.prepare('UPDATE class_teacher_assignments SET account_id=? WHERE activity_key=? AND class_id=?').run(target,activity,'class-1');
+ assert.equal(ok(await post(env,av+'get',{accountId:target},scoped)).available,true);
+ const page=await get(env,scoped);assert.equal(page.catalog.teachers.find(t=>t.id===target).availabilityEditable,true);
+ db.prepare('DELETE FROM class_teacher_assignments WHERE account_id=?').run(target);
+ assert.equal((await post(env,av+'get',{accountId:target},scoped)).status,403);
+ assert.equal((await get(env,scoped)).catalog.teachers.find(t=>t.id===target).availabilityEditable,false);
+ assert.equal((await post(env,av+'get',{accountId:[]},admin)).status,400);
+}));
+
+test('availability admin authority is rechecked inside the write transaction',()=>use(async({env,db})=>{
+ const scoped=await login(env,'0004'),base=env.ACADEMY_DB.withSession(),sql=new WeakMap();let revoked=false;
+ // Keep statements owned by the original binding while intercepting its batch.
+ const originals=new WeakMap();
+ const prepare=source=>{const wrap=statement=>{const result={...statement,bind:(...values)=>wrap(statement.bind(...values))};originals.set(result,statement);sql.set(result,source);return result;};return wrap(base.prepare(source));};
+ env.ACADEMY_DB={withSession:()=>({prepare,batch:async statements=>{if(!revoked&&sql.get(statements[0])?.includes('INSERT INTO academy_write_guards')){revoked=true;db.prepare("UPDATE role_assignments SET active=0 WHERE account_id='account-0004' AND activity_key=?").run(activity);db.prepare("UPDATE legacy_access_evidence SET source_effective=0 WHERE account_id='account-0004' AND activity_key=?").run(activity);db.exec('UPDATE academy_write_state SET version=version+1');}return base.batch(statements.map(s=>originals.get(s)||s));}})};
+ const response=await change(env,av+'save',{accountId:'account-0003',revision:0,ranges:[]},scoped);
+ assert.ok([401,403].includes(response.status),JSON.stringify(response));assert.equal(revoked,true);
+ assert.equal(db.prepare('SELECT count(*) n FROM teacher_availability').get().n,0);assert.equal(db.prepare('SELECT count(*) n FROM teacher_availability_changes').get().n,0);
+ assert.equal(db.prepare("SELECT count(*) n FROM operation_receipts WHERE dataset_key='TEACHER_AVAILABILITY'").get().n,0);
+}));
+
+test('class teachers are inherited by validation, availability checks and publication, including older unassigned draft rows',()=>use(async({env,db})=>{
+ const admin=await login(env),scoped=await login(env,'0004'),teacher=await login(env,'0003'),d=draft();d.rules[0].teacherId='';d.rules[0].teacherMode='NONE';
+ let review=ok(await post(env,tt+'preview',{id,draft:d},admin));assert.equal(review.valid,true,JSON.stringify(review));assert.ok(review.occurrences.every(r=>r.teacherId==='account-0003'&&r.assignmentMode==='CLASS'));
+ await save(env,admin,d);let current=await get(env,admin);
+ ok(await change(env,tt+'validate',{id,revision:current.revision,draft:current.draft,effectiveFrom:tomorrow()},admin));
+ assert.equal((await get(env,scoped)).timetableStatus,'VALID','UI-only edit permissions do not change validation fingerprints between admins');
+ ok(await change(env,av+'save',{accountId:'account-0003',revision:0,ranges:[{id:'AVAIL-inherited',weekday:1,startTime:'08:00',endTime:'09:00'}]},scoped));
+ review=ok(await post(env,tt+'preview',{id,draft:d},admin));assert.equal(review.valid,false);assert.ok(review.issues.some(i=>/unavailable/.test(i.message)));
+ ok(await change(env,av+'save',{revision:1,ranges:[]},teacher));current=await get(env,admin);
+ const publication=ok(await change(env,tt+'publish',{id,revision:current.revision,draft:current.draft,effectiveFrom:tomorrow()},admin));
+ const published=db.prepare('SELECT snapshot_json FROM timetable_publications WHERE publication_id=?').get(publication.publicationId);
+ assert.ok(JSON.parse(published.snapshot_json).rules.every(r=>r.teacherId==='account-0003'&&r.assignmentMode==='CLASS'));
+}));
+
+test('publishing a new draft Program activates it atomically and exposes future lessons after fresh Academy sign-in',()=>use(async({env,db})=>{
+ const admin=await login(env),newId='PRG-'+crypto.randomUUID(),key='PROGRAM:'+newId;
+ const created=ok(await change(env,'/api/admin/platform/programs/create',{id:newId,name:'Synthetic new Program',timezone:'Africa/Johannesburg',status:'DRAFT'},admin));assert.equal(created.program.status,'DRAFT');
+ let current=ok(await post(env,tt+'get',{id:newId},admin));
+ const newClass=current.setup.rows.classes[0];
+ ok(await change(env,tt+'manage-save',{id:newId,kind:'classes',record:{...newClass,TeacherAccountID:'account-0003'},creating:false,baseRowRevision:current.setup.rowRevisions.classes[newClass.ClassID]},admin));
+ current=ok(await post(env,tt+'get',{id:newId},admin));const newSubject='PS-'+crypto.randomUUID();
+ const shared=ok(await change(env,'/api/admin/platform/academy-subjects/save',{mode:'create',subjectName:'Synthetic publishing subject'},admin)).subject;
+ ok(await change(env,tt+'manage-save',{id:newId,kind:'subjects',record:{ProgramSubjectID:newSubject,SubjectID:shared.SubjectID,Active:true},creating:true,baseRowRevision:current.setup.emptyRowRevision},admin));
+ current=ok(await post(env,tt+'get',{id:newId},admin));
+ const d={...draft(),timetableId:current.timetableId};d.rules[0]={...d.rules[0],moduleId:'',programSubjectId:newSubject,teacherId:'',classIds:[newClass.ClassID]};
+ ok(await change(env,tt+'save',{id:newId,revision:current.revision,draft:d},admin));current=ok(await post(env,tt+'get',{id:newId},admin));
+ const input={id:newId,revision:current.revision,draft:current.draft,effectiveFrom:tomorrow(),operationId:crypto.randomUUID()};
+ assert.equal(ok(await post(env,tt+'preview',input,admin)).valid,true);
+ // Even an error after activation and publication must leave the entire Program as a draft.
+ db.exec("CREATE TRIGGER fail_program_publish BEFORE INSERT ON audit_events WHEN NEW.record_kind='PROGRAM_TIMETABLE' AND NEW.action='publish' BEGIN SELECT RAISE(ABORT,'synthetic late publication failure'); END");
+ assert.equal((await post(env,tt+'publish',input,admin)).status,503);
+ assert.deepEqual({...db.prepare('SELECT lifecycle,active,website_visible FROM activities WHERE activity_key=?').get(key)},{lifecycle:'DRAFT',active:0,website_visible:0});
+ assert.equal(db.prepare('SELECT count(*) n FROM timetable_publications WHERE activity_key=?').get(key).n,0);
+ db.exec('DROP TRIGGER fail_program_publish');
+ const published=ok(await post(env,tt+'publish',input,admin));assert.ok(published.publicationId);
+ const activation=db.prepare('SELECT lifecycle,active,website_visible,revision FROM activities WHERE activity_key=?').get(key);
+ assert.equal(activation.lifecycle,'ACTIVE');assert.equal(activation.active,1);assert.equal(activation.website_visible,1);assert.equal(activation.revision,Number(created.program.revision)+1);
+ assert.equal(ok(await post(env,tt+'publish',input,admin)).replayed,true);
+ assert.equal(db.prepare('SELECT revision FROM activities WHERE activity_key=?').get(key).revision,activation.revision,'Retry cannot activate or advance revisions twice');
+ const fresh=ok(await post(env,tt+'get',{id:newId},admin));assert.equal(fresh.program.status,'ACTIVE');assert.equal(fresh.timetableStatus,'PUBLISHED');assert.equal(fresh.timetableEditable,false);
+ assert.equal(ok(await post(env,'/api/admin/platform/programs/list',{},admin)).programs.find(p=>p.id===newId).status,'ACTIVE');
+ // A stale Programs table must not silently save Draft over the newly active Program.
+ assert.equal((await change(env,'/api/admin/platform/programs/save',{id:newId,name:created.program.name,status:'DRAFT',timezone:'Africa/Johannesburg',revision:created.program.revision},admin)).status,409);
+ for(const n of ['0001','0003']){const freshToken=await login(env,n),home=ok(await post(env,'/api/academy/entrance',{},freshToken));assert.ok(home.personalTimetable.some(l=>l.activityId===newId),JSON.stringify(home.personalTimetable));}
+ const before=ok(await post(env,'/api/academy/entrance',{startDate:programToday('Africa/Johannesburg')},admin));assert.ok(!before.personalTimetable.some(l=>l.activityId===newId&&l.date<input.effectiveFrom),'Future publication does not expose earlier occurrences');
 }));

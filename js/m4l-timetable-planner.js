@@ -24,7 +24,7 @@
       const catalog=()=>state.data.catalog;
       const activeClassIds=()=>catalog().classes.filter(row=>row.active).map(row=>row.id);
       const teacher=id=>catalog().teachers.find(row=>row.id===id);
-      const teacherChoice=row=>row.teacherMode==='NONE'?'__none__':row.teacherId||'';
+      const teacherChoice=row=>row.teacherMode==='NONE'&&!catalog().requireTeacher?'__none__':row.teacherId||'';
       const assignment=(choice,additionalTeacherIds=[])=>({teacherId:choice==='__none__'?'':choice||'',teacherMode:choice==='__none__'?'NONE':undefined,additionalTeacherIds:choice&&choice!=='__none__'&&additionalTeacherIds.length?[...additionalTeacherIds]:undefined});
       const teacherGroups=(classIds,choice)=>{
         if(choice==='__none__'||choice)return [{classIds,teacherId:choice==='__none__'?'':choice}];
@@ -219,7 +219,7 @@
       }
       function lessonCard(row,day,period,classes,span,addParallel=false){
         const selected=selectedMove?.id===row.id&&selectedMove.day===day||editing?.id===row.id&&editing.day===day;
-        const shownClasses=boardView==='teacher'&&!row.teacherId&&row.teacherMode!=='NONE'?row.classIds.filter(id=>classes.find(item=>item.id===id)?.classTeacherId===selectedTeacher):row.classIds;
+        const shownClasses=boardView==='teacher'&&!row.teacherId&&teacherChoice(row)!=='__none__'?row.classIds.filter(id=>classes.find(item=>item.id===id)?.classTeacherId===selectedTeacher):row.classIds;
         const classNames=shownClasses.map(id=>classes.find(item=>item.id===id)?.name||id).join(', ');
         const assigned=boardView==='teacher'?teacherIds(row).filter(id=>id===selectedTeacher):teacherIds(row),teacherName=assigned.length?(row.teacherId?(assigned.length>1?'Teachers: ':'Teacher: '):assigned.length>1?'Class teachers: ':'Class teacher: ')+assigned.map(id=>teacher(id)?.name||id).join(', '):'No assigned teacher';
         const detail=boardView==='teacher'?classNames:boardView==='program'?classNames+' · '+teacherName:teacherName;
@@ -624,7 +624,7 @@
         const period=plan().periods.find(row=>row.id===button.dataset.boardPeriod)||(button.dataset.breakGapStart&&button.dataset.breakGapEnd?{id:'',startTime:button.dataset.breakGapStart,endTime:button.dataset.breakGapEnd}:null);if(!period)return;
         if(button.dataset.openLesson==='true'&&!selectedMove&&!selectedBreakMove&&!placingBreak){
           if(editorDirty||breakEditorDirty||inlineDirty){note('Save or close the open item before adding another.',true);return;}
-          selectedEmpty={day,periodId:period.id};quickAllClasses=false;if(boardView==='teacher')quickTeacherChoice=selectedTeacher;quickZoomLink='';placementError=null;editing=null;editingBreak=null;note('Choose a subject and class, or all active classes. Use each class teacher, leave teachers unassigned, or select one teacher.');renderBoard();renderEditor();renderBreakEditor();return;
+          selectedEmpty={day,periodId:period.id};quickAllClasses=false;if(boardView==='teacher')quickTeacherChoice=selectedTeacher;quickZoomLink='';placementError=null;editing=null;editingBreak=null;note(catalog().requireTeacher?'Choose a Subject / Module. Use the class teacher or select a session teacher.':'Choose a subject and class, or all active classes. Use each class teacher, leave teachers unassigned, or select one teacher.');renderBoard();renderEditor();renderBreakEditor();return;
         }
         if(button.dataset.ruleId){
           if(editorDirty||breakEditorDirty||inlineDirty){note('Save or close the open item before selecting another.',true);return;}

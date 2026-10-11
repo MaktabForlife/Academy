@@ -29,7 +29,7 @@ export async function workspaceValidation(loaded,draft,catalog,date) {
    const clock=v=>/^([01]\d|2[0-3]):[0-5]\d$/.test(v);
    const rows=normalizeWeeklyDraft(draft).rules.filter(r=>clock(r.startTime)&&clock(r.endTime)&&r.startTime<r.endTime&&r.weekdays.every(d=>Number.isInteger(d)&&d>=0&&d<=6)).map(r=>{
      const module=catalog.modules.find(m=>m.id===r.moduleId),subject=catalog.subjects.find(s=>s.id===(module?.programSubjectId||r.programSubjectId));
-     const teacherIds=[...new Set((r.teacherMode==='NONE'?[]:r.teacherId?[r.teacherId,...(r.additionalTeacherIds||[])]:r.classIds.map(id=>catalog.classes.find(c=>c.id===id)?.classTeacherId)).filter(Boolean))];
+     const teacherIds=[...new Set((r.teacherMode==='NONE'&&!catalog.requireTeacher?[]:r.teacherId?[r.teacherId,...(r.additionalTeacherIds||[])]:r.classIds.map(id=>catalog.classes.find(c=>c.id===id)?.classTeacherId)).filter(Boolean))];
      let zoomLink='';try{zoomLink=normalizeZoomLink(draft.programZoomLink||r.zoomLink||(r.classIds.length===1?catalog.classes.find(c=>c.id===r.classIds[0])?.zoomLink:''));}catch{}
      return {...r,moduleName:module?.name||subject?.name||'Choose Subject / Module',classNames:r.classIds.map(id=>catalog.classes.find(c=>c.id===id)?.name||id),teacherId:teacherIds[0]||'',teacherIds,teacherNames:teacherIds.map(id=>catalog.teachers.find(t=>t.id===id)?.name||id),teacherName:catalog.teachers.find(t=>t.id===teacherIds[0])?.name||'',effectiveZoomLink:zoomLink};
    });result.occurrences=weeklyPattern(rows,draft.breaks||[]);

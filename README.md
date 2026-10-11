@@ -1,3 +1,11 @@
+# V106.13 — Program management and timetable fixes
+
+Open each Program through one management link, with Timetable, People & classes, Library, Attendance and authorised User profiles tabs. Fix Program Zoom saving, older Programs without a default class, class-teacher validation, selected Subjects/Modules layout and scoped administrator availability editing. Publishing now activates a Draft Program atomically; the already-published Steps to My Rabb Program has also received a backed-up, guarded correction without changing its future effective date or publication.
+
+Share or download images and one-page landscape PDFs for Program, teacher and class timetables. Add Global Admin **Academy administration → Refresh public timetable** to rebuild today's public snapshot, with cached copies updating within one minute and no visitor database polling. Simplify homepage posters and navigation, add My Timetable Close/return, Home icons and the Planning label. Private media and subscriptions remain unfinished.
+
+All **138/138 local regression files**, desktop/mobile synthetic browser flows, actual PDF/image exports and the development Worker dry-run build pass. The owner authorised this complete batch for `feature/105.3.4.13`, including the management tabs. No schema migration is required. [Release details and refresh instructions](docs/ACADEMY-PROGRAM-FIXES-106.13.md).
+
 # V106.12 — Compact Program Admin and public timetable cards
 
 Manage Program setup, optional classes, shared Subjects/Modules and the weekly timetable together. New Programs create one editable `[Program] Class [year]`; class teachers are optional, but each validated session needs a teacher and one or more classes. Use the Program Zoom link first, then the session link, then class links. A teacher combining classes needs one shared meeting link. No Program start/end dates are introduced.

@@ -64,5 +64,9 @@ step(202);assert.equal(track.scrollLeft,100,'Explicit reduced-motion playback ch
 click(ids['film-toggle']);assert.equal(frames.size,0);
 const html=await readFile(new URL('../../academy/index.html',import.meta.url),'utf8');
 assert.doesNotMatch(html,/>Catalogue page<|>page 1<|>page 2<|>page 3<|>page 4</);
+assert.match(html,/Self paced learning opportunities for you/);
+assert.doesNotMatch(html,/class="film-copy"|film-art film-art-placeholder/);
+const posters=[...html.matchAll(/<a class="film-card"[^>]+>[\s\S]*?<\/a>/g)];assert.equal(posters.length,34);
+for(const [card] of posters){assert.match(card,/<img[^>]+alt="[^"]+"/);assert.match(card,/<span class="film-source">ummabbadacademy.com ↗<\/span>/);assert.match(card,/href="https:\/\/ummabbadacademy.com\/courses\//);}
 assert.match(html,/Read public lessons on the original Academy site/);
 console.log('Academy catalogue: smooth playback, loop seam, manual controls, hover/visibility pauses, reduced motion and public destinations passed.');

@@ -131,3 +131,18 @@ for(const options of [{classId:'A'},{teacherId:'T1'},{program:true}]){
   assert.match(blocks.html(explicit,canvas),/Asia\/Riyadh/);
   assert(blocks.canvases(explicit,canvas).some(page=>page.canvas.text.some(row=>String(row.value).includes('Asia/Riyadh'))));
 }
+
+// Program, class and teacher exports fit the complete image on one landscape A4 sheet,
+// even when a tall timetable would previously have selected portrait.
+for(const pages of [densePages,programPages,[busyPage],...[{classId:'A'},{teacherId:'T1'}].map(options=>blocks.canvases(blocks.model(input,options),canvas))]){
+  pages.forEach(page=>{page.canvas.toDataURL=()=>'';});
+  pdfSizes.length=0;pdfImages.length=0;pdfLinks.length=0;
+  await ctx.window.M4L_TIMETABLE_PRESENTATION.pdf(pages,pdfLib,{size:'A4',orientation:'landscape'});
+  assert.equal(pdfSizes.length,1,'Each audience exports on one page');
+  assert.deepEqual(Array.from(pdfSizes[0]),[841.89,595.28],'PDF uses landscape A4');
+  const draw=pdfImages[0];
+  assert(draw.x>=-1e-8&&draw.y>=-1e-8&&draw.x+draw.width<=841.89+1e-8&&draw.y+draw.height<=595.28+1e-8,'The full timetable fits without cropping');
+  assert.equal(pdfLinks.length,pages[0].links.length,'Every Zoom link is retained');
+  for(const annotation of pdfLinks){const [x1,y1,x2,y2]=annotation.Rect;assert(x1>=0&&y1>=0&&x2<=841.89&&y2<=595.28,'Links remain within the landscape page');}
+}
+console.log('Landscape PDF: full Program, class, teacher and dense timetables fit one A4 page with working link geometry.');

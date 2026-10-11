@@ -59,6 +59,8 @@
     const locked=state.busy||Boolean(state.pending),needsReview=state.conversion?.required&&!state.converted,ready=state.data?.prepared&&state.data?.coordinatorAvailable&&(state.data.managementEditable??state.data.program.status==='DRAFT')&&!needsReview;
     const editable=state.data?.timetableEditable!==false;
     $('tt-planner').disabled=locked||!ready||!editable;
+    if($('pw-program-zoom'))$('pw-program-zoom').disabled=locked||!editable;
+    if($('pw-save-zoom'))$('pw-save-zoom').disabled=locked||!editable;
     for(const name of ['save','validate','preview'])$(`tt-${name}`).disabled=locked||!ready||(name!=='preview'&&!editable);
     $('tt-save').disabled||=!dirty()||sharedConflict;
     $('tt-open-publish').disabled=locked||!ready||!editable||!state.preview?.valid||sharedConflict||Boolean(state.calendarView?.history);
@@ -73,10 +75,10 @@
   }
   async function work(fn){if(state.busy)return;state.busy=true;controls();try{await fn();}catch(error){message(error.message,true);}finally{state.busy=false;controls();}}
   function closePublishDialog(){if($('tt-publish-dialog').open)$('tt-publish-dialog').close();}
-  function invalidate(){exportGeneration++;exportPages=null;exportFiles=null;state.preview=null;closePublishDialog();$('tt-preview-panel').hidden=true;$('tt-validation').hidden=true;remember();controls();planner?.render();}
+  function invalidate(){exportGeneration++;exportFiles=null;exportPdf=null;state.preview=null;closePublishDialog();$('tt-preview-panel').hidden=true;$('tt-validation').hidden=true;remember();controls();planner?.render();}
   function modules(){const c=state.data.catalog;return [...c.subjects.filter(s=>s.active).map(s=>({id:'subject:'+s.id,name:s.name+' · Subject only'})),...c.modules.filter(m=>m.active).map(m=>{const s=c.subjects.find(s=>s.id===m.programSubjectId),l=c.levels.find(l=>l.id===m.levelId);return {id:m.id,name:`${m.name} · ${s?.name||'Missing subject'}${l?` / ${l.name}`:''}`};})];}
   const planner=window.M4L_ASSISTED_PLANNER?.mount({state,$,esc,days,modules,changed:()=>{invalidate();render();},locked:()=>state.busy||Boolean(state.pending)||!state.data?.prepared||!state.data?.coordinatorAvailable||state.data?.timetableEditable===false||!(state.data.managementEditable??state.data?.program.status==='DRAFT')||Boolean(state.conversion?.required&&!state.converted)});
-  const workspace=window.M4L_PROGRAM_WORKSPACE?.mount({state,$,esc,api,work,changed:()=>{invalidate();render();},refresh:()=>{invalidate();render();}});
+  const workspace=window.M4L_PROGRAM_WORKSPACE?.mount({state,$,esc,api,work,changed:()=>{invalidate();render();},refresh:()=>{invalidate();render();},saveDraft:()=>mutate('save')});
   if(planner)$('tt-undo-placement').onclick=()=>planner.undo();
   const rowLabel=ruleId=>{const b=(state.draft.breaks||[]).findIndex(r=>r.id===ruleId);if(b>=0)return `Break ${b+1}`;const n=state.draft.rules.findIndex(r=>r.id===ruleId);return n<0?'Timetable':`Lesson ${n+1}`;};
   const anchorLabel=(anchor,sourceId='')=>{const [ruleId,day]=anchor.split('@'),id=sourceId||ruleId;return state.draft.rules.some(row=>row.id===id)?lessonLocation(id,day):`${rowLabel(id)} · ${days[Number(day)]||day}`;};
@@ -99,7 +101,9 @@
   }
   async function load(restore=true){
     sharedConflict=false;sharedSnapshot=null;sharedStamp=0;revisionStamp=0;$('tt-tab-warning').hidden=true;
-    const result=await api('get');state.data=result;state.conversion=result.conversion;state.converted=false;state.draft=structuredClone(result.draft);state.baseline=JSON.stringify(result.draft);state.preview=null;state.effectiveFrom=result.workspaceReady?nextDay(result.today):result.today;
+    let result=await api('get');state.data=result;
+    if(result.workspaceReady&&workspace?.ensureClass){result=await workspace.ensureClass();state.data=result;}
+    state.conversion=result.conversion;state.converted=false;state.draft=structuredClone(result.draft);state.baseline=JSON.stringify(result.draft);state.preview=null;state.effectiveFrom=result.workspaceReady?nextDay(result.today):result.today;
     const shared=sharedRecord();
     if(shared?.draft&&shared.revision===result.revision){state.draft=displayDraft(shared.draft);state.baseline=shared.baseline;sharedSnapshot=structuredClone(shared.draft);sharedStamp=shared.stamp;revisionStamp=Number(shared.revisionStamp||0);}
     else if(shared?.draft){
@@ -132,6 +136,7 @@
     try{
       const result=await api(state.pending.action,state.pending.body),wasPublish=state.pending.action==='publish';
       state.data.revision=result.revision;state.data.currentPublicationId=result.currentPublicationId;
+      if(result.program){state.data.program=result.program;window.M4L_PROGRAM_MANAGEMENT_NAV?.update(result.program);}
       revisionStamp=Math.max(Date.now(),revisionStamp+1);
       if(result.publications)state.data.publications=result.publications;
       if(state.data.workspaceReady){state.data.timetableStatus=wasPublish?'PUBLISHED':'DRAFT';state.data.timetableEditable=!wasPublish;}
@@ -192,7 +197,7 @@
     $('tt-preview-type').value=requested==='program'||available.length?requested:'program';
     populatePreviewTargets();if(history)closePublishDialog();controls();
   }
-  let exportGeneration=0,exportPages=null,exportFiles=null;
+  let exportGeneration=0,exportFiles=null,exportPdf=null;
   const presentation=window.M4L_TIMETABLE_PRESENTATION;
   const blocks=window.M4L_TIMETABLE_BLOCKS;
   const createCanvas=(w,h)=>{const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;return canvas;};
@@ -200,37 +205,44 @@
   let exportName='timetable';
   function renderPresentation(){
     const result=state.calendarView,target=$('tt-preview-target').value,type=$('tt-preview-type').value;if(!result)return;
-    exportPages=null;exportFiles=null;const generation=++exportGeneration;
-    $('tt-share-image').disabled=$('tt-download-image').disabled=$('tt-download-pdf').disabled=true;
+    exportFiles=null;exportPdf=null;const generation=++exportGeneration;
+    $('tt-share-image').disabled=$('tt-share-pdf').disabled=$('tt-download-image').disabled=$('tt-download-pdf').disabled=true;
     if(type!=='program'&&!target){$('tt-calendar').innerHTML='<p class="tt-empty">Assign a class or teacher to a lesson before creating a timetable.</p>';$('tt-export-note').textContent='Choose a class or assigned teacher to prepare an export.';return;}
     const classRoster=result.history?[...new Map(result.occurrences.filter(row=>row.kind!=='BREAK').flatMap(row=>row.classIds.map((id,index)=>[id,row.classNames[index]||id]))).entries()].map(([id,name])=>({id,name})):state.data.catalog.classes.filter(row=>row.active);
     const model=blocks.model(result,{programName:state.data.program.name,effectiveFrom:state.effectiveFrom||state.data.today,history:result.history,allClassIds:classRoster.map(row=>row.id),allClassNames:classRoster.map(row=>row.name),...(type==='program'?{program:true}:type==='teacher'?{teacherId:target}:{classId:target})});
     if(state.data.workspaceReady){const status=({CURRENT:'PUBLISHED',SCHEDULED:'PUBLISHED',PAST:'ARCHIVED',SUPERSEDED:'ARCHIVED'})[result.status]||result.status|| (result.history?'PUBLISHED':state.data.timetableStatus==='PUBLISHED'&&!dirty()?'PUBLISHED':result.valid&&state.data.timetableStatus==='VALID'?'VALID · READY TO PUBLISH':'DRAFT · NOT VALIDATED');model.stamp=status+ (result.effectiveFrom?' · Effective '+result.effectiveFrom:'')+(result.timetableId?' · '+result.timetableId:'');}
     $('tt-calendar').hidden=false;$('tt-calendar').innerHTML=blocks.html(model,createCanvas);
     exportName=`${type}-${String(model.timetableName||'timetable').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'timetable'}`;
+    const name=exportName;
     $('tt-export-note').textContent='Preparing export…';
     Promise.resolve(document.fonts?.ready).then(async()=>{
       if(logo.decode)try{await logo.decode();}catch{}
       if(generation!==exportGeneration)return;
       const pages=blocks.canvases(model,createCanvas,logo.complete&&logo.naturalWidth?logo:null);
-      const files=await Promise.all(pages.map(p=>new Promise((resolve,reject)=>p.canvas.toBlob(blob=>blob?resolve(new File([blob],`${exportName}.png`,{type:'image/png'})):reject(Error('Image export failed.')),'image/png'))));
-      if(generation!==exportGeneration)return;exportPages=pages;exportFiles=files;
-      $('tt-share-image').disabled=$('tt-download-image').disabled=$('tt-download-pdf').disabled=false;
-      $('tt-export-note').textContent=type==='program'?'One image and one-page PDF are ready. Lesson links work in the PDF.':'Module names are links in the PDF. Images do not contain clickable links.';
+      const [files,pdf]=await Promise.all([
+        Promise.all(pages.map(p=>new Promise((resolve,reject)=>p.canvas.toBlob(blob=>blob?resolve(new File([blob],`${name}.png`,{type:'image/png'})):reject(Error('Image export failed.')),'image/png')))),
+        presentation.pdf(pages,window.PDFLib,{size:'A4',orientation:'landscape'})
+      ]);
+      if(generation!==exportGeneration)return;exportFiles=files;exportPdf=new File([pdf],`${name}.pdf`,{type:'application/pdf'});
+      $('tt-share-image').disabled=$('tt-share-pdf').disabled=$('tt-download-image').disabled=$('tt-download-pdf').disabled=false;
+      $('tt-export-note').textContent='One image and one-page landscape PDF are ready. Lesson links work in the PDF.';
     }).catch(error=>{if(generation===exportGeneration)$('tt-export-note').textContent=error.message;});
   }
   $('tt-preview-type').onchange=()=>populatePreviewTargets();
   $('tt-preview-target').onchange=()=>{renderOccurrenceList();renderPresentation();};
   function downloadFile(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);}
   $('tt-download-image').onclick=()=>{for(const file of exportFiles||[])downloadFile(file,file.name);};
-  $('tt-share-image').onclick=async()=>{
-    if(!exportFiles)return;
-    if(navigator.share&&navigator.canShare?.({files:exportFiles})){
-      try{await navigator.share({title:state.data.program.name+' timetable',files:exportFiles});}
-      catch(error){if(error.name!=='AbortError')message('Image sharing was unavailable. Use Download image and share the saved file.',true);}
-    }else{for(const file of exportFiles)downloadFile(file,file.name);message('Timetable image downloaded. Share the saved image from your device.');}
-  };
-  $('tt-download-pdf').onclick=()=>work(async()=>{if(exportPages)downloadFile(new Blob([await presentation.pdf(exportPages,window.PDFLib,{size:$('tt-preview-type').value==='program'?'program':'A4'})],{type:'application/pdf'}),`${exportName}.pdf`);});
+  async function shareFiles(files,label){
+    if(!files?.length)return;
+    if(navigator.share&&navigator.canShare?.({files})){
+      try{await navigator.share({title:state.data.program.name+' timetable',files});}
+      catch(error){if(error.name!=='AbortError')message(`${label} sharing was unavailable. Use Download ${label==='PDF'?'PDF':'image'} and share the saved file.`,true);}
+    }else{for(const file of files)downloadFile(file,file.name);message(`Timetable ${label} downloaded. Share the saved file from your device.`);}
+  }
+  $('tt-share-image').onclick=()=>shareFiles(exportFiles,'image');
+  $('tt-share-pdf').onclick=()=>shareFiles(exportPdf?[exportPdf]:null,'PDF');
+  $('tt-download-pdf').onclick=()=>{if(exportPdf)downloadFile(exportPdf,exportPdf.name);};
+  $('tt-program-return').href=`/academy/#activity/PROGRAM/${encodeURIComponent(id)}`;
   $('tt-management').href=`/programs/manage.html?program=${encodeURIComponent(id)}`;
   $('tt-select-program').onclick=async()=>{
     const button=$('tt-select-program');if(button.disabled)return;
