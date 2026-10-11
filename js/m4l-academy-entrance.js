@@ -253,6 +253,11 @@
   function roleTools(row) {
     const roles = row.roles || [], global = Boolean(state.home?.globalAdmin), admin = global || adminRoles(roles);
     const staff = admin || staffRoles(roles), learner = roles.includes('STUDENT');
+    const hifzUrl = window.M4L_CONFIG?.HIFZHELPER_URL;
+    const loginId = window.M4L_ACADEMY_LOGIN?.currentId() || '';
+    const hifzHelper = state.home?.signedIn && row.kind === 'PROGRAM' && row.id === window.M4L_CONFIG?.HIFZ_PROGRAM_ID &&
+      (staff || learner) && /^[A-Za-z0-9]+$/.test(loginId) && typeof hifzUrl === 'string' && /^https:\/\//.test(hifzUrl)
+      ? `<a href="${esc(hifzUrl.replace(/\/$/, '') + '/' + encodeURIComponent(loginId))}" target="_blank" rel="noopener noreferrer" aria-label="HifzHelper (opens in a new tab)">HifzHelper ↗</a>` : '';
     const link = (name, href) => safeLink(href) || href?.startsWith('#') ? `<a href="${esc(href)}">${esc(name)}</a>` : '';
     const tool = (name, key) => `<button type="button" data-workspace-tool="${key}">${esc(name)}</button>`;
     const group = (name, content) => `<nav class="academy-tool-row" aria-label="${name} tools"><span class="academy-tool-label">${name}</span><div class="academy-tool-pills">${content}</div></nav>`;
@@ -261,8 +266,8 @@
     return (admin ? group('Admin', link('Users', users) + link('Library', global ? '/academy/library/manage/' : row.tools?.resources || '/academy/library/') +
       link('Programs', global ? '/programs/' : row.kind === 'PROGRAM' && row.id ? `/programs/timetable.html?program=${encodeURIComponent(row.id)}` : '') +
       link('Courses', global || row.kind !== 'PROGRAM' ? '/academy/courses/manage/' : '') + tool('Academy','academy')) : '') +
-      (staff ? group('Teach', (link('Attendance',row.tools?.attendance) || tool('Attendance','attendance')) + tool('Progress','progress') + tool('Assessment','assessment') + tool('Planning','plan') + tool('Announcements','announcements') + link('My Timetable','#timetable') + link('Edit availability','/academy/teaching/')) : '') +
-      (!staff && learner ? group('Learn', link('Library','/academy/library/') + tool('My Progress','progress') + tool('My Assessment','assessment') + tool('Calendar','calendar') + tool('Announcements','announcements') + link('My Timetable','#timetable')) : '');
+      (staff ? group('Teach', hifzHelper + (link('Attendance',row.tools?.attendance) || tool('Attendance','attendance')) + tool('Progress','progress') + tool('Assessment','assessment') + tool('Planning','plan') + tool('Announcements','announcements') + link('My Timetable','#timetable') + link('Edit availability','/academy/teaching/')) : '') +
+      (!staff && learner ? group('Learn', hifzHelper + link('Library','/academy/library/') + tool('My Progress','progress') + tool('My Assessment','assessment') + tool('Calendar','calendar') + tool('Announcements','announcements') + link('My Timetable','#timetable')) : '');
   }
 
   function openWorkspaceTool(key) {

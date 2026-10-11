@@ -1,3 +1,9 @@
+# V106.17 — Independent HifzHelper button
+
+The Hifz Program's Learn or Teach row includes **HifzHelper ↗** for its Students, Teachers and Program Admins, including inherited Global Admin access. It opens `https://maktab.hifz-helper.app/<UNIQUEID>` in a new tab, using the verified Academy login ID already available in the page. HifzHelper handles its own PIN and permissions. No shared login, journal connection, attendance synchronisation or extra background lookup is added. The integration pilot is paused at the owner's request. The owner authorised this release for `feature/105.3.4.13`; no schema migration or live data correction is required. [Release details](docs/ACADEMY-HIFZ-BUTTON-106.17.md).
+
+All **138/138 local regression files**, the development Worker dry-run build, JavaScript syntax and diff checks pass. New cases cover Hifz Student/Teacher/Admin access, inherited Global Admin access, personal-ID destinations, unrelated Programs/Courses, missing assignments, sign-out, account replacement and reuse of existing requests. No live Hifz PIN, journal or database request was used for this button change. Browser visual testing was not performed.
+
 # V106.16 — Readable public timetable cards
 
 Public timetable cards give the entered title and description their full width, with time and joining controls on a separate wrapping row. This prevents the Steps to My Rabb card from collapsing into a vertical column of letters. Time stays readable when joining is open. Card JSON, Free/Paid access, joining windows and snapshot caching are unchanged.

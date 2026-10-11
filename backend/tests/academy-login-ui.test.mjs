@@ -11,7 +11,7 @@ assert.match(html, /id="academy-sign-out" type="button" hidden/);
 assert.match(html, /id="academy-library-nav" href="\/academy\/open-library\/"/);
 assert.doesNotMatch(html, /academy-personal-library-nav|>My Library<\/a>/);
 assert.doesNotMatch(html, /Open Academy Library/);
-assert.match(html, /Website V106\.16/);
+assert.match(html, /Website V106\.17/);
 assert.doesNotMatch(html, /ABCDEFG/);
 assert.match(redirects, /^\/academy\/:uniqueid \/academy\/#overview 302$/m);
 
@@ -71,6 +71,7 @@ async function loadPage({ id = '', pin = '', replies = {}, storedToken = '', aca
   await new Promise(resolve => setImmediate(resolve));
   return {
     elements, storage, session, calls,
+    get currentLoginId() { return context.window.M4L_ACADEMY_LOGIN.currentId(); },
     get destination() { return destination; },
     get hash() { return context.window.location.hash; },
     async submit() { await elements.get('login-preview').handlers.submit({ preventDefault() {} }); },
@@ -82,6 +83,7 @@ async function loadPage({ id = '', pin = '', replies = {}, storedToken = '', aca
 
 const oldMaktabSession = await loadPage();
 assert.equal(oldMaktabSession.calls.length, 0, 'Visitors must not trigger an account request');
+assert.equal(oldMaktabSession.currentLoginId, '');
 assert.equal(oldMaktabSession.elements.get('login-preview').hidden, false);
 assert.equal(oldMaktabSession.elements.get('academy-library-nav').href, '/academy/open-library/');
 await oldMaktabSession.submit();
@@ -103,6 +105,10 @@ assert.deepEqual(validLogin.calls.map(call => call.path), ['/api/account/login']
 assert.equal(validLogin.destination, '');
 assert.equal(validLogin.hash, 'overview');
 assert.equal(validLogin.storage.get('m4l_account_token'), 'NEW_SESSION');
+assert.equal(validLogin.currentLoginId, 'TEST-USER', 'Personal links reuse the verified login identity');
+validLogin.storage.set('m4l_account_token', 'REPLACEMENT_SESSION');
+assert.equal(validLogin.currentLoginId, '', 'A replacement session cannot reuse the prior account identity');
+validLogin.storage.set('m4l_account_token', 'NEW_SESSION');
 assert.equal(validLogin.session.get('m4l_academy_signed_in'), 'TEST-USER');
 assert.equal(validLogin.elements.get('demo-pin').value, '');
 assert.equal(validLogin.elements.get('login-preview').hidden, true);
@@ -122,6 +128,7 @@ assert.doesNotMatch(html, /id="academy-maktab-link"/, 'The home must not link to
 assert.equal(signedIn.elements.get('academy-library-nav').href, '/academy/library/');
 signedIn.signOut();
 assert.equal(signedIn.storage.get('m4l_account_token'), undefined);
+assert.equal(signedIn.currentLoginId, '', 'Sign-out clears the identity used by personal links');
 assert.equal(signedIn.session.get('m4l_academy_signed_in'), undefined);
 assert.equal(signedIn.destination, '');
 assert.equal(signedIn.hash, 'overview');
@@ -136,6 +143,7 @@ const otherTab = await loadPage({ academyId: 'TEST-USER', storedToken: 'NEW_SESS
   '/api/account/session': { body: { success: true, account: { uniqueid: 'TEST-USER' } } }
 } });
 otherTab.storage.delete('m4l_account_token');
+assert.equal(otherTab.currentLoginId, '', 'A removed session cannot supply a personal-link identity');
 otherTab.storageChanged({ key: 'm4l_account_token', newValue: null });
 assert.equal(otherTab.elements.get('login-preview').hidden, false);
 assert.equal(otherTab.elements.get('academy-home-card').hidden, true);
@@ -146,6 +154,7 @@ const wrongAccount = await loadPage({ academyId: 'TEST-USER', storedToken: 'NEW_
 } });
 assert.equal(wrongAccount.elements.get('login-preview').hidden, false);
 assert.equal(wrongAccount.elements.get('academy-home-card').hidden, true);
+assert.equal(wrongAccount.currentLoginId, '');
 assert.equal(wrongAccount.elements.get('academy-library-nav').href, '/academy/open-library/');
 
 const temporaryOutage = await loadPage({ academyId: 'TEST-USER', storedToken: 'NEW_SESSION', replies: {
@@ -157,9 +166,11 @@ const temporaryOutage = await loadPage({ academyId: 'TEST-USER', storedToken: 'N
 assert.equal(temporaryOutage.elements.get('login-preview').hidden, true);
 assert.equal(temporaryOutage.session.get('m4l_academy_signed_in'), 'TEST-USER');
 assert.equal(temporaryOutage.elements.get('academy-session-retry').hidden, false);
+assert.equal(temporaryOutage.currentLoginId, '', 'A remembered ID alone cannot select a personal destination');
 await temporaryOutage.retrySession();
 assert.equal(temporaryOutage.elements.get('academy-home-card').hidden, false);
 assert.equal(temporaryOutage.elements.get('academy-session-retry').hidden, true);
+assert.equal(temporaryOutage.currentLoginId, 'TEST-USER');
 
 const firstSetup = await loadPage({ id: 'TEST-USER', replies: {
   '/api/account/check': { body: { success: true, account: { uniqueid: 'TEST-USER', pinsetup: false } } }

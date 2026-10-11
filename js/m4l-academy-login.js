@@ -19,10 +19,16 @@
   const libraryNav = document.getElementById("academy-library-nav");
   const avatar = document.getElementById("academy-avatar");
   let activeToken = "";
+  let activeLoginId = "";
   let sessionStore = "";
   let sessionGeneration = 0;
 
   if (!form || !linkInput || !pinInput || !apiBase) return;
+
+  // Reuse the identity from the existing login/session response; no extra lookup.
+  window.M4L_ACADEMY_LOGIN = Object.freeze({
+    currentId: () => activeToken && activeToken === localStorage.getItem(tokenKey) ? activeLoginId : ""
+  });
 
   form.addEventListener("submit", signIn);
   pinInput.addEventListener("input", () => {
@@ -67,6 +73,7 @@
   function showSignedOut() {
     sessionGeneration++;
     activeToken = "";
+    activeLoginId = "";
     sessionStore = "";
     homeCard.hidden = true;
     signOutButton.hidden = true;
@@ -134,6 +141,7 @@
     activeToken = localStorage.getItem(tokenKey) || "";
     sessionStore = store;
     const uniqueId = String(account.uniqueid || "").trim();
+    activeLoginId = uniqueId;
     const name = String(account.displayName || "Academy member").trim();
     accountName.textContent = name;
     headerName.textContent = name;

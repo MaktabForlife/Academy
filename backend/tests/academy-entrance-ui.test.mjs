@@ -31,7 +31,7 @@ const $ = id => elements.get(id), flush = async () => { for (let i=0;i<4;i++) aw
 const activity = { id:'PRG-46c8576d-9fcf-4000-96b9-856b00a0218a', name:'Reboot', kind:'PROGRAM', roles:['STUDENT'],
   tools:{ library:'/academy/library/', attendance:'' }, curriculum:[{name:'Tafseer',modules:[{name:'Module one'}]}], classes:[{name:'Class one'}],
   timetable:[{kind:'PROGRAM',activityId:'PRG-46c8576d-9fcf-4000-96b9-856b00a0218a',activityName:'Reboot',title:'Lesson <one>',date:'2026-10-05',startTime:'13:00',endTime:'14:00',timezone:'Africa/Johannesburg',involvement:'student',classNames:['Class one'],teacherNames:['Teacher A','Teacher B'],information:['Unwanted level','Unwanted duplicate'],joinUrl:'https://zoom.test/lesson'}] };
-const requests = [], catalogueRequests = [], joins = [], tabStore=new Map();
+const requests = [], catalogueRequests = [], joins = [], tabStore=new Map(), fetchUrls=[];
 let joinFailure=false;const popup={opener:null,location:{replace(url){popup.url=url;}},close(){popup.closed=true;}};window.open=()=>popup;
 let failCatalogue=false,deferCatalogue=false,releaseCatalogue;
 let fixtureNow='2026-10-05T10:00:00Z';
@@ -47,6 +47,7 @@ const stamp = event => {
 let deferNext=false, release, hasWorkshops=true, globalAdmin=false, programRole='STUDENT', roomFixture=false, colourFixture=false, cacheFixture=false, failNext=false, quotaNext=false, warningFixture=false, publicFreeFixture=false;
 const publicJoins=[];
 const fetch = async (_url, options) => {
+  fetchUrls.push(_url);
   const signedIn = Boolean(options.headers?.Authorization), body = JSON.parse(options.body||'{}');
   if (_url.endsWith('/api/academy/public-lesson/join')) { assert.equal(signedIn,false); publicJoins.push(body); return {ok:true,status:200,json:async()=>({success:true,joinUrl:'https://zoom.test/free-current-checked'})}; }
   if(!signedIn){assert.ok(_url.endsWith('/api/academy/entrance/public-snapshot'));assert.equal(options.method,'GET');}
@@ -64,7 +65,7 @@ const fetch = async (_url, options) => {
   }
   requests.push(body);
   const row = structuredClone(activity);
-  if (signedIn) row.roles=[globalAdmin?'GLOBAL_ADMIN':programRole];
+  if (signedIn) row.roles=globalAdmin?['GLOBAL_ADMIN']:programRole?[programRole]:[];
   if (signedIn && (globalAdmin || programRole!=='STUDENT')) {
     row.tools.attendance=`/programs/attendance.html?program=${encodeURIComponent(row.id)}`;
     // A cached older backend may still advertise its wider Program Library editor.
@@ -286,4 +287,38 @@ assert.equal(publicJoins.length,1);assert.equal(popup.url,'https://zoom.test/fre
 fixtureNow='2026-10-05T12:00:00Z';timer=[...timers.values()][0];timers.clear();timer.fn();await flush();
 assert.doesNotMatch($('academy-preview-sessions').innerHTML,/data-public-join|is-open/,'Expired Free lessons cannot be joined');
 documentHandlers.get('visibilitychange')();await flush();assert.equal(requests.length,count,'Returning to a Free public timetable does not poll');
-console.log('Daily cached, manual refresh, server-checked joining, scoped activity timetables and complete My Timetable, cached public snapshot, scoped Admin tools, Course history, metadata cache, timed joining and sign-out checks passed.');
+// HifzHelper is an ordinary personal link, scoped by stable Program identity.
+window.M4L_CONFIG.HIFZ_PROGRAM_ID='PRG-3d6b7972-644c-4f81-b95c-8d6c7ffb8227';
+window.M4L_CONFIG.HIFZHELPER_URL='https://maktab.hifz-helper.app/';
+let personalLoginId='F1CJW7';
+window.M4L_ACADEMY_LOGIN={currentId:()=>personalLoginId};
+activity.id=window.M4L_CONFIG.HIFZ_PROGRAM_ID;activity.name='Hifz';
+publicFreeFixture=false;cacheFixture=true;globalAdmin=false;storage.set('m4l_account_token','HIFZ-SESSION');location.hash='#activity/PROGRAM/'+activity.id;
+for(const role of ['STUDENT','TEACHER','PROGRAM_ADMIN']) {
+  programRole=role;await refresh();
+  const markup=$('activity-menu').innerHTML;
+  assert.match(markup,/href="https:\/\/maktab\.hifz-helper\.app\/F1CJW7" target="_blank" rel="noopener noreferrer"/);
+  assert.equal((markup.match(/>HifzHelper ↗<\/a>/g)||[]).length,1);
+  assert.doesNotMatch(markup,/HIFZ-SESSION|\?token=|\?pin=/);
+}
+globalAdmin=true;personalLoginId='ABCDEFG';await refresh();
+assert.match($('activity-menu').innerHTML,/hifz-helper\.app\/ABCDEFG/,'Global Admin inherits Hifz access');
+await navigate('#activity/COURSE/COURSE-BARAKAH');assert.doesNotMatch($('activity-menu').innerHTML,/HifzHelper/,'Courses do not inherit the Hifz destination');
+location.hash='#activity/PROGRAM/'+activity.id;globalAdmin=false;
+for(const role of ['', 'GLOBAL_TEACHER']) {
+  programRole=role;await refresh();assert.doesNotMatch($('activity-menu').innerHTML,/HifzHelper/,'No Hifz assignment means no Hifz button');
+}
+programRole='STUDENT';
+for(const id of ['', 'bad/id', 'bad?token=value']) {
+  personalLoginId=id;await refresh();assert.doesNotMatch($('activity-menu').innerHTML,/HifzHelper/,'A missing or invalid personal ID cannot create a destination');
+}
+personalLoginId='F1CJW7';activity.id='UNRELATED-PROGRAM';location.hash='#activity/PROGRAM/'+activity.id;await refresh();
+assert.doesNotMatch($('activity-menu').innerHTML,/HifzHelper/,'A matching display name does not grant Hifz access');
+activity.id=window.M4L_CONFIG.HIFZ_PROGRAM_ID;location.hash='#activity/PROGRAM/'+activity.id;await refresh();
+assert.match($('activity-menu').innerHTML,/hifz-helper\.app\/F1CJW7/);
+await navigate('#workshops');await navigate('#activity/PROGRAM/'+activity.id);
+count=fetchUrls.length;await navigate('#workshops');await navigate('#activity/PROGRAM/'+activity.id);
+assert.equal(fetchUrls.length,count,'The link adds no connection checks or account lookups');
+assert.ok(fetchUrls.every(url=>url.startsWith('https://test/')),'No Hifz requests occur until the user follows the link');
+storage.clear();window.dispatchEvent(new Event('m4l-academy-session'));await flush();assert.doesNotMatch($('activity-menu').innerHTML,/HifzHelper/,'Sign-out removes the personal link');
+console.log('Academy timetable, scoped tools, cache, joining, sign-out and independent personal HifzHelper links passed.');
