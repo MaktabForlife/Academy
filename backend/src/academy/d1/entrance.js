@@ -4,6 +4,7 @@ import { rehearsalError } from './repository.js';
 import {courseCalendarAvailable,calendarRows} from './course-calendar.js';
 import {buildAcademyCalendarEvents} from '../../lib/academy-calendar.js';
 
+const samePublication=(a,b)=>String(a).toUpperCase()===String(b).toUpperCase();
 // Adapt normalized D1 records at the repository boundary. Reuse the established
 // timetable projection so privacy, class membership and timed joining are shared.
 export async function d1Entrance(repository,state,user,input={},now=new Date(),{days=7,detailed=false}={}) {
@@ -13,7 +14,8 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
   if(!/^\d{4}-\d{2}-\d{2}$/.test(start)||Number.isNaN(Date.parse(start))||addDays(start,0)!==start)throw rehearsalError('Choose a valid timetable date.',400,'INVALID_DATE');
   const courseWorkflows=config.courseWorkflows??await courseCalendarAvailable(repository.db,true);
   const end=addDays(start,days-1);
-  const [activities,publications,subjects,modules,classes,memberships,runs,runStates,lifecycles,calendar,suppressions]=await repository.homeData(state,start,end,courseWorkflows);
+  const [activities,publications,subjects,modules,classes,memberships,runs,runStates,lifecycles,calendar,suppressions]=await repository.homeData(state,start,end,courseWorkflows,config.programWorkspace);
+  const stopped=config.programWorkspace?(await repository.db.prepare('SELECT activity_key,publication_id,status FROM program_publication_lifecycle').all()).results:[];
   const programs=activities.filter(a=>a.kind==='PROGRAM').map(a=>({id:a.activity_id,name:a.name,mode:'PROGRAM',status:'ACTIVE',timezone:a.timezone,publicFree:a.program_access_model==='FREE',capabilities:{attendance:true}}));
   const tables={UserAccounts:state?[repository.publicAccount(state.account)]:[],PlatformConfig:[{ConfigKey:'PlatformTimezone',ConfigValue:config.setting_value}],
     GlobalSubjectList:activities.filter(a=>a.kind==='COURSE').map(a=>({SubjectID:a.activity_id,SubjectName:a.name,Active:true})),
@@ -39,7 +41,8 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
       ProgramClasses:scope(classes).map(c=>({ClassID:c.class_id,CourseID:program.id,Name:c.name,Active:true})),
       ProgramEnrollments:scope(memberships).map(m=>({EnrollmentID:m.enrollment_id,CourseID:program.id,ClassID:m.class_id,AccountID:m.account_id,StartDate:m.start_date || '',EndDate:m.end_date || '',Active:true})),
       ProgramTeachers:[],ProgramResources:[],ProgramTasks:[],ProgramModuleProgress:[],ProgramLibraryRoots:[],
-      ProgramTimetablePublications:scope(publications).map(p=>({PublicationID:p.publication_id,VersionNo:p.version_no,SnapshotJSON:p.snapshot_json,PublishedDate:p.published_at,PublishedByAccountID:p.published_by_source_id}))}};
+      ProgramTimetablePublications:scope(publications).map(p=>({Lifecycle:stopped.find(l=>l.activity_key===p.activity_key&&samePublication(l.publication_id,p.publication_id))?.status||'',PublicationID:p.publication_id,VersionNo:p.version_no,SnapshotJSON:p.snapshot_json,PublishedDate:p.published_at,PublishedByAccountID:p.published_by_source_id}))}};
   }});
+  if(config.programWorkspace)result.timetable=result.timetable.map(row=>row.kind==='PROGRAM'?{...row,publicCard:JSON.parse(activities.find(a=>a.kind==='PROGRAM'&&samePublication(a.activity_id,row.activityId))?.public_card_json||'{}')}:row);
   return courseWorkflows?{...result,calendarEvents:buildAcademyCalendarEvents(calendarRows(calendar,suppressions),start,end)}:result;
 }

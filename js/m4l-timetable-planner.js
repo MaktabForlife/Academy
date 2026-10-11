@@ -32,7 +32,7 @@
         return [...groups].map(([teacherId,ids])=>({teacherId,classIds:ids}));
       };
       const teacherIds=row=>[...new Set([...teacherGroups(row.classIds,teacherChoice(row)).map(group=>group.teacherId),...(row.teacherId?row.additionalTeacherIds||[]:[])].filter(Boolean))];
-      const needsSharedLink=(classIds,choice)=>teacherGroups(classIds,choice).some(group=>group.classIds.length>1);
+      const needsSharedLink=(classIds,choice)=>!state.draft.programZoomLink&&teacherGroups(classIds,choice).some(group=>group.classIds.length>1);
       const subject=row=>row.moduleId?catalog().modules.find(m=>m.id===row.moduleId)?.name:catalog().subjects.find(s=>s.id===row.programSubjectId)?.name;
       const note=(value,error=false)=>{$('tt-board-message').textContent=value;$('tt-board-message').classList.toggle('is-error',error);if($('tt-quick-lesson-dialog').open){$('tt-quick-error').textContent=error?value:'';$('tt-quick-error').hidden=!error;}};
       const availabilityNote=(value,error=false)=>{$('tt-availability-message').textContent=value;$('tt-availability-message').classList.toggle('is-error',error);$('tt-availability-error').textContent=error?value:'';$('tt-availability-error').hidden=!error;};
@@ -78,7 +78,7 @@
         return false;
       }
       function total(teacherId){return state.draft.rules.filter(row=>teacherIds(row).includes(teacherId)&&Number.isFinite(timeMinutes(row.startTime))&&Number.isFinite(timeMinutes(row.endTime))&&row.startTime<row.endTime).reduce((n,row)=>n+(timeMinutes(row.endTime)-timeMinutes(row.startTime))*row.weekdays.length,0);}
-      const ranges=teacherId=>plan().availability.filter(row=>row.teacherId===teacherId);
+      const ranges=teacherId=>state.data?.workspaceReady?(state.data.availability.find(r=>r.teacherId===teacherId)?.ranges||[]):plan().availability.filter(row=>row.teacherId===teacherId);
       const available=(teacherId,weekday,startTime,endTime)=>!teacherId||!ranges(teacherId).length||ranges(teacherId).some(row=>row.weekday===weekday&&row.startTime<=startTime&&endTime<=row.endTime);
       function reason(candidate,ignore){
         const ignored=ignore?(Array.isArray(ignore)?ignore:[ignore]):[];
@@ -146,7 +146,7 @@
       function lessonDropdowns(subjectId,teacherId,inline=false,classId=selectedClass,classIds=[]){
         const subjects=modules(),teachers=catalog().teachers.filter(row=>row.active||row.id===teacherId);
         const subjectOptions='<option value="">Choose subject…</option>'+subjects.map(row=>option(row.id,row.name,subjectId)).join('')+(subjectId&&!subjects.some(row=>row.id===subjectId)?option(subjectId,'Unavailable: '+subjectId,subjectId):'');
-        const teacherOptions='<option value="">Use class teacher</option><option value="__none__"'+(teacherId==='__none__'?' selected':'')+'>No assigned teacher</option>'+teachers.map(row=>option(row.id,row.name,teacherId)).join('');
+        const teacherOptions='<option value="">Use class teacher</option>'+(catalog().requireTeacher?'':'<option value="__none__"'+(teacherId==='__none__'?' selected':'')+'>No assigned teacher</option>')+''+teachers.map(row=>option(row.id,row.name,teacherId)).join('');
         const subjectField='<label>Subject / module<select '+(inline?'data-inline-subject':'data-quick-subject')+'>'+subjectOptions+'</select></label>';
         if(boardView==='teacher'||boardView==='program'){
           const classes=catalog().classes.filter(row=>row.active||row.id===classId||classIds.includes(row.id));
@@ -156,7 +156,7 @@
           return subjectField+'<label>Class<select '+(inline?'data-inline-class':'data-quick-class')+'>'+classOptions+all+classes.map(row=>option(row.id,row.name,inline?classId:quickAllClasses?'__all__':classId)).join('')+'</select></label><label>Teacher<select '+(inline?'data-inline-teacher':'data-quick-teacher')+'>'+teacherOptions+'</select></label>';
         }
         const all=activeClassIds().length>1?'<label class="tt-quick-all-classes"><input type="checkbox" '+(inline?'data-inline-all-classes':'data-quick-all-classes')+' '+((inline?inlineAllClasses:quickAllClasses)?'checked':'')+'> All active classes</label>':'';
-        return subjectField+'<label>Teacher (optional)<select '+(inline?'data-inline-teacher':'data-quick-teacher')+'>'+teacherOptions+'</select></label>'+all;
+        return subjectField+'<label>Teacher<select '+(inline?'data-inline-teacher':'data-quick-teacher')+'>'+teacherOptions+'</select></label>'+all;
       }
       function addLessonForm(day,period){
         return '<div class="tt-board-quick"><strong>Add lesson</strong>'+lessonDropdowns(selectedSubject,quickTeacherChoice)+(quickAllClasses?'<label>Lesson Zoom link'+(needsSharedLink(activeClassIds(),quickTeacherChoice)?' (required for classes sharing one teacher)':' (optional; separate classes can use their own links)')+'<input type="url" data-quick-zoom placeholder="https://…" value="'+esc(quickZoomLink)+'"></label>':'')+'<div><button type="button" data-place-lesson data-board-day="'+day+'" data-board-period="'+esc(period.id)+'">Add</button><button type="button" class="pb-secondary" data-cancel-quick>Cancel</button></div>'+cellError(day,period)+'</div>';
@@ -301,7 +301,7 @@
         const classes=catalog().classes.filter(item=>item.active||row.classIds.includes(item.id));
         $('tt-edit-classes').innerHTML=classes.map(item=>'<label><input type="checkbox" value="'+esc(item.id)+'"'+(row.classIds.includes(item.id)?' checked':'')+'> '+esc(item.name)+(item.active?'':' (inactive)')+'</label>').join('')+row.classIds.filter(id=>!classes.some(item=>item.id===id)).map(id=>'<label><input type="checkbox" value="'+esc(id)+'" checked> Unavailable: '+esc(id)+'</label>').join('');
         const teachers=catalog().teachers.filter(item=>item.active||item.id===row.teacherId||(row.additionalTeacherIds||[]).includes(item.id));
-        $('tt-edit-teacher').innerHTML='<option value="">Use class teacher</option><option value="__none__">No assigned teacher</option>'+teachers.map(item=>option(item.id,item.name+(item.active?'':' (inactive)'),row.teacherId)).join('');
+        $('tt-edit-teacher').innerHTML='<option value="">Use class teacher</option>'+(catalog().requireTeacher?'':'<option value="__none__">No assigned teacher</option>')+teachers.map(item=>option(item.id,item.name+(item.active?'':' (inactive)'),row.teacherId)).join('');
         $('tt-edit-teacher').value=teacherChoice(row);
         $('tt-edit-extra-teachers').innerHTML=teachers.map(item=>'<label><input type="checkbox" value="'+esc(item.id)+'"'+((row.additionalTeacherIds||[]).includes(item.id)?' checked':'')+(item.id===row.teacherId?' disabled':'')+'> '+esc(item.name)+(item.active?'':' (inactive)')+'</label>').join('');
         $('tt-edit-start').value=row.startTime;$('tt-edit-end').value=row.endTime;$('tt-edit-zoom').value=row.zoomLink||'';

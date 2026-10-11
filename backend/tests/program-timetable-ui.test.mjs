@@ -11,7 +11,7 @@ assert.doesNotMatch(markup,/id="tt-editor"|id="tt-rules"|id="tt-breaks"/);
 assert(markup.indexOf('id="tt-save"')<markup.indexOf('id="tt-board"'));
 assert(markup.indexOf('id="tt-publish"')<markup.indexOf('id="tt-board"'));
 assert(markup.indexOf('id="tt-open-publish"')>markup.indexOf('id="tt-preview-panel"'));
-assert(markup.indexOf('id="tt-open-publish"')<markup.indexOf('<h2>Published history</h2>'));
+assert(markup.indexOf('id="tt-open-publish"')<markup.indexOf('<h2>Timetable history</h2>'));
 assert.match(markup,/id="tt-publish-dialog"/);
 assert.doesNotMatch(markup,/id="tt-publish-options"|The current version continues until then/);
 assert(!/Classes learning together|<th>Pattern|First date|Last date|Publication window|tt-exceptions/.test(markup));

@@ -72,15 +72,15 @@ export function academyD1Repository(env) {
     subscriptionSource,
     publicAccount,
     async homeConfiguration(){
-      if(activation)return {setting_value:activation.timezone,courseWorkflows:true};
-      return prepare("SELECT setting_value FROM academy_settings WHERE setting_key='PlatformTimezone'").first();
+      if(activation)return {setting_value:activation.timezone,courseWorkflows:true,programWorkspace:activation.program_workspace==='1'};
+      return prepare("SELECT setting_value,(SELECT setting_value FROM academy_settings WHERE setting_key='ProgramWorkspace') AS program_workspace FROM academy_settings WHERE setting_key='PlatformTimezone'").first().then(r=>r?{...r,programWorkspace:r.program_workspace==='1'}:null);
     },
     async ready(){
       if(env.ACADEMY_D1_MODE==='ACTIVE') {
         // WHERE 0 validates that required schema objects compile without scanning
         // sqlite_schema or subscription rows. All live ownership/evidence guards remain.
         const result=await prepare(`SELECT m.run_id,
-          1 AS mapped_roles,
+          1 AS mapped_roles,(SELECT setting_value FROM academy_settings WHERE setting_key='ProgramWorkspace') AS program_workspace,
           (SELECT setting_value FROM academy_settings WHERE setting_key='PlatformTimezone') AS timezone FROM migration_runs m
           JOIN learning_imports l ON l.base_run_id=m.run_id AND l.singleton=1 AND l.source_sha256=m.source_snapshot_sha256
           JOIN course_workflow_imports c ON c.base_run_id=m.run_id AND c.singleton=1 AND c.source_sha256=m.source_snapshot_sha256
@@ -151,9 +151,9 @@ export function academyD1Repository(env) {
       if(result[0].meta.changes!==1)throw rehearsalError('Account changed. Please refresh and try again.',409,'ACCOUNT_CHANGED');
       return this.byId(target.account.account_id);
     },
-    async homeData(state,start,end,courseWorkflows=false) {
+    async homeData(state,start,end,courseWorkflows=false,programWorkspace=false) {
       const queries=[
-        `SELECT a.*,p.timezone,p.duration_years,cs.legacy_access_model,ap.source_access_model AS program_access_model FROM activities a LEFT JOIN program_settings p USING(activity_key) LEFT JOIN course_settings cs USING(activity_key) LEFT JOIN activity_policy_imports ap USING(activity_key) WHERE a.active=1 AND a.lifecycle='ACTIVE' AND a.website_visible=1`,
+        `SELECT a.*,p.timezone,p.duration_years${programWorkspace?',p.public_card_json':''},cs.legacy_access_model,ap.source_access_model AS program_access_model FROM activities a LEFT JOIN program_settings p USING(activity_key) LEFT JOIN course_settings cs USING(activity_key) LEFT JOIN activity_policy_imports ap USING(activity_key) WHERE a.active=1 AND a.lifecycle='ACTIVE' AND a.website_visible=1`,
         `SELECT p.* FROM timetable_publications p JOIN activities a USING(activity_key) WHERE a.active=1 AND a.lifecycle='ACTIVE' AND (p.pattern='COURSE' OR ((p.effective_from IS NULL OR p.effective_from<=?) AND (p.effective_until IS NULL OR p.effective_until>=?)))`,
         `SELECT p.*,s.subject_id,s.name AS subject_name FROM program_subjects p JOIN subject_catalog s USING(subject_key) WHERE p.active=1 AND s.active=1`,
         `SELECT * FROM modules WHERE active=1`, `SELECT * FROM classes WHERE active=1`,

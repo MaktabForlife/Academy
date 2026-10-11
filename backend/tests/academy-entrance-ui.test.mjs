@@ -90,6 +90,7 @@ const fetch = async (_url, options) => {
     activities,personalActivities:signedIn?activities.filter(item=>item.roles.length):[],timetable:homeTimetable.map(event=>{const publicEvent={...event};delete publicEvent.joinUrl;return publicEvent;}),activity:body.id?activities.find(item=>item.id===body.id):null };
   if(!signedIn){
     result.snapshotDate='2026-10-05';
+    result.timetable=result.timetable.map(event=>event.kind==='PROGRAM'?{...event,publicCard:{time:'4am',title:'Public <Program>',description:'4 yr structured scholarship of **Quran, Sunnah, and Islamic law**'}}:event);
     if(publicFreeFixture)result.timetable=result.timetable.map(event=>{
       if(event.title!=='Lesson <one>')return event;
       const {joinUrl,...free}=stamp({...event,joinUrl:'https://zoom.test/free'});return {...free,publicJoin:true};
@@ -160,7 +161,9 @@ const refresh=async()=>{tabStore.clear();window.dispatchEvent(new Event('m4l-aca
 assert.equal($('personal-activities').hidden,true);
 assert.equal(catalogueRequests.length,0);
 assert.equal(($('academy-preview-sessions').innerHTML.match(/<li class="preview-pill"/g)||[]).length,4);
-for(const time of ['04:00','12:00','07:30','13:00'])assert.ok($('academy-preview-sessions').innerHTML.includes(`aria-label="${time}"`));
+assert.match($('academy-preview-sessions').innerHTML,/>4am<|Public &lt;Program&gt;/);assert.match($('academy-preview-sessions').innerHTML,/<strong>Quran, Sunnah, and Islamic law<\/strong>/);
+assert.doesNotMatch($('academy-preview-sessions').innerHTML,/aria-label="13:00"/,'Public Program card time is entered independently from lesson time');
+for(const time of ['12:00','07:30'])assert.ok($('academy-preview-sessions').innerHTML.includes(`aria-label="${time}"`));
 assert.doesNotMatch($('academy-preview-sessions').innerHTML,/data-information|Join lesson|zoom\.test|Teacher A/);
 assert.match($('public-snapshot-note').textContent,/Schedule preview/);
 assert.equal($('public-snapshot-note').hidden,false);

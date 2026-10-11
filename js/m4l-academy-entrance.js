@@ -213,6 +213,7 @@
     renderWorkshops();
     const personalSchedule = scheduleRows(data);
     $('schedule-title').textContent = data.signedIn && !data.globalAdmin ? 'My Academy timetable' : 'Academy timetable';
+    if($('teaching-availability-link'))$('teaching-availability-link').hidden=!data.signedIn||!(data.globalAdmin||(data.personalActivities||[]).some(r=>r.roles?.some(role=>['TEACHER','PROGRAM_ADMIN','ADMIN'].includes(role))));
     $('full-timetable-title').textContent = data.signedIn && !data.globalAdmin ? 'My Academy timetable' : 'Full Academy timetable';
     const preview = data.signedIn ? personalSchedule : upcomingItems(data.timetable);
     renderSchedule('academy-preview-sessions', preview, false, true);
@@ -254,9 +255,9 @@
     const manage = row.kind === 'PROGRAM' ? row.tools?.manage : row.kind === 'COURSE' && row.id ? `/academy/courses/manage/?course=${encodeURIComponent(row.id)}` : '/academy/courses/manage/';
     const users = global ? '/users/' : row.kind === 'PROGRAM' ? manage && `${manage}&tab=profiles` : row.id ? `${manage}&tab=participants` : '/academy/courses/manage/';
     return (admin ? group('Admin', link('Users', users) + link('Library', global ? '/academy/library/manage/' : row.tools?.resources || '/academy/library/') +
-      link('Programs', global ? '/programs/' : row.kind === 'PROGRAM' && manage) +
+      link('Programs', global ? '/programs/' : row.kind === 'PROGRAM' && row.id ? `/programs/timetable.html?program=${encodeURIComponent(row.id)}` : '') +
       link('Courses', global || row.kind !== 'PROGRAM' ? '/academy/courses/manage/' : '') + tool('Academy','academy')) : '') +
-      (staff ? group('Teach', (link('Attendance',row.tools?.attendance) || tool('Attendance','attendance')) + tool('Progress','progress') + tool('Assessment','assessment') + tool('Plan','plan') + tool('Announcements','announcements') + link('My Timetable','#timetable')) : '') +
+      (staff ? group('Teach', (link('Attendance',row.tools?.attendance) || tool('Attendance','attendance')) + tool('Progress','progress') + tool('Assessment','assessment') + tool('Plan','plan') + tool('Announcements','announcements') + link('My Timetable','#timetable') + link('Edit availability','/academy/teaching/')) : '') +
       (!staff && learner ? group('Learn', link('Library','/academy/library/') + tool('My Progress','progress') + tool('My Assessment','assessment') + tool('Calendar','calendar') + tool('Announcements','announcements') + link('My Timetable','#timetable')) : '');
   }
 
@@ -372,8 +373,9 @@
   }
 
   function renderSchedule(id, rows, detailed = false, compact = false) {
-    state.information[id] = rows.slice();
     const personal = detailed || state.home?.signedIn;
+    if(!personal)rows=rows.filter(row=>row.kind!=='PROGRAM'||row.publicCard?.time&&row.publicCard.title&&row.publicCard.description);
+    state.information[id] = rows.slice();
     if (!rows.length) { $(id).textContent = personal && !state.home?.globalAdmin ? 'No lessons are scheduled for you in this date range.' : 'No published lessons in this date range.'; return; }
     const now = new Date().getTime();
     const next = personal ? rows.findIndex(row => row.status === 'SCHEDULED' && row.endsAt > now) : -1;
@@ -385,9 +387,11 @@
         days.get(row.date).push({...row,publicIndex:rows.indexOf(row)});
       });
       $(id).innerHTML = `<ol class="upcoming-days preview-days">${[...days].map(([date, lessons]) => `<li class="upcoming-day"><time datetime="${esc(date)}">${esc(formatDate(date))}</time><ul class="upcoming-items">${lessons.map(row => {
-        const label = esc(row.activityName || row.title);
+        const card=row.kind==='PROGRAM'?row.publicCard:null;
+        if(row.kind==='PROGRAM'&&(!card?.time||!card.title||!card.description))return '';
+        const label = esc(card?.title || row.activityName || row.title);
         const open=row.publicJoin&&row.joinKey&&now>=row.joinAvailableAt&&now<row.endsAt;
-        return `<li class="preview-pill${open?' is-open':''}">${previewTime(row.startTime)}<span class="preview-name" title="${label}">${label}</span>${row.publicJoin?`<button type="button" data-public-join="${id}:${row.publicIndex}" ${open?'':'disabled'} aria-label="Join ${label}">${open?'Join':'Opens 5 min before'}</button>`:''}</li>`;
+        return `<li class="preview-pill${open?' is-open':''}">${card?`<span class="preview-clock"><span>${esc(card.time)}</span></span>`:previewTime(row.startTime)}<span class="preview-copy"><span class="preview-name" title="${label}">${label}</span>${card?`<span class="preview-description">${esc(card.description).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')}</span>`:''}</span>${row.publicJoin?`<button type="button" data-public-join="${id}:${row.publicIndex}" ${open?'':'disabled'} aria-label="Join ${label}">${open?'Join':'Opens 5 min before'}</button>`:''}</li>`;
       }).join('')}</ul></li>`).join('')}</ol>`;
       return;
     }

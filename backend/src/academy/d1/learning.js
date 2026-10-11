@@ -1,10 +1,12 @@
+import {workspaceQueries,workspaceCatalog,workspaceValidation,workspaceId,recordStatement,assertWorkspaceDraft,snapshotDraft,canEditWorkspace} from './program-workspace.js';
+import {normalizeWeeklyDraft} from '../../programs/weekly-timetable.js';
 import {subjectView} from './subjects.js';
 import {d1Programs} from './programs.js';
 import {managementStore,managementError,liveRoles,same} from './management-store.js';
 import {requireLearning} from './learning-state.js';
 import {timetableService} from '../../programs/timetable-service.js';
 import {attendanceService} from '../../programs/attendance-service.js';
-import {WEEKLY_SCHEMA,publicationRecord} from '../../programs/weekly-timetable.js';
+import {WEEKLY_SCHEMA,publicationRecord,programToday} from '../../programs/weekly-timetable.js';
 import {payloadHash,TIMETABLE_SCHEMA} from '../../programs/timetable-model.js';
 import {insertRecords} from './insert-records.js';
 
@@ -27,7 +29,8 @@ export function d1Learning(repository,auth,now=()=>new Date()) {
   async function load(id) {
     await ready();
     const activity=`PROGRAM:${id}`;
-    const loaded=await programs.load(id,{
+    const workspace=await workspaceQueries(repository,activity);
+    const loaded=await programs.load(id,{...workspace,
       drafts:p('SELECT * FROM timetable_drafts WHERE activity_key=?',activity),
       publications:p('SELECT * FROM timetable_publications WHERE activity_key=? ORDER BY version_no',activity),
       pointer:p('SELECT * FROM program_publication_state WHERE activity_key=?',activity),
@@ -36,18 +39,23 @@ export function d1Learning(repository,auth,now=()=>new Date()) {
     });
     const roles=liveRoles(loaded.data,auth.user.accountid,loaded.a.activity_key);
     loaded.roles=roles;
+    if(loaded.data.teacherStaff){
+      const ids=new Set(workspaceCatalog(loaded,learningCatalog(loaded)).teachers.map(t=>t.id));
+      for(const a of loaded.data.accounts.filter(a=>ids.has(a.account_id)&&!loaded.shared.accounts.some(s=>same(s.AccountID,a.account_id))))loaded.shared.accounts.push({AccountID:a.account_id,DisplayName:a.display_name,Active:Boolean(a.active),Roles:['TEACHER']});
+      loaded.shared.grantedTeachers=[...ids].map(AccountID=>({AccountID}));
+    }
     if(!auth.state.account.global_admin&&(loaded.a.lifecycle!=='ACTIVE'||!roles.length))throw managementError('This Program is unavailable to your account.',403,'FORBIDDEN');
     loaded.program.timetableEditable=loaded.a.lifecycle!=='ARCHIVED';
     const tables=loaded.viewData.tables;
     tables.ProgramTimetableState=loaded.data.drafts.map(r=>({CourseID:loaded.program.id,SchemaVersion:JSON.parse(r.draft_json).format===WEEKLY_SCHEMA?WEEKLY_SCHEMA:TIMETABLE_SCHEMA,Revision:r.source_revision||'',Sequence:r.source_sequence,DraftJSON:r.draft_json,CurrentPublicationID:loaded.data.pointer[0]?.latest_publication_id||''}));
-    tables.ProgramTimetablePublications=loaded.data.publications.map(r=>({PublicationID:r.publication_id,CourseID:loaded.program.id,VersionNo:r.version_no,PublishedDate:r.published_at,PublishedByAccountID:r.published_by_source_id,SnapshotJSON:r.snapshot_json}));
+    tables.ProgramTimetablePublications=loaded.data.publications.map(r=>({Lifecycle:loaded.data.publicationLifecycle?.find(l=>same(l.publication_id,r.publication_id))?.status||'',PublicationID:r.publication_id,CourseID:loaded.program.id,VersionNo:r.version_no,PublishedDate:r.published_at,PublishedByAccountID:r.published_by_source_id,SnapshotJSON:r.snapshot_json}));
     tables.ProgramTimetableOperations=[];
     loaded.attendance={prepared:true,source:loaded.viewData,tables:{
       ProgramAttendanceRegisters:loaded.data.registers.map(r=>({RegisterID:r.register_id,CourseID:loaded.program.id,AttendanceDate:r.attendance_date,PublicationID:r.publication_id,LessonAnchor:r.lesson_anchor,LessonJSON:r.lesson_json,LearnerCount:r.learner_count,SubmittedDate:r.submitted_at,SubmittedByAccountID:r.submitted_by_account_id||r.source_actor_id,OperationID:r.operation_id})),
       ProgramAttendanceMarks:loaded.data.marks.map(r=>({RegisterID:r.register_id,AccountID:r.account_id,DisplayName:r.display_name,Status:r.status})),ProgramAttendanceOperations:[]}};
     return loaded;
   }
-  const timetable=loaded=>timetableService({load:async()=>loaded.viewData,catalog:async()=>learningCatalog(loaded),managementReferences:async()=>loaded.shared,
+  const timetable=loaded=>timetableService({load:async()=>loaded.viewData,catalog:async()=>workspaceCatalog(loaded,learningCatalog(loaded)),managementReferences:async()=>loaded.shared,
     hasAttendanceOn:async date=>loaded.data.registers.some(r=>r.attendance_date===date),plan:(_data,records)=>records},loaded.program,now);
   function requireRole(loaded,roles) {
     if(!auth.state.account.global_admin&&!loaded.roles.some(r=>roles.includes(r)))throw managementError('This action requires an authorised Program role.',403,'FORBIDDEN');
@@ -78,17 +86,85 @@ export function d1Learning(repository,auth,now=()=>new Date()) {
     load,
     async timetable(action,input) {
       await ready();
-      const write=['save','publish'].includes(action);
+      const write=['save','publish','copy','status'].includes(action);
+      if(action==='validate'&&input.operationId)return store.change('PROGRAM_TIMETABLE',`PROGRAM:${String(input.id).toUpperCase()}`,action,input,async()=>{
+        const loaded=await load(input.id);requireRole(loaded,['PROGRAM_ADMIN']);
+        if(!loaded.data.workspaceRecords)throw managementError('The Program workspace needs its database upgrade.',503);
+        const current=await timetable(loaded).read('get');
+        if(input.revision!==current.revision||await payloadHash(normalizeWeeklyDraft(input.draft))!==await payloadHash(normalizeWeeklyDraft({...current.draft,timetableId:workspaceId(loaded)})))throw managementError('Save the current draft before validating.',409);
+        const id=assertWorkspaceDraft(loaded,input),result=await workspaceValidation(loaded,input.draft,workspaceCatalog(loaded,learningCatalog(loaded)),input.effectiveFrom);
+        return {data:loaded.data,statements:[recordStatement(p,loaded,id,input.draft,result.valid?'VALID':'DRAFT',null,null,result.valid?result.validationHash:null)],result,fields:['TimetableValidation']};
+      });
+      if(['copy','status'].includes(action))return store.change('PROGRAM_TIMETABLE',`PROGRAM:${String(input.id).toUpperCase()}`,action,input,async()=>{
+        const loaded=await load(input.id);requireRole(loaded,['PROGRAM_ADMIN']);
+        if(!loaded.data.workspaceRecords)throw managementError('The Program workspace needs its database upgrade.',503);
+        if(loaded.a.lifecycle==='ARCHIVED')throw managementError('Reactivate the Program before changing timetables.',409);
+        const current=await timetable(loaded).read('get');
+        if(input.revision!==current.revision)throw managementError('This timetable changed elsewhere. Reload before continuing.',409);
+        const record=loaded.data.workspaceRecords.find(r=>r.timetable_id===input.timetableId),publication=loaded.data.publications.find(r=>same(r.publication_id,input.timetableId));
+        if(input.timetableId!==workspaceId(loaded)&&!record&&!publication)throw managementError('Choose a timetable in this Program.',404);
+        const statements=[];let result;
+        if(action==='copy'){
+          const id='TT-'+crypto.randomUUID(),source=record?JSON.parse(record.draft_json):publication?snapshotDraft(JSON.parse(publication.snapshot_json),id):current.draft,draft=normalizeWeeklyDraft({...source,timetableId:id});
+          if(!loaded.data.workspaceRecords.some(r=>r.timetable_id===workspaceId(loaded)))statements.push(recordStatement(p,loaded,workspaceId(loaded),current.draft));
+          const planned=await timetable(loaded).plan('save',{...input,draft:{...current.draft,timetableId:id}},auth.user,await payloadHash(input));
+          statements.push(...await timetableStatements(loaded,planned.plan),recordStatement(p,loaded,id,draft,'DRAFT',input.timetableId));
+          // Save the selected source, rather than the previous board, as the new editable draft.
+          statements.push(p('UPDATE timetable_drafts SET draft_json=?,source_draft_sha256=? WHERE activity_key=? AND scope_key=?',JSON.stringify(draft),await payloadHash(draft),loaded.a.activity_key,loaded.a.activity_key));
+          result={...planned.result,timetableId:id};
+        }else{
+          if(!['ARCHIVED','CANCELLED'].includes(input.status))throw managementError('Choose Archived or Cancelled.');
+          const id=record?.timetable_id||(publication?'TT-'+publication.publication_id:input.timetableId),pubId=record?.publication_id||publication?.publication_id;
+          statements.push(recordStatement(p,loaded,id,record?JSON.parse(record.draft_json):publication?snapshotDraft(JSON.parse(publication.snapshot_json),id):current.draft,input.status,null,pubId));
+          if(pubId)statements.push(p('INSERT INTO program_publication_lifecycle VALUES(?,?,?,?) ON CONFLICT(activity_key,publication_id) DO UPDATE SET status=excluded.status,changed_at=excluded.changed_at',loaded.a.activity_key,pubId,input.status,new Date().toISOString()));
+          result={timetableId:id,status:input.status};
+        }
+        return {data:loaded.data,statements,result,fields:['Timetable',action]};
+      });
       if(write)return store.change('PROGRAM_TIMETABLE',`PROGRAM:${String(input.id).toUpperCase()}`,action,input,async()=>{
         const loaded=await load(input.id);requireRole(loaded,['PROGRAM_ADMIN']);
+        let timetableId,review;
+        if(loaded.data.workspaceRecords){
+          timetableId=assertWorkspaceDraft(loaded,input);
+          input={...input,draft:{...input.draft,timetableId}};
+          if(action==='publish'){
+            const today=programToday(loaded.program.timezone,now()),date=input.effectiveFrom;
+            if(!date||date<=today)throw managementError('Choose a future effective date, from tomorrow onwards.',409);
+            review=await workspaceValidation(loaded,input.draft,workspaceCatalog(loaded,learningCatalog(loaded)),date);
+            if(!review.valid)throw managementError('Resolve teacher availability and timetable validation issues before publishing.',409);
+          }
+        }
         const planned=await timetable(loaded).plan(action,input,auth.user,await payloadHash({action,input}));
-        return {data:loaded.data,statements:await timetableStatements(loaded,planned.plan),result:planned.result,fields:['Timetable',...(action==='publish'?['Publication']:[])]};
+        const statements=await timetableStatements(loaded,planned.plan);
+        if(timetableId){statements.push(recordStatement(p,loaded,timetableId,normalizeWeeklyDraft(input.draft),action==='publish'?'PUBLISHED':'DRAFT',null,planned.result.publicationId,review?.validationHash));
+          if(action==='publish')for(const teacher of new Set((review.occurrences||[]).flatMap(r=>r.teacherIds||[])))statements.push(p("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state,granted_at,granted_by_account_id,revision) SELECT ?,?,?,'TEACHER',1,'CONFIRMED',?,?,1 WHERE NOT EXISTS(SELECT 1 FROM effective_activity_roles WHERE account_id=? AND activity_key=? AND role='TEACHER')",crypto.randomUUID(),teacher,loaded.a.activity_key,new Date().toISOString(),auth.user.accountid,teacher,loaded.a.activity_key));
+        }
+        return {data:loaded.data,statements,result:{...planned.result,...(timetableId?{timetableId}: {})},fields:['Timetable',...(action==='publish'?['Publication']:[])]};
       });
       const loaded=await load(input.id);requireRole(loaded,['PROGRAM_ADMIN']);
       if(['prepare','prepare-library'].includes(action))return {prepared:true,libraryPrepared:true};
       if(action==='recover')return {recovered:false};
+      if(action==='record'){
+        const record=loaded.data.workspaceRecords?.find(r=>r.timetable_id===input.timetableId);if(!record)throw managementError('Timetable not found in this Program.',404);
+        const review=await workspaceValidation(loaded,JSON.parse(record.draft_json),workspaceCatalog(loaded,learningCatalog(loaded)),programToday(loaded.program.timezone,now()));
+        return {...review,status:record.status==='VALID'&&(!review.valid||review.validationHash!==record.validation_hash)?'DRAFT':record.status,timetableId:record.timetable_id};
+      }
       if(!['get','history','published','preview','validate','manage-get'].includes(action))throw managementError('Unknown timetable action.',404);
-      const result=await timetable(loaded).read(action,input);
+      let result=await timetable(loaded).read(action,input);
+      if(loaded.data.workspaceRecords){
+        const catalog=workspaceCatalog(loaded,learningCatalog(loaded));
+        if(['validate','preview'].includes(action))result=await workspaceValidation(loaded,input.draft,catalog,input.effectiveFrom||programToday(loaded.program.timezone,now()));
+        if(action==='get'){
+          result.draft.timetableId=workspaceId(loaded);
+          const record=loaded.data.workspaceRecords.find(r=>r.timetable_id===result.draft.timetableId);
+          const checked=record?.status==='VALID'?await workspaceValidation(loaded,result.draft,catalog,programToday(loaded.program.timezone,now())):null;
+          result={...result,catalog,workspaceReady:true,timetableId:result.draft.timetableId,timetableStatus:record?.status==='VALID'&&(!checked.valid||checked.validationHash!==record.validation_hash)?'DRAFT':record?.status||'DRAFT',timetableEditable:canEditWorkspace(loaded),availability:loaded.data.availability.map(a=>({teacherId:a.account_id,ranges:JSON.parse(a.ranges_json),revision:a.revision})),setup:{...await subjectView(await timetable(loaded).read('manage-get'),auth.state.account.global_admin),sharedModules:(loaded.data.academyModules||[]).map(m=>({id:m.module_id,name:m.name,subjectId:loaded.data.subjects.find(s=>same(s.subject_key,m.subject_key))?.subject_id,active:Boolean(m.active)}))}};
+        }
+        if(action==='history')result.records=await Promise.all(loaded.data.workspaceRecords.map(async r=>{
+          const review=r.status==='VALID'?await workspaceValidation(loaded,JSON.parse(r.draft_json),catalog,programToday(loaded.program.timezone,now())):null;
+          return {id:r.timetable_id,status:review&&(!review.valid||review.validationHash!==r.validation_hash)?'DRAFT':r.status,sourceId:r.source_id,publicationId:r.publication_id,updatedAt:r.updated_at};
+        }));
+      }
       return {...(action==='manage-get'?await subjectView(result,auth.state.account.global_admin):result),...(action==='manage-get'&&loaded.data.academyModules?{sharedModules:loaded.data.academyModules.map(m=>({id:m.module_id,name:m.name,subjectId:loaded.data.subjects.find(s=>same(s.subject_key,m.subject_key))?.subject_id||'',active:Boolean(m.active)}))}:{}),program:loaded.program,store:'D1',coordinatorAvailable:true,managementEditable:loaded.a.lifecycle!=='ARCHIVED',globalProfilesAvailable:Boolean(auth.state.account.global_admin),learningWorkflowsReady:true};
     },
     async attendance(action,input) {

@@ -1,3 +1,5 @@
+import {programWorkspaceAvailable} from './teacher-availability.js';
+import {teacherDesignations,teacherDirectory} from './teachers.js';
 import {moduleCatalogueQueries,catalogueNameKey} from './module-catalogue.js';
 import {subjectView} from './subjects.js';
 import { definition,programId } from '../../programs/model.js';
@@ -9,7 +11,7 @@ import {learningAvailable} from './learning-state.js';
 const dto=(data,a)=>{
   const settings=data.programs.find(p=>same(p.activity_key,a.activity_key));
   return {id:a.activity_id,name:a.name,mode:'PROGRAM',active:Boolean(a.active),status:a.lifecycle,
-    durationYears:settings?.duration_years??'',timezone:settings?.timezone||'Africa/Johannesburg',revision:String(a.revision),spreadsheetId:'',store:'D1'};
+    publicCard:JSON.parse(settings?.public_card_json||'{}'),durationYears:settings?.duration_years??'',timezone:settings?.timezone||'Africa/Johannesburg',revision:String(a.revision),spreadsheetId:'',store:'D1'};
 };
 const writableKinds=new Set(['subjects','levels','modules','tasks','classes','enrollments','progress','student-class','student-classes','subject-import']);
 const plain=r=>JSON.stringify(r);
@@ -51,10 +53,12 @@ export function d1Programs(repository,auth) {
     const current={snapshot,revision:rev?.source_revision||'',sequence:rev?.source_sequence||0};
     const tables={...snapshot,ProgramManagementState:current.sequence?[{CourseID:program.id,Revision:current.revision,Sequence:current.sequence,SnapshotJSON:JSON.stringify(snapshot)}]:[]};
     const accounts=data.accounts.map(account=>({AccountID:account.account_id,DisplayName:account.display_name,Active:Boolean(account.active),Roles:liveRoles(data,account.account_id,a.activity_key).map(role=>role==='PROGRAM_ADMIN'?'ADMIN':role)})).filter(a=>auth.state.account.global_admin||a.Roles.length);
-    const shared={...(all.academyModules?{academyModules:all.academyModules,moduleUsage:all.moduleUsage}:{}),subjects:data.subjects.map(s=>({SubjectID:s.subject_id,SubjectName:s.name,Active:Boolean(s.active),Legacy:s.source_namespace!=='ACADEMY'})),accounts,grantedTeachers:accounts.filter(a=>a.Active&&a.Roles.some(r=>['TEACHER','ADMIN'].includes(r))).map(a=>({AccountID:a.AccountID}))};
+    const designated=teacherDirectory({...data,teachers:data.teacherStaff||[]});
+    for(const t of designated)if(!accounts.some(a=>same(a.AccountID,t.accountId)))accounts.push({AccountID:t.accountId,DisplayName:t.name,Active:true,Roles:[]});
+    const shared={...(all.academyModules?{academyModules:all.academyModules,moduleUsage:all.moduleUsage}:{}),subjects:data.subjects.map(s=>({SubjectID:s.subject_id,SubjectName:s.name,Active:Boolean(s.active),Legacy:s.source_namespace!=='ACADEMY'})),accounts,grantedTeachers:accounts.filter(a=>a.Active&&(designated.some(t=>same(t.accountId,a.AccountID))||a.Roles.some(r=>['TEACHER','ADMIN'].includes(r)))).map(a=>({AccountID:a.AccountID}))};
     return {data,a,program,current,viewData:{tables,prepared:true,libraryPrepared:true},shared};
   }
-  async function loadManagement(id,extra={}) {const c=await moduleCatalogueQueries(repository);return projectManagement(await store.load({...queriesFor(`PROGRAM:${id}`),...(c.available?c.queries:{}),...extra}),id);}
+  async function loadManagement(id,extra={}) {const c=await moduleCatalogueQueries(repository),staff=c.available?await teacherDesignations(repository):{available:false};return projectManagement(await store.load({...queriesFor(`PROGRAM:${id}`),...(staff.available?{teacherStaff:staff.statement}:{}),...(c.available?c.queries:{}),...extra}),id);}
   async function persist(loaded,snapshot) {
     const statements=[],activity=loaded.a.activity_key;
     for(const [name,spec] of Object.entries(shape))for(const record of snapshot[name]) {
@@ -95,9 +99,10 @@ export function d1Programs(repository,auth) {
       if(action==='list') {const data=await store.load();return {programs:data.activities.filter(a=>a.kind==='PROGRAM'&&(auth.state.account.global_admin||liveRoles(data,auth.user.accountid,a.activity_key).includes('PROGRAM_ADMIN'))).map(a=>dto(data,a)),platformPrepared:true,store:'D1',learningWorkflowsReady:await learningAvailable(repository.db),statuses:['DRAFT','ACTIVE','ARCHIVED']};}
       if(['prepare','readiness'].includes(action)) {selected(await store.load(),input.id);return {prepared:true,message:'Program records are ready.',checks:[{label:'Program records ready',ok:true}]};}
       if(!['create','save'].includes(action))throw managementError('Unknown Program action.',404);
-      return store.change('PROGRAM_REGISTRY','ACADEMY',action,input,async()=>{
-        const data=await store.load(),existing=data.activities.find(a=>a.kind==='PROGRAM'&&same(a.activity_id,input.id));
-        const status=input.status||'DRAFT';if(!['DRAFT','ACTIVE','ARCHIVED'].includes(status))throw managementError('Choose Draft, Active or Archived.');
+      return store.change('PROGRAM_REGISTRY',action==='save'?`PROGRAM:${String(input.id).toUpperCase()}`:'ACADEMY',action,input,async()=>{
+        const cardsReady=await programWorkspaceAvailable(repository),data=await store.load(),existing=data.activities.find(a=>a.kind==='PROGRAM'&&same(a.activity_id,input.id));
+        if(!auth.state.account.global_admin&&(!existing||!liveRoles(data,auth.user.accountid,existing.activity_key).includes('PROGRAM_ADMIN')))throw managementError('This action requires an authorised Program administrator.',403);
+        const status=auth.state.account.global_admin?(input.status||'DRAFT'):existing.lifecycle;if(!['DRAFT','ACTIVE','ARCHIVED'].includes(status))throw managementError('Choose Draft, Active or Archived.');
         const config=definition({...input,status:status==='ACTIVE'?'DRAFT':status});
         if(action==='create'&&status!=='DRAFT')throw managementError('Create a new Program as a draft.');
         if(action==='create'&&existing)throw managementError('This Program already exists. Refresh the Programs list.',409);
@@ -109,9 +114,22 @@ export function d1Programs(repository,auth) {
         else statements.push(p("INSERT INTO activities(activity_key,activity_id,kind,name,active,lifecycle,website_visible,created_at,updated_at,revision) VALUES(?,?,'PROGRAM',?,0,'DRAFT',0,?,?,1)",activity,id,config.name,now,now),
           p('INSERT INTO program_settings(activity_key,duration_years,timezone,revision) VALUES(?,?,?,1)',activity,config.durationYears===''?null:config.durationYears,config.timezone),
           p('INSERT INTO data_ownership(dataset_key,scope_key,authoritative_store,phase,verified_run_id,switched_at,revision) VALUES(?,?,?,?,?,?,?)',...Object.values(repository.ownershipForNewActivity(activity))));
+        if(!existing){const year=new Intl.DateTimeFormat('en',{timeZone:config.timezone,year:'numeric'}).format(new Date());statements.push(p('INSERT INTO classes(activity_key,class_id,name,academic_year,active) VALUES(?,?,?,?,1)',activity,'CLS-'+crypto.randomUUID(),`${config.name.slice(0,140)} Class ${year}`,year));}
+        let publicCard=data.programs.find(s=>same(s.activity_key,activity))?.public_card_json||'{}';
+        if(Object.hasOwn(input,'publicCard')){
+          if(!cardsReady)throw managementError('Public card editing is awaiting the Program workspace update.',503);
+          const value=input.publicCard;
+          if(!value||typeof value!=='object'||Array.isArray(value))throw managementError('Enter the public card time, title and description.');
+          const card={};for(const [key,limit] of [['time',12],['title',80],['description',240]]){
+            if(typeof value[key]!=='string'||value[key].length>limit)throw managementError(`Public card ${key} must be text with at most ${limit} characters.`);
+            card[key]=value[key].trim();
+          }
+          if(Object.values(card).some(Boolean)&&!Object.values(card).every(Boolean))throw managementError('Fill all three public card fields, or leave all three empty to hide the card.');
+          publicCard=JSON.stringify(card);statements.push(p('UPDATE program_settings SET public_card_json=? WHERE activity_key=?',publicCard,activity));
+        }
         const updated={activity_key:activity,activity_id:id,name:config.name,active:Number(status==='ACTIVE'),lifecycle:status,revision:(existing?.revision||0)+1};
-        const next={...data,programs:[...data.programs.filter(s=>!same(s.activity_key,activity)),{activity_key:activity,duration_years:config.durationYears,timezone:config.timezone}]};
-        return {data,statements,result:{program:dto(next,updated)},fields:['Name','DurationYears','Timezone','Lifecycle']};
+        const next={...data,programs:[...data.programs.filter(s=>!same(s.activity_key,activity)),{activity_key:activity,duration_years:config.durationYears,timezone:config.timezone,public_card_json:publicCard}]};
+        return {data,statements,result:{program:dto(next,updated)},fields:['Name','DurationYears','Timezone','Lifecycle',...(Object.hasOwn(input,'publicCard')?['PublicCard']:[])]};
       });
     },
     async management(action,input,verifyLibraryChange,extra={},initialLoaded=null) {

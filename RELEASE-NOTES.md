@@ -1,3 +1,13 @@
+# V106.12 — Compact Program Admin and public timetable cards
+
+Manage Program setup, optional classes, shared Subjects/Modules and the weekly timetable together. New Programs create one editable `[Program] Class [year]`; class teachers are optional, but each validated session needs a teacher and one or more classes. Use the Program Zoom link first, then the session link, then class links. A teacher combining classes needs one shared meeting link. No Program start/end dates are introduced.
+
+Teachers edit recurring daily teaching hours from their teaching calendar. Missing or empty availability means unrestricted availability. Changes create in-app notices for relevant Program Admins and Global Admins. Validation and publication recheck current availability; publication uses a future effective date, default tomorrow. Copy creates a new timetable ID; original snapshots remain intact. Share Program, teacher or class timetables as images or one-page PDFs, marked Draft, Valid, Published, Archived or Cancelled. Cancelled/archived publications stop joining without reviving an older version.
+
+Each Program public card is one JSON record: entered `time` (12 characters), `title` (80), and `description` (240). Render those fields without inferring values from sessions or the Program name. Support escaped text with optional **bold**. Empty cards stay hidden until entered. The public daily JSON snapshot advances to v3, retains the shared R2/edge cache and stores no meeting URLs. Signed-in schedules retain exact lesson details and existing daily/manual-refresh caching.
+
+All 138 local regression test files pass, including new synthetic cases for default classes, scoped edits, availability notices and retries, publication validation, new-ID copies, lifecycle history, atomic rollback and public-card redaction. Desktop/mobile browser checks cover the complete flow and one-page PDF/image exports. The development Worker dry-run build passes. Additive migration 0012 was applied to the backed-up main D1 and verified without changing existing accounts, roles or publications; future batches still require owner authorisation. Private media/subscriptions and unfinished teaching tools remain outside this release. [Release details](docs/ACADEMY-PROGRAM-WORKSPACE-106.12.md).
+
 # V106.11 — Role tools, cached Libraries and account controls
 
 All 137 local regression test files and the development Worker dry-run build pass. Contact migration 0011 is applied to main without replacing existing accounts or permissions. [Website development handoff](docs/WEBSITE-DEVELOPMENT-HANDOFF-106.11.md) records the current deployment, agreed rules and unfinished work.
