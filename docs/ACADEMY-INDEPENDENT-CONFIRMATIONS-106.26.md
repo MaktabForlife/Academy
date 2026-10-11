@@ -1,0 +1,11 @@
+# V106.26 — Independent Surahs and Duas confirmations
+
+Teachers can confirm an item before or after its learner marks it memorised. Learner changes retain the teacher confirmation and its attribution; teacher changes retain the learner mark and its timestamp. Each actor controls only their own confirmation. Permissions, module availability, exclusions, optimistic revisions, exact retries and atomic saves remain enforced.
+
+Class grid cells show a gold learner tick beside the green teacher checkbox. Both confirmations remain visible together. Personal module items also show separate memorised and teacher-confirmed badges, with independent module counts. Unregistered visitors continue to interact temporarily without saving.
+
+Class grids use a swipeable row of module pills instead of a dropdown. Selecting another module retains the numbered class-card slice and checks unsaved drafts. The Previous/Next footer is removed; users select another numbered class card through Class cards. The class-card learner/module/item count line is removed. Teachers and admins have no Learn row; their personal cards remain in the side menu. Student Learn rows remain.
+
+Apply only `0015_independent_memorisation_confirmations.sql` to the existing Development D1 database. It copies all learner-task progress fields into an equivalent table without `confirmed<=complete`, replaces the table and restores its index. No learner marks or confirmations are reset. The global write version increments once. No module-monitor feature is included.
+
+The owner authorised deployment when ready. Validation passed: 140/140 backend regression files, including teacher-first and learner-first saves, independent deselection and metadata, exact retries, opposing concurrent changes, permission boundaries, batch rollback, and migration preservation. Synthetic Chrome checks at 1440, 390 and 320 pixels verify two grid ticks and personal badges, interrupted-save recovery across reload, module pills and draft guards, retained numbered-card slices, removed counts/footer/staff Learn rows, personal side-menu access and temporary visitor interaction. The Worker dry-run build, syntax and diff checks pass. Live deployment checks follow migration and release.

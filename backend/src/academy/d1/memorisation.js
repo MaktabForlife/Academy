@@ -135,8 +135,7 @@ export function d1Memorisation(repository,auth) {
         if(!Number.isInteger(u.revision)||u.revision<0||typeof u[review?'confirmed':'complete']!=='boolean')throw fail('A task change is invalid.');
         const old=previous.find(r=>same(r.account_id,account)&&same(r.task_id,u.taskId));
         if((old?.revision||0)!==u.revision)throw fail('A task changed elsewhere. Refresh and review before saving.',409,'ROW_CHANGED');
-        const complete=review?Boolean(old?.complete):u.complete,confirmed=review?u.confirmed:complete&&Boolean(old?.confirmed);
-        if(confirmed&&!complete)throw fail('The learner must first mark this task as memorised.',409,'NOT_MEMORISED');
+        const complete=review?Boolean(old?.complete):u.complete,confirmed=review?u.confirmed:Boolean(old?.confirmed);
         const record={account_id:account,task_id:u.taskId,complete:Number(complete),confirmed:Number(confirmed),revision:u.revision+1,
           completed_at:complete?(old?.completed_at||now):null,confirmed_at:confirmed?(old?.confirmed_at||now):null,confirmed_by:confirmed?(old?.confirmed_by||actor):null,updated_at:now};
         rows.push(record);

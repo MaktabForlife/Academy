@@ -19,24 +19,55 @@ test('workbook tasks seed shared modules without invented learner progress',()=>
   assert.equal(db.prepare('SELECT count(*) n FROM memorisation_modules m JOIN academy_module_catalogue c USING(module_id)').get().n,12);
   assert.equal((await post(env,'get')).status,401);
 }));
-test('learner marks own tasks, teacher confirms, deselection removes confirmation and retry is exact',()=>use(async({env,db})=>{
+test('learner and teacher confirmations are independent in either order, with exact retries and scoped authority',()=>use(async({env,db})=>{
   const student=await login(env,'0002'),teacher=await login(env,'0003'),other=await login(env,'0005');
   const data=ok(await post(env,'get',{},student)),task=data.modules[0].tasks[0].id;
-  const input={catalogueRevision:data.revision,updates:[update(task)],operationId:crypto.randomUUID()};
-  assert.equal((await post(env,'mark',{...input,updates:[{...update(task),accountId:'account-0008'}]},student)).status,403);
-  assert.equal((await post(env,'confirm',{...input,activityKey:scope,classId:'class-1',updates:[{taskId:task,accountId:'account-0002',revision:0,confirmed:true}]},teacher)).body.code,'NOT_MEMORISED');
-  const saved=ok(await post(env,'mark',input,student));assert.equal(saved.records[0].confirmed,false);assert.equal(ok(await post(env,'mark',input,student)).replayed,true);
-  assert.equal((await post(env,'mark',{...input,updates:[update(task,0,false)]},student)).body.code,'OPERATION_ID_REUSED');
-  const confirm={catalogueRevision:data.revision,activityKey:scope,classId:'class-1',updates:[{taskId:task,accountId:'account-0002',revision:1,confirmed:true}],operationId:crypto.randomUUID()};
-  assert.equal((await post(env,'confirm',confirm,student)).status,403);assert.equal((await post(env,'confirm',confirm,other)).status,403);
+  const mark=(revision,complete,extra={})=>({catalogueRevision:data.revision,updates:[{...update(task,revision,complete),...extra}],operationId:crypto.randomUUID()});
+  const confirm=(revision,confirmed,extra={})=>({catalogueRevision:data.revision,activityKey:scope,classId:'class-1',updates:[{taskId:task,accountId:'account-0002',revision,confirmed,...extra}],operationId:crypto.randomUUID()});
+  assert.equal((await post(env,'mark',mark(0,true,{accountId:'account-0008'}),student)).status,403);
+  const first=confirm(0,true);
+  assert.equal((await post(env,'confirm',first,student)).status,403);assert.equal((await post(env,'confirm',first,other)).status,403);
   assert.equal((await post(env,'grid',{activityKey:'PROGRAM:unassigned',classId:'class-shared',moduleId:data.modules[0].id},teacher)).status,403);
-  assert.equal(ok(await post(env,'confirm',confirm,teacher)).records[0].confirmed,true);assert.equal(ok(await post(env,'confirm',confirm,teacher)).replayed,true);
-  const grid=ok(await post(env,'grid',{activityKey:scope,classId:'class-1',moduleId:data.modules[0].id},teacher));assert.deepEqual(grid.learners.map(a=>a.id),['account-0002']);assert.equal(grid.records[0].confirmed,true);
-  assert.equal((await post(env,'mark',{...input,operationId:crypto.randomUUID()},student)).body.code,'ROW_CHANGED');
-  ok(await post(env,'mark',{...input,updates:[update(task,2,false)],operationId:crypto.randomUUID()},student));
-  const record=db.prepare('SELECT * FROM learner_task_progress WHERE account_id=? AND task_id=?').get('account-0002',task);
-  assert.equal(record.confirmed,0);assert.equal(record.completed_at,null);assert.equal(record.confirmed_by,null);assert.equal(record.confirmed_at,null);
-  assert.equal(db.prepare("SELECT count(*) n FROM audit_events WHERE record_kind='MEMORISATION'").get().n,3);
+  let saved=ok(await post(env,'confirm',first,teacher));assert.equal(saved.records[0].complete,false);assert.equal(saved.records[0].confirmed,true);assert.equal(saved.records[0].completedAt,null);
+  const confirmedAt=saved.records[0].confirmedAt;assert.ok(confirmedAt);assert.equal(ok(await post(env,'confirm',first,teacher)).replayed,true);
+  const input=mark(1,true,{confirmed:false});saved=ok(await post(env,'mark',input,student));assert.equal(saved.records[0].complete,true);assert.equal(saved.records[0].confirmed,true);assert.equal(saved.records[0].confirmedAt,confirmedAt);const completedAt=saved.records[0].completedAt;
+  assert.equal(ok(await post(env,'mark',input,student)).replayed,true);assert.equal((await post(env,'mark',{...input,updates:[update(task,1,false)]},student)).body.code,'OPERATION_ID_REUSED');
+  saved=ok(await post(env,'confirm',confirm(2,false,{complete:false}),teacher));assert.equal(saved.records[0].complete,true);assert.equal(saved.records[0].confirmed,false);assert.equal(saved.records[0].completedAt,completedAt);assert.equal(saved.records[0].confirmedAt,null);
+  saved=ok(await post(env,'confirm',confirm(3,true),teacher));assert.equal(saved.records[0].complete,true);assert.equal(saved.records[0].confirmed,true);
+  const grid=ok(await post(env,'grid',{activityKey:scope,classId:'class-1',moduleId:data.modules[0].id},teacher));assert.deepEqual(grid.learners.map(a=>a.id),['account-0002']);assert.equal(grid.records[0].complete,true);assert.equal(grid.records[0].confirmed,true);
+  assert.equal((await post(env,'mark',mark(2,false),student)).body.code,'ROW_CHANGED');
+  saved=ok(await post(env,'mark',mark(4,false),student));assert.equal(saved.records[0].complete,false);assert.equal(saved.records[0].confirmed,true);assert.equal(saved.records[0].completedAt,null);
+  let row=db.prepare('SELECT * FROM learner_task_progress WHERE account_id=? AND task_id=?').get('account-0002',task);assert.equal(row.confirmed_by,'account-0003');assert.ok(row.confirmed_at);
+  saved=ok(await post(env,'confirm',confirm(5,false),teacher));assert.equal(saved.records[0].complete,false);assert.equal(saved.records[0].confirmed,false);
+  row=db.prepare('SELECT * FROM learner_task_progress WHERE account_id=? AND task_id=?').get('account-0002',task);assert.equal(row.completed_at,null);assert.equal(row.confirmed_by,null);assert.equal(row.confirmed_at,null);
+  assert.equal(db.prepare("SELECT count(*) n FROM audit_events WHERE record_kind='MEMORISATION'").get().n,6);
+}));
+test('independent-confirmation migration preserves every existing progress field and index',async()=>{
+  const before=[];
+  const f=await memorisationFixture({beforeMigration:({db},file)=>{
+    if(!file.startsWith('0015_'))return;
+    for(const [i,complete,confirmed] of [[1,0,0],[2,1,0],[3,1,1]])db.prepare('INSERT INTO learner_task_progress VALUES(?,?,?,?,?,?,?,?,?)').run('account-0002','MEM-SURAHS-1-0'+i,complete,confirmed,i+4,complete?'2026-10-01T12:00:00Z':null,confirmed?'2026-10-02T12:00:00Z':null,confirmed?'account-0003':null,'2026-10-03T12:00:00Z');
+    before.push(...db.prepare('SELECT * FROM learner_task_progress ORDER BY task_id').all());
+  }});
+  try{
+    assert.deepEqual(f.db.prepare('SELECT * FROM learner_task_progress ORDER BY task_id').all(),before);
+    f.db.prepare('INSERT INTO learner_task_progress VALUES(?,?,?,?,?,?,?,?,?)').run('account-0002','MEM-SURAHS-1-04',0,1,1,null,'2026-10-04T12:00:00Z','account-0003','2026-10-04T12:00:00Z');
+    assert.ok(f.db.prepare("PRAGMA index_list('learner_task_progress')").all().some(r=>r.name==='learner_task_progress_task'));
+    assert.deepEqual(f.db.prepare('PRAGMA foreign_key_check').all(),[]);assert.equal(f.db.prepare('PRAGMA integrity_check').get().integrity_check,'ok');
+  }finally{f.db.close();}
+});
+test('simultaneous learner and teacher changes require review and teacher-only batch failures roll back',()=>use(async({env,db})=>{
+  const student=await login(env,'0002'),teacher=await login(env,'0003'),cat=ok(await post(env,'get',{},student)),tasks=cat.modules[0].tasks;
+  const mark={catalogueRevision:cat.revision,updates:[update(tasks[0].id)],operationId:crypto.randomUUID()};
+  const confirm={catalogueRevision:cat.revision,activityKey:scope,classId:'class-1',updates:[{taskId:tasks[0].id,accountId:'account-0002',revision:0,confirmed:true}],operationId:crypto.randomUUID()};
+  const result=await Promise.all([post(env,'mark',mark,student),post(env,'confirm',confirm,teacher)]);assert.deepEqual(result.map(r=>r.status).sort(),[200,409]);
+  const retry=result[0].status===409?mark:confirm;retry.operationId=crypto.randomUUID();retry.updates[0].revision=1;
+  ok(await post(env,result[0].status===409?'mark':'confirm',retry,result[0].status===409?student:teacher));
+  const before=db.prepare('SELECT * FROM learner_task_progress').all();assert.equal(before[0].complete,1);assert.equal(before[0].confirmed,1);
+  db.exec(`CREATE TRIGGER synthetic_confirmation_failure BEFORE INSERT ON learner_task_progress WHEN NEW.task_id='${tasks[2].id}' BEGIN SELECT RAISE(ABORT,'synthetic confirmation failure'); END;`);
+  const receipts=db.prepare('SELECT count(*) n FROM operation_receipts').get().n,audits=db.prepare('SELECT count(*) n FROM audit_events').get().n;
+  assert.equal((await post(env,'confirm',{...confirm,updates:tasks.slice(1,3).map(t=>({taskId:t.id,accountId:'account-0002',revision:0,confirmed:true})),operationId:crypto.randomUUID()},teacher)).status,503);
+  assert.deepEqual(db.prepare('SELECT * FROM learner_task_progress').all(),before);assert.equal(db.prepare('SELECT count(*) n FROM operation_receipts').get().n,receipts);assert.equal(db.prepare('SELECT count(*) n FROM audit_events').get().n,audits);
 }));
 test('confirmation scope honours admins, active dated rosters and Program classes only',()=>use(async({env,db})=>{
   const admin=await login(env,'0001'),scoped=await login(env,'0004'),student=await login(env,'0002');

@@ -1,3 +1,7 @@
+# V106.26 — Independent memorisation confirmations
+
+Learners and teachers confirm independently; each can untick their own confirmation without removing the other. Class grids show separate gold learner and green teacher ticks, use module pills and omit the paging footer. Class cards omit the count line. Teachers and admins access personal cards from the side menu, without a Learn row. Migration 0015 preserves every existing progress row while removing the learner-first constraint. [Release details](docs/ACADEMY-INDEPENDENT-CONFIRMATIONS-106.26.md).
+
 # V106.25 — Compact Progress Admin settings
 
 Narrow the Programs and Courses table and align every inclusion switch and learner-limit control in consistent columns. Long names wrap without moving the switches; mobile layouts keep the switches aligned. No database changes are required. Affected regressions, synthetic Chrome checks at seven desktop/mobile widths, control saves and the Worker dry-run build pass. [Release details](docs/ACADEMY-PROGRESS-SETTINGS-106.25.md).

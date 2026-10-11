@@ -285,7 +285,7 @@
       link('Programs', global ? '/programs/' : row.kind === 'PROGRAM' && row.id ? `/programs/timetable.html?program=${encodeURIComponent(row.id)}` : '') +
       link('Courses', global || row.kind !== 'PROGRAM' ? '/academy/courses/manage/' : '') + (row.kind==='PROGRAM'?link('Surahs and Duas',`#progress-admin/PROGRAM/${encodeURIComponent(row.id)}`):'') + tool('Academy','academy')) : '') +
       (staff ? group('Teach', hifzHelper + (row.kind === 'PROGRAM' ? `<a href="${activityHref(row)}/attendance" aria-expanded="${location.hash.endsWith('/attendance')}" aria-controls="pa-main">Attendance</a>` + link('Surahs and Duas',`${activityHref(row)}/surahs-duas`) : tool('Attendance','attendance')) + tool('Assessment','assessment') + tool('Planning','plan') + tool('Announcements','announcements') + link('My Timetable','#timetable') + link('Edit availability','/academy/teaching/')) : '') +
-      (admin || learner || staff ? group('Learn', (!staff?hifzHelper:'') + link('Library','/academy/library/') + (state.home?.memorisationActive!==false?link('Surahs and Duas','#progress'):'') + tool('My Assessment','assessment') + tool('Calendar','calendar') + tool('Announcements','announcements') + link('My Timetable','#timetable')) : '');
+      (learner && !staff ? group('Learn', (!staff?hifzHelper:'') + link('Library','/academy/library/') + (state.home?.memorisationActive!==false?link('Surahs and Duas','#progress'):'') + tool('My Assessment','assessment') + tool('Calendar','calendar') + tool('Announcements','announcements') + link('My Timetable','#timetable')) : '');
   }
 
   function syncMemorisation(row){
