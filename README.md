@@ -1,3 +1,7 @@
+# V106.31 — Memorisation set catalogue
+
+Surahs and Duas sets now have their own catalogue, separate from curriculum modules. Progress Admin, personal cards and class grids use set terminology; SetName uploads and older ModuleName lists both work. Existing learner marks, independent teacher confirmations and access settings are preserved. [Release details](docs/ACADEMY-MEMORISATION-SETS-106.31.md).
+
 # V106.30 — MOU lesson media demo
 
 Current Mothers of the Ummah students can open the 6–8 October recordings and private PDF notes from the Program page. Assigned teachers and admins can edit summaries and attachments and curate student comments. The ribbon loads once when opened, with a manual refresh. [Release details](docs/MOU-LESSON-MEDIA-106.30.md).

@@ -10,13 +10,13 @@ const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
 const login=async(env,suffix)=>ok(await post(env,'/api/account/login',{uniqueid:'login-'+suffix,pin:'1234'})).token;
 async function use(fn){const f=await memorisationFixture(),previous=globalThis.fetch;globalThis.fetch=async()=>{throw Error('Unexpected external call');};try{await fn(f);assert.deepEqual(f.db.prepare('PRAGMA foreign_key_check').all(),[]);assert.equal(f.db.prepare('SELECT count(*) n FROM academy_write_guards').get().n,0);}finally{f.db.close();globalThis.fetch=previous;}}
 const update=(task,revision=0,complete=true)=>({taskId:task,revision,complete});
-test('workbook tasks seed shared modules without invented learner progress',()=>use(async({env,db,queries})=>{
+test('workbook tasks seed independent sets without invented learner progress',()=>use(async({env,db,queries})=>{
   const student=await login(env,'0002'),before=queries.length,data=ok(await post(env,'get',{},student));
   assert.equal(data.modules.length,12);assert.equal(data.modules.flatMap(m=>m.tasks).length,120);assert.equal(data.records.length,0);assert.equal(data.student,true);
   assert.ok(queries.length-before<25,'Progress uses bounded, scoped reads');
   const source=JSON.parse(readFileSync(new URL('../data/academy-memorisation-modules.json',import.meta.url)));
   for(const m of source.modules)assert.deepEqual(data.modules.find(c=>c.name===m.name).tasks.map(t=>t.name),m.tasks);
-  assert.equal(db.prepare('SELECT count(*) n FROM memorisation_modules m JOIN academy_module_catalogue c USING(module_id)').get().n,12);
+  assert.equal(db.prepare('SELECT count(*) n FROM memorisation_sets m JOIN academy_module_catalogue c ON c.module_id=m.set_id').get().n,0);
   assert.equal((await post(env,'get')).status,401);
 }));
 test('learner and teacher confirmations are independent in either order, with exact retries and scoped authority',()=>use(async({env,db})=>{
@@ -94,7 +94,7 @@ test('Global Admin imports classify modules, exact retries and matching replacem
   assert.equal((await post(env,'import',input,teacher)).status,403);
   assert.equal((await post(env,'import',{...input,modules:[{...input.modules[0],subject:'OTHER'}]},admin)).status,400);
   assert.equal((await post(env,'import',{...input,modules:[{...input.modules[0],tasks:['Repeat','repeat']}]},admin)).status,400);
-  assert.equal(db.prepare('SELECT count(*) n FROM memorisation_modules').get().n,12);
+  assert.equal(db.prepare('SELECT count(*) n FROM memorisation_sets').get().n,12);
   ok(await post(env,'import',input,admin));assert.equal(ok(await post(env,'import',input,admin)).replayed,true);
   const next=ok(await post(env,'get',{},student)),m=next.modules.find(m=>m.name==='New duas'),other=next.modules.find(m=>m.name==='Surahs 1');
   ok(await post(env,'mark',{catalogueRevision:next.revision,updates:[update(m.tasks[0].id),update(other.tasks[0].id)],operationId:crypto.randomUUID()},student));
@@ -201,3 +201,69 @@ test('admin exclusions remove class grids and configurable card limits paginate 
   assert.equal(ok(await post(env,'get',{},student)).records.length,1);
   ok(await post(env,'activity-active',{...setting,active:true,learnersPerCard:10,revision:2,operationId:crypto.randomUUID()},admin));assert.equal(ok(await post(env,'grid',input,teacher)).pageSize,10);
 }));
+
+test('set separation preserves every item, progress field, restriction and personal/class setting',async()=>{
+  const f=await memorisationFixture({separateSets:false}),{db,env}=f;
+  try{
+    const time='2026-10-01T09:00:00Z';
+    for(const [n,complete,confirmed] of [[1,1,1],[2,0,1],[3,1,0]])db.prepare('INSERT INTO learner_task_progress VALUES(?,?,?,?,?,?,?,?,?)').run('account-0002','MEM-SURAHS-1-0'+n,complete,confirmed,7+n,complete?time:null,confirmed?time:null,confirmed?'account-0003':null,time);
+    db.prepare('INSERT INTO memorisation_module_activities VALUES(?,?)').run('MEM-SURAHS-1',scope);
+    db.prepare('INSERT INTO memorisation_account_settings VALUES(?,0,4,?,?)').run('account-0001',time,'account-0001');
+    db.prepare('INSERT INTO memorisation_activity_settings VALUES(?,5,1,3,?,?)').run(scope,time,'account-0001');
+    // A genuine curriculum use must survive, even when the original tracker reused it.
+    db.prepare("UPDATE academy_module_usage SET academy_module_id='MEM-DUAS-1' WHERE rowid IN(SELECT rowid FROM academy_module_usage LIMIT 1)").run();
+    assert.equal(db.prepare("SELECT count(*) n FROM academy_module_usage WHERE academy_module_id='MEM-DUAS-1'").get().n,1);
+    db.prepare("UPDATE academy_module_catalogue SET active=0 WHERE module_id='MEM-SURAHS-2'").run();
+    const progress=db.prepare('SELECT * FROM learner_task_progress ORDER BY task_id').all(),tasks=db.prepare('SELECT * FROM memorisation_tasks ORDER BY task_id').all(),cards=db.prepare('SELECT * FROM memorisation_account_settings').all(),areas=db.prepare('SELECT * FROM memorisation_activity_settings').all(),revision=db.prepare('SELECT revision FROM memorisation_catalogue_state').get().revision;
+    db.exec('BEGIN');db.exec(readFileSync(new URL('../migrations/academy/0019_memorisation_sets.sql',import.meta.url),'utf8'));db.exec('COMMIT');
+    assert.deepEqual(db.prepare('SELECT * FROM learner_task_progress ORDER BY task_id').all(),progress);
+    assert.deepEqual(db.prepare('SELECT * FROM memorisation_tasks ORDER BY task_id').all(),tasks);
+    assert.deepEqual(db.prepare('SELECT * FROM memorisation_account_settings').all(),cards);
+    assert.deepEqual(db.prepare('SELECT * FROM memorisation_activity_settings').all(),areas);
+    assert.equal(db.prepare('SELECT count(*) n FROM memorisation_sets').get().n,12);
+    assert.equal(db.prepare("SELECT active FROM memorisation_sets WHERE set_id='MEM-SURAHS-2'").get().active,0);
+    assert.deepEqual({...db.prepare('SELECT * FROM memorisation_set_activities').get()},{set_id:'MEM-SURAHS-1',activity_key:scope});
+    assert.equal(db.prepare('SELECT revision FROM memorisation_catalogue_state').get().revision,revision+1);
+    assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
+    assert.equal(db.prepare('PRAGMA integrity_check').get().integrity_check,'ok');
+    assert.equal(db.prepare('SELECT count(*) n FROM academy_module_catalogue WHERE module_id IN(SELECT set_id FROM memorisation_sets)').get().n,1);
+    const admin=await login(env,'0001'),cat=ok(await post(env,'get',{view:'admin'},admin)),m=cat.sets.find(s=>s.id==='MEM-DUAS-1');
+    const input={catalogueRevision:cat.revision,moduleId:m.id,name:'Renamed dua set',subject:m.subject,level:m.level,tasks:m.tasks,operationId:crypto.randomUUID()};
+    ok(await post(env,'set-save',input,admin));
+    assert.equal(db.prepare("SELECT name FROM academy_module_catalogue WHERE module_id='MEM-DUAS-1'").get().name,'Duas 1');
+    assert.equal(db.prepare("SELECT name FROM memorisation_sets WHERE set_id='MEM-DUAS-1'").get().name,'Renamed dua set');
+    assert.deepEqual(db.prepare('SELECT * FROM learner_task_progress ORDER BY task_id').all(),progress);
+  }finally{db.close();}
+});
+test('separation failure rolls the entire catalogue and saved progress back',async()=>{
+  const {db}=await memorisationFixture({separateSets:false});
+  try{
+    db.prepare("INSERT INTO learner_task_progress VALUES('account-0002','MEM-SURAHS-1-01',1,1,3,'2026-10-01','2026-10-01','account-0003','2026-10-01')").run();
+    const old=db.prepare('SELECT * FROM learner_task_progress').all();
+    db.exec("CREATE TRIGGER fail_separation BEFORE DELETE ON academy_module_catalogue BEGIN SELECT RAISE(ABORT,'synthetic migration failure'); END;");
+    db.exec('BEGIN');assert.throws(()=>db.exec(readFileSync(new URL('../migrations/academy/0019_memorisation_sets.sql',import.meta.url),'utf8')),/synthetic migration failure/);db.exec('ROLLBACK');
+    assert.equal(db.prepare('SELECT count(*) n FROM memorisation_modules').get().n,12);
+    assert.deepEqual(db.prepare('SELECT * FROM learner_task_progress').all(),old);
+    assert.equal(db.prepare("SELECT count(*) n FROM sqlite_master WHERE name='memorisation_sets'").get().n,0);
+    assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
+  }finally{db.close();}
+});
+test('set edits and new SetName uploads never write curriculum modules or subjects',()=>use(async({env,db})=>{
+  const admin=await login(env,'0001'),before=db.prepare('SELECT * FROM academy_module_catalogue ORDER BY module_id').all(),subjects=db.prepare('SELECT * FROM subject_catalog ORDER BY subject_key').all();
+  let cat=ok(await post(env,'get',{view:'admin'},admin));assert.deepEqual(cat.sets,cat.modules);
+  const existing=cat.sets[0],input={catalogueRevision:cat.revision,moduleId:existing.id,name:'My surah set',subject:'SURAHS',level:'Foundation',tasks:existing.tasks,operationId:crypto.randomUUID()};
+  const saved=ok(await post(env,'set-save',input,admin));assert.equal(saved.setId,existing.id);
+  assert.equal(ok(await post(env,'module-save',input,admin)).replayed,true,'Previous endpoint aliases keep exact retries');
+  cat=ok(await post(env,'get',{view:'admin'},admin));
+  ok(await post(env,'import',{catalogueRevision:cat.revision,sets:[{name:'My dua set',subject:'DUAS',level:'1',tasks:['A new dua']}],mode:'ADD',operationId:crypto.randomUUID()},admin));
+  assert.deepEqual(db.prepare('SELECT * FROM academy_module_catalogue ORDER BY module_id').all(),before);
+  assert.deepEqual(db.prepare('SELECT * FROM subject_catalog ORDER BY subject_key').all(),subjects);
+  const preview=await (await worker.fetch(new Request('http://localhost'+path+'preview'),env)).json();assert.deepEqual(preview.sets,preview.modules);assert.equal(preview.legacy,undefined);
+}));
+test('rolling upgrade keeps existing cards readable and defers set administration until migration',async()=>{
+  const f=await memorisationFixture({separateSets:false});
+  try{
+    const admin=await login(f.env,'0001'),cat=ok(await post(f.env,'get',{},admin));assert.equal(cat.sets.length,12);
+    const m=cat.sets[0];assert.equal((await post(f.env,'set-save',{catalogueRevision:cat.revision,moduleId:m.id,name:m.name,subject:m.subject,level:m.level,tasks:m.tasks,operationId:crypto.randomUUID()},admin)).body.code,'MEMORISATION_SCHEMA_REQUIRED');
+  }finally{f.db.close();}
+});

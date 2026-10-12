@@ -23,15 +23,26 @@ const text=(v,max,label)=>{if(typeof v!=='string'||!v.trim()||v.trim().length>ma
 async function memorisationCatalogue(db){
   const p=(sql,...v)=>db.prepare(sql).bind(...v);
     let result;
+    let legacy=false;
     try{result=await db.batch([p('SELECT revision FROM memorisation_catalogue_state WHERE singleton=1'),
-      p(`SELECT m.module_id,c.name,m.subject,m.level,m.sort_order FROM memorisation_modules m JOIN academy_module_catalogue c USING(module_id)
-         JOIN subject_catalog s USING(subject_key) WHERE c.active=1 AND s.active=1 ORDER BY m.subject DESC,m.sort_order,c.name LIMIT 201`),
-      p(`SELECT t.* FROM memorisation_tasks t JOIN memorisation_modules m USING(module_id) JOIN academy_module_catalogue c USING(module_id)
-         JOIN subject_catalog s USING(subject_key) WHERE c.active=1 AND s.active=1 ORDER BY t.sort_order LIMIT 5001`),p('SELECT module_id,activity_key FROM memorisation_module_activities')]);
-    }catch(e){if(/no such table: memorisation_/.test(e.message))throw fail('Memorisation progress is being prepared. Please try again shortly.',503,'MEMORISATION_SCHEMA_REQUIRED');throw e;}
+      p(`SELECT set_id module_id,name,subject,level,sort_order FROM memorisation_sets WHERE active=1 ORDER BY subject DESC,sort_order,name LIMIT 201`),
+      p(`SELECT t.* FROM memorisation_tasks t JOIN memorisation_sets s ON s.set_id=t.module_id WHERE s.active=1 ORDER BY t.sort_order LIMIT 5001`),
+      p('SELECT set_id module_id,activity_key FROM memorisation_set_activities')]);
+    }catch(e){
+      // Rolling upgrade: reads work with the previous schema until migration 0019.
+      if(!/no such table: memorisation_sets\b/.test(e.message)){
+        if(/no such table: memorisation_/.test(e.message))throw fail('Memorisation progress is being prepared. Please try again shortly.',503,'MEMORISATION_SCHEMA_REQUIRED');throw e;
+      }
+      legacy=true;
+      result=await db.batch([p('SELECT revision FROM memorisation_catalogue_state WHERE singleton=1'),
+        p(`SELECT m.module_id,c.name,m.subject,m.level,m.sort_order FROM memorisation_modules m JOIN academy_module_catalogue c USING(module_id)
+          JOIN subject_catalog s USING(subject_key) WHERE c.active=1 AND s.active=1 ORDER BY m.subject DESC,m.sort_order,c.name LIMIT 201`),
+        p(`SELECT t.* FROM memorisation_tasks t JOIN memorisation_modules m USING(module_id) JOIN academy_module_catalogue c USING(module_id)
+          JOIN subject_catalog s USING(subject_key) WHERE c.active=1 AND s.active=1 ORDER BY t.sort_order LIMIT 5001`),p('SELECT module_id,activity_key FROM memorisation_module_activities')]);
+    }
     if(!result[0].results.length)throw fail('Memorisation storage is unavailable.',503,'MEMORISATION_SCHEMA_REQUIRED');
     if(result[1].results.length>200||result[2].results.length>5000)throw fail('The memorisation catalogue needs to be split into smaller collections.',409);
-    return {revision:result[0].results[0].revision,modules:result[1].results.map(m=>({id:m.module_id,name:m.name,subject:m.subject,level:m.level,activityKeys:result[3].results.filter(a=>same(a.module_id,m.module_id)).map(a=>a.activity_key),
+    return {legacy,revision:result[0].results[0].revision,modules:result[1].results.map(m=>({id:m.module_id,name:m.name,subject:m.subject,level:m.level,activityKeys:result[3].results.filter(a=>same(a.module_id,m.module_id)).map(a=>a.activity_key),
       tasks:result[2].results.filter(t=>same(t.module_id,m.module_id)).map(t=>({id:t.task_id,name:t.name}))}))};
   }
 
@@ -39,7 +50,7 @@ const moduleInActivity=(m,activity)=>!m.activityKeys.length||m.activityKeys.some
 const moduleForUser=(m,allowed)=>!m.activityKeys.length||allowed===null||m.activityKeys.some(k=>allowed.some(a=>same(a,k)));
 export async function d1MemorisationPreview(repository){
   const cat=await memorisationCatalogue(repository.db),modules=cat.modules.filter(m=>!m.activityKeys.length).map(({activityKeys,...m})=>m);
-  return {modules,visitor:true,accountId:'VISITOR',student:true,personalActive:true,canImport:false,classes:[],records:[],store:'PREVIEW'};
+  return {sets:modules,modules,visitor:true,accountId:'VISITOR',student:true,personalActive:true,canImport:false,classes:[],records:[],store:'PREVIEW'};
 }
 
 export function d1Memorisation(repository,auth) {
@@ -59,10 +70,10 @@ export function d1Memorisation(repository,auth) {
     WHERE a.kind IN ('PROGRAM','COURSE') AND a.active=1 AND a.lifecycle='ACTIVE' ORDER BY a.kind DESC,a.name`).all()).results.map(a=>({id:a.activity_key,kind:a.kind,name:a.name,active:Boolean(a.progress_active),revision:a.revision,learnersPerCard:a.learners_per_card})))();}
   async function assignments(value,fallback=[]){
     const keys=value===undefined?fallback:value;
-    if(!Array.isArray(keys)||keys.length>200||keys.some(k=>typeof k!=='string'||k.length>200)||new Set(keys.map(k=>k.toUpperCase())).size!==keys.length)throw fail('Choose valid Programs or Courses for this module.');
+    if(!Array.isArray(keys)||keys.length>200||keys.some(k=>typeof k!=='string'||k.length>200)||new Set(keys.map(k=>k.toUpperCase())).size!==keys.length)throw fail('Choose valid Programs or Courses for this set.');
     const choices=await activityOptions();return keys.map(k=>{const a=choices.find(a=>same(a.id,k));if(!a)throw fail('Choose a current Program or Course.');return a.id;});
   }
-  function assignmentStatements(moduleId,keys){return [p('DELETE FROM memorisation_module_activities WHERE module_id=?',moduleId),p(`INSERT INTO memorisation_module_activities(module_id,activity_key) SELECT ?,value FROM json_each(?)`,moduleId,JSON.stringify(keys))];}
+  function assignmentStatements(moduleId,keys){return [p('DELETE FROM memorisation_set_activities WHERE set_id=?',moduleId),p(`INSERT INTO memorisation_set_activities(set_id,activity_key) SELECT ?,value FROM json_each(?)`,moduleId,JSON.stringify(keys))];}
   function roster(scope,classId){
     return p(`SELECT DISTINCT a.account_id,a.display_name FROM accounts a WHERE a.active=1 AND
      (EXISTS(SELECT 1 FROM (${rolesSQL}) r WHERE r.account_id=a.account_id AND r.activity_key=? AND r.role='STUDENT')
@@ -119,7 +130,7 @@ export function d1Memorisation(repository,auth) {
     if(!Array.isArray(input.updates)||!input.updates.length||input.updates.length>100)throw fail('Save between 1 and 100 task changes together.');
     const scope=review?`${input.activityKey}:${input.classId}`:`LEARNER:${actor}`;
     return change(action,input,scope,async()=>{
-      const cat=await catalogue();if(input.catalogueRevision!==cat.revision)throw fail('The module list changed. Refresh before saving.',409,'CATALOGUE_CHANGED');
+      const cat=await catalogue();if(input.catalogueRevision!==cat.revision)throw fail('The set list changed. Refresh before saving.',409,'CATALOGUE_CHANGED');
       if(review)await requireClass(input);else if(!await isStudent())throw fail('Your personal memorisation card is inactive.',403,'FORBIDDEN');
       const members=review?(await roster(input.activityKey,input.classId).all()).results:null;
       const allowed=review?null:await accessibleActivities();
@@ -151,86 +162,80 @@ export function d1Memorisation(repository,auth) {
     });
   }
   async function upload(input){
-    if(!auth.state.account.global_admin)throw fail('Module uploads require a Global Admin.',403,'FORBIDDEN');
+    if(!auth.state.account.global_admin)throw fail('Set uploads require a Global Admin.',403,'FORBIDDEN');
     return change('import',input,'ACADEMY',async()=>{
-      const cat=await catalogue();if(input.catalogueRevision!==cat.revision)throw fail('The module list changed. Refresh before importing.',409,'CATALOGUE_CHANGED');
-      if(!Array.isArray(input.modules)||!input.modules.length||input.modules.length>30||!['ADD','REPLACE'].includes(input.mode))throw fail('Upload 1 to 30 modules and choose an import option.');
+      const cat=await catalogue();if(input.catalogueRevision!==cat.revision)throw fail('The set list changed. Refresh before importing.',409,'CATALOGUE_CHANGED');
+      const imported=input.sets??input.modules;
+      if(!Array.isArray(imported)||!imported.length||imported.length>30||!['ADD','REPLACE'].includes(input.mode))throw fail('Upload 1 to 30 sets and choose an import option.');
       let taskCount=0;const seen=new Set(),statements=[],resultModules=[],moduleRows=[],taskRows=[],replaceIds=[],accessRows=[];
-      const subjects=(await p("SELECT subject_key,name FROM subject_catalog WHERE source_namespace='ACADEMY' AND lower(trim(name)) IN ('surahs','duas') AND active=1").all()).results;
-      const existing=(await p(`SELECT c.*,EXISTS(SELECT 1 FROM memorisation_modules m WHERE m.module_id=c.module_id) registered
-        FROM academy_module_catalogue c WHERE c.subject_key IN(SELECT value FROM json_each(?))
-        AND c.name_key IN(SELECT lower(trim(json_extract(value,'$.name'))) FROM json_each(?))`,JSON.stringify(subjects.map(s=>s.subject_key)),JSON.stringify(input.modules)).all()).results;
-      for(const m of input.modules){
-        if(!m||typeof m!=='object'||Array.isArray(m))throw fail('A module is invalid.');
-        const name=text(m.name,160,'a module name'),level=text(m.level,60,'a level'),subject=m.subject;
-        if(!['SURAHS','DUAS'].includes(subject)||!Array.isArray(m.tasks)||!m.tasks.length||m.tasks.length>100)throw fail('Each module needs a subject and between 1 and 100 tasks.');
+      if(cat.legacy)throw fail('The set catalogue is being prepared. Please try again shortly.',503,'MEMORISATION_SCHEMA_REQUIRED');
+      const existing=(await p(`SELECT set_id module_id,name_key,subject FROM memorisation_sets
+        WHERE name_key IN(SELECT lower(trim(json_extract(value,'$.name'))) FROM json_each(?))`,JSON.stringify(imported)).all()).results;
+      for(const m of imported){
+        if(!m||typeof m!=='object'||Array.isArray(m))throw fail('A set is invalid.');
+        const name=text(m.name,160,'a set name'),level=text(m.level,60,'a level'),subject=m.subject;
+        if(!['SURAHS','DUAS'].includes(subject)||!Array.isArray(m.tasks)||!m.tasks.length||m.tasks.length>100)throw fail('Each set needs a subject and between 1 and 100 tasks.');
         taskCount+=m.tasks.length;if(taskCount>500)throw fail('Upload at most 500 tasks together.');
-        const key=`${subject}:${name.toLowerCase()}`;if(seen.has(key))throw fail('A module occurs more than once in this upload.');seen.add(key);
-        const subjectRow=subjects.find(s=>s.name.trim().toUpperCase()===subject);
-        if(!subjectRow)throw fail(`Create the ${subject==='SURAHS'?'Surahs':'Duas'} Subject in Subjects & Modules before importing.`,409);
-        const current=existing.find(c=>same(c.subject_key,subjectRow.subject_key)&&c.name_key===name.toLowerCase()),registered=current?.registered;
-        if(registered&&input.mode!=='REPLACE')throw fail(`${name} already exists. Choose Replace matching modules to reset its task list.`,409,'MODULE_EXISTS');
-        const id=current?.module_id||'AM-'+crypto.randomUUID();
+        const key=`${subject}:${name.toLowerCase()}`;if(seen.has(key))throw fail('A set occurs more than once in this upload.');seen.add(key);
+        const current=existing.find(c=>c.subject===subject&&c.name_key===name.toLowerCase()),registered=Boolean(current);
+        if(registered&&input.mode!=='REPLACE')throw fail(`${name} already exists. Choose Replace matching sets to reset its item list.`,409,'MODULE_EXISTS');
+        const id=current?.module_id||'MS-'+crypto.randomUUID();
         const access=await assignments(m.activityKeys,cat.modules.find(m=>m.id===id)?.activityKeys||[]);accessRows.push(...access.map(activityKey=>({moduleId:id,activityKey})));
         if(registered)replaceIds.push(id);
-        moduleRows.push({id,subjectKey:subjectRow.subject_key,name,nameKey:name.toLowerCase(),subject,level,sortOrder:cat.modules.findIndex(m=>m.id===id)>=0?cat.modules.findIndex(m=>m.id===id):cat.modules.length+resultModules.length});
+        moduleRows.push({id,name,nameKey:name.toLowerCase(),subject,level,sortOrder:cat.modules.findIndex(m=>m.id===id)>=0?cat.modules.findIndex(m=>m.id===id):cat.modules.length+resultModules.length});
         const names=new Set();m.tasks.forEach((t,i)=>{const task=text(t,240,'a task name');if(names.has(task.toLowerCase()))throw fail(`Repeated task in ${name}: ${task}`);names.add(task.toLowerCase());taskRows.push({id:'MT-'+crypto.randomUUID(),moduleId:id,name:task,sortOrder:i});});
         resultModules.push({id,name,tasks:m.tasks.length});
       }
-      if(cat.modules.length+resultModules.filter(m=>!cat.modules.some(c=>c.id===m.id)).length>200)throw fail('Keep the catalogue within 200 modules.');
+      if(cat.modules.length+resultModules.filter(m=>!cat.modules.some(c=>c.id===m.id)).length>200)throw fail('Keep the catalogue within 200 sets.');
       const retained=cat.modules.filter(m=>!resultModules.some(r=>r.id===m.id)).reduce((n,m)=>n+m.tasks.length,0);
       if(retained+taskCount>5000)throw fail('Keep the memorisation catalogue within 5,000 tasks.');
       statements.push(
-        p(`INSERT INTO academy_module_catalogue(module_id,subject_key,name,name_key,active,revision)
-          SELECT json_extract(value,'$.id'),json_extract(value,'$.subjectKey'),json_extract(value,'$.name'),json_extract(value,'$.nameKey'),1,1 FROM json_each(?) WHERE 1
-          ON CONFLICT(module_id) DO UPDATE SET active=1,revision=revision+CASE WHEN active=0 THEN 1 ELSE 0 END`,JSON.stringify(moduleRows)),
         p(`DELETE FROM learner_task_progress WHERE task_id IN(SELECT task_id FROM memorisation_tasks WHERE module_id IN(SELECT value FROM json_each(?)))`,JSON.stringify(replaceIds)),
         p('DELETE FROM memorisation_tasks WHERE module_id IN(SELECT value FROM json_each(?))',JSON.stringify(replaceIds)),
-        p(`INSERT INTO memorisation_modules(module_id,subject,level,sort_order) SELECT json_extract(value,'$.id'),json_extract(value,'$.subject'),json_extract(value,'$.level'),json_extract(value,'$.sortOrder') FROM json_each(?) WHERE 1
-          ON CONFLICT(module_id) DO UPDATE SET subject=excluded.subject,level=excluded.level`,JSON.stringify(moduleRows)),
+        p(`INSERT INTO memorisation_sets(set_id,name,name_key,subject,level,sort_order,active,revision)
+          SELECT json_extract(value,'$.id'),json_extract(value,'$.name'),json_extract(value,'$.nameKey'),json_extract(value,'$.subject'),json_extract(value,'$.level'),json_extract(value,'$.sortOrder'),1,1 FROM json_each(?) WHERE 1
+          ON CONFLICT(set_id) DO UPDATE SET name=excluded.name,name_key=excluded.name_key,subject=excluded.subject,level=excluded.level,active=1,revision=revision+1`,JSON.stringify(moduleRows)),
         p(`INSERT INTO memorisation_tasks(task_id,module_id,name,sort_order) SELECT json_extract(value,'$.id'),json_extract(value,'$.moduleId'),json_extract(value,'$.name'),json_extract(value,'$.sortOrder') FROM json_each(?)`,JSON.stringify(taskRows)));
-      statements.push(p(`DELETE FROM memorisation_module_activities WHERE module_id IN(SELECT json_extract(value,'$.id') FROM json_each(?))`,JSON.stringify(moduleRows)),p(`INSERT INTO memorisation_module_activities(module_id,activity_key) SELECT json_extract(value,'$.moduleId'),json_extract(value,'$.activityKey') FROM json_each(?)`,JSON.stringify(accessRows)),p('UPDATE memorisation_catalogue_state SET revision=revision+1 WHERE singleton=1'));
-      return {statements,result:{modules:resultModules,catalogueRevision:cat.revision+1,store:'D1'},authoritySQL:adminSQL,authorityValues:[actor],authority:'GLOBAL_ADMIN',fields:['MemorisationModules',input.mode]};
+      statements.push(p(`DELETE FROM memorisation_set_activities WHERE set_id IN(SELECT json_extract(value,'$.id') FROM json_each(?))`,JSON.stringify(moduleRows)),p(`INSERT INTO memorisation_set_activities(set_id,activity_key) SELECT json_extract(value,'$.moduleId'),json_extract(value,'$.activityKey') FROM json_each(?)`,JSON.stringify(accessRows)),p('UPDATE memorisation_catalogue_state SET revision=revision+1 WHERE singleton=1'));
+      return {statements,result:{sets:resultModules,modules:resultModules,catalogueRevision:cat.revision+1,store:'D1'},authoritySQL:adminSQL,authorityValues:[actor],authority:'GLOBAL_ADMIN',fields:['MemorisationSets',input.mode]};
     });
   }
   async function editModule(input){
-    if(!auth.state.account.global_admin)throw fail('Shared module editing requires a Global Admin.',403,'FORBIDDEN');
+    if(!auth.state.account.global_admin)throw fail('Shared set editing requires a Global Admin.',403,'FORBIDDEN');
     return change('module-save',input,'ACADEMY',async()=>{
-      const cat=await catalogue();if(input.catalogueRevision!==cat.revision)throw fail('The module list changed. Refresh and review your edits.',409,'CATALOGUE_CHANGED');
+      const cat=await catalogue();if(input.catalogueRevision!==cat.revision)throw fail('The set list changed. Refresh and review your edits.',409,'CATALOGUE_CHANGED');
       const old=input.moduleId?cat.modules.find(m=>same(m.id,input.moduleId)):null;
-      if(input.moduleId&&!old)throw fail('This module is no longer available.',409,'MODULE_CHANGED');
+      if(input.moduleId&&!old)throw fail('This set is no longer available.',409,'MODULE_CHANGED');
       const activityKeys=await assignments(input.activityKeys,old?.activityKeys||[]);
-      const name=text(input.name,160,'a module name'),level=text(input.level,60,'a level'),subject=input.subject;
+      const name=text(input.name,160,'a set name'),level=text(input.level,60,'a level'),subject=input.subject;
       if(!['SURAHS','DUAS'].includes(subject)||!Array.isArray(input.tasks)||!input.tasks.length||input.tasks.length>100)throw fail('Choose a subject and include 1 to 100 items.');
-      const s=await p("SELECT subject_key FROM subject_catalog WHERE source_namespace='ACADEMY' AND lower(trim(name))=? AND active=1",subject.toLowerCase()).first();
-      if(!s)throw fail('Create the Subject in Subjects & Modules first.',409);
-      const id=old?.id||'AM-'+crypto.randomUUID(),collision=await p('SELECT module_id FROM academy_module_catalogue WHERE subject_key=? AND name_key=? AND module_id<>?',s.subject_key,name.toLowerCase(),id).first();
-      if(collision)throw fail('A module with this name already exists in this subject.',409,'MODULE_EXISTS');
-      if(!old&&cat.modules.length>=200)throw fail('Keep the catalogue within 200 modules.');
+      if(cat.legacy)throw fail('The set catalogue is being prepared. Please try again shortly.',503,'MEMORISATION_SCHEMA_REQUIRED');
+      const id=old?.id||'MS-'+crypto.randomUUID(),collision=await p('SELECT set_id FROM memorisation_sets WHERE subject=? AND name_key=? AND set_id<>?',subject,name.toLowerCase(),id).first();
+      if(collision)throw fail('A set with this name already exists in this subject.',409,'MODULE_EXISTS');
+      if(!old&&cat.modules.length>=200)throw fail('Keep the catalogue within 200 sets.');
       const used=new Set(),rows=input.tasks.map((t,i)=>{
         if(!t||typeof t!=='object')throw fail('An item is invalid.');
         if(t.id&&(!old?.tasks.some(o=>o.id===t.id)||used.has(t.id)))throw fail('An edited item is invalid.');
         if(t.id)used.add(t.id);
-        const target=t.moduleId||id;if(target!==id&&!cat.modules.some(m=>m.id===target))throw fail('Choose a current destination module.');
+        const target=t.moduleId||id;if(target!==id&&!cat.modules.some(m=>m.id===target))throw fail('Choose a current destination set.');
         return {id:t.id||'MT-'+crypto.randomUUID(),moduleId:target,name:text(t.name,240,'an item name'),sortOrder:target===id?i:(cat.modules.find(m=>m.id===target)?.tasks.length||0)+i};
       });
       const removed=(old?.tasks||[]).filter(t=>!used.has(t.id)).map(t=>t.id);
       if(removed.length&&!input.confirmRemoval)throw fail('Confirm the removal of these items and their saved progress.');
       const remaining=cat.modules.flatMap(m=>m.tasks.filter(t=>m.id!==id).map(t=>({id:t.id,moduleId:m.id,name:t.name}))).concat(rows),names=new Set();
-      for(const t of remaining){const k=t.moduleId+':'+t.name.toLowerCase();if(names.has(k))throw fail('An item name is repeated in its destination module.');names.add(k);}
+      for(const t of remaining){const k=t.moduleId+':'+t.name.toLowerCase();if(names.has(k))throw fail('An item name is repeated in its destination set.');names.add(k);}
       if(remaining.length>5000)throw fail('Keep the catalogue within 5,000 items.');
-      for(const target of new Set(rows.map(t=>t.moduleId)))if(remaining.filter(t=>t.moduleId===target).length>100)throw fail('Keep each module within 100 items.');
-      if(!rows.some(t=>t.moduleId===id))throw fail('Keep at least one item in this module.');
-      const statements=[p(`INSERT INTO academy_module_catalogue(module_id,subject_key,name,name_key,active,revision) VALUES(?,?,?,?,1,1)
-        ON CONFLICT(module_id) DO UPDATE SET subject_key=excluded.subject_key,name=excluded.name,name_key=excluded.name_key,revision=revision+1`,id,s.subject_key,name,name.toLowerCase()),
-        p(`INSERT INTO memorisation_modules(module_id,subject,level,sort_order) VALUES(?,?,?,?) ON CONFLICT(module_id) DO UPDATE SET subject=excluded.subject,level=excluded.level`,id,subject,level,old?cat.modules.findIndex(m=>m.id===id):cat.modules.length),
+      for(const target of new Set(rows.map(t=>t.moduleId)))if(remaining.filter(t=>t.moduleId===target).length>100)throw fail('Keep each set within 100 items.');
+      if(!rows.some(t=>t.moduleId===id))throw fail('Keep at least one item in this set.');
+      const statements=[p(`INSERT INTO memorisation_sets(set_id,name,name_key,subject,level,sort_order,active,revision) VALUES(?,?,?,?,?,?,1,1)
+        ON CONFLICT(set_id) DO UPDATE SET name=excluded.name,name_key=excluded.name_key,subject=excluded.subject,level=excluded.level,revision=revision+1`,id,name,name.toLowerCase(),subject,level,old?cat.modules.findIndex(m=>m.id===id):cat.modules.length),
         p('DELETE FROM learner_task_progress WHERE task_id IN(SELECT value FROM json_each(?))',JSON.stringify(removed)),
         p('DELETE FROM memorisation_tasks WHERE task_id IN(SELECT value FROM json_each(?))',JSON.stringify(removed)),
         p("UPDATE memorisation_tasks SET name='__editing_'||task_id WHERE task_id IN(SELECT value FROM json_each(?))",JSON.stringify([...used])),
         p(`INSERT INTO memorisation_tasks(task_id,module_id,name,sort_order) SELECT json_extract(value,'$.id'),json_extract(value,'$.moduleId'),json_extract(value,'$.name'),json_extract(value,'$.sortOrder') FROM json_each(?) WHERE 1
           ON CONFLICT(task_id) DO UPDATE SET module_id=excluded.module_id,name=excluded.name,sort_order=excluded.sort_order`,JSON.stringify(rows)),
         ...assignmentStatements(id,activityKeys),p('UPDATE memorisation_catalogue_state SET revision=revision+1 WHERE singleton=1')];
-      return {statements,result:{moduleId:id,catalogueRevision:cat.revision+1,removed:removed.length,store:'D1'},authoritySQL:adminSQL,authorityValues:[actor],authority:'GLOBAL_ADMIN',fields:['ModuleName','Subject','Level','Tasks','ModuleAccess']};
+      return {statements,result:{setId:id,moduleId:id,catalogueRevision:cat.revision+1,removed:removed.length,store:'D1'},authoritySQL:adminSQL,authorityValues:[actor],authority:'GLOBAL_ADMIN',fields:['SetName','Subject','Level','Tasks','SetAccess']};
     });
   }
   async function userCards(input){
@@ -270,7 +275,7 @@ export function d1Memorisation(repository,auth) {
   }
   return {async run(action,input){
     if(action==='activity-active')return setActivity(input);
-    if(action==='module-save')return editModule(input);
+    if(action==='module-save'||action==='set-save')return editModule(input);
     if(action==='cards')return userCards(input);
     if(action==='card-active')return setCard(input);
     if(['mark','confirm'].includes(action))return save(action,input);
@@ -283,22 +288,22 @@ export function d1Memorisation(repository,auth) {
       const scopedAdmins=(await p(`SELECT DISTINCT r.activity_key FROM (${rolesSQL}) r JOIN activities a USING(activity_key)
         WHERE r.account_id=? AND r.role='PROGRAM_ADMIN' AND a.active=1 AND a.lifecycle='ACTIVE'`,actor).all()).results;
       const canAdmin=Boolean(auth.state.account.global_admin||scopedAdmins.some(a=>activityKey?same(a.activity_key,activityKey):input.kind==='COURSE'?a.activity_key.startsWith('COURSE:'):true));
-      if(view==='admin'&&!canAdmin)throw fail('Module administration requires an authorised administrator.',403,'FORBIDDEN');
+      if(view==='admin'&&!canAdmin)throw fail('Set administration requires an authorised administrator.',403,'FORBIDDEN');
       const groups=view==='teach'?(await classes()).filter(c=>activityKey?same(c.activity_key,activityKey):input.kind==='COURSE'?c.activity_key.startsWith('COURSE:'):true).sort((a,b)=>a.name.localeCompare(b.name)):[];
       if(!student&&!groups.length&&!auth.state.account.global_admin&&setting?.active!==0&&view!=='admin')throw fail('Progress is available to Academy students and their teaching teams.',403,'FORBIDDEN');
       const allowed=await accessibleActivities(),visible=cat.modules.filter(m=>view==='admin'&&auth.state.account.global_admin?true:view==='teach'?groups.some(c=>moduleInActivity(m,c.activity_key)):moduleForUser(m,allowed));
       const visibleTasks=new Set(visible.flatMap(m=>m.tasks.map(t=>t.id))),counts=await classCounts(groups);
-      return {...cat,modules:visible,...(view==='admin'&&auth.state.account.global_admin?{activities:await activityOptions()}:{}),accountId:actor,student,personalActive:setting?.active!==0,canImport:view==='admin'&&Boolean(auth.state.account.global_admin),classes:groups.map(c=>({activityKey:c.activity_key,id:c.class_id,name:c.name,activityName:c.activity_name,learnersPerCard:c.learners_per_card,learnerCount:counts.find(n=>same(n.activity_key,c.activity_key)&&same(n.class_id,c.class_id))?.total||0})),
+      return {revision:cat.revision,sets:visible,modules:visible,...(view==='admin'&&auth.state.account.global_admin?{activities:await activityOptions()}:{}),accountId:actor,student,personalActive:setting?.active!==0,canImport:view==='admin'&&Boolean(auth.state.account.global_admin),classes:groups.map(c=>({activityKey:c.activity_key,id:c.class_id,name:c.name,activityName:c.activity_name,learnersPerCard:c.learners_per_card,learnerCount:counts.find(n=>same(n.activity_key,c.activity_key)&&same(n.class_id,c.class_id))?.total||0})),
         records:view==='self'&&student?(await p('SELECT * FROM learner_task_progress WHERE account_id=?',actor).all()).results.filter(r=>visibleTasks.has(r.task_id)).map(progressDTO):[],store:'D1'};
     }
     if(action==='grid'){
-      const classInfo=await requireClass(input);const module=cat.modules.find(m=>m.id===input.moduleId&&moduleInActivity(m,input.activityKey));if(!module)throw fail('Choose a memorisation module.',404);
+      const classInfo=await requireClass(input);const module=cat.modules.find(m=>m.id===input.moduleId&&moduleInActivity(m,input.activityKey));if(!module)throw fail('Choose a memorisation set.',404);
       const offset=Number(input.offset||0);if(!Number.isInteger(offset)||offset<0||offset>10000)throw fail('Choose a valid class page.');
       const members=(await roster(input.activityKey,input.classId).all()).results.sort((a,b)=>a.display_name.localeCompare(b.display_name));
       if(members.length>10000)throw fail('This class is too large. Split it into smaller classes before using the grid.',409);
       const pageSize=classInfo.learners_per_card,page=members.slice(offset,offset+pageSize),ids=JSON.stringify(page.map(a=>a.account_id));
       const records=(await p(`SELECT p.* FROM learner_task_progress p JOIN memorisation_tasks t USING(task_id) WHERE t.module_id=? AND p.account_id IN(SELECT value FROM json_each(?))`,module.id,ids).all()).results;
-      return {catalogueRevision:cat.revision,module,learners:page.map(a=>({id:a.account_id,name:a.display_name})),records:records.map(progressDTO),pageSize,offset,total:members.length,store:'D1'};
+      return {catalogueRevision:cat.revision,set:module,module,learners:page.map(a=>({id:a.account_id,name:a.display_name})),records:records.map(progressDTO),pageSize,offset,total:members.length,store:'D1'};
     }
     throw fail('Unknown memorisation action.',404);
   }};

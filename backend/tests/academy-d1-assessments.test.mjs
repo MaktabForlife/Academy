@@ -9,6 +9,7 @@ test('scheduling resolves active Academy subjects and modules while retaining ex
  f.db.prepare("INSERT INTO academy_module_catalogue VALUES('ASSESSMENT-MODULE',?,'Qasas module','qasas module',1,1)").run(key);
  f.db.prepare("INSERT INTO academy_module_catalogue VALUES('ASSESSMENT-ARCHIVED',?,'Old module','old module',0,1)").run(key);
  const options=ok(await f.call('list',{view:'admin'},admin)).catalogue;
+ assert.ok(options.every(o=>!o.key.startsWith('MODULE:ACADEMY:MEM-')),'Memorisation sets are absent from assessment curriculum choices');
  assert.ok(options.some(c=>c.key==='SUBJECT:'+key&&c.label==='Qasas'));
  assert.ok(options.some(c=>c.key==='MODULE:ACADEMY:ASSESSMENT-MODULE'&&c.label==='Qasas · Qasas module'));
  assert.ok(!options.some(c=>c.key.includes('ARCHIVED')));

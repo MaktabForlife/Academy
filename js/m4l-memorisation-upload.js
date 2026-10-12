@@ -1,5 +1,5 @@
-/* Reads a small ModuleName / TaskName workbook locally. No workbook is uploaded
-   until the reviewed, classified module list is explicitly saved. */
+/* Reads a small SetName / TaskName workbook locally. No workbook is uploaded
+   until the reviewed, classified set list is explicitly saved. */
 (() => {
   'use strict';
   const LIMIT=8*1024*1024;
@@ -11,12 +11,12 @@
     for(let i=bytes.length-22;i>=Math.max(0,bytes.length-65557);i--)if(v.getUint32(i,true)===0x06054b50){end=i;break;}
     if(end<0)throw Error('Choose an Excel .xlsx workbook.');
     const count=v.getUint16(end+10,true);let pos=v.getUint32(end+16,true),total=0;const entries=new Map();
-    if(count>300)throw Error('Choose a simple module list with fewer than 300 workbook files.');
+    if(count>300)throw Error('Choose a simple set list with fewer than 300 workbook files.');
     for(let i=0;i<count;i++){
       if(pos+46>bytes.length||v.getUint32(pos,true)!==0x02014b50)throw Error('The workbook is incomplete.');
       const flags=v.getUint16(pos+8,true),method=v.getUint16(pos+10,true),size=v.getUint32(pos+20,true),expanded=v.getUint32(pos+24,true),len=v.getUint16(pos+28,true),extra=v.getUint16(pos+30,true),comment=v.getUint16(pos+32,true),offset=v.getUint32(pos+42,true);
       const name=decoder.decode(bytes.slice(pos+46,pos+46+len));total+=expanded;
-      if(flags&1||![0,8].includes(method)||total>LIMIT||entries.has(name)||name.includes('..'))throw Error('Choose a simple, unencrypted module workbook smaller than 8 MB when opened.');
+      if(flags&1||![0,8].includes(method)||total>LIMIT||entries.has(name)||name.includes('..'))throw Error('Choose a simple, unencrypted set workbook smaller than 8 MB when opened.');
       entries.set(name,{method,size,expanded,offset});pos+=46+len+extra+comment;
     }
     return async name=>{
@@ -44,7 +44,7 @@
   }
   async function rows(file){
     if(/\.csv$/i.test(file.name)){if(file.size>2*1024*1024)throw Error('Choose a CSV smaller than 2 MB.');return csv(await file.text());}
-    if(!/\.xlsx$/i.test(file.name))throw Error('Choose an .xlsx or CSV module list.');
+    if(!/\.xlsx$/i.test(file.name))throw Error('Choose an .xlsx or CSV set list.');
     const read=await unzip(file),book=xml(await read('xl/workbook.xml')||''),rels=xml(await read('xl/_rels/workbook.xml.rels')||'');
     const sheet=tags(book,'sheet')[0],rel=tags(rels,'Relationship').find(r=>r.getAttribute('Id')===sheet?.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id'));
     const target=rel?.getAttribute('Target');if(!target||rel.getAttribute('TargetMode')==='External'||target.includes('..'))throw Error('The first worksheet could not be read.');
@@ -53,10 +53,10 @@
     const page=xml(await read(path)||''),out=[];
     for(const r of tags(page,'row')){
       const cells=[];for(const c of tags(r,'c')){
-        if(tags(c,'f').length)throw Error('Use plain text for module and task names; remove formulas from the list.');
+        if(tags(c,'f').length)throw Error('Use plain text for set and task names; remove formulas from the list.');
         const ref=c.getAttribute('r')||'',letters=/^[A-Z]+/.exec(ref)?.[0];if(!letters)throw Error('A worksheet cell has no position.');
         let index=0;for(const x of letters)index=index*26+x.charCodeAt(0)-64;index--;
-        if(index>10)throw Error('Use a simple list with ModuleName and TaskName columns.');
+        if(index>10)throw Error('Use a simple list with SetName and TaskName columns.');
         const type=c.getAttribute('t'),value=tags(c,'v')[0]?.textContent||'';
         cells[index]=type==='s'?strings[Number(value)]:type==='inlineStr'?tags(c,'t').map(t=>t.textContent).join(''):value;
       }
@@ -66,21 +66,21 @@
   }
   window.M4L_MEMORISATION_UPLOAD={async read(file){
     const data=(await rows(file)).filter(r=>r.some(v=>String(v??'').trim()));
-    const headers=(data.shift()||[]).map(v=>String(v).replace(/^\uFEFF/,'').trim().toLowerCase()),moduleCol=headers.indexOf('modulename'),taskCol=headers.indexOf('taskname'),subjectCol=headers.indexOf('subject'),levelCol=headers.indexOf('level');
-    if(moduleCol<0||taskCol<0)throw Error('The first row must contain ModuleName and TaskName. Optional columns: Subject and Level.');
-    const modules=new Map();
+    const headers=(data.shift()||[]).map(v=>String(v).replace(/^\uFEFF/,'').trim().toLowerCase()),moduleCol=headers.includes('setname')?headers.indexOf('setname'):headers.indexOf('modulename'),taskCol=headers.indexOf('taskname'),subjectCol=headers.indexOf('subject'),levelCol=headers.indexOf('level');
+    if(moduleCol<0||taskCol<0)throw Error('The first row must contain SetName and TaskName. Optional columns: Subject and Level.');
+    const sets=new Map();
     for(const [i,row] of data.entries()){
       const name=String(row[moduleCol]??'').trim(),task=String(row[taskCol]??'').trim();
-      if(!name||!task)throw Error(`Row ${i+2} needs both ModuleName and TaskName.`);
+      if(!name||!task)throw Error(`Row ${i+2} needs both SetName and TaskName.`);
       if(name.length>160||task.length>240)throw Error(`Shorten the name in row ${i+2}.`);
       const key=name.toLowerCase(),rawSubject=String(row[subjectCol]||'').trim().toUpperCase();
       const subject=['SURAHS','SURAH'].includes(rawSubject)?'SURAHS':['DUAS','DUA'].includes(rawSubject)?'DUAS':/^surahs?\b/i.test(name)?'SURAHS':/^duas?\b/i.test(name)?'DUAS':'';
       const level=String(row[levelCol]||/\d+$/.exec(name)?.[0]||'').trim();
-      if(!modules.has(key))modules.set(key,{name,subject,level,tasks:[]});
-      const m=modules.get(key);if(m.subject!==subject||m.level!==level)throw Error(`Keep Subject and Level consistent for ${name}.`);
+      if(!sets.has(key))sets.set(key,{name,subject,level,tasks:[]});
+      const m=sets.get(key);if(m.subject!==subject||m.level!==level)throw Error(`Keep Subject and Level consistent for ${name}.`);
       if(m.tasks.some(t=>t.toLowerCase()===task.toLowerCase()))throw Error(`Repeated task in ${name}: ${task}`);m.tasks.push(task);
-      if(m.tasks.length>100||modules.size>30)throw Error('Upload at most 30 modules, with at most 100 tasks in each.');
+      if(m.tasks.length>100||sets.size>30)throw Error('Upload at most 30 sets, with at most 100 tasks in each.');
     }
-    if(!modules.size)throw Error('The workbook has no tasks.');return [...modules.values()];
+    if(!sets.size)throw Error('The workbook has no tasks.');return [...sets.values()];
   }};
 })();
