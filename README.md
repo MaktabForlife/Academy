@@ -1,3 +1,7 @@
+# V106.28 — Assessment timetable and Academy subject selector
+
+Assessment scheduling uses active Academy subjects and modules, with existing entries preserved. Students and teachers see date-ordered class timetables; teachers open each paper for PDF moderation. Examiners can revise duration and total mark before release; changes return the paper for moderation. Remove the extra timezone header. No database migration or schedule import. [Release details](docs/ACADEMY-ASSESSMENT-TIMETABLE-106.28.md).
+
 # V106.27 — Assessment workflow and Arabic reports
 
 Add scoped assessment schedules, private PDF papers and answers in R2, independent moderation, Johannesburg 03:00 paper availability, authorised resubmissions, marking and separate marks/feedback/script releases. Teachers and students open assessments inside their Program or Course page; admins have a dedicated workspace. Arabic reports include class details and totals, with reusable picture/PDF designs. [Specification](docs/ASSESSMENT-SPEC.md), [progress and validation](docs/ASSESSMENT-PROGRESS.md), [release and activation](docs/ACADEMY-ASSESSMENTS-106.27.md).

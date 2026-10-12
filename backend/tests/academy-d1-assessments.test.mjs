@@ -4,6 +4,37 @@ import {assessmentFixture,assessmentScope as scope,pdf} from './fixtures/academy
 import {paperAvailable} from '../src/academy/d1/assessment-store.js';
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
 const op=()=>({operationId:crypto.randomUUID()});
+test('scheduling resolves active Academy subjects and modules while retaining existing draft labels',()=>use(async f=>{
+ const admin=await f.login('0001'),student=await f.login('0002'),key=f.db.prepare("SELECT subject_key FROM subject_catalog WHERE source_namespace='ACADEMY' AND name='Qasas'").get().subject_key;
+ f.db.prepare("INSERT INTO academy_module_catalogue VALUES('ASSESSMENT-MODULE',?,'Qasas module','qasas module',1,1)").run(key);
+ f.db.prepare("INSERT INTO academy_module_catalogue VALUES('ASSESSMENT-ARCHIVED',?,'Old module','old module',0,1)").run(key);
+ const options=ok(await f.call('list',{view:'admin'},admin)).catalogue;
+ assert.ok(options.some(c=>c.key==='SUBJECT:'+key&&c.label==='Qasas'));
+ assert.ok(options.some(c=>c.key==='MODULE:ACADEMY:ASSESSMENT-MODULE'&&c.label==='Qasas · Qasas module'));
+ assert.ok(!options.some(c=>c.key.includes('ARCHIVED')));
+ assert.deepEqual(ok(await f.call('list',{},student)).catalogue,[]);
+ const body={...op(),activityKey:scope,classId:'class-1',title:'Final assessment',examDate:'2026-10-12',durationMinutes:60,maximumMark:100};
+ assert.equal((await f.call('create',{...body,catalogueKey:'MODULE:ACADEMY:ASSESSMENT-ARCHIVED'},admin)).status,400);
+ assert.equal((await f.call('create',{...body,subject:'Invented subject'},admin)).status,400);
+ const id=ok(await f.call('create',{...body,catalogueKey:'MODULE:ACADEMY:ASSESSMENT-MODULE',subject:'Ignored input'},admin)).assessmentId;
+ assert.equal(ok(await f.call('get',{assessmentId:id},admin)).assessment.subject,'Qasas · Qasas module');
+ f.db.prepare("UPDATE assessments SET subject='Existing imported label' WHERE assessment_id=?").run(id);
+ ok(await f.call('save',{...body,...op(),assessmentId:id,revision:1,subject:'Existing imported label'},admin));
+ assert.equal(ok(await f.call('get',{assessmentId:id},admin)).assessment.subject,'Existing imported label');
+}));
+test('the examiner can revise paper details before release with renewed moderation and stale-edit protection',()=>use(async f=>{
+ const x=await setup(f);ok(await x.change('review-paper',{decision:'APPROVE'}));
+ assert.equal((await x.change('paper-details',{durationMinutes:90,maximumMark:120},x.student)).status,403);
+ assert.equal((await x.change('paper-details',{durationMinutes:90,maximumMark:120},x.admin)).status,403);
+ assert.equal((await x.change('paper-details',{durationMinutes:0,maximumMark:120},x.teacher)).status,400);
+ const revision=(await x.detail()).assessment.revision;
+ ok(await x.change('paper-details',{durationMinutes:90,maximumMark:120},x.teacher));
+ const a=(await x.detail()).assessment;assert.equal(a.durationMinutes,90);assert.equal(a.maximumMark,120);assert.equal(a.paperState,'IN_REVIEW');
+ assert.equal((await f.call('paper-details',{...op(),assessmentId:x.id,revision,durationMinutes:30,maximumMark:50},x.teacher)).status,409);
+ assert.equal(f.db.prepare("SELECT count(*) n FROM assessment_events WHERE assessment_id=? AND action='paper-details'").get(x.id).n,1);
+ await available(f,x);
+ assert.equal((await x.change('paper-details',{durationMinutes:30,maximumMark:50},x.teacher)).status,409);
+}));
 async function use(fn){const f=await assessmentFixture();try{await fn(f);assert.deepEqual(f.db.prepare('PRAGMA foreign_key_check').all(),[]);assert.equal(f.db.prepare('SELECT count(*) n FROM academy_write_guards').get().n,0);}finally{f.db.close();}}
 async function setup(f,{examDate='2026-01-01',examiner='0003'}={}){
  const admin=await f.login('0001'),teacher=await f.login(examiner),student=await f.login('0002'),other=await f.login('0008');

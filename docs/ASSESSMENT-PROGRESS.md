@@ -39,3 +39,9 @@ Specification: [ASSESSMENT-SPEC.md](ASSESSMENT-SPEC.md).
 V106.27 is the completed module for `feature/105.3.4.13`. The feature branch Git history is the delivery record. Remote branch was checked at b77286d immediately before this release; no intervening update was present. Release version consistency and final diff checks pass.
 
 A tenth API case also verifies inherited Global Admin access and rejects scoped-admin, teacher and student changes outside their authority. Activation requirements and operational limits are recorded in [ACADEMY-ASSESSMENTS-106.27.md](ACADEMY-ASSESSMENTS-106.27.md). No live migration or Worker deployment was performed.
+
+## V106.28 — Schedule review
+
+- Owner is building the schedule; no timetable import. Requested header removal, shared Subject/Module choices, a timetable for learners/teachers and examiner editing of duration/total mark.
+- Development V106.27 503 resolved separately by backing up D1 and applying only migration 0016. Eight assessment tables verified, authenticated endpoint returned 200, desktop/mobile screens passed and all 80 existing table row counts were preserved.
+- V106.28: 141/141 regression files pass, including 12 assessment API cases. Real Chrome acceptance passes with the Academy selector, timetable, examiner upload, moderation, separate releases, report generation, session replacement and mobile layout. Development Worker dry-run bundle passes (1664.24 KiB / 335.77 KiB gzip). No migration is required.

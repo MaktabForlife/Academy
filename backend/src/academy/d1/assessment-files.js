@@ -17,6 +17,8 @@ export function assessmentFiles(repository,auth,env){
    if(kind==='TEMPLATE'||kind==='REPORT')await s.requireClass(scope,classId,'admin');
    if(kind==='PAPER'){
     await s.requireClass(scope,classId);const current=await s.assessment(a.assessment_id);s.revision(current,input);
+    const duration=input.durationMinutes??current.duration_minutes,maximum=input.maximumMark??current.maximum_mark;
+    if(!Number.isInteger(duration)||duration<1||duration>1440||typeof maximum!=='number'||!Number.isFinite(maximum)||maximum<=0||maximum>1000000)throw fail('Enter a valid paper duration and total mark.');
     if(current.paper_released_at||await p('SELECT 1 ok FROM assessment_submissions WHERE assessment_id=? LIMIT 1',a.assessment_id).first())throw fail('A released paper cannot be replaced. Create a new assessment.',409);
     if(current.examiner_id&&!same(current.examiner_id,actor)&&!await s.allowed(scope,classId,'admin'))throw fail('Only the examiner can revise this paper.',403);
    }
@@ -54,7 +56,7 @@ export function assessmentFiles(repository,auth,env){
    const result=await s.change('upload-'+kind,meta,a?.assessment_id||scope,async()=>{
     await authority();const now=new Date().toISOString(),statements=[p('INSERT INTO assessment_files VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',id,a?.assessment_id||null,scope,owner,actor,kind,filename,mime,input.size,key,now,input.operationId)];
     let submissionId=null;
-    if(kind==='PAPER')statements.push(p("UPDATE assessments SET paper_file_id=?,examiner_id=?,paper_state='IN_REVIEW',paper_comment='',paper_released_at=NULL WHERE assessment_id=?",id,actor,a.assessment_id));
+    if(kind==='PAPER')statements.push(p("UPDATE assessments SET paper_file_id=?,examiner_id=?,paper_state='IN_REVIEW',paper_comment='',paper_released_at=NULL,duration_minutes=?,maximum_mark=? WHERE assessment_id=?",id,actor,input.durationMinutes??a.duration_minutes,input.maximumMark??a.maximum_mark,a.assessment_id));
     if(kind==='ANSWER'){
      const r=await s.recipient(a.assessment_id),number=(await p('SELECT coalesce(max(submission_number),0)+1 n FROM assessment_submissions WHERE assessment_id=? AND account_id=?',a.assessment_id,actor).first()).n;
      submissionId=crypto.randomUUID();statements.push(p('INSERT INTO assessment_submissions VALUES(?,?,?,?,?,?)',submissionId,a.assessment_id,actor,id,now,number),p('UPDATE assessment_recipients SET latest_submission_id=?,latest_mark_id=NULL,resubmit_authorised=0,released_mark_id=NULL,released_feedback_id=NULL,released_script_id=NULL,revision=revision+1 WHERE assessment_id=? AND account_id=?',submissionId,a.assessment_id,r.account_id));
