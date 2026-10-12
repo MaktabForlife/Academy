@@ -1,3 +1,7 @@
+# V106.32 — Mobile user profile editing
+
+Only the User name column stays frozen in the user profile sheet. Login ID, WhatsApp and other fields scroll horizontally, leaving room to edit on mobile. [Release details](docs/USER-PROFILE-NAME-COLUMN-106.32.md).
+
 # V106.31 — Memorisation set catalogue
 
 Surahs and Duas sets now have their own catalogue, separate from curriculum modules. Progress Admin, personal cards and class grids use set terminology; SetName uploads and older ModuleName lists both work. Existing learner marks, independent teacher confirmations and access settings are preserved. [Release details](docs/ACADEMY-MEMORISATION-SETS-106.31.md).

@@ -1,4 +1,4 @@
-/* Full-width user register with direct profile cells and frozen columns. */
+/* Full-width user register with direct profile cells and a frozen name column. */
 body.user-profiles-sheet { background:#f8f8fa; font-size:13px; }
 body.user-profiles-sheet.academy-connected { padding-left:0; }
 .user-profiles-sheet .academy-connected-sidebar { position:static; width:auto; flex-direction:row; align-items:center; gap:18px; padding:7px 12px; overflow:visible; border:0; border-bottom:1px solid var(--pb-line); font-size:12px; }
@@ -31,10 +31,10 @@ body.user-profiles-sheet.academy-connected { padding-left:0; }
 .up-matrix th,.up-matrix td { padding:3px 5px; border-right:1px solid var(--pb-line); border-bottom:1px solid var(--pb-line); vertical-align:middle; text-align:left; height:35px; white-space:normal; }
 .up-matrix th { position:sticky; top:0; z-index:3; background:#f3eff6; color:#514559; font-size:11px; font-weight:650; height:52px; }
 .up-matrix th:first-child,.up-matrix td:first-child { position:sticky; left:0; width:var(--up-name-width); background:#fff; z-index:2; }
-.up-matrix th:nth-child(2),.up-matrix td:nth-child(2) { position:sticky; left:var(--up-name-width); width:var(--up-login-width); background:#fff; z-index:2; }
-.up-matrix th:nth-child(3),.up-matrix td:nth-child(3) { position:sticky; left:calc(var(--up-name-width) + var(--up-login-width)); width:var(--up-phone-width); background:#fff; z-index:2; }
+.up-matrix th:nth-child(2),.up-matrix td:nth-child(2) { width:var(--up-login-width); }
+.up-matrix th:nth-child(3),.up-matrix td:nth-child(3) { width:var(--up-phone-width); }
 .up-matrix th:nth-child(4),.up-matrix td:nth-child(4) { width:var(--up-status-width); }
-.up-matrix th:first-child,.up-matrix th:nth-child(2),.up-matrix th:nth-child(3) { background:#f3eff6; z-index:4; }
+.up-matrix th:first-child { background:#f3eff6; z-index:4; }
 .up-matrix th:nth-child(5),.up-matrix td:nth-child(5) { width:130px; min-width:130px; }
 .up-matrix th strong { display:block; font-size:11px; line-height:1.25; }
 .up-matrix th small,.up-matrix td small { display:block; font-size:10px; font-weight:400; color:var(--pb-muted); margin:1px 0; }
