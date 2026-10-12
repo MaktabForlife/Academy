@@ -1,3 +1,7 @@
+# V106.34 — Mobile-first Academy layout
+
+Use a compact Menu on phones and tablets, with stacked forms, readable touch controls and contained scrolling for wide registers. Shared navigation covers Academy home and connected management, Library and teaching tools; desktop workspaces retain their compact layout. Authorised for deployment on 12 October 2026. [Release details](docs/ACADEMY-MOBILE-LAYOUT-106.34.md).
+
 # V106.33 — Edit earlier assessment schedules
 
 Unpublished assessments without papers show **Edit schedule** for admins. Earlier entries can be edited and assigned to a phase; returning from the last moved entry shows the phase schedule. [Release details](docs/ACADEMY-ASSESSMENT-EDITING-106.33.md).

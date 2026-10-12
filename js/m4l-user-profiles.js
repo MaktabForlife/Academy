@@ -192,7 +192,9 @@
   };
   $('up-users').oninput=e=>{if(state.busy||state.pending||!['name','uniqueId','whatsappNumber'].some(k=>Object.hasOwn(e.target.dataset,k)))return;const edit=e.target.dataset.account?profileDraft(e.target.dataset.account):state.edit;if(edit?.mode==='profile'){edit[Object.hasOwn(e.target.dataset,'uniqueId')?'uniqueId':Object.hasOwn(e.target.dataset,'whatsappNumber')?'whatsappNumber':'displayName']=e.target.value;remember();updateSaveControls();}};
   $('up-users').onchange=e=>{const d=e.target.dataset,edit=d.account?(d.scope?entries().find(e=>e.accountId===d.account&&`${e.scopeType}:${e.scopeId}`===d.scope):profileDraft(d.account)):state.edit;if(!edit||state.busy||state.pending)return;
-    if(edit.mode==='profile'&&Object.hasOwn(d,'active')){edit.active=e.target.value==='true';remember();updateSaveControls();return;}
+    // Text drafts are already updated by oninput. Rebuilding the row on blur
+    // detaches the next field while the user is moving between profile columns.
+    if(edit.mode==='profile'){if(Object.hasOwn(d,'active')){edit.active=e.target.value==='true';remember();updateSaveControls();}return;}
     if(edit.mode==='matrix-roles'){const {role,defaultUser}=e.target.dataset;if(role){edit.roles=edit.roles.filter(r=>r!==role);if(e.target.checked)edit.roles.push(role);}if(defaultUser!==undefined&&e.target.checked)edit.roles=[];}
     render();
   };

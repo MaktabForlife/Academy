@@ -1,9 +1,10 @@
 {
   "name": "rebootworker",
-  "version": "106.33",
+  "version": "106.34",
   "type": "module",
   "scripts": {
     "test": "node tests/run-all.mjs",
+    "test:academy-mobile": "node tools/academy-mobile-layout-acceptance.mjs",
     "test:lesson-media": "node --test tests/academy-lesson-media.test.mjs",
     "test:lesson-media:browser": "node tools/academy-lesson-media-acceptance.mjs",
     "test:assessments": "node --test tests/academy-d1-assessments.test.mjs",
