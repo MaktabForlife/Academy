@@ -2,6 +2,7 @@ import {d1Memorisation,d1MemorisationPreview} from './memorisation.js';
 import {d1Assessments} from './assessments.js';
 import {assessmentFiles} from './assessment-files.js';
 import {assessmentReports} from './assessment-reports.js';
+import {lessonMedia} from './lesson-media.js';
 import {teacherAvailability} from './teacher-availability.js';
 import {d1Subjects} from './subjects.js';
 import {d1LearningCatalogue,saveLearningModule} from './learning-catalogue.js';
@@ -56,7 +57,7 @@ async function dispatch(request,env) {
   const path=new URL(request.url).pathname;
   await repository.ready();
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'rebootworker',version:'106.29',
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'rebootworker',version:'106.30',
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(repository)};
@@ -72,6 +73,13 @@ async function dispatch(request,env) {
     throw rehearsalError('Private Academy media is not available yet.',403,'PRIVATE_MEDIA_NOT_ENABLED');
   if(path==='/api/academy/d1/library/file'&&['GET','HEAD'].includes(request.method))return d1LibraryStream(request,repository,env);
   if(request.method!=='POST')throw rehearsalError('Use POST.',405,'METHOD_NOT_ALLOWED');
+  if(path==='/api/academy/lesson-media/upload') {
+    const auth=await authenticated(request,env,repository),metadata=new URL(request.url).searchParams.get('metadata')||'';
+    if(metadata.length>8192)throw rehearsalError('Upload details are too large.',413);
+    let input;try{input=JSON.parse(metadata);}catch{throw rehearsalError('Invalid upload details.',400);}
+    if(!input||typeof input!=='object'||Array.isArray(input))throw rehearsalError('Invalid upload details.',400);
+    return {success:true,...await lessonMedia(repository,auth,env).upload(request,input)};
+  }
   if(path==='/api/academy/assessments/upload') {
     const auth=await authenticated(request,env,repository),metadata=new URL(request.url).searchParams.get('metadata')||'';
     if(metadata.length>8192)throw rehearsalError('Upload details are too large.',413);
@@ -84,7 +92,7 @@ async function dispatch(request,env) {
     return {success:true,...await d1Library(repository,auth,env).uploadChunk(request)};
   }
   const managementPath=path.startsWith('/api/admin/platform/');
-  const input=await boundedBody(request,managementPath||path.startsWith('/api/academy/teacher-availability/')||path.startsWith('/api/academy/progress/')||path.startsWith('/api/academy/assessments/')?131072:path.startsWith('/api/program-attendance/')?65536:4096);
+  const input=await boundedBody(request,managementPath||path.startsWith('/api/academy/teacher-availability/')||path.startsWith('/api/academy/progress/')||path.startsWith('/api/academy/assessments/')||path.startsWith('/api/academy/lesson-media/')?131072:path.startsWith('/api/program-attendance/')?65536:4096);
   if(['/api/account/check','/api/account/login','/api/account/setup-pin'].includes(path)) {
     const login=String(input.uniqueid || '').trim();
     if(!login||login.length>160)throw rehearsalError('Missing or invalid account link.',400,'INVALID_ACCOUNT_LINK');
@@ -113,6 +121,8 @@ async function dispatch(request,env) {
   }
   if(path==='/api/academy/public-lesson/join')return {success:true,...await d1LessonJoin(repository,null,input)};
   const auth=await authenticated(request,env,repository);
+  const mediaAction=path.match(/^\/api\/academy\/lesson-media\/(list|get|save|watch|download|comments|comment-save|comment-moderate|attachment-remove)$/)?.[1];
+  if(mediaAction){const result=await lessonMedia(repository,auth,env).run(mediaAction,input);return result instanceof Response?result:{success:true,...result};}
   if(path==='/api/academy/assessments/download')return assessmentFiles(repository,auth,env).download(input);
   const assessmentAction=path.match(/^\/api\/academy\/assessments\/(list|get|phase-create|create|save|paper-details|publish|roster|review-paper|authorise-resubmission|mark|review-mark|release|release-papers)$/)?.[1];
   if(assessmentAction)return {success:true,...await d1Assessments(repository,auth).run(assessmentAction,input)};

@@ -1,9 +1,11 @@
 {
   "name": "rebootworker",
-  "version": "106.29",
+  "version": "106.30",
   "type": "module",
   "scripts": {
     "test": "node tests/run-all.mjs",
+    "test:lesson-media": "node --test tests/academy-lesson-media.test.mjs",
+    "test:lesson-media:browser": "node tools/academy-lesson-media-acceptance.mjs",
     "test:assessments": "node --test tests/academy-d1-assessments.test.mjs",
     "test:assessments:browser": "node tools/academy-assessment-acceptance.mjs",
     "test:assessments:r2": "node tools/academy-assessment-r2-smoke.mjs",

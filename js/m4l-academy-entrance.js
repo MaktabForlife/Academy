@@ -553,6 +553,9 @@
       renderActivityTimetable();
       syncMemorisation(row);
       syncAssessment(row);
+      if(location.hash===activityHref(row)&&row.kind==='PROGRAM'&&row.id===window.M4L_LESSON_MEDIA?.programId&&result.signedIn&&!row.unavailable&&row.roles.length)
+        window.M4L_LESSON_MEDIA.open({hostId:'mou-lesson-media',programId:row.id});
+      else window.M4L_LESSON_MEDIA?.reset();
       if(restoreMemorisation){const saved=restoreMemorisation;restoreMemorisation=null;$('activity-sessions').scrollLeft=saved.left;window.requestAnimationFrame?.(()=>window.scrollTo?.(0,saved.top));}
     } catch (error) {
       if (generation !== state.activityGeneration) return;
@@ -642,13 +645,14 @@
   function route() {
     const hash = location.hash || '#overview';
     if (lastRouteHash && hash !== lastRouteHash) {
-      if (window.M4L_PROGRAM_ATTENDANCE?.canLeave() === false || window.M4L_ACADEMY_PROGRESS?.canLeave() === false || window.M4L_MEMORISATION_ADMIN?.canLeave() === false || window.M4L_ACADEMY_ASSESSMENTS?.canLeave() === false) { history.replaceState(null,'',lastRouteHash); return; }
+      if (window.M4L_PROGRAM_ATTENDANCE?.canLeave() === false || window.M4L_ACADEMY_PROGRESS?.canLeave() === false || window.M4L_MEMORISATION_ADMIN?.canLeave() === false || window.M4L_ACADEMY_ASSESSMENTS?.canLeave() === false || window.M4L_LESSON_MEDIA?.canLeave() === false) { history.replaceState(null,'',lastRouteHash); return; }
       if(!memorisationHash(lastRouteHash)&&memorisationHash(hash)){memorisationReturn={hash:lastRouteHash,top:window.scrollY||0,left:$('activity-sessions').scrollLeft||0};if(dailyCache.owner)try{sessionStorage.setItem(MEMORISATION_RETURN_KEY,JSON.stringify({...memorisationReturn,owner:dailyCache.owner}));}catch{}}
       if(memorisationHash(lastRouteHash)&&hash===memorisationReturn?.hash)restoreMemorisation=memorisationReturn;
       window.M4L_PROGRAM_ATTENDANCE?.reset();
       window.M4L_ACADEMY_PROGRESS?.reset();
       window.M4L_MEMORISATION_ADMIN?.reset();
       window.M4L_ACADEMY_ASSESSMENTS?.reset();
+      window.M4L_LESSON_MEDIA?.reset();
       $('as-panel').hidden=true;
       $('pa-main').hidden = true;
       $('mp-teach-panel').hidden = true;
@@ -708,6 +712,7 @@
   }
 
   function clearPersonal() {
+    window.M4L_LESSON_MEDIA?.reset();
     window.M4L_ACADEMY_ASSESSMENTS?.reset();$('as-panel').hidden=true;
     memorisationReturn=null;restoreMemorisation=null;$('mp-teach-panel').hidden=true;$('mp-admin-context').textContent='';window.M4L_MEMORISATION_ADMIN?.reset();
     window.M4L_ACADEMY_PROGRESS?.reset();

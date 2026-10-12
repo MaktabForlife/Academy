@@ -4,6 +4,8 @@ import { rehearsalError } from './repository.js';
 import {courseCalendarAvailable,calendarRows} from './course-calendar.js';
 import {buildAcademyCalendarEvents} from '../../lib/academy-calendar.js';
 import {currentProgramZoom} from './program-zoom.js';
+import {historicalPublications} from './historical-timetable.js';
+import {MOU_MEDIA_PROGRAM} from './lesson-media.js';
 
 const samePublication=(a,b)=>String(a).toUpperCase()===String(b).toUpperCase();
 // Adapt normalized D1 records at the repository boundary. Reuse the established
@@ -16,6 +18,9 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
   const courseWorkflows=config.courseWorkflows??await courseCalendarAvailable(repository.db,true);
   const end=addDays(start,days-1);
   const [activities,publications,subjects,modules,classes,memberships,runs,runStates,lifecycles,calendar,suppressions]=await repository.homeData(state,start,end,courseWorkflows,config.programWorkspace);
+  // The pilot's historical dates are in the past; ordinary timetable loads do
+  // not query the extension table, and no historical lesson can be joined live.
+  if(start<'2026-10-08'&&end>='2026-10-06'&&activities.some(a=>a.activity_key===MOU_MEDIA_PROGRAM))publications.push(...await historicalPublications(repository,start,end));
   const stopped=config.programWorkspace?(await repository.db.prepare('SELECT activity_key,publication_id,status FROM program_publication_lifecycle').all()).results:[];
   const programs=activities.filter(a=>a.kind==='PROGRAM').map(a=>({id:a.activity_id,name:a.name,mode:'PROGRAM',status:'ACTIVE',timezone:a.timezone,publicFree:a.program_access_model==='FREE',capabilities:{attendance:true}}));
   const tables={UserAccounts:state?[repository.publicAccount(state.account)]:[],PlatformConfig:[{ConfigKey:'PlatformTimezone',ConfigValue:config.setting_value}],

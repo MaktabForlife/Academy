@@ -1,3 +1,7 @@
+# V106.30 — MOU lesson media demo
+
+Current Mothers of the Ummah students can open the 6–8 October recordings and private PDF notes from the Program page. Assigned teachers and admins can edit summaries and attachments and curate student comments. The ribbon loads once when opened, with a manual refresh. [Release details](docs/MOU-LESSON-MEDIA-106.30.md).
+
 # V106.29 — Assessment phases and subject descriptors
 
 Create an assessment phase, such as Final 2026, before adding class assessments. Optional subject descriptors distinguish papers for the same Academy subject/module and appear on timetables and reports. Paper status is None until a PDF is attached. Class and Subject/module selectors match the Assessment field height. Existing schedules remain available under Earlier assessments. [Release details](docs/ACADEMY-ASSESSMENT-PHASES-106.29.md).
