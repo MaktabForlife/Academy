@@ -15,29 +15,29 @@ export async function statusValidation(s,registerId,status){
   sum(CASE WHEN r.resubmit_authorised=1 THEN 1 ELSE 0 END) replacements
  FROM assessments a LEFT JOIN assessment_recipients r USING(assessment_id) LEFT JOIN assessment_markings m ON m.mark_id=r.latest_mark_id
  WHERE a.register_id=? AND a.deleted_at IS NULL GROUP BY a.assessment_id LIMIT 1001`,registerId).all()).results:[];
- if(rows.length>1000)throw fail('This assessment has too many sessions to validate together.',409);
+ if(rows.length>1000)throw fail('This Imtihaan has too many assessments to validate together.',409);
  const check=(label,ok)=>checks.push({label,ok:Boolean(ok)}),all=fn=>rows.length>0&&rows.every(fn);
- check('At least one session has been added',rows.length);
- check('Every session has a subject, date, duration and total mark',all(a=>a.subject.trim()&&a.title.trim()&&validDate(a.exam_date)&&a.duration_minutes>=1&&a.duration_minutes<=1440&&a.maximum_mark>0));
+ check('At least one assessment has been added',rows.length);
+ check('Every assessment has a subject, date, duration and total mark',all(a=>a.subject.trim()&&a.title.trim()&&validDate(a.exam_date)&&a.duration_minutes>=1&&a.duration_minutes<=1440&&a.maximum_mark>0));
  if(status==='SCHEDULED')return {status,valid:checks.every(c=>c.ok),checks};
- check('Every session schedule has been released to its class',all(a=>a.schedule_published&&a.learners>0));
+ check('Every assessment schedule has been released to its class',all(a=>a.schedule_published&&a.learners>0));
  if(status==='AWAITING_MODERATION'){
-  check('Every session has a PDF paper submitted for moderation',all(a=>a.paper_file_id&&['IN_REVIEW','APPROVED'].includes(a.paper_state)));
+  check('Every assessment has a PDF paper submitted for moderation',all(a=>a.paper_file_id&&['IN_REVIEW','APPROVED'].includes(a.paper_state)));
   check('At least one paper is awaiting moderation',rows.some(a=>a.paper_state==='IN_REVIEW'));
  }else if(status!=='SCHEDULE_RELEASED'){
-  check('Every session paper has been approved by a moderator',all(a=>a.paper_file_id&&a.paper_state==='APPROVED'));
-  if(status!=='APPROVED')check('Admin has published every session paper using the release controls',all(a=>a.paper_released_at));
+  check('Every assessment paper has been approved by a moderator',all(a=>a.paper_file_id&&a.paper_state==='APPROVED'));
+  if(status!=='APPROVED')check('Admin has published every assessment paper using the release controls',all(a=>a.paper_released_at));
  }
  const underway=['IN_PROGRESS','READY_FOR_ASSESSMENT','ASSESSED','MODERATED','READY_FOR_RELEASE','RELEASED','COMPLETE'];
  const started=a=>a.accessed>0||Date.now()>=Date.parse(a.exam_date+'T03:00:00+02:00');
- if(underway.includes(status))check('An assessment session has started',rows.some(started));
+ if(underway.includes(status))check('An assessment has started',rows.some(started));
  const marking=['READY_FOR_ASSESSMENT','ASSESSED','MODERATED','READY_FOR_RELEASE','RELEASED','COMPLETE'];
  if(marking.includes(status))check('At least one learner has submitted answers',rows.some(a=>a.submitted>0));
  if(['ASSESSED','MODERATED','READY_FOR_RELEASE','RELEASED','COMPLETE'].includes(status))check('Every latest submitted answer has been assessed',all(a=>a.assessed===a.submitted));
  if(['MODERATED','READY_FOR_RELEASE','RELEASED','COMPLETE'].includes(status))check('Every latest assessed answer has approved moderation',all(a=>a.moderated===a.submitted));
  if(['RELEASED','COMPLETE'].includes(status))check('Marks for every submitted answer have been released to the class',all(a=>a.released===a.submitted));
  if(status==='COMPLETE'){
-  check('Every session date has arrived',all(started));
+  check('Every assessment date has arrived',all(started));
   check('No authorised replacement submission is outstanding',all(a=>a.replacements===0));
  }
  return {status,valid:checks.every(c=>c.ok),checks};

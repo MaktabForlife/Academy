@@ -25,14 +25,15 @@ test('register editing enforces area authority and does not grant access through
  assert.equal((await f.call('register-save',{...values,...op(),registerId:id,revision:1,name:'Outside scope'},scoped)).status,403);
  assert.deepEqual(await registers(f,student),[]);assert.deepEqual(await registers(f,teacher),[]);
 }));
-test('renaming keeps existing dates and papers and updates shared titles without publishing them',()=>use(async(f,admin)=>{
+test('renaming an Imtihaan preserves each assessment name, date and paper',()=>use(async(f,admin)=>{
  const id=ok(await f.call('register-create',{...values,...op()},admin)).registerId,ids=[];
  for(const [i,title] of ['Final 2026','Custom paper'].entries())ids.push(ok(await f.call('create',{...op(),registerId:id,activityKey:scope,classId:'class-1',title,subject:'Qasas',examDate:'2026-11-'+(9+i*7).toString().padStart(2,'0'),durationMinutes:60,maximumMark:100},admin)).assessmentId);
  const before=f.db.prepare('SELECT * FROM assessments ORDER BY assessment_id').all();
  const body={...values,...op(),registerId:id,revision:1,name:'Final examinations 2026',status:'SCHEDULED'};
  ok(await f.call('register-save',body,admin));assert.equal(ok(await f.call('register-save',body,admin)).replayed,true);
  const after=f.db.prepare('SELECT * FROM assessments ORDER BY assessment_id').all();
- for(let i=0;i<before.length;i++){const {title,revision,updated_at,...old}=before[i],{title:nextTitle,revision:nextRevision,updated_at:nextUpdated,...next}=after[i];assert.deepEqual(next,old);assert.equal(nextTitle,title==='Final 2026'?'Final examinations 2026':title);assert.equal(nextRevision,revision+(title==='Final 2026'?1:0));assert.equal(after[i].schedule_published,0);assert.equal(after[i].paper_file_id,null);}
+ assert.deepEqual(after,before);
+ for(const paper of after){assert.equal(paper.schedule_published,0);assert.equal(paper.paper_file_id,null);}
  assert.equal((await registers(f,admin))[0].name,'Final examinations 2026');
  assert.equal(f.db.prepare("SELECT count(*) n FROM assessment_events WHERE action='register-save'").get().n,1);
  assert.equal(ok(await f.call('get',{assessmentId:ids[0]},admin)).assessment.paperAvailable,false);
@@ -55,6 +56,7 @@ test('register save rolls back names, areas and receipts when any statement fail
 }));
 test('concurrent register edits cannot silently overwrite another admin',()=>use(async(f,admin)=>{
  const id=ok(await f.call('register-create',{...values,...op()},admin)).registerId;
+ assert.equal((await registers(f,admin))[0].imtihaanStatus,'REGISTERED');
  const results=await Promise.all(['First','Second'].map(name=>f.call('register-save',{...values,...op(),registerId:id,revision:1,name},admin)));
  assert.deepEqual(results.map(r=>r.status).sort(),[200,409]);assert.equal((await registers(f,admin))[0].revision,2);
 }));
@@ -74,35 +76,61 @@ test('status validation checks actual workflow prerequisites and saving revalida
  let checked=ok(await f.call('register-validate',current,admin));assert.equal(checked.valid,false);
  assert.equal((await f.call('register-save',{...current,...op()},admin)).body.code,'STATUS_NOT_READY');
  const session=ok(await f.call('create',{...op(),registerId:id,activityKey:scope,classId:'class-1',title:values.name,subject:'Qasas',examDate:'2026-01-01',durationMinutes:60,maximumMark:100},admin)).assessmentId;
+ const listed=async()=>ok(await f.call('list',{view:'admin'},admin)).assessments.find(a=>a.id===session);
+ assert.equal((await listed()).paperStatus,'WAITING_FOR_SUBMISSION');
  const teacher=await f.login('0003'),student=await f.login('0002');
  assert.equal((await f.call('register-validate',current,teacher)).status,403);
  for(const status of ['REGISTERED','DRAFT','SCHEDULED','CANCELLED','ARCHIVED'])assert.equal(ok(await f.call('register-validate',{...current,status},admin)).valid,true,status);
  for(const status of ['SCHEDULE_RELEASED','AWAITING_MODERATION','APPROVED','PUBLISHED','IN_PROGRESS','READY_FOR_ASSESSMENT','ASSESSED','MODERATED','READY_FOR_RELEASE','RELEASED','COMPLETE'])assert.equal(ok(await f.call('register-validate',{...current,status},admin)).valid,false,status);
  ok(await f.call('register-save',{...current,...op()},admin));current.revision++;
+ assert.equal((await registers(f,admin))[0].imtihaanStatus,'SCHEDULED');
  const detail=async(token=admin)=>ok(await f.call('get',{assessmentId:session},token));
  const change=async(action,input={},token=admin)=>ok(await f.call(action,{...op(),assessmentId:session,revision:(await detail()).assessment.revision,...input},token));
  await change('publish');assert.equal(ok(await f.call('register-validate',{...current,status:'SCHEDULE_RELEASED'},admin)).valid,true);
  ok(await f.upload({kind:'PAPER',assessmentId:session,revision:(await detail()).assessment.revision},teacher));
+ assert.equal((await listed()).paperStatus,'DRAFTED');
  assert.equal(ok(await f.call('register-validate',{...current,status:'AWAITING_MODERATION'},admin)).valid,true);
  await change('review-paper',{decision:'APPROVE'});assert.equal(ok(await f.call('register-validate',{...current,status:'APPROVED'},admin)).valid,true);
+ assert.equal((await listed()).paperStatus,'APPROVED');
  assert.equal(ok(await f.call('register-validate',{...current,status:'PUBLISHED'},admin)).valid,false);
  ok(await f.call('release-papers',{...op(),papers:[{id:session,revision:(await detail()).assessment.revision}]},admin));
+ assert.equal((await listed()).paperStatus,'PAPER_RELEASED');
+ assert.equal((await registers(f,admin))[0].imtihaanStatus,'BEING_ASSESSED');
  for(const status of ['PUBLISHED','IN_PROGRESS'])assert.equal(ok(await f.call('register-validate',{...current,status},admin)).valid,true,status);
  const d=await detail(student);ok(await f.upload({kind:'ANSWER',assessmentId:session,recipientRevision:d.learners[0].revision},student));
+ assert.equal((await listed()).resultsStatus,'UPLOADED');
  assert.equal(ok(await f.call('register-validate',{...current,status:'READY_FOR_ASSESSMENT'},admin)).valid,true);
  assert.equal(ok(await f.call('register-validate',{...current,status:'ASSESSED'},admin)).valid,false);
  let r=(await detail()).learners[0];await change('mark',{accountId:r.accountId,recipientRevision:r.revision,submissionId:r.submissionId,mark:80,feedback:'Good work.'},teacher);
+ assert.equal((await listed()).resultsStatus,'ASSESSED');
  assert.equal(ok(await f.call('register-validate',{...current,status:'ASSESSED'},admin)).valid,true);
  r=(await detail()).learners[0];await change('review-mark',{accountId:r.accountId,recipientRevision:r.revision,markId:r.markId,decision:'APPROVE'});
+ assert.equal((await listed()).resultsStatus,'MODERATED');
+ assert.equal((await registers(f,admin))[0].imtihaanStatus,'PROCESSING_RESULTS');
  for(const status of ['MODERATED','READY_FOR_RELEASE'])assert.equal(ok(await f.call('register-validate',{...current,status},admin)).valid,true,status);
  assert.equal(ok(await f.call('register-validate',{...current,status:'RELEASED'},admin)).valid,false);
  await change('release',{category:'marks'});
+ assert.equal((await listed()).resultsStatus,'RELEASED');
+ assert.equal((await registers(f,admin))[0].imtihaanStatus,'COMPLETE');
  for(const status of ['RELEASED','COMPLETE'])assert.equal(ok(await f.call('register-validate',{...current,status},admin)).valid,true,status);
  // A successful Validate is informational: later changes are checked again atomically on Save.
  await change('authorise-resubmission',{accountIds:[r.accountId]});
  assert.equal((await f.call('register-save',{...current,...op(),status:'COMPLETE'},admin)).body.code,'STATUS_NOT_READY');
  assert.equal((await registers(f,admin))[0].status,'SCHEDULED');
  assert.equal((await detail(student)).learners[0].feedback,'','Register validation never releases feedback');
+}));
+test('publishing a future paper starts an Imtihaan without opening the paper early',()=>use(async(f,admin)=>{
+ const id=ok(await f.call('register-create',{...values,...op()},admin)).registerId;
+ const paper=ok(await f.call('create',{...op(),registerId:id,activityKey:scope,classId:'class-1',title:'Future paper',subject:'Qasas',examDate:'2099-01-01',durationMinutes:60,maximumMark:100},admin)).assessmentId;
+ ok(await f.call('register-save',{...values,...op(),registerId:id,revision:1,status:'SCHEDULED'},admin));
+ ok(await f.call('publish',{...op(),assessmentId:paper,revision:1},admin));
+ const teacher=await f.login('0003');ok(await f.upload({kind:'PAPER',assessmentId:paper,revision:2},teacher));
+ ok(await f.call('review-paper',{...op(),assessmentId:paper,revision:3,decision:'APPROVE'},admin));
+ ok(await f.call('release-papers',{...op(),papers:[{id:paper,revision:4}]},admin));
+ const list=ok(await f.call('list',{view:'admin'},admin));
+ assert.equal(list.registers[0].imtihaanStatus,'IN_PROGRESS');
+ assert.equal(list.assessments[0].paperStatus,'PUBLISHED');
+ assert.equal(list.assessments[0].paperAvailable,false);
 }));
 test('session deletion is scoped, revision checked, retry safe and preserves audit and private attachments',()=>use(async(f,admin)=>{
  const teacher=await f.login('0003'),student=await f.login('0002'),other=await f.login('0008');

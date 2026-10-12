@@ -79,3 +79,10 @@ A tenth API case also verifies inherited Global Admin access and rejects scoped-
 - Local validation: 10 register/validation/deletion API cases pass, including migration preservation, permissions, conflicts, rollback, revalidation after intervening changes and independent release controls. Chrome acceptance passes at 320, 390 and 768 pixels and through the paper, submission, marking, moderation, report and session-change flow. Full regression: 143/143 files passed. Development Worker dry-run: 1707.73 KiB / 345.56 KiB gzip. Applying migration 0020 to a private copy of the live backup preserved all nine existing sessions and all 94 pre-existing table counts, with no foreign-key errors.
 
 - Development D1 was backed up before installing only migration 0020. Post-install comparison preserved all nine session IDs and every original field; all sessions are linked to their existing schedule name, deletion metadata is empty and foreign-key checks are clean. No assessment was published or deleted during release.
+
+## V106.38 — Imtihaan group and distinct paper/results progress
+
+- Corrected the Register terminology: Imtihaan is the group; assessments are its individually named papers. Renaming an Imtihaan preserves all paper titles and existing dates. New paper names start blank.
+- Kept schedule confirmation as an admin-validated action. Later Imtihaan stages are derived from paper publication, the final Johannesburg exam day, approved marking and mark release. Staff see separate paper and results status columns; students do not see class-wide result stages.
+- Rewrote the information dialog around the group, paper and result workflow. No D1 schema, R2 object or existing assessment record needs changing.
+- D1 register tests and the full local Chrome desktop/mobile acceptance walkthrough pass. The source sheet's proposed manual Results transitions remain a separate design decision; see [release details](ACADEMY-IMTIHAAN-106.38.md).

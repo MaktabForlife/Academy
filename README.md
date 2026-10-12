@@ -1,3 +1,7 @@
+# V106.38 — Imtihaan groups and assessment status
+
+The **Imtihaan Register** names the group of exam papers. Each assessment keeps its own name, class, date and paper; renaming the Imtihaan no longer renames its papers. Admins validate the schedule before confirming Scheduled. Later Imtihaan stages follow paper publication, the final exam date, moderation and mark release. The timetable shows paper and results stages separately. [Release details](docs/ACADEMY-IMTIHAAN-106.38.md).
+
 # V106.37 — Assessment Register and session management
 
 Assessment administration starts with an editable register of names, Programs/Courses, one class or All classes, and status. Open an entry to **Add session → Validate → Change status**. Status changes are manual and checked against actual workflow progress. Session deletion preserves audit and is blocked after learner access or submissions. [Release details](docs/ACADEMY-ASSESSMENT-REGISTER-106.37.md).
