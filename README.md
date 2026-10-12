@@ -1,3 +1,7 @@
+# V106.35 — Add dates to earlier assessment schedules
+
+Earlier class schedules now include **Add assessment date**, retaining the schedule name and class while creating a new unpublished entry. Existing dates are preserved, and timetable scrolling stays within the table on phones. [Release details](docs/ACADEMY-ASSESSMENT-DATES-106.35.md).
+
 # V106.34 — Mobile-first Academy layout
 
 Use a compact Menu on phones and tablets, with stacked forms, readable touch controls and contained scrolling for wide registers. Shared navigation covers Academy home and connected management, Library and teaching tools; desktop workspaces retain their compact layout. Authorised for deployment on 12 October 2026. [Release details](docs/ACADEMY-MOBILE-LAYOUT-106.34.md).

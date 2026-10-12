@@ -60,3 +60,11 @@ A tenth API case also verifies inherited Global Admin access and rejects scoped-
 - Read-only live inspection confirmed four unpublished entries without papers or phase assignment, and zero submissions. No live data was changed.
 - Validation: 16 assessment/API, Academy UI and version/routing checks passed, with the development Worker dry-run. Chrome acceptance passed, including editing an earlier entry on mobile, saving all schedule fields and its phase, returning to the phase, and the existing paper/moderation/submission/report workflow.
 - Release authorised on 12 October 2026. Version markers and the assessment script cache advance to V106.33. No database migration or live schedule changes are required.
+
+## V106.35 — Add dates to earlier schedules
+
+- Fixed the remaining gap: Earlier assessments displayed existing dates without an Add form. Each earlier class/name timetable now offers **Add assessment date**, with its class and name retained and a blank subject/date.
+- Additional dates create new unpublished entries without papers; existing entries are preserved. Retry protection uses the current D1 create service.
+- Fixed the timetable's hidden heading escaping its scroll container on mobile.
+- Validation: 16 affected checks and full Chrome assessment acceptance passed. The new form fits 320, 390 and 768 pixel screens, adds multiple dates, persists after refresh, and retries an interrupted creation without a duplicate. Existing edit/phase, moderation, submissions, marking, release, reports and session guards still pass. Development Worker dry-run passed.
+- Development deployment is covered by the user's prior release authorisation and request to continue this correction. No migration or live assessment data correction is needed.
