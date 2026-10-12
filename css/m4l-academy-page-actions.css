@@ -1,0 +1,14 @@
+/* Common Home, Refresh and Sign out controls for Academy pages and connected tools. */
+.academy-page-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:6px;grid-column:1/-1;margin:0 0 12px;font:13px/1.2 Arial,Helvetica,sans-serif}
+.academy-page-actions>:is(a,button){display:inline-flex;align-items:center;justify-content:center;min-width:64px;min-height:44px;margin:0;padding:10px 12px;border:1px solid #ded0e2;border-radius:999px;background:#fff;color:#58305f;font:600 12px/1.2 Arial,Helvetica,sans-serif;text-decoration:none;cursor:pointer;white-space:nowrap}
+.academy-page-actions>:is(a,button):hover{background:#f3eaf5}
+.academy-page-actions>:is(a,button):focus-visible{outline:3px solid #805088;outline-offset:2px}
+.academy-page-actions>[hidden],.academy-page-actions>.hidden{display:none!important}
+.academy-account-row>.academy-page-actions,.account-panel-topline>.academy-page-actions{margin:0 0 0 auto}
+.user-profiles-sheet main>.academy-page-actions{padding:10px 12px 0}
+.admin-heading-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.admin-heading-actions>[role=status]{flex-basis:100%;margin:0}
+@media(max-width:900px){
+  .academy-page-actions>:is(a,button){padding:10px;min-width:60px}
+  .academy-account-row>.academy-page-actions{flex-wrap:nowrap}
+}

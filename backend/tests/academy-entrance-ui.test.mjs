@@ -221,7 +221,7 @@ await navigate('#overview/teach');assert.match($('academy-role-panel').innerHTML
 await navigate('#workshops');assert.equal($('workshop-pills').innerHTML,'');assert.match($('course-list-message').textContent,/No Courses/);
 hasWorkshops=true;globalAdmin=true;location.hash='#activity/PROGRAM/'+activity.id;await refresh();
 assert.doesNotMatch($('activity-menu').innerHTML,/Admin tools/);assert.match($('activity-menu').innerHTML,/Teach tools/);
-await navigate('#administration');assert.match($('administration').innerHTML,/Academy-wide management|Manage user profiles|Refresh public timetable/);
+await navigate('#administration');assert.match($('administration').innerHTML,/Academy-wide management|Manage user profiles|Refresh public timetable/);assert.match($('administration').innerHTML,/id="admin-teach" href="#overview\/teach">Teach/);
 for(const label of ['Users','Attendance','Planning','Assessments','Library','Curriculum','Programs','Courses'])assert.ok($('administration').innerHTML.includes(`>${label}<`));
 await navigate('#administration/curriculum');assert.match($('administration').innerHTML,/Subjects and Modules/);
 await navigate('#activity/PROGRAM/'+activity.id);
@@ -371,7 +371,7 @@ for(const [roles,label] of [[['STUDENT','TEACHER'],'Teacher'],[['TEACHER','STUDE
   programRole=roles;await refresh();assert.match($('activity-switcher').innerHTML,new RegExp('<small>'+label+'</small>'));assert.doesNotMatch($('activity-switcher').innerHTML,/<small>[^<]* · /);
 }
 globalAdmin=true;await refresh();assert.match($('activity-switcher').innerHTML,/<small>Global Admin<\/small>/);assert.doesNotMatch($('activity-switcher').innerHTML,/<small>[^<]* · /);
-globalAdmin=false;programRole='PROGRAM_ADMIN';await refresh();await navigate('#administration');assert.match($('administration').innerHTML,/assigned Programs and Courses/);assert.doesNotMatch($('administration').innerHTML,/href="\/users\/"|Refresh public timetable/);
+globalAdmin=false;programRole='PROGRAM_ADMIN';await refresh();await navigate('#administration');assert.match($('administration').innerHTML,/assigned Programs and Courses/);assert.match($('administration').innerHTML,/id="admin-teach" href="#overview\/teach">Teach/);assert.doesNotMatch($('administration').innerHTML,/href="\/users\/"|Refresh public timetable/);
 await navigate('#administration/assessments');assert.match($('administration').innerHTML,/#assessment-admin\/PROGRAM\//);
 globalAdmin=false;programRole='STUDENT';await refresh();await navigate(programHash+'/attendance');assert.equal($('pa-main').hidden,true,'Students cannot open the staff register');
 hasWorkshops=false;programRole='';await refresh();assert.equal($('academy-account-role').textContent,'None');assert.equal($('academy-access-empty').hidden,false);assert.equal($('academy-role-panel').hidden,true);assert.equal($('academy-role-panel').innerHTML,'');for(const key of ['learn','teach','admin'])assert.equal($('academy-tab-'+key).hidden,true);

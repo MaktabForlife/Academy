@@ -31,7 +31,7 @@
     $('ac-library').href = '/academy/open-library/';
     $('ac-progress').hidden = false;
     $('ac-recorder').hidden = true;
-    $('ac-signout').hidden = true;
+    $('ac-signout').hidden = !token();
     if ($('library-for-you')) $('library-for-you').hidden = true;
   }
 

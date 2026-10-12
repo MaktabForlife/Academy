@@ -1,3 +1,7 @@
+# V106.41 — Shared page controls and Admin teaching access
+
+Admin has a direct Teach button for choosing a Program or Course teaching workspace. Academy pages, connected management tools, libraries, the Academy recorder and the account page show Home, Refresh and the existing Sign out control together. Refresh reloads the current page and requests a fresh Academy timetable. [Release details](docs/ACADEMY-PAGE-ACTIONS-106.41.md).
+
 # V106.40 — Compact Learn, Teach and Admin workspaces
 
 Learn selects an assigned Program or Course and opens Timetable, Assessment and Library tabs. Teach opens the corresponding teaching workspace; Admin opens central, permission-scoped management. Phones use a single swipeable tab row; wider screens can wrap pills. Messages/reminders, the Academy calendar and Surahs and Duas trackers sit below in compact expandable sections. Existing Academy styling and V106.39 assessment review remain intact. [Release details](docs/ACADEMY-WORKSPACES-106.40.md).

@@ -65,6 +65,7 @@ assert.doesNotMatch(app.children[1].innerHTML,/<span>Courses<\/span>/);
 app.setOk(false);app.refresh();await flush();
 assert.equal(app.forYou.hidden,true);
 assert.equal(app.nodes.get('ac-library').href,'/academy/open-library/');
+assert.equal(app.nodes.get('ac-signout').hidden,false,'A stored account can sign out even when navigation cannot load');
 assert.equal(app.children[1].hidden,true,'Failed validation cannot restore private activity names');
 app.setOk(true);app.defer();app.refresh();await flush();
 app.localStorage.removeItem('m4l_account_token');app.handlers.get('storage')({key:'m4l_account_token'});app.release();await flush();
@@ -102,7 +103,7 @@ const initialRequests=program.requests.length;program.location.search='?program=
 assert.equal(first.attrs['aria-current'],undefined);assert.equal(second.attrs['aria-current'],'page');assert.equal(program.requests.length,initialRequests,'Program selection updates the activity strip without another account lookup');
 for(const file of ['academy/library/index.html','academy/open-library/index.html','academy/library/manage/index.html','programs/index.html','programs/manage.html','programs/timetable.html','programs/attendance.html','programs/library.html','programs/library-view.html','users/index.html','recorder/index.html']) {
   const html=await readFile(new URL(`../../${file}`,import.meta.url),'utf8');
-  assert.match(html,/m4l-academy-navigation\.js/);assert.match(html,/m4l-academy-navigation\.css/);
+  assert.match(html,/m4l-academy-navigation\.js/);assert.match(html,/m4l-academy-navigation\.css/);assert.match(html,/m4l-academy-page-actions\.js/);assert.match(html,/m4l-academy-page-actions\.css/);
 }
 console.log('Academy shared navigation: public/private links, actual subscribed IDs, all-role Library tabs, stale-response sign-out, tool coverage and standalone recorder isolation passed.');
 

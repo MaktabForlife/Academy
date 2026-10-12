@@ -42,7 +42,7 @@ const server=createServer(async(req,res)=>{
     if(!/^\/(academy|account|programs|users|recorder|js|css|icons|images)(\/|$)/.test(url.pathname)&&!['/ummabbadacademy.png','/logo.png','/version.json'].includes(url.pathname)) {res.writeHead(404);res.end();return;}
     const target=path.resolve(root,'.'+decodeURIComponent(url.pathname));
     if(!target.startsWith(root+path.sep))throw Error('Invalid path');
-    const file=url.pathname.endsWith('/')?path.join(target,'index.html'):target;
+    const file=/^\/account\/[^/.]+\/?$/.test(url.pathname)?path.join(root,'account/index.html'):url.pathname.endsWith('/')?path.join(target,'index.html'):target;
     const type=mime[path.extname(file)];if(!type)throw Error('Unsupported file');
     const bytes=readFileSync(file);res.writeHead(200,{'Content-Type':type});res.end(bytes);
   } catch(error) {res.writeHead(error.code==='ENOENT'?404:500);res.end();}
@@ -104,6 +104,9 @@ if(process.argv.includes('--serve')) {
     assert.equal(await page.locator('.brand .site-version').isVisible(),true);
     assert.equal(await page.locator('.academy-learning-menu').count(),0);
     await page.locator('#academy-role-panel a[href*="/learn"]').first().waitFor();
+    assert.equal(await page.locator('.academy-page-actions [data-page-home]').isVisible(),true);
+    assert.equal(await page.locator('.academy-page-actions [data-page-refresh]').isVisible(),true);
+    assert.equal(await page.locator('.academy-page-actions #academy-sign-out').isVisible(),true);
     checks.push('Student home uses a Learn chooser and top-row version without duplicate welcome or Learning menus');
     // One authorised snapshot drives the role menus. Teacher visibility does not grant Student roles.
     for(const [who,expected] of [['teacher',['learn','teach']],['scopedAdmin',['learn','teach','admin']],['admin',['learn','teach','admin']]]) {
@@ -121,6 +124,13 @@ if(process.argv.includes('--serve')) {
           assert.equal(await page.locator('#academy-role-panel').getAttribute('aria-labelledby'),'academy-tab-'+key);
           assert.match(await page.locator('#academy-role-panel').innerText(),/Select a Program or Course/);
         }
+      }
+      if(expected.includes('admin')) {
+        await page.locator('#admin-teach').click();await page.locator('#academy-role-panel a[href*="/teach"]').first().waitFor();
+        assert.equal(await page.locator('#academy-tab-teach').getAttribute('aria-selected'),'true');
+        await page.locator('#academy-role-panel a[href*="/teach"]').first().click();await page.locator('#activity-menu [aria-label="Teach tools"]').waitFor();
+        await page.locator('#academy-tab-admin').click();await page.locator('#administration.active').waitFor();
+        checks.push(who+' Admin Teach button opens assigned teaching pages');
       }
       if(who==='scopedAdmin') {
         assert.equal(await page.locator('#administration a[href="/users/"],#public-timetable-refresh').count(),0);
@@ -198,9 +208,13 @@ if(process.argv.includes('--serve')) {
     checks.push('Learn and Teach open scoped Program/Course workspaces; tab keyboard focus and active horizontal visibility work');
     for(const width of [320,390,768,1440]) {
       await signIn('admin');await page.setViewportSize({width,height:900});
-      const pages=[['/academy/#administration','Academy administration'],['/users/','User profiles'],['/academy/subjects/','Subjects'],['/academy/courses/manage/','Courses'],['/programs/','Programs'],['/programs/timetable.html?program='+assessmentScope.slice(8),'Program timetable'],['/programs/manage.html?program='+assessmentScope.slice(8),'Program people'],['/academy/#activity/PROGRAM/'+assessmentScope.slice(8)+'/attendance','Attendance'],['/academy/#assessment-admin','Assessments'],['/academy/#progress-admin','Memorisation administration'],['/academy/library/','Library']];
+      const pages=[['/academy/#administration','Academy administration'],['/users/','User profiles'],['/academy/subjects/','Subjects'],['/academy/courses/manage/','Courses'],['/programs/','Programs'],['/programs/timetable.html?program='+assessmentScope.slice(8),'Program timetable'],['/programs/manage.html?program='+assessmentScope.slice(8),'Program people'],['/academy/#activity/PROGRAM/'+assessmentScope.slice(8)+'/attendance','Attendance'],['/academy/#assessment-admin','Assessments'],['/academy/#progress-admin','Memorisation administration'],['/academy/library/','Library'],['/academy/library/manage/','Library management'],['/academy/open-library/','Public Library'],['/academy/teaching/','Teaching calendar'],['/programs/library.html?program='+assessmentScope.slice(8),'Program Library'],['/programs/library-view.html?program='+assessmentScope.slice(8),'Library viewer'],['/programs/media.html?program='+assessmentScope.slice(8),'Program media'],['/recorder/?academy=1','Academy recorder']];
       for(const [url,label] of pages) {
         await go(url);await page.waitForTimeout(300);await fits(label+' '+width);
+        for(const selector of ['[data-page-home]','[data-page-refresh]','#academy-sign-out,#ac-signout']) {
+          const control=page.locator('.academy-page-actions').locator(selector);await control.waitFor();
+          assert.ok((await control.boundingBox()).height>=44,label+' '+selector);
+        }
         if(width<=900&&url==='/users/') {
           const learning=page.locator('.academy-learning-menu');await learning.waitFor();
           assert.equal(await learning.evaluate(el=>el.open),false);
@@ -212,6 +226,20 @@ if(process.argv.includes('--serve')) {
         if(width===390&&['Academy administration','User profiles','Courses','Program timetable'].includes(label))await page.screenshot({path:path.join(out,'phone-'+label.toLowerCase().replaceAll(' ','-')+'.png'),fullPage:true});
       }
     }
+    // Refresh keeps the active address but replaces today's cached timetable with a new read.
+    await page.setViewportSize({width:390,height:844});await go('/academy/#administration/courses');await page.locator('#admin-tab-courses[aria-selected=true]').waitFor();
+    const freshTimetable=page.waitForResponse(response=>response.url().endsWith('/api/academy/entrance')&&response.request().method()==='POST');
+    await page.locator('[data-page-refresh]').click();await freshTimetable;await page.locator('#admin-tab-courses[aria-selected=true]').waitFor();
+    assert.equal(new URL(page.url()).hash,'#administration/courses');
+    await page.locator('[data-page-home]').click();await page.locator('#overview.active').waitFor();
+    checks.push('Page Refresh reloads the current tab with fresh timetable data; Home returns to Academy overview');
+    await go('/academy/library/');await page.locator('.academy-page-actions #ac-signout').waitFor();
+    await page.locator('[data-page-refresh]').click();await page.locator('.academy-page-actions #ac-signout').waitFor();assert.equal(new URL(page.url()).pathname,'/academy/library/');
+    await page.locator('[data-page-home]').click();await page.locator('#overview.active').waitFor();
+    await go('/academy/library/');await page.locator('.academy-page-actions #ac-signout').click();await page.locator('#login-preview').waitFor();
+    assert.equal(await page.evaluate(()=>localStorage.getItem('m4l_account_token')),null);
+    checks.push('Connected Library Refresh retains the page; visible Sign out clears the account and returns home');
+    await signIn('admin');
     // Mobile editing and frozen-column scrolling against the real synthetic Worker.
     await page.setViewportSize({width:320,height:844});await go('/users/');await page.locator('#up-users tr').first().waitFor();
     const frozenBefore=await page.locator('#up-users tr td:first-child').first().boundingBox();
@@ -219,6 +247,12 @@ if(process.argv.includes('--serve')) {
     const frozenAfter=await page.locator('#up-users tr td:first-child').first().boundingBox();assert.ok(Math.abs(frozenBefore.x-frozenAfter.x)<1);await fits('320px frozen name and independent sheet scroll');
     await page.locator('[data-unique-id][data-account="account-0008"]').fill('MobileTest8');
     await page.locator('[data-whatsapp-number][data-account="account-0008"]').fill('+27123456789');
+    for(const selector of ['[data-page-refresh]','[data-page-home]']) {
+      const warned=page.waitForEvent('dialog').then(async dialog=>{assert.equal(dialog.type(),'beforeunload');await dialog.dismiss();});
+      await page.locator(selector).click();await warned;
+      assert.equal(new URL(page.url()).pathname,'/users/');assert.equal(await page.locator('[data-unique-id][data-account="account-0008"]').inputValue(),'MobileTest8');
+    }
+    checks.push('Home and Refresh respect the existing unsaved User profiles warning and preserve edits when cancelled');
     const saved=page.waitForResponse(response=>response.url().endsWith('/api/admin/platform/user-profiles/save'));
     await page.locator('#up-save-all').click();
     const saveResponse=await saved,saveResult=await saveResponse.json();
@@ -237,6 +271,15 @@ if(process.argv.includes('--serve')) {
     // Crossing the desktop breakpoint closes the disclosure without hiding desktop links.
     await page.locator('.academy-menu-toggle').click();await page.setViewportSize({width:1440,height:1000});assert.equal(await page.locator('.academy-menu-content').isVisible(),true);await fits('desktop after mobile resize');
     await go('/academy/');await page.screenshot({path:path.join(out,'desktop-home.png'),fullPage:true});
+    // Personal account pages reuse their own sign-out listener, without an extra navigation shell.
+    for(const width of [320,390,768,1440]) {
+      await page.setViewportSize({width,height:900});await page.goto(origin+'/account/login-0001');await page.locator('.academy-page-actions #logout-button').waitFor();
+      for(const selector of ['[data-page-home]','[data-page-refresh]','#logout-button'])assert.ok((await page.locator('.academy-page-actions').locator(selector).boundingBox()).height>=44);
+      await fits('personal account page actions '+width);
+    }
+    await page.locator('[data-page-refresh]').click();await page.locator('.academy-page-actions #logout-button').waitFor();assert.equal(new URL(page.url()).pathname,'/account/login-0001');
+    await page.locator('#logout-button').click();await page.waitForFunction(()=>!localStorage.getItem('m4l_account_token'));await page.locator('#login-form:not(.hidden)').waitFor();
+    checks.push('Account Refresh retains the personal link and existing Sign out clears the account');
     assert.deepEqual(errors,[]);
     writeFileSync(path.join(out,'acceptance.json'),JSON.stringify({checks,errors,syntheticDatabase:true,liveDataChanged:false},null,2));
     console.log('Mobile layout browser acceptance passed: '+checks.length+' checks. Evidence: '+out);
