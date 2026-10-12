@@ -52,3 +52,11 @@ A tenth API case also verifies inherited Global Admin access and rejects scoped-
 - Existing entries remain unassigned and available; no schedule import or inferred phase.
 - Paper status is None before PDF attachment. Both selectors match Assessment input height.
 - 14 assessment API cases and Chrome workflow acceptance pass. Full regression: 141/141 files. Development Worker dry-run: 1667.28 KiB / 336.33 KiB gzip.
+
+## V106.33 — Earlier schedule editing
+
+- Earlier unpublished entries now show an explicit **Edit schedule** action instead of the misleading **Attach paper** label for admins. The existing saved form, permissions and backend save rules are reused.
+- Moving the last earlier entry into a phase returns to the phase schedule, instead of an empty Earlier assessments view.
+- Read-only live inspection confirmed four unpublished entries without papers or phase assignment, and zero submissions. No live data was changed.
+- Validation: 16 assessment/API, Academy UI and version/routing checks passed, with the development Worker dry-run. Chrome acceptance passed, including editing an earlier entry on mobile, saving all schedule fields and its phase, returning to the phase, and the existing paper/moderation/submission/report workflow.
+- Release authorised on 12 October 2026. Version markers and the assessment script cache advance to V106.33. No database migration or live schedule changes are required.

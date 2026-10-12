@@ -1,3 +1,7 @@
+# V106.33 — Edit earlier assessment schedules
+
+Unpublished assessments without papers show **Edit schedule** for admins. Earlier entries can be edited and assigned to a phase; returning from the last moved entry shows the phase schedule. [Release details](docs/ACADEMY-ASSESSMENT-EDITING-106.33.md).
+
 # V106.32 — Mobile user profile editing
 
 Only the User name column stays frozen in the user profile sheet. Login ID, WhatsApp and other fields scroll horizontally, leaving room to edit on mobile. [Release details](docs/USER-PROFILE-NAME-COLUMN-106.32.md).
