@@ -249,13 +249,13 @@
 <link rel="stylesheet" href="/css/m4l-memorisation-admin.css?v=106.32">
 <link rel="stylesheet" href="/css/m4l-academy-assessments.css?v=106.35">
 <link rel="stylesheet" href="/css/m4l-lesson-media.css?v=106.32">
-<link rel="stylesheet" href="/css/m4l-academy-mobile.css?v=106.34">
+<link rel="stylesheet" href="/css/m4l-academy-mobile.css?v=106.36">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
 <div class="app">
 <aside class="sidebar">
-<a class="brand" href="#overview" data-nav="overview" aria-label="Umm Abbad Academy home"><img src="/ummabbadacademy.png?v=106.1" alt=""><span><strong>Umm Abbad<br>Academy</strong><small>Learning together</small></span></a>
+<a class="brand" href="#overview" data-nav="overview" aria-label="Umm Abbad Academy home"><img src="/ummabbadacademy.png?v=106.1" alt=""><span><strong>Umm Abbad<br>Academy</strong><span class="site-version">Website V106.36</span></span></a>
 <div><div class="nav-label">Academy</div><nav class="nav" aria-label="Academy navigation">
 <button type="button" class="active" data-nav="overview">Academy home</button>
 <button type="button" id="academy-progress-nav" data-nav="progress">Surahs and Duas</button>
@@ -269,11 +269,25 @@
 <a class="text-link" href="https://ummabbadacademy.com" target="_blank" rel="noopener noreferrer">Original Academy site ↗</a>
 </aside>
 <main id="main">
-<header class="topbar"><div class="breadcrumbs">Umm Abbad Academy / <strong id="current-view">Academy home</strong></div><div class="top-actions"><span class="academy-header-name" id="academy-header-name" hidden></span><span class="site-version">Website V106.35</span><button class="academy-sign-out" id="academy-sign-out" type="button" hidden>Sign out</button><div class="avatar" id="academy-avatar" aria-label="Academy account">A</div></div></header>
+<header class="topbar"><div class="breadcrumbs">Umm Abbad Academy / <strong id="current-view">Academy home</strong></div></header>
+<section class="academy-account-bar" id="academy-home-card" hidden aria-label="Academy menu">
+  <div class="academy-account-row">
+    <div class="academy-profile"><span class="academy-header-name" id="academy-header-name" hidden></span><small id="academy-account-role"></small></div>
+    <div class="academy-role-tabs" id="academy-role-tabs" role="tablist" aria-label="Academy menu">
+      <button type="button" id="academy-tab-learn" role="tab" data-academy-tab="learn" aria-controls="academy-role-panel" aria-selected="false" tabindex="-1" hidden>LEARN</button>
+      <button type="button" id="academy-tab-teach" role="tab" data-academy-tab="teach" aria-controls="academy-role-panel" aria-selected="false" tabindex="-1" hidden>TEACH</button>
+      <button type="button" id="academy-tab-admin" role="tab" data-academy-tab="admin" aria-controls="academy-role-panel" aria-selected="false" tabindex="-1" hidden>ADMIN</button>
+    </div>
+    <button class="academy-sign-out" id="academy-sign-out" type="button" hidden>Sign out</button>
+    <div class="avatar" id="academy-avatar" aria-label="Academy account" hidden>A</div>
+  </div>
+  <div class="academy-role-panel" id="academy-role-panel" role="tabpanel" tabindex="0" hidden></div>
+  <p class="academy-access-empty" id="academy-access-empty" hidden>No Program or Course access is currently assigned to this account.</p>
+</section>
 <div class="academy-global-strip"><nav class="activity-pills activity-switcher" id="activity-switcher" aria-label="Your subscribed Programs and Courses" hidden></nav></div>
 <div class="container">
 <div class="entrance-status" id="entrance-status" role="status" aria-live="polite"><span id="entrance-message">Loading Academy information…</span><button type="button" class="button secondary small" id="entrance-retry" hidden>Try again</button></div>
-<section id="overview" class="view active" aria-labelledby="overview-title">
+<section id="overview" class="view active" aria-label="Academy home">
 <section class="academy-intro" aria-labelledby="overview-title">
           <div class="intro-next">
             <div class="intro-identity">
@@ -291,12 +305,6 @@
               <button class="button sage" type="submit">Continue to my account</button>
               <p class="login-status" id="login-status" role="status" aria-live="polite" hidden></p>
             </form>
-            <div class="login-preview academy-home-card" id="academy-home-card" hidden>
-              <div class="login-preview-head">My Academy <span>Signed in</span></div>
-              <p>Welcome, <strong id="academy-account-name"></strong></p>
-              <section class="personal-activities" id="personal-activities" hidden aria-labelledby="personal-title"><h2 id="personal-title">Your activities</h2><div class="activity-pills" id="personal-pills"></div><p id="personal-empty" hidden>No Program or Course access is currently assigned to this account.</p></section>
-
-            </div>
             <div class="intro-actions"><a class="text-link" href="https://ummabbadacademy.com" target="_blank" rel="noopener noreferrer">Visit the original Academy site ↗</a></div>
           </div>
           <div class="intro-feature">
@@ -441,8 +449,8 @@
 <script src="/js/m4l-assessment-reports.js?v=106.29"></script>
 <script src="/js/m4l-academy-assessments.js?v=106.35"></script>
 <script src="/js/m4l-lesson-media.js?v=106.32"></script>
-<script src="/js/m4l-academy-entrance.js?v=106.32"></script>
+<script src="/js/m4l-academy-entrance.js?v=106.36"></script>
 <script src="/js/m4l-academy-catalogue.js?v=106.1"></script>
-<script src="/js/m4l-academy-login.js?v=106.17"></script>
-<script src="/js/m4l-academy-mobile.js?v=106.34"></script>
+<script src="/js/m4l-academy-login.js?v=106.36"></script>
+<script src="/js/m4l-academy-mobile.js?v=106.36"></script>
 </body></html>

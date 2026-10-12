@@ -159,7 +159,7 @@ const clickInfo=(id,index)=>documentHandlers.get('click')({target:{closest:selec
 const firstInfo=id=>/data-information="[^:]+:(\d+)"/.exec($(id).innerHTML)[1];
 const navigate=async hash=>{location.hash=hash;handlers.get('hashchange')();await flush();};
 const refresh=async()=>{tabStore.clear();window.dispatchEvent(new Event('m4l-academy-session'));await flush();if(storage.size){$('timetable-refresh').listeners.get('click')();await flush();}};
-assert.equal($('personal-activities').hidden,true);
+assert.equal($('academy-role-panel').hidden,true);
 assert.equal(catalogueRequests.length,0);
 assert.equal(($('academy-preview-sessions').innerHTML.match(/<li class="preview-pill"/g)||[]).length,4);
 assert.match($('academy-preview-sessions').innerHTML,/>4am<|Public &lt;Program&gt;/);assert.match($('academy-preview-sessions').innerHTML,/<strong>Quran, Sunnah, and Islamic law<\/strong>/);
@@ -177,7 +177,7 @@ assert.ok(html.indexOf('id="login-preview"')<html.indexOf('class="intro-feature"
 await navigate('#workshops');assert.match($('workshops-message').textContent,/Sign in/);assert.equal(catalogueRequests.length,0);
 
 storage.set('m4l_account_token','QA');await refresh();
-assert.equal($('personal-activities').hidden,false);assert.equal($('public-snapshot-note').hidden,true);
+assert.equal($('academy-role-panel').hidden,false);assert.equal($('public-snapshot-note').hidden,true);
 assert.equal($('academy-progress-nav').hidden,false);assert.equal(catalogueRequests.length,1);
 assert.match($('workshop-pills').innerHTML,/Barakah|Complete|Media · coming soon/);
 assert.doesNotMatch($('workshop-pills').innerHTML,/Program Admin|Teacher|User|COURSE-DRAFT|<small>Student/);
@@ -209,7 +209,8 @@ await navigate('#overview');await navigate('#timetable');assert.equal($('timetab
 tabStore.set('m4l_academy_timetable_return','https://outside.invalid');await navigate('#timetable');assert.equal($('timetable-close').href,'#overview','Stored navigation accepts local Academy views only');
 hasWorkshops=false;programRole='TEACHER';location.hash='#activity/PROGRAM/'+activity.id;await refresh();
 assert.match($('activity-menu').innerHTML,/Teach tools/);assert.doesNotMatch($('activity-menu').innerHTML,/Admin tools/);assert.doesNotMatch($('activity-menu').innerHTML,/Learn tools/);for(const label of ['Attendance','Surahs and Duas','Assessment','Planning','Announcements','My Timetable'])assert.ok($('activity-menu').innerHTML.includes(`>${label}<`));
-assert.doesNotMatch($('personal-pills').innerHTML,/<span>Courses<\/span>/,'No Course access means no Courses pill');assert.doesNotMatch($('activity-switcher').innerHTML,/<span>Courses<\/span>/);
+assert.doesNotMatch($('activity-switcher').innerHTML,/<span>Courses<\/span>/,'No Course access means no Courses pill');
+assert.equal($('academy-tab-teach').hidden,false);assert.equal($('academy-tab-learn').hidden,true);assert.equal($('academy-tab-admin').hidden,true);
 await navigate('#workshops');assert.equal($('workshop-pills').innerHTML,'');assert.match($('course-list-message').textContent,/No Courses/);
 hasWorkshops=true;globalAdmin=true;location.hash='#activity/PROGRAM/'+activity.id;await refresh();
 assert.match($('activity-menu').innerHTML,/Admin tools/);assert.match($('activity-menu').innerHTML,/Teach tools/);assert.doesNotMatch($('activity-menu').innerHTML,/Learn tools/);for(const label of ['Users','Programs','Courses','Library','Academy'])assert.ok($('activity-menu').innerHTML.includes(`>${label}<`));
@@ -266,7 +267,7 @@ $('course-list-retry').listeners.get('click')();await flush();assert.match($('wo
 fixtureNow='2026-10-05T11:04:04Z';deferCatalogue=true;handlers.get('hashchange')();await flush();
 storage.clear();window.dispatchEvent(new Event('m4l-academy-session'));releaseCatalogue();await flush();
 assert.equal($('workshop-pills').innerHTML,'','A late Course response cannot restore the previous account');
-assert.equal($('activity-menu').innerHTML,'');assert.equal($('workshop-tools').innerHTML,'');
+assert.equal($('activity-menu').innerHTML,'');assert.equal($('workshop-tools').innerHTML,'');assert.equal($('academy-role-panel').innerHTML,'','Late responses cannot restore Academy tools');assert.equal($('academy-role-panel').hidden,true);
 assert.doesNotMatch($('academy-preview-sessions').innerHTML,/Join lesson|data-information|Teacher A/);
 assert.equal($('lesson-information').open,false);assert.equal(timers.size,0);
 fixtureNow='2026-10-06T10:00:00Z';storage.set('m4l_account_token','NEW-SESSION');location.hash='#overview';await refresh();count=requests.length;
@@ -315,38 +316,36 @@ for(const role of ['STUDENT','TEACHER','PROGRAM_ADMIN']) {
   assert.equal((markup.match(/>HifzHelper ↗<\/a>/g)||[]).length,1);
   assert.doesNotMatch(markup,/HIFZ-SESSION|\?token=|\?pin=/);
   assertHifzPill('activity-switcher','F1CJW7',true);
-  assertHifzPill('personal-pills','F1CJW7');
 }
 globalAdmin=true;personalLoginId='ABCDEFG';await refresh();
 assert.match($('activity-menu').innerHTML,/hifz-helper\.app\/ABCDEFG/,'Global Admin inherits Hifz access');
 assertHifzPill('activity-switcher','ABCDEFG',true);
-assertHifzPill('personal-pills','ABCDEFG');
 assert.doesNotMatch($('activity-switcher').innerHTML,/hifz-helper\.app\/F1CJW7/,'The shortcut follows the current identity');
 await navigate('#activity/COURSE/COURSE-BARAKAH');assert.doesNotMatch($('activity-menu').innerHTML,/HifzHelper/,'Courses do not inherit the Hifz destination');
 assertHifzPill('activity-switcher','ABCDEFG');
 location.hash='#activity/PROGRAM/'+activity.id;globalAdmin=false;
 for(const role of ['', 'GLOBAL_TEACHER']) {
   programRole=role;await refresh();assert.doesNotMatch($('activity-menu').innerHTML,/HifzHelper/,'No Hifz assignment means no Hifz button');
-  for(const target of ['activity-switcher','personal-pills'])assert.doesNotMatch($(target).innerHTML,/HifzHelper/,'No assignment means no personal shortcut');
+  assert.doesNotMatch($('activity-switcher').innerHTML,/HifzHelper/,'No assignment means no personal shortcut');
 }
 programRole='STUDENT';
 for(const id of ['', 'bad/id', 'bad?token=value']) {
   personalLoginId=id;await refresh();assert.doesNotMatch($('activity-menu').innerHTML,/HifzHelper/,'A missing or invalid personal ID cannot create a destination');
-  for(const target of ['activity-switcher','personal-pills'])assert.doesNotMatch($(target).innerHTML,/HifzHelper/,'Invalid identity cannot create a pill shortcut');
+  assert.doesNotMatch($('activity-switcher').innerHTML,/HifzHelper/,'Invalid identity cannot create a pill shortcut');
 }
 personalLoginId='F1CJW7';activity.id='UNRELATED-PROGRAM';location.hash='#activity/PROGRAM/'+activity.id;await refresh();
 assert.doesNotMatch($('activity-menu').innerHTML,/HifzHelper/,'A matching display name does not grant Hifz access');
-for(const target of ['activity-switcher','personal-pills'])assert.doesNotMatch($(target).innerHTML,/HifzHelper/,'Only the registered Hifz Program receives a shortcut');
+assert.doesNotMatch($('activity-switcher').innerHTML,/HifzHelper/,'Only the registered Hifz Program receives a shortcut');
 activity.id=window.M4L_CONFIG.HIFZ_PROGRAM_ID;location.hash='#activity/PROGRAM/'+activity.id;await refresh();
 assert.match($('activity-menu').innerHTML,/hifz-helper\.app\/F1CJW7/);
 await navigate('#workshops');await navigate('#activity/PROGRAM/'+activity.id);
 count=fetchUrls.length;await navigate('#workshops');await navigate('#activity/PROGRAM/'+activity.id);
-await navigate('#overview');assertHifzPill('personal-pills','F1CJW7');
+await navigate('#overview');assertHifzPill('activity-switcher','F1CJW7');
 await navigate('#activity/PROGRAM/'+activity.id);assertHifzPill('activity-switcher','F1CJW7',true);
 assert.equal(fetchUrls.length,count,'The link adds no connection checks or account lookups');
 assert.ok(fetchUrls.every(url=>url.startsWith('https://test/')),'No Hifz requests occur until the user follows the link');
 storage.clear();window.dispatchEvent(new Event('m4l-academy-session'));await flush();assert.doesNotMatch($('activity-menu').innerHTML,/HifzHelper/,'Sign-out removes the personal link');
-for(const target of ['activity-switcher','personal-pills'])assert.doesNotMatch($(target).innerHTML,/HifzHelper/,'Sign-out removes the personal pill shortcut');
+assert.doesNotMatch($('activity-switcher').innerHTML,/HifzHelper/,'Sign-out removes the personal pill shortcut');
 storage.set('m4l_account_token','inline-account');cacheFixture=true;globalAdmin=false;programRole='TEACHER';await refresh();
 const inlineCalls=[];let allowLeave=true;
 window.M4L_PROGRAM_ATTENDANCE={open:options=>inlineCalls.push(options),reset(){},canLeave:()=>allowLeave};
@@ -358,8 +357,9 @@ assert.match($('activity-switcher').innerHTML,/\/attendance"/,'Program pills kee
 allowLeave=false;await navigate('#overview');assert.equal(location.hash,programHash+'/attendance');assert.equal($('pa-main').hidden,false,'Rejected navigation retains the open register');
 allowLeave=true;await navigate('#overview');assert.equal($('pa-main').hidden,true);
 for(const [roles,label] of [[['STUDENT','TEACHER'],'Teacher'],[['TEACHER','STUDENT','PROGRAM_ADMIN'],'Program Admin']]) {
-  programRole=roles;await refresh();assert.match($('personal-pills').innerHTML,new RegExp('<small>'+label+'</small>'));assert.doesNotMatch($('personal-pills').innerHTML,/<small>[^<]* · /);
+  programRole=roles;await refresh();assert.match($('activity-switcher').innerHTML,new RegExp('<small>'+label+'</small>'));assert.doesNotMatch($('activity-switcher').innerHTML,/<small>[^<]* · /);
 }
-globalAdmin=true;await refresh();assert.match($('personal-pills').innerHTML,/<small>Global Admin<\/small>/);assert.doesNotMatch($('personal-pills').innerHTML,/<small>[^<]* · /);
+globalAdmin=true;await refresh();assert.match($('activity-switcher').innerHTML,/<small>Global Admin<\/small>/);assert.doesNotMatch($('activity-switcher').innerHTML,/<small>[^<]* · /);
 globalAdmin=false;programRole='STUDENT';await refresh();await navigate(programHash+'/attendance');assert.equal($('pa-main').hidden,true,'Students cannot open the staff register');
+hasWorkshops=false;programRole='';await refresh();assert.equal($('academy-account-role').textContent,'None');assert.equal($('academy-access-empty').hidden,false);assert.equal($('academy-role-panel').hidden,true);assert.equal($('academy-role-panel').innerHTML,'');for(const key of ['learn','teach','admin'])assert.equal($('academy-tab-'+key).hidden,true);
 console.log('Academy timetable, inline Attendance routing and draft guards, highest pill access, scoped tools, cache, joining, sign-out and personal HifzHelper links passed.');

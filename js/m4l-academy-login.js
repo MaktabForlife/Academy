@@ -13,7 +13,6 @@
   const sessionMessage = document.getElementById("academy-session-message");
   const sessionRetry = document.getElementById("academy-session-retry");
   const homeCard = document.getElementById("academy-home-card");
-  const accountName = document.getElementById("academy-account-name");
   const headerName = document.getElementById("academy-header-name");
   const signOutButton = document.getElementById("academy-sign-out");
   const libraryNav = document.getElementById("academy-library-nav");
@@ -85,7 +84,6 @@
     pinInput.type = "password";
     pinToggle.textContent = "Show";
     pinToggle.setAttribute("aria-label", "Show PIN");
-    accountName.textContent = "";
     headerName.textContent = "";
     headerName.hidden = true;
     avatar.textContent = "A";
@@ -143,7 +141,6 @@
     const uniqueId = String(account.uniqueid || "").trim();
     activeLoginId = uniqueId;
     const name = String(account.displayName || "Academy member").trim();
-    accountName.textContent = name;
     headerName.textContent = name;
     headerName.hidden = false;
     avatar.textContent = name.charAt(0).toUpperCase();

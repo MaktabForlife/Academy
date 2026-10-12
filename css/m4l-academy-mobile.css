@@ -3,6 +3,24 @@
 .academy-menu-toggle { display:none; }
 .academy-menu-content { display:flex; flex:1; flex-direction:column; gap:28px; min-height:0; }
 .user-profiles-sheet .academy-menu-content { display:contents; }
+.academy-learning-menu { margin:0; padding:0; border:0; }
+.academy-learning-menu>summary { display:none; }
+
+/* The signed-in Academy starts with its tools and timetable. */
+.academy-signed-in #overview>.academy-intro { display:none; }
+.brand .site-version { display:block; width:max-content; margin-top:5px; padding:0; border:0; background:none; font:600 10px/1.2 Arial,Helvetica,sans-serif; }
+.academy-account-bar { padding:12px clamp(20px,4vw,52px); background:#fffcff; border-bottom:1px solid #ded0e2; }
+.academy-account-row { display:flex; align-items:center; flex-wrap:wrap; gap:10px 18px; }
+.academy-profile { min-width:0; flex:1 1 140px; }
+.academy-profile .academy-header-name { display:block; max-width:none; text-align:left; }
+.academy-profile>small { display:block; margin-top:2px; font-size:11px; color:#6b5c70; }
+.academy-role-tabs { display:flex; gap:4px; padding:3px; border-radius:12px; background:#f3eaf5; }
+.academy-role-tabs button { min-height:44px; min-width:62px; padding:8px 12px; border:0; border-radius:9px; background:transparent; color:#674270; font:700 12px/1 Arial,Helvetica,sans-serif; cursor:pointer; }
+.academy-role-tabs button[aria-selected=true] { background:#805088; color:#fff; }
+.academy-role-panel { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.academy-role-panel a { display:flex; align-items:center; min-height:44px; padding:8px 12px; border:1px solid #ded0e2; border-radius:10px; color:#58305f; background:white; font-size:13px; font-weight:600; text-decoration:none; overflow-wrap:anywhere; }
+.academy-role-panel a:hover { background:#f3eaf5; }
+.academy-access-empty { margin:8px 0 0; font-size:13px; color:#6b5c70; }
 
 @media (max-width:900px) {
   body.academy-mobile-layout {
@@ -65,10 +83,40 @@
   .academy-mobile-layout .academy-header-name { flex:1 1 150px; max-width:none; text-align:left; font-size:14px; }
   .academy-mobile-layout .site-version { order:3; padding:0; border:0; background:transparent; font-size:10px; }
   .academy-mobile-layout .top-actions .avatar { display:none; }
+  .academy-mobile-layout .academy-account-bar { padding:10px var(--academy-gutter); }
+  .academy-mobile-layout .academy-account-row { gap:8px; }
+  .academy-mobile-layout .academy-profile { flex:1 1 95px; }
+  .academy-mobile-layout .academy-profile .academy-header-name { font-size:13px; }
+  .academy-mobile-layout .academy-role-tabs { gap:2px; }
+  .academy-mobile-layout .academy-role-tabs button { min-width:52px; padding:8px; font-size:11px; }
+  .academy-mobile-layout .academy-account-row>.academy-sign-out { min-height:44px; padding:8px 10px; font-size:12px; margin-left:auto; }
+  .academy-mobile-layout .brand .site-version { font-size:9px; }
+  .academy-mobile-layout .academy-role-panel { gap:6px; }
+  .academy-mobile-layout .academy-role-panel a { flex:0 1 auto; min-width:0; max-width:100%; padding:8px 10px; font-size:12px; }
+
   .academy-mobile-layout .academy-global-strip { padding:0 var(--academy-gutter); }
   .academy-mobile-layout .academy-global-strip .activity-switcher { gap:8px; padding:10px 0; }
   .academy-mobile-layout .academy-connected-activities { max-width:100%; padding:10px var(--academy-gutter); gap:8px; }
-  .academy-mobile-layout :is(.activity-switcher a,.academy-connected-activities a) { flex-basis:124px; width:124px; min-height:64px; border-radius:16px; }
+  .academy-mobile-layout :is(.activity-switcher,.academy-connected-activities)>a { flex-basis:124px; width:124px; min-height:64px; border-radius:16px; }
+  .academy-mobile-layout .academy-learning-menu { margin:8px 0 0; border:1px solid #d5bfdd; border-radius:14px; background:#fffafc; }
+  .academy-mobile-layout.academy-connected>.academy-learning-menu { margin:10px var(--academy-gutter) 0; }
+  .academy-mobile-layout .academy-learning-menu>summary {
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    min-height:56px; padding:10px 12px; list-style:none; cursor:pointer; color:#58305f;
+  }
+  .academy-learning-menu>summary::-webkit-details-marker { display:none; }
+  .academy-learning-menu>summary strong { display:block; font-size:13px; }
+  .academy-learning-menu>summary small { display:block; margin-top:2px; font-size:12px; overflow-wrap:anywhere; }
+  .academy-learning-menu>summary svg { width:20px; height:20px; flex:none; fill:none; stroke:currentColor; stroke-width:1.8; }
+  .academy-learning-menu[open]>summary svg { transform:rotate(180deg); }
+  .academy-mobile-layout .academy-learning-menu :is(.activity-switcher,.academy-connected-activities) {
+    display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px;
+    width:100%; padding:0 10px 10px; margin:0; overflow:visible;
+  }
+  .academy-mobile-layout .academy-learning-menu :is(.activity-switcher,.academy-connected-activities)>:is(a,.activity-pill-with-shortcut) {
+    width:auto; min-width:0; min-height:64px; border-radius:12px;
+  }
+  .academy-mobile-layout .academy-learning-menu .activity-pill-with-shortcut>a { flex:0 0 auto; width:auto; min-height:44px; }
   .academy-mobile-layout :is(.grid,.scope-grid,.offer-grid,.resource-grid,.team-grid,.academy-intro) { grid-template-columns:minmax(0,1fr); }
   .academy-mobile-layout .academy-intro { border-radius:20px; }
   .academy-mobile-layout .academy-intro :is(.intro-next,.intro-feature) { padding:22px 18px; }
@@ -77,6 +125,10 @@
   .academy-mobile-layout :is(h1,h2,h3,.pb-brand,.up-titlebar,.pb-header,.entrance-status) { overflow-wrap:anywhere; }
   .academy-mobile-layout .page-heading { display:flex; flex-wrap:wrap; align-items:flex-start; gap:12px; margin-bottom:18px; }
   .academy-mobile-layout .page-heading>div { min-width:0; flex:1 1 220px; }
+  .academy-mobile-layout .activity-heading { align-items:stretch; gap:8px; margin:8px 0 12px; }
+  .academy-mobile-layout .activity-heading>.activity-identity { flex:0 1 auto; width:100%; }
+  .academy-mobile-layout .academy-home-icon,.academy-mobile-layout .academy-close-view { width:44px; height:44px; border-radius:12px; margin-bottom:8px; }
+  .academy-mobile-layout .academy-home-icon svg { width:26px; height:26px; }
   .academy-mobile-layout .page-heading h1 { font-size:clamp(28px,6vw,36px); }
   .academy-mobile-layout :is(.section-title,.split-head,.upcoming-heading,.pb-header,.up-titlebar,.pb-toolbar,.pb-heading,.cm-page-heading,.cm-editor-heading,.pw-sheet-heading) { flex-wrap:wrap; gap:12px; }
   .academy-mobile-layout .pb-header .pb-brand { display:none; }
@@ -151,4 +203,9 @@
 
 @media (prefers-reduced-motion:reduce) {
   .academy-mobile-layout * { scroll-behavior:auto!important; }
+}
+
+@media (max-width:380px) {
+  .academy-mobile-layout .academy-role-tabs { order:2; flex-basis:100%; }
+  .academy-mobile-layout .academy-role-tabs button { flex:1; }
 }

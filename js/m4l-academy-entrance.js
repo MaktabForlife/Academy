@@ -227,16 +227,10 @@
 
   function renderHome() {
     const data = state.home;
-    $('personal-activities').hidden = !data.signedIn;
     $('academy-progress-nav').hidden = data.signedIn && data.memorisationActive===false;
     $('academy-recorder-nav').hidden = !(data.signedIn && data.student);
     const activities = data.signedIn ? data.personalActivities : [];
-    const courses = activities.filter(row => row.kind === 'COURSE');
-    $('personal-empty').hidden = Boolean(activities.length || data.globalAdmin);
-    $('personal-pills').innerHTML = activities.filter(row => row.kind === 'PROGRAM')
-      .map(row => programPill(row)).join('') +
-      (data.signedIn && (data.globalAdmin || courses.some(row=>row.roles.length)) ? activityPill('#workshops', 'Courses', data.globalAdmin ? ['GLOBAL_ADMIN', 'PROGRAM_ADMIN'] : [...new Set(courses.flatMap(row => row.roles))]) : '') +
-      (data.globalAdmin ? activityPill('#administration', 'Academy administration', ['GLOBAL_ADMIN']) : '');
+    renderAcademyMenu();
     renderSubscriptions(activities);
     renderWorkshops();
     const personalSchedule = scheduleRows(data);
@@ -256,10 +250,45 @@
     renderSchedule('academy-sessions', personalSchedule);
   }
 
+  function renderAcademyMenu() {
+    const data = state.home, activities = data?.signedIn ? data.personalActivities : [];
+    const global = Boolean(data?.signedIn && data.globalAdmin);
+    const roles = [...new Set(activities.flatMap(row => row.roles || []))];
+    const available = {learn:global || roles.includes('STUDENT'), teach:global || staffRoles(roles), admin:global || adminRoles(roles)};
+    const tabs = $('academy-role-tabs'), panel = $('academy-role-panel');
+    if (!tabs || !panel) return;
+    const choices = ['learn','teach','admin'].filter(key => data?.signedIn && available[key]);
+    if (!choices.includes(state.academyTab)) state.academyTab = choices.includes('admin') ? 'admin' : choices.includes('teach') ? 'teach' : choices[0] || '';
+    $('academy-account-role').textContent = data?.signedIn ? highestAccess(roles) || 'None' : '';
+    $('academy-access-empty').hidden = !data?.signedIn || Boolean(choices.length);
+    for (const key of ['learn','teach','admin']) {
+      const tab = $('academy-tab-'+key), active = key === state.academyTab;
+      tab.hidden = !choices.includes(key);
+      tab.setAttribute('aria-selected', String(active));
+      tab.tabIndex = active ? 0 : -1;
+    }
+    panel.hidden = !choices.length;
+    panel.setAttribute('aria-labelledby', 'academy-tab-'+state.academyTab);
+    const link = (name, href) => safeLink(href) || href?.startsWith('#') ? `<a href="${esc(href)}">${esc(name)}</a>` : '';
+    let content = '';
+    if (state.academyTab === 'learn') {
+      content = link('Library','/academy/library/') + link('My timetable','#timetable') + link('My assessments','#assessments');
+      if (data.memorisationActive !== false) content += link('Surahs and Duas','#progress');
+    } else if (state.academyTab === 'teach') {
+      content = link('My timetable','#timetable') + link('Edit availability','/academy/teaching/');
+      content += activities.filter(row => global || staffRoles(row.roles || [])).map(row => link(row.name,activityHref(row))).join('');
+    } else if (state.academyTab === 'admin') {
+      content = global
+        ? link('Users','/users/') + link('Programs','/programs/') + link('Courses','/academy/courses/manage/') + link('Subjects & Modules','/academy/subjects/') + link('Library','/academy/library/manage/') + link('Surahs and Duas','#progress-admin') + link('Assessments','#assessment-admin') + link('Academy administration','#administration')
+        : activities.filter(row => adminRoles(row.roles || [])).map(row => link(row.name, row.kind === 'PROGRAM' ? row.tools?.manage || '/programs/timetable.html?program='+encodeURIComponent(row.id) : '/academy/courses/manage/?course='+encodeURIComponent(row.id))).join('');
+    }
+    panel.innerHTML = content;
+  }
+
   function renderSubscriptions(activities, current) {
     const view = location.hash.slice(1).split('/')[0];
     const strip = $('activity-switcher');
-    if (!titles[view] || view === 'overview' || view === 'learning') {
+    if (view && !titles[view]) {
       strip.replaceChildren();
       strip.hidden = true;
       return;
@@ -737,10 +766,11 @@
     state.scheduleTimetable = [];
     clearTimeout(state.activityTimer);
     state.information = {};
-    $('personal-activities').hidden = true;
+    state.academyTab = '';
+    renderAcademyMenu();
     $('academy-progress-nav').hidden = false;
     $('academy-recorder-nav').hidden = true;
-    for (const id of ['personal-pills', 'workshop-pills', 'academy-preview-sessions', 'academy-sessions', 'activity-switcher', 'activity-menu', 'activity-sessions', 'workshop-tools', 'recorder-card']) $(id).replaceChildren();
+    for (const id of ['workshop-pills', 'academy-preview-sessions', 'academy-sessions', 'activity-switcher', 'activity-menu', 'activity-sessions', 'workshop-tools', 'recorder-card']) $(id).replaceChildren();
     $('activity-switcher').hidden = true;
     $('schedule-title').textContent = 'Academy timetable';
     $('full-timetable-title').textContent = 'Full Academy timetable';
@@ -813,6 +843,23 @@
       }).join('');
       $('lesson-information').showModal();
     }
+  });
+  $('academy-role-tabs')?.addEventListener('click', event => {
+    const tab = event.target.closest('[data-academy-tab]');
+    if (!tab || tab.hidden || !state.home?.signedIn) return;
+    state.academyTab = tab.dataset.academyTab;
+    renderAcademyMenu();
+  });
+  $('academy-role-tabs')?.addEventListener('keydown', event => {
+    if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+    const tabs = ['learn','teach','admin'].map(key => $('academy-tab-'+key)).filter(tab => !tab.hidden);
+    const current = tabs.indexOf(event.target);
+    if (current < 0) return;
+    event.preventDefault();
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length-1 : (current + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+    state.academyTab = tabs[next].dataset.academyTab;
+    renderAcademyMenu();
+    tabs[next].focus();
   });
   $('workspace-tool-close').addEventListener('click', () => $('workspace-tool').close());
   $('activity-refresh').addEventListener('click', () => void loadHome(true));

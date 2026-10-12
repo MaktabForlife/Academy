@@ -14,13 +14,22 @@ const root=path.resolve(fileURLToPath(new URL('../../',import.meta.url)));
 const out=process.env.ACADEMY_MOBILE_OUTPUT||path.join(tmpdir(),'academy-mobile-layout');
 mkdirSync(out,{recursive:true});
 const fixture=await mediaFixture();
-const tokens={admin:await fixture.login('0001'),student:await fixture.login('0002'),teacher:await fixture.login('0003')};
+// Exercise multiple independent accounts without sharing the fixture's single fake IP limit.
+fixture.env.AUTH_LOGIN_RATE_LIMITER={limit:async()=>({success:true})};
+const tokens={admin:await fixture.login('0001'),student:await fixture.login('0002'),teacher:await fixture.login('0003'),scopedAdmin:await fixture.login('0004')};
+const hifzId='PRG-3d6b7972-644c-4f81-b95c-8d6c7ffb8227';
+fixture.db.prepare("UPDATE accounts SET login_link_id='Student2' WHERE account_id='account-0002'").run();
+fixture.db.prepare("INSERT INTO activities(activity_key,activity_id,kind,name,active,lifecycle,website_visible) VALUES(?,?,'PROGRAM','Hifz',1,'ACTIVE',1)").run('PROGRAM:'+hifzId,hifzId);
+fixture.db.prepare("INSERT INTO program_settings(activity_key,timezone) VALUES(?,'Africa/Johannesburg')").run('PROGRAM:'+hifzId);
+fixture.db.prepare("INSERT INTO data_ownership(dataset_key,scope_key,authoritative_store,phase,revision) VALUES('ACADEMY',?,'SHEETS','STAGING',1)").run('PROGRAM:'+hifzId);
+fixture.db.prepare("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state) VALUES('mobile-hifz-student','account-0002',?,'STUDENT',1,'CONFIRMED')").run('PROGRAM:'+hifzId);
+fixture.db.prepare("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state) SELECT 'mobile-course-student','account-0002',activity_key,'STUDENT',1,'CONFIRMED' FROM activities WHERE kind='COURSE' LIMIT 1").run();
 const mime={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml','.ttf':'font/ttf','.pdf':'application/pdf'};
 const server=createServer(async(req,res)=>{
   try {
     const url=new URL(req.url,'http://localhost');
     res.setHeader('Cache-Control','no-store');
-    if(url.pathname==='/js/m4l-config.js') {res.writeHead(200,{'Content-Type':'text/javascript'});res.end('window.M4L_CONFIG={API_BASE:location.origin,IS_DEVELOPMENT:true};');return;}
+    if(url.pathname==='/js/m4l-config.js') {res.writeHead(200,{'Content-Type':'text/javascript'});res.end('window.M4L_CONFIG={API_BASE:location.origin,IS_DEVELOPMENT:true,HIFZ_PROGRAM_ID:'+JSON.stringify(hifzId)+',HIFZHELPER_URL:"https://maktab.hifz-helper.app/"};');return;}
     if(url.pathname.startsWith('/__preview/signin/')) {
       const who=url.pathname.split('/').at(-1);if(!tokens[who])throw Error('Unknown synthetic account');
       res.writeHead(200,{'Content-Type':'text/html'});res.end('<!doctype html><title>Local Academy preview</title><script>localStorage.setItem("m4l_account_token",'+JSON.stringify(tokens[who])+');location.replace("/academy/");</script>');return;
@@ -61,7 +70,11 @@ if(process.argv.includes('--serve')) {
     assert.ok(result.scroll<=result.width+1,label+': '+JSON.stringify(result));checks.push(label);
   }
   async function go(url) {await page.goto(origin+url);await page.locator('.academy-menu-toggle').waitFor({state:'attached'});}
-  async function signIn(who) {await go('/academy/');await page.evaluate(token=>{localStorage.clear();sessionStorage.clear();localStorage.setItem('m4l_account_token',token);},tokens[who]);}
+  async function signIn(who) {
+    const result=await fixture.call('/api/account/login',{uniqueid:who==='student'?'Student2':'login-'+({admin:'0001',teacher:'0003',scopedAdmin:'0004'}[who]),pin:'1234'});
+    assert.ok(result.body.token,who+' '+JSON.stringify(result));tokens[who]=result.body.token;
+    await go('/academy/');await page.evaluate(token=>{localStorage.clear();sessionStorage.clear();localStorage.setItem('m4l_account_token',token);},tokens[who]);
+  }
   try {
     // Public sign-in remains visible without expanding the Academy menu.
     for(const width of [320,390,600,768,900,901,1440]) {
@@ -80,14 +93,120 @@ if(process.argv.includes('--serve')) {
     await page.setViewportSize({width:390,height:844});await go('/academy/');
     await page.screenshot({path:path.join(out,'phone-home.png'),fullPage:true});
     await page.screenshot({path:path.join(out,'phone-home-viewport.png')});
-    await page.locator('#demo-username').fill('login-0002');await page.locator('#demo-pin').fill('1234');await page.locator('#login-preview button[type=submit]').click();await page.locator('#academy-home-card').waitFor();
+    await page.locator('#demo-username').fill('Student2');await page.locator('#demo-pin').fill('1234');await page.locator('#login-preview button[type=submit]').click();await page.locator('#academy-home-card').waitFor();
     await fits('student sign-in');
     await page.screenshot({path:path.join(out,'phone-student.png'),fullPage:true});
+    await page.locator('#academy-tab-learn').waitFor();
+    assert.equal(await page.locator('#academy-tab-teach').isVisible(),false);
+    assert.equal(await page.locator('#academy-tab-admin').isVisible(),false);
+    assert.equal(await page.locator('.academy-intro').isVisible(),false);
+    assert.equal(await page.locator('#personal-pills').count(),0);
+    assert.equal(await page.locator('.brand .site-version').isVisible(),true);
+    await page.locator('.academy-learning-menu').waitFor();
+    checks.push('Student home uses Learn, top-row version and Learning menu without the welcome block');
+    await page.screenshot({path:path.join(out,'phone-student-menu.png')});
+    // The same server-authorised snapshot drives all three tab sets; no new API is needed.
+    for(const [who,expected] of [['teacher',['learn','teach']],['scopedAdmin',['learn','teach','admin']],['admin',['learn','teach','admin']]]) {
+      await signIn(who);await go('/academy/');
+      await page.waitForFunction(()=>document.querySelector('#academy-account-role').textContent.length>0);
+      for(const key of ['learn','teach','admin']) assert.equal(await page.locator('#academy-tab-'+key).isVisible(),expected.includes(key),who+' '+key);
+      for(const key of expected) {
+        const tab=page.locator('#academy-tab-'+key);await tab.click();
+        assert.equal(await tab.getAttribute('aria-selected'),'true');
+        assert.equal(await page.locator('#academy-role-panel').getAttribute('aria-labelledby'),'academy-tab-'+key);
+        assert.ok(await page.locator('#academy-role-panel a').count()>0);
+      }
+      if(who==='scopedAdmin') {
+        assert.equal(await page.locator('#academy-role-panel a[href="/users/"],#academy-role-panel a[href="/academy/subjects/"],#academy-role-panel a[href="#administration"]').count(),0);
+        assert.ok(await page.locator('#academy-role-panel a[href*="program="],#academy-role-panel a[href*="course="]').count()>0);
+      }
+      if(who==='admin') {
+        assert.equal(await page.locator('#academy-role-panel a[href="/users/"]').count(),1);
+        await page.locator('#academy-tab-admin').focus();await page.keyboard.press('ArrowRight');
+        assert.equal(await page.locator('#academy-tab-learn').getAttribute('aria-selected'),'true');
+        assert.equal(await page.locator('#academy-tab-learn').evaluate(el=>el===document.activeElement),true);
+        await page.keyboard.press('End');assert.equal(await page.locator('#academy-tab-admin').getAttribute('aria-selected'),'true');
+        for(const width of [320,390,600,768,900,901,1440]) {
+          await page.setViewportSize({width,height:844});await page.evaluate(()=>scrollTo(0,0));await fits('Academy Admin tabs '+width);
+          const buttons=await page.locator('.academy-role-tabs button:visible').evaluateAll(ns=>ns.map(n=>n.getBoundingClientRect().height));
+          assert.ok(buttons.every(h=>h>=44));
+          const version=await page.locator('.brand .site-version').boundingBox(),profile=await page.locator('.academy-profile').boundingBox();
+          assert.ok(version.y<profile.y);
+          if(width===390)await page.screenshot({path:path.join(out,'phone-academy-menu.png')});
+        }
+        await page.setViewportSize({width:390,height:844});
+      }
+      await fits('Academy role menu '+who);
+      await page.locator('#academy-sign-out').click();await page.locator('#login-preview').waitFor();
+      assert.equal(await page.locator('#academy-home-card').isVisible(),false);
+      await page.waitForFunction(()=>document.querySelector('#academy-role-panel').hidden);
+      assert.equal(await page.locator('#academy-role-panel a').count(),0);
+      assert.equal(await page.locator('.academy-intro').isVisible(),true);
+      checks.push(who+' sign-out removes tools and restores public sign-in');
+    }
+    await signIn('student');await go('/academy/');await page.locator('#academy-tab-learn').waitFor();
+    // A Hifz shortcut must not stretch every Program card into a tall column.
+    // Check the actual signed-in Program and Course pages, including their headings.
+    for(const width of [320,390,600,768,900]) {
+      await page.setViewportSize({width,height:844});
+      await go('/academy/#activity/'+assessmentScope.replace(':','/'));
+      await page.locator('#activity-menu .academy-tool-pills').first().waitFor();
+      const learning=page.locator('.academy-learning-menu'),summary=learning.locator('summary');
+      assert.equal(await learning.evaluate(el=>el.open),false);
+      assert.ok((await summary.boundingBox()).height<=80);
+      await summary.click();
+      assert.equal(await learning.evaluate(el=>el.open),true);
+      const cards=await page.locator('#activity-switcher>:is(a,div)').evaluateAll(ns=>ns.map(n=>n.getBoundingClientRect().height));
+      assert.ok(cards.length>=4&&cards.every(h=>h>=44&&h<=120),JSON.stringify(cards));
+      const hifz=page.locator('#activity-switcher .activity-pill-shortcut');
+      assert.equal(await hifz.getAttribute('href'),'https://maktab.hifz-helper.app/Student2');
+      assert.equal(await hifz.getAttribute('target'),'_blank');
+      assert.ok((await hifz.boundingBox()).height>=44);
+      await fits('Learning menu with Hifz shortcut '+width);
+      if(width===390)await page.screenshot({path:path.join(out,'phone-learning-menu-open.png')});
+      await page.keyboard.press('Escape');assert.equal(await learning.evaluate(el=>el.open),false);
+      assert.equal(await summary.evaluate(el=>el===document.activeElement),true);
+      await summary.click();
+      await page.locator('#activity-switcher>a').filter({hasText:'Mothers of the Ummah'}).click();
+      await page.waitForFunction(()=>document.querySelector('#activity-title').textContent==='Mothers of the Ummah');
+      assert.equal(await learning.evaluate(el=>el.open),false);
+      assert.equal(await summary.locator('small').innerText(),'Mothers of the Ummah');
+      assert.ok((await page.locator('#activity .activity-heading').boundingBox()).height<130);
+      await fits('compact Program page '+width);
+      if(width===390){await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:path.join(out,'phone-program-learning-menu.png')});}
+      await summary.click();await page.locator('#activity-switcher>a[href="#workshops"]').click();
+      await page.locator('#workshops.active').waitFor();
+      assert.ok((await page.locator('#workshops .activity-heading').boundingBox()).height<100);
+      await page.locator('#workshop-pills a[href^="#activity/COURSE/"]').first().click();
+      await page.waitForFunction(()=>document.querySelector('#activity-kind').textContent==='Course');
+      assert.ok((await page.locator('#activity .activity-heading').boundingBox()).height<130);
+      await fits('compact Course page '+width);
+      if(width===390){await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:path.join(out,'phone-course-learning-menu.png')});}
+    }
+    await page.locator('.academy-learning-menu>summary').click();
+    await page.locator('.academy-menu-toggle').click();assert.equal(await page.locator('.academy-learning-menu').evaluate(el=>el.open),false);
+    await page.locator('.academy-learning-menu>summary').click();await page.waitForFunction(()=>document.querySelector('.academy-menu-toggle').getAttribute('aria-expanded')==='false');
+    for(const width of [901,1440]) {
+      await page.setViewportSize({width,height:1000});
+      assert.equal(await page.locator('.academy-learning-menu').evaluate(el=>el.open),true);
+      assert.equal(await page.locator('.academy-learning-menu>summary').isVisible(),false);
+      assert.equal(await page.locator('#activity-switcher').isVisible(),true);
+      await fits('desktop Learning links '+width);
+    }
+    checks.push('Learning and Academy menus close each other; desktop links remain visible');
     for(const width of [320,390,768,1440]) {
       await signIn('admin');await page.setViewportSize({width,height:900});
       const pages=[['/academy/#administration','Academy administration'],['/users/','User profiles'],['/academy/subjects/','Subjects'],['/academy/courses/manage/','Courses'],['/programs/','Programs'],['/programs/timetable.html?program='+assessmentScope.slice(8),'Program timetable'],['/programs/manage.html?program='+assessmentScope.slice(8),'Program people'],['/academy/#activity/PROGRAM/'+assessmentScope.slice(8)+'/attendance','Attendance'],['/academy/#assessment-admin','Assessments'],['/academy/#progress-admin','Memorisation administration'],['/academy/library/','Library']];
       for(const [url,label] of pages) {
         await go(url);await page.waitForTimeout(300);await fits(label+' '+width);
+        if(width<=900&&url==='/users/') {
+          const learning=page.locator('.academy-learning-menu');await learning.waitFor();
+          assert.equal(await learning.evaluate(el=>el.open),false);
+          await learning.locator('summary').click();
+          assert.equal(await page.locator('.academy-connected-activities').isVisible(),true);
+          await fits('connected workspace Learning menu '+width);
+          await page.keyboard.press('Escape');
+        }
         if(width===390&&['Academy administration','User profiles','Courses','Program timetable'].includes(label))await page.screenshot({path:path.join(out,'phone-'+label.toLowerCase().replaceAll(' ','-')+'.png'),fullPage:true});
       }
     }

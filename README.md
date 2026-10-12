@@ -1,3 +1,7 @@
+# V106.36 — Compact Academy and Learning menus
+
+Signed-in accounts use LEARN, TEACH and ADMIN tabs beside their profile, according to access. The version moves to the website header and the duplicate welcome block is removed. A compact Learning menu groups Programs and Courses on phones and tablets, with corrected card and heading heights. Includes V106.35's assessment-date fix. [Release details](docs/ACADEMY-MENUS-106.36.md).
+
 # V106.35 — Add dates to earlier assessment schedules
 
 Earlier class schedules now include **Add assessment date**, retaining the schedule name and class while creating a new unpublished entry. Existing dates are preserved, and timetable scrolling stays within the table on phones. [Release details](docs/ACADEMY-ASSESSMENT-DATES-106.35.md).
