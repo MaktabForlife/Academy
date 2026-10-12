@@ -1,3 +1,7 @@
+# V106.40 — Compact Learn, Teach and Admin workspaces
+
+Learn selects an assigned Program or Course and opens Timetable, Assessment and Library tabs. Teach opens the corresponding teaching workspace; Admin opens central, permission-scoped management. Phones use a single swipeable tab row; wider screens can wrap pills. Messages/reminders, the Academy calendar and Surahs and Duas trackers sit below in compact expandable sections. Existing Academy styling and V106.39 assessment review remain intact. [Release details](docs/ACADEMY-WORKSPACES-106.40.md).
+
 # V106.39 — Human review of assessment submissions
 
 Teachers and admins open each learner's latest PDF and explicitly confirm that it is correct and legible. Once all received PDFs are confirmed and no more submissions are expected, they manually mark the assessment **Ready for Assessment**. Marking requires this step. A replacement PDF clears readiness and needs another review. The automatic Processing results label is removed. [Release details](docs/ACADEMY-SUBMISSION-REVIEW-106.39.md).

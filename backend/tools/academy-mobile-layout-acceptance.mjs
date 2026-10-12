@@ -65,7 +65,7 @@ if(process.argv.includes('--serve')) {
   await page.route('**/*',route=>new URL(route.request().url()).origin===origin?route.continue():route.abort());
   async function fits(label) {
     const result=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,offenders:[...document.querySelectorAll('body *')].filter(el=>{
-      const r=el.getBoundingClientRect();return r.width>0&&r.right>innerWidth+2&&!el.closest('dialog:not([open])')&&!el.parentElement?.closest('.up-matrix-scroll,.pb-grid-scroll,.pm-scroll,.tt-scroll,.tt-planner-scroll,.cm-table-wrap,.as-table-scroll,.upcoming-strip,.activity-switcher,.academy-connected-activities,.learning-strip,.film-track,.cm-list,.pgm-tabs,.cm-tabs,.cm-workflow,.mp-scroll,.ma-scroll');
+      const r=el.getBoundingClientRect();return r.width>0&&r.right>innerWidth+2&&!el.closest('dialog:not([open])')&&!el.parentElement?.closest('.up-matrix-scroll,.pb-grid-scroll,.pm-scroll,.tt-scroll,.tt-planner-scroll,.cm-table-wrap,.as-table-scroll,.upcoming-strip,.activity-switcher,.academy-connected-activities,.learning-strip,.film-track,.cm-list,.pgm-tabs,.cm-tabs,.cm-workflow,.workspace-tabs,.mp-scroll,.ma-scroll');
     }).slice(0,12).map(el=>el.tagName+'.'+el.className)}));
     assert.ok(result.scroll<=result.width+1,label+': '+JSON.stringify(result));checks.push(label);
   }
@@ -73,7 +73,7 @@ if(process.argv.includes('--serve')) {
   async function signIn(who) {
     const result=await fixture.call('/api/account/login',{uniqueid:who==='student'?'Student2':'login-'+({admin:'0001',teacher:'0003',scopedAdmin:'0004'}[who]),pin:'1234'});
     assert.ok(result.body.token,who+' '+JSON.stringify(result));tokens[who]=result.body.token;
-    await go('/academy/');await page.evaluate(token=>{localStorage.clear();sessionStorage.clear();localStorage.setItem('m4l_account_token',token);},tokens[who]);
+    await page.goto(origin+'/version.json');await page.evaluate(token=>{localStorage.clear();sessionStorage.clear();localStorage.setItem('m4l_account_token',token);},tokens[who]);
   }
   try {
     // Public sign-in remains visible without expanding the Academy menu.
@@ -102,10 +102,10 @@ if(process.argv.includes('--serve')) {
     assert.equal(await page.locator('.academy-intro').isVisible(),false);
     assert.equal(await page.locator('#personal-pills').count(),0);
     assert.equal(await page.locator('.brand .site-version').isVisible(),true);
-    await page.locator('.academy-learning-menu').waitFor();
-    checks.push('Student home uses Learn, top-row version and Learning menu without the welcome block');
-    await page.screenshot({path:path.join(out,'phone-student-menu.png')});
-    // The same server-authorised snapshot drives all three tab sets; no new API is needed.
+    assert.equal(await page.locator('.academy-learning-menu').count(),0);
+    await page.locator('#academy-role-panel a[href*="/learn"]').first().waitFor();
+    checks.push('Student home uses a Learn chooser and top-row version without duplicate welcome or Learning menus');
+    // One authorised snapshot drives the role menus. Teacher visibility does not grant Student roles.
     for(const [who,expected] of [['teacher',['learn','teach']],['scopedAdmin',['learn','teach','admin']],['admin',['learn','teach','admin']]]) {
       await signIn(who);await go('/academy/');
       await page.waitForFunction(()=>document.querySelector('#academy-account-role').textContent.length>0);
@@ -113,28 +113,42 @@ if(process.argv.includes('--serve')) {
       for(const key of expected) {
         const tab=page.locator('#academy-tab-'+key);await tab.click();
         assert.equal(await tab.getAttribute('aria-selected'),'true');
-        assert.equal(await page.locator('#academy-role-panel').getAttribute('aria-labelledby'),'academy-tab-'+key);
-        assert.ok(await page.locator('#academy-role-panel a').count()>0);
+        if(key==='admin') {
+          await page.locator('#administration.active .workspace-tabs').waitFor();
+          assert.equal(await page.locator('#academy-role-panel').isVisible(),false);
+          assert.equal(await page.locator('#administration .workspace-tabs a').count(),8);
+        } else {
+          assert.equal(await page.locator('#academy-role-panel').getAttribute('aria-labelledby'),'academy-tab-'+key);
+          assert.match(await page.locator('#academy-role-panel').innerText(),/Select a Program or Course/);
+        }
       }
       if(who==='scopedAdmin') {
-        assert.equal(await page.locator('#academy-role-panel a[href="/users/"],#academy-role-panel a[href="/academy/subjects/"],#academy-role-panel a[href="#administration"]').count(),0);
-        assert.ok(await page.locator('#academy-role-panel a[href*="program="],#academy-role-panel a[href*="course="]').count()>0);
+        assert.equal(await page.locator('#administration a[href="/users/"],#public-timetable-refresh').count(),0);
+        assert.ok(await page.locator('#administration a[href*="program="],#administration a[href*="course="]').count()>0);
+        await page.locator('#admin-tab-assessments').click();await page.locator('#admin-workspace a[href^="#assessment-admin/"]').first().waitFor();
+        await page.locator('#admin-tab-courses').click();await fits('scoped Admin Course management');
       }
       if(who==='admin') {
-        assert.equal(await page.locator('#academy-role-panel a[href="/users/"]').count(),1);
+        assert.equal(await page.locator('#administration a[href="/users/"]').count(),1);
         await page.locator('#academy-tab-admin').focus();await page.keyboard.press('ArrowRight');
         assert.equal(await page.locator('#academy-tab-learn').getAttribute('aria-selected'),'true');
         assert.equal(await page.locator('#academy-tab-learn').evaluate(el=>el===document.activeElement),true);
         await page.keyboard.press('End');assert.equal(await page.locator('#academy-tab-admin').getAttribute('aria-selected'),'true');
         for(const width of [320,390,600,768,900,901,1440]) {
           await page.setViewportSize({width,height:844});await page.evaluate(()=>scrollTo(0,0));await fits('Academy Admin tabs '+width);
-          const buttons=await page.locator('.academy-role-tabs button:visible').evaluateAll(ns=>ns.map(n=>n.getBoundingClientRect().height));
-          assert.ok(buttons.every(h=>h>=44));
-          const version=await page.locator('.brand .site-version').boundingBox(),profile=await page.locator('.academy-profile').boundingBox();
-          assert.ok(version.y<profile.y);
+          const buttons=await page.locator('.academy-role-tabs button:visible').evaluateAll(ns=>ns.map(n=>n.getBoundingClientRect().height));assert.ok(buttons.every(h=>h>=44));
+          const version=await page.locator('.brand .site-version').boundingBox(),profile=await page.locator('.academy-profile').boundingBox();assert.ok(version.y<profile.y);
+          const strip=await page.locator('#administration .workspace-tabs').evaluate(el=>({width:el.clientWidth,scroll:el.scrollWidth,ys:[...el.children].map(n=>n.offsetTop)}));
+          if(width<=900)assert.ok(strip.ys.every(y=>y===strip.ys[0]),JSON.stringify({width,...strip}));
+          if(width<=390)assert.ok(strip.scroll>strip.width,JSON.stringify({width,...strip}));
           if(width===390)await page.screenshot({path:path.join(out,'phone-academy-menu.png')});
         }
         await page.setViewportSize({width:390,height:844});
+        await page.locator('#admin-tab-users').focus();await page.keyboard.press('End');await page.waitForFunction(()=>document.activeElement?.id==='admin-tab-courses');
+        const activeBox=await page.locator('#admin-tab-courses').boundingBox();assert.ok(activeBox.x>=0&&activeBox.x+activeBox.width<=390);
+        for(const key of ['users','attendance','planning','assessments','library','curriculum','programs','courses']) {
+          await go('/academy/#administration/'+key);await page.locator('#admin-tab-'+key+'[aria-selected=true]').waitFor();await fits('central Admin '+key);
+        }
       }
       await fits('Academy role menu '+who);
       await page.locator('#academy-sign-out').click();await page.locator('#login-preview').waitFor();
@@ -145,55 +159,43 @@ if(process.argv.includes('--serve')) {
       checks.push(who+' sign-out removes tools and restores public sign-in');
     }
     await signIn('student');await go('/academy/');await page.locator('#academy-tab-learn').waitFor();
-    // A Hifz shortcut must not stretch every Program card into a tall column.
-    // Check the actual signed-in Program and Course pages, including their headings.
-    for(const width of [320,390,600,768,900]) {
-      await page.setViewportSize({width,height:844});
-      await go('/academy/#activity/'+assessmentScope.replace(':','/'));
-      await page.locator('#activity-menu .academy-tool-pills').first().waitFor();
-      const learning=page.locator('.academy-learning-menu'),summary=learning.locator('summary');
-      assert.equal(await learning.evaluate(el=>el.open),false);
-      assert.ok((await summary.boundingBox()).height<=80);
-      await summary.click();
-      assert.equal(await learning.evaluate(el=>el.open),true);
-      const cards=await page.locator('#activity-switcher>:is(a,div)').evaluateAll(ns=>ns.map(n=>n.getBoundingClientRect().height));
-      assert.ok(cards.length>=4&&cards.every(h=>h>=44&&h<=120),JSON.stringify(cards));
-      const hifz=page.locator('#activity-switcher .activity-pill-shortcut');
-      assert.equal(await hifz.getAttribute('href'),'https://maktab.hifz-helper.app/Student2');
-      assert.equal(await hifz.getAttribute('target'),'_blank');
-      assert.ok((await hifz.boundingBox()).height>=44);
-      await fits('Learning menu with Hifz shortcut '+width);
-      if(width===390)await page.screenshot({path:path.join(out,'phone-learning-menu-open.png')});
-      await page.keyboard.press('Escape');assert.equal(await learning.evaluate(el=>el.open),false);
-      assert.equal(await summary.evaluate(el=>el===document.activeElement),true);
-      await summary.click();
-      await page.locator('#activity-switcher>a').filter({hasText:'Mothers of the Ummah'}).click();
-      await page.waitForFunction(()=>document.querySelector('#activity-title').textContent==='Mothers of the Ummah');
-      assert.equal(await learning.evaluate(el=>el.open),false);
-      assert.equal(await summary.locator('small').innerText(),'Mothers of the Ummah');
+    for(const width of [320,390,600,768,900,901,1440]) {
+      await page.setViewportSize({width,height:844});await go('/academy/#overview/learn');
+      const hifz=page.locator('#academy-role-panel .activity-pill-shortcut');await hifz.waitFor();
+      assert.equal(await hifz.getAttribute('href'),'https://maktab.hifz-helper.app/Student2');assert.equal(await hifz.getAttribute('target'),'_blank');
+      const cards=await page.locator('.academy-choice>a:first-of-type').evaluateAll(ns=>ns.map(n=>n.getBoundingClientRect().height));assert.ok(cards.length>=4&&cards.every(h=>h>=44&&h<=120),JSON.stringify(cards));
+      await fits('compact Learn chooser '+width);
+      await page.locator('#academy-role-panel a[href*="/learn"]').filter({hasText:'Mothers of the Ummah'}).click();
+      await page.locator('#activity.active .workspace-tabs').waitFor();
+      assert.deepEqual(await page.locator('#activity-menu [role=tab]').allTextContents(),['Timetable','Assessment','Library']);
+      assert.equal(await page.locator('#activity-schedule').isVisible(),true);
+      await page.locator('#mou-lesson-media').waitFor();
+      assert.equal(await page.locator('#activity-support details').count(),3);
+      assert.match(await page.locator('#activity-support').innerText(),/Messages|Academy calendar|Surahs and Duas tracker/);
       assert.ok((await page.locator('#activity .activity-heading').boundingBox()).height<130);
-      await fits('compact Program page '+width);
-      if(width===390){await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:path.join(out,'phone-program-learning-menu.png')});}
-      await summary.click();await page.locator('#activity-switcher>a[href="#workshops"]').click();
-      await page.locator('#workshops.active').waitFor();
-      assert.ok((await page.locator('#workshops .activity-heading').boundingBox()).height<100);
-      await page.locator('#workshop-pills a[href^="#activity/COURSE/"]').first().click();
-      await page.waitForFunction(()=>document.querySelector('#activity-kind').textContent==='Course');
-      assert.ok((await page.locator('#activity .activity-heading').boundingBox()).height<130);
-      await fits('compact Course page '+width);
-      if(width===390){await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:path.join(out,'phone-course-learning-menu.png')});}
+      await fits('learner Program timetable '+width);
+      if(width===390)await page.screenshot({path:path.join(out,'phone-learner-program.png'),fullPage:true});
+      await page.locator('#activity-tab-library').click();await page.locator('#activity-library').waitFor();
+      assert.equal(await page.locator('#activity-schedule').isVisible(),false);assert.equal(await page.locator('#mou-lesson-media').isVisible(),false);
+      assert.equal(await page.locator('#activity-library a[href="/academy/library/"]').count(),1);assert.equal(await page.locator('#activity-library a[href="/academy/open-library/"]').count(),1);
+      await page.locator('#activity-tab-assessment').click();await page.locator('#as-panel').waitFor();await fits('learner assessment tab '+width);
+      await page.locator('#activity-tab-assessment').focus();await page.keyboard.press('Home');await page.waitForFunction(()=>document.activeElement?.id==='activity-tab-timetable');
+      await page.locator('#activity-back-link').click();await page.locator('#academy-role-panel').waitFor();
+      await page.locator('#academy-role-panel a[href^="#activity/COURSE/"]').first().click();await page.waitForFunction(()=>document.querySelector('#activity-kind').textContent==='Course');
+      assert.equal(await page.locator('#activity-tab-timetable').getAttribute('aria-selected'),'true');await fits('learner Course timetable '+width);
     }
-    await page.locator('.academy-learning-menu>summary').click();
-    await page.locator('.academy-menu-toggle').click();assert.equal(await page.locator('.academy-learning-menu').evaluate(el=>el.open),false);
-    await page.locator('.academy-learning-menu>summary').click();await page.waitForFunction(()=>document.querySelector('.academy-menu-toggle').getAttribute('aria-expanded')==='false');
-    for(const width of [901,1440]) {
-      await page.setViewportSize({width,height:1000});
-      assert.equal(await page.locator('.academy-learning-menu').evaluate(el=>el.open),true);
-      assert.equal(await page.locator('.academy-learning-menu>summary').isVisible(),false);
-      assert.equal(await page.locator('#activity-switcher').isVisible(),true);
-      await fits('desktop Learning links '+width);
+    await signIn('teacher');await go('/academy/#overview/teach');
+    await page.locator('#academy-role-panel a[href*="/teach"]').first().click();await page.locator('#activity-menu [role=tab]').first().waitFor();
+    assert.deepEqual(await page.locator('#activity-menu [role=tab]').allTextContents(),['Timetable','Attendance','Planning','Assessment','Library']);
+    for(const width of [320,390,768,1440]) {
+      await page.setViewportSize({width,height:844});await page.locator('#activity-tab-timetable').focus();await page.keyboard.press('End');await page.locator('#activity-library').waitFor();
+      await page.waitForFunction(()=>document.activeElement?.id==='activity-tab-library');
+      const box=await page.locator('#activity-tab-library').boundingBox();assert.ok(box.x>=0&&box.x+box.width<=width);await fits('teaching swipeable tabs '+width);
     }
-    checks.push('Learning and Academy menus close each other; desktop links remain visible');
+    await page.locator('#activity-tab-planning').click();await page.locator('#activity-planning').waitFor();assert.match(await page.locator('#activity-planning').innerText(),/coming soon/);
+    await page.locator('#activity-tab-attendance').click();await page.locator('#pa-main').waitFor();await fits('teaching attendance tab');
+    await page.screenshot({path:path.join(out,'teaching-workspace.png'),fullPage:true});
+    checks.push('Learn and Teach open scoped Program/Course workspaces; tab keyboard focus and active horizontal visibility work');
     for(const width of [320,390,768,1440]) {
       await signIn('admin');await page.setViewportSize({width,height:900});
       const pages=[['/academy/#administration','Academy administration'],['/users/','User profiles'],['/academy/subjects/','Subjects'],['/academy/courses/manage/','Courses'],['/programs/','Programs'],['/programs/timetable.html?program='+assessmentScope.slice(8),'Program timetable'],['/programs/manage.html?program='+assessmentScope.slice(8),'Program people'],['/academy/#activity/PROGRAM/'+assessmentScope.slice(8)+'/attendance','Attendance'],['/academy/#assessment-admin','Assessments'],['/academy/#progress-admin','Memorisation administration'],['/academy/library/','Library']];

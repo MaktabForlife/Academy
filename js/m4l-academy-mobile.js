@@ -20,7 +20,7 @@
   sidebar.append(toggle, panel);
   document.body.classList.add('academy-mobile-layout');
 
-  const learningLinks = document.querySelector('.activity-switcher, .academy-connected-activities');
+  const learningLinks = document.querySelector('.academy-connected-activities');
   let learningMenu;
   if (learningLinks) {
     learningMenu = document.createElement('details');

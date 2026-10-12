@@ -1,0 +1,53 @@
+/* Compact role workspaces, using the Academy's existing palette and type. */
+.academy-global-strip[hidden]{display:none}
+.academy-welcome{display:block;font-size:11px;color:var(--muted);margin-bottom:2px}
+.academy-role-tabs{width:max-content;max-width:100%;margin-top:10px}
+.academy-role-panel{display:block;max-width:100%;margin-top:12px}
+.academy-chooser-heading{font-size:12px;color:var(--muted);margin:0 0 8px}
+.academy-choices{display:flex;flex-wrap:wrap;gap:8px}
+.academy-choice{display:flex;flex-wrap:wrap;align-items:center;gap:0 8px;min-width:0;max-width:100%}
+.academy-choice-kind{display:none}
+.academy-choice>a:first-of-type{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-height:52px;padding:8px 12px}
+.academy-choice a small{font-size:10px;font-weight:400;color:var(--muted)}
+.academy-choice .activity-pill-shortcut{font-size:11px;background:var(--rose-soft)}
+.academy-signed-in #overview>:is(#learning,.prospectus-banner,.wide-stack){display:none}
+.academy-signed-in .breadcrumbs{font-size:11px}
+.academy-signed-in .topbar{padding-top:8px;padding-bottom:8px}
+#activity>.academy-home-icon{float:right;margin:0 0 8px 12px}
+#activity .activity-heading{margin:0 0 12px;min-height:44px}
+#activity .activity-heading h1{font-size:clamp(26px,4vw,34px)}
+#activity .activity-heading :is(.eyebrow,#activity-role){font-size:11px;margin:3px 0}
+#activity-status:empty{display:none}
+.workspace-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px;padding:3px 2px 8px;min-width:0;max-width:100%;clear:both}
+.workspace-tabs a{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;min-height:44px;padding:10px 18px;border:1px solid var(--line);border-radius:100px;background:var(--paper);color:var(--rose-dark);font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap;scroll-snap-align:start}
+.workspace-tabs a[aria-selected=true]{color:white;background:var(--rose-dark);border-color:var(--rose-dark)}
+.workspace-tabs a:focus-visible,.academy-role-tabs button:focus-visible{outline:3px solid var(--rose);outline-offset:2px}
+.workspace-helper{display:inline-flex;align-items:center;min-height:44px;margin:0 0 12px;font-size:12px;color:var(--rose-dark)}
+.workspace-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.workspace-actions>a{max-width:100%;overflow-wrap:anywhere}
+.academy-support{display:grid;gap:10px;margin-top:16px}
+.academy-support-card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:0 16px}
+.academy-support-card summary{display:flex;align-items:center;gap:10px;min-height:52px;cursor:pointer;font-size:14px;font-weight:700;list-style:none}
+.academy-support-card summary::-webkit-details-marker{display:none}
+.academy-support-card summary:after{content:'⌄';margin-left:auto;color:var(--rose-dark)}
+.academy-support-card[open] summary:after{transform:rotate(180deg)}
+.academy-support-card summary small{font-size:11px;font-weight:400;color:var(--muted)}
+.academy-support-card>:not(summary){margin-bottom:16px}
+.academy-support-card .button{margin-right:8px}
+.admin-heading h1{font-size:clamp(26px,4vw,34px)}
+@media(max-width:900px){
+  .academy-mobile-layout .academy-role-tabs{gap:4px;margin-top:10px;width:100%;display:flex;flex-wrap:nowrap;overflow-x:auto}
+  .academy-mobile-layout .academy-role-tabs button{flex:1;min-width:72px;font-size:12px}
+  .academy-mobile-layout .academy-role-panel a{font-size:12px}
+  .academy-mobile-layout .academy-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .academy-mobile-layout .academy-choice{display:block}
+  .academy-mobile-layout .academy-choice>a{width:100%}
+  .academy-mobile-layout .academy-choice .activity-pill-shortcut{margin-top:4px;justify-content:center}
+  .academy-mobile-layout .workspace-tabs{flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;scroll-padding-inline:2px;scroll-snap-type:x proximity;scrollbar-width:thin;gap:7px}
+  .academy-mobile-layout .workspace-tabs a{padding:10px 14px;font-size:12px}
+  .academy-mobile-layout .academy-support-card{padding:0 14px}
+  .academy-mobile-layout .academy-support-card summary{font-size:13px;flex-wrap:wrap;gap:4px 10px}
+  .academy-mobile-layout .admin-heading{margin-bottom:10px}
+  .academy-mobile-layout .admin-heading>div{flex-basis:100%}
+  .academy-mobile-layout .admin-heading button{font-size:12px}
+}

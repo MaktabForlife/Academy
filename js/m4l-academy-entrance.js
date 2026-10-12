@@ -17,9 +17,10 @@
   };
   const homeIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h5v-7h4v7h5V9"/></svg>';
   const TIMETABLE_RETURN_KEY = 'm4l_academy_timetable_return';
+  let workspaceFocusId = '';
   let lastRouteHash = '', navigationSession = token(), memorisationReturn = null, restoreMemorisation = null;
   const memorisationHash = hash => hash === '#progress' || hash.startsWith('#progress-admin') || hash.endsWith('/surahs-duas') || hash.endsWith('/assessment') || hash.startsWith('#assessment-admin') || hash.startsWith('#assessments');
-  const validReturnHash = hash => typeof hash === 'string' && (hash !== '#timetable' && Boolean(titles[hash.slice(1)]) || /^#activity\/(PROGRAM|COURSE)\/[^/#]+(?:\/(?:attendance|surahs-duas|assessment))?$/.test(hash));
+  const validReturnHash = hash => typeof hash === 'string' && (hash !== '#timetable' && Boolean(titles[hash.slice(1).split('/')[0]]) || /^#activity\/(PROGRAM|COURSE)\/[^/#]+(?:\/(?:learn|teach))?(?:\/(?:attendance|surahs-duas|assessment|library|planning))?$/.test(hash));
   const titles = { overview: 'Academy home', timetable: 'Academy timetable', learning: 'Programs and Courses', workshops: 'Courses', activity: 'Activity',
     prospectus: '2026 Prospectus', about: 'About', contact: 'Contact', progress: 'Surahs and Duas', 'progress-admin':'Surahs and Duas administration', 'assessment-admin':'Assessment administration', assessments:'My assessments', recorder: 'Voice Recorder', administration: 'Academy administration' };
   const activityHref = row => `#activity/${row.kind}/${encodeURIComponent(row.id)}`;
@@ -237,6 +238,7 @@
     $('schedule-title').textContent = data.signedIn && !data.globalAdmin ? 'My Academy timetable' : 'Academy timetable';
     if($('teaching-availability-link'))$('teaching-availability-link').hidden=!data.signedIn||!(data.globalAdmin||(data.personalActivities||[]).some(r=>r.roles?.some(role=>['TEACHER','PROGRAM_ADMIN','ADMIN'].includes(role))));
     $('full-timetable-title').textContent = data.signedIn && !data.globalAdmin ? 'My Academy timetable' : 'Full Academy timetable';
+    $('preview-title').textContent = data.signedIn ? 'My Academy timetable' : 'Coming up';
     const preview = data.signedIn ? personalSchedule : upcomingItems(data.timetable);
     renderSchedule('academy-preview-sessions', preview, false, true);
     if (!preview.length) $('academy-preview-sessions').textContent = data.signedIn
@@ -250,39 +252,44 @@
     renderSchedule('academy-sessions', personalSchedule);
   }
 
+  function workspaceContext(row) {
+    const parts = location.hash.slice(1).split('/'), explicit = ['learn','teach'].includes(parts[3]);
+    const staff = Boolean(state.home?.globalAdmin || staffRoles(row.roles || []));
+    const mode = explicit ? parts[3] === 'teach' && staff ? 'teach' : 'learn' : staff ? 'teach' : 'learn';
+    const requested = (explicit ? parts[4] : parts[3]) || 'timetable';
+    const tools = mode === 'teach' ? ['timetable','attendance','planning','assessment','library','surahs-duas'] : ['timetable','assessment','library'];
+    const tool = tools.includes(requested) ? requested : 'timetable';
+    return {mode,tool,explicit,staff};
+  }
+  function workspaceHref(row, tool = 'timetable', mode = '') {
+    const context = workspaceContext(row), role = mode || (context.explicit ? context.mode : '');
+    return activityHref(row) + (role ? '/'+role : '') + (tool === 'timetable' ? '' : '/'+tool);
+  }
   function renderAcademyMenu() {
     const data = state.home, activities = data?.signedIn ? data.personalActivities : [];
-    const global = Boolean(data?.signedIn && data.globalAdmin);
-    const roles = [...new Set(activities.flatMap(row => row.roles || []))];
-    const available = {learn:global || roles.includes('STUDENT'), teach:global || staffRoles(roles), admin:global || adminRoles(roles)};
-    const tabs = $('academy-role-tabs'), panel = $('academy-role-panel');
-    if (!tabs || !panel) return;
+    const global = Boolean(data?.signedIn && data.globalAdmin), roles = [...new Set(activities.flatMap(row => row.roles || []))];
+    const available = {learn:global || Boolean(highestAccess(roles)), teach:global || staffRoles(roles), admin:global || adminRoles(roles)};
     const choices = ['learn','teach','admin'].filter(key => data?.signedIn && available[key]);
-    if (!choices.includes(state.academyTab)) state.academyTab = choices.includes('admin') ? 'admin' : choices.includes('teach') ? 'teach' : choices[0] || '';
+    const parts = location.hash.slice(1).split('/'), home = !parts[0] || ['overview','learning'].includes(parts[0]);
+    const requested = parts[0] === 'administration' ? 'admin' : parts[0] === 'activity' && state.activity ? workspaceContext(state.activity).mode : home ? parts[1] : '';
+    if (choices.includes(requested)) state.academyTab = requested;
+    if (!choices.includes(state.academyTab)) state.academyTab = choices[0] || '';
+    const panel = $('academy-role-panel');
     $('academy-account-role').textContent = data?.signedIn ? highestAccess(roles) || 'None' : '';
     $('academy-access-empty').hidden = !data?.signedIn || Boolean(choices.length);
     for (const key of ['learn','teach','admin']) {
       const tab = $('academy-tab-'+key), active = key === state.academyTab;
-      tab.hidden = !choices.includes(key);
-      tab.setAttribute('aria-selected', String(active));
-      tab.tabIndex = active ? 0 : -1;
+      tab.hidden = !choices.includes(key);tab.setAttribute('aria-selected', String(active));tab.setAttribute('aria-controls',key === 'admin' ? 'administration' : parts[0] === 'activity' && active ? 'activity' : 'academy-role-panel');tab.tabIndex = active ? 0 : -1;
     }
-    panel.hidden = !choices.length;
+    panel.hidden = !home || !choices.length || state.academyTab === 'admin';
     panel.setAttribute('aria-labelledby', 'academy-tab-'+state.academyTab);
-    const link = (name, href) => safeLink(href) || href?.startsWith('#') ? `<a href="${esc(href)}">${esc(name)}</a>` : '';
-    let content = '';
-    if (state.academyTab === 'learn') {
-      content = link('Library','/academy/library/') + link('My timetable','#timetable') + link('My assessments','#assessments');
-      if (data.memorisationActive !== false) content += link('Surahs and Duas','#progress');
-    } else if (state.academyTab === 'teach') {
-      content = link('My timetable','#timetable') + link('Edit availability','/academy/teaching/');
-      content += activities.filter(row => global || staffRoles(row.roles || [])).map(row => link(row.name,activityHref(row))).join('');
-    } else if (state.academyTab === 'admin') {
-      content = global
-        ? link('Users','/users/') + link('Programs','/programs/') + link('Courses','/academy/courses/manage/') + link('Subjects & Modules','/academy/subjects/') + link('Library','/academy/library/manage/') + link('Surahs and Duas','#progress-admin') + link('Assessments','#assessment-admin') + link('Academy administration','#administration')
-        : activities.filter(row => adminRoles(row.roles || [])).map(row => link(row.name, row.kind === 'PROGRAM' ? row.tools?.manage || '/programs/timetable.html?program='+encodeURIComponent(row.id) : '/academy/courses/manage/?course='+encodeURIComponent(row.id))).join('');
-    }
-    panel.innerHTML = content;
+    if (panel.hidden) {panel.replaceChildren();return;}
+    const mode = state.academyTab, rows = activities.filter(row => global || (mode === 'teach' ? staffRoles(row.roles || []) : row.roles?.includes('STUDENT')));
+    panel.innerHTML = `<p class="academy-chooser-heading">Select a Program or Course to ${mode === 'teach' ? 'teach' : 'learn'}</p><div class="academy-choices">${rows.map(row => {
+      const pill = activityPill(workspaceHref(row,'timetable',mode),row.name,row.roles);
+      const helper = hifzHelperLink(row,'activity-pill-shortcut');
+      return `<div class="academy-choice"><span class="academy-choice-kind">${row.kind === 'PROGRAM' ? 'Program' : 'Course'}</span>${pill}${helper}</div>`;
+    }).join('')}</div>${rows.length ? '' : `<p class="muted">No ${mode === 'teach' ? 'teaching' : 'learning'} Programs or Courses are assigned to this account.</p>`}`;
   }
 
   function renderSubscriptions(activities, current) {
@@ -303,7 +310,7 @@
   }
 
   const adminRoles = roles => roles.some(role => ['GLOBAL_ADMIN','PROGRAM_ADMIN','ADMIN'].includes(role));
-  function roleTools(row) {
+  function catalogueTools(row) {
     const roles = row.roles || [], global = Boolean(state.home?.globalAdmin), admin = global || adminRoles(roles);
     const staff = admin || staffRoles(roles), learner = roles.includes('STUDENT');
     const hifzHelper = hifzHelperLink(row);
@@ -319,10 +326,41 @@
       (learner && !staff ? group('Learn', (!staff?hifzHelper:'') + link('Library','/academy/library/') + (state.home?.memorisationActive!==false?link('Surahs and Duas','#progress'):'') + link('My Assessment',row.id?`${activityHref(row)}/assessment`:'#assessments/COURSE') + tool('Calendar','calendar') + tool('Announcements','announcements') + link('My Timetable','#timetable')) : '');
   }
 
+  function roleTools(row) {
+    if (!row.id) return catalogueTools(row);
+    const context = workspaceContext(row), tools = context.mode === 'teach'
+      ? [['timetable','Timetable','activity-schedule'],['attendance','Attendance',row.kind === 'COURSE' ? 'activity-planning' : 'pa-main'],['planning','Planning','activity-planning'],['assessment','Assessment','as-panel'],['library','Library','activity-library']]
+      : [['timetable','Timetable','activity-schedule'],['assessment','Assessment','as-panel'],['library','Library','activity-library']];
+    return `<nav class="workspace-tabs" aria-label="${context.mode === 'teach' ? 'Teach' : 'Learn'} tools" role="tablist">${tools.map(([key,label,panel]) => `<a id="activity-tab-${key}" role="tab" href="${workspaceHref(row,key)}" aria-controls="${panel}" aria-selected="${context.tool === key}" tabindex="${context.tool === key ? 0 : -1}">${label}</a>`).join('')}</nav>${hifzHelperLink(row,'workspace-helper')}`;
+  }
+  function supportSections(row, mode) {
+    const global = Boolean(state.home?.globalAdmin), staff = mode !== 'learn';
+    const events = state.home?.calendarEvents || [];
+    const calendar = events.length ? `<ul class="activity-calendar-list">${events.map(event => `<li><strong>${esc(event.description)}</strong> · ${esc(formatDate(event.startDate))}${event.endDate !== event.startDate ? ' – '+esc(formatDate(event.endDate)) : ''}</li>`).join('')}</ul>` : '<p class="muted">No Academy events in this week.</p>';
+    const progress = mode === 'admin' ? global ? '#progress-admin' : '' : mode === 'teach' && row ? workspaceHref(row,'surahs-duas') : '#progress';
+    return `<details class="academy-support-card academy-messages"><summary><span>${staff ? 'Reminders' : 'Messages'}</span><small>Coming soon</small></summary><p class="muted">${staff ? 'Editing and sending reminders' : 'Academy messaging'} is coming soon.</p></details>
+      <details class="academy-support-card"><summary><span>Academy calendar</span><small>This week</small></summary>${calendar}${staff ? '<a class="button secondary" href="/academy/teaching/">Edit availability</a>' : ''}${mode === 'admin' && global ? '<p class="tiny muted">Calendar editing in this workspace is coming soon.</p>' : ''}</details>
+      ${state.home?.memorisationActive === false && !staff ? '' : `<details class="academy-support-card"><summary><span>Surahs and Duas tracker</span><small>${mode === 'teach' ? 'Class progress' : mode === 'admin' ? 'Manage progress' : 'My progress'}</small></summary>${progress ? `<a class="button secondary" href="${progress}">${mode === 'learn' ? 'Open my tracker' : mode === 'teach' ? 'Open class progress' : 'Manage trackers'}</a>` : adminAreas().map(area => `<a class="button secondary" href="#progress-admin/${area.kind}/${encodeURIComponent(area.id)}">${esc(area.name)}</a>`).join('')}</details>`}`;
+  }
+  function syncWorkspace(row) {
+    const context = workspaceContext(row), permitted = Boolean(state.home?.signedIn && row.roles?.length && !row.unavailable);
+    const library = $('activity-library'), planning = $('activity-planning'), support = $('activity-support');
+    library.hidden = !permitted || context.tool !== 'library';
+    library.innerHTML = library.hidden ? '' : '<h2>Library</h2><p class="muted">Open your Academy resources or browse the public collection.</p><div class="workspace-actions"><a class="button" href="/academy/library/">For me</a><a class="button secondary" href="/academy/open-library/">Browse</a></div>';
+    planning.hidden = !permitted || context.mode !== 'teach' || context.tool !== 'planning';
+    planning.setAttribute('aria-labelledby',context.tool === 'attendance' ? 'activity-tab-attendance' : 'activity-tab-planning');
+    support.hidden = !permitted;
+    if (permitted) support.innerHTML = supportSections(row,context.mode); else support.replaceChildren();
+    if (context.tool === 'attendance' && row.kind === 'COURSE' && permitted && context.mode === 'teach') {
+      planning.hidden = false;planning.innerHTML = '<h2>Attendance</h2><p class="muted">Course attendance tools are coming soon.</p>';
+    } else planning.innerHTML = '<h2>Planning</h2><p class="muted">Planning tools are coming soon.</p>';
+    renderAcademyMenu();
+  }
+
   function syncMemorisation(row){
-    const teaching=location.hash===`${activityHref(row)}/surahs-duas`&&state.home?.signedIn&&!row.unavailable&&(state.home.globalAdmin||staffRoles(row.roles||[]));
+    const teaching=location.hash.startsWith('#activity/')&&workspaceContext(row).tool === 'surahs-duas'&&state.home?.signedIn&&!row.unavailable&&(state.home.globalAdmin||staffRoles(row.roles||[]));
     $('mp-teach-panel').hidden=!teaching;
-    if(teaching){$('mp-teach-close').href=activityHref(row);window.M4L_ACADEMY_PROGRESS?.open({view:'teach',hostId:'mp-teach-host',activityKey:`${row.kind}:${row.id}`,kind:row.kind});}
+    if(teaching){$('mp-teach-close').href=workspaceHref(row);window.M4L_ACADEMY_PROGRESS?.open({view:'teach',hostId:'mp-teach-host',activityKey:`${row.kind}:${row.id}`,kind:row.kind});}
     if(location.hash.startsWith('#progress-admin')){
       $('mp-admin-context').textContent=row.name;
       $('mp-admin-close').href=memorisationReturn?.hash||(row.id?activityHref(row):row.kind==='COURSE'?'#workshops':'#overview');
@@ -332,20 +370,20 @@
   }
 
   function syncAssessment(row){
-    const embedded=location.hash===`${activityHref(row)}/assessment`;
+    const embedded=location.hash.startsWith('#activity/') && workspaceContext(row).tool === 'assessment';
     $('as-panel').hidden=!embedded;
     if(!embedded&&!location.hash.startsWith('#assessment-admin'))return;
     const admin=location.hash.startsWith('#assessment-admin');
     const close=admin?$('as-admin-close'):$('as-close');
-    close.href=admin?(memorisationReturn?.hash||(row.id?activityHref(row):'#workshops')):activityHref(row);
+    close.href=admin?(memorisationReturn?.hash||(row.id?activityHref(row):'#workshops')):workspaceHref(row);
     window.M4L_ACADEMY_ASSESSMENTS?.open({hostId:admin?'as-admin-host':'as-host',view:admin?'admin':'activity',activityKey:row.id?`${row.kind}:${row.id}`:'',kind:row.id?'':row.kind});
   }
 
   function syncAttendance(row) {
-    const open = location.hash === `${activityHref(row)}/attendance` && row.kind === 'PROGRAM' && !row.unavailable && state.home?.signedIn && (state.home.globalAdmin || staffRoles(row.roles || []));
+    const open = location.hash.startsWith('#activity/') && workspaceContext(row).tool === 'attendance' && row.kind === 'PROGRAM' && !row.unavailable && state.home?.signedIn && (state.home.globalAdmin || staffRoles(row.roles || []));
     $('pa-main').hidden = !open;
     if (!open) { window.M4L_PROGRAM_ATTENDANCE?.reset(); return; }
-    $('pa-close').href = activityHref(row);
+    $('pa-close').href = workspaceHref(row);
     window.M4L_PROGRAM_ATTENDANCE?.open({id:row.id,programs:state.home.personalActivities.filter(item=>item.kind==='PROGRAM' && (state.home.globalAdmin || staffRoles(item.roles || []))).map(item=>({id:item.id,name:item.name,role:state.home.globalAdmin?'GLOBAL_ADMIN':item.roles.find(role=>['PROGRAM_ADMIN','ADMIN','TEACHER','SENIOR'].includes(role))}))});
   }
 
@@ -538,7 +576,7 @@
   }
 
   function renderActivityTimetable() {
-    $('activity-schedule').hidden = (location.hash.endsWith('/surahs-duas') || location.hash.endsWith('/assessment')) || !state.home?.signedIn || !state.activity?.roles.length || state.activity?.unavailable;
+    $('activity-schedule').hidden = workspaceContext(state.activity || {roles:[]}).tool !== 'timetable' || !state.home?.signedIn || !state.activity?.roles.length || state.activity?.unavailable;
     $('activity-schedule-title').textContent = `${state.activity?.name || ''} timetable`;
     renderSchedule('activity-sessions', activityRows());
     armScheduleClock();
@@ -564,25 +602,27 @@
       if (!row) throw new Error('This activity is unavailable.');
       // The same authorised Academy snapshot supplies every scoped timetable.
       if (!cached) { state.home = result; state.scheduleTimetable = scheduleRows(result); }
-      $('activity-back-link').href = row.kind === 'COURSE' ? '#workshops' : '#overview';
-      $('activity-back-link').innerHTML = row.kind === 'COURSE' ? '← Courses' : homeIcon;
-      $('activity-back-link').classList.toggle('academy-home-icon',row.kind !== 'COURSE');
-      $('activity-back-link').classList.toggle('text-link',row.kind === 'COURSE');
-      $('activity-back-link').setAttribute('aria-label',row.kind === 'COURSE'?'Back to Courses':'Academy home');
-      $('activity-back-link').setAttribute('title',row.kind === 'COURSE'?'Back to Courses':'Academy home');
+      $('activity-back-link').href = '#overview/'+workspaceContext(row).mode;
+      $('activity-back-link').innerHTML = homeIcon;
+      $('activity-back-link').classList.toggle('academy-home-icon',true);
+      $('activity-back-link').classList.toggle('text-link',false);
+      $('activity-back-link').setAttribute('aria-label','Change Program or Course');
+      $('activity-back-link').setAttribute('title','Change Program or Course');
       $('activity-title').textContent = row.name;
       $('activity-kind').textContent = row.kind === 'PROGRAM' ? 'Program' : 'Course';
       $('activity-role').textContent = roleName(row.roles);
       renderSubscriptions(result.signedIn ? result.personalActivities : [], row);
       $('current-view').textContent = row.name;
       const message = row.unavailable ? 'This activity is temporarily unavailable. Please try again.' : !row.roles.length ? 'Sign in with an authorised Academy account to open protected lessons and tools.' : '';
-      $('activity-status').textContent = [message,...result.warnings].filter(Boolean).join(' ');
+      $('activity-status').textContent = [message,...result.warnings.filter(warning => !$('entrance-message').textContent.includes(warning))].filter(Boolean).join(' ');
       $('activity-menu').innerHTML = row.roles.length ? roleTools(row) : '';
       syncAttendance(row);
       renderActivityTimetable();
       syncMemorisation(row);
       syncAssessment(row);
-      if(location.hash===activityHref(row)&&row.kind==='PROGRAM'&&row.id===window.M4L_LESSON_MEDIA?.programId&&result.signedIn&&!row.unavailable&&row.roles.length)
+      syncWorkspace(row);
+      revealWorkspaceTab();
+      if(workspaceContext(row).tool === 'timetable'&&location.hash.startsWith('#activity/')&&row.kind==='PROGRAM'&&row.id===window.M4L_LESSON_MEDIA?.programId&&result.signedIn&&!row.unavailable&&row.roles.length)
         window.M4L_LESSON_MEDIA.open({hostId:'mou-lesson-media',programId:row.id});
       else window.M4L_LESSON_MEDIA?.reset();
       if(restoreMemorisation){const saved=restoreMemorisation;restoreMemorisation=null;$('activity-sessions').scrollLeft=saved.left;window.requestAnimationFrame?.(()=>window.scrollTo?.(0,saved.top));}
@@ -595,6 +635,7 @@
       $('activity-menu').replaceChildren();
       $('activity-sessions').replaceChildren();
       $('activity-schedule').hidden = true;
+      for (const id of ['activity-library','activity-planning','activity-support']) {$(id).hidden=true;$(id).replaceChildren();}
       $('pa-main').hidden = true;
       $('mp-teach-panel').hidden = true;
       window.M4L_PROGRAM_ATTENDANCE?.reset();
@@ -674,7 +715,7 @@
   function route() {
     const hash = location.hash || '#overview';
     if (lastRouteHash && hash !== lastRouteHash) {
-      if (window.M4L_PROGRAM_ATTENDANCE?.canLeave() === false || window.M4L_ACADEMY_PROGRESS?.canLeave() === false || window.M4L_MEMORISATION_ADMIN?.canLeave() === false || window.M4L_ACADEMY_ASSESSMENTS?.canLeave() === false || window.M4L_LESSON_MEDIA?.canLeave() === false) { history.replaceState(null,'',lastRouteHash); return; }
+      if (window.M4L_PROGRAM_ATTENDANCE?.canLeave() === false || window.M4L_ACADEMY_PROGRESS?.canLeave() === false || window.M4L_MEMORISATION_ADMIN?.canLeave() === false || window.M4L_ACADEMY_ASSESSMENTS?.canLeave() === false || window.M4L_LESSON_MEDIA?.canLeave() === false) { history.replaceState(null,'',lastRouteHash); workspaceFocusId='';renderAcademyMenu();return; }
       if(!memorisationHash(lastRouteHash)&&memorisationHash(hash)){memorisationReturn={hash:lastRouteHash,top:window.scrollY||0,left:$('activity-sessions').scrollLeft||0};if(dailyCache.owner)try{sessionStorage.setItem(MEMORISATION_RETURN_KEY,JSON.stringify({...memorisationReturn,owner:dailyCache.owner}));}catch{}}
       if(memorisationHash(lastRouteHash)&&hash===memorisationReturn?.hash)restoreMemorisation=memorisationReturn;
       window.M4L_PROGRAM_ATTENDANCE?.reset();
@@ -715,14 +756,42 @@
     if(name==='assessment-admin'&&state.home){if(encodedId){try{void loadActivity(decodeURIComponent(encodedId));}catch{$('as-admin-host').textContent='Invalid learning area.';}}else syncAssessment({kind:hash.includes('/COURSE')?'COURSE':'',name:'Academy',roles:[]});}
     if (name === 'recorder') $('recorder-card').innerHTML = state.home?.student ? '<p>Select an existing lesson image, record your voice, then preview and share your video.</p><a class="button" href="/recorder/?academy=1">Open Voice Recorder →</a>' : '<p>Voice Recorder is available to signed-in Academy students.</p>';
     if (name === 'administration') renderAdministration();
+    renderAcademyMenu();
     if (requested !== 'activity') armScheduleClock();
   }
 
+  function adminAreas() {
+    return (state.home?.personalActivities || []).filter(row => state.home.globalAdmin || adminRoles(row.roles || []));
+  }
   function renderAdministration() {
-    let view = $('administration');
-    if (!view) { view = document.createElement('section'); view.id = 'administration'; view.className = 'view active'; document.querySelector('.container').appendChild(view); }
-    view.classList.add('active');
-    view.innerHTML = '<div class="page-heading"><h1>Academy administration</h1></div>' + (state.home?.globalAdmin ? '<div class="activity-pills"><a href="/users/">User profiles</a><a href="/academy/subjects/">Subjects &amp; Modules</a><a href="#progress-admin">Surahs and Duas</a><a href="#assessment-admin">Assessments</a><a href="/programs/">Manage Programs</a><a href="/academy/courses/manage/">Course management</a><a href="/academy/courses/manage/?view=scheduling">Course scheduling</a><a href="/academy/library/manage/">Manage Library</a></div>' : '<p>This page requires an authenticated Global Admin account.</p>');
+    const view = $('administration'), global = Boolean(state.home?.signedIn && state.home.globalAdmin), areas = state.home?.signedIn ? adminAreas() : [];
+    if (!global && !areas.length) {view.innerHTML='<div class="page-heading"><h1>Academy administration</h1></div><p>Sign in with an authorised Academy admin account to open management tools.</p>';return;}
+    const tabs = [['users','Users'],['attendance','Attendance'],['planning','Planning'],['assessments','Assessments'],['library','Library'],['curriculum','Curriculum'],['programs','Programs'],['courses','Courses']];
+    const requested = location.hash.split('/')[1], key = tabs.some(([id]) => id === requested) ? requested : 'users';
+    const link = (href,label) => `<a class="button secondary" href="${esc(href)}">${esc(label)}</a>`;
+    const scoped = (filter,href) => areas.filter(filter).map(row => link(href(row),row.name)).join('');
+    const programs = row => row.kind === 'PROGRAM', courses = row => row.kind === 'COURSE';
+    const manage = row => row.kind === 'PROGRAM' ? `/programs/manage.html?program=${encodeURIComponent(row.id)}` : `/academy/courses/manage/?course=${encodeURIComponent(row.id)}`;
+    const panels = {
+      users:global ? link('/users/','Manage user profiles') : scoped(()=>true,row=>manage(row)+(programs(row)?'&tab=profiles':'&tab=participants')),
+      attendance:scoped(programs,row=>workspaceHref(row,'attendance','teach')),
+      planning:'<p class="muted">Planning tools are coming soon.</p>',
+      assessments:global ? link('#assessment-admin','Manage assessments') : scoped(()=>true,row=>`#assessment-admin/${row.kind}/${encodeURIComponent(row.id)}`),
+      library:global ? link('/academy/library/manage/','Manage Library') : link('/academy/library/','Open my Library'),
+      curriculum:global ? link('/academy/subjects/','Manage Subjects and Modules') : scoped(programs,manage),
+      programs:global ? link('/programs/','Manage Programs') : scoped(programs,manage),
+      courses:global ? link('/academy/courses/manage/','Manage Courses')+link('/academy/courses/manage/?view=scheduling','Course scheduling') : scoped(courses,manage)
+    };
+    view.innerHTML = `<div class="page-heading admin-heading"><div><h1>Academy administration</h1><p class="tiny muted">${global ? 'Academy-wide management · Global Admin' : 'Management for your assigned Programs and Courses'}</p></div>${global ? '<div><button class="button secondary" id="public-timetable-refresh" type="button">↻ Refresh public timetable</button><p id="public-timetable-refresh-message" class="tiny muted" role="status" aria-live="polite"></p></div>' : ''}</div>
+      <nav class="workspace-tabs" role="tablist" aria-label="Administration tools">${tabs.map(([id,label])=>`<a id="admin-tab-${id}" role="tab" href="#administration/${id}" aria-controls="admin-workspace" aria-selected="${id===key}" tabindex="${id===key?0:-1}">${label}</a>`).join('')}</nav>
+      <section class="card card-pad" id="admin-workspace" role="tabpanel" tabindex="0" aria-labelledby="admin-tab-${key}"><h2>${tabs.find(([id])=>id===key)[1]}</h2><div class="workspace-actions">${panels[key] || '<p class="muted">No assigned areas are available here.</p>'}</div>${key==='attendance'?'<p class="tiny muted">Program registers open in their teaching workspace. Course attendance is coming soon.</p>':''}${key==='library'&&!global?'<p class="tiny muted">Academy-wide catalogue management requires Global Admin access.</p>':''}</section><div class="academy-support">${supportSections(null,'admin')}</div>`;
+    bindPublicTimetableRefresh();
+    revealWorkspaceTab();
+  }
+  function revealWorkspaceTab() {
+    const selected = document.querySelector('.view.active .workspace-tabs [aria-selected="true"]');
+    if (selected) {const strip=selected.parentElement;if(selected.offsetLeft < strip.scrollLeft)strip.scrollLeft=selected.offsetLeft;else if(selected.offsetLeft+selected.offsetWidth>strip.scrollLeft+strip.clientWidth)strip.scrollLeft=selected.offsetLeft+selected.offsetWidth-strip.clientWidth;}
+    if (workspaceFocusId) {$(workspaceFocusId)?.focus();workspaceFocusId='';}
   }
 
   function bindPublicTimetableRefresh(){
@@ -767,11 +836,14 @@
     clearTimeout(state.activityTimer);
     state.information = {};
     state.academyTab = '';
+    workspaceFocusId = '';
+    $('administration').replaceChildren();
     renderAcademyMenu();
     $('academy-progress-nav').hidden = false;
     $('academy-recorder-nav').hidden = true;
     for (const id of ['workshop-pills', 'academy-preview-sessions', 'academy-sessions', 'activity-switcher', 'activity-menu', 'activity-sessions', 'workshop-tools', 'recorder-card']) $(id).replaceChildren();
     $('activity-switcher').hidden = true;
+    for (const id of ['activity-library','activity-planning','activity-support']) {$(id).hidden = true;$(id).replaceChildren();}
     $('schedule-title').textContent = 'Academy timetable';
     $('full-timetable-title').textContent = 'Full Academy timetable';
     $('workshops-message').textContent = '';
@@ -824,6 +896,8 @@
   });
 
   document.addEventListener('click', event => {
+    const workspaceTab=event.target.closest('.workspace-tabs [role=tab]');
+    if(workspaceTab) {workspaceFocusId=workspaceTab.id;if(workspaceTab.getAttribute('href')===location.hash)revealWorkspaceTab();}
     const nav = event.target.closest('[data-nav]');
     if (nav) { event.preventDefault(); location.hash = nav.dataset.nav; route(); }
     const tool = event.target.closest('[data-workspace-tool]');
@@ -844,11 +918,19 @@
       $('lesson-information').showModal();
     }
   });
+  document.addEventListener('keydown', event => {
+    const tab = event.target.closest?.('.workspace-tabs [role=tab]');
+    if (!tab || !['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+    const tabs = [...tab.parentElement.querySelectorAll('[role=tab]')], current=tabs.indexOf(tab);
+    const next = event.key==='Home'?0:event.key==='End'?tabs.length-1:(current+(event.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;
+    event.preventDefault();workspaceFocusId=tabs[next].id;const hash=tabs[next].getAttribute('href');if(hash===location.hash)revealWorkspaceTab();else location.hash=hash;
+  });
   $('academy-role-tabs')?.addEventListener('click', event => {
     const tab = event.target.closest('[data-academy-tab]');
     if (!tab || tab.hidden || !state.home?.signedIn) return;
     state.academyTab = tab.dataset.academyTab;
-    renderAcademyMenu();
+    location.hash = state.academyTab === 'admin' ? '#administration' : '#overview/'+state.academyTab;
+    route();
   });
   $('academy-role-tabs')?.addEventListener('keydown', event => {
     if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
@@ -858,7 +940,8 @@
     event.preventDefault();
     const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length-1 : (current + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
     state.academyTab = tabs[next].dataset.academyTab;
-    renderAcademyMenu();
+    location.hash = state.academyTab === 'admin' ? '#administration' : '#overview/'+state.academyTab;
+    route();
     tabs[next].focus();
   });
   $('workspace-tool-close').addEventListener('click', () => $('workspace-tool').close());

@@ -22,7 +22,7 @@ elements.get('film-track').querySelectorAll = () => [{offsetLeft:0}, {offsetLeft
 const views = [...html.matchAll(/<section id="([^"]+)" class="view/g)].map(match => elements.get(match[1]));
 const container = element('container');
 const document = { getElementById: id => elements.get(id), createElement: () => element(), visibilityState: 'visible',
-  querySelector: () => container, querySelectorAll: selector => selector === '.view' ? views : [],
+  querySelector: selector => selector === '.container' ? container : null, querySelectorAll: selector => selector === '.view' ? views : [],
   addEventListener: (type, fn) => documentHandlers.set(type, fn) };
 const location = { hash: '#overview' };
 const window = { M4L_CONFIG: { API_BASE: 'https://test' }, location,
@@ -177,7 +177,7 @@ assert.ok(html.indexOf('id="login-preview"')<html.indexOf('class="intro-feature"
 await navigate('#workshops');assert.match($('workshops-message').textContent,/Sign in/);assert.equal(catalogueRequests.length,0);
 
 storage.set('m4l_account_token','QA');await refresh();
-assert.equal($('academy-role-panel').hidden,false);assert.equal($('public-snapshot-note').hidden,true);
+assert.equal($('academy-role-panel').hidden,true,'Chooser stays on Academy home');assert.equal($('public-snapshot-note').hidden,true);
 assert.equal($('academy-progress-nav').hidden,false);assert.equal(catalogueRequests.length,1);
 assert.match($('workshop-pills').innerHTML,/Barakah|Complete|Media · coming soon/);
 assert.doesNotMatch($('workshop-pills').innerHTML,/Program Admin|Teacher|User|COURSE-DRAFT|<small>Student/);
@@ -192,7 +192,12 @@ await navigate('#overview');await navigate('#workshops');assert.equal(catalogueR
 await navigate('#activity/PROGRAM/'+activity.id);
 assert.equal($('activity-title').textContent,'Reboot');assert.doesNotMatch($('activity-menu').innerHTML,/aria-label="Admin tools"/);
 assert.doesNotMatch($('activity-menu').innerHTML,/Explore|Attendance|Lesson prep|Teach tools/);
-assert.match($('activity-menu').innerHTML,/Learn tools/);for(const label of ['Library','Surahs and Duas','My Assessment','Calendar','Announcements','My Timetable'])assert.ok($('activity-menu').innerHTML.includes(`>${label}<`));
+assert.match($('activity-menu').innerHTML,/Learn tools/);for(const label of ['Timetable','Assessment','Library'])assert.ok($('activity-menu').innerHTML.includes(`>${label}<`));
+assert.match($('activity-support').innerHTML,/Messages|Academy calendar|Surahs and Duas tracker/);
+const learnHash='#activity/PROGRAM/'+activity.id+'/learn';
+await navigate(learnHash+'/library');assert.equal($('activity-library').hidden,false);assert.equal($('activity-schedule').hidden,true);assert.match($('activity-library').innerHTML,/For me|Browse/);
+await navigate(learnHash+'/assessment');assert.equal($('as-panel').hidden,false);assert.equal($('activity-library').hidden,true);
+await navigate('#activity/PROGRAM/'+activity.id);
 assert.doesNotMatch($('activity-sessions').innerHTML,/Course item|Barakah|Salaah/);assert.match($('activity-sessions').innerHTML,/Reboot/);
 assert.equal(timers.size,1,'Scoped timetable has a local lesson-boundary timer, without polling');
 count=requests.length;documentHandlers.get('visibilitychange')();await flush();assert.equal(requests.length,count);
@@ -208,12 +213,18 @@ await navigate($('timetable-close').href);assert.equal($('activity-title').textC
 await navigate('#overview');await navigate('#timetable');assert.equal($('timetable-close').href,'#overview');
 tabStore.set('m4l_academy_timetable_return','https://outside.invalid');await navigate('#timetable');assert.equal($('timetable-close').href,'#overview','Stored navigation accepts local Academy views only');
 hasWorkshops=false;programRole='TEACHER';location.hash='#activity/PROGRAM/'+activity.id;await refresh();
-assert.match($('activity-menu').innerHTML,/Teach tools/);assert.doesNotMatch($('activity-menu').innerHTML,/Admin tools/);assert.doesNotMatch($('activity-menu').innerHTML,/Learn tools/);for(const label of ['Attendance','Surahs and Duas','Assessment','Planning','Announcements','My Timetable'])assert.ok($('activity-menu').innerHTML.includes(`>${label}<`));
+assert.match($('activity-menu').innerHTML,/Teach tools/);assert.doesNotMatch($('activity-menu').innerHTML,/Admin tools/);assert.doesNotMatch($('activity-menu').innerHTML,/Learn tools/);for(const label of ['Timetable','Attendance','Assessment','Planning','Library'])assert.ok($('activity-menu').innerHTML.includes(`>${label}<`));
 assert.doesNotMatch($('activity-switcher').innerHTML,/<span>Courses<\/span>/,'No Course access means no Courses pill');
-assert.equal($('academy-tab-teach').hidden,false);assert.equal($('academy-tab-learn').hidden,true);assert.equal($('academy-tab-admin').hidden,true);
+assert.equal($('academy-tab-teach').hidden,false);assert.equal($('academy-tab-learn').hidden,false);assert.equal($('academy-tab-admin').hidden,true);
+await navigate('#overview/learn');assert.match($('academy-role-panel').innerHTML,/No learning Programs or Courses/);
+await navigate('#overview/teach');assert.match($('academy-role-panel').innerHTML,/\/teach/);
 await navigate('#workshops');assert.equal($('workshop-pills').innerHTML,'');assert.match($('course-list-message').textContent,/No Courses/);
 hasWorkshops=true;globalAdmin=true;location.hash='#activity/PROGRAM/'+activity.id;await refresh();
-assert.match($('activity-menu').innerHTML,/Admin tools/);assert.match($('activity-menu').innerHTML,/Teach tools/);assert.doesNotMatch($('activity-menu').innerHTML,/Learn tools/);for(const label of ['Users','Programs','Courses','Library','Academy'])assert.ok($('activity-menu').innerHTML.includes(`>${label}<`));
+assert.doesNotMatch($('activity-menu').innerHTML,/Admin tools/);assert.match($('activity-menu').innerHTML,/Teach tools/);
+await navigate('#administration');assert.match($('administration').innerHTML,/Academy-wide management|Manage user profiles|Refresh public timetable/);
+for(const label of ['Users','Attendance','Planning','Assessments','Library','Curriculum','Programs','Courses'])assert.ok($('administration').innerHTML.includes(`>${label}<`));
+await navigate('#administration/curriculum');assert.match($('administration').innerHTML,/Subjects and Modules/);
+await navigate('#activity/PROGRAM/'+activity.id);
 documentHandlers.get('click')({target:{closest:selector=>selector==='[data-workspace-tool]'?{dataset:{workspaceTool:'academy'}}:null}});assert.match($('workspace-tool-body').innerHTML,/Subjects &amp; Modules/);$('workspace-tool-close').listeners.get('click')();
 await navigate('#workshops');assert.equal($('course-list-scope-wrap').hidden,false);assert.equal($('course-list-title').textContent,'All Courses');
 assert.match($('workshop-pills').innerHTML,/Unpublished &lt;draft&gt;/);assert.doesNotMatch($('workshop-pills').innerHTML,/<draft>/);
@@ -350,7 +361,7 @@ storage.set('m4l_account_token','inline-account');cacheFixture=true;globalAdmin=
 const inlineCalls=[];let allowLeave=true;
 window.M4L_PROGRAM_ATTENDANCE={open:options=>inlineCalls.push(options),reset(){},canLeave:()=>allowLeave};
 const programHash='#activity/PROGRAM/'+activity.id;
-await navigate(programHash);assert.equal($('pa-main').hidden,true);assert.match($('activity-menu').innerHTML,/\/attendance" aria-expanded="false"/);
+await navigate(programHash);assert.equal($('pa-main').hidden,true);assert.match($('activity-menu').innerHTML,/\/attendance" aria-controls="pa-main" aria-selected="false"/);
 await navigate(programHash+'/attendance');assert.equal($('pa-main').hidden,false);assert.equal(inlineCalls.at(-1).id,activity.id);assert.equal($('pa-close').href,programHash);
 assert.equal($('workspace-tool').open,false,'Attendance stays on the Program page');assert.doesNotMatch($('activity-menu').innerHTML,/\/programs\/attendance/);
 assert.match($('activity-switcher').innerHTML,/\/attendance"/,'Program pills keep the Attendance view selected');
@@ -360,6 +371,8 @@ for(const [roles,label] of [[['STUDENT','TEACHER'],'Teacher'],[['TEACHER','STUDE
   programRole=roles;await refresh();assert.match($('activity-switcher').innerHTML,new RegExp('<small>'+label+'</small>'));assert.doesNotMatch($('activity-switcher').innerHTML,/<small>[^<]* · /);
 }
 globalAdmin=true;await refresh();assert.match($('activity-switcher').innerHTML,/<small>Global Admin<\/small>/);assert.doesNotMatch($('activity-switcher').innerHTML,/<small>[^<]* · /);
+globalAdmin=false;programRole='PROGRAM_ADMIN';await refresh();await navigate('#administration');assert.match($('administration').innerHTML,/assigned Programs and Courses/);assert.doesNotMatch($('administration').innerHTML,/href="\/users\/"|Refresh public timetable/);
+await navigate('#administration/assessments');assert.match($('administration').innerHTML,/#assessment-admin\/PROGRAM\//);
 globalAdmin=false;programRole='STUDENT';await refresh();await navigate(programHash+'/attendance');assert.equal($('pa-main').hidden,true,'Students cannot open the staff register');
 hasWorkshops=false;programRole='';await refresh();assert.equal($('academy-account-role').textContent,'None');assert.equal($('academy-access-empty').hidden,false);assert.equal($('academy-role-panel').hidden,true);assert.equal($('academy-role-panel').innerHTML,'');for(const key of ['learn','teach','admin'])assert.equal($('academy-tab-'+key).hidden,true);
 console.log('Academy timetable, inline Attendance routing and draft guards, highest pill access, scoped tools, cache, joining, sign-out and personal HifzHelper links passed.');
