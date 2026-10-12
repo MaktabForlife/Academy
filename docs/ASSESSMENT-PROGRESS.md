@@ -45,3 +45,10 @@ A tenth API case also verifies inherited Global Admin access and rejects scoped-
 - Owner is building the schedule; no timetable import. Requested header removal, shared Subject/Module choices, a timetable for learners/teachers and examiner editing of duration/total mark.
 - Development V106.27 503 resolved separately by backing up D1 and applying only migration 0016. Eight assessment tables verified, authenticated endpoint returned 200, desktop/mobile screens passed and all 80 existing table row counts were preserved.
 - V106.28: 141/141 regression files pass, including 12 assessment API cases. Real Chrome acceptance passes with the Academy selector, timetable, examiner upload, moderation, separate releases, report generation, session replacement and mobile layout. Development Worker dry-run bundle passes (1664.24 KiB / 335.77 KiB gzip). No migration is required.
+
+## V106.29 — Phase-based scheduling
+
+- Added Program/Course assessment phases and optional subject descriptors, including timetable/report display and explicit migration 0018.
+- Existing entries remain unassigned and available; no schedule import or inferred phase.
+- Paper status is None before PDF attachment. Both selectors match Assessment input height.
+- 14 assessment API cases and Chrome workflow acceptance pass. Full regression: 141/141 files. Development Worker dry-run: 1667.28 KiB / 336.33 KiB gzip.

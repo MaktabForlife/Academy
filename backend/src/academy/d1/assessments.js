@@ -9,24 +9,39 @@ export function d1Assessments(repository,auth){
   return [...subjects.map(s=>({key:'SUBJECT:'+s.subject_key,label:s.name,kind:'SUBJECT'})),...modules.map(m=>({key:'MODULE:ACADEMY:'+m.module_id,label:m.subject_name?m.subject_name+' · '+m.name:m.name,kind:'MODULE'}))];
  }
  const fields=async(input,current=null)=>{
+  const descriptor=cleanText(input.subjectDescriptor??current?.subject_descriptor??'',160,'a subject descriptor',true);
   const title=cleanText(input.title,160,'an assessment title'),options=await catalogue(),choice=input.catalogueKey?options.find(c=>c.key===input.catalogueKey):options.find(c=>c.label===input.subject);
   const subject=choice?.label||(current&&input.subject===current.subject&&!input.catalogueKey?current.subject:'');
   if(!subject)throw fail('Choose an active Academy subject or module.');
   if(!validDate(input.examDate)||!Number.isInteger(input.durationMinutes)||input.durationMinutes<1||input.durationMinutes>1440||typeof input.maximumMark!=='number'||!Number.isFinite(input.maximumMark)||input.maximumMark<=0||input.maximumMark>1000000)throw fail('Enter a valid exam date, duration and maximum mark.');
-  return {title,subject,date:input.examDate,duration:input.durationMinutes,maximum:input.maximumMark};
+  return {title,subject,descriptor,date:input.examDate,duration:input.durationMinutes,maximum:input.maximumMark};
  };
+ async function phaseFor(id,activityKey){
+  if(id===undefined||id===null||id==='')return null;
+  if(typeof id!=='string'||!await p('SELECT 1 ok FROM assessment_phases WHERE phase_id=? AND activity_key=?',id,activityKey).first())throw fail('Choose an assessment phase in this learning area.',403);
+  return id;
+ }
+ async function createPhase(input){cleanText(input.activityKey,200,'a learning area');return s.change('phase-create',input,input.activityKey,async()=>{
+  if(!(await s.classes('admin',input.activityKey)).length)throw fail('This learning area is outside your assessment administration access.',403);
+  const name=cleanText(input.name,160,'an assessment phase name'),normalised=name.toLocaleLowerCase('en').replace(/\s+/g,' ');
+  if(await p('SELECT 1 ok FROM assessment_phases WHERE activity_key=? AND name_normalised=?',input.activityKey,normalised).first())throw fail('An assessment phase with this name already exists in this learning area.',409);
+  const id=crypto.randomUUID(),now=new Date().toISOString();
+  return {statements:[p('INSERT INTO assessment_phases VALUES(?,?,?,?,?,?)',id,input.activityKey,name,normalised,now,actor),s.event({activity_key:input.activityKey},'phase-create',{phaseId:id,name})],result:{phaseId:id}};
+ });}
  const rosterStatement=(a,rows)=>p(`INSERT INTO assessment_recipients(assessment_id,account_id,display_name) SELECT ?,json_extract(value,'$.account_id'),json_extract(value,'$.display_name') FROM json_each(?) WHERE 1 ON CONFLICT(assessment_id,account_id) DO NOTHING`,a.assessment_id,JSON.stringify(rows));
  async function list(input){
   const filter=rows=>['PROGRAM','COURSE'].includes(input.kind)?rows.filter(c=>c.kind===input.kind):rows;
   const staff=filter(await s.classes('staff',input.activityKey||'')),admin=filter(await s.classes('admin',input.activityKey||'')),learner=filter(await s.classes('learner',input.activityKey||''));
-  const rows=(await p(`SELECT x.*,c.name class_name,a.name activity_name,(SELECT display_name FROM accounts u WHERE u.account_id=x.examiner_id) examiner_name FROM assessments x JOIN classes c ON c.activity_key=x.activity_key AND c.class_id=x.class_id JOIN activities a ON a.activity_key=x.activity_key WHERE (?='' OR x.activity_key=?) AND (EXISTS(SELECT 1 FROM json_each(?) j WHERE json_extract(j.value,'$.activity_key')=x.activity_key AND json_extract(j.value,'$.class_id')=x.class_id) OR x.schedule_published=1 AND EXISTS(SELECT 1 FROM assessment_recipients r WHERE r.assessment_id=x.assessment_id AND r.account_id=?) AND EXISTS(SELECT 1 FROM json_each(?) j WHERE json_extract(j.value,'$.activity_key')=x.activity_key AND json_extract(j.value,'$.class_id')=x.class_id)) ORDER BY x.exam_date,x.title LIMIT 1001`,input.activityKey||'',input.activityKey||'',JSON.stringify(staff),actor,JSON.stringify(learner)).all()).results;
+  const rows=(await p(`SELECT x.*,ph.name phase_name,c.name class_name,a.name activity_name,(SELECT display_name FROM accounts u WHERE u.account_id=x.examiner_id) examiner_name FROM assessments x LEFT JOIN assessment_phases ph ON ph.phase_id=x.phase_id JOIN classes c ON c.activity_key=x.activity_key AND c.class_id=x.class_id JOIN activities a ON a.activity_key=x.activity_key WHERE (?='' OR x.activity_key=?) AND (EXISTS(SELECT 1 FROM json_each(?) j WHERE json_extract(j.value,'$.activity_key')=x.activity_key AND json_extract(j.value,'$.class_id')=x.class_id) OR x.schedule_published=1 AND EXISTS(SELECT 1 FROM assessment_recipients r WHERE r.assessment_id=x.assessment_id AND r.account_id=?) AND EXISTS(SELECT 1 FROM json_each(?) j WHERE json_extract(j.value,'$.activity_key')=x.activity_key AND json_extract(j.value,'$.class_id')=x.class_id)) ORDER BY x.exam_date,x.title LIMIT 1001`,input.activityKey||'',input.activityKey||'',JSON.stringify(staff),actor,JSON.stringify(learner)).all()).results;
   if(rows.length>1000)throw fail('Choose a learning area to narrow the assessment list.',409);
   const own=(await p('SELECT * FROM assessment_recipients WHERE account_id=?',actor).all()).results;
   const assessments=rows.filter(a=>staff.some(c=>same(c.activity_key,a.activity_key)&&same(c.class_id,a.class_id))||a.schedule_published&&own.some(r=>r.assessment_id===a.assessment_id)&&learner.some(c=>same(c.activity_key,a.activity_key)&&same(c.class_id,a.class_id))).map(a=>{
    const canAdmin=admin.some(c=>same(c.activity_key,a.activity_key)&&same(c.class_id,a.class_id)),canTeach=staff.some(c=>same(c.activity_key,a.activity_key)&&same(c.class_id,a.class_id));
-   return {id:a.assessment_id,activityKey:a.activity_key,activityName:a.activity_name,classId:a.class_id,className:a.class_name,title:a.title,subject:a.subject,examDate:a.exam_date,durationMinutes:a.duration_minutes,maximumMark:a.maximum_mark,published:Boolean(a.schedule_published),examinerName:a.examiner_name||'',paperState:canTeach?a.paper_state:paperAvailable(a)?'AVAILABLE':'WAITING',paperReleased:canTeach?Boolean(a.paper_released_at):paperAvailable(a),paperAvailable:paperAvailable(a),revision:a.revision,canAdmin,canTeach,isExaminer:same(a.examiner_id,actor),canModerate:canAdmin&&!same(a.examiner_id,actor)};
+   return {id:a.assessment_id,activityKey:a.activity_key,activityName:a.activity_name,classId:a.class_id,className:a.class_name,title:a.title,subject:a.subject,subjectDescriptor:a.subject_descriptor,phaseId:a.phase_id,phaseName:a.phase_name||'',examDate:a.exam_date,durationMinutes:a.duration_minutes,maximumMark:a.maximum_mark,published:Boolean(a.schedule_published),examinerName:a.examiner_name||'',paperState:canTeach?(a.paper_file_id?a.paper_state:'NONE'):paperAvailable(a)?'AVAILABLE':'WAITING',paperReleased:canTeach?Boolean(a.paper_released_at):paperAvailable(a),paperAvailable:paperAvailable(a),revision:a.revision,canAdmin,canTeach,isExaminer:same(a.examiner_id,actor),canModerate:canAdmin&&!same(a.examiner_id,actor)};
   });
-  return {assessments,classes:input.view==='admin'?admin:staff,catalogue:admin.length?await catalogue():[],canAdmin:admin.length>0,timezone:'Africa/Johannesburg',store:'D1'};
+  const phases=(await p(`SELECT ph.*,a.name activity_name FROM assessment_phases ph JOIN activities a USING(activity_key) WHERE ph.activity_key IN(SELECT json_extract(value,'$.activity_key') FROM json_each(?)) OR ph.phase_id IN(SELECT json_extract(value,'$.phaseId') FROM json_each(?)) ORDER BY ph.created_at DESC,ph.name LIMIT 501`,JSON.stringify(admin),JSON.stringify(assessments)).all()).results;
+  if(phases.length>500)throw fail('Choose a learning area to narrow the phase list.',409);
+  return {phases:phases.map(ph=>({id:ph.phase_id,name:ph.name,activityKey:ph.activity_key,activityName:ph.activity_name})),assessments,classes:input.view==='admin'?admin:staff,catalogue:admin.length?await catalogue():[],canAdmin:admin.length>0,timezone:'Africa/Johannesburg',store:'D1'};
  }
  async function detail(input){
   const a=await s.assessment(input.assessmentId);await s.requireReader(a);
@@ -41,12 +56,12 @@ export function d1Assessments(repository,auth){
     markId:staff?r.mark_id:null,moderationComment:staff?r.moderation_comment:'',marksReleased:approved&&r.released_mark_id===r.mark_id,feedbackReleased:approved&&r.released_feedback_id===r.mark_id,scriptReleased:approved&&r.released_script_id===r.mark_id};
   });
   const history=staff?(await p('SELECT action,account_id,details_json,occurred_at FROM assessment_events WHERE assessment_id=? ORDER BY occurred_at DESC,event_id DESC LIMIT 100',a.assessment_id).all()).results:[];
-  return {assessment:{id:a.assessment_id,title:a.title,subject:a.subject,examDate:a.exam_date,durationMinutes:a.duration_minutes,maximumMark:a.maximum_mark,activityKey:a.activity_key,activityName:a.activity_name,classId:a.class_id,className:a.class_name,revision:a.revision,published:Boolean(a.schedule_published),paperAvailable:paperAvailable(a),paperState:canTeach?a.paper_state:paperAvailable(a)?'AVAILABLE':'WAITING',paperComment:canTeach?a.paper_comment:'',paperFileId:canTeach||paperAvailable(a)?a.paper_file_id:null,paperReleased:canTeach?Boolean(a.paper_released_at):paperAvailable(a),canAdmin:admin,canTeach,isExaminer:examiner,canModerate:admin&&!same(a.examiner_id,actor),canSubmitPaper:await s.allowed(a.activity_key,a.class_id)&&(!a.examiner_id||examiner||admin)},learners,history,store:'D1'};
+  return {assessment:{id:a.assessment_id,title:a.title,subject:a.subject,subjectDescriptor:a.subject_descriptor,phaseId:a.phase_id,phaseName:a.phase_name||'',examDate:a.exam_date,durationMinutes:a.duration_minutes,maximumMark:a.maximum_mark,activityKey:a.activity_key,activityName:a.activity_name,classId:a.class_id,className:a.class_name,revision:a.revision,published:Boolean(a.schedule_published),paperAvailable:paperAvailable(a),paperState:canTeach?(a.paper_file_id?a.paper_state:'NONE'):paperAvailable(a)?'AVAILABLE':'WAITING',paperComment:canTeach?a.paper_comment:'',paperFileId:canTeach||paperAvailable(a)?a.paper_file_id:null,paperReleased:canTeach?Boolean(a.paper_released_at):paperAvailable(a),canAdmin:admin,canTeach,isExaminer:examiner,canModerate:admin&&!same(a.examiner_id,actor),canSubmitPaper:await s.allowed(a.activity_key,a.class_id)&&(!a.examiner_id||examiner||admin)},learners,history,store:'D1'};
  }
  async function create(input){
   return s.change('create',input,input.activityKey,async()=>{
-   await s.requireClass(input.activityKey,input.classId,'admin');const v=await fields(input),id=crypto.randomUUID(),now=new Date().toISOString();
-   return {statements:[p(`INSERT INTO assessments(assessment_id,activity_key,class_id,title,subject,exam_date,duration_minutes,maximum_mark,created_at,created_by,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)`,id,input.activityKey,input.classId,v.title,v.subject,v.date,v.duration,v.maximum,now,actor,now),s.event({assessment_id:id,activity_key:input.activityKey},'CREATED',{title:v.title})],result:{assessmentId:id}};
+   await s.requireClass(input.activityKey,input.classId,'admin');const v=await fields(input),phaseId=await phaseFor(input.phaseId,input.activityKey),id=crypto.randomUUID(),now=new Date().toISOString();
+   return {statements:[p(`INSERT INTO assessments(assessment_id,activity_key,class_id,title,subject,exam_date,duration_minutes,maximum_mark,phase_id,subject_descriptor,created_at,created_by,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`,id,input.activityKey,input.classId,v.title,v.subject,v.date,v.duration,v.maximum,phaseId,v.descriptor,now,actor,now),s.event({assessment_id:id,activity_key:input.activityKey},'CREATED',{title:v.title})],result:{assessmentId:id}};
   });
  }
  async function mutate(action,input){
@@ -57,11 +72,11 @@ export function d1Assessments(repository,auth){
    if(['save','publish','roster','review-paper','authorise-resubmission','release'].includes(action))await s.requireClass(a.activity_key,a.class_id,'admin');
    if(action==='save'){
     if(a.paper_state!=='DRAFT'||a.schedule_published)throw fail('Published assessments retain their schedule. Create a new assessment for a replacement schedule.',409);
-    const v=await fields(input,a);statements.push(p('UPDATE assessments SET title=?,subject=?,exam_date=?,duration_minutes=?,maximum_mark=? WHERE assessment_id=?',v.title,v.subject,v.date,v.duration,v.maximum,a.assessment_id));
+    const v=await fields(input,a),phaseId=await phaseFor(input.phaseId===undefined?a.phase_id:input.phaseId,a.activity_key);statements.push(p('UPDATE assessments SET title=?,subject=?,exam_date=?,duration_minutes=?,maximum_mark=?,phase_id=?,subject_descriptor=? WHERE assessment_id=?',v.title,v.subject,v.date,v.duration,v.maximum,phaseId,v.descriptor,a.assessment_id));
    }else if(action==='paper-details'){
     await s.requireExaminer(a);
     if(a.paper_released_at||await p('SELECT 1 found FROM assessment_submissions WHERE assessment_id=? LIMIT 1',a.assessment_id).first())throw fail('Paper details are fixed after release.',409);
-    const v=await fields({...input,title:a.title,subject:a.subject,examDate:a.exam_date},a);
+    const v=await fields({...input,title:a.title,subject:a.subject,subjectDescriptor:a.subject_descriptor,examDate:a.exam_date},a);
     statements.push(p("UPDATE assessments SET duration_minutes=?,maximum_mark=?,paper_state=CASE WHEN paper_file_id IS NOT NULL THEN 'IN_REVIEW' ELSE paper_state END,paper_released_at=NULL WHERE assessment_id=?",v.duration,v.maximum,a.assessment_id));
    }else if(action==='publish'||action==='roster'){
     if(await p('SELECT 1 found FROM assessment_submissions WHERE assessment_id=? LIMIT 1',a.assessment_id).first())throw fail('The learner list is preserved after submissions begin.',409);
@@ -121,6 +136,6 @@ export function d1Assessments(repository,auth){
   });
  }
  return {store:s,run:async(action,input)=>{
-  if(action==='list')return list(input);if(action==='get')return detail(input);if(action==='create')return create(input);if(action==='release-papers')return releasePapers(input);return mutate(action,input);
+  if(action==='phase-create')return createPhase(input);if(action==='list')return list(input);if(action==='get')return detail(input);if(action==='create')return create(input);if(action==='release-papers')return releasePapers(input);return mutate(action,input);
  }};
 }

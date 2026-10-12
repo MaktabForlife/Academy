@@ -35,7 +35,7 @@ export function assessmentReports(repository,auth){
   if(exams.length!==ids.length)throw fail('Select assessments from the same class.',403);
   const rows=(await p(`SELECT r.*,m.mark,m.state,m.submission_id FROM assessment_recipients r LEFT JOIN assessment_markings m ON m.mark_id=r.released_mark_id WHERE r.assessment_id IN(SELECT value FROM json_each(?)) ORDER BY r.display_name`,JSON.stringify(ids)).all()).results;
   const people=new Map();for(const r of rows)if(!people.has(r.account_id))people.set(r.account_id,r.display_name);
-  return {className:exams[0].class_name,activityName:exams[0].activity_name,learners:[...people].map(([id,name])=>({id,name,results:exams.map(a=>{const r=rows.find(r=>r.account_id===id&&r.assessment_id===a.assessment_id),released=r?.state==='APPROVED'&&r.submission_id===r.latest_submission_id;return {assessmentId:a.assessment_id,title:a.title,subject:a.subject,date:a.exam_date,maximumMark:a.maximum_mark,mark:released?r.mark:null,markId:released?r.released_mark_id:null};})}))};
+  return {className:exams[0].class_name,activityName:exams[0].activity_name,learners:[...people].map(([id,name])=>({id,name,results:exams.map(a=>{const r=rows.find(r=>r.account_id===id&&r.assessment_id===a.assessment_id),released=r?.state==='APPROVED'&&r.submission_id===r.latest_submission_id;return {assessmentId:a.assessment_id,title:a.title,subject:[a.subject,a.subject_descriptor].filter(Boolean).join(' · '),date:a.exam_date,maximumMark:a.maximum_mark,mark:released?r.mark:null,markId:released?r.released_mark_id:null};})}))};
  }
  async function saveReport(input){return s.change('report-save',input,input.activityKey,async()=>{
   await s.requireClass(input.activityKey,input.classId,'admin');

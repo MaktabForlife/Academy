@@ -158,3 +158,55 @@ test('Global Admin inherits every area while scoped admins, teachers and student
  assert.equal((await x.change('authorise-resubmission',{accountIds:['account-0002']},x.teacher)).status,403);
  assert.ok(ok(await f.call('list',{},x.admin)).assessments.some(a=>a.id===id));assert.ok(!ok(await f.call('list',{},scoped)).assessments.some(a=>a.id===id));assert.equal(ok(await f.call('list',{kind:'COURSE'},x.admin)).assessments.some(a=>a.id===x.id),false);
 }));
+
+test('assessment phases are scoped, audited and retry-safe; existing schedules remain unassigned',()=>use(async f=>{
+ const admin=await f.login('0001'),scoped=await f.login('0004'),teacher=await f.login('0003'),student=await f.login('0002');
+ const body={...op(),activityKey:scope,name:'Final 2026'};
+ assert.equal((await f.call('phase-create',{...body,activityKey:''},admin)).status,400);
+ assert.equal((await f.call('phase-create',body,teacher)).status,403);
+ assert.equal((await f.call('phase-create',body,student)).status,403);
+ const id=ok(await f.call('phase-create',body,scoped)).phaseId;
+ assert.equal(ok(await f.call('phase-create',body,scoped)).replayed,true);
+ assert.equal((await f.call('phase-create',{...body,...op(),name:'  FINAL   2026 '},scoped)).status,409);
+ assert.equal(f.db.prepare('SELECT count(*) n FROM assessment_phases').get().n,1);
+ assert.equal(f.db.prepare("SELECT count(*) n FROM assessment_events WHERE action='phase-create'").get().n,1);
+ assert.equal(ok(await f.call('list',{},student)).phases.length,0,'Students cannot see an empty or unpublished phase');
+ const other=f.db.prepare("SELECT c.activity_key,c.class_id FROM classes c JOIN activities a USING(activity_key) WHERE a.kind='PROGRAM' AND a.activity_key<>? AND c.active=1 AND a.lifecycle='ACTIVE' LIMIT 1").get(scope);
+ assert.equal((await f.call('phase-create',{...body,...op(),activityKey:other.activity_key},scoped)).status,403);
+ const otherPhase=ok(await f.call('phase-create',{...body,...op(),activityKey:other.activity_key},admin)).phaseId;
+ const input={...op(),activityKey:scope,classId:'class-1',title:'Final 2026',subject:'Qasas',examDate:'2026-01-01',durationMinutes:60,maximumMark:100};
+ assert.equal((await f.call('create',{...input,phaseId:otherPhase},admin)).status,403);
+ const legacy=ok(await f.call('create',input,admin)).assessmentId;
+ assert.equal(ok(await f.call('get',{assessmentId:legacy},admin)).assessment.phaseId,null);
+ assert.throws(()=>f.db.prepare('UPDATE assessments SET phase_id=? WHERE assessment_id=?').run(otherPhase,legacy),/assessment_phase_scope/);
+ ok(await f.call('save',{...input,...op(),assessmentId:legacy,revision:1,phaseId:id},admin));
+ let a=ok(await f.call('get',{assessmentId:legacy},admin)).assessment;
+ assert.equal(a.phaseName,'Final 2026');assert.equal(a.paperState,'NONE');assert.equal(a.paperFileId,null);
+ assert.equal(ok(await f.call('list',{},scoped)).phases.some(p=>p.id===otherPhase),false);
+ ok(await f.call('publish',{...op(),assessmentId:legacy,revision:a.revision},admin));
+ const visible=ok(await f.call('list',{},student));assert.equal(visible.phases.length,1);assert.equal(visible.phases[0].id,id);
+ const before=f.db.prepare('SELECT count(*) n FROM operation_receipts').get().n;
+ f.db.exec("CREATE TRIGGER fail_phase BEFORE INSERT ON assessment_phases BEGIN SELECT RAISE(ABORT,'synthetic phase failure'); END;");
+ assert.equal((await f.call('phase-create',{...body,...op(),name:'Midyear 2027'},admin)).status,503);
+ assert.equal(f.db.prepare('SELECT count(*) n FROM operation_receipts').get().n,before);
+}));
+test('separate descriptors distinguish papers for one subject in the schedule and reports without assigning examiners',()=>use(async f=>{
+ const admin=await f.login('0001'),teacher=await f.login('0003');
+ const phaseId=ok(await f.call('phase-create',{...op(),activityKey:scope,name:'Final 2026'},admin)).phaseId;
+ const body={activityKey:scope,classId:'class-1',phaseId,title:'Final 2026',subject:'Fiqh',examDate:'2026-01-01',durationMinutes:60,maximumMark:100};
+ const ids=[];
+ for(const subjectDescriptor of ['MHM','MAC'])ids.push(ok(await f.call('create',{...body,...op(),subjectDescriptor},admin)).assessmentId);
+ let a=ok(await f.call('get',{assessmentId:ids[0]},admin)).assessment;
+ assert.equal(a.subjectDescriptor,'MHM');assert.equal(a.isExaminer,false);assert.equal(a.paperState,'NONE');
+ assert.equal(f.db.prepare('SELECT examiner_id FROM assessments WHERE assessment_id=?').get(ids[0]).examiner_id,null);
+ assert.equal((await f.call('create',{...body,...op(),subjectDescriptor:'x'.repeat(161)},admin)).status,400);
+ ok(await f.call('save',{...body,...op(),assessmentId:ids[0],revision:a.revision,subjectDescriptor:'Teacher MHM'},admin));
+ assert.equal((await f.call('save',{...body,...op(),assessmentId:ids[0],revision:a.revision,subjectDescriptor:'Stale'},admin)).status,409);
+ for(const assessmentId of ids){a=ok(await f.call('get',{assessmentId},admin)).assessment;ok(await f.call('publish',{...op(),assessmentId,revision:a.revision},admin));}
+ const results=ok(await f.call('report-data',{activityKey:scope,classId:'class-1',assessmentIds:ids},admin)).learners[0].results;
+ assert.deepEqual(results.map(r=>r.subject).sort(),['Fiqh · MAC','Fiqh · Teacher MHM']);
+ a=ok(await f.call('get',{assessmentId:ids[0]},teacher)).assessment;
+ ok(await f.upload({kind:'PAPER',assessmentId:a.id,revision:a.revision},teacher));
+ assert.equal(ok(await f.call('get',{assessmentId:a.id},teacher)).assessment.paperState,'IN_REVIEW');
+ assert.equal(ok(await f.call('get',{assessmentId:ids[1]},teacher)).assessment.paperState,'NONE');
+}));

@@ -1,3 +1,7 @@
+# V106.29 — Assessment phases and subject descriptors
+
+Create an assessment phase, such as Final 2026, before adding class assessments. Optional subject descriptors distinguish papers for the same Academy subject/module and appear on timetables and reports. Paper status is None until a PDF is attached. Class and Subject/module selectors match the Assessment field height. Existing schedules remain available under Earlier assessments. [Release details](docs/ACADEMY-ASSESSMENT-PHASES-106.29.md).
+
 # V106.28 — Assessment timetable and Academy subject selector
 
 Assessment scheduling uses active Academy subjects and modules, with existing entries preserved. Students and teachers see date-ordered class timetables; teachers open each paper for PDF moderation. Examiners can revise duration and total mark before release; changes return the paper for moderation. Remove the extra timezone header. No database migration or schedule import. [Release details](docs/ACADEMY-ASSESSMENT-TIMETABLE-106.28.md).
