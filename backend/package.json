@@ -1,9 +1,12 @@
 {
   "name": "rebootworker",
-  "version": "106.26",
+  "version": "106.27",
   "type": "module",
   "scripts": {
     "test": "node tests/run-all.mjs",
+    "test:assessments": "node --test tests/academy-d1-assessments.test.mjs",
+    "test:assessments:browser": "node tools/academy-assessment-acceptance.mjs",
+    "test:assessments:r2": "node tools/academy-assessment-r2-smoke.mjs",
     "test:v104.4-read-audit": "node tests/v104-read-audit.test.mjs",
     "test:v104.5-derived-courses": "node tests/global-course-derived-scheduling.test.mjs",
     "dev": "wrangler dev",

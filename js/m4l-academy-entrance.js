@@ -18,10 +18,10 @@
   const homeIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h5v-7h4v7h5V9"/></svg>';
   const TIMETABLE_RETURN_KEY = 'm4l_academy_timetable_return';
   let lastRouteHash = '', navigationSession = token(), memorisationReturn = null, restoreMemorisation = null;
-  const memorisationHash = hash => hash === '#progress' || hash.startsWith('#progress-admin') || hash.endsWith('/surahs-duas');
-  const validReturnHash = hash => typeof hash === 'string' && (hash !== '#timetable' && Boolean(titles[hash.slice(1)]) || /^#activity\/(PROGRAM|COURSE)\/[^/#]+(?:\/(?:attendance|surahs-duas))?$/.test(hash));
+  const memorisationHash = hash => hash === '#progress' || hash.startsWith('#progress-admin') || hash.endsWith('/surahs-duas') || hash.endsWith('/assessment') || hash.startsWith('#assessment-admin') || hash.startsWith('#assessments');
+  const validReturnHash = hash => typeof hash === 'string' && (hash !== '#timetable' && Boolean(titles[hash.slice(1)]) || /^#activity\/(PROGRAM|COURSE)\/[^/#]+(?:\/(?:attendance|surahs-duas|assessment))?$/.test(hash));
   const titles = { overview: 'Academy home', timetable: 'Academy timetable', learning: 'Programs and Courses', workshops: 'Courses', activity: 'Activity',
-    prospectus: '2026 Prospectus', about: 'About', contact: 'Contact', progress: 'Surahs and Duas', 'progress-admin':'Surahs and Duas administration', recorder: 'Voice Recorder', administration: 'Academy administration' };
+    prospectus: '2026 Prospectus', about: 'About', contact: 'Contact', progress: 'Surahs and Duas', 'progress-admin':'Surahs and Duas administration', 'assessment-admin':'Assessment administration', assessments:'My assessments', recorder: 'Voice Recorder', administration: 'Academy administration' };
   const activityHref = row => `#activity/${row.kind}/${encodeURIComponent(row.id)}`;
   const staffRoles = roles => roles.some(role => ['TEACHER', 'PROGRAM_ADMIN', 'ADMIN', 'SENIOR', 'GLOBAL_ADMIN'].includes(role));
   const roleName = roles => roles.map(role => ({ GLOBAL_ADMIN: 'Global Admin', PROGRAM_ADMIN: 'Program Admin', ADMIN: 'Program Admin', SENIOR: 'Senior', TEACHER: 'Teacher', STUDENT: 'Student' })[role]).filter(Boolean).join(' · ') || 'None';
@@ -40,7 +40,9 @@
     const attendance = location.hash.endsWith('/attendance') && (state.home?.globalAdmin || staffRoles(row.roles || []));
     const teaching = location.hash.endsWith('/surahs-duas') && (state.home?.globalAdmin || staffRoles(row.roles || []));
     const administration = location.hash.startsWith('#progress-admin') && (state.home?.globalAdmin || adminRoles(row.roles || []));
-    const pill = activityPill(administration?`#progress-admin/${row.kind}/${encodeURIComponent(row.id)}`:activityHref(row) + (attendance ? '/attendance' : teaching?'/surahs-duas':''), row.name, row.roles, current);
+    const assessments = location.hash.endsWith('/assessment');
+    const assessmentAdmin = location.hash.startsWith('#assessment-admin');
+    const pill = activityPill(assessmentAdmin?`#assessment-admin/${row.kind}/${encodeURIComponent(row.id)}`:administration?`#progress-admin/${row.kind}/${encodeURIComponent(row.id)}`:activityHref(row) + (attendance ? '/attendance' : teaching?'/surahs-duas':assessments?'/assessment':''), row.name, row.roles, current);
     const shortcut = hifzHelperLink(row, 'activity-pill-shortcut');
     return shortcut ? `<div class="activity-pill-with-shortcut"${current ? ' data-current="true"' : ''}>${pill}${shortcut}</div>` : pill;
   }
@@ -283,9 +285,9 @@
     const users = global ? '/users/' : row.kind === 'PROGRAM' ? manage && `${manage}&tab=profiles` : row.id ? `${manage}&tab=participants` : '/academy/courses/manage/';
     return (admin ? group('Admin', link('Users', users) + link('Library', global ? '/academy/library/manage/' : row.tools?.resources || '/academy/library/') +
       link('Programs', global ? '/programs/' : row.kind === 'PROGRAM' && row.id ? `/programs/timetable.html?program=${encodeURIComponent(row.id)}` : '') +
-      link('Courses', global || row.kind !== 'PROGRAM' ? '/academy/courses/manage/' : '') + (row.kind==='PROGRAM'?link('Surahs and Duas',`#progress-admin/PROGRAM/${encodeURIComponent(row.id)}`):'') + tool('Academy','academy')) : '') +
-      (staff ? group('Teach', hifzHelper + (row.kind === 'PROGRAM' ? `<a href="${activityHref(row)}/attendance" aria-expanded="${location.hash.endsWith('/attendance')}" aria-controls="pa-main">Attendance</a>` + link('Surahs and Duas',`${activityHref(row)}/surahs-duas`) : tool('Attendance','attendance')) + tool('Assessment','assessment') + tool('Planning','plan') + tool('Announcements','announcements') + link('My Timetable','#timetable') + link('Edit availability','/academy/teaching/')) : '') +
-      (learner && !staff ? group('Learn', (!staff?hifzHelper:'') + link('Library','/academy/library/') + (state.home?.memorisationActive!==false?link('Surahs and Duas','#progress'):'') + tool('My Assessment','assessment') + tool('Calendar','calendar') + tool('Announcements','announcements') + link('My Timetable','#timetable')) : '');
+      link('Courses', global || row.kind !== 'PROGRAM' ? '/academy/courses/manage/' : '') + (row.kind==='PROGRAM'?link('Surahs and Duas',`#progress-admin/PROGRAM/${encodeURIComponent(row.id)}`):'') + link('Assessments',row.id?`#assessment-admin/${row.kind}/${encodeURIComponent(row.id)}`:'#assessment-admin/COURSE') + tool('Academy','academy')) : '') +
+      (staff ? group('Teach', hifzHelper + (row.kind === 'PROGRAM' ? `<a href="${activityHref(row)}/attendance" aria-expanded="${location.hash.endsWith('/attendance')}" aria-controls="pa-main">Attendance</a>` + link('Surahs and Duas',`${activityHref(row)}/surahs-duas`) : tool('Attendance','attendance')) + link('Assessment',row.id?`${activityHref(row)}/assessment`:'#assessments/COURSE') + tool('Planning','plan') + tool('Announcements','announcements') + link('My Timetable','#timetable') + link('Edit availability','/academy/teaching/')) : '') +
+      (learner && !staff ? group('Learn', (!staff?hifzHelper:'') + link('Library','/academy/library/') + (state.home?.memorisationActive!==false?link('Surahs and Duas','#progress'):'') + link('My Assessment',row.id?`${activityHref(row)}/assessment`:'#assessments/COURSE') + tool('Calendar','calendar') + tool('Announcements','announcements') + link('My Timetable','#timetable')) : '');
   }
 
   function syncMemorisation(row){
@@ -298,6 +300,16 @@
       window.M4L_MEMORISATION_ADMIN?.open({activityKey:row.id?`${row.kind}:${row.id}`:'',kind:row.kind||''});
       $('current-view').textContent=`${row.name} · Surahs and Duas administration`;
     }
+  }
+
+  function syncAssessment(row){
+    const embedded=location.hash===`${activityHref(row)}/assessment`;
+    $('as-panel').hidden=!embedded;
+    if(!embedded&&!location.hash.startsWith('#assessment-admin'))return;
+    const admin=location.hash.startsWith('#assessment-admin');
+    const close=admin?$('as-admin-close'):$('as-close');
+    close.href=admin?(memorisationReturn?.hash||(row.id?activityHref(row):'#workshops')):activityHref(row);
+    window.M4L_ACADEMY_ASSESSMENTS?.open({hostId:admin?'as-admin-host':'as-host',view:admin?'admin':'activity',activityKey:row.id?`${row.kind}:${row.id}`:'',kind:row.id?'':row.kind});
   }
 
   function syncAttendance(row) {
@@ -497,7 +509,7 @@
   }
 
   function renderActivityTimetable() {
-    $('activity-schedule').hidden = location.hash.endsWith('/surahs-duas') || !state.home?.signedIn || !state.activity?.roles.length || state.activity?.unavailable;
+    $('activity-schedule').hidden = (location.hash.endsWith('/surahs-duas') || location.hash.endsWith('/assessment')) || !state.home?.signedIn || !state.activity?.roles.length || state.activity?.unavailable;
     $('activity-schedule-title').textContent = `${state.activity?.name || ''} timetable`;
     renderSchedule('activity-sessions', activityRows());
     armScheduleClock();
@@ -540,6 +552,7 @@
       syncAttendance(row);
       renderActivityTimetable();
       syncMemorisation(row);
+      syncAssessment(row);
       if(restoreMemorisation){const saved=restoreMemorisation;restoreMemorisation=null;$('activity-sessions').scrollLeft=saved.left;window.requestAnimationFrame?.(()=>window.scrollTo?.(0,saved.top));}
     } catch (error) {
       if (generation !== state.activityGeneration) return;
@@ -587,7 +600,7 @@
   }
 
   function armScheduleClock() {
-    if(location.hash.endsWith('/surahs-duas')||location.hash.startsWith('#progress-admin')){clearTimeout(state.activityTimer);return;}
+    if(location.hash.endsWith('/surahs-duas')||location.hash.endsWith('/assessment')||location.hash.startsWith('#assessment-admin')||location.hash.startsWith('#progress-admin')){clearTimeout(state.activityTimer);return;}
     const view = location.hash.slice(1).split('/')[0];
     if (view === 'activity' && state.activity) {
       const rows = activityRows();
@@ -629,12 +642,14 @@
   function route() {
     const hash = location.hash || '#overview';
     if (lastRouteHash && hash !== lastRouteHash) {
-      if (window.M4L_PROGRAM_ATTENDANCE?.canLeave() === false || window.M4L_ACADEMY_PROGRESS?.canLeave() === false || window.M4L_MEMORISATION_ADMIN?.canLeave() === false) { history.replaceState(null,'',lastRouteHash); return; }
+      if (window.M4L_PROGRAM_ATTENDANCE?.canLeave() === false || window.M4L_ACADEMY_PROGRESS?.canLeave() === false || window.M4L_MEMORISATION_ADMIN?.canLeave() === false || window.M4L_ACADEMY_ASSESSMENTS?.canLeave() === false) { history.replaceState(null,'',lastRouteHash); return; }
       if(!memorisationHash(lastRouteHash)&&memorisationHash(hash)){memorisationReturn={hash:lastRouteHash,top:window.scrollY||0,left:$('activity-sessions').scrollLeft||0};if(dailyCache.owner)try{sessionStorage.setItem(MEMORISATION_RETURN_KEY,JSON.stringify({...memorisationReturn,owner:dailyCache.owner}));}catch{}}
       if(memorisationHash(lastRouteHash)&&hash===memorisationReturn?.hash)restoreMemorisation=memorisationReturn;
       window.M4L_PROGRAM_ATTENDANCE?.reset();
       window.M4L_ACADEMY_PROGRESS?.reset();
       window.M4L_MEMORISATION_ADMIN?.reset();
+      window.M4L_ACADEMY_ASSESSMENTS?.reset();
+      $('as-panel').hidden=true;
       $('pa-main').hidden = true;
       $('mp-teach-panel').hidden = true;
       if($('workspace-tool').open)$('workspace-tool').close();
@@ -663,6 +678,8 @@
     if (name === 'workshops') renderWorkshops();
     if (name === 'activity' && encodedId && state.home) { try { void loadActivity(decodeURIComponent(encodedId)); } catch { $('activity-status').textContent = 'This activity link is invalid.'; } }
     if(name==='progress-admin'&&state.home){if(encodedId){try{void loadActivity(decodeURIComponent(encodedId));}catch{$('mp-admin-context').textContent='Invalid learning area.';}}else syncMemorisation({kind:hash.includes('/COURSE')?'COURSE':'',name:hash.includes('/COURSE')?'Courses':'Academy',roles:[],tools:{}});}
+    if(name==='assessments'&&state.home){$('as-general-close').href='#workshops';void window.M4L_ACADEMY_ASSESSMENTS?.open({hostId:'as-general-host',view:'activity',kind:hash.includes('/COURSE')?'COURSE':''});}
+    if(name==='assessment-admin'&&state.home){if(encodedId){try{void loadActivity(decodeURIComponent(encodedId));}catch{$('as-admin-host').textContent='Invalid learning area.';}}else syncAssessment({kind:hash.includes('/COURSE')?'COURSE':'',name:'Academy',roles:[]});}
     if (name === 'recorder') $('recorder-card').innerHTML = state.home?.student ? '<p>Select an existing lesson image, record your voice, then preview and share your video.</p><a class="button" href="/recorder/?academy=1">Open Voice Recorder →</a>' : '<p>Voice Recorder is available to signed-in Academy students.</p>';
     if (name === 'administration') renderAdministration();
     if (requested !== 'activity') armScheduleClock();
@@ -672,7 +689,7 @@
     let view = $('administration');
     if (!view) { view = document.createElement('section'); view.id = 'administration'; view.className = 'view active'; document.querySelector('.container').appendChild(view); }
     view.classList.add('active');
-    view.innerHTML = '<div class="page-heading"><h1>Academy administration</h1></div>' + (state.home?.globalAdmin ? '<div class="activity-pills"><a href="/users/">User profiles</a><a href="/academy/subjects/">Subjects &amp; Modules</a><a href="#progress-admin">Surahs and Duas</a><a href="/programs/">Manage Programs</a><a href="/academy/courses/manage/">Course management</a><a href="/academy/courses/manage/?view=scheduling">Course scheduling</a><a href="/academy/library/manage/">Manage Library</a></div>' : '<p>This page requires an authenticated Global Admin account.</p>');
+    view.innerHTML = '<div class="page-heading"><h1>Academy administration</h1></div>' + (state.home?.globalAdmin ? '<div class="activity-pills"><a href="/users/">User profiles</a><a href="/academy/subjects/">Subjects &amp; Modules</a><a href="#progress-admin">Surahs and Duas</a><a href="#assessment-admin">Assessments</a><a href="/programs/">Manage Programs</a><a href="/academy/courses/manage/">Course management</a><a href="/academy/courses/manage/?view=scheduling">Course scheduling</a><a href="/academy/library/manage/">Manage Library</a></div>' : '<p>This page requires an authenticated Global Admin account.</p>');
   }
 
   function bindPublicTimetableRefresh(){
@@ -691,6 +708,7 @@
   }
 
   function clearPersonal() {
+    window.M4L_ACADEMY_ASSESSMENTS?.reset();$('as-panel').hidden=true;
     memorisationReturn=null;restoreMemorisation=null;$('mp-teach-panel').hidden=true;$('mp-admin-context').textContent='';window.M4L_MEMORISATION_ADMIN?.reset();
     window.M4L_ACADEMY_PROGRESS?.reset();
     window.M4L_PROGRAM_ATTENDANCE?.reset();

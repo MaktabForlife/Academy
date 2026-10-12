@@ -1,3 +1,7 @@
+# V106.27 — Assessment workflow and Arabic reports
+
+Add scoped assessment schedules, private PDF papers and answers in R2, independent moderation, Johannesburg 03:00 paper availability, authorised resubmissions, marking and separate marks/feedback/script releases. Teachers and students open assessments inside their Program or Course page; admins have a dedicated workspace. Arabic reports include class details and totals, with reusable picture/PDF designs. [Specification](docs/ASSESSMENT-SPEC.md), [progress and validation](docs/ASSESSMENT-PROGRESS.md), [release and activation](docs/ACADEMY-ASSESSMENTS-106.27.md).
+
 # V106.26 — Independent memorisation confirmations
 
 Learners and teachers confirm independently; each can untick their own confirmation without removing the other. Class grids show separate gold learner and green teacher ticks, use module pills and omit the paging footer. Class cards omit the count line. Teachers and admins access personal cards from the side menu, without a Learn row. Migration 0015 preserves every existing progress row while removing the learner-first constraint. [Release details](docs/ACADEMY-INDEPENDENT-CONFIRMATIONS-106.26.md).

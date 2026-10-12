@@ -4,6 +4,7 @@
   "compatibility_date": "2026-06-01",
   "keep_vars": true,
   "r2_buckets": [
+    {"binding":"ASSESSMENT_BUCKET","bucket_name":"maktab-assessments-private"},
     {
       "binding": "MEDIA_BUCKET",
       "bucket_name": "maktab4lifemedia"
@@ -22,6 +23,7 @@
       ],
       "observability": {"enabled": true, "head_sampling_rate": 1},
       "r2_buckets": [
+    {"binding":"ASSESSMENT_BUCKET","bucket_name":"maktab-assessments-private-development"},
         {
           "binding": "MEDIA_BUCKET",
           "bucket_name": "maktab4lifemedia"
