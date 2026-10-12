@@ -57,7 +57,7 @@ async function dispatch(request,env) {
   const path=new URL(request.url).pathname;
   await repository.ready();
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'rebootworker',version:'106.36',
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'rebootworker',version:'106.37',
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(repository)};
@@ -124,7 +124,7 @@ async function dispatch(request,env) {
   const mediaAction=path.match(/^\/api\/academy\/lesson-media\/(list|get|save|watch|download|comments|comment-save|comment-moderate|attachment-remove)$/)?.[1];
   if(mediaAction){const result=await lessonMedia(repository,auth,env).run(mediaAction,input);return result instanceof Response?result:{success:true,...result};}
   if(path==='/api/academy/assessments/download')return assessmentFiles(repository,auth,env).download(input);
-  const assessmentAction=path.match(/^\/api\/academy\/assessments\/(list|get|phase-create|create|save|paper-details|publish|roster|review-paper|authorise-resubmission|mark|review-mark|release|release-papers)$/)?.[1];
+  const assessmentAction=path.match(/^\/api\/academy\/assessments\/(list|get|register-create|register-save|register-validate|session-delete|phase-create|create|save|paper-details|publish|roster|review-paper|authorise-resubmission|mark|review-mark|release|release-papers)$/)?.[1];
   if(assessmentAction)return {success:true,...await d1Assessments(repository,auth).run(assessmentAction,input)};
   const assessmentReportAction=path.match(/^\/api\/academy\/assessments\/(templates|template-save|report-data|report-save|report-list)$/)?.[1];
   if(assessmentReportAction)return {success:true,...await assessmentReports(repository,auth).run(assessmentReportAction,input)};

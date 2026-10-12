@@ -31,7 +31,7 @@ export function assessmentReports(repository,auth){
  async function data(input){
   await s.requireClass(input.activityKey,input.classId,'admin');
   const ids=input.assessmentIds;if(!Array.isArray(ids)||!ids.length||ids.length>50||new Set(ids).size!==ids.length)throw fail('Select up to 50 assessments for this report.');
-  const exams=(await p(`SELECT x.*,c.name class_name,a.name activity_name FROM assessments x JOIN classes c ON c.activity_key=x.activity_key AND c.class_id=x.class_id JOIN activities a ON a.activity_key=x.activity_key WHERE x.activity_key=? AND x.class_id=? AND x.assessment_id IN(SELECT value FROM json_each(?)) ORDER BY x.exam_date,x.subject,x.title`,input.activityKey,input.classId,JSON.stringify(ids)).all()).results;
+  const exams=(await p(`SELECT x.*,c.name class_name,a.name activity_name FROM assessments x JOIN classes c ON c.activity_key=x.activity_key AND c.class_id=x.class_id JOIN activities a ON a.activity_key=x.activity_key WHERE x.deleted_at IS NULL AND x.activity_key=? AND x.class_id=? AND x.assessment_id IN(SELECT value FROM json_each(?)) ORDER BY x.exam_date,x.subject,x.title`,input.activityKey,input.classId,JSON.stringify(ids)).all()).results;
   if(exams.length!==ids.length)throw fail('Select assessments from the same class.',403);
   const rows=(await p(`SELECT r.*,m.mark,m.state,m.submission_id FROM assessment_recipients r LEFT JOIN assessment_markings m ON m.mark_id=r.released_mark_id WHERE r.assessment_id IN(SELECT value FROM json_each(?)) ORDER BY r.display_name`,JSON.stringify(ids)).all()).results;
   const people=new Map();for(const r of rows)if(!people.has(r.account_id))people.set(r.account_id,r.display_name);
@@ -43,7 +43,7 @@ export function assessmentReports(repository,auth){
   if(!f)throw fail('Upload this learner’s generated PDF first.',403);
   const source=input.source;if(!Array.isArray(source)||!source.length||source.length>50||new Set(source.map(r=>r.assessmentId)).size!==source.length)throw fail('Choose the report assessment records.');
   if(!source.some(entry=>entry.markId))throw fail('Release at least one assessment mark before issuing a report.',409);
-  const records=(await p('SELECT a.assessment_id,a.activity_key,a.class_id,r.released_mark_id FROM assessments a JOIN assessment_recipients r USING(assessment_id) WHERE r.account_id=? AND a.assessment_id IN(SELECT json_extract(value,\'$.assessmentId\') FROM json_each(?))',input.accountId,JSON.stringify(source)).all()).results;
+  const records=(await p('SELECT a.assessment_id,a.activity_key,a.class_id,r.released_mark_id FROM assessments a JOIN assessment_recipients r USING(assessment_id) WHERE a.deleted_at IS NULL AND r.account_id=? AND a.assessment_id IN(SELECT json_extract(value,\'$.assessmentId\') FROM json_each(?))',input.accountId,JSON.stringify(source)).all()).results;
   if(records.length!==source.length||records.some(r=>r.activity_key!==input.activityKey||r.class_id!==input.classId))throw fail('The report contains another class or learner.',403);
   if(records.some(r=>r.released_mark_id!==(source.find(e=>e.assessmentId===r.assessment_id).markId??null)))throw fail('The selected results changed. Refresh the report.',409);
   const id=crypto.randomUUID();return {statements:[p('INSERT INTO assessment_reports VALUES(?,?,?,?,?,?,?,?)',id,input.activityKey,input.classId,input.accountId,f.file_id,JSON.stringify(source),new Date().toISOString(),actor),s.event({activity_key:input.activityKey},'report-save',{reportId:id},input.accountId)],result:{reportId:id}};

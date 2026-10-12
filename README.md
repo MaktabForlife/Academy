@@ -1,3 +1,7 @@
+# V106.37 — Assessment Register and session management
+
+Assessment administration starts with an editable register of names, Programs/Courses, one class or All classes, and status. Open an entry to **Add session → Validate → Change status**. Status changes are manual and checked against actual workflow progress. Session deletion preserves audit and is blocked after learner access or submissions. [Release details](docs/ACADEMY-ASSESSMENT-REGISTER-106.37.md).
+
 # V106.36 — Compact Academy and Learning menus
 
 Signed-in accounts use LEARN, TEACH and ADMIN tabs beside their profile, according to access. The version moves to the website header and the duplicate welcome block is removed. A compact Learning menu groups Programs and Courses on phones and tablets, with corrected card and heading heights. Includes V106.35's assessment-date fix. [Release details](docs/ACADEMY-MENUS-106.36.md).

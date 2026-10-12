@@ -23,7 +23,7 @@ export function assessmentStore(repository,auth){
  async function requireClass(activityKey,classId,mode='staff'){
   if(!await allowed(activityKey,classId,mode))throw fail('This class is outside your assessment access.',403,'FORBIDDEN');
  }
- async function assessment(id){const a=await p(`SELECT x.*,ph.name phase_name,c.name class_name,a.name activity_name FROM assessments x LEFT JOIN assessment_phases ph ON ph.phase_id=x.phase_id JOIN classes c ON c.activity_key=x.activity_key AND c.class_id=x.class_id JOIN activities a ON a.activity_key=x.activity_key WHERE assessment_id=?`,String(id||'')).first();if(!a)throw fail('Assessment not found.',404);return a;}
+ async function assessment(id){const a=await p(`SELECT x.*,COALESCE(ar.name,ph.name) phase_name,c.name class_name,a.name activity_name FROM assessments x LEFT JOIN assessment_phases ph ON ph.phase_id=x.phase_id LEFT JOIN assessment_registers ar ON ar.register_id=x.register_id JOIN classes c ON c.activity_key=x.activity_key AND c.class_id=x.class_id JOIN activities a ON a.activity_key=x.activity_key WHERE assessment_id=? AND x.deleted_at IS NULL`,String(id||'')).first();if(!a)throw fail('Assessment not found.',404);return a;}
  const recipient=(id,accountId=actor)=>p('SELECT * FROM assessment_recipients WHERE assessment_id=? AND account_id=?',id,accountId).first();
  async function requireReader(a){
   if(await allowed(a.activity_key,a.class_id,'staff'))return;

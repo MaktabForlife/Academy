@@ -68,3 +68,14 @@ A tenth API case also verifies inherited Global Admin access and rejects scoped-
 - Fixed the timetable's hidden heading escaping its scroll container on mobile.
 - Validation: 16 affected checks and full Chrome assessment acceptance passed. The new form fits 320, 390 and 768 pixel screens, adds multiple dates, persists after refresh, and retries an interrupted creation without a duplicate. Existing edit/phase, moderation, submissions, marking, release, reports and session guards still pass. Development Worker dry-run passed.
 - Development deployment is covered by the user's prior release authorisation and request to continue this correction. No migration or live assessment data correction is needed.
+
+## V106.37 — Assessment Register, validation and session deletion
+
+- Added the editable Assessment Register with multiple Programs/Courses, one class or All classes, manual status, filters and Open. Register names update shared session titles while preserving custom paper titles and existing dates.
+- Added explicit **Add session → Validate → Change status** controls. Checks use actual schedules, moderation, publication, received submissions and mark releases; the server revalidates status changes atomically. Status labels never authorise release.
+- Added confirmed session deletion. Deleted sessions leave the active schedule; audit and private R2 attachments are retained. Learner access, submissions and marks prevent deletion. Teacher/student deletion and stale writes are rejected; exact retries are safe.
+- Expanded the info dialog to describe who acts, where, which action moves the workflow and the corresponding tracking labels.
+- Migration 0020 groups earlier schedules into register rows and retains every existing assessment identifier and field. No dates, paper attachments, rosters or results are invented.
+- Local validation: 10 register/validation/deletion API cases pass, including migration preservation, permissions, conflicts, rollback, revalidation after intervening changes and independent release controls. Chrome acceptance passes at 320, 390 and 768 pixels and through the paper, submission, marking, moderation, report and session-change flow. Full regression: 143/143 files passed. Development Worker dry-run: 1707.73 KiB / 345.56 KiB gzip. Applying migration 0020 to a private copy of the live backup preserved all nine existing sessions and all 94 pre-existing table counts, with no foreign-key errors.
+
+- Development D1 was backed up before installing only migration 0020. Post-install comparison preserved all nine session IDs and every original field; all sessions are linked to their existing schedule name, deletion metadata is empty and foreign-key checks are clean. No assessment was published or deleted during release.
