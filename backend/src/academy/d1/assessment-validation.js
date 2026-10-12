@@ -32,7 +32,10 @@ export async function statusValidation(s,registerId,status){
  const started=a=>a.accessed>0||Date.now()>=Date.parse(a.exam_date+'T03:00:00+02:00');
  if(underway.includes(status))check('An assessment has started',rows.some(started));
  const marking=['READY_FOR_ASSESSMENT','ASSESSED','MODERATED','READY_FOR_RELEASE','RELEASED','COMPLETE'];
- if(marking.includes(status))check('At least one learner has submitted answers',rows.some(a=>a.submitted>0));
+ if(marking.includes(status)){
+  check('At least one learner has submitted answers',rows.some(a=>a.submitted>0));
+  check('A teacher or admin has marked every assessment with received answers ready',all(a=>a.submitted===0||a.ready_for_assessment_at));
+ }
  if(['ASSESSED','MODERATED','READY_FOR_RELEASE','RELEASED','COMPLETE'].includes(status))check('Every latest submitted answer has been assessed',all(a=>a.assessed===a.submitted));
  if(['MODERATED','READY_FOR_RELEASE','RELEASED','COMPLETE'].includes(status))check('Every latest assessed answer has approved moderation',all(a=>a.moderated===a.submitted));
  if(['RELEASED','COMPLETE'].includes(status))check('Marks for every submitted answer have been released to the class',all(a=>a.released===a.submitted));

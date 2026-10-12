@@ -59,7 +59,7 @@ export function assessmentFiles(repository,auth,env){
     if(kind==='PAPER')statements.push(p("UPDATE assessments SET paper_file_id=?,examiner_id=?,paper_state='IN_REVIEW',paper_comment='',paper_released_at=NULL,duration_minutes=?,maximum_mark=? WHERE assessment_id=?",id,actor,input.durationMinutes??a.duration_minutes,input.maximumMark??a.maximum_mark,a.assessment_id));
     if(kind==='ANSWER'){
      const r=await s.recipient(a.assessment_id),number=(await p('SELECT coalesce(max(submission_number),0)+1 n FROM assessment_submissions WHERE assessment_id=? AND account_id=?',a.assessment_id,actor).first()).n;
-     submissionId=crypto.randomUUID();statements.push(p('INSERT INTO assessment_submissions VALUES(?,?,?,?,?,?)',submissionId,a.assessment_id,actor,id,now,number),p('UPDATE assessment_recipients SET latest_submission_id=?,latest_mark_id=NULL,resubmit_authorised=0,released_mark_id=NULL,released_feedback_id=NULL,released_script_id=NULL,revision=revision+1 WHERE assessment_id=? AND account_id=?',submissionId,a.assessment_id,r.account_id));
+     submissionId=crypto.randomUUID();statements.push(p('INSERT INTO assessment_submissions(submission_id,assessment_id,account_id,file_id,submitted_at,submission_number) VALUES(?,?,?,?,?,?)',submissionId,a.assessment_id,actor,id,now,number),p('UPDATE assessment_recipients SET latest_submission_id=?,latest_mark_id=NULL,resubmit_authorised=0,released_mark_id=NULL,released_feedback_id=NULL,released_script_id=NULL,revision=revision+1 WHERE assessment_id=? AND account_id=?',submissionId,a.assessment_id,r.account_id),p('UPDATE assessments SET ready_for_assessment_at=NULL,ready_for_assessment_by=NULL WHERE assessment_id=?',a.assessment_id));
     }
     if(a)statements.push(s.touch(a));
     statements.push(s.event(a||{activity_key:scope},'upload-'+kind,{fileId:id,filename},['ANSWER','SCRIPT','REPORT'].includes(kind)?owner:null));
@@ -71,13 +71,14 @@ export function assessmentFiles(repository,auth,env){
  }
  async function download(input){
   const f=await p('SELECT * FROM assessment_files WHERE file_id=?',String(input.fileId||'')).first();if(!f)throw fail('Attachment not found.',404);
-  let a=null,studentPaper=false;
+  let a=null,studentPaper=false,staffAnswer=null;
   if(f.kind==='TEMPLATE'){
    const classes=await s.classes('admin',f.activity_key);if(!classes.length)throw fail('This template is outside your access.',403);
   }else{
    a=await s.assessment(f.assessment_id);await s.requireReader(a);
    const staff=await s.allowed(a.activity_key,a.class_id,'admin')||same(a.examiner_id,actor)&&await s.allowed(a.activity_key,a.class_id);
-   if(!staff){
+   const answerReviewer=f.kind==='ANSWER'&&await s.allowed(a.activity_key,a.class_id);
+   if(!staff&&!answerReviewer){
     const r=await s.recipient(a.assessment_id);
     if(!r)throw fail('This attachment is outside your access.',403);
     if(f.kind==='PAPER'){if(f.file_id!==a.paper_file_id||!paperAvailable(a))throw fail('This paper is not available yet.',403);studentPaper=true;}
@@ -90,8 +91,13 @@ export function assessmentFiles(repository,auth,env){
      if(records.length!==source.length||records.some(r=>r.released_mark_id!==(source.find(e=>e.assessmentId===r.assessment_id).markId??null)))throw fail('This report has been superseded. Ask an administrator for an updated report.',409);
     }else throw fail('This attachment is outside your access.',403);
    }
+   if(f.kind==='ANSWER'&&(staff||answerReviewer))staffAnswer=await p('SELECT submission_id,account_id FROM assessment_submissions WHERE assessment_id=? AND file_id=?',a.assessment_id,f.file_id).first();
   }
   const object=await bucket().get(f.object_key);if(!object)throw fail('This attachment is temporarily unavailable.',404);
+  if(staffAnswer){await s.change('view-answer',{fileId:f.file_id,operationId:input.operationId},a.assessment_id,async()=>{
+   await s.requireClass(a.activity_key,a.class_id);
+   return {statements:[s.event(a,'view-answer',{submissionId:staffAnswer.submission_id},staffAnswer.account_id)],result:{viewed:true}};
+  });}
   if(studentPaper){await s.change('access-paper',{fileId:f.file_id,operationId:input.operationId},a.assessment_id,async()=>{
    const current=await s.assessment(a.assessment_id);await s.requireReader(current);if(current.paper_file_id!==f.file_id||!paperAvailable(current))throw fail('This paper is not available.',403);
    const r=await s.recipient(a.assessment_id);if(!r)throw fail('This assessment is outside your access.',403);

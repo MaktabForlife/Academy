@@ -1,3 +1,7 @@
+# V106.39 — Human review of assessment submissions
+
+Teachers and admins open each learner's latest PDF and explicitly confirm that it is correct and legible. Once all received PDFs are confirmed and no more submissions are expected, they manually mark the assessment **Ready for Assessment**. Marking requires this step. A replacement PDF clears readiness and needs another review. The automatic Processing results label is removed. [Release details](docs/ACADEMY-SUBMISSION-REVIEW-106.39.md).
+
 # V106.38 — Imtihaan groups and assessment status
 
 The **Imtihaan Register** names the group of exam papers. Each assessment keeps its own name, class, date and paper; renaming the Imtihaan no longer renames its papers. Admins validate the schedule before confirming Scheduled. Later Imtihaan stages follow paper publication, the final exam date, moderation and mark release. The timetable shows paper and results stages separately. [Release details](docs/ACADEMY-IMTIHAAN-106.38.md).

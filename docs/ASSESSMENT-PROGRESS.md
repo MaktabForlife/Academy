@@ -86,3 +86,10 @@ A tenth API case also verifies inherited Global Admin access and rejects scoped-
 - Kept schedule confirmation as an admin-validated action. Later Imtihaan stages are derived from paper publication, the final Johannesburg exam day, approved marking and mark release. Staff see separate paper and results status columns; students do not see class-wide result stages.
 - Rewrote the information dialog around the group, paper and result workflow. No D1 schema, R2 object or existing assessment record needs changing.
 - D1 register tests and the full local Chrome desktop/mobile acceptance walkthrough pass. The source sheet's proposed manual Results transitions remain a separate design decision; see [release details](ACADEMY-IMTIHAAN-106.38.md).
+
+## V106.39 — Human submission review and readiness
+
+- Each latest learner PDF now needs an explicit teacher or admin confirmation that it is correct and legible. The reviewer must open that PDF first. The confirmation stores the reviewer and time against that submission version; an authorised replacement starts unchecked.
+- A teacher or admin manually marks an assessment **Ready for Assessment** after checking every received latest PDF and confirming that no more submissions are expected. Missing learners remain visible and prompt a final acknowledgement. Marking waits for this step; a later answer or authorised replacement clears readiness.
+- Omitted the automatic **Processing results** label. Imtihaan stays **Being assessed** until the moderated latest answers have their marks released, then becomes **Complete**.
+- Additive migration `0021_assessment_submission_review.sql` adds review and readiness fields without rewriting older submissions. The D1 assessment tests, 143/143 backend regression files, and real Chrome assessment walkthrough pass; the PDF review dialog fits a 390-pixel screen. Release and live verification are recorded in [the V106.39 release note](ACADEMY-SUBMISSION-REVIEW-106.39.md).

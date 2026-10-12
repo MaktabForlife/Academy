@@ -47,7 +47,7 @@ export function d1Assessments(repository,auth){
   const assessments=rows.filter(a=>staff.some(c=>same(c.activity_key,a.activity_key)&&same(c.class_id,a.class_id))||a.schedule_published&&own.some(r=>r.assessment_id===a.assessment_id)&&learner.some(c=>same(c.activity_key,a.activity_key)&&same(c.class_id,a.class_id))).map(a=>{
    const canAdmin=admin.some(c=>same(c.activity_key,a.activity_key)&&same(c.class_id,a.class_id)),canTeach=staff.some(c=>same(c.activity_key,a.activity_key)&&same(c.class_id,a.class_id));
    const result=resultById.get(a.assessment_id),uploaded=Number(result?.uploaded||0);
-   const resultsStatus=!canTeach?null:!uploaded?'WAITING':result.released===uploaded?'RELEASED':result.moderated===uploaded?'MODERATED':result.assessed===uploaded?'ASSESSED':'UPLOADED';
+   const resultsStatus=!canTeach?null:!uploaded?'WAITING':result.released===uploaded?'RELEASED':result.moderated===uploaded?'MODERATED':result.assessed===uploaded?'ASSESSED':a.ready_for_assessment_at?'READY_FOR_ASSESSMENT':'UPLOADED';
    const paperStatus=!canTeach?null:!a.paper_file_id?'WAITING_FOR_SUBMISSION':a.paper_state==='RETURNED'?'RETURNED':a.paper_state!=='APPROVED'?'DRAFTED':!a.paper_released_at?'APPROVED':paperAvailable(a)?'PAPER_RELEASED':'PUBLISHED';
    return {id:a.assessment_id,activityKey:a.activity_key,activityName:a.activity_name,classId:a.class_id,className:a.class_name,title:a.title,subject:a.subject,subjectDescriptor:a.subject_descriptor,registerId:a.register_id,phaseId:a.phase_id,phaseName:a.phase_name||'',examDate:a.exam_date,durationMinutes:a.duration_minutes,maximumMark:a.maximum_mark,published:Boolean(a.schedule_published),examinerName:a.examiner_name||'',paperState:canTeach?(a.paper_file_id?a.paper_state:'NONE'):paperAvailable(a)?'AVAILABLE':'WAITING',paperStatus,resultsStatus,paperReleased:canTeach?Boolean(a.paper_released_at):paperAvailable(a),paperAvailable:paperAvailable(a),revision:a.revision,canAdmin,canTeach,isExaminer:same(a.examiner_id,actor),canModerate:canAdmin&&!same(a.examiner_id,actor)};
   });
@@ -58,17 +58,17 @@ export function d1Assessments(repository,auth){
  async function detail(input){
   const a=await s.assessment(input.assessmentId);await s.requireReader(a);
   const admin=await s.allowed(a.activity_key,a.class_id,'admin'),examiner=same(a.examiner_id,actor)&&await s.allowed(a.activity_key,a.class_id);
-  const canTeach=await s.allowed(a.activity_key,a.class_id),staff=admin||examiner;
-  const recipients=(await p(`SELECT r.*,u.display_name current_name,b.submitted_at,b.submission_number,b.file_id answer_file_id,m.mark,m.feedback,m.state mark_state,m.script_file_id,m.moderation_comment,m.mark_id,m.submission_id marked_submission_id FROM assessment_recipients r JOIN accounts u ON u.account_id=r.account_id LEFT JOIN assessment_submissions b ON b.submission_id=r.latest_submission_id LEFT JOIN assessment_markings m ON m.mark_id=r.latest_mark_id WHERE r.assessment_id=? ${staff?'':'AND r.account_id=?'} ORDER BY r.display_name,r.account_id`,a.assessment_id,...(staff?[]:[actor])).all()).results;
+  const canTeach=await s.allowed(a.activity_key,a.class_id),staff=canTeach;
+  const recipients=(await p(`SELECT r.*,u.display_name current_name,b.submitted_at,b.submission_number,b.file_id answer_file_id,b.confirmed_at,b.confirmed_by,m.mark,m.feedback,m.state mark_state,m.script_file_id,m.moderation_comment,m.mark_id,m.submission_id marked_submission_id FROM assessment_recipients r JOIN accounts u ON u.account_id=r.account_id LEFT JOIN assessment_submissions b ON b.submission_id=r.latest_submission_id LEFT JOIN assessment_markings m ON m.mark_id=r.latest_mark_id WHERE r.assessment_id=? ${staff?'':'AND r.account_id=?'} ORDER BY r.display_name,r.account_id`,a.assessment_id,...(staff?[]:[actor])).all()).results;
   const learners=recipients.map(r=>{
    const approved=r.mark_state==='APPROVED'&&r.marked_submission_id===r.latest_submission_id;
-   return {accountId:r.account_id,name:r.display_name,revision:r.revision,firstAccessedAt:r.first_accessed_at,submittedAt:r.submitted_at,submissionNumber:r.submission_number||0,submissionId:r.latest_submission_id,answerFileId:r.answer_file_id,resubmissionAuthorised:Boolean(r.resubmit_authorised),
+   return {accountId:r.account_id,name:r.display_name,revision:r.revision,firstAccessedAt:r.first_accessed_at,submittedAt:r.submitted_at,submissionNumber:r.submission_number||0,submissionId:r.latest_submission_id,answerFileId:r.answer_file_id,submissionConfirmedAt:r.confirmed_at,submissionConfirmedBy:staff?r.confirmed_by:null,resubmissionAuthorised:Boolean(r.resubmit_authorised),
     markState:staff?r.mark_state:approved&&r.released_mark_id===r.mark_id?'RELEASED':r.latest_submission_id?'PENDING':'NOT_SUBMITTED',
     mark:staff||approved&&r.released_mark_id===r.mark_id?r.mark:null,feedback:staff||approved&&r.released_feedback_id===r.mark_id?r.feedback:'',scriptFileId:staff||approved&&r.released_script_id===r.mark_id?r.script_file_id:null,
     markId:staff?r.mark_id:null,moderationComment:staff?r.moderation_comment:'',marksReleased:approved&&r.released_mark_id===r.mark_id,feedbackReleased:approved&&r.released_feedback_id===r.mark_id,scriptReleased:approved&&r.released_script_id===r.mark_id};
   });
   const history=staff?(await p('SELECT action,account_id,details_json,occurred_at FROM assessment_events WHERE assessment_id=? ORDER BY occurred_at DESC,event_id DESC LIMIT 100',a.assessment_id).all()).results:[];
-  return {assessment:{id:a.assessment_id,title:a.title,subject:a.subject,subjectDescriptor:a.subject_descriptor,registerId:a.register_id,phaseId:a.phase_id,phaseName:a.phase_name||'',examDate:a.exam_date,durationMinutes:a.duration_minutes,maximumMark:a.maximum_mark,activityKey:a.activity_key,activityName:a.activity_name,classId:a.class_id,className:a.class_name,revision:a.revision,published:Boolean(a.schedule_published),paperAvailable:paperAvailable(a),paperState:canTeach?(a.paper_file_id?a.paper_state:'NONE'):paperAvailable(a)?'AVAILABLE':'WAITING',paperComment:canTeach?a.paper_comment:'',paperFileId:canTeach||paperAvailable(a)?a.paper_file_id:null,paperReleased:canTeach?Boolean(a.paper_released_at):paperAvailable(a),canAdmin:admin,canTeach,isExaminer:examiner,canModerate:admin&&!same(a.examiner_id,actor),canSubmitPaper:await s.allowed(a.activity_key,a.class_id)&&(!a.examiner_id||examiner||admin)},learners,history,store:'D1'};
+  return {assessment:{id:a.assessment_id,title:a.title,subject:a.subject,subjectDescriptor:a.subject_descriptor,registerId:a.register_id,phaseId:a.phase_id,phaseName:a.phase_name||'',examDate:a.exam_date,durationMinutes:a.duration_minutes,maximumMark:a.maximum_mark,activityKey:a.activity_key,activityName:a.activity_name,classId:a.class_id,className:a.class_name,revision:a.revision,published:Boolean(a.schedule_published),paperAvailable:paperAvailable(a),paperState:canTeach?(a.paper_file_id?a.paper_state:'NONE'):paperAvailable(a)?'AVAILABLE':'WAITING',paperComment:canTeach?a.paper_comment:'',paperFileId:canTeach||paperAvailable(a)?a.paper_file_id:null,paperReleased:canTeach?Boolean(a.paper_released_at):paperAvailable(a),readyForAssessmentAt:canTeach?a.ready_for_assessment_at:null,readyForAssessmentBy:canTeach?a.ready_for_assessment_by:null,canAdmin:admin,canTeach,isExaminer:examiner,canModerate:admin&&!same(a.examiner_id,actor),canSubmitPaper:await s.allowed(a.activity_key,a.class_id)&&(!a.examiner_id||examiner||admin)},learners,history,store:'D1'};
  }
  async function create(input){
   return s.change('create',input,input.activityKey,async()=>{
@@ -104,9 +104,30 @@ export function d1Assessments(repository,auth){
     statements.push(p('UPDATE assessments SET paper_state=?,paper_comment=?,paper_released_at=NULL WHERE assessment_id=?',input.decision==='APPROVE'?'APPROVED':'RETURNED',comment,a.assessment_id));
    }else if(action==='authorise-resubmission'){
     const rows=await selected(a,input);if(rows.some(r=>!r.latest_submission_id))throw fail('Choose learners who have already submitted.',409);
-    statements.push(p(`UPDATE assessment_recipients SET resubmit_authorised=1,revision=revision+1 WHERE assessment_id=? AND account_id IN(SELECT value FROM json_each(?))`,a.assessment_id,JSON.stringify(rows.map(r=>r.account_id))));
+    statements.push(p(`UPDATE assessment_recipients SET resubmit_authorised=1,revision=revision+1 WHERE assessment_id=? AND account_id IN(SELECT value FROM json_each(?))`,a.assessment_id,JSON.stringify(rows.map(r=>r.account_id))),p('UPDATE assessments SET ready_for_assessment_at=NULL,ready_for_assessment_by=NULL WHERE assessment_id=?',a.assessment_id));
+   }else if(action==='confirm-submission'){
+    await s.requireClass(a.activity_key,a.class_id);
+    const r=await s.recipient(a.assessment_id,input.accountId);s.recipientRevision(r,input);
+    if(!r.latest_submission_id||r.latest_submission_id!==input.submissionId)throw fail('Open the latest learner submission before confirming it.',409);
+    const submission=await p('SELECT confirmed_at FROM assessment_submissions WHERE submission_id=?',r.latest_submission_id).first();
+    if(submission?.confirmed_at)throw fail('This submission has already been confirmed.',409);
+    const viewed=await p("SELECT 1 ok FROM assessment_events WHERE assessment_id=? AND actor_id=? AND action='view-answer' AND json_extract(details_json,'$.submissionId')=? LIMIT 1",a.assessment_id,actor,r.latest_submission_id).first();
+    if(!viewed)throw fail('View this PDF before confirming that it is correct and legible.',409);
+    statements.push(p('UPDATE assessment_submissions SET confirmed_at=?,confirmed_by=? WHERE submission_id=? AND confirmed_at IS NULL',now,actor,r.latest_submission_id),p('UPDATE assessment_recipients SET revision=revision+1 WHERE assessment_id=? AND account_id=?',a.assessment_id,r.account_id));
+   }else if(action==='ready-assessment'){
+    await s.requireClass(a.activity_key,a.class_id);
+    const counts=await p(`SELECT sum(CASE WHEN r.latest_submission_id IS NOT NULL THEN 1 ELSE 0 END) received,
+     sum(CASE WHEN r.latest_submission_id IS NOT NULL AND b.confirmed_at IS NULL THEN 1 ELSE 0 END) unchecked,
+     sum(CASE WHEN r.resubmit_authorised=1 THEN 1 ELSE 0 END) replacements
+     FROM assessment_recipients r LEFT JOIN assessment_submissions b ON b.submission_id=r.latest_submission_id WHERE r.assessment_id=?`,a.assessment_id).first();
+    if(!counts?.received)throw fail('No learner submissions have been received yet.',409);
+    if(counts.unchecked)throw fail('View and confirm every received latest PDF before marking the assessment ready.',409);
+    if(counts.replacements)throw fail('An authorised replacement is still outstanding.',409);
+    if(a.ready_for_assessment_at)throw fail('This assessment is already ready for marking.',409);
+    statements.push(p('UPDATE assessments SET ready_for_assessment_at=?,ready_for_assessment_by=? WHERE assessment_id=?',now,actor,a.assessment_id));
    }else if(action==='mark'){
     await s.requireExaminer(a);const r=await s.recipient(a.assessment_id,input.accountId);s.recipientRevision(r,input);
+    if(!a.ready_for_assessment_at)throw fail('A teacher or admin must confirm all received submissions and mark this assessment ready before marking.',409);
     if(!r.latest_submission_id||r.latest_submission_id!==input.submissionId)throw fail('Open the latest submission before marking.',409);
     if(typeof input.mark!=='number'||!Number.isFinite(input.mark)||input.mark<0||input.mark>a.maximum_mark)throw fail('Enter a mark between zero and the maximum.');
     const feedback=cleanText(input.feedback||'',12000,'feedback',true),id=crypto.randomUUID();
@@ -128,7 +149,7 @@ export function d1Assessments(repository,auth){
     const column={marks:'released_mark_id',feedback:'released_feedback_id',scripts:'released_script_id'}[input.category];
     statements.push(p(`UPDATE assessment_recipients SET ${column}=latest_mark_id,revision=revision+1 WHERE assessment_id=? AND account_id IN(SELECT value FROM json_each(?))`,a.assessment_id,JSON.stringify(ready.map(r=>r.account_id))));
    }else throw fail('Unknown assessment action.',404);
-   statements.push(s.touch(a),s.event(a,action,{...(input.decision?{decision:input.decision,comment:input.comment||''}:{}),...(input.category?{category:input.category,accountIds:input.accountIds||'CLASS'}:{}),...(input.accountId?{accountId:input.accountId}:{}),...(action==='mark'?{mark:input.mark,submissionId:input.submissionId}:{}),...(action==='paper-details'?{durationMinutes:input.durationMinutes,maximumMark:input.maximumMark}:{})},input.accountId||null));
+   statements.push(s.touch(a),s.event(a,action,{...(input.decision?{decision:input.decision,comment:input.comment||''}:{}),...(input.category?{category:input.category,accountIds:input.accountIds||'CLASS'}:{}),...(input.accountId?{accountId:input.accountId}:{}),...(['mark','confirm-submission'].includes(action)?{submissionId:input.submissionId}:{}),...(action==='mark'?{mark:input.mark}:{}),...(action==='paper-details'?{durationMinutes:input.durationMinutes,maximumMark:input.maximumMark}:{})},input.accountId||null));
    return {statements,result:{assessmentId:a.assessment_id,revision:a.revision+1}};
   });
  }

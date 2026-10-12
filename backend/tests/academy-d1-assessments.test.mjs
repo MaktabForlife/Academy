@@ -47,6 +47,16 @@ async function setup(f,{examDate='2026-01-01',examiner='0003'}={}){
 }
 async function available(f,x){ok(await x.change('review-paper',{decision:'APPROVE'}));const a=(await x.detail()).assessment;ok(await f.call('release-papers',{...op(),papers:[{id:x.id,revision:a.revision}]},x.admin));}
 async function submit(f,x){const d=await x.detail(x.student);return ok(await f.upload({kind:'ANSWER',assessmentId:x.id,recipientRevision:d.learners[0].revision},x.student));}
+async function reviewAndReady(f,x,reviewer=x.teacher){
+ let d=await x.detail();
+ if(d.assessment.readyForAssessmentAt)return;
+ for(const r of d.learners.filter(r=>r.submissionId&&!r.submissionConfirmedAt)){
+  assert.equal((await f.download(r.answerFileId,reviewer)).status,200);
+  ok(await x.change('confirm-submission',{accountId:r.accountId,recipientRevision:r.revision,submissionId:r.submissionId},reviewer));
+  d=await x.detail();
+ }
+ ok(await x.change('ready-assessment',{},reviewer));
+}
 test('schedule, examiner ownership and private PDF moderation enforce scoped authority and exact retries',()=>use(async f=>{
  const x=await setup(f);assert.equal((await x.detail()).assessment.paperState,'IN_REVIEW');
  assert.equal((await f.call('list',{activityKey:scope},x.other)).body.assessments.length,0);
@@ -70,7 +80,7 @@ test('an administrator who submits a paper becomes examiner and cannot moderate 
  const x=await setup(f,{examiner:'0001'}),moderator=await f.login('0004');
  assert.equal((await x.change('review-paper',{decision:'APPROVE'})).body.code,'SELF_MODERATION');
  ok(await x.change('review-paper',{decision:'APPROVE'},moderator));
- const a=(await x.detail()).assessment;ok(await f.call('release-papers',{...op(),papers:[{id:x.id,revision:a.revision}]},x.admin));await submit(f,x);
+ const a=(await x.detail()).assessment;ok(await f.call('release-papers',{...op(),papers:[{id:x.id,revision:a.revision}]},x.admin));await submit(f,x);await reviewAndReady(f,x);
  let r=(await x.detail()).learners[0];ok(await x.change('mark',{accountId:r.accountId,recipientRevision:r.revision,submissionId:r.submissionId,mark:75,feedback:'Well done.'},x.admin));
  r=(await x.detail()).learners[0];assert.equal((await x.change('review-mark',{accountId:r.accountId,recipientRevision:r.revision,markId:r.markId,decision:'APPROVE'})).body.code,'SELF_MODERATION');
  ok(await x.change('review-mark',{accountId:r.accountId,recipientRevision:r.revision,markId:r.markId,decision:'APPROVE'},moderator));
@@ -95,8 +105,39 @@ test('resubmission needs explicit admin authority; failed uploads and stale form
  assert.equal((await x.change('mark',{accountId:r.accountId,recipientRevision:r.revision,submissionId:first.submissionId,mark:50},x.teacher)).status,409);
  assert.equal((await f.download(first.fileId,x.other)).status,403);assert.equal((await f.download(first.fileId,x.student)).status,200);
 }));
-test('mark moderation and marks, feedback and scripts have independent releases and student privacy',()=>use(async f=>{
+test('a person reviews the latest PDF before confirming it and manually marks the assessment ready',()=>use(async f=>{
  const x=await setup(f);await available(f,x);await submit(f,x);
+ let r=(await x.detail()).learners[0];
+ const confirmation=()=>({accountId:r.accountId,recipientRevision:r.revision,submissionId:r.submissionId});
+ assert.equal((await x.change('confirm-submission',confirmation(),x.student)).status,403);
+ assert.equal((await x.change('confirm-submission',confirmation(),x.teacher)).status,409,'Reviewing the PDF is required');
+ assert.equal((await x.change('ready-assessment',{},x.teacher)).status,409);
+ assert.equal((await x.change('mark',{...confirmation(),mark:70},x.teacher)).status,409);
+ assert.equal((await f.download(r.answerFileId,x.teacher)).status,200);
+ assert.equal((await x.change('confirm-submission',confirmation(),x.admin)).status,409,'A different reviewer must view the PDF herself');
+ ok(await x.change('confirm-submission',confirmation(),x.teacher));
+ r=(await x.detail()).learners[0];assert.ok(r.submissionConfirmedAt);assert.equal(r.submissionConfirmedBy,'account-0003');
+ assert.equal((await x.change('confirm-submission',confirmation(),x.teacher)).status,409);
+ assert.equal((await x.change('ready-assessment',{},x.student)).status,403);
+ ok(await x.change('ready-assessment',{},x.teacher));
+ assert.ok((await x.detail()).assessment.readyForAssessmentAt);
+ assert.equal(ok(await f.call('list',{view:'admin'},x.admin)).assessments.find(a=>a.id===x.id).resultsStatus,'READY_FOR_ASSESSMENT');
+ const first=r.submissionId;
+ ok(await x.change('authorise-resubmission',{accountIds:[r.accountId]}));
+ assert.equal((await x.detail()).assessment.readyForAssessmentAt,null);
+ assert.equal((await x.change('ready-assessment',{},x.teacher)).status,409,'An authorised replacement is outstanding');
+ await submit(f,x);
+ assert.ok(f.db.prepare('SELECT confirmed_at FROM assessment_submissions WHERE submission_id=?').get(first).confirmed_at,'Earlier review remains in history');
+ assert.equal((await x.change('confirm-submission',confirmation(),x.teacher)).status,409,'Earlier review does not apply to a replacement');
+ r=(await x.detail()).learners[0];assert.equal(r.submissionConfirmedAt,null);
+ assert.equal((await x.change('ready-assessment',{},x.teacher)).status,409);
+ assert.equal((await f.download(r.answerFileId,x.teacher)).status,200);
+ ok(await x.change('confirm-submission',confirmation(),x.teacher));
+ ok(await x.change('ready-assessment',{},x.admin));
+ r=(await x.detail()).learners[0];ok(await x.change('mark',{accountId:r.accountId,recipientRevision:r.revision,submissionId:r.submissionId,mark:70},x.teacher));
+}));
+test('mark moderation and marks, feedback and scripts have independent releases and student privacy',()=>use(async f=>{
+ const x=await setup(f);await available(f,x);await submit(f,x);await reviewAndReady(f,x);
  const script=ok(await f.upload({kind:'SCRIPT',assessmentId:x.id,accountId:'account-0002'},x.teacher));
  let r=(await x.detail()).learners[0];ok(await x.change('mark',{accountId:r.accountId,recipientRevision:r.revision,submissionId:r.submissionId,mark:83.5,feedback:'Clear answers',scriptFileId:script.fileId},x.teacher));
  assert.equal((await x.detail(x.student)).learners[0].mark,null);assert.equal((await f.download(script.fileId,x.student)).status,403);
@@ -119,6 +160,7 @@ test('database failures roll back submissions, audit and receipts and remove upl
  delete f.env.ASSESSMENT_BUCKET;assert.equal((await f.upload({kind:'ANSWER',assessmentId:x.id,recipientRevision:0},x.student)).status,503);
 }));
 async function approvedMark(f,x,accountId='account-0002'){
+ await reviewAndReady(f,x);
  let r=(await x.detail()).learners.find(r=>r.accountId===accountId);ok(await x.change('mark',{accountId,recipientRevision:r.revision,submissionId:r.submissionId,mark:80,feedback:'Reviewed'},x.teacher));
  r=(await x.detail()).learners.find(r=>r.accountId===accountId);ok(await x.change('review-mark',{accountId,recipientRevision:r.revision,markId:r.markId,decision:'APPROVE'}));return (await x.detail()).learners.find(r=>r.accountId===accountId);
 }
