@@ -1,3 +1,7 @@
+# V106.53 — Weekly planning grid and A4 sheets
+
+Replace the status-lane planning board with a teacher-by-week grid for each Program, retaining feedback, filters, deadlines and extensions. Add the supplied weekly-sheet format to on-demand A4 exports. Course submissions remain available after the scheduled end date and close with the Course lifecycle; submitted history remains readable. No database migration.
+
 # V106.52 — Personal timetable within the full Academy home
 
 Signed-in members retain the welcome, announcements, Program and Course catalogue, self-paced learning and Surahs and Duas rails. Their personal Academy timetable appears within that same homepage. Authorised Students with no class allocation use the sole active class; explicit and withdrawn allocations remain authoritative. Cancelled/archived courses stay out of Learn/Teach using the management status, inactive memorisation cards are hidden, management Close buttons return to Admin, and Library editing opens before the external catalogue finishes loading. Daily timetable caches are refreshed for these changes. No live records or schema changes.

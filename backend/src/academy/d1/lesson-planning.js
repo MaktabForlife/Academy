@@ -31,24 +31,30 @@ export function lessonPlanning(repository,auth,now=()=>new Date()){
  async function load(input={}){
   if(!await optionalSchema(repository.db,'SELECT plan_id FROM lesson_plans WHERE 0'))throw fail('Lesson planning needs its database upgrade.',503,'PLANNING_SCHEMA_REQUIRED');
   const config=await repository.homeConfiguration(),tz=config?.setting_value||'Africa/Johannesburg',week=planningMonday(dateOK(input.weekStart)?input.weekStart:dateInTimezone(now(),tz));
-  const planQuery=p(`SELECT * FROM lesson_plans WHERE ${filter} AND (period='ENTIRE' OR week_start=?)`,...(keys===null?[]:[JSON.stringify(keys)]),week);
-  return store.load({plans:planQuery,policies:q('lesson_plan_policies'),preferences:q('lesson_plan_preferences'),deadlines:q('lesson_plan_deadlines'),runs:q('course_runs'),runStates:q('course_run_state'),sessions:q('course_draft_sessions')});
+  const count=input.view==='admin'?(input.weekCount??1):1;
+  if(!Number.isInteger(count)||count<1||count>12)throw fail('Show between one and twelve weeks.');
+  const start=count>1?addDays(week,-14):week,end=addDays(start,(count-1)*7);
+  const planQuery=p(`SELECT * FROM lesson_plans WHERE ${filter} AND (period='ENTIRE' OR week_start BETWEEN ? AND ?)`,...(keys===null?[]:[JSON.stringify(keys)]),start,end);
+  return store.load({plans:planQuery,policies:q('lesson_plan_policies'),preferences:q('lesson_plan_preferences'),deadlines:q('lesson_plan_deadlines'),runs:q('course_runs'),runStates:q('course_run_state'),courseEditor:q('course_management_drafts'),sessions:q('course_draft_sessions')});
  }
  const admin=(d,key)=>global||liveRoles(d,actor,key).includes('PROGRAM_ADMIN');
  const staff=(d,key)=>admin(d,key)||liveRoles(d,actor,key).includes('TEACHER');
- const areas=(d,view)=>d.activities.filter(a=>a.active&&a.lifecycle==='ACTIVE'&&['PROGRAM','COURSE'].includes(a.kind)&&(view==='admin'?admin(d,a.activity_key):staff(d,a.activity_key)));
+ const areas=(d,view)=>d.activities.filter(a=>(a.kind==='COURSE'||a.active&&a.lifecycle==='ACTIVE')&&['PROGRAM','COURSE'].includes(a.kind)&&(view==='admin'?admin(d,a.activity_key):staff(d,a.activity_key)));
  const timezone=async d=>{const config=await repository.homeConfiguration();return config?.setting_value||'Africa/Johannesburg';};
  function policy(d,key){const r=d.policies.find(r=>same(r.activity_key,key));return r?{weeklyDay:r.weekly_day,weeklyTime:r.weekly_time,courseLeadDays:r.course_lead_days,revision:r.revision}:defaults;}
- function runList(d,key){return d.runs.filter(r=>same(r.activity_key,key)&&r.active&&!d.runStates.some(s=>same(s.activity_key,key)&&same(s.run_id,r.run_id)&&['CANCELLED','ARCHIVED'].includes(s.stage)));}
+ function runStage(d,r){return String(d.courseEditor.find(s=>same(s.activity_key,r.activity_key)&&same(s.run_id,r.run_id))?.stage||d.runStates.find(s=>same(s.activity_key,r.activity_key)&&same(s.run_id,r.run_id))?.stage||(r.active?'ACTIVE':'ARCHIVED')).toUpperCase();}
+ function runOpen(d,r){const a=d.activities.find(a=>same(a.activity_key,r.activity_key));return Boolean(a?.active&&a.lifecycle==='ACTIVE'&&r.active&&!['COMPLETE','COMPLETED','CANCELLED','ARCHIVED'].includes(runStage(d,r)));}
+ function runList(d,key){return d.runs.filter(r=>same(r.activity_key,key));}
  function firstDate(d,run){return run.start_date||d.sessions.filter(s=>same(s.activity_key,run.activity_key)&&same(s.run_id,run.run_id)&&s.session_kind!=='BREAK').map(s=>s.session_date).sort()[0]||'';}
  function normalizeKey(d,input,write=false){
-  const a=d.activities.find(a=>same(a.activity_key,input.activityKey)&&a.active&&a.lifecycle==='ACTIVE');
+  const a=d.activities.find(a=>same(a.activity_key,input.activityKey)&&['PROGRAM','COURSE'].includes(a.kind));
   if(!a||!staff(d,a.activity_key))throw fail('This learning area is outside your planning access.',403,'FORBIDDEN');
   const teacherId=input.teacherId||actor,account=d.accounts.find(u=>same(u.account_id,teacherId));
   if(!account||write&&(!same(teacherId,actor)||!staff(d,a.activity_key))||!same(teacherId,actor)&&!admin(d,a.activity_key))throw fail('You may edit your own plans and view submitted plans in areas you administer.',403,'FORBIDDEN');
   const period=input.period||'WEEKLY';if(!['WEEKLY','ENTIRE'].includes(period)||a.kind==='PROGRAM'&&period!=='WEEKLY')throw fail('Programs use weekly plans. Courses support weekly or entire-course plans.');
   const run=a.kind==='COURSE'?runList(d,a.activity_key).find(r=>same(r.run_id,input.runId)):null;
-  if(a.kind==='COURSE'&&!run)throw fail('Choose an active Course offering.');
+  if(a.kind==='COURSE'&&!run)throw fail('Choose a Course offering.');
+  if(write&&(!a.active||a.lifecycle!=='ACTIVE'||run&&!runOpen(d,run)))throw fail('This Course is complete, cancelled or archived. Its existing plans can still be viewed.',409,'PLANNING_CLOSED');
   let weekStart='';if(period==='WEEKLY'){if(!dateOK(input.weekStart))throw fail('Choose a valid teaching week.');weekStart=planningMonday(input.weekStart);}
   return {activityKey:a.activity_key,runId:run?.run_id||'',teacherId:account.account_id,period,weekStart};
  }
@@ -64,34 +70,37 @@ export function lessonPlanning(repository,auth,now=()=>new Date()){
  function summary(d,key,tz){
   const r=find(d,key),due=deadline(d,key,tz),a=d.activities.find(a=>same(a.activity_key,key.activityKey)),u=d.accounts.find(u=>same(u.account_id,key.teacherId)),run=d.runs.find(r=>same(r.activity_key,key.activityKey)&&same(r.run_id,key.runId));
   const status=r?.submitted_at?(!due.dueAt?'SUBMITTED':r.submitted_at>due.dueAt?'SUBMITTED_LATE':'SUBMITTED_ON_TIME'):(due.dueAt&&now().toISOString()>due.dueAt?'OVERDUE':'DUE');
-  return {...key,...due,planId:r?.plan_id||'',revision:r?.revision||0,activityName:a.name,kind:a.kind,teacherName:u.display_name,runName:run?.name||'',status,submittedAt:r?.submitted_at||'',lastSubmittedAt:r?.last_submitted_at||'',submittedRevision:r?.submitted_revision||0,hasDraft:same(key.teacherId,actor)&&Boolean(r),draftChanged:same(key.teacherId,actor)&&Boolean(r?.submitted_json&&r.draft_json!==r.submitted_json)};
+  return {...key,...due,canSubmit:run?runOpen(d,run):Boolean(a.active&&a.lifecycle==='ACTIVE'),courseStage:run?runStage(d,run):'',planId:r?.plan_id||'',revision:r?.revision||0,activityName:a.name,kind:a.kind,teacherName:u.display_name,runName:run?.name||'',status,submittedAt:r?.submitted_at||'',lastSubmittedAt:r?.last_submitted_at||'',submittedRevision:r?.submitted_revision||0,hasDraft:same(key.teacherId,actor)&&Boolean(r),draftChanged:same(key.teacherId,actor)&&Boolean(r?.submitted_json&&r.draft_json!==r.submitted_json)};
  }
  async function list(input){
   const d=await load(input),tz=await timezone(d),view=input.view==='admin'?'admin':'teacher',available=areas(d,view);
   if(view==='admin'&&!available.length)throw fail('Planning management requires Program or Course Admin access.',403,'FORBIDDEN');
   if(!available.length)throw fail('Planning requires a teaching assignment.',403,'FORBIDDEN');
   const date=input.weekStart||dateInTimezone(now(),tz);if(!dateOK(date))throw fail('Choose a valid teaching week.');const week=planningMonday(date);
+  const count=view==='admin'?(input.weekCount??1):1,weeks=Array.from({length:count},(_,i)=>addDays(week,(count>1?-14:0)+7*i));
   const selected=input.activityKey?available.filter(a=>same(a.activity_key,input.activityKey)):available;
   if(input.activityKey&&!selected.length)throw fail('This area is outside your planning access.',403,'FORBIDDEN');
   const expected=new Map();
   for(const a of selected){
    const teachers=view==='admin'?d.accounts.filter(u=>u.active&&liveRoles(d,u.account_id,a.activity_key).includes('TEACHER')):d.accounts.filter(u=>same(u.account_id,actor));
-   const runs=a.kind==='PROGRAM'?[null]:runList(d,a.activity_key);
+   const runs=a.kind==='PROGRAM'?[null]:runList(d,a.activity_key).filter(r=>runOpen(d,r));
    for(const u of teachers)for(const run of runs){
     const preference=d.preferences.find(r=>same(r.activity_key,a.activity_key)&&same(r.teacher_id,u.account_id)&&same(r.run_id,run?.run_id||''));
     const period=a.kind==='PROGRAM'?'WEEKLY':preference?.period||'WEEKLY';
-    if(run&&period==='WEEKLY'&&(run.end_date&&run.end_date<week||firstDate(d,run)&&firstDate(d,run)>addDays(week,6)))continue;
-    const key={activityKey:a.activity_key,teacherId:u.account_id,runId:run?.run_id||'',period,weekStart:period==='WEEKLY'?week:''};expected.set(identity(key),key);
+    for(const teachingWeek of period==='ENTIRE'?['']:weeks){
+     if(run&&period==='WEEKLY'&&firstDate(d,run)&&firstDate(d,run)>addDays(teachingWeek,6))continue;
+     const key={activityKey:a.activity_key,teacherId:u.account_id,runId:run?.run_id||'',period,weekStart:teachingWeek};expected.set(identity(key),key);
+    }
    }
   }
-  for(const r of d.plans)if(selected.some(a=>same(a.activity_key,r.activity_key))&&(view==='admin'||same(r.teacher_id,actor))&&(r.period==='ENTIRE'||r.week_start===week)&&(r.submitted_at||view==='teacher'))expected.set(identity(fromRow(r)),fromRow(r));
-  if(expected.size>2000)throw fail('Select one learning area to narrow the plans board.',409);
-  return {view,timezone:tz,weekStart:week,accountId:actor,canAdmin:areas(d,'admin').length>0,areas:available.map(a=>({key:a.activity_key,name:a.name,kind:a.kind,policy:policy(d,a.activity_key),runs:runList(d,a.activity_key).map(r=>({id:r.run_id,name:r.name,startDate:firstDate(d,r),endDate:r.end_date||'',period:d.preferences.find(x=>same(x.activity_key,a.activity_key)&&same(x.run_id,r.run_id)&&same(x.teacher_id,actor))?.period||'WEEKLY'}))})),plans:[...expected.values()].map(k=>summary(d,k,tz)).sort((a,b)=>a.activityName.localeCompare(b.activityName)||a.teacherName.localeCompare(b.teacherName))};
+  for(const r of d.plans)if(selected.some(a=>same(a.activity_key,r.activity_key))&&(view==='admin'||same(r.teacher_id,actor))&&(r.period==='ENTIRE'||weeks.includes(r.week_start))&&(r.submitted_at||view==='teacher'))expected.set(identity(fromRow(r)),fromRow(r));
+  if(expected.size>10000)throw fail('Select one learning area to narrow the plans board.',409);
+  return {view,timezone:tz,weekStart:week,weeks,accountId:actor,canAdmin:areas(d,'admin').length>0,areas:available.map(a=>({key:a.activity_key,name:a.name,kind:a.kind,teachers:view==='admin'?d.accounts.filter(u=>u.active&&liveRoles(d,u.account_id,a.activity_key).includes('TEACHER')).map(u=>({id:u.account_id,name:u.display_name})):[],policy:policy(d,a.activity_key),runs:runList(d,a.activity_key).map(r=>({id:r.run_id,name:r.name,startDate:firstDate(d,r),endDate:r.end_date||'',stage:runStage(d,r),canSubmit:runOpen(d,r),period:d.preferences.find(x=>same(x.activity_key,a.activity_key)&&same(x.run_id,r.run_id)&&same(x.teacher_id,actor))?.period||'WEEKLY'}))})),plans:[...expected.values()].map(k=>summary(d,k,tz)).sort((a,b)=>a.activityName.localeCompare(b.activityName)||a.teacherName.localeCompare(b.teacherName))};
  }
  async function get(input){
-  const d=await load(input),key=normalizeKey(d,input),tz=await timezone(d),r=find(d,key),own=same(key.teacherId,actor);
-  if(!own&&!r?.submitted_at)throw fail('This plan has not been submitted yet.',409,'PLAN_NOT_SUBMITTED');
-  let content=r?JSON.parse(own?r.draft_json:r.submitted_json):{title:'Weekly teaching plan',overview:'',reflection:'',lessons:[]};
+  const d=await load(input),key=normalizeKey(d,input),tz=await timezone(d),r=find(d,key),own=same(key.teacherId,actor),editing=own&&input.view!=='admin';
+  if(!editing&&!r?.submitted_at)throw fail('This plan has not been submitted yet.',409,'PLAN_NOT_SUBMITTED');
+  let content=r?JSON.parse(editing?r.draft_json:r.submitted_json):{title:'Weekly teaching plan',overview:'',reflection:'',lessons:[]};
   if(!r&&key.period==='ENTIRE')content.title='Entire-course teaching plan';
   if(!r&&key.period==='WEEKLY'&&key.activityKey.startsWith('PROGRAM:')){
    const publications=(await p('SELECT p.*,l.status lifecycle FROM timetable_publications p LEFT JOIN program_publication_lifecycle l USING(activity_key,publication_id) WHERE p.activity_key=?',key.activityKey).all()).results;
@@ -100,9 +109,10 @@ export function lessonPlanning(repository,auth,now=()=>new Date()){
    for(let day=0;day<7;day++)for(const lesson of scheduledLessons(rows,{id:key.activityKey.slice(8)},addDays(key.weekStart,day)))if(lesson.teacherIds.some(id=>same(id,actor))||lesson.classIds.some(id=>classes.some(c=>same(c.class_id,id))))content.lessons.push({date:lesson.date,className:lesson.classNames.join(', '),subject:lesson.subjectName||lesson.moduleName,objectives:'',activities:'',resources:''});
   }
   if(!r&&key.activityKey.startsWith('COURSE:'))content.lessons=d.sessions.filter(s=>same(s.activity_key,key.activityKey)&&same(s.run_id,key.runId)&&same(s.teacher_account_id,actor)&&s.session_kind!=='BREAK'&&(key.period==='ENTIRE'||s.session_date>=key.weekStart&&s.session_date<=addDays(key.weekStart,6))).slice(0,60).map(s=>({date:s.session_date,className:'',subject:s.description||'Lesson',objectives:'',activities:'',resources:''}));
+  if(!r&&key.activityKey.startsWith('PROGRAM:'))content.lessons=[...new Map(content.lessons.map(l=>{const section={...l,date:''};return [[section.subject,section.className].join('\u0000'),section];})).values()];
   if(content.lessons.length>60)content.lessons=content.lessons.slice(0,60);
   const comments=r?(await p('SELECT c.*,a.display_name FROM lesson_plan_comments c JOIN accounts a ON a.account_id=c.actor_id WHERE c.plan_id=? ORDER BY c.created_at,c.comment_id',r.plan_id).all()).results.map(c=>({id:c.comment_id,author:c.display_name,at:c.created_at,body:c.body,submittedRevision:c.submitted_revision})):[];
-  return {...summary(d,key,tz),timezone:tz,canEdit:own,canComment:admin(d,key.activityKey)&&Boolean(r?.submitted_at),content,comments};
+  const details=summary(d,key,tz);return {...details,timezone:tz,canEdit:editing&&details.canSubmit,canComment:admin(d,key.activityKey)&&Boolean(r?.submitted_at)&&Boolean(d.activities.find(x=>same(x.activity_key,key.activityKey)&&x.active&&x.lifecycle==='ACTIVE')),content,comments};
  }
  async function write(action,input){
   const adminAction=['policy','deadline','comment'].includes(action),dataset=adminAction?'LESSON_PLAN_ADMIN':'LESSON_PLANS';

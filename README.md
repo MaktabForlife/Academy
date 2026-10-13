@@ -1,3 +1,7 @@
+# V106.53 — Weekly plan sheets and teacher/week grid
+
+Admin Planning now shows teachers as rows and weeks as swipeable columns, with submitted plans linked directly from their cells. Weekly A4 plans have Program, teacher and week headings, subject/class boxes and an admin-note section. Course plans stay open until completion, cancellation or archiving. [Release details](docs/ACADEMY-PLANNING-GRID-106.53.md).
+
 # V106.52 — Personal timetable within the full Academy home
 
 Signed-in members retain the welcome, announcements, Program and Course catalogue, self-paced learning and Surahs and Duas rails. Their personal Academy timetable appears within that same homepage. Authorised Students with no class allocation use the sole active class; explicit and withdrawn allocations remain authoritative. Cancelled/archived courses stay out of Learn/Teach using the management status, inactive memorisation cards are hidden, management Close buttons return to Admin, and Library editing opens before the external catalogue finishes loading. Daily timetable caches are refreshed for these changes. No live records or schema changes.
