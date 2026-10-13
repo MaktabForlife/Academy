@@ -63,12 +63,14 @@
       const list = document.createElement('div');
       list.className = 'ol-subject-books';
       for (const book of entries) {
-        const card = document.createElement(book.linkUrl ? 'a' : 'button');
+        const pdfBook=!book.linkUrl&&(!book.resourceType||['EBOOK','PRINTABLE'].includes(book.resourceType));
+        const card = document.createElement(book.linkUrl||pdfBook ? 'a' : 'button');
+        if(pdfBook){const selected=book.volumes?.[0]||book;card.href='/academy/pdf-reader/?file='+encodeURIComponent(pdfProxy(selected.pdfUrl))+'&title='+encodeURIComponent(book.title);card.target='_blank';card.rel='noopener noreferrer';card.dataset.pdfReader='true';}
         if (book.linkUrl) {
           card.href = book.linkUrl;
           card.target = '_blank';
           card.rel = 'noopener noreferrer';
-        } else card.type = 'button';
+        } else if(!pdfBook)card.type = 'button';
         card.className = 'ol-card';
         card.dataset.resource = book.id;
         const verb = book.linkUrl ? 'Visit' : book.resourceType === 'AUDIO' ? 'Listen to' :
@@ -122,11 +124,11 @@
   function showPdf(book, volume) {
     const selected = volume || book;
     clearMedia();
-    viewer.hidden = false;
-    $('ol-original').href = selected.pdfUrl;
-    $('ol-original').textContent = 'Open original PDF at source ↗';
+    viewer.hidden = true;
+    $('ol-original').href = '/academy/pdf-reader/?file='+encodeURIComponent(pdfProxy(selected.pdfUrl))+'&title='+encodeURIComponent(book.title);
+    $('ol-original').textContent = 'Open PDF reader in a new tab ↗';
     viewer.title = `${book.title}${volume ? `, ${volume.label || `volume ${volume.number}`}` : ''} PDF`;
-    viewer.src = `/pdf-viewer/web/viewer.html?file=${encodeURIComponent(pdfProxy(selected.pdfUrl))}`;
+    viewer.src = 'about:blank';
     const url = new URL(window.location.href);
     url.searchParams.set('resource', book.id);
     if (volume) url.searchParams.set('volume', String(volume.number));
@@ -182,6 +184,7 @@
   }
 
   results.addEventListener('click', event => {
+    if(event.target.closest('[data-resource]')?.dataset.pdfReader)return;
     const id = event.target.closest('[data-resource]')?.dataset.resource;
     const book = books.find(item => item.id === id);
     if (book && !book.linkUrl) open(book);

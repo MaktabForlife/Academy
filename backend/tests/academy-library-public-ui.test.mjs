@@ -148,9 +148,10 @@ function clickResource(id) {
   nodes['al-results'].listeners.click({ target: { closest: () => ({ dataset: { resource: id } }) } });
 }
 function displayedPdf() {
-  const viewer = nodes['al-media'].children[0];
-  assert.match(viewer.src, /^\/pdf-viewer\/web\/viewer\.html\?file=/);
-  const proxy = new URL(viewer.src, 'https://academy.example').searchParams.get('file');
+  assert.equal(nodes['al-media'].children.length,0,'Public PDFs open in a separate reader tab');
+  const href=nodes['al-open'].href;
+  assert.match(href, /^\/academy\/pdf-reader\/\?file=/);
+  const proxy = new URL(href, 'https://academy.example').searchParams.get('file');
   return Buffer.from(proxy.split('/').at(-1), 'base64url').toString('utf8');
 }
 
@@ -158,10 +159,10 @@ clickResource('EXTERNAL:INTERNET_ARCHIVE:IHYA_ULUM_AD_DIN_SET');
 assert.equal(nodes['al-preview'].open, true);
 assert.equal(nodes['al-volume-wrap'].hidden, false);
 assert.equal(displayedPdf(), archiveVolumes[0].pdfUrl);
-assert.equal(nodes['al-open'].href, archiveVolumes[0].pdfUrl);
+assert.match(nodes['al-open'].textContent,/new tab/);
 nodes['al-volume'].listeners.change({ target: { value: '4' } });
 assert.equal(displayedPdf(), archiveVolumes[3].pdfUrl);
-assert.equal(nodes['al-open'].href, archiveVolumes[3].pdfUrl);
+assert.match(nodes['al-open'].href,/academy\/pdf-reader/);
 assert.equal(calls.filter(call => call.url === '/api/academy/library/access').length, 0);
 
 nodes['al-preview'].close();

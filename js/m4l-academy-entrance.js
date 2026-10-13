@@ -784,7 +784,7 @@
       attendance:'<p class="muted">Admin Attendance is coming soon, in shaa Allah.</p>',
       planning:'<div id="admin-planning"></div>',
       assessments:global ? link('#assessment-admin','Manage assessments') : scoped(()=>true,row=>`#assessment-admin/${row.kind}/${encodeURIComponent(row.id)}`),
-      library:global ? link('/academy/library/manage/','Manage Library') : link('/academy/library/','Open my Library'),
+      library:global ? link('/academy/library/manage/','Manage Library')+link('/academy/pdf-tools/','PDF tool defaults') : link('/academy/library/','Open my Library'),
       curriculum:global ? link('/academy/subjects/','Manage Subjects and Modules') : scoped(programs,manage),
       programs:global ? link('/programs/','Manage Programs') : scoped(programs,manage),
       courses:global ? link('/academy/courses/manage/','Manage Courses')+link('/academy/courses/manage/?view=scheduling','Course scheduling') : scoped(courses,manage)

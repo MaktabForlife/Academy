@@ -139,7 +139,9 @@
         : `<img src="${esc(icons[row.type] || icons.OTHER)}" alt="" width="48" height="48">`;
     const partCount = row.volumes?.length ? `${row.volumes.length} volumes` :
       row.mediaFiles?.length > 1 ? `${row.mediaFiles.length} recordings` : '';
-    return `<button type="button" class="al-card" data-resource="${esc(row.id)}" aria-label="${row.locked ? 'Locked: ' : 'Open '}${esc(row.name)} (${esc(typeNames[row.type] || 'Resource')})"><span class="al-art">${art}</span><small>${esc(row.sourceName)}${row.module ? ` · ${esc(row.module)}` : ''}</small><span class="al-card-title"><img src="${esc(icons[row.type] || icons.OTHER)}" alt="" width="18" height="18"><strong>${esc(row.name)}</strong></span>${partCount ? `<span class="al-volume-count">${partCount}</span>` : ''}${row.locked ? '<span class="al-lock">Subscription required</span>' : ''}</button>`;
+    const pdfBook=row.publicBook&&!row.publicLink&&['EBOOK','PRINTABLE'].includes(row.type),tag=pdfBook?'a':'button';
+    const attributes=pdfBook?`href="/academy/pdf-reader/?file=${encodeURIComponent(pdfProxy(row.volumes?.[0]?.pdfUrl||row.pdfUrl))}&amp;title=${encodeURIComponent(row.name)}" target="_blank" rel="noopener noreferrer" data-pdf-reader="true"`:'type="button"';
+    return `<${tag} ${attributes} class="al-card" data-resource="${esc(row.id)}" aria-label="${row.locked ? 'Locked: ' : 'Open '}${esc(row.name)} (${esc(typeNames[row.type] || 'Resource')})"><span class="al-art">${art}</span><small>${esc(row.sourceName)}${row.module ? ` · ${esc(row.module)}` : ''}</small><span class="al-card-title"><img src="${esc(icons[row.type] || icons.OTHER)}" alt="" width="18" height="18"><strong>${esc(row.name)}</strong></span>${partCount ? `<span class="al-volume-count">${partCount}</span>` : ''}${row.locked ? '<span class="al-lock">Subscription required</span>' : ''}</${tag}>`;
   }
 
   function render() {
@@ -179,13 +181,9 @@
 
   function showArchivePdf(row, volume) {
     const url = volume?.pdfUrl || row.pdfUrl;
-    const media = document.createElement('iframe');
-    media.src = `/pdf-viewer/web/viewer.html?file=${encodeURIComponent(pdfProxy(url))}`;
-    media.title = `${row.name}${volume ? `, ${volume.label || `volume ${volume.number}`}` : ''} PDF`;
     clearMedia();
-    $('al-media').append(media);
-    $('al-open').href = url;
-    $('al-open').textContent = 'Open original PDF at Archive.org ↗';
+    $('al-open').href = '/academy/pdf-reader/?file='+encodeURIComponent(pdfProxy(url))+'&title='+encodeURIComponent(row.name);
+    $('al-open').textContent = 'Open PDF reader in a new tab ↗';
     $('al-open').hidden = false;
   }
 
@@ -353,6 +351,7 @@
     else if (row?.publicBook && volume) showArchivePdf(row, volume);
   });
   $('al-results').addEventListener('click', event => {
+    if(event.target.closest('[data-resource]')?.dataset.pdfReader)return;
     const id = event.target.closest('[data-resource]')?.dataset.resource;
     const row = state.rows.find(item => item.id === id);
     if (row?.publicLink) window.open(row.linkUrl, '_blank', 'noopener,noreferrer');

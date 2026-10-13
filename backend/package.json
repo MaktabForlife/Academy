@@ -1,6 +1,6 @@
 {
   "name": "rebootworker",
-  "version": "106.48",
+  "version": "106.49",
   "type": "module",
   "scripts": {
     "test": "node tests/run-all.mjs",
@@ -61,6 +61,8 @@
     "test:timetable-ui": "node tests/timetable-teacher-ui.test.mjs",
     "test:teacher-complete-timetable": "node tests/teacher-complete-timetable.test.mjs",
     "test:weekly-planner": "node tests/weekly-planner.test.mjs",
+    "test:pdf-reader": "node --test tests/academy-d1-pdf-tools.test.mjs",
+    "test:pdf-reader:browser": "node tools/academy-pdf-tools-acceptance.mjs",
     "test:pdfjs-annotations": "node tests/pdfjs-annotation-session.test.mjs",
     "test:pdf-split": "node tests/pdf-split-view.test.mjs",
     "test:drive-library": "node tests/drive-library.test.mjs",

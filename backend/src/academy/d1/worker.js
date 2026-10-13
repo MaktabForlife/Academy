@@ -4,6 +4,7 @@ import {d1Assessments} from './assessments.js';
 import {assessmentFiles} from './assessment-files.js';
 import {assessmentReports} from './assessment-reports.js';
 import {lessonMedia} from './lesson-media.js';
+import {pdfTools,publicPdfTools} from './pdf-tools.js';
 import {teacherAvailability} from './teacher-availability.js';
 import {d1Subjects} from './subjects.js';
 import {d1LearningCatalogue,saveLearningModule} from './learning-catalogue.js';
@@ -59,7 +60,8 @@ async function dispatch(request,env) {
   const path=new URL(request.url).pathname;
   await repository.ready();
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'rebootworker',version:'106.48',
+  if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(repository)};
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'rebootworker',version:'106.49',
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(repository)};
@@ -125,6 +127,8 @@ async function dispatch(request,env) {
   const auth=await authenticated(request,env,repository);
   const planningAction=path.match(/^\/api\/academy\/planning\/(list|get|save|submit|comment|policy|deadline)$/)?.[1];
   if(planningAction)return {success:true,...await lessonPlanning(repository,auth).run(planningAction,input)};
+  const pdfToolAction=path.match(/^\/api\/admin\/platform\/pdf-tools\/(get|save)$/)?.[1];
+  if(pdfToolAction)return {success:true,...await pdfTools(repository,auth).run(pdfToolAction,input)};
   const academicCalendarAction=path.match(/^\/api\/academy\/calendar\/(get|save)$/)?.[1];
   if(academicCalendarAction)return {success:true,...await academicCalendar(repository,auth).run(academicCalendarAction,input)};
   const mediaAction=path.match(/^\/api\/academy\/lesson-media\/(list|get|save|watch|download|comments|comment-save|comment-moderate|attachment-remove)$/)?.[1];

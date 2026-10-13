@@ -3605,7 +3605,8 @@ class AnnotationEditorUIManager {
       for (const editor of this.#selectedEditors) {
         editor.updateParams(type, value);
       }
-    } else {
+    }
+    if (!this.hasSelection || this.academyStickyDefaults) {
       for (const editorType of this.#editorTypes) {
         editorType.updateDefaultParams(type, value);
       }
@@ -16915,7 +16916,11 @@ class ColorPicker {
       button.role = "option";
       button.setAttribute("data-color", color);
       button.title = name;
-      button.setAttribute("data-l10n-id", ColorPicker.#l10nColor[name]);
+      if (ColorPicker.#l10nColor[name]) {
+        button.setAttribute("data-l10n-id", ColorPicker.#l10nColor[name]);
+      } else {
+        button.setAttribute("aria-label", name);
+      }
       const swatch = document.createElement("span");
       button.append(swatch);
       swatch.className = "swatch";

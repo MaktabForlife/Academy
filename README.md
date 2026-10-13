@@ -1,3 +1,7 @@
+# V106.49 — Academy PDF reader and tool defaults
+
+Library PDFs open in a separate Academy tab with two adjustable panes, a searchable Library drawer for each PDF and mobile switching or stacked reading. Global Admins set starting text, pen and highlight styles with a live preview; personal choices last until the PDF tab closes. Annotated copies download locally. [Release details](docs/ACADEMY-PDF-READER-106.49.md).
+
 # V106.48 — Teaching plans and admin review
 
 Teachers can save and submit weekly Program plans or weekly/entire-course plans. Mobile-first planning includes shared A4 PDFs generated on demand. Admin Planning shows expected, overdue and submitted plans, with feedback, configurable deadlines and individual extensions. [Release details](docs/ACADEMY-PLANNING-106.48.md).

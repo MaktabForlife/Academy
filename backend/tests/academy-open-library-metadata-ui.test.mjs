@@ -70,6 +70,7 @@ assert.doesNotMatch(JSON.stringify(sections),/Essential Duas for Muslims|EXTERNA
 assert(sections.every(section => section.className === 'ol-subject'));
 const card = sections[2].children[1].children[0];
 assert(card);
+assert.equal(card.tagName,'a');assert.equal(card.target,'_blank');assert.equal(card.rel,'noopener noreferrer');assert.match(card.href,/^\/academy\/pdf-reader\/\?file=/);
 assert.equal(card.dataset.resource, archiveBook.id);
 assert.equal(card.children[1].children[0].children[0].src, '/icons/printable.svg');
 assert.equal(card.children[1].children[0].children[1].textContent, 'Academy title');
