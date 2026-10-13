@@ -16,3 +16,5 @@
 .pgm-layout #program-builder>.pb-heading,.pgm-layout #tt-management{display:none}
 
 #program-message:empty,#pm-message:empty,#tt-message:empty{display:none}
+
+.pgm-layout #program-lesson-media-main>.pb-heading{display:none}

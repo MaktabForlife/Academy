@@ -3,6 +3,11 @@
  const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const token=()=>localStorage.getItem('m4l_account_token')||'',params=new URLSearchParams(location.search),now=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
  const model={year:now.getFullYear(),month:now.getMonth()+1,scopeKey:params.get('program')?'PROGRAM:'+params.get('program'):'ACADEMY',teacherId:params.get('teacher')||undefined,data:null,cache:new Map(),generation:0,busy:false,entry:null,ranges:[],pending:null};
+ if(params.get('embed')==='1'){
+  document.documentElement.classList.add('calendar-embedded');
+  const report=()=>{if(window.parent!==window)window.parent.postMessage({type:'m4l-academy-calendar-height',height:Math.ceil(document.body.getBoundingClientRect().height)},location.origin);};
+  if(typeof ResizeObserver!=='undefined')new ResizeObserver(report).observe(document.body);window.addEventListener('load',report);
+ }
  const viewControls=['cal-prev','cal-next','cal-today','cal-refresh','cal-scope','cal-teacher','cal-add','cal-availability'];
  function setBusy(busy){model.busy=busy;for(const id of viewControls)$(id).disabled=busy;}
  const dateLabel=date=>new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(date+'T12:00:00Z'));
@@ -18,8 +23,8 @@
   catch(error){if(generation===model.generation){model.data=null;model.cache.clear();$('cal-content').hidden=true;status(error.message,true);}}finally{if(generation===model.generation)setBusy(false);}
  }
  function render(){
-  const d=model.data;$('cal-content').hidden=false;$('cal-scope').innerHTML=d.scopes.map(s=>`<option value="${esc(s.key)}"${s.key===d.scopeKey?' selected':''}>${esc(s.name)}</option>`).join('');
-  $('cal-teacher-label').hidden=!d.teachers.length;$('cal-teacher').innerHTML='<option value="">Calendar only</option>'+d.teachers.map(t=>`<option value="${esc(t.accountId)}"${t.accountId===d.teacherId?' selected':''}>${esc(t.name)}</option>`).join('');
+  const d=model.data,admin=Boolean(d.canManageAcademy||d.scopes.some(scope=>scope.editable)),embedded=params.get('embed')==='1';$('cal-scope-label').hidden=embedded||!admin;$('cal-content').hidden=false;$('cal-scope').innerHTML=d.scopes.map(s=>`<option value="${esc(s.key)}"${s.key===d.scopeKey?' selected':''}>${esc(s.name)}</option>`).join('');
+  $('cal-teacher-label').hidden=embedded||!admin||!d.teachers.length;$('cal-teacher').innerHTML='<option value="">Calendar only</option>'+d.teachers.map(t=>`<option value="${esc(t.accountId)}"${t.accountId===d.teacherId?' selected':''}>${esc(t.name)}</option>`).join('');
   $('cal-add').hidden=!d.scopes.find(s=>s.key===d.scopeKey)?.editable;$('cal-availability').hidden=!d.availability?.editable;$('cal-availability-key').hidden=!d.availability;
   $('cal-current-term').innerHTML=d.currentTerms.length?d.currentTerms.map(t=>`<p><strong>${esc(t.description)}</strong> · ${esc(rangeLabel(t))} <span class="cal-muted">${esc(t.scopeName)}</span></p>`).join(''):'<p>No current term is set for this calendar.</p>';
   $('cal-month-title').textContent=new Intl.DateTimeFormat('en-GB',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(Date.UTC(model.year,model.month-1,1)));

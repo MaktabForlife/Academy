@@ -8,15 +8,15 @@
   <link rel="icon" href="/admin-favicon-32x32.png">
   <link rel="stylesheet" href="/css/m4l-program-builder.css?v=106.1">
   <link rel="stylesheet" href="/css/m4l-academy-navigation.css?v=106.11">
-  <link rel="stylesheet" href="/css/m4l-user-profiles.css?v=106.43">
-<link rel="stylesheet" href="/css/m4l-program-management-navigation.css?v=106.43"><link rel="stylesheet" href="/css/m4l-academy-mobile.css?v=106.36">
+  <link rel="stylesheet" href="/css/m4l-user-profiles.css?v=106.46">
+<link rel="stylesheet" href="/css/m4l-program-management-navigation.css?v=106.46"><link rel="stylesheet" href="/css/m4l-academy-mobile.css?v=106.36">
 <link rel="stylesheet" href="/css/m4l-academy-page-actions.css?v=106.41">
-<link rel="stylesheet" href="/css/m4l-academy-shell.css?v=106.43">
+<link rel="stylesheet" href="/css/m4l-academy-shell.css?v=106.46">
 </head>
 <body class="user-profiles-sheet">
 <main>
-  <header class="up-titlebar"><h1>Manage Users</h1><span class="pb-version">V106.45</span></header>
-  <nav id="up-tabs" class="up-tabs" role="tablist" aria-label="User management sections"><button id="up-tab-details" role="tab" data-up-tab="details" aria-selected="true" aria-controls="up-matrix-panel" type="button">User Details</button><button id="up-tab-programs" role="tab" data-up-tab="programs" aria-selected="false" aria-controls="up-matrix-panel" type="button">Programs</button><button id="up-tab-courses" role="tab" data-up-tab="courses" aria-selected="false" aria-controls="up-matrix-panel" type="button">Courses</button></nav>
+  <header class="up-titlebar"><h1>Manage Users</h1><span class="pb-version">V106.46</span></header>
+  <nav id="up-tabs" class="up-tabs" role="tablist" aria-label="User management sections"><button id="up-tab-details" role="tab" data-up-tab="details" aria-selected="true" aria-controls="up-matrix-panel" type="button">User Details</button><button id="up-tab-programs" role="tab" data-up-tab="programs" aria-selected="false" aria-controls="up-matrix-panel" type="button">Programs</button><button id="up-tab-courses" role="tab" data-up-tab="courses" aria-selected="false" aria-controls="up-matrix-panel" type="button">Courses</button><button id="up-tab-globals" role="tab" data-up-tab="globals" aria-selected="false" aria-controls="up-matrix-panel" type="button" hidden>Global Users</button></nav>
   <p id="up-message" class="pb-message" role="status" aria-live="polite">Loading users…</p>
   <p id="up-wait" class="up-notice" role="status" hidden></p>
   <div id="up-pending" class="up-notice" hidden><span>Your change is kept until its save is confirmed.</span><button id="up-retry">Retry same change</button></div>
@@ -25,13 +25,13 @@
     <div id="up-comparison"></div><button id="up-use-saved" class="pb-secondary">Discard my entry and use saved version</button>
   </section>
   <p id="up-link" hidden></p>
+  <button id="up-refresh" class="pb-secondary" data-page-content-refresh>Refresh users</button>
   <section class="pm-card" aria-label="Academy users">
     <div class="pb-toolbar up-toolbar">
       <label class="pb-search"><span class="pb-sr-only">Find a user</span><input id="up-search" type="search" placeholder="Find a user…"></label>
-      <label><span class="pb-sr-only">Status</span><select id="up-status-filter"><option value="">All users</option><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
-      <span id="up-count" class="pb-count"></span>
-      <div class="up-filter-actions"><button id="up-active-areas" class="pb-secondary up-status-pill" aria-pressed="false" type="button">Active only</button><button id="up-global-status" class="pb-secondary up-status-pill" hidden>Global status</button><button id="up-refresh" class="pb-secondary" data-page-content-refresh>↻ Refresh</button></div>
-      <div class="up-save-bar"><button id="up-add">＋ Add user</button><button id="up-save-all">Save all</button><button id="up-save" hidden>Save access setting</button><button id="up-cancel" class="pb-secondary" hidden>Discard all</button><span id="up-unsaved" role="status" aria-live="polite"></span></div>
+      <span id="up-count" class="pb-count" hidden></span>
+      <div class="up-filter-actions" hidden><button id="up-active-areas" class="pb-secondary up-status-pill" aria-pressed="false" type="button">Active only</button><button id="up-global-status" class="pb-secondary up-status-pill" hidden>Global status</button></div>
+      <div class="up-primary-actions"><button id="up-filter-open" class="pb-secondary" type="button" aria-haspopup="dialog">Filter</button><div class="up-save-bar"><button id="up-add">＋ Add user</button><button id="up-save-all">Save all</button><button id="up-save" hidden>Save access setting</button><button id="up-cancel" class="pb-secondary" hidden>Discard all</button><span id="up-unsaved" role="status" aria-live="polite"></span></div></div>
     </div>
     <div id="up-matrix-panel" role="tabpanel" aria-labelledby="up-tab-details" class="pm-scroll up-matrix-scroll" tabindex="0" aria-label="User management table">
       <table id="up-matrix" class="pm-grid up-matrix"><caption class="pb-sr-only">Academy users</caption><thead id="up-head"></thead><tbody id="up-users"></tbody></table>
@@ -39,8 +39,14 @@
   </section>
   <footer class="up-sheet-footer">
     <div id="up-draft-notice" hidden><span>Your unfinished entry is kept.</span><button id="up-return" class="pb-secondary">Find edits</button></div>
-    <details class="up-help"><summary>Editing help</summary><p>Edit names, Login IDs, WhatsApp numbers and status directly in the sheet. Select a Program or Course role cell to change Student, Teacher and Admin roles. Login IDs use letters and numbers only and must be unique. Select Reset PIN to reset a user's PIN; another Global Admin must reset your own PIN. Save all or Ctrl/⌘ + Enter saves your changes.</p><p>Select Global status, search for a user, and edit their Global Admin or Global Teacher designation. Select Save global status to apply the change. Another Global Admin must remove your own designation. Global Admin applies to every Program and Course. Role cells edit additional scoped roles; they cannot remove Academy-wide authority. Existing Course subscribers appear as Students. None means no assigned role or Course subscription; access to a Free Course is separate.</p><p>Inactive keeps the account and its roles. Course Student changes also update the existing Course access control. Module media subscriptions are separate and are not available yet.</p><p id="up-review-count"></p><button id="up-setup" hidden>Set up / update matrix</button></details>
+    <details class="up-help"><summary>Editing help</summary><p>Edit names, Login IDs, WhatsApp numbers and status directly in the sheet. Select a Program or Course role cell to change Student, Teacher and Admin roles. Login IDs use letters and numbers only and must be unique. Select Reset PIN to reset a user's PIN; another Global Admin must reset your own PIN. Save all or Ctrl/⌘ + Enter saves your changes.</p><p>Select Global Users to edit Global Admin and Global Teacher designations. Save all applies these changes. Filter opens separate status controls for users, programs and courses. Another Global Admin must remove your own designation. Global Admin applies to every Program and Course. Role cells edit additional scoped roles; they cannot remove Academy-wide authority. Existing Course subscribers appear as Students. None means no assigned role or Course subscription; access to a Free Course is separate.</p><p>Inactive keeps the account and its roles. Course Student changes also update the existing Course access control. Module media subscriptions are separate and are not available yet.</p><p id="up-review-count"></p><button id="up-setup" hidden>Set up / update matrix</button></details>
   </footer>
+  <dialog id="up-filter-dialog" aria-labelledby="up-filter-title"><h2 id="up-filter-title">Filter by status</h2>
+    <label>Users<select id="up-status-filter"><option value="active" selected>Active users</option><option value="">All users</option><option value="inactive">Inactive users</option></select></label>
+    <label>Programs<select id="up-program-status"><option value="AVAILABLE" selected>Current programs</option><option value="ALL">All statuses</option><option value="ACTIVE">Active</option><option value="DRAFT">Draft</option><option value="ARCHIVED">Archived</option><option value="CANCELLED">Cancelled</option><option value="INACTIVE">Inactive</option></select></label>
+    <label>Courses<select id="up-course-status"><option value="AVAILABLE" selected>Current courses</option><option value="ALL">All statuses</option><option value="ACTIVE">Active</option><option value="DRAFT">Draft</option><option value="PUBLISHED">Published</option><option value="COMPLETE">Complete</option><option value="ARCHIVED">Archived</option><option value="CANCELLED">Cancelled</option><option value="INACTIVE">Inactive</option></select></label>
+    <div class="up-global-actions"><button id="up-filter-cancel" class="pb-secondary" type="button">Cancel</button><button id="up-filter-apply" type="button">Apply</button></div>
+  </dialog>
   <dialog id="up-reset-dialog" aria-labelledby="up-reset-title">
     <h2 id="up-reset-title">Reset PIN</h2><p id="up-reset-name"></p>
     <p>This clears the PIN and signs the user out on all devices. They can set a new PIN through their personal sign-in link.</p>
@@ -63,9 +69,9 @@
   </dialog>
 </main>
 <script src="/js/m4l-config.js?v=106.17"></script>
-<script src="/js/m4l-user-profiles.js?v=106.43"></script>
-<script src="/js/m4l-program-management-navigation.js?v=106.43"></script><script src="/js/m4l-academy-navigation.js?v=106.45"></script>
-<script src="/js/m4l-academy-mobile.js?v=106.43"></script>
+<script src="/js/m4l-user-profiles.js?v=106.46"></script>
+<script src="/js/m4l-program-management-navigation.js?v=106.46"></script><script src="/js/m4l-academy-navigation.js?v=106.46"></script>
+<script src="/js/m4l-academy-mobile.js?v=106.46"></script>
 <script src="/js/m4l-academy-page-actions.js?v=106.43"></script>
 </body>
 </html>

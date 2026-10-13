@@ -32,14 +32,14 @@
     const staff=r=>r.some(x=>['TEACHER','SENIOR','PROGRAM_ADMIN','ADMIN','GLOBAL_ADMIN'].includes(x)),admin=r=>r.some(x=>['PROGRAM_ADMIN','ADMIN','GLOBAL_ADMIN'].includes(x));
     const available={learn:global||roles.some(r=>['STUDENT','TEACHER','SENIOR','PROGRAM_ADMIN','ADMIN','GLOBAL_ADMIN'].includes(r)),teach:global||staff(roles),admin:global||admin(roles)};
     const section=location.hash.slice(1).split('/')[0],path=location.pathname;
-    const management=['administration','assessment-admin','progress-admin'].includes(section)||/^\/(users|programs)(?:\/|$)/.test(path)||/^\/academy\/(subjects|courses\/manage|library\/manage)(?:\/|$)/.test(path);
-    const selected=management&&available.admin?'admin':path.startsWith('/academy/teaching/')&&available.teach?'teach':'learn';
+    const management=['administration','assessment-admin','progress-admin'].includes(section)||/^\/(users|programs)(?:\/|$)/.test(path)||/^\/academy\/(subjects|calendar|courses\/manage|library\/manage)(?:\/|$)/.test(path);
+    const selected=management&&available.admin?'admin':(path.startsWith('/academy/teaching/')||path.startsWith('/academy/calendar/'))&&available.teach?'teach':'learn';
     for(const button of document.querySelectorAll('[data-shell-role]')){button.hidden=!available[button.dataset.shellRole];button.setAttribute('aria-pressed',String(button.dataset.shellRole===selected));}
     const name=document.getElementById('academy-shell-name'),role=document.getElementById('academy-shell-role');
     if(name)name.textContent=signed?(data.profile?.name||'Academy member'):'Welcome';
     if(role)role.textContent=global?'Global Admin':admin(roles)?'Program Admin':staff(roles)?'Teacher':roles.includes('STUDENT')?'Student':signed?'None':'';
     for(const mode of ['learn','teach']){
-      const rows=activities.filter(r=>r.menuAvailable!==false&&!['CANCELLED','ARCHIVED'].includes(String(r.stage||r.lifecycle||r.status||'').toUpperCase())&&(global||(mode==='teach'?staff(r.roles||[]):r.roles?.includes('STUDENT'))));
+      const rows=activities.filter(r=>r.menuAvailable!==false&&![r.stage,r.lifecycle,r.status].some(value=>['CANCELLED','ARCHIVED'].includes(String(value||'').toUpperCase()))&&(global||(mode==='teach'?staff(r.roles||[]):admin(r.roles||[])||r.roles?.includes('STUDENT'))));
       const id=window.M4L_ACADEMY_LOGIN?.currentId()||data?.profile?.uniqueid||'',base=window.M4L_CONFIG?.HIFZHELPER_URL;
       drawers[mode].querySelector('.academy-drawer-list').innerHTML=rows.map(r=>{
         if(r.kind==='PROGRAM'&&r.id===window.M4L_CONFIG?.HIFZ_PROGRAM_ID)return /^[A-Za-z0-9]+$/.test(id)&&/^https:\/\//.test(base||'')?`<div class="academy-drawer-choice"><a class="academy-hifz-shortcut" href="${esc(base.replace(/\/$/,'')+'/'+encodeURIComponent(id))}" target="_blank" rel="noopener noreferrer" aria-label="HifzHelper (opens in a new tab)">HifzHelper ↗</a></div>`:'';

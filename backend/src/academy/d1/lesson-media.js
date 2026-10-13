@@ -25,17 +25,18 @@ export function lessonMedia(repository,auth,env){
  };
  const ready=async()=>{if(!await p("SELECT 1 ok FROM academy_settings WHERE setting_key='LessonMediaPilot' AND setting_value='1'").first())throw fail('Lesson media is not available yet.',503,'MEDIA_NOT_ENABLED');await scope();};
  async function lesson(id){const row=await p('SELECT l.*,c.name class_name FROM lesson_media_lessons l JOIN classes c ON c.activity_key=l.activity_key AND c.class_id=l.class_id WHERE l.lesson_id=? AND l.activity_key=?',String(id||''),MOU_MEDIA_PROGRAM).first();if(!row)throw fail('Lesson not found.',404);return row;}
- function reader(row){if(!student||row.state!=='PUBLISHED')throw fail('Recordings are available only to current MOU students.',403,'MEDIA_FORBIDDEN');}
+ function reader(row){if(!(student||admin)||row.state!=='PUBLISHED')throw fail('Recordings are available to current MOU learners and authorised admins.',403,'MEDIA_FORBIDDEN');}
  function staff(row){if(!manages(row))throw fail('This lesson is outside your media management access.',403,'MEDIA_FORBIDDEN');}
  function revision(row,input){if(!Number.isInteger(input.revision)||row.revision!==input.revision)throw fail('This entry changed. Refresh before saving; your entry is kept.',409,'ROW_CHANGED');}
- const dto=row=>({id:row.lesson_id,date:row.lesson_date,title:row.title,startTime:row.start_time,endTime:row.end_time,teacher:row.teacher_name,className:row.class_name,summary:row.summary,state:row.state,commentsClosed:Boolean(row.comments_closed),revision:row.revision,canManage:manages(row),canView:student&&row.state==='PUBLISHED',lessons:JSON.parse(row.source_lessons_json)});
+ const dto=row=>({id:row.lesson_id,date:row.lesson_date,title:row.title,startTime:row.start_time,endTime:row.end_time,teacher:row.teacher_name,className:row.class_name,summary:row.summary,state:row.state,commentsClosed:Boolean(row.comments_closed),revision:row.revision,canManage:manages(row),canView:(student||admin)&&row.state==='PUBLISHED',lessons:JSON.parse(row.source_lessons_json)});
  async function assets(id,management=false){return (await p('SELECT a.* FROM lesson_media_links l JOIN lesson_media_assets a USING(asset_id) WHERE l.lesson_id=? ORDER BY a.kind,a.created_at,a.asset_id',id).all()).results.map(a=>({id:a.asset_id,kind:a.kind,filename:a.filename,...(management&&a.kind==='YOUTUBE'?{url:'https://youtu.be/'+a.youtube_id}:{})}));}
  async function list(input){
   if(!student&&!teacher&&!admin)throw fail('This Program media is outside your access.',403,'MEDIA_FORBIDDEN');
+  const preview=Boolean(input.view==='learner'&&admin);
   const before=input.before||'9999-12-31';if(before!=='9999-12-31'&&!validDate(before))throw fail('Choose a valid lesson date.');
-  const rows=(await p(`SELECT l.*,c.name class_name FROM lesson_media_lessons l JOIN classes c ON c.activity_key=l.activity_key AND c.class_id=l.class_id WHERE l.activity_key=? AND l.lesson_date<? AND ${admin?'1=1':teacher?'(l.teacher_id=? OR (?=1 AND l.state=\'PUBLISHED\'))':"l.state='PUBLISHED'"} ORDER BY l.lesson_date DESC,l.lesson_id DESC LIMIT 31`,MOU_MEDIA_PROGRAM,before,...(!admin&&teacher?[actor,Number(student)]:[])).all()).results;
+  const rows=(await p(`SELECT l.*,c.name class_name FROM lesson_media_lessons l JOIN classes c ON c.activity_key=l.activity_key AND c.class_id=l.class_id WHERE l.activity_key=? AND l.lesson_date<? AND ${preview?"l.state='PUBLISHED'":admin?'1=1':teacher?'(l.teacher_id=? OR (?=1 AND l.state=\'PUBLISHED\'))':"l.state='PUBLISHED'"} ORDER BY l.lesson_date DESC,l.lesson_id DESC LIMIT 31`,MOU_MEDIA_PROGRAM,before,...(!admin&&teacher?[actor,Number(student)]:[])).all()).results;
   const page=rows.slice(0,30),ids=page.map(r=>r.lesson_id),links=ids.length?(await p('SELECT l.lesson_id,a.asset_id,a.kind,a.filename FROM lesson_media_links l JOIN lesson_media_assets a USING(asset_id) WHERE l.lesson_id IN(SELECT value FROM json_each(?)) ORDER BY a.created_at',JSON.stringify(ids)).all()).results:[];
-  return {canManage:admin||teacher,canView:student,lessons:page.map(row=>({...dto(row),assets:links.filter(a=>a.lesson_id===row.lesson_id).map(a=>({id:a.asset_id,kind:a.kind,filename:a.filename}))})),before:rows.length>30?page.at(-1).lesson_date:null};
+  return {canManage:!preview&&(admin||teacher),canView:student||admin,learnerPreview:preview,lessons:page.map(row=>({...dto(row),...(preview?{canManage:false}:{}),assets:links.filter(a=>a.lesson_id===row.lesson_id).map(a=>({id:a.asset_id,kind:a.kind,filename:a.filename}))})),before:rows.length>30?page.at(-1).lesson_date:null};
  }
  async function receipt(input,hash){const r=await p("SELECT * FROM operation_receipts WHERE dataset_key='LESSON_MEDIA' AND scope_key=? AND operation_id=?",MOU_MEDIA_PROGRAM,input.operationId).first();if(!r)return null;if(!same(r.actor_account_id,actor)||r.payload_sha256!==hash)throw fail('This retry belongs to another change.',409,'OPERATION_ID_REUSED');return {...JSON.parse(r.result_json),replayed:true};}
  // Version and current account/session/role guards share the write transaction.
@@ -74,9 +75,10 @@ export function lessonMedia(repository,auth,env){
  }
  async function comments(input){
   const row=await lesson(input.lessonId);if(!manages(row))reader(row);
+  const moderates=manages(row)&&!(input.view==='learner'&&admin);
   const before=input.before||'9999-12-31T23:59:59.999Z';if(typeof before!=='string'||before.length>64)throw fail('Invalid comment page.');
-  const rows=(await p(`SELECT c.*,a.display_name FROM lesson_media_comments c JOIN accounts a USING(account_id) WHERE c.lesson_id=? AND c.created_at<? AND ${manages(row)?"c.state<>'DELETED'":"(c.state='APPROVED' OR (c.account_id=? AND c.state<>'DELETED'))"} ORDER BY c.created_at DESC,c.comment_id DESC LIMIT 101`,row.lesson_id,before,...(manages(row)?[]:[actor])).all()).results;
-  return {commentsClosed:Boolean(row.comments_closed),canManage:manages(row),comments:rows.slice(0,100).map(c=>({id:c.comment_id,name:c.display_name,body:c.body,parentId:c.parent_id,state:c.state,staff:Boolean(c.staff),pinned:Boolean(c.pinned),revision:c.revision,createdAt:c.created_at,own:same(c.account_id,actor)})),before:rows.length>100?rows[99].created_at:null};
+  const rows=(await p(`SELECT c.*,a.display_name FROM lesson_media_comments c JOIN accounts a USING(account_id) WHERE c.lesson_id=? AND c.created_at<? AND ${moderates?"c.state<>'DELETED'":"(c.state='APPROVED' OR (c.account_id=? AND c.state<>'DELETED'))"} ORDER BY c.created_at DESC,c.comment_id DESC LIMIT 101`,row.lesson_id,before,...(moderates?[]:[actor])).all()).results;
+  return {commentsClosed:Boolean(row.comments_closed),canManage:moderates,comments:rows.slice(0,100).map(c=>({id:c.comment_id,name:c.display_name,body:c.body,parentId:c.parent_id,state:c.state,staff:Boolean(c.staff),pinned:Boolean(c.pinned),revision:c.revision,createdAt:c.created_at,own:same(c.account_id,actor)})),before:rows.length>100?rows[99].created_at:null};
  }
  async function commentSave(input){
   const row=await lesson(input.lessonId),isStaff=manages(row);if(!isStaff)reader(row);

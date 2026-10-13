@@ -27,14 +27,14 @@ function accessModel(data,a){return (a.kind==='COURSE'?data.coursePolicies.find(
 export async function scopeDTO(data,a) {
   const result={...scopeOf(a),name:a.name,active:Boolean(a.active&&a.lifecycle==='ACTIVE'),prepared:true,
     accessModel:accessModel(data,a),reviewStatus:'REQUIRED',stage:'SETUP',policyEditable:false,rolesEditable:true};
-  return {...result,revision:await payloadHash(result)};
+  return {...result,revision:await payloadHash(result),lifecycle:a.lifecycle||'',runStages:(data.courseStages||[]).filter(row=>same(row.activity_key,a.activity_key)).map(row=>row.stage)};
 }
 
 export function d1Profiles(repository,auth) {
   const store=managementStore(repository,auth),p=store.p;
   const load=async()=>{
-    const teachers=await teacherDesignations(repository),contactsAvailable=await optionalSchema(repository.db,'SELECT account_id FROM account_contact_details WHERE 0');
-    return {...await store.load({teachers:teachers.statement,credentials:p('SELECT account_id,pin_setup,credential_epoch FROM account_credentials'),contacts:p(contactsAvailable?'SELECT account_id,whatsapp_number FROM account_contact_details':'SELECT account_id FROM accounts WHERE 0'),coursePolicies:p('SELECT * FROM course_settings'),subscriptions:p(`SELECT * FROM ${await repository.subscriptionSource()}`)}),teacherDesignationsAvailable:teachers.available,contactsAvailable};
+    const teachers=await teacherDesignations(repository),contactsAvailable=await optionalSchema(repository.db,'SELECT account_id FROM account_contact_details WHERE 0'),courseStagesAvailable=await optionalSchema(repository.db,'SELECT stage FROM course_run_state WHERE 0');
+    return {...await store.load({teachers:teachers.statement,credentials:p('SELECT account_id,pin_setup,credential_epoch FROM account_credentials'),contacts:p(contactsAvailable?'SELECT account_id,whatsapp_number FROM account_contact_details':'SELECT account_id FROM accounts WHERE 0'),courseStages:p(courseStagesAvailable?'SELECT s.activity_key,s.stage FROM course_run_state s JOIN course_runs r USING(activity_key,run_id) WHERE r.active=1':'SELECT activity_key FROM activities WHERE 0'),coursePolicies:p('SELECT * FROM course_settings'),subscriptions:p(`SELECT * FROM ${await repository.subscriptionSource()}`)}),teacherDesignationsAvailable:teachers.available,contactsAvailable};
   };
   const accountProfile=(data,a)=>({...profileDTO(data,a),...(a?{uniqueId:a.login_link_id,whatsappNumber:data.contacts.find(c=>same(c.account_id,a.account_id))?.whatsapp_number||'',pinSetup:Boolean(data.credentials.find(c=>same(c.account_id,a.account_id))?.pin_setup),credentialEpoch:data.credentials.find(c=>same(c.account_id,a.account_id))?.credential_epoch}:{}),...(a&&data.teacherDesignationsAvailable?{academyTeacher:academyTeacher(data,a.account_id)}:{})});
   async function directory(data) {

@@ -36,7 +36,7 @@
   const currentFilters=()=>({search:$('course-search').value,status:$('course-status-filter').value});
   function visibleCourses(filters=currentFilters()){
     const search=filters.search.trim().toLowerCase(),status=filters.status;
-    return state.courses.filter(c=>(!search||c.name.toLowerCase().includes(search))&&(!status||c.stage===status)).sort((a,b)=>a.name.localeCompare(b.name)||b.startDate.localeCompare(a.startDate));
+    return state.courses.filter(c=>(!search||c.name.toLowerCase().includes(search))&&(!status||(status==='AVAILABLE'?!['ARCHIVED','CANCELLED'].includes(c.stage):c.stage===status))).sort((a,b)=>a.name.localeCompare(b.name)||b.startDate.localeCompare(a.startDate));
   }
   function renderList(){
     const rows=visibleCourses();

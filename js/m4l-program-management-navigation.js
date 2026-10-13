@@ -3,7 +3,7 @@
  const valid=value=>/^PRG-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value||'');
  const main=document.querySelector('main');if(!main)return;
  const page=location.pathname.replace(/\/+$/,'').replace(/\.html$/,'');
- const listPage=page==='/programs'||page==='/programs/index',unified=listPage||['/programs/timetable','/programs/manage'].includes(page);
+ const listPage=page==='/programs'||page==='/programs/index',unified=listPage||['/programs/timetable','/programs/manage','/programs/lesson-media'].includes(page);
  if(page==='/users'||page==='/users/index')return;
  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const token=()=>localStorage.getItem('m4l_account_token')||'';
@@ -13,7 +13,7 @@
  function update(program){if(header&&program.id===id){header.querySelector('[data-program-name]').textContent=program.name;const status=header.querySelector('[data-program-status]');if(status)status.textContent=program.status==='ACTIVE'?'Active':program.status==='ARCHIVED'?'Archived':'Draft';}}
  function workspace(program,current,available=true){
   const suffix=program?'?program='+encodeURIComponent(program.id):'';
-  const tabs=[['list','Program List','/programs/'+suffix],['timetable','Timetable','/programs/timetable.html'+suffix],['people','People','/programs/manage.html'+suffix+'&tab=profiles']];
+  const tabs=[['list','Program List','/programs/'+suffix],['timetable','Timetable','/programs/timetable.html'+suffix],['people','People','/programs/manage.html'+suffix+'&tab=profiles'],['lesson-media','Lesson media','/programs/lesson-media.html'+suffix]];
   header=document.createElement('header');header.className='pgm-header pgm-unified';
   header.innerHTML=`<div class="pgm-heading"><h1>Manage Programs</h1></div><nav class="pgm-tabs" aria-label="Program management">${tabs.map(([key,label,href])=>`<a${key==='list'||available?` href="${esc(href)}"`:' aria-disabled="true" tabindex="-1" title="Select a saved Program and save your changes first"'}${key===current?' aria-current="page"':''}>${label}</a>`).join('')}</nav>${program?`<p class="pgm-context" data-program-name>${esc(program.name)}</p>`:''}`;
   main.prepend(header);document.body.classList.add('pgm-layout');
@@ -29,7 +29,7 @@
     programs=result.programs;owner=session;
    }
    const program=programs.find(row=>row.id===id);if(!program)return;
-   if(unified){workspace(program,page==='/programs/timetable'?'timetable':'people');return;}
+   if(unified){workspace(program,page==='/programs/timetable'?'timetable':page==='/programs/lesson-media'?'lesson-media':'people');return;}
    const suffix='?program='+encodeURIComponent(id);
    const tabs=[['timetable','Timetable','/programs/timetable.html'+suffix],['people','People','/programs/manage.html'+suffix+'&tab=profiles'],['library','Library','/programs/media.html'+suffix],['attendance','Attendance','/academy/#activity/PROGRAM/'+encodeURIComponent(id)+'/attendance']];
    const current=({'/programs/timetable':'timetable','/programs/manage':'people','/programs/media':'library','/programs/library':'library','/programs/library-view':'library','/programs/attendance':'attendance'})[page];

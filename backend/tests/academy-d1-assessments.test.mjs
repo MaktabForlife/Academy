@@ -253,3 +253,19 @@ test('separate descriptors distinguish papers for one subject in the schedule an
  assert.equal(ok(await f.call('get',{assessmentId:a.id},teacher)).assessment.paperState,'IN_REVIEW');
  assert.equal(ok(await f.call('get',{assessmentId:ids[1]},teacher)).assessment.paperState,'NONE');
 }));
+
+ test('learner preview requires scoped admin, omits drafts and private learner records, and creates no enrolment',()=>use(async f=>{
+ f.env.AUTH_LOGIN_RATE_LIMITER={limit:async()=>({success:true})};
+ const x=await setup(f),scoped=await f.login('0004');
+ const roles=f.db.prepare('SELECT * FROM role_assignments ORDER BY assignment_id').all(),recipients=f.db.prepare('SELECT * FROM assessment_recipients ORDER BY account_id').all();
+ const draft=ok(await f.call('create',{...op(),activityKey:scope,classId:'class-1',title:'Unpublished assessment',subject:'Qasas',examDate:'2026-10-20',durationMinutes:60,maximumMark:100},x.admin)).assessmentId;
+ for(const token of [x.admin,scoped]){
+  const list=ok(await f.call('list',{activityKey:scope,view:'learner'},token));assert.equal(list.learnerPreview,true);assert.equal(list.canAdmin,false);assert.equal(list.assessments.length,1);assert.equal(list.assessments[0].id,x.id);assert.equal(list.assessments[0].canTeach,false);assert.deepEqual(list.classes,[]);assert.deepEqual(list.registers,[]);
+  const d=ok(await f.call('get',{assessmentId:x.id,view:'learner'},token));assert.equal(d.assessment.learnerPreview,true);assert.equal(d.assessment.canTeach,false);assert.equal(d.assessment.canAdmin,false);assert.equal(d.assessment.paperFileId,null);assert.deepEqual(d.learners,[]);assert.deepEqual(d.history,[]);
+  assert.equal((await f.call('get',{assessmentId:draft,view:'learner'},token)).status,403);
+ }
+ for(const token of [x.teacher,x.student,x.other])assert.equal((await f.call('list',{activityKey:scope,view:'learner'},token)).status,403);
+ await available(f,x);const d=ok(await f.call('get',{assessmentId:x.id,view:'learner'},x.admin));assert.equal(d.assessment.paperFileId,x.paperId);
+ assert.deepEqual(f.db.prepare('SELECT * FROM role_assignments ORDER BY assignment_id').all(),roles);
+ assert.deepEqual(f.db.prepare('SELECT * FROM assessment_recipients ORDER BY account_id').all(),recipients);
+}));

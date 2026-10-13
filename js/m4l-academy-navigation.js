@@ -1,5 +1,6 @@
 (() => {
   'use strict';
+  if(location.pathname.startsWith('/academy/calendar/')&&new URLSearchParams(location.search).get('embed')==='1')return;
   // The standalone recorder remains unchanged outside its Academy entry point.
   if (location.pathname.startsWith('/recorder/') && new URLSearchParams(location.search).get('academy') !== '1') return;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
@@ -8,7 +9,7 @@
   const side = document.createElement('aside');
   side.className = 'academy-connected-sidebar';
   side.setAttribute('aria-label', 'Academy');
-  side.innerHTML = `<a class="academy-connected-brand" href="/academy/#overview"><img src="/ummabbadacademy.png" alt=""><span><strong>Umm Abbad<br>Academy</strong><span class="site-version">Website V106.45</span></span></a>
+  side.innerHTML = `<a class="academy-connected-brand" href="/academy/#overview"><img src="/ummabbadacademy.png" alt=""><span><strong>Umm Abbad<br>Academy</strong><span class="site-version">Website V106.46</span></span></a>
     <nav aria-label="Academy navigation"><a href="/academy/#overview">Academy home</a><a id="ac-progress" href="/academy/#hifz">Hifz</a><a id="ac-recorder" href="/academy/#recorder" hidden>Voice Recorder</a><a id="ac-library" href="/academy/open-library/">Library</a><a id="ac-calendar" href="/academy/calendar/" hidden>Academic Calendar</a><a href="/academy/#prospectus">2026 Prospectus</a><a href="/academy/#about">About</a><a href="/academy/#contact">Contact</a></nav>
     <div class="academy-connected-footer"><a href="https://ummabbadacademy.com" target="_blank" rel="noopener noreferrer">Original Academy site ↗</a><button id="ac-signout" type="button" hidden>Sign out</button></div>`;
   const strip = document.createElement('nav');
@@ -66,7 +67,7 @@
       $('ac-calendar').hidden = false;
       $('ac-signout').hidden = false;
       if ($('library-for-you')) $('library-for-you').hidden = false;
-      const activities = (result.personalActivities || []).filter(row => ['PROGRAM', 'COURSE'].includes(row.kind) && row.id && (result.globalAdmin || roles(row.roles)));
+      const activities = (result.personalActivities || []).filter(row => ['PROGRAM', 'COURSE'].includes(row.kind) && row.menuAvailable!==false && ![row.stage,row.status,row.lifecycle].some(value=>['CANCELLED','ARCHIVED'].includes(String(value||'').toUpperCase())) && row.id && (result.globalAdmin || roles(row.roles)));
       const programs = activities.filter(row => row.kind === 'PROGRAM');
       const courses = activities.filter(row => row.kind === 'COURSE');
       strip.innerHTML = programs.map(row => `<a data-academy-program="${esc(row.id)}" href="/academy/#activity/${row.kind}/${encodeURIComponent(row.id)}"${row.kind === 'PROGRAM' && row.id === currentProgram ? ' aria-current="page"' : ''}><span>${esc(row.name)}</span><small>${esc(roles(result.globalAdmin ? ['GLOBAL_ADMIN'] : row.roles))}</small></a>`).join('') +

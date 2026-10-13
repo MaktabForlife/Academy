@@ -2,12 +2,13 @@
  'use strict';
  const PROGRAM='PRG-656bcece-4310-49c7-87d7-ee06756f66c1',token=()=>localStorage.getItem('m4l_account_token')||'';
  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- let host=null,session='',generation=0,dialogGeneration=0,data=null,pending=null,dialog=null,editor=null,discussion=null,retry=null,busy=false,dirty=false,objectUrl='';
+ let host=null,session='',generation=0,dialogGeneration=0,data=null,pending=null,dialog=null,editor=null,discussion=null,retry=null,busy=false,dirty=false,objectUrl='',learnerView=false;
  const date=v=>new Intl.DateTimeFormat('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(v+'T12:00:00Z'));
  function active(g=generation){return g===generation&&session===token()&&Boolean(host);}
  function message(text,error=false){const el=host?.querySelector('[data-lm-message]');if(el){el.textContent=text;el.setAttribute('role',error?'alert':'status');}}
  function modalMessage(text,error=false){const el=dialog?.querySelector('[data-lm-dialog-message]');if(el){el.textContent=text;el.setAttribute('role',error?'alert':'status');}}
  async function api(action,input,options={}){
+  if(learnerView&&action==='comments')input={...input,view:'learner'};
   const current=session,g=generation,response=await fetch(`${window.M4L_CONFIG?.API_BASE||''}/api/academy/lesson-media/${action}${options.upload?'?metadata='+encodeURIComponent(JSON.stringify(input)):''}`,{method:'POST',headers:{Authorization:'Bearer '+current,...(!options.upload?{'Content-Type':'application/json'}:{})},body:options.upload?options.upload:JSON.stringify(input)});
   if(!active(g)||current!==session)throw Error('The Academy account has changed.');
   if(options.blob&&response.ok)return response.blob();
@@ -21,7 +22,7 @@
  async function load(older=false){
   if(pending)return pending;const g=generation;
   message('Loading lesson recordings…');
-  pending=(async()=>{try{const result=await api('list',older?{before:data.before}:{});if(!active(g))return;data=older?{...result,lessons:[...data.lessons,...result.lessons]}:result;render();}catch(e){if(active(g)){message(e.message,true);if(!data)host.innerHTML='<p data-lm-message class="lm-message" role="alert">'+esc(e.message)+'</p><button type="button" class="button secondary" data-lm="refresh">Try again</button>';}}finally{if(active(g))pending=null;}})();return pending;
+  pending=(async()=>{try{const result=await api('list',{...(older?{before:data.before}:{}),...(learnerView?{view:'learner'}:{})});if(!active(g))return;data=older?{...result,lessons:[...data.lessons,...result.lessons]}:result;render();}catch(e){if(active(g)){message(e.message,true);if(!data)host.innerHTML='<p data-lm-message class="lm-message" role="alert">'+esc(e.message)+'</p><button type="button" class="button secondary" data-lm="refresh">Try again</button>';}}finally{if(active(g))pending=null;}})();return pending;
  }
  function close(force=false){
   if(!force&&busy){modalMessage('Please wait for this change to finish.');return false;}
@@ -90,12 +91,13 @@
   if(action==='retry'&&retry)void retry();
  }
  function reset(){generation++;pending=null;close(true);if(host){host.removeEventListener('click',handleClick);host.replaceChildren();host.hidden=true;}host=null;session='';data=null;}
- window.M4L_LESSON_MEDIA={programId:PROGRAM,canLeave:()=>!busy&&(!dirty||window.confirm('Discard your unfinished media entry?')),reset,open({hostId,programId}){
+ window.M4L_LESSON_MEDIA={programId:PROGRAM,canLeave:()=>!busy&&(!dirty||window.confirm('Discard your unfinished media entry?')),reset,open({hostId,programId,learnerView:asLearner=false}){
   if(programId!==PROGRAM||!token()){reset();return;}
   const target=document.getElementById(hostId);if(!target)return;
-  if(host===target&&session===token()){host.hidden=false;return;}
-  reset();host=target;session=token();host.hidden=false;host.addEventListener('click',handleClick);host.innerHTML='<p data-lm-message class="lm-message" role="status">Loading lesson recordings…</p>';void load();
+  if(host===target&&session===token()&&learnerView===asLearner){host.hidden=false;return;}
+  reset();learnerView=asLearner;host=target;session=token();host.hidden=false;host.addEventListener('click',handleClick);host.innerHTML='<p data-lm-message class="lm-message" role="status">Loading lesson recordings…</p>';void load();
  }};
  document.addEventListener('input',e=>{if(e.target.closest('[data-lm-form=lesson]'))e.target.closest('form').dataset.changed='true';});
+ window.addEventListener('beforeunload',event=>{if(dirty||busy){event.preventDefault();event.returnValue='';}});
  window.addEventListener('m4l-academy-session',reset);window.addEventListener('m4l-academy-session-ended',reset);window.addEventListener('storage',e=>{if(e.key==='m4l_account_token')reset();});window.addEventListener('pagehide',reset);
 })();

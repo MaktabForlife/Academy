@@ -8,11 +8,12 @@ import {readFileSync} from 'node:fs';
 const use=fn=>async()=>{const f=await mediaFixture();try{await fn(f);}finally{f.db.close();}},op=()=>({operationId:crypto.randomUUID()}),id='MOU-20261006';
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
 const save=(input={})=>({...op(),lessonId:id,revision:1,title:'Tarteel & Tadabbur',summary:'',recordingUrl:'https://youtu.be/9IuTDcSs6vQ',state:'PUBLISHED',commentsClosed:false,...input});
-test('only current MOU students can open recordings; staff manage without inherited viewing',use(async f=>{
+test('current learners and authorised admins can view recordings; unrelated teachers remain scoped',use(async f=>{
  const student=await f.login('0002'),admin=await f.login('0001'),teacher=await f.login('0003'),other=await f.login('0005');
  const list=ok(await f.media('list',{},student));assert.equal(list.lessons.length,3);assert.equal(list.canView,true);assert.equal(list.canManage,false);assert.doesNotMatch(JSON.stringify(list),/youtube|youtu\.be|9IuTDcSs6vQ|object_key/);
  assert.match(ok(await f.media('watch',{lessonId:id,assetId:'video-6'},student)).embedUrl,/youtube-nocookie/);
- for(const token of [admin,teacher,other])assert.equal((await f.media('watch',{lessonId:id,assetId:'video-6'},token)).status,403);
+ assert.match(ok(await f.media('watch',{lessonId:id,assetId:'video-6'},admin)).embedUrl,/youtube-nocookie/);
+ for(const token of [teacher,other])assert.equal((await f.media('watch',{lessonId:id,assetId:'video-6'},token)).status,403);
  assert.equal((await f.media('list')).status,401);assert.equal((await f.media('get',{lessonId:id},student)).status,403);
  assert.equal(ok(await f.media('get',{lessonId:id},teacher)).assets[0].url,'https://youtu.be/9IuTDcSs6vQ');
  f.db.prepare("UPDATE role_assignments SET active=0 WHERE account_id='account-0002' AND activity_key=?").run(MOU_MEDIA_PROGRAM);
@@ -87,3 +88,20 @@ test('bounded historical projection adds 6–7 October and leaves every later pu
 test('frontend keeps recording links out of cached metadata and resets protected views on session changes',()=>{
  const js=readFileSync(new URL('../../js/m4l-lesson-media.js',import.meta.url),'utf8');assert.doesNotMatch(js,/setInterval|localStorage\.setItem|sessionStorage\.setItem/);assert.match(js,/m4l-academy-session-ended/);assert.match(js,/URL\.revokeObjectURL/);assert.match(js,/generation/);
 });
+
+test('admin learner media preview hides management controls and unpublished content without assigning Student',use(async f=>{
+ f.env.AUTH_LOGIN_RATE_LIMITER={limit:async()=>({success:true})};
+ const admin=await f.login('0001'),scoped=await f.login('0004'),other=await f.login('0005'),student=await f.login('0002');
+ const roles=f.db.prepare('SELECT * FROM role_assignments ORDER BY assignment_id').all();
+ ok(await f.media('save',save({state:'HIDDEN'}),admin));
+ ok(await f.media('comment-save',{...op(),lessonId:'MOU-20261007',body:'Private pending question'},student));
+ for(const token of [admin,scoped]){
+  const list=ok(await f.media('list',{view:'learner'},token));
+  assert.equal(list.learnerPreview,true);assert.equal(list.canManage,false);assert.equal(list.canView,true);
+  assert.equal(list.lessons.length,2);assert.ok(list.lessons.every(l=>!l.canManage&&l.canView));
+  assert.equal((await f.media('watch',{lessonId:id,assetId:'video-6'},token)).status,403);
+  const comments=ok(await f.media('comments',{lessonId:'MOU-20261007',view:'learner'},token));assert.equal(comments.canManage,false);assert.equal(comments.comments.length,0);
+ }
+ assert.equal((await f.media('list',{view:'learner'},other)).status,403);
+ assert.deepEqual(f.db.prepare('SELECT * FROM role_assignments ORDER BY assignment_id').all(),roles);
+}));

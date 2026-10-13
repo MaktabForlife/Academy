@@ -91,6 +91,7 @@ assert.deepEqual(requests.filter(r=>r.action==='save').at(-1).body,pendingReques
 assert(!Object.hasOwn(pendingRequest,'needsRecovery'));
 console.log('Shared profiles UI: matrix rows, combined roles, independent inactive status, preserved drafts, stable retries, post-save quota recovery and conflict review passed.');
 
+element('up-status-filter').onchange({target:{value:''}});
 // Several users and role cells are retained and committed by Save all in one write.
 await editProfile();name('Batch person');element('up-users').onchange({target:{dataset:{active:''},value:'true'}});
 await rowClick({profile:'OWNER'});name('Batch owner');

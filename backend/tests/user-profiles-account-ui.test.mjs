@@ -9,6 +9,7 @@ const settle=async()=>{for(let i=0;i<20;i++)await new Promise(r=>setTimeout(r,2)
 test('profile sheet orders compact editable account columns, filters active learning areas and explicitly confirms PIN resets',async()=>{
   const f=await fixtureDatabase();
   for(const name of ['0004_management_transactions.sql','0011_account_contact_details.sql'])f.db.exec(readFileSync(new URL('../migrations/academy/'+name,import.meta.url),'utf8'));
+  f.db.exec(readFileSync(new URL('../migrations/academy/0009_course_review_and_teachers.sql',import.meta.url),'utf8').split('ALTER TABLE')[0]);
   const response=await worker.fetch(new Request('http://localhost/api/account/login',{method:'POST',body:JSON.stringify({uniqueid:'login-0001',pin:'1234'})}),f.env),{token}=await response.json();
   const elements=new Map(),storage=new Map(),requests=[];let lost=false;
   const el=id=>{if(!elements.has(id))elements.set(id,{dataset:{},hidden:false,disabled:false,value:'',innerHTML:'',textContent:'',classList:{toggle(){}},setAttribute(){},showModal(){this.open=true;},close(){this.open=false;},focus(){}});return elements.get(id);};
@@ -27,7 +28,15 @@ test('profile sheet orders compact editable account columns, filters active lear
     assert.match(markup,/id="up-refresh"[^>]*data-page-content-refresh/);assert.match(markup,/<div class="up-save-bar"><button id="up-add">[^<]+<\/button><button id="up-save-all">Save all<\/button>/);
     assert.doesNotMatch(markup,/<header[^>]*>.*Subjects &amp; Modules|id="up-back"/);
     f.db.exec("UPDATE activities SET active=0 WHERE kind='COURSE'");el('up-refresh').onclick();await settle();
-    assert.match(el('up-head').innerHTML,/Synthetic subject/);el('up-active-areas').onclick();assert.doesNotMatch(el('up-head').innerHTML,/Synthetic subject/);assert.equal(el('up-active-areas').textContent,'Active only ✓');el('up-active-areas').onclick();
+    assert.doesNotMatch(el('up-head').innerHTML,/Synthetic subject/,'Inactive areas are hidden by default');
+    el('up-filter-open').onclick();el('up-course-status').value='ALL';el('up-filter-cancel').onclick();assert.doesNotMatch(el('up-head').innerHTML,/Synthetic subject/,'Cancel leaves the applied filter unchanged');
+    el('up-filter-open').onclick();el('up-course-status').value='ALL';el('up-filter-apply').onclick();assert.match(el('up-head').innerHTML,/Synthetic subject/);
+    el('up-filter-open').onclick();el('up-course-status').value='AVAILABLE';el('up-filter-apply').onclick();assert.doesNotMatch(el('up-head').innerHTML,/Synthetic subject/);
+    el('up-tabs').onclick({target:{closest:()=>({dataset:{upTab:'globals'}})}});assert.match(el('up-head').innerHTML,/Global Admin/);
+    assert.match(el('up-users').innerHTML,/<input[^>]+data-global-role="academyAdmin"[^>]+data-account="account-0001"[^>]+disabled/,'Your own Global Admin designation cannot be removed');
+    el('up-users').onchange({target:{dataset:{globalRole:'academyTeacher',account:'account-0008'},checked:true}});el('up-save-all').onclick();await settle();
+    assert.equal(f.db.prepare("SELECT active FROM academy_teacher_designations WHERE account_id='account-0008'").get().active,1);
+    el('up-tabs').onclick({target:{closest:()=>({dataset:{upTab:'details'}})}});
     input('uniqueId','bad id');el('up-save-all').onclick();await settle();assert.match(el('up-message').textContent,/only letters and numbers/);
     input('uniqueId','login-0001');el('up-save-all').onclick();await settle();assert.match(el('up-message').textContent,/only letters and numbers/);
     input('uniqueId','Learner42');input('whatsappNumber','+27 82 123 4567');el('up-save-all').onclick();await settle();

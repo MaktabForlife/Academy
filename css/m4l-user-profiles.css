@@ -110,6 +110,8 @@ body.user-profiles-sheet.academy-connected { padding-left:0; }
   .academy-mobile-layout.user-profiles-sheet .up-toolbar .pb-count{margin:0}
   .academy-mobile-layout.user-profiles-sheet :is(.up-filter-actions,.up-save-bar){grid-column:1/-1;width:auto;gap:6px}
   .academy-mobile-layout.user-profiles-sheet .up-save-bar>span{flex-basis:100%}
+  /* Let vertical swipes return to the page heading at either edge of the sheet. */
+  .academy-mobile-layout.user-profiles-sheet .up-matrix-scroll{overscroll-behavior-y:auto}
   .academy-mobile-layout.user-profiles-sheet .up-matrix{--up-login-width:130px;--up-phone-width:144px;--up-status-width:90px;--up-actions-width:190px}
   .academy-mobile-layout.user-profiles-sheet .up-matrix :is(th,td){height:40px;padding:2px 4px;line-height:1.2}
   .academy-mobile-layout.user-profiles-sheet main .up-matrix :is(input:not([type=checkbox]):not([type=radio]):not([type=range]),select,.up-cell){height:36px;min-height:36px;padding:3px 2px}
@@ -128,3 +130,24 @@ body.user-profiles-sheet.academy-connected { padding-left:0; }
 .up-matrix:not([data-view=details]) [data-name]{display:none}
 .user-profiles-sheet .up-matrix:not([data-view=details]){min-width:calc(var(--up-name-width) + var(--up-scope-count,0)*130px)}
 .user-profiles-sheet .up-matrix[data-view=details]{min-width:calc(var(--up-name-width) + var(--up-login-width) + var(--up-phone-width) + var(--up-status-width) + var(--up-actions-width))}
+
+/* Status filters live in one popup; the main actions share one compact row. */
+.up-primary-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:auto}
+.user-profiles-sheet .up-filter-actions,#up-global-status{display:none!important}
+#up-filter-dialog{box-sizing:border-box;width:min(420px,calc(100vw - 24px));max-height:85dvh;overflow:auto;padding:20px;border:1px solid var(--pb-line);border-radius:14px;color:var(--pb-ink)}
+#up-filter-dialog::backdrop{background:#30293688}
+#up-filter-dialog h2{margin:0 0 16px;font-size:22px}
+#up-filter-dialog>label{display:grid;gap:6px;margin:12px 0;font-size:13px;font-weight:600}
+#up-filter-dialog select{width:100%;min-height:44px;padding:8px;border:1px solid var(--pb-line);border-radius:7px;font:inherit;background:#fff;color:inherit}
+.up-matrix[data-view=globals] [data-scope-kind]{display:none}
+.user-profiles-sheet .up-matrix[data-view=globals]{min-width:calc(var(--up-name-width) + 230px)}
+.up-matrix [data-global-column]{text-align:center;width:115px}
+.up-matrix [data-global-role]{width:20px;height:20px;accent-color:var(--pb-purple)}
+@media(max-width:900px){
+ .academy-mobile-layout.user-profiles-sheet .up-primary-actions{display:grid;grid-template-columns:auto auto auto;grid-column:1/-1;justify-content:start;gap:6px;margin:0}
+ .academy-mobile-layout.user-profiles-sheet .up-primary-actions .up-save-bar{display:contents}
+ .academy-mobile-layout.user-profiles-sheet .up-primary-actions #up-filter-open{grid-column:1}
+ .academy-mobile-layout.user-profiles-sheet .up-primary-actions #up-add{grid-column:2}
+ .academy-mobile-layout.user-profiles-sheet .up-primary-actions #up-save-all{grid-column:3}
+ .academy-mobile-layout.user-profiles-sheet .up-primary-actions :is(#up-unsaved,#up-save,#up-cancel){grid-column:1/-1}
+}

@@ -1,3 +1,7 @@
+# V106.46 — Compact management and direct calendars
+
+Manage Users adds Global Users and a status filter popup with separate user, Program and Course controls. Inactive users and cancelled/archived learning areas are hidden by default. Mobile table swipes return to the page heading. Manage Programs adds Lesson media; authorised Admins can preview learner screens. Calendar sections expand directly to the full month, with selectors hidden for learners and teachers and the correct workspace highlighted. [Release details](docs/ACADEMY-UI-106.46.md).
+
 # V106.45 — Academic Calendar
 
 A mobile-first monthly calendar brings together Academy and Program terms, holidays and Islamic dates. Teachers can record dated or weekly availability exceptions; administrators manage them within their authorised scope. Teaching hours per week are display only. Development activation awaits approval for the additive calendar database upgrade. [Release details](docs/ACADEMY-CALENDAR-106.45.md).

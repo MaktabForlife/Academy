@@ -119,15 +119,15 @@ async function programHeader(path,globalAdmin=true,options={}) {
     fetch:async()=>{requests.push('list');return {ok:true,json:async()=>({success:true,store:'D1',globalAdmin,programs:[{id:programId,name:'Synthetic <Program>',status:'ACTIVE'}],...options})};}});
   await flush();return {headers,classes,handlers,tokens,window,requests};
 }
-for(const [page,label] of [['timetable','Timetable'],['manage','People'],['media','Library'],['library','Library'],['library-view','Library'],['attendance','Attendance']]) {
+for(const [page,label] of [['timetable','Timetable'],['manage','People'],['lesson-media','Lesson media'],['media','Library'],['library','Library'],['library-view','Library'],['attendance','Attendance']]) {
   for(const ending of ['', '.html', '/']) {
     const view=await programHeader('/programs/'+page+ending);
     assert.equal(view.headers.length,1);const html=view.headers[0].innerHTML;
     const selected=[...html.matchAll(/<a [^>]*aria-current="page"[^>]*>([^<]+)<\/a>/g)].map(m=>m[1]);
     assert.deepEqual(selected,[label],`Correct current tab at ${page+ending}`);
-    assert.equal((html.match(/<nav class="pgm-tabs"[\s\S]*?<\/nav>/)?.[0].match(/<a /g)||[]).length,['timetable','manage'].includes(page)?3:4);
+    assert.equal((html.match(/<nav class="pgm-tabs"[\s\S]*?<\/nav>/)?.[0].match(/<a /g)||[]).length,4);
     assert.doesNotMatch(html,/>User profiles</);assert.match(html,/Synthetic &lt;Program&gt;/);
-    if(['timetable','manage'].includes(page)){assert.match(html,/<h1>Manage Programs<\/h1>/);assert.match(html,/>Program List<\/a>/);assert.doesNotMatch(html,/Back to Program management|Program management<\/span>/);}else assert.match(html,new RegExp('href="/programs/\\?program='+programId+'">Back to Program management'));
+    if(['timetable','manage','lesson-media'].includes(page)){assert.match(html,/<h1>Manage Programs<\/h1>/);assert.match(html,/>Program List<\/a>/);assert.doesNotMatch(html,/Back to Program management|Program management<\/span>/);}else assert.match(html,new RegExp('href="/programs/\\?program='+programId+'">Back to Program management'));
   }
 }
 const rootView=await programHeader('/programs/');

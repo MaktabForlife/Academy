@@ -5,8 +5,9 @@
   const escape = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[char]));
   const timezone = "Africa/Johannesburg";
   const fields = ["name", "durationYears", "timezone", "status", "spreadsheetId", "accessModel", "programZoomLink"];
-  const state = { owner:"", rows: [], selected: new URLSearchParams(location.search).get('program')||"", busy: false, search: "", filter: "", readiness: {}, store: "SHEETS", statuses: ["DRAFT", "ARCHIVED"] };
+  const state = { owner:"", rows: [], selected: new URLSearchParams(location.search).get('program')||"", busy: false, search: "", filter: "AVAILABLE", readiness: {}, store: "SHEETS", statuses: ["DRAFT", "ARCHIVED"] };
   const dirty = row => !row.saved || fields.some(field => String(row[field] ?? "") !== String(row.saved[field] ?? "")) || JSON.stringify(row.publicCard||{})!==JSON.stringify(row.saved.publicCard||{});
+  const matchesStatus=row=>!state.filter||(state.filter==="AVAILABLE"?!["ARCHIVED","CANCELLED"].includes(row.status):row.status===state.filter);
   const hasEdits = () => state.rows.some(dirty);
   const draft = program => ({ ...program, publicCard:{...program.publicCard}, saved: { ...program,publicCard:{...program.publicCard} }, error: "" });
   function message(text, error = false) {
@@ -55,7 +56,7 @@
   }
   function render() {
     busyControls();
-    const rows = state.rows.filter(row => (!state.filter || row.status === state.filter)
+    const rows = state.rows.filter(row => matchesStatus(row)
       && `${row.name} ${row.id}`.toLowerCase().includes(state.search.toLowerCase()));
     byId("program-count").textContent = `${rows.length} of ${state.rows.length} Programs`;
     byId("program-rows").innerHTML = rows.length ? rows.map((row, index) => renderRow(row, index + 1)).join("")
@@ -79,7 +80,7 @@
   function renderDetail() {
     const panel = byId("program-detail");
     const row = state.rows.find(item => item.id === state.selected);
-    panel.hidden = !row || row.mode !== "PROGRAM" || (state.filter && row.status !== state.filter)
+    panel.hidden = !row || row.mode !== "PROGRAM" || !matchesStatus(row)
       || !`${row.name} ${row.id}`.toLowerCase().includes(state.search.toLowerCase());
     window.M4L_PROGRAM_MANAGEMENT_NAV?.setSelection(selection());
     if (panel.hidden) return;
@@ -193,7 +194,7 @@
     } catch (error) { message(error.message, true); }
   }
   function selection(){
-    const row=state.rows.find(item=>item.id===state.selected&&item.mode==='PROGRAM'&&(!state.filter||item.status===state.filter)&&`${item.name} ${item.id}`.toLowerCase().includes(state.search.toLowerCase()));
+    const row=state.rows.find(item=>item.id===state.selected&&item.mode==='PROGRAM'&&matchesStatus(item)&&`${item.name} ${item.id}`.toLowerCase().includes(state.search.toLowerCase()));
     return {ready:state.store==='D1'&&Boolean(state.owner)&&state.owner===localStorage.getItem('m4l_account_token'),program:row?{id:row.id,name:row.name}:null,available:Boolean(row?.saved&&!dirty(row)&&!state.busy)};
   }
   window.M4L_PROGRAM_BUILDER_NAV={selection};
