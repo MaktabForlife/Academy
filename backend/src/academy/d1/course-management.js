@@ -11,6 +11,8 @@ import {lessonTimes} from '../entrance.js';
 import {insertRecords} from './insert-records.js';
 import {teacherDesignations,teacherDirectory,eligibleTeacher} from './teachers.js';
 import {optionalSchema} from './schema-probe.js';
+import {availableForSession} from '../availability-ranges.js';
+import {termBreaks} from '../calendar-dates.js';
 
 const clean=v=>String(v??'').trim();
 const id=v=>/^[a-z0-9][a-z0-9_-]{0,119}$/i.test(v);
@@ -47,6 +49,8 @@ function normalize(input,timezone) {
 function holidayWarnings(data,d) {
   if(!validIsoDate(d.startDate)||!validIsoDate(d.endDate)||d.endDate<d.startDate||Date.parse(d.endDate)-Date.parse(d.startDate)>366*86400000)return [];
   const events=buildAcademyCalendarEvents(calendarRows(data.calendar,data.suppressions),d.startDate,d.endDate);
+  const terms=data.calendar.filter(r=>r.active&&(!r.scope_key||r.scope_key==='ACADEMY')&&r.event_type==='TERM'&&r.calendar_kind!=='ACADEMY_HOLIDAY').map(r=>({active:true,startDate:r.start_date,endDate:r.end_date}));
+  for(let year=Number(d.startDate.slice(0,4));year<=Number(d.endDate.slice(0,4));year++)events.push(...termBreaks(terms,year));
   return d.sessions.filter(s=>s.status==='SCHEDULED').flatMap(s=>events.filter(e=>e.teachingImpact==='NO_TEACHING'&&s.date>=e.startDate&&s.date<=e.endDate).map(e=>({code:'HOLIDAY',sessionId:s.id,date:s.date,message:`${s.date}: ${e.description}`})));
 }
 const clock=v=>/^([01]\d|2[0-3]):[0-5]\d$/.test(v);
@@ -83,6 +87,8 @@ async function validate(data,course,d) {
     if(!clock(s.startTime)||!clock(s.endTime)||s.endTime<=s.startTime)error('startTime','Enter a session finish time later than its start time.',s.id);
     if(s.status==='CANCELLED')continue;
     if(!eligibleTeacher(data,s.teacherId))error('teacherId','Choose an active designated teacher for this session.',s.id);
+    const availability=data.availability?.find(a=>same(a.account_id,s.teacherId));
+    if(availability&&validIsoDate(s.date)&&clock(s.startTime)&&clock(s.endTime)&&!availableForSession(JSON.parse(availability.ranges_json),s.date,s.startTime,s.endTime))warnings.push({code:'TEACHER_UNAVAILABLE',sessionId:s.id,date:s.date,message:`${s.date}: this teacher has an availability exception during the session.`});
     if(!zoom(s.zoomLink))error('zoomLink','Enter a secure Zoom meeting link for this session.',s.id);
     if(data.sessions.some(r=>same(r.session_id,s.id)&&(!same(r.activity_key,course.activityKey)||!same(r.run_id,course.runId))))error('sessions','A session identifier belongs to another Course.',s.id);
     if(!timezoneValid||!validIsoDate(s.date)||!clock(s.startTime)||!clock(s.endTime))continue;
@@ -100,7 +106,7 @@ async function validate(data,course,d) {
     });
     if(conflict)warnings.push({code:'TEACHER_CLASH',sessionId:s.id,date:s.date,message:`${s.date}: this teacher has another published Academy lesson at this time.`});
   }
-  return {valid:!errors.length,errors,warnings,token:await payloadHash({details:d,calendar:data.calendar,suppressions:data.suppressions,teachers:data.accounts.map(a=>[a.account_id,a.active,a.revision]),eligibleTeachers:teacherDirectory(data).map(t=>t.accountId),teaching:data.teaching})};
+  return {valid:!errors.length,errors,warnings,token:await payloadHash({details:d,calendar:data.calendar,suppressions:data.suppressions,availability:data.availability,teachers:data.accounts.map(a=>[a.account_id,a.active,a.revision]),eligibleTeachers:teacherDirectory(data).map(t=>t.accountId),teaching:data.teaching})};
 }
 function effectiveStage(course,now=new Date()) {
   const d=course.details;

@@ -1,3 +1,7 @@
+# V106.45 — Academic Calendar
+
+A mobile-first monthly calendar brings together Academy and Program terms, holidays and Islamic dates. Teachers can record dated or weekly availability exceptions; administrators manage them within their authorised scope. Teaching hours per week are display only. Development activation awaits approval for the additive calendar database upgrade. [Release details](docs/ACADEMY-CALENDAR-106.45.md).
+
 # V106.44 — Zoom link notes
 
 Program, class and lesson Zoom headings have an information pop-up explaining link priority and publication requirements. Class-link updates also apply to migrated Programs without an explicitly saved Program Zoom setting. [Release details](docs/ACADEMY-ZOOM-LINK-HELP-106.44.md).

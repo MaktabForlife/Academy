@@ -35,7 +35,7 @@ export async function requireCourseCalendar(db) {
 const nullable=v=>String(v??'').trim()||null;
 const numbered=records=>records.map((r,i)=>({...r,_rowNumber:i+2}));
 export function calendarRows(events,suppressions=[]) {
-  return [...events.map(r=>({CalendarEventID:r.event_id,EventType:r.event_type,Description:r.description,
+  return [...events.filter(r=>!r.scope_key||r.scope_key==='ACADEMY').map(r=>({CalendarEventID:r.event_id,EventType:r.event_type,Description:r.description,
     StartDate:r.start_date,EndDate:r.end_date,AlternateDate:r.alternate_date||'',TeachingImpact:r.teaching_impact,Active:Boolean(r.active)})),
     ...suppressions.map(r=>({CalendarEventID:`D1-SUPPRESSION-${r.calendar_date}`,EventType:'PUBLIC_HOLIDAY',Description:'Public Holiday',StartDate:r.calendar_date,EndDate:r.calendar_date,TeachingImpact:'NO_TEACHING',Active:false}))];
 }
@@ -232,6 +232,8 @@ export async function courseCalendarStatements(store,data,tables,changes,auth,en
 function cleanRecord(r){return Object.fromEntries(Object.entries(r).filter(([name])=>!name.startsWith('_')));}
 
 export async function loadCourseCalendarData(store,repository,extra={}) {
+  const availability=await optionalSchema(repository.db,'SELECT account_id FROM teacher_availability WHERE 0');
+  extra={availability:store.p(availability?'SELECT * FROM teacher_availability':"SELECT account_id,'[]' AS ranges_json FROM accounts WHERE 0"),...extra};
   return store.load({...Object.fromEntries(Object.entries({subscriptions:await repository.subscriptionSource(),runs:'course_runs',sessions:'course_draft_sessions',states:'course_run_state',publications:"timetable_publications WHERE pattern='COURSE'",lifecycles:'lesson_lifecycle',modules:'modules',tasks:'tasks',resources:'course_resources',access:'course_run_access',sessionState:'course_session_state',draftLifecycle:'course_draft_lifecycle',calendar:'academy_calendar_events',suppressions:'academy_calendar_suppressions',settings:'academy_settings',coursePolicies:'course_settings'}).map(([name,table])=>[name,store.p(`SELECT * FROM ${table}`)])),...extra});
 }
 

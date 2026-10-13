@@ -17,8 +17,9 @@
    const search=$('pa-search').value.trim().toLowerCase();
    $('pa-rows').innerHTML=data.teachers.filter(t=>t.name.toLowerCase().includes(search)).map(t=>{
     const entry=data.availability.find(a=>a.teacherId===t.id),hours=entry?.ranges||[];
-    const summary=hours.length?order.map(day=>{const rows=hours.filter(r=>r.weekday===day);return rows.length?`<div><strong>${days[day].slice(0,3)}</strong> ${rows.map(r=>`${esc(r.startTime)}–${esc(r.endTime)}`).join(', ')}</div>`:'';}).join(''):'Available · no restrictions';
-    return `<tr><th scope="row">${esc(t.name)}</th><td>${summary}</td><td><button type="button" class="pb-secondary" data-pa-edit="${esc(t.id)}" aria-label="Edit availability for ${esc(t.name)}">Edit</button></td></tr>`;
+    const exceptions=hours.some(r=>r.status==='AVAILABLE'||r.status==='UNAVAILABLE');
+    const summary=exceptions?'Availability exceptions · open calendar':hours.length?order.map(day=>{const rows=hours.filter(r=>r.weekday===day);return rows.length?`<div><strong>${days[day].slice(0,3)}</strong> ${rows.map(r=>`${esc(r.startTime)}–${esc(r.endTime)}`).join(', ')}</div>`:'';}).join(''):'Available · no restrictions';
+    return `<tr><th scope="row">${esc(t.name)}</th><td>${summary}</td><td><button type="button" class="pb-secondary" data-pa-edit="${esc(t.id)}" aria-label="Open availability calendar for ${esc(t.name)}">Open calendar</button></td></tr>`;
    }).join('')||'<tr><td colspan="3">No matching teachers.</td></tr>';
    $('pa-notices').innerHTML=notices.map(n=>`<p>${esc(n.teacher)} changed teaching availability · ${esc(new Date(n.changedAt).toLocaleString())}</p>`).join('');controls();
   }
@@ -34,10 +35,10 @@
   $('pa-close').onclick=()=>{generation++;dialog.close();};
   dialog.addEventListener('cancel',()=>{generation++;});
   $('pa-search').oninput=update;
-  $('pa-rows').onclick=async e=>{
+  $('pa-rows').onclick=e=>{
    const accountId=e.target.closest('[data-pa-edit]')?.dataset.paEdit;if(!accountId||busy)return;
-   busy=true;controls();message('Loading teaching hours…');
-   try{editing=await api('get',{accountId});ranges=structuredClone(editing.ranges);pending=null;renderEditor();message('');}catch(error){message(error.message,true);}finally{busy=false;controls();}
+   const query=new URLSearchParams({teacher:accountId,edit:'1'}),program=new URLSearchParams(location.search).get('program');if(program)query.set('program',program);
+   location.href='/academy/calendar/?'+query;
   };
   $('pa-days').onclick=e=>{if(busy)return;const add=e.target.closest('[data-pa-add]'),remove=e.target.closest('[data-pa-remove]');
    if(add){ranges.push({id:'AVAIL-'+crypto.randomUUID(),weekday:Number(add.dataset.paAdd),startTime:'',endTime:''});pending=null;renderEditor();}

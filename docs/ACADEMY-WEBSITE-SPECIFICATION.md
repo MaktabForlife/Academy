@@ -142,7 +142,7 @@ Use these learning structures:
 
 - **Courses:** The existing shared curriculum, organised into Modules, with linked scheduled lessons and offerings such as workshops, bootcamps and presentations where supported.
 
-Each activity opens an appropriate landing page containing its available tools. Display the person’s subscribed Programs and a combined **Workshops** pill in **one horizontally swipeable top row on Academy pages other than the home page**, including both Library views and connected new Program tools. Keep the top pills compact and uniform, centre their text, and place roles beneath names. Show each Program separately and combine all authorised Courses into one Workshops pill, opening the existing authorised Course chooser with its actual underlying IDs and roles. Highlight the current Program, or Workshops when viewing a Course or the chooser. Populate this row from actual authorised account access. Do not repeat this row on the home page; retain the existing My Academy activity panel there. Students see their **personal integrated Academy timetable**, **Announcements**, **Calendar** and **Assignments** on every Program page, with **Library** in its menu. The timetable includes their enrolled or assigned lessons across all new Programs and Courses, rather than filtering to the displayed Program. Show **Coming soon** for announcements, calendar or assignments while their new Program integrations are unavailable. Omit the Classes and Subjects/Modules sections from student Program and Course pages. Authorised teaching and administration roles retain the available teaching sections.
+Each activity opens an appropriate landing page containing its available tools. Display the person’s subscribed Programs and a combined **Workshops** pill in **one horizontally swipeable top row on Academy pages other than the home page**, including both Library views and connected new Program tools. Keep the top pills compact and uniform, centre their text, and place roles beneath names. Show each Program separately and combine all authorised Courses into one Workshops pill, opening the existing authorised Course chooser with its actual underlying IDs and roles. Highlight the current Program, or Workshops when viewing a Course or the chooser. Populate this row from actual authorised account access. Do not repeat this row on the home page; retain the existing My Academy activity panel there. Students see their **personal integrated Academy timetable**, **Announcements**, **Calendar** and **Assignments** on every Program page, with **Library** in its menu. The timetable includes their enrolled or assigned lessons across all new Programs and Courses, rather than filtering to the displayed Program. Open the shared Academic Calendar from each Program page. Show **Coming soon** for announcements or assignments while their new Program integrations are unavailable. Omit the Classes and Subjects/Modules sections from student Program and Course pages. Authorised teaching and administration roles retain the available teaching sections.
 
 Reboot’s lessons within the personal integrated Academy timetable come from the new Pilot Program’s published timetable. Its Library resources, classes and available teaching tools use that same new Program and actual Program ID. Apply the same integration pattern to other Academy Programs; the timetable remains Academy-wide for the signed-in person when switching activity pages.
 
@@ -194,6 +194,20 @@ Global Admin admits new students. Program Admin assigns admitted students to cla
 For Reboot, class assignment and staff responsibilities refer to the new Pilot Program’s classes and access records. Do not convert legacy Reboot roles or learner records as part of this website work.
 
 Program Admin additionally has **Program management**, **User management** and **Calendar management** within their authorised Program. The intended HOD remit includes timetable publication and oversight of teaching, attendance, progress and resources. Where current services only allow Global Admin access or do not enforce the required scope, show **Coming soon** rather than bypassing that restriction.
+
+### Academic Calendar
+
+Use Hifzhelper’s calendar as the design template, while keeping Hifzhelper independent until a later integration. Keep the visitor timetable snapshot unchanged.
+
+Provide a mobile-first monthly calendar that people can browse with month arrows or a horizontal swipe. Tapping a date opens its full details. Show current term dates, Academy term holidays and other Academy holidays, standard South African public holidays with administrator overrides, and significant Islamic dates from the existing Academy reference list.
+
+Global Admin manages Academy terms and holidays and may manage any Program calendar. Program Admin manages terms and Academy holidays only within their assigned Programs. Programs inherit Academy terms until their own terms are configured. Calendar changes preserve published timetable records.
+
+Teachers and administrators also have teacher availability. A teacher is assumed available when no exception applies. Allow multiple available or unavailable date ranges, or recurring weekly ranges with multiple selected weekdays and a time range. Dated entries override weekly entries; the last matching entry wins within each type. Teachers may edit only their own availability; Program Admin may edit teachers assigned to their Programs; Global Admin may edit any teacher.
+
+Show **Teaching hours per week** in the availability section as a read-only summary calculated from published assigned lessons, counting overlapping lessons once. Availability exceptions are edited separately; the hours summary has no editable fields.
+
+Use stacked forms, full-width controls and touch-friendly buttons on phones. Expand to side-by-side controls on wider screens. Keep timezone names out of displayed pages unless specifically requested.
 
 ## 6. Library
 

@@ -230,6 +230,7 @@
     const data = state.home;
     $('academy-progress-nav').hidden = false;
     $('academy-recorder-nav').hidden = !(data.signedIn && data.student);
+    $('academy-calendar-nav').hidden = !data.signedIn;
     const activities = data.signedIn ? data.personalActivities : [];
     renderAcademyMenu();
     renderSubscriptions(activities);
@@ -343,7 +344,7 @@
     const calendar = events.length ? `<ul class="activity-calendar-list">${events.map(event => `<li><strong>${esc(event.description)}</strong> · ${esc(formatDate(event.startDate))}${event.endDate !== event.startDate ? ' – '+esc(formatDate(event.endDate)) : ''}</li>`).join('')}</ul>` : '<p class="muted">No Academy events in this week.</p>';
     const progress = mode === 'admin' ? global ? '#progress-admin' : '' : mode === 'teach' && row ? workspaceHref(row,'surahs-duas') : '';
     return `<details class="academy-support-card academy-messages"><summary><span>${staff ? 'Reminders' : 'Messages'}</span><small>Coming soon</small></summary><p class="muted">${staff ? 'Editing and sending reminders' : 'Academy messaging'} is coming soon.</p></details>
-      <details class="academy-support-card"><summary><span>Academy calendar</span><small>This week</small></summary>${calendar}${staff ? '<a class="button secondary" href="/academy/teaching/">Edit availability</a>' : ''}${mode === 'admin' && global ? '<p class="tiny muted">Calendar editing in this workspace is coming soon.</p>' : ''}</details>
+      <details class="academy-support-card"><summary><span>Academy calendar</span><small>This week</small></summary>${calendar}<a class="button secondary" href="/academy/calendar/${row?.kind === 'PROGRAM'?'?program='+encodeURIComponent(row.id):''}">Open Academic Calendar</a></details>
       ${!staff ? '' : `<details class="academy-support-card"><summary><span>Hifdh tracker</span><small>${mode === 'teach' ? 'Class progress' : 'Manage progress'}</small></summary>${progress ? `<a class="button secondary" href="${progress}">${mode === 'teach' ? 'Open class progress' : 'Manage trackers'}</a>` : adminAreas().map(area => `<a class="button secondary" href="#progress-admin/${area.kind}/${encodeURIComponent(area.id)}">${esc(area.name)}</a>`).join('')}</details>`}`;
   }
   function syncWorkspace(row) {
@@ -397,15 +398,13 @@
     const names = {academy:'Academy',attendance:'Attendance',progress:'Progress',assessment:'Assessment',plan:'Planning',announcements:'Announcements',calendar:'Calendar'};
     if (!names[key] || key === 'academy' && !(state.home.globalAdmin || adminRoles(row.roles))) return;
     if (['attendance','plan'].includes(key) && !staffRoles(row.roles) && !state.home.globalAdmin) return;
+    if (key === 'calendar') { $('workspace-tool').close(); location.href='/academy/calendar/'+(row.kind==='PROGRAM'?'?program='+encodeURIComponent(row.id):''); return; }
     if (key === 'progress') { $('workspace-tool').close(); location.hash = row.id?`${activityHref(row)}/surahs-duas`:'#workshops/surahs-duas'; return; }
     $('workspace-tool-title').textContent = names[key];
     if (key === 'academy') {
       $('workspace-tool-body').innerHTML = (state.home.globalAdmin ? '<div class="academy-tool-pills"><a href="/academy/subjects/">Subjects &amp; Modules</a></div>' : '') +
         `<div class="academy-tool-pills"><button type="button" data-workspace-tool="calendar">Calendar</button><button type="button" data-workspace-tool="announcements">Announcements</button><a href="${row.id?'#progress-admin/'+row.kind+'/'+encodeURIComponent(row.id):'#progress-admin/COURSE'}">Hifdh</a>`+ (state.home.globalAdmin?'<button id="public-timetable-refresh" type="button">Update public timetable</button>':'')+'</div><p id="public-timetable-refresh-message" role="status" aria-live="polite"></p>';
       bindPublicTimetableRefresh();
-    } else if (key === 'calendar') {
-      const events = state.home.calendarEvents || [];
-      $('workspace-tool-body').innerHTML = events.length ? `<ul class="activity-calendar-list">${events.map(event=>`<li><strong>${esc(event.description)}</strong> · ${esc(formatDate(event.startDate))}${event.endDate!==event.startDate?' – '+esc(formatDate(event.endDate)):''}</li>`).join('')}</ul>` : '<p>No Academy events in this week.</p>';
     } else $('workspace-tool-body').innerHTML = `<p>${esc(names[key])} for ${esc(row.name)} is coming soon.</p>`;
     if (!$('workspace-tool').open) $('workspace-tool').showModal();
   }
@@ -848,6 +847,7 @@
     renderAcademyMenu();
     $('academy-progress-nav').hidden = false;
     $('academy-recorder-nav').hidden = true;
+    $('academy-calendar-nav').hidden = true;
     for (const id of ['workshop-pills', 'academy-preview-sessions', 'academy-sessions', 'activity-switcher', 'activity-menu', 'activity-sessions', 'workshop-tools', 'recorder-card']) $(id).replaceChildren();
     $('activity-switcher').hidden = true;
     for (const id of ['activity-library','activity-planning','activity-support']) {$(id).hidden = true;$(id).replaceChildren();}

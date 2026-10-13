@@ -1,3 +1,7 @@
+# V106.45 — Academic Calendar
+
+A mobile-first monthly calendar brings together Academy and Program terms, holidays and Islamic dates. Teachers can record dated or weekly availability exceptions; administrators manage them within their authorised scope. Teaching hours per week are display only. Development activation awaits approval for the additive calendar database upgrade. [Release details](docs/ACADEMY-CALENDAR-106.45.md).
+
 # V106.16 — Readable public timetable cards
 
 Public timetable cards give the entered title and description their full width, with time and joining controls on a separate wrapping row. This prevents the Steps to My Rabb card from collapsing into a vertical column of letters. Time stays readable when joining is open. Card JSON, Free/Paid access, joining windows and snapshot caching are unchanged.

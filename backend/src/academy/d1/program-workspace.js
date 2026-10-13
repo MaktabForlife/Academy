@@ -23,7 +23,7 @@ export async function workspaceValidation(loaded,draft,catalog,date) {
  draft=applyProgramZoom(draft,loaded.program);
  const validationDraft=draft.planner?{...draft,planner:{...draft.planner,availability:[]}}:draft;
  const result=validateWeeklyTimetable(validationDraft,catalog,loaded.program,date);
- const review=reviewAvailability(draft,catalog,loaded.data.availability);
+ const review=reviewAvailability(draft,catalog,loaded.data.availability,date);
  result.issues.push(...review.issues);result.warnings=[...(result.warnings||[]),...review.warnings];result.valid&&=!review.issues.length;
  // Incomplete drafts remain shareable, clearly marked as unvalidated. Preview
  // only rows with usable times/days, without treating missing references as valid.
