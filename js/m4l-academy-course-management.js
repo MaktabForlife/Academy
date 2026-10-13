@@ -3,7 +3,7 @@
   'use strict';
   const $=id=>document.getElementById(id),esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const token=()=>localStorage.getItem('m4l_account_token')||'',base='/api/admin/platform/courses/';
-  const state={token:'',session:null,generation:0,selection:0,courses:[],categories:[],teachers:[],timezone:'Africa/Johannesburg',capabilities:{},course:null,draft:null,dirty:false,tab:'details',busy:false,review:null,calendarWarnings:[],media:[],participants:null,personDrafts:new Map(),peopleSearch:'',assignedOnly:false,pending:null};
+  const state={token:'',session:null,generation:0,selection:0,courses:[],categories:[],teachers:[],timezone:'Africa/Johannesburg',capabilities:{},course:null,draft:null,dirty:false,tab:'list',busy:false,review:null,calendarWarnings:[],media:[],participants:null,personDrafts:new Map(),peopleSearch:'',assignedOnly:false,pending:null,filters:{search:'',status:''}};
   const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const labels={DRAFT:'Draft',PUBLISHED:'Published',ACTIVE:'Active',COMPLETE:'Complete',CANCELLED:'Cancelled',ARCHIVED:'Archived'};
   const copy=value=>JSON.parse(JSON.stringify(value));
@@ -12,7 +12,7 @@
   const editable=()=>state.course?.stage==='DRAFT';
   const reviewAccepted=()=>Boolean(!state.dirty&&state.review?.valid&&state.course?.acceptedToken===state.review.token);
   const tell=(message,error=false)=>{$('course-message').textContent=message||'';$('course-message').classList.toggle('is-error',error);};
-  function lock(message){state.token='';state.session=null;state.course=null;state.draft=null;state.dirty=false;state.courses=[];state.participants=null;state.personDrafts.clear();state.pending=null;state.review=null;state.media=[];state.calendarWarnings=[];state.busy=false;state.selection++;$('course-workspace').hidden=true;$('course-editor').replaceChildren();$('course-list').replaceChildren();$('course-dialog').close();$('course-dialog').replaceChildren();$('course-account-name').textContent='';$('course-access-message').textContent=message;tell('');}
+  function lock(message){state.token='';state.session=null;state.course=null;state.draft=null;state.dirty=false;state.courses=[];state.participants=null;state.personDrafts.clear();state.pending=null;state.review=null;state.media=[];state.calendarWarnings=[];state.busy=false;state.tab='list';state.selection++;$('course-workspace').hidden=true;$('course-editor').replaceChildren();$('course-list').replaceChildren();$('course-dialog').close();$('course-dialog').replaceChildren();$('course-account-name').textContent='';$('course-access-message').textContent=message;tell('');}
   async function api(path,input={},authToken=state.token){
     const generation=state.generation;
     if(!authToken||authToken!==token()||path!=='/api/account/session'&&!state.session)throw Error('Sign in with an authorised Academy administrator account.');
@@ -33,9 +33,13 @@
   const disabledBeforeBusy=new WeakMap();
   function busy(value){state.busy=value;for(const node of document.querySelectorAll('[data-cm-mutation],#course-new,#course-refresh,#course-editor input,#course-editor select')){if(value){if(!disabledBeforeBusy.has(node))disabledBeforeBusy.set(node,node.disabled);node.disabled=true;}else if(disabledBeforeBusy.has(node)){node.disabled=disabledBeforeBusy.get(node);disabledBeforeBusy.delete(node);}}}
   function pill(stage){return `<span class="cm-pill" data-stage="${esc(stage)}">${esc(labels[stage]||stage)}</span>`;}
+  const currentFilters=()=>({search:$('course-search').value,status:$('course-status-filter').value});
+  function visibleCourses(filters=currentFilters()){
+    const search=filters.search.trim().toLowerCase(),status=filters.status;
+    return state.courses.filter(c=>(!search||c.name.toLowerCase().includes(search))&&(!status||c.stage===status)).sort((a,b)=>a.name.localeCompare(b.name)||b.startDate.localeCompare(a.startDate));
+  }
   function renderList(){
-    const search=$('course-search').value.trim().toLowerCase(),status=$('course-status-filter').value;
-    const rows=state.courses.filter(c=>(!search||c.name.toLowerCase().includes(search))&&(!status||c.stage===status)).sort((a,b)=>a.name.localeCompare(b.name)||b.startDate.localeCompare(a.startDate));
+    const rows=visibleCourses();
     $('course-count').textContent=`${rows.length} ${rows.length===1?'Course':'Courses'}`;
     $('course-list').innerHTML=rows.length?rows.map(c=>`<button class="cm-course${state.course?.courseId===c.courseId&&state.course?.runId===c.runId?' is-selected':''}" type="button" data-cm-action="select" data-course="${esc(c.courseId)}" data-run="${esc(c.runId)}" aria-pressed="${state.course?.courseId===c.courseId&&state.course?.runId===c.runId}"><strong>${esc(c.name)}</strong>${pill(c.stage)}<small>${esc(c.startDate?`${c.startDate}${c.endDate&&c.endDate!==c.startDate?' → '+c.endDate:''}`:'Dates to be set')}${c.accessModel?' · '+(c.accessModel==='FREE'?'Free':'Paid'):''}</small></button>`).join(''):'<p class="cm-hint">No Courses match this view.</p>';
   }
@@ -73,22 +77,46 @@
     const current=state.course.stage!=='DRAFT'?5:state.dirty||!state.course.courseId?0:!state.review?.valid?1:reviewAccepted()?5:3;
     return `<ol class="cm-workflow" aria-label="Course publication steps">${['Draft','Validate','Generate sessions','Review','Accept','Publish'].map((label,index)=>`<li class="${index<current?'is-done':index===current?'is-current':''}"${index===current?' aria-current="step"':''}><span>${index+1}</span>${label}</li>`).join('')}</ol>`;
   }
+  const tabs=[['list','List of courses'],['details','Details'],['sessions','Sessions'],['participants','Participants'],['media','Media'],['review','Review & publish']];
+  function renderTabs(){
+    const focused=document.activeElement?.id;
+    $('course-tabs').innerHTML=tabs.map(([tab,label])=>`<button id="cm-tab-${tab}" type="button" role="tab" tabindex="${state.tab===tab?0:-1}" aria-selected="${state.tab===tab}" aria-controls="${tab==='list'?'course-list-panel':'course-editor'}" data-cm-action="tab" data-tab="${tab}"${tab!=='list'&&!state.course?' disabled':''}>${label}${tab==='sessions'&&state.draft?.sessions.length?' · '+state.draft.sessions.length:''}</button>`).join('');
+    $('course-list-panel').hidden=state.tab!=='list';
+    $('course-editor').hidden=Boolean(state.course&&state.tab==='list');
+    $('course-editor').setAttribute('aria-labelledby','cm-tab-'+state.tab);
+    if(focused?.startsWith('cm-tab-'))$(focused)?.focus?.({preventScroll:true});
+    const strip=$('course-tabs'),active=$('cm-tab-'+state.tab);
+    if(active?.offsetLeft<strip.scrollLeft)strip.scrollLeft=active.offsetLeft;
+    else if(active?.offsetLeft+active?.offsetWidth>strip.scrollLeft+strip.clientWidth)strip.scrollLeft=active.offsetLeft+active.offsetWidth-strip.clientWidth;
+  }
   function renderEditor(){
-    if(!state.course)return;
+    renderTabs();
+    if(state.course&&state.tab==='list')return;
+    if(!state.course){$('course-editor').innerHTML='<div class="cm-empty"><h2>Select a course</h2></div>';return;}
     const c=state.course,d=state.draft,isDraft=editable();
     const transitions=!c.courseId?[]:c.stage==='PUBLISHED'?[['revise','Create revision'],['complete','Mark complete'],['cancel','Cancel Course']]:c.stage==='DRAFT'?[['cancel','Cancel Course'],['archive','Archive draft']]:c.stage==='COMPLETE'||c.stage==='CANCELLED'?[['archive','Archive Course']]:[];
     if(['COMPLETE','ARCHIVED'].includes(c.stage)&&state.capabilities.create)transitions.push(['repeat','Repeat as new Course']);
-    $('course-editor').innerHTML=`<header class="cm-editor-heading"><div><h2>${esc(d.name||'New Course')}</h2><div class="cm-heading-meta">${pill(c.displayStage||c.stage)}${state.dirty?'<small>Unsaved changes</small>':c.courseId?'<small>Saved</small>':'<small>Name required · everything else can wait</small>'}${c.currentPublication&&isDraft?'<small>Current timetable remains published</small>':''}</div></div><div class="cm-actions">${isDraft?`<button type="button" class="pb-secondary" data-cm-action="save" data-cm-mutation>Save draft</button><button type="button" data-cm-action="validate" data-cm-mutation>${d.sessions.length?'Validate &amp; review':'Validate &amp; generate sessions'}</button>`:''}${transitions.length?`<details class="cm-menu"><summary>More ▾</summary><div>${transitions.map(([action,label])=>`<button type="button" data-cm-action="${action}" data-cm-mutation>${label}</button>`).join('')}</div></details>`:''}</div></header>${workflow()}<div class="cm-tabs" role="tablist" aria-label="Course sections">${[['details','Details'],['sessions','Sessions'+(d.sessions.length?' · '+d.sessions.length:'')],['participants','Participants'],['media','Media'],['review','Review & publish']].map(([tab,label])=>`<button id="cm-tab-${tab}" type="button" role="tab" aria-selected="${state.tab===tab}" aria-controls="cm-panel" data-cm-action="tab" data-tab="${tab}">${label}</button>`).join('')}</div><div id="cm-panel" class="cm-tab-content" role="tabpanel" aria-labelledby="cm-tab-${state.tab}">${state.tab==='details'?detailsTab():state.tab==='sessions'?sessionsTab():state.tab==='participants'?peopleTab():state.tab==='media'?mediaTab():reviewTab()}</div><footer class="cm-footer"><span>${c.courseId?`Course ID <span class="cm-id">${esc(c.courseId)}</span>`:'New draft'}</span><span>${c.completedAt?'Completed '+esc(c.completedAt.slice(0,10)):state.personDrafts.size?`${state.personDrafts.size} unsaved participant ${state.personDrafts.size===1?'change':'changes'}`:'All times use the Course timezone'}</span></footer>`;
+    $('course-editor').innerHTML=`<header class="cm-editor-heading"><div><h2>${esc(d.name||'New Course')}</h2><div class="cm-heading-meta">${pill(c.displayStage||c.stage)}${state.dirty?'<small>Unsaved changes</small>':c.courseId?'<small>Saved</small>':'<small>Name required · everything else can wait</small>'}${c.currentPublication&&isDraft?'<small>Current timetable remains published</small>':''}</div></div><div class="cm-actions">${isDraft?`<button type="button" class="pb-secondary" data-cm-action="save" data-cm-mutation>Save draft</button><button type="button" data-cm-action="validate" data-cm-mutation>${d.sessions.length?'Validate &amp; review':'Validate &amp; generate sessions'}</button>`:''}${transitions.length?`<details class="cm-menu"><summary>More ▾</summary><div>${transitions.map(([action,label])=>`<button type="button" data-cm-action="${action}" data-cm-mutation>${label}</button>`).join('')}</div></details>`:''}</div></header>${workflow()}<div id="cm-panel" class="cm-tab-content">${state.tab==='details'?detailsTab():state.tab==='sessions'?sessionsTab():state.tab==='participants'?peopleTab():state.tab==='media'?mediaTab():reviewTab()}</div><footer class="cm-footer"><span>${c.courseId?`Course ID <span class="cm-id">${esc(c.courseId)}</span>`:'New draft'}</span><span>${c.completedAt?'Completed '+esc(c.completedAt.slice(0,10)):state.personDrafts.size?`${state.personDrafts.size} unsaved participant ${state.personDrafts.size===1?'change':'changes'}`:'All times use the Course timezone'}</span></footer>`;
     if(state.busy)busy(true);
   }
   function dirty(){state.dirty=true;state.review=null;state.pending=null;const indicator=$('course-editor').querySelector('.cm-heading-meta small');if(indicator)indicator.textContent='Unsaved changes';}
-  async function list(){const result=await api(base+'list');Object.assign(state,{courses:result.courses,categories:result.categories,teachers:result.teachers,timezone:result.timezone,capabilities:result.capabilities});$('course-new').hidden=!state.capabilities.create;renderList();}
+  async function list(){const result=await api(base+'list');Object.assign(state,{courses:result.courses,categories:result.categories,teachers:result.teachers,timezone:result.timezone,capabilities:result.capabilities});state.filters=currentFilters();$('course-new').hidden=!state.capabilities.create;renderList();}
   function rememberSelection(){
     const query=new URLSearchParams(location.search);
-    if(state.course?.courseId){query.set('course',state.course.courseId);query.set('run',state.course.runId);}
-    else{query.delete('course');query.delete('run');}
+    if(state.course?.courseId){query.set('course',state.course.courseId);query.set('run',state.course.runId);query.set('tab',state.tab);}
+    else{query.delete('course');query.delete('run');query.delete('tab');}
     if(state.tab==='sessions')query.set('view','scheduling');else query.delete('view');
     window.history?.replaceState(null,'',query.size?'?'+query:'/academy/courses/manage/');
+  }
+  function clearSelection(){
+    state.selection++;Object.assign(state,{course:null,draft:null,dirty:false,tab:'list',review:null,calendarWarnings:[],media:[],participants:null,pending:null,peopleSearch:'',assignedOnly:false});state.personDrafts.clear();rememberSelection();renderEditor();
+  }
+  function filterCourses(){
+    const next=currentFilters(),restore=filters=>{$('course-search').value=filters.search;$('course-status-filter').value=filters.status;};
+    if(state.busy||state.pending){restore(state.filters);if(state.pending)tell('Finish or retry the pending Course change before changing this view.',true);return;}
+    const hidesSelected=state.course?.courseId&&!visibleCourses(next).some(c=>c.courseId===state.course.courseId&&c.runId===state.course.runId);
+    const apply=()=>{restore(next);state.filters=next;if(!state.course||hidesSelected)clearSelection();renderList();};
+    if(hidesSelected&&hasUnsavedChanges()){restore(state.filters);reviewDiscard(apply);}else apply();
   }
   async function select(courseId,runId,tab='details'){
     const sequence=++state.selection,generation=state.generation;
@@ -113,8 +141,8 @@
       state.token=authToken;state.session=session;$('course-account-name').textContent=session.account?.displayName||'';$('course-access-message').textContent='';$('course-workspace').hidden=false;
       $('course-management-back').textContent=globalAdmin?'← Academy administration':'← My Courses';$('course-management-back').href=globalAdmin?'/academy/#administration':'/academy/#workshops';
       await list();if(generation!==state.generation)return;
-      const query=new URLSearchParams(location.search),courseId=query.get('course'),runId=query.get('run'),first=state.courses.find(c=>c.courseId===courseId&&(!runId||c.runId===runId))||state.courses.find(c=>!['ARCHIVED','CANCELLED'].includes(c.stage))||state.courses[0];
-      if(first)await select(first.courseId,first.runId,query.get('tab')==='participants'?'participants':query.get('view')==='scheduling'?'sessions':'details');
+      const query=new URLSearchParams(location.search),courseId=query.get('course'),runId=query.get('run'),requested=courseId&&state.courses.find(c=>c.courseId===courseId&&(!runId||c.runId===runId));
+      if(requested)await select(requested.courseId,requested.runId,tabs.some(([tab])=>tab===query.get('tab'))?query.get('tab'):query.get('view')==='scheduling'?'sessions':'details');else renderEditor();
     }catch(error){if(generation!==state.generation)return;lock(error.message);$('course-access-retry').hidden=false;}
   }
   function newCourse(){state.selection++;state.course={courseId:'',runId:'',stage:'DRAFT',displayStage:'DRAFT',revision:'0'};state.draft={name:'',categoryKey:'',accessModel:'',timezone:state.timezone,weekdays:[],startDate:'',endDate:'',startTime:'',endTime:'',teacherId:'',zoomLink:'',sessions:[]};state.dirty=false;state.review=null;state.participants=null;state.personDrafts.clear();state.media=[];state.calendarWarnings=[];state.tab='details';rememberSelection();renderList();renderEditor();$('course-editor').querySelector('[data-field="name"]')?.focus();}
@@ -153,8 +181,8 @@
   }
   async function perform(fn){if(state.busy)return;busy(true);try{await fn();}catch(error){tell(error.message+(error.code==='ROW_CHANGED'?' Refresh and review the saved Course. Your unfinished changes are kept.':''),true);}finally{busy(false);if(state.participants)for(const button of document.querySelectorAll('[data-cm-action="save-person"]'))button.disabled=!state.personDrafts.has(button.dataset.account);}}
   async function action(name,el){
-    if(name==='select'){reviewDiscard(()=>select(el.dataset.course,el.dataset.run));return;}
-    if(name==='tab'){state.tab=el.dataset.tab;renderEditor();if(state.tab==='participants'&&!state.participants)await loadParticipants();return;}
+    if(name==='select'){const tab=!state.course&&new URLSearchParams(location.search).get('view')==='scheduling'?'sessions':'details';reviewDiscard(()=>select(el.dataset.course,el.dataset.run,tab));return;}
+    if(name==='tab'){if(!tabs.some(([tab])=>tab===el.dataset.tab)||el.dataset.tab!=='list'&&!state.course)return;state.tab=el.dataset.tab;rememberSelection();renderEditor();if(state.tab==='participants'&&!state.participants)await loadParticipants();return;}
     if(name==='save'){const result=await save();tell(result.message);return;}
     if(name==='validate'){await validate();return;}
     if(name==='accept'){
@@ -192,10 +220,16 @@
     if(el.dataset.person){const account=state.participants.accounts.find(a=>a.accountId===el.dataset.person);let roles=[...(state.personDrafts.get(account.accountId)||account.assignment.roles)].filter(r=>r!==el.dataset.role);if(el.checked)roles.push(el.dataset.role);roles=['STUDENT','TEACHER','PROGRAM_ADMIN'].filter(r=>roles.includes(r));if(JSON.stringify(roles)===JSON.stringify(account.assignment.roles))state.personDrafts.delete(account.accountId);else state.personDrafts.set(account.accountId,roles);const button=$('course-editor').querySelector(`[data-account="${account.accountId}"]`);if(button)button.disabled=!state.personDrafts.has(account.accountId);}
   }
   document.addEventListener('DOMContentLoaded',()=>{
+    $('course-tabs').addEventListener('keydown',event=>{
+      if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)||state.busy)return;
+      const available=tabs.filter(([tab])=>tab==='list'||state.course).map(([tab])=>tab),index=available.indexOf(state.tab);
+      const tab=event.key==='Home'?available[0]:event.key==='End'?available.at(-1):available[(index+(event.key==='ArrowRight'?1:-1)+available.length)%available.length];
+      event.preventDefault();void perform(async()=>{await action('tab',{dataset:{tab}});$('cm-tab-'+tab)?.focus?.({preventScroll:true});});
+    });
     $('course-access-retry').addEventListener('click',()=>{void open();});
     $('course-new').addEventListener('click',()=>reviewDiscard(newCourse));
-    $('course-refresh').addEventListener('click',()=>reviewDiscard(async()=>{const current=selected(),tab=state.tab;await list();if(current.courseId)await select(current.courseId,current.runId,tab);tell('Courses refreshed.');}));
-    $('course-search').addEventListener('input',renderList);$('course-status-filter').addEventListener('change',renderList);
+    $('course-refresh').addEventListener('click',()=>reviewDiscard(async()=>{const current=selected(),tab=state.tab;await list();if(current.courseId&&visibleCourses().some(c=>c.courseId===current.courseId&&c.runId===current.runId))await select(current.courseId,current.runId,tab);else clearSelection();tell('Courses refreshed.');}));
+    $('course-search').addEventListener('input',filterCourses);$('course-status-filter').addEventListener('change',filterCourses);
     document.addEventListener('click',event=>{const el=event.target.closest?.('[data-cm-action]');if(!el)return;event.preventDefault();if(state.busy)return;if(el.dataset.cmAction==='select'){void action('select',el);return;}void perform(()=>action(el.dataset.cmAction,el));});
     document.addEventListener('input',event=>{if(event.target.id==='course-people-search'){state.peopleSearch=event.target.value;const start=event.target.selectionStart;renderEditor();const search=$('course-people-search');search.focus();search.setSelectionRange(start,start);return;}if(event.target.type!=='checkbox'&&event.target.tagName!=='SELECT')input(event);});
     document.addEventListener('change',event=>{if(event.target.id==='course-assigned-only'){state.assignedOnly=event.target.checked;renderEditor();return;}if(event.target.type==='checkbox'||event.target.tagName==='SELECT'||event.target.hasAttribute?.('data-time24'))input(event);});

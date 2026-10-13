@@ -1,3 +1,7 @@
+# V106.43 — Compact menus and unified management tabs
+
+Manage Programs has Program List, Timetable and People tabs. Manage Courses starts with List of courses and keeps Details, Sessions, Participants, Media and Review & publish in one row. Manage Users separates User Details, Programs and Courses while retaining search and unfinished edits. Compact plain menus, consistent Manage X headings, Admin highlighting, public Hifz with Surahs and Duas, direct HifzHelper links, labelled Reset PIN controls and one shared Refresh complete the review. [Release details](docs/ACADEMY-UI-106.43.md).
+
 # V106.42 — Shared banners, sliding menus and public Hifdh
 
 Website navigation slides in from the right. Learn opens a vertical list from the left and Teach from the right; Admin's first Teach pill opens from the left. Two compact banners persist on mobile and desktop, with Home and Refresh icons beside the account controls. Hifdh is public, signed-in accounts can open HifzHelper, cancelled/archived Courses are excluded from Learn/Teach, Program Library opens For you directly, and Admin pills open management editors. [Release details](docs/ACADEMY-SHELL-106.42.md).

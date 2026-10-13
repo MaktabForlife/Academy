@@ -32,6 +32,7 @@ function fixture(path='/academy/open-library/',search='') {
     refresh:()=>handlers.get('m4l-academy-session')()};
 }
 const app=fixture();
+assert.match(app.children[0].innerHTML,/id="ac-progress" href="\/academy\/#hifz">Hifz<\/a>/);
 assert.equal(app.requests.length,0,'Public Library needs no account request for a visitor');
 assert.equal(app.forYou.hidden,true);
 assert.equal(app.nodes.get('ac-library').href,'/academy/open-library/');
@@ -124,13 +125,19 @@ for(const [page,label] of [['timetable','Timetable'],['manage','People'],['media
     assert.equal(view.headers.length,1);const html=view.headers[0].innerHTML;
     const selected=[...html.matchAll(/<a [^>]*aria-current="page"[^>]*>([^<]+)<\/a>/g)].map(m=>m[1]);
     assert.deepEqual(selected,[label],`Correct current tab at ${page+ending}`);
-    assert.equal((html.match(/<nav class="pgm-tabs"[\s\S]*?<\/nav>/)?.[0].match(/<a /g)||[]).length,4);
+    assert.equal((html.match(/<nav class="pgm-tabs"[\s\S]*?<\/nav>/)?.[0].match(/<a /g)||[]).length,['timetable','manage'].includes(page)?3:4);
     assert.doesNotMatch(html,/>User profiles</);assert.match(html,/Synthetic &lt;Program&gt;/);
-    assert.match(html,new RegExp('href="/programs/\\?program='+programId+'">Back to Program management'));
+    if(['timetable','manage'].includes(page)){assert.match(html,/<h1>Manage Programs<\/h1>/);assert.match(html,/>Program List<\/a>/);assert.doesNotMatch(html,/Back to Program management|Program management<\/span>/);}else assert.match(html,new RegExp('href="/programs/\\?program='+programId+'">Back to Program management'));
   }
 }
+const rootView=await programHeader('/programs/');
+assert.equal(rootView.requests.length,0,'The Program list uses the builder’s authorised selection without an extra request');
+rootView.window.M4L_PROGRAM_MANAGEMENT_NAV.setSelection({ready:true,program:{id:programId,name:'Selected Program'},available:false});
+assert.match(rootView.headers[0].innerHTML,/aria-disabled="true"/);assert.doesNotMatch(rootView.headers[0].innerHTML,/href="\/programs\/timetable/);
+rootView.window.M4L_PROGRAM_MANAGEMENT_NAV.setSelection({ready:true,program:{id:programId,name:'Selected Program'},available:true});
+assert.match(rootView.headers[0].innerHTML,new RegExp('href="/programs/timetable.html\\?program='+programId));
 const profilesHeader=await programHeader('/users/');
-assert.doesNotMatch(profilesHeader.headers[0].innerHTML,/aria-current="page"/,'User profiles does not falsely highlight Timetable');
+assert.equal(profilesHeader.headers.length,0,'Manage Users keeps its own tab workspace');
 const scopedHeader=await programHeader('/programs/manage',false);
 assert.match(scopedHeader.headers[0].innerHTML,/aria-current="page">People/);
 const inaccessible=await programHeader('/programs/manage',false,{programs:[]});
@@ -142,7 +149,7 @@ assert.equal(switched.headers.length,1);assert.match(switched.headers[0].innerHT
 assert.match(switched.headers[0].innerHTML,new RegExp('href="/programs/\\?program='+nextId+'">Back to Program management'));
 assert.equal(switched.requests.length,1,'Switching between already authorised Programs reuses the current session’s navigation lookup');
 switched.window.M4L_PROGRAM_MANAGEMENT_NAV.select('outside-access');await flush();assert.equal(switched.headers.length,0);
-console.log('Program navigation: canonical and .html current tabs, four management tabs, labelled return and scoped identity passed.');
+console.log('Program navigation: canonical and .html current tabs, unified list/timetable/people tabs, legacy tool return and scoped identity passed.');
 for(const page of ['media']) {
  const html=await readFile(new URL('../../programs/'+page+'.html',import.meta.url),'utf8');
  assert.match(html,/<section class="pgm-media-card"[^>]*><p>Coming soon<\/p><\/section>/);

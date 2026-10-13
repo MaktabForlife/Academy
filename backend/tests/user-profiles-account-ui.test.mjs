@@ -23,6 +23,8 @@ test('profile sheet orders compact editable account columns, filters active lear
     const headers=el('up-head').innerHTML;
     for(const [a,b] of [['User name','Login ID'],['Login ID','WhatsApp number'],['WhatsApp number','Status'],['Status','Actions'],['Actions','Synthetic Program']])assert.ok(headers.indexOf(a)<headers.indexOf(b));
     assert.match(el('up-users').innerHTML,/data-unique-id/);assert.match(el('up-users').innerHTML,/data-whatsapp-number/);assert.match(el('up-users').innerHTML,/>Admin ▾/);assert(!el('up-users').innerHTML.includes('>Program Admin ▾'));
+    assert.match(el('up-users').innerHTML,/<button[^>]+data-reset-pin="account-0002"[^>]*>Reset PIN<\/button>/);
+    assert.match(markup,/id="up-refresh"[^>]*data-page-content-refresh/);assert.match(markup,/<div class="up-save-bar"><button id="up-add">[^<]+<\/button><button id="up-save-all">Save all<\/button>/);
     assert.doesNotMatch(markup,/<header[^>]*>.*Subjects &amp; Modules|id="up-back"/);
     f.db.exec("UPDATE activities SET active=0 WHERE kind='COURSE'");el('up-refresh').onclick();await settle();
     assert.match(el('up-head').innerHTML,/Synthetic subject/);el('up-active-areas').onclick();assert.doesNotMatch(el('up-head').innerHTML,/Synthetic subject/);assert.equal(el('up-active-areas').textContent,'Active only ✓');el('up-active-areas').onclick();

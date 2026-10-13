@@ -6,3 +6,13 @@
 #program-builder .pb-grid{min-width:1030px}#program-builder .pb-grid th:first-child{width:48px}#program-builder .pb-grid th:nth-child(2){width:220px}#program-builder .pb-grid th:nth-child(4){width:110px}#program-builder .pb-grid th:nth-child(5){width:260px}#program-builder .pb-grid th:nth-child(6){width:110px}#program-builder .pb-grid th:nth-child(8){width:200px}#program-builder .pb-grid [data-field=programZoomLink]{min-width:0;width:100%;font-size:12px}
 
 #program-builder .pb-grid th,#program-builder .pb-grid td{box-sizing:border-box}#program-builder .pb-grid th:nth-child(2),#program-builder .pb-grid td:nth-child(2){left:48px}@media(max-width:650px){#program-builder .pb-grid th:nth-child(2){left:auto}}
+
+/* One heading and navigation row for the list, timetable and people tools. */
+.pgm-unified{padding:0;border:0;background:transparent;box-shadow:none}
+.pgm-unified .pgm-tabs{margin-top:12px;padding:0 0 10px;border-top:0;border-bottom:1px solid var(--pb-line);flex-wrap:nowrap;scrollbar-width:thin}
+.pgm-unified .pgm-tabs a{display:flex;align-items:center;min-height:44px;box-sizing:border-box;flex:0 0 auto;padding:8px 16px}
+.pgm-tabs a[aria-disabled=true]{opacity:.45;cursor:default}
+.pgm-context{font-size:18px;font-weight:650;margin:10px 0 0;color:var(--pb-ink);overflow-wrap:anywhere}
+.pgm-layout #program-builder>.pb-heading,.pgm-layout #tt-management{display:none}
+
+#program-message:empty,#pm-message:empty,#tt-message:empty{display:none}

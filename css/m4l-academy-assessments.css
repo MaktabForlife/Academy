@@ -25,3 +25,12 @@
 .as-timetable .as-schedule-table :is(th,td):nth-child(2),.as-timetable .as-schedule-table :is(th,td):nth-child(3){min-width:135px}
 .as-timetable .as-schedule-table :is(th,td):nth-child(6){min-width:150px}
 .academy-mobile-layout .as-timetable .as-schedule-table :is(th,td){overflow-wrap:normal;word-break:normal}
+
+/* Compact assessment navigation; page heading and refresh live in the shared banners. */
+.as-navigation{display:flex;align-items:flex-end;gap:8px;margin:8px 0 14px;min-width:0}
+.as-navigation .as-tabs{position:relative;flex:1;min-width:0;margin:0;padding:3px 2px;gap:8px}
+.as-navigation .as-tabs button{flex:0 0 auto;white-space:nowrap;scroll-snap-align:start}
+.as-navigation .as-help-button{flex:none;display:grid;place-items:center;width:44px;min-width:44px;height:44px;padding:0;border-radius:50%;font-size:25px;margin:0 0 3px}
+.as-tools-only{justify-content:flex-end;margin-top:0}
+.as-workspace>[data-as-message]{font-size:12px;margin:6px 0}
+@media(max-width:900px){.as-navigation .as-tabs{flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scrollbar-width:thin}.as-navigation .as-tabs button{padding:10px 14px;font-size:12px}}

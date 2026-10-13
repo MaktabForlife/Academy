@@ -97,3 +97,34 @@ body.user-profiles-sheet.academy-connected { padding-left:0; }
 #up-global-dialog [hidden]{display:none!important}
 
 #up-active-areas[aria-pressed="true"] { background:var(--pb-purple);color:#fff;border-color:var(--pb-purple); }
+
+/* Keep the register compact, with labelled PIN resets and adjacent save actions. */
+.user-profiles-sheet .up-filter-actions,.user-profiles-sheet .up-save-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.user-profiles-sheet #up-unsaved:empty{display:none}
+.user-profiles-sheet .up-matrix{--up-actions-width:172px;min-width:calc(var(--up-name-width) + var(--up-login-width) + var(--up-phone-width) + var(--up-status-width) + var(--up-actions-width) + var(--up-scope-count,7)*106px)}
+.user-profiles-sheet .up-matrix :is(th,td):nth-child(5){width:var(--up-actions-width);min-width:var(--up-actions-width)}
+.user-profiles-sheet .up-reset-pin{min-height:30px;white-space:nowrap;padding:5px 7px}
+@media(max-width:900px){
+  .academy-mobile-layout.user-profiles-sheet .up-toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;padding:8px}
+  .academy-mobile-layout.user-profiles-sheet .up-toolbar .pb-search{grid-column:1/-1}
+  .academy-mobile-layout.user-profiles-sheet .up-toolbar .pb-count{margin:0}
+  .academy-mobile-layout.user-profiles-sheet :is(.up-filter-actions,.up-save-bar){grid-column:1/-1;width:auto;gap:6px}
+  .academy-mobile-layout.user-profiles-sheet .up-save-bar>span{flex-basis:100%}
+  .academy-mobile-layout.user-profiles-sheet .up-matrix{--up-login-width:130px;--up-phone-width:144px;--up-status-width:90px;--up-actions-width:190px}
+  .academy-mobile-layout.user-profiles-sheet .up-matrix :is(th,td){height:40px;padding:2px 4px;line-height:1.2}
+  .academy-mobile-layout.user-profiles-sheet main .up-matrix :is(input:not([type=checkbox]):not([type=radio]):not([type=range]),select,.up-cell){height:36px;min-height:36px;padding:3px 2px}
+  .academy-mobile-layout.user-profiles-sheet .up-actions{gap:3px;flex-wrap:wrap;align-items:center}
+  .academy-mobile-layout.user-profiles-sheet .up-matrix .up-icon{width:32px;min-width:32px;height:32px;min-height:32px;padding:6px}
+  .academy-mobile-layout.user-profiles-sheet .up-matrix .up-reset-pin{height:32px;min-height:32px;font-size:11px;padding:4px 6px}
+}
+
+.up-tabs{display:flex;gap:6px;overflow-x:auto;flex-wrap:nowrap;margin:10px 0;scrollbar-width:thin}
+.user-profiles-sheet .up-tabs button{flex:0 0 auto;min-height:44px;padding:8px 16px;background:#fff;color:var(--pb-purple)}
+.user-profiles-sheet .up-tabs button[aria-selected=true]{background:var(--pb-purple);color:#fff}
+.up-matrix[data-view=details] [data-scope-kind],.up-matrix[data-view=programs] [data-scope-kind]:not([data-scope-kind=PROGRAM]),.up-matrix[data-view=courses] [data-scope-kind]:not([data-scope-kind=COURSE]){display:none}
+.up-matrix:not([data-view=details]) :is(th,td):nth-child(n+2):nth-child(-n+5){display:none}
+.up-matrix .up-user-name{display:none}
+.up-matrix:not([data-view=details]) .up-user-name{display:block;overflow-wrap:anywhere}
+.up-matrix:not([data-view=details]) [data-name]{display:none}
+.user-profiles-sheet .up-matrix:not([data-view=details]){min-width:calc(var(--up-name-width) + var(--up-scope-count,0)*130px)}
+.user-profiles-sheet .up-matrix[data-view=details]{min-width:calc(var(--up-name-width) + var(--up-login-width) + var(--up-phone-width) + var(--up-status-width) + var(--up-actions-width))}

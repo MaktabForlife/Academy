@@ -6,9 +6,9 @@
 - Add a concise entry to the current release documentation and README. Keep older version references when they describe historical behaviour or earlier acceptance work.
 - Before pushing, verify that the active version markers agree, run the affected tests, and check the diff for accidental changes to historical notes.
 
-# User release hold — 10 October 2026
+# Release authorisation — 13 October 2026
 
-- Prepare and test requested changes locally. Do not push, deploy or apply live database corrections until the user confirms all changes for release.
+- The user lifted this release hold on 13 October 2026 and explicitly authorised building and deploying all reviewed UI changes. Deploy the Development website and matching Development Worker when verified. This UI release requires no live database corrections.
 - Show `None` for an account with no assigned role or Course subscription.
 - Global Admin is an Academy-wide authority, independent of Program roles and Course subscriptions. Show inherited authority clearly and retain access to every Academy management area when implementing new features.
 - Global Admins automatically inherit Program Admin in every Program and Course, including newly created learning areas. Scoped edits must not revoke that inherited role.

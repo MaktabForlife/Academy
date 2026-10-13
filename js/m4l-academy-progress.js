@@ -55,7 +55,7 @@
     if(!data)return;const positions=Object.fromEntries(['SURAHS','DUAS'].map(s=>[s,$('mp-row-'+s)?.scrollLeft||0]));
     const moduleScroll=$('mp-root').querySelector('.mp-set-pills')?.scrollLeft||0;
     const wasOpen=$('mp-dialog')?.open,gridPosition=$('mp-root').querySelector('.mp-grid-wrap'),gridScroll=gridPosition?{left:gridPosition.scrollLeft,top:gridPosition.scrollTop}:null,focused=document.activeElement,focusAccount=focused?.dataset.confirmAccount,focusTask=focused?.dataset.confirmTask;
-    $('mp-root').innerHTML=`<div class="mp-toolbar"><div>${mode==='classes'&&group>=0?'<button class="mp-secondary" data-mp="class-cards">← Class cards</button>':''}</div><button class="mp-secondary" data-mp="refresh" ${busy||pending?'disabled':''}>Refresh</button></div>
+    $('mp-root').innerHTML=`<div class="mp-toolbar"><div>${mode==='classes'&&group>=0?'<button class="mp-secondary" data-mp="class-cards">← Class cards</button>':''}</div><button class="mp-secondary" data-mp="refresh" data-page-content-refresh ${busy||pending?'disabled':''}>Refresh</button></div>
       <p id="mp-status" class="mp-status" role="status" aria-live="polite" data-error="${error}">${esc(message)}</p>${recovery()}
       ${mode==='self'?cards():group<0?classCards():classGrid()}
       <dialog id="mp-dialog" aria-labelledby="mp-dialog-title"></dialog>`;

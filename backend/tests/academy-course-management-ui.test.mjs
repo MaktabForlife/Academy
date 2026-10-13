@@ -10,18 +10,19 @@ async function fixture(){const f=await courseFixture();f.env.ACADEMY_LIBRARY_MOD
 async function screen(env,identity='0001',search='') {
  const login=await worker.fetch(new Request('http://localhost/api/account/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uniqueid:'login-'+identity,pin:'1234'})}),env);let token=(await login.json()).token;
  const elements=new Map(),events=new Map(),documentEvents=new Map(),requests=[];
- const element=id=>{if(!elements.has(id))elements.set(id,{hidden:true,textContent:'',innerHTML:'',value:'',disabled:false,listeners:{},showModal(){this.open=true;},classList:{toggle(){},add(){},remove(){}},replaceChildren(){this.innerHTML='';},close(){},querySelector:selector=>id==='course-dialog'?element('dialog:'+selector):null,querySelectorAll:()=>[],addEventListener(type,fn){this.listeners[type]=fn;},setAttribute(){}});return elements.get(id);};
+ const element=id=>{if(!elements.has(id))elements.set(id,{hidden:true,textContent:'',innerHTML:'',value:'',disabled:false,listeners:{},showModal(){this.open=true;},classList:{toggle(){},add(){},remove(){}},replaceChildren(){this.innerHTML='';},close(){this.open=false;},querySelector:selector=>id==='course-dialog'?element('dialog:'+selector):null,querySelectorAll:()=>[],addEventListener(type,fn){this.listeners[type]=fn;},setAttribute(){}});return elements.get(id);};
  const context={console,URLSearchParams,crypto,Date,Map,Set,WeakMap,location:{search,origin:'http://localhost'},localStorage:{getItem:()=>token},document:{getElementById:element,querySelectorAll:()=>[],querySelector:()=>null,addEventListener:(type,fn)=>documentEvents.set(type,[...(documentEvents.get(type)||[]),fn])},window:{M4L_CONFIG:{API_BASE:''},addEventListener:(type,fn)=>events.set(type,fn)},fetch:async(path,options)=>{requests.push(path);return worker.fetch(new Request('http://localhost'+path,options),env);}};
  context.window.history={replaceState:(_state,_title,url)=>{context.location.search=url.startsWith('?')?url:'';}};
  vm.createContext(context);vm.runInContext(readFileSync(new URL('../../js/m4l-time.js',import.meta.url),'utf8'),context);vm.runInContext(source,context);await documentEvents.get('DOMContentLoaded')[0]();
  const settle=async()=>{for(let i=0;i<30;i++)await new Promise(r=>setTimeout(r,2));};await settle();
- return {element,requests,context,events,settle,enter:(field,value)=>documentEvents.get('input').at(-1)({target:{dataset:{field},value,type:'text'}}),chooseDay:day=>documentEvents.get('change').at(-1)({target:{dataset:{day:String(day)},checked:true,type:'checkbox'}}),click:async(action,dataset={})=>{documentEvents.get('click')[0]({target:{closest:()=>({dataset:{cmAction:action,...dataset}})},preventDefault(){}});await settle();},changeToken:value=>{token=value;events.get('storage')({key:'m4l_account_token'});}};
+ return {element,requests,context,events,settle,enter:(field,value)=>documentEvents.get('input').at(-1)({target:{dataset:{field},value,type:'text'}}),chooseDay:day=>documentEvents.get('change').at(-1)({target:{dataset:{day:String(day)},checked:true,type:'checkbox'}}),filter:async(key,value)=>{const el=element(key==='search'?'course-search':'course-status-filter');el.value=value;el.listeners[key==='search'?'input':'change']();await settle();},click:async(action,dataset={})=>{documentEvents.get('click')[0]({target:{closest:()=>({dataset:{cmAction:action,...dataset}})},preventDefault(){}});await settle();},changeToken:value=>{token=value;events.get('storage')({key:'m4l_account_token'});}};
 }
 
 test('Course workspace opens a compact editor, saves name-only drafts and presents publication validation',async()=>{
  const f=await fixture(),original=globalThis.fetch;let outbound=0;globalThis.fetch=async()=>{outbound++;throw Error('External request');};
  try{
-  const page=await screen(f.env);assert.equal(page.element('course-workspace').hidden,false);assert.ok(page.element('course-account-name').textContent);assert.match(page.element('course-list').innerHTML,/Synthetic/);assert.match(page.element('course-editor').innerHTML,/Participants/);assert.equal(page.requests.filter(p=>p.endsWith('/courses/list')).length,1);
+  const page=await screen(f.env);assert.equal(page.element('course-workspace').hidden,false);assert.ok(page.element('course-account-name').textContent);assert.match(page.element('course-list').innerHTML,/Synthetic/);assert.match(page.element('course-editor').innerHTML,/>Select a course<\/h2>/);assert.equal(page.requests.filter(p=>p.endsWith('/courses/list')).length,1);assert.equal(page.requests.filter(p=>p.endsWith('/courses/get')).length,0);
+  await page.click('select',{course:'subject-1',run:'run-1'});assert.match(page.element('course-tabs').innerHTML,/Participants/);
   page.context.window.M4LCourses.newCourse();page.enter('name','A new workshop');await page.context.window.M4LCourses.save();assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),false);assert.match(page.element('course-editor').innerHTML,/A new workshop/);
   await page.context.window.M4LCourses.validate();assert.match(page.element('course-editor').innerHTML,/A few details need attention/);assert.match(page.element('course-editor').innerHTML,/Choose Free or Paid/);assert.ok(!page.element('course-editor').innerHTML.includes('data-cm-action="publish"'));
   const originalRequest=page.context.fetch;let release;page.context.fetch=async(...args)=>{await new Promise(resolve=>{release=resolve;});return originalRequest(...args);};
@@ -33,8 +34,28 @@ test('students, teachers and unrelated Program Admins cannot load Course managem
  const f=await fixture();try{for(const id of ['0002','0003','0004']){const page=await screen(f.env,id);assert.equal(page.element('course-workspace').hidden,true);assert.match(page.element('course-access-message').textContent,/Global Admin/);assert.deepEqual(page.requests,['/api/account/session']);}}finally{f.db.close();}
 });
 
-test('assigned Course Admins get their Course editor and no create action; scheduling links open Sessions',async()=>{
- const f=await fixture();try{f.db.exec("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state) VALUES('course-admin-ui','account-0004','COURSE:subject-1','PROGRAM_ADMIN',1,'CONFIRMED')");const page=await screen(f.env,'0004','?view=scheduling');assert.equal(page.element('course-workspace').hidden,false);assert.equal(page.element('course-new').hidden,true);assert.match(page.element('course-editor').innerHTML,/cm-sessions/);assert.ok(!page.element('course-editor').innerHTML.includes('GlobalSubject'));}finally{f.db.close();}
+test('assigned Course Admins select their Course with no create action; scheduling links open Sessions',async()=>{
+ const f=await fixture();try{f.db.exec("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state) VALUES('course-admin-ui','account-0004','COURSE:subject-1','PROGRAM_ADMIN',1,'CONFIRMED')");const page=await screen(f.env,'0004','?view=scheduling');assert.equal(page.element('course-workspace').hidden,false);assert.equal(page.element('course-new').hidden,true);assert.match(page.element('course-editor').innerHTML,/>Select a course<\/h2>/);await page.click('select',{course:'subject-1',run:'run-1'});assert.match(page.element('course-editor').innerHTML,/cm-sessions/);assert.ok(!page.element('course-editor').innerHTML.includes('GlobalSubject'));}finally{f.db.close();}
+});
+
+test('direct Course links work, and filtering or refreshing an empty view never picks a default',async()=>{
+ const f=await fixture();try{
+  const page=await screen(f.env,'0001','?course=subject-1&run=run-1');assert.match(page.element('course-tabs').innerHTML,/Participants/);
+  await page.filter('search','no-course-matches-this');assert.match(page.element('course-list').innerHTML,/No Courses match/);assert.match(page.element('course-editor').innerHTML,/>Select a course<\/h2>/);assert.equal(new URLSearchParams(page.context.location.search).has('course'),false);
+  await page.filter('search','');assert.match(page.element('course-list').innerHTML,/Synthetic/);assert.match(page.element('course-editor').innerHTML,/>Select a course<\/h2>/);
+  const gets=page.requests.filter(p=>p.endsWith('/courses/get')).length;page.element('course-refresh').listeners.click();await page.settle();assert.equal(page.requests.filter(p=>p.endsWith('/courses/get')).length,gets);assert.match(page.element('course-editor').innerHTML,/>Select a course<\/h2>/);
+  await page.click('select',{course:'subject-1',run:'run-1'});const stage=/data-stage="([^"]+)"/.exec(page.element('course-editor').innerHTML)[1];await page.filter('status',stage==='ACTIVE'?'CANCELLED':'ACTIVE');assert.match(page.element('course-editor').innerHTML,/>Select a course<\/h2>/);assert.doesNotMatch(page.element('course-list').innerHTML,/aria-pressed="true"/);
+  await page.filter('status','');const originalFetch=page.context.fetch;let release;page.context.fetch=async(...args)=>{if(args[0].endsWith('/courses/get'))await new Promise(resolve=>{release=resolve;});return originalFetch(...args);};const late=page.context.window.M4LCourses.select('subject-1','run-1');await page.filter('search','no-match');release();await late;assert.match(page.element('course-editor').innerHTML,/>Select a course<\/h2>/,'A late Course response cannot restore a selection cleared by filtering');
+ }finally{f.db.close();}
+});
+
+test('a filter that hides unsaved Course edits requires confirmation and keeps the saved Course',async()=>{
+ const f=await fixture();try{
+  const page=await screen(f.env);page.context.window.M4LCourses.newCourse();page.enter('name','Filter guarded draft');await page.context.window.M4LCourses.save();const courseId=new URLSearchParams(page.context.location.search).get('course');
+  page.enter('name','Unfinished title');await page.filter('search','no-match');assert.match(page.element('course-dialog').innerHTML,/Unsaved changes/);assert.equal(page.element('course-search').value,'');
+  page.element('dialog:[data-dialog-cancel]').listeners.click();await page.click('tab',{tab:'details'});assert.match(page.element('course-editor').innerHTML,/value="Unfinished title"/);assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),true);assert.equal(new URLSearchParams(page.context.location.search).get('course'),courseId);
+  await page.filter('search','no-match');page.element('dialog:[data-dialog-confirm]').listeners.click();await page.settle();assert.match(page.element('course-editor').innerHTML,/>Select a course<\/h2>/);assert.equal(page.element('course-search').value,'no-match');assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),false);assert.equal(new URLSearchParams(page.context.location.search).has('course'),false);assert.equal(f.db.prepare('SELECT name FROM activities WHERE activity_id=?').get(courseId).name,'Filter guarded draft');
+ }finally{f.db.close();}
 });
 
 test('new Course page uses delivery terminology and an honest private-media placeholder',()=>{
@@ -47,7 +68,7 @@ test('schedule validation fills sessions, opens review, requires acceptance and 
   const page=await screen(f.env);page.context.window.M4LCourses.newCourse();
   for(const [field,value] of Object.entries({name:'Auto workshop',accessModel:'FREE',startDate:'2026-10-12',endDate:'2026-10-25',startTime:'1200',endTime:'1pm',teacherId:'account-0003',zoomLink:'https://zoom.us/j/12345678901'}))page.enter(field,value);
   page.chooseDay(1);page.chooseDay(3);await page.context.window.M4LCourses.validate();
-  let html=page.element('course-editor').innerHTML;assert.match(html,/cm-workflow/);assert.match(html,/Sessions · 4/);assert.match(html,/value="2026-10-12"/);assert.match(html,/value="2026-10-21"/);assert.match(html,/value="12:00"/);assert.match(html,/value="13:00"/);assert.doesNotMatch(html,/type="time"/);assert.ok(!html.includes('Synthetic learner 8'));
+  let html=page.element('course-editor').innerHTML;assert.match(html,/cm-workflow/);assert.match(page.element('course-tabs').innerHTML,/Sessions · 4/);assert.match(html,/value="2026-10-12"/);assert.match(html,/value="2026-10-21"/);assert.match(html,/value="12:00"/);assert.match(html,/value="13:00"/);assert.doesNotMatch(html,/type="time"/);assert.ok(!html.includes('Synthetic learner 8'));
   assert.match(html,/Review &amp; accept sessions|Review & accept sessions/);assert.ok(!html.includes('data-cm-action="publish"'));
   await page.click('tab',{tab:'review'});assert.match(page.element('course-editor').innerHTML,/Accept reviewed sessions/);await page.click('accept');
   assert.match(page.element('course-editor').innerHTML,/Review accepted/);assert.match(page.element('course-editor').innerHTML,/data-cm-action="publish"/);
@@ -68,11 +89,11 @@ test('typed clock entries survive draft reopening and regeneration uses the newl
   assert.equal(JSON.parse(saved.details_json).startTime,'08:30');assert.equal(JSON.parse(saved.details_json).endTime,'09:30');
   await page.context.window.M4LCourses.select(saved.activity_id,saved.run_id);
   assert.match(page.element('course-editor').innerHTML,/value="08:30"/);assert.match(page.element('course-editor').innerHTML,/value="09:30"/);
-  await page.context.window.M4LCourses.validate();assert.match(page.element('course-editor').innerHTML,/Sessions · 2/);
+  await page.context.window.M4LCourses.validate();assert.match(page.element('course-tabs').innerHTML,/Sessions · 2/);
   await page.click('tab',{tab:'details'});page.enter('startTime','2100');page.enter('endTime','2130');page.enter('endDate','2026-10-12');
   await page.click('generate');assert.match(page.element('course-dialog').innerHTML,/Replace the draft sessions/);
   page.element('dialog:[data-dialog-confirm]').listeners.click();await page.settle();
-  assert.match(page.element('course-editor').innerHTML,/Sessions · 1/);assert.match(page.element('course-editor').innerHTML,/value="21:00"/);assert.match(page.element('course-editor').innerHTML,/value="21:30"/);
+  assert.match(page.element('course-tabs').innerHTML,/Sessions · 1/);assert.match(page.element('course-editor').innerHTML,/value="21:00"/);assert.match(page.element('course-editor').innerHTML,/value="21:30"/);
   const details=JSON.parse(f.db.prepare('SELECT details_json FROM course_management_drafts WHERE run_id=?').get(saved.run_id).details_json);
   assert.equal(details.sessions.length,1);assert.equal(details.sessions[0].date,'2026-10-12');assert.equal(details.sessions[0].startTime,'21:00');assert.equal(details.sessions[0].endTime,'21:30');
   await page.context.window.M4LCourses.select(saved.activity_id,saved.run_id,'sessions');assert.match(page.element('course-editor').innerHTML,/value="21:00"/);
@@ -90,5 +111,19 @@ test('an older draft with manual sessions and no generation fingerprint can rege
   await page.click('generate');assert.match(page.element('course-dialog').innerHTML,/Replace the draft sessions/);page.element('dialog:[data-dialog-confirm]').listeners.click();await page.settle();
   const details=JSON.parse(f.db.prepare('SELECT details_json FROM course_management_drafts WHERE run_id=?').get(saved.run_id).details_json);
   assert.deepEqual(details.sessions.map(s=>[s.date,s.startTime,s.endTime]),[['2026-10-12','08:30','09:30'],['2026-10-19','08:30','09:30']]);
+ }finally{f.db.close();}
+});
+
+
+test('Course list is the first tab, preserves drafts across tabs and guards switching courses',async()=>{
+ const f=await fixture();try{
+  const page=await screen(f.env);
+  assert.match(page.element('course-tabs').innerHTML,/id="cm-tab-list"[^>]*aria-selected="true"/);
+  assert.match(page.element('course-tabs').innerHTML,/id="cm-tab-details"[^>]*disabled/);
+  page.context.window.M4LCourses.newCourse();page.enter('name','Kept when returning to list');
+  await page.click('tab',{tab:'list'});assert.equal(page.element('course-list-panel').hidden,false);assert.equal(page.element('course-editor').hidden,true);
+  await page.click('tab',{tab:'details'});assert.equal(page.element('course-list-panel').hidden,true);assert.equal(page.element('course-editor').hidden,false);assert.match(page.element('course-editor').innerHTML,/value="Kept when returning to list"/);
+  await page.click('tab',{tab:'list'});await page.click('select',{course:'subject-1',run:'run-1'});assert.match(page.element('course-dialog').innerHTML,/Unsaved changes/);
+  page.element('dialog:[data-dialog-cancel]').listeners.click();await page.click('tab',{tab:'details'});assert.match(page.element('course-editor').innerHTML,/value="Kept when returning to list"/);
  }finally{f.db.close();}
 });

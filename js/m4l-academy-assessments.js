@@ -7,7 +7,7 @@
  const button=(label,action,extra='',secondary=false)=>`<button type="button" data-as="${action}" ${extra} class="as-button${secondary?' as-secondary':''}">${esc(label)}</button>`;
  const field=(label,name,type='text',value='',extra='')=>`<label>${esc(label)}<input name="${name}" type="${type}" value="${esc(value)}" ${extra}></label>`;
  const badge=s=>`<span class="as-badge" data-state="${esc(s)}">${esc(({IN_REVIEW:'Awaiting moderation',APPROVED:'Approved',RETURNED:'Returned',DRAFT:'Draft',DRAFTED:'Drafted',NONE:'None',WAITING:'Waiting',WAITING_FOR_SUBMISSION:'Waiting for submission',AVAILABLE:'Paper available',PUBLISHED:'Published',PAPER_RELEASED:'Released',UPLOADED:'Uploaded',READY_FOR_ASSESSMENT:'Ready for assessment',CONFIRMED:'Confirmed',ASSESSED:'Assessed',MODERATED:'Moderated',RELEASED:'Marks released',PENDING:'Awaiting marking',NOT_SUBMITTED:'Not submitted'})[s]||s)}</span>`;
- const help=()=>button('ⓘ','help','aria-label="Assessment process and help"',true);
+ const help=()=>'<button type="button" data-as="help" class="as-button as-secondary as-help-button" aria-label="Assessment process and help" title="Assessment help">ⓘ</button>';
  function reset(){state.epoch++;state.host?.replaceChildren();state.host=null;state.list=null;state.detail=null;state.phase=null;state.registerId=null;state.editRegister=null;state.registerValidation=null;state.registerFilter='ALL';state.busy=false;state.dirty=false;state.pending=null;state.session='';state.urls.forEach(URL.revokeObjectURL);state.urls=[];window.M4L_ASSESSMENT_REPORTS?.reset();document.getElementById('as-help-dialog')?.remove();document.getElementById('as-answer-dialog')?.remove();}
  function canLeave(){if(state.busy)return false;if(state.dirty||state.pending||window.M4L_ASSESSMENT_REPORTS?.isDirty())return window.confirm('Leave these unsaved assessment changes?');return true;}
  const active=(epoch,session)=>epoch===state.epoch&&session===token()&&session===state.session;
@@ -26,11 +26,15 @@
   finally{if(active(epoch,session)){state.busy=false;controls(false);}}
  }
  async function refresh(){state.registerValidation=null;const id=state.detail?.assessment.id;state.list=await api('list',{activityKey:state.registerId?'':state.options.activityKey||'',view:state.options.view,kind:state.registerId?'':state.options.kind||''});if(id)state.detail=await api('get',{assessmentId:id});await render();}
- function shell(content){state.host.innerHTML=`<div class="as-workspace"><div class="as-toolbar"><div><h2>${state.options.view==='admin'?'Assessment administration':'Assessments'}</h2></div><div class="as-actions">${help()}${button('Refresh','refresh','',true)}</div></div><p data-as-message role="status" aria-live="polite"></p>${button('Retry last action','retry','hidden',true)}${content}</div>`;
+ function shell(content){
+  const previousTabs=state.host.querySelector('.as-tabs'),scrollLeft=previousTabs?.scrollLeft||0,focused=document.activeElement,focusedTab=focused?.dataset.as==='tab'?focused.dataset.tab:'';
+  state.host.innerHTML=`<div class="as-workspace"><p data-as-message role="status" aria-live="polite"></p>${button('Retry last action','retry','hidden',true)}${content}</div>`;
+  const tabs=state.host.querySelector('.as-tabs'),selected=tabs?.querySelector('[aria-pressed=true]');
+  if(tabs){tabs.scrollLeft=scrollLeft;if(selected){if(selected.offsetLeft<tabs.scrollLeft)tabs.scrollLeft=selected.offsetLeft;else if(selected.offsetLeft+selected.offsetWidth>tabs.scrollLeft+tabs.clientWidth)tabs.scrollLeft=selected.offsetLeft+selected.offsetWidth-tabs.clientWidth;}if(focusedTab)tabs.querySelector(`[data-tab="${focusedTab}"]`)?.focus({preventScroll:true});}
   state.host.oninput=event=>{if(event.target.closest('form,[data-register-row]'))state.dirty=true;if(event.target.closest('[data-register-row]'))clearValidation();};state.host.onclick=handle;state.host.onsubmit=submitForm;state.host.onchange=registryChange;
  }
  async function render(){if(!state.list)return;const admin=state.options.view==='admin';if(admin&&!state.list.canAdmin){shell('<div class="as-empty">You do not have assessment administration access in this area.</div>');return;}
-  const nav=admin?`<nav class="as-tabs" aria-label="Assessment administration">${[['schedule','Imtihaan Register'],['moderation','Moderation'],['release','Release'],['reports','Reports & designs']].map(([key,label])=>button(label,'tab',`data-tab="${key}" aria-pressed="${state.tab===key}"`,true)).join('')}</nav>`:'';
+  const nav=admin?`<div class="as-navigation"><nav class="as-tabs" aria-label="Assessment administration">${[['schedule','Imtihaan Register'],['moderation','Moderation'],['release','Release'],['reports','Reports & designs']].map(([key,label])=>button(label,'tab',`data-tab="${key}" aria-pressed="${state.tab===key}"`,true)).join('')}</nav>${help()}</div>`:`<div class="as-navigation as-tools-only">${help()}</div>`;
   if(state.detail){shell(nav+detailHTML());return;}
   if(state.tab==='reports'&&admin){shell(nav+'<div id="as-reports-host"></div>');const epoch=state.epoch,session=state.session,fence=fn=>(...args)=>{if(!active(epoch,session))throw Object.assign(new Error('Session changed.'),{cancelled:true});return fn(...args);};await window.M4L_ASSESSMENT_REPORTS?.open({host:state.host.querySelector('#as-reports-host'),api:fence(api),upload:fence(upload),run:fence(run),download:fence(download),classes:state.list.classes,assessments:state.list.assessments,esc,button,field,dirty:()=>{if(active(epoch,session))state.dirty=true;}});return;}
   let rows=state.list.assessments;if(admin)rows=rows.filter(a=>a.canAdmin);if(state.tab==='moderation')rows=rows.filter(a=>a.canModerate);if(state.tab==='release')rows=rows.filter(a=>a.published);
@@ -160,5 +164,6 @@
  }
  async function open(options){reset();state.options=options;state.host=document.getElementById(options.hostId);state.session=token();state.tab='schedule';if(!state.host)return;if(!state.session){state.host.textContent='Sign in to view assessments.';return;}shell('<p>Opening assessments…</p>');await run(async()=>{},refresh);}
  window.addEventListener('beforeunload',e=>{if(state.busy||state.dirty||state.pending||window.M4L_ASSESSMENT_REPORTS?.isDirty()){e.preventDefault();e.returnValue='';}});
- window.M4L_ACADEMY_ASSESSMENTS={open,reset,canLeave};
+ async function refreshPage(){if(!state.host?.closest('.view.active'))return false;if(!canLeave())return true;state.dirty=false;state.pending=null;await run(async()=>{},refresh);return true;}
+ window.M4L_ACADEMY_ASSESSMENTS={open,reset,canLeave,refreshPage};
 })();

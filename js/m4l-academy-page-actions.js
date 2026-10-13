@@ -10,9 +10,18 @@
   const host=banner?.querySelector('.academy-account-row')||account||document.querySelector('main');if(!host)return;
   const actions=document.createElement('div');actions.className='academy-page-actions';actions.setAttribute('role','group');actions.setAttribute('aria-label','Page actions');
   const home='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9"/></svg>',refresh='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M20 12a8 8 0 1 1-2-6"/></svg>';
-  actions.innerHTML=`<a data-page-home href="${academy?'#overview':'/academy/#overview'}" aria-label="Academy home" title="Home">${home}</a><button data-page-refresh type="button" aria-label="Refresh this page" title="Refresh">${refresh}</button>`;
+  actions.innerHTML=`<a data-page-home href="${academy?'#overview':'/academy/#overview'}" aria-label="Academy home" title="Home"><span class="page-action-icon">${home}</span><span class="page-action-label">Home</span></a><button data-page-refresh type="button" aria-label="Refresh this page" title="Refresh"><span class="page-action-icon">${refresh}</span><span class="page-action-label">Refresh</span></button>`;
   signOut.textContent='Sign out';actions.append(signOut);host.append(actions);
-  actions.querySelector('[data-page-refresh]').addEventListener('click',()=>{try{sessionStorage.removeItem('m4l_academy_daily_timetable_10642');}catch{}location.reload();});
+  actions.querySelector('[data-page-refresh]').addEventListener('click',async()=>{
+    if(await window.M4L_ACADEMY_ASSESSMENTS?.refreshPage?.())return;
+    const contentRefresh=[...document.querySelectorAll('main [data-page-content-refresh]')].find(button=>{
+      const view=button.closest('.view');
+      return !button.hidden&&!button.parentElement?.closest('[hidden]')&&(!view||view.classList.contains('active'));
+    });
+    // Reuse the page's refresh action, including draft guards, selected dates and cache invalidation.
+    if(contentRefresh){contentRefresh.click();return;}
+    try{sessionStorage.removeItem('m4l_academy_daily_timetable_10642');}catch{}location.reload();
+  });
   shell?.update(window.M4L_ACADEMY_SHELL_DATA||null);
   if(shell&&typeof ResizeObserver!=='undefined')new ResizeObserver(()=>document.documentElement.style.setProperty('--academy-banner-height',shell.banners.offsetHeight+'px')).observe(shell.banners);
 })();

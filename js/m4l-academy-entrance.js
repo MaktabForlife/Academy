@@ -19,10 +19,10 @@
   const TIMETABLE_RETURN_KEY = 'm4l_academy_timetable_return';
   let workspaceFocusId = '';
   let lastRouteHash = '', navigationSession = token(), memorisationReturn = null, restoreMemorisation = null;
-  const memorisationHash = hash => (hash === '#progress' || hash === '#hifdh') || hash.startsWith('#progress-admin') || hash.endsWith('/surahs-duas') || hash.endsWith('/assessment') || hash.startsWith('#assessment-admin') || hash.startsWith('#assessments');
+  const memorisationHash = hash => ['#progress','#hifz','#hifdh'].includes(hash) || hash.startsWith('#progress-admin') || hash.endsWith('/surahs-duas') || hash.endsWith('/assessment') || hash.startsWith('#assessment-admin') || hash.startsWith('#assessments');
   const validReturnHash = hash => typeof hash === 'string' && (hash !== '#timetable' && Boolean(titles[hash.slice(1).split('/')[0]]) || /^#activity\/(PROGRAM|COURSE)\/[^/#]+(?:\/(?:learn|teach))?(?:\/(?:attendance|surahs-duas|assessment|library|planning))?$/.test(hash));
   const titles = { overview: 'Academy home', timetable: 'Academy timetable', learning: 'Programs and Courses', workshops: 'Courses', activity: 'Activity',
-    prospectus: '2026 Prospectus', about: 'About', contact: 'Contact', hifdh:'Hifdh', progress: 'Hifdh', 'progress-admin':'Hifdh administration', 'assessment-admin':'Assessment administration', assessments:'My assessments', recorder: 'Voice Recorder', administration: 'Academy administration' };
+    prospectus: '2026 Prospectus', about: 'About', contact: 'Contact', hifz:'Surahs and Duas', hifdh:'Surahs and Duas', progress: 'Surahs and Duas', 'progress-admin':'Manage Surahs and Duas', 'assessment-admin':'Manage Assessments', assessments:'My assessments', recorder: 'Voice Recorder', administration: 'Manage Academy' };
   const activityHref = row => `#activity/${row.kind}/${encodeURIComponent(row.id)}`;
   const staffRoles = roles => roles.some(role => ['TEACHER', 'PROGRAM_ADMIN', 'ADMIN', 'SENIOR', 'GLOBAL_ADMIN'].includes(role));
   const roleName = roles => roles.map(role => ({ GLOBAL_ADMIN: 'Global Admin', PROGRAM_ADMIN: 'Program Admin', ADMIN: 'Program Admin', SENIOR: 'Senior', TEACHER: 'Teacher', STUDENT: 'Student' })[role]).filter(Boolean).join(' · ') || 'None';
@@ -271,7 +271,7 @@
     const available = {learn:global || Boolean(highestAccess(roles)), teach:global || staffRoles(roles), admin:global || adminRoles(roles)};
     const choices = ['learn','teach','admin'].filter(key => data?.signedIn && available[key]);
     const parts = location.hash.slice(1).split('/'), home = !parts[0] || ['overview','learning'].includes(parts[0]);
-    const requested = parts[0] === 'administration' ? 'admin' : parts[0] === 'activity' && state.activity ? workspaceContext(state.activity).mode : home ? parts[1] : '';
+    const requested = ['administration','assessment-admin','progress-admin'].includes(parts[0]) ? 'admin' : parts[0] === 'activity' && state.activity ? workspaceContext(state.activity).mode : home ? parts[1] : '';
     if (choices.includes(requested)) state.academyTab = requested;
     if (!choices.includes(state.academyTab)) state.academyTab = choices[0] || '';
     const panel = $('academy-role-panel');
@@ -290,7 +290,7 @@
     if (!choices.length || state.academyTab === 'admin') {panel.replaceChildren();return;}
     const mode = state.academyTab, rows = activities.filter(row => row.menuAvailable !== false && !['CANCELLED','ARCHIVED'].includes(row.stage||row.status||row.lifecycle) && (global || (mode === 'teach' ? staffRoles(row.roles || []) : row.roles?.includes('STUDENT'))));
     panel.innerHTML = `<p class="academy-chooser-heading">Select a Program or Course to ${mode === 'teach' ? 'teach' : 'learn'}</p><div class="academy-choices">${rows.map(row => {
-      const pill = activityPill(workspaceHref(row,'timetable',mode),row.name,row.roles);
+      const pill = row.kind === 'PROGRAM' && row.id === window.M4L_CONFIG?.HIFZ_PROGRAM_ID ? '' : activityPill(workspaceHref(row,'timetable',mode),row.name,row.roles);
       const helper = hifzHelperLink(row,'activity-pill-shortcut');
       return `<div class="academy-choice"><span class="academy-choice-kind">${row.kind === 'PROGRAM' ? 'Program' : 'Course'}</span>${pill}${helper}</div>`;
     }).join('')}</div>${rows.length ? '' : `<p class="muted">No ${mode === 'teach' ? 'teaching' : 'learning'} Programs or Courses are assigned to this account.</p>`}`;
@@ -327,7 +327,7 @@
       link('Programs', global ? '/programs/' : row.kind === 'PROGRAM' && row.id ? `/programs/timetable.html?program=${encodeURIComponent(row.id)}` : '') +
       link('Courses', global || row.kind !== 'PROGRAM' ? '/academy/courses/manage/' : '') + (row.kind==='PROGRAM'?link('Hifdh',`#progress-admin/PROGRAM/${encodeURIComponent(row.id)}`):'') + link('Assessments',row.id?`#assessment-admin/${row.kind}/${encodeURIComponent(row.id)}`:'#assessment-admin/COURSE') + tool('Academy','academy')) : '') +
       (staff ? group('Teach', hifzHelper + (row.kind === 'PROGRAM' ? `<a href="${activityHref(row)}/attendance" aria-expanded="${location.hash.endsWith('/attendance')}" aria-controls="pa-main">Attendance</a>` + link('Hifdh',`${activityHref(row)}/surahs-duas`) : tool('Attendance','attendance')) + link('Assessment',row.id?`${activityHref(row)}/assessment`:'#assessments/COURSE') + tool('Planning','plan') + tool('Announcements','announcements') + link('My Timetable','#timetable') + link('Edit availability','/academy/teaching/')) : '') +
-      (learner && !staff ? group('Learn', (!staff?hifzHelper:'') + link('Library','/academy/library/') + (state.home?.memorisationActive!==false?link('Hifdh','#progress'):'') + link('My Assessment',row.id?`${activityHref(row)}/assessment`:'#assessments/COURSE') + tool('Calendar','calendar') + tool('Announcements','announcements') + link('My Timetable','#timetable')) : '');
+      (learner && !staff ? group('Learn', (!staff?hifzHelper:'') + link('Library','/academy/library/') + link('My Assessment',row.id?`${activityHref(row)}/assessment`:'#assessments/COURSE') + tool('Calendar','calendar') + tool('Announcements','announcements') + link('My Timetable','#timetable')) : '');
   }
 
   function roleTools(row) {
@@ -341,10 +341,10 @@
     const global = Boolean(state.home?.globalAdmin), staff = mode !== 'learn';
     const events = state.home?.calendarEvents || [];
     const calendar = events.length ? `<ul class="activity-calendar-list">${events.map(event => `<li><strong>${esc(event.description)}</strong> · ${esc(formatDate(event.startDate))}${event.endDate !== event.startDate ? ' – '+esc(formatDate(event.endDate)) : ''}</li>`).join('')}</ul>` : '<p class="muted">No Academy events in this week.</p>';
-    const progress = mode === 'admin' ? global ? '#progress-admin' : '' : mode === 'teach' && row ? workspaceHref(row,'surahs-duas') : '#progress';
+    const progress = mode === 'admin' ? global ? '#progress-admin' : '' : mode === 'teach' && row ? workspaceHref(row,'surahs-duas') : '';
     return `<details class="academy-support-card academy-messages"><summary><span>${staff ? 'Reminders' : 'Messages'}</span><small>Coming soon</small></summary><p class="muted">${staff ? 'Editing and sending reminders' : 'Academy messaging'} is coming soon.</p></details>
       <details class="academy-support-card"><summary><span>Academy calendar</span><small>This week</small></summary>${calendar}${staff ? '<a class="button secondary" href="/academy/teaching/">Edit availability</a>' : ''}${mode === 'admin' && global ? '<p class="tiny muted">Calendar editing in this workspace is coming soon.</p>' : ''}</details>
-      ${state.home?.memorisationActive === false && !staff ? '' : `<details class="academy-support-card"><summary><span>Hifdh tracker</span><small>${mode === 'teach' ? 'Class progress' : mode === 'admin' ? 'Manage progress' : 'My progress'}</small></summary>${progress ? `<a class="button secondary" href="${progress}">${mode === 'learn' ? 'Open my tracker' : mode === 'teach' ? 'Open class progress' : 'Manage trackers'}</a>` : adminAreas().map(area => `<a class="button secondary" href="#progress-admin/${area.kind}/${encodeURIComponent(area.id)}">${esc(area.name)}</a>`).join('')}</details>`}`;
+      ${!staff ? '' : `<details class="academy-support-card"><summary><span>Hifdh tracker</span><small>${mode === 'teach' ? 'Class progress' : 'Manage progress'}</small></summary>${progress ? `<a class="button secondary" href="${progress}">${mode === 'teach' ? 'Open class progress' : 'Manage trackers'}</a>` : adminAreas().map(area => `<a class="button secondary" href="#progress-admin/${area.kind}/${encodeURIComponent(area.id)}">${esc(area.name)}</a>`).join('')}</details>`}`;
   }
   function syncWorkspace(row) {
     const context = workspaceContext(row), permitted = Boolean(state.home?.signedIn && row.roles?.length && !row.unavailable);
@@ -369,7 +369,7 @@
       $('mp-admin-context').textContent=row.name;
       $('mp-admin-close').href=memorisationReturn?.hash||(row.id?activityHref(row):row.kind==='COURSE'?'#workshops':'#overview');
       window.M4L_MEMORISATION_ADMIN?.open({activityKey:row.id?`${row.kind}:${row.id}`:'',kind:row.kind||''});
-      $('current-view').textContent=`${row.name} · Hifdh administration`;
+      $('current-view').textContent=`${row.name} · Manage Surahs and Duas`;
     }
   }
 
@@ -401,7 +401,7 @@
     $('workspace-tool-title').textContent = names[key];
     if (key === 'academy') {
       $('workspace-tool-body').innerHTML = (state.home.globalAdmin ? '<div class="academy-tool-pills"><a href="/academy/subjects/">Subjects &amp; Modules</a></div>' : '') +
-        `<div class="academy-tool-pills"><button type="button" data-workspace-tool="calendar">Calendar</button><button type="button" data-workspace-tool="announcements">Announcements</button><a href="${row.id?'#progress-admin/'+row.kind+'/'+encodeURIComponent(row.id):'#progress-admin/COURSE'}">Hifdh</a>`+ (state.home.globalAdmin?'<button id="public-timetable-refresh" type="button">↻ Refresh public timetable</button>':'')+'</div><p id="public-timetable-refresh-message" role="status" aria-live="polite"></p>';
+        `<div class="academy-tool-pills"><button type="button" data-workspace-tool="calendar">Calendar</button><button type="button" data-workspace-tool="announcements">Announcements</button><a href="${row.id?'#progress-admin/'+row.kind+'/'+encodeURIComponent(row.id):'#progress-admin/COURSE'}">Hifdh</a>`+ (state.home.globalAdmin?'<button id="public-timetable-refresh" type="button">Update public timetable</button>':'')+'</div><p id="public-timetable-refresh-message" role="status" aria-live="polite"></p>';
       bindPublicTimetableRefresh();
     } else if (key === 'calendar') {
       const events = state.home.calendarEvents || [];
@@ -744,10 +744,10 @@
     lastRouteHash = hash;
     const [requested, , encodedId] = location.hash.slice(1).split('/');
     if (requested !== 'activity') { clearTimeout(state.activityTimer); state.activityGeneration++; renderSubscriptions(state.home?.signedIn ? state.home.personalActivities : []); }
-    const name = requested === 'hifdh' ? 'progress' : requested === 'learning' ? 'overview' : titles[requested] ? requested : 'overview';
+    const name = ['hifz','hifdh'].includes(requested) ? 'progress' : requested === 'learning' ? 'overview' : titles[requested] ? requested : 'overview';
     document.querySelectorAll('.view').forEach(view => view.classList.toggle('active', view.id === name));
     document.querySelectorAll('[data-nav]').forEach(button => {
-      const current = button.dataset.nav === requested || !requested && button.dataset.nav === 'overview';
+      const current = button.dataset.nav === requested || name === 'progress' && button.dataset.nav === 'hifz' || !requested && button.dataset.nav === 'overview';
       button.classList.toggle('active', current);
       if (current) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
     });
@@ -770,7 +770,7 @@
   }
   function renderAdministration() {
     const view = $('administration'), global = Boolean(state.home?.signedIn && state.home.globalAdmin), areas = state.home?.signedIn ? adminAreas() : [];
-    if (!global && !areas.length) {view.innerHTML='<div class="page-heading"><h1>Academy administration</h1></div><p>Sign in with an authorised Academy admin account to open management tools.</p>';return;}
+    if (!global && !areas.length) {view.innerHTML='<div class="page-heading"><h1>Manage Academy</h1></div><p>Sign in with an authorised Academy admin account to open management tools.</p>';return;}
     const tabs = [['users','Users'],['attendance','Attendance'],['planning','Planning'],['assessments','Assessments'],['library','Library'],['curriculum','Curriculum'],['programs','Programs'],['courses','Courses']];
     const requested = location.hash.split('/')[1], key = tabs.some(([id]) => id === requested) ? requested : 'users';
     const link = (href,label) => `<a class="button secondary" href="${esc(href)}">${esc(label)}</a>`;
@@ -779,7 +779,7 @@
     const manage = row => row.kind === 'PROGRAM' ? `/programs/manage.html?program=${encodeURIComponent(row.id)}` : `/academy/courses/manage/?course=${encodeURIComponent(row.id)}`;
     const panels = {
       users:global ? link('/users/','Manage user profiles') : scoped(()=>true,row=>manage(row)+(programs(row)?'&tab=profiles':'&tab=participants')),
-      attendance:scoped(programs,row=>workspaceHref(row,'attendance','teach')),
+      attendance:'<p class="muted">Admin Attendance is coming soon, in shaa Allah.</p>',
       planning:'<p class="muted">Planning tools are coming soon.</p>',
       assessments:global ? link('#assessment-admin','Manage assessments') : scoped(()=>true,row=>`#assessment-admin/${row.kind}/${encodeURIComponent(row.id)}`),
       library:global ? link('/academy/library/manage/','Manage Library') : link('/academy/library/','Open my Library'),
@@ -788,10 +788,10 @@
       courses:global ? link('/academy/courses/manage/','Manage Courses')+link('/academy/courses/manage/?view=scheduling','Course scheduling') : scoped(courses,manage)
     };
     const firstProgram=areas.find(programs), firstArea=areas[0];
-    const direct={users:global?'/users/':firstArea?manage(firstArea)+(programs(firstArea)?'&tab=profiles':'&tab=participants'):'#administration/users',attendance:'/programs/attendance.html'+(!global&&firstProgram?'?program='+encodeURIComponent(firstProgram.id):''),planning:'#administration/planning',assessments:global?'#assessment-admin':firstArea?`#assessment-admin/${firstArea.kind}/${encodeURIComponent(firstArea.id)}`:'#assessment-admin',library:global?'/academy/library/manage/':'/academy/library/',curriculum:global?'/academy/subjects/':firstProgram?manage(firstProgram):'#administration/curriculum',programs:global?'/programs/':firstProgram?manage(firstProgram):'#administration/programs',courses:'/academy/courses/manage/'};
-    view.innerHTML = `<div class="page-heading admin-heading"><h1>Academy administration</h1>${global?'<div><button class="button secondary" id="public-timetable-refresh" type="button">↻ Refresh public timetable</button><p id="public-timetable-refresh-message" class="tiny muted" role="status" aria-live="polite"></p></div>':''}</div>
-      <nav class="workspace-tabs admin-management-menu" aria-label="Administration tools"><button class="button secondary" id="admin-teach" type="button" data-academy-teach-menu="left">Teach</button>${tabs.map(([id,label])=>`<a id="admin-tab-${id}" href="${esc(direct[id])}">${label}</a>`).join('')}</nav>
-      ${requested?`<section class="card card-pad" id="admin-workspace"><h2>${tabs.find(([id])=>id===key)[1]}</h2><div class="workspace-actions">${panels[key]||'<p class="muted">No assigned areas are available here.</p>'}</div></section>`:''}<div class="academy-support">${supportSections(null,'admin')}</div>`;
+    const direct={users:global?'/users/':firstArea?manage(firstArea)+(programs(firstArea)?'&tab=profiles':'&tab=participants'):'#administration/users',attendance:'#administration/attendance',planning:'#administration/planning',assessments:global?'#assessment-admin':firstArea?`#assessment-admin/${firstArea.kind}/${encodeURIComponent(firstArea.id)}`:'#assessment-admin',library:global?'/academy/library/manage/':'/academy/library/',curriculum:global?'/academy/subjects/':firstProgram?manage(firstProgram):'#administration/curriculum',programs:global?'/programs/':firstProgram?manage(firstProgram):'#administration/programs',courses:'/academy/courses/manage/'};
+    view.innerHTML = `<div class="page-heading admin-heading"><h1>${requested?'Manage '+tabs.find(([id])=>id===key)[1]:'Manage Academy'}</h1>${global?'<div><button class="button secondary" id="public-timetable-refresh" type="button">Update public timetable</button><p id="public-timetable-refresh-message" class="tiny muted" role="status" aria-live="polite"></p></div>':''}</div>
+      <nav class="workspace-tabs admin-management-menu" aria-label="Administration tools"><button class="button secondary" id="admin-teach" type="button" data-academy-teach-menu="left">Teach</button>${tabs.map(([id,label])=>`<a id="admin-tab-${id}" href="${esc(direct[id])}"${id===requested?' aria-current="page"':''}>${label}</a>`).join('')}</nav>
+      ${requested?`<section class="card card-pad" id="admin-workspace"><div class="workspace-actions">${panels[key]||'<p class="muted">No assigned areas are available here.</p>'}</div></section>`:''}<div class="academy-support">${supportSections(null,'admin')}</div>`;
     bindPublicTimetableRefresh();
     revealWorkspaceTab();
   }

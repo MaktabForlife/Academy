@@ -70,3 +70,28 @@ body.academy-shell{padding-left:0!important;--academy-gutter:clamp(12px,3vw,28px
 .academy-shell.academy-connected>header.pb-header,.academy-shell.academy-connected>header.pb-header+p{display:none}
 .academy-shell .cm-page-heading p{display:none}
 .academy-shell .workspace-tabs button{flex:0 0 auto;scroll-snap-align:start;border-radius:100px;min-height:44px;padding:10px 14px}
+
+/* Pending review: captions and compact unboxed navigation lists. */
+.academy-shell .academy-page-actions>[data-page-home],.academy-shell .academy-page-actions>[data-page-refresh]{display:flex;flex-direction:column;gap:2px;width:44px;min-width:44px;height:60px;padding:0;border:0;background:transparent;font-size:10px}
+.academy-shell .page-action-icon{display:grid;place-items:center;width:44px;height:44px;border:1px solid #ded0e2;border-radius:50%;background:#fff}
+.academy-shell .page-action-label{font:500 10px/1.2 Arial,sans-serif;color:#58305f}
+.academy-drawer{width:min(320px,88vw);padding:16px}
+.academy-drawer-heading{margin-bottom:8px}
+.academy-drawer-heading h2{font-size:24px}
+.academy-drawer .academy-menu-content{gap:8px}
+.academy-drawer .academy-menu-content :is(nav,.nav){gap:0}
+.academy-drawer :is(.academy-menu-content nav a,.academy-menu-content .nav button,.academy-drawer-choice>a){min-height:44px;padding:8px 6px;border:0;border-radius:0;background:transparent;font:500 13px/1.3 Arial,sans-serif}
+.academy-drawer .academy-menu-content :is(nav a,.nav button):hover,.academy-drawer-choice>a:hover{color:#805088;text-decoration:underline;background:transparent}
+.academy-drawer-choice{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px;margin:0}
+.academy-drawer-choice>a:first-child{flex-direction:row;justify-content:space-between;align-items:center;gap:10px;min-width:0}
+.academy-drawer-choice small{font-size:10px;margin:0;font-weight:400}
+.academy-drawer-choice .academy-hifz-shortcut{width:auto;min-height:44px;margin:0;padding:8px 6px;background:transparent;font-size:13px;white-space:nowrap}
+.academy-shell #progress .page-heading{flex-wrap:nowrap;margin-bottom:10px}
+.academy-shell #progress .page-heading>div{flex:1;min-width:0}
+.academy-shell #progress .eyebrow{font-size:10px;letter-spacing:.12em}
+.academy-shell #progress :is(.mp-toolbar,.mp-status:empty){display:none}
+.academy-shell #hifdh-helper{flex:none;min-height:44px;padding:8px 12px;font-size:12px}
+.academy-shell .admin-management-menu a[aria-current=page]{background:#58305f;color:#fff}
+.academy-shell .al-intro h1{font:400 28px/1.15 Georgia,serif;margin:0}
+.academy-shell [data-page-content-refresh]{display:none!important}
+.academy-shell .mp-toolbar:not(:has(button:not([data-page-content-refresh]))){display:none}

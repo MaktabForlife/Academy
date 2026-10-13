@@ -5,7 +5,7 @@
   const escape = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[char]));
   const timezone = "Africa/Johannesburg";
   const fields = ["name", "durationYears", "timezone", "status", "spreadsheetId", "accessModel", "programZoomLink"];
-  const state = { rows: [], selected: new URLSearchParams(location.search).get('program')||"", busy: false, search: "", filter: "", readiness: {}, store: "SHEETS", statuses: ["DRAFT", "ARCHIVED"] };
+  const state = { owner:"", rows: [], selected: new URLSearchParams(location.search).get('program')||"", busy: false, search: "", filter: "", readiness: {}, store: "SHEETS", statuses: ["DRAFT", "ARCHIVED"] };
   const dirty = row => !row.saved || fields.some(field => String(row[field] ?? "") !== String(row.saved[field] ?? "")) || JSON.stringify(row.publicCard||{})!==JSON.stringify(row.saved.publicCard||{});
   const hasEdits = () => state.rows.some(dirty);
   const draft = program => ({ ...program, publicCard:{...program.publicCard}, saved: { ...program,publicCard:{...program.publicCard} }, error: "" });
@@ -21,6 +21,7 @@
     });
     let result;
     try { result = await response.json(); } catch { throw new Error("The service returned an unreadable response. Your edits are still here."); }
+    if(token!==localStorage.getItem("m4l_account_token"))throw new Error("Your Academy account changed. Open Programs again.");
     if (!response.ok || !result.success) throw new Error(result.error || "Could not save. Your edits are still here.");
     return result;
   }
@@ -36,16 +37,16 @@
       state.learningWorkflowsReady = Boolean(data.learningWorkflowsReady);
       state.statuses = data.statuses || ["DRAFT", "ARCHIVED"];
       if (state.store === "D1") {
-        byId("program-intro").textContent = "Open a Program to manage its classes, sessions and timetable together.";
         byId("program-store-label").textContent = "Records";
         byId("program-access-note").textContent = "Activating a Program does not publish its timetable.";
         byId("program-setup-note").textContent = "New Programs start as drafts. Timetable editing, Library and attendance are awaiting migration.";
       }
+      state.owner=localStorage.getItem("m4l_account_token");
       state.rows = data.programs.map(draft);
       state.selected = state.rows.some(row => row.id === state.selected) ? state.selected : (state.rows.find(row => row.mode === "PROGRAM")?.id || "");
       state.readiness = {};
       byId("program-workspace").hidden = false;
-      message(state.store === "D1" ? "Ready. Select a Program to manage its records." : "Ready. Select a Program to check its spreadsheet.");
+      message("");
     } catch (error) { message(error.message, true); byId("program-retry").hidden = false; }
     finally { state.busy = false; render(); }
   }
@@ -80,14 +81,11 @@
     const row = state.rows.find(item => item.id === state.selected);
     panel.hidden = !row || row.mode !== "PROGRAM" || (state.filter && row.status !== state.filter)
       || !`${row.name} ${row.id}`.toLowerCase().includes(state.search.toLowerCase());
+    window.M4L_PROGRAM_MANAGEMENT_NAV?.setSelection(selection());
     if (panel.hidden) return;
     panel.dataset.id=row.id;
     const readiness = state.readiness[row.id];
-    if(state.store==='D1'){
-      panel.innerHTML=`<div class="pb-detail-header"><div><h2>${escape(row.name||'New Program')}</h2><small>${escape(row.id)}</small></div>${row.saved?`<a class="pb-management-open" ${dirty(row)?'hidden':''} href="/programs/${state.learningWorkflowsReady?'timetable':'manage'}.html?program=${encodeURIComponent(row.id)}">Open Program management →</a>`:''}</div>
-      `;
-      return;
-    }
+    if(state.store==='D1'){panel.hidden=true;panel.replaceChildren();return;}
     panel.innerHTML = `<div class="pb-detail-header"><div><h2>${escape(row.name || "New Program")}</h2><small>${escape(row.id)}</small></div>
       <div class="pb-actions">${row.saved && !dirty(row) ? `<a href="/programs/${state.store==='D1'&&!state.learningWorkflowsReady?'manage':'timetable'}.html?program=${encodeURIComponent(row.id)}">Open Program Admin →</a><a href="/programs/manage.html?program=${encodeURIComponent(row.id)}&tab=profiles">People →</a>${state.store === "D1" && !state.learningWorkflowsReady ? "" : `<a href="/programs/library.html?program=${encodeURIComponent(row.id)}">Manage Library →</a><a href="/programs/timetable.html?program=${encodeURIComponent(row.id)}">Open timetable →</a><a href="/programs/attendance.html?program=${encodeURIComponent(row.id)}">Attendance →</a>`}` : ""}<button type="button" data-action="check" class="pb-secondary" ${state.busy || !row.saved || dirty(row) ? "disabled" : ""}>Check readiness</button>
       <button type="button" data-action="prepare" ${state.store === "D1" ? "hidden" : ""} ${state.busy || !row.saved || dirty(row) || readiness?.prepared ? "disabled" : ""}>Prepare spreadsheet</button></div></div>
@@ -179,7 +177,7 @@
         if (row.saved) Object.assign(row, draft(row.saved));
         else state.rows = state.rows.filter(item => item !== row);
         render(); message("Unsaved row changes discarded.");
-      } else if (action === "select" && row?.mode === "PROGRAM") { state.selected = row.id; render(); byId("program-detail").scrollIntoView({ block: "nearest", behavior: "smooth" }); }
+      } else if (action === "select" && row?.mode === "PROGRAM") { state.selected = row.id; render(); if(!byId("program-detail").hidden)byId("program-detail").scrollIntoView({ block: "nearest", behavior: "smooth" }); }
       else if (["check", "prepare"].includes(action)) void readiness(action);
     });
     byId("program-builder").addEventListener("keydown", event => {
@@ -194,5 +192,10 @@
       await load();
     } catch (error) { message(error.message, true); }
   }
+  function selection(){
+    const row=state.rows.find(item=>item.id===state.selected&&item.mode==='PROGRAM'&&(!state.filter||item.status===state.filter)&&`${item.name} ${item.id}`.toLowerCase().includes(state.search.toLowerCase()));
+    return {ready:state.store==='D1'&&Boolean(state.owner)&&state.owner===localStorage.getItem('m4l_account_token'),program:row?{id:row.id,name:row.name}:null,available:Boolean(row?.saved&&!dirty(row)&&!state.busy)};
+  }
+  window.M4L_PROGRAM_BUILDER_NAV={selection};
   document.addEventListener("DOMContentLoaded", () => void init());
 })();

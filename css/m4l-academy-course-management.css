@@ -724,3 +724,19 @@
 @media(max-width:700px){.cm-workflow{padding:10px 14px}.cm-session-review{align-items:flex-start;flex-direction:column}}
 
 .cm-published-note{font-size:12px;color:var(--pb-purple);padding:10px 22px;margin:0;border-bottom:1px solid var(--pb-line);background:#fcfafc}
+
+/* The list and selected Course tools share one full-width workspace. */
+.cm-unified-workspace{display:block;min-height:0}
+.cm-unified-workspace>.cm-tabs{border-top:0;padding:0 10px;scrollbar-width:thin}
+.cm-unified-workspace>.cm-sidebar{border-right:0;border-bottom:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(140px,220px);gap:14px;padding:16px}
+.cm-unified-workspace .cm-list-toolbar,.cm-unified-workspace .cm-list{grid-column:1/-1}
+.cm-unified-workspace .cm-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;max-height:none;margin:0;overflow:visible}
+.cm-unified-workspace .cm-course{width:100%;min-width:0;margin:0}
+.cm-unified-workspace .cm-list>.cm-hint{grid-column:1/-1}
+.cm-unified-workspace .cm-empty{padding:26px 16px}
+.cm-unified-workspace .cm-tabs button{min-height:44px;flex:0 0 auto}
+@media(max-width:700px){.cm-unified-workspace>.cm-sidebar{grid-template-columns:minmax(0,1fr) minmax(110px,.6fr);padding:12px;gap:10px}.cm-unified-workspace .cm-list{grid-template-columns:minmax(0,1fr)}.cm-unified-workspace>.cm-tabs{flex-wrap:nowrap}}
+
+.academy-mobile-layout .cm-unified-workspace .cm-list{display:grid;max-height:none;overflow:visible}
+.academy-mobile-layout .cm-unified-workspace .cm-course{width:100%;min-width:0}
+@media(max-width:900px){.academy-mobile-layout .cm-unified-workspace .cm-list{grid-template-columns:minmax(0,1fr)}}
