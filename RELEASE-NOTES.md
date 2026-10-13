@@ -1,3 +1,9 @@
+# V106.54 — Imtihaan schedule release and exports
+
+The Imtihaan Register includes one Release schedule action for every assessment date in the group, plus Share image, Share PDF and Download PDF. Release validates all dates and eligible class rosters atomically, shows whether the schedule is released, and preserves separate paper and result release controls. Exports use Draft or Final labels and one landscape PDF page. Confirming Scheduled also releases the group schedule; validation alone changes nothing.
+
+The homepage Surahs and Duas heading omits Hifz, and the introduction and both card rails share a visible light container. Surahs and Duas Tracker replaces Hifdh tracker, opens directly within teaching pages, and preserves unsaved confirmations when collapsed. Admin tracker headings open management directly; older Admin Assessments links bypass the intermediate box. No schema changes or live data corrections are required.
+
 # V106.53 — Weekly planning grid and A4 sheets
 
 Replace the status-lane planning board with a teacher-by-week grid for each Program, retaining feedback, filters, deadlines and extensions. Add the supplied weekly-sheet format to on-demand A4 exports. Course submissions remain available after the scheduled end date and close with the Course lifecycle; submitted history remains readable. No database migration.

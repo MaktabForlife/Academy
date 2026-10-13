@@ -1,6 +1,6 @@
 import {assessmentStore,cleanText,validDate,paperAvailable} from './assessment-store.js';
 import {managementError as fail,same} from './management-store.js';
-import {registerList,createRegister,saveRegister,validateRegister,legacyRegisterPlan,requireRegisterClass,newRegisterStatements} from './assessment-register.js';
+import {registerList,createRegister,saveRegister,validateRegister,releaseRegister,legacyRegisterPlan,requireRegisterClass,newRegisterStatements} from './assessment-register.js';
 
 export function d1Assessments(repository,auth){
  const s=assessmentStore(repository,auth),{p,actor}=s;
@@ -187,6 +187,6 @@ export function d1Assessments(repository,auth){
   });
  }
  return {store:s,run:async(action,input)=>{
-  if(action==='register-create')return createRegister(s,input);if(action==='register-save')return saveRegister(s,input);if(action==='register-validate')return validateRegister(s,input);if(action==='session-delete')return deleteSession(input);if(action==='phase-create')return createPhase(input);if(action==='list')return list(input);if(action==='get')return detail(input);if(action==='create')return create(input);if(action==='release-papers')return releasePapers(input);return mutate(action,input);
+  if(action==='register-release')return releaseRegister(s,input);if(action==='register-create')return createRegister(s,input);if(action==='register-save')return saveRegister(s,input);if(action==='register-validate')return validateRegister(s,input);if(action==='session-delete')return deleteSession(input);if(action==='phase-create')return createPhase(input);if(action==='list')return list(input);if(action==='get')return detail(input);if(action==='create')return create(input);if(action==='release-papers')return releasePapers(input);return mutate(action,input);
  }};
 }

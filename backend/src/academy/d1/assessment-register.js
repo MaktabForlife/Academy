@@ -39,6 +39,7 @@ export async function registerList(s,input){
  const grouped=new Map();for(const row of rows){if(!grouped.has(row.register_id))grouped.set(row.register_id,{id:row.register_id,name:row.name,status:row.status,revision:row.revision,classMode:row.class_mode,classActivityKey:row.class_activity_key,classId:row.class_id,className:row.class_name||'',areas:[],canEdit:true});const r=grouped.get(row.register_id);r.areas.push({key:row.activity_key,name:row.activity_name,kind:row.kind});if(!keys.has(row.activity_key))r.canEdit=false;}
  const ids=[...grouped.keys()];
  const summaries=ids.length?(await s.p(`SELECT a.register_id,count(DISTINCT a.assessment_id) papers,max(a.exam_date) last_day,
+  count(DISTINCT CASE WHEN a.schedule_published=1 THEN a.assessment_id END) schedules_released,
   max(CASE WHEN a.paper_released_at IS NOT NULL THEN 1 ELSE 0 END) published,
   sum(CASE WHEN r.latest_submission_id IS NOT NULL THEN 1 ELSE 0 END) answers,
   sum(CASE WHEN r.latest_submission_id=m.submission_id AND m.state='APPROVED' THEN 1 ELSE 0 END) moderated,
@@ -47,7 +48,7 @@ export async function registerList(s,input){
  FROM assessments a LEFT JOIN assessment_recipients r USING(assessment_id) LEFT JOIN assessment_markings m ON m.mark_id=r.latest_mark_id
  WHERE a.deleted_at IS NULL AND a.register_id IN(SELECT value FROM json_each(?)) GROUP BY a.register_id`,JSON.stringify(ids)).all()).results:[];
  const summaryById=new Map(summaries.map(row=>[row.register_id,row]));
- const registers=[...grouped.values()].map(r=>({...r,imtihaanStatus:imtihaanStage(r.status,summaryById.get(r.id))})).filter(r=>(!input.activityKey||r.areas.some(a=>a.key===input.activityKey))&&(!['PROGRAM','COURSE'].includes(input.kind)||r.areas.some(a=>a.kind===input.kind)));
+ const registers=[...grouped.values()].map(r=>{const summary=summaryById.get(r.id),scheduleCount=Number(summary?.papers||0),releasedScheduleCount=Number(summary?.schedules_released||0);return {...r,imtihaanStatus:imtihaanStage(r.status,summary),scheduleCount,releasedScheduleCount,scheduleReleased:scheduleCount>0&&scheduleCount===releasedScheduleCount};}).filter(r=>(!input.activityKey||r.areas.some(a=>a.key===input.activityKey))&&(!['PROGRAM','COURSE'].includes(input.kind)||r.areas.some(a=>a.kind===input.kind)));
  return {registers,registerClasses:classes,registerStatuses,imtihaanStatuses};
 }
 async function fields(s,input,current=null){
@@ -73,8 +74,9 @@ export async function createRegister(s,input){return s.change('register-create',
 export async function saveRegister(s,input){return s.change('register-save',input,String(input.registerId||''),async()=>{
  const r=await registerRecord(s,input.registerId);if(input.revision!==r.revision)throw fail('This Imtihaan changed elsewhere. Refresh before saving.',409,'ROW_CHANGED');
  const v=await fields(s,input,r),now=new Date().toISOString();
- if(v.status!==r.status)requireValidStatus(await statusValidation(s,r.register_id,v.status));
- const statements=[s.p('UPDATE assessment_registers SET name=?,class_mode=?,class_activity_key=?,class_id=?,status=?,revision=revision+1,updated_at=? WHERE register_id=?',v.name,v.classMode,v.classActivityKey,v.classId,v.status,now,r.register_id),s.p('DELETE FROM assessment_register_areas WHERE register_id=?',r.register_id),areaStatement(s,r.register_id,v.keys)];
+ if(v.status!==r.status||v.status==='SCHEDULED')requireValidStatus(await statusValidation(s,r.register_id,v.status));
+ const release=v.status==='SCHEDULED'?await scheduleReleasePlan(s,r):{statements:[]};
+ const statements=[...release.statements,s.p('UPDATE assessment_registers SET name=?,class_mode=?,class_activity_key=?,class_id=?,status=?,revision=revision+1,updated_at=? WHERE register_id=?',v.name,v.classMode,v.classActivityKey,v.classId,v.status,now,r.register_id),s.p('DELETE FROM assessment_register_areas WHERE register_id=?',r.register_id),areaStatement(s,r.register_id,v.keys)];
  // The Imtihaan is the group. Its name is independent of each assessment paper.
  statements.push(s.event({activity_key:v.keys[0]},'register-save',{registerId:r.register_id,previousName:r.name,name:v.name,previousStatus:r.status,status:v.status,activityKeys:v.keys,classMode:v.classMode,classId:v.classId}));
  return {statements,result:{registerId:r.register_id,revision:r.revision+1}};
@@ -85,3 +87,33 @@ export async function validateRegister(s,input){
  const v=await fields(s,input,r);
  return statusValidation(s,r?.register_id,v.status);
 }
+
+async function scheduleReleasePlan(s,register){
+ const allowed=new Set((await s.classes('admin')).map(c=>c.activity_key));
+ if(register.activityKeys.some(key=>!allowed.has(key)))throw fail('This Imtihaan includes a learning area outside your administration access.',403,'FORBIDDEN');
+ if(['CANCELLED','ARCHIVED'].includes(register.status))throw fail('A cancelled or archived Imtihaan cannot release its schedule.',409);
+ const dates=(await s.p('SELECT * FROM assessments WHERE register_id=? AND deleted_at IS NULL ORDER BY exam_date,assessment_id LIMIT 1001',register.register_id).all()).results;
+ if(dates.length>1000)throw fail('This Imtihaan has too many assessments to release together.',409);
+ requireValidStatus(await statusValidation(s,register.register_id,'SCHEDULED'));
+ const pending=dates.filter(a=>!a.schedule_published),recipients=[],events=[],now=new Date().toISOString();
+ for(const a of pending){
+  await s.requireClass(a.activity_key,a.class_id,'admin');
+  if(!register.activityKeys.includes(a.activity_key)||register.class_mode==='ONE'&&(register.class_activity_key!==a.activity_key||register.class_id!==a.class_id))throw fail('An assessment is outside this Imtihaan’s class selection.',409);
+  const rows=await s.roster(a);if(!rows.length)throw fail(`This assessment class has no eligible learners: ${a.title} · ${a.exam_date}. Check its enrolments before release.`,409);
+  if(rows.length>2000)throw fail('Split this class into smaller assessment groups.',409);
+  if(recipients.length+rows.length>25000)throw fail('Split this Imtihaan into smaller groups before releasing its schedule.',409);
+  recipients.push(...rows.map(r=>({assessmentId:a.assessment_id,accountId:r.account_id,name:r.display_name})));
+  events.push({id:crypto.randomUUID(),assessmentId:a.assessment_id,activityKey:a.activity_key});
+ }
+ const ids=pending.map(a=>a.assessment_id),statements=ids.length?[
+  s.p(`INSERT INTO assessment_recipients(assessment_id,account_id,display_name) SELECT json_extract(value,'$.assessmentId'),json_extract(value,'$.accountId'),json_extract(value,'$.name') FROM json_each(?) WHERE 1 ON CONFLICT(assessment_id,account_id) DO NOTHING`,JSON.stringify(recipients)),
+  s.p('UPDATE assessments SET schedule_published=1,revision=revision+1,updated_at=? WHERE assessment_id IN(SELECT value FROM json_each(?))',now,JSON.stringify(ids)),
+  s.p(`INSERT INTO assessment_events(event_id,assessment_id,activity_key,actor_id,action,account_id,details_json,occurred_at) SELECT json_extract(value,'$.id'),json_extract(value,'$.assessmentId'),json_extract(value,'$.activityKey'),?,'publish',NULL,?,? FROM json_each(?)`,s.actor,JSON.stringify({registerId:register.register_id,release:'IMTIHAAN'}),now,JSON.stringify(events))
+ ]:[];
+ return {statements,released:ids.length,total:dates.length};
+}
+export async function releaseRegister(s,input){return s.change('register-release',input,String(input.registerId||''),async()=>{
+ const r=await registerRecord(s,input.registerId);if(input.revision!==r.revision)throw fail('This Imtihaan changed elsewhere. Refresh before releasing its schedule.',409,'ROW_CHANGED');
+ const plan=await scheduleReleasePlan(s,r),status=['REGISTERED','DRAFT','SCHEDULED'].includes(r.status)?'SCHEDULED':r.status;
+ return {statements:[...plan.statements,s.p('UPDATE assessment_registers SET status=?,revision=revision+1,updated_at=? WHERE register_id=?',status,new Date().toISOString(),r.register_id),s.event({activity_key:r.activityKeys[0]},'register-release',{registerId:r.register_id,released:plan.released,total:plan.total})],result:{registerId:r.register_id,revision:r.revision+1,released:plan.released,total:plan.total}};
+});}

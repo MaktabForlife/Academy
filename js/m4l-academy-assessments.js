@@ -77,7 +77,7 @@
   ${a.canAdmin&&!a.published&&a.paperState==='NONE'?createHTML(a):''}
   ${a.canAdmin?`<div class="as-actions">${button('Delete assessment','delete-session','',true)}<p class="as-muted">Assessments can be deleted until learner access or submissions begin.</p></div>`:''}
   ${a.isExaminer&&!a.paperReleased?`<section class="as-box"><h3>Paper duration & total mark</h3><form data-form="paper-details" class="as-inline-form">${field('Duration (minutes)','durationMinutes','number',a.durationMinutes,'min="1" max="1440" required')}${field('Total mark','maximumMark','number',a.maximumMark,'min="0.01" max="1000000" step="any" required')}<button class="as-button" type="submit">Save paper details for moderation</button></form><p class="as-muted">Changes return this paper for moderation. Details are fixed after paper release.</p></section>`:''}
-  <section class="as-box"><div class="as-toolbar"><h3>Assessment paper</h3><div class="as-actions">${a.paperFileId?button('Download paper','download',`data-file="${esc(a.paperFileId)}"`):''}${a.canAdmin?button(a.published?'Refresh learner list':'Release schedule to class','publish','',true):''}</div></div>${a.paperComment?`<p class="as-note">Moderator: ${esc(a.paperComment)}</p>`:''}
+  <section class="as-box"><div class="as-toolbar"><h3>Assessment paper</h3><div class="as-actions">${a.paperFileId?button('Download paper','download',`data-file="${esc(a.paperFileId)}"`):''}${a.canAdmin&&a.published?button('Refresh learner list','publish','',true):''}</div></div>${a.paperComment?`<p class="as-note">Moderator: ${esc(a.paperComment)}</p>`:''}
   ${a.canSubmitPaper&&!a.paperReleased?`<form data-form="paper" class="as-inline-form">${field('Duration (minutes)','durationMinutes','number',a.durationMinutes,'min="1" max="1440" required')}${field('Total mark','maximumMark','number',a.maximumMark,'min="0.01" max="1000000" step="any" required')}${fileInput('paper','Paper · PDF only')}<button class="as-button" type="submit">Submit paper for moderation</button></form><p class="as-muted">The submitting teacher becomes the examiner.</p>`:''}
   ${a.canModerate&&a.paperState==='IN_REVIEW'?`<form data-form="review-paper" class="as-inline-form"><label>Moderation notes<textarea name="comment" maxlength="4000" rows="2"></textarea></label><button class="as-button" name="decision" value="APPROVE" type="submit">Approve paper</button><button class="as-button as-secondary" name="decision" value="RETURN" type="submit">Return to examiner</button></form>`:''}
   ${a.canAdmin&&a.paperState==='APPROVED'&&!a.paperReleased?button('Publish paper','release-paper'):''}
@@ -96,6 +96,24 @@
  function mutation(action,input={}){const a=state.detail.assessment,body={assessmentId:a.id,revision:a.revision,operationId:crypto.randomUUID(),...input};return run(()=>api(action,body));}
  async function handle(event){const b=event.target.closest('[data-as]');if(!b||state.busy)return;const action=b.dataset.as;
   if(action==='help'){showHelp();return;}
+  if(action==='release-register'){
+   if(!canLeave())return;
+   const entry=state.list.registers.find(r=>r.id===b.dataset.id);if(!entry?.canEdit)return;
+   const body={registerId:entry.id,revision:entry.revision,operationId:crypto.randomUUID()};
+   await run(()=>api('register-release',body),async()=>{state.editRegister=null;await refresh();},{successMessage:'Imtihaan schedule released to learners.'});return;
+  }
+  if(['share-schedule-image','share-schedule-pdf','download-schedule-pdf'].includes(action)){
+   if(!canLeave())return;
+   const epoch=state.epoch,session=state.session,options={successMessage:'Schedule export ready.'};
+   await run(async()=>{
+    const list=await api('list',{view:'admin'}),register=list.registers.find(r=>r.id===b.dataset.id);if(!register?.canEdit)throw new Error('This Imtihaan is outside your export access.');
+    const files=await window.M4L_IMTIHAAN_EXPORT.prepare(register,list.assessments);
+    if(!active(epoch,session))throw Object.assign(new Error('Session changed.'),{cancelled:true});
+    if(action==='download-schedule-pdf'){window.M4L_IMTIHAAN_EXPORT.download(files.pdf);options.successMessage=files.label+' one-page PDF downloaded.';}
+    else{const pdf=action==='share-schedule-pdf',result=await window.M4L_IMTIHAAN_EXPORT.share(pdf?files.pdf:files.image,register.name+' - '+files.label+' schedule'),format=pdf?'PDF':'image';options.successMessage=result==='cancelled'?'Sharing cancelled.':result==='downloaded'?files.label+' '+format+' downloaded. You can share the saved file.':files.label+' '+format+' shared.';}
+   },async()=>{},options);return;
+  }
+
   if(action==='retry'){const pending=state.pending;if(pending)await run(pending.task,pending.after,pending.options);return;}
   if(['refresh','back','open','tab','phase','new-register','edit-register','open-register','register-back','cancel-register'].includes(action)&&!canLeave())return;
   if(['refresh','back','open','tab','phase','new-register','edit-register','open-register','register-back','cancel-register'].includes(action)){state.dirty=false;state.pending=null;}
@@ -153,7 +171,7 @@
   dialog.innerHTML=`<div class="as-workspace"><div class="as-toolbar"><h2>Assessment process</h2>${button('Close','close-help','',true)}</div>
    <p>An <strong>Imtihaan</strong> is a group of assessment papers. Open it to add or edit each assessment and its class, subject, date, duration and total mark.</p>
    <ol class="as-help-flow">
-    <li><strong>Register the Imtihaan</strong><p>Choose its Programs or Courses and one class or All classes. Registered appears immediately. Add the assessments, then Validate schedule and Set Scheduled. You can edit the group name without changing any paper name.</p></li>
+    <li><strong>Register the Imtihaan</strong><p>Choose its Programs or Courses and one class or All classes. Registered appears immediately. Add the assessments, then click Validate schedule and Release schedule. Release schedule is available in the Imtihaan Register table and releases all its dates together. Scheduled means learners can see those dates. You can edit the group name without changing any paper name.</p></li>
     <li><strong>Prepare each paper</strong><p>The paper starts Waiting for submission. The teacher who uploads the PDF becomes its examiner; the paper is Drafted and awaits moderation. Another admin can approve it or return it. An examiner cannot moderate her own paper.</p></li>
     <li><strong>Publish papers</strong><p>Admin authorises publication of approved papers. Published papers become available to learners from 03:00 Johannesburg time on their exam date. Paper access and successful submission times are recorded; the expected duration never blocks a submission.</p></li>
     <li><strong>Check submissions and assess</strong><p>Students submit PDF answers. A teacher or admin opens each latest PDF and confirms that it is correct and legible, then manually marks the assessment Ready for Assessment when no more submissions are expected. Admin authorises any replacement, which must be checked again. The examiner marks the latest confirmed answer, and another admin approves or returns the marking.</p></li>

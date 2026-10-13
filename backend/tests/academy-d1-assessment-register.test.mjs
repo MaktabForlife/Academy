@@ -32,8 +32,8 @@ test('renaming an Imtihaan preserves each assessment name, date and paper',()=>u
  const body={...values,...op(),registerId:id,revision:1,name:'Final examinations 2026',status:'SCHEDULED'};
  ok(await f.call('register-save',body,admin));assert.equal(ok(await f.call('register-save',body,admin)).replayed,true);
  const after=f.db.prepare('SELECT * FROM assessments ORDER BY assessment_id').all();
- assert.deepEqual(after,before);
- for(const paper of after){assert.equal(paper.schedule_published,0);assert.equal(paper.paper_file_id,null);}
+ assert.deepEqual(after.map(({schedule_published,revision,updated_at,...a})=>a),before.map(({schedule_published,revision,updated_at,...a})=>a));
+ for(const paper of after){assert.equal(paper.schedule_published,1);assert.equal(paper.paper_file_id,null);assert.equal(paper.paper_released_at,null);}
  assert.equal((await registers(f,admin))[0].name,'Final examinations 2026');
  assert.equal(f.db.prepare("SELECT count(*) n FROM assessment_events WHERE action='register-save'").get().n,1);
  assert.equal(ok(await f.call('get',{assessmentId:ids[0]},admin)).assessment.paperAvailable,false);
@@ -70,7 +70,7 @@ test('migration groups earlier schedules while preserving every original assessm
  }finally{f.db.close();}
 });
 
-test('status validation checks actual workflow prerequisites and saving revalidates without releasing anything',()=>use(async(f,admin)=>{
+test('status validation is read only; confirming Scheduled releases dates without releasing papers or results',()=>use(async(f,admin)=>{
  const id=ok(await f.call('register-create',{...values,...op()},admin)).registerId;
  let current={...values,registerId:id,revision:1,status:'SCHEDULED'};
  let checked=ok(await f.call('register-validate',current,admin));assert.equal(checked.valid,false);
@@ -129,7 +129,6 @@ test('publishing a future paper starts an Imtihaan without opening the paper ear
  const id=ok(await f.call('register-create',{...values,...op()},admin)).registerId;
  const paper=ok(await f.call('create',{...op(),registerId:id,activityKey:scope,classId:'class-1',title:'Future paper',subject:'Qasas',examDate:'2099-01-01',durationMinutes:60,maximumMark:100},admin)).assessmentId;
  ok(await f.call('register-save',{...values,...op(),registerId:id,revision:1,status:'SCHEDULED'},admin));
- ok(await f.call('publish',{...op(),assessmentId:paper,revision:1},admin));
  const teacher=await f.login('0003');ok(await f.upload({kind:'PAPER',assessmentId:paper,revision:2},teacher));
  ok(await f.call('review-paper',{...op(),assessmentId:paper,revision:3,decision:'APPROVE'},admin));
  ok(await f.call('release-papers',{...op(),papers:[{id:paper,revision:4}]},admin));
@@ -159,4 +158,50 @@ test('deletion cannot erase learner access or submissions and failed deletion ro
  f.db.exec('DROP TRIGGER fail_delete');ok(await f.call('publish',{...op(),assessmentId:id,revision:1},admin));
  f.db.prepare("UPDATE assessment_recipients SET first_accessed_at='2026-01-01' WHERE assessment_id=?").run(id);
  assert.equal((await f.call('session-delete',{...op(),assessmentId:id,revision:2},admin)).body.code,'SESSION_IN_USE');assert.equal(f.db.prepare('SELECT deleted_at FROM assessments').get().deleted_at,null);
+}));
+
+test('Imtihaan release publishes all dates across its classes with scoped learner lists and exact retries',()=>use(async(f,admin)=>{
+ const registerId=ok(await f.call('register-create',{...values,...op(),classMode:'ALL'},admin)).registerId,ids=[];
+ for(const [i,classId] of ['class-1','class-shared'].entries())ids.push(ok(await f.call('create',{...op(),registerId,activityKey:scope,classId,title:'Final 2026',subject:'Qasas',examDate:'2999-11-'+String(9+i*7).padStart(2,'0'),durationMinutes:60,maximumMark:100},admin)).assessmentId);
+ const before=(await registers(f,admin)).find(r=>r.id===registerId);assert.equal(before.scheduleCount,2);assert.equal(before.releasedScheduleCount,0);assert.equal(before.scheduleReleased,false);
+ const body={...op(),registerId,revision:before.revision},result=ok(await f.call('register-release',body,admin));assert.equal(result.released,2);assert.equal(ok(await f.call('register-release',body,admin)).replayed,true);
+ const after=(await registers(f,admin)).find(r=>r.id===registerId);assert.equal(after.status,'SCHEDULED');assert.equal(after.scheduleReleased,true);assert.equal(after.releasedScheduleCount,2);
+ for(const [suffix,index] of [['0002',0],['0008',1]]){const student=await f.login(suffix),list=ok(await f.call('list',{activityKey:scope},student));assert.deepEqual(list.assessments.map(a=>a.id),[ids[index]]);assert.equal((await f.call('get',{assessmentId:ids[1-index]},student)).status,403);const a=ok(await f.call('get',{assessmentId:ids[index]},student));assert.equal(a.assessment.paperAvailable,false);assert.equal(a.learners[0].mark,null);}
+ assert.equal(f.db.prepare("SELECT count(*) n FROM assessment_events WHERE action='register-release'").get().n,1);
+ assert.ok(f.db.prepare('SELECT * FROM assessments').all().every(a=>a.schedule_published===1&&a.paper_released_at===null));
+}));
+test('Imtihaan release rejects unauthorised, stale, empty and inactive groups',()=>use(async(f,admin)=>{
+ const registerId=ok(await f.call('register-create',{...values,...op()},admin)).registerId;
+ for(const suffix of ['0002','0003'])assert.equal((await f.call('register-release',{...op(),registerId,revision:1},await f.login(suffix))).status,403);
+ assert.equal((await f.call('register-release',{...op(),registerId,revision:0},admin)).status,409);
+ assert.equal((await f.call('register-release',{...op(),registerId,revision:1},admin)).status,409);
+ ok(await f.call('create',{...op(),registerId,activityKey:scope,classId:'class-1',title:'Final 2026',subject:'Qasas',examDate:'2999-11-09',durationMinutes:60,maximumMark:100},admin));
+ for(const status of ['CANCELLED','ARCHIVED']){f.db.prepare('UPDATE assessment_registers SET status=? WHERE register_id=?').run(status,registerId);assert.equal((await f.call('register-release',{...op(),registerId,revision:1},admin)).status,409);}
+ assert.equal(f.db.prepare('SELECT count(*) n FROM assessment_recipients').get().n,0);
+}));
+test('Imtihaan release requires authority for every included learning area',()=>use(async(f,admin)=>{
+ const other=otherClass(f),registerId=ok(await f.call('register-create',{...values,...op(),activityKeys:[scope,other.activity_key],classMode:'ALL'},admin)).registerId;
+ ok(await f.call('create',{...op(),registerId,activityKey:scope,classId:'class-1',title:'Final 2026',subject:'Qasas',examDate:'2999-11-09',durationMinutes:60,maximumMark:100},admin));
+ assert.equal((await f.call('register-release',{...op(),registerId,revision:1},await f.login('0004'))).status,403);
+ assert.equal(f.db.prepare('SELECT count(*) n FROM assessment_recipients').get().n,0);
+}));
+test('an ineligible class prevents the whole Imtihaan release',()=>use(async(f,admin)=>{
+ const registerId=ok(await f.call('register-create',{...values,...op(),classMode:'ALL'},admin)).registerId;
+ for(const classId of ['class-1','class-shared'])ok(await f.call('create',{...op(),registerId,activityKey:scope,classId,title:'Final 2026',subject:'Qasas',examDate:'2999-11-09',durationMinutes:60,maximumMark:100},admin));
+ f.db.prepare("UPDATE class_memberships SET active=0 WHERE activity_key=? AND class_id='class-shared'").run(scope);
+ assert.equal((await f.call('register-release',{...op(),registerId,revision:1},admin)).status,409);
+ assert.ok(f.db.prepare('SELECT * FROM assessments').all().every(a=>!a.schedule_published));assert.equal(f.db.prepare('SELECT count(*) n FROM assessment_recipients').get().n,0);
+}));
+test('Imtihaan release is atomic and preserves existing learner evidence when new dates are released',()=>use(async(f,admin)=>{
+ const registerId=ok(await f.call('register-create',{...values,...op()},admin)).registerId;
+ const add=async title=>ok(await f.call('create',{...op(),registerId,activityKey:scope,classId:'class-1',title,subject:'Qasas',examDate:'2999-11-09',durationMinutes:60,maximumMark:100},admin)).assessmentId;
+ const first=await add('First'),second=await add('Second'),before=f.db.prepare('SELECT * FROM assessments ORDER BY assessment_id').all(),receiptCount=f.db.prepare('SELECT count(*) n FROM operation_receipts').get().n;
+ f.db.exec("CREATE TRIGGER fail_schedule_release BEFORE UPDATE OF schedule_published ON assessments BEGIN SELECT RAISE(ABORT,'synthetic release failure'); END;");
+ assert.equal((await f.call('register-release',{...op(),registerId,revision:1},admin)).status,503);assert.deepEqual(f.db.prepare('SELECT * FROM assessments ORDER BY assessment_id').all(),before);assert.equal(f.db.prepare('SELECT count(*) n FROM assessment_recipients').get().n,0);assert.equal(f.db.prepare('SELECT count(*) n FROM operation_receipts').get().n,receiptCount);
+ f.db.exec('DROP TRIGGER fail_schedule_release');ok(await f.call('register-release',{...op(),registerId,revision:1},admin));
+ f.db.prepare("UPDATE assessment_recipients SET first_accessed_at='2026-10-13T08:00:00Z',revision=7 WHERE assessment_id=?").run(first);
+ const saved=f.db.prepare('SELECT * FROM assessment_recipients WHERE assessment_id=?').all(first),oldAssessment=f.db.prepare('SELECT * FROM assessments WHERE assessment_id=?').get(first);await add('Third');
+ const current=(await registers(f,admin)).find(r=>r.id===registerId);assert.equal(current.scheduleReleased,false);assert.equal(current.releasedScheduleCount,2);
+ assert.equal(ok(await f.call('register-release',{...op(),registerId,revision:current.revision},admin)).released,1);
+ assert.deepEqual(f.db.prepare('SELECT * FROM assessment_recipients WHERE assessment_id=?').all(first),saved);assert.deepEqual(f.db.prepare('SELECT * FROM assessments WHERE assessment_id=?').get(first),oldAssessment);assert.equal(f.db.prepare('SELECT count(*) n FROM academy_write_guards').get().n,0);
 }));

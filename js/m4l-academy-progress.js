@@ -1,6 +1,7 @@
 (() => {
   'use strict';
   const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const root=$('mp-root');
   const token=()=>localStorage.getItem('m4l_account_token')||'',KEY='m4l_memorisation_pending_v1';
   let generation=0,owner='',session='',data=null,mode='',group=-1,moduleId='',subject='',grid=null,offset=0,busy=false,loading=false,pending=null,conflict=false,upload=null,dialogModule='',message='',error=false;
   let context={view:'self',hostId:'mp-personal-host',activityKey:'',kind:''};
@@ -22,20 +23,21 @@
     return true;
   }
   function reset(){
-    generation++;$('mp-dialog')?.close();$('mp-root')?.replaceChildren();session='';owner='';data=null;grid=null;mode='';group=-1;subject='';moduleId='';offset=0;drafts.clear();pending=null;upload=null;busy=false;loading=false;conflict=false;dialogModule='';message='';error=false;
+    generation++;$('mp-dialog')?.close();root?.replaceChildren();session='';owner='';data=null;grid=null;mode='';group=-1;subject='';moduleId='';offset=0;drafts.clear();pending=null;upload=null;busy=false;loading=false;conflict=false;dialogModule='';message='';error=false;
   }
   async function open(options={}){
     const next={view:'self',hostId:'mp-personal-host',activityKey:'',kind:'',...options};
+    if(root)$(next.hostId)?.appendChild(root);
     if(session===token()&&(data||loading)&&JSON.stringify(next)===JSON.stringify(context))return;
-    reset();context=next;$('mp-root')&&$(context.hostId)?.appendChild($('mp-root'));
-    session=token();if(!session&&context.view!=='self'){$('mp-root').innerHTML='<p>Sign in to view class progress.</p>';return;}
-    const g=generation;loading=true;$('mp-root').innerHTML='<p role="status">Loading memorisation progress…</p>';
+    reset();context=next;
+    session=token();if(!session&&context.view!=='self'){root.innerHTML='<p>Sign in to view class progress.</p>';return;}
+    const g=generation;loading=true;root.innerHTML='<p role="status">Loading memorisation progress…</p>';
     try{
       if(session)owner=[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(session)))].map(b=>b.toString(16).padStart(2,'0')).join('');
       if(g!==generation||session!==token())return;
       if(session)try{const saved=JSON.parse(sessionStorage.getItem(KEY)||'null');if(saved?.owner===owner&&['mark','confirm','import'].includes(saved.action))pending=saved;else if(saved)sessionStorage.removeItem(KEY);}catch{pending=null;}
       await load();
-    }catch(e){if(!e.stale&&g===generation){$('mp-root').innerHTML=`<p class="mp-status" role="alert">${esc(e.message)}</p><button type="button" class="mp-secondary" data-mp="reload">Try again</button>`;}}
+    }catch(e){if(!e.stale&&g===generation){root.innerHTML=`<p class="mp-status" role="alert">${esc(e.message)}</p><button type="button" class="mp-secondary" data-mp="reload">Try again</button>`;}}
     finally{if(g===generation)loading=false;}
   }
   async function load(){
@@ -54,19 +56,19 @@
   function recovery(){return pending?'<div class="mp-recovery"><p>A save is awaiting confirmation. Retry it to check whether it was received.</p><button type="button" class="mp-primary" data-mp="retry">Retry save</button></div>':conflict?'<div class="mp-recovery"><p>Your changes are kept. Refresh the saved progress, review your choices, then save again.</p><button type="button" class="mp-primary" data-mp="refresh">Refresh saved progress</button></div>':'';}
   function render(){
     if(!data)return;const positions=Object.fromEntries(['SURAHS','DUAS'].map(s=>[s,$('mp-row-'+s)?.scrollLeft||0]));
-    const moduleScroll=$('mp-root').querySelector('.mp-set-pills')?.scrollLeft||0;
-    const wasOpen=$('mp-dialog')?.open,gridPosition=$('mp-root').querySelector('.mp-grid-wrap'),gridScroll=gridPosition?{left:gridPosition.scrollLeft,top:gridPosition.scrollTop}:null,focused=document.activeElement,focusAccount=focused?.dataset.confirmAccount,focusTask=focused?.dataset.confirmTask;
-    $('mp-root').innerHTML=`<div class="mp-toolbar"><div>${mode==='classes'&&group>=0?'<button class="mp-secondary" data-mp="class-cards">← Class cards</button>':''}</div><button class="mp-secondary" data-mp="refresh" data-page-content-refresh ${busy||pending?'disabled':''}>Refresh</button></div>
+    const moduleScroll=root.querySelector('.mp-set-pills')?.scrollLeft||0;
+    const wasOpen=$('mp-dialog')?.open,gridPosition=root.querySelector('.mp-grid-wrap'),gridScroll=gridPosition?{left:gridPosition.scrollLeft,top:gridPosition.scrollTop}:null,focused=document.activeElement,focusAccount=focused?.dataset.confirmAccount,focusTask=focused?.dataset.confirmTask;
+    root.innerHTML=`<div class="mp-toolbar"><div>${mode==='classes'&&group>=0?'<button class="mp-secondary" data-mp="class-cards">← Class cards</button>':''}</div><button class="mp-secondary" data-mp="refresh" data-page-content-refresh ${busy||pending?'disabled':''}>Refresh</button></div>
       <p id="mp-status" class="mp-status" role="status" aria-live="polite" data-error="${error}">${esc(message)}</p>${recovery()}
       ${mode==='self'?cards():group<0?classCards():classGrid()}
       <dialog id="mp-dialog" aria-labelledby="mp-dialog-title"></dialog>`;
     for(const [subject,left] of Object.entries(positions))if($('mp-row-'+subject))$('mp-row-'+subject).scrollLeft=left;
-    const modulePills=$('mp-root').querySelector('.mp-set-pills');if(modulePills)modulePills.scrollLeft=moduleScroll;
+    const modulePills=root.querySelector('.mp-set-pills');if(modulePills)modulePills.scrollLeft=moduleScroll;
     if(wasOpen&&dialogModule)openModule(dialogModule);
-    const newGrid=$('mp-root').querySelector('.mp-grid-wrap');if(newGrid&&gridScroll){newGrid.scrollLeft=gridScroll.left;newGrid.scrollTop=gridScroll.top;}
-    if(focusTask)Array.from($('mp-root').querySelectorAll('[data-confirm-task]')).find(n=>n.dataset.confirmTask===focusTask&&n.dataset.confirmAccount===focusAccount)?.focus({preventScroll:true});
+    const newGrid=root.querySelector('.mp-grid-wrap');if(newGrid&&gridScroll){newGrid.scrollLeft=gridScroll.left;newGrid.scrollTop=gridScroll.top;}
+    if(focusTask)Array.from(root.querySelectorAll('[data-confirm-task]')).find(n=>n.dataset.confirmTask===focusTask&&n.dataset.confirmAccount===focusAccount)?.focus({preventScroll:true});
     $('mp-dialog').addEventListener('cancel',e=>{if(busy||pending){e.preventDefault();return;}if(drafts.size&&!window.confirm('Close this set and discard unsaved changes?')){e.preventDefault();return;}drafts.clear();dialogModule='';});
-    $('mp-root').querySelectorAll('button,input,select').forEach(n=>{if(busy||(pending||conflict)&&!['retry','refresh','close'].includes(n.dataset.mp))n.disabled=true;});
+    root.querySelectorAll('button,input,select').forEach(n=>{if(busy||(pending||conflict)&&!['retry','refresh','close'].includes(n.dataset.mp))n.disabled=true;});
   }
   function cards(){
     if(data.personalActive===false)return '';
@@ -134,13 +136,13 @@
     }
     catch(e){if(!e.stale)status(e.message,true);}finally{busy=false;render();}
   }
-  $('mp-root').addEventListener('click',async event=>{
+  root.addEventListener('click',async event=>{
     const b=event.target.closest('button');if(!b||b.disabled)return;
     try{
       if(b.dataset.set){openModule(b.dataset.set);return;}
       if(b.dataset.gridSet){
         const next=b.dataset.gridSet;if(next===moduleId||!canLeave())return;drafts.clear();conflict=false;moduleId=next;busy=true;render();await loadGrid();busy=false;render();
-        Array.from($('mp-root').querySelectorAll('[data-grid-set]')).find(n=>n.dataset.gridSet===next)?.focus({preventScroll:true});return;
+        Array.from(root.querySelectorAll('[data-grid-set]')).find(n=>n.dataset.gridSet===next)?.focus({preventScroll:true});return;
       }
       if(b.dataset.scroll){const [s,d]=b.dataset.scroll.split(':');$('mp-row-'+s).scrollBy({left:Number(d)*272,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});return;}
       const action=b.dataset.mp;
@@ -155,7 +157,7 @@
       }
     }catch(e){busy=false;if(!e.stale){status(e.message,true);render();}}
   });
-  $('mp-root').addEventListener('change',async event=>{
+  root.addEventListener('change',async event=>{
     const n=event.target;if(locked())return;
     if((n.dataset.task||n.dataset.confirmTask)&&drafts.size>=100&&!drafts.has(key(n.dataset.confirmAccount||data.accountId,n.dataset.confirmTask||n.dataset.task))){n.checked=!n.checked;status('Save your current 100 changes before marking more tasks.',true);return;}
     try{

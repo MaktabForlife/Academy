@@ -182,5 +182,6 @@ body.academy-login-open{overflow:hidden}
 @media(max-width:1000px){.academy-intro .intro-feature{grid-column:1;grid-row:2}}
 @media(max-width:480px){.academy-login-dialog .login-preview{padding:20px}.academy-login-heading h2{font-size:24px}}
 
-.academy-home-progress{margin-top:28px}
+.academy-home-progress{margin-top:28px;min-width:0;padding:clamp(16px,2.5vw,28px);border:1px solid var(--line);border-radius:24px;background:rgba(255,255,255,.9);box-shadow:0 8px 28px rgba(72,40,80,.08)}
+.academy-home-progress .mp-row-section:last-child{margin-bottom:0}
 .academy-shell #progress .page-heading h2{font:400 28px/1.15 Georgia,serif;margin:0}

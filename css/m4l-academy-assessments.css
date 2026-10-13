@@ -34,3 +34,5 @@
 .as-tools-only{justify-content:flex-end;margin-top:0}
 .as-workspace>[data-as-message]{font-size:12px;margin:6px 0}
 @media(max-width:900px){.as-navigation .as-tabs{flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scrollbar-width:thin}.as-navigation .as-tabs button{padding:10px 14px;font-size:12px}}
+
+.ar-release-label{display:block;margin-top:4px;font-size:11px}
