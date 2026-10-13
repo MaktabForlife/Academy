@@ -1,3 +1,7 @@
+# V106.50 — Public Academy activities
+
+Add Surahs in my Heart and Kaaba puzzle as standalone visitor utilities, copied from HifzHelper with Academy branding. Both appear in the main menu without sign-in. Heart pictures save only to the current browser/device; backgrounds stay temporary. Kaaba opens in free play. Adds accessible controls and responsive layouts. No schema change.
+
 # V106.49 — Academy PDF reader and tool defaults
 
 Library PDFs open in a separate Academy tab with two adjustable panes, a searchable Library drawer for each PDF and mobile switching or stacked reading. Global Admins set starting text, pen and highlight styles with a live preview; personal choices last until the PDF tab closes. Annotated copies download locally. [Release details](docs/ACADEMY-PDF-READER-106.49.md).

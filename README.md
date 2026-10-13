@@ -1,3 +1,7 @@
+# V106.50 — Free heart colouring and Kaaba puzzle
+
+Surahs in my Heart and the Kaaba puzzle are standalone Academy activities in the main menu, available to visitors without sign-in. The copied HifzHelper activities retain their colouring and free-play behaviour with Academy branding, mobile layouts, device-only heart saves and PNG export. [Release details](docs/ACADEMY-PUBLIC-ACTIVITIES-106.50.md).
+
 # V106.49 — Academy PDF reader and tool defaults
 
 Library PDFs open in a separate Academy tab with two adjustable panes, a searchable Library drawer for each PDF and mobile switching or stacked reading. Global Admins set starting text, pen and highlight styles with a live preview; personal choices last until the PDF tab closes. Annotated copies download locally. [Release details](docs/ACADEMY-PDF-READER-106.49.md).

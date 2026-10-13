@@ -11,7 +11,7 @@ function fixture(path='/academy/open-library/',search='') {
   const nodes=new Map(), handlers=new Map(), requests=[], children=[];
   function element() {
     let markup='';
-    return {hidden:false,attrs:{},handlers:new Map(),classList:{add(){}},
+    return {hidden:false,attrs:{},handlers:new Map(),classList:{add(){}},querySelectorAll:()=>[],
       setAttribute(key,value){this.attrs[key]=value;},
       addEventListener(type,fn){this.handlers.set(type,fn);},replaceChildren(){markup='';},
       get innerHTML(){return markup;},set innerHTML(value){markup=value;for(const match of value.matchAll(/id="([^"]+)"/g)) if(!nodes.has(match[1])) nodes.set(match[1],element());}
@@ -34,6 +34,7 @@ function fixture(path='/academy/open-library/',search='') {
 const app=fixture();
 assert.match(app.children[0].innerHTML,/id="ac-progress" href="\/academy\/#hifz">Hifz<\/a>/);
 assert.equal(app.requests.length,0,'Public Library needs no account request for a visitor');
+for(const slug of ['surahs-in-my-heart','kaaba-puzzle'])assert.match(app.children[0].innerHTML,new RegExp('href="/activities/'+slug+'/"'));
 assert.equal(app.forYou.hidden,true);
 assert.equal(app.nodes.get('ac-library').href,'/academy/open-library/');
 assert.equal(app.children[1].hidden,true);
