@@ -12,7 +12,7 @@
   document.body.classList.add('academy-mobile-layout','academy-shell');
   let active=null,trigger=null,data=window.M4L_ACADEMY_SHELL_DATA||null;
   const drawers={};
-  for(const [key,title,side] of [['website','Menu','right'],['learn','Learn','left'],['teach','Teach','right']]){
+  for(const [key,title,side] of [['website','Menu','right'],['learn','Learn','right'],['teach','Teach','right']]){
     const dialog=document.createElement('dialog');dialog.id=key==='website'?'academy-menu-drawer':'academy-'+key+'-drawer';dialog.className='academy-drawer';dialog.dataset.side=side;dialog.setAttribute('aria-labelledby',dialog.id+'-title');
     dialog.innerHTML=`<div class="academy-drawer-heading"><h2 id="${dialog.id}-title">${title}</h2><button type="button" aria-label="Close ${title} menu">×</button></div><div class="academy-drawer-list"></div>`;
     document.body.append(dialog);drawers[key]=dialog;
@@ -25,7 +25,7 @@
   const legacy=document.getElementById('academy-role-panel');if(legacy){legacy.hidden=true;drawers.learn.append(legacy);}
   const strip=document.querySelector('.academy-connected-activities');if(strip)strip.hidden=true;
   function close(restore){if(active){active.close();active=null;}document.body.classList.remove('academy-drawer-open');for(const b of document.querySelectorAll('.academy-menu-toggle,[data-academy-tab],[data-shell-role]'))b.setAttribute('aria-expanded','false');if(restore)trigger?.focus({preventScroll:true});}
-  function open(key,source,side){if(active===drawers[key]){close(true);return;}close(false);trigger=source||toggle;active=drawers[key];active.dataset.side=side||(key==='learn'?'left':'right');active.showModal();document.body.classList.add('academy-drawer-open');trigger.setAttribute('aria-expanded','true');}
+  function open(key,source,side){if(active===drawers[key]){close(true);return;}close(false);trigger=source||toggle;active=drawers[key];active.dataset.side='right';active.showModal();document.body.classList.add('academy-drawer-open');trigger.setAttribute('aria-expanded','true');}
   toggle.addEventListener('click',()=>open('website',toggle));
   function update(next){
     data=next;const signed=Boolean(data?.signedIn),global=Boolean(signed&&data.globalAdmin),activities=signed?data.personalActivities||[]:[],roles=activities.flatMap(r=>r.roles||[]);
@@ -50,7 +50,7 @@
     if(!signed&&active&&active!==drawers.website)close(false);
   }
   document.addEventListener('click',event=>{
-    const adminTeach=event.target.closest('[data-academy-teach-menu]');if(adminTeach){event.preventDefault();open('teach',adminTeach,'left');return;}
+    const adminTeach=event.target.closest('[data-academy-teach-menu]');if(adminTeach){event.preventDefault();open('teach',adminTeach,'right');return;}
     const button=event.target.closest('[data-shell-role]');if(!button)return;
     if(button.dataset.shellRole==='admin')location.href='/academy/#administration';else open(button.dataset.shellRole,button);
   });

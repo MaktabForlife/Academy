@@ -32,7 +32,7 @@ function fixture(path='/academy/open-library/',search='') {
     refresh:()=>handlers.get('m4l-academy-session')()};
 }
 const app=fixture();
-assert.match(app.children[0].innerHTML,/id="ac-progress" href="\/academy\/#hifz">Hifz<\/a>/);
+assert.doesNotMatch(app.children[0].innerHTML,/id="ac-progress"|href="\/academy\/#hifz"/);
 assert.equal(app.requests.length,0,'Public Library needs no account request for a visitor');
 for(const slug of ['surahs-in-my-heart','kaaba-puzzle'])assert.match(app.children[0].innerHTML,new RegExp('href="/activities/'+slug+'/"'));
 assert.equal(app.forYou.hidden,true);
@@ -44,7 +44,6 @@ assert.equal(app.requests[0].options.headers.Authorization,'Bearer first-account
 assert.equal(app.requests[0].options.body,'{}');
 assert.equal(app.forYou.hidden,false);
 assert.equal(app.nodes.get('ac-library').href,'/academy/library/');
-assert.equal(app.nodes.get('ac-progress').hidden,false);
 assert.match(app.children[1].innerHTML,/\/academy\/#activity\/PROGRAM\/Pilot-actual-id/);
 assert.match(app.children[1].innerHTML,/href="\/academy\/#workshops"/);
 assert.equal((app.children[1].innerHTML.match(/<span>Courses<\/span>/g)||[]).length,1);
@@ -60,7 +59,6 @@ assert.doesNotMatch(app.children[0].innerHTML,/>Programs and Courses<|>Timetable
 // Every account role can move between For You and Explore; student-only tools stay scoped.
 app.setResult({success:true,signedIn:true,student:false,personalActivities:[]});app.refresh();await flush();
 assert.equal(app.forYou.hidden,false);
-assert.equal(app.nodes.get('ac-progress').hidden,false);
 assert.equal(app.nodes.get('ac-recorder').hidden,true);
 assert.equal(app.children[1].hidden,false);
 assert.doesNotMatch(app.children[1].innerHTML,/<span>Courses<\/span>/);

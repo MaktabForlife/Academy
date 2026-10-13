@@ -1,3 +1,7 @@
+# V106.51 — Visitor welcome, Login and homepage memorisation
+
+Visitors see the Bismillah, Academy name, mission and announcements first. Login in the second banner opens the “One account · Every program” form and changes to Sign out after authentication. Surahs and Duas rails appear below self-paced learning on the homepage; the separate Hifz menu entry is removed. The visitor preview is shorter, with “Register to save your progress” instead of empty totals; signed-in progress remains available. All main, Learn and Teach menus slide in from the right. No database changes.
+
 # V106.50 — Free heart colouring and Kaaba puzzle
 
 Surahs in my Heart and the Kaaba puzzle are standalone Academy activities in the main menu, available to visitors without sign-in. The copied HifzHelper activities retain their colouring and free-play behaviour with Academy branding, mobile layouts, device-only heart saves and PNG export. [Release details](docs/ACADEMY-PUBLIC-ACTIVITIES-106.50.md).

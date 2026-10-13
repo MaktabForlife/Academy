@@ -165,3 +165,22 @@
 .activity-pills .activity-pill-with-shortcut>a.activity-pill-shortcut{align-self:center;padding:3px 9px 8px;font-size:11px;text-decoration:underline;text-underline-offset:2px;white-space:nowrap}
 .personal-activities .activity-pill-with-shortcut small,.activity-pill-with-shortcut[data-current="true"] small{color:inherit}
 .activity-pills .activity-pill-with-shortcut>a:hover{text-decoration:underline}.activity-pills .activity-pill-with-shortcut>a:focus-visible{outline:3px solid #b78bc5;outline-offset:-3px}
+
+/* Public welcome first; account entry opens from the persistent banner. */
+.academy-intro .intro-next{grid-column:1;grid-row:1}
+.academy-intro .intro-feature{grid-column:2;grid-row:1}
+.intro-identity .intro-greeting{color:var(--rose-dark);margin:0 0 18px;font-size:2.35rem}
+.academy-intro .intro-feature>.academy-news{min-height:0;margin:0}
+.academy-login-dialog{width:min(460px,calc(100vw - 24px));max-height:calc(100dvh - 24px);margin:auto;padding:0;border:1px solid var(--line);border-radius:20px;background:var(--paper);color:var(--ink);box-shadow:0 24px 70px #37203c40;overflow:auto}
+.academy-login-dialog::backdrop{background:#21152666}
+.academy-login-dialog .login-preview{max-width:none;margin:0;padding:24px;border:0;border-radius:0;box-shadow:none;background:var(--paper)}
+.academy-login-heading{display:flex;align-items:flex-start;gap:12px;justify-content:space-between;margin:0 0 22px}
+.academy-login-heading h2{margin:4px 0 0;font:400 26px/1.2 Georgia,serif}
+.academy-login-heading button{flex:none;width:44px;min-height:44px;padding:0;border:1px solid var(--line);border-radius:12px;background:var(--paper);color:var(--rose-dark);font-size:26px}
+.academy-login-dialog .login-status{font-size:14px;line-height:1.45;margin:12px 0 0;padding:10px 12px;border-radius:9px;background:var(--sage-soft);color:var(--sage)}
+body.academy-login-open{overflow:hidden}
+@media(max-width:1000px){.academy-intro .intro-feature{grid-column:1;grid-row:2}}
+@media(max-width:480px){.academy-login-dialog .login-preview{padding:20px}.academy-login-heading h2{font-size:24px}}
+
+.academy-home-progress{margin-top:28px}
+.academy-shell #progress .page-heading h2{font:400 28px/1.15 Georgia,serif;margin:0}

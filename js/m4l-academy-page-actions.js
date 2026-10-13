@@ -11,7 +11,13 @@
   const actions=document.createElement('div');actions.className='academy-page-actions';actions.setAttribute('role','group');actions.setAttribute('aria-label','Page actions');
   const home='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9"/></svg>',refresh='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M20 12a8 8 0 1 1-2-6"/></svg>';
   actions.innerHTML=`<a data-page-home href="${academy?'#overview':'/academy/#overview'}" aria-label="Academy home" title="Home"><span class="page-action-icon">${home}</span><span class="page-action-label">Home</span></a><button data-page-refresh type="button" aria-label="Refresh this page" title="Refresh"><span class="page-action-icon">${refresh}</span><span class="page-action-label">Refresh</span></button>`;
-  signOut.textContent='Sign out';actions.append(signOut);host.append(actions);
+  const login=document.getElementById('academy-login')||document.createElement('a');
+  if(!login.id){login.id='academy-login';login.href='/academy/#login';login.textContent='Login';}
+  signOut.textContent='Sign out';actions.append(login,signOut);host.append(actions);
+  if(!academy){
+    const updateLogin=()=>{login.hidden=!signOut.hidden;};updateLogin();
+    new MutationObserver(updateLogin).observe(signOut,{attributes:true,attributeFilter:['hidden']});
+  }
   actions.querySelector('[data-page-refresh]').addEventListener('click',async()=>{
     if(await window.M4L_PLANNING?.refreshPage?.())return;
     if(await window.M4L_ACADEMY_ASSESSMENTS?.refreshPage?.())return;

@@ -9,8 +9,8 @@
   const side = document.createElement('aside');
   side.className = 'academy-connected-sidebar';
   side.setAttribute('aria-label', 'Academy');
-  side.innerHTML = `<a class="academy-connected-brand" href="/academy/#overview"><img src="/ummabbadacademy.png" alt=""><span><strong>Umm Abbad<br>Academy</strong><span class="site-version">Website V106.50</span></span></a>
-    <nav aria-label="Academy navigation"><a href="/academy/#overview">Academy home</a><a id="ac-progress" href="/academy/#hifz">Hifz</a><a href="/activities/surahs-in-my-heart/">Surahs in my Heart</a><a href="/activities/kaaba-puzzle/">Kaaba puzzle</a><a id="ac-recorder" href="/academy/#recorder" hidden>Voice Recorder</a><a id="ac-library" href="/academy/open-library/">Library</a><a id="ac-calendar" href="/academy/calendar/" hidden>Academic Calendar</a><a href="/academy/#prospectus">2026 Prospectus</a><a href="/academy/#about">About</a><a href="/academy/#contact">Contact</a></nav>
+  side.innerHTML = `<a class="academy-connected-brand" href="/academy/#overview"><img src="/ummabbadacademy.png" alt=""><span><strong>Umm Abbad<br>Academy</strong><span class="site-version">Website V106.51</span></span></a>
+    <nav aria-label="Academy navigation"><a href="/academy/#overview">Academy home</a><a href="/activities/surahs-in-my-heart/">Surahs in my Heart</a><a href="/activities/kaaba-puzzle/">Kaaba puzzle</a><a id="ac-recorder" href="/academy/#recorder" hidden>Voice Recorder</a><a id="ac-library" href="/academy/open-library/">Library</a><a id="ac-calendar" href="/academy/calendar/" hidden>Academic Calendar</a><a href="/academy/#prospectus">2026 Prospectus</a><a href="/academy/#about">About</a><a href="/academy/#contact">Contact</a></nav>
     <div class="academy-connected-footer"><a href="https://ummabbadacademy.com" target="_blank" rel="noopener noreferrer">Original Academy site ↗</a><button id="ac-signout" type="button" hidden>Sign out</button></div>`;
   const strip = document.createElement('nav');
   strip.className = 'academy-connected-activities';
@@ -32,7 +32,6 @@
     strip.replaceChildren();
     strip.hidden = true;
     $('ac-library').href = '/academy/open-library/';
-    $('ac-progress').hidden = false;
     $('ac-recorder').hidden = true;
     $('ac-calendar').hidden = true;
     $('ac-signout').hidden = !token();
@@ -63,7 +62,6 @@
       if (pending !== generation || session !== token() || !result.success || !result.signedIn) return;
       d1Session = result.sessionStore === 'D1' ? session : '';
       $('ac-library').href = '/academy/library/';
-      $('ac-progress').hidden = false;
       $('ac-recorder').hidden = !result.student;
       $('ac-calendar').hidden = false;
       $('ac-signout').hidden = false;

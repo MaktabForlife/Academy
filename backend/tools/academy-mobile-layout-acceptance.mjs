@@ -94,6 +94,12 @@ if(process.argv.includes('--serve')) {
     for(const width of [320,390,600,768,900,901,1440]) {
       await page.setViewportSize({width,height:900});await go('/academy/');await fits('public two-banner home '+width);
       assert.equal(await page.locator('.academy-banners').isVisible(),true);assert.equal(await page.locator('.academy-account-bar').isVisible(),true);
+      assert.equal(await page.locator('#login-preview').isVisible(),false);assert.equal(await page.locator('.academy-page-actions #academy-login').innerText(),'Login');
+      const welcome=await page.locator('.intro-identity').innerText();assert.match(welcome,/﷽[\s\S]*ummabbadacademy[\s\S]*Flexible/);
+      await page.locator('#academy-login').click();await page.locator('#academy-login-dialog').waitFor();assert.equal(await page.locator('#academy-login-title').innerText(),'One account · Every program');assert.equal(await page.locator('#demo-username').evaluate(n=>n===document.activeElement),true);await fits('Login popup '+width);
+      if(width===390)await page.screenshot({path:path.join(out,'phone-login.png')});
+      await page.keyboard.press('Escape');assert.equal(await page.locator('#login-preview').isVisible(),false);assert.equal(await page.locator('#academy-login').evaluate(n=>n===document.activeElement),true);
+      if(width===390)await page.screenshot({path:path.join(out,'phone-public-welcome.png')});
       await page.locator('.academy-menu-toggle').click();const menu=page.locator('#academy-menu-drawer');await menu.waitFor();
       assert.equal(await menu.getAttribute('data-side'),'right');
       const items=await menu.locator('[data-nav]').evaluateAll(ns=>ns.filter(n=>n.getBoundingClientRect().width>0).map(n=>({x:n.getBoundingClientRect().x,y:n.getBoundingClientRect().y})));
@@ -101,21 +107,28 @@ if(process.argv.includes('--serve')) {
       const plain=await menu.locator('[data-nav]').evaluateAll(ns=>ns.filter(n=>n.getBoundingClientRect().width>0).map(n=>({border:getComputedStyle(n).borderTopWidth,font:parseFloat(getComputedStyle(n).fontSize),height:n.getBoundingClientRect().height})));assert.ok(plain.every(n=>n.border==='0px'&&n.font<=14&&n.height>=44));
       assert.equal(await page.locator('[data-page-home] .page-action-label').innerText(),'Home');assert.equal(await page.locator('[data-page-refresh] .page-action-label').innerText(),'Refresh');
       await page.keyboard.press('Escape');assert.equal(await menu.isVisible(),false);assert.equal(await page.locator('.academy-menu-toggle').evaluate(n=>n===document.activeElement),true);
-      await page.locator('.academy-menu-toggle').click();await menu.locator('[data-nav=hifz]').click();await page.locator('#progress.active').waitFor();await page.locator('.mp-card').first().waitFor();
-      assert.equal(await page.locator('#progress h1').innerText(),'Surahs and Duas');assert.equal(await page.locator('#hifdh-helper').isVisible(),false);assert.match(await page.locator('#mp-root').innerText(),/Visitor preview/);
+      assert.equal(await menu.locator('[data-nav=hifz],a[href$="#hifz"]').count(),0);await page.locator('#progress .mp-card').first().waitFor();
+      assert.equal(await page.evaluate(()=>Boolean(document.querySelector('.film-section').compareDocumentPosition(document.querySelector('#progress'))&Node.DOCUMENT_POSITION_FOLLOWING)),true);
+      await page.locator('#progress').scrollIntoViewIfNeeded();
+      assert.equal(await page.locator('#progress #hifdh-title').innerText(),'Surahs and Duas');assert.equal(await page.locator('#hifdh-helper').isVisible(),false);assert.match(await page.locator('#mp-root').innerText(),/Visitor preview/);
+      assert.equal(await page.locator('#mp-summary,.mp-summary').count(),0);assert.doesNotMatch(await page.locator('.mp-intro').innerText(),/Record your progress here|Your selections are temporary/);assert.match(await page.locator('.mp-intro').innerText(),/Register to save your progress/);
       assert.equal(await page.locator('#mp-personal-close').isVisible(),false);assert.equal(await page.locator('#progress .mp-toolbar').isVisible(),false);
-      assert.equal(await page.locator('#progress h1').evaluate(n=>getComputedStyle(n).fontSize),'28px');
+      assert.equal(await page.locator('#progress #hifdh-title').evaluate(n=>getComputedStyle(n).fontSize),'28px');
       await page.evaluate(()=>scrollTo(0,600));const banner=await page.locator('.academy-banners').boundingBox();assert.ok(Math.abs(banner.y)<1);await fits('public Hifz and persistent banners '+width);
-      if(width===390){await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:path.join(out,'phone-public-hifz.png')});}
+      if(width===390){await page.evaluate(()=>scrollTo(0,0));await page.locator('#progress').screenshot({path:path.join(out,'phone-public-hifz.png')});}
     }
-    for(const alias of ['hifdh','progress']){await go('/academy/#'+alias);await page.locator('#progress.active .mp-card').first().waitFor();assert.equal(await page.locator('#progress h1').innerText(),'Surahs and Duas');}
+    for(const alias of ['hifdh','progress']){await go('/academy/#'+alias);await page.locator('#overview.active #progress .mp-card').first().waitFor();assert.equal(await page.locator('#progress #hifdh-title').innerText(),'Surahs and Duas');}
+    await go('/academy/open-library/');assert.equal(await page.locator('.academy-page-actions #academy-login').getAttribute('href'),'/academy/#login');await page.locator('#academy-login').click();await page.locator('#academy-login-dialog').waitFor();
+    await page.locator('#demo-username').fill('Student2');await page.locator('#demo-pin').fill('0000');await page.locator('#login-preview button[type=submit]').click();await page.waitForFunction(()=>document.querySelector('#login-status').textContent&&!document.querySelector('#demo-pin').disabled);assert.equal(await page.locator('#academy-login-dialog').isVisible(),true);
+    await page.locator('#demo-pin').fill('1234');await page.locator('#login-preview button[type=submit]').click();await page.locator('#academy-sign-out').waitFor();assert.equal(await page.locator('#academy-login-dialog').isVisible(),false);assert.equal(await page.locator('#academy-login').isVisible(),false);await page.locator('#mp-root .mp-summary').waitFor();await page.locator('#academy-sign-out').click();await page.locator('#academy-login').waitFor();assert.equal(await page.locator('#login-preview').isVisible(),false);
+    checks.push('Visitor Login opens from the second banner and public Library; failed login stays open; success and Sign out toggle the banner action');
     for(const [who,keys] of [['student',['learn']],['teacher',['learn','teach']],['scopedAdmin',['learn','teach','admin']],['admin',['learn','teach','admin']]]) {
       await signIn(who);await go('/academy/');await page.locator('#academy-header-name').waitFor();await page.waitForFunction(()=>document.querySelector('#academy-account-role').textContent.length>0);
       assert.equal(await page.locator('.academy-global-strip:visible,#activity-switcher:visible,.academy-page-tools:visible,#academy-role-panel:visible').count(),0,'Home omits both legacy shortcut rows at desktop and mobile sizes');
       if(who==='admin')await page.screenshot({path:path.join(out,'desktop-home-draft.png')});
       for(const key of ['learn','teach','admin'])assert.equal(await page.locator('#academy-tab-'+key).isVisible(),keys.includes(key),who+' '+key);
       for(const key of keys.filter(k=>k!=='admin')){
-        await page.locator('#academy-tab-'+key).click();const drawer=page.locator('#academy-'+key+'-drawer');await drawer.waitFor();assert.equal(await drawer.getAttribute('data-side'),key==='learn'?'left':'right');
+        await page.locator('#academy-tab-'+key).click();const drawer=page.locator('#academy-'+key+'-drawer');await drawer.waitFor();assert.equal(await drawer.getAttribute('data-side'),'right');
         assert.equal(await drawer.locator('a').filter({hasText:/Cancelled fixture|Archived fixture/}).count(),0);assert.equal(await drawer.locator('.academy-drawer-list small').count(),0);
         assert.equal(await drawer.locator('.academy-drawer-list a[href*="'+hifzId+'"]').count(),0,'Hifz Program is replaced by the external helper');
         assert.equal(await drawer.locator('.academy-drawer-list a[href$="#hifz"],.academy-drawer-list a[href$="#progress"]').count(),0,'The public tracker is available only in the website menu');
@@ -126,13 +139,13 @@ if(process.argv.includes('--serve')) {
       if(keys.includes('admin')){
         await page.locator('#academy-tab-admin').click();await page.locator('#administration.active').waitFor();
         assert.equal(await page.locator('.admin-management-menu').locator('button,a').first().innerText(),'Teach');
-        await page.locator('#admin-teach').click();await page.locator('#academy-teach-drawer').waitFor();assert.equal(await page.locator('#academy-teach-drawer').getAttribute('data-side'),'left');await page.keyboard.press('Escape');
+        await page.locator('#admin-teach').click();await page.locator('#academy-teach-drawer').waitFor();assert.equal(await page.locator('#academy-teach-drawer').getAttribute('data-side'),'right');await page.keyboard.press('Escape');
         assert.equal(await page.locator('#admin-tab-users').getAttribute('href'),who==='admin'?'/users/':await page.locator('#admin-tab-users').getAttribute('href'));
         assert.ok((await page.locator('#admin-tab-assessments').getAttribute('href')).startsWith('#assessment-admin'));
         if(who==='scopedAdmin')assert.equal(await page.locator('#public-timetable-refresh').count(),0);
       }
       await fits('role access '+who);
-      await page.locator('#academy-sign-out').click();await page.locator('#login-preview').waitFor();assert.equal(await page.locator('.academy-account-bar').isVisible(),true);assert.equal(await page.locator('#academy-sign-out').isVisible(),false);
+      await page.locator('#academy-sign-out').click();await page.locator('#academy-login').waitFor();assert.equal(await page.locator('#login-preview').isVisible(),false);assert.equal(await page.locator('.academy-account-bar').isVisible(),true);assert.equal(await page.locator('#academy-sign-out').isVisible(),false);
       assert.equal(await page.locator('#academy-learn-drawer a').count(),0);
     }
     for(const who of ['student','teacher','admin']){
@@ -261,7 +274,7 @@ if(process.argv.includes('--serve')) {
     }
     checks.push('Assessment pills stay in a swipe row with adjacent help; duplicate heading and internal refresh removed');
     const fresh=page.waitForResponse(r=>r.url().endsWith('/api/academy/assessments/list'));await page.locator('[data-page-refresh]').click();await fresh;await page.locator('#as-admin-host .as-workspace').waitFor();assert.equal(new URL(page.url()).hash,'#assessment-admin');
-    await go('/academy/library/');await page.locator('.academy-page-actions #ac-signout').click();await page.locator('#login-preview').waitFor();assert.equal(await page.evaluate(()=>localStorage.getItem('m4l_account_token')),null);
+    await go('/academy/library/');await page.locator('.academy-page-actions #ac-signout').click();await page.locator('#academy-login').waitFor();assert.equal(await page.locator('#login-preview').isVisible(),false);assert.equal(await page.evaluate(()=>localStorage.getItem('m4l_account_token')),null);
     checks.push('Admin pills open editors directly; Home and Refresh preserve cancelled unsaved edits; Refresh retains the active page; connected Sign out clears access');
     assert.deepEqual(errors,[]);
     writeFileSync(path.join(out,'acceptance.json'),JSON.stringify({checks,errors,syntheticDatabase:true,liveDataChanged:false},null,2));console.log('Mobile layout browser acceptance passed: '+checks.length+' checks. Evidence: '+out);

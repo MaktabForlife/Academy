@@ -15,12 +15,16 @@
   const homeCard = document.getElementById("academy-home-card");
   const headerName = document.getElementById("academy-header-name");
   const signOutButton = document.getElementById("academy-sign-out");
+  const loginButton = document.getElementById("academy-login");
+  const loginDialog = document.getElementById("academy-login-dialog");
+  const loginClose = document.getElementById("academy-login-close");
   const libraryNav = document.getElementById("academy-library-nav");
   const avatar = document.getElementById("academy-avatar");
   let activeToken = "";
   let activeLoginId = "";
   let sessionStore = "";
   let sessionGeneration = 0;
+  let loginRequested = window.location.hash === "#login";
 
   if (!form || !linkInput || !pinInput || !apiBase) return;
 
@@ -30,6 +34,16 @@
   });
 
   form.addEventListener("submit", signIn);
+  loginButton.addEventListener("click", openLogin);
+  loginClose.addEventListener("click", () => closeLogin(true));
+  loginDialog.addEventListener("cancel", event => { event.preventDefault(); closeLogin(true); });
+  loginDialog.addEventListener("close", () => {
+    if (loginDialog.open) return;
+    form.hidden = true;
+    loginButton.setAttribute("aria-expanded", "false");
+    document.body.classList.remove("academy-login-open");
+  });
+  window.addEventListener("hashchange", () => { if (window.location.hash === "#login") openLogin(); });
   pinInput.addEventListener("input", () => {
     pinInput.value = pinInput.value.replace(/\D/g, "").slice(0, 4);
   });
@@ -43,11 +57,15 @@
     const token = activeToken;
     const revokeSession = sessionStore === "D1";
     clearStoredAccountState();
+    loginRequested = false;
     showSignedOut();
     const generation = sessionGeneration;
     if (revokeSession && token) {
       void api("/api/account/logout", {}, token).catch(() => {
-        if (generation === sessionGeneration) showStatus("Signed out on this device. The server session could not be ended.");
+        if (generation === sessionGeneration) {
+          sessionLoading.hidden = false;
+          sessionMessage.textContent = "Signed out on this device. The server session could not be ended.";
+        }
       });
     }
   });
@@ -68,6 +86,31 @@
     if (localStorage.getItem(tokenKey)) void restoreAcademySession();
   });
   void restoreAcademySession();
+  if (loginRequested && !localStorage.getItem(tokenKey)) openLogin();
+
+  function openLogin() {
+    if (localStorage.getItem(tokenKey) || loginDialog.open) return;
+    loginRequested = true;
+    form.hidden = false;
+    loginDialog.showModal();
+    loginButton.setAttribute("aria-expanded", "true");
+    document.body.classList.add("academy-login-open");
+    linkInput.focus();
+  }
+
+  function closeLogin(restoreFocus = false) {
+    loginRequested = false;
+    if (loginDialog.open) loginDialog.close();
+    form.hidden = true;
+    pinInput.value = "";
+    pinInput.type = "password";
+    pinToggle.textContent = "Show";
+    pinToggle.setAttribute("aria-label", "Show PIN");
+    loginButton.setAttribute("aria-expanded", "false");
+    document.body.classList.remove("academy-login-open");
+    showStatus("");
+    if (restoreFocus) loginButton.focus({ preventScroll: true });
+  }
 
   function showSignedOut() {
     sessionGeneration++;
@@ -76,9 +119,11 @@
     sessionStore = "";
     homeCard.hidden = false;
     signOutButton.hidden = true;
+    loginButton.hidden = false;
     sessionLoading.hidden = true;
     sessionRetry.hidden = true;
-    form.hidden = false;
+    const reopen = loginRequested;
+    closeLogin();
     linkInput.value = "";
     pinInput.value = "";
     pinInput.type = "password";
@@ -93,7 +138,7 @@
     showStatus("");
     setBusy(false);
     window.location.hash = "overview";
-    linkInput.focus();
+    if (reopen) openLogin();
     window.dispatchEvent(new Event("m4l-academy-session"));
   }
 
@@ -105,6 +150,7 @@
       return;
     }
     const generation = ++sessionGeneration;
+    loginButton.hidden = true;
     form.hidden = true;
     sessionLoading.hidden = false;
     sessionMessage.textContent = "Opening your Academy home…";
@@ -145,7 +191,8 @@
     headerName.hidden = false;
     avatar.textContent = name.charAt(0).toUpperCase();
     avatar.setAttribute("aria-label", `Signed in as ${name}`);
-    form.hidden = true;
+    closeLogin();
+    loginButton.hidden = true;
     sessionLoading.hidden = true;
     homeCard.hidden = false;
     signOutButton.hidden = false;

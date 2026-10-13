@@ -173,12 +173,13 @@ let count=requests.length;
 documentHandlers.get('visibilitychange')();await flush();
 assert.equal(requests.length,count,'Returning to the public homepage never refreshes its daily snapshot');
 assert.match(html,/id="activity-sessions"/);assert.doesNotMatch(html,/id="(?:activity-classes|activity-curriculum|activity-coming)"/,'Landing pages show tools and their scoped timetable only');
-assert.ok(html.indexOf('id="login-preview"')<html.indexOf('class="intro-feature"'));
+assert.ok(html.indexOf('aria-label="Bismillah"')<html.indexOf('id="overview-title"'));
+assert.match(html, /id="academy-login-dialog"[\s\S]*One account · Every program/);
 await navigate('#workshops');assert.match($('workshops-message').textContent,/Sign in/);assert.equal(catalogueRequests.length,0);
 
 storage.set('m4l_account_token','QA');await refresh();
 assert.equal($('academy-role-panel').hidden,true,'Chooser stays on Academy home');assert.equal($('public-snapshot-note').hidden,true);
-assert.equal($('academy-progress-nav').hidden,false);assert.equal(catalogueRequests.length,1);
+assert.equal(catalogueRequests.length,1);
 assert.match($('workshop-pills').innerHTML,/Barakah|Complete|Media · coming soon/);
 assert.doesNotMatch($('workshop-pills').innerHTML,/Program Admin|Teacher|User|COURSE-DRAFT|<small>Student/);
 assert.equal($('course-list-scope-wrap').hidden,true);assert.match($('workshop-tools').innerHTML,/aria-label="Teach tools"/);
@@ -195,7 +196,7 @@ assert.doesNotMatch($('activity-menu').innerHTML,/Explore|Attendance|Lesson prep
 assert.match($('activity-menu').innerHTML,/Learn tools/);for(const label of ['Timetable','Assessment','Library'])assert.ok($('activity-menu').innerHTML.includes(`>${label}<`));
 assert.match($('activity-support').innerHTML,/Messages|Academy calendar|Surahs and Duas tracker/);
 assert.doesNotMatch($('activity-support').innerHTML,/href="#(?:progress|hifz|hifdh)"/,'The public Hifz page is opened only through the website Menu');
-for(const hash of ['#hifz','#hifdh','#progress']){await navigate(hash);assert.equal($('current-view').textContent,'Surahs and Duas');}
+for(const hash of ['#hifz','#hifdh','#progress']){await navigate(hash);assert.equal($('current-view').textContent,'Academy home');}
 const learnHash='#activity/PROGRAM/'+activity.id+'/learn';
 await navigate(learnHash+'/library');assert.equal($('activity-library').hidden,false);assert.equal($('activity-schedule').hidden,true);assert.match($('activity-library').innerHTML,/For me|Browse/);
 await navigate(learnHash+'/assessment');assert.equal($('as-panel').hidden,false);assert.equal($('activity-library').hidden,true);

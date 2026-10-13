@@ -19,13 +19,13 @@ async function loadPage({ id = '', pin = '', replies = {}, storedToken = '', aca
   const elements = new Map();
   for (const name of ['login-preview', 'demo-username', 'demo-pin', 'demo-pin-toggle', 'login-status',
     'academy-session-loading', 'academy-session-message', 'academy-session-retry', 'academy-home-card', 'academy-account-name', 'academy-maktab-link',
-    'academy-sign-out', 'academy-avatar', 'academy-header-name', 'academy-library-nav']) {
+    'academy-sign-out', 'academy-login', 'academy-login-dialog', 'academy-login-close', 'academy-avatar', 'academy-header-name', 'academy-library-nav']) {
     elements.set(name, {
       value: '', textContent: '', href: '', hidden: ['academy-home-card', 'academy-sign-out',
-        'academy-session-loading', 'login-status'].includes(name),
+        'academy-session-loading', 'login-status', 'login-preview'].includes(name),
       disabled: false, type: name === 'demo-pin' ? 'password' : 'text', handlers: {},
       addEventListener(type, handler) { this.handlers[type] = handler; },
-      setAttribute() {}, focus() {},
+      setAttribute() {}, focus() {}, showModal() { this.open = true; }, close() { this.open = false; this.handlers.close?.(); },
       querySelector() { return elements.get('submit'); }
     });
   }
@@ -74,7 +74,9 @@ async function loadPage({ id = '', pin = '', replies = {}, storedToken = '', aca
     get currentLoginId() { return context.window.M4L_ACADEMY_LOGIN.currentId(); },
     get destination() { return destination; },
     get hash() { return context.window.location.hash; },
-    async submit() { await elements.get('login-preview').handlers.submit({ preventDefault() {} }); },
+    openLogin() { elements.get('academy-login').handlers.click(); },
+    closeLogin() { elements.get('academy-login-close').handlers.click(); },
+    async submit() { elements.get('academy-login').handlers.click(); await elements.get('login-preview').handlers.submit({ preventDefault() {} }); },
     async retrySession() { elements.get('academy-session-retry').handlers.click(); await new Promise(resolve => setImmediate(resolve)); },
     signOut() { elements.get('academy-sign-out').handlers.click(); },
     storageChanged(event) { windowHandlers.storage(event); }
@@ -84,8 +86,16 @@ async function loadPage({ id = '', pin = '', replies = {}, storedToken = '', aca
 const oldMaktabSession = await loadPage();
 assert.equal(oldMaktabSession.calls.length, 0, 'Visitors must not trigger an account request');
 assert.equal(oldMaktabSession.currentLoginId, '');
-assert.equal(oldMaktabSession.elements.get('login-preview').hidden, false);
+assert.equal(oldMaktabSession.elements.get('login-preview').hidden, true);
 assert.equal(oldMaktabSession.elements.get('academy-library-nav').href, '/academy/open-library/');
+oldMaktabSession.openLogin();
+assert.equal(oldMaktabSession.elements.get('academy-login-dialog').open, true);
+assert.equal(oldMaktabSession.elements.get('login-preview').hidden, false);
+oldMaktabSession.elements.get('demo-pin').value = '1234';
+oldMaktabSession.closeLogin();
+assert.equal(oldMaktabSession.elements.get('academy-login-dialog').open, false);
+assert.equal(oldMaktabSession.elements.get('demo-pin').value, '');
+assert.equal(oldMaktabSession.calls.length, 0, 'Opening and dismissing Login makes no account request');
 await oldMaktabSession.submit();
 assert.equal(oldMaktabSession.destination, '');
 assert.equal(oldMaktabSession.calls.length, 0);
@@ -114,6 +124,8 @@ assert.equal(validLogin.elements.get('demo-pin').value, '');
 assert.equal(validLogin.elements.get('login-preview').hidden, true);
 assert.equal(validLogin.elements.get('academy-home-card').hidden, false);
 assert.equal(validLogin.elements.get('academy-sign-out').hidden, false);
+assert.equal(validLogin.elements.get('academy-login').hidden, true);
+assert.equal(validLogin.elements.get('academy-login-dialog').open, false);
 assert.equal(validLogin.elements.get('academy-library-nav').href, '/academy/library/');
 
 const signedIn = await loadPage({ academyId: 'TEST-USER', storedToken: 'NEW_SESSION', replies: {
@@ -132,9 +144,10 @@ assert.equal(signedIn.currentLoginId, '', 'Sign-out clears the identity used by 
 assert.equal(signedIn.session.get('m4l_academy_signed_in'), undefined);
 assert.equal(signedIn.destination, '');
 assert.equal(signedIn.hash, 'overview');
-assert.equal(signedIn.elements.get('login-preview').hidden, false);
+assert.equal(signedIn.elements.get('login-preview').hidden, true);
 assert.equal(signedIn.elements.get('academy-home-card').hidden, false);
 assert.equal(signedIn.elements.get('academy-sign-out').hidden, true);
+assert.equal(signedIn.elements.get('academy-login').hidden, false);
 assert.equal(signedIn.elements.get('academy-header-name').textContent, '');
 assert.equal(signedIn.elements.get('academy-header-name').hidden, true);
 assert.equal(signedIn.elements.get('academy-library-nav').href, '/academy/open-library/');
@@ -145,14 +158,14 @@ const otherTab = await loadPage({ academyId: 'TEST-USER', storedToken: 'NEW_SESS
 otherTab.storage.delete('m4l_account_token');
 assert.equal(otherTab.currentLoginId, '', 'A removed session cannot supply a personal-link identity');
 otherTab.storageChanged({ key: 'm4l_account_token', newValue: null });
-assert.equal(otherTab.elements.get('login-preview').hidden, false);
+assert.equal(otherTab.elements.get('login-preview').hidden, true);
 assert.equal(otherTab.elements.get('academy-home-card').hidden, false);
 assert.equal(otherTab.elements.get('academy-library-nav').href, '/academy/open-library/');
 
 const wrongAccount = await loadPage({ academyId: 'TEST-USER', storedToken: 'NEW_SESSION', replies: {
   '/api/account/session': { body: { success: true, account: { uniqueid: 'OTHER-USER' } } }
 } });
-assert.equal(wrongAccount.elements.get('login-preview').hidden, false);
+assert.equal(wrongAccount.elements.get('login-preview').hidden, true);
 assert.equal(wrongAccount.elements.get('academy-home-card').hidden, false);
 assert.equal(wrongAccount.currentLoginId, '');
 assert.equal(wrongAccount.elements.get('academy-library-nav').href, '/academy/open-library/');
@@ -203,5 +216,5 @@ const failedD1Logout = await loadPage({ storedToken: 'D1_SESSION', replies: {
 failedD1Logout.signOut();
 await new Promise(resolve => setImmediate(resolve));
 assert.equal(failedD1Logout.storage.get('m4l_account_token'), undefined);
-assert.match(failedD1Logout.elements.get('login-status').textContent, /server session could not be ended/);
+assert.match(failedD1Logout.elements.get('academy-session-message').textContent, /server session could not be ended/);
 console.log('Academy overview sign-in, session, sign-out, D1 revocation and page restoration checks passed.');

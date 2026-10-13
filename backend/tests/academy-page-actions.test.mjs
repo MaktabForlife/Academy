@@ -12,7 +12,7 @@ function fixture(controls=[],assessmentRefresh){
   const actions={setAttribute(){},append(){},querySelector:()=>refresh};
   const document={getElementById:id=>id==='ac-signout'?signOut:null,querySelector:selector=>selector==='main'?{append(){}}:null,querySelectorAll:()=>controls,createElement:()=>actions};
   const window={M4L_ACADEMY_ASSESSMENTS:assessmentRefresh?{refreshPage:assessmentRefresh}:undefined};
-  runInNewContext(source,{document,window,location:{reload(){reloads++;}},sessionStorage:{removeItem:key=>removed.push(key)}});
+  runInNewContext(source,{document,window,MutationObserver:class{observe(){}},location:{reload(){reloads++;}},sessionStorage:{removeItem:key=>removed.push(key)}});
   return {refresh:()=>handler(),get reloads(){return reloads;},removed};
 }
 

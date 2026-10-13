@@ -229,7 +229,6 @@
 
   function renderHome() {
     const data = state.home;
-    $('academy-progress-nav').hidden = false;
     $('academy-recorder-nav').hidden = !(data.signedIn && data.student);
     $('academy-calendar-nav').hidden = !data.signedIn;
     const activities = data.signedIn ? data.personalActivities : [];
@@ -746,16 +745,19 @@
     lastRouteHash = hash;
     const [requested, , encodedId] = location.hash.slice(1).split('/');
     if (requested !== 'activity') { clearTimeout(state.activityTimer); state.activityGeneration++; renderSubscriptions(state.home?.signedIn ? state.home.personalActivities : []); }
-    const name = ['hifz','hifdh'].includes(requested) ? 'progress' : requested === 'learning' ? 'overview' : titles[requested] ? requested : 'overview';
+    const name = ['hifz','hifdh','progress'].includes(requested) ? 'overview' : requested === 'learning' ? 'overview' : titles[requested] ? requested : 'overview';
     document.querySelectorAll('.view').forEach(view => view.classList.toggle('active', view.id === name));
     document.querySelectorAll('[data-nav]').forEach(button => {
-      const current = button.dataset.nav === requested || name === 'progress' && button.dataset.nav === 'hifz' || !requested && button.dataset.nav === 'overview';
+      const current = button.dataset.nav === requested || name === 'overview' && button.dataset.nav === 'overview';
       button.classList.toggle('active', current);
       if (current) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
     });
     $('current-view').textContent = titles[name];
     if (requested === 'learning' && !state.home?.signedIn) $('learning').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
-    if (name === 'progress') { $('mp-personal-close').href=memorisationReturn?.hash||'#overview';void window.M4L_ACADEMY_PROGRESS?.open(); }
+    if (name === 'overview') {
+      const opening=window.M4L_ACADEMY_PROGRESS?.open();
+      if (['hifz','hifdh','progress'].includes(requested)) void Promise.resolve(opening).then(()=>{if(location.hash===hash)$('progress').scrollIntoView({block:'start'});});
+    }
     if (name === 'workshops') renderWorkshops();
     if (name === 'activity' && encodedId && state.home) { try { void loadActivity(decodeURIComponent(encodedId)); } catch { $('activity-status').textContent = 'This activity link is invalid.'; } }
     if(name==='progress-admin'&&state.home){if(encodedId){try{void loadActivity(decodeURIComponent(encodedId));}catch{$('mp-admin-context').textContent='Invalid learning area.';}}else syncMemorisation({kind:hash.includes('/COURSE')?'COURSE':'',name:hash.includes('/COURSE')?'Courses':'Academy',roles:[],tools:{}});}
@@ -849,7 +851,6 @@
     workspaceFocusId = '';
     $('administration').replaceChildren();
     renderAcademyMenu();
-    $('academy-progress-nav').hidden = false;
     $('academy-recorder-nav').hidden = true;
     $('academy-calendar-nav').hidden = true;
     for (const id of ['workshop-pills', 'academy-preview-sessions', 'academy-sessions', 'activity-switcher', 'activity-menu', 'activity-sessions', 'workshop-tools', 'recorder-card']) $(id).replaceChildren();
