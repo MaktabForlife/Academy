@@ -1,0 +1,38 @@
+.lp-root { --lp-purple:#72477b; --lp-line:#e2d8e6; color:#292631; width:100%; min-width:0; }
+.lp-root * { box-sizing:border-box; }
+.lp-root h2 { margin:0 0 8px; font-size:1.25rem; }
+.lp-root h3 { margin:0 0 12px; font-size:1rem; }
+.lp-root p { margin:8px 0; }
+.lp-root button,.lp-root input,.lp-root select,.lp-root textarea { font:inherit; max-width:100%; }
+.lp-root button { min-height:44px; border:1px solid var(--lp-purple); border-radius:8px; background:var(--lp-purple); color:#fff; padding:10px 14px; cursor:pointer; }
+.lp-root button.lp-secondary { background:#fff; color:var(--lp-purple); border-color:#d8cadd; }
+.lp-root button:disabled { opacity:.5; cursor:default; }
+.lp-root :focus-visible { outline:3px solid #3869b7; outline-offset:2px; }
+.lp-root label { display:grid; gap:6px; font-size:.88rem; font-weight:600; min-width:0; }
+.lp-root input,.lp-root select,.lp-root textarea { width:100%; min-width:0; border:1px solid #d8cadd; border-radius:7px; padding:10px; background:#fff; color:inherit; }
+.lp-root textarea { resize:vertical; min-height:110px; font-size:16px; line-height:1.6; }
+.lp-filters,.lp-fields { display:grid; grid-template-columns:minmax(0,1fr); gap:12px; margin:16px 0; }
+.lp-actions { display:flex; flex-wrap:wrap; gap:8px; margin:14px 0; }
+.lp-actions button { flex:1 1 140px; }
+.lp-message { min-height:24px; overflow-wrap:anywhere; }
+.lp-message.is-error { color:#a52232; }
+.lp-meta { color:#696574; font-size:.85rem; overflow-wrap:anywhere; }
+.lp-badge { display:inline-block; padding:5px 9px; border-radius:6px; background:#f3ebf6; color:#72477b; font-size:.8rem; font-weight:700; }
+.lp-badge.OVERDUE,.lp-badge.SUBMITTED_LATE { background:#fff0e4; color:#88451a; }
+.lp-board { display:grid; grid-template-columns:minmax(0,1fr); gap:14px; align-items:start; }
+.lp-lane { border-radius:10px; background:#f6f2f8; padding:12px; min-width:0; }
+.lp-card,.lp-lesson,.lp-settings,.lp-feedback { background:#fff; border:1px solid var(--lp-line); border-radius:10px; padding:14px; margin-bottom:12px; overflow-wrap:anywhere; }
+.lp-card strong { display:block; }
+.lp-card .lp-actions { margin-bottom:0; }
+.lp-settings summary,.lp-lesson summary { cursor:pointer; font-weight:700; min-height:32px; }
+.lp-lesson[open] summary { margin-bottom:16px; }
+.lp-editor { max-width:900px; }
+.lp-feedback article { border-top:1px solid var(--lp-line); padding:12px 0; white-space:pre-wrap; }
+.lp-readonly { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.6; }
+.lp-dialog { border:1px solid var(--lp-line); border-radius:12px; padding:18px; width:min(800px,calc(100vw - 24px)); max-height:calc(100dvh - 24px); overflow:auto; color:#292631; }
+.lp-dialog::backdrop { background:#29263170; }
+.lp-dialog .lp-root { padding:0; }
+.lp-top { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; }
+.lp-pending { border:1px solid #b78c42; background:#fff7e8; padding:12px; border-radius:8px; }
+@media(min-width:640px) { .lp-filters,.lp-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }.lp-actions button { flex:0 1 auto; }.lp-card,.lp-lesson,.lp-settings,.lp-feedback { padding:18px; } }
+@media(min-width:1100px) { .lp-board { grid-template-columns:repeat(3,minmax(0,1fr)); }.lp-filters { grid-template-columns:repeat(3,minmax(0,1fr)); } }

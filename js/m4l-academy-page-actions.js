@@ -13,6 +13,7 @@
   actions.innerHTML=`<a data-page-home href="${academy?'#overview':'/academy/#overview'}" aria-label="Academy home" title="Home"><span class="page-action-icon">${home}</span><span class="page-action-label">Home</span></a><button data-page-refresh type="button" aria-label="Refresh this page" title="Refresh"><span class="page-action-icon">${refresh}</span><span class="page-action-label">Refresh</span></button>`;
   signOut.textContent='Sign out';actions.append(signOut);host.append(actions);
   actions.querySelector('[data-page-refresh]').addEventListener('click',async()=>{
+    if(await window.M4L_PLANNING?.refreshPage?.())return;
     if(await window.M4L_ACADEMY_ASSESSMENTS?.refreshPage?.())return;
     const contentRefresh=[...document.querySelectorAll('main [data-page-content-refresh]')].find(button=>{
       const view=button.closest('.view');

@@ -1,3 +1,7 @@
+# V106.48 — Teaching plans and admin review
+
+Teachers can save and submit weekly Program plans or weekly/entire-course plans. Mobile-first planning includes shared A4 PDFs generated on demand. Admin Planning shows expected, overdue and submitted plans, with feedback, configurable deadlines and individual extensions. [Release details](docs/ACADEMY-PLANNING-106.48.md).
+
 # V106.47 — Compact calendar editors and availability
 
 Availability starts with a current-entry list and opens one Add/Edit form with day pills, Weekly, 24-hour times and dates. Admin Learn shows a learner calendar, Teach edits own availability, and central Admin Calendar manages teachers, terms, holidays and Hijri dates. Hijri Annual carries labels forward for yearly date adjustment; Gregorian annual holidays repeat their dates. Holidays disable lesson joining; Hijri dates are informational. PDF predictions through 2030 were already saved and verified. [Release details](docs/ACADEMY-CALENDAR-106.47.md).

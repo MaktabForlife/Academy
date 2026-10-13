@@ -328,7 +328,7 @@
     return (admin ? group('Admin', link('Users', users) + link('Library', global ? '/academy/library/manage/' : row.tools?.resources || '/academy/library/') +
       link('Programs', global ? '/programs/' : row.kind === 'PROGRAM' && row.id ? `/programs/timetable.html?program=${encodeURIComponent(row.id)}` : '') +
       link('Courses', global || row.kind !== 'PROGRAM' ? '/academy/courses/manage/' : '') + (row.kind==='PROGRAM'?link('Hifdh',`#progress-admin/PROGRAM/${encodeURIComponent(row.id)}`):'') + link('Assessments',row.id?`#assessment-admin/${row.kind}/${encodeURIComponent(row.id)}`:'#assessment-admin/COURSE') + tool('Academy','academy')) : '') +
-      (staff ? group('Teach', hifzHelper + (row.kind === 'PROGRAM' ? `<a href="${activityHref(row)}/attendance" aria-expanded="${location.hash.endsWith('/attendance')}" aria-controls="pa-main">Attendance</a>` + link('Hifdh',`${activityHref(row)}/surahs-duas`) : tool('Attendance','attendance')) + link('Assessment',row.id?`${activityHref(row)}/assessment`:'#assessments/COURSE') + tool('Planning','plan') + tool('Announcements','announcements') + link('My Timetable','#timetable') + link('Edit availability','/academy/teaching/')) : '') +
+      (staff ? group('Teach', hifzHelper + (row.kind === 'PROGRAM' ? `<a href="${activityHref(row)}/attendance" aria-expanded="${location.hash.endsWith('/attendance')}" aria-controls="pa-main">Attendance</a>` + link('Hifdh',`${activityHref(row)}/surahs-duas`) : tool('Attendance','attendance')) + link('Assessment',row.id?`${activityHref(row)}/assessment`:'#assessments/COURSE') + link('Planning',`${activityHref(row)}/planning`) + tool('Announcements','announcements') + link('My Timetable','#timetable') + link('Edit availability','/academy/teaching/')) : '') +
       (learner && !staff ? group('Learn', (!staff?hifzHelper:'') + link('Library','/academy/library/') + link('My Assessment',row.id?`${activityHref(row)}/assessment`:'#assessments/COURSE') + tool('Calendar','calendar') + tool('Announcements','announcements') + link('My Timetable','#timetable')) : '');
   }
 
@@ -359,7 +359,8 @@
     if (permitted) support.innerHTML = supportSections(row,context.mode); else support.replaceChildren();
     if (context.tool === 'attendance' && row.kind === 'COURSE' && permitted && context.mode === 'teach') {
       planning.hidden = false;planning.innerHTML = '<h2>Attendance</h2><p class="muted">Course attendance tools are coming soon.</p>';
-    } else planning.innerHTML = '<h2>Planning</h2><p class="muted">Planning tools are coming soon.</p>';
+    } else if(permitted && context.mode==='teach' && context.tool==='planning') window.M4L_PLANNING?.open({hostId:'activity-planning',view:'teacher',activityKey:`${row.kind}:${row.id}`});
+    else if(context.tool!=='planning')planning.replaceChildren();
     renderAcademyMenu();
   }
 
@@ -721,14 +722,14 @@
   function route() {
     const hash = location.hash || '#overview';
     if (lastRouteHash && hash !== lastRouteHash) {
-      if (window.M4L_PROGRAM_ATTENDANCE?.canLeave() === false || window.M4L_ACADEMY_PROGRESS?.canLeave() === false || window.M4L_MEMORISATION_ADMIN?.canLeave() === false || window.M4L_ACADEMY_ASSESSMENTS?.canLeave() === false || window.M4L_LESSON_MEDIA?.canLeave() === false) { history.replaceState(null,'',lastRouteHash); workspaceFocusId='';renderAcademyMenu();return; }
+      if (window.M4L_PROGRAM_ATTENDANCE?.canLeave() === false || window.M4L_ACADEMY_PROGRESS?.canLeave() === false || window.M4L_MEMORISATION_ADMIN?.canLeave() === false || window.M4L_ACADEMY_ASSESSMENTS?.canLeave() === false || window.M4L_LESSON_MEDIA?.canLeave() === false || window.M4L_PLANNING?.canLeave() === false) { history.replaceState(null,'',lastRouteHash); workspaceFocusId='';renderAcademyMenu();return; }
       if(!memorisationHash(lastRouteHash)&&memorisationHash(hash)){memorisationReturn={hash:lastRouteHash,top:window.scrollY||0,left:$('activity-sessions').scrollLeft||0};if(dailyCache.owner)try{sessionStorage.setItem(MEMORISATION_RETURN_KEY,JSON.stringify({...memorisationReturn,owner:dailyCache.owner}));}catch{}}
       if(memorisationHash(lastRouteHash)&&hash===memorisationReturn?.hash)restoreMemorisation=memorisationReturn;
       window.M4L_PROGRAM_ATTENDANCE?.reset();
       window.M4L_ACADEMY_PROGRESS?.reset();
       window.M4L_MEMORISATION_ADMIN?.reset();
       window.M4L_ACADEMY_ASSESSMENTS?.reset();
-      window.M4L_LESSON_MEDIA?.reset();
+      window.M4L_LESSON_MEDIA?.reset();window.M4L_PLANNING?.reset();
       $('as-panel').hidden=true;
       $('pa-main').hidden = true;
       $('mp-teach-panel').hidden = true;
@@ -781,7 +782,7 @@
     const panels = {
       users:global ? link('/users/','Manage user profiles') : scoped(()=>true,row=>manage(row)+(programs(row)?'&tab=profiles':'&tab=participants')),
       attendance:'<p class="muted">Admin Attendance is coming soon, in shaa Allah.</p>',
-      planning:'<p class="muted">Planning tools are coming soon.</p>',
+      planning:'<div id="admin-planning"></div>',
       assessments:global ? link('#assessment-admin','Manage assessments') : scoped(()=>true,row=>`#assessment-admin/${row.kind}/${encodeURIComponent(row.id)}`),
       library:global ? link('/academy/library/manage/','Manage Library') : link('/academy/library/','Open my Library'),
       curriculum:global ? link('/academy/subjects/','Manage Subjects and Modules') : scoped(programs,manage),
@@ -793,6 +794,7 @@
     view.innerHTML = `<div class="page-heading admin-heading"><h1>${requested?'Manage '+tabs.find(([id])=>id===key)[1]:'Manage Academy'}</h1>${global?'<div><button class="button secondary" id="public-timetable-refresh" type="button">Update public timetable</button><p id="public-timetable-refresh-message" class="tiny muted" role="status" aria-live="polite"></p></div>':''}</div>
       <nav class="workspace-tabs admin-management-menu" aria-label="Administration tools"><button class="button secondary" id="admin-teach" type="button" data-academy-teach-menu="left">Teach</button>${tabs.map(([id,label])=>`<a id="admin-tab-${id}" href="${esc(direct[id])}"${id===requested?' aria-current="page"':''}>${label}</a>`).join('')}</nav>
       ${requested?`<section class="card card-pad" id="admin-workspace"><div class="workspace-actions">${panels[key]||'<p class="muted">No assigned areas are available here.</p>'}</div></section>`:''}<div class="academy-support">${supportSections(null,'admin')}</div>`;
+    if(requested==='planning')window.M4L_PLANNING?.open({hostId:'admin-planning',view:'admin'});
     bindPublicTimetableRefresh();
     revealWorkspaceTab();
   }
@@ -818,7 +820,7 @@
   }
 
   function clearPersonal() {
-    window.M4L_LESSON_MEDIA?.reset();
+    window.M4L_LESSON_MEDIA?.reset();window.M4L_PLANNING?.reset();
     window.M4L_ACADEMY_ASSESSMENTS?.reset();$('as-panel').hidden=true;
     memorisationReturn=null;restoreMemorisation=null;$('mp-teach-panel').hidden=true;$('mp-admin-context').textContent='';window.M4L_MEMORISATION_ADMIN?.reset();
     window.M4L_ACADEMY_PROGRESS?.reset();

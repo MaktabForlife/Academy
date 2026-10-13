@@ -14,6 +14,7 @@ const root=path.resolve(fileURLToPath(new URL('../../',import.meta.url)));
 const out=process.env.ACADEMY_MOBILE_OUTPUT||path.join(tmpdir(),'academy-mobile-layout');
 mkdirSync(out,{recursive:true});
 const fixture=await mediaFixture();
+fixture.db.exec(readFileSync(new URL('../migrations/academy/0023_lesson_planning.sql',import.meta.url),'utf8'));
 fixture.db.exec(readFileSync(new URL('../migrations/academy/0022_academic_calendar.sql',import.meta.url),'utf8'));
 // Exercise multiple independent accounts without sharing the fixture's single fake IP limit.
 fixture.env.AUTH_LOGIN_RATE_LIMITER={limit:async()=>({success:true})};
