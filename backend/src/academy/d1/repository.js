@@ -163,7 +163,7 @@ export function academyD1Repository(env) {
         `SELECT r.*${courseWorkflows?',ca.access_model AS run_access_model':''} FROM course_runs r JOIN activities a USING(activity_key) ${courseWorkflows?'JOIN course_run_access ca USING(activity_key,run_id)':''} WHERE r.active=1 AND a.active=1 AND a.lifecycle='ACTIVE'`,
         `SELECT s.* FROM course_run_state s JOIN course_runs r USING(activity_key,run_id) WHERE r.active=1`,
         `SELECT * FROM lesson_lifecycle`,
-        ...(courseWorkflows?[`SELECT * FROM academy_calendar_events`,`SELECT * FROM academy_calendar_suppressions`]:[])
+        ...(courseWorkflows?[`SELECT * FROM academy_calendar_events`,`SELECT * FROM academy_calendar_suppressions`,`SELECT * FROM academy_settings WHERE setting_key LIKE 'AcademyHolidayAnnual:%'`]:[])
       ];
       const results=await db.batch(queries.map((sql,i)=>i===1?prepare(sql,end,start):i===5?prepare(sql,state?.account.account_id || ''):prepare(sql)));
       return results.map(r=>r.results);

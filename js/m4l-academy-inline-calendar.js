@@ -4,7 +4,7 @@
  document.addEventListener('toggle',event=>{
   const section=event.target;if(!section.matches?.('.academy-calendar-section')||!section.open)return;
   const host=section.querySelector('.academy-inline-calendar');if(!host||host.querySelector('iframe'))return;
-  const query=new URLSearchParams({embed:'1'});if(section.dataset.calendarProgram)query.set('program',section.dataset.calendarProgram);
+  const query=new URLSearchParams({embed:'1',view:['learn','teach'].includes(section.dataset.calendarView)?section.dataset.calendarView:'admin'});if(section.dataset.calendarProgram)query.set('program',section.dataset.calendarProgram);
   const frame=document.createElement('iframe');frame.className='academy-calendar-frame';frame.title='Academic Calendar';frame.src='/academy/calendar/?'+query;frame.setAttribute('scrolling','no');host.append(frame);
  },true);
  window.addEventListener('message',event=>{

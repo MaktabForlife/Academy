@@ -90,3 +90,39 @@ test('teaching hours count overlapping lessons once and exclude cancelled Course
  ok(await post(env,av+'save',{revision:0,accountId:teacher,ranges:[unavailable({weekdays:[0,1,2,3,4,5,6],allDay:true})],operationId:crypto.randomUUID()},admin));
  const unavailableData=ok(await post(env,base+'get',{teacherId:teacher,year:2026,month:10},admin));assert.equal(unavailableData.teachingWeek.totalMinutes,630,'The teaching-hours display does not change the published schedule');
 }));
+
+ test('Admin learner and teaching calendars preserve their context; only central Admin manages terms, holidays and other teachers',()=>use(async({env,db})=>{
+ env.AUTH_LOGIN_RATE_LIMITER={limit:async()=>({success:true})};const admin=await login(env),teacher=await login(env,'0003');
+ const before=db.prepare('SELECT * FROM role_assignments ORDER BY assignment_id').all();
+ const learn=ok(await post(env,base+'get',{scopeKey:scope,view:'learn'},admin));assert.equal(learn.canManageAcademy,false);assert.deepEqual(learn.teachers,[]);assert.equal(learn.availability,null);assert.equal(learn.teachingWeek,null);assert.ok(learn.scopes.every(s=>!s.editable));assert.ok(learn.events.every(e=>!e.editable));
+ const teach=ok(await post(env,base+'get',{scopeKey:scope,view:'teach'},admin));assert.equal(teach.availability.accountId,'account-0001');assert.equal(teach.availability.editable,true);assert.equal(teach.teachers.length,1);assert.equal(teach.canManageAcademy,false);assert.ok(teach.scopes.every(s=>!s.editable));
+ ok(await post(env,av+'save',{accountId:'account-0001',revision:0,ranges:[],operationId:crypto.randomUUID()},admin));
+ assert.equal((await post(env,base+'get',{view:'teach',teacherId:'account-0003'},admin)).status,403);
+ const central=ok(await post(env,base+'get',{view:'admin',teacherId:'account-0003'},admin));assert.equal(central.canManageAcademy,true);assert.equal(central.availability.accountId,'account-0003');assert.ok(central.scopes.find(s=>s.key==='ACADEMY').editable);
+ assert.equal((await post(env,base+'get',{teacherId:'account-0001'},teacher)).status,403);
+ assert.deepEqual(db.prepare('SELECT * FROM role_assignments ORDER BY assignment_id').all(),before);
+}));
+ test('Annual Hijri labels need a new dated entry each year and retain earlier dates; all are informational',()=>use(async({env,db})=>{
+ const admin=await login(env),entry={scopeKey:'ACADEMY',kind:'ISLAMIC_DAY',description:'A significant day',startDate:'2026-10-20',annual:true,calendarYear:2026};
+ const first=ok(await save(env,entry,admin)).event;
+ let future=ok(await post(env,base+'get',{year:2027,month:10},admin));const carried=future.hijriEntries.find(e=>e.id===first.id);assert.equal(carried.dateRequired,true);assert.equal(carried.startDate,'');assert.ok(!future.events.some(e=>e.description===entry.description));
+ const second=ok(await save(env,{...entry,id:first.id,startDate:'2027-10-09',calendarYear:2027},admin,first.revision)).event;assert.notEqual(first.id,second.id);assert.equal(db.prepare('SELECT start_date FROM academy_calendar_events WHERE event_id=?').get(first.id).start_date,'2026-10-20');
+ future=ok(await post(env,base+'get',{year:2027,month:10},admin));assert.equal(future.events.find(e=>e.id===second.id).startDate,'2027-10-09');assert.notEqual(future.events.find(e=>e.id===second.id).teachingImpact,'NO_TEACHING');
+ ok(await save(env,{...second,startDate:'2027-10-10',annual:false},admin,second.revision));future=ok(await post(env,base+'get',{year:2028,month:10},admin));assert.ok(!future.hijriEntries.some(e=>e.description===entry.description));assert.equal(db.prepare('SELECT count(*) n FROM academy_calendar_events WHERE description=?').get(entry.description).n,2);
+}));
+ test('Annual Academy holidays repeat Gregorian dates, while generated SA holidays remain editable year-specific defaults',()=>use(async({env})=>{
+ const admin=await login(env);const first=ok(await save(env,{scopeKey:'ACADEMY',kind:'ACADEMY_HOLIDAY',description:'Annual Academy day',startDate:'2026-10-20',endDate:'2026-10-20',annual:true},admin)).event;
+ const future=ok(await post(env,base+'get',{year:2028,month:10},admin));const holiday=future.events.find(e=>e.id===first.id);assert.equal(holiday.startDate,'2028-10-20');assert.equal(holiday.teachingImpact,'NO_TEACHING');assert.equal(holiday.annual,true);
+ assert.ok(future.events.some(e=>e.source==='SA_PUBLIC_HOLIDAY'&&e.teachingImpact==='NO_TEACHING'&&e.editable));
+ assert.equal((await save(env,{scopeKey:'ACADEMY',kind:'PUBLIC_HOLIDAY',description:'Invalid repeat',startDate:'2026-10-21',annual:true},admin)).status,400);
+}));
+
+ test('Annual label changes reject a stale year editor, and retiring an undated label preserves earlier calendar history',()=>use(async({env,db})=>{
+ const admin=await login(env),first=ok(await save(env,{scopeKey:'ACADEMY',kind:'ISLAMIC_DAY',description:'Annual concurrency',startDate:'2026-10-20',annual:true},admin)).event;
+ const future=ok(await post(env,base+'get',{year:2027,month:10},admin)).hijriEntries.find(e=>e.id===first.id);
+ ok(await save(env,{...first,annual:false},admin,first.revision));
+ assert.equal((await save(env,{...future,startDate:'2027-10-09',calendarYear:2027,annualRevision:future.annualRevision},admin,future.revision)).status,409);
+ const current=ok(await post(env,base+'get',{year:2026,month:10},admin)).hijriEntries.find(e=>e.id===first.id);ok(await save(env,{...current,annual:true},admin,current.revision));
+ const pending=ok(await post(env,base+'get',{year:2028,month:10},admin)).hijriEntries.find(e=>e.id===first.id);ok(await save(env,{...pending,active:false,calendarYear:2028},admin,pending.revision));
+ assert.equal(db.prepare('SELECT active FROM academy_calendar_events WHERE event_id=?').get(first.id).active,1);assert.ok(!ok(await post(env,base+'get',{year:2029,month:10},admin)).hijriEntries.some(e=>e.id===first.id));
+}));

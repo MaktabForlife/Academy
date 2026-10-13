@@ -95,9 +95,10 @@ try {
   assert.equal(initial.data.events.some(event => event.description === "First Fast"), false, "First Fast is suppressed from Academy Calendar delivery");
   assert.equal(initial.data.storedEvents.some(event => event.description === "First Fast"), false, "First Fast is suppressed from Admin Calendar list");
   const initialTaraweeh = initial.data.storedEvents.find(event => event.id === "ACEVT-TARAWEEH");
-  assert.equal(initialTaraweeh?.islamicDate, "1 Ramadaan 1447");
-  assert.equal(Object.hasOwn(initialTaraweeh, "alternateDate"), false);
-  assert.equal(Object.hasOwn(initialTaraweeh, "teachingImpact"), false);
+  assert.equal(initialTaraweeh,undefined);
+  const initialFitr=initial.data.storedEvents.find(event=>event.id==='ACEVT-FITR');
+  assert.equal(Object.hasOwn(initialFitr, "alternateDate"), false);
+  assert.equal(Object.hasOwn(initialFitr, "teachingImpact"), false);
 
   const renamedGeneratedHoliday = await post("/api/admin/platform/calendar/save", {
     eventId: "SA-PUBLIC-HOLIDAY-2026-09-24",

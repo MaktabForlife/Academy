@@ -1,3 +1,4 @@
+import {annualFlag} from './calendar-annual.js';
 import {createGlobalDeliveryEndpoints} from '../../routes/platform-global-delivery.js';
 import {createGlobalTimetableEndpoints} from '../../routes/platform-global-timetable.js';
 import {createAcademyCalendarEndpoints} from '../../routes/platform-academy-calendar.js';
@@ -34,13 +35,13 @@ export async function requireCourseCalendar(db) {
 }
 const nullable=v=>String(v??'').trim()||null;
 const numbered=records=>records.map((r,i)=>({...r,_rowNumber:i+2}));
-export function calendarRows(events,suppressions=[]) {
+export function calendarRows(events,suppressions=[],settings=[]) {
   return [...events.filter(r=>!r.scope_key||r.scope_key==='ACADEMY').map(r=>({CalendarEventID:r.event_id,EventType:r.event_type,Description:r.description,
-    StartDate:r.start_date,EndDate:r.end_date,AlternateDate:r.alternate_date||'',TeachingImpact:r.teaching_impact,Active:Boolean(r.active)})),
+    StartDate:r.start_date,EndDate:r.end_date,AlternateDate:r.alternate_date||'',TeachingImpact:r.teaching_impact,Active:Boolean(r.active),...(r.calendar_kind==='ACADEMY_HOLIDAY'&&annualFlag(settings,r)?{Annual:true}:{})})),
     ...suppressions.map(r=>({CalendarEventID:`D1-SUPPRESSION-${r.calendar_date}`,EventType:'PUBLIC_HOLIDAY',Description:'Public Holiday',StartDate:r.calendar_date,EndDate:r.calendar_date,TeachingImpact:'NO_TEACHING',Active:false}))];
 }
 export async function d1CalendarEvents(db,start,end) {
-  const result=await db.batch([db.prepare('SELECT * FROM academy_calendar_events'),db.prepare('SELECT * FROM academy_calendar_suppressions')]);
+  const result=await db.batch([db.prepare('SELECT * FROM academy_calendar_events'),db.prepare('SELECT * FROM academy_calendar_suppressions'),db.prepare("SELECT * FROM academy_settings WHERE setting_key LIKE 'AcademyHolidayAnnual:%'")]);
   return buildAcademyCalendarEvents(calendarRows(...result.map(r=>r.results)),start,end);
 }
 
@@ -66,7 +67,7 @@ export function projectCourseCalendar(data) {
     GlobalTimetableSessionLifecycle:[...data.lifecycles.map(r=>({SessionLifecycleID:r.lifecycle_id,SessionID:r.source_session_id,PublicationID:r.publication_id,Status:r.status,RescheduledFromSessionID:r.previous_source_session_id||'',RescheduledToSessionID:r.replacement_source_session_id||''})),
       ...data.draftLifecycle.map(r=>({SessionLifecycleID:r.lifecycle_id,SessionID:r.session_id,PublicationID:'',Status:r.status,RescheduledFromSessionID:r.previous_session_id||'',RescheduledToSessionID:r.replacement_session_id||''}))],
     GlobalResources:data.resources.map(r=>({ResourceID:r.resource_id,SubjectID:scope(r),ModuleID:r.module_id||'',TaskID:r.task_id||'',ResourceName:r.name,ResourceType:r.resource_type||'',ResourceFormat:r.resource_format||'',ResourceDescription:r.description||'',ResourceLink:r.resource_link||'',Active:Boolean(r.active)})),
-    AcademyCalendar:calendarRows(data.calendar,data.suppressions),
+    AcademyCalendar:calendarRows(data.calendar,data.suppressions,data.settings),
     PlatformConfig:[{ConfigKey:'GlobalResourceDriveRootFolderID',ConfigValue:data.settings.find(r=>r.setting_key==='GlobalResourceDriveRootFolderID')?.setting_value||''},
       {ConfigKey:'PlatformTimezone',ConfigValue:data.settings.find(r=>r.setting_key==='PlatformTimezone')?.setting_value},
       {ConfigKey:'PlatformSchemaVersion',ConfigValue:'102.0.12'},

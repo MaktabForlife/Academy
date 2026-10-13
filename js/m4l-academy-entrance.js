@@ -345,7 +345,7 @@
     const calendar = events.length ? `<ul class="activity-calendar-list">${events.map(event => `<li><strong>${esc(event.description)}</strong> · ${esc(formatDate(event.startDate))}${event.endDate !== event.startDate ? ' – '+esc(formatDate(event.endDate)) : ''}</li>`).join('')}</ul>` : '<p class="muted">No Academy events in this week.</p>';
     const progress = mode === 'admin' ? global ? '#progress-admin' : '' : mode === 'teach' && row ? workspaceHref(row,'surahs-duas') : '';
     return `<details class="academy-support-card academy-messages"><summary><span>${staff ? 'Reminders' : 'Messages'}</span><small>Coming soon</small></summary><p class="muted">${staff ? 'Editing and sending reminders' : 'Academy messaging'} is coming soon.</p></details>
-      <details class="academy-support-card academy-calendar-section" data-calendar-program="${row?.kind==='PROGRAM'?esc(row.id):''}"><summary><span>Academy calendar</span><small>This month</small></summary><div class="academy-inline-calendar" aria-label="Academic Calendar"></div></details>
+      <details class="academy-support-card academy-calendar-section" data-calendar-program="${row?.kind==='PROGRAM'?esc(row.id):''}" data-calendar-view="${esc(mode)}"><summary><span>Academy calendar</span><small>This month</small></summary><div class="academy-inline-calendar" aria-label="Academic Calendar"></div></details>
       ${!staff ? '' : `<details class="academy-support-card"><summary><span>Hifdh tracker</span><small>${mode === 'teach' ? 'Class progress' : 'Manage progress'}</small></summary>${progress ? `<a class="button secondary" href="${progress}">${mode === 'teach' ? 'Open class progress' : 'Manage trackers'}</a>` : adminAreas().map(area => `<a class="button secondary" href="#progress-admin/${area.kind}/${encodeURIComponent(area.id)}">${esc(area.name)}</a>`).join('')}</details>`}`;
   }
   function syncWorkspace(row) {
@@ -399,7 +399,7 @@
     const names = {academy:'Academy',attendance:'Attendance',progress:'Progress',assessment:'Assessment',plan:'Planning',announcements:'Announcements',calendar:'Calendar'};
     if (!names[key] || key === 'academy' && !(state.home.globalAdmin || adminRoles(row.roles))) return;
     if (['attendance','plan'].includes(key) && !staffRoles(row.roles) && !state.home.globalAdmin) return;
-    if (key === 'calendar') { $('workspace-tool').close(); location.href='/academy/calendar/'+(row.kind==='PROGRAM'?'?program='+encodeURIComponent(row.id):''); return; }
+    if (key === 'calendar') { $('workspace-tool').close(); location.href='/academy/calendar/'+(row.kind==='PROGRAM'?'?program='+encodeURIComponent(row.id)+'&view='+workspaceContext(row).mode:'?view='+workspaceContext(row).mode); return; }
     if (key === 'progress') { $('workspace-tool').close(); location.hash = row.id?`${activityHref(row)}/surahs-duas`:'#workshops/surahs-duas'; return; }
     $('workspace-tool-title').textContent = names[key];
     if (key === 'academy') {

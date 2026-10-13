@@ -79,3 +79,15 @@ test('Program management Free/Paid saves are scoped, audited and shared with pro
   assert.deepEqual(f.db.prepare('PRAGMA foreign_key_check').all(),[]);assert.equal(f.db.prepare('SELECT count(*) n FROM academy_write_guards').get().n,0);
  }finally{f.db.close();}
 });
+
+ test('calendar holidays disable cached Program and Course joins; informational Hijri dates leave lessons available',async()=>{
+ const f=await courseFixture(s=>setCell(s,'PublishedGlobalTimetableSessions',1,'ZoomLink','https://zoom.us/j/12345678901')),repository=academyD1Repository(f.env),now=new Date('2026-10-09T08:00:00Z');
+ try{
+  f.db.prepare("UPDATE activity_policy_imports SET source_access_model='FREE' WHERE activity_key=?").run('PROGRAM:'+PROGRAM_IDS[0]);f.db.exec("UPDATE course_run_access SET access_model='FREE'");
+  const original=await d1Entrance(repository,null,null,{startDate:'2026-10-09'},now),lesson=original.timetable.find(r=>r.publicJoin&&r.date==='2026-10-09');assert.ok(lesson);
+  f.db.exec("INSERT INTO academy_calendar_events VALUES('info-date','ISLAMIC_DAY','Informational day','2026-10-09','2026-10-09',NULL,'INFORMATION',1)");assert.ok((await d1Entrance(repository,null,null,{startDate:'2026-10-09'},now)).timetable.some(r=>r.joinKey===lesson.joinKey));
+  f.db.exec("INSERT INTO academy_calendar_events VALUES('closure-date','TERM','Academy closed','2026-10-09','2026-10-09',NULL,'NO_TEACHING',1)");
+  const changed=await d1Entrance(repository,null,null,{startDate:'2026-10-09'},now);assert.ok(changed.timetable.filter(r=>r.date==='2026-10-09').every(r=>r.status==='HOLIDAY'&&!r.joinKey&&!r.joinUrl));
+  await assert.rejects(d1LessonJoin(repository,null,{joinKey:lesson.joinKey,date:lesson.date},new Date(lesson.date+'T08:00:00Z')),e=>e.code==='LESSON_UNAVAILABLE');
+ }finally{f.db.close();}
+});

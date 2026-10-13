@@ -16,7 +16,9 @@ export function availabilityAuthorityScopes(data,actor,teacher){
  const assigned=teacherActivityKeys(data,teacher,false);
  return data.activities.filter(a=>a.active&&a.lifecycle==='ACTIVE'&&assigned.has(a.activity_key)&&liveRoles(data,actor,a.activity_key).includes('PROGRAM_ADMIN')).map(a=>a.activity_key);
 }
-export const canEditTeacherAvailability=(data,actor,teacher)=>eligibleTeacher(data,teacher)&&(same(actor,teacher)||globalAdmin(data,actor)||availabilityAuthorityScopes(data,actor,teacher).length>0);
+export const canEditTeacherAvailability=(data,actor,teacher)=>Boolean(data.accounts.some(a=>same(a.account_id,teacher)&&a.active)&&(
+ same(actor,teacher)&&(eligibleTeacher(data,teacher)||globalAdmin(data,actor)||data.activities.some(a=>a.active&&a.lifecycle==='ACTIVE'&&liveRoles(data,actor,a.activity_key).includes('PROGRAM_ADMIN')))||
+ eligibleTeacher(data,teacher)&&(globalAdmin(data,actor)||availabilityAuthorityScopes(data,actor,teacher).length>0)));
 export function reviewAvailability(draft,catalog,availability=[],effectiveFrom=programToday(TIMETABLE_TIMEZONE)) {
  const issues=[],warnings=[];
  for(const row of draft.rules) {

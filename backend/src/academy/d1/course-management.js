@@ -48,7 +48,7 @@ function normalize(input,timezone) {
 }
 function holidayWarnings(data,d) {
   if(!validIsoDate(d.startDate)||!validIsoDate(d.endDate)||d.endDate<d.startDate||Date.parse(d.endDate)-Date.parse(d.startDate)>366*86400000)return [];
-  const events=buildAcademyCalendarEvents(calendarRows(data.calendar,data.suppressions),d.startDate,d.endDate);
+  const events=buildAcademyCalendarEvents(calendarRows(data.calendar,data.suppressions,data.settings),d.startDate,d.endDate);
   const terms=data.calendar.filter(r=>r.active&&(!r.scope_key||r.scope_key==='ACADEMY')&&r.event_type==='TERM'&&r.calendar_kind!=='ACADEMY_HOLIDAY').map(r=>({active:true,startDate:r.start_date,endDate:r.end_date}));
   for(let year=Number(d.startDate.slice(0,4));year<=Number(d.endDate.slice(0,4));year++)events.push(...termBreaks(terms,year));
   return d.sessions.filter(s=>s.status==='SCHEDULED').flatMap(s=>events.filter(e=>e.teachingImpact==='NO_TEACHING'&&s.date>=e.startDate&&s.date<=e.endDate).map(e=>({code:'HOLIDAY',sessionId:s.id,date:s.date,message:`${s.date}: ${e.description}`})));

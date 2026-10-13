@@ -26,7 +26,7 @@ const islamicRows = [
 ];
 const periods = deriveIslamicPeriods(islamicRows);
 const ramadaan = periods.find(item => item.description === "Ramadaan");
-assert.deepEqual([ramadaan.startDate, ramadaan.endDate], ["2026-02-19", "2026-03-20"], "Ramadaan derives from First Taraweeh + 1 day after First Fast is removed from display");
+assert.deepEqual([ramadaan.startDate, ramadaan.endDate], ["2026-02-19", "2026-03-20"], "Ramadaan uses the confirmed First Fast date while the individual labels are hidden");
 const zulHijjah = periods.find(item => item.description === "First 10 Days of Zul Hijjah");
 assert.deepEqual([zulHijjah.startDate, zulHijjah.endDate], ["2026-05-19", "2026-05-28"]);
 
@@ -36,12 +36,12 @@ assert.equal(august.some(item => item.eventType === "PUBLIC_HOLIDAY" && item.sta
 
 const february = buildAcademyCalendarEvents(islamicRows, "2026-02-01", "2026-02-28");
 assert.equal(february.some(item => item.description === "First Fast"), false, "First Fast must no longer be displayed");
-assert.equal(february.find(item => item.description === "First Taraweeh")?.islamicDate, "1 Ramadaan 1447");
+assert.equal(february.some(item => item.description === "First Taraweeh"), false);
 assert.equal(islamicDateLabel("Eid-ul-Fitr", "2026-03-21"), "1 Shawwal 1447");
 assert.equal(islamicDateLabel("New Islamic Year", "2026-06-17"), "1 Muharram 1448");
 const legacyNoTeachingIslamic = buildAcademyCalendarEvents([
-  { ...islamicRows[0], TeachingImpact: "NO_TEACHING", AlternateDate: "2026-02-17" }
-], "2026-02-18", "2026-02-18")[0];
+  { ...islamicRows[2], TeachingImpact: "NO_TEACHING", AlternateDate: "2026-03-20" }
+], "2026-03-21", "2026-03-21").find(event=>event.id==='A2');
 assert.equal(Object.hasOwn(legacyNoTeachingIslamic, "teachingImpact"), false, "Islamic dates must not deliver Teaching status/impact");
 assert.equal(Object.hasOwn(legacyNoTeachingIslamic, "alternateDate"), false, "Alternate Islamic dates must not be delivered");
 

@@ -1,3 +1,7 @@
+# V106.47 — Compact calendar editors and availability
+
+Availability starts with a current-entry list and opens one Add/Edit form with day pills, Weekly, 24-hour times and dates. Admin Learn shows a learner calendar, Teach edits own availability, and central Admin Calendar manages teachers, terms, holidays and Hijri dates. Hijri Annual carries labels forward for yearly date adjustment; Gregorian annual holidays repeat their dates. Holidays disable lesson joining; Hijri dates are informational. PDF predictions through 2030 were already saved and verified. [Release details](docs/ACADEMY-CALENDAR-106.47.md).
+
 # V106.46 — Compact management and direct calendars
 
 Manage Users adds Global Users and a status filter popup with separate user, Program and Course controls. Inactive users and cancelled/archived learning areas are hidden by default. Mobile table swipes return to the page heading. Manage Programs adds Lesson media; authorised Admins can preview learner screens. Calendar sections expand directly to the full month, with selectors hidden for learners and teachers and the correct workspace highlighted. [Release details](docs/ACADEMY-UI-106.46.md).

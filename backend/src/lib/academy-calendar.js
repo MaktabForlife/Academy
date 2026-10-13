@@ -13,7 +13,7 @@ export const ISLAMIC_EVENT_DESCRIPTIONS = Object.freeze([
   "New Islamic Year",
   "‘Aashuraa"
 ]);
-export const HIDDEN_ISLAMIC_EVENT_DESCRIPTIONS = Object.freeze(["First Fast"]);
+export const HIDDEN_ISLAMIC_EVENT_DESCRIPTIONS = Object.freeze(["First Fast", "First Taraweeh"]);
 
 const FIXED_PUBLIC_HOLIDAYS = Object.freeze([
   [1, 1], [3, 21], [4, 27], [5, 1], [6, 16], [8, 9], [9, 24], [12, 16], [12, 25], [12, 26]
@@ -24,7 +24,7 @@ export function buildAcademyCalendarEvents(rows, startDate, endDate) {
   const end = requireIsoDate(endDate, "Calendar end date");
   if (end < start) throw new Error("Calendar end date cannot precede start date");
 
-  const sourceRows = Array.isArray(rows) ? rows : [];
+  const sourceRows = expandAnnualCalendarRows(Array.isArray(rows) ? rows : [], start, end);
   const persisted = sourceRows
     .filter(row => isActivePlatformValue(row.Active))
     .filter(row => normalizePlatformIdentifier(row.EventType) !== "PUBLIC_HOLIDAY")
@@ -39,6 +39,19 @@ export function buildAcademyCalendarEvents(rows, startDate, endDate) {
   return [...persisted, ...publicHolidays, ...periods]
     .sort(compareCalendarEvents)
     .map(event => Object.freeze({ ...event }));
+}
+
+// Gregorian annual holidays repeat only their confirmed month/day. Hijri dates
+// are explicitly dated records and never use this projection.
+export function expandAnnualCalendarRows(rows,start,end){
+ return rows.flatMap(row=>{
+  if(row.Annual!==true||normalizePlatformIdentifier(row.EventType)==='ISLAMIC_DAY')return [row];
+  const original=String(row.StartDate),finish=String(row.EndDate||row.StartDate),base=Number(original.slice(0,4)),offset=Number(finish.slice(0,4))-base;
+  return Array.from({length:Math.max(0,Number(end.slice(0,4))-Math.max(base,Number(start.slice(0,4))-1)+1)},(_,i)=>Math.max(base,Number(start.slice(0,4))-1)+i).flatMap(year=>{
+   const from=year+original.slice(4),to=(year+offset)+finish.slice(4);if(!isIsoDate(from)||!isIsoDate(to)||to<start||from>end)return [];
+   return [{...row,StartDate:from,EndDate:to,BaseStartDate:original,BaseEndDate:finish}];
+  });
+ });
 }
 
 export function mapAcademyCalendarRow(row) {
@@ -56,7 +69,8 @@ export function mapAcademyCalendarRow(row) {
     source: eventType === "ISLAMIC_DAY" ? "ISLAMIC_REFERENCE" : eventType === "PUBLIC_HOLIDAY" ? "PUBLIC_HOLIDAY_OVERRIDE" : "ADMIN",
     editable: true,
     derived: false,
-    rowNumber: Number(row?._rowNumber) || 0
+    rowNumber: Number(row?._rowNumber) || 0,
+    ...(row.Annual===true?{annual:true,baseStartDate:row.BaseStartDate||row.StartDate,baseEndDate:row.BaseEndDate||row.EndDate}: {})
   };
   // V102.12.8: Islamic dates are informational reference dates. Legacy Sheet
   // columns remain untouched, but AlternateDate and TeachingImpact are no longer
@@ -122,8 +136,7 @@ export function buildEffectivePublicHolidays(rows, startDate, endDate) {
 export function deriveIslamicPeriods(rows) {
   const active = (Array.isArray(rows) ? rows : [])
     .filter(row => isActivePlatformValue(row.Active) && normalizePlatformIdentifier(row.EventType) === "ISLAMIC_DAY")
-    .map(mapAcademyCalendarRow)
-    .filter(event => !isHiddenIslamicEvent(event));
+    .map(mapAcademyCalendarRow);
   const byYear = new Map();
   for (const event of active) {
     const year = Number(String(event.startDate || "").slice(0, 4));
@@ -136,7 +149,8 @@ export function deriveIslamicPeriods(rows) {
   for (const [year, events] of byYear) {
     const firstTaraweeh = events.find(event => event.description === "First Taraweeh");
     const eidFitr = events.find(event => event.description === "Eid-ul-Fitr");
-    const ramadaanStart = firstTaraweeh ? addDays(firstTaraweeh.startDate, 1) : "";
+    const firstFast=events.find(event=>event.description==="First Fast");
+    const ramadaanStart = firstFast?.startDate || (firstTaraweeh ? addDays(firstTaraweeh.startDate, 1) : "");
     if (ramadaanStart && eidFitr && ramadaanStart < eidFitr.startDate) {
       periods.push({
         id: `ISLAMIC-PERIOD-RAMADAAN-${year}`,

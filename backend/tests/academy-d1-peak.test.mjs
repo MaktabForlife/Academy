@@ -39,7 +39,7 @@ try {
     for(const [count,burst] of Object.entries(report.bursts)) {
       assert.equal(burst.succeeded,Number(count));assert.equal(burst.failed,0,JSON.stringify(burst.failures));
       for(const [stage,calls] of Object.entries({check:2,login:3,session:2,home:3}))assert.equal(burst.stages[stage].calls.max,calls);
-      assert.equal(Object.values(burst.stages).reduce((sum,s)=>sum+s.statements.max,0),30);
+      assert.equal(Object.values(burst.stages).reduce((sum,s)=>sum+s.statements.max,0),31);
     }
     // Native SQLite is a correctness/query-budget test, not hosted capacity.
   }));

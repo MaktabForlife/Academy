@@ -32,8 +32,9 @@
     const staff=r=>r.some(x=>['TEACHER','SENIOR','PROGRAM_ADMIN','ADMIN','GLOBAL_ADMIN'].includes(x)),admin=r=>r.some(x=>['PROGRAM_ADMIN','ADMIN','GLOBAL_ADMIN'].includes(x));
     const available={learn:global||roles.some(r=>['STUDENT','TEACHER','SENIOR','PROGRAM_ADMIN','ADMIN','GLOBAL_ADMIN'].includes(r)),teach:global||staff(roles),admin:global||admin(roles)};
     const section=location.hash.slice(1).split('/')[0],path=location.pathname;
-    const management=['administration','assessment-admin','progress-admin'].includes(section)||/^\/(users|programs)(?:\/|$)/.test(path)||/^\/academy\/(subjects|calendar|courses\/manage|library\/manage)(?:\/|$)/.test(path);
-    const selected=management&&available.admin?'admin':(path.startsWith('/academy/teaching/')||path.startsWith('/academy/calendar/'))&&available.teach?'teach':'learn';
+    const calendarView=path.startsWith('/academy/calendar/')?new URLSearchParams(location.search).get('view'):null;
+    const management=calendarView!=='learn'&&calendarView!=='teach'&&(['administration','assessment-admin','progress-admin'].includes(section)||/^\/(users|programs)(?:\/|$)/.test(path)||/^\/academy\/(subjects|calendar|courses\/manage|library\/manage)(?:\/|$)/.test(path));
+    const selected=calendarView==='learn'?'learn':calendarView==='teach'&&available.teach?'teach':management&&available.admin?'admin':(path.startsWith('/academy/teaching/')||path.startsWith('/academy/calendar/'))&&available.teach?'teach':'learn';
     for(const button of document.querySelectorAll('[data-shell-role]')){button.hidden=!available[button.dataset.shellRole];button.setAttribute('aria-pressed',String(button.dataset.shellRole===selected));}
     const name=document.getElementById('academy-shell-name'),role=document.getElementById('academy-shell-role');
     if(name)name.textContent=signed?(data.profile?.name||'Academy member'):'Welcome';

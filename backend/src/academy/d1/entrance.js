@@ -1,3 +1,4 @@
+import {noTeachingCalendarEvents,holidayOnDate} from './calendar-holidays.js';
 import { buildEntrance, addDays } from '../entrance.js';
 import { dateInTimezone } from '../../lib/global-subject-delivery.js';
 import { rehearsalError } from './repository.js';
@@ -17,7 +18,7 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
   if(!/^\d{4}-\d{2}-\d{2}$/.test(start)||Number.isNaN(Date.parse(start))||addDays(start,0)!==start)throw rehearsalError('Choose a valid timetable date.',400,'INVALID_DATE');
   const courseWorkflows=config.courseWorkflows??await courseCalendarAvailable(repository.db,true);
   const end=addDays(start,days-1);
-  const [activities,publications,subjects,modules,classes,memberships,runs,runStates,lifecycles,calendar,suppressions]=await repository.homeData(state,start,end,courseWorkflows,config.programWorkspace);
+  const [activities,publications,subjects,modules,classes,memberships,runs,runStates,lifecycles,calendar,suppressions,calendarSettings]=await repository.homeData(state,start,end,courseWorkflows,config.programWorkspace);
   // The pilot's historical dates are in the past; ordinary timetable loads do
   // not query the extension table, and no historical lesson can be joined live.
   if(start<'2026-10-08'&&end>='2026-10-06'&&activities.some(a=>a.activity_key===MOU_MEDIA_PROGRAM))publications.push(...await historicalPublications(repository,start,end));
@@ -55,5 +56,11 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
     result.memorisationActive=setting?.active!==0;
   }
   if(config.programWorkspace)result.timetable=result.timetable.map(row=>row.kind==='PROGRAM'?{...row,publicCard:JSON.parse(activities.find(a=>a.kind==='PROGRAM'&&samePublication(a.activity_id,row.activityId))?.public_card_json||'{}')}:row);
-  return courseWorkflows?{...result,calendarEvents:buildAcademyCalendarEvents(calendarRows(calendar,suppressions),start,end)}:result;
+  if(courseWorkflows){
+    const data={calendar,suppressions,settings:calendarSettings},byActivity=new Map();
+    const project=row=>{const activity=row.kind+':'+row.activityId;if(!byActivity.has(activity))byActivity.set(activity,noTeachingCalendarEvents(data,start,end,activity));const holiday=holidayOnDate(byActivity.get(activity),row.date);if(!holiday||row.status!=='SCHEDULED')return row;const {joinKey,joinUrl,publicJoin,...rest}=row;return {...rest,status:'HOLIDAY',holidayName:holiday.description};};
+    result.timetable=result.timetable.map(project);result.personalTimetable=result.personalTimetable.map(project).filter(row=>row.status==='SCHEDULED');if(result.activity)result.activity={...result.activity,timetable:result.activity.timetable.map(project)};
+    result.calendarEvents=buildAcademyCalendarEvents(calendarRows(calendar,suppressions,calendarSettings),start,end);
+  }
+  return result;
 }
