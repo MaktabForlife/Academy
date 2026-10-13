@@ -1,3 +1,7 @@
+# V106.42 — Shared banners, sliding menus and public Hifdh
+
+Website navigation slides in from the right. Learn opens a vertical list from the left and Teach from the right; Admin's first Teach pill opens from the left. Two compact banners persist on mobile and desktop, with Home and Refresh icons beside the account controls. Hifdh is public, signed-in accounts can open HifzHelper, cancelled/archived Courses are excluded from Learn/Teach, Program Library opens For you directly, and Admin pills open management editors. [Release details](docs/ACADEMY-SHELL-106.42.md).
+
 # V106.41 — Shared page controls and Admin teaching access
 
 Admin has a direct Teach button for choosing a Program or Course teaching workspace. Academy pages, connected management tools, libraries, the Academy recorder and the account page show Home, Refresh and the existing Sign out control together. Refresh reloads the current page and requests a fresh Academy timetable. [Release details](docs/ACADEMY-PAGE-ACTIONS-106.41.md).

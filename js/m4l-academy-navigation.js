@@ -8,8 +8,8 @@
   const side = document.createElement('aside');
   side.className = 'academy-connected-sidebar';
   side.setAttribute('aria-label', 'Academy');
-  side.innerHTML = `<a class="academy-connected-brand" href="/academy/#overview"><img src="/ummabbadacademy.png" alt=""><span><strong>Umm Abbad<br>Academy</strong><small>Learning together</small></span></a>
-    <nav aria-label="Academy navigation"><a href="/academy/#overview">Academy home</a><a id="ac-progress" href="/academy/#progress">Surahs and Duas</a><a id="ac-recorder" href="/academy/#recorder" hidden>Voice Recorder</a><a id="ac-library" href="/academy/open-library/">Library</a><a href="/academy/#prospectus">2026 Prospectus</a><a href="/academy/#about">About</a><a href="/academy/#contact">Contact</a></nav>
+  side.innerHTML = `<a class="academy-connected-brand" href="/academy/#overview"><img src="/ummabbadacademy.png" alt=""><span><strong>Umm Abbad<br>Academy</strong><span class="site-version">Website V106.42</span></span></a>
+    <nav aria-label="Academy navigation"><a href="/academy/#overview">Academy home</a><a id="ac-progress" href="/academy/#hifdh">Hifdh</a><a id="ac-recorder" href="/academy/#recorder" hidden>Voice Recorder</a><a id="ac-library" href="/academy/open-library/">Library</a><a href="/academy/#prospectus">2026 Prospectus</a><a href="/academy/#about">About</a><a href="/academy/#contact">Contact</a></nav>
     <div class="academy-connected-footer"><a href="https://ummabbadacademy.com" target="_blank" rel="noopener noreferrer">Original Academy site ↗</a><button id="ac-signout" type="button" hidden>Sign out</button></div>`;
   const strip = document.createElement('nav');
   strip.className = 'academy-connected-activities';
@@ -26,6 +26,7 @@
   let d1Session = '';
 
   function clear() {
+    window.M4L_ACADEMY_SHELL_DATA=null;window.M4L_ACADEMY_SHELL?.update(null);
     strip.replaceChildren();
     strip.hidden = true;
     $('ac-library').href = '/academy/open-library/';
@@ -44,7 +45,7 @@
       let result, owner = '';
       try {
         owner = [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(session)))].map(b=>b.toString(16).padStart(2,'0')).join('');
-        const saved = JSON.parse(sessionStorage.getItem('m4l_academy_daily_timetable_10610') || 'null');
+        const saved = JSON.parse(sessionStorage.getItem('m4l_academy_daily_timetable_10642') || 'null');
         const home = saved?.owner === owner && saved.entries?.HOME;
         const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:home?.timezone || 'Africa/Johannesburg',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(p=>[p.type,p.value]));
         if (home?.cacheDay === `${parts.year}-${parts.month}-${parts.day}` && home.signedIn) result = home;
@@ -59,7 +60,7 @@
       if (pending !== generation || session !== token() || !result.success || !result.signedIn) return;
       d1Session = result.sessionStore === 'D1' ? session : '';
       $('ac-library').href = '/academy/library/';
-      $('ac-progress').hidden = result.memorisationActive===false;
+      $('ac-progress').hidden = false;
       $('ac-recorder').hidden = !result.student;
       $('ac-signout').hidden = false;
       if ($('library-for-you')) $('library-for-you').hidden = false;
@@ -69,6 +70,7 @@
       strip.innerHTML = programs.map(row => `<a data-academy-program="${esc(row.id)}" href="/academy/#activity/${row.kind}/${encodeURIComponent(row.id)}"${row.kind === 'PROGRAM' && row.id === currentProgram ? ' aria-current="page"' : ''}><span>${esc(row.name)}</span><small>${esc(roles(result.globalAdmin ? ['GLOBAL_ADMIN'] : row.roles))}</small></a>`).join('') +
         (result.signedIn && (result.globalAdmin || courses.some(row=>row.roles?.length)) ? `<a href="/academy/#workshops"><span>Courses</span><small>${esc(roles(result.globalAdmin ? ['GLOBAL_ADMIN','PROGRAM_ADMIN'] : [...new Set(courses.flatMap(row => row.roles))]) || 'None')}</small></a>` : '');
       strip.hidden = !result.signedIn;
+      window.M4L_ACADEMY_SHELL_DATA=result;window.M4L_ACADEMY_SHELL?.update(result);
     } catch { /* Public navigation stays available while account information is unavailable. */ }
   }
 
@@ -92,7 +94,7 @@
     }
     for (let index = sessionStorage.length - 1; index >= 0; index--) {
       const key = sessionStorage.key(index);
-      if (key?.startsWith('m4l_admin_progress_dashboard_') || key === 'm4l_academy_daily_timetable_10610') sessionStorage.removeItem(key);
+      if (key?.startsWith('m4l_admin_progress_dashboard_') || key?.startsWith('m4l_academy_daily_timetable_')) sessionStorage.removeItem(key);
     }
     window.dispatchEvent(new Event('m4l-academy-session'));
     location.href = '/academy/#overview';

@@ -121,8 +121,8 @@ assert.match(nodes['al-results'].innerHTML, /al-card-title"><img src="\/icons\/e
 assert.match(nodes['al-results'].innerHTML, /al-card-title"><img src="\/icons\/other\.svg"/);
 assert.doesNotMatch(nodes['al-results'].innerHTML, /Ihya Ulum/);
 const personalHtml = await readFile(new URL('../../academy/library/index.html', import.meta.url), 'utf8');
-assert.match(personalHtml, /href="\/academy\/open-library\/">Explore/);
-assert.match(personalHtml, /href="\/academy\/library\/" aria-current="page">For You/);
+assert.match(personalHtml, /href="\/academy\/open-library\/">Browse/);
+assert.match(personalHtml, /href="\/academy\/library\/" aria-current="page">For you/);
 chooseCategory('OTHER');
 assert.match(nodes['al-results'].innerHTML, /Useful website/);
 assert.doesNotMatch(nodes['al-results'].innerHTML, /Assigned book|Academy Quran book/);

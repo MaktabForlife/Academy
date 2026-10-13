@@ -205,12 +205,14 @@ export async function buildEntrance({ tables, programs, rolesByProgram, rolesByC
     const teacher = Boolean(user && sessions.some(row => row.relevant && row.involvement === 'teacher'));
     const learner = allowed || Boolean(user && sessions.some(row => row.involvement === 'student'));
     const roles = globalAdmin(user) ? ['GLOBAL_ADMIN', 'PROGRAM_ADMIN'] : [...new Set([...assignedRoles,...(learner ? ['STUDENT'] : []), ...(teacher ? ['TEACHER'] : [])])];
-    const view = { id: subject.SubjectID, name: subject.SubjectName, kind: 'COURSE', roles, timetable: sessions, unavailable,
+    const runStages = platform.runs.filter(r => key(r.SubjectID) === key(subject.SubjectID) && active(r.Active)).map(r => key(tables.GlobalTimetableRunState.find(s => key(s.RunID) === key(r.RunID))?.Stage));
+    const menuAvailable = !runStages.length || runStages.some(stage => !['CANCELLED','ARCHIVED'].includes(stage));
+    const view = { menuAvailable, id: subject.SubjectID, name: subject.SubjectName, kind: 'COURSE', roles, timetable: sessions, unavailable,
       curriculum: roles.length ? tables.GlobalModuleList.filter(row => key(row.SubjectID) === key(subject.SubjectID) && active(row.Active))
         .map(row => ({ id: row.ModuleID, name: row.ModuleName, modules: [] })) : [], classes: [],
       tools: { library: '/academy/library/' } };
     courseViews.push(view);
-    activities.push({ id: view.id, name: view.name, kind: view.kind, roles });
+    activities.push({ id: view.id, name: view.name, kind: view.kind, roles, menuAvailable });
     timetable.push(...sessions);
   }
   if (!programs.some(row => key(row.id) === key(REBOOT_PILOT_PROGRAM_ID) && row.mode === 'PROGRAM' && row.status === programLifecycle))
@@ -231,7 +233,7 @@ export async function buildEntrance({ tables, programs, rolesByProgram, rolesByC
   // Program navigation can reuse the same personal timetable without another Sheets read.
   const activityPages = user ? [...programViews, ...courseViews].filter(row => row.roles.length)
     .map(({ timetable: _, ...row }) => row) : [];
-  return { signedIn: Boolean(user), globalAdmin: globalAdmin(user), startDate: start, endDate: end, timezone,
+  return { profile: account ? {name: clean(account.DisplayName),uniqueid: clean(account.UniqueID)} : null, signedIn: Boolean(user), globalAdmin: globalAdmin(user), startDate: start, endDate: end, timezone,
     activities, personalActivities: user ? activities.filter(row => row.roles.length) : [], activityPages,
     student: Boolean(user && activities.some(row => row.roles.includes('STUDENT'))),
     personalTimetable,

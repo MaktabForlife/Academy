@@ -64,6 +64,14 @@ assert(!JSON.stringify(visitor).includes('Course teacher'));
 assert(!loaded.includes('COURSE1'), 'The gateway never loads legacy Reboot');
 const student = await buildEntrance({ ...args, user: account('LEARNER-DEMO') });
 assert.equal(student.student, true);
+assert.equal(visitor.profile,null,'Public timetable has no account profile');
+for(const Stage of ['CANCELLED','ARCHIVED']) {
+ const blocked=structuredClone(tables);blocked.GlobalTimetableRunState[0].Stage=Stage;
+ const result=await buildEntrance({...args,tables:blocked,user:account('LEARNER-DEMO')});
+ assert.equal(result.personalActivities.find(r=>r.id==='SUB1').menuAvailable,false,Stage+' Courses are excluded from Learn and Teach');
+ assert.equal(result.activityPages.find(r=>r.id==='SUB1').menuAvailable,false);
+}
+
 assert.deepEqual(student.activityPages.map(row=>row.id).sort(),student.personalActivities.map(row=>row.id).sort());
 assert(student.activityPages.every(row=>!row.timetable), 'Shared page metadata does not duplicate individual timetables or join URLs');
 assert.deepEqual(student.personalActivities.find(row => row.id === first.program.id).roles, ['STUDENT']);

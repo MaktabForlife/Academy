@@ -74,7 +74,7 @@
     activeToken = "";
     activeLoginId = "";
     sessionStore = "";
-    homeCard.hidden = true;
+    homeCard.hidden = false;
     signOutButton.hidden = true;
     sessionLoading.hidden = true;
     sessionRetry.hidden = true;
@@ -228,7 +228,7 @@
     }
     for (let index = sessionStorage.length - 1; index >= 0; index -= 1) {
       const key = sessionStorage.key(index);
-      if (key?.startsWith("m4l_admin_progress_dashboard_")) sessionStorage.removeItem(key);
+      if (key?.startsWith("m4l_admin_progress_dashboard_") || key?.startsWith("m4l_academy_daily_timetable_")) sessionStorage.removeItem(key);
     }
   }
 

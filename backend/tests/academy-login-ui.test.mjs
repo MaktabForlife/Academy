@@ -6,7 +6,7 @@ const html = readFileSync(new URL('../../academy/index.html', import.meta.url), 
 const script = readFileSync(new URL('../../js/m4l-academy-login.js', import.meta.url), 'utf8');
 const redirects = readFileSync(new URL('../../_redirects', import.meta.url), 'utf8');
 assert.match(html, /placeholder="Enter your account ID"/);
-assert.match(html, /id="academy-home-card" hidden/);
+assert.match(html, /id="academy-home-card"/);
 assert.match(html, /id="academy-sign-out" type="button" hidden/);
 assert.match(html, /id="academy-library-nav" href="\/academy\/open-library\/"/);
 assert.doesNotMatch(html, /academy-personal-library-nav|>My Library<\/a>/);
@@ -133,7 +133,7 @@ assert.equal(signedIn.session.get('m4l_academy_signed_in'), undefined);
 assert.equal(signedIn.destination, '');
 assert.equal(signedIn.hash, 'overview');
 assert.equal(signedIn.elements.get('login-preview').hidden, false);
-assert.equal(signedIn.elements.get('academy-home-card').hidden, true);
+assert.equal(signedIn.elements.get('academy-home-card').hidden, false);
 assert.equal(signedIn.elements.get('academy-sign-out').hidden, true);
 assert.equal(signedIn.elements.get('academy-header-name').textContent, '');
 assert.equal(signedIn.elements.get('academy-header-name').hidden, true);
@@ -146,14 +146,14 @@ otherTab.storage.delete('m4l_account_token');
 assert.equal(otherTab.currentLoginId, '', 'A removed session cannot supply a personal-link identity');
 otherTab.storageChanged({ key: 'm4l_account_token', newValue: null });
 assert.equal(otherTab.elements.get('login-preview').hidden, false);
-assert.equal(otherTab.elements.get('academy-home-card').hidden, true);
+assert.equal(otherTab.elements.get('academy-home-card').hidden, false);
 assert.equal(otherTab.elements.get('academy-library-nav').href, '/academy/open-library/');
 
 const wrongAccount = await loadPage({ academyId: 'TEST-USER', storedToken: 'NEW_SESSION', replies: {
   '/api/account/session': { body: { success: true, account: { uniqueid: 'OTHER-USER' } } }
 } });
 assert.equal(wrongAccount.elements.get('login-preview').hidden, false);
-assert.equal(wrongAccount.elements.get('academy-home-card').hidden, true);
+assert.equal(wrongAccount.elements.get('academy-home-card').hidden, false);
 assert.equal(wrongAccount.currentLoginId, '');
 assert.equal(wrongAccount.elements.get('academy-library-nav').href, '/academy/open-library/');
 
@@ -194,7 +194,7 @@ await new Promise(resolve => setImmediate(resolve));
 assert.equal(d1Session.calls.at(-1).path, '/api/account/logout');
 assert.equal(d1Session.calls.at(-1).headers.Authorization, 'Bearer D1_SESSION');
 assert.equal(d1Session.storage.get('m4l_account_token'), undefined);
-assert.equal(d1Session.elements.get('academy-home-card').hidden, true);
+assert.equal(d1Session.elements.get('academy-home-card').hidden, false);
 
 const failedD1Logout = await loadPage({ storedToken: 'D1_SESSION', replies: {
   '/api/account/session': { body: { success: true, sessionStore: 'D1', account: { uniqueid: 'TEST-USER' } } },

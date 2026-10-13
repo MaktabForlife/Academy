@@ -1,24 +1,18 @@
-/* Keep page-level navigation visible; reuse each page's existing sign-out handler. */
+/* The same account banner and page actions persist across Academy workspaces. */
 (() => {
   'use strict';
-  if (document.querySelector('.academy-page-actions')) return;
-  const signOut = document.getElementById('academy-sign-out') || document.getElementById('ac-signout') || document.getElementById('logout-button');
-  if (!signOut) return;
-  const academy = Boolean(document.getElementById('academy-home-card'));
-  const account = document.querySelector('.account-panel-topline');
-  const host = academy ? document.querySelector('.academy-account-row') : account || document.querySelector('main');
-  if (!host) return;
-  const actions = document.createElement('div');
-  actions.className = 'academy-page-actions';
-  actions.setAttribute('role','group');
-  actions.setAttribute('aria-label','Page actions');
-  actions.innerHTML = `<a data-page-home href="${academy ? '#overview' : '/academy/#overview'}" aria-label="Academy home">Home</a><button data-page-refresh type="button" aria-label="Refresh this page">↻ Refresh</button>`;
-  signOut.textContent = 'Sign out';
-  actions.append(signOut);
-  if (academy || account) host.append(actions); else host.prepend(actions);
-  actions.querySelector('[data-page-refresh]').addEventListener('click', () => {
-    // A page refresh must fetch a new timetable rather than restore today's snapshot.
-    try { sessionStorage.removeItem('m4l_academy_daily_timetable_10610'); } catch {}
-    location.reload();
-  });
+  const shell=window.M4L_ACADEMY_SHELL;
+  const signOut=document.getElementById('academy-sign-out')||document.getElementById('ac-signout')||document.getElementById('logout-button');if(!signOut)return;
+  const academy=Boolean(document.getElementById('academy-home-card')),account=document.querySelector('.account-panel-topline');
+  let banner=document.getElementById('academy-home-card');
+  if(!banner&&shell){banner=document.createElement('section');banner.className='academy-account-bar';banner.setAttribute('aria-label','Academy account');banner.innerHTML='<div class="academy-account-row"><div class="academy-profile"><span class="academy-welcome">Ahlan wa Sahlan</span><strong id="academy-shell-name">Welcome</strong><small id="academy-shell-role"></small></div></div><div class="academy-role-tabs" aria-label="Academy workspaces"><button data-shell-role="learn" hidden>LEARN</button><button data-shell-role="teach" hidden>TEACH</button><button data-shell-role="admin" hidden>ADMIN</button></div>';}
+  if(banner&&shell){banner.hidden=false;shell.banners.append(banner);}
+  const host=banner?.querySelector('.academy-account-row')||account||document.querySelector('main');if(!host)return;
+  const actions=document.createElement('div');actions.className='academy-page-actions';actions.setAttribute('role','group');actions.setAttribute('aria-label','Page actions');
+  const home='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9"/></svg>',refresh='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M20 12a8 8 0 1 1-2-6"/></svg>';
+  actions.innerHTML=`<a data-page-home href="${academy?'#overview':'/academy/#overview'}" aria-label="Academy home" title="Home">${home}</a><button data-page-refresh type="button" aria-label="Refresh this page" title="Refresh">${refresh}</button>`;
+  signOut.textContent='Sign out';actions.append(signOut);host.append(actions);
+  actions.querySelector('[data-page-refresh]').addEventListener('click',()=>{try{sessionStorage.removeItem('m4l_academy_daily_timetable_10642');}catch{}location.reload();});
+  shell?.update(window.M4L_ACADEMY_SHELL_DATA||null);
+  if(shell&&typeof ResizeObserver!=='undefined')new ResizeObserver(()=>document.documentElement.style.setProperty('--academy-banner-height',shell.banners.offsetHeight+'px')).observe(shell.banners);
 })();

@@ -9,7 +9,7 @@
   const ACTIVITY_CACHE_MS = 86400000;
   const dailyCache = { session: '', owner:'', entries: {} };
   const MEMORISATION_RETURN_KEY='m4l_academy_memorisation_return_v1';
-  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10610';
+  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10642';
   const academyDay = (timezone, instant = Date.now()) => {
     const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {timeZone:timezone || 'Africa/Johannesburg',
       year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(instant)).map(part=>[part.type,part.value]));
@@ -19,10 +19,10 @@
   const TIMETABLE_RETURN_KEY = 'm4l_academy_timetable_return';
   let workspaceFocusId = '';
   let lastRouteHash = '', navigationSession = token(), memorisationReturn = null, restoreMemorisation = null;
-  const memorisationHash = hash => hash === '#progress' || hash.startsWith('#progress-admin') || hash.endsWith('/surahs-duas') || hash.endsWith('/assessment') || hash.startsWith('#assessment-admin') || hash.startsWith('#assessments');
+  const memorisationHash = hash => (hash === '#progress' || hash === '#hifdh') || hash.startsWith('#progress-admin') || hash.endsWith('/surahs-duas') || hash.endsWith('/assessment') || hash.startsWith('#assessment-admin') || hash.startsWith('#assessments');
   const validReturnHash = hash => typeof hash === 'string' && (hash !== '#timetable' && Boolean(titles[hash.slice(1).split('/')[0]]) || /^#activity\/(PROGRAM|COURSE)\/[^/#]+(?:\/(?:learn|teach))?(?:\/(?:attendance|surahs-duas|assessment|library|planning))?$/.test(hash));
   const titles = { overview: 'Academy home', timetable: 'Academy timetable', learning: 'Programs and Courses', workshops: 'Courses', activity: 'Activity',
-    prospectus: '2026 Prospectus', about: 'About', contact: 'Contact', progress: 'Surahs and Duas', 'progress-admin':'Surahs and Duas administration', 'assessment-admin':'Assessment administration', assessments:'My assessments', recorder: 'Voice Recorder', administration: 'Academy administration' };
+    prospectus: '2026 Prospectus', about: 'About', contact: 'Contact', hifdh:'Hifdh', progress: 'Hifdh', 'progress-admin':'Hifdh administration', 'assessment-admin':'Assessment administration', assessments:'My assessments', recorder: 'Voice Recorder', administration: 'Academy administration' };
   const activityHref = row => `#activity/${row.kind}/${encodeURIComponent(row.id)}`;
   const staffRoles = roles => roles.some(role => ['TEACHER', 'PROGRAM_ADMIN', 'ADMIN', 'SENIOR', 'GLOBAL_ADMIN'].includes(role));
   const roleName = roles => roles.map(role => ({ GLOBAL_ADMIN: 'Global Admin', PROGRAM_ADMIN: 'Program Admin', ADMIN: 'Program Admin', SENIOR: 'Senior', TEACHER: 'Teacher', STUDENT: 'Student' })[role]).filter(Boolean).join(' · ') || 'None';
@@ -228,7 +228,7 @@
 
   function renderHome() {
     const data = state.home;
-    $('academy-progress-nav').hidden = data.signedIn && data.memorisationActive===false;
+    $('academy-progress-nav').hidden = false;
     $('academy-recorder-nav').hidden = !(data.signedIn && data.student);
     const activities = data.signedIn ? data.personalActivities : [];
     renderAcademyMenu();
@@ -275,16 +275,20 @@
     if (choices.includes(requested)) state.academyTab = requested;
     if (!choices.includes(state.academyTab)) state.academyTab = choices[0] || '';
     const panel = $('academy-role-panel');
+    window.M4L_ACADEMY_SHELL_DATA=data;window.M4L_ACADEMY_SHELL?.update(data);
+    const helper=$('hifdh-helper'), loginId=window.M4L_ACADEMY_LOGIN?.currentId() || '', helperBase=window.M4L_CONFIG?.HIFZHELPER_URL;
+    helper.hidden=!(data?.signedIn && /^[A-Za-z0-9]+$/.test(loginId) && /^https:\/\//.test(helperBase||''));
+    if(!helper.hidden)helper.href=helperBase.replace(/\/$/,'')+'/'+encodeURIComponent(loginId);
     $('academy-account-role').textContent = data?.signedIn ? highestAccess(roles) || 'None' : '';
     $('academy-access-empty').hidden = !data?.signedIn || Boolean(choices.length);
     for (const key of ['learn','teach','admin']) {
       const tab = $('academy-tab-'+key), active = key === state.academyTab;
-      tab.hidden = !choices.includes(key);tab.setAttribute('aria-selected', String(active));tab.setAttribute('aria-controls',key === 'admin' ? 'administration' : parts[0] === 'activity' && active ? 'activity' : 'academy-role-panel');tab.tabIndex = active ? 0 : -1;
+      tab.hidden = !choices.includes(key);tab.setAttribute('aria-pressed', String(active));tab.setAttribute('aria-controls',key === 'admin' ? 'administration' : 'academy-'+key+'-drawer');tab.tabIndex = 0;
     }
-    panel.hidden = !home || !choices.length || state.academyTab === 'admin';
+    panel.hidden = true;
     panel.setAttribute('aria-labelledby', 'academy-tab-'+state.academyTab);
-    if (panel.hidden) {panel.replaceChildren();return;}
-    const mode = state.academyTab, rows = activities.filter(row => global || (mode === 'teach' ? staffRoles(row.roles || []) : row.roles?.includes('STUDENT')));
+    if (!choices.length || state.academyTab === 'admin') {panel.replaceChildren();return;}
+    const mode = state.academyTab, rows = activities.filter(row => row.menuAvailable !== false && !['CANCELLED','ARCHIVED'].includes(row.stage||row.status||row.lifecycle) && (global || (mode === 'teach' ? staffRoles(row.roles || []) : row.roles?.includes('STUDENT'))));
     panel.innerHTML = `<p class="academy-chooser-heading">Select a Program or Course to ${mode === 'teach' ? 'teach' : 'learn'}</p><div class="academy-choices">${rows.map(row => {
       const pill = activityPill(workspaceHref(row,'timetable',mode),row.name,row.roles);
       const helper = hifzHelperLink(row,'activity-pill-shortcut');
@@ -321,9 +325,9 @@
     const users = global ? '/users/' : row.kind === 'PROGRAM' ? manage && `${manage}&tab=profiles` : row.id ? `${manage}&tab=participants` : '/academy/courses/manage/';
     return (admin ? group('Admin', link('Users', users) + link('Library', global ? '/academy/library/manage/' : row.tools?.resources || '/academy/library/') +
       link('Programs', global ? '/programs/' : row.kind === 'PROGRAM' && row.id ? `/programs/timetable.html?program=${encodeURIComponent(row.id)}` : '') +
-      link('Courses', global || row.kind !== 'PROGRAM' ? '/academy/courses/manage/' : '') + (row.kind==='PROGRAM'?link('Surahs and Duas',`#progress-admin/PROGRAM/${encodeURIComponent(row.id)}`):'') + link('Assessments',row.id?`#assessment-admin/${row.kind}/${encodeURIComponent(row.id)}`:'#assessment-admin/COURSE') + tool('Academy','academy')) : '') +
-      (staff ? group('Teach', hifzHelper + (row.kind === 'PROGRAM' ? `<a href="${activityHref(row)}/attendance" aria-expanded="${location.hash.endsWith('/attendance')}" aria-controls="pa-main">Attendance</a>` + link('Surahs and Duas',`${activityHref(row)}/surahs-duas`) : tool('Attendance','attendance')) + link('Assessment',row.id?`${activityHref(row)}/assessment`:'#assessments/COURSE') + tool('Planning','plan') + tool('Announcements','announcements') + link('My Timetable','#timetable') + link('Edit availability','/academy/teaching/')) : '') +
-      (learner && !staff ? group('Learn', (!staff?hifzHelper:'') + link('Library','/academy/library/') + (state.home?.memorisationActive!==false?link('Surahs and Duas','#progress'):'') + link('My Assessment',row.id?`${activityHref(row)}/assessment`:'#assessments/COURSE') + tool('Calendar','calendar') + tool('Announcements','announcements') + link('My Timetable','#timetable')) : '');
+      link('Courses', global || row.kind !== 'PROGRAM' ? '/academy/courses/manage/' : '') + (row.kind==='PROGRAM'?link('Hifdh',`#progress-admin/PROGRAM/${encodeURIComponent(row.id)}`):'') + link('Assessments',row.id?`#assessment-admin/${row.kind}/${encodeURIComponent(row.id)}`:'#assessment-admin/COURSE') + tool('Academy','academy')) : '') +
+      (staff ? group('Teach', hifzHelper + (row.kind === 'PROGRAM' ? `<a href="${activityHref(row)}/attendance" aria-expanded="${location.hash.endsWith('/attendance')}" aria-controls="pa-main">Attendance</a>` + link('Hifdh',`${activityHref(row)}/surahs-duas`) : tool('Attendance','attendance')) + link('Assessment',row.id?`${activityHref(row)}/assessment`:'#assessments/COURSE') + tool('Planning','plan') + tool('Announcements','announcements') + link('My Timetable','#timetable') + link('Edit availability','/academy/teaching/')) : '') +
+      (learner && !staff ? group('Learn', (!staff?hifzHelper:'') + link('Library','/academy/library/') + (state.home?.memorisationActive!==false?link('Hifdh','#progress'):'') + link('My Assessment',row.id?`${activityHref(row)}/assessment`:'#assessments/COURSE') + tool('Calendar','calendar') + tool('Announcements','announcements') + link('My Timetable','#timetable')) : '');
   }
 
   function roleTools(row) {
@@ -331,7 +335,7 @@
     const context = workspaceContext(row), tools = context.mode === 'teach'
       ? [['timetable','Timetable','activity-schedule'],['attendance','Attendance',row.kind === 'COURSE' ? 'activity-planning' : 'pa-main'],['planning','Planning','activity-planning'],['assessment','Assessment','as-panel'],['library','Library','activity-library']]
       : [['timetable','Timetable','activity-schedule'],['assessment','Assessment','as-panel'],['library','Library','activity-library']];
-    return `<nav class="workspace-tabs" aria-label="${context.mode === 'teach' ? 'Teach' : 'Learn'} tools" role="tablist">${tools.map(([key,label,panel]) => `<a id="activity-tab-${key}" role="tab" href="${workspaceHref(row,key)}" aria-controls="${panel}" aria-selected="${context.tool === key}" tabindex="${context.tool === key ? 0 : -1}">${label}</a>`).join('')}</nav>${hifzHelperLink(row,'workspace-helper')}`;
+    return `<nav class="workspace-tabs" aria-label="${context.mode === 'teach' ? 'Teach' : 'Learn'} tools" role="tablist">${tools.map(([key,label,panel]) => `<a id="activity-tab-${key}" role="tab" href="${key==='library'?'/academy/library/':workspaceHref(row,key)}" aria-controls="${panel}" aria-selected="${context.tool === key}" tabindex="${context.tool === key ? 0 : -1}">${label}</a>`).join('')}</nav>${hifzHelperLink(row,'workspace-helper')}`;
   }
   function supportSections(row, mode) {
     const global = Boolean(state.home?.globalAdmin), staff = mode !== 'learn';
@@ -340,7 +344,7 @@
     const progress = mode === 'admin' ? global ? '#progress-admin' : '' : mode === 'teach' && row ? workspaceHref(row,'surahs-duas') : '#progress';
     return `<details class="academy-support-card academy-messages"><summary><span>${staff ? 'Reminders' : 'Messages'}</span><small>Coming soon</small></summary><p class="muted">${staff ? 'Editing and sending reminders' : 'Academy messaging'} is coming soon.</p></details>
       <details class="academy-support-card"><summary><span>Academy calendar</span><small>This week</small></summary>${calendar}${staff ? '<a class="button secondary" href="/academy/teaching/">Edit availability</a>' : ''}${mode === 'admin' && global ? '<p class="tiny muted">Calendar editing in this workspace is coming soon.</p>' : ''}</details>
-      ${state.home?.memorisationActive === false && !staff ? '' : `<details class="academy-support-card"><summary><span>Surahs and Duas tracker</span><small>${mode === 'teach' ? 'Class progress' : mode === 'admin' ? 'Manage progress' : 'My progress'}</small></summary>${progress ? `<a class="button secondary" href="${progress}">${mode === 'learn' ? 'Open my tracker' : mode === 'teach' ? 'Open class progress' : 'Manage trackers'}</a>` : adminAreas().map(area => `<a class="button secondary" href="#progress-admin/${area.kind}/${encodeURIComponent(area.id)}">${esc(area.name)}</a>`).join('')}</details>`}`;
+      ${state.home?.memorisationActive === false && !staff ? '' : `<details class="academy-support-card"><summary><span>Hifdh tracker</span><small>${mode === 'teach' ? 'Class progress' : mode === 'admin' ? 'Manage progress' : 'My progress'}</small></summary>${progress ? `<a class="button secondary" href="${progress}">${mode === 'learn' ? 'Open my tracker' : mode === 'teach' ? 'Open class progress' : 'Manage trackers'}</a>` : adminAreas().map(area => `<a class="button secondary" href="#progress-admin/${area.kind}/${encodeURIComponent(area.id)}">${esc(area.name)}</a>`).join('')}</details>`}`;
   }
   function syncWorkspace(row) {
     const context = workspaceContext(row), permitted = Boolean(state.home?.signedIn && row.roles?.length && !row.unavailable);
@@ -365,7 +369,7 @@
       $('mp-admin-context').textContent=row.name;
       $('mp-admin-close').href=memorisationReturn?.hash||(row.id?activityHref(row):row.kind==='COURSE'?'#workshops':'#overview');
       window.M4L_MEMORISATION_ADMIN?.open({activityKey:row.id?`${row.kind}:${row.id}`:'',kind:row.kind||''});
-      $('current-view').textContent=`${row.name} · Surahs and Duas administration`;
+      $('current-view').textContent=`${row.name} · Hifdh administration`;
     }
   }
 
@@ -397,7 +401,7 @@
     $('workspace-tool-title').textContent = names[key];
     if (key === 'academy') {
       $('workspace-tool-body').innerHTML = (state.home.globalAdmin ? '<div class="academy-tool-pills"><a href="/academy/subjects/">Subjects &amp; Modules</a></div>' : '') +
-        `<div class="academy-tool-pills"><button type="button" data-workspace-tool="calendar">Calendar</button><button type="button" data-workspace-tool="announcements">Announcements</button><a href="${row.id?'#progress-admin/'+row.kind+'/'+encodeURIComponent(row.id):'#progress-admin/COURSE'}">Surahs and Duas</a>`+ (state.home.globalAdmin?'<button id="public-timetable-refresh" type="button">↻ Refresh public timetable</button>':'')+'</div><p id="public-timetable-refresh-message" role="status" aria-live="polite"></p>';
+        `<div class="academy-tool-pills"><button type="button" data-workspace-tool="calendar">Calendar</button><button type="button" data-workspace-tool="announcements">Announcements</button><a href="${row.id?'#progress-admin/'+row.kind+'/'+encodeURIComponent(row.id):'#progress-admin/COURSE'}">Hifdh</a>`+ (state.home.globalAdmin?'<button id="public-timetable-refresh" type="button">↻ Refresh public timetable</button>':'')+'</div><p id="public-timetable-refresh-message" role="status" aria-live="polite"></p>';
       bindPublicTimetableRefresh();
     } else if (key === 'calendar') {
       const events = state.home.calendarEvents || [];
@@ -610,7 +614,8 @@
       $('activity-back-link').setAttribute('title','Change Program or Course');
       $('activity-title').textContent = row.name;
       $('activity-kind').textContent = row.kind === 'PROGRAM' ? 'Program' : 'Course';
-      $('activity-role').textContent = roleName(row.roles);
+      $('activity-role').textContent = '';
+      $('activity-back-link').hidden=true;
       renderSubscriptions(result.signedIn ? result.personalActivities : [], row);
       $('current-view').textContent = row.name;
       const message = row.unavailable ? 'This activity is temporarily unavailable. Please try again.' : !row.roles.length ? 'Sign in with an authorised Academy account to open protected lessons and tools.' : '';
@@ -739,7 +744,7 @@
     lastRouteHash = hash;
     const [requested, , encodedId] = location.hash.slice(1).split('/');
     if (requested !== 'activity') { clearTimeout(state.activityTimer); state.activityGeneration++; renderSubscriptions(state.home?.signedIn ? state.home.personalActivities : []); }
-    const name = requested === 'learning' ? 'overview' : titles[requested] ? requested : 'overview';
+    const name = requested === 'hifdh' ? 'progress' : requested === 'learning' ? 'overview' : titles[requested] ? requested : 'overview';
     document.querySelectorAll('.view').forEach(view => view.classList.toggle('active', view.id === name));
     document.querySelectorAll('[data-nav]').forEach(button => {
       const current = button.dataset.nav === requested || !requested && button.dataset.nav === 'overview';
@@ -747,7 +752,7 @@
       if (current) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
     });
     $('current-view').textContent = titles[name];
-    if (requested === 'learning') $('learning').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    if (requested === 'learning' && !state.home?.signedIn) $('learning').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
     if (name === 'progress') { $('mp-personal-close').href=memorisationReturn?.hash||'#overview';void window.M4L_ACADEMY_PROGRESS?.open(); }
     if (name === 'workshops') renderWorkshops();
     if (name === 'activity' && encodedId && state.home) { try { void loadActivity(decodeURIComponent(encodedId)); } catch { $('activity-status').textContent = 'This activity link is invalid.'; } }
@@ -782,9 +787,11 @@
       programs:global ? link('/programs/','Manage Programs') : scoped(programs,manage),
       courses:global ? link('/academy/courses/manage/','Manage Courses')+link('/academy/courses/manage/?view=scheduling','Course scheduling') : scoped(courses,manage)
     };
-    view.innerHTML = `<div class="page-heading admin-heading"><div><h1>Academy administration</h1><p class="tiny muted">${global ? 'Academy-wide management · Global Admin' : 'Management for your assigned Programs and Courses'}</p></div><div class="admin-heading-actions"><a class="button secondary" id="admin-teach" href="#overview/teach">Teach</a>${global ? '<button class="button secondary" id="public-timetable-refresh" type="button">↻ Refresh public timetable</button><p id="public-timetable-refresh-message" class="tiny muted" role="status" aria-live="polite"></p>' : ''}</div></div>
-      <nav class="workspace-tabs" role="tablist" aria-label="Administration tools">${tabs.map(([id,label])=>`<a id="admin-tab-${id}" role="tab" href="#administration/${id}" aria-controls="admin-workspace" aria-selected="${id===key}" tabindex="${id===key?0:-1}">${label}</a>`).join('')}</nav>
-      <section class="card card-pad" id="admin-workspace" role="tabpanel" tabindex="0" aria-labelledby="admin-tab-${key}"><h2>${tabs.find(([id])=>id===key)[1]}</h2><div class="workspace-actions">${panels[key] || '<p class="muted">No assigned areas are available here.</p>'}</div>${key==='attendance'?'<p class="tiny muted">Program registers open in their teaching workspace. Course attendance is coming soon.</p>':''}${key==='library'&&!global?'<p class="tiny muted">Academy-wide catalogue management requires Global Admin access.</p>':''}</section><div class="academy-support">${supportSections(null,'admin')}</div>`;
+    const firstProgram=areas.find(programs), firstArea=areas[0];
+    const direct={users:global?'/users/':firstArea?manage(firstArea)+(programs(firstArea)?'&tab=profiles':'&tab=participants'):'#administration/users',attendance:'/programs/attendance.html'+(!global&&firstProgram?'?program='+encodeURIComponent(firstProgram.id):''),planning:'#administration/planning',assessments:global?'#assessment-admin':firstArea?`#assessment-admin/${firstArea.kind}/${encodeURIComponent(firstArea.id)}`:'#assessment-admin',library:global?'/academy/library/manage/':'/academy/library/',curriculum:global?'/academy/subjects/':firstProgram?manage(firstProgram):'#administration/curriculum',programs:global?'/programs/':firstProgram?manage(firstProgram):'#administration/programs',courses:'/academy/courses/manage/'};
+    view.innerHTML = `<div class="page-heading admin-heading"><h1>Academy administration</h1>${global?'<div><button class="button secondary" id="public-timetable-refresh" type="button">↻ Refresh public timetable</button><p id="public-timetable-refresh-message" class="tiny muted" role="status" aria-live="polite"></p></div>':''}</div>
+      <nav class="workspace-tabs admin-management-menu" aria-label="Administration tools"><button class="button secondary" id="admin-teach" type="button" data-academy-teach-menu="left">Teach</button>${tabs.map(([id,label])=>`<a id="admin-tab-${id}" href="${esc(direct[id])}">${label}</a>`).join('')}</nav>
+      ${requested?`<section class="card card-pad" id="admin-workspace"><h2>${tabs.find(([id])=>id===key)[1]}</h2><div class="workspace-actions">${panels[key]||'<p class="muted">No assigned areas are available here.</p>'}</div></section>`:''}<div class="academy-support">${supportSections(null,'admin')}</div>`;
     bindPublicTimetableRefresh();
     revealWorkspaceTab();
   }
@@ -928,6 +935,7 @@
   $('academy-role-tabs')?.addEventListener('click', event => {
     const tab = event.target.closest('[data-academy-tab]');
     if (!tab || tab.hidden || !state.home?.signedIn) return;
+    if(tab.dataset.academyTab !== 'admin' && window.M4L_ACADEMY_SHELL){window.M4L_ACADEMY_SHELL.openRole(tab.dataset.academyTab);return;}
     state.academyTab = tab.dataset.academyTab;
     location.hash = state.academyTab === 'admin' ? '#administration' : '#overview/'+state.academyTab;
     route();
@@ -939,9 +947,6 @@
     if (current < 0) return;
     event.preventDefault();
     const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length-1 : (current + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
-    state.academyTab = tabs[next].dataset.academyTab;
-    location.hash = state.academyTab === 'admin' ? '#administration' : '#overview/'+state.academyTab;
-    route();
     tabs[next].focus();
   });
   $('workspace-tool-close').addEventListener('click', () => $('workspace-tool').close());
