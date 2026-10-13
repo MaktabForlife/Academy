@@ -13,6 +13,7 @@
   let taxonomyWarnings = [];
   let areaBoxes = [];
   let isNew = false;
+  let editorTouched = false;
 
   function option(value, label) {
     const item = document.createElement('option');
@@ -98,7 +99,7 @@
     }
     const response = await fetch(`${base}/api/academy/open-library/metadata/${action}`, {
       method: 'POST',
-      headers, body: payload
+      headers, body: payload, ...(['list','options'].includes(action)&&typeof AbortSignal!=='undefined'&&AbortSignal.timeout?{signal:AbortSignal.timeout(15000)}:{})
     });
     const data = await response.json();
     if (!response.ok || !data.success) throw new Error(data.error || 'Book details are unavailable.');
@@ -147,7 +148,7 @@
     status.textContent = `${manual ? 'Edit this public link and its learning areas.' : record.revision ? 'Academy details saved for this book.' : 'This book is using Archive.org details.'}${taxonomyWarnings.length ? ` ${taxonomyWarnings.join(' ')}` : ''}`;
   }
 
-  function refreshBookChoices(preferredId = $('olm-book').value) {
+  function refreshBookChoices(preferredId = $('olm-book').value, preserveForm = false) {
     const query = $('olm-search').value.trim().toLocaleLowerCase();
     const matches = books.filter(book => {
       const record = saved.get(book.id) || {};
@@ -159,6 +160,7 @@
       option(book.id, saved.get(book.id)?.title || book.title)) :
       [option('', 'No matching resources')]));
     $('olm-book').disabled = !matches.length;
+    if(preserveForm){if(isNew){$('olm-book').replaceChildren(option('', 'Select a resource to edit'), ...$('olm-book').children);$('olm-book').value='';}else $('olm-book').value=preferredId;return;}
     if (!matches.length) {
       isNew = false;
       $('olm-save').disabled = true;
@@ -175,16 +177,11 @@
       return;
     }
     try {
+      const archivePending=fetch('/academy/open-library/catalogue',typeof AbortSignal!=='undefined'&&AbortSignal.timeout?{signal:AbortSignal.timeout(12000)}:{}).then(async response=>response.ok?(await response.json()).books||[]:[]).catch(()=>[]);
       const [metadata, options] = await Promise.all([api('list'), api('options')]);
-      let archiveBooks = [];
-      try {
-        const response = await fetch('/academy/open-library/catalogue');
-        if (response.ok) archiveBooks = (await response.json()).books || [];
-      } catch { /* Manually added links remain editable while Archive.org is unavailable. */ }
       saved = new Map((Array.isArray(metadata.records) ? metadata.records : []).map(record => [record.id, record]));
-      books = [...archiveBooks, ...[...saved.values()].filter(record => record.kind === 'LINK').map(record => ({
-        id: record.id, title: record.title, source: 'Academy · Other', coverUrl: record.coverUrl || ''
-      }))];
+      const savedBooks=()=>[...saved.values()].map(record=>({id:record.id,title:record.title||record.id,source:'Academy',resourceType:record.resourceType||'OTHER',coverUrl:record.coverUrl||''}));
+      books=savedBooks();
       taxonomy = { subjects: Array.isArray(options.subjects) ? options.subjects : [],
         modules: Array.isArray(options.modules) ? options.modules : [],
         learningAreas: Array.isArray(options.learningAreas) ? options.learningAreas : [] };
@@ -201,13 +198,20 @@
         return box;
       });
       $('olm-add').hidden = false;
-      if (!books.length) { showNew(); return; }
       $('olm-form').hidden = false;
-      refreshBookChoices();
+      if(books.length)refreshBookChoices();else showNew();
+      status.textContent='Editor ready. Loading resources…';
+      const archiveBooks=await archivePending;
+      books=[...archiveBooks,...savedBooks().filter(book=>!archiveBooks.some(source=>source.id===book.id))];
+      if(books.length)refreshBookChoices($('olm-book').value,editorTouched);
+      else if(!editorTouched)showNew();
+      if(status.textContent==='Editor ready. Loading resources…')status.textContent=archiveBooks.length?'Editor ready.':'Editor ready. The external catalogue is temporarily unavailable; saved resources and new links remain editable.';
     } catch (error) { status.textContent = error.message; }
   }
 
-  $('olm-add').addEventListener('click', showNew);
+  $('olm-form').addEventListener('input',()=>{editorTouched=true;});
+  $('olm-form').addEventListener('change',()=>{editorTouched=true;});
+  $('olm-add').addEventListener('click',()=>{editorTouched=true;showNew();});
   $('olm-search').addEventListener('input', () => refreshBookChoices());
   $('olm-search').addEventListener('keydown', event => {
     if (event.key === 'Enter') event.preventDefault();

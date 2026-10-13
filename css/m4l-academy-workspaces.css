@@ -10,7 +10,6 @@
 .academy-choice>a:first-of-type{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-height:52px;padding:8px 12px}
 .academy-choice a small{font-size:10px;font-weight:400;color:var(--muted)}
 .academy-choice .activity-pill-shortcut{font-size:11px;background:var(--rose-soft)}
-.academy-signed-in #overview>:is(#learning,.prospectus-banner,.wide-stack){display:none}
 .academy-signed-in .breadcrumbs{font-size:11px}
 .academy-signed-in .topbar{padding-top:8px;padding-bottom:8px}
 #activity>.academy-home-icon{float:right;margin:0 0 8px 12px}

@@ -41,6 +41,7 @@
   async function load(){
     data=await request(session?'get':'preview',{view:context.view,activityKey:context.activityKey,kind:context.kind});
     mode=context.view==='teach'?'classes':'self';
+    if(mode==='self'&&$('progress'))$('progress').hidden=data.personalActive===false;
     if(mode==='classes'&&pending?.action==='confirm'){const index=data.classes.findIndex(c=>c.activityKey===pending.input.activityKey&&c.id===pending.input.classId);if(index>=0){group=index;offset=Number(pending.cardOffset||0);const selected=data.sets.find(m=>m.tasks.some(t=>t.id===pending.input.updates[0]?.taskId));if(selected){moduleId=selected.id;subject=selected.subject;}}}
     if(group>=data.classes.length)group=-1;
     if(!data.sets.some(m=>m.id===moduleId))moduleId=data.sets.find(m=>m.subject===subject)?.id||'';
@@ -68,7 +69,7 @@
     $('mp-root').querySelectorAll('button,input,select').forEach(n=>{if(busy||(pending||conflict)&&!['retry','refresh','close'].includes(n.dataset.mp))n.disabled=true;});
   }
   function cards(){
-    if(data.personalActive===false)return '<div class="mp-intro"><h2>Your personal card is inactive</h2><p>An administrator has switched off your personal memorisation card. Your saved progress is kept.</p></div>';
+    if(data.personalActive===false)return '';
     const records=data.records,total=data.sets.reduce((n,m)=>n+m.tasks.length,0),complete=records.filter(r=>r.complete&&data.sets.some(m=>m.tasks.some(t=>t.id===r.taskId))).length,confirmed=records.filter(r=>r.confirmed&&data.sets.some(m=>m.tasks.some(t=>t.id===r.taskId))).length;
     return `<div class="mp-intro"><h2>Your memorisation, one step at a time</h2><p>All registered users have free access to these surah and dua memorisation trackers.</p>${data.visitor?'<p class="mp-preview-notice" role="note"><strong>Visitor preview</strong> · Try the cards below.</p>':''}${data.visitor?'<p>Register to save your progress</p>':data.student?`<div class="mp-summary"><div><strong>${complete}<span> / ${total}</span></strong><span>Marked memorised</span></div><div><strong>${confirmed}</strong><span>Teacher confirmed</span></div></div>`:''}</div>
       ${['SURAHS','DUAS'].map(subject=>`<section class="mp-row-section" aria-labelledby="mp-heading-${subject}"><div class="mp-row-heading"><div><h2 id="mp-heading-${subject}">${subject==='SURAHS'?'Surah sets':'Dua sets'}</h2><p>Swipe to explore your sets</p></div><div class="mp-arrows"><button data-scroll="${subject}:-1" aria-label="Previous ${subject==='SURAHS'?'Surah':'Dua'} sets">‹</button><button data-scroll="${subject}:1" aria-label="Next ${subject==='SURAHS'?'Surah':'Dua'} sets">›</button></div></div><div class="mp-row" id="mp-row-${subject}" tabindex="0" aria-label="${subject==='SURAHS'?'Surah':'Dua'} sets">${data.sets.filter(m=>m.subject===subject).map(m=>{

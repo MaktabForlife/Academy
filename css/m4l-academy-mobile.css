@@ -6,8 +6,7 @@
 .academy-learning-menu { margin:0; padding:0; border:0; }
 .academy-learning-menu>summary { display:none; }
 
-/* The signed-in Academy starts with its tools and timetable. */
-.academy-signed-in #overview>.academy-intro { display:none; }
+/* The same Academy home remains visible with the signed-in personal timetable. */
 .brand .site-version { display:block; width:max-content; margin-top:5px; padding:0; border:0; background:none; font:600 10px/1.2 Arial,Helvetica,sans-serif; }
 .academy-account-bar { padding:12px clamp(20px,4vw,52px); background:#fffcff; border-bottom:1px solid #ded0e2; }
 .academy-account-row { display:flex; align-items:center; flex-wrap:wrap; gap:10px 18px; }

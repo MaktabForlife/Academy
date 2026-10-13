@@ -64,6 +64,15 @@ assert(!JSON.stringify(visitor).includes('Course teacher'));
 assert(!loaded.includes('COURSE1'), 'The gateway never loads legacy Reboot');
 const student = await buildEntrance({ ...args, user: account('LEARNER-DEMO') });
 assert.equal(student.student, true);
+const single=structuredClone(first.data);single.tables.ProgramClasses=single.tables.ProgramClasses.filter(c=>c.ClassID==='CLASS-1');single.tables.ProgramEnrollments=[];
+const singleArgs={...args,user:account('LEARNER-DEMO'),loadProgram:async program=>structuredClone(program.id===first.program.id?single:second.data),input:{id:first.program.id}};
+const defaultClass=await buildEntrance(singleArgs);assert.ok(defaultClass.personalTimetable.some(row=>row.activityId===first.program.id),'A Student with no allocation receives the sole active class timetable');assert.deepEqual(defaultClass.activity.classes.map(c=>c.id),['CLASS-1']);
+assert.equal((await buildEntrance({...singleArgs,user:account('OUTSIDER')})).personalTimetable.some(row=>row.activityId===first.program.id),false,'A sole class cannot grant a Student role');
+single.tables.ProgramEnrollments=[{EnrollmentID:'WITHDRAWN',CourseID:first.program.id,ClassID:'CLASS-1',AccountID:'LEARNER-DEMO',Active:false}];
+assert.equal((await buildEntrance(singleArgs)).personalTimetable.some(row=>row.activityId===first.program.id),false,'A withdrawn allocation is never restored by the single-class default');
+single.tables.ProgramEnrollments=[];single.tables.ProgramClasses=structuredClone(first.data.tables.ProgramClasses);
+assert.equal((await buildEntrance(singleArgs)).personalTimetable.some(row=>row.activityId===first.program.id),false,'Multiple classes still need an explicit allocation');
+
 assert.equal(visitor.profile,null,'Public timetable has no account profile');
 for(const Stage of ['CANCELLED','ARCHIVED']) {
  const blocked=structuredClone(tables);blocked.GlobalTimetableRunState[0].Stage=Stage;

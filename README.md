@@ -1,3 +1,7 @@
+# V106.52 — Personal timetable within the full Academy home
+
+Signed-in members retain the welcome, announcements, Program and Course catalogue, self-paced learning and Surahs and Duas rails. Their personal Academy timetable appears within that same homepage. Authorised Students with no class allocation use the sole active class; explicit and withdrawn allocations remain authoritative. Cancelled/archived courses stay out of Learn/Teach using the management status, inactive memorisation cards are hidden, management Close buttons return to Admin, and Library editing opens before the external catalogue finishes loading. Daily timetable caches are refreshed for these changes. No live records or schema changes.
+
 # V106.51 — Visitor welcome, Login and homepage memorisation
 
 Visitors see the Bismillah, Academy name, mission and announcements first. Login in the second banner opens the “One account · Every program” form and changes to Sign out after authentication. Surahs and Duas rails appear below self-paced learning on the homepage; the separate Hifz menu entry is removed. The visitor preview is shorter, with “Register to save your progress” instead of empty totals; signed-in progress remains available. All main, Learn and Teach menus slide in from the right. No database changes.

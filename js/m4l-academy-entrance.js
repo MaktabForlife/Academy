@@ -9,7 +9,7 @@
   const ACTIVITY_CACHE_MS = 86400000;
   const dailyCache = { session: '', owner:'', entries: {} };
   const MEMORISATION_RETURN_KEY='m4l_academy_memorisation_return_v1';
-  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10642';
+  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10652';
   const academyDay = (timezone, instant = Date.now()) => {
     const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {timeZone:timezone || 'Africa/Johannesburg',
       year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(instant)).map(part=>[part.type,part.value]));
@@ -277,6 +277,7 @@
     if (!choices.includes(state.academyTab)) state.academyTab = choices[0] || '';
     const panel = $('academy-role-panel');
     window.M4L_ACADEMY_SHELL_DATA=data;window.M4L_ACADEMY_SHELL?.update(data);
+    $('progress').hidden=Boolean(data?.signedIn&&data.memorisationActive===false);
     const helper=$('hifdh-helper'), loginId=window.M4L_ACADEMY_LOGIN?.currentId() || '', helperBase=window.M4L_CONFIG?.HIFZHELPER_URL;
     helper.hidden=!(data?.signedIn && /^[A-Za-z0-9]+$/.test(loginId) && /^https:\/\//.test(helperBase||''));
     if(!helper.hidden)helper.href=helperBase.replace(/\/$/,'')+'/'+encodeURIComponent(loginId);
@@ -369,7 +370,7 @@
     if(teaching){$('mp-teach-close').href=workspaceHref(row);window.M4L_ACADEMY_PROGRESS?.open({view:'teach',hostId:'mp-teach-host',activityKey:`${row.kind}:${row.id}`,kind:row.kind});}
     if(location.hash.startsWith('#progress-admin')){
       $('mp-admin-context').textContent=row.name;
-      $('mp-admin-close').href=memorisationReturn?.hash||(row.id?activityHref(row):row.kind==='COURSE'?'#workshops':'#overview');
+      $('mp-admin-close').href='#administration';
       window.M4L_MEMORISATION_ADMIN?.open({activityKey:row.id?`${row.kind}:${row.id}`:'',kind:row.kind||''});
       $('current-view').textContent=`${row.name} · Manage Surahs and Duas`;
     }
@@ -381,7 +382,7 @@
     if(!embedded&&!location.hash.startsWith('#assessment-admin'))return;
     const admin=location.hash.startsWith('#assessment-admin');
     const close=admin?$('as-admin-close'):$('as-close');
-    close.href=admin?(memorisationReturn?.hash||(row.id?activityHref(row):'#workshops')):workspaceHref(row);
+    close.href=admin?'#administration/assessments':workspaceHref(row);
     window.M4L_ACADEMY_ASSESSMENTS?.open({hostId:admin?'as-admin-host':'as-host',view:admin?'admin':workspaceContext(row).mode==='learn'&&(state.home?.globalAdmin||adminRoles(row.roles||[]))?'learner':'activity',activityKey:row.id?`${row.kind}:${row.id}`:'',kind:row.id?'':row.kind});
   }
 

@@ -12,3 +12,7 @@
   .academy-page-actions>:is(a,button){padding:10px;min-width:60px}
   .academy-account-row>.academy-page-actions{flex-wrap:nowrap}
 }
+
+.academy-management-close{display:inline-flex;align-items:center;justify-content:center;flex:none;min-height:44px;margin-left:auto;padding:10px 14px;border:1px solid #ded0e2;border-radius:12px;background:#fff;color:#58305f;font:600 13px/1.2 Arial,sans-serif;text-decoration:none}
+.academy-shell :is(.al-intro,.cal-heading,.pt-heading):has(>.academy-management-close){display:flex;align-items:center;justify-content:space-between;gap:12px}
+.academy-management-close:hover{background:#f3eaf5}

@@ -12,7 +12,7 @@ function fixture(controls=[],assessmentRefresh){
   const actions={setAttribute(){},append(){},querySelector:()=>refresh};
   const document={getElementById:id=>id==='ac-signout'?signOut:null,querySelector:selector=>selector==='main'?{append(){}}:null,querySelectorAll:()=>controls,createElement:()=>actions};
   const window={M4L_ACADEMY_ASSESSMENTS:assessmentRefresh?{refreshPage:assessmentRefresh}:undefined};
-  runInNewContext(source,{document,window,MutationObserver:class{observe(){}},location:{reload(){reloads++;}},sessionStorage:{removeItem:key=>removed.push(key)}});
+  runInNewContext(source,{document,window,URLSearchParams,MutationObserver:class{observe(){}},location:{reload(){reloads++;}},sessionStorage:{removeItem:key=>removed.push(key)}});
   return {refresh:()=>handler(),get reloads(){return reloads;},removed};
 }
 
@@ -23,5 +23,5 @@ const busy=control({disabled:true});page=fixture([busy]);await page.refresh();
 assert.equal(busy.clicks,0);assert.equal(page.reloads,0,'A busy page cannot be forced to reload around its disabled action');
 const connected=control({standalone:true});page=fixture([connected]);await page.refresh();assert.equal(connected.clicks,1);assert.equal(page.reloads,0);
 const unused=control();page=fixture([unused],async()=>true);await page.refresh();assert.equal(unused.clicks,0);assert.equal(page.reloads,0,'Assessments retains its own refresh and unsaved-change guard');
-page=fixture([],async()=>false);await page.refresh();assert.equal(page.reloads,1);assert.deepEqual(page.removed,['m4l_academy_daily_timetable_10642'],'Pages without a content action reload with a fresh Academy snapshot');
+page=fixture([],async()=>false);await page.refresh();assert.equal(page.reloads,1);assert.deepEqual(page.removed,['m4l_academy_daily_timetable_10652'],'Pages without a content action reload with a fresh Academy snapshot');
 console.log('Banner refresh: active page actions, disabled guards, connected pages, assessment refresh and reload fallback passed.');

@@ -38,6 +38,16 @@ for(const stage of ['CANCELLED','ARCHIVED']) {
  fixture.db.prepare('INSERT INTO course_run_state(activity_key,run_id,stage) VALUES(?,?,?)').run(scope,run,stage);
  fixture.db.prepare("INSERT INTO course_run_access VALUES(?,?,'FREE')").run(scope,run);
  fixture.db.prepare("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state) VALUES(?,'account-0002',?,'STUDENT',1,'CONFIRMED')").run('menu-'+stage,scope);
+ fixture.db.prepare('UPDATE course_runs SET active=0 WHERE activity_key=?').run(scope);
+ fixture.db.prepare("INSERT INTO course_management_drafts(activity_key,run_id,details_json,stage,updated_at,updated_by_account_id) VALUES(?,?,?,?,'2026-10-13','account-0001')").run(scope,run,JSON.stringify({name:id,accessModel:'FREE',timezone:'Africa/Johannesburg',startDate:'',endDate:'',sessions:[],weekdays:[],categoryKey:'',teacherId:'',zoomLink:'',startTime:'',endTime:''}),stage);
+}
+{
+ const id='course-menu-archived-no-run',scope='COURSE:'+id;
+ fixture.db.prepare("INSERT INTO activities(activity_key,activity_id,kind,name,active,lifecycle,website_visible) VALUES(?,?,'COURSE','Archived fixture without a run',1,'ACTIVE',1)").run(scope,id);
+ fixture.db.prepare("INSERT INTO course_settings(activity_key,legacy_access_model,policy_review_state) VALUES(?,'FREE','CONFIRMED')").run(scope);
+ fixture.db.prepare("INSERT INTO data_ownership(dataset_key,scope_key,authoritative_store,phase,revision) VALUES('ACADEMY',?,'SHEETS','STAGING',1)").run(scope);
+ fixture.db.prepare("INSERT INTO course_management_drafts(activity_key,run_id,details_json,stage,updated_at,updated_by_account_id) VALUES(?,'archived-no-run',?,'ARCHIVED','2026-10-13','account-0001')").run(scope,JSON.stringify({name:'Archived fixture without a run',accessModel:'FREE',timezone:'Africa/Johannesburg',startDate:'',endDate:'',sessions:[],weekdays:[],categoryKey:'',teacherId:'',zoomLink:'',startTime:'',endTime:''}));
+ fixture.db.prepare("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state) VALUES('archived-no-run','account-0002',?,'STUDENT',1,'CONFIRMED')").run(scope);
 }
 const mime={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml','.ttf':'font/ttf','.pdf':'application/pdf'};
 const server=createServer(async(req,res)=>{
@@ -144,10 +154,16 @@ if(process.argv.includes('--serve')) {
         assert.ok((await page.locator('#admin-tab-assessments').getAttribute('href')).startsWith('#assessment-admin'));
         if(who==='scopedAdmin')assert.equal(await page.locator('#public-timetable-refresh').count(),0);
       }
+      await page.locator('[data-page-home]').click();await page.locator('#overview.active #progress .mp-card').first().waitFor();
+      assert.equal(await page.locator('#preview-title').innerText(),'My Academy timetable');
+      for(const width of [320,390,768,1440]){await page.setViewportSize({width,height:900});for(const selector of ['.academy-intro','.academy-news','#learning','.film-section','#progress','#academy-preview'])assert.equal(await page.locator('#overview '+selector).isVisible(),true,who+' retains '+selector+' at '+width);await fits('full signed-in Academy home '+who+' '+width);if(who==='student'&&width===390)await page.screenshot({path:path.join(out,'phone-signed-in-home.png')});}
       await fits('role access '+who);
       await page.locator('#academy-sign-out').click();await page.locator('#academy-login').waitFor();assert.equal(await page.locator('#login-preview').isVisible(),false);assert.equal(await page.locator('.academy-account-bar').isVisible(),true);assert.equal(await page.locator('#academy-sign-out').isVisible(),false);
       assert.equal(await page.locator('#academy-learn-drawer a').count(),0);
     }
+    fixture.db.prepare("INSERT INTO memorisation_account_settings(account_id,active,revision,updated_at,updated_by) VALUES('account-0002',0,1,'2026-10-13','account-0001') ON CONFLICT(account_id) DO UPDATE SET active=0").run();
+    await signIn('student');await go('/academy/');await page.locator('#academy-header-name').waitFor();await page.waitForFunction(()=>document.querySelector('#progress').hidden===true);assert.equal(await page.locator('#progress').isVisible(),false);
+    fixture.db.prepare("UPDATE memorisation_account_settings SET active=1 WHERE account_id='account-0002'").run();await page.reload();await page.locator('#progress .mp-card').first().waitFor();assert.equal(await page.locator('#progress').isVisible(),true);checks.push('Inactive personal memorisation sections are hidden and reappear after reactivation');
     for(const who of ['student','teacher','admin']){
       await signIn(who);await page.setViewportSize({width:390,height:900});await go('/academy/calendar/');await page.locator('#cal-content').waitFor();
       assert.equal(await page.locator('#cal-scope-label').isVisible(),who==='admin');assert.equal(await page.locator('#cal-teacher-label').isVisible(),who==='admin');
@@ -159,6 +175,7 @@ if(process.argv.includes('--serve')) {
       assert.equal(await page.getByText('Open Academic Calendar',{exact:true}).count(),0);
     }
     checks.push('Learners and teachers have no calendar or teacher selectors; calendar sections expand directly to the full month');
+    await signIn('admin');for(const url of ['/users/','/programs/','/academy/subjects/','/academy/courses/manage/','/academy/library/manage/','/academy/calendar/?view=admin','/academy/pdf-tools/']){await go(url);await page.locator('.academy-management-close').waitFor();assert.equal(await page.locator('.academy-management-close').getAttribute('href'),'/academy/#administration');}await page.locator('.academy-management-close').click();await page.locator('#administration.active').waitFor();checks.push('Admin management Close links return to the central Admin page');
     await signIn('teacher');await page.setViewportSize({width:390,height:844});await go('/academy/calendar/?view=teach');await page.locator('#cal-content').waitFor();await page.locator('#cal-availability').click();await page.locator('#cal-availability-dialog').waitFor();assert.equal(await page.locator('#cal-availability-entry').isVisible(),false);
     const oldAvailability=fixture.db.prepare("SELECT revision FROM teacher_availability WHERE account_id='account-0003'").get()?.revision||0;
     await page.locator('#cal-range-add').click();await page.locator('#cal-range-from').fill('0700');await page.locator('#cal-range-to').fill('1100');for(const day of [1,2,4])await page.locator('#cal-availability-days label').filter({has:page.locator('[data-weekday="'+day+'"]')}).click();
@@ -213,7 +230,7 @@ if(process.argv.includes('--serve')) {
         if(label==='Programs'){await page.locator('#program-workspace').waitFor();assert.equal(await page.locator('#program-intro').isVisible(),false);assert.doesNotMatch(await page.locator('#program-message').innerText(),/Ready|Open a Program/);}
         if(label==='Courses'){assert.equal(await page.locator('#course-management-back').isVisible(),false);assert.equal(await page.locator('#course-refresh').isVisible(),false);await page.locator('#course-list .cm-course').first().waitFor();assert.equal(await page.locator('#course-editor .cm-empty h2').innerText(),'Select a course');assert.equal(await page.locator('#course-list [aria-pressed=true]').count(),0);}
         if(label==='Library management'){assert.equal(await page.locator('.al-intro h1').innerText(),'Manage Library');assert.equal(await page.locator('.al-intro h1').evaluate(n=>getComputedStyle(n).fontSize),'28px');}
-        if(label==='Curriculum')assert.equal(await page.locator('.up-titlebar a').count(),0);
+        if(label==='Curriculum')assert.equal(await page.locator('.up-titlebar a:not(.academy-management-close)').count(),0);
         if(label==='Admin'){const teach=await page.locator('#admin-teach').boundingBox(),users=await page.locator('#admin-tab-users').boundingBox();assert.ok(teach&&users&&teach.x>=0&&teach.x<users.x&&Math.abs(teach.y-users.y)<2,JSON.stringify({teach,users}));}
         for(const selector of ['[data-page-home]','[data-page-refresh]'])assert.ok((await page.locator(selector).boundingBox()).height>=44);
         await page.evaluate(()=>scrollTo(0,700));assert.ok(Math.abs((await page.locator('.academy-banners').boundingBox()).y)<1);

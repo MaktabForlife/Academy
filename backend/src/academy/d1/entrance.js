@@ -47,10 +47,15 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
       ProgramSubjects:scope(subjects).map(s=>({ProgramSubjectID:s.program_subject_id,CourseID:program.id,SubjectID:s.subject_id,Active:true})),
       ProgramLevels:[],ProgramModules:scope(modules).map(m=>({ProgramModuleID:m.module_id,ProgramSubjectID:m.program_subject_id,Name:m.name,Active:true})),
       ProgramClasses:scope(classes).map(c=>({ClassID:c.class_id,CourseID:program.id,Name:c.name,Active:true})),
-      ProgramEnrollments:scope(memberships).map(m=>({EnrollmentID:m.enrollment_id,CourseID:program.id,ClassID:m.class_id,AccountID:m.account_id,StartDate:m.start_date || '',EndDate:m.end_date || '',Active:true})),
+      ProgramEnrollments:scope(memberships).map(m=>({EnrollmentID:m.enrollment_id,CourseID:program.id,ClassID:m.class_id,AccountID:m.account_id,StartDate:m.start_date || '',EndDate:m.end_date || '',Active:Boolean(m.active)})),
       ProgramTeachers:[],ProgramResources:[],ProgramTasks:[],ProgramModuleProgress:[],ProgramLibraryRoots:[],
       ProgramTimetablePublications:scope(publications).map(p=>({Lifecycle:stopped.find(l=>l.activity_key===p.activity_key&&samePublication(l.publication_id,p.publication_id))?.status||'',PublicationID:p.publication_id,VersionNo:p.version_no,SnapshotJSON:p.snapshot_json,PublishedDate:p.published_at,PublishedByAccountID:p.published_by_source_id}))}};
   }});
+  if(config.programWorkspace){
+    const project=row=>row.kind==='COURSE'?{...row,menuAvailable:activities.find(a=>a.activity_key.toUpperCase()===('COURSE:'+row.id).toUpperCase())?.course_menu_available!==0}:row;
+    for(const name of ['activities','personalActivities','activityPages'])result[name]=result[name].map(project);
+    if(result.activity)result.activity=project(result.activity);
+  }
   if(state&&config.memorisationCards){
     const setting=await repository.db.prepare('SELECT active FROM memorisation_account_settings WHERE account_id=?').bind(state.account.account_id).first();
     result.memorisationActive=setting?.active!==0;

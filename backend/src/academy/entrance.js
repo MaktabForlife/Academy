@@ -15,7 +15,7 @@ const validDate = date => /^\d{4}-\d{2}-\d{2}$/.test(date) && !Number.isNaN(Date
 const staff = roles => roles.some(role => ['PROGRAM_ADMIN', 'ADMIN', 'SENIOR', 'TEACHER', 'GLOBAL_ADMIN'].includes(role));
 const globalAdmin = user => user?.role === 'GLOBAL_ADMIN';
 const participant = (row, accountId, date, classIds) => active(row.Active) && key(row.AccountID) === key(accountId) &&
-  classIds.includes(row.ClassID) && (!row.StartDate || row.StartDate <= date) && (!row.EndDate || row.EndDate >= date);
+  classIds.some(id => key(id) === key(row.ClassID)) && (!row.StartDate || row.StartDate <= date) && (!row.EndDate || row.EndDate >= date);
 
 // Convert each published local clock to an instant before combining timezones.
 function timetableInstant(date, time, timezone) {
@@ -57,6 +57,10 @@ export function programProjection(program, data, user, roles, start, end, now, d
   const snapshot = data.prepared ? managementState(data, program).snapshot : {};
   const classes = (snapshot.ProgramClasses || []).filter(row => row.CourseID === program.id && active(row.Active));
   const enrolments = (snapshot.ProgramEnrollments || []).filter(row => row.CourseID === program.id);
+  // An explicit allocation (including a withdrawn or dated one) wins. Only a
+  // verified Student with no allocation may use the sole active class.
+  if (user && roles.includes('STUDENT') && classes.length === 1 && !enrolments.some(row => key(row.AccountID) === key(user.accountid)))
+    enrolments.push({AccountID:user.accountid,ClassID:classes[0].ClassID,Active:true});
   const timetable = [];
   const history = (data.tables?.ProgramTimetablePublications || []).map(row => publicationRecord(row, program));
   for (let date = start; date <= end; date = addDays(date, 1)) {

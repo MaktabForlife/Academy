@@ -18,6 +18,18 @@
     const updateLogin=()=>{login.hidden=!signOut.hidden;};updateLogin();
     new MutationObserver(updateLogin).observe(signOut,{attributes:true,attributeFilter:['hidden']});
   }
+  const path=location.pathname||'',calendarView=new URLSearchParams(location.search).get('view');
+  const management=/^\/(users|programs)(?:\/|$)/.test(path)||/^\/academy\/(subjects|courses\/manage|library\/manage|pdf-tools)(?:\/|$)/.test(path)||path.startsWith('/academy/calendar/')&&!['learn','teach'].includes(calendarView);
+  if(management){
+    function ensureClose(){
+      const headings=[...document.querySelectorAll('main .pgm-heading,main .pb-heading,main .up-titlebar,main .cm-page-heading,main .al-intro,main .cal-heading,main .pt-heading')];
+      const heading=headings.find(node=>node.getClientRects().length);if(!heading)return;
+      const close=document.querySelector('.academy-management-close')||document.createElement('a');
+      if(close.parentElement===heading)return;
+      close.href='/academy/#administration';close.className='academy-management-close';close.textContent='Close';heading.append(close);
+    }
+    ensureClose();const main=document.querySelector('main');if(main)new MutationObserver(ensureClose).observe(main,{childList:true,subtree:true});
+  }
   actions.querySelector('[data-page-refresh]').addEventListener('click',async()=>{
     if(await window.M4L_PLANNING?.refreshPage?.())return;
     if(await window.M4L_ACADEMY_ASSESSMENTS?.refreshPage?.())return;
@@ -27,7 +39,7 @@
     });
     // Reuse the page's refresh action, including draft guards, selected dates and cache invalidation.
     if(contentRefresh){contentRefresh.click();return;}
-    try{sessionStorage.removeItem('m4l_academy_daily_timetable_10642');}catch{}location.reload();
+    try{sessionStorage.removeItem('m4l_academy_daily_timetable_10652');}catch{}location.reload();
   });
   shell?.update(window.M4L_ACADEMY_SHELL_DATA||null);
   if(shell&&typeof ResizeObserver!=='undefined')new ResizeObserver(()=>document.documentElement.style.setProperty('--academy-banner-height',shell.banners.offsetHeight+'px')).observe(shell.banners);
