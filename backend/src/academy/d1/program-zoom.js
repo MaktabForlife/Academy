@@ -9,9 +9,11 @@ export const applyProgramZoom=(draft,program)=>program.programZoomConfigured?{..
 // Resolve only the meeting destination from current Program settings. Published
 // labels, dates, teachers and audiences remain the immutable publication's data.
 export function currentProgramZoom(override,row,publication,classes) {
- if(override===null||override===undefined)return row.zoomLink||'';
+ // Before an explicit Program setting exists, retain its published Program
+ // default while still resolving a single class's current meeting destination.
+ const programLink=override??publication.snapshot.programZoomLink??(row.zoomSource==='PROGRAM'?row.zoomLink:'');
  const source=publication.snapshot.rules?.find(rule=>rule.id===(row.ruleId||row.id));
  const sessionLink=source?.zoomLink||(row.zoomSource!=='PROGRAM'&&row.zoomSource!=='CLASS'?row.zoomLink:'');
  const classLink=row.classIds?.length===1?classes.find(c=>c.class_id===row.classIds[0])?.zoom_link:'';
- try{return normalizeZoomLink(override||sessionLink||classLink||'');}catch{return '';}
+ try{return normalizeZoomLink(programLink||sessionLink||classLink||'');}catch{return '';}
 }

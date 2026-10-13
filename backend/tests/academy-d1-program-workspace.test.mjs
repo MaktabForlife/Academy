@@ -186,6 +186,29 @@ test('publishing a new draft Program activates it atomically and exposes future 
  const before=ok(await post(env,'/api/academy/entrance',{startDate:programToday('Africa/Johannesburg')},admin));assert.ok(!before.personalTimetable.some(l=>l.activityId===newId&&l.date<input.effectiveFrom),'Future publication does not expose earlier occurrences');
 }));
 
+for(const programLink of ['', 'https://zoom.us/j/99999999999'])test(`class link changes do not require republishing with ${programLink?'a published Program default':'no explicit Program Zoom setting'}`,()=>use(async({env,db})=>{
+ const admin=await login(env),first='https://zoom.us/j/22222222222',second='https://zoom.us/j/33333333333';
+ db.prepare('INSERT INTO academy_settings(setting_key,setting_value) VALUES(?,?)').run('ProgramAccess:'+activity,'FREE');
+ db.prepare('UPDATE classes SET zoom_link=? WHERE activity_key=? AND class_id=?').run(first,activity,'class-1');
+ const d={...draft(),programZoomLink:programLink};d.rules[0].zoomLink='';
+ await save(env,admin,d);let current=await get(env,admin);
+ assert.equal(current.program.programZoomConfigured,false);
+ ok(await change(env,tt+'publish',{id,revision:current.revision,draft:current.draft,effectiveFrom:tomorrow()},admin));
+ const frozen=db.prepare('SELECT * FROM timetable_publications ORDER BY activity_key,publication_id').all();
+ const {academyD1Repository}=await import('../src/academy/d1/repository.js'),{d1Entrance}=await import('../src/academy/d1/entrance.js'),{d1LessonJoin}=await import('../src/academy/d1/lesson-join.js');
+ const repository=academyD1Repository(env),now=new Date(tomorrow()+'T08:00:00Z');
+ const data=await d1Entrance(repository,null,null,{startDate:tomorrow()},now),lesson=data.timetable.find(r=>r.activityId===id),join={joinKey:lesson.joinKey,date:lesson.date};
+ assert.equal((await d1LessonJoin(repository,null,join,now)).joinUrl,programLink||first);
+ for(const link of [second,'']){
+  current=await get(env,admin);const row=current.setup.rows.classes.find(c=>c.ClassID==='class-1');
+  ok(await change(env,tt+'manage-save',{id,kind:'classes',record:{...row,ZoomLink:link},creating:false,baseRowRevision:current.setup.rowRevisions.classes[row.ClassID]},admin));
+  if(programLink||link)assert.equal((await d1LessonJoin(repository,null,join,now)).joinUrl,programLink||link);
+  else await assert.rejects(d1LessonJoin(repository,null,join,now),error=>error.code==='LESSON_UNAVAILABLE');
+ }
+ assert.deepEqual(db.prepare('SELECT * FROM timetable_publications ORDER BY activity_key,publication_id').all(),frozen,'Class changes preserve published timetable history');
+ assert.equal(db.prepare('SELECT count(*) n FROM academy_settings WHERE setting_key=?').get('ProgramZoom:'+activity).n,0);
+}));
+
 test('Program Zoom saves independently of a published timetable and current joining uses Program, session then class links',()=>use(async({env,db})=>{
  const admin=await login(env),scoped=await login(env,'0004'),teacher=await login(env,'0003');
  const registry='/api/admin/platform/programs/',currentProgram=async()=>ok(await post(env,registry+'list',{},admin)).programs.find(p=>p.id===id);

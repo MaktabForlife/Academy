@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="/css/m4l-program-management-navigation.css?v=106.43"><link rel="stylesheet" href="/css/m4l-academy-mobile.css?v=106.36">
 <link rel="stylesheet" href="/css/m4l-academy-page-actions.css?v=106.41">
 <link rel="stylesheet" href="/css/m4l-academy-shell.css?v=106.43">
+<link rel="stylesheet" href="/css/m4l-program-zoom-help.css?v=106.44">
 </head>
 <body>
 <a id="academy-link" href="/academy/#overview" hidden>Academy home</a>
@@ -36,7 +37,7 @@
       <p class="pb-grid-help" id="program-grid-help">Select a Program by clicking its number. Edit a cell, then save its row. Tab moves between fields. Ctrl/⌘ + Enter saves the current row.</p>
       <div class="pb-grid-scroll" tabindex="0" aria-label="Program table; scroll horizontally for more columns">
         <table class="pb-grid" aria-describedby="program-grid-help"><caption class="pb-sr-only">Program configuration</caption>
-          <thead><tr><th scope="col">Select</th><th scope="col">Program</th><th scope="col" hidden>Years</th><th scope="col" id="program-access-label" hidden>Free / Paid</th><th scope="col" id="program-zoom-label" hidden>Program Zoom link</th><th scope="col">Program status</th><th scope="col" id="program-store-label" hidden>Records</th><th scope="col">Changes</th></tr></thead>
+          <thead><tr><th scope="col">Select</th><th scope="col">Program</th><th scope="col" hidden>Years</th><th scope="col" id="program-access-label" hidden>Free / Paid</th><th scope="col" id="program-zoom-label" hidden><span class="zoom-help-heading">Program Zoom link <button type="button" class="zoom-help-button" popovertarget="zoom-link-help" aria-label="About Program Zoom links" title="Zoom link help">i</button></span></th><th scope="col">Program status</th><th scope="col" id="program-store-label" hidden>Records</th><th scope="col">Changes</th></tr></thead>
           <tbody id="program-rows"></tbody>
         </table>
       </div>
@@ -44,11 +45,18 @@
       <section id="program-detail" class="pb-detail" aria-label="Selected Program details" hidden></section>
       <aside class="pb-note" id="program-setup-note" hidden><strong>Teaching opens in later V105 stages.</strong> New Programs stay inactive while teaching and student access are being built. Existing Programs continue in their current workspaces.</aside>
     </section>
-  </main><small class="pb-version">V106.43</small>
+  </main>
+<aside id="zoom-link-help" class="zoom-help-popover" popover aria-labelledby="zoom-link-help-title">
+  <div class="zoom-help-top"><h2 id="zoom-link-help-title">Zoom links</h2><button type="button" class="zoom-help-close" popovertarget="zoom-link-help" popovertargetaction="hide" aria-label="Close Zoom link help" autofocus>×</button></div>
+  <p>Republishing is not required when you change a Program or class Zoom link.</p>
+  <p>Links are checked in this order when someone clicks <strong>Join</strong>:</p>
+  <ol><li>Program Zoom link.</li><li>Lesson Zoom link.</li><li>Class Zoom link.</li></ol>
+  <p class="zoom-help-footnote">Publish the timetable after changing a lesson link.</p>
+</aside><small class="pb-version">V106.44</small>
   <script src="/js/m4l-config.js?v=106.17"></script>
   <script src="/js/m4l-program-builder.js?v=106.43"></script>
 <script src="/js/m4l-program-management-navigation.js?v=106.43"></script>
-<script src="/js/m4l-academy-navigation.js?v=106.43"></script>
+<script src="/js/m4l-academy-navigation.js?v=106.44"></script>
 <script src="/js/m4l-academy-mobile.js?v=106.43"></script>
 <script src="/js/m4l-academy-page-actions.js?v=106.43"></script>
 </body>

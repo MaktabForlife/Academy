@@ -1,3 +1,7 @@
+# V106.44 — Zoom link notes
+
+Program, class and lesson Zoom headings have an information pop-up explaining link priority and publication requirements. Class-link updates also apply to migrated Programs without an explicitly saved Program Zoom setting. [Release details](docs/ACADEMY-ZOOM-LINK-HELP-106.44.md).
+
 # V106.43 — Compact menus and unified management tabs
 
 Manage Programs has Program List, Timetable and People tabs. Manage Courses starts with List of courses and keeps Details, Sessions, Participants, Media and Review & publish in one row. Manage Users separates User Details, Programs and Courses while retaining search and unfinished edits. Compact plain menus, consistent Manage X headings, Admin highlighting, public Hifz with Surahs and Duas, direct HifzHelper links, labelled Reset PIN controls and one shared Refresh complete the review. [Release details](docs/ACADEMY-UI-106.43.md).
