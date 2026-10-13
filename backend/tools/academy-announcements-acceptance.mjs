@@ -1,0 +1,50 @@
+import {createServer} from 'node:http';
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {createRequire} from 'node:module';
+import assert from 'node:assert/strict';
+import {mediaFixture} from '../tests/fixtures/academy-lesson-media-fixture.mjs';
+import {MOU_MEDIA_PROGRAM as activity} from '../src/academy/d1/lesson-media.js';
+import worker from '../src/worker.js';
+const root=fileURLToPath(new URL('../../',import.meta.url)),out=process.env.ANNOUNCEMENTS_OUTPUT||'/tmp/academy-announcements';mkdirSync(out,{recursive:true});
+const f=await mediaFixture();for(const migration of ['0022_academic_calendar.sql','0023_lesson_planning.sql','0024_announcements_and_plan_requirements.sql'])f.db.exec(readFileSync(new URL('../migrations/academy/'+migration,import.meta.url),'utf8'));
+f.env.AUTH_LOGIN_RATE_LIMITER={limit:async()=>({success:true})};
+const course=f.db.prepare("SELECT * FROM activities WHERE kind='COURSE' LIMIT 1").get();
+f.db.prepare("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state) VALUES('planning-course-teacher','account-0003',?,'TEACHER',1,'CONFIRMED')").run(course.activity_key);
+const images=new Map();f.env.LESSON_MEDIA_BUCKET={put:async(k,b)=>images.set(k,new Uint8Array(b)),get:async k=>images.has(k)?{body:images.get(k)}:null,delete:async k=>images.delete(k)};
+const tokens={teacher:await f.login('0003'),admin:await f.login('0001'),student:await f.login('0002')};
+const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.svg':'image/svg+xml','.jpg':'image/jpeg','.webp':'image/webp'};
+const server=createServer(async(req,res)=>{try{const url=new URL(req.url,'http://localhost');res.setHeader('Cache-Control','no-store');
+ if(url.pathname==='/js/m4l-config.js'){res.writeHead(200,{'Content-Type':'text/javascript'});res.end('window.M4L_CONFIG={API_BASE:location.origin,IS_DEVELOPMENT:true};');return;}
+ if(url.pathname.startsWith('/__signin/')){const who=url.pathname.split('/').at(-1);if(!tokens[who])throw Error('Unknown synthetic identity');res.writeHead(200,{'Content-Type':'text/html'});res.end('<script>localStorage.clear();sessionStorage.clear();localStorage.setItem("m4l_account_token",'+JSON.stringify(tokens[who])+');location.replace("/academy/");</script>');return;}
+ if(url.pathname.startsWith('/api/')){const chunks=[];for await(const chunk of req)chunks.push(chunk);const response=await worker.fetch(new Request('http://localhost'+url.pathname+url.search,{method:req.method,headers:req.headers,...(!['GET','HEAD'].includes(req.method)?{body:Buffer.concat(chunks)}:{})}),f.env);res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));return;}
+ const target=path.resolve(root,'.'+decodeURIComponent(url.pathname));if(!target.startsWith(root))throw Error('Invalid path');const file=url.pathname.endsWith('/')?path.join(target,'index.html'):target;res.writeHead(200,{'Content-Type':types[path.extname(file)]||'application/octet-stream'});res.end(readFileSync(file));
+ }catch(e){console.log('SERVER ERROR',e);res.writeHead(e.code==='ENOENT'?404:500);res.end();}});
+await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const origin='http://127.0.0.1:'+server.address().port;f.env.ALLOWED_ORIGINS=origin;console.log('Synthetic planning preview: '+origin);
+const {chromium}=createRequire(import.meta.url)(process.env.ACADEMY_BROWSER_RUNTIME||'/Users/hbnaidu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const browser=await chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'}),page=await browser.newPage({viewport:{width:390,height:844}}),errors=[],checks=[];
+page.on('pageerror',e=>errors.push(String(e)));await page.route('**/*',r=>(new URL(r.request().url()).origin===origin||r.request().url().startsWith('blob:'))?r.continue():r.abort());
+const signIn=async who=>{await page.goto(origin+'/__signin/'+who);await page.waitForURL('**/academy/');};
+
+const editor=()=>page.locator('#admin-announcements');
+async function fits(label){const sizes=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));assert(sizes.scroll<=sizes.width+1,label+JSON.stringify(sizes));checks.push(label);}
+try{
+ await page.goto(origin+'/academy/');await page.getByText('No announcements at the moment.').waitFor();checks.push('Visitor empty state');
+ await signIn('teacher');await page.goto(origin+'/academy/#administration/announcements');assert.equal(await page.locator('#admin-announcements form').count(),0);checks.push('Teacher cannot manage announcements');
+ await signIn('admin');await page.goto(origin+'/academy/#administration/announcements');await editor().locator('form').waitFor();
+ await editor().locator('[name=title]').fill('Surah Al-Kahf Bootcamp');await editor().locator('[name=message]').fill('A four-week journey.\nEvery Sunday at 7 PM SAST.');
+ const poster=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=900;c.height=1600;const x=c.getContext('2d');x.fillStyle='#faf5ed';x.fillRect(0,0,900,1600);x.fillStyle='#704578';x.fillRect(50,50,800,180);x.fillStyle='white';x.font='42px Georgia';x.fillText('Umm Abbad Academy',160,150);x.fillStyle='#351631';x.font='54px Georgia';x.fillText('Surah Al-Kahf Bootcamp',100,360);x.font='34px Arial';x.fillText('Synthetic poster for layout checks',140,450);for(let i=0;i<4;i++){x.fillStyle=['#f3dedb','#eedfe9','#dddbe9','#f6e4cf'][i];x.fillRect(80,600+i*180,740,150);}x.fillStyle='#704578';x.fillRect(50,1400,800,140);return c.toDataURL('image/png').split(',')[1];});await editor().locator('[name=image]').setInputFiles({name:'test-poster.png',mimeType:'image/png',buffer:Buffer.from(poster,'base64')});await editor().locator('.announcement-preview').waitFor();
+ for(const width of [320,390,768,1440]){await page.setViewportSize({width,height:900});await fits('Announcement editor '+width);if(width===390||width===1440)await page.screenshot({path:path.join(out,'editor-'+width+'.png'),fullPage:true});}
+ await editor().getByRole('button',{name:'Save announcement',exact:true}).click();await editor().getByText('Announcement saved.',{exact:true}).waitFor();assert.equal(images.size,1);checks.push('Inactive image and message saved');
+ await editor().getByRole('button',{name:'Edit Surah Al-Kahf Bootcamp',exact:true}).click();await editor().locator('.announcement-preview').waitFor();await editor().locator('[name=active]').check();
+ let dropped=false;await page.route('**/api/admin/platform/announcements/save',async r=>{if(!dropped){dropped=true;await r.fetch();await r.abort();}else await r.continue();});
+ await editor().getByRole('button',{name:'Save announcement',exact:true}).click();await editor().getByRole('button',{name:'Retry pending save',exact:true}).click();await editor().getByText('Announcement saved.',{exact:true}).waitFor();await page.unroute('**/api/admin/platform/announcements/save');assert.equal(f.db.prepare('SELECT count(*) n FROM academy_announcements').get().n,1);checks.push('Lost acknowledgement retry does not duplicate');
+ await editor().locator('[name=title]').fill('Welcome');await editor().locator('[name=message]').fill('Welcome to the Academy');await editor().locator('[name=active]').check();await editor().locator('[name=order]').fill('1');await editor().getByRole('button',{name:'Save announcement',exact:true}).click();await editor().getByText('Announcement saved.',{exact:true}).waitFor();checks.push('Multiple active announcements');
+ await page.goto(origin+'/academy/#overview');await page.locator('.announcement-poster img').waitFor();await page.locator('.announcement-poster img').evaluate(img=>img.decode());
+ for(const width of [320,390,768,1440]){await page.setViewportSize({width,height:900});await fits('Public announcements '+width);if(width===390||width===1440)await page.screenshot({path:path.join(out,'home-'+width+'.png'),fullPage:true});}
+ await page.getByRole('button',{name:'Next announcement',exact:true}).click();await page.locator('.announcement-slide h3').filter({hasText:'Welcome'}).waitFor();await page.getByRole('button',{name:'Pause',exact:true}).click();await page.getByRole('button',{name:'Play',exact:true}).waitFor();await page.getByRole('button',{name:'Previous announcement',exact:true}).click();await page.locator('.announcement-poster').click();await page.locator('.announcement-lightbox[open] img').waitFor();await page.getByRole('button',{name:'Close image',exact:true}).click();checks.push('Carousel controls and full poster view');await page.getByRole('button',{name:'Play',exact:true}).click();await page.evaluate(()=>document.activeElement.blur());await page.mouse.move(5,5);await page.waitForFunction(()=>document.querySelector('.announcement-slide h3')?.textContent==='Welcome',null,{timeout:15000});checks.push('Active announcements cycle automatically');
+ await page.goto(origin+'/academy/#administration/announcements');await editor().locator('form').waitFor();page.once('dialog',d=>d.accept());await editor().getByRole('button',{name:'Delete Welcome',exact:true}).click();await editor().getByText('Announcement deleted.',{exact:true}).waitFor();assert.equal(f.db.prepare('SELECT count(*) n FROM academy_announcements WHERE deleted_at IS NULL').get().n,1);checks.push('Delete removes current announcement');
+ await editor().locator('[name=message]').fill('Unsaved draft');page.once('dialog',d=>d.dismiss());await page.getByRole('link',{name:'Academy home',exact:true}).first().click();await page.waitForURL(url=>url.hash==='#administration/announcements');checks.push('Unsaved navigation guarded');
+ assert.deepEqual(errors,[]);console.log(JSON.stringify({passed:checks.length,checks,errors,output:out}));
+}finally{await browser.close();await new Promise(r=>server.close(r));f.db.close();}

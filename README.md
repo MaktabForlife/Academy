@@ -1,3 +1,9 @@
+# V106.55 — Academy announcements and simpler planning
+
+Global Admin can add, edit and delete Academy home announcements with messages and JPEG/PNG/WebP posters, activate multiple entries, and choose their order. Visitors can cycle through announcements, pause playback and open a full poster. The home announcement area is wider on desktop and stacks on phones. Scoped admins retain their existing learning-area permissions.
+
+Planning management can mark each Program or Course as not requiring plans, without deleting submitted history. Missing cells show only “Not submitted”. Each subject/class section has one teaching-plan box; older objectives and resources are preserved. The Heart, Kaaba and Voice Recorder menu entries follow Prospectus. Includes the additive `0024_announcements_and_plan_requirements.sql` migration. [Release details](docs/ACADEMY-ANNOUNCEMENTS-106.55.md).
+
 # V106.54 — Imtihaan schedule release and exports
 
 The Imtihaan Register includes one Release schedule action for every assessment date in the group, plus Share image, Share PDF and Download PDF. Release validates all dates and eligible class rosters atomically, shows whether the schedule is released, and preserves separate paper and result release controls. Exports use Draft or Final labels and one landscape PDF page. Confirming Scheduled also releases the group schedule; validation alone changes nothing.

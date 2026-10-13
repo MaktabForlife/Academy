@@ -7,7 +7,7 @@ import {scheduledLessons} from '../../programs/attendance-model.js';
 const dateOK=s=>typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s)&&Number.isFinite(Date.parse(s+'T12:00:00Z'))&&addDays(s,0)===s;
 export const planningMonday=s=>addDays(s,-((new Date(s+'T12:00:00Z').getUTCDay()+6)%7));
 const text=(s,max,label,required=false)=>{if(typeof s!=='string'||s.length>max||required&&!s.trim())throw fail('Enter '+label+'.');return s.trim();};
-const defaults={weeklyDay:0,weeklyTime:'18:00',courseLeadDays:3,revision:0};
+const defaults={weeklyDay:0,weeklyTime:'18:00',courseLeadDays:3,plansRequired:true,revision:0};
 const identity=r=>[r.activityKey,r.runId,r.teacherId,r.period,r.weekStart].join('|');
 const fromRow=r=>({activityKey:r.activity_key,runId:r.run_id,teacherId:r.teacher_id,period:r.period,weekStart:r.week_start});
 export function planningInstant(date,time,timezone){const n=lessonTimes({date,startTime:time,endTime:time,timezone}).startsAt;if(!Number.isFinite(n))throw fail('That local deadline is not a valid clock time.');return new Date(n).toISOString();}
@@ -16,7 +16,7 @@ function normalizeContent(input,submitted){
  const result={title:text(input.title??'',160,'a plan title',submitted),overview:text(input.overview??'',6000,'a shorter weekly overview'),reflection:text(input.reflection??'',6000,'shorter reflections'),lessons:input.lessons.map(r=>{
   if(!r||typeof r!=='object')throw fail('Enter a valid lesson section.');
   const date=text(r.date??'',10,'a lesson date');if(date&&!dateOK(date))throw fail('Choose a valid lesson date.');
-  return {date,className:text(r.className??'',160,'a shorter class name'),subject:text(r.subject??'',200,'a shorter lesson title'),objectives:text(r.objectives??'',2000,'shorter objectives'),activities:text(r.activities??'',6000,'shorter activities'),resources:text(r.resources??'',2000,'shorter resources')};
+  return {date,className:text(r.className??'',160,'a shorter class name'),subject:text(r.subject??'',200,'a shorter lesson title'),objectives:text(r.objectives??'',2000,'shorter objectives'),activities:text(r.activities??'',12000,'shorter activities'),resources:text(r.resources??'',2000,'shorter resources')};
  })};
  if(JSON.stringify(result).length>60000)throw fail('Keep this plan below 60,000 characters.');
  if(submitted&&!result.overview&&!result.lessons.some(r=>r.activities||r.objectives))throw fail('Add an overview or lesson activities before submitting.');
@@ -35,13 +35,13 @@ export function lessonPlanning(repository,auth,now=()=>new Date()){
   if(!Number.isInteger(count)||count<1||count>12)throw fail('Show between one and twelve weeks.');
   const start=count>1?addDays(week,-14):week,end=addDays(start,(count-1)*7);
   const planQuery=p(`SELECT * FROM lesson_plans WHERE ${filter} AND (period='ENTIRE' OR week_start BETWEEN ? AND ?)`,...(keys===null?[]:[JSON.stringify(keys)]),start,end);
-  return store.load({plans:planQuery,policies:q('lesson_plan_policies'),preferences:q('lesson_plan_preferences'),deadlines:q('lesson_plan_deadlines'),runs:q('course_runs'),runStates:q('course_run_state'),courseEditor:q('course_management_drafts'),sessions:q('course_draft_sessions')});
+  return store.load({plans:planQuery,policies:q('lesson_plan_policies'),requirements:q('lesson_plan_requirements'),preferences:q('lesson_plan_preferences'),deadlines:q('lesson_plan_deadlines'),runs:q('course_runs'),runStates:q('course_run_state'),courseEditor:q('course_management_drafts'),sessions:q('course_draft_sessions')});
  }
  const admin=(d,key)=>global||liveRoles(d,actor,key).includes('PROGRAM_ADMIN');
  const staff=(d,key)=>admin(d,key)||liveRoles(d,actor,key).includes('TEACHER');
  const areas=(d,view)=>d.activities.filter(a=>(a.kind==='COURSE'||a.active&&a.lifecycle==='ACTIVE')&&['PROGRAM','COURSE'].includes(a.kind)&&(view==='admin'?admin(d,a.activity_key):staff(d,a.activity_key)));
  const timezone=async d=>{const config=await repository.homeConfiguration();return config?.setting_value||'Africa/Johannesburg';};
- function policy(d,key){const r=d.policies.find(r=>same(r.activity_key,key));return r?{weeklyDay:r.weekly_day,weeklyTime:r.weekly_time,courseLeadDays:r.course_lead_days,revision:r.revision}:defaults;}
+ function policy(d,key){const r=d.policies.find(r=>same(r.activity_key,key)),plansRequired=d.requirements.find(r=>same(r.activity_key,key))?.plans_required!==0;return {...(r?{weeklyDay:r.weekly_day,weeklyTime:r.weekly_time,courseLeadDays:r.course_lead_days,revision:r.revision}:defaults),plansRequired};}
  function runStage(d,r){return String(d.courseEditor.find(s=>same(s.activity_key,r.activity_key)&&same(s.run_id,r.run_id))?.stage||d.runStates.find(s=>same(s.activity_key,r.activity_key)&&same(s.run_id,r.run_id))?.stage||(r.active?'ACTIVE':'ARCHIVED')).toUpperCase();}
  function runOpen(d,r){const a=d.activities.find(a=>same(a.activity_key,r.activity_key));return Boolean(a?.active&&a.lifecycle==='ACTIVE'&&r.active&&!['COMPLETE','COMPLETED','CANCELLED','ARCHIVED'].includes(runStage(d,r)));}
  function runList(d,key){return d.runs.filter(r=>same(r.activity_key,key));}
@@ -82,6 +82,7 @@ export function lessonPlanning(repository,auth,now=()=>new Date()){
   if(input.activityKey&&!selected.length)throw fail('This area is outside your planning access.',403,'FORBIDDEN');
   const expected=new Map();
   for(const a of selected){
+   if(!policy(d,a.activity_key).plansRequired)continue;
    const teachers=view==='admin'?d.accounts.filter(u=>u.active&&liveRoles(d,u.account_id,a.activity_key).includes('TEACHER')):d.accounts.filter(u=>same(u.account_id,actor));
    const runs=a.kind==='PROGRAM'?[null]:runList(d,a.activity_key).filter(r=>runOpen(d,r));
    for(const u of teachers)for(const run of runs){
@@ -124,7 +125,9 @@ export function lessonPlanning(repository,auth,now=()=>new Date()){
    if(action==='policy'){
     const previous=policy(d,a.activity_key);if(input.revision!==previous.revision)throw fail('Deadline settings changed. Refresh before saving.',409,'ROW_CHANGED');
     if(!Number.isInteger(input.weeklyDay)||input.weeklyDay<0||input.weeklyDay>6||typeof input.weeklyTime!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(input.weeklyTime)||!Number.isInteger(input.courseLeadDays)||input.courseLeadDays<0||input.courseLeadDays>90)throw fail('Choose a weekday, time and 0–90 days before the course.');
-    statements.push(p('INSERT INTO lesson_plan_policies VALUES(?,?,?,?,?,?,?) ON CONFLICT(activity_key) DO UPDATE SET weekly_day=excluded.weekly_day,weekly_time=excluded.weekly_time,course_lead_days=excluded.course_lead_days,revision=excluded.revision,updated_at=excluded.updated_at,updated_by=excluded.updated_by',a.activity_key,input.weeklyDay,input.weeklyTime,input.courseLeadDays,previous.revision+1,at,actor));
+    const required=input.plansRequired??previous.plansRequired;if(typeof required!=='boolean')throw fail('Choose whether plans are required.');
+    statements.push(p('INSERT INTO lesson_plan_policies(activity_key,weekly_day,weekly_time,course_lead_days,revision,updated_at,updated_by) VALUES(?,?,?,?,?,?,?) ON CONFLICT(activity_key) DO UPDATE SET weekly_day=excluded.weekly_day,weekly_time=excluded.weekly_time,course_lead_days=excluded.course_lead_days,revision=excluded.revision,updated_at=excluded.updated_at,updated_by=excluded.updated_by',a.activity_key,input.weeklyDay,input.weeklyTime,input.courseLeadDays,previous.revision+1,at,actor));
+    statements.push(p('INSERT INTO lesson_plan_requirements(activity_key,plans_required) VALUES(?,?) ON CONFLICT(activity_key) DO UPDATE SET plans_required=excluded.plans_required',a.activity_key,Number(required)));
    }else{
     const key=normalizeKey(d,input,!adminAction),r=find(d,key);
     if(action==='deadline'){

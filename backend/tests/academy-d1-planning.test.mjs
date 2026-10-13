@@ -5,7 +5,7 @@ import {mediaFixture} from './fixtures/academy-lesson-media-fixture.mjs';
 import {MOU_MEDIA_PROGRAM as area} from '../src/academy/d1/lesson-media.js';
 import {planningInstant} from '../src/academy/d1/lesson-planning.js';
 const week='2026-10-19',content=()=>({title:'Weekly plan',overview:'Prepare the class',reflection:'',lessons:[{date:week,className:'Class A',subject:'Quran',objectives:'Read clearly',activities:'Read and revise',resources:'Pages 1–4'}]});
-export async function planningFixture(){const f=await mediaFixture();f.db.exec(readFileSync(new URL('../migrations/academy/0023_lesson_planning.sql',import.meta.url),'utf8'));return f;}
+export async function planningFixture(){const f=await mediaFixture();for(const migration of ['0023_lesson_planning.sql','0024_announcements_and_plan_requirements.sql'])f.db.exec(readFileSync(new URL('../migrations/academy/'+migration,import.meta.url),'utf8'));return f;}
 async function use(fn){const f=await planningFixture();try{await fn(f);assert.deepEqual(f.db.prepare('PRAGMA foreign_key_check').all(),[]);assert.equal(f.db.prepare('SELECT count(*) n FROM academy_write_guards').get().n,0);}finally{f.db.close();}}
 const post=(f,action,input,token)=>f.call('/api/academy/planning/'+action,input,token);
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};

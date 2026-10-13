@@ -1,3 +1,4 @@
+import {announcements,publicAnnouncements,announcementImage,announcementUpload} from './announcements.js';
 import {lessonPlanning} from './lesson-planning.js';
 import {d1Memorisation,d1MemorisationPreview} from './memorisation.js';
 import {d1Assessments} from './assessments.js';
@@ -59,9 +60,11 @@ async function dispatch(request,env) {
   const repository=academyD1Repository(env);
   const path=new URL(request.url).pathname;
   await repository.ready();
+  if(path==='/api/academy/announcements'&&request.method==='GET')return {success:true,...await publicAnnouncements(repository)};
+  if(path==='/api/academy/announcements/image'&&['GET','HEAD'].includes(request.method))return announcementImage(request,repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'rebootworker',version:'106.54',
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'rebootworker',version:'106.55',
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(repository)};
@@ -77,6 +80,11 @@ async function dispatch(request,env) {
     throw rehearsalError('Private Academy media is not available yet.',403,'PRIVATE_MEDIA_NOT_ENABLED');
   if(path==='/api/academy/d1/library/file'&&['GET','HEAD'].includes(request.method))return d1LibraryStream(request,repository,env);
   if(request.method!=='POST')throw rehearsalError('Use POST.',405,'METHOD_NOT_ALLOWED');
+  if(path==='/api/admin/platform/announcements/save'){
+    const auth=await authenticated(request,env,repository);
+    const editor=announcements(repository,auth,env),{input,image}=await announcementUpload(request);
+    return {success:true,...await editor.run('save',input,image)};
+  }
   if(path==='/api/academy/lesson-media/upload') {
     const auth=await authenticated(request,env,repository),metadata=new URL(request.url).searchParams.get('metadata')||'';
     if(metadata.length>8192)throw rehearsalError('Upload details are too large.',413);
@@ -125,6 +133,8 @@ async function dispatch(request,env) {
   }
   if(path==='/api/academy/public-lesson/join')return {success:true,...await d1LessonJoin(repository,null,input)};
   const auth=await authenticated(request,env,repository);
+  const announcementAction=path.match(/^\/api\/admin\/platform\/announcements\/(list|delete)$/)?.[1];
+  if(announcementAction)return {success:true,...await announcements(repository,auth,env).run(announcementAction,input)};
   const planningAction=path.match(/^\/api\/academy\/planning\/(list|get|save|submit|comment|policy|deadline)$/)?.[1];
   if(planningAction)return {success:true,...await lessonPlanning(repository,auth).run(planningAction,input)};
   const pdfToolAction=path.match(/^\/api\/admin\/platform\/pdf-tools\/(get|save)$/)?.[1];

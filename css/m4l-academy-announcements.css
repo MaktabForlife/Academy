@@ -1,0 +1,30 @@
+/* Announcement content stays legible on phones; posters open at full size. */
+.academy-intro{grid-template-columns:1fr}
+.academy-intro .intro-feature>.academy-news{width:100%;min-height:0;background:#fff;padding:22px}
+#academy-announcements{min-width:0}
+.announcement-slide h3{font-size:1.2rem;margin:16px 0 8px}
+.announcement-message{white-space:pre-wrap;overflow-wrap:anywhere}
+.announcement-poster{display:block;border:0;background:transparent;padding:0;width:100%;cursor:zoom-in}
+.announcement-poster img{display:block;width:100%;max-height:430px;object-fit:contain}
+.announcement-controls,.announcement-actions,.announcement-options{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px}
+.announcement-controls button,.announcements-editor button{min-height:44px;padding:8px 14px;border:1px solid #d9c9df;border-radius:10px;background:#fff;color:#704578;cursor:pointer;font:inherit}
+.announcement-controls span{font-size:.9rem}
+.announcement-lightbox{width:min(95vw,1000px);max-height:95dvh;padding:14px;border:1px solid #d9c9df;border-radius:14px}
+.announcement-lightbox::backdrop{background:#211527bb}
+.announcement-lightbox img{display:block;width:100%;height:auto;max-height:82dvh;object-fit:contain}
+.announcement-lightbox button{display:block;min-height:44px;margin-left:auto}
+.announcements-editor{width:100%;min-width:0}
+.announcements-editor form{display:grid;gap:16px;padding:16px;border:1px solid #e2d8e7;border-radius:14px}
+.announcements-editor label{display:grid;gap:6px;font-weight:600;min-width:0}
+.announcements-editor input:not([type=checkbox]),.announcements-editor textarea{width:100%;max-width:100%;box-sizing:border-box;padding:12px;font:inherit;border:1px solid #d9c9df;border-radius:10px;background:#fff}
+.announcements-editor input[type=checkbox]{width:20px;height:20px}
+.announcement-options label:first-child{display:flex;align-items:center}
+.announcement-options label:last-child{max-width:140px}
+.announcement-preview{width:100%;max-height:320px;object-fit:contain}
+.announcement-notice{white-space:pre-wrap;color:#704578}
+.announcement-table-scroll{overflow:auto;max-width:100%}
+.announcements-editor table{border-collapse:collapse;min-width:530px;width:100%}
+.announcements-editor th,.announcements-editor td{padding:12px;text-align:left;border-bottom:1px solid #e2d8e7}
+.announcements-editor th:first-child{overflow-wrap:anywhere;max-width:280px}
+.announcements-editor button:disabled{opacity:.5;cursor:default}
+@media(min-width:1001px){.academy-intro{grid-template-columns:minmax(270px,.8fr) minmax(0,1.2fr)}}

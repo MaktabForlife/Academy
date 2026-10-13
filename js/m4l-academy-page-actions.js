@@ -31,6 +31,7 @@
     ensureClose();const main=document.querySelector('main');if(main)new MutationObserver(ensureClose).observe(main,{childList:true,subtree:true});
   }
   actions.querySelector('[data-page-refresh]').addEventListener('click',async()=>{
+    if(await window.M4L_ANNOUNCEMENTS?.refreshPage?.())return;
     if(await window.M4L_PLANNING?.refreshPage?.())return;
     if(await window.M4L_ACADEMY_ASSESSMENTS?.refreshPage?.())return;
     const contentRefresh=[...document.querySelectorAll('main [data-page-content-refresh]')].find(button=>{
