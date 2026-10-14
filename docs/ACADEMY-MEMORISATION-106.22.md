@@ -1,0 +1,23 @@
+# V106.22 — Surah and Dua memorisation
+
+The Academy Progress page now provides two horizontally swipeable rows of module cards. The bright lavender, rose, sage and warm gold design is intended for adult ladies. Each card opens its task checklist, with learner marking and teacher confirmation shown separately. The Academy header, navigation and authorised Program pills remain available.
+
+The supplied `modueles.xlsx` contains **12 modules and 120 tasks: 23 Surahs in two modules, and 97 Duas in ten modules**. Surrounding whitespace is trimmed; source spellings and task order are retained. Initial levels follow the numbers in the module names. A reproducible source JSON and seed generator are included; `memorisation-seed.mjs --check` checks the migration against that inspected source.
+
+Students tick or untick individual memorised tasks and save. Unticking clears any teacher confirmation. A module's learner percentage counts learner-marked tasks, with a separate confirmed count. These are memorisation progress indicators, not attendance percentages or permanent completion/media grants.
+
+Teachers select an authorised class and module to see a learner-by-task grid. Gold cells await confirmation; checked green cells are confirmed. Program Admins see all classes in their assigned Program. Global Admins inherit all class access. Teacher access follows current class assignments or published lesson assignments. Courses without classes use an authorised Course learner group. Rosters use active students/subscribers and current dated class enrolments. Grids show 20 learners per page. Confirmation is shared across the Academy, rather than copied into each Program.
+
+Global Admins can upload an `.xlsx` or CSV list from **Progress → Add modules**, review its tasks, categorise each module as Surahs or Duas and assign its level. Required columns are `ModuleName` and `TaskName`; optional columns are `Subject` and `Level`. The first worksheet is read locally, including shared/inline Excel text and formatted blank rows. Formulas and encrypted workbooks are rejected. No workbook is sent to the server: only the reviewed module list is saved. Uploads support up to 30 modules / 500 tasks, with at most 100 tasks per module. New definitions reuse the Academy Subject/Module catalogue. Explicitly replacing matching modules resets only those modules' task progress after an on-screen confirmation. Default imports add new modules.
+
+Learner changes, teacher confirmations and imports use current D1 authorisation, revision checks, atomic writes, audit events and exact retry receipts. Pending saves survive reload in session-bound tab storage. Conflicting forms keep drafts for review; sign-out and account changes clear protected content. Bulk reads/writes keep even 500-task imports and 100-task saves below the current Free D1 per-invocation query allowance. No polling or live load testing is added.
+
+## Migrated data checked
+
+Read-only checks of `maktab-academy` on 11 October 2026 found **zero rows in `tasks`** and **four `COMPLETED` rows in `class_module_progress`**. No learner-task/memorisation progress table existed. The older Sheets memorisation workflow uses `TaskList`, `StudentTasks` and `StudentRecords`; these were not part of the Academy D1 operational importer. The four class records describe curriculum progress and do not establish individual memorisation. They are retained. No learner completion or confirmation is invented from them.
+
+## Release and validation
+
+The owner explicitly requested deployment when ready. Apply only the reviewed additive `0013_memorisation_tasks.sql` migration to `maktab-academy` before deploying this release. It adds the memorisation tables and the inspected 12-module seed. Do not apply the entire older migration directory to the existing database. Existing accounts, roles, timetables, attendance and class curriculum progress are unaffected. The new Progress endpoints report that storage is being prepared if the migration is missing.
+
+Validation passed: **140/140 backend regression test files**, including permissions and dated rosters, own-account marking, teacher confirmation/revocation, deselection, concurrent edits, failed-save rollback, exact retries, shared catalogue imports/replacements and maximum-size Free-tier query-budget checks. Synthetic Chrome acceptance passed against the actual Academy website and D1 interface at 1440, 390 and 320 pixels, including the supplied Excel workbook, CSV classification, mobile layout and retry after reload. The development Worker dry-run build, source syntax, seed consistency, release markers and diff checks also passed. Synthetic accounts and fixtures are used for all save tests; hosted acceptance checks remain read-only.

@@ -3,10 +3,26 @@
 */
 import { corsResponse, json } from "./lib/http.js";
 import { routeRequest } from "./router.js";
+import academyD1Worker from "./academy/d1/worker.js";
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+
+    // The complete request stays in one store. Rehearsal and reviewed activation
+    // use this entrypoint; unmigrated operations must never reach Sheets.
+    if (["REHEARSAL", "ACTIVE"].includes(env.ACADEMY_D1_MODE)) {
+      return academyD1Worker.fetch(request, env);
+    }
+    if (env.ACADEMY_D1_MODE === "PAUSED") {
+      const response=json({ success: false, error: "Academy is temporarily paused for maintenance. Please try again shortly.",
+        code: "ACADEMY_STORAGE_PAUSED", retryable: true }, 503);
+      response.headers.set('Retry-After','60');return response;
+    }
+    if (env.ACADEMY_D1_MODE && env.ACADEMY_D1_MODE !== "OFF") {
+      return json({ success: false, error: "Academy storage configuration is unavailable.",
+        code: "ACADEMY_STORAGE_MODE_INVALID", retryable: false }, 503);
+    }
 
     try {
       if (request.method === "OPTIONS") {
@@ -17,7 +33,7 @@ export default {
         return json({
           success: true,
           service: "rebootworker",
-          version: "105.4.3.3"
+          version: "106.58"
         });
       }
 

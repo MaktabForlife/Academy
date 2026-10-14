@@ -1,0 +1,39 @@
+import {createServer} from 'node:http';
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {createRequire} from 'node:module';
+import assert from 'node:assert/strict';
+import {mediaFixture} from '../tests/fixtures/academy-lesson-media-fixture.mjs';
+import {MOU_MEDIA_PROGRAM as activity} from '../src/academy/d1/lesson-media.js';
+import worker from '../src/worker.js';
+const root=fileURLToPath(new URL('../../',import.meta.url)),out=process.env.TEACHER_LABEL_OUTPUT||'/tmp/academy-teacher-labels';mkdirSync(out,{recursive:true});
+const f=await mediaFixture();for(const migration of ['0022_academic_calendar.sql','0023_lesson_planning.sql','0024_announcements_and_plan_requirements.sql'])f.db.exec(readFileSync(new URL('../migrations/academy/'+migration,import.meta.url),'utf8'));
+f.env.AUTH_LOGIN_RATE_LIMITER={limit:async()=>({success:true})};
+const course=f.db.prepare("SELECT * FROM activities WHERE kind='COURSE' LIMIT 1").get();
+f.db.prepare("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state) VALUES('planning-course-teacher','account-0003',?,'TEACHER',1,'CONFIRMED')").run(course.activity_key);
+const tokens={teacher:await f.login('0003'),admin:await f.login('0001'),student:await f.login('0002')};
+const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.svg':'image/svg+xml','.jpg':'image/jpeg','.webp':'image/webp'};
+const server=createServer(async(req,res)=>{try{const url=new URL(req.url,'http://localhost');res.setHeader('Cache-Control','no-store');
+ if(url.pathname==='/js/m4l-config.js'){res.writeHead(200,{'Content-Type':'text/javascript'});res.end('window.M4L_CONFIG={API_BASE:location.origin,IS_DEVELOPMENT:true};');return;}
+ if(url.pathname.startsWith('/__signin/')){const who=url.pathname.split('/').at(-1);if(!tokens[who])throw Error('Unknown synthetic identity');res.writeHead(200,{'Content-Type':'text/html'});res.end('<script>localStorage.clear();sessionStorage.clear();localStorage.setItem("m4l_account_token",'+JSON.stringify(tokens[who])+');location.replace("/academy/");</script>');return;}
+ if(url.pathname.startsWith('/api/')){const chunks=[];for await(const chunk of req)chunks.push(chunk);const response=await worker.fetch(new Request('http://localhost'+url.pathname+url.search,{method:req.method,headers:req.headers,...(!['GET','HEAD'].includes(req.method)?{body:Buffer.concat(chunks)}:{})}),f.env);res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));return;}
+ const target=path.resolve(root,'.'+decodeURIComponent(url.pathname));if(!target.startsWith(root))throw Error('Invalid path');const file=url.pathname.endsWith('/')?path.join(target,'index.html'):target;res.writeHead(200,{'Content-Type':types[path.extname(file)]||'application/octet-stream'});res.end(readFileSync(file));
+ }catch(e){res.writeHead(e.code==='ENOENT'?404:500);res.end();}});
+await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const origin='http://127.0.0.1:'+server.address().port;f.env.ALLOWED_ORIGINS=origin;console.log('Synthetic teacher-name preview: '+origin);
+const {chromium}=createRequire(import.meta.url)('/Users/hbnaidu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const browser=await chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'}),page=await browser.newPage({viewport:{width:390,height:844}}),errors=[],checks=[];
+page.on('pageerror',e=>errors.push(String(e)));await page.route('**/*',r=>new URL(r.request().url()).origin===origin?r.continue():r.abort());
+try{
+ await page.goto(origin+'/__signin/admin');await page.waitForURL('**/academy/');await page.locator('#academy-preview-sessions [data-information]').first().waitFor();
+ const history=f.db.prepare('SELECT snapshot_json FROM timetable_publications ORDER BY activity_key,publication_id').all();
+ await page.locator('#academy-preview-sessions [data-information]').first().click();await page.locator('#lesson-information[open] .lesson-info-teacher').first().waitFor();assert.match(await page.locator('#lesson-information').innerText(),/Synthetic learner 3/);await page.locator('#lesson-information-close').click();checks.push('Summary card resolves current profile name');
+ const profile=f.db.prepare("SELECT revision FROM accounts WHERE account_id='account-0003'").get();const renamed=await f.call('/api/academy/d1/accounts/update',{accountId:'account-0003',displayName:'TestTeacher',active:true,revision:profile.revision},tokens.admin);assert.equal(renamed.status,200);
+ await Promise.all([page.waitForResponse(r=>r.url().endsWith('/api/academy/entrance')&&r.status()===200),page.getByRole('button',{name:'Refresh this page',exact:true}).click()]);
+ await page.locator('#academy-preview-sessions [data-information]').first().click();await page.locator('#lesson-information[open]').waitFor();assert.match(await page.locator('#lesson-information').innerText(),/TestTeacher/);assert.doesNotMatch(await page.locator('#lesson-information').innerText(),/Synthetic learner 3/);checks.push('Renamed teacher appears in summary details after Refresh');
+ for(const width of [390,1440]){await page.setViewportSize({width,height:900});const size=await page.evaluate(()=>({w:innerWidth,s:document.documentElement.scrollWidth}));assert(size.s<=size.w+1);await page.screenshot({path:path.join(out,'summary-'+width+'.png'),fullPage:false});checks.push('Summary dialog '+width);}
+ await page.locator('#lesson-information-close').click();
+ // A profile save in another page of this browser invalidates the saved timetable on reopen.
+ f.db.prepare("UPDATE accounts SET display_name='Renamed again' WHERE account_id='account-0003'").run();await page.evaluate(()=>localStorage.setItem('m4l_academy_profile_labels_revision',crypto.randomUUID()));await page.reload();await page.locator('#academy-preview-sessions [data-information]').first().click();await page.locator('#lesson-information[open]').waitFor();assert.match(await page.locator('#lesson-information').innerText(),/Renamed again/);checks.push('Profile revision invalidates the persisted daily cache');
+ assert.deepEqual(f.db.prepare('SELECT snapshot_json FROM timetable_publications ORDER BY activity_key,publication_id').all(),history);checks.push('Published timetable remains unchanged');assert.deepEqual(errors,[]);console.log(JSON.stringify({passed:checks.length,checks,errors,output:out}));
+}finally{await browser.close();await new Promise(r=>server.close(r));f.db.close();}

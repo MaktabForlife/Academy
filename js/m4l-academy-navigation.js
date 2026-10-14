@@ -1,0 +1,115 @@
+(() => {
+  'use strict';
+  if(location.pathname.startsWith('/academy/calendar/')&&new URLSearchParams(location.search).get('embed')==='1')return;
+  // The standalone recorder remains unchanged outside its Academy entry point.
+  if (location.pathname.startsWith('/recorder/') && new URLSearchParams(location.search).get('academy') !== '1') return;
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+  const roles = (values = []) => values.includes('GLOBAL_ADMIN') ? 'Global Admin' : values.some(role=>['PROGRAM_ADMIN','ADMIN'].includes(role)) ? 'Program Admin' : values.some(role=>['TEACHER','SENIOR'].includes(role)) ? 'Teacher' : values.includes('STUDENT') ? 'Student' : '';
+  const token = () => localStorage.getItem('m4l_account_token') || '';
+  const side = document.createElement('aside');
+  side.className = 'academy-connected-sidebar';
+  side.setAttribute('aria-label', 'Academy');
+  side.innerHTML = `<a class="academy-connected-brand" href="/academy/#overview"><img src="/ummabbadacademy.png" alt=""><span><strong>Umm Abbad<br>Academy</strong><span class="site-version">Website V106.58</span></span></a>
+    <nav aria-label="Academy navigation"><a href="/academy/#overview">Academy home</a><a href="/activities/surahs-in-my-heart/">Surahs in my Heart</a><a href="/activities/kaaba-puzzle/">Kaaba puzzle</a><a id="ac-recorder" href="/academy/#recorder" hidden>Voice Recorder</a><a id="ac-library" href="/academy/open-library/">Library</a><a id="ac-calendar" href="/academy/calendar/" hidden>Academic Calendar</a><a href="/academy/#prospectus">2026 Prospectus</a><a href="/academy/#about">About</a><a href="/academy/#contact">Contact</a></nav>
+    <div class="academy-connected-footer"><a href="https://ummabbadacademy.com" target="_blank" rel="noopener noreferrer">Original Academy site ↗</a><button id="ac-signout" type="button" hidden>Sign out</button></div>`;
+  const strip = document.createElement('nav');
+  strip.className = 'academy-connected-activities';
+  strip.setAttribute('aria-label', 'Your subscribed Programs and Courses');
+  strip.hidden = true;
+  document.body.classList.add('academy-connected');
+  document.body.prepend(side, strip);
+  const $ = id => document.getElementById(id);
+  let currentProgram = new URLSearchParams(location.search).get('program');
+  const isLibrary = location.pathname.includes('/library/') || location.pathname.startsWith('/academy/open-library/');
+  if (isLibrary) $('ac-library').setAttribute('aria-current', 'page');
+  if (location.pathname.startsWith('/recorder/')) $('ac-recorder').setAttribute('aria-current', 'page');
+  for(const a of side.querySelectorAll('a[href]'))if(a.getAttribute('href')===location.pathname)a.setAttribute('aria-current','page');
+  let generation = 0;
+  let d1Session = '';
+
+  function clear() {
+    window.M4L_ACADEMY_SHELL_DATA=null;window.M4L_ACADEMY_SHELL?.update(null);
+    strip.replaceChildren();
+    strip.hidden = true;
+    $('ac-library').href = '/academy/open-library/';
+    $('ac-recorder').hidden = true;
+    $('ac-calendar').hidden = true;
+    $('ac-signout').hidden = !token();
+    if ($('library-for-you')) $('library-for-you').hidden = true;
+  }
+
+  async function refresh() {
+    const pending = ++generation, session = token();
+    if (d1Session !== session) d1Session = '';
+    clear();
+    if (!session) return;
+    try {
+      let result, owner = '';
+      try {
+        owner = [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(session)))].map(b=>b.toString(16).padStart(2,'0')).join('');
+        const saved = JSON.parse(sessionStorage.getItem('m4l_academy_daily_timetable_10652') || 'null');
+        const home = saved?.owner === owner && saved.entries?.HOME;
+        const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:home?.timezone || 'Africa/Johannesburg',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(p=>[p.type,p.value]));
+        if (home?.cacheDay === `${parts.year}-${parts.month}-${parts.day}` && home.signedIn) result = home;
+      } catch {}
+      if (!result) {
+        const response = await fetch(`${window.M4L_CONFIG?.API_BASE || ''}/api/academy/entrance`, {
+          method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session}`},body:'{}'
+        });
+        result = await response.json();
+        if (!response.ok) return;
+      }
+      if (pending !== generation || session !== token() || !result.success || !result.signedIn) return;
+      d1Session = result.sessionStore === 'D1' ? session : '';
+      $('ac-library').href = '/academy/library/';
+      $('ac-recorder').hidden = !result.student;
+      $('ac-calendar').hidden = false;
+      $('ac-signout').hidden = false;
+      if ($('library-for-you')) $('library-for-you').hidden = false;
+      const activities = (result.personalActivities || []).filter(row => ['PROGRAM', 'COURSE'].includes(row.kind) && row.menuAvailable!==false && ![row.stage,row.status,row.lifecycle].some(value=>['CANCELLED','ARCHIVED'].includes(String(value||'').toUpperCase())) && row.id && (result.globalAdmin || roles(row.roles)));
+      const programs = activities.filter(row => row.kind === 'PROGRAM');
+      const courses = activities.filter(row => row.kind === 'COURSE');
+      strip.innerHTML = programs.map(row => `<a data-academy-program="${esc(row.id)}" href="/academy/#activity/${row.kind}/${encodeURIComponent(row.id)}"${row.kind === 'PROGRAM' && row.id === currentProgram ? ' aria-current="page"' : ''}><span>${esc(row.name)}</span><small>${esc(roles(result.globalAdmin ? ['GLOBAL_ADMIN'] : row.roles))}</small></a>`).join('') +
+        (result.signedIn && (result.globalAdmin || courses.some(row=>row.roles?.length)) ? `<a href="/academy/#workshops"><span>Courses</span><small>${esc(roles(result.globalAdmin ? ['GLOBAL_ADMIN','PROGRAM_ADMIN'] : [...new Set(courses.flatMap(row => row.roles))]) || 'None')}</small></a>` : '');
+      strip.hidden = !result.signedIn;
+      window.M4L_ACADEMY_SHELL_DATA=result;window.M4L_ACADEMY_SHELL?.update(result);
+    } catch { /* Public navigation stays available while account information is unavailable. */ }
+  }
+
+  $('ac-signout').addEventListener('click', () => {
+    const session = token(), revoke = session && d1Session === session;
+    d1Session = '';
+    ++generation;
+    clear();
+    if (revoke) {
+      void fetch(`${window.M4L_CONFIG?.API_BASE || ''}/api/account/logout`, {
+        method: 'POST', keepalive: true,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session}` }, body: '{}'
+      }).catch(() => { /* Browser sign-out still completes if the connection is unavailable. */ });
+    }
+    sessionStorage.removeItem('m4l_academy_signed_in');
+    for (const key of ['m4l_account_token', 'm4l_account_context', 'm4l_account_contexts', 'm4l_account_workspace', 'maktab_token', 'maktab_user_type']) localStorage.removeItem(key);
+    for (let index = localStorage.length - 1; index >= 0; index--) {
+      const key = localStorage.key(index);
+      if (key?.startsWith('m4l_library_v1:') && key.includes(':personal:')) localStorage.removeItem(key);
+      if (key && ['m4l_app_cache_', 'maktab_timetable_cache_', 'm4l_academy_timetable_'].some(prefix => key.startsWith(prefix))) localStorage.removeItem(key);
+    }
+    for (let index = sessionStorage.length - 1; index >= 0; index--) {
+      const key = sessionStorage.key(index);
+      if (key?.startsWith('m4l_admin_progress_dashboard_') || key?.startsWith('m4l_academy_daily_timetable_')) sessionStorage.removeItem(key);
+    }
+    window.dispatchEvent(new Event('m4l-academy-session'));
+    location.href = '/academy/#overview';
+  });
+  window.addEventListener('storage', event => { if (event.key === 'm4l_account_token' || event.key === null) void refresh(); });
+  window.addEventListener('m4l-academy-session', () => { void refresh(); });
+  window.addEventListener('m4l-program-selection', () => {
+    currentProgram = new URLSearchParams(location.search).get('program');
+    for (const link of strip.querySelectorAll('[data-academy-program]')) {
+      if (link.dataset.academyProgram === currentProgram) link.setAttribute('aria-current', 'page');
+      else link.removeAttribute('aria-current');
+    }
+  });
+  window.addEventListener('pageshow', event => { if (event.persisted) void refresh(); });
+  void refresh();
+})();

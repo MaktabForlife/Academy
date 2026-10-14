@@ -30,3 +30,6 @@
 .ol-viewer-note{font-size:.85rem;color:#685a6b;margin:12px 0 8px}
 #ol-original{display:inline-block;color:#704778;font-weight:700;margin-bottom:12px}
 @media(max-width:650px){#ol-results{grid-auto-columns:min(72vw,220px);gap:12px}.ol-card{min-height:340px;padding:10px}#ol-viewer{height:45vh}}
+
+.ol-card{height:410px;min-height:0;overflow:hidden}.ol-card-art{height:254px;aspect-ratio:auto;flex:none}.ol-card-content{min-height:0;overflow:hidden}.ol-card strong{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}.ol-card-action{flex:none}.ol-subject h2{height:48px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:24px}
+@media(max-width:650px){.ol-card{height:390px;min-height:0}.ol-card-art{height:234px}}

@@ -10,11 +10,15 @@
   const state = { rows: [], view: 'you', category: 'ALL', covers: new Map(), observer: null, openRow: null,
     learningAreaRefs: new Set() };
 
+  const cache = window.M4L_LIBRARY_CACHE;
+  let generation = 0;
+  let personalOwner = '';
+
   function matchesCategory(type) {
     if (state.category === 'ALL') return true;
     if (state.category === 'PDF') return type === 'EBOOK' || type === 'PRINTABLE';
-    if (state.category === 'AUDIO_VISUAL') return type === 'AUDIO' || type === 'VIDEO';
-    return type === 'OTHER';
+    if (state.category === 'AUDIOVISUAL') return type === 'AUDIO' || type === 'VIDEO';
+    return type === state.category;
   }
 
   function clearMedia() {
@@ -78,7 +82,11 @@
       body: JSON.stringify(body)
     });
     const result = await response.json();
-    if (!response.ok || !result.success) throw new Error(result.error || 'Library access is unavailable.');
+    if (localStorage.getItem('m4l_account_token') !== token) throw new Error('Your Academy account has changed.');
+    if (!response.ok || !result.success) {
+      if (response.status === 401) showSignedOut();
+      throw new Error(result.error || 'Library access is unavailable.');
+    }
     return result;
   }
 
@@ -86,7 +94,7 @@
     const query = $('al-search').value.trim().toLocaleLowerCase();
     const source = $('al-source').value;
     return state.rows.filter(row =>
-      (state.view === 'you' ? row.forYou : !row.forYou) &&
+      (row.forYou) &&
       matchesCategory(row.type) &&
       (source === 'ALL' || `${row.source}:${row.sourceName}` === source) &&
       (!query || [row.name, row.subject, row.module, row.level, ...(row.learningAreas || []), row.sourceName, row.description, row.author]
@@ -94,9 +102,18 @@
   }
 
   function showSignedOut() {
+    generation++;
+    personalOwner = '';
+    $('al-refresh').disabled = false;
+    cache.clearPersonal();
     state.rows = [];
     state.openRow = null;
     state.covers.clear();
+    state.learningAreaRefs.clear();
+    state.observer?.disconnect();
+    $('al-results').replaceChildren();
+    $('al-open').removeAttribute?.('href');
+    clearMedia();
     $('al-content').hidden = true;
     $('al-manage-books').hidden = true;
     $('al-status').innerHTML = 'Signed out. <a href="/academy/#overview">Sign in to Academy →</a> You can still <a href="/academy/open-library/">browse public books</a>.';
@@ -104,11 +121,12 @@
   }
 
   window.addEventListener('storage', event => {
-    if (event.key === 'm4l_account_token' && !event.newValue) showSignedOut();
+    if (event.key === 'm4l_account_token' || event.key === null) { showSignedOut(); if (event.newValue) void start(); }
   });
   window.addEventListener('pageshow', () => {
     if (!localStorage.getItem('m4l_account_token')) showSignedOut();
   });
+  window.addEventListener('m4l-academy-session', () => { showSignedOut(); if (localStorage.getItem('m4l_account_token')) void start(); });
 
   function card(row) {
     const cover = state.covers.get(row.id);
@@ -121,7 +139,9 @@
         : `<img src="${esc(icons[row.type] || icons.OTHER)}" alt="" width="48" height="48">`;
     const partCount = row.volumes?.length ? `${row.volumes.length} volumes` :
       row.mediaFiles?.length > 1 ? `${row.mediaFiles.length} recordings` : '';
-    return `<button type="button" class="al-card" data-resource="${esc(row.id)}" aria-label="${row.locked ? 'Locked: ' : 'Open '}${esc(row.name)} (${esc(typeNames[row.type] || 'Resource')})"><span class="al-art">${art}</span><small>${esc(row.subject)}</small><span class="al-card-title"><img src="${esc(icons[row.type] || icons.OTHER)}" alt="" width="18" height="18"><strong>${esc(row.name)}</strong></span>${partCount ? `<span class="al-volume-count">${partCount}</span>` : ''}${row.locked ? '<span class="al-lock">Subscription required</span>' : ''}</button>`;
+    const pdfBook=row.publicBook&&!row.publicLink&&['EBOOK','PRINTABLE'].includes(row.type),tag=pdfBook?'a':'button';
+    const attributes=pdfBook?`href="/academy/pdf-reader/?file=${encodeURIComponent(pdfProxy(row.volumes?.[0]?.pdfUrl||row.pdfUrl))}&amp;title=${encodeURIComponent(row.name)}" target="_blank" rel="noopener noreferrer" data-pdf-reader="true"`:'type="button"';
+    return `<${tag} ${attributes} class="al-card" data-resource="${esc(row.id)}" aria-label="${row.locked ? 'Locked: ' : 'Open '}${esc(row.name)} (${esc(typeNames[row.type] || 'Resource')})"><span class="al-art">${art}</span><small>${esc(row.sourceName)}${row.module ? ` · ${esc(row.module)}` : ''}</small><span class="al-card-title"><img src="${esc(icons[row.type] || icons.OTHER)}" alt="" width="18" height="18"><strong>${esc(row.name)}</strong></span>${partCount ? `<span class="al-volume-count">${partCount}</span>` : ''}${row.locked ? '<span class="al-lock">Subscription required</span>' : ''}</${tag}>`;
   }
 
   function render() {
@@ -131,16 +151,12 @@
       String(a.name || '').localeCompare(String(b.name || '')));
     const groups = new Map();
     for (const row of rows) {
-      const sourceName = row.sourceName;
-      const key = `${sourceName}|${row.subject}`;
-      if (!groups.has(key)) groups.set(key, { label: `${row.subject} · ${sourceName}`, modules: new Map() });
-      const modules = groups.get(key).modules;
-      const module = row.module || 'General';
-      if (!modules.has(module)) modules.set(module, []);
-      modules.get(module).push(row);
+      const subject = row.subject || 'Other';
+      if (!groups.has(subject)) groups.set(subject, []);
+      groups.get(subject).push(row);
     }
     $('al-results').innerHTML = groups.size
-      ? [...groups.values()].map(group => `<section class="al-section"><h2>${esc(group.label)}</h2>${[...group.modules.entries()].map(([module, entries]) => `<div class="al-module"><h3>${esc(module)}</h3><div class="al-ribbon" aria-label="${esc(module)} resources">${entries.map(card).join('')}</div></div>`).join('')}</section>`).join('')
+      ? [...groups].map(([subject, entries]) => `<section class="al-section"><h2>${esc(subject)}</h2><div class="al-subject-books">${entries.map(card).join('')}</div></section>`).join('')
       : `<p class="al-empty">${state.view === 'you' ? 'No resources are assigned to you yet.' : 'No resources match this selection.'}</p>`;
     state.observer?.disconnect();
     if ('IntersectionObserver' in window) {
@@ -165,13 +181,9 @@
 
   function showArchivePdf(row, volume) {
     const url = volume?.pdfUrl || row.pdfUrl;
-    const media = document.createElement('iframe');
-    media.src = `/pdf-viewer/web/viewer.html?file=${encodeURIComponent(pdfProxy(url))}`;
-    media.title = `${row.name}${volume ? `, ${volume.label || `volume ${volume.number}`}` : ''} PDF`;
     clearMedia();
-    $('al-media').append(media);
-    $('al-open').href = url;
-    $('al-open').textContent = 'Open original PDF at Archive.org ↗';
+    $('al-open').href = '/academy/pdf-reader/?file='+encodeURIComponent(pdfProxy(url))+'&title='+encodeURIComponent(row.name);
+    $('al-open').textContent = 'Open PDF reader in a new tab ↗';
     $('al-open').hidden = false;
   }
 
@@ -221,6 +233,7 @@
     if (row.locked) return;
     try {
       const result = await api('access', { resourceId: row.id });
+      if (state.openRow !== row || !$('al-preview').open) return;
       $('al-preview-status').textContent = '';
       const mime = String(result.mimeType || '').toLowerCase();
       let media;
@@ -252,24 +265,8 @@
     select.value = [...select.options].some(option => option.value === selected) ? selected : 'ALL';
   }
 
-  async function loadArchiveBooks() {
-    let archiveBooks = [];
-    let archiveUnavailable = false;
-    try {
-      const response = await fetch('/academy/open-library/catalogue');
-      if (!response.ok) throw new Error('Archive.org catalogue unavailable');
-      const data = await response.json();
-      if (!Array.isArray(data.books)) throw new Error('Invalid Archive.org catalogue');
-      archiveBooks = data.books;
-    } catch (_error) {
-      archiveUnavailable = true;
-    }
-    let records = [];
-    try {
-      const response = await fetch(`${window.M4L_CONFIG?.API_BASE || ''}/api/academy/open-library/metadata/public`);
-      if (response.ok) records = (await response.json()).records || [];
-    } catch { /* Archive books remain available if Academy details cannot load. */ }
-    if (!localStorage.getItem('m4l_account_token')) return;
+  function applyArchiveBooks(snapshot) {
+    const {books:archiveBooks,records} = snapshot.data;
     const byId = new Map(records.map(record => [record.id, record]));
     const edited = archiveBooks.map(book => {
       const record = byId.get(book.id);
@@ -286,42 +283,57 @@
       ...[...edited.map(archiveRow), ...records.map(linkRow)].filter(row => row && !existing.has(row.id))];
     refreshSources();
     render();
-    if (archiveUnavailable) $('al-status').textContent = `${$('al-status').textContent} Public Archive.org books are temporarily unavailable.`.trim();
+    if (snapshot.message) $('al-status').textContent = snapshot.message;
   }
 
-  async function showManageBooksForAdmin() {
-    const token = localStorage.getItem('m4l_account_token');
-    if (!token) return;
-    try {
-      const response = await fetch(`${window.M4L_CONFIG?.API_BASE || ''}/api/academy/open-library/metadata/list`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: '{}'
-      });
-      if (response.ok && (await response.json()).success) $('al-manage-books').hidden = false;
-    } catch { /* Management stays hidden when unavailable. */ }
-  }
-
-  async function start() {
-    try {
-      const result = await api('catalogue');
-      if (!localStorage.getItem('m4l_account_token')) return showSignedOut();
-      state.rows = Array.isArray(result.resources) ? result.resources : [];
-      state.learningAreaRefs = new Set(Array.isArray(result.learningAreaRefs) ? result.learningAreaRefs : []);
-      refreshSources();
-      $('al-content').hidden = false;
-      $('al-status').textContent = result.warnings?.length ? result.warnings.join(' ') : '';
-      render();
-      void loadArchiveBooks();
-      void showManageBooksForAdmin();
-    } catch (error) {
-      $('al-status').innerHTML = `${esc(error.message)} <a href="/academy/#overview">Sign in to Academy →</a>`;
-    }
-  }
-
-  document.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', () => {
-    state.view = button.dataset.view;
-    document.querySelectorAll('[data-view]').forEach(tab => tab.setAttribute('aria-selected', String(tab === button)));
+  function applyPersonal(data) {
+    state.rows = Array.isArray(data.resources) ? data.resources : [];
+    state.learningAreaRefs = new Set(data.learningAreaRefs || []);
+    $('al-manage-books').hidden = !data.canManage;
+    refreshSources();
+    $('al-content').hidden = false;
+    $('al-status').textContent = data.warnings?.join(' ') || '';
     render();
-  }));
+    const publicSaved = cache.read('public');
+    if (publicSaved) applyArchiveBooks(publicSaved);
+  }
+
+  async function start(force = false) {
+    const current = ++generation, session = localStorage.getItem('m4l_account_token');
+    if (!session) return showSignedOut();
+    $('al-refresh').disabled = true;
+    const owner = await cache.owner(session);
+    if (current !== generation || session !== localStorage.getItem('m4l_account_token')) return;
+    personalOwner = owner;
+    const saved = owner && cache.read('personal:' + owner);
+    if (saved) applyPersonal(saved.data);
+    try {
+      if (force || !saved || saved.stale) {
+        $('al-status').textContent = 'Updating Library…';
+        const result = await api('catalogue');
+        if (current !== generation || session !== localStorage.getItem('m4l_account_token')) return;
+        // Persist catalogue labels only. File access and signed URLs are never cached here.
+        const fields = ['id','name','subject','module','level','source','sourceName','type','description','author','publisher','hasCover','locked','forYou','learningAreas'];
+        const data = {resources:(result.resources || []).map(row=>Object.fromEntries(fields.filter(key=>key in row).map(key=>[key,row[key]]))),learningAreaRefs:result.learningAreaRefs||[],warnings:result.warnings||[],canManage:false};
+        applyPersonal(data);
+        try {
+          const response = await fetch(`${window.M4L_CONFIG?.API_BASE || ''}/api/academy/open-library/metadata/list`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session}`},body:'{}'});
+          data.canManage = response.ok && (await response.json()).success;
+        } catch {}
+        if (current !== generation || session !== localStorage.getItem('m4l_account_token')) return;
+        $('al-manage-books').hidden = !data.canManage;
+        if (owner && !data.warnings.length) cache.write('personal:' + owner,data);
+      }
+      const snapshot = await cache.publicList(force);
+      if (current !== generation || session !== localStorage.getItem('m4l_account_token')) return;
+      applyArchiveBooks(snapshot);
+    } catch (error) {
+      if (current !== generation || session !== localStorage.getItem('m4l_account_token')) return;
+      $('al-status').textContent = saved ? 'Library update unavailable. Showing your saved list; refresh to try again.' : error.message;
+    } finally { if (current === generation) $('al-refresh').disabled = false; }
+  }
+
+  $('al-refresh').addEventListener('click', () => void start(true));
   for (const id of ['al-search', 'al-source']) $(id).addEventListener('input', render);
   $('al-categories').addEventListener('click', event => {
     const button = event.target.closest('[data-category]');
@@ -339,6 +351,7 @@
     else if (row?.publicBook && volume) showArchivePdf(row, volume);
   });
   $('al-results').addEventListener('click', event => {
+    if(event.target.closest('[data-resource]')?.dataset.pdfReader)return;
     const id = event.target.closest('[data-resource]')?.dataset.resource;
     const row = state.rows.find(item => item.id === id);
     if (row?.publicLink) window.open(row.linkUrl, '_blank', 'noopener,noreferrer');

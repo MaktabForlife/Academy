@@ -67,6 +67,8 @@ export function normalizeWeeklyDraft(input){
     });
     if(new Set(draft.breaks.map(r=>r.id)).size!==draft.breaks.length)throw problem('Break IDs must be unique.');
   }
+  if(input.timetableId!==undefined){if(!/^TT-[\w-]{1,100}$/.test(input.timetableId))throw problem('Choose a valid timetable ID.');draft.timetableId=input.timetableId;}
+  if(input.programZoomLink!==undefined)draft.programZoomLink=normalizeZoomLink(input.programZoomLink);
   if(input.layout!==undefined)draft.layout=normalizeLayout(input.layout);
   if(input.planner!==undefined)draft.planner=normalizePlanner(input.planner);
   boundedJSON(draft);return draft;
@@ -103,12 +105,12 @@ export function reviewPlanner(draft,catalog){
     if(!validTime(row.startTime)||!validTime(row.endTime)||row.startTime>=row.endTime)continue;
     for(const teacherId of row.teacherIds||[row.teacherId].filter(Boolean)){
       booked.set(teacherId,(booked.get(teacherId)||0)+(minutes(row.endTime)-minutes(row.startTime))*row.weekdays.length);
-      const ranges=planner.availability.filter(item=>item.teacherId===teacherId);
+      const ranges=catalog.requireTeacher?[]:planner.availability.filter(item=>item.teacherId===teacherId);
       if(ranges.length)for(const day of row.weekdays)if(!ranges.some(item=>item.weekday===day&&item.startTime<=row.startTime&&row.endTime<=item.endTime))
         issue(row.sourceRuleId||row.id,'teacherId',`${teachers.get(teacherId)?.name||'Teacher'} is unavailable for the full lesson on ${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][day]}.`);
     }
   }
-  for(const row of planner.availability){
+  for(const row of catalog.requireTeacher?[]:planner.availability){
     if(!teachers.get(row.teacherId)?.active)issue('','availability','Remove availability for a teacher who is no longer eligible.');
   }
   for(const row of planner.limits){
@@ -127,8 +129,8 @@ export function effectiveLessonTeacherId(row,classes){
   const assigned=row.classIds.map(id=>classes.get(id)?.classTeacherId||'');
   return assigned.length&&assigned[0]&&assigned.every(id=>id===assigned[0])?assigned[0]:'';
 }
-export function lessonTeacherGroups(row,classes){
-  if(row.teacherMode==='NONE'||row.teacherId)return [{classIds:row.classIds,teacherId:row.teacherMode==='NONE'?'':row.teacherId,teacherIds:row.teacherMode==='NONE'?[]:[row.teacherId,...(row.additionalTeacherIds||[])]}];
+export function lessonTeacherGroups(row,classes,requireTeacher=false){
+  if(row.teacherMode==='NONE'&&!requireTeacher||row.teacherId)return [{classIds:row.classIds,teacherId:row.teacherMode==='NONE'?'':row.teacherId,teacherIds:row.teacherMode==='NONE'?[]:[row.teacherId,...(row.additionalTeacherIds||[])]}];
   const groups=new Map();
   for(const id of row.classIds){const teacherId=classes.get(id)?.classTeacherId||'';if(!groups.has(teacherId))groups.set(teacherId,[]);groups.get(teacherId).push(id);}
   return [...groups].map(([teacherId,classIds])=>({teacherId,teacherIds:teacherId?[teacherId]:[],classIds}));
@@ -145,17 +147,18 @@ export function validateWeeklyTimetable(input,catalog,program,fromDate){
   const linked=[];
   for(const row of draft.rules){
     const before=issues.length,module=modules.get(row.moduleId),subject=subjects.get(module?.programSubjectId||row.programSubjectId),level=levels.get(module?.levelId);
-    const groups=lessonTeacherGroups(row,classes);
+    const groups=lessonTeacherGroups(row,classes,catalog.requireTeacher);
     if(!subject?.active||!text(subject?.name)||subject.courseId!==program.id||row.moduleId&&(!module?.active||!text(module.name))||row.programSubjectId&&module&&module.programSubjectId!==row.programSubjectId)issue(row.id,'moduleId','Select an active subject or module belonging to this Program.');
     if(module?.levelId&&(!level?.active||!text(level?.name)||level.programSubjectId!==module.programSubjectId))issue(row.id,'moduleId','The module’s optional level must belong to the same subject.');
     if(!row.classIds.length||new Set(row.classIds).size!==row.classIds.length||row.classIds.some(id=>!classes.get(id)?.active||!text(classes.get(id)?.name)||classes.get(id).courseId!==program.id))issue(row.id,'classIds','Select one or more distinct active classes in this Program.');
+    if(catalog.requireTeacher&&groups.some(g=>!g.teacherIds.length))issue(row.id,'teacherId','Assign at least one teacher to every session, directly or through its class.');
     for(const {teacherIds} of groups)for(const teacherId of teacherIds)if(!teachers.get(teacherId)?.active||!text(teachers.get(teacherId)?.name))issue(row.id,'teacherId','Select authorised active teachers.');
     if(!validTime(row.startTime)||!validTime(row.endTime)||row.startTime>=row.endTime)issue(row.id,'time','Use a same-day time range with the end after the start.');
     if(!row.weekdays.length||new Set(row.weekdays).size!==row.weekdays.length||row.weekdays.some(d=>!Number.isInteger(d)||d<0||d>6))issue(row.id,'weekdays','Choose at least one weekday without duplicates.');
-    const zooms=groups.map(({classIds})=>{try{return lessonZoom({...row,classIds},classes);}catch(error){issue(row.id,'zoomLink',error.message);return {zoomLink:'',zoomSource:'NONE'};}});
+    const zooms=groups.map(({classIds})=>{try{return draft.programZoomLink?{zoomLink:draft.programZoomLink,zoomSource:'PROGRAM'}:lessonZoom({...row,classIds},classes);}catch(error){issue(row.id,'zoomLink',error.message);return {zoomLink:'',zoomSource:'NONE'};}});
     if(before===issues.length)groups.forEach(({teacherId,teacherIds,classIds},groupIndex)=>{
       const zoom=zooms[groupIndex];
-      linked.push({...row,id:groups.length===1?row.id:groupedRuleId(row.id,groupIndex),sourceRuleId:row.id,assignmentMode:row.teacherMode==='NONE'?'NONE':row.teacherId?'EXPLICIT':'CLASS',teacherId,teacherIds,teacherNames:teacherIds.map(id=>teachers.get(id).name),classIds,zoomLink:normalizeZoomLink(row.zoomLink),effectiveZoomLink:zoom.zoomLink,zoomSource:zoom.zoomSource,programSubjectId:subject.id,subjectId:subject.subjectId,levelId:module?.levelId||'',subjectName:subject.name,moduleName:module?.name||subject.name,levelName:level?.name||'',classNames:classIds.map(id=>classes.get(id).name),teacherName:teacherId?teachers.get(teacherId).name:''});
+      linked.push({...row,id:groups.length===1?row.id:groupedRuleId(row.id,groupIndex),sourceRuleId:row.id,assignmentMode:row.teacherMode==='NONE'&&!catalog.requireTeacher?'NONE':row.teacherId?'EXPLICIT':'CLASS',teacherId,teacherIds,teacherNames:teacherIds.map(id=>teachers.get(id).name),classIds,zoomLink:normalizeZoomLink(row.zoomLink),effectiveZoomLink:zoom.zoomLink,zoomSource:zoom.zoomSource,programSubjectId:subject.id,subjectId:subject.subjectId,levelId:module?.levelId||'',subjectName:subject.name,moduleName:module?.name||subject.name,levelName:level?.name||'',classNames:classIds.map(id=>classes.get(id).name),teacherName:teacherId?teachers.get(teacherId).name:''});
     });
   }
   const enrollments=(catalog.enrollments||[]).filter(e=>e.active);
@@ -194,17 +197,17 @@ export function publicationRecord(row,program){
   const weekly=snapshot.schema===WEEKLY_SCHEMA,effectiveFrom=weekly?snapshot.effectiveFrom:snapshot.startDate;
   if(!validDate(effectiveFrom)||weekly&&snapshot.format!==WEEKLY_SCHEMA)throw problem('A published timetable has an invalid effective date or format.',409);
   // Labels and audiences come only from the immutable snapshot, never today's catalog.
-  return {id:row.PublicationID,version:Number(row.VersionNo),date:row.PublishedDate,by:row.PublishedByAccountID,effectiveFrom,pattern:weekly?'WEEKLY':'DATED',snapshot,occurrences:weekly?weeklyPattern(snapshot.rules,snapshot.breaks):datedOccurrences(snapshot)};
+  return {lifecycle:row.Lifecycle||'',id:row.PublicationID,version:Number(row.VersionNo),date:row.PublishedDate,by:row.PublishedByAccountID,effectiveFrom,pattern:weekly?'WEEKLY':'DATED',snapshot,occurrences:weekly?weeklyPattern(snapshot.rules,snapshot.breaks):datedOccurrences(snapshot)};
 }
 export function publicationSchedule(publications,asOf){
   if(!validDate(asOf))throw problem('Choose a valid timetable date.');
   const versions=publications.slice().sort((a,b)=>b.version-a.version);
   const latestEligible=versions.find(p=>p.effectiveFrom<=asOf);
-  const current=latestEligible&&(!latestEligible.snapshot.endDate||latestEligible.snapshot.endDate>=asOf)?latestEligible:null;
+  const current=latestEligible&&!latestEligible.lifecycle&&(!latestEligible.snapshot.endDate||latestEligible.snapshot.endDate>=asOf)?latestEligible:null;
   return {currentPublicationId:current?.id||'',publications:publications.map(p=>{
     const newer=versions.filter(n=>n.version>p.version),superseded=newer.some(n=>n.effectiveFrom<=p.effectiveFrom);
     const nextDate=newer.map(n=>n.effectiveFrom).filter(d=>d>p.effectiveFrom).sort()[0];
     const effectiveUntil=[p.snapshot.endDate,nextDate?new Date(Date.parse(`${nextDate}T00:00:00Z`)-86400000).toISOString().slice(0,10):''].filter(Boolean).sort()[0]||'';
-    return {...p,effectiveUntil,status:superseded?'SUPERSEDED':p.id===current?.id?'CURRENT':p.effectiveFrom>asOf?'SCHEDULED':'PAST'};
+    return {...p,effectiveUntil,status:p.lifecycle|| (superseded?'SUPERSEDED':p.id===current?.id?'CURRENT':p.effectiveFrom>asOf?'SCHEDULED':'PAST')};
   })};
 }

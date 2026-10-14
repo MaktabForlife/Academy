@@ -1,0 +1,9 @@
+# V106.39 — Human review of assessment submissions
+
+Each received learner PDF is reviewed by a class teacher or authorised admin. The reviewer opens the latest answer, checks that it is correct and legible, then confirms that specific submission. The confirmation records the reviewer and time. An authorised replacement starts unconfirmed, even if an older version was checked.
+
+After every received latest PDF is confirmed, a teacher or admin can manually select **Ready for Assessment** and acknowledge that no more submissions are expected. Missing learners remain visible for that decision. Marking is unavailable until readiness is set. A later answer upload or authorised replacement clears readiness and requires a fresh check. The separate automatic **Processing results** label is removed; the Imtihaan remains **Being assessed** until marks for the latest received answers are released, then becomes **Complete**.
+
+Migration `0021_assessment_submission_review.sql` adds nullable confirmation and readiness fields plus an answer-view event index. Existing assessments and submissions remain intact; no past PDF is assumed legible or confirmed. Apply this additive migration to development D1 before deploying the V106.39 Worker. The feature branch publishes the matching development website. Production targets are outside this release.
+
+Validation: 26/26 targeted D1 assessment tests, 143/143 backend regression files, real Chrome assessment workflow and 390-pixel PDF-review layout pass. The development Worker dry-run build passed at 1715.16 KiB / 346.89 KiB gzip. The remote D1 export was saved before migration; all four new columns and a clean foreign-key check were verified afterward, with nine existing assessments retained. The development Worker deployed as version `b2ba40d7-61ef-47c9-b7ff-71a28e9509fa`. Website publication follows the feature-branch push; live version checks are reported in the release handoff.

@@ -14,12 +14,15 @@ assert.match(html, /id="context-view"/);
 assert.match(html, /id="context-list"/);
 assert.match(html, /id="open-workspace-button"/);
 assert.match(html, /Switch program or role/);
-assert.match(html, /m4l-account\.js\?v=105\.4\.3\.3/);
+assert.match(html, /m4l-account\.js\?v=106\.9/);
 assert.match(html, /id="program-library-links"/);
 assert.match(script, /program-library\/available/);
 assert.match(script, /library-view\.html\?program=/);
 assert.match(script, /attendance\.href='\/programs\/attendance\.html'/);
 assert.match(html, /id="user-profiles-link" class="hidden" href="\/users\/"/);
+assert.match(html, /id="course-management-link" class="hidden" href="\/academy\/courses\/manage\/"/);
+assert.match(html, /id="course-scheduling-link" class="hidden" href="\/academy\/courses\/manage\/\?view=scheduling"/);
+assert.match(html, /id="academy-library-management-link" class="hidden" href="\/academy\/library\/manage\/"/);
 assert.match(html, /m4l-23-account\.css\?v=104\.5\.4/);
 
 for (const endpoint of [
@@ -75,7 +78,7 @@ assert.match(script, /academy-session-pill/);
 assert.match(script, /date === today \? "TODAY"/);
 assert.match(script, /weekday: "long"/);
 assert.match(script, /session\.isCurrent && session\.canOpenZoom && session\.zoomLink/);
-assert.match(script, /\$\{String\(Number\(match\[1\]\)\)\.padStart\(2, "0"\)\}h\$\{match\[2\]\}/);
+assert.match(script, /\$\{String\(Number\(match\[1\]\)\)\.padStart\(2, "0"\)\}:\$\{match\[2\]\}/);
 assert.match(script, /clearCourseDataCaches/);
 assert.match(script, /localStorage\.removeItem\(TOKEN_KEY\)/);
 assert.match(script, /Authorization: `Bearer \$\{token\}`/);

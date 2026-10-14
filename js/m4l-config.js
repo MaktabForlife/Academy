@@ -59,6 +59,8 @@
 
   window.M4L_CONFIG = Object.freeze({
     ...selectedConfig,
+    HIFZ_PROGRAM_ID: "PRG-3d6b7972-644c-4f81-b95c-8d6c7ffb8227",
+    HIFZHELPER_URL: "https://maktab.hifz-helper.app/",
     HOSTNAME: host,
     IS_DEVELOPMENT: selectedConfig.ENV_NAME === "development",
     IS_PRODUCTION: selectedConfig.ENV_NAME === "production",

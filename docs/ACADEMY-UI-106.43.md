@@ -1,0 +1,17 @@
+# V106.43 — Compact navigation and management workspaces
+
+User-authorised Development release, 13 October 2026. Completes the reviewed layout changes while retaining the existing Academy styling, access rules, records and editing workflows.
+
+- Manage Programs: one Program List, Timetable and People row. A saved Program selection carries between tools. Unsaved row changes disable its tool links; page navigation retains native unsaved-change warnings. Existing auxiliary tool URLs remain available.
+- Manage Courses: List of courses first, then Details, Sessions, Participants, Media and Review & publish. Initial access waits for an explicit selection. Returning to the list retains the current draft; choosing another Course or hiding the selected Course with filters uses existing discard confirmation. Banner Refresh retains the chosen tab and an empty editor never selects a default Course.
+- Manage Users: User Details, Programs and Courses tabs split the wide sheet. Names remain frozen; search, account filters, scope filters, drafts and Save all are shared across sections. Reset PIN is a labelled button with the existing confirmation and self-reset restriction.
+- Shared navigation: smaller plain vertical menu lists with names only; visible Home/Refresh captions; persistent banners; Admin highlighted throughout management. Both old home shortcut rows are removed. Admin headings consistently use Manage X without repeated administration labels.
+- Hifz: the main website Menu opens the public Surahs and Duas page. Learn and Teach contain the direct external HifzHelper account link within existing entitlements. Internal Hifz Program and learner-support tracker shortcuts are removed; legacy public URLs continue to work. Public preview does not expose saved learner progress.
+- Refresh: the banner invokes each active page’s existing action, preserving current filters, selection, pending-write guards and drafts. Duplicate ordinary Refresh/Reload controls are hidden; retry and conflict-recovery controls remain. Update public timetable is a separate publishing action.
+- Manage Assessments: single swipe row on mobile, Help at the right, duplicate heading and Refresh removed. Central Manage Attendance is Coming soon; teaching attendance registers retain their existing routes.
+
+Validation: all 144 regression files passed (385 reported tests). The 130 real Chrome shared-layout checks passed across phone, tablet and desktop sizes, including split Users views, Program navigation, Course draft retention, keyboard navigation, banner Refresh, public Hifz and access restrictions. The full assessment browser workflow passed, including paper release, submission retries, human review, marking, moderation and reports. A follow-up run of affected Course and profile tests passed after the keyboard additions. The assessment harness resets sample account state between identities so its strict session identity checks remain effective.
+
+Development Worker build passed: 1715.76 KiB / 347.01 KiB gzip. Active release markers and changed-asset cache URLs are 106.43. Release targets are `feature/105.3.4.13`, `maktab-development.pages.dev` and `devrebootworker`. Verify website `/version.json`, Worker `/api/health` and the public mobile Hifz menu after publication. Browser screenshots and acceptance evidence are retained locally under `artifacts/academy-10643/` and excluded from the release commit.
+
+No database migration, live correction, permission change or legacy production-target deployment is required.

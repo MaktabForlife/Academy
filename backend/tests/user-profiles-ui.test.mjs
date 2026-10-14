@@ -31,7 +31,7 @@ const submit=async()=>element('up-save').hidden?click('up-save-all'):click('up-s
 const editProfile=async()=>rowClick({profile:'PERSON'});
 const runTimer=async()=>{assert(timers.length);timers.shift().fn();await settled();};
 vm.runInNewContext(source,context);await settled();
-assert.match(element('up-users').innerHTML,/Active/);assert.match(element('up-users').innerHTML,/User/);assert.match(element('up-head').innerHTML,/Free|Paid/);
+assert.match(element('up-users').innerHTML,/Active/);assert.match(element('up-users').innerHTML,/>None ▾<\/button>/);assert.match(element('up-head').innerHTML,/Free|Paid/);
 assert.equal(requests.filter(r=>r.action==='get').length,1);
 await editProfile();name('Kept across navigation');element('up-search').oninput({target:{value:'No match'}});
 assert.equal(element('up-draft-notice').hidden,false);await click('up-return');assert.match(element('up-users').innerHTML,/Kept across navigation/);
@@ -73,7 +73,7 @@ assert.equal(element('up-pending').hidden,true);
 assert.equal(f.tables.AcademyProfileOperations.filter(r=>r.OperationID===retryRequest.operationId).length,1);
 // An independently changed record needs an explicit choice and never silently overwrites.
 await editProfile();name('My proposed name');f.tables.UserAccounts[1].DisplayName='Other administrator name';
-await submit();assert.equal(element('up-conflict').hidden,false);assert.match(element('up-comparison').innerHTML,/My proposed name/);assert.match(element('up-comparison').innerHTML,/Other administrator name/);
+await submit();assert.equal(element('up-conflict').hidden,false);assert.match(element('up-comparison').innerHTML,/My proposed name/);assert.match(element('up-comparison').innerHTML,/Other administrator name/);assert.match(element('up-comparison').innerHTML,/Your proposed entry/);assert(!element('up-comparison').innerHTML.includes('<table'));
 assert(!ids.has('up-keep-mine'));assert.equal(element('up-save-all').disabled,false);
 await click('up-save-all');assert.equal(f.tables.UserAccounts[1].DisplayName,'My proposed name');
 // Separate status preserves all subject/program roles and subscriptions.
@@ -91,6 +91,7 @@ assert.deepEqual(requests.filter(r=>r.action==='save').at(-1).body,pendingReques
 assert(!Object.hasOwn(pendingRequest,'needsRecovery'));
 console.log('Shared profiles UI: matrix rows, combined roles, independent inactive status, preserved drafts, stable retries, post-save quota recovery and conflict review passed.');
 
+element('up-status-filter').onchange({target:{value:''}});
 // Several users and role cells are retained and committed by Save all in one write.
 await editProfile();name('Batch person');element('up-users').onchange({target:{dataset:{active:''},value:'true'}});
 await rowClick({profile:'OWNER'});name('Batch owner');
@@ -135,3 +136,43 @@ directory=await service.read('get');
 assert(!directory.accounts[1].assignments.find(g=>g.scopeId==='PRG-DEMO').roles.includes('TEACHER'));
 assert(directory.accounts[0].assignments.find(g=>g.scopeId==='PRG-DEMO').roles.includes('STUDENT'));
 console.log('Profiles UI: one Save all resolves a shared policy revision for multiple role drafts.');
+
+// Global Admin always carries Program Admin in every scope. Additional roles
+// stay editable without copying the automatic grant into a scoped save.
+{
+  const elements=new Map(),requests=[],storage=new Map();
+  const data={prepared:true,teacherDesignationEditable:true,reviewCount:0,policyEditable:false,roles:['STUDENT','TEACHER','PROGRAM_ADMIN'],
+    scopes:[{type:'PROGRAM',id:'P',name:'Program',prepared:true,rolesEditable:true,policyEditable:false,active:true,revision:'scope-p'},
+      {type:'SUBJECT',id:'C',name:'Course',prepared:true,rolesEditable:true,policyEditable:false,active:true,revision:'scope-c'}],
+    accounts:[{accountId:'GLOBAL',displayName:'Synthetic Global Admin',active:true,academyAdmin:true,academyTeacher:false,revision:'profile',
+      assignments:['PROGRAM','SUBJECT'].map((scopeType,i)=>({accountId:'GLOBAL',scopeType,scopeId:i?'C':'P',roles:[],inheritedRoles:['PROGRAM_ADMIN'],displayRoles:['PROGRAM_ADMIN'],revision:'grant-'+i}))}]};
+  const element=id=>{if(!elements.has(id))elements.set(id,{hidden:false,disabled:false,value:'',textContent:'',innerHTML:'',classList:{toggle(){}},focus(){},showModal(){this.open=true;},close(){this.open=false;}});return elements.get(id);};
+  vm.runInNewContext(source,{...context,document:{getElementById:element},sessionStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},fetch:async(url,options)=>{
+    const action=url.split('/').at(-1),body=JSON.parse(options.body);requests.push({action,body});
+    if(action==='save'&&body.mode==='profile'){data.accounts[0].academyTeacher=body.academyTeacher;return {ok:true,status:200,json:async()=>({success:true,profile:data.accounts[0]})};}
+    if(action==='save'){const g=data.accounts[0].assignments.find(g=>g.scopeType===body.scopeType);g.roles=[...body.roles];return {ok:true,status:200,json:async()=>({success:true,assignment:g})};}
+    return {ok:true,status:200,json:async()=>({success:true,...data})};
+  }});await settled();
+  assert.equal((element('up-users').innerHTML.match(/>Admin ▾/g)||[]).length,2);
+  for(const scope of ['PROGRAM:P','SUBJECT:C']) {
+    element('up-users').onclick({target:{closest:()=>({dataset:{editScope:scope,account:'GLOBAL'}})}});await settled();
+    assert.match(element('up-users').innerHTML,/data-role="PROGRAM_ADMIN" checked[^>]*disabled/);
+    assert(!element('up-users').innerHTML.includes('data-default-user'));
+    const [scopeType]=scope.split(':');
+    element('up-users').onchange({target:{dataset:{role:'TEACHER',account:'GLOBAL',scope},checked:true}});
+    element('up-save-all').onclick();await settled();
+    assert.equal(requests.filter(r=>r.action==='save').at(-1).body.scopeType,scopeType);
+    assert.deepEqual(requests.filter(r=>r.action==='save').at(-1).body.roles,['TEACHER']);
+    assert.match(element('up-users').innerHTML,/>Admin · Teacher ▾/);
+  }
+  assert.doesNotMatch(element('up-users').innerHTML,/data-global-teacher/);
+  element('up-global-status').onclick();
+  element('up-global-results').onclick({target:{closest:()=>({dataset:{globalUser:'GLOBAL'}})}});
+  assert.equal(element('up-global-name').textContent,'Synthetic Global Admin');
+  const assignments=JSON.stringify(data.accounts[0].assignments);
+  element('up-global-teacher').onchange({target:{checked:true}});
+  element('up-save-all').onclick();await settled();
+  const designation=requests.filter(r=>r.action==='save').at(-1).body;assert.equal(designation.mode,'profile');assert.equal(designation.academyTeacher,true);assert.equal(designation.academyAdmin,undefined);assert.equal(data.accounts[0].academyAdmin,true);assert.equal(JSON.stringify(data.accounts[0].assignments),assignments);
+  assert.equal(element('up-global-teacher').checked,true);
+}
+console.log('Profiles UI: automatic Program Admin for Global Admins survives additional Program and Course role edits.');

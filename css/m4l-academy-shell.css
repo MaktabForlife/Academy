@@ -1,0 +1,99 @@
+/* Persistent shared banners, compact workspace headings, and edge menus. */
+body.academy-shell{padding-left:0!important;--academy-gutter:clamp(12px,3vw,28px)}
+.academy-shell .app{display:block!important}
+.academy-banners{position:sticky;top:0;z-index:60;background:#fff;box-shadow:0 3px 12px #37203c10}
+.academy-shell .academy-banners>:is(.sidebar,.academy-connected-sidebar){position:static!important;inset:auto!important;display:flex!important;flex-direction:row;align-items:center;justify-content:space-between;gap:12px;width:100%!important;height:64px!important;max-height:none!important;overflow:visible!important;margin:0;padding:8px var(--academy-gutter)!important;border:0;border-bottom:1px solid #ded0e2;background:#fffcff}
+.academy-shell :is(.brand,.academy-connected-brand){padding:0;gap:10px;text-decoration:none}
+.academy-shell :is(.brand,.academy-connected-brand) img{height:40px;width:40px}
+.academy-shell :is(.brand,.academy-connected-brand) strong{font:400 16px/1.06 Georgia,serif}
+.academy-shell .academy-connected-brand small{display:none}
+.academy-shell .brand .site-version,.academy-shell .academy-connected-brand .site-version{display:block;font:600 9px/1.2 Arial,sans-serif;color:#58305f;margin-top:4px}
+.academy-shell .academy-menu-toggle{display:inline-flex!important;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 14px;border:1px solid #d5bfdd;border-radius:12px;background:#f6eff8;color:#58305f;font:600 14px Arial,sans-serif}
+.academy-shell .academy-account-bar{padding:8px var(--academy-gutter);border-bottom:1px solid #ded0e2;background:#fffcff}
+.academy-shell .academy-account-row{display:flex;align-items:center;flex-wrap:nowrap;gap:8px}
+.academy-shell .academy-profile{flex:1;min-width:0;overflow-wrap:anywhere}
+.academy-shell .academy-profile :is(strong,.academy-header-name){display:block;font:700 13px/1.25 Arial,sans-serif;color:#58305f;text-align:left}
+.academy-shell .academy-profile>small{font-size:10px;margin-top:1px}
+.academy-shell .academy-welcome{font-size:10px;margin-bottom:2px}
+.academy-shell .academy-page-actions{display:flex;flex-wrap:nowrap;gap:5px;margin:0 0 0 auto;flex:none}
+.academy-shell .academy-page-actions>[data-page-home],.academy-shell .academy-page-actions>[data-page-refresh]{width:44px;min-width:44px;height:44px;padding:10px}
+.academy-page-actions svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.academy-shell .academy-page-actions button{min-height:44px;font-size:12px}
+.academy-shell .academy-role-tabs{display:flex;width:100%;flex-wrap:nowrap;gap:4px;margin:6px 0 0;padding:3px;background:#f3eaf5;border-radius:12px}
+.academy-shell .academy-role-tabs button{flex:1;min-height:44px;border:0;border-radius:9px;background:transparent;color:#674270;font:700 12px Arial,sans-serif}
+.academy-shell .academy-role-tabs button[aria-pressed=true],.academy-shell .academy-role-tabs button[aria-expanded=true]{background:#805088;color:#fff}
+.academy-shell .academy-role-tabs:not(:has(button:not([hidden]))){display:none}
+.academy-shell :is(.academy-connected-activities,.academy-global-strip,.topbar,.academy-role-panel,.account-brand){display:none!important}
+.academy-shell .container,.academy-shell.academy-connected main{padding:14px var(--academy-gutter) 36px;max-width:1500px;margin:auto;min-width:0}
+.academy-shell #activity>:is(.academy-home-icon,#activity-role),.academy-shell #activity .activity-heading #activity-role{display:none!important}
+.academy-shell #activity .activity-heading{margin:0 0 8px;min-height:0;gap:0}
+.academy-shell #activity .activity-heading .eyebrow{font-size:10px;letter-spacing:.12em}
+.academy-shell :is(.page-heading,.pb-heading,.up-titlebar,.cm-page-heading,.library-title-row,.pgm-heading){margin:0 0 12px;gap:8px;align-items:center}
+.academy-shell :is(.page-heading h1,.pb-heading h1,.up-titlebar h1,.cm-page-heading h1,.library-title-row h1,.pgm-heading h1){font:400 28px/1.15 Georgia,serif;margin:0}
+.academy-shell .workspace-tabs{margin:0 0 10px;padding-bottom:4px}
+.academy-shell .workspace-tabs a,.academy-shell .workspace-tabs button{min-height:44px}
+.academy-shell .admin-heading>div{flex:0 1 auto}
+.academy-shell .admin-heading [role=status]:empty{display:none}
+.academy-shell :is(.pgm-identity,.pgm-icons a[aria-label="Academy home"],.pb-header>.pb-brand,.pb-version,.al-header){display:none!important}
+.academy-shell .pgm-header{border:0;border-radius:0;background:transparent;padding:0;margin-bottom:12px}
+.academy-shell .pgm-heading>div{flex:1 1 auto}
+.academy-shell .al-intro{margin:0 0 10px;padding:0}
+.academy-shell .al-intro>p{display:none}
+.academy-shell .al-tabs{margin:0 0 12px}
+.academy-shell .al-main>.al-eyebrow{display:none}
+.academy-shell .account-shell{display:block;max-width:1000px}
+.academy-shell .account-panel-topline{display:none}
+.academy-shell [id]{scroll-margin-top:calc(var(--academy-banner-height,170px) + 12px)}
+.academy-drawer{position:fixed;inset:0 0 0 auto;margin:0;width:min(360px,92vw);max-width:none;height:100dvh;max-height:none;padding:18px;border:0;border-radius:0;background:#fffcff;color:#302936;overflow:auto;box-shadow:0 0 35px #30203633;font:14px/1.45 Arial,sans-serif}
+.academy-drawer[data-side=left]{inset:0 auto 0 0}
+.academy-drawer::backdrop{background:#21152666}
+.academy-drawer[open]{animation:academy-slide-right .2s ease-out}
+.academy-drawer[open][data-side=left]{animation-name:academy-slide-left}
+.academy-drawer-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.academy-drawer-heading h2{font:400 28px Georgia,serif;margin:0}
+.academy-drawer-heading button{width:44px;height:44px;border:1px solid #ded0e2;border-radius:12px;background:#fff;color:#58305f;font-size:26px}
+.academy-drawer .academy-menu-content{display:flex!important;flex-direction:column;gap:12px;margin:0;padding:0;border:0}
+.academy-drawer .academy-menu-content :is(nav,.nav){display:flex!important;flex-direction:column;gap:5px;overflow:visible;width:100%}
+.academy-drawer :is(.academy-menu-content nav a,.academy-menu-content .nav button,.academy-drawer-choice>a){display:flex;flex-direction:column;align-items:flex-start;justify-content:center;min-height:48px;width:100%;padding:12px;border:1px solid #e8ddeb;border-radius:10px;background:#fff;color:#58305f;text-align:left;text-decoration:none;font:600 14px Arial,sans-serif;overflow-wrap:anywhere}
+.academy-drawer-choice{margin-bottom:8px}
+.academy-drawer-choice small{font:400 11px Arial,sans-serif;margin-top:4px;color:#6b5c70}
+.academy-drawer-choice .academy-hifz-shortcut{margin-top:4px;background:#f3eaf5;font-size:12px}
+.academy-drawer .nav-label,.academy-drawer .sidebar-note{display:none}
+.academy-drawer-open{overflow:hidden}
+@keyframes academy-slide-right{from{transform:translateX(100%)}to{transform:translateX(0)}}
+@keyframes academy-slide-left{from{transform:translateX(-100%)}to{transform:translateX(0)}}
+@media(min-width:901px){.academy-shell .academy-account-bar{display:flex;align-items:center;gap:20px}.academy-shell .academy-account-row{flex:1}.academy-shell .academy-role-tabs{width:auto;min-width:290px;margin:0}.academy-shell .academy-role-tabs button{min-width:88px}}
+@media(prefers-reduced-motion:reduce){.academy-drawer[open]{animation:none}}
+.academy-shell #activity-menu{gap:4px;margin-bottom:8px}
+.academy-shell #activity-schedule{margin-top:0}
+.academy-shell #activity-schedule .section-title h2{font-size:24px}
+.academy-shell.academy-connected>header.pb-header,.academy-shell.academy-connected>header.pb-header+p{display:none}
+.academy-shell .cm-page-heading p{display:none}
+.academy-shell .workspace-tabs button{flex:0 0 auto;scroll-snap-align:start;border-radius:100px;min-height:44px;padding:10px 14px}
+
+/* Pending review: captions and compact unboxed navigation lists. */
+.academy-shell .academy-page-actions>[data-page-home],.academy-shell .academy-page-actions>[data-page-refresh]{display:flex;flex-direction:column;gap:2px;width:44px;min-width:44px;height:60px;padding:0;border:0;background:transparent;font-size:10px}
+.academy-shell .page-action-icon{display:grid;place-items:center;width:44px;height:44px;border:1px solid #ded0e2;border-radius:50%;background:#fff}
+.academy-shell .page-action-label{font:500 10px/1.2 Arial,sans-serif;color:#58305f}
+.academy-drawer{width:min(320px,88vw);padding:16px}
+.academy-drawer-heading{margin-bottom:8px}
+.academy-drawer-heading h2{font-size:24px}
+.academy-drawer .academy-menu-content{gap:8px}
+.academy-drawer .academy-menu-content :is(nav,.nav){gap:0}
+.academy-drawer :is(.academy-menu-content nav a,.academy-menu-content .nav button,.academy-drawer-choice>a){min-height:44px;padding:8px 6px;border:0;border-radius:0;background:transparent;font:500 13px/1.3 Arial,sans-serif}
+.academy-drawer .academy-menu-content :is(nav a,.nav button):hover,.academy-drawer-choice>a:hover{color:#805088;text-decoration:underline;background:transparent}
+.academy-drawer-choice{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px;margin:0}
+.academy-drawer-choice>a:first-child{flex-direction:row;justify-content:space-between;align-items:center;gap:10px;min-width:0}
+.academy-drawer-choice small{font-size:10px;margin:0;font-weight:400}
+.academy-drawer-choice .academy-hifz-shortcut{width:auto;min-height:44px;margin:0;padding:8px 6px;background:transparent;font-size:13px;white-space:nowrap}
+.academy-shell #progress .page-heading{flex-wrap:nowrap;margin-bottom:10px}
+.academy-shell #progress .page-heading>div{flex:1;min-width:0}
+.academy-shell #progress .eyebrow{font-size:10px;letter-spacing:.12em}
+.academy-shell #progress :is(.mp-toolbar,.mp-status:empty){display:none}
+.academy-shell #hifdh-helper{flex:none;min-height:44px;padding:8px 12px;font-size:12px}
+.academy-shell .admin-management-menu a[aria-current=page]{background:#58305f;color:#fff}
+.academy-shell .al-intro h1{font:400 28px/1.15 Georgia,serif;margin:0}
+.academy-shell [data-page-content-refresh]{display:none!important}
+.academy-shell .mp-toolbar:not(:has(button:not([data-page-content-refresh]))){display:none}
+
+.academy-calendar-frame{display:block;width:100%;height:900px;border:0;background:transparent}.academy-inline-calendar{min-width:0}

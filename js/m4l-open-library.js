@@ -1,19 +1,9 @@
 (() => {
   'use strict';
 
-  // Curated public links. Add each book once, even when its source lists it for several grades.
-  let books = [
-    {
-      id: 'EXTERNAL:TALIMI_BOARD_KZN:ESSENTIAL_DUAS_GR_1_7',
-      title: 'Essential Duas for Muslims (Grades 1–7)',
-      subject: 'Duas',
-      source: 'Ta’limi Board KZN',
-      details: 'Jamiatul Ulama (KZN) Ta’limi Board',
-      description: 'Duas for learners in Grades 1–7.',
-      pdfUrl: 'https://talimiboardkzn.org/wp-content/uploads/2018/10/essential_duas_for_muslims_gr_1-7.pdf'
-    }
-  ];
-
+  let books = [];
+  const cache = window.M4L_LIBRARY_CACHE;
+  let loadGeneration = 0;
   const $ = id => document.getElementById(id);
   const mediaIcons = { EBOOK: '/icons/ebook.svg', PRINTABLE: '/icons/printable.svg',
     AUDIO: '/icons/audio.svg', VIDEO: '/icons/video.svg', OTHER: '/icons/other.svg' };
@@ -29,9 +19,10 @@
 
   function matchesCategory(type) {
     if (selectedCategory === 'ALL') return true;
-    if (selectedCategory === 'PDF') return ['EBOOK', 'PRINTABLE'].includes(type || 'EBOOK');
-    if (selectedCategory === 'AUDIO_VISUAL') return ['AUDIO', 'VIDEO'].includes(type);
-    return type === 'OTHER';
+    const resourceType = type || 'EBOOK';
+    if (selectedCategory === 'PDF') return resourceType === 'EBOOK' || resourceType === 'PRINTABLE';
+    if (selectedCategory === 'AUDIOVISUAL') return resourceType === 'AUDIO' || resourceType === 'VIDEO';
+    return resourceType === selectedCategory;
   }
 
   function clearMedia() {
@@ -72,12 +63,14 @@
       const list = document.createElement('div');
       list.className = 'ol-subject-books';
       for (const book of entries) {
-        const card = document.createElement(book.linkUrl ? 'a' : 'button');
+        const pdfBook=!book.linkUrl&&(!book.resourceType||['EBOOK','PRINTABLE'].includes(book.resourceType));
+        const card = document.createElement(book.linkUrl||pdfBook ? 'a' : 'button');
+        if(pdfBook){const selected=book.volumes?.[0]||book;card.href='/academy/pdf-reader/?file='+encodeURIComponent(pdfProxy(selected.pdfUrl))+'&title='+encodeURIComponent(book.title);card.target='_blank';card.rel='noopener noreferrer';card.dataset.pdfReader='true';}
         if (book.linkUrl) {
           card.href = book.linkUrl;
           card.target = '_blank';
           card.rel = 'noopener noreferrer';
-        } else card.type = 'button';
+        } else if(!pdfBook)card.type = 'button';
         card.className = 'ol-card';
         card.dataset.resource = book.id;
         const verb = book.linkUrl ? 'Visit' : book.resourceType === 'AUDIO' ? 'Listen to' :
@@ -131,11 +124,11 @@
   function showPdf(book, volume) {
     const selected = volume || book;
     clearMedia();
-    viewer.hidden = false;
-    $('ol-original').href = selected.pdfUrl;
-    $('ol-original').textContent = 'Open original PDF at source ↗';
+    viewer.hidden = true;
+    $('ol-original').href = '/academy/pdf-reader/?file='+encodeURIComponent(pdfProxy(selected.pdfUrl))+'&title='+encodeURIComponent(book.title);
+    $('ol-original').textContent = 'Open PDF reader in a new tab ↗';
     viewer.title = `${book.title}${volume ? `, ${volume.label || `volume ${volume.number}`}` : ''} PDF`;
-    viewer.src = `/pdf-viewer/web/viewer.html?file=${encodeURIComponent(pdfProxy(selected.pdfUrl))}`;
+    viewer.src = 'about:blank';
     const url = new URL(window.location.href);
     url.searchParams.set('resource', book.id);
     if (volume) url.searchParams.set('volume', String(volume.number));
@@ -191,6 +184,7 @@
   }
 
   results.addEventListener('click', event => {
+    if(event.target.closest('[data-resource]')?.dataset.pdfReader)return;
     const id = event.target.closest('[data-resource]')?.dataset.resource;
     const book = books.find(item => item.id === id);
     if (book && !book.linkUrl) open(book);
@@ -223,32 +217,21 @@
   });
 
   render();
-  async function loadAcademyMetadata() {
-    try {
-      const base = window.M4L_CONFIG?.API_BASE || '';
-      const response = await fetch(`${base}/api/academy/open-library/metadata/public`);
-      if (!response.ok) return [];
-      const data = await response.json();
-      return Array.isArray(data.records) ? data.records : [];
-    } catch { return []; }
+  async function loadArchiveBooks(force = false) {
+    const generation = ++loadGeneration;
+    const button = $('ol-refresh');
+    button.disabled = true;
+    status.textContent = 'Updating Library…';
+    const snapshot = await cache.publicList(force);
+    if (generation !== loadGeneration) return;
+    applySnapshot(snapshot);
+    button.disabled = false;
   }
-  async function loadArchiveBooks() {
-    status.textContent = 'Loading media from Internet Archive…';
-    let archiveBooks = [];
-    let archiveUnavailable = false;
-    try {
-      const response = await fetch('/academy/open-library/catalogue');
-      if (!response.ok) throw new Error('Archive.org catalogue unavailable');
-      const data = await response.json();
-      if (!Array.isArray(data.books)) throw new Error('Invalid Archive.org catalogue');
-      archiveBooks = data.books;
-    } catch (_error) {
-      archiveUnavailable = true;
-    }
-    const metadata = await loadAcademyMetadata();
+  function applySnapshot(snapshot) {
+    const {books:archiveBooks, records:metadata} = snapshot.data;
     const byId = new Map(metadata.filter(record => typeof record.id === 'string')
       .map(record => [record.id, record]));
-    books = [...books, ...archiveBooks].map(book => {
+    books = archiveBooks.map(book => {
       const record = byId.get(book.id);
       if (!record) return book;
       return {
@@ -268,12 +251,14 @@
         module: record.module || '', learningAreas: record.learningAreas || [], source: 'Website',
         details: record.author || '', description: record.description || '',
         coverUrl: record.coverUrl || '', resourceType: 'OTHER', linkUrl: record.linkUrl })));
-    status.textContent = archiveUnavailable ? 'Archive.org media are temporarily unavailable. Other links remain available.' :
-      archiveBooks.length ? '' : 'No public media are available in the Archive.org list yet.';
+    status.textContent = snapshot.message || (archiveBooks.length ? '' : 'No public media are available in the Archive.org list yet.');
     render();
     const linkedBook = books.find(book => book.id === new URLSearchParams(window.location.search).get('resource'));
-    if (linkedBook && !linkedBook.linkUrl) open(linkedBook, new URLSearchParams(window.location.search).get('volume'));
+    if (linkedBook && !linkedBook.linkUrl && !dialog.open) open(linkedBook, new URLSearchParams(window.location.search).get('volume'));
   }
+  $('ol-refresh').addEventListener('click', () => void loadArchiveBooks(true));
+  const saved = cache.read('public');
+  if (saved) applySnapshot(saved);
+  if (!saved || saved.stale) void loadArchiveBooks();
 
-  loadArchiveBooks();
 })();

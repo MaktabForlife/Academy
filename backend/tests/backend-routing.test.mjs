@@ -172,8 +172,10 @@ for (const variable of [...LEGACY_SELECTORS, ...ENVIRONMENT_VALUES]) {
 }
 
 assert.equal(wranglerConfig.keep_vars, true, "Deployments must preserve Worker Settings variables");
-assert.equal(wranglerConfig.r2_buckets[0].binding, "MEDIA_BUCKET");
-assert.equal(wranglerConfig.env.development.r2_buckets[0].binding, "MEDIA_BUCKET");
+assert.equal(wranglerConfig.r2_buckets.find(b=>b.binding==="MEDIA_BUCKET").binding, "MEDIA_BUCKET");
+assert.equal(wranglerConfig.env.development.r2_buckets.find(b=>b.binding==="MEDIA_BUCKET").binding, "MEDIA_BUCKET");
+assert.equal(wranglerConfig.r2_buckets.find(b=>b.binding==="ASSESSMENT_BUCKET").bucket_name,"maktab-assessments-private");
+assert.equal(wranglerConfig.env.development.r2_buckets.find(b=>b.binding==="ASSESSMENT_BUCKET").bucket_name,"maktab-assessments-private-development");
 assert.equal(wranglerConfig.ratelimits[0].name, "AUTH_LOGIN_RATE_LIMITER");
 assert.equal(wranglerConfig.env.development.ratelimits[0].name, "AUTH_LOGIN_RATE_LIMITER");
 

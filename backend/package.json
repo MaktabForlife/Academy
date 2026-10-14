@@ -1,9 +1,15 @@
 {
   "name": "rebootworker",
-  "version": "105.4.3.3",
+  "version": "106.58",
   "type": "module",
   "scripts": {
     "test": "node tests/run-all.mjs",
+    "test:academy-mobile": "node tools/academy-mobile-layout-acceptance.mjs",
+    "test:lesson-media": "node --test tests/academy-lesson-media.test.mjs",
+    "test:lesson-media:browser": "node tools/academy-lesson-media-acceptance.mjs",
+    "test:assessments": "node --test tests/academy-d1-assessments.test.mjs tests/academy-d1-assessment-register.test.mjs",
+    "test:assessments:browser": "node tools/academy-assessment-acceptance.mjs",
+    "test:assessments:r2": "node tools/academy-assessment-r2-smoke.mjs",
     "test:v104.4-read-audit": "node tests/v104-read-audit.test.mjs",
     "test:v104.5-derived-courses": "node tests/global-course-derived-scheduling.test.mjs",
     "dev": "wrangler dev",
@@ -55,6 +61,8 @@
     "test:timetable-ui": "node tests/timetable-teacher-ui.test.mjs",
     "test:teacher-complete-timetable": "node tests/teacher-complete-timetable.test.mjs",
     "test:weekly-planner": "node tests/weekly-planner.test.mjs",
+    "test:pdf-reader": "node --test tests/academy-d1-pdf-tools.test.mjs",
+    "test:pdf-reader:browser": "node tools/academy-pdf-tools-acceptance.mjs",
     "test:pdfjs-annotations": "node tests/pdfjs-annotation-session.test.mjs",
     "test:pdf-split": "node tests/pdf-split-view.test.mjs",
     "test:drive-library": "node tests/drive-library.test.mjs",
@@ -63,7 +71,9 @@
     "test:group-zero-access": "node tests/group-zero-access.test.mjs",
     "test:v104.5.3-ongoing-window": "node --test tests/v10453-ongoing-derived-window.test.mjs tests/v10453-ongoing-derived-window-ui.test.mjs",
     "test:v104.5.1-course-ui": "node tests/v1045-course-ui-refinement.test.mjs",
-    "test:v104.5.4-ui": "node tests/v10454-course-calendar-ui.test.mjs && node tests/v1045-course-ui-refinement.test.mjs && node tests/academy-timetable.test.mjs"
+    "test:v104.5.4-ui": "node tests/v10454-course-calendar-ui.test.mjs && node tests/v1045-course-ui-refinement.test.mjs && node tests/academy-timetable.test.mjs",
+    "test:memorisation": "node --test tests/academy-d1-memorisation.test.mjs",
+    "test:memorisation:browser": "node tools/academy-memorisation-acceptance.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.36.0"

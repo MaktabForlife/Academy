@@ -160,9 +160,10 @@
     try {
       const token = appState()?.token || "";
       const [delivery, timetable] = await Promise.all([
-        apiPost("/api/admin/platform/global/delivery/get", {}, token),
-        apiPost("/api/admin/platform/global/timetable/get", {}, token)
+        workflowPost("/api/admin/platform/global/delivery/get", {}, token),
+        workflowPost("/api/admin/platform/global/timetable/get", {}, token)
       ]);
+      if (delivery.workflowStore === "D1" && delivery.workflowRevision !== timetable.workflowRevision) throw new Error("Courses changed while loading. Please refresh.");
       if (!delivery.success) throw new Error(delivery.error || delivery.detail || "Unable to load Courses");
       if (!timetable.success) throw new Error(timetable.error || timetable.detail || "Unable to load Course timetables");
       model.delivery = {
@@ -399,8 +400,8 @@
     const selectedDays = new Set(array(row.days).map(value => String(value).toUpperCase()));
     return `<div class="global-course-schedule-row ${row.dirty ? "is-dirty" : ""}" data-course-key="${attr(course.key)}" data-schedule-row-key="${attr(row.key)}">
       ${field("Days", `<div class="global-course-day-pills">${dayPills(selectedDays, course.key, row.key)}</div>`)}
-      ${field("Start", `<input data-course-schedule-field="start" data-course-key="${attr(course.key)}" data-row-key="${attr(row.key)}" data-time24 type="text" inputmode="numeric" value="${attr(formatUiTime(row.start))}" placeholder="--h--" />`)}
-      ${field("End", `<input data-course-schedule-field="end" data-course-key="${attr(course.key)}" data-row-key="${attr(row.key)}" data-time24 type="text" inputmode="numeric" value="${attr(formatUiTime(row.end))}" placeholder="--h--" />`)}
+      ${field("Start", `<input data-course-schedule-field="start" data-course-key="${attr(course.key)}" data-row-key="${attr(row.key)}" data-time24 type="text" value="${attr(formatUiTime(row.start))}" placeholder="HH:mm" />`)}
+      ${field("End", `<input data-course-schedule-field="end" data-course-key="${attr(course.key)}" data-row-key="${attr(row.key)}" data-time24 type="text" value="${attr(formatUiTime(row.end))}" placeholder="HH:mm" />`)}
       ${field("Module", `<select data-course-schedule-field="moduleid" data-course-key="${attr(course.key)}" data-row-key="${attr(row.key)}"><option value="">No module</option>${moduleOptions(course.subjectid, row.moduleid)}</select>`)}
       ${field("Teacher", `<select data-course-schedule-field="teacherid" data-course-key="${attr(course.key)}" data-row-key="${attr(row.key)}">${teacherOptions(row.teacherid)}</select>`)}
       ${field("Zoom link", `<input data-course-schedule-field="zoom" data-course-key="${attr(course.key)}" data-row-key="${attr(row.key)}" type="url" value="${attr(row.zoom)}" inputmode="url" placeholder="https://…" />`)}
@@ -423,7 +424,7 @@
 
   async function previewCourseAccessMigration(button) {
     await withBusy(button, "Checking…", async () => {
-      const result = await apiPost("/api/admin/platform/global/courses/migrate-access", { commit: false }, appState()?.token || "");
+      const result = await workflowPost("/api/admin/platform/global/courses/migrate-access", { commit: false }, appState()?.token || "");
       if (!result.success) throw new Error(result.error || result.detail || "Unable to preview Course access migration");
       if (!result.canCommit) {
         setMessage("Course FREE/PAID access is already prepared.", "success");
@@ -437,7 +438,7 @@
 
   async function migrateCourseAccess(button) {
     await withBusy(button, "Migrating…", async () => {
-      const result = await apiPost("/api/admin/platform/global/courses/migrate-access", {
+      const result = await workflowPost("/api/admin/platform/global/courses/migrate-access", {
         commit: true,
         confirmation: "MIGRATE COURSES"
       }, appState()?.token || "");
@@ -458,7 +459,7 @@
 
   async function previewCourseScheduleMigration(button) {
     await withBusy(button, "Checking…", async () => {
-      const result = await apiPost("/api/admin/platform/global/courses/migrate-scheduling", { commit: false }, appState()?.token || "");
+      const result = await workflowPost("/api/admin/platform/global/courses/migrate-scheduling", { commit: false }, appState()?.token || "");
       if (!result.success) throw new Error(result.error || result.detail || "Unable to preview Course scheduling migration");
       if (!result.canCommit) {
         setMessage("Derived Course scheduling is already prepared.", "success");
@@ -475,7 +476,7 @@
 
   async function migrateCourseScheduling(button) {
     await withBusy(button, "Migrating…", async () => {
-      const result = await apiPost("/api/admin/platform/global/courses/migrate-scheduling", {
+      const result = await workflowPost("/api/admin/platform/global/courses/migrate-scheduling", {
         commit: true,
         confirmation: "MIGRATE COURSE SCHEDULING"
       }, appState()?.token || "");
@@ -635,12 +636,12 @@
         const timetableWork = course.scheduleDirty || course.windowDirty || deliveryWindowChanged(course);
         const metadataWork = course.dirty || course.isNew || course.windowDirty || (course.schedulemode === "DERIVED" && course.scheduleDirty);
         if (priorRunId && stateForRun(priorRunId)?.stage === "PUBLISHED" && (metadataWork || timetableWork)) {
-          const revised = await apiPost("/api/admin/platform/global/timetable/revise", { runId: priorRunId }, token);
+          const revised = await workflowPost("/api/admin/platform/global/timetable/revise", { runId: priorRunId }, token);
           if (!revised.success) throw new Error(revised.error || revised.detail || `Unable to open a revision for ${course.runname}`);
         }
 
         if (metadataWork) {
-          const saved = await apiPost("/api/admin/platform/global/run/save", {
+          const saved = await workflowPost("/api/admin/platform/global/run/save", {
             runId: course.runid,
             subjectId: course.subjectid,
             runName: course.runname,
@@ -734,7 +735,7 @@
     }
 
     if (changesById.size) {
-      const result = await apiPost("/api/admin/platform/global/timetable/session/batch-save", {
+      const result = await workflowPost("/api/admin/platform/global/timetable/session/batch-save", {
         runId: course.runid,
         changes: [...changesById.values()]
       }, token);
@@ -743,7 +744,7 @@
 
     for (const spec of generateSpecs) {
       if (!spec.days.length) continue;
-      const result = await apiPost("/api/admin/platform/global/timetable/generate", {
+      const result = await workflowPost("/api/admin/platform/global/timetable/generate", {
         runId: course.runid,
         moduleId: spec.row.moduleid,
         weekdays: spec.days,
@@ -800,7 +801,7 @@
       }
       for (const row of course.scheduleRows.filter(item => item.dirty && scheduleHasContent(item))) {
         if (!row.days.length || !parseUiTime(row.start) || !parseUiTime(row.end) || parseUiTime(row.end) <= parseUiTime(row.start)) {
-          setMessage(`${course.runname || "Course"}: every changed schedule row needs days and a valid increasing time such as 13h00–14h00.`, "error"); return false;
+          setMessage(`${course.runname || "Course"}: every changed schedule row needs days and a valid increasing time such as 13:00–14:00.`, "error"); return false;
         }
       }
     }
@@ -823,7 +824,7 @@
       return false;
     }
     await withBusy(button, "Publishing…", async () => {
-      const result = await apiPost("/api/admin/platform/global/timetable/publish", {
+      const result = await workflowPost("/api/admin/platform/global/timetable/publish", {
         runId: course.runid,
         ...(course.type === "ONGOING" ? { publishStartDate: course.publishstart, publishEndDate: course.publishend } : {})
       }, appState()?.token || "");
@@ -912,8 +913,8 @@
         ].join("")
       : [
           sessionCell("Date", `<input data-inline-session-field="date" type="date" value="${attr(values.date)}" aria-label="Session date" />${dateInfo.text ? `<small class="global-session-calendar-note ${attr(dateInfo.className)}">${html(dateInfo.text)}</small>` : ""}`),
-          sessionCell("Start", `<input data-inline-session-field="start" data-time24 type="text" inputmode="numeric" value="${attr(values.start)}" aria-label="Start time" />`),
-          sessionCell("End", `<input data-inline-session-field="end" data-time24 type="text" inputmode="numeric" value="${attr(values.end)}" aria-label="End time" />`),
+          sessionCell("Start", `<input data-inline-session-field="start" data-time24 type="text" value="${attr(values.start)}" aria-label="Start time" />`),
+          sessionCell("End", `<input data-inline-session-field="end" data-time24 type="text" value="${attr(values.end)}" aria-label="End time" />`),
           sessionCell("Module", `<select data-inline-session-field="moduleid" aria-label="Module"><option value="">No module</option>${moduleOptions(session.subjectid, values.moduleid)}</select>`),
           sessionCell("Teacher", `<select data-inline-session-field="teacherid" aria-label="Teacher">${teacherOptions(values.teacherid)}</select>`),
           sessionCell("Zoom link", `<input data-inline-session-field="zoom" type="url" value="${attr(values.zoom)}" aria-label="Zoom link" />`, "global-session-zoom-cell"),
@@ -966,7 +967,7 @@
         if (!session) continue;
         const startTime = parseUiTime(draft.start); const endTime = parseUiTime(draft.end);
         if (!isIsoDate(draft.date)) { setMessage("Every changed occurrence requires a valid date.", "error"); return false; }
-        if (!startTime || !endTime || endTime <= startTime) { setMessage("Use increasing 24-hour times such as 13h00–14h00.", "error"); return false; }
+        if (!startTime || !endTime || endTime <= startTime) { setMessage("Use increasing 24-hour times such as 13:00–14:00.", "error"); return false; }
         const change = {
           sessionDate: draft.date, startTime, endTime, moduleId: draft.moduleid,
           teacherAccountId: draft.teacherid, zoomLink: draft.zoom, sessionDescription: draft.description, status: draft.status
@@ -988,11 +989,11 @@
       }
       const savedOk = await withBusy(button, "Saving…", async () => {
         if (exactChanges.length) {
-          const result = await apiPost("/api/admin/platform/global/timetable/session/batch-save", { runId: course.runid, changes: exactChanges }, appState()?.token || "");
+          const result = await workflowPost("/api/admin/platform/global/timetable/session/batch-save", { runId: course.runid, changes: exactChanges }, appState()?.token || "");
           if (!result.success) throw new Error(result.error || result.detail || "Unable to save session changes");
         }
         for (const change of materialiseChanges) {
-          const result = await apiPost("/api/admin/platform/global/timetable/session/materialize", change, appState()?.token || "");
+          const result = await workflowPost("/api/admin/platform/global/timetable/session/materialize", change, appState()?.token || "");
           if (!result.success) throw new Error(result.error || result.detail || "Unable to materialise Course exception");
         }
         model.sessionDrafts.clear();
@@ -1011,7 +1012,7 @@
     if (!runId) return false;
     if (model.sessionDrafts.size) { setMessage("Save or discard session changes first.", "error"); return false; }
     await withBusy(button, "Opening…", async () => {
-      const result = await apiPost("/api/admin/platform/global/timetable/revise", { runId }, appState()?.token || "");
+      const result = await workflowPost("/api/admin/platform/global/timetable/revise", { runId }, appState()?.token || "");
       if (!result.success) throw new Error(result.error || result.detail || "Unable to open revision");
       invalidateAll();
       await load(true);
@@ -1217,9 +1218,9 @@
   function readOnlySessionCell(label, value, extraClass = "") { return `<div class="global-session-cell global-session-readonly-cell ${attr(extraClass)}"><span class="global-session-cell-label">${html(label)}</span><span>${html(value)}</span></div>`; }
   function field(label, control) { return `<label class="global-curriculum-field"><span>${html(label)}</span>${control}</label>`; }
   function formatDate(value) { const text = String(value || ""); const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text); if (!m) return text; return `${m[3]} ${["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][Number(m[2])]} ${m[1]}`; }
-  function parseUiTime(value) { const text = String(value || "").trim().toLowerCase().replace(/\s+/g, ""); const match = /^(\d{1,2})(?:h|:)?(\d{2})$/.exec(text); if (!match) return ""; const hour = Number(match[1]); const minute = Number(match[2]); if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return ""; return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`; }
+  function parseUiTime(value) { return window.M4L_TIME.parse(value); }
   function normalizeTime(value) { return parseUiTime(value) || String(value || "").trim(); }
-  function formatUiTime(value) { const parsed = parseUiTime(value); return parsed ? parsed.replace(":", "h") : String(value || ""); }
+  function formatUiTime(value) { const parsed = parseUiTime(value); return parsed ? parsed : String(value || ""); }
   function normalizeTimeField(input) { const parsed = parseUiTime(input?.value); if (parsed) input.value = formatUiTime(parsed); }
 
   function nextLocalKey(prefix) { model.sequence += 1; return `${prefix}-${Date.now()}-${model.sequence}`; }
@@ -1249,6 +1250,26 @@
   function attr(value) { return html(value); }
   function cssEscape(value) { return typeof CSS !== "undefined" && CSS.escape ? CSS.escape(String(value)) : String(value).replace(/[^a-zA-Z0-9_-]/g, "\\$&"); }
 
+
+  // D1 writes retain their identifier after an uncertain response. A changed
+  // draft gets a new identifier; successful steps advance the saved revision.
+  let workflowRevision = null;
+  const pendingWorkflowChanges = new Map();
+  async function workflowPost(path, body, token) {
+    const writing = !path.endsWith("/get");
+    let input = body;
+    let retryKey = "";
+    if (writing && workflowRevision !== null) {
+      retryKey = JSON.stringify([path, body, workflowRevision]);
+      if (!pendingWorkflowChanges.has(retryKey)) pendingWorkflowChanges.set(retryKey, crypto.randomUUID());
+      input = { ...body, workflowRevision, operationId: pendingWorkflowChanges.get(retryKey) };
+    }
+    const result = await apiPost(path, input, token);
+    if (result.success && result.workflowStore === "D1") workflowRevision = String(result.workflowRevision);
+    if (result.success && retryKey) pendingWorkflowChanges.delete(retryKey);
+    return result;
+  }
+
   bind();
-  window.M4LGlobalCourseScheduler = Object.freeze({ show, load, invalidate: invalidateAll });
+  window.M4LGlobalCourseScheduler = Object.freeze({ show, load, invalidate: invalidateAll, hasUnsavedChanges });
 })();
