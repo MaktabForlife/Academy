@@ -21,23 +21,10 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
   const [activities,publications,subjects,modules,classes,memberships,runs,runStates,lifecycles,calendar,suppressions,calendarSettings]=await repository.homeData(state,start,end,courseWorkflows,config.programWorkspace);
   // The pilot's historical dates are in the past; ordinary timetable loads do
   // not query the extension table, and no historical lesson can be joined live.
-  if(start<'2026-10-08'&&end>='2026-10-06'&&activities.some(a=>a.activity_key===MOU_MEDIA_PROGRAM))publications.push(...await historicalPublications(repository,start,end));
-  // Read only public display labels for teachers referenced by these schedules.
-  // Anonymous marketing cards contain no teacher detail and need no account read.
-  let teacherAccounts=[];
-  if(state){
-    const ids=new Set();
-    for(const publication of publications){
-      let snapshot;try{snapshot=JSON.parse(publication.snapshot_json);}catch{continue;}
-      if(!snapshot||typeof snapshot!=='object')continue;
-      for(const row of Array.isArray(snapshot.rules)?snapshot.rules:[]){
-        if(!row||typeof row!=='object')continue;
-        for(const id of Array.isArray(row.teacherIds)&&row.teacherIds.length?row.teacherIds:[row.teacherId])if(typeof id==='string'&&id.trim())ids.add(id.trim());
-      }
-      for(const row of Array.isArray(snapshot.sessions)?snapshot.sessions:[])if(typeof row?.TeacherAccountID==='string'&&row.TeacherAccountID.trim())ids.add(row.TeacherAccountID.trim());
-    }
-    if(ids.size)teacherAccounts=(await repository.db.prepare('SELECT account_id,display_name,active FROM accounts WHERE account_id IN (SELECT value FROM json_each(?))').bind(JSON.stringify([...ids])).all()).results;
-  }
+  if(start<'2026-10-08'&&end>='2026-10-06'&&activities.some(a=>a.activity_key===MOU_MEDIA_PROGRAM))publications.push(...await historicalPublications(repository,start,end,Boolean(state)));
+  // Labels arrive with the publication batch, keeping current profile names
+  // without another database call. Anonymous reads never select these labels.
+  const teacherAccounts=state?[...new Map(publications.flatMap(p=>JSON.parse(p.teacher_accounts_json||'[]')).map(a=>[a.account_id.toUpperCase(),a])).values()]:[];
   const stopped=config.programWorkspace?(await repository.db.prepare('SELECT activity_key,publication_id,status FROM program_publication_lifecycle').all()).results:[];
   const programs=activities.filter(a=>a.kind==='PROGRAM').map(a=>({id:a.activity_id,name:a.name,mode:'PROGRAM',status:'ACTIVE',timezone:a.timezone,publicFree:a.program_access_model==='FREE',capabilities:{attendance:true}}));
   const tables={UserAccounts:state?[repository.publicAccount(state.account),...teacherAccounts.filter(a=>!samePublication(a.account_id,state.account.account_id)).map(a=>({AccountID:a.account_id,DisplayName:a.display_name,Active:Boolean(a.active)}))]:[],PlatformConfig:[{ConfigKey:'PlatformTimezone',ConfigValue:config.setting_value}],

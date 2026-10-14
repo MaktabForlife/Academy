@@ -81,6 +81,10 @@ test('bounded historical projection adds 6–7 October and leaves every later pu
  f.db.prepare('INSERT INTO program_historical_extensions VALUES(?,?,?,?,?,?,?)').run('MOU-HISTORY',MOU_MEDIA_PROGRAM,'MOU-PUB','2026-10-06','2026-10-07','Confirmed history','2026-10-12');
  const db={prepare:sql=>({bind:(...values)=>({all:async()=>({results:f.db.prepare(sql).all(...values)})}),first:async()=>f.db.prepare(sql).get()})};
  const extra=await historicalPublications({db},'2026-10-06','2026-10-12'),program={id:snapshot.programId},original=publicationRecord({PublicationID:'MOU-PUB',VersionNo:1,SnapshotJSON:JSON.stringify(snapshot)},program),historical=extra.map(p=>publicationRecord({PublicationID:p.publication_id,VersionNo:p.version_no,SnapshotJSON:p.snapshot_json},program));
+ assert(!Object.hasOwn(extra[0],'teacher_accounts_json'));
+ const teacher=snapshot.rules[0].teacherIds[0];f.db.prepare('UPDATE accounts SET display_name=? WHERE account_id=?').run('Renamed historical teacher',teacher);
+ const signedExtra=await historicalPublications({db},'2026-10-06','2026-10-12',true);
+ assert(JSON.parse(signedExtra[0].teacher_accounts_json).some(a=>a.account_id===teacher&&a.display_name==='Renamed historical teacher'));
  assert.equal(publicationSchedule([original,...historical],'2026-10-06').currentPublicationId,'MOU-HISTORY');assert.equal(publicationSchedule([original,...historical],'2026-10-07').currentPublicationId,'MOU-HISTORY');
  for(let day=8;day<=31;day++){const date=`2026-10-${String(day).padStart(2,'0')}`;assert.deepEqual(publicationSchedule([original,...historical],date).publications.find(p=>p.id==='MOU-PUB'),publicationSchedule([original],date).publications[0]);}
  assert.equal(f.db.prepare("SELECT snapshot_json FROM timetable_publications WHERE publication_id='MOU-PUB'").get().snapshot_json,JSON.stringify(snapshot));assert.equal((await historicalPublications({db},'2026-10-09','2026-10-15')).length,0);

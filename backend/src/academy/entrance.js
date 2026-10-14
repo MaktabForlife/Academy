@@ -237,9 +237,9 @@ export async function buildEntrance({ tables, programs, rolesByProgram, rolesByC
   // current page. Direct teaching/enrolment in another activity stays personal.
   const administeredActivities = new Set([...programViews,...courseViews].filter(view => view.roles.some(role =>
     ['PROGRAM_ADMIN', 'ADMIN'].includes(role))).map(view => `${view.kind}:${key(view.id)}`));
-  const summarize = row => globalAdmin(user) || administeredActivities.has(`${row.kind}:${key(row.activityId)}`);
-  const personalTimetable = user ? timetable.filter(row => (summarize(row) || row.relevant) && row.status === 'SCHEDULED')
-    .map(row => ({ ...row, title: row.moduleName || row.subjectName || row.title, ...lessonTimes(row), summarize: summarize(row) }))
+  const oversees = row => globalAdmin(user) || administeredActivities.has(`${row.kind}:${key(row.activityId)}`);
+  const personalTimetable = user ? timetable.filter(row => (oversees(row) || row.relevant) && row.status === 'SCHEDULED')
+    .map(row => ({ ...row, title: row.moduleName || row.subjectName || row.title, ...lessonTimes(row), summarize: row.kind === 'PROGRAM' || oversees(row) }))
     .filter(row => Number.isFinite(row.startsAt) && Number.isFinite(row.endsAt))
     .sort((a, b) => a.startsAt - b.startsAt || a.activityId.localeCompare(b.activityId)) : [];
   const visibleTimetable = requestedId ? timetable.filter(row => key(row.activityId) === key(requestedId)) : timetable;

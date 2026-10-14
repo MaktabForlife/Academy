@@ -1,3 +1,7 @@
+# V106.59 — Compact Academy home and consistent timetable cards
+
+Current teacher names are read with timetable publications, restoring the original homepage database-call and statement budgets after a profile rename. All signed-in Program timetables roll overlapping or contiguous lessons with the same meeting link into one card, preserving each account’s permitted lessons, full details and joining checks. Gaps, different Programs, missing links and different links stay separate. Announcements use a small poster preview beside their text, with the full poster available on click. No database migration is required. All 151 regression files, the development Worker build and local browser checks at six desktop/mobile widths pass.
+
 # V106.58 — Academy announcement presentation
 
 The home announcement area has a centred uppercase heading, a large poster at its natural proportions, and centred title and message text on a warm off-white background. [Release details](docs/ACADEMY-ANNOUNCEMENT-LAYOUT-106.58.md).

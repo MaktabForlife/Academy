@@ -29,6 +29,27 @@ test('profile rename updates Program/Course summary, details and account timetab
   const schedule=rows=>rows.map(({teacherNames,information,...r})=>r);assert.deepEqual(schedule(after.personalTimetable),schedule(before.personalTimetable));assert.deepEqual(history(),original);
   const activity=after.personalActivities.find(a=>a.kind==='PROGRAM');const page=await d1Entrance(academyD1Repository(f.env),state,user,{...input,id:activity.id},now);assert(page.activity.timetable.every(r=>r.teacherNames.includes('TestTeacher')));
   const legacy=await d1AccountTimetable(academyD1Repository(f.env),{state,user},input,now);assert(legacy.sessions.every(r=>r.teacherName==='TestTeacher'));
-  const start=f.queries.length,visitor=await d1Entrance(academyD1Repository(f.env),null,null,input,now);assert.doesNotMatch(JSON.stringify(visitor),/TestTeacher|teacherNames|teacherName|display_name/);assert(!f.queries.slice(start).some(q=>q.includes('SELECT account_id,display_name,active FROM accounts')));
+  const start=f.queries.length,visitor=await d1Entrance(academyD1Repository(f.env),null,null,input,now);assert.doesNotMatch(JSON.stringify(visitor),/TestTeacher|teacherNames|teacherName|display_name|teacher_accounts_json/);assert(!f.queries.slice(start).some(q=>/FROM accounts\b/.test(q)));
+ }finally{f.db.close();}
+});
+test('publication read limits current labels to referenced teachers and omits them for anonymous visitors',async()=>{
+ const f=await fixtureDatabase();try{
+  const publication=f.db.prepare("SELECT activity_key,publication_id,snapshot_json FROM timetable_publications WHERE pattern='WEEKLY' LIMIT 1").get();
+  const snapshot=JSON.parse(publication.snapshot_json);
+  snapshot.rules=[{teacherId:'account-0005',teacherIds:[' ACCOUNT-0003 ','account-0004','missing',null,42]},
+   {teacherId:'account-0006',teacherIds:[]},null,'invalid row',42,{}];
+  snapshot.sessions=[{TeacherAccountID:'ACCOUNT-0007'},null,'invalid row',{TeacherAccountID:42}];
+  let selectedId='teacher-label-test-1';
+  const publish=(id,version)=>f.db.prepare(`INSERT INTO timetable_publications SELECT activity_key,?,scope_key,?,pattern,published_at,published_by_source_id,effective_from,effective_until,timezone,?,source_snapshot_sha256,conversion FROM timetable_publications WHERE activity_key=? AND publication_id=?`).run(id,version,JSON.stringify(snapshot),publication.activity_key,publication.publication_id);
+  publish(selectedId,2);
+  f.db.prepare("UPDATE accounts SET active=0 WHERE account_id='account-0004'").run();
+  const repo=academyD1Repository(f.env),state=await repo.byId('account-0001');
+  const load=async user=>(await repo.homeData(user,'2026-10-09','2026-10-15'))[1].find(p=>p.activity_key===publication.activity_key&&p.publication_id===selectedId);
+  const labels=JSON.parse((await load(state)).teacher_accounts_json).sort((a,b)=>a.account_id.localeCompare(b.account_id));
+  assert.deepEqual(labels,[3,4,6,7].map(n=>({account_id:`account-000${n}`,display_name:`Synthetic learner ${n}`,active:n===4?0:1})));
+  const start=f.queries.length,anonymous=await load(null);assert(!Object.hasOwn(anonymous,'teacher_accounts_json'));assert(!f.queries.slice(start).some(q=>/FROM accounts\b/.test(q)));
+  snapshot.rules={teacherId:'account-0003'};snapshot.sessions='invalid collection';
+  selectedId='teacher-label-test-2';publish(selectedId,3);
+  assert.deepEqual(JSON.parse((await load(state)).teacher_accounts_json),[]);
  }finally{f.db.close();}
 });
