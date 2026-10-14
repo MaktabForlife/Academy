@@ -1,3 +1,7 @@
+# V106.57 — Academy home welcome styling
+
+The welcome panel shares the self-paced learning gradient and Academy watermark. Its heading reads `ummabbadacademy.com`, with centred mission text and light lettering for contrast. [Release details](docs/ACADEMY-HOME-WELCOME-106.57.md).
+
 # V106.56 — Current teacher names on timetable summaries
 
 Program and Course summary cards, lesson details and the account timetable resolve teacher names from current profiles by stable account ID. Published assignments, permissions, joining references and historical snapshots are preserved; name changes do not require republishing. Clear the previous daily cache and invalidate saved timetable labels after a profile edit in the same browser. No schema changes or live record corrections. [Release details](docs/ACADEMY-TEACHER-NAMES-106.56.md).

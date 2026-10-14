@@ -185,3 +185,12 @@ body.academy-login-open{overflow:hidden}
 .academy-home-progress{margin-top:28px;min-width:0;padding:clamp(16px,2.5vw,28px);border:1px solid var(--line);border-radius:24px;background:rgba(255,255,255,.9);box-shadow:0 8px 28px rgba(72,40,80,.08)}
 .academy-home-progress .mp-row-section:last-child{margin-bottom:0}
 .academy-shell #progress .page-heading h2{font:400 28px/1.15 Georgia,serif;margin:0}
+
+/* Use the self-paced learning background for the Academy welcome panel. */
+:root{--academy-feature-background:radial-gradient(circle at 84% 12%,rgba(255,255,255,.12),transparent 42%),linear-gradient(145deg,rgba(107,66,116,.94),rgba(128,80,136,.91))}
+.film-section,.academy-intro .intro-next{background:var(--academy-feature-background)}
+.academy-intro .intro-next{position:relative;isolation:isolate;overflow:hidden;color:var(--paper)}
+.academy-intro .intro-next::before{content:"";position:absolute;z-index:0;top:-105px;right:-55px;width:clamp(330px,52vw,620px);aspect-ratio:1;border-radius:50%;background:url('/ummabbadacademy.png?v=106.1') center/contain no-repeat;filter:grayscale(1) contrast(1.05);mix-blend-mode:multiply;opacity:.2;pointer-events:none}
+.academy-intro .intro-next>*{position:relative;z-index:1}
+.academy-intro .intro-next .intro-greeting,.academy-intro .intro-next h1{color:var(--paper)}
+.academy-intro .intro-next .intro-mission{color:var(--paper);text-align:center;margin-inline:auto}
