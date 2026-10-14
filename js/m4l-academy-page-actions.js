@@ -40,7 +40,7 @@
     });
     // Reuse the page's refresh action, including draft guards, selected dates and cache invalidation.
     if(contentRefresh){contentRefresh.click();return;}
-    try{sessionStorage.removeItem('m4l_academy_daily_timetable_10652');}catch{}location.reload();
+    try{sessionStorage.removeItem('m4l_academy_daily_timetable_10656');}catch{}location.reload();
   });
   shell?.update(window.M4L_ACADEMY_SHELL_DATA||null);
   if(shell&&typeof ResizeObserver!=='undefined')new ResizeObserver(()=>document.documentElement.style.setProperty('--academy-banner-height',shell.banners.offsetHeight+'px')).observe(shell.banners);

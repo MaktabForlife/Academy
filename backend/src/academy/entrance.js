@@ -52,7 +52,15 @@ export function programRoles(user, accounts = []) {
   return matches.length === 1 ? matches[0].Roles.filter(role => ['PROGRAM_ADMIN', 'ADMIN', 'SENIOR', 'TEACHER', 'STUDENT'].includes(role)) : [];
 }
 
-export function programProjection(program, data, user, roles, start, end, now, detailed = false, groupZoom = () => '', compatibilityDetails = false) {
+// Display labels follow current profiles; stable teacher IDs and publication
+// content continue to control assignment, visibility and historical records.
+export function timetableTeacherNames(row,names=new Map()) {
+  const published=row.teacherNames?.length?row.teacherNames:[row.teacherName].filter(Boolean);
+  const ids=row.teacherIds?.length?row.teacherIds:[row.teacherId].filter(Boolean);
+  return ids.length?ids.map((id,i)=>names.get(key(id))||published[i]||(key(id)===key(row.teacherId)?row.teacherName:'')).filter(Boolean):published;
+}
+
+export function programProjection(program, data, user, roles, start, end, now, detailed = false, groupZoom = () => '', compatibilityDetails = false, teacherDisplayNames = new Map()) {
   const name = programDisplayName(program);
   const snapshot = data.prepared ? managementState(data, program).snapshot : {};
   const classes = (snapshot.ProgramClasses || []).filter(row => row.CourseID === program.id && active(row.Active));
@@ -85,14 +93,15 @@ export function programProjection(program, data, user, roles, start, end, now, d
         relevant: involved, involvement: teaching ? 'teacher' : enrolled ? 'student' : '',
         status: row.status || 'SCHEDULED' };
       if (mayView) {
+        const teacherNames=timetableTeacherNames(row,teacherDisplayNames);
         event.subjectName = row.subjectName || '';
         event.moduleName = row.moduleName || '';
         event.classNames = (row.classNames || []).filter(Boolean);
-        event.teacherNames = (row.teacherNames || [row.teacherName]).filter(Boolean);
+        event.teacherNames = teacherNames;
         event.meetingGroup = groupZoom(zoomLink);
         event.information = [row.subjectName, row.moduleName, row.levelName,
-          ...(row.classNames || []), ...(row.teacherNames || [row.teacherName])].filter(Boolean);
-        if(compatibilityDetails){event.teacherName=(row.teacherNames||[row.teacherName]).filter(Boolean).join(', ');event.group=(row.classNames||[]).join(', ');}
+          ...(row.classNames || []), ...teacherNames].filter(Boolean);
+        if(compatibilityDetails){event.teacherName=teacherNames.join(', ');event.group=(row.classNames||[]).join(', ');}
       }
       if ((mayView && (involved || oversight) || !user && program.publicFree) && zoomLink) {
         if(!user&&program.publicFree)event.publicJoin=true;
@@ -127,6 +136,7 @@ export async function buildEntrance({ tables, programs, rolesByProgram, rolesByC
   if (!validDate(start)) throw problem('Choose a valid timetable date.');
   const end = addDays(start, rangeDays - 1);
   const warnings = [], activities = [], timetable = [];
+  const teacherDisplayNames=new Map(tables.UserAccounts.filter(a=>clean(a.DisplayName)).map(a=>[key(a.AccountID),clean(a.DisplayName)]));
   // Request-local labels allow grouping without releasing a joining URL before its time window.
   const meetingGroups = new Map();
   const groupZoom = value => {
@@ -144,7 +154,7 @@ export async function buildEntrance({ tables, programs, rolesByProgram, rolesByC
     const basic = { id: program.id, name: programDisplayName(program), kind: 'PROGRAM', roles };
     try {
       const data = await loadProgram(program, Boolean(user && roles.length));
-      return programProjection(program, data, user, roles, start, end, now, Boolean(requestedId)||detailedTimetable, groupZoom,detailedTimetable);
+      return programProjection(program, data, user, roles, start, end, now, Boolean(requestedId)||detailedTimetable, groupZoom,detailedTimetable,teacherDisplayNames);
     } catch {
       warnings.push(`${basic.name} timetable is unavailable.`);
       return { ...basic, timetable: [], classes: [], curriculum: [], tools: {}, unavailable: true };
@@ -157,7 +167,7 @@ export async function buildEntrance({ tables, programs, rolesByProgram, rolesByC
   const platform = { subjects, policies: tables.GlobalSubjectAccessPolicy, matrix: tables.GlobalSubjectAccessMatrix,
     runs: tables.GlobalSubjectRuns, GlobalTimetableRunState: tables.GlobalTimetableRunState,
     GlobalTimetablePublications: tables.GlobalTimetablePublications, GlobalTimetableSessionLifecycle: tables.GlobalTimetableSessionLifecycle,
-    PublishedGlobalTimetableSessions: tables.PublishedGlobalTimetableSessions };
+    PublishedGlobalTimetableSessions: tables.PublishedGlobalTimetableSessions.map(row=>({...row,TeacherName:teacherDisplayNames.get(key(row.TeacherAccountID))||row.TeacherName})) };
   const courseViews = [];
   for (const subject of subjects) {
     const assignedRoles=user?rolesByCourse?.[key(subject.SubjectID)]||[]:[];

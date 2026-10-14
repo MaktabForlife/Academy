@@ -1,3 +1,7 @@
+# V106.56 — Current teacher names on timetable summaries
+
+Program and Course summary cards, lesson details and the account timetable resolve teacher names from current profiles by stable account ID. Published assignments, permissions, joining references and historical snapshots are preserved; name changes do not require republishing. Clear the previous daily cache and invalidate saved timetable labels after a profile edit in the same browser. No schema changes or live record corrections. [Release details](docs/ACADEMY-TEACHER-NAMES-106.56.md).
+
 # V106.55 — Academy announcements and simpler planning
 
 Global Admin can add, edit and delete Academy home announcements with messages and JPEG/PNG/WebP posters, activate multiple entries, and choose their order. Visitors can cycle through announcements, pause playback and open a full poster. The home announcement area is wider on desktop and stacks on phones. Scoped admins retain their existing learning-area permissions.

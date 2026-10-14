@@ -262,6 +262,6 @@ for (const [method, body, expected] of [['GET', undefined, 405], ['POST', '{', 4
 const html = await readFile(new URL('../../academy/index.html', import.meta.url), 'utf8');
 assert.doesNotMatch(html, /sample completion|connection plan|demo role/i);
 assert.match(html, /ummabbadacademy\.com/);
-assert.match(html, /Coming soon/);
+assert.match(html, /id="academy-announcements"/);
 assert.match(html, /lesson-information/);
 console.log('Academy entrance: public redaction, published Programs/Courses, mixed roles, current joins, isolated tools, revoked access and read-only boundaries passed.');

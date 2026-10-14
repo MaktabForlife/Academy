@@ -7,9 +7,11 @@
   const pageCache = { epoch: 0, snapshot: null, pending: new Map() };
   const PAGE_CACHE_MS = 60000;
   const ACTIVITY_CACHE_MS = 86400000;
-  const dailyCache = { session: '', owner:'', entries: {} };
+  const profileLabelRevision=()=>{try{return localStorage.getItem('m4l_academy_profile_labels_revision')||'';}catch{return '';}};
+  const dailyCache = { session: '', owner:'', entries: {},profileRevision:profileLabelRevision() };
+  function checkProfileLabels(){const revision=profileLabelRevision();if(revision!==dailyCache.profileRevision){dailyCache.profileRevision=revision;dailyCache.entries={};pageCache.snapshot=null;}return revision;}
   const MEMORISATION_RETURN_KEY='m4l_academy_memorisation_return_v1';
-  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10652';
+  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10656';
   const academyDay = (timezone, instant = Date.now()) => {
     const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {timeZone:timezone || 'Africa/Johannesburg',
       year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(instant)).map(part=>[part.type,part.value]));
@@ -68,6 +70,7 @@
   }
 
   async function dailyTimetable(body, force = false) {
+    checkProfileLabels();
     const session = token(), epoch = pageCache.epoch;
     if (!session) return request(body);
     const key = body.startDate || 'HOME';
@@ -83,7 +86,7 @@
       const saved = JSON.parse(sessionStorage.getItem(DAILY_CACHE_KEY) || 'null');
       dailyCache.owner=owner;
       if(!memorisationReturn&&memorisationHash(location.hash)){const back=JSON.parse(sessionStorage.getItem(MEMORISATION_RETURN_KEY)||'null');if(back?.owner===owner&&validReturnHash(back.hash)&&!memorisationHash(back.hash)&&Number.isFinite(back.left)&&Number.isFinite(back.top))memorisationReturn=back;}
-      if (saved?.owner === owner) dailyCache.entries = {...saved.entries,...dailyCache.entries};
+      if (saved?.owner === owner && saved.profileRevision === dailyCache.profileRevision) dailyCache.entries = {...saved.entries,...dailyCache.entries};
       else sessionStorage.removeItem(DAILY_CACHE_KEY);
     } catch { /* A blocked/full tab store falls back to this page's memory cache. */ }
     if (token() !== session || pageCache.epoch !== epoch) throw new Error('The Academy account has changed.');
@@ -97,7 +100,7 @@
         dailyCache.entries = Object.fromEntries(Object.entries(dailyCache.entries).filter(([,value])=>value.cacheDay===academyDay(value.timezone)).slice(-7));
         const cacheable = JSON.parse(JSON.stringify(result,(field,value)=>field==='joinUrl'?undefined:value));
         dailyCache.entries[key] = {...cacheable,cacheDay:academyDay(result.timezone)};
-        if (owner) try { sessionStorage.setItem(DAILY_CACHE_KEY,JSON.stringify({owner,entries:dailyCache.entries})); } catch {}
+        if (owner) try { sessionStorage.setItem(DAILY_CACHE_KEY,JSON.stringify({owner,profileRevision:dailyCache.profileRevision,entries:dailyCache.entries})); } catch {}
       }
       return result;
     } catch (error) {
@@ -139,6 +142,7 @@
   }
 
   function cachedActivity(id) {
+    checkProfileLabels();
     const snapshot = pageCache.snapshot, now = new Date().getTime();
     if (!snapshot || snapshot.session !== token() || now < snapshot.at || now - snapshot.at >= ACTIVITY_CACHE_MS) return null;
     const result = snapshot.result;

@@ -162,6 +162,7 @@
     try{
       const {needsRecovery,...body}=state.pending;if(needsRecovery)await api('recover');
       const result=await api('save',body),savedEntries=body.entries||[body];const savedKeys=savedEntries.map(editKey);state.pending=null;removeEdits(savedKeys);
+      if(savedEntries.some(e=>e.mode==='profile'))try{localStorage.setItem('m4l_academy_profile_labels_revision',crypto.randomUUID());}catch{}
       closeCleanEditors(new Set(savedEntries.map(e=>e.accountId).filter(Boolean)));remember();confirmed=true;
       applyAcknowledgement(result);message('Saved.');
     }catch(error){
