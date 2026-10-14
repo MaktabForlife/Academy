@@ -2,6 +2,7 @@ import { authorityRank, normalizePlatformIdentifier as key } from '../../lib/pla
 import {CORE_ACTIVATION_CHECKS,newActivityOwnership} from './activation-policy.js';
 import {programAccessJoin,programAccessSQL} from './program-access.js';
 import {programZoomJoin} from './program-zoom.js';
+import {publicationTeacherAccountsSQL} from './publication-teachers.js';
 
 export const rehearsalError = (message, status=503, code='ACADEMY_D1_UNAVAILABLE') => Object.assign(new Error(message), {status,code});
 const publicAccount = row => ({AccountID:row.account_id,DisplayName:row.display_name,UniqueID:row.login_link_id,Active:Boolean(row.active),PlatformRole:row.global_admin?'GLOBAL_ADMIN':''});
@@ -159,7 +160,7 @@ export function academyD1Repository(env) {
           WHEN EXISTS(SELECT 1 FROM course_management_drafts d WHERE d.activity_key=a.activity_key AND d.stage NOT IN ('CANCELLED','ARCHIVED')) THEN 1
           WHEN EXISTS(SELECT 1 FROM course_runs r LEFT JOIN course_management_drafts d USING(activity_key,run_id) LEFT JOIN course_run_state s USING(activity_key,run_id) WHERE r.activity_key=a.activity_key AND r.active=1 AND d.run_id IS NULL AND coalesce(s.stage,'DRAFT') NOT IN ('CANCELLED','ARCHIVED')) THEN 1
           WHEN NOT EXISTS(SELECT 1 FROM course_management_drafts d WHERE d.activity_key=a.activity_key) AND NOT EXISTS(SELECT 1 FROM course_runs r WHERE r.activity_key=a.activity_key) THEN 1 ELSE 0 END AS course_menu_available`:''},cs.legacy_access_model,${programAccessSQL} AS program_access_model,pz.setting_value AS program_zoom_override FROM activities a LEFT JOIN program_settings p USING(activity_key) LEFT JOIN course_settings cs USING(activity_key) ${programAccessJoin} ${programZoomJoin} WHERE a.active=1 AND a.lifecycle='ACTIVE' AND a.website_visible=1`,
-        `SELECT p.* FROM timetable_publications p JOIN activities a USING(activity_key) WHERE a.active=1 AND a.lifecycle='ACTIVE' AND (p.pattern='COURSE' OR ((p.effective_from IS NULL OR p.effective_from<=?) AND (p.effective_until IS NULL OR p.effective_until>=?)))`,
+        `SELECT p.*${state?`,${publicationTeacherAccountsSQL} AS teacher_accounts_json`:''} FROM timetable_publications p JOIN activities a USING(activity_key) WHERE a.active=1 AND a.lifecycle='ACTIVE' AND (p.pattern='COURSE' OR ((p.effective_from IS NULL OR p.effective_from<=?) AND (p.effective_until IS NULL OR p.effective_until>=?)))`,
         `SELECT p.*,s.subject_id,s.name AS subject_name FROM program_subjects p JOIN subject_catalog s USING(subject_key) WHERE p.active=1 AND s.active=1`,
         `SELECT * FROM modules WHERE active=1`, `SELECT * FROM classes WHERE active=1`,
         `SELECT * FROM class_memberships WHERE account_id=?`,

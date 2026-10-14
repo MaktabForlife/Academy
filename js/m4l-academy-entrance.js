@@ -11,7 +11,7 @@
   const dailyCache = { session: '', owner:'', entries: {},profileRevision:profileLabelRevision() };
   function checkProfileLabels(){const revision=profileLabelRevision();if(revision!==dailyCache.profileRevision){dailyCache.profileRevision=revision;dailyCache.entries={};pageCache.snapshot=null;}return revision;}
   const MEMORISATION_RETURN_KEY='m4l_academy_memorisation_return_v1';
-  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10656';
+  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10659';
   const academyDay = (timezone, instant = Date.now()) => {
     const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {timeZone:timezone || 'Africa/Johannesburg',
       year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(instant)).map(part=>[part.type,part.value]));
@@ -504,6 +504,7 @@
   }
 
   function summarizeLesson(row) {
+    if (row.kind === 'PROGRAM' && state.home?.signedIn) return true;
     if (typeof row.summarize === 'boolean') return row.summarize;
     // Retain the same presentation during a staggered frontend/backend release.
     return Boolean(state.home?.globalAdmin || state.home?.personalActivities.some(activity =>
@@ -546,7 +547,7 @@
       const parts = Object.fromEntries(formatter.formatToParts(new Date(instant)).map(part => [part.type, part.value]));
       return { date: `${parts.year}-${parts.month}-${parts.day}`, time: `${parts.hour}:${parts.minute}` };
     };
-    const days = new Map();
+    const days = new Map(), roomGroups = new Map();
     const start = (id === 'academy-sessions' ? state.startDate : state.home?.startDate) || rows[0].date;
     for (let offset = 0; offset < 7; offset++)
       days.set(new Date(Date.parse(`${start}T12:00:00Z`) + offset * 86400000).toISOString().slice(0, 10), new Map());
@@ -555,8 +556,20 @@
       const row = { ...original, sourceDate: original.date, date: begins.date, startTime: begins.time, endTime: ends.time, endDate: ends.date };
       if (!days.has(row.date)) days.set(row.date, new Map());
       const groups = days.get(row.date);
-      // Missing room information must never combine unrelated lessons.
-      const key = summarizeLesson(row) && row.meetingGroup ? `room:${row.meetingGroup}` : `lesson:${index}`;
+      // Combine overlapping/contiguous Program lessons only within one Program,
+      // day and room. A gap, different Program or missing link starts a new card.
+      let key = `lesson:${index}`;
+      if (summarizeLesson(row) && row.meetingGroup) {
+        const roomKey = JSON.stringify([row.date,row.kind,row.activityId,row.meetingGroup]);
+        const previous = roomGroups.get(roomKey);
+        if (previous && (row.kind !== 'PROGRAM' || row.startsAt <= previous.endsAt)) {
+          key = previous.key;
+          previous.endsAt = Math.max(previous.endsAt,row.endsAt);
+        } else {
+          key = `room:${index}`;
+          roomGroups.set(roomKey,{key,endsAt:row.endsAt});
+        }
+      }
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push({ row, index });
     });
@@ -566,6 +579,7 @@
     };
     const renderGroup = entries => {
       const first = entries[0].row;
+      const last = entries.reduce((latest,entry) => entry.row.endsAt > latest.endsAt ? entry.row : latest,first);
       const summary = summarizeLesson(first);
       const activities = [...new Set(entries.map(entry => entry.row.activityName))];
       const label = activities.join(' · ');
@@ -576,7 +590,7 @@
       const join = joinable ? `<button type="button" class="timetable-join" data-join="${id}:${infoIndex}:${entries.indexOf(joinable)}">Join lesson</button>` : '';
       const status = nextEntry ? nextEntry.row.startsAt <= now ? 'In progress' : 'Next lesson' : '';
       const subtitle = summary && entries.length > 1 ? `${entries.length} lessons` : lessonTitle !== label ? lessonTitle : '';
-      return `<li class="preview-pill timetable-pill ${nextEntry ? 'next-lesson ' : ''}${participation(entries)}${joinable ? ' join-open' : ''}"><button type="button" class="timetable-pill-details" data-information="${id}:${infoIndex}" aria-label="${esc(label)}${subtitle ? ' · ' + esc(subtitle) : ''}, ${esc(first.startTime)}–${esc(first.endTime)}${status ? ', ' + status : ''}. View lesson details">${previewTime(first.startTime)}<span class="timetable-pill-copy"><strong class="preview-name">${esc(label)}</strong>${subtitle ? `<small>${esc(subtitle)}</small>` : ''}${status ? `<small class="timetable-pill-status">${status}</small>` : ''}</span></button>${join}</li>`;
+      return `<li class="preview-pill timetable-pill ${nextEntry ? 'next-lesson ' : ''}${participation(entries)}${joinable ? ' join-open' : ''}"><button type="button" class="timetable-pill-details" data-information="${id}:${infoIndex}" aria-label="${esc(label)}${subtitle ? ' · ' + esc(subtitle) : ''}, ${esc(first.startTime)}–${esc(last.endTime)}${status ? ', ' + status : ''}. View lesson details">${previewTime(first.startTime)}<span class="timetable-pill-copy"><strong class="preview-name">${esc(label)}</strong>${subtitle ? `<small>${esc(subtitle)}</small>` : ''}${status ? `<small class="timetable-pill-status">${status}</small>` : ''}</span></button>${join}</li>`;
     };
     $(id).innerHTML = `<ol class="upcoming-days preview-days timetable-days">${[...days].sort(([a], [b]) => a.localeCompare(b)).map(([date, groups]) => `<li class="upcoming-day"><time datetime="${esc(date)}">${esc(formatDate(date))}</time><ul class="upcoming-items">${groups.size ? [...groups.values()].map(renderGroup).join('') : '<li class="timetable-empty">No lessons</li>'}</ul></li>`).join('')}</ol>`;
     $(id).scrollLeft = scrollLeft;

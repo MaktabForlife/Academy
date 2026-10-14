@@ -1,14 +1,16 @@
 /* Announcement content stays legible on phones; posters open at full size. */
 .academy-intro{grid-template-columns:1fr}
-.academy-intro .intro-feature{padding:0;background:#fbf8f5;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+.academy-intro .intro-feature{padding:0;min-height:0;background:#fbf8f5;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
 .academy-intro .intro-feature::before,.academy-intro .intro-feature::after{display:none}
-.academy-intro .intro-feature>.academy-news{width:100%;min-height:0;background:#fbf8f5;padding:44px 32px 48px;border:0;border-radius:0;box-shadow:none;color:#111;container-type:inline-size;text-align:center}
-.academy-news #academy-news-title{font:700 clamp(20px,8.2cqw,44px)/1.1 Georgia,serif;letter-spacing:.01em;text-transform:uppercase;margin:0 0 40px;color:#000}
+.academy-intro .intro-feature>.academy-news{width:100%;min-height:0;background:#fbf8f5;padding:20px 24px;border:0;border-radius:0;box-shadow:none;color:#111;container-type:inline-size;text-align:center}
+.academy-news #academy-news-title{font:700 clamp(20px,5cqw,28px)/1.15 Georgia,serif;letter-spacing:.01em;text-transform:uppercase;margin:0 0 16px;color:#000}
 #academy-announcements{min-width:0}
-.academy-news .announcement-slide h3{font:400 20px/1.25 Arial,Helvetica,sans-serif;margin:8px auto 3px;max-width:520px;color:#111;text-align:center}
-.academy-news .announcement-slide .announcement-message{font-size:20px;line-height:1.25;white-space:normal;overflow-wrap:anywhere;max-width:520px;margin:0 auto;color:#111;text-align:center}
-.announcement-poster{display:block;border:0;background:transparent;padding:0;width:100%;max-width:445px;margin-inline:auto;cursor:zoom-in}
-.announcement-poster img{display:block;width:100%;height:auto;max-height:none;object-fit:contain}
+.announcement-slide{display:flex;align-items:center;gap:20px;min-width:0}
+.announcement-copy{flex:1;min-width:0}
+.academy-news .announcement-slide h3{font:600 18px/1.3 Arial,Helvetica,sans-serif;margin:0 0 6px;color:#111;text-align:left;overflow-wrap:anywhere}
+.academy-news .announcement-slide .announcement-message{font-size:16px;line-height:1.45;white-space:normal;overflow-wrap:anywhere;max-height:7.25em;overflow-y:auto;margin:0;color:#111;text-align:left}
+.announcement-poster{display:block;flex:0 0 140px;border:0;background:transparent;padding:0;width:140px;max-width:35%;margin:0;cursor:zoom-in}
+.announcement-poster img{display:block;width:100%;height:180px;object-fit:contain}
 .announcement-controls,.announcement-actions,.announcement-options{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px}
 .announcement-controls button,.announcements-editor button{min-height:44px;padding:8px 14px;border:1px solid #d9c9df;border-radius:10px;background:#fff;color:#704578;cursor:pointer;font:inherit}
 .announcement-controls span{font-size:.9rem}
@@ -33,4 +35,4 @@
 .announcements-editor button:disabled{opacity:.5;cursor:default}
 @media(min-width:1001px){.academy-intro{grid-template-columns:minmax(270px,.8fr) minmax(0,1.2fr)}}
 @media(max-width:1000px){.academy-mobile-layout .academy-intro .intro-feature{padding:0}}
-@media(max-width:480px){.academy-intro .intro-feature>.academy-news{padding:32px 20px 36px}.academy-news #academy-news-title{margin-bottom:28px}.academy-news .announcement-slide h3,.academy-news .announcement-slide .announcement-message{font-size:18px}}
+@media(max-width:480px){.academy-intro .intro-feature>.academy-news{padding:16px}.academy-news #academy-news-title{margin-bottom:12px}.announcement-slide{gap:12px}.announcement-poster{flex-basis:92px;width:92px}.announcement-poster img{height:140px}.academy-news .announcement-slide h3{font-size:16px}.academy-news .announcement-slide .announcement-message{font-size:14px}}

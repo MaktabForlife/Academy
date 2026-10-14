@@ -92,7 +92,9 @@ assert(student.personalTimetable.some(row => row.kind === 'COURSE'));
 assert(student.personalTimetable.filter(row => row.kind === 'PROGRAM').every(row => row.classNames.length && row.teacherNames.length),'Protected lesson details have separate class and teacher fields');
 assert.deepEqual(student.personalTimetable.find(row => row.kind === 'COURSE').teacherNames,['Course teacher']);
 assert.deepEqual(student.personalTimetable.find(row => row.kind === 'COURSE').classNames,[]);
-assert(student.personalTimetable.every(row => row.relevant && row.status === 'SCHEDULED' && !row.summarize));
+assert(student.personalTimetable.every(row => row.relevant && row.status === 'SCHEDULED'));
+assert(student.personalTimetable.filter(row=>row.kind==='PROGRAM').every(row=>row.summarize),'Students use the shared-room Program summary without gaining oversight');
+assert(student.personalTimetable.filter(row=>row.kind==='COURSE').every(row=>!row.summarize),'Personal Course presentation is preserved');
 assert(!student.personalTimetable.some(row => row.activityId === second.program.id), 'An unassigned teaching role does not make every lesson personal');
 for (let i = 1; i < student.personalTimetable.length; i++) assert(student.personalTimetable[i - 1].startsAt <= student.personalTimetable[i].startsAt);
 
