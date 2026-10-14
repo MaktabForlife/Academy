@@ -1,3 +1,7 @@
+# V106.58 — Academy announcement presentation
+
+The home announcement area has a centred uppercase heading, a large poster at its natural proportions, and centred title and message text on a warm off-white background. [Release details](docs/ACADEMY-ANNOUNCEMENT-LAYOUT-106.58.md).
+
 # V106.57 — Academy home welcome styling
 
 The welcome panel shares the self-paced learning gradient and Academy watermark. Its heading reads `ummabbadacademy.com`, with centred mission text and light lettering for contrast. [Release details](docs/ACADEMY-HOME-WELCOME-106.57.md).
