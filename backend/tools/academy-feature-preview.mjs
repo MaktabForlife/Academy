@@ -1,5 +1,6 @@
 // Offline packaging. Deployment uses only the generated, isolated resource IDs.
 import {DatabaseSync} from 'node:sqlite';
+import {buildAcademyAssets} from './academy-assets.mjs';
 import {execFileSync} from 'node:child_process';
 import {readFileSync,writeFileSync,mkdirSync,lstatSync,realpathSync,readdirSync} from 'node:fs';
 import {resolve,join,dirname,extname} from 'node:path';
@@ -47,13 +48,7 @@ export async function prepareFeaturePreview({repo,directory,name,databaseId,buck
     try{roundtrip.exec('PRAGMA foreign_keys=ON');roundtrip.exec(sql);if(activationFacts(roundtrip).fingerprint!==facts.fingerprint)throw Error('PREVIEW_INSTALL_MISMATCH');}finally{roundtrip.close();}
     save('preview-install.sql',sql);save('preview-secrets.json',JSON.stringify(secrets));save('preview-access.json',JSON.stringify({login:'ReviewAdmin10660',pin,syntheticOnly:true},null,2));
     const assets=join(directory,'assets');mkdirSync(assets,{mode:0o700});
-    const paths=['academy','account','programs','users','js','css','icons','images','pdf-viewer','recorder','activities','academy.png','ummabbadacademy.png','logo.png','version.json','app.js','styles.css'];
-    const files=execFileSync('git',['ls-files','-z','--',...paths],{cwd:repo,encoding:'utf8'}).split('\0').filter(Boolean);
-    let assetBytes=0;
-    for(const file of files){const source=join(repo,file),info=lstatSync(source);if(!info.isFile()||realpathSync(source)!==source||info.size>25*1024*1024)throw Error('INVALID_PUBLIC_ASSET');if(!extname(file))continue;
-      let bytes=readFileSync(source);if(file.endsWith('.html'))bytes=Buffer.from(bytes.toString().replace(/<head>/i,'<head>\n<meta name="robots" content="noindex,nofollow">'));
-      const target=join(assets,file);mkdirSync(dirname(target),{recursive:true});writeFileSync(target,bytes,{mode:0o600});assetBytes+=bytes.length;
-    }
+    const assetReport=buildAcademyAssets({repo,directory:assets});
     const origin=`https://${name}.maktab4life.workers.dev`;
     const config={name,account_id:accountId,main:join(repo,'backend/tools/feature-preview-worker.mjs'),compatibility_date:'2026-10-14',workers_dev:true,
       assets:{directory:assets,binding:'ASSETS',run_worker_first:true,html_handling:'none',not_found_handling:'none'},
@@ -62,9 +57,9 @@ export async function prepareFeaturePreview({repo,directory,name,databaseId,buck
       durable_objects:{bindings:[{name:'PROGRAM_TIMETABLE_COORDINATOR',class_name:'ProgramTimetableCoordinator'}]},migrations:[{tag:'feature-preview-v1',new_sqlite_classes:['ProgramTimetableCoordinator']}],
       ratelimits:[{name:'AUTH_LOGIN_RATE_LIMITER',namespace_id:'10660001',simple:{limit:5,period:60}}],
       triggers:{crons:['*/15 * * * *']},observability:{enabled:true,head_sampling_rate:1},
-      vars:{ENVIRONMENT:'development',ACADEMY_D1_MODE:'ACTIVE',ACADEMY_LIBRARY_MODE:'PUBLIC_ONLY',ACADEMY_D1_RUN_ID:base.runId,API_ORIGIN:origin,ALLOWED_ORIGINS:origin+',https://feature-academy-review-fixes-10660.maktab-development.pages.dev'}};
+      vars:{ACADEMY_OPEN_LIBRARY_STORAGE_KEY:name+':open-library-metadata',ACADEMY_DEPLOYMENT_KIND:'ISOLATED_PREVIEW',ENVIRONMENT:'development',ACADEMY_D1_MODE:'ACTIVE',ACADEMY_LIBRARY_MODE:'PUBLIC_ONLY',ACADEMY_D1_RUN_ID:base.runId,API_ORIGIN:origin,ALLOWED_ORIGINS:origin+',https://feature-academy-review-fixes-10660.maktab-development.pages.dev'}};
     save('wrangler.preview.json',JSON.stringify(config,null,2));
-    const manifest={syntheticOnly:true,name,databaseId,bucket,origin,accounts:base.tables.accounts.length,seedRows:Object.values(facts.tableCounts).reduce((a,b)=>a+b,0),schemaObjects:facts.schema.length,assetFiles:files.length,assetBytes,sqlBytes:Buffer.byteLength(sql),liveDatabaseChanged:false};save('preview-manifest.json',JSON.stringify(manifest,null,2));return manifest;
+    const manifest={syntheticOnly:true,name,databaseId,bucket,origin,accounts:base.tables.accounts.length,seedRows:Object.values(facts.tableCounts).reduce((a,b)=>a+b,0),schemaObjects:facts.schema.length,assetFiles:assetReport.fileCount,assetBytes:assetReport.bytes,sqlBytes:Buffer.byteLength(sql),liveDatabaseChanged:false};save('preview-manifest.json',JSON.stringify(manifest,null,2));return manifest;
   }finally{db.close();}
 }
 if(process.argv[1]&&pathToFileURL(resolve(process.argv[1])).href===import.meta.url){const [directory,databaseId]=process.argv.slice(2);console.log(JSON.stringify(await prepareFeaturePreview({repo:process.cwd(),directory,databaseId,name:'academy-feature-10660',bucket:'academy-feature-10660',accountId:'c9a3e355b3d7a795880b1d36a1dbe123'})));}

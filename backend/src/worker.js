@@ -3,7 +3,7 @@
 */
 import { corsResponse, json } from "./lib/http.js";
 import { routeRequest } from "./router.js";
-import academyD1Worker from "./academy/d1/worker.js";
+import academyD1Worker from "./academy/d1/compatibility-worker.js";
 
 export default {
   async scheduled(event,env,ctx) {
@@ -36,7 +36,7 @@ export default {
         return json({
           success: true,
           service: "rebootworker",
-          version: "106.60"
+          version: "106.61"
         });
       }
 

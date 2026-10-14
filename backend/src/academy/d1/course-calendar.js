@@ -1,8 +1,8 @@
 import {annualFlag} from './calendar-annual.js';
-import {createGlobalDeliveryEndpoints} from '../../routes/platform-global-delivery.js';
-import {createGlobalTimetableEndpoints} from '../../routes/platform-global-timetable.js';
-import {createAcademyCalendarEndpoints} from '../../routes/platform-academy-calendar.js';
-import {createGlobalManagementEndpoints} from '../../routes/platform-global-management.js';
+import {createGlobalDeliveryEndpoints} from '../../domain/platform-global-delivery.js';
+import {createGlobalTimetableEndpoints} from '../../domain/platform-global-timetable.js';
+import {createAcademyCalendarEndpoints} from '../../domain/platform-academy-calendar.js';
+import {createGlobalManagementEndpoints} from '../../domain/platform-global-management.js';
 import {PLATFORM_SHEET_HEADERS} from '../../lib/platform-schema.js';
 import {resolveCurrentPublishedGlobalTimetable} from '../../lib/global-timetable.js';
 import {validIsoDate} from '../../lib/global-course-scheduling.js';
@@ -13,7 +13,9 @@ import {insertRecords} from './insert-records.js';
 import {requireLearning} from './learning-state.js';
 import {optionalSchema} from './schema-probe.js';
 import {newActivityOwnership} from './activation-policy.js';
-import {extractDriveFileId,requireItemInsideRoot,validateFileForResourceType,getResourceConfig} from '../../routes/drive-library.js';
+import {extractDriveFileId} from '../../lib/drive-references.js';
+const privateUnavailable=()=>{throw managementError('Private Academy media is not available yet.',403,'PRIVATE_MEDIA_NOT_ENABLED');};
+const requireItemInsideRoot=privateUnavailable,validateFileForResourceType=privateUnavailable,getResourceConfig=privateUnavailable;
 import {courseManagementData,managedCourseScopes} from './course-authority.js';
 
 export async function courseCalendarAvailable(db,failIncomplete=false) {
@@ -97,9 +99,9 @@ const writeEndpoints={
   'timetable/publish':'publishPlatformGlobalTimetableEndpoint','calendar/save':'saveAcademyCalendarEventEndpoint','calendar/batch-save':'saveAcademyCalendarBatchEndpoint'
 };
 const writable=new Set(['GlobalSubjectList','GlobalModuleList','GlobalTaskList','GlobalResources','GlobalSubjectAccessPolicy','GlobalSubjectRuns','GlobalTimetableSessions','GlobalTimetableRunState','GlobalTimetablePublications','PublishedGlobalTimetableSessions','GlobalTimetableSessionLifecycle','AcademyCalendar','PlatformConfig','PlatformAuditLog']);
-function plannedStorage(tables,auth,changes) {
+function plannedStorage(tables,auth,changes,media={}) {
   const newMatrixColumns=new Set();
-  return {getAuthUser:async()=>auth.user,getPlatformSpreadsheetId:()=>'',readPlatformSheet:async(_,name)=>{
+  return {...media,getAuthUser:async()=>auth.user,getPlatformSpreadsheetId:()=>'',readPlatformSheet:async(_,name)=>{
     if(!Object.hasOwn(tables,name))throw Error('Unsupported Course storage read');return tables[name];
   },batchUpdateGoogleSheetValues:async(_,writes)=>{
     for(const write of writes){
@@ -160,7 +162,8 @@ function upsert(p,table,records,keys) {
   return [p(`INSERT INTO ${table}(${columns.join(',')}) SELECT ${columns.map(c=>`json_extract(value,'$.${c}')`).join(',')} FROM json_each(?) WHERE true
     ON CONFLICT(${keys.join(',')}) DO UPDATE SET ${columns.filter(c=>!keys.includes(c)).map(c=>`${c}=excluded.${c}`).join(',')}`,JSON.stringify(records))];
 }
-export async function courseCalendarStatements(store,data,tables,changes,auth,env) {
+export async function courseCalendarStatements(store,data,tables,changes,auth,env,media={}) {
+  const {requireItemInsideRoot=privateUnavailable,validateFileForResourceType=privateUnavailable,getResourceConfig=privateUnavailable}=media;
   const p=store.p,statements=[];
   const records=name=>[...(changes.get(name)?.values()||[])];
   const activity=subject=>{const found=tables.GlobalSubjectList.find(a=>same(a.SubjectID,subject));if(!found)throw managementError('Course subject is unavailable.',409);return 'COURSE:'+found.SubjectID;};
@@ -267,14 +270,14 @@ export async function planCoursePublication(store,data,auth,env,courseId,runId,d
   return {statements:await courseCalendarStatements(store,data,tables,changes,auth,env),publication:body.publication};
 }
 
-export function d1CourseCalendar(repository,auth,env={}) {
+export function d1CourseCalendar(repository,auth,env={},media={}) {
   const store=managementStore(repository,auth,{versionKey:'COURSES'}),p=store.p;
   async function load(){return loadCourseCalendarData(store,repository);}
   async function execute(action,input,data,request){
     // ADMIN is the older domain service's scoped-admin name. The D1 boundary
     // supplies filtered records and checks each Course again in its transaction.
     const domainAuth=auth.state.account.global_admin?auth:{...auth,user:{...auth.user,role:'ADMIN'}};
-    const tables=projectCourseCalendar(data),changes=new Map(),storage=plannedStorage(tables,domainAuth,changes);
+    const tables=projectCourseCalendar(data),changes=new Map(),storage=plannedStorage(tables,domainAuth,changes,media);
     windowLimit(action,input,tables);
     validateCalendarInput(action,input,tables);
     const endpoints={...createGlobalDeliveryEndpoints(storage),...createGlobalTimetableEndpoints(storage),...createAcademyCalendarEndpoints(storage),...createGlobalManagementEndpoints(storage)};
@@ -294,7 +297,7 @@ export function d1CourseCalendar(repository,auth,env={}) {
     if(!auth.state.account.global_admin&&(!managedCourseScopes(auth.state).length||action.startsWith('calendar/')||action.startsWith('drive')))
       throw managementError('This action requires an authorised Course administrator.',403,'FORBIDDEN');
     await requireCourseCalendar(repository.db);
-    if(readEndpoints[action]){const data=courseManagementData(await load(),auth);const {body}=await execute(action,input,data,request);return {...body,workflowStore:'D1',workflowRevision:String(data.version),...(action==='get'?{capabilities:{curriculum:true,courseCreation:Boolean(auth.state.account.global_admin),resourceManagement:true,subscriptionManagement:await repository.subscriptionSource()==='effective_course_subscriptions'}}:{})};}
+    if(readEndpoints[action]){const data=courseManagementData(await load(),auth);const {body}=await execute(action,input,data,request);return {...body,workflowStore:'D1',workflowRevision:String(data.version),...(action==='get'?{capabilities:{curriculum:true,courseCreation:Boolean(auth.state.account.global_admin),resourceManagement:Boolean(media.listGoogleDriveFolder),subscriptionManagement:await repository.subscriptionSource()==='effective_course_subscriptions'}}:{})};}
     if(!writeEndpoints[action])throw managementError('This Course action is unavailable.',501,'OPERATION_NOT_MIGRATED');
     const dataset=action.startsWith('calendar/')?'ACADEMY_CALENDAR':'COURSE_MANAGEMENT';
     return store.change(dataset,'ACADEMY',action,input,async()=>{
@@ -316,7 +319,7 @@ export function d1CourseCalendar(repository,auth,env={}) {
         if(changes.has('AcademyCalendar')||[...(changes.get('PlatformConfig')?.values()||[])].some(r=>!['GlobalCurriculumVersion','GlobalTimetableVersion'].includes(r.ConfigKey)))
           throw managementError('Academy settings require a Global Admin.',403,'FORBIDDEN');
       }
-      return {data,authorityScopes:scoped.activities.filter(a=>a.kind==='COURSE').map(a=>a.activity_key),statements:await courseCalendarStatements(store,data,tables,changes,auth,env),result:{...body,workflowStore:'D1',workflowRevision:String(data.version+1)},fields:[...changes.keys()].filter(n=>!['PlatformAuditLog','PlatformConfig'].includes(n))};
+      return {data,authorityScopes:scoped.activities.filter(a=>a.kind==='COURSE').map(a=>a.activity_key),statements:await courseCalendarStatements(store,data,tables,changes,auth,env,media),result:{...body,workflowStore:'D1',workflowRevision:String(data.version+1)},fields:[...changes.keys()].filter(n=>!['PlatformAuditLog','PlatformConfig'].includes(n))};
     });
   }};
 }

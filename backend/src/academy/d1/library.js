@@ -4,7 +4,7 @@ import {requireLearning} from './learning-state.js';
 import {managementView} from '../../programs/management-model.js';
 import {visibleProgramResources,requireVisibleProgramResource} from '../../programs/library-viewer.js';
 import {academyResourceDecision} from '../../lib/academy-library-policy.js';
-import {createSessionToken,verifySessionToken} from '../../lib/auth.js';
+import {createSessionToken,verifySessionToken} from '../../lib/auth-primitives.js';
 import {extractGoogleDriveFolderId} from '../../lib/system-config.js';
 import {listGoogleDriveFolder} from '../../lib/google-drive.js';
 import {requireItemInsideRoot,validateFileForResourceType,getResourceConfig,getSupportedResourceTypes,buildDriveBreadcrumbs,deriveFileFormat,extractDriveFileId,createDriveAccessToken,streamDriveFileEndpoint} from '../../routes/drive-library.js';

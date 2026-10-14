@@ -1,13 +1,12 @@
 import { isActivePlatformValue as active, normalizePlatformIdentifier as key } from '../lib/platform-schema.js';
 import { canAccountAccessGlobalSubject, dateInTimezone } from '../lib/global-subject-delivery.js';
-import { buildGlobalCourseEvents, academyClockInTimezone } from '../routes/academy-timetable.js';
+import { buildGlobalCourseEvents, academyClockInTimezone } from '../lib/academy-timetable-model.js';
 import { resolveCurrentPublishedGlobalTimetable } from '../lib/global-timetable.js';
 import { publicationRecord, publicationSchedule } from '../programs/weekly-timetable.js';
 import { managementState } from '../programs/management-model.js';
 import { problem, clean } from '../programs/model.js';
 
-// Verified against Development CourseRegistry and the new ProgramIdentity sheet.
-// A missing/mismatched record is unavailable; there is deliberately no legacy fallback.
+// Preserve the imported Reboot Program display name by its stable Academy identity.
 export const REBOOT_PILOT_PROGRAM_ID = 'PRG-46c8576d-9fcf-4000-96b9-856b00a0218a';
 export const programDisplayName = program => key(program.id) === key(REBOOT_PILOT_PROGRAM_ID) ? 'Reboot' : program.name;
 export const addDays = (date, days) => new Date(Date.parse(`${date}T12:00:00Z`) + days * 86400000).toISOString().slice(0, 10);

@@ -1,4 +1,4 @@
-import {subjectName,subjectKey,subjectRevision} from '../../programs/academy-subjects.js';
+import {subjectName,subjectKey,subjectRevision} from '../../programs/subject-model.js';
 import {managementStore,managementError,rowChanged,same} from './management-store.js';
 
 export async function subjectDTO(row) {

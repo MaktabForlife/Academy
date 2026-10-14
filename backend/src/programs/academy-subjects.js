@@ -8,12 +8,8 @@ export const ACADEMY_SUBJECT_HEADERS = {
   AcademySubjectList:['SubjectID','SubjectName','Active','CreatedDate','CreatedByAccountID'],
   AcademySubjectOperations:['OperationID','PayloadHash','ResultJSON','DateStamp','AccountID','SourceSpreadsheetID','SourceSubjectsJSON']
 };
-export const subjectRevision = row => payloadHash({SubjectID:row.SubjectID,SubjectName:row.SubjectName,Active:active(row.Active)});
-export const subjectKey = name => clean(name).normalize('NFKC').replace(/\s+/gu,' ').toLowerCase();
-export function subjectName(value) {
-  if(typeof value!=='string'||!subjectKey(value)||value.trim().length>160)throw problem('Enter a subject name (up to 160 characters).');
-  return value.trim().normalize('NFC').replace(/\s+/gu,' ');
-}
+import {subjectRevision,subjectKey,subjectName} from './subject-model.js';
+export {subjectRevision,subjectKey,subjectName} from './subject-model.js';
 const cells=values=>({values:values.map(value=>({userEnteredValue:typeof value==='boolean'?{boolValue:value}:{stringValue:String(value??'')}}))});
 export function academySubjectRepository(env) {
   const spreadsheetId=getPlatformSpreadsheetId(env),target={spreadsheetId};

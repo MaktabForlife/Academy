@@ -1,4 +1,4 @@
-import {verifySessionToken} from '../../lib/auth.js';
+import {verifySessionToken} from '../../lib/auth-primitives.js';
 import {rehearsalError} from './repository.js';
 
 export const d1Audience='academy-d1-rehearsal';

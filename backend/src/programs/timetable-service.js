@@ -1,6 +1,6 @@
 import { managementState, managementView, applyManagementChange, MANAGEMENT_KINDS, managementRowRevision, studentClassRevision } from './management-model.js';
 import { problem, clean } from './model.js';
-import { programFailure } from './errors.js';
+import { programFailure } from './error-model.js';
 import { TIMETABLE_SCHEMA, boundedJSON, validDate, normalizeDraft as normalizeDatedDraft } from './timetable-model.js';
 import { WEEKLY_SCHEMA, TIMETABLE_TIMEZONE, emptyWeeklyDraft, normalizeWeeklyDraft, readWeeklyDraft, validateWeeklyTimetable, publicationRecord, publicationSchedule, programToday } from './weekly-timetable.js';
 export function timetableService(repository,program,now=()=>new Date()) {

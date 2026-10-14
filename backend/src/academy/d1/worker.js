@@ -10,7 +10,7 @@ import {teacherAvailability} from './teacher-availability.js';
 import {d1Subjects} from './subjects.js';
 import {d1LearningCatalogue,saveLearningModule} from './learning-catalogue.js';
 import {d1AccountTimetable} from './account-timetable.js';
-import { createAuthRateLimitKey, createSaltedPinHash, createSessionToken, isValidFourDigitPin, verifyPin } from '../../lib/auth.js';
+import { createAuthRateLimitKey, createSaltedPinHash, createSessionToken, isValidFourDigitPin, verifyPin } from '../../lib/auth-primitives.js';
 import { academyD1Repository, rehearsalError } from './repository.js';
 import { d1Entrance } from './entrance.js';
 import {d1LessonJoin,websiteEntrance} from './lesson-join.js';
@@ -20,16 +20,17 @@ import { d1Profiles } from './profiles.js';
 import { d1Programs } from './programs.js';
 import {d1Learning} from './learning.js';
 import {learningAvailable} from './learning-state.js';
-import {d1Library,d1LibraryStream,d1LibraryAreaRefs} from './library.js';
-import {d1CourseCalendar} from './course-calendar.js';
+import * as publicLibrary from './library-boundary.js';
+import {d1CourseCalendar as defaultCourseCalendar} from './course-calendar.js';
 import {academicCalendar} from './academic-calendar.js';
 import {d1CourseManagement} from './course-management.js';
 import {d1CourseCatalogue} from './course-catalogue.js';
 import {d1CourseSubscriptions} from './course-subscriptions.js';
 import {managedCourseScopes} from './course-authority.js';
 import {authenticatedD1Account as authenticated,d1Audience as audience,d1ContextEqual as contextEqual} from './session.js';
-import {openLibraryMetadataEndpoint} from '../../routes/open-library-metadata.js';
+import {openLibraryMetadataEndpoint as defaultMetadataEndpoint} from './library-metadata.js';
 
+export function createAcademyWorker({d1Library,d1LibraryStream,d1LibraryAreaRefs}=publicLibrary,{openLibraryMetadataEndpoint=defaultMetadataEndpoint,d1CourseCalendar=defaultCourseCalendar}={}){
 const publicAccount=state=>({displayName:state.account.display_name,uniqueid:state.account.login_link_id});
 const sessionResponse=(state,context,token)=>({account:publicAccount(state),context,contexts:state.contexts,courseManagement:state.account.global_admin||managedCourseScopes(state).length>0,sessionStore:'D1',operationalAccessActive:['COURSE','GLOBAL'].includes(context.scope),...(token?{token}:{})});
 const requireActive=state=>{if(!state)throw rehearsalError('Invalid account link',404,'ACCOUNT_NOT_FOUND');if(!state.account.active)throw rehearsalError('Account disabled',403,'ACCOUNT_DISABLED');};
@@ -65,7 +66,7 @@ async function dispatch(request,env) {
   if(path==='/api/academy/announcements/image'&&['GET','HEAD'].includes(request.method))return announcementImage(request,repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'rebootworker',version:'106.60',
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'rebootworker',version:'106.61',
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(repository)};
@@ -218,9 +219,9 @@ async function dispatch(request,env) {
     if(!target)throw rehearsalError('Account not found.',404,'ACCOUNT_NOT_FOUND');
     if(path.endsWith('/read'))return {success:true,account:{accountId:target.account.account_id,displayName:target.account.display_name,active:Boolean(target.account.active),revision:target.account.revision,pinSetup:Boolean(target.account.pin_setup),credentialEpoch:target.account.credential_epoch}};
   }
-  throw rehearsalError('This operation is not available in the database rehearsal.',501,'OPERATION_NOT_MIGRATED');
+  throw rehearsalError('This operation is not available in the Academy.',501,'OPERATION_NOT_MIGRATED');
 }
-export default {
+return {
   async scheduled(event,env,ctx){ctx.waitUntil(recoverCacheRefresh(env,new Date(event.scheduledTime)));},
   async fetch(request,env) {
     const origin=request.headers.get('Origin');
@@ -249,3 +250,5 @@ export default {
         ...(status===409?Object.fromEntries(['currentRecord','rowRevision','entryKey'].filter(k=>error[k]!==undefined).map(k=>[k,error[k]])):{} )}),{status,headers});}
   }
 };
+}
+export default createAcademyWorker();

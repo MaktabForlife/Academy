@@ -1,6 +1,6 @@
 {
   "name": "rebootworker",
-  "version": "106.60",
+  "version": "106.61",
   "type": "module",
   "scripts": {
     "test": "node tests/run-all.mjs",
@@ -73,7 +73,12 @@
     "test:v104.5.1-course-ui": "node tests/v1045-course-ui-refinement.test.mjs",
     "test:v104.5.4-ui": "node tests/v10454-course-calendar-ui.test.mjs && node tests/v1045-course-ui-refinement.test.mjs && node tests/academy-timetable.test.mjs",
     "test:memorisation": "node --test tests/academy-d1-memorisation.test.mjs",
-    "test:memorisation:browser": "node tools/academy-memorisation-acceptance.mjs"
+    "test:memorisation:browser": "node tools/academy-memorisation-acceptance.mjs",
+    "test:academy": "node tests/run-group.mjs academy",
+    "test:legacy": "node tests/run-group.mjs legacy",
+    "test:offline": "node tests/run-group.mjs offline",
+    "check:academy-boundary": "node tools/academy-boundary.mjs",
+    "prepare:feature-release": "node tools/academy-feature-release.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.36.0"

@@ -1,5 +1,9 @@
 # V106.60 — Academy review fixes for an isolated feature preview
 
+## V106.61 Academy legacy cleanup
+
+The isolated feature preview uses a dedicated D1 runtime with no Google Sheets, Apps Script or private Drive client dependencies. A neutral key identifies Cloudflare Open Library metadata; authentication formats and current Course/Program permissions remain stable. The Academy publish artifact excludes legacy applications and private tooling while retaining public PDFs, YouTube and current R2 files. Development and main are unchanged. [Implementation and release boundary](docs/ACADEMY-LEGACY-CLEANUP-106.61.md).
+
 Retire alternate account write routes, allow unrelated management saves with scoped conflict checks, and retain transactional admin safeguards. Teacher name changes invalidate other browsers through an R2 version marker. Public timetable changes record durable refresh work with bounded recovery. Homepage class and curriculum queries are scoped to authorised learning areas while preserving public free joining. No live database schema changes are required. The feature preview uses a separate small synthetic database and bucket; Development stays on V106.59. All regression, concurrency and scale checks run locally. [Implementation and preview details](docs/ACADEMY-REVIEW-FIXES-106.60.md).
 
 # V106.59 — Compact Academy home and consistent timetable cards
