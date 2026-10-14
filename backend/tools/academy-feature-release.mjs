@@ -19,6 +19,7 @@ export function prepareFeatureRelease({repo,configFile,directory}){
   config.vars.ACADEMY_OPEN_LIBRARY_STORAGE_KEY=config.vars.ACADEMY_OPEN_LIBRARY_STORAGE_KEY||
     (config.vars.PLATFORM_SPREADSHEET_ID?`${String(config.vars.PLATFORM_SPREADSHEET_ID).trim()}:open-library-metadata`:`${config.name}:open-library-metadata`);
   config.vars.ACADEMY_DEPLOYMENT_KIND='ISOLATED_PREVIEW';
+  config.vars.ALLOWED_ORIGINS=[...new Set([...(config.vars.ALLOWED_ORIGINS||'').split(',').filter(Boolean),'https://feature-academy-review-fixes.maktab-development.pages.dev'])].join(',');
   for(const name of ['PLATFORM_SPREADSHEET_ID','GOOGLE_SPREADSHEET_ID','GOOGLE_SERVICE_ACCOUNT_JSON','APPS_SCRIPT_URL','M4L_LIBRARY_BRIDGE_SECRET','M4L_GOOGLE_SERVICE_ACCOUNT_EMAIL','ACADEMY_D1_UPLOAD_BRIDGE'])delete config.vars[name];
   const version=JSON.parse(readFileSync(join(repo,'version.json'),'utf8')).version;
   const manifest={version,branch:'feature/academy-review-fixes-10660',worker:config.name,syntheticOnly:true,databaseId:database.database_id,reseeded:false,googleBackendClients:0,dependencyModules:graph.length,assets};

@@ -1,3 +1,3 @@
-// Pages feature frontend: static Academy assets and explicitly public media only.
+// Pages resolves directory indexes itself; preserve account links without redirect loops.
 import {serveAcademySite} from './academy-site.mjs';
-export default {fetch:serveAcademySite};
+export default {fetch:(request,env)=>serveAcademySite(request,env,{pages:true})};

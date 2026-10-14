@@ -1,5 +1,9 @@
 # V106.60 — Academy review fixes for an isolated feature preview
 
+## V106.62 Academy cleanup feature website routing
+
+Complete the V106.61 cleanup on the isolated feature preview. Recognise Cloudflare’s assigned `feature-academy-review-fixes` website alias and let Pages resolve directory indexes, preserving personal account URLs without redirect loops. The dedicated D1 backend and legacy dependency boundary remain unchanged. [Release details](docs/ACADEMY-LEGACY-CLEANUP-106.62.md).
+
 ## V106.61 Academy legacy cleanup
 
 The isolated feature preview uses a dedicated D1 runtime with no Google Sheets, Apps Script or private Drive client dependencies. A neutral key identifies Cloudflare Open Library metadata; authentication formats and current Course/Program permissions remain stable. The Academy publish artifact excludes legacy applications and private tooling while retaining public PDFs, YouTube and current R2 files. Development and main are unchanged. [Implementation and release boundary](docs/ACADEMY-LEGACY-CLEANUP-106.61.md).

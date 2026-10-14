@@ -45,7 +45,7 @@ test('the publish artifact excludes legacy applications, backend source and priv
  for(const file of ['app.js','admin/index.html','student/index.html','js/m4l-program-library.js','backend/src/worker.js','apps-script/code.gs','AGENTS.md'])assert.equal(existsSync(join(directory,file)),false,file);
  assert(!readFileSync(join(directory,'programs/library.html'),'utf8').includes('m4l-program-library.js'));
  const config=readFileSync(join(directory,'js/m4l-config.js'),'utf8');assert(!config.includes('devrebootworker'));assert(!config.includes('api.rebootyourmaktab'));
- for(const host of ['academy-feature-10660.maktab4life.workers.dev','feature-academy-review-fixes-10660.maktab-development.pages.dev','unknown.example']){const window={location:{hostname:host,origin:'https://'+host}};vm.runInNewContext(config,{window});assert.equal(window.M4L_CONFIG.API_BASE,host==='unknown.example'?'':'https://academy-feature-10660.maktab4life.workers.dev');}
+ for(const host of ['academy-feature-10660.maktab4life.workers.dev','feature-academy-review-fixes-10660.maktab-development.pages.dev','feature-academy-review-fixes.maktab-development.pages.dev','unknown.example']){const window={location:{hostname:host,origin:'https://'+host}};vm.runInNewContext(config,{window});assert.equal(window.M4L_CONFIG.API_BASE,host==='unknown.example'?'':'https://academy-feature-10660.maktab4life.workers.dev');}
  }finally{rmSync(directory,{recursive:true,force:true});}
 });
 
@@ -60,4 +60,7 @@ test('intentional public media remains supported while private Worker file URLs 
  assert.equal((await serveAcademySite(new Request('https://preview.invalid/admin/'),env)).status,302);
  assert.equal((await serveAcademySite(new Request('https://preview.invalid/backend/src/worker.js'),env)).status,404);
  assert.equal(assets,0);
+ const paths=[];const pageAssets={ASSETS:{fetch:async request=>{paths.push(new URL(request.url).pathname);return new Response('page');}}};
+ for(const path of ['/academy/','/users/','/account/ReviewAdmin10660'])assert.equal((await serveAcademySite(new Request('https://preview.invalid'+path),pageAssets,{pages:true})).status,200);
+ assert.deepEqual(paths,['/academy/','/users/','/account/']);
 });

@@ -57,7 +57,7 @@ export async function prepareFeaturePreview({repo,directory,name,databaseId,buck
       durable_objects:{bindings:[{name:'PROGRAM_TIMETABLE_COORDINATOR',class_name:'ProgramTimetableCoordinator'}]},migrations:[{tag:'feature-preview-v1',new_sqlite_classes:['ProgramTimetableCoordinator']}],
       ratelimits:[{name:'AUTH_LOGIN_RATE_LIMITER',namespace_id:'10660001',simple:{limit:5,period:60}}],
       triggers:{crons:['*/15 * * * *']},observability:{enabled:true,head_sampling_rate:1},
-      vars:{ACADEMY_OPEN_LIBRARY_STORAGE_KEY:name+':open-library-metadata',ACADEMY_DEPLOYMENT_KIND:'ISOLATED_PREVIEW',ENVIRONMENT:'development',ACADEMY_D1_MODE:'ACTIVE',ACADEMY_LIBRARY_MODE:'PUBLIC_ONLY',ACADEMY_D1_RUN_ID:base.runId,API_ORIGIN:origin,ALLOWED_ORIGINS:origin+',https://feature-academy-review-fixes-10660.maktab-development.pages.dev'}};
+      vars:{ACADEMY_OPEN_LIBRARY_STORAGE_KEY:name+':open-library-metadata',ACADEMY_DEPLOYMENT_KIND:'ISOLATED_PREVIEW',ENVIRONMENT:'development',ACADEMY_D1_MODE:'ACTIVE',ACADEMY_LIBRARY_MODE:'PUBLIC_ONLY',ACADEMY_D1_RUN_ID:base.runId,API_ORIGIN:origin,ALLOWED_ORIGINS:origin+',https://feature-academy-review-fixes-10660.maktab-development.pages.dev,https://feature-academy-review-fixes.maktab-development.pages.dev'}};
     save('wrangler.preview.json',JSON.stringify(config,null,2));
     const manifest={syntheticOnly:true,name,databaseId,bucket,origin,accounts:base.tables.accounts.length,seedRows:Object.values(facts.tableCounts).reduce((a,b)=>a+b,0),schemaObjects:facts.schema.length,assetFiles:assetReport.fileCount,assetBytes:assetReport.bytes,sqlBytes:Buffer.byteLength(sql),liveDatabaseChanged:false};save('preview-manifest.json',JSON.stringify(manifest,null,2));return manifest;
   }finally{db.close();}

@@ -5,6 +5,7 @@
   const local=['localhost','127.0.0.1'].includes(host);
   const feature=host==='academy-feature-10660.maktab4life.workers.dev'||
     host==='feature-academy-review-fixes-10660.maktab-development.pages.dev'||
+    host==='feature-academy-review-fixes.maktab-development.pages.dev'||
     /^[a-f0-9]{8}\.maktab-development\.pages\.dev$/.test(host);
   window.M4L_CONFIG=Object.freeze({
     ENV_NAME:feature||local?'development':'unavailable',
