@@ -9,9 +9,26 @@
   const ACTIVITY_CACHE_MS = 86400000;
   const profileLabelRevision=()=>{try{return localStorage.getItem('m4l_academy_profile_labels_revision')||'';}catch{return '';}};
   const dailyCache = { session: '', owner:'', entries: {},profileRevision:profileLabelRevision() };
+  let labelsVersion,labelsCheckedAt=0,labelsPending=null;
+  async function checkRemoteProfileLabels(force=false){
+    if(!token()||!force&&Date.now()-labelsCheckedAt<60000)return false;
+    if(labelsPending)return labelsPending;
+    const session=token();
+    labelsPending=(async()=>{
+      try{
+        const response=await fetch(`${window.M4L_CONFIG?.API_BASE||''}/api/academy/profile-labels-version`,{cache:'no-cache'}),result=await response.json();
+        if(session!==token()||!response.ok||!result.success||typeof result.profileLabelsVersion!=='string')return false;
+        labelsCheckedAt=Date.now();
+        const previous=labelsVersion;labelsVersion=result.profileLabelsVersion;
+        if(previous!==undefined&&previous!==labelsVersion){dailyCache.entries={};pageCache.snapshot=null;return true;}
+      }catch{labelsCheckedAt=Date.now();/* Keep cached information; no retry loop. */}
+      return false;
+    })();
+    try{return await labelsPending;}finally{labelsPending=null;}
+  }
   function checkProfileLabels(){const revision=profileLabelRevision();if(revision!==dailyCache.profileRevision){dailyCache.profileRevision=revision;dailyCache.entries={};pageCache.snapshot=null;}return revision;}
   const MEMORISATION_RETURN_KEY='m4l_academy_memorisation_return_v1';
-  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10659';
+  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10660';
   const academyDay = (timezone, instant = Date.now()) => {
     const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {timeZone:timezone || 'Africa/Johannesburg',
       year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(instant)).map(part=>[part.type,part.value]));
@@ -71,6 +88,7 @@
 
   async function dailyTimetable(body, force = false) {
     checkProfileLabels();
+    await checkRemoteProfileLabels(force);
     const session = token(), epoch = pageCache.epoch;
     if (!session) return request(body);
     const key = body.startDate || 'HOME';
@@ -86,7 +104,7 @@
       const saved = JSON.parse(sessionStorage.getItem(DAILY_CACHE_KEY) || 'null');
       dailyCache.owner=owner;
       if(!memorisationReturn&&memorisationHash(location.hash)){const back=JSON.parse(sessionStorage.getItem(MEMORISATION_RETURN_KEY)||'null');if(back?.owner===owner&&validReturnHash(back.hash)&&!memorisationHash(back.hash)&&Number.isFinite(back.left)&&Number.isFinite(back.top))memorisationReturn=back;}
-      if (saved?.owner === owner && saved.profileRevision === dailyCache.profileRevision) dailyCache.entries = {...saved.entries,...dailyCache.entries};
+      if (saved?.owner === owner && saved.profileRevision === dailyCache.profileRevision && (labelsVersion===undefined||saved.labelsVersion===labelsVersion)) dailyCache.entries = {...saved.entries,...dailyCache.entries};
       else sessionStorage.removeItem(DAILY_CACHE_KEY);
     } catch { /* A blocked/full tab store falls back to this page's memory cache. */ }
     if (token() !== session || pageCache.epoch !== epoch) throw new Error('The Academy account has changed.');
@@ -100,7 +118,7 @@
         dailyCache.entries = Object.fromEntries(Object.entries(dailyCache.entries).filter(([,value])=>value.cacheDay===academyDay(value.timezone)).slice(-7));
         const cacheable = JSON.parse(JSON.stringify(result,(field,value)=>field==='joinUrl'?undefined:value));
         dailyCache.entries[key] = {...cacheable,cacheDay:academyDay(result.timezone)};
-        if (owner) try { sessionStorage.setItem(DAILY_CACHE_KEY,JSON.stringify({owner,profileRevision:dailyCache.profileRevision,entries:dailyCache.entries})); } catch {}
+        if (owner) try { sessionStorage.setItem(DAILY_CACHE_KEY,JSON.stringify({owner,profileRevision:dailyCache.profileRevision,labelsVersion,entries:dailyCache.entries})); } catch {}
       }
       return result;
     } catch (error) {
@@ -939,6 +957,7 @@
     clearTimeout(state.activityTimer);
     if(document.visibilityState==='visible'&&!token()&&state.home){renderHome();armScheduleClock();return;}
     if (document.visibilityState === 'visible' && token()) {
+      checkReturnedPage();
       if (location.hash === '#timetable') void loadSchedule();
       else if (location.hash.startsWith('#activity/') && state.activity && state.home?.startDate === academyDay(state.home.timezone)) renderActivityTimetable();
       else if (['#overview', ''].includes(location.hash) || location.hash.startsWith('#activity/')) void loadHome();
@@ -1012,6 +1031,15 @@
   });
   window.addEventListener('hashchange', route);
   window.addEventListener('m4l-academy-session', () => { if (!token()) { dailyCache.session='';dailyCache.entries={};try { sessionStorage.removeItem(DAILY_CACHE_KEY); } catch {} } clearPersonal(); void loadHome(); });
+  const checkReturnedPage=()=>{if(document.visibilityState!=='hidden'&&token())void checkRemoteProfileLabels().then(async changed=>{
+    if(!changed)return;
+    if(location.hash==='#timetable'){void loadSchedule(true);return;}
+    if(location.hash.startsWith('#activity/')){
+      // Update lesson labels without reopening tools or replacing a plan draft.
+      try{const result=await dailyTimetable({startDate:state.startDate},true);rememberPages(result);state.home=result;state.scheduleTimetable=scheduleRows(result);renderActivityTimetable();}catch{/* Existing controls remain; joining rechecks current access. */}
+    }else if(['#overview',''].includes(location.hash))void loadHome(true);
+  });};
+  window.addEventListener('focus',checkReturnedPage);
   window.addEventListener('storage', event => { if (event.key === 'm4l_account_token') { clearPersonal(); void loadHome(); } });
   window.addEventListener('pageshow', event => { if (event.persisted) { clearPersonal(); void loadHome(); } });
 

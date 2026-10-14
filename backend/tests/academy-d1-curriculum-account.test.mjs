@@ -95,7 +95,7 @@ test('curriculum failures roll back new parents, children, audits and receipts; 
 
 test('shared subject authority is checked inside the transaction',()=>use(async({env,db})=>{
   const token=await login(env),binding=nativeBinding(db);let revoke=true;
-  const wrapped={...binding,batch:async statements=>{if(revoke&&statements.length===6){revoke=false;db.exec('UPDATE global_role_assignments SET active=0');}return binding.batch(statements);}};
+  const wrapped={...binding,batch:async statements=>{if(revoke&&statements.some(s=>s.sql?.startsWith('INSERT INTO academy_write_guards'))){revoke=false;db.exec('UPDATE global_role_assignments SET active=0');}return binding.batch(statements);}};
   const result=await post({...env,ACADEMY_DB:{withSession:()=>wrapped}},subjects+'save',{mode:'create',subjectName:'Denied subject',operationId:crypto.randomUUID()},token);
   assert.equal(result.status,401);assert.equal(db.prepare("SELECT count(*) n FROM subject_catalog WHERE name='Denied subject'").get().n,0);
 }));

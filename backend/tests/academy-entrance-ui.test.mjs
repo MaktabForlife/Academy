@@ -45,9 +45,10 @@ const stamp = event => {
   return result;
 };
 let deferNext=false, release, hasWorkshops=true, globalAdmin=false, programRole='STUDENT', roomFixture=false, rollupBoundaryFixture=false, colourFixture=false, cacheFixture=false, failNext=false, quotaNext=false, warningFixture=false, publicFreeFixture=false;
-const publicJoins=[];
+const publicJoins=[];let remoteLabelsVersion='0',labelChecks=0;
 const fetch = async (_url, options) => {
   fetchUrls.push(_url);
+  if(_url.endsWith('/api/academy/profile-labels-version')){labelChecks++;return {ok:true,status:200,json:async()=>({success:true,profileLabelsVersion:remoteLabelsVersion})};}
   const signedIn = Boolean(options.headers?.Authorization), body = JSON.parse(options.body||'{}');
   if (_url.endsWith('/api/academy/public-lesson/join')) { assert.equal(signedIn,false); publicJoins.push(body); return {ok:true,status:200,json:async()=>({success:true,joinUrl:'https://zoom.test/free-current-checked'})}; }
   if(!signedIn){assert.ok(_url.endsWith('/api/academy/entrance/public-snapshot'));assert.equal(options.method,'GET');}

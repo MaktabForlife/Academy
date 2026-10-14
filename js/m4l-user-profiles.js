@@ -51,7 +51,7 @@
     const response=await fetch(`${base}/api/admin/platform/user-profiles/${action}`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify(input)});
     let result;try{result=await response.json();}catch{throw new Error('The response could not be read. Your entry is kept.');}
     if(localStorage.getItem('m4l_account_token')!==token)throw Object.assign(new Error('Your sign-in changed. Reload User profiles.'),{status:401});
-    if(!response.ok||!result.success)throw Object.assign(new Error(result.error||'The change could not be confirmed.'),result,{status:response.status});return result;
+    if(!response.ok||!result.success)throw Object.assign(new Error(result.error||'The change could not be confirmed.'),result,{status:response.status});void window.M4L_REFRESH_AFTER_SAVE?.(result,token);return result;
   }
   function render(){
     renderGlobalStatus();

@@ -2,6 +2,7 @@ import {academyD1Repository,rehearsalError} from './repository.js';
 import {d1Entrance} from './entrance.js';
 import {lessonTimes} from '../entrance.js';
 import {authenticatedD1Account} from './session.js';
+import {refreshSetting} from './refresh-state.js';
 
 export function publicTimetableDay(now=new Date()) {
   const start=new Date(now);start.setUTCHours(0,0,0,0);
@@ -22,7 +23,7 @@ async function buildSnapshot(repository,period,now){
 // an opaque published reference and clock boundaries for click-time joining.
 export function publicTimetableSnapshot(data,period,now=new Date()) {
   return {success:true,snapshotVersion:3,snapshotDate:period.startDate,expiresAt:period.expiresAt,generatedAt:data.generatedAt||now.toISOString(),
-    signedIn:false,globalAdmin:false,student:false,startDate:data.startDate,endDate:data.endDate,timezone:data.timezone,
+    ...(Number.isSafeInteger(data.sourceRevision)?{sourceRevision:data.sourceRevision}:{}),signedIn:false,globalAdmin:false,student:false,startDate:data.startDate,endDate:data.endDate,timezone:data.timezone,
     activities:[],personalActivities:[],activityPages:[],personalTimetable:[],activity:null,warnings:[],calendarEvents:[],
     timetable:data.timetable.filter(row=>row.status==='SCHEDULED').map(row=>({kind:row.kind,activityId:row.activityId,
       ...(row.kind==='PROGRAM'?{publicCard:Object.fromEntries(['time','title','description'].map(key=>[key,typeof row.publicCard?.[key]==='string'?row.publicCard[key].slice(0,({time:12,title:80,description:240})[key]):'']))}:{}),activityName:row.activityName,title:row.activityName||row.title,date:row.date,startTime:row.startTime,endTime:row.endTime,timezone:row.timezone,status:'SCHEDULED',...(row.publicJoin===true&&typeof row.joinKey==='string'?{publicJoin:true,joinKey:row.joinKey,...lessonTimes(row)}:{})}))};
@@ -60,16 +61,26 @@ export async function publicTimetable(request,env,now=new Date(),edgeCache=globa
 
 // Visitors still read one durable daily snapshot. Explicit administration and
 // successful Program publication share the same conditional replacement.
-async function replaceSnapshot(request,env,repository,authorize,now,edgeCache){
+async function replaceSnapshot(request,env,repository,authorize,now,edgeCache,sourceRevision){
  await authorize();
  if(!env.MEDIA_BUCKET)throw rehearsalError('The public timetable snapshot store is unavailable.');
  const period=publicTimetableDay(now),key=publicTimetableKey(env,period),previous=await env.MEDIA_BUCKET.get(key);
+ const manual=sourceRevision===undefined;
+ const currentRevision=async()=>Number((await repository.db.prepare("SELECT json_extract(setting_value,'$.requested') AS revision FROM academy_settings WHERE setting_key=?").bind(refreshSetting('public-timetable')).first())?.revision||0);
+ if(manual)sourceRevision=await currentRevision();
+ if(sourceRevision!==undefined&&previous&&(await previous.json()).sourceRevision>sourceRevision)throw rehearsalError('A newer timetable is already published.',409,'SNAPSHOT_CHANGED');
  const snapshot=await buildSnapshot(repository,period,now);
+ if(sourceRevision!==undefined)snapshot.sourceRevision=sourceRevision;
  await authorize();
+ if(manual&&await currentRevision()!==sourceRevision)throw rehearsalError('A newer timetable change is pending. Please refresh again.',409,'SNAPSHOT_CHANGED');
  const written=await env.MEDIA_BUCKET.put(key,JSON.stringify(snapshot),{httpMetadata:{contentType:'application/json'},onlyIf:previous?{etagMatches:previous.etag}:{etagDoesNotMatch:'*'}});
  if(!written)throw rehearsalError('The public timetable changed during refresh. Please refresh it again.',409,'SNAPSHOT_CHANGED');
+ if(manual)await repository.db.prepare("UPDATE academy_settings SET setting_value=json_set(setting_value,'$.published',?,'$.attempts',0,'$.nextAttemptAt',0,'$.leaseUntil',0) WHERE setting_key=? AND json_extract(setting_value,'$.requested')=?").bind(sourceRevision,refreshSetting('public-timetable'),sourceRevision).run();
  if(edgeCache)try{await edgeCache.put(cacheKeyFor(request,key),snapshotResponse(snapshot,period,now));}catch{/* Other regions receive the durable replacement within one minute. */}
  return {snapshotDate:period.startDate,generatedAt:snapshot.generatedAt,lessons:snapshot.timetable.length,refreshWithinSeconds:60};
+}
+export function refreshPendingTimetable(request,env,repository,revision,check,now=new Date(),edgeCache=globalThis.caches?.default){
+ return replaceSnapshot(request,env,repository,check,now,edgeCache,revision);
 }
 export async function refreshPublicTimetable(request,env,repository,auth,now=new Date(),edgeCache=globalThis.caches?.default){
  if(!auth.state.account.global_admin)throw rehearsalError('Only a Global Admin can refresh the public timetable.',403,'FORBIDDEN');

@@ -1,3 +1,4 @@
+import {profileChange} from './academy-profile-client.mjs';
 #!/usr/bin/env node
 import {readFileSync,writeFileSync,mkdirSync,mkdtempSync} from 'node:fs';
 import {resolve,join} from 'node:path';
@@ -98,17 +99,17 @@ try {
   if(failures.length)throw Error('Burst failed');
   step='SECURITY_SMOKE';const admin=tokens[0],student=tokens[1];
   const detail=ensure(await post('/api/academy/d1/accounts/read',{accountId:'account-0002'},admin));
-  ensure(await post('/api/academy/d1/accounts/reset-pin',{accountId:'account-0002',credentialEpoch:detail.account.credentialEpoch},admin));
+  ensure(await profileChange(post,'account-0002',admin,{mode:'reset-pin'}));
   ensure(await post('/api/account/session',{},student),401);
   const replacement=ensure(await post('/api/account/setup-pin',{uniqueid:'login-0002',pin:'2345',pinConfirmation:'2345'}));
   ensure(await post('/api/account/session',{},replacement.token));
-  ensure(await post('/api/academy/d1/accounts/update',{accountId:'account-0002',displayName:'Synthetic updated learner',active:false,revision:1},admin));
+  ensure(await profileChange(post,'account-0002',admin,{displayName:'Synthetic updated learner',active:false}));
   ensure(await post('/api/account/session',{},replacement.token),401);
-  ensure(await post('/api/academy/d1/accounts/update',{accountId:'account-0002',displayName:'Synthetic updated learner',active:true,revision:2},admin));
+  ensure(await profileChange(post,'account-0002',admin,{displayName:'Synthetic updated learner',active:true}));
   ensure(await post('/api/account/session',{},replacement.token),401);
   ensure(await post('/api/account/logout',{},tokens[10]));ensure(await post('/api/account/session',{},tokens[10]),401);
   const other=ensure(await post('/api/academy/d1/accounts/read',{accountId:'account-0008'},admin));
-  ensure(await post('/api/academy/d1/accounts/reset-pin',{accountId:'account-0008',credentialEpoch:other.account.credentialEpoch},admin));
+  ensure(await profileChange(post,'account-0008',admin,{mode:'reset-pin'}));
   const races=await Promise.all([post('/api/account/setup-pin',{uniqueid:'login-0008',pin:'2345',pinConfirmation:'2345'}),post('/api/account/setup-pin',{uniqueid:'login-0008',pin:'2345',pinConfirmation:'2345'})]);
   if(races.map(r=>r.status).sort().join(',')!=='200,409')throw Error('Concurrent credential guard failed');
   for(let i=0;i<4;i++)ensure(await post('/api/account/login',{uniqueid:'LOGIN-0010',pin:'1234'}));

@@ -131,6 +131,9 @@ export function d1Profiles(repository,auth) {
     data.roles.push(...selected.map(role=>({account_id:account.account_id,activity_key:a.activity_key,role,active:1,review_state:'CONFIRMED'})));
     statements.push(p("UPDATE role_import_reviews SET proposed_role=(SELECT target_role FROM role_mapping_decisions WHERE source_role=role_import_reviews.source_value),status='CONFIRMED',reviewed_by_account_id=?,reviewed_at=? WHERE account_id=? AND activity_key=? AND status='REQUIRED' AND source_value IN (SELECT source_role FROM role_mapping_decisions)",auth.user.accountid,now,account.account_id,a.activity_key));
     for(const review of data.reviews.filter(r=>same(r.account_id,account.account_id)&&same(r.activity_key,a.activity_key)&&r.status==='REQUIRED'&&data.mappings.some(m=>m.source_role===r.source_value)))review.status='CONFIRMED';
+    // Account-scoped guards also protect role edits that race profile changes.
+    statements.push(p('UPDATE accounts SET revision=revision+1 WHERE account_id=?',account.account_id));
+    account.revision++;
     return {assignment:await assignmentDTO(data,account,a)};
   }
   return {
@@ -155,6 +158,7 @@ export function d1Profiles(repository,auth) {
             p('INSERT INTO academy_write_guards(guard_id,accepted) VALUES(?,(SELECT credential_epoch=? FROM account_credentials WHERE account_id=?))',guard,current.credentialEpoch,account.account_id),
             p("UPDATE account_credentials SET pin_hash='',pin_setup=0,credential_epoch=credential_epoch+1,updated_at=? WHERE account_id=?",now,account.account_id),
             p('UPDATE account_sessions SET revoked_at=? WHERE account_id=? AND revoked_at IS NULL',now,account.account_id),
+            p('UPDATE accounts SET revision=revision+1 WHERE account_id=?',account.account_id),
             p('DELETE FROM academy_write_guards WHERE guard_id=?',guard)
           ],result:{reset:true,accountId:account.account_id,loginPath:`/account/${encodeURIComponent(account.login_link_id)}`},fields:['AuthenticationCredential','AccountSessions']};
         });
@@ -176,7 +180,12 @@ export function d1Profiles(repository,auth) {
           catch(error){error.entryKey=entryKey(entry);throw error;}
         }
         if(!data.accounts.some(a=>a.active&&profileDTO(data,a).academyAdmin))throw managementError('Keep at least one active Global Admin.',409,'LAST_ADMIN');
-        return {data:{...data,accounts:guardAccounts},statements,result:input.mode==='batch'?{results}:Object.fromEntries(Object.entries(results[0]).filter(([key])=>key!=='entryKey')),fields:['DisplayName','UniqueID','WhatsAppNumber','Active','GlobalAdmin','GlobalTeacher','ActivityRoleAssignments']};
+        // Check the resulting database state, not only the planning snapshot.
+        // Independent saves must never jointly remove the last administrator.
+        const invariant=crypto.randomUUID();
+        statements.push(p(`INSERT INTO academy_write_guards(guard_id,accepted) VALUES(?,EXISTS(SELECT 1 FROM accounts a JOIN global_role_assignments g USING(account_id) WHERE a.active=1 AND g.active=1 AND g.role='GLOBAL_ADMIN' AND g.review_state='CONFIRMED'))`,invariant),p('DELETE FROM academy_write_guards WHERE guard_id=?',invariant));
+        const labelsChanged=guardAccounts.some(a=>data.accounts.some(b=>same(a.account_id,b.account_id)&&a.display_name!==b.display_name));
+        return {data:{...data,accounts:guardAccounts},statements,cacheEffects:labelsChanged?['profile-labels']:[],result:input.mode==='batch'?{results}:Object.fromEntries(Object.entries(results[0]).filter(([key])=>key!=='entryKey')),fields:['DisplayName','UniqueID','WhatsAppNumber','Active','GlobalAdmin','GlobalTeacher','ActivityRoleAssignments']};
       }); } catch(error) { if(/UNIQUE constraint failed: accounts.login_link_id/.test(error.message))throw managementError('This Login ID is already used by another account. Choose a unique ID.',409,'DUPLICATE_LOGIN_ID');throw error; }
     }
   };

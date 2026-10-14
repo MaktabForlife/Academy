@@ -6,6 +6,9 @@ import { routeRequest } from "./router.js";
 import academyD1Worker from "./academy/d1/worker.js";
 
 export default {
+  async scheduled(event,env,ctx) {
+    if(['REHEARSAL','ACTIVE'].includes(env.ACADEMY_D1_MODE))return academyD1Worker.scheduled(event,env,ctx);
+  },
   async fetch(request, env) {
     const url = new URL(request.url);
 
@@ -33,7 +36,7 @@ export default {
         return json({
           success: true,
           service: "rebootworker",
-          version: "106.59"
+          version: "106.60"
         });
       }
 

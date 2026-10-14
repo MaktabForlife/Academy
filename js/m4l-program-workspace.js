@@ -6,9 +6,10 @@
   function cardPreview(){const card=cardDraft||state.data.program.publicCard||{};$('pw-card-preview').innerHTML=card.title?`<strong>${esc(card.time)}</strong><div><b>${esc(card.title)}</b><p>${esc(card.description).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')}</p></div>`:'';$('pw-save-card').disabled=state.busy||!cardDirty();$('pw-discard-card').disabled=state.busy||!cardDirty();}
   function rowControls(tr,row){const dirty=classDirty(row);tr.classList.toggle('is-editing',dirty);tr.querySelectorAll('[data-pw-save],[data-pw-discard]').forEach(button=>button.disabled=state.busy||!dirty);tr.querySelector('[data-pw-state]').textContent=dirty?'Unsaved':'Saved';}
   const post=async(path,body)=>{
+   const session=localStorage.getItem('m4l_account_token');
    const key=JSON.stringify([path,body]);if(!retries.has(key))retries.set(key,crypto.randomUUID());
-   const response=await fetch((window.M4L_CONFIG?.API_BASE||'')+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+localStorage.getItem('m4l_account_token')},body:JSON.stringify({...body,operationId:retries.get(key)})});
-   const result=await response.json();if(!response.ok||!result.success)throw Error(result.error||'Save failed. Your entry is kept.');retries.delete(key);return result;
+   const response=await fetch((window.M4L_CONFIG?.API_BASE||'')+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session},body:JSON.stringify({...body,operationId:retries.get(key)})});
+   const result=await response.json();if(!response.ok||!result.success)throw Error(result.error||'Save failed. Your entry is kept.');retries.delete(key);void window.M4L_REFRESH_AFTER_SAVE?.(result,session);return result;
   };
   const note=(text,error=false)=>{$('pw-message').textContent=text;$('pw-message').classList.toggle('is-error',error);};
   const teachers=selected=>'<option value="">No class teacher</option>'+state.data.catalog.teachers.map(t=>`<option value="${esc(t.id)}" ${selected===t.id?'selected':''}>${esc(t.name)}</option>`).join('');

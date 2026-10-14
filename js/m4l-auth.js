@@ -338,6 +338,7 @@ async function apiPost(path, body = {}, token = "") {
     result.error = "The service is temporarily busy. Your session remains active; please wait a moment and try again.";
   }
 
+  if(response.ok&&result.success)void window.M4L_REFRESH_AFTER_SAVE?.(result,token);
   return {
     ...result,
     ...(retryable ? { retryable: true } : {}),

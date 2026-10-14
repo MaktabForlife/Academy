@@ -13,6 +13,7 @@
   "env": {
     "development": {
       "name": "devrebootworker",
+      "triggers": {"crons":["*/15 * * * *"]},
       "d1_databases": [
         {
           "binding": "ACADEMY_DB",

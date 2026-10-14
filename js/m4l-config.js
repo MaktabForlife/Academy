@@ -35,6 +35,8 @@
     ENV_NAME: "development",
     API_BASE: "https://devrebootworker.maktab4life.workers.dev"
   };
+  const featurePreviewHost=host==='academy-feature-10660.maktab4life.workers.dev'||host.endsWith('.maktab-development.pages.dev')&&host!=='development.maktab-development.pages.dev';
+  const FEATURE_CONFIG={ENV_NAME:'development',API_BASE:'https://academy-feature-10660.maktab4life.workers.dev'};
 
   function isDevelopmentHost(hostname) {
     if (DEVELOPMENT_HOSTS.has(hostname)) return true;
@@ -53,7 +55,7 @@
     return PRODUCTION_HOSTS.has(hostname);
   }
 
-  const selectedConfig = isDevelopmentHost(host)
+  const selectedConfig = featurePreviewHost?FEATURE_CONFIG:isDevelopmentHost(host)
     ? DEV_CONFIG
     : PROD_CONFIG;
 
@@ -67,6 +69,22 @@
     isKnownProductionHost: isProductionHost(host),
     isKnownDevelopmentHost: isDevelopmentHost(host)
   });
+
+  // A confirmed save is independent of cache publication. Refresh is a separate,
+  // deduplicated request, and durable pending work survives a closed browser.
+  const refreshes=new Map();
+  window.M4L_REFRESH_AFTER_SAVE=function(result,session) {
+    if(!result?.cacheRefreshPending?.length||!session)return Promise.resolve(null);
+    if(refreshes.has(session))return refreshes.get(session);
+    const pending=(async()=>{
+      try {
+        const response=await fetch(window.M4L_CONFIG.API_BASE+'/api/academy/cache/refresh',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session},body:'{}'});
+        const refreshed=await response.json();
+        return response.ok&&refreshed.success?refreshed:{pending:true};
+      }catch{return {pending:true};}
+    })();
+    refreshes.set(session,pending);pending.finally(()=>{if(refreshes.get(session)===pending)refreshes.delete(session);});return pending;
+  };
 
   if (window.M4L_CONFIG.IS_DEVELOPMENT) {
     console.info("M4L config loaded:", window.M4L_CONFIG.ENV_NAME, window.M4L_CONFIG.API_BASE);

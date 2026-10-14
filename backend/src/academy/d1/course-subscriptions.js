@@ -5,7 +5,7 @@ import {managedCourseScopes,courseManagementData} from './course-authority.js';
 // Preserve the current per-account/per-Course subscription control. Admission,
 // Program enrolment, Module subscriptions and completion grants are separate.
 export function d1CourseSubscriptions(repository,auth) {
-  const store=managementStore(repository,auth),p=store.p;
+  const store=managementStore(repository,auth,{versionKey:'COURSES'}),p=store.p;
   return {async save(input){
     if(!auth.state.account.global_admin&&!managedCourseScopes(auth.state).some(s=>same(s,'COURSE:'+input.subjectId)))
       throw managementError('This action requires an authorised Course administrator.',403,'FORBIDDEN');

@@ -268,7 +268,7 @@ export async function planCoursePublication(store,data,auth,env,courseId,runId,d
 }
 
 export function d1CourseCalendar(repository,auth,env={}) {
-  const store=managementStore(repository,auth),p=store.p;
+  const store=managementStore(repository,auth,{versionKey:'COURSES'}),p=store.p;
   async function load(){return loadCourseCalendarData(store,repository);}
   async function execute(action,input,data,request){
     // ADMIN is the older domain service's scoped-admin name. The D1 boundary

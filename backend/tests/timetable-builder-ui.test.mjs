@@ -47,7 +47,7 @@ assert.match(adminHtml, /Leave blank to use the program-default Zoom/);
 assert.match(adminHtml, /Program Timetables/);
 assert.match(adminHtml, /Programs &amp; Times/);
 assert.match(adminHtml, /m4l-timetable-builder\.js\?v=106\.9/);
-assert.match(adminHtml, /m4l-auth\.js\?v=102\.9\.1/);
+assert.match(adminHtml, /m4l-auth\.js\?v=106\.60/);
 assert.match(adminHtml, /m4l-timetable\.js\?v=102\.9\.1/);
 
 assert.match(builderJs, /getTimetableBuilderRole\(\) !== "ADMIN"/);

@@ -15,6 +15,7 @@ import { academyD1Repository, rehearsalError } from './repository.js';
 import { d1Entrance } from './entrance.js';
 import {d1LessonJoin,websiteEntrance} from './lesson-join.js';
 import {publicTimetable,refreshPublicTimetable,refreshPublishedTimetable} from './public-timetable.js';
+import {profileLabelsVersion,processCacheRefresh,recoverCacheRefresh} from './cache-refresh.js';
 import { d1Profiles } from './profiles.js';
 import { d1Programs } from './programs.js';
 import {d1Learning} from './learning.js';
@@ -64,7 +65,7 @@ async function dispatch(request,env) {
   if(path==='/api/academy/announcements/image'&&['GET','HEAD'].includes(request.method))return announcementImage(request,repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'rebootworker',version:'106.59',
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'rebootworker',version:'106.60',
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(repository)};
@@ -149,6 +150,10 @@ async function dispatch(request,env) {
   const assessmentReportAction=path.match(/^\/api\/academy\/assessments\/(templates|template-save|report-data|report-save|report-list)$/)?.[1];
   if(assessmentReportAction)return {success:true,...await assessmentReports(repository,auth).run(assessmentReportAction,input)};
   if(path==='/api/admin/platform/public-timetable/refresh')return {success:true,...await refreshPublicTimetable(request,env,repository,auth)};
+  if(path==='/api/academy/cache/refresh') {
+    if(!auth.state.account.global_admin&&!auth.state.roles.some(r=>r.role==='PROGRAM_ADMIN'))throw rehearsalError('This action requires an authorised administrator.',403,'FORBIDDEN');
+    return {success:true,...await processCacheRefresh(request,env,{repository})};
+  }
   if(path==='/api/admin/platform/program-timetable/refresh-public')return {success:true,...await refreshPublishedTimetable(request,env,repository,auth,input)};
   if(path==='/api/academy/lesson/join')return {success:true,...await d1LessonJoin(repository,auth,input)};
   if(path==='/api/academy/courses/catalogue')return {success:true,...await d1CourseCatalogue(repository,auth)};
@@ -207,21 +212,16 @@ async function dispatch(request,env) {
   }
   if(path.startsWith('/api/academy/d1/accounts/')) {
     if(!auth.state.account.global_admin)throw rehearsalError('Forbidden',403,'FORBIDDEN');
+    if(['/api/academy/d1/accounts/update','/api/academy/d1/accounts/reset-pin'].includes(path))
+      throw rehearsalError('Use User profiles to change an account or reset its PIN.',410,'ACCOUNT_WRITE_RETIRED');
     const target=await repository.byId(String(input.accountId || ''));
     if(!target)throw rehearsalError('Account not found.',404,'ACCOUNT_NOT_FOUND');
     if(path.endsWith('/read'))return {success:true,account:{accountId:target.account.account_id,displayName:target.account.display_name,active:Boolean(target.account.active),revision:target.account.revision,pinSetup:Boolean(target.account.pin_setup),credentialEpoch:target.account.credential_epoch}};
-    if(path.endsWith('/reset-pin')) {
-      if(input.credentialEpoch!==target.account.credential_epoch)throw rehearsalError('Account changed. Please refresh.',409,'ACCOUNT_CHANGED');
-      await repository.setCredential(target,'','ACCOUNT_PIN_RESET',auth.state.account.account_id);return {success:true};
-    }
-    if(path.endsWith('/update')) {
-      if(typeof input.displayName!=='string'||!input.displayName.trim()||input.displayName.trim().length>160||typeof input.active!=='boolean'||!Number.isInteger(input.revision))throw rehearsalError('Invalid account change.',400,'INVALID_REQUEST');
-      await repository.updateAccount(auth.state.account.account_id,target,{...input,displayName:input.displayName.trim()});return {success:true};
-    }
   }
   throw rehearsalError('This operation is not available in the database rehearsal.',501,'OPERATION_NOT_MIGRATED');
 }
 export default {
+  async scheduled(event,env,ctx){ctx.waitUntil(recoverCacheRefresh(env,new Date(event.scheduledTime)));},
   async fetch(request,env) {
     const origin=request.headers.get('Origin');
     const allowed=(env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
@@ -230,7 +230,8 @@ export default {
     if(origin&&allowed.includes(origin))headers['Access-Control-Allow-Origin']=origin;
     if(origin&&!allowed.includes(origin))return new Response(JSON.stringify({success:false,error:'Origin is not allowed.'}),{status:403,headers});
     if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
-    try{const result=await (new URL(request.url).pathname==='/api/academy/entrance/public-snapshot'?publicTimetable(request,env):dispatch(request,env));
+    try{const path=new URL(request.url).pathname;
+      const result=await (path==='/api/academy/entrance/public-snapshot'?publicTimetable(request,env):path==='/api/academy/profile-labels-version'?profileLabelsVersion(request,env):dispatch(request,env));
       if(result instanceof Response){const mediaHeaders=new Headers(result.headers);for(const name of ['Vary','Access-Control-Allow-Methods','Access-Control-Allow-Headers'])mediaHeaders.set(name,headers[name]);
         mediaHeaders.set('X-Content-Type-Options','nosniff');
         mediaHeaders.delete('Access-Control-Allow-Origin');if(headers['Access-Control-Allow-Origin'])mediaHeaders.set('Access-Control-Allow-Origin',headers['Access-Control-Allow-Origin']);

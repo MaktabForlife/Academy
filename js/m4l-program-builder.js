@@ -24,7 +24,7 @@
     try { result = await response.json(); } catch { throw new Error("The service returned an unreadable response. Your edits are still here."); }
     if(token!==localStorage.getItem("m4l_account_token"))throw new Error("Your Academy account changed. Open Programs again.");
     if (!response.ok || !result.success) throw new Error(result.error || "Could not save. Your edits are still here.");
-    return result;
+    void window.M4L_REFRESH_AFTER_SAVE?.(result,token);return result;
   }
   async function load() {
     state.busy = true;

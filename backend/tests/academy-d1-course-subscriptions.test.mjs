@@ -93,7 +93,7 @@ test('subscription decisions, audits and retry receipts commit together and reco
 
 test('subscription authority is checked inside its write transaction',()=>use(async({env,db})=>{
   paid(db);const token=await login(env),initial=await view(env,token),binding=nativeBinding(db);let revoke=true;
-  const wrapped={...binding,batch:async statements=>{if(revoke&&statements.length===6){revoke=false;db.exec('UPDATE global_role_assignments SET active=0');}return binding.batch(statements);}};
+  const wrapped={...binding,batch:async statements=>{if(revoke&&statements.some(s=>s.sql?.startsWith('INSERT INTO academy_write_guards'))){revoke=false;db.exec('UPDATE global_role_assignments SET active=0');}return binding.batch(statements);}};
   assert.equal((await change({...env,ACADEMY_DB:{withSession:()=>wrapped}},token,true,initial.workflowRevision)).status,401);
   assert.equal(db.prepare('SELECT count(*) n FROM course_subscription_decisions').get().n,0);
 }));

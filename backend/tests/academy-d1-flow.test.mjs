@@ -1,3 +1,4 @@
+import {profileChange} from '../tools/academy-profile-client.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import worker from '../src/worker.js';
@@ -115,17 +116,18 @@ test('pending roles stay ineffective; legacy Admin/Senior remains scoped and a r
 }));
 
 test('PIN reset, setup, credential upgrades and account edits never write to Sheets',()=>use(async({env,db})=>{
+  db.exec(readFileSync(new URL('../migrations/academy/0004_management_transactions.sql',import.meta.url),'utf8'));
   const admin=await login(env,'0001'),student=await login(env);
   const detail=await call(env,'/api/academy/d1/accounts/read',{accountId:'account-0002'},admin.body.token);
   const epoch=detail.body.account.credentialEpoch;
-  assert.equal((await call(env,'/api/academy/d1/accounts/reset-pin',{accountId:'account-0002',credentialEpoch:epoch},admin.body.token)).status,200);
+  assert.equal((await profileChange((...args)=>call(env,...args),'account-0002',admin.body.token,{mode:'reset-pin'})).status,200);
   assert.equal((await call(env,'/api/account/session',{},student.body.token)).status,401);
   const setup=await call(env,'/api/account/setup-pin',{uniqueid:'login-0002',pin:'1234',pinConfirmation:'1234'});assert.equal(setup.status,200);
   assert.equal((await call(env,'/api/account/setup-pin',{uniqueid:'login-0002',pin:'1234',pinConfirmation:'1234'})).status,409);
   const row=db.prepare("SELECT * FROM accounts WHERE account_id='account-0002'").get();
-  assert.equal((await call(env,'/api/academy/d1/accounts/update',{accountId:row.account_id,displayName:'New synthetic name',active:false,revision:row.revision},admin.body.token)).status,200);
+  assert.equal((await profileChange((...args)=>call(env,...args),row.account_id,admin.body.token,{displayName:'New synthetic name',active:false})).status,200);
   assert.equal((await call(env,'/api/account/session',{},setup.body.token)).status,401);
-  assert.equal((await call(env,'/api/academy/d1/accounts/update',{accountId:row.account_id,displayName:'New synthetic name',active:true,revision:row.revision+1},admin.body.token)).status,200);
+  assert.equal((await profileChange((...args)=>call(env,...args),row.account_id,admin.body.token,{displayName:'New synthetic name',active:true})).status,200);
   assert.equal((await call(env,'/api/account/session',{},setup.body.token)).status,401);
   db.prepare("UPDATE account_credentials SET pin_hash=? WHERE account_id='account-0003'").run(await hashPin('1234',env.PIN_SECRET));
   assert.equal((await login(env,'0003')).status,200);assert.ok(isSaltedPinHash(db.prepare("SELECT pin_hash FROM account_credentials WHERE account_id='account-0003'").get().pin_hash));
@@ -133,14 +135,15 @@ test('PIN reset, setup, credential upgrades and account edits never write to She
 }));
 
 test('concurrent PIN setup and stale profile changes cannot overwrite a newer account',()=>use(async({env,db})=>{
+  db.exec(readFileSync(new URL('../migrations/academy/0004_management_transactions.sql',import.meta.url),'utf8'));
   db.prepare("UPDATE account_credentials SET pin_hash='',pin_setup=0 WHERE account_id='account-0002'").run();
   const body={uniqueid:'login-0002',pin:'1234',pinConfirmation:'1234'};
   const results=await Promise.all([call(env,'/api/account/setup-pin',body),call(env,'/api/account/setup-pin',body)]);
   assert.deepEqual(results.map(r=>r.status).sort(),[200,409]);
   assert.equal(db.prepare("SELECT count(*) AS n FROM audit_events WHERE action='ACCOUNT_PIN_SETUP_SELF'").get().n,1);
-  const admin=await login(env,'0001');const body2={accountId:'account-0002',displayName:'First synthetic name',active:true,revision:1};
-  assert.equal((await call(env,'/api/academy/d1/accounts/update',body2,admin.body.token)).status,200);
-  assert.equal((await call(env,'/api/academy/d1/accounts/update',{...body2,displayName:'Stale name'},admin.body.token)).status,409);
+  const admin=await login(env,'0001');const account=(await call(env,'/api/admin/platform/user-profiles/get',{},admin.body.token)).body.accounts.find(a=>a.accountId==='account-0002');const body2={mode:'profile',creating:false,accountId:account.accountId,displayName:'First synthetic name',active:true,uniqueId:account.uniqueId,baseRevision:account.revision,operationId:crypto.randomUUID()};
+  assert.equal((await call(env,'/api/admin/platform/user-profiles/save',body2,admin.body.token)).status,200);
+  assert.equal((await call(env,'/api/admin/platform/user-profiles/save',{...body2,operationId:crypto.randomUUID(),displayName:'Stale name'},admin.body.token)).status,409);
 }));
 
 test('incorrect PIN, throttling, invalid sessions and unavailable D1 remain distinct',()=>use(async({env})=>{

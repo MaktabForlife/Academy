@@ -23,7 +23,7 @@
       if([401,403].includes(response.status))lock('Course management requires a current Global Admin or assigned Course Program Admin account. Return to Academy home to sign in.');
       throw Object.assign(Error(result.error||'The Course request could not be completed.'),result,{status:response.status});
     }
-    return result;
+    void window.M4L_REFRESH_AFTER_SAVE?.(result,authToken);return result;
   }
   async function mutate(action,input){
     const key=JSON.stringify({action,input});

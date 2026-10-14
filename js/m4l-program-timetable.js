@@ -47,7 +47,7 @@
   async function api(action,body={}){
     const token=localStorage.getItem('m4l_account_token');if(!token)throw new Error('Sign in through your personal Academy account link first.');
     const response=await fetch(`${window.M4L_CONFIG?.API_BASE||''}/api/admin/platform/program-timetable/${action}`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({id,...body})});
-    const result=await response.json();if(!response.ok||!result.success)throw Object.assign(new Error(result.error||'The request could not be confirmed.'),result,{status:response.status});return result;
+    const result=await response.json();if(!response.ok||!result.success)throw Object.assign(new Error(result.error||'The request could not be confirmed.'),result,{status:response.status});if(action!=='publish')void window.M4L_REFRESH_AFTER_SAVE?.(result,token);return result;
   }
   async function listPrograms(){
     const token=localStorage.getItem('m4l_account_token');if(!token)throw Error('Sign in through your personal Academy account link first.');
@@ -143,8 +143,8 @@
       let refreshNote='';
       if(wasPublish&&state.data.workspaceReady){
         message(`Version ${result.version} published. Refreshing the public timetable…`);
-        try{await api('refresh-public',{publicationId:result.publicationId});refreshNote=' Public timetable refreshed.';}
-        catch{refreshNote=' Public snapshot could not refresh. A Global Admin can retry from Academy actions.';}
+        const refreshed=await window.M4L_REFRESH_AFTER_SAVE?.(result,localStorage.getItem('m4l_account_token'));
+        refreshNote=refreshed&&!refreshed.pending?' Public timetable refreshed.':' Public timetable update is pending and will be retried.';
       }
       message(wasPublish?`Version ${result.version} published, effective ${result.effectiveFrom||'as originally recorded'}.${refreshNote}`:'Weekly draft saved. The timetable in effect is unchanged.');
     }catch(error){

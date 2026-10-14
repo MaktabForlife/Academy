@@ -144,32 +144,32 @@ export function academyD1Repository(env) {
       if(result[0].meta.changes!==1)throw rehearsalError('Account changed. Please refresh and try again.',409,'ACCOUNT_CHANGED');
       return this.byId(row.account_id);
     },
-    async updateAccount(actor,target,input) {
-      const result=await db.batch([
-        prepare(`UPDATE accounts SET display_name=?,active=?,revision=revision+1,updated_at=?,modified_by_source_id=? WHERE account_id=? AND revision=?`,input.displayName,Number(input.active),new Date().toISOString(),actor,target.account.account_id,input.revision),
-        audit(actor,target.account.account_id,'ACCOUNT_PROFILE_UPDATE',['DisplayName','Active'],true),
-        prepare(`UPDATE account_sessions SET revoked_at=? WHERE account_id=? AND changes()=1
-          AND EXISTS(SELECT 1 FROM accounts WHERE account_id=? AND active=0 AND revision=?)`,new Date().toISOString(),target.account.account_id,target.account.account_id,input.revision+1)
-      ]);
-      if(result[0].meta.changes!==1)throw rehearsalError('Account changed. Please refresh and try again.',409,'ACCOUNT_CHANGED');
-      return this.byId(target.account.account_id);
-    },
     async homeData(state,start,end,courseWorkflows=false,programWorkspace=false) {
+      // Private curriculum is needed only for learning areas this account can
+      // access. Anonymous previews need class destinations only for free joining.
+      const privateKeys=state?[...new Set([
+        ...(state.account.global_admin?state.activities.map(a=>a.activity_key):state.roles.map(r=>r.activity_key)),
+        ...state.activities.filter(a=>a.kind==='COURSE'&&(a.legacy_access_model==='FREE'||state.subscriptions.some(s=>key(s.activity_key)===key(a.activity_key)))).map(a=>a.activity_key)
+      ])]:[];
+      const privateScope=JSON.stringify(privateKeys);
+      const classScope=state?`c.activity_key IN (SELECT value FROM json_each(?))`:
+        `c.activity_key IN (SELECT a.activity_key FROM activities a ${programAccessJoin} WHERE a.kind='PROGRAM' AND a.active=1 AND a.lifecycle='ACTIVE' AND a.website_visible=1 AND ${programAccessSQL}='FREE')`;
       const queries=[
         `SELECT a.*,p.timezone,p.duration_years${programWorkspace?`,p.public_card_json,CASE WHEN a.kind<>'COURSE' THEN 1
           WHEN EXISTS(SELECT 1 FROM course_management_drafts d WHERE d.activity_key=a.activity_key AND d.stage NOT IN ('CANCELLED','ARCHIVED')) THEN 1
           WHEN EXISTS(SELECT 1 FROM course_runs r LEFT JOIN course_management_drafts d USING(activity_key,run_id) LEFT JOIN course_run_state s USING(activity_key,run_id) WHERE r.activity_key=a.activity_key AND r.active=1 AND d.run_id IS NULL AND coalesce(s.stage,'DRAFT') NOT IN ('CANCELLED','ARCHIVED')) THEN 1
           WHEN NOT EXISTS(SELECT 1 FROM course_management_drafts d WHERE d.activity_key=a.activity_key) AND NOT EXISTS(SELECT 1 FROM course_runs r WHERE r.activity_key=a.activity_key) THEN 1 ELSE 0 END AS course_menu_available`:''},cs.legacy_access_model,${programAccessSQL} AS program_access_model,pz.setting_value AS program_zoom_override FROM activities a LEFT JOIN program_settings p USING(activity_key) LEFT JOIN course_settings cs USING(activity_key) ${programAccessJoin} ${programZoomJoin} WHERE a.active=1 AND a.lifecycle='ACTIVE' AND a.website_visible=1`,
         `SELECT p.*${state?`,${publicationTeacherAccountsSQL} AS teacher_accounts_json`:''} FROM timetable_publications p JOIN activities a USING(activity_key) WHERE a.active=1 AND a.lifecycle='ACTIVE' AND (p.pattern='COURSE' OR ((p.effective_from IS NULL OR p.effective_from<=?) AND (p.effective_until IS NULL OR p.effective_until>=?)))`,
-        `SELECT p.*,s.subject_id,s.name AS subject_name FROM program_subjects p JOIN subject_catalog s USING(subject_key) WHERE p.active=1 AND s.active=1`,
-        `SELECT * FROM modules WHERE active=1`, `SELECT * FROM classes WHERE active=1`,
+        `SELECT p.*,s.subject_id,s.name AS subject_name FROM program_subjects p JOIN subject_catalog s USING(subject_key) WHERE p.active=1 AND s.active=1 AND p.activity_key IN (SELECT value FROM json_each(?))`,
+        `SELECT * FROM modules WHERE active=1 AND activity_key IN (SELECT value FROM json_each(?))`,
+        `SELECT c.* FROM classes c WHERE c.active=1 AND ${classScope}`,
         `SELECT * FROM class_memberships WHERE account_id=?`,
         `SELECT r.*${courseWorkflows?',ca.access_model AS run_access_model':''} FROM course_runs r JOIN activities a USING(activity_key) ${courseWorkflows?'JOIN course_run_access ca USING(activity_key,run_id)':''} WHERE r.active=1 AND a.active=1 AND a.lifecycle='ACTIVE'`,
         `SELECT s.* FROM course_run_state s JOIN course_runs r USING(activity_key,run_id) WHERE r.active=1`,
         `SELECT * FROM lesson_lifecycle`,
         ...(courseWorkflows?[`SELECT * FROM academy_calendar_events`,`SELECT * FROM academy_calendar_suppressions`,`SELECT * FROM academy_settings WHERE setting_key LIKE 'AcademyHolidayAnnual:%'`]:[])
       ];
-      const results=await db.batch(queries.map((sql,i)=>i===1?prepare(sql,end,start):i===5?prepare(sql,state?.account.account_id || ''):prepare(sql)));
+      const results=await db.batch(queries.map((sql,i)=>i===1?prepare(sql,end,start):[2,3].includes(i)||i===4&&state?prepare(sql,privateScope):i===5?prepare(sql,state?.account.account_id || ''):prepare(sql)));
       return results.map(r=>r.results);
     }
   };

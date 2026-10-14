@@ -3,7 +3,7 @@ export function nativeBinding(db,queries=[]) {
   const executors=new WeakMap();
   function prepare(sql,values=[]) {
     const perform=()=>{queries.push(sql);const results=db.prepare(sql).all(...values);const changes=db.prepare('SELECT changes() AS n').get().n;return {success:true,results,meta:{changes,rows_read:0,rows_written:0}};};
-    const statement={bind:(...next)=>prepare(sql,next),all:async()=>perform(),run:async()=>perform(),first:async column=>{const row=perform().results[0] || null;return column?row?.[column] ?? null:row;}};
+    const statement={sql,bind:(...next)=>prepare(sql,next),all:async()=>perform(),run:async()=>perform(),first:async column=>{const row=perform().results[0] || null;return column?row?.[column] ?? null:row;}};
     executors.set(statement,perform);return statement;
   }
   // Native SQLite executes a batch synchronously. Yielding between statements

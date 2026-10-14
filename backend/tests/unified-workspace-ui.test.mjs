@@ -35,7 +35,7 @@ assert.match(progress, /m4l_admin_progress_dashboard_v102_4/);
 for (const html of [adminHtml, studentHtml]) {
   assert.match(html, /\/app\.js\?v=102\.12\.8/);
   assert.match(html, /\/js\/m4l-cache\.js\?v=102\.4/);
-  assert.match(html, /\/js\/m4l-auth\.js\?v=102\.9/);
+  assert.match(html, /\/js\/m4l-auth\.js\?v=106\.60/);
   assert.match(html, /\/js\/m4l-shell\.js\?v=102\.12/);
   assert.match(html, /\/js\/m4l-timetable\.js\?v=102\.9/);
   assert.match(html, /\/js\/m4l-progress\.js\?v=102\.4/);

@@ -1,3 +1,7 @@
+# V106.60 — Academy review fixes for an isolated feature preview
+
+Retire alternate account write routes, allow unrelated management saves with scoped conflict checks, and retain transactional admin safeguards. Teacher name changes invalidate other browsers through an R2 version marker. Public timetable changes record durable refresh work with bounded recovery. Homepage class and curriculum queries are scoped to authorised learning areas while preserving public free joining. No live database schema changes are required. The feature preview uses a separate small synthetic database and bucket; Development stays on V106.59. All regression, concurrency and scale checks run locally. [Implementation and preview details](docs/ACADEMY-REVIEW-FIXES-106.60.md).
+
 # V106.59 — Compact Academy home and consistent timetable cards
 
 Current teacher names are read with timetable publications, restoring the original homepage database-call and statement budgets after a profile rename. All signed-in Program timetables roll overlapping or contiguous lessons with the same meeting link into one card, preserving each account’s permitted lessons, full details and joining checks. Gaps, different Programs, missing links and different links stay separate. Announcements use a small poster preview beside their text, with the full poster available on click. No database migration is required. All 151 regression files, the development Worker build and local browser checks at six desktop/mobile widths pass.

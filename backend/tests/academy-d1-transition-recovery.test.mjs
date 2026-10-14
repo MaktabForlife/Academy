@@ -1,3 +1,4 @@
+import {profileChange} from '../tools/academy-profile-client.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
@@ -98,7 +99,7 @@ test('recovery preserves new runtime writes, changed credentials, grants, deleti
   view=await post('/api/admin/platform/global/access/save',{accountId:'account-0002',subjectId:'subject-1',active:true,workflowRevision:view.workflowRevision,operationId:crypto.randomUUID()},admin);
   await post('/api/admin/platform/global/access/save',{accountId:'account-0002',subjectId:'subject-1',active:false,workflowRevision:view.workflowRevision,operationId:crypto.randomUUID()},admin);
   const account=(await post('/api/academy/d1/accounts/read',{accountId:'account-0002'},admin)).account;
-  await post('/api/academy/d1/accounts/reset-pin',{accountId:account.accountId,credentialEpoch:account.credentialEpoch},admin);
+  assert.equal((await profileChange(async(...args)=>({status:200,body:await post(...args)}),account.accountId,admin,{mode:'reset-pin'})).status,200);
   await post('/api/account/setup-pin',{uniqueid:'login-0002',pin:'2345',pinConfirmation:'2345'});
   db.exec("DELETE FROM course_subscription_decisions WHERE account_id='account-0002'"); // Explicit deletion also survives recovery.
   const latest=snapshot(db),delta=recoveryDelta(baseline,latest);

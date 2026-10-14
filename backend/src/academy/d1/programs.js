@@ -152,7 +152,7 @@ export function d1Programs(repository,auth) {
           statements.push(p('INSERT INTO academy_settings(setting_key,setting_value,updated_at,updated_by_account_id) VALUES(?,?,?,?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value,updated_at=excluded.updated_at,updated_by_account_id=excluded.updated_by_account_id',programAccessKey(activity),input.accessModel,now,auth.user.accountid));
           next.policies=[...data.policies.filter(s=>!same(s.activity_key,activity)),{activity_key:activity,access_model:input.accessModel}];
         }
-        return {data,statements,result:{program:dto(next,updated)},fields:['Name','DurationYears','Timezone','Lifecycle',...(Object.hasOwn(input,'publicCard')?['PublicCard']:[]),...(Object.hasOwn(input,'accessModel')?['AccessModel']:[]),...(Object.hasOwn(input,'programZoomLink')?['ProgramZoomLink']:[])]};
+        return {data,statements,cacheEffects:existing?.website_visible||status==='ACTIVE'?['public-timetable']:[],result:{program:dto(next,updated)},fields:['Name','DurationYears','Timezone','Lifecycle',...(Object.hasOwn(input,'publicCard')?['PublicCard']:[]),...(Object.hasOwn(input,'accessModel')?['AccessModel']:[]),...(Object.hasOwn(input,'programZoomLink')?['ProgramZoomLink']:[])]};
       });
     },
     async management(action,input,verifyLibraryChange,extra={},initialLoaded=null) {

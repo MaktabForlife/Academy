@@ -1,3 +1,4 @@
+import {profileChange} from './academy-profile-client.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {randomBytes,randomUUID} from 'node:crypto';
 import {readFileSync,writeFileSync,mkdirSync,openSync,closeSync,chmodSync} from 'node:fs';
@@ -113,7 +114,7 @@ export async function exerciseHostedCore(origin,input) {
   if(publicResponse.status!==200||(await publicResponse.json()).records.length!==0)throw Error('HOSTED_PUBLIC_LIBRARY_FAILED');
   ensure(await request('/api/account/login',{uniqueid:input.accounts[1].login,pin:'9999'}),401);
   const account=ensure(await request('/api/academy/d1/accounts/read',{accountId:input.accounts[1].id},admin)).account;
-  ensure(await request('/api/academy/d1/accounts/reset-pin',{accountId:account.accountId,credentialEpoch:account.credentialEpoch},admin));
+  ensure(await profileChange(async(...args)=>{const r=await request(...args);return {...r,body:r.data};},account.accountId,admin,{mode:'reset-pin'}));
   ensure(await request('/api/account/session',{},student),401);
   const replacement=ensure(await request('/api/account/setup-pin',{uniqueid:input.accounts[1].login,pin:'2345',pinConfirmation:'2345'}));
   ensure(await request('/api/account/logout',{},replacement.token));ensure(await request('/api/account/session',{},replacement.token),401);

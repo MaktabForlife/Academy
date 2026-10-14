@@ -1,3 +1,5 @@
+import {readFileSync} from 'node:fs';
+import {profileChange} from '../tools/academy-profile-client.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {fixtureDatabase} from './fixtures/academy-d1-fixture.mjs';
@@ -16,14 +18,14 @@ test('current teacher names preserve multiple-teacher order, case-insensitive ID
  assert.deepEqual(timetableTeacherNames({teacherIds:[],teacherNames:[]},names),[]);
 });
 test('profile rename updates Program/Course summary, details and account timetable without republishing or changing access/history',async()=>{
- const f=await fixtureDatabase();try{
+ const f=await fixtureDatabase();f.db.exec(readFileSync(new URL('../migrations/academy/0004_management_transactions.sql',import.meta.url),'utf8'));try{
   const signed=await post(f.env,'/api/account/login',{uniqueid:'login-0001',pin:'1234'});assert.equal(signed.status,200);
   const repo=academyD1Repository(f.env),state=await repo.byId('account-0001'),user={accountid:'account-0001',role:'GLOBAL_ADMIN'};
   const history=()=>f.db.prepare('SELECT activity_key,publication_id,snapshot_json,source_snapshot_sha256 FROM timetable_publications ORDER BY activity_key,publication_id').all();const original=history();
   const before=await d1Entrance(repo,state,user,input,now);assert(before.personalTimetable.some(r=>r.kind==='PROGRAM'));assert(before.personalTimetable.some(r=>r.kind==='COURSE'));
   assert(before.personalTimetable.some(r=>r.teacherNames.includes('Synthetic learner 3')));
   const account=f.db.prepare("SELECT revision FROM accounts WHERE account_id='account-0003'").get();
-  const renamed=await post(f.env,'/api/academy/d1/accounts/update',{accountId:'account-0003',displayName:'TestTeacher',active:true,revision:account.revision},signed.body.token);assert.equal(renamed.status,200,JSON.stringify(renamed.body));
+  const renamed=await profileChange((...args)=>post(f.env,...args),'account-0003',signed.body.token,{displayName:'TestTeacher'});assert.equal(renamed.status,200,JSON.stringify(renamed.body));
   const after=await d1Entrance(academyD1Repository(f.env),state,user,input,now);
   for(const kind of ['PROGRAM','COURSE']){const rows=after.personalTimetable.filter(r=>r.kind===kind);assert(rows.length);assert(rows.every(r=>r.teacherNames.includes('TestTeacher')));assert(rows.every(r=>r.information.includes('TestTeacher')));}
   const schedule=rows=>rows.map(({teacherNames,information,...r})=>r);assert.deepEqual(schedule(after.personalTimetable),schedule(before.personalTimetable));assert.deepEqual(history(),original);

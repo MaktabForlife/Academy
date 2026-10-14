@@ -39,6 +39,7 @@ const context={console,URL,Image:class{constructor(){this.complete=false;}},URLS
  try{const result=['save','publish','recover','prepare'].includes(action)?await coordinator.run(action,body,'token'):await service.read(action,body);return {ok:true,status:200,json:async()=>({success:true,coordinatorAvailable:true,...result})};}
  catch(error){return {ok:false,status:error.status||503,json:async()=>({success:false,error:error.message})};}
 }};
+context.window.M4L_REFRESH_AFTER_SAVE=async()=>{requests.push({action:'cache-refresh',body:{}});return {pending:snapshotOutage};};
 const settled=async()=>{for(let i=0;i<6;i++)await new Promise(r=>setTimeout(r,2));};
 const click=async id=>{await element(id).onclick();await settled();};
 vm.runInNewContext(await readFile(new URL('../../js/m4l-time.js',import.meta.url),'utf8'),context);
@@ -174,14 +175,14 @@ assert.equal((await service.read('get',{id:f.program.id})).draft.rules[0].startT
 plannerState.data.workspaceReady=true;plannerState.data.timetableEditable=true;plannerState.data.timetableStatus='DRAFT';plannerState.data.availability=[];
 await click('tt-preview');await click('tt-open-publish');element('tt-effective-from').value='2026-10-06';
 snapshotOutage=true;await click('tt-publish');
-assert.deepEqual(requests.slice(-2).map(r=>r.action),['publish','refresh-public']);
+assert.deepEqual(requests.slice(-2).map(r=>r.action),['publish','cache-refresh']);
 assert.equal(element('tt-pending').hidden,true,'Snapshot failure cannot leave a committed publication pending');
 assert.equal(plannerState.data.timetableStatus,'PUBLISHED');
-assert.match(element('tt-message').textContent,/published.*Public snapshot could not refresh/);
-assert.equal(requests.at(-1).body.publicationId,f.tables.ProgramTimetablePublications.at(-1).PublicationID);
+assert.match(element('tt-message').textContent,/published.*Public timetable update is pending/);
+assert.equal(requests.at(-2).action,'publish','Publication is confirmed before cache refresh');
 plannerState.data.timetableEditable=true;plannerState.data.timetableStatus='DRAFT';plannerState.data.availability=[];
 await click('tt-preview');await click('tt-open-publish');element('tt-effective-from').value='2026-10-07';
 snapshotOutage=false;await click('tt-publish');
-assert.deepEqual(requests.slice(-2).map(r=>r.action),['publish','refresh-public']);
+assert.deepEqual(requests.slice(-2).map(r=>r.action),['publish','cache-refresh']);
 assert.match(element('tt-message').textContent,/published.*Public timetable refreshed/);
 console.log('Timetable UI: board-only editing, actions below the planner, draft saving, effective-date publication, exact retry and history passed.');

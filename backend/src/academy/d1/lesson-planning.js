@@ -142,6 +142,12 @@ export function lessonPlanning(repository,auth,now=()=>new Date()){
      if(input.submittedRevision!==r.submitted_revision)throw fail('A newer plan was submitted. Open it before commenting.',409,'ROW_CHANGED');
      statements.push(p('INSERT INTO lesson_plan_comments VALUES(?,?,?,?,?,?)',crypto.randomUUID(),r.plan_id,r.submitted_revision,actor,text(input.body,4000,'feedback',true),at));
     }else if(['save','submit'].includes(action)){
+     if(a.kind==='COURSE'){
+      const guard=crypto.randomUUID();
+      statements.push(p(`INSERT INTO academy_write_guards(guard_id,accepted) VALUES(?,EXISTS(SELECT 1 FROM course_runs r
+        LEFT JOIN course_management_drafts d USING(activity_key,run_id) LEFT JOIN course_run_state s USING(activity_key,run_id)
+        WHERE r.activity_key=? AND r.run_id=? AND r.active=1 AND UPPER(COALESCE(d.stage,s.stage,'ACTIVE')) NOT IN ('COMPLETE','COMPLETED','CANCELLED','ARCHIVED')))`,guard,key.activityKey,key.runId),p('DELETE FROM academy_write_guards WHERE guard_id=?',guard));
+     }
      if(input.revision!==(r?.revision||0))throw fail('This plan changed elsewhere. Your draft is kept; open the saved plan before retrying.',409,'ROW_CHANGED');
      const content=normalizeContent(input.content,action==='submit');
      if(key.period==='WEEKLY'&&content.lessons.some(l=>l.date&&(l.date<key.weekStart||l.date>addDays(key.weekStart,6))))throw fail('Lesson dates must fall within the selected teaching week.');
