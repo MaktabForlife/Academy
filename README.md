@@ -1,3 +1,7 @@
+# V106.74 — Icon blocks and compact course-wall heading
+
+Use coloured icon blocks for Academy quick links while retaining their native destinations and role visibility. Place course-wall page numbers at the top-right beside the heading on desktop, with wrapping controls on smaller screens. Remove visible date labels and italicise the Jamiat-sourced Hijri date. Local acceptance checks cover icon blocks, pagination placement, date styling and all existing homepage/workspace layouts at 320–1440 pixels. No schema or hosted content changes.
+
 # V106.73 — Visible week and quick links
 
 Fit all seven public timetable days in one desktop row and wrap them into rows on tablets and phones. Quick-link pills wrap visibly and use their natural width, preventing the old sidebar button width from hiding the remaining menu items. The header Hijri date is plain text, still fetched from Jamiat. No timetable data, permissions or database schema changes. Local browser checks verify weekday and link boundaries at 320, 390, 768, 1001 and 1440 pixels.

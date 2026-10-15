@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import {mediaFixture} from '../tests/fixtures/academy-lesson-media-fixture.mjs';
 import {MOU_MEDIA_PROGRAM as activity} from '../src/academy/d1/lesson-media.js';
 import worker from '../src/worker.js';
-const root=fileURLToPath(new URL('../../',import.meta.url)),out=process.env.ACADEMY_HOME_OUTPUT||'/private/tmp/academy-home-10673';mkdirSync(out,{recursive:true});
+const root=fileURLToPath(new URL('../../',import.meta.url)),out=process.env.ACADEMY_HOME_OUTPUT||'/private/tmp/academy-home-10674';mkdirSync(out,{recursive:true});
 const f=await mediaFixture();for(const migration of ['0022_academic_calendar.sql','0023_lesson_planning.sql','0024_announcements_and_plan_requirements.sql'])f.db.exec(readFileSync(new URL('../migrations/academy/'+migration,import.meta.url),'utf8'));
 f.env.AUTH_LOGIN_RATE_LIMITER={limit:async()=>({success:true})};
 const course=f.db.prepare("SELECT * FROM activities WHERE kind='COURSE' LIMIT 1").get();
@@ -32,15 +32,19 @@ const editor=()=>page.locator('#admin-announcements');
 async function homeNavigationFits(width){
  const layout=await page.evaluate(()=>{
   const strip=document.getElementById('academy-public-sessions'),bounds=strip.getBoundingClientRect(),days=[...strip.querySelectorAll('.upcoming-day')].map(el=>el.getBoundingClientRect().toJSON()),nav=document.querySelector('#academy-public-quicklinks nav'),navBounds=nav.getBoundingClientRect(),links=[...nav.children].filter(el=>el.getBoundingClientRect().width).map(el=>({text:el.textContent,bounds:el.getBoundingClientRect().toJSON()}));
-  return {bounds:bounds.toJSON(),days,scrollWidth:strip.scrollWidth,clientWidth:strip.clientWidth,navBounds:navBounds.toJSON(),links,navScroll:nav.scrollWidth,navWidth:nav.clientWidth};
+  const heading=document.getElementById('film-title').getBoundingClientRect(),pages=document.querySelector('.film-pages').getBoundingClientRect(),wall=document.querySelector('.film-window').getBoundingClientRect(),hijri=document.getElementById('academy-hijri-date'),dateBox=document.querySelector('.academy-date-box');
+  return {heading:heading.toJSON(),pages:pages.toJSON(),wall:wall.toJSON(),hijriStyle:getComputedStyle(hijri).fontStyle,dateLabels:dateBox.innerText,icons:nav.querySelectorAll('.quicklink-icon svg').length,bounds:bounds.toJSON(),days,scrollWidth:strip.scrollWidth,clientWidth:strip.clientWidth,navBounds:navBounds.toJSON(),links,navScroll:nav.scrollWidth,navWidth:nav.clientWidth};
  });
  assert.equal(layout.days.length,7);assert(layout.scrollWidth<=layout.clientWidth+1,'All days fit without hidden horizontal columns at '+width);
  for(const box of layout.days)assert(box.x>=layout.bounds.x-1&&box.x+box.width<=layout.bounds.x+layout.bounds.width+1,'Day stays inside public timetable at '+width);
  if(width>=1000)assert(layout.days.every(box=>Math.abs(box.y-layout.days[0].y)<2),'All seven days share one desktop row');
  else assert(layout.days[6].y>layout.days[0].y,'Small screens wrap later weekdays into visible rows');
- assert(layout.links.length>=7);if(width>=1000)assert(layout.links.every(({bounds:box})=>Math.abs(box.y-layout.links[0].bounds.y)<2),'Desktop quick links form one compact strip');assert(layout.navScroll<=layout.navWidth+1,'Quick links never extend offscreen');
+ assert(layout.links.length>=7);assert(layout.icons>=layout.links.length,'Each quick-link block has an icon');assert.equal(layout.hijriStyle,'italic');assert.doesNotMatch(layout.dateLabels,/Hijri|Gregorian/,'Date labels are removed');
+ if(width>=1000){assert(layout.pages.x>layout.heading.x+layout.heading.width-1,'Page numbers sit beside the heading');assert(Math.abs(layout.pages.y-layout.heading.y)<12,'Page numbers align at the top of the course wall');}
+ assert(layout.pages.y+layout.pages.height<=layout.wall.y+1,'Page numbers stay above course images');
+ if(width>=1000)assert(layout.links.every(({bounds:box})=>Math.abs(box.y-layout.links[0].bounds.y)<2),'Desktop quick links form one compact strip');assert(layout.navScroll<=layout.navWidth+1,'Quick links never extend offscreen');
  for(const {text,bounds:box} of layout.links)assert(box.x>=layout.navBounds.x-1&&box.x+box.width<=layout.navBounds.x+layout.navBounds.width+1,'Quick link fits: '+text);
- checks.push('All seven public days and all quick links fit at '+width);
+ checks.push('Public days, icon blocks, course pagination and italic dates fit at '+width);
 }
 async function fits(label){const sizes=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));assert(sizes.scroll<=sizes.width+1,label+JSON.stringify(sizes));checks.push(label);}
 try{
@@ -48,7 +52,7 @@ try{
  await seed('Academy announcement','Weekly learning and Academy updates.');await seed('2026 Prospectus','Explore our courses.\n\n[Read prospectus](/academy/2026-umm-abbad-academy-prospectus.pdf)');
  let publicReads=0;page.on('request',r=>{if(r.url().includes('/api/academy/entrance/public-snapshot'))publicReads++;});
  await page.goto(origin+'/academy/');await page.locator('.announcement-slide').first().waitFor();await page.locator('#academy-hijri-date').filter({hasText:'Jumada'}).waitFor();
- assert.equal(await page.getByRole('button',{name:'Menu',exact:true}).count(),0);assert.equal(await page.locator('#overview #academy-preview').count(),0);assert.equal(await page.locator('#academy-public-quicklinks nav').count(),1);assert.equal(await page.locator('#academy-hijri-date').getAttribute('href'),null);assert.equal(await page.locator('.academy-date-box a').count(),0);assert.equal(await page.locator('#overview #academy-public-timetable').count(),1);await page.locator('#academy-public-sessions .upcoming-day').first().waitFor();checks.push('Hijri date is plain text sourced from Jamiat; quick links replace Menu; public timetable stays on home');
+ assert.equal(await page.getByRole('button',{name:'Menu',exact:true}).count(),0);assert.equal(await page.locator('#overview #academy-preview').count(),0);assert.equal(await page.locator('#academy-public-quicklinks nav').count(),1);assert.equal(await page.locator('#academy-hijri-date').getAttribute('href'),null);assert.equal(await page.locator('.academy-date-box a').count(),0);assert.equal(await page.locator('#overview #academy-public-timetable').count(),1);await page.locator('#academy-public-sessions .upcoming-day').first().waitFor();checks.push('Unlabelled Hijri date is sourced from Jamiat; icon quick links replace Menu; public timetable stays on home');
  for(const width of [320,390,768,1001,1440]){await page.setViewportSize({width,height:900});await fits('Home '+width);await homeNavigationFits(width);await page.waitForFunction(count=>[...document.querySelectorAll('.film-card')].filter(c=>!c.hidden).length===count,width<=600?4:5);const visible=await page.locator('.film-card:visible').count();assert.equal(visible,width<=600?4:5);const poster=await page.locator('.announcement-poster').first().boundingBox(),copy=await page.locator('.announcement-copy').first().boundingBox();assert(poster.x<copy.x&&Math.abs(poster.y-copy.y)<2,'Text alongside poster');if(width===390||width===1440)await page.screenshot({path:path.join(out,'home-'+width+'.png'),fullPage:false});}
  checks.push('Two-row course wall and announcement text beside full-height posters');
  await page.locator('#academy-public-timetable').screenshot({path:path.join(out,'public-week.png')});await page.locator('#academy-public-quicklinks').screenshot({path:path.join(out,'quick-links.png')});await page.locator('.film-section').screenshot({path:path.join(out,'course-wall.png')});await page.getByRole('button',{name:'Next course wall page',exact:true}).click();assert.match(await page.locator('#film-status').textContent(),/^2 of/);await page.getByRole('button',{name:'Previous course wall page',exact:true}).click();assert.match(await page.locator('#film-status').textContent(),/^1 of/);checks.push('Course wall pages preserve all course links');
