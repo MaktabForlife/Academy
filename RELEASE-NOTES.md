@@ -1,3 +1,7 @@
+# V106.65 — Save Course participants
+
+Course Participants has a visible Save participants button above and below the user table, with a live count of unsaved users. One action saves every changed user, including rows hidden by search, through the existing guarded participant API. Confirmed saves are retained if a later save fails, remaining drafts stay available, and retries reuse the pending operation identifier. Course schedules, inherited Global Admin access, storage and schema are unchanged. [Fix and validation](docs/ACADEMY-COURSE-PARTICIPANTS-106.65.md).
+
 # V106.60 — Academy review fixes for an isolated feature preview
 
 ## V106.64 PDF console warning

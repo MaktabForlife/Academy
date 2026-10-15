@@ -10,13 +10,51 @@ async function fixture(){const f=await courseFixture();f.env.ACADEMY_LIBRARY_MOD
 async function screen(env,identity='0001',search='') {
  const login=await worker.fetch(new Request('http://localhost/api/account/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uniqueid:'login-'+identity,pin:'1234'})}),env);let token=(await login.json()).token;
  const elements=new Map(),events=new Map(),documentEvents=new Map(),requests=[];
- const element=id=>{if(!elements.has(id))elements.set(id,{hidden:true,textContent:'',innerHTML:'',value:'',disabled:false,listeners:{},showModal(){this.open=true;},classList:{toggle(){},add(){},remove(){}},replaceChildren(){this.innerHTML='';},close(){this.open=false;},querySelector:selector=>id==='course-dialog'?element('dialog:'+selector):null,querySelectorAll:()=>[],addEventListener(type,fn){this.listeners[type]=fn;},setAttribute(){}});return elements.get(id);};
+ const element=id=>{if(!elements.has(id))elements.set(id,{hidden:true,textContent:'',innerHTML:'',value:'',disabled:false,listeners:{},showModal(){this.open=true;},classList:{toggle(){},add(){},remove(){}},replaceChildren(){this.innerHTML='';},close(){this.open=false;},focus(){},setSelectionRange(){},querySelector:selector=>id==='course-dialog'?element('dialog:'+selector):null,querySelectorAll:()=>[],addEventListener(type,fn){this.listeners[type]=fn;},setAttribute(){}});return elements.get(id);};
  const context={console,URLSearchParams,crypto,Date,Map,Set,WeakMap,location:{search,origin:'http://localhost'},localStorage:{getItem:()=>token},document:{getElementById:element,querySelectorAll:()=>[],querySelector:()=>null,addEventListener:(type,fn)=>documentEvents.set(type,[...(documentEvents.get(type)||[]),fn])},window:{M4L_CONFIG:{API_BASE:''},addEventListener:(type,fn)=>events.set(type,fn)},fetch:async(path,options)=>{requests.push(path);return worker.fetch(new Request('http://localhost'+path,options),env);}};
  context.window.history={replaceState:(_state,_title,url)=>{context.location.search=url.startsWith('?')?url:'';}};
  vm.createContext(context);vm.runInContext(readFileSync(new URL('../../js/m4l-time.js',import.meta.url),'utf8'),context);vm.runInContext(source,context);await documentEvents.get('DOMContentLoaded')[0]();
  const settle=async()=>{for(let i=0;i<30;i++)await new Promise(r=>setTimeout(r,2));};await settle();
- return {element,requests,context,events,settle,enter:(field,value)=>documentEvents.get('input').at(-1)({target:{dataset:{field},value,type:'text'}}),chooseDay:day=>documentEvents.get('change').at(-1)({target:{dataset:{day:String(day)},checked:true,type:'checkbox'}}),filter:async(key,value)=>{const el=element(key==='search'?'course-search':'course-status-filter');el.value=value;el.listeners[key==='search'?'input':'change']();await settle();},click:async(action,dataset={})=>{documentEvents.get('click')[0]({target:{closest:()=>({dataset:{cmAction:action,...dataset}})},preventDefault(){}});await settle();},changeToken:value=>{token=value;events.get('storage')({key:'m4l_account_token'});}};
+ return {element,requests,context,events,settle,enter:(field,value)=>documentEvents.get('input').at(-1)({target:{dataset:{field},value,type:'text'}}),chooseDay:day=>documentEvents.get('change').at(-1)({target:{dataset:{day:String(day)},checked:true,type:'checkbox'}}),chooseRole:(accountId,role,checked)=>documentEvents.get('change').at(-1)({target:{dataset:{person:accountId,role},checked,type:'checkbox'}}),searchPeople:value=>documentEvents.get('input').at(-1)({target:{id:'course-people-search',value,selectionStart:value.length}}),filter:async(key,value)=>{const el=element(key==='search'?'course-search':'course-status-filter');el.value=value;el.listeners[key==='search'?'input':'change']();await settle();},click:async(action,dataset={})=>{documentEvents.get('click')[0]({target:{closest:()=>({dataset:{cmAction:action,...dataset}})},preventDefault(){}});await settle();},changeToken:value=>{token=value;events.get('storage')({key:'m4l_account_token'});}};
 }
+
+test('Save participants persists every changed role even when search hides the users, without changing the published schedule',async()=>{
+ const f=await fixture();try{
+  const page=await screen(f.env,'0001','?course=subject-1&run=run-1&tab=participants'),before=f.db.prepare('SELECT * FROM timetable_publications').all();
+  let html=page.element('course-editor').innerHTML;assert.match(html,/data-stage="(?:PUBLISHED|ACTIVE)"/);assert.equal((html.match(/data-cm-action="save-participants"/g)||[]).length,2);assert.match(html,/data-cm-action="save-participants"[^>]* disabled/);
+  const changes=[['account-0008','STUDENT'],['account-0009','TEACHER'],['account-0010','PROGRAM_ADMIN']];
+  for(const [accountId,role] of changes)page.chooseRole(accountId,role,true);
+  assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),true);page.searchPeople('no users match this filter');
+  html=page.element('course-editor').innerHTML;assert.match(html,/No users match this view/);assert.match(html,/3 users have unsaved changes/);assert.match(html,/data-cm-save-state>Unsaved participant changes/);assert.doesNotMatch(html,/data-cm-action="save-participants"[^>]* disabled/);
+  const reads=page.requests.filter(p=>p.endsWith('/participants')).length;
+  await page.click('save-participants');assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),false);assert.match(page.element('course-message').textContent,/saved for 3 users/);
+  assert.equal(page.requests.filter(p=>p.endsWith('/participants-save')).length,3);assert.equal(page.requests.filter(p=>p.endsWith('/participants')).length,reads,'saving does not reread the entire participant directory');
+  for(const [accountId,role] of changes)assert.ok(f.db.prepare('SELECT role FROM effective_activity_roles WHERE account_id=? AND activity_key=?').all(accountId,'COURSE:subject-1').some(r=>r.role===role));
+  assert.deepEqual(f.db.prepare('SELECT * FROM timetable_publications').all(),before);
+  const reopened=await screen(f.env,'0001','?course=subject-1&run=run-1&tab=participants');html=reopened.element('course-editor').innerHTML;
+  for(const [accountId,role] of changes)assert.match(html,new RegExp(`data-person="${accountId}" data-role="${role}" checked`));
+  assert.match(html,/data-person="account-0001" data-role="PROGRAM_ADMIN" checked disabled/,'Global Admin access remains inherited');
+ }finally{f.db.close();}
+});
+
+test('a lost participant save acknowledgement keeps only unfinished changes and retries the same operation',async()=>{
+ const f=await fixture();try{
+  const page=await screen(f.env,'0001','?course=subject-1&run=run-1&tab=participants'),original=page.context.fetch,writes=[];
+  page.context.fetch=async(path,options)=>{const result=await original(path,options);if(path.endsWith('/participants-save')){writes.push(JSON.parse(options.body));if(writes.length===2)throw Error('Connection lost');}return result;};
+  page.chooseRole('account-0008','STUDENT',true);page.chooseRole('account-0009','TEACHER',true);page.chooseRole('account-0010','PROGRAM_ADMIN',true);
+  await page.click('save-participants');assert.equal(writes.length,2);assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),true);assert.match(page.element('course-message').textContent,/1 of 3 users saved.*Connection lost.*Remaining participant changes are kept/);assert.match(page.element('course-editor').innerHTML,/2 users have unsaved changes/);
+  await page.click('save-participants');assert.equal(writes.length,4);assert.equal(writes[1].operationId,writes[2].operationId);assert.equal(writes.filter(w=>w.accountId==='account-0008').length,1);assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),false);assert.match(page.element('course-editor').innerHTML,/All participant changes saved/);
+  assert.equal(f.db.prepare("SELECT count(*) n FROM effective_activity_roles WHERE activity_key='COURSE:subject-1' AND account_id='account-0009' AND role='TEACHER'").get().n,1);
+ }finally{f.db.close();}
+});
+
+test('reverting a participant checkbox leaves no unsaved change or save request',async()=>{
+ const f=await fixture();try{
+  const page=await screen(f.env,'0001','?course=subject-1&run=run-1&tab=participants');
+  page.chooseRole('account-0008','TEACHER',true);assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),true);page.chooseRole('account-0008','TEACHER',false);assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),false);
+  await page.click('save-participants');assert.equal(page.requests.filter(p=>p.endsWith('/participants-save')).length,0);
+ }finally{f.db.close();}
+});
 
 test('Course workspace opens a compact editor, saves name-only drafts and presents publication validation',async()=>{
  const f=await fixture(),original=globalThis.fetch;let outbound=0;globalThis.fetch=async()=>{outbound++;throw Error('External request');};
