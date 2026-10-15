@@ -1,5 +1,9 @@
 # V106.60 — Academy review fixes for an isolated feature preview
 
+## V106.63 Development branch switching
+
+Support deploying the feature branch through the existing Development Worker and website while retaining the same database and Library metadata namespace. The saved Pages build command also supports the older Development branch. Includes five compatibility checks, 155 passing regression files and 14 local browser checks. No production database copy or Git merge is included. [Setup details](docs/ACADEMY-DEVELOPMENT-BRANCH-SWITCH-106.63.md).
+
 ## V106.62 Academy cleanup feature website routing
 
 Complete the V106.61 cleanup on the isolated feature preview. Recognise Cloudflare’s assigned `feature-academy-review-fixes` website alias and let Pages resolve directory indexes, preserving personal account URLs without redirect loops. The dedicated D1 backend and legacy dependency boundary remain unchanged. [Release details](docs/ACADEMY-LEGACY-CLEANUP-106.62.md).

@@ -13,6 +13,9 @@
   "env": {
     "development": {
       "name": "devrebootworker",
+      "account_id": "c9a3e355b3d7a795880b1d36a1dbe123",
+      "main": "src/academy-worker-runtime.js",
+      "compatibility_date": "2026-10-14",
       "triggers": {"crons":["*/15 * * * *"]},
       "d1_databases": [
         {

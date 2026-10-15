@@ -6,3 +6,4 @@ node_modules/
 .DS_Store
 # Private migration snapshots, credentials and local databases.
 .academy-migration/
+.academy-pages/
