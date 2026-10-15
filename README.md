@@ -1,3 +1,7 @@
+# V106.73 — Visible week and quick links
+
+Fit all seven public timetable days in one desktop row and wrap them into rows on tablets and phones. Quick-link pills wrap visibly and use their natural width, preventing the old sidebar button width from hiding the remaining menu items. The header Hijri date is plain text, still fetched from Jamiat. No timetable data, permissions or database schema changes. Local browser checks verify weekday and link boundaries at 320, 390, 768, 1001 and 1440 pixels.
+
 # V106.72 — Consolidate public Program summaries
 
 Show each public Program description once per day, instead of repeating it for every private class/subject lesson in the public snapshot. Separate Course sessions and personal timetable roll-up rules remain available. Retain the restored public homepage timetable, Sunday weeks, Jamiat dates and V106.69 layout changes. Local regression checks cover duplicate summaries and their separation from signed-in personal schedules.

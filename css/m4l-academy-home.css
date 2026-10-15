@@ -2,13 +2,14 @@
 .academy-sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
 .academy-date-box{flex:none;display:grid;gap:4px;padding:5px 10px;border:1px solid #e2d4e7;border-radius:10px;background:#f7f1f9;color:#58305f;max-width:48%}
 .academy-date-box>div{display:grid;grid-template-columns:60px minmax(0,1fr);align-items:center;gap:8px;font:600 12px/1.3 Arial,sans-serif}
-.academy-date-box span{font-size:10px;font-weight:400;color:#78627f}
+.academy-date-box>div>span:first-child{font-size:10px;font-weight:400;color:#78627f}
+#academy-hijri-date{overflow-wrap:anywhere}
 .academy-date-box a{color:inherit;text-decoration:none;overflow-wrap:anywhere}
 .academy-date-box a:hover{text-decoration:underline}
 .academy-quicklinks{margin:20px 0;padding:12px;border-radius:14px;background:#fffafdeb;border:1px solid #e4d5ea}
 .academy-quicklinks nav,.role-shortcuts,.role-areas{display:flex;align-items:stretch;gap:8px;flex-wrap:wrap;overflow:visible;padding:0}
-.academy-quicklinks :is(a,button),.role-quicklinks a{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:9px 14px;margin:0;border:1px solid #ddcce3;border-radius:999px;color:#62346b;background:#fff;font:600 13px/1.3 Arial,sans-serif;text-decoration:none;white-space:normal}
-.academy-quicklinks :is(a,button):hover,.role-quicklinks a:hover{background:#efe2f3}
+#academy-public-quicklinks :is(a,button),.role-quicklinks a{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:9px 14px;margin:0;border:1px solid #ddcce3;border-radius:999px;color:#62346b;background:#fff;font:600 13px/1.3 Arial,sans-serif;text-decoration:none;white-space:normal}
+#academy-public-quicklinks :is(a,button):hover,.role-quicklinks a:hover{background:#efe2f3}
 .academy-quicklinks .nav-label{display:none}
 .role-quicklinks{margin-bottom:18px}
 .role-areas{margin-top:10px}
@@ -16,6 +17,10 @@
 .role-areas small{font-size:10px;font-weight:400}
 #admin-timetable-home{margin:16px 0}
 #academy-public-timetable{margin:28px 0}
+#academy-public-sessions .preview-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px}
+#academy-public-sessions .upcoming-day{min-width:0}
+@media(max-width:999px){#academy-public-sessions .preview-days{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:600px){#academy-public-sessions .preview-days{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .admin-management-menu button{min-height:44px;padding:9px 15px;border:1px solid #d9c9df;border-radius:999px;color:#704578;background:#fff;font:600 13px Arial,sans-serif;white-space:nowrap}
 .academy-intro .intro-feature>.academy-news{position:relative;padding:0;height:100%;min-height:290px}
 .academy-news .announcement-heading{position:absolute;inset:0 0 auto;border:0;margin:0;padding:0;z-index:2}
@@ -51,11 +56,11 @@
 .film-pages button{min-width:44px;min-height:44px;border:1px solid #d9c9df;border-radius:8px;background:#fff;color:#704578}
 .film-pages button[aria-pressed=true]{background:#704578;color:#fff}
 .film-lessons summary,.film-lessons a{color:#704578}
-@media(max-width:600px){.academy-date-box{padding:5px 7px}.academy-date-box>div{grid-template-columns:1fr;gap:0;font-size:11px}.academy-date-box span{font-size:9px}.announcement-rail{grid-auto-columns:calc(100% - 30px)}.announcement-cover{flex-basis:30%;width:30%;padding:8px}.announcement-copy{padding:56px 10px 12px}.announcement-slide{min-height:290px}.film-section{padding:12px}.film-head h2{font-size:22px}.film-track.course-wall{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,160px)}.course-wall .film-card,.course-wall .film-card[data-wall-slot="0"],.course-wall .film-card[data-wall-slot="1"]{grid-column:span 1}.wall-caption{font-size:14px;padding:30px 10px 10px}}
+@media(max-width:600px){.academy-date-box{padding:5px 7px}.academy-date-box>div{grid-template-columns:1fr;gap:0;font-size:11px}.academy-date-box>div>span:first-child{font-size:9px}.announcement-rail{grid-auto-columns:calc(100% - 30px)}.announcement-cover{flex-basis:30%;width:30%;padding:8px}.announcement-copy{padding:56px 10px 12px}.announcement-slide{min-height:290px}.film-section{padding:12px}.film-head h2{font-size:22px}.film-track.course-wall{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,160px)}.course-wall .film-card,.course-wall .film-card[data-wall-slot="0"],.course-wall .film-card[data-wall-slot="1"]{grid-column:span 1}.wall-caption{font-size:14px;padding:30px 10px 10px}}
 @media(prefers-reduced-motion:reduce){.course-wall .film-art img{transition:none}.course-wall .film-card:hover img{transform:none}}
 
 .academy-shell .academy-banners>:is(.sidebar,.academy-connected-sidebar){height:auto!important;min-height:72px}
 
-.role-shortcuts,.role-areas,.academy-quicklinks nav{flex-wrap:nowrap;overflow-x:auto;padding-bottom:8px;scrollbar-width:thin}
-.role-shortcuts a,.role-areas a,.academy-quicklinks :is(a,button){flex:none}
+.role-shortcuts,.role-areas,.academy-quicklinks nav{flex-wrap:wrap;overflow:visible;padding-bottom:0}
+.role-shortcuts a,.role-areas a,#academy-public-quicklinks :is(a,button){flex:0 1 auto;width:auto;max-width:100%}
 .role-areas a{max-width:220px}

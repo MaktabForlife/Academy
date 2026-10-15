@@ -9,7 +9,7 @@
  if(!quick.id){quick.id='academy-public-quicklinks';quick.className='academy-quicklinks';banners.after(quick);}
  const nav=sidebar.querySelector('nav');if(nav){nav.setAttribute('aria-label','Academy quick links');quick.append(nav);}
  for(const child of [...sidebar.children])if(child!==brand)child.hidden=true;
- if(document.getElementById('academy-home-card')){const dates=document.createElement('aside');dates.className='academy-date-box';dates.setAttribute('aria-label','Today at the Academy');dates.innerHTML='<div><span>Hijri</span><a id="academy-hijri-date" href="https://jamiat.org.za/" target="_blank" rel="noopener noreferrer">View on Jamiat ↗</a></div><div><span>Gregorian</span><time id="academy-gregorian-date"></time></div>';sidebar.append(dates);}
+ if(document.getElementById('academy-home-card')){const dates=document.createElement('aside');dates.className='academy-date-box';dates.setAttribute('aria-label','Today at the Academy');dates.innerHTML='<div><span>Hijri</span><span id="academy-hijri-date" title="Hijri date from Jamiat">Loading Hijri date…</span></div><div><span>Gregorian</span><time id="academy-gregorian-date"></time></div>';sidebar.append(dates);}
  const strip=document.querySelector('.academy-connected-activities');if(strip)strip.hidden=true;
  document.body.classList.add('academy-mobile-layout','academy-shell');
  let data=window.M4L_ACADEMY_SHELL_DATA||null;
