@@ -1,6 +1,6 @@
 (() => {'use strict';
  const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],order=[1,2,3,4,5,6,0];
+ const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],order=[0,1,2,3,4,5,6];
  window.M4L_TEACHER_AVAILABILITY={mount({getData}){
   let editing=null,ranges=[],busy=false,pending=null,notices=[],generation=0;
   const dialog=$('pm-availability-dialog'),session=()=>localStorage.getItem('m4l_account_token')||'',accountSession=session();

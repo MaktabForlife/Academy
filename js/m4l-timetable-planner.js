@@ -6,7 +6,7 @@
   const duration=minutes=>Math.floor(minutes/60)+'h'+String(minutes%60).padStart(2,'0');
   const durationMinutes=value=>{const input=String(value||'').trim(),parts=/^(\d{1,3})[hH:]([0-5]\d)$/.exec(input);return parts?Number(parts[1])*60+Number(parts[2]):input!==''&&Number.isInteger(Number(input)*60)?Number(input)*60:NaN;};
   const overlap=(a,b)=>timeMinutes(a.startTime)<timeMinutes(b.endTime)&&timeMinutes(b.startTime)<timeMinutes(a.endTime);
-  const dayOrder=[1,2,3,4,5,6,0];
+  const dayOrder=[0,1,2,3,4,5,6];
   window.M4L_ASSISTED_PLANNER={
     mount({state,$,esc,days,modules,changed,locked}){
       let selectedClass='',selectedSubject='',selectedTeacher='',quickTeacherChoice='',boardView='class',availabilityTeacher='',availabilityEditingId='',availabilityDay=null,selectedMove=null,editing=null,showDetails=false,editorDirty=false,editorSource='',placingBreak=false,selectedBreakMove=null,editingBreak=null,breakEditorDirty=false,breakEditorSource='',selectedEmpty=null,placementError=null,inlineSubject='',inlineTeacher='',inlineClass='',inlineAllClasses=false,inlineAllChanged=false,quickClassOverride=null,quickAllClasses=false,quickZoomLink='',inlineDirty=false,learnerCache=new Map();

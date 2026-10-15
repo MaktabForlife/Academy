@@ -121,7 +121,7 @@ export function reviewPlanner(draft,catalog){
 }
 export function weeklyPattern(rules,breaks=[]){
   return [...rules,...breaks.map(b=>({...b,kind:'BREAK',moduleName:b.label,classIds:[],classNames:[]}))].flatMap(r=>r.weekdays.map(weekday=>({anchor:`${r.id}@${weekday}`,ruleId:r.id,kind:r.kind||'LESSON',sourceRuleId:r.sourceRuleId||'',assignmentMode:r.assignmentMode||'',weekday,moduleId:r.moduleId,programSubjectId:r.programSubjectId,subjectName:r.subjectName,moduleName:r.moduleName,levelName:r.levelName,classIds:r.classIds,classNames:r.classNames,teacherId:r.teacherId,teacherName:r.teacherName,teacherIds:r.teacherIds||[r.teacherId].filter(Boolean),teacherNames:r.teacherNames||[r.teacherName].filter(Boolean),startTime:r.startTime,endTime:r.endTime,zoomLink:r.effectiveZoomLink||'',zoomSource:r.zoomSource||'NONE',status:'SCHEDULED'})))
-    .sort((a,b)=>(a.weekday+6)%7-(b.weekday+6)%7||a.startTime.localeCompare(b.startTime)||a.ruleId.localeCompare(b.ruleId));
+    .sort((a,b)=>a.weekday-b.weekday||a.startTime.localeCompare(b.startTime)||a.ruleId.localeCompare(b.ruleId));
 }
 export function effectiveLessonTeacherId(row,classes){
   if(row.teacherMode==='NONE')return '';

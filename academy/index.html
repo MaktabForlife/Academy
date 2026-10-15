@@ -252,17 +252,18 @@
 <link rel="stylesheet" href="/css/m4l-academy-mobile.css?v=106.52">
 <link rel="stylesheet" href="/css/m4l-academy-workspaces.css?v=106.54">
 <link rel="stylesheet" href="/css/m4l-academy-page-actions.css?v=106.52">
-<link rel="stylesheet" href="/css/m4l-academy-shell.css?v=106.46">
+<link rel="stylesheet" href="/css/m4l-academy-shell.css?v=106.69">
 <link rel="stylesheet" href="/css/m4l-academy-planning.css?v=106.55">
-<link rel="stylesheet" href="/css/m4l-academy-announcements.css?v=106.68">
+<link rel="stylesheet" href="/css/m4l-academy-announcements.css?v=106.69">
+<link rel="stylesheet" href="/css/m4l-academy-home.css?v=106.69">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
 <div class="app">
 <aside class="sidebar">
-<a class="brand" href="#overview" data-nav="overview" aria-label="Umm Abbad Academy home"><img src="/ummabbadacademy.png?v=106.1" alt=""><span><strong>Umm Abbad<br>Academy</strong><span class="site-version">Website V106.68</span></span></a>
+<a class="brand" href="#overview" data-nav="overview" aria-label="Umm Abbad Academy home"><img src="/ummabbadacademy.png?v=106.1" alt=""><span><strong>Umm Abbad<br>Academy</strong><span class="site-version">Website V106.69</span></span></a>
 <div><div class="nav-label">Academy</div><nav class="nav" aria-label="Academy navigation">
-<button type="button" class="active" data-nav="overview">Academy home</button>
+<button type="button" class="active" data-nav="overview">Academy home</button><button type="button" data-nav="timetable">Timetable</button>
 <a class="library-link" id="academy-library-nav" href="/academy/open-library/">Library</a>
 <a class="library-link" id="academy-calendar-nav" href="/academy/calendar/" hidden>Academic Calendar</a>
 <a class="library-link" href="/activities/surahs-in-my-heart/">Surahs in my Heart</a>
@@ -284,8 +285,8 @@
     <div class="avatar" id="academy-avatar" aria-label="Academy account" hidden>A</div>
   </div>
     <div class="academy-role-tabs" id="academy-role-tabs" role="group" aria-label="Academy menu">
-      <button type="button" id="academy-tab-learn" data-academy-tab="learn" aria-haspopup="dialog" aria-controls="academy-learn-drawer" aria-pressed="false" tabindex="0" hidden>LEARN</button>
-      <button type="button" id="academy-tab-teach" data-academy-tab="teach" aria-haspopup="dialog" aria-controls="academy-teach-drawer" aria-pressed="false" tabindex="0" hidden>TEACH</button>
+      <button type="button" id="academy-tab-learn" data-academy-tab="learn" aria-controls="timetable" aria-pressed="false" tabindex="0" hidden>LEARN</button>
+      <button type="button" id="academy-tab-teach" data-academy-tab="teach" aria-controls="timetable" aria-pressed="false" tabindex="0" hidden>TEACH</button>
       <button type="button" id="academy-tab-admin" data-academy-tab="admin" aria-controls="administration" aria-pressed="false" tabindex="0" hidden>ADMIN</button>
     </div>
   <div class="academy-role-panel" id="academy-role-panel" role="tabpanel" tabindex="0" hidden></div>
@@ -307,23 +308,19 @@
           </div>
           <div class="intro-feature">
             <section class="card card-pad coming-card academy-news" aria-labelledby="academy-news-title">
-              <div class="announcement-heading"><h2 id="academy-news-title">LATEST</h2><div id="academy-announcement-controls" class="announcement-controls" aria-label="Browse latest announcements"></div></div>
+              <div class="announcement-heading"><h2 id="academy-news-title" class="academy-sr-only">Academy announcements</h2><div id="academy-announcement-controls" class="announcement-controls" aria-label="Browse latest announcements"></div></div>
               <div id="academy-announcements" aria-label="Academy announcements"><p role="status">Loading announcements…</p></div>
             </section>
           </div>
         </section>
 
-            <section class="card card-pad" id="academy-preview" aria-labelledby="preview-title">
-              <div class="upcoming-heading"><div><span class="eyebrow">Academy timetable</span><h2 id="preview-title">Coming up</h2></div><div class="upcoming-controls" aria-label="Browse upcoming dates"><button type="button" id="timetable-refresh" aria-label="Refresh timetable" title="Refresh timetable" hidden data-page-content-refresh>↻</button><button type="button" id="upcoming-previous" aria-label="Previous upcoming date">←</button><button type="button" id="upcoming-next" aria-label="Next upcoming date">→</button></div></div>
-              <div id="academy-preview-sessions" class="upcoming-strip" tabindex="0" role="region" aria-label="Upcoming Academy lessons. Swipe or use the arrow buttons to browse dates." aria-live="polite">Loading Academy timetable…</div>
-              <p id="public-snapshot-note" class="tiny muted" hidden></p>
-              <a class="text-link" id="preview-timetable-link" href="#timetable" hidden>View full timetable →</a>
-            </section>
+
 
 <section id="learning" aria-labelledby="learning-title"><div class="page-heading"><h2 id="learning-title">Explore our programs and courses</h2><div class="upcoming-controls" aria-label="Browse Programs and Courses"><button type="button" id="learning-previous" aria-label="Previous Program or Course">←</button><button type="button" id="learning-next" aria-label="Next Program or Course">→</button></div></div><div id="learning-catalogue" class="learning-strip" tabindex="0" role="region" aria-label="Programs and Courses. Swipe or use the arrow buttons to browse."></div></section>
+<section id="academy-public-quicklinks" class="academy-quicklinks" aria-label="Academy quick links"></section>
 <div class="wide-stack">
 <section class="film-section" aria-labelledby="film-title" aria-roledescription="carousel">
-            <div class="film-head"><div><h2 id="film-title">Self paced learning opportunities for you</h2></div><div class="film-actions"><button type="button" id="film-prev" aria-label="Previous course">←</button><span class="film-status" id="film-status" role="status" aria-live="polite">1 / 34</span><button type="button" id="film-next" aria-label="Next course">→</button><button type="button" class="film-toggle" id="film-toggle" aria-label="Play course strip" aria-pressed="false">Play</button></div></div>
+            <div class="film-head"><div><h2 id="film-title">Self paced learning opportunities for you</h2></div><div class="film-actions"><button type="button" id="film-prev" aria-label="Previous course wall page">←</button><span class="film-status" id="film-status" role="status" aria-live="polite"></span><button type="button" id="film-next" aria-label="Next course wall page">→</button><button type="button" class="film-toggle" id="film-toggle" aria-label="Play course strip" aria-pressed="false">Play</button></div></div>
             <div class="film-pages" role="group" aria-label="Browse Academy catalogue pages"><button type="button" data-film-page="0" aria-pressed="true">1</button><button type="button" data-film-page="1" aria-pressed="false">2</button><button type="button" data-film-page="2" aria-pressed="false">3</button><button type="button" data-film-page="3" aria-pressed="false">4</button></div>
             <div class="film-window"><div class="film-track" id="film-track" tabindex="0" aria-label="Original Academy course images">
               <a class="film-card" href="https://ummabbadacademy.com/courses/imratun-muminah/" target="_blank" rel="noopener noreferrer"><div class="film-art"><img src="course-images/IMRATUN-MUMINAH.webp" alt="Original Academy artwork for Imra’tun Mu’minah" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></a>
@@ -374,7 +371,13 @@
 </div>
 <section id="progress" class="academy-home-progress" aria-labelledby="hifdh-title"><div class="page-heading"><div><h2 id="hifdh-title">Surahs and Duas</h2></div><a id="hifdh-helper" class="button secondary" target="_blank" rel="noopener noreferrer" hidden>HifzHelper ↗</a><a id="mp-personal-close" class="button secondary" href="#overview" hidden>Close</a></div><div id="mp-personal-host"><div id="mp-root"></div></div></section>
 </section>
-<section id="timetable" class="view" aria-labelledby="full-timetable-title"><div class="academy-view-actions"><a href="#overview" class="academy-home-icon" aria-label="Academy home" title="Academy home"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h5v-7h4v7h5V9"/></svg></a><a href="#overview" id="timetable-close" class="academy-close-view" aria-label="Close timetable and return to previous page" title="Close timetable">×</a></div><div class="page-heading"><h1 id="full-timetable-title">Full Academy timetable</h1><a id="teaching-availability-link" href="/academy/teaching/" hidden>Edit availability</a></div><section class="card card-pad" id="academy-schedule" aria-labelledby="schedule-title"><div class="section-title"><div><span class="eyebrow">Across the Academy</span><h2 id="schedule-title">Academy timetable</h2></div><div class="schedule-controls"><button type="button" id="schedule-refresh" aria-label="Refresh timetable" title="Refresh timetable" hidden data-page-content-refresh>↻</button><button type="button" id="schedule-previous" aria-label="Previous seven days">←</button><label>From<input type="date" id="schedule-date"></label><button type="button" id="schedule-next" aria-label="Next seven days">→</button></div></div><p class="schedule-key">Select a lesson for details. Joining opens 5 minutes before the lesson.</p><p class="tiny muted" id="schedule-range"></p><p id="schedule-message" role="status"></p><ul id="academy-calendar-context" class="academy-calendar-context tiny muted" aria-label="Academic calendar for this week" hidden></ul><div id="academy-sessions" class="upcoming-strip" tabindex="0" role="region" aria-label="Academy timetable dates"></div></section></section>
+            <section class="card card-pad" id="academy-preview" hidden aria-labelledby="preview-title">
+              <div class="upcoming-heading"><div><span class="eyebrow">Academy timetable</span><h2 id="preview-title">Coming up</h2></div><div class="upcoming-controls" aria-label="Browse upcoming dates"><button type="button" id="timetable-refresh" aria-label="Refresh timetable" title="Refresh timetable" hidden data-page-content-refresh>↻</button><button type="button" id="upcoming-previous" aria-label="Previous upcoming date">←</button><button type="button" id="upcoming-next" aria-label="Next upcoming date">→</button></div></div>
+              <div id="academy-preview-sessions" class="upcoming-strip" tabindex="0" role="region" aria-label="Upcoming Academy lessons. Swipe or use the arrow buttons to browse dates." aria-live="polite">Loading Academy timetable…</div>
+              <p id="public-snapshot-note" class="tiny muted" hidden></p>
+              <a class="text-link" id="preview-timetable-link" href="#timetable" hidden>View full timetable →</a>
+            </section>
+<section id="timetable" class="view" aria-labelledby="full-timetable-title"><div class="academy-view-actions"><a href="#overview" class="academy-home-icon" aria-label="Academy home" title="Academy home"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h5v-7h4v7h5V9"/></svg></a><a href="#overview" id="timetable-close" class="academy-close-view" aria-label="Close timetable and return to previous page" title="Close timetable">×</a></div><div class="page-heading"><h1 id="full-timetable-title">Full Academy timetable</h1><a id="teaching-availability-link" href="/academy/teaching/" hidden>Edit availability</a></div><nav id="timetable-quicklinks" class="role-quicklinks" aria-label="Workspace quick links"></nav><div id="timetable-card-home"><section class="card card-pad" id="academy-schedule" aria-labelledby="schedule-title"><div class="section-title"><div><span class="eyebrow">Across the Academy</span><h2 id="schedule-title">Academy timetable</h2></div><div class="schedule-controls"><button type="button" id="schedule-refresh" aria-label="Refresh timetable" title="Refresh timetable" hidden data-page-content-refresh>↻</button><button type="button" id="schedule-previous" aria-label="Previous week">←</button><input type="hidden" id="schedule-date"><span>Sunday–Saturday</span><button type="button" id="schedule-next" aria-label="Next week">→</button></div></div><p class="schedule-key">Select a lesson for details. Joining opens 5 minutes before the lesson.</p><p class="tiny muted" id="schedule-range"></p><p id="schedule-message" role="status"></p><ul id="academy-calendar-context" class="academy-calendar-context tiny muted" aria-label="Academic calendar for this week" hidden></ul><div id="academy-sessions" class="upcoming-strip" tabindex="0" role="region" aria-label="Academy timetable dates"></div></section></div></section>
 
 <section id="workshops" class="view" aria-labelledby="workshops-title">
   <a href="#overview" class="academy-home-icon" aria-label="Academy home" title="Academy home"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h5v-7h4v7h5V9"/></svg></a>
@@ -402,7 +405,7 @@
   </section>
   <section id="mp-teach-panel" class="academy-memorisation-panel" hidden aria-labelledby="mp-teach-title"><div class="section-title"><h2 id="mp-teach-title">Surahs and Duas Tracker · Class progress</h2><a id="mp-teach-close" class="button secondary" href="#overview">Close</a></div><div id="mp-teach-host"></div></section>
   <section id="as-panel" role="tabpanel" aria-labelledby="activity-tab-assessment" hidden class="card card-pad"><div class="section-title"><span></span><a id="as-close" class="button secondary" href="#overview">Close</a></div><div id="as-host"></div></section>
-  <section class="card card-pad academy-personal-schedule" id="activity-schedule" role="tabpanel" hidden aria-labelledby="activity-schedule-title"><div class="section-title"><h2 id="activity-schedule-title">Timetable</h2><div class="upcoming-controls"><button type="button" id="activity-refresh" aria-label="Refresh this timetable" title="Refresh timetable" data-page-content-refresh>↻</button><button type="button" id="activity-previous" aria-label="Earlier timetable dates">←</button><button type="button" id="activity-next" aria-label="Later timetable dates">→</button></div></div><div id="activity-sessions" class="upcoming-strip" tabindex="0" role="region" aria-label="This learning area's timetable"></div></section>
+  <section class="card card-pad academy-personal-schedule" id="activity-schedule" role="tabpanel" hidden aria-labelledby="activity-schedule-title"><div class="section-title"><h2 id="activity-schedule-title">Timetable</h2><p id="activity-week-range" class="tiny muted"></p><div class="upcoming-controls"><button type="button" id="activity-refresh" aria-label="Refresh this timetable" title="Refresh timetable" data-page-content-refresh>↻</button><button type="button" id="activity-previous" aria-label="Previous week">←</button><button type="button" id="activity-next" aria-label="Next week">→</button></div></div><div id="activity-sessions" class="upcoming-strip" tabindex="0" role="region" aria-label="This learning area's timetable"></div></section>
   <section class="card card-pad" id="activity-library" role="tabpanel" tabindex="0" hidden aria-labelledby="activity-tab-library"></section>
   <section class="card card-pad" id="activity-planning" role="tabpanel" tabindex="0" hidden aria-labelledby="activity-tab-planning"><h2>Planning</h2><p class="muted">Planning tools are coming soon.</p></section>
   <section class="card card-pad" id="mou-lesson-media" hidden aria-label="MOU lesson recordings and notes"></section>
@@ -453,12 +456,12 @@
 </dialog>
 <dialog id="workspace-tool" aria-labelledby="workspace-tool-title"><div class="section-title"><h2 id="workspace-tool-title"></h2><button class="button secondary small" id="workspace-tool-close" type="button">Close</button></div><div id="workspace-tool-body"></div></dialog>
 <dialog id="lesson-information" aria-labelledby="lesson-information-title"><div class="section-title"><h2 id="lesson-information-title">Lesson information</h2><button class="button secondary small" id="lesson-information-close" type="button">Close</button></div><div id="lesson-information-body"></div></dialog>
-<script src="/js/m4l-config.js?v=106.68"></script>
+<script src="/js/m4l-config.js?v=106.69"></script>
 <script src="/js/m4l-program-attendance.js?v=106.21"></script>
 <script src="/js/m4l-memorisation-upload.js?v=106.32"></script>
 <script src="/js/m4l-academy-progress.js?v=106.54"></script>
 <script src="/js/m4l-memorisation-admin.js?v=106.43"></script>
-<script src="/js/vendor/pdf-lib-1.17.1.min.js?v=106.68"></script>
+<script src="/js/vendor/pdf-lib-1.17.1.min.js?v=106.69"></script>
 <script src="/js/m4l-assessment-reports.js?v=106.29"></script>
 <script src="/js/m4l-assessment-register.js?v=106.54"></script>
 <script src="/js/m4l-imtihaan-export.js?v=106.54"></script>
@@ -467,11 +470,12 @@
 <script src="/js/m4l-academy-inline-calendar.js?v=106.47"></script>
 <script src="/js/m4l-planning-pdf.js?v=106.53"></script>
 <script src="/js/m4l-academy-planning.js?v=106.55"></script>
-<script src="/js/m4l-announcement-links.js?v=106.68"></script>
-<script src="/js/m4l-academy-announcements.js?v=106.68"></script>
-<script src="/js/m4l-academy-entrance.js?v=106.68"></script>
-<script src="/js/m4l-academy-catalogue.js?v=106.1"></script>
+<script src="/js/m4l-announcement-links.js?v=106.69"></script>
+<script src="/js/m4l-academy-announcements.js?v=106.69"></script>
+<script src="/js/m4l-academy-entrance.js?v=106.69"></script>
+<script src="/js/m4l-academy-catalogue.js?v=106.69"></script>
 <script src="/js/m4l-academy-login.js?v=106.51"></script>
-<script src="/js/m4l-academy-mobile.js?v=106.51"></script>
+<script src="/js/m4l-academy-mobile.js?v=106.69"></script>
+<script src="/js/m4l-academy-header-date.js?v=106.69"></script>
 <script src="/js/m4l-academy-page-actions.js?v=106.58"></script>
 </body></html>

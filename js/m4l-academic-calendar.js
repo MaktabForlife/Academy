@@ -65,7 +65,7 @@
  }
  const newRange=date=>({id:'AVAIL-'+crypto.randomUUID(),kind:date?'DATES':'WEEKLY',status:'AVAILABLE',weekdays:[],startDate:date||'',endDate:date||'',allDay:false,startTime:'',endTime:''});
  const rangeDirty=()=>Boolean(model.rangeEdit&&JSON.stringify(model.rangeEdit)!==model.rangeOriginal);
- function rangeDescription(r){const weekdays=[1,2,3,4,5,6,0].filter(day=>r.weekdays.includes(day)).map(day=>days[day]).join(', '),dates=r.startDate&&r.endDate?rangeLabel(r):r.startDate?'From '+dateLabel(r.startDate):r.endDate?'Until '+dateLabel(r.endDate):'';return r.kind==='WEEKLY'?[weekdays,'Weekly',dates].filter(Boolean).join(' · '):dates;}
+ function rangeDescription(r){const weekdays=[0,1,2,3,4,5,6].filter(day=>r.weekdays.includes(day)).map(day=>days[day]).join(', '),dates=r.startDate&&r.endDate?rangeLabel(r):r.startDate?'From '+dateLabel(r.startDate):r.endDate?'Until '+dateLabel(r.endDate):'';return r.kind==='WEEKLY'?[weekdays,'Weekly',dates].filter(Boolean).join(' · '):dates;}
  function renderRanges(){
   $('cal-ranges').innerHTML=model.ranges.map(r=>`<li data-range="${esc(r.id)}"><div><strong>${r.status==='AVAILABLE'?'Available':'Unavailable'} · ${r.allDay?'All day':esc(r.startTime+'–'+r.endTime)}</strong><small>${esc(rangeDescription(r))}</small></div><button type="button" class="pb-secondary" data-edit-range="${esc(r.id)}" aria-label="Edit ${esc(r.status.toLowerCase())} entry: ${esc(rangeDescription(r))}">Edit</button></li>`).join('')||'<li class="cal-availability-empty">Available · no restrictions</li>';
   $('cal-availability-entry').hidden=!model.rangeEdit;$('cal-range-add').setAttribute('aria-expanded',String(Boolean(model.rangeEdit)));
@@ -74,7 +74,7 @@
   const row=id?model.ranges.find(r=>r.id===id):newRange(date);if(!row)return;model.rangeEdit=structuredClone(row);model.rangeOriginal=JSON.stringify(row);
   $('cal-availability-entry-title').textContent=id?'Edit availability':'Add availability';$('cal-range-remove').hidden=!id;$('cal-availability-save').textContent='Save';$('cal-availability-error').textContent='';
   for(const input of $('cal-availability-form').querySelectorAll('[data-availability-status]'))input.checked=input.value===row.status;
-  $('cal-availability-days').innerHTML=[1,2,3,4,5,6,0].map(day=>`<label><input type="checkbox" data-weekday="${day}"${row.weekdays.includes(day)?' checked':''}>${days[day]}</label>`).join('');
+  $('cal-availability-days').innerHTML=[0,1,2,3,4,5,6].map(day=>`<label><input type="checkbox" data-weekday="${day}"${row.weekdays.includes(day)?' checked':''}>${days[day]}</label>`).join('');
   $('cal-range-weekly').checked=row.kind==='WEEKLY';$('cal-range-all-day').checked=row.allDay;$('cal-range-from').value=row.allDay?'':row.startTime;$('cal-range-to').value=row.allDay?'':row.endTime;$('cal-range-start').value=row.startDate;$('cal-range-end').value=row.endDate;
   renderRanges();syncRangeControls();$('cal-availability-entry').scrollIntoView?.({block:'nearest'});
  }

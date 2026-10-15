@@ -30,7 +30,7 @@
       url:r.status==='CANCELLED'?'':table.link(r.zoomLink),cancelled:r.status==='CANCELLED',kind:r.kind||'LESSON',
       identity:JSON.stringify([r.moduleId||'',r.programSubjectId||'',r.assignmentMode||'',(r.teacherIds||[r.teacherId]).slice().sort(),r.classIds.slice().sort()])
     })).filter(r=>Number.isFinite(r.start)&&Number.isFinite(r.end)&&r.end>r.start);
-    const columns=weekly?[1,2,3,4,5,6,0].filter(day=>timetableType==='program'&&day>=1&&day<=5||events.some(event=>event.day===day)).map(day=>({id:day,label:days[day]})):[...new Set(events.map(event=>event.day))].sort().map(day=>({id:day,label:day}));
+    const columns=weekly?[0,1,2,3,4,5,6].filter(day=>timetableType==='program'&&day>=1&&day<=5||events.some(event=>event.day===day)).map(day=>({id:day,label:days[day]})):[...new Set(events.map(event=>event.day))].sort().map(day=>({id:day,label:day}));
     return {...base,timetableType,timetableName,allClassNames:options.allClassNames||[...new Set(lessons.flatMap(r=>r.classNames))],columns,events,start:events.length?Math.floor(Math.min(...events.map(r=>r.start))/30)*30:0,end:events.length?Math.ceil(Math.max(...events.map(r=>r.end))/30)*30:0};
   }
   // Interval groups use separate lanes: simultaneous classes never cover one another.

@@ -73,7 +73,7 @@
       const amount = Number(button.dataset.academyMove || 0);
       if (amount) moveAcademyWindow(amount, button);
     });
-    byId("academy-timetable").addEventListener("scroll", handleAcademyTimetableScroll, { passive: true });
+    // Weeks are loaded only by explicit navigation; scrolling never prefetches D1.
     document.querySelectorAll("[data-toggle-pin]").forEach(button => {
       button.addEventListener("click", () => togglePin(button));
     });
@@ -767,17 +767,11 @@
     return wrapper;
   }
 
-  async function moveAcademyWindow(days, button) {
-    const current = button?.closest?.(".academy-day");
-    const currentDate = String(current?.dataset?.academyDate || state.academyViewStart || "").trim();
-    if (!currentDate) return loadAcademyTimetable({ resetWeek: true, force: true });
-    const targetDate = addAcademyDays(currentDate, days);
-    if (scrollAcademyToDate(targetDate, "smooth")) return true;
-
-    const direction = days < 0 ? -1 : 1;
-    const loaded = await prefetchAcademyTimetable(direction, { targetDate });
-    if (loaded) scrollAcademyToDate(targetDate, "smooth");
-    return loaded;
+  async function moveAcademyWindow(days) {
+    if(!state.academyViewStart)return loadAcademyTimetable({resetWeek:true,force:true});
+    const current=state.academyViewStart,week=addAcademyDays(current,-new Date(current+'T12:00:00Z').getUTCDay());
+    state.academyViewStart=addAcademyDays(week,days<0?-7:7);
+    return loadAcademyTimetable({force:true});
   }
 
   function scrollAcademyToDate(date, behavior = "smooth") {
@@ -913,7 +907,7 @@
       const data = cached.data;
       const timezone = String(data.timezone || "").trim();
       const today = academyTodayInTimezone(timezone);
-      if (!today || String(data.viewStart || "") !== today || String(data.viewEnd || "") < addAcademyDays(today, ACADEMY_INITIAL_DAYS - 1)) {
+      if (!today || String(data.viewStart || "") !== addAcademyDays(today,-new Date(today+"T12:00:00Z").getUTCDay()) || String(data.viewEnd || "") < addAcademyDays(addAcademyDays(today,-new Date(today+"T12:00:00Z").getUTCDay()), ACADEMY_INITIAL_DAYS - 1)) {
         return null;
       }
       return data;

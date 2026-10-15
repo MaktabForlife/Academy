@@ -10,6 +10,7 @@ import { problem, clean } from '../programs/model.js';
 export const REBOOT_PILOT_PROGRAM_ID = 'PRG-46c8576d-9fcf-4000-96b9-856b00a0218a';
 export const programDisplayName = program => key(program.id) === key(REBOOT_PILOT_PROGRAM_ID) ? 'Reboot' : program.name;
 export const addDays = (date, days) => new Date(Date.parse(`${date}T12:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
+export const sunday = date => addDays(date,-new Date(date+'T12:00:00Z').getUTCDay());
 const validDate = date => /^\d{4}-\d{2}-\d{2}$/.test(date) && !Number.isNaN(Date.parse(date)) && addDays(date, 0) === date;
 const staff = roles => roles.some(role => ['PROGRAM_ADMIN', 'ADMIN', 'SENIOR', 'TEACHER', 'GLOBAL_ADMIN'].includes(role));
 const globalAdmin = user => user?.role === 'GLOBAL_ADMIN';
@@ -131,7 +132,7 @@ export function programProjection(program, data, user, roles, start, end, now, d
 
 export async function buildEntrance({ tables, programs, rolesByProgram, rolesByCourse = null, loadProgram, user, input = {}, now = new Date(), programLifecycle = 'DRAFT', rangeDays = 7, detailedTimetable = false, publicJoining = false }) {
   const timezone = tables.PlatformConfig.find(row => key(row.ConfigKey) === 'PLATFORMTIMEZONE')?.ConfigValue || 'Africa/Johannesburg';
-  const start = clean(input.startDate) || dateInTimezone(now, timezone);
+  const start = clean(input.startDate) || sunday(dateInTimezone(now, timezone));
   if (!validDate(start)) throw problem('Choose a valid timetable date.');
   const end = addDays(start, rangeDays - 1);
   const warnings = [], activities = [], timetable = [];

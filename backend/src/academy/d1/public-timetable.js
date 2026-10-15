@@ -1,18 +1,19 @@
 import {academyD1Repository,rehearsalError} from './repository.js';
 import {d1Entrance} from './entrance.js';
-import {lessonTimes} from '../entrance.js';
+import {lessonTimes,sunday,addDays} from '../entrance.js';
+import {dateInTimezone} from '../../lib/global-subject-delivery.js';
 import {authenticatedD1Account} from './session.js';
 import {refreshSetting} from './refresh-state.js';
 
 export function publicTimetableDay(now=new Date()) {
-  const start=new Date(now);start.setUTCHours(0,0,0,0);
-  return {startDate:start.toISOString().slice(0,10),expiresAt:new Date(start.getTime()+86400000).toISOString()};
+  const day=dateInTimezone(now,'Africa/Johannesburg');
+  return {weekStart:sunday(day),startDate:day,expiresAt:new Date(day+'T22:00:00Z').toISOString()};
 }
-export const publicTimetableKey=(env,period)=>`academy-public-timetable/v3/${encodeURIComponent(env.ENVIRONMENT)}/${encodeURIComponent(env.ACADEMY_D1_RUN_ID||'rehearsal')}/${period.startDate}.json`;
+export const publicTimetableKey=(env,period)=>`academy-public-timetable/v4/${encodeURIComponent(env.ENVIRONMENT)}/${encodeURIComponent(env.ACADEMY_D1_RUN_ID||'rehearsal')}/${period.startDate}.json`;
 const cacheKeyFor=(request,key)=>new Request(new URL('/api/academy/entrance/public-snapshot/'+key+'?refreshable=1',new URL(request.url).origin),{method:'GET'});
 const snapshotResponse=(snapshot,period,now)=>new Response(JSON.stringify(snapshot),{headers:{'Content-Type':'application/json','Cache-Control':`public, max-age=${Math.min(60,Math.max(0,Math.floor((Date.parse(period.expiresAt)-now.getTime())/1000)))}`}});
 async function buildSnapshot(repository,period,now){
- const data=await d1Entrance(repository,null,null,{startDate:period.startDate},now,{days:7});
+ const data=await d1Entrance(repository,null,null,{startDate:period.weekStart},now,{days:84});
  if(data.warnings.some(warning=>warning.endsWith('timetable is unavailable.')))throw rehearsalError('The public timetable snapshot could not be prepared.');
  return publicTimetableSnapshot(data,period,now);
 }
@@ -22,8 +23,8 @@ async function buildSnapshot(repository,period,now){
 // memberships, media or meeting URLs are stored. Free lessons include only
 // an opaque published reference and clock boundaries for click-time joining.
 export function publicTimetableSnapshot(data,period,now=new Date()) {
-  return {success:true,snapshotVersion:3,snapshotDate:period.startDate,expiresAt:period.expiresAt,generatedAt:data.generatedAt||now.toISOString(),
-    ...(Number.isSafeInteger(data.sourceRevision)?{sourceRevision:data.sourceRevision}:{}),signedIn:false,globalAdmin:false,student:false,startDate:data.startDate,endDate:data.endDate,timezone:data.timezone,
+  return {success:true,snapshotVersion:4,snapshotDate:period.startDate,expiresAt:period.expiresAt,generatedAt:data.generatedAt||now.toISOString(),
+    ...(Number.isSafeInteger(data.sourceRevision)?{sourceRevision:data.sourceRevision}:{}),signedIn:false,globalAdmin:false,student:false,startDate:data.startDate,endDate:addDays(data.startDate,6),availableEndDate:data.availableEndDate||data.endDate,timezone:data.timezone,
     activities:[],personalActivities:[],activityPages:[],personalTimetable:[],activity:null,warnings:[],calendarEvents:[],
     timetable:data.timetable.filter(row=>row.status==='SCHEDULED').map(row=>({kind:row.kind,activityId:row.activityId,
       ...(row.kind==='PROGRAM'?{publicCard:Object.fromEntries(['time','title','description'].map(key=>[key,typeof row.publicCard?.[key]==='string'?row.publicCard[key].slice(0,({time:12,title:80,description:240})[key]):'']))}:{}),activityName:row.activityName,title:row.activityName||row.title,date:row.date,startTime:row.startTime,endTime:row.endTime,timezone:row.timezone,status:'SCHEDULED',...(row.publicJoin===true&&typeof row.joinKey==='string'?{publicJoin:true,joinKey:row.joinKey,...lessonTimes(row)}:{})}))};
@@ -37,7 +38,7 @@ export async function publicTimetable(request,env,now=new Date(),edgeCache=globa
     throw rehearsalError('Academy activation configuration is incomplete.',503,'ACTIVATION_REQUIRED');
   const period=publicTimetableDay(now),key=publicTimetableKey(env,period);
   const cacheKey=cacheKeyFor(request,key);
-  const valid=data=>data?.snapshotVersion===3&&data.snapshotDate===period.startDate&&data.signedIn===false&&Array.isArray(data.timetable);
+  const valid=data=>data?.snapshotVersion===4&&data.snapshotDate===period.startDate&&data.startDate===period.weekStart&&data.signedIn===false&&Array.isArray(data.timetable);
   let snapshot,edgeHit=false;
   if(edgeCache)try { const cached=await edgeCache.match(cacheKey);if(cached){const data=await cached.json();if(valid(data)){snapshot=publicTimetableSnapshot(data,period,now);edgeHit=true;}} }catch { /* R2 remains the durable snapshot. */ }
   if(!snapshot&&env.MEDIA_BUCKET){
@@ -47,7 +48,8 @@ export async function publicTimetable(request,env,now=new Date(),edgeCache=globa
   if(!snapshot){
     if(!env.MEDIA_BUCKET&&env.ENVIRONMENT!=='local')throw rehearsalError('The public timetable snapshot store is unavailable.');
     const repository=academyD1Repository(env);await repository.ready();
-    // The public preview covers the next seven days.
+    // One durable daily snapshot supplies twelve Sunday-based public weeks.
+    // Browsing these weeks is local and never issues more visitor D1 queries.
     snapshot=await buildSnapshot(repository,period,now);
     if(env.MEDIA_BUCKET){
       const written=await env.MEDIA_BUCKET.put(key,JSON.stringify(snapshot),{httpMetadata:{contentType:'application/json'},onlyIf:{etagDoesNotMatch:'*'}});

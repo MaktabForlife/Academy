@@ -1,3 +1,7 @@
+# V106.69 — Academy header, role timetables and course wall
+
+Add linked Jamiat Hijri and Gregorian dates to the main header and replace the Menu drawer with a public quick-link strip. Learn and Teach open My Timetable with their shortcuts; Admin keeps its tools with My Timetable below the pills and above Reminders. Weekly views start on Sunday. Public browsing uses a cached twelve-week snapshot. Announcements fill their panel with text beside posters and corner arrows, and self-paced courses use a two-row image wall. [Implementation and validation](docs/ACADEMY-HOME-WORKSPACES-106.69.md).
+
 # V106.68 — LATEST announcement rail
 
 The Academy homepage shows announcements as a horizontally scrollable LATEST rail with image-above-title cards inspired by Jamiat's Notices and Projects sections. Two cards are visible on wider screens; phones show one card with the next at the edge. Arrow buttons and keyboard navigation move through the rail while posters and message/PDF links remain available. [Implementation and validation](docs/ACADEMY-LATEST-RAIL-106.68.md).

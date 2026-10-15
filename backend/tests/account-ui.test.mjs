@@ -62,7 +62,7 @@ assert.match(script, /ACADEMY_CACHE_PREFIX/);
 assert.match(script, /readAcademyTimetableCache/);
 assert.match(script, /prefetchAcademyTimetable/);
 assert.match(script, /academyDatesBetween\(viewStart, viewEnd\)/);
-assert.match(script, /addEventListener\("scroll", handleAcademyTimetableScroll/);
+assert.doesNotMatch(script, /addEventListener\("scroll", handleAcademyTimetableScroll/);
 assert.match(script, /createProgramRollupPill/);
 assert.match(script, /labelOnly && relevantProgramNames\.has\(programName\)/);
 assert.doesNotMatch(script, /session\.globalCourseName/);
@@ -94,4 +94,4 @@ assert.match(css, /prefers-reduced-motion/);
 assert.match(redirects, /^\/account\/\*\s+\/account\/\s+200$/m);
 assert.match(headers, /^\/account\/\*\n\s+Cache-Control: no-cache$/m);
 
-console.log("V103.1.0.5 Academy Home rolling seven-day loading, cache, prefetch and existing UI tests passed.");
+console.log("Account Sunday weeks, explicit navigation, cache and existing UI checks passed.");

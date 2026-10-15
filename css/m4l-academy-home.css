@@ -1,0 +1,60 @@
+/* Header dates, visible shortcuts, full-height notices and the course wall. */
+.academy-sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.academy-date-box{flex:none;display:grid;gap:4px;padding:5px 10px;border:1px solid #e2d4e7;border-radius:10px;background:#f7f1f9;color:#58305f;max-width:48%}
+.academy-date-box>div{display:grid;grid-template-columns:60px minmax(0,1fr);align-items:center;gap:8px;font:600 12px/1.3 Arial,sans-serif}
+.academy-date-box span{font-size:10px;font-weight:400;color:#78627f}
+.academy-date-box a{color:inherit;text-decoration:none;overflow-wrap:anywhere}
+.academy-date-box a:hover{text-decoration:underline}
+.academy-quicklinks{margin:20px 0;padding:12px;border-radius:14px;background:#fffafdeb;border:1px solid #e4d5ea}
+.academy-quicklinks nav,.role-shortcuts,.role-areas{display:flex;align-items:stretch;gap:8px;flex-wrap:wrap;overflow:visible;padding:0}
+.academy-quicklinks :is(a,button),.role-quicklinks a{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:9px 14px;margin:0;border:1px solid #ddcce3;border-radius:999px;color:#62346b;background:#fff;font:600 13px/1.3 Arial,sans-serif;text-decoration:none;white-space:normal}
+.academy-quicklinks :is(a,button):hover,.role-quicklinks a:hover{background:#efe2f3}
+.academy-quicklinks .nav-label{display:none}
+.role-quicklinks{margin-bottom:18px}
+.role-areas{margin-top:10px}
+.role-areas a{flex-direction:column;align-items:flex-start;border-radius:12px}
+.role-areas small{font-size:10px;font-weight:400}
+#admin-timetable-home{margin:16px 0}
+.admin-management-menu button{min-height:44px;padding:9px 15px;border:1px solid #d9c9df;border-radius:999px;color:#704578;background:#fff;font:600 13px Arial,sans-serif;white-space:nowrap}
+.academy-intro .intro-feature>.academy-news{position:relative;padding:0;height:100%;min-height:290px}
+.academy-news .announcement-heading{position:absolute;inset:0 0 auto;border:0;margin:0;padding:0;z-index:2}
+.academy-news #academy-announcement-controls{position:absolute;right:10px;top:10px}
+.academy-news .announcement-controls button,.film-actions button{width:44px;min-width:44px;height:44px;padding:0;border:0;border-radius:0;background:#39333bcc;color:#fff;font:400 30px/1 Arial,sans-serif}
+.academy-news .announcement-controls span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.announcement-rail{height:100%;padding:0;gap:12px;grid-auto-columns:calc((100% - 12px)/2);scrollbar-width:thin}
+.announcement-slide{display:flex;align-items:stretch;min-height:290px;border-radius:0;border:0;border-right:1px solid #e2d8e7}
+.announcement-cover{flex:0 0 32%;width:32%;height:auto;min-height:100%;padding:12px;border:0;border-right:1px solid #e2d8e7}
+.announcement-copy{flex:1;min-width:0;padding:56px 14px 16px}
+.announcement-poster img{height:100%;max-height:290px}
+.academy-news .announcement-slide .announcement-message{max-height:10.15em}
+.announcement-placeholder span{font-size:9px;text-align:center}
+.announcement-placeholder svg{max-width:100%}
+.film-section{background:#fffafdeb;border:1px solid #e4d5ea;border-radius:18px;padding:18px;color:#44274c;box-shadow:none}
+.film-head{padding:0 0 14px}
+.film-head h2{color:#44274c;font-size:26px}
+.film-window{position:relative;padding:0;overflow:hidden}
+.film-window:before,.film-window:after{display:none}
+.film-window .film-actions{position:absolute;top:10px;right:10px;z-index:2;display:flex;gap:6px}
+.film-actions button:disabled{opacity:.4;cursor:default}
+.film-actions #film-status{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.film-track.course-wall{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));grid-template-rows:repeat(2,210px);gap:2px;overflow:visible;padding:0;scrollbar-width:none}
+.course-wall .film-card{position:relative;display:block;min-width:0;width:auto;border:0;border-radius:0;background:#eaddec;box-shadow:none;transform:none;overflow:hidden;grid-column:span 2}
+.course-wall .film-card[hidden]{display:none!important}
+.course-wall .film-card[data-wall-slot="0"],.course-wall .film-card[data-wall-slot="1"]{grid-column:span 3}
+.course-wall .film-art{height:100%;aspect-ratio:auto;display:block;padding:0;background:#eaddec}
+.course-wall .film-art img{width:100%;height:100%;object-fit:cover;object-position:center 35%;padding:0;transition:transform .2s}
+.course-wall .film-card:hover img{transform:scale(1.03)}
+.course-wall .film-source{display:none}
+.wall-caption{position:absolute;inset:auto 0 0;padding:36px 18px 16px;color:#fff;background:linear-gradient(transparent,#241526d9);font:600 20px/1.25 Arial,sans-serif;text-shadow:0 1px 2px #0008;overflow-wrap:anywhere}
+.film-pages{padding:14px 0 0;justify-content:center}
+.film-pages button{min-width:44px;min-height:44px;border:1px solid #d9c9df;border-radius:8px;background:#fff;color:#704578}
+.film-pages button[aria-pressed=true]{background:#704578;color:#fff}
+.film-lessons summary,.film-lessons a{color:#704578}
+@media(max-width:600px){.academy-date-box{padding:5px 7px}.academy-date-box>div{grid-template-columns:1fr;gap:0;font-size:11px}.academy-date-box span{font-size:9px}.announcement-rail{grid-auto-columns:calc(100% - 30px)}.announcement-cover{flex-basis:30%;width:30%;padding:8px}.announcement-copy{padding:56px 10px 12px}.announcement-slide{min-height:290px}.film-section{padding:12px}.film-head h2{font-size:22px}.film-track.course-wall{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,160px)}.course-wall .film-card,.course-wall .film-card[data-wall-slot="0"],.course-wall .film-card[data-wall-slot="1"]{grid-column:span 1}.wall-caption{font-size:14px;padding:30px 10px 10px}}
+@media(prefers-reduced-motion:reduce){.course-wall .film-art img{transition:none}.course-wall .film-card:hover img{transform:none}}
+
+.academy-shell .academy-banners>:is(.sidebar,.academy-connected-sidebar){height:auto!important;min-height:72px}
+
+.role-shortcuts,.role-areas,.academy-quicklinks nav{flex-wrap:nowrap;overflow-x:auto;padding-bottom:8px;scrollbar-width:thin}
+.role-shortcuts a,.role-areas a,.academy-quicklinks :is(a,button){flex:none}
+.role-areas a{max-width:220px}

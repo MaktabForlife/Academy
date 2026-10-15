@@ -1,13 +1,12 @@
 import {d1Entrance} from './entrance.js';
-import {addDays,lessonTimes} from '../entrance.js';
+import {addDays,lessonTimes,sunday} from '../entrance.js';
 import {dateInTimezone} from '../../lib/global-subject-delivery.js';
 import {managementError} from './management-store.js';
 
-const monday=date=>addDays(date,-((new Date(date+'T12:00:00Z').getUTCDay()+6)%7));
 // The older account screen gets the same filtered publications, memberships
 // and private-link gate as Academy Home, with its original response shape.
 export async function d1AccountTimetable(repository,auth,input,now=new Date()) {
-  const days=input.days===undefined?2:Number(input.days);
+  const days=input.days===undefined?7:Number(input.days);
   if(!Number.isInteger(days)||days<1||days>14)throw managementError('Choose between 1 and 14 timetable days.');
   const result=await d1Entrance(repository,auth.state,auth.user,{startDate:input.startDate},now,{days,detailed:true});
   const sessions=result.timetable.map((row,index)=>{
@@ -19,7 +18,7 @@ export async function d1AccountTimetable(repository,auth,input,now=new Date()) {
       ...(detail?{subjectName:row.subjectName||'',moduleName:row.moduleName||'',teacherName:row.teacherName||'',group:row.group||''}:{}),
       ...(current&&row.joinUrl?{zoomLink:row.joinUrl}:{})};
   });
-  return {version:'D1',store:'D1',timezone:result.timezone,weekStart:monday(result.startDate),weekEnd:addDays(monday(result.endDate),6),
+  return {version:'D1',store:'D1',timezone:result.timezone,weekStart:sunday(result.startDate),weekEnd:addDays(sunday(result.endDate),6),
     viewStart:result.startDate,viewEnd:result.endDate,viewDays:days,today:dateInTimezone(now,result.timezone),sessions,
     calendarEvents:result.calendarEvents||[],warnings:result.warnings.map(message=>({code:'ACADEMY_TIMETABLE_WARNING',message})),count:sessions.length};
 }

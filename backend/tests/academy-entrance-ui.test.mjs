@@ -88,7 +88,7 @@ const fetch = async (_url, options) => {
     {...base,kind:'COURSE',activityId:'COURSE-TEST',activityName:'Course item',title:'Course item',date:'2026-10-06',...(!signedIn?{startTime:'12:00',endTime:'13:00'}:{})},
     {...base,kind:'COURSE',activityId:'COURSE-TEST',title:'Later Course offering',date:'2026-10-07',...(!signedIn?{startTime:'07:30',endTime:'08:30'}:{})},
     {...base,activityId:'CANCELLED',title:'Cancelled item',status:'CANCELLED'}];
-  const result = { success:true,signedIn,globalAdmin:signedIn&&globalAdmin,student:signedIn&&activities.some(item=>item.roles.includes('STUDENT')),startDate:body.startDate||'2026-10-05',endDate:'2026-10-11',warnings:[],
+  const result = { success:true,signedIn,globalAdmin:signedIn&&globalAdmin,student:signedIn&&activities.some(item=>item.roles.includes('STUDENT')),startDate:body.startDate||'2026-10-04',endDate:'2026-10-10',warnings:[],
     activities,personalActivities:signedIn?activities.filter(item=>item.roles.length):[],timetable:homeTimetable.map(event=>{const publicEvent={...event};delete publicEvent.joinUrl;return publicEvent;}),activity:body.id?activities.find(item=>item.id===body.id):null };
   if(!signedIn){
     result.snapshotDate='2026-10-05';
@@ -230,7 +230,7 @@ await navigate('#overview/teach');assert.match($('academy-role-panel').innerHTML
 await navigate('#workshops');assert.equal($('workshop-pills').innerHTML,'');assert.match($('course-list-message').textContent,/No Courses/);
 hasWorkshops=true;globalAdmin=true;location.hash='#activity/PROGRAM/'+activity.id;await refresh();
 assert.doesNotMatch($('activity-menu').innerHTML,/Admin tools/);assert.match($('activity-menu').innerHTML,/Teach tools/);
-await navigate('#administration');assert.match($('administration').innerHTML,/Academy-wide management|Manage user profiles|Update public timetable/);assert.match($('administration').innerHTML,/id="admin-teach" type="button" data-academy-teach-menu="left">Teach/);
+await navigate('#administration');assert.match($('administration').innerHTML,/Academy-wide management|Manage user profiles|Update timetable/);assert.doesNotMatch($('administration').innerHTML,/id="admin-teach"/);assert.match($('administration').innerHTML,/id="admin-timetable-home"/);
 for(const label of ['Users','Attendance','Planning','Assessments','Library','Curriculum','Programs','Courses'])assert.ok($('administration').innerHTML.includes(`>${label}<`));
 assert.match($('administration').innerHTML,/id="admin-tab-attendance" href="#administration\/attendance"/);
 await navigate('#administration/attendance');assert.match($('administration').innerHTML,/<h1>Manage Attendance<\/h1>/);assert.doesNotMatch($('administration').innerHTML,/\/programs\/attendance\.html/);assert.equal($('academy-tab-admin').attrs.get('aria-pressed'),'true');
@@ -272,16 +272,16 @@ globalAdmin=true;await refresh();assert.equal(countPills('academy-preview-sessio
 globalAdmin=false;rollupBoundaryFixture=false;
 
 roomFixture=false;programRole='STUDENT';cacheFixture=true;fixtureNow='2026-10-05T10:54:30Z';await refresh();
-await navigate('#activity/PROGRAM/'+activity.id);const cachedNavigationReads=requests.length;await navigate('#timetable');await navigate($('timetable-close').href);assert.equal(requests.length,cachedNavigationReads,'Returning from My Timetable retains the daily activity cache');await navigate('#overview');
+await navigate('#activity/PROGRAM/'+activity.id);const cachedNavigationReads=requests.length;await navigate('#timetable');await navigate($('timetable-close').href);assert.equal(requests.length,cachedNavigationReads,'Returning from My Timetable retains the daily activity cache');await navigate('#timetable/learn');
 assert.equal([...timers.values()][0].delay,30000,'Browser wakes at the five-minute joining boundary');count=requests.length;
 fixtureNow='2026-10-05T10:55:00Z';let timer=[...timers.values()][0];timers.clear();timer.fn();await flush();
-assert.match($('academy-preview-sessions').innerHTML,/join-open|Join lesson/);
+assert.match($('academy-sessions').innerHTML,/join-open|Join lesson/);
 assert.equal(requests.length,count,'Opening a lesson locally causes no server fetch');
 assert.equal([...timers.values()][0].delay,5*60000,'Next browser-only transition is lesson start');
 assert.doesNotMatch(JSON.stringify([...tabStore.values()]),/zoom\.test|joinUrl|Bearer|"QA"/);
-const joinControl={dataset:{join:/data-join="([^"]+)"/.exec($('academy-preview-sessions').innerHTML)[1]},textContent:'Join lesson',disabled:false};
+const joinControl={dataset:{join:/data-join="([^"]+)"/.exec($('academy-sessions').innerHTML)[1]},textContent:'Join lesson',disabled:false};
 documentHandlers.get('click')({target:{closest:selector=>selector==='[data-join]'?joinControl:null}});await flush();assert.equal(joins.length,1);assert.equal(popup.url,'https://zoom.test/current-checked');
-joinFailure=true;documentHandlers.get('click')({target:{closest:selector=>selector==='[data-join]'?joinControl:null}});await flush();assert.equal(popup.closed,true);assert.match($('entrance-message').textContent,/no longer available/);joinFailure=false;
+joinFailure=true;documentHandlers.get('click')({target:{closest:selector=>selector==='[data-join]'?joinControl:null}});await flush();assert.equal(popup.closed,true);assert.match($('schedule-message').textContent,/no longer available/);joinFailure=false;
 count=requests.length;documentHandlers.get('visibilitychange')();await flush();assert.equal(requests.length,count,'Returning to the tab uses the daily snapshot');
 window.dispatchEvent(new Event('m4l-academy-session'));await flush();assert.equal(requests.length,count,'Restoring the same signed-in session reuses the daily snapshot');
 $('upcoming-next').listeners.get('click')();assert.equal($('academy-preview-sessions').lastScroll.left,400);
@@ -291,9 +291,9 @@ count=requests.length;await navigate('#timetable');assert.match($('academy-sessi
 fixtureNow='2026-10-05T10:56:01Z';handlers.get('hashchange')();await flush();assert.equal(requests.length,count,'Lesson boundaries do not refresh pages without a timetable');
 fixtureNow='2026-10-05T11:01:01Z';handlers.get('hashchange')();await flush();assert.equal(requests.length,count,'Daily page metadata is reused after lesson starts');
 await navigate('#overview');quotaNext=true;$('timetable-refresh').listeners.get('click')();await flush();
-assert.match($('academy-preview-sessions').textContent,/service allowance/);assert.match($('academy-preview-sessions').textContent,/00:00 UTC/);
+assert.match($('academy-sessions').textContent,/service allowance/);assert.match($('academy-sessions').textContent,/00:00 UTC/);
 assert.equal(timers.size,0,'Quota failure clears protected timetable links and stops retries');
-$('entrance-retry').listeners.get('click')();await flush();assert.ok(countPills('academy-preview-sessions'));
+$('entrance-retry').listeners.get('click')();await flush();assert.ok(countPills('academy-sessions'));
 fixtureNow='2026-10-05T11:03:03Z';failCatalogue=true;await navigate('#workshops');
 assert.equal($('workshop-pills').innerHTML,'');assert.equal($('course-list-retry').hidden,false);
 $('course-list-retry').listeners.get('click')();await flush();assert.match($('workshop-pills').innerHTML,/Barakah/);
@@ -301,25 +301,25 @@ fixtureNow='2026-10-05T11:04:04Z';deferCatalogue=true;handlers.get('hashchange')
 storage.clear();window.dispatchEvent(new Event('m4l-academy-session'));releaseCatalogue();await flush();
 assert.equal($('workshop-pills').innerHTML,'','A late Course response cannot restore the previous account');
 assert.equal($('activity-menu').innerHTML,'');assert.equal($('workshop-tools').innerHTML,'');assert.equal($('academy-role-panel').innerHTML,'','Late responses cannot restore Academy tools');assert.equal($('academy-role-panel').hidden,true);
-assert.doesNotMatch($('academy-preview-sessions').innerHTML,/Join lesson|data-information|Teacher A/);
+assert.doesNotMatch($('academy-sessions').innerHTML,/Join lesson|data-information|Teacher A/);
 assert.equal($('lesson-information').open,false);assert.equal(timers.size,0);
 fixtureNow='2026-10-06T10:00:00Z';storage.set('m4l_account_token','NEW-SESSION');location.hash='#overview';await refresh();count=requests.length;
 fixtureNow='2026-10-07T10:00:00Z';documentHandlers.get('visibilitychange')();await flush();assert.equal(requests.length,count+1,'Next Academy day loads one new timetable');
 assert.equal($('timetable-refresh').hidden,false);storage.clear();window.dispatchEvent(new Event('m4l-academy-session'));await flush();assert.equal(tabStore.size,0,'Signing out removes the protected daily snapshot');
 // Free public joining wakes the local clock and checks the server only on click.
-publicFreeFixture=true;cacheFixture=false;location.hash='#overview';fixtureNow='2026-10-05T10:54:30Z';await refresh();
-assert.match($('academy-preview-sessions').innerHTML,/data-public-join[^>]+disabled/);
-assert.doesNotMatch($('academy-preview-sessions').innerHTML,/zoom\.test|Teacher A/);
+publicFreeFixture=true;cacheFixture=false;location.hash='#timetable';fixtureNow='2026-10-05T10:54:30Z';await refresh();
+assert.match($('academy-sessions').innerHTML,/data-public-join[^>]+disabled/);
+assert.doesNotMatch($('academy-sessions').innerHTML,/zoom\.test|Teacher A/);
 assert.equal([...timers.values()][0].delay,30000);count=requests.length;
 fixtureNow='2026-10-05T10:55:00Z';timer=[...timers.values()][0];timers.clear();timer.fn();await flush();
-assert.match($('academy-preview-sessions').innerHTML,/class="preview-pill is-open"/);
-assert.doesNotMatch($('academy-preview-sessions').innerHTML,/data-public-join[^>]+disabled/);
+assert.match($('academy-sessions').innerHTML,/class="preview-pill is-open"/);
+assert.doesNotMatch($('academy-sessions').innerHTML,/data-public-join[^>]+disabled/);
 assert.equal(requests.length,count,'Public joining opens without refreshing the snapshot');
-const publicControl={dataset:{publicJoin:/data-public-join="([^"]+)"/.exec($('academy-preview-sessions').innerHTML)[1]},textContent:'Join',disabled:false};
+const publicControl={dataset:{publicJoin:/data-public-join="([^"]+)"/.exec($('academy-sessions').innerHTML)[1]},textContent:'Join',disabled:false};
 documentHandlers.get('click')({target:{closest:selector=>selector==='[data-public-join]'?publicControl:null}});await flush();
 assert.equal(publicJoins.length,1);assert.equal(popup.url,'https://zoom.test/free-current-checked');assert.equal(requests.length,count);
 fixtureNow='2026-10-05T12:00:00Z';timer=[...timers.values()][0];timers.clear();timer.fn();await flush();
-assert.doesNotMatch($('academy-preview-sessions').innerHTML,/data-public-join|is-open/,'Expired Free lessons cannot be joined');
+assert.doesNotMatch($('academy-sessions').innerHTML,/data-public-join|is-open/,'Expired Free lessons cannot be joined');
 documentHandlers.get('visibilitychange')();await flush();assert.equal(requests.length,count,'Returning to a Free public timetable does not poll');
 // HifzHelper is an ordinary personal link, scoped by stable Program identity.
 window.M4L_CONFIG.HIFZ_PROGRAM_ID='PRG-3d6b7972-644c-4f81-b95c-8d6c7ffb8227';
@@ -393,7 +393,7 @@ for(const [roles,label] of [[['STUDENT','TEACHER'],'Teacher'],[['TEACHER','STUDE
   programRole=roles;await refresh();assert.match($('activity-switcher').innerHTML,new RegExp('<small>'+label+'</small>'));assert.doesNotMatch($('activity-switcher').innerHTML,/<small>[^<]* · /);
 }
 globalAdmin=true;await refresh();assert.match($('activity-switcher').innerHTML,/<small>Global Admin<\/small>/);assert.doesNotMatch($('activity-switcher').innerHTML,/<small>[^<]* · /);
-globalAdmin=false;programRole='PROGRAM_ADMIN';await refresh();await navigate('#administration');assert.match($('administration').innerHTML,/Manage Academy/);assert.match($('administration').innerHTML,/id="admin-teach" type="button" data-academy-teach-menu="left">Teach/);assert.doesNotMatch($('administration').innerHTML,/href="\/users\/"|Update public timetable/);
+globalAdmin=false;programRole='PROGRAM_ADMIN';await refresh();await navigate('#administration');assert.match($('administration').innerHTML,/Manage Academy/);assert.doesNotMatch($('administration').innerHTML,/id="admin-teach"/);assert.match($('administration').innerHTML,/id="admin-timetable-home"/);assert.doesNotMatch($('administration').innerHTML,/href="\/users\/"|Update public timetable/);
 await navigate('#administration/assessments');assert.equal(location.hash,'#assessment-admin/PROGRAM/'+encodeURIComponent(activity.id));assert.equal($('assessment-admin').classList.contains('active'),true);
 globalAdmin=false;programRole='STUDENT';await refresh();await navigate(programHash+'/attendance');assert.equal($('pa-main').hidden,true,'Students cannot open the staff register');
 hasWorkshops=false;programRole='';await refresh();assert.equal($('academy-account-role').textContent,'None');assert.equal($('academy-access-empty').hidden,false);assert.equal($('academy-role-panel').hidden,true);assert.equal($('academy-role-panel').innerHTML,'');for(const key of ['learn','teach','admin'])assert.equal($('academy-tab-'+key).hidden,true);

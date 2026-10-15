@@ -23,7 +23,7 @@
   function model(result,{programName='',classId='',effectiveFrom='',history=false,layout,showTimezone=false}={}){
     const items=displayOccurrences(result.occurrences.filter(r=>r.kind==='BREAK'||!classId||r.classIds.includes(classId)),{program:!classId});
     const weekly=result.pattern==='WEEKLY';
-    const columns=weekly?[1,2,3,4,5,6,0].filter(d=>items.some(r=>r.weekday===d)).map(d=>({id:d,label:days[d]})):[...new Set(items.map(r=>r.date))].sort().map(d=>({id:d,label:d}));
+    const columns=weekly?[0,1,2,3,4,5,6].filter(d=>items.some(r=>r.weekday===d)).map(d=>({id:d,label:days[d]})):[...new Set(items.map(r=>r.date))].sort().map(d=>({id:d,label:d}));
     const classes=[...new Set(items.filter(r=>r.kind!=='BREAK').flatMap(r=>classId?[r.classNames[r.classIds.indexOf(classId)]]:r.classNames))];
     const boundaries=[...new Set(items.flatMap(r=>[r.startTime,r.endTime]))].sort();
     return {academy:'UMM ABBAD ACADEMY',program:result.snapshot?.programName||programName,title:weekly?'Weekly timetable':'Timetable',classes:classes.join(' · '),

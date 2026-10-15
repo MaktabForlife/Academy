@@ -11,7 +11,7 @@
  function updateRail(){
   const rail=news()?.querySelector('.announcement-rail'),buttons=controls();if(!rail||!buttons)return;
   const cards=rail.querySelectorAll('.announcement-slide'),step=cards.length>1?cards[1].offsetLeft-cards[0].offsetLeft:rail.clientWidth;
-  const first=step?Math.round(rail.scrollLeft/step):0,count=step?Math.max(1,Math.floor((rail.clientWidth+18)/step)):1,last=Math.min(slides.length,first+count);
+  const first=step?Math.round(rail.scrollLeft/step):0,count=step?Math.max(1,Math.floor((rail.clientWidth+14)/step)):1,last=Math.min(slides.length,first+count);
   const previous=buttons.querySelector('[data-news=previous]'),next=buttons.querySelector('[data-news=next]');
   if(previous)previous.disabled=rail.scrollLeft<=1;
   if(next)next.disabled=rail.scrollLeft>=rail.scrollWidth-rail.clientWidth-1;
@@ -31,7 +31,7 @@
   const box=news(),buttons=controls();if(!box)return;railObserver?.disconnect();
   const placeholder='<div class="announcement-cover announcement-placeholder" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 6h16l8 8v28H12zM28 6v9h8M18 23h12M18 29h12M18 35h8"/></svg><span>Umm Abbad Academy</span></div>';
   box.innerHTML=slides.length?'<div class="announcement-rail" tabindex="0" role="list" aria-label="Latest announcements. Swipe or use the arrow buttons to browse.">'+slides.map((row,i)=>`<article class="announcement-slide" role="listitem" aria-labelledby="announcement-title-${i}">${row.imageUrl?`<button class="announcement-cover announcement-poster" type="button" data-news="image" data-index="${i}" aria-label="Open image: ${esc(row.imageAlt||row.title)}"><img src="${esc(base()+row.imageUrl)}" alt="${esc(row.imageAlt||row.title)}" loading="lazy"></button>`:placeholder}<div class="announcement-copy"><h3 id="announcement-title-${i}" title="${esc(row.title)}">${esc(row.title)}</h3>${row.message?'<p class="announcement-message" tabindex="0" aria-label="Announcement message">'+messageHTML(row.message)+'</p>':''}${row.pdfUrl&&!row.message.includes(row.pdfUrl)?'<p class="announcement-attachment"><a target="_blank" rel="noopener noreferrer" href="'+esc(base()+row.pdfUrl)+'">Open PDF · '+esc(row.pdfName)+'</a></p>':''}</div></article>`).join('')+'</div>':'<p class="muted">No announcements at the moment.</p>';
-  if(buttons)buttons.innerHTML=slides.length>1?'<button type="button" data-news="previous" aria-label="Previous announcements">←</button><span data-news-status aria-live="polite"></span><button type="button" data-news="next" aria-label="Next announcements">→</button>':'';
+  if(buttons)buttons.innerHTML=slides.length>1?'<button type="button" data-news="previous" aria-label="Previous announcements">‹</button><span data-news-status aria-live="polite"></span><button type="button" data-news="next" aria-label="Next announcements">›</button>':'';
   const click=e=>{const button=e.target.closest('[data-news]');if(!button||button.disabled)return;const action=button.dataset.news;if(action==='image')openPoster(slides[Number(button.dataset.index)]);if(action==='previous')moveRail(-1);if(action==='next')moveRail(1);};
   box.onclick=click;if(buttons)buttons.onclick=click;
   const rail=box.querySelector('.announcement-rail');if(!rail)return;

@@ -1,5 +1,5 @@
 import {noTeachingCalendarEvents,holidayOnDate} from './calendar-holidays.js';
-import { buildEntrance, addDays } from '../entrance.js';
+import { buildEntrance, addDays, sunday } from '../entrance.js';
 import { dateInTimezone } from '../../lib/global-subject-delivery.js';
 import { rehearsalError } from './repository.js';
 import {courseCalendarAvailable,calendarRows} from './course-calendar.js';
@@ -14,7 +14,7 @@ const samePublication=(a,b)=>String(a).toUpperCase()===String(b).toUpperCase();
 export async function d1Entrance(repository,state,user,input={},now=new Date(),{days=7,detailed=false}={}) {
   const config=await repository.homeConfiguration();
   if(!config?.setting_value)throw rehearsalError('Academy timezone needs migration.');
-  const start=input.startDate || dateInTimezone(now,config.setting_value);
+  const start=input.startDate || (days===7?sunday(dateInTimezone(now,config.setting_value)):dateInTimezone(now,config.setting_value));
   if(!/^\d{4}-\d{2}-\d{2}$/.test(start)||Number.isNaN(Date.parse(start))||addDays(start,0)!==start)throw rehearsalError('Choose a valid timetable date.',400,'INVALID_DATE');
   const courseWorkflows=config.courseWorkflows??await courseCalendarAvailable(repository.db,true);
   const end=addDays(start,days-1);
@@ -43,7 +43,7 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
   }
   const rolesByProgram=Object.fromEntries(programs.map(p=>[p.id,state?[{AccountID:state.account.account_id,Active:true,Roles:state.roles.filter(r=>r.activity_key.toUpperCase()===`PROGRAM:${p.id}`.toUpperCase()).map(r=>r.role)}]:[]]));
   const rolesByCourse=courseWorkflows?Object.fromEntries(activities.filter(a=>a.kind==='COURSE').map(a=>[a.activity_id.toUpperCase(),state?.roles.filter(r=>r.activity_key.toUpperCase()===a.activity_key.toUpperCase()).map(r=>r.role)||[]])):null;
-  const result=await buildEntrance({tables,programs,rolesByProgram,rolesByCourse,user,input,now,programLifecycle:'ACTIVE',rangeDays:days,detailedTimetable:detailed,publicJoining:true,loadProgram:async program=>{
+  const result=await buildEntrance({tables,programs,rolesByProgram,rolesByCourse,user,input:{...input,startDate:start},now,programLifecycle:'ACTIVE',rangeDays:days,detailedTimetable:detailed,publicJoining:true,loadProgram:async program=>{
     const activity=`PROGRAM:${program.id}`,scope=rows=>rows.filter(r=>r.activity_key===activity);
     const override=activities.find(a=>a.activity_key===activity)?.program_zoom_override;
     return {prepared:true,zoomLinkForLesson:(row,publication)=>currentProgramZoom(override,row,publication,scope(classes)),subjects:scope(subjects).map(s=>({SubjectID:s.subject_id,SubjectName:s.subject_name})),tables:{

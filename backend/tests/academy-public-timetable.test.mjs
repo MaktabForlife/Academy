@@ -18,8 +18,8 @@ test('one durable daily public snapshot serves visitors and cold edges without a
   const f=await fixtureDatabase(),stores=snapshotStores(),now=new Date('2026-10-09T12:00:00Z'),env={...f.env,MEDIA_BUCKET:stores.bucket};
   try {
     const response=await publicTimetable(request(),env,now,stores.edge),first=await response.json(),queryCount=f.queries.length;
-    assert.ok(queryCount>0);assert.equal(stores.puts,1);assert.equal(first.snapshotDate,'2026-10-09');assert.equal(first.expiresAt,'2026-10-10T00:00:00.000Z');
-    assert.equal(first.signedIn,false);assert.ok(first.timetable.length);assert.equal(first.endDate,'2026-10-15');
+    assert.ok(queryCount>0);assert.equal(stores.puts,1);assert.equal(first.snapshotDate,'2026-10-09');assert.equal(first.expiresAt,'2026-10-09T22:00:00.000Z');
+    assert.equal(first.signedIn,false);assert.ok(first.timetable.length);assert.equal(first.startDate,'2026-10-04');assert.equal(first.endDate,'2026-10-10');assert.equal(first.availableEndDate,'2026-12-26');
     assert.match(response.headers.get('Cache-Control'),/^public, max-age=/);
     assert.doesNotMatch(JSON.stringify(first),/zoom\.|pin_hash|teacherId|classId|account_id|meetingGroup|joinUrl|teacherName|classNames/);
     assert.deepEqual(first.personalTimetable,[]);assert.deepEqual(first.activityPages,[]);
@@ -94,3 +94,5 @@ test('manual public refresh rejects competing replacements and rechecks revoked 
   assert.ok([401,403].includes((await post(env,endpoint,{},admin)).status));assert.equal(stores.puts,1);assert.equal([...stores.objects.values()][0],previous);
  }finally{f.db.close();}
 });
+
+test('public date and Sunday week change together at Academy midnight',()=>{const period=publicTimetableDay(new Date('2026-10-17T22:01:00Z'));assert.equal(period.startDate,'2026-10-18');assert.equal(period.weekStart,'2026-10-18');assert.equal(period.expiresAt,'2026-10-18T22:00:00.000Z');});
