@@ -294,11 +294,14 @@
   }
   function renderPublicHome(){
     const data=state.publicData;if(!data)return;
-    const first=sunday(academyDay(data.timezone)),last=addWeekDays(data.availableEndDate||data.endDate,-6);
-    if(state.publicStartDate>last)state.publicStartDate=first;
+    const first=sunday(academyDay(data.timezone)),last=addWeekDays(first,7);
+    if(state.publicStartDate!==first&&state.publicStartDate!==last)state.publicStartDate=first;
     renderSchedule('academy-public-sessions',data.timetable,false,true,{public:true,startDate:state.publicStartDate});
-    $('public-timetable-range').textContent=formatDate(state.publicStartDate)+' – '+formatDate(addWeekDays(state.publicStartDate,6))+' · Sunday–Saturday';
-    $('public-home-previous').disabled=state.publicStartDate<=first;$('public-home-next').disabled=state.publicStartDate>=last;
+    const nextWeek=state.publicStartDate===last;
+    $('public-timetable-title').textContent=nextWeek?'What’s on next week':'What’s on this week';
+    $('public-timetable-range').textContent=formatDate(state.publicStartDate)+' – '+formatDate(addWeekDays(state.publicStartDate,6));
+    $('public-home-previous').hidden=$('public-home-previous').disabled=!nextWeek;
+    $('public-home-next').hidden=$('public-home-next').disabled=nextWeek;
   }
 
   function renderHome() {
@@ -612,7 +615,7 @@
         if (!days.has(row.date)) days.set(row.date, []);
         days.get(row.date).push({...row,publicIndex:rows.indexOf(row)});
       });
-      $(id).innerHTML = `<ol class="upcoming-days preview-days">${[...days].map(([date, lessons]) => `<li class="upcoming-day"><time datetime="${esc(date)}">${esc(formatDate(date))}</time><ul class="upcoming-items">${lessons.length?lessons.map(row => {
+      $(id).innerHTML = `<ol class="upcoming-days preview-days">${[...days].map(([date, lessons]) => `<li class="upcoming-day"><time datetime="${esc(date)}">${esc(formatDate(date))}</time><ul class="upcoming-items"${id==='academy-public-sessions'?` tabindex="0" aria-label="${esc(formatDate(date))} schedule"`:''}>${lessons.length?lessons.map(row => {
         const card=row.publicCard;
         if((row.kind==='PROGRAM'||card)&&(!card?.time||!card.title||!card.description))return '';
         const label = esc(card?.title || row.activityName || row.title);
@@ -1112,7 +1115,8 @@
   });
   for(const [id,days] of [['public-home-previous',-7],['public-home-next',7]])$(id).addEventListener('click',()=>{
     if(!state.publicData||$(id).disabled)return;
-    state.publicStartDate=addWeekDays(state.publicStartDate,days);renderPublicHome();armScheduleClock();
+    const first=sunday(academyDay(state.publicData.timezone));
+    state.publicStartDate=days>0?addWeekDays(first,7):first;renderPublicHome();armScheduleClock();
   });
   window.addEventListener('hashchange', route);
   window.addEventListener('m4l-academy-session', () => { if (!token()) { dailyCache.session='';dailyCache.entries={};try { sessionStorage.removeItem(DAILY_CACHE_KEY); } catch {} } clearPersonal(); void loadHome(); });

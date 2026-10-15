@@ -1,3 +1,7 @@
+# V106.78 — Two-week public homepage snapshot
+
+Rename the public homepage timetable to “What’s on this week”, with a next-week view and labelled directional controls. Limit homepage browsing to those two Sunday–Saturday weeks for every visitor and account. On mobile and tablets, stack seven day rows with fixed date labels and horizontally swipeable cards. Preserve saved line breaks in public Program and Course descriptions, matching their editor previews. Reuse the existing cached public snapshot with no additional week-navigation requests. Local checks cover two-week boundaries, real horizontal scrolling, fixed labels, description line breaks and existing account navigation. No schema or hosted content changes.
+
 # V106.77 — Account-based shared workspace navigation
 
 Limit homepage-only Quick Links removal to the homepage: deleting the connected Calendar node had stopped cold-load Admin headers before showing the account name and workspace tabs. Tolerate absent retired links. Build connected-page headers from the authenticated account session instead of requiring a full Academy timetable. Course and Program managers share in-flight session requests with the header. Preserve account labels, Global Admin inheritance, scoped role visibility and sign-out guards. New local acceptance coverage opens Admin pages with empty timetable caches and an unavailable timetable endpoint, verifying that the account name and LEARN/TEACH/ADMIN remain available. No schema or hosted content changes. [Cause and validation](docs/ACADEMY-ACCOUNT-NAVIGATION-106.77.md).

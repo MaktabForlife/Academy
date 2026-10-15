@@ -91,7 +91,9 @@ const fetch = async (_url, options) => {
   const result = { success:true,signedIn,globalAdmin:signedIn&&globalAdmin,student:signedIn&&activities.some(item=>item.roles.includes('STUDENT')),startDate:body.startDate||'2026-10-04',endDate:'2026-10-10',warnings:[],
     activities,personalActivities:signedIn?activities.filter(item=>item.roles.length):[],timetable:homeTimetable.map(event=>{const publicEvent={...event};delete publicEvent.joinUrl;return publicEvent;}),activity:body.id?activities.find(item=>item.id===body.id):null };
   if(!signedIn){
-    result.snapshotDate='2026-10-05';
+    result.snapshotDate='2026-10-05';result.availableEndDate='2026-12-26';
+    const courseEvent=result.timetable.find(event=>event.kind==='COURSE');
+    result.timetable.push({...courseEvent,date:'2026-10-13'}, {...courseEvent,date:'2026-10-20'});
     result.timetable=result.timetable.map(event=>event.kind==='PROGRAM'?{...event,publicCard:{time:'4am',title:'Public <Program>',description:'4 yr structured scholarship of **Quran, Sunnah, and Islamic law**'}}:event);
     if(publicCourseFixture){const card={time:'7 pm',title:'Public <Course>',description:'Course **summary**'};result.timetable=result.timetable.map(event=>event.kind==='COURSE'?{...event,publicCard:card}:event);result.timetable.push({...result.timetable.find(event=>event.kind==='COURSE'),startTime:'13:00',endTime:'14:00'});}
     if(publicFreeFixture)result.timetable=result.timetable.map(event=>{
@@ -178,6 +180,22 @@ assert.equal($('public-snapshot-note').hidden,false);
 assert.equal(($('academy-public-sessions').innerHTML.match(/<li class="preview-pill"/g)||[]).length,5,'Homepage public Program summaries appear once per Program/day; separate Course sessions stay visible');
 assert.doesNotMatch($('academy-public-sessions').innerHTML,/data-information|Teacher A|zoom\.test|Cancelled item/);
 assert.equal(timers.size,0);
+assert.equal($('public-timetable-title').textContent,'What’s on this week');
+assert.equal($('public-home-previous').hidden,true);assert.equal($('public-home-next').hidden,false);
+const publicReadCount=requests.length;
+$('public-home-next').listeners.get('click')();
+assert.equal($('public-timetable-title').textContent,'What’s on next week');
+assert.equal($('public-home-previous').hidden,false);assert.equal($('public-home-next').hidden,true);
+assert.match($('academy-public-sessions').innerHTML,/datetime="2026-10-11"/);
+assert.doesNotMatch($('academy-public-sessions').innerHTML,/datetime="2026-10-20"/);
+const nextWeekHtml=$('academy-public-sessions').innerHTML;
+$('public-home-next').listeners.get('click')();
+assert.equal($('academy-public-sessions').innerHTML,nextWeekHtml,'A stale Next click cannot open a third week');
+$('public-home-previous').listeners.get('click')();
+assert.equal($('public-timetable-title').textContent,'What’s on this week');
+$('public-home-previous').listeners.get('click')();
+assert.match($('academy-public-sessions').innerHTML,/datetime="2026-10-04"/,'A stale Previous click cannot open an earlier week');
+assert.equal(requests.length,publicReadCount,'Both homepage weeks use the same snapshot');
 let count=requests.length;
 documentHandlers.get('visibilitychange')();await flush();
 assert.equal(requests.length,count,'Returning to the public homepage never refreshes its daily snapshot');
