@@ -8,16 +8,16 @@
   <meta name="theme-color" content="#72477b" />
   <title>Manage Programs · Umm Abbad Academy</title>
   <link rel="icon" href="/admin-favicon-32x32.png" />
-  <link rel="stylesheet" href="/css/m4l-program-builder.css?v=106.78" />
+  <link rel="stylesheet" href="/css/m4l-program-builder.css?v=106.79" />
 <link rel="stylesheet" href="/css/m4l-academy-navigation.css?v=106.11">
-<link rel="stylesheet" href="/css/m4l-program-management-navigation.css?v=106.46"><link rel="stylesheet" href="/css/m4l-academy-mobile.css?v=106.52">
+<link rel="stylesheet" href="/css/m4l-program-admin.css?v=106.79"><link rel="stylesheet" href="/css/m4l-academy-mobile.css?v=106.52">
 <link rel="stylesheet" href="/css/m4l-academy-page-actions.css?v=106.52">
-<link rel="stylesheet" href="/css/m4l-academy-shell.css?v=106.78">
+<link rel="stylesheet" href="/css/m4l-academy-shell.css?v=106.79">
 <link rel="stylesheet" href="/css/m4l-program-zoom-help.css?v=106.44">
 </head>
-<body>
+<body class="pg-admin">
 <a id="academy-link" href="/academy/#overview" hidden>Academy home</a>
-  <main id="program-builder">
+  <main id="program-builder" data-unified-programs>
     <div class="pb-heading"><div><h1>Manage Programs</h1><p id="program-intro" hidden></p></div></div>
     <p id="program-message" class="pb-message" role="status" aria-live="polite">Checking your account…</p>
     <div id="program-refresh-warning" class="pb-refresh-warning" role="alert" hidden>
@@ -26,24 +26,21 @@
       <button id="program-discard-refresh" type="button">Discard and refresh</button>
     </div>
     <button id="program-retry" type="button" class="pb-secondary" hidden>Try again</button>
-    <section id="program-workspace" hidden aria-label="Program setup">
-      <div class="pb-toolbar">
-        <label class="pb-search"><span>Search Programs</span><input id="program-search" type="search" placeholder="Find a Program…" /></label>
-        <label class="pb-filter"><span>Status</span><select id="program-filter"><option value="AVAILABLE" selected>Current programs</option><option value="">All statuses</option><option value="DRAFT">Draft</option><option value="ARCHIVED">Archived</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select></label>
-        <span id="program-count" class="pb-count"></span>
-        <button id="program-refresh" type="button" class="pb-secondary" data-page-content-refresh>↻ Refresh</button>
-        <button id="program-add" type="button">＋ New Program</button>
-      </div>
-      <p class="pb-grid-help" id="program-grid-help">Select a Program using its number. Edit its details, then choose Save. Tab moves between fields. Ctrl/⌘ + Enter saves the current Program.</p>
-      <div class="pb-grid-scroll" tabindex="0" aria-label="Program settings cards">
-        <table class="pb-grid" aria-describedby="program-grid-help"><caption class="pb-sr-only">Program settings</caption>
-          <thead><tr><th scope="col">Select</th><th scope="col">Program</th><th scope="col" hidden>Years</th><th scope="col" id="program-access-label" hidden>Free / Paid</th><th scope="col" id="program-zoom-label" hidden><span class="zoom-help-heading">Program Zoom link <button type="button" class="zoom-help-button" popovertarget="zoom-link-help" aria-label="About Program Zoom links" title="Zoom link help">i</button></span></th><th scope="col">Program status</th><th scope="col" id="program-store-label" hidden>Records</th><th scope="col">Changes</th></tr></thead>
-          <tbody id="program-rows"></tbody>
-        </table>
-      </div>
-    <div class="pb-footer" hidden><span>Levels are optional and independent of years.</span><span id="program-access-note">Enrolled students can view active Library resources; teaching remains in preparation.</span></div>
-      <section id="program-detail" class="pb-detail" aria-label="Selected Program details" hidden></section>
-      <aside class="pb-note" id="program-setup-note" hidden><strong>Teaching opens in later V105 stages.</strong> New Programs stay inactive while teaching and student access are being built. Existing Programs continue in their current workspaces.</aside>
+    <section id="program-workspace" class="pg-workspace" aria-label="Program management" hidden>
+      <div id="pg-tabs" class="pg-tabs" role="tablist" aria-label="Program sections"></div>
+      <section id="pg-list" class="pg-list-panel" role="tabpanel" aria-labelledby="pg-tab-list">
+        <div class="pg-list-toolbar"><strong id="program-count">Programs</strong><button id="program-add" type="button">+ New Program</button></div>
+        <div class="pb-toolbar"><label class="pb-search"><span>Find a Program</span><input id="program-search" type="search" placeholder="Search by name…"></label><label class="pb-filter"><span>Status</span><select id="program-filter"><option value="AVAILABLE" selected>Current programs</option><option value="">All statuses</option><option value="DRAFT">Draft</option><option value="ACTIVE">Active</option><option value="ARCHIVED">Archived</option></select></label><button id="program-refresh" type="button" class="pb-secondary" data-page-content-refresh>Refresh Programs</button></div>
+        <div id="program-rows" class="pg-program-list"></div>
+      </section>
+      <div id="pg-context" class="pg-context" hidden><h2 id="pg-program-name"></h2><small id="pg-program-status"></small></div>
+      <section id="program-detail" class="pg-details" role="tabpanel" aria-labelledby="pg-tab-details" hidden></section>
+      <p id="pg-empty" class="pg-empty">Select a Program</p>
+      <p id="pg-tool-message" class="pb-message" role="status" aria-live="polite" hidden></p><button id="pg-tool-retry" type="button" class="pb-secondary" hidden>Try again</button>
+      <section id="pg-timetable-tool" class="pg-tool" role="tabpanel" hidden></section>
+      <section id="pg-people-tool" class="pg-tool" role="tabpanel" aria-labelledby="pg-tab-participants" hidden></section>
+      <section id="pg-media-tool" class="pg-tool" role="tabpanel" aria-labelledby="pg-tab-media" hidden></section>
+      <div hidden><span id="program-access-label"></span><span id="program-zoom-label"></span><span id="program-store-label"></span><span id="program-access-note"></span><span id="program-setup-note"></span></div>
     </section>
   </main>
 <aside id="zoom-link-help" class="zoom-help-popover" popover aria-labelledby="zoom-link-help-title">
@@ -52,12 +49,13 @@
   <p>Links are checked in this order when someone clicks <strong>Join</strong>:</p>
   <ol><li>Program Zoom link.</li><li>Lesson Zoom link.</li><li>Class Zoom link.</li></ol>
   <p class="zoom-help-footnote">Publish the timetable after changing a lesson link.</p>
-</aside><small class="pb-version">V106.78</small>
-  <script src="/js/m4l-config.js?v=106.78"></script>
-  <script src="/js/m4l-program-builder.js?v=106.78"></script>
-<script src="/js/m4l-program-management-navigation.js?v=106.46"></script>
-<script src="/js/m4l-academy-navigation.js?v=106.78"></script>
-<script src="/js/m4l-academy-mobile.js?v=106.78"></script>
-<script src="/js/m4l-academy-page-actions.js?v=106.58"></script>
+</aside><small class="pb-version">V106.79</small>
+  <script src="/js/m4l-config.js?v=106.79"></script>
+  <script src="/js/m4l-program-admin.js?v=106.79"></script>
+  <script src="/js/m4l-program-builder.js?v=106.79"></script>
+
+<script src="/js/m4l-academy-navigation.js?v=106.79"></script>
+<script src="/js/m4l-academy-mobile.js?v=106.79"></script>
+<script src="/js/m4l-academy-page-actions.js?v=106.79"></script>
 </body>
 </html>

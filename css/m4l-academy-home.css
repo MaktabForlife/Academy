@@ -26,13 +26,12 @@
 #academy-public-sessions .preview-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px}
 #academy-public-sessions .upcoming-day{min-width:0}
 @media(max-width:999px){
- #academy-public-sessions{overflow:visible;scroll-snap-type:none}
- #academy-public-sessions .preview-days{grid-template-columns:minmax(0,1fr);gap:0}
- #academy-public-sessions .upcoming-day{display:grid;grid-template-columns:64px minmax(0,1fr);align-items:start;gap:8px;padding:10px 0;border-top:1px solid var(--line)}
- #academy-public-sessions .upcoming-day>time{padding:12px 0;margin:0;line-height:1.5}
- #academy-public-sessions .upcoming-items{display:flex;align-items:stretch;min-width:0;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scroll-padding:3px;padding:3px 3px 8px;scrollbar-color:var(--rose) var(--rose-soft)}
- #academy-public-sessions .preview-pill{flex:0 0 min(240px,100%);min-width:0;box-sizing:border-box;scroll-snap-align:start}
- #academy-public-sessions .timetable-empty{flex:1 0 100%;padding:12px 0;text-align:left;box-sizing:border-box}
+ #academy-public-sessions{overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding:3px;padding:3px 3px 10px}
+ #academy-public-sessions .preview-days{display:flex;align-items:flex-start;gap:12px}
+ #academy-public-sessions .upcoming-day{flex:0 0 clamp(200px,70vw,260px);scroll-snap-align:start}
+ #academy-public-sessions .upcoming-day>time{padding:0 4px;margin-bottom:10px;line-height:1.5}
+ #academy-public-sessions .upcoming-items{display:grid;gap:8px}
+ #academy-public-sessions .preview-pill{min-width:0;box-sizing:border-box}
 }
 @media(max-width:600px){
  .public-week-heading{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}

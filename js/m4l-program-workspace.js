@@ -1,6 +1,6 @@
 (() => {'use strict';
  window.M4L_PROGRAM_WORKSPACE={mount({state,$,esc,api,work,refresh}){
-  const retries=new Map();let newClasses=[],classDrafts=new Map(),cardDraft=null,cardBase=null,categoryChoice="";
+  const retries=new Map();let newClasses=[],classDrafts=new Map(),cardDraft=null,cardBase=null,categoryChoice="",showInactive=false;
   const cardDirty=()=>cardDraft&&JSON.stringify(cardDraft)!==JSON.stringify(cardBase.publicCard||{});
   const classDirty=c=>newClasses.includes(c)||JSON.stringify(c)!==JSON.stringify(state.data.setup.rows.classes.find(saved=>saved.ClassID===c.ClassID));
   function cardPreview(){const card=cardDraft||state.data.program.publicCard||{};$('pw-card-preview').innerHTML=card.title?`<strong>${esc(card.time)}</strong><div><b>${esc(card.title)}</b><p>${esc(card.description).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')}</p></div>`:'';$('pw-save-card').disabled=state.busy||!cardDirty();$('pw-discard-card').disabled=state.busy||!cardDirty();}
@@ -31,10 +31,13 @@
    if(!cardDraft||!cardDirty()){cardBase=structuredClone(d.program);cardDraft=structuredClone(d.program.publicCard||{});}
    for(const key of ['time','title','description'])$('pw-card-'+key).value=cardDraft[key]||'';
    cardPreview();
-   const subjects=setup.sharedSubjects.filter(s=>s.Active&&!s.Legacy),mods=setup.sharedModules||[];
-   $('pw-category').innerHTML='<option value="">Choose from Academy list…</option>'+subjects.map(s=>`<optgroup label="${esc(s.SubjectName)}"><option value="S:${esc(s.SubjectID)}">${esc(s.SubjectName)} · Subject</option>${mods.filter(m=>m.subjectId===s.SubjectID&&m.active).map(m=>`<option value="M:${esc(m.id)}">${esc(m.name)}</option>`).join('')}</optgroup>`).join('');$('pw-category').value=categoryChoice;
-   const selectedSubjects=d.catalog.subjects.filter(s=>s.active),selectedModules=d.catalog.modules.filter(m=>m.active);
-   $('pw-categories').innerHTML=selectedSubjects.map(s=>`<tr><td>Subject</td><td>${esc(s.name)}</td><td></td></tr>`).concat(selectedModules.map(m=>`<tr><td>Module</td><td>${esc(m.name)}<small>${esc(selectedSubjects.find(s=>s.id===m.programSubjectId)?.name||'')}</small></td><td></td></tr>`)).join('')||'<tr><td colspan="3">No Subjects or Modules added yet.</td></tr>';
+   const alphabetical=(a,b)=>String(a.name||a.SubjectName||'').localeCompare(String(b.name||b.SubjectName||''),undefined,{sensitivity:'base',numeric:true});
+   const subjects=setup.sharedSubjects.filter(s=>s.Active&&!s.Legacy).slice().sort(alphabetical),mods=setup.sharedModules||[];
+   $('pw-category').innerHTML='<option value="">Choose from Academy list…</option>'+subjects.map(s=>`<optgroup label="${esc(s.SubjectName)}"><option value="S:${esc(s.SubjectID)}">${esc(s.SubjectName)} · Subject</option>${mods.filter(m=>m.subjectId===s.SubjectID&&m.active).slice().sort(alphabetical).map(m=>`<option value="M:${esc(m.id)}">${esc(m.name)}</option>`).join('')}</optgroup>`).join('');$('pw-category').value=categoryChoice;
+   const selectedSubjects=d.catalog.subjects.filter(s=>showInactive||s.active).slice().sort(alphabetical),selectedModules=d.catalog.modules;
+   const actions=(kind,row)=>row.lessonUsed?'<small>Used in Program lessons · protected</small>':`<button type="button" class="pb-secondary" data-pw-active="${row.active?'false':'true'}" data-pw-kind="${kind}" data-pw-id="${esc(row.id)}">${row.active?'Make inactive':'Make active'}</button> <button type="button" class="pb-secondary" data-pw-remove="${esc(row.id)}" data-pw-kind="${kind}">Remove</button>`;
+   $('pw-categories').innerHTML=selectedSubjects.map(s=>`<tr class="${s.active?'':'is-inactive'}"><td>Subject${s.active?'':' · Inactive'}</td><td><strong>${esc(s.name)}</strong></td><td>${actions('subjects',s)}</td></tr>`+selectedModules.filter(m=>m.programSubjectId===s.id&&(showInactive||m.active)).slice().sort(alphabetical).map(m=>`<tr class="${m.active?'':'is-inactive'}"><td>Module${m.active?'':' · Inactive'}</td><td class="pw-module-name">${esc(m.name)}</td><td>${actions('modules',m)}</td></tr>`).join('')).join('')||'<tr><td colspan="3">No active Subjects or Modules. Add from the Academy list below.</td></tr>';
+   if($('pw-show-inactive'))$('pw-show-inactive').checked=showInactive;
    $('pw-catalogue').hidden=!setup.sharedSubjectsEditable;
    for(const control of $('pw-setup').querySelectorAll('input,select,textarea,button'))if(!control.matches('[data-pw-save],[data-pw-discard],#pw-save-card,#pw-discard-card'))control.disabled=state.busy||d.managementEditable===false;
 
@@ -58,9 +61,16 @@
    if(!key)throw Error('Choose an Academy Subject or Module.');
    let subject=setup.rows.subjects.find(s=>s.SubjectID===subjectId&&s.Active);
    if(!subject){const result=await post('/api/admin/platform/program-timetable/manage-save',{id:state.data.program.id,kind:'subjects',record:{ProgramSubjectID:setup.rows.subjects.find(s=>s.SubjectID===subjectId)?.ProgramSubjectID||stableId('S:'+subjectId,'PS'),SubjectID:subjectId,Active:true},creating:!setup.rows.subjects.some(s=>s.SubjectID===subjectId),baseRowRevision:setup.rowRevisions.subjects[setup.rows.subjects.find(s=>s.SubjectID===subjectId)?.ProgramSubjectID]||setup.emptyRowRevision});subject=result.record;}
-   if(mod&&!setup.rows.modules.some(m=>m.ProgramSubjectID===subject.ProgramSubjectID&&m.Name===mod.name&&m.Active))await post('/api/admin/platform/program-timetable/manage-save',{id:state.data.program.id,kind:'modules',record:{ProgramModuleID:stableId('M:'+mod.id,'MOD'),ProgramSubjectID:subject.ProgramSubjectID,LevelID:'',Name:mod.name,SortOrder:'0',Active:true},creating:true,baseRowRevision:setup.emptyRowRevision});
+   const previous=mod&&setup.rows.modules.find(m=>m.ProgramSubjectID===subject.ProgramSubjectID&&m.Name===mod.name);
+   if(mod&&!previous?.Active)await post('/api/admin/platform/program-timetable/manage-save',{id:state.data.program.id,kind:'modules',record:previous?{...previous,Active:true}:{ProgramModuleID:stableId('M:'+mod.id,'MOD'),ProgramSubjectID:subject.ProgramSubjectID,LevelID:'',Name:mod.name,SortOrder:'0',Active:true},creating:!previous,baseRowRevision:previous?setup.rowRevisions.modules[previous.ProgramModuleID]:setup.emptyRowRevision});
    categoryChoice='';await update();note('Ready to select in sessions.');
   }catch(e){note(e.message,true);}});
+  if($('pw-show-inactive'))$('pw-show-inactive').onchange=e=>{showInactive=e.target.checked;render();};
+  $('pw-categories').onclick=e=>{const button=e.target.closest('[data-pw-remove],[data-pw-active]');if(!button||state.busy||state.data.managementEditable===false)return;
+   if(newClasses.length||[...classDrafts.values()].some(classDirty)||cardDirty()){note('Save or discard the class and public card changes first.',true);return;}
+   const kind=button.dataset.pwKind,id=button.dataset.pwRemove||button.dataset.pwId,setup=state.data.setup,key=kind==='subjects'?'ProgramSubjectID':'ProgramModuleID',row=setup.rows[kind].find(r=>r[key]===id);if(!row)return;
+   void work(async()=>{try{if(button.dataset.pwRemove)await post('/api/admin/platform/program-timetable/manage-remove',{id:state.data.program.id,kind,recordId:id,baseRowRevision:setup.rowRevisions[kind][id]});else await post('/api/admin/platform/program-timetable/manage-save',{id:state.data.program.id,kind,record:{...row,Active:button.dataset.pwActive==='true'},creating:false,baseRowRevision:setup.rowRevisions[kind][id]});await update();note(button.dataset.pwRemove?'Removed from this Program. Its Academy record remains active.':'Program availability updated. The Academy record is unchanged.');}catch(error){note(error.message,true);}});
+  };
   const ids=new Map();function stableId(key,prefix){if(!ids.has(key))ids.set(key,prefix+'-'+crypto.randomUUID());return ids.get(key);}
   for(const key of ['time','title','description'])$('pw-card-'+key).oninput=e=>{cardDraft={...cardDraft,[key]:e.target.value};cardPreview();};
   $('pw-discard-card').onclick=()=>{cardDraft=null;render();};

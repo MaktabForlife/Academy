@@ -1,6 +1,7 @@
 /* Reuse existing lesson media within an authorised Program management workspace. */
 (() => {
  'use strict';
+ if(window.M4L_PROGRAM_ADMIN_REDIRECT)return;
  const $=id=>document.getElementById(id),token=()=>localStorage.getItem('m4l_account_token')||'';
  const program=new URLSearchParams(location.search).get('program');
  let generation=0,loading=false;

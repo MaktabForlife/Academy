@@ -292,16 +292,23 @@
       renderPublicHome();armScheduleClock();
     } catch(error){$('academy-public-sessions').textContent=error.message;}
   }
-  function renderPublicHome(){
-    const data=state.publicData;if(!data)return;
-    const first=sunday(academyDay(data.timezone)),last=addWeekDays(first,7);
-    if(state.publicStartDate!==first&&state.publicStartDate!==last)state.publicStartDate=first;
-    renderSchedule('academy-public-sessions',data.timetable,false,true,{public:true,startDate:state.publicStartDate});
-    const nextWeek=state.publicStartDate===last;
+  const publicMobileView=matchMedia('(max-width:999px)');
+  publicMobileView.addEventListener?.('change',()=>{if(state.publicData)renderPublicHome();});
+  function publicWeekHeading(){
+    const nextWeek=state.publicStartDate===addWeekDays(sunday(academyDay(state.publicData.timezone)),7);
     $('public-timetable-title').textContent=nextWeek?'What’s on next week':'What’s on this week';
     $('public-timetable-range').textContent=formatDate(state.publicStartDate)+' – '+formatDate(addWeekDays(state.publicStartDate,6));
     $('public-home-previous').hidden=$('public-home-previous').disabled=!nextWeek;
     $('public-home-next').hidden=$('public-home-next').disabled=nextWeek;
+  }
+  function renderPublicHome(){
+    const data=state.publicData;if(!data)return;
+    const first=sunday(academyDay(data.timezone)),last=addWeekDays(first,7);
+    if(state.publicStartDate!==first&&state.publicStartDate!==last)state.publicStartDate=first;
+    const host=$('academy-public-sessions'),left=host.scrollLeft||0;
+    renderSchedule('academy-public-sessions',data.timetable,false,true,{public:true,startDate:publicMobileView.matches?first:state.publicStartDate,days:publicMobileView.matches?14:7});
+    if(publicMobileView.matches)host.scrollLeft=left;
+    publicWeekHeading();
   }
 
   function renderHome() {
@@ -586,7 +593,7 @@
   }
 
   function renderSchedule(id, rows, detailed = false, compact = false, options = {}) {
-    const start=options.startDate||state.startDate||state.home?.startDate,end=addWeekDays(start,6);
+    const start=options.startDate||state.startDate||state.home?.startDate,dayCount=options.days||7,end=addWeekDays(start,dayCount-1);
     rows=rows.filter(row=>row.date>=start&&row.date<=end);
     const personal = !options.public&&(detailed || state.home?.signedIn);
     const now = new Date().getTime();
@@ -610,7 +617,7 @@
     const next = personal ? rows.findIndex(row => row.status === 'SCHEDULED' && row.endsAt > now) : -1;
     if (personal) { renderPersonalWeek(id, rows, detailed, next, now); return; }
     if (compact || !personal) {
-      const days = new Map(Array.from({length:7},(_,i)=>[addWeekDays(start,i),[]]));
+      const days = new Map(Array.from({length:dayCount},(_,i)=>[addWeekDays(start,i),[]]));
       rows.forEach(row => {
         if (!days.has(row.date)) days.set(row.date, []);
         days.get(row.date).push({...row,publicIndex:rows.indexOf(row)});
@@ -1116,8 +1123,9 @@
   for(const [id,days] of [['public-home-previous',-7],['public-home-next',7]])$(id).addEventListener('click',()=>{
     if(!state.publicData||$(id).disabled)return;
     const first=sunday(academyDay(state.publicData.timezone));
-    state.publicStartDate=days>0?addWeekDays(first,7):first;renderPublicHome();armScheduleClock();
+    state.publicStartDate=days>0?addWeekDays(first,7):first;renderPublicHome();if(publicMobileView.matches){const columns=$('academy-public-sessions').querySelectorAll('.upcoming-day');$('academy-public-sessions').scrollTo({left:days>0?columns[7].offsetLeft-columns[0].offsetLeft:0,behavior:'auto'});}armScheduleClock();
   });
+  $('academy-public-sessions').addEventListener('scroll',()=>{if(!publicMobileView.matches||!state.publicData)return;const columns=$('academy-public-sessions').querySelectorAll('.upcoming-day');if(columns.length!==14)return;const first=sunday(academyDay(state.publicData.timezone));state.publicStartDate=$('academy-public-sessions').scrollLeft>=columns[7].offsetLeft-columns[0].offsetLeft-1?addWeekDays(first,7):first;publicWeekHeading();},{passive:true});
   window.addEventListener('hashchange', route);
   window.addEventListener('m4l-academy-session', () => { if (!token()) { dailyCache.session='';dailyCache.entries={};try { sessionStorage.removeItem(DAILY_CACHE_KEY); } catch {} } clearPersonal(); void loadHome(); });
   const checkReturnedPage=()=>{if(document.visibilityState!=='hidden'&&token())void checkRemoteProfileLabels().then(async changed=>{

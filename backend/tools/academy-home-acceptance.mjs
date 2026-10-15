@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import {mediaFixture} from '../tests/fixtures/academy-lesson-media-fixture.mjs';
 import {MOU_MEDIA_PROGRAM as activity} from '../src/academy/d1/lesson-media.js';
 import worker from '../src/worker.js';
-const root=fileURLToPath(new URL('../../',import.meta.url)),out=process.env.ACADEMY_HOME_OUTPUT||'/private/tmp/academy-home-10678';mkdirSync(out,{recursive:true});
+const root=fileURLToPath(new URL('../../',import.meta.url)),out=process.env.ACADEMY_HOME_OUTPUT||'/private/tmp/academy-home-10679';mkdirSync(out,{recursive:true});
 const f=await mediaFixture();for(const migration of ['0022_academic_calendar.sql','0023_lesson_planning.sql','0024_announcements_and_plan_requirements.sql'])f.db.exec(readFileSync(new URL('../migrations/academy/'+migration,import.meta.url),'utf8'));
 f.env.AUTH_LOGIN_RATE_LIMITER={limit:async()=>({success:true})};
 // Disposable local marketing cards exercise real overflow and saved line breaks.
@@ -33,34 +33,31 @@ const signIn=async who=>{await page.goto(origin+'/__signin/'+who);await page.wai
 
 const editor=()=>page.locator('#admin-announcements');
 async function homeNavigationFits(width){
+ await page.waitForFunction(count=>document.querySelectorAll('#academy-public-sessions .upcoming-day').length===count,width<1000?14:7);
  const layout=await page.evaluate(()=>{
   const strip=document.getElementById('academy-public-sessions'),bounds=strip.getBoundingClientRect(),days=[...strip.querySelectorAll('.upcoming-day')].map(el=>el.getBoundingClientRect().toJSON()),nav=document.querySelector('#academy-public-quicklinks nav'),navBounds=nav.getBoundingClientRect(),links=[...nav.children].filter(el=>el.getBoundingClientRect().width).map(el=>({text:el.textContent,bounds:el.getBoundingClientRect().toJSON()}));
   const heading=document.getElementById('film-title').getBoundingClientRect(),pages=document.querySelector('.film-pages').getBoundingClientRect(),wall=document.querySelector('.film-window').getBoundingClientRect(),hijri=document.getElementById('academy-hijri-date'),dateBox=document.querySelector('.academy-date-box');
   return {heading:heading.toJSON(),pages:pages.toJSON(),wall:wall.toJSON(),hijriStyle:getComputedStyle(hijri).fontStyle,dateLabels:dateBox.innerText,icons:nav.querySelectorAll('.quicklink-icon svg').length,bounds:bounds.toJSON(),days,scrollWidth:strip.scrollWidth,clientWidth:strip.clientWidth,navBounds:navBounds.toJSON(),links,navScroll:nav.scrollWidth,navWidth:nav.clientWidth};
  });
- assert.equal(layout.days.length,7);assert(layout.scrollWidth<=layout.clientWidth+1,'All days fit without hidden horizontal columns at '+width);
- for(const box of layout.days)assert(box.x>=layout.bounds.x-1&&box.x+box.width<=layout.bounds.x+layout.bounds.width+1,'Day stays inside public timetable at '+width);
- if(width>=1000)assert(layout.days.every(box=>Math.abs(box.y-layout.days[0].y)<2),'All seven days share one desktop row');
- else assert(layout.days.every((box,i)=>Math.abs(box.x-layout.days[0].x)<2&&(!i||box.y>layout.days[i-1].y+layout.days[i-1].height-1)),'All seven days form separate mobile rows');
+ assert.equal(layout.days.length,width<1000?14:7);
+ if(width>=1000){assert(layout.scrollWidth<=layout.clientWidth+1,'All seven days fit on desktop');for(const box of layout.days)assert(box.x>=layout.bounds.x-1&&box.x+box.width<=layout.bounds.x+layout.bounds.width+1);}
+ else assert(layout.scrollWidth>layout.clientWidth,'Mobile shows a swipeable fourteen-day strip');
+ assert(layout.days.every(box=>Math.abs(box.y-layout.days[0].y)<2),'Days stay in columns');
  assert(layout.links.length>=5);assert(!layout.links.some(link=>/Academy home|Calendar|Timetable/i.test(link.text)));assert(layout.icons>=layout.links.length,'Each quick-link block has an icon');assert.equal(layout.hijriStyle,'italic');assert.doesNotMatch(layout.dateLabels,/Hijri|Gregorian/,'Date labels are removed');
  if(width>=1000){assert(layout.pages.x>layout.heading.x+layout.heading.width-1,'Page numbers sit beside the heading');assert(Math.abs(layout.pages.y-layout.heading.y)<12,'Page numbers align at the top of the course wall');}
  assert(layout.pages.y+layout.pages.height<=layout.wall.y+1,'Page numbers stay above course images');
  if(width>=1000)assert(layout.links.every(({bounds:box})=>Math.abs(box.y-layout.links[0].bounds.y)<2),'Desktop quick links form one compact strip');assert(layout.navScroll<=layout.navWidth+1,'Quick links never extend offscreen');
  for(const {text,bounds:box} of layout.links)assert(box.x>=layout.navBounds.x-1&&box.x+box.width<=layout.navBounds.x+layout.navBounds.width+1,'Quick link fits: '+text);
  if(width<1000){
-  const swipe=await page.locator('#academy-public-sessions .upcoming-day').first().evaluate(async row=>{
-   const label=row.querySelector('time'),schedule=row.querySelector('.upcoming-items'),card=schedule.firstElementChild;
-   schedule.scrollLeft=0;
-   await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
-   const before={label:label.getBoundingClientRect().x,card:card.getBoundingClientRect().x};
-   schedule.scrollLeft=schedule.scrollWidth;
-   await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
-   return {before,label:label.getBoundingClientRect().x,card:card.getBoundingClientRect().x,scroll:schedule.scrollLeft,overflow:schedule.scrollWidth>schedule.clientWidth};
+  const swipe=await page.locator('#academy-public-sessions').evaluate(async schedule=>{
+   schedule.scrollLeft=schedule.scrollWidth;await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+   const columns=schedule.querySelectorAll('.upcoming-day'),host=schedule.getBoundingClientRect(),last=columns[13].getBoundingClientRect();
+   const result={scroll:schedule.scrollLeft,last:last.x,hostRight:host.right,dates:[...columns].map(el=>el.querySelector('time').dateTime)};
+   schedule.scrollLeft=0;await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));return result;
   });
-  if(width<=390)assert(swipe.overflow,'Phone fixture has enough cards to exercise scrolling');
-  if(swipe.overflow)assert(swipe.scroll>0&&swipe.card<swipe.before.card,'Mobile day schedules scroll sideways at '+width);
-  assert.equal(swipe.label,swipe.before.label,'Day labels stay frozen while swiping at '+width);
-  await page.locator('#academy-public-sessions .upcoming-items').first().evaluate(async el=>{el.scrollLeft=0;await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));});
+  assert(swipe.scroll>0&&swipe.last<swipe.hostRight,'Visitors can swipe to the fourteenth day');
+  assert.equal(Date.parse(swipe.dates[13])-Date.parse(swipe.dates[0]),13*86400000);assert.equal(new Date(swipe.dates[0]).getUTCDay(),0);assert.equal(new Date(swipe.dates[13]).getUTCDay(),6);
+  if(width===390){await page.locator('#public-home-next').click();await page.waitForFunction(()=>document.getElementById('academy-public-sessions').scrollLeft>0);assert.equal(await page.locator('#public-timetable-title').textContent(),'What’s on next week');assert.equal(await page.locator('#academy-public-sessions .upcoming-day').count(),14);await page.locator('#public-home-previous').click();await page.waitForFunction(()=>document.getElementById('academy-public-sessions').scrollLeft===0);}
  }
  const lines=await page.locator('#academy-public-sessions .preview-description').first().evaluate(el=>{
   const node=el.firstChild,split=node.textContent.indexOf('\n'),before=document.createRange(),after=document.createRange();
@@ -68,7 +65,7 @@ async function homeNavigationFits(width){
   return {before:before.getBoundingClientRect().y,after:after.getBoundingClientRect().y,text:el.textContent};
  });
  assert.match(lines.text,/Bootcamp\.\nA 4/);assert(lines.after>lines.before,'Saved Return starts a new line on the public card');
- checks.push('Public days, frozen mobile labels, saved line breaks, icon blocks and dates fit at '+width);
+ checks.push('Public day columns, fourteen-day mobile swiping, saved line breaks, icon blocks and dates fit at '+width);
 }
 async function fits(label){const sizes=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));assert(sizes.scroll<=sizes.width+1,label+JSON.stringify(sizes));checks.push(label);}
 try{
@@ -103,7 +100,7 @@ try{
  }
  await page.goto(origin+'/academy/courses/manage/');await page.locator('[data-cm-action="select"]').first().waitFor();assert.equal(await page.locator('.cm-course').first().evaluate(el=>parseFloat(getComputedStyle(el).borderTopWidth)>=1&&parseFloat(getComputedStyle(el).borderRadius)>=10),true);await page.screenshot({path:path.join(out,'course-list-cards.png'),fullPage:true});await page.locator('[data-cm-action="select"]').first().click();await page.getByRole('tab',{name:'Public card',exact:true}).click();await page.locator('[data-card-field="time"]').fill('7 pm');await page.locator('[data-card-field="title"]').fill('Course summary');await page.locator('[data-card-field="description"]').fill('Study **Quran** together.');assert.match(await page.locator('#cm-card-preview').textContent(),/Course summary/);await page.getByRole('button',{name:'Save public card',exact:true}).click();await page.locator('#course-message').filter({hasText:'Public timetable card saved'}).waitFor();await page.screenshot({path:path.join(out,'course-public-card.png'),fullPage:true});await page.reload();await page.locator('#cm-card-status').filter({hasText:'Card saved'}).waitFor();assert.equal(await page.locator('[data-card-field="time"]').inputValue(),'7 pm');for(const width of [320,390,768,1440]){await page.setViewportSize({width,height:1000});await fits('Course card editor '+width);}checks.push('Course public card previews, saves and persists after reload');
  await page.getByRole('link',{name:'Close',exact:true}).click();await page.waitForURL('**/academy/#administration');await page.locator('#admin-timetable-home #academy-schedule').waitFor();await page.locator('#admin-tab-courses').waitFor();assert.equal(await page.locator('#academy-role-tabs button:visible').count(),3);checks.push('Closing Manage Courses restores Admin content and LEARN/TEACH/ADMIN tabs');
- await page.goto(origin+'/programs/');await page.locator('#program-rows tr[data-id]').first().waitFor();assert.equal(await page.locator('#program-rows tr[data-id]').first().evaluate(el=>parseFloat(getComputedStyle(el).borderTopWidth)>=1&&getComputedStyle(el).display==='grid'),true);for(const width of [320,390,768,1440]){await page.setViewportSize({width,height:1000});await fits('Program cards '+width);const cards=await page.locator('#program-rows tr[data-id]').evaluateAll(rows=>rows.map(el=>({left:el.getBoundingClientRect().left,right:el.getBoundingClientRect().right})));assert(cards.every(card=>card.left>=0&&card.right<=width));if(width===390||width===1440)await page.screenshot({path:path.join(out,'program-cards-'+width+'.png'),fullPage:true});}checks.push('Program settings appear in distinct cards with all existing edit and Save controls');
+ await page.goto(origin+'/programs/');await page.locator('.pg-program-card').first().waitFor();assert.equal(await page.locator('#pg-tabs [role=tab]').count(),9);for(const width of [320,390,768,1440]){await page.setViewportSize({width,height:1000});await fits('Program cards '+width);const cards=await page.locator('.pg-program-card').evaluateAll(rows=>rows.map(el=>({left:el.getBoundingClientRect().left,right:el.getBoundingClientRect().right})));assert(cards.every(card=>card.left>=0&&card.right<=width));if(width===390||width===1440)await page.screenshot({path:path.join(out,'program-cards-'+width+'.png'),fullPage:true});}checks.push('Program management has a course-style list of cards and one row of tabs');
  let blockedTimetables=0;await page.route('**/api/academy/entrance',route=>{blockedTimetables++;return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({success:false,code:'ACADEMY_D1_DAILY_READ_LIMIT',error:'Synthetic timetable quota unavailable'})});});
  for(const route of ['/academy/courses/manage/','/programs/','/users/','/academy/subjects/','/academy/library/manage/','/academy/pdf-tools/','/academy/calendar/']){await page.evaluate(()=>sessionStorage.clear());await page.goto(origin+route);await page.waitForFunction(()=>document.querySelectorAll('[data-shell-role]').length===3&&[...document.querySelectorAll('[data-shell-role]')].every(el=>!el.hidden),null,{timeout:5000});assert.equal(await page.locator('[data-shell-role][aria-pressed=true]').textContent(),'ADMIN');assert.equal(await page.locator('#academy-shell-name').textContent(),'Synthetic learner 1');if(route==='/academy/courses/manage/'){await page.locator('#course-list button').first().waitFor();await page.screenshot({path:path.join(out,'cold-course-header.png'),fullPage:false});}}
  assert.equal(blockedTimetables,0,'Connected headers never request the unavailable timetable');checks.push('Cold Admin pages keep account name and all workspace tabs with no timetable cache and timetable service unavailable');

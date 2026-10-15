@@ -1,0 +1,62 @@
+import {createServer} from 'node:http';
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {createRequire} from 'node:module';
+import assert from 'node:assert/strict';
+import {mediaFixture} from '../tests/fixtures/academy-lesson-media-fixture.mjs';
+import {MOU_MEDIA_PROGRAM as activity} from '../src/academy/d1/lesson-media.js';
+import worker from '../src/worker.js';
+import {PROGRAM_IDS} from '../tests/fixtures/academy-migration-fixture.mjs';
+const root=fileURLToPath(new URL('../../',import.meta.url)),out=process.env.ACADEMY_PROGRAMS_OUTPUT||'/private/tmp/academy-programs-10679';mkdirSync(out,{recursive:true});
+const f=await mediaFixture();for(const migration of ['0022_academic_calendar.sql','0023_lesson_planning.sql','0024_announcements_and_plan_requirements.sql'])f.db.exec(readFileSync(new URL('../migrations/academy/'+migration,import.meta.url),'utf8'));
+f.env.AUTH_LOGIN_RATE_LIMITER={limit:async()=>({success:true})};
+// Disposable local marketing cards exercise real overflow and saved line breaks.
+f.db.prepare('UPDATE program_settings SET public_card_json=?').run(JSON.stringify({time:'7pm',title:'Public Academy course',description:'Bootcamp.\nA 4 week journey.'}));
+f.db.prepare("INSERT INTO academy_module_catalogue(module_id,subject_key,name,name_key,active) VALUES('AM-QASAS-INTRO','ACADEMY:ASSESSMENT-Qasas','Introduction','introduction',1)").run();
+const protectedModule=f.db.prepare('SELECT module_id FROM modules WHERE activity_key=? LIMIT 1').get('PROGRAM:'+PROGRAM_IDS[0]);
+f.db.prepare('UPDATE timetable_drafts SET draft_json=? WHERE activity_key=?').run(JSON.stringify({format:'105.3.2.2-weekly',timezone:'Africa/Johannesburg',rules:[{id:'RULE-protected',moduleId:protectedModule.module_id,teacherId:'account-0003',classIds:['class-1'],weekdays:[1],startTime:'10:00',endTime:'11:00'}]}),'PROGRAM:'+PROGRAM_IDS[0]);
+const course=f.db.prepare("SELECT * FROM activities WHERE kind='COURSE' LIMIT 1").get();
+f.db.prepare("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state) VALUES('planning-course-teacher','account-0003',?,'TEACHER',1,'CONFIRMED')").run(course.activity_key);
+const images=new Map();f.env.LESSON_MEDIA_BUCKET={put:async(k,b)=>images.set(k,new Uint8Array(b)),get:async k=>images.has(k)?{body:images.get(k)}:null,delete:async k=>images.delete(k)};
+const tokens={teacher:await f.login('0003'),admin:await f.login('0001'),student:await f.login('0002')};
+const types={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.pdf':'application/pdf','.css':'text/css','.json':'application/json','.png':'image/png','.svg':'image/svg+xml','.jpg':'image/jpeg','.webp':'image/webp'};
+const server=createServer(async(req,res)=>{try{const url=new URL(req.url,'http://localhost');res.setHeader('Cache-Control','no-store');
+ if(url.pathname==='/js/m4l-config.js'){res.writeHead(200,{'Content-Type':'text/javascript'});res.end('window.M4L_CONFIG={API_BASE:location.origin,IS_DEVELOPMENT:true};');return;}
+ if(url.pathname.startsWith('/__signin/')){const who=url.pathname.split('/').at(-1);if(!tokens[who])throw Error('Unknown synthetic identity');res.writeHead(200,{'Content-Type':'text/html'});res.end('<script>localStorage.clear();sessionStorage.clear();localStorage.setItem("m4l_account_token",'+JSON.stringify(tokens[who])+');location.replace("/academy/");</script>');return;}
+ if(url.pathname==='/academy/open-library/catalogue'){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({books:[]}));return;}
+ if(url.pathname==='/api/academy/header-date'){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({success:true,gregorian:new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Johannesburg',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()),hijri:'4 Jumada al-ula 1448',source:'https://jamiat.org.za/'}));return;}
+ if(url.pathname.startsWith('/api/')){const chunks=[];for await(const chunk of req)chunks.push(chunk);const response=await worker.fetch(new Request('http://localhost'+url.pathname+url.search,{method:req.method,headers:req.headers,...(!['GET','HEAD'].includes(req.method)?{body:Buffer.concat(chunks)}:{})}),f.env);res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));return;}
+ const target=path.resolve(root,'.'+decodeURIComponent(url.pathname));if(!target.startsWith(root))throw Error('Invalid path');const file=url.pathname.endsWith('/')?path.join(target,'index.html'):target;const bytes=readFileSync(file);res.writeHead(200,{'Content-Type':types[path.extname(file)]||'application/octet-stream'});res.end(bytes);
+ }catch(e){console.log('SERVER ERROR',e);res.writeHead(e.code==='ENOENT'?404:500);res.end();}});
+await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const origin='http://127.0.0.1:'+server.address().port;f.env.ALLOWED_ORIGINS=origin;console.log('Synthetic planning preview: '+origin);
+const {chromium}=createRequire(import.meta.url)(process.env.ACADEMY_BROWSER_RUNTIME||'/Users/hbnaidu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const browser=await chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'}),page=await browser.newPage({viewport:{width:390,height:844}}),errors=[],checks=[];
+page.on('pageerror',e=>errors.push(String(e)));await page.route('**/*',r=>(new URL(r.request().url()).origin===origin||r.request().url().startsWith('blob:'))?r.continue():r.abort());
+const signIn=async who=>{await page.goto(origin+'/__signin/'+who);await page.waitForURL('**/academy/');};
+
+try{
+ await signIn('admin');await page.goto(origin+'/programs/');await page.locator('.pg-program-card').first().waitFor();
+ assert.equal(await page.locator('#pg-tabs button').count(),9);assert.equal(await page.locator('#pg-tabs button:enabled').count(),1);await page.screenshot({path:path.join(out,'program-list.png'),fullPage:false});
+ await page.locator('.pg-program-card[href*="'+PROGRAM_IDS[0]+'"]').click();await page.locator('#program-detail [data-field=name]').waitFor();
+ const name=await page.locator('#program-detail [data-field=name]').inputValue();assert(name);
+ let timetableReads=0;page.on('request',r=>{if(r.url().includes('/program-timetable/get'))timetableReads++;});
+ await page.getByRole('tab',{name:'Curriculum',exact:true}).click();await page.locator('#pw-categories tr').first().waitFor();
+ const add=async value=>{await page.locator('#pw-category').selectOption(value);await page.locator('#pw-add-category').click();await page.locator('#pw-message').filter({hasText:'Ready to select'}).waitFor();};
+ await add('S:ASSESSMENT-Qasas');await add('S:ASSESSMENT-Fiqh');
+ const subjects=await page.locator('#pw-categories tr').filter({has:page.locator('strong')}).locator('strong').allTextContents();assert.deepEqual(subjects,subjects.slice().sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base',numeric:true})));
+ const options=await page.locator('#pw-category optgroup').evaluateAll(nodes=>nodes.map(n=>n.label));assert.deepEqual(options,options.slice().sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base',numeric:true})));
+ await add('M:AM-QASAS-INTRO');const moduleRow=page.locator('#pw-categories tr').filter({hasText:'Introduction'});await moduleRow.getByRole('button',{name:'Remove',exact:true}).click();await page.locator('#pw-message').filter({hasText:'Removed from this Program'}).waitFor();assert.equal(f.db.prepare("SELECT active FROM academy_module_catalogue WHERE module_id='AM-QASAS-INTRO'").get().active,1);
+ const qasas=page.locator('#pw-categories tr').filter({has:page.locator('strong').filter({hasText:'Qasas'})});await qasas.getByRole('button',{name:'Remove',exact:true}).click();await page.waitForFunction(()=>![...document.querySelectorAll('#pw-categories strong')].some(el=>el.textContent==='Qasas'));assert.equal(f.db.prepare("SELECT active FROM subject_catalog WHERE subject_key='ACADEMY:ASSESSMENT-Qasas'").get().active,1);
+ const firstSubject=await page.locator('#pw-categories strong').first().textContent();
+ const fiqh=page.locator('#pw-categories tr').filter({has:page.locator('strong').filter({hasText:'Fiqh'})});await fiqh.getByRole('button',{name:'Make inactive',exact:true}).click();await page.locator('#pw-show-inactive').check();await page.locator('#pw-categories tr').filter({has:page.locator('strong').filter({hasText:'Fiqh'})}).getByRole('button',{name:'Make active',exact:true}).click();
+ // A draft lesson protects its module and parent subject from both operations.
+ const protectedData=await page.evaluate(()=>[...document.querySelectorAll('#pw-categories tr')].some(row=>row.textContent.includes('Used in Program lessons')));assert(protectedData);
+ for(const width of [320,390,768,1440]){await page.setViewportSize({width,height:1000});const bounds=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));assert(bounds.scroll<=bounds.width+1,JSON.stringify(bounds));if(width===390||width===1440)await page.screenshot({path:path.join(out,'curriculum-'+width+'.png'),fullPage:false});}
+ const reads=timetableReads;await page.getByRole('tab',{name:'Classes',exact:true}).click();await page.locator('#pw-classes input[data-pw-field=Name]').first().waitFor();const oldClass=await page.locator('#pw-classes input[data-pw-field=Name]').first().inputValue();await page.locator('#pw-classes input[data-pw-field=Name]').first().fill('Unfinished class draft');await page.getByRole('tab',{name:'Public card',exact:true}).click();await page.locator('#pw-card-title').waitFor();await page.getByRole('tab',{name:'Classes',exact:true}).click();assert.equal(await page.locator('#pw-classes input[data-pw-field=Name]').first().inputValue(),'Unfinished class draft');await page.locator('#pw-classes [data-pw-discard]').first().click();assert.equal(await page.locator('#pw-classes input[data-pw-field=Name]').first().inputValue(),oldClass);assert.equal(timetableReads,reads,'Switching mounted tabs reuses the same Program records');
+ await page.getByRole('tab',{name:'Timetable',exact:true}).click();await page.locator('#tt-board').waitFor();await page.getByRole('tab',{name:'Review & publish',exact:true}).click();assert.equal(await page.locator('#tt-save').isVisible(),true);assert.equal(await page.locator('#tt-planner').isVisible(),false);
+ await page.getByRole('tab',{name:'Participants',exact:true}).click();await page.locator('#pm-rows').filter({hasText:'Synthetic learner'}).waitFor();await page.getByRole('tab',{name:'Lesson media',exact:true}).click();await page.locator('#program-media-message').filter({hasText:'coming soon'}).waitFor();assert.equal(new URL(page.url()).pathname,'/programs/');
+ await page.getByRole('tab',{name:'List of programs',exact:true}).click();await page.getByRole('button',{name:'+ New Program',exact:true}).click();await page.waitForURL('**/programs/?new=1&tab=details');await page.locator('#program-detail [data-field=name]').fill('New tabbed Program');await page.locator('#program-detail [data-field=accessModel]').selectOption('PAID');await page.getByRole('button',{name:'Save Program',exact:true}).click();await page.locator('#program-message').filter({hasText:'New tabbed Program saved.'}).waitFor();await page.getByRole('tab',{name:'Classes',exact:true}).click();await page.locator('#pw-classes input[data-pw-field=Name]').first().waitFor();assert.match(await page.locator('#pw-classes input[data-pw-field=Name]').first().inputValue(),/New tabbed Program/);
+ await page.goto(origin+'/programs/timetable.html?program='+PROGRAM_IDS[0]);await page.waitForURL('**/programs/?program=**&tab=timetable');await page.locator('#tt-board').waitFor();
+ assert.deepEqual(errors,[]);console.log(JSON.stringify({passed:true,checks:['Single document tabs','Alphabetical subjects','Add and remove unused scoped links','Shared catalogue remains active','Lesson reference protection','Inactive entries can be restored','Class drafts retained across tabs','No reads when switching mounted tabs','Responsive layouts','Participants/media/review','New Program classes'],output:out}));
+}catch(error){await page.screenshot({path:path.join(out,'failure.png'),fullPage:false});console.log('Browser errors',errors);throw error;}finally{await browser.close();await new Promise(resolve=>server.close(resolve));f.db.close();}

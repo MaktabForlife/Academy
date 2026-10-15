@@ -1,6 +1,7 @@
 /* V105.3.2 — preserve drafts, recover interrupted saves and review genuine conflicts. */
 (() => {
   'use strict';
+ if(window.M4L_PROGRAM_ADMIN_REDIRECT)return;
   const $=id=>document.getElementById(id), esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const programId=new URLSearchParams(location.search).get('program'),storageKey=`m4l-management-pending:${programId}`;
   $('pm-library').href=`/programs/library.html?program=${encodeURIComponent(programId||'')}`;
@@ -492,7 +493,7 @@
     const result=await api('recover',{},true);
     message((result.recovered?'An interrupted catalogue save was completed.':'No interrupted catalogue save was found.')+' Recovery does not add subjects to this Program. '+(state.importPending?'Choose Retry same import to finish adding your subjects.':state.pending?'Choose Retry same change to finish your pending save.':'Review Reboot subjects, select names, then choose Import and add to this Program.'));
   });
-  document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key==='Enter'&&visibleEdit()&&!state.busy&&!state.pending){event.preventDefault();void work(save);}});
+  document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key==='Enter'&&(!window.M4L_PROGRAM_ADMIN||window.M4L_PROGRAM_ADMIN.tab()==='participants')&&visibleEdit()&&!state.busy&&!state.pending){event.preventDefault();void work(save);}});
   window.addEventListener('beforeunload',event=>{if(state.edit||state.pending||state.importPending){event.preventDefault();event.returnValue='';}});
   void work(async()=>{await refresh();if(state.pending&&!state.refreshWaiting)await save();});
 })();

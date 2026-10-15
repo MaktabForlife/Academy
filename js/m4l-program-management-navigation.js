@@ -1,4 +1,5 @@
 (() => {'use strict';
+ if(window.M4L_PROGRAM_ADMIN_REDIRECT)return;
  let id=new URLSearchParams(location.search).get('program');
  const valid=value=>/^PRG-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value||'');
  const main=document.querySelector('main');if(!main)return;

@@ -3,6 +3,7 @@
   "use strict";
   const byId = id => document.getElementById(id);
   const escape = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[char]));
+  const unified=Boolean(byId("pg-tabs"));
   const timezone = "Africa/Johannesburg";
   const fields = ["name", "durationYears", "timezone", "status", "spreadsheetId", "accessModel", "programZoomLink"];
   const state = { owner:"", rows: [], selected: new URLSearchParams(location.search).get('program')||"", busy: false, search: "", filter: "AVAILABLE", readiness: {}, store: "SHEETS", statuses: ["DRAFT", "ARCHIVED"] };
@@ -49,7 +50,7 @@
       }
       state.owner=localStorage.getItem("m4l_account_token");
       state.rows = data.programs.map(draft);
-      state.selected = state.rows.some(row => row.id === state.selected) ? state.selected : (state.rows.find(row => row.mode === "PROGRAM")?.id || "");
+      state.selected = state.rows.some(row => row.id === state.selected) ? state.selected : (unified?"":state.rows.find(row => row.mode === "PROGRAM")?.id || "");
       state.readiness = {};
       byId("program-workspace").hidden = false;
       message("");
@@ -65,10 +66,11 @@
       && `${row.name} ${row.id}`.toLowerCase().includes(state.search.toLowerCase()));
     byId("program-count").textContent = `${rows.length} of ${state.rows.length} Programs`;
     byId("program-rows").innerHTML = rows.length ? rows.map((row, index) => renderRow(row, index + 1)).join("")
-      : '<tr><td colspan="7" class="pb-empty">No Programs found. Clear your filters or create a new Program.</td></tr>';
+      : unified?'<p class="pb-empty">No Programs found. Clear your filters or create a new Program.</p>':'<tr><td colspan="7" class="pb-empty">No Programs found. Clear your filters or create a new Program.</td></tr>';
     renderDetail();
   }
   function renderRow(row, index) {
+    if(unified)return `<a class="pg-program-card${state.selected===row.id?' is-selected':''}" data-id="${escape(row.id)}" href="/programs/?program=${encodeURIComponent(row.id)}&tab=details"><strong>${escape(row.name||'New Program')}</strong><span class="pg-badge">${escape(row.status)}</span><small>${escape(row.accessModel==='FREE'?'Free':row.accessModel==='PAID'?'Paid':'Choose Free or Paid')}</small></a>`;
     const editable = row.mode === "PROGRAM";
     const input = (field, label, extra = "") => `<input data-field="${field}" aria-label="${escape(label)} for ${escape(row.name || "new Program")}" value="${escape(row[field])}" ${extra} ${!editable ? "readonly" : ""} ${state.busy ? "disabled" : ""} />`;
     return `<tr data-id="${escape(row.id)}" class="${state.selected === row.id ? "is-selected" : ""}">
@@ -89,6 +91,11 @@
       || !`${row.name} ${row.id}`.toLowerCase().includes(state.search.toLowerCase());
     window.M4L_PROGRAM_MANAGEMENT_NAV?.setSelection(selection());
     if (panel.hidden) return;
+    if(unified){
+      const input=(field,label,extra='')=>`<label>${label}<input data-field="${field}" value="${escape(row[field])}" ${extra} ${state.busy?'disabled':''}></label>`;
+      panel.innerHTML=`<div class="pg-details-form" data-id="${escape(row.id)}">${input('name','Program name','maxlength="160" required')}<label>Status<select data-field="status" ${state.busy?'disabled':''}>${state.statuses.map(value=>`<option value="${value}" ${value===row.status?'selected':''}>${value==='ACTIVE'?'Active':value==='ARCHIVED'?'Archived':'Draft'}</option>`).join('')}</select></label>${state.store==='D1'?`<label>Free / Paid<select data-field="accessModel" ${state.busy?'disabled':''}>${!['FREE','PAID'].includes(row.accessModel)?'<option value="UNKNOWN" disabled selected>Choose Free or Paid</option>':''}<option value="FREE" ${row.accessModel==='FREE'?'selected':''}>Free</option><option value="PAID" ${row.accessModel==='PAID'?'selected':''}>Paid</option></select></label>${input('programZoomLink','Program Zoom link · optional','type="url" maxlength="2048"')}`:input('spreadsheetId','Spreadsheet link or ID')}<div class="pg-detail-actions"><button type="button" data-action="save" ${state.busy||!dirty(row)?'disabled':''}>Save Program</button><button type="button" data-action="discard" class="pb-secondary" ${state.busy||!dirty(row)?'disabled':''}>Discard changes</button><small class="pb-state">${row.error?'Save failed':dirty(row)?'Unsaved changes':'Saved'}</small></div>${row.error?`<p role="alert" class="pb-row-error">${escape(row.error)}</p>`:''}</div>`;
+      return;
+    }
     panel.dataset.id=row.id;
     const readiness = state.readiness[row.id];
     if(state.store==='D1'){panel.hidden=true;panel.replaceChildren();return;}
@@ -101,13 +108,14 @@
   }
   function add() {
     if (state.busy) return;
+    if(unified&&window.M4L_PROGRAM_ADMIN?.hasMounted()){location.href="/programs/?new=1&tab=details";return;}
     const id = `PRG-${crypto.randomUUID()}`;
     state.rows.push({ id, name: "", durationYears: "", timezone, status: "DRAFT", spreadsheetId: "", mode: "PROGRAM", saved: null, error: "" });
     state.selected = id;
     state.search = state.filter = "";
     byId("program-search").value = byId("program-filter").value = "";
     render();
-    document.querySelector(`[data-id="${id}"] [data-field="name"]`).focus();
+    document.querySelector(`#program-detail [data-id="${id}"] [data-field="name"]`)?.focus();
     message(state.store === "D1" ? "New draft. Enter its name. One editable class will be created automatically." : "New draft. Enter its name and spreadsheet.");
   }
   async function save(row) {
@@ -146,7 +154,8 @@
     row[control.dataset.field] = control.value;
     row.operationId = null;
     row.error = "";
-    const tr = control.closest("tr");
+    const tr = control.closest(unified?"[data-id]":"tr");
+    if(unified){window.M4L_PROGRAM_MANAGEMENT_NAV?.setSelection(selection());const actions=tr.querySelector(".pg-detail-actions");actions.querySelector(".pb-state").textContent=dirty(row)?"Unsaved changes":"Saved";actions.querySelectorAll("button").forEach(button=>button.disabled=!dirty(row));return;}
     tr.querySelector(".pb-state").textContent = dirty(row) ? "Unsaved" : "Saved";
     tr.querySelector('[data-action="save"]').disabled = !dirty(row);
     tr.querySelector('[data-action="discard"]').disabled = !dirty(row);
@@ -196,12 +205,13 @@
       const session = await api("", {}, true);
       if (session.account?.uniqueid) byId("academy-link").href = `/account/${encodeURIComponent(session.account.uniqueid)}?switch=1`;
       await load();
+      if(unified&&new URLSearchParams(location.search).get("new")==="1")add();
     } catch (error) { message(error.message, true); }
   }
   function selection(){
     const row=state.rows.find(item=>item.id===state.selected&&item.mode==='PROGRAM'&&matchesStatus(item)&&`${item.name} ${item.id}`.toLowerCase().includes(state.search.toLowerCase()));
-    return {ready:state.store==='D1'&&Boolean(state.owner)&&state.owner===localStorage.getItem('m4l_account_token'),program:row?{id:row.id,name:row.name}:null,available:Boolean(row?.saved&&!dirty(row)&&!state.busy)};
+    return {ready:state.store==='D1'&&Boolean(state.owner)&&state.owner===localStorage.getItem('m4l_account_token'),program:row?{...row,saved:undefined,error:undefined}:null,available:Boolean(row?.saved&&!dirty(row)&&!state.busy)};
   }
-  window.M4L_PROGRAM_BUILDER_NAV={selection};
+  window.M4L_PROGRAM_BUILDER_NAV={selection,hasEdits,showDetails:renderDetail,update(program){const row=state.rows.find(row=>row.id===program.id);if(!row||dirty(row)||row.revision===program.revision)return;Object.assign(row,draft(program));render();}};
   document.addEventListener("DOMContentLoaded", () => void init());
 })();

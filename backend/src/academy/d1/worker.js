@@ -69,7 +69,7 @@ async function dispatch(request,env) {
   if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'rebootworker',version:'106.78',
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'rebootworker',version:'106.79',
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(repository)};
@@ -197,7 +197,7 @@ async function dispatch(request,env) {
   if(libraryAction)return {success:true,...await d1Library(repository,auth,env).run(libraryAction[2],input,request,{admin:libraryAction[1].startsWith('admin/'),academy:libraryAction[1]==='academy/library'})};
   const profileAction=path.match(/^\/api\/admin\/platform\/user-profiles\/(get|link|save|recover)$/)?.[1];
   const registryAction=path.match(/^\/api\/admin\/platform\/programs\/(list|create|save|readiness|prepare)$/)?.[1];
-  const managementAction=path.match(/^\/api\/admin\/platform\/program-timetable\/(manage-get|manage-save|recover)$/)?.[1];
+  const managementAction=path.match(/^\/api\/admin\/platform\/program-timetable\/(manage-get|manage-save|manage-remove|recover)$/)?.[1];
   if(publicLibraryOnly&&managementAction==='manage-save'&&['resources','library-root'].includes(input.kind))
     throw rehearsalError('Private Academy media is not available yet.',403,'PRIVATE_MEDIA_NOT_ENABLED');
   if(profileAction||registryAction||managementAction) {

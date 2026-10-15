@@ -274,7 +274,7 @@ test('the existing profile, Program setup and management screens work with the D
   assert.deepEqual(uncertain.requests.find(r=>r.url.endsWith('/save')).body,pending);
   const builder=screen('../../programs/index.html','../../js/m4l-program-builder.js');await settle();
   assert.equal(builder.element('program-store-label').textContent,'Records');
-  assert.match(builder.element('program-rows').innerHTML,/value="ACTIVE" selected/);
+  assert.match(builder.element('program-rows').innerHTML,/<span class="pg-badge">ACTIVE<\/span>/);
   assert.ok(!builder.element('program-rows').innerHTML.includes('docs.google.com'));
   assert.ok(!builder.element('program-detail').innerHTML.includes('href="/programs/timetable.html'));
   const management=screen('../../programs/manage.html','../../js/m4l-program-management.js',`?program=${PROGRAM_IDS[0]}&tab=classes`);await settle();

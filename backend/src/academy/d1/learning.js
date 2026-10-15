@@ -1,3 +1,4 @@
+import {usedInProgramLessons} from './curriculum-removal.js';
 import {workspaceQueries,workspaceCatalog,workspaceValidation,workspaceId,recordStatement,assertWorkspaceDraft,snapshotDraft,canEditWorkspace} from './program-workspace.js';
 import {applyProgramZoom} from './program-zoom.js';
 import {normalizeWeeklyDraft} from '../../programs/weekly-timetable.js';
@@ -171,7 +172,7 @@ export function d1Learning(repository,auth,now=()=>new Date()) {
           const record=loaded.data.workspaceRecords.find(r=>r.timetable_id===result.draft.timetableId);
           const checked=record?.status==='VALID'?await workspaceValidation(loaded,result.draft,catalog,programToday(loaded.program.timezone,now())):null;
           const availabilityData={...loaded.data,teachers:loaded.data.teacherStaff,classes:loaded.data.teachers.filter(t=>catalog.classes.some(c=>c.active&&same(c.id,t.class_id)))};
-          const displayCatalog={...catalog,teachers:catalog.teachers.map(t=>({...t,availabilityEditable:canEditTeacherAvailability(availabilityData,auth.user.accountid,t.id)}))};
+          const displayCatalog={...catalog,subjects:catalog.subjects.map(row=>({...row,lessonUsed:usedInProgramLessons(loaded,'subjects',row.id)})),modules:catalog.modules.map(row=>({...row,lessonUsed:usedInProgramLessons(loaded,'modules',row.id)})),teachers:catalog.teachers.map(t=>({...t,availabilityEditable:canEditTeacherAvailability(availabilityData,auth.user.accountid,t.id)}))};
           result={...result,catalog:displayCatalog,workspaceReady:true,timetableId:result.draft.timetableId,timetableStatus:record?.status==='VALID'&&(!checked.valid||checked.validationHash!==record.validation_hash)?'DRAFT':record?.status||'DRAFT',timetableEditable:canEditWorkspace(loaded),availability:loaded.data.availability.map(a=>({teacherId:a.account_id,ranges:JSON.parse(a.ranges_json),revision:a.revision})),setup:{...await subjectView(await timetable(loaded).read('manage-get'),auth.state.account.global_admin),sharedModules:(loaded.data.academyModules||[]).map(m=>({id:m.module_id,name:m.name,subjectId:loaded.data.subjects.find(s=>same(s.subject_key,m.subject_key))?.subject_id,active:Boolean(m.active)}))}};
         }
         if(action==='history')result.records=await Promise.all(loaded.data.workspaceRecords.map(async r=>{

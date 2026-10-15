@@ -1,5 +1,6 @@
 /* V105.3.4.13 — editable timetable boards share one draft across in-page and browser tabs. */
 (()=>{'use strict';
+ if(window.M4L_PROGRAM_ADMIN_REDIRECT)return;
   const $=id=>document.getElementById(id),esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const id=new URLSearchParams(location.search).get('program'),storageKey=`m4l-timetable-pending:${id}`,draftKey=`m4l-timetable-draft:${id}`,format='105.3.2.2-weekly';
   const tokenHash=[...(localStorage.getItem('m4l_account_token')||'')].reduce((n,char)=>Math.imul(n^char.charCodeAt(0),16777619)>>>0,2166136261).toString(36);
@@ -357,7 +358,7 @@
   function download(draft){const a=document.createElement('a'),url=URL.createObjectURL(new Blob([JSON.stringify({programId:id,draft},null,2)],{type:'application/json'}));a.href=url;a.download='program-timetable-draft.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
   $('tt-original').onclick=()=>download(state.conversion.originalDraft);
   $('tt-convert').onclick=()=>{state.converted=true;state.baseline='';invalidate();render();message('The weekly rows are ready to edit. Saving creates a new draft version; the previous dated draft stays preserved.');};
-  document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key==='Enter'&&!$('tt-save').disabled){event.preventDefault();void work(()=>mutate('save'));}});
+  document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key==='Enter'&&!$('tt-save').disabled&&(!window.M4L_PROGRAM_ADMIN||['timetable','review'].includes(window.M4L_PROGRAM_ADMIN.tab()))){event.preventDefault();void work(()=>mutate('save'));}});
   window.addEventListener('storage',event=>{
     if(event.key!==sharedKey||!state.data||!state.draft||sharedConflict)return;
     const before=JSON.stringify(state.draft),revision=state.data.revision;
@@ -365,5 +366,6 @@
     if(before!==JSON.stringify(state.draft)||revision!==state.data.revision){invalidate();render();message('Changes from another timetable tab are now shown. Review the board before publishing.');}
   });
   window.addEventListener('beforeunload',event=>{if(dirty()||state.pending){remember();event.preventDefault();event.returnValue='';}});
+  window.M4L_PROGRAM_TIMETABLE={hasEdits:()=>dirty()||Boolean(state.pending)||Boolean(workspace?.hasEdits()),updateProgram(program){if(state.data&&program.id===id&&program.revision!==state.data.program.revision){state.data.program=program;render();}}};
   void work(load);
 })();

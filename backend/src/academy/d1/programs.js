@@ -1,3 +1,4 @@
+import {curriculumReferenceQueries,removeCurriculumPlan,usedInProgramLessons} from './curriculum-removal.js';
 import {programWorkspaceAvailable} from './teacher-availability.js';
 import {teacherDesignations,teacherDirectory} from './teachers.js';
 import {moduleCatalogueQueries,catalogueNameKey} from './module-catalogue.js';
@@ -162,6 +163,12 @@ export function d1Programs(repository,auth) {
         const view=await managementView(loaded.viewData,{managementReferences:async()=>loaded.shared},loaded.program);
         return {...await subjectView(view,auth.state.account.global_admin),...(loaded.data.academyModules?{sharedModules:loaded.data.academyModules.map(m=>({id:m.module_id,name:m.name,subjectId:loaded.data.subjects.find(s=>same(s.subject_key,m.subject_key))?.subject_id||'',active:Boolean(m.active)}))}:{}),store:'D1',coordinatorAvailable:true,managementEditable:loaded.a.lifecycle!=='ARCHIVED',globalProfilesAvailable:Boolean(auth.state.account.global_admin),overview:{timetable:null,preview:null,error:{error:'Timetable editing is awaiting migration.',retryable:false}}};
       }
+      if(action==='manage-remove')return store.change('PROGRAM_MANAGEMENT',`PROGRAM:${String(input.id).toUpperCase()}`,action,input,async()=>{
+        const references=await curriculumReferenceQueries(store.db,p,`PROGRAM:${String(input.id)}`);
+        const loaded=await loadManagement(input.id,references);
+        if(loaded.a.lifecycle==='ARCHIVED')throw managementError('Reactivate the Program before changing its records.',409);
+        return removeCurriculumPlan(loaded,input,p,auth.user.accountid);
+      });
       if(action!=='manage-save')throw managementError('This operation is awaiting migration.',501,'OPERATION_NOT_MIGRATED');
       const library=['resources','library-root'].includes(input.kind);
       if(!writableKinds.has(input.kind)&&!library)throw managementError('Historical teacher-list changes are awaiting migration.',501,'OPERATION_NOT_MIGRATED');
@@ -170,7 +177,8 @@ export function d1Programs(repository,auth) {
       return store.change(library?'PROGRAM_LIBRARY':'PROGRAM_MANAGEMENT',`PROGRAM:${String(input.id).toUpperCase()}`,action,input,async()=>{
         // A Library request already read a consistent planning snapshot. The
         // transaction guard validates it; a conflicting retry reads afresh.
-        const loaded=firstRead||await loadManagement(input.id,extra);firstRead=null;
+        const references=['subjects','modules'].includes(input.kind)&&input.record?.Active===false?await curriculumReferenceQueries(store.db,p,`PROGRAM:${String(input.id)}`):{};
+        const loaded=firstRead||await loadManagement(input.id,{...extra,...references});firstRead=null;
         const {data,program,current,shared}=loaded;
         if(loaded.a.lifecycle==='ARCHIVED')throw managementError('Reactivate the Program before changing its records.',409);
         let snapshot=current.snapshot,record,records;
@@ -184,6 +192,7 @@ export function d1Programs(repository,auth) {
           const old=spec?current.snapshot[spec.table].find(r=>r[spec.key]===change.record?.[spec.key])||null:student?{AccountID:account,enrollments:current.snapshot.ProgramEnrollments.filter(r=>r.AccountID===account)}:null;
           const revision=student?await studentClassRevision(current.snapshot.ProgramEnrollments,account):await managementRowRevision(old);
           if((spec||student)&&change.baseRowRevision!==revision||!spec&&!student&&input.revision!==current.revision)throw rowChanged(old,revision,input.kind==='student-classes'?account:undefined);
+          if(old&&['subjects','modules'].includes(change.kind)&&change.record?.Active===false&&usedInProgramLessons(loaded,change.kind,change.record[spec.key]))throw managementError('This entry is used in Program lessons. It cannot be removed or made inactive.',409,'CURRICULUM_IN_USE');
           const applied=applyManagementChange({snapshot},change,shared,program);snapshot=applied.snapshot;record=applied.record;
           if(library)await verifyLibraryChange(loaded,record,old);
           if(input.kind==='student-classes')records.push({...record,rowRevision:await studentClassRevision(snapshot.ProgramEnrollments,account)});
