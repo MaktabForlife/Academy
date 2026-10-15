@@ -1,5 +1,9 @@
 # V106.60 — Academy review fixes for an isolated feature preview
 
+## V106.64 PDF console warning
+
+Remove the missing `pdf-lib.min.js.map` debugging reference and refresh the library cache URL. No PDF executable logic, build settings or database changes. [Details](docs/ACADEMY-PDF-SOURCE-MAP-106.64.md).
+
 ## V106.63 Development branch switching
 
 Support deploying the feature branch through the existing Development Worker and website while retaining the same database and Library metadata namespace. The saved Pages build command also supports the older Development branch. Includes five compatibility checks, 155 passing regression files and 14 local browser checks. No production database copy or Git merge is included. [Setup details](docs/ACADEMY-DEVELOPMENT-BRANCH-SWITCH-106.63.md).

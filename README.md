@@ -1,3 +1,7 @@
+# V106.64 — Remove missing PDF debugging map reference
+
+Remove the vendored PDF library's reference to an unpublished source map and refresh its cache URL. The PDF executable code is unchanged. Build configuration, storage and database schema are unchanged. [Fix and validation](docs/ACADEMY-PDF-SOURCE-MAP-106.64.md).
+
 # V106.63 — Switch Development between tested branches
 
 The feature branch can deploy the cleaned Academy runtime to the existing `devrebootworker` and publish a website that uses the same Development API and database. A saved Pages build command also supports the older Development branch without merging feature code into it. Library namespace settings must continue identifying the same existing metadata object. No database copy, schema migration or production promotion is included. [Setup and switching](docs/ACADEMY-DEVELOPMENT-BRANCH-SWITCH-106.63.md).
