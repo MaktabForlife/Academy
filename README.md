@@ -1,3 +1,7 @@
+# V106.81 — Compact PDF reader controls
+
+Rename Two PDFs to Split Page and place one Focus control beside it in the reader header. Focus follows the selected PDF pane and restores the split view. Remove the header Library link while retaining the per-pane Library picker and the close-to-Library action. Place Save book and Bookmark page beside each book title, wrapping on smaller screens. Preserve volume selection, account bookmarks, annotations and unsaved-change guards. Verification uses local generated PDFs and disposable records. No schema or hosted content changes.
+
 # V106.80 — Clear publishing blockers and usable published board views
 
 Explain which unsaved class or public card changes block publication, with buttons returning to their editing tabs. Recompute Publish availability immediately after edits are discarded. Keep review, validation, sharing and publication controls on Review & publish; provide Save draft beside the planning board. Published timetables allow opening and switching class, teacher and Program board views while lesson and period controls remain read-only. Copy to edit creates a separate draft and preserves the original publication. Local browser checks cover class save persistence, publishing, discard recovery, responsive layouts and immutable published records. No schema or hosted content changes.
