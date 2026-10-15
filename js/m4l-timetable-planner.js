@@ -413,7 +413,7 @@
         const nextClass=catalog().classes.find(row=>row.active&&!classIds.has(row.id));
         const nextTeacher=catalog().teachers.find(row=>row.active&&!teacherIds.has(row.id));
         const tab={id:'BOARD-'+crypto.randomUUID(),view:nextClass?'class':nextTeacher?'teacher':boardView,classId:nextClass?.id||selectedClass,teacherId:nextTeacher&&!nextClass?nextTeacher.id:'',subjectId:'',emptyCell:null};
-        boardTabs.push(tab);activateBoardTab(tab);note('Board tab opened. Choose a class or teacher to work on.');
+        boardTabs.push(tab);activateBoardTab(tab);note('Board tab opened. Choose a class or teacher to view.');
       };
       $('tt-board-tabs').onclick=event=>{
         const closeId=event.target.closest?.('[data-close-board-tab]')?.dataset.closeBoardTab;
@@ -710,6 +710,7 @@
         for(const conflict of result.conflicts||[])for(const id of conflict.rowIds||[])if(id&&!issueRows.has(id))issueRows.set(id,conflict.reasons.join(', '));
         renderBoard();
       },openIssue(id){
+        if(locked())return false;
         const row=state.draft.rules.find(item=>item.id===id);if(!row?.weekdays?.length)return false;
         if(editorDirty||breakEditorDirty||inlineDirty){note('Save or close your current edits before opening another lesson.',true);return false;}
         closeQuickDialog();boardView='program';selectedMove=null;selectedBreakMove=null;selectedEmpty=null;placingBreak=false;editingBreak=null;
@@ -721,7 +722,7 @@
         showDetails=false;editorDirty=false;editorSource='';inlineDirty=false;quickClassOverride=null;breakEditorDirty=false;breakEditorSource='';
         for(const tab of boardTabs)tab.emptyCell=null;
         undo.length=0;issueRows.clear();note('');availabilityNote('');
-      },undo(){if(!undo.length)return;const last=undo.at(-1);if(JSON.stringify(state.draft.rules)!==last.after||JSON.stringify(plan().periods)!==last.afterPeriods||JSON.stringify(breaks())!==last.afterBreaks){undo.length=0;note('The board changed after that action. Review the latest draft before undoing.',true);render();return;}undo.pop();state.draft.rules=last.before;if(last.beforePeriods)edit().periods=last.beforePeriods;if(last.beforeBreaks){if(last.hadBreaks)state.draft.breaks=last.beforeBreaks;else delete state.draft.breaks;}selectedMove=null;selectedBreakMove=null;selectedEmpty=null;editing=null;editingBreak=null;editorDirty=false;inlineDirty=false;breakEditorDirty=false;note('Last board change undone.');commit();}};
+      },undo(){if(locked()||!undo.length)return;const last=undo.at(-1);if(JSON.stringify(state.draft.rules)!==last.after||JSON.stringify(plan().periods)!==last.afterPeriods||JSON.stringify(breaks())!==last.afterBreaks){undo.length=0;note('The board changed after that action. Review the latest draft before undoing.',true);render();return;}undo.pop();state.draft.rules=last.before;if(last.beforePeriods)edit().periods=last.beforePeriods;if(last.beforeBreaks){if(last.hadBreaks)state.draft.breaks=last.beforeBreaks;else delete state.draft.breaks;}selectedMove=null;selectedBreakMove=null;selectedEmpty=null;editing=null;editingBreak=null;editorDirty=false;inlineDirty=false;breakEditorDirty=false;note('Last board change undone.');commit();}};
     }
   };
 })();

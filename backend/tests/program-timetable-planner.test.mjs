@@ -154,8 +154,8 @@ const state={data:{catalog:f.catalog},draft:{format:draft.format,timezone:draft.
 const context={window:{confirm:()=>true},crypto,structuredClone,console,location:{search:'?program=DEMO',href:'https://example.test/programs/timetable.html?program=DEMO'},URL,URLSearchParams};
 vm.runInNewContext(await readFile(new URL('../../js/m4l-time.js',import.meta.url),'utf8'),context);
 vm.runInNewContext(source,context);
-let changes=0;
-const planner=context.window.M4L_ASSISTED_PLANNER.mount({state,$,esc:String,days:['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],modules:()=>[{id:'MOD-DEMO',name:'Tafseer module'},{id:'subject:PS-TAFSEER',name:'Tafseer subject'}],changed:()=>{changes++;},locked:()=>false});
+let changes=0,readOnly=false;
+const planner=context.window.M4L_ASSISTED_PLANNER.mount({state,$,esc:String,days:['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],modules:()=>[{id:'MOD-DEMO',name:'Tafseer module'},{id:'subject:PS-TAFSEER',name:'Tafseer subject'}],changed:()=>{changes++;},locked:()=>readOnly});
 $('tt-period-count').value='2';$('tt-period-start').value='08h00';$('tt-period-length').value='60';
 $('tt-create-periods').onclick();
 assert.equal(state.draft.planner.periods.length,2);
@@ -688,4 +688,13 @@ assert.deepEqual(Array.from(state.draft.rules[0].additionalTeacherIds),['TEACHER
 assert.match($('tt-board').innerHTML,/Teachers: Demo teacher A, Demo teacher B/);
 chooseMode('teacher');$('tt-board-teacher').onchange({target:{value:'TEACHER-2'}});
 assert.match($('tt-board').innerHTML,/data-rule-id="RULE-CO-UI"/,'the co-teacher sees the lesson on their own board');
+// Published board navigation must never mutate its saved timetable, including undo.
+readOnly=true;const frozenDraft=JSON.stringify(state.draft),priorChanges=changes;
+$('tt-add-board-tab').onclick();
+$('tt-edit-board-view').onclick();$('tt-tab-view').value='class';$('tt-tab-view-class').value='CLASS-1';$('tt-tab-view-save').onclick();
+assert.match($('tt-board-heading').textContent,/Class:/);
+$('tt-board').onclick(event({boardDay:'0',boardPeriod:mondayPeriod.id,openLesson:'true'}));
+$('tt-mark-break').onclick();$('tt-create-periods').onclick();planner.undo();
+assert.equal(planner.openIssue('RULE-CO-UI'),false,'issue links cannot open editors for immutable timetable versions');
+assert.equal(JSON.stringify(state.draft),frozenDraft);assert.equal(changes,priorChanges);
 console.log('Assisted planner: in-page tabs, board view picker, merged cells, lesson split and merge, drag movement, availability, breaks and undo passed.');

@@ -59,11 +59,15 @@
   function controls(){
     const locked=state.busy||Boolean(state.pending),needsReview=state.conversion?.required&&!state.converted,ready=state.data?.prepared&&state.data?.coordinatorAvailable&&(state.data.managementEditable??state.data.program.status==='DRAFT')&&!needsReview;
     const editable=state.data?.timetableEditable!==false;
-    $('tt-planner').disabled=locked||!ready||!editable;
+    $('tt-planner').disabled=locked||!ready;
+    // Board navigation stays available while published lesson content is read-only.
+    for(const name of ['tt-period-setup','tt-board-edit-actions','tt-board-content','tt-availability-controls'])$(name).disabled=!editable;
     for(const name of ['save','validate','preview'])$(`tt-${name}`).disabled=locked||!ready||(name!=='preview'&&!editable);
     $('tt-save').disabled||=!dirty()||sharedConflict;
+    $('tt-board-save').disabled=$('tt-save').disabled;
+    $('tt-read-only').hidden=editable;
     $('tt-open-publish').disabled=locked||!ready||!editable||!state.preview?.valid||workspace?.hasEdits()||sharedConflict||Boolean(state.calendarView?.history);
-    $('tt-publish').disabled=locked||!ready||sharedConflict;
+    $('tt-publish').disabled=locked||!ready||!editable||workspace?.hasEdits()||sharedConflict;
     $('tt-effective-from').disabled=locked;$('tt-preview-type').disabled=locked;$('tt-preview-target').disabled=locked||$('tt-preview-type').value==='program'||!$('tt-preview-target').value;
     for(const name of ['reload','discard-all','history','prepare','convert'])$(`tt-${name}`).disabled=state.busy;
     $('tt-convert').disabled||=Boolean(state.pending);$('tt-retry').disabled=state.busy;
@@ -71,6 +75,11 @@
     if(needsReview)$('tt-conversion-message').textContent=`The previous draft contains ${state.conversion.oneOffCount} one-off lessons and ${state.conversion.exceptionCount} dated exceptions. Use weekly lessons to continue with its recurring rows. The original draft and published history remain preserved.`;
     if($('pw-copy'))for(const action of ['copy','archive','cancel'])$('pw-'+action).disabled=locked||!state.data?.workspaceReady||dirty();
     workspace?.controls();
+    $('tt-copy-to-edit').disabled=$('pw-copy').disabled;
+    const edits=workspace?.editSections?.()||[];
+    $('tt-review-classes').hidden=!edits.includes('classes');$('tt-review-card').hidden=!edits.includes('public-card');
+    const hint=edits.length?'Save or discard '+edits.map(section=>section==='classes'?'class changes':'public card changes').join(' and ')+' before publishing.':sharedConflict?'Resolve the other tab’s changes before publishing.':state.pending?'Confirm the pending save before publishing.':state.calendarView?.history?'Preview the current draft before publishing.':!state.preview?.valid?'Preview this timetable and resolve any validation issues before publishing.':'';
+    $('tt-publish-status').hidden=!editable||!hint;$('tt-publish-hint').textContent=hint;
     $('tt-save-state').textContent=state.data?.workspaceReady? (dirty()?'Draft · unsaved':state.data.timetableStatus==='VALID'?'Valid · ready to publish':state.data.timetableStatus.toLowerCase()):state.pending?'Change not confirmed':dirty()?'Unsaved draft changes':'Saved draft';
   }
   async function work(fn){if(state.busy)return;state.busy=true;controls();try{await fn();}catch(error){message(error.message,true);}finally{state.busy=false;controls();}}
@@ -78,7 +87,7 @@
   function invalidate(){exportGeneration++;exportFiles=null;exportPdf=null;state.preview=null;closePublishDialog();$('tt-preview-panel').hidden=true;$('tt-validation').hidden=true;remember();controls();planner?.render();}
   function modules(){const c=state.data.catalog;return [...c.subjects.filter(s=>s.active).map(s=>({id:'subject:'+s.id,name:s.name+' · Subject only'})),...c.modules.filter(m=>m.active).map(m=>{const s=c.subjects.find(s=>s.id===m.programSubjectId),l=c.levels.find(l=>l.id===m.levelId);return {id:m.id,name:`${m.name} · ${s?.name||'Missing subject'}${l?` / ${l.name}`:''}`};})];}
   const planner=window.M4L_ASSISTED_PLANNER?.mount({state,$,esc,days,modules,changed:()=>{invalidate();render();},locked:()=>state.busy||Boolean(state.pending)||!state.data?.prepared||!state.data?.coordinatorAvailable||state.data?.timetableEditable===false||!(state.data.managementEditable??state.data?.program.status==='DRAFT')||Boolean(state.conversion?.required&&!state.converted)});
-  const workspace=window.M4L_PROGRAM_WORKSPACE?.mount({state,$,esc,api,work,changed:()=>{invalidate();render();},refresh:()=>{invalidate();render();},saveDraft:()=>mutate('save')});
+  const workspace=window.M4L_PROGRAM_WORKSPACE?.mount({state,$,esc,api,work,changed:()=>{invalidate();render();},refresh:()=>{invalidate();render();},onEditsChanged:controls,saveDraft:()=>mutate('save')});
   if(planner)$('tt-undo-placement').onclick=()=>planner.undo();
   const rowLabel=ruleId=>{const b=(state.draft.breaks||[]).findIndex(r=>r.id===ruleId);if(b>=0)return `Break ${b+1}`;const n=state.draft.rules.findIndex(r=>r.id===ruleId);return n<0?'Timetable':`Lesson ${n+1}`;};
   const anchorLabel=(anchor,sourceId='')=>{const [ruleId,day]=anchor.split('@'),id=sourceId||ruleId;return state.draft.rules.some(row=>row.id===id)?lessonLocation(id,day):`${rowLabel(id)} · ${days[Number(day)]||day}`;};
@@ -282,6 +291,10 @@
     $('tt-publish-dialog').showModal();
   };
   $('tt-publish-cancel').onclick=closePublishDialog;
+  $('tt-board-save').onclick=()=> $('tt-save').click();
+  $('tt-copy-to-edit').onclick=()=> $('pw-copy').click();
+  $('tt-review-classes').onclick=()=> $('pg-tab-classes')?.click();
+  $('tt-review-card').onclick=()=> $('pg-tab-public-card')?.click();
   $('tt-save').onclick=()=>work(()=>mutate('save'));$('tt-retry').onclick=()=>work(()=>mutate(state.pending.action));
   $('tt-prepare').onclick=()=>work(async()=>{await api('prepare');await load();});
   for(const action of ['validate','preview'])$(`tt-${action}`).onclick=()=>work(async()=>{if(action==='validate'&&state.data.workspaceReady&&dirty())await mutate('save');const result=await api(action,{draft:state.draft,effectiveFrom:state.effectiveFrom||state.data.today,...(action==='validate'&&state.data.workspaceReady?{revision:state.data.revision,operationId:crypto.randomUUID()}: {})});if(action==='validate'&&state.data.workspaceReady)state.data.timetableStatus=result.valid?'VALID':'DRAFT';showValidation(result);state.preview=result;if(action==='preview')showOccurrences(result,'Weekly timetable preview');else {$('tt-preview-panel').hidden=true;closePublishDialog();}message(result.valid?(action==='preview'?'Preview ready. Publish this timetable from the section below to choose the effective date.':'Validation passed. Preview to review the weekly pattern.'):'Resolve the listed issues before publishing.',!result.valid);});

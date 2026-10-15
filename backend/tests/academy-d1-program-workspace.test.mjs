@@ -186,6 +186,17 @@ test('publishing a new draft Program activates it atomically and exposes future 
  const before=ok(await post(env,'/api/academy/entrance',{startDate:programToday('Africa/Johannesburg')},admin));assert.ok(!before.personalTimetable.some(l=>l.activityId===newId&&l.date<input.effectiveFrom),'Future publication does not expose earlier occurrences');
 }));
 
+test('a saved single-class Zoom link validates and publishes with no Program or lesson link',()=>use(async({env,db})=>{
+ const admin=await login(env),link='https://zoom.us/j/22222222222';let current=await get(env,admin);
+ const row=current.setup.rows.classes.find(c=>c.ClassID==='class-1');
+ ok(await change(env,tt+'manage-save',{id,kind:'classes',record:{...row,ZoomLink:link},creating:false,baseRowRevision:current.setup.rowRevisions.classes[row.ClassID]},admin));
+ const d={...draft(),programZoomLink:''};d.rules[0].zoomLink='';await save(env,admin,d);current=await get(env,admin);
+ assert.equal(current.draft.programZoomLink,'');assert.equal(current.draft.rules[0].zoomLink,'');assert.equal(current.catalog.classes.find(c=>c.id==='class-1').zoomLink,link);
+ const validation=ok(await change(env,tt+'validate',{id,revision:current.revision,draft:current.draft,effectiveFrom:tomorrow()},admin));assert.equal(validation.valid,true,JSON.stringify(validation));assert.ok(validation.occurrences.every(r=>r.zoomLink===link&&r.zoomSource==='CLASS'));
+ current=await get(env,admin);const published=ok(await change(env,tt+'publish',{id,revision:current.revision,draft:current.draft,effectiveFrom:tomorrow()},admin));
+ const lessons=db.prepare('SELECT zoom_link FROM published_lessons WHERE publication_id=?').all(published.publicationId);assert.ok(lessons.length);assert.ok(lessons.every(r=>r.zoom_link===link));
+}));
+
 for(const programLink of ['', 'https://zoom.us/j/99999999999'])test(`class link changes do not require republishing with ${programLink?'a published Program default':'no explicit Program Zoom setting'}`,()=>use(async({env,db})=>{
  const admin=await login(env),first='https://zoom.us/j/22222222222',second='https://zoom.us/j/33333333333';
  db.prepare('INSERT INTO academy_settings(setting_key,setting_value) VALUES(?,?)').run('ProgramAccess:'+activity,'FREE');

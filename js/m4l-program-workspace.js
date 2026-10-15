@@ -1,5 +1,5 @@
 (() => {'use strict';
- window.M4L_PROGRAM_WORKSPACE={mount({state,$,esc,api,work,refresh}){
+ window.M4L_PROGRAM_WORKSPACE={mount({state,$,esc,api,work,refresh,onEditsChanged=()=>{}}){
   const retries=new Map();let newClasses=[],classDrafts=new Map(),cardDraft=null,cardBase=null,categoryChoice="",showInactive=false;
   const cardDirty=()=>cardDraft&&JSON.stringify(cardDraft)!==JSON.stringify(cardBase.publicCard||{});
   const classDirty=c=>newClasses.includes(c)||JSON.stringify(c)!==JSON.stringify(state.data.setup.rows.classes.find(saved=>saved.ClassID===c.ClassID));
@@ -50,10 +50,10 @@
    return api('get');
   }
   async function update(){const latest=await api('get');state.data={...state.data,...latest};refresh();render();}
-  $('pw-add-class').onclick=()=>{const year=new Date().getFullYear();newClasses.push({ClassID:'CLS-'+crypto.randomUUID(),Name:state.data.program.name+' Class '+year,AcademicYear:String(year),TeacherAccountID:'',ZoomLink:'',Active:true});render();};
+  $('pw-add-class').onclick=()=>{const year=new Date().getFullYear();newClasses.push({ClassID:'CLS-'+crypto.randomUUID(),Name:state.data.program.name+' Class '+year,AcademicYear:String(year),TeacherAccountID:'',ZoomLink:'',Active:true});render();onEditsChanged();};
   // Keep class fields in their source object so board updates never discard an entry.
-  $('pw-classes').oninput=$('pw-classes').onchange=e=>{const tr=e.target.closest('[data-pw-class]'),field=e.target.dataset.pwField;if(!tr||!field)return;const saved=state.data.setup.rows.classes.find(c=>c.ClassID===tr.dataset.pwClass),row=classDrafts.get(tr.dataset.pwClass)||newClasses.find(c=>c.ClassID===tr.dataset.pwClass)||(saved?structuredClone(saved):null);if(row){row[field]=e.target.value;if(saved)classDrafts.set(row.ClassID,row);rowControls(tr,row);}};
-  $('pw-classes').onclick=e=>{const discard=e.target.closest('[data-pw-discard]')?.dataset.pwDiscard;if(discard){newClasses=newClasses.filter(c=>c.ClassID!==discard);classDrafts.delete(discard);render();return;}const id=e.target.closest('[data-pw-save]')?.dataset.pwSave;if(!id)return;void work(async()=>{try{const setup=state.data.setup,row=classDrafts.get(id)||[...setup.rows.classes,...newClasses].find(c=>c.ClassID===id);await post('/api/admin/platform/program-timetable/manage-save',{id:state.data.program.id,kind:'classes',record:row,creating:newClasses.includes(row),baseRowRevision:setup.rowRevisions.classes[id]||setup.emptyRowRevision});newClasses=newClasses.filter(c=>c.ClassID!==id);classDrafts.delete(id);await update();note('Class saved.');}catch(e){note(e.message,true);}});};
+  $('pw-classes').oninput=$('pw-classes').onchange=e=>{const tr=e.target.closest('[data-pw-class]'),field=e.target.dataset.pwField;if(!tr||!field)return;const saved=state.data.setup.rows.classes.find(c=>c.ClassID===tr.dataset.pwClass),row=classDrafts.get(tr.dataset.pwClass)||newClasses.find(c=>c.ClassID===tr.dataset.pwClass)||(saved?structuredClone(saved):null);if(row){row[field]=e.target.value;if(saved)classDrafts.set(row.ClassID,row);rowControls(tr,row);onEditsChanged();}};
+  $('pw-classes').onclick=e=>{const discard=e.target.closest('[data-pw-discard]')?.dataset.pwDiscard;if(discard){newClasses=newClasses.filter(c=>c.ClassID!==discard);classDrafts.delete(discard);render();onEditsChanged();return;}const id=e.target.closest('[data-pw-save]')?.dataset.pwSave;if(!id)return;void work(async()=>{try{const setup=state.data.setup,row=classDrafts.get(id)||[...setup.rows.classes,...newClasses].find(c=>c.ClassID===id);await post('/api/admin/platform/program-timetable/manage-save',{id:state.data.program.id,kind:'classes',record:row,creating:newClasses.includes(row),baseRowRevision:setup.rowRevisions.classes[id]||setup.emptyRowRevision});newClasses=newClasses.filter(c=>c.ClassID!==id);classDrafts.delete(id);await update();note('Class saved.');}catch(e){note(e.message,true);}});};
   $('pw-category').onchange=e=>{categoryChoice=e.target.value;};
   $('pw-classes').onkeydown=e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();e.target.closest('[data-pw-class]')?.querySelector('[data-pw-save]')?.click();}};
   $('pw-add-category').onclick=()=>work(async()=>{try{
@@ -72,13 +72,13 @@
    void work(async()=>{try{if(button.dataset.pwRemove)await post('/api/admin/platform/program-timetable/manage-remove',{id:state.data.program.id,kind,recordId:id,baseRowRevision:setup.rowRevisions[kind][id]});else await post('/api/admin/platform/program-timetable/manage-save',{id:state.data.program.id,kind,record:{...row,Active:button.dataset.pwActive==='true'},creating:false,baseRowRevision:setup.rowRevisions[kind][id]});await update();note(button.dataset.pwRemove?'Removed from this Program. Its Academy record remains active.':'Program availability updated. The Academy record is unchanged.');}catch(error){note(error.message,true);}});
   };
   const ids=new Map();function stableId(key,prefix){if(!ids.has(key))ids.set(key,prefix+'-'+crypto.randomUUID());return ids.get(key);}
-  for(const key of ['time','title','description'])$('pw-card-'+key).oninput=e=>{cardDraft={...cardDraft,[key]:e.target.value};cardPreview();};
-  $('pw-discard-card').onclick=()=>{cardDraft=null;render();};
+  for(const key of ['time','title','description'])$('pw-card-'+key).oninput=e=>{cardDraft={...cardDraft,[key]:e.target.value};cardPreview();onEditsChanged();};
+  $('pw-discard-card').onclick=()=>{cardDraft=null;render();onEditsChanged();};
   $('pw-save-card').onclick=()=>work(async()=>{try{
    const program=cardBase,result=await post('/api/admin/platform/programs/save',{id:program.id,name:program.name,durationYears:program.durationYears,timezone:program.timezone,status:program.status,revision:program.revision,publicCard:cardDraft});
    state.data.program=result.program;cardDraft=null;render();note('Public timetable card saved.');
   }catch(e){note(e.message,true);}});
   window.addEventListener('beforeunload',e=>{if(newClasses.length||[...classDrafts.values()].some(classDirty)||cardDirty()){e.preventDefault();e.returnValue='';}});
-  return {render,controls,ensureClass,hasEdits:()=>Boolean(newClasses.length||[...classDrafts.values()].some(classDirty)||cardDirty())};
+  return {render,controls,ensureClass,editSections:()=>[...(newClasses.length||[...classDrafts.values()].some(classDirty)?['classes']:[]),...(cardDirty()?['public-card']:[])],hasEdits:()=>Boolean(newClasses.length||[...classDrafts.values()].some(classDirty)||cardDirty())};
  }};
 })();
