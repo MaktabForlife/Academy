@@ -1,3 +1,7 @@
+# V106.70 — Allow slower Jamiat date responses
+
+Retain the V106.69 homepage and timetable update, and allow the independent Jamiat date request up to fifteen seconds with an identified Academy request. The page remains usable while the header date loads; unavailable sources retain the Jamiat link. No D1 access or schema change is added.
+
 # V106.69 — Academy header, role timetables and course wall
 
 Add linked Jamiat Hijri and Gregorian dates to the main header and replace the Menu drawer with a public quick-link strip. Learn and Teach open My Timetable with their shortcuts; Admin keeps its tools with My Timetable below the pills and above Reminders. Weekly views start on Sunday. Public browsing uses a cached twelve-week snapshot. Announcements fill their panel with text beside posters and corner arrows, and self-paced courses use a two-row image wall. [Implementation and validation](docs/ACADEMY-HOME-WORKSPACES-106.69.md).

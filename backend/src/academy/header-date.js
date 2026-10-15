@@ -13,12 +13,12 @@ export async function headerDate(request,{now=new Date(),fetcher=fetch,cache=glo
  if(cache)try{const hit=await cache.match(key);if(hit)return hit;}catch{}
  let hijri=null;
  try{
-  const upstream=await fetcher(dateSource,{headers:{Accept:'text/html'},redirect:'error',signal:AbortSignal.timeout(5000),cf:{cacheTtl:900,cacheEverything:true}});
-  if(!upstream.ok)throw Error();
+  const upstream=await fetcher(dateSource,{headers:{Accept:'text/html','User-Agent':'UmmAbbadAcademy/1.0 (+https://maktab-development.pages.dev/academy/)'},redirect:'error',signal:AbortSignal.timeout(15000),cf:{cacheTtl:900,cacheEverything:true}});
+  if(!upstream.ok)throw Error('HTTP_'+upstream.status);
   const reader=upstream.body.getReader(),decoder=new TextDecoder();let html='',size=0;
   try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>512*1024)throw Error();html+=decoder.decode(value,{stream:true});}html+=decoder.decode();}finally{await reader.cancel().catch(()=>{});}
   hijri=jamiatDate(html,today);
- }catch{/* Keep the source link available without inventing a Hijri date. */}
+ }catch(error){console.warn('Academy header date source unavailable',{reason:error?.name==='TimeoutError'?'timeout':/^HTTP_\d{3}$/.test(error?.message||'')?error.message:'source-error'});/* Keep the source link available without inventing a Hijri date. */}
  const response=Response.json({success:true,gregorian:today,hijri,timezone,source:dateSource},{headers:{'Cache-Control':'public, max-age='+(hijri?900:60)}});
  if(cache)try{await cache.put(key,response.clone());}catch{}
  return response;
