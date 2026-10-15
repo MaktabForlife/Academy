@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { isActivePlatformValue as active } from '../../src/lib/platform-schema.js';
-import { isSaltedPinHash } from '../../src/lib/auth.js';
+import { isSaltedPinHash } from '../../src/lib/auth-primitives.js';
 import { parseCourseScheduleDefinition } from '../../src/lib/global-course-scheduling.js';
 import { key } from '../../src/programs/model.js';
 import { managementState } from '../../src/programs/management-model.js';
@@ -28,7 +28,7 @@ const compact = ids => [...new Set(ids.filter(v => text(v).trim()).map(text))];
 const id = (...parts) => sha256(parts);
 const schemaLedger = migrations.map(m => ({migration_name:m.name,migration_sha256:m.hash}));
 const converterHash = sha256([readFileSync(new URL(import.meta.url),'utf8'),
-  ...['./plan.mjs','./snapshot.mjs','../../src/lib/auth.js','../../src/programs/management-model.js',
+  ...['./plan.mjs','./snapshot.mjs','../../src/lib/auth-primitives.js','../../src/programs/management-model.js',
     '../../src/programs/weekly-timetable.js','../../src/programs/timetable-model.js',
     '../../src/lib/global-course-scheduling.js','../../src/profiles/academy-access.js','../../src/profiles/program-roles.js'].map(path=>readFileSync(new URL(path,import.meta.url),'utf8'))]);
 const emptyTables = () => {

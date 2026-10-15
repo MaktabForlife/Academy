@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 import {fixtureDatabase} from './fixtures/academy-d1-fixture.mjs';
 const path='/api/admin/platform/user-profiles/';
 async function post(env,url,input={},token=''){

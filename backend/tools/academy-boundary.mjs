@@ -10,4 +10,16 @@ export function academyDependencyGraph(root=resolve(dirname(fileURLToPath(import
   }
   return [...visited].map(f=>relative(root,f)).sort();
 }
-if(process.argv[1]&&pathToFileURL(resolve(process.argv[1])).href===import.meta.url)console.log(JSON.stringify({success:true,modules:academyDependencyGraph().length,googleBackendClients:0}));
+if(process.argv[1]&&pathToFileURL(resolve(process.argv[1])).href===import.meta.url){await assertAcademySourceBoundary();console.log(JSON.stringify({success:true,modules:academyDependencyGraph().length,googleBackendClients:0,sourceTreeClean:true}));}
+
+// Scan the entire source tree too: unreachable legacy clients must not be carried
+// into the next Academy workstream merely because bundling currently excludes them.
+export async function assertAcademySourceBoundary(root=resolve(dirname(fileURLToPath(import.meta.url)),'../src')){
+  const {readdirSync}=await import('node:fs');
+  const visit=directory=>{for(const entry of readdirSync(directory,{withFileTypes:true})){
+    const file=resolve(directory,entry.name);if(entry.isDirectory()){visit(file);continue;}if(!entry.name.endsWith('.js'))continue;
+    const name=relative(root,file),source=readFileSync(file,'utf8');
+    if(name.startsWith('routes/')||/(?:^|\/)(?:google-sheets|google-drive|apps-script|platform-sheet|library-upload-bridge|compatibility-worker|worker-runtime)\.js$/.test(name))throw Error('RETIRED_ACADEMY_SOURCE: '+name);
+    if(/GOOGLE_SERVICE_ACCOUNT_JSON|PLATFORM_SPREADSHEET_ID|APPS_SCRIPT_URL|batchUpdateGoogleSheetValues|readPlatformSheet|getPlatformSpreadsheetId|oauth2\.googleapis\.com|sheets\.googleapis\.com/.test(source))throw Error('RETIRED_ACADEMY_DEPENDENCY: '+name);
+  }};visit(root);return true;
+}

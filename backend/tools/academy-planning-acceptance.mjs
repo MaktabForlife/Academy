@@ -6,7 +6,7 @@ import {createRequire} from 'node:module';
 import assert from 'node:assert/strict';
 import {mediaFixture} from '../tests/fixtures/academy-lesson-media-fixture.mjs';
 import {MOU_MEDIA_PROGRAM as activity} from '../src/academy/d1/lesson-media.js';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 const root=fileURLToPath(new URL('../../',import.meta.url)),out=process.env.PLANNING_OUTPUT||'/tmp/academy-planning';mkdirSync(out,{recursive:true});
 const f=await mediaFixture();for(const migration of ['0022_academic_calendar.sql','0023_lesson_planning.sql','0024_announcements_and_plan_requirements.sql'])f.db.exec(readFileSync(new URL('../migrations/academy/'+migration,import.meta.url),'utf8'));
 f.env.AUTH_LOGIN_RATE_LIMITER={limit:async()=>({success:true})};

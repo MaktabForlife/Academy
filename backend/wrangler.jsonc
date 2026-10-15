@@ -1,10 +1,17 @@
 {
-  "name": "rebootworker",
-  "main": "src/worker-runtime.js",
-  "compatibility_date": "2026-06-01",
+  "name": "devrebootworker",
+  "main": "src/academy-worker-runtime.js",
+  "compatibility_date": "2026-10-14",
   "keep_vars": true,
   "r2_buckets": [
-    {"binding":"ASSESSMENT_BUCKET","bucket_name":"maktab-assessments-private"},
+    {
+      "binding": "LESSON_MEDIA_BUCKET",
+      "bucket_name": "maktab-lesson-media-private-development"
+    },
+    {
+      "binding": "ASSESSMENT_BUCKET",
+      "bucket_name": "maktab-assessments-private-development"
+    },
     {
       "binding": "MEDIA_BUCKET",
       "bucket_name": "maktab4lifemedia"
@@ -16,7 +23,11 @@
       "account_id": "c9a3e355b3d7a795880b1d36a1dbe123",
       "main": "src/academy-worker-runtime.js",
       "compatibility_date": "2026-10-14",
-      "triggers": {"crons":["*/15 * * * *"]},
+      "triggers": {
+        "crons": [
+          "*/15 * * * *"
+        ]
+      },
       "d1_databases": [
         {
           "binding": "ACADEMY_DB",
@@ -25,10 +36,19 @@
           "migrations_dir": "migrations/academy"
         }
       ],
-      "observability": {"enabled": true, "head_sampling_rate": 1},
+      "observability": {
+        "enabled": true,
+        "head_sampling_rate": 1
+      },
       "r2_buckets": [
-    {"binding":"LESSON_MEDIA_BUCKET","bucket_name":"maktab-lesson-media-private-development"},
-    {"binding":"ASSESSMENT_BUCKET","bucket_name":"maktab-assessments-private-development"},
+        {
+          "binding": "LESSON_MEDIA_BUCKET",
+          "bucket_name": "maktab-lesson-media-private-development"
+        },
+        {
+          "binding": "ASSESSMENT_BUCKET",
+          "bucket_name": "maktab-assessments-private-development"
+        },
         {
           "binding": "MEDIA_BUCKET",
           "bucket_name": "maktab4lifemedia"
@@ -57,7 +77,7 @@
   "ratelimits": [
     {
       "name": "AUTH_LOGIN_RATE_LIMITER",
-      "namespace_id": "100100",
+      "namespace_id": "100101",
       "simple": {
         "limit": 5,
         "period": 60
@@ -79,5 +99,23 @@
         "ProgramTimetableCoordinator"
       ]
     }
-  ]
+  ],
+  "account_id": "c9a3e355b3d7a795880b1d36a1dbe123",
+  "triggers": {
+    "crons": [
+      "*/15 * * * *"
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "ACADEMY_DB",
+      "database_name": "maktab-academy",
+      "database_id": "7e732b79-a72f-4da6-be83-524919c49ba4",
+      "migrations_dir": "migrations/academy"
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
 }

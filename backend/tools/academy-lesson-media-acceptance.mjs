@@ -7,7 +7,7 @@ import {fileURLToPath} from 'node:url';
 import {createRequire} from 'node:module';
 import assert from 'node:assert/strict';
 import {mediaFixture} from '../tests/fixtures/academy-lesson-media-fixture.mjs';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 const require=createRequire(import.meta.url),{chromium}=require(process.env.MEDIA_BROWSER_RUNTIME||'playwright');
 const root=fileURLToPath(new URL('../../',import.meta.url)),out=process.env.MEDIA_ACCEPTANCE_OUTPUT||path.join(tmpdir(),'academy-lesson-media-acceptance');mkdirSync(out,{recursive:true});
 const f=await mediaFixture(),tokens={student:await f.login('0002'),peer:await f.login('0008'),teacher:await f.login('0003'),admin:await f.login('0001'),other:await f.login('0005')},errors=[],calls=[];

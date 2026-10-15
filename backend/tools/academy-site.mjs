@@ -2,11 +2,11 @@ import {assetPath} from './browser-site/worker.mjs';
 import {publicPdfTarget} from './academy-public-media.mjs';
 import {onRequestGet as catalogue} from '../../functions/academy/open-library/catalogue.js';
 import {onRequestGet as publicPdf} from '../../functions/pdf-file/[encoded].js';
-export const featureVersion='106.81';
-export const featureBranch='feature/academy-review-fixes-10660';
-export async function serveAcademySite(request,env,{pages=false,branch=featureBranch,syntheticOnly=true}={}){
+export const siteVersion='106.82';
+export const siteBranch='development';
+export async function serveAcademySite(request,env,{pages=false,branch=siteBranch,syntheticOnly=false}={}){
   const url=new URL(request.url);
-  if(['/api/feature-preview/health','/api/site/health'].includes(url.pathname))return Response.json({success:true,version:featureVersion,branch,syntheticOnly},{headers:{'Cache-Control':'no-store'}});
+  if(['/api/feature-preview/health','/api/site/health'].includes(url.pathname))return Response.json({success:true,version:siteVersion,branch,syntheticOnly},{headers:{'Cache-Control':'no-store'}});
   if(!['GET','HEAD'].includes(request.method))return new Response('Method not allowed',{status:405});
   if(/^\/(?:admin|student)(?:\/|$)/.test(url.pathname)||url.pathname==='/')return Response.redirect(url.origin+'/academy/',302);
   if(url.pathname==='/academy/open-library/catalogue')return catalogue();

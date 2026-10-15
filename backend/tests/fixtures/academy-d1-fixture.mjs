@@ -4,7 +4,7 @@ export { nativeBinding } from '../../tools/academy-migration/native-d1.mjs';
 import { migrationFixture, fixtureTab, PROGRAM_IDS } from './academy-migration-fixture.mjs';
 import { buildOperationalImport, importOperationalPlan } from '../../tools/academy-migration/operational.mjs';
 import { POLICY_FORMAT } from '../../tools/academy-migration/plan.mjs';
-import { createSaltedPinHash } from '../../src/lib/auth.js';
+import { createSaltedPinHash } from '../../src/lib/auth-primitives.js';
 
 export const policyFor = () => ({format:POLICY_FORMAT,environment:'local',accounts:'ACTIVE_ONLY',records:'ACTIVE_ONLY',archived:'EXCLUDE',websiteVisibility:'PUBLISHED_CONTENT_ONLY',activeProgramIds:[...PROGRAM_IDS],excludedCourseIds:['legacy-1']});
 export const setCell=(s,table,row,field,value,book=0)=>{const t=fixtureTab(s,table,book);t.rows[row][t.rows[0].indexOf(field)]=value;};
@@ -42,7 +42,7 @@ export async function fixtureDatabase(count=12,edit=()=>{}) {
   edit(snapshot);
   importOperationalPlan(db,await buildOperationalImport(snapshot,policy));
   const queries=[],attempts=new Map();
-  const env={ENVIRONMENT:'local',ACADEMY_D1_MODE:'REHEARSAL',ACADEMY_DB:nativeBinding(db,queries),PIN_SECRET:'synthetic-pin-secret',SESSION_SECRET:'synthetic-session-secret',
+  const env={ENVIRONMENT:'local',ACADEMY_D1_MODE:'REHEARSAL',ACADEMY_LIBRARY_MODE:'PUBLIC_ONLY',ACADEMY_DB:nativeBinding(db,queries),PIN_SECRET:'synthetic-pin-secret',SESSION_SECRET:'synthetic-session-secret',
     AUTH_LOGIN_RATE_LIMITER:{limit:async({key})=>{const n=(attempts.get(key)||0)+1;attempts.set(key,n);return {success:n<=5};}}};
   return {snapshot,policy,db,env,queries};
 }

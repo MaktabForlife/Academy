@@ -24,11 +24,16 @@ export async function compareSnapshotFlow(snapshot,policy) {
     tables.GlobalSubjectAccessMatrix=validatePlatformSheetRows('GlobalSubjectAccessMatrix',snapshot.workbooks[0].tabs.find(t=>t.title==='GlobalSubjectAccessMatrix').rows);
     const sourcePrograms=plan.tables.program_settings.map(p=>{
       const activity=plan.tables.activities.find(a=>a.activity_key===p.activity_key);
-      return {id:activity.activity_id,name:activity.name,timezone:p.timezone,status:'DRAFT',mode:'PROGRAM',capabilities:{attendance:true}};
+      return {id:activity.activity_id,name:activity.name,timezone:p.timezone,status:'ACTIVE',mode:'PROGRAM',capabilities:{attendance:true}};
     });
     const roleAccounts=Object.fromEntries(sourcePrograms.map(p=>[p.id,programRoleAccounts(tables,p.id,Boolean(tables.AcademyAccessScopes))]));
     const programData=Object.fromEntries(sourcePrograms.map(p=>[p.id,{prepared:true,tables:tableRows(snapshot.workbooks.find(b=>key(b.courseId)===key(p.id))),subjects:[...(tables.AcademySubjectList||[]),...tables.GlobalSubjectList]}]));
-    const baseline=async(user,input,now)=>buildEntrance({tables,programs:sourcePrograms,rolesByProgram:roleAccounts,user,input,now,loadProgram:async p=>programData[p.id]});
+    // Compare source records through the current public-joining presentation contract.
+    const baseline=async(user,input,now)=>{
+      const result=await buildEntrance({tables,programs:sourcePrograms,rolesByProgram:roleAccounts,user,input,now,programLifecycle:'ACTIVE',publicJoining:true,loadProgram:async p=>programData[p.id]});
+      result.timetable=result.timetable.map(row=>row.kind==='COURSE'?{...row,publicCard:null}:row);
+      return result;
+    };
     const now=new Date(snapshot.completedAt),timezone=plan.tables.academy_settings.find(r=>r.setting_key==='PlatformTimezone')?.setting_value;
     requireCondition(timezone,'PLATFORM_TIMEZONE_REQUIRED');
     const startDate=dateInTimezone(now,timezone),ids=['',...plan.tables.activities.map(a=>a.activity_id)];

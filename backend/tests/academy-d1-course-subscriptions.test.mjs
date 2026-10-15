@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 import {courseFixture} from './fixtures/academy-d1-course-fixture.mjs';
 import {nativeBinding,setCell} from './fixtures/academy-d1-fixture.mjs';
 import {academyD1Repository} from '../src/academy/d1/repository.js';
@@ -98,7 +98,7 @@ test('subscription authority is checked inside its write transaction',()=>use(as
   assert.equal(db.prepare('SELECT count(*) n FROM course_subscription_decisions').get().n,0);
 }));
 
-test('existing sessions immediately gain and lose paid lesson details and protected Library files',()=>use(async({env,db})=>{
+test('existing sessions immediately gain and lose paid lesson details while private Library remains disabled',()=>use(async({env,db})=>{
   paid(db);const admin=await login(env),student=await login(env,'0002'),initial=await view(env,admin);
   db.exec("INSERT INTO course_resources(activity_key,resource_id,module_id,name,resource_type,resource_link,active) VALUES('COURSE:subject-1','subscription-book','module-1','Subscriber book','EBOOK','https://pub-d0f00cecdced454598b794da754a3939.r2.dev/Resources/Book.pdf',1)");
   const key='COURSE:subject-1:EBOOK:subscription-book',library=()=>post(env,'/api/academy/library/access',{resourceId:key},student);
@@ -110,9 +110,9 @@ test('existing sessions immediately gain and lose paid lesson details and protec
   const granted=ok(await change(env,admin,true,initial.workflowRevision));
   assert.equal(lesson(await timetable()).visibilityLevel,'DETAIL');assert.equal(lesson(await timetable()).canOpenZoom,true);
   assert.ok(ok(await post(env,'/api/academy/entrance',{startDate:'2026-10-09'},student)).personalTimetable.some(s=>s.kind==='COURSE'));
-  const ticket=ok(await library());assert.equal((await worker.fetch(new Request(ticket.url),env)).status,200);
+  assert.equal((await library()).status,403);
   ok(await change(env,admin,false,granted.workflowRevision));const before=heads;
-  assert.equal((await worker.fetch(new Request(ticket.url),env)).status,403);assert.equal(heads,before);
+  assert.equal((await library()).status,403);assert.equal(heads,before);
   assert.equal(lesson(await timetable()).visibilityLevel,'LABEL');assert.equal(lesson(await timetable()).canOpenZoom,false);
   assert.equal(ok(await post(env,'/api/account/session',{},student)).sessionStore,'D1','Independent Program session remains authorised.');
 }));
@@ -125,26 +125,4 @@ test('a Course-only account needs current free or paid Course access; revocation
   assert.equal(ok(await post(env,'/api/account/session',{},student)).context.scope,'GLOBAL');
   ok(await change(env,admin,false,saved.workflowRevision));assert.equal((await post(env,'/api/account/session',{},student)).status,401);
   assert.equal((await post(env,'/api/account/login',{uniqueid:'login-0002',pin:'1234'})).body.code,'NO_CONTEXT');
-}));
-
-test('Course access screen enables paid toggles and retries the same decision after an uncertain response',()=>use(async({env,db})=>{
-  paid(db);const token=await login(env),elements=new Map(),element=id=>{if(!elements.has(id))elements.set(id,{innerHTML:'',textContent:'',hidden:false,dataset:{},classList:{toggle(){},add(){},remove(){}},addEventListener(){},setAttribute(){},querySelectorAll:()=>[],querySelector:()=>null});return elements.get(id);};
-  const calls=[];let uncertain=true;
-  const apiPost=async(path,input={},auth=token)=>{calls.push({path,input});const result=(await post(env,path,input,auth||token)).body;if(uncertain&&path===base+'access/save'&&result.success){uncertain=false;return {success:false,retryable:true,error:'Uncertain response'};}return result;};
-  const window={showScreen:()=>true,M4LAuth:{apiPost}},context={window,apiPost,state:{token,user:{type:'account',role:'GLOBAL_ADMIN',platformrole:'GLOBAL_ADMIN'}},crypto,Date,Map,Set,console,alert(){},document:{addEventListener(){},getElementById:element,querySelectorAll:()=>[],querySelector:()=>null}};
-  let code=readFileSync(new URL('../../js/m4l-global-curriculum.js',import.meta.url),'utf8'),at=code.indexOf('  window.M4LGlobalCurriculum =');
-  code=code.slice(0,at)+'  window.testAccess=saveAccessToggle;window.testSelectTab=selectTab;\n'+code.slice(at);vm.runInNewContext(code,context);
-  assert.equal(await window.M4LGlobalCurriculum.show(),true);window.testSelectTab('access');
-  const markup=()=>[...elements.values()].map(e=>e.innerHTML).join('');
-  const toggle=()=>markup().match(/<input[^>]*data-account-id="account-0002"[^>]*>/)[0];
-  assert.ok(!toggle().includes('disabled'));assert.ok(!markup().includes('Subscription editing is not available yet'));
-  const input={dataset:{accountId:'account-0002',subjectId:'subject-1'},checked:true,disabled:false};
-  assert.equal(await window.testAccess(input),false);assert.equal(input.checked,false);input.checked=true;
-  assert.equal(await window.testAccess(input),true);assert.equal(input.disabled,false);
-  const writes=calls.filter(c=>c.path===base+'access/save');assert.equal(writes[0].input.operationId,writes[1].input.operationId);
-  input.checked=false;assert.equal(await window.testAccess(input),true);assert.equal(db.prepare('SELECT active FROM course_subscription_decisions').get().active,0);
-  input.checked=true;assert.equal(await window.testAccess(input),true);
-  db.exec("UPDATE accounts SET active=0 WHERE account_id='account-0002'");await window.M4LGlobalCurriculum.load(true);window.testSelectTab('access');assert.ok(!toggle().includes('disabled'));
-  input.checked=false;assert.equal(await window.testAccess(input),true);assert.equal(input.disabled,true,'An inactive account cannot be granted access again after revocation.');
-  db.exec("UPDATE course_settings SET legacy_access_model='FREE'");await window.M4LGlobalCurriculum.load(true);window.testSelectTab('access');assert.ok(toggle().includes('disabled'));
 }));

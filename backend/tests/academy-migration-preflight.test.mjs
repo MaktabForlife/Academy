@@ -8,7 +8,6 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { validateSnapshot, SnapshotError } from '../tools/academy-migration/snapshot.mjs';
 import { importSnapshot, verifyArchive } from '../tools/academy-migration/archive.mjs';
-import { captureSnapshot } from '../tools/academy-migration/export.mjs';
 import { migrationFixture, fixtureTab } from './fixtures/academy-migration-fixture.mjs';
 
 const rejectsCode = (promise, code) => assert.rejects(promise, error => error instanceof SnapshotError && error.code === code);
@@ -128,21 +127,7 @@ test('destination must be a dedicated archive and failed insert rolls back the w
     assert.equal((await verifyArchive(db, first)).archiveVerification, 'PASS');
   } finally { db.close(); }
 });
-test('capture visits every registered workbook sequentially and aborts on a source failure', async () => {
-  const fixture = migrationFixture(), calls = [], waits = [];
-  const readWorkbook = async (env, id) => {
-    calls.push(id); const { inventory, tabs } = fixture.workbooks.find(b => b.spreadsheetId === id); return structuredClone({ inventory, tabs });
-  };
-  const result = await captureSnapshot({ PLATFORM_SPREADSHEET_ID: fixture.workbooks[0].spreadsheetId },
-    { environment: 'local', readWorkbook, pause: async ms => { waits.push(ms); } });
-  assert.deepEqual(calls, fixture.workbooks.map(b => b.spreadsheetId));
-  assert.equal(waits.length, 3);
-  assert.equal((await validateSnapshot(result)).checks.accounts, 200);
-  calls.length = 0;
-  await assert.rejects(captureSnapshot({ PLATFORM_SPREADSHEET_ID: fixture.workbooks[0].spreadsheetId },
-    { readWorkbook: async (env, id) => { calls.push(id); if (calls.length === 2) throw Object.assign(new Error('quota'), { status: 429 }); const { inventory, tabs } = fixture.workbooks.find(b => b.spreadsheetId === id); return structuredClone({ inventory, tabs }); }, pause: async () => {} }));
-  await rejectsCode(captureSnapshot({}, { environment: 'production', readWorkbook }), 'PRODUCTION_CAPTURE_DISABLED');
-});
+
 test('CLI dry run, import and read-only verification work; reports and failures omit sensitive data', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'maktab-migration-'));
   const cli = fileURLToPath(new URL('../tools/academy-migration.mjs', import.meta.url));

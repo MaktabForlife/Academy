@@ -6,7 +6,7 @@ import {readFileSync} from 'node:fs';
 import {resolve,extname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {courseFixture} from '../tests/fixtures/academy-d1-course-fixture.mjs';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 const root=resolve(fileURLToPath(new URL('../..',import.meta.url))),output=process.env.PDF_BOOKMARK_OUTPUT||'/private/tmp/academy-bookmarks-10666-browser';await mkdir(output,{recursive:true});
 const {chromium}=await import('/Users/hbnaidu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs');
 function pdf(title){

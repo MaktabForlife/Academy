@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {courseFixture} from './fixtures/academy-d1-course-fixture.mjs';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 import {PDF_TOOL_DEFAULTS} from '../../js/m4l-pdf-tools-model.mjs';
 const path='/api/admin/platform/pdf-tools/';
 async function post(env,action,body={},token=''){const response=await worker.fetch(new Request('https://synthetic.invalid'+(action.startsWith('/')?action:path+action),{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(body)}),env);return {status:response.status,body:await response.json()};}

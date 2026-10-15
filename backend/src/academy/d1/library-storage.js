@@ -28,7 +28,7 @@ export class ProgramTimetableCoordinator extends DurableObject {
     if (!Number.isInteger(expected) || expected < 0) throw problem('Refresh the book details before saving.', 409);
     // Taxonomy loading yields. Recheck the D1 session after it, immediately
     // before the existing synchronous metadata compare-and-set write.
-    if(this.env.ACADEMY_D1_MODE && this.env.ACADEMY_D1_MODE!=='OFF')user=await openLibraryMetadataUser(request,this.env);
+    user=await openLibraryMetadataUser(request,this.env);
     const sql = this.ctx.storage.sql;
     const current = sql.exec('SELECT metadata, revision FROM open_library_metadata WHERE id = ?', record.id).toArray()[0];
     const revision = Number(current?.revision || 0);

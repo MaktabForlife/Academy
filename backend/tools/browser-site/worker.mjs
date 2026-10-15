@@ -1,8 +1,8 @@
 import {onRequestGet as catalogue} from '../../../functions/academy/open-library/catalogue.js';
 import {onRequestGet as publicPdf} from '../../../functions/pdf-file/[encoded].js';
 
-const DIRECTORIES = new Set(['academy','account','admin','student','programs','users','js','css','icons','images','pdf-viewer','recorder','activities']);
-const ROOT_ASSET = /^(?:academy|ummabbadacademy|logo)\.png$|^(?:admin|student)-(?:apple-touch-icon\.png|favicon(?:-\d+x\d+\.png|\.ico)|icon-\d+\.png|manifest\.json)$|^(?:app\.js|styles\.css|version\.json)$/;
+const DIRECTORIES = new Set(['academy','account','programs','users','js','css','icons','images','pdf-viewer','recorder','activities']);
+const ROOT_ASSET = /^(?:academy|ummabbadacademy|logo)\.png$|^(?:admin|student)-(?:apple-touch-icon\.png|favicon(?:-\d+x\d+\.png|\.ico)|icon-\d+\.png|manifest\.json)$|^version\.json$/;
 
 export function publicPdfTarget(encoded) {
   try {

@@ -5,7 +5,7 @@ import {courseFixture} from './fixtures/academy-d1-course-fixture.mjs';
 import {moduleId,subject} from './fixtures/academy-d1-learning-fixture.mjs';
 import {PROGRAM_IDS} from './fixtures/academy-migration-fixture.mjs';
 import {programToday,WEEKLY_SCHEMA} from '../src/programs/weekly-timetable.js';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 const id=PROGRAM_IDS[0],activity='PROGRAM:'+id,tt='/api/admin/platform/program-timetable/',av='/api/academy/teacher-availability/';
 const tomorrow=()=>new Date(Date.parse(programToday('Africa/Johannesburg')+'T12:00:00Z')+86400000).toISOString().slice(0,10);
 export async function programFixture(){const f=await courseFixture();for(const name of ['0007_course_subscriptions.sql','0008_course_management.sql','0009_course_review_and_teachers.sql','0010_shared_module_catalogue.sql','0012_program_workspace.sql'])f.db.exec(readFileSync(new URL('../migrations/academy/'+name,import.meta.url),'utf8'));f.env.ACADEMY_LIBRARY_MODE='PUBLIC_ONLY';return f;}

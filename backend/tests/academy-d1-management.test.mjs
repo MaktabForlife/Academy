@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 import {fixtureDatabase} from './fixtures/academy-d1-fixture.mjs';
 import {PROGRAM_IDS} from './fixtures/academy-migration-fixture.mjs';
 const schema=readFileSync(new URL('../migrations/academy/0004_management_transactions.sql',import.meta.url),'utf8');

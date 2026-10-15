@@ -4,7 +4,7 @@ import {mkdtempSync,readFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {DatabaseSync} from 'node:sqlite';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 import {prepareHostedCore} from '../tools/academy-d1-hosted-core.mjs';
 import {exercisePeak} from '../tools/academy-d1-peak-test.mjs';
 import {nativeBinding} from '../tools/academy-migration/native-d1.mjs';

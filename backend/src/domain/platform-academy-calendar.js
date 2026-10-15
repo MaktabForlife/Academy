@@ -20,12 +20,10 @@ const GENERATED_PUBLIC_HOLIDAY_PREFIX = "SA-PUBLIC-HOLIDAY-";
 export function createAcademyCalendarEndpoints(storage = {}) {
   const getAuthUser = storage.getAuthUser;
   if(typeof getAuthUser!=="function")throw new Error("Missing domain storage dependency: getAuthUser");
-  const batchUpdateGoogleSheetValues = storage.batchUpdateGoogleSheetValues;
-  if(typeof batchUpdateGoogleSheetValues!=="function")throw new Error("Missing domain storage dependency: batchUpdateGoogleSheetValues");
-  const getPlatformSpreadsheetId = storage.getPlatformSpreadsheetId;
-  if(typeof getPlatformSpreadsheetId!=="function")throw new Error("Missing domain storage dependency: getPlatformSpreadsheetId");
-  const readPlatformSheet = storage.readPlatformSheet;
-  if(typeof readPlatformSheet!=="function")throw new Error("Missing domain storage dependency: readPlatformSheet");
+  const applyTableWrites = storage.applyTableWrites;
+  if(typeof applyTableWrites!=="function")throw new Error("Missing domain storage dependency: applyTableWrites");
+  const readTableRows = storage.readTableRows;
+  if(typeof readTableRows!=="function")throw new Error("Missing domain storage dependency: readTableRows");
 
 async function getAcademyCalendarAdminEndpoint(request, env) {
   const permission = await requireCalendarAdmin(request, env);
@@ -197,7 +195,7 @@ async function saveAcademyCalendarBatchEndpoint(request, env) {
     }
     const writes = [...calendarWrites];
     if (auditRows.length) writes.push(rangeWrite("PlatformAuditLog", nextRowNumber(tables.PlatformAuditLog), auditRows));
-    await batchUpdateGoogleSheetValues(env, writes, { spreadsheetId: getPlatformSpreadsheetId(env) });
+    await applyTableWrites(env, writes);
     return json({
       success: true,
       message: `${calendarWrites.length} Academic Calendar change${calendarWrites.length === 1 ? "" : "s"} saved`,
@@ -275,10 +273,10 @@ async function saveAcademyCalendarEventEndpoint(request, env) {
       : ["EventType", "Description", "StartDate", "EndDate", "TeachingImpact", "Active"];
     const audit = auditRow(permission, timestamp, existing ? "UPDATE_ACADEMY_CALENDAR_EVENT" : "CREATE_ACADEMY_CALENDAR_EVENT", record.CalendarEventID, changedFields);
 
-    await batchUpdateGoogleSheetValues(env, [
+    await applyTableWrites(env, [
       valueWrite("AcademyCalendar", rowNumber, recordToRow(record, PLATFORM_SHEET_HEADERS.AcademyCalendar)),
       valueWrite("PlatformAuditLog", nextRowNumber(tables.PlatformAuditLog), audit)
-    ], { spreadsheetId: getPlatformSpreadsheetId(env) });
+    ]);
 
     return json({ success: true, event: mapAcademyCalendarRow({ ...record, _rowNumber: rowNumber }) });
   } catch (error) {
@@ -384,7 +382,7 @@ async function savePublicHoliday({ body, tables, permission, existing, generated
   const auditTargetId = records.at(-1)?.CalendarEventID || existing?.CalendarEventID || `${GENERATED_PUBLIC_HOLIDAY_PREFIX}${generatedPublicHolidayDate}`;
   writes.push(valueWrite("PlatformAuditLog", nextRowNumber(tables.PlatformAuditLog), auditRow(permission, timestamp, auditAction, auditTargetId, actionFields)));
 
-  await batchUpdateGoogleSheetValues(env, writes, { spreadsheetId: getPlatformSpreadsheetId(env) });
+  await applyTableWrites(env, writes);
   const visibleRecord = active ? records.at(-1) : records[0];
   return json({ success: true, event: mapAcademyCalendarRow({ ...visibleRecord, _rowNumber: existing?._rowNumber || firstRow }) });
 }
@@ -427,7 +425,7 @@ async function requireCalendarAdmin(request, env) {
 
 async function readCalendarTables(env) {
   const [calendar, config, audit] = await Promise.all([
-    readPlatformSheet(env, "AcademyCalendar"), readPlatformSheet(env, "PlatformConfig"), readPlatformSheet(env, "PlatformAuditLog")
+    readTableRows(env, "AcademyCalendar"), readTableRows(env, "PlatformConfig"), readTableRows(env, "PlatformAuditLog")
   ]);
   return { AcademyCalendar: calendar, PlatformConfig: config, PlatformAuditLog: audit };
 }

@@ -6,7 +6,7 @@ import {tmpdir} from 'node:os';
 import {fileURLToPath} from 'node:url';
 import assert from 'node:assert/strict';
 import {assessmentFixture,assessmentScope as scope,pdf} from '../tests/fixtures/academy-assessment-fixture.mjs';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url),{chromium}=require(process.env.ASSESSMENT_BROWSER_RUNTIME||'playwright');
 const root=path.resolve(fileURLToPath(new URL('../../',import.meta.url))),out=path.resolve(process.env.ASSESSMENT_ACCEPTANCE_OUTPUT||path.join(tmpdir(),'academy-assessment-acceptance'));mkdirSync(out,{recursive:true});

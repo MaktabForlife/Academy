@@ -7,7 +7,7 @@ import {createRequire} from 'node:module';
 import assert from 'node:assert/strict';
 import {memorisationFixture} from '../tests/fixtures/academy-memorisation-fixture.mjs';
 import {attendanceProgramId} from '../tests/fixtures/academy-attendance-fixture.mjs';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 const require=createRequire(import.meta.url),{chromium}=require(process.env.MEMORISATION_BROWSER_RUNTIME||'playwright');
 const root=path.resolve(fileURLToPath(new URL('../../',import.meta.url))),out=process.env.MEMORISATION_ACCEPTANCE_OUTPUT||'/private/tmp/academy-memorisation-acceptance';mkdirSync(out,{recursive:true});
 const f=await memorisationFixture(),scope='PROGRAM:'+attendanceProgramId,tokens={},errors=[];let loseSaveResponse=true;

@@ -9,7 +9,7 @@ import {prepareBrowserSite,validateBrowserTarget} from '../tools/academy-d1-brow
 const siteName='academy-d1-browser-test-20261010-12345678',siteOrigin=`https://${siteName}.maktab4life.workers.dev`;
 const input={syntheticOnly:true,accounts:Array.from({length:200},()=>({})),databaseId:'c5b96e84-f6ae-4fa6-ba7b-3ce91fe5c22c',workerName:'academy-d1-core-test-20261010-12345678',runId:'test-run'};
 const backendConfig={name:input.workerName,account_id:'a'.repeat(32),d1_databases:[{binding:'ACADEMY_DB',database_id:input.databaseId}],
-  vars:{ACADEMY_D1_MODE:'ACTIVE',ACADEMY_D1_RUN_ID:input.runId,ACADEMY_LIBRARY_MODE:'PUBLIC_ONLY',PLATFORM_SPREADSHEET_ID:'synthetic-fixture'}};
+  vars:{ACADEMY_D1_MODE:'ACTIVE',ACADEMY_D1_RUN_ID:input.runId,ACADEMY_LIBRARY_MODE:'PUBLIC_ONLY',ACADEMY_OPEN_LIBRARY_STORAGE_KEY:'synthetic-fixture'}};
 const target={input,backendConfig,siteName,siteOrigin};
 validateBrowserTarget(target);
 for(const bad of [
@@ -42,7 +42,7 @@ assert.equal((await call('/programs/attendance.html')).status,200);
 result=await call('/academy/',{method:'HEAD'});assert.equal(await result.text(),'');assert.equal(new URL(lastRequest.url).pathname,'/academy/index.html');
 assert.equal((await call('/')).headers.get('Location'),siteOrigin+'/academy/');
 const before=assetCalls;
-for(const path of ['/backend/src/worker.js','/.academy-migration/test-secrets.json','/sources/reference','/.git/config','/academy/%2eprivate','/js/%5csecret','/js/%00secret'])assert.equal((await call(path)).status,404);
+for(const path of ['/backend/src/academy-runtime.js','/.academy-migration/test-secrets.json','/sources/reference','/.git/config','/academy/%2eprivate','/js/%5csecret','/js/%00secret'])assert.equal((await call(path)).status,404);
 assert.equal(assetCalls,before);assert.equal((await call('/academy/',{method:'POST'})).status,405);
 assert.equal(assetPath('/account/synthetic-login'),'/account/index.html');assert.equal(assetPath('/users'),'/users/index.html');
 assert.equal(assetPath('/js/%ZZ'),null);assert.equal(assetPath('/js/../backend/secret'),null);

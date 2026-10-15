@@ -8,7 +8,7 @@ import {createRequire} from 'node:module';
 import assert from 'node:assert/strict';
 import {mediaFixture} from '../tests/fixtures/academy-lesson-media-fixture.mjs';
 import {assessmentScope} from '../tests/fixtures/academy-assessment-fixture.mjs';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 
 const root=path.resolve(fileURLToPath(new URL('../../',import.meta.url)));
 const out=process.env.ACADEMY_MOBILE_OUTPUT||path.join(tmpdir(),'academy-mobile-layout');

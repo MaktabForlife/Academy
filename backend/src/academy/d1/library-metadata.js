@@ -123,6 +123,7 @@ export function openLibraryMetadataEndpoint(action) {
       }
       return json({ success: true, record: openLibraryMetadataForClient(result, new URL(request.url).origin) });
     } catch (error) {
+      if(error.code==='SESSION_ENDED')return json({success:false,error:'Your Academy session has ended.',code:'SESSION_ENDED'},401);
       const result = programFailure(error, action, 'open-library-metadata');
       return json(result, result.status);
     }

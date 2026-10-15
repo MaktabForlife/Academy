@@ -4,10 +4,8 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 const directory=path.dirname(fileURLToPath(import.meta.url)),group=process.argv[2];
-const compatibility=/^(?:academy-d1-library|academy-d1-course-resources|program-library|drive-library|apps-script|backend-routing)/;
-const groupFor=name=>compatibility.test(name)?'legacy':/migration|preflight|d1-main-preparation|d1-transition-recovery/.test(name)?'offline':
-  /^(academy|open-library|pdf|program-|user-profiles|profile-|module-|global-course)/.test(name)?'academy':'legacy';
-if(!['academy','legacy','offline'].includes(group))throw Error('TEST_GROUP_REQUIRED');
+const groupFor=name=>/migration|preflight|d1-main-preparation|d1-transition-recovery/.test(name)?'offline':'academy';
+if(!['academy','offline'].includes(group))throw Error('TEST_GROUP_REQUIRED');
 let count=0;const failed=[];
 for(const file of readdirSync(directory).filter(s=>s.endsWith('.test.mjs')&&groupFor(s)===group).sort()){
   const result=spawnSync(process.execPath,[path.join(directory,file)],{cwd:path.dirname(directory),stdio:'inherit',env:process.env});count++;

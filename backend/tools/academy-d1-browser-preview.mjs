@@ -26,7 +26,7 @@ const apiRequests=[];
 async function report() {
   const db=await mf.getD1Database('ACADEMY_DB');
   const sessions=await db.prepare('SELECT count(*) AS total, coalesce(sum(revoked_at IS NOT NULL),0) AS revoked FROM account_sessions').first();
-  return {success:true,runtime:'LOCAL_WORKERS_D1_BROWSER',workerEntrypoint:'backend/src/worker-runtime.js',compatibilityDate,
+  return {success:true,runtime:'LOCAL_WORKERS_D1_BROWSER',workerEntrypoint:'backend/src/academy-worker-runtime.js',compatibilityDate,
     syntheticAccounts:true,cloudDatabaseAccessed:false,externalRequests,apiRequests,sessions,cutoverReady:false};
 }
 async function stop() {
@@ -52,10 +52,10 @@ try {
     if(!Array.isArray(results)||results.some(r=>!r.success))throw Error('Local import failed');
   }
   const bundle=join(directory,'worker.js');
-  await build({entryPoints:['backend/src/worker-runtime.js'],bundle:true,format:'esm',platform:'browser',target:'es2022',external:['cloudflare:workers'],outfile:bundle,logLevel:'silent'});
+  await build({entryPoints:['backend/src/academy-worker-runtime.js'],bundle:true,format:'esm',platform:'browser',target:'es2022',external:['cloudflare:workers'],outfile:bundle,logLevel:'silent'});
   mf=new miniflare.Miniflare(miniflare.convertV4MiniflareOptions({name:'academy-d1-browser-local',modules:true,scriptPath:bundle,compatibilityDate,
     resourcePersistencePath:join(state,'v3'),d1Databases:{ACADEMY_DB:databaseId},
-    bindings:{ENVIRONMENT:'local',ACADEMY_D1_MODE:'REHEARSAL',ALLOWED_ORIGINS:origin,PIN_SECRET:'synthetic-pin-secret',SESSION_SECRET:'synthetic-session-secret'},
+    bindings:{ENVIRONMENT:'local',ACADEMY_D1_MODE:'REHEARSAL',ACADEMY_LIBRARY_MODE:'PUBLIC_ONLY',ALLOWED_ORIGINS:origin,PIN_SECRET:'synthetic-pin-secret',SESSION_SECRET:'synthetic-session-secret'},
     ratelimits:{AUTH_LOGIN_RATE_LIMITER:{namespace_id:'100103',simple:{limit:5,period:60}}},
     outboundService:()=>{externalRequests++;return new Response('External requests are disabled.',{status:503});}}));
   await mf.ready;

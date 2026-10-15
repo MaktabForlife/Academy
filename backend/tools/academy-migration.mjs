@@ -4,12 +4,10 @@ import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { validateSnapshot, SnapshotError, requireCondition } from './academy-migration/snapshot.mjs';
 import { importSnapshot, verifyArchive } from './academy-migration/archive.mjs';
-import { captureSnapshot } from './academy-migration/export.mjs';
 import { planMigration } from './academy-migration/plan.mjs';
 import { buildOperationalImport, importOperationalPlan, verifyOperationalPlan, operationalSQL } from './academy-migration/operational.mjs';
 
 const help = `Academy migration rehearsal (Node 24+). Local/development only.
-  export   --platform-id ID --credential-file FILE --output FILE [--environment development|local]
   validate --snapshot FILE
   plan     --snapshot FILE --policy FILE --output FILE
   archive-source --snapshot FILE --database FILE
@@ -18,12 +16,11 @@ const help = `Academy migration rehearsal (Node 24+). Local/development only.
   verify-active --snapshot FILE --policy FILE --database FILE
   active-sql --snapshot FILE --policy FILE --output FILE
 Reports contain counts and diagnostic coordinates, never account names, IDs or PIN hashes.
-Export is a values snapshot; live online capture is not an atomic cutover backup.`;
+Existing source snapshots remain usable for offline verification and recovery.`;
 function argumentsFor(argv) {
   const [command, ...args] = argv;
   if (!command || command === '--help' || command === 'help') return { command: 'help', options: {} };
   const allowed = {
-    export: ['platform-id', 'credential-file', 'output', 'environment'],
     validate: ['snapshot'], plan: ['snapshot', 'policy', 'output'], 'archive-source': ['snapshot', 'database'], 'verify-archive': ['snapshot', 'database'],
     'import-active':['snapshot','policy','database'], 'verify-active':['snapshot','policy','database'], 'active-sql':['snapshot','policy','output']
   }[command];
@@ -45,18 +42,7 @@ async function privateFile(path) {
 async function main() {
   const { command, options } = argumentsFor(process.argv.slice(2));
   if (command === 'help') { console.log(help); return; }
-  if (command === 'export') {
-    const env = { PLATFORM_SPREADSHEET_ID: options['platform-id'],
-      GOOGLE_SERVICE_ACCOUNT_JSON: await readFile(options['credential-file'], 'utf8') };
-    const snapshot = await captureSnapshot(env, { environment: options.environment || 'development' });
-    // Preserve a complete source capture even when data validation reports an
-    // existing source defect. A partial/failed Google capture is never written.
-    const output = await privateFile(options.output);
-    try { await output.writeFile(JSON.stringify(snapshot)); } finally { await output.close(); }
-    const report = await validateSnapshot(snapshot);
-    console.log(JSON.stringify({ ...report, exported: true }, null, 2));
-    return;
-  }
+
   const snapshot = JSON.parse(await readFile(options.snapshot, 'utf8'));
   // Preflight runs before opening or creating a destination file.
   const report = await validateSnapshot(snapshot);

@@ -2,7 +2,7 @@ import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {memorisationFixture} from './academy-memorisation-fixture.mjs';
 import {attendanceProgramId} from './academy-attendance-fixture.mjs';
-import worker from '../../src/worker.js';
+import worker from '../../src/academy-runtime.js';
 export const assessmentScope='PROGRAM:'+attendanceProgramId;
 export const pdf=Buffer.from('%PDF-1.4\n% assessment integration fixture\n%%EOF');
 export async function assessmentFixture({registry=true}={}){

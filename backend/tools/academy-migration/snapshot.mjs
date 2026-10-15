@@ -5,7 +5,7 @@ import { TIMETABLE_HEADERS } from '../../src/programs/timetable-model.js';
 import { managementState } from '../../src/programs/management-model.js';
 import { programService } from '../../src/programs/service.js';
 import { ACADEMY_HEADERS, MATRIX_BASE, parseRoles } from '../../src/profiles/academy-access.js';
-import { ACADEMY_SUBJECT_HEADERS } from '../../src/programs/academy-subjects.js';
+import { ACADEMY_SUBJECT_HEADERS } from './source-schema.mjs';
 
 export const FORMAT = 'maktab-academy-snapshot/v1';
 export const REQUIRED_PLATFORM = Object.freeze([

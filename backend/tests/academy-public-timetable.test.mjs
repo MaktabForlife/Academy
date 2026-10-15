@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {fixtureDatabase} from './fixtures/academy-d1-fixture.mjs';
 import {publicTimetable,publicTimetableDay,publicTimetableKey} from '../src/academy/d1/public-timetable.js';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 
 function snapshotStores() {
   const objects=new Map(),responses=new Map();let gets=0,puts=0;

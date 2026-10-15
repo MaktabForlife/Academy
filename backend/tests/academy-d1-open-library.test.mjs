@@ -2,13 +2,12 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 import {openLibraryFixture} from './fixtures/academy-d1-open-library-fixture.mjs';
 import {nativeBinding} from './fixtures/academy-d1-fixture.mjs';
 import {PROGRAM_IDS} from './fixtures/academy-migration-fixture.mjs';
-import {loadOpenLibraryTaxonomy} from '../src/lib/open-library-taxonomy.js';
-import {openLibraryMetadataUser} from '../src/routes/open-library-metadata.js';
-import {setRequestAuthUser} from '../src/lib/request-context.js';
+import {loadOpenLibraryTaxonomy} from '../src/academy/d1/library-taxonomy.js';
+import {openLibraryMetadataUser} from '../src/academy/d1/library-metadata.js';
 
 const base='/api/academy/open-library/metadata/',book='EXTERNAL:INTERNET_ARCHIVE:D1_TEST_BOOK';
 const png=new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,0]);
@@ -71,7 +70,7 @@ test('authority is rechecked after D1 taxonomy loading; a cached or forged user 
   const wrapped={...binding,batch:async statements=>{const result=await binding.batch(statements);if(revoke&&statements.length===4){revoke=false;db.exec("UPDATE role_assignments SET active=0 WHERE account_id='account-0003'; UPDATE legacy_access_evidence SET source_effective=0 WHERE account_id='account-0003'");}return result;}};
   coordinator.env={...env,ACADEMY_DB:{withSession:()=>wrapped}};
   assert.equal((await save(env,token,archiveInput)).status,401);assert.equal(metadata.prepare('SELECT count(*) n FROM open_library_metadata').get().n,0);
-  const forged=new Request('https://academy.invalid/',{headers:{Authorization:'Bearer invalid'}});setRequestAuthUser(forged,{type:'account',role:'GLOBAL_ADMIN',accountid:'account-0001'});
+  const forged=new Request('https://academy.invalid/',{headers:{Authorization:'Bearer invalid'}});
   await assert.rejects(()=>openLibraryMetadataUser(forged,env),e=>e.status===401);
   assert.equal((await post(env,base+'options',{},token)).status,401);
 }));

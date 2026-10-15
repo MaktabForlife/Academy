@@ -57,12 +57,10 @@ const TIMETABLE_SCHEMA_VERSIONS = new Set(["102.0.7", "102.0.8", "102.0.9", "102
 export function createGlobalTimetableEndpoints(storage = {}) {
   const getAuthUser = storage.getAuthUser;
   if(typeof getAuthUser!=="function")throw new Error("Missing domain storage dependency: getAuthUser");
-  const batchUpdateGoogleSheetValues = storage.batchUpdateGoogleSheetValues;
-  if(typeof batchUpdateGoogleSheetValues!=="function")throw new Error("Missing domain storage dependency: batchUpdateGoogleSheetValues");
-  const getPlatformSpreadsheetId = storage.getPlatformSpreadsheetId;
-  if(typeof getPlatformSpreadsheetId!=="function")throw new Error("Missing domain storage dependency: getPlatformSpreadsheetId");
-  const readPlatformSheet = storage.readPlatformSheet;
-  if(typeof readPlatformSheet!=="function")throw new Error("Missing domain storage dependency: readPlatformSheet");
+  const applyTableWrites = storage.applyTableWrites;
+  if(typeof applyTableWrites!=="function")throw new Error("Missing domain storage dependency: applyTableWrites");
+  const readTableRows = storage.readTableRows;
+  if(typeof readTableRows!=="function")throw new Error("Missing domain storage dependency: readTableRows");
 
 async function getPlatformGlobalTimetableEndpoint(request, env) {
   const permission = await requireGlobalTimetableAdmin(request, env);
@@ -311,7 +309,7 @@ async function materializePlatformGlobalTimetableExceptionEndpoint(request, env)
     if (lifecycleMutation) audits.push(lifecycleMutation.audit);
     if (stateMutation) audits.push(stateMutation.audit);
     writes.push(rangeWrite("PlatformAuditLog", nextRowNumber(tables.PlatformAuditLog), audits));
-    await batchUpdateGoogleSheetValues(env, writes, { spreadsheetId: getPlatformSpreadsheetId(env) });
+    await applyTableWrites(env, writes);
 
     return json({
       success: true,
@@ -581,8 +579,8 @@ async function savePlatformGlobalTimetableSessionBatchEndpoint(request, env) {
     }
     if (audits.length) writes.push(rangeWrite("PlatformAuditLog", nextRowNumber(tables.PlatformAuditLog), audits));
 
-    // All validation above completes before this single Google Sheets batch write.
-    await batchUpdateGoogleSheetValues(env, writes, { spreadsheetId: getPlatformSpreadsheetId(env) });
+    // All validation above completes before this single planned table mutation.
+    await applyTableWrites(env, writes);
     const publishedSourceIds = publishedSourceIdSet(tables.PublishedGlobalTimetableSessions);
     const savedSessions = mutations.map(mutation => enrichSession(mapGlobalTimetableSession(mutation.record, publishedSourceIds), tables));
     const savedLifecycles = mutations.map(mutation => resolveCurrentSessionLifecycle(stagedLifecycles, mutation.record.SessionID));
@@ -622,10 +620,10 @@ async function revisePlatformGlobalTimetableEndpoint(request, env) {
     const timestamp = new Date().toISOString();
     const mutation = buildDevelopmentStateMutation(tables, run.RunID, permission.user, timestamp);
     if (!mutation) return json({ success: true, message: "Course timetable is already in DEVELOPMENT", state });
-    await batchUpdateGoogleSheetValues(env, [
+    await applyTableWrites(env, [
       mutation.write,
       valueWrite("PlatformAuditLog", nextRowNumber(tables.PlatformAuditLog), mutation.audit)
-    ], { spreadsheetId: getPlatformSpreadsheetId(env) });
+    ]);
     return json({
       success: true,
       message: "Revision opened. Published timetable remains unchanged until you publish the revision.",
@@ -844,7 +842,7 @@ async function readGlobalTimetableTables(env) {
     "PlatformConfig",
     "PlatformAuditLog"
   ];
-  const entries = await Promise.all(names.map(async name => [name, await readPlatformSheet(env, name)]));
+  const entries = await Promise.all(names.map(async name => [name, await readTableRows(env, name)]));
   const tables = Object.fromEntries(entries);
   requireGlobalTimetableSchema(tables.PlatformConfig);
   return tables;
@@ -873,7 +871,7 @@ async function writeGeneratedSessions(env, user, tables, run, records, timestamp
     ["RunID", "SubjectID", "ModuleID", "SessionDate", "StartTime", "EndTime", "TeacherAccountID", "ZoomLink", "SessionDescription", "Active"]));
   if (stateMutation) auditRows.push(stateMutation.audit);
   if (auditRows.length) writes.push(rangeWrite("PlatformAuditLog", nextRowNumber(tables.PlatformAuditLog), auditRows));
-  await batchUpdateGoogleSheetValues(env, writes, { spreadsheetId: getPlatformSpreadsheetId(env) });
+  await applyTableWrites(env, writes);
 }
 
 async function writeSessionUpdate(env, user, tables, run, existing, record, changedFields, lifecycleMutation, timestamp) {
@@ -890,7 +888,7 @@ async function writeSessionUpdate(env, user, tables, run, existing, record, chan
   if (lifecycleMutation) audits.push(lifecycleMutation.audit);
   if (stateMutation) audits.push(stateMutation.audit);
   if (audits.length) writes.push(rangeWrite("PlatformAuditLog", nextRowNumber(tables.PlatformAuditLog), audits));
-  await batchUpdateGoogleSheetValues(env, writes, { spreadsheetId: getPlatformSpreadsheetId(env) });
+  await applyTableWrites(env, writes);
 }
 
 async function writeRescheduledSession(env, user, tables, run, source, replacement, sourceLifecycleMutation, replacementLifecycleMutation, timestamp) {
@@ -915,7 +913,7 @@ async function writeRescheduledSession(env, user, tables, run, source, replaceme
   ];
   if (stateMutation) audits.push(stateMutation.audit);
   writes.push(rangeWrite("PlatformAuditLog", nextRowNumber(tables.PlatformAuditLog), audits));
-  await batchUpdateGoogleSheetValues(env, writes, { spreadsheetId: getPlatformSpreadsheetId(env) });
+  await applyTableWrites(env, writes);
 }
 
 async function writePublication(env, user, tables, run, publication, snapshots, lifecycleSnapshots, timestamp) {
@@ -943,7 +941,7 @@ async function writePublication(env, user, tables, run, publication, snapshots, 
       ["RunID", "SubjectID", "VersionNo", "PublishedDate", "SessionCount", "ScheduleMode", "PublishStartDate", "PublishEndDate", "ScheduleDefinition"]
     ))
   );
-  await batchUpdateGoogleSheetValues(env, writes, { spreadsheetId: getPlatformSpreadsheetId(env) });
+  await applyTableWrites(env, writes);
 }
 
 function buildSnapshotRows(tables, publication, run, subject, sessions, sessionLifecycles, user, timestamp) {

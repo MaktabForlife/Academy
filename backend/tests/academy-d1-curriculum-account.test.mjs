@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 import {courseFixture} from './fixtures/academy-d1-course-fixture.mjs';
 import {nativeBinding,setCell} from './fixtures/academy-d1-fixture.mjs';
 import {PROGRAM_IDS} from './fixtures/academy-migration-fixture.mjs';
@@ -45,8 +45,8 @@ test('Global Curriculum creates subjects, modules and tasks atomically without c
   assert.equal((await write(env,base+'module/save',{moduleId:module,subjectId:'subject-1',moduleName:'Moved',sortOrder:1,active:true},token,current.workflowRevision)).status,409);
   assert.equal((await write(env,base+'subject/save',{subjectId:subject,subjectName:'Stale rename',active:true},token,initial.workflowRevision)).body.code,'WORKFLOW_CHANGED');
   assert.equal((await post(env,base+'access/save',{accountId:'account-0002',subjectId:subject,active:true},token)).body.code,'COURSE_ACCESS_SCHEMA_REQUIRED');
-  assert.equal(initial.capabilities.resourceManagement,true);
-  assert.equal((await post(env,base+'resources/save-batch',{},token)).body.code,'INVALID_MANAGEMENT_REQUEST');
+  assert.equal(initial.capabilities.resourceManagement,false);
+  assert.equal((await post(env,base+'resources/save-batch',{},token)).body.code,'PRIVATE_MEDIA_NOT_ENABLED');
   assert.equal(db.prepare('SELECT count(*) n FROM operation_receipts').get().n,2);
   const publication=db.prepare("SELECT snapshot_json FROM timetable_publications WHERE pattern='COURSE'").get().snapshot_json;
   ok(await write(env,base+'subject/save',{subjectId:'subject-1',subjectName:'Archived Global Subject',active:false},token,current.workflowRevision));
@@ -119,19 +119,3 @@ test('older account timetable shares paid privacy, timed joining and a bounded 1
   const workspace=ok(await post(env,'/api/account/workspace',{},token));assert.equal(workspace.sessionStore,'D1');assert.match(workspace.workspace.path,/^\/academy\/#activity\/PROGRAM\//);
   assert.equal((await post(env,'/api/account/global-workspace',{},token)).status,403);
 },snapshot=>setCell(snapshot,'PublishedGlobalTimetableSessions',1,'ZoomLink','https://zoom.us/j/12345678901')));
-
-test('existing Global Curriculum script loads D1 and reuses its retry identifier after an uncertain save',()=>use(async({env,db})=>{
-  const token=await login(env),elements=new Map(),element=id=>{if(!elements.has(id))elements.set(id,{innerHTML:'',textContent:'',hidden:false,dataset:{},classList:{toggle(){},add(){},remove(){}},addEventListener(){},setAttribute(){},querySelectorAll:()=>[],querySelector:()=>null});return elements.get(id);};
-  const calls=[];let uncertain=true;
-  const apiPost=async(path,input={},auth=token)=>{calls.push({path,input});const result=(await post(env,path,input,auth||token)).body;if(uncertain&&path===base+'subjects/save-batch'&&result.success){uncertain=false;return {success:false,retryable:true,error:'Uncertain response'};}return result;};
-  const window={showScreen:()=>true,M4LAuth:{apiPost}},context={window,apiPost,state:{token,user:{type:'account',role:'GLOBAL_ADMIN',platformrole:'GLOBAL_ADMIN'}},crypto,Date,Map,Set,console,alert(){},document:{addEventListener(){},getElementById:element,querySelectorAll:()=>[],querySelector:()=>null}};
-  let code=readFileSync(new URL('../../js/m4l-global-curriculum.js',import.meta.url),'utf8'),at=code.indexOf('  window.M4LGlobalCurriculum =');
-  code=code.slice(0,at)+'  window.testWorkflowPost=workflowPost;window.testSelectTab=selectTab;\n'+code.slice(at);vm.runInNewContext(code,context);
-  assert.equal(await window.M4LGlobalCurriculum.show(),true);
-  const input=batch('Browser Subject');assert.equal((await window.testWorkflowPost(base+'subjects/save-batch',input,token)).success,false);
-  assert.equal((await window.testWorkflowPost(base+'subjects/save-batch',input,token)).replayed,true);
-  const writes=calls.filter(c=>c.path===base+'subjects/save-batch');assert.equal(writes[0].input.operationId,writes[1].input.operationId);
-  assert.equal(db.prepare("SELECT count(*) n FROM activities WHERE name='Browser Subject'").get().n,1);
-  window.testSelectTab('access');assert.ok([...elements.values()].some(e=>e.innerHTML.includes('Subscription editing is not available yet')));
-  window.testSelectTab('resources');assert.ok([...elements.values()].some(e=>e.innerHTML.includes('Add/Modify Global Resources')));
-}));

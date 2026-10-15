@@ -1,9 +1,9 @@
 import {profileChange} from '../tools/academy-profile-client.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 import {academyD1Repository} from '../src/academy/d1/repository.js';
-import {createSessionToken,hashPin,isSaltedPinHash} from '../src/lib/auth.js';
+import {createSessionToken,hashPin,isSaltedPinHash} from '../src/lib/auth-primitives.js';
 import {fixtureDatabase} from './fixtures/academy-d1-fixture.mjs';
 import {compareSnapshotFlow} from '../tools/academy-d1-parity.mjs';
 import {readFileSync} from 'node:fs';
@@ -223,7 +223,7 @@ test('the application entrypoint keeps rehearsals isolated and fails closed on a
   globalThis.fetch=async()=>{outbound++;throw Error('Sheets must not be contacted');};
   try {
     const admin=await login(env,'0001');assert.equal(admin.body.sessionStore,'D1');
-    assert.equal((await call({...env,ACADEMY_D1_MODE:'OFF'},'/api/account/session',{},admin.body.token)).status,401);
+    assert.equal((await call({...env,ACADEMY_D1_MODE:'OFF'},'/api/account/session',{},admin.body.token)).status,503);
     const unmigrated=await call(env,'/api/admin/platform/program-timetable/publish',{name:'Blocked'},admin.body.token);
     assert.equal(unmigrated.status,503);
     assert.equal(unmigrated.body.code,'LEARNING_IMPORT_REQUIRED');
@@ -236,13 +236,13 @@ test('the application entrypoint keeps rehearsals isolated and fails closed on a
     assert.equal((await login(env)).status,503);
     assert.equal(outbound,0);
     const regular=await worker.fetch(new Request('http://localhost/'),{ACADEMY_D1_MODE:'OFF'});
-    assert.equal((await regular.json()).service,'rebootworker');
+    assert.equal(regular.status,503);assert.equal((await regular.json()).code,'ACADEMY_STORAGE_MODE_INVALID');
   }finally{globalThis.fetch=originalFetch;}
 }));
 
 test('only the current development Worker configuration binds the main Academy database',()=>{
   const config=JSON.parse(readFileSync(new URL('../wrangler.jsonc',import.meta.url),'utf8'));
-  assert.equal(config.d1_databases,undefined);
+  assert.equal(config.name,'devrebootworker');assert.equal(config.main,'src/academy-worker-runtime.js');
   assert.equal(config.env.development.name,'devrebootworker');
   assert.deepEqual(config.env.development.d1_databases,[{binding:'ACADEMY_DB',database_name:'maktab-academy',database_id:'7e732b79-a72f-4da6-be83-524919c49ba4',migrations_dir:'migrations/academy'}]);
   assert.equal(config.env.development.vars,undefined);

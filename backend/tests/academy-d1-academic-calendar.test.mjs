@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {courseFixture} from './fixtures/academy-d1-course-fixture.mjs';
 import {PROGRAM_IDS} from './fixtures/academy-migration-fixture.mjs';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 import {normalizeAvailability,availableForSession,availabilityBlocks} from '../src/academy/availability-ranges.js';
 import {termBreaks} from '../src/academy/d1/academic-calendar.js';
 const base='/api/academy/calendar/',av='/api/academy/teacher-availability/',scope='PROGRAM:'+PROGRAM_IDS[0];

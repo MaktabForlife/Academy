@@ -5,7 +5,7 @@ import {learningFixture} from './fixtures/academy-d1-learning-fixture.mjs';
 import {appendRecord,nativeBinding} from './fixtures/academy-d1-fixture.mjs';
 import {fixtureTab} from './fixtures/academy-migration-fixture.mjs';
 import {verifyCourseCalendarPlan,importCourseCalendarPlan} from '../tools/academy-migration/course-calendar.mjs';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const base='/api/admin/platform/global/',cal='/api/admin/platform/calendar/';
@@ -113,24 +113,4 @@ test('authority is checked inside the write transaction and lost acknowledgement
   const revoked={...binding,batch:async statements=>{if(revoking&&statements.length>5&&statements.length<20&&db.prepare('SELECT count(*) n FROM academy_calendar_events').get().n===1){revoking=false;db.exec("UPDATE global_role_assignments SET active=0");}return binding.batch(statements);}};
   const denied=await change({...env,ACADEMY_DB:{withSession:()=>revoked}},cal+'batch-save',{changes:[{eventType:'TERM',description:'Denied',startDate:'2026-10-12',endDate:'2026-10-13'}]},token,replay.workflowRevision);
   assert.equal(denied.status,401);assert.equal(db.prepare('SELECT count(*) n FROM academy_calendar_events').get().n,1);
-}));
-test('the existing Course and calendar scripts load D1 contracts and retain retry identifiers after uncertain responses',()=>use(async({env,db})=>{
-  const token=await login(env);
-  for(const name of ['m4l-global-course-scheduler','m4l-global-delivery','m4l-global-timetable','m4l-academy-calendar']){
-    const elements=new Map(),element=id=>{if(!elements.has(id))elements.set(id,{innerHTML:'',textContent:'',hidden:false,dataset:{},classList:{toggle(){},add(){},remove(){}},addEventListener(){},setAttribute(){},removeAttribute(){},querySelectorAll:()=>[],querySelector:()=>null});return elements.get(id);};
-    const calls=[];let uncertain=false;
-    const apiPost=async(path,input={},receivedToken=token)=>{calls.push({path,input});const result=(await post(env,path,input,receivedToken||token)).body;
-      if(uncertain&&path===cal+'batch-save'&&result.success){uncertain=false;return {success:false,retryable:true,error:'Uncertain network response'};}return result;};
-    const window={M4LAuth:{apiPost},showScreen:()=>true,confirm:()=>true};
-    const context={window,showScreen:()=>true,state:{token,user:{type:'account',role:'GLOBAL_ADMIN'}},apiPost,crypto,Date,Map,Set,console,alert(){},requestAnimationFrame:fn=>fn(),document:{addEventListener(){},getElementById:element,querySelectorAll:()=>[],querySelector:()=>null}};
-    let code=readFileSync(new URL(`../../js/${name}.js`,import.meta.url),'utf8'),at=code.lastIndexOf('  bind();');
-    code=code.slice(0,at)+'  window.testWorkflowPost = workflowPost;\n'+code.slice(at);vm.runInNewContext(code,context);
-    const ui=window[{ 'm4l-global-course-scheduler':'M4LGlobalCourseScheduler','m4l-global-delivery':'M4LGlobalDelivery','m4l-global-timetable':'M4LGlobalTimetable','m4l-academy-calendar':'M4LAcademyCalendar'}[name]];
-    await ui.show();assert.ok(calls.some(c=>c.path.endsWith('/get')),name);assert.ok(![...elements.values()].some(e=>/unavailable<\/h3>/.test(e.innerHTML)));
-    const input={changes:[{eventType:'TERM',description:name,startDate:'2026-10-10',endDate:'2026-10-11'}]};
-    uncertain=true;assert.equal((await window.testWorkflowPost(cal+'batch-save',input,token)).success,false);
-    const replay=await window.testWorkflowPost(cal+'batch-save',input,token);assert.equal(replay.success,true);assert.equal(replay.replayed,true);
-    const writes=calls.filter(c=>c.path===cal+'batch-save');assert.equal(writes[0].input.operationId,writes[1].input.operationId);assert.equal(writes[0].input.workflowRevision,writes[1].input.workflowRevision);
-  }
-  assert.equal(db.prepare('SELECT count(*) n FROM academy_calendar_events').get().n,4);
 }));

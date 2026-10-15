@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { buildOperationalImport, importOperationalPlan, verifyOperationalPlan, operationalSQL, migrations } from '../tools/academy-migration/operational.mjs';
-import { createSaltedPinHash } from '../src/lib/auth.js';
+import { createSaltedPinHash } from '../src/lib/auth-primitives.js';
 import { POLICY_FORMAT } from '../tools/academy-migration/plan.mjs';
 import { migrationFixture, fixtureTab, PROGRAM_IDS } from './fixtures/academy-migration-fixture.mjs';
 

@@ -7,7 +7,7 @@ import {academyD1Repository} from '../src/academy/d1/repository.js';
 import {d1Entrance} from '../src/academy/d1/entrance.js';
 import {d1LessonJoin,websiteEntrance} from '../src/academy/d1/lesson-join.js';
 import {publicTimetableSnapshot,publicTimetableDay} from '../src/academy/d1/public-timetable.js';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 
 test('public Free Program and Course joining opens five minutes early and is rechecked on every click',async()=>{
   const f=await courseFixture(s=>setCell(s,'PublishedGlobalTimetableSessions',1,'ZoomLink','https://zoom.us/j/12345678901')),repository=academyD1Repository(f.env),now=new Date('2026-10-09T08:00:00Z');

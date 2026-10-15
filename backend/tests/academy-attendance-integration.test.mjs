@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 import {attendanceIntegrationFixture,attendanceProgramId as id,attendanceDate,previousAttendanceDate} from './fixtures/academy-attendance-fixture.mjs';
 const markup=readFileSync(new URL('../../programs/attendance.html',import.meta.url),'utf8'),source=readFileSync(new URL('../../js/m4l-program-attendance.js',import.meta.url),'utf8');
 const ids=new Set([...markup.matchAll(/id="([^"]+)"/g)].map(m=>m[1]));

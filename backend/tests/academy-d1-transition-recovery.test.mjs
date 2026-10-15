@@ -9,7 +9,7 @@ import {activationFacts,buildCoreActivationPlan} from '../tools/academy-migratio
 import {activationArtifactDigest,applyCoreActivationD1,syntheticTransitionWorker} from '../tools/academy-migration/remote-activation.mjs';
 import {atomicSnapshotGuard} from '../tools/academy-migration/atomic-snapshot.mjs';
 import {captureRecoverySnapshot,restoreRecoverySnapshot,recoveryDelta,recoverySQL,snapshotFromReadback} from '../tools/academy-migration/recovery.mjs';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 import {mkdtempSync,readFileSync,rmSync,statSync,writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';

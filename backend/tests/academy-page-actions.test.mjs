@@ -4,7 +4,7 @@ import {runInNewContext} from 'node:vm';
 
 const source=await readFile(new URL('../../js/m4l-academy-page-actions.js',import.meta.url),'utf8');
 function control({active=true,hidden=false,parentHidden=false,disabled=false,standalone=false}={}){
-  return {hidden,disabled,clicks:0,parentElement:{closest:()=>parentHidden?{}:null},closest:()=>standalone?null:{classList:{contains:()=>active}},click(){if(!this.disabled)this.clicks++;}};
+  return {hidden,disabled,clicks:0,getClientRects:()=>hidden||parentHidden?[]:[{}],parentElement:{closest:()=>parentHidden?{}:null},closest:()=>standalone?null:{classList:{contains:()=>active}},click(){if(!this.disabled)this.clicks++;}};
 }
 function fixture(controls=[],assessmentRefresh){
   let handler,reloads=0;const removed=[];

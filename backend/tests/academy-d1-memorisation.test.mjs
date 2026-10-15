@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {memorisationFixture} from './fixtures/academy-memorisation-fixture.mjs';
 import {attendanceProgramId} from './fixtures/academy-attendance-fixture.mjs';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 const path='/api/academy/progress/',scope='PROGRAM:'+attendanceProgramId;
 const post=async(env,action,input={},token='')=>{const r=await worker.fetch(new Request('http://localhost'+(action.startsWith('/')?action:path+action),{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),env);return {status:r.status,body:await r.json()};};
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};

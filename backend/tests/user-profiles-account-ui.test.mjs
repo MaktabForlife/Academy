@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {fixtureDatabase} from './fixtures/academy-d1-fixture.mjs';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 const source=readFileSync(new URL('../../js/m4l-user-profiles.js',import.meta.url),'utf8'),markup=readFileSync(new URL('../../users/index.html',import.meta.url),'utf8');
 const settle=async()=>{for(let i=0;i<20;i++)await new Promise(r=>setTimeout(r,2));};
 test('profile sheet orders compact editable account columns, filters active learning areas and explicitly confirms PIN resets',async()=>{

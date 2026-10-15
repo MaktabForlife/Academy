@@ -104,7 +104,7 @@ const second={...first,dataset:{academyProgram:'next-program'},attrs:{}};
 program.children[1].querySelectorAll=()=>[first,second];
 const initialRequests=program.requests.length;program.location.search='?program=next-program';program.handlers.get('m4l-program-selection')();
 assert.equal(first.attrs['aria-current'],undefined);assert.equal(second.attrs['aria-current'],'page');assert.equal(program.requests.length,initialRequests,'Program selection updates the activity strip without another account lookup');
-for(const file of ['academy/library/index.html','academy/open-library/index.html','academy/library/manage/index.html','programs/index.html','programs/manage.html','programs/timetable.html','programs/attendance.html','programs/library.html','programs/library-view.html','users/index.html','recorder/index.html']) {
+for(const file of ['academy/library/index.html','academy/open-library/index.html','academy/library/manage/index.html','programs/index.html','programs/manage.html','programs/timetable.html','programs/attendance.html','users/index.html','recorder/index.html']) {
   const html=await readFile(new URL(`../../${file}`,import.meta.url),'utf8');
   assert.match(html,/m4l-academy-navigation\.js/);assert.match(html,/m4l-academy-navigation\.css/);assert.match(html,/m4l-academy-page-actions\.js/);assert.match(html,/m4l-academy-page-actions\.css/);
 }
@@ -121,7 +121,7 @@ async function programHeader(path,globalAdmin=true,options={}) {
     fetch:async()=>{requests.push('list');return {ok:true,json:async()=>({success:true,store:'D1',globalAdmin,programs:[{id:programId,name:'Synthetic <Program>',status:'ACTIVE'}],...options})};}});
   await flush();return {headers,classes,handlers,tokens,window,requests};
 }
-for(const [page,label] of [['timetable','Timetable'],['manage','People'],['lesson-media','Lesson media'],['media','Library'],['library','Library'],['library-view','Library'],['attendance','Attendance']]) {
+for(const [page,label] of [['timetable','Timetable'],['manage','People'],['lesson-media','Lesson media'],['media','Library'],['attendance','Attendance']]) {
   for(const ending of ['', '.html', '/']) {
     const view=await programHeader('/programs/'+page+ending);
     assert.equal(view.headers.length,1);const html=view.headers[0].innerHTML;
@@ -164,3 +164,5 @@ const attendancePage=await readFile(new URL('../../programs/attendance.html',imp
 assert.match(attendancePage,/m4l-program-attendance\.js\?v=106\.21/);
 assert.match(attendancePage,/id="pa-classes"/);assert.doesNotMatch(attendancePage,/Coming soon/);
 console.log('Program Library stays Coming soon; Attendance loads its real editor; timetable owns the public card and omits duplicated Program settings.');
+
+for(const file of ['programs/library.html','programs/library-view.html']){const html=await readFile(new URL('../../'+file,import.meta.url),'utf8');assert.match(html,/Private Library media is not available yet/);assert.match(html,/href="\/academy\/"/);}

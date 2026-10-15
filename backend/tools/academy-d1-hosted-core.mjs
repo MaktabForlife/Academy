@@ -13,7 +13,7 @@ import {buildLearningImport,importLearningPlan,learningSQL} from './academy-migr
 import {buildCourseCalendarImport,importCourseCalendarPlan,courseCalendarSQL} from './academy-migration/course-calendar.mjs';
 import {buildCoreActivationPlan,applyCoreActivationLocally,activationFacts} from './academy-migration/activation.mjs';
 import {CORE_ACTIVATION_CHECKS} from '../src/academy/d1/activation-policy.js';
-import {createSaltedPinHash} from '../src/lib/auth.js';
+import {createSaltedPinHash} from '../src/lib/auth-primitives.js';
 
 const MAIN_DATABASE='7e732b79-a72f-4da6-be83-524919c49ba4';
 export function validateHostedCoreTarget({databaseId,workerName}) {
@@ -60,9 +60,9 @@ export async function prepareHostedCore({directory,databaseId,workerName,account
     try{roundtrip.exec('PRAGMA foreign_keys=ON');roundtrip.exec(sql);if(activationFacts(roundtrip).fingerprint!==activationFacts(db).fingerprint)throw Error('SYNTHETIC_INSTALL_ROUNDTRIP_FAILED');}
     finally{roundtrip.close();}
     save('synthetic-install.sql',sql);save('test-secrets.json',JSON.stringify(secrets));
-    const config={name:workerName,account_id:accountId,main:resolve(repo,'backend/src/worker-runtime.js'),compatibility_date:'2026-10-10',workers_dev:true,preview_urls:false,
+    const config={name:workerName,account_id:accountId,main:resolve(repo,'backend/src/academy-worker-runtime.js'),compatibility_date:'2026-10-10',workers_dev:true,preview_urls:false,
       observability:{enabled:true,head_sampling_rate:1},secrets:{required:['PIN_SECRET','SESSION_SECRET']},
-      vars:{ENVIRONMENT:'development',ACADEMY_D1_MODE:activation==='active'?'ACTIVE':'REHEARSAL',ACADEMY_D1_RUN_ID:base.runId,ACADEMY_LIBRARY_MODE:'PUBLIC_ONLY',PLATFORM_SPREADSHEET_ID:'synthetic-'+prefix},
+      vars:{ENVIRONMENT:'development',ACADEMY_D1_MODE:activation==='active'?'ACTIVE':'REHEARSAL',ACADEMY_D1_RUN_ID:base.runId,ACADEMY_LIBRARY_MODE:'PUBLIC_ONLY',ACADEMY_OPEN_LIBRARY_STORAGE_KEY:'synthetic-'+prefix},
       d1_databases:[{binding:'ACADEMY_DB',database_name:workerName,database_id:databaseId}],
       durable_objects:{bindings:[{name:'PROGRAM_TIMETABLE_COORDINATOR',class_name:'ProgramTimetableCoordinator'}]},
       migrations:[{tag:'core-test-only-v1',new_sqlite_classes:['ProgramTimetableCoordinator']}],

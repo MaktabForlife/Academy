@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {mediaFixture} from './fixtures/academy-lesson-media-fixture.mjs';
 import {PROGRAM_IDS} from './fixtures/academy-migration-fixture.mjs';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 const id=PROGRAM_IDS[0],activity='PROGRAM:'+id;
 async function fixture(run){const f=await mediaFixture();try{for(const migration of ['0022_academic_calendar.sql','0023_lesson_planning.sql','0024_announcements_and_plan_requirements.sql'])f.db.exec(readFileSync(new URL('../migrations/academy/'+migration,import.meta.url),'utf8'));f.env.AUTH_LOGIN_RATE_LIMITER={limit:async()=>({success:true})};await run(f);}finally{f.db.close();}}
 const call=async(f,action,input,token)=>{const r=await worker.fetch(new Request('http://localhost/api/admin/platform/program-timetable/'+action,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({id,...input})}),f.env);return {status:r.status,body:await r.json()};};

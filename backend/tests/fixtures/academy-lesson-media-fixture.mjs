@@ -1,7 +1,7 @@
 import {readFileSync} from 'node:fs';
 import {assessmentFixture} from './academy-assessment-fixture.mjs';
 import {MOU_MEDIA_PROGRAM} from '../../src/academy/d1/lesson-media.js';
-import worker from '../../src/worker.js';
+import worker from '../../src/academy-runtime.js';
 import {createHash} from 'node:crypto';
 export async function mediaFixture(){
  const f=await assessmentFixture(),scope=MOU_MEDIA_PROGRAM;

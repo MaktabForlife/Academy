@@ -8,9 +8,9 @@ import {fixtureDatabase} from './fixtures/academy-d1-fixture.mjs';
 import {buildOperationalImport} from '../tools/academy-migration/operational.mjs';
 import {buildLearningImport,importLearningPlan} from '../tools/academy-migration/learning.mjs';
 import {ATTENDANCE_HEADERS} from '../src/programs/attendance-model.js';
-import {ACADEMY_LIBRARY_HEADERS} from '../src/lib/academy-library-policy.js';
+import {ACADEMY_LIBRARY_HEADERS} from '../tools/academy-migration/source-schema.mjs';
 import {programToday,WEEKLY_SCHEMA} from '../src/programs/weekly-timetable.js';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 const timetablePath='/api/admin/platform/program-timetable/',attendancePath='/api/program-attendance/',libraryPath='/api/admin/platform/program-library/';
 const id=PROGRAM_IDS[0],activity=`PROGRAM:${id}`,today=()=>programToday('Africa/Johannesburg');
 const post=async(env,path,input={},token='')=>{const response=await worker.fetch(new Request(`http://localhost${path}`,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:JSON.stringify(input)}),env);return {status:response.status,body:await response.json()};};
@@ -91,24 +91,7 @@ test('attendance batches roll back on a failed mark and recover a lost acknowled
   assert.equal(ok(await post(env,attendancePath+'submit',input,token)).replayed,true);assert.equal(ok(await post(env,attendancePath+'submit',input,token)).replayed,true);
   assert.ok(anchor);
 }));
-test('Library catalogue contains metadata only and respects scoped roles, exclusions and archived parents',()=>use(async({env,db,queries})=>{
-  const student=await login(env,'0002'),teacher=await login(env,'0003'),admin=await login(env,'0004');
-  const before=queries.length,catalogue=ok(await post(env,'/api/academy/library/catalogue',{},student));assert.equal(catalogue.resources.length,1);assert.equal(catalogue.resources[0].id,`${activity}:${resource}`);
-  assert.ok(queries.length-before<=50,`Catalogue used ${queries.length-before} queries`);
-  assert.ok(!JSON.stringify(catalogue).includes(fileId));assert.ok(!JSON.stringify(catalogue).includes(coverId));
-  assert.equal(ok(await post(env,'/api/program-library/catalogue',{id},teacher)).canManage,false);
-  assert.equal((await post(env,libraryPath+'manage',{id},teacher)).status,403);
-  assert.equal(ok(await post(env,libraryPath+'manage',{id},admin)).managementEditable,true);
-  assert.equal((await post(env,libraryPath+'manage',{id:PROGRAM_IDS[1]},admin)).status,403);
-  db.prepare('INSERT INTO library_access_policies VALUES(?,?,?,?)').run(`${activity}:${resource}`,'STAFF_ONLY','','');
-  assert.equal(ok(await post(env,'/api/academy/library/catalogue',{},student)).resources.length,0);
-  assert.equal(ok(await post(env,'/api/academy/library/catalogue',{},teacher)).resources.length,1);
-  db.prepare('INSERT INTO library_exclusions VALUES(?)').run(`${activity}:${resource}`);
-  assert.equal(ok(await post(env,'/api/academy/library/catalogue',{},teacher)).resources.length,0);
-  db.exec('DELETE FROM library_exclusions');db.exec('DELETE FROM library_access_policies');
-  db.prepare('UPDATE modules SET active=0 WHERE activity_key=?').run(activity);
-  assert.equal(ok(await post(env,'/api/academy/library/catalogue',{},teacher)).resources.length,0);
-}));
+
 test('learning import excludes legacy workspaces and inactive account marks, validates source, and cannot run twice',async()=>{
   const f=await fixtureDatabase(12,s=>{
     withLearningSource(s);const book=s.workbooks[1],date='2026-10-08',pub='program-publication-1',anchor='RULE-flow-1@4';
@@ -134,7 +117,7 @@ test('learning import excludes legacy workspaces and inactive account marks, val
     assert.equal(f.db.prepare('SELECT learner_count FROM attendance_registers').get().learner_count,1);
   }finally{f.db.close();}
 });
-test('the existing timetable, attendance and Library screens use the D1 contracts',()=>use(async({env,db})=>{
+test('the existing timetable and attendance screens use the D1 contracts',()=>use(async({env,db})=>{
   const admin=await login(env,'0004'),teacher=await login(env,'0003');
   const initial=ok(await post(env,timetablePath+'get',{id},admin));
   ok(await post(env,timetablePath+'save',{id,revision:initial.revision,draft:draft(),operationId:crypto.randomUUID()},admin));
@@ -160,10 +143,5 @@ test('the existing timetable, attendance and Library screens use the D1 contract
   assert.match(attendance.element('pa-classes').innerHTML,/Synthetic class/);
   attendance.element('pa-classes').listeners.click({target:{closest:()=>({dataset:{submit:'class-1'}})}});await settle();
   assert.equal(db.prepare('SELECT count(*) n FROM attendance_registers').get().n,1,attendance.element('pa-message').textContent);
-  const library=screen('../../programs/library.html','../../js/m4l-program-library.js',admin);await settle();
-  assert.equal(library.element('pl-add-drive').disabled,false,library.element('pl-message').textContent);
-  assert.equal(library.element('pl-add-device').disabled,true,'Device upload awaits explicit bridge setup');
-  library.element('pl-list').onclick({target:{closest:()=>({dataset:{edit:resource}})}});
-  assert.equal(library.element('pl-save').disabled,false);assert.equal(library.element('pl-name').value,'Synthetic book');
-  assert.ok([...timetable.requests,...attendance.requests,...library.requests].every(r=>r.url.startsWith('/api/')));
+  assert.ok([...timetable.requests,...attendance.requests].every(r=>r.url.startsWith('/api/')));
 }));

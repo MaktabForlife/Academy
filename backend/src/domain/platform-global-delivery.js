@@ -43,12 +43,10 @@ const HTTPS_URL_PATTERN = /^https:\/\//i;
 export function createGlobalDeliveryEndpoints(storage = {}) {
   const getAuthUser = storage.getAuthUser;
   if(typeof getAuthUser!=="function")throw new Error("Missing domain storage dependency: getAuthUser");
-  const batchUpdateGoogleSheetValues = storage.batchUpdateGoogleSheetValues;
-  if(typeof batchUpdateGoogleSheetValues!=="function")throw new Error("Missing domain storage dependency: batchUpdateGoogleSheetValues");
-  const getPlatformSpreadsheetId = storage.getPlatformSpreadsheetId;
-  if(typeof getPlatformSpreadsheetId!=="function")throw new Error("Missing domain storage dependency: getPlatformSpreadsheetId");
-  const readPlatformSheet = storage.readPlatformSheet;
-  if(typeof readPlatformSheet!=="function")throw new Error("Missing domain storage dependency: readPlatformSheet");
+  const applyTableWrites = storage.applyTableWrites;
+  if(typeof applyTableWrites!=="function")throw new Error("Missing domain storage dependency: applyTableWrites");
+  const readTableRows = storage.readTableRows;
+  if(typeof readTableRows!=="function")throw new Error("Missing domain storage dependency: readTableRows");
 
 async function getPlatformGlobalDeliveryEndpoint(request, env) {
   const permission = await requireDeliveryAdmin(request, env);
@@ -404,7 +402,7 @@ async function migratePlatformGlobalCourseAccessEndpoint(request, env) {
       permission.user.role, "", "MIGRATE_GLOBAL_COURSE_ACCESS_MODEL", "PLATFORM_SCHEMA",
       COURSE_ACCESS_SCHEMA_VERSION, JSON.stringify(["GlobalSubjectRuns.AccessModel", "PlatformSchemaVersion"])
     ])];
-    await batchUpdateGoogleSheetValues(env, writes, { spreadsheetId: getPlatformSpreadsheetId(env) });
+    await applyTableWrites(env, writes);
     return json({
       success: true,
       message: `${runRows.length} Course access value${runRows.length === 1 ? "" : "s"} prepared as FREE/PAID`,
@@ -428,8 +426,8 @@ async function migratePlatformGlobalCourseSchedulingEndpoint(request, env) {
     const commit = body.commit === true;
     const tables = await readDeliveryTables(env);
     const [publications, publishedSessions] = await Promise.all([
-      readPlatformSheet(env, "GlobalTimetablePublications"),
-      readPlatformSheet(env, "PublishedGlobalTimetableSessions")
+      readTableRows(env, "GlobalTimetablePublications"),
+      readTableRows(env, "PublishedGlobalTimetableSessions")
     ]);
     const schema = readPlatformSchemaVersion(tables.PlatformConfig);
     const ready = tables.GlobalSubjectRuns._courseScheduleSchemaReady === true &&
@@ -563,7 +561,7 @@ async function migratePlatformGlobalCourseSchedulingEndpoint(request, env) {
         ])
       ])
     ];
-    await batchUpdateGoogleSheetValues(env, writes, { spreadsheetId: getPlatformSpreadsheetId(env) });
+    await applyTableWrites(env, writes);
     return json({
       success: true,
       message: schema.value === "102.0.9"
@@ -624,7 +622,7 @@ async function readDeliveryTables(env) {
     "PlatformConfig",
     "PlatformAuditLog"
   ];
-  const entries = await Promise.all(names.map(async name => [name, await readPlatformSheet(env, name)]));
+  const entries = await Promise.all(names.map(async name => [name, await readTableRows(env, name)]));
   return Object.fromEntries(entries);
 }
 
@@ -665,7 +663,7 @@ async function writeDeliveryMutation(env, user, tables, mutation) {
     }
   }
   writes.push(rangeWrite("PlatformAuditLog", nextRowNumber(tables.PlatformAuditLog), audits));
-  await batchUpdateGoogleSheetValues(env, writes, { spreadsheetId: getPlatformSpreadsheetId(env) });
+  await applyTableWrites(env, writes);
 }
 
 function normalizeCourseScheduleDefinitionForSave(value, tables, subject) {

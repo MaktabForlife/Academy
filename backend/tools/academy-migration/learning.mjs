@@ -1,5 +1,5 @@
 import {ATTENDANCE_HEADERS,readRegisters} from '../../src/programs/attendance-model.js';
-import {ACADEMY_LIBRARY_HEADERS} from '../../src/lib/academy-library-policy.js';
+import {ACADEMY_LIBRARY_HEADERS} from './source-schema.mjs';
 import {TIMETABLE_HEADERS} from '../../src/programs/timetable-model.js';
 import {publicationRecord} from '../../src/programs/weekly-timetable.js';
 import {PLATFORM_SHEET_HEADERS} from '../../src/lib/platform-schema.js';

@@ -90,13 +90,6 @@ try {
   }
   assert.equal(fetchCalls.length, 0);
 
-  const resourceSource = fs.readFileSync(path.join(repoRoot, "js/m4l-resources.js"), "utf8");
-  assert.match(resourceSource, /return `\/pdf-file\/\$\{base64UrlEncode\(cleanLink\)\}`;/);
-  assert.doesNotMatch(
-    resourceSource,
-    /isPrivateDriveResourceLink\(cleanLink\)[\s\S]{0,120}encodeURIComponent\(cleanLink\)/
-  );
-
   console.log("pdf-private-drive-proxy.test.mjs: PASS");
 } finally {
   globalThis.fetch = originalFetch;

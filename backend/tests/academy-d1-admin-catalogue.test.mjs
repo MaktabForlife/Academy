@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 import {courseFixture} from './fixtures/academy-d1-course-fixture.mjs';
 
 const profiles='/api/admin/platform/user-profiles/',catalogue='/api/admin/platform/learning-catalogue/get';

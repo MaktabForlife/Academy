@@ -7,7 +7,7 @@ import {academyD1Repository} from '../src/academy/d1/repository.js';
 import {d1Entrance} from '../src/academy/d1/entrance.js';
 import {d1AccountTimetable} from '../src/academy/d1/account-timetable.js';
 import {timetableTeacherNames} from '../src/academy/entrance.js';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 const now=new Date('2026-10-09T07:55:00Z'),input={startDate:'2026-10-09'};
 async function post(env,path,body,token){const r=await worker.fetch(new Request('http://localhost'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(body)}),env);return {status:r.status,body:await r.json()};}
 test('current teacher names preserve multiple-teacher order, case-insensitive IDs and unavailable-profile fallbacks',()=>{

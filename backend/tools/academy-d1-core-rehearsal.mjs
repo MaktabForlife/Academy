@@ -31,7 +31,7 @@ try {
   const {build}=await import(pathToFileURL(join(runtime,'esbuild/lib/main.js')));
   const {Miniflare,convertV4MiniflareOptions}=await import(pathToFileURL(join(runtime,'miniflare/dist/src/index.js')));
   const bundle=join(directory,'worker.js');
-  await build({entryPoints:[resolve('backend/src/worker-runtime.js')],bundle:true,format:'esm',platform:'browser',target:'es2022',external:['cloudflare:workers'],outfile:bundle,logLevel:'silent'});
+  await build({entryPoints:[resolve('backend/src/academy-worker-runtime.js')],bundle:true,format:'esm',platform:'browser',target:'es2022',external:['cloudflare:workers'],outfile:bundle,logLevel:'silent'});
   step='START_LOCAL_ACTIVE_WORKER';
   // Default to the current application's compatibility date; the installed
   // local binary can lag today's hosted-test configuration date.

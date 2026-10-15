@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 import {courseFixture} from './fixtures/academy-d1-course-fixture.mjs';
 import {pdfBookmark,publicPdfFile,pdfBookmarkLink} from '../../js/m4l-pdf-bookmarks-model.mjs';
 const file='/pdf-file/'+Buffer.from('https://archive.org/download/collection/Volume2.pdf').toString('base64url');

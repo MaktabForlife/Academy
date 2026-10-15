@@ -6,8 +6,8 @@ import {pathToFileURL} from 'node:url';
 import {createHash} from 'node:crypto';
 import {validateHostedCoreTarget} from './academy-d1-hosted-core.mjs';
 
-const DIRECTORIES=['academy','account','admin','student','programs','users','js','css','icons','images','pdf-viewer','recorder'];
-const ROOT_FILES=['academy.png','ummabbadacademy.png','logo.png','app.js','styles.css','version.json',
+const DIRECTORIES=['academy','account','programs','users','js','css','icons','images','pdf-viewer','recorder'];
+const ROOT_FILES=['academy.png','ummabbadacademy.png','logo.png','version.json',
   ...['admin','student'].flatMap(role=>[`${role}-apple-touch-icon.png`,`${role}-favicon.ico`,`${role}-favicon-16x16.png`,`${role}-favicon-32x32.png`,`${role}-icon-192.png`,`${role}-icon-512.png`,`${role}-manifest.json`])];
 const EXTENSIONS=new Set(['.html','.js','.mjs','.css','.json','.png','.jpg','.jpeg','.gif','.webp','.svg','.ico','.pdf','.woff','.woff2','.ttf','.otf','.bcmap','.wasm','.pfb','.map','.mp3','.mp4','.webm','.ogg','.txt','.ftl','.icc']);
 
@@ -20,7 +20,7 @@ export function validateBrowserTarget({input,backendConfig,siteName,siteOrigin})
   const bindings=backendConfig.d1_databases;
   if(backendConfig.name!==input.workerName||bindings?.length!==1||bindings[0].binding!=='ACADEMY_DB'||bindings[0].database_id.toLowerCase()!==input.databaseId.toLowerCase()||
     backendConfig.vars?.ACADEMY_D1_MODE!=='ACTIVE'||backendConfig.vars?.ACADEMY_LIBRARY_MODE!=='PUBLIC_ONLY'||backendConfig.vars?.ACADEMY_D1_RUN_ID!==input.runId||
-    !backendConfig.vars?.PLATFORM_SPREADSHEET_ID?.startsWith('synthetic-')||!/^[a-f0-9]{32}$/.test(backendConfig.account_id||''))throw Error('ISOLATED_ACTIVE_BACKEND_REQUIRED');
+    !backendConfig.vars?.ACADEMY_OPEN_LIBRARY_STORAGE_KEY?.startsWith('synthetic-')||!/^[a-f0-9]{32}$/.test(backendConfig.account_id||''))throw Error('ISOLATED_ACTIVE_BACKEND_REQUIRED');
   if(['services','r2_buckets','kv_namespaces','queues','workflows','hyperdrive','dispatch_namespaces'].some(key=>backendConfig[key]))throw Error('UNEXPECTED_BACKEND_BINDING');
   if(backendConfig.vars.ALLOWED_ORIGINS&&backendConfig.vars.ALLOWED_ORIGINS!==siteOrigin)throw Error('UNEXPECTED_BROWSER_ORIGIN');
 }

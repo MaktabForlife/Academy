@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {planningFixture} from './academy-d1-planning.test.mjs';
-import worker from '../src/worker.js';
+import worker from '../src/academy-runtime.js';
 async function fixture(){const f=await planningFixture();const objects=new Map();f.env.LESSON_MEDIA_BUCKET={async put(k,b){objects.set(k,new Uint8Array(b));},async get(k){return objects.has(k)?{body:objects.get(k)}:null;},async delete(k){objects.delete(k);}};return {...f,objects};}
 async function use(fn){const f=await fixture();try{await fn(f);assert.deepEqual(f.db.prepare('PRAGMA foreign_key_check').all(),[]);}finally{f.db.close();}}
 const path='/api/admin/platform/announcements/';
