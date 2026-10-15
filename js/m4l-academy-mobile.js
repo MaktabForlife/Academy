@@ -22,7 +22,7 @@
   const heading=document.createElement('h2');heading.textContent='Quick links';quick.prepend(heading);
   for(const item of nav.querySelectorAll('a,button')){
    const label=item.textContent.trim(),href=item.getAttribute('href')||'',kind=item.dataset.nav==='overview'?'home':item.dataset.nav||(/calendar/.test(href)?'calendar':/library/.test(href)?'library':/surahs/.test(href)?'heart':/kaaba/.test(href)?'kaaba':'about');
-   if(kind==='home'||kind==='calendar'||kind==='timetable'){item.remove();continue;}
+   if(document.getElementById('academy-home-card')&&(kind==='home'||kind==='calendar'||kind==='timetable')){item.remove();continue;}
    item.dataset.quickKind=kind;item.replaceChildren();const icon=document.createElement('span');icon.className='quicklink-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+(icons[kind]||icons.about)+'</svg>';const text=document.createElement('span');text.className='quicklink-label';text.textContent=label;item.append(icon,text);
   }
  }
@@ -35,7 +35,7 @@
  let data=window.M4L_ACADEMY_SHELL_DATA||null;
  function openRole(key){const hash=key==='admin'?'#administration':'#timetable/'+key;if(location.pathname==='/academy/'||location.pathname==='/academy/index.html')location.hash=hash;else location.href='/academy/'+hash;}
  function update(next){
-  data=next;const signed=Boolean(data?.signedIn),global=Boolean(signed&&data.globalAdmin),roles=(signed?data.personalActivities||[]:[]).flatMap(r=>r.roles||[]);
+  data=next;const signed=Boolean(data?.signedIn),global=Boolean(signed&&data.globalAdmin),roles=signed?[...(data.workspaceRoles||[]),...(data.personalActivities||[]).flatMap(r=>r.roles||[])]:[];
   const staff=r=>r.some(x=>['TEACHER','SENIOR','PROGRAM_ADMIN','ADMIN','GLOBAL_ADMIN'].includes(x)),admin=r=>r.some(x=>['PROGRAM_ADMIN','ADMIN','GLOBAL_ADMIN'].includes(x));
   const available={learn:signed&&(global||roles.length>0),teach:signed&&(global||staff(roles)),admin:signed&&(global||admin(roles))};
   const section=location.hash.slice(1).split('/'),path=location.pathname,calendarView=path.startsWith('/academy/calendar/')?new URLSearchParams(location.search).get('view'):null;

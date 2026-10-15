@@ -9,7 +9,7 @@
   const side = document.createElement('aside');
   side.className = 'academy-connected-sidebar';
   side.setAttribute('aria-label', 'Academy');
-  side.innerHTML = `<a class="academy-connected-brand" href="/academy/#overview"><img src="/ummabbadacademy.png" alt=""><span><strong>Umm Abbad<br>Academy</strong><span class="site-version">Website V106.76</span></span></a>
+  side.innerHTML = `<a class="academy-connected-brand" href="/academy/#overview"><img src="/ummabbadacademy.png" alt=""><span><strong>Umm Abbad<br>Academy</strong><span class="site-version">Website V106.77</span></span></a>
     <nav aria-label="Academy navigation"><a href="/academy/#overview">Academy home</a><a href="/activities/surahs-in-my-heart/">Surahs in my Heart</a><a href="/activities/kaaba-puzzle/">Kaaba puzzle</a><a id="ac-recorder" href="/academy/#recorder" hidden>Voice Recorder</a><a id="ac-library" href="/academy/open-library/">Library</a><a id="ac-calendar" href="/academy/calendar/" hidden>Academic Calendar</a><a href="/academy/#about">About</a><a href="/academy/#contact">Contact</a></nav>
     <div class="academy-connected-footer"><a href="https://ummabbadacademy.com" target="_blank" rel="noopener noreferrer">Original Academy site ↗</a><button id="ac-signout" type="button" hidden>Sign out</button></div>`;
   const strip = document.createElement('nav');
@@ -26,6 +26,40 @@
   for(const a of side.querySelectorAll('a[href]'))if(a.getAttribute('href')===location.pathname)a.setAttribute('aria-current','page');
   let generation = 0;
   let d1Session = '';
+  const sessionRequests=new Map();
+
+  function sessionNavigation(result){
+    if(!result?.success||!result.account||!Array.isArray(result.contexts))return null;
+    const contexts=result.contexts,activities=new Map();
+    for(const context of contexts){
+      if(!context.courseId||!['COURSE','GLOBAL'].includes(context.scope)||!roles([context.role]))continue;
+      const kind=context.scope==='COURSE'?'PROGRAM':'COURSE',key=kind+':'+context.courseId;
+      if(!activities.has(key))activities.set(key,{id:context.courseId,name:context.courseName||'Learning area',kind,roles:[]});
+      if(!activities.get(key).roles.includes(context.role))activities.get(key).roles.push(context.role);
+    }
+    return {success:true,signedIn:true,sessionStore:result.sessionStore,profile:{name:result.account.displayName||'Academy member'},
+      globalAdmin:contexts.some(c=>c.scope==='PLATFORM'&&c.role==='GLOBAL_ADMIN'),student:contexts.some(c=>c.role==='STUDENT'),
+      workspaceRoles:[...new Set(contexts.filter(c=>roles([c.role])).map(c=>c.role))],personalActivities:[...activities.values()]};
+  }
+
+  function useSession(result,session){
+    const next=sessionNavigation(result);if(!session||session!==token()||!next)return false;
+    ++generation;render(next,session);return true;
+  }
+  async function accountSession(session){
+    if(!session||session!==token())throw Error('Your Academy account changed. Open this page again.');
+    if(sessionRequests.has(session))return sessionRequests.get(session);
+    const pending=(async()=>{
+      const response=await fetch(`${window.M4L_CONFIG?.API_BASE||''}/api/account/session`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session}`},body:'{}'});
+      const result=await response.json();
+      if(session!==token())throw Error('Your Academy account changed. Open this page again.');
+      if(!response.ok||!result.success||!sessionNavigation(result))throw Object.assign(Error(result.error||'Your Academy account could not load.'),{status:response.status,code:result.code});
+      useSession(result,session);return result;
+    })();
+    sessionRequests.set(session,pending);
+    try{return await pending;}finally{if(sessionRequests.get(session)===pending)sessionRequests.delete(session);}
+  }
+  window.M4L_ACADEMY_NAVIGATION={session:accountSession,useSession};
 
   function clear() {
     window.M4L_ACADEMY_SHELL_DATA=null;window.M4L_ACADEMY_SHELL?.update(null);
@@ -33,9 +67,25 @@
     strip.hidden = true;
     $('ac-library').href = '/academy/open-library/';
     $('ac-recorder').hidden = true;
-    $('ac-calendar').hidden = true;
+    if($('ac-calendar'))$('ac-calendar').hidden = true;
     $('ac-signout').hidden = !token();
     if ($('library-for-you')) $('library-for-you').hidden = true;
+  }
+
+  function render(result,session){
+      d1Session = result.sessionStore === 'D1' ? session : '';
+      $('ac-library').href = '/academy/library/';
+      $('ac-recorder').hidden = !result.student;
+      if($('ac-calendar'))$('ac-calendar').hidden = false;
+      $('ac-signout').hidden = false;
+      if ($('library-for-you')) $('library-for-you').hidden = false;
+      const activities = (result.personalActivities || []).filter(row => ['PROGRAM', 'COURSE'].includes(row.kind) && row.menuAvailable!==false && ![row.stage,row.status,row.lifecycle].some(value=>['CANCELLED','ARCHIVED'].includes(String(value||'').toUpperCase())) && row.id && (result.globalAdmin || roles(row.roles)));
+      const programs = activities.filter(row => row.kind === 'PROGRAM');
+      const courses = activities.filter(row => row.kind === 'COURSE');
+      strip.innerHTML = programs.map(row => `<a data-academy-program="${esc(row.id)}" href="/academy/#activity/${row.kind}/${encodeURIComponent(row.id)}"${row.kind === 'PROGRAM' && row.id === currentProgram ? ' aria-current="page"' : ''}><span>${esc(row.name)}</span><small>${esc(roles(result.globalAdmin ? ['GLOBAL_ADMIN'] : row.roles))}</small></a>`).join('') +
+        (result.signedIn && (result.globalAdmin || courses.some(row=>row.roles?.length)) ? `<a href="/academy/#workshops"><span>Courses</span><small>${esc(roles(result.globalAdmin ? ['GLOBAL_ADMIN','PROGRAM_ADMIN'] : [...new Set(courses.flatMap(row => row.roles))]) || 'None')}</small></a>` : '');
+      strip.hidden = !result.signedIn;
+      window.M4L_ACADEMY_SHELL_DATA=result;window.M4L_ACADEMY_SHELL?.update(result);
   }
 
   async function refresh() {
@@ -53,26 +103,11 @@
         if (home?.cacheDay === `${parts.year}-${parts.month}-${parts.day}` && home.signedIn) result = home;
       } catch {}
       if (!result) {
-        const response = await fetch(`${window.M4L_CONFIG?.API_BASE || ''}/api/academy/entrance`, {
-          method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session}`},body:'{}'
-        });
-        result = await response.json();
-        if (!response.ok) return;
+        // Shared banners need account authority, not a complete timetable.
+        await accountSession(session);return;
       }
       if (pending !== generation || session !== token() || !result.success || !result.signedIn) return;
-      d1Session = result.sessionStore === 'D1' ? session : '';
-      $('ac-library').href = '/academy/library/';
-      $('ac-recorder').hidden = !result.student;
-      $('ac-calendar').hidden = false;
-      $('ac-signout').hidden = false;
-      if ($('library-for-you')) $('library-for-you').hidden = false;
-      const activities = (result.personalActivities || []).filter(row => ['PROGRAM', 'COURSE'].includes(row.kind) && row.menuAvailable!==false && ![row.stage,row.status,row.lifecycle].some(value=>['CANCELLED','ARCHIVED'].includes(String(value||'').toUpperCase())) && row.id && (result.globalAdmin || roles(row.roles)));
-      const programs = activities.filter(row => row.kind === 'PROGRAM');
-      const courses = activities.filter(row => row.kind === 'COURSE');
-      strip.innerHTML = programs.map(row => `<a data-academy-program="${esc(row.id)}" href="/academy/#activity/${row.kind}/${encodeURIComponent(row.id)}"${row.kind === 'PROGRAM' && row.id === currentProgram ? ' aria-current="page"' : ''}><span>${esc(row.name)}</span><small>${esc(roles(result.globalAdmin ? ['GLOBAL_ADMIN'] : row.roles))}</small></a>`).join('') +
-        (result.signedIn && (result.globalAdmin || courses.some(row=>row.roles?.length)) ? `<a href="/academy/#workshops"><span>Courses</span><small>${esc(roles(result.globalAdmin ? ['GLOBAL_ADMIN','PROGRAM_ADMIN'] : [...new Set(courses.flatMap(row => row.roles))]) || 'None')}</small></a>` : '');
-      strip.hidden = !result.signedIn;
-      window.M4L_ACADEMY_SHELL_DATA=result;window.M4L_ACADEMY_SHELL?.update(result);
+      render(result,session);
     } catch { /* Public navigation stays available while account information is unavailable. */ }
   }
 

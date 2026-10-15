@@ -17,6 +17,11 @@
   async function api(path,input={},authToken=state.token){
     const generation=state.generation;
     if(!authToken||authToken!==token()||path!=='/api/account/session'&&!state.session)throw Error('Sign in with an authorised Academy administrator account.');
+    if(path==='/api/account/session'&&window.M4L_ACADEMY_NAVIGATION?.session){
+      const result=await window.M4L_ACADEMY_NAVIGATION.session(authToken);
+      if(generation!==state.generation||authToken!==token())throw Error('Your Academy account changed. Open this page again.');
+      return result;
+    }
     const response=await fetch(`${String(window.M4L_CONFIG?.API_BASE||'').replace(/\/$/,'')}${path}`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+authToken},body:JSON.stringify(input)});
     const result=await response.json();
     if(generation!==state.generation||authToken!==token())throw Error('Your Academy account changed. Open this page again.');

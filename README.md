@@ -1,3 +1,7 @@
+# V106.77 — Account-based shared workspace navigation
+
+Limit homepage-only Quick Links removal to the homepage: deleting the connected Calendar node had stopped cold-load Admin headers before showing the account name and workspace tabs. Tolerate absent retired links. Build connected-page headers from the authenticated account session instead of requiring a full Academy timetable. Course and Program managers share in-flight session requests with the header. Preserve account labels, Global Admin inheritance, scoped role visibility and sign-out guards. New local acceptance coverage opens Admin pages with empty timetable caches and an unavailable timetable endpoint, verifying that the account name and LEARN/TEACH/ADMIN remain available. No schema or hosted content changes. [Cause and validation](docs/ACADEMY-ACCOUNT-NAVIGATION-106.77.md).
+
 # V106.76 — Homepage navigation and management cards
 
 Remove the Timetable block from homepage Quick Links and leave LEARN, TEACH and ADMIN unselected on the main homepage. Course entries have distinct bordered cards; Program settings use matching cards with their existing selection, edit and Save controls. Fix Admin session/page restoration by moving the shared timetable out before clearing its host, preventing blank returns and missing workspace tabs. Local browser checks cover Course Close, page restoration, responsive cards and role highlighting. No schema or hosted content changes. [Fix and checks](docs/ACADEMY-NAVIGATION-CARDS-106.76.md).

@@ -25,9 +25,9 @@ function fixture(path='/academy/open-library/',search='') {
     {id:'Pilot-actual-id',name:'Reboot',kind:'PROGRAM',roles:['STUDENT']},
     {id:'Course-actual-id',name:'Barakah <course>',kind:'COURSE',roles:['TEACHER']}
   ]}, hold=false,release,ok=true,logoutFailure=false;
-  const fetch=async(url,options)=>{requests.push({url,options});if(url.endsWith('/api/account/logout')){if(logoutFailure)throw Error('Synthetic connection failure');return {ok:true,json:async()=>({success:true})};}const snapshot=structuredClone(result);if(hold){hold=false;await new Promise(resolve=>{release=resolve;});}return{ok,json:async()=>snapshot};};
+  const fetch=async(url,options)=>{requests.push({url,options});if(url.endsWith('/api/account/logout')){if(logoutFailure)throw Error('Synthetic connection failure');return {ok:true,json:async()=>({success:true})};}const home=structuredClone(result),snapshot={success:home.success,sessionStore:home.sessionStore,account:{displayName:'Synthetic member'},contexts:[...(home.globalAdmin? [{scope:'PLATFORM',role:'GLOBAL_ADMIN',courseId:'',courseName:'Academy'}]:[]),...(home.personalActivities||[]).flatMap(row=>(row.roles||[]).map(role=>({scope:row.kind==='PROGRAM'?'COURSE':'GLOBAL',courseId:row.id,courseName:row.name,role}))) ]};if(hold){hold=false;await new Promise(resolve=>{release=resolve;});}return{ok,json:async()=>snapshot};};
   runInNewContext(script,{document,window,location,localStorage,sessionStorage,fetch,URLSearchParams,encodeURIComponent,Event});
-  return {nodes,handlers,requests,children,localStorage,sessionStorage,location,forYou,
+  return {nodes,handlers,requests,children,localStorage,sessionStorage,location,forYou,window,
     setResult:value=>{result=value;},setOk:value=>{ok=value;},setLogoutFailure:value=>{logoutFailure=value;},defer:()=>{hold=true;},release:()=>release(),
     refresh:()=>handlers.get('m4l-academy-session')()};
 }
@@ -39,7 +39,8 @@ assert.equal(app.forYou.hidden,true);
 assert.equal(app.nodes.get('ac-library').href,'/academy/open-library/');
 assert.equal(app.children[1].hidden,true);
 app.localStorage.setItem('m4l_account_token','first-account');app.refresh();await flush();
-assert.equal(app.requests[0].url,'https://api.test/api/academy/entrance');
+assert.equal(app.requests[0].url,'https://api.test/api/account/session');
+assert.equal(app.requests.some(r=>r.url.includes('/api/academy/entrance')),false,'Header never asks for a complete timetable');
 assert.equal(app.requests[0].options.headers.Authorization,'Bearer first-account');
 assert.equal(app.requests[0].options.body,'{}');
 assert.equal(app.forYou.hidden,false);
@@ -92,6 +93,8 @@ for(const fail of [false,true]) {
 const replaced=fixture();replaced.localStorage.setItem('m4l_account_token','old-d1-account');replaced.setResult({success:true,signedIn:true,sessionStore:'D1'});replaced.refresh();await flush();
 replaced.localStorage.setItem('m4l_account_token','replacement-account');replaced.nodes.get('ac-signout').handlers.get('click')();await flush();
 assert.equal(replaced.requests.filter(r=>r.url.endsWith('/api/account/logout')).length,0,'A prior account cannot select the replacement account’s sign-out store');
+const missingCalendar=fixture('/academy/courses/manage/');missingCalendar.localStorage.setItem('m4l_account_token','calendar-removed');missingCalendar.nodes.delete('ac-calendar');missingCalendar.setResult({success:true,globalAdmin:true,sessionStore:'D1'});missingCalendar.refresh();await flush();assert.equal(missingCalendar.window.M4L_ACADEMY_SHELL_DATA.globalAdmin,true,'Missing retired Calendar link cannot stop the account banner');assert.equal(missingCalendar.window.M4L_ACADEMY_SHELL_DATA.profile.name,'Synthetic member');
+const shared=fixture('/academy/courses/manage/');shared.localStorage.setItem('m4l_account_token','shared-session');shared.setResult({success:true,globalAdmin:true,sessionStore:'D1'});shared.defer();const firstSession=shared.window.M4L_ACADEMY_NAVIGATION.session('shared-session');const secondSession=shared.window.M4L_ACADEMY_NAVIGATION.session('shared-session');await flush();assert.equal(shared.requests.length,1,'Course and header share their in-flight account request');shared.release();await Promise.all([firstSession,secondSession]);assert.equal(shared.window.M4L_ACADEMY_SHELL_DATA.globalAdmin,true);assert.equal(shared.window.M4L_ACADEMY_SHELL_DATA.profile.name,'Synthetic member');assert.deepEqual([...shared.window.M4L_ACADEMY_SHELL_DATA.workspaceRoles],['GLOBAL_ADMIN']);shared.localStorage.setItem('m4l_account_token','replacement');assert.equal(shared.window.M4L_ACADEMY_NAVIGATION.useSession({success:true,account:{displayName:'Old account'},contexts:[{scope:'PLATFORM',role:'GLOBAL_ADMIN'}]},'shared-session'),false,'Old account responses cannot repopulate the header');
 const standalone=fixture('/recorder/');assert.equal(standalone.children.length,0,'Recorder use outside Academy keeps its existing interface');
 const recorder=fixture('/recorder/','?academy=1');assert.equal(recorder.children.length,2);
 const program=fixture('/programs/attendance.html','?program=Pilot-actual-id');program.localStorage.setItem('m4l_account_token','staff');program.refresh();await flush();

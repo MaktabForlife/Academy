@@ -17,6 +17,11 @@
   async function api(action, payload = {}, account = false) {
     const token = localStorage.getItem("m4l_account_token");
     if (!token) throw new Error("Sign in using your personal Academy account link, then open Programs.");
+    if(account&&window.M4L_ACADEMY_NAVIGATION?.session){
+      const result=await window.M4L_ACADEMY_NAVIGATION.session(token);
+      if(token!==localStorage.getItem("m4l_account_token"))throw new Error("Your Academy account changed. Open Programs again.");
+      return result;
+    }
     const response = await fetch(`${String(window.M4L_CONFIG?.API_BASE || "").replace(/\/$/, "")}${account ? "/api/account/session" : `/api/admin/platform/programs/${action}`}`, {
       method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(payload)
     });
