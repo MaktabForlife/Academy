@@ -86,3 +86,23 @@ p { margin:8px 0; }
 
 .pb-refresh-warning { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:12px; margin:12px 0; border:1px solid #b68e50; border-radius:6px; background:#fff7e8; }
 .pb-refresh-warning span { flex:1; min-width:200px; }
+
+/* Program list cards retain the existing settings, selection and row saves. */
+#program-workspace .pb-grid-scroll{max-height:none;overflow:visible;padding:0 18px 18px}
+#program-workspace .pb-grid{display:block;min-width:0;width:100%}
+#program-workspace .pb-grid thead{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+#program-workspace #program-rows{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px}
+#program-workspace .pb-grid tr[data-id]{display:grid;grid-template-columns:44px minmax(0,1fr);align-content:start;gap:12px;padding:18px;border:1px solid #dfd1e6;border-radius:12px;background:#fff;box-shadow:0 2px 6px #30293608;min-width:0}
+#program-workspace .pb-grid tr[data-id].is-selected{border-color:#805088;background:#f3eaf6;box-shadow:inset 3px 0 #805088}
+#program-workspace .pb-grid tr[data-id]>td{display:block;grid-column:1/-1;min-width:0;height:auto;padding:0;border:0;position:static;left:auto;background:transparent;box-shadow:none}
+#program-workspace .pb-grid tr[data-id]>td:first-child{grid-column:1;grid-row:1;align-self:end}
+#program-workspace .pb-grid tr[data-id]>td:nth-child(2){grid-column:2;grid-row:1}
+#program-workspace .pb-grid td[data-label]:not(:first-child)::before{content:attr(data-label);display:block;margin:0 0 5px;color:#696574;font-size:11px;font-weight:600;text-align:left}
+#program-workspace .pb-grid input,#program-workspace .pb-grid select{min-height:44px;padding:9px;border:1px solid #dfd1e6;border-radius:6px;background:#fff}
+#program-workspace .pb-grid .pb-name{font-size:15px}
+#program-workspace .pb-program-select{min-height:44px}
+#program-workspace .pb-grid .pb-actions{gap:8px;min-width:0}
+#program-workspace .pb-grid .pb-actions button{min-height:40px}
+@media(max-width:700px){#program-workspace .pb-grid-scroll{padding:0 12px 12px}#program-workspace #program-rows{grid-template-columns:minmax(0,1fr)}#program-workspace .pb-grid tr[data-id]{padding:14px}}
+
+#program-builder #program-workspace .pb-grid{min-width:0;max-width:100%}

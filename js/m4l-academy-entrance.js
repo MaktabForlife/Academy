@@ -358,7 +358,7 @@
     $('academy-account-role').textContent = data?.signedIn ? highestAccess(roles) || 'None' : '';
     $('academy-access-empty').hidden = !data?.signedIn || Boolean(choices.length);
     for (const key of ['learn','teach','admin']) {
-      const tab = $('academy-tab-'+key), active = key === state.academyTab;
+      const tab = $('academy-tab-'+key), active = !home && key === state.academyTab;
       tab.hidden = !choices.includes(key);tab.setAttribute('aria-pressed', String(active));tab.setAttribute('aria-controls',key === 'admin' ? 'administration' : 'timetable');tab.tabIndex = 0;
     }
     panel.hidden = true;
@@ -895,7 +895,7 @@
   function renderAdministration() {
     dockTimetable($('timetable-card-home'));
     const view = $('administration'), global = Boolean(state.home?.signedIn && state.home.globalAdmin), areas = state.home?.signedIn ? adminAreas() : [];
-    if (!global && !areas.length) {view.innerHTML='<div class="page-heading"><h1>Manage Academy</h1></div><p>Sign in with an authorised Academy admin account to open management tools.</p>';return;}
+    if (!global && !areas.length) {view.innerHTML='<div class="page-heading"><h1>Manage Academy</h1></div><p role="status">'+(!state.home&&token()?'Loading your Academy administration…':'Sign in with an authorised Academy admin account to open management tools.')+'</p>';return;}
     const tabs = [['users','Users'],['attendance','Attendance'],['planning','Planning'],...(global?[['announcements','Announcements']]:[]),['assessments','Assessments'],['library','Library'],['curriculum','Curriculum'],['programs','Programs'],['courses','Courses']];
     const requested = location.hash.split('/')[1], key = tabs.some(([id]) => id === requested) ? requested : 'users';
     const link = (href,label) => `<a class="button secondary" href="${esc(href)}">${esc(label)}</a>`;
@@ -947,6 +947,8 @@
   }
 
   function clearPersonal() {
+    // Keep shared timetable elements attached before clearing their Admin host.
+    dockTimetable($('timetable-card-home'));
     window.M4L_LESSON_MEDIA?.reset();window.M4L_PLANNING?.reset();window.M4L_ANNOUNCEMENTS?.reset();
     window.M4L_ACADEMY_ASSESSMENTS?.reset();$('as-panel').hidden=true;
     memorisationReturn=null;restoreMemorisation=null;$('mp-teach-panel').hidden=true;$('mp-admin-context').textContent='';window.M4L_MEMORISATION_ADMIN?.reset();
@@ -1012,6 +1014,7 @@
     if ($('administration')) $('administration').replaceChildren();
     if ($('lesson-information').open) $('lesson-information').close();
     $('lesson-information-body').replaceChildren();
+    if(location.hash.startsWith('#administration'))renderAdministration();
   }
 
   window.addEventListener('m4l-memorisation-card-updated',event=>{

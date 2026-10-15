@@ -1,3 +1,7 @@
+# V106.76 — Homepage navigation and management cards
+
+Remove the Timetable block from homepage Quick Links and leave LEARN, TEACH and ADMIN unselected on the main homepage. Course entries have distinct bordered cards; Program settings use matching cards with their existing selection, edit and Save controls. Fix Admin session/page restoration by moving the shared timetable out before clearing its host, preventing blank returns and missing workspace tabs. Local browser checks cover Course Close, page restoration, responsive cards and role highlighting. No schema or hosted content changes. [Fix and checks](docs/ACADEMY-NAVIGATION-CARDS-106.76.md).
+
 # V106.75 — Course public cards, workspaces and PDF return
 
 Add a Public card tab to Course management with display time, title, description, live preview and independent guarded save. Published Courses use the same once-per-day public summary as Programs; existing session summaries remain until a card is configured. LEARN and TEACH show assigned Programs/Courses beside the role title, with selected area highlighting on scoped pages. Keep Admin's timetable layout and add breathing room for Sunday/Saturday card outlines. Coloured Quick Links stay on the main homepage with Home and Calendar removed. PDF readers have a visible × that returns to the originating Library with existing unsaved-change protection. No schema migration or hosted content edits. [Implementation and local checks](docs/ACADEMY-COURSE-CARDS-WORKSPACES-106.75.md).

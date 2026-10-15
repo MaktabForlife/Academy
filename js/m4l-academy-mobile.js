@@ -22,7 +22,7 @@
   const heading=document.createElement('h2');heading.textContent='Quick links';quick.prepend(heading);
   for(const item of nav.querySelectorAll('a,button')){
    const label=item.textContent.trim(),href=item.getAttribute('href')||'',kind=item.dataset.nav==='overview'?'home':item.dataset.nav||(/calendar/.test(href)?'calendar':/library/.test(href)?'library':/surahs/.test(href)?'heart':/kaaba/.test(href)?'kaaba':'about');
-   if(kind==='home'||kind==='calendar'){item.remove();continue;}
+   if(kind==='home'||kind==='calendar'||kind==='timetable'){item.remove();continue;}
    item.dataset.quickKind=kind;item.replaceChildren();const icon=document.createElement('span');icon.className='quicklink-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+(icons[kind]||icons.about)+'</svg>';const text=document.createElement('span');text.className='quicklink-label';text.textContent=label;item.append(icon,text);
   }
  }
@@ -40,7 +40,8 @@
   const available={learn:signed&&(global||roles.length>0),teach:signed&&(global||staff(roles)),admin:signed&&(global||admin(roles))};
   const section=location.hash.slice(1).split('/'),path=location.pathname,calendarView=path.startsWith('/academy/calendar/')?new URLSearchParams(location.search).get('view'):null;
   const management=calendarView!=='learn'&&calendarView!=='teach'&&(['administration','assessment-admin','progress-admin'].includes(section[0])||/^\/(users|programs)(?:\/|$)/.test(path)||/^\/academy\/(subjects|calendar|pdf-tools|courses\/manage|library\/manage)(?:\/|$)/.test(path));
-  const selected=section[0]==='timetable'&&section[1]==='teach'||calendarView==='teach'||path.startsWith('/academy/teaching/')?'teach':management?'admin':'learn';
+  const home=['/academy/','/academy/index.html'].includes(path)&&(!section[0]||['overview','learning'].includes(section[0]));
+  const selected=home?'':section[0]==='timetable'&&section[1]==='teach'||calendarView==='teach'||path.startsWith('/academy/teaching/')?'teach':management?'admin':'learn';
   for(const button of document.querySelectorAll('[data-shell-role]')){button.hidden=!available[button.dataset.shellRole];button.setAttribute('aria-pressed',String(button.dataset.shellRole===selected));}
   const name=document.getElementById('academy-shell-name'),role=document.getElementById('academy-shell-role');if(name)name.textContent=signed?(data.profile?.name||'Academy member'):'Welcome';if(role)role.textContent=global?'Global Admin':admin(roles)?'Program Admin':staff(roles)?'Teacher':roles.includes('STUDENT')?'Student':signed?'None':'';
  }

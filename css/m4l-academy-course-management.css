@@ -759,3 +759,6 @@
 @media(max-width:900px){.academy-mobile-layout .cm-unified-workspace .cm-list{grid-template-columns:minmax(0,1fr)}}
 
 .cm-card-fields{margin:16px 0}.cm-card-fields textarea{width:100%;padding:10px;border:1px solid #dcd5e2;border-radius:6px;font:inherit;resize:vertical}.cm-card-preview{display:flex;gap:18px;align-items:flex-start;background:#f3eaf6;border:1px solid #dfd1e6;border-radius:14px;padding:18px;color:#60366b;max-width:520px;overflow-wrap:anywhere}.cm-card-preview>strong{background:#fff;border-radius:24px;padding:7px 12px;white-space:nowrap}.cm-card-preview p{margin:6px 0 0;white-space:pre-wrap}.cm-card-actions{margin-top:16px;flex-wrap:wrap}.cm-card-actions small{color:#726878}
+
+/* Distinct blocks for Course names, status and delivery details. */
+.cm-unified-workspace .cm-list{gap:14px}.cm-unified-workspace .cm-course{border:1px solid #dfd1e6;border-radius:12px;background:#fff;padding:18px;box-shadow:0 2px 6px #30293608}.cm-unified-workspace .cm-course:hover{border-color:#b694c1;background:#faf6fc}.cm-unified-workspace .cm-course.is-selected{border-color:#805088;background:#f3eaf6;box-shadow:inset 3px 0 #805088}.cm-unified-workspace .cm-course strong{font-size:15px}.cm-unified-workspace .cm-course small{line-height:1.5;overflow-wrap:anywhere}

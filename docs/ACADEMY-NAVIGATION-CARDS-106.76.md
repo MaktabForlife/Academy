@@ -1,0 +1,7 @@
+# V106.76 — Navigation restoration and management cards
+
+The main Academy homepage has no selected LEARN/TEACH/ADMIN tab, and its Quick Links no longer include Timetable. The public timetable remains on the homepage. Each Course list entry has a distinct bordered card. Program settings use matching responsive cards, retaining the current fields, selection, row saves, draft handling and authority.
+
+The blank Admin return was reproduced locally by restoring a page while the shared timetable was docked inside Admin. Session reset cleared Admin's children, removing the timetable from the DOM. Later reset code could no longer find its elements and threw, leaving Admin empty and workspace tabs hidden. The reset now moves the shared timetable back to its persistent host before clearing Admin. An authenticated pending return shows a loading heading until the current account data arrives. The same check covers the browser page-restoration sequence and the Close link from Manage Courses.
+
+Validation: affected Node checks passed; 48 local browser checks passed with no page errors, including the previously failing restoration sequence, Course Close, homepage tab state, cards at 320–1440 pixels, and LEARN/TEACH/ADMIN visibility across Users, Programs, Courses, Curriculum, Library management, PDF tools and Calendar. Disposable local SQLite and an empty local Library catalogue are used with outbound browser network blocked. No schema migration or hosted content edits are required.

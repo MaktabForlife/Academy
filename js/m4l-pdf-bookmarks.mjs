@@ -1,4 +1,4 @@
-import {pdfBookmark} from './m4l-pdf-bookmarks-model.mjs?v=106.75';
+import {pdfBookmark} from './m4l-pdf-bookmarks-model.mjs?v=106.76';
 const token=()=>localStorage.getItem('m4l_account_token')||'';
 let owner=token(),saved=null;
 function changed(){window.dispatchEvent(new Event('m4l-pdf-bookmarks-change'));}
