@@ -2,7 +2,7 @@ import {assetPath} from './browser-site/worker.mjs';
 import {publicPdfTarget} from './academy-public-media.mjs';
 import {onRequestGet as catalogue} from '../../functions/academy/open-library/catalogue.js';
 import {onRequestGet as publicPdf} from '../../functions/pdf-file/[encoded].js';
-export const featureVersion='106.70';
+export const featureVersion='106.71';
 export const featureBranch='feature/academy-review-fixes-10660';
 export async function serveAcademySite(request,env,{pages=false,branch=featureBranch,syntheticOnly=true}={}){
   const url=new URL(request.url);

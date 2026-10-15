@@ -15,6 +15,7 @@
 .role-areas a{flex-direction:column;align-items:flex-start;border-radius:12px}
 .role-areas small{font-size:10px;font-weight:400}
 #admin-timetable-home{margin:16px 0}
+#academy-public-timetable{margin:28px 0}
 .admin-management-menu button{min-height:44px;padding:9px 15px;border:1px solid #d9c9df;border-radius:999px;color:#704578;background:#fff;font:600 13px Arial,sans-serif;white-space:nowrap}
 .academy-intro .intro-feature>.academy-news{position:relative;padding:0;height:100%;min-height:290px}
 .academy-news .announcement-heading{position:absolute;inset:0 0 auto;border:0;margin:0;padding:0;z-index:2}

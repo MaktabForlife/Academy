@@ -1,3 +1,7 @@
+# V106.71 — Restore the public homepage timetable
+
+Show the public Academy timetable on the homepage for visitors and signed-in users, while personal schedules remain in LEARN, TEACH and ADMIN. Homepage arrows browse cached Sunday–Saturday weeks. Correct the Jamiat date request to use the redirect mode supported by Cloudflare, with redirects rejected by their response status. [Implementation and validation](docs/ACADEMY-PUBLIC-HOME-106.71.md).
+
 # V106.70 — Allow slower Jamiat date responses
 
 Retain the V106.69 homepage and timetable update, and allow the independent Jamiat date request up to fifteen seconds with an identified Academy request. The page remains usable while the header date loads; unavailable sources retain the Jamiat link. No D1 access or schema change is added.

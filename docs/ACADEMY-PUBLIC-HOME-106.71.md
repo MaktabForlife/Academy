@@ -1,0 +1,9 @@
+# Public homepage timetable V106.71
+
+Restore a distinct Public Academy timetable below the welcome/announcement panel and above the Program/Course catalogue. It is visible to visitors and signed-in users. Personal schedules stay in their LEARN, TEACH and ADMIN workspaces.
+
+The homepage component reads only the existing unauthenticated public snapshot, even when an account is signed in. It renders public Program descriptions and Course names without private class, teacher or personal participation details. Existing free-lesson joining remains subject to the server's click-time checks. Its Sunday–Saturday week and Previous/Next arrows use the twelve-week snapshot locally; browsing makes no extra snapshot requests or D1 reads. Account switches cannot convert these cards into personal timetable cards. Daily refreshes and local joining-boundary updates remain bounded.
+
+The Jamiat date source now uses redirect mode `manual` and rejects non-success response statuses. The installed Cloudflare runtime rejects `error` before making a request, despite the Request documentation listing it. This was reproduced with a local Cloudflare runtime using no database bindings. After correction, the local runtime retrieved and parsed Jamiat's current date successfully. The fixed source URL, size limit, fifteen-second allowance, cache and linked fallback remain in place.
+
+Validation includes focused public snapshot/date/entrance tests and local browser checks at widths from 320 to 1440 pixels. Browser checks verify the public card remains on every account's homepage, contains no personal lesson-detail controls, browses cached weeks without new requests, and preserves all role workspaces, announcement and course-wall layouts. Deployment uses the existing feature branch, Pages website and Worker with no schema or hosted data changes. Hosted verification is limited to release labels, the D1-free date endpoint and normal read-only browser viewing.

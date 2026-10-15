@@ -13,7 +13,7 @@ export async function headerDate(request,{now=new Date(),fetcher=fetch,cache=glo
  if(cache)try{const hit=await cache.match(key);if(hit)return hit;}catch{}
  let hijri=null;
  try{
-  const upstream=await fetcher(dateSource,{headers:{Accept:'text/html','User-Agent':'UmmAbbadAcademy/1.0 (+https://maktab-development.pages.dev/academy/)'},redirect:'error',signal:AbortSignal.timeout(15000),cf:{cacheTtl:900,cacheEverything:true}});
+  const upstream=await fetcher(dateSource,{headers:{Accept:'text/html','User-Agent':'UmmAbbadAcademy/1.0 (+https://maktab-development.pages.dev/academy/)'},redirect:'manual',signal:AbortSignal.timeout(15000),cf:{cacheTtl:900,cacheEverything:true}});
   if(!upstream.ok)throw Error('HTTP_'+upstream.status);
   const reader=upstream.body.getReader(),decoder=new TextDecoder();let html='',size=0;
   try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>512*1024)throw Error();html+=decoder.decode(value,{stream:true});}html+=decoder.decode();}finally{await reader.cancel().catch(()=>{});}

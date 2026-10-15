@@ -3,7 +3,7 @@
   const $ = id => document.getElementById(id);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const token = () => localStorage.getItem('m4l_account_token') || '';
-  const state = { home: null, activity: null, scheduleTimetable: [], activityTimer: null, generation: 0, scheduleGeneration: 0, activityGeneration: 0, information: {}, startDate: '', courseCatalogue: null, courseCatalogueAt: 0, coursePending: null, courseGeneration: 0 };
+  const state = { publicData:null,publicDay:'',publicPending:null,publicStartDate:'', home: null, activity: null, scheduleTimetable: [], activityTimer: null, generation: 0, scheduleGeneration: 0, activityGeneration: 0, information: {}, startDate: '', courseCatalogue: null, courseCatalogueAt: 0, coursePending: null, courseGeneration: 0 };
   const pageCache = { epoch: 0, snapshot: null, pending: new Map() };
   const PAGE_CACHE_MS = 60000;
   const ACTIVITY_CACHE_MS = 86400000;
@@ -202,6 +202,7 @@
       $('entrance-message').textContent = result.warnings.join(' ');
       $('entrance-retry').hidden = !result.warnings.length;
       renderHome();
+      void loadPublicHome();
       route();
     } catch (error) {
       if (generation !== state.generation) return;
@@ -263,6 +264,31 @@
       const dates = event.startDate === event.endDate ? formatDate(event.startDate) : `${formatDate(event.startDate)} – ${formatDate(event.endDate)}`;
       return `<li><strong>${esc(event.description)}</strong> · ${esc(dates)}${event.islamicDate ? ` · ${esc(event.islamicDate)}` : ''}${event.teachingImpact === 'NO_TEACHING' ? ' · No teaching' : ''}</li>`;
     }).join('');
+  }
+
+  async function loadPublicHome() {
+    try {
+      if(state.home?.signedIn===false&&state.home.snapshotDate===academyDay(state.home.timezone)){state.publicData=state.home;state.publicDay=academyDay(state.home.timezone);}
+      if(!state.publicData||state.publicDay!==academyDay(state.publicData.timezone)) {
+        if(!state.publicPending)state.publicPending=(async()=>{
+          const response=await fetch(`${window.M4L_CONFIG?.API_BASE||''}/api/academy/entrance/public-snapshot`,{method:'GET',cache:'no-cache'}),data=await response.json();
+          if(!response.ok||!data.success||data.signedIn!==false||!Array.isArray(data.timetable))throw Error('The public timetable is currently unavailable.');
+          state.publicData=data;state.publicDay=academyDay(data.timezone);
+        })().finally(()=>{state.publicPending=null;});
+        await state.publicPending;
+      }
+      const first=sunday(academyDay(state.publicData.timezone));
+      if(!state.publicStartDate||state.publicStartDate<first)state.publicStartDate=first;
+      renderPublicHome();armScheduleClock();
+    } catch(error){$('academy-public-sessions').textContent=error.message;}
+  }
+  function renderPublicHome(){
+    const data=state.publicData;if(!data)return;
+    const first=sunday(academyDay(data.timezone)),last=addWeekDays(data.availableEndDate||data.endDate,-6);
+    if(state.publicStartDate>last)state.publicStartDate=first;
+    renderSchedule('academy-public-sessions',data.timetable,false,true,{public:true,startDate:state.publicStartDate});
+    $('public-timetable-range').textContent=formatDate(state.publicStartDate)+' – '+formatDate(addWeekDays(state.publicStartDate,6))+' · Sunday–Saturday';
+    $('public-home-previous').disabled=state.publicStartDate<=first;$('public-home-next').disabled=state.publicStartDate>=last;
   }
 
   function renderHome() {
@@ -547,10 +573,10 @@
       activity.roles.some(role => ['PROGRAM_ADMIN', 'ADMIN'].includes(role))));
   }
 
-  function renderSchedule(id, rows, detailed = false, compact = false) {
-    const start=state.startDate||state.home?.startDate,end=addWeekDays(start,6);
+  function renderSchedule(id, rows, detailed = false, compact = false, options = {}) {
+    const start=options.startDate||state.startDate||state.home?.startDate,end=addWeekDays(start,6);
     rows=rows.filter(row=>row.date>=start&&row.date<=end);
-    const personal = detailed || state.home?.signedIn;
+    const personal = !options.public&&(detailed || state.home?.signedIn);
     if(!personal)rows=rows.filter(row=>row.kind!=='PROGRAM'||row.publicCard?.time&&row.publicCard.title&&row.publicCard.description);
     state.information[id] = rows.slice();
     const now = new Date().getTime();
@@ -749,6 +775,9 @@
         renderSchedule('academy-sessions',roleRows({...state.home,personalTimetable:state.scheduleTimetable,timetable:state.scheduleTimetable}));
       });
 
+    } else if(!view||view==='overview'||view==='learning'){
+      const rows=(state.publicData?.timetable||[]).filter(row=>row.publicJoin&&row.date>=state.publicStartDate&&row.date<=addWeekDays(state.publicStartDate,6));
+      if(rows.length)armTimetableClock(rows,renderPublicHome);else clearTimeout(state.activityTimer);
     }
   }
 
@@ -767,7 +796,7 @@
     state.activityTimer = setTimeout(() => {
       if (token() !== session || epoch !== pageCache.epoch || document.visibilityState !== 'visible' || generation !== state.activityGeneration || location.hash !== hash) return;
       // Lesson boundaries only change presentation. Fetch once when the Academy day changes.
-      if (academyDay(state.home.timezone) !== day && state.home.signedIn) { void loadHome(); return; }
+      if (academyDay(state.home.timezone) !== day) { void loadHome(); return; }
       render();
       armTimetableClock(rows, render);
     }, delay);
@@ -827,6 +856,7 @@
     if(name==='assessment-admin'&&state.home){if(encodedId){try{void loadActivity(decodeURIComponent(encodedId));}catch{$('as-admin-host').textContent='Invalid learning area.';}}else syncAssessment({kind:hash.includes('/COURSE')?'COURSE':'',name:'Academy',roles:[]});}
     if (name === 'recorder') $('recorder-card').innerHTML = state.home?.student ? '<p>Select an existing lesson image, record your voice, then preview and share your video.</p><a class="button" href="/recorder/?academy=1">Open Voice Recorder →</a>' : '<p>Voice Recorder is available to signed-in Academy students.</p>';
     if(name!=='administration')dockTimetable($('timetable-card-home'));
+    if(name==='overview'&&state.home)void loadPublicHome();
     if(name==='timetable'){renderRoleLinks();if(state.home){renderSchedule('academy-sessions',roleRows({...state.home,personalTimetable:state.scheduleTimetable,timetable:state.scheduleTimetable}));$('schedule-range').textContent=formatDate(state.startDate)+' – '+formatDate(addWeekDays(state.startDate,6));weekButtons();}}
     if (name === 'administration') renderAdministration();
     renderAcademyMenu();
@@ -883,6 +913,7 @@
         const response=await fetch(`${window.M4L_CONFIG?.API_BASE||''}/api/admin/platform/public-timetable/refresh`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session}`},body:'{}'}),result=await response.json();
         if(session!==token()||epoch!==pageCache.epoch)return;
         if(!response.ok||!result.success)throw Error(result.error||'The public timetable could not be refreshed.');
+        state.publicData=null;state.publicDay='';
         status.textContent='Public timetable refreshed. Visitors will see the update within one minute.';
       }catch(error){if(session===token()&&epoch===pageCache.epoch)status.textContent=error.message;}
       finally{button.disabled=false;}
@@ -914,7 +945,7 @@
     state.coursePending = null;
     state.scheduleTimetable = [];
     clearTimeout(state.activityTimer);
-    state.information = {};
+    const publicRows=state.information['academy-public-sessions'];state.information = {'academy-public-sessions':publicRows||[]};
     state.academyTab = '';
     workspaceFocusId = '';
     $('administration').replaceChildren();
@@ -975,6 +1006,7 @@
 
   document.addEventListener('visibilitychange', () => {
     clearTimeout(state.activityTimer);
+    if(document.visibilityState==='visible'&&state.home)void loadPublicHome();
     if(document.visibilityState==='visible'&&!token()&&state.home){renderHome();armScheduleClock();return;}
     if (document.visibilityState === 'visible' && token()) {
       checkReturnedPage();
@@ -1049,6 +1081,10 @@
     state.startDate = new Date(Date.parse(`${state.startDate}T12:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
     void loadSchedule();
   });
+  for(const [id,days] of [['public-home-previous',-7],['public-home-next',7]])$(id).addEventListener('click',()=>{
+    if(!state.publicData||$(id).disabled)return;
+    state.publicStartDate=addWeekDays(state.publicStartDate,days);renderPublicHome();armScheduleClock();
+  });
   window.addEventListener('hashchange', route);
   window.addEventListener('m4l-academy-session', () => { if (!token()) { dailyCache.session='';dailyCache.entries={};try { sessionStorage.removeItem(DAILY_CACHE_KEY); } catch {} } clearPersonal(); void loadHome(); });
   const checkReturnedPage=()=>{if(document.visibilityState!=='hidden'&&token())void checkRemoteProfileLabels().then(async changed=>{
@@ -1065,5 +1101,6 @@
 
   route();
   renderCatalogue();
+  if(token())void loadPublicHome();
   void loadHome();
 })();

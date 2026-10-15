@@ -7,13 +7,13 @@ const request=()=>new Request('https://academy.invalid/api/academy/header-date')
 const now=new Date('2026-10-15T10:00:00Z');
 test('header date extracts only a current, plain Hijri date and caches the source independently of D1',async()=>{
  const entries=new Map(),cache={match:async r=>entries.get(r.url)?.clone(),put:async(r,response)=>entries.set(r.url,response.clone())};let calls=0;
- const fetcher=async(url,options)=>{calls++;assert.equal(url,'https://jamiat.org.za/');assert.equal(options.redirect,'error');assert.equal(options.headers.Authorization,undefined);return new Response(html);};
+ const fetcher=async(url,options)=>{calls++;assert.equal(url,'https://jamiat.org.za/');assert.equal(options.redirect,'manual');assert.equal(options.headers.Authorization,undefined);return new Response(html);};
  const first=await headerDate(request(),{now,cache,fetcher});assert.equal(first.headers.get('Cache-Control'),'public, max-age=900');assert.equal((await first.json()).hijri,'4 Jumada al-ula 1448');
  assert.equal((await (await headerDate(request(),{now,cache,fetcher})).json()).gregorian,'2026-10-15');assert.equal(calls,1);
  assert.equal(jamiatDate(html,'2026-10-16'),null);assert.equal(jamiatDate(html.replace('4 Jumada al-ula 1448','<script>bad</script>'),'2026-10-15'),null);
 });
 test('unavailable, stale or oversized Jamiat output keeps the source link without making up a Hijri date',async()=>{
- for(const fetcher of [async()=>{throw Error('offline');},async()=>new Response(html.replace('data-site-d="15"','data-site-d="14"')),async()=>new Response('x'.repeat(512*1024+1))]){
+ for(const fetcher of [async()=>{throw Error('offline');},async()=>new Response('',{status:302,headers:{Location:'https://other.invalid/'}}),async()=>new Response(html.replace('data-site-d="15"','data-site-d="14"')),async()=>new Response('x'.repeat(512*1024+1))]){
   const response=await headerDate(request(),{now,cache:null,fetcher}),data=await response.json();assert.equal(data.hijri,null);assert.equal(data.source,'https://jamiat.org.za/');assert.equal(data.gregorian,'2026-10-15');assert.equal(response.headers.get('Cache-Control'),'public, max-age=60');
  }
 });

@@ -304,7 +304,7 @@ assert.equal($('activity-menu').innerHTML,'');assert.equal($('workshop-tools').i
 assert.doesNotMatch($('academy-sessions').innerHTML,/Join lesson|data-information|Teacher A/);
 assert.equal($('lesson-information').open,false);assert.equal(timers.size,0);
 fixtureNow='2026-10-06T10:00:00Z';storage.set('m4l_account_token','NEW-SESSION');location.hash='#overview';await refresh();count=requests.length;
-fixtureNow='2026-10-07T10:00:00Z';documentHandlers.get('visibilitychange')();await flush();assert.equal(requests.length,count+1,'Next Academy day loads one new timetable');
+fixtureNow='2026-10-07T10:00:00Z';documentHandlers.get('visibilitychange')();await flush();assert.equal(requests.length,count+2,'Next Academy day loads one account timetable and the shared public snapshot');
 assert.equal($('timetable-refresh').hidden,false);storage.clear();window.dispatchEvent(new Event('m4l-academy-session'));await flush();assert.equal(tabStore.size,0,'Signing out removes the protected daily snapshot');
 // Free public joining wakes the local clock and checks the server only on click.
 publicFreeFixture=true;cacheFixture=false;location.hash='#timetable';fixtureNow='2026-10-05T10:54:30Z';await refresh();
