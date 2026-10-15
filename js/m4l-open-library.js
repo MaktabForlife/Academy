@@ -65,7 +65,7 @@
       for (const book of entries) {
         const pdfBook=!book.linkUrl&&(!book.resourceType||['EBOOK','PRINTABLE'].includes(book.resourceType));
         const card = document.createElement(book.linkUrl||pdfBook ? 'a' : 'button');
-        if(pdfBook){const selected=book.volumes?.[0]||book;card.href='/academy/pdf-reader/?file='+encodeURIComponent(pdfProxy(selected.pdfUrl))+'&title='+encodeURIComponent(book.title);card.target='_blank';card.rel='noopener noreferrer';card.dataset.pdfReader='true';}
+        if(pdfBook){const selected=book.volumes?.[0]||book;card.href='/academy/pdf-reader/?'+(book.volumes?.length>1?'book='+encodeURIComponent(book.id):'file='+encodeURIComponent(pdfProxy(selected.pdfUrl)))+'&title='+encodeURIComponent(book.title);card.target='_blank';card.rel='noopener noreferrer';card.dataset.pdfReader='true';}
         if (book.linkUrl) {
           card.href = book.linkUrl;
           card.target = '_blank';
@@ -125,7 +125,7 @@
     const selected = volume || book;
     clearMedia();
     viewer.hidden = true;
-    $('ol-original').href = '/academy/pdf-reader/?file='+encodeURIComponent(pdfProxy(selected.pdfUrl))+'&title='+encodeURIComponent(book.title);
+    $('ol-original').href = '/academy/pdf-reader/?file='+encodeURIComponent(pdfProxy(selected.pdfUrl))+'&title='+encodeURIComponent(book.title+(volume?' · '+(volume.label||'Volume '+volume.number):''));
     $('ol-original').textContent = 'Open PDF reader in a new tab ↗';
     viewer.title = `${book.title}${volume ? `, ${volume.label || `volume ${volume.number}`}` : ''} PDF`;
     viewer.src = 'about:blank';

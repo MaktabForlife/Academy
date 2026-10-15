@@ -1,0 +1,67 @@
+// Local-only integration: synthetic accounts, generated PDFs and no outbound network.
+import assert from 'node:assert/strict';
+import {createServer} from 'node:http';
+import {readFile,stat,mkdir} from 'node:fs/promises';
+import {readFileSync} from 'node:fs';
+import {resolve,extname} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {courseFixture} from '../tests/fixtures/academy-d1-course-fixture.mjs';
+import worker from '../src/worker.js';
+const root=resolve(fileURLToPath(new URL('../..',import.meta.url))),output=process.env.PDF_BOOKMARK_OUTPUT||'/private/tmp/academy-bookmarks-10666-browser';await mkdir(output,{recursive:true});
+const {chromium}=await import('/Users/hbnaidu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs');
+function pdf(title){
+ const objects=['<< /Type /Catalog /Pages 2 0 R >>',''],kids=[];
+ for(let page=1;page<=20;page++){
+  const id=objects.length+1,stream=`BT /F1 18 Tf 50 700 Td (${title} page ${page}) Tj ET`;kids.push(id+' 0 R');
+  objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${id+1} 0 R >> >> /Contents ${id+2} 0 R >>`,'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',`<< /Length ${Buffer.byteLength(stream)} >>\nstream\n${stream}\nendstream`);
+ }
+ objects[1]=`<< /Type /Pages /Count 20 /Kids [${kids.join(' ')}] >>`;
+ let data='%PDF-1.7\n',offsets=[];objects.forEach((object,index)=>{offsets.push(Buffer.byteLength(data));data+=`${index+1} 0 obj\n${object}\nendobj\n`;});const xref=Buffer.byteLength(data);
+ data+=`xref\n0 ${objects.length+1}\n0000000000 65535 f \n${offsets.map(offset=>String(offset).padStart(10,'0')+' 00000 n \n').join('')}trailer\n<< /Size ${objects.length+1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;return Buffer.from(data);
+}
+const f=await courseFixture();f.db.exec(readFileSync(resolve(root,'backend/migrations/academy/0025_pdf_bookmarks.sql'),'utf8'));
+const calls=[],pdfCalls=[],errors=[],outside=[],checks=[];let browser,current;
+const collection={id:'EXTERNAL:INTERNET_ARCHIVE:collection',title:'Four-volume collection',subject:'Hadith',volumes:[1,2,3,4].map(number=>({number,pdfUrl:`https://archive.org/download/collection/Volume${number}.pdf`}))};
+const books=[collection,{id:'EXTERNAL:INTERNET_ARCHIVE:single',title:'Single book',subject:'Fiqh',pdfUrl:'https://archive.org/download/single/single.pdf'}];
+const records=[{id:collection.id,title:collection.title,learningAreaRefs:['PROGRAM:P1']}];
+async function login(id){const response=await worker.fetch(new Request('http://synthetic.invalid/api/account/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uniqueid:'login-'+id,pin:'1234'})}),f.env);assert.equal(response.status,200);return (await response.json()).token;}
+const mime={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.svg':'image/svg+xml','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ftl':'text/plain','.bcmap':'application/octet-stream','.pfb':'application/octet-stream','.ttf':'font/ttf','.wasm':'application/wasm'};
+const server=createServer(async(req,res)=>{
+ try{
+  const url=new URL(req.url,'http://localhost');res.setHeader('Cache-Control','no-store');
+  if(url.pathname==='/js/m4l-config.js'){res.setHeader('Content-Type','text/javascript');res.end('window.M4L_CONFIG={API_BASE:location.origin}');return;}
+  if(url.pathname==='/academy/open-library/catalogue'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({books}));return;}
+  if(['/api/academy/open-library/metadata/public','/api/academy/open-library/metadata/list'].includes(url.pathname)){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({success:true,records}));return;}
+  if(url.pathname==='/api/academy/library/catalogue'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({success:true,resources:[],learningAreaRefs:['PROGRAM:P1']}));return;}
+  if(url.pathname.startsWith('/pdf-file/')){const source=Buffer.from(url.pathname.split('/').at(-1),'base64url').toString();pdfCalls.push(source);res.setHeader('Content-Type','application/pdf');res.end(pdf(source.split('/').at(-1)));return;}
+  if(url.pathname.startsWith('/api/')){
+   let body='';for await(const chunk of req)body+=chunk;calls.push({path:url.pathname});
+   const response=await worker.fetch(new Request('http://localhost'+req.url,{method:req.method,headers:req.headers,...(!['GET','HEAD'].includes(req.method)?{body:body||'{}'}:{})}),f.env);res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));return;
+  }
+  let path=resolve(root,'.'+decodeURIComponent(url.pathname));if(!path.startsWith(root+'/')||path.includes('/backend/')||url.pathname.split('/').some(part=>part.startsWith('.'))){res.writeHead(404).end();return;}if((await stat(path)).isDirectory())path+='/index.html';res.setHeader('Content-Type',mime[extname(path)]||'application/octet-stream');res.end(await readFile(path));
+ }catch(error){res.writeHead(500).end(error.message);}
+});
+await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;f.env.ALLOWED_ORIGINS=base;
+const frame=(page,index=0)=>page.frameLocator('#pr-pane-'+index+' iframe');
+const native=(page,index=0)=>page.frames().find(f=>f.url().includes('/pdf-viewer/web/viewer.html')&&f.url().includes('pane='+index));
+async function loaded(page,index=0,pageNumber=1){await page.waitForFunction(({index,pageNumber})=>{const app=document.querySelector('#pr-pane-'+index+' iframe')?.contentWindow.PDFViewerApplication;return app?.pdfDocument?.numPages===20&&app.page===pageNumber;},{index,pageNumber});await page.locator('#pr-pane-'+index+' [data-save-page]').filter({hasText:'Bookmark page '+pageNumber}).waitFor();}
+const bookmarkCalls=()=>calls.filter(c=>c.path.startsWith('/api/academy/bookmarks/')).length;
+try{
+ const student=await login('0002'),other=await login('0003');browser=await chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});
+ async function context(token,width=1440){const context=await browser.newContext({viewport:{width,height:1000}});await context.addInitScript(token=>{try{if(token&&location.protocol==='http:')localStorage.setItem('m4l_account_token',token);}catch{}},token);context.on('page',page=>page.on('pageerror',e=>errors.push(e.message)));await context.route('**/*',route=>{if(new URL(route.request().url()).origin!==base&&!route.request().url().startsWith('blob:')){outside.push(route.request().url());return route.abort();}return route.continue();});return context;}
+ const first=await context(student),library=await first.newPage();await library.goto(base+'/academy/open-library/');const card=library.locator('[data-resource="'+collection.id+'"]');await card.waitFor();assert.ok((await card.getAttribute('href')).includes('?book='));
+ const popup=first.waitForEvent('page');await card.click();const reader=await popup;current=reader;await reader.locator('#pr-volume-dialog').waitFor({state:'visible'});assert.equal(await reader.locator('#pr-volume-options button').count(),4);assert.equal(pdfCalls.length,0,'No collection PDF is loaded before choosing a volume');await reader.screenshot({path:output+'/choose-volume-desktop.png'});
+ await reader.locator('#pr-volume-options').getByRole('button',{name:'Volume 3',exact:true}).click();await loaded(reader);assert.match(pdfCalls.at(-1),/Volume3.pdf/);assert.equal(await reader.locator('#pr-pane-0 [data-volume] option').count(),4);assert.match(await reader.locator('#pr-pane-0 [data-title]').innerText(),/Volume 3/);checks.push('choose any volume before loading; quick switcher has volumes, not pages');
+ await reader.locator('#pr-pane-0 [data-save-book]').click();await reader.locator('#pr-status').filter({hasText:'bookmarked in your Academy account'}).waitFor();const before=bookmarkCalls();
+ await frame(reader).locator('#pageNumber').fill('11');await frame(reader).locator('#pageNumber').press('Enter');await loaded(reader,0,11);assert.equal(bookmarkCalls(),before,'Page turns do not load or save account bookmarks');
+ await reader.locator('#pr-pane-0 [data-save-page]').click();await reader.locator('#pr-status').filter({hasText:'Page 11 bookmarked'}).waitFor();await reader.locator('#pr-pane-0 [data-save-page]').click();await reader.locator('#pr-status').filter({hasText:'Page 11 bookmarked'}).waitFor();assert.equal(f.db.prepare('SELECT count(*) n FROM academy_pdf_bookmarks').get().n,2);checks.push('save volume and exact page; duplicate saves do not duplicate records; no page-turn database requests');
+ const second=await context(await login('0002')),device=await second.newPage();current=device;await device.goto(base+'/academy/pdf-reader/?bookmarks=1');await device.locator('.pr-bookmark-row').first().waitFor();assert.equal(await device.locator('.pr-bookmark-row').count(),2);
+ await device.locator('.pr-bookmark-row').getByRole('button',{name:/Four-volume collection · Volume 3.*Page 11/}).click();await loaded(device,0,11);assert.match(pdfCalls.at(-1),/Volume3.pdf/);assert.equal(new URL(device.url()).searchParams.get('page'),'11');await device.reload();await loaded(device,0,11);checks.push('fresh session and reload reopen correct volume at bookmarked physical page');
+ await device.locator('#pr-split').click();await device.locator('#pr-pane-1 [data-library]').click();await device.locator('#pr-pane-1 [data-books]').getByRole('button',{name:/Four-volume collection/}).click();await device.locator('#pr-volume-options').getByRole('button',{name:'Volume 4',exact:true}).click();await loaded(device,1);await native(device,1).evaluate(()=>window.PDFViewerApplication.page=5);await loaded(device,1,5);await device.locator('#pr-pane-1 [data-save-page]').click();await device.locator('#pr-status').filter({hasText:'Page 5 bookmarked'}).waitFor();assert.equal(await native(device,0).evaluate(()=>window.PDFViewerApplication.page),11);checks.push('second pane bookmarks its own volume/page and preserves first pane');
+ await device.locator('#pr-pane-1 [data-volume]').selectOption({label:'Volume 2'});await loaded(device,1);assert.match(await device.locator('#pr-pane-1 [data-title]').innerText(),/Volume 2/);await device.locator('#pr-bookmarks').click();await device.locator('.pr-bookmark-row').first().waitFor();assert.equal(await device.locator('.pr-bookmark-row').count(),3);await device.screenshot({path:output+'/bookmarks-desktop.png'});
+ await device.evaluate(token=>{localStorage.setItem('m4l_account_token',token);window.dispatchEvent(new StorageEvent('storage',{key:'m4l_account_token',newValue:token}));},other);assert.equal(await device.locator('.pr-bookmark-row').count(),0);await device.locator('#pr-bookmarks').click();await device.locator('[data-books]').filter({hasText:'No bookmarks yet'}).waitFor();checks.push('account switch clears the previous account bookmark list');
+ const phone=await context(student,390),mobile=await phone.newPage();current=mobile;await mobile.goto(base+'/academy/pdf-reader/?book='+encodeURIComponent(collection.id));await mobile.locator('#pr-volume-dialog').waitFor({state:'visible'});assert.equal(await mobile.locator('#pr-volume-options button').count(),4);await mobile.screenshot({path:output+'/choose-volume-mobile.png'});await mobile.locator('#pr-volume-options').getByRole('button',{name:'Volume 2',exact:true}).click();await loaded(mobile);assert.ok(await mobile.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await mobile.locator('#pr-bookmarks').click();await mobile.locator('.pr-bookmark-row').first().waitFor();await mobile.screenshot({path:output+'/bookmarks-mobile.png'});await mobile.getByRole('button',{name:'Remove Four-volume collection · Volume 3 page 11',exact:true}).click();await mobile.locator('#pr-status').filter({hasText:'Bookmark removed'}).waitFor();assert.equal(f.db.prepare('SELECT count(*) n FROM academy_pdf_bookmarks').get().n,2);checks.push('phone chooser, switcher, bookmark list and remove action fit without horizontal overflow');
+ await library.goto(base+'/academy/library/');const personalCard=library.locator('[data-resource="'+collection.id+'"]');await personalCard.waitFor();assert.ok((await personalCard.getAttribute('href')).includes('?book='));checks.push('For you multi-volume links use the same chooser');
+ const guest=await context(''),visitor=await guest.newPage();current=visitor;await visitor.goto(base+'/academy/pdf-reader/?book='+encodeURIComponent(collection.id));await visitor.locator('#pr-volume-options').getByRole('button',{name:'Volume 1',exact:true}).click();await loaded(visitor);const guestCalls=bookmarkCalls();await visitor.locator('[data-save-page]').first().click();await visitor.locator('#pr-status').filter({hasText:'Sign in on Academy home'}).waitFor();assert.equal(bookmarkCalls(),guestCalls);checks.push('visitors can read all volumes and receive a sign-in prompt to bookmark');
+ assert.deepEqual(errors,[]);assert.deepEqual(outside,[]);console.log(JSON.stringify({result:'PASS',checks,errors,outside,hostedDatabaseAccessed:false,output}));
+}catch(error){console.error(JSON.stringify({error:error.message,page:current?.url(),errors}));if(current)await current.screenshot({path:output+'/failure.png',fullPage:true});throw error;}finally{if(browser)await browser.close();await new Promise(r=>server.close(r));f.db.close();}

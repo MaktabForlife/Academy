@@ -6,6 +6,7 @@ import {assessmentFiles} from './assessment-files.js';
 import {assessmentReports} from './assessment-reports.js';
 import {lessonMedia} from './lesson-media.js';
 import {pdfTools,publicPdfTools} from './pdf-tools.js';
+import {pdfBookmarks} from './pdf-bookmarks.js';
 import {teacherAvailability} from './teacher-availability.js';
 import {d1Subjects} from './subjects.js';
 import {d1LearningCatalogue,saveLearningModule} from './learning-catalogue.js';
@@ -66,7 +67,7 @@ async function dispatch(request,env) {
   if(path==='/api/academy/announcements/image'&&['GET','HEAD'].includes(request.method))return announcementImage(request,repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'rebootworker',version:'106.65',
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'rebootworker',version:'106.66',
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(repository)};
@@ -106,7 +107,7 @@ async function dispatch(request,env) {
     return {success:true,...await d1Library(repository,auth,env).uploadChunk(request)};
   }
   const managementPath=path.startsWith('/api/admin/platform/');
-  const input=await boundedBody(request,managementPath||path.startsWith('/api/academy/teacher-availability/')||path.startsWith('/api/academy/progress/')||path.startsWith('/api/academy/assessments/')||path.startsWith('/api/academy/lesson-media/')||path.startsWith('/api/academy/planning/')?131072:path.startsWith('/api/program-attendance/')?65536:4096);
+  const input=await boundedBody(request,path.startsWith('/api/academy/bookmarks/')?8192:managementPath||path.startsWith('/api/academy/teacher-availability/')||path.startsWith('/api/academy/progress/')||path.startsWith('/api/academy/assessments/')||path.startsWith('/api/academy/lesson-media/')||path.startsWith('/api/academy/planning/')?131072:path.startsWith('/api/program-attendance/')?65536:4096);
   if(['/api/account/check','/api/account/login','/api/account/setup-pin'].includes(path)) {
     const login=String(input.uniqueid || '').trim();
     if(!login||login.length>160)throw rehearsalError('Missing or invalid account link.',400,'INVALID_ACCOUNT_LINK');
@@ -135,6 +136,8 @@ async function dispatch(request,env) {
   }
   if(path==='/api/academy/public-lesson/join')return {success:true,...await d1LessonJoin(repository,null,input)};
   const auth=await authenticated(request,env,repository);
+  const bookmarkAction=path.match(/^\/api\/academy\/bookmarks\/(list|save|delete)$/)?.[1];
+  if(bookmarkAction)return {success:true,...await pdfBookmarks(repository,auth).run(bookmarkAction,input)};
   const announcementAction=path.match(/^\/api\/admin\/platform\/announcements\/(list|delete)$/)?.[1];
   if(announcementAction)return {success:true,...await announcements(repository,auth,env).run(announcementAction,input)};
   const planningAction=path.match(/^\/api\/academy\/planning\/(list|get|save|submit|comment|policy|deadline)$/)?.[1];

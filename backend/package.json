@@ -1,6 +1,6 @@
 {
   "name": "rebootworker",
-  "version": "106.65",
+  "version": "106.66",
   "type": "module",
   "scripts": {
     "test": "node tests/run-all.mjs",
@@ -78,7 +78,8 @@
     "test:legacy": "node tests/run-group.mjs legacy",
     "test:offline": "node tests/run-group.mjs offline",
     "check:academy-boundary": "node tools/academy-boundary.mjs",
-    "prepare:feature-release": "node tools/academy-feature-release.mjs"
+    "prepare:feature-release": "node tools/academy-feature-release.mjs",
+    "test:pdf-bookmarks:browser": "node tools/academy-pdf-bookmarks-acceptance.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.36.0"

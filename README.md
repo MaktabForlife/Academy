@@ -1,3 +1,7 @@
+# V106.66 — Account bookmarks and PDF volume selection
+
+Save public Library books or specific pages to a private Academy bookmark list that follows the signed-in account across devices. Multi-volume cards in Browse and For you ask which volume to open, and each reader pane has a quick volume selector. Bookmark reopening retains the exact volume and physical page; page turns create no bookmark requests. Includes the additive empty-table migration `0025_pdf_bookmarks.sql`. [Implementation and validation](docs/ACADEMY-PDF-BOOKMARKS-106.66.md).
+
 # V106.65 — Save Course participants
 
 Course Participants has a visible Save participants button above and below the user table, with a live count of unsaved users. One action saves every changed user, including rows hidden by search, through the existing guarded participant API. Confirmed saves are retained if a later save fails, remaining drafts stay available, and retries reuse the pending operation identifier. Course schedules, inherited Global Admin access, storage and schema are unchanged. [Fix and validation](docs/ACADEMY-COURSE-PARTICIPANTS-106.65.md).
