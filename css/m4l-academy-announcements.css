@@ -3,18 +3,28 @@
 .academy-intro .intro-feature{padding:0;min-height:0;background:#fbf8f5;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
 .academy-intro .intro-feature::before,.academy-intro .intro-feature::after{display:none}
 .academy-intro .intro-feature>.academy-news{width:100%;min-height:0;background:#fbf8f5;padding:20px 24px;border:0;border-radius:0;box-shadow:none;color:#111;container-type:inline-size;text-align:center}
-.academy-news #academy-news-title{font:700 clamp(20px,5cqw,28px)/1.15 Georgia,serif;letter-spacing:.01em;text-transform:uppercase;margin:0 0 16px;color:#000}
+.announcement-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:3px solid #704578;padding-bottom:10px;margin-bottom:14px}
+.academy-news #academy-news-title{font:700 22px/1.2 Arial,Helvetica,sans-serif;letter-spacing:.04em;text-transform:uppercase;margin:0;color:#44274c;text-align:left}
 #academy-announcements{min-width:0}
-.announcement-slide{display:flex;align-items:center;gap:20px;min-width:0}
-.announcement-copy{flex:1;min-width:0}
-.academy-news .announcement-slide h3{font:600 18px/1.3 Arial,Helvetica,sans-serif;margin:0 0 6px;color:#111;text-align:left;overflow-wrap:anywhere}
-.academy-news .announcement-slide .announcement-message{font-size:16px;line-height:1.45;white-space:pre-line;overflow-wrap:anywhere;max-height:7.25em;overflow-y:auto;margin:0;color:#111;text-align:left}
-.announcement-poster{display:block;flex:0 0 140px;border:0;background:transparent;padding:0;width:140px;max-width:35%;margin:0;cursor:zoom-in}
-.announcement-poster img{display:block;width:100%;height:180px;object-fit:contain}
-.announcement-controls,.announcement-actions,.announcement-options{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px}
+.announcement-rail{position:relative;display:grid;grid-auto-flow:column;grid-auto-columns:calc((100% - 16px)/2);align-items:stretch;gap:16px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scrollbar-width:thin;scrollbar-color:#c8b0d0 transparent;padding-bottom:10px}
+.announcement-rail:focus-visible{outline:2px solid #704578;outline-offset:3px}
+.announcement-slide{min-width:0;min-height:242px;box-sizing:border-box;scroll-snap-align:start;background:#fff;border:1px solid #e2d8e7;border-bottom:3px solid #b99ac4;border-radius:12px;overflow:hidden;text-align:left}
+.announcement-copy{min-width:0;padding:12px}
+.academy-news .announcement-slide h3{font:600 16px/1.3 Arial,Helvetica,sans-serif;margin:0 0 8px;color:#44274c;text-align:left;overflow-wrap:anywhere}
+.academy-news .announcement-slide .announcement-message{font-size:14px;line-height:1.45;white-space:pre-line;overflow-wrap:anywhere;max-height:7.25em;overflow-y:auto;margin:0;color:#332d37;text-align:left}
+.announcement-cover{display:flex;align-items:center;justify-content:center;width:100%;height:112px;box-sizing:border-box;background:#f1eaf4;border:0;border-bottom:1px solid #e2d8e7;padding:8px;margin:0;color:#704578}
+.announcement-poster{cursor:zoom-in}
+.announcement-poster img{display:block;width:100%;height:100%;object-fit:contain}
+.announcement-placeholder{flex-direction:column;gap:5px;background:linear-gradient(140deg,#f6eff8,#e8dbed)}
+.announcement-placeholder svg{width:40px;height:48px}
+.announcement-placeholder span{font:600 11px/1.3 Arial,Helvetica,sans-serif;letter-spacing:.03em}
+.announcement-controls,.announcement-actions,.announcement-options{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.announcement-actions,.announcement-options{margin-top:16px}
+.announcement-controls{flex:none;flex-wrap:nowrap}
 .announcement-controls button,.announcements-editor button{min-height:44px;padding:8px 14px;border:1px solid #d9c9df;border-radius:10px;background:#fff;color:#704578;cursor:pointer;font:inherit}
-.announcement-controls span{font-size:.9rem}
-.academy-news .announcement-controls{justify-content:center}
+.announcement-controls button{min-width:44px;padding:8px}
+.announcement-controls button:disabled{opacity:.35;cursor:default}
+.announcement-controls span{font-size:12px;white-space:nowrap;color:#635369}
 .announcement-lightbox{width:min(95vw,1000px);max-height:95dvh;padding:14px;border:1px solid #d9c9df;border-radius:14px}
 .announcement-lightbox::backdrop{background:#211527bb}
 .announcement-lightbox img{display:block;width:100%;height:auto;max-height:82dvh;object-fit:contain}
@@ -35,7 +45,8 @@
 .announcements-editor button:disabled{opacity:.5;cursor:default}
 @media(min-width:1001px){.academy-intro{grid-template-columns:minmax(270px,.8fr) minmax(0,1.2fr)}}
 @media(max-width:1000px){.academy-mobile-layout .academy-intro .intro-feature{padding:0}}
-@media(max-width:480px){.academy-intro .intro-feature>.academy-news{padding:16px}.academy-news #academy-news-title{margin-bottom:12px}.announcement-slide{gap:12px}.announcement-poster{flex-basis:92px;width:92px}.announcement-poster img{height:140px}.academy-news .announcement-slide h3{font-size:16px}.academy-news .announcement-slide .announcement-message{font-size:14px}}
+@media(max-width:600px){.announcement-rail{grid-auto-columns:calc(100% - 36px)}.academy-intro .intro-feature>.academy-news{padding:16px}.academy-news #academy-news-title{font-size:20px}.announcement-controls{gap:7px}}
+@media(prefers-reduced-motion:reduce){.announcement-rail{scroll-behavior:auto}}
 
 .announcement-message a,.announcement-attachment a{color:#704578;text-decoration:underline;text-underline-offset:3px}
 .announcement-attachment{margin:10px 0 0;text-align:left;overflow-wrap:anywhere}

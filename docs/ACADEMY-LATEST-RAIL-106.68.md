@@ -1,0 +1,11 @@
+# Academy LATEST rail V106.68
+
+The owner requested a scrollable announcement rail with two visible cards and the heading LATEST, then supplied https://jamiat.org.za/ as a design reference. Its Jamiat Notices and Jamiatul Ulama KZN Projects sections informed the image-above-title card pattern and section rule. The implementation uses the Academy's own colours, content, posters and PDF links.
+
+The public component renders active announcements in their saved display order as a native horizontal scroll rail. Desktop and tablet widths show two complete cards. At 600px and below, one card is fully visible and a sliver of the next signals horizontal scrolling. Cards use a poster above the heading and message, with an Academy placeholder for text/PDF entries. Existing poster enlargement, safe clickable message links and PDF attachments remain available.
+
+Previous/Next arrows move one card and disable at the rail's ends. A range indicator reflects the visible cards. The focused rail accepts Left/Right and Home/End, while focused message areas and links retain their usual keyboard behaviour. Native scrolling supports touch and trackpads. Reduced-motion preferences disable smooth programmatic scrolling. Automatic replacement of the reading card is removed. Resize updates button/range state, and scrolling does not make API requests. The admin form description now refers to the LATEST rail.
+
+This is a presentation change. It needs no content edits, database migration, new Worker or storage changes. The existing announcement list/upload APIs and the prospectus announcement remain unchanged. Current release markers and asset cache URLs are V106.68.
+
+Validation: 39 focused local checks and 30 Chrome acceptance checks pass. Checks use disposable SQLite/R2 fixtures and block outbound browser traffic. The announcement browser checks cover two-card geometry at desktop/tablet widths, phone peeking/overflow, arrow/keyboard/end navigation, reduced motion, posters, PDF links/upload/removal, retries and unsaved changes. Focused navigation, announcement and release/package checks plus both deployment builds pass before pushing to feature/academy-review-fixes-10660. Hosted verification is limited to release labels, static assets and a normal homepage view; no hosted write tests or regression suite is run.

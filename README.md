@@ -1,3 +1,7 @@
+# V106.68 — LATEST announcement rail
+
+The Academy homepage shows announcements as a horizontally scrollable LATEST rail with image-above-title cards inspired by Jamiat's Notices and Projects sections. Two cards are visible on wider screens; phones show one card with the next at the edge. Arrow buttons and keyboard navigation move through the rail while posters and message/PDF links remain available. [Implementation and validation](docs/ACADEMY-LATEST-RAIL-106.68.md).
+
 # V106.67 — Announcement PDFs and prospectus links
 
 Global Admin can attach a PDF up to 10 MB to an announcement, automatically insert its message link, replace or remove it, and save alongside a poster. Plain web addresses and named message links are clickable. The 2026 Prospectus announcement replaces the separate homepage banner and menu entry; the existing PDF address remains available. Attachment metadata uses the existing database settings with guarded saves, so no schema migration is needed. [Implementation and validation](docs/ACADEMY-ANNOUNCEMENT-PDFS-106.67.md).
