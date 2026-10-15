@@ -96,7 +96,7 @@ const fetch = async (_url, options) => {
     if(publicFreeFixture)result.timetable=result.timetable.map(event=>{
       if(event.title!=='Lesson <one>')return event;
       const {joinUrl,...free}=stamp({...event,joinUrl:'https://zoom.test/free'});return {...free,publicJoin:true};
-    });
+    }).reverse();
   }
   result.calendarEvents=[{description:'Holiday <script>',startDate:'2026-10-07',endDate:'2026-10-07',teachingImpact:'NO_TEACHING'}];
   result.personalTimetable=signedIn ? (globalAdmin ? result.timetable.filter(event=>event.status!=='CANCELLED').map(stamp) : body.id ? [
@@ -174,6 +174,8 @@ for(const time of ['12:00','07:30'])assert.ok($('academy-preview-sessions').inne
 assert.doesNotMatch($('academy-preview-sessions').innerHTML,/data-information|Join lesson|zoom\.test|Teacher A/);
 assert.match($('public-snapshot-note').textContent,/Schedule preview/);
 assert.equal($('public-snapshot-note').hidden,false);
+assert.equal(($('academy-public-sessions').innerHTML.match(/<li class="preview-pill"/g)||[]).length,5,'Homepage public Program summaries appear once per Program/day; separate Course sessions stay visible');
+assert.doesNotMatch($('academy-public-sessions').innerHTML,/data-information|Teacher A|zoom\.test|Cancelled item/);
 assert.equal(timers.size,0);
 let count=requests.length;
 documentHandlers.get('visibilitychange')();await flush();
@@ -185,6 +187,7 @@ await navigate('#workshops');assert.match($('workshops-message').textContent,/Si
 
 storage.set('m4l_account_token','QA');await refresh();
 assert.equal($('academy-role-panel').hidden,true,'Chooser stays on Academy home');assert.equal($('public-snapshot-note').hidden,true);
+assert.equal(($('academy-public-sessions').innerHTML.match(/<li class="preview-pill"/g)||[]).length,5,'Signing in keeps the homepage public timetable independent of the personal schedule');
 assert.equal(catalogueRequests.length,1);
 assert.match($('workshop-pills').innerHTML,/Barakah|Complete|Media · coming soon/);
 assert.doesNotMatch($('workshop-pills').innerHTML,/Program Admin|Teacher|User|COURSE-DRAFT|<small>Student/);

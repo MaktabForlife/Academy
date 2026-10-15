@@ -1,3 +1,7 @@
+# V106.72 — Consolidate public Program summaries
+
+Show each public Program description once per day, instead of repeating it for every private class/subject lesson in the public snapshot. Separate Course sessions and personal timetable roll-up rules remain available. Retain the restored public homepage timetable, Sunday weeks, Jamiat dates and V106.69 layout changes. Local regression checks cover duplicate summaries and their separation from signed-in personal schedules.
+
 # V106.71 — Restore the public homepage timetable
 
 Show the public Academy timetable on the homepage for visitors and signed-in users, while personal schedules remain in LEARN, TEACH and ADMIN. Homepage arrows browse cached Sunday–Saturday weeks. Correct the Jamiat date request to use the redirect mode supported by Cloudflare, with redirects rejected by their response status. [Implementation and validation](docs/ACADEMY-PUBLIC-HOME-106.71.md).

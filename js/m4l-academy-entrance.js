@@ -577,9 +577,24 @@
     const start=options.startDate||state.startDate||state.home?.startDate,end=addWeekDays(start,6);
     rows=rows.filter(row=>row.date>=start&&row.date<=end);
     const personal = !options.public&&(detailed || state.home?.signedIn);
-    if(!personal)rows=rows.filter(row=>row.kind!=='PROGRAM'||row.publicCard?.time&&row.publicCard.title&&row.publicCard.description);
-    state.information[id] = rows.slice();
     const now = new Date().getTime();
+    if(!personal){
+      const programs=new Map(),publicRows=[];
+      const joiningPriority=row=>row.publicJoin&&row.endsAt>now?(row.joinAvailableAt<=now?2:1):0;
+      for(const row of rows){
+        if(row.status&&row.status!=='SCHEDULED')continue;
+        if(row.kind!=='PROGRAM'){publicRows.push(row);continue;}
+        if(!row.publicCard?.time||!row.publicCard.title||!row.publicCard.description)continue;
+        // The public description represents a Program's whole day. Prefer its
+        // currently joinable lesson, then its next free lesson, for Join checks.
+        const key=JSON.stringify([row.date,row.activityId]),index=programs.get(key);
+        if(index===undefined){programs.set(key,publicRows.length);publicRows.push(row);continue;}
+        const previous=publicRows[index],priority=joiningPriority(row),before=joiningPriority(previous);
+        if(priority>before||priority===1&&before===1&&row.startsAt<previous.startsAt)publicRows[index]=row;
+      }
+      rows=publicRows;
+    }
+    state.information[id] = rows.slice();
     const next = personal ? rows.findIndex(row => row.status === 'SCHEDULED' && row.endsAt > now) : -1;
     if (personal) { renderPersonalWeek(id, rows, detailed, next, now); return; }
     if (compact || !personal) {
