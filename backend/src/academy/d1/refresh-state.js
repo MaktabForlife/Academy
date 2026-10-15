@@ -20,7 +20,7 @@ export function managementSettings(p,versions,effects,actor,now) {
 export function publicRefreshNeeded(dataset,action,input,fields=[]) {
   if(dataset==='ACADEMY_CALENDAR')return true;
   if(dataset==='PROGRAM_TIMETABLE')return ['publish','status'].includes(action);
-  if(dataset==='COURSE_MANAGEMENT')return action==='course-editor/publish'||action==='course-editor/status'&&['COMPLETE','CANCELLED','ARCHIVED'].includes(input.stage)||fields.some(f=>/^GlobalTimetable|^AcademyCalendar|^GlobalSubject(?:Runs|List|AccessPolicy)$/.test(f));
+  if(dataset==='COURSE_MANAGEMENT')return ['course-editor/publish','course-editor/public-card-save'].includes(action)||action==='course-editor/status'&&['COMPLETE','CANCELLED','ARCHIVED'].includes(input.stage)||fields.some(f=>/^GlobalTimetable|^AcademyCalendar|^GlobalSubject(?:Runs|List|AccessPolicy)$/.test(f));
   return false;
 }
 import {writeVersionKey} from './change-scopes.js';

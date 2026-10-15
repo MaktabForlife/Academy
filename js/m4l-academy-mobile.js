@@ -22,9 +22,11 @@
   const heading=document.createElement('h2');heading.textContent='Quick links';quick.prepend(heading);
   for(const item of nav.querySelectorAll('a,button')){
    const label=item.textContent.trim(),href=item.getAttribute('href')||'',kind=item.dataset.nav==='overview'?'home':item.dataset.nav||(/calendar/.test(href)?'calendar':/library/.test(href)?'library':/surahs/.test(href)?'heart':/kaaba/.test(href)?'kaaba':'about');
+   if(kind==='home'||kind==='calendar'){item.remove();continue;}
    item.dataset.quickKind=kind;item.replaceChildren();const icon=document.createElement('span');icon.className='quicklink-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+(icons[kind]||icons.about)+'</svg>';const text=document.createElement('span');text.className='quicklink-label';text.textContent=label;item.append(icon,text);
   }
  }
+ quick.hidden=!document.getElementById('academy-home-card');
  const nav=sidebar.querySelector('nav');if(nav){nav.setAttribute('aria-label','Academy quick links');quick.append(nav);quickBlocks(nav);}
  for(const child of [...sidebar.children])if(child!==brand)child.hidden=true;
  if(document.getElementById('academy-home-card')){const dates=document.createElement('aside');dates.className='academy-date-box';dates.setAttribute('aria-label','Today’s Hijri and Gregorian dates');dates.innerHTML='<div aria-label="Hijri date"><em id="academy-hijri-date" title="Hijri date from Jamiat">Loading Hijri date…</em></div><div aria-label="Gregorian date"><time id="academy-gregorian-date"></time></div>';sidebar.append(dates);}

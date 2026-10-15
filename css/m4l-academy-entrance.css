@@ -106,6 +106,7 @@
 .academy-personal-schedule{margin-bottom:20px;padding:22px}
 .academy-personal-schedule h2{font-size:25px}
 .timetable-days{gap:10px;align-items:stretch}
+.upcoming-strip>.timetable-days{padding:3px}
 .timetable-days>.upcoming-day{flex:1 0 max(160px,calc((100% - 60px)/7))}
 .timetable-days .upcoming-day>time{text-align:left;padding:0 6px;font-size:12px;color:var(--muted)}
 .timetable-days .upcoming-items{gap:8px}

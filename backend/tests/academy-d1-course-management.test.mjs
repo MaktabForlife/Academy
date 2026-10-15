@@ -202,3 +202,32 @@ test('the additive upgrade preserves publications and roles; older storage repor
   assert.equal((await post(f.env,base+'list',{},token)).status,200);
  }finally{f.db.close();}
 });
+
+test('Course public cards save independently with scoped authority, retry safety and stale-card protection',()=>use(async({env,db})=>{
+ const admin=await login(env),teacher=await login(env,'0003'),created=await create(env,admin);await publish(env,admin,created);
+ const before=await get(env,admin,created),publications=db.prepare('SELECT snapshot_json FROM timetable_publications').all();
+ const publicCard={time:'12 noon',title:'Public Course',description:'Study **Quran** together.'},input={...created,baseCardRevision:before.publicCardRevision,publicCard,operationId:crypto.randomUUID()};
+ assert.equal((await post(env,base+'public-card-save',input)).status,401);
+ assert.equal((await post(env,base+'public-card-save',input,teacher)).status,403);
+ const saved=ok(await post(env,base+'public-card-save',input,admin));assert.deepEqual(saved.publicCard,publicCard);assert.deepEqual(saved.cacheRefreshPending,['public-timetable']);
+ assert.equal(ok(await post(env,base+'public-card-save',input,admin)).replayed,true);
+ const after=await get(env,admin,created);assert.deepEqual(after.publicCard,publicCard);assert.equal(after.revision,before.revision);assert.equal(after.currentPublication,before.currentPublication);assert.deepEqual(after.details,before.details);assert.deepEqual(db.prepare('SELECT snapshot_json FROM timetable_publications').all(),publications);
+ assert.equal((await write(env,admin,'public-card-save',{...input,operationId:crypto.randomUUID(),publicCard:{...publicCard,title:'Stale'}})).body.code,'ROW_CHANGED');
+ for(const card of [{...publicCard,time:''},{...publicCard,description:'x'.repeat(241)},{...publicCard,title:5}])assert.equal((await write(env,admin,'public-card-save',{...created,baseCardRevision:after.publicCardRevision,publicCard:card})).status,400);
+ db.prepare("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state) VALUES('course-card-admin','account-0004',?,'PROGRAM_ADMIN',1,'CONFIRMED')").run(after.activityKey);
+ const scoped=await login(env,'0004'),other=await create(env,admin,details('Other Course'));
+ assert.equal((await write(env,scoped,'public-card-save',{...other,baseCardRevision:after.publicCardRevision,publicCard})).status,403);
+ const hidden=ok(await write(env,scoped,'public-card-save',{...created,baseCardRevision:after.publicCardRevision,publicCard:{time:'',title:'',description:''}}));assert.deepEqual(hidden.publicCard,{time:'',title:'',description:''});
+ db.prepare("UPDATE role_assignments SET active=0 WHERE assignment_id='course-card-admin'").run();
+ assert.ok([401,403].includes((await write(env,scoped,'public-card-save',{...created,baseCardRevision:hidden.publicCardRevision,publicCard})).status));
+}));
+
+test('Course cards reach public snapshots with only marketing fields and no extra entrance queries',()=>use(async({env,queries})=>{
+ const {publicTimetableSnapshot,publicTimetableDay}=await import('../src/academy/d1/public-timetable.js');
+ const admin=await login(env),d=details();d.startDate=d.endDate=d.sessions[0].date='2026-09-25';const created=await create(env,admin,d);await publish(env,admin,created);const course=await get(env,admin,created);
+ queries.length=0;ok(await post(env,'/api/academy/entrance',{startDate:'2026-09-20'},''));const reads=queries.length;
+ const publicCard={time:'12 noon',title:'Public Course',description:'Study together.'};ok(await write(env,admin,'public-card-save',{...created,baseCardRevision:course.publicCardRevision,publicCard:{...publicCard,privateUrl:'SECRET'}}));
+ queries.length=0;const home=ok(await post(env,'/api/academy/entrance',{startDate:'2026-09-20'},''));assert.equal(queries.length,reads);
+ assert.deepEqual(home.timetable.find(row=>row.activityId===created.courseId).publicCard,publicCard);
+ const now=new Date('2026-09-24T12:00:00Z'),snapshot=publicTimetableSnapshot(home,publicTimetableDay(now),now);assert.deepEqual(snapshot.timetable.find(row=>row.activityId===created.courseId).publicCard,publicCard);assert.doesNotMatch(JSON.stringify(snapshot),/SECRET|zoom.us|teacherId|classId/);
+}));

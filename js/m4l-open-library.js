@@ -65,7 +65,7 @@
       for (const book of entries) {
         const pdfBook=!book.linkUrl&&(!book.resourceType||['EBOOK','PRINTABLE'].includes(book.resourceType));
         const card = document.createElement(book.linkUrl||pdfBook ? 'a' : 'button');
-        if(pdfBook){const selected=book.volumes?.[0]||book;card.href='/academy/pdf-reader/?'+(book.volumes?.length>1?'book='+encodeURIComponent(book.id):'file='+encodeURIComponent(pdfProxy(selected.pdfUrl)))+'&title='+encodeURIComponent(book.title);card.target='_blank';card.rel='noopener noreferrer';card.dataset.pdfReader='true';}
+        if(pdfBook){const selected=book.volumes?.[0]||book;card.href='/academy/pdf-reader/?'+(book.volumes?.length>1?'book='+encodeURIComponent(book.id):'file='+encodeURIComponent(pdfProxy(selected.pdfUrl)))+'&library=public&title='+encodeURIComponent(book.title);card.target='_blank';card.rel='noopener noreferrer';card.dataset.pdfReader='true';}
         if (book.linkUrl) {
           card.href = book.linkUrl;
           card.target = '_blank';

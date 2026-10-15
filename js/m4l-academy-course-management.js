@@ -3,16 +3,17 @@
   'use strict';
   const $=id=>document.getElementById(id),esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const token=()=>localStorage.getItem('m4l_account_token')||'',base='/api/admin/platform/courses/';
-  const state={token:'',session:null,generation:0,selection:0,courses:[],categories:[],teachers:[],timezone:'Africa/Johannesburg',capabilities:{},course:null,draft:null,dirty:false,tab:'list',busy:false,review:null,calendarWarnings:[],media:[],participants:null,personDrafts:new Map(),peopleSearch:'',assignedOnly:false,pending:null,filters:{search:'',status:''}};
+  const state={token:'',session:null,generation:0,selection:0,courses:[],categories:[],teachers:[],timezone:'Africa/Johannesburg',capabilities:{},course:null,draft:null,cardDraft:null,dirty:false,tab:'list',busy:false,review:null,calendarWarnings:[],media:[],participants:null,personDrafts:new Map(),peopleSearch:'',assignedOnly:false,pending:null,filters:{search:'',status:''}};
   const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const labels={DRAFT:'Draft',PUBLISHED:'Published',ACTIVE:'Active',COMPLETE:'Complete',CANCELLED:'Cancelled',ARCHIVED:'Archived'};
   const copy=value=>JSON.parse(JSON.stringify(value));
   const selected=()=>state.course?{courseId:state.course.courseId,runId:state.course.runId}:{};
-  const hasUnsavedChanges=()=>state.dirty||state.personDrafts.size>0;
+  const cardDirty=()=>JSON.stringify(state.cardDraft)!==JSON.stringify(state.course?.publicCard??null);
+  const hasUnsavedChanges=()=>state.dirty||state.personDrafts.size>0||cardDirty();
   const editable=()=>state.course?.stage==='DRAFT';
   const reviewAccepted=()=>Boolean(!state.dirty&&state.review?.valid&&state.course?.acceptedToken===state.review.token);
   const tell=(message,error=false)=>{$('course-message').textContent=message||'';$('course-message').classList.toggle('is-error',error);};
-  function lock(message){state.token='';state.session=null;state.course=null;state.draft=null;state.dirty=false;state.courses=[];state.participants=null;state.personDrafts.clear();state.pending=null;state.review=null;state.media=[];state.calendarWarnings=[];state.busy=false;state.tab='list';state.selection++;$('course-workspace').hidden=true;$('course-editor').replaceChildren();$('course-list').replaceChildren();$('course-dialog').close();$('course-dialog').replaceChildren();$('course-account-name').textContent='';$('course-access-message').textContent=message;tell('');}
+  function lock(message){state.token='';state.session=null;state.course=null;state.draft=null;state.cardDraft=null;state.dirty=false;state.courses=[];state.participants=null;state.personDrafts.clear();state.pending=null;state.review=null;state.media=[];state.calendarWarnings=[];state.busy=false;state.tab='list';state.selection++;$('course-workspace').hidden=true;$('course-editor').replaceChildren();$('course-list').replaceChildren();$('course-dialog').close();$('course-dialog').replaceChildren();$('course-account-name').textContent='';$('course-access-message').textContent=message;tell('');}
   async function api(path,input={},authToken=state.token){
     const generation=state.generation;
     if(!authToken||authToken!==token()||path!=='/api/account/session'&&!state.session)throw Error('Sign in with an authorised Academy administrator account.');
@@ -31,7 +32,7 @@
     const result=await api(base+action,state.pending.input);state.pending=null;return result;
   }
   const disabledBeforeBusy=new WeakMap();
-  function busy(value){state.busy=value;for(const node of document.querySelectorAll('[data-cm-mutation],#course-new,#course-refresh,#course-editor input,#course-editor select')){if(value){if(!disabledBeforeBusy.has(node))disabledBeforeBusy.set(node,node.disabled);node.disabled=true;}else if(disabledBeforeBusy.has(node)){node.disabled=disabledBeforeBusy.get(node);disabledBeforeBusy.delete(node);}}}
+  function busy(value){state.busy=value;for(const node of document.querySelectorAll('[data-cm-mutation],#course-new,#course-refresh,#course-editor input,#course-editor select,#course-editor textarea')){if(value){if(!disabledBeforeBusy.has(node))disabledBeforeBusy.set(node,node.disabled);node.disabled=true;}else if(disabledBeforeBusy.has(node)){node.disabled=disabledBeforeBusy.get(node);disabledBeforeBusy.delete(node);}}}
   function pill(stage){return `<span class="cm-pill" data-stage="${esc(stage)}">${esc(labels[stage]||stage)}</span>`;}
   const currentFilters=()=>({search:$('course-search').value,status:$('course-status-filter').value});
   function visibleCourses(filters=currentFilters()){
@@ -49,6 +50,20 @@
   function detailsTab(){
     const d=state.draft,disabled=editable()?'':' disabled';
     return `<div class="cm-form-grid">${field('name','Course name <span aria-hidden="true">*</span>','text','cm-span-2')}<label class="cm-field cm-span-2">Subject / Module category<select data-field="categoryKey"${disabled}>${options(state.categories.map(c=>({value:c.key,label:c.type+' · '+c.name+(c.area?' — '+c.area:'')})),d.categoryKey,'No category')}${d.categoryKey&&!state.categories.some(c=>c.key===d.categoryKey)?`<option value="${esc(d.categoryKey)}" selected>Category no longer available</option>`:''}</select><small>For categorisation only. Content and access are set on this Course.${state.capabilities.create?' <a href="/academy/subjects/" target="_blank" rel="noopener">Manage Subjects &amp; Modules ↗</a>':''}</small></label><label class="cm-field">Access<select data-field="accessModel"${disabled}>${options([{value:'FREE',label:'Free'},{value:'PAID',label:'Paid'}],d.accessModel,'Choose Free or Paid')}</select></label>${field('timezone','Timezone','text')}${field('startDate','Start date','date')}${field('endDate','End date','date','', 'Use the same date for a one-day Course.')}<hr class="cm-divider"><fieldset class="cm-fieldset"${disabled}><legend>Schedule days</legend><div class="cm-days">${[0,1,2,3,4,5,6].map(n=>`<label><input type="checkbox" data-day="${n}"${d.weekdays.includes(n)?' checked':''}><span>${days[n]}</span></label>`).join('')}</div></fieldset>${field('startTime','Start time','time')}${field('endTime','Finish time','time')}<label class="cm-field cm-span-2">Teacher<select data-field="teacherId"${disabled}>${teacherOptions(d.teacherId)}</select></label>${field('zoomLink','Zoom meeting link','url','cm-span-4')}<p class="cm-hint cm-span-4">${editable()?'Save a draft with only its name. When the schedule is ready, select Validate & generate sessions. Times use 24-hour HH:mm; type 745 or 4pm to convert. Dates, times, teacher and Zoom link are filled in automatically for your review. Changing the schedule asks before replacing edited sessions.':'Published details are protected. Create a revision to edit this schedule.'}</p></div>`;
+  }
+  function publicCardPreview(){
+    const card=state.cardDraft||{time:'',title:'',description:''};
+    return card.title?`<strong>${esc(card.time)}</strong><div><b>${esc(card.title)}</b><p>${esc(card.description).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')}</p></div>`:'<span class="cm-hint">Enter a display time, title and description to preview your card.</span>';
+  }
+  function publicCardControls(){
+    const preview=$('cm-card-preview');if(preview)preview.innerHTML=publicCardPreview();
+    for(const button of document.querySelectorAll('[data-cm-action="save-card"],[data-cm-action="discard-card"]'))button.disabled=state.busy||!cardDirty();
+    const status=$('cm-card-status');if(status)status.textContent=cardDirty()?'Unsaved card changes':state.course.publicCard?'Card saved':'Using session summaries until a card is saved';
+  }
+  function publicCardTab(){
+    if(!state.course.courseId)return '<p class="cm-hint">Save the Course draft before creating its public timetable card.</p>';
+    const card=state.cardDraft||{time:'',title:'',description:''};
+    return `<h3>Public timetable card</h3><p class="cm-hint">Use the same summary card as Programs. It appears once per scheduled day after the Course is published. The card applies to all deliveries of this Course. Its display time does not change the lesson times. Leave all three fields empty to hide the public card.</p><div class="cm-form-grid cm-card-fields">${[['time','Display time',12],['title','Card title',80],['description','Description',240]].map(([key,label,limit])=>`<label class="cm-field ${key==='description'?'cm-span-4':key==='title'?'cm-span-2':''}">${label}${key==='description'?`<textarea data-card-field="${key}" maxlength="${limit}" rows="3">${esc(card[key])}</textarea>`:`<input data-card-field="${key}" maxlength="${limit}" value="${esc(card[key])}">`}</label>`).join('')}</div><div id="cm-card-preview" class="cm-card-preview" aria-label="Public timetable card preview">${publicCardPreview()}</div><div class="cm-actions cm-card-actions"><button type="button" data-cm-action="save-card" data-cm-mutation${cardDirty()?'':' disabled'}>Save public card</button><button type="button" class="pb-secondary" data-cm-action="discard-card" data-cm-mutation${cardDirty()?'':' disabled'}>Discard card changes</button><small id="cm-card-status">${cardDirty()?'Unsaved card changes':state.course.publicCard?'Card saved':'Using session summaries until a card is saved'}</small></div>`;
   }
   function sessionsTab(){
     const canEdit=editable(),d=state.draft,disabled=canEdit?'':' disabled';
@@ -88,7 +103,7 @@
     const current=state.course.stage!=='DRAFT'?5:state.dirty||!state.course.courseId?0:!state.review?.valid?1:reviewAccepted()?5:3;
     return `<ol class="cm-workflow" aria-label="Course publication steps">${['Draft','Validate','Generate sessions','Review','Accept','Publish'].map((label,index)=>`<li class="${index<current?'is-done':index===current?'is-current':''}"${index===current?' aria-current="step"':''}><span>${index+1}</span>${label}</li>`).join('')}</ol>`;
   }
-  const tabs=[['list','List of courses'],['details','Details'],['sessions','Sessions'],['participants','Participants'],['media','Media'],['review','Review & publish']];
+  const tabs=[['list','List of courses'],['details','Details'],['sessions','Sessions'],['participants','Participants'],['public-card','Public card'],['media','Media'],['review','Review & publish']];
   function renderTabs(){
     const focused=document.activeElement?.id;
     $('course-tabs').innerHTML=tabs.map(([tab,label])=>`<button id="cm-tab-${tab}" type="button" role="tab" tabindex="${state.tab===tab?0:-1}" aria-selected="${state.tab===tab}" aria-controls="${tab==='list'?'course-list-panel':'course-editor'}" data-cm-action="tab" data-tab="${tab}"${tab!=='list'&&!state.course?' disabled':''}>${label}${tab==='sessions'&&state.draft?.sessions.length?' · '+state.draft.sessions.length:''}</button>`).join('');
@@ -107,7 +122,7 @@
     const c=state.course,d=state.draft,isDraft=editable();
     const transitions=!c.courseId?[]:c.stage==='PUBLISHED'?[['revise','Create revision'],['complete','Mark complete'],['cancel','Cancel Course']]:c.stage==='DRAFT'?[['cancel','Cancel Course'],['archive','Archive draft']]:c.stage==='COMPLETE'||c.stage==='CANCELLED'?[['archive','Archive Course']]:[];
     if(['COMPLETE','ARCHIVED'].includes(c.stage)&&state.capabilities.create)transitions.push(['repeat','Repeat as new Course']);
-    $('course-editor').innerHTML=`<header class="cm-editor-heading"><div><h2>${esc(d.name||'New Course')}</h2><div class="cm-heading-meta">${pill(c.displayStage||c.stage)}<small data-cm-save-state>${saveState()}</small>${c.currentPublication&&isDraft?'<small>Current timetable remains published</small>':''}</div></div><div class="cm-actions">${isDraft?`<button type="button" class="pb-secondary" data-cm-action="save" data-cm-mutation>Save draft</button><button type="button" data-cm-action="validate" data-cm-mutation>${d.sessions.length?'Validate &amp; review':'Validate &amp; generate sessions'}</button>`:''}${transitions.length?`<details class="cm-menu"><summary>More ▾</summary><div>${transitions.map(([action,label])=>`<button type="button" data-cm-action="${action}" data-cm-mutation>${label}</button>`).join('')}</div></details>`:''}</div></header>${workflow()}<div id="cm-panel" class="cm-tab-content">${state.tab==='details'?detailsTab():state.tab==='sessions'?sessionsTab():state.tab==='participants'?peopleTab():state.tab==='media'?mediaTab():reviewTab()}</div><footer class="cm-footer"><span>${c.courseId?`Course ID <span class="cm-id">${esc(c.courseId)}</span>`:'New draft'}</span><span>${c.completedAt?'Completed '+esc(c.completedAt.slice(0,10)):state.personDrafts.size?`${state.personDrafts.size} unsaved participant ${state.personDrafts.size===1?'change':'changes'}`:'All times use the Course timezone'}</span></footer>`;
+    $('course-editor').innerHTML=`<header class="cm-editor-heading"><div><h2>${esc(d.name||'New Course')}</h2><div class="cm-heading-meta">${pill(c.displayStage||c.stage)}<small data-cm-save-state>${saveState()}</small>${c.currentPublication&&isDraft?'<small>Current timetable remains published</small>':''}</div></div><div class="cm-actions">${isDraft?`<button type="button" class="pb-secondary" data-cm-action="save" data-cm-mutation>Save draft</button><button type="button" data-cm-action="validate" data-cm-mutation>${d.sessions.length?'Validate &amp; review':'Validate &amp; generate sessions'}</button>`:''}${transitions.length?`<details class="cm-menu"><summary>More ▾</summary><div>${transitions.map(([action,label])=>`<button type="button" data-cm-action="${action}" data-cm-mutation>${label}</button>`).join('')}</div></details>`:''}</div></header>${workflow()}<div id="cm-panel" class="cm-tab-content">${state.tab==='details'?detailsTab():state.tab==='sessions'?sessionsTab():state.tab==='participants'?peopleTab():state.tab==='public-card'?publicCardTab():state.tab==='media'?mediaTab():reviewTab()}</div><footer class="cm-footer"><span>${c.courseId?`Course ID <span class="cm-id">${esc(c.courseId)}</span>`:'New draft'}</span><span>${c.completedAt?'Completed '+esc(c.completedAt.slice(0,10)):state.personDrafts.size?`${state.personDrafts.size} unsaved participant ${state.personDrafts.size===1?'change':'changes'}`:'All times use the Course timezone'}</span></footer>`;
     if(state.busy)busy(true);
   }
   function dirty(){state.dirty=true;state.review=null;state.pending=null;const indicator=$('course-editor').querySelector('.cm-heading-meta small');if(indicator)indicator.textContent='Unsaved changes';}
@@ -120,7 +135,7 @@
     window.history?.replaceState(null,'',query.size?'?'+query:'/academy/courses/manage/');
   }
   function clearSelection(){
-    state.selection++;Object.assign(state,{course:null,draft:null,dirty:false,tab:'list',review:null,calendarWarnings:[],media:[],participants:null,pending:null,peopleSearch:'',assignedOnly:false});state.personDrafts.clear();rememberSelection();renderEditor();
+    state.selection++;Object.assign(state,{course:null,draft:null,cardDraft:null,dirty:false,tab:'list',review:null,calendarWarnings:[],media:[],participants:null,pending:null,peopleSearch:'',assignedOnly:false});state.personDrafts.clear();rememberSelection();renderEditor();
   }
   function filterCourses(){
     const next=currentFilters(),restore=filters=>{$('course-search').value=filters.search;$('course-status-filter').value=filters.status;};
@@ -133,7 +148,7 @@
     const sequence=++state.selection,generation=state.generation;
     const result=await api(base+'get',{courseId,runId});
     if(sequence!==state.selection||generation!==state.generation)return;
-    Object.assign(state,{course:result.course,draft:copy(result.course.details),dirty:false,tab,review:result.validation||null,calendarWarnings:result.calendarWarnings,media:result.media,participants:null});state.personDrafts.clear();rememberSelection();renderList();renderEditor();
+    Object.assign(state,{course:result.course,draft:copy(result.course.details),cardDraft:copy(result.course.publicCard??null),dirty:false,tab,review:result.validation||null,calendarWarnings:result.calendarWarnings,media:result.media,participants:null});state.personDrafts.clear();rememberSelection();renderList();renderEditor();
     if(tab==='participants')await loadParticipants();
   }
   async function loadParticipants(){
@@ -156,17 +171,17 @@
       if(requested)await select(requested.courseId,requested.runId,tabs.some(([tab])=>tab===query.get('tab'))?query.get('tab'):query.get('view')==='scheduling'?'sessions':'details');else renderEditor();
     }catch(error){if(generation!==state.generation)return;lock(error.message);$('course-access-retry').hidden=false;}
   }
-  function newCourse(){state.selection++;state.course={courseId:'',runId:'',stage:'DRAFT',displayStage:'DRAFT',revision:'0'};state.draft={name:'',categoryKey:'',accessModel:'',timezone:state.timezone,weekdays:[],startDate:'',endDate:'',startTime:'',endTime:'',teacherId:'',zoomLink:'',sessions:[]};state.dirty=false;state.review=null;state.participants=null;state.personDrafts.clear();state.media=[];state.calendarWarnings=[];state.tab='details';rememberSelection();renderList();renderEditor();$('course-editor').querySelector('[data-field="name"]')?.focus();}
+  function newCourse(){state.selection++;state.course={courseId:'',runId:'',stage:'DRAFT',displayStage:'DRAFT',revision:'0'};state.cardDraft=null;state.draft={name:'',categoryKey:'',accessModel:'',timezone:state.timezone,weekdays:[],startDate:'',endDate:'',startTime:'',endTime:'',teacherId:'',zoomLink:'',sessions:[]};state.dirty=false;state.review=null;state.participants=null;state.personDrafts.clear();state.media=[];state.calendarWarnings=[];state.tab='details';rememberSelection();renderList();renderEditor();$('course-editor').querySelector('[data-field="name"]')?.focus();}
   async function save(){
     if(!state.draft.name.trim()){state.tab='details';renderEditor();$('course-editor').querySelector('[data-field="name"]')?.focus();throw Error('Enter a Course name to save the draft.');}
     for(const row of [state.draft,...state.draft.sessions])for(const key of ['startTime','endTime'])row[key]=window.M4L_TIME.parse(row[key])||row[key];
     const result=await mutate('save',{...selected(),baseRevision:state.course.revision,details:copy(state.draft)}),tab=state.tab;
     Object.assign(state.course,{courseId:result.courseId,runId:result.runId,revision:result.revision,hasDraft:true});state.dirty=false;
     // A draft save does not discard unsaved participant role selections.
-    const personDrafts=new Map(state.personDrafts);await list();await select(result.courseId,result.runId,tab);state.personDrafts=personDrafts;if(tab==='participants')renderEditor();return result;
+    const personDrafts=new Map(state.personDrafts),cardDraft=cardDirty()?{draft:copy(state.cardDraft),saved:copy(state.course.publicCard??null),revision:state.course.publicCardRevision}:null;await list();await select(result.courseId,result.runId,tab);state.personDrafts=personDrafts;if(cardDraft){state.cardDraft=cardDraft.draft;state.course.publicCard=cardDraft.saved;state.course.publicCardRevision=cardDraft.revision;}renderEditor();return result;
   }
   async function validate(regenerate=false){
-    if(state.personDrafts.size)throw Error('Save your participant changes before validating the Course.');
+    if(state.personDrafts.size||cardDirty())throw Error('Save your participant and public card changes before validating the Course.');
     if(state.dirty||!state.course.courseId||!state.course.hasDraft)await save();
     let result;
     try{result=await mutate('validate',{...selected(),baseRevision:state.course.revision,regenerate});}
@@ -178,7 +193,7 @@
     el.querySelector('[data-dialog-cancel]').addEventListener('click',()=>el.close());
     el.querySelector('[data-dialog-confirm]').addEventListener('click',()=>{const input={name:el.querySelector('#cm-dialog-name')?.value||'',reuseMedia:Boolean(el.querySelector('#cm-dialog-reuse')?.checked)};el.close();void perform(()=>onConfirm(input));});el.showModal();
   }
-  function reviewDiscard(action){if(!hasUnsavedChanges()){void perform(action);return;}dialog('Unsaved changes','<p>Discard your unfinished changes and continue? Saved Course and participant records will be kept.</p>','Discard changes',()=>{state.dirty=false;state.personDrafts.clear();return action();});}
+  function reviewDiscard(action){if(!hasUnsavedChanges()){void perform(action);return;}dialog('Unsaved changes','<p>Discard your unfinished changes and continue? Saved Course and participant records will be kept.</p>','Discard changes',()=>{state.dirty=false;state.personDrafts.clear();state.cardDraft=copy(state.course?.publicCard??null);return action();});}
   async function generate(){
     if(state.draft.sessions.length)dialog('Replace the draft sessions?','<p>The Course schedule will be validated and sessions generated from its dates, days, times, teacher and Zoom link. Individual session edits will be replaced.</p>','Regenerate sessions',()=>validate(true));
     else await validate();
@@ -207,6 +222,10 @@
   async function action(name,el){
     if(name==='select'){const tab=!state.course&&new URLSearchParams(location.search).get('view')==='scheduling'?'sessions':'details';reviewDiscard(()=>select(el.dataset.course,el.dataset.run,tab));return;}
     if(name==='tab'){if(!tabs.some(([tab])=>tab===el.dataset.tab)||el.dataset.tab!=='list'&&!state.course)return;state.tab=el.dataset.tab;rememberSelection();renderEditor();if(state.tab==='participants'&&!state.participants)await loadParticipants();return;}
+    if(name==='save-card'){
+      const result=await mutate('public-card-save',{...selected(),baseCardRevision:state.course.publicCardRevision,publicCard:copy(state.cardDraft)});Object.assign(state.course,{publicCard:result.publicCard,publicCardRevision:result.publicCardRevision});state.cardDraft=copy(result.publicCard);renderEditor();tell(result.message);return;
+    }
+    if(name==='discard-card'){state.cardDraft=copy(state.course.publicCard??null);renderEditor();return;}
     if(name==='save'){const result=await save();tell(result.message);return;}
     if(name==='validate'){await validate();return;}
     if(name==='accept'){
@@ -215,7 +234,7 @@
       const result=await mutate('accept',{...selected(),baseRevision:state.course.revision,validationToken:state.course.validationToken,acknowledgeWarnings:Boolean($('course-ack-warnings')?.checked)});state.course.revision=result.revision;state.course.acceptedToken=result.acceptedToken;renderEditor();tell(result.message);return;
     }
     if(name==='publish'){
-      if(!reviewAccepted()||state.personDrafts.size)throw Error('Validate, review and accept the current saved sessions before publishing.');
+      if(!reviewAccepted()||state.personDrafts.size||cardDirty())throw Error('Validate, review and accept the current saved sessions before publishing.');
       const result=await mutate('publish',{...selected(),baseRevision:state.course.revision,validationToken:state.course.validationToken,acknowledgeWarnings:Boolean($('course-ack-warnings')?.checked)}),selection=selected();await list();await select(selection.courseId,selection.runId,'sessions');tell(result.message);return;
     }
     if(name==='generate'){await generate();return;}
@@ -239,6 +258,7 @@
   }
   function input(event){
     const el=event.target;
+    if(el.dataset.cardField){state.cardDraft={time:'',title:'',description:'',...state.cardDraft,[el.dataset.cardField]:el.value};state.pending=null;publicCardControls();return;}
     if(el.dataset.field&&editable()){state.draft[el.dataset.field]=el.value;dirty();}
     if(el.dataset.day!==undefined&&editable()){const day=Number(el.dataset.day);state.draft.weekdays=state.draft.weekdays.filter(d=>d!==day);if(el.checked)state.draft.weekdays.push(day);dirty();}
     if(el.dataset.session&&editable()){const row=state.draft.sessions.find(s=>s.id===el.dataset.session);if(row){row[el.dataset.sessionField]=el.value;dirty();}}

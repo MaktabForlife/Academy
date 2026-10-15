@@ -757,3 +757,5 @@
 .academy-mobile-layout .cm-unified-workspace .cm-list{display:grid;max-height:none;overflow:visible}
 .academy-mobile-layout .cm-unified-workspace .cm-course{width:100%;min-width:0}
 @media(max-width:900px){.academy-mobile-layout .cm-unified-workspace .cm-list{grid-template-columns:minmax(0,1fr)}}
+
+.cm-card-fields{margin:16px 0}.cm-card-fields textarea{width:100%;padding:10px;border:1px solid #dcd5e2;border-radius:6px;font:inherit;resize:vertical}.cm-card-preview{display:flex;gap:18px;align-items:flex-start;background:#f3eaf6;border:1px solid #dfd1e6;border-radius:14px;padding:18px;color:#60366b;max-width:520px;overflow-wrap:anywhere}.cm-card-preview>strong{background:#fff;border-radius:24px;padding:7px 12px;white-space:nowrap}.cm-card-preview p{margin:6px 0 0;white-space:pre-wrap}.cm-card-actions{margin-top:16px;flex-wrap:wrap}.cm-card-actions small{color:#726878}

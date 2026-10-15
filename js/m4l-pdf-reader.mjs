@@ -1,6 +1,6 @@
 import {PDF_TOOL_DEFAULTS,normalizePdfTools} from './m4l-pdf-tools-model.mjs?v=106.49';
-import {publicPdfFile} from './m4l-pdf-bookmarks-model.mjs?v=106.74';
-import {academyBookmarks} from './m4l-pdf-bookmarks.mjs?v=106.74';
+import {publicPdfFile} from './m4l-pdf-bookmarks-model.mjs?v=106.75';
+import {academyBookmarks} from './m4l-pdf-bookmarks.mjs?v=106.75';
 const $=id=>document.getElementById(id),query=new URLSearchParams(location.search),mobile=matchMedia('(max-width:750px)');
 const panes=[0,1].map(index=>({index,element:$('pr-pane-'+index),choices:{},frame:null,loaded:false,file:'',title:'',page:0,mode:'books',drawerGeneration:0}));
 let defaults={...PDF_TOOL_DEFAULTS},split=false,active=0,ratio=50,catalogue=null,cataloguePromise=null,ready=false;
@@ -14,6 +14,13 @@ window.M4L_PDF_READER={
 };
 document.addEventListener('webviewerloaded',event=>{const source=event.detail?.source,pane=panes.find(item=>item.frame?.contentWindow===source);if(pane){const settings=window.M4L_PDF_READER.settings(pane.index);source.PDFViewerApplicationOptions.set('highlightEditorColors',`Academy=${settings.highlightColor},yellow=#FFFF98,green=#53FFBC,blue=#80EBFF,pink=#FFCBE6,red=#FF4F5F`);}});
 function changed(pane){try{return Boolean(pane.frame.contentWindow.PDFViewerApplication?._annotationStorageModified);}catch{return false;}}
+function libraryReturn(){
+ if(query.get('library')==='public')return '/academy/open-library/';
+ if(query.get('library')==='personal')return '/academy/library/';
+ try{const referrer=new URL(document.referrer);if(referrer.origin===location.origin&&['/academy/open-library/','/academy/library/'].includes(referrer.pathname))return referrer.pathname;}catch{}
+ return academyBookmarks.signedIn()?'/academy/library/':'/academy/open-library/';
+}
+$('pr-close-reader').href=libraryReturn();
 function canReplace(pane){return !changed(pane)||confirm('This PDF has unsaved annotations. Download a copy before replacing it. Continue?');}
 function setActive(index){active=index;for(const pane of panes){pane.element.classList.toggle('is-active',pane.index===index);$('pr-tab-'+pane.index).setAttribute('aria-selected',String(pane.index===index));$('pr-tab-'+pane.index).tabIndex=pane.index===index?0:-1;}}
 function focusLabels(){const focused=$('pr-workspace').classList.contains('is-focused');for(const pane of panes)part(pane,'[data-focus]').textContent=focused?'Restore split':'Focus';}
@@ -26,12 +33,12 @@ function volumeSelector(pane){
  for(const volume of volumes){const option=document.createElement('option');option.value=volume.file;option.textContent=volume.volumeLabel;select.append(option);}select.value=pane.file;
  if(row){pane.title=row.title;part(pane,'[data-title]').textContent=row.title;}
 }
-function updateAddress(pane,page){if(pane.index!==0||!pane.file)return;const params=new URLSearchParams({file:pane.file,title:pane.title});if(page)params.set('page',String(page));history.replaceState(null,'','/academy/pdf-reader/?'+params);}
+function updateAddress(pane,page){if(pane.index!==0||!pane.file)return;const params=new URLSearchParams({file:pane.file,title:pane.title});if(['public','personal'].includes(query.get('library')))params.set('library',query.get('library'));if(page)params.set('page',String(page));history.replaceState(null,'','/academy/pdf-reader/?'+params);}
 function openFile(pane,file,title,check=true,page=0){
  if(!ready||check&&!canReplace(pane))return false;
  pane.file=publicPdfFile(file);pane.title=title||'PDF '+(pane.index+1);pane.loaded=false;pane.page=0;pane.pageLabel='';
  part(pane,'[data-title]').textContent=pane.title;part(pane,'[data-empty]').hidden=Boolean(pane.file);volumeSelector(pane);updateBookmarkButtons(pane);
- pane.frame.src='/pdf-viewer/web/viewer.html?academy=1&pane='+pane.index+'&v=106.74&file='+encodeURIComponent(pane.file)+(page?'#page='+page:'');
+ pane.frame.src='/pdf-viewer/web/viewer.html?academy=1&pane='+pane.index+'&v=106.75&file='+encodeURIComponent(pane.file)+(page?'#page='+page:'');
  part(pane,'[data-drawer]').hidden=true;pane.drawerGeneration++;setActive(pane.index);updateAddress(pane,page);return true;
 }
 async function books(force=false){

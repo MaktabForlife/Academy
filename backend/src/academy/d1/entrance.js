@@ -64,6 +64,7 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
     result.memorisationActive=setting?.active!==0;
   }
   if(config.programWorkspace)result.timetable=result.timetable.map(row=>row.kind==='PROGRAM'?{...row,publicCard:JSON.parse(activities.find(a=>a.kind==='PROGRAM'&&samePublication(a.activity_id,row.activityId))?.public_card_json||'{}')}:row);
+  result.timetable=result.timetable.map(row=>row.kind==='COURSE'?{...row,publicCard:JSON.parse(activities.find(a=>a.kind==='COURSE'&&samePublication(a.activity_id,row.activityId))?.course_public_card_json||'null')}:row);
   if(courseWorkflows){
     const data={calendar,suppressions,settings:calendarSettings},byActivity=new Map();
     const project=row=>{const activity=row.kind+':'+row.activityId;if(!byActivity.has(activity))byActivity.set(activity,noTeachingCalendarEvents(data,start,end,activity));const holiday=holidayOnDate(byActivity.get(activity),row.date);if(!holiday||row.status!=='SCHEDULED')return row;const {joinKey,joinUrl,publicJoin,...rest}=row;return {...rest,status:'HOLIDAY',holidayName:holiday.description};};

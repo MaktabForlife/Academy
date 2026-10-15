@@ -41,12 +41,22 @@
   function dockTimetable(target){if(target&&scheduleCard.parentElement!==target)target.appendChild(scheduleCard);}
   function weekButtons(){for(const id of ['schedule-previous','activity-previous'])$(id).disabled=!state.startDate||state.startDate<=currentWeek();for(const id of ['schedule-next','activity-next'])$(id).disabled=!token()&&state.startDate>=addWeekDays(state.home?.availableEndDate||state.home?.endDate||state.startDate,-6);}
   function roleRows(data){const rows=scheduleRows(data),teach=location.hash==='#timetable/teach';if(!teach||data.globalAdmin)return rows;const areas=new Set((data.personalActivities||[]).filter(r=>staffRoles(r.roles||[])).map(r=>r.kind+':'+r.id));return rows.filter(r=>areas.has(r.kind+':'+r.activityId));}
+  function workspaceAreaLinks(mode,current,activities=state.home?.personalActivities||[]){
+    return activities.filter(row=>menuActivity(row)&&(state.home?.globalAdmin||mode!=='teach'||staffRoles(row.roles||[]))).map(row=>{
+      const selected=Boolean(current&&row.kind===current.kind&&row.id===current.id);
+      return activityPill(workspaceHref(row,'timetable',mode),row.name,row.roles,selected)+hifzHelperLink(row,'workspace-helper-link');
+    }).join('');
+  }
   function renderRoleLinks(){
     const teach=location.hash==='#timetable/teach',mode=teach?'teach':'learn',data=state.home;
-    const host=$('timetable-quicklinks');if(!data?.signedIn){host.innerHTML='<a href="#overview">Academy home</a>';return;}
+    const host=$('timetable-quicklinks'),areas=$('timetable-areas');
+    $('timetable').dataset.workspaceMode=data?.signedIn?mode:'public';
+    $('full-timetable-title').textContent=data?.signedIn?(teach?'TEACH':'LEARN'):'Academy timetable';
+    if(!data?.signedIn){host.innerHTML='<a href="#overview">Academy home</a>';areas.replaceChildren();return;}
     const rows=(data.personalActivities||[]).filter(r=>menuActivity(r)&&(data.globalAdmin||!teach||staffRoles(r.roles||[]))),first=rows[0];
     const link=(href,text)=>'<a href="'+esc(href)+'">'+esc(text)+'</a>';
-    host.innerHTML='<div class="role-shortcuts">'+link('#overview','Academy home')+link('/academy/library/','Library')+link('/academy/calendar/?view='+mode,'Academic Calendar')+link('#overview','Announcements')+link('#assessments','My assessments')+link('#progress','Surahs and Duas')+link('/activities/surahs-in-my-heart/','Surahs in my Heart')+link('/activities/kaaba-puzzle/','Kaaba puzzle')+link('#about','About')+link('#contact','Contact')+(data.student?link('#recorder','Voice Recorder'):'')+(teach?link('/academy/teaching/','Edit availability')+(first?link(workspaceHref(first,'attendance','teach'),'Attendance')+link(workspaceHref(first,'planning','teach'),'Planning'):''):'')+'</div><div class="role-areas">'+rows.map(row=>activityPill(workspaceHref(row,'timetable',mode),row.name,row.roles)+hifzHelperLink(row,'activity-pill-shortcut')).join('')+'</div>';
+    areas.innerHTML=workspaceAreaLinks(mode);areas.setAttribute('aria-label',teach?'Your teaching Programs and Courses':'Your learning Programs and Courses');
+    host.innerHTML='<div class="role-shortcuts">'+link('#overview','Academy home')+link('/academy/library/','Library')+link('/academy/calendar/?view='+mode,'Academic Calendar')+link('#overview','Announcements')+link('#assessments','My assessments')+link('#progress','Surahs and Duas')+link('/activities/surahs-in-my-heart/','Surahs in my Heart')+link('/activities/kaaba-puzzle/','Kaaba puzzle')+link('#about','About')+link('#contact','Contact')+(data.student?link('#recorder','Voice Recorder'):'')+(teach?link('/academy/teaching/','Edit availability')+(first?link(workspaceHref(first,'attendance','teach'),'Attendance')+link(workspaceHref(first,'planning','teach'),'Planning'):''):'')+'</div>';
   }
   const homeIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h5v-7h4v7h5V9"/></svg>';
   const TIMETABLE_RETURN_KEY = 'm4l_academy_timetable_return';
@@ -294,7 +304,6 @@
   function renderHome() {
     const data = state.home;
     $('academy-recorder-nav').hidden = !(data.signedIn && data.student);
-    $('academy-calendar-nav').hidden = !data.signedIn;
     const activities = data.signedIn ? data.personalActivities : [];
     renderAcademyMenu();
     renderSubscriptions(activities);
@@ -302,7 +311,7 @@
     const personalSchedule = scheduleRows(data);
     $('schedule-title').textContent = data.signedIn ? 'My Timetable' : 'Academy timetable';
     if($('teaching-availability-link'))$('teaching-availability-link').hidden=!data.signedIn||!(data.globalAdmin||(data.personalActivities||[]).some(r=>r.roles?.some(role=>['TEACHER','PROGRAM_ADMIN','ADMIN'].includes(role))));
-    $('full-timetable-title').textContent = data.signedIn ? 'My Timetable' : 'Academy timetable';
+    $('full-timetable-title').textContent = data.signedIn ? (location.hash==='#timetable/teach'?'TEACH':'LEARN') : 'Academy timetable';
     $('preview-title').textContent = data.signedIn ? 'My Academy timetable' : 'Coming up';
     const preview = data.signedIn ? personalSchedule : upcomingItems(data.timetable);
     renderSchedule('academy-preview-sessions', preview, false, true);
@@ -583,11 +592,11 @@
       const joiningPriority=row=>row.publicJoin&&row.endsAt>now?(row.joinAvailableAt<=now?2:1):0;
       for(const row of rows){
         if(row.status&&row.status!=='SCHEDULED')continue;
-        if(row.kind!=='PROGRAM'){publicRows.push(row);continue;}
+        if(row.kind!=='PROGRAM'&&!(row.kind==='COURSE'&&row.publicCard)){publicRows.push(row);continue;}
         if(!row.publicCard?.time||!row.publicCard.title||!row.publicCard.description)continue;
-        // The public description represents a Program's whole day. Prefer its
+        // The public description represents a Program or Course's whole day. Prefer its
         // currently joinable lesson, then its next free lesson, for Join checks.
-        const key=JSON.stringify([row.date,row.activityId]),index=programs.get(key);
+        const key=JSON.stringify([row.date,row.kind,row.activityId]),index=programs.get(key);
         if(index===undefined){programs.set(key,publicRows.length);publicRows.push(row);continue;}
         const previous=publicRows[index],priority=joiningPriority(row),before=joiningPriority(previous);
         if(priority>before||priority===1&&before===1&&row.startsAt<previous.startsAt)publicRows[index]=row;
@@ -604,8 +613,8 @@
         days.get(row.date).push({...row,publicIndex:rows.indexOf(row)});
       });
       $(id).innerHTML = `<ol class="upcoming-days preview-days">${[...days].map(([date, lessons]) => `<li class="upcoming-day"><time datetime="${esc(date)}">${esc(formatDate(date))}</time><ul class="upcoming-items">${lessons.length?lessons.map(row => {
-        const card=row.kind==='PROGRAM'?row.publicCard:null;
-        if(row.kind==='PROGRAM'&&(!card?.time||!card.title||!card.description))return '';
+        const card=row.publicCard;
+        if((row.kind==='PROGRAM'||card)&&(!card?.time||!card.title||!card.description))return '';
         const label = esc(card?.title || row.activityName || row.title);
         const open=row.publicJoin&&row.joinKey&&now>=row.joinAvailableAt&&now<row.endsAt;
         return `<li class="preview-pill${open?' is-open':''}"><span class="preview-copy"><span class="preview-name" title="${label}">${label}</span>${card?`<span class="preview-description">${esc(card.description).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')}</span>`:''}</span><span class="preview-controls">${card?`<span class="preview-clock"><span>${esc(card.time)}</span></span>`:previewTime(row.startTime)}${row.publicJoin&&now<row.endsAt?`<button type="button" data-public-join="${id}:${row.publicIndex}" ${open?'':'disabled'} aria-label="Join ${label}">${open?'Join':'Opens 5 min before'}</button>`:''}</span></li>`;
@@ -718,6 +727,7 @@
       $('activity-role').textContent = '';
       $('activity-back-link').hidden=true;
       renderSubscriptions(result.signedIn ? result.personalActivities : [], row);
+      $('activity-areas').innerHTML=result.signedIn&&row.roles.length?workspaceAreaLinks(workspaceContext(row).mode,row,result.personalActivities):'';
       $('current-view').textContent = row.name;
       const message = row.unavailable ? 'This activity is temporarily unavailable. Please try again.' : !row.roles.length ? 'Sign in with an authorised Academy account to open protected lessons and tools.' : '';
       $('activity-status').textContent = [message,...result.warnings.filter(warning => !$('entrance-message').textContent.includes(warning))].filter(Boolean).join(' ');
@@ -739,6 +749,7 @@
       state.activity = null;
       $('activity-title').textContent = 'Activity unavailable';
       $('activity-status').textContent = error.message;
+      $('activity-areas').replaceChildren();
       $('activity-menu').replaceChildren();
       $('activity-sessions').replaceChildren();
       $('activity-schedule').hidden = true;
@@ -953,6 +964,7 @@
     state.scheduleGeneration++;
     state.activityGeneration++;
     state.home = null;
+    $('timetable-areas').replaceChildren();$('activity-areas').replaceChildren();
     state.activity = null;
     state.courseCatalogue = null;
     state.courseCatalogueAt = 0;
@@ -966,7 +978,6 @@
     $('administration').replaceChildren();
     renderAcademyMenu();
     $('academy-recorder-nav').hidden = true;
-    $('academy-calendar-nav').hidden = true;
     for (const id of ['workshop-pills', 'academy-preview-sessions', 'academy-sessions', 'activity-switcher', 'activity-menu', 'activity-sessions', 'workshop-tools', 'recorder-card']) $(id).replaceChildren();
     $('activity-switcher').hidden = true;
     for (const id of ['activity-library','activity-planning','activity-support']) {$(id).hidden = true;$(id).replaceChildren();}

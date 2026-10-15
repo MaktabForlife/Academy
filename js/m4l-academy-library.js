@@ -140,7 +140,7 @@
     const partCount = row.volumes?.length ? `${row.volumes.length} volumes` :
       row.mediaFiles?.length > 1 ? `${row.mediaFiles.length} recordings` : '';
     const pdfBook=row.publicBook&&!row.publicLink&&['EBOOK','PRINTABLE'].includes(row.type),tag=pdfBook?'a':'button';
-    const attributes=pdfBook?`href="/academy/pdf-reader/?${row.volumes?.length>1?'book='+encodeURIComponent(row.id):'file='+encodeURIComponent(pdfProxy(row.volumes?.[0]?.pdfUrl||row.pdfUrl))}&amp;title=${encodeURIComponent(row.name)}" target="_blank" rel="noopener noreferrer" data-pdf-reader="true"`:'type="button"';
+    const attributes=pdfBook?`href="/academy/pdf-reader/?${row.volumes?.length>1?'book='+encodeURIComponent(row.id):'file='+encodeURIComponent(pdfProxy(row.volumes?.[0]?.pdfUrl||row.pdfUrl))}&amp;library=personal&amp;title=${encodeURIComponent(row.name)}" target="_blank" rel="noopener noreferrer" data-pdf-reader="true"`:'type="button"';
     return `<${tag} ${attributes} class="al-card" data-resource="${esc(row.id)}" aria-label="${row.locked ? 'Locked: ' : 'Open '}${esc(row.name)} (${esc(typeNames[row.type] || 'Resource')})"><span class="al-art">${art}</span><small>${esc(row.sourceName)}${row.module ? ` · ${esc(row.module)}` : ''}</small><span class="al-card-title"><img src="${esc(icons[row.type] || icons.OTHER)}" alt="" width="18" height="18"><strong>${esc(row.name)}</strong></span>${partCount ? `<span class="al-volume-count">${partCount}</span>` : ''}${row.locked ? '<span class="al-lock">Subscription required</span>' : ''}</${tag}>`;
   }
 
@@ -182,7 +182,7 @@
   function showArchivePdf(row, volume) {
     const url = volume?.pdfUrl || row.pdfUrl;
     clearMedia();
-    $('al-open').href = '/academy/pdf-reader/?file='+encodeURIComponent(pdfProxy(url))+'&title='+encodeURIComponent(row.name+(volume?' · '+(volume.label||'Volume '+volume.number):''));
+    $('al-open').href = '/academy/pdf-reader/?file='+encodeURIComponent(pdfProxy(url))+'&library=personal&title='+encodeURIComponent(row.name+(volume?' · '+(volume.label||'Volume '+volume.number):''));
     $('al-open').textContent = 'Open PDF reader in a new tab ↗';
     $('al-open').hidden = false;
   }

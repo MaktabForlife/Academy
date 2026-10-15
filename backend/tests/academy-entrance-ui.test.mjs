@@ -44,7 +44,7 @@ const stamp = event => {
   if (Date.parse(fixtureNow)<result.joinAvailableAt || Date.parse(fixtureNow)>=endsAt || result.status!=='SCHEDULED') delete result.joinUrl;
   return result;
 };
-let deferNext=false, release, hasWorkshops=true, globalAdmin=false, programRole='STUDENT', roomFixture=false, rollupBoundaryFixture=false, colourFixture=false, cacheFixture=false, failNext=false, quotaNext=false, warningFixture=false, publicFreeFixture=false;
+let deferNext=false, release, hasWorkshops=true, globalAdmin=false, programRole='STUDENT', roomFixture=false, rollupBoundaryFixture=false, colourFixture=false, cacheFixture=false, failNext=false, quotaNext=false, warningFixture=false, publicFreeFixture=false,publicCourseFixture=false;
 const publicJoins=[];let remoteLabelsVersion='0',labelChecks=0;
 const fetch = async (_url, options) => {
   fetchUrls.push(_url);
@@ -93,6 +93,7 @@ const fetch = async (_url, options) => {
   if(!signedIn){
     result.snapshotDate='2026-10-05';
     result.timetable=result.timetable.map(event=>event.kind==='PROGRAM'?{...event,publicCard:{time:'4am',title:'Public <Program>',description:'4 yr structured scholarship of **Quran, Sunnah, and Islamic law**'}}:event);
+    if(publicCourseFixture){const card={time:'7 pm',title:'Public <Course>',description:'Course **summary**'};result.timetable=result.timetable.map(event=>event.kind==='COURSE'?{...event,publicCard:card}:event);result.timetable.push({...result.timetable.find(event=>event.kind==='COURSE'),startTime:'13:00',endTime:'14:00'});}
     if(publicFreeFixture)result.timetable=result.timetable.map(event=>{
       if(event.title!=='Lesson <one>')return event;
       const {joinUrl,...free}=stamp({...event,joinUrl:'https://zoom.test/free'});return {...free,publicJoin:true};
@@ -185,6 +186,7 @@ assert.ok(html.indexOf('aria-label="Bismillah"')<html.indexOf('id="overview-titl
 assert.match(html, /id="academy-login-dialog"[\s\S]*One account · Every program/);
 await navigate('#workshops');assert.match($('workshops-message').textContent,/Sign in/);assert.equal(catalogueRequests.length,0);
 
+publicCourseFixture=true;await refresh();assert.equal(($('academy-public-sessions').innerHTML.match(/Public &lt;Course&gt;/g)||[]).length,4,'Course marketing card appears once per scheduled day despite two same-day sessions');assert.match($('academy-public-sessions').innerHTML,/>7 pm<|<strong>summary<\/strong>/);assert.doesNotMatch($('academy-public-sessions').innerHTML,/aria-label="12:00"/);publicCourseFixture=false;await refresh();
 storage.set('m4l_account_token','QA');await refresh();
 assert.equal($('academy-role-panel').hidden,true,'Chooser stays on Academy home');assert.equal($('public-snapshot-note').hidden,true);
 assert.equal(($('academy-public-sessions').innerHTML.match(/<li class="preview-pill"/g)||[]).length,5,'Signing in keeps the homepage public timetable independent of the personal schedule');

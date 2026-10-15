@@ -155,7 +155,7 @@ export function academyD1Repository(env) {
       const classScope=state?`c.activity_key IN (SELECT value FROM json_each(?))`:
         `c.activity_key IN (SELECT a.activity_key FROM activities a ${programAccessJoin} WHERE a.kind='PROGRAM' AND a.active=1 AND a.lifecycle='ACTIVE' AND a.website_visible=1 AND ${programAccessSQL}='FREE')`;
       const queries=[
-        `SELECT a.*,p.timezone,p.duration_years${programWorkspace?`,p.public_card_json,CASE WHEN a.kind<>'COURSE' THEN 1
+        `SELECT a.*,p.timezone,p.duration_years,(SELECT setting_value FROM academy_settings WHERE setting_key='AcademyCoursePublicCard:'||upper(a.activity_key)) AS course_public_card_json${programWorkspace?`,p.public_card_json,CASE WHEN a.kind<>'COURSE' THEN 1
           WHEN EXISTS(SELECT 1 FROM course_management_drafts d WHERE d.activity_key=a.activity_key AND d.stage NOT IN ('CANCELLED','ARCHIVED')) THEN 1
           WHEN EXISTS(SELECT 1 FROM course_runs r LEFT JOIN course_management_drafts d USING(activity_key,run_id) LEFT JOIN course_run_state s USING(activity_key,run_id) WHERE r.activity_key=a.activity_key AND r.active=1 AND d.run_id IS NULL AND coalesce(s.stage,'DRAFT') NOT IN ('CANCELLED','ARCHIVED')) THEN 1
           WHEN NOT EXISTS(SELECT 1 FROM course_management_drafts d WHERE d.activity_key=a.activity_key) AND NOT EXISTS(SELECT 1 FROM course_runs r WHERE r.activity_key=a.activity_key) THEN 1 ELSE 0 END AS course_menu_available`:''},cs.legacy_access_model,${programAccessSQL} AS program_access_model,pz.setting_value AS program_zoom_override FROM activities a LEFT JOIN program_settings p USING(activity_key) LEFT JOIN course_settings cs USING(activity_key) ${programAccessJoin} ${programZoomJoin} WHERE a.active=1 AND a.lifecycle='ACTIVE' AND a.website_visible=1`,

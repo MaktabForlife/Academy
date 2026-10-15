@@ -27,7 +27,7 @@ export function publicTimetableSnapshot(data,period,now=new Date()) {
     ...(Number.isSafeInteger(data.sourceRevision)?{sourceRevision:data.sourceRevision}:{}),signedIn:false,globalAdmin:false,student:false,startDate:data.startDate,endDate:addDays(data.startDate,6),availableEndDate:data.availableEndDate||data.endDate,timezone:data.timezone,
     activities:[],personalActivities:[],activityPages:[],personalTimetable:[],activity:null,warnings:[],calendarEvents:[],
     timetable:data.timetable.filter(row=>row.status==='SCHEDULED').map(row=>({kind:row.kind,activityId:row.activityId,
-      ...(row.kind==='PROGRAM'?{publicCard:Object.fromEntries(['time','title','description'].map(key=>[key,typeof row.publicCard?.[key]==='string'?row.publicCard[key].slice(0,({time:12,title:80,description:240})[key]):'']))}:{}),activityName:row.activityName,title:row.activityName||row.title,date:row.date,startTime:row.startTime,endTime:row.endTime,timezone:row.timezone,status:'SCHEDULED',...(row.publicJoin===true&&typeof row.joinKey==='string'?{publicJoin:true,joinKey:row.joinKey,...lessonTimes(row)}:{})}))};
+      ...(row.kind==='PROGRAM'||row.kind==='COURSE'&&row.publicCard?{publicCard:Object.fromEntries(['time','title','description'].map(key=>[key,typeof row.publicCard?.[key]==='string'?row.publicCard[key].slice(0,({time:12,title:80,description:240})[key]):'']))}:{}),activityName:row.activityName,title:row.activityName||row.title,date:row.date,startTime:row.startTime,endTime:row.endTime,timezone:row.timezone,status:'SCHEDULED',...(row.publicJoin===true&&typeof row.joinKey==='string'?{publicJoin:true,joinKey:row.joinKey,...lessonTimes(row)}:{})}))};
 }
 
 export async function publicTimetable(request,env,now=new Date(),edgeCache=globalThis.caches?.default) {

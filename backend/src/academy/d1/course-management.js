@@ -13,6 +13,7 @@ import {teacherDesignations,teacherDirectory,eligibleTeacher} from './teachers.j
 import {optionalSchema} from './schema-probe.js';
 import {availableForSession} from '../availability-ranges.js';
 import {termBreaks} from '../calendar-dates.js';
+import {courseCardKey,normalizePublicCard} from './public-card.js';
 
 const clean=v=>String(v??'').trim();
 const id=v=>/^[a-z0-9][a-z0-9_-]{0,119}$/i.test(v);
@@ -136,7 +137,9 @@ async function courseRecord(data,a,runId) {
   // concurrency revision depends on persisted source records, not those IDs.
   const revision=meta?String(meta.revision):await payloadHash({a,run:run||null,state:data.states.filter(s=>same(s.activity_key,a.activity_key)&&same(s.run_id,runId)),sessions:data.sessions.filter(s=>same(s.activity_key,a.activity_key)&&same(s.run_id,runId))});
   details.categoryKey=resolveModuleCategory(data,details.categoryKey);
-  return {courseId:a.activity_id,activityKey:a.activity_key,runId,details,stage,displayStage:effectiveStage({details,stage}),revision,hasDraft:Boolean(meta),currentPublication,completedAt:meta?.completed_at||null,repeatedFrom:meta?.repeated_from_activity_key||null,validationToken:meta?.validation_sha256||'',scheduleToken:meta?.schedule_sha256||'',acceptedToken:meta?.accepted_sha256||'',legacySharedAccess:data.runs.filter(r=>same(r.activity_key,a.activity_key)).length>1};
+  const publicCard=JSON.parse(data.settings.find(s=>s.setting_key===courseCardKey(a.activity_key))?.setting_value||'null');
+  const publicCardRevision=await payloadHash(publicCard);
+  return {courseId:a.activity_id,activityKey:a.activity_key,runId,details,publicCard,publicCardRevision,stage,displayStage:effectiveStage({details,stage}),revision,hasDraft:Boolean(meta),currentPublication,completedAt:meta?.completed_at||null,repeatedFrom:meta?.repeated_from_activity_key||null,validationToken:meta?.validation_sha256||'',scheduleToken:meta?.schedule_sha256||'',acceptedToken:meta?.accepted_sha256||'',legacySharedAccess:data.runs.filter(r=>same(r.activity_key,a.activity_key)).length>1};
 }
 export function d1CourseManagement(repository,auth,env={}) {
   const store=managementStore(repository,auth),p=store.p;
@@ -187,21 +190,26 @@ export function d1CourseManagement(repository,auth,env={}) {
       const a=data.activities.find(a=>same(a.activity_key,course.activityKey));
       return {scope:await scopeDTO(data,a),accounts:await Promise.all(data.accounts.map(async account=>({...profileDTO(data,account),assignment:await assignmentDTO(data,account,a)}))),roles:editableRoles};
     }
-    if(!['save','validate','accept','publish','status','repeat','participant-create'].includes(action))throw managementError('Unknown Course action.',404);
+    if(!['save','public-card-save','validate','accept','publish','status','repeat','participant-create'].includes(action))throw managementError('Unknown Course action.',404);
     return store.change('COURSE_MANAGEMENT',input.courseId?'COURSE:'+input.courseId:'ACADEMY','course-editor/'+action,input,async()=>{
       const data=await load(['validate','accept','publish'].includes(action)),guardData={...data,accounts:data.accounts.map(a=>({...a}))},statements=[];
       let c;
       if(action==='save'&&!input.courseId){
         if(!auth.state.account.global_admin)throw managementError('Only a Global Admin can create Courses.',403,'FORBIDDEN');
         c={courseId:'COURSE-'+crypto.randomUUID(),runId:'CMRUN-'+crypto.randomUUID(),revision:'0',stage:'DRAFT',completedAt:null,repeatedFrom:null};c.activityKey='COURSE:'+c.courseId;
-      }else{c=await selected(data,input);if(action!=='participant-create')checkRevision(c,input);}
+      }else{c=await selected(data,input);if(!['participant-create','public-card-save'].includes(action))checkRevision(c,input);}
       const creating=!data.activities.some(a=>same(a.activity_key,c.activityKey));
       function createActivity(name,accessModel){
         const now=new Date().toISOString();
         statements.push(p("INSERT INTO activities(activity_key,activity_id,kind,name,active,lifecycle,website_visible,created_at,updated_at,revision) VALUES(?,?,'COURSE',?,1,'ACTIVE',0,?,?,1)",c.activityKey,c.courseId,name,now,now),p("INSERT INTO course_settings(activity_key,legacy_access_model,policy_review_state) VALUES(?,?,'CONFIRMED')",c.activityKey,accessModel==='FREE'?'FREE':'PAID'),...insertRecords(p,'data_ownership',[repository.ownershipForNewActivity(c.activityKey)]));
       }
       let result;
-      if(action==='save') {
+      if(action==='public-card-save'){
+        if(input.baseCardRevision!==c.publicCardRevision)throw rowChanged(c.publicCard,c.publicCardRevision);
+        const publicCard=normalizePublicCard(input.publicCard),publicCardRevision=await payloadHash(publicCard);
+        statements.push(p(`INSERT INTO academy_settings(setting_key,setting_value,updated_at,updated_by_account_id) VALUES(?,?,?,?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value,updated_at=excluded.updated_at,updated_by_account_id=excluded.updated_by_account_id`,courseCardKey(c.activityKey),JSON.stringify(publicCard),new Date().toISOString(),auth.user.accountid));
+        result={publicCard,publicCardRevision,message:'Public timetable card saved.'};
+      }else if(action==='save') {
         if(c.stage!=='DRAFT')throw managementError('Create a revision before editing a published Course. Repeat a completed or archived Course to run it again.',409);
         const d=normalize(input.details,data.settings.find(s=>s.setting_key==='PlatformTimezone')?.setting_value||'Africa/Johannesburg');
         if(creating)createActivity(d.name,d.accessModel);
@@ -265,7 +273,7 @@ export function d1CourseManagement(repository,auth,env={}) {
         statements.push(p('INSERT INTO accounts(account_id,display_name,login_link_id,active,created_at,updated_at,created_by_source_id,modified_by_source_id,revision) VALUES(?,?,?,1,?,?,?,?,1)',accountId,name,loginId,now,now,auth.user.accountid,auth.user.accountid),p('INSERT INTO account_credentials(account_id,pin_setup,credential_epoch) VALUES(?,0,1)',accountId),p("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state,granted_at,granted_by_account_id,revision) VALUES(?,?,?,'STUDENT',1,'CONFIRMED',?,?,1)",crypto.randomUUID(),accountId,c.activityKey,now,auth.user.accountid),p('INSERT INTO course_subscription_decisions(account_id,activity_key,active,updated_at,updated_by_account_id) VALUES(?,?,1,?,?)',accountId,c.activityKey,now,auth.user.accountid));
         result={accountId,loginPath:'/account/'+loginId,message:'User added with Student access to this Course.'};
       }
-      return {data:guardData,authorityScopes:[c.activityKey],statements,result,fields:[action,'CourseDetails','CourseLifecycle']};
+      return {data:guardData,authorityScopes:[c.activityKey],statements,result,fields:action==='public-card-save'?['PublicCard']:[action,'CourseDetails','CourseLifecycle']};
     });
   }};
 }
