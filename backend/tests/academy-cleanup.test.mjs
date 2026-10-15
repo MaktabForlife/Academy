@@ -41,7 +41,7 @@ test('retired private Library and old Sheets routes cannot issue files or write 
 }));
 test('the publish artifact excludes legacy applications, backend source and private tools',()=>{
  const directory=mkdtempSync('/private/tmp/academy-cleanup-assets-');
- try{const report=buildAcademyAssets({repo:new URL('../../',import.meta.url).pathname,directory});assert(report.files.includes('academy/index.html'));assert(report.files.includes('js/m4l-pdf-reader.mjs'));assert(report.files.includes('js/version.json'));
+ try{const report=buildAcademyAssets({repo:new URL('../../',import.meta.url).pathname,directory});assert(report.files.includes('academy/index.html'));assert(report.files.includes('js/m4l-pdf-reader.mjs'));assert(report.files.includes('js/version.json'));for(const license of ['js/vendor/pdf-lib-LICENSE.md','js/vendor/pdfjs/LICENSE'])assert(readFileSync(join(directory,license),'utf8').length>100);
  for(const file of ['app.js','admin/index.html','student/index.html','js/m4l-program-library.js','backend/src/academy-runtime.js','apps-script/code.gs','AGENTS.md'])assert.equal(existsSync(join(directory,file)),false,file);
  assert(!readFileSync(join(directory,'programs/library.html'),'utf8').includes('m4l-program-library.js'));
  const config=readFileSync(join(directory,'js/m4l-config.js'),'utf8');assert(config.includes('devrebootworker'));assert(!config.includes('api.rebootyourmaktab'));
