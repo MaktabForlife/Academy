@@ -36,7 +36,7 @@ export default {
         return json({
           success: true,
           service: "rebootworker",
-          version: "106.66"
+          version: "106.67"
         });
       }
 

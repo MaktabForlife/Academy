@@ -1,4 +1,4 @@
-import {announcements,publicAnnouncements,announcementImage,announcementUpload} from './announcements.js';
+import {announcements,publicAnnouncements,announcementImage,announcementPdf,announcementUpload} from './announcements.js';
 import {lessonPlanning} from './lesson-planning.js';
 import {d1Memorisation,d1MemorisationPreview} from './memorisation.js';
 import {d1Assessments} from './assessments.js';
@@ -65,9 +65,10 @@ async function dispatch(request,env) {
   await repository.ready();
   if(path==='/api/academy/announcements'&&request.method==='GET')return {success:true,...await publicAnnouncements(repository)};
   if(path==='/api/academy/announcements/image'&&['GET','HEAD'].includes(request.method))return announcementImage(request,repository,env);
+  if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'rebootworker',version:'106.66',
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'rebootworker',version:'106.67',
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(repository)};
@@ -85,8 +86,8 @@ async function dispatch(request,env) {
   if(request.method!=='POST')throw rehearsalError('Use POST.',405,'METHOD_NOT_ALLOWED');
   if(path==='/api/admin/platform/announcements/save'){
     const auth=await authenticated(request,env,repository);
-    const editor=announcements(repository,auth,env),{input,image}=await announcementUpload(request);
-    return {success:true,...await editor.run('save',input,image)};
+    const editor=announcements(repository,auth,env),{input,image,pdf}=await announcementUpload(request);
+    return {success:true,...await editor.run('save',input,image,pdf)};
   }
   if(path==='/api/academy/lesson-media/upload') {
     const auth=await authenticated(request,env,repository),metadata=new URL(request.url).searchParams.get('metadata')||'';

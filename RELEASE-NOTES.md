@@ -1,3 +1,7 @@
+# V106.67 — Announcement PDFs and prospectus links
+
+Global Admin can attach a PDF up to 10 MB to an announcement, automatically insert its message link, replace or remove it, and save alongside a poster. Plain web addresses and named message links are clickable. The 2026 Prospectus announcement replaces the separate homepage banner and menu entry; the existing PDF address remains available. Attachment metadata uses the existing database settings with guarded saves, so no schema migration is needed. [Implementation and validation](docs/ACADEMY-ANNOUNCEMENT-PDFS-106.67.md).
+
 # V106.66 — Account bookmarks and PDF volume selection
 
 Save public Library books or specific pages to a private Academy bookmark list that follows the signed-in account across devices. Multi-volume cards in Browse and For you ask which volume to open, and each reader pane has a quick volume selector. Bookmark reopening retains the exact volume and physical page; page turns create no bookmark requests. Includes the additive empty-table migration `0025_pdf_bookmarks.sql`. [Implementation and validation](docs/ACADEMY-PDF-BOOKMARKS-106.66.md).
