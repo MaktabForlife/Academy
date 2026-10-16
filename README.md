@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V106.86
+# Umm Abbad Academy — V106.87
 
 This `development` branch contains the Cloudflare D1 Academy application. The separate Git `main` branch continues to serve the legacy Reboot application.
 
@@ -6,6 +6,10 @@ This `development` branch contains the Cloudflare D1 Academy application. The se
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - Independent HifzHelper links remain. The cancelled shared-login integration is not part of Academy.
+
+## V106.87 — Editable copied enrolments and full announcements
+
+Program and Course copies can include existing learners as an editable draft roster. Program class memberships and Course dates/sessions are copied with fresh local IDs; learner access stays closed until activation/publication. Clicking an announcement picture opens its full image, complete message and clickable links/PDF in one pop-up. [Release details](docs/ACADEMY-DRAFT-COPIES-ANNOUNCEMENTS-106.87.md).
 
 ## V106.86 — Copy an existing Program or Course
 

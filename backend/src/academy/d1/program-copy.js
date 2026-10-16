@@ -1,4 +1,4 @@
-import {managementStore,managementError as fail,same,rowChanged} from './management-store.js';
+import {managementStore,managementError as fail,same,rowChanged,liveRoles} from './management-store.js';
 import {definition} from '../../programs/model.js';
 import {payloadHash} from '../../programs/timetable-model.js';
 import {readWeeklyDraft,normalizeWeeklyDraft} from '../../programs/weekly-timetable.js';
@@ -6,14 +6,15 @@ import {insertRecords} from './insert-records.js';
 import {programAccessKey} from './program-access.js';
 import {programZoomKey} from './program-zoom.js';
 
-// Copy reusable definitions only. Memberships, grants, publications and learner
-// records are deliberately absent from both the reads and the inserts.
+// Copies remain inactive drafts. Optional learner roles and class memberships
+// are editable preparation records; activity status gates learner access.
 export async function copyProgram(repository,auth,input){
  if(!auth.state.account.global_admin)throw fail('Only a Global Admin can create Programs.',403,'FORBIDDEN');
+ if(input.copyEnrollments!==undefined&&typeof input.copyEnrollments!=='boolean')throw fail('Choose whether to copy enrolments.');
  if(typeof input.copySchedule!=='boolean')throw fail('Choose whether to copy schedule settings.');
  const store=managementStore(repository,auth),p=store.p;
  return store.change('PROGRAM_REGISTRY','ACADEMY','copy',input,async()=>{
-  const key='PROGRAM:'+String(input.id||''),tables={subjects:'program_subjects',levels:'program_levels',modules:'modules',tasks:'tasks',classes:'classes',classTeachers:'class_teacher_assignments',usage:'academy_module_usage',drafts:'timetable_drafts'};
+  const key='PROGRAM:'+String(input.id||''),tables={subjects:'program_subjects',levels:'program_levels',modules:'modules',tasks:'tasks',classes:'classes',classTeachers:'class_teacher_assignments',usage:'academy_module_usage',drafts:'timetable_drafts',memberships:'class_memberships'};
   const data=await store.load(Object.fromEntries(Object.entries(tables).map(([k,t])=>['copy_'+k,p(`SELECT * FROM ${t} WHERE activity_key=?`,key)])));
   const source=data.activities.find(a=>a.kind==='PROGRAM'&&same(a.activity_key,key));if(!source)throw fail('Choose an existing Program.',404);
   if(String(input.revision)!==String(source.revision))throw rowChanged(null,String(source.revision));
@@ -35,6 +36,11 @@ export async function copyProgram(repository,auth,input){
   }
   if(!records.classes.length)statements.push(...insertRecords(p,'classes',[{activity_key:activity,class_id:'CLS-'+crypto.randomUUID(),name:config.name.slice(0,140)+' Class '+year,academic_year:year,active:1}]));
   statements.push(...insertRecords(p,'academy_module_usage',data.copy_usage.filter(r=>mapped('modules',r.module_id)).map(r=>({...r,activity_key:activity,module_id:mapped('modules',r.module_id)}))));
+  if(input.copyEnrollments){
+   const learners=data.accounts.filter(a=>a.active&&liveRoles(data,a.account_id,key).includes('STUDENT')),ids=new Set(learners.map(a=>a.account_id.toUpperCase()));
+   statements.push(...insertRecords(p,'role_assignments',learners.map(a=>({assignment_id:crypto.randomUUID(),account_id:a.account_id,activity_key:activity,role:'STUDENT',active:1,review_state:'CONFIRMED',granted_at:now,granted_by_account_id:auth.user.accountid,revision:1}))));
+   statements.push(...insertRecords(p,'class_memberships',data.copy_memberships.filter(r=>r.active&&ids.has(r.account_id.toUpperCase())&&mapped('classes',r.class_id)).map(r=>({...r,activity_key:activity,enrollment_id:'ENR-'+crypto.randomUUID(),class_id:mapped('classes',r.class_id)}))));
+  }
   const access=data.policies.find(r=>same(r.activity_key,key))?.access_model;
   for(const [setting,value]of [[programAccessKey(activity),access],[programZoomKey(activity),input.copySchedule?settings.program_zoom_link:'']])if(value!==undefined)statements.push(p('INSERT INTO academy_settings(setting_key,setting_value,updated_at,updated_by_account_id) VALUES(?,?,?,?)',setting,value,now,auth.user.accountid));
   if(input.copySchedule){
@@ -48,6 +54,6 @@ export async function copyProgram(repository,auth,input){
     statements.push(p('INSERT INTO timetable_drafts VALUES(?,?,?,?,?,?,?)',activity,activity,crypto.randomUUID(),1,json,hash,now),p("INSERT INTO program_timetable_records(timetable_id,activity_key,draft_json,status,source_id,updated_at) VALUES(?,?,?,'DRAFT',?,?)",timetableId,activity,json,original.timetableId||null,now));
    }
   }
-  return {data,statements,authorityScopes:[source.activity_key,activity],result:{program:{id,name:config.name},message:'Program copied as a separate draft. Review the curriculum, classes and timetable before publishing.'},fields:['ProgramCopy','Curriculum','Classes',...(input.copySchedule?['ScheduleTemplate']:[])]};
+  return {data,statements,authorityScopes:[source.activity_key,activity],result:{program:{id,name:config.name},message:'Program copied as a separate draft. Review the curriculum, classes and timetable before publishing.'},fields:['ProgramCopy','Curriculum','Classes',...(input.copyEnrollments?['DraftEnrolments']:[]),...(input.copySchedule?['ScheduleTemplate']:[])]};
  });
 }

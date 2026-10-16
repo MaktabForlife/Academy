@@ -119,7 +119,7 @@
     if(state.busy)return;const source=state.rows.find(r=>r.id===byId('program-copy-source').value);
     if(!source){byId('program-new-dialog').close();add();return;}
     const name=byId('program-copy-name').value.trim();if(!name){byId('program-copy-message').textContent='Enter the new Program name.';return;}
-    const body={id:source.id,revision:source.revision,name,copySchedule:byId('program-copy-schedule').checked};const key=JSON.stringify(body);if(copyPending?.key!==key)copyPending={key,body:{...body,operationId:crypto.randomUUID()}};
+    const body={id:source.id,revision:source.revision,name,copySchedule:byId('program-copy-schedule').checked,copyEnrollments:byId('program-copy-enrolments').checked};const key=JSON.stringify(body);if(copyPending?.key!==key)copyPending={key,body:{...body,operationId:crypto.randomUUID()}};
     state.busy=true;for(const el of byId('program-new-dialog').querySelectorAll('button,input,select'))el.disabled=true;byId('program-copy-message').textContent='Copying Program…';
     try{const result=await api('copy',copyPending.body);copyPending=null;state.busy=false;location.href='/programs/?program='+encodeURIComponent(result.program.id)+'&tab=details';}
     catch(error){byId('program-copy-message').textContent=error.message+' Retry the same copy to avoid creating a duplicate.';}

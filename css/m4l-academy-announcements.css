@@ -52,3 +52,14 @@
 .announcement-attachment{margin:10px 0 0;text-align:left;overflow-wrap:anywhere}
 .announcement-help{margin:0;color:#635369;font-size:.9rem;overflow-wrap:anywhere}
 .announcement-file{margin:0;overflow-wrap:anywhere;display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+
+.announcement-lightbox{width:min(95vw,1100px);box-sizing:border-box;padding:0;overflow:auto;background:#fff;color:#332d37}
+.announcement-modal-header{position:sticky;top:0;z-index:1;display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:16px 20px;background:#fff;border-bottom:1px solid #e2d8e7}
+.announcement-modal-header h2{margin:5px 0;font:400 26px/1.25 Georgia,serif;overflow-wrap:anywhere}
+.announcement-modal-header button{flex:none;padding:9px 16px;border:1px solid #d9c9df;border-radius:9px;background:#fff;color:#704578;font:600 14px Arial,sans-serif;cursor:pointer}
+.announcement-modal-content{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);align-items:start;gap:24px;padding:20px}
+.announcement-lightbox .announcement-modal-content img{max-width:100%;width:auto;height:auto;max-height:calc(95dvh - 110px);justify-self:center;object-fit:contain;background:#f5eef7}
+.announcement-modal-copy{min-width:0;font:16px/1.6 Arial,sans-serif;overflow-wrap:anywhere}
+.announcement-modal-copy .announcement-message{white-space:pre-line}
+.announcement-modal-copy a{color:#704578;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:700px){.announcement-modal-content{grid-template-columns:minmax(0,1fr);padding:14px;gap:18px}.announcement-modal-header{padding:12px 14px}.announcement-modal-header h2{font-size:22px}}

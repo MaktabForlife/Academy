@@ -48,3 +48,40 @@ test('Course copies can omit schedule settings, preserve public-card content and
  assert.equal((await write(f,courses+'copy',input,f.tokens.other)).status,403);assert.equal((await write(f,courses+'copy',input,f.tokens.student)).status,403);
  assert.equal((await write(f,courses+'copy',{...input,baseRevision:'stale'})).status,409);
 }));
+
+test('Program copies retain editable learner/class enrolments while draft access stays closed',()=>use(async f=>{
+ const source=sourceProgram(f),before=f.db.prepare('SELECT * FROM class_memberships WHERE activity_key=? ORDER BY enrollment_id').all(source.activity_key),accounts=f.db.prepare('SELECT count(*) n FROM accounts').get().n;
+ const input={id:source.activity_id,revision:String(source.revision),name:'Program with draft roster',copySchedule:true,copyEnrollments:true,operationId:crypto.randomUUID()},copied=ok(await f.call(programs+'copy',input,f.tokens.admin)),key='PROGRAM:'+copied.program.id;
+ assert.equal(ok(await f.call(programs+'copy',input,f.tokens.admin)).program.id,copied.program.id);
+ const membership=f.db.prepare('SELECT * FROM class_memberships WHERE activity_key=? AND account_id=?').get(key,'account-0002');assert(membership);assert(!before.some(r=>r.enrollment_id===membership.enrollment_id));assert.equal(f.db.prepare('SELECT count(*) n FROM accounts').get().n,accounts);
+ const session=ok(await f.call('/api/account/session',{},f.tokens.student));assert(!JSON.stringify(session).includes(copied.program.id));
+ const management=ok(await f.call('/api/admin/platform/program-timetable/manage-get',{id:copied.program.id},f.tokens.admin)),another=management.rows.classes.find(c=>c.ClassID!==membership.class_id);assert(another);
+ ok(await write(f,'/api/admin/platform/program-timetable/manage-save',{id:copied.program.id,kind:'student-class',record:{AccountID:'account-0002',ClassID:another.ClassID},baseRowRevision:management.studentClassRevisions['account-0002']}));assert.equal(f.db.prepare('SELECT class_id FROM class_memberships WHERE activity_key=? AND account_id=? AND active=1').get(key,'account-0002').class_id,another.ClassID);
+ let directory=ok(await f.call('/api/admin/platform/user-profiles/get',{},f.tokens.admin)),scope=directory.scopes.find(s=>s.id===copied.program.id),account=directory.accounts.find(a=>a.accountId==='account-0008'),grant=account.assignments.find(g=>g.scopeId===copied.program.id);assert(scope.draftStudentEditable);assert.equal(grant.accessAllowed,false);
+ ok(await write(f,'/api/admin/platform/user-profiles/save',{mode:'matrix-roles',accountId:account.accountId,scopeType:'PROGRAM',scopeId:scope.id,roles:['STUDENT'],baseRevision:grant.revision,scopeRevision:scope.revision}));
+ const list=ok(await f.call(programs+'list',{},f.tokens.admin)),row=list.programs.find(p=>p.id===scope.id);ok(await write(f,programs+'save',{id:row.id,revision:row.revision,name:row.name,status:'ACTIVE',timezone:row.timezone,durationYears:row.durationYears}));
+ assert(JSON.stringify(ok(await f.call('/api/account/session',{},f.tokens.student))).includes(copied.program.id));assert.deepEqual(f.db.prepare('SELECT * FROM class_memberships WHERE activity_key=? ORDER BY enrollment_id').all(source.activity_key),before);
+}));
+
+test('Course copies retain dated sessions and editable learner enrolments without enabling draft access',()=>use(async f=>{
+ const sourcePeople=ok(await f.call(courses+'participants',f.published,f.tokens.admin)),learner=sourcePeople.accounts.find(a=>a.accountId==='account-0002');ok(await write(f,courses+'participants-save',{...f.published,accountId:learner.accountId,roles:['STUDENT'],baseRevision:learner.assignment.revision,scopeRevision:sourcePeople.scope.revision}));
+ const original=ok(await f.call(courses+'get',f.published,f.tokens.admin)).course;
+ f.db.prepare("INSERT INTO modules(activity_key,module_id,name,sort_order,active) VALUES(?,'copy-module','Course module',1,1)").run(original.activityKey);
+ f.db.prepare("INSERT INTO tasks(activity_key,task_id,module_id,name,sort_order,active) VALUES(?,'copy-task','copy-module','Course task',1,1)").run(original.activityKey);
+ const copied=ok(await write(f,courses+'copy',{...f.published,baseRevision:original.revision,name:'Course with editable roster',copySchedule:true,copyTimetable:true,copyEnrollments:true,reuseMedia:false})),key='COURSE:'+copied.courseId,c=ok(await f.call(courses+'get',copied,f.tokens.admin)).course;
+ assert.equal(c.draftAccessHeld,true);assert.equal(c.details.startDate,original.details.startDate);assert.equal(c.details.sessions.length,original.details.sessions.length);assert(c.details.sessions.every(s=>!original.details.sessions.some(old=>old.id===s.id)));assert.equal(c.validationToken,'');assert.equal(c.acceptedToken,'');
+ const module=f.db.prepare('SELECT * FROM modules WHERE activity_key=?').get(key),task=f.db.prepare('SELECT * FROM tasks WHERE activity_key=?').get(key);assert.notEqual(module.module_id,'copy-module');assert.equal(task.module_id,module.module_id);
+ let people=ok(await f.call(courses+'participants',copied,f.tokens.admin));assert(people.scope.draftStudentEditable);let student=people.accounts.find(a=>a.accountId==='account-0002');assert(student.assignment.roles.includes('STUDENT'));assert.equal(student.assignment.accessAllowed,false);assert(!JSON.stringify(ok(await f.call('/api/account/session',{},f.tokens.student))).includes(copied.courseId));
+ ok(await write(f,courses+'participants-save',{...copied,accountId:student.accountId,roles:[],baseRevision:student.assignment.revision,scopeRevision:people.scope.revision}));people=ok(await f.call(courses+'participants',copied,f.tokens.admin));student=people.accounts.find(a=>a.accountId==='account-0008');ok(await write(f,courses+'participants-save',{...copied,accountId:student.accountId,roles:['STUDENT'],baseRevision:student.assignment.revision,scopeRevision:people.scope.revision}));
+ const addDays=(date,n)=>new Date(Date.parse(date+'T12:00:00Z')+n*86400000).toISOString().slice(0,10),details={...c.details,startDate:addDays(c.details.startDate,35),endDate:addDays(c.details.endDate,35),sessions:c.details.sessions.map(s=>({...s,date:addDays(s.date,35)}))};
+ const saved=ok(await write(f,courses+'save',{...copied,baseRevision:c.revision,details})),review=ok(await write(f,courses+'validate',{...copied,baseRevision:saved.revision}));assert(review.validation.valid,JSON.stringify(review));assert.equal(review.generated,0,'Copied individual session edits survive validation');
+ const accepted=ok(await write(f,courses+'accept',{...copied,baseRevision:review.revision,validationToken:review.validation.token,acknowledgeWarnings:true}));ok(await write(f,courses+'publish',{...copied,baseRevision:accepted.revision,validationToken:review.validation.token}));
+ people=ok(await f.call(courses+'participants',copied,f.tokens.admin));assert(people.accounts.find(a=>a.accountId==='account-0008').assignment.accessAllowed);assert(!people.accounts.find(a=>a.accountId==='account-0002').assignment.accessAllowed);
+ assert.equal(f.db.prepare("SELECT active FROM course_subscription_decisions WHERE activity_key=? AND account_id='account-0002'").get(original.activityKey).active,1);assert.deepEqual(ok(await f.call(courses+'get',f.published,f.tokens.admin)).course,original);
+}));
+
+test('draft enrolment copy rolls back atomically and refuses forged options or authority',()=>use(async f=>{
+ const source=sourceProgram(f),n=f.db.prepare('SELECT count(*) n FROM activities').get().n,input={id:source.activity_id,revision:String(source.revision),name:'Rollback roster',copySchedule:true,copyEnrollments:true};
+ f.db.exec("CREATE TRIGGER copy_roster_failure BEFORE INSERT ON audit_events WHEN NEW.record_kind='PROGRAM_REGISTRY' AND NEW.action='copy' BEGIN SELECT RAISE(ABORT,'copy rollback'); END");assert((await write(f,programs+'copy',input)).status>=400);assert.equal(f.db.prepare('SELECT count(*) n FROM activities').get().n,n);f.db.exec('DROP TRIGGER copy_roster_failure');
+ assert.equal((await write(f,programs+'copy',{...input,copyEnrollments:'yes'})).status,400);assert.equal((await write(f,programs+'copy',input,f.tokens.student)).status,403);
+}));

@@ -26,7 +26,7 @@ export async function assignmentDTO(data,account,a) {
 function accessModel(data,a){return (a.kind==='COURSE'?data.coursePolicies.find(p=>same(p.activity_key,a.activity_key))?.legacy_access_model:undefined)||data.policies.find(p=>same(p.activity_key,a.activity_key))?.access_model||'UNKNOWN';}
 export async function scopeDTO(data,a) {
   const result={...scopeOf(a),name:a.name,active:Boolean(a.active&&a.lifecycle==='ACTIVE'),prepared:true,
-    accessModel:accessModel(data,a),reviewStatus:'REQUIRED',stage:'SETUP',policyEditable:false,rolesEditable:true};
+    accessModel:accessModel(data,a),reviewStatus:'REQUIRED',stage:'SETUP',policyEditable:false,rolesEditable:true,draftStudentEditable:a.lifecycle==='DRAFT'};
   return {...result,revision:await payloadHash(result),lifecycle:a.lifecycle||'',runStages:(data.courseStages||[]).filter(row=>same(row.activity_key,a.activity_key)).map(row=>row.stage)};
 }
 
@@ -121,7 +121,8 @@ export function d1Profiles(repository,auth) {
     if(!Array.isArray(input.roles)||input.roles.some(r=>!editableRoles.includes(r))||new Set(input.roles).size!==input.roles.length)
       throw managementError('Choose Student, Teacher or Program Admin. Global Admin is a separate Academy-wide authority.',400,'INVALID_ROLE');
     const selected=editableRoles.filter(r=>input.roles.includes(r));
-    if(selected.some(r=>!current.roles.includes(r))&&(!account.active||!a.active||a.lifecycle!=='ACTIVE'))throw managementError('Reactivate the account and learning area before adding roles.');
+    const draftStudent=auth.state.account.global_admin&&a.lifecycle==='DRAFT'&&selected.filter(r=>!current.roles.includes(r)).every(r=>r==='STUDENT');
+    if(selected.some(r=>!current.roles.includes(r))&&(!account.active||(!a.active||a.lifecycle!=='ACTIVE')&&!draftStudent))throw managementError('Reactivate the account and learning area before adding roles.');
     const now=new Date().toISOString();
     if(a.kind==='COURSE') {
       if(await repository.subscriptionSource()!=='effective_course_subscriptions')throw managementError('Course role editing needs its database upgrade.',503,'COURSE_ACCESS_SCHEMA_REQUIRED');

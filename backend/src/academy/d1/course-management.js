@@ -139,7 +139,7 @@ async function courseRecord(data,a,runId) {
   details.categoryKey=resolveModuleCategory(data,details.categoryKey);
   const publicCard=JSON.parse(data.settings.find(s=>s.setting_key===courseCardKey(a.activity_key))?.setting_value||'null');
   const publicCardRevision=await payloadHash(publicCard);
-  return {courseId:a.activity_id,activityKey:a.activity_key,runId,details,publicCard,publicCardRevision,stage,displayStage:effectiveStage({details,stage}),revision,hasDraft:Boolean(meta),currentPublication,completedAt:meta?.completed_at||null,repeatedFrom:meta?.repeated_from_activity_key||null,validationToken:meta?.validation_sha256||'',scheduleToken:meta?.schedule_sha256||'',acceptedToken:meta?.accepted_sha256||'',legacySharedAccess:data.runs.filter(r=>same(r.activity_key,a.activity_key)).length>1};
+  return {courseId:a.activity_id,activityKey:a.activity_key,runId,details,publicCard,publicCardRevision,stage,displayStage:effectiveStage({details,stage}),revision,hasDraft:Boolean(meta),draftAccessHeld:!a.active&&a.lifecycle==='DRAFT',currentPublication,completedAt:meta?.completed_at||null,repeatedFrom:meta?.repeated_from_activity_key||null,validationToken:meta?.validation_sha256||'',scheduleToken:meta?.schedule_sha256||'',acceptedToken:meta?.accepted_sha256||'',legacySharedAccess:data.runs.filter(r=>same(r.activity_key,a.activity_key)).length>1};
 }
 export function d1CourseManagement(repository,auth,env={}) {
   const store=managementStore(repository,auth),p=store.p;
@@ -199,9 +199,9 @@ export function d1CourseManagement(repository,auth,env={}) {
         c={courseId:'COURSE-'+crypto.randomUUID(),runId:'CMRUN-'+crypto.randomUUID(),revision:'0',stage:'DRAFT',completedAt:null,repeatedFrom:null};c.activityKey='COURSE:'+c.courseId;
       }else{c=await selected(data,input);if(!['participant-create','public-card-save'].includes(action))checkRevision(c,input);}
       const creating=!data.activities.some(a=>same(a.activity_key,c.activityKey));
-      function createActivity(name,accessModel){
+      function createActivity(name,accessModel,inactiveDraft=false){
         const now=new Date().toISOString();
-        statements.push(p("INSERT INTO activities(activity_key,activity_id,kind,name,active,lifecycle,website_visible,created_at,updated_at,revision) VALUES(?,?,'COURSE',?,1,'ACTIVE',0,?,?,1)",c.activityKey,c.courseId,name,now,now),p("INSERT INTO course_settings(activity_key,legacy_access_model,policy_review_state) VALUES(?,?,'CONFIRMED')",c.activityKey,accessModel==='FREE'?'FREE':'PAID'),...insertRecords(p,'data_ownership',[repository.ownershipForNewActivity(c.activityKey)]));
+        statements.push(p("INSERT INTO activities(activity_key,activity_id,kind,name,active,lifecycle,website_visible,created_at,updated_at,revision) VALUES(?,?,'COURSE',?,?,?,0,?,?,1)",c.activityKey,c.courseId,name,Number(!inactiveDraft),inactiveDraft?'DRAFT':'ACTIVE',now,now),p("INSERT INTO course_settings(activity_key,legacy_access_model,policy_review_state) VALUES(?,?,'CONFIRMED')",c.activityKey,accessModel==='FREE'?'FREE':'PAID'),...insertRecords(p,'data_ownership',[repository.ownershipForNewActivity(c.activityKey)]));
       }
       let result;
       if(action==='public-card-save'){
@@ -263,11 +263,23 @@ export function d1CourseManagement(repository,auth,env={}) {
         if(!auth.state.account.global_admin)throw managementError('Only a Global Admin can create a new Course.',403,'FORBIDDEN');
         if(typeof input.reuseMedia!=='boolean')throw managementError('Choose whether to reuse existing media.');
         if(action==='copy'&&typeof input.copySchedule!=='boolean')throw managementError('Choose whether to copy schedule settings.');
+        for(const flag of ['copyEnrollments','copyTimetable'])if(input[flag]!==undefined&&typeof input[flag]!=='boolean')throw managementError('Choose which records to copy.');
+        if(input.copyTimetable&&!input.copySchedule)throw managementError('Select timetable copying before copying its sessions.');
         const original=c;c={courseId:'COURSE-'+crypto.randomUUID(),runId:'CMRUN-'+crypto.randomUUID(),revision:'0',stage:'DRAFT',completedAt:null,repeatedFrom:original.activityKey};c.activityKey='COURSE:'+c.courseId;
-        const d=normalize({...original.details,name:clean(input.name)||original.details.name,...(action==='copy'&&!input.copySchedule?{weekdays:[],startTime:'',endTime:'',teacherId:'',zoomLink:''}:{}),startDate:'',endDate:'',sessions:[]},original.details.timezone);createActivity(d.name,d.accessModel);
+        const d=normalize({...original.details,name:clean(input.name)||original.details.name,...(action==='copy'&&!input.copySchedule?{weekdays:[],startTime:'',endTime:'',teacherId:'',zoomLink:''}:{}),...(action==='copy'&&input.copyTimetable?{startDate:original.details.startDate,endDate:original.details.endDate,sessions:original.details.sessions.map(s=>({...s,id:'CMSESSION-'+crypto.randomUUID()}))}:{startDate:'',endDate:'',sessions:[]})},original.details.timezone);createActivity(d.name,d.accessModel,action==='copy');
+        if(action==='copy'){
+          const sourceModules=data.modules.filter(m=>same(m.activity_key,original.activityKey)&&m.active),moduleIds=new Map(sourceModules.map(m=>[m.module_id,'MOD-'+crypto.randomUUID()]));
+          statements.push(...insertRecords(p,'modules',sourceModules.map(m=>({...m,activity_key:c.activityKey,module_id:moduleIds.get(m.module_id)}))),...insertRecords(p,'tasks',data.tasks.filter(t=>same(t.activity_key,original.activityKey)&&t.active&&(!t.module_id||moduleIds.has(t.module_id))).map(t=>({...t,activity_key:c.activityKey,task_id:'TASK-'+crypto.randomUUID(),module_id:t.module_id?moduleIds.get(t.module_id):null}))),...insertRecords(p,'academy_module_usage',(data.moduleUsage||[]).filter(u=>same(u.activity_key,original.activityKey)&&moduleIds.has(u.module_id)).map(u=>({...u,activity_key:c.activityKey,module_id:moduleIds.get(u.module_id)}))));
+          for(const [from,to]of moduleIds)if(d.categoryKey==='MODULE:'+original.activityKey+':'+from)d.categoryKey='MODULE:'+c.activityKey+':'+to;
+        }
+        if(action==='copy'&&input.copyEnrollments){
+          const learners=data.accounts.filter(a=>a.active&&(liveRoles(data,a.account_id,original.activityKey).includes('STUDENT')||data.subscriptions.some(s=>same(s.account_id,a.account_id)&&same(s.activity_key,original.activityKey))));
+          const now=new Date().toISOString();
+          statements.push(...insertRecords(p,'role_assignments',learners.map(a=>({assignment_id:crypto.randomUUID(),account_id:a.account_id,activity_key:c.activityKey,role:'STUDENT',active:1,review_state:'CONFIRMED',granted_at:now,granted_by_account_id:auth.user.accountid,revision:1}))),...insertRecords(p,'course_subscription_decisions',learners.map(a=>({account_id:a.account_id,activity_key:c.activityKey,active:1,revision:1,updated_at:now,updated_by_account_id:auth.user.accountid}))));
+        }
         if(action==='copy'&&original.publicCard)statements.push(p('INSERT INTO academy_settings(setting_key,setting_value,updated_at,updated_by_account_id) VALUES(?,?,?,?)',courseCardKey(c.activityKey),JSON.stringify(original.publicCard),new Date().toISOString(),auth.user.accountid));
         if(input.reuseMedia)for(const resource of data.resources.filter(r=>same(r.activity_key,original.activityKey)&&r.active))statements.push(...insertRecords(p,'course_resources',[{...resource,activity_key:c.activityKey,resource_id:'CMRESOURCE-'+crypto.randomUUID(),module_id:null,task_id:null}]));
-        const revision=saveMeta(statements,c,d,'DRAFT');result={courseId:c.courseId,runId:c.runId,revision,message:'New Course draft created with a new Course ID. Students have not been copied.'};
+        const revision=saveMeta(statements,c,d,'DRAFT',null,null,null);result={courseId:c.courseId,runId:c.runId,revision,message:action==='copy'?(input.copyEnrollments?'Course copied with an editable learner roster. Access starts after publication.':'Course copied as a separate draft.'):'New Course draft created with a new Course ID. Students have not been copied.'};
       }else if(action==='participant-create'){
         const name=clean(input.displayName);if(!name||name.length>160)throw managementError('Enter a user name of up to 160 characters.');
         if(!data.accounts.some(a=>same(a.account_id,auth.user.accountid)&&a.active))throw managementError('Your account is no longer active.',401);
