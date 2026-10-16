@@ -27,10 +27,10 @@ test('the shared website calls Development on stable and preview addresses, with
   try{
     buildAcademyAssets({repo:new URL('../../',import.meta.url).pathname,directory,target:'development'});
     const config=readFileSync(join(directory,'js/m4l-config.js'),'utf8');
-    for(const host of ['maktab-development.pages.dev','development.maktab-development.pages.dev','feature-academy-review-fixes.maktab-development.pages.dev','58d6b3bb.maktab-development.pages.dev','developmentmaktab4life.pages.dev','development.rebootdashboard.pages.dev']){
-      const window={location:{hostname:host,origin:'https://'+host}};vm.runInNewContext(config,{window});assert.equal(window.M4L_CONFIG.API_BASE,'https://devrebootworker.maktab4life.workers.dev');
+    for(const host of ['maktab4life.org','www.maktab4life.org','academy-maktab4life.pages.dev','development.academy-maktab4life.pages.dev','maktab-development.pages.dev','development.maktab-development.pages.dev','feature-academy-review-fixes.maktab-development.pages.dev','58d6b3bb.maktab-development.pages.dev','developmentmaktab4life.pages.dev','development.rebootdashboard.pages.dev']){
+      const window={location:{hostname:host,origin:'https://'+host}};vm.runInNewContext(config,{window});assert.equal(window.M4L_CONFIG.API_BASE,'https://devrebootworker.maktab4life.workers.dev');assert.equal(window.M4L_CONFIG.ENV_NAME,'development');assert.equal(window.M4L_CONFIG.IS_PRODUCTION,false);
     }
-    for(const host of ['unknown.example','maktab-development.pages.dev.evil.example','rebootyourmaktab.maktabhelper.app']){
+    for(const host of ['unknown.example','maktab4life.org.evil.example','evil.maktab4life.org','academy-maktab4life.pages.dev.evil.example','maktab-development.pages.dev.evil.example','rebootyourmaktab.maktabhelper.app']){
       const window={location:{hostname:host,origin:'https://'+host}};vm.runInNewContext(config,{window});assert.equal(window.M4L_CONFIG.API_BASE,'');
     }
     assert(!config.includes('academy-feature-10660'));assert(!existsSync(join(directory,'backend')));assert(!existsSync(join(directory,'admin')));

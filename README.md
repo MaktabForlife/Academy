@@ -1,11 +1,16 @@
-# Umm Abbad Academy — V106.89
+# Umm Abbad Academy — V106.90
 
-This `development` branch contains the Cloudflare D1 Academy application. The separate Git `main` branch continues to serve the legacy Reboot application.
+The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
-- Website: https://maktab-development.pages.dev/academy/
+- Website: https://maktab4life.org/academy/
+- Pages: `academy-maktab4life`, connected to `MaktabForlife/Academy` → `development`.
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - Independent HifzHelper links remain. The cancelled shared-login integration is not part of Academy.
+
+## V106.90 — Academy repository and development domain
+
+Cloudflare website and existing Worker builds use the Academy repository’s `development` branch. `maktab4life.org` and `www.maktab4life.org` use the existing development API and test database. Future production will use a fresh database and separate deployment. [Deployment details](docs/ACADEMY-DOMAIN-106.90.md).
 
 ## V106.89 — Contact Admin to join, existing-user enrolment
 
