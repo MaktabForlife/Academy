@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V106.88
+# Umm Abbad Academy — V106.89
 
 This `development` branch contains the Cloudflare D1 Academy application. The separate Git `main` branch continues to serve the legacy Reboot application.
 
@@ -6,6 +6,10 @@ This `development` branch contains the Cloudflare D1 Academy application. The se
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - Independent HifzHelper links remain. The cancelled shared-login integration is not part of Academy.
+
+## V106.89 — Contact Admin to join, existing-user enrolment
+
+**Contact Admin to Join Academy** opens WhatsApp directly with an editable generic message. Phone and email are available if WhatsApp cannot be used. Signed-in **Enroll now** offers website requests or WhatsApp, using the existing profile without name/number fields. Anonymous website submissions are blocked. [Release details](docs/ACADEMY-JOIN-ENROL-106.89.md).
 
 ## V106.88 — Enrolment feedback and picture announcements
 

@@ -60,12 +60,8 @@
 .enrolment-catalogue-table [data-entry-message]{margin:8px 0 0;color:#8b2639;white-space:pre-line}
 @media(max-width:600px){.enrolment-introduction{font-size:18px}.enrolment-application .enrolment-card{padding:16px 12px}}
 
-.enrolment-phone{display:grid;grid-template-columns:minmax(130px,.8fr) minmax(150px,1fr);gap:12px;align-items:start;min-width:0}
-.enrolment-field-help{color:#706774;font:400 12px/1.5 Arial,sans-serif}
-@media(max-width:600px){.enrolment-phone{grid-template-columns:minmax(0,1fr)}}
-
-.enrolment-application .enrolment-fields{align-items:start}
-
 #enrol-message-text{min-height:300px;font:14px/1.5 Arial,sans-serif}
 
 .enrolment-dialog:has(#enrol-message-text) #enrol-admin-dialog-body{display:grid;gap:12px}
+
+.enrolment-contact{margin:20px 0;font-size:14px}.enrolment-contact summary{cursor:pointer;font-weight:600;color:#704578}.enrolment-contact a{color:#704578;overflow-wrap:anywhere}

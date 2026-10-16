@@ -10,9 +10,9 @@ const available=`a.active=1 AND a.lifecycle IN ('ACTIVE','DRAFT')`;
 const catalogueSQL=`SELECT e.*,a.activity_id,a.kind,a.name,a.active AS activity_active,a.lifecycle FROM academy_enrolment_catalogue e JOIN activities a USING(activity_key)`;
 const catalogueDTO=r=>({id:r.entry_id,activityKey:r.activity_key,activityId:r.activity_id,kind:r.kind,name:r.name,year:r.enrolment_year,cost:r.cost_text,active:Boolean(r.active),order:r.display_order,revision:r.revision});
 const text=(value,max,label)=>{if(typeof value!=='string'||!value.trim()||value.trim().length>max||/[\x00-\x1f\x7f]/.test(value))throw fail('Enter '+label+'.');return value.trim();};
-function contact(input){
- const name=text(input.name,160,'the learner’s name'),whatsapp=text(input.whatsapp,32,'a WhatsApp number including country code');
- const digits=whatsapp.replace(/\D/g,'');if(!/^\+?[0-9 ()-]+$/.test(whatsapp)||digits.length<7||digits.length>15)throw fail('Enter a valid WhatsApp number including country code.');
+function contact(input,allowEmpty=false){
+ const name=text(input.name,160,'the learner’s name'),whatsapp=allowEmpty&&input.whatsapp===''?'':text(input.whatsapp,32,'a WhatsApp number including country code');
+ const digits=whatsapp.replace(/\D/g,'');if(whatsapp&&(!/^\+?[0-9 ()-]+$/.test(whatsapp)||digits.length<7||digits.length>15))throw fail('Enter a valid WhatsApp number including country code.');
  if(typeof input.paid!=='boolean')throw fail('Indicate whether payment has been made.');
  return {name,whatsapp,paid:input.paid};
 }
@@ -29,14 +29,18 @@ export async function enrolmentProfile(repository,auth){
  return {name:auth.state.account.display_name,whatsapp:row?.whatsapp_number||'',uniqueId:auth.state.account.login_link_id};
 }
 export async function submitEnrolment(repository,auth,input,request,env){
+ if(!auth)throw fail('Sign in to request enrolment. New users should contact Admin to join the Academy.',401,'SIGN_IN_REQUIRED');
  await ready(repository);
  if(!uuid(input.operationId)||input.website||input.accountId!==undefined)throw fail('Please complete the registration form again.');
  if(!Array.isArray(input.entries)||input.entries.some(e=>!e||typeof e!=='object'))throw fail('Choose catalogue entries.');
- const person=contact(input),ids=entryIds(input.entries.map(e=>e.id));
+ if(typeof input.paid!=='boolean')throw fail('Indicate whether payment has been made.');
+ const profile=await enrolmentProfile(repository,auth),person={name:profile.name,whatsapp:profile.whatsapp,paid:input.paid},ids=entryIds(input.entries.map(e=>e.id));
  if(input.entries.some(e=>!Number.isInteger(e.revision)||e.revision<1))throw fail('Refresh the catalogue before sending your request.');
- const account=auth?.user.accountid||null,hash=await payloadHash({person,account,entries:input.entries.slice().sort((a,b)=>a.id.localeCompare(b.id))});
+ const account=auth.user.accountid,entries=input.entries.slice().sort((a,b)=>a.id.localeCompare(b.id)),hash=await payloadHash({person,account,entries});
  const p=(sql,...values)=>repository.db.prepare(sql).bind(...values);
- const replay=async()=>{const old=await p('SELECT request_id,payload_sha256 FROM academy_enrolment_requests WHERE submission_key=?',input.operationId).first();if(!old)return null;if(old.payload_sha256!==hash)throw fail('This submission identifier belongs to another request.',409,'OPERATION_ID_REUSED');return {received:true,id:old.request_id,replayed:true};};
+ // Use the saved identity snapshot when confirming an earlier send. Profile edits
+ // and older clients' contact fields must not break a lost-acknowledgement retry.
+ const replay=async()=>{const old=await p('SELECT * FROM academy_enrolment_requests WHERE submission_key=?',input.operationId).first();if(!old)return null;const savedHash=await payloadHash({person:{name:old.display_name,whatsapp:old.whatsapp_number,paid:input.paid},account,entries});if(!same(old.account_id,account)||old.payload_sha256!==savedHash)throw fail('This submission identifier belongs to another request.',409,'OPERATION_ID_REUSED');return {received:true,id:old.request_id,replayed:true};};
  const existing=await replay();if(existing)return existing;
  if(!env.AUTH_LOGIN_RATE_LIMITER?.limit)throw fail('Please contact the Academy while the request form is unavailable.',503);
  const key=await createAuthRateLimitKey('enrolment-request',request.headers.get('CF-Connecting-IP')||'local',env);
@@ -87,7 +91,7 @@ export function enrolmentManagement(repository,auth){
  async function saveRequest(input,remove=false){
   const allowed=scopes(input),{r,items}=await requestRow(input.id,allowed),permitted=items.filter(i=>within(i.activity_key,allowed));
   if(!Number.isInteger(input.baseRevision)||input.baseRevision!==r.revision)throw rowChanged(null,r.revision);
-  const person=remove?null:contact(input);
+  const person=remove?null:contact(input,Boolean(r.account_id));
   if(!global&&input.accountId!==undefined&&input.accountId!==(r.account_id||''))throw fail('Only Global Admin can link a user.',403,'FORBIDDEN');
   const account=input.accountId===undefined?r.account_id:input.accountId||null;
   const selected=remove?[]:entryIds(input.entries);
