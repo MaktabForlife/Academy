@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V106.83
+# Umm Abbad Academy — V106.84
 
 This `development` branch contains the Cloudflare D1 Academy application. The separate Git `main` branch continues to serve the legacy Reboot application.
 
@@ -6,6 +6,10 @@ This `development` branch contains the Cloudflare D1 Academy application. The se
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - Independent HifzHelper links remain. The cancelled shared-login integration is not part of Academy.
+
+## V106.84 — Learn and Teach layout
+
+Programs and Courses use wider panels on desktop. The Academy label and LEARN/TEACH title match the timetable heading typography, and the marked helper sentence is hidden in these two views. Phone layouts retain stacked blocks. [Implementation and verification](docs/ACADEMY-WORKSPACE-LAYOUT-106.84.md).
 
 ## V106.83 — Teaching overview and upcoming Courses
 

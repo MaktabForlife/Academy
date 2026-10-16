@@ -58,9 +58,10 @@
 
 /* Learn/Teach and their scoped Program/Course workspaces. Admin keeps its layout. */
 .workspace-banner{display:grid;grid-template-columns:minmax(180px,.8fr) minmax(0,2.2fr);gap:24px;align-items:start;margin:6px 0 20px}
+#timetable .workspace-banner{grid-template-columns:minmax(180px,.4fr) minmax(0,2.6fr)}
 .workspace-identity,.workspace-banner .activity-identity{min-width:0}
-.workspace-academy{margin:0 0 4px;color:#58305f;font:400 20px/1.3 Arial,sans-serif}
-.workspace-role-title{margin:0;color:#302936;font:500 44px/1.1 Arial,sans-serif;letter-spacing:.02em}
+.workspace-academy{margin:0 0 4px}
+.workspace-role-title{margin:0;color:var(--ink);font-family:Georgia,serif;font-size:24px;font-weight:400;line-height:inherit;letter-spacing:normal}
 .workspace-areas{display:grid;gap:12px;min-width:0}
 .workspace-area-group{min-width:0;padding:12px;border:1px solid #ffffff70;border-radius:12px;background:#ffffff38}
 .workspace-area-group h2{margin:0 0 8px;color:#58305f;font:600 14px/1.3 Arial,sans-serif}
@@ -79,6 +80,7 @@
 .academy-shell #activity .workspace-banner{display:grid;align-items:start;gap:24px;margin:6px 0 18px}
 .academy-shell #activity .workspace-banner h1{font:400 36px/1.15 Georgia,serif}
 #timetable:is([data-workspace-mode=learn],[data-workspace-mode=teach]) .academy-view-actions{display:none}
+#timetable:is([data-workspace-mode=learn],[data-workspace-mode=teach]) .schedule-key{display:none}
 #timetable #teaching-availability-link{display:none}
 #timetable .role-quicklinks{margin:18px 0 0;padding:14px;border:1px solid #e5d6e9;border-radius:14px;background:#fffafdbb}
 #timetable .timetable-days,#activity-sessions .timetable-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px}
@@ -86,5 +88,5 @@
 #activity-schedule>.section-title{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:16px}
 #activity-week-range{margin:0}
 #timetable .schedule-controls{flex-wrap:wrap;justify-content:flex-end}
-@media(max-width:999px){.workspace-banner,.academy-shell #activity .workspace-banner{grid-template-columns:minmax(0,1fr);gap:12px}#timetable .timetable-days,#activity-sessions .timetable-days{grid-template-columns:repeat(4,minmax(0,1fr))}#activity-schedule>.section-title{grid-template-columns:minmax(0,1fr) auto}#activity-week-range{grid-column:1/-1;grid-row:2}}
-@media(max-width:600px){.workspace-role-title{font-size:34px}.workspace-academy{font-size:16px}.workspace-area-group{padding:8px}.workspace-area-links{gap:6px}.upcoming-course{padding:12px}.upcoming-course .workspace-actions{width:100%}.workspace-areas a{flex:1 1 110px;min-width:0;padding:8px 10px}#timetable .timetable-days,#activity-sessions .timetable-days{grid-template-columns:repeat(2,minmax(0,1fr))}#timetable .timetable-pill-details,#activity-sessions .timetable-pill-details{flex-wrap:wrap;gap:3px}}
+@media(max-width:999px){.workspace-banner,#timetable .workspace-banner,.academy-shell #activity .workspace-banner{grid-template-columns:minmax(0,1fr);gap:12px}#timetable .timetable-days,#activity-sessions .timetable-days{grid-template-columns:repeat(4,minmax(0,1fr))}#activity-schedule>.section-title{grid-template-columns:minmax(0,1fr) auto}#activity-week-range{grid-column:1/-1;grid-row:2}}
+@media(max-width:600px){.workspace-area-group{padding:8px}.workspace-area-links{gap:6px}.upcoming-course{padding:12px}.upcoming-course .workspace-actions{width:100%}.workspace-areas a{flex:1 1 110px;min-width:0;padding:8px 10px}#timetable .timetable-days,#activity-sessions .timetable-days{grid-template-columns:repeat(2,minmax(0,1fr))}#timetable .timetable-pill-details,#activity-sessions .timetable-pill-details{flex-wrap:wrap;gap:3px}}
