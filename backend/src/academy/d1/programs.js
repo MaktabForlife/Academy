@@ -1,3 +1,4 @@
+import {copyProgram} from './program-copy.js';
 import {curriculumReferenceQueries,removeCurriculumPlan,usedInProgramLessons} from './curriculum-removal.js';
 import {programWorkspaceAvailable} from './teacher-availability.js';
 import {teacherDesignations,teacherDirectory} from './teachers.js';
@@ -108,6 +109,7 @@ export function d1Programs(repository,auth) {
     load:loadManagement,
     async loadAll(extra={}) {const c=await moduleCatalogueQueries(repository);const data=await store.load({...queriesFor(null),...(c.available?c.queries:{}),...extra});return {data,programs:data.activities.filter(a=>a.kind==='PROGRAM').map(a=>projectManagement(data,a.activity_id))};},
     async registry(action,input) {
+      if(action==='copy')return copyProgram(repository,auth,input);
       if(action==='list') {const data=await store.load();return {programs:data.activities.filter(a=>a.kind==='PROGRAM'&&(auth.state.account.global_admin||liveRoles(data,auth.user.accountid,a.activity_key).includes('PROGRAM_ADMIN'))).map(a=>dto(data,a)),platformPrepared:true,store:'D1',learningWorkflowsReady:await learningAvailable(repository.db),statuses:['DRAFT','ACTIVE','ARCHIVED'],globalAdmin:Boolean(auth.state.account.global_admin)};}
       if(['prepare','readiness'].includes(action)) {selected(await store.load(),input.id);return {prepared:true,message:'Program records are ready.',checks:[{label:'Program records ready',ok:true}]};}
       if(!['create','save'].includes(action))throw managementError('Unknown Program action.',404);

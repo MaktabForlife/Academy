@@ -10,7 +10,7 @@
   <link rel="icon" href="/admin-favicon-32x32.png" />
   <link rel="stylesheet" href="/css/m4l-program-builder.css?v=106.82" />
 <link rel="stylesheet" href="/css/m4l-academy-navigation.css?v=106.11">
-<link rel="stylesheet" href="/css/m4l-program-admin.css?v=106.82"><link rel="stylesheet" href="/css/m4l-academy-mobile.css?v=106.52">
+<link rel="stylesheet" href="/css/m4l-program-admin.css?v=106.86"><link rel="stylesheet" href="/css/m4l-academy-mobile.css?v=106.52">
 <link rel="stylesheet" href="/css/m4l-academy-page-actions.css?v=106.52">
 <link rel="stylesheet" href="/css/m4l-academy-shell.css?v=106.82">
 <link rel="stylesheet" href="/css/m4l-program-zoom-help.css?v=106.44">
@@ -42,6 +42,12 @@
       <section id="pg-media-tool" class="pg-tool" role="tabpanel" aria-labelledby="pg-tab-media" hidden></section>
       <div hidden><span id="program-access-label"></span><span id="program-zoom-label"></span><span id="program-store-label"></span><span id="program-access-note"></span><span id="program-setup-note"></span></div>
     </section>
+    <dialog id="program-new-dialog" class="pg-new-dialog" aria-labelledby="program-new-title">
+      <h2 id="program-new-title">New Program</h2><p>Start blank, or copy an existing Program into a separate editable draft.</p>
+      <label>Start from<select id="program-copy-source"><option value="">Blank Program</option></select></label>
+      <div id="program-copy-options" hidden><label>New Program name<input id="program-copy-name" maxlength="160"></label><label><input id="program-copy-schedule" type="checkbox" checked>Copy schedule settings and teacher selections</label><p>The curriculum, active classes and public card are copied. Learners, access grants, enrolment requests, payments, progress, attendance and media are kept separate. Choose a new effective date when publishing.</p></div>
+      <p id="program-copy-message" role="status"></p><div class="pg-detail-actions"><button id="program-copy-cancel" type="button" class="pb-secondary">Cancel</button><button id="program-copy-confirm" type="button">Continue</button></div>
+    </dialog>
   </main>
 <aside id="zoom-link-help" class="zoom-help-popover" popover aria-labelledby="zoom-link-help-title">
   <div class="zoom-help-top"><h2 id="zoom-link-help-title">Zoom links</h2><button type="button" class="zoom-help-close" popovertarget="zoom-link-help" popovertargetaction="hide" aria-label="Close Zoom link help" autofocus>×</button></div>
@@ -49,12 +55,12 @@
   <p>Links are checked in this order when someone clicks <strong>Join</strong>:</p>
   <ol><li>Program Zoom link.</li><li>Lesson Zoom link.</li><li>Class Zoom link.</li></ol>
   <p class="zoom-help-footnote">Publish the timetable after changing a lesson link.</p>
-</aside><small class="pb-version">V106.85</small>
+</aside><small class="pb-version">V106.86</small>
   <script src="/js/m4l-config.js?v=106.82"></script>
   <script src="/js/m4l-program-admin.js?v=106.85"></script>
-  <script src="/js/m4l-program-builder.js?v=106.82"></script>
+  <script src="/js/m4l-program-builder.js?v=106.86"></script>
 
-<script src="/js/m4l-academy-navigation.js?v=106.85"></script>
+<script src="/js/m4l-academy-navigation.js?v=106.86"></script>
 <script src="/js/m4l-academy-mobile.js?v=106.82"></script>
 <script src="/js/m4l-academy-page-actions.js?v=106.82"></script>
 </body>

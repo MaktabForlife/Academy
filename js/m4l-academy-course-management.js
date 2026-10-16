@@ -179,6 +179,15 @@
       if(requested)await select(requested.courseId,requested.runId,tabs.some(([tab])=>tab===query.get('tab'))?query.get('tab'):query.get('view')==='scheduling'?'sessions':'details');else renderEditor();
     }catch(error){if(generation!==state.generation)return;lock(error.message);$('course-access-retry').hidden=false;}
   }
+  function beginNew(){
+    dialog('New Course','<p>Start blank, or copy an existing Course into a separate editable draft.</p><label class="cm-field">Start from<select id="cm-copy-source"><option value="">Blank Course</option>'+state.courses.map((c,i)=>`<option value="${i+1}">${esc(c.name)} · ${esc(labels[c.stage]||c.stage)}${c.startDate?' · '+esc(c.startDate):''}</option>`).join('')+'</select></label><div id="cm-copy-options" hidden><label class="cm-field">New Course name<input id="cm-dialog-name" maxlength="160"></label><label class="cm-toggle"><input id="cm-copy-schedule" type="checkbox" checked>Copy schedule settings and teacher selection</label><p>The category, access setting and public card are copied. Dates and sessions start empty. Participants, enrolment requests and payments are kept separate.</p></div>','Continue',async input=>{
+      if(!input.source){newCourse();return;}
+      const source=state.courses[Number(input.source)-1];if(!source)throw Error('Choose an existing Course.');if(!input.name.trim())throw Error('Enter the new Course name.');
+      const current=await api(base+'get',{courseId:source.courseId,runId:source.runId});const result=await mutate('copy',{courseId:source.courseId,runId:source.runId,baseRevision:current.course.revision,name:input.name,copySchedule:input.copySchedule,reuseMedia:false});
+      $('course-search').value='';$('course-status-filter').value='AVAILABLE';await list();await select(result.courseId,result.runId);tell('Course copied as a new draft. Set its dates and review the schedule before publishing.');
+    });
+    $('cm-copy-source').onchange=()=>{const source=state.courses[Number($('cm-copy-source').value)-1];$('cm-copy-options').hidden=!source;$('cm-dialog-name').value=source?source.name.slice(0,153)+' (copy)':'';};
+  }
   function newCourse(){state.selection++;state.course={courseId:'',runId:'',stage:'DRAFT',displayStage:'DRAFT',revision:'0'};state.cardDraft=null;state.draft={name:'',categoryKey:'',accessModel:'',timezone:state.timezone,weekdays:[],startDate:'',endDate:'',startTime:'',endTime:'',teacherId:'',zoomLink:'',sessions:[]};state.dirty=false;state.review=null;state.participants=null;state.personDrafts.clear();state.media=[];state.calendarWarnings=[];state.tab='details';rememberSelection();renderList();renderEditor();$('course-editor').querySelector('[data-field="name"]')?.focus();}
   async function save(){
     if(!state.draft.name.trim()){state.tab='details';renderEditor();$('course-editor').querySelector('[data-field="name"]')?.focus();throw Error('Enter a Course name to save the draft.');}
@@ -199,7 +208,7 @@
   function dialog(title,body,button,onConfirm){
     const el=$('course-dialog');el.innerHTML=`<h2 id="course-dialog-title">${esc(title)}</h2>${body}<div class="cm-actions"><button type="button" class="pb-secondary" data-dialog-cancel>Cancel</button><button type="button" data-dialog-confirm>${esc(button)}</button></div>`;
     el.querySelector('[data-dialog-cancel]').addEventListener('click',()=>el.close());
-    el.querySelector('[data-dialog-confirm]').addEventListener('click',()=>{const input={name:el.querySelector('#cm-dialog-name')?.value||'',reuseMedia:Boolean(el.querySelector('#cm-dialog-reuse')?.checked)};el.close();void perform(()=>onConfirm(input));});el.showModal();
+    el.querySelector('[data-dialog-confirm]').addEventListener('click',()=>{const input={name:el.querySelector('#cm-dialog-name')?.value||'',reuseMedia:Boolean(el.querySelector('#cm-dialog-reuse')?.checked),source:el.querySelector('#cm-copy-source')?.value||'',copySchedule:Boolean(el.querySelector('#cm-copy-schedule')?.checked)};el.close();void perform(()=>onConfirm(input));});el.showModal();
   }
   function reviewDiscard(action){if(!hasUnsavedChanges()){void perform(action);return;}dialog('Unsaved changes','<p>Discard your unfinished changes and continue? Saved Course and participant records will be kept.</p>','Discard changes',()=>{state.dirty=false;state.personDrafts.clear();state.cardDraft=copy(state.course?.publicCard??null);return action();});}
   async function generate(){
@@ -280,7 +289,7 @@
       event.preventDefault();void perform(async()=>{await action('tab',{dataset:{tab}});$('cm-tab-'+tab)?.focus?.({preventScroll:true});});
     });
     $('course-access-retry').addEventListener('click',()=>{void open();});
-    $('course-new').addEventListener('click',()=>reviewDiscard(newCourse));
+    $('course-new').addEventListener('click',()=>reviewDiscard(beginNew));
     $('course-refresh').addEventListener('click',()=>reviewDiscard(async()=>{const current=selected(),tab=state.tab;await list();if(current.courseId&&visibleCourses().some(c=>c.courseId===current.courseId&&c.runId===current.runId))await select(current.courseId,current.runId,tab);else clearSelection();tell('Courses refreshed.');}));
     $('course-search').addEventListener('input',filterCourses);$('course-status-filter').addEventListener('change',filterCourses);
     document.addEventListener('click',event=>{const el=event.target.closest?.('[data-cm-action]');if(!el)return;event.preventDefault();if(state.busy)return;if(el.dataset.cmAction==='select'){void action('select',el);return;}void perform(()=>action(el.dataset.cmAction,el));});

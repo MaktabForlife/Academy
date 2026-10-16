@@ -190,7 +190,7 @@ export function d1CourseManagement(repository,auth,env={}) {
       const a=data.activities.find(a=>same(a.activity_key,course.activityKey));
       return {scope:await scopeDTO(data,a),accounts:await Promise.all(data.accounts.map(async account=>({...profileDTO(data,account),assignment:await assignmentDTO(data,account,a)}))),roles:editableRoles};
     }
-    if(!['save','public-card-save','validate','accept','publish','status','repeat','participant-create'].includes(action))throw managementError('Unknown Course action.',404);
+    if(!['save','public-card-save','validate','accept','publish','status','repeat','copy','participant-create'].includes(action))throw managementError('Unknown Course action.',404);
     return store.change('COURSE_MANAGEMENT',input.courseId?'COURSE:'+input.courseId:'ACADEMY','course-editor/'+action,input,async()=>{
       const data=await load(['validate','accept','publish'].includes(action)),guardData={...data,accounts:data.accounts.map(a=>({...a}))},statements=[];
       let c;
@@ -258,12 +258,14 @@ export function d1CourseManagement(repository,auth,env={}) {
         const completedAt=target==='COMPLETE'?new Date().toISOString():c.completedAt;
         if(['COMPLETE','CANCELLED','ARCHIVED'].includes(target))statements.push(p('UPDATE course_runs SET active=0 WHERE activity_key=? AND run_id=?',c.activityKey,c.runId));
         const revision=saveMeta(statements,c,c.details,target,null,completedAt);result={revision,message:target==='DRAFT'?'Revision created. The current publication stays on the timetable until you publish the revision.':`Course marked ${target.toLowerCase()}. Participant records are retained.`};
-      }else if(action==='repeat'){
-        if(!['COMPLETE','ARCHIVED'].includes(c.stage))throw managementError('Repeat a completed or archived Course.',409);
+      }else if(action==='repeat'||action==='copy'){
+        if(action==='repeat'&&!['COMPLETE','ARCHIVED'].includes(c.stage))throw managementError('Repeat a completed or archived Course.',409);
         if(!auth.state.account.global_admin)throw managementError('Only a Global Admin can create a new Course.',403,'FORBIDDEN');
         if(typeof input.reuseMedia!=='boolean')throw managementError('Choose whether to reuse existing media.');
+        if(action==='copy'&&typeof input.copySchedule!=='boolean')throw managementError('Choose whether to copy schedule settings.');
         const original=c;c={courseId:'COURSE-'+crypto.randomUUID(),runId:'CMRUN-'+crypto.randomUUID(),revision:'0',stage:'DRAFT',completedAt:null,repeatedFrom:original.activityKey};c.activityKey='COURSE:'+c.courseId;
-        const d=normalize({...original.details,name:clean(input.name)||original.details.name,startDate:'',endDate:'',sessions:[]},original.details.timezone);createActivity(d.name,d.accessModel);
+        const d=normalize({...original.details,name:clean(input.name)||original.details.name,...(action==='copy'&&!input.copySchedule?{weekdays:[],startTime:'',endTime:'',teacherId:'',zoomLink:''}:{}),startDate:'',endDate:'',sessions:[]},original.details.timezone);createActivity(d.name,d.accessModel);
+        if(action==='copy'&&original.publicCard)statements.push(p('INSERT INTO academy_settings(setting_key,setting_value,updated_at,updated_by_account_id) VALUES(?,?,?,?)',courseCardKey(c.activityKey),JSON.stringify(original.publicCard),new Date().toISOString(),auth.user.accountid));
         if(input.reuseMedia)for(const resource of data.resources.filter(r=>same(r.activity_key,original.activityKey)&&r.active))statements.push(...insertRecords(p,'course_resources',[{...resource,activity_key:c.activityKey,resource_id:'CMRESOURCE-'+crypto.randomUUID(),module_id:null,task_id:null}]));
         const revision=saveMeta(statements,c,d,'DRAFT');result={courseId:c.courseId,runId:c.runId,revision,message:'New Course draft created with a new Course ID. Students have not been copied.'};
       }else if(action==='participant-create'){

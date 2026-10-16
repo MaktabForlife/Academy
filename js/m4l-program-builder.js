@@ -39,6 +39,7 @@
     try {
       const data = await api("list");
       state.store = data.store || "SHEETS";
+      state.globalAdmin=Boolean(data.globalAdmin);byId("program-add").hidden=state.store==='D1'&&!state.globalAdmin;
       byId('program-access-label').hidden=state.store!=='D1';
       byId('program-zoom-label').hidden=state.store!=='D1';
       state.learningWorkflowsReady = Boolean(data.learningWorkflowsReady);
@@ -106,6 +107,24 @@
       <div class="pb-checks">${(readiness?.checks || [{ label: state.store === "D1" ? "Program records ready" : "Spreadsheet not checked", ok: state.store === "D1" }]).filter(check => !/time\s*zone/i.test(check.label)).map(check => `<span class="pb-check ${check.ok ? "is-ready" : ""}">${check.ok ? "✓" : "○"} ${escape(check.label)}</span>`).join("")}</div>
       <div class="pb-capabilities" aria-label="Capability availability"><span>✓ Configuration</span><span>✓ Curriculum management</span>${state.store === "D1" ? "<span>✓ Classes and enrolments</span>" : ""}${state.store !== "D1" || state.learningWorkflowsReady ? "<span>✓ Library management</span><span>✓ Library viewer</span><span>✓ Timetable builder</span><span>✓ Attendance registers</span>" : ""}${(state.store === "D1" && !state.learningWorkflowsReady ? ["Library", "Timetable editing", "Attendance", "Planner"] : []).map(name => `<span>${name} · Later stage</span>`).join("")}</div>`;
   }
+  let copyPending=null;
+  function beginNew(){
+    if(state.busy)return;
+    if(!byId('program-new-dialog')||state.store!=='D1'){add();return;}
+    if(hasEdits()){message('Save or discard unfinished Program changes before starting a new Program.',true);return;}
+    copyPending=null;byId('program-copy-message').textContent='';byId('program-copy-source').innerHTML='<option value="">Blank Program</option>'+state.rows.filter(r=>r.saved&&r.mode==='PROGRAM').map(r=>`<option value="${escape(r.id)}">${escape(r.name)} · ${escape(r.status)}</option>`).join('');copySourceChanged();byId('program-new-dialog').showModal();
+  }
+  function copySourceChanged(){const source=state.rows.find(r=>r.id===byId('program-copy-source').value);copyPending=null;byId('program-copy-options').hidden=!source;byId('program-copy-name').value=source?(source.name.slice(0,153)+' (copy)'):'';byId('program-copy-confirm').textContent=source?'Copy as new draft':'Continue';}
+  async function confirmNew(){
+    if(state.busy)return;const source=state.rows.find(r=>r.id===byId('program-copy-source').value);
+    if(!source){byId('program-new-dialog').close();add();return;}
+    const name=byId('program-copy-name').value.trim();if(!name){byId('program-copy-message').textContent='Enter the new Program name.';return;}
+    const body={id:source.id,revision:source.revision,name,copySchedule:byId('program-copy-schedule').checked};const key=JSON.stringify(body);if(copyPending?.key!==key)copyPending={key,body:{...body,operationId:crypto.randomUUID()}};
+    state.busy=true;for(const el of byId('program-new-dialog').querySelectorAll('button,input,select'))el.disabled=true;byId('program-copy-message').textContent='Copying Program…';
+    try{const result=await api('copy',copyPending.body);copyPending=null;state.busy=false;location.href='/programs/?program='+encodeURIComponent(result.program.id)+'&tab=details';}
+    catch(error){byId('program-copy-message').textContent=error.message+' Retry the same copy to avoid creating a duplicate.';}
+    finally{state.busy=false;for(const el of byId('program-new-dialog').querySelectorAll('button,input,select'))el.disabled=false;}
+  }
   function add() {
     if (state.busy) return;
     if(unified&&window.M4L_PROGRAM_ADMIN?.hasMounted()){location.href="/programs/?new=1&tab=details";return;}
@@ -169,7 +188,8 @@
     renderDetail();
   }
   async function init() {
-    byId("program-add").addEventListener("click", add);
+    byId("program-add").addEventListener("click", beginNew);
+    if(byId("program-new-dialog")){byId("program-copy-source").onchange=copySourceChanged;byId("program-copy-cancel").onclick=()=>{if(!state.busy)byId("program-new-dialog").close();};byId("program-copy-confirm").onclick=()=>void confirmNew();byId("program-new-dialog").addEventListener("cancel",event=>{if(state.busy)event.preventDefault();});}
     byId("program-refresh").addEventListener("click", () => {
       if (state.busy) return;
       if (hasEdits()) { byId("program-refresh-warning").hidden = false; byId("program-keep-editing").focus(); }
