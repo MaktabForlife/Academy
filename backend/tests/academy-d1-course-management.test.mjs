@@ -35,7 +35,8 @@ test('name-only Course drafts persist, remain private and do not mutate existing
  const created=await create(env,token,d),course=await get(env,token,created);assert.equal(course.stage,'DRAFT');assert.equal(course.details.name,'Test Course');assert.equal(course.details.sessions.length,0);
  const view=ok(await post(env,base+'list',{},token));assert.ok(view.courses.some(c=>c.courseId===created.courseId));
  assert.equal(db.prepare('SELECT website_visible FROM activities WHERE activity_id=?').get(created.courseId).website_visible,0);
- const home=ok(await post(env,'/api/academy/entrance',{startDate:'2026-09-24'},token));assert.ok(!home.activities.some(a=>a.id===created.courseId));
+ const home=ok(await post(env,'/api/academy/entrance',{startDate:'2026-09-24'},token));assert.ok(home.personalActivities.some(a=>a.id===created.courseId&&a.roles.includes('GLOBAL_ADMIN')));
+ const learner=await login(env,'0002'),studentHome=ok(await post(env,'/api/academy/entrance',{startDate:'2026-09-24'},learner));assert.ok(!studentHome.activities.some(a=>a.id===created.courseId));
  const review=ok(await write(env,token,'validate',{...created,baseRevision:course.revision}));assert.equal(review.validation.valid,false);assert.ok(review.validation.errors.length>=3);
  assert.deepEqual(db.prepare('SELECT snapshot_json FROM timetable_publications').all(),before);
 }));

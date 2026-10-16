@@ -28,7 +28,8 @@
   }
   function checkProfileLabels(){const revision=profileLabelRevision();if(revision!==dailyCache.profileRevision){dailyCache.profileRevision=revision;dailyCache.entries={};pageCache.snapshot=null;}return revision;}
   const MEMORISATION_RETURN_KEY='m4l_academy_memorisation_return_v1';
-  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10669';
+  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10683';
+  let planningSelection=null;
   const academyDay = (timezone, instant = Date.now()) => {
     const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {timeZone:timezone || 'Africa/Johannesburg',
       year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(instant)).map(part=>[part.type,part.value]));
@@ -42,9 +43,22 @@
   function weekButtons(){for(const id of ['schedule-previous','activity-previous'])$(id).disabled=!state.startDate||state.startDate<=currentWeek();for(const id of ['schedule-next','activity-next'])$(id).disabled=!token()&&state.startDate>=addWeekDays(state.home?.availableEndDate||state.home?.endDate||state.startDate,-6);}
   function roleRows(data){const rows=scheduleRows(data),teach=location.hash==='#timetable/teach';if(!teach||data.globalAdmin)return rows;const areas=new Set((data.personalActivities||[]).filter(r=>staffRoles(r.roles||[])).map(r=>r.kind+':'+r.id));return rows.filter(r=>areas.has(r.kind+':'+r.activityId));}
   function workspaceAreaLinks(mode,current,activities=state.home?.personalActivities||[]){
-    return activities.filter(row=>menuActivity(row)&&(state.home?.globalAdmin||mode!=='teach'||staffRoles(row.roles||[]))).map(row=>{
-      const selected=Boolean(current&&row.kind===current.kind&&row.id===current.id);
-      return activityPill(workspaceHref(row,'timetable',mode),row.name,row.roles,selected)+hifzHelperLink(row,'workspace-helper-link');
+    const rows=activities.filter(row=>menuActivity(row)&&(state.home?.globalAdmin||mode!=='teach'||staffRoles(row.roles||[])));
+    return [['PROGRAM','Programs'],['COURSE','Courses']].map(([kind,label])=>{
+      const links=rows.filter(row=>row.kind===kind).map(row=>{
+        const selected=Boolean(current&&row.kind===current.kind&&row.id===current.id);
+        return activityPill(workspaceHref(row,'timetable',mode),row.name,row.roles,selected)+hifzHelperLink(row,'workspace-helper-link');
+      }).join('');
+      return links?`<div class="workspace-area-group" role="group" aria-label="${label}"><h2>${label}</h2><div class="workspace-area-links">${links}</div></div>`:'';
+    }).join('');
+  }
+  function renderUpcomingCourses(){
+    const host=$('upcoming-courses'),list=$('upcoming-course-list'),data=state.home;
+    const rows=data?.signedIn&&location.hash==='#timetable/teach'?data.upcomingCourses||[]:[];
+    host.hidden=!rows.length;
+    list.innerHTML=rows.map(row=>{
+      const course={kind:'COURSE',id:row.id},dates=`${formatDate(row.startDate)}${row.endDate&&row.endDate!==row.startDate?' – '+formatDate(row.endDate):''}`;
+      return `<li class="upcoming-course"><div><h3><a href="${workspaceHref(course,'timetable','teach')}">${esc(row.name)}</a></h3><p>${esc(dates)}${row.stage==='DRAFT'?' · Draft':''}</p></div><div class="workspace-actions">${row.stage!=='DRAFT'?`<button type="button" class="button secondary" data-upcoming-week="${esc(row.startDate)}">Show starting week</button>`:''}${row.canPlan?`<a class="button secondary" href="${workspaceHref(course,'planning','teach')}" data-upcoming-plan="${esc(row.id)}" data-plan-start="${esc(row.startDate)}" data-plan-run="${esc(row.runId)}">Planning</a>`:''}${row.canManage?`<a class="text-link" href="/academy/courses/manage/?course=${encodeURIComponent(row.id)}&amp;run=${encodeURIComponent(row.runId)}">Manage</a>`:''}</div></li>`;
     }).join('');
   }
   function renderRoleLinks(){
@@ -52,6 +66,7 @@
     const host=$('timetable-quicklinks'),areas=$('timetable-areas');
     $('timetable').dataset.workspaceMode=data?.signedIn?mode:'public';
     $('full-timetable-title').textContent=data?.signedIn?(teach?'TEACH':'LEARN'):'Academy timetable';
+    renderUpcomingCourses();
     if(!data?.signedIn){host.innerHTML='<a href="#overview">Academy home</a>';areas.replaceChildren();return;}
     const rows=(data.personalActivities||[]).filter(r=>menuActivity(r)&&(data.globalAdmin||!teach||staffRoles(r.roles||[]))),first=rows[0];
     const link=(href,text)=>'<a href="'+esc(href)+'">'+esc(text)+'</a>';
@@ -445,7 +460,7 @@
     if (trackerOpen && context.mode === 'teach') support.querySelector('.academy-progress-section').open = true;
     if (context.tool === 'attendance' && row.kind === 'COURSE' && permitted && context.mode === 'teach') {
       planning.hidden = false;planning.innerHTML = '<h2>Attendance</h2><p class="muted">Course attendance tools are coming soon.</p>';
-    } else if(permitted && context.mode==='teach' && context.tool==='planning') window.M4L_PLANNING?.open({hostId:'activity-planning',view:'teacher',activityKey:`${row.kind}:${row.id}`});
+    } else if(permitted && context.mode==='teach' && context.tool==='planning') window.M4L_PLANNING?.open({hostId:'activity-planning',view:'teacher',activityKey:`${row.kind}:${row.id}`,...(planningSelection?.id===row.id?planningSelection:{})});
     else if(context.tool!=='planning')planning.replaceChildren();
     renderAcademyMenu();
   }
@@ -976,6 +991,8 @@
     state.scheduleGeneration++;
     state.activityGeneration++;
     state.home = null;
+    planningSelection=null;
+    $('upcoming-courses').hidden=true;$('upcoming-course-list').replaceChildren();
     $('timetable-areas').replaceChildren();$('activity-areas').replaceChildren();
     state.activity = null;
     state.courseCatalogue = null;
@@ -1056,6 +1073,10 @@
   });
 
   document.addEventListener('click', event => {
+    const upcomingWeek=event.target.closest('[data-upcoming-week]');
+    if(upcomingWeek){state.startDate=sunday(upcomingWeek.dataset.upcomingWeek);void loadSchedule();$('academy-schedule').scrollIntoView({block:'start'});}
+    const upcomingPlan=event.target.closest('[data-upcoming-plan]');
+    if(upcomingPlan)planningSelection={id:upcomingPlan.dataset.upcomingPlan,weekStart:upcomingPlan.dataset.planStart,runId:upcomingPlan.dataset.planRun};
     const workspaceTab=event.target.closest('.workspace-tabs [role=tab]');
     if(workspaceTab) {workspaceFocusId=workspaceTab.id;if(workspaceTab.getAttribute('href')===location.hash)revealWorkspaceTab();}
     const nav = event.target.closest('[data-nav]');

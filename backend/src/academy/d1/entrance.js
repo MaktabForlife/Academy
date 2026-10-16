@@ -7,6 +7,7 @@ import {buildAcademyCalendarEvents} from '../../lib/academy-calendar.js';
 import {currentProgramZoom} from './program-zoom.js';
 import {historicalPublications} from './historical-timetable.js';
 import {MOU_MEDIA_PROGRAM} from './lesson-media.js';
+import {d1CourseCatalogue} from './course-catalogue.js';
 
 const samePublication=(a,b)=>String(a).toUpperCase()===String(b).toUpperCase();
 // Adapt normalized D1 records at the repository boundary. Reuse the established
@@ -58,6 +59,15 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
     const project=row=>row.kind==='COURSE'?{...row,menuAvailable:activities.find(a=>a.activity_key.toUpperCase()===('COURSE:'+row.id).toUpperCase())?.course_menu_available!==0}:row;
     for(const name of ['activities','personalActivities','activityPages'])result[name]=result[name].map(project);
     if(result.activity)result.activity=project(result.activity);
+  }
+  // Planning is independent of the displayed timetable week. Reuse the scoped
+  // catalogue's safe metadata; never send editor sessions or meeting links here.
+  if(courseWorkflows&&state&&(state.account.global_admin||state.roles.some(r=>r.activity_key.startsWith('COURSE:')&&['TEACHER','PROGRAM_ADMIN'].includes(r.role)))){
+    const catalogue=await d1CourseCatalogue(repository,{state,user},now),today=dateInTimezone(now,config.setting_value);
+    const staffCourses=new Set(result.personalActivities.filter(a=>a.kind==='COURSE'&&a.roles.some(r=>['GLOBAL_ADMIN','PROGRAM_ADMIN','TEACHER'].includes(r))).map(a=>a.id.toUpperCase()));
+    result.upcomingCourses=catalogue.courses.filter(c=>staffCourses.has(c.id.toUpperCase())&&c.canOpenActivity&&['PUBLISHED','DRAFT'].includes(c.stage)&&c.startDate>today)
+      .map(({id,runId,name,stage,startDate,endDate,canPlan,canManage})=>({id,runId,name,stage,startDate,endDate,canPlan,canManage}))
+      .sort((a,b)=>a.startDate.localeCompare(b.startDate)||a.name.localeCompare(b.name));
   }
   if(state&&config.memorisationCards){
     const setting=await repository.db.prepare('SELECT active FROM memorisation_account_settings WHERE account_id=?').bind(state.account.account_id).first();

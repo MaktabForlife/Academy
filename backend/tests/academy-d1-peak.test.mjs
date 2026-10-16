@@ -25,7 +25,7 @@ try {
     const login=async index=>{const result=await post('/api/account/login',{uniqueid:input.accounts[index].login,pin:'1234'});assert.equal(result.status,200);return result.data.token;};
     try{await fn({db,env,post,login});assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);}finally{globalThis.fetch=original;db.close();}
   }
-  await test('busy Academy fixture has five Programs, two Courses and 200 learners in the shared lesson',()=>use(async({db,env})=>{
+  await test('busy Academy fixture has five Programs, two Courses and 200 learners in the shared lesson',()=>use(async({db,env,post,login})=>{
     assert.equal(db.prepare("SELECT count(*) n FROM activities WHERE kind='PROGRAM'").get().n,5);assert.equal(db.prepare("SELECT count(*) n FROM activities WHERE kind='COURSE'").get().n,2);
     assert.deepEqual(db.prepare('SELECT legacy_access_model FROM course_settings ORDER BY activity_key').all().map(r=>r.legacy_access_model),['FREE','PAID']);
     assert.equal(db.prepare("SELECT count(*) n FROM class_memberships WHERE activity_key='PROGRAM:PRG-11111111-1111-4111-8111-111111111111'").get().n,200);
@@ -38,9 +38,13 @@ try {
     const report=await exercisePeak('https://'+workerName+'.example.workers.dev',input);assert.equal(report.sequential.failed,0);
     for(const [count,burst] of Object.entries(report.bursts)) {
       assert.equal(burst.succeeded,Number(count));assert.equal(burst.failed,0,JSON.stringify(burst.failures));
-      for(const [stage,calls] of Object.entries({check:2,login:3,session:2,home:3}))assert.equal(burst.stages[stage].calls.max,calls);
-      assert.equal(Object.values(burst.stages).reduce((sum,s)=>sum+s.statements.max,0),31);
+      // Staff homes add the safe Course catalogue (one schema probe and one
+      // batch of three reads). Learner homes retain their original budget.
+      for(const [stage,calls] of Object.entries({check:2,login:3,session:2,home:5}))assert.equal(burst.stages[stage].calls.max,calls);
+      assert.equal(Object.values(burst.stages).reduce((sum,s)=>sum+s.statements.max,0),35);
     }
+    const learner=await login(1),learnerHome=await post('/api/academy/entrance',{startDate:'2026-10-01'},learner);
+    assert.equal(learnerHome.status,200);assert.equal(learnerHome.metrics.calls,3);assert.equal(learnerHome.data.upcomingCourses,undefined);
     // Native SQLite is a correctness/query-budget test, not hosted capacity.
   }));
   await test('request-local optimization retains immediate revocation, enrolment and paid-Course changes',()=>use(async({db,post,login})=>{

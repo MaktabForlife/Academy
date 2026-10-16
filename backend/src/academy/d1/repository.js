@@ -152,13 +152,14 @@ export function academyD1Repository(env) {
         ...state.activities.filter(a=>a.kind==='COURSE'&&(a.legacy_access_model==='FREE'||state.subscriptions.some(s=>key(s.activity_key)===key(a.activity_key)))).map(a=>a.activity_key)
       ])]:[];
       const privateScope=JSON.stringify(privateKeys);
+      const staffScope=JSON.stringify(state?.roles.filter(r=>['PROGRAM_ADMIN','ADMIN','SENIOR','TEACHER'].includes(r.role)).map(r=>r.activity_key)||[]);
       const classScope=state?`c.activity_key IN (SELECT value FROM json_each(?))`:
         `c.activity_key IN (SELECT a.activity_key FROM activities a ${programAccessJoin} WHERE a.kind='PROGRAM' AND a.active=1 AND a.lifecycle='ACTIVE' AND a.website_visible=1 AND ${programAccessSQL}='FREE')`;
       const queries=[
         `SELECT a.*,p.timezone,p.duration_years,(SELECT setting_value FROM academy_settings WHERE setting_key='AcademyCoursePublicCard:'||upper(a.activity_key)) AS course_public_card_json${programWorkspace?`,p.public_card_json,CASE WHEN a.kind<>'COURSE' THEN 1
           WHEN EXISTS(SELECT 1 FROM course_management_drafts d WHERE d.activity_key=a.activity_key AND d.stage NOT IN ('CANCELLED','ARCHIVED')) THEN 1
           WHEN EXISTS(SELECT 1 FROM course_runs r LEFT JOIN course_management_drafts d USING(activity_key,run_id) LEFT JOIN course_run_state s USING(activity_key,run_id) WHERE r.activity_key=a.activity_key AND r.active=1 AND d.run_id IS NULL AND coalesce(s.stage,'DRAFT') NOT IN ('CANCELLED','ARCHIVED')) THEN 1
-          WHEN NOT EXISTS(SELECT 1 FROM course_management_drafts d WHERE d.activity_key=a.activity_key) AND NOT EXISTS(SELECT 1 FROM course_runs r WHERE r.activity_key=a.activity_key) THEN 1 ELSE 0 END AS course_menu_available`:''},cs.legacy_access_model,${programAccessSQL} AS program_access_model,pz.setting_value AS program_zoom_override FROM activities a LEFT JOIN program_settings p USING(activity_key) LEFT JOIN course_settings cs USING(activity_key) ${programAccessJoin} ${programZoomJoin} WHERE a.active=1 AND a.lifecycle='ACTIVE' AND a.website_visible=1`,
+          WHEN NOT EXISTS(SELECT 1 FROM course_management_drafts d WHERE d.activity_key=a.activity_key) AND NOT EXISTS(SELECT 1 FROM course_runs r WHERE r.activity_key=a.activity_key) THEN 1 ELSE 0 END AS course_menu_available`:''},cs.legacy_access_model,${programAccessSQL} AS program_access_model,pz.setting_value AS program_zoom_override FROM activities a LEFT JOIN program_settings p USING(activity_key) LEFT JOIN course_settings cs USING(activity_key) ${programAccessJoin} ${programZoomJoin} WHERE a.active=1 AND a.lifecycle='ACTIVE' AND (a.website_visible=1 OR ?=1 OR a.activity_key IN (SELECT value FROM json_each(?)))`,
         `SELECT p.*${state?`,${publicationTeacherAccountsSQL} AS teacher_accounts_json`:''} FROM timetable_publications p JOIN activities a USING(activity_key) WHERE a.active=1 AND a.lifecycle='ACTIVE' AND (p.pattern='COURSE' OR ((p.effective_from IS NULL OR p.effective_from<=?) AND (p.effective_until IS NULL OR p.effective_until>=?)))`,
         `SELECT p.*,s.subject_id,s.name AS subject_name FROM program_subjects p JOIN subject_catalog s USING(subject_key) WHERE p.active=1 AND s.active=1 AND p.activity_key IN (SELECT value FROM json_each(?))`,
         `SELECT * FROM modules WHERE active=1 AND activity_key IN (SELECT value FROM json_each(?))`,
@@ -169,7 +170,7 @@ export function academyD1Repository(env) {
         `SELECT * FROM lesson_lifecycle`,
         ...(courseWorkflows?[`SELECT * FROM academy_calendar_events`,`SELECT * FROM academy_calendar_suppressions`,`SELECT * FROM academy_settings WHERE setting_key LIKE 'AcademyHolidayAnnual:%'`]:[])
       ];
-      const results=await db.batch(queries.map((sql,i)=>i===1?prepare(sql,end,start):[2,3].includes(i)||i===4&&state?prepare(sql,privateScope):i===5?prepare(sql,state?.account.account_id || ''):prepare(sql)));
+      const results=await db.batch(queries.map((sql,i)=>i===0?prepare(sql,Number(Boolean(state?.account.global_admin)),staffScope):i===1?prepare(sql,end,start):[2,3].includes(i)||i===4&&state?prepare(sql,privateScope):i===5?prepare(sql,state?.account.account_id || ''):prepare(sql)));
       return results.map(r=>r.results);
     }
   };

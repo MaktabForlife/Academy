@@ -28,12 +28,13 @@ export async function d1CourseCatalogue(repository,auth,now=new Date()) {
     const roles=[...new Set([...assignments,...auth.state.roles].filter(a=>same(a.activity_key,r.activity_key)).map(a=>a.role))];
     const subscribed=paid.some(a=>same(a.activity_key,r.activity_key));
     const canManage=globalAdmin||Boolean(r.active&&r.lifecycle==='ACTIVE'&&roles.includes('PROGRAM_ADMIN'));
+    const canTeach=Boolean(r.active&&r.lifecycle==='ACTIVE'&&roles.includes('TEACHER'));
     const personal=subscribed||roles.some(role=>['STUDENT','TEACHER','PROGRAM_ADMIN'].includes(role));
     if(!canManage&&!personal)continue;
     let stage=r.stage||(!r.active||r.lifecycle==='ARCHIVED'?'ARCHIVED':r.current_publication_id?'PUBLISHED':'DRAFT');
     // A saved revision must not hide or expose changes to its current publication.
     if(stage==='DRAFT'&&r.current_publication_id&&r.run_active)stage='PUBLISHED';
-    if(!canManage&&(!r.current_publication_id||!['PUBLISHED','COMPLETE','ARCHIVED'].includes(stage)))continue;
+    if(!canManage&&!(canTeach&&stage==='DRAFT')&&(!r.current_publication_id||!['PUBLISHED','COMPLETE','ARCHIVED'].includes(stage)))continue;
     const draft=stage==='DRAFT',startDate=(draft?r.draft_start:r.start_date)||'',endDate=(draft?r.draft_end:r.end_date)||'';
     if(stage==='PUBLISHED'&&startDate&&endDate){
       const today=dateInTimezone(now,r.timezone||'Africa/Johannesburg');
@@ -41,7 +42,8 @@ export async function d1CourseCatalogue(repository,auth,now=new Date()) {
     }
     courses.push({id:r.activity_id,runId:r.run_id||'',name:(draft?r.draft_name:r.run_name)||r.name,
       stage,startDate,endDate,accessModel:r.legacy_access_model,personal,canManage,
-      canOpenActivity:Boolean(r.active&&r.lifecycle==='ACTIVE'&&r.website_visible&&r.run_active),
+      canOpenActivity:Boolean(r.active&&r.lifecycle==='ACTIVE'&&(r.website_visible&&r.run_active||canManage||canTeach)&&!['CANCELLED','ARCHIVED'].includes(stage)),
+      canPlan:Boolean((canManage||canTeach)&&r.run_active&&r.current_publication_id&&['PUBLISHED','ACTIVE'].includes(stage)),
       mediaAvailable:false,mediaMessage:['COMPLETE','ARCHIVED'].includes(stage)
         ? 'Course media is not available yet.' : 'Course media becomes available after completion.'});
   }

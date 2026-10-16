@@ -77,7 +77,7 @@ test('Course admins see their own drafts, teachers receive no administrator auth
   let result=await view(env,'account-0004');assert.equal(result.canViewAll,false);
   assert.ok(result.courses.some(c=>c.id===draft.courseId&&c.canManage&&c.stage==='DRAFT'));
   assign(db,'COURSE:'+draft.courseId,'account-0003','TEACHER');
-  result=await view(env,'account-0003');assert.ok(!result.courses.some(c=>c.id===draft.courseId));
+  result=await view(env,'account-0003');assert.ok(result.courses.some(c=>c.id===draft.courseId&&c.stage==='DRAFT'&&!c.canManage&&!c.canPlan&&c.canOpenActivity));
   result=await view(env,'account-0001');assert.equal(result.canViewAll,true);assert.ok(result.courses.every(c=>c.canManage));
 }));
 
