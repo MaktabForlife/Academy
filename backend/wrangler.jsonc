@@ -71,6 +71,10 @@
             "class_name": "ProgramTimetableCoordinator"
           }
         ]
+      },
+      "vars": {
+        "HIFZ_PROFILE_SYNC_URL": "https://hifzhelper-api-dev.hifzhelper-app.workers.dev/internal/academy/profile-sync",
+        "HIFZ_PROFILE_SYNC_TARGET": "development"
       }
     }
   },
@@ -117,5 +121,9 @@
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1
+  },
+  "vars": {
+    "HIFZ_PROFILE_SYNC_URL": "https://hifzhelper-api-dev.hifzhelper-app.workers.dev/internal/academy/profile-sync",
+    "HIFZ_PROFILE_SYNC_TARGET": "development"
   }
 }

@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V106.90
+# Umm Abbad Academy — V106.91
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
@@ -7,6 +7,10 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - Independent HifzHelper links remain. The cancelled shared-login integration is not part of Academy.
+
+## V106.91 — Durable Hifz profile and PIN-reset delivery
+
+Development queues linked Hifz profile changes in the same D1 transaction, then sends authenticated updates after saving. Failures remain queued for retry. PIN resets clear Hifz credentials without sharing hashes. [Schema and rollout](docs/HIFZ-PROFILE-SYNC-106.91.md).
 
 ## V106.90 — Academy repository and development domain
 

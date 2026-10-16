@@ -19,6 +19,7 @@ import {d1LessonJoin,websiteEntrance} from './lesson-join.js';
 import {publicTimetable,refreshPublicTimetable,refreshPublishedTimetable} from './public-timetable.js';
 import {profileLabelsVersion,processCacheRefresh,recoverCacheRefresh} from './cache-refresh.js';
 import { d1Profiles } from './profiles.js';
+import {hifzSyncEnabled,hifzSyncChangePath,recoverHifzProfiles} from './hifz-profile-sync.js';
 import { d1Programs } from './programs.js';
 import {d1Learning} from './learning.js';
 import {learningAvailable} from './learning-state.js';
@@ -71,7 +72,7 @@ async function dispatch(request,env) {
   if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'106.90',
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'106.91',
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(repository)};
@@ -236,8 +237,11 @@ async function dispatch(request,env) {
   throw rehearsalError('This operation is not available in the Academy.',501,'OPERATION_NOT_MIGRATED');
 }
 return {
-  async scheduled(event,env,ctx){ctx.waitUntil(recoverCacheRefresh(env,new Date(event.scheduledTime)));},
-  async fetch(request,env) {
+  async scheduled(event,env,ctx){
+    ctx.waitUntil(recoverCacheRefresh(env,new Date(event.scheduledTime)));
+    if(hifzSyncEnabled(env))ctx.waitUntil(recoverHifzProfiles(env,{limit:40}));
+  },
+  async fetch(request,env,ctx) {
     const origin=request.headers.get('Origin');
     const allowed=(env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
     const headers={'Content-Type':'application/json','Cache-Control':'private, no-store','Vary':'Origin',
@@ -247,6 +251,8 @@ return {
     if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
     try{const path=new URL(request.url).pathname;
       const result=await (path==='/api/academy/header-date'?(request.method==='GET'?headerDate(request):Response.json({success:false,error:'Use GET.'},{status:405})):path==='/api/academy/entrance/public-snapshot'?publicTimetable(request,env):path==='/api/academy/profile-labels-version'?profileLabelsVersion(request,env):dispatch(request,env));
+      if(request.method==='POST'&&hifzSyncChangePath(path)&&hifzSyncEnabled(env)&&ctx?.waitUntil&&!(result instanceof Response)&&result.success)
+        ctx.waitUntil(recoverHifzProfiles(env));
       if(result instanceof Response){const mediaHeaders=new Headers(result.headers);for(const name of ['Vary','Access-Control-Allow-Methods','Access-Control-Allow-Headers'])mediaHeaders.set(name,headers[name]);
         mediaHeaders.set('X-Content-Type-Options','nosniff');
         mediaHeaders.delete('Access-Control-Allow-Origin');if(headers['Access-Control-Allow-Origin'])mediaHeaders.set('Access-Control-Allow-Origin',headers['Access-Control-Allow-Origin']);

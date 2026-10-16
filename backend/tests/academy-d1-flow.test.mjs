@@ -245,5 +245,5 @@ test('only the current development Worker configuration binds the main Academy d
   assert.equal(config.name,'devrebootworker');assert.equal(config.main,'src/academy-worker-runtime.js');
   assert.equal(config.env.development.name,'devrebootworker');
   assert.deepEqual(config.env.development.d1_databases,[{binding:'ACADEMY_DB',database_name:'maktab-academy',database_id:'7e732b79-a72f-4da6-be83-524919c49ba4',migrations_dir:'migrations/academy'}]);
-  assert.equal(config.env.development.vars,undefined);
+  assert.deepEqual(config.env.development.vars,{HIFZ_PROFILE_SYNC_URL:'https://hifzhelper-api-dev.hifzhelper-app.workers.dev/internal/academy/profile-sync',HIFZ_PROFILE_SYNC_TARGET:'development'});
 });
