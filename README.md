@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V106.87
+# Umm Abbad Academy — V106.88
 
 This `development` branch contains the Cloudflare D1 Academy application. The separate Git `main` branch continues to serve the legacy Reboot application.
 
@@ -6,6 +6,10 @@ This `development` branch contains the Cloudflare D1 Academy application. The se
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - Independent HifzHelper links remain. The cancelled shared-login integration is not part of Academy.
+
+## V106.88 — Enrolment feedback and picture announcements
+
+Learners use **Enroll now** and a country selector (South Africa by default). The compact request form shows larger instructions, phone-format guidance, errors beside Send request, and a confirmed-send popup with OK/Cancel. Admin edits catalogue rows inline and prepares editable WhatsApp welcome messages after manual registration. Homepage announcements fill their block as picture bricks, opening the complete poster, text and links. [Release details](docs/ACADEMY-ENROLMENT-BRICKS-106.88.md).
 
 ## V106.87 — Editable copied enrolments and full announcements
 

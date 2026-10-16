@@ -43,3 +43,29 @@
 #enrol-admin-requests .enrolment-table td:nth-child(2){min-width:125px;overflow-wrap:normal}
 #enrol-admin-requests .enrolment-table td:nth-child(3){min-width:85px;overflow-wrap:normal}
 #enrol-admin-requests .enrolment-table td:nth-child(4){min-width:35px;overflow-wrap:normal}
+
+.enrolment-page.enrolment-application main.enrolment-main{max-width:980px;box-sizing:border-box}
+.enrolment-introduction{font-size:20px;line-height:1.5;margin:12px 0}
+.enrolment-application .enrolment-card{padding:20px;margin:14px 0}
+.enrolment-application .enrolment-option{padding:12px;gap:10px}
+#enrolment-submit-message{margin:14px 0 0;font-size:15px;white-space:pre-line}
+#enrolment-submit-message:empty{display:none}
+.enrolment-catalogue-table{min-width:850px}
+.enrolment-catalogue-table :is(input:not([type=checkbox]),textarea,select){padding:8px;font-weight:400;font-size:13px}
+.enrolment-catalogue-table textarea{min-height:72px;width:240px;max-width:100%;resize:vertical}
+.enrolment-catalogue-table input[type=number]{width:85px}
+.enrolment-catalogue-table input[type=checkbox]{width:20px;height:20px;accent-color:#704578}
+.enrolment-catalogue-table th:nth-child(1){min-width:160px;white-space:normal}
+.enrolment-catalogue-table td:last-child{min-width:135px}
+.enrolment-catalogue-table [data-entry-message]{margin:8px 0 0;color:#8b2639;white-space:pre-line}
+@media(max-width:600px){.enrolment-introduction{font-size:18px}.enrolment-application .enrolment-card{padding:16px 12px}}
+
+.enrolment-phone{display:grid;grid-template-columns:minmax(130px,.8fr) minmax(150px,1fr);gap:12px;align-items:start;min-width:0}
+.enrolment-field-help{color:#706774;font:400 12px/1.5 Arial,sans-serif}
+@media(max-width:600px){.enrolment-phone{grid-template-columns:minmax(0,1fr)}}
+
+.enrolment-application .enrolment-fields{align-items:start}
+
+#enrol-message-text{min-height:300px;font:14px/1.5 Arial,sans-serif}
+
+.enrolment-dialog:has(#enrol-message-text) #enrol-admin-dialog-body{display:grid;gap:12px}

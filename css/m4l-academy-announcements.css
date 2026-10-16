@@ -1,23 +1,20 @@
-/* Announcement content stays legible on phones; posters open at full size. */
+/* Picture bricks fill the announcement block; full details open on selection. */
 .academy-intro{grid-template-columns:1fr}
-.academy-intro .intro-feature{padding:0;min-height:0;background:#fbf8f5;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+.academy-intro .intro-feature{padding:0;min-height:0;background:#bb9fc1;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
 .academy-intro .intro-feature::before,.academy-intro .intro-feature::after{display:none}
-.academy-intro .intro-feature>.academy-news{width:100%;min-height:0;background:#fbf8f5;padding:20px 24px;border:0;border-radius:0;box-shadow:none;color:#111;container-type:inline-size;text-align:center}
-.announcement-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:3px solid #704578;padding-bottom:10px;margin-bottom:14px}
-.academy-news #academy-news-title{font:700 22px/1.2 Arial,Helvetica,sans-serif;letter-spacing:.04em;text-transform:uppercase;margin:0;color:#44274c;text-align:left}
-#academy-announcements{min-width:0}
-.announcement-rail{position:relative;display:grid;grid-auto-flow:column;grid-auto-columns:calc((100% - 16px)/2);align-items:stretch;gap:16px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scrollbar-width:thin;scrollbar-color:#c8b0d0 transparent;padding-bottom:10px}
-.announcement-rail:focus-visible{outline:2px solid #704578;outline-offset:3px}
-.announcement-slide{min-width:0;min-height:242px;box-sizing:border-box;scroll-snap-align:start;background:#fff;border:1px solid #e2d8e7;border-bottom:3px solid #b99ac4;border-radius:12px;overflow:hidden;text-align:left}
-.announcement-copy{min-width:0;padding:12px}
-.academy-news .announcement-slide h3{font:600 16px/1.3 Arial,Helvetica,sans-serif;margin:0 0 8px;color:#44274c;text-align:left;overflow-wrap:anywhere}
-.academy-news .announcement-slide .announcement-message{font-size:14px;line-height:1.45;white-space:pre-line;overflow-wrap:anywhere;max-height:7.25em;overflow-y:auto;margin:0;color:#332d37;text-align:left}
-.announcement-cover{display:flex;align-items:center;justify-content:center;width:100%;height:112px;box-sizing:border-box;background:#f1eaf4;border:0;border-bottom:1px solid #e2d8e7;padding:8px;margin:0;color:#704578}
-.announcement-poster{cursor:zoom-in}
-.announcement-poster img{display:block;width:100%;height:100%;object-fit:contain}
-.announcement-placeholder{flex-direction:column;gap:5px;background:linear-gradient(140deg,#f6eff8,#e8dbed)}
-.announcement-placeholder svg{width:40px;height:48px}
-.announcement-placeholder span{font:600 11px/1.3 Arial,Helvetica,sans-serif;letter-spacing:.03em}
+.academy-intro .intro-feature>.academy-news{width:100%;height:100%;min-height:0;background:transparent;padding:0;border:0;border-radius:0;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;color:#332d37}
+#academy-announcements{min-width:0;height:100%}
+#academy-announcements>p{padding:24px}
+.announcement-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(240px,1fr);gap:4px;min-height:100%}
+.announcement-slide{min-width:0;position:relative;overflow:hidden;background:#f1eaf4}
+.announcement-slide:last-child:nth-child(odd){grid-column:1/-1}
+.announcement-cover{position:relative;display:block;width:100%;height:100%;min-height:280px;box-sizing:border-box;padding:0;margin:0;border:0;border-radius:0;background:#f1eaf4;color:#704578;cursor:zoom-in;overflow:hidden}
+.announcement-poster img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;object-position:top center}
+.announcement-poster:focus-visible{outline:3px solid #704578;outline-offset:-4px;z-index:1}
+.announcement-placeholder{display:none;position:absolute;inset:0;align-items:center;justify-content:center;background:linear-gradient(140deg,#f6eff8,#e8dbed)}
+.announcement-placeholder svg{width:64px;height:76px}
+.announcement-no-image .announcement-placeholder{display:flex}
+.announcement-no-image img{display:none}
 .announcement-controls,.announcement-actions,.announcement-options{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .announcement-actions,.announcement-options{margin-top:16px}
 .announcement-controls{flex:none;flex-wrap:nowrap}
@@ -45,8 +42,8 @@
 .announcements-editor button:disabled{opacity:.5;cursor:default}
 @media(min-width:1001px){.academy-intro{grid-template-columns:minmax(270px,.8fr) minmax(0,1.2fr)}}
 @media(max-width:1000px){.academy-mobile-layout .academy-intro .intro-feature{padding:0}}
-@media(max-width:600px){.announcement-rail{grid-auto-columns:calc(100% - 36px)}.academy-intro .intro-feature>.academy-news{padding:16px}.academy-news #academy-news-title{font-size:20px}.announcement-controls{gap:7px}}
-@media(prefers-reduced-motion:reduce){.announcement-rail{scroll-behavior:auto}}
+@media(max-width:600px){.announcement-grid{grid-auto-rows:minmax(240px,1fr)}.announcement-cover{min-height:260px}}
+
 
 .announcement-message a,.announcement-attachment a{color:#704578;text-decoration:underline;text-underline-offset:3px}
 .announcement-attachment{margin:10px 0 0;text-align:left;overflow-wrap:anywhere}
@@ -63,3 +60,5 @@
 .announcement-modal-copy .announcement-message{white-space:pre-line}
 .announcement-modal-copy a{color:#704578;text-decoration:underline;text-underline-offset:3px}
 @media(max-width:700px){.announcement-modal-content{grid-template-columns:minmax(0,1fr);padding:14px;gap:18px}.announcement-modal-header{padding:12px 14px}.announcement-modal-header h2{font-size:22px}}
+
+.announcement-modal-content.announcement-modal-text{grid-template-columns:minmax(0,1fr)}

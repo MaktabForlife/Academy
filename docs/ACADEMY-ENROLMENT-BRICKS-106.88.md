@@ -1,0 +1,17 @@
+# V106.88 — Enrolment feedback, inline catalogue and picture bricks
+
+The Learn entry and signed-in form now say **Enroll now**. Join the Academy stays on the public home page. The request form is narrower, with larger introductory instructions. A country selector defaults to South Africa (+27); locally bundled libphonenumber-js 1.13.15 handles calling codes, local prefixes and plausible lengths. Existing ten-digit South African contact numbers are prefilled correctly and submissions use the international number. Grey format guidance stays beside the phone field. The library makes no remote requests.
+
+Validation errors, sending progress and API failures appear beside Send request as well as at the top. After the API confirms persistence, a modal says **Your request has been sent**. OK returns visitors to Academy home and signed-in users to Learn. Cancel/Escape retains the form for editing and resending. An unchanged resend reuses its submission identifier to avoid duplicate inbox entries; edited resubmissions create a new request. Unconfirmed requests retain their existing exact-body retry behaviour across reloads.
+
+Catalogue year, cost text, visibility and display order are editable inline, with Save/Cancel per row. New rows are added inline. Unsaved row values survive refreshes and other row saves; uncertain saves keep their operation identifier and lock edits until retried. Authority and revision checks remain in the existing backend. Registration/enrolment stays manual.
+
+Announcements display as image-only bricks filling the homepage announcement block. Selecting any brick opens the complete uncropped poster, heading, full message and safe links/PDF attachment. Image-less announcements retain an accessible clickable document icon and open their text/attachment. All announcements remain reachable in the wrapping grid. No announcement content is changed by this release.
+
+The development enrolment schema was checked read-only during investigation: all three tables exist, with nine catalogue entries and no saved requests at that time. A reported short number is rejected with HTTP 400; missing or invalid inputs previously left feedback above the visible part of the form. No live test requests, users, catalogue edits or announcement edits are created by verification.
+
+This release uses the existing development branch, website, Worker and database. No database migration or new Cloudflare resource is required.
+
+Verification: all 71 backend test files passed. Packaged Chrome acceptance passed 22 enrolment/inbox/catalogue/message flows and six full-poster popup checks, including HTTP 400 feedback, ten-digit South African profile prefilling, a different country, lost acknowledgements, OK/Cancel and inline-save retries. The homepage suite passed 48 checks across visitors, learners, teachers and Global Admin. The announcement editor/PDF suite passed 29 checks. Phone and desktop layouts were inspected.
+
+After manual user registration, Global Admin can choose an editable prepared WhatsApp message. The same Message learner action is available on linked requests. Four starter messages cover welcome/first login, welcome after group addition, enrolment confirmation and group rules. Learner name, login ID, personal login link and requested learning areas fill from the inbox; admin reviews any enrolment/group claim and supplies their own rules. Opening WhatsApp only prepares the edited text; sending is manual. PIN setup still uses the existing first-login flow and no credential is changed or sent by the application.

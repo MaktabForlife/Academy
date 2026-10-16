@@ -41,18 +41,7 @@
 }
 .admin-management-menu button{min-height:44px;padding:9px 15px;border:1px solid #d9c9df;border-radius:999px;color:#704578;background:#fff;font:600 13px Arial,sans-serif;white-space:nowrap}
 .academy-intro .intro-feature>.academy-news{position:relative;padding:0;height:100%;min-height:290px}
-.academy-news .announcement-heading{position:absolute;inset:0 0 auto;border:0;margin:0;padding:0;z-index:2}
-.academy-news #academy-announcement-controls{position:absolute;right:10px;top:10px}
-.academy-news .announcement-controls button,.film-actions button{width:44px;min-width:44px;height:44px;padding:0;border:0;border-radius:0;background:#39333bcc;color:#fff;font:400 30px/1 Arial,sans-serif}
-.academy-news .announcement-controls span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
-.announcement-rail{height:100%;padding:0;gap:12px;grid-auto-columns:calc((100% - 12px)/2);scrollbar-width:thin}
-.announcement-slide{display:flex;align-items:stretch;min-height:290px;border-radius:0;border:0;border-right:1px solid #e2d8e7}
-.announcement-cover{flex:0 0 32%;width:32%;height:auto;min-height:100%;padding:12px;border:0;border-right:1px solid #e2d8e7}
-.announcement-copy{flex:1;min-width:0;padding:56px 14px 16px}
-.announcement-poster img{height:100%;max-height:290px}
-.academy-news .announcement-slide .announcement-message{max-height:10.15em}
-.announcement-placeholder span{font-size:9px;text-align:center}
-.announcement-placeholder svg{max-width:100%}
+.film-actions button{width:44px;min-width:44px;height:44px;padding:0;border:0;border-radius:0;background:#39333bcc;color:#fff;font:400 30px/1 Arial,sans-serif}
 .film-section{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:16px;background:#fffafdeb;border:1px solid #e4d5ea;border-radius:18px;padding:18px;color:#44274c;box-shadow:none}
 .film-head{grid-column:1;grid-row:1;min-width:0;padding:0 0 14px}
 .film-head h2{color:#44274c;font-size:26px}
@@ -74,7 +63,7 @@
 .film-pages button{min-width:44px;min-height:44px;border:1px solid #d9c9df;border-radius:8px;background:#fff;color:#704578}
 .film-pages button[aria-pressed=true]{background:#704578;color:#fff}
 .film-lessons summary,.film-lessons a{color:#704578}
-@media(max-width:600px){.academy-date-box{padding:5px 7px}.academy-date-box>div{font-size:11px}.announcement-rail{grid-auto-columns:calc(100% - 30px)}.announcement-cover{flex-basis:30%;width:30%;padding:8px}.announcement-copy{padding:56px 10px 12px}.announcement-slide{min-height:290px}.film-section{padding:12px}.film-head h2{font-size:22px}.film-track.course-wall{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,160px)}.course-wall .film-card,.course-wall .film-card[data-wall-slot="0"],.course-wall .film-card[data-wall-slot="1"]{grid-column:span 1}.wall-caption{font-size:14px;padding:30px 10px 10px}}
+@media(max-width:600px){.academy-date-box{padding:5px 7px}.academy-date-box>div{font-size:11px}.film-section{padding:12px}.film-head h2{font-size:22px}.film-track.course-wall{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,160px)}.course-wall .film-card,.course-wall .film-card[data-wall-slot="0"],.course-wall .film-card[data-wall-slot="1"]{grid-column:span 1}.wall-caption{font-size:14px;padding:30px 10px 10px}}
 @media(prefers-reduced-motion:reduce){.course-wall .film-art img{transition:none}.course-wall .film-card:hover img{transform:none}}
 
 .academy-shell .academy-banners>:is(.sidebar,.academy-connected-sidebar){height:auto!important;min-height:72px}
