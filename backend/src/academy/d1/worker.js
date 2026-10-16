@@ -27,6 +27,7 @@ import {d1CourseCalendar as defaultCourseCalendar} from './course-calendar.js';
 import {academicCalendar} from './academic-calendar.js';
 import {d1CourseManagement} from './course-management.js';
 import {d1CourseCatalogue} from './course-catalogue.js';
+import {enrolmentCatalogue,enrolmentProfile,submitEnrolment,enrolmentManagement} from './enrolment.js';
 import {d1CourseSubscriptions} from './course-subscriptions.js';
 import {managedCourseScopes} from './course-authority.js';
 import {authenticatedD1Account as authenticated,d1Audience as audience,d1ContextEqual as contextEqual} from './session.js';
@@ -65,11 +66,12 @@ async function dispatch(request,env) {
   const path=new URL(request.url).pathname;
   await repository.ready();
   if(path==='/api/academy/announcements'&&request.method==='GET')return {success:true,...await publicAnnouncements(repository)};
+  if(path==='/api/academy/enrolment/catalogue'&&request.method==='GET')return {success:true,...await enrolmentCatalogue(repository)};
   if(path==='/api/academy/announcements/image'&&['GET','HEAD'].includes(request.method))return announcementImage(request,repository,env);
   if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'106.84',
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'106.85',
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(repository)};
@@ -137,7 +139,14 @@ async function dispatch(request,env) {
     return {success:true,sessionStore:'D1',...websiteEntrance(await d1Entrance(repository,auth?.state,auth?.user,input))};
   }
   if(path==='/api/academy/public-lesson/join')return {success:true,...await d1LessonJoin(repository,null,input)};
+  if(path==='/api/academy/enrolment/submit'){
+    const auth=request.headers.has('Authorization')?await authenticated(request,env,repository):null;
+    return {success:true,...await submitEnrolment(repository,auth,input,request,env)};
+  }
   const auth=await authenticated(request,env,repository);
+  if(path==='/api/academy/enrolment/profile')return {success:true,...await enrolmentProfile(repository,auth)};
+  const enrolmentAction=path.match(/^\/api\/admin\/platform\/enrolment\/(get|catalogue-save|request-save|request-delete|accounts|register|settings-save)$/)?.[1];
+  if(enrolmentAction)return {success:true,...await enrolmentManagement(repository,auth).run(enrolmentAction,input)};
   const bookmarkAction=path.match(/^\/api\/academy\/bookmarks\/(list|save|delete)$/)?.[1];
   if(bookmarkAction)return {success:true,...await pdfBookmarks(repository,auth).run(bookmarkAction,input)};
   const announcementAction=path.match(/^\/api\/admin\/platform\/announcements\/(list|delete)$/)?.[1];

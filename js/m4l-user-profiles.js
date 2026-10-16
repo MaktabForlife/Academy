@@ -119,6 +119,7 @@
         // Translate pre-migration draft roles only; uncertain saves retain their exact payload.
         if(state.data.store==='D1'&&!state.pending)for(const draft of entries().filter(e=>e.mode==='matrix-roles'&&e.scopeType==='PROGRAM'))draft.roles=[...new Set(draft.roles.map(role=>role==='ADMIN'?'PROGRAM_ADMIN':role==='SENIOR'?'TEACHER':role))];
         if(state.edit)state.selected=state.edit.accountId;
+        const requested=params.get('account');if(requested&&state.data.accounts.some(a=>a.accountId===requested)){state.pinned=[requested,...state.pinned.filter(id=>id!==requested)];state.selected=requested;if(['details','programs','courses'].includes(params.get('tab')))state.tab=params.get('tab');}
         state.loaded=true;
       }
       $('up-wait').hidden=true;message(entries().length?'Unfinished entries kept.':afterSave?'Saved.':'');

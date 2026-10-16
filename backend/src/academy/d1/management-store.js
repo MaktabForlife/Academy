@@ -44,7 +44,7 @@ export function managementStore(repository,auth,{versionKey}={}) {
       const hash=await payloadHash({action,input});
       const selfTeacher=dataset==='TEACHER_AVAILABILITY'&&(!input.accountId||same(String(input.accountId).trim(),auth.user.accountid));
       const scopedRoles=['PROGRAM_ATTENDANCE','LESSON_PLANS'].includes(dataset)?['PROGRAM_ADMIN','TEACHER']:
-        ['PROGRAM_MANAGEMENT','PROGRAM_TIMETABLE','PROGRAM_LIBRARY','PROGRAM_REGISTRY','COURSE_MANAGEMENT','COURSE_SUBSCRIPTIONS','TEACHER_AVAILABILITY','ACADEMY_CALENDAR','LESSON_PLAN_ADMIN'].includes(dataset)?['PROGRAM_ADMIN']:[];
+        ['PROGRAM_MANAGEMENT','PROGRAM_TIMETABLE','PROGRAM_LIBRARY','PROGRAM_REGISTRY','COURSE_MANAGEMENT','COURSE_SUBSCRIPTIONS','TEACHER_AVAILABILITY','ACADEMY_CALENDAR','LESSON_PLAN_ADMIN','ENROLMENT'].includes(dataset)?['PROGRAM_ADMIN']:[];
       for(let attempt=0;attempt<3;attempt++) {
         const receipt=await this.receipt(dataset,scope,input.operationId,hash);if(receipt)return receipt;
         const {data,statements,result,fields,authorityScopes=[scope],cacheEffects=[]}=await plan();

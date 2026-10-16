@@ -5,6 +5,7 @@
   const $=id=>document.getElementById(id), esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const programId=new URLSearchParams(location.search).get('program'),storageKey=`m4l-management-pending:${programId}`;
   $('pm-library').href=`/programs/library.html?program=${encodeURIComponent(programId||'')}`;
+  if($('pm-enrolment-requests'))$('pm-enrolment-requests').href='/academy/enrolment/manage/?view=requests&activity='+encodeURIComponent('PROGRAM:'+programId);
   const active=value=>value===true||String(value).toUpperCase()==='TRUE';
   const defs={
     subjects:{label:'Subjects',singular:'subject',key:'ProgramSubjectID',prefix:'PS',columns:[['SubjectID','Academy subject','subject'],['Active','Status','active']],help:'Choose an Academy subject or create a new name. Subjects and Modules are shared Academy lists; this sheet sets how this Program uses them.'},
@@ -236,7 +237,7 @@
     try{state.pending=JSON.parse(sessionStorage.getItem(storageKey)||'null');}catch{sessionStorage.removeItem(storageKey);}
     if(!state.edit){try{const draft=JSON.parse(sessionStorage.getItem(storageKey+':draft')||'null');if(draft&&defs[draft.kind]){state.kind=draft.kind;state.edit={...draft.edit,kind:draft.kind};state.overview=false;}}catch{}}
     const requestedTab = new URLSearchParams(location.search).get('tab');
-    if(!state.dataLoaded && requestedTab==='profiles' && !state.edit){state.overview=false;state.kind='profiles';}
+    if(!state.dataLoaded && ['profiles','participants'].includes(requestedTab) && !state.edit){state.overview=false;state.kind='profiles';const account=new URLSearchParams(location.search).get('account'),user=state.data.accounts?.find(a=>a.AccountID===account);if(user){state.search=user.DisplayName||'';$('pm-search').value=state.search;}}
     if(state.pending&&!state.edit){state.overview=false;state.kind=state.pending.kind;state.edit={kind:state.pending.kind,creating:state.pending.body.creating,originalId:state.pending.body.record[defs[state.kind].key],originalSubjectID:state.pending.originalSubjectID,baselineSet:true,baseRowRevision:state.pending.body.baseRowRevision,baseRevision:state.pending.body.revision,baseRecord:state.pending.baseRecord,record:structuredClone(state.pending.body.record)};}
     try{state.importPending=JSON.parse(sessionStorage.getItem(storageKey+':import')||'null');}catch{sessionStorage.removeItem(storageKey+':import');}
     if(state.importPending&&!state.dataLoaded){state.overview=false;state.kind='subjects';}state.dataLoaded=true;

@@ -122,6 +122,7 @@
   }
   function renderEditor(){
     renderTabs();
+    if($('course-enrolment-requests'))$('course-enrolment-requests').href='/academy/enrolment/manage/?view=requests'+(state.course?.courseId?'&activity='+encodeURIComponent('COURSE:'+state.course.courseId):'');
     if(state.course&&state.tab==='list')return;
     if(!state.course){$('course-editor').innerHTML='<div class="cm-empty"><h2>Select a course</h2></div>';return;}
     const c=state.course,d=state.draft,isDraft=editable();
@@ -161,6 +162,8 @@
     const sequence=state.selection,result=await api(base+'participants',selected());
     if(sequence!==state.selection)return;
     state.participants=result;if(state.tab==='participants')renderEditor();
+    const accountId=new URLSearchParams(location.search).get('account'),account=result.accounts.find(a=>a.accountId===accountId);
+    if(account&&state.tab==='participants'){state.peopleSearch=account.displayName;renderEditor();}
   }
   async function open(){
     const generation=++state.generation,authToken=token();lock('Checking your Academy account…');$('course-access-retry').hidden=true;

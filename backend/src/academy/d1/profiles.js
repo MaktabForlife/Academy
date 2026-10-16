@@ -82,6 +82,15 @@ export function d1Profiles(repository,auth) {
       statements.push(p(`INSERT INTO account_contact_details(account_id,whatsapp_number,updated_at,updated_by_account_id) VALUES(?,?,?,?) ON CONFLICT(account_id) DO UPDATE SET whatsapp_number=excluded.whatsapp_number,updated_at=excluded.updated_at,updated_by_account_id=excluded.updated_by_account_id`,record.AccountID,number,now,auth.user.accountid));
       data.contacts=data.contacts.filter(c=>!same(c.account_id,record.AccountID));data.contacts.push({account_id:record.AccountID,whatsapp_number:number});
     }
+    if(input.enrolmentRequestId!==undefined){
+      if(!input.creating||!auth.state.account.global_admin)throw managementError('Only Global Admin can register a new user from a request.',403,'FORBIDDEN');
+      if(typeof input.enrolmentRequestId!=='string'||!Number.isInteger(input.enrolmentRequestRevision)||typeof input.whatsappNumber!=='string'||!input.whatsappNumber.trim())throw managementError('Choose a current request with a WhatsApp number.');
+      const request=await p('SELECT account_id,revision FROM academy_enrolment_requests WHERE request_id=?',input.enrolmentRequestId).first();
+      if(!request||request.account_id||request.revision!==input.enrolmentRequestRevision)throw managementError('This request changed. Refresh the inbox before registering.',409,'REQUEST_CHANGED');
+      const guard=crypto.randomUUID();
+      statements.push(p('INSERT INTO academy_write_guards(guard_id,accepted) VALUES(?,EXISTS(SELECT 1 FROM academy_enrolment_requests WHERE request_id=? AND account_id IS NULL AND revision=?))',guard,input.enrolmentRequestId,input.enrolmentRequestRevision),
+        p('UPDATE academy_enrolment_requests SET account_id=?,display_name=?,whatsapp_number=?,revision=revision+1,updated_at=? WHERE request_id=?',record.AccountID,record.DisplayName,input.whatsappNumber,now,input.enrolmentRequestId),p('DELETE FROM academy_write_guards WHERE guard_id=?',guard));
+    }
     if(input.academyTeacher!==undefined&&input.academyTeacher!==academyTeacher(data,record.AccountID)){
       statements.push(p(`INSERT INTO academy_teacher_designations(account_id,active,updated_at,updated_by_account_id) VALUES(?,?,?,?) ON CONFLICT(account_id) DO UPDATE SET active=excluded.active,revision=academy_teacher_designations.revision+1,updated_at=excluded.updated_at,updated_by_account_id=excluded.updated_by_account_id`,record.AccountID,Number(input.academyTeacher),now,auth.user.accountid));
       data.teachers=data.teachers.filter(t=>!same(t.account_id,record.AccountID));

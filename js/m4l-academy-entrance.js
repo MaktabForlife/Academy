@@ -66,6 +66,7 @@
     const host=$('timetable-quicklinks'),areas=$('timetable-areas');
     $('timetable').dataset.workspaceMode=data?.signedIn?mode:'public';
     $('full-timetable-title').textContent=data?.signedIn?(teach?'TEACH':'LEARN'):'Academy timetable';
+    $('learn-enrolment-entry').hidden=!data?.signedIn||teach;
     renderUpcomingCourses();
     if(!data?.signedIn){host.innerHTML='<a href="#overview">Academy home</a>';areas.replaceChildren();return;}
     const rows=(data.personalActivities||[]).filter(r=>menuActivity(r)&&(data.globalAdmin||!teach||staffRoles(r.roles||[]))),first=rows[0];
@@ -991,6 +992,7 @@
     state.scheduleGeneration++;
     state.activityGeneration++;
     state.home = null;
+    $('learn-enrolment-entry').hidden=true;
     planningSelection=null;
     $('upcoming-courses').hidden=true;$('upcoming-course-list').replaceChildren();
     $('timetable-areas').replaceChildren();$('activity-areas').replaceChildren();
