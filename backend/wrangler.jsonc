@@ -73,9 +73,10 @@
         ]
       },
       "vars": {
-        "HIFZ_PROFILE_SYNC_URL": "https://hifzhelper-api-dev.hifzhelper-app.workers.dev/internal/academy/profile-sync",
-        "HIFZ_PROFILE_SYNC_TARGET": "development",
-        "HIFZ_HANDOFF_ENABLED": "1"
+        "HIFZ_PROFILE_SYNC_URL": "https://hifzhelper-api.hifzhelper-app.workers.dev/internal/academy/profile-sync",
+        "HIFZ_PROFILE_SYNC_TARGET": "production",
+        "HIFZ_HANDOFF_ENABLED": "1",
+        "HIFZ_DEVELOPMENT_HANDOFF_URL": "https://hifzhelper-api-dev.hifzhelper-app.workers.dev/internal/academy/profile-sync"
       }
     }
   },
@@ -124,8 +125,9 @@
     "head_sampling_rate": 1
   },
   "vars": {
-    "HIFZ_PROFILE_SYNC_URL": "https://hifzhelper-api-dev.hifzhelper-app.workers.dev/internal/academy/profile-sync",
-    "HIFZ_PROFILE_SYNC_TARGET": "development",
-        "HIFZ_HANDOFF_ENABLED": "1"
+    "HIFZ_PROFILE_SYNC_URL": "https://hifzhelper-api.hifzhelper-app.workers.dev/internal/academy/profile-sync",
+    "HIFZ_PROFILE_SYNC_TARGET": "production",
+        "HIFZ_HANDOFF_ENABLED": "1",
+        "HIFZ_DEVELOPMENT_HANDOFF_URL": "https://hifzhelper-api-dev.hifzhelper-app.workers.dev/internal/academy/profile-sync"
   }
 }

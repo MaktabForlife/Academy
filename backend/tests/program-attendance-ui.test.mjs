@@ -6,7 +6,7 @@ const markup=await readFile(new URL('../../programs/attendance.html',import.meta
 const source=await readFile(new URL('../../js/m4l-program-attendance.js',import.meta.url),'utf8');
 const academyMarkup=await readFile(new URL('../../academy/index.html',import.meta.url),'utf8');
 const ids=new Set([...markup.matchAll(/id="([^"]+)"/g)].map(match=>match[1]));
-assert.match(markup,/m4l-program-attendance\.js\?v=107\.1/);
+assert.match(markup,/m4l-program-attendance\.js\?v=107\.2/);
 assert.doesNotMatch(markup,/Coming soon/);
 const lesson=(anchor,classId,name,accountId,submitted=false,status=null)=>({
   lesson:{anchor,classId,moduleName:name,subjectName:'Arabic',startTime:'09:00',endTime:'10:00'},

@@ -2,15 +2,16 @@
  'use strict';
  const status=document.getElementById('hifz-signin-status');
  try{
-  const query=new URLSearchParams(location.search),state=query.get('state'),codeChallenge=query.get('challenge'),expectedLoginId=query.get('login');
+  const query=new URLSearchParams(location.search),state=query.get('state'),codeChallenge=query.get('challenge'),expectedLoginId=query.get('login'),environment=query.get('environment');
   // Remove the temporary request from browser history before doing any I/O.
   history.replaceState(null,'','/academy/hifz/');
   if(!/^[A-Za-z0-9_-]{43}$/.test(state||'')||! /^[A-Za-z0-9_-]{43}$/.test(codeChallenge||'')||! /^[A-Za-z0-9]+$/.test(expectedLoginId||''))throw new Error('Open Hifz using the link in Academy.');
   const token=localStorage.getItem('m4l_account_token');
   if(!token)throw new Error('Please sign into Academy, then select HifzHelper again.');
-  const config=window.M4L_CONFIG,base=new URL(config.HIFZHELPER_URL),api=config.API_BASE;
+  if(environment&&!['production','development'].includes(environment))throw new Error('This Hifz environment is unavailable.');
+  const config=window.M4L_CONFIG,base=new URL(environment==='development'?config.HIFZ_DEVELOPMENT_URL:config.HIFZHELPER_URL),api=config.API_BASE;
   if(base.protocol!=='https:'||base.username||base.password||base.search||base.hash||base.pathname!=='/')throw new Error('Hifz sign-in is unavailable.');
-  const response=await fetch(api+'/api/academy/hifz/sign-in',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({codeChallenge,expectedLoginId}),redirect:'error',cache:'no-store'});
+  const response=await fetch(api+'/api/academy/hifz/sign-in',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({codeChallenge,expectedLoginId,...(environment?{environment}:{})}),redirect:'error',cache:'no-store'});
   const result=await response.json();
   if(!response.ok||!result.success)throw new Error(result.error||'Hifz sign-in could not be completed.');
   if(!/^[A-Za-z0-9_-]{43}$/.test(result.code||''))throw new Error('Hifz sign-in could not be completed.');

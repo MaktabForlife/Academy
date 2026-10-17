@@ -39,3 +39,17 @@ test('D1 trigger-inclusive change counts do not make a successful PIN upgrade fa
   const response=await worker.fetch(request('/api/account/login',{uniqueid:'login-0002',pin:'1234'}),env);assert.equal(response.status,200);assert((await response.json()).token);assert(isSharedPinHash(db.prepare("SELECT pin_hash FROM account_credentials WHERE account_id='account-0002'").get().pin_hash));
  }finally{db.close();}
 });
+
+test('production and development handoffs use separate fixed receivers and signed targets',async()=>{
+ const {db,env}=await fixture();try{
+  const result=await(await worker.fetch(request('/api/account/login',{uniqueid:'login-0002',pin:'1234'}),env)).json();
+  const auth=await authenticatedD1Account(request('/api/academy/hifz/sign-in',{},result.token),env,academyD1Repository(env));
+  const configured={...env,HIFZ_PROFILE_SYNC_TARGET:'production',HIFZ_PROFILE_SYNC_URL:'https://hifz.test/internal/academy/profile-sync',HIFZ_DEVELOPMENT_HANDOFF_URL:'https://hifz-dev.test/internal/academy/profile-sync'};
+  for(const environment of ['production','development']){
+   const result=await issueHifzHandoff(configured,auth,{codeChallenge:challenge,expectedLoginId:'login-0002',environment},{fetcher:async(url,options)=>{
+    assert.equal(new URL(url).origin,environment==='production'?'https://hifz.test':'https://hifz-dev.test');assert.equal(JSON.parse(options.body).target,environment);return Response.json({code:'c'.repeat(43),expiresIn:60});
+   }});assert(result.success);
+  }
+  await assert.rejects(()=>issueHifzHandoff(configured,auth,{codeChallenge:challenge,expectedLoginId:'login-0002',environment:'https://untrusted.test'}),e=>e.status===400);
+ }finally{db.close();}
+});
