@@ -47,7 +47,7 @@
     return [['PROGRAM','Programs'],['COURSE','Courses']].map(([kind,label])=>{
       const links=rows.filter(row=>row.kind===kind).map(row=>{
         const selected=Boolean(current&&row.kind===current.kind&&row.id===current.id);
-        return activityPill(workspaceHref(row,'timetable',mode),row.name,row.roles,selected)+hifzHelperLink(row,'workspace-helper-link');
+        return isHifzProgram(row) ? hifzHelperLink(row,'workspace-helper-link') : activityPill(workspaceHref(row,'timetable',mode),row.name,row.roles,selected);
       }).join('');
       return links?`<div class="workspace-area-group" role="group" aria-label="${label}"><h2>${label}</h2><div class="workspace-area-links">${links}</div></div>`:'';
     }).join('');
@@ -85,6 +85,7 @@
   const menuActivity=row=>row.menuAvailable!==false&&![row.stage,row.status,row.lifecycle].some(value=>['CANCELLED','ARCHIVED'].includes(String(value||'').toUpperCase()));
   const highestAccess = roles => state.home?.globalAdmin || roles.includes('GLOBAL_ADMIN') ? 'Global Admin' : roles.some(role=>['PROGRAM_ADMIN','ADMIN'].includes(role)) ? 'Program Admin' : roles.some(role=>['TEACHER','SENIOR'].includes(role)) ? 'Teacher' : roles.includes('STUDENT') ? 'Student' : '';
   const activityPill = (href, name, roles, current = false) => highestAccess(roles) ? `<a href="${href}"${current ? ' aria-current="page"' : ''}><span>${esc(name)}</span><small>${esc(highestAccess(roles))}</small></a>` : '';
+  const isHifzProgram = row => row.kind === 'PROGRAM' && row.id === window.M4L_CONFIG?.HIFZ_PROGRAM_ID;
   function hifzHelperLink(row, className = '') {
     const roles = row.roles || [], url = window.M4L_CONFIG?.HIFZHELPER_URL;
     const loginId = window.M4L_ACADEMY_LOGIN?.currentId() || '';
@@ -100,6 +101,7 @@
     const administration = location.hash.startsWith('#progress-admin') && (state.home?.globalAdmin || adminRoles(row.roles || []));
     const assessments = location.hash.endsWith('/assessment');
     const assessmentAdmin = location.hash.startsWith('#assessment-admin');
+    if (isHifzProgram(row) && !administration && !assessmentAdmin) return hifzHelperLink(row, 'activity-pill-shortcut');
     const pill = activityPill(assessmentAdmin?`#assessment-admin/${row.kind}/${encodeURIComponent(row.id)}`:administration?`#progress-admin/${row.kind}/${encodeURIComponent(row.id)}`:activityHref(row) + (attendance ? '/attendance' : teaching?'/surahs-duas':assessments?'/assessment':''), row.name, row.roles, current);
     const shortcut = hifzHelperLink(row, 'activity-pill-shortcut');
     return shortcut ? `<div class="activity-pill-with-shortcut"${current ? ' data-current="true"' : ''}>${pill}${shortcut}</div>` : pill;
@@ -853,6 +855,15 @@
 
   function route() {
     let hash = location.hash || '#overview';
+    if (state.home && hash.startsWith('#activity/PROGRAM/')) {
+      const parts = hash.slice(1).split('/');
+      if (parts[2] === encodeURIComponent(window.M4L_CONFIG?.HIFZ_PROGRAM_ID || '')) {
+        const row = state.home.personalActivities?.find(isHifzProgram) || {roles:[]};
+        // Old Hifz workspace links return to its chooser; journal entry remains an explicit click.
+        hash = '#timetable/' + workspaceContext(row).mode;
+        history.replaceState(null, '', hash);
+      }
+    }
     if (hash === '#administration/assessments' && state.home?.signedIn) {
       const area = adminAreas()[0];
       if (state.home.globalAdmin || area) {

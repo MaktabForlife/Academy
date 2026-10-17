@@ -57,7 +57,7 @@
 }
 
 /* Learn/Teach and their scoped Program/Course workspaces. Admin keeps its layout. */
-.workspace-banner{display:grid;grid-template-columns:minmax(180px,.8fr) minmax(0,2.2fr);gap:24px;align-items:start;margin:6px 0 20px}
+.workspace-banner{display:grid;grid-template-columns:minmax(160px,.4fr) minmax(0,2.6fr);gap:24px;align-items:start;margin:6px 0 20px}
 #timetable .workspace-banner{grid-template-columns:minmax(180px,.4fr) minmax(0,2.6fr)}
 .workspace-identity,.workspace-banner .activity-identity{min-width:0}
 .workspace-academy{margin:0 0 4px}
@@ -78,7 +78,7 @@
 .workspace-areas a[aria-current=page]{background:#704578;border-color:#704578;color:#fff;box-shadow:0 0 0 2px #ffffff90}
 .workspace-areas a:hover{box-shadow:0 0 0 2px #c3a2cc}
 .academy-shell #activity .workspace-banner{display:grid;align-items:start;gap:24px;margin:6px 0 18px}
-.academy-shell #activity .workspace-banner h1{font:400 36px/1.15 Georgia,serif}
+.academy-shell #activity .workspace-banner h1{font:400 36px/1.15 Georgia,serif;white-space:normal;overflow-wrap:anywhere}
 #timetable:is([data-workspace-mode=learn],[data-workspace-mode=teach]) .academy-view-actions{display:none}
 #timetable:is([data-workspace-mode=learn],[data-workspace-mode=teach]) .schedule-key{display:none}
 #timetable #teaching-availability-link{display:none}

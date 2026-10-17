@@ -9,7 +9,7 @@
   const side = document.createElement('aside');
   side.className = 'academy-connected-sidebar';
   side.setAttribute('aria-label', 'Academy');
-  side.innerHTML = `<a class="academy-connected-brand" href="/academy/#overview"><img src="/ummabbadacademy.png" alt=""><span><strong>Umm Abbad<br>Academy</strong><span class="site-version">Website V107.0</span></span></a>
+  side.innerHTML = `<a class="academy-connected-brand" href="/academy/#overview"><img src="/ummabbadacademy.png" alt=""><span><strong>Umm Abbad<br>Academy</strong><span class="site-version">Website V107.1</span></span></a>
     <nav aria-label="Academy navigation"><a href="/academy/#overview">Academy home</a><a href="/activities/surahs-in-my-heart/">Surahs in my Heart</a><a href="/activities/kaaba-puzzle/">Kaaba puzzle</a><a id="ac-recorder" href="/academy/#recorder" hidden>Voice Recorder</a><a id="ac-library" href="/academy/open-library/">Library</a><a id="ac-calendar" href="/academy/calendar/" hidden>Academic Calendar</a><a href="/academy/#about">About</a><a href="/academy/#contact">Contact</a></nav>
     <div class="academy-connected-footer"><a href="https://ummabbadacademy.com" target="_blank" rel="noopener noreferrer">Original Academy site ↗</a><button id="ac-signout" type="button" hidden>Sign out</button></div>`;
   const strip = document.createElement('nav');
@@ -37,7 +37,7 @@
       if(!activities.has(key))activities.set(key,{id:context.courseId,name:context.courseName||'Learning area',kind,roles:[]});
       if(!activities.get(key).roles.includes(context.role))activities.get(key).roles.push(context.role);
     }
-    return {success:true,signedIn:true,sessionStore:result.sessionStore,profile:{name:result.account.displayName||'Academy member'},
+    return {success:true,signedIn:true,sessionStore:result.sessionStore,profile:{name:result.account.displayName||'Academy member',uniqueid:result.account.uniqueid||''},
       globalAdmin:contexts.some(c=>c.scope==='PLATFORM'&&c.role==='GLOBAL_ADMIN'),student:contexts.some(c=>c.role==='STUDENT'),
       workspaceRoles:[...new Set(contexts.filter(c=>roles([c.role])).map(c=>c.role))],personalActivities:[...activities.values()]};
   }
@@ -82,7 +82,14 @@
       const activities = (result.personalActivities || []).filter(row => ['PROGRAM', 'COURSE'].includes(row.kind) && row.menuAvailable!==false && ![row.stage,row.status,row.lifecycle].some(value=>['CANCELLED','ARCHIVED'].includes(String(value||'').toUpperCase())) && row.id && (result.globalAdmin || roles(row.roles)));
       const programs = activities.filter(row => row.kind === 'PROGRAM');
       const courses = activities.filter(row => row.kind === 'COURSE');
-      strip.innerHTML = programs.map(row => `<a data-academy-program="${esc(row.id)}" href="/academy/#activity/${row.kind}/${encodeURIComponent(row.id)}"${row.kind === 'PROGRAM' && row.id === currentProgram ? ' aria-current="page"' : ''}><span>${esc(row.name)}</span><small>${esc(roles(result.globalAdmin ? ['GLOBAL_ADMIN'] : row.roles))}</small></a>`).join('') +
+      strip.innerHTML = programs.map(row => {
+        if(row.id===window.M4L_CONFIG?.HIFZ_PROGRAM_ID){
+          const loginId=result.profile?.uniqueid||'',url=window.M4L_CONFIG?.HIFZHELPER_URL;
+          if(!/^[A-Za-z0-9]+$/.test(loginId)||typeof url!=='string'||!/^https:\/\//.test(url))return '';
+          return `<a href="${esc(url.replace(/\/$/,'')+'/'+encodeURIComponent(loginId)+'?academy='+encodeURIComponent(window.M4L_CONFIG?.HIFZ_ENTRY_SOURCE||'1'))}" target="_blank" rel="noopener noreferrer" aria-label="HifzHelper (opens in a new tab)">HifzHelper ↗</a>`;
+        }
+        return `<a data-academy-program="${esc(row.id)}" href="/academy/#activity/${row.kind}/${encodeURIComponent(row.id)}"${row.id === currentProgram ? ' aria-current="page"' : ''}><span>${esc(row.name)}</span><small>${esc(roles(result.globalAdmin ? ['GLOBAL_ADMIN'] : row.roles))}</small></a>`;
+      }).join('') +
         (result.signedIn && (result.globalAdmin || courses.some(row=>row.roles?.length)) ? `<a href="/academy/#workshops"><span>Courses</span><small>${esc(roles(result.globalAdmin ? ['GLOBAL_ADMIN','PROGRAM_ADMIN'] : [...new Set(courses.flatMap(row => row.roles))]) || 'None')}</small></a>` : '');
       strip.hidden = !result.signedIn;
       window.M4L_ACADEMY_SHELL_DATA=result;window.M4L_ACADEMY_SHELL?.update(result);

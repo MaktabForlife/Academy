@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V107.0
+# Umm Abbad Academy — V107.1
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
@@ -7,6 +7,10 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - HifzHelper keeps its separate Worker and D1; Academy provides profile and PIN updates plus a short-lived sign-in handoff.
+
+## V107.1 — Direct HifzHelper entry in LEARN and TEACH
+
+LEARN and TEACH show only the HifzHelper shortcut for Hifz. The duplicate Academy Hifz workspace and its old navigation links are removed, including shared menus. Long workspace titles wrap in a narrower column, giving the Programs and Courses boxes more width. Hifz lessons remain in the combined timetable and administrators retain Program management. [Release details](docs/HIFZ-WORKSPACE-107.1.md).
 
 ## V107.0 — Shared PIN and Academy-to-Hifz sign-in
 

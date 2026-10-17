@@ -345,17 +345,18 @@ assert.equal(publicJoins.length,1);assert.equal(popup.url,'https://zoom.test/fre
 fixtureNow='2026-10-05T12:00:00Z';timer=[...timers.values()][0];timers.clear();timer.fn();await flush();
 assert.doesNotMatch($('academy-sessions').innerHTML,/data-public-join|is-open/,'Expired Free lessons cannot be joined');
 documentHandlers.get('visibilitychange')();await flush();assert.equal(requests.length,count,'Returning to a Free public timetable does not poll');
-// HifzHelper is an ordinary personal link, scoped by stable Program identity.
+// Hifz is entered directly through HifzHelper in both workspaces, with no duplicate Academy page.
 window.M4L_CONFIG.HIFZ_PROGRAM_ID='PRG-3d6b7972-644c-4f81-b95c-8d6c7ffb8227';
 window.M4L_CONFIG.HIFZHELPER_URL='https://hifz.maktab4life.org/';
 let personalLoginId='F1CJW7';
 window.M4L_ACADEMY_LOGIN={currentId:()=>personalLoginId};
+const ordinaryProgramId=activity.id;
 activity.id=window.M4L_CONFIG.HIFZ_PROGRAM_ID;activity.name='Hifz';
-publicFreeFixture=false;cacheFixture=true;globalAdmin=false;storage.set('m4l_account_token','HIFZ-SESSION');location.hash='#activity/PROGRAM/'+activity.id;
-const assertHifzPill = (target, id, current = false) => {
+publicFreeFixture=false;cacheFixture=true;globalAdmin=false;storage.set('m4l_account_token','HIFZ-SESSION');location.hash='#timetable/learn';
+const assertHifzShortcut = (target, id) => {
   const markup=$(target).innerHTML;
-  assert.ok(markup.includes(`href="https://hifz.maktab4life.org/${id}?academy=1" target="_blank" rel="noopener noreferrer"`),'The pill opens this account’s HifzHelper in a new tab');
-  assert.ok(markup.includes(`href="#activity/PROGRAM/${activity.id}"${current ? ' aria-current="page"' : ''}`),'The Hifz Academy page remains accessible');
+  assert.ok(markup.includes(`href="https://hifz.maktab4life.org/${id}?academy=1" target="_blank" rel="noopener noreferrer"`),'The shortcut opens this account’s HifzHelper in a new tab');
+  assert.ok(!markup.includes(`href="#activity/PROGRAM/${activity.id}`),'There is no duplicate internal Hifz page');
   assert.equal((markup.match(/>HifzHelper ↗<\/a>/g)||[]).length,1);
   assert.doesNotMatch(markup,/HIFZ-SESSION|\?token=|\?pin=/);
   let open=false;
@@ -368,41 +369,44 @@ const assertHifzPill = (target, id, current = false) => {
 };
 for(const role of ['STUDENT','TEACHER','PROGRAM_ADMIN']) {
   programRole=role;await refresh();
-  const markup=$('activity-menu').innerHTML;
-  assert.match(markup,/href="https:\/\/hifz\.maktab4life\.org\/F1CJW7\?academy=1" target="_blank" rel="noopener noreferrer"/);
-  assert.equal((markup.match(/>HifzHelper ↗<\/a>/g)||[]).length,1);
-  assert.doesNotMatch(markup,/HIFZ-SESSION|\?token=|\?pin=/);
-  assertHifzPill('activity-switcher','F1CJW7',true);
+  await navigate('#timetable/learn');assertHifzShortcut('timetable-areas','F1CJW7');
+  assertHifzShortcut('activity-switcher','F1CJW7');
+  if(role!=='STUDENT'){await navigate('#timetable/teach');assertHifzShortcut('timetable-areas','F1CJW7');}
+  const mode=role==='STUDENT'?'learn':'teach';
+  for(const suffix of ['', '/learn', '/teach', '/teach/planning', '/attendance']) {
+    await navigate('#activity/PROGRAM/'+activity.id+suffix);
+    assert.equal(location.hash,'#timetable/'+(suffix.startsWith('/learn')?'learn':mode),'Old Hifz workspace links return to the correct chooser');
+    assert.equal($('activity').classList.contains('active'),false,'The duplicate Hifz page is not opened');
+    assertHifzShortcut('timetable-areas','F1CJW7');
+  }
 }
 globalAdmin=true;personalLoginId='ABCDEFG';await refresh();
-assert.match($('activity-menu').innerHTML,/hifz\.maktab4life\.org\/ABCDEFG/,'Global Admin inherits Hifz access');
-assertHifzPill('activity-switcher','ABCDEFG',true);
-assert.doesNotMatch($('activity-switcher').innerHTML,/hifz\.maktab4life\.org\/F1CJW7/,'The shortcut follows the current identity');
+for(const mode of ['learn','teach']){await navigate('#timetable/'+mode);assertHifzShortcut('timetable-areas','ABCDEFG');}
+assert.doesNotMatch($('timetable-areas').innerHTML,/hifz\.maktab4life\.org\/F1CJW7/,'The shortcut follows the current identity');
+await navigate('#administration/programs');assert.match($('administration').innerHTML,/href="\/programs\/"/,'Global Admin retains Program management');
+await navigate('#assessment-admin/PROGRAM/'+activity.id);assert.equal(location.hash,'#assessment-admin/PROGRAM/'+activity.id,'Hifz administration is retained');
 await navigate('#activity/COURSE/COURSE-BARAKAH');assert.doesNotMatch($('activity-menu').innerHTML,/HifzHelper/,'Courses do not inherit the Hifz destination');
-assertHifzPill('activity-switcher','ABCDEFG');
-location.hash='#activity/PROGRAM/'+activity.id;globalAdmin=false;
+assertHifzShortcut('activity-areas','ABCDEFG');
+globalAdmin=false;
 for(const role of ['', 'GLOBAL_TEACHER']) {
-  programRole=role;await refresh();assert.doesNotMatch($('activity-menu').innerHTML,/HifzHelper/,'No Hifz assignment means no Hifz button');
-  assert.doesNotMatch($('activity-switcher').innerHTML,/HifzHelper/,'No assignment means no personal shortcut');
+  programRole=role;await refresh();await navigate('#timetable/learn');
+  assert.doesNotMatch($('timetable-areas').innerHTML,/HifzHelper/,'No Hifz assignment means no personal shortcut');
 }
 programRole='STUDENT';
 for(const id of ['', 'bad/id', 'bad?token=value']) {
-  personalLoginId=id;await refresh();assert.doesNotMatch($('activity-menu').innerHTML,/HifzHelper/,'A missing or invalid personal ID cannot create a destination');
-  assert.doesNotMatch($('activity-switcher').innerHTML,/HifzHelper/,'Invalid identity cannot create a pill shortcut');
+  personalLoginId=id;await refresh();assert.doesNotMatch($('timetable-areas').innerHTML,/HifzHelper/,'A missing or invalid personal ID cannot create a destination');
 }
 personalLoginId='F1CJW7';activity.id='UNRELATED-PROGRAM';location.hash='#activity/PROGRAM/'+activity.id;await refresh();
-assert.doesNotMatch($('activity-menu').innerHTML,/HifzHelper/,'A matching display name does not grant Hifz access');
-assert.doesNotMatch($('activity-switcher').innerHTML,/HifzHelper/,'Only the registered Hifz Program receives a shortcut');
-activity.id=window.M4L_CONFIG.HIFZ_PROGRAM_ID;location.hash='#activity/PROGRAM/'+activity.id;await refresh();
-assert.match($('activity-menu').innerHTML,/hifz\.maktab4life\.org\/F1CJW7/);
-await navigate('#workshops');await navigate('#activity/PROGRAM/'+activity.id);
-count=fetchUrls.length;await navigate('#workshops');await navigate('#activity/PROGRAM/'+activity.id);
-await navigate('#overview');assertHifzPill('activity-switcher','F1CJW7');
-await navigate('#activity/PROGRAM/'+activity.id);assertHifzPill('activity-switcher','F1CJW7',true);
+assert.doesNotMatch($('activity-areas').innerHTML,/HifzHelper/,'A matching display name does not grant Hifz access');
+assert.equal(location.hash,'#activity/PROGRAM/'+activity.id,'Other Program pages remain accessible');
+activity.id=window.M4L_CONFIG.HIFZ_PROGRAM_ID;location.hash='#timetable/learn';await refresh();
+await navigate('#workshops');await navigate('#timetable/learn');
+count=fetchUrls.length;await navigate('#workshops');await navigate('#timetable/learn');assertHifzShortcut('timetable-areas','F1CJW7');
 assert.equal(fetchUrls.length,count,'The link adds no connection checks or account lookups');
 assert.ok(fetchUrls.every(url=>url.startsWith('https://test/')),'No Hifz requests occur until the user follows the link');
-storage.clear();window.dispatchEvent(new Event('m4l-academy-session'));await flush();assert.doesNotMatch($('activity-menu').innerHTML,/HifzHelper/,'Sign-out removes the personal link');
+storage.clear();window.dispatchEvent(new Event('m4l-academy-session'));await flush();assert.doesNotMatch($('timetable-areas').innerHTML,/HifzHelper/,'Sign-out removes the personal link');
 assert.doesNotMatch($('activity-switcher').innerHTML,/HifzHelper/,'Sign-out removes the personal pill shortcut');
+activity.id=ordinaryProgramId;activity.name='Reboot';
 storage.set('m4l_account_token','inline-account');cacheFixture=true;globalAdmin=false;programRole='TEACHER';await refresh();
 const inlineCalls=[];let allowLeave=true;
 window.M4L_PROGRAM_ATTENDANCE={open:options=>inlineCalls.push(options),reset(){},canLeave:()=>allowLeave};

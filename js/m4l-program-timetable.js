@@ -257,7 +257,9 @@
   $('tt-share-image').onclick=()=>shareFiles(exportFiles,'image');
   $('tt-share-pdf').onclick=()=>shareFiles(exportPdf?[exportPdf]:null,'PDF');
   $('tt-download-pdf').onclick=()=>{if(exportPdf)downloadFile(exportPdf,exportPdf.name);};
-  $('tt-program-return').href=`/academy/#activity/PROGRAM/${encodeURIComponent(id)}`;
+  const hifz=id===window.M4L_CONFIG?.HIFZ_PROGRAM_ID;
+  $('tt-program-return').href=hifz?`/programs/?program=${encodeURIComponent(id)}`:`/academy/#activity/PROGRAM/${encodeURIComponent(id)}`;
+  if(hifz){$('tt-program-return').setAttribute('aria-label','Return to Program management');$('tt-program-return').setAttribute('title','Return to Program management');}
   $('tt-management').href=`/programs/manage.html?program=${encodeURIComponent(id)}`;
   $('tt-select-program').onclick=async()=>{
     const button=$('tt-select-program');if(button.disabled)return;
