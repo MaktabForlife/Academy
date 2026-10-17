@@ -138,10 +138,12 @@ export function academyD1Repository(env) {
       const result=await db.batch([
         prepare(`UPDATE account_credentials SET pin_hash=?,pin_setup=?,credential_epoch=credential_epoch+1,updated_at=?
           WHERE account_id=? AND credential_epoch=? AND pin_hash IS ? AND pin_setup=?
-          AND EXISTS(SELECT 1 FROM accounts WHERE account_id=? AND active=1)`,newHash,Number(Boolean(newHash)),new Date().toISOString(),row.account_id,row.credential_epoch,row.pin_hash,row.pin_setup,row.account_id),
+          AND EXISTS(SELECT 1 FROM accounts WHERE account_id=? AND active=1) RETURNING account_id`,newHash,Number(Boolean(newHash)),new Date().toISOString(),row.account_id,row.credential_epoch,row.pin_hash,row.pin_setup,row.account_id),
         audit(actor,row.account_id,action,['AuthenticationCredential'],true)
       ]);
-      if(result[0].meta.changes!==1)throw rehearsalError('Account changed. Please refresh and try again.',409,'ACCOUNT_CHANGED');
+      // D1 counts trigger writes in meta.changes. RETURNING identifies the
+      // credential row actually updated, independent of durable sync triggers.
+      if(result[0].results?.length!==1||result[0].results[0].account_id!==row.account_id)throw rehearsalError('Account changed. Please refresh and try again.',409,'ACCOUNT_CHANGED');
       return this.byId(row.account_id);
     },
     async homeData(state,start,end,courseWorkflows=false,programWorkspace=false) {

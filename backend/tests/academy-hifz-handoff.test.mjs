@@ -32,3 +32,10 @@ test('migration replays metadata so a pre-existing Academy session can enter Hif
   assert.equal(pass.code,'c'.repeat(43));
  }finally{f.db.close();}
 });
+
+test('D1 trigger-inclusive change counts do not make a successful PIN upgrade fail',async()=>{
+ const {db,env}=await fixture();try{
+  const original=env.ACADEMY_DB;env.ACADEMY_DB={...original,batch:async statements=>{const result=await original.batch(statements);if(statements[0]?.sql?.includes('UPDATE account_credentials SET pin_hash='))result[0].meta.changes+=1;return result;}};
+  const response=await worker.fetch(request('/api/account/login',{uniqueid:'login-0002',pin:'1234'}),env);assert.equal(response.status,200);assert((await response.json()).token);assert(isSharedPinHash(db.prepare("SELECT pin_hash FROM account_credentials WHERE account_id='account-0002'").get().pin_hash));
+ }finally{db.close();}
+});
