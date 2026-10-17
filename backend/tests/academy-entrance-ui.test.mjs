@@ -354,7 +354,7 @@ activity.id=window.M4L_CONFIG.HIFZ_PROGRAM_ID;activity.name='Hifz';
 publicFreeFixture=false;cacheFixture=true;globalAdmin=false;storage.set('m4l_account_token','HIFZ-SESSION');location.hash='#activity/PROGRAM/'+activity.id;
 const assertHifzPill = (target, id, current = false) => {
   const markup=$(target).innerHTML;
-  assert.ok(markup.includes(`href="https://hifz.maktab4life.org/${id}" target="_blank" rel="noopener noreferrer"`),'The pill opens this account’s HifzHelper in a new tab');
+  assert.ok(markup.includes(`href="https://hifz.maktab4life.org/${id}?academy=1" target="_blank" rel="noopener noreferrer"`),'The pill opens this account’s HifzHelper in a new tab');
   assert.ok(markup.includes(`href="#activity/PROGRAM/${activity.id}"${current ? ' aria-current="page"' : ''}`),'The Hifz Academy page remains accessible');
   assert.equal((markup.match(/>HifzHelper ↗<\/a>/g)||[]).length,1);
   assert.doesNotMatch(markup,/HIFZ-SESSION|\?token=|\?pin=/);
@@ -369,7 +369,7 @@ const assertHifzPill = (target, id, current = false) => {
 for(const role of ['STUDENT','TEACHER','PROGRAM_ADMIN']) {
   programRole=role;await refresh();
   const markup=$('activity-menu').innerHTML;
-  assert.match(markup,/href="https:\/\/hifz\.maktab4life\.org\/F1CJW7" target="_blank" rel="noopener noreferrer"/);
+  assert.match(markup,/href="https:\/\/hifz\.maktab4life\.org\/F1CJW7\?academy=1" target="_blank" rel="noopener noreferrer"/);
   assert.equal((markup.match(/>HifzHelper ↗<\/a>/g)||[]).length,1);
   assert.doesNotMatch(markup,/HIFZ-SESSION|\?token=|\?pin=/);
   assertHifzPill('activity-switcher','F1CJW7',true);

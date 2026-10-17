@@ -109,6 +109,10 @@ for(const root of ['academy','account','programs','users','recorder','activities
   const files=await readdir(new URL('../../'+root+'/',import.meta.url),{recursive:true});
   for(const name of files.filter(name=>name.endsWith('.html'))) {
     const file=root+'/'+name,html=await readFile(new URL('../../'+file,import.meta.url),'utf8');
+    // The transient authentication relay has its own Return to Academy control.
+    // Loading the full account shell adds redundant API requests during sign-in.
+    // Its recovery and redirect behavior is checked by the bridge UI test.
+    if(file==='academy/hifz/index.html')continue;
     for(const asset of ['m4l-academy-mobile.js','m4l-academy-mobile.css','m4l-academy-shell.css','m4l-academy-page-actions.js','m4l-academy-page-actions.css'])assert.ok(html.includes('/'+(asset.endsWith('.js')?'js/':'css/')+asset),file+' must include '+asset);
     if(file!=='academy/index.html') {
       assert.match(html,/m4l-academy-navigation\.js/,file);assert.match(html,/m4l-academy-navigation\.css/,file);

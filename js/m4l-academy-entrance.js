@@ -91,7 +91,7 @@
     if (!state.home?.signedIn || row.kind !== 'PROGRAM' || row.id !== window.M4L_CONFIG?.HIFZ_PROGRAM_ID ||
       !(state.home.globalAdmin || staffRoles(roles) || roles.includes('STUDENT')) || !/^[A-Za-z0-9]+$/.test(loginId) ||
       typeof url !== 'string' || !/^https:\/\//.test(url)) return '';
-    return `<a${className ? ` class="${className}"` : ''} href="${esc(url.replace(/\/$/, '') + '/' + encodeURIComponent(loginId))}" target="_blank" rel="noopener noreferrer" aria-label="HifzHelper (opens in a new tab)">HifzHelper ↗</a>`;
+    return `<a${className ? ` class="${className}"` : ''} href="${esc(url.replace(/\/$/, '') + '/' + encodeURIComponent(loginId)+'?academy='+encodeURIComponent(window.M4L_CONFIG?.HIFZ_ENTRY_SOURCE||'1'))}" target="_blank" rel="noopener noreferrer" aria-label="HifzHelper (opens in a new tab)">HifzHelper ↗</a>`;
   }
   function programPill(row, current = false) {
     if (!highestAccess(row.roles || [])) return '';
@@ -377,7 +377,7 @@
     $('progress').hidden=Boolean(data?.signedIn&&data.memorisationActive===false);
     const helper=$('hifdh-helper'), loginId=window.M4L_ACADEMY_LOGIN?.currentId() || '', helperBase=window.M4L_CONFIG?.HIFZHELPER_URL;
     helper.hidden=!(data?.signedIn && /^[A-Za-z0-9]+$/.test(loginId) && /^https:\/\//.test(helperBase||''));
-    if(!helper.hidden)helper.href=helperBase.replace(/\/$/,'')+'/'+encodeURIComponent(loginId);
+    if(!helper.hidden)helper.href=helperBase.replace(/\/$/,'')+'/'+encodeURIComponent(loginId)+'?academy='+encodeURIComponent(window.M4L_CONFIG?.HIFZ_ENTRY_SOURCE||'1');
     $('academy-account-role').textContent = data?.signedIn ? highestAccess(roles) || 'None' : '';
     $('academy-access-empty').hidden = !data?.signedIn || Boolean(choices.length);
     for (const key of ['learn','teach','admin']) {

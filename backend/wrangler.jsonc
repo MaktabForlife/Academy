@@ -74,7 +74,8 @@
       },
       "vars": {
         "HIFZ_PROFILE_SYNC_URL": "https://hifzhelper-api-dev.hifzhelper-app.workers.dev/internal/academy/profile-sync",
-        "HIFZ_PROFILE_SYNC_TARGET": "development"
+        "HIFZ_PROFILE_SYNC_TARGET": "development",
+        "HIFZ_HANDOFF_ENABLED": "1"
       }
     }
   },
@@ -124,6 +125,7 @@
   },
   "vars": {
     "HIFZ_PROFILE_SYNC_URL": "https://hifzhelper-api-dev.hifzhelper-app.workers.dev/internal/academy/profile-sync",
-    "HIFZ_PROFILE_SYNC_TARGET": "development"
+    "HIFZ_PROFILE_SYNC_TARGET": "development",
+        "HIFZ_HANDOFF_ENABLED": "1"
   }
 }

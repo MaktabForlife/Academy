@@ -12,13 +12,15 @@ import {teacherAvailability} from './teacher-availability.js';
 import {d1Subjects} from './subjects.js';
 import {d1LearningCatalogue,saveLearningModule} from './learning-catalogue.js';
 import {d1AccountTimetable} from './account-timetable.js';
-import { createAuthRateLimitKey, createSaltedPinHash, createSessionToken, isValidFourDigitPin, verifyPin } from '../../lib/auth-primitives.js';
+import { createAuthRateLimitKey, createSessionToken, isValidFourDigitPin } from '../../lib/auth-primitives.js';
+import {createAcademyPinHash,verifyAcademyPin} from '../../lib/academy-pin.js';
 import { academyD1Repository, rehearsalError } from './repository.js';
 import { d1Entrance } from './entrance.js';
 import {d1LessonJoin,websiteEntrance} from './lesson-join.js';
 import {publicTimetable,refreshPublicTimetable,refreshPublishedTimetable} from './public-timetable.js';
 import {profileLabelsVersion,processCacheRefresh,recoverCacheRefresh} from './cache-refresh.js';
 import { d1Profiles } from './profiles.js';
+import {issueHifzHandoff} from './hifz-handoff.js';
 import {hifzSyncEnabled,hifzSyncChangePath,recoverHifzProfiles} from './hifz-profile-sync.js';
 import { d1Programs } from './programs.js';
 import {d1Learning} from './learning.js';
@@ -72,7 +74,7 @@ async function dispatch(request,env) {
   if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'106.96',
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.0',
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(repository)};
@@ -126,10 +128,10 @@ async function dispatch(request,env) {
     if(path==='/api/account/setup-pin') {
       if(state.account.pin_setup||String(state.account.pin_hash || '').trim())throw rehearsalError('PIN is already set. An authorised administrator must reset it before a new PIN can be created.',409,'PIN_ALREADY_SET');
       if(!state.contexts.length)throw rehearsalError('No authorised Academy context is available.',403,'NO_CONTEXT');
-      state=await repository.setCredential(state,await createSaltedPinHash(input.pin,env.PIN_SECRET),'ACCOUNT_PIN_SETUP_SELF');
+      state=await repository.setCredential(state,await createAcademyPinHash(input.pin,env),'ACCOUNT_PIN_SETUP_SELF');
     } else {
       if(!state.account.pin_setup||!String(state.account.pin_hash || '').trim())throw rehearsalError('Account PIN not set up yet',403,'PIN_NOT_SET');
-      const verification=await verifyPin(input.pin,state.account.pin_hash,env.PIN_SECRET);
+      const verification=await verifyAcademyPin(input.pin,state.account.pin_hash,env);
       if(!verification.valid)throw rehearsalError('Incorrect PIN',401,'INCORRECT_PIN');
       if(verification.needsMigration)state=await repository.setCredential(state,verification.upgradedHash,'ACCOUNT_PIN_HASH_UPGRADE');
     }
@@ -145,6 +147,7 @@ async function dispatch(request,env) {
     return {success:true,...await submitEnrolment(repository,auth,input,request,env)};
   }
   const auth=await authenticated(request,env,repository);
+  if(path==='/api/academy/hifz/sign-in')return issueHifzHandoff(env,auth,input);
   if(path==='/api/academy/enrolment/profile')return {success:true,...await enrolmentProfile(repository,auth)};
   const enrolmentAction=path.match(/^\/api\/admin\/platform\/enrolment\/(get|catalogue-save|request-save|request-delete|accounts|register|settings-save)$/)?.[1];
   if(enrolmentAction)return {success:true,...await enrolmentManagement(repository,auth).run(enrolmentAction,input)};

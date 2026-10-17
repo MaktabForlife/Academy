@@ -7,7 +7,7 @@ import {deliverHifzProfiles,hifzSyncChangePath} from '../src/academy/d1/hifz-pro
 
 async function fixture(){
  const f=await fixtureDatabase();
- for(const name of ['0004_management_transactions.sql','0011_account_contact_details.sql','0028_hifz_profile_sync.sql'])f.db.exec(readFileSync(new URL('../migrations/academy/'+name,import.meta.url),'utf8'));
+ for(const name of ['0004_management_transactions.sql','0011_account_contact_details.sql','0028_hifz_profile_sync.sql','0029_hifz_shared_pin.sql'])f.db.exec(readFileSync(new URL('../migrations/academy/'+name,import.meta.url),'utf8'));
  const scope=f.db.prepare("SELECT activity_key FROM activities WHERE kind='PROGRAM' ORDER BY activity_key LIMIT 1").get().activity_key;
  f.db.prepare("UPDATE academy_settings SET setting_value=? WHERE setting_key='HifzProfileActivityKey'").run(scope);
  f.db.prepare('INSERT INTO hifz_profile_sync(account_id) VALUES(?)').run('account-0002');
@@ -34,7 +34,7 @@ test('profile changes enqueue atomically, coalesce, and send only allowlisted pr
   const result=await deliverHifzProfiles(env,{fetcher});assert(result.delivered>=1);
   const profile=packets.flatMap(p=>p.profiles).find(p=>p.academyUserId==='account-0002');
   assert.equal(profile.name,'Changed learner');assert.equal(profile.whatsappNumber,'+27 82 123 4567');
-  assert.deepEqual(Object.keys(profile).sort(),['academyUserId','active','loginId','name','pinResetVersion','revision','role','whatsappNumber'].sort());
+  assert.deepEqual(Object.keys(profile).sort(),['academyUserId','active','credentialEpoch','loginId','name','pinResetVersion','revision','role','whatsappNumber'].sort());
   assert(!JSON.stringify(packets).includes('pin_hash'));assert(!JSON.stringify(packets).includes('synthetic-pin-secret'));
   assert.equal(db.prepare("SELECT revision=delivered_revision AS done FROM hifz_profile_sync WHERE account_id='account-0002'").get().done,1);
   assert.equal((await deliverHifzProfiles(env,{fetcher})).attempted,0);
