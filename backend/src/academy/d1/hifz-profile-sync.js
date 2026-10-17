@@ -19,7 +19,7 @@ export async function deliverHifzProfiles(env,{limit=8,fetcher=fetch,now=Date.no
     const signature=[...new Uint8Array(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(body)))].map(b=>b.toString(16).padStart(2,'0')).join('');
     let errorCode=null;attempted+=rows.length;
     try{
-      const response=await fetcher(url.href,{method:'POST',redirect:'error',signal:AbortSignal.timeout(5000),headers:{'Content-Type':'application/json','X-Academy-Sync-Signature':signature},body});
+      const response=await fetcher(url.href,{method:'POST',redirect:'manual',signal:AbortSignal.timeout(5000),headers:{'Content-Type':'application/json','X-Academy-Sync-Signature':signature},body});
       if(response.status!==200)errorCode='HTTP_'+response.status;
       await response.body?.cancel();
     }catch{errorCode='DELIVERY_UNAVAILABLE';}

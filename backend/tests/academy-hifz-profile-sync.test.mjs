@@ -25,7 +25,7 @@ test('profile changes enqueue atomically, coalesce, and send only allowlisted pr
   db.exec('BEGIN');db.exec("UPDATE accounts SET display_name='Rolled back' WHERE account_id='account-0002'");db.exec('ROLLBACK');
   assert.equal(db.prepare("SELECT revision FROM hifz_profile_sync WHERE account_id='account-0002'").get().revision,version);
   const fetcher=async(url,options)=>{
-   assert.equal(options.redirect,'error');const packet=JSON.parse(options.body);packets.push(packet);
+   assert.equal(options.redirect,'manual');const packet=JSON.parse(options.body);packets.push(packet);
    const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(env.HIFZ_PROFILE_SYNC_SECRET),{name:'HMAC',hash:'SHA-256'},false,['verify']);
    const signature=Uint8Array.from(options.headers['X-Academy-Sync-Signature'].match(/../g),part=>parseInt(part,16));
    assert(await crypto.subtle.verify('HMAC',key,signature,new TextEncoder().encode(options.body)));
@@ -100,4 +100,17 @@ test('an Academy API save schedules delivery without waiting for Hifz to respond
   assert.equal(packets.flatMap(p=>p.profiles).find(p=>p.academyUserId==='account-0002').name,'API saved learner');
   assert.equal(db.prepare("SELECT revision=delivered_revision AS done FROM hifz_profile_sync WHERE account_id='account-0002'").get().done,1);
  }finally{release();await Promise.all(waits);globalThis.fetch=old;db.close();}
+});
+
+test('redirect responses stay queued and are never followed or acknowledged',async()=>{
+ const {db,env}=await fixture();let calls=0;
+ try{
+  const result=await deliverHifzProfiles(env,{fetcher:async(url,options)=>{
+   calls++;assert.equal(options.redirect,'manual');
+   return new Response(null,{status:302,headers:{Location:'https://unexpected.invalid/profile-sync'}});
+  }});
+  assert.equal(calls,1);assert.equal(result.delivered,0);
+  const queue=db.prepare("SELECT * FROM hifz_profile_sync WHERE account_id='account-0002'").get();
+  assert(queue.revision>queue.delivered_revision);assert.equal(queue.last_error_code,'HTTP_302');
+ }finally{db.close();}
 });

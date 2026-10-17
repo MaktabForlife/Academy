@@ -182,7 +182,7 @@ test('publishing a new draft Program activates it atomically and exposes future 
  assert.equal(ok(await post(env,'/api/admin/platform/programs/list',{},admin)).programs.find(p=>p.id===newId).status,'ACTIVE');
  // A stale Programs table must not silently save Draft over the newly active Program.
  assert.equal((await change(env,'/api/admin/platform/programs/save',{id:newId,name:created.program.name,status:'DRAFT',timezone:'Africa/Johannesburg',revision:created.program.revision},admin)).status,409);
- for(const n of ['0001','0003']){const freshToken=await login(env,n),home=ok(await post(env,'/api/academy/entrance',{},freshToken));assert.ok(home.personalTimetable.some(l=>l.activityId===newId),JSON.stringify(home.personalTimetable));}
+ for(const n of ['0001','0003']){const freshToken=await login(env,n),home=ok(await post(env,'/api/academy/entrance',{startDate:input.effectiveFrom},freshToken));assert.ok(home.personalTimetable.some(l=>l.activityId===newId),JSON.stringify(home.personalTimetable));}
  const before=ok(await post(env,'/api/academy/entrance',{startDate:programToday('Africa/Johannesburg')},admin));assert.ok(!before.personalTimetable.some(l=>l.activityId===newId&&l.date<input.effectiveFrom),'Future publication does not expose earlier occurrences');
 }));
 
