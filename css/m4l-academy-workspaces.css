@@ -82,7 +82,6 @@
 #timetable:is([data-workspace-mode=learn],[data-workspace-mode=teach]) .academy-view-actions{display:none}
 #timetable:is([data-workspace-mode=learn],[data-workspace-mode=teach]) .schedule-key{display:none}
 #timetable #teaching-availability-link{display:none}
-#timetable .role-quicklinks{margin:18px 0 0;padding:14px;border:1px solid #e5d6e9;border-radius:14px;background:#fffafdbb}
 #timetable .timetable-days,#activity-sessions .timetable-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px}
 #timetable .timetable-days>.upcoming-day,#activity-sessions .timetable-days>.upcoming-day{min-width:0}
 #activity-schedule>.section-title{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:16px}

@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V106.95
+# Umm Abbad Academy — V106.96
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
@@ -7,6 +7,10 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - Independent HifzHelper links remain. The cancelled shared-login integration is not part of Academy.
+
+## V106.96 — Contact Admin and cleaner Learn/Teach pages
+
+The homepage button now reads **Contact Admin**. It continues to open WhatsApp with the existing editable message. LEARN and TEACH no longer show the bottom shortcut-pill row below My Timetable. [Release details](docs/ACADEMY-HOME-WORKSPACE-106.96.md).
 
 ## V106.95 — Academy-branded Hifz address
 

@@ -63,16 +63,13 @@
   }
   function renderRoleLinks(){
     const teach=location.hash==='#timetable/teach',mode=teach?'teach':'learn',data=state.home;
-    const host=$('timetable-quicklinks'),areas=$('timetable-areas');
+    const areas=$('timetable-areas');
     $('timetable').dataset.workspaceMode=data?.signedIn?mode:'public';
     $('full-timetable-title').textContent=data?.signedIn?(teach?'TEACH':'LEARN'):'Academy timetable';
     $('learn-enrolment-entry').hidden=!data?.signedIn||teach;
     renderUpcomingCourses();
-    if(!data?.signedIn){host.innerHTML='<a href="#overview">Academy home</a>';areas.replaceChildren();return;}
-    const rows=(data.personalActivities||[]).filter(r=>menuActivity(r)&&(data.globalAdmin||!teach||staffRoles(r.roles||[]))),first=rows[0];
-    const link=(href,text)=>'<a href="'+esc(href)+'">'+esc(text)+'</a>';
+    if(!data?.signedIn){areas.replaceChildren();return;}
     areas.innerHTML=workspaceAreaLinks(mode);areas.setAttribute('aria-label',teach?'Your teaching Programs and Courses':'Your learning Programs and Courses');
-    host.innerHTML='<div class="role-shortcuts">'+link('#overview','Academy home')+link('/academy/library/','Library')+link('/academy/calendar/?view='+mode,'Academic Calendar')+link('#overview','Announcements')+link('#assessments','My assessments')+link('#progress','Surahs and Duas')+link('/activities/surahs-in-my-heart/','Surahs in my Heart')+link('/activities/kaaba-puzzle/','Kaaba puzzle')+link('#about','About')+link('#contact','Contact')+(data.student?link('#recorder','Voice Recorder'):'')+(teach?link('/academy/teaching/','Edit availability')+(first?link(workspaceHref(first,'attendance','teach'),'Attendance')+link(workspaceHref(first,'planning','teach'),'Planning'):''):'')+'</div>';
   }
   const homeIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h5v-7h4v7h5V9"/></svg>';
   const TIMETABLE_RETURN_KEY = 'm4l_academy_timetable_return';
