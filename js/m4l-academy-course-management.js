@@ -2,6 +2,7 @@
 (() => {
   'use strict';
   const $=id=>document.getElementById(id),esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const enrolmentPanel=document.createElement('section');enrolmentPanel.className='enrolment-embedded';
   const token=()=>localStorage.getItem('m4l_account_token')||'',base='/api/admin/platform/courses/';
   const state={token:'',session:null,generation:0,selection:0,courses:[],categories:[],teachers:[],timezone:'Africa/Johannesburg',capabilities:{},course:null,draft:null,cardDraft:null,dirty:false,tab:'list',busy:false,review:null,calendarWarnings:[],media:[],participants:null,personDrafts:new Map(),peopleSearch:'',assignedOnly:false,pending:null,filters:{search:'',status:''}};
   const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -13,7 +14,7 @@
   const editable=()=>state.course?.stage==='DRAFT';
   const reviewAccepted=()=>Boolean(!state.dirty&&state.review?.valid&&state.course?.acceptedToken===state.review.token);
   const tell=(message,error=false)=>{$('course-message').textContent=message||'';$('course-message').classList.toggle('is-error',error);};
-  function lock(message){state.token='';state.session=null;state.course=null;state.draft=null;state.cardDraft=null;state.dirty=false;state.courses=[];state.participants=null;state.personDrafts.clear();state.pending=null;state.review=null;state.media=[];state.calendarWarnings=[];state.busy=false;state.tab='list';state.selection++;$('course-workspace').hidden=true;$('course-editor').replaceChildren();$('course-list').replaceChildren();$('course-dialog').close();$('course-dialog').replaceChildren();$('course-account-name').textContent='';$('course-access-message').textContent=message;tell('');}
+  function lock(message){window.M4L_ENROLMENT_WORKSPACE?.reset(enrolmentPanel);state.token='';state.session=null;state.course=null;state.draft=null;state.cardDraft=null;state.dirty=false;state.courses=[];state.participants=null;state.personDrafts.clear();state.pending=null;state.review=null;state.media=[];state.calendarWarnings=[];state.busy=false;state.tab='list';state.selection++;$('course-workspace').hidden=true;$('course-editor').replaceChildren();$('course-list').replaceChildren();$('course-dialog').close();$('course-dialog').replaceChildren();$('course-account-name').textContent='';$('course-access-message').textContent=message;tell('');}
   async function api(path,input={},authToken=state.token){
     const generation=state.generation;
     if(!authToken||authToken!==token()||path!=='/api/account/session'&&!state.session)throw Error('Sign in with an authorised Academy administrator account.');
@@ -97,7 +98,7 @@
   }
   function mediaTab(){return `<div class="cm-media-empty"><h3>Recordings, notes &amp; other media</h3><p>Private Academy media storage is still to be connected. Uploading and opening protected files will become available with that work.</p><p>Once enabled, students will receive access when this Course is completed. They retain access to everything attached to this Course while their Student assignment remains, including media added later.</p></div>${state.media.length?`<h3 style="font-size:14px;margin-top:22px">Existing media · ${state.media.length}</h3><div class="cm-table-wrap"><table class="cm-table"><thead><tr><th>Name</th><th>Type</th></tr></thead><tbody>${state.media.map(m=>`<tr><td>${esc(m.name)}</td><td>${esc(m.type)}</td></tr>`).join('')}</tbody></table></div><p class="cm-hint" style="margin-top:10px">These existing media records can be reused when repeating the Course. File access remains closed until private storage is ready.</p>`:''}`;}
   function reviewTab(){
-    if(!editable())return `<h3 class="cm-review-title">${esc(labels[state.course.stage]||state.course.stage)} Course</h3><p class="cm-hint">${state.course.stage==='PUBLISHED'?'These sessions are published to the Academy timetable. Use More → Create revision to prepare changes for validation and review.':['COMPLETE','ARCHIVED'].includes(state.course.stage)?'The Course and its participant records are retained. Repeat as a new Course to schedule another delivery.':'This Course is no longer on the timetable. Its participant records are retained.'}</p>`;
+    if(!editable())return `<h3 class="cm-review-title">${esc(labels[state.course.stage]||state.course.stage)} Course</h3><p class="cm-hint">${state.course.stage==='PUBLISHED'?'These sessions are published to the Academy timetable. Select Create revision to prepare changes for validation and review.':['COMPLETE','ARCHIVED'].includes(state.course.stage)?'The Course and its participant records are retained. Repeat as a new Course to schedule another delivery.':'This Course is no longer on the timetable. Its participant records are retained.'}</p>`;
     const r=state.review,accepted=reviewAccepted();
     if(!r)return `<h3 class="cm-review-title">Validate your schedule first</h3><p class="cm-hint">Save the draft and set its schedule. Validation generates the sessions automatically, then checks dates, teachers, Zoom links, overlapping sessions and Academy holidays. Review and accept the sessions before publishing.</p><button style="margin-top:18px" type="button" data-cm-action="validate" data-cm-mutation${editable()?'':' disabled'}>Validate &amp; generate sessions</button>`;
     return `<h3 class="cm-review-title">${accepted?'Review accepted':r.valid?'Accept your session review':'A few details need attention'}</h3><p class="cm-hint">${r.valid?`${state.draft.sessions.filter(s=>s.status==='SCHEDULED').length} scheduled sessions checked. ${accepted?'You can now publish them to the Academy timetable.':'Review each session, then accept this saved version.'}`:'Resolve these issues and validate again. Sessions will be generated from your schedule when it is ready.'}</p><ul class="cm-review-list">${r.errors.map(e=>`<li class="error">${esc(e.message)}<button type="button" data-cm-action="tab" data-tab="${e.sessionId||e.field==='sessions'?'sessions':'details'}">Review ${e.sessionId?'session':'details'} →</button></li>`).join('')}${r.warnings.map(w=>`<li class="warning">${esc(w.message)}<button type="button" data-cm-action="tab" data-tab="sessions">Review sessions →</button></li>`).join('')}${r.valid&&!r.warnings.length?'<li>No publication issues found.</li>':''}</ul>${r.valid?`<div class="cm-publish-bar"><div><p><strong>${esc(state.draft.name)}</strong> · ${state.draft.accessModel==='FREE'?'Free':'Paid'}</p>${!accepted&&r.warnings.length?'<label class="cm-toggle" style="margin-top:10px"><input id="course-ack-warnings" type="checkbox">I have reviewed the warnings and want to keep these sessions.</label>':`<p class="cm-hint">${accepted?'The accepted saved sessions are ready to publish.':'Accept only after reviewing the generated sessions.'}</p>`}</div><button type="button" data-cm-action="${accepted?'publish':'accept'}" data-cm-mutation>${accepted?'Publish Course':'Accept reviewed sessions'}</button></div>`:''}`;
@@ -108,27 +109,30 @@
     const current=state.course.stage!=='DRAFT'?5:state.dirty||!state.course.courseId?0:!state.review?.valid?1:reviewAccepted()?5:3;
     return `<ol class="cm-workflow" aria-label="Course publication steps">${['Draft','Validate','Generate sessions','Review','Accept','Publish'].map((label,index)=>`<li class="${index<current?'is-done':index===current?'is-current':''}"${index===current?' aria-current="step"':''}><span>${index+1}</span>${label}</li>`).join('')}</ol>`;
   }
-  const tabs=[['list','List of courses'],['details','Details'],['sessions','Sessions'],['participants','Participants'],['public-card','Public card'],['media','Media'],['review','Review & publish']];
+  const tabs=[['list','List of courses'],['details','Details'],['sessions','Sessions'],['participants','Participants'],['public-card','Public card'],['media','Media'],['review','Review & publish'],['enrolment','Enrolment requests']];
   function renderTabs(){
     const focused=document.activeElement?.id;
-    $('course-tabs').innerHTML=tabs.map(([tab,label])=>`<button id="cm-tab-${tab}" type="button" role="tab" tabindex="${state.tab===tab?0:-1}" aria-selected="${state.tab===tab}" aria-controls="${tab==='list'?'course-list-panel':'course-editor'}" data-cm-action="tab" data-tab="${tab}"${tab!=='list'&&!state.course?' disabled':''}>${label}${tab==='sessions'&&state.draft?.sessions.length?' · '+state.draft.sessions.length:''}</button>`).join('');
+    $('course-tabs').innerHTML=tabs.map(([tab,label])=>`<button id="cm-tab-${tab}" type="button" role="tab" tabindex="${state.tab===tab?0:-1}" aria-selected="${state.tab===tab}" aria-controls="${tab==='list'?'course-list-panel':'course-editor'}" data-cm-action="tab" data-tab="${tab}"${tab!=='list'&&!state.course||tab==='enrolment'&&!state.course?.courseId?' disabled':''}>${label}${tab==='sessions'&&state.draft?.sessions.length?' · '+state.draft.sessions.length:''}</button>`).join('');
     $('course-list-panel').hidden=state.tab!=='list';
     $('course-editor').hidden=Boolean(state.course&&state.tab==='list');
     $('course-editor').setAttribute('aria-labelledby','cm-tab-'+state.tab);
     if(focused?.startsWith('cm-tab-'))$(focused)?.focus?.({preventScroll:true});
+    revealTab();
+  }
+  function revealTab(){
     const strip=$('course-tabs'),active=$('cm-tab-'+state.tab);
     if(active?.offsetLeft<strip.scrollLeft)strip.scrollLeft=active.offsetLeft;
     else if(active?.offsetLeft+active?.offsetWidth>strip.scrollLeft+strip.clientWidth)strip.scrollLeft=active.offsetLeft+active.offsetWidth-strip.clientWidth;
   }
   function renderEditor(){
     renderTabs();
-    if($('course-enrolment-requests'))$('course-enrolment-requests').href='/academy/enrolment/manage/?view=requests'+(state.course?.courseId?'&activity='+encodeURIComponent('COURSE:'+state.course.courseId):'');
     if(state.course&&state.tab==='list')return;
     if(!state.course){$('course-editor').innerHTML='<div class="cm-empty"><h2>Select a course</h2></div>';return;}
     const c=state.course,d=state.draft,isDraft=editable();
     const transitions=!c.courseId?[]:c.stage==='PUBLISHED'?[['revise','Create revision'],['complete','Mark complete'],['cancel','Cancel Course']]:c.stage==='DRAFT'?[['cancel','Cancel Course'],['archive','Archive draft']]:c.stage==='COMPLETE'||c.stage==='CANCELLED'?[['archive','Archive Course']]:[];
     if(['COMPLETE','ARCHIVED'].includes(c.stage)&&state.capabilities.create)transitions.push(['repeat','Repeat as new Course']);
-    $('course-editor').innerHTML=`<header class="cm-editor-heading"><div><h2>${esc(d.name||'New Course')}</h2><div class="cm-heading-meta">${pill(c.displayStage||c.stage)}<small data-cm-save-state>${saveState()}</small>${c.currentPublication&&isDraft?'<small>Current timetable remains published</small>':''}</div></div><div class="cm-actions">${isDraft?`<button type="button" class="pb-secondary" data-cm-action="save" data-cm-mutation>Save draft</button><button type="button" data-cm-action="validate" data-cm-mutation>${d.sessions.length?'Validate &amp; review':'Validate &amp; generate sessions'}</button>`:''}${transitions.length?`<details class="cm-menu"><summary>More ▾</summary><div>${transitions.map(([action,label])=>`<button type="button" data-cm-action="${action}" data-cm-mutation>${label}</button>`).join('')}</div></details>`:''}</div></header>${workflow()}<div id="cm-panel" class="cm-tab-content">${state.tab==='details'?detailsTab():state.tab==='sessions'?sessionsTab():state.tab==='participants'?peopleTab():state.tab==='public-card'?publicCardTab():state.tab==='media'?mediaTab():reviewTab()}</div><footer class="cm-footer"><span>${c.courseId?`Course ID <span class="cm-id">${esc(c.courseId)}</span>`:'New draft'}</span><span>${c.completedAt?'Completed '+esc(c.completedAt.slice(0,10)):state.personDrafts.size?`${state.personDrafts.size} unsaved participant ${state.personDrafts.size===1?'change':'changes'}`:'All times use the Course timezone'}</span></footer>`;
+    $('course-editor').innerHTML=`<header class="cm-editor-heading"><div><h2>${esc(d.name||'New Course')}</h2><div class="cm-heading-meta">${pill(c.displayStage||c.stage)}<small data-cm-save-state>${saveState()}</small>${c.currentPublication&&isDraft?'<small>Current timetable remains published</small>':''}</div></div><div class="cm-actions">${isDraft?`<button type="button" class="pb-secondary" data-cm-action="save" data-cm-mutation>Save draft</button><button type="button" data-cm-action="validate" data-cm-mutation>${d.sessions.length?'Validate &amp; review':'Validate &amp; generate sessions'}</button>`:''}${transitions.map(([action,label])=>`<button type="button" class="pb-secondary cm-status-action${action==='cancel'?' cm-cancel-action':''}" data-cm-action="${action}" data-cm-mutation>${label}</button>`).join('')}</div></header>${workflow()}<div id="cm-panel" class="cm-tab-content">${state.tab==='details'?detailsTab():state.tab==='sessions'?sessionsTab():state.tab==='participants'?peopleTab():state.tab==='public-card'?publicCardTab():state.tab==='media'?mediaTab():state.tab==='enrolment'?'':reviewTab()}</div><footer class="cm-footer"><span>${c.courseId?`Course ID <span class="cm-id">${esc(c.courseId)}</span>`:'New draft'}</span><span>${c.completedAt?'Completed '+esc(c.completedAt.slice(0,10)):state.personDrafts.size?`${state.personDrafts.size} unsaved participant ${state.personDrafts.size===1?'change':'changes'}`:'All times use the Course timezone'}</span></footer>`;
+    if(state.tab==='enrolment'){$('cm-panel').append(enrolmentPanel);void window.M4L_ENROLMENT_WORKSPACE.open(enrolmentPanel,'COURSE:'+c.courseId).catch(error=>{if(state.tab==='enrolment')tell(error.message,true);});}
     if(state.busy)busy(true);
   }
   function dirty(){state.dirty=true;state.review=null;state.pending=null;const indicator=$('course-editor').querySelector('.cm-heading-meta small');if(indicator)indicator.textContent='Unsaved changes';}
@@ -238,7 +242,7 @@
   async function perform(fn){if(state.busy)return;busy(true);try{await fn();}catch(error){tell(error.message+(error.code==='ROW_CHANGED'?' Refresh and review the saved Course. Your unfinished changes are kept.':''),true);}finally{busy(false);if(state.participants)updateParticipantControls();}}
   async function action(name,el){
     if(name==='select'){const tab=!state.course&&new URLSearchParams(location.search).get('view')==='scheduling'?'sessions':'details';reviewDiscard(()=>select(el.dataset.course,el.dataset.run,tab));return;}
-    if(name==='tab'){if(!tabs.some(([tab])=>tab===el.dataset.tab)||el.dataset.tab!=='list'&&!state.course)return;state.tab=el.dataset.tab;rememberSelection();renderEditor();if(state.tab==='participants'&&!state.participants)await loadParticipants();return;}
+    if(name==='tab'){if(!tabs.some(([tab])=>tab===el.dataset.tab)||el.dataset.tab!=='list'&&!state.course||el.dataset.tab==='enrolment'&&!state.course?.courseId)return;if(!window.M4L_ENROLMENT_WORKSPACE.canLeave(enrolmentPanel))throw Error('Finish or retry the enrolment request change before leaving this tab.');state.tab=el.dataset.tab;rememberSelection();renderEditor();if(state.tab==='participants'&&!state.participants)await loadParticipants();return;}
     if(name==='save-card'){
       const result=await mutate('public-card-save',{...selected(),baseCardRevision:state.course.publicCardRevision,publicCard:copy(state.cardDraft)});Object.assign(state.course,{publicCard:result.publicCard,publicCardRevision:result.publicCardRevision});state.cardDraft=copy(result.publicCard);renderEditor();tell(result.message);return;
     }
@@ -284,7 +288,7 @@
   document.addEventListener('DOMContentLoaded',()=>{
     $('course-tabs').addEventListener('keydown',event=>{
       if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)||state.busy)return;
-      const available=tabs.filter(([tab])=>tab==='list'||state.course).map(([tab])=>tab),index=available.indexOf(state.tab);
+      const available=tabs.filter(([tab])=>tab==='list'||state.course&&(tab!=='enrolment'||state.course.courseId)).map(([tab])=>tab),index=available.indexOf(state.tab);
       const tab=event.key==='Home'?available[0]:event.key==='End'?available.at(-1):available[(index+(event.key==='ArrowRight'?1:-1)+available.length)%available.length];
       event.preventDefault();void perform(async()=>{await action('tab',{dataset:{tab}});$('cm-tab-'+tab)?.focus?.({preventScroll:true});});
     });
@@ -298,6 +302,7 @@
     void open();
   });
   function sessionChanged(){if(token()===state.token&&state.session)return;++state.generation;lock('Your Academy account changed. Return to Academy home and open Course management again.');}
+  window.addEventListener('resize',revealTab);
   window.addEventListener('storage',e=>{if(e.key==='m4l_account_token'||e.key===null)sessionChanged();});window.addEventListener('m4l-academy-session',sessionChanged);
   window.addEventListener('pageshow',e=>{if(e.persisted){sessionChanged();if(state.session&&!hasUnsavedChanges())void open();}});
   window.addEventListener('beforeunload',e=>{if(hasUnsavedChanges()){e.preventDefault();e.returnValue='';}});

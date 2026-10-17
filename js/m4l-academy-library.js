@@ -145,10 +145,9 @@
   }
 
   function render() {
-    const rows = filtered().sort((a, b) => String(a.subject || '').localeCompare(String(b.subject || '')) ||
-      String(a.sourceName || '').localeCompare(String(b.sourceName || '')) ||
-      String(a.module || '').localeCompare(String(b.module || '')) ||
-      String(a.name || '').localeCompare(String(b.name || '')));
+    const alphabet=new Intl.Collator('en',{sensitivity:'base',numeric:true});
+    const rows = filtered().sort((a, b) => alphabet.compare(a.subject || 'Other',b.subject || 'Other') ||
+      alphabet.compare(a.name || '',b.name || ''));
     const groups = new Map();
     for (const row of rows) {
       const subject = row.subject || 'Other';

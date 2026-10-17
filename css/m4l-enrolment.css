@@ -9,12 +9,12 @@
 .enrolment-card h3{font-size:16px;margin:18px 0 10px}
 .enrolment-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 .enrolment-fields label,.enrolment-dialog label{display:grid;gap:6px;font-weight:600;min-width:0}
-.enrolment-page :is(input:not([type=checkbox]),select,textarea){box-sizing:border-box;width:100%;min-width:0;border:1px solid #cbb7d2;border-radius:8px;padding:11px;font:inherit;background:white;color:#332939}
-.enrolment-page textarea{min-height:90px;resize:vertical}
-.enrolment-page button,.enrolment-page .button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:42px;border:1px solid #704578;border-radius:9px;padding:10px 15px;background:#704578;color:#fff;font:600 13px/1.3 Arial,sans-serif;text-decoration:none;cursor:pointer;white-space:normal}
-.enrolment-page .secondary{background:#fff;color:#704578}
-.enrolment-page button:disabled{opacity:.55;cursor:wait}
-.enrolment-page :is(a,button,input,select,textarea):focus-visible{outline:3px solid #ad83b8;outline-offset:3px}
+:is(.enrolment-page,.enrolment-embedded) :is(input:not([type=checkbox]),select,textarea){box-sizing:border-box;width:100%;min-width:0;border:1px solid #cbb7d2;border-radius:8px;padding:11px;font:inherit;background:white;color:#332939}
+:is(.enrolment-page,.enrolment-embedded) textarea{min-height:90px;resize:vertical}
+:is(.enrolment-page,.enrolment-embedded) button,:is(.enrolment-page,.enrolment-embedded) .button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:42px;border:1px solid #704578;border-radius:9px;padding:10px 15px;background:#704578;color:#fff;font:600 13px/1.3 Arial,sans-serif;text-decoration:none;cursor:pointer;white-space:normal}
+:is(.enrolment-page,.enrolment-embedded) .secondary{background:#fff;color:#704578}
+:is(.enrolment-page,.enrolment-embedded) button:disabled{opacity:.55;cursor:wait}
+:is(.enrolment-page,.enrolment-embedded) :is(a,button,input,select,textarea):focus-visible{outline:3px solid #ad83b8;outline-offset:3px}
 .enrolment-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:18px}
 .enrolment-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .enrolment-option{display:flex;align-items:flex-start;gap:12px;padding:16px;border:1px solid #dfcbe6;border-radius:10px;background:#faf6fb;cursor:pointer;min-width:0}
@@ -37,7 +37,7 @@
 .enrolment-dialog::backdrop{background:#30223877}.enrolment-dialog h2{font:400 26px Georgia,serif;margin:0 0 14px}.enrolment-dialog form{display:grid;gap:15px}
 .enrolment-dialog .enrolment-options{grid-template-columns:1fr;max-height:260px;overflow:auto}.enrolment-dialog [role=alert]{color:#8b2639}
 .enrolment-matches{display:grid;gap:8px}.enrolment-matches button{justify-content:flex-start;text-align:left}.enrolment-settings{max-width:520px;margin-top:24px}
-.enrolment-page [hidden]{display:none!important}
+:is(.enrolment-page,.enrolment-embedded) [hidden]{display:none!important}
 @media(max-width:600px){.enrolment-main{padding:20px 12px 40px}.enrolment-heading h1{font-size:28px}.enrolment-card{padding:18px 14px}.enrolment-fields,.enrolment-options{grid-template-columns:minmax(0,1fr)}.enrolment-tabs{flex-wrap:wrap}.enrolment-filters{display:grid;grid-template-columns:minmax(0,1fr)}.enrolment-dialog{padding:20px 16px}.enrolment-table{min-width:740px}}
 
 #enrol-admin-requests .enrolment-table td:nth-child(2){min-width:125px;overflow-wrap:normal}
@@ -65,3 +65,5 @@
 .enrolment-dialog:has(#enrol-message-text) #enrol-admin-dialog-body{display:grid;gap:12px}
 
 .enrolment-contact{margin:20px 0;font-size:14px}.enrolment-contact summary{cursor:pointer;font-weight:600;color:#704578}.enrolment-contact a{color:#704578;overflow-wrap:anywhere}
+
+.enrolment-embedded{min-width:0;font:14px/1.5 Arial,Helvetica,sans-serif;color:#332939}.enrolment-embedded .enrolment-card{margin:14px 0 0;border:0;border-radius:0;padding:0}.enrolment-embedded .enrolment-tabs{margin:0 0 16px}.enrolment-embedded .enrolment-filters label{display:grid;gap:6px}.enrolment-embedded .enrolment-dialog :is(input:not([type=checkbox]),textarea,select){width:100%}

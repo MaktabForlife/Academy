@@ -42,11 +42,12 @@
   }
 
   function render() {
+    const alphabet=new Intl.Collator('en',{sensitivity:'base',numeric:true});
     const query = $('ol-search').value.trim().toLocaleLowerCase();
     const matches = books.filter(book => matchesCategory(book.resourceType) &&
       [book.title, book.subject, book.module, ...(book.learningAreas || []), book.source, book.details, book.description, book.resourceType]
         .some(value => String(value || '').toLocaleLowerCase().includes(query)))
-      .sort((a, b) => (a.subject || 'Books').localeCompare(b.subject || 'Books') || a.title.localeCompare(b.title));
+      .sort((a, b) => alphabet.compare(a.subject || 'Books',b.subject || 'Books') || alphabet.compare(a.title || '',b.title || ''));
     results.replaceChildren();
     const groups = new Map();
     for (const book of matches) {

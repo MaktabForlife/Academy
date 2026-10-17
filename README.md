@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V106.92
+# Umm Abbad Academy — V106.93
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
@@ -7,6 +7,10 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - Independent HifzHelper links remain. The cancelled shared-login integration is not part of Academy.
+
+## V106.93 — Enrolment tabs, visible Course actions and alphabetical Library
+
+Manage Academy has an **Enrolments** pill opening **Manage Enrolments**. Manage Programs and Manage Courses include a selected-area **Enrolment requests** tab after **Review & publish**. Course lifecycle actions appear as individual buttons and keep their confirmations. Both Library views sort by subject, then displayed card title, irrespective of source or module. [Release details](docs/ACADEMY-MANAGEMENT-LIBRARY-106.93.md).
 
 ## V106.92 — Enable deployed Hifz profile delivery
 

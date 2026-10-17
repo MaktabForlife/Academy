@@ -1,6 +1,9 @@
 (()=>{'use strict';
- const {token,esc,api,whatsapp}=window.M4L_ENROLMENT,$=id=>document.getElementById(id),params=new URLSearchParams(location.search),base='/api/admin/platform/enrolment/';
- let data=null,busy=false,pending=null,epoch=0,cursor=null,pages=[],view=params.get('view')==='catalogue'?'catalogue':'requests',area=params.get('activity')||'',search='',paid='',selectedRequest=null,searchEpoch=0;
+ const mounted=new WeakMap();
+ function mount(root,{activityKey='',requestsOnly=false}={}){
+ if(mounted.has(root))return mounted.get(root);
+ const {token,esc,api,whatsapp}=window.M4L_ENROLMENT,$=id=>root.querySelector('#'+id),params=new URLSearchParams(location.search),base='/api/admin/platform/enrolment/';
+ let data=null,busy=false,pending=null,epoch=0,cursor=null,pages=[],view=!requestsOnly&&params.get('view')==='catalogue'?'catalogue':'requests',area=activityKey||params.get('activity')||'',search='',paid='',selectedRequest=null,searchEpoch=0;
  const say=(message,error=false)=>{$('enrol-admin-message').textContent=message;$('enrol-admin-message').style.color=error?'#8b2639':'';};
  const entryDrafts=new Map();
  const row=id=>data.requests.find(r=>r.id===id);
@@ -14,7 +17,7 @@
   paintEntries();
   $('enrol-admin-settings').hidden=!data.globalAdmin;$('enrol-admin-number').value=data.whatsappNumber;showView();lock();
  }
- function showView(){for(const n of document.querySelectorAll('[data-view]'))n.setAttribute('aria-pressed',String(n.dataset.view===view));$('enrol-admin-requests').hidden=view!=='requests';$('enrol-admin-catalogue').hidden=view!=='catalogue';$('enrol-admin-search-label').hidden=view!=='requests';$('enrol-admin-paid-label').hidden=view!=='requests';}
+ function showView(){for(const n of root.querySelectorAll('[data-view]')){n.setAttribute('aria-pressed',String(n.dataset.view===view));n.hidden=requestsOnly;}$('enrol-admin-area').closest('label').hidden=requestsOnly;$('enrol-admin-requests').hidden=view!=='requests';$('enrol-admin-catalogue').hidden=view!=='catalogue';$('enrol-admin-search-label').hidden=view!=='requests';$('enrol-admin-paid-label').hidden=view!=='requests';}
  async function load(){const generation=++epoch;busy=true;say('Loading enrolment requests…');lock();try{const result=await api(base+'get',{activityKey:area||undefined,search:search||undefined,paid:paid||undefined,cursor:cursor||undefined},true);if(generation!==epoch)return;data=result;say('');paint();}catch(error){if(generation===epoch){say(error.message,true);if(error.status===401||error.status===403){data=null;$('enrol-admin-workspace').hidden=true;$('enrol-admin-rows').replaceChildren();$('enrol-admin-dialog').close();}}}finally{if(generation===epoch){busy=false;lock();}}}
  async function mutate(action,body){
   if(busy)return;pending={action,body:{operationId:crypto.randomUUID(),...body,activityKey:body.activityKey||area||undefined}};await sendPending();
@@ -57,8 +60,8 @@
   selectedRequest=r;dialog('Link an existing user','<label>Find a user by name, WhatsApp number or Login ID<input id="enrol-link-search" type="search" autocomplete="off"></label><div id="enrol-link-matches" class="enrolment-matches"></div>');
   let timer;$('enrol-link-search').oninput=()=>{clearTimeout(timer);const q=$('enrol-link-search').value.trim(),sequence=++searchEpoch;$('enrol-link-matches').replaceChildren();if(!q)return;timer=setTimeout(async()=>{try{const result=await api(base+'accounts',{search:q},true);if(sequence!==searchEpoch||!$('enrol-admin-dialog').open)return;$('enrol-link-matches').innerHTML=result.accounts.map(a=>`<button type="button" class="secondary" data-link-user="${esc(a.id)}">${esc(a.name)} · ${esc(a.uniqueId)}${a.whatsapp?' · '+esc(a.whatsapp):''}</button>`).join('')||'<p>No active users match.</p>';}catch(error){$('enrol-admin-dialog-message').textContent=error.message;}},300);};
  }
- document.addEventListener('click',event=>{
-  const tab=event.target.closest('[data-view]');if(tab&&!busy&&!pending){view=tab.dataset.view;showView();}
+ root.addEventListener('click',event=>{
+  const tab=event.target.closest('[data-view]');if(tab&&!requestsOnly&&!busy&&!pending){view=tab.dataset.view;showView();}
   const link=event.target.closest('[data-link-user]');if(link&&!busy&&!pending&&selectedRequest){const r=selectedRequest;void mutate('request-save',{id:r.id,baseRevision:r.revision,name:r.name,whatsapp:r.whatsapp,paid:r.paid,accountId:link.dataset.linkUser,entries:r.items.map(i=>i.entryId)});}
   const button=event.target.closest('[data-action]');if(!button||busy||pending||!data)return;const action=button.dataset.action,id=button.dataset.id,r=row(id);
   if(action==='catalogue-cancel'){entryDrafts.delete(id);paintEntries();lock();}
@@ -68,10 +71,16 @@
  });
  $('enrol-admin-dialog-close').onclick=()=>{if(!busy&&!pending){searchEpoch++;$('enrol-admin-dialog').close();}};$('enrol-admin-dialog').addEventListener('cancel',event=>{if(busy||pending)event.preventDefault();else searchEpoch++;});
  $('enrol-admin-add').onclick=()=>{const e={id:crypto.randomUUID(),activityKey:area,year:new Date().getFullYear(),cost:'Contact Admin',active:true,order:0,revision:0};entryDrafts.set(e.id,e);paintEntries();lock();$('enrol-admin-entries').querySelector('[data-entry="'+e.id+'"] select').focus();};$('enrol-admin-refresh').onclick=()=>{if(!busy&&!pending)void load();};$('enrol-admin-retry').onclick=()=>void sendPending();
- $('enrol-admin-find').onclick=()=>{area=$('enrol-admin-area').value;search=$('enrol-admin-search').value.trim();paid=$('enrol-admin-paid').value;cursor=null;pages=[];void load();};
+ $('enrol-admin-find').onclick=()=>{if(!requestsOnly)area=$('enrol-admin-area').value;search=$('enrol-admin-search').value.trim();paid=$('enrol-admin-paid').value;cursor=null;pages=[];void load();};
  $('enrol-admin-next').onclick=()=>{if(data.nextCursor&&!busy){pages.push(cursor);cursor=data.nextCursor;void load();}};$('enrol-admin-previous').onclick=()=>{if(pages.length&&!busy){cursor=pages.pop();void load();}};
  $('enrol-admin-settings-form').onsubmit=event=>{event.preventDefault();void mutate('settings-save',{whatsappNumber:$('enrol-admin-number').value.trim()});};
- let session=token();const changed=()=>{if(session===token())return;session=token();epoch++;searchEpoch++;data=null;pending=null;entryDrafts.clear();busy=false;$('enrol-admin-workspace').hidden=true;$('enrol-admin-rows').replaceChildren();$('enrol-admin-entries').replaceChildren();$('enrol-admin-dialog-body').replaceChildren();$('enrol-admin-dialog').close();void load();};
+ function reset(){epoch++;searchEpoch++;data=null;pending=null;selectedRequest=null;entryDrafts.clear();busy=false;$('enrol-admin-workspace').hidden=true;$('enrol-admin-rows').replaceChildren();$('enrol-admin-entries').replaceChildren();$('enrol-admin-dialog-body').replaceChildren();$('enrol-admin-dialog').close();}
+ let session=token();const changed=()=>{if(session===token())return;session=token();reset();if(!requestsOnly)void load();};
  window.addEventListener('beforeunload',event=>{if(entryDrafts.size||pending){event.preventDefault();event.returnValue='';}});
- window.addEventListener('focus',changed);window.addEventListener('m4l-academy-session',changed);window.addEventListener('storage',e=>{if(e.key==='m4l_account_token')changed();});void load();
+ window.addEventListener('focus',changed);window.addEventListener('m4l-academy-session',changed);window.addEventListener('storage',e=>{if(e.key==='m4l_account_token'||e.key===null)changed();});
+ const controller={canLeave:()=>!pending&&!entryDrafts.size,reset,async setActivity(key){if(pending||entryDrafts.size)throw Error('Finish or retry the enrolment request change before selecting another learning area.');if(key===area&&(data||busy))return;reset();area=key;cursor=null;pages=[];search='';paid='';$('enrol-admin-search').value='';$('enrol-admin-paid').value='';await load();}};
+ mounted.set(root,controller);showView();void load();return controller;
+ }
+ window.M4L_ENROLMENT_ADMIN={mount};
+ const root=document.querySelector('main.enrolment-main');if(root)mount(root);
 })();

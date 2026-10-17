@@ -19,10 +19,10 @@
     new MutationObserver(updateLogin).observe(signOut,{attributes:true,attributeFilter:['hidden']});
   }
   const path=location.pathname||'',calendarView=new URLSearchParams(location.search).get('view');
-  const management=/^\/(users|programs)(?:\/|$)/.test(path)||/^\/academy\/(subjects|courses\/manage|library\/manage|pdf-tools)(?:\/|$)/.test(path)||path.startsWith('/academy/calendar/')&&!['learn','teach'].includes(calendarView);
+  const management=/^\/(users|programs)(?:\/|$)/.test(path)||/^\/academy\/(subjects|courses\/manage|library\/manage|enrolment\/manage|pdf-tools)(?:\/|$)/.test(path)||path.startsWith('/academy/calendar/')&&!['learn','teach'].includes(calendarView);
   if(management){
     function ensureClose(){
-      const headings=[...document.querySelectorAll('main .pgm-heading,main .pb-heading,main .up-titlebar,main .cm-page-heading,main .al-intro,main .cal-heading,main .pt-heading')];
+      const headings=[...document.querySelectorAll('main .pgm-heading,main .pb-heading,main .up-titlebar,main .cm-page-heading,main .al-intro,main .cal-heading,main .pt-heading,main .enrolment-heading')];
       const heading=headings.find(node=>node.getClientRects().length);if(!heading)return;
       const close=document.querySelector('.academy-management-close')||document.createElement('a');
       if(close.parentElement===heading)return;

@@ -254,7 +254,8 @@ await navigate('#workshops');assert.equal($('workshop-pills').innerHTML,'');asse
 hasWorkshops=true;globalAdmin=true;location.hash='#activity/PROGRAM/'+activity.id;await refresh();
 assert.doesNotMatch($('activity-menu').innerHTML,/Admin tools/);assert.match($('activity-menu').innerHTML,/Teach tools/);
 await navigate('#administration');assert.match($('administration').innerHTML,/Academy-wide management|Manage user profiles|Update timetable/);assert.doesNotMatch($('administration').innerHTML,/id="admin-teach"/);assert.match($('administration').innerHTML,/id="admin-timetable-home"/);
-for(const label of ['Users','Attendance','Planning','Assessments','Library','Curriculum','Programs','Courses'])assert.ok($('administration').innerHTML.includes(`>${label}<`));
+for(const label of ['Users','Attendance','Planning','Assessments','Library','Curriculum','Programs','Courses','Enrolments'])assert.ok($('administration').innerHTML.includes(`>${label}<`));
+assert.match($('administration').innerHTML,/id="admin-tab-enrolments" href="\/academy\/enrolment\/manage\/\?view=requests"/);
 assert.match($('administration').innerHTML,/id="admin-tab-attendance" href="#administration\/attendance"/);
 await navigate('#administration/attendance');assert.match($('administration').innerHTML,/<h1>Manage Attendance<\/h1>/);assert.doesNotMatch($('administration').innerHTML,/\/programs\/attendance\.html/);assert.equal($('academy-tab-admin').attrs.get('aria-pressed'),'true');
 await navigate('#assessment-admin');assert.equal($('academy-tab-admin').attrs.get('aria-pressed'),'true');assert.equal($('academy-tab-learn').attrs.get('aria-pressed'),'false');
