@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V106.94
+# Umm Abbad Academy — V106.95
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
@@ -7,6 +7,10 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - Independent HifzHelper links remain. The cancelled shared-login integration is not part of Academy.
+
+## V106.95 — Academy-branded Hifz address
+
+Academy's Hifz links use `https://hifz.maktab4life.org/` with the current account login ID. Hifz remains hosted independently and continues to use its development Worker and D1. [Hosting details](docs/HIFZ-DOMAIN-106.95.md).
 
 ## V106.94 — Account navigation on every Academy screen
 

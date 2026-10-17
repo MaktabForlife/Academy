@@ -347,14 +347,14 @@ assert.doesNotMatch($('academy-sessions').innerHTML,/data-public-join|is-open/,'
 documentHandlers.get('visibilitychange')();await flush();assert.equal(requests.length,count,'Returning to a Free public timetable does not poll');
 // HifzHelper is an ordinary personal link, scoped by stable Program identity.
 window.M4L_CONFIG.HIFZ_PROGRAM_ID='PRG-3d6b7972-644c-4f81-b95c-8d6c7ffb8227';
-window.M4L_CONFIG.HIFZHELPER_URL='https://maktab.hifz-helper.app/';
+window.M4L_CONFIG.HIFZHELPER_URL='https://hifz.maktab4life.org/';
 let personalLoginId='F1CJW7';
 window.M4L_ACADEMY_LOGIN={currentId:()=>personalLoginId};
 activity.id=window.M4L_CONFIG.HIFZ_PROGRAM_ID;activity.name='Hifz';
 publicFreeFixture=false;cacheFixture=true;globalAdmin=false;storage.set('m4l_account_token','HIFZ-SESSION');location.hash='#activity/PROGRAM/'+activity.id;
 const assertHifzPill = (target, id, current = false) => {
   const markup=$(target).innerHTML;
-  assert.ok(markup.includes(`href="https://maktab.hifz-helper.app/${id}" target="_blank" rel="noopener noreferrer"`),'The pill opens this account’s HifzHelper in a new tab');
+  assert.ok(markup.includes(`href="https://hifz.maktab4life.org/${id}" target="_blank" rel="noopener noreferrer"`),'The pill opens this account’s HifzHelper in a new tab');
   assert.ok(markup.includes(`href="#activity/PROGRAM/${activity.id}"${current ? ' aria-current="page"' : ''}`),'The Hifz Academy page remains accessible');
   assert.equal((markup.match(/>HifzHelper ↗<\/a>/g)||[]).length,1);
   assert.doesNotMatch(markup,/HIFZ-SESSION|\?token=|\?pin=/);
@@ -369,15 +369,15 @@ const assertHifzPill = (target, id, current = false) => {
 for(const role of ['STUDENT','TEACHER','PROGRAM_ADMIN']) {
   programRole=role;await refresh();
   const markup=$('activity-menu').innerHTML;
-  assert.match(markup,/href="https:\/\/maktab\.hifz-helper\.app\/F1CJW7" target="_blank" rel="noopener noreferrer"/);
+  assert.match(markup,/href="https:\/\/hifz\.maktab4life\.org\/F1CJW7" target="_blank" rel="noopener noreferrer"/);
   assert.equal((markup.match(/>HifzHelper ↗<\/a>/g)||[]).length,1);
   assert.doesNotMatch(markup,/HIFZ-SESSION|\?token=|\?pin=/);
   assertHifzPill('activity-switcher','F1CJW7',true);
 }
 globalAdmin=true;personalLoginId='ABCDEFG';await refresh();
-assert.match($('activity-menu').innerHTML,/hifz-helper\.app\/ABCDEFG/,'Global Admin inherits Hifz access');
+assert.match($('activity-menu').innerHTML,/hifz\.maktab4life\.org\/ABCDEFG/,'Global Admin inherits Hifz access');
 assertHifzPill('activity-switcher','ABCDEFG',true);
-assert.doesNotMatch($('activity-switcher').innerHTML,/hifz-helper\.app\/F1CJW7/,'The shortcut follows the current identity');
+assert.doesNotMatch($('activity-switcher').innerHTML,/hifz\.maktab4life\.org\/F1CJW7/,'The shortcut follows the current identity');
 await navigate('#activity/COURSE/COURSE-BARAKAH');assert.doesNotMatch($('activity-menu').innerHTML,/HifzHelper/,'Courses do not inherit the Hifz destination');
 assertHifzPill('activity-switcher','ABCDEFG');
 location.hash='#activity/PROGRAM/'+activity.id;globalAdmin=false;
@@ -394,7 +394,7 @@ personalLoginId='F1CJW7';activity.id='UNRELATED-PROGRAM';location.hash='#activit
 assert.doesNotMatch($('activity-menu').innerHTML,/HifzHelper/,'A matching display name does not grant Hifz access');
 assert.doesNotMatch($('activity-switcher').innerHTML,/HifzHelper/,'Only the registered Hifz Program receives a shortcut');
 activity.id=window.M4L_CONFIG.HIFZ_PROGRAM_ID;location.hash='#activity/PROGRAM/'+activity.id;await refresh();
-assert.match($('activity-menu').innerHTML,/hifz-helper\.app\/F1CJW7/);
+assert.match($('activity-menu').innerHTML,/hifz\.maktab4life\.org\/F1CJW7/);
 await navigate('#workshops');await navigate('#activity/PROGRAM/'+activity.id);
 count=fetchUrls.length;await navigate('#workshops');await navigate('#activity/PROGRAM/'+activity.id);
 await navigate('#overview');assertHifzPill('activity-switcher','F1CJW7');

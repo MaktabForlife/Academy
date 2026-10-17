@@ -11,7 +11,7 @@
     ENV_NAME:development||local?'development':'unavailable',
     API_BASE:development?'https://devrebootworker.maktab4life.workers.dev':local?window.location.origin:'',
     HIFZ_PROGRAM_ID:'PRG-3d6b7972-644c-4f81-b95c-8d6c7ffb8227',
-    HIFZHELPER_URL:'https://maktab.hifz-helper.app/',
+    HIFZHELPER_URL:'https://hifz.maktab4life.org/',
     HOSTNAME:host,IS_DEVELOPMENT:development||local,IS_PRODUCTION:false,
     isKnownProductionHost:false,isKnownDevelopmentHost:development||local
   });
