@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { runInNewContext } from 'node:vm';
 const script=await readFile(new URL('../../js/m4l-academy-navigation.js',import.meta.url),'utf8');
 const flush=async()=>{for(let i=0;i<3;i++) await new Promise(resolve=>setImmediate(resolve));};
@@ -104,9 +104,18 @@ const second={...first,dataset:{academyProgram:'next-program'},attrs:{}};
 program.children[1].querySelectorAll=()=>[first,second];
 const initialRequests=program.requests.length;program.location.search='?program=next-program';program.handlers.get('m4l-program-selection')();
 assert.equal(first.attrs['aria-current'],undefined);assert.equal(second.attrs['aria-current'],'page');assert.equal(program.requests.length,initialRequests,'Program selection updates the activity strip without another account lookup');
-for(const file of ['academy/library/index.html','academy/open-library/index.html','academy/library/manage/index.html','programs/index.html','programs/manage.html','programs/timetable.html','programs/attendance.html','users/index.html','recorder/index.html']) {
-  const html=await readFile(new URL(`../../${file}`,import.meta.url),'utf8');
-  assert.match(html,/m4l-academy-navigation\.js/);assert.match(html,/m4l-academy-navigation\.css/);assert.match(html,/m4l-academy-page-actions\.js/);assert.match(html,/m4l-academy-page-actions\.css/);
+// Discover every standalone entry point so future screens cannot omit half the shared header.
+for(const root of ['academy','account','programs','users','recorder','activities']) {
+  const files=await readdir(new URL('../../'+root+'/',import.meta.url),{recursive:true});
+  for(const name of files.filter(name=>name.endsWith('.html'))) {
+    const file=root+'/'+name,html=await readFile(new URL('../../'+file,import.meta.url),'utf8');
+    for(const asset of ['m4l-academy-mobile.js','m4l-academy-mobile.css','m4l-academy-shell.css','m4l-academy-page-actions.js','m4l-academy-page-actions.css'])assert.ok(html.includes('/'+(asset.endsWith('.js')?'js/':'css/')+asset),file+' must include '+asset);
+    if(file!=='academy/index.html') {
+      assert.match(html,/m4l-academy-navigation\.js/,file);assert.match(html,/m4l-academy-navigation\.css/,file);
+      assert.ok(html.indexOf('/js/m4l-academy-navigation.js')<html.indexOf('/js/m4l-academy-mobile.js'),file+' must initialise account navigation before the shell');
+    }
+    assert.ok(html.indexOf('/js/m4l-academy-mobile.js')<html.indexOf('/js/m4l-academy-page-actions.js'),file+' must create the shell before account controls');
+  }
 }
 console.log('Academy shared navigation: public/private links, actual subscribed IDs, all-role Library tabs, stale-response sign-out, tool coverage and standalone recorder isolation passed.');
 

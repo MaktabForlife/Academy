@@ -5,3 +5,10 @@
 
 .pr-header nav{margin-left:auto}.pr-close-reader{display:flex;align-items:center;justify-content:center;flex:none;width:44px;height:44px;border:1px solid var(--pr-line);border-radius:8px;color:var(--pr-purple);background:#fff;text-decoration:none;font:30px/1 Arial,sans-serif}.pr-close-reader:hover{background:var(--pr-bg)}
 @media(max-width:750px){.pr-header{display:grid;grid-template-columns:minmax(0,1fr) auto}.pr-brand{min-width:0}.pr-close-reader{grid-column:2;grid-row:1}.pr-header nav{grid-column:1/-1;grid-row:2;justify-content:flex-end}}
+
+/* Shared account navigation sits above the reader controls; PDFs keep the remaining viewport. */
+.pr-body.academy-shell{height:100dvh;min-height:0}
+.pr-body.academy-shell .academy-banners{flex:none}
+.pr-body.academy-shell .pr-brand{display:none}
+.pr-body.academy-shell .pr-workspace{width:100%;max-width:none;margin:0;padding:0}
+@media(max-width:750px){.pr-body.academy-shell .pr-header nav{grid-column:1;grid-row:1;justify-content:flex-start}.pr-body.academy-shell .pr-close-reader{grid-column:2;grid-row:1}}

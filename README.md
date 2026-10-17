@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V106.93
+# Umm Abbad Academy — V106.94
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
@@ -7,6 +7,10 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - Independent HifzHelper links remain. The cancelled shared-login integration is not part of Academy.
+
+## V106.94 — Account navigation on every Academy screen
+
+Enroll now, the PDF reader and the older Program Library pages now use the same second header as the rest of Academy. Home, Refresh, Sign out and the authorised LEARN/TEACH/ADMIN workspaces remain available across standalone pages. The reader keeps its PDF controls and fills the remaining viewport. [Release details](docs/ACADEMY-SHARED-HEADER-106.94.md).
 
 ## V106.93 — Enrolment tabs, visible Course actions and alphabetical Library
 
