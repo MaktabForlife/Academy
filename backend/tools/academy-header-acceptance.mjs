@@ -47,7 +47,7 @@ async function header(page,url,expected){
  if(expected.length)await page.waitForFunction(count=>document.querySelectorAll('.academy-account-bar .academy-role-tabs button:not([hidden])').length===count,expected.length);
  assert.equal(await page.locator('.academy-banners').count(),1,url+' brand header');assert.equal(await page.locator('.academy-account-bar').count(),1,url+' account header');
  assert.deepEqual(await roles(page).allTextContents(),expected,url+' workspace permissions');
- for(const selector of ['[data-page-home]','[data-page-refresh]'])assert.equal(await page.locator('.academy-account-bar '+selector).isVisible(),true,url+' '+selector);
+ for(const selector of ['[data-page-home]','[data-page-refresh]'])assert.equal(await page.locator('.academy-banners>.sidebar '+selector+',.academy-banners>.academy-connected-sidebar '+selector).isVisible(),true,url+' '+selector);
  const bounds=await page.locator('.academy-banners').boundingBox(),size=await page.evaluate(()=>({w:innerWidth,h:innerHeight,s:document.documentElement.scrollWidth}));
  assert.ok(bounds.x>=0&&bounds.x+bounds.width<=size.w+1,url+' header width');assert.ok(bounds.y>=-1&&bounds.y+bounds.height<size.h,url+' header height');
  const overflow=await page.locator('.academy-banners').evaluate(n=>n.scrollWidth>n.clientWidth+1);assert.equal(overflow,false,url+' header contents fit');

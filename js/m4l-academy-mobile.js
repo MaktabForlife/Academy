@@ -30,6 +30,11 @@
  const nav=sidebar.querySelector('nav');if(nav){nav.setAttribute('aria-label','Academy quick links');quick.append(nav);quickBlocks(nav);}
  for(const child of [...sidebar.children])if(child!==brand)child.hidden=true;
  if(document.getElementById('academy-home-card')){const dates=document.createElement('aside');dates.className='academy-date-box';dates.setAttribute('aria-label','Today’s Hijri and Gregorian dates');dates.innerHTML='<div aria-label="Hijri date"><em id="academy-hijri-date" title="Hijri date from Jamiat">Loading Hijri date…</em></div><div aria-label="Gregorian date"><time id="academy-gregorian-date"></time></div>';sidebar.append(dates);}
+ // Match Hifz's two-banner layout: identity/date together at the left;
+ // page actions join this top banner after the shared account bar is ready.
+ const identity=document.createElement('div');identity.className='academy-brand-details';identity.append(brand);
+ const dates=sidebar.querySelector('.academy-date-box');if(dates)identity.append(dates);
+ sidebar.prepend(identity);
  const strip=document.querySelector('.academy-connected-activities');if(strip)strip.hidden=true;
  document.body.classList.add('academy-mobile-layout','academy-shell');
  let data=window.M4L_ACADEMY_SHELL_DATA||null;

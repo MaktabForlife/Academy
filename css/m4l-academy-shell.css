@@ -2,7 +2,9 @@
 body.academy-shell{padding-left:0!important;--academy-gutter:clamp(12px,3vw,28px)}
 .academy-shell .app{display:block!important}
 .academy-banners{position:sticky;top:0;z-index:60;background:#fff;box-shadow:0 3px 12px #37203c10}
-.academy-shell .academy-banners>:is(.sidebar,.academy-connected-sidebar){position:static!important;inset:auto!important;display:flex!important;flex-direction:row;align-items:center;justify-content:space-between;gap:12px;width:100%!important;height:64px!important;max-height:none!important;overflow:visible!important;margin:0;padding:8px var(--academy-gutter)!important;border:0;border-bottom:1px solid #ded0e2;background:#fffcff}
+.academy-shell .academy-banners>:is(.sidebar,.academy-connected-sidebar){position:static!important;inset:auto!important;display:flex!important;flex-direction:row;align-items:center;justify-content:space-between;gap:12px;width:100%!important;height:auto!important;min-height:64px;max-height:none!important;overflow:visible!important;margin:0;padding:8px var(--academy-gutter)!important;padding-top:calc(8px + env(safe-area-inset-top,0px))!important;border:0;border-bottom:1px solid #ded0e2;background:#fffcff}
+.academy-brand-details{display:flex;align-items:center;gap:16px;min-width:0}
+.academy-brand-details>.academy-date-box{max-width:160px}
 .academy-shell :is(.brand,.academy-connected-brand){padding:0;gap:10px;text-decoration:none}
 .academy-shell :is(.brand,.academy-connected-brand) img{height:40px;width:40px}
 .academy-shell :is(.brand,.academy-connected-brand) strong{font:400 16px/1.06 Georgia,serif}
@@ -63,6 +65,7 @@ body.academy-shell{padding-left:0!important;--academy-gutter:clamp(12px,3vw,28px
 @keyframes academy-slide-right{from{transform:translateX(100%)}to{transform:translateX(0)}}
 @keyframes academy-slide-left{from{transform:translateX(-100%)}to{transform:translateX(0)}}
 @media(min-width:901px){.academy-shell .academy-account-bar{display:flex;align-items:center;gap:20px}.academy-shell .academy-account-row{flex:1}.academy-shell .academy-role-tabs{width:auto;min-width:290px;margin:0}.academy-shell .academy-role-tabs button{min-width:88px}}
+@media(max-width:800px){.academy-shell .academy-banners>:is(.sidebar,.academy-connected-sidebar){flex-wrap:wrap;gap:8px}.academy-brand-details{flex-basis:100%;justify-content:space-between;gap:12px}.academy-brand-details>.academy-date-box{max-width:48%}}
 @media(prefers-reduced-motion:reduce){.academy-drawer[open]{animation:none}}
 .academy-shell #activity-menu{gap:4px;margin-bottom:8px}
 .academy-shell #activity-schedule{margin-top:0}

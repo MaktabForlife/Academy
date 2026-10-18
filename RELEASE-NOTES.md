@@ -1,3 +1,12 @@
+# V107.3 — Header layout aligned with Hifz
+
+Branding and dates share the left of the top banner; Home, Refresh and Login/Sign
+out sit on the right. The second banner contains the profile and existing role
+navigation. Academy has no Zoom control. Shared scripts preserve page actions and
+their draft guards across standalone tools. Updated header assets use V107.3 cache
+keys; the matching Development Worker changes only its health version. No database,
+credential, profile or Hifz changes. [Verification](docs/ACADEMY-HEADERS-107.3.md).
+
 # V106.82 — Development Academy cleanup
 
 Promote V106.81 Academy features to the existing `development` branch and remove the unused legacy application, Google backend clients, private Drive handlers, old upload bridge, isolated feature packager and legacy deployment target.

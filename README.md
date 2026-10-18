@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V107.2
+# Umm Abbad Academy — V107.3
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
@@ -7,6 +7,14 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - HifzHelper keeps its separate Worker and D1; Academy provides profile and PIN updates plus a short-lived sign-in handoff.
+
+## V107.3 — Header layout aligned with Hifz
+
+The top banner groups Academy branding and dates on the left and Home, Refresh,
+Login/Sign out on the right. The second banner keeps the profile and authorised
+LEARN/TEACH/ADMIN navigation. Academy has no Zoom button. The shared layout applies
+to the main site and connected tools, including phones. Development only; no PIN,
+profile, database or Hifz changes. [Release details](docs/ACADEMY-HEADERS-107.3.md).
 
 ## V107.2 — Hifz production and separate development entry
 
