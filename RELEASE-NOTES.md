@@ -1,3 +1,7 @@
+# V107.4 — Library refresh
+
+Fix shared-header Refresh delegating to CSS-hidden controls on the active visible page. The public Library now replaces its weekly browser snapshot on explicit Refresh, allowing new Archive resources to appear immediately. Hidden/inactive panels, disabled actions and existing draft guards retain their checks. No Library records, assignments, database schema or storage identities change. [Verification](docs/ACADEMY-LIBRARY-REFRESH-107.4.md).
+
 # V107.3 — Header layout aligned with Hifz
 
 Branding and dates share the left of the top banner; Home, Refresh and Login/Sign

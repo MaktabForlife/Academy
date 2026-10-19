@@ -36,7 +36,8 @@
     if(await window.M4L_ACADEMY_ASSESSMENTS?.refreshPage?.())return;
     const contentRefresh=[...document.querySelectorAll('main [data-page-content-refresh]')].find(button=>{
       const view=button.closest('.view');
-      return button.getClientRects().length>0&&!button.hidden&&!button.parentElement?.closest('[hidden]')&&(!view||view.classList.contains('active'));
+      // The shell hides duplicate refresh buttons with CSS; their visible page still owns the action.
+      return button.parentElement?.getClientRects().length>0&&!button.hidden&&!button.parentElement.closest('[hidden]')&&(!view||view.classList.contains('active'));
     });
     // Reuse the page's refresh action, including draft guards, selected dates and cache invalidation.
     if(contentRefresh){contentRefresh.click();return;}
