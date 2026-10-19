@@ -1,18 +1,18 @@
 import {PDF_TOOL_DEFAULTS,normalizePdfTools} from './m4l-pdf-tools-model.mjs?v=106.49';
 import {publicPdfFile} from './m4l-pdf-bookmarks-model.mjs?v=106.82';
 import {academyBookmarks} from './m4l-pdf-bookmarks.mjs?v=106.82';
-const $=id=>document.getElementById(id),query=new URLSearchParams(location.search),mobile=matchMedia('(max-width:750px)');
+const $=id=>document.getElementById(id),query=new URLSearchParams(location.search),mobile=matchMedia('(max-width:750px)'),wide=matchMedia('(min-width:1280px)');
 const panes=[0,1].map(index=>({index,element:$('pr-pane-'+index),choices:{},frame:null,loaded:false,file:'',title:'',page:0,mode:'books',drawerGeneration:0}));
 let defaults={...PDF_TOOL_DEFAULTS},split=false,active=0,ratio=50,catalogue=null,cataloguePromise=null,ready=false;
-const status=text=>{$('pr-status').textContent=text;},part=(pane,selector)=>pane.element.querySelector(selector);
+const status=text=>{$('pr-status').textContent=text;},part=(pane,selector)=>pane.element.querySelector(selector)||pane.header?.querySelector(selector);
 function proxy(url){const file=publicPdfFile('/pdf-file/'+btoa(String.fromCharCode(...new TextEncoder().encode(url))).replaceAll('+','-').replaceAll('/','_').replaceAll('=',''));if(!file)throw Error('This PDF source is unavailable.');return file;}
-function updateBookmarkButtons(pane){for(const button of pane.element.querySelectorAll('[data-save-book],[data-save-page]'))button.disabled=!pane.loaded||!pane.file;part(pane,'[data-save-page]').textContent=pane.page?'Bookmark page '+(pane.pageLabel||pane.page):'Bookmark page';}
+function updateBookmarkButtons(pane){for(const button of pane.header.querySelectorAll('[data-save-book],[data-save-page]'))button.disabled=!pane.loaded||!pane.file;part(pane,'[data-save-page]').textContent=pane.page?'Bookmark page '+(pane.pageLabel||pane.page):'Bookmark page';}
 window.M4L_PDF_READER={
  settings:index=>({...defaults,...panes[Number(index)]?.choices}),
  remember:(index,changes)=>{const pane=panes[Number(index)];if(pane)try{pane.choices=normalizePdfTools({...defaults,...pane.choices,...changes},{session:true});}catch{}},
  location:(index,source,position)=>{const pane=panes[Number(index)];if(!pane||source!==pane.frame?.contentWindow||!pane.file||publicPdfFile(position.file)!==pane.file)return;pane.loaded=true;pane.page=position.page;pane.pageLabel=position.pageLabel||'';updateBookmarkButtons(pane);}
 };
-document.addEventListener('webviewerloaded',event=>{const source=event.detail?.source,pane=panes.find(item=>item.frame?.contentWindow===source);if(pane){const settings=window.M4L_PDF_READER.settings(pane.index);source.PDFViewerApplicationOptions.set('highlightEditorColors',`Academy=${settings.highlightColor},yellow=#FFFF98,green=#53FFBC,blue=#80EBFF,pink=#FFCBE6,red=#FF4F5F`);}});
+document.addEventListener('webviewerloaded',event=>{const source=event.detail?.source,pane=panes.find(item=>item.frame?.contentWindow===source);if(pane){const settings=window.M4L_PDF_READER.settings(pane.index);source.addEventListener('keydown',readerKeydown);source.PDFViewerApplicationOptions.set('highlightEditorColors',`Academy=${settings.highlightColor},yellow=#FFFF98,green=#53FFBC,blue=#80EBFF,pink=#FFCBE6,red=#FF4F5F`);}});
 function changed(pane){try{return Boolean(pane.frame.contentWindow.PDFViewerApplication?._annotationStorageModified);}catch{return false;}}
 function libraryReturn(){
  if(query.get('library')==='public')return '/academy/open-library/';
@@ -22,8 +22,30 @@ function libraryReturn(){
 }
 $('pr-close-reader').href=libraryReturn();
 function canReplace(pane){return !changed(pane)||confirm('This PDF has unsaved annotations. Download a copy before replacing it. Continue?');}
-function setActive(index){active=index;for(const pane of panes){pane.element.classList.toggle('is-active',pane.index===index);$('pr-tab-'+pane.index).setAttribute('aria-selected',String(pane.index===index));$('pr-tab-'+pane.index).tabIndex=pane.index===index?0:-1;}focusLabels();}
+function setActive(index){active=index;for(const pane of panes){pane.element.classList.toggle('is-active',pane.index===index);$('pr-tab-'+pane.index).setAttribute('aria-selected',String(pane.index===index));$('pr-tab-'+pane.index).tabIndex=pane.index===index?0:-1;}focusLabels();syncToolbar();}
 function focusLabels(){const focused=$('pr-workspace').classList.contains('is-focused'),button=$('pr-focus');button.textContent=focused?'Restore split':'Focus';button.disabled=!split;button.setAttribute('aria-pressed',String(focused));button.setAttribute('aria-label',focused?'Restore split page':'Focus PDF '+(active+1));}
+// Move controls, never the PDF frames, so reading position and annotations survive layout changes.
+function syncToolbar(){
+ const host=$('pr-active-tools'),header=host.closest('.pr-header'),tabs=$('pr-tabs');
+ document.body.classList.toggle('pr-wide-toolbar',wide.matches);
+ for(const pane of panes){
+  if(!pane.header)continue;
+  const parent=wide.matches&&pane.index===active?host:pane.element;
+  if(pane.header.parentElement!==parent){if(parent===host)parent.append(pane.header);else parent.prepend(pane.header);}
+ }
+ if(wide.matches){if(tabs.parentElement!==header)header.insertBefore(tabs,host);}
+ else if(tabs.parentElement!==document.body)document.body.insertBefore(tabs,$('pr-status'));
+ host.setAttribute('aria-label','PDF '+(active+1)+' controls');
+}
+function fullScreen(enabled){
+ document.body.classList.toggle('pr-fullscreen',enabled);
+ const button=$('pr-fullscreen');button.setAttribute('aria-pressed',String(enabled));
+ button.textContent=enabled?'Exit full screen':'Full screen';
+ button.setAttribute('aria-label',enabled?'Exit full screen: show Academy headers':'Full screen: hide Academy headers');
+}
+function readerKeydown(event){
+ if(event.key==='Escape'&&!event.defaultPrevented&&document.body.classList.contains('pr-fullscreen')&&!document.querySelector('dialog[open]')){event.preventDefault();fullScreen(false);$('pr-fullscreen').focus();}
+}
 function closeDrawer(pane){pane.drawerGeneration++;part(pane,'[data-drawer]').hidden=true;part(pane,'[data-library]').focus();}
 function layout(){const work=$('pr-workspace');work.classList.toggle('is-split',split);$('pr-divider').hidden=!split;$('pr-tabs').hidden=!split;$('pr-pane-1').hidden=!split;$('pr-both').hidden=!split||!mobile.matches;$('pr-split').setAttribute('aria-pressed',String(split));$('pr-divider').setAttribute('aria-orientation',mobile.matches?'horizontal':'vertical');focusLabels();if(!mobile.matches)work.classList.remove('show-both');$('pr-both').setAttribute('aria-pressed',String(work.classList.contains('show-both')));}
 function setRatio(value){ratio=Math.max(20,Math.min(80,value));document.documentElement.style.setProperty('--pr-ratio',ratio+'%');$('pr-divider').setAttribute('aria-valuenow',String(Math.round(ratio)));}
@@ -31,7 +53,7 @@ function volumeSelector(pane){
  const row=(catalogue||[]).find(row=>row.file===pane.file),select=part(pane,'[data-volume]');select.replaceChildren();
  const volumes=row?catalogue.filter(item=>item.bookId===row.bookId):[];part(pane,'[data-volume-wrap]').hidden=volumes.length<2;
  for(const volume of volumes){const option=document.createElement('option');option.value=volume.file;option.textContent=volume.volumeLabel;select.append(option);}select.value=pane.file;
- if(row){pane.title=row.title;part(pane,'[data-title]').textContent=row.title;}
+ if(row){pane.title=row.title;part(pane,'[data-title]').textContent=row.title;}part(pane,'[data-title]').title=pane.title;
 }
 function updateAddress(pane,page){if(pane.index!==0||!pane.file)return;const params=new URLSearchParams({file:pane.file,title:pane.title});if(['public','personal'].includes(query.get('library')))params.set('library',query.get('library'));if(page)params.set('page',String(page));history.replaceState(null,'','/academy/pdf-reader/?'+params);}
 function openFile(pane,file,title,check=true,page=0){
@@ -96,6 +118,7 @@ async function saveBookmark(pane,page,button){
 }
 for(const pane of panes){
  pane.element.innerHTML=`<header class="pr-pane-header"><div class="pr-heading"><div class="pr-title-row"><h1 class="pr-pane-title" data-title>PDF ${pane.index+1}</h1><div class="pr-bookmark-tools"><button type="button" data-save-book disabled>Save book</button><button type="button" data-save-page disabled>Bookmark page</button></div></div><label class="pr-volume" data-volume-wrap hidden>Volume <select data-volume aria-label="Choose volume for PDF ${pane.index+1}"></select></label></div><div class="pr-pane-tools"><button type="button" data-library>Library</button><button type="button" data-device>Open file</button></div><input type="file" accept="application/pdf,.pdf" data-file hidden></header><iframe title="PDF ${pane.index+1} reader" data-frame></iframe><p class="pr-empty" data-empty>Choose Library or Open file to read a PDF.</p><aside class="pr-drawer" data-drawer aria-label="Library and bookmarks for PDF ${pane.index+1}" hidden><div class="pr-drawer-head"><h2>Academy Library</h2><button type="button" data-close aria-label="Close Library drawer">Close</button></div><nav class="pr-drawer-tabs" aria-label="Books and bookmarks"><button type="button" data-drawer-mode="books" aria-pressed="true">Books &amp; volumes</button><button type="button" data-drawer-mode="bookmarks" aria-pressed="false">My bookmarks</button></nav><label>Search<input type="search" data-search placeholder="Title, volume or page" autocomplete="off"></label><button type="button" data-refresh>↻ Refresh</button><p class="pr-drawer-note" data-note></p><a href="/academy/" target="_blank" rel="noopener" class="pr-sign-in" data-sign-in>Academy home / Sign in ↗</a><div class="pr-book-list" data-books></div></aside>`;
+ pane.header=part(pane,'.pr-pane-header');pane.header.id='pr-controls-'+pane.index;pane.header.addEventListener('pointerdown',()=>setActive(pane.index));
  pane.frame=part(pane,'[data-frame]');part(pane,'[data-library]').onclick=()=>void drawer(pane);
  part(pane,'[data-refresh]').onclick=()=>void drawer(pane,pane.mode,true);part(pane,'[data-search]').oninput=()=>pane.mode==='books'?renderBooks(pane):renderBookmarks(pane);
  for(const button of pane.element.querySelectorAll('[data-drawer-mode]'))button.onclick=()=>void drawer(pane,button.dataset.drawerMode);
@@ -110,6 +133,9 @@ for(const pane of panes){
   catch{status('This PDF could not be opened. Choose another file.');}finally{event.target.value='';}
  };
 }
+syncToolbar();wide.addEventListener('change',syncToolbar);
+$('pr-fullscreen').onclick=()=>fullScreen(!document.body.classList.contains('pr-fullscreen'));
+window.addEventListener('keydown',readerKeydown);
 $('pr-volume-cancel').onclick=()=>$('pr-volume-dialog').close();
 $('pr-bookmarks').onclick=()=>void drawer(panes[active],'bookmarks');
 window.addEventListener('m4l-pdf-bookmarks-change',()=>{for(const pane of panes)if(pane.mode==='bookmarks'&&!part(pane,'[data-drawer]').hidden){pane.drawerGeneration++;renderBookmarks(pane);}});

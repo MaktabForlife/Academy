@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V107.4
+# Umm Abbad Academy — V107.5
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
@@ -7,6 +7,10 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - HifzHelper keeps its separate Worker and D1; Academy provides profile and PIN updates plus a short-lived sign-in handoff.
+
+## V107.5 — Compact PDF toolbar and full screen
+
+Large screens put the current PDF’s title, volume, bookmarks and file controls in one row with the reader actions. **Full screen** hides both Academy headers and restores them with **Exit full screen** or Escape. Reading position, annotations and split panes remain in place. [Release details](docs/ACADEMY-PDF-TOOLBAR-107.5.md).
 
 ## V107.4 — Header Refresh updates the Library catalogue
 
