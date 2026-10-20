@@ -4119,9 +4119,29 @@ class AnnotationEditorParams {
         value
       });
     };
-    editorFreeTextFontSize.addEventListener("input", function () {
-      dispatchEvent("FREETEXT_SIZE", this.valueAsNumber);
-    });
+    const bindNumber = (input, type) => {
+      let lastValue = input.valueAsNumber;
+      input.addEventListener("input", function () {
+        // Number fields can be temporarily empty or outside the allowed range.
+        if (!this.validity.valid || !Number.isFinite(this.valueAsNumber)) {
+          return;
+        }
+        lastValue = this.valueAsNumber;
+        dispatchEvent(type, lastValue);
+      });
+      input.addEventListener("blur", function () {
+        if (!this.validity.valid || !Number.isFinite(this.valueAsNumber)) {
+          this.value = lastValue;
+        }
+      });
+      return value => {
+        input.value = value;
+        lastValue = value;
+      };
+    };
+    const updateFreeTextSize = bindNumber(editorFreeTextFontSize, "FREETEXT_SIZE");
+    const updateInkThickness = bindNumber(editorInkThickness, "INK_THICKNESS");
+    const updateHighlightThickness = bindNumber(editorFreeHighlightThickness, "HIGHLIGHT_THICKNESS");
     editorFreeTextColor.addEventListener("input", function () {
       dispatchEvent("FREETEXT_COLOR", this.value);
     });
@@ -4169,9 +4189,6 @@ class AnnotationEditorParams {
         editorInkOpacity.value = value;
       };
     }
-    editorInkThickness.addEventListener("input", function () {
-      dispatchEvent("INK_THICKNESS", this.valueAsNumber);
-    });
     editorStampAddImage.addEventListener("click", () => {
       eventBus.dispatch("reporttelemetry", {
         source: this,
@@ -4183,9 +4200,6 @@ class AnnotationEditorParams {
         }
       });
       dispatchEvent("CREATE");
-    });
-    editorFreeHighlightThickness.addEventListener("input", function () {
-      dispatchEvent("HIGHLIGHT_THICKNESS", this.valueAsNumber);
     });
     editorHighlightShowAll.addEventListener("click", function () {
       const checked = this.getAttribute("aria-pressed") === "true";
@@ -4199,7 +4213,7 @@ class AnnotationEditorParams {
       for (const [type, value] of evt.details) {
         switch (type) {
           case AnnotationEditorParamsType.FREETEXT_SIZE:
-            editorFreeTextFontSize.value = value;
+            updateFreeTextSize(value);
             break;
           case AnnotationEditorParamsType.FREETEXT_COLOR:
             editorFreeTextColor.value = value;
@@ -4208,7 +4222,7 @@ class AnnotationEditorParams {
             updateInkColor(value);
             break;
           case AnnotationEditorParamsType.INK_THICKNESS:
-            editorInkThickness.value = value;
+            updateInkThickness(value);
             break;
           case AnnotationEditorParamsType.INK_OPACITY:
             updateInkOpacity(value);
@@ -4220,7 +4234,7 @@ class AnnotationEditorParams {
             });
             break;
           case AnnotationEditorParamsType.HIGHLIGHT_THICKNESS:
-            editorFreeHighlightThickness.value = value;
+            updateHighlightThickness(value);
             break;
           case AnnotationEditorParamsType.HIGHLIGHT_FREE:
             editorFreeHighlightThickness.disabled = !value;

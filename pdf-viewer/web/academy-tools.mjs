@@ -1,4 +1,4 @@
-import {PDFViewerApplication as app} from './viewer.mjs?v=106.49';
+import {PDFViewerApplication as app} from './viewer.mjs?v=107.6';
 import {AnnotationEditorParamsType as types} from '../build/pdf.mjs?v=106.49';
 import {PDF_TOOL_DEFAULTS,normalizePdfTools} from '../../js/m4l-pdf-tools-model.mjs?v=106.49';
 if(new URLSearchParams(location.search).get('academy')==='1'){

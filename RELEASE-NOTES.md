@@ -1,3 +1,7 @@
+# V107.6 — Numeric PDF annotation controls
+
+Replace the PDF.js text-size, line-thickness and freehand highlighter-thickness sliders with number fields and native step controls. Preserve their ranges of 5–100, 1–20 and 8–24 respectively. Temporary empty, fractional or out-of-range entries never reach the annotation editor and revert to the last valid value on blur. Verify direct entry, keyboard stepping, drawn/typed annotations, saved PDF sizes and phone layout. Development only; no database or content changes.
+
 # V107.5 — PDF toolbar and full screen
 
 Combine reader and selected-PDF controls in one row on large screens. Full screen hides the Academy brand and account headers, with a persistent exit button and Escape support. The PDF frames stay mounted, preserving reading position and annotations through header toggles and responsive layout changes. Phone layouts retain compact pane controls. [Verification](docs/ACADEMY-PDF-TOOLBAR-107.5.md).

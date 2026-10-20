@@ -45,9 +45,9 @@ See https://github.com/adobe-type-tools/cmap-resources
 
     <link rel="stylesheet" href="viewer.css" />
 
-  <script src="viewer.mjs?v=106.49" type="module"></script>
-  <link rel="stylesheet" href="academy-tools.css?v=106.49" />
-  <script src="academy-tools.mjs?v=106.82" type="module"></script>
+  <script src="viewer.mjs?v=107.6" type="module"></script>
+  <link rel="stylesheet" href="academy-tools.css?v=107.6" />
+  <script src="academy-tools.mjs?v=107.6" type="module"></script>
   </head>
 
   <body tabindex="0">
@@ -442,16 +442,18 @@ See https://github.com/adobe-type-tools/cmap-resources
                             class="editorParamsLabel"
                             data-l10n-id="pdfjs-editor-free-highlight-thickness-input"
                           ></label>
-                          <div class="thicknessPicker">
+                          <div class="editorParamsNumberPicker">
                             <input
-                              type="range"
+                              type="number"
                               id="editorFreeHighlightThickness"
-                              class="editorParamsSlider"
+                              class="editorParamsNumber"
                               data-l10n-id="pdfjs-editor-free-highlight-thickness-title"
                               value="12"
                               min="8"
                               max="24"
                               step="1"
+                              inputmode="numeric"
+                              required
                               tabindex="0"
                             />
                           </div>
@@ -495,7 +497,7 @@ See https://github.com/adobe-type-tools/cmap-resources
                         </div>
                         <div class="editorParamsSetter">
                           <label for="editorFreeTextFontSize" class="editorParamsLabel" data-l10n-id="pdfjs-editor-free-text-size-input"></label>
-                          <input type="range" id="editorFreeTextFontSize" class="editorParamsSlider" value="10" min="5" max="100" step="1" tabindex="0" />
+                          <input type="number" id="editorFreeTextFontSize" class="editorParamsNumber" value="10" min="5" max="100" step="1" inputmode="numeric" required title="Text size in points (5–100)" tabindex="0" />
                         </div>
                       </div>
                     </div>
@@ -522,7 +524,7 @@ See https://github.com/adobe-type-tools/cmap-resources
                         </div>
                         <div class="editorParamsSetter">
                           <label for="editorInkThickness" class="editorParamsLabel" data-l10n-id="pdfjs-editor-ink-thickness-input"></label>
-                          <input type="range" id="editorInkThickness" class="editorParamsSlider" value="1" min="1" max="20" step="1" tabindex="0" />
+                          <input type="number" id="editorInkThickness" class="editorParamsNumber" value="1" min="1" max="20" step="1" inputmode="numeric" required tabindex="0" />
                         </div>
                         <div class="editorParamsSetter">
                           <label for="editorInkOpacity" class="editorParamsLabel" data-l10n-id="pdfjs-editor-ink-opacity-input"></label>

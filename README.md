@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V107.5
+# Umm Abbad Academy — V107.6
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
@@ -7,6 +7,10 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - HifzHelper keeps its separate Worker and D1; Academy provides profile and PIN updates plus a short-lived sign-in handoff.
+
+## V107.6 — Numeric PDF annotation controls
+
+PDF.js now uses number fields for text size (5–100 points), line thickness (1–20) and freehand highlighter thickness (8–24), with up/down arrows for small adjustments. Empty or invalid entries restore the last valid value when leaving the field. Existing annotations, split panes and downloads retain their behaviour.
 
 ## V107.5 — Compact PDF toolbar and full screen
 
