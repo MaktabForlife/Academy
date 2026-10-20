@@ -175,7 +175,14 @@
     const bad=new Set([...(result.issues||[]).map(i=>i.rowId),...(result.conflicts||[]).flatMap(c=>c.rowIds)]);document.querySelectorAll('[data-row]').forEach(row=>row.classList.toggle('tt-row-bad',bad.has(row.dataset.row)));
     planner?.showIssues(result);
   }
-  $('tt-validation').onclick=event=>{const id=event.target.closest?.('[data-open-issue]')?.dataset.openIssue;if(id)planner?.openIssue(id);};
+  $('tt-validation').onclick=async event=>{
+    const id=event.target.closest?.('[data-open-issue]')?.dataset.openIssue;if(!id)return;
+    // A modal inside the hidden planning board still blocks the whole document.
+    // Reveal its workspace before opening the lesson, retaining the current draft.
+    const admin=window.M4L_PROGRAM_ADMIN;
+    if(admin){await admin.openTab('timetable');if(admin.tab()!=='timetable')return;}
+    planner?.openIssue(id);
+  };
   function audienceRows(result,type){
     const rows=new Map();
     for(const row of result.occurrences.filter(row=>row.kind!=='BREAK')){
