@@ -3,7 +3,7 @@ import {assessmentFixture} from './academy-assessment-fixture.mjs';
 import {MOU_MEDIA_PROGRAM} from '../../src/academy/d1/lesson-media.js';
 import worker from '../../src/academy-runtime.js';
 import {createHash} from 'node:crypto';
-export async function mediaFixture(){
+export async function mediaFixture({upgrade=true}={}){
  const f=await assessmentFixture(),scope=MOU_MEDIA_PROGRAM;
  f.db.exec(readFileSync(new URL('../../migrations/academy/0017_lesson_media.sql',import.meta.url),'utf8'));
  f.db.prepare("INSERT INTO activities(activity_key,activity_id,kind,name,active,lifecycle,website_visible) VALUES(?,?,'PROGRAM','Mothers of the Ummah',1,'ACTIVE',1)").run(scope,scope.slice(8));
@@ -17,8 +17,9 @@ export async function mediaFixture(){
   f.db.prepare("INSERT INTO lesson_media_assets(asset_id,activity_key,kind,youtube_id,created_at) VALUES(?,?,'YOUTUBE',?,'2026-10-10T00:00:00Z')").run('video-'+day,scope,['9IuTDcSs6vQ','ujm0T_jZd0U','CZPSPSG85NQ'][day-6]);
   f.db.prepare('INSERT INTO lesson_media_links VALUES(?,?)').run(id,'video-'+day);
  }
+ if(upgrade){f.db.exec('BEGIN');f.db.exec(readFileSync(new URL('../../migrations/academy/0030_session_lesson_media.sql',import.meta.url),'utf8'));f.db.exec('COMMIT');}
  f.env.LESSON_MEDIA_BUCKET=f.env.ASSESSMENT_BUCKET;
- f.media=async(action,input={},token='')=>{const response=await worker.fetch(new Request('http://localhost/api/academy/lesson-media/'+action,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),f.env);return {status:response.status,body:response.headers.get('content-type')==='application/pdf'?await response.text():await response.json(),headers:response.headers};};
+ f.media=async(action,input={},token='')=>{const response=await worker.fetch(new Request('http://localhost/api/academy/lesson-media/'+action,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify({...(!input.lessonId?{activityKey:scope}:{}),...input})}),f.env);return {status:response.status,body:response.headers.get('content-type')==='application/pdf'?await response.text():await response.json(),headers:response.headers};};
  f.mediaUpload=async(input,token,bytes=Buffer.from('%PDF-1.4\n% demo notes\n%%EOF'))=>{
   const metadata={lessonId:'MOU-20261006',revision:1,size:bytes.length,filename:'notes.pdf',sha256:createHash('sha256').update(bytes).digest('hex'),operationId:crypto.randomUUID(),...input};
   const response=await worker.fetch(new Request('http://localhost/api/academy/lesson-media/upload?metadata='+encodeURIComponent(JSON.stringify(metadata)),{method:'POST',headers:{Authorization:'Bearer '+token},body:bytes}),f.env);return {status:response.status,body:await response.json(),metadata};

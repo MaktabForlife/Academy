@@ -357,7 +357,7 @@
     const staff = Boolean(state.home?.globalAdmin || staffRoles(row.roles || []));
     const mode = explicit ? parts[3] === 'teach' && staff ? 'teach' : 'learn' : staff ? 'teach' : 'learn';
     const requested = (explicit ? parts[4] : parts[3]) || 'timetable';
-    const tools = mode === 'teach' ? ['timetable','attendance','planning','assessment','library','surahs-duas'] : ['timetable','assessment','library'];
+    const tools = mode === 'teach' ? ['timetable','attendance','planning','assessment','lesson-media','library','surahs-duas'] : ['timetable','assessment','lesson-media','library'];
     const tool = tools.includes(requested) ? requested : 'timetable';
     return {mode,tool,explicit,staff};
   }
@@ -434,8 +434,8 @@
   function roleTools(row) {
     if (!row.id) return catalogueTools(row);
     const context = workspaceContext(row), tools = context.mode === 'teach'
-      ? [['timetable','Timetable','activity-schedule'],['attendance','Attendance',row.kind === 'COURSE' ? 'activity-planning' : 'pa-main'],['planning','Planning','activity-planning'],['assessment','Assessment','as-panel'],['library','Library','activity-library']]
-      : [['timetable','Timetable','activity-schedule'],['assessment','Assessment','as-panel'],['library','Library','activity-library']];
+      ? [['timetable','Timetable','activity-schedule'],['attendance','Attendance',row.kind === 'COURSE' ? 'activity-planning' : 'pa-main'],['planning','Planning','activity-planning'],['assessment','Assessment','as-panel'],['lesson-media','Lesson media','activity-lesson-media'],['library','Library','activity-library']]
+      : [['timetable','Timetable','activity-schedule'],['assessment','Assessment','as-panel'],['lesson-media','Lesson media','activity-lesson-media'],['library','Library','activity-library']];
     return `<nav class="workspace-tabs" aria-label="${context.mode === 'teach' ? 'Teach' : 'Learn'} tools" role="tablist">${tools.map(([key,label,panel]) => `<a id="activity-tab-${key}" role="tab" href="${key==='library'?'/academy/library/':workspaceHref(row,key)}" aria-controls="${panel}" aria-selected="${context.tool === key}" tabindex="${context.tool === key ? 0 : -1}">${label}</a>`).join('')}</nav>${hifzHelperLink(row,'workspace-helper')}`;
   }
   function supportSections(row, mode) {
@@ -764,8 +764,8 @@
       syncWorkspace(row);
       revealWorkspaceTab();
       const mediaContext=workspaceContext(row);
-      if(mediaContext.tool === 'timetable'&&location.hash.startsWith('#activity/')&&row.kind==='PROGRAM'&&row.id===window.M4L_LESSON_MEDIA?.programId&&result.signedIn&&!row.unavailable&&row.roles.length)
-        window.M4L_LESSON_MEDIA.open({hostId:'mou-lesson-media',programId:row.id,learnerView:mediaContext.mode==='learn'});
+      if(mediaContext.tool === 'lesson-media'&&location.hash.startsWith('#activity/')&&result.signedIn&&!row.unavailable&&row.roles.length)
+        window.M4L_LESSON_MEDIA.open({hostId:'activity-lesson-media',activityKey:row.kind+':'+row.id,learnerView:mediaContext.mode==='learn'});
       else window.M4L_LESSON_MEDIA?.reset();
       if(restoreMemorisation){const saved=restoreMemorisation;restoreMemorisation=null;$('activity-sessions').scrollLeft=saved.left;window.requestAnimationFrame?.(()=>window.scrollTo?.(0,saved.top));}
     } catch (error) {

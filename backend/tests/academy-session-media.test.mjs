@@ -1,0 +1,66 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {mediaFixture} from './fixtures/academy-lesson-media-fixture.mjs';
+import {attendanceProgramId} from './fixtures/academy-attendance-fixture.mjs';
+const scope='PROGRAM:'+attendanceProgramId,period={startDate:'2026-10-01',endDate:'2026-10-31'};
+const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
+async function use(fn){const f=await mediaFixture();f.env.AUTH_LOGIN_RATE_LIMITER={limit:async()=>({success:true})};try{await fn(f);assert.deepEqual(f.db.prepare('PRAGMA foreign_key_check').all(),[]);assert.equal(f.db.prepare('SELECT count(*) n FROM academy_write_guards').get().n,0);}finally{f.db.close();}}
+const create=(f,token,session,activityKey=scope,extra={})=>f.media('create',{activityKey,...period,sessionKey:session.sessionKey,sessionVersion:session.sessionVersion,operationId:crypto.randomUUID(),...extra},token);
+const save=(lessonId,extra={})=>({lessonId,operationId:crypto.randomUUID(),revision:1,title:'Session recordings and notes',summary:'Prepared lesson notes',recordingUrls:['https://youtu.be/9IuTDcSs6vQ','https://youtu.be/ujm0T_jZd0U'],state:'PUBLISHED',commentsClosed:false,...extra});
+test('Program session media is scoped, starts as draft, retries exactly and never duplicates a session',()=>use(async f=>{
+ const admin=await f.login('0001'),teacher=await f.login('0003'),student=await f.login('0002'),other=await f.login('0006');
+ const sessions=ok(await f.media('sessions',{activityKey:scope,...period},admin)).sessions;assert(sessions.length);assert(sessions.every(s=>s.sessionKey&&!JSON.stringify(s).includes('zoom.us')));
+ assert.equal((await f.media('sessions',{activityKey:scope,...period},student)).status,403);
+ assert.equal((await f.media('sessions',{activityKey:scope,...period},other)).status,403);
+ const own=ok(await f.media('sessions',{activityKey:scope,...period},teacher)).sessions;assert(own.every(s=>s.teacherIds.includes('account-0003')));
+ const input={activityKey:scope,...period,sessionKey:sessions[0].sessionKey,sessionVersion:sessions[0].sessionVersion,operationId:crypto.randomUUID()},created=ok(await f.media('create',input,admin));
+ assert.equal(ok(await f.media('create',input,admin)).replayed,true);assert.equal(ok(await create(f,admin,sessions[0])).lessonId,created.lessonId);
+ assert.equal(ok(await f.media('list',{activityKey:scope},student)).lessons.length,0);
+ assert.equal(f.db.prepare('SELECT state FROM lesson_media_lessons WHERE lesson_id=?').get(created.lessonId).state,'DRAFT');
+ assert.equal((await create(f,admin,{...sessions[0],sessionVersion:'stale'})).status,409);
+ assert.equal((await f.media('get',{activityKey:'PROGRAM:unrelated',lessonId:created.lessonId},admin)).status,403);
+ ok(await f.media('save',save(created.lessonId),admin));
+ const row=ok(await f.media('list',{activityKey:scope},student)).lessons[0];assert.equal(row.assets.length,2);assert.equal(row.canManage,false);assert.equal(row.canView,true);assert.doesNotMatch(JSON.stringify(row),/youtube|youtu\.be|object_key/);
+ assert.equal((await f.media('get',{lessonId:created.lessonId},other)).status,403);
+}));
+test('Program learners see only their classes; revoking membership closes cached PDF/video references',()=>use(async f=>{
+ const admin=await f.login('0001'),student=await f.login('0002');
+ const sessions=ok(await f.media('sessions',{activityKey:scope,...period},admin)).sessions,selected=sessions.find(s=>s.classIds.includes('class-1'));
+ const id=ok(await create(f,admin,selected)).lessonId;ok(await f.media('save',save(id),admin));const upload=ok(await f.mediaUpload({lessonId:id,revision:2},admin));
+ assert.equal((await f.media('download',{lessonId:id,assetId:upload.assetId},student)).status,200);
+ f.db.prepare('UPDATE class_memberships SET active=0 WHERE activity_key=? AND account_id=?').run(scope,'account-0002');
+ assert.equal(ok(await f.media('list',{activityKey:scope},student)).lessons.length,0);
+ assert.equal((await f.media('download',{lessonId:id,assetId:upload.assetId},student)).status,403);
+}));
+test('Course media attaches to a saved session without a Program class and remains while enrolled',()=>use(async f=>{
+ const admin=await f.login('0001'),student=await f.login('0002'),teacher=await f.login('0003');
+ const details={name:'Permanent Course',categoryKey:'',accessModel:'PAID',timezone:'Africa/Johannesburg',weekdays:[1],startDate:'2026-09-21',endDate:'2026-09-21',startTime:'12:00',endTime:'13:00',teacherId:'account-0003',zoomLink:'https://zoom.us/j/12345678901',sessions:[{id:'CMSESSION-'+crypto.randomUUID(),date:'2026-09-21',startTime:'12:00',endTime:'13:00',teacherId:'account-0003',zoomLink:'https://zoom.us/j/12345678901',title:'Course lesson one',status:'SCHEDULED'}]};
+ const saved=ok(await f.call('/api/admin/platform/courses/save',{operationId:crypto.randomUUID(),details},admin)),activityKey='COURSE:'+saved.courseId;
+ for(const [who,role] of [['0002','STUDENT'],['0003','TEACHER']])f.db.prepare("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state) VALUES(?,?,?,?,1,'CONFIRMED')").run('course-media-'+who,'account-'+who,activityKey,role);
+ const selected=ok(await f.media('sessions',{activityKey,runId:saved.runId},teacher)).sessions[0];assert(selected);assert.deepEqual(selected.classIds,[]);
+ const id=ok(await create(f,teacher,selected,activityKey,{runId:saved.runId})).lessonId;ok(await f.media('save',save(id),teacher));
+ assert.equal(f.db.prepare('SELECT class_id FROM lesson_media_lessons WHERE lesson_id=?').get(id).class_id,null);
+ let list=ok(await f.media('list',{activityKey},student));assert.equal(list.lessons.length,1);assert.equal(list.lessons[0].assets.length,2);
+ const asset=list.lessons[0].assets[0];assert.equal((await f.media('watch',{lessonId:id,assetId:asset.id},student)).status,200);
+ f.db.prepare("UPDATE course_management_drafts SET stage='COMPLETE' WHERE activity_key=?").run(activityKey);assert.equal(ok(await f.media('list',{activityKey},student)).lessons.length,1);
+ f.db.prepare("UPDATE role_assignments SET active=0 WHERE activity_key=? AND account_id='account-0002'").run(activityKey);
+ assert.equal((await f.media('watch',{lessonId:id,assetId:asset.id},student)).status,403);
+}));
+test('MOU recordings remain permanent and pagination does not skip sessions sharing a date',()=>use(async f=>{
+ const admin=await f.login('0001'),student=await f.login('0002');assert.equal(ok(await f.media('list',{},student)).lessons.length,3);
+ f.db.prepare("UPDATE academy_settings SET setting_value='0' WHERE setting_key='LessonMediaPilot'").run();assert.equal(ok(await f.media('list',{},student)).lessons.length,3);
+ const old=f.db.prepare('SELECT * FROM lesson_media_lessons LIMIT 1').get();
+ for(let n=0;n<35;n++)f.db.prepare('INSERT INTO lesson_media_lessons(lesson_id,activity_key,class_id,lesson_date,title,start_time,end_time,teacher_id,teacher_name,state,updated_at,teacher_ids_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').run('MOU-page-'+String(n).padStart(2,'0'),old.activity_key,old.class_id,'2026-10-20','Session '+n,'09:00','10:00',old.teacher_id,old.teacher_name,'PUBLISHED',old.updated_at,old.teacher_ids_json);
+ const first=ok(await f.media('list',{},admin)),second=ok(await f.media('list',{before:first.before},admin));assert.equal(first.lessons.length,30);assert.equal(second.lessons.length,8);assert.equal(new Set([...first.lessons,...second.lessons].map(r=>r.id)).size,38);
+}));
+
+test('migration preserves every existing media lesson, attachment and discussion with foreign keys intact',async()=>{
+ const f=await mediaFixture({upgrade:false});try{
+  f.db.prepare("INSERT INTO lesson_media_comments(comment_id,lesson_id,account_id,body,state,staff,created_at,updated_at) VALUES('legacy-discussion','MOU-20261006','account-0002','Keep this discussion','APPROVED',0,'2026-10-06','2026-10-06')").run();
+  const tables=['lesson_media_lessons','lesson_media_assets','lesson_media_links','lesson_media_comments'],before=Object.fromEntries(tables.map(t=>[t,f.db.prepare('SELECT * FROM '+t).all()]));
+  f.db.exec('BEGIN');f.db.exec(readFileSync(new URL('../migrations/academy/0030_session_lesson_media.sql',import.meta.url),'utf8'));f.db.exec('COMMIT');
+  for(const table of tables){const after=f.db.prepare('SELECT * FROM '+table).all();if(table==='lesson_media_lessons')for(const row of after){delete row.session_key;delete row.run_id;delete row.teacher_ids_json;}assert.deepEqual(after,before[table]);}
+  assert.deepEqual(f.db.prepare('PRAGMA foreign_key_check').all(),[]);
+ }finally{f.db.close();}
+});

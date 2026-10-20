@@ -13,7 +13,7 @@ test('current learners and authorised admins can view recordings; unrelated teac
  const list=ok(await f.media('list',{},student));assert.equal(list.lessons.length,3);assert.equal(list.canView,true);assert.equal(list.canManage,false);assert.doesNotMatch(JSON.stringify(list),/youtube|youtu\.be|9IuTDcSs6vQ|object_key/);
  assert.match(ok(await f.media('watch',{lessonId:id,assetId:'video-6'},student)).embedUrl,/youtube-nocookie/);
  assert.match(ok(await f.media('watch',{lessonId:id,assetId:'video-6'},admin)).embedUrl,/youtube-nocookie/);
- for(const token of [teacher,other])assert.equal((await f.media('watch',{lessonId:id,assetId:'video-6'},token)).status,403);
+ assert.equal((await f.media('watch',{lessonId:id,assetId:'video-6'},teacher)).status,200);assert.equal((await f.media('watch',{lessonId:id,assetId:'video-6'},other)).status,403);
  assert.equal((await f.media('list')).status,401);assert.equal((await f.media('get',{lessonId:id},student)).status,403);
  assert.equal(ok(await f.media('get',{lessonId:id},teacher)).assets[0].url,'https://youtu.be/9IuTDcSs6vQ');
  f.db.prepare("UPDATE role_assignments SET active=0 WHERE account_id='account-0002' AND activity_key=?").run(MOU_MEDIA_PROGRAM);
@@ -29,7 +29,7 @@ test('disabled accounts, reset credentials, revoked sessions and hidden lessons 
 }));
 test('only assigned teachers and scoped/global admins can manage; teaching directory is not authority',use(async f=>{
  const admin=await f.login('0001'),scoped=await f.login('0004'),teacher=await f.login('0003'),unassigned=await f.login('0006'),other=await f.login('0005');
- assert.equal(ok(await f.media('list',{},unassigned)).lessons.length,0);assert.equal((await f.media('save',save(),unassigned)).status,403);assert.equal((await f.media('save',save(),other)).status,403);
+ assert.equal(ok(await f.media('list',{},unassigned)).lessons.length,3);assert.equal((await f.media('save',save(),unassigned)).status,403);assert.equal((await f.media('save',save(),other)).status,403);
  ok(await f.media('save',save(),scoped));ok(await f.media('save',save({revision:2,summary:'Reviewed notes'}),teacher));ok(await f.media('save',save({revision:3}),admin));
  f.db.prepare("UPDATE activities SET lifecycle='ARCHIVED' WHERE activity_key=?").run(MOU_MEDIA_PROGRAM);assert.equal((await f.media('list',{},admin)).status,403);
 }));

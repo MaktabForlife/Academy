@@ -96,8 +96,8 @@ test('a filter that hides unsaved Course edits requires confirmation and keeps t
  }finally{f.db.close();}
 });
 
-test('new Course page uses delivery terminology and an honest private-media placeholder',()=>{
- assert.ok(!markup.includes('m4l-global-curriculum.js'));assert.ok(!markup.includes('m4l-global-course-scheduler.js'));assert.match(markup,/course-status-filter/);assert.match(markup,/CANCELLED/);assert.match(source,/Private Academy media storage is still to be connected/);assert.match(source,/Categorisation|categorisation/);assert.ok(!source.includes('data-gcm-tab="tasks"'));
+test('Course page uses delivery terminology and mounts session lesson media',()=>{
+ assert.ok(!markup.includes('m4l-global-curriculum.js'));assert.ok(!markup.includes('m4l-global-course-scheduler.js'));assert.match(markup,/course-status-filter/);assert.match(markup,/CANCELLED/);assert.match(source,/hostId:'course-lesson-media'/);assert.doesNotMatch(source,/Private Academy media storage is still to be connected/);assert.match(source,/Categorisation|categorisation/);assert.ok(!source.includes('data-gcm-tab="tasks"'));
 });
 
 

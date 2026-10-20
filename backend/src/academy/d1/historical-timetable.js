@@ -4,7 +4,6 @@ import {publicationTeacherAccountsSQL} from './publication-teachers.js';
 // range. The synthetic version is below every real version, so it cannot
 // supersede, cancel or end a live publication. Nothing is written during reads.
 export async function historicalPublications(repository,start,end,includeTeacherLabels=false){
- if(!await repository.db.prepare("SELECT 1 ok FROM academy_settings WHERE setting_key='LessonMediaPilot' AND setting_value='1'").first())return [];
  const rows=(await repository.db.prepare(`SELECT p.*${includeTeacherLabels?`,${publicationTeacherAccountsSQL} AS teacher_accounts_json`:''},e.extension_id,e.start_date,e.end_date FROM program_historical_extensions e JOIN timetable_publications p USING(activity_key,publication_id) WHERE e.start_date<=? AND e.end_date>=?`).bind(end,start).all()).results;
  return rows.map(row=>{
   const snapshot=JSON.parse(row.snapshot_json);

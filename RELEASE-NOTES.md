@@ -1,3 +1,7 @@
+# V107.7 — Session lesson media
+
+Extend the MOU lesson-media service to Programs and Courses. Media entries link to a dated published Program lesson or saved Course session, accept up to ten YouTube links and ten private R2 PDFs, and start as drafts. LEARN/TEACH expose the dedicated Lesson media tab. Assigned teachers and administrators manage their sessions; enrolled learners see published entries within their class/course scope. Retain MOU recordings, notes and discussions. Apply migration 0030 before deployment; it preserves existing media records and permits Course sessions without a Program class. [Release details](docs/ACADEMY-SESSION-MEDIA-107.7.md).
+
 # V107.6 — Numeric PDF annotation controls
 
 Replace the PDF.js text-size, line-thickness and freehand highlighter-thickness sliders with number fields and native step controls. Preserve their ranges of 5–100, 1–20 and 8–24 respectively. Temporary empty, fractional or out-of-range entries never reach the annotation editor and revert to the last valid value on blur. Verify direct entry, keyboard stepping, drawn/typed annotations, saved PDF sizes and phone layout. Development only; no database or content changes.

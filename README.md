@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V107.6
+# Umm Abbad Academy — V107.7
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
@@ -7,6 +7,10 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - HifzHelper keeps its separate Worker and D1; Academy provides profile and PIN updates plus a short-lived sign-in handoff.
+
+## V107.7 — Session lesson media
+
+Programs and Courses attach YouTube videos and private R2 PDFs to saved sessions from their Media tab. LEARN and TEACH include a Lesson media tab. The permanent Mothers of the Ummah collection and discussions are retained. Staff publish each entry explicitly; current enrolment and class permissions protect playback and PDF downloads. [Release details](docs/ACADEMY-SESSION-MEDIA-107.7.md).
 
 ## V107.6 — Numeric PDF annotation controls
 
