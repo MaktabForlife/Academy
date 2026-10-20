@@ -1,3 +1,7 @@
+# V107.9 — Media follows Review & publish
+
+Move the Program Lesson media and Course Media tabs immediately after Review & publish, before Enrolment requests. Existing media, drafts and access rules are unchanged.
+
 # V107.8 — Visible timetable validation editor
 
 Fix the apparent freeze after opening a lesson from a validation issue in Review & publish. Select the visible Timetable workspace before opening the lesson modal, preserving the current draft. Verify desktop and phone correction, cancellation, saving and revalidation against a disposable database. Development only; no database migration or live timetable edits.

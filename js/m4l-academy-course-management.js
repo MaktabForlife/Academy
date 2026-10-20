@@ -110,7 +110,7 @@
     const current=state.course.stage!=='DRAFT'?5:state.dirty||!state.course.courseId?0:!state.review?.valid?1:reviewAccepted()?5:3;
     return `<ol class="cm-workflow" aria-label="Course publication steps">${['Draft','Validate','Generate sessions','Review','Accept','Publish'].map((label,index)=>`<li class="${index<current?'is-done':index===current?'is-current':''}"${index===current?' aria-current="step"':''}><span>${index+1}</span>${label}</li>`).join('')}</ol>`;
   }
-  const tabs=[['list','List of courses'],['details','Details'],['sessions','Sessions'],['participants','Participants'],['public-card','Public card'],['media','Media'],['review','Review & publish'],['enrolment','Enrolment requests']];
+  const tabs=[['list','List of courses'],['details','Details'],['sessions','Sessions'],['participants','Participants'],['public-card','Public card'],['review','Review & publish'],['media','Media'],['enrolment','Enrolment requests']];
   function renderTabs(){
     const focused=document.activeElement?.id;
     $('course-tabs').innerHTML=tabs.map(([tab,label])=>`<button id="cm-tab-${tab}" type="button" role="tab" tabindex="${state.tab===tab?0:-1}" aria-selected="${state.tab===tab}" aria-controls="${tab==='list'?'course-list-panel':'course-editor'}" data-cm-action="tab" data-tab="${tab}"${tab!=='list'&&!state.course||tab==='enrolment'&&!state.course?.courseId?' disabled':''}>${label}${tab==='sessions'&&state.draft?.sessions.length?' · '+state.draft.sessions.length:''}</button>`).join('');
