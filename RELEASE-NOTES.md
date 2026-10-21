@@ -1,3 +1,7 @@
+# V107.10 — Consistent Program timetable editing
+
+Replace the current Copy to edit notice with Edit published timetable. Show the editing action in both Timetable and Review & publish; already editable saved and imported timetables show Continue editing draft. Preserve current working drafts instead of copying over them, and keep published snapshots unchanged until a reviewed revision is published. Verify all active synthetic Programs, desktop/phone layouts, saved draft reopening and a second publication. No schema migration or live timetable corrections.
+
 # V107.9 — Media follows Review & publish
 
 Move the Program Lesson media and Course Media tabs immediately after Review & publish, before Enrolment requests. Existing media, drafts and access rules are unchanged.

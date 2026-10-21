@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V107.9
+# Umm Abbad Academy — V107.10
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
@@ -7,6 +7,10 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - HifzHelper keeps its separate Worker and D1; Academy provides profile and PIN updates plus a short-lived sign-in handoff.
+
+## V107.10 — Edit Program timetables
+
+Timetable and Review & publish expose Edit published timetable for published boards and Continue editing draft for existing work. Opening a published timetable retains its publication and prepares an editable draft; continuing a saved or imported draft keeps its content. Verified saving, reopening and republishing across all active Program states without live database changes.
 
 ## V107.9 — Media tab order
 
