@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V107.15
+# Umm Abbad Academy — V107.16
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
@@ -7,6 +7,10 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - HifzHelper keeps its separate Worker and D1; Academy provides profile and PIN updates plus a short-lived sign-in handoff.
+
+## V107.16 — Program Review & publish controls
+
+Start the Program Review & publish control row with Edit the timetable and Discard edits. Discard is disabled when there are no unsaved timetable edits; confirmation restores the last saved draft and retains published history. In the Timetable tab, place Discard edits immediately before the planning-board Edit action. No database changes.
 
 ## V107.15 — Controls above each PDF
 

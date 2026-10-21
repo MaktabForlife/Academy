@@ -67,14 +67,16 @@
     $('tt-board-save').disabled=$('tt-save').disabled;
     $('tt-edit-notice').hidden=!state.data?.prepared;
     $('tt-edit-notice').dataset.mode=editable?'draft':'published';
-    for(const name of ['tt-edit-action','tt-review-edit-action'])$(name).textContent=editable?'Continue editing draft':'Edit published timetable';
+    $('tt-edit-action').textContent=editable?'Continue editing draft':'Edit published timetable';
+    $('tt-review-edit-action').title=editable?'Continue editing your existing draft':'Open the published timetable as an editable draft';
     $('tt-edit-message').textContent=editable
       ? `Your ${dirty()?'working':'saved'} draft is available to edit and publish.${state.data?.publications?.length?' The published timetable remains in effect until you publish your changes.':''}`
       : 'Open this published timetable for editing. Your changes are saved as a draft; the published timetable remains in effect until you publish again.';
     $('tt-open-publish').disabled=locked||!ready||!editable||!state.preview?.valid||workspace?.hasEdits()||sharedConflict||Boolean(state.calendarView?.history);
     $('tt-publish').disabled=locked||!ready||!editable||workspace?.hasEdits()||sharedConflict;
     $('tt-effective-from').disabled=locked;$('tt-preview-type').disabled=locked;$('tt-preview-target').disabled=locked||$('tt-preview-type').value==='program'||!$('tt-preview-target').value;
-    for(const name of ['reload','discard-all','history','prepare','convert'])$(`tt-${name}`).disabled=state.busy;
+    for(const name of ['reload','history','prepare','convert'])$(`tt-${name}`).disabled=state.busy;
+    for(const name of ['tt-discard-all','tt-review-discard'])$(name).disabled=state.busy||!(dirty()||state.pending||sharedConflict);
     $('tt-convert').disabled||=Boolean(state.pending);$('tt-retry').disabled=state.busy;
     $('tt-pending').hidden=!state.pending;$('tt-conversion').hidden=!needsReview;
     if(needsReview)$('tt-conversion-message').textContent=`The previous draft contains ${state.conversion.oneOffCount} one-off lessons and ${state.conversion.exceptionCount} dated exceptions. Use weekly lessons to continue with its recurring rows. The original draft and published history remain preserved.`;
@@ -373,6 +375,7 @@
     clearPending();
     $('tt-refresh-warning').hidden=true;
     await load(false);
+    message('Unsaved timetable edits discarded. Your saved draft is unchanged.');
   }
   async function loadUnfinishedDraft(){
     const unfinished=structuredClone(state.draft),wasConverted=state.converted,latest=await api('get');
@@ -386,7 +389,7 @@
   }
   $('tt-load-unfinished').onclick=()=>work(loadUnfinishedDraft);
   $('tt-open-saved').onclick=()=>work(openSavedDraft);
-  $('tt-discard-all').onclick=()=>work(openSavedDraft);
+  $('tt-review-discard').onclick=$('tt-discard-all').onclick=()=>{if($('tt-discard-all').disabled)return;void work(openSavedDraft);};
   $('tt-reload').onclick=()=>{if(sharedConflict){message('Choose a version above to continue.',true);return;}if(dirty()||state.pending)$('tt-refresh-warning').hidden=false;else void work(()=>load(false));};
   $('tt-keep').onclick=()=>{$('tt-refresh-warning').hidden=true;};$('tt-discard').onclick=()=>work(openSavedDraft);
   function download(draft){const a=document.createElement('a'),url=URL.createObjectURL(new Blob([JSON.stringify({programId:id,draft},null,2)],{type:'application/json'}));a.href=url;a.download='program-timetable-draft.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}

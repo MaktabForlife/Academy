@@ -1,3 +1,7 @@
+# V107.16 — Program timetable review actions
+
+Place Edit the timetable and Discard edits first in the Program Review & publish control row. Move Discard edits into the Timetable planning-board header immediately before Edit published timetable / Continue editing draft. Reuse the existing edit and confirmed-discard behavior; disable both discard controls when no unsaved timetable changes, pending save or tab conflict needs discarding. Report successful discard and preserve saved drafts and published snapshots. Verify cancellation, restoration, saved/published states and desktop/phone layouts with disposable data. Development only; no schema or live timetable edits.
+
 # V107.15 — Separate controls for split PDFs
 
 Keep document controls above their respective left and right PDF panes instead of moving the selected document’s controls into the shared header. Give each pane its own bookmarks and Focus actions, retain shared layout controls, and identify the active pane when interacting with native PDF editing tools. Preserve frames, reading positions, independent annotations and Whiteboard behavior across responsive layouts. Development only; no schema or live data changes.

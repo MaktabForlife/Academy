@@ -52,7 +52,7 @@
 .tt-history-publish{display:flex;justify-content:flex-end;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--pb-line)}.tt-publish-date{display:grid;gap:6px;font-size:12px;font-weight:600}.tt-publish-date input{box-sizing:border-box;width:100%;min-height:38px;padding:7px;border:1px solid #baaabc;border-radius:5px;background:#fff;color:var(--pb-text);font:inherit;font-weight:400}
 .tt-tab-warning span{display:block}.tt-tab-warning button{margin:9px 8px 0 0}
 .tt-board-issue{display:block;margin-top:6px;color:#922f36;font-size:11px}.tt-open-issue{margin-left:6px;padding:2px 5px;border:0;background:transparent;color:#70447c;text-decoration:underline;cursor:pointer}
-.tt-top-actions #tt-discard-all{color:#8b2730;border-color:#d8a7ad}
+.tt-board-actions #tt-discard-all{color:#8b2730;border-color:#d8a7ad}
 .tt-board-shell .tt-section-heading{justify-content:flex-start;gap:12px 18px}
 .tt-board-lesson-actions{justify-content:space-between}
 .tt-board-cell.is-break{cursor:grab}.tt-board-cell.is-break:active{cursor:grabbing}
