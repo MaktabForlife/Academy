@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V107.10
+# Umm Abbad Academy — V107.11
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
@@ -7,6 +7,10 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - HifzHelper keeps its separate Worker and D1; Academy provides profile and PIN updates plus a short-lived sign-in handoff.
+
+## V107.11 — Period times and clash highlights
+
+Changing a planning period updates lesson times across every weekday and class in that Program. Spanning lessons retain their outer boundaries, aligned breaks follow period changes, and independent gap breaks remain in place. Highlight potential class, teacher, shared-learner, availability and break clashes immediately. Undo restores the period and affected lessons together; save and publish retain the existing draft workflow. Verified desktop/phone retiming, save/reload, validation and immutable publications against disposable data. No migration or live timetable corrections.
 
 ## V107.10 — Edit Program timetables
 

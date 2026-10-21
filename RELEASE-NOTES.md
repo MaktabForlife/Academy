@@ -1,3 +1,7 @@
+# V107.11 — Period retiming and immediate clash highlights
+
+Apply period start/end changes to the linked lesson boundaries across all weekdays and classes in the current Program, including outer boundaries of spanning lessons. Preserve lesson identities and independent gap breaks; update aligned breaks and restore the whole change with Undo. Highlight potential class, teacher/co-teacher, shared-learner, availability, hour-limit and break clashes on lesson cards without waiting for Validate. Existing validation and publication checks remain in force. Verify retiming, saving/reopening, conflict resolution and desktop/phone layouts against disposable data; published timetables remain unchanged until republished. Development only, with no schema migration or live timetable edits.
+
 # V107.10 — Consistent Program timetable editing
 
 Replace the current Copy to edit notice with Edit published timetable. Show the editing action in both Timetable and Review & publish; already editable saved and imported timetables show Continue editing draft. Preserve current working drafts instead of copying over them, and keep published snapshots unchanged until a reviewed revision is published. Verify all active synthetic Programs, desktop/phone layouts, saved draft reopening and a second publication. No schema migration or live timetable corrections.

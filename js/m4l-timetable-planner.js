@@ -16,6 +16,7 @@
       let activeBoardTabId='BOARD-1';
       const undo=[];
       const issueRows=new Map();
+      let liveIssues=new Map();
       const empty=()=>({periods:[],availability:[],limits:[]});
       const plan=()=>state.draft?.planner||empty();
       const edit=()=>state.draft.planner ||= empty();
@@ -109,6 +110,15 @@
         if(state.draft.rules.some(row=>row.weekdays.includes(candidate.weekday)&&overlap(row,candidate)))return 'A lesson already uses this time. Move or edit it before marking a break.';
         if(breaks().some(row=>!(row.id===ignore?.id&&candidate.weekday===ignore.day)&&row.weekdays.includes(candidate.weekday)&&overlap(row,candidate)))return 'Another break already uses this time.';
         return '';
+      }
+      function refreshClashes(){
+        liveIssues=new Map();
+        for(const row of state.draft.rules)for(const day of row.weekdays){
+          const warning=reason({...row,weekday:day},{id:row.id,day});
+          if(warning)liveIssues.set(JSON.stringify([row.id,day]),warning);
+        }
+        $('tt-board-clashes').hidden=!liveIssues.size;
+        $('tt-board-clashes').textContent=liveIssues.size?`${liveIssues.size} scheduled ${liveIssues.size===1?'lesson needs':'lessons need'} review in this Program. Highlighted cards explain each potential clash.`:'';
       }
       function renderAvailability(){
         const teachers=[...catalog().teachers.filter(row=>row.active)];
@@ -225,9 +235,11 @@
         const detail=boardView==='teacher'?classNames:boardView==='program'?classNames+' · '+teacherName:teacherName;
         const label=(subject(row)||'Lesson')+' · '+detail+' · '+row.startTime+'–'+row.endTime;
         const attrs=' data-board-day="'+day+'" data-board-period="'+esc(period.id)+'" data-rule-id="'+esc(row.id)+'"';
-        return '<div draggable="true" class="tt-board-cell is-occupied '+(selected?'is-selected ':'')+(issueRows.has(row.id)?'is-conflict':'')+'"'+attrs+'><span class="tt-board-lesson-label">'+esc(label)+'</span>'+(issueRows.has(row.id)?'<small class="tt-board-issue">Review: '+esc(issueRows.get(row.id))+'</small>':'')+(span?'<span class="tt-board-span-count">'+span.periods+' periods</span>':'')+'<span class="tt-board-lesson-actions"><button type="button" class="tt-board-icon" data-edit-card'+attrs+' aria-label="Edit '+esc(days[day]+' '+label)+'" title="Edit lesson">'+editIcon+'</button>'+(addParallel?'<button type="button" class="tt-board-icon tt-add-parallel-icon" data-board-day="'+day+'" data-board-period="'+esc(period.id)+'" data-open-lesson="true" aria-label="Add another class lesson" title="Add another class lesson">＋</button>':'')+'<button type="button" class="tt-board-icon is-delete" data-delete-card'+attrs+' aria-label="Delete '+esc(days[day]+' '+label)+'" title="Delete lesson">'+deleteIcon+'</button></span></div>';
+        const warning=liveIssues.get(JSON.stringify([row.id,day]))||issueRows.get(row.id);
+        return '<div draggable="true" class="tt-board-cell is-occupied '+(selected?'is-selected ':'')+(warning?'is-conflict':'')+'"'+attrs+'><span class="tt-board-lesson-label">'+esc(label)+'</span>'+(warning?'<small class="tt-board-issue">Review: '+esc(warning)+'</small>':'')+(span?'<span class="tt-board-span-count">'+span.periods+' periods</span>':'')+'<span class="tt-board-lesson-actions"><button type="button" class="tt-board-icon" data-edit-card'+attrs+' aria-label="Edit '+esc(days[day]+' '+label)+'" title="Edit lesson">'+editIcon+'</button>'+(addParallel?'<button type="button" class="tt-board-icon tt-add-parallel-icon" data-board-day="'+day+'" data-board-period="'+esc(period.id)+'" data-open-lesson="true" aria-label="Add another class lesson" title="Add another class lesson">＋</button>':'')+'<button type="button" class="tt-board-icon is-delete" data-delete-card'+attrs+' aria-label="Delete '+esc(days[day]+' '+label)+'" title="Delete lesson">'+deleteIcon+'</button></span></div>';
       }
       function renderBoard(){
+        refreshClashes();
         $('tt-clear-selection').disabled=!selectedMove&&!selectedBreakMove;
         $('tt-mark-break').setAttribute('aria-pressed',String(placingBreak));$('tt-mark-break').textContent=placingBreak?'Marking breaks · Cancel':'Mark break';
         $('tt-board-break-label-wrap').hidden=!placingBreak;
@@ -342,13 +354,15 @@
         if(data.quickZoom!==undefined){quickZoomLink=event.target.value.trim();return;}
         const id=data.period,key=data.time,row=edit().periods.find(item=>item.id===id);
         if(!row||!['startTime','endTime'].includes(key))return;
-        const value=normalizeTime(event.target.value),candidate={...row,[key]:value};
-        if(!value||candidate.startTime>=candidate.endTime){note('Enter a valid start and end time, for example 745 for 07:45.',true);renderBoard();return;}
-        const index=plan().periods.findIndex(item=>item.id===id),previous=plan().periods[index-1],next=plan().periods[index+1];
-        if(previous&&candidate.startTime<previous.endTime||next&&candidate.endTime>next.startTime){note('Planning periods must stay in order and cannot overlap.',true);renderBoard();return;}
-        if([...state.draft.rules,...breaks()].some(item=>overlap(item,row)&&!overlap(item,candidate))){note('A lesson or break would disappear from the board. Move or edit it first.',true);renderBoard();return;}
-        const before=structuredClone(plan().periods);row[key]=value;event.target.value=value;
-        saveUndo(structuredClone(state.draft.rules),before);note('Period time updated. Existing lessons keep their own times.');commit();
+        if(editorDirty||breakEditorDirty||inlineDirty){note('Save or close the open lesson or break before changing a period.',true);renderBoard();return;}
+        let change;
+        try{change=window.M4L_TIMETABLE_PERIODS.change({periods:plan().periods,rules:state.draft.rules,breaks:breaks(),id,field:key,value:normalizeTime(event.target.value)});}
+        catch(error){note(error.message,true);renderBoard();return;}
+        if(!change.changed)return;
+        const beforeRules=structuredClone(state.draft.rules),beforePeriods=structuredClone(plan().periods),beforeBreaks=structuredClone(breaks()),hadBreaks=Object.hasOwn(state.draft,'breaks');
+        edit().periods=change.periods;state.draft.rules=change.rules;if(hadBreaks)state.draft.breaks=change.breaks;
+        saveUndo(beforeRules,beforePeriods,beforeBreaks,hadBreaks);
+        note(`Period time updated for ${change.lessonsChanged} ${change.lessonsChanged===1?'lesson':'lessons'}${change.breaksChanged?' and '+change.breaksChanged+' breaks':''} across this Program. Review any highlighted clashes.`);commit();
       };
       $('tt-availability-tabs').onclick=event=>{const id=event.target.closest?.('[data-availability-teacher]')?.dataset.availabilityTeacher;if(id)switchAvailabilityTeacher(id);};
       $('tt-remove-teacher-settings').onclick=()=>{if(locked()||!availabilityTeacher)return;edit().availability=plan().availability.filter(row=>row.teacherId!==availabilityTeacher);edit().limits=plan().limits.filter(row=>row.teacherId!==availabilityTeacher);availabilityNote('Teacher availability and hour limit cleared.');commit();};
