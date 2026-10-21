@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V107.12
+# Umm Abbad Academy — V107.13
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
@@ -7,6 +7,10 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - HifzHelper keeps its separate Worker and D1; Academy provides profile and PIN updates plus a short-lived sign-in handoff.
+
+## V107.13 — PDF whiteboard
+
+Bring Reboot’s v99.1 Teaching Panel into the Academy PDF reader as Whiteboard. Draw or erase with colour and numeric line-size controls, Undo/Redo and Clear; save/share a PNG or type and download lesson notes. The panel resizes beside the selected PDF and opens over it on phones. Split PDFs remain mounted with their pages and annotations intact. Closing the board retains its contents in the reader tab; exports keep a local copy, and leaving with unsaved work uses the existing reader confirmation. No backend persistence, schema migration or live data changes.
 
 ## V107.12 — Library editor by subject
 

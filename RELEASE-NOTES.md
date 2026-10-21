@@ -1,3 +1,7 @@
+# V107.13 — Academy PDF whiteboard
+
+Port the legacy Reboot v99.1 Teaching Panel’s drawing, eraser, colour, history, clear, sharing and notes tools into the Academy reader. Provide a Whiteboard toolbar button, numeric line size, explicit PNG and UTF-8 notes downloads, desktop resizing and compact touch layouts. Keep both PDF frames mounted while showing the selected PDF beside the board; restore page locations and the previous split layout. Keep drawings and notes within the current reader tab, protect unsaved content when leaving, and preserve the existing PDF annotation/default/bookmark workflows. Development only; no database or legacy-site edits.
+
 # V107.12 — Subject columns and correct volume labels
 
 Replace the Library editor selector with alphabetical subject columns, Uncategorised first, and alphabetical titles within each column. Preserve search and unsaved resource edits; provide horizontal scrolling, phone swiping and navigation arrows. Saving a subject reclassifies the visible resource without changing its identity. Fix the filename parser reusing an explicit part number as a range endpoint: Yassarnal Quraan now shows Part 1 and Part 2 as separate choices. Keep real combined-part labels, original file links and volume numbers; repair duplicate labels from existing browser snapshots without forcing new network requests. Development only; no migration or live metadata edits.

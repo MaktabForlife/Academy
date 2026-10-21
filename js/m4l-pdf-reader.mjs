@@ -1,8 +1,10 @@
 import {PDF_TOOL_DEFAULTS,normalizePdfTools} from './m4l-pdf-tools-model.mjs?v=106.49';
 import {publicPdfFile} from './m4l-pdf-bookmarks-model.mjs?v=106.82';
 import {academyBookmarks} from './m4l-pdf-bookmarks.mjs?v=106.82';
+import './m4l-pdf-whiteboard.js?v=107.13';
 const $=id=>document.getElementById(id),query=new URLSearchParams(location.search),mobile=matchMedia('(max-width:750px)'),wide=matchMedia('(min-width:1280px)');
 const panes=[0,1].map(index=>({index,element:$('pr-pane-'+index),choices:{},frame:null,loaded:false,file:'',title:'',page:0,mode:'books',drawerGeneration:0}));
+let readingPositions=new Map(),readingRestore=0,readingLayoutPending=false;
 let defaults={...PDF_TOOL_DEFAULTS},split=false,active=0,ratio=50,catalogue=null,cataloguePromise=null,ready=false;
 const status=text=>{$('pr-status').textContent=text;},part=(pane,selector)=>pane.element.querySelector(selector)||pane.header?.querySelector(selector);
 function proxy(url){const file=publicPdfFile('/pdf-file/'+btoa(String.fromCharCode(...new TextEncoder().encode(url))).replaceAll('+','-').replaceAll('/','_').replaceAll('=',''));if(!file)throw Error('This PDF source is unavailable.');return file;}
@@ -22,9 +24,27 @@ function libraryReturn(){
 }
 $('pr-close-reader').href=libraryReturn();
 function canReplace(pane){return !changed(pane)||confirm('This PDF has unsaved annotations. Download a copy before replacing it. Continue?');}
-function setActive(index){active=index;for(const pane of panes){pane.element.classList.toggle('is-active',pane.index===index);$('pr-tab-'+pane.index).setAttribute('aria-selected',String(pane.index===index));$('pr-tab-'+pane.index).tabIndex=pane.index===index?0:-1;}focusLabels();syncToolbar();}
-function focusLabels(){const focused=$('pr-workspace').classList.contains('is-focused'),button=$('pr-focus');button.textContent=focused?'Restore split':'Focus';button.disabled=!split;button.setAttribute('aria-pressed',String(focused));button.setAttribute('aria-label',focused?'Restore split page':'Focus PDF '+(active+1));}
+function setActive(index){const preserve=window.M4L_PDF_WHITEBOARD.isOpen()&&index!==active;if(preserve)rememberReadingPositions();active=index;for(const pane of panes){pane.element.classList.toggle('is-active',pane.index===index);$('pr-tab-'+pane.index).setAttribute('aria-selected',String(pane.index===index));$('pr-tab-'+pane.index).tabIndex=pane.index===index?0:-1;}focusLabels();syncToolbar();if(preserve)restoreReadingPositions();}
+function focusLabels(){const focused=$('pr-workspace').classList.contains('is-focused'),button=$('pr-focus');button.textContent=focused?'Restore split':'Focus';button.disabled=!split||window.M4L_PDF_WHITEBOARD.isOpen();button.setAttribute('aria-pressed',String(focused));button.setAttribute('aria-label',focused?'Restore split page':'Focus PDF '+(active+1));}
 // Move controls, never the PDF frames, so reading position and annotations survive layout changes.
+function rememberReadingPositions(){
+ if(readingLayoutPending)return;readingLayoutPending=true;
+ for(const pane of panes){
+  if(window.M4L_PDF_WHITEBOARD.isOpen()&&pane.index!==active)continue;
+  try{const app=pane.frame?.contentWindow.PDFViewerApplication;if(!app?.pdfDocument){readingPositions.delete(pane.index);continue;}const location=app.pdfViewer._location;readingPositions.set(pane.index,{document:app.pdfDocument,page:app.page,destination:location?.pageNumber===app.page?[null,{name:'XYZ'},location.left,location.top,null]:null});}catch{}
+ }
+}
+function restoreReadingPositions(){
+ const generation=++readingRestore;
+ requestAnimationFrame(()=>requestAnimationFrame(()=>{
+  if(generation!==readingRestore)return;
+  for(const pane of panes){const saved=readingPositions.get(pane.index);if(!saved||!pane.element.getClientRects().length)continue;try{const app=pane.frame.contentWindow.PDFViewerApplication;if(app.pdfDocument===saved.document)app.pdfViewer.scrollPageIntoView({pageNumber:saved.page,destArray:saved.destination,allowNegativeOffset:true});}catch{}}
+  readingLayoutPending=false;if(!window.M4L_PDF_WHITEBOARD.isOpen())readingPositions.clear();
+ }));
+}
+window.addEventListener('m4l-whiteboard-layout-start',rememberReadingPositions);
+window.addEventListener('m4l-whiteboard-layout-end',restoreReadingPositions);
+window.addEventListener('m4l-whiteboard-change',()=>{const open=window.M4L_PDF_WHITEBOARD.isOpen();$('pr-split').disabled=open;$('pr-both').disabled=open;focusLabels();restoreReadingPositions();});
 function syncToolbar(){
  const host=$('pr-active-tools'),header=host.closest('.pr-header'),tabs=$('pr-tabs');
  document.body.classList.toggle('pr-wide-toolbar',wide.matches);
@@ -145,7 +165,7 @@ $('pr-split').onclick=()=>{split=!split;$('pr-workspace').classList.remove('is-f
 $('pr-both').onclick=()=>{$('pr-workspace').classList.toggle('show-both');$('pr-workspace').classList.remove('is-focused');layout();};
 for(const pane of panes){const tab=$('pr-tab-'+pane.index);tab.onclick=()=>setActive(pane.index);tab.onkeydown=event=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){event.preventDefault();setActive(event.key==='Home'?0:event.key==='End'?1:1-active);$('pr-tab-'+active).focus();}};}
 const divider=$('pr-divider');divider.onpointerdown=event=>{event.preventDefault();divider.setPointerCapture(event.pointerId);document.body.classList.add('is-dragging');};divider.onpointermove=event=>{if(!divider.hasPointerCapture(event.pointerId))return;const rect=$('pr-workspace').getBoundingClientRect();setRatio(100*(mobile.matches?(event.clientY-rect.top)/rect.height:(event.clientX-rect.left)/rect.width));};const stop=()=>document.body.classList.remove('is-dragging');divider.onpointerup=stop;divider.onpointercancel=stop;divider.onlostpointercapture=stop;divider.ondblclick=()=>setRatio(50);divider.onkeydown=event=>{if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home'].includes(event.key)){event.preventDefault();setRatio(event.key==='Home'?50:ratio+(['ArrowRight','ArrowDown'].includes(event.key)?5:-5));}};
-mobile.addEventListener('change',layout);window.addEventListener('beforeunload',event=>{if(panes.some(changed)){event.preventDefault();event.returnValue='';}});
+mobile.addEventListener('change',layout);window.addEventListener('beforeunload',event=>{if(panes.some(changed)||window.M4L_PDF_WHITEBOARD.hasUnsaved()){event.preventDefault();event.returnValue='';}});
 try{const response=await fetch(`${window.M4L_CONFIG?.API_BASE||''}/api/academy/pdf-tools/defaults`,{cache:'no-store'}),result=await response.json();if(!response.ok||!result.success)throw Error();defaults=normalizePdfTools(result.settings);status('');}catch{status('Academy defaults could not load. Standard PDF tools are available.');}
 ready=true;const page=Number(query.get('page')),startPage=Number.isInteger(page)&&page>0&&page<=100000?page:0;
 for(const pane of panes)openFile(pane,pane.index===0?publicPdfFile(query.get('file')):'',pane.index===0?query.get('title')||'PDF 1':'PDF 2',false,pane.index===0?startPage:0);
