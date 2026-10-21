@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V107.14
+# Umm Abbad Academy — V107.15
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
@@ -7,6 +7,10 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - HifzHelper keeps its separate Worker and D1; Academy provides profile and PIN updates plus a short-lived sign-in handoff.
+
+## V107.15 — Controls above each PDF
+
+Each PDF keeps its Library, Open file, volume, bookmark and Focus controls directly above its own pane on every screen size. Split Page, Whiteboard and Full screen stay in the shared layout row. Pane labels identify PDF 1 and PDF 2, and Focus expands the selected document while retaining both PDFs and their annotations. No database changes.
 
 ## V107.14 — Timetable editing action placement
 

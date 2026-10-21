@@ -1,3 +1,7 @@
+# V107.15 — Separate controls for split PDFs
+
+Keep document controls above their respective left and right PDF panes instead of moving the selected document’s controls into the shared header. Give each pane its own bookmarks and Focus actions, retain shared layout controls, and identify the active pane when interacting with native PDF editing tools. Preserve frames, reading positions, independent annotations and Whiteboard behavior across responsive layouts. Development only; no schema or live data changes.
+
 # V107.14 — Timetable Edit button beside Save draft
 
 Place Edit published timetable / Continue editing draft in the Weekly planning board header, immediately before Save draft, as requested. Retain editing access and explanatory text in Review & publish, along with existing save, locking and publication behavior. Verify desktop and phone layouts plus draft reopening and republishing against disposable data. Development only; no schema or live data changes.
