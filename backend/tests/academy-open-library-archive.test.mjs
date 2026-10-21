@@ -162,6 +162,17 @@ try {
   assert.equal((await openProxy('https://archive.org/download/MultiPdf/Book%201_text.pdf')).status, 403);
   assert.equal((await openProxy('https://archive.org/download/MultiPdf/Private%204.pdf')).status, 403);
 
+  members.push('Yassarnal', 'CombinedParts');
+  metadata.Yassarnal = {metadata:{mediatype:'texts',title:'Yassarnal Quraan'},files:[
+    {name:'Yassarnal Quraan Part 1 green .pdf',source:'original'},
+    {name:'Yassarnal Quran Part 2.pdf',source:'original'}]};
+  metadata.CombinedParts = {metadata:{mediatype:'texts',title:'Combined parts'},files:[
+    {name:'Book Part 1 and 2.pdf',source:'original'},
+    {name:'Book Volume 3-4.pdf',source:'original'}]};
+  const labelledBooks=(await (await catalogue()).json()).books;
+  assert.deepEqual(labelledBooks.find(book=>book.title==='Yassarnal Quraan').volumes.map(volume=>volume.label),['Part 1','Part 2'],'An explicit part number is not reused as a range endpoint');
+  assert.deepEqual(labelledBooks.find(book=>book.title==='Combined parts').volumes.map(volume=>volume.label),['Part 1 and 2','Volume 3 and 4'],'Real combined parts retain both numbers');
+
   members = ['NewBook', 'PublicAudio', 'PublicVideo', 'PrivateAudio', 'NoPlayableVideo'];
   metadata.PublicAudio = {
     metadata: { mediatype: 'audio', title: 'Lessons in recitation', subject: 'Quran' },

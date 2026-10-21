@@ -102,10 +102,10 @@ test('Open Library For You uses current D1 Program/Course access and loses a rev
 
 test('the existing Open Library editor loads D1 taxonomy and saves through the actual coordinator',()=>use(async({env,metadata})=>{
   const token=await login(env),nodes=new Map();
-  const element=()=>({listeners:{},value:'',textContent:'',hidden:false,checked:false,disabled:false,files:[],children:[],addEventListener(n,fn){this.listeners[n]=fn;},append(...children){this.children.push(...children);},replaceChildren(...children){this.children=children;if(!children.some(c=>c.value===this.value))this.value=children[0]?.value||'';}});
+  const element=()=>({listeners:{},value:'',textContent:'',hidden:false,checked:false,disabled:false,dataset:{},files:[],children:[],setAttribute(n,v){this[n]=v;},addEventListener(n,fn){this.listeners[n]=fn;},append(...children){this.children.push(...children);},replaceChildren(...children){this.children=children;if(!children.some(c=>c.value===this.value))this.value=children[0]?.value||'';}});
   const node=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};node('olm-form').hidden=true;
   const fetch=async(url,init)=>url==='/academy/open-library/catalogue'?Response.json({books:[{id:book,source:'Internet Archive',title:'Original title',resourceType:'EBOOK'}]}):worker.fetch(new Request(url,init),env);
-  const window={M4L_CONFIG:{API_BASE:'https://academy.invalid'}},source=readFileSync(new URL('../../js/m4l-open-library-manage.js',import.meta.url),'utf8').replace('void start();','window.testStart=start();');
+  const window={M4L_CONFIG:{API_BASE:'https://academy.invalid'},addEventListener(){}},source=readFileSync(new URL('../../js/m4l-open-library-manage.js',import.meta.url),'utf8').replace('void start();','window.testStart=start();');
   vm.runInNewContext(source,{document:{getElementById:node,createElement:element,createTextNode:text=>({textContent:text}),addEventListener(){}},window,localStorage:{getItem:()=>token},fetch,FormData,URL});
   await window.testStart;assert.equal(node('olm-form').hidden,false,node('olm-status').textContent);assert.ok(node('olm-subject').children.some(o=>o.value==='GLOBAL:subject-1'));
   node('olm-title').value='Saved through editor';node('olm-subject').value='GLOBAL:subject-1';node('olm-subject').listeners.change();node('olm-module').value='GLOBAL:module-1';

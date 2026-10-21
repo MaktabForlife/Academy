@@ -3,15 +3,22 @@
   const WEEK = 7 * 86400000, prefix = 'm4l_library_v1:', scope = window.M4L_CONFIG?.API_BASE || location.origin;
   let pendingPublic = null;
   const key = name => prefix + scope + ':' + name;
+  function repairVolumeLabels(data) {
+    if (!Array.isArray(data?.books)) return data;
+    return {...data,books:data.books.map(book=>!book.volumes?book:{...book,volumes:book.volumes.map(volume=>({...volume,
+      label:typeof volume.label==='string'?volume.label.replace(/^((?:Part|Volume)\s+(\d+))\s+and\s+(\d+)$/i,
+        (label,prefix,first,last)=>Number(first)===Number(last)?prefix:label):volume.label
+    }))})};
+  }
   function read(name) {
     try {
       const saved = JSON.parse(localStorage.getItem(key(name)) || 'null');
       if (!saved || saved.version !== 1 || !Number.isFinite(saved.savedAt) || saved.savedAt > Date.now()) return null;
-      return {...saved, stale: Date.now() - saved.savedAt >= WEEK};
+      return {...saved, data:name==='public'?repairVolumeLabels(saved.data):saved.data, stale: Date.now() - saved.savedAt >= WEEK};
     } catch { return null; }
   }
   function write(name, data) {
-    const saved = {version:1,savedAt:Date.now(),data};
+    const saved = {version:1,savedAt:Date.now(),data:name==='public'?repairVolumeLabels(data):data};
     try { localStorage.setItem(key(name),JSON.stringify(saved)); } catch { /* Storage may be disabled or full. */ }
     return {...saved,stale:false};
   }

@@ -119,7 +119,7 @@ function volumeInfo(filename, fallbackNumber) {
   const explicit = name.match(/\b(vol(?:ume)?|part)\s*[.\-]?\s*(\d{1,3})(?:\s*(?:and|&|[-–])\s*(\d{1,3}))?/i);
   const numbered = explicit || name.match(/(?:^|[\s.\-])(\d{1,3})(?:\s*(?:and|&|[-–])\s*(\d{1,3}))?(?=$|[\s.\-])/i);
   const first = Number(explicit?.[2] || numbered?.[1] || fallbackNumber);
-  const last = explicit?.[3] || numbered?.[2];
+  const last = explicit ? explicit[3] : numbered?.[2];
   const kind = explicit?.[1]?.toLowerCase() === 'part' ? 'Part' : 'Volume';
   return { number: first, label: `${kind} ${first}${last ? ` and ${last}` : ''}` };
 }

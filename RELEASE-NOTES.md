@@ -1,3 +1,7 @@
+# V107.12 — Subject columns and correct volume labels
+
+Replace the Library editor selector with alphabetical subject columns, Uncategorised first, and alphabetical titles within each column. Preserve search and unsaved resource edits; provide horizontal scrolling, phone swiping and navigation arrows. Saving a subject reclassifies the visible resource without changing its identity. Fix the filename parser reusing an explicit part number as a range endpoint: Yassarnal Quraan now shows Part 1 and Part 2 as separate choices. Keep real combined-part labels, original file links and volume numbers; repair duplicate labels from existing browser snapshots without forcing new network requests. Development only; no migration or live metadata edits.
+
 # V107.11 — Period retiming and immediate clash highlights
 
 Apply period start/end changes to the linked lesson boundaries across all weekdays and classes in the current Program, including outer boundaries of spanning lessons. Preserve lesson identities and independent gap breaks; update aligned breaks and restore the whole change with Undo. Highlight potential class, teacher/co-teacher, shared-learner, availability, hour-limit and break clashes on lesson cards without waiting for Validate. Existing validation and publication checks remain in force. Verify retiming, saving/reopening, conflict resolution and desktop/phone layouts against disposable data; published timetables remain unchanged until republished. Development only, with no schema migration or live timetable edits.

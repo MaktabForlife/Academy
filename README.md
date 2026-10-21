@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V107.11
+# Umm Abbad Academy — V107.12
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
@@ -7,6 +7,10 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - HifzHelper keeps its separate Worker and D1; Academy provides profile and PIN updates plus a short-lived sign-in handoff.
+
+## V107.12 — Library editor by subject
+
+Manage Library replaces the long resource dropdown with horizontally scrollable subject columns. Uncategorised comes first for resources without an Academy subject assignment; other subjects and resource titles are alphabetical. Search preserves the current edit, subject saves move the resource to its new column, and switching resources protects unsaved changes. Correct the Archive PDF filename parser so single parts show Part 1 / Part 2 while genuine combined parts retain their range. Repair the old duplicate labels in cached catalogues without changing PDF links, IDs or cache expiry. Verified desktop/phone editing and PDF/bookmark workflows using disposable data.
 
 ## V107.11 — Period times and clash highlights
 
