@@ -94,6 +94,7 @@ export function programProjection(program, data, user, roles, start, end, now, d
         status: row.status || 'SCHEDULED' };
       if (mayView) {
         const teacherNames=timetableTeacherNames(row,teacherDisplayNames);
+        event.mediaSessionKey = JSON.stringify(['PROGRAM', date, row.anchor]);
         event.subjectName = row.subjectName || '';
         event.moduleName = row.moduleName || '';
         event.classNames = (row.classNames || []).filter(Boolean);
@@ -196,6 +197,7 @@ export async function buildEntrance({ tables, programs, rolesByProgram, rolesByC
           timezone: runTimezone, title: event.title, status: event.status,
           relevant, involvement: relevant ? teaching ? 'teacher' : 'student' : '' };
         if (user && event.visibilityLevel === 'DETAIL') {
+          projected.mediaSessionKey = JSON.stringify(['COURSE', run.RunID, published[index]?.sourcesessionid || published[index]?.publishedsessionid]);
           projected.subjectName = event.subjectName || subject.SubjectName;
           projected.moduleName = event.moduleName || '';
           projected.classNames = [];

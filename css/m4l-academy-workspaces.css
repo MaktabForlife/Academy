@@ -90,4 +90,4 @@
 @media(max-width:999px){.workspace-banner,#timetable .workspace-banner,.academy-shell #activity .workspace-banner{grid-template-columns:minmax(0,1fr);gap:12px}#timetable .timetable-days,#activity-sessions .timetable-days{grid-template-columns:repeat(4,minmax(0,1fr))}#activity-schedule>.section-title{grid-template-columns:minmax(0,1fr) auto}#activity-week-range{grid-column:1/-1;grid-row:2}}
 @media(max-width:600px){.workspace-area-group{padding:8px}.workspace-area-links{gap:6px}.upcoming-course{padding:12px}.upcoming-course .workspace-actions{width:100%}.workspace-areas a{flex:1 1 110px;min-width:0;padding:8px 10px}#timetable .timetable-days,#activity-sessions .timetable-days{grid-template-columns:repeat(2,minmax(0,1fr))}#timetable .timetable-pill-details,#activity-sessions .timetable-pill-details{flex-wrap:wrap;gap:3px}}
 
-.workspace-enrolment-actions{margin:0 0 20px}
+.workspace-enrolment-actions{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 20px}

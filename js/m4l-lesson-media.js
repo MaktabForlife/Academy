@@ -86,7 +86,7 @@
  }
  async function mutate(action,input,options={}){
   if(busy)return;const dg=dialogGeneration,g=generation;busy=true;retry=()=>mutate(action,input,options);dialog?.setAttribute('aria-busy','true');modalMessage('Saving…');
-  try{const result=await api(action,input,options);if(!active(g)||dg!==dialogGeneration)return;if(action==='create'){dirty=false;busy=false;retry=null;await load();if(active(g)&&dg===dialogGeneration)await edit({id:result.lessonId,title:'Session media'});return;}dirty=false;retry=null;modalMessage('Saved.');if(discussion)await loadComments(dg);if(editor){editor=await api('get',{lessonId:editor.lesson.id});if(dg!==dialogGeneration)return;renderEditor();}await load();}
+  try{const result=await api(action,input,options);if(!active(g)||dg!==dialogGeneration)return;if(action==='create'){dirty=false;busy=false;retry=null;await load();if(active(g)&&dg===dialogGeneration)await edit({id:result.lessonId,title:'Session media'});return;}dirty=false;retry=null;window.dispatchEvent(new Event('m4l-lesson-media-changed'));modalMessage('Saved.');if(discussion)await loadComments(dg);if(editor){editor=await api('get',{lessonId:editor.lesson.id});if(dg!==dialogGeneration)return;renderEditor();}await load();}
   catch(e){if(active(g)&&dg===dialogGeneration){modalMessage(e.message,true);const m=dialog.querySelector('[data-lm-dialog-message]');if(!m.querySelector('[data-lm=retry]'))m.insertAdjacentHTML('beforeend',' <button type="button" class="button secondary small" data-lm="retry">Retry this change</button>');}}
   finally{if(active(g)&&dg===dialogGeneration){busy=false;dialog?.removeAttribute('aria-busy');}}
  }
@@ -115,7 +115,14 @@
   if(action==='retry'&&retry)void retry();
  }
  function reset(){generation++;calendarRequest++;calendarLoading=false;calendarError='';classFilter='';touch=null;close(true);if(host){host.removeEventListener('click',handleClick);host.removeEventListener('change',calendarChange);host.removeEventListener('touchstart',swipeStart);host.removeEventListener('touchend',swipeEnd);host.replaceChildren();host.classList.remove('lm-calendar');host.hidden=true;}host=null;session='';data=null;}
- window.M4L_LESSON_MEDIA={canLeave:()=>close(),reset,open({hostId,activityKey:key,programId,runId:offering='',learnerView:asLearner=false}){
+ window.M4L_LESSON_MEDIA={canLeave:()=>close(),reset,openAttachment({hostId,lesson,kind}){
+  const target=document.getElementById(hostId);
+  if(!target||!token()||!lesson||!['YOUTUBE','PDF'].includes(kind)||!lesson.assets?.length||!close())return;
+  reset();host=target;session=token();activityKey=lesson.activityKey;learnerView=true;data={lessons:[lesson]};
+  const assets=lesson.assets.filter(asset=>asset.kind===kind);
+  if(assets.length===1){void (kind==='PDF'?pdf(lesson,assets[0].id):watch(lesson,assets[0].id));return;}
+  modal(lesson.title,`<div class="lm-actions">${assets.map((asset,index)=>`<button type="button" class="button secondary" data-lm="${kind==='PDF'?'pdf':'watch'}" data-id="${esc(lesson.id)}" data-asset="${esc(asset.id)}">${kind==='PDF'?'▤':'▶'} ${esc(asset.filename||(kind==='PDF'?'PDF':'Video')+' '+(index+1))}</button>`).join('')}</div>`);
+ },open({hostId,activityKey:key,programId,runId:offering='',learnerView:asLearner=false}){
   key=key||(programId?'PROGRAM:'+programId:'');
   if(!/^(PROGRAM|COURSE):[^:]+$/.test(key)||!token()){reset();return;}
   const target=document.getElementById(hostId);if(!target)return;

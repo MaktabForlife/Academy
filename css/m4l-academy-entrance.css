@@ -195,3 +195,11 @@ body.academy-login-open{overflow:hidden}
 .academy-intro .intro-next>*{position:relative;z-index:1}
 .academy-intro .intro-next .intro-greeting,.academy-intro .intro-next h1{color:var(--paper)}
 .academy-intro .intro-next .intro-mission{color:var(--paper);text-align:center;margin-inline:auto}
+
+/* Media actions are siblings of Details and Join, including grouped lessons. */
+.preview-days .preview-pill.timetable-pill{flex-direction:row;flex-wrap:wrap;align-items:center;min-width:0;box-sizing:border-box}
+.timetable-media-actions{display:flex;flex-wrap:wrap;gap:4px;flex-basis:100%;padding:0 4px 4px}
+.timetable-media-button{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-height:36px;padding:5px 7px;border:1px solid currentColor;border-radius:12px;background:#fff;color:var(--rose-dark);font-size:11px;line-height:1.2;cursor:pointer}
+.timetable-media-button svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linejoin:round}
+.timetable-media-button:hover{background:var(--rose-pale,#f2eaf5)}
+.timetable-media-button:focus-visible{outline:2px solid currentColor;outline-offset:2px}

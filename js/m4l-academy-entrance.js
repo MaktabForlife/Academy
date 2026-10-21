@@ -28,7 +28,7 @@
   }
   function checkProfileLabels(){const revision=profileLabelRevision();if(revision!==dailyCache.profileRevision){dailyCache.profileRevision=revision;dailyCache.entries={};pageCache.snapshot=null;}return revision;}
   const MEMORISATION_RETURN_KEY='m4l_academy_memorisation_return_v1';
-  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10683';
+  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10718';
   let planningSelection=null;
   const academyDay = (timezone, instant = Date.now()) => {
     const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {timeZone:timezone || 'Africa/Johannesburg',
@@ -67,6 +67,7 @@
     $('timetable').dataset.workspaceMode=data?.signedIn?mode:'public';
     $('full-timetable-title').textContent=data?.signedIn?(teach?'TEACH':'LEARN'):'Academy timetable';
     $('learn-enrolment-entry').hidden=!data?.signedIn||teach;
+    $('workspace-main-actions').hidden=!data?.signedIn;
     renderUpcomingCourses();
     if(!data?.signedIn){areas.replaceChildren();return;}
     areas.innerHTML=workspaceAreaLinks(mode);areas.setAttribute('aria-label',teach?'Your teaching Programs and Courses':'Your learning Programs and Courses');
@@ -211,6 +212,7 @@
   }
 
   async function loadHome(force = false) {
+    if(force)clearTimetableMedia();
     const generation = ++state.generation;
     $('entrance-message').textContent = 'Loading Academy information…';
     $('entrance-retry').hidden = true;
@@ -254,6 +256,7 @@
   }
 
   async function loadSchedule(force = false) {
+    if(force)clearTimetableMedia();
     const generation = ++state.scheduleGeneration;
     $('schedule-message').textContent = 'Loading Academy timetable…';
     try {
@@ -649,7 +652,48 @@
     $(id).innerHTML = `<ol class="schedule-list">${rows.map(row => `<li><time datetime="${esc(row.date)}">${esc(formatDate(row.date))}</time><div>${esc(row.startTime)}–${esc(row.endTime)}</div><div class="lesson-name">${esc(row.title)}</div></li>`).join('')}</ol>`;
   }
 
+  const mediaSnapshots=new Map();
+  let mediaGeneration=0;
+  const mediaReference=row=>JSON.stringify([row.kind+':'+row.activityId,row.mediaSessionKey]);
+  function clearTimetableMedia(){mediaGeneration++;mediaSnapshots.clear();}
+  function timetableAttachments(rows){
+    const refs=[...new Map(rows.filter(row=>row.mediaSessionKey).map(row=>[mediaReference(row),{activityKey:row.kind+':'+row.activityId,sessionKey:row.mediaSessionKey}])).values()];
+    if(!refs.length||!token())return new Map();
+    const key=JSON.stringify(refs),session=token(),epoch=mediaGeneration;
+    const cached=mediaSnapshots.get(key);if(cached?.session===session)return cached.lessons;
+    const snapshot={session,lessons:new Map()};mediaSnapshots.set(key,snapshot);
+    if(mediaSnapshots.size>8)mediaSnapshots.delete(mediaSnapshots.keys().next().value);
+    // Batch visible references, never one request per lesson or learning area.
+    void (async()=>{
+      try{
+        const lessons=[];
+        for(let offset=0;offset<refs.length;offset+=400){
+          const response=await fetch(`${window.M4L_CONFIG?.API_BASE||''}/api/academy/lesson-media/timetable`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session},body:JSON.stringify({sessions:refs.slice(offset,offset+400)})});
+          const result=await response.json();
+          if(session!==token()||epoch!==mediaGeneration)return;
+          if(!response.ok||!result.success){if(response.status===401)window.dispatchEvent(new Event('m4l-academy-session-ended'));throw Error(result.error||'Lesson attachments are unavailable.');}
+          lessons.push(...result.lessons);
+        }
+        if(session!==token()||epoch!==mediaGeneration)return;
+        for(const lesson of lessons)snapshot.lessons.set(JSON.stringify([lesson.activityKey,lesson.sessionKey]),lesson);
+        if(location.hash.startsWith('#timetable')||location.hash==='#administration')renderSchedule('academy-sessions',roleRows({...state.home,personalTimetable:state.scheduleTimetable,timetable:state.scheduleTimetable}));
+        else if(location.hash.startsWith('#activity/')&&state.activity)renderActivityTimetable();
+      }catch(error){if(session===token()&&epoch===mediaGeneration)$('schedule-message').textContent='Lesson attachments could not be loaded. Refresh to try again.';}
+    })();
+    return snapshot.lessons;
+  }
+  const timetableMediaIcon=kind=>kind==='PDF'?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l5 5v15H6zM14 2v6h5M9 13h7M9 17h7"/></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="m10 8 6 4-6 4z"/></svg>';
+  function timetableMediaButtons(lesson,reference){
+    if(!lesson)return '';
+    return ['YOUTUBE','PDF'].map(kind=>{
+      const count=lesson.assets.filter(asset=>asset.kind===kind).length;if(!count)return '';
+      const label=(kind==='PDF'?'Open PDF':'Open video')+(count>1?'s':'')+' · '+lesson.title;
+      return `<button type="button" class="timetable-media-button" data-timetable-media="${reference}:${kind}" aria-label="${esc(label)}" title="${esc(label)}">${timetableMediaIcon(kind)}<span>${kind==='PDF'?'PDF':'Video'}${count>1?' ×'+count:''}</span></button>`;
+    }).join('');
+  }
+
   function renderPersonalWeek(id, rows, detailed, next, now) {
+    const media=timetableAttachments(rows);
     const scrollLeft = $(id).scrollLeft || 0;
     const timezone = state.home?.timezone || rows[0]?.timezone || 'Africa/Johannesburg';
     const formatter = new Intl.DateTimeFormat('en-GB', { timeZone: timezone,
@@ -701,7 +745,8 @@
       const join = joinable ? `<button type="button" class="timetable-join" data-join="${id}:${infoIndex}:${entries.indexOf(joinable)}">Join lesson</button>` : '';
       const status = nextEntry ? nextEntry.row.startsAt <= now ? 'In progress' : 'Next lesson' : '';
       const subtitle = summary && entries.length > 1 ? `${entries.length} lessons` : lessonTitle !== label ? lessonTitle : '';
-      return `<li class="preview-pill timetable-pill ${nextEntry ? 'next-lesson ' : ''}${participation(entries)}${joinable ? ' join-open' : ''}"><button type="button" class="timetable-pill-details" data-information="${id}:${infoIndex}" aria-label="${esc(label)}${subtitle ? ' · ' + esc(subtitle) : ''}, ${esc(first.startTime)}–${esc(last.endTime)}${status ? ', ' + status : ''}. View lesson details">${previewTime(first.startTime)}<span class="timetable-pill-copy"><strong class="preview-name">${esc(label)}</strong>${subtitle ? `<small>${esc(subtitle)}</small>` : ''}${status ? `<small class="timetable-pill-status">${status}</small>` : ''}</span></button>${join}</li>`;
+      const attachments=entries.map((entry,i)=>{const lesson=media.get(mediaReference(entry.row));entry.row.media=lesson;return timetableMediaButtons(lesson,`${id}:${infoIndex}:${i}`);}).join('');
+      return `<li class="preview-pill timetable-pill ${nextEntry ? 'next-lesson ' : ''}${participation(entries)}${joinable ? ' join-open' : ''}"><button type="button" class="timetable-pill-details" data-information="${id}:${infoIndex}" aria-label="${esc(label)}${subtitle ? ' · ' + esc(subtitle) : ''}, ${esc(first.startTime)}–${esc(last.endTime)}${status ? ', ' + status : ''}. View lesson details">${previewTime(first.startTime)}<span class="timetable-pill-copy"><strong class="preview-name">${esc(label)}</strong>${subtitle ? `<small>${esc(subtitle)}</small>` : ''}${status ? `<small class="timetable-pill-status">${status}</small>` : ''}</span></button>${join}${attachments?`<div class="timetable-media-actions" aria-label="Lesson attachments">${attachments}</div>`:''}</li>`;
     };
     $(id).innerHTML = `<ol class="upcoming-days preview-days timetable-days">${[...days].sort(([a], [b]) => a.localeCompare(b)).map(([date, groups]) => `<li class="upcoming-day"><time datetime="${esc(date)}">${esc(formatDate(date))}</time><ul class="upcoming-items">${groups.size ? [...groups.values()].map(renderGroup).join('') : '<li class="timetable-empty">No lessons</li>'}</ul></li>`).join('')}</ol>`;
     $(id).scrollLeft = scrollLeft;
@@ -1002,6 +1047,8 @@
     state.activityGeneration++;
     state.home = null;
     $('learn-enrolment-entry').hidden=true;
+    $('workspace-main-actions').hidden=true;
+    clearTimetableMedia();
     planningSelection=null;
     $('upcoming-courses').hidden=true;$('upcoming-course-list').replaceChildren();
     $('timetable-areas').replaceChildren();$('activity-areas').replaceChildren();
@@ -1063,6 +1110,8 @@
     renderHome();if(state.activity){$('activity-menu').innerHTML=roleTools(state.activity);renderSubscriptions(state.home.personalActivities,state.activity);}
   });
 
+  window.addEventListener('m4l-lesson-media-changed',()=>{clearTimetableMedia();if(state.home?.signedIn&&location.hash.startsWith('#timetable'))renderSchedule('academy-sessions',roleRows({...state.home,personalTimetable:state.scheduleTimetable,timetable:state.scheduleTimetable}));});
+
   document.addEventListener('toggle', event => {
     const section = event.target;
     if (!section.matches?.('.academy-progress-section') || !section.open || !section.isConnected) return;
@@ -1096,6 +1145,12 @@
     if (tool) openWorkspaceTool(tool.dataset.workspaceTool);
     const join = event.target.closest('[data-join]') || event.target.closest('[data-public-join]');
     if (join) void joinLesson(join);
+    const mediaButton=event.target.closest('[data-timetable-media]');
+    if(mediaButton){
+      const [group,index,lessonIndex,kind]=mediaButton.dataset.timetableMedia.split(':');
+      const lesson=state.information[group]?.[Number(index)]?.lessons?.[Number(lessonIndex)]?.media;
+      if(lesson)window.M4L_LESSON_MEDIA?.openAttachment({hostId:'timetable-media-host',lesson,kind});
+    }
     const info = event.target.closest('[data-information]');
     if (info) {
       const [group, index] = info.dataset.information.split(':');

@@ -17,14 +17,40 @@ export function youtubeId(value){
 const rolesSQL=`EXISTS(SELECT 1 FROM (${assessmentRolesSQL}) r WHERE r.account_id=a.account_id AND r.activity_key=? AND r.role IN(SELECT value FROM json_each(?)))`;
 const globalSQL="EXISTS(SELECT 1 FROM global_role_assignments g WHERE g.account_id=a.account_id AND g.role='GLOBAL_ADMIN' AND g.active=1 AND g.review_state='CONFIRMED')";
 
+const classMatch="(c.class_id=l.class_id OR EXISTS(SELECT 1 FROM json_each(l.source_lessons_json,'$[0].classIds') WHERE value=c.class_id COLLATE NOCASE))";
+const mediaAudienceSQL=`(l.activity_key LIKE 'COURSE:%' OR EXISTS(SELECT 1 FROM class_memberships c WHERE c.activity_key=l.activity_key AND c.account_id=? AND c.active=1 AND (c.start_date IS NULL OR c.start_date<=l.lesson_date) AND (c.end_date IS NULL OR c.end_date>=l.lesson_date) AND ${classMatch}) OR (NOT EXISTS(SELECT 1 FROM class_memberships m WHERE m.activity_key=l.activity_key AND m.account_id=?) AND (SELECT count(*) FROM classes WHERE activity_key=l.activity_key AND active=1)=1 AND EXISTS(SELECT 1 FROM classes c WHERE c.activity_key=l.activity_key AND c.active=1 AND ${classMatch})))`;
+
+// One bounded lookup for a displayed timetable, using the same roles and class
+// audience as the media reader. References never carry playback or storage URLs.
+export async function timetableMedia(repository,auth,input){
+ if(!Array.isArray(input.sessions)||input.sessions.length>400)throw fail('Choose up to 400 timetable lessons.');
+ const refs=new Map();
+ for(const ref of input.sessions){
+  if(!ref||typeof ref.activityKey!=='string'||ref.activityKey.length>200||!/^(PROGRAM|COURSE):[^:]+$/.test(ref.activityKey)||typeof ref.sessionKey!=='string'||ref.sessionKey.length>1200)throw fail('Choose valid timetable lessons.');
+  const roles=auth.state.roles.filter(r=>same(r.activity_key,ref.activityKey)).map(r=>r.role);
+  const staff=Boolean(auth.state.account.global_admin||roles.some(r=>['PROGRAM_ADMIN','TEACHER'].includes(r)));
+  if(staff||roles.includes('STUDENT')||auth.state.subscriptions.some(r=>same(r.activity_key,ref.activityKey)))refs.set(JSON.stringify([ref.activityKey,ref.sessionKey]),{activityKey:ref.activityKey,sessionKey:ref.sessionKey,staff:Number(staff)});
+ }
+ if(!refs.size||!await optionalSchema(repository.db,'SELECT session_key FROM lesson_media_lessons WHERE 0'))return {lessons:[]};
+ const rows=(await repository.db.prepare(`SELECT DISTINCT l.lesson_id,l.activity_key,l.session_key,l.title,a.asset_id,a.kind,a.filename
+  FROM json_each(?) r JOIN lesson_media_lessons l ON l.activity_key=json_extract(r.value,'$.activityKey') COLLATE NOCASE AND l.session_key=json_extract(r.value,'$.sessionKey')
+  JOIN activities area ON area.activity_key=l.activity_key AND area.active=1 AND area.lifecycle='ACTIVE'
+  JOIN lesson_media_links link ON link.lesson_id=l.lesson_id JOIN lesson_media_assets a ON a.asset_id=link.asset_id
+  WHERE l.state='PUBLISHED' AND (json_extract(r.value,'$.staff')=1 OR ${mediaAudienceSQL})
+  AND EXISTS(SELECT 1 FROM academy_settings WHERE setting_key='LessonMediaEnabled' AND setting_value='1')
+  ORDER BY l.lesson_id,a.created_at,a.asset_id`).bind(JSON.stringify([...refs.values()]),auth.user.accountid,auth.user.accountid).all()).results;
+ const lessons=new Map();
+ for(const r of rows){if(!lessons.has(r.lesson_id))lessons.set(r.lesson_id,{id:r.lesson_id,activityKey:r.activity_key,sessionKey:r.session_key,title:r.title,assets:[]});lessons.get(r.lesson_id).assets.push({id:r.asset_id,kind:r.kind,filename:r.filename});}
+ return {lessons:[...lessons.values()]};
+}
+
 export function lessonMedia(repository,auth,env){
  const db=repository.db,p=(sql,...values)=>db.prepare(sql).bind(...values),actor=auth.user.accountid;
  let activity,scopeKey,admin=false,student=false,teacher=false;
  const teachers=row=>[...new Set([...JSON.parse(row.teacher_ids_json||'[]'),row.teacher_id].filter(Boolean))];
  const manages=row=>admin||teacher&&teachers(row).some(id=>same(id,actor));
  const canRead=()=>student||teacher||admin;
- const classMatch="(c.class_id=l.class_id OR EXISTS(SELECT 1 FROM json_each(l.source_lessons_json,'$[0].classIds') WHERE value=c.class_id COLLATE NOCASE))";
- const audienceSQL=`(l.activity_key LIKE 'COURSE:%' OR EXISTS(SELECT 1 FROM class_memberships c WHERE c.activity_key=l.activity_key AND c.account_id=? AND c.active=1 AND (c.start_date IS NULL OR c.start_date<=l.lesson_date) AND (c.end_date IS NULL OR c.end_date>=l.lesson_date) AND ${classMatch}) OR (NOT EXISTS(SELECT 1 FROM class_memberships m WHERE m.activity_key=l.activity_key AND m.account_id=?) AND (SELECT count(*) FROM classes WHERE activity_key=l.activity_key AND active=1)=1 AND EXISTS(SELECT 1 FROM classes c WHERE c.activity_key=l.activity_key AND c.active=1 AND ${classMatch})))`;
+ const audienceSQL=mediaAudienceSQL;
  const readerAccess=row=>admin||teacher||student&&Boolean(row.learner_allowed);
 
  const scope=async()=>{
