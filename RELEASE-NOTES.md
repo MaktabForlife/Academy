@@ -1,3 +1,7 @@
+# V107.14 — Timetable Edit button beside Save draft
+
+Place Edit published timetable / Continue editing draft in the Weekly planning board header, immediately before Save draft, as requested. Retain editing access and explanatory text in Review & publish, along with existing save, locking and publication behavior. Verify desktop and phone layouts plus draft reopening and republishing against disposable data. Development only; no schema or live data changes.
+
 # V107.13 — Academy PDF whiteboard
 
 Port the legacy Reboot v99.1 Teaching Panel’s drawing, eraser, colour, history, clear, sharing and notes tools into the Academy reader. Provide a Whiteboard toolbar button, numeric line size, explicit PNG and UTF-8 notes downloads, desktop resizing and compact touch layouts. Keep both PDF frames mounted while showing the selected PDF beside the board; restore page locations and the previous split layout. Keep drawings and notes within the current reader tab, protect unsaved content when leaving, and preserve the existing PDF annotation/default/bookmark workflows. Development only; no database or legacy-site edits.

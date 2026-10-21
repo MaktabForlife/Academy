@@ -67,7 +67,7 @@
     $('tt-board-save').disabled=$('tt-save').disabled;
     $('tt-edit-notice').hidden=!state.data?.prepared;
     $('tt-edit-notice').dataset.mode=editable?'draft':'published';
-    $('tt-edit-action').textContent=editable?'Continue editing draft':'Edit published timetable';
+    for(const name of ['tt-edit-action','tt-review-edit-action'])$(name).textContent=editable?'Continue editing draft':'Edit published timetable';
     $('tt-edit-message').textContent=editable
       ? `Your ${dirty()?'working':'saved'} draft is available to edit and publish.${state.data?.publications?.length?' The published timetable remains in effect until you publish your changes.':''}`
       : 'Open this published timetable for editing. Your changes are saved as a draft; the published timetable remains in effect until you publish again.';
@@ -80,7 +80,7 @@
     if(needsReview)$('tt-conversion-message').textContent=`The previous draft contains ${state.conversion.oneOffCount} one-off lessons and ${state.conversion.exceptionCount} dated exceptions. Use weekly lessons to continue with its recurring rows. The original draft and published history remain preserved.`;
     if($('pw-copy'))for(const action of ['copy','archive','cancel'])$('pw-'+action).disabled=locked||!state.data?.workspaceReady||dirty();
     workspace?.controls();
-    $('tt-edit-action').disabled=locked||!ready||sharedConflict||(!editable&&(dirty()||Boolean(workspace?.hasEdits())));
+    for(const name of ['tt-edit-action','tt-review-edit-action'])$(name).disabled=locked||!ready||sharedConflict||(!editable&&(dirty()||Boolean(workspace?.hasEdits())));
     const edits=workspace?.editSections?.()||[];
     $('tt-review-classes').hidden=!edits.includes('classes');$('tt-review-card').hidden=!edits.includes('public-card');
     const hint=edits.length?'Save or discard '+edits.map(section=>section==='classes'?'class changes':'public card changes').join(' and ')+' before publishing.':sharedConflict?'Resolve the other tab’s changes before publishing.':state.pending?'Confirm the pending save before publishing.':state.calendarView?.history?'Preview the current draft before publishing.':!state.preview?.valid?'Preview this timetable and resolve any validation issues before publishing.':'';
@@ -306,7 +306,7 @@
   };
   $('tt-publish-cancel').onclick=closePublishDialog;
   $('tt-board-save').onclick=()=> $('tt-save').click();
-  $('tt-edit-action').onclick=async()=>{
+  $('tt-review-edit-action').onclick=$('tt-edit-action').onclick=async()=>{
     if($('tt-edit-action').disabled)return;
     // A saved working draft always wins. Never replace it with the published snapshot.
     if(state.data.timetableEditable===false)await reusePublication(state.draft.timetableId);

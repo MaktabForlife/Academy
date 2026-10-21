@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V107.13
+# Umm Abbad Academy — V107.14
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
@@ -7,6 +7,10 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - HifzHelper keeps its separate Worker and D1; Academy provides profile and PIN updates plus a short-lived sign-in handoff.
+
+## V107.14 — Timetable editing action placement
+
+Move the timetable Edit action into the Weekly planning board header immediately before Save draft. Keep draft continuation, published timetable protection and the Review & publish editing action. The controls wrap on smaller screens. No database changes.
 
 ## V107.13 — PDF whiteboard
 
