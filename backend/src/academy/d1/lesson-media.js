@@ -47,18 +47,40 @@ export function lessonMedia(repository,auth,env){
  function reader(row){if(!readerAccess(row)||row.state!=='PUBLISHED')throw fail('Published lesson media is available to assigned learners, teachers and admins.',403,'MEDIA_FORBIDDEN');}
  function staff(row){if(!manages(row))throw fail('This session is outside your media management access.',403,'MEDIA_FORBIDDEN');}
  function revision(row,input){if(!Number.isInteger(input.revision)||row.revision!==input.revision)throw fail('This entry changed. Refresh before saving; your entry is kept.',409,'ROW_CHANGED');}
- const dto=row=>({id:row.lesson_id,activityKey:row.activity_key,runId:row.run_id,date:row.lesson_date,title:row.title,startTime:row.start_time,endTime:row.end_time,teacher:row.teacher_name,className:row.class_name||JSON.parse(row.source_lessons_json)[0]?.classNames?.join(', ')||'',summary:row.summary,state:row.state,commentsClosed:Boolean(row.comments_closed),revision:row.revision,canManage:manages(row),canView:readerAccess(row)&&row.state==='PUBLISHED',lessons:JSON.parse(row.source_lessons_json)});
+ const dto=row=>({id:row.lesson_id,sessionKey:row.session_key||'',activityKey:row.activity_key,runId:row.run_id,date:row.lesson_date,title:row.title,startTime:row.start_time,endTime:row.end_time,teacher:row.teacher_name,className:row.class_name||JSON.parse(row.source_lessons_json)[0]?.classNames?.join(', ')||'',summary:row.summary,state:row.state,commentsClosed:Boolean(row.comments_closed),revision:row.revision,canManage:manages(row),canView:readerAccess(row)&&row.state==='PUBLISHED',lessons:JSON.parse(row.source_lessons_json)});
  async function assets(id,management=false){return (await p('SELECT a.* FROM lesson_media_links l JOIN lesson_media_assets a USING(asset_id) WHERE l.lesson_id=? ORDER BY a.kind,a.created_at,a.asset_id',id).all()).results.map(a=>({id:a.asset_id,kind:a.kind,filename:a.filename,...(management&&a.kind==='YOUTUBE'?{url:'https://youtu.be/'+a.youtube_id}:{})}));}
- async function list(input){
+ async function list(input,period=false){
   const preview=input.view==='learner',runId=input.runId||'';
   if(typeof runId!=='string'||runId.length>160)throw fail('Choose a Course offering.');
   let date='9999-12-31',id='';
   if(input.before){try{if(String(input.before).startsWith('['))[date,id]=JSON.parse(input.before);else date=input.before;}catch{throw fail('Invalid media page.');}if(!validDate(date)||typeof id!=='string'||id.length>100)throw fail('Invalid media page.');}
-  const rows=(await p(`SELECT l.*,c.name class_name,${audienceSQL} learner_allowed FROM lesson_media_lessons l LEFT JOIN classes c ON c.activity_key=l.activity_key AND c.class_id=l.class_id WHERE l.activity_key=? AND (?=1 OR ${audienceSQL}) AND (?='' OR l.run_id=?) AND (l.lesson_date<? OR (l.lesson_date=? AND l.lesson_id<?)) AND ${preview?"l.state='PUBLISHED'":admin?'1=1':teacher?"(l.state='PUBLISHED' OR l.teacher_id=? OR EXISTS(SELECT 1 FROM json_each(l.teacher_ids_json) WHERE value=? COLLATE NOCASE))":"l.state='PUBLISHED'"} ORDER BY l.lesson_date DESC,l.lesson_id DESC LIMIT 31`,actor,actor,scopeKey,Number(admin||teacher),actor,actor,runId,runId,date,date,id,...(!preview&&!admin&&teacher?[actor,actor]:[])).all()).results;
-  const page=rows.slice(0,30),ids=page.map(r=>r.lesson_id),links=ids.length?(await p('SELECT l.lesson_id,a.asset_id,a.kind,a.filename FROM lesson_media_links l JOIN lesson_media_assets a USING(asset_id) WHERE l.lesson_id IN(SELECT value FROM json_each(?)) ORDER BY a.created_at,a.asset_id',JSON.stringify(ids)).all()).results:[];
-  return {activityKey:scopeKey,activityName:activity.name,kind:activity.kind,canManage:!preview&&(admin||teacher),canView:canRead(),learnerPreview:preview,lessons:page.map(row=>({...dto(row),...(preview?{canManage:false}:{}),assets:links.filter(a=>a.lesson_id===row.lesson_id).map(a=>({id:a.asset_id,kind:a.kind,filename:a.filename}))})),before:rows.length>30?JSON.stringify([page.at(-1).lesson_date,page.at(-1).lesson_id]):null};
+  const rows=(await p(`SELECT l.*,c.name class_name,${audienceSQL} learner_allowed FROM lesson_media_lessons l LEFT JOIN classes c ON c.activity_key=l.activity_key AND c.class_id=l.class_id WHERE l.activity_key=? AND (?=1 OR ${audienceSQL}) AND (?='' OR l.run_id=?) AND (l.lesson_date<? OR (l.lesson_date=? AND l.lesson_id<?)) AND ${preview?"l.state='PUBLISHED'":admin?'1=1':teacher?"(l.state='PUBLISHED' OR l.teacher_id=? OR EXISTS(SELECT 1 FROM json_each(l.teacher_ids_json) WHERE value=? COLLATE NOCASE))":"l.state='PUBLISHED'"} ${period?' AND l.lesson_date>=? AND l.lesson_date<=?':''} ORDER BY l.lesson_date DESC,l.lesson_id DESC LIMIT ${period?401:31}`,actor,actor,scopeKey,Number(admin||teacher),actor,actor,runId,runId,date,date,id,...(!preview&&!admin&&teacher?[actor,actor]:[]),...(period?[input.startDate,input.endDate]:[])).all()).results;
+  if(period&&rows.length>400)throw fail('Choose a shorter media period.');
+  const page=rows.slice(0,period?400:30),ids=page.map(r=>r.lesson_id),links=ids.length?(await p('SELECT l.lesson_id,a.asset_id,a.kind,a.filename FROM lesson_media_links l JOIN lesson_media_assets a USING(asset_id) WHERE l.lesson_id IN(SELECT value FROM json_each(?)) ORDER BY a.created_at,a.asset_id',JSON.stringify(ids)).all()).results:[];
+  return {activityKey:scopeKey,activityName:activity.name,kind:activity.kind,canManage:!preview&&(admin||teacher),canView:canRead(),learnerPreview:preview,lessons:page.map(row=>({...dto(row),...(preview?{canManage:false}:{}),assets:links.filter(a=>a.lesson_id===row.lesson_id).map(a=>({id:a.asset_id,kind:a.kind,filename:a.filename}))})),before:!period&&rows.length>30?JSON.stringify([page.at(-1).lesson_date,page.at(-1).lesson_id]):null};
  }
  async function sessions(input){if(!admin&&!teacher)throw fail('Choose an area you teach or administer.',403,'MEDIA_FORBIDDEN');return mediaSessions(repository,activity,input,actor,admin);}
+ // The calendar reuses the media audience checks. Learners never read draft
+ // timetable sessions or unpublished media; staff retain per-session authority.
+ async function calendar(input){
+  if(!validDate(input.startDate)||!validDate(input.endDate)||input.endDate<input.startDate||Date.parse(input.endDate+'T12:00:00Z')-Date.parse(input.startDate+'T12:00:00Z')>30*86400000)throw fail('Choose a media period of up to 31 days.');
+  const staffView=input.view!=='learner'&&(admin||teacher);
+  const schedule=staffView?await sessions(input):{sessions:[],runs:[],runId:input.runId||''};
+  const selectedInput=activity.kind==='COURSE'&&schedule.runId?{...input,runId:schedule.runId}:input;
+  const media=await list(selectedInput,true);
+  const records=new Map(media.lessons.filter(row=>row.sessionKey).map(row=>[row.sessionKey,row]));
+  const dated=schedule.sessions.filter(row=>row.date>=input.startDate&&row.date<=input.endDate);
+  const keys=new Set(dated.map(row=>row.sessionKey));
+  const rows=dated.map(row=>({...row,canManage:records.get(row.sessionKey)?.canManage??true,media:records.get(row.sessionKey)||null}));
+  for(const row of media.lessons)if(!keys.has(row.sessionKey))rows.push({sessionKey:row.sessionKey||'media:'+row.id,date:row.date,title:row.title,startTime:row.startTime,endTime:row.endTime,classNames:row.className?[row.className]:[],teacherName:row.teacher,canManage:row.canManage,media:row,savedMedia:!row.sessionKey||staffView});
+  let suggestedDate='';
+  if(input.initial===true&&!rows.length){
+   const available=schedule.sessions.length?schedule.sessions:(await list({...selectedInput,before:undefined})).lessons;
+   const today=new Date().toLocaleDateString('en-CA',{timeZone:'Africa/Johannesburg'}),dates=available.map(row=>row.date).sort();
+   suggestedDate=dates.filter(day=>day<=today).at(-1)||dates[0]||'';
+  }
+  return {...media,sessions:rows.sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime)||a.sessionKey.localeCompare(b.sessionKey)),runs:schedule.runs,runId:schedule.runId,suggestedDate};
+ }
  async function selectedSession(input){
   const result=await sessions(input),session=result.sessions.find(r=>r.sessionKey===input.sessionKey);
   if(!session||session.sessionVersion!==input.sessionVersion)throw fail('This session changed. Refresh the session list before attaching media.',409,'SESSION_CHANGED');
@@ -166,7 +188,7 @@ export function lessonMedia(repository,auth,env){
   return new Response(object.body,{headers:{'Content-Type':'application/pdf','Content-Length':String(asset.byte_size),'Content-Disposition':`inline; filename*=UTF-8''${encodeURIComponent(asset.filename)}`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':'sandbox'}});
  }
  async function run(action,input){
-  await ready(input);if(action==='sessions')return sessions(input);if(action==='create')return create(input);if(action==='list')return list(input);if(action==='save')return save(input);if(action==='comments')return comments(input);if(action==='comment-save')return commentSave(input);if(action==='comment-moderate')return moderate(input);
+  await ready(input);if(action==='calendar')return calendar(input);if(action==='sessions')return sessions(input);if(action==='create')return create(input);if(action==='list')return list(input);if(action==='save')return save(input);if(action==='comments')return comments(input);if(action==='comment-save')return commentSave(input);if(action==='comment-moderate')return moderate(input);
   if(action==='download')return download(input);
   const row=await lesson(input.lessonId);
   if(action==='get'){staff(row);return {lesson:dto(row),assets:await assets(row.lesson_id,true)};}

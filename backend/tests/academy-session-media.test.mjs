@@ -43,6 +43,8 @@ test('Course media attaches to a saved session without a Program class and remai
  assert.equal(f.db.prepare('SELECT class_id FROM lesson_media_lessons WHERE lesson_id=?').get(id).class_id,null);
  let list=ok(await f.media('list',{activityKey},student));assert.equal(list.lessons.length,1);assert.equal(list.lessons[0].assets.length,2);
  const asset=list.lessons[0].assets[0];assert.equal((await f.media('watch',{lessonId:id,assetId:asset.id},student)).status,200);
+ const calendarInput={activityKey,runId:saved.runId,startDate:'2026-09-20',endDate:'2026-09-26'};const learnerCalendar=ok(await f.media('calendar',calendarInput,student));assert.equal(learnerCalendar.sessions.length,1);assert.equal(learnerCalendar.sessions[0].media.assets.length,2);assert.equal(learnerCalendar.sessions[0].canManage,false);const staffCalendar=ok(await f.media('calendar',calendarInput,teacher));assert.equal(staffCalendar.sessions[0].sessionKey,selected.sessionKey);assert.equal(staffCalendar.sessions[0].media.id,id);assert.equal(staffCalendar.runId,saved.runId);
+ const draft=f.db.prepare('SELECT details_json FROM course_management_drafts WHERE activity_key=?').get(activityKey);const revised=JSON.parse(draft.details_json);revised.sessions.push({...revised.sessions[0],id:'CMSESSION-unreleased',title:'Unreleased Course session'});f.db.prepare('UPDATE course_management_drafts SET details_json=? WHERE activity_key=?').run(JSON.stringify(revised),activityKey);assert.doesNotMatch(JSON.stringify(ok(await f.media('calendar',calendarInput,student))),/Unreleased/);
  f.db.prepare("UPDATE course_management_drafts SET stage='COMPLETE' WHERE activity_key=?").run(activityKey);assert.equal(ok(await f.media('list',{activityKey},student)).lessons.length,1);
  f.db.prepare("UPDATE role_assignments SET active=0 WHERE activity_key=? AND account_id='account-0002'").run(activityKey);
  assert.equal((await f.media('watch',{lessonId:id,assetId:asset.id},student)).status,403);
@@ -52,7 +54,7 @@ test('MOU recordings remain permanent and pagination does not skip sessions shar
  f.db.prepare("UPDATE academy_settings SET setting_value='0' WHERE setting_key='LessonMediaPilot'").run();assert.equal(ok(await f.media('list',{},student)).lessons.length,3);
  const old=f.db.prepare('SELECT * FROM lesson_media_lessons LIMIT 1').get();
  for(let n=0;n<35;n++)f.db.prepare('INSERT INTO lesson_media_lessons(lesson_id,activity_key,class_id,lesson_date,title,start_time,end_time,teacher_id,teacher_name,state,updated_at,teacher_ids_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').run('MOU-page-'+String(n).padStart(2,'0'),old.activity_key,old.class_id,'2026-10-20','Session '+n,'09:00','10:00',old.teacher_id,old.teacher_name,'PUBLISHED',old.updated_at,old.teacher_ids_json);
- const first=ok(await f.media('list',{},admin)),second=ok(await f.media('list',{before:first.before},admin));assert.equal(first.lessons.length,30);assert.equal(second.lessons.length,8);assert.equal(new Set([...first.lessons,...second.lessons].map(r=>r.id)).size,38);
+ const first=ok(await f.media('list',{},admin)),second=ok(await f.media('list',{before:first.before},admin));assert.equal(first.lessons.length,30);assert.equal(second.lessons.length,8);assert.equal(new Set([...first.lessons,...second.lessons].map(r=>r.id)).size,38);const calendar=ok(await f.media('calendar',{startDate:'2026-10-18',endDate:'2026-10-24'},admin));assert.equal(calendar.sessions.length,35,'The weekly calendar includes all sessions beyond the old 30-card page');
 }));
 
 test('migration preserves every existing media lesson, attachment and discussion with foreign keys intact',async()=>{
@@ -64,3 +66,27 @@ test('migration preserves every existing media lesson, attachment and discussion
   assert.deepEqual(f.db.prepare('PRAGMA foreign_key_check').all(),[]);
  }finally{f.db.close();}
 });
+
+
+test('weekly media calendar matches saved sessions, counts attachments and keeps learner publication/class boundaries',()=>use(async f=>{
+ const admin=await f.login('0001'),student=await f.login('0002'),teacher=await f.login('0003');
+ const sessions=ok(await f.media('sessions',{activityKey:scope,...period},admin)).sessions,selected=sessions.find(row=>row.classIds.includes('class-1'));
+ const lessonId=ok(await create(f,admin,selected)).lessonId;
+ let calendar=ok(await f.media('calendar',{activityKey:scope,...period},admin));
+ assert.equal(calendar.sessions.filter(row=>row.media?.id===lessonId).length,1);assert.equal(calendar.sessions.find(row=>row.media?.id===lessonId).media.state,'DRAFT');
+ assert.equal(ok(await f.media('calendar',{activityKey:scope,...period},student)).sessions.length,0);
+ assert.equal(ok(await f.media('calendar',{activityKey:scope,...period,view:'learner'},admin)).sessions.length,0);
+ ok(await f.media('save',save(lessonId),admin));ok(await f.mediaUpload({lessonId,revision:2},admin));
+ calendar=ok(await f.media('calendar',{activityKey:scope,...period},student));assert.equal(calendar.sessions.length,1);assert.equal(calendar.sessions[0].canManage,false);assert.equal(calendar.sessions[0].media.canView,true);assert.equal(calendar.sessions[0].media.assets.filter(a=>a.kind==='YOUTUBE').length,2);assert.equal(calendar.sessions[0].media.assets.filter(a=>a.kind==='PDF').length,1);assert.doesNotMatch(JSON.stringify(calendar),/youtu\.be|youtube_id|object_key|zoom\.us/);
+ const staff=ok(await f.media('calendar',{activityKey:scope,...period},teacher));assert(staff.sessions.every(row=>row.media||row.teacherIds.includes('account-0003')));
+ f.db.prepare('UPDATE class_memberships SET active=0 WHERE activity_key=? AND account_id=?').run(scope,'account-0002');assert.equal(ok(await f.media('calendar',{activityKey:scope,...period},student)).sessions.length,0);
+ assert.equal((await f.media('calendar',{activityKey:scope,startDate:'2026-10-01',endDate:'2026-12-01'},admin)).status,400);
+ assert.equal((await f.media('calendar',{activityKey:'PROGRAM:unrelated',...period},student)).status,403);
+}));
+test('calendar preserves permanent media without a matching current timetable and browsing never writes data',()=>use(async f=>{
+ const admin=await f.login('0001'),student=await f.login('0002'),activityKey='PROGRAM:PRG-656bcece-4310-49c7-87d7-ee06756f66c1';
+ const before=f.db.prepare('SELECT count(*) n FROM audit_events').get().n;
+ for(const token of [admin,student]){const result=ok(await f.media('calendar',{activityKey,startDate:'2026-10-04',endDate:'2026-10-10'},token));assert.equal(result.sessions.length,3);assert(result.sessions.every(row=>row.savedMedia&&row.media.assets.length===1));}
+ const empty=ok(await f.media('calendar',{activityKey,startDate:'2026-11-01',endDate:'2026-11-07',initial:true},student));assert.equal(empty.suggestedDate,'2026-10-08');assert.equal(empty.sessions.length,0);
+ assert.equal(f.db.prepare('SELECT count(*) n FROM audit_events').get().n,before);
+}));

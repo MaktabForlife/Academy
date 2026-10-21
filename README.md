@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V107.16
+# Umm Abbad Academy — V107.17
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
@@ -7,6 +7,10 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - HifzHelper keeps its separate Worker and D1; Academy provides profile and PIN updates plus a short-lived sign-in handoff.
+
+## V107.17 — Lesson media timetable
+
+Replace the lesson-media card ribbon with a shared weekly timetable in Program management, Course management, LEARN and TEACH. Browse dates with week arrows, swipe the week heading or scroll across days; filter Program classes and select Course offerings. Select a lesson to attach or manage media, with video/PDF icons and counts on its card. Learners open only published media within their existing access. Preserve permanent recordings, discussions, private R2 PDFs, exact retries and older saved media when the current timetable changes. No database migration or live data correction.
 
 ## V107.16 — Program Review & publish controls
 
