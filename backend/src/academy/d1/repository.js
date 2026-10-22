@@ -26,6 +26,7 @@ export function academyD1Repository(env) {
   }
   const activityColumns=env.ACADEMY_ACCEPTED_SETUP==='1'?`a.activity_key,a.activity_id,a.kind,COALESCE((SELECT json_extract(r.value,'$.name') FROM setup_head_state h JOIN setup_head_components v ON v.head_id=h.head_id AND v.table_name='activities' JOIN setup_components c USING(component_id) JOIN json_each(c.rows_json) r WHERE h.singleton=1 AND json_extract(r.value,'$.activity_key')=a.activity_key COLLATE NOCASE LIMIT 1),'Learning area') AS name,a.active,a.lifecycle,a.website_visible,a.created_at,a.updated_at,a.revision`:'a.*';
   const accountSQL=`SELECT a.*,c.pin_hash,c.pin_setup,c.credential_epoch,
+    ${env.ACADEMY_LEARNING_OPERATIONS==='3'?`(SELECT json_group_array(json_object('id',g.assignment_id,'activityKey',g.activity_key)) FROM attendance_substitutes g JOIN activities area USING(activity_key) WHERE g.account_id=a.account_id AND area.active=1 AND area.lifecycle='ACTIVE' AND g.revoked_at IS NULL AND g.starts_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now') AND max(g.correction_until,coalesce(g.correction_reopen_until,''))>strftime('%Y-%m-%dT%H:%M:%fZ','now')) AS substitute_grants,`:''}
     EXISTS(SELECT 1 FROM global_role_assignments g WHERE g.account_id=a.account_id AND g.role='GLOBAL_ADMIN' AND g.active=1 AND g.review_state='CONFIRMED') AS global_admin
     FROM accounts a JOIN account_credentials c ON c.account_id=a.account_id`;
   async function stateFor(where,values) {
@@ -60,6 +61,7 @@ export function academyD1Repository(env) {
       for(const role of [...new Set(roles.filter(r=>key(r.activity_key)===key(activity.activity_key)).map(r=>r.role))].filter(r=>['PROGRAM_ADMIN','TEACHER','STUDENT'].includes(r)))
         contexts.push({scope:'GLOBAL',courseId:activity.activity_id,courseName:activity.name,role,activityKind:'COURSE'});
     }
+    for(const grant of JSON.parse(account.substitute_grants||'[]')){const area=activities.find(a=>key(a.activity_key)===key(grant.activityKey));if(area)contexts.push({scope:'SUBSTITUTE',courseId:grant.id,courseName:area.name,role:'SUBSTITUTE',activityKey:area.activity_key});}
     const rank=role=>role==='PROGRAM_ADMIN'?1:authorityRank(role);
     contexts.sort((a,b)=>rank(a.role)-rank(b.role)||a.courseName.localeCompare(b.courseName)||a.role.localeCompare(b.role));
     if(!account.global_admin&&activities.some(a=>a.kind==='COURSE'&&(a.legacy_access_model==='FREE'||subscriptions.some(s=>key(s.activity_key)===key(a.activity_key)))))
@@ -71,7 +73,7 @@ export function academyD1Repository(env) {
       SELECT ?,?,?,?,?,?,?,?,? ${conditional?'WHERE changes()=1':''}`,crypto.randomUUID(),new Date().toISOString(),actor,env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACCOUNT':'D1_REHEARSAL','ACADEMY',action,'USER_ACCOUNT',target,JSON.stringify(fields));
   }
   return {
-    db,setup:{enabled:env.ACADEMY_ACCEPTED_SETUP==='1'},
+    db,setup:{enabled:env.ACADEMY_ACCEPTED_SETUP==='1'},features:{nativeAttendance:env.ACADEMY_LEARNING_OPERATIONS==='3'},
     ownershipForNewActivity:activity=>newActivityOwnership(activity,env),
     subscriptionSource,
     publicAccount,
@@ -85,7 +87,7 @@ export function academyD1Repository(env) {
         // sqlite_schema or subscription rows. All live ownership/evidence guards remain.
         const result=await prepare(`SELECT m.run_id,
           1 AS mapped_roles,(SELECT setting_value FROM academy_settings WHERE setting_key='ProgramWorkspace') AS program_workspace,(SELECT setting_value FROM academy_settings WHERE setting_key='PersonalMemorisationCards') AS memorisation_cards,
-          (SELECT setting_value FROM academy_settings WHERE setting_key='PlatformTimezone') AS timezone FROM migration_runs m
+          ${env.ACADEMY_ACCEPTED_SETUP==='1'?`(SELECT json_extract(row.value,'$.setting_value') FROM setup_head_state h JOIN setup_head_components v ON v.head_id=h.head_id AND v.table_name='academy_settings' JOIN setup_components c USING(component_id),json_each(c.rows_json) row WHERE json_extract(row.value,'$.setting_key')='PlatformTimezone' LIMIT 1)`:`(SELECT setting_value FROM academy_settings WHERE setting_key='PlatformTimezone')`} AS timezone FROM migration_runs m
           JOIN learning_imports l ON l.base_run_id=m.run_id AND l.singleton=1 AND l.source_sha256=m.source_snapshot_sha256
           JOIN course_workflow_imports c ON c.base_run_id=m.run_id AND c.singleton=1 AND c.source_sha256=m.source_snapshot_sha256
           WHERE m.run_id=? AND m.state='CUTOVER' AND m.environment IN ('LOCAL','DEVELOPMENT')

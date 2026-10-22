@@ -151,11 +151,11 @@ test('mark moderation and marks, feedback and scripts have independent releases 
  ok(await x.change('release',{category:'scripts'}));assert.equal((await f.download(script.fileId,x.student)).status,200);assert.equal((await f.download(script.fileId,x.other)).status,403);
  r=(await x.detail()).learners[0];ok(await x.change('mark',{accountId:r.accountId,recipientRevision:r.revision,submissionId:r.submissionId,mark:86,feedback:'Revised',scriptFileId:script.fileId},x.teacher));assert.equal((await x.detail(x.student)).learners[0].mark,undefined);assert.equal((await f.download(script.fileId,x.student)).status,403);
 }));
-test('database failures roll back submissions, audit and receipts and remove uploaded orphan objects',()=>use(async f=>{
+test('database failures roll back submissions, audit and receipts while retaining uncertain immutable objects',()=>use(async f=>{
  const x=await setup(f);await available(f,x);const size=f.objects.size,receipts=f.db.prepare('SELECT count(*) n FROM operation_receipts').get().n;
  f.db.exec("CREATE TRIGGER fail_answer BEFORE INSERT ON assessment_submissions BEGIN SELECT RAISE(ABORT,'synthetic assessment failure'); END;");
  assert.equal((await f.upload({kind:'ANSWER',assessmentId:x.id,recipientRevision:0},x.student)).status,503);
- assert.equal(f.objects.size,size);assert.equal(f.db.prepare('SELECT count(*) n FROM assessment_submissions').get().n,0);assert.equal(f.db.prepare('SELECT count(*) n FROM operation_receipts').get().n,receipts);
+ assert.equal(f.objects.size,size+1);assert.equal(f.db.prepare('SELECT count(*) n FROM assessment_submissions').get().n,0);assert.equal(f.db.prepare('SELECT count(*) n FROM operation_receipts').get().n,receipts);
  assert.equal((await x.detail()).learners[0].submissionId,null);
  delete f.env.ASSESSMENT_BUCKET;assert.equal((await f.upload({kind:'ANSWER',assessmentId:x.id,recipientRevision:0},x.student)).status,503);
 }));

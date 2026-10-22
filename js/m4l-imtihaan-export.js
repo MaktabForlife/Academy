@@ -13,7 +13,7 @@
  const stage=(register,rows)=>['CANCELLED','ARCHIVED'].includes(register.status)?register.status==='CANCELLED'?'Cancelled':'Archived':rows.length&&rows.every(a=>a.published)?'Final':'Draft';
  async function prepare(register,assessments){
   if(!register.canEdit)throw new Error('This Imtihaan includes learning areas outside your administration access.');
-  const rows=assessments.filter(a=>a.registerId===register.id).sort((a,b)=>a.examDate.localeCompare(b.examDate)||a.activityName.localeCompare(b.activityName)||a.className.localeCompare(b.className)||a.subject.localeCompare(b.subject));
+  const rows=assessments.filter(a=>a.registerId===register.id).sort((a,b)=>String(a.examDate||a.dueAt||a.availableFrom||'').localeCompare(String(b.examDate||b.dueAt||b.availableFrom||''))||a.activityName.localeCompare(b.activityName)||a.className.localeCompare(b.className)||a.subject.localeCompare(b.subject));
   if(!rows.length)throw new Error('Add assessment dates before exporting this Imtihaan.');
   if(!window.PDFLib)throw new Error('PDF tools did not load. Refresh and try again.');
   await document.fonts.ready;
@@ -27,7 +27,7 @@
   const headers=['Date','Program / Course','Class','Subject / Module','Assessment','Duration','Total mark'],weights=[.11,.16,.16,.22,.17,.10,.08],columns=weights.map(w=>w*tableWidth),font=20,lineHeight=27;
   ctx.font=font+'px Arial';
   const content=rows.map(a=>{
-   const cells=[date(a.examDate),a.activityName,a.className,[a.subject,a.subjectDescriptor].filter(Boolean).join(' · '),a.title,a.durationMinutes+' min',String(a.maximumMark)];
+   const cells=[date(a.examDate||a.dueAt||a.availableFrom),a.activityName,a.className,[a.subject,a.subjectDescriptor].filter(Boolean).join(' · '),a.title,a.timingMode==='UNTIMED'?'Untimed':a.durationMinutes+' min',String(a.maximumMark)];
    const lines=cells.map((v,i)=>wrap(ctx,v,columns[i]-24));return {lines,height:Math.max(...lines.map(a=>a.length))*lineHeight+26};
   });
   ctx.font='bold 19px Arial';const headingLines=headers.map((v,i)=>wrap(ctx,v,columns[i]-24)),headerHeight=Math.max(...headingLines.map(a=>a.length))*lineHeight+26;

@@ -66,7 +66,8 @@
     "HIFZ_PROFILE_SYNC_TARGET": "production",
     "HIFZ_PROFILE_SYNC_URL": "https://hifzhelper-api.hifzhelper-app.workers.dev/internal/academy/profile-sync",
     "ACADEMY_DEPLOYMENT_KIND": "FEATURE_PREVIEW",
-    "ACADEMY_ACCEPTED_SETUP": "1"
+    "ACADEMY_ACCEPTED_SETUP": "1",
+    "ACADEMY_LEARNING_OPERATIONS": "3"
   },
   "secrets": {
     "required": [

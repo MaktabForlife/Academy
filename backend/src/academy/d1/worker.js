@@ -1,3 +1,4 @@
+import {nativeAttendance} from './native-attendance.js';
 import {setupEnabled,acceptedHead,acceptedRepository} from './setup-reader.js';
 import {setupPublication} from './setup-publication.js';
 import {announcements,publicAnnouncements,announcementImage,announcementPdf,announcementUpload} from './announcements.js';
@@ -82,7 +83,7 @@ async function dispatch(request,env) {
   if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,setupEnabled(env)?await readRepository():repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(setupEnabled(env)?await readRepository():repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.25',
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.26',
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(setupEnabled(env)?await readRepository():repository)};
@@ -128,7 +129,7 @@ async function dispatch(request,env) {
     return {success:true,...await d1Library(repository,auth,env).uploadChunk(request)};
   }
   const managementPath=path.startsWith('/api/admin/platform/');
-  const input=await boundedBody(request,path.startsWith('/api/academy/bookmarks/')?8192:managementPath||path.startsWith('/api/academy/teacher-availability/')||path.startsWith('/api/academy/progress/')||path.startsWith('/api/academy/assessments/')||path.startsWith('/api/academy/lesson-media/')||path.startsWith('/api/academy/planning/')?131072:path.startsWith('/api/program-attendance/')?65536:4096);
+  const input=await boundedBody(request,path.startsWith('/api/academy/bookmarks/')?8192:managementPath||path.startsWith('/api/academy/teacher-availability/')||path.startsWith('/api/academy/progress/')||path.startsWith('/api/academy/assessments/')||path.startsWith('/api/academy/lesson-media/')||path.startsWith('/api/academy/planning/')||path.startsWith('/api/academy/attendance/')?131072:path.startsWith('/api/program-attendance/')?65536:4096);
   if(['/api/account/check','/api/account/login','/api/account/setup-pin'].includes(path)) {
     const login=String(input.uniqueid || '').trim();
     if(!login||login.length>160)throw rehearsalError('Missing or invalid account link.',400,'INVALID_ACCOUNT_LINK');
@@ -162,6 +163,8 @@ async function dispatch(request,env) {
   }
   const auth=await authenticated(request,env,repository);
   guardWorkspace(request,auth,input);
+  const nativeAction=path.match(/^\/api\/(?:academy\/attendance|program-attendance)\/(options|get|submit|prepare|recover|report|roster-get|roster-save|substitute-save|substitute-revoke|substitute-reopen)$/)?.[1];
+  if(nativeAction&&sourceRepository.features.nativeAttendance)return {success:true,...await nativeAttendance(await readRepository(),auth).run(nativeAction,input)};
   const setupAction=path.match(/^\/api\/admin\/platform\/setup\/(options|review|freeze|publish|resolve)$/)?.[1];
   if(setupAction){if(!setupEnabled(env))throw rehearsalError('Accepted setup is not enabled.',503,'SETUP_PUBLICATION_REQUIRED');return {success:true,...await setupPublication(repository,auth).run(setupAction,input)};}
   if(setupEnabled(env)&&(!isAdminWorkspace(auth)||path==='/api/academy/lesson/join')&&!path.startsWith('/api/account/'))repository=await readRepository();
@@ -185,7 +188,7 @@ async function dispatch(request,env) {
   const mediaAction=path.match(/^\/api\/academy\/lesson-media\/(list|calendar|sessions|create|course-files-create|get|save|watch|download|comments|comment-save|comment-moderate|attachment-remove|attachment-name)$/)?.[1];
   if(mediaAction){const result=await lessonMedia(repository,auth,env).run(mediaAction,input);return result instanceof Response?result:{success:true,...result};}
   if(path==='/api/academy/assessments/download')return assessmentFiles(repository,auth,env).download(input);
-  const assessmentAction=path.match(/^\/api\/academy\/assessments\/(list|get|register-create|register-save|register-validate|register-release|session-delete|phase-create|create|save|paper-details|publish|roster|review-paper|authorise-resubmission|confirm-submission|ready-assessment|mark|review-mark|release|release-papers)$/)?.[1];
+  const assessmentAction=path.match(/^\/api\/academy\/assessments\/(list|get|register-create|register-save|register-validate|register-release|session-delete|phase-create|create|save|paper-details|publish|roster|review-paper|authorise-resubmission|confirm-submission|ready-assessment|mark|review-mark|release|release-papers|collection-save|finalise|withdraw-release)$/)?.[1];
   if(assessmentAction)return {success:true,...await d1Assessments(repository,auth).run(assessmentAction,input)};
   const assessmentReportAction=path.match(/^\/api\/academy\/assessments\/(templates|template-save|report-data|report-save|report-list)$/)?.[1];
   if(assessmentReportAction)return {success:true,...await assessmentReports(repository,auth).run(assessmentReportAction,input)};

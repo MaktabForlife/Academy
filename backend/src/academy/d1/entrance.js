@@ -1,3 +1,4 @@
+import {substituteTimetable} from './substitute-timetable.js';
 import {noTeachingCalendarEvents,holidayOnDate} from './calendar-holidays.js';
 import { buildEntrance, addDays, sunday } from '../entrance.js';
 import { dateInTimezone } from '../../lib/global-subject-delivery.js';
@@ -107,6 +108,15 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
     };
     result.timetable=result.timetable.map(reader);result.personalTimetable=result.personalTimetable.map(reader);if(result.activity)result.activity={...result.activity,timetable:result.activity.timetable.map(reader)};
     if(auth.workspace==='TEACH')result.personalTimetable=result.personalTimetable.filter(r=>result.personalActivities.some(a=>samePublication(a.kind+':'+a.id,r.kind+':'+r.activityId)));
+  }
+  if(auth?.workspace==='TEACH'&&repository.features?.nativeAttendance&&JSON.parse(auth.state.account.substitute_grants||'[]').length){
+    const substitute=await substituteTimetable(repository,auth,{start,end,publications,classes,runs,runStates,lifecycles,stopped,calendar,suppressions,settings:calendarSettings},now);
+    for(const area of substitute.areas){
+      area.timetable=substitute.rows.filter(r=>r.kind===area.kind&&samePublication(r.activityId,area.id));
+      for(const name of ['personalActivities','activityPages'])if(!result[name].some(a=>a.kind===area.kind&&samePublication(a.id,area.id)))result[name].push(area);
+      if(input.kind===area.kind&&samePublication(input.id,area.id)&&(!result.activity||!result.activity.roles?.length))result.activity=area;
+    }
+    result.personalTimetable.push(...substitute.rows.filter(s=>!result.personalTimetable.some(r=>r.joinKey===s.joinKey)));result.workspaceAccess.teach=true;
   }
   return result;
 }

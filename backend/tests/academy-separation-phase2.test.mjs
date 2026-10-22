@@ -12,6 +12,7 @@ async function use(fn){
  const f=await separationFixture();
  try{
   f.db.exec(readFileSync(new URL('../migrations/academy/0032_accepted_setup.sql',import.meta.url),'utf8'));
+  f.db.exec('BEGIN');f.db.exec(readFileSync(new URL('../migrations/academy/0034_assessment_operations.sql',import.meta.url),'utf8'));f.db.exec('COMMIT');
   f.env.ACADEMY_ACCEPTED_SETUP='1';f.initial=await initialiseAcceptedSetup(f.env.ACADEMY_DB);
   f.request=async(path,input={},who='global',workspace='ADMIN',head)=>{
    const headers={'Content-Type':'application/json','X-Academy-Workspace':workspace,...(who?{Authorization:'Bearer '+await f.actor(who)}:{}),...(head?{'X-Academy-Setup':head}:{})};

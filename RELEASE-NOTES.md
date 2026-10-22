@@ -1,3 +1,10 @@
+## V107.26 — Phase 3 learning operations
+
+- Native sparse attendance starts with new recorded days, retains legacy records, seals dated rosters and supports reviewed Course delivery rosters and exact substitute windows.
+- Timed/untimed assessments and future assignments have separate opening/due/closure controls. Late work remains open as agreed; Ready is manual with the unchecked Admin warning.
+- Direct Admin upload, marking, finalisation and explicit category/learner release preserve actual actors, previous answers and already released results. Reports show achieved marks only and bind reviewed output/source references.
+- Existing layouts remain. Shared migrations 0033/0034 are separately approval-gated; the physical database split remains after Phase 4 and the Development checkpoint.
+
 # V107.25 — Admin setup publication, Phase 2
 
 Separate editable setup from accepted reader references within the current D1 database. Add a scoped review, frozen manifest, dependency/name closure and atomic publication head; keep source drafts and immutable history. Route ordinary reader services through accepted definitions while checking current Core authority and immediate suppression. Pin related reader requests and caches to the accepted head, including separate public timetable snapshots. Retain the existing layouts, files, identities, receipt recovery and Program publication query budget. Add only migration 0032 and an explicit initial-reference bootstrap; no physical database split. Publish the matching feature website and `feature_worker` to preview. Continue through Phases 3 and 4 under the user's authorisation, then complete the required UI/Development checkpoint before Phase 5.

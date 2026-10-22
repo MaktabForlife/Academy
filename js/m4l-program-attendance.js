@@ -1,4 +1,5 @@
 (()=>{'use strict';
+  const native=()=>window.M4L_CONFIG?.NATIVE_ATTENDANCE===true;
   const $=id=>document.getElementById(id);
   const embedded=$('pa-main')?.dataset?.embedded==='true';
   let hostedOptions=null;
@@ -7,7 +8,7 @@
   const state={programs:[],id:'',accountPath:'',session:'',owner:'',data:null,busy:false,pending:null,stale:false,selection:new Map(),draft:new Map(),draftBase:new Map()};
   let generation=0;
   const current=run=>run===generation&&state.session===token();
-  const pendingKey=()=>`m4l-program-attendance-pending:v2:${state.owner}:${state.id}`;
+  const pendingKey=()=>`m4l-program-attendance-pending:${native()?'NATIVE_V1':'v2'}:${state.owner}:${state.id}`;
   const message=(value,error=false)=>{$('pa-message').textContent=value;$('pa-message').classList.toggle('is-error',error);};
   const clearDraft=()=>{state.draft.clear();state.draftBase.clear();};
   const discard=()=>!state.draft.size||window.confirm('Discard your unsubmitted attendance changes?');
@@ -21,7 +22,7 @@
     if(!response.ok||!result.success)throw Object.assign(Error(result.error||'Attendance could not be saved.'),{status:response.status,retryable:result.retryable});
     return result;
   }
-  const attendance=(action,body={})=>api(`program-attendance/${action}`,{id:state.id,...body});
+  const attendance=(action,body={})=>api(`${native()?'academy/attendance':'program-attendance'}/${action}`,{id:state.id,...(native()?{activityKey:state.programs.find(p=>p.id===state.id)?.activityKey}:{}),...body});
   const lessonName=row=>row.lesson.moduleName||row.lesson.subjectName||'Lesson';
   const rowsFor=classId=>{
     const rows=state.data?.lessons.filter(row=>row.lesson.classId===classId)||[];
@@ -60,12 +61,12 @@
         if(!learners.has(mark.accountId))learners.set(mark.accountId,{name:mark.name,statuses:new Set()});
         learners.get(mark.accountId).statuses.add(markValue(row,mark));
       }
-      const canSave=!data.readOnly&&selected.some(row=>row.submitted||data.date===data.today);
+      const canSave=!data.readOnly&&selected.some(row=>native()?row.canSubmit:row.submitted||data.date===data.today);
       const options=[`<option value="ALL" ${choice==='ALL'?'selected':''}>All lessons</option>`,
         ...rows.map(row=>`<option value="${esc(row.lesson.anchor)}" ${choice===row.lesson.anchor?'selected':''}>${esc(lessonName(row))} · ${esc(row.lesson.startTime)}–${esc(row.lesson.endTime)}</option>`)].join('');
       const marks=[...learners].sort((a,b)=>a[1].name.localeCompare(b[1].name)).map(([accountId,learner])=>{
         const values=[...learner.statuses],value=values.length===1?values[0]:'MIXED';
-        return `<li><strong>${esc(learner.name)}</strong><select data-mark data-class="${esc(klass.id)}" data-account="${esc(accountId)}" aria-label="${esc(learner.name)} attendance in ${esc(klass.name)}" ${locked||state.stale||!canSave?'disabled':''}>${value==='MIXED'?'<option value="MIXED" selected>Mixed · keep</option>':''}<option value="PRESENT" ${value==='PRESENT'?'selected':''}>Present</option><option value="ABSENT" ${value==='ABSENT'?'selected':''}>Absent</option><option value="EXCUSED" ${value==='EXCUSED'?'selected':''}>Excused</option></select></li>`;
+        return `<li><strong>${esc(learner.name)}</strong><select data-mark data-class="${esc(klass.id)}" data-account="${esc(accountId)}" aria-label="${esc(learner.name)} attendance in ${esc(klass.name)}" ${locked||state.stale||!canSave?'disabled':''}>${value==='MIXED'?'<option value="MIXED" selected>Mixed · keep</option>':''}<option value="PRESENT" ${value==='PRESENT'?'selected':''}>Present</option><option value="ABSENT" ${value==='ABSENT'?'selected':''}>Absent</option>${native()?'':`<option value="EXCUSED" ${value==='EXCUSED'?'selected':''}>Excused</option>`}</select></li>`;
       }).join('');
       const status=selected.map(row=>`<span class="${row.submitted?'pa-submitted':'pa-unknown'}">${esc(lessonName(row))}: ${row.submitted?'Submitted':'Not submitted · unknown'}</span>`).join('');
       return `<section class="pa-class"><h2>${esc(klass.name)}</h2>${klass.id==='COMBINED'?'<p class="pa-help">An earlier shared lesson submission, kept together for corrections.</p>':''}<label class="pa-lesson-label">Lesson<select data-lesson data-class="${esc(klass.id)}" ${locked||!rows.length?'disabled':''}>${options}</select></label><button class="pa-submit" data-submit="${esc(klass.id)}" type="button" ${locked||state.stale||!canSave?'disabled':''}>${selected.some(row=>row.submitted)?'Save changes':'Submit'}</button><p class="pa-register-state">${status||'No lessons scheduled for this class.'}</p><ul class="pa-learners">${marks||'<li class="pa-empty">No learners in this selection. Check class enrolments if learners are missing.</li>'}</ul></section>`;
@@ -91,12 +92,12 @@
   function chooseProgram(id){
     if(state.busy||state.pending||id===state.id||!state.programs.some(row=>row.id===id)||!discard())return;
     state.id=id;state.data=null;state.selection.clear();clearDraft();restorePending();
-    history.replaceState(null,'',`${location.pathname}?program=${encodeURIComponent(id)}`);
+    if(!embedded)history.replaceState(null,'',`${location.pathname}?program=${encodeURIComponent(id)}`);
     window.dispatchEvent?.(new Event('m4l-program-selection'));
-    render();void load(state.pending?.date);
+    render();if(native())nativeControls();void load(state.pending?.date);
   }
   function submission(classId){
-    const rows=rowsFor(classId),selected=state.data.date===state.data.today?rows:rows.filter(row=>row.submitted);
+    const rows=rowsFor(classId),selected=native()?rows.filter(row=>row.canSubmit):state.data.date===state.data.today?rows:rows.filter(row=>row.submitted);
     if(!selected.length)return null;
     const exceptions={},baseRegisterIds={};
     for(const row of selected){
@@ -106,7 +107,7 @@
       });
     }
     const choice=state.selection.get(classId)||'ALL';
-    return {date:state.data.date,classId,scope:choice==='ALL'?'day':'lesson',...(choice==='ALL'?{}:{anchor:choice}),
+    return {...(native()?{generation:state.data.generation}:{}),date:state.data.date,classId,scope:choice==='ALL'?'day':'lesson',...(choice==='ALL'?{}:{anchor:choice}),
       exceptions,baseRegisterIds,operationId:crypto.randomUUID()};
   }
   async function save(payload){
@@ -162,6 +163,41 @@
     catch(error){if(current(run))message(error.message,true);}
     finally{if(current(run)){state.busy=false;render();}}
   });
+  function nativeControls(){
+    let controls=$('pa-native-controls');if(!controls){controls=document.createElement('div');controls.id='pa-native-controls';controls.className='workspace-actions';$('pa-message').after(controls);}
+    const selected=state.programs.find(p=>p.id===state.id),admin=window.M4L_ACADEMY_WORKSPACE?.current?.()==='ADMIN';
+    controls.innerHTML=(hostedOptions?.admin?`<label>Learning area <select id="pa-native-area">${state.programs.map(p=>`<option value="${esc(p.id)}" ${p.id===state.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select></label>`:'')+(admin?'<button type="button" id="pa-substitute" class="button secondary">Manage substitute</button>':'')+(admin&&selected?.kind==='COURSE'?'<button type="button" id="pa-delivery-roster" class="button secondary">Review delivery roster</button>':'');
+    if($('pa-native-area'))$('pa-native-area').onchange=e=>chooseProgram(e.target.value);
+    if($('pa-substitute'))$('pa-substitute').onclick=()=>adminDialog('substitute');
+    if($('pa-delivery-roster'))$('pa-delivery-roster').onclick=()=>adminDialog('roster');
+    $('pa-date-help').textContent='Everyone starts Present. Mark Absent exceptions, then submit. Attendance stays unknown until a register is submitted. Past first submissions require a reliable dated roster.';
+  }
+  async function adminDialog(kind){
+    if(!state.data||state.busy||state.pending)return;
+    const dialog=document.createElement('dialog');dialog.className='academy-dialog';document.body.append(dialog);
+    const field=(name,label,type='text',value='')=>`<label>${esc(label)} <input name="${name}" type="${type}" value="${esc(value)}"></label>`;
+    let roster=null;let runId=state.data.runs?.[0]?.id||'';
+    const refresh=async()=>{
+      if(kind==='roster'){
+        if(!runId)throw Error('This Course has no accepted delivery.');roster=await attendance('roster-get',{runId});
+        const intervals=roster.intervals.filter(i=>i.state==='VALID');if(!intervals.length&&!roster.revision)intervals.push(...roster.prefill);
+        dialog.innerHTML=`<form><h2>Review delivery roster</h2><label>Delivery <select name="run">${state.data.runs.map(r=>`<option value="${esc(r.id)}" ${r.id===runId?'selected':''}>${esc(r.name)}</option>`).join('')}</select></label><p>Review each learner and their inclusive attendance dates. This changes attendance only. Recorded rosters remain preserved.</p><div data-intervals>${intervals.map(row=>intervalRow(row)).join('')}</div><button type="button" data-add>Add learner</button><p role="status"></p><button>Save reviewed roster</button><button type="button" data-close>Cancel</button></form>`;
+        dialog.querySelector('[name=run]').onchange=async e=>{runId=e.target.value;try{await refresh();}catch(e){dialog.querySelector('[role=status]').textContent=e.message;}};
+        dialog.querySelector('[data-add]').onclick=()=>dialog.querySelector('[data-intervals]').insertAdjacentHTML('beforeend',intervalRow({}));
+      }else{
+        dialog.innerHTML=`<form><h2>Manage substitute</h2><label>Session <select name="session">${state.data.lessons.map(r=>`<option value="${esc(r.lesson.stableKey)}">${esc(r.lesson.className||r.lesson.classNames?.join(', '))} · ${esc(lessonName(r))} · ${esc(r.lesson.startTime)}</option>`).join('')}</select></label>${field('accountLink','Substitute account link')}<p>The assignment permits only this session’s joining and attendance, with its recorded time limits.</p><div>${(state.data.substitutes||[]).filter(g=>!g.revoked).map(g=>`<p>${esc(g.name)} · First until ${esc(g.firstUntil)} <button type="button" data-revoke="${esc(g.id)}" data-revision="${g.revision}">Revoke</button><button type="button" data-reopen="${esc(g.id)}" data-revision="${g.revision}">Reopen corrections for 24 hours</button></p>`).join('')}</div><p role="status"></p><button>Assign substitute</button><button type="button" data-close>Cancel</button></form>`;
+        for(const b of dialog.querySelectorAll('[data-revoke],[data-reopen]'))b.onclick=async()=>{try{await attendance(b.dataset.revoke?'substitute-revoke':'substitute-reopen',{generation:state.data.generation,assignmentId:b.dataset.revoke||b.dataset.reopen,revision:Number(b.dataset.revision),hours:24,operationId:crypto.randomUUID()});dialog.close();await load(state.data.date);}catch(e){dialog.querySelector('[role=status]').textContent=e.message;}};
+      }
+      dialog.querySelector('[data-close]').onclick=()=>dialog.close();
+      dialog.querySelector('form').onsubmit=async event=>{event.preventDefault();const submit=event.submitter;if(submit)submit.disabled=true;try{
+        const input={generation:state.data.generation,operationId:crypto.randomUUID()};
+        if(kind==='roster'){Object.assign(input,{runId,revision:roster.revision,prefillRevision:roster.prefillRevision,intervals:[...dialog.querySelectorAll('[data-interval]')].map(row=>({id:row.dataset.id||undefined,revision:Number(row.dataset.revision||0),accountId:row.dataset.account||undefined,accountLink:row.querySelector('[name=accountLink]').value,joinDate:row.querySelector('[name=joinDate]').value,leaveDate:row.querySelector('[name=leaveDate]').value,state:row.querySelector('[name=include]').checked?'VALID':'VOID'})).filter(r=>r.accountId||r.accountLink)});}else Object.assign(input,{date:state.data.date,stableKey:dialog.querySelector('[name=session]').value,accountLink:dialog.querySelector('[name=accountLink]').value});
+        await attendance(kind==='roster'?'roster-save':'substitute-save',input);dialog.close();await load(state.data.date);
+      }catch(e){dialog.querySelector('[role=status]').textContent=e.message;}finally{if(submit)submit.disabled=false;}};
+    };
+    function intervalRow(row){return `<fieldset data-interval data-id="${esc(row.id||'')}" data-revision="${row.revision||0}" data-account="${esc(row.accountId||'')}"><legend>${esc(row.name||'Learner')}</legend><label><input name="include" type="checkbox" checked> Include</label>${field('accountLink',row.accountId?'Account link (optional)':'Account link')}${field('joinDate','Join date','date',row.joinDate||'')}${field('leaveDate','Leave date','date',row.leaveDate||'')}</fieldset>`;}
+    dialog.onclose=()=>dialog.remove();try{await refresh();dialog.showModal();}catch(e){dialog.remove();message(e.message,true);}
+  }
   async function initialise(options){
     const run=++generation;
     state.session=token();state.id='';state.programs=[];state.accountPath='';state.data=null;state.pending=null;state.owner='';state.stale=false;state.busy=true;state.selection.clear();clearDraft();render();
@@ -172,14 +208,14 @@
       const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(state.session));
       if(!current(run))return;
       state.owner=[...new Uint8Array(hash)].map(byte=>byte.toString(16).padStart(2,'0')).join('');
-      const result=options?{programs:options.programs,store:'D1'}:await api('program-library/available');
+      const result=native()?await api('academy/attendance/options'):options?{programs:options.programs,store:'D1'}:await api('program-library/available');
       if(!current(run))return;
-      state.programs=(result.programs||[]).filter(row=>['GLOBAL_ADMIN','PROGRAM_ADMIN','ADMIN','TEACHER','SENIOR'].includes(row.role)||result.store!=='D1'&&!row.role);
+      state.programs=(result.programs||[]).filter(row=>['GLOBAL_ADMIN','PROGRAM_ADMIN','ADMIN','TEACHER','SENIOR','SUBSTITUTE'].includes(row.role)||result.store!=='D1'&&!row.role);
       state.accountPath=result.accountPath||'';
       if(!state.programs.length){message('No teaching Programs are available to your account.');return;}
       const requested=options?.id||new URLSearchParams(location.search).get('program');
       if(requested&&!state.programs.some(row=>row.id===requested)){message('This Program is unavailable to your account. Select one of your teaching Programs.',true);return;}
-      state.id=requested||state.programs[0].id;restorePending();
+      state.id=requested||state.programs[0].id;restorePending();if(native())nativeControls();
       if(!embedded)history.replaceState(null,'',`${location.pathname}?program=${encodeURIComponent(state.id)}`);
       await load(state.pending?.date);
     }catch(error){if(current(run))message(error.message,true);}

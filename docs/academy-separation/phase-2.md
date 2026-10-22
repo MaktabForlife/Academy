@@ -43,4 +43,4 @@ This phase does not claim that Phases 3 or 4 are complete. Their attendance/asse
 - Cloudflare's export endpoint rejected the current OAuth scope. The working read-only SQL connection supplied the consistent recovery snapshot instead.
 - The user explicitly approved shared migration 0032. It is applied and ledgered; the guarded bootstrap accepted 158 components. The remote preview transport failed before reaching the handler, so the documented D1 batch API ran the same initializer through the existing connection. The capture uses VALUES to fit D1’s compound SELECT limit.
 - Recovery comparison after bootstrap confirms all 108 original source tables unchanged (migration ledger excluded), with zero foreign-key errors. General Teacher media curation is disabled in the accepted-setup mode; narrow own-note contribution remains Phase 4 work.
-- Phase 2 preview deployment follows the verified schema/head. Development code remains V107.22.
+- Phase 2 V107.25 is published on feature-admin at d04e9b99 and feature_worker version cabf13c6-02b8-4725-8737-83dc52b7d4be. Preview health/head/announcements passed; Development website/API remain V107.22.

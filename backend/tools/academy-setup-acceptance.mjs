@@ -12,7 +12,9 @@ const require=createRequire(import.meta.url),{chromium}=require(process.env.ACAD
 const root=fileURLToPath(new URL('../../',import.meta.url)),out=process.env.ACADEMY_SETUP_OUTPUT||'/private/tmp/academy-setup-acceptance';mkdirSync(out,{recursive:true});
 const f=await separationFixture(),token=await f.actor('global'),errors=[],requests=[];
 f.db.exec(readFileSync(new URL('../migrations/academy/0032_accepted_setup.sql',import.meta.url),'utf8'));
-const baseline=await initialiseAcceptedSetup(f.env.ACADEMY_DB);f.env.ACADEMY_ACCEPTED_SETUP='1';
+f.db.exec('BEGIN');f.db.exec(readFileSync(new URL('../migrations/academy/0034_assessment_operations.sql',import.meta.url),'utf8'));f.db.exec('COMMIT');
+const baseline=await initialiseAcceptedSetup(f.env.ACADEMY_DB);
+  f.env.ACADEMY_ACCEPTED_SETUP='1';
 const server=createServer(async(req,res)=>{try{
  const url=new URL(req.url,'http://localhost');
  if(url.pathname==='/js/m4l-config.js'){res.writeHead(200,{'Content-Type':'text/javascript'});res.end('window.M4L_CONFIG={API_BASE:location.origin,IS_DEVELOPMENT:true,ACCEPTED_SETUP:true};');return;}

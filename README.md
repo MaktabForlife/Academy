@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V107.25
+# Umm Abbad Academy — V107.26
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
@@ -7,6 +7,10 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - HifzHelper keeps its separate Worker and D1; Academy provides profile and PIN updates plus a short-lived sign-in handoff.
+
+## V107.26 — Learning operations, Phase 3
+
+Add native sparse attendance, reviewed Course delivery rosters and exact session substitute access. Support timed/untimed assessments, future assignment due dates, late acceptance, the manual Ready warning, and direct Admin upload/mark/finalise/release controls. Preserve released results until Admin explicitly changes them. Keep existing layouts and the Phase 4 UI/Development checkpoint. [Phase 3 record](docs/academy-separation/phase-3.md).
 
 ## V107.25 — Accepted setup, Phase 2
 
