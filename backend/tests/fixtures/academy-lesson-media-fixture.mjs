@@ -17,7 +17,7 @@ export async function mediaFixture({upgrade=true}={}){
   f.db.prepare("INSERT INTO lesson_media_assets(asset_id,activity_key,kind,youtube_id,created_at) VALUES(?,?,'YOUTUBE',?,'2026-10-10T00:00:00Z')").run('video-'+day,scope,['9IuTDcSs6vQ','ujm0T_jZd0U','CZPSPSG85NQ'][day-6]);
   f.db.prepare('INSERT INTO lesson_media_links VALUES(?,?)').run(id,'video-'+day);
  }
- if(upgrade){f.db.exec('BEGIN');f.db.exec(readFileSync(new URL('../../migrations/academy/0030_session_lesson_media.sql',import.meta.url),'utf8'));f.db.exec('COMMIT');}
+ if(upgrade){f.db.exec('BEGIN');f.db.exec(readFileSync(new URL('../../migrations/academy/0030_session_lesson_media.sql',import.meta.url),'utf8'));f.db.exec(readFileSync(new URL('../../migrations/academy/0031_media_names_and_course_pdfs.sql',import.meta.url),'utf8'));f.db.exec('COMMIT');}
  f.env.LESSON_MEDIA_BUCKET=f.env.ASSESSMENT_BUCKET;
  f.media=async(action,input={},token='')=>{const response=await worker.fetch(new Request('http://localhost/api/academy/lesson-media/'+action,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify({...(!input.lessonId?{activityKey:scope}:{}),...input})}),f.env);return {status:response.status,body:response.headers.get('content-type')==='application/pdf'?await response.text():await response.json(),headers:response.headers};};
  f.mediaUpload=async(input,token,bytes=Buffer.from('%PDF-1.4\n% demo notes\n%%EOF'))=>{

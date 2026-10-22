@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V107.21
+# Umm Abbad Academy — V107.22
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
@@ -7,6 +7,10 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - HifzHelper keeps its separate Worker and D1; Academy provides profile and PIN updates plus a short-lived sign-in handoff.
+
+## V107.22 — Named media and Course PDFs
+
+Give each session video and PDF an editable display name, shown on Lesson media cards and when opening attachments. Preserve the original PDF filename and existing video identities across edits. Add a separate Course PDFs collection in Course Media for resources shared across every session and week. Course administrators manage the collection; enrolled learners and teaching staff read published files with the existing access rules. Migration 0031 adds display-name and media-scope fields without replacing stored files or lessons.
 
 ## V107.21 — Editable PDF annotations and favourite colours
 
