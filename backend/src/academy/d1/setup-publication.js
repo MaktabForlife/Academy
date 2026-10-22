@@ -14,9 +14,11 @@ const compare=(a,b)=>stableJSON(a).localeCompare(stableJSON(b),'en');
 const tables=Object.keys(setupSchema);
 const captureParts=tables.map(name=>{
  const spec=setupSchema[name],object=jsonRowSQL(spec.columns);
- return `SELECT '${name}' table_name,${spec.scope} scope_key,json_group_array(${object}) rows_json FROM ${name}${name==='academy_settings'?` WHERE ${definitionSettingsSQL}`:''} GROUP BY ${spec.scope}`;
+ return `('${name}',(SELECT json_group_array(json_object('scope_key',scope_key,'rows_json',json(rows_json))) FROM (SELECT ${spec.scope} scope_key,json_group_array(${object}) rows_json FROM ${name}${name==='academy_settings'?` WHERE ${definitionSettingsSQL}`:''} GROUP BY ${spec.scope})))`;
 });
-const captureSQL=Array.from({length:Math.ceil(captureParts.length/14)},(_,i)=>captureParts.slice(i*14,i*14+14).join(' UNION ALL '));
+// VALUES avoids D1's smaller compound-SELECT limit and captures all families
+// in one consistent statement without consuming one query per table.
+const captureSQL=[`WITH captured(table_name,groups_json) AS(VALUES ${captureParts.join(',')}) SELECT table_name,json_extract(j.value,'$.scope_key') scope_key,json_extract(j.value,'$.rows_json') rows_json FROM captured,json_each(groups_json) j`];
 const allRows=result=>result.results||[];
 const key=c=>c.table_name+'|'+c.scope_key.toUpperCase();
 const canonicalRows=(name,rows)=>rows.sort((a,b)=>compare(setupSchema[name].keys.map(k=>a[k]),setupSchema[name].keys.map(k=>b[k])));

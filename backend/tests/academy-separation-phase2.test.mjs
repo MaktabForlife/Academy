@@ -139,3 +139,14 @@ test('scoped availability publication requires administration of every current t
  f.db.prepare("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state) VALUES('extra-teaching-area',?,?,'TEACHER',1,'CONFIRMED')").run(account,scopes.programB);
  assert.equal((await f.setup('review',selection,'adminA')).status,403);
 }));
+
+ test('accepted setup removes broad Teacher media management even with a forged Admin workspace',()=>use(async f=>{
+  const made=ok(await f.request('/api/academy/lesson-media/course-files-create',{activityKey:scopes.courseA,operationId:crypto.randomUUID()}));
+  await f.publish(await f.review({scopes:[scopes.courseA],families:['media']}));
+  const listed=ok(await f.request('/api/academy/lesson-media/list',{activityKey:scopes.courseA},'teacherA','TEACH'));
+  assert.equal(listed.canManage,false);
+  for(const workspace of ['TEACH','ADMIN']){
+   const result=await f.request('/api/academy/lesson-media/save',{activityKey:scopes.courseA,lessonId:made.lessonId,revision:1,operationId:crypto.randomUUID(),title:'Forbidden',summary:'',state:'PUBLISHED',commentsClosed:true,recordingUrls:[]},'teacherA',workspace);
+   assert.equal(result.status,403,JSON.stringify(result.body));
+  }
+ }));

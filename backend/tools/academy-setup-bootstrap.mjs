@@ -1,27 +1,23 @@
-// Release tool: initialise the accepted reference head in the existing D1.
-// No application endpoint, source-row overwrite or physical database split.
-import {randomBytes} from 'node:crypto';
-import {mkdtemp,writeFile,readFile,rm} from 'node:fs/promises';
-import {createRequire} from 'node:module';
-import {fileURLToPath} from 'node:url';
-import {resolve,join} from 'node:path';
-if(!process.argv.includes('--remote'))throw Error('Use --remote only after backup and the additive migration have been verified.');
-const root=fileURLToPath(new URL('../../',import.meta.url)),config=JSON.parse(await readFile(join(root,'backend/wrangler.feature.jsonc'),'utf8'));
-const directory=await mkdtemp('/private/tmp/academy-setup-bootstrap-'),token=randomBytes(32).toString('hex'),expires=Date.now()+300000;
-process.env.WRANGLER_LOG_PATH=join(directory,'remote-dev.log');process.env.WRANGLER_SEND_METRICS='false';
-const require=createRequire(import.meta.url),{unstable_dev}=require('wrangler');let dev;
-try{
- const entry=join(directory,'bootstrap.mjs');
- await writeFile(entry,`import {initialiseAcceptedSetup} from ${JSON.stringify(resolve(root,'backend/src/academy/d1/setup-publication.js'))};
- export default {async fetch(request,env){
-  if(request.method!=='POST'||Date.now()>${expires}||request.headers.get('Authorization')!==${JSON.stringify('Bearer '+token)})return new Response(null,{status:404});
-  return Response.json(await initialiseAcceptedSetup(env.ACADEMY_DB.withSession('first-primary')),{headers:{'Cache-Control':'no-store'}});
- }};`,{mode:0o600});
- const configPath=join(directory,'wrangler.json');
- await writeFile(configPath,JSON.stringify({name:config.name,account_id:config.account_id,main:entry,compatibility_date:config.compatibility_date,d1_databases:config.d1_databases}),{mode:0o600});
- dev=await unstable_dev(entry,{config:configPath,local:false,port:0,logLevel:'error',experimental:{disableExperimentalWarning:true,disableDevRegistry:true,showInteractiveDevSession:false}});
- const response=await dev.fetch('/',{method:'POST',headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(45000)});
- if(!response.ok)throw Error('Accepted setup bootstrap failed: '+response.status+' '+await response.text());
- const result=await response.json();await dev.stop();dev=undefined;
- console.log(JSON.stringify({...result,temporaryRemoteSessionStopped:true,sourceRowsChanged:false,physicalDatabaseSplit:false}));
-}finally{await dev?.stop();await rm(directory,{recursive:true,force:true});}
+// Explicit release bootstrap, using the existing Wrangler OAuth connection.
+// The remote development preview transport can fail before invoking a Worker;
+// the documented D1 batch query API runs the same tested initializer directly.
+import {readFile} from 'node:fs/promises';
+import {homedir} from 'node:os';
+import {join} from 'node:path';
+import {initialiseAcceptedSetup} from '../src/academy/d1/setup-publication.js';
+if(!process.argv.includes('--remote'))throw Error('Use --remote only after backup and the additive migration have been approved and verified.');
+const config=JSON.parse(await readFile(new URL('../wrangler.feature.jsonc',import.meta.url),'utf8'));
+let token=process.env.CLOUDFLARE_API_TOKEN;
+if(!token)for(const path of ['.wrangler/config/default.toml','Library/Preferences/.wrangler/config/default.toml']){
+ try{token=(await readFile(join(homedir(),path),'utf8')).match(/^oauth_token\s*=\s*"([^"]+)"/m)?.[1];if(token)break;}catch{}
+}
+if(!token)throw Error('An existing Cloudflare connection is required. Run Wrangler login first.');
+const binding=config.d1_databases.find(b=>b.binding==='ACADEMY_DB');
+const endpoint=`https://api.cloudflare.com/client/v4/accounts/${config.account_id}/d1/database/${binding.database_id}/query`;
+const db={prepare(sql){return {sql,params:[],bind(...params){return {sql,params};}};},async batch(batch){
+ const response=await fetch(endpoint,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({batch}),signal:AbortSignal.timeout(60000)});
+ const data=await response.json();if(!response.ok||!data.success||data.result?.some(r=>!r.success))throw Error('D1 bootstrap failed: '+JSON.stringify(data.errors||[]));
+ return data.result;
+}};
+const result=await initialiseAcceptedSetup(db);
+console.log(JSON.stringify({...result,sourceRowsChanged:false,physicalDatabaseSplit:false}));
