@@ -1,3 +1,7 @@
+# V107.19 — Active lesson card layout
+
+Fix the active timetable card squeezing its name and In progress status into a narrow column beside Join lesson. Keep Details, Join and media actions in separate rows within the shared card; short time/title pairs remain compact and longer names wrap into the full card width. Apply the same layout to Program and Course cards in main and scoped timetables. Verify the previous layout fails the active-card check, then test students, teachers and Global Admins in LEARN/TEACH at nine desktop/tablet/phone widths, including long names, upcoming lessons, multiple active lessons and video/PDF actions. Development only; no schema or live data edits.
+
 # V107.18 — Video/PDF actions on the main timetable
 
 Add video and PDF icons to main LEARN/TEACH timetable lesson cards and preserve each lesson’s identity within combined Program cards. One attachment opens directly; multiple attachments offer a choice. Reuse authorised video playback/private PDF dialogs and recheck access at click time. Only published media within current roles and class membership appears; anonymous snapshots contain no media references. Add a visible Library link to both main workspaces. Batch attachment metadata without exposing recording URLs or R2 paths, invalidate old timetable caches, and retain Details/Join behavior. Verify Program/Course matching, learner/staff access, revocation and responsive layouts with disposable data. Development only; no database migration or live record edits.
