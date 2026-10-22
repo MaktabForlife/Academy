@@ -1,5 +1,7 @@
+import {setupEnabled,acceptedHead,acceptedRepository} from './setup-reader.js';
+import {setupPublication} from './setup-publication.js';
 import {announcements,publicAnnouncements,announcementImage,announcementPdf,announcementUpload} from './announcements.js';
-import {guardWorkspace,actualState} from './workspace-access.js';
+import {guardWorkspace,actualState,isAdminWorkspace} from './workspace-access.js';
 import {globalSettings} from './global-settings.js';
 import {headerDate} from '../header-date.js';
 import {lessonPlanning} from './lesson-planning.js';
@@ -67,19 +69,23 @@ async function rateLimit(env,login) {
 async function dispatch(request,env) {
   if (![env.PIN_SECRET,env.SESSION_SECRET].every(value=>typeof value==='string'&&value.trim()))
     throw rehearsalError('Academy authentication is not configured.');
-  const repository=academyD1Repository(env);
+  let repository=academyD1Repository(env);
+  const sourceRepository=repository;
+  let reader;
+  const readRepository=async()=>reader??=acceptedRepository(sourceRepository,await acceptedHead(sourceRepository,request.headers.get('X-Academy-Setup')||''));
   const path=new URL(request.url).pathname;
   await repository.ready();
-  if(path==='/api/academy/announcements'&&request.method==='GET')return {success:true,...await publicAnnouncements(repository)};
-  if(path==='/api/academy/enrolment/catalogue'&&request.method==='GET')return {success:true,...await enrolmentCatalogue(repository)};
-  if(path==='/api/academy/announcements/image'&&['GET','HEAD'].includes(request.method))return announcementImage(request,repository,env);
-  if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,repository,env);
+  if(path==='/api/academy/setup/head'&&request.method==='GET')return {success:true,head:setupEnabled(env)?await acceptedHead(repository):null};
+  if(path==='/api/academy/announcements'&&request.method==='GET')return {success:true,...await publicAnnouncements(setupEnabled(env)?await readRepository():repository)};
+  if(path==='/api/academy/enrolment/catalogue'&&request.method==='GET')return {success:true,...await enrolmentCatalogue(setupEnabled(env)?await readRepository():repository)};
+  if(path==='/api/academy/announcements/image'&&['GET','HEAD'].includes(request.method))return announcementImage(request,setupEnabled(env)?await readRepository():repository,env);
+  if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,setupEnabled(env)?await readRepository():repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
-  if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.24',
+  if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(setupEnabled(env)?await readRepository():repository)};
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.25',
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
-  if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(repository)};
+  if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(setupEnabled(env)?await readRepository():repository)};
   const openLibraryAction=path.match(/^\/api\/academy\/open-library\/metadata\/(public|cover|list|save|options)$/)?.[1];
   if(openLibraryAction)return openLibraryMetadataEndpoint(openLibraryAction)(request,env);
   // Account/attendance screens reuse this authenticated Program selector. It
@@ -104,6 +110,7 @@ async function dispatch(request,env) {
     let input;try{input=JSON.parse(metadata);}catch{throw rehearsalError('Invalid upload details.',400);}
     if(!input||typeof input!=='object'||Array.isArray(input))throw rehearsalError('Invalid upload details.',400);
     guardWorkspace(request,auth,input);
+    if(setupEnabled(env)&&!isAdminWorkspace(auth))repository=await readRepository();
     return {success:true,...await lessonMedia(repository,auth,env).upload(request,input)};
   }
   if(path==='/api/academy/assessments/upload') {
@@ -112,6 +119,7 @@ async function dispatch(request,env) {
     let input;try{input=JSON.parse(metadata);}catch{throw rehearsalError('Invalid upload details.',400);}
     if(!input||typeof input!=='object'||Array.isArray(input))throw rehearsalError('Invalid upload details.',400);
     guardWorkspace(request,auth,input);
+    if(setupEnabled(env)&&!isAdminWorkspace(auth))repository=await readRepository();
     return {success:true,...await assessmentFiles(repository,auth,env).upload(request,input)};
   }
   if(path==='/api/admin/platform/program-library/upload-chunk') {
@@ -145,15 +153,18 @@ async function dispatch(request,env) {
   }
   if(path==='/api/academy/entrance') {
     const auth=request.headers.has('Authorization')?await authenticated(request,env,repository):null;
-    return {success:true,sessionStore:'D1',...websiteEntrance(await d1Entrance(repository,auth?.state,auth?.user,input,undefined,{auth}))};
+    return {success:true,sessionStore:'D1',...websiteEntrance(await d1Entrance(setupEnabled(env)?await readRepository():repository,auth?.state,auth?.user,input,undefined,{auth}))};
   }
-  if(path==='/api/academy/public-lesson/join')return {success:true,...await d1LessonJoin(repository,null,input)};
+  if(path==='/api/academy/public-lesson/join')return {success:true,...await d1LessonJoin(setupEnabled(env)?await readRepository():repository,null,input)};
   if(path==='/api/academy/enrolment/submit'){
     const auth=await authenticated(request,env,repository);
-    return {success:true,...await submitEnrolment(repository,auth,input,request,env)};
+    return {success:true,...await submitEnrolment(setupEnabled(env)?await readRepository():repository,auth,input,request,env)};
   }
   const auth=await authenticated(request,env,repository);
   guardWorkspace(request,auth,input);
+  const setupAction=path.match(/^\/api\/admin\/platform\/setup\/(options|review|freeze|publish|resolve)$/)?.[1];
+  if(setupAction){if(!setupEnabled(env))throw rehearsalError('Accepted setup is not enabled.',503,'SETUP_PUBLICATION_REQUIRED');return {success:true,...await setupPublication(repository,auth).run(setupAction,input)};}
+  if(setupEnabled(env)&&(!isAdminWorkspace(auth)||path==='/api/academy/lesson/join')&&!path.startsWith('/api/account/'))repository=await readRepository();
   const settingsAction=path.match(/^\/api\/admin\/platform\/settings\/(get|save)$/)?.[1];
   if(settingsAction)return {success:true,...await globalSettings(repository,auth).run(settingsAction,input)};
   if(path==='/api/academy/hifz/sign-in')return issueHifzHandoff(env,auth,input);
@@ -258,7 +269,7 @@ return {
     const origin=request.headers.get('Origin');
     const allowed=(env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
     const headers={'Content-Type':'application/json','Cache-Control':'private, no-store','Vary':'Origin',
-      'Access-Control-Allow-Methods':'POST, GET, HEAD, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization, Range, X-Academy-Workspace, X-Library-Upload-Ticket, X-Library-Upload-Offset'};
+      'Access-Control-Allow-Methods':'POST, GET, HEAD, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization, Range, X-Academy-Workspace, X-Academy-Setup, X-Library-Upload-Ticket, X-Library-Upload-Offset'};
     if(origin&&allowed.includes(origin))headers['Access-Control-Allow-Origin']=origin;
     if(origin&&!allowed.includes(origin))return new Response(JSON.stringify({success:false,error:'Origin is not allowed.'}),{status:403,headers});
     if(request.method==='OPTIONS')return new Response(null,{status:204,headers});

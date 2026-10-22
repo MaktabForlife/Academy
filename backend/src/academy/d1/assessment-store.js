@@ -54,6 +54,8 @@ export function assessmentStore(repository,auth){
    const saved=await receipt();if(saved)return saved;
    const version=await p('SELECT version FROM academy_write_state WHERE singleton=1').first();
    const {statements,result}=await plan(),guard=crypto.randomUUID(),now=new Date().toISOString();
+   if(repository.setup?.enabled&&['publish','register-release'].includes(action))result.setupPublication={dataset:'ASSESSMENT',scope,operationId:input.operationId,sourceVersion:version.version+1,scopes:result.setupScopes};
+   delete result.setupScopes;
    try{
     await db.batch([p(`INSERT INTO academy_write_guards(guard_id,accepted) VALUES(?,(SELECT version=? FROM academy_write_state WHERE singleton=1) AND EXISTS(SELECT 1 FROM accounts a JOIN account_credentials c USING(account_id) JOIN account_sessions s USING(account_id) WHERE a.account_id=? AND a.active=1 AND c.pin_setup=1 AND length(trim(c.pin_hash))>0 AND c.credential_epoch=? AND s.session_id=? AND s.revoked_at IS NULL AND s.credential_epoch=c.credential_epoch AND s.expires_at>?))`,guard,version.version,actor,auth.state.account.credential_epoch,auth.sid,now),...statements,
      p(`INSERT INTO audit_events(event_id,occurred_at,actor_account_id,authority,scope_key,action,record_kind,record_id,changed_fields_json) VALUES(?,?,?,?,?,?,?,?,?)`,crypto.randomUUID(),now,actor,auth.user.role,scope,action,'ASSESSMENT',input.operationId,JSON.stringify({action})),

@@ -7,13 +7,13 @@ import {readerRoles,isAdminWorkspace,administers} from './workspace-access.js';
 // links or file locations to learners, or use this list as a media entitlement.
 export async function d1CourseCatalogue(repository,auth,now=new Date()) {
   const db=repository.db,p=(sql,...values)=>db.prepare(sql).bind(...values);
-  const editor=await optionalSchema(db,'SELECT activity_key FROM course_management_drafts WHERE 0');
+  const editor=!repository.setup?.reader&&await optionalSchema(db,'SELECT activity_key FROM course_management_drafts WHERE 0');
   const subscriptions=await repository.subscriptionSource();
   const results=await db.batch([
     p(`SELECT a.activity_key,a.activity_id,a.name,a.active,a.lifecycle,a.website_visible,
       ${editor?'coalesce(r.run_id,d.run_id)':'r.run_id'} AS run_id,r.name AS run_name,coalesce(r.timezone,p.timezone) AS timezone,coalesce(r.start_date,p.effective_from) AS start_date,coalesce(r.end_date,p.effective_until) AS end_date,r.active AS run_active,
       s.current_publication_id,cs.legacy_access_model,
-      ${editor?"d.stage,d.completed_at,json_extract(d.details_json,'$.name') AS draft_name,json_extract(d.details_json,'$.startDate') AS draft_start,json_extract(d.details_json,'$.endDate') AS draft_end":"NULL AS stage,NULL AS completed_at,NULL AS draft_name,NULL AS draft_start,NULL AS draft_end"}
+      ${editor?"d.stage,d.completed_at,json_extract(d.details_json,'$.name') AS draft_name,json_extract(d.details_json,'$.startDate') AS draft_start,json_extract(d.details_json,'$.endDate') AS draft_end":"s.stage,NULL AS completed_at,NULL AS draft_name,NULL AS draft_start,NULL AS draft_end"}
       FROM activities a JOIN course_settings cs USING(activity_key)
       LEFT JOIN course_runs r USING(activity_key)
       LEFT JOIN course_run_state s ON s.activity_key=r.activity_key AND s.run_id=r.run_id

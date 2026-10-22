@@ -12,7 +12,7 @@ async function use(fn){
  finally{f.close();}
 }
 test('Phase 0 fixture contains the complete source schema with no manual-case subsystem',()=>use(async f=>{
- const schema=sourceSchema(),names=f.db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all().map(r=>r.name);
+ const schema=sourceSchema({through:31}),names=f.db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all().map(r=>r.name);
  assert.equal(schema.migrations.length,31);assert.equal(schema.tables.length,108);assert.equal(schema.columnCount,748);
  assert.deepEqual(names,schema.tables.map(r=>r.name));
  for(const {name,columns} of schema.tables)assert.deepEqual(f.db.prepare(`PRAGMA table_info("${name}")`).all().map(r=>r.name),columns.map(r=>r.name),name);

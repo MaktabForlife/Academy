@@ -64,6 +64,7 @@ export function managementStore(repository,auth,{versionKey}={}) {
         if(!checkedScopes.length)throw managementError('This action requires an authorised administrator.',403,'FORBIDDEN');
         const effects=[...new Set([...cacheEffects,...(publicRefreshNeeded(dataset,action,input,fields)?['public-timetable']:[])])];
         if(effects.length)result.cacheRefreshPending=effects;
+        if(repository.setup?.enabled&&(dataset==='PROGRAM_TIMETABLE'&&action==='publish'||dataset==='COURSE_MANAGEMENT'&&action==='course-editor/publish'))result.setupPublication={dataset,scope,operationId:input.operationId,sourceVersion:data.version+1,scopes:[scope]};
         const json=JSON.stringify(result);if(json.length>100000)throw managementError('Save fewer changed entries together.');
         // Check authority again INSIDE the same transaction as the writes.
         // Account revision checks protect profile and role edits planned before

@@ -5,6 +5,7 @@
   const local=['localhost','127.0.0.1'].includes(host);
   const feature=/^(?:feature-admin|[a-f0-9]{8})\.academy-maktab4life\.pages\.dev$/.test(host);
   window.M4L_CONFIG=Object.freeze({
+    ACCEPTED_SETUP:true,
     ENV_NAME:feature?'feature':local?'development':'unavailable',
     API_BASE:feature?'https://feature_worker.maktab4life.workers.dev':local?window.location.origin:'',
     HIFZ_PROGRAM_ID:'PRG-3d6b7972-644c-4f81-b95c-8d6c7ffb8227',

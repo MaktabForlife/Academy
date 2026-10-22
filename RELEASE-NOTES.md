@@ -1,3 +1,7 @@
+# V107.25 — Admin setup publication, Phase 2
+
+Separate editable setup from accepted reader references within the current D1 database. Add a scoped review, frozen manifest, dependency/name closure and atomic publication head; keep source drafts and immutable history. Route ordinary reader services through accepted definitions while checking current Core authority and immediate suppression. Pin related reader requests and caches to the accepted head, including separate public timetable snapshots. Retain the existing layouts, files, identities, receipt recovery and Program publication query budget. Add only migration 0032 and an explicit initial-reference bootstrap; no physical database split. Publish the matching feature website and `feature_worker` to preview. Continue through Phases 3 and 4 under the user's authorisation, then complete the required UI/Development checkpoint before Phase 5.
+
 # V107.24 — Separate feature preview Worker
 
 Add `feature_worker` for `feature-admin` with the Phase 1 permissions. Route only feature Pages builds to it; Development keeps its current API. Retain the same Development D1, R2, login limiter and existing Open Library coordinator. Keep encrypted authentication/Library bindings and the existing Hifz configuration. Do not add another scheduled job or migrate/copy data. Refresh the configuration asset cache and align the active release markers. No layout changes.

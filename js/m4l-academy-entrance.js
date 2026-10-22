@@ -28,7 +28,7 @@
   }
   function checkProfileLabels(){const revision=profileLabelRevision();if(revision!==dailyCache.profileRevision){dailyCache.profileRevision=revision;dailyCache.entries={};pageCache.snapshot=null;}return revision;}
   const MEMORISATION_RETURN_KEY='m4l_academy_memorisation_return_v1';
-  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10723';
+  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10725';
   let planningSelection=null;
   const academyDay = (timezone, instant = Date.now()) => {
     const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {timeZone:timezone || 'Africa/Johannesburg',
@@ -129,9 +129,10 @@
   async function dailyTimetable(body, force = false) {
     checkProfileLabels();
     await checkRemoteProfileLabels(force);
+    const setupHead=await window.M4L_ACADEMY_WORKSPACE?.readyPublication?.(force);
     const session = token(), epoch = pageCache.epoch;
     if (!session) return request(body);
-    const key = (window.M4L_ACADEMY_WORKSPACE?.current()||'LEARN')+':'+(body.startDate || 'HOME');
+    const key = (window.M4L_ACADEMY_WORKSPACE?.current()||'LEARN')+':'+(setupHead||'legacy')+':'+(body.startDate || 'HOME');
     if (dailyCache.session !== session) {
       dailyCache.session = session;
       dailyCache.entries = {};
@@ -510,7 +511,8 @@
     if (key === 'academy') {
       $('workspace-tool-body').innerHTML = (state.home.globalAdmin ? '<div class="academy-tool-pills"><a href="/academy/subjects/">Subjects &amp; Modules</a></div>' : '') +
         `<div class="academy-tool-pills"><button type="button" data-workspace-tool="calendar">Calendar</button><button type="button" data-workspace-tool="announcements">Announcements</button><a href="${row.id?'#progress-admin/'+row.kind+'/'+encodeURIComponent(row.id):'#progress-admin/COURSE'}">Surahs and Duas</a>`+ (state.home.globalAdmin?'<button id="public-timetable-refresh" type="button">Update public timetable</button>':'')+'</div><p id="public-timetable-refresh-message" role="status" aria-live="polite"></p>';
-      bindPublicTimetableRefresh();
+      const publicationButton=$('setup-publication-review');if(publicationButton)publicationButton.onclick=async()=>{try{await window.M4L_SETUP_PUBLICATION.open();publicationButton.textContent='Setup published';}catch(error){if(error.code!=='SETUP_REVIEW_REQUIRED')alert(error.message);}};
+    bindPublicTimetableRefresh();
     } else $('workspace-tool-body').innerHTML = `<p>${esc(names[key])} for ${esc(row.name)} is coming soon.</p>`;
     if (!$('workspace-tool').open) $('workspace-tool').showModal();
   }
@@ -1001,12 +1003,13 @@
     const firstProgram=areas.find(programs), firstArea=areas[0];
     const direct={settings:'#administration/settings',users:global?'/users/':firstArea?manage(firstArea)+(programs(firstArea)?'&tab=profiles':'&tab=participants'):'#administration/users',attendance:'#administration/attendance',planning:'#administration/planning',announcements:'#administration/announcements',assessments:global?'#assessment-admin':firstArea?`#assessment-admin/${firstArea.kind}/${encodeURIComponent(firstArea.id)}`:'#assessment-admin',library:global?'/academy/library/manage/':'/academy/library/',curriculum:global?'/academy/subjects/':firstProgram?manage(firstProgram):'#administration/curriculum',programs:global?'/programs/':firstProgram?manage(firstProgram):'#administration/programs',courses:'/academy/courses/manage/',enrolments:'/academy/enrolment/manage/?view=requests'};
     view.innerHTML = `<div class="page-heading admin-heading"><h1>${requested?'Manage '+tabs.find(([id])=>id===key)[1]:'Manage Academy'}</h1></div>
-      <nav class="workspace-tabs admin-management-menu" aria-label="Administration tools">${tabs.map(([id,label])=>`<a id="admin-tab-${id}" href="${esc(direct[id])}"${id===requested?' aria-current="page"':''}>${label}</a>`).join('')}${global?'<button id="public-timetable-refresh" type="button">Update timetable</button>':''}</nav>${global?'<p id="public-timetable-refresh-message" class="tiny muted" role="status" aria-live="polite"></p>':''}${!requested?'<div id="admin-timetable-home"></div>':''}
+      <nav class="workspace-tabs admin-management-menu" aria-label="Administration tools">${tabs.map(([id,label])=>`<a id="admin-tab-${id}" href="${esc(direct[id])}"${id===requested?' aria-current="page"':''}>${label}</a>`).join('')}${window.M4L_CONFIG?.ACCEPTED_SETUP?'<button id="setup-publication-review" type="button">Review setup</button>':''}${global?'<button id="public-timetable-refresh" type="button">Update timetable</button>':''}</nav>${global?'<p id="public-timetable-refresh-message" class="tiny muted" role="status" aria-live="polite"></p>':''}${!requested?'<div id="admin-timetable-home"></div>':''}
       ${requested?`<section class="card card-pad" id="admin-workspace"><div class="workspace-actions">${panels[key]||'<p class="muted">No assigned areas are available here.</p>'}</div></section>`:''}<div class="academy-support">${supportSections(null,'admin')}</div>`;
     if(requested==='planning')window.M4L_PLANNING?.open({hostId:'admin-planning',view:'admin'});
     if(requested==='settings'&&global)window.M4L_ACADEMY_SETTINGS?.open('admin-app-settings');
     if(requested==='announcements'&&global)window.M4L_ANNOUNCEMENTS?.open({hostId:'admin-announcements'});
     if(!requested){dockTimetable($('admin-timetable-home'));renderSchedule('academy-sessions',state.scheduleTimetable);weekButtons();}
+    const publicationButton=$('setup-publication-review');if(publicationButton)publicationButton.onclick=async()=>{try{await window.M4L_SETUP_PUBLICATION.open();publicationButton.textContent='Setup published';}catch(error){if(error.code!=='SETUP_REVIEW_REQUIRED')alert(error.message);}};
     bindPublicTimetableRefresh();
     revealWorkspaceTab();
   }

@@ -1,3 +1,4 @@
+import {setupEnabled,acceptedHead,acceptedRepository} from './setup-reader.js';
 import {academyD1Repository,rehearsalError} from './repository.js';
 import {d1Entrance} from './entrance.js';
 import {lessonTimes,sunday,addDays} from '../entrance.js';
@@ -36,7 +37,9 @@ export async function publicTimetable(request,env,now=new Date(),edgeCache=globa
   if(!['local','development'].includes(env.ENVIRONMENT)||!['REHEARSAL','ACTIVE'].includes(env.ACADEMY_D1_MODE)||
     env.ACADEMY_D1_MODE==='ACTIVE'&&(!env.ACADEMY_D1_RUN_ID||env.ACADEMY_LIBRARY_MODE!=='PUBLIC_ONLY'))
     throw rehearsalError('Academy activation configuration is incomplete.',503,'ACTIVATION_REQUIRED');
-  const period=publicTimetableDay(now),key=publicTimetableKey(env,period);
+  let repository;
+  if(setupEnabled(env)){const source=academyD1Repository(env);await source.ready();repository=acceptedRepository(source,await acceptedHead(source,request.headers.get('X-Academy-Setup')||''));}
+  const period=publicTimetableDay(now),key=publicTimetableKey(env,period)+(repository?'.accepted-'+repository.setup.head:'');
   const cacheKey=cacheKeyFor(request,key);
   const valid=data=>data?.snapshotVersion===4&&data.snapshotDate===period.startDate&&data.startDate===period.weekStart&&data.signedIn===false&&Array.isArray(data.timetable);
   let snapshot,edgeHit=false;
@@ -47,7 +50,7 @@ export async function publicTimetable(request,env,now=new Date(),edgeCache=globa
   }
   if(!snapshot){
     if(!env.MEDIA_BUCKET&&env.ENVIRONMENT!=='local')throw rehearsalError('The public timetable snapshot store is unavailable.');
-    const repository=academyD1Repository(env);await repository.ready();
+    repository??=academyD1Repository(env);await repository.ready();
     // One durable daily snapshot supplies twelve Sunday-based public weeks.
     // Browsing these weeks is local and never issues more visitor D1 queries.
     snapshot=await buildSnapshot(repository,period,now);
@@ -66,7 +69,8 @@ export async function publicTimetable(request,env,now=new Date(),edgeCache=globa
 async function replaceSnapshot(request,env,repository,authorize,now,edgeCache,sourceRevision){
  await authorize();
  if(!env.MEDIA_BUCKET)throw rehearsalError('The public timetable snapshot store is unavailable.');
- const period=publicTimetableDay(now),key=publicTimetableKey(env,period),previous=await env.MEDIA_BUCKET.get(key);
+ if(setupEnabled(env))repository=acceptedRepository(repository,await acceptedHead(repository));
+ const period=publicTimetableDay(now),key=publicTimetableKey(env,period)+(repository.setup?.head?'.accepted-'+repository.setup.head:''),previous=await env.MEDIA_BUCKET.get(key);
  const manual=sourceRevision===undefined;
  const currentRevision=async()=>Number((await repository.db.prepare("SELECT json_extract(setting_value,'$.requested') AS revision FROM academy_settings WHERE setting_key=?").bind(refreshSetting('public-timetable')).first())?.revision||0);
  if(manual)sourceRevision=await currentRevision();

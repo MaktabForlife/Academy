@@ -1,6 +1,6 @@
 # Academy separation phased implementation plan
 
-Prepared 22 October 2026. The user authorised staged implementation on 22 October 2026 and paused unrelated development. Phases 0 and 1 are complete on `feature-admin` at V107.23; Phase 2 follows the exit gates below. [Phase 1 evidence](phase-1.md). Preparation choices and ownership are final for the current scope; exact code, SQL and measured limits are implementation work.
+Prepared 22 October 2026. The user authorised staged implementation on 22 October 2026 and paused unrelated development. Phases 0 and 1 are complete on `feature-admin` at V107.23; The user subsequently authorised proceeding through Phase 4, with clarification only when necessary. Phases 2–4 follow the exit gates below. [Phase 1 evidence](phase-1.md). Preparation choices and ownership are final for the current scope; exact code, SQL and measured limits are implementation work.
 
 ## Phase 0 source alignment and baseline
 
@@ -44,7 +44,19 @@ Preserve existing official library store boundaries and reader entitlement. Add 
 
 Exit: protected metadata and bytes agree; own-note and general Admin permissions remain distinct; no new media entitlement from attendance or Admin reader perspective.
 
+## Required checkpoint: complete the UI and release Development before splitting databases
+
+Added at the user's request on 22 October 2026. Complete and verify all UI and service work in Phases 1–4 on `feature-admin`, preserving the current layouts and the agreed direct manual Admin controls. Review the complete Admin/Learn/Teach experience and confirm that no planned UI work remains before beginning the database split.
+
+At this checkpoint, integrate the completed feature work into `development` and publish the compatible website and Development Worker. Verify the deployed versions, access boundaries, ordinary assessment/media workflows and retained data/files. Development must be working on the completed UI before database-separation work continues.
+
+Do not begin Phase 5 database creation, copying, writer cutover or physical data moves until this checkpoint is complete. The current Phase 2 release remains preview-only; this checkpoint does not authorise skipping the remaining UI phases or starting the database split during Phase 2. Phase 5 still requires its own requested implementation scope.
+
+Exit: UI complete; verification and Development release evidence recorded; compatible Development website and Worker confirmed. Record a recoverable release checkpoint before any database split.
+
 ## Phase 5 move coherent Admin data families
+
+The required UI/Development checkpoint above must be complete before this phase begins.
 
 Only after owner-aware paths are verified, prepare the Admin database/schema and read-only Core reference relationships. Rehearse each selected coherent family on isolated data: copy, dependency/hash/count checks, current permission/retry tests and resource measurements. Identify all source/target writers before switching.
 

@@ -168,7 +168,7 @@ export function d1Assessments(repository,auth){
     statements.push(p(`UPDATE assessment_recipients SET ${column}=latest_mark_id,revision=revision+1 WHERE assessment_id=? AND account_id IN(SELECT value FROM json_each(?))`,a.assessment_id,JSON.stringify(ready.map(r=>r.account_id))));
    }else throw fail('Unknown assessment action.',404);
    statements.push(s.touch(a),s.event(a,action,{...(input.decision?{decision:input.decision,comment:input.comment||''}:{}),...(input.category?{category:input.category,accountIds:input.accountIds||'CLASS'}:{}),...(input.accountId?{accountId:input.accountId}:{}),...(['mark','confirm-submission'].includes(action)?{submissionId:input.submissionId}:{}),...(action==='mark'?{mark:input.mark}:{}),...(action==='paper-details'?{durationMinutes:input.durationMinutes,maximumMark:input.maximumMark}:{})},input.accountId||null));
-   return {statements,result:{assessmentId:a.assessment_id,revision:a.revision+1}};
+   return {statements,result:{assessmentId:a.assessment_id,revision:a.revision+1,...(action==='publish'?{setupScopes:[a.activity_key]}:{})}};
   });
  }
  async function selected(a,input){

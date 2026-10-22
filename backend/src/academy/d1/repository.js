@@ -24,6 +24,7 @@ export function academyD1Repository(env) {
   async function subscriptionSource(){
     return (await schemaNames()).includes('effective_course_subscriptions')?'effective_course_subscriptions':"(SELECT account_id,activity_key FROM legacy_access_evidence WHERE source_role='LEGACY_SUBSCRIPTION' AND source_effective=1)";
   }
+  const activityColumns=env.ACADEMY_ACCEPTED_SETUP==='1'?`a.activity_key,a.activity_id,a.kind,COALESCE((SELECT json_extract(r.value,'$.name') FROM setup_head_state h JOIN setup_head_components v ON v.head_id=h.head_id AND v.table_name='activities' JOIN setup_components c USING(component_id) JOIN json_each(c.rows_json) r WHERE h.singleton=1 AND json_extract(r.value,'$.activity_key')=a.activity_key COLLATE NOCASE LIMIT 1),'Learning area') AS name,a.active,a.lifecycle,a.website_visible,a.created_at,a.updated_at,a.revision`:'a.*';
   const accountSQL=`SELECT a.*,c.pin_hash,c.pin_setup,c.credential_epoch,
     EXISTS(SELECT 1 FROM global_role_assignments g WHERE g.account_id=a.account_id AND g.role='GLOBAL_ADMIN' AND g.active=1 AND g.review_state='CONFIRMED') AS global_admin
     FROM accounts a JOIN account_credentials c ON c.account_id=a.account_id`;
@@ -33,7 +34,7 @@ export function academyD1Repository(env) {
     const target=`(SELECT a.account_id FROM accounts a JOIN account_credentials c USING(account_id) WHERE ${where})`;
     const results=await db.batch([
       prepare(`${accountSQL} WHERE ${where}`,...values),
-      prepare(`SELECT a.*,cs.legacy_access_model FROM activities a LEFT JOIN course_settings cs USING(activity_key)
+      prepare(`SELECT ${activityColumns},cs.legacy_access_model FROM activities a LEFT JOIN course_settings cs USING(activity_key)
         WHERE a.active=1 AND a.lifecycle='ACTIVE' AND a.kind IN ('PROGRAM','COURSE')`),
       prepare(`SELECT r.activity_key,r.role FROM effective_activity_roles r JOIN activities a USING(activity_key)
         WHERE r.account_id=${target} AND a.active=1 AND a.lifecycle='ACTIVE'
@@ -70,7 +71,7 @@ export function academyD1Repository(env) {
       SELECT ?,?,?,?,?,?,?,?,? ${conditional?'WHERE changes()=1':''}`,crypto.randomUUID(),new Date().toISOString(),actor,env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACCOUNT':'D1_REHEARSAL','ACADEMY',action,'USER_ACCOUNT',target,JSON.stringify(fields));
   }
   return {
-    db,
+    db,setup:{enabled:env.ACADEMY_ACCEPTED_SETUP==='1'},
     ownershipForNewActivity:activity=>newActivityOwnership(activity,env),
     subscriptionSource,
     publicAccount,
@@ -147,6 +148,7 @@ export function academyD1Repository(env) {
       return this.byId(row.account_id);
     },
     async homeData(state,start,end,courseWorkflows=false,programWorkspace=false) {
+      const readDb=this.db,readPrepare=(sql,...values)=>readDb.prepare(sql).bind(...values);
       // Private curriculum is needed only for learning areas this account can
       // access. Anonymous previews need class destinations only for free joining.
       const privateKeys=state?[...new Set([
@@ -172,7 +174,7 @@ export function academyD1Repository(env) {
         `SELECT * FROM lesson_lifecycle`,
         ...(courseWorkflows?[`SELECT * FROM academy_calendar_events`,`SELECT * FROM academy_calendar_suppressions`,`SELECT * FROM academy_settings WHERE setting_key LIKE 'AcademyHolidayAnnual:%'`]:[])
       ];
-      const results=await db.batch(queries.map((sql,i)=>i===0?prepare(sql,Number(Boolean(state?.account.global_admin)),staffScope):i===1?prepare(sql,end,start):[2,3].includes(i)||i===4&&state?prepare(sql,privateScope):i===5?prepare(sql,state?.account.account_id || ''):prepare(sql)));
+      const results=await readDb.batch(queries.map((sql,i)=>i===0?readPrepare(sql,Number(Boolean(state?.account.global_admin)),staffScope):i===1?readPrepare(sql,end,start):[2,3].includes(i)||i===4&&state?readPrepare(sql,privateScope):i===5?readPrepare(sql,state?.account.account_id || ''):readPrepare(sql)));
       return results.map(r=>r.results);
     }
   };

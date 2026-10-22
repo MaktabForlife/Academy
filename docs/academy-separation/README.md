@@ -1,6 +1,12 @@
 # Academy separation final implementation brief
 
+Authorisation updated 22 October 2026: proceed through Phase 4 on `feature-admin`, keeping layouts and direct manual controls. Complete the UI/Development checkpoint below before any Phase 5 database split.
+
 Implementation authorised 22 October 2026. Phases 0 and 1 are complete on `feature-admin` at V107.23; Phases 2–6 follow the agreed delivery gates. See the [Phase 1 execution record](phase-1.md). Preparation is complete at the design level. This brief, the final access map, data ownership and phased plan are the active instructions. They replace the earlier expanding review proposals.
+
+## Required checkpoint before database separation
+
+Complete and verify the UI work in Phases 1–4, then push and deploy the compatible website and Worker to Development. Confirm that release is working and retain its recovery checkpoint before beginning Phase 5 database splitting. The current Phase 2 implementation remains on `feature-admin` and preview only. See the [required checkpoint in the phased plan](implementation-plan.md#required-checkpoint-complete-the-ui-and-release-development-before-splitting-databases).
 
 ## Scope and settled decisions
 

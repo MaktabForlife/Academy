@@ -65,7 +65,8 @@
     "HIFZ_HANDOFF_ENABLED": "1",
     "HIFZ_PROFILE_SYNC_TARGET": "production",
     "HIFZ_PROFILE_SYNC_URL": "https://hifzhelper-api.hifzhelper-app.workers.dev/internal/academy/profile-sync",
-    "ACADEMY_DEPLOYMENT_KIND": "FEATURE_PREVIEW"
+    "ACADEMY_DEPLOYMENT_KIND": "FEATURE_PREVIEW",
+    "ACADEMY_ACCEPTED_SETUP": "1"
   },
   "secrets": {
     "required": [

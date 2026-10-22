@@ -18,9 +18,9 @@ function filesIn(directory){
  }
  return files.sort();
 }
-export function sourceSchema(){
+export function sourceSchema({through=Infinity}={}){
  const db=new DatabaseSync(':memory:');
- const migrations=readdirSync(resolve(repositoryRoot,'backend/migrations/academy')).filter(n=>/^\d+_.+\.sql$/.test(n)).sort();
+ const migrations=readdirSync(resolve(repositoryRoot,'backend/migrations/academy')).filter(n=>/^\d+_.+\.sql$/.test(n)&&Number(n.split('_')[0])<=through).sort();
  try{
   for(const name of migrations)db.exec(read('backend/migrations/academy/'+name));
   const tables=db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all().map(({name})=>({name,columns:db.prepare(`PRAGMA table_info("${name}")`).all().map(r=>({name:r.name,type:r.type,notnull:r.notnull,default:r.dflt_value,pk:r.pk})),foreignKeys:db.prepare(`PRAGMA foreign_key_list("${name}")`).all()}));
