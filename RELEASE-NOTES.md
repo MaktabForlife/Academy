@@ -1,3 +1,7 @@
+# V107.21 — In-place PDF text, editable saves and favourite colours
+
+Replace the comparison's text popout with an on-page editor. Single-click existing text to edit; resize strokes and shapes, or adjust line endpoints. Use the pinned PDF.js annotation writer for editable FreeText, Ink and Highlight records, preserving supported annotation edits on reopen. Keep shape settings in validated per-annotation metadata; native PDF.js edits invalidate stale settings. Add editable favourite colour slots stored in this browser. Development comparison only; the normal reader and database are unchanged. [Validation and scope](docs/PDF-EDITING-107.21.md).
+
 # V107.20 — Separate PDF annotation comparison
 
 Add `/academy/pdf-compare/` for comparing existing PDF.js tools with a separate Academy toolbar over the same PDF. Includes local file opening, a two-page worksheet, labelled pen/text/highlight controls, box/oval/line/arrow shapes, selection, text editing, move/resize, whole-mark erasing, Undo/Redo, linked page navigation and annotated PDF download. Device PDFs and editable marks stay in the tab. Export preserves the original page content and adds a permanent image overlay. The current reader has no functional changes. [Verification](docs/PDF-COMPARISON-107.20.md).

@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V107.20
+# Umm Abbad Academy — V107.21
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
@@ -7,6 +7,10 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - HifzHelper keeps its separate Worker and D1; Academy provides profile and PIN updates plus a short-lived sign-in handoff.
+
+## V107.21 — Editable PDF annotations and favourite colours
+
+The separate [PDF comparison](https://maktab4life.org/academy/pdf-compare/) now opens and edits text directly on the page. Text, strokes and shapes save as real editable PDF annotations and reopen in Academy tools or native PDF.js. Add a browser-saved favourite palette using **Edit favourites**. The normal reader is unchanged. [Details](docs/PDF-EDITING-107.21.md).
 
 ## V107.20 — Separate PDF tools comparison
 
