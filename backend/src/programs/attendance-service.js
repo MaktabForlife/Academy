@@ -14,14 +14,14 @@ export function attendanceService(repository,program,now=()=>new Date()) {
     const [catalog,accounts]=await Promise.all([repository.timetable.catalog(data.source),repository.accounts()]);
     const registers=readRegisters(data.tables.ProgramAttendanceRegisters||[],data.tables.ProgramAttendanceMarks||[],program.id);
     const classes=new Map(catalog.classes.filter(row=>row.active).map(row=>[row.id,row]));
-    const allowed=(lesson,klass)=>senior(user)||!user||lesson.teacherIds.includes(user.accountid)||klass?.classTeacherId===user.accountid;
+    const allowed=(lesson,klass)=>senior(user)||user?.readOnlyPreview||!user||lesson.teacherIds.includes(user.accountid)||klass?.classTeacherId===user.accountid;
     const lessons=[];
     for(const lesson of scheduled){
       if(!lesson.classIds.length)continue;
       const previous=registers.byLesson.get(registerKey(date,lesson));
       if(lesson.classIds.length>1&&previous){
         // Earlier releases saved shared lessons as one register. Keep that roster together.
-        if(senior(user)||!user||lesson.teacherIds.includes(user.accountid)||
+        if(senior(user)||user?.readOnlyPreview||!user||lesson.teacherIds.includes(user.accountid)||
           lesson.classIds.some(id=>classes.get(id)?.classTeacherId===user.accountid))
           lessons.push({...previous.lesson,classId:'COMBINED',className:'Combined earlier register',combined:true});
         continue;
@@ -34,7 +34,7 @@ export function attendanceService(repository,program,now=()=>new Date()) {
         lessons.push(saved?{...saved.lesson,classId,className:scoped.classNames[0]}:scoped);
       }
     }
-    const classViews=[...classes.values()].filter(klass=>senior(user)||!user||klass.classTeacherId===user.accountid||lessons.some(row=>row.classId===klass.id))
+    const classViews=[...classes.values()].filter(klass=>senior(user)||user?.readOnlyPreview||!user||klass.classTeacherId===user.accountid||lessons.some(row=>row.classId===klass.id))
       .map(row=>({id:row.id,name:row.name}));
     for(const lesson of lessons)if(lesson.classId!=='COMBINED'&&!classViews.some(row=>row.id===lesson.classId))
       classViews.push({id:lesson.classId,name:lesson.className||lesson.classNames?.[0]||lesson.classId});
@@ -60,6 +60,7 @@ export function attendanceService(repository,program,now=()=>new Date()) {
       return {...JSON.parse(row.ResultJSON),replayed:true};
     },
     async plan(action,input,user,hash){
+      if(user?.readOnlyPreview)throw problem('Preview is read only.',403);
       if(action!=='save')throw problem('Unknown attendance change.');
       if(program.status==='ARCHIVED')throw problem('Archived Programs cannot accept attendance.',409);
       const date=input.date;

@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -11,8 +12,8 @@ import {publicTimetable,publicTimetableKey,publicTimetableDay} from '../src/acad
 import {refreshSetting,refreshObject,markRefresh} from '../src/academy/d1/refresh-state.js';
 
 const now=new Date('2026-10-09T12:00:00Z'),origin='https://academy.invalid';
-const request=path=>new Request(origin+path);
-async function post(env,path,input={},token='') {const r=await worker.fetch(new Request(origin+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),env);return {status:r.status,body:await r.json()};}
+const request=path=>new WorkspaceRequest(origin+path);
+async function post(env,path,input={},token='') {const r=await worker.fetch(new WorkspaceRequest(origin+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),env);return {status:r.status,body:await r.json()};}
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
 const login=async(env,n='0001')=>ok(await post(env,'/api/account/login',{uniqueid:'login-'+n,pin:'1234'})).token;
 const apply=(db,names)=>names.forEach(name=>db.exec(readFileSync(new URL('../migrations/academy/'+name,import.meta.url),'utf8')));

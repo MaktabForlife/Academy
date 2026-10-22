@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {courseFixture} from './fixtures/academy-d1-course-fixture.mjs';
@@ -9,7 +10,7 @@ import worker from '../src/academy-runtime.js';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const base='/api/admin/platform/global/',cal='/api/admin/platform/calendar/';
-const post=async(env,path,input={},token='')=>{const r=await worker.fetch(new Request(`https://academy.invalid${path}`,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:JSON.stringify(input)}),env);return {status:r.status,body:await r.json()};};
+const post=async(env,path,input={},token='')=>{const r=await worker.fetch(new WorkspaceRequest(`https://academy.invalid${path}`,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:JSON.stringify(input)}),env);return {status:r.status,body:await r.json()};};
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
 const login=async(env,suffix='0001')=>ok(await post(env,'/api/account/login',{uniqueid:`login-${suffix}`,pin:'1234'})).token;
 const change=async(env,path,input,token,revision)=>post(env,path,{...input,workflowRevision:revision,operationId:crypto.randomUUID()},token);

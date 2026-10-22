@@ -16,7 +16,7 @@ export class ProgramTimetableCoordinator extends DurableObject {
   }
   async openLibraryMetadataSave(input, authorization, uploadedCoverKey = '') {
     const request=new Request('https://internal.invalid/open-library-metadata', {
-      headers: { Authorization: authorization }
+      headers: { Authorization: authorization, 'X-Academy-Workspace':'ADMIN' }
     });
     let user=await openLibraryMetadataUser(request,this.env);
     const taxonomy = await loadOpenLibraryTaxonomy(this.env);

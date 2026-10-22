@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -9,7 +10,7 @@ import {d1Entrance} from '../src/academy/d1/entrance.js';
 
 const base='/api/admin/platform/global/',profiles='/api/admin/platform/user-profiles/';
 async function post(env,path,input={},token='') {
-  const response=await worker.fetch(new Request('https://academy.invalid'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),env);
+  const response=await worker.fetch(new WorkspaceRequest('https://academy.invalid'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),env);
   return {status:response.status,body:await response.json()};
 }
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};

@@ -131,7 +131,7 @@ for(const root of ['academy','account','programs','users','recorder','activities
       continue;
     }
     for(const asset of ['m4l-academy-mobile.js','m4l-academy-mobile.css','m4l-academy-shell.css','m4l-academy-page-actions.js','m4l-academy-page-actions.css'])assert.ok(html.includes('/'+(asset.endsWith('.js')?'js/':'css/')+asset),file+' must include '+asset);
-    if(file!=='academy/index.html') {
+    if(!['academy/index.html','academy/admin/index.html'].includes(file)) {
       assert.match(html,/m4l-academy-navigation\.js/,file);assert.match(html,/m4l-academy-navigation\.css/,file);
       assert.ok(html.indexOf('/js/m4l-academy-navigation.js')<html.indexOf('/js/m4l-academy-mobile.js'),file+' must initialise account navigation before the shell');
     }

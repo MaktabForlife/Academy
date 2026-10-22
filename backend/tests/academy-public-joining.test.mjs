@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {courseFixture} from './fixtures/academy-d1-course-fixture.mjs';
@@ -34,7 +35,7 @@ test('public Free Program and Course joining opens five minutes early and is rec
     const [,id,run,publication,source]=JSON.parse(course.joinKey);
     f.db.prepare("INSERT INTO lesson_lifecycle(activity_key,lifecycle_id,publication_id,source_session_id,status) VALUES(?,'public-cancel',?,?,'CANCELLED')").run('COURSE:'+id,publication,source);
     await assert.rejects(d1LessonJoin(repository,null,{joinKey:course.joinKey,date:course.date},new Date(course.startsAt)),e=>['LESSON_UNAVAILABLE','LESSON_NOT_OPEN'].includes(e.code));
-    const response=await worker.fetch(new Request('http://localhost/api/academy/public-lesson/join',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({joinKey:program.joinKey,date:program.date})}),f.env);
+    const response=await worker.fetch(new WorkspaceRequest('http://localhost/api/academy/public-lesson/join',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({joinKey:program.joinKey,date:program.date})}),f.env);
     assert.equal(response.status,403);assert.equal((await response.json()).code,'LESSON_UNAVAILABLE');assert.equal(response.headers.get('Cache-Control'),'private, no-store');
     f.db.exec("UPDATE course_run_access SET access_model='PAID'");
     const latest=publicTimetableSnapshot(await d1Entrance(repository,null,null,{startDate:program.date},now),publicTimetableDay(now),now);
@@ -44,7 +45,7 @@ test('public Free Program and Course joining opens five minutes early and is rec
 
 test('Program management Free/Paid saves are scoped, audited and shared with profiles and public joining',async()=>{
  const f=await courseFixture(),repository=academyD1Repository(f.env),id=PROGRAM_IDS[0],activity='PROGRAM:'+id,now=new Date('2026-10-09T08:00:00Z');
- const request=async(path,body={},token='')=>{const response=await worker.fetch(new Request('http://localhost/api/'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(body)}),f.env);return {status:response.status,body:await response.json()};};
+ const request=async(path,body={},token='')=>{const response=await worker.fetch(new WorkspaceRequest('http://localhost/api/'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(body)}),f.env);return {status:response.status,body:await response.json()};};
  const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
  const login=async n=>ok(await request('account/login',{uniqueid:'login-'+n,pin:'1234'})).token;
  const current=async token=>ok(await request('admin/platform/programs/list',{},token)).programs.find(p=>p.id===id);

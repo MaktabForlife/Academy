@@ -1,4 +1,6 @@
 import {announcements,publicAnnouncements,announcementImage,announcementPdf,announcementUpload} from './announcements.js';
+import {guardWorkspace,actualState} from './workspace-access.js';
+import {globalSettings} from './global-settings.js';
 import {headerDate} from '../header-date.js';
 import {lessonPlanning} from './lesson-planning.js';
 import {d1Memorisation,d1MemorisationPreview} from './memorisation.js';
@@ -74,7 +76,7 @@ async function dispatch(request,env) {
   if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.22',
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.23',
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(repository)};
@@ -92,6 +94,7 @@ async function dispatch(request,env) {
   if(request.method!=='POST')throw rehearsalError('Use POST.',405,'METHOD_NOT_ALLOWED');
   if(path==='/api/admin/platform/announcements/save'){
     const auth=await authenticated(request,env,repository);
+    guardWorkspace(request,auth);
     const editor=announcements(repository,auth,env),{input,image,pdf}=await announcementUpload(request);
     return {success:true,...await editor.run('save',input,image,pdf)};
   }
@@ -100,6 +103,7 @@ async function dispatch(request,env) {
     if(metadata.length>8192)throw rehearsalError('Upload details are too large.',413);
     let input;try{input=JSON.parse(metadata);}catch{throw rehearsalError('Invalid upload details.',400);}
     if(!input||typeof input!=='object'||Array.isArray(input))throw rehearsalError('Invalid upload details.',400);
+    guardWorkspace(request,auth,input);
     return {success:true,...await lessonMedia(repository,auth,env).upload(request,input)};
   }
   if(path==='/api/academy/assessments/upload') {
@@ -107,10 +111,12 @@ async function dispatch(request,env) {
     if(metadata.length>8192)throw rehearsalError('Upload details are too large.',413);
     let input;try{input=JSON.parse(metadata);}catch{throw rehearsalError('Invalid upload details.',400);}
     if(!input||typeof input!=='object'||Array.isArray(input))throw rehearsalError('Invalid upload details.',400);
+    guardWorkspace(request,auth,input);
     return {success:true,...await assessmentFiles(repository,auth,env).upload(request,input)};
   }
   if(path==='/api/admin/platform/program-library/upload-chunk') {
     const auth=await authenticated(request,env,repository);
+    guardWorkspace(request,auth);
     return {success:true,...await d1Library(repository,auth,env).uploadChunk(request)};
   }
   const managementPath=path.startsWith('/api/admin/platform/');
@@ -139,7 +145,7 @@ async function dispatch(request,env) {
   }
   if(path==='/api/academy/entrance') {
     const auth=request.headers.has('Authorization')?await authenticated(request,env,repository):null;
-    return {success:true,sessionStore:'D1',...websiteEntrance(await d1Entrance(repository,auth?.state,auth?.user,input))};
+    return {success:true,sessionStore:'D1',...websiteEntrance(await d1Entrance(repository,auth?.state,auth?.user,input,undefined,{auth}))};
   }
   if(path==='/api/academy/public-lesson/join')return {success:true,...await d1LessonJoin(repository,null,input)};
   if(path==='/api/academy/enrolment/submit'){
@@ -147,6 +153,9 @@ async function dispatch(request,env) {
     return {success:true,...await submitEnrolment(repository,auth,input,request,env)};
   }
   const auth=await authenticated(request,env,repository);
+  guardWorkspace(request,auth,input);
+  const settingsAction=path.match(/^\/api\/admin\/platform\/settings\/(get|save)$/)?.[1];
+  if(settingsAction)return {success:true,...await globalSettings(repository,auth).run(settingsAction,input)};
   if(path==='/api/academy/hifz/sign-in')return issueHifzHandoff(env,auth,input);
   if(path==='/api/academy/enrolment/profile')return {success:true,...await enrolmentProfile(repository,auth)};
   const enrolmentAction=path.match(/^\/api\/admin\/platform\/enrolment\/(get|catalogue-save|request-save|request-delete|accounts|register|settings-save)$/)?.[1];
@@ -221,12 +230,12 @@ async function dispatch(request,env) {
     const result=profileAction?await d1Profiles(repository,auth).run(profileAction,input):registryAction?await d1Programs(repository,auth).registry(registryAction,input):learningView?await d1Learning(repository,auth).timetable('manage-get',input):await d1Programs(repository,auth).management(managementAction,input);
     return {success:true,...result};
   }
-  if(path==='/api/account/session')return {success:true,...sessionResponse(auth.state,auth.context)};
+  if(path==='/api/account/session')return {success:true,...sessionResponse(actualState(auth),auth.context)};
   if(path==='/api/account/logout') {await repository.revoke(auth.sid,auth.state.account.account_id);return {success:true};}
   if(path==='/api/account/switch-context') {
-    const context=auth.state.contexts.find(c=>contextEqual(c,{scope:String(input.scope || 'COURSE').toUpperCase(),courseId:String(input.courseId || ''),role:String(input.role || '').toUpperCase()}));
+    const context=actualState(auth).contexts.find(c=>contextEqual(c,{scope:String(input.scope || 'COURSE').toUpperCase(),courseId:String(input.courseId || ''),role:String(input.role || '').toUpperCase()}));
     if(!context)throw rehearsalError('Requested course or role is not authorised',403,'FORBIDDEN_CONTEXT');
-    const result=await issueSession(env,repository,auth.state,context);
+    const result=await issueSession(env,repository,actualState(auth),context);
     await repository.revoke(auth.sid,auth.state.account.account_id);
     return result;
   }
@@ -249,7 +258,7 @@ return {
     const origin=request.headers.get('Origin');
     const allowed=(env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
     const headers={'Content-Type':'application/json','Cache-Control':'private, no-store','Vary':'Origin',
-      'Access-Control-Allow-Methods':'POST, GET, HEAD, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization, Range, X-Library-Upload-Ticket, X-Library-Upload-Offset'};
+      'Access-Control-Allow-Methods':'POST, GET, HEAD, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization, Range, X-Academy-Workspace, X-Library-Upload-Ticket, X-Library-Upload-Offset'};
     if(origin&&allowed.includes(origin))headers['Access-Control-Allow-Origin']=origin;
     if(origin&&!allowed.includes(origin))return new Response(JSON.stringify({success:false,error:'Origin is not allowed.'}),{status:403,headers});
     if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
@@ -271,7 +280,7 @@ return {
       if(status===429)headers['Retry-After']='60';
       return new Response(JSON.stringify({success:false,error:dailyReadLimit?'Academy access has reached today’s service allowance. Please try again after 00:00 UTC (03:00 Riyadh), or contact an administrator.':unavailable?'Academy information is temporarily unavailable. Please try again.':error.message,
         code:dailyReadLimit?'ACADEMY_D1_DAILY_READ_LIMIT':unavailable?(['ACADEMIC_CALENDAR_SCHEMA_REQUIRED','ACTIVATION_REQUIRED','MANAGEMENT_SCHEMA_REQUIRED','LEARNING_IMPORT_REQUIRED','COURSE_IMPORT_REQUIRED','COURSE_ACCESS_SCHEMA_REQUIRED','COURSE_MANAGEMENT_SCHEMA_REQUIRED','UPLOAD_BRIDGE_REQUIRED','MEMORISATION_SCHEMA_REQUIRED'].includes(error.code)?error.code:'ACADEMY_D1_UNAVAILABLE'):error.code,retryable:unavailable||status===429,...(dailyReadLimit?{retryAfterMs,resetAt:reset.toISOString()}:{}),...(status===429?{retryAfterMs:60000}:{}),
-        ...(status===409?Object.fromEntries(['currentRecord','rowRevision','entryKey'].filter(k=>error[k]!==undefined).map(k=>[k,error[k]])):{} )}),{status,headers});}
+        ...(status===409&&request.headers.get('X-Academy-Workspace')==='ADMIN'?Object.fromEntries(['currentRecord','rowRevision','entryKey'].filter(k=>error[k]!==undefined).map(k=>[k,error[k]])):{} )}),{status,headers});}
   }
 };
 }

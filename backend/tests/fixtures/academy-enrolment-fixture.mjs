@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './workspace-request.mjs';
 import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import {upcomingCourseFixture} from './academy-upcoming-course-fixture.mjs';
@@ -8,7 +9,7 @@ export async function enrolmentFixture(){
  const f=await upcomingCourseFixture();f.db.exec(readFileSync(new URL('../../migrations/academy/0026_enrolment_requests.sql',import.meta.url),'utf8'));
  f.db.exec(readFileSync(new URL('../../migrations/academy/0027_enrolment_profile_contacts.sql',import.meta.url),'utf8'));
  f.env.AUTH_LOGIN_RATE_LIMITER={limit:async()=>({success:true})};
- f.get=async(path,token='')=>{const r=await worker.fetch(new Request('http://localhost'+path,{headers:token?{Authorization:'Bearer '+token}:{}}),f.env);return {status:r.status,body:await r.json()};};
+ f.get=async(path,token='')=>{const r=await worker.fetch(new WorkspaceRequest('http://localhost'+path,{headers:token?{Authorization:'Bearer '+token}:{}}),f.env);return {status:r.status,body:await r.json()};};
  f.enrol=(action,input={},token=f.tokens.admin)=>f.call('/api/admin/platform/enrolment/'+action,input,token);
  f.write=(action,input={},token=f.tokens.admin)=>f.enrol(action,{operationId:crypto.randomUUID(),...input},token);
  f.program=f.db.prepare("SELECT * FROM activities WHERE kind='PROGRAM' LIMIT 1").get();

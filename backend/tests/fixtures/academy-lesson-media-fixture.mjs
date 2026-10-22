@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './workspace-request.mjs';
 import {readFileSync} from 'node:fs';
 import {assessmentFixture} from './academy-assessment-fixture.mjs';
 import {MOU_MEDIA_PROGRAM} from '../../src/academy/d1/lesson-media.js';
@@ -19,10 +20,10 @@ export async function mediaFixture({upgrade=true}={}){
  }
  if(upgrade){f.db.exec('BEGIN');f.db.exec(readFileSync(new URL('../../migrations/academy/0030_session_lesson_media.sql',import.meta.url),'utf8'));f.db.exec(readFileSync(new URL('../../migrations/academy/0031_media_names_and_course_pdfs.sql',import.meta.url),'utf8'));f.db.exec('COMMIT');}
  f.env.LESSON_MEDIA_BUCKET=f.env.ASSESSMENT_BUCKET;
- f.media=async(action,input={},token='')=>{const response=await worker.fetch(new Request('http://localhost/api/academy/lesson-media/'+action,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify({...(!input.lessonId?{activityKey:scope}:{}),...input})}),f.env);return {status:response.status,body:response.headers.get('content-type')==='application/pdf'?await response.text():await response.json(),headers:response.headers};};
+ f.media=async(action,input={},token='')=>{const response=await worker.fetch(new WorkspaceRequest('http://localhost/api/academy/lesson-media/'+action,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify({...(!input.lessonId?{activityKey:scope}:{}),...input})}),f.env);return {status:response.status,body:response.headers.get('content-type')==='application/pdf'?await response.text():await response.json(),headers:response.headers};};
  f.mediaUpload=async(input,token,bytes=Buffer.from('%PDF-1.4\n% demo notes\n%%EOF'))=>{
   const metadata={lessonId:'MOU-20261006',revision:1,size:bytes.length,filename:'notes.pdf',sha256:createHash('sha256').update(bytes).digest('hex'),operationId:crypto.randomUUID(),...input};
-  const response=await worker.fetch(new Request('http://localhost/api/academy/lesson-media/upload?metadata='+encodeURIComponent(JSON.stringify(metadata)),{method:'POST',headers:{Authorization:'Bearer '+token},body:bytes}),f.env);return {status:response.status,body:await response.json(),metadata};
+  const response=await worker.fetch(new WorkspaceRequest('http://localhost/api/academy/lesson-media/upload?metadata='+encodeURIComponent(JSON.stringify(metadata)),{method:'POST',headers:{Authorization:'Bearer '+token},body:bytes}),f.env);return {status:response.status,body:await response.json(),metadata};
  };
  return f;
 }

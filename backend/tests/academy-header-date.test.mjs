@@ -1,9 +1,10 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {headerDate,jamiatDate} from '../src/academy/header-date.js';
 import runtime from '../src/academy-runtime.js';
 const html='<div class="dual-date-widget" data-site-y="2026" data-site-m="10" data-site-d="15"><div class="value islamic hd-out">4 Jumada al-ula 1448</div></div>';
-const request=()=>new Request('https://academy.invalid/api/academy/header-date');
+const request=()=>new WorkspaceRequest('https://academy.invalid/api/academy/header-date');
 const now=new Date('2026-10-15T10:00:00Z');
 test('header date extracts only a current, plain Hijri date and caches the source independently of D1',async()=>{
  const entries=new Map(),cache={match:async r=>entries.get(r.url)?.clone(),put:async(r,response)=>entries.set(r.url,response.clone())};let calls=0;
@@ -26,6 +27,6 @@ test('the deployed date route bypasses D1 and never needs Academy credentials',a
  Object.defineProperty(env,'ACADEMY_DB',{get(){throw Error('Unexpected D1 access');}});
  try{
   const response=await runtime.fetch(request(),env);assert.equal(response.status,200);assert.equal((await response.json()).hijri,'4 Jumada al-ula 1448');
-  assert.equal((await runtime.fetch(new Request(request(),{method:'POST'}),env)).status,405);
+  assert.equal((await runtime.fetch(new WorkspaceRequest(request(),{method:'POST'}),env)).status,405);
  }finally{globalThis.fetch=original;}
 });

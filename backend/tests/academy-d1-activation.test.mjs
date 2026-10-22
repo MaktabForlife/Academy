@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {openLibraryFixture} from './fixtures/academy-d1-open-library-fixture.mjs';
@@ -16,7 +17,7 @@ import {nativeBinding} from './fixtures/academy-d1-fixture.mjs';
 const releaseVersion=JSON.parse(readFileSync(new URL('../package.json',import.meta.url),'utf8')).version;
 
 async function post(env,path,input={},token='') {
-  const response=await worker.fetch(new Request('https://academy.invalid'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),env);
+  const response=await worker.fetch(new WorkspaceRequest('https://academy.invalid'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),env);
   return {status:response.status,body:await response.json()};
 }
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
@@ -39,13 +40,13 @@ test('activation needs explicit evidence and cannot be enabled by an environment
   assert.equal(activationFacts(db).fingerprint,before);
   const premature=await post(active(env,db),'/api/account/check',{uniqueid:'login-0002'});
   assert.equal(premature.status,503);assert.equal(premature.body.code,'ACTIVATION_REQUIRED');
-  assert.equal((await worker.fetch(new Request('https://academy.invalid/api/health'),active(env,db))).status,503);
+  assert.equal((await worker.fetch(new WorkspaceRequest('https://academy.invalid/api/health'),active(env,db))).status,503);
   assert.equal((await post({...active(env,db),ACADEMY_LIBRARY_MODE:undefined},'/api/account/check',{uniqueid:'login-0002'})).status,503);
 }));
 
 test('reviewed activation is atomic, auditable, replayable and invalidates staging sessions',()=>use(async({env,db})=>{
   for(const path of ['/','/api/health']) {
-    const health=await worker.fetch(new Request('https://academy.invalid'+path),env);assert.equal(health.status,200);
+    const health=await worker.fetch(new WorkspaceRequest('https://academy.invalid'+path),env);assert.equal(health.status,200);
     const body=await health.json();assert.equal(body.store,'D1_REHEARSAL');assert.equal(body.version,releaseVersion);
   }
   const old=await login(env,'0002'),credentials=db.prepare('SELECT * FROM account_credentials ORDER BY account_id').all(),roles=db.prepare('SELECT * FROM role_assignments ORDER BY assignment_id').all();
@@ -61,7 +62,7 @@ test('reviewed activation is atomic, auditable, replayable and invalidates stagi
   const live=active(env,db);assert.equal((await post(live,'/api/account/session',{},old)).status,401);
   const signed=await login(live,'0002');assert.equal(ok(await post(live,'/api/academy/entrance',{},signed)).signedIn,true);
   for(const path of ['/','/api/health']) {
-    const health=await worker.fetch(new Request('https://academy.invalid'+path),live);assert.equal(health.status,200);
+    const health=await worker.fetch(new WorkspaceRequest('https://academy.invalid'+path),live);assert.equal(health.status,200);
     const body=await health.json();assert.equal(body.store,'D1_ACTIVE');assert.equal(body.version,releaseVersion);
   }
   assert.equal((await post({...live,ACADEMY_D1_RUN_ID:'wrong-run'},'/api/account/session',{},signed)).status,503);
@@ -93,12 +94,12 @@ test('core Library mode exposes only public material and rejects every compatibi
   Object.assign(env,live); // The coordinator receives the deployed Worker's environment too.
   const student=await login(live,'0002'),admin=await login(live);
   const data=ok(await post(live,'/api/academy/library/catalogue',{},student));assert.deepEqual(data.resources,[]);assert.equal(data.mediaSubscriptionsAvailable,false);assert.equal(data.libraryMode,'PUBLIC_ONLY');assert.ok(data.learningAreaRefs.length);
-  const publicResponse=await worker.fetch(new Request('https://academy.invalid/api/academy/open-library/metadata/public'),live);assert.equal(publicResponse.status,200);
+  const publicResponse=await worker.fetch(new WorkspaceRequest('https://academy.invalid/api/academy/open-library/metadata/public'),live);assert.equal(publicResponse.status,200);
   const book={id:'EXTERNAL:INTERNET_ARCHIVE:synthetic-core-book',title:'Synthetic public book',subjectRef:'GLOBAL:subject-1',moduleRef:'GLOBAL:module-1',learningAreaRefs:['GLOBAL:subject-1'],baseRevision:0};
   ok(await post(live,'/api/academy/open-library/metadata/save',book,admin));
-  assert.equal((await (await worker.fetch(new Request('https://academy.invalid/api/academy/open-library/metadata/public'),live)).json()).records.length,1);
+  assert.equal((await (await worker.fetch(new WorkspaceRequest('https://academy.invalid/api/academy/open-library/metadata/public'),live)).json()).records.length,1);
   const ticket=await createSessionToken({purpose:'academy-d1-file',sid:'old-ticket',accountid:'account-0002',epoch:1,resourceKey:'PROGRAM:private:file',expiresAt:Date.now()+60000},live);
-  for(const method of ['GET','HEAD'])assert.equal((await worker.fetch(new Request('https://academy.invalid/api/academy/d1/library/file?access='+encodeURIComponent(ticket),{method}),live)).status,403);
+  for(const method of ['GET','HEAD'])assert.equal((await worker.fetch(new WorkspaceRequest('https://academy.invalid/api/academy/d1/library/file?access='+encodeURIComponent(ticket),{method}),live)).status,403);
   for(const path of ['/api/academy/library/access','/api/academy/library/cover','/api/program-library/catalogue','/api/program-library/access',
     '/api/admin/platform/program-library/upload-start','/api/admin/platform/program-library/upload-chunk','/api/admin/platform/program-library/folder-set',
     '/api/admin/platform/program-timetable/prepare-library',
@@ -149,7 +150,7 @@ test('failed checks, wrong source and missing evidence cannot produce an activat
 test('maintenance pauses requests before authentication, database access or Sheets fallback',()=>use(async({env,db})=>{
   const before=activationFacts(db).fingerprint;
   for(const path of ['/api/account/login','/api/academy/entrance','/api/admin/platform/programs/create']) {
-    const response=await worker.fetch(new Request('https://academy.invalid'+path,{method:'POST',body:'{}'}),{...env,ACADEMY_D1_MODE:'PAUSED',ACADEMY_DB:undefined});
+    const response=await worker.fetch(new WorkspaceRequest('https://academy.invalid'+path,{method:'POST',body:'{}'}),{...env,ACADEMY_D1_MODE:'PAUSED',ACADEMY_DB:undefined});
     assert.equal(response.status,503);assert.equal(response.headers.get('Retry-After'),'60');assert.equal((await response.json()).code,'ACADEMY_STORAGE_PAUSED');
   }
   assert.equal(activationFacts(db).fingerprint,before);
@@ -172,7 +173,7 @@ test('hosted rehearsal tooling rejects main targets and installs only a verified
     db=new DatabaseSync(join(directory,'synthetic.sqlite'));
     const env={...config.vars,...secrets,ACADEMY_DB:nativeBinding(db),AUTH_LOGIN_RATE_LIMITER:{limit:async()=>({success:true})},
       PROGRAM_TIMETABLE_COORDINATOR:{getByName:()=>({openLibraryMetadataList:async()=>[]})}};
-    globalThis.fetch=async(url,options)=>{assert.equal(new URL(url).hostname,workerName+'.example.workers.dev');return worker.fetch(new Request(url,options),env);};
+    globalThis.fetch=async(url,options)=>{assert.equal(new URL(url).hostname,workerName+'.example.workers.dev');return worker.fetch(new WorkspaceRequest(url,options),env);};
     const result=await exerciseHostedCore('https://'+workerName+'.example.workers.dev',input);
     // This transport adapter is native/local, never evidence of hosted capacity.
     assert.equal(result.succeededFlows,200,JSON.stringify(result.failures));assert.equal(result.failedFlows,0);assert.equal(result.coreRoleAndSecurityChecks,'PASS');assert.equal(result.publicLibrary,'PASS');

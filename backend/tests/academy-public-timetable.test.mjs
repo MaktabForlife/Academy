@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {fixtureDatabase} from './fixtures/academy-d1-fixture.mjs';
@@ -11,7 +12,7 @@ function snapshotStores() {
       put:async(key,value,options)=>{if(options.onlyIf.etagMatches!==undefined){if(options.onlyIf.etagMatches!==String(puts))return null;}else{assert.equal(options.onlyIf.etagDoesNotMatch,'*');if(objects.has(key))return null;}puts++;objects.set(key,value);return {key};}},
     edge:{match:async request=>responses.get(request.url)?.clone(),put:async(request,response)=>{responses.set(request.url,response.clone());}}};
 }
-const request=(suffix='',headers={})=>new Request('https://academy.invalid/api/academy/entrance/public-snapshot'+suffix,{headers});
+const request=(suffix='',headers={})=>new WorkspaceRequest('https://academy.invalid/api/academy/entrance/public-snapshot'+suffix,{headers});
 const broken={withSession:()=>{throw Error("Your account has exceeded D1's free tier daily row read limit.");}};
 
 test('one durable daily public snapshot serves visitors and cold edges without another database read',async()=>{
@@ -48,7 +49,7 @@ test('public snapshots whitelist stored data and cannot bypass authentication or
       assert.doesNotMatch(await response.text(),/SECRET|joinUrl|teacherNames/);
     }
     const signed=await worker.fetch(request('',{Authorization:'Bearer never-cache-a-session'}),quota);assert.equal(signed.status,400);
-    const protectedResponse=await worker.fetch(new Request('https://academy.invalid/api/academy/entrance',{method:'POST',body:'{}',headers:{Authorization:'Bearer invalid'}}),quota);
+    const protectedResponse=await worker.fetch(new WorkspaceRequest('https://academy.invalid/api/academy/entrance',{method:'POST',body:'{}',headers:{Authorization:'Bearer invalid'}}),quota);
     assert.equal(protectedResponse.status,503);assert.equal((await protectedResponse.json()).code,'ACADEMY_D1_DAILY_READ_LIMIT');assert.equal(protectedResponse.headers.get('Cache-Control'),'private, no-store');
     assert.equal((await worker.fetch(request(),{...quota,ACADEMY_D1_MODE:'PAUSED'})).status,503);
     stores.objects.set(key,JSON.stringify({...first,signedIn:true}));
@@ -65,7 +66,7 @@ test('a failed new-day build is not saved or cached',async()=>{
   } finally {f.db.close();}
 });
 
-const post=async(env,path,body={},token='')=>{const response=await worker.fetch(new Request('https://academy.invalid'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(body)}),env);return {status:response.status,body:await response.json()};};
+const post=async(env,path,body={},token='')=>{const response=await worker.fetch(new WorkspaceRequest('https://academy.invalid'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(body)}),env);return {status:response.status,body:await response.json()};};
 const login=async(env,n)=>{const response=await post(env,'/api/account/login',{uniqueid:'login-'+n,pin:'1234'});assert.equal(response.status,200,JSON.stringify(response));return response.body.token;};
 
 test('Global Admin can manually rebuild the daily public snapshot without exposing private data or adding visitor D1 reads',async()=>{

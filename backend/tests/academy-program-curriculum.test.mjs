@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -6,7 +7,7 @@ import {PROGRAM_IDS} from './fixtures/academy-migration-fixture.mjs';
 import worker from '../src/academy-runtime.js';
 const id=PROGRAM_IDS[0],activity='PROGRAM:'+id;
 async function fixture(run){const f=await mediaFixture();try{for(const migration of ['0022_academic_calendar.sql','0023_lesson_planning.sql','0024_announcements_and_plan_requirements.sql'])f.db.exec(readFileSync(new URL('../migrations/academy/'+migration,import.meta.url),'utf8'));f.env.AUTH_LOGIN_RATE_LIMITER={limit:async()=>({success:true})};await run(f);}finally{f.db.close();}}
-const call=async(f,action,input,token)=>{const r=await worker.fetch(new Request('http://localhost/api/admin/platform/program-timetable/'+action,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({id,...input})}),f.env);return {status:r.status,body:await r.json()};};
+const call=async(f,action,input,token)=>{const r=await worker.fetch(new WorkspaceRequest('http://localhost/api/admin/platform/program-timetable/'+action,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({id,...input})}),f.env);return {status:r.status,body:await r.json()};};
 async function add(f,token){const view=(await call(f,'manage-get',{},token)).body,key='PS-'+crypto.randomUUID();const added=await call(f,'manage-save',{kind:'subjects',record:{ProgramSubjectID:key,SubjectID:'ASSESSMENT-Qasas',Active:true},creating:true,baseRowRevision:view.emptyRowRevision,operationId:crypto.randomUUID()},token);assert.equal(added.status,200,JSON.stringify(added));return {key,revision:added.body.rowRevision};}
 
 test('unused Program links can be removed with scope, row-version and idempotent safeguards; Academy catalogue stays active',()=>fixture(async f=>{

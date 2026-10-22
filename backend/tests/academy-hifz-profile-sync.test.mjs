@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -87,7 +88,7 @@ test('moving a role away from Hifz still enqueues the previous scope for revocat
 test('an Academy API save schedules delivery without waiting for Hifz to respond',async()=>{
  const {db,env}=await fixture();const waits=[],packets=[];const old=globalThis.fetch;
  let release;const gate=new Promise(resolve=>{release=resolve;});
- const post=async(path,input,token='',ctx)=>worker.fetch(new Request('http://localhost'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),env,ctx);
+ const post=async(path,input,token='',ctx)=>worker.fetch(new WorkspaceRequest('http://localhost'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),env,ctx);
  try{
   globalThis.fetch=async(url,options)=>{packets.push(JSON.parse(options.body));await gate;return new Response('{}',{status:200});};
   const token=(await (await post('/api/account/login',{uniqueid:'login-0001',pin:'1234'})).json()).token;assert(token);

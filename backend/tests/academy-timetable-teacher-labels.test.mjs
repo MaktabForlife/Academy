@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import {readFileSync} from 'node:fs';
 import {profileChange} from '../tools/academy-profile-client.mjs';
 import {test} from 'node:test';
@@ -9,7 +10,7 @@ import {d1AccountTimetable} from '../src/academy/d1/account-timetable.js';
 import {timetableTeacherNames} from '../src/academy/entrance.js';
 import worker from '../src/academy-runtime.js';
 const now=new Date('2026-10-09T07:55:00Z'),input={startDate:'2026-10-09'};
-async function post(env,path,body,token){const r=await worker.fetch(new Request('http://localhost'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(body)}),env);return {status:r.status,body:await r.json()};}
+async function post(env,path,body,token){const r=await worker.fetch(new WorkspaceRequest('http://localhost'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(body)}),env);return {status:r.status,body:await r.json()};}
 test('current teacher names preserve multiple-teacher order, case-insensitive IDs and unavailable-profile fallbacks',()=>{
  const names=new Map([['TEACHER-A','TestTeacher'],['TEACHER-B','Renamed second teacher']]);
  assert.deepEqual(timetableTeacherNames({teacherId:'teacher-a',teacherIds:['teacher-a','teacher-b','missing'],teacherNames:['Old first','Old second','Published fallback']},names),['TestTeacher','Renamed second teacher','Published fallback']);

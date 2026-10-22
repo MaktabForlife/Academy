@@ -1,0 +1,108 @@
+{
+  "phase": 0,
+  "status": "COMPLETE",
+  "completedAt": "2026-10-22T10:47:49.154221+00:00",
+  "sourceCommit": "82cf5e8cd7d9cecb8d02650431b4de2cf51658d3",
+  "branch": "development",
+  "version": "107.22",
+  "remoteBranchMatches": true,
+  "websiteVersion": "107.22",
+  "workerVersion": "107.22",
+  "liveSchema": {
+    "liveBusinessTables": 108,
+    "liveColumns": 748,
+    "liveExplicitIndexes": 45,
+    "liveTriggerCount": 39,
+    "missingSchemaObjects": [],
+    "unexpectedSchemaObjects": [],
+    "normalisedDdlDifferences": [],
+    "columnAndForeignKeyDifferences": []
+  },
+  "migrationLedger": {
+    "names": [
+      "0016_assessments.sql",
+      "0018_assessment_phases.sql",
+      "0017_lesson_media.sql",
+      "0019_memorisation_sets.sql",
+      "0020_assessment_register.sql",
+      "0028_hifz_profile_sync.sql",
+      "0029_hifz_shared_pin.sql",
+      "0031_media_names_and_course_pdfs.sql"
+    ],
+    "interpretation": "Earlier schema entered through the reviewed Core import/activation; the live ledger records 0024\u20130031. Do not replay 0001\u20130023 merely because their names are absent; their schema already exists."
+  },
+  "bindings": [
+    {
+      "name": "ACADEMY_DB",
+      "type": "d1"
+    },
+    {
+      "name": "ASSESSMENT_BUCKET",
+      "type": "r2_bucket",
+      "bucket_name": "maktab-assessments-private-development"
+    },
+    {
+      "name": "AUTH_LOGIN_RATE_LIMITER",
+      "type": "ratelimit"
+    },
+    {
+      "name": "LESSON_MEDIA_BUCKET",
+      "type": "r2_bucket",
+      "bucket_name": "maktab-lesson-media-private-development"
+    },
+    {
+      "name": "MEDIA_BUCKET",
+      "type": "r2_bucket",
+      "bucket_name": "maktab4lifemedia"
+    },
+    {
+      "name": "PROGRAM_TIMETABLE_COORDINATOR",
+      "type": "durable_object_namespace",
+      "class_name": "ProgramTimetableCoordinator"
+    }
+  ],
+  "bindingChecks": {
+    "d1Binding": true,
+    "r2Bindings": true,
+    "coordinator": true
+  },
+  "sourcePreservation": {
+    "originalTrackedFiles": 1308,
+    "runtimeFilesChanged": 0,
+    "htmlCssVersionOrMigrationFilesChanged": 0
+  },
+  "inventory": {
+    "staticWriterCandidates": 783,
+    "filesWithCandidates": 101,
+    "dynamicCandidatesReviewed": 13,
+    "reviewedAuthorityFamilies": 40,
+    "routeOrGuardReferences": 85,
+    "dispatchPatterns": 22
+  },
+  "checks": {
+    "fullRegressionFilesPassed": 82,
+    "fullRegressionFilesTotal": 82,
+    "newPhase0ChecksPassed": 8,
+    "layoutCheckGroupsPassed": [
+      "student learn: active/upcoming/long-name/media cards fit nine screen widths",
+      "teacher teach: active/upcoming/long-name/media cards fit nine screen widths",
+      "admin learn: active/upcoming/long-name/media cards fit nine screen widths",
+      "admin teach: active/upcoming/long-name/media cards fit nine screen widths",
+      "Active Course with a long name keeps Join below readable details",
+      "Scoped Program and Course LEARN/TEACH timetables use the same safe card layout"
+    ],
+    "layoutErrors": [],
+    "syntheticScreenshots": 17,
+    "sourceTablesInFixture": 108,
+    "fixtureData": "Memory-only SQLite and Map-backed R2; synthetic identities; outbound Hifz disabled"
+  },
+  "futureSeparationAcceptance": "118 scenarios remain NOT RUN; current permission gaps intentionally remain for their implementation phases",
+  "manualCases": "No business case entities/lanes/result/release or automatic hold/reinstatement systems added",
+  "runtimeChanges": "NONE in Phase 0",
+  "liveMigrationsResetsDataExportsOrDeployments": "NONE",
+  "nextPhase": {
+    "phase": 1,
+    "status": "READY TO START",
+    "scope": "Separate Admin entry and Learn/student versus Teach/Teacher server/UI boundaries while preserving existing layouts"
+  }
+}

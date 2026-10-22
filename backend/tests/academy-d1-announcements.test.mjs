@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {planningFixture} from './academy-d1-planning.test.mjs';
@@ -5,7 +6,7 @@ import worker from '../src/academy-runtime.js';
 async function fixture(){const f=await planningFixture();const objects=new Map();f.env.LESSON_MEDIA_BUCKET={async put(k,b){objects.set(k,new Uint8Array(b));},async get(k){return objects.has(k)?{body:objects.get(k)}:null;},async delete(k){objects.delete(k);}};return {...f,objects};}
 async function use(fn){const f=await fixture();try{await fn(f);assert.deepEqual(f.db.prepare('PRAGMA foreign_key_check').all(),[]);}finally{f.db.close();}}
 const path='/api/admin/platform/announcements/';
-async function request(f,path,token='',body){const r=await worker.fetch(new Request('https://synthetic.invalid'+path,{method:body?'POST':'GET',headers:{...(token?{Authorization:'Bearer '+token}:{}),...(body&&! (body instanceof FormData)?{'Content-Type':'application/json'}:{})},...(body?{body:body instanceof FormData?body:JSON.stringify(body)}:{})}),f.env);return {status:r.status,headers:r.headers,body:(r.headers.get('Content-Type')||'').includes('json')?await r.json():await r.arrayBuffer()};}
+async function request(f,path,token='',body){const r=await worker.fetch(new WorkspaceRequest('https://synthetic.invalid'+path,{method:body?'POST':'GET',headers:{...(token?{Authorization:'Bearer '+token}:{}),...(body&&! (body instanceof FormData)?{'Content-Type':'application/json'}:{})},...(body?{body:body instanceof FormData?body:JSON.stringify(body)}:{})}),f.env);return {status:r.status,headers:r.headers,body:(r.headers.get('Content-Type')||'').includes('json')?await r.json():await r.arrayBuffer()};}
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
 const blank=()=>({id:crypto.randomUUID(),revision:0,operationId:crypto.randomUUID(),title:'Announcement',message:'Welcome\nالسلام عليكم',imageAlt:'Poster',active:false,order:0,removeImage:false});
 const png=()=>new Blob([Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aN1sAAAAASUVORK5CYII=','base64')],{type:'image/png'});
@@ -70,7 +71,7 @@ test('announcement PDFs preserve exact bytes, protect drafts, replay safely and 
 test('PDF-only announcements, independent removal, safe filenames, HEAD and bounded upload validation',()=>use(async f=>{
  const admin=await f.login('0001'),input={...blank(),message:'',active:true,removePdf:false};
  const saved=ok(await save(f,admin,input,null,pdf())).announcement;assert.equal(saved.imageUrl,'');assert.equal(f.objects.size,1);
- const response=await worker.fetch(new Request('https://synthetic.invalid'+saved.pdfUrl,{method:'HEAD'}),f.env);assert.equal(response.status,200);assert.equal(response.headers.get('Content-Length'),String(saved.pdfBytes));assert.equal((await response.arrayBuffer()).byteLength,0);
+ const response=await worker.fetch(new WorkspaceRequest('https://synthetic.invalid'+saved.pdfUrl,{method:'HEAD'}),f.env);assert.equal(response.status,200);assert.equal(response.headers.get('Content-Length'),String(saved.pdfBytes));assert.equal((await response.arrayBuffer()).byteLength,0);
  assert.equal((await save(f,admin,{...input,revision:1,operationId:crypto.randomUUID(),removePdf:true})).status,400);assert.equal(f.objects.size,1);
  const removed=ok(await save(f,admin,{...input,revision:1,operationId:crypto.randomUUID(),message:'Now a message',removePdf:true})).announcement;assert.equal(removed.pdfUrl,'');assert.equal(f.objects.size,0);assert.equal((await request(f,saved.pdfUrl)).status,404);
  for(const file of [new Blob(['<html>'],{type:'application/pdf'}),new Blob(['%PDF-1.4'],{type:'text/html'}),new Blob([],{type:'application/pdf'})])assert.equal((await save(f,admin,blank(),null,file)).status,400);

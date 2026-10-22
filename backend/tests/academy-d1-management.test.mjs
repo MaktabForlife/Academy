@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -10,7 +11,7 @@ const profilePath='/api/admin/platform/user-profiles/';
 const programPath='/api/admin/platform/program-timetable/';
 const registryPath='/api/admin/platform/programs/';
 async function post(env,path,input={},token='') {
-  const response=await worker.fetch(new Request(`http://localhost${path}`,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:JSON.stringify(input)}),env);
+  const response=await worker.fetch(new WorkspaceRequest(`http://localhost${path}`,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:JSON.stringify(input)}),env);
   return {status:response.status,body:await response.json()};
 }
 const signIn=(env,id='0001')=>post(env,'/api/account/login',{uniqueid:`login-${id}`,pin:'1234'});
@@ -183,7 +184,7 @@ test('the existing profile, Program setup and management screens work with the D
       location:{search,host:'localhost',origin:'http://localhost'},window:{M4L_CONFIG:{API_BASE:''},addEventListener(){},M4L_PROGRAM_OVERVIEW:{build:()=>[]}},
       localStorage:{getItem:()=>token},sessionStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},
       document:{getElementById:element,querySelector:()=>({focus(){}}),addEventListener(type,fn){if(type==='DOMContentLoaded')fn();}},
-      fetch:async(url,options)=>{requests.push({url,body:JSON.parse(options.body)});return worker.fetch(new Request(new URL(url,'http://localhost'),options),env);}
+      fetch:async(url,options)=>{requests.push({url,body:JSON.parse(options.body)});return worker.fetch(new WorkspaceRequest(new URL(url,'http://localhost'),options),env);}
     };
     vm.runInNewContext(readFileSync(new URL(scriptPath,import.meta.url),'utf8'),context);
     return {element,requests};

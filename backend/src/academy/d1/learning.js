@@ -12,6 +12,7 @@ import {attendanceService} from '../../programs/attendance-service.js';
 import {WEEKLY_SCHEMA,publicationRecord,programToday} from '../../programs/weekly-timetable.js';
 import {payloadHash,TIMETABLE_SCHEMA} from '../../programs/timetable-model.js';
 import {insertRecords} from './insert-records.js';
+import {readerRoles,isAdminWorkspace,administers} from './workspace-access.js';
 
 export function learningCatalog(loaded) {
   const t=loaded.current.snapshot,shared=loaded.shared;
@@ -40,14 +41,14 @@ export function d1Learning(repository,auth,now=()=>new Date()) {
       registers:p('SELECT * FROM attendance_registers WHERE activity_key=? ORDER BY sequence',activity),
       ...(!timetableOnly?{marks:p('SELECT * FROM attendance_marks WHERE activity_key=?',activity)}:{})
     },{timetableOnly});
-    const roles=liveRoles(loaded.data,auth.user.accountid,loaded.a.activity_key);
+    const roles=readerRoles(auth,liveRoles(loaded.data,auth.user.accountid,loaded.a.activity_key));
     loaded.roles=roles;
     if(loaded.data.teacherStaff){
       const ids=new Set(workspaceCatalog(loaded,learningCatalog(loaded)).teachers.map(t=>t.id));
       for(const a of loaded.data.accounts.filter(a=>ids.has(a.account_id)&&!loaded.shared.accounts.some(s=>same(s.AccountID,a.account_id))))loaded.shared.accounts.push({AccountID:a.account_id,DisplayName:a.display_name,Active:Boolean(a.active),Roles:['TEACHER']});
       loaded.shared.grantedTeachers=[...ids].map(AccountID=>({AccountID}));
     }
-    if(!auth.state.account.global_admin&&(loaded.a.lifecycle!=='ACTIVE'||!roles.length))throw managementError('This Program is unavailable to your account.',403,'FORBIDDEN');
+    if(!auth.state.account.global_admin&&(loaded.a.lifecycle!=='ACTIVE'||!roles.length&&!administers(auth,loaded.a.activity_key)))throw managementError('This Program is unavailable to your account.',403,'FORBIDDEN');
     loaded.program.timetableEditable=loaded.a.lifecycle!=='ARCHIVED';
     const tables=loaded.viewData.tables;
     tables.ProgramTimetableState=loaded.data.drafts.map(r=>({CourseID:loaded.program.id,SchemaVersion:JSON.parse(r.draft_json).format===WEEKLY_SCHEMA?WEEKLY_SCHEMA:TIMETABLE_SCHEMA,Revision:r.source_revision||'',Sequence:r.source_sequence,DraftJSON:JSON.stringify(applyProgramZoom(JSON.parse(r.draft_json),loaded.program)),CurrentPublicationID:loaded.data.pointer[0]?.latest_publication_id||''}));
@@ -91,9 +92,10 @@ export function d1Learning(repository,auth,now=()=>new Date()) {
     load,
     async timetable(action,input) {
       await ready();
+      const selected=async options=>{const loaded=await load(input.id,options);if(input.draft?.timezone&&input.draft.timezone!==loaded.program.timezone)throw managementError('Time zone is an app setting managed by Global Admin.',403,'APP_TIMEZONE_ONLY');return loaded;};
       const write=['save','publish','copy','status'].includes(action);
       if(action==='validate'&&input.operationId)return store.change('PROGRAM_TIMETABLE',`PROGRAM:${String(input.id).toUpperCase()}`,action,input,async()=>{
-        const loaded=await load(input.id);requireRole(loaded,['PROGRAM_ADMIN']);
+        const loaded=await selected();requireRole(loaded,['PROGRAM_ADMIN']);
         if(!loaded.data.workspaceRecords)throw managementError('The Program workspace needs its database upgrade.',503);
         const current=await timetable(loaded).read('get');
         if(input.revision!==current.revision||await payloadHash(normalizeWeeklyDraft(input.draft))!==await payloadHash(normalizeWeeklyDraft({...current.draft,timetableId:workspaceId(loaded)})))throw managementError('Save the current draft before validating.',409);
@@ -101,7 +103,7 @@ export function d1Learning(repository,auth,now=()=>new Date()) {
         return {data:loaded.data,statements:[recordStatement(p,loaded,id,input.draft,result.valid?'VALID':'DRAFT',null,null,result.valid?result.validationHash:null)],result,fields:['TimetableValidation']};
       });
       if(['copy','status'].includes(action))return store.change('PROGRAM_TIMETABLE',`PROGRAM:${String(input.id).toUpperCase()}`,action,input,async()=>{
-        const loaded=await load(input.id);requireRole(loaded,['PROGRAM_ADMIN']);
+        const loaded=await selected();requireRole(loaded,['PROGRAM_ADMIN']);
         if(!loaded.data.workspaceRecords)throw managementError('The Program workspace needs its database upgrade.',503);
         if(loaded.a.lifecycle==='ARCHIVED')throw managementError('Reactivate the Program before changing timetables.',409);
         const current=await timetable(loaded).read('get');
@@ -127,7 +129,7 @@ export function d1Learning(repository,auth,now=()=>new Date()) {
         return {data:loaded.data,statements,result,fields:['Timetable',action]};
       });
       if(write)return store.change('PROGRAM_TIMETABLE',`PROGRAM:${String(input.id).toUpperCase()}`,action,input,async()=>{
-        const loaded=await load(input.id,{timetableOnly:true});requireRole(loaded,['PROGRAM_ADMIN']);
+        const loaded=await selected({timetableOnly:true});requireRole(loaded,['PROGRAM_ADMIN']);
         input={...input,draft:applyProgramZoom(input.draft,loaded.program)};
         let timetableId,review;
         if(loaded.data.workspaceRecords){
@@ -153,7 +155,7 @@ export function d1Learning(repository,auth,now=()=>new Date()) {
         const publishedProgram=action==='publish'?{...loaded.program,active:true,status:'ACTIVE',revision:String(loaded.a.revision+Number(!loaded.a.active||loaded.a.lifecycle!=='ACTIVE'))}:null;
         return {data:loaded.data,statements,result:{...planned.result,...(timetableId?{timetableId}: {}),...(publishedProgram?{program:publishedProgram}:{})},fields:['Timetable',...(action==='publish'?['Publication',...(loaded.a.lifecycle==='DRAFT'?['ProgramLifecycle']:[])]:[])]};
       });
-      const loaded=await load(input.id);requireRole(loaded,['PROGRAM_ADMIN']);
+      const loaded=await selected();requireRole(loaded,['PROGRAM_ADMIN']);
       if(['prepare','prepare-library'].includes(action))return {prepared:true,libraryPrepared:true};
       if(action==='recover')return {recovered:false};
       if(action==='record'){
@@ -191,8 +193,9 @@ export function d1Learning(repository,auth,now=()=>new Date()) {
     async attendance(action,input) {
       await ready();
       const plan=async()=>{
-        const loaded=await load(input.id);requireRole(loaded,['PROGRAM_ADMIN','TEACHER']);
-        const user={...auth.user,programRoles:loaded.roles.map(r=>r==='PROGRAM_ADMIN'?'ADMIN':r)};
+        const loaded=await load(input.id),preview=auth.workspace==='TEACH'&&!loaded.roles.includes('TEACHER')&&administers(auth,loaded.a.activity_key);
+        if(!preview||action!=='get')requireRole(loaded,['PROGRAM_ADMIN','TEACHER']);
+        const user={...auth.user,...(!isAdminWorkspace(auth)?{role:'TEACHER'}:{}),readOnlyPreview:preview,programRoles:loaded.roles.map(r=>r==='PROGRAM_ADMIN'?'ADMIN':r)};
         const service=attendanceService({load:async()=>loaded.attendance,accounts:async()=>loaded.shared.accounts,timetable:{catalog:async()=>learningCatalog(loaded)},plan:(_data,records)=>records},loaded.program,now);
         return {loaded,service,user};
       };
@@ -206,7 +209,7 @@ export function d1Learning(repository,auth,now=()=>new Date()) {
         return {data:loaded.data,statements:[...insertRecords(p,'attendance_registers',registers),...insertRecords(p,'attendance_marks',marks)],result:planned.result,fields:['Attendance']};
       });
       const {service,user}=await plan();
-      if(action==='get')return {...await service.read(input.date,user),store:'D1'};
+      if(action==='get')return {...await service.read(input.date,user),readOnly:Boolean(user.readOnlyPreview),store:'D1'};
       if(action==='recover')return {recovered:false};
       if(action==='prepare'){if(!auth.state.account.global_admin)throw managementError('Only a Global Admin can prepare storage.',403);return {prepared:true};}
       throw managementError('Unknown attendance action.',404);

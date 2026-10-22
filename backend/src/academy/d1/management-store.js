@@ -3,6 +3,7 @@ import { rehearsalError } from './repository.js';
 import {policyReadSQL} from './program-access.js';
 import {programSettingsReadSQL} from './program-zoom.js';
 import {changeScopes,writeVersionKey,writeVersionSQL,versionRecordsSQL} from './change-scopes.js';
+import {isAdminWorkspace,actualRole} from './workspace-access.js';
 import {managementSettings,publicRefreshNeeded} from './refresh-state.js';
 
 export const managementError=(message,status=400,code='INVALID_MANAGEMENT_REQUEST')=>rehearsalError(message,status,code);
@@ -31,7 +32,13 @@ export function managementStore(repository,auth,{versionKey}={}) {
         ...extras.map(name=>extra[name])
       ]);}catch(error){if(/no such table: academy_write_state/.test(error.message))throw managementError('Management storage needs its database upgrade.',503,'MANAGEMENT_SCHEMA_REQUIRED');throw error;}
       if(!result[0].results.length)throw managementError('Management storage is unavailable.',503,'MANAGEMENT_SCHEMA_REQUIRED');
-      return {...unused,version:result[0].results[0].version,scopedVersions:JSON.parse(result[0].results[0].scoped_versions),...Object.fromEntries([...names,...extras].map((name,i)=>[name,result[i+1].results]))};
+      const data={...unused,version:result[0].results[0].version,scopedVersions:JSON.parse(result[0].results[0].scoped_versions),...Object.fromEntries([...names,...extras].map((name,i)=>[name,result[i+1].results]))};
+      if(!isAdminWorkspace(auth)){
+        const own=r=>same(r.account_id,auth.user.accountid);
+        data.admins=data.admins.filter(r=>!own(r));data.reviews=data.reviews.filter(r=>!own(r));
+        data.roles=[...data.roles.filter(r=>!own(r)),...auth.state.roles.map(r=>({...r,account_id:auth.user.accountid,active:1,review_state:'CONFIRMED'}))];
+      }
+      return data;
     },
     async receipt(dataset,scope,operationId,hash) {
       const row=await p('SELECT payload_sha256,result_json,actor_account_id FROM operation_receipts WHERE dataset_key=? AND scope_key=? AND operation_id=?',dataset,scope,operationId).first();
@@ -40,10 +47,14 @@ export function managementStore(repository,auth,{versionKey}={}) {
       return {...JSON.parse(row.result_json),replayed:true};
     },
     async change(dataset,scope,action,input,plan) {
+      if(!isAdminWorkspace(auth)){
+        const key=dataset==='LESSON_PLANS'?input.activityKey:scope;
+        if(auth.workspace!=='TEACH'||!['LESSON_PLANS','PROGRAM_ATTENDANCE'].includes(dataset)||!actualRole(auth,key,'TEACHER'))throw managementError('This action requires a genuine teaching assignment or the Admin workspace.',403,'PREVIEW_READ_ONLY');
+      }
       if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.operationId||''))throw managementError('This change needs its retry identifier.');
       const hash=await payloadHash({action,input});
       const selfTeacher=dataset==='TEACHER_AVAILABILITY'&&(!input.accountId||same(String(input.accountId).trim(),auth.user.accountid));
-      const scopedRoles=['PROGRAM_ATTENDANCE','LESSON_PLANS'].includes(dataset)?['PROGRAM_ADMIN','TEACHER']:
+      const scopedRoles=!isAdminWorkspace(auth)?['TEACHER']:['PROGRAM_ATTENDANCE','LESSON_PLANS'].includes(dataset)?['PROGRAM_ADMIN','TEACHER']:
         ['PROGRAM_MANAGEMENT','PROGRAM_TIMETABLE','PROGRAM_LIBRARY','PROGRAM_REGISTRY','COURSE_MANAGEMENT','COURSE_SUBSCRIPTIONS','TEACHER_AVAILABILITY','ACADEMY_CALENDAR','LESSON_PLAN_ADMIN','ENROLMENT'].includes(dataset)?['PROGRAM_ADMIN']:[];
       for(let attempt=0;attempt<3;attempt++) {
         const receipt=await this.receipt(dataset,scope,input.operationId,hash);if(receipt)return receipt;

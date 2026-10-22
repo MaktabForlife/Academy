@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync,rmSync,existsSync,readFileSync} from 'node:fs';
@@ -8,13 +9,13 @@ import {academyDependencyGraph} from '../tools/academy-boundary.mjs';
 import {buildAcademyAssets} from '../tools/academy-assets.mjs';
 import {cleanupFixture} from './fixtures/academy-cleanup-fixture.mjs';
 import {PROGRAM_IDS} from './fixtures/academy-migration-fixture.mjs';
-const post=async(env,path,input={},token='')=>{const r=await worker.fetch(new Request('https://academy.invalid'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),env);return {status:r.status,body:await r.json()};};
+const post=async(env,path,input={},token='')=>{const r=await worker.fetch(new WorkspaceRequest('https://academy.invalid'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),env);return {status:r.status,body:await r.json()};};
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
 const login=async(env,id='0001')=>ok(await post(env,'/api/account/login',{uniqueid:'login-'+id,pin:'1234'})).token;
 async function use(fn){const f=await cleanupFixture(),original=globalThis.fetch;let requests=0;globalThis.fetch=async()=>{requests++;throw Error('Unexpected outbound request');};try{await fn(f);assert.equal(requests,0);assert.deepEqual(f.db.prepare('PRAGMA foreign_key_check').all(),[]);}finally{globalThis.fetch=original;f.db.close();f.metadata.close();}}
 test('the complete Academy entrypoint and storage export have no Google backend clients',()=>{const graph=academyDependencyGraph();assert(graph.includes('academy/d1/library-storage.js'));assert(graph.includes('domain/platform-global-timetable.js'));assert(graph.includes('lib/auth-primitives.js'));});
 test('missing, OFF, invalid, non-isolated rehearsal and paused modes cannot select legacy storage',async()=>{
- for(const mode of [undefined,'OFF','INVALID','PAUSED','REHEARSAL']){let reads=0;const env={ACADEMY_D1_MODE:mode,ENVIRONMENT:'development',ACADEMY_LIBRARY_MODE:'PUBLIC_ONLY',get ACADEMY_DB(){reads++;throw Error('Must reject before storage');}};const response=await worker.fetch(new Request('https://academy.invalid/api/account/login',{method:'POST',body:'{}'}),env);assert.equal(response.status,503);assert.equal(reads,0);}
+ for(const mode of [undefined,'OFF','INVALID','PAUSED','REHEARSAL']){let reads=0;const env={ACADEMY_D1_MODE:mode,ENVIRONMENT:'development',ACADEMY_LIBRARY_MODE:'PUBLIC_ONLY',get ACADEMY_DB(){reads++;throw Error('Must reject before storage');}};const response=await worker.fetch(new WorkspaceRequest('https://academy.invalid/api/account/login',{method:'POST',body:'{}'}),env);assert.equal(response.status,503);assert.equal(reads,0);}
 });
 test('core Academy flows work without Google credentials or spreadsheet settings',()=>use(async({env})=>{
  const token=await login(env),learner=await login(env,'0002');
@@ -28,11 +29,11 @@ test('core Academy flows work without Google credentials or spreadsheet settings
 test('the neutral Library key preserves existing IDs, revisions, covers and authorised edits',()=>use(async({env,metadata,namespaceNames,objects})=>{
  const id='EXTERNAL:INTERNET_ARCHIVE:cleanup-book',coverKey='AcademyOpenLibrary/Covers/'+crypto.randomUUID()+'.png';objects.set(coverKey,{bytes:new Uint8Array([1,2,3]),mime:'image/png'});
  metadata.prepare('INSERT INTO open_library_metadata VALUES(?,?,?,?,?)').run(id,JSON.stringify({id,title:'Existing book',coverKey}),3,'2026-10-14','synthetic');
- const response=await worker.fetch(new Request('https://academy.invalid/api/academy/open-library/metadata/public'),env),data=await response.json();assert.equal(response.status,200);assert.equal(data.records[0].id,id);assert.equal(data.records[0].revision,3);
+ const response=await worker.fetch(new WorkspaceRequest('https://academy.invalid/api/academy/open-library/metadata/public'),env),data=await response.json();assert.equal(response.status,200);assert.equal(data.records[0].id,id);assert.equal(data.records[0].revision,3);
  const token=await login(env);
  const result=ok(await post(env,'/api/academy/open-library/metadata/save',{id,title:'Updated title',baseRevision:3,subjectRef:'GLOBAL:subject-1',moduleRef:'GLOBAL:module-1',learningAreaRefs:['PROGRAM:'+PROGRAM_IDS[0]]},token));assert.equal(result.record.revision,4);assert.equal(metadata.prepare('SELECT count(*) n FROM open_library_metadata').get().n,1);
  assert(namespaceNames.every(n=>n==='synthetic-existing-platform:open-library-metadata'));
- delete env.ACADEMY_OPEN_LIBRARY_STORAGE_KEY;const before=namespaceNames.length;assert.equal((await worker.fetch(new Request('https://academy.invalid/api/academy/open-library/metadata/public'),env)).status,503);assert.equal(namespaceNames.length,before);
+ delete env.ACADEMY_OPEN_LIBRARY_STORAGE_KEY;const before=namespaceNames.length;assert.equal((await worker.fetch(new WorkspaceRequest('https://academy.invalid/api/academy/open-library/metadata/public'),env)).status,503);assert.equal(namespaceNames.length,before);
 }));
 test('retired private Library and old Sheets routes cannot issue files or write Google data',()=>use(async({env})=>{
  const token=await login(env);
@@ -55,12 +56,12 @@ test('intentional public media remains supported while private Worker file URLs 
  for(const url of ['https://archive.org/download/book/file.pdf','https://drive.google.com/file/d/public_file/view','https://docs.google.com/uc?id=public_file'])assert(publicPdfTarget(encode(url)),url);
  for(const url of ['https://devrebootworker.maktab4life.workers.dev/api/academy/d1/library/file?access=private','https://api.rebootyourmaktab.maktabhelper.app/api/library/drive/file/private','http://drive.google.com/file/d/book','https://drive.google.com.evil.invalid/file/d/book'])assert.equal(publicPdfTarget(encode(url)),false,url);
  const {serveAcademySite}=await import('../tools/academy-site.mjs');let assets=0;
- const health=await serveAcademySite(new Request('https://preview.invalid/api/feature-preview/health'),{});assert.equal((await health.json()).version,JSON.parse(readFileSync(new URL('../package.json',import.meta.url),'utf8')).version);
+ const health=await serveAcademySite(new WorkspaceRequest('https://preview.invalid/api/feature-preview/health'),{});assert.equal((await health.json()).version,JSON.parse(readFileSync(new URL('../package.json',import.meta.url),'utf8')).version);
  const env={ASSETS:{fetch:async()=>{assets++;return new Response('asset');}}};
- assert.equal((await serveAcademySite(new Request('https://preview.invalid/admin/'),env)).status,302);
- assert.equal((await serveAcademySite(new Request('https://preview.invalid/backend/src/academy-runtime.js'),env)).status,404);
+ assert.equal((await serveAcademySite(new WorkspaceRequest('https://preview.invalid/admin/'),env)).status,302);
+ assert.equal((await serveAcademySite(new WorkspaceRequest('https://preview.invalid/backend/src/academy-runtime.js'),env)).status,404);
  assert.equal(assets,0);
  const paths=[];const pageAssets={ASSETS:{fetch:async request=>{paths.push(new URL(request.url).pathname);return new Response('page');}}};
- for(const path of ['/academy/','/users/','/account/ReviewAdmin10660'])assert.equal((await serveAcademySite(new Request('https://preview.invalid'+path),pageAssets,{pages:true})).status,200);
+ for(const path of ['/academy/','/users/','/account/ReviewAdmin10660'])assert.equal((await serveAcademySite(new WorkspaceRequest('https://preview.invalid'+path),pageAssets,{pages:true})).status,200);
  assert.deepEqual(paths,['/academy/','/users/','/account/']);
 });

@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import {profileChange} from '../tools/academy-profile-client.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -64,10 +65,10 @@ test('pinned artifacts and test controller reject tampering, missing evidence an
   for(const [headers,body,status] of [[{},undefined,401],[{Authorization:'Bearer bad'},undefined,401],
     [{Authorization:'Bearer '+token,Origin:'https://academy.invalid'},undefined,403],
     [{Authorization:'Bearer '+token},JSON.stringify({sql:'DELETE FROM accounts'}),400]]) {
-    assert.equal((await controller.fetch(new Request('https://test.invalid/activate',{method:'POST',headers,body}),env)).status,status);
+    assert.equal((await controller.fetch(new WorkspaceRequest('https://test.invalid/activate',{method:'POST',headers,body}),env)).status,status);
   }
   assert.equal(queries.length,0);
-  const response=await controller.fetch(new Request('https://test.invalid/activate',{method:'POST',headers:{Authorization:'Bearer '+token},body:new ReadableStream({start(controller){controller.close();}}),duplex:'half'}),env);
+  const response=await controller.fetch(new WorkspaceRequest('https://test.invalid/activate',{method:'POST',headers:{Authorization:'Bearer '+token},body:new ReadableStream({start(controller){controller.close();}}),duplex:'half'}),env);
   assert.equal(response.status,200);assert.equal((await response.json()).success,true);
 }));
 
@@ -89,7 +90,7 @@ test('recovery preserves new runtime writes, changed credentials, grants, deleti
   await apply(nativeBinding(db),planFor(db));Object.assign(env,{ACADEMY_D1_MODE:'ACTIVE',ACADEMY_LIBRARY_MODE:'PUBLIC_ONLY',ACADEMY_D1_RUN_ID:db.prepare('SELECT run_id FROM migration_runs').get().run_id});
   const baseline=snapshot(db);
   const post=async(path,input={},token='',expected=200)=>{
-    const response=await worker.fetch(new Request('https://test.invalid'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),env);
+    const response=await worker.fetch(new WorkspaceRequest('https://test.invalid'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),env);
     const body=await response.json();assert.equal(response.status,expected,body.code||body.error);return body;
   };
   const admin=(await post('/api/account/login',{uniqueid:'login-0001',pin:'1234'})).token;

@@ -1,0 +1,17 @@
+# Academy confirmed separation policies
+
+Consolidated 22 October 2026 from the user's 21–22 October decisions. The [final implementation brief](README.md), [access map](access-map.csv), [data ownership](data-ownership.md) and [phased plan](implementation-plan.md) are final. Staged implementation was authorised on 22 October 2026; see the Phase 0 execution record.
+
+- Learn always uses student perspective; Teach uses Teacher perspective, including Admin accounts. Genuine own participation and read-only authorised preview remain distinct. No preview participant event or new entitlement.
+- Global Admin is Academy-wide and inherits area administration. Scoped Admin remains in assigned scope. One app-wide Time zone is Global-Admin-only; effective history is preserved.
+- Admin owns editable setup/general media/catalogues. Teacher retains ordinary operational actions and verified own-note Post/replace/withdraw while eligible. Admin may take note control; unknown historical contributor is not guessed. Preserve original bytes and other notes/recordings.
+- Ordinary authorised past FIRST attendance needs no late-entry approval, named-recorder permit or age limit. Future FIRST is blocked. Reliable dated roster evidence is required; Admin repairs roster data through ordinary tools. Sealed accepted rosters/history stay intact.
+- Substitute Link/Attendance grant: FIRST through session day, correction through following day, Admin correction-only reopen up to 24 hours. It adds no broad Teacher/library/assessment/media authority. Independent ordinary rights remain independent.
+- Course attendance uses an Admin-reviewed per-delivery roster prefilled from participants with dated joins/leaves. Prefill alone enrols nobody and attendance membership grants no media/subscription entitlement. Sparse absences retain explicit zero-absence register/day evidence and proportional daily totals.
+- Personal My links are owner-only in private R2 outside Academy D1. Teacher/Admin eligibility is required for first creation; active established owners keep own use/edit/add/remove/export after role loss, including empty established collections. No other-owner Admin inspection or wider content access.
+- Question and answer statuses, manual Ready eligibility/warning/zero-upload behaviour follow [the status rules](statuses.md). Ready/release are never inferred from an empty set.
+- Timing/untimed/future assignment rules follow [the timing rules](assessment-timing.md). Learner exam uploads end on the exam day; assignments stay open late until Admin extends/closes. Learner screens/exports omit configured duration/inline marks; released reports show achieved-only marks.
+- Admin receives/uploads/replaces/remarks manually with direct ordinary assessment access, finalises manual marking and explicitly releases without a second moderator. Normal examiner self-moderation remains. No special case/lane/result/release/hold/reinstatement engine.
+- Discussion is retired in the target, with history retained. Keep current layouts/navigation, Library/PDF/Whiteboard/mobile controls and independent PDF comparison/media-name/Course-PDF work. The earlier confirmed development-only attendance fresh start remains Phase 3; no old attendance import is required. No reset/cleanup is performed by this preparation and unrelated data is preserved.
+
+The original decision-by-decision narrative is archived as historical evidence; later directions above supersede its earlier technical proposals.

@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
@@ -8,7 +9,7 @@ for(const name of ['0007_course_subscriptions.sql','0008_course_management.sql',
 f.db.exec("INSERT INTO subject_catalog VALUES('ACADEMY:subject-1','ACADEMY','subject-1','Synthetic shared subject',1); UPDATE program_subjects SET subject_key='ACADEMY:subject-1'");
 f.db.exec(readFileSync(new URL('../migrations/academy/0010_shared_module_catalogue.sql',import.meta.url),'utf8'));
 async function post(path,input={},token=''){
- const response=await worker.fetch(new Request('https://academy.invalid'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),f.env);return {ok:response.ok,status:response.status,json:()=>response.json()};
+ const response=await worker.fetch(new WorkspaceRequest('https://academy.invalid'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),f.env);return {ok:response.ok,status:response.status,json:()=>response.json()};
 }
 const signed=await (await post('/api/account/login',{uniqueid:'login-0001',pin:'1234'})).json(),storage=new Map(),local=new Map([['m4l_account_token',signed.token]]),requests=[],handlers={};let loseNext=false;
 const settle=async()=>{for(let i=0;i<10;i++)await new Promise(r=>setTimeout(r,2));};

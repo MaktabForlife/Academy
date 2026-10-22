@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -41,7 +42,7 @@ test('the shared website calls Development on stable and preview addresses, with
 test('switching runtime preserves signed-in sessions and Library revisions on the same database',async()=>{
   const fixture=await cleanupFixture(),{env,namespaceNames}=fixture;
   const call=async(worker,path,body={},token='')=>{
-    const response=await worker.fetch(new Request('https://development.invalid'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(body)}),env);
+    const response=await worker.fetch(new WorkspaceRequest('https://development.invalid'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(body)}),env);
     const result=await response.json();assert.equal(response.status,200,JSON.stringify(result));return result;
   };
   try{

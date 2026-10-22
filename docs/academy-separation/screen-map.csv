@@ -1,0 +1,37 @@
+current_page_or_view,target_surface,treatment,access_refs
+academy/index.html,Public/Learn/Teach and separate Admin entry,Preserve existing layouts/hash context; separate Admin host,P03;P05
+account/index.html,Shared identity,Keep sign-in/PIN/context; route by authorised workspace,P01
+users/index.html,Admin,Keep directory/profile/role distinctions; no global rights for scoped Admin,P02
+academy/subjects/index.html,Global Admin,Move shared Subjects/Modules editor to Admin,P06
+academy/courses/manage/index.html,Admin,Keep Course tabs; separate source editing/live participant actions,P05;P28
+academy/calendar/index.html,Learn/Teach reader; Admin editor,Keep layout; editor and availability controls only Admin,P10
+academy/teaching/index.html,Compatibility to correct calendar perspective,No Teacher self-edit availability bypass,P10
+academy/enrolment/index.html,Public/Learn own enrolment,Preserve own profile/request flow,P02;P33
+academy/enrolment/manage/index.html,Admin,Preserve existing scoped requests versus Global registration/contact,P02;P33
+academy/library/index.html,Permitted contextual reader,Keep Public/Academy/My links and scoped return,P30;P31;P32
+academy/library/manage/index.html,Global Admin shared catalogue,Remove Teacher shared curation; retain own links separately,P31
+academy/open-library/index.html,Public reader,Preserve existing public archive/catalogue identity,P31
+academy/pdf-tools/index.html,Reader tools; Global Admin defaults,Keep supported reader features; config editor Admin,P34
+academy/pdf-reader/index.html,Permitted reader,"Preserve toolbars, annotations/Whiteboard, panes/bookmarks/return",P34
+academy/pdf-compare/index.html,Permitted browser PDF tool,Preserve V107.20 comparison and V107.21 editable annotations/favourite colours; no new Academy source ownership,P34
+academy/hifz/index.html,Shared permitted Hifz handoff,Keep Core session/profile integration,P35
+programs/index.html,Admin Program workspace,Keep existing tabs/edit/review/publish layout,P05;P07;P09;P26
+programs/manage.html,Admin compatibility,Context-preserving old management redirect,P05
+programs/timetable.html,Admin compatibility,Never redirect old editor into learner editor capability,P09
+programs/lesson-media.html,Admin compatibility; separate narrow Teach notes,General editor Admin; Teacher contribution uses own action,P26;P27
+programs/attendance.html,Teach and authorised Admin,Keep ordinary dated register/current access,P12;P13;P14
+programs/library.html,Admin legacy boundary,Preserve existing disabled/private restrictions,P30
+programs/library-view.html,Permitted reader compatibility,Keep current access and appropriate workspace return,P30
+programs/media.html,Compatibility/current restriction,No independent new curation or media entitlement,P26;P30
+#overview #learning #workshops,Public/selected Learn or Teach,Accepted catalogue and current identity only,P03;P05
+#timetable/learn #timetable/teach,Explicit student/Teacher,Per-lesson icons and proper audience/cache identity,P09;P26;P28
+#activity/{kind}/{id}/{learn|teach},Scoped Learn/Teach,Preserve selected Program/Course role/context and tabs,P03;P05
+#activity/.../assessment,Scoped Learn/Teach,Student or ordinary Teacher assessments; Admin management separate,P17;P20;P21;P22
+#assessment-admin/...,Admin,Existing assessment controls and direct manual Admin work,P17;P19;P22;P23;P24
+#progress and #activity/.../surahs-duas,Learn/Teach,Own marking and assigned confirmation only,P15;P16
+#progress-admin/...,Admin,Existing scoped/global catalogue/current-policy distinction,P15
+#activity/.../attendance,Teach and authorised Admin,"Selected dated roster, ordinary/substitute windows",P12;P13;P14
+#activity/.../planning,Teach; authorised Admin review,Own plans/current feedback; Admin policies separated,P11
+#activity/.../library,Contextual reader,Preserve labelled Teacher library and owner links,P30;P32
+#administration,Separate Admin namespace/host,Compatibility handoff to /academy/admin/ with current context,P03;P36
+Global application settings,Global Admin,Time zone/PDF defaults controls; no area overrides,P04;P34

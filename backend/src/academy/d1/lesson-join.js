@@ -7,7 +7,7 @@ export async function d1LessonJoin(repository,auth,input,now=new Date()) {
   if(typeof input.joinKey!=='string'||!input.joinKey||input.joinKey.length>1200||
     typeof input.date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(input.date))
     throw rehearsalError('Refresh the timetable and select a lesson.',400,'INVALID_LESSON');
-  const current=await d1Entrance(repository,auth?.state,auth?.user,{startDate:input.date},now,{days:1});
+  const current=await d1Entrance(repository,auth?.state,auth?.user,{startDate:input.date},now,{days:1,auth});
   const lessons=auth?current.personalTimetable:current.timetable.filter(row=>row.publicJoin);
   const lesson=lessons.find(row=>row.joinKey===input.joinKey);
   if(!lesson)throw rehearsalError('This lesson has changed or is no longer available to you. Refresh the timetable.',403,'LESSON_UNAVAILABLE');

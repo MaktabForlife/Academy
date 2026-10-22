@@ -110,7 +110,7 @@ export function d1Programs(repository,auth) {
     async loadAll(extra={}) {const c=await moduleCatalogueQueries(repository);const data=await store.load({...queriesFor(null),...(c.available?c.queries:{}),...extra});return {data,programs:data.activities.filter(a=>a.kind==='PROGRAM').map(a=>projectManagement(data,a.activity_id))};},
     async registry(action,input) {
       if(action==='copy')return copyProgram(repository,auth,input);
-      if(action==='list') {const data=await store.load();return {programs:data.activities.filter(a=>a.kind==='PROGRAM'&&(auth.state.account.global_admin||liveRoles(data,auth.user.accountid,a.activity_key).includes('PROGRAM_ADMIN'))).map(a=>dto(data,a)),platformPrepared:true,store:'D1',learningWorkflowsReady:await learningAvailable(repository.db),statuses:['DRAFT','ACTIVE','ARCHIVED'],globalAdmin:Boolean(auth.state.account.global_admin)};}
+      if(action==='list') {const data=await store.load();return {timezone:(await repository.homeConfiguration()).setting_value,programs:data.activities.filter(a=>a.kind==='PROGRAM'&&(auth.state.account.global_admin||liveRoles(data,auth.user.accountid,a.activity_key).includes('PROGRAM_ADMIN'))).map(a=>dto(data,a)),platformPrepared:true,store:'D1',learningWorkflowsReady:await learningAvailable(repository.db),statuses:['DRAFT','ACTIVE','ARCHIVED'],globalAdmin:Boolean(auth.state.account.global_admin)};}
       if(['prepare','readiness'].includes(action)) {selected(await store.load(),input.id);return {prepared:true,message:'Program records are ready.',checks:[{label:'Program records ready',ok:true}]};}
       if(!['create','save'].includes(action))throw managementError('Unknown Program action.',404);
       return store.change('PROGRAM_REGISTRY',action==='save'?`PROGRAM:${String(input.id).toUpperCase()}`:'ACADEMY',action,input,async()=>{
@@ -118,6 +118,8 @@ export function d1Programs(repository,auth) {
         if(!auth.state.account.global_admin&&(!existing||!liveRoles(data,auth.user.accountid,existing.activity_key).includes('PROGRAM_ADMIN')))throw managementError('This action requires an authorised Program administrator.',403);
         const status=auth.state.account.global_admin?(input.status||'DRAFT'):existing.lifecycle;if(!['DRAFT','ACTIVE','ARCHIVED'].includes(status))throw managementError('Choose Draft, Active or Archived.');
         const config=definition({...input,status:status==='ACTIVE'?'DRAFT':status});
+        const appTimezone=(await repository.homeConfiguration()).setting_value,previousTimezone=data.programs.find(r=>same(r.activity_key,existing?.activity_key))?.timezone;
+        if(config.timezone!==(previousTimezone||appTimezone))throw managementError('Time zone is an app setting managed by Global Admin.',403,'APP_TIMEZONE_ONLY');
         if(action==='create'&&status!=='DRAFT')throw managementError('Create a new Program as a draft.');
         if(action==='create'&&existing)throw managementError('This Program already exists. Refresh the Programs list.',409);
         if(action==='save'&&!existing)throw managementError('Program not found.',404);

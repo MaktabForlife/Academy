@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -8,7 +9,7 @@ import {normalizeAvailability,availableForSession,availabilityBlocks} from '../s
 import {termBreaks} from '../src/academy/d1/academic-calendar.js';
 const base='/api/academy/calendar/',av='/api/academy/teacher-availability/',scope='PROGRAM:'+PROGRAM_IDS[0];
 async function use(fn,upgrade=true){const f=await courseFixture();for(const name of ['0007_course_subscriptions.sql','0008_course_management.sql','0009_course_review_and_teachers.sql','0010_shared_module_catalogue.sql','0012_program_workspace.sql',...(upgrade?['0022_academic_calendar.sql']:[])])f.db.exec(readFileSync(new URL('../migrations/academy/'+name,import.meta.url),'utf8'));const original=globalThis.fetch;globalThis.fetch=async()=>{throw Error('Unexpected external request');};try{await fn(f);assert.deepEqual(f.db.prepare('PRAGMA foreign_key_check').all(),[]);assert.equal(f.db.prepare('SELECT count(*) n FROM academy_write_guards').get().n,0);}finally{globalThis.fetch=original;f.db.close();}}
-async function post(env,path,body={},token=''){const r=await worker.fetch(new Request('https://synthetic.invalid'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(body)}),env);return {status:r.status,body:await r.json()};}
+async function post(env,path,body={},token=''){const r=await worker.fetch(new WorkspaceRequest('https://synthetic.invalid'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(body)}),env);return {status:r.status,body:await r.json()};}
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
 const login=async(env,n='0001')=>ok(await post(env,'/api/account/login',{uniqueid:'login-'+n,pin:'1234'})).token;
 const save=(env,entry,token,revision=0,operationId=crypto.randomUUID())=>post(env,base+'save',{entry,revision,operationId},token);
@@ -60,9 +61,9 @@ test('weekly and dated availability defaults available; dates override weekly en
  rules.push(unavailable({id:'AVAIL-later',kind:'DATES',weekdays:[],startDate:'2026-10-12',endDate:'2026-10-12',startTime:'10:30',endTime:'11:00'}));assert.equal(availableForSession(rules,'2026-10-12','10:00','11:00'),false);
  for(const bad of [unavailable({weekdays:[]}),unavailable({weekdays:[1,1]}),unavailable({startTime:'12:00'}),unavailable({kind:'DATES',startDate:'2026-02-30',endDate:'2026-03-01'}),null])assert.throws(()=>normalizeAvailability([bad],'teacher'));
 });
-test('teachers edit only themselves; Program Admins edit assigned teachers; Global Admin edits any teacher',()=>use(async({env,db})=>{
+test('Teachers read their own availability; scoped and Global Admins manage eligible Teachers',()=>use(async({env,db})=>{
  const teacher=await login(env,'0003'),admin=await login(env),scoped=await login(env,'0004'),student=await login(env,'0002');const ranges=[unavailable(),unavailable({id:'AVAIL-holiday',kind:'DATES',weekdays:[],startDate:'2026-10-12',endDate:'2026-10-16',allDay:true})];
- const input={revision:0,ranges,operationId:crypto.randomUUID()};const result=ok(await post(env,av+'save',input,teacher));assert.equal(result.ranges.length,2);assert.equal(ok(await post(env,av+'save',input,teacher)).replayed,true);
+ const input={accountId:'account-0003',revision:0,ranges,operationId:crypto.randomUUID()};assert.equal((await post(env,av+'save',input,teacher)).status,403);const result=ok(await post(env,av+'save',input,admin));assert.equal(result.ranges.length,2);assert.equal(ok(await post(env,av+'save',input,admin)).replayed,true);
  assert.equal((await post(env,base+'get',{teacherId:'account-0003',year:2026,month:10},student)).status,403);
  for(const token of [teacher,scoped,admin]){const data=ok(await post(env,base+'get',{teacherId:'account-0003',year:2026,month:10},token));assert.equal(data.availability.revision,1);assert.ok(data.availability.blocks.some(b=>b.date==='2026-10-12'));assert.equal(data.teachingWeek.displayOnly,true);}
  assert.equal((await post(env,av+'save',{...input,accountId:'account-0005',operationId:crypto.randomUUID()},teacher)).status,403);assert.equal((await post(env,av+'save',{...input,accountId:'account-0005',operationId:crypto.randomUUID()},scoped)).status,403);
@@ -95,7 +96,7 @@ test('teaching hours count overlapping lessons once and exclude cancelled Course
  env.AUTH_LOGIN_RATE_LIMITER={limit:async()=>({success:true})};const admin=await login(env),teacher=await login(env,'0003');
  const before=db.prepare('SELECT * FROM role_assignments ORDER BY assignment_id').all();
  const learn=ok(await post(env,base+'get',{scopeKey:scope,view:'learn'},admin));assert.equal(learn.canManageAcademy,false);assert.deepEqual(learn.teachers,[]);assert.equal(learn.availability,null);assert.equal(learn.teachingWeek,null);assert.ok(learn.scopes.every(s=>!s.editable));assert.ok(learn.events.every(e=>!e.editable));
- const teach=ok(await post(env,base+'get',{scopeKey:scope,view:'teach'},admin));assert.equal(teach.availability.accountId,'account-0001');assert.equal(teach.availability.editable,true);assert.equal(teach.teachers.length,1);assert.equal(teach.canManageAcademy,false);assert.ok(teach.scopes.every(s=>!s.editable));
+ const teach=ok(await post(env,base+'get',{scopeKey:scope,view:'teach'},admin));assert.equal(teach.availability.accountId,'account-0001');assert.equal(teach.availability.editable,false);assert.equal(teach.teachers.length,1);assert.equal(teach.canManageAcademy,false);assert.ok(teach.scopes.every(s=>!s.editable));
  ok(await post(env,av+'save',{accountId:'account-0001',revision:0,ranges:[],operationId:crypto.randomUUID()},admin));
  assert.equal((await post(env,base+'get',{view:'teach',teacherId:'account-0003'},admin)).status,403);
  const central=ok(await post(env,base+'get',{view:'admin',teacherId:'account-0003'},admin));assert.equal(central.canManageAcademy,true);assert.equal(central.availability.accountId,'account-0003');assert.ok(central.scopes.find(s=>s.key==='ACADEMY').editable);

@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import assert from 'node:assert/strict';
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,readdirSync,symlinkSync,rmSync,realpathSync} from 'node:fs';
 import {join,dirname} from 'node:path';
@@ -28,7 +29,7 @@ let apiCalls=0,assetCalls=0,lastRequest;
 const env={TEST_SITE_ORIGIN:siteOrigin,
   TEST_API:{async fetch(request){apiCalls++;lastRequest=request;return Response.json({success:true},{status:200});}},
   ASSETS:{async fetch(request){assetCalls++;lastRequest=request;return new Response('synthetic page',{headers:{'Content-Type':'text/html'}});}}};
-const call=(path,options={})=>worker.fetch(new Request(siteOrigin+path,options),env);
+const call=(path,options={})=>worker.fetch(new WorkspaceRequest(siteOrigin+path,options),env);
 let result=await call('/api/account/login',{method:'POST',headers:{Origin:siteOrigin,Authorization:'Bearer synthetic-token','Content-Type':'application/json'},body:'{"pin":"1234"}'});
 assert.equal(result.status,200);assert.equal(apiCalls,1);assert.equal(lastRequest.url,siteOrigin+'/api/account/login');
 assert.equal(lastRequest.headers.get('Authorization'),'Bearer synthetic-token');assert.equal(await lastRequest.text(),'{"pin":"1234"}');
@@ -36,7 +37,7 @@ assert.equal(lastRequest.redirect,'manual');assert.match(result.headers.get('Cac
 assert.match(result.headers.get('Content-Security-Policy'),/connect-src 'self'/);
 assert.doesNotMatch(result.headers.get('Content-Security-Policy'),/devrebootworker|googleapis|maktabhelper/);
 assert.equal((await call('/api/account/login',{method:'POST',headers:{Origin:'https://foreign.example'}})).status,403);
-assert.equal((await worker.fetch(new Request('https://foreign.example/api/account/login'),env)).status,403);assert.equal(apiCalls,1);
+assert.equal((await worker.fetch(new WorkspaceRequest('https://foreign.example/api/account/login'),env)).status,403);assert.equal(apiCalls,1);
 assert.equal((await call('/account/synthetic-login?academy=1')).status,200);assert.equal(new URL(lastRequest.url).pathname,'/account/index.html');
 assert.equal((await call('/programs/attendance.html')).status,200);
 result=await call('/academy/',{method:'HEAD'});assert.equal(await result.text(),'');assert.equal(new URL(lastRequest.url).pathname,'/academy/index.html');

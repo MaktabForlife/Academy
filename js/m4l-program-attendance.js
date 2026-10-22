@@ -60,7 +60,7 @@
         if(!learners.has(mark.accountId))learners.set(mark.accountId,{name:mark.name,statuses:new Set()});
         learners.get(mark.accountId).statuses.add(markValue(row,mark));
       }
-      const canSave=selected.some(row=>row.submitted||data.date===data.today);
+      const canSave=!data.readOnly&&selected.some(row=>row.submitted||data.date===data.today);
       const options=[`<option value="ALL" ${choice==='ALL'?'selected':''}>All lessons</option>`,
         ...rows.map(row=>`<option value="${esc(row.lesson.anchor)}" ${choice===row.lesson.anchor?'selected':''}>${esc(lessonName(row))} · ${esc(row.lesson.startTime)}–${esc(row.lesson.endTime)}</option>`)].join('');
       const marks=[...learners].sort((a,b)=>a[1].name.localeCompare(b[1].name)).map(([accountId,learner])=>{

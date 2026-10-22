@@ -3,6 +3,7 @@ import {optionalSchema} from './schema-probe.js';
 import {dateInTimezone} from '../../lib/global-subject-delivery.js';
 import {addDays,lessonTimes} from '../entrance.js';
 import {scheduledLessons} from '../../programs/attendance-model.js';
+import {administers,actualState,actualRole,isAdminWorkspace} from './workspace-access.js';
 
 const dateOK=s=>typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s)&&Number.isFinite(Date.parse(s+'T12:00:00Z'))&&addDays(s,0)===s;
 export const planningMonday=s=>addDays(s,-((new Date(s+'T12:00:00Z').getUTCDay()+6)%7));
@@ -25,7 +26,7 @@ function normalizeContent(input,submitted){
 export function lessonPlanning(repository,auth,now=()=>new Date()){
  const store=managementStore(repository,auth),p=store.p,actor=auth.user.accountid;
  const global=Boolean(auth.state.account.global_admin);
- const keys=global?null:[...new Set(auth.state.roles.filter(r=>['TEACHER','PROGRAM_ADMIN'].includes(r.role)).map(r=>r.activity_key))];
+ const keys=global?null:[...new Set([...auth.state.roles.filter(r=>['TEACHER','PROGRAM_ADMIN'].includes(r.role)).map(r=>r.activity_key),...(!isAdminWorkspace(auth)?actualState(auth).activities.filter(a=>administers(auth,a.activity_key)).map(a=>a.activity_key):[])])];
  const filter=keys===null?'1':'activity_key IN (SELECT value FROM json_each(?))';
  const q=table=>keys===null?p('SELECT * FROM '+table):p('SELECT * FROM '+table+' WHERE '+filter,JSON.stringify(keys));
  async function load(input={}){
@@ -38,7 +39,7 @@ export function lessonPlanning(repository,auth,now=()=>new Date()){
   return store.load({plans:planQuery,policies:q('lesson_plan_policies'),requirements:q('lesson_plan_requirements'),preferences:q('lesson_plan_preferences'),deadlines:q('lesson_plan_deadlines'),runs:q('course_runs'),runStates:q('course_run_state'),courseEditor:q('course_management_drafts'),sessions:q('course_draft_sessions')});
  }
  const admin=(d,key)=>global||liveRoles(d,actor,key).includes('PROGRAM_ADMIN');
- const staff=(d,key)=>admin(d,key)||liveRoles(d,actor,key).includes('TEACHER');
+ const staff=(d,key)=>admin(d,key)||liveRoles(d,actor,key).includes('TEACHER')||auth.workspace==='TEACH'&&administers(auth,key);
  const areas=(d,view)=>d.activities.filter(a=>(a.kind==='COURSE'||a.active&&a.lifecycle==='ACTIVE')&&['PROGRAM','COURSE'].includes(a.kind)&&(view==='admin'?admin(d,a.activity_key):staff(d,a.activity_key)));
  const timezone=async d=>{const config=await repository.homeConfiguration();return config?.setting_value||'Africa/Johannesburg';};
  function policy(d,key){const r=d.policies.find(r=>same(r.activity_key,key)),plansRequired=d.requirements.find(r=>same(r.activity_key,key))?.plans_required!==0;return {...(r?{weeklyDay:r.weekly_day,weeklyTime:r.weekly_time,courseLeadDays:r.course_lead_days,revision:r.revision}:defaults),plansRequired};}
@@ -83,7 +84,7 @@ export function lessonPlanning(repository,auth,now=()=>new Date()){
   const expected=new Map();
   for(const a of selected){
    if(!policy(d,a.activity_key).plansRequired)continue;
-   const teachers=view==='admin'?d.accounts.filter(u=>u.active&&liveRoles(d,u.account_id,a.activity_key).includes('TEACHER')):d.accounts.filter(u=>same(u.account_id,actor));
+   const teachers=view==='admin'?d.accounts.filter(u=>u.active&&liveRoles(d,u.account_id,a.activity_key).includes('TEACHER')):d.accounts.filter(u=>same(u.account_id,actor)&&actualRole(auth,a.activity_key,'TEACHER'));
    const runs=a.kind==='PROGRAM'?[null]:runList(d,a.activity_key).filter(r=>runOpen(d,r));
    for(const u of teachers)for(const run of runs){
     const preference=d.preferences.find(r=>same(r.activity_key,a.activity_key)&&same(r.teacher_id,u.account_id)&&same(r.run_id,run?.run_id||''));
@@ -99,9 +100,9 @@ export function lessonPlanning(repository,auth,now=()=>new Date()){
   return {view,timezone:tz,weekStart:week,weeks,accountId:actor,canAdmin:areas(d,'admin').length>0,areas:available.map(a=>({key:a.activity_key,name:a.name,kind:a.kind,teachers:view==='admin'?d.accounts.filter(u=>u.active&&liveRoles(d,u.account_id,a.activity_key).includes('TEACHER')).map(u=>({id:u.account_id,name:u.display_name})):[],policy:policy(d,a.activity_key),runs:runList(d,a.activity_key).map(r=>({id:r.run_id,name:r.name,startDate:firstDate(d,r),endDate:r.end_date||'',stage:runStage(d,r),canSubmit:runOpen(d,r),period:d.preferences.find(x=>same(x.activity_key,a.activity_key)&&same(x.run_id,r.run_id)&&same(x.teacher_id,actor))?.period||'WEEKLY'}))})),plans:[...expected.values()].map(k=>summary(d,k,tz)).sort((a,b)=>a.activityName.localeCompare(b.activityName)||a.teacherName.localeCompare(b.teacherName))};
  }
  async function get(input){
-  const d=await load(input),key=normalizeKey(d,input),tz=await timezone(d),r=find(d,key),own=same(key.teacherId,actor),editing=own&&input.view!=='admin';
-  if(!editing&&!r?.submitted_at)throw fail('This plan has not been submitted yet.',409,'PLAN_NOT_SUBMITTED');
-  let content=r?JSON.parse(editing?r.draft_json:r.submitted_json):{title:'Weekly teaching plan',overview:'',reflection:'',lessons:[]};
+  const d=await load(input),key=normalizeKey(d,input),tz=await timezone(d),r=find(d,key),own=same(key.teacherId,actor),preview=auth.workspace==='TEACH'&&!actualRole(auth,key.activityKey,'TEACHER'),editing=own&&input.view!=='admin'&&!preview;
+  if(!editing&&!preview&&!r?.submitted_at)throw fail('This plan has not been submitted yet.',409,'PLAN_NOT_SUBMITTED');
+  let content=r&&!preview?JSON.parse(editing?r.draft_json:r.submitted_json):{title:'Weekly teaching plan',overview:'',reflection:'',lessons:[]};
   if(!r&&key.period==='ENTIRE')content.title='Entire-course teaching plan';
   if(!r&&key.period==='WEEKLY'&&key.activityKey.startsWith('PROGRAM:')){
    const publications=(await p('SELECT p.*,l.status lifecycle FROM timetable_publications p LEFT JOIN program_publication_lifecycle l USING(activity_key,publication_id) WHERE p.activity_key=?',key.activityKey).all()).results;

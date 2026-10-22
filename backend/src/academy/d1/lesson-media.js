@@ -4,6 +4,7 @@ import {payloadHash} from '../../programs/timetable-model.js';
 import {optionalSchema} from './schema-probe.js';
 import {assessmentRolesSQL} from './assessment-store.js';
 import {mediaSessions} from './lesson-media-sessions.js';
+import {isAdminWorkspace,administers,actualRole,readerPreview} from './workspace-access.js';
 
 export const MOU_MEDIA_PROGRAM='PROGRAM:PRG-656bcece-4310-49c7-87d7-ee06756f66c1';
 export const MEDIA_PDF_LIMIT=16*1024*1024;
@@ -28,8 +29,9 @@ export async function timetableMedia(repository,auth,input){
  for(const ref of input.sessions){
   if(!ref||typeof ref.activityKey!=='string'||ref.activityKey.length>200||!/^(PROGRAM|COURSE):[^:]+$/.test(ref.activityKey)||typeof ref.sessionKey!=='string'||ref.sessionKey.length>1200)throw fail('Choose valid timetable lessons.');
   const roles=auth.state.roles.filter(r=>same(r.activity_key,ref.activityKey)).map(r=>r.role);
-  const staff=Boolean(auth.state.account.global_admin||roles.some(r=>['PROGRAM_ADMIN','TEACHER'].includes(r)));
-  if(staff||roles.includes('STUDENT')||auth.state.subscriptions.some(r=>same(r.activity_key,ref.activityKey)))refs.set(JSON.stringify([ref.activityKey,ref.sessionKey]),{activityKey:ref.activityKey,sessionKey:ref.sessionKey,staff:Number(staff)});
+  const staff=Boolean(auth.state.account.global_admin||auth.workspace!=='LEARN'&&roles.some(r=>['PROGRAM_ADMIN','TEACHER'].includes(r)));
+  const preview=readerPreview(auth,ref.activityKey);
+  if(staff||preview||roles.includes('STUDENT')||auth.state.subscriptions.some(r=>same(r.activity_key,ref.activityKey)))refs.set(JSON.stringify([ref.activityKey,ref.sessionKey]),{activityKey:ref.activityKey,sessionKey:ref.sessionKey,staff:Number(staff||preview)});
  }
  if(!refs.size||!await optionalSchema(repository.db,'SELECT session_key FROM lesson_media_lessons WHERE 0'))return {lessons:[]};
  const rows=(await repository.db.prepare(`SELECT DISTINCT l.lesson_id,l.activity_key,l.session_key,l.title,a.asset_id,a.kind,a.filename,a.display_name
@@ -46,12 +48,12 @@ export async function timetableMedia(repository,auth,input){
 
 export function lessonMedia(repository,auth,env){
  const db=repository.db,p=(sql,...values)=>db.prepare(sql).bind(...values),actor=auth.user.accountid;
- let activity,scopeKey,admin=false,student=false,teacher=false;
+ let activity,scopeKey,admin=false,student=false,teacher=false,preview=false;
  const teachers=row=>[...new Set([...JSON.parse(row.teacher_ids_json||'[]'),row.teacher_id].filter(Boolean))];
- const manages=row=>admin||row.media_scope!=='COURSE'&&teacher&&teachers(row).some(id=>same(id,actor));
- const canRead=()=>student||teacher||admin;
+ const manages=row=>admin||row.media_scope!=='COURSE'&&teacher&&!preview&&actualRole(auth,scopeKey,'TEACHER')&&teachers(row).some(id=>same(id,actor));
+ const canRead=()=>student||teacher||admin||preview;
  const audienceSQL=mediaAudienceSQL;
- const readerAccess=row=>admin||teacher||student&&Boolean(row.learner_allowed);
+ const readerAccess=row=>admin||teacher||preview||student&&Boolean(row.learner_allowed);
 
  const scope=async()=>{
   const a=await p("SELECT * FROM activities WHERE activity_key=? AND active=1 AND lifecycle='ACTIVE'",scopeKey).first();
@@ -67,20 +69,22 @@ export function lessonMedia(repository,auth,env){
   admin=Boolean(auth.state.account.global_admin||auth.state.roles.some(r=>same(r.activity_key,scopeKey)&&r.role==='PROGRAM_ADMIN'));
   student=auth.state.roles.some(r=>same(r.activity_key,scopeKey)&&r.role==='STUDENT')||auth.state.subscriptions.some(r=>same(r.activity_key,scopeKey));
   teacher=auth.state.roles.some(r=>same(r.activity_key,scopeKey)&&r.role==='TEACHER');
+  preview=!isAdminWorkspace(auth)&&administers(auth,scopeKey)&&!(auth.workspace==='LEARN'?student:teacher);
+  if(preview&&auth.workspace==='TEACH')teacher=true;
   if(!canRead())throw fail('This lesson media is outside your access.',403,'MEDIA_FORBIDDEN');
  };
  async function lesson(id){const row=await p(`SELECT l.*,c.name class_name,${audienceSQL} learner_allowed FROM lesson_media_lessons l LEFT JOIN classes c ON c.activity_key=l.activity_key AND c.class_id=l.class_id WHERE l.lesson_id=? AND l.activity_key=?`,actor,actor,String(id||''),scopeKey).first();if(!row)throw fail('Lesson not found.',404);return row;}
  function reader(row){if(!readerAccess(row)||row.state!=='PUBLISHED')throw fail('Published lesson media is available to assigned learners, teachers and admins.',403,'MEDIA_FORBIDDEN');}
  function staff(row){if(!manages(row))throw fail('This session is outside your media management access.',403,'MEDIA_FORBIDDEN');}
  function revision(row,input){if(!Number.isInteger(input.revision)||row.revision!==input.revision)throw fail('This entry changed. Refresh before saving; your entry is kept.',409,'ROW_CHANGED');}
- const dto=row=>({id:row.lesson_id,sessionKey:row.session_key||'',activityKey:row.activity_key,runId:row.run_id,mediaScope:row.media_scope||'SESSION',date:row.lesson_date,title:row.title,startTime:row.start_time,endTime:row.end_time,teacher:row.teacher_name,className:row.class_name||JSON.parse(row.source_lessons_json)[0]?.classNames?.join(', ')||'',summary:row.summary,state:row.state,commentsClosed:Boolean(row.comments_closed),revision:row.revision,canManage:manages(row),canView:readerAccess(row)&&row.state==='PUBLISHED',lessons:JSON.parse(row.source_lessons_json)});
+ const dto=row=>({id:row.lesson_id,sessionKey:row.session_key||'',activityKey:row.activity_key,runId:row.run_id,mediaScope:row.media_scope||'SESSION',date:row.lesson_date,title:row.title,startTime:row.start_time,endTime:row.end_time,teacher:row.teacher_name,className:row.class_name||JSON.parse(row.source_lessons_json)[0]?.classNames?.join(', ')||'',summary:row.summary,state:row.state,commentsClosed:Boolean(row.comments_closed),revision:row.revision,canManage:manages(row),canView:readerAccess(row)&&row.state==='PUBLISHED',...(isAdminWorkspace(auth)||manages(row)?{lessons:JSON.parse(row.source_lessons_json)}:{lessons:[]}),readOnly:preview});
  async function assets(id,management=false){return (await p('SELECT a.* FROM lesson_media_links l JOIN lesson_media_assets a USING(asset_id) WHERE l.lesson_id=? ORDER BY a.kind,a.created_at,a.asset_id',id).all()).results.map(a=>({id:a.asset_id,kind:a.kind,filename:a.filename,name:a.display_name||a.filename||(a.kind==='PDF'?'PDF':'Video'),...(management&&a.kind==='YOUTUBE'?{url:'https://youtu.be/'+a.youtube_id}:{})}));}
  async function list(input,period=false){
-  const preview=input.view==='learner',runId=input.runId||'';
+  const preview=input.view==='learner'||!isAdminWorkspace(auth)&&!actualRole(auth,scopeKey,'TEACHER'),runId=input.runId||'';
   if(typeof runId!=='string'||runId.length>160)throw fail('Choose a Course offering.');
   let date='9999-12-31',id='';
   if(input.before){try{if(String(input.before).startsWith('['))[date,id]=JSON.parse(input.before);else date=input.before;}catch{throw fail('Invalid media page.');}if(!validDate(date)||typeof id!=='string'||id.length>100)throw fail('Invalid media page.');}
-  const rows=(await p(`SELECT l.*,c.name class_name,${audienceSQL} learner_allowed FROM lesson_media_lessons l LEFT JOIN classes c ON c.activity_key=l.activity_key AND c.class_id=l.class_id WHERE l.activity_key=? AND l.media_scope='SESSION' AND (?=1 OR ${audienceSQL}) AND (?='' OR l.run_id=?) AND (l.lesson_date<? OR (l.lesson_date=? AND l.lesson_id<?)) AND ${preview?"l.state='PUBLISHED'":admin?'1=1':teacher?"(l.state='PUBLISHED' OR l.teacher_id=? OR EXISTS(SELECT 1 FROM json_each(l.teacher_ids_json) WHERE value=? COLLATE NOCASE))":"l.state='PUBLISHED'"} ${period?' AND l.lesson_date>=? AND l.lesson_date<=?':''} ORDER BY l.lesson_date DESC,l.lesson_id DESC LIMIT ${period?401:31}`,actor,actor,scopeKey,Number(admin||teacher),actor,actor,runId,runId,date,date,id,...(!preview&&!admin&&teacher?[actor,actor]:[]),...(period?[input.startDate,input.endDate]:[])).all()).results;
+  const rows=(await p(`SELECT l.*,c.name class_name,${audienceSQL} learner_allowed FROM lesson_media_lessons l LEFT JOIN classes c ON c.activity_key=l.activity_key AND c.class_id=l.class_id WHERE l.activity_key=? AND l.media_scope='SESSION' AND (?=1 OR ${audienceSQL}) AND (?='' OR l.run_id=?) AND (l.lesson_date<? OR (l.lesson_date=? AND l.lesson_id<?)) AND ${preview?"l.state='PUBLISHED'":admin?'1=1':teacher?"(l.state='PUBLISHED' OR l.teacher_id=? OR EXISTS(SELECT 1 FROM json_each(l.teacher_ids_json) WHERE value=? COLLATE NOCASE))":"l.state='PUBLISHED'"} ${period?' AND l.lesson_date>=? AND l.lesson_date<=?':''} ORDER BY l.lesson_date DESC,l.lesson_id DESC LIMIT ${period?401:31}`,actor,actor,scopeKey,Number(admin||teacher||readerPreview(auth,scopeKey)),actor,actor,runId,runId,date,date,id,...(!preview&&!admin&&teacher?[actor,actor]:[]),...(period?[input.startDate,input.endDate]:[])).all()).results;
   if(period&&rows.length>400)throw fail('Choose a shorter media period.');
   const page=rows.slice(0,period?400:30),ids=page.map(r=>r.lesson_id),links=ids.length?(await p('SELECT l.lesson_id,a.asset_id,a.kind,a.filename,a.display_name FROM lesson_media_links l JOIN lesson_media_assets a USING(asset_id) WHERE l.lesson_id IN(SELECT value FROM json_each(?)) ORDER BY a.created_at,a.asset_id',JSON.stringify(ids)).all()).results:[];
   return {activityKey:scopeKey,activityName:activity.name,kind:activity.kind,canManage:!preview&&(admin||teacher),canView:canRead(),learnerPreview:preview,lessons:page.map(row=>({...dto(row),...(preview?{canManage:false}:{}),assets:links.filter(a=>a.lesson_id===row.lesson_id).map(a=>({id:a.asset_id,kind:a.kind,filename:a.filename,name:a.display_name||a.filename||(a.kind==='PDF'?'PDF':'Video')}))})),before:!period&&rows.length>30?JSON.stringify([page.at(-1).lesson_date,page.at(-1).lesson_id]):null};
@@ -103,7 +107,7 @@ export function lessonMedia(repository,auth,env){
    return {statements:[p("INSERT INTO lesson_media_lessons(lesson_id,activity_key,lesson_date,title,start_time,end_time,teacher_name,state,comments_closed,updated_at,media_scope) VALUES(?,?,'','Course PDFs','','','','DRAFT',1,?,'COURSE')",current.lesson_id,scopeKey,new Date().toISOString())],result:{lessonId:current.lesson_id,revision:1}};
   });
  }
- async function sessions(input){if(!admin&&!teacher)throw fail('Choose an area you teach or administer.',403,'MEDIA_FORBIDDEN');return mediaSessions(repository,activity,input,actor,admin);}
+ async function sessions(input){if(!admin&&!teacher)throw fail('Choose an area you teach or administer.',403,'MEDIA_FORBIDDEN');if(preview)return {sessions:[],runs:[],runId:input.runId||''};return mediaSessions(repository,activity,input,actor,admin);}
  // The calendar reuses the media audience checks. Learners never read draft
  // timetable sessions or unpublished media; staff retain per-session authority.
  async function calendar(input){
@@ -144,6 +148,7 @@ export function lessonMedia(repository,auth,env){
  // Version and current account/session/role guards share the write transaction.
  // Media operations never load the Academy-wide account or media catalogue.
  async function change(action,input,row,mode,plan){
+  if(preview)throw fail('Preview is read only.',403,'PREVIEW_READ_ONLY');
   if(!/^[a-f0-9-]{36}$/i.test(input.operationId||''))throw fail('This change needs its retry identifier.');
   const hash=await payloadHash({action,input});
   for(let attempt=0;attempt<3;attempt++){
@@ -152,8 +157,8 @@ export function lessonMedia(repository,auth,env){
    const current=row.isNew?(row.media_scope==='COURSE'?newCourseFiles():await selectedSession(input)):await lesson(row.lesson_id);await scope();
    if(mode==='student')reader(current);else if(mode==='staff')staff(current);else if(!manages(current))reader(current);
    const {statements,result}=await plan(current),guard=crypto.randomUUID(),now=new Date().toISOString();
-   const authority=mode==='student'?`(${globalSQL} OR ${rolesSQL} OR EXISTS(SELECT 1 FROM effective_course_subscriptions cs WHERE cs.account_id=a.account_id AND cs.activity_key=?))`:`(${globalSQL} OR ${rolesSQL} OR (${rolesSQL} AND EXISTS(SELECT 1 FROM json_each(?) WHERE value=a.account_id COLLATE NOCASE)))`;
-   const roleValues=mode==='student'?[scopeKey,JSON.stringify(['STUDENT','TEACHER']),scopeKey]:[scopeKey,JSON.stringify(['PROGRAM_ADMIN']),scopeKey,JSON.stringify(['TEACHER']),JSON.stringify(teachers(current))];
+   const authority=isAdminWorkspace(auth)?mode==='student'?`(${globalSQL} OR ${rolesSQL} OR EXISTS(SELECT 1 FROM effective_course_subscriptions cs WHERE cs.account_id=a.account_id AND cs.activity_key=?))`:`(${globalSQL} OR ${rolesSQL} OR (${rolesSQL} AND EXISTS(SELECT 1 FROM json_each(?) WHERE value=a.account_id COLLATE NOCASE)))`:mode==='student'?`(${rolesSQL} OR (?=1 AND EXISTS(SELECT 1 FROM effective_course_subscriptions cs WHERE cs.account_id=a.account_id AND cs.activity_key=?)))`:`(${rolesSQL} AND EXISTS(SELECT 1 FROM json_each(?) WHERE value=a.account_id COLLATE NOCASE))`;
+   const roleValues=isAdminWorkspace(auth)?mode==='student'?[scopeKey,JSON.stringify(['STUDENT','TEACHER']),scopeKey]:[scopeKey,JSON.stringify(['PROGRAM_ADMIN']),scopeKey,JSON.stringify(['TEACHER']),JSON.stringify(teachers(current))]:mode==='student'?[scopeKey,JSON.stringify([auth.workspace==='TEACH'?'TEACHER':'STUDENT']),Number(auth.workspace==='LEARN'),scopeKey]:[scopeKey,JSON.stringify(['TEACHER']),JSON.stringify(teachers(current))];
    try{
     await db.batch([p(`INSERT INTO academy_write_guards(guard_id,accepted) VALUES(?,(SELECT version=? FROM academy_write_state WHERE singleton=1) AND EXISTS(SELECT 1 FROM accounts a JOIN account_credentials c USING(account_id) JOIN account_sessions s USING(account_id) WHERE a.account_id=? AND a.active=1 AND c.pin_setup=1 AND length(trim(c.pin_hash))>0 AND c.credential_epoch=? AND s.session_id=? AND s.revoked_at IS NULL AND s.credential_epoch=c.credential_epoch AND s.expires_at>? AND ${authority}))`,guard,version.version,actor,auth.state.account.credential_epoch,auth.sid,now,...roleValues),...statements,
      p('INSERT INTO audit_events(event_id,occurred_at,actor_account_id,authority,scope_key,action,record_kind,record_id,changed_fields_json) VALUES(?,?,?,?,?,?,?,?,?)',crypto.randomUUID(),now,actor,auth.user.role,scopeKey,action,'LESSON_MEDIA',current.lesson_id,JSON.stringify({action})),

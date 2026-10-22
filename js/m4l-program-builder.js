@@ -4,7 +4,7 @@
   const byId = id => document.getElementById(id);
   const escape = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[char]));
   const unified=Boolean(byId("pg-tabs"));
-  const timezone = "Africa/Johannesburg";
+  let timezone = "Africa/Johannesburg";
   const fields = ["name", "durationYears", "timezone", "status", "spreadsheetId", "accessModel", "programZoomLink"];
   const state = { owner:"", rows: [], selected: new URLSearchParams(location.search).get('program')||"", busy: false, search: "", filter: "AVAILABLE", readiness: {}, store: "SHEETS", statuses: ["DRAFT", "ARCHIVED"] };
   const dirty = row => !row.saved || fields.some(field => String(row[field] ?? "") !== String(row.saved[field] ?? "")) || JSON.stringify(row.publicCard||{})!==JSON.stringify(row.saved.publicCard||{});
@@ -38,6 +38,7 @@
     byId("program-retry").hidden = true;
     try {
       const data = await api("list");
+      timezone=data.timezone||timezone;
       state.store = data.store || "SHEETS";
       state.globalAdmin=Boolean(data.globalAdmin);byId("program-add").hidden=state.store==='D1'&&!state.globalAdmin;
       byId('program-access-label').hidden=state.store!=='D1';
@@ -147,7 +148,7 @@
       const payload=Object.fromEntries(["id", "revision", ...fields].map(field => [field, row[field]]));
       if(state.store!=='D1'||!['FREE','PAID'].includes(row.accessModel)||row.saved&&row.accessModel===row.saved.accessModel)delete payload.accessModel;
       if(state.store!=='D1'||row.saved&&row.programZoomLink===row.saved.programZoomLink)delete payload.programZoomLink;
-      payload.timezone=timezone;
+      payload.timezone=row.saved?row.saved.timezone:timezone;
       if (state.store === "D1") payload.operationId = row.operationId ||= crypto.randomUUID();
       const result = await api(row.saved ? "save" : "create", payload);
       Object.assign(row, draft(result.program));

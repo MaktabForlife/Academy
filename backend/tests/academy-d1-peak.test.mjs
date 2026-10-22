@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync,readFileSync,rmSync} from 'node:fs';
@@ -19,7 +20,7 @@ try {
     const env={...config.vars,...secrets,ACADEMY_DB:nativeBinding(db),AUTH_LOGIN_RATE_LIMITER:{limit:async()=>({success:true})}},original=globalThis.fetch;
     globalThis.fetch=async()=>{throw Error('No external requests allowed');};
     const post=async(path,body={},token='')=>{
-      const profile=profileD1(env.ACADEMY_DB),response=await worker.fetch(new Request('https://academy.invalid'+path,{method:'POST',headers:token?{Authorization:'Bearer '+token}:{},body:JSON.stringify(body)}),{...env,ACADEMY_DB:profile.binding});
+      const profile=profileD1(env.ACADEMY_DB),response=await worker.fetch(new WorkspaceRequest('https://academy.invalid'+path,{method:'POST',headers:token?{Authorization:'Bearer '+token}:{},body:JSON.stringify(body)}),{...env,ACADEMY_DB:profile.binding});
       return {status:response.status,data:await response.json(),metrics:profile.metrics};
     };
     const login=async index=>{const result=await post('/api/account/login',{uniqueid:input.accounts[index].login,pin:'1234'});assert.equal(result.status,200);return result.data.token;};
@@ -31,7 +32,7 @@ try {
     assert.equal(db.prepare("SELECT count(*) n FROM class_memberships WHERE activity_key='PROGRAM:PRG-11111111-1111-4111-8111-111111111111'").get().n,200);
     globalThis.fetch=async(url,init)=>{
       assert.equal(new URL(url).hostname,workerName+'.example.workers.dev');
-      const profile=profileD1(env.ACADEMY_DB),response=await worker.fetch(new Request(url,init),{...env,ACADEMY_DB:profile.binding});
+      const profile=profileD1(env.ACADEMY_DB),response=await worker.fetch(new WorkspaceRequest(url,init),{...env,ACADEMY_DB:profile.binding});
       const headers=new Headers(response.headers);headers.set('X-Test-D1-Calls',String(profile.metrics.calls));headers.set('X-Test-D1-Statements',String(profile.metrics.statements));
       return new Response(response.body,{status:response.status,headers});
     };

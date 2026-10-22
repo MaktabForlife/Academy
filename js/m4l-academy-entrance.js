@@ -28,7 +28,7 @@
   }
   function checkProfileLabels(){const revision=profileLabelRevision();if(revision!==dailyCache.profileRevision){dailyCache.profileRevision=revision;dailyCache.entries={};pageCache.snapshot=null;}return revision;}
   const MEMORISATION_RETURN_KEY='m4l_academy_memorisation_return_v1';
-  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10718';
+  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10723';
   let planningSelection=null;
   const academyDay = (timezone, instant = Date.now()) => {
     const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {timeZone:timezone || 'Africa/Johannesburg',
@@ -131,7 +131,7 @@
     await checkRemoteProfileLabels(force);
     const session = token(), epoch = pageCache.epoch;
     if (!session) return request(body);
-    const key = body.startDate || 'HOME';
+    const key = (window.M4L_ACADEMY_WORKSPACE?.current()||'LEARN')+':'+(body.startDate || 'HOME');
     if (dailyCache.session !== session) {
       dailyCache.session = session;
       dailyCache.entries = {};
@@ -371,7 +371,7 @@
   function renderAcademyMenu() {
     const data = state.home, activities = data?.signedIn ? data.personalActivities : [];
     const global = Boolean(data?.signedIn && data.globalAdmin), roles = [...new Set(activities.flatMap(row => row.roles || []))];
-    const available = {learn:global || Boolean(highestAccess(roles)), teach:global || staffRoles(roles), admin:global || adminRoles(roles)};
+    const available = {learn:global || data?.workspaceAccess?.learn || data?.workspaceAccess?.admin || Boolean(highestAccess(roles)), teach:global || data?.workspaceAccess?.teach || data?.workspaceAccess?.admin || staffRoles(roles), admin:global || data?.workspaceAccess?.admin || adminRoles(roles)};
     const choices = ['learn','teach','admin'].filter(key => data?.signedIn && available[key]);
     const parts = location.hash.slice(1).split('/'), home = !parts[0] || ['overview','learning'].includes(parts[0]);
     const requested = parts[0]==='timetable'?parts[1]||'learn':['administration','assessment-admin','progress-admin'].includes(parts[0]) ? 'admin' : parts[0] === 'activity' && state.activity ? workspaceContext(state.activity).mode : home ? parts[1] : '';
@@ -487,13 +487,13 @@
     const admin=location.hash.startsWith('#assessment-admin');
     const close=admin?$('as-admin-close'):$('as-close');
     close.href=admin?'#administration':workspaceHref(row);
-    window.M4L_ACADEMY_ASSESSMENTS?.open({hostId:admin?'as-admin-host':'as-host',view:admin?'admin':workspaceContext(row).mode==='learn'&&(state.home?.globalAdmin||adminRoles(row.roles||[]))?'learner':'activity',activityKey:row.id?`${row.kind}:${row.id}`:'',kind:row.id?'':row.kind});
+    window.M4L_ACADEMY_ASSESSMENTS?.open({hostId:admin?'as-admin-host':'as-host',view:admin?'admin':workspaceContext(row).mode==='learn'?'learner':'teacher',activityKey:row.id?`${row.kind}:${row.id}`:'',kind:row.id?'':row.kind});
   }
 
   function syncAttendance(row) {
     const open = location.hash.startsWith('#activity/') && workspaceContext(row).tool === 'attendance' && row.kind === 'PROGRAM' && !row.unavailable && state.home?.signedIn && (state.home.globalAdmin || staffRoles(row.roles || []));
     $('pa-main').hidden = !open;
-    if (!open) { window.M4L_PROGRAM_ATTENDANCE?.reset(); return; }
+    if (!open) { window.M4L_ACADEMY_SETTINGS?.reset();window.M4L_PROGRAM_ATTENDANCE?.reset(); return; }
     $('pa-close').href = workspaceHref(row);
     window.M4L_PROGRAM_ATTENDANCE?.open({id:row.id,programs:state.home.personalActivities.filter(item=>menuActivity(item)&&item.kind==='PROGRAM' && (state.home.globalAdmin || staffRoles(item.roles || []))).map(item=>({id:item.id,name:item.name,role:state.home.globalAdmin?'GLOBAL_ADMIN':item.roles.find(role=>['PROGRAM_ADMIN','ADMIN','TEACHER','SENIOR'].includes(role))}))});
   }
@@ -826,7 +826,7 @@
       for (const id of ['activity-library','activity-planning','activity-support']) {$(id).hidden=true;$(id).replaceChildren();}
       $('pa-main').hidden = true;
       $('mp-teach-panel').hidden = true;
-      window.M4L_PROGRAM_ATTENDANCE?.reset();
+      window.M4L_ACADEMY_SETTINGS?.reset();window.M4L_PROGRAM_ATTENDANCE?.reset();
     }
   }
 
@@ -917,10 +917,10 @@
       }
     }
     if (lastRouteHash && hash !== lastRouteHash) {
-      if (window.M4L_PROGRAM_ATTENDANCE?.canLeave() === false || window.M4L_ACADEMY_PROGRESS?.canLeave() === false || window.M4L_MEMORISATION_ADMIN?.canLeave() === false || window.M4L_ACADEMY_ASSESSMENTS?.canLeave() === false || window.M4L_LESSON_MEDIA?.canLeave() === false || window.M4L_PLANNING?.canLeave() === false || window.M4L_ANNOUNCEMENTS?.canLeave() === false) { history.replaceState(null,'',lastRouteHash); workspaceFocusId='';renderAcademyMenu();return; }
+      if (window.M4L_ACADEMY_SETTINGS?.canLeave() === false || window.M4L_PROGRAM_ATTENDANCE?.canLeave() === false || window.M4L_ACADEMY_PROGRESS?.canLeave() === false || window.M4L_MEMORISATION_ADMIN?.canLeave() === false || window.M4L_ACADEMY_ASSESSMENTS?.canLeave() === false || window.M4L_LESSON_MEDIA?.canLeave() === false || window.M4L_PLANNING?.canLeave() === false || window.M4L_ANNOUNCEMENTS?.canLeave() === false) { history.replaceState(null,'',lastRouteHash); workspaceFocusId='';renderAcademyMenu();return; }
       if(!memorisationHash(lastRouteHash)&&memorisationHash(hash)){memorisationReturn={hash:lastRouteHash,top:window.scrollY||0,left:$('activity-sessions').scrollLeft||0};if(dailyCache.owner)try{sessionStorage.setItem(MEMORISATION_RETURN_KEY,JSON.stringify({...memorisationReturn,owner:dailyCache.owner}));}catch{}}
       if(memorisationHash(lastRouteHash)&&hash===memorisationReturn?.hash)restoreMemorisation=memorisationReturn;
-      window.M4L_PROGRAM_ATTENDANCE?.reset();
+      window.M4L_ACADEMY_SETTINGS?.reset();window.M4L_PROGRAM_ATTENDANCE?.reset();
       window.M4L_ACADEMY_PROGRESS?.reset();
       window.M4L_MEMORISATION_ADMIN?.reset();
       window.M4L_ACADEMY_ASSESSMENTS?.reset();
@@ -930,6 +930,10 @@
       $('mp-teach-panel').hidden = true;
       if($('workspace-tool').open)$('workspace-tool').close();
     }
+    const boundary=window.M4L_ACADEMY_WORKSPACE;
+    const changed=boundary?.commit(),destination=boundary?.canonical();
+    if(destination){location.assign(destination);return;}
+    if(changed){clearPersonal();dailyCache.entries={};void loadHome();return;}
     if(hash === '#timetable'){
       let previous = '#overview';
       try{previous = sessionStorage.getItem(TIMETABLE_RETURN_KEY) || previous;}catch{}
@@ -975,13 +979,14 @@
     dockTimetable($('timetable-card-home'));
     const view = $('administration'), global = Boolean(state.home?.signedIn && state.home.globalAdmin), areas = state.home?.signedIn ? adminAreas() : [];
     if (!global && !areas.length) {view.innerHTML='<div class="page-heading"><h1>Manage Academy</h1></div><p role="status">'+(!state.home&&token()?'Loading your Academy administration…':'Sign in with an authorised Academy admin account to open management tools.')+'</p>';return;}
-    const tabs = [['users','Users'],['attendance','Attendance'],['planning','Planning'],...(global?[['announcements','Announcements']]:[]),['assessments','Assessments'],['library','Library'],['curriculum','Curriculum'],['programs','Programs'],['courses','Courses'],['enrolments','Enrolments']];
+    const tabs = [['users','Users'],['attendance','Attendance'],['planning','Planning'],...(global?[['announcements','Announcements']]:[]),['assessments','Assessments'],['library','Library'],['curriculum','Curriculum'],['programs','Programs'],['courses','Courses'],['enrolments','Enrolments'],...(global?[['settings','App settings']]:[])];
     const requested = location.hash.split('/')[1], key = tabs.some(([id]) => id === requested) ? requested : 'users';
     const link = (href,label) => `<a class="button secondary" href="${esc(href)}">${esc(label)}</a>`;
     const scoped = (filter,href) => areas.filter(filter).map(row => link(href(row),row.name)).join('');
     const programs = row => row.kind === 'PROGRAM', courses = row => row.kind === 'COURSE';
     const manage = row => row.kind === 'PROGRAM' ? `/programs/manage.html?program=${encodeURIComponent(row.id)}` : `/academy/courses/manage/?course=${encodeURIComponent(row.id)}`;
     const panels = {
+      settings:'<div id="admin-app-settings"></div>',
       users:global ? link('/users/','Manage user profiles') : scoped(()=>true,row=>manage(row)+(programs(row)?'&tab=profiles':'&tab=participants')),
       attendance:'<p class="muted">Admin Attendance is coming soon, in shaa Allah.</p>',
       planning:'<div id="admin-planning"></div>',
@@ -994,11 +999,12 @@
       enrolments:link('/academy/enrolment/manage/?view=requests','Manage Enrolments')
     };
     const firstProgram=areas.find(programs), firstArea=areas[0];
-    const direct={users:global?'/users/':firstArea?manage(firstArea)+(programs(firstArea)?'&tab=profiles':'&tab=participants'):'#administration/users',attendance:'#administration/attendance',planning:'#administration/planning',announcements:'#administration/announcements',assessments:global?'#assessment-admin':firstArea?`#assessment-admin/${firstArea.kind}/${encodeURIComponent(firstArea.id)}`:'#assessment-admin',library:global?'/academy/library/manage/':'/academy/library/',curriculum:global?'/academy/subjects/':firstProgram?manage(firstProgram):'#administration/curriculum',programs:global?'/programs/':firstProgram?manage(firstProgram):'#administration/programs',courses:'/academy/courses/manage/',enrolments:'/academy/enrolment/manage/?view=requests'};
+    const direct={settings:'#administration/settings',users:global?'/users/':firstArea?manage(firstArea)+(programs(firstArea)?'&tab=profiles':'&tab=participants'):'#administration/users',attendance:'#administration/attendance',planning:'#administration/planning',announcements:'#administration/announcements',assessments:global?'#assessment-admin':firstArea?`#assessment-admin/${firstArea.kind}/${encodeURIComponent(firstArea.id)}`:'#assessment-admin',library:global?'/academy/library/manage/':'/academy/library/',curriculum:global?'/academy/subjects/':firstProgram?manage(firstProgram):'#administration/curriculum',programs:global?'/programs/':firstProgram?manage(firstProgram):'#administration/programs',courses:'/academy/courses/manage/',enrolments:'/academy/enrolment/manage/?view=requests'};
     view.innerHTML = `<div class="page-heading admin-heading"><h1>${requested?'Manage '+tabs.find(([id])=>id===key)[1]:'Manage Academy'}</h1></div>
       <nav class="workspace-tabs admin-management-menu" aria-label="Administration tools">${tabs.map(([id,label])=>`<a id="admin-tab-${id}" href="${esc(direct[id])}"${id===requested?' aria-current="page"':''}>${label}</a>`).join('')}${global?'<button id="public-timetable-refresh" type="button">Update timetable</button>':''}</nav>${global?'<p id="public-timetable-refresh-message" class="tiny muted" role="status" aria-live="polite"></p>':''}${!requested?'<div id="admin-timetable-home"></div>':''}
       ${requested?`<section class="card card-pad" id="admin-workspace"><div class="workspace-actions">${panels[key]||'<p class="muted">No assigned areas are available here.</p>'}</div></section>`:''}<div class="academy-support">${supportSections(null,'admin')}</div>`;
     if(requested==='planning')window.M4L_PLANNING?.open({hostId:'admin-planning',view:'admin'});
+    if(requested==='settings'&&global)window.M4L_ACADEMY_SETTINGS?.open('admin-app-settings');
     if(requested==='announcements'&&global)window.M4L_ANNOUNCEMENTS?.open({hostId:'admin-announcements'});
     if(!requested){dockTimetable($('admin-timetable-home'));renderSchedule('academy-sessions',state.scheduleTimetable);weekButtons();}
     bindPublicTimetableRefresh();
@@ -1033,7 +1039,7 @@
     window.M4L_ACADEMY_ASSESSMENTS?.reset();$('as-panel').hidden=true;
     memorisationReturn=null;restoreMemorisation=null;$('mp-teach-panel').hidden=true;$('mp-admin-context').textContent='';window.M4L_MEMORISATION_ADMIN?.reset();
     window.M4L_ACADEMY_PROGRESS?.reset();
-    window.M4L_PROGRAM_ATTENDANCE?.reset();
+    window.M4L_ACADEMY_SETTINGS?.reset();window.M4L_PROGRAM_ATTENDANCE?.reset();
     $('pa-main').hidden = true;
     lastRouteHash = '';
     if(!token() || navigationSession !== token())try{sessionStorage.removeItem(TIMETABLE_RETURN_KEY);sessionStorage.removeItem(MEMORISATION_RETURN_KEY);dailyCache.owner='';}catch{}

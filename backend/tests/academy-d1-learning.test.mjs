@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -13,7 +14,7 @@ import {programToday,WEEKLY_SCHEMA} from '../src/programs/weekly-timetable.js';
 import worker from '../src/academy-runtime.js';
 const timetablePath='/api/admin/platform/program-timetable/',attendancePath='/api/program-attendance/',libraryPath='/api/admin/platform/program-library/';
 const id=PROGRAM_IDS[0],activity=`PROGRAM:${id}`,today=()=>programToday('Africa/Johannesburg');
-const post=async(env,path,input={},token='')=>{const response=await worker.fetch(new Request(`http://localhost${path}`,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:JSON.stringify(input)}),env);return {status:response.status,body:await response.json()};};
+const post=async(env,path,input={},token='')=>{const response=await worker.fetch(new WorkspaceRequest(`http://localhost${path}`,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:JSON.stringify(input)}),env);return {status:response.status,body:await response.json()};};
 const login=async(env,suffix='0001')=>{const result=await post(env,'/api/account/login',{uniqueid:`login-${suffix}`,pin:'1234'});assert.equal(result.status,200,JSON.stringify(result.body));return result.body.token;};
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
 const draft=()=>({format:WEEKLY_SCHEMA,timezone:'Africa/Johannesburg',rules:[{id:'RULE-d1-publish',programSubjectId:subject,moduleId,teacherId:'account-0003',classIds:['class-1'],weekdays:[0,1,2,3,4,5,6],startTime:'10:00',endTime:'11:00',zoomLink:'https://zoom.us/j/12345678901'}]});
@@ -130,7 +131,7 @@ test('the existing timetable and attendance screens use the D1 contracts',()=>us
       location:{search:`?program=${id}`,host:'localhost',origin:'http://localhost'},history:{replaceState(){}},window:{M4L_CONFIG:{API_BASE:''},addEventListener(){}},
       localStorage:{getItem:k=>k==='m4l_account_token'?token:storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},sessionStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},
       document:{getElementById:element,querySelectorAll:()=>[],querySelector:()=>null,addEventListener(){}},
-      fetch:async(url,options)=>{requests.push({url,body:JSON.parse(options.body)});return worker.fetch(new Request(new URL(url,'http://localhost'),options),env);}};
+      fetch:async(url,options)=>{requests.push({url,body:JSON.parse(options.body)});return worker.fetch(new WorkspaceRequest(new URL(url,'http://localhost'),options),env);}};
     vm.createContext(context);for(const file of [...helpers,scriptPath])vm.runInContext(readFileSync(new URL(file,import.meta.url),'utf8'),context);
     return {element,requests};
   }

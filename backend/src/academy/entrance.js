@@ -62,12 +62,13 @@ export function timetableTeacherNames(row,names=new Map()) {
 
 export function programProjection(program, data, user, roles, start, end, now, detailed = false, groupZoom = () => '', compatibilityDetails = false, teacherDisplayNames = new Map()) {
   const name = programDisplayName(program);
+  const preview=Boolean(user?.previewActivities?.some(k=>key(k)===key('PROGRAM:'+program.id)));
   const snapshot = data.prepared ? managementState(data, program).snapshot : {};
   const classes = (snapshot.ProgramClasses || []).filter(row => row.CourseID === program.id && active(row.Active));
   const enrolments = (snapshot.ProgramEnrollments || []).filter(row => row.CourseID === program.id);
   // An explicit allocation (including a withdrawn or dated one) wins. Only a
   // verified Student with no allocation may use the sole active class.
-  if (user && roles.includes('STUDENT') && classes.length === 1 && !enrolments.some(row => key(row.AccountID) === key(user.accountid)))
+  if (user && !preview && roles.includes('STUDENT') && classes.length === 1 && !enrolments.some(row => key(row.AccountID) === key(user.accountid)))
     enrolments.push({AccountID:user.accountid,ClassID:classes[0].ClassID,Active:true});
   const timetable = [];
   const history = (data.tables?.ProgramTimetablePublications || []).map(row => publicationRecord(row, program));
@@ -82,15 +83,15 @@ export function programProjection(program, data, user, roles, start, end, now, d
         !(publication.pattern === 'WEEKLY' ? row.weekday === weekday : row.date === date)) continue;
       const classIds = row.classIds || [];
       const zoomLink=data.zoomLinkForLesson?data.zoomLinkForLesson(row,publication):row.zoomLink;
-      const teaching = staff(roles) && (row.teacherIds || [row.teacherId]).some(id => key(id) === key(user?.accountid));
-      const enrolled = roles.includes('STUDENT') && enrolments.some(item => participant(item, user?.accountid, date, classIds));
+      const teaching = !preview && staff(roles) && (row.teacherIds || [row.teacherId]).some(id => key(id) === key(user?.accountid));
+      const enrolled = !preview && roles.includes('STUDENT') && enrolments.some(item => participant(item, user?.accountid, date, classIds));
       const oversight = roles.some(role => ['GLOBAL_ADMIN', 'PROGRAM_ADMIN', 'ADMIN', 'SENIOR'].includes(role));
       const involved = Boolean(teaching || enrolled);
-      const mayView = Boolean(user && roles.length && (staff(roles) || enrolled));
+      const mayView = Boolean(user && roles.length && (staff(roles) || enrolled || preview));
       const event = { kind: 'PROGRAM', activityId: program.id, activityName: name, date,
         startTime: row.startTime, endTime: row.endTime, timezone: publishedTimezone,
         title: detailed && mayView ? row.moduleName || row.subjectName || name : name,
-        relevant: involved, involvement: teaching ? 'teacher' : enrolled ? 'student' : '',
+        relevant: involved, involvement: teaching ? 'teacher' : enrolled ? 'student' : '',...(preview?{preview:true}:{}),
         status: row.status || 'SCHEDULED' };
       if (mayView) {
         const teacherNames=timetableTeacherNames(row,teacherDisplayNames);
@@ -112,7 +113,7 @@ export function programProjection(program, data, user, roles, start, end, now, d
       timetable.push(event);
     }
   }
-  const ownClasses = classes.filter(row => staff(roles) || roles.includes('STUDENT') &&
+  const ownClasses = classes.filter(row => staff(roles) || user?.previewActivities?.some(k=>key(k)===key('PROGRAM:'+program.id)) || roles.includes('STUDENT') &&
     enrolments.some(item => participant(item, user?.accountid, start, [row.ClassID])));
   const curriculum = roles.length ? (snapshot.ProgramSubjects || []).filter(row => row.CourseID === program.id && active(row.Active)).map(subject => ({
     id: subject.ProgramSubjectID,
@@ -240,7 +241,7 @@ export async function buildEntrance({ tables, programs, rolesByProgram, rolesByC
   const administeredActivities = new Set([...programViews,...courseViews].filter(view => view.roles.some(role =>
     ['PROGRAM_ADMIN', 'ADMIN'].includes(role))).map(view => `${view.kind}:${key(view.id)}`));
   const oversees = row => globalAdmin(user) || administeredActivities.has(`${row.kind}:${key(row.activityId)}`);
-  const personalTimetable = user ? timetable.filter(row => (oversees(row) || row.relevant) && row.status === 'SCHEDULED')
+  const personalTimetable = user ? timetable.filter(row => (oversees(row) || row.relevant || row.preview) && row.status === 'SCHEDULED')
     .map(row => ({ ...row, title: row.moduleName || row.subjectName || row.title, ...lessonTimes(row), summarize: row.kind === 'PROGRAM' || oversees(row) }))
     .filter(row => Number.isFinite(row.startsAt) && Number.isFinite(row.endsAt))
     .sort((a, b) => a.startsAt - b.startsAt || a.activityId.localeCompare(b.activityId)) : [];

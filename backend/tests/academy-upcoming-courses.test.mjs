@@ -14,7 +14,7 @@ test('upcoming Courses are independent of the week, scoped to teaching authority
    if(role==='admin')assert.equal(home.personalActivities.length,f.db.prepare("SELECT count(*) n FROM activities WHERE active=1 AND lifecycle='ACTIVE'").get().n,'Global Admin inherits access to every active Program and Course');
    const upcoming=home.upcomingCourses.find(c=>c.id===f.published.courseId);
    assert.equal(upcoming.startDate,f.startDate);assert.equal(upcoming.canPlan,true);assert.equal(upcoming.canManage,role==='admin');
-   assert.ok(home.upcomingCourses.some(c=>c.id===f.draft.courseId&&c.stage==='DRAFT'&&!c.canPlan));
+   assert.equal(home.upcomingCourses.some(c=>c.id===f.draft.courseId&&c.stage==='DRAFT'&&!c.canPlan),role==='admin','Unpublished setup stays in the Admin upcoming catalogue');
    assert.ok(!home.personalTimetable.some(l=>l.activityId===f.published.courseId),'Future lessons do not appear in the wrong week');
    assert.doesNotMatch(JSON.stringify(home.upcomingCourses),/zoom|secret|teacherId|sessions/i);
    const next=ok(await f.call('/api/academy/entrance',{startDate:f.startDate},f.tokens[role]));

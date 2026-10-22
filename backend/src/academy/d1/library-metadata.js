@@ -38,11 +38,12 @@ function imageType(bytes) {
 
 export async function openLibraryMetadataUser(request, env) {
   const repository=academyD1Repository(env);await repository.ready();
-  const user=(await authenticatedD1Account(request,env,repository)).user;
+  const auth=await authenticatedD1Account(request,env,repository),user=auth.user;
+  if(auth.workspace!=='ADMIN')throw problem('Open Admin to edit Open Library details.',403);
   if (!user) throw problem('Sign in through your personal Academy account link.', 401);
   if (user.type !== 'account' ||
-      !(user.role === 'GLOBAL_ADMIN' || (user.role === 'TEACHER' && user.scope === 'COURSE'))) {
-    throw problem('Only Academy administrators and teachers can edit Open Library details.', 403);
+      !auth.state.account.global_admin) {
+    throw problem('Only Global Admin can edit the shared Open Library.', 403);
   }
   return user;
 }

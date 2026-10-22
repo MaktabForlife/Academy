@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -12,11 +13,11 @@ import {openLibraryMetadataUser} from '../src/academy/d1/library-metadata.js';
 const base='/api/academy/open-library/metadata/',book='EXTERNAL:INTERNET_ARCHIVE:D1_TEST_BOOK';
 const png=new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,0]);
 async function post(env,path,input={},token=''){
-  const r=await worker.fetch(new Request('https://academy.invalid'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),env);return {status:r.status,body:await r.json()};
+  const r=await worker.fetch(new WorkspaceRequest('https://academy.invalid'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),env);return {status:r.status,body:await r.json()};
 }
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
 const login=async(env,id='0001')=>ok(await post(env,'/api/account/login',{uniqueid:'login-'+id,pin:'1234'})).token;
-const get=(env,path)=>worker.fetch(new Request('https://academy.invalid'+path),env);
+const get=(env,path)=>worker.fetch(new WorkspaceRequest('https://academy.invalid'+path),env);
 const save=(env,token,input)=>post(env,base+'save',input,token);
 const archiveInput={id:book,baseRevision:0,title:'D1 book',resourceType:'EBOOK',learningAreaRefs:['PROGRAM:'+PROGRAM_IDS[0]],subjectRef:'GLOBAL:subject-1',moduleRef:'GLOBAL:module-1',coverUrl:''};
 async function use(fn){
@@ -35,8 +36,8 @@ test('Open Library keeps its existing Cloudflare namespace and public metadata/c
   assert.equal(data.records[0].hasUploadedCover,true);assert.ok(!JSON.stringify(data).includes(coverKey));
   const cover=await get(env,base+'cover?id='+encodeURIComponent(book));assert.equal(cover.status,200);assert.deepEqual(new Uint8Array(await cover.arrayBuffer()),png);
   assert.equal((await post(env,base+'list')).status,401);
-  for(const id of ['0002','0004'])assert.equal((await post(env,base+'list',{},await login(env,id))).status,403);
-  for(const id of ['0001','0003','0005'])assert.equal(ok(await post(env,base+'list',{},await login(env,id))).records.length,2);
+  for(const id of ['0002','0003','0004','0005'])assert.equal((await post(env,base+'list',{},await login(env,id))).status,403);
+  for(const id of ['0001'])assert.equal(ok(await post(env,base+'list',{},await login(env,id))).records.length,2);
   assert.equal((await post(env,base+'public')).status,405);
   assert.equal((await get(env,base+'list')).status,405);
 }));
@@ -56,7 +57,7 @@ test('D1 Open Library taxonomy uses current active Academy/Program/Course record
 }));
 
 test('the actual Open Library coordinator validates D1 references and protects concurrent edits',()=>use(async({env,db,metadata,queries})=>{
-  const token=await login(env,'0003'),roles=db.prepare('SELECT * FROM role_assignments').all(),credentials=db.prepare('SELECT * FROM account_credentials').all(),start=queries.length;
+  const token=await login(env,'0001'),roles=db.prepare('SELECT * FROM role_assignments').all(),credentials=db.prepare('SELECT * FROM account_credentials').all(),start=queries.length;
   const added=ok(await save(env,token,archiveInput));assert.equal(added.record.subject,'Synthetic subject');assert.equal(added.record.module,'Synthetic module');assert.ok(queries.length-start<=50);
   assert.equal((await save(env,token,{...archiveInput,title:'Stale'})).status,409);
   const edits=await Promise.all(['First','Second'].map(title=>save(env,token,{...archiveInput,title,baseRevision:1})));assert.deepEqual(edits.map(r=>r.status).sort(),[200,409]);
@@ -66,11 +67,11 @@ test('the actual Open Library coordinator validates D1 references and protects c
 }));
 
 test('authority is rechecked after D1 taxonomy loading; a cached or forged user cannot bypass it',()=>use(async({env,db,metadata,coordinator})=>{
-  const token=await login(env,'0003'),binding=nativeBinding(db);let revoke=true;
-  const wrapped={...binding,batch:async statements=>{const result=await binding.batch(statements);if(revoke&&statements.length===4){revoke=false;db.exec("UPDATE role_assignments SET active=0 WHERE account_id='account-0003'; UPDATE legacy_access_evidence SET source_effective=0 WHERE account_id='account-0003'");}return result;}};
+  const token=await login(env,'0001'),binding=nativeBinding(db);let revoke=true;
+  const wrapped={...binding,batch:async statements=>{const result=await binding.batch(statements);if(revoke&&statements.length===4){revoke=false;db.exec("UPDATE global_role_assignments SET active=0 WHERE account_id='account-0001'");}return result;}};
   coordinator.env={...env,ACADEMY_DB:{withSession:()=>wrapped}};
   assert.equal((await save(env,token,archiveInput)).status,401);assert.equal(metadata.prepare('SELECT count(*) n FROM open_library_metadata').get().n,0);
-  const forged=new Request('https://academy.invalid/',{headers:{Authorization:'Bearer invalid'}});
+  const forged=new WorkspaceRequest('https://academy.invalid/',{headers:{Authorization:'Bearer invalid'}});
   await assert.rejects(()=>openLibraryMetadataUser(forged,env),e=>e.status===401);
   assert.equal((await post(env,base+'options',{},token)).status,401);
 }));
@@ -78,7 +79,7 @@ test('authority is rechecked after D1 taxonomy loading; a cached or forged user 
 test('uploaded covers keep validation and cleanup on failed saves; hidden links and covers stay out of public reads',()=>use(async({env,metadata,objects})=>{
   const token=await login(env),upload=async(input,bytes=png)=>{
     const form=new FormData();form.append('details',JSON.stringify(input));form.append('cover',new Blob([bytes],{type:'image/png'}),'cover.png');
-    const r=await worker.fetch(new Request('https://academy.invalid'+base+'save',{method:'POST',headers:{Authorization:'Bearer '+token},body:form}),env);return {status:r.status,body:await r.json()};
+    const r=await worker.fetch(new WorkspaceRequest('https://academy.invalid'+base+'save',{method:'POST',headers:{Authorization:'Bearer '+token},body:form}),env);return {status:r.status,body:await r.json()};
   };
   assert.equal((await upload(archiveInput,new Uint8Array([0,1,2]))).status,400);assert.equal(objects.size,0);
   const added=ok(await upload({...archiveInput,kind:'LINK',id:undefined,resourceType:'OTHER',linkUrl:'https://example.org/learning',active:true})).record;
@@ -104,7 +105,7 @@ test('the existing Open Library editor loads D1 taxonomy and saves through the a
   const token=await login(env),nodes=new Map();
   const element=()=>({listeners:{},value:'',textContent:'',hidden:false,checked:false,disabled:false,dataset:{},files:[],children:[],setAttribute(n,v){this[n]=v;},addEventListener(n,fn){this.listeners[n]=fn;},append(...children){this.children.push(...children);},replaceChildren(...children){this.children=children;if(!children.some(c=>c.value===this.value))this.value=children[0]?.value||'';}});
   const node=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};node('olm-form').hidden=true;
-  const fetch=async(url,init)=>url==='/academy/open-library/catalogue'?Response.json({books:[{id:book,source:'Internet Archive',title:'Original title',resourceType:'EBOOK'}]}):worker.fetch(new Request(url,init),env);
+  const fetch=async(url,init)=>url==='/academy/open-library/catalogue'?Response.json({books:[{id:book,source:'Internet Archive',title:'Original title',resourceType:'EBOOK'}]}):worker.fetch(new WorkspaceRequest(url,init),env);
   const window={M4L_CONFIG:{API_BASE:'https://academy.invalid'},addEventListener(){}},source=readFileSync(new URL('../../js/m4l-open-library-manage.js',import.meta.url),'utf8').replace('void start();','window.testStart=start();');
   vm.runInNewContext(source,{document:{getElementById:node,createElement:element,createTextNode:text=>({textContent:text}),addEventListener(){}},window,localStorage:{getItem:()=>token},fetch,FormData,URL});
   await window.testStart;assert.equal(node('olm-form').hidden,false,node('olm-status').textContent);assert.ok(node('olm-subject').children.some(o=>o.value==='GLOBAL:subject-1'));

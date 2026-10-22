@@ -8,11 +8,19 @@ import {currentProgramZoom} from './program-zoom.js';
 import {historicalPublications} from './historical-timetable.js';
 import {MOU_MEDIA_PROGRAM} from './lesson-media.js';
 import {d1CourseCatalogue} from './course-catalogue.js';
+import {isAdminWorkspace,administers,actualState,readerPreview} from './workspace-access.js';
 
 const samePublication=(a,b)=>String(a).toUpperCase()===String(b).toUpperCase();
 // Adapt normalized D1 records at the repository boundary. Reuse the established
 // timetable projection so privacy, class membership and timed joining are shared.
-export async function d1Entrance(repository,state,user,input={},now=new Date(),{days=7,detailed=false}={}) {
+export async function d1Entrance(repository,state,user,input={},now=new Date(),{days=7,detailed=false,auth}={}) {
+  const previewKeys=[];
+  if(auth&&!isAdminWorkspace(auth)){
+    const role=auth.workspace==='TEACH'?'TEACHER':'STUDENT';
+    previewKeys.push(...actualState(auth).activities.filter(a=>administers(auth,a.activity_key)&&readerPreview(auth,a.activity_key)).map(a=>a.activity_key));
+    state={...state,roles:[...state.roles,...previewKeys.map(activity_key=>({activity_key,role}))],subscriptions:[...state.subscriptions,...previewKeys.filter(k=>k.startsWith('COURSE:')).map(activity_key=>({activity_key}))]};
+    user={...user,role,previewActivities:previewKeys};
+  }
   const config=await repository.homeConfiguration();
   if(!config?.setting_value)throw rehearsalError('Academy timezone needs migration.');
   const start=input.startDate || (days===7?sunday(dateInTimezone(now,config.setting_value)):dateInTimezone(now,config.setting_value));
@@ -63,7 +71,7 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
   // Planning is independent of the displayed timetable week. Reuse the scoped
   // catalogue's safe metadata; never send editor sessions or meeting links here.
   if(courseWorkflows&&state&&(state.account.global_admin||state.roles.some(r=>r.activity_key.startsWith('COURSE:')&&['TEACHER','PROGRAM_ADMIN'].includes(r.role)))){
-    const catalogue=await d1CourseCatalogue(repository,{state,user},now),today=dateInTimezone(now,config.setting_value);
+    const catalogue=await d1CourseCatalogue(repository,auth?{...auth,state,user}:{state,user},now),today=dateInTimezone(now,config.setting_value);
     const staffCourses=new Set(result.personalActivities.filter(a=>a.kind==='COURSE'&&a.roles.some(r=>['GLOBAL_ADMIN','PROGRAM_ADMIN','TEACHER'].includes(r))).map(a=>a.id.toUpperCase()));
     result.upcomingCourses=catalogue.courses.filter(c=>staffCourses.has(c.id.toUpperCase())&&c.canOpenActivity&&['PUBLISHED','DRAFT'].includes(c.stage)&&c.startDate>today)
       .map(({id,runId,name,stage,startDate,endDate,canPlan,canManage})=>({id,runId,name,stage,startDate,endDate,canPlan,canManage}))
@@ -80,6 +88,25 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
     const project=row=>{const activity=row.kind+':'+row.activityId;if(!byActivity.has(activity))byActivity.set(activity,noTeachingCalendarEvents(data,start,end,activity));const holiday=holidayOnDate(byActivity.get(activity),row.date);if(!holiday||row.status!=='SCHEDULED')return row;const {joinKey,joinUrl,publicJoin,...rest}=row;return {...rest,status:'HOLIDAY',holidayName:holiday.description};};
     result.timetable=result.timetable.map(project);result.personalTimetable=result.personalTimetable.map(project).filter(row=>row.status==='SCHEDULED');if(result.activity)result.activity={...result.activity,timetable:result.activity.timetable.map(project)};
     result.calendarEvents=buildAcademyCalendarEvents(calendarRows(calendar,suppressions,calendarSettings),start,end);
+  }
+  if(auth){
+    result.workspace=auth.workspace;
+    const real=actualState(auth),canAdmin=Boolean(real.account.global_admin||real.roles.some(r=>r.role==='PROGRAM_ADMIN'));
+    result.workspaceAccess={learn:true,teach:canAdmin||real.roles.some(r=>r.role==='TEACHER'),admin:canAdmin};
+    result.previewActivities=previewKeys;
+    if(!isAdminWorkspace(auth)){
+      const role=auth.workspace==='TEACH'?'TEACHER':'STUDENT',project=a=>({...a,roles:a.roles.filter(r=>r===role)});
+      result.activities=result.activities.map(project);result.personalActivities=result.personalActivities.map(project).filter(a=>a.roles.length);result.activityPages=result.activityPages.map(project).filter(a=>a.roles.length);
+      if(result.activity)result.activity=project(result.activity);
+      if(auth.workspace==='TEACH')result.student=false;
+    }
+    const reader=row=>{
+      const key=row.kind+':'+row.activityId;
+      if(auth.workspace==='TEACH'&&!result.personalActivities.some(a=>samePublication(a.kind+':'+a.id,key))){const {kind,activityId,activityName,date,startTime,endTime,timezone,status}=row;return {kind,activityId,activityName,date,startTime,endTime,timezone,status,title:activityName,relevant:false,involvement:''};}
+      if(!previewKeys.some(k=>samePublication(k,key)))return row;const {joinKey,joinUrl,publicJoin,...safe}=row;return {...safe,preview:true,relevant:false,involvement:''};
+    };
+    result.timetable=result.timetable.map(reader);result.personalTimetable=result.personalTimetable.map(reader);if(result.activity)result.activity={...result.activity,timetable:result.activity.timetable.map(reader)};
+    if(auth.workspace==='TEACH')result.personalTimetable=result.personalTimetable.filter(r=>result.personalActivities.some(a=>samePublication(a.kind+':'+a.id,r.kind+':'+r.activityId)));
   }
   return result;
 }

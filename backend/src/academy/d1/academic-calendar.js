@@ -5,12 +5,13 @@ export {termBreaks} from '../calendar-dates.js';
 import {managementStore,managementError,same,liveRoles,rowChanged} from './management-store.js';
 import {optionalSchema} from './schema-probe.js';
 import {teacherDesignations,teacherDirectory} from './teachers.js';
-import {canEditTeacherAvailability} from './teacher-availability.js';
+import {canEditTeacherAvailability,availabilityAuthorityScopes} from './teacher-availability.js';
 import {calendarRows} from './course-calendar.js';
 import {buildAcademyCalendarEvents,expandAnnualCalendarRows} from '../../lib/academy-calendar.js';
 import {availabilityBlocks,exceptionRanges} from '../availability-ranges.js';
 import {programToday} from '../../programs/weekly-timetable.js';
 import {lessonTimes} from '../entrance.js';
+import {administers} from './workspace-access.js';
 
 const validDate=v=>/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v+'T12:00:00Z'))&&new Date(v+'T12:00:00Z').toISOString().slice(0,10)===v;
 const add=(date,n)=>new Date(Date.parse(date+'T12:00:00Z')+n*86400000).toISOString().slice(0,10);
@@ -26,7 +27,7 @@ export function academicCalendar(repository,auth) {
   const teachers=await teacherDesignations(repository);
   return store.load({teachers:teachers.statement,calendar:p('SELECT * FROM academy_calendar_events'),suppressions:p('SELECT * FROM academy_calendar_suppressions'),availability:p('SELECT * FROM teacher_availability'),classes:p('SELECT t.* FROM class_teacher_assignments t JOIN classes c USING(activity_key,class_id) WHERE c.active=1'),drafts:p('SELECT activity_key,draft_json FROM timetable_drafts'),teaching:p('SELECT activity_key,account_id FROM published_lesson_teachers'),settings:p("SELECT * FROM academy_settings WHERE setting_key='PlatformTimezone' OR setting_key LIKE 'AcademyHijriAnnual:%' OR setting_key LIKE 'AcademyHolidayAnnual:%'")});
  }
- function scopes(data){return [{key:'ACADEMY',name:'Academy',editable:Boolean(auth.state.account.global_admin)},...data.activities.filter(a=>activeProgram(a)&&(auth.state.account.global_admin||liveRoles(data,auth.user.accountid,a.activity_key).length)).map(a=>({key:a.activity_key,name:a.name,editable:canManage(data,auth,a.activity_key)}))];}
+ function scopes(data){return [{key:'ACADEMY',name:'Academy',editable:Boolean(auth.state.account.global_admin)},...data.activities.filter(a=>activeProgram(a)&&(auth.state.account.global_admin||administers(auth,a.activity_key)||liveRoles(data,auth.user.accountid,a.activity_key).length)).map(a=>({key:a.activity_key,name:a.name,editable:canManage(data,auth,a.activity_key)}))];}
  function eventDTO(data,row){return {id:row.event_id,kind:row.calendar_kind==='REFERENCE'?row.event_type:row.calendar_kind,description:row.description,scopeKey:row.scope_key,scopeName:scopeLabel(data,row.scope_key),startDate:row.start_date,endDate:row.end_date,active:Boolean(row.active),revision:row.revision,annual:row.annual??annualFlag(data.settings,row),annualRevision:annualRevision(data.settings,row),dateRequired:Boolean(row.date_required),editable:canManage(data,auth,row.scope_key),teachingImpact:row.teaching_impact};}
  async function teachingWeek(data,teacherId,scopeKey,year,month,timezone){
   const today=programToday(timezone),anchor=today.startsWith(`${year}-${String(month).padStart(2,'0')}`)?today:`${year}-${String(month).padStart(2,'0')}-01`,start=add(anchor,-((new Date(anchor+'T12:00:00Z').getUTCDay()+6)%7)),end=add(start,6);
@@ -41,6 +42,7 @@ export function academicCalendar(repository,auth) {
  }
  async function get(input){
   const data=await load(),view=['learn','teach'].includes(input.view)?input.view:'admin',management=view==='admin',year=Number(input.year||new Date().getUTCFullYear()),month=Number(input.month||new Date().getUTCMonth()+1);
+  if(view==='learn'&&input.teacherId)throw managementError('Teacher availability is available in Teach or Admin.',403,'FORBIDDEN');
   if(!Number.isInteger(year)||year<2025||year>2100||!Number.isInteger(month)||month<1||month>12)throw managementError('Choose a valid calendar month and year.');
   const choices=scopes(data),scopeKey=input.scopeKey||'ACADEMY';if(!choices.some(s=>same(s.key,scopeKey)))throw managementError('This Program calendar is not available to your account.',403,'FORBIDDEN');
   const first=`${year}-01-01`,last=`${year}-12-31`,inYear=e=>e.startDate<=last&&e.endDate>=first;
@@ -52,6 +54,7 @@ export function academicCalendar(repository,auth) {
   const timezone=data.settings.find(s=>s.setting_key==='PlatformTimezone')?.setting_value||'Africa/Johannesburg',today=programToday(timezone),own=data.accounts.find(a=>same(a.account_id,auth.user.accountid)),selfEditable=canEditTeacherAvailability(data,auth.user.accountid,auth.user.accountid);
   let teachers=view==='learn'?[]:teacherDirectory(data).filter(t=>canEditTeacherAvailability(data,auth.user.accountid,t.accountId));
   if(view!=='learn'&&selfEditable&&!teachers.some(t=>same(t.accountId,own.account_id)))teachers.unshift({accountId:own.account_id,name:own.display_name});
+  if(view==='teach'&&!teachers.length&&administers(auth,scopeKey))teachers=[{accountId:own.account_id,name:own.display_name}];
   if(view==='teach')teachers=teachers.filter(t=>same(t.accountId,auth.user.accountid));
   const allTerms=data.calendar.filter(r=>r.active&&(r.calendar_kind==='TERM'||r.calendar_kind==='REFERENCE'&&r.event_type==='TERM')).map(r=>eventDTO(data,r)),currentYear=today.slice(0,4),ownCurrentTerms=scopeKey==='ACADEMY'?[]:allTerms.filter(t=>same(t.scopeKey,scopeKey)&&t.startDate<=currentYear+'-12-31'&&t.endDate>=currentYear+'-01-01'),currentTerms=(ownCurrentTerms.length?ownCurrentTerms:allTerms.filter(t=>t.scopeKey==='ACADEMY')).filter(t=>t.startDate<=today&&t.endDate>=today);
   if(view==='teach'&&input.teacherId&&!same(input.teacherId,auth.user.accountid))throw managementError('Open Admin Calendar to edit another teacher’s availability.',403,'FORBIDDEN');
@@ -60,7 +63,7 @@ export function academicCalendar(repository,auth) {
   const entry=data.availability.find(a=>same(a.account_id,teacherId)),ranges=entry?JSON.parse(entry.ranges_json):[];
   const forView=rows=>management?rows:rows.map(row=>({...row,editable:false}));
   return {year,month,today,view,scopes:management?choices:choices.filter(c=>same(c.key,scopeKey)).map(c=>({...c,editable:false})),scopeKey,events:forView(events.sort((a,b)=>a.startDate.localeCompare(b.startDate))),terms:forView(terms),currentTerms:forView(currentTerms),hijriEntries:management&&auth.state.account.global_admin?hijriYearRows(data.calendar,data.settings,year).map(row=>eventDTO(data,row)):[],teachers,teacherId,
-   availability:teacherId?{accountId:teacherId,ranges,revision:entry?.revision||0,editable:true,legacyHours:ranges.length>0&&!exceptionRanges(ranges),blocks:Array.from({length:new Date(Date.UTC(year,month,0)).getUTCDate()},(_,i)=>`${year}-${String(month).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`).flatMap(date=>availabilityBlocks(ranges,date).map(r=>({...r,date})))}:null,
+   availability:teacherId?{accountId:teacherId,ranges,revision:entry?.revision||0,editable:management&&Boolean(auth.state.account.global_admin||availabilityAuthorityScopes(data,auth.user.accountid,teacherId).length),legacyHours:ranges.length>0&&!exceptionRanges(ranges),blocks:Array.from({length:new Date(Date.UTC(year,month,0)).getUTCDate()},(_,i)=>`${year}-${String(month).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`).flatMap(date=>availabilityBlocks(ranges,date).map(r=>({...r,date})))}:null,
    teachingWeek:teacherId?await teachingWeek(data,teacherId,scopeKey,year,month,timezone):null,canManageAcademy:management&&Boolean(auth.state.account.global_admin)};
  }
  async function save(input){return store.change('ACADEMY_CALENDAR',input.entry?.scopeKey||'ACADEMY','save',input,async()=>{

@@ -18,7 +18,7 @@ export async function copyProgram(repository,auth,input){
   const data=await store.load(Object.fromEntries(Object.entries(tables).map(([k,t])=>['copy_'+k,p(`SELECT * FROM ${t} WHERE activity_key=?`,key)])));
   const source=data.activities.find(a=>a.kind==='PROGRAM'&&same(a.activity_key,key));if(!source)throw fail('Choose an existing Program.',404);
   if(String(input.revision)!==String(source.revision))throw rowChanged(null,String(source.revision));
-  const settings=data.programs.find(s=>same(s.activity_key,key)),config=definition({name:input.name,timezone:settings.timezone,durationYears:settings.duration_years??'',status:'DRAFT'});
+  const settings=data.programs.find(s=>same(s.activity_key,key)),config=definition({name:input.name,timezone:(await repository.homeConfiguration()).setting_value,durationYears:settings.duration_years??'',status:'DRAFT'});
   const id='PRG-'+crypto.randomUUID(),activity='PROGRAM:'+id,now=new Date().toISOString(),year=new Intl.DateTimeFormat('en',{timeZone:config.timezone,year:'numeric'}).format(new Date());
   const maps={},records={};
   const mapped=(kind,value)=>value?maps[kind].get(String(value).toUpperCase())||null:null;
@@ -49,7 +49,7 @@ export async function copyProgram(repository,auth,input){
    if(current){
     const original=readWeeklyDraft(JSON.parse(current.draft_json)).draft,timetableId='TT-'+crypto.randomUUID();
     const rules=original.rules.filter(r=>(!r.moduleId||mapped('modules',r.moduleId))&&(!r.programSubjectId||mapped('subjects',r.programSubjectId))&&r.classIds.every(v=>mapped('classes',v))).map(r=>({...r,id:'RULE-'+crypto.randomUUID(),moduleId:mapped('modules',r.moduleId)||'',programSubjectId:mapped('subjects',r.programSubjectId)||'',classIds:r.classIds.map(v=>mapped('classes',v))}));
-    const draft=normalizeWeeklyDraft({...original,timetableId,rules,breaks:(original.breaks||[]).map(r=>({...r,id:'BREAK-'+crypto.randomUUID()})),...(original.planner?{planner:{...original.planner,availability:[],periods:original.planner.periods.map(r=>({...r,id:'PERIOD-'+crypto.randomUUID()}))}}:{})});
+    const draft=normalizeWeeklyDraft({...original,timezone:config.timezone,timetableId,rules,breaks:(original.breaks||[]).map(r=>({...r,id:'BREAK-'+crypto.randomUUID()})),...(original.planner?{planner:{...original.planner,availability:[],periods:original.planner.periods.map(r=>({...r,id:'PERIOD-'+crypto.randomUUID()}))}}:{})});
     const json=JSON.stringify(draft),hash=await payloadHash(draft);
     statements.push(p('INSERT INTO timetable_drafts VALUES(?,?,?,?,?,?,?)',activity,activity,crypto.randomUUID(),1,json,hash,now),p("INSERT INTO program_timetable_records(timetable_id,activity_key,draft_json,status,source_id,updated_at) VALUES(?,?,?,'DRAFT',?,?)",timetableId,activity,json,original.timetableId||null,now));
    }

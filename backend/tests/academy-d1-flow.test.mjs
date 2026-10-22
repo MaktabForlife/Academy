@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import {profileChange} from '../tools/academy-profile-client.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,7 +13,7 @@ import {d1Entrance} from '../src/academy/d1/entrance.js';
 import {authenticatedD1Account} from '../src/academy/d1/session.js';
 
 async function call(env,path,body={},token='',extra={}) {
-  const r=await worker.fetch(new Request(`http://localhost${path}`,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{ }),...extra},body:JSON.stringify(body)}),env);
+  const r=await worker.fetch(new WorkspaceRequest(`http://localhost${path}`,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{ }),...extra},body:JSON.stringify(body)}),env);
   return {status:r.status,body:await r.json(),headers:r.headers};
 }
 const login=(env,id='0002')=>call(env,'/api/account/login',{uniqueid:`login-${id}`,pin:'1234'});
@@ -21,7 +22,7 @@ const use=async fn=>{const f=await fixtureDatabase();try{await fn(f);}finally{f.
 test('daily cached lessons expose no meeting URL and joining rechecks time, publication and current access',()=>use(async({env,db})=>{
   const signed=await login(env),token=signed.body.token,repository=academyD1Repository(env);
   await repository.ready();
-  const request=new Request('http://localhost/api/academy/lesson/join',{headers:{Authorization:`Bearer ${token}`}});
+  const request=new WorkspaceRequest('http://localhost/api/academy/lesson/join',{headers:{Authorization:`Bearer ${token}`}});
   const auth=await authenticatedD1Account(request,env,repository);
   const before=new Date('2026-10-09T07:54:59Z'),open=new Date('2026-10-09T07:55:00Z');
   const timetable=await d1Entrance(repository,auth.state,auth.user,{startDate:'2026-10-09'},before);
@@ -49,7 +50,7 @@ test('a Course cancelled after caching cannot be joined',async()=>{
   const f=await fixtureDatabase(12,s=>setCell(s,'PublishedGlobalTimetableSessions',1,'ZoomLink','https://zoom.us/j/12345678901'));
   try {
     const signed=await login(f.env,'0003'),repository=academyD1Repository(f.env);await repository.ready();
-    const auth=await authenticatedD1Account(new Request('http://localhost',{headers:{Authorization:`Bearer ${signed.body.token}`}}),f.env,repository);
+    const auth=await authenticatedD1Account(new WorkspaceRequest('http://localhost',{headers:{Authorization:`Bearer ${signed.body.token}`}}),f.env,repository);
     const now=new Date('2026-10-09T07:55:00Z');
     const home=await d1Entrance(repository,auth.state,auth.user,{startDate:'2026-10-09'},now);
     const lesson=home.personalTimetable.find(row=>row.kind==='COURSE'&&row.joinKey);assert.ok(lesson);
@@ -201,7 +202,7 @@ test('derived Course schedules retain immutable labels and recurrence after impo
     assert.equal(response.status,200);assert.ok(response.body.activity.timetable.some(e=>e.moduleName==='Published synthetic module'));
     assert.ok(!response.body.warnings.some(w=>w.includes('Synthetic subject timetable')));
     const repository=academyD1Repository(f.env);await repository.ready();
-    const auth=await authenticatedD1Account(new Request('http://localhost',{headers:{Authorization:`Bearer ${signed.body.token}`}}),f.env,repository);
+    const auth=await authenticatedD1Account(new WorkspaceRequest('http://localhost',{headers:{Authorization:`Bearer ${signed.body.token}`}}),f.env,repository);
     const lesson=response.body.personalTimetable.find(row=>row.kind==='COURSE'&&row.joinKey);
     assert.ok(lesson);assert.match(lesson.joinKey,/RULE-derived/,'Derived occurrences have stable source references');
     const input={date:lesson.date,joinKey:lesson.joinKey};
@@ -235,7 +236,7 @@ test('the application entrypoint keeps rehearsals isolated and fails closed on a
     db.exec("UPDATE data_ownership SET phase='RECOVERY'");
     assert.equal((await login(env)).status,503);
     assert.equal(outbound,0);
-    const regular=await worker.fetch(new Request('http://localhost/'),{ACADEMY_D1_MODE:'OFF'});
+    const regular=await worker.fetch(new WorkspaceRequest('http://localhost/'),{ACADEMY_D1_MODE:'OFF'});
     assert.equal(regular.status,503);assert.equal((await regular.json()).code,'ACADEMY_STORAGE_MODE_INVALID');
   }finally{globalThis.fetch=originalFetch;}
 }));

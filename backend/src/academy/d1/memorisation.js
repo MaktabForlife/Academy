@@ -1,6 +1,7 @@
 import {managementError as fail,same} from './management-store.js';
 import {payloadHash} from '../../programs/timetable-model.js';
 import {programToday} from '../../programs/weekly-timetable.js';
+import {isAdminWorkspace,actualState,actualRole,administers} from './workspace-access.js';
 
 // Use current role evidence in reads AND inside guarded write transactions.
 const rolesSQL=`SELECT account_id,activity_key,role FROM effective_activity_roles UNION
@@ -56,14 +57,22 @@ export async function d1MemorisationPreview(repository){
 export function d1Memorisation(repository,auth) {
   const db=repository.db,p=(sql,...v)=>db.prepare(sql).bind(...v),actor=auth.user.accountid;
   const today=programToday('Africa/Johannesburg');
-  const classes=async()=> (await p(classAccessSQL,actor,actor).all()).results;
+  const classes=async(preview=false)=>{
+    const sql=isAdminWorkspace(auth)?classAccessSQL:classAccessSQL.replace(adminSQL,'? IS NULL').replace("r.role='PROGRAM_ADMIN'",'0');
+    const own=(await p(sql,actor,actor).all()).results;
+    if(!preview||isAdminWorkspace(auth))return own;
+    const real=actualState(auth),keys=real.roles.filter(r=>r.role==='PROGRAM_ADMIN').map(r=>r.activity_key);
+    const extra=(await p(`SELECT c.activity_key,c.class_id,c.name,a.name activity_name,coalesce(s.learners_per_card,20) learners_per_card FROM classes c JOIN activities a USING(activity_key) LEFT JOIN memorisation_activity_settings s USING(activity_key) WHERE c.active=1 AND a.active=1 AND a.lifecycle='ACTIVE' AND coalesce(s.active,1)=1 AND (?=1 OR c.activity_key IN(SELECT value FROM json_each(?)))`,Number(Boolean(real.account.global_admin)),JSON.stringify(keys)).all()).results;
+    return [...new Map([...own,...extra].map(r=>[r.activity_key+':'+r.class_id,r])).values()];
+  };
   const isStudent=async()=>Boolean(await p(`SELECT 1 ok WHERE ${studentSQL}`,actor,actor).first());
   const catalogue=()=>memorisationCatalogue(db);
   async function accessibleActivities(){
     if(auth.state.account.global_admin)return null;
-    return (await p(`SELECT a.activity_key FROM activities a WHERE a.active=1 AND a.lifecycle='ACTIVE' AND a.kind IN ('PROGRAM','COURSE') AND
+    const rows=(await p(`SELECT a.activity_key FROM activities a WHERE a.active=1 AND a.lifecycle='ACTIVE' AND a.kind IN ('PROGRAM','COURSE') AND
       (EXISTS(SELECT 1 FROM (${rolesSQL}) r WHERE r.account_id=? AND r.activity_key=a.activity_key)
       OR EXISTS(SELECT 1 FROM effective_course_subscriptions s WHERE s.account_id=? AND s.activity_key=a.activity_key))`,actor,actor).all()).results.map(a=>a.activity_key);
+    return isAdminWorkspace(auth)?rows:actualState(auth).activities.filter(a=>administers(auth,a.activity_key)||actualRole(auth,a.activity_key,auth.workspace==='TEACH'?'TEACHER':'STUDENT')||auth.workspace==='LEARN'&&auth.state.subscriptions.some(s=>same(s.activity_key,a.activity_key))).map(a=>a.activity_key);
   }
   let activityChoices;
   async function activityOptions(){return activityChoices ||= (async()=> (await p(`SELECT a.activity_key,a.kind,a.name,coalesce(s.active,1) progress_active,coalesce(s.revision,0) revision,coalesce(s.learners_per_card,20) learners_per_card FROM activities a LEFT JOIN memorisation_activity_settings s USING(activity_key)
@@ -88,8 +97,8 @@ export function d1Memorisation(repository,auth) {
       WHERE a.active=1 AND m.active=1 AND (m.start_date IS NULL OR m.start_date<=?) AND (m.end_date IS NULL OR m.end_date>=?)
       AND EXISTS(SELECT 1 FROM (${rolesSQL}) r WHERE r.account_id=a.account_id AND r.activity_key=m.activity_key AND r.role='STUDENT') GROUP BY m.activity_key,m.class_id`,JSON.stringify(groups),today,today).all()).results;
   }
-  async function requireClass(input){
-    const found=(await classes()).find(c=>same(c.activity_key,input.activityKey)&&same(c.class_id,input.classId));
+  async function requireClass(input,preview=false){
+    const found=(await classes(preview)).find(c=>same(c.activity_key,input.activityKey)&&same(c.class_id,input.classId));
     if(!found)throw fail('Choose one of your authorised classes.',403,'FORBIDDEN');return found;
   }
   async function receipt(scope,input,hash){
@@ -98,6 +107,7 @@ export function d1Memorisation(repository,auth) {
     return {...JSON.parse(r.result_json),replayed:true};
   }
   async function change(action,input,scope,plan){
+    if(!isAdminWorkspace(auth)&&action==='confirm')await requireClass(input);
     if(!uuid.test(input.operationId||''))throw fail('This change needs its retry identifier.');
     const hash=await payloadHash({action,input});
     for(let attempt=0;attempt<3;attempt++){
@@ -127,6 +137,7 @@ export function d1Memorisation(repository,auth) {
   }
   async function save(action,input){
     const review=action==='confirm';
+    if(review&&!isAdminWorkspace(auth))await requireClass(input);
     if(!Array.isArray(input.updates)||!input.updates.length||input.updates.length>100)throw fail('Save between 1 and 100 task changes together.');
     const scope=review?`${input.activityKey}:${input.classId}`:`LEARNER:${actor}`;
     return change(action,input,scope,async()=>{
@@ -157,7 +168,7 @@ export function d1Memorisation(repository,auth) {
           json_extract(value,'$.completed_at'),json_extract(value,'$.confirmed_at'),json_extract(value,'$.confirmed_by'),json_extract(value,'$.updated_at') FROM json_each(?) WHERE 1
         ON CONFLICT(account_id,task_id) DO UPDATE SET complete=excluded.complete,confirmed=excluded.confirmed,revision=excluded.revision,completed_at=excluded.completed_at,confirmed_at=excluded.confirmed_at,confirmed_by=excluded.confirmed_by,updated_at=excluded.updated_at`,JSON.stringify(rows)));
       return {statements,result:{records,store:'D1'},authority:review?(auth.state.account.global_admin?'GLOBAL_ADMIN':auth.state.roles.some(r=>same(r.activity_key,input.activityKey)&&r.role==='PROGRAM_ADMIN')?'PROGRAM_ADMIN':'TEACHER'):'STUDENT',fields:records.map(r=>({accountId:r.accountId,taskId:r.taskId,complete:r.complete,confirmed:r.confirmed})),
-        authoritySQL:review?`EXISTS(SELECT 1 FROM (${classAccessSQL}) x WHERE x.activity_key=? AND x.class_id=?)`:`${studentSQL}`,
+        authoritySQL:review?`EXISTS(SELECT 1 FROM (${isAdminWorkspace(auth)?classAccessSQL:classAccessSQL.replace(adminSQL,'? IS NULL').replace("r.role='PROGRAM_ADMIN'",'0')}) x WHERE x.activity_key=? AND x.class_id=?)`:`${studentSQL}`,
         authorityValues:review?[actor,actor,input.activityKey,input.classId]:[actor,actor]};
     });
   }
@@ -287,9 +298,9 @@ export function d1Memorisation(repository,auth) {
       const student=await isStudent(),setting=await p('SELECT active FROM memorisation_account_settings WHERE account_id=?',actor).first();
       const scopedAdmins=(await p(`SELECT DISTINCT r.activity_key FROM (${rolesSQL}) r JOIN activities a USING(activity_key)
         WHERE r.account_id=? AND r.role='PROGRAM_ADMIN' AND a.active=1 AND a.lifecycle='ACTIVE'`,actor).all()).results;
-      const canAdmin=Boolean(auth.state.account.global_admin||scopedAdmins.some(a=>activityKey?same(a.activity_key,activityKey):input.kind==='COURSE'?a.activity_key.startsWith('COURSE:'):true));
+      const canAdmin=isAdminWorkspace(auth)&&Boolean(auth.state.account.global_admin||scopedAdmins.some(a=>activityKey?same(a.activity_key,activityKey):input.kind==='COURSE'?a.activity_key.startsWith('COURSE:'):true));
       if(view==='admin'&&!canAdmin)throw fail('Set administration requires an authorised administrator.',403,'FORBIDDEN');
-      const groups=view==='teach'?(await classes()).filter(c=>activityKey?same(c.activity_key,activityKey):input.kind==='COURSE'?c.activity_key.startsWith('COURSE:'):true).sort((a,b)=>a.name.localeCompare(b.name)):[];
+      const groups=view==='teach'?(await classes(true)).filter(c=>activityKey?same(c.activity_key,activityKey):input.kind==='COURSE'?c.activity_key.startsWith('COURSE:'):true).sort((a,b)=>a.name.localeCompare(b.name)):[];
       if(!student&&!groups.length&&!auth.state.account.global_admin&&setting?.active!==0&&view!=='admin')throw fail('Progress is available to Academy students and their teaching teams.',403,'FORBIDDEN');
       const allowed=await accessibleActivities(),visible=cat.modules.filter(m=>view==='admin'&&auth.state.account.global_admin?true:view==='teach'?groups.some(c=>moduleInActivity(m,c.activity_key)):moduleForUser(m,allowed));
       const visibleTasks=new Set(visible.flatMap(m=>m.tasks.map(t=>t.id))),counts=await classCounts(groups);
@@ -297,13 +308,13 @@ export function d1Memorisation(repository,auth) {
         records:view==='self'&&student?(await p('SELECT * FROM learner_task_progress WHERE account_id=?',actor).all()).results.filter(r=>visibleTasks.has(r.task_id)).map(progressDTO):[],store:'D1'};
     }
     if(action==='grid'){
-      const classInfo=await requireClass(input);const module=cat.modules.find(m=>m.id===input.moduleId&&moduleInActivity(m,input.activityKey));if(!module)throw fail('Choose a memorisation set.',404);
+      const classInfo=await requireClass(input,true);const module=cat.modules.find(m=>m.id===input.moduleId&&moduleInActivity(m,input.activityKey));if(!module)throw fail('Choose a memorisation set.',404);
       const offset=Number(input.offset||0);if(!Number.isInteger(offset)||offset<0||offset>10000)throw fail('Choose a valid class page.');
       const members=(await roster(input.activityKey,input.classId).all()).results.sort((a,b)=>a.display_name.localeCompare(b.display_name));
       if(members.length>10000)throw fail('This class is too large. Split it into smaller classes before using the grid.',409);
       const pageSize=classInfo.learners_per_card,page=members.slice(offset,offset+pageSize),ids=JSON.stringify(page.map(a=>a.account_id));
       const records=(await p(`SELECT p.* FROM learner_task_progress p JOIN memorisation_tasks t USING(task_id) WHERE t.module_id=? AND p.account_id IN(SELECT value FROM json_each(?))`,module.id,ids).all()).results;
-      return {catalogueRevision:cat.revision,set:module,module,learners:page.map(a=>({id:a.account_id,name:a.display_name})),records:records.map(progressDTO),pageSize,offset,total:members.length,store:'D1'};
+      return {catalogueRevision:cat.revision,set:module,module,learners:page.map(a=>({id:a.account_id,name:a.display_name})),records:records.map(progressDTO),readOnly:!isAdminWorkspace(auth)&&!(await classes()).some(c=>same(c.activity_key,input.activityKey)&&same(c.class_id,input.classId)),pageSize,offset,total:members.length,store:'D1'};
     }
     throw fail('Unknown memorisation action.',404);
   }};

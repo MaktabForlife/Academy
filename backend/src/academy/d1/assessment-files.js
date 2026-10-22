@@ -76,11 +76,22 @@ export function assessmentFiles(repository,auth,env){
    const classes=await s.classes('admin',f.activity_key);if(!classes.length)throw fail('This template is outside your access.',403);
   }else{
    a=await s.assessment(f.assessment_id);await s.requireReader(a);
-   const staff=await s.allowed(a.activity_key,a.class_id,'admin')||same(a.examiner_id,actor)&&await s.allowed(a.activity_key,a.class_id);
-   const answerReviewer=f.kind==='ANSWER'&&await s.allowed(a.activity_key,a.class_id);
+    const staff=await s.allowed(a.activity_key,a.class_id,'admin')||same(a.examiner_id,actor)&&await s.allowed(a.activity_key,a.class_id);
+    const answerReviewer=f.kind==='ANSWER'&&await s.readStaff(a);
    if(!staff&&!answerReviewer){
+    if(f.kind==='PAPER'&&auth.workspace==='TEACH'){
+     if(f.file_id!==a.paper_file_id||!paperAvailable(a))throw fail('This paper is not available yet.',403);
+     const object=await bucket().get(f.object_key);if(!object)throw fail('This attachment is temporarily unavailable.',404);return fileResponse(object,f);
+    }
     const r=await s.recipient(a.assessment_id);
-    if(!r)throw fail('This attachment is outside your access.',403);
+    if(!r){
+     // An authorised preview has no learner record and starts no timer.
+     if(f.kind==='PAPER'&&f.file_id===a.paper_file_id&&paperAvailable(a)){
+      const object=await bucket().get(f.object_key);if(!object)throw fail('This attachment is temporarily unavailable.',404);
+      return fileResponse(object,f);
+     }
+     throw fail('This attachment is outside your access.',403);
+    }
     if(f.kind==='PAPER'){if(f.file_id!==a.paper_file_id||!paperAvailable(a))throw fail('This paper is not available yet.',403);studentPaper=true;}
     else if(f.kind==='ANSWER'){if(!same(f.owner_id,actor)||!await p('SELECT 1 ok FROM assessment_submissions WHERE assessment_id=? AND account_id=? AND file_id=?',a.assessment_id,actor,f.file_id).first())throw fail('This submission is outside your access.',403);}
     else if(f.kind==='SCRIPT'){
@@ -91,7 +102,7 @@ export function assessmentFiles(repository,auth,env){
      if(records.length!==source.length||records.some(r=>r.released_mark_id!==(source.find(e=>e.assessmentId===r.assessment_id).markId??null)))throw fail('This report has been superseded. Ask an administrator for an updated report.',409);
     }else throw fail('This attachment is outside your access.',403);
    }
-   if(f.kind==='ANSWER'&&(staff||answerReviewer))staffAnswer=await p('SELECT submission_id,account_id FROM assessment_submissions WHERE assessment_id=? AND file_id=?',a.assessment_id,f.file_id).first();
+   if(f.kind==='ANSWER'&&(staff||answerReviewer)&&await s.allowed(a.activity_key,a.class_id))staffAnswer=await p('SELECT submission_id,account_id FROM assessment_submissions WHERE assessment_id=? AND file_id=?',a.assessment_id,f.file_id).first();
   }
   const object=await bucket().get(f.object_key);if(!object)throw fail('This attachment is temporarily unavailable.',404);
   if(staffAnswer){await s.change('view-answer',{fileId:f.file_id,operationId:input.operationId},a.assessment_id,async()=>{
@@ -103,7 +114,8 @@ export function assessmentFiles(repository,auth,env){
    const r=await s.recipient(a.assessment_id);if(!r)throw fail('This assessment is outside your access.',403);
    return {statements:r.first_accessed_at?[]:[p('UPDATE assessment_recipients SET first_accessed_at=? WHERE assessment_id=? AND account_id=? AND first_accessed_at IS NULL',new Date().toISOString(),a.assessment_id,actor),s.event(a,'first-access',{},actor)],result:{accessed:true}};
   });}
-  return new Response(object.body,{headers:{'Content-Type':f.mime_type,'Content-Length':String(f.byte_size),'Content-Disposition':`inline; filename*=UTF-8''${encodeURIComponent(f.filename)}`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"sandbox"}});
+  return fileResponse(object,f);
  }
  return {upload,download};
 }
+function fileResponse(object,f){return new Response(object.body,{headers:{'Content-Type':f.mime_type,'Content-Length':String(f.byte_size),'Content-Disposition':`inline; filename*=UTF-8''${encodeURIComponent(f.filename)}`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':'sandbox'}});}

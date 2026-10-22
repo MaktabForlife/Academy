@@ -1,0 +1,1629 @@
+{
+  "format": "ACADEMY_SEPARATION_APPROVED_CONTRACTS_V1",
+  "approvedAt": "2026-10-22",
+  "sourceBaseline": "82cf5e8cd7d9cecb8d02650431b4de2cf51658d3",
+  "sourceVersion": "107.22",
+  "manualAssessmentHandling": "Direct Admin ordinary answer, mark, finalise and explicit release; no case/lane/result/release engine",
+  "screens": [
+    {
+      "current_page_or_view": "academy/index.html",
+      "target_surface": "Public/Learn/Teach and separate Admin entry",
+      "treatment": "Preserve existing layouts/hash context; separate Admin host",
+      "access_refs": "P03;P05"
+    },
+    {
+      "current_page_or_view": "account/index.html",
+      "target_surface": "Shared identity",
+      "treatment": "Keep sign-in/PIN/context; route by authorised workspace",
+      "access_refs": "P01"
+    },
+    {
+      "current_page_or_view": "users/index.html",
+      "target_surface": "Admin",
+      "treatment": "Keep directory/profile/role distinctions; no global rights for scoped Admin",
+      "access_refs": "P02"
+    },
+    {
+      "current_page_or_view": "academy/subjects/index.html",
+      "target_surface": "Global Admin",
+      "treatment": "Move shared Subjects/Modules editor to Admin",
+      "access_refs": "P06"
+    },
+    {
+      "current_page_or_view": "academy/courses/manage/index.html",
+      "target_surface": "Admin",
+      "treatment": "Keep Course tabs; separate source editing/live participant actions",
+      "access_refs": "P05;P28"
+    },
+    {
+      "current_page_or_view": "academy/calendar/index.html",
+      "target_surface": "Learn/Teach reader; Admin editor",
+      "treatment": "Keep layout; editor and availability controls only Admin",
+      "access_refs": "P10"
+    },
+    {
+      "current_page_or_view": "academy/teaching/index.html",
+      "target_surface": "Compatibility to correct calendar perspective",
+      "treatment": "No Teacher self-edit availability bypass",
+      "access_refs": "P10"
+    },
+    {
+      "current_page_or_view": "academy/enrolment/index.html",
+      "target_surface": "Public/Learn own enrolment",
+      "treatment": "Preserve own profile/request flow",
+      "access_refs": "P02;P33"
+    },
+    {
+      "current_page_or_view": "academy/enrolment/manage/index.html",
+      "target_surface": "Admin",
+      "treatment": "Preserve existing scoped requests versus Global registration/contact",
+      "access_refs": "P02;P33"
+    },
+    {
+      "current_page_or_view": "academy/library/index.html",
+      "target_surface": "Permitted contextual reader",
+      "treatment": "Keep Public/Academy/My links and scoped return",
+      "access_refs": "P30;P31;P32"
+    },
+    {
+      "current_page_or_view": "academy/library/manage/index.html",
+      "target_surface": "Global Admin shared catalogue",
+      "treatment": "Remove Teacher shared curation; retain own links separately",
+      "access_refs": "P31"
+    },
+    {
+      "current_page_or_view": "academy/open-library/index.html",
+      "target_surface": "Public reader",
+      "treatment": "Preserve existing public archive/catalogue identity",
+      "access_refs": "P31"
+    },
+    {
+      "current_page_or_view": "academy/pdf-tools/index.html",
+      "target_surface": "Reader tools; Global Admin defaults",
+      "treatment": "Keep supported reader features; config editor Admin",
+      "access_refs": "P34"
+    },
+    {
+      "current_page_or_view": "academy/pdf-reader/index.html",
+      "target_surface": "Permitted reader",
+      "treatment": "Preserve toolbars, annotations/Whiteboard, panes/bookmarks/return",
+      "access_refs": "P34"
+    },
+    {
+      "current_page_or_view": "academy/pdf-compare/index.html",
+      "target_surface": "Permitted browser PDF tool",
+      "treatment": "Preserve V107.20 comparison and V107.21 editable annotations/favourite colours; no new Academy source ownership",
+      "access_refs": "P34"
+    },
+    {
+      "current_page_or_view": "academy/hifz/index.html",
+      "target_surface": "Shared permitted Hifz handoff",
+      "treatment": "Keep Core session/profile integration",
+      "access_refs": "P35"
+    },
+    {
+      "current_page_or_view": "programs/index.html",
+      "target_surface": "Admin Program workspace",
+      "treatment": "Keep existing tabs/edit/review/publish layout",
+      "access_refs": "P05;P07;P09;P26"
+    },
+    {
+      "current_page_or_view": "programs/manage.html",
+      "target_surface": "Admin compatibility",
+      "treatment": "Context-preserving old management redirect",
+      "access_refs": "P05"
+    },
+    {
+      "current_page_or_view": "programs/timetable.html",
+      "target_surface": "Admin compatibility",
+      "treatment": "Never redirect old editor into learner editor capability",
+      "access_refs": "P09"
+    },
+    {
+      "current_page_or_view": "programs/lesson-media.html",
+      "target_surface": "Admin compatibility; separate narrow Teach notes",
+      "treatment": "General editor Admin; Teacher contribution uses own action",
+      "access_refs": "P26;P27"
+    },
+    {
+      "current_page_or_view": "programs/attendance.html",
+      "target_surface": "Teach and authorised Admin",
+      "treatment": "Keep ordinary dated register/current access",
+      "access_refs": "P12;P13;P14"
+    },
+    {
+      "current_page_or_view": "programs/library.html",
+      "target_surface": "Admin legacy boundary",
+      "treatment": "Preserve existing disabled/private restrictions",
+      "access_refs": "P30"
+    },
+    {
+      "current_page_or_view": "programs/library-view.html",
+      "target_surface": "Permitted reader compatibility",
+      "treatment": "Keep current access and appropriate workspace return",
+      "access_refs": "P30"
+    },
+    {
+      "current_page_or_view": "programs/media.html",
+      "target_surface": "Compatibility/current restriction",
+      "treatment": "No independent new curation or media entitlement",
+      "access_refs": "P26;P30"
+    },
+    {
+      "current_page_or_view": "#overview #learning #workshops",
+      "target_surface": "Public/selected Learn or Teach",
+      "treatment": "Accepted catalogue and current identity only",
+      "access_refs": "P03;P05"
+    },
+    {
+      "current_page_or_view": "#timetable/learn #timetable/teach",
+      "target_surface": "Explicit student/Teacher",
+      "treatment": "Per-lesson icons and proper audience/cache identity",
+      "access_refs": "P09;P26;P28"
+    },
+    {
+      "current_page_or_view": "#activity/{kind}/{id}/{learn|teach}",
+      "target_surface": "Scoped Learn/Teach",
+      "treatment": "Preserve selected Program/Course role/context and tabs",
+      "access_refs": "P03;P05"
+    },
+    {
+      "current_page_or_view": "#activity/.../assessment",
+      "target_surface": "Scoped Learn/Teach",
+      "treatment": "Student or ordinary Teacher assessments; Admin management separate",
+      "access_refs": "P17;P20;P21;P22"
+    },
+    {
+      "current_page_or_view": "#assessment-admin/...",
+      "target_surface": "Admin",
+      "treatment": "Existing assessment controls and direct manual Admin work",
+      "access_refs": "P17;P19;P22;P23;P24"
+    },
+    {
+      "current_page_or_view": "#progress and #activity/.../surahs-duas",
+      "target_surface": "Learn/Teach",
+      "treatment": "Own marking and assigned confirmation only",
+      "access_refs": "P15;P16"
+    },
+    {
+      "current_page_or_view": "#progress-admin/...",
+      "target_surface": "Admin",
+      "treatment": "Existing scoped/global catalogue/current-policy distinction",
+      "access_refs": "P15"
+    },
+    {
+      "current_page_or_view": "#activity/.../attendance",
+      "target_surface": "Teach and authorised Admin",
+      "treatment": "Selected dated roster, ordinary/substitute windows",
+      "access_refs": "P12;P13;P14"
+    },
+    {
+      "current_page_or_view": "#activity/.../planning",
+      "target_surface": "Teach; authorised Admin review",
+      "treatment": "Own plans/current feedback; Admin policies separated",
+      "access_refs": "P11"
+    },
+    {
+      "current_page_or_view": "#activity/.../library",
+      "target_surface": "Contextual reader",
+      "treatment": "Preserve labelled Teacher library and owner links",
+      "access_refs": "P30;P32"
+    },
+    {
+      "current_page_or_view": "#administration",
+      "target_surface": "Separate Admin namespace/host",
+      "treatment": "Compatibility handoff to /academy/admin/ with current context",
+      "access_refs": "P03;P36"
+    },
+    {
+      "current_page_or_view": "Global application settings",
+      "target_surface": "Global Admin",
+      "treatment": "Time zone/PDF defaults controls; no area overrides",
+      "access_refs": "P04;P34"
+    }
+  ],
+  "accessFamilies": [
+    {
+      "id": "P01",
+      "feature": "Sign-in PIN and session",
+      "learn": "Own sign-in/context",
+      "teach": "Own sign-in/context",
+      "scoped_admin": "Own sign-in; existing reset/profile scope only",
+      "global_admin": "Existing directory/PIN/role management",
+      "authoritative_writer": "Core",
+      "server_boundary": "Account/session routes; preserve real actor and credential epochs",
+      "implementation_phase": "1"
+    },
+    {
+      "id": "P02",
+      "feature": "Users roles subscriptions and enrolment registration",
+      "learn": "Own profile/request only",
+      "teach": "Own profile only",
+      "scoped_admin": "Existing area participant/role rights; no Academy-wide directory or user linking",
+      "global_admin": "Global identity/registration/linking rights; preserve last-Admin/self guards",
+      "authoritative_writer": "Core",
+      "server_boundary": "Profile/participant/enrolment APIs check actual mode and target scope",
+      "implementation_phase": "1,3"
+    },
+    {
+      "id": "P03",
+      "feature": "Workspace preview",
+      "learn": "Student data; own actions only for real participation",
+      "teach": "Teacher data; ordinary actions only for genuine eligibility",
+      "scoped_admin": "Scoped read-only authorised preview; no write as target",
+      "global_admin": "Authorised read-only preview; no impersonation",
+      "authoritative_writer": "Reader/Core",
+      "server_boundary": "Explicit workspace and permitted context; no highest-role fallback",
+      "implementation_phase": "1"
+    },
+    {
+      "id": "P04",
+      "feature": "App Time zone",
+      "learn": "Read inherited value",
+      "teach": "Read inherited value",
+      "scoped_admin": "Read only",
+      "global_admin": "Edit one app-wide setting in Admin",
+      "authoritative_writer": "Admin config/Core accepted",
+      "server_boundary": "Reject local Program/Course/assessment overrides, including old clients/imports",
+      "implementation_phase": "1,2"
+    },
+    {
+      "id": "P05",
+      "feature": "Program Course creation and lifecycle",
+      "learn": "Published catalogue/current permitted status",
+      "teach": "Permitted teaching areas/current status",
+      "scoped_admin": "Edit existing assigned areas; current scoped lifecycle restrictions",
+      "global_admin": "Create and administer all areas; inherited area authority",
+      "authoritative_writer": "Admin setup; Core lifecycle/access",
+      "server_boundary": "Separate draft fields from immediate current policy",
+      "implementation_phase": "2"
+    },
+    {
+      "id": "P06",
+      "feature": "Shared Subjects and Modules",
+      "learn": "Published relevant references",
+      "teach": "Published relevant references",
+      "scoped_admin": "No Academy-wide shared editor",
+      "global_admin": "Shared catalogue edit/import under current Global checks",
+      "authoritative_writer": "Admin",
+      "server_boundary": "learning-catalogue and subjects services remain Global-Admin-only",
+      "implementation_phase": "2"
+    },
+    {
+      "id": "P07",
+      "feature": "Area curriculum classes and progress setup",
+      "learn": "Accepted applicable definitions",
+      "teach": "Accepted teaching definitions; no setup edit",
+      "scoped_admin": "Edit/publish owned area class/curriculum/progress setup",
+      "global_admin": "All areas",
+      "authoritative_writer": "Admin definitions; Core accepted",
+      "server_boundary": "Current stable IDs, referenced removal checks and collected publish",
+      "implementation_phase": "2"
+    },
+    {
+      "id": "P08",
+      "feature": "Current class membership and assignment",
+      "learn": "Own permitted eligibility",
+      "teach": "Assigned classes/current eligible roster",
+      "scoped_admin": "Direct scoped roster/assignment management",
+      "global_admin": "All areas",
+      "authoritative_writer": "Core",
+      "server_boundary": "Admin UI issues effective membership operation, no private authority clone",
+      "implementation_phase": "2,3"
+    },
+    {
+      "id": "P09",
+      "feature": "Timetable authoring and publication",
+      "learn": "Accepted student timetable/Join",
+      "teach": "Accepted Teacher timetable/Join",
+      "scoped_admin": "Edit/validate/publish owned area; no unrelated draft disclosure",
+      "global_admin": "All areas",
+      "authoritative_writer": "Admin authoring/Core accepted",
+      "server_boundary": "Preserve dates/anchors and explicit current lifecycle effects",
+      "implementation_phase": "2"
+    },
+    {
+      "id": "P10",
+      "feature": "Calendar and availability",
+      "learn": "Relevant read only",
+      "teach": "Relevant read only; remove self-edit",
+      "scoped_admin": "Area calendar and eligible teacher availability within administered teaching scope",
+      "global_admin": "Academy calendar and eligible Teacher availability",
+      "authoritative_writer": "Admin",
+      "server_boundary": "ACADEMY calendar Global only; no Teacher self-save via legacy route",
+      "implementation_phase": "2"
+    },
+    {
+      "id": "P11",
+      "feature": "Teacher plans",
+      "learn": "No staff plan data",
+      "teach": "Own save/submit and own feedback",
+      "scoped_admin": "Review/feedback/deadline within existing area scope",
+      "global_admin": "All authorised plans",
+      "authoritative_writer": "Core live plans/feedback; Admin default policy",
+      "server_boundary": "Plan revision/author/current accepted inputs; no draft-run fallback",
+      "implementation_phase": "3"
+    },
+    {
+      "id": "P12",
+      "feature": "Attendance ordinary",
+      "learn": "Own permitted summaries",
+      "teach": "Assigned dated register FIRST/correction; past FIRST allowed",
+      "scoped_admin": "Existing scoped attendance/roster tools",
+      "global_admin": "All areas",
+      "authoritative_writer": "Core",
+      "server_boundary": "Sealed/reliable dated roster; sparse absences and proportional days",
+      "implementation_phase": "3"
+    },
+    {
+      "id": "P13",
+      "feature": "Substitute session",
+      "learn": "No grant management",
+      "teach": "Only explicitly assigned Link/Attendance windows; no new broad role",
+      "scoped_admin": "Assign/revoke and correction reopening within area",
+      "global_admin": "All areas",
+      "authoritative_writer": "Core",
+      "server_boundary": "Confirmed session-day FIRST/next-day correction and <=24-hour reopen",
+      "implementation_phase": "3"
+    },
+    {
+      "id": "P14",
+      "feature": "Course attendance roster",
+      "learn": "Own permitted membership/report",
+      "teach": "Use selected delivery roster; no enrolment editor",
+      "scoped_admin": "Review prefill/save join-leave roster per delivery",
+      "global_admin": "All deliveries",
+      "authoritative_writer": "Core",
+      "server_boundary": "Attendance membership alone adds no subscription/media entitlement",
+      "implementation_phase": "3"
+    },
+    {
+      "id": "P15",
+      "feature": "Memorisation catalogue and policy",
+      "learn": "Accepted own card",
+      "teach": "Accepted assigned teaching sets",
+      "scoped_admin": "Existing area policy/review rights only; no shared set import",
+      "global_admin": "Shared set/import and user/area activation controls",
+      "authoritative_writer": "Admin catalogue; Core current policy",
+      "server_boundary": "Current Global-only set/card controls; disable effective without draft publish",
+      "implementation_phase": "2,3"
+    },
+    {
+      "id": "P16",
+      "feature": "Memorisation learning work",
+      "learn": "Own marking only",
+      "teach": "Assigned class confirmation",
+      "scoped_admin": "Existing scoped confirmation/review",
+      "global_admin": "All permitted review",
+      "authoritative_writer": "Core",
+      "server_boundary": "Current task/learner/assignment; preserve progress/history",
+      "implementation_phase": "3"
+    },
+    {
+      "id": "P17",
+      "feature": "Assessment setup templates and schedule",
+      "learn": "Published relevant schedule",
+      "teach": "Accepted staff data; allowed paper contributions",
+      "scoped_admin": "Create/edit/validate/publish owned classes and templates",
+      "global_admin": "All assessment classes",
+      "authoritative_writer": "Admin definitions; Core accepted",
+      "server_boundary": "Staff duration/max only; setup publish is not paper/result release",
+      "implementation_phase": "2,3"
+    },
+    {
+      "id": "P18",
+      "feature": "Assessment paper preparation",
+      "learn": "Permitted released learner paper",
+      "teach": "Current class/examiner PAPER contribution under existing rules",
+      "scoped_admin": "Scoped Admin paper management",
+      "global_admin": "All classes",
+      "authoritative_writer": "Core file/workflow; Admin definition contribution",
+      "server_boundary": "Actual uploader/examiner assignment; accepted timed/untimed definition",
+      "implementation_phase": "3"
+    },
+    {
+      "id": "P19",
+      "feature": "Assessment paper moderation release",
+      "learn": "No controls",
+      "teach": "No Admin moderation/release control",
+      "scoped_admin": "Existing scoped moderator and explicit paper release; normal no-self rule",
+      "global_admin": "Same for all areas",
+      "authoritative_writer": "Core",
+      "server_boundary": "Paper approval, schedule publication and paper release distinct",
+      "implementation_phase": "3"
+    },
+    {
+      "id": "P20",
+      "feature": "Learner answer and timing",
+      "learn": "Own eligible answer; exam-day cutoff; assignments stay open late until Admin closes",
+      "teach": "No upload as learner",
+      "scoped_admin": "Direct on-behalf upload/replacement for named learner in Admin",
+      "global_admin": "All areas",
+      "authoritative_writer": "Core",
+      "server_boundary": "Correct owner/actual actor; no learner impersonation or new case model",
+      "implementation_phase": "3"
+    },
+    {
+      "id": "P21",
+      "feature": "Answer checking and Ready",
+      "learn": "Own status only; no staff event",
+      "teach": "Ordinary authorised staff PDF check and checked-ready",
+      "scoped_admin": "Manual Ready incl eligible unchecked warning/Continue and next-day zero upload",
+      "global_admin": "All areas",
+      "authoritative_writer": "Core",
+      "server_boundary": "Actual current PDF/counts; no automatic check/Ready/release",
+      "implementation_phase": "3"
+    },
+    {
+      "id": "P22",
+      "feature": "Marking and manual remarking",
+      "learn": "No inline marks",
+      "teach": "Ordinary assigned examiner marking only",
+      "scoped_admin": "Direct record/revise/finalise manual marking in Admin",
+      "global_admin": "All areas",
+      "authoritative_writer": "Core ordinary assessment records",
+      "server_boundary": "Manual Admin finalisation permitted; no separate case/lane/result system",
+      "implementation_phase": "3"
+    },
+    {
+      "id": "P23",
+      "feature": "Ordinary moderation and result release",
+      "learn": "Own permitted released output only",
+      "teach": "No Admin control",
+      "scoped_admin": "Ordinary moderation no-self; direct Admin manual finalisation then explicit release",
+      "global_admin": "All areas",
+      "authoritative_writer": "Core",
+      "server_boundary": "Normal class marks/selected feedback/scripts preserved; Admin handles manual changes explicitly",
+      "implementation_phase": "3"
+    },
+    {
+      "id": "P24",
+      "feature": "Already released assessment correction",
+      "learn": "Own output only as explicitly released by Admin",
+      "teach": "Current permitted review/history; no automatic handling",
+      "scoped_admin": "Manually accept/replace/re-mark and manage/release corrected work",
+      "global_admin": "All areas",
+      "authoritative_writer": "Core",
+      "server_boundary": "No automated hold, reinstatement, per-case source or supplemental-release engine",
+      "implementation_phase": "3"
+    },
+    {
+      "id": "P25",
+      "feature": "Reports and schedule exports",
+      "learn": "Permitted learner audience; achieved-only released reports",
+      "teach": "Authorised staff schedule; no new report-management role",
+      "scoped_admin": "Scoped report templates/generation/issue and proper audience export",
+      "global_admin": "All areas",
+      "authoritative_writer": "Core issued reports; Admin templates",
+      "server_boundary": "Exact learner/class/current sources; all pages reviewable; no staff-original fallback",
+      "implementation_phase": "3"
+    },
+    {
+      "id": "P26",
+      "feature": "Session video PDF metadata and reading",
+      "learn": "Published permitted student audience",
+      "teach": "Existing permitted Teacher material access",
+      "scoped_admin": "General media curation only in Admin",
+      "global_admin": "All areas",
+      "authoritative_writer": "Admin source/Core refs/R2 bytes",
+      "server_boundary": "Same audience at list/timetable/popup/PDF/watch; preserve old recordings",
+      "implementation_phase": "4"
+    },
+    {
+      "id": "P27",
+      "feature": "Teacher own PDF notes",
+      "learn": "Read when permitted by release/audience",
+      "teach": "Post/replace/withdraw only verified own note while eligible",
+      "scoped_admin": "Curate scoped notes; control/hide/restore as allowed",
+      "global_admin": "All areas",
+      "authoritative_writer": "Admin metadata/Core visibility/R2",
+      "server_boundary": "No guessed authorship, parent publication or general video edit through contribution",
+      "implementation_phase": "4"
+    },
+    {
+      "id": "P28",
+      "feature": "Media names and Course PDFs",
+      "learn": "Published names/collection under existing Course access",
+      "teach": "Published read only; no Course collection manager",
+      "scoped_admin": "Manage owned Course PDF collection and general media labels in Admin",
+      "global_admin": "All areas",
+      "authoritative_writer": "Admin media/Core refs",
+      "server_boundary": "Observed 0031 dateless Course scope, original filename fallback, current entitlement",
+      "implementation_phase": "4"
+    },
+    {
+      "id": "P29",
+      "feature": "Discussion",
+      "learn": "Retired",
+      "teach": "Retired",
+      "scoped_admin": "No new live discussion target",
+      "global_admin": "History retention only",
+      "authoritative_writer": "Core retained history",
+      "server_boundary": "Retire read/write/moderation aliases; no deletion",
+      "implementation_phase": "4,6"
+    },
+    {
+      "id": "P30",
+      "feature": "Official Academy library",
+      "learn": "Current entitled reader",
+      "teach": "Current entitled Teacher reader",
+      "scoped_admin": "Existing area catalogue rights only; private boundary preserved",
+      "global_admin": "Catalogue/configuration administration",
+      "authoritative_writer": "Admin source/Core rights/R2",
+      "server_boundary": "No new file access from role perspective; retain current unavailable areas until built",
+      "implementation_phase": "4"
+    },
+    {
+      "id": "P31",
+      "feature": "Shared public Open Library",
+      "learn": "Public approved reader",
+      "teach": "Public approved reader; remove shared curation",
+      "scoped_admin": "No new shared-catalogue editing right",
+      "global_admin": "Curate shared metadata",
+      "authoritative_writer": "Existing separate metadata store",
+      "server_boundary": "Global Admin editor; Teacher gets own My links instead",
+      "implementation_phase": "4"
+    },
+    {
+      "id": "P32",
+      "feature": "Personal My links and positions",
+      "learn": "Owner continued access where established",
+      "teach": "Own eligible creation/edit/export",
+      "scoped_admin": "Own collection only",
+      "global_admin": "Own collection only; no other-owner inspection",
+      "authoritative_writer": "Private owner R2",
+      "server_boundary": "Established own access survives role loss; account/session checks remain",
+      "implementation_phase": "4"
+    },
+    {
+      "id": "P33",
+      "feature": "Announcements enrolment catalogue",
+      "learn": "Published notice/offers and own requests",
+      "teach": "Same permitted readers",
+      "scoped_admin": "Scoped offer/request handling; no global contact/user link",
+      "global_admin": "Academy announcements/contact/catalogue/global registration",
+      "authoritative_writer": "Admin published content/Core requests",
+      "server_boundary": "Preserve source Global-only notice/contact/link/register checks",
+      "implementation_phase": "2,3"
+    },
+    {
+      "id": "P34",
+      "feature": "PDF defaults reading Whiteboard comparison",
+      "learn": "Permitted files and own tab/reading state",
+      "teach": "Permitted files and own tab/reading state",
+      "scoped_admin": "No global defaults edit; normal permitted reader",
+      "global_admin": "PDF default configuration in Admin",
+      "authoritative_writer": "Admin defaults; permitted file owner; browser tools",
+      "server_boundary": "Preserve V107.20 comparison and V107.21 editable annotations/favourite colours, split/fullscreen/mobile; no new official media write",
+      "implementation_phase": "1,4"
+    },
+    {
+      "id": "P35",
+      "feature": "Hifz handoff integration",
+      "learn": "Existing permitted sign-in/handoff",
+      "teach": "Existing permitted handoff",
+      "scoped_admin": "No copied credentials/integration authority",
+      "global_admin": "Existing integration administration",
+      "authoritative_writer": "Core",
+      "server_boundary": "Account/PIN/Hifz triggers and delivery kept together",
+      "implementation_phase": "1,3"
+    },
+    {
+      "id": "P36",
+      "feature": "Import repair migration background writers",
+      "learn": "No direct control",
+      "teach": "No direct control",
+      "scoped_admin": "No new global maintenance rights",
+      "global_admin": "Existing operational authority and controlled rollout",
+      "authoritative_writer": "Owning store",
+      "server_boundary": "Old aliases/scripts/triggers cannot bypass moved writer; no destructive reset in scope",
+      "implementation_phase": "0,5,6"
+    }
+  ],
+  "authorityFamilies": [
+    {
+      "id": "M01",
+      "current_action_or_writer": "POST /api/account/setup-pin",
+      "source_locations": "backend/src/academy/d1/worker.js; backend/src/academy/d1/repository.js",
+      "affected_resources": "Account; credential epoch; newly issued session",
+      "proposed_owner": "Core identity",
+      "required_guard_and_ordering": "Keep existing active-account/link/PIN-not-set/context checks and compare-and-set credential update; no existing bearer session is required for this existing setup flow. Never copy the hash to Admin."
+    },
+    {
+      "id": "M02",
+      "current_action_or_writer": "POST /api/account/login: optional ACCOUNT_PIN_HASH_UPGRADE",
+      "source_locations": "backend/src/academy/d1/worker.js; backend/src/academy/d1/repository.js",
+      "affected_resources": "Account; credential epoch; all sessions on old epoch",
+      "proposed_owner": "Core identity",
+      "required_guard_and_ordering": "Verify PIN and current account before issuing a session. Hash upgrade increments the credential epoch; include this implicit mutator in dependency ordering and preserve existing session invalidation semantics."
+    },
+    {
+      "id": "M03",
+      "current_action_or_writer": "POST /api/account/logout and /api/account/switch-context",
+      "source_locations": "backend/src/academy/d1/worker.js; backend/src/academy/d1/repository.js",
+      "affected_resources": "One session; selected current context",
+      "proposed_owner": "Core identity",
+      "required_guard_and_ordering": "Close the revoked session dependency; switch validates an existing authorised context and creates a new session before revoking the old one. It grants no role. Outstanding remote admissions tied to the old session need a durable terminal outcome; other sessions are not revoked by ordinary logout. Perspective change is separate from session/account role change: retain real actor, explicit Learn student/Teach Teacher audience, preview context and per-view caches. Never reuse previous Admin payload/handlers or grant a new role merely from a workspace selector."
+    },
+    {
+      "id": "M04",
+      "current_action_or_writer": "user-profiles/save: profile or batch profile; enrolment/register delegates here",
+      "source_locations": "backend/src/academy/d1/profiles.js; backend/src/academy/d1/enrolment.js",
+      "affected_resources": "Account active state; login ID; profile revision; account sessions",
+      "proposed_owner": "Core people command",
+      "required_guard_and_ordering": "Preserve current profile scope and revision checks. Disabling an account revokes its sessions. Display-name/contact changes invalidate labels but do not revoke unrelated roles; login ID is a sign-in identifier, never copied as an Admin authority credential."
+    },
+    {
+      "id": "M05",
+      "current_action_or_writer": "user-profiles/save: academyAdmin",
+      "source_locations": "backend/src/academy/d1/profiles.js",
+      "affected_resources": "Global Admin grant; account active state; last-active-Admin invariant",
+      "proposed_owner": "Core authority command",
+      "required_guard_and_ordering": "Global Admin only. Keep another Admin required for own designation removal and the transactional last-active-Global-Admin invariant. Close affected global authority dependencies before marking removal complete."
+    },
+    {
+      "id": "M06",
+      "current_action_or_writer": "user-profiles/save: academyTeacher",
+      "source_locations": "backend/src/academy/d1/profiles.js",
+      "affected_resources": "Academy Teacher designation; eligibility references",
+      "proposed_owner": "Core designation command",
+      "required_guard_and_ordering": "Preserve existing designation editor permission; a designation is not a Program/Course teaching assignment. Invalidate only capabilities that actually depend on it; never infer all-scope teaching access."
+    },
+    {
+      "id": "M07",
+      "current_action_or_writer": "user-profiles/save: matrix-roles/batch; courses/participants-save delegates course-roles",
+      "source_locations": "backend/src/academy/d1/profiles.js; backend/src/academy/d1/course-management.js",
+      "affected_resources": "Account/activity roles; Course subscription decision; imported-role review; account revision",
+      "proposed_owner": "Core scoped authority command",
+      "required_guard_and_ordering": "Check each entry scope including every batch entry. Preserve draft-Student exception and explicit imported-evidence override. Close affected grants and resolve earlier admissions; preserve independently valid grants and Global Admin inheritance."
+    },
+    {
+      "id": "M08",
+      "current_action_or_writer": "user-profiles/save: mode=reset-pin",
+      "source_locations": "backend/src/academy/d1/profiles.js",
+      "affected_resources": "Account credential epoch; all sessions",
+      "proposed_owner": "Core identity command",
+      "required_guard_and_ordering": "Global Admin only; another Global Admin resets own PIN. Current profile revision and credential epoch checked atomically; clear PIN/setup and revoke sessions. No Admin credential replica or unresolved remote write hidden by successful reset status."
+    },
+    {
+      "id": "M09",
+      "current_action_or_writer": "courses/participant-create; enrolment/register",
+      "source_locations": "backend/src/academy/d1/course-management.js; backend/src/academy/d1/enrolment.js; backend/src/academy/d1/profiles.js",
+      "affected_resources": "New account/credentials; initial Student role; Course subscription; request binding",
+      "proposed_owner": "Core people/participation command",
+      "required_guard_and_ordering": "Preserve Course administrator participant-create permission separately from Global Admin enrolment registration. Create credentials in Core only; request receipt and account binding cannot create a second account on retry. An enrolment request alone grants no access."
+    },
+    {
+      "id": "M10",
+      "current_action_or_writer": "POST /api/admin/platform/global/access/save",
+      "source_locations": "backend/src/academy/d1/course-subscriptions.js",
+      "affected_resources": "Account/Course subscription; Student role; Course access policy",
+      "proposed_owner": "Core subscription command",
+      "required_guard_and_ordering": "Actual request uses accountId, subjectId, active, workflowRevision, operationId. FREE Courses reject per-account switching; PAID removal deactivates Student role without deleting imported evidence or unrelated Teacher/Admin authority."
+    },
+    {
+      "id": "M11",
+      "current_action_or_writer": "programs/create/save: lifecycle, accessModel and setup fields",
+      "source_locations": "backend/src/academy/d1/programs.js; backend/src/academy/d1/program-access.js",
+      "affected_resources": "Activity lifecycle; Program access policy; source setup revision",
+      "proposed_owner": "Admin setup plus explicit Core policy/lifecycle effects",
+      "required_guard_and_ordering": "Keep current creation/status scope. Split source name/duration/link edits from effective Core decisions. Closing/archive/access-policy changes cannot wait for a later content publication; per-Program timezone editing is superseded by the agreed Academy timezone design."
+    },
+    {
+      "id": "M12",
+      "current_action_or_writer": "program-timetable/manage-save: enrollments, student-class, student-classes",
+      "source_locations": "backend/src/academy/d1/programs.js",
+      "affected_resources": "Dated class membership; learner roster evidence; account/activity scope",
+      "proposed_owner": "Core membership command",
+      "required_guard_and_ordering": "These writes are generated through shape/persist, not only literal SQL. Current Admin scope and per-entry revisions remain. Version new roster evidence; preserve previously accepted attendance evidence rather than rewriting old denominators silently."
+    },
+    {
+      "id": "M13",
+      "current_action_or_writer": "program-timetable/manage-save: classes and default Teacher",
+      "source_locations": "backend/src/academy/d1/programs.js",
+      "affected_resources": "Class active policy; default Teacher assignment; class source definition",
+      "proposed_owner": "Admin class definition plus Core effective policy/assignment",
+      "required_guard_and_ordering": "Class save replaces DEFAULT class_teacher_assignments through persist. Prevent source-save side effects from silently granting broad access. Use explicit checked Core effects for current assignment/class closure; accepted labels remain published definitions."
+    },
+    {
+      "id": "M14",
+      "current_action_or_writer": "programs/copy with copyEnrollments/copySchedule",
+      "source_locations": "backend/src/academy/d1/program-copy.js",
+      "affected_resources": "New inactive activity; copied Student roles/memberships/default Teachers",
+      "proposed_owner": "Admin copy plus checked Core draft participation",
+      "required_guard_and_ordering": "Global Admin only. Copy stable references to new identities, retaining current inactive-draft access gate. Copy options must not carry the source activity grant to a new scope or copy an operational attendance register."
+    },
+    {
+      "id": "M15",
+      "current_action_or_writer": "program-timetable/publish",
+      "source_locations": "backend/src/academy/d1/learning.js",
+      "affected_resources": "Activation head; activity active/lifecycle; scheduled Teacher role grants",
+      "proposed_owner": "Admin frozen source; Core publication and authority effects",
+      "required_guard_and_ordering": "Current publish inserts Teacher roles and can activate a draft Program. Enumerate those effects in the reviewed batch and guard them in Core; stale content retry cannot silently restore a later revoked role. No Teacher grant from draft save alone. PlatformTimezone is one app-wide master, editable only by current Global Admin under M40; no area/nested/copy/import/frozen publication override. New dates inherit accepted config; historical instants retained."
+    },
+    {
+      "id": "M16",
+      "current_action_or_writer": "program-timetable/status: ARCHIVED or CANCELLED",
+      "source_locations": "backend/src/academy/d1/learning.js",
+      "affected_resources": "Publication lifecycle; dated occurrences; attendance/join eligibility",
+      "proposed_owner": "Core current lifecycle command",
+      "required_guard_and_ordering": "Separate current suppression from frozen timetable content. Recheck existing Admin scope/revision and affected link/attendance dependencies. Existing accepted attendance remains history; corrections follow the separately agreed policy."
+    },
+    {
+      "id": "M17",
+      "current_action_or_writer": "courses/save creating a Course; courses/copy or repeat",
+      "source_locations": "backend/src/academy/d1/course-management.js",
+      "affected_resources": "New activity/run; draft stage; copied Student roles/subscriptions; module identities",
+      "proposed_owner": "Admin definitions plus Core anchors/draft participation",
+      "required_guard_and_ordering": "Preserve current create/copy/repeat scopes and options. A copied draft remains inaccessible until its required activation; a repeated Course has new IDs and does not copy students automatically. Core identity/participation is never an editable Admin duplicate. PlatformTimezone is one app-wide master, editable only by current Global Admin under M40; no area/nested/copy/import/frozen publication override. New dates inherit accepted config; historical instants retained."
+    },
+    {
+      "id": "M18",
+      "current_action_or_writer": "courses/publish",
+      "source_locations": "backend/src/academy/d1/course-management.js; backend/src/academy/d1/course-calendar.js",
+      "affected_resources": "Run activation; access model; publication head; scheduled Teacher roles",
+      "proposed_owner": "Core guarded activation/effects from frozen Admin batch",
+      "required_guard_and_ordering": "Include existing automatic Teacher grants and non-shared access-model update explicitly. Preserve current multi-run policy distinctions, validation/review acceptance and scope checks; do not let details_json become a runtime authority source."
+    },
+    {
+      "id": "M19",
+      "current_action_or_writer": "courses/status: DRAFT, COMPLETE, CANCELLED, ARCHIVED",
+      "source_locations": "backend/src/academy/d1/course-management.js",
+      "affected_resources": "Run active/lifecycle; current publication visibility; operational windows",
+      "proposed_owner": "Core lifecycle plus Admin editing stage",
+      "required_guard_and_ordering": "Retain allowed transitions and final-session completion check. PUBLISHED to DRAFT creates an editable revision while the accepted timetable remains; completion/cancellation/archive are current lifecycle decisions, not stale snapshot fields."
+    },
+    {
+      "id": "M20",
+      "current_action_or_writer": "Legacy global subject/save, subjects/save-batch, policy/save, run/save",
+      "source_locations": "backend/src/academy/d1/course-calendar.js",
+      "affected_resources": "Activity active state; Course access policy; run access/state",
+      "proposed_owner": "Action-specific Admin definition or Core policy/lifecycle command",
+      "required_guard_and_ordering": "Legacy DTO and generated upsert/insertRecords paths are mutators too. Keep COURSE_EDITOR_REQUIRED for adopted Courses. No old dispatcher may bypass the owner, scope, revision, admission or current lifecycle checks. PlatformTimezone is one app-wide master, editable only by current Global Admin under M40; no area/nested/copy/import/frozen publication override. New dates inherit accepted config; historical instants retained."
+    },
+    {
+      "id": "M21",
+      "current_action_or_writer": "Legacy global timetable session save/batch-save/reschedule/revise/publish",
+      "source_locations": "backend/src/academy/d1/course-calendar.js",
+      "affected_resources": "Dated session identity/lifecycle; session/run access; publication bindings",
+      "proposed_owner": "Admin schedule source plus Core current session/activation effects",
+      "required_guard_and_ordering": "Map lifecycle changes separately from source edits. Cancel/reschedule must invalidate only affected link/attendance contexts; a replacement occurrence needs explicit identity mapping and must not create duplicate attendance for the same submitted occurrence. PlatformTimezone is one app-wide master, editable only by current Global Admin under M40; no area/nested/copy/import/frozen publication override. New dates inherit accepted config; historical instants retained."
+    },
+    {
+      "id": "M22",
+      "current_action_or_writer": "calendar/save; legacy calendar/save or batch-save; teacher-availability/save",
+      "source_locations": "backend/src/academy/d1/academic-calendar.js; backend/src/academy/d1/teacher-availability.js; backend/src/academy/d1/course-calendar.js",
+      "affected_resources": "Calendar/availability source revision; schedule validation dependencies",
+      "proposed_owner": "Admin source; Core only for deliberate effective-policy effects",
+      "required_guard_and_ordering": "Teacher self-service availability editing is explicitly moved to Admin. A changed source invalidates the relevant validation token; do not silently change accepted reader schedules or close unrelated authority merely because a private calendar draft changed."
+    },
+    {
+      "id": "M23",
+      "current_action_or_writer": "Curriculum/module removal and class module progress",
+      "source_locations": "backend/src/academy/d1/curriculum-removal.js; backend/src/academy/d1/programs.js",
+      "affected_resources": "Stable subject/module/task references; operational-history dependencies; class progress source",
+      "proposed_owner": "Admin source and checked dependency protocol",
+      "required_guard_and_ordering": "Keep current history/reference blockers. Published versions and Core anchors cannot be deleted underneath live work. Class module progress is Admin-owned; learner memorisation progress stays Core."
+    },
+    {
+      "id": "M24",
+      "current_action_or_writer": "Assessment definition/register/session/recipient setup",
+      "source_locations": "backend/src/academy/d1/assessments.js; backend/src/academy/d1/assessment-register.js",
+      "affected_resources": "Assessment/class identity; recipient scope; accepted definition version; deletion state",
+      "proposed_owner": "Admin definition; Core workflow/recipient effects",
+      "required_guard_and_ordering": "Preserve existing action scopes and histories. Publish definitions explicitly; general setup publication does not release assessment schedules, papers or results. Changing recipients/deletion/current class access must update the actual Core gate. Setup/tracking stays Admin; saving a register label cannot set paper Ready. Explicit next-day manual Ready may have zero answers; no empty-set Assessed/Moderated/Released conclusion. Admin-owned mode/open/due/late policy; conditional null duration for UNTIMED, maximum-mark rule unchanged. Assignment recipients use assignment/release cohort, not future due membership. Explicit due extension belongs to M39, never implicit setup republish."
+    },
+    {
+      "id": "M25",
+      "current_action_or_writer": "Assessment PAPER upload and other file kinds",
+      "source_locations": "backend/src/academy/d1/assessment-files.js",
+      "affected_resources": "File/version binding; examiner assignment; paper state; duration/maximum definition candidate",
+      "proposed_owner": "Core files/workflow plus narrow Admin definition contribution",
+      "required_guard_and_ordering": "PAPER currently also sets examiner and IN_REVIEW state and can change duration/maximum. Preserve allowed examiner selection; changed definition fields become pending source contribution. File/release binds the accepted definition, not unpublished candidate values. Preserve per-kind staff rights and own original ANSWER. Bind immutable audience file view/hash and exact authorised review; Learn byte request never defaults to staff by highest role. R2 cleanup cannot infer rollback from an exception/negative receipt; retain unknown candidates until terminal fencing and unreferenced-owner proof. Apply student/Teacher perspective to Admin byte downloads and previews; preview never records learner first access/timer or writes participant events. Preserve actual actor versus permitted context. Raw byte-route metadata must carry validated workspace/purpose/real-versus-preview context. Preview produces no participant access/check evidence; real learner/Teacher events remain actual actor-bound. Accepted UNTIMED duration is null; no timer/allowance/default. Teacher contribution can supply duration only for accepted TIMED mode; no mode/calendar/policy change. ANSWER date/late guard selects exam or assignment policy; assignment late stays open until Admin closure under M39. SCRIPT candidate/attachment pins exact recipient/latest submission/definition and immutable bytes; a revision refresh is not new source review. REPORT pins frozen multi-page reviewed output/source/template/background; upload does not issue."
+    },
+    {
+      "id": "M26",
+      "current_action_or_writer": "Assessment review/release, marking/feedback, resubmission, ready checks",
+      "source_locations": "backend/src/academy/d1/assessments.js; backend/src/academy/d1/assessment-store.js; backend/src/academy/d1/assessment-files.js; statuses.md; docs/academy-separation/technical-contracts.md",
+      "affected_resources": "Paper/result/schedule release; recipients; file eligibility; latest submission/mark; expected workflow state",
+      "proposed_owner": "Core operational workflow",
+      "required_guard_and_ordering": "Core current actor/scope/latest answer/definition/mark/category source and revisions. Distinct Checked from actual current PDF confirmation; manual Ready after all expected uploaded AND checked OR next Academy day. Unchecked warning Admin Cancel / Continue anyway; recheck current set and counts, no auto-check/mark/release. Next-day zero uploads permitted with honest missing counts, never empty completion. Assignments use effective due-date next-day reference and stay open late until Admin closes. Keep ordinary assigned-examiner and moderator/no-self rules, real staff event projections, explicit independent release categories and actual report ownership. Direct Admin manual marking/finalisation/release uses ordinary records under M38, no separate lane/result/release engine. Ready and register tracking never imply release."
+    },
+    {
+      "id": "M27",
+      "current_action_or_writer": "progress/import, module-save, set-save",
+      "source_locations": "backend/src/academy/d1/memorisation.js",
+      "affected_resources": "Memorisation source catalogue; task references; accepted version",
+      "proposed_owner": "Admin definitions; Core accepted anchors/versions",
+      "required_guard_and_ordering": "Publish Admin definitions; retain action-specific current setup authority rather than expanding all Admin roles. Keep live completion/confirmation history bound to stable task IDs. Do not replace progress with a source import."
+    },
+    {
+      "id": "M28",
+      "current_action_or_writer": "progress/card-active and activity-active; progress/mark and confirm",
+      "source_locations": "backend/src/academy/d1/memorisation.js",
+      "affected_resources": "Account-card policy; area policy; accepted task; learner completion/Teacher confirmation",
+      "proposed_owner": "Core current policy and work",
+      "required_guard_and_ordering": "Global Admin policy controls remain as currently checked. Current disable blocks affected work without waiting for publication; own marking/assigned confirmation use accepted definitions and cannot re-enable the policy."
+    },
+    {
+      "id": "M29",
+      "current_action_or_writer": "lesson-media/create/save/pdf-upload/attachment-remove and retired discussion paths",
+      "source_locations": "backend/src/academy/d1/lesson-media.js",
+      "affected_resources": "Session material visibility; asset/version binding; contributor control; parent release policy",
+      "proposed_owner": "Admin curation; narrow Teach PDF contribution; Core current visibility",
+      "required_guard_and_ordering": "Explicitly remove broad Teacher curation and discussion actions. Preserve accepted session/run/multi-Teacher identity. No guessed authorship for existing assets and apply confirmed own-note replacement/withdrawal while eligible, Admin control and current version/policy guards; implementation still pending. V107.17 weekly calendar is read-only navigation. Current calendar/DTO/admin-or-teacher bypass and empty-session canManage/create path need explicit student/Teacher audience and accepted-session separation. Preserve weekly/date/swipe cards/icons and older/permanent recordings; no broad editor in Learn/Teach or source mutation on reader card click. Existing retired-discussion policy is not reversed by current source UI. Separate management get/save/create/remove, student PDF delivery and published video playback predicates. Do not impose attendance-delivery roster as a new media entitlement or drop accessible orphaned/permanent recordings. Discussion target retirement applies to read/write/moderation, including staff auto-approval paths. Verified own-note provenance never comes from current lesson Teacher label. V107.18 timetable metadata is another bounded reader, not a staff bypass. Preserve per-lesson mediaSessionKey and URL-free metadata; filter chosen student/Teacher audience per ref. Direct popup must carry true workspace/subject, not hardcoded learnerView plus real Admin byte access. Extend existing cache/generation guards to workspace/subject/context/release; keep one/direct multiple/chooser and click-time checks. Accepted dated session/current contribution evidence is separate from captured teacher labels and historical reader rights. Preserve old recordings without new writes or title/date reassociation. Bind logical note/asset association and every affected scope; shared asset replacement/unlink is association-specific, never in-place byte mutation. Teacher Post changes only eligible notes, preserves parent/videos/other notes and one replacement slot at cap. Preserve unchanged video refs and reject stale Admin snapshot resurrection. Include V107.22 display labels/dateless Course PDF collection: general label/collection management remains scoped/Global Admin; preserve original filename/immutable IDs and current Course entitlement. Verified own-note label may use only the narrow contribution action."
+    },
+    {
+      "id": "M30",
+      "current_action_or_writer": "Official open-library/metadata/save and taxonomy/reference edits",
+      "source_locations": "backend/src/academy/d1/library-metadata.js; backend/src/academy/d1/open-library-taxonomy.js",
+      "affected_resources": "Catalogue source version/hash; learning-area references; accepted public projection",
+      "proposed_owner": "Admin catalogue service with existing coordinator/R2 backing",
+      "required_guard_and_ordering": "Move official editing from eligible Teachers to Admin as directed. Include non-D1 writer and cover upload in the guard boundary; do not claim the catalogue has moved merely by adding an Admin database binding."
+    },
+    {
+      "id": "M31",
+      "current_action_or_writer": "Academy private-library access; personal My links",
+      "source_locations": "backend/src/academy/d1/library-boundary.js; backend/src/academy/d1/library-storage.js",
+      "affected_resources": "Controlled-media entitlement/file policy; own-user personal collection",
+      "proposed_owner": "Proposed Core access plus Admin catalogue; separate private R2 collection",
+      "required_guard_and_ordering": "Current private-library implementation is unavailable; preserve that result until deliberately built. Proposed My links must not create official entries or grants, expose another user collection, or reuse legacy library=personal as its meaning. My links uses own-key R2 conditional envelope with applied/cancelled operation decisions, Core minimal admission digest, generation floors and no private URL/title/tags in D1/logs. Current identity plus first-creation eligibility or established ownership. Confirmed active former owner keeps own editing/export after role loss; immutable established_at survives empty collection/compaction. Role removal is not a continuing own-link dependency; account/session revocation still is."
+    },
+    {
+      "id": "M32",
+      "current_action_or_writer": "Proposed substitute assignment/revoke and scoped attendance reopen",
+      "source_locations": "docs/academy-separation/technical-contracts.md; backend/src/academy/d1/repository.js; backend/src/academy/d1/session.js",
+      "affected_resources": "Exact dated occurrence/group; substitute revision/window; one attendance series policy",
+      "proposed_owner": "Proposed Core current assignment/policy",
+      "required_guard_and_ordering": "No current substitute endpoint is asserted. Admin grants exact-session link/attendance only; actual submitter/current grant/revision checked. Confirmed substitute FIRST ends session-day midnight, corrections end following-day midnight, explicit correction reopening up to 24 hours. Ordinary authorised past FIRST has no late permit or blanket date block; future FIRST remains blocked. Derive restricted substitute/reopened-correction Teach context without permanent Teacher role/broad TEACHER claim, preserving legacy context scope mapping. Per-delivery Admin-managed roster is confirmed; exact Course cohort fields remain technical proposal."
+    },
+    {
+      "id": "M33",
+      "current_action_or_writer": "Proposed freeze/seal/publish and component recovery",
+      "source_locations": "docs/academy-separation/technical-contracts.md",
+      "affected_resources": "Immutable batch; affected scopes; dependency vector; single accepted head",
+      "proposed_owner": "Proposed Admin frozen source and Core activation",
+      "required_guard_and_ordering": "All dependency versions and explicit authority effects must validate at acceptance. One head advance only; incomplete components, revoked publisher or stale head cannot activate a partially delivered batch. PlatformTimezone is one app-wide master, editable only by current Global Admin under M40; no area/nested/copy/import/frozen publication override. New dates inherit accepted config; historical instants retained."
+    },
+    {
+      "id": "M34",
+      "current_action_or_writer": "Runtime feature/access settings; enrolment catalogue and requests; announcement/planning gates",
+      "source_locations": "backend/src/academy/d1/worker.js; backend/src/academy/d1/enrolment.js; backend/src/academy/d1/lesson-planning.js; backend/src/academy/d1/announcements.js",
+      "affected_resources": "Setting-specific current feature/material/plan policy; source catalogue; user requests",
+      "proposed_owner": "Per-key Admin source or Core current policy as Settings Map specifies",
+      "required_guard_and_ordering": "No generic settings writer may choose authority by string prefix alone. Map each actual gating read. Requests/announcement text are not role grants. Calendar/source toggles cannot restore policy closed by a later explicit decision. PlatformTimezone is one app-wide master, editable only by current Global Admin under M40; no area/nested/copy/import/frozen publication override. New dates inherit accepted config; historical instants retained."
+    },
+    {
+      "id": "M35",
+      "current_action_or_writer": "Migration/import/activation/rollback, scheduled recovery, Hifz sync and cache refresh",
+      "source_locations": "backend/tools/academy-migration/operational.mjs; backend/tools/academy-migration/activation.mjs; backend/src/academy/d1/hifz-profile-sync.js; backend/src/academy/d1/cache-refresh.js",
+      "affected_resources": "Writer generation; role mapping/imported grants; ownership; credential epoch; admissions/receipts",
+      "proposed_owner": "Actual Core/source owner; no independent authority cache",
+      "required_guard_and_ordering": "Operational import writes accounts/credentials/roles: fence it before activation. Offline tools/repair scripts require a closed writer inventory. Hifz outbound projection stays Core-only; refresh/sync/recovery cannot restore old authority or mark unresolved remote work cancelled merely on timeout."
+    },
+    {
+      "id": "M36",
+      "current_action_or_writer": "Proposed Course attendance roster save, interval correction/void and repeat-delivery roster setup",
+      "source_locations": "docs/academy-separation/technical-contracts.md",
+      "affected_resources": "Course/run/cohort dated eligibility, roster revision, account anchors and derived missing-register evidence",
+      "proposed_owner": "Core current attendance enrolment command; scoped/Global Admin manages",
+      "required_guard_and_ordering": "Confirmed per-delivery roster, reviewed explicit participant prefill. Inclusive valid date intervals, leave versus VOIDED state, rejoin without overlaps, typed run scope and expected revisions. Local enrolment/revision/audit/retry acceptance; no content/role grant. Concurrent save conflicts. Existing sealed registers do not change silently; retrospective corrections identify affected contexts for deliberate reconciliation."
+    },
+    {
+      "id": "M37",
+      "current_action_or_writer": "Direct Admin earlier recipient date and allowance adjustment",
+      "source_locations": "docs/academy-separation/technical-contracts.md",
+      "affected_resources": "Ordinary recipient/date/timing values; current assessment/paper and original access/deadline history",
+      "proposed_owner": "Core current scoped/Global Admin operation",
+      "required_guard_and_ordering": "Current scoped/Global Admin in Admin directly edits permitted earlier date/allowance values for exact learner/paper, preserving actual first access and old/new timing history. No special authorise/revoke lifecycle. No later-day learner exam reopening, attempt reset, receipt or result release. UNTIMED has no allowance; genuine assignment extension uses M39."
+    },
+    {
+      "id": "M38",
+      "current_action_or_writer": "Direct Admin on-behalf answer/replacement, marking/finalisation and explicit release",
+      "source_locations": "docs/academy-separation/technical-contracts.md; backend/src/academy/d1/assessment-files.js; backend/src/academy/d1/assessments.js",
+      "affected_resources": "Ordinary learner answer/mark/optional marked PDF/release/report references and retained history; actual Admin actor",
+      "proposed_owner": "Core current scoped/Global Admin operation",
+      "required_guard_and_ordering": "Current scoped/Global Admin in Admin acts for exact learner/assessment through ordinary records. Upload/replace answer, record/revise marking, attach optional exact marked PDF, finalise without second moderator, then deliberately release intended record/category. Keep actual actor, correct owner, latest source/revision and original files/history; no fake learner first access/examiner/moderator. Normal Teacher examiner/self-moderation remains. Save/upload never releases. Admin handles acceptance, remarking and already released corrections manually; no case entity/state machine, lane, supplemental engine, automatic hold/reinstatement, typed result subsystem or cancellation/correction coordinator."
+    },
+    {
+      "id": "M39",
+      "current_action_or_writer": "Proposed assignment deadline extension and submission closure",
+      "source_locations": "assessment-timing.md; backend/src/academy/d1/assessments.js; backend/src/academy/d1/assessment-files.js",
+      "affected_resources": "Effective assignment deadline/collection/recipient revisions; accepted-time Late evidence; Ready offers; closure versus in-flight submission outcome",
+      "proposed_owner": "Core current scoped/Global Admin operation",
+      "required_guard_and_ordering": "Assignments stay open after due with Late flag until Admin closes. Admin can extend due or close under exact scope/current revisions; no Teacher/Learn action. Extension alone cannot reopen closed collection or rewrite prior accepted Late/time/Ready/release history. Closure blocks new learner acceptance, not committed retry or Admin-manual path. Serialize final acceptance with extension/closure. Preserve immutable deadline-used evidence and true counts; no auto-Ready/receipt/release. New Ready offers bind effective due/collection revisions; proposed next-day anchor is after effective due. Reject use on fixed-day exams and do not create a later exam sitting."
+    },
+    {
+      "id": "M40",
+      "current_action_or_writer": "Proposed app-wide Time zone save and accepted configuration activation",
+      "source_locations": "docs/academy-separation/technical-contracts.md; backend/src/academy/d1/repository.js:76; backend/src/academy/d1/programs.js:120; backend/src/academy/d1/course-management.js:30",
+      "affected_resources": "Single PlatformTimezone master/config revision; current Global Admin; new date resolutions versus captured historical instants",
+      "proposed_owner": "Admin app configuration; accepted Core shared timezone version",
+      "required_guard_and_ordering": "Confirmed Global-Admin-only edit and app-wide scope. Final authority/version/operation check; no scoped Admin setting or per-assessment zone. Ordinary area/copy/import/generic writers cannot mutate or reinstate old master. Effective old UTC instants/timing/late/release history unchanged. New/rescheduled dates bind current inherited config revision and exact original operation; no unrelated authority/material/release change."
+    }
+  ],
+  "tableOwnership": [
+    {
+      "table": "academy_announcements",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "academy_calendar_events",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "academy_calendar_suppressions",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "academy_enrolment_catalogue",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "academy_module_catalogue",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "academy_module_usage",
+      "master": "Admin editable master",
+      "delivery": "Keep the full management usage map private; publish only curriculum relationships required by readers."
+    },
+    {
+      "table": "activities",
+      "master": "Split Admin definitions and Core current lifecycle/access anchor",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "assessment_phases",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "assessment_register_areas",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "assessment_report_templates",
+      "master": "Admin editable master",
+      "delivery": "Admin template publication; generated reports retain their applicable template/source version."
+    },
+    {
+      "table": "class_memberships",
+      "master": "Core authoritative operational master",
+      "delivery": "Direct scoped Admin/ordinary authorised Core operation; no draft-publication delay or editable Admin clone"
+    },
+    {
+      "table": "class_module_progress",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "class_teacher_assignments",
+      "master": "Core authoritative operational master",
+      "delivery": "Direct scoped Admin/ordinary authorised Core operation; no draft-publication delay or editable Admin clone"
+    },
+    {
+      "table": "classes",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "course_draft_lifecycle",
+      "master": "Admin editable master",
+      "delivery": "Publish cancellation/replacement outcomes through confirmed operational lifecycle records; do not copy editor history."
+    },
+    {
+      "table": "course_draft_sessions",
+      "master": "Admin editable master",
+      "delivery": "Publish accepted lesson occurrences; no raw draft-session reads."
+    },
+    {
+      "table": "course_management_drafts",
+      "master": "Admin editable master",
+      "delivery": "Publish approved Course details/status; no home-menu or planning fallback to editor state."
+    },
+    {
+      "table": "course_resources",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "course_run_state",
+      "master": "Split: proposed dates in Admin; confirmed run/publication state in Core",
+      "delivery": "Versioned publication plus acknowledged live status commands; split draft and confirmed fields."
+    },
+    {
+      "table": "course_runs",
+      "master": "Admin run definition; Core effective lifecycle and accepted references",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "course_session_state",
+      "master": "Core authoritative current policy/lifecycle; authorised Admin controls",
+      "delivery": "Direct Core operation from authorised Admin; no separate Admin master or unrelated setup-publication delay"
+    },
+    {
+      "table": "course_settings",
+      "master": "Admin-controlled policy; effective authoritative enforcement in Core",
+      "delivery": "Explicit acknowledged policy application; grants/revocations must not depend on stale snapshots or unrelated pending drafts."
+    },
+    {
+      "table": "lesson_lifecycle",
+      "master": "Core accepted output; Admin controls the publishing/lifecycle action",
+      "delivery": "Publish/accept versioned output, or acknowledge the explicit live lifecycle command."
+    },
+    {
+      "table": "lesson_media_assets",
+      "master": "Admin editable master",
+      "delivery": "Admin-owned material service; Teacher PDF upload is a narrow contribution. Visibility timing/replacement rights require the remaining design detail."
+    },
+    {
+      "table": "lesson_media_lessons",
+      "master": "Admin editable master",
+      "delivery": "Admin-owned material service; Teacher PDF upload is a narrow contribution. Visibility timing/replacement rights require the remaining design detail."
+    },
+    {
+      "table": "lesson_media_links",
+      "master": "Admin editable master",
+      "delivery": "Admin-owned material service; Teacher PDF upload is a narrow contribution. Visibility timing/replacement rights require the remaining design detail."
+    },
+    {
+      "table": "lesson_plan_comments",
+      "master": "Core authoritative operational master",
+      "delivery": "Direct scoped Admin/ordinary authorised Core operation; no draft-publication delay or editable Admin clone"
+    },
+    {
+      "table": "lesson_plan_deadlines",
+      "master": "Core authoritative operational master",
+      "delivery": "Direct scoped Admin/ordinary authorised Core operation; no draft-publication delay or editable Admin clone"
+    },
+    {
+      "table": "lesson_plan_policies",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "lesson_plan_requirements",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "library_access_policies",
+      "master": "Core authoritative current policy/lifecycle; authorised Admin controls",
+      "delivery": "Direct Core operation from authorised Admin; no separate Admin master or unrelated setup-publication delay"
+    },
+    {
+      "table": "library_exclusions",
+      "master": "Core authoritative current policy/lifecycle; authorised Admin controls",
+      "delivery": "Direct Core operation from authorised Admin; no separate Admin master or unrelated setup-publication delay"
+    },
+    {
+      "table": "memorisation_account_settings",
+      "master": "Core authoritative operational master",
+      "delivery": "Direct scoped Admin/ordinary authorised Core operation; no draft-publication delay or editable Admin clone"
+    },
+    {
+      "table": "memorisation_activity_settings",
+      "master": "Admin grouping/default master; Core current enablement master",
+      "delivery": "Grouping changes explicitly published; current enable/disable is a Core operation and cannot be overwritten by setup retry"
+    },
+    {
+      "table": "memorisation_catalogue_state",
+      "master": "Admin editable master",
+      "delivery": "Independent draft revision and accepted publication version; link them through the publication receipt."
+    },
+    {
+      "table": "memorisation_set_activities",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "memorisation_sets",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "memorisation_tasks",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "modules",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "program_historical_extensions",
+      "master": "Admin-controlled policy; effective authoritative enforcement in Core",
+      "delivery": "Explicit acknowledged policy application; grants/revocations must not depend on stale snapshots or unrelated pending drafts."
+    },
+    {
+      "table": "program_levels",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "program_library_destinations",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "program_library_roots",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "program_publication_lifecycle",
+      "master": "Core accepted output; Admin controls the publishing/lifecycle action",
+      "delivery": "Publish/accept versioned output, or acknowledge the explicit live lifecycle command."
+    },
+    {
+      "table": "program_publication_state",
+      "master": "Core accepted output; Admin controls the publishing/lifecycle action",
+      "delivery": "Publish/accept versioned output, or acknowledge the explicit live lifecycle command."
+    },
+    {
+      "table": "program_resources",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "program_settings",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "program_subjects",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "program_timetable_records",
+      "master": "Admin editable master",
+      "delivery": "Keep editing/validation records in Admin; Core receives accepted timetable versions."
+    },
+    {
+      "table": "published_lesson_classes",
+      "master": "Core accepted output; Admin controls the publishing/lifecycle action",
+      "delivery": "Publish/accept versioned output, or acknowledge the explicit live lifecycle command."
+    },
+    {
+      "table": "published_lesson_teachers",
+      "master": "Core accepted output; Admin controls the publishing/lifecycle action",
+      "delivery": "Publish/accept versioned output, or acknowledge the explicit live lifecycle command."
+    },
+    {
+      "table": "published_lessons",
+      "master": "Core accepted output; Admin controls the publishing/lifecycle action",
+      "delivery": "Publish/accept versioned output, or acknowledge the explicit live lifecycle command."
+    },
+    {
+      "table": "subject_catalog",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "tasks",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "teacher_availability",
+      "master": "Admin editable master",
+      "delivery": "Reviewed publication of selected approved fields; no editable operational master."
+    },
+    {
+      "table": "teacher_availability_changes",
+      "master": "Admin editable master",
+      "delivery": "Admin change history only; publish relevant effective availability, not the notification/change history."
+    },
+    {
+      "table": "teacher_availability_notices",
+      "master": "Admin editable master",
+      "delivery": "Admin notification queue only; not a Learn/Teach read model."
+    },
+    {
+      "table": "timetable_drafts",
+      "master": "Admin editable master",
+      "delivery": "Editable timetable content stays private; Core and Records receive accepted outputs only."
+    },
+    {
+      "table": "timetable_publications",
+      "master": "Core accepted output; Admin controls the publishing/lifecycle action",
+      "delivery": "Publish/accept versioned output, or acknowledge the explicit live lifecycle command."
+    },
+    {
+      "table": "academy_enrolment_request_items",
+      "master": "Core live workflow",
+      "delivery": "Existing permitted operational commands; commit workflow changes with local audit and retry controls."
+    },
+    {
+      "table": "academy_enrolment_requests",
+      "master": "Core live workflow",
+      "delivery": "Existing permitted operational commands; commit workflow changes with local audit and retry controls."
+    },
+    {
+      "table": "academy_pdf_bookmarks",
+      "master": "Core live workflow",
+      "delivery": "Existing permitted operational commands; commit workflow changes with local audit and retry controls."
+    },
+    {
+      "table": "assessment_events",
+      "master": "Core live workflow",
+      "delivery": "Existing permitted operational commands; commit workflow changes with local audit and retry controls."
+    },
+    {
+      "table": "assessment_markings",
+      "master": "Core live workflow",
+      "delivery": "Existing permitted operational commands; commit workflow changes with local audit and retry controls."
+    },
+    {
+      "table": "assessment_recipients",
+      "master": "Core live workflow",
+      "delivery": "Existing permitted operational commands; commit workflow changes with local audit and retry controls."
+    },
+    {
+      "table": "assessment_reports",
+      "master": "Core live workflow",
+      "delivery": "Existing permitted operational commands; commit workflow changes with local audit and retry controls."
+    },
+    {
+      "table": "assessment_submissions",
+      "master": "Core live workflow",
+      "delivery": "Existing permitted operational commands; commit workflow changes with local audit and retry controls."
+    },
+    {
+      "table": "attendance_marks",
+      "master": "Core native attendance initially; existing development attendance reset rather than migrated",
+      "delivery": "Core-local current-authority/eligibility guards and atomic day/register/absence submission; existing Program permissions retained, Course UI/API scope mapping required."
+    },
+    {
+      "table": "attendance_registers",
+      "master": "Core native attendance initially; existing development attendance reset rather than migrated",
+      "delivery": "Core-local current-authority/eligibility guards and atomic day/register/absence submission; existing Program permissions retained, Course UI/API scope mapping required."
+    },
+    {
+      "table": "learner_task_progress",
+      "master": "Core live workflow",
+      "delivery": "Existing permitted operational commands; commit workflow changes with local audit and retry controls."
+    },
+    {
+      "table": "lesson_plan_preferences",
+      "master": "Core live workflow",
+      "delivery": "Existing permitted operational commands; commit workflow changes with local audit and retry controls."
+    },
+    {
+      "table": "lesson_plan_revisions",
+      "master": "Core live workflow",
+      "delivery": "Existing permitted operational commands; commit workflow changes with local audit and retry controls."
+    },
+    {
+      "table": "lesson_plans",
+      "master": "Core live workflow",
+      "delivery": "Existing permitted operational commands; commit workflow changes with local audit and retry controls."
+    },
+    {
+      "table": "assessment_files",
+      "master": "Split Admin setup / Core published input and workflow",
+      "delivery": "Split by purpose/field and published version. Never copy whole mixed rows over live workflow state."
+    },
+    {
+      "table": "assessment_registers",
+      "master": "Split Admin setup / Core published input and workflow",
+      "delivery": "Split by purpose/field and published version. Never copy whole mixed rows over live workflow state."
+    },
+    {
+      "table": "assessments",
+      "master": "Split Admin setup / Core published input and workflow",
+      "delivery": "Split by purpose/field and published version. Never copy whole mixed rows over live workflow state. Keep the examiner contribution pending until Admin publication; preserve release/moderation guards."
+    },
+    {
+      "table": "academy_admissions",
+      "master": "Core authoritative shared identity/access",
+      "delivery": "Current authenticated identity/access commands; no periodic role/credential publication copies."
+    },
+    {
+      "table": "academy_teacher_designations",
+      "master": "Core authoritative shared identity/access",
+      "delivery": "Current authenticated identity/access commands; no periodic role/credential publication copies."
+    },
+    {
+      "table": "account_contact_details",
+      "master": "Core authoritative shared identity/access",
+      "delivery": "Current authenticated identity/access commands; no periodic role/credential publication copies."
+    },
+    {
+      "table": "account_credentials",
+      "master": "Core authoritative shared identity/access",
+      "delivery": "Current authenticated identity/access commands; no periodic role/credential publication copies."
+    },
+    {
+      "table": "account_sessions",
+      "master": "Core authoritative shared identity/access",
+      "delivery": "Current authenticated identity/access commands; no periodic role/credential publication copies."
+    },
+    {
+      "table": "accounts",
+      "master": "Core authoritative shared identity/access",
+      "delivery": "Current authenticated identity/access commands; no periodic role/credential publication copies."
+    },
+    {
+      "table": "course_run_access",
+      "master": "Core authoritative shared identity/access",
+      "delivery": "Current authenticated identity/access commands; no periodic role/credential publication copies."
+    },
+    {
+      "table": "course_subscription_decisions",
+      "master": "Core authoritative shared identity/access",
+      "delivery": "Current authenticated identity/access commands; no periodic role/credential publication copies."
+    },
+    {
+      "table": "global_role_assignments",
+      "master": "Core authoritative shared identity/access",
+      "delivery": "Current authenticated identity/access commands; no periodic role/credential publication copies."
+    },
+    {
+      "table": "hifz_profile_sync",
+      "master": "Core authoritative shared identity/access",
+      "delivery": "Current authenticated identity/access commands; no periodic role/credential publication copies."
+    },
+    {
+      "table": "legacy_access_evidence",
+      "master": "Core authoritative shared identity/access",
+      "delivery": "Current authenticated identity/access commands; no periodic role/credential publication copies."
+    },
+    {
+      "table": "role_assignments",
+      "master": "Core authoritative shared identity/access",
+      "delivery": "Current authenticated identity/access commands; no periodic role/credential publication copies."
+    },
+    {
+      "table": "role_import_reviews",
+      "master": "Core authoritative shared identity/access",
+      "delivery": "Current authenticated identity/access commands; no periodic role/credential publication copies."
+    },
+    {
+      "table": "role_mapping_decisions",
+      "master": "Core authoritative shared identity/access",
+      "delivery": "Current authenticated identity/access commands; no periodic role/credential publication copies."
+    },
+    {
+      "table": "academy_settings",
+      "master": "Split by setting key and local purpose",
+      "delivery": "Key-specific publication, live policy command or local bookkeeping."
+    },
+    {
+      "table": "academy_import_schema",
+      "master": "Core retained compatibility record",
+      "delivery": "No blanket relocation. Admin may obtain scoped readiness/reference results through a compatibility service."
+    },
+    {
+      "table": "activity_policy_imports",
+      "master": "Core retained compatibility record",
+      "delivery": "No blanket relocation. Admin may obtain scoped readiness/reference results through a compatibility service."
+    },
+    {
+      "table": "activity_source_bindings",
+      "master": "Core retained compatibility record",
+      "delivery": "No blanket relocation. Admin may obtain scoped readiness/reference results through a compatibility service."
+    },
+    {
+      "table": "course_workflow_imports",
+      "master": "Core retained compatibility record",
+      "delivery": "No blanket relocation. Admin may obtain scoped readiness/reference results through a compatibility service."
+    },
+    {
+      "table": "data_ownership",
+      "master": "Core retained compatibility record",
+      "delivery": "No blanket relocation. Admin may obtain scoped readiness/reference results through a compatibility service."
+    },
+    {
+      "table": "learning_imports",
+      "master": "Core retained compatibility record",
+      "delivery": "No blanket relocation. Admin may obtain scoped readiness/reference results through a compatibility service."
+    },
+    {
+      "table": "legacy_identity_links",
+      "master": "Core retained compatibility record",
+      "delivery": "No blanket relocation. Admin may obtain scoped readiness/reference results through a compatibility service."
+    },
+    {
+      "table": "migration_checks",
+      "master": "Core retained compatibility record",
+      "delivery": "No blanket relocation. Admin may obtain scoped readiness/reference results through a compatibility service."
+    },
+    {
+      "table": "migration_runs",
+      "master": "Core retained compatibility record",
+      "delivery": "No blanket relocation. Admin may obtain scoped readiness/reference results through a compatibility service."
+    },
+    {
+      "table": "program_legacy_teachers",
+      "master": "Core retained compatibility record",
+      "delivery": "No blanket relocation. Admin may obtain scoped readiness/reference results through a compatibility service."
+    },
+    {
+      "table": "source_record_map",
+      "master": "Core retained compatibility record",
+      "delivery": "No blanket relocation. Admin may obtain scoped readiness/reference results through a compatibility service."
+    },
+    {
+      "table": "academy_write_guards",
+      "master": "Local to the database/service performing the write",
+      "delivery": "Admin and Core have independent local controls linked by operation/publication IDs; optional future Records would have its own controls."
+    },
+    {
+      "table": "academy_write_state",
+      "master": "Local to the database/service performing the write",
+      "delivery": "Admin and Core have independent local controls linked by operation/publication IDs; optional future Records would have its own controls."
+    },
+    {
+      "table": "audit_events",
+      "master": "Local to the database/service performing the write",
+      "delivery": "Admin and Core have independent local controls linked by operation/publication IDs; optional future Records would have its own controls."
+    },
+    {
+      "table": "management_revisions",
+      "master": "Admin setup revisions; distinct Core operational versions, and optional future Records versions",
+      "delivery": "Admin and Core have independent local controls linked by operation/publication IDs; optional future Records would have its own controls."
+    },
+    {
+      "table": "operation_receipts",
+      "master": "Local to the database/service performing the write",
+      "delivery": "Admin and Core have independent local controls linked by operation/publication IDs; optional future Records would have its own controls."
+    },
+    {
+      "table": "lesson_media_comments",
+      "master": "Core retained history pending archive/retention decision",
+      "delivery": "Retire discussion actions. No deletion, table drop or repurposing as PDF notes is authorised."
+    }
+  ],
+  "acceptanceIds": [
+    "A01",
+    "A02",
+    "A03",
+    "A04",
+    "A05",
+    "A06",
+    "A07",
+    "A08",
+    "A09",
+    "A10",
+    "A11",
+    "A12",
+    "A13",
+    "A14",
+    "A15",
+    "A16",
+    "A17",
+    "A18",
+    "A19",
+    "A20",
+    "A21",
+    "A22",
+    "A23",
+    "A24",
+    "A25",
+    "A26",
+    "A27",
+    "A28",
+    "A29",
+    "A30",
+    "A31",
+    "A32",
+    "A33",
+    "A34",
+    "A35",
+    "A36",
+    "A37",
+    "A38",
+    "A39",
+    "A40",
+    "A41",
+    "A42",
+    "A43",
+    "A44",
+    "A45",
+    "A46",
+    "A47",
+    "A48",
+    "A49",
+    "A50",
+    "A51",
+    "A52",
+    "A53",
+    "A54",
+    "A55",
+    "A56",
+    "A57",
+    "A58",
+    "A59",
+    "A60",
+    "A61",
+    "A62",
+    "A63",
+    "A64",
+    "A65",
+    "A66",
+    "A67",
+    "A68",
+    "A69",
+    "A70",
+    "A71",
+    "A72",
+    "A73",
+    "A74",
+    "A75",
+    "A76",
+    "A77",
+    "A78",
+    "A79",
+    "A80",
+    "A81",
+    "A82",
+    "A83",
+    "A84",
+    "A85",
+    "A86",
+    "A87",
+    "A88",
+    "A89",
+    "A90",
+    "A91",
+    "A92",
+    "A93",
+    "A94",
+    "A95",
+    "A96",
+    "A97",
+    "A98",
+    "A99",
+    "A100",
+    "A101",
+    "A102",
+    "A103",
+    "A104",
+    "A105",
+    "A106",
+    "A107",
+    "A108",
+    "A109",
+    "A110",
+    "A111",
+    "A112",
+    "A113",
+    "A114",
+    "A115",
+    "A120",
+    "A121",
+    "A122"
+  ],
+  "designSources": {
+    "README.md": "Academy-Separation-Implementation-Brief.md",
+    "data-ownership.md": "Academy-Separation-Final-Data-Ownership.md",
+    "implementation-plan.md": "Academy-Separation-Phased-Implementation-Plan.md",
+    "technical-contracts.md": "Academy-Separation-Technical-Contracts.md",
+    "statuses.md": "Academy-Answer-Status-and-Ready-Transition-Review.md",
+    "assessment-timing.md": "Academy-Assessment-Timing-and-Assignment-Design.md",
+    "policies.md": "Academy-Confirmed-Policy-Decisions-2026-10-21.md",
+    "access-map.csv": "Academy-Separation-Final-Access-Map.csv",
+    "screen-map.csv": "Academy-Separation-Final-Screen-Map.csv",
+    "api-map.csv": "Academy-Admin-Separation-API-Map.csv",
+    "field-map.csv": "Academy-Admin-Separation-Field-Map.csv",
+    "authority-map.csv": "Academy-Admin-Separation-Authority-Mutation-Map.csv",
+    "acceptance-matrix.csv": "Academy-Admin-Separation-Acceptance-Matrix.csv",
+    "rehearsal-evidence.csv": "Academy-Admin-Separation-Rehearsal-Evidence.csv",
+    "fixture-plan.csv": "Academy-Admin-Separation-Rehearsal-Fixtures.csv",
+    "settings-map.csv": "Academy-Admin-Separation-Settings-Map.csv",
+    "table-placement.csv": "Academy-Phase-Two-Table-Placement.csv",
+    "constraint-map.csv": "Academy-Admin-Separation-Constraint-Map.csv",
+    "decision-trace.csv": "Academy-Separation-Decision-Trace.csv",
+    "gap-register.csv": "Academy-Assessment-and-Media-Gap-Register.csv"
+  }
+}

@@ -179,6 +179,7 @@ export async function courseCalendarStatements(store,data,tables,changes,auth,en
   statements.push(...upsert(p,'modules',records('GlobalModuleList').map(r=>({activity_key:activity(r.SubjectID),module_id:r.ModuleID,program_subject_id:null,level_id:null,name:r.ModuleName,sort_order:r.SortOrder,active:Number(r.Active)})),['activity_key','module_id']));
   statements.push(...upsert(p,'tasks',records('GlobalTaskList').map(r=>({activity_key:activity(r.SubjectID),task_id:r.TaskID,program_subject_id:null,module_id:nullable(r.ModuleID),name:r.TaskName,sort_order:0,active:Number(r.Active)})),['activity_key','task_id']));
   const runs=records('GlobalSubjectRuns');
+  for(const r of runs)if(r.Timezone!==(data.runs.find(old=>same(old.run_id,r.RunID)&&same(old.activity_key,activity(r.SubjectID)))?.timezone||data.settings.find(s=>s.setting_key==='PlatformTimezone')?.setting_value))throw managementError('Time zone is an app setting managed by Global Admin.',403,'APP_TIMEZONE_ONLY');
   statements.push(...upsert(p,'course_runs',runs.map(r=>({activity_key:activity(r.SubjectID),run_id:r.RunID,name:r.RunName,timezone:r.Timezone,start_date:nullable(r.StartDate),end_date:nullable(r.EndDate),schedule_mode:r.ScheduleMode,schedule_definition:r.ScheduleDefinition,active:Number(r.Active)})),['activity_key','run_id']));
   statements.push(...upsert(p,'course_run_access',runs.map(r=>({activity_key:activity(r.SubjectID),run_id:r.RunID,access_model:r.AccessModel})),['activity_key','run_id']));
   const sessions=records('GlobalTimetableSessions');
@@ -186,6 +187,7 @@ export async function courseCalendarStatements(store,data,tables,changes,auth,en
   statements.push(...upsert(p,'course_session_state',sessions.map(r=>({activity_key:activity(r.SubjectID),run_id:r.RunID,session_id:r.SessionID,active:Number(r.Active)})),['activity_key','run_id','session_id']));
   const publications=[];const lessons=[];const teachers=[];
   for(const r of records('GlobalTimetablePublications')){
+    if(r.Timezone!==run(r.RunID).Timezone)throw managementError('Time zone is an app setting managed by Global Admin.',403,'APP_TIMEZONE_ONLY');
     const a=activity(r.SubjectID),snapshot={publication:cleanRecord(r),sessions:tables.PublishedGlobalTimetableSessions.filter(s=>same(s.PublicationID,r.PublicationID)).map(cleanRecord)};
     publications.push({activity_key:a,publication_id:r.PublicationID,scope_key:r.RunID,version_no:r.VersionNo,pattern:'COURSE',published_at:r.PublishedDate,published_by_source_id:auth.user.accountid,effective_from:r.PublishStartDate,effective_until:r.PublishEndDate,timezone:r.Timezone,snapshot_json:JSON.stringify(snapshot),source_snapshot_sha256:await payloadHash(snapshot),conversion:'EXACT'});
     const resolved=resolveCurrentPublishedGlobalTimetable(tables,r.RunID,{startDate:r.PublishStartDate,endDate:r.PublishEndDate});

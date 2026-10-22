@@ -1,5 +1,6 @@
 import {managementError as fail,same} from './management-store.js';
 import {payloadHash} from '../../programs/timetable-model.js';
+import {isAdminWorkspace,administers,actualState} from './workspace-access.js';
 
 export const assessmentRolesSQL=`SELECT account_id,activity_key,role FROM effective_activity_roles UNION SELECT e.account_id,e.activity_key,m.target_role role FROM legacy_access_evidence e JOIN role_import_reviews v ON v.account_id=e.account_id AND v.activity_key=e.activity_key AND v.source_value=e.source_role JOIN role_mapping_decisions m ON m.source_role=e.source_role WHERE e.source_effective=1 AND v.status='REQUIRED'`;
 const globalSQL=`EXISTS(SELECT 1 FROM global_role_assignments WHERE account_id=? AND active=1 AND role='GLOBAL_ADMIN' AND review_state='CONFIRMED')`;
@@ -12,10 +13,12 @@ export const paperAvailable=a=>Boolean(a.schedule_published&&a.paper_released_at
 
 export function assessmentStore(repository,auth){
  const db=repository.db,p=(sql,...values)=>db.prepare(sql).bind(...values),actor=auth.user.accountid;
- const clause=(mode)=>mode==='admin'?adminClause:mode==='staff'?teacherClause:learnerClause;
+ const clause=(mode)=>mode==='admin'?(isAdminWorkspace(auth)?adminClause:'(? IS NULL AND ? IS NULL)'):mode==='staff'?(isAdminWorkspace(auth)?teacherClause:auth.workspace==='TEACH'?teacherClause.replace(adminClause,'(? IS NULL AND ? IS NULL)'):'(? IS NULL AND ? IS NULL AND ? IS NULL)'):auth.workspace==='TEACH'?'(? IS NULL AND ? IS NULL)':learnerClause;
  const values=mode=>Array(mode==='staff'?3:2).fill(actor);
- async function classes(mode='staff',activityKey=''){
-  return (await p(`SELECT c.activity_key,c.class_id,c.name,a.name activity_name,a.kind FROM classes c JOIN activities a USING(activity_key) WHERE c.active=1 AND a.active=1 AND a.lifecycle='ACTIVE' AND ${clause(mode)} ${activityKey?'AND a.activity_key=?':''} ORDER BY a.name,c.name LIMIT 501`,...values(mode),...(activityKey?[activityKey]:[])).all()).results;
+ async function classes(mode='staff',activityKey='',includePreview=true){
+  const preview=includePreview&&((mode==='learner'&&auth.workspace==='LEARN')||(mode==='staff'&&auth.workspace==='TEACH'));
+  const real=actualState(auth),keys=real.roles.filter(r=>r.role==='PROGRAM_ADMIN').map(r=>r.activity_key);
+  return (await p(`SELECT c.activity_key,c.class_id,c.name,a.name activity_name,a.kind FROM classes c JOIN activities a USING(activity_key) WHERE c.active=1 AND a.active=1 AND a.lifecycle='ACTIVE' AND (${clause(mode)} ${preview?'OR ?=1 OR a.activity_key IN(SELECT value FROM json_each(?))':''}) ${activityKey?'AND a.activity_key=?':''} ORDER BY a.name,c.name LIMIT 501`,...values(mode),...(preview?[Number(Boolean(real.account.global_admin)),JSON.stringify(keys)]:[]),...(activityKey?[activityKey]:[])).all()).results;
  }
  async function allowed(activityKey,classId,mode='staff'){
   return Boolean(await p(`SELECT 1 ok FROM classes c JOIN activities a USING(activity_key) WHERE c.activity_key=? AND c.class_id=? AND c.active=1 AND a.active=1 AND a.lifecycle='ACTIVE' AND ${clause(mode)}`,activityKey,classId,...values(mode)).first());
@@ -26,9 +29,11 @@ export function assessmentStore(repository,auth){
  async function assessment(id){const a=await p(`SELECT x.*,COALESCE(ar.name,ph.name) phase_name,c.name class_name,a.name activity_name FROM assessments x LEFT JOIN assessment_phases ph ON ph.phase_id=x.phase_id LEFT JOIN assessment_registers ar ON ar.register_id=x.register_id JOIN classes c ON c.activity_key=x.activity_key AND c.class_id=x.class_id JOIN activities a ON a.activity_key=x.activity_key WHERE assessment_id=? AND x.deleted_at IS NULL`,String(id||'')).first();if(!a)throw fail('Assessment not found.',404);return a;}
  const recipient=(id,accountId=actor)=>p('SELECT * FROM assessment_recipients WHERE assessment_id=? AND account_id=?',id,accountId).first();
  async function requireReader(a){
-  if(await allowed(a.activity_key,a.class_id,'staff'))return;
+  if(await readStaff(a))return;
+  if(auth.workspace==='LEARN'&&administers(auth,a.activity_key)&&a.schedule_published)return;
   if(!a.schedule_published||!await allowed(a.activity_key,a.class_id,'learner')||!await recipient(a.assessment_id))throw fail('This assessment is outside your access.',403,'FORBIDDEN');
  }
+ const readStaff=a=>auth.workspace==='TEACH'&&administers(auth,a.activity_key)?Promise.resolve(true):allowed(a.activity_key,a.class_id,'staff');
  async function requireExaminer(a){await requireClass(a.activity_key,a.class_id);if(!same(a.examiner_id,actor))throw fail('Only the examiner can assess this paper.',403,'FORBIDDEN');}
  async function moderator(a){await requireClass(a.activity_key,a.class_id,'admin');if(same(a.examiner_id,actor))throw fail('An examiner cannot moderate their own assessment.',403,'SELF_MODERATION');}
  async function roster(a){return (await p(`SELECT DISTINCT u.account_id,u.display_name FROM accounts u JOIN class_memberships m ON m.account_id=u.account_id AND m.activity_key=? AND m.class_id=? WHERE u.active=1 AND m.active=1 AND (m.start_date IS NULL OR m.start_date<=?) AND (m.end_date IS NULL OR m.end_date>=?) AND (EXISTS(SELECT 1 FROM (${assessmentRolesSQL}) r WHERE r.account_id=u.account_id AND r.activity_key=m.activity_key AND r.role='STUDENT') OR EXISTS(SELECT 1 FROM effective_course_subscriptions s WHERE s.account_id=u.account_id AND s.activity_key=m.activity_key)) ORDER BY u.display_name,u.account_id LIMIT 2001`,a.activity_key,a.class_id,a.exam_date,a.exam_date).all()).results;}
@@ -36,6 +41,12 @@ export function assessmentStore(repository,auth){
  function revision(a,input){if(!Number.isInteger(input.revision)||input.revision!==a.revision)throw fail('This assessment changed elsewhere. Refresh before saving.',409,'ROW_CHANGED');}
  function recipientRevision(r,input){if(!r||!Number.isInteger(input.recipientRevision)||input.recipientRevision!==r.revision)throw fail('This learner record changed elsewhere. Refresh before saving.',409,'ROW_CHANGED');}
  async function change(action,input,scope,plan){
+  if(!isAdminWorkspace(auth)){
+   const a=await assessment(input.assessmentId||scope);
+   if(['access-paper','upload-ANSWER'].includes(action)){
+    if(auth.workspace!=='LEARN'||!await allowed(a.activity_key,a.class_id,'learner')||!await recipient(a.assessment_id))throw fail('Preview cannot submit or start a learner paper.',403,'PREVIEW_READ_ONLY');
+   }else await requireClass(a.activity_key,a.class_id);
+  }
   if(!/^[0-9a-f-]{36}$/i.test(input.operationId||''))throw fail('This action needs its retry identifier.');
   const hash=await payloadHash({action,input});
   const receipt=async()=>{const r=await p("SELECT * FROM operation_receipts WHERE dataset_key='ASSESSMENT' AND scope_key=? AND operation_id=?",scope,input.operationId).first();if(!r)return null;if(r.actor_account_id!==actor||r.payload_sha256!==hash)throw fail('This retry identifier belongs to another change.',409,'OPERATION_ID_REUSED');return {...JSON.parse(r.result_json),replayed:true};};
@@ -52,5 +63,5 @@ export function assessmentStore(repository,auth){
   }
  }
  const touch=a=>p('UPDATE assessments SET revision=revision+1,updated_at=? WHERE assessment_id=?',new Date().toISOString(),a.assessment_id);
- return {db,p,actor,classes,allowed,requireClass,assessment,recipient,requireReader,requireExaminer,moderator,roster,event,revision,recipientRevision,change,touch};
+ return {db,p,actor,classes,allowed,readStaff,requireClass,assessment,recipient,requireReader,requireExaminer,moderator,roster,event,revision,recipientRevision,change,touch};
 }

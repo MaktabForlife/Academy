@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -10,11 +11,11 @@ test('profile sheet orders compact editable account columns, filters active lear
   const f=await fixtureDatabase();
   for(const name of ['0004_management_transactions.sql','0011_account_contact_details.sql'])f.db.exec(readFileSync(new URL('../migrations/academy/'+name,import.meta.url),'utf8'));
   f.db.exec(readFileSync(new URL('../migrations/academy/0009_course_review_and_teachers.sql',import.meta.url),'utf8').split('ALTER TABLE')[0]);
-  const response=await worker.fetch(new Request('http://localhost/api/account/login',{method:'POST',body:JSON.stringify({uniqueid:'login-0001',pin:'1234'})}),f.env),{token}=await response.json();
+  const response=await worker.fetch(new WorkspaceRequest('http://localhost/api/account/login',{method:'POST',body:JSON.stringify({uniqueid:'login-0001',pin:'1234'})}),f.env),{token}=await response.json();
   const elements=new Map(),storage=new Map(),requests=[];let lost=false;
   const el=id=>{if(!elements.has(id))elements.set(id,{dataset:{},hidden:false,disabled:false,value:'',innerHTML:'',textContent:'',classList:{toggle(){}},setAttribute(){},showModal(){this.open=true;},close(){this.open=false;},focus(){}});return elements.get(id);};
   const context={console,crypto,structuredClone,URLSearchParams,location:{search:'',host:'localhost',origin:'http://localhost'},document:{getElementById:el},window:{M4L_CONFIG:{API_BASE:''},addEventListener(){}},navigator:{},localStorage:{getItem:()=>token},sessionStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},setTimeout,fetch:async(url,options)=>{
-    const input=JSON.parse(options.body);requests.push({url,input});const result=await worker.fetch(new Request('http://localhost'+url,options),f.env);
+    const input=JSON.parse(options.body);requests.push({url,input});const result=await worker.fetch(new WorkspaceRequest('http://localhost'+url,options),f.env);
     if(lost&&input.mode==='reset-pin'){lost=false;throw Error('Connection interrupted after saving');}return result;
   }};
   const row=async dataset=>{el('up-users').onclick({target:{closest:()=>({dataset})}});await settle();};

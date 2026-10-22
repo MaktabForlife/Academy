@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -5,7 +6,7 @@ import {memorisationFixture} from './fixtures/academy-memorisation-fixture.mjs';
 import {attendanceProgramId} from './fixtures/academy-attendance-fixture.mjs';
 import worker from '../src/academy-runtime.js';
 const path='/api/academy/progress/',scope='PROGRAM:'+attendanceProgramId;
-const post=async(env,action,input={},token='')=>{const r=await worker.fetch(new Request('http://localhost'+(action.startsWith('/')?action:path+action),{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),env);return {status:r.status,body:await r.json()};};
+const post=async(env,action,input={},token='')=>{const r=await worker.fetch(new WorkspaceRequest('http://localhost'+(action.startsWith('/')?action:path+action),{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),env);return {status:r.status,body:await r.json()};};
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
 const login=async(env,suffix)=>ok(await post(env,'/api/account/login',{uniqueid:'login-'+suffix,pin:'1234'})).token;
 async function use(fn){const f=await memorisationFixture(),previous=globalThis.fetch;globalThis.fetch=async()=>{throw Error('Unexpected external call');};try{await fn(f);assert.deepEqual(f.db.prepare('PRAGMA foreign_key_check').all(),[]);assert.equal(f.db.prepare('SELECT count(*) n FROM academy_write_guards').get().n,0);}finally{f.db.close();globalThis.fetch=previous;}}
@@ -164,7 +165,7 @@ test('inactive personal cards keep progress and teaching access; settings requir
 }));
 test('unregistered visitors receive public tasks only and cannot save; restrictions apply to personal, class and write APIs',()=>use(async({env,db})=>{
   const admin=await login(env,'0001'),student=await login(env,'0002'),teacher=await login(env,'0003'),other=await login(env,'0007');
-  const preview=async()=>{const r=await worker.fetch(new Request('http://localhost'+path+'preview'),env);assert.equal(r.status,200);return r.json();};
+  const preview=async()=>{const r=await worker.fetch(new WorkspaceRequest('http://localhost'+path+'preview'),env);assert.equal(r.status,200);return r.json();};
   const initial=await preview();assert.equal(initial.visitor,true);assert.equal(initial.modules.length,12);assert.deepEqual(initial.records,[]);assert.equal(initial.revision,undefined);assert.equal(initial.activities,undefined);
   const cat=ok(await post(env,'get',{},student)),m=cat.modules[0],task=m.tasks[0].id;
   ok(await post(env,'mark',{catalogueRevision:cat.revision,updates:[update(task)],operationId:crypto.randomUUID()},student));
@@ -258,7 +259,7 @@ test('set edits and new SetName uploads never write curriculum modules or subjec
   ok(await post(env,'import',{catalogueRevision:cat.revision,sets:[{name:'My dua set',subject:'DUAS',level:'1',tasks:['A new dua']}],mode:'ADD',operationId:crypto.randomUUID()},admin));
   assert.deepEqual(db.prepare('SELECT * FROM academy_module_catalogue ORDER BY module_id').all(),before);
   assert.deepEqual(db.prepare('SELECT * FROM subject_catalog ORDER BY subject_key').all(),subjects);
-  const preview=await (await worker.fetch(new Request('http://localhost'+path+'preview'),env)).json();assert.deepEqual(preview.sets,preview.modules);assert.equal(preview.legacy,undefined);
+  const preview=await (await worker.fetch(new WorkspaceRequest('http://localhost'+path+'preview'),env)).json();assert.deepEqual(preview.sets,preview.modules);assert.equal(preview.legacy,undefined);
 }));
 test('rolling upgrade keeps existing cards readable and defers set administration until migration',async()=>{
   const f=await memorisationFixture({separateSets:false});

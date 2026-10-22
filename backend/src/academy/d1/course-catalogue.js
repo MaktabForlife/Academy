@@ -1,6 +1,7 @@
 import {same} from './management-store.js';
 import {optionalSchema} from './schema-probe.js';
 import {dateInTimezone} from '../../lib/global-subject-delivery.js';
+import {readerRoles,isAdminWorkspace,administers} from './workspace-access.js';
 
 // Read-only, account-scoped Course history. Never return editor drafts, meeting
 // links or file locations to learners, or use this list as a media entitlement.
@@ -25,16 +26,17 @@ export async function d1CourseCatalogue(repository,auth,now=new Date()) {
   const [rows,assignments,paid]=results.map(r=>r.results),globalAdmin=Boolean(auth.state.account.global_admin);
   const courses=[];
   for(const r of rows) {
-    const roles=[...new Set([...assignments,...auth.state.roles].filter(a=>same(a.activity_key,r.activity_key)).map(a=>a.role))];
+    const roles=readerRoles(auth,[...new Set([...assignments,...auth.state.roles].filter(a=>same(a.activity_key,r.activity_key)).map(a=>a.role))]);
     const subscribed=paid.some(a=>same(a.activity_key,r.activity_key));
     const canManage=globalAdmin||Boolean(r.active&&r.lifecycle==='ACTIVE'&&roles.includes('PROGRAM_ADMIN'));
     const canTeach=Boolean(r.active&&r.lifecycle==='ACTIVE'&&roles.includes('TEACHER'));
-    const personal=subscribed||roles.some(role=>['STUDENT','TEACHER','PROGRAM_ADMIN'].includes(role));
-    if(!canManage&&!personal)continue;
+    const personal=(auth.workspace!=='TEACH'&&subscribed)||roles.some(role=>['STUDENT','TEACHER','PROGRAM_ADMIN'].includes(role));
+    if(!canManage&&!personal&&!administers(auth,r.activity_key))continue;
     let stage=r.stage||(!r.active||r.lifecycle==='ARCHIVED'?'ARCHIVED':r.current_publication_id?'PUBLISHED':'DRAFT');
+    if(!isAdminWorkspace(auth)&&stage==='DRAFT')stage=r.current_publication_id?'PUBLISHED':'DRAFT';
     // A saved revision must not hide or expose changes to its current publication.
     if(stage==='DRAFT'&&r.current_publication_id&&r.run_active)stage='PUBLISHED';
-    if(!canManage&&!(canTeach&&stage==='DRAFT')&&(!r.current_publication_id||!['PUBLISHED','COMPLETE','ARCHIVED'].includes(stage)))continue;
+    if(!canManage&&!(isAdminWorkspace(auth)&&canTeach&&stage==='DRAFT')&&(!r.current_publication_id||!['PUBLISHED','COMPLETE','ARCHIVED'].includes(stage)))continue;
     const draft=stage==='DRAFT',startDate=(draft?r.draft_start:r.start_date)||'',endDate=(draft?r.draft_end:r.end_date)||'';
     if(stage==='PUBLISHED'&&startDate&&endDate){
       const today=dateInTimezone(now,r.timezone||'Africa/Johannesburg');

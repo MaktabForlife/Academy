@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -5,7 +6,7 @@ import worker from '../src/academy-runtime.js';
 import {fixtureDatabase} from './fixtures/academy-d1-fixture.mjs';
 const path='/api/admin/platform/user-profiles/';
 async function post(env,url,input={},token=''){
-  const response=await worker.fetch(new Request('http://localhost'+url,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),env);
+  const response=await worker.fetch(new WorkspaceRequest('http://localhost'+url,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),env);
   return {status:response.status,body:await response.json()};
 }
 const login=(env,id='login-0001',pin='1234')=>post(env,'/api/account/login',{uniqueid:id,pin});

@@ -1,3 +1,4 @@
+import {WorkspaceRequest} from './fixtures/workspace-request.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -8,7 +9,7 @@ const file='/pdf-file/'+Buffer.from('https://archive.org/download/collection/Vol
 const bookmark={file,title:'Collection · Volume 2',page:11,pageLabel:'11'};
 async function post(env,action,input={},token=''){
  const path=action.startsWith('/')?action:'/api/academy/bookmarks/'+action;
- const response=await worker.fetch(new Request('http://synthetic.invalid'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),env);
+ const response=await worker.fetch(new WorkspaceRequest('http://synthetic.invalid'+path,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),env);
  return {status:response.status,body:await response.json()};
 }
 const ok=result=>{assert.equal(result.status,200,JSON.stringify(result.body));return result.body;};

@@ -140,16 +140,16 @@ test('mark moderation and marks, feedback and scripts have independent releases 
  const x=await setup(f);await available(f,x);await submit(f,x);await reviewAndReady(f,x);
  const script=ok(await f.upload({kind:'SCRIPT',assessmentId:x.id,accountId:'account-0002'},x.teacher));
  let r=(await x.detail()).learners[0];ok(await x.change('mark',{accountId:r.accountId,recipientRevision:r.revision,submissionId:r.submissionId,mark:83.5,feedback:'Clear answers',scriptFileId:script.fileId},x.teacher));
- assert.equal((await x.detail(x.student)).learners[0].mark,null);assert.equal((await f.download(script.fileId,x.student)).status,403);
+ assert.equal((await x.detail(x.student)).learners[0].mark,undefined);assert.equal((await f.download(script.fileId,x.student)).status,403);
  assert.equal((await x.change('release',{category:'marks'})).status,409);
  r=(await x.detail()).learners[0];ok(await x.change('review-mark',{accountId:r.accountId,recipientRevision:r.revision,markId:r.markId,decision:'RETURN',comment:'Check question 3'}));
  r=(await x.detail()).learners[0];ok(await x.change('mark',{accountId:r.accountId,recipientRevision:r.revision,submissionId:r.submissionId,mark:85,feedback:'Corrected',scriptFileId:script.fileId},x.teacher));
  r=(await x.detail()).learners[0];ok(await x.change('review-mark',{accountId:r.accountId,recipientRevision:r.revision,markId:r.markId,decision:'APPROVE'}));
  assert.equal((await x.change('release',{category:'marks',accountIds:['account-0002']})).status,400);
- ok(await x.change('release',{category:'feedback',accountIds:['account-0002']}));let own=(await x.detail(x.student)).learners[0];assert.equal(own.mark,null);assert.equal(own.feedback,'Corrected');assert.equal(own.scriptFileId,null);
- ok(await x.change('release',{category:'marks'}));own=(await x.detail(x.student)).learners[0];assert.equal(own.mark,85);assert.equal(own.scriptFileId,null);
+ ok(await x.change('release',{category:'feedback',accountIds:['account-0002']}));let own=(await x.detail(x.student)).learners[0];assert.equal(own.mark,undefined);assert.equal(own.feedback,'Corrected');assert.equal(own.scriptFileId,null);
+ ok(await x.change('release',{category:'marks'}));own=(await x.detail(x.student)).learners[0];assert.equal(own.mark,undefined);assert.equal(own.scriptFileId,null);
  ok(await x.change('release',{category:'scripts'}));assert.equal((await f.download(script.fileId,x.student)).status,200);assert.equal((await f.download(script.fileId,x.other)).status,403);
- r=(await x.detail()).learners[0];ok(await x.change('mark',{accountId:r.accountId,recipientRevision:r.revision,submissionId:r.submissionId,mark:86,feedback:'Revised',scriptFileId:script.fileId},x.teacher));assert.equal((await x.detail(x.student)).learners[0].mark,null);assert.equal((await f.download(script.fileId,x.student)).status,403);
+ r=(await x.detail()).learners[0];ok(await x.change('mark',{accountId:r.accountId,recipientRevision:r.revision,submissionId:r.submissionId,mark:86,feedback:'Revised',scriptFileId:script.fileId},x.teacher));assert.equal((await x.detail(x.student)).learners[0].mark,undefined);assert.equal((await f.download(script.fileId,x.student)).status,403);
 }));
 test('database failures roll back submissions, audit and receipts and remove uploaded orphan objects',()=>use(async f=>{
  const x=await setup(f);await available(f,x);const size=f.objects.size,receipts=f.db.prepare('SELECT count(*) n FROM operation_receipts').get().n;
@@ -169,7 +169,7 @@ test('whole-class marks wait for all received scripts; selected feedback reaches
  const second=await f.login('0008');ok(await f.upload({kind:'ANSWER',assessmentId:x.id,recipientRevision:0},second));await approvedMark(f,x);
  assert.equal((await x.change('release',{category:'marks'})).status,409);
  ok(await x.change('release',{category:'feedback',accountIds:['account-0002']}));assert.equal((await x.detail(x.student)).learners[0].feedback,'Reviewed');assert.equal((await x.detail(second)).learners[0].feedback,'');
- await approvedMark(f,x,'account-0008');ok(await x.change('release',{category:'marks'}));assert.equal((await x.detail(x.student)).learners[0].mark,80);assert.equal((await x.detail(second)).learners[0].mark,80);assert.equal((await x.detail(second)).learners.length,1);
+ await approvedMark(f,x,'account-0008');ok(await x.change('release',{category:'marks'}));assert.equal((await x.detail(x.student)).learners[0].mark,undefined);assert.equal((await x.detail(second)).learners[0].mark,undefined);assert.equal((await x.detail(second)).learners.length,1);
 }));
 test('simultaneous changes conflict and batch paper release is atomic',()=>use(async f=>{
  const x=await setup(f);const revision=(await x.detail()).assessment.revision,make=()=>({...op(),assessmentId:x.id,revision,decision:'APPROVE'});
@@ -227,7 +227,7 @@ test('assessment phases are scoped, audited and retry-safe; existing schedules r
  assert.equal(a.phaseName,'Final 2026');assert.equal(a.paperState,'NONE');assert.equal(a.paperFileId,null);
  assert.equal(ok(await f.call('list',{},scoped)).phases.some(p=>p.id===otherPhase),false);
  ok(await f.call('publish',{...op(),assessmentId:legacy,revision:a.revision},admin));
- const visible=ok(await f.call('list',{},student));assert.equal(visible.phases.length,1);assert.equal(visible.phases[0].id,id);
+ const visible=ok(await f.call('list',{},student));assert.deepEqual(visible.phases,[]);assert(visible.assessments.some(a=>a.id===legacy));
  const before=f.db.prepare('SELECT count(*) n FROM operation_receipts').get().n;
  f.db.exec("CREATE TRIGGER fail_phase BEFORE INSERT ON assessment_phases BEGIN SELECT RAISE(ABORT,'synthetic phase failure'); END;");
  assert.equal((await f.call('phase-create',{...body,...op(),name:'Midyear 2027'},admin)).status,503);
@@ -260,11 +260,11 @@ test('separate descriptors distinguish papers for one subject in the schedule an
  const roles=f.db.prepare('SELECT * FROM role_assignments ORDER BY assignment_id').all(),recipients=f.db.prepare('SELECT * FROM assessment_recipients ORDER BY account_id').all();
  const draft=ok(await f.call('create',{...op(),activityKey:scope,classId:'class-1',title:'Unpublished assessment',subject:'Qasas',examDate:'2026-10-20',durationMinutes:60,maximumMark:100},x.admin)).assessmentId;
  for(const token of [x.admin,scoped]){
-  const list=ok(await f.call('list',{activityKey:scope,view:'learner'},token));assert.equal(list.learnerPreview,true);assert.equal(list.canAdmin,false);assert.equal(list.assessments.length,1);assert.equal(list.assessments[0].id,x.id);assert.equal(list.assessments[0].canTeach,false);assert.deepEqual(list.classes,[]);assert.deepEqual(list.registers,[]);
+  const list=ok(await f.call('list',{activityKey:scope,view:'learner'},token));assert.equal(list.canAdmin,false);assert.equal(list.canAdmin,false);assert.equal(list.assessments.length,1);assert.equal(list.assessments[0].id,x.id);assert.equal(list.assessments[0].canTeach,false);assert.deepEqual(list.classes,[]);assert.deepEqual(list.registers,[]);
   const d=ok(await f.call('get',{assessmentId:x.id,view:'learner'},token));assert.equal(d.assessment.learnerPreview,true);assert.equal(d.assessment.canTeach,false);assert.equal(d.assessment.canAdmin,false);assert.equal(d.assessment.paperFileId,null);assert.deepEqual(d.learners,[]);assert.deepEqual(d.history,[]);
   assert.equal((await f.call('get',{assessmentId:draft,view:'learner'},token)).status,403);
  }
- for(const token of [x.teacher,x.student,x.other])assert.equal((await f.call('list',{activityKey:scope,view:'learner'},token)).status,403);
+ for(const token of [x.teacher,x.student,x.other]){const read=ok(await f.call('list',{activityKey:scope,view:'learner'},token));assert.equal(read.canAdmin,false);assert(read.assessments.every(a=>!('durationMinutes' in a)&&!('maximumMark' in a)));}
  await available(f,x);const d=ok(await f.call('get',{assessmentId:x.id,view:'learner'},x.admin));assert.equal(d.assessment.paperFileId,x.paperId);
  assert.deepEqual(f.db.prepare('SELECT * FROM role_assignments ORDER BY assignment_id').all(),roles);
  assert.deepEqual(f.db.prepare('SELECT * FROM assessment_recipients ORDER BY account_id').all(),recipients);

@@ -8,7 +8,7 @@ import {managementError} from './management-store.js';
 export async function d1AccountTimetable(repository,auth,input,now=new Date()) {
   const days=input.days===undefined?7:Number(input.days);
   if(!Number.isInteger(days)||days<1||days>14)throw managementError('Choose between 1 and 14 timetable days.');
-  const result=await d1Entrance(repository,auth.state,auth.user,{startDate:input.startDate},now,{days,detailed:true});
+  const result=await d1Entrance(repository,auth.state,auth.user,{startDate:input.startDate},now,{days,detailed:true,auth});
   const sessions=result.timetable.map((row,index)=>{
     const detail=Array.isArray(row.information),times=lessonTimes(row),current=row.status==='SCHEDULED'&&now.getTime()>=times.startsAt&&now.getTime()<times.endsAt;
     return {eventKey:'AE'+String(index+1).padStart(4,'0'),kind:row.kind==='COURSE'?'GLOBAL':'PROGRAM',
