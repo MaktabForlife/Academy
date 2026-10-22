@@ -149,7 +149,7 @@
     }
   });
   $('pa-classes').addEventListener('click',event=>{const classId=event.target.closest('[data-submit]')?.dataset.submit;if(classId&&!state.busy&&!state.pending&&!state.stale&&state.data)void save(submission(classId));});
-  $('pa-refresh').addEventListener('click',()=>{if(!state.busy&&!state.pending&&discard()){clearDraft();void load(state.data?.date);}});
+  $('pa-refresh').addEventListener('click',()=>{if(!state.busy&&!state.pending&&discard()){clearDraft();void(async()=>{await window.M4L_ACADEMY_WORKSPACE?.readyPublication(true);await load(state.data?.date);})();}});
   $('pa-date').addEventListener('change',event=>{
     if(state.busy||state.pending||!discard()){render();return;}
     const date=event.target.value;if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||date>state.data.today){render();return;}

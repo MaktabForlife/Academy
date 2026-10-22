@@ -13,7 +13,7 @@ export async function acceptedHead(repository,requested=''){
  if(!row)throw fail('Accepted Academy setup is not available. Refresh before continuing.',503,'SETUP_PUBLICATION_REQUIRED');
  return row.head_id;
 }
-function tableProjection(name,head){
+function tableProjection(name,head,features={}){
  const spec=setupSchema[name],extract=column=>`json_extract(r.value,'$.${column}')`;
  const key=spec.keys.map(c=>`live.${c}=${extract(c)} COLLATE NOCASE`).join(' AND ');
  const hasLive=spec.live?.length||spec.columns.includes('active')||name==='lesson_media_lessons'||name==='lesson_media_links';
@@ -23,7 +23,7 @@ function tableProjection(name,head){
   if(name==='course_run_state'&&column==='stage')value=`CASE WHEN live.stage IN ('COMPLETE','CANCELLED','ARCHIVED') THEN live.stage ELSE ${value} END`;
   else if(spec.live?.includes(column))value=`live.${column}`;
   else if(column==='active'||name==='activities'&&column==='website_visible')value=`CASE WHEN live.${column}=0 THEN 0 ELSE ${value} END`;
-  else if(name==='lesson_media_lessons'&&column==='state')value=`CASE WHEN live.state='HIDDEN' THEN live.state ELSE ${value} END`;
+  else if(name==='lesson_media_lessons'&&column==='state')value=`CASE WHEN live.state='HIDDEN' ${features.mediaSeparation?"OR EXISTS(SELECT 1 FROM main.lesson_media_visibility visibility WHERE visibility.lesson_id=live.lesson_id AND visibility.visible=0)":''} THEN 'HIDDEN' ELSE ${value} END`;
   else if(name==='course_run_state'&&column.startsWith('draft_'))value='NULL';
   return `${value}${spec.nocase?.includes(column)?' COLLATE NOCASE':''} AS ${column}`;
  }).join(',');
@@ -31,18 +31,18 @@ function tableProjection(name,head){
  if(name==='memorisation_activity_settings')return `${accepted} UNION ALL SELECT ${spec.columns.map(c=>c==='learners_per_card'?'20 AS learners_per_card':'live.'+c).join(',')} FROM main.memorisation_activity_settings live WHERE NOT EXISTS(SELECT 1 FROM main.setup_head_components v JOIN main.setup_components c USING(component_id) JOIN json_each(c.rows_json) r WHERE v.head_id=${literal(head)} AND v.table_name='memorisation_activity_settings' AND json_extract(r.value,'$.activity_key')=live.activity_key COLLATE NOCASE)`;
  return name==='academy_settings'?`${accepted} UNION ALL SELECT * FROM main.academy_settings WHERE NOT (${definitionSettingsSQL})`:accepted;
 }
-export function acceptedDatabase(db,head){
+export function acceptedDatabase(db,head,features={}){
  const rewrite=sql=>{
   if(!/^\s*(?:SELECT|WITH)\b/i.test(sql))return sql;
   const names=new Set([...sql.matchAll(/\b(?:FROM|JOIN)\s+(?!main\.)([a-z_][a-z0-9_]*)\b/gi)].map(m=>m[1].toLowerCase()));
-  const ctes=[...names].filter(n=>setupSchema[n]||privateSetupTables.includes(n)).map(n=>`${n} AS (${privateSetupTables.includes(n)?`SELECT * FROM main.${n} WHERE 0`:tableProjection(n,head)})`);
+  const ctes=[...names].filter(n=>setupSchema[n]||privateSetupTables.includes(n)).map(n=>`${n} AS (${privateSetupTables.includes(n)?`SELECT * FROM main.${n} WHERE 0`:tableProjection(n,head,features)})`);
   if(!ctes.length)return sql;
   return /^\s*WITH\b/i.test(sql)?sql.replace(/^\s*WITH(\s+RECURSIVE)?\s+/i,(_,recursive)=>`WITH${recursive||''} ${ctes.join(',')}, `):`WITH ${ctes.join(',')} ${sql}`;
  };
  return new Proxy(db,{get(target,name){if(name==='prepare')return sql=>target.prepare(rewrite(sql));const value=target[name];return typeof value==='function'?value.bind(target):value;}});
 }
 export function acceptedRepository(repository,head){
- const db=acceptedDatabase(repository.db,head);
+ const db=acceptedDatabase(repository.db,head,repository.features);
  return {...repository,db,setup:{...repository.setup,head,reader:true},
   homeConfiguration:async()=>{const row=await db.prepare("SELECT setting_value,(SELECT setting_value FROM academy_settings WHERE setting_key='PersonalMemorisationCards') memorisation_cards FROM academy_settings WHERE setting_key='PlatformTimezone'").first();const base=await repository.homeConfiguration();return {...base,...row,memorisationCards:row?.memorisation_cards==='1'};}};
 }

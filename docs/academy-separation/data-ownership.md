@@ -15,11 +15,12 @@ Prepared 22 October 2026. Ownership describes the authoritative writer. An Admin
 | Teacher plans, submissions, revisions/preferences and live Admin feedback/deadline decisions | Core | Own or authorised review projection tied to exact plan revision | Direct feedback/deadline operation |
 | Plan requirements/default policies, memorisation definitions/catalogue | Admin setup | Accepted definitions | Existing authorised setup/publication controls |
 | Memorisation progress/confirmation and current learner/area enable state; attendance registers/absences/history | Core | Ordinary own/assigned work | Existing authorised controls; no records extraction now |
-| Session recordings/links/PDF-note definitions, verified contributor and private candidates | Admin media | Core accepted material refs and current visibility/control; bytes stay in R2 | General curation; Teacher gets only agreed own-note contribution |
+| Official session recordings/links/PDF definitions and private curation drafts | Admin media | Core accepted material refs and current visibility/control; bytes stay in R2 | General curation and reviewed publication |
+| Verified Teacher own-note entries and immutable file versions | Core operational contribution | Current accepted dated session plus the same permitted material audience | Scoped Admin may withdraw; no inferred legacy authorship or parent publication through contribution |
 | Course-wide PDF collection and display labels in source migration 0031 | Admin media | Published Course collection, separate from session/day; approved display label | Existing Course/Global Admin curation; V107.22 additions preserved |
 | Official Academy library catalogue and publication | Admin | Accepted catalogue and current entitlement/file access | Applicable existing scope; no Teacher general curation |
 | Public Open Library metadata | Existing separate metadata store, administered through Admin | Public/approved reader | Global Admin; do not move/merge this store incidentally |
-| Personal external My links/positions | Existing planned private owner R2 namespace | Owner only | No inspection of another person's collection |
+| Personal external My links | Private owner R2 namespace in existing lesson-media bucket | Owner only; established empty collection remains available after role loss | Own collection only; no inspection of another person's collection |
 | App-wide Time zone and shared presentation/configuration masters | Admin, Global Admin edit for Time zone | Accepted versioned Core configuration | One app-wide control; no area override |
 | Operational settings/counters, receipts, audit and writer state | Store that performs the operation; current access remains Core | Minimal permitted status | No shared editable counter or cloned authority table |
 | Migration/import/legacy access evidence and retained discussion | Current Core/history owner until dependencies retired | No new discussion/live entitlement | Preserve compatibility/evidence; no deletion in this project |
@@ -36,11 +37,11 @@ Manual Admin work uses those same operational assessment records with correct le
 
 ## Field and table coverage
 
-The [field map](field-map.csv) contains one row per inspected source column, including the two explicitly noted migration-0031 fields. The [table map](table-placement.csv) covers every one of the 108 Academy tables. [Settings](settings-map.csv) are split per key, rather than copying academy_settings.
+The [baseline field map](field-map.csv) contains one row per inspected source column through migration 0031. The [Phases 2–4 field delta](field-map-phases-2-4.csv) covers every added/changed column through 0035, including the nullable assessment fields. The [baseline table map](table-placement.csv) covers the original 108 Academy tables; new operational tables are Core and accepted setup candidates/copies follow the delta. [Settings](settings-map.csv) are split per key, rather than copying academy_settings.
 
 Current membership/effective assignment, live plan feedback/deadlines and live memorisation enablement are explicitly Core-owned in the final maps. Their Admin management permission is unchanged. The optional future Records column in older placement maps means no current extraction.
 
-Source references are not live sizes or proof of deployed schema. Migration 0031 was independently in progress at capture and then committed in V107.22 during this review; its display_name and media_scope fields preserve filenames, storage keys, existing IDs and session history. Final maps include the committed source. Live application is not verified; later schema/authority changes must be reconciled in Phase 0.
+Source references are not live sizes or proof of deployed schema. Migration 0031 was independently in progress at capture and then committed in V107.22 during this review; its display_name and media_scope fields preserve filenames, storage keys, existing IDs and session history. Final maps include the committed source. That sentence describes the design-time baseline. Current source/live verification is recorded in the phase execution records; never infer deployed schema from the field delta.
 
 ## Files history and recovery
 
@@ -49,3 +50,9 @@ Keep assessment, lesson, announcement and library R2 objects in their existing h
 Each writing store owns its transaction, revision, audit and retry outcome. Cross-store setup publication uses the existing durable acceptance/recovery design; a single database transaction does not span stores. Do not build a separate business workflow around manual assessment exceptions.
 
 History referenced by accepted work remains accessible only under existing permitted current or administrative history access. No cleanup, reset or destruction is executed during preparation. The previously confirmed development-only attendance fresh start is the explicit Phase 3 exception to historical conversion: old development attendance need not be migrated. Keep all unrelated data/files/identity and new native attendance history. No automatic cleanup or old-database destruction follows from separation.
+
+## Phase 4 implementation refinement
+
+General media masters remain Admin-owned. A Teacher own-note upload is a Core operational contribution tied to the exact accepted session and verified actual author, like an answer or plan submission. Its live entry/current version and immutable metadata do not edit the Admin parent or publish a timetable. Current suppression is Core and reviewed acceptance alone can restore suppressed general material. This refines the earlier combined metadata row without moving data or adding a database.
+
+My links uses the existing private R2 home under an actor-derived namespace. Collection revisions and exact retry receipts live in that owner object with conditional writes; official Academy rows, the shared catalogue and another owner's links are never edited. Provider documents remain external; existing PDF bookmarks/reading tools keep their original ownership.

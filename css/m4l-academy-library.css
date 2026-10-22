@@ -19,3 +19,12 @@
 @media(max-width:650px){.al-subject-books .al-card{height:390px}.al-subject-books .al-art{height:234px}}
 
 .al-card{text-decoration:none;color:inherit}
+
+/* Personal links reuse the Library card and controls. */
+.al-personal-tabs{flex-wrap:wrap}.al-personal-tabs button[aria-pressed=true]{background:#714779;border-color:#714779;color:#fff}
+.al-main[data-personal-links-open] #al-content,.al-main[data-personal-links-open] #al-status{display:none!important}
+.pl-panel{padding:24px;border-radius:20px;background:#fff;border:1px solid #e4d9e9;margin-top:16px}
+.pl-panel form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:12px;margin:20px 0}
+.pl-panel label{display:grid;gap:6px}.pl-panel input,.pl-panel textarea{font:inherit;width:100%;box-sizing:border-box;padding:10px;border:1px solid #d7c4df;border-radius:10px}
+.pl-panel li{margin:14px 0;overflow-wrap:anywhere}.pl-panel button{font:inherit;padding:8px 14px;border:1px solid #d7c4df;border-radius:10px;background:#f8f2fa;color:#61366e;cursor:pointer}
+.pl-panel .workspace-actions{display:flex;flex-wrap:wrap;gap:10px}

@@ -1,0 +1,11 @@
+phase,area,execution_state,evidence,scope_limit
+0,Source and baseline,PASS_LOCAL,phase-0.md; academy-separation-phase0.test.mjs,Historical source baseline; no live-data claim
+1,Workspace authority and projection,PASS_LOCAL; LIVE_PREVIEW_10725,phase-1.md; academy-separation-phase1.test.mjs; academy-workspace-client.test.mjs,Current schema still shared; physical cross-store cases deferred
+2,Accepted setup and coherent publication,PASS_LOCAL; LIVE_PREVIEW_10725,phase-2.md; academy-separation-phase2.test.mjs,0032 only applied live; accepted initial head and original source verified
+3,Native attendance and exact substitute access,PASS_LOCAL; SCHEMA_RELEASE_PENDING,phase-3.md; academy-native-attendance.test.mjs; academy-learning-operations-acceptance.mjs,"Fresh native records; legacy attendance retained, not converted"
+3,"Assessment collection, manual actions, release and reports",PASS_LOCAL; SCHEMA_RELEASE_PENDING,phase-3.md; academy-assessment-operations.test.mjs; academy-learning-operations-acceptance.mjs,No automatic already-released replacement workflow
+4,"Media ownership, current access and old Course readers",PASS_LOCAL; SCHEMA_RELEASE_PENDING,phase-4.md; academy-media-separation.test.mjs; academy-lesson-media.test.mjs; academy-media-separation-acceptance.mjs,Metadata and bytes agree in synthetic fixtures; no live user writes
+4,Private owner My links,PASS_LOCAL; RELEASE_PENDING,academy-personal-links.test.mjs; academy-media-separation-acceptance.mjs,Existing private R2 home; provider files external; no official collection writes
+3–4,Shared migration preservation,PASS_PRIVATE_REHEARSAL; APPLY_PENDING,Private post-Phase-2 snapshot reconstruction with 0033/0034/0035,114 original tables / 4361 original rows unchanged; FK 0; integrity OK
+checkpoint,Complete UI and Development release,PENDING,ui-development-checkpoint.md,"Shared migration approval, compatible preview verification and Development release required"
+5,Physical database split and writer cutover,NOT_STARTED_NOT_AUTHORISED,implementation-plan.md,No target DB creation/copy/cutover; cross-store acceptance remains future work

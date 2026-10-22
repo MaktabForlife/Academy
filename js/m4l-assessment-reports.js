@@ -5,7 +5,7 @@
  const state={epoch:0,options:null,templates:[],template:null,layout:defaultLayout(),background:null,fileId:null,data:null,learner:null,canvas:null,dirty:false};
  function reset(){state.epoch++;state.options=null;state.data=null;state.learner=null;state.background=null;state.canvas=null;state.dirty=false;}
  const current=e=>e===state.epoch&&Boolean(state.options);
- const issueDate=()=>new Intl.DateTimeFormat('ar-ZA',{timeZone:'Africa/Johannesburg',dateStyle:'long'}).format(new Date());
+ const issueDate=()=>new Intl.DateTimeFormat('ar-ZA',{timeZone:state.data?.timezone||window.M4L_ACADEMY_SHELL_DATA?.timezone||'Africa/Johannesburg',dateStyle:'long'}).format(new Date());
  async function image(blobOrURL){const url=typeof blobOrURL==='string'?blobOrURL:URL.createObjectURL(blobOrURL);try{const i=new Image();i.src=url;await i.decode();return i;}finally{if(typeof blobOrURL!=='string')URL.revokeObjectURL(url);}}
  async function background(blob){if(blob.type==='application/pdf'){const pdfjs=await import('/js/vendor/pdfjs/pdf.min.mjs');pdfjs.GlobalWorkerOptions.workerSrc='/js/vendor/pdfjs/pdf.worker.min.mjs';const doc=await pdfjs.getDocument({data:new Uint8Array(await blob.arrayBuffer()),isEvalSupported:false}).promise;try{if(doc.numPages!==1)throw new Error('Use a one-page PDF design. Reports repeat this design when results span pages.');const page=await doc.getPage(1),viewport=page.getViewport({scale:1.8}),canvas=document.createElement('canvas');canvas.width=viewport.width;canvas.height=viewport.height;await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;return canvas;}finally{await doc.destroy();}}
   return image(blob);

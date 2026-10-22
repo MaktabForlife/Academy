@@ -86,7 +86,7 @@ export function d1Assessments(repository,auth){
   const learners=(preview?[]:recipients).map(r=>{
    if(native){r.ownReleasedMark=r.released_mark_state==='APPROVED';r.ownReleasedFeedback=r.released_feedback_state==='APPROVED';r.ownReleasedScript=r.released_script_state==='APPROVED';}
    const approved=r.mark_state==='APPROVED'&&r.marked_submission_id===r.latest_submission_id;
-   return {...(native?{late:Boolean(r.is_late)}:{}),accountId:r.account_id,name:r.display_name,revision:r.revision,firstAccessedAt:r.first_accessed_at,submittedAt:r.submitted_at,submissionNumber:r.submission_number||0,submissionId:r.latest_submission_id,answerFileId:r.answer_file_id,submissionConfirmedAt:r.confirmed_at,submissionConfirmedBy:staff?r.confirmed_by:null,resubmissionAuthorised:Boolean(r.resubmit_authorised),
+   return {...(native?{late:Boolean(r.is_late),...(staff?{releasedMarkIsCurrent:Boolean(approved&&r.released_mark_id===r.mark_id)}:{})}:{}),accountId:r.account_id,name:r.display_name,revision:r.revision,firstAccessedAt:r.first_accessed_at,submittedAt:r.submitted_at,submissionNumber:r.submission_number||0,submissionId:r.latest_submission_id,answerFileId:r.answer_file_id,submissionConfirmedAt:r.confirmed_at,submissionConfirmedBy:staff?r.confirmed_by:null,resubmissionAuthorised:Boolean(r.resubmit_authorised),
     markState:staff?r.mark_state:(native?r.ownReleasedMark:approved&&r.released_mark_id===r.mark_id)?'RELEASED':r.latest_submission_id?'PENDING':'NOT_SUBMITTED',
     mark:staff?r.mark:native?r.ownReleasedMark?r.released_mark:null:approved&&r.released_mark_id===r.mark_id?r.mark:null,feedback:staff?r.feedback:native?r.ownReleasedFeedback?r.released_feedback:'':approved&&r.released_feedback_id===r.mark_id?r.feedback:'',scriptFileId:staff?r.script_file_id:native?r.ownReleasedScript?r.released_script_file_id:null:approved&&r.released_script_id===r.mark_id?r.script_file_id:null,
     markId:staff?r.mark_id:null,moderationComment:staff?r.moderation_comment:'',marksReleased:native?r.ownReleasedMark:approved&&r.released_mark_id===r.mark_id,feedbackReleased:native?r.ownReleasedFeedback:approved&&r.released_feedback_id===r.mark_id,scriptReleased:native?r.ownReleasedScript:approved&&r.released_script_id===r.mark_id};
@@ -167,6 +167,7 @@ export function d1Assessments(repository,auth){
     const directAdmin=native&&await s.allowed(a.activity_key,a.class_id,'admin');
     if(!directAdmin&&!a.ready_for_assessment_at)throw fail('A teacher or admin must confirm all received submissions and mark this assessment ready before marking.',409);
     if(!r.latest_submission_id||r.latest_submission_id!==input.submissionId)throw fail('Open the latest submission before marking.',409);
+    if(native&&!directAdmin&&(a.paper_state!=='APPROVED'||!a.paper_released_at))throw fail('Approve and release the paper before ordinary marking.',409);
     if(native&&!directAdmin&&!await p('SELECT 1 ok FROM assessment_submissions WHERE submission_id=? AND confirmed_at IS NOT NULL',r.latest_submission_id).first())throw fail('Check this received answer before assessing it.',409);
     if(typeof input.mark!=='number'||!Number.isFinite(input.mark)||input.mark<0||input.mark>a.maximum_mark)throw fail('Enter a mark between zero and the maximum.');
     const feedback=cleanText(input.feedback||'',12000,'feedback',true),id=crypto.randomUUID();

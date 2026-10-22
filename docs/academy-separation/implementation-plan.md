@@ -89,6 +89,10 @@ Exit: release and rollback evidence recorded; obsolete writes cannot bypass the 
 
 ## Acceptance and deliverables
 
-The [active acceptance matrix](acceptance-matrix.csv) and matching [evidence map](rehearsal-evidence.csv) define required checks; none has run. Measure actual selected-family cost during implementation, rather than treating earlier provisional budgets as tested capacity.
+The [design acceptance matrix](acceptance-matrix.csv) and matching [evidence map](rehearsal-evidence.csv) define the full separation checks, including future physical cutover. Their original design-time NOT RUN labels are not current execution claims. The [implementation evidence](implementation-evidence.csv) and phase records identify checks actually run and limits; physical cross-store scenarios remain deferred to Phase 5. Measure actual selected-family cost during implementation, rather than treating earlier provisional budgets as tested capacity.
 
 Each phase records the code/schema/map revision, role/context coverage, data/file preservation, actual test results and recovery evidence. Advance on verified deliverables, not a hidden button or a successful HTTP response alone. Routine checks are part of implementation and need no repeated policy-design approval. Implementation has been requested; advance on verified phase exit gates.
+
+## Current execution status — V107.27 preparation
+
+Phase 2 is live on preview at V107.25 with migration 0032 and verified accepted-head bootstrap. Phase 3 is saved at local checkpoint 275c95f8 (V107.26). Phase 4 source and isolated UI/API verification are prepared for V107.27. Shared migrations 0033–0035, the matching preview release and the Development checkpoint remain pending; the explicit shared-database approval request names all three. See [Phase 4](phase-4.md) and the [release checkpoint](ui-development-checkpoint.md). Development remains V107.22. No Phase 5 database creation/copy/cutover is authorised or started.

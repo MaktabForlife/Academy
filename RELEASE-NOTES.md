@@ -1,3 +1,10 @@
+## V107.27 — Phase 4 media and Library separation
+
+- Teacher own-note contribution uses verified authorship and immutable file versions, without general media editing or changing parent publication. Admin retains curation and current suppression.
+- Metadata and original file bytes share the same current audience. Course-wide files and old deliveries remain available under current entitlement; attendance membership grants no material access.
+- My links stays private to its owner in the existing R2 home, including retained access after role loss. Retire media discussions while preserving their records. Keep existing reader, calendar and mobile layouts.
+- Shared migration 0035 is separately approval-gated. Complete preview verification and the required Development checkpoint before any Phase 5 database work.
+
 ## V107.26 — Phase 3 learning operations
 
 - Native sparse attendance starts with new recorded days, retains legacy records, seals dated rosters and supports reviewed Course delivery rosters and exact substitute windows.

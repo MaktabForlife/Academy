@@ -5,8 +5,10 @@ import {noTeachingCalendarEvents,holidayOnDate} from './calendar-holidays.js';
 
 // Accepted dated teaching facts, shared by attendance and narrow contributions.
 // Editor sessions, draft JSON and caller-supplied teachers are never a source.
-export async function publishedSessions(repository,activity,date,{runId=''}={}){
- if(!validDate(date))throw fail('Choose a valid session date.');
+export const publishedSessions=async(repository,activity,date,options={})=>{const result=await publishedSessionRange(repository,activity,date,date,options);return {lessons:result.lessons,runs:result.runs};};
+export async function publishedSessionRange(repository,activity,startDate,endDate,{runId=''}={}){
+ const date=startDate;
+ if(!validDate(startDate)||!validDate(endDate)||endDate<startDate||Date.parse(endDate)-Date.parse(startDate)>31*86400000)throw fail('Choose a session period of up to 31 days.');
  const db=repository.db,p=(sql,...v)=>db.prepare(sql).bind(...v);
  const queries=[
   p('SELECT * FROM classes WHERE activity_key=? AND active=1',activity.activity_key),
@@ -16,6 +18,7 @@ export async function publishedSessions(repository,activity,date,{runId=''}={}){
   p('SELECT * FROM academy_calendar_events'),p('SELECT * FROM academy_calendar_suppressions'),p("SELECT * FROM academy_settings WHERE setting_key LIKE 'AcademyHolidayAnnual:%'")
  ];
  const [classes,publications,runs,lifecycles,calendar,suppressions,settings]=(await db.batch(queries)).map(r=>r.results);
+ function dated(date){
  if(holidayOnDate(noTeachingCalendarEvents({calendar,suppressions,settings},date,date,activity.activity_key),date))return {lessons:[],runs};
  if(activity.kind==='PROGRAM'){
   const source=publications.map(p=>({PublicationID:p.publication_id,VersionNo:p.version_no,SnapshotJSON:p.snapshot_json,PublishedDate:p.published_at,Lifecycle:p.publication_lifecycle||''}));
@@ -40,4 +43,6 @@ export async function publishedSessions(repository,activity,date,{runId=''}={}){
   }
  }
  return {lessons:lessons.sort((a,b)=>a.startTime.localeCompare(b.startTime)||a.anchor.localeCompare(b.anchor)),runs};
+ }
+ const lessons=[];for(let date=startDate;date<=endDate;date=new Date(Date.parse(date+'T12:00:00Z')+86400000).toISOString().slice(0,10))lessons.push(...dated(date).lessons);return {lessons,runs};
 }

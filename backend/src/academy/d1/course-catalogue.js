@@ -12,7 +12,7 @@ export async function d1CourseCatalogue(repository,auth,now=new Date()) {
   const results=await db.batch([
     p(`SELECT a.activity_key,a.activity_id,a.name,a.active,a.lifecycle,a.website_visible,
       ${editor?'coalesce(r.run_id,d.run_id)':'r.run_id'} AS run_id,r.name AS run_name,coalesce(r.timezone,p.timezone) AS timezone,coalesce(r.start_date,p.effective_from) AS start_date,coalesce(r.end_date,p.effective_until) AS end_date,r.active AS run_active,
-      s.current_publication_id,cs.legacy_access_model,
+      s.current_publication_id,cs.legacy_access_model,cs.policy_review_state,
       ${editor?"d.stage,d.completed_at,json_extract(d.details_json,'$.name') AS draft_name,json_extract(d.details_json,'$.startDate') AS draft_start,json_extract(d.details_json,'$.endDate') AS draft_end":"s.stage,NULL AS completed_at,NULL AS draft_name,NULL AS draft_start,NULL AS draft_end"}
       FROM activities a JOIN course_settings cs USING(activity_key)
       LEFT JOIN course_runs r USING(activity_key)
@@ -27,7 +27,8 @@ export async function d1CourseCatalogue(repository,auth,now=new Date()) {
   const courses=[];
   for(const r of rows) {
     const roles=readerRoles(auth,[...new Set([...assignments,...auth.state.roles].filter(a=>same(a.activity_key,r.activity_key)).map(a=>a.role))]);
-    const subscribed=paid.some(a=>same(a.activity_key,r.activity_key));
+    const free=repository.features?.mediaSeparation&&auth.workspace!=='TEACH'&&r.legacy_access_model==='FREE'&&r.policy_review_state==='CONFIRMED';
+    const subscribed=free||paid.some(a=>same(a.activity_key,r.activity_key));
     const canManage=globalAdmin||Boolean(r.active&&r.lifecycle==='ACTIVE'&&roles.includes('PROGRAM_ADMIN'));
     const canTeach=Boolean(r.active&&r.lifecycle==='ACTIVE'&&roles.includes('TEACHER'));
     const personal=(auth.workspace!=='TEACH'&&subscribed)||roles.some(role=>['STUDENT','TEACHER','PROGRAM_ADMIN'].includes(role));
@@ -46,7 +47,7 @@ export async function d1CourseCatalogue(repository,auth,now=new Date()) {
       stage,startDate,endDate,accessModel:r.legacy_access_model,personal,canManage,
       canOpenActivity:Boolean(r.active&&r.lifecycle==='ACTIVE'&&(r.website_visible&&r.run_active||canManage||canTeach)&&!['CANCELLED','ARCHIVED'].includes(stage)),
       canPlan:Boolean((canManage||canTeach)&&r.run_active&&r.current_publication_id&&['PUBLISHED','ACTIVE'].includes(stage)),
-      mediaAvailable:false,mediaMessage:['COMPLETE','ARCHIVED'].includes(stage)
+      mediaAvailable:Boolean(repository.features?.mediaSeparation&&r.active&&r.lifecycle==='ACTIVE'&&r.current_publication_id&&['PUBLISHED','ACTIVE','COMPLETE','ARCHIVED'].includes(stage)&&(canManage||canTeach||personal||administers(auth,r.activity_key))),mediaMessage:['COMPLETE','ARCHIVED'].includes(stage)
         ? 'Course media is not available yet.' : 'Course media becomes available after completion.'});
   }
   courses.sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||'')||a.name.localeCompare(b.name));

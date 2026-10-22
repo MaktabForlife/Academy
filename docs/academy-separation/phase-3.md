@@ -21,4 +21,4 @@ Files retain immutable identities, their original R2 homes, real learner owner a
 - Reconstructed the private post-Phase-2 recovery snapshot in memory and applied 0033/0034: all 114 original tables and 4,361 rows retained their original values, integrity OK and zero foreign-key errors.
 - Shared migrations 0033/0034 require the pending explicit approval. They are prepared, not applied. The live preview remains V107.25; Development remains V107.22.
 
-Phase 4 media/library work is not claimed complete here. The required complete-UI/Development checkpoint still precedes any physical database split.
+Phase 4 media/library source and isolated verification are recorded in [Phase 4](phase-4.md); its shared schema and live release remain pending. The required complete-UI/Development checkpoint still precedes any physical database split.

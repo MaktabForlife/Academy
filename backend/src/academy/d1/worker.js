@@ -1,3 +1,5 @@
+import {personalLinks} from './personal-links.js';
+import {lessonNotes} from './lesson-notes.js';
 import {nativeAttendance} from './native-attendance.js';
 import {setupEnabled,acceptedHead,acceptedRepository} from './setup-reader.js';
 import {setupPublication} from './setup-publication.js';
@@ -43,7 +45,7 @@ import {openLibraryMetadataEndpoint as defaultMetadataEndpoint} from './library-
 
 export function createAcademyWorker({d1Library,d1LibraryStream,d1LibraryAreaRefs}=publicLibrary,{openLibraryMetadataEndpoint=defaultMetadataEndpoint,d1CourseCalendar=defaultCourseCalendar}={}){
 const publicAccount=state=>({displayName:state.account.display_name,uniqueid:state.account.login_link_id});
-const sessionResponse=(state,context,token)=>({account:publicAccount(state),context,contexts:state.contexts,courseManagement:state.account.global_admin||managedCourseScopes(state).length>0,sessionStore:'D1',operationalAccessActive:['COURSE','GLOBAL'].includes(context.scope),...(token?{token}:{})});
+const sessionResponse=(state,context,token)=>({account:publicAccount(state),context,contexts:state.contexts,courseManagement:state.account.global_admin||managedCourseScopes(state).length>0,sessionStore:'D1',operationalAccessActive:['COURSE','GLOBAL','SUBSTITUTE','OWN_LIBRARY'].includes(context.scope),...(token?{token}:{})});
 const requireActive=state=>{if(!state)throw rehearsalError('Invalid account link',404,'ACCOUNT_NOT_FOUND');if(!state.account.active)throw rehearsalError('Account disabled',403,'ACCOUNT_DISABLED');};
 
 async function boundedBody(request,limit=4096) {
@@ -83,7 +85,7 @@ async function dispatch(request,env) {
   if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,setupEnabled(env)?await readRepository():repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(setupEnabled(env)?await readRepository():repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.26',
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.27',
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(setupEnabled(env)?await readRepository():repository)};
@@ -105,13 +107,14 @@ async function dispatch(request,env) {
     const editor=announcements(repository,auth,env),{input,image,pdf}=await announcementUpload(request);
     return {success:true,...await editor.run('save',input,image,pdf)};
   }
-  if(path==='/api/academy/lesson-media/upload') {
+  if(['/api/academy/lesson-media/upload','/api/academy/lesson-media/note-upload'].includes(path)) {
     const auth=await authenticated(request,env,repository),metadata=new URL(request.url).searchParams.get('metadata')||'';
     if(metadata.length>8192)throw rehearsalError('Upload details are too large.',413);
     let input;try{input=JSON.parse(metadata);}catch{throw rehearsalError('Invalid upload details.',400);}
     if(!input||typeof input!=='object'||Array.isArray(input))throw rehearsalError('Invalid upload details.',400);
     guardWorkspace(request,auth,input);
     if(setupEnabled(env)&&!isAdminWorkspace(auth))repository=await readRepository();
+    if(path.endsWith('/note-upload')){if(!sourceRepository.features.mediaSeparation)throw rehearsalError('Own notes are unavailable.',503);return {success:true,...await lessonNotes(await readRepository(),auth,env).upload(request,input)};}
     return {success:true,...await lessonMedia(repository,auth,env).upload(request,input)};
   }
   if(path==='/api/academy/assessments/upload') {
@@ -129,7 +132,7 @@ async function dispatch(request,env) {
     return {success:true,...await d1Library(repository,auth,env).uploadChunk(request)};
   }
   const managementPath=path.startsWith('/api/admin/platform/');
-  const input=await boundedBody(request,path.startsWith('/api/academy/bookmarks/')?8192:managementPath||path.startsWith('/api/academy/teacher-availability/')||path.startsWith('/api/academy/progress/')||path.startsWith('/api/academy/assessments/')||path.startsWith('/api/academy/lesson-media/')||path.startsWith('/api/academy/planning/')||path.startsWith('/api/academy/attendance/')?131072:path.startsWith('/api/program-attendance/')?65536:4096);
+  const input=await boundedBody(request,path.startsWith('/api/academy/bookmarks/')?8192:managementPath||path.startsWith('/api/academy/teacher-availability/')||path.startsWith('/api/academy/progress/')||path.startsWith('/api/academy/assessments/')||path.startsWith('/api/academy/lesson-media/')||path.startsWith('/api/academy/planning/')||path.startsWith('/api/academy/attendance/')||path.startsWith('/api/academy/my-links/')?131072:path.startsWith('/api/program-attendance/')?65536:4096);
   if(['/api/account/check','/api/account/login','/api/account/setup-pin'].includes(path)) {
     const login=String(input.uniqueid || '').trim();
     if(!login||login.length>160)throw rehearsalError('Missing or invalid account link.',400,'INVALID_ACCOUNT_LINK');
@@ -168,6 +171,11 @@ async function dispatch(request,env) {
   const setupAction=path.match(/^\/api\/admin\/platform\/setup\/(options|review|freeze|publish|resolve)$/)?.[1];
   if(setupAction){if(!setupEnabled(env))throw rehearsalError('Accepted setup is not enabled.',503,'SETUP_PUBLICATION_REQUIRED');return {success:true,...await setupPublication(repository,auth).run(setupAction,input)};}
   if(setupEnabled(env)&&(!isAdminWorkspace(auth)||path==='/api/academy/lesson/join')&&!path.startsWith('/api/account/'))repository=await readRepository();
+  const personalAction=path.match(/^\/api\/academy\/my-links\/(list|save|export)$/)?.[1];
+  if(personalAction)return {success:true,...await personalLinks(sourceRepository,auth,env).run(personalAction,input)};
+  const noteAction=path.match(/^\/api\/academy\/lesson-media\/note-(options|withdraw)$/)?.[1];
+  if(noteAction){if(!sourceRepository.features.mediaSeparation)throw rehearsalError('Own notes are unavailable.',503);const notes=lessonNotes(await readRepository(),auth,env);return {success:true,...await notes[noteAction](input)};}
+  if(path==='/api/academy/lesson-media/download'&&sourceRepository.features.mediaSeparation&&String(input.assetId||'').startsWith('NOTE-'))return lessonNotes(await readRepository(),auth,env).download(input);
   const settingsAction=path.match(/^\/api\/admin\/platform\/settings\/(get|save)$/)?.[1];
   if(settingsAction)return {success:true,...await globalSettings(repository,auth).run(settingsAction,input)};
   if(path==='/api/academy/hifz/sign-in')return issueHifzHandoff(env,auth,input);
@@ -184,9 +192,9 @@ async function dispatch(request,env) {
   if(pdfToolAction)return {success:true,...await pdfTools(repository,auth).run(pdfToolAction,input)};
   const academicCalendarAction=path.match(/^\/api\/academy\/calendar\/(get|save)$/)?.[1];
   if(academicCalendarAction)return {success:true,...await academicCalendar(repository,auth).run(academicCalendarAction,input)};
-  if(path==='/api/academy/lesson-media/timetable')return {success:true,...await timetableMedia(repository,auth,input)};
+  if(path==='/api/academy/lesson-media/timetable'){const result=await timetableMedia(repository,auth,input);if(sourceRepository.features.mediaSeparation){const additions=await lessonNotes(await readRepository(),auth,env).timetable(input);for(const row of additions.lessons){const existing=result.lessons.find(r=>r.activityKey===row.activityKey&&r.sessionKey===row.sessionKey);if(existing)existing.assets.push(...row.assets);else result.lessons.push(row);}}return {success:true,...result};}
   const mediaAction=path.match(/^\/api\/academy\/lesson-media\/(list|calendar|sessions|create|course-files-create|get|save|watch|download|comments|comment-save|comment-moderate|attachment-remove|attachment-name)$/)?.[1];
-  if(mediaAction){const result=await lessonMedia(repository,auth,env).run(mediaAction,input);return result instanceof Response?result:{success:true,...result};}
+  if(mediaAction){let result=await lessonMedia(repository,auth,env).run(mediaAction,input);if(sourceRepository.features.mediaSeparation&&['calendar','list','get'].includes(mediaAction)){const notes=lessonNotes(await readRepository(),auth,env);if(mediaAction==='get'){if(result.lesson.sessionKey){const entries=await notes.notes([{activityKey:result.lesson.activityKey,sessionKey:result.lesson.sessionKey}]);result.assets.push(...entries.map(notes.asset));result.lesson.canCurateNotes=true;}}else result=await (mediaAction==='calendar'?notes.enrichCalendar(result,input):notes.enrichList(result,input));}return result instanceof Response?result:{success:true,...result};}
   if(path==='/api/academy/assessments/download')return assessmentFiles(repository,auth,env).download(input);
   const assessmentAction=path.match(/^\/api\/academy\/assessments\/(list|get|register-create|register-save|register-validate|register-release|session-delete|phase-create|create|save|paper-details|publish|roster|review-paper|authorise-resubmission|confirm-submission|ready-assessment|mark|review-mark|release|release-papers|collection-save|finalise|withdraw-release)$/)?.[1];
   if(assessmentAction)return {success:true,...await d1Assessments(repository,auth).run(assessmentAction,input)};
@@ -208,6 +216,7 @@ async function dispatch(request,env) {
   const progressAction=path.match(/^\/api\/academy\/progress\/(get|grid|mark|confirm|import|module-save|set-save|cards|card-active|activity-active)$/)?.[1];
   if(progressAction)return {success:true,...await d1Memorisation(repository,auth).run(progressAction,input)};
   if(path==='/api/academy/timetable')return {success:true,...await d1AccountTimetable(repository,auth,input)};
+  if(path==='/api/account/personal-workspace'||path==='/api/account/substitute-workspace'){const expected=path.endsWith('/personal-workspace')?'OWN_LIBRARY':'SUBSTITUTE';if(auth.context.scope!==expected)throw rehearsalError('Choose your authorised personal context.',403,'FORBIDDEN_CONTEXT');return {success:true,sessionStore:'D1',workspace:{portalType:'academy',path:expected==='OWN_LIBRARY'?'/academy/library/?view=my-links':'/academy/#timetable/teach'}};}
   if(['/api/account/workspace','/api/account/global-workspace'].includes(path)){
     const expected=path.endsWith('/global-workspace')?'GLOBAL':'COURSE';
     if(auth.context.scope!==expected)throw rehearsalError('Choose an authorised Academy context.',403,'FORBIDDEN_CONTEXT');

@@ -2,7 +2,7 @@
 
 Authorisation updated 22 October 2026: proceed through Phase 4 on `feature-admin`, keeping layouts and direct manual controls. Complete the UI/Development checkpoint below before any Phase 5 database split.
 
-Implementation authorised 22 October 2026. Phases 0 and 1 are complete on `feature-admin` at V107.23; Phases 2–6 follow the agreed delivery gates. See the [Phase 1 execution record](phase-1.md). Preparation is complete at the design level. This brief, the final access map, data ownership and phased plan are the active instructions. They replace the earlier expanding review proposals.
+Implementation authorised 22 October 2026. Phases 0 and 1 are complete on `feature-admin` at V107.23; Phases 2–6 follow the agreed delivery gates. See the [Phase 1 execution record](phase-1.md). Preparation is complete at the design level. This brief, the final access map, data ownership and phased plan are the active instructions. Current implementation evidence is recorded separately below. They replace the earlier expanding review proposals.
 
 ## Required checkpoint before database separation
 
@@ -56,7 +56,7 @@ Use one Worker initially, with Admin/Core service boundaries before physical mov
 
 The [decision trace](decision-trace.csv) links the settled choices to access families, delivery phases and future acceptance checks. The [technical contracts](technical-contracts.md) supplies the current publication, file, operational and compatibility rules; archived proposals are not additional requirements.
 
-## Source checkpoint and readiness
+## Design baseline and original readiness record
 
 Source captured initially at V107.20, d9848a7cdb60a13bd4f78439131e9146c57acaa6, with independent media changes already in progress. During preparation, other work was committed as V107.21 (426ce09c, editable PDF annotations/favourite colours) and V107.22 (82cf5e8cd7d9cecb8d02650431b4de2cf51658d3, media names/Course PDFs). Final maps align to those committed additions. Assessment business handlers are unchanged from the reviewed baseline. The schema reference is 108 tables / 748 columns through source migration 0031; no live schema/application was inspected. Latest deployment confirmed by the user remains V107.17. This preparation did not edit, commit or deploy application files.
 
@@ -65,3 +65,9 @@ Source alignment, executable validators, tests, performance measurements, backup
 
 
 The Phase 0 execution record is [phase-0.md](phase-0.md). Development is paused by the user while separation proceeds. Preserve existing layouts and direct manual Admin handling.
+
+## Current execution records
+
+[Phase 1](phase-1.md), [Phase 2](phase-2.md), [Phase 3](phase-3.md) and [Phase 4](phase-4.md) record implemented changes and actual verification. [Implementation evidence](implementation-evidence.csv) distinguishes isolated checks from live verification and future physical-cutover work. The original 118-scenario matrix and baseline counts above are historical planning evidence. Use the [new field delta](field-map-phases-2-4.csv) with the original maps.
+
+Preview currently serves V107.25. Phase 3/4 changes are local pending explicit shared-schema approval and compatible release. The [UI/Development checkpoint](ui-development-checkpoint.md) must be complete before any physical split. No Phase 5 work has started.

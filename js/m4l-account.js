@@ -201,7 +201,7 @@
       void loadAvailableProgramLibraries();
       if(!/^PRG-[0-9a-f-]{36}$/i.test(String(state.context?.courseId||'')))await loadAcademyTimetable({ resetWeek: true });
     }
-    if (options.autoOpen === true && ["COURSE", "GLOBAL"].includes(state.context?.scope)) {
+    if (options.autoOpen === true && ["COURSE", "GLOBAL", "SUBSTITUTE", "OWN_LIBRARY"].includes(state.context?.scope)) {
       await openCurrentWorkspace();
     }
   }
@@ -225,7 +225,7 @@
     const openWorkspaceButton = byId("open-workspace-button");
     openWorkspaceButton.classList.toggle(
       "hidden",
-      !["COURSE", "GLOBAL"].includes(state.context?.scope)
+      !["COURSE", "GLOBAL", "SUBSTITUTE", "OWN_LIBRARY"].includes(state.context?.scope)
     );
     openWorkspaceButton.textContent = state.context?.scope === "GLOBAL"
       ? "Open Global Library"
@@ -310,7 +310,7 @@
         role: context.role
       }, state.token);
       await acceptSession(result, true, { autoOpen: false });
-      byId("service-message").textContent = ["COURSE", "GLOBAL"].includes(state.context?.scope)
+      byId("service-message").textContent = ["COURSE", "GLOBAL", "SUBSTITUTE", "OWN_LIBRARY"].includes(state.context?.scope)
         ? "Program or access context selected."
         : "Platform context selected securely.";
     } catch (error) {
@@ -323,7 +323,7 @@
   }
 
   async function openCurrentWorkspace() {
-    if (state.workspaceOpening || !["COURSE", "GLOBAL"].includes(state.context?.scope) || !state.token) return false;
+    if (state.workspaceOpening || !["COURSE", "GLOBAL", "SUBSTITUTE", "OWN_LIBRARY"].includes(state.context?.scope) || !state.token) return false;
     if(/^PRG-[0-9a-f-]{36}$/i.test(String(state.context?.courseId||''))){
       window.location.assign(`/programs/library-view.html?program=${encodeURIComponent(state.context.courseId)}`);
       return true;
@@ -334,14 +334,14 @@
     showFormError("context-error", "");
     byId("service-message").textContent = "Opening the selected workspace…";
     try {
-      const endpoint = state.context?.scope === "GLOBAL"
+      const endpoint = state.context?.scope === "OWN_LIBRARY"?"/api/account/personal-workspace":state.context?.scope === "SUBSTITUTE"?"/api/account/substitute-workspace":state.context?.scope === "GLOBAL"
         ? "/api/account/global-workspace"
         : "/api/account/workspace";
       const result = await api(endpoint, {}, state.token);
       const path = String(result.workspace?.path || "").trim();
       const portalType = String(result.workspace?.portalType || "").trim().toLowerCase();
       if (result.sessionStore === "D1" && portalType === "academy") {
-        if (!/^\/academy\/(?:#activity\/PROGRAM\/[A-Za-z0-9._~%-]+)?$/.test(path)) throw new Error("The Academy route is invalid.");
+        if (!/^\/academy\/(?:#activity\/(?:PROGRAM|COURSE)\/[A-Za-z0-9._~%-]+)?$/.test(path)&&!['/academy/library/?view=my-links','/academy/#timetable/teach'].includes(path)) throw new Error("The Academy route is invalid.");
         window.location.assign(path);
         return true;
       }
@@ -1117,11 +1117,15 @@
   function roleLabel(role) {
     const normalized = normalize(role);
     if (normalized === "SENIOR") return "SENIOR TEACHER";
+    if(role==='LIBRARY_OWNER')return 'None';
+    if(role==='SUBSTITUTE')return 'Substitute assignment';
     return String(role || "").replace(/_/g, " ");
   }
 
   function contextScopeLabel(scope) {
     const normalized = String(scope || "").trim().toUpperCase();
+    if (normalized === "OWN_LIBRARY") return "Personal library";
+    if (normalized === "SUBSTITUTE") return "Assigned session";
     if (normalized === "PLATFORM") return "Platform";
     if (normalized === "GLOBAL") return "Global Library";
     return "Program";

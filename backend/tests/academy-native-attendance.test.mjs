@@ -85,6 +85,15 @@ test('current role revocation rejects a Teacher commit made with an earlier auth
  await assert.rejects(teacher.run('submit',f.input(data)),e=>e.code==='ATTENDANCE_CHANGED');
  assert.equal(f.db.prepare('SELECT count(*) n FROM attendance_days').get().n,0);
 }));
+test('a newly accepted setup head rejects an old-page first register without creating partial records',()=>use(async f=>{
+ const service=await f.service(),data=await service.run('get',{activityKey:scopes.programA,date:today()}),head=f.db.prepare('SELECT * FROM setup_heads WHERE head_id=(SELECT head_id FROM setup_head_state)').get(),next={...head,head_id:crypto.randomUUID(),batch_id:crypto.randomUUID()},columns=Object.keys(next);
+ const batch={...f.db.prepare('SELECT * FROM setup_batches WHERE batch_id=?').get(head.batch_id),batch_id:next.batch_id},batchColumns=Object.keys(batch);f.db.prepare('INSERT INTO setup_batches('+batchColumns.join(',')+') VALUES('+batchColumns.map(()=>'?').join(',')+')').run(...Object.values(batch));
+ f.db.prepare('INSERT INTO setup_heads('+columns.join(',')+') VALUES('+columns.map(()=>'?').join(',')+')').run(...Object.values(next));
+ f.db.prepare('INSERT INTO setup_head_components SELECT ?,table_name,scope_key,component_id FROM setup_head_components WHERE head_id=?').run(next.head_id,head.head_id);
+ f.db.prepare('UPDATE setup_head_state SET head_id=?').run(next.head_id);
+ await assert.rejects(service.run('submit',f.input(data)),e=>e.code==='ATTENDANCE_CHANGED');
+ assert.equal(f.db.prepare('SELECT count(*) n FROM attendance_days').get().n,0);assert.equal(f.db.prepare('SELECT count(*) n FROM attendance_register_versions').get().n,0);
+}));
 test('Course attendance uses an explicitly reviewed delivery roster and preserves previously sealed days',()=>use(async f=>{
  const service=await f.service(),scope='COURSE:subject-1',data=await service.run('get',{activityKey:scope,date:today()});assert(data.lessons.length);assert(data.lessons.every(r=>!r.canSubmit));
  const roster=await service.run('roster-get',{activityKey:scope,runId:'run-1'});assert.equal(roster.revision,0);assert(!roster.prefill.some(r=>r.accountId===f.actors.global));

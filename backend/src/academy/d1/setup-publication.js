@@ -163,11 +163,12 @@ function guard(db,{version,head},auth,scopes){
  return {check:db.prepare(`INSERT INTO academy_write_guards VALUES(?,${base}${authority})`).bind(...values),clear:db.prepare('DELETE FROM academy_write_guards WHERE guard_id=?').bind(guardId)};
 }
 const insertComponents=(db,batch,components)=>chunks(components.map(c=>({...c,component_id:id()}))).map(chunk=>db.prepare(`INSERT INTO setup_components(component_id,batch_id,table_name,scope_key,rows_json,row_count,digest) SELECT json_extract(value,'$.component_id'),?,json_extract(value,'$.table_name'),json_extract(value,'$.scope_key'),json_extract(value,'$.rows_json'),json_extract(value,'$.row_count'),json_extract(value,'$.digest') FROM json_each(?)`).bind(batch,JSON.stringify(chunk)));
-function headStatements(db,batch,head,parent,actor,now){return [
+function headStatements(db,batch,head,parent,actor,now,mediaSeparation=false){return [
  db.prepare('INSERT INTO setup_heads VALUES(?,?,?,?,?)').bind(head,parent,batch,now,actor),
  ...(parent?[db.prepare(`INSERT INTO setup_head_components SELECT ?,v.table_name,v.scope_key,v.component_id FROM setup_head_components v WHERE v.head_id=? AND NOT EXISTS(SELECT 1 FROM setup_components c WHERE c.batch_id=? AND c.table_name=v.table_name AND c.scope_key=v.scope_key)`).bind(head,parent,batch)]:[]),
  db.prepare('INSERT INTO setup_head_components SELECT ?,table_name,scope_key,component_id FROM setup_components WHERE batch_id=?').bind(head,batch),
  db.prepare('INSERT INTO setup_head_state VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET head_id=excluded.head_id').bind(head),
+ ...(mediaSeparation?[db.prepare(`UPDATE lesson_media_visibility SET visible=1,updated_at=?,updated_by=? WHERE lesson_id IN(SELECT json_extract(row.value,'$.lesson_id') FROM setup_components c,json_each(c.rows_json) row JOIN lesson_media_lessons current ON current.lesson_id=json_extract(row.value,'$.lesson_id') WHERE c.batch_id=? AND c.table_name='lesson_media_lessons' AND json_extract(row.value,'$.state')='PUBLISHED' AND current.state='PUBLISHED')`).bind(now,actor,batch)]:[]),
  db.prepare('UPDATE setup_batches SET accepted_head=? WHERE batch_id=?').bind(head,batch)
  ];}
 export async function initialiseAcceptedSetup(db,actor='RELEASE_BOOTSTRAP'){
@@ -220,8 +221,8 @@ export function setupPublication(repository,auth){
    const current=await candidate(db,auth,{...manifest.selection,...(manifest.sourceOperation?{sourceOperation:manifest.sourceOperation}:{})});
    if(current.digest!==batch.digest)throw fail('Setup changed after review. Review again before publishing.',409,'SETUP_REVIEW_CHANGED');
    const head=id(),now=new Date().toISOString(),g=guard(db,{version:batch.source_version,head:batch.expected_head},auth,manifest.authorityScopes);
-   try{await db.batch([g.check,...headStatements(db,batch.batch_id,head,batch.expected_head,auth.user.accountid,now),db.prepare(`INSERT INTO audit_events(event_id,occurred_at,actor_account_id,authority,scope_key,action,record_kind,record_id,changed_fields_json) VALUES(?,?,?,?,?,'setup-publish','ACCEPTED_SETUP',?,?)`).bind(id(),now,auth.user.accountid,actualState(auth).account.global_admin?'GLOBAL_ADMIN':'PROGRAM_ADMIN',manifest.scopes.join(','),batch.batch_id,JSON.stringify(manifest.components)),g.clear]);}
-   catch(e){const saved=await db.prepare('SELECT accepted_head FROM setup_batches WHERE batch_id=?').bind(batch.batch_id).first();if(saved?.accepted_head)return {head:saved.accepted_head,batchId:batch.batch_id,replayed:true};if(/academy_management_stale/.test(e.message))throw fail('Setup, publication or access changed. Review again.',409,'SETUP_REVIEW_CHANGED');throw e;}
+   try{await db.batch([g.check,...headStatements(db,batch.batch_id,head,batch.expected_head,auth.user.accountid,now,repository.features?.mediaSeparation),db.prepare(`INSERT INTO audit_events(event_id,occurred_at,actor_account_id,authority,scope_key,action,record_kind,record_id,changed_fields_json) VALUES(?,?,?,?,?,'setup-publish','ACCEPTED_SETUP',?,?)`).bind(id(),now,auth.user.accountid,actualState(auth).account.global_admin?'GLOBAL_ADMIN':'PROGRAM_ADMIN',manifest.scopes.join(','),batch.batch_id,JSON.stringify(manifest.components)),g.clear]);}
+   catch(e){const saved=await db.prepare('SELECT accepted_head FROM setup_batches WHERE batch_id=?').bind(batch.batch_id).first();if(saved?.accepted_head)return {head:saved.accepted_head,batchId:batch.batch_id,replayed:true};if(/lesson_media_pdf_limit/.test(e.message))throw fail('A session would exceed ten PDFs including Teacher notes. Curate its attachments before publishing.',409,'SETUP_MEDIA_LIMIT');if(/academy_management_stale/.test(e.message))throw fail('Setup, publication or access changed. Review again.',409,'SETUP_REVIEW_CHANGED');throw e;}
    return {head,batchId:batch.batch_id};
   }
   throw fail('Unknown setup action.',400);

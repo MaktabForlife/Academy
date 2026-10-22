@@ -1,3 +1,4 @@
+import {publishedSessionRange} from './published-sessions.js';
 import {managementError as fail,same} from './management-store.js';
 import {validDate} from './assessment-store.js';
 import {addDays} from '../entrance.js';
@@ -9,6 +10,17 @@ import {historicalPublications} from './historical-timetable.js';
 // supplied dates, teachers and class names never become authoritative media data.
 export async function mediaSessions(repository,activity,input,actor,admin){
  const p=(sql,...v)=>repository.db.prepare(sql).bind(...v);
+ if(repository.features?.mediaSeparation){
+  const result=await publishedSessionRange(repository,activity,input.startDate,input.endDate,{runId:input.runId||''}),map=new Map();
+  for(const row of result.lessons){const key=activity.kind==='PROGRAM'?JSON.stringify(['PROGRAM',row.date,row.sourceAnchor||row.anchor]):JSON.stringify(['COURSE',row.runId,row.sourceSessionId]);
+   if(!map.has(key))map.set(key,{sessionKey:key,date:row.date,title:row.moduleName||row.subjectName||activity.name,startTime:row.startTime,endTime:row.endTime,classIds:[],classNames:[],teacherIds:row.teacherIds,teacherName:row.teacherNames.join(', '),publicationId:row.publicationId,sourceSessionId:row.sourceSessionId||row.sourceAnchor||row.anchor,sourceAnchor:row.sourceAnchor||row.anchor,runId:row.runId||'',timezone:row.timezone});
+   const session=map.get(key);for(const [i,id] of row.classIds.entries())if(!session.classIds.includes(id)){session.classIds.push(id);session.classNames.push(row.classNames[i]);}
+  }
+  const rows=[...map.values()].filter(r=>admin||r.teacherIds.some(id=>same(id,actor)));if(rows.length>400)throw fail('Choose a shorter session period.');
+  const runs=result.runs.map(r=>({id:r.run_id,name:r.name,stage:r.stage})),runId=input.runId||runs[0]?.id||'';
+  return {sessions:await Promise.all(rows.filter(r=>activity.kind==='PROGRAM'||!runId||r.runId===runId).map(async r=>({...r,sessionVersion:await payloadHash(r)}))),runs,runId};
+ }
+
  let sessions=[],runs=[],runId='';
  if(activity.kind==='PROGRAM'){
   if(!validDate(input.startDate)||!validDate(input.endDate)||input.endDate<input.startDate||input.endDate>addDays(input.startDate,30))throw fail('Choose a session period of up to 31 days.');

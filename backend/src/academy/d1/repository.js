@@ -1,3 +1,4 @@
+import {personalLinksEstablished} from './personal-links.js';
 import { authorityRank, normalizePlatformIdentifier as key } from '../../lib/platform-schema.js';
 import {CORE_ACTIVATION_CHECKS,newActivityOwnership} from './activation-policy.js';
 import {programAccessJoin,programAccessSQL} from './program-access.js';
@@ -35,7 +36,7 @@ export function academyD1Repository(env) {
     const target=`(SELECT a.account_id FROM accounts a JOIN account_credentials c USING(account_id) WHERE ${where})`;
     const results=await db.batch([
       prepare(`${accountSQL} WHERE ${where}`,...values),
-      prepare(`SELECT ${activityColumns},cs.legacy_access_model FROM activities a LEFT JOIN course_settings cs USING(activity_key)
+      prepare(`SELECT ${activityColumns},cs.legacy_access_model,cs.policy_review_state FROM activities a LEFT JOIN course_settings cs USING(activity_key)
         WHERE a.active=1 AND a.lifecycle='ACTIVE' AND a.kind IN ('PROGRAM','COURSE')`),
       prepare(`SELECT r.activity_key,r.role FROM effective_activity_roles r JOIN activities a USING(activity_key)
         WHERE r.account_id=${target} AND a.active=1 AND a.lifecycle='ACTIVE'
@@ -66,14 +67,16 @@ export function academyD1Repository(env) {
     contexts.sort((a,b)=>rank(a.role)-rank(b.role)||a.courseName.localeCompare(b.courseName)||a.role.localeCompare(b.role));
     if(!account.global_admin&&activities.some(a=>a.kind==='COURSE'&&(a.legacy_access_model==='FREE'||subscriptions.some(s=>key(s.activity_key)===key(a.activity_key)))))
       contexts.push({scope:'GLOBAL',courseId:'',courseName:'Global Subjects',role:'STUDENT'});
-    return {account,activities,roles,subscriptions,contexts};
+    const myLinksAvailable=env.ACADEMY_MEDIA_SEPARATION==='1'&&Boolean(account.global_admin||roles.some(r=>['TEACHER','PROGRAM_ADMIN'].includes(r.role))||!contexts.length&&await personalLinksEstablished(env,account.account_id));
+    if(myLinksAvailable&&!contexts.length)contexts.push({scope:'OWN_LIBRARY',courseId:'',courseName:'My links',role:'LIBRARY_OWNER'});
+    return {account,activities,roles,subscriptions,contexts,myLinksAvailable};
   }
   function audit(actor,target,action,fields,conditional=false) {
     return prepare(`INSERT INTO audit_events(event_id,occurred_at,actor_account_id,authority,scope_key,action,record_kind,record_id,changed_fields_json)
       SELECT ?,?,?,?,?,?,?,?,? ${conditional?'WHERE changes()=1':''}`,crypto.randomUUID(),new Date().toISOString(),actor,env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACCOUNT':'D1_REHEARSAL','ACADEMY',action,'USER_ACCOUNT',target,JSON.stringify(fields));
   }
   return {
-    db,setup:{enabled:env.ACADEMY_ACCEPTED_SETUP==='1'},features:{nativeAttendance:env.ACADEMY_LEARNING_OPERATIONS==='3'},
+    db,setup:{enabled:env.ACADEMY_ACCEPTED_SETUP==='1'},features:{nativeAttendance:env.ACADEMY_LEARNING_OPERATIONS==='3',mediaSeparation:env.ACADEMY_MEDIA_SEPARATION==='1'},
     ownershipForNewActivity:activity=>newActivityOwnership(activity,env),
     subscriptionSource,
     publicAccount,
