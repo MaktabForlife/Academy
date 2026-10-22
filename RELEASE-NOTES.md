@@ -1,3 +1,7 @@
+# V107.24 — Separate feature preview Worker
+
+Add `feature_worker` for `feature-admin` with the Phase 1 permissions. Route only feature Pages builds to it; Development keeps its current API. Retain the same Development D1, R2, login limiter and existing Open Library coordinator. Keep encrypted authentication/Library bindings and the existing Hifz configuration. Do not add another scheduled job or migrate/copy data. Refresh the configuration asset cache and align the active release markers. No layout changes.
+
 # V107.23 — Admin separation, Phase 1
 
 Separate Admin at `/academy/admin/` and carry the selected Learn, Teach or Admin audience through shared and legacy APIs, raw uploads and protected files. Retain one sign-in and real actor. Admin readers receive student or ordinary Teacher fields; previews cannot create participant events or perform teaching work without genuine assignments. Scope caches and delayed responses to their workspace, retain unsaved guards and PDF tools, and keep the existing layouts and storage homes. Add Global-Admin-only app time-zone settings and close per-area time-zone overrides. No database migration, attendance reset or manual exception subsystem. Prepared on `feature-admin`; validation is recorded in [Phase 1](docs/academy-separation/phase-1.md).

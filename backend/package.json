@@ -1,6 +1,6 @@
 {
   "name": "maktab-academy-development",
-  "version": "107.23",
+  "version": "107.24",
   "type": "module",
   "scripts": {
     "test": "node tests/run-all.mjs",
@@ -23,7 +23,8 @@
     "test:academy": "node tests/run-group.mjs academy",
     "test:offline": "node tests/run-group.mjs offline",
     "check:academy-boundary": "node tools/academy-boundary.mjs",
-    "test:pdf-bookmarks:browser": "node tools/academy-pdf-bookmarks-acceptance.mjs"
+    "test:pdf-bookmarks:browser": "node tools/academy-pdf-bookmarks-acceptance.mjs",
+    "deploy:feature": "wrangler deploy --config wrangler.feature.jsonc --keep-vars"
   },
   "devDependencies": {
     "wrangler": "^4.36.0"

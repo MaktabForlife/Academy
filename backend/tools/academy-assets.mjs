@@ -6,7 +6,7 @@ import {tmpdir} from 'node:os';
 const roots=['academy','account','programs','users','pdf-viewer','recorder','activities','icons','images'];
 export function buildAcademyAssets({repo,directory,isolated=true,target='development'}){
   repo=realpathSync(repo);directory=resolve(directory);
-  if(target!=='development')throw Error('ACADEMY_ASSET_TARGET_REQUIRED');
+  if(!['development','feature'].includes(target))throw Error('ACADEMY_ASSET_TARGET_REQUIRED');
   if(directory===repo||!['/private/tmp/',resolve(tmpdir())+'/'].some(root=>directory.startsWith(root)))throw Error('PRIVATE_BUILD_DIRECTORY_REQUIRED');
   mkdirSync(directory,{recursive:true,mode:0o700});
   const tracked=execFileSync('git',['ls-files','-z','--',...roots],{cwd:repo,encoding:'utf8'}).split('\0').filter(file=>file&&existsSync(join(repo,file))&&!file.split('/').some(p=>p.startsWith('.')));
@@ -16,7 +16,7 @@ export function buildAcademyAssets({repo,directory,isolated=true,target='develop
     if(file.startsWith('../')||file.startsWith('/')||file.split('/').some(p=>p.startsWith('.')))throw Error('INVALID_ASSET_PATH');
     const source=join(repo,file);if(!existsSync(source))throw Error('MISSING_ACADEMY_ASSET: '+file);
     const info=lstatSync(source);if(!info.isFile()||realpathSync(source)!==source||info.size>25*1024*1024)throw Error('INVALID_PUBLIC_ASSET');
-    const config='js/m4l-development-academy-config.js';
+    const config=target==='feature'?'js/m4l-feature-academy-config.js':'js/m4l-development-academy-config.js';
     let bytes=readFileSync(file==='js/m4l-config.js'?join(repo,config):source);
     if(file.endsWith('.html')&&isolated)bytes=Buffer.from(bytes.toString().replace(/<head>/i,'<head>\n<meta name="robots" content="noindex,nofollow">'));
     const destination=join(directory,file);mkdirSync(dirname(destination),{recursive:true});writeFileSync(destination,bytes,{mode:0o600});written.set(file,bytes.length);

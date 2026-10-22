@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V107.23
+# Umm Abbad Academy — V107.24
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
@@ -7,6 +7,10 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - HifzHelper keeps its separate Worker and D1; Academy provides profile and PIN updates plus a short-lived sign-in handoff.
+
+## V107.24 — Feature preview Worker
+
+`feature-admin` Pages builds call the separate `feature_worker` API. Development builds continue to use `devrebootworker`. Both Workers retain the existing Development D1 database, uploaded files and Open Library metadata. Preview edits therefore affect the same test data. The feature Worker has no background schedule; the existing Development schedule continues. Publish its code with `npm --prefix backend run deploy:feature`. Authentication and Library secrets remain encrypted Worker bindings. No migration, data copy or layout change.
 
 ## V107.23 — Admin separation, Phase 1
 
@@ -170,11 +174,11 @@ Teach and Learn show separate Programs and Courses blocks. Global Admin navigati
 
 Install the pinned backend dependencies with `npm --prefix backend ci`. Run `npm --prefix backend test` and `npm --prefix backend run check:academy-boundary` before release.
 
-Cloudflare Pages uses `npm --prefix backend ci && node backend/tools/academy-pages-build.mjs`, output `.academy-pages`, repository root, branch `development`. The website calls the existing Development API on stable and preview addresses.
+Cloudflare Pages uses `npm --prefix backend ci && node backend/tools/academy-pages-build.mjs`, output `.academy-pages`, repository root, branch `development`. Development builds call the existing Development API. The `feature-admin` build calls `feature_worker` on its branch alias and immutable Pages deployment addresses.
 
 Deploy the matching API with `npm --prefix backend run deploy:development`. The default deploy command also selects Development. This branch contains no deployment configuration for the legacy production Worker.
 
-Changing a website or Worker Git branch selects code only. The Development database, uploaded files, sessions and Open Library metadata retain their existing storage identities. Test edits therefore affect this shared Development data.
+Development and `feature-admin` select separate Worker code. Changing a website or Worker Git branch selects code only. The Development database, uploaded files, sessions and Open Library metadata retain their existing storage identities. Test edits therefore affect this shared Development data.
 
 ## Storage and recovery
 

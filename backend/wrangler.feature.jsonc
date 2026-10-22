@@ -1,0 +1,79 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "feature_worker",
+  "account_id": "c9a3e355b3d7a795880b1d36a1dbe123",
+  "main": "src/academy-feature-runtime.js",
+  "compatibility_date": "2026-10-22",
+  "workers_dev": true,
+  "preview_urls": false,
+  "keep_vars": true,
+  "d1_databases": [
+    {
+      "binding": "ACADEMY_DB",
+      "database_name": "maktab-academy",
+      "database_id": "7e732b79-a72f-4da6-be83-524919c49ba4",
+      "migrations_dir": "migrations/academy"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "LESSON_MEDIA_BUCKET",
+      "bucket_name": "maktab-lesson-media-private-development"
+    },
+    {
+      "binding": "ASSESSMENT_BUCKET",
+      "bucket_name": "maktab-assessments-private-development"
+    },
+    {
+      "binding": "MEDIA_BUCKET",
+      "bucket_name": "maktab4lifemedia"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "AUTH_LOGIN_RATE_LIMITER",
+      "namespace_id": "100101",
+      "simple": {
+        "limit": 5,
+        "period": 60
+      }
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "PROGRAM_TIMETABLE_COORDINATOR",
+        "class_name": "ProgramTimetableCoordinator",
+        "script_name": "devrebootworker"
+      }
+    ]
+  },
+  "triggers": {
+    "crons": []
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "vars": {
+    "ACADEMY_D1_MODE": "ACTIVE",
+    "ACADEMY_D1_RUN_ID": "3e26a5d4efb3eebce834e164afa7c660e838af2027a22cc6c74a83fb40e286aa",
+    "ACADEMY_LIBRARY_MODE": "PUBLIC_ONLY",
+    "ALLOWED_ORIGINS": "https://feature-admin.academy-maktab4life.pages.dev",
+    "ENVIRONMENT": "development",
+    "HIFZ_DEVELOPMENT_HANDOFF_URL": "https://hifzhelper-api-dev.hifzhelper-app.workers.dev/internal/academy/profile-sync",
+    "HIFZ_HANDOFF_ENABLED": "1",
+    "HIFZ_PROFILE_SYNC_TARGET": "production",
+    "HIFZ_PROFILE_SYNC_URL": "https://hifzhelper-api.hifzhelper-app.workers.dev/internal/academy/profile-sync",
+    "ACADEMY_DEPLOYMENT_KIND": "FEATURE_PREVIEW"
+  },
+  "secrets": {
+    "required": [
+      "PIN_SECRET",
+      "SESSION_SECRET",
+      "SHARED_PIN_SECRET",
+      "HIFZ_PROFILE_SYNC_SECRET",
+      "ACADEMY_OPEN_LIBRARY_STORAGE_KEY"
+    ]
+  }
+}
