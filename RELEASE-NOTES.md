@@ -1,3 +1,7 @@
+# V107.20 — Separate PDF annotation comparison
+
+Add `/academy/pdf-compare/` for comparing existing PDF.js tools with a separate Academy toolbar over the same PDF. Includes local file opening, a two-page worksheet, labelled pen/text/highlight controls, box/oval/line/arrow shapes, selection, text editing, move/resize, whole-mark erasing, Undo/Redo, linked page navigation and annotated PDF download. Device PDFs and editable marks stay in the tab. Export preserves the original page content and adds a permanent image overlay. The current reader has no functional changes. [Verification](docs/PDF-COMPARISON-107.20.md).
+
 # V107.19 — Active lesson card layout
 
 Fix the active timetable card squeezing its name and In progress status into a narrow column beside Join lesson. Keep Details, Join and media actions in separate rows within the shared card; short time/title pairs remain compact and longer names wrap into the full card width. Apply the same layout to Program and Course cards in main and scoped timetables. Verify the previous layout fails the active-card check, then test students, teachers and Global Admins in LEARN/TEACH at nine desktop/tablet/phone widths, including long names, upcoming lessons, multiple active lessons and video/PDF actions. Development only; no schema or live data edits.

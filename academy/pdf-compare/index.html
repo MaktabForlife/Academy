@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Compare PDF tools · Academy</title>
+  <link rel="icon" href="/admin-favicon-32x32.png">
+  <link rel="stylesheet" href="/css/m4l-pdf-compare.css?v=107.20">
+</head>
+<body>
+  <header class="compare-header">
+    <a class="brand" href="/academy/"><img src="/ummabbadacademy.png" alt=""><span>Umm Abbad Academy<small>PDF tools comparison · V107.20</small></span></a>
+    <div class="file-actions"><button id="open-file" type="button">Open PDF</button><button id="sample" type="button">Sample worksheet</button><a href="/academy/pdf-reader/">Current reader ↗</a><input id="pdf-file" type="file" accept="application/pdf,.pdf" hidden></div>
+  </header>
+  <section class="intro" aria-labelledby="compare-title">
+    <div><h1 id="compare-title">Which tools feel easier? <span class="badge">Development preview</span></h1><p>Try the same PDF in both views. Device files stay in your browser.</p></div>
+    <details><summary>Suggested comparison</summary><ol><li>Write your name in English or Arabic.</li><li>Draw an underline and change its colour.</li><li>Add a box, circle or arrow in Academy tools.</li><li>Move a mark, undo a mistake and download a copy.</li><li>Reopen the copy to check your marks.</li></ol></details>
+  </section>
+  <div class="view-bar"><div class="view-choices" role="group" aria-label="Comparison view"><button type="button" data-view="both" aria-pressed="true">Side by side</button><button type="button" data-view="pdfjs" aria-pressed="false">PDF.js</button><button type="button" data-view="academy" aria-pressed="false">Academy tools</button></div><strong id="file-name">Sample worksheet</strong></div>
+  <p id="status" role="status" aria-live="polite">Loading the sample worksheet…</p>
+  <main id="comparison" data-view="both">
+    <section class="pane native-pane" aria-labelledby="native-title"><header class="pane-title"><div><span class="eyebrow">Current tools</span><h2 id="native-title">PDF.js</h2></div><span class="pane-note">Use its own annotation and download buttons</span></header><iframe id="native-reader" title="Current PDF.js tools" src="/pdf-viewer/web/viewer.html?academy=1&amp;file="></iframe></section>
+    <section class="pane academy-pane" aria-labelledby="academy-title">
+      <header class="pane-title"><div><span class="eyebrow">Proposed tools</span><h2 id="academy-title">Academy</h2></div><button type="button" id="download" class="primary" disabled>Download my copy</button></header>
+      <div class="toolbox" id="toolbox">
+        <div class="tools" role="group" aria-label="Annotation tools">
+          <button type="button" data-tool="hand" aria-pressed="true"><span aria-hidden="true">↔</span>Scroll</button>
+          <button type="button" data-tool="select" aria-pressed="false"><span aria-hidden="true">↖</span>Select</button>
+          <button type="button" data-tool="pen" aria-pressed="false"><span aria-hidden="true">✎</span>Pen</button>
+          <button type="button" data-tool="text" aria-pressed="false"><span aria-hidden="true">T</span>Text</button>
+          <button type="button" data-tool="highlight" aria-pressed="false"><span aria-hidden="true">▰</span>Highlight</button>
+          <button type="button" data-tool="rectangle" aria-pressed="false"><span aria-hidden="true">□</span>Box</button>
+          <button type="button" data-tool="ellipse" aria-pressed="false"><span aria-hidden="true">○</span>Circle / oval</button>
+          <button type="button" data-tool="line" aria-pressed="false"><span aria-hidden="true">╱</span>Line</button>
+          <button type="button" data-tool="arrow" aria-pressed="false"><span aria-hidden="true">↗</span>Arrow</button>
+          <button type="button" data-tool="eraser" aria-pressed="false"><span aria-hidden="true">⌫</span>Eraser</button>
+        </div>
+        <div class="properties">
+          <fieldset class="colours"><legend>Colour</legend><button type="button" data-colour="#292336" aria-label="Black ink" aria-pressed="true" style="--swatch:#292336"></button><button type="button" data-colour="#be273d" aria-label="Red ink" aria-pressed="false" style="--swatch:#be273d"></button><button type="button" data-colour="#235dad" aria-label="Blue ink" aria-pressed="false" style="--swatch:#235dad"></button><button type="button" data-colour="#15734c" aria-label="Green ink" aria-pressed="false" style="--swatch:#15734c"></button><label class="custom-colour">More<input type="color" id="colour" aria-label="Custom ink colour" value="#292336"></label></fieldset>
+          <label>Pen width<select id="width"><option value="1">Thin</option><option value="2.5" selected>Medium</option><option value="5">Thick</option></select></label>
+          <label>Text size<select id="font-size"><option>12</option><option>16</option><option selected>20</option><option>24</option><option>32</option><option>40</option><option>48</option></select></label>
+          <label class="check"><input id="fill" type="checkbox">Fill shapes</label>
+        </div>
+        <div class="edit-actions"><button type="button" id="undo" disabled>↶ Undo</button><button type="button" id="redo" disabled>↷ Redo</button><button type="button" id="edit-text" disabled>Edit text</button><button type="button" id="delete" disabled>Delete selected</button><span id="selection-note">Choose a tool to begin.</span></div>
+      </div>
+      <div class="page-controls"><div><button type="button" id="previous" aria-label="Previous Academy page" disabled>‹</button><label>Page <input id="page-number" type="number" min="1" value="1" aria-label="Academy page number"></label><span id="page-count">/ —</span><button type="button" id="next" aria-label="Next Academy page" disabled>›</button></div><label>Zoom<select id="zoom"><option value="fit">Fit width</option><option value="0.75">75%</option><option value="1">100%</option><option value="1.25">125%</option><option value="1.5">150%</option><option value="2">200%</option></select></label><label class="check"><input id="link-pages" type="checkbox" checked>Link pages</label></div>
+      <p id="tool-hint">Scroll to read. Choose Pen or a shape, then drag on the page.</p>
+      <div id="page-scroll" class="page-scroll"><div id="page-stage" class="page-stage"><canvas id="pdf-canvas" aria-label="PDF page"></canvas><canvas id="marks-canvas" tabindex="0" aria-label="Academy annotation canvas. Choose a tool, then draw or click to add text."></canvas></div></div>
+      <details class="marks-panel"><summary id="marks-summary">My marks (0)</summary><ol id="marks-list"></ol><p>Marks stay in this tab. Download adds them permanently to a copy; they cannot be edited as separate objects after reopening.</p></details>
+    </section>
+  </main>
+  <nav class="mobile-dock" aria-label="Quick Academy tools"><label>Tool<select id="quick-tool"><option value="hand">Scroll</option><option value="select">Select</option><option value="pen">Pen</option><option value="text">Text</option><option value="highlight">Highlight</option><option value="rectangle">Box</option><option value="ellipse">Circle / oval</option><option value="line">Line</option><option value="arrow">Arrow</option><option value="eraser">Eraser</option></select></label><button type="button" id="show-tools">Tool settings ↑</button><button type="button" id="quick-undo" disabled>Undo</button></nav>
+  <dialog id="text-dialog" aria-labelledby="text-title"><form id="text-form"><h2 id="text-title">Add text</h2><label>Your text<textarea id="text-value" rows="4" maxlength="2000" dir="auto" placeholder="Type in English or Arabic" required></textarea></label><div class="text-options"><label>Direction<select id="text-direction"><option value="auto">Automatic</option><option value="ltr">Left to right</option><option value="rtl">Right to left (Arabic)</option></select></label><label>Box width<select id="text-width"><option value="160">Narrow</option><option value="280" selected>Medium</option><option value="420">Wide</option></select></label></div><p>Text wraps inside the box. Use Select to move it or drag its corner to resize.</p><div class="dialog-actions"><button id="text-cancel" type="button">Cancel</button><button type="submit" class="primary">Apply text</button></div></form></dialog>
+  <dialog id="replace-dialog" aria-labelledby="replace-title"><h2 id="replace-title">Open another PDF?</h2><p>You have marks in this tab. Download each view’s copy before changing the document.</p><div class="dialog-actions"><button id="replace-cancel" type="button">Keep this PDF</button><button id="replace-confirm" type="button">Discard marks and open</button></div></dialog>
+  <script src="/js/vendor/pdf-lib-1.17.1.min.js"></script>
+  <script type="module" src="/js/m4l-pdf-compare.mjs?v=107.20"></script>
+</body>
+</html>

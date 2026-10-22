@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V107.19
+# Umm Abbad Academy — V107.20
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
@@ -7,6 +7,10 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - HifzHelper keeps its separate Worker and D1; Academy provides profile and PIN updates plus a short-lived sign-in handoff.
+
+## V107.20 — Separate PDF tools comparison
+
+Try [PDF tools comparison](https://maktab4life.org/academy/pdf-compare/) with the same sample or device PDF in the current PDF.js viewer and a separate Academy annotation canvas. Compare labelled drawing and text controls, Arabic/English text, shapes, moving/resizing, Undo/Redo and downloading an annotated copy. The current reader remains the normal Library reader. Development only; no database or account changes. [Details and limitations](docs/PDF-COMPARISON-107.20.md).
 
 ## V107.19 — Readable active timetable cards
 

@@ -122,6 +122,14 @@ for(const root of ['academy','account','programs','users','recorder','activities
     // Loading the full account shell adds redundant API requests during sign-in.
     // Its recovery and redirect behavior is checked by the bridge UI test.
     if(file==='academy/hifz/index.html')continue;
+    // The approved annotation experiment is deliberately account-free. Its own
+    // navigation returns to Academy/the normal reader without session API calls.
+    if(file==='academy/pdf-compare/index.html'){
+      assert.match(html,/href="\/academy\/"/);assert.match(html,/href="\/academy\/pdf-reader\/"/);
+      assert.match(html,/name="robots" content="noindex,nofollow"/);
+      assert.match(html,/\/js\/m4l-pdf-compare\.mjs/);assert.doesNotMatch(html,/m4l-config\.js|m4l-academy-navigation\.js/);
+      continue;
+    }
     for(const asset of ['m4l-academy-mobile.js','m4l-academy-mobile.css','m4l-academy-shell.css','m4l-academy-page-actions.js','m4l-academy-page-actions.css'])assert.ok(html.includes('/'+(asset.endsWith('.js')?'js/':'css/')+asset),file+' must include '+asset);
     if(file!=='academy/index.html') {
       assert.match(html,/m4l-academy-navigation\.js/,file);assert.match(html,/m4l-academy-navigation\.css/,file);
