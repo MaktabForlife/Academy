@@ -8,10 +8,11 @@ import {sqliteD1} from '../../tools/academy-split/sqlite-d1.mjs';
 import {emptyCompatibilityDatabase} from '../../src/academy/separation/compatibility.js';
 import {emptyShapes} from '../../src/academy/separation/empty-shapes.js';
 import {splitEngine} from '../../src/academy/separation/engine.js';
-export async function splitFixture(){
+export async function splitFixture(seed){
  const source=await separationFixture();let prepared;
  try{
   for(const name of ['0032_accepted_setup.sql','0033_native_attendance.sql','0034_assessment_operations.sql','0035_media_contributions.sql']){source.db.exec('BEGIN');source.db.exec(readFileSync(new URL('../../migrations/academy/'+name,import.meta.url),'utf8'));source.db.exec('COMMIT');}
+  if(seed)await seed(source);
   await initialiseAcceptedSetup(source.env.ACADEMY_DB);const snapshot=databaseSnapshot(source.db,'synthetic',new Date().toISOString()),selection=addAcceptedSource(selectActiveSnapshot(snapshot),snapshot);prepared=await prepareTargets(selection);
   const core=emptyCompatibilityDatabase(sqliteD1(prepared.databases.core),emptyShapes,{currentGrants:true}),admin=sqliteD1(prepared.databases.admin);
   let queryCount=0;const costs=[];

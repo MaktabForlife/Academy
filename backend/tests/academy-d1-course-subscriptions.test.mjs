@@ -49,7 +49,7 @@ test('Course grants preserve source evidence and Program roles; only Global Admi
   assert.equal(directory.scopes.find(s=>s.id==='subject-1').accessModel,'PAID');
   assert.equal(directory.accounts.find(a=>a.accountId==='account-0001').assignments.find(a=>a.scopeId==='subject-1').accessAllowed,true);
   assert.equal(directory.accounts.find(a=>a.accountId==='account-0002').assignments.find(a=>a.scopeId==='subject-1').accessAllowed,true);
-  assert.deepEqual(directory.accounts.find(a=>a.accountId==='account-0001').assignments.find(a=>a.scopeId==='subject-1').displayRoles,['PROGRAM_ADMIN']);
+  assert.deepEqual(directory.accounts.find(a=>a.accountId==='account-0001').assignments.find(a=>a.scopeId==='subject-1').displayRoles,['PROGRAM_ADMIN','TEACHER']);
   assert.deepEqual(courseGrant(directory).displayRoles,['STUDENT'],'a Course subscriber is visibly a Student');
   assert.deepEqual(courseGrant(directory).roles,['STUDENT'],'Course subscribers can now be edited through the same role controls as Programs');
   assert.notEqual(courseGrant(directory).revision,courseGrant(beforeDirectory).revision,'a concurrent access change must invalidate a stale Course role edit');

@@ -38,8 +38,8 @@ test('Global Admin alone can read every management area and edit Program, Course
   assert.equal(globalProfile.academyAdmin,true);
   for(const grant of globalProfile.assignments) {
     assert.deepEqual(grant.roles,[]);
-    assert.deepEqual(grant.inheritedRoles,['PROGRAM_ADMIN']);
-    assert.deepEqual(grant.displayRoles,['PROGRAM_ADMIN']);
+    assert.deepEqual(grant.inheritedRoles,['PROGRAM_ADMIN','TEACHER']);
+    assert.deepEqual(grant.displayRoles,['PROGRAM_ADMIN','TEACHER']);
   }
   const home=ok(await post(env,'/api/academy/entrance',{startDate:'2026-10-09'},token));
   assert.ok(home.personalActivities.some(a=>a.kind==='PROGRAM'));
@@ -74,11 +74,11 @@ test('Global Admin automatically administers new Programs and Courses without co
   let directory=ok(await post(env,admin+'user-profiles/get',{},token));
   for(const [type,scopeId] of scopes) {
     const profile=directory.accounts.find(a=>a.accountId==='account-0001'),grant=profile.assignments.find(g=>g.scopeType===type&&g.scopeId===scopeId),scope=directory.scopes.find(s=>s.type===type&&s.id===scopeId);
-    assert.deepEqual(grant.inheritedRoles,['PROGRAM_ADMIN']);
-    assert.deepEqual(grant.displayRoles,['PROGRAM_ADMIN']);
+    assert.deepEqual(grant.inheritedRoles,['PROGRAM_ADMIN','TEACHER']);
+    assert.deepEqual(grant.displayRoles,['PROGRAM_ADMIN','TEACHER']);
     const saved=ok(await post(env,admin+'user-profiles/save',{mode:'matrix-roles',accountId:profile.accountId,scopeType:type,scopeId,roles:[],baseRevision:grant.revision,scopeRevision:scope.revision,operationId:crypto.randomUUID()},token));
     assert.deepEqual(saved.assignment.roles,[]);
-    assert.deepEqual(saved.assignment.displayRoles,['PROGRAM_ADMIN']);
+    assert.deepEqual(saved.assignment.displayRoles,['PROGRAM_ADMIN','TEACHER']);
     directory=ok(await post(env,admin+'user-profiles/get',{},token));
   }
   ok(await post(env,program+'manage-get',{id},token));

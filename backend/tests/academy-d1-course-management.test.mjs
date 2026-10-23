@@ -95,8 +95,8 @@ test('Course Admin authority is scoped, inherited Global Admin access cannot be 
  db.prepare("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state) VALUES('editor-admin','account-0008',?,'PROGRAM_ADMIN',1,'CONFIRMED')").run('COURSE:'+one.courseId);
  const scoped=await login(env,'0008'),list=ok(await post(env,base+'list',{},scoped));assert.equal(list.capabilities.create,false);assert.ok(list.courses.every(c=>c.courseId===one.courseId));assert.equal((await post(env,base+'get',two,scoped)).status,403);
  assert.equal((await write(env,scoped,'save',{details:details()})).status,403);
- const people=ok(await post(env,base+'participants',one,scoped)),global=people.accounts.find(a=>a.accountId==='account-0001');assert.deepEqual(global.assignment.inheritedRoles,['PROGRAM_ADMIN']);
- const saved=ok(await write(env,scoped,'participants-save',{...one,accountId:global.accountId,roles:[],baseRevision:global.assignment.revision,scopeRevision:people.scope.revision}));assert.deepEqual(saved.assignment.displayRoles,['PROGRAM_ADMIN']);
+ const people=ok(await post(env,base+'participants',one,scoped)),global=people.accounts.find(a=>a.accountId==='account-0001');assert.deepEqual(global.assignment.inheritedRoles,['PROGRAM_ADMIN','TEACHER']);
+ const saved=ok(await write(env,scoped,'participants-save',{...one,accountId:global.accountId,roles:[],baseRevision:global.assignment.revision,scopeRevision:people.scope.revision}));assert.deepEqual(saved.assignment.displayRoles,['PROGRAM_ADMIN','TEACHER']);
  const created=ok(await write(env,scoped,'participant-create',{...one,displayName:'New learner'}));assert.ok(created.loginPath.startsWith('/account/'));assert.equal(db.prepare('SELECT pin_setup FROM account_credentials WHERE account_id=?').get(created.accountId).pin_setup,0);
  assert.deepEqual(db.prepare('SELECT role,activity_key FROM effective_activity_roles WHERE account_id=?').all(created.accountId).map(r=>({...r})),[{role:'STUDENT',activity_key:'COURSE:'+one.courseId}]);
  db.exec("UPDATE role_assignments SET active=0 WHERE assignment_id='editor-admin'");assert.equal((await post(env,base+'list',{},scoped)).status,401);

@@ -83,7 +83,7 @@ export function programProjection(program, data, user, roles, start, end, now, d
         !(publication.pattern === 'WEEKLY' ? row.weekday === weekday : row.date === date)) continue;
       const classIds = row.classIds || [];
       const zoomLink=data.zoomLinkForLesson?data.zoomLinkForLesson(row,publication):row.zoomLink;
-      const teaching = !preview && staff(roles) && (row.teacherIds || [row.teacherId]).some(id => key(id) === key(user?.accountid));
+      const teaching = !preview && staff(roles) && (user?.teachingActivities?.some(k=>key(k)===key('PROGRAM:'+program.id)) || (row.teacherIds || [row.teacherId]).some(id => key(id) === key(user?.accountid)));
       const enrolled = !preview && roles.includes('STUDENT') && enrolments.some(item => participant(item, user?.accountid, date, classIds));
       const oversight = roles.some(role => ['GLOBAL_ADMIN', 'PROGRAM_ADMIN', 'ADMIN', 'SENIOR'].includes(role));
       const involved = Boolean(teaching || enrolled);
@@ -99,6 +99,7 @@ export function programProjection(program, data, user, roles, start, end, now, d
         event.subjectName = row.subjectName || '';
         event.moduleName = row.moduleName || '';
         event.classNames = (row.classNames || []).filter(Boolean);
+        event.classIds = classIds;
         event.teacherNames = teacherNames;
         event.meetingGroup = groupZoom(zoomLink);
         event.information = [row.subjectName, row.moduleName, row.levelName,
@@ -188,11 +189,11 @@ export async function buildEntrance({ tables, programs, rolesByProgram, rolesByC
       const published = (resolved.sessions || []).filter(row => row.sessiondate >= start && row.sessiondate <= end);
       const runTimezone = resolved.sessions?.[0]?.timezone || run.Timezone || timezone;
       const events = buildGlobalCourseEvents({ ...platform, runs: [run] }, account || { AccountID: '', Active: true }, {
-        isGlobalAdmin: oversight, allowAssignedTeacher:mayTeach, week: { start, end, today: dateInTimezone(now, timezone) },
+        isGlobalAdmin: oversight||Boolean(user?.teachingActivities?.some(k=>key(k)===key('COURSE:'+subject.SubjectID))), allowAssignedTeacher:mayTeach, week: { start, end, today: dateInTimezone(now, timezone) },
         currentDate: dateInTimezone(now, runTimezone), currentMinutes: nowInMinutes(now, runTimezone) });
       for (const [index, event] of events.entries()) {
-        const teaching = Boolean(user && mayTeach && key(published[index]?.teacheraccountid) === key(user.accountid));
-        const relevant = Boolean(user && event.relevant);
+        const teaching = Boolean(user && mayTeach && (user.teachingActivities?.some(k=>key(k)===key('COURSE:'+subject.SubjectID)) || key(published[index]?.teacheraccountid) === key(user.accountid)));
+        const relevant = Boolean(user && (event.relevant||teaching));
         const projected = { kind: 'COURSE', activityId: subject.SubjectID, offeringId: run.RunID,
           activityName: subject.SubjectName, date: event.date, startTime: event.startTime, endTime: event.endTime,
           timezone: runTimezone, title: event.title, status: event.status,

@@ -1,5 +1,7 @@
 # Phase 1 — workspace and server access boundary
 
+Update at V107.32: the user clarified that Admins are actual Teachers throughout their scope, while Learn is student class viewing. The read-only Teach preview rules below describe the earlier Phase 1 checkpoint and are superseded by [Admin inheritance](admin-inheritance.md).
+
 V107.23, 22 October 2026, branch `feature-admin`. Built on the verified V107.22 Phase 0 baseline. This phase uses the existing Core database, R2 buckets and Open Library coordinator. It introduces no schema migration, data move, attendance reset or manual exception workflow.
 
 ## Delivered boundary

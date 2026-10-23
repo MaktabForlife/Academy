@@ -66,7 +66,7 @@ test('new profiles, role grants and class assignment use existing UI contracts',
   assert.deepEqual(directory.roles,['STUDENT','TEACHER','PROGRAM_ADMIN']);assert.equal(directory.reviewCount,1,'an unconfirmed mixed-role source cell remains pending');
   const owner=directory.accounts.find(a=>a.accountId==='account-0001');
   assert.equal(owner.academyAdmin,true);
-  assert.ok(owner.assignments.every(a=>a.displayRoles.length===1&&a.displayRoles[0]==='PROGRAM_ADMIN'),'Academy-wide authority is visible in every Program and Course');
+  assert.ok(owner.assignments.every(a=>a.displayRoles.length===2&&a.displayRoles.includes('PROGRAM_ADMIN')&&a.displayRoles.includes('TEACHER')),'Academy-wide authority is visible in every Program and Course');
   assert.ok(!directory.roles.includes('GLOBAL_ADMIN'),'Global Admin cannot be granted or removed through a Program role editor');
   assert.ok(directory.accounts.find(a=>a.accountId==='account-0004').assignments.some(a=>a.displayRoles.includes('PROGRAM_ADMIN')),'scoped administrators retain their Program role label');
   assert.ok(!JSON.stringify(directory).includes('pin_hash'));assert.equal(directory.accounts.find(a=>a.accountId==='account-0002').uniqueId,'login-0002');
@@ -190,7 +190,7 @@ test('the existing profile, Program setup and management screens work with the D
     return {element,requests};
   }
   const profiles=screen('../../users/index.html','../../js/m4l-user-profiles.js');await settle();
-  assert.match(profiles.element('up-users').innerHTML,/>Admin ▾/);
+  assert.match(profiles.element('up-users').innerHTML,/>Admin · Teacher ▾/);
   assert.ok(!profiles.element('up-head').innerHTML.includes('data-policy='),'D1 policy labels are informational');
   assert.ok(!profiles.element('up-head').innerHTML.includes('Review setting'),'read-only policies must not request a review');
   assert.match(profiles.element('up-users').innerHTML,/input data-name data-account="account-0002"/);

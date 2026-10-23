@@ -40,3 +40,13 @@ test('an account change while resolving the publication cannot send the delayed 
  let release;const f=fixture(()=>new Promise(resolve=>{release=()=>resolve(Response.json({head:'head-one-0001'}));}));f.window.M4L_CONFIG.ACCEPTED_SETUP=true;
  const pending=f.window.fetch('https://api.invalid/api/academy/progress/mark',{method:'POST',body:'{}'});f.token('another-actor');release();await assert.rejects(pending,{name:'AbortError'});assert.equal(f.calls.length,1);
 });
+
+test('class selection travels only with Learn and rejects a response captured for another class',async()=>{
+ const f=fixture(),workspace=f.window.M4L_ACADEMY_WORKSPACE,first={activityKey:'PROGRAM:scope',classId:'one'},second={...first,classId:'two'};
+ assert.equal(workspace.studentClass(first),true);
+ const response=await f.window.fetch('https://api.invalid/api/academy/entrance');
+ assert.deepEqual(JSON.parse(decodeURIComponent(f.calls[0].options.headers.get('X-Academy-Class'))),first);
+ workspace.studentClass(second);await assert.rejects(response.json(),{name:'AbortError'});
+ f.location.hash='#timetable/teach';workspace.commit();await f.window.fetch('https://api.invalid/api/academy/attendance/get');
+ assert.equal(f.calls[1].options.headers.get('X-Academy-Class'),null);
+});

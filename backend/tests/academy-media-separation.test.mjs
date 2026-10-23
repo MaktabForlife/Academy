@@ -16,7 +16,7 @@ test('a verified Teacher posts a private-bucket own PDF without general curation
  const calendar=await f.calendar(),session=calendar.sessions.find(s=>s.canContribute);assert(session);assert.equal(calendar.canManage,false);const posted=ok(await f.post(session));
  const source=f.db.prepare('SELECT n.*,v.uploaded_by FROM lesson_note_entries n JOIN lesson_note_versions v ON v.version_id=n.current_version_id').get();assert.equal(source.owner_id,'account-0003');assert.equal(source.uploaded_by,'account-0003');
  const learner=await f.calendar('student'),row=learner.sessions.find(s=>s.sessionKey===session.sessionKey);assert(row.media.assets.some(a=>a.id===posted.versionId));assert.equal(row.canContribute,false);ok(await f.request('download',{lessonId:row.media.id,assetId:posted.versionId},'student'));
- assert.equal((await f.post(session,{},'otherTeacher')).status,403);assert.equal((await f.post(session,{},'teacher','ADMIN')).status,403);assert.equal((await f.post(session,{},'admin','TEACH')).status,403);
+ assert.equal((await f.post(session,{},'otherTeacher')).status,403);assert.equal((await f.post(session,{},'teacher','ADMIN')).status,403);const inherited=ok(await f.post(session,{},'admin','TEACH'));assert.equal(f.db.prepare('SELECT owner_id FROM lesson_note_entries WHERE note_id=?').get(inherited.noteId).owner_id,'sep-global');
  for(const action of ['comments','comment-save','comment-moderate'])assert.equal((await f.request(action,{lessonId:row.media.id},'student')).status,410);
 }));
 test('replacement uses the same slot at the ten-PDF cap and withdrawal preserves immutable history',()=>use(async f=>{

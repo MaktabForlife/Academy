@@ -1,6 +1,6 @@
 import {reportDefinitionHash} from './assessment-report-source.js';
 import {assessmentOperations,collectionPolicy} from './assessment-timing.js';
-import {isAdminWorkspace} from './workspace-access.js';
+import {isAdminWorkspace,readerPreview} from './workspace-access.js';
 import {assessmentStore,paperAvailable,cleanText,adminClause,learnerClause} from './assessment-store.js';
 import {managementError as fail,same} from './management-store.js';
 
@@ -31,6 +31,7 @@ export function assessmentFiles(repository,auth,env){
    }
    if(kind==='SCRIPT'){await s.requireExaminer(await s.assessment(a.assessment_id));if(native){const r=await s.recipient(a.assessment_id,owner);if(!r?.latest_submission_id||r.latest_submission_id!==input.submissionId)throw fail('Attach a marked PDF to this learner’s exact latest answer.',409,'SCRIPT_SOURCE_CHANGED');}}
    if(kind==='ANSWER'){
+    if(!manual&&readerPreview(auth,scope))throw fail('Student class viewing is read only.',403,'PREVIEW_READ_ONLY');
     const current=await s.assessment(a.assessment_id);await s.requireReader(current);const r=await s.recipient(a.assessment_id,owner);
     if(manual){await s.requireClass(scope,classId,'admin');if(!r)throw fail('Choose an existing learner in this assessment.',403);s.recipientRevision(r,input);return;}
     if(native){const [c,attempt]=await Promise.all([p('SELECT * FROM assessment_collection WHERE assessment_id=?',a.assessment_id).first(),p('SELECT * FROM assessment_attempts WHERE assessment_id=? AND account_id=?',a.assessment_id,owner).first()]);submissionPolicy=collectionPolicy(current,c,attempt);if(!submissionPolicy.open)throw fail('Submissions are closed. Ask Admin for manual assistance.',403,'SUBMISSIONS_CLOSED');}
@@ -68,6 +69,7 @@ export function assessmentFiles(repository,auth,env){
     let submissionId=null;
     if(kind==='PAPER')statements.push(p(`UPDATE assessments SET paper_file_id=?,examiner_id=?,paper_state='IN_REVIEW',paper_comment='',paper_released_at=NULL,duration_minutes=?,maximum_mark=?${native?',timing_mode=?,allowance_minutes=?':''} WHERE assessment_id=?`,id,actor,paperDuration,input.maximumMark??a.maximum_mark,...(native?[paperMode,paperAllowance]:[]),a.assessment_id));
     if(kind==='ANSWER'){
+    if(!manual&&readerPreview(auth,scope))throw fail('Student class viewing is read only.',403,'PREVIEW_READ_ONLY');
      const r=await s.recipient(a.assessment_id,owner),number=(await p('SELECT coalesce(max(submission_number),0)+1 n FROM assessment_submissions WHERE assessment_id=? AND account_id=?',a.assessment_id,owner).first()).n;
      submissionId=crypto.randomUUID();statements.push(p(`INSERT INTO assessment_submissions(submission_id,assessment_id,account_id,file_id,submitted_at,submission_number${native?',is_late,deadline_used,collection_revision':''}) VALUES(?,?,?,?,?,?${native?',?,?,?':''})`,submissionId,a.assessment_id,owner,id,now,number,...(native?[Number(!manual&&submissionPolicy.late),manual?null:submissionPolicy.deadline,manual?null:submissionPolicy.revision]:[])),p(`UPDATE assessment_recipients SET latest_submission_id=?,latest_mark_id=NULL,resubmit_authorised=0,${native?'':'released_mark_id=NULL,released_feedback_id=NULL,released_script_id=NULL,'}revision=revision+1 WHERE assessment_id=? AND account_id=?`,submissionId,a.assessment_id,r.account_id),p('UPDATE assessments SET ready_for_assessment_at=NULL,ready_for_assessment_by=NULL WHERE assessment_id=?',a.assessment_id));
     }
@@ -95,7 +97,7 @@ export function assessmentFiles(repository,auth,env){
      if(f.file_id!==a.paper_file_id||!paperAvailable(a))throw fail('This paper is not available yet.',403);
      const object=await bucket().get(f.object_key);if(!object)throw fail('This attachment is temporarily unavailable.',404);return fileResponse(object,f);
     }
-    const r=await s.recipient(a.assessment_id);
+    const r=readerPreview(auth,a.activity_key)?null:await s.recipient(a.assessment_id);
     if(!r){
      // An authorised preview has no learner record and starts no timer.
      if(f.kind==='PAPER'&&f.file_id===a.paper_file_id&&paperAvailable(a)){

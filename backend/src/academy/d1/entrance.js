@@ -9,7 +9,7 @@ import {currentProgramZoom} from './program-zoom.js';
 import {historicalPublications} from './historical-timetable.js';
 import {MOU_MEDIA_PROGRAM} from './lesson-media.js';
 import {d1CourseCatalogue} from './course-catalogue.js';
-import {isAdminWorkspace,administers,actualState,readerPreview} from './workspace-access.js';
+import {isAdminWorkspace,administers,actualState,readerPreview,classVisible,viewedClass} from './workspace-access.js';
 
 const samePublication=(a,b)=>String(a).toUpperCase()===String(b).toUpperCase();
 // Adapt normalized D1 records at the repository boundary. Reuse the established
@@ -20,7 +20,7 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
     const role=auth.workspace==='TEACH'?'TEACHER':'STUDENT';
     previewKeys.push(...actualState(auth).activities.filter(a=>administers(auth,a.activity_key)&&readerPreview(auth,a.activity_key)).map(a=>a.activity_key));
     state={...state,roles:[...state.roles,...previewKeys.map(activity_key=>({activity_key,role}))],subscriptions:[...state.subscriptions,...previewKeys.filter(k=>k.startsWith('COURSE:')).map(activity_key=>({activity_key}))]};
-    user={...user,role,previewActivities:previewKeys};
+    user={...user,role,previewActivities:previewKeys,teachingActivities:auth.workspace==='TEACH'?actualState(auth).activities.filter(a=>administers(auth,a.activity_key)).map(a=>a.activity_key):[]};
   }
   const config=await repository.homeConfiguration();
   if(!config?.setting_value)throw rehearsalError('Academy timezone needs migration.');
@@ -95,6 +95,11 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
     const real=actualState(auth),canAdmin=Boolean(real.account.global_admin||real.roles.some(r=>r.role==='PROGRAM_ADMIN'));
     result.workspaceAccess={learn:true,teach:canAdmin||real.roles.some(r=>r.role==='TEACHER'),admin:canAdmin};
     result.previewActivities=previewKeys;
+    const classAudience=a=>({...a,studentPreview:auth.workspace==='LEARN'&&administers(auth,a.kind+':'+a.id),viewClassId:viewedClass(auth,a.kind+':'+a.id)});
+    result.activityPages=result.activityPages.map(classAudience);if(result.activity)result.activity=classAudience(result.activity);
+    const classRows=rows=>rows.filter(row=>classVisible(auth,row.kind+':'+row.activityId,row.classIds||[]));
+    result.timetable=classRows(result.timetable);result.personalTimetable=classRows(result.personalTimetable);if(result.activity)result.activity.timetable=classRows(result.activity.timetable);
+    if(auth.classView){const a=result.activityPages.find(a=>samePublication(a.kind+':'+a.id,auth.classView.activityKey));if(!a?.classes.some(c=>samePublication(c.id,auth.classView.classId)))throw rehearsalError('This student class is no longer available.',403,'CLASS_VIEW_UNAVAILABLE');}
     if(!isAdminWorkspace(auth)){
       const role=auth.workspace==='TEACH'?'TEACHER':'STUDENT',project=a=>({...a,roles:a.roles.filter(r=>r===role)});
       result.activities=result.activities.map(project);result.personalActivities=result.personalActivities.map(project).filter(a=>a.roles.length);result.activityPages=result.activityPages.map(project).filter(a=>a.roles.length);

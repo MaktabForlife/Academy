@@ -8,6 +8,7 @@
   const token = () => localStorage.getItem('m4l_account_token') || '';
   const state = { publicData:null,publicDay:'',publicPending:null,publicStartDate:'', home: null, activity: null, scheduleTimetable: [], activityTimer: null, generation: 0, scheduleGeneration: 0, activityGeneration: 0, information: {}, startDate: '', courseCatalogue: null, courseCatalogueAt: 0, coursePending: null, courseGeneration: 0 };
   const pageCache = { epoch: 0, snapshot: null, pending: new Map() };
+  const classViewKey=()=>JSON.stringify(window.M4L_ACADEMY_WORKSPACE?.classView?.()||null);
   const PAGE_CACHE_MS = 60000;
   const ACTIVITY_CACHE_MS = 86400000;
   const profileLabelRevision=()=>{try{return localStorage.getItem('m4l_academy_profile_labels_revision')||'';}catch{return '';}};
@@ -135,7 +136,7 @@
     const setupHead=await window.M4L_ACADEMY_WORKSPACE?.readyPublication?.(force);
     const session = token(), epoch = pageCache.epoch;
     if (!session) return request(body);
-    const key = (window.M4L_ACADEMY_WORKSPACE?.current()||'LEARN')+':'+(setupHead||'legacy')+':'+(body.startDate || 'HOME');
+    const key = (window.M4L_ACADEMY_WORKSPACE?.current()||'LEARN')+':'+(setupHead||'legacy')+':'+classViewKey()+':'+(body.startDate || 'HOME');
     if (dailyCache.session !== session) {
       dailyCache.session = session;
       dailyCache.entries = {};
@@ -175,7 +176,7 @@
   }
 
   async function request(body) {
-    const session = token(), epoch = pageCache.epoch, key = JSON.stringify([session, body]);
+    const session = token(), epoch = pageCache.epoch, key = JSON.stringify([session, classViewKey(), body]);
     if (pageCache.pending.has(key)) return pageCache.pending.get(key);
     const pending = (async () => {
       const response = await fetch(`${window.M4L_CONFIG?.API_BASE || ''}/api/academy/entrance${session ? '' : '/public-snapshot'}`, session ? { method: 'POST',
@@ -200,13 +201,13 @@
 
   function rememberPages(result) {
     pageCache.snapshot = result.signedIn && Array.isArray(result.activityPages) && (result.timetableComplete ?? !result.warnings.length)
-      ? { session: token(), at: new Date().getTime(), result } : null;
+      ? { session: token(), classView:classViewKey(), at: new Date().getTime(), result } : null;
   }
 
   function cachedActivity(id) {
     checkProfileLabels();
     const snapshot = pageCache.snapshot, now = new Date().getTime();
-    if (!snapshot || snapshot.session !== token() || now < snapshot.at || now - snapshot.at >= ACTIVITY_CACHE_MS) return null;
+    if (!snapshot || snapshot.classView!==classViewKey() || snapshot.session !== token() || now < snapshot.at || now - snapshot.at >= ACTIVITY_CACHE_MS) return null;
     const result = snapshot.result;
     const clock = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: result.timezone,
       year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(now)).map(part => [part.type, part.value]));
@@ -772,6 +773,18 @@
     armScheduleClock();
   }
 
+  function changeStudentClass(value){
+    if(!window.M4L_ACADEMY_WORKSPACE?.studentClass?.(value))return false;
+    pageCache.epoch++;pageCache.snapshot=null;pageCache.pending.clear();dailyCache.entries={};
+    state.scheduleGeneration++;clearTimetableMedia();
+    window.M4L_ACADEMY_ASSESSMENTS?.reset();window.M4L_LESSON_MEDIA?.reset();window.M4L_ACADEMY_PROGRESS?.reset();
+    return true;
+  }
+  $('activity-student-class')?.addEventListener('change',()=>{
+    const row=state.activity;if(!row?.studentPreview)return;
+    if(window.M4L_ACADEMY_ASSESSMENTS?.canLeave()===false||window.M4L_LESSON_MEDIA?.canLeave()===false||window.M4L_ACADEMY_PROGRESS?.canLeave()===false){$('activity-student-class').value=row.viewClassId;return;}
+    if(changeStudentClass({activityKey:row.kind+':'+row.id,classId:$('activity-student-class').value}))void loadActivity(row.id,true);
+  });
   async function loadActivity(id, refresh = false) {
     clearTimeout(state.activityTimer);
     const generation = ++state.activityGeneration;
@@ -790,6 +803,15 @@
       if (!cached) rememberPages(result);
       const row = state.activity = result.activity;
       if (!row) throw new Error('This activity is unavailable.');
+      const classPreview=row.studentPreview&&row.kind==='PROGRAM'&&row.classes?.length;
+      $('activity-student-class-wrap').hidden=!classPreview;
+      if(classPreview){
+        const selection=window.M4L_ACADEMY_WORKSPACE?.classView?.(),scope=row.kind+':'+row.id;
+        const chosen=row.classes.find(c=>selection?.activityKey===scope&&c.id===selection.classId)||row.classes[0];
+        if(changeStudentClass({activityKey:scope,classId:chosen.id}))return loadActivity(id,true);
+        row.viewClassId=chosen.id;
+        $('activity-student-class').innerHTML=row.classes.map(c=>`<option value="${esc(c.id)}" ${c.id===chosen.id?'selected':''}>${esc(c.name)}</option>`).join('');
+      }
       // The same authorised Academy snapshot supplies every scoped timetable.
       if (!cached) state.home = result;
       state.startDate=result.startDate;state.scheduleTimetable=scheduleRows(result);
@@ -1062,6 +1084,7 @@
     state.scheduleGeneration++;
     state.activityGeneration++;
     state.home = null;
+    $('activity-student-class-wrap').hidden=true;
     $('learn-enrolment-entry').hidden=true;
     $('workspace-main-actions').hidden=true;
     clearTimetableMedia();

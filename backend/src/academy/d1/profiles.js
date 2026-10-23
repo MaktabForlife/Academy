@@ -19,7 +19,7 @@ export async function assignmentDTO(data,account,a) {
   const academyAdmin=profileDTO(data,account).academyAdmin;
   // Display effective authority without materializing inherited grants or
   // adding automatic Program Admin grants to the roles that this editor saves.
-  const inheritedRoles=academyAdmin?['PROGRAM_ADMIN']:[];
+  const inheritedRoles=academyAdmin?['PROGRAM_ADMIN','TEACHER']:result.roles.includes('PROGRAM_ADMIN')?['TEACHER']:[];
   const displayRoles=[...new Set([...inheritedRoles,...result.roles,...(a.kind==='COURSE'&&subscription?['STUDENT']:[])])];
   return {...result,inheritedRoles,displayRoles,revision:await payloadHash(result),accessAllowed:Boolean(account.active&&a.active&&a.lifecycle==='ACTIVE'&&(academyAdmin||result.roles.length||accessModel(data,a)==='FREE'||subscription))};
 }

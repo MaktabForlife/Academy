@@ -16,6 +16,10 @@
   return 'LEARN';
  }
  let selected=desired(),generation=0,head=new URLSearchParams(location.search).get('setup')||null,headRequest=null,headEpoch=0;
+ let classView=null;
+ try{const q=new URLSearchParams(location.search);if(q.get('studentProgram')&&q.get('studentClass'))classView={activityKey:q.get('studentProgram'),classId:q.get('studentClass')};}catch{}
+ const classKey=()=>JSON.stringify(classView);
+ function studentClass(value){const next=value?{activityKey:value.activityKey,classId:value.classId}:null;if(JSON.stringify(next)===classKey())return false;classView=next;generation++;return true;}
  const session=()=>{try{return localStorage.getItem('m4l_account_token')||'';}catch{return '';}};
  const current=()=>selected;
  function commit(){const next=desired();if(next===selected)return false;selected=next;generation++;head=null;headRequest=null;return true;}
@@ -38,6 +42,7 @@
   if(url.origin!==api.origin||!url.pathname.startsWith('/api/'))return original(resource,options);
   const captured={selected,generation,session:session()},headers=new Headers(options?.headers||(resource instanceof Request?resource.headers:undefined));
   headers.set('X-Academy-Workspace',selected);
+  if(selected==='LEARN'&&classView)headers.set('X-Academy-Class',encodeURIComponent(classKey()));
   const publicationEnabled=window.M4L_CONFIG?.ACCEPTED_SETUP===true;
   if(publicationEnabled&&selected!=='ADMIN'&&!url.pathname.startsWith('/api/account/')&&url.pathname!=='/api/academy/setup/head'){
    await readyPublication();
@@ -58,9 +63,9 @@
   // can populate another account/workspace or create a stale PDF object URL.
   return new Proxy(response,{get(target,name){if(['json','text','blob','arrayBuffer','formData'].includes(name))return async(...args)=>{check();const value=await target[name](...args);check();return value;};const value=Reflect.get(target,name,target);return typeof value==='function'?value.bind(target):value;}});
  };
- window.M4L_ACADEMY_WORKSPACE={current,desired,commit,canonical,head:()=>head,readyPublication,publication:value=>{headEpoch++;head=value;headRequest=null;}};
- window.addEventListener('m4l-academy-session',()=>{generation++;head=null;headRequest=null;});
+ window.M4L_ACADEMY_WORKSPACE={current,desired,commit,canonical,studentClass,classView:()=>classView,head:()=>head,readyPublication,publication:value=>{headEpoch++;head=value;headRequest=null;}};
+ window.addEventListener('m4l-academy-session',()=>{generation++;classView=null;head=null;headRequest=null;});
  // Reader tools carry their invoking perspective across tabs and back links.
- document.addEventListener('click',event=>{const link=event.target.closest?.('a[href]');if(!link)return;const url=new URL(link.href,location.href);if(url.origin!==location.origin)return;if(/^\/academy\/(?:calendar|library|pdf-reader|pdf-compare)\//.test(url.pathname)&&!url.pathname.includes('/manage/')){url.searchParams.set('workspace',selected);if(head)url.searchParams.set('setup',head);link.href=url.href;}},true);
+ document.addEventListener('click',event=>{const link=event.target.closest?.('a[href]');if(!link)return;const url=new URL(link.href,location.href);if(url.origin!==location.origin)return;if(/^\/academy\/(?:calendar|library|pdf-reader|pdf-compare)\//.test(url.pathname)&&!url.pathname.includes('/manage/')){url.searchParams.set('workspace',selected);if(selected==='LEARN'&&classView){url.searchParams.set('studentProgram',classView.activityKey);url.searchParams.set('studentClass',classView.classId);}if(head)url.searchParams.set('setup',head);link.href=url.href;}},true);
  if(location.pathname.startsWith('/academy/admin/')&&!location.hash)history.replaceState(null,'','#administration');
 })();

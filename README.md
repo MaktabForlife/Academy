@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.31
+# Umm Abbad Academy — V107.32
+
+## V107.32 — Inherited Admin teaching and student class viewing
+
+Global Admin teaches every session globally; Program/Course Admin teaches every session in their assigned area. Derive eligibility from current Admin authority, preserve named examiners and management-only actions, and record the real Teacher actor. Add a Learn class selector for read-only student viewing without creating learner memberships or work. Preserve the current layouts and split preview limits. [Access and verification](docs/academy-separation/admin-inheritance.md).
 
 ## V107.31 — Phase 5 on the Admin feature preview
 

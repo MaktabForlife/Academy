@@ -39,7 +39,7 @@ async function use(fn) {
 test('Global Admin can edit all Course roles; Student revocation reconciles imported access and stale drafts',()=>use(async({env,db})=>{
   const admin=(await login(env)).token,before=await directory(env,admin);
   assert.equal(before.scopes.find(s=>s.type==='SUBJECT').rolesEditable,true);
-  const accountAdmin=assignment(before,'0001');assert.ok(accountAdmin.displayRoles.includes('PROGRAM_ADMIN'));assert.deepEqual(accountAdmin.inheritedRoles,['PROGRAM_ADMIN']);
+  const accountAdmin=assignment(before,'0001');assert.ok(accountAdmin.displayRoles.includes('PROGRAM_ADMIN'));assert.deepEqual(accountAdmin.inheritedRoles,['PROGRAM_ADMIN','TEACHER']);
   const saved=ok(await grant(env,admin,'0002',['STUDENT','TEACHER']));assert.deepEqual(saved.assignment.roles,['STUDENT','TEACHER']);
   const current=await view(env,admin);assert.equal(current.subjectAccessMatrix.rows.find(r=>r.accountid==='account-0002').values['subject-1'],true);
   assert.equal((await grant(env,admin,'0002',[],undefined,before)).body.code,'ROW_CHANGED');
@@ -52,7 +52,7 @@ test('Global Admin can edit all Course roles; Student revocation reconciles impo
   assert.equal(db.prepare("SELECT count(*) n FROM effective_course_subscriptions WHERE account_id='account-0002'").get().n,0);
   assert.deepEqual(assignment(await directory(env,admin),'0002').roles,[]);
   assert.equal((await grant(env,admin,'0002',['GLOBAL_ADMIN'])).body.code,'INVALID_ROLE');
-  ok(await grant(env,admin,'0001',[]));assert.deepEqual(assignment(await directory(env,admin),'0001').displayRoles,['PROGRAM_ADMIN']);
+  ok(await grant(env,admin,'0001',[]));assert.deepEqual(assignment(await directory(env,admin),'0001').displayRoles,['PROGRAM_ADMIN','TEACHER']);
 }));
 
 test('Course-only Student and Teacher contexts work; their timetable stays personal and revocation is immediate',()=>use(async({env,db})=>{

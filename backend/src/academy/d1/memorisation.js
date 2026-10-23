@@ -58,7 +58,7 @@ export function d1Memorisation(repository,auth) {
   const db=repository.db,p=(sql,...v)=>db.prepare(sql).bind(...v),actor=auth.user.accountid;
   const today=programToday('Africa/Johannesburg');
   const classes=async(preview=false)=>{
-    const sql=isAdminWorkspace(auth)?classAccessSQL:classAccessSQL.replace(adminSQL,'? IS NULL').replace("r.role='PROGRAM_ADMIN'",'0');
+    const sql=isAdminWorkspace(auth)||auth.workspace==='TEACH'?classAccessSQL:classAccessSQL.replace(adminSQL,'? IS NULL').replace("r.role='PROGRAM_ADMIN'",'0');
     const own=(await p(sql,actor,actor).all()).results;
     if(!preview||isAdminWorkspace(auth))return own;
     const real=actualState(auth),keys=real.roles.filter(r=>r.role==='PROGRAM_ADMIN').map(r=>r.activity_key);
@@ -168,7 +168,7 @@ export function d1Memorisation(repository,auth) {
           json_extract(value,'$.completed_at'),json_extract(value,'$.confirmed_at'),json_extract(value,'$.confirmed_by'),json_extract(value,'$.updated_at') FROM json_each(?) WHERE 1
         ON CONFLICT(account_id,task_id) DO UPDATE SET complete=excluded.complete,confirmed=excluded.confirmed,revision=excluded.revision,completed_at=excluded.completed_at,confirmed_at=excluded.confirmed_at,confirmed_by=excluded.confirmed_by,updated_at=excluded.updated_at`,JSON.stringify(rows)));
       return {statements,result:{records,store:'D1'},authority:review?(auth.state.account.global_admin?'GLOBAL_ADMIN':auth.state.roles.some(r=>same(r.activity_key,input.activityKey)&&r.role==='PROGRAM_ADMIN')?'PROGRAM_ADMIN':'TEACHER'):'STUDENT',fields:records.map(r=>({accountId:r.accountId,taskId:r.taskId,complete:r.complete,confirmed:r.confirmed})),
-        authoritySQL:review?`EXISTS(SELECT 1 FROM (${isAdminWorkspace(auth)?classAccessSQL:classAccessSQL.replace(adminSQL,'? IS NULL').replace("r.role='PROGRAM_ADMIN'",'0')}) x WHERE x.activity_key=? AND x.class_id=?)`:`${studentSQL}`,
+        authoritySQL:review?`EXISTS(SELECT 1 FROM (${isAdminWorkspace(auth)||auth.workspace==='TEACH'?classAccessSQL:classAccessSQL.replace(adminSQL,'? IS NULL').replace("r.role='PROGRAM_ADMIN'",'0')}) x WHERE x.activity_key=? AND x.class_id=?)`:`${studentSQL}`,
         authorityValues:review?[actor,actor,input.activityKey,input.classId]:[actor,actor]};
     });
   }
@@ -295,14 +295,14 @@ export function d1Memorisation(repository,auth) {
     if(action==='get'){
       const view=input.view||'self';if(!['self','teach','admin'].includes(view))throw fail('Choose a Surahs and Duas page.');
       const activityKey=input.activityKey||'';if(typeof activityKey!=='string'||activityKey.length>200)throw fail('Choose a valid learning area.');
-      const student=await isStudent(),setting=await p('SELECT active FROM memorisation_account_settings WHERE account_id=?',actor).first();
+      const student=!auth.classView&&await isStudent(),setting=await p('SELECT active FROM memorisation_account_settings WHERE account_id=?',actor).first();
       const scopedAdmins=(await p(`SELECT DISTINCT r.activity_key FROM (${rolesSQL}) r JOIN activities a USING(activity_key)
         WHERE r.account_id=? AND r.role='PROGRAM_ADMIN' AND a.active=1 AND a.lifecycle='ACTIVE'`,actor).all()).results;
       const canAdmin=isAdminWorkspace(auth)&&Boolean(auth.state.account.global_admin||scopedAdmins.some(a=>activityKey?same(a.activity_key,activityKey):input.kind==='COURSE'?a.activity_key.startsWith('COURSE:'):true));
       if(view==='admin'&&!canAdmin)throw fail('Set administration requires an authorised administrator.',403,'FORBIDDEN');
       const groups=view==='teach'?(await classes(true)).filter(c=>activityKey?same(c.activity_key,activityKey):input.kind==='COURSE'?c.activity_key.startsWith('COURSE:'):true).sort((a,b)=>a.name.localeCompare(b.name)):[];
-      if(!student&&!groups.length&&!auth.state.account.global_admin&&setting?.active!==0&&view!=='admin')throw fail('Progress is available to Academy students and their teaching teams.',403,'FORBIDDEN');
-      const allowed=await accessibleActivities(),visible=cat.modules.filter(m=>view==='admin'&&auth.state.account.global_admin?true:view==='teach'?groups.some(c=>moduleInActivity(m,c.activity_key)):moduleForUser(m,allowed));
+      if(!auth.classView&&!student&&!groups.length&&!auth.state.account.global_admin&&setting?.active!==0&&view!=='admin')throw fail('Progress is available to Academy students and their teaching teams.',403,'FORBIDDEN');
+      const allowed=await accessibleActivities(),visible=cat.modules.filter(m=>view==='admin'&&auth.state.account.global_admin?true:view==='teach'?groups.some(c=>moduleInActivity(m,c.activity_key)):auth.classView?moduleInActivity(m,auth.classView.activityKey):moduleForUser(m,allowed));
       const visibleTasks=new Set(visible.flatMap(m=>m.tasks.map(t=>t.id))),counts=await classCounts(groups);
       return {revision:cat.revision,sets:visible,modules:visible,...(view==='admin'&&auth.state.account.global_admin?{activities:await activityOptions()}:{}),accountId:actor,student,personalActive:setting?.active!==0,canImport:view==='admin'&&Boolean(auth.state.account.global_admin),classes:groups.map(c=>({activityKey:c.activity_key,id:c.class_id,name:c.name,activityName:c.activity_name,learnersPerCard:c.learners_per_card,learnerCount:counts.find(n=>same(n.activity_key,c.activity_key)&&same(n.class_id,c.class_id))?.total||0})),
         records:view==='self'&&student?(await p('SELECT * FROM learner_task_progress WHERE account_id=?',actor).all()).results.filter(r=>visibleTasks.has(r.task_id)).map(progressDTO):[],store:'D1'};

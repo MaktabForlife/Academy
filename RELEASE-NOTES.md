@@ -1,3 +1,7 @@
+# V107.32 — Admin teaching inheritance and student class views
+
+Give Global Admin actual Teacher access to all sessions, and scoped Admin actual Teacher access to all sessions in their assigned Program/Course, without persisted per-session assignments. Retain ordinary examiner, note ownership, current access and Admin-workspace checks. Add a class selector to Admin Learn views and carry that class through timetable, assessments, media and PDF readers. Student class viewing creates no learner records or participant events. Publish only to feature-admin and its split Worker; Development stays at the Phase 4 checkpoint.
+
 # V107.31 — Phase 5 Admin feature preview
 
 Promote Phase 5 into `feature-admin` and deploy the matching default `feature_worker` against the prepared fresh Core/Admin databases. Keep current Development on the verified Phase 4 V107.28 release and original database. Retain current preview data, encrypted bindings, layouts, direct manual assessment controls, shared-service write holds and protected object storage. No database reload, new migration or Development database cutover.

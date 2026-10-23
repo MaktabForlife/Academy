@@ -5,20 +5,29 @@ const same=(a,b)=>String(a).toUpperCase()===String(b).toUpperCase();
 export const isAdminWorkspace=auth=>!auth.workspace||auth.workspace==='ADMIN';
 export const actualState=auth=>auth.authority||auth.state;
 export const administers=(auth,key)=>Boolean(actualState(auth).account.global_admin||actualState(auth).roles.some(r=>r.role==='PROGRAM_ADMIN'&&same(r.activity_key,key)));
-export const actualRole=(auth,key,role)=>actualState(auth).roles.some(r=>r.role===role&&same(r.activity_key,key));
+export const actualRole=(auth,key,role)=>role==='TEACHER'&&administers(auth,key)||actualState(auth).roles.some(r=>r.role===role&&same(r.activity_key,key));
+export const viewedClass=(auth,key)=>auth.workspace==='LEARN'&&auth.classView&&same(auth.classView.activityKey,key)?auth.classView.classId:null;
+export const classVisible=(auth,key,ids=[])=>!viewedClass(auth,key)||ids.some(id=>same(id,viewedClass(auth,key)));
 export const readerRoles=(auth,roles)=>isAdminWorkspace(auth)?roles:roles.filter(r=>r===(auth.workspace==='TEACH'?'TEACHER':'STUDENT'));
-export const readerPreview=(auth,key)=>!isAdminWorkspace(auth)&&administers(auth,key)&&!actualRole(auth,key,auth.workspace==='TEACH'?'TEACHER':'STUDENT')&&!(auth.workspace==='LEARN'&&actualState(auth).subscriptions.some(s=>same(s.activity_key,key)));
+export const readerPreview=(auth,key)=>auth.workspace==='LEARN'&&administers(auth,key);
 
-// Workspace is an audience choice, never a role grant. Keep the verified actor
-// and authority for audits; services receive only the selected reader roles.
+// Derive Teacher eligibility from current Admin authority without persisting
+// assignments. Learn is a class audience preview, never a learner identity.
 export function selectWorkspace(request,auth){
  const path=new URL(request.url).pathname,header=request.headers.get(workspaceHeader);
  const workspace=(header||(/^\/api\/admin\/|^\/api\/academy\/d1\/accounts\//.test(path)?'ADMIN':'LEARN')).toUpperCase();
  if(!['LEARN','TEACH','ADMIN'].includes(workspace))throw fail('Choose Learn, Teach or Admin.',400,'INVALID_WORKSPACE');
  const authority=auth.state;
- const state=workspace==='ADMIN'?authority:{...authority,account:{...authority.account,global_admin:false},roles:authority.roles.filter(r=>r.role===(workspace==='TEACH'?'TEACHER':'STUDENT')),
+ const inherited=authority.activities.filter(a=>authority.account.global_admin||authority.roles.some(r=>r.role==='PROGRAM_ADMIN'&&same(r.activity_key,a.activity_key))).map(a=>({activity_key:a.activity_key,role:'TEACHER'}));
+ let classView=null;const selectedClass=request.headers.get('X-Academy-Class');
+ if(workspace==='LEARN'&&selectedClass){
+  try{classView=JSON.parse(decodeURIComponent(selectedClass));}catch{throw fail('Choose a valid student class view.',400,'INVALID_CLASS_VIEW');}
+  if(!classView||typeof classView.activityKey!=='string'||classView.activityKey.length>200||typeof classView.classId!=='string'||!classView.classId||classView.classId.length>160)throw fail('Choose a valid student class view.',400,'INVALID_CLASS_VIEW');
+  if(!administers({state:authority},classView.activityKey))throw fail('This student class view is outside your Admin scope.',403,'FORBIDDEN');
+ }
+ const state=workspace==='ADMIN'?authority:{...authority,account:{...authority.account,global_admin:false},roles:[...new Map([...authority.roles.filter(r=>r.role===(workspace==='TEACH'?'TEACHER':'STUDENT')),...(workspace==='TEACH'?inherited:[])].map(r=>[r.activity_key.toUpperCase()+'|'+r.role,r])).values()],
   subscriptions:workspace==='LEARN'?authority.subscriptions:[]};
- return {...auth,authority,state,workspace};
+ return {...auth,authority,state,workspace,classView};
 }
 
 const adminActions={
@@ -57,6 +66,7 @@ export function guardWorkspace(request,auth,input={}){
    if(input.kind==='ANSWER'&&auth.workspace==='TEACH'||['PAPER','SCRIPT'].includes(input.kind)&&auth.workspace==='LEARN')throw fail('This upload is outside the selected workspace.',403,'WORKSPACE_FORBIDDEN');
   }
  }
+ if(auth.workspace==='LEARN'&&path==='/api/academy/progress/mark'&&(auth.classView||input.activityKey&&administers(auth,input.activityKey)))throw fail('Student class viewing is read only.',403,'PREVIEW_READ_ONLY');
  if(path==='/api/academy/teacher-availability/save'&&!admin)forbidden();
  if(auth.workspace==='LEARN'&&/^\/api\/program-attendance\//.test(path))throw fail('Attendance recording is available in Teach.',403,'TEACH_WORKSPACE_REQUIRED');
  return input;

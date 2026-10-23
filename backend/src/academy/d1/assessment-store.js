@@ -1,6 +1,6 @@
 import {managementError as fail,same} from './management-store.js';
 import {payloadHash} from '../../programs/timetable-model.js';
-import {isAdminWorkspace,administers,actualState} from './workspace-access.js';
+import {isAdminWorkspace,administers,actualState,viewedClass,readerPreview} from './workspace-access.js';
 
 export const assessmentRolesSQL=`SELECT account_id,activity_key,role FROM effective_activity_roles UNION SELECT e.account_id,e.activity_key,m.target_role role FROM legacy_access_evidence e JOIN role_import_reviews v ON v.account_id=e.account_id AND v.activity_key=e.activity_key AND v.source_value=e.source_role JOIN role_mapping_decisions m ON m.source_role=e.source_role WHERE e.source_effective=1 AND v.status='REQUIRED'`;
 const globalSQL=`EXISTS(SELECT 1 FROM global_role_assignments WHERE account_id=? AND active=1 AND role='GLOBAL_ADMIN' AND review_state='CONFIRMED')`;
@@ -13,7 +13,7 @@ export const paperAvailable=a=>Boolean(a.schedule_published&&a.paper_released_at
 
 export function assessmentStore(repository,auth){
  const db=repository.db,p=(sql,...values)=>db.prepare(sql).bind(...values),actor=auth.user.accountid;
- const clause=(mode)=>mode==='admin'?(isAdminWorkspace(auth)?adminClause:'(? IS NULL AND ? IS NULL)'):mode==='staff'?(isAdminWorkspace(auth)?teacherClause:auth.workspace==='TEACH'?teacherClause.replace(adminClause,'(? IS NULL AND ? IS NULL)'):'(? IS NULL AND ? IS NULL AND ? IS NULL)'):auth.workspace==='TEACH'?'(? IS NULL AND ? IS NULL)':learnerClause;
+ const clause=(mode)=>mode==='admin'?(isAdminWorkspace(auth)?adminClause:'(? IS NULL AND ? IS NULL)'):mode==='staff'?(isAdminWorkspace(auth)?teacherClause:auth.workspace==='TEACH'?teacherClause:'(? IS NULL AND ? IS NULL AND ? IS NULL)'):auth.workspace==='TEACH'?'(? IS NULL AND ? IS NULL)':learnerClause;
  const values=mode=>Array(mode==='staff'?3:2).fill(actor);
  async function classes(mode='staff',activityKey='',includePreview=true){
   const preview=includePreview&&((mode==='learner'&&auth.workspace==='LEARN')||(mode==='staff'&&auth.workspace==='TEACH'));
@@ -30,7 +30,7 @@ export function assessmentStore(repository,auth){
  const recipient=(id,accountId=actor)=>p('SELECT * FROM assessment_recipients WHERE assessment_id=? AND account_id=?',id,accountId).first();
  async function requireReader(a){
   if(await readStaff(a))return;
-  if(auth.workspace==='LEARN'&&administers(auth,a.activity_key)&&a.schedule_published)return;
+  if(auth.workspace==='LEARN'&&administers(auth,a.activity_key)&&a.schedule_published){if(viewedClass(auth,a.activity_key)&&!same(viewedClass(auth,a.activity_key),a.class_id))throw fail('Choose this assessment’s class in Learn.',403,'CLASS_VIEW_REQUIRED');return;}
   if(!a.schedule_published||!await allowed(a.activity_key,a.class_id,'learner')||!await recipient(a.assessment_id))throw fail('This assessment is outside your access.',403,'FORBIDDEN');
  }
  const readStaff=a=>auth.workspace==='TEACH'&&administers(auth,a.activity_key)?Promise.resolve(true):allowed(a.activity_key,a.class_id,'staff');
@@ -44,7 +44,7 @@ export function assessmentStore(repository,auth){
   if(!isAdminWorkspace(auth)){
    const a=await assessment(input.assessmentId||scope);
    if(['access-paper','upload-ANSWER'].includes(action)){
-    if(auth.workspace!=='LEARN'||!await allowed(a.activity_key,a.class_id,'learner')||!await recipient(a.assessment_id))throw fail('Preview cannot submit or start a learner paper.',403,'PREVIEW_READ_ONLY');
+    if(auth.workspace!=='LEARN'||readerPreview(auth,a.activity_key)||!await allowed(a.activity_key,a.class_id,'learner')||!await recipient(a.assessment_id))throw fail('Preview cannot submit or start a learner paper.',403,'PREVIEW_READ_ONLY');
    }else await requireClass(a.activity_key,a.class_id);
   }
   if(!/^[0-9a-f-]{36}$/i.test(input.operationId||''))throw fail('This action needs its retry identifier.');

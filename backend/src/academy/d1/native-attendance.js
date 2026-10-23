@@ -44,7 +44,7 @@ export function nativeAttendance(repository,auth,now=()=>new Date()){
   const [days,contexts,members,absences,teachers,enrolments,deliveryRosters,deliveryMembers,substitutes]=result.map(r=>r.results),day=days[0];
   const lessons=new Map((day?[]:schedule.lessons).map(l=>[l.stableKey,{...l,activityKey:scope}]));
   for(const context of contexts)lessons.set(context.stable_key,{...JSON.parse(context.lesson_json),activityKey:scope,stableKey:context.stable_key,context});
-  const ordinary=lesson=>store.admin||store.teacher&&(lesson.teacherIds.some(id=>same(id,actor))||teachers.some(t=>same(t.class_id,lesson.classId)&&same(t.account_id,actor)));
+  const ordinary=lesson=>store.admin||auth.workspace==='TEACH'&&administers(auth,scope)||store.teacher&&(lesson.teacherIds.some(id=>same(id,actor))||teachers.some(t=>same(t.class_id,lesson.classId)&&same(t.account_id,actor)));
   const preview=auth.workspace==='TEACH'&&administers(auth,scope)&&!store.teacher&&!substitutes.some(g=>same(g.account_id,actor));
   const permitted=(lesson,correction=false)=>ordinary(lesson)||auth.workspace==='TEACH'&&substitutes.some(g=>same(g.account_id,actor)&&canSubstitute(g,lesson,correction,now().toISOString()));
   function roster(lesson){
@@ -130,9 +130,9 @@ export function nativeAttendance(repository,auth,now=()=>new Date()){
   if(!admin&&!own&&!actualRole(auth,a.activity_key,'TEACHER'))throw fail('Attendance reports are outside your current access.',403,'FORBIDDEN');
   const rows=(await p(`SELECT d.attendance_date,c.class_id,c.lesson_json,c.required,s.latest_version_id,m.account_id,m.display_name,CASE WHEN ab.account_id IS NULL THEN 1 ELSE 0 END present FROM attendance_days d JOIN attendance_day_contexts c USING(day_id) JOIN attendance_series s USING(series_id) JOIN attendance_roster_members m USING(roster_id) LEFT JOIN attendance_absences ab ON ab.version_id=s.latest_version_id AND ab.account_id=m.account_id WHERE d.activity_key=? COLLATE NOCASE AND d.attendance_date BETWEEN ? AND ? AND c.required=1 ${own?'AND m.account_id=? COLLATE NOCASE':''} ORDER BY d.attendance_date,m.account_id`,a.activity_key,start,end,...(own?[actor]:[])).all()).results;
   const unknown=new Set((await p(`SELECT DISTINCT d.attendance_date FROM attendance_days d JOIN attendance_day_contexts c USING(day_id) WHERE d.activity_key=? COLLATE NOCASE AND d.attendance_date BETWEEN ? AND ? AND c.required=1 AND c.roster_id IS NULL`,a.activity_key,start,end).all()).results.map(r=>r.attendance_date));
-  const teaching=admin||own?[]:(await p('SELECT class_id FROM class_teacher_assignments WHERE activity_key=? COLLATE NOCASE AND account_id=?',a.activity_key,actor).all()).results;
+  const teaching=admin||own||administers(auth,a.activity_key)?[]:(await p('SELECT class_id FROM class_teacher_assignments WHERE activity_key=? COLLATE NOCASE AND account_id=?',a.activity_key,actor).all()).results;
   const grouped=new Map();
-  for(const row of rows){const lesson=JSON.parse(row.lesson_json);if(!admin&&!own&&!lesson.teacherIds.some(id=>same(id,actor))&&!teaching.some(t=>same(t.class_id,row.class_id)))continue;if(input.accountId&&!same(input.accountId,own?actor:row.account_id))continue;
+  for(const row of rows){const lesson=JSON.parse(row.lesson_json);if(!admin&&!own&&!administers(auth,a.activity_key)&&!lesson.teacherIds.some(id=>same(id,actor))&&!teaching.some(t=>same(t.class_id,row.class_id)))continue;if(input.accountId&&!same(input.accountId,own?actor:row.account_id))continue;
    const key=row.account_id+'|'+row.attendance_date;if(!grouped.has(key))grouped.set(key,{accountId:row.account_id,name:row.display_name,date:row.attendance_date,requiredSessions:0,recordedSessions:0,presentSessions:0});const day=grouped.get(key);day.requiredSessions++;if(row.latest_version_id){day.recordedSessions++;day.presentSessions+=row.present;}
   }
   const days=[...grouped.values()].map(d=>({...d,dayFraction:!unknown.has(d.date)&&d.requiredSessions&&d.recordedSessions===d.requiredSessions?d.presentSessions/d.requiredSessions:null})),people=new Map();
