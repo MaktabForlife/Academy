@@ -6,7 +6,7 @@ Implementation authorised 22 October 2026. Phases 0 and 1 are complete on `featu
 
 ## Required checkpoint before database separation
 
-Complete and verify the UI work in Phases 1–4, then push and deploy the compatible website and Worker to Development. Confirm that release is working and retain its recovery checkpoint before beginning Phase 5 database splitting. The current Phase 2 implementation remains on `feature-admin` and preview only. See the [required checkpoint in the phased plan](implementation-plan.md#required-checkpoint-complete-the-ui-and-release-development-before-splitting-databases).
+Complete and verify the UI work in Phases 1–4, then push and deploy the compatible website and Worker to Development. Confirm that release is working and retain its recovery checkpoint before beginning Phase 5 database splitting. This gate is complete at V107.28; the original Phase 2 preview-only limit no longer describes the deployed checkpoint. See the [required checkpoint in the phased plan](implementation-plan.md#required-checkpoint-complete-the-ui-and-release-development-before-splitting-databases).
 
 ## Scope and settled decisions
 
@@ -70,6 +70,6 @@ The Phase 0 execution record is [phase-0.md](phase-0.md). Development is paused 
 
 [Phase 1](phase-1.md), [Phase 2](phase-2.md), [Phase 3](phase-3.md) and [Phase 4](phase-4.md) record implemented changes and actual verification. [Implementation evidence](implementation-evidence.csv) distinguishes isolated checks from live verification and future physical-cutover work. The original 118-scenario matrix and baseline counts above are historical planning evidence. Use the [new field delta](field-map-phases-2-4.csv) with the original maps.
 
-Preview V107.27 is verified and shared migrations 0033–0035 are approved/applied with original data preserved. V107.28 prepares the matching Development release. The [UI/Development checkpoint](ui-development-checkpoint.md) and its final deployment attestation must be complete before Phase 5 starts.
+V107.28 is verified on Development and the feature preview, with shared migrations 0033–0035 applied and original data preserved. The [UI/Development checkpoint](ui-development-checkpoint.md) is complete and tagged. V107.29 prepares fresh inactive Core/Admin copies on `feature-split-db`; [Phase 5](phase-5.md) records exact hosted copy checks and the outstanding owner-write/recovery gates. Phase 5 is not complete or activated yet.
 
 The current [database use and legacy notes](database-carryover-notes.md) and [carry-over register](database-carryover-register.csv) record active dependencies, retired workflows and default exclusions for the future database. Use these with the field/settings maps; legacy names and empty tables alone are not exclusion evidence.

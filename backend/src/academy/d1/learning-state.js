@@ -1,5 +1,6 @@
 import {managementError} from './management-store.js';
 export async function learningAvailable(db) {
+  if(db.splitGeneration==='SPLIT_V1')return Boolean(await db.prepare("SELECT 1 FROM split_deployment_state WHERE singleton=1 AND generation='SPLIT_V1' AND state='READY'").first());
   try {
     return Boolean(await db.prepare(`SELECT 1 FROM learning_imports l JOIN migration_runs m ON m.run_id=l.base_run_id
       WHERE l.singleton=1 AND m.state IN ('IMPORTED','VERIFIED','CUTOVER') AND m.source_snapshot_sha256=l.source_sha256`).first());

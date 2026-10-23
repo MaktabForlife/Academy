@@ -1,3 +1,7 @@
+## V107.29 — Fresh database preparation; activation held
+
+Prepare verified active/unarchived copies in fresh dev-academy-core and dev-academy-admin on feature-split-db. Preserve current authority, disable policies, required accepted references, original retry outcomes and exact file metadata while excluding retired import/discussion/attendance workflows. Verify hosted table hashes and source preservation; keep private recovery outside Git/assets. This checkpoint does not activate new owners or publish a split preview. Owner write routing, cross-store recovery and hosted workflow checks remain before Phase 5 completion; merge/current Development cutover also waits for the user's Phase 4 review.
+
 ## V107.28 — Development UI checkpoint and database handover notes
 
 Enable accepted setup, native attendance, assessment controls, media separation and private My links on the Development website and matching Worker after verified preview. Record exact source/deployment/recovery evidence at the Phase 4 checkpoint. Add a table/view carry-over register that distinguishes active use, live legacy dependencies, retained history and default exclusions. Phase 5 is authorised only after Phase 4 completion, on isolated feature-split-db; its merge into feature-admin waits for the user’s review. The user specified fresh dev-academy-admin and dev-academy-core with active/unarchived records only; current Development routing and Phase 5 merge wait for Phase 4 review. No physical split is performed by this release.

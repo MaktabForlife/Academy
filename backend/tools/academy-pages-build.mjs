@@ -9,6 +9,9 @@ import {buildAcademyAssets} from './academy-assets.mjs';
 export function buildDevelopmentPages(repo,{branch}={}){
   repo=resolve(repo);const output=join(repo,'.academy-pages');
   branch=branch||process.env.CF_PAGES_BRANCH||execFileSync('git',['branch','--show-current'],{cwd:repo,encoding:'utf8'}).trim();
+  // The split branch currently contains inactive database preparation. Never
+  // let the generic branch fallback publish it against the Development API.
+  if(branch==='feature-split-db')throw Error('SPLIT_PREVIEW_HELD: owner write routing and recovery verification must pass before configuring its isolated API.');
   if(existsSync(output))throw Error('PAGES_BUILD_DIRECTORY_ALREADY_EXISTS');
   const temporary=mkdtempSync(join(tmpdir(),'academy-development-pages-'));
   try{

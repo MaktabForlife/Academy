@@ -9,3 +9,5 @@ phase,area,execution_state,evidence,scope_limit
 3–4,Shared migration preservation,PASS_PRIVATE_REHEARSAL; APPLIED_VERIFIED,Private post-Phase-2 snapshot reconstruction with 0033/0034/0035,All original 114 tables / 4361 rows retain original values; live FK 0; private integrity OK; approved ledger 0033–0035
 checkpoint,Complete UI and Development release,RELEASE_ATTESTED_BY_TAG,ui-development-checkpoint.md,Tag academy-ui-separation-v107.28 exists only after matching live website/Worker and recovery verification
 5,Physical database split and writer cutover,AUTHORISED_AFTER_CHECKPOINT; NOT_STARTED,implementation-plan.md,Isolated feature-split-db; fresh dev-academy-admin and dev-academy-core; active/unarchived only; hold merge/cutover for Phase 4 review
+5,Fresh Core and Admin active-record copies,PASS_LOCAL_AND_HOSTED_INACTIVE,phase-5.md; phase-5-copy-register.csv; academy-split-preparation.test.mjs,Exact counts and row hashes; no writer activation or split preview
+5,Owner-aware writes and publication recovery,NOT_COMPLETE,phase-5.md,Required before Phase 5 exit; current Development remains V107.28

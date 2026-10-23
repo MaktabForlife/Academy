@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.28
+# Umm Abbad Academy — V107.29
+
+## V107.29 — Inactive fresh database preparation
+
+Create and verify `dev-academy-core` and `dev-academy-admin` from active/unarchived source records on `feature-split-db`. Preserve exact current account/Hifz authority, disable policies, required reference evidence and original retry outcomes. Old Development data and R2 bytes remain unchanged. This is a preparation checkpoint; owner-aware writes, cross-store recovery and a compatible isolated split preview remain outstanding. Current Development and feature-admin stay at V107.28. [Phase 5 record](docs/academy-separation/phase-5.md).
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 

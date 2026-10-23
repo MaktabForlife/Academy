@@ -1,4 +1,6 @@
 import {personalLinksEstablished} from './personal-links.js';
+import {emptyCompatibilityDatabase} from '../separation/compatibility.js';
+import {emptyShapes} from '../separation/empty-shapes.js';
 import { authorityRank, normalizePlatformIdentifier as key } from '../../lib/platform-schema.js';
 import {CORE_ACTIVATION_CHECKS,newActivityOwnership} from './activation-policy.js';
 import {programAccessJoin,programAccessSQL} from './program-access.js';
@@ -15,10 +17,13 @@ export function academyD1Repository(env) {
     throw rehearsalError('Academy database rehearsal is not enabled.');
   if(env.ACADEMY_D1_MODE==='ACTIVE'&&(!String(env.ACADEMY_D1_RUN_ID||'').trim()||env.ACADEMY_LIBRARY_MODE!=='PUBLIC_ONLY'))
     throw rehearsalError('Academy activation configuration is incomplete.',503,'ACTIVATION_REQUIRED');
-  const db=env.ACADEMY_DB.withSession('first-primary');
+  const split=env.ACADEMY_DB_GENERATION==='SPLIT_V1';
+  if(split&&!env.ACADEMY_ADMIN_DB)throw rehearsalError('The Admin database binding is required.',503,'SPLIT_BINDING_REQUIRED');
+  const raw=env.ACADEMY_DB.withSession('first-primary'),db=split?emptyCompatibilityDatabase(raw,emptyShapes,{currentGrants:true}):raw;
   const prepare=(sql,...values)=>db.prepare(sql).bind(...values);
   let schemas,activation;
   async function schemaNames(){
+    if(split)return ['role_mapping_decisions','effective_course_subscriptions'];
     schemas??=prepare("SELECT name FROM sqlite_schema WHERE name IN ('role_mapping_decisions','effective_course_subscriptions') AND type IN ('table','view')").all();
     return (await schemas).results.map(r=>r.name);
   }
@@ -76,7 +81,7 @@ export function academyD1Repository(env) {
       SELECT ?,?,?,?,?,?,?,?,? ${conditional?'WHERE changes()=1':''}`,crypto.randomUUID(),new Date().toISOString(),actor,env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACCOUNT':'D1_REHEARSAL','ACADEMY',action,'USER_ACCOUNT',target,JSON.stringify(fields));
   }
   return {
-    db,setup:{enabled:env.ACADEMY_ACCEPTED_SETUP==='1'},features:{nativeAttendance:env.ACADEMY_LEARNING_OPERATIONS==='3',mediaSeparation:env.ACADEMY_MEDIA_SEPARATION==='1'},
+    db,coreDb:db,adminDb:split?env.ACADEMY_ADMIN_DB.withSession('first-primary'):null,setup:{enabled:env.ACADEMY_ACCEPTED_SETUP==='1'},features:{nativeAttendance:env.ACADEMY_LEARNING_OPERATIONS==='3',mediaSeparation:env.ACADEMY_MEDIA_SEPARATION==='1',splitDatabases:split},
     ownershipForNewActivity:activity=>newActivityOwnership(activity,env),
     subscriptionSource,
     publicAccount,
@@ -85,6 +90,17 @@ export function academyD1Repository(env) {
       return prepare("SELECT setting_value,(SELECT setting_value FROM academy_settings WHERE setting_key='ProgramWorkspace') AS program_workspace,(SELECT setting_value FROM academy_settings WHERE setting_key='PersonalMemorisationCards') AS memorisation_cards FROM academy_settings WHERE setting_key='PlatformTimezone'").first().then(r=>r?{...r,programWorkspace:r.program_workspace==='1',memorisationCards:r.memorisation_cards==='1'}:null);
     },
     async ready(){
+      if(split){
+        const result=await prepare(`SELECT generation,source_digest,1 mapped_roles,
+          (SELECT setting_value FROM academy_settings WHERE setting_key='ProgramWorkspace') program_workspace,
+          (SELECT setting_value FROM academy_settings WHERE setting_key='PersonalMemorisationCards') memorisation_cards,
+          (SELECT json_extract(row.value,'$.setting_value') FROM setup_head_state h JOIN setup_head_components v ON v.head_id=h.head_id AND v.table_name='academy_settings' JOIN setup_components c USING(component_id),json_each(c.rows_json) row WHERE json_extract(row.value,'$.setting_key')='PlatformTimezone' LIMIT 1) timezone
+          FROM split_deployment_state WHERE singleton=1 AND generation='SPLIT_V1' AND state='READY' AND source_digest=?
+          AND EXISTS(SELECT 1 FROM setup_head_state) AND EXISTS(SELECT 1 FROM accounts WHERE active=1)
+          AND EXISTS(SELECT 1 FROM global_role_assignments WHERE active=1 AND role='GLOBAL_ADMIN' AND review_state='CONFIRMED')`,env.ACADEMY_D1_RUN_ID).first();
+        if(!result)throw rehearsalError('The fresh databases have not completed their verified preparation.',503,'SPLIT_PREPARATION_REQUIRED');
+        activation=result;return;
+      }
       if(env.ACADEMY_D1_MODE==='ACTIVE') {
         // WHERE 0 validates that required schema objects compile without scanning
         // sqlite_schema or subscription rows. All live ownership/evidence guards remain.

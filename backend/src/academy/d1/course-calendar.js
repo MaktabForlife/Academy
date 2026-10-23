@@ -16,6 +16,7 @@ import {newActivityOwnership} from './activation-policy.js';
 import {courseManagementData,managedCourseScopes} from './course-authority.js';
 
 export async function courseCalendarAvailable(db,failIncomplete=false) {
+  if(db.splitGeneration==='SPLIT_V1')return Boolean(await db.prepare("SELECT 1 FROM split_deployment_state WHERE singleton=1 AND generation='SPLIT_V1' AND state='READY'").first());
   let ready;
   try {
     ready=Boolean(await db.prepare(`SELECT 1 FROM course_workflow_imports c JOIN learning_imports l ON l.base_run_id=c.base_run_id

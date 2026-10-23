@@ -56,6 +56,8 @@ Exit: UI complete; verification and Development release evidence recorded; compa
 
 ## Phase 5 move coherent Admin data families
 
+Execution on 23 October: [inactive target preparation](phase-5.md) is verified against exact hosted row hashes. Phase 5 remains in progress; owner routing, cross-store write/recovery and hosted workflow/query-budget exit gates remain open. Current Development and feature-admin remain at V107.28.
+
 The required UI/Development checkpoint above must be complete before this phase begins. The 23 October scope creates fresh dev-academy-admin and dev-academy-core on feature-split-db, selects active/unarchived records, retains old Development as the legacy/recovery source, and holds merge/routing changes until the user reviews Phase 4.
 
 Only after owner-aware paths are verified, prepare the Admin database/schema and read-only Core reference relationships. Rehearse each selected coherent family on isolated data: copy, dependency/hash/count checks, current permission/retry tests and resource measurements. Identify all source/target writers before switching.
