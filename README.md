@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.34
+# Umm Abbad Academy — V107.35
+
+## V107.35 — Verify Admin banners against the signed-in account
+
+Show Admin workspace banners and labels only after the server verifies current Admin authority. Return students, ordinary teachers and unassigned accounts from retained Admin addresses to personal Academy home; discard verification from a previous account. Signed-out Admin entry shows Admin sign-in. Home explicitly opens normal Academy home, while the Admin workspace link retains the separate management entry. Keep layouts and publish to preview only.
 
 ## V107.34 — Distinct Admin-Learn and Admin-Teach
 

@@ -23,8 +23,9 @@ function libraryReturn(){
  try{const referrer=new URL(document.referrer);if(referrer.origin===location.origin&&['/academy/open-library/','/academy/library/'].includes(referrer.pathname))return referrer.pathname;}catch{}
  return academyBookmarks.signedIn()?'/academy/library/':'/academy/open-library/';
 }
-$('pr-close-reader').href=window.M4L_ACADEMY_WORKSPACE.readerUrl(libraryReturn());
-if(window.M4L_ACADEMY_WORKSPACE.adminRealm())document.querySelector('.pr-brand small').append(' · '+window.M4L_ACADEMY_WORKSPACE.current().replace('_','-'));
+const readerLabel=document.querySelector('.pr-brand small'),baseReaderLabel=readerLabel.textContent;
+function readerContext(){const workspace=window.M4L_ACADEMY_WORKSPACE;readerLabel.textContent=baseReaderLabel+(workspace.adminRealm()&&workspace.adminAccess()?' · '+workspace.current().replace('_','-'):'');$('pr-close-reader').href=workspace.readerUrl(libraryReturn());}
+window.addEventListener('m4l-academy-access',readerContext);readerContext();
 function canReplace(pane){return !changed(pane)||confirm('This PDF has unsaved annotations. Download a copy before replacing it. Continue?');}
 function setActive(index){const preserve=window.M4L_PDF_WHITEBOARD.isOpen()&&index!==active;if(preserve)rememberReadingPositions();active=index;for(const pane of panes){pane.element.classList.toggle('is-active',pane.index===index);$('pr-tab-'+pane.index).setAttribute('aria-selected',String(pane.index===index));$('pr-tab-'+pane.index).tabIndex=pane.index===index?0:-1;}focusLabels();if(preserve)restoreReadingPositions();}
 function focusLabels(){

@@ -1,4 +1,8 @@
-# Distinct Admin readers — V107.34
+# Distinct Admin readers — V107.35
+
+V107.35 corrects the signed-out/student banner issue: an Admin address requests a workspace but does not establish authority. A fresh account-session check using the personal request context must confirm Global or scoped Admin before Admin data requests and active Admin labels. Signed-out entry has no active banner; students, ordinary Teachers and unassigned accounts return to personal Academy home. Account changes immediately clear verification, class context and delayed replies. Home explicitly exits to normal Academy home; the Admin workspace link returns to management.
+
+V107.35 verification: all 98 regression test files passed. Twenty-eight isolated desktop/phone cases passed, including real Student sign-in from Admin sign-in, unassigned/Teacher redirects, Admin-to-Student sign-out/sign-in, ordinary Home navigation and preserved Global/scoped Admin readers. Native client checks also reject a delayed verification from the previous account. No database migration or data reset is required.
 
 The 23 October clarification supersedes the V107.32/33 routing: Admin-Learn and Admin-Teach must be distinct from personal Learn and Teach. The implementation below corrects the shared reader contexts described in the historical release record.
 
@@ -12,7 +16,7 @@ The 23 October clarification supersedes the V107.32/33 routing: Admin-Learn and 
 
 Global Admin has Academy-wide Admin reader scope. Program/Course Admin has its assigned areas. A personal assignment outside an Admin’s managed areas stays in the personal workspace; it does not extend that account’s Admin readers. Role revocation takes effect on subsequent requests. Ordinary non-admin accounts cannot select either Admin reader context. Named-examiner, owner, moderation, publication, hidden media and release restrictions remain.
 
-The Admin shell displays ADMIN-LEARN / ADMIN-TEACH tabs and a persistent current-workspace banner. Personal exit links explicitly open the personal address. Home and Close retain the invoking realm. Calendar, Library/media and PDF tabs carry the exact context and selected class; the PDF reader also labels its own header. Switching contexts invalidates pending responses. New cache identities discard the earlier combined reader snapshots and keep pending attendance drafts separate. Existing unsaved-work guards apply before exits.
+The Admin shell displays ADMIN-LEARN / ADMIN-TEACH tabs and a persistent current-workspace banner. Personal exit links explicitly open the personal address. Home explicitly opens normal Academy home with existing unsaved-work guards; Close retains the invoking reader realm. Calendar, Library/media and PDF tabs carry the exact context and selected class; the PDF reader also labels its own header. Switching contexts invalidates pending responses. New cache identities discard the earlier combined reader snapshots and keep pending attendance drafts separate. Existing unsaved-work guards apply before exits.
 
 No database migration, persisted assignment expansion or learner enrolment is introduced. Actual authority proof remains based on the real account/roles. Existing Core/Admin split ownership, manual edge-case handling and preview holds remain unchanged. Deployment is restricted to feature-admin and feature_worker; Development remains the Phase 4 V107.28 checkpoint.
 

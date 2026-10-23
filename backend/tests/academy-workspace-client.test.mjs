@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const source=readFileSync(new URL('../../js/m4l-academy-workspace.js',import.meta.url),'utf8');
-function fixture(fetcher=async()=>Response.json({audience:'LEARN'})){
- const location={pathname:'/academy/',hash:'#timetable/learn',search:'',origin:'https://academy.invalid',href:'https://academy.invalid/academy/#timetable/learn'},calls=[];let token='actor-one';
- const window={fetch:async(url,options)=>{calls.push({url,options});return fetcher(url,options);},M4L_CONFIG:{API_BASE:'https://api.invalid'},addEventListener(){}};
- vm.runInNewContext(source,{window,location,localStorage:{getItem:()=>token},document:{addEventListener(){}},URL,URLSearchParams,Request,Response,Headers,DOMException});
- return {window,location,calls,token:value=>{token=value;}};
+function fixture(fetcher=async()=>Response.json({audience:'LEARN'}),sessionFetcher=async()=>Response.json({success:true,contexts:[{scope:'PLATFORM',role:'GLOBAL_ADMIN'}]})){
+ const location={pathname:'/academy/',hash:'#timetable/learn',search:'',origin:'https://academy.invalid',href:'https://academy.invalid/academy/#timetable/learn',replace(value){this.destination=value;}},calls=[],authCalls=[],handlers=new Map();let token='actor-one';
+ const window={fetch:async(url,options)=>{if(String(url).endsWith('/api/account/session')){authCalls.push({url,options});return sessionFetcher(url,options);}calls.push({url,options});return fetcher(url,options);},M4L_CONFIG:{API_BASE:'https://api.invalid'},addEventListener(type,fn){handlers.set(type,fn);},dispatchEvent(event){handlers.get(event.type)?.(event);}};
+ vm.runInNewContext(source,{window,location,localStorage:{getItem:()=>token},document:{addEventListener(){}},URL,URLSearchParams,Request,Response,Headers,DOMException,Event});
+ return {window,location,calls,authCalls,handlers,token:value=>{token=value;}};
 }
 test('every API helper carries the selected audience and cannot override it with a higher role',async()=>{
  const f=fixture();await f.window.fetch('https://api.invalid/api/academy/assessments/list',{headers:{'X-Academy-Workspace':'ADMIN',Authorization:'Bearer fixture'}});
@@ -59,9 +59,38 @@ test('Admin reader URLs never redirect to personal pages and changing realms dis
  f.location.pathname='/academy/admin/';assert.equal(w.commit(),true);assert.equal(w.current(),'ADMIN_LEARN');assert.equal(w.audience(),'LEARN');assert.equal(w.canonical(),'');assert.equal(w.adminRealm(),true);
  await assert.rejects(personal.json(),{name:'AbortError'});
  const view={activityKey:'PROGRAM:scope',classId:'one'};w.studentClass(view);
- const reader=new URL(w.readerUrl('/academy/pdf-reader/?file=fixture'));assert.equal(reader.searchParams.get('workspace'),'ADMIN_LEARN');assert.equal(reader.searchParams.get('studentClass'),'one');
+ await w.readyAccess();const reader=new URL(w.readerUrl('/academy/pdf-reader/?file=fixture'));assert.equal(reader.searchParams.get('workspace'),'ADMIN_LEARN');assert.equal(reader.searchParams.get('studentClass'),'one');
  f.location.hash='#activity/PROGRAM/scope/teach/assessment';w.commit();assert.equal(w.current(),'ADMIN_TEACH');assert.equal(w.classView(),null);
  const teaching=await f.window.fetch('https://api.invalid/api/academy/assessments/list');assert.equal(f.calls.at(-1).options.headers.get('X-Academy-Workspace'),'ADMIN_TEACH');
  f.location.pathname='/academy/';w.commit();assert.equal(w.current(),'TEACH');assert.equal(w.adminRealm(),false);await assert.rejects(teaching.json(),{name:'AbortError'});
  await f.window.fetch('https://api.invalid/api/academy/entrance',{headers:{'X-Academy-Class':'forged','X-Academy-Workspace':'ADMIN_TEACH'}});assert.equal(f.calls.at(-1).options.headers.get('X-Academy-Class'),null);assert.equal(f.calls.at(-1).options.headers.get('X-Academy-Workspace'),'TEACH');
+});
+
+
+test('a student at an Admin address is returned to personal home before any Admin data request',async()=>{
+ let release;const f=fixture(undefined,()=>new Promise(resolve=>{release=()=>resolve(Response.json({success:true,contexts:[{scope:'COURSE',role:'STUDENT',courseId:'scope'}]}));})),w=f.window.M4L_ACADEMY_WORKSPACE;
+ f.location.pathname='/academy/admin/';w.commit();assert.equal(w.adminAccess(),false);
+ const pending=f.window.fetch('https://api.invalid/api/academy/entrance');assert.equal(f.calls.length,0);assert.equal(w.adminAccess(),false);release();await assert.rejects(pending,{name:'AbortError'});
+ assert.equal(f.location.destination,'/academy/#overview');assert.equal(w.adminAccess(),false);assert.equal(f.calls.length,0);assert.equal(f.authCalls[0].options.headers['X-Academy-Workspace'],'LEARN');
+});
+test('no role grants or an ordinary Teacher cannot activate Admin; signed-out entry stays unverified',async()=>{
+ for(const contexts of [[],[{scope:'COURSE',role:'TEACHER',courseId:'scope'}]]){
+  const f=fixture(undefined,async()=>Response.json({success:true,contexts})),w=f.window.M4L_ACADEMY_WORKSPACE;f.location.pathname='/academy/admin/';w.commit();await assert.rejects(w.readyAccess(),{name:'AbortError'});assert.equal(w.adminAccess(),false);assert.equal(f.location.destination,'/academy/#overview');assert.equal(f.calls.length,0);
+ }
+ const f=fixture(),w=f.window.M4L_ACADEMY_WORKSPACE;f.token('');f.location.pathname='/academy/admin/';w.commit();assert.equal(await w.readyAccess(),false);assert.equal(w.adminAccess(),false);assert.equal(f.authCalls.length,0);assert(!new URL(w.readerUrl('/academy/library/')).searchParams.get('workspace').startsWith('ADMIN'));
+});
+test('Global and scoped Admin authority is verified once per account; session changes immediately clear it',async()=>{
+ for(const contexts of [[{scope:'PLATFORM',role:'GLOBAL_ADMIN'}],[{scope:'COURSE',role:'PROGRAM_ADMIN',courseId:'scope'}]]){
+  const f=fixture(undefined,async()=>Response.json({success:true,contexts})),w=f.window.M4L_ACADEMY_WORKSPACE;f.location.pathname='/academy/admin/';w.commit();await Promise.all([w.readyAccess(),w.readyAccess()]);assert.equal(w.adminAccess(),true);assert.equal(f.authCalls.length,1);
+  f.window.dispatchEvent(new Event('m4l-academy-session'));assert.equal(w.adminAccess(),false);
+ }
+});
+test('an old Admin verification cannot restore the banner after switching to a Student account',async()=>{
+ let release;const f=fixture(undefined,()=>new Promise(resolve=>{release=()=>resolve(Response.json({success:true,contexts:[{scope:'PLATFORM',role:'GLOBAL_ADMIN'}]}));})),w=f.window.M4L_ACADEMY_WORKSPACE;
+ f.location.pathname='/academy/admin/';w.commit();const pending=w.readyAccess();f.token('student-account');f.window.dispatchEvent(new Event('m4l-academy-session'));release();await assert.rejects(pending,{name:'AbortError'});assert.equal(w.adminAccess(),false);assert.equal(f.calls.length,0);
+});
+test('account controls use personal verification even from an Admin reader and revoked Admin responses leave the Admin view',async()=>{
+ const f=fixture(async()=>Response.json({success:false,code:'ADMIN_VIEW_FORBIDDEN'},{status:403})),w=f.window.M4L_ACADEMY_WORKSPACE;f.location.pathname='/academy/admin/';w.commit();
+ await f.window.fetch('https://api.invalid/api/account/session');assert.equal(f.authCalls[0].options.headers.get('X-Academy-Workspace'),'LEARN');assert.equal(f.authCalls[0].options.headers.get('X-Academy-Class'),null);
+ await assert.rejects(f.window.fetch('https://api.invalid/api/academy/entrance'),{name:'AbortError'});assert.equal(w.adminAccess(),false);assert.equal(f.location.destination,'/academy/#overview');
 });

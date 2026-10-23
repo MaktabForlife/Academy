@@ -1,3 +1,7 @@
+# V107.35 — Correct signed-out and student Admin banners
+
+Verify real current Admin authority before opening Admin workspaces or displaying their banner. Hide the banner during sign-in/verification and immediately on account changes; send ordinary accounts from Admin addresses to personal Academy home. Keep Admin-Learn and Admin-Teach distinct for verified Global/scoped Admins. Make Home an explicit return to the normal Academy homepage, retain existing draft guards, and keep PDF labels consistent. Preview only; no database changes or Development cutover.
+
 # V107.34 — Keep Admin readers separate from personal workspaces
 
 Separate Admin-Learn and Admin-Teach addresses, labels, request contexts and caches from personal Learn and Teach. Inherited class viewing and teaching apply only in the explicit Admin readers, within current Admin scope. Personal contexts retain genuine enrolments/assignments and ordinary public Course access. Persistent banners and reader context labels identify the active view; crossing realms is intentional navigation and retains unsaved-work guards. Preserve existing layouts, manual assessment controls and the fresh preview databases. Deploy only feature-admin and feature_worker; Development stays V107.28.

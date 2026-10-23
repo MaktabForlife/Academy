@@ -32,7 +32,7 @@
   }
   function checkProfileLabels(){const revision=profileLabelRevision();if(revision!==dailyCache.profileRevision){dailyCache.profileRevision=revision;dailyCache.entries={};pageCache.snapshot=null;}return revision;}
   const MEMORISATION_RETURN_KEY='m4l_academy_memorisation_return_v2:'+window.M4L_ACADEMY_WORKSPACE.current();
-  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10734';
+  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10735';
   let planningSelection=null;
   const academyDay = (timezone, instant = Date.now()) => {
     const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {timeZone:timezone || 'Africa/Johannesburg',
@@ -376,8 +376,8 @@
   function renderAcademyMenu() {
     const data = state.home, activities = data?.signedIn ? data.personalActivities : [];
     const global = Boolean(data?.signedIn && data.globalAdmin), roles = [...new Set(activities.flatMap(row => row.roles || []))];
-    const adminRealm=Boolean(window.M4L_ACADEMY_WORKSPACE?.adminRealm()),canAdmin=global||data?.workspaceAccess?.admin||adminRoles(roles),available={learn:adminRealm?canAdmin:data?.workspaceAccess?.learn||roles.length>0,teach:adminRealm?canAdmin:data?.workspaceAccess?.teach||roles.includes('TEACHER'),admin:canAdmin};
-    const choices = ['learn','teach','admin'].filter(key => data?.signedIn && available[key]);
+    const adminRealm=Boolean(window.M4L_ACADEMY_WORKSPACE?.adminRealm()&&window.M4L_ACADEMY_WORKSPACE?.adminAccess?.()),canAdmin=global||data?.workspaceAccess?.admin||adminRoles(roles),available={learn:adminRealm?canAdmin:data?.workspaceAccess?.learn||roles.length>0,teach:adminRealm?canAdmin:data?.workspaceAccess?.teach||roles.includes('TEACHER'),admin:canAdmin};
+    const choices = ['learn','teach','admin'].filter(key => data?.signedIn && available[key] && (!window.M4L_ACADEMY_WORKSPACE?.adminRealm()||adminRealm));
     const parts = location.hash.slice(1).split('/'), home = !parts[0] || ['overview','learning'].includes(parts[0]);
     const requested = parts[0]==='timetable'?parts[1]||'learn':['administration','assessment-admin','progress-admin'].includes(parts[0]) ? 'admin' : parts[0] === 'activity' && state.activity ? workspaceContext(state.activity).mode : home ? parts[1] : '';
     if (choices.includes(requested)) state.academyTab = requested;
@@ -388,7 +388,7 @@
     const helper=$('hifdh-helper'), loginId=window.M4L_ACADEMY_LOGIN?.currentId() || '', helperBase=window.M4L_CONFIG?.HIFZHELPER_URL;
     helper.hidden=!(data?.signedIn && /^[A-Za-z0-9]+$/.test(loginId) && /^https:\/\//.test(helperBase||''));
     if(!helper.hidden)helper.href=helperBase.replace(/\/$/,'')+'/'+encodeURIComponent(loginId)+'?academy='+encodeURIComponent(window.M4L_CONFIG?.HIFZ_ENTRY_SOURCE||'1');
-    $('academy-account-role').textContent = data?.signedIn ? (adminRealm&&state.academyTab!=='admin'?'Admin-'+state.academyTab+' · ':'')+(highestAccess(roles)||'None') : '';
+    $('academy-account-role').textContent = data?.signedIn ? (adminRealm&&['learn','teach'].includes(state.academyTab)?'Admin-'+state.academyTab+' · ':'')+(highestAccess(roles)||'None') : '';
     $('academy-access-empty').hidden = !data?.signedIn || Boolean(choices.length);
     for (const key of ['learn','teach','admin']) {
       const tab = $('academy-tab-'+key), active = !home && key === state.academyTab;
@@ -1008,7 +1008,7 @@
     dockAttendance(attendanceHome);
     dockTimetable($('timetable-card-home'));
     const view = $('administration'), global = Boolean(state.home?.signedIn && state.home.globalAdmin), areas = state.home?.signedIn ? adminAreas() : [];
-    if (!global && !areas.length) {view.innerHTML='<div class="page-heading"><h1>Manage Academy</h1></div><p role="status">'+(!state.home&&token()?'Loading your Academy administration…':'Sign in with an authorised Academy admin account to open management tools.')+'</p>';return;}
+    if (!global && !areas.length) {view.innerHTML='<div class="page-heading"><h1>Admin sign-in</h1></div><p role="status">'+(!state.home&&token()?'Loading your Academy administration…':'Sign in with an authorised Academy admin account to open management tools.')+'</p>';return;}
     const tabs = [['users','Users'],['attendance','Attendance'],['planning','Planning'],...(global?[['announcements','Announcements']]:[]),['assessments','Assessments'],['library','Library'],['curriculum','Curriculum'],['programs','Programs'],['courses','Courses'],['enrolments','Enrolments'],...(global?[['settings','App settings']]:[])];
     const requested = location.hash.split('/')[1], key = tabs.some(([id]) => id === requested) ? requested : 'users';
     const link = (href,label) => `<a class="button secondary" href="${esc(href)}">${esc(label)}</a>`;
@@ -1253,6 +1253,7 @@
   });
   $('academy-public-sessions').addEventListener('scroll',()=>{if(!publicMobileView.matches||!state.publicData)return;const columns=$('academy-public-sessions').querySelectorAll('.upcoming-day');if(columns.length!==14)return;const first=sunday(academyDay(state.publicData.timezone));state.publicStartDate=$('academy-public-sessions').scrollLeft>=columns[7].offsetLeft-columns[0].offsetLeft-1?addWeekDays(first,7):first;publicWeekHeading();},{passive:true});
   window.addEventListener('hashchange', route);
+  window.addEventListener('m4l-academy-access',()=>{if(state.home)renderAcademyMenu();});
   window.addEventListener('m4l-academy-session', () => { if (!token()) { dailyCache.session='';dailyCache.entries={};try { sessionStorage.removeItem(DAILY_CACHE_KEY); } catch {} } clearPersonal(); void loadHome(); });
   const checkReturnedPage=()=>{if(document.visibilityState!=='hidden'&&token())void checkRemoteProfileLabels().then(async changed=>{
     if(!changed)return;
