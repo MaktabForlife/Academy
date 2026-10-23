@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.35
+# Umm Abbad Academy — V107.36
+
+## V107.36 — Global Admin navigation
+
+Hide ordinary Learn and Teach switches for Global Admin outside the Admin workspace. Keep ADMIN-LEARN and ADMIN-TEACH inside Admin, with the existing explicit personal exit links. Program Admin, Teacher and Student navigation retains its current behaviour. Preview only; no access, data or layout changes.
 
 ## V107.35 — Verify Admin banners against the signed-in account
 
@@ -213,6 +217,10 @@ Programs and Courses use wider panels on desktop. The Academy label and LEARN/TE
 Teach and Learn show separate Programs and Courses blocks. Global Admin navigation includes unpublished active learning areas; assigned teachers can see their own upcoming Courses. The Teach overview lists future Course dates with shortcuts to the starting timetable week and the correct planning offering. Draft details remain private to authorised staff; published sessions and live records are unchanged.
 
 [Implementation and verification](docs/ACADEMY-UPCOMING-COURSES-106.83.md).
+
+## Deferred issues
+
+- **Mobile announcements on first load — reported 23 October 2026.** The home page sometimes shows “Announcements could not be loaded”; selecting **Try again** loads them successfully. The user reports the same behaviour on Development and the feature-admin preview (V107.35), so track it as a shared issue rather than a Phase 5 regression. Root cause remains unconfirmed. Investigation and implementation are deferred at the user's request; retain the current layout and retry action.
 
 ## Development and deployment
 

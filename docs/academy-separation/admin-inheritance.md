@@ -1,4 +1,8 @@
-# Distinct Admin readers — V107.35
+# Distinct Admin readers — V107.36
+
+V107.36 applies the user’s Global Admin-only navigation clarification: hide ordinary Learn and Teach switches outside the Admin workspace, including connected readers. Global Admin enters through Admin, where ADMIN-LEARN and ADMIN-TEACH remain visible and explicitly labelled. Existing Personal Learn/Teach exit links retain their personal request contexts and access checks. Program Admin, Teacher and Student switches keep their current behaviour.
+
+V107.36 verification: the old Home navigation reproduces the plain Learn switch for Global Admin. After the change, 14 desktop/phone browser cases pass across Global Admin (including a real personal Teacher assignment), Program Admin, dual-role Program Admin, Teacher and Student accounts. Connected readers, explicit personal exits and labelled Admin readers pass. All 23 affected permission, workspace, page-action, site and account checks pass; Worker and website builds pass. No database migration or data changes are required.
 
 V107.35 corrects the signed-out/student banner issue: an Admin address requests a workspace but does not establish authority. A fresh account-session check using the personal request context must confirm Global or scoped Admin before Admin data requests and active Admin labels. Signed-out entry has no active banner; students, ordinary Teachers and unassigned accounts return to personal Academy home. Account changes immediately clear verification, class context and delayed replies. Home explicitly exits to normal Academy home; the Admin workspace link returns to management.
 

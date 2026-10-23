@@ -82,7 +82,7 @@ test('personal readers never inherit Admin class or teaching access and Admin re
  const scope=f.scopes.programA;
  for(const who of ['global','adminA']){
   for(const mode of ['LEARN','TEACH']){
-   const home=ok(await f.request('/api/academy/entrance',{},who,mode));assert.equal(home.workspace,mode);assert.equal(home.adminView,false);assert(!home.personalActivities.some(a=>a.kind+':'+a.id===scope));
+   const home=ok(await f.request('/api/academy/entrance',{},who,mode));assert.equal(home.workspace,mode);assert.equal(home.adminView,false);assert.equal(home.workspaceAccess.globalAdmin,who==='global');assert.equal(home.globalAdmin,false);assert(!home.personalActivities.some(a=>a.kind+':'+a.id===scope));
    assert.equal((await f.request('/api/academy/attendance/get',{activityKey:scope,date:today()},who,mode)).status,403);
   }
   assert.equal((await f.request('/api/academy/entrance',{},who,'LEARN',{activityKey:scope,classId:'class-1'})).status,403);

@@ -32,7 +32,7 @@
   }
   function checkProfileLabels(){const revision=profileLabelRevision();if(revision!==dailyCache.profileRevision){dailyCache.profileRevision=revision;dailyCache.entries={};pageCache.snapshot=null;}return revision;}
   const MEMORISATION_RETURN_KEY='m4l_academy_memorisation_return_v2:'+window.M4L_ACADEMY_WORKSPACE.current();
-  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10735';
+  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10736';
   let planningSelection=null;
   const academyDay = (timezone, instant = Date.now()) => {
     const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {timeZone:timezone || 'Africa/Johannesburg',
@@ -375,8 +375,9 @@
   }
   function renderAcademyMenu() {
     const data = state.home, activities = data?.signedIn ? data.personalActivities : [];
-    const global = Boolean(data?.signedIn && data.globalAdmin), roles = [...new Set(activities.flatMap(row => row.roles || []))];
-    const adminRealm=Boolean(window.M4L_ACADEMY_WORKSPACE?.adminRealm()&&window.M4L_ACADEMY_WORKSPACE?.adminAccess?.()),canAdmin=global||data?.workspaceAccess?.admin||adminRoles(roles),available={learn:adminRealm?canAdmin:data?.workspaceAccess?.learn||roles.length>0,teach:adminRealm?canAdmin:data?.workspaceAccess?.teach||roles.includes('TEACHER'),admin:canAdmin};
+    const global = Boolean(data?.signedIn && data.globalAdmin), globalAccount=Boolean(data?.signedIn&&(data.workspaceAccess?.globalAdmin??data.globalAdmin)), roles = [...new Set(activities.flatMap(row => row.roles || []))];
+    // Global Admin enters the labelled Admin readers through the Admin workspace.
+    const adminRealm=Boolean(window.M4L_ACADEMY_WORKSPACE?.adminRealm()&&window.M4L_ACADEMY_WORKSPACE?.adminAccess?.()),canAdmin=global||data?.workspaceAccess?.admin||adminRoles(roles),available={learn:adminRealm?canAdmin:!globalAccount&&(data?.workspaceAccess?.learn||roles.length>0),teach:adminRealm?canAdmin:!globalAccount&&(data?.workspaceAccess?.teach||roles.includes('TEACHER')),admin:canAdmin};
     const choices = ['learn','teach','admin'].filter(key => data?.signedIn && available[key] && (!window.M4L_ACADEMY_WORKSPACE?.adminRealm()||adminRealm));
     const parts = location.hash.slice(1).split('/'), home = !parts[0] || ['overview','learning'].includes(parts[0]);
     const requested = parts[0]==='timetable'?parts[1]||'learn':['administration','assessment-admin','progress-admin'].includes(parts[0]) ? 'admin' : parts[0] === 'activity' && state.activity ? workspaceContext(state.activity).mode : home ? parts[1] : '';

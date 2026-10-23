@@ -94,7 +94,8 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
     result.workspace=auth.workspaceContext||auth.workspace;
     result.audience=auth.workspace;result.adminView=Boolean(auth.adminView);
     const real=actualState(auth),canAdmin=Boolean(real.account.global_admin||real.roles.some(r=>r.role==='PROGRAM_ADMIN'));
-    result.workspaceAccess={learn:true,teach:real.roles.some(r=>r.role==='TEACHER'),admin:canAdmin,adminLearn:canAdmin,adminTeach:canAdmin};
+    // Navigation uses the real account role; reader permissions stay projected.
+    result.workspaceAccess={globalAdmin:Boolean(real.account.global_admin),learn:true,teach:real.roles.some(r=>r.role==='TEACHER'),admin:canAdmin,adminLearn:canAdmin,adminTeach:canAdmin};
     result.previewActivities=previewKeys;
     if(auth.adminView){
       for(const key of ['activities','personalActivities','activityPages'])result[key]=result[key].filter(a=>administers(auth,a.kind+':'+a.id));

@@ -1,3 +1,7 @@
+# V107.36 — Global Admin navigation
+
+Hide plain Learn and Teach switches for Global Admin on personal Home and connected reader pages. Keep explicitly labelled ADMIN-LEARN and ADMIN-TEACH inside Admin, plus the existing personal exit links. Preserve Program Admin, Teacher and Student navigation, access checks and layouts. Feature preview only; no database changes.
+
 # V107.35 — Correct signed-out and student Admin banners
 
 Verify real current Admin authority before opening Admin workspaces or displaying their banner. Hide the banner during sign-in/verification and immediately on account changes; send ordinary accounts from Admin addresses to personal Academy home. Keep Admin-Learn and Admin-Teach distinct for verified Global/scoped Admins. Make Home an explicit return to the normal Academy homepage, retain existing draft guards, and keep PDF labels consistent. Preview only; no database changes or Development cutover.

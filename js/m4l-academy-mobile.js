@@ -53,9 +53,9 @@
  document.addEventListener('click',event=>{if(event.target.closest?.('[data-workspace-exit]')&&!canLeave())event.preventDefault();});
 
  function update(next){
-  data=next;const signed=Boolean(data?.signedIn),global=Boolean(signed&&data.globalAdmin),roles=signed?[...(data.workspaceRoles||[]),...(data.personalActivities||[]).flatMap(r=>r.roles||[])]:[];
+  data=next;const signed=Boolean(data?.signedIn),global=Boolean(signed&&data.globalAdmin),globalAccount=Boolean(signed&&(data.workspaceAccess?.globalAdmin??data.globalAdmin)),roles=signed?[...(data.workspaceRoles||[]),...(data.personalActivities||[]).flatMap(r=>r.roles||[])]:[];
   const staff=r=>r.some(x=>['TEACHER','SENIOR','PROGRAM_ADMIN','ADMIN','GLOBAL_ADMIN'].includes(x)),admin=r=>r.some(x=>['PROGRAM_ADMIN','ADMIN','GLOBAL_ADMIN'].includes(x));
-  const pendingAdmin=boundary?.adminRealm()&&!adminRealm(),canAdmin=global||data?.workspaceAccess?.admin||admin(roles),available={learn:signed&&!pendingAdmin&&(adminRealm()?canAdmin:data?.workspaceAccess?.learn||roles.length>0),teach:signed&&!pendingAdmin&&(adminRealm()?canAdmin:data?.workspaceAccess?.teach||roles.includes('TEACHER')),admin:signed&&!pendingAdmin&&canAdmin};
+  const pendingAdmin=boundary?.adminRealm()&&!adminRealm(),canAdmin=global||data?.workspaceAccess?.admin||admin(roles),available={learn:signed&&!pendingAdmin&&(adminRealm()?canAdmin:!globalAccount&&(data?.workspaceAccess?.learn||roles.length>0)),teach:signed&&!pendingAdmin&&(adminRealm()?canAdmin:!globalAccount&&(data?.workspaceAccess?.teach||roles.includes('TEACHER'))),admin:signed&&!pendingAdmin&&canAdmin};
   const section=location.hash.slice(1).split('/'),path=location.pathname,calendarView=path.startsWith('/academy/calendar/')?(window.M4L_ACADEMY_WORKSPACE?.audience().toLowerCase()||new URLSearchParams(location.search).get('view')):null;
   const management=calendarView!=='learn'&&calendarView!=='teach'&&(['administration','assessment-admin','progress-admin'].includes(section[0])||/^\/(users|programs)(?:\/|$)/.test(path)||/^\/academy\/(subjects|calendar|pdf-tools|courses\/manage|library\/manage|enrolment\/manage)(?:\/|$)/.test(path));
   const home=['/academy/','/academy/index.html'].includes(path)&&(!section[0]||['overview','learning'].includes(section[0]));
