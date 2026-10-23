@@ -1,3 +1,7 @@
+## V107.28 — Development UI checkpoint and database handover notes
+
+Enable accepted setup, native attendance, assessment controls, media separation and private My links on the Development website and matching Worker after verified preview. Record exact source/deployment/recovery evidence at the Phase 4 checkpoint. Add a table/view carry-over register that distinguishes active use, live legacy dependencies, retained history and default exclusions. Phase 5 is authorised only after Phase 4 completion, on isolated feature-split-db; its merge into feature-admin waits for the user’s review. The user specified fresh dev-academy-admin and dev-academy-core with active/unarchived records only; current Development routing and Phase 5 merge wait for Phase 4 review. No physical split is performed by this release.
+
 ## V107.27 — Phase 4 media and Library separation
 
 - Teacher own-note contribution uses verified authorship and immutable file versions, without general media editing or changing parent publication. Admin retains curation and current suppression.

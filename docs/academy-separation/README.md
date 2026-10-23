@@ -1,6 +1,6 @@
 # Academy separation final implementation brief
 
-Authorisation updated 22 October 2026: proceed through Phase 4 on `feature-admin`, keeping layouts and direct manual controls. Complete the UI/Development checkpoint below before any Phase 5 database split.
+Authorisation updated 23 October 2026: complete Phase 4 and the Development checkpoint, then begin Phase 5 on isolated feature-split-db with fresh dev-academy-admin and dev-academy-core. Copy active/unarchived records only. Hold Phase 5 merge into feature-admin and current Development routing until the user reviews Phase 4. Keep layouts and direct manual controls.
 
 Implementation authorised 22 October 2026. Phases 0 and 1 are complete on `feature-admin` at V107.23; Phases 2–6 follow the agreed delivery gates. See the [Phase 1 execution record](phase-1.md). Preparation is complete at the design level. This brief, the final access map, data ownership and phased plan are the active instructions. Current implementation evidence is recorded separately below. They replace the earlier expanding review proposals.
 
@@ -70,4 +70,6 @@ The Phase 0 execution record is [phase-0.md](phase-0.md). Development is paused 
 
 [Phase 1](phase-1.md), [Phase 2](phase-2.md), [Phase 3](phase-3.md) and [Phase 4](phase-4.md) record implemented changes and actual verification. [Implementation evidence](implementation-evidence.csv) distinguishes isolated checks from live verification and future physical-cutover work. The original 118-scenario matrix and baseline counts above are historical planning evidence. Use the [new field delta](field-map-phases-2-4.csv) with the original maps.
 
-Preview currently serves V107.25. Phase 3/4 changes are local pending explicit shared-schema approval and compatible release. The [UI/Development checkpoint](ui-development-checkpoint.md) must be complete before any physical split. No Phase 5 work has started.
+Preview V107.27 is verified and shared migrations 0033–0035 are approved/applied with original data preserved. V107.28 prepares the matching Development release. The [UI/Development checkpoint](ui-development-checkpoint.md) and its final deployment attestation must be complete before Phase 5 starts.
+
+The current [database use and legacy notes](database-carryover-notes.md) and [carry-over register](database-carryover-register.csv) record active dependencies, retired workflows and default exclusions for the future database. Use these with the field/settings maps; legacy names and empty tables alone are not exclusion evidence.

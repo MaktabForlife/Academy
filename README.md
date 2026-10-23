@@ -1,4 +1,4 @@
-# Umm Abbad Academy — V107.27
+# Umm Abbad Academy — V107.28
 
 The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 Academy application. Legacy Reboot remains in the separate `MaktabForlife/Rebootyourmaktab` repository.
 
@@ -7,6 +7,10 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - API: https://devrebootworker.maktab4life.workers.dev/
 - Database: existing `maktab-academy`; no data copy or reimport in this release.
 - HifzHelper keeps its separate Worker and D1; Academy provides profile and PIN updates plus a short-lived sign-in handoff.
+
+## V107.28 — Phase 4 Development checkpoint
+
+Enable the completed Admin separation in Development with the matching Worker and existing layouts. Shared migrations 0033–0035 are approved/applied and every original row is preserved. Include the active/legacy database carry-over register for future schema selection. Deployment verification is attested by the Phase 4 checkpoint tag; Phase 5 work is isolated and its merge into feature-admin waits for the user’s Phase 4 review. [Checkpoint](docs/academy-separation/ui-development-checkpoint.md).
 
 ## V107.27 — Media and Library separation, Phase 4
 

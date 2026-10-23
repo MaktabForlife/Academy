@@ -22,6 +22,7 @@ test('Development deployments select the clean runtime and retain existing stora
   assert.deepEqual(config.env.development.triggers.crons,['*/15 * * * *']);
   assert.deepEqual(config.migrations,[{tag:'v1052-program-timetable',new_sqlite_classes:['ProgramTimetableCoordinator']}]);
   assert.equal(config.main,'src/academy-worker-runtime.js');assert.equal(config.name,'devrebootworker');
+  for(const vars of [config.vars,config.env.development.vars])for(const [key,value] of Object.entries({ACADEMY_ACCEPTED_SETUP:'1',ACADEMY_LEARNING_OPERATIONS:'3',ACADEMY_MEDIA_SEPARATION:'1'}))assert.equal(vars[key],value,key);
 });
 test('the shared website calls Development on stable and preview addresses, with no production fallback',()=>{
   const directory=mkdtempSync('/private/tmp/academy-development-assets-');
@@ -30,6 +31,7 @@ test('the shared website calls Development on stable and preview addresses, with
     const config=readFileSync(join(directory,'js/m4l-config.js'),'utf8');
     for(const host of ['maktab4life.org','www.maktab4life.org','academy-maktab4life.pages.dev','development.academy-maktab4life.pages.dev','maktab-development.pages.dev','development.maktab-development.pages.dev','feature-academy-review-fixes.maktab-development.pages.dev','58d6b3bb.maktab-development.pages.dev','developmentmaktab4life.pages.dev','development.rebootdashboard.pages.dev']){
       const window={location:{hostname:host,origin:'https://'+host}};vm.runInNewContext(config,{window});assert.equal(window.M4L_CONFIG.API_BASE,'https://devrebootworker.maktab4life.workers.dev');assert.equal(window.M4L_CONFIG.ENV_NAME,'development');assert.equal(window.M4L_CONFIG.IS_PRODUCTION,false);
+      for(const feature of ['ACCEPTED_SETUP','NATIVE_ATTENDANCE','MEDIA_SEPARATION','MY_LINKS'])assert.equal(window.M4L_CONFIG[feature],true,feature);
     }
     for(const host of ['unknown.example','maktab4life.org.evil.example','evil.maktab4life.org','academy-maktab4life.pages.dev.evil.example','maktab-development.pages.dev.evil.example','rebootyourmaktab.maktabhelper.app']){
       const window={location:{hostname:host,origin:'https://'+host}};vm.runInNewContext(config,{window});assert.equal(window.M4L_CONFIG.API_BASE,'');

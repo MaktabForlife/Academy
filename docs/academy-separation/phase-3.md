@@ -22,3 +22,5 @@ Files retain immutable identities, their original R2 homes, real learner owner a
 - Shared migrations 0033/0034 require the pending explicit approval. They are prepared, not applied. The live preview remains V107.25; Development remains V107.22.
 
 Phase 4 media/library source and isolated verification are recorded in [Phase 4](phase-4.md); its shared schema and live release remain pending. The required complete-UI/Development checkpoint still precedes any physical database split.
+
+Execution update 23 October: the user approved migrations 0033–0035; exact files are applied and ledgered, original values are preserved and preview website/API V107.27 are verified. The V107.28 Development checkpoint uses an annotated deployment attestation; see [checkpoint](ui-development-checkpoint.md). Phase 5 is subsequently authorised only after that checkpoint and under the new isolated-branch/review hold.

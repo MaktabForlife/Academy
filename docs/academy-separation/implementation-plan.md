@@ -50,13 +50,13 @@ Added at the user's request on 22 October 2026. Complete and verify all UI and s
 
 At this checkpoint, integrate the completed feature work into `development` and publish the compatible website and Development Worker. Verify the deployed versions, access boundaries, ordinary assessment/media workflows and retained data/files. Development must be working on the completed UI before database-separation work continues.
 
-Do not begin Phase 5 database creation, copying, writer cutover or physical data moves until this checkpoint is complete. The current Phase 2 release remains preview-only; this checkpoint does not authorise skipping the remaining UI phases or starting the database split during Phase 2. Phase 5 still requires its own requested implementation scope.
+Do not begin Phase 5 database creation, copying, writer cutover or physical data moves until this checkpoint is complete. The current Phase 2 release remains preview-only; this checkpoint does not authorise skipping the remaining UI phases or starting the database split during Phase 2. On 23 October the user authorised Phase 5 on isolated feature-split-db after this checkpoint, with fresh dev-academy-admin and dev-academy-core and active/unarchived selection. Hold its merge into feature-admin and current Development routing until the user has reviewed Phase 4.
 
 Exit: UI complete; verification and Development release evidence recorded; compatible Development website and Worker confirmed. Record a recoverable release checkpoint before any database split.
 
 ## Phase 5 move coherent Admin data families
 
-The required UI/Development checkpoint above must be complete before this phase begins.
+The required UI/Development checkpoint above must be complete before this phase begins. The 23 October scope creates fresh dev-academy-admin and dev-academy-core on feature-split-db, selects active/unarchived records, retains old Development as the legacy/recovery source, and holds merge/routing changes until the user reviews Phase 4.
 
 Only after owner-aware paths are verified, prepare the Admin database/schema and read-only Core reference relationships. Rehearse each selected coherent family on isolated data: copy, dependency/hash/count checks, current permission/retry tests and resource measurements. Identify all source/target writers before switching.
 
@@ -93,6 +93,8 @@ The [design acceptance matrix](acceptance-matrix.csv) and matching [evidence map
 
 Each phase records the code/schema/map revision, role/context coverage, data/file preservation, actual test results and recovery evidence. Advance on verified deliverables, not a hidden button or a successful HTTP response alone. Routine checks are part of implementation and need no repeated policy-design approval. Implementation has been requested; advance on verified phase exit gates.
 
-## Current execution status — V107.27 preparation
+## Execution status — 23 October 2026
 
-Phase 2 is live on preview at V107.25 with migration 0032 and verified accepted-head bootstrap. Phase 3 is saved at local checkpoint 275c95f8 (V107.26). Phase 4 source and isolated UI/API verification are prepared for V107.27. Shared migrations 0033–0035, the matching preview release and the Development checkpoint remain pending; the explicit shared-database approval request names all three. See [Phase 4](phase-4.md) and the [release checkpoint](ui-development-checkpoint.md). Development remains V107.22. No Phase 5 database creation/copy/cutover is authorised or started.
+Migrations 0033–0035 are explicitly approved and applied. Live preservation checks retained all 4,361 original values/rows in the 114 pre-migration tables; foreign keys and private reconstruction integrity pass. Preview V107.27 website and feature Worker are verified. V107.28 enables the matching Development flags and includes the database use/carry-over notes. The final live Development checkpoint is attested only after deployment verification by tag academy-ui-separation-v107.28.
+
+Once that checkpoint is complete, Phase 5 may start on feature-split-db with fresh dev-academy-admin and dev-academy-core. Copy only active, unarchived records with an explicit reference manifest. The existing database stays in service for Phase 4 review and recovery. Do not merge Phase 5 into feature-admin or switch current Development to the fresh databases before the user reviews Phase 4. Eventual deletion of the old database is not part of this checkpoint.

@@ -31,3 +31,11 @@ PDF comparison, annotation, Whiteboard and bookmarks retain their existing tools
 0033 adds native attendance; 0034 preserves assessment identities/child references while allowing null duration/date and adds operational evidence; 0035 adds note entries/immutable versions/current visibility and publication cap guards. The shared database approval request names all three. Earlier approval applied only to 0032. None of 0033–0035 is applied live at this record's preparation point.
 
 After explicit approval, refresh and verify private recovery evidence, apply only the approved migration files/ledger entries, then deploy a matching feature Worker and feature website. Verify preview before completing the [UI/Development checkpoint](ui-development-checkpoint.md). Development and its Worker must then be released compatibly under the user's checkpoint instruction. Do not begin Phase 5 database creation, copy or writer cutover.
+
+## Execution update — 23 October 2026
+
+The user approved all three shared migrations. Fresh private backup/reconstruction and a second rehearsal passed before applying exact files 0033/0034/0035. Live original-column comparison preserved all 4,361 pre-existing rows in 114 tables, with no changed original values. Live foreign-key checks and private reconstructed integrity passed. The migration ledger now records all three new names. The post-migration schema has 134 application tables plus the deployment ledger and three views.
+
+Preview website/API V107.27 are live and verified: feature Worker version 255d3f81-1360-458e-973a-ee669e1bad98, accepted head 873d4402-0695-4725-90be-eed394410721, reader assets and frontend flags present, public snapshot/head successful and unauthenticated note access denied. V107.28 carries the Development configuration and current database-use notes. Final deployment verification is recorded in the checkpoint tag described below; source preparation alone is not that attestation.
+
+Phase 5 is now authorised after checkpoint completion, isolated on feature-split-db, with fresh dev-academy-admin and dev-academy-core and active/unarchived selection. Merge into feature-admin and the switch of current Development wait for the user’s Phase 4 review. The existing database is retained for recovery; it is not deleted here.
