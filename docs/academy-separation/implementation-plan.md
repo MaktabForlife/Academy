@@ -50,13 +50,13 @@ Added at the user's request on 22 October 2026. Complete and verify all UI and s
 
 At this checkpoint, integrate the completed feature work into `development` and publish the compatible website and Development Worker. Verify the deployed versions, access boundaries, ordinary assessment/media workflows and retained data/files. Development must be working on the completed UI before database-separation work continues.
 
-Do not begin Phase 5 database creation, copying, writer cutover or physical data moves until this checkpoint is complete. The current Phase 2 release remains preview-only; this checkpoint does not authorise skipping the remaining UI phases or starting the database split during Phase 2. On 23 October the user authorised Phase 5 on isolated feature-split-db after this checkpoint, with fresh dev-academy-admin and dev-academy-core and active/unarchived selection. Hold its merge into feature-admin and current Development routing until the user has reviewed Phase 4.
+Do not begin Phase 5 database creation, copying, writer cutover or physical data moves until this checkpoint is complete. The current Phase 2 release remains preview-only; this checkpoint does not authorise skipping the remaining UI phases or starting the database split during Phase 2. On 23 October the user authorised Phase 5 on isolated feature-split-db after this checkpoint, with fresh dev-academy-admin and dev-academy-core and active/unarchived selection. The user completed that review and authorised the feature-admin preview promotion on 23 October; current Development routing remains on Phase 4 pending a separate Phase 5 cutover instruction.
 
 Exit: UI complete; verification and Development release evidence recorded; compatible Development website and Worker confirmed. Record a recoverable release checkpoint before any database split.
 
 ## Phase 5 move coherent Admin data families
 
-Execution on 23 October: [Phase 5](phase-5.md) implements field-aware ownership, durable cross-store recovery and an isolated V107.30 preview with fresh active-record Core/Admin copies. Hosted integrity, write/rollback/revocation and local role/workflow/query-budget checks pass. Promotion into feature-admin and current Development remains held for Phase 4 review; those deployments stay V107.28.
+Execution on 23 October: [Phase 5](phase-5.md) implements field-aware ownership, durable cross-store recovery and an isolated V107.30 preview with fresh active-record Core/Admin copies. Hosted integrity, write/rollback/revocation and local role/workflow/query-budget checks pass. The user subsequently completed Phase 4 review and authorised V107.31 promotion into feature-admin with the matching split Worker. Current Development stays on the verified Phase 4 V107.28 release; a Phase 5 Development cutover remains separately gated.
 
 The required UI/Development checkpoint above must be complete before this phase begins. The 23 October scope creates fresh dev-academy-admin and dev-academy-core on feature-split-db, selects active/unarchived records, retains old Development as the legacy/recovery source, and holds merge/routing changes until the user reviews Phase 4.
 

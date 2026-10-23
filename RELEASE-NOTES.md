@@ -1,3 +1,7 @@
+# V107.31 — Phase 5 Admin feature preview
+
+Promote Phase 5 into `feature-admin` and deploy the matching default `feature_worker` against the prepared fresh Core/Admin databases. Keep current Development on the verified Phase 4 V107.28 release and original database. Retain current preview data, encrypted bindings, layouts, direct manual assessment controls, shared-service write holds and protected object storage. No database reload, new migration or Development database cutover.
+
 ## V107.29 — Fresh database preparation; activation held
 
 Prepare verified active/unarchived copies in fresh dev-academy-core and dev-academy-admin on feature-split-db. Preserve current authority, disable policies, required accepted references, original retry outcomes and exact file metadata while excluding retired import/discussion/attendance workflows. Verify hosted table hashes and source preservation; keep private recovery outside Git/assets. This checkpoint does not activate new owners or publish a split preview. Owner write routing, cross-store recovery and hosted workflow checks remain before Phase 5 completion; merge/current Development cutover also waits for the user's Phase 4 review.

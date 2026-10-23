@@ -1,10 +1,10 @@
 # Phase 5 — separate Core and Admin preview
 
-23 October 2026, `feature-split-db`, V107.30. Owner routing, recovery and the isolated split API are implemented and verified. The Pages preview is the release target. Promotion into `feature-admin` and current Development remains held for the user's Phase 4 review. The old database remains in service and must not be deleted.
+23 October 2026, V107.31 on `feature-admin`, following the user's completed Phase 4 review and explicit preview promotion instruction. Owner routing, recovery and the isolated split API were implemented and verified at V107.30 on `feature-split-db`. This release promotes the same prepared stores to the Admin feature preview. Current Development remains on Phase 4 V107.28 and its original database; a Phase 5 Development cutover is not authorised. The old database must not be deleted.
 
 ## Released UI checkpoint
 
-Development and the existing feature preview stay at V107.28, commit `8904ec2e9b4014f0f60ca1eddd0888fca5c67161`, tag `academy-ui-separation-v107.28`. The existing Development Worker is `422f6863-6e31-45f1-af43-6fdf3b5e9c77`; the existing feature default is `d3164187-7ddc-44a8-ab38-4c15092e2b8c`. [UI checkpoint](ui-development-checkpoint.md).
+The released Phase 4 checkpoint is V107.28, commit `8904ec2e9b4014f0f60ca1eddd0888fca5c67161`, tag `academy-ui-separation-v107.28`. Development still uses Worker `422f6863-6e31-45f1-af43-6fdf3b5e9c77`; the pre-promotion feature default was `d3164187-7ddc-44a8-ab38-4c15092e2b8c`. [UI checkpoint](ui-development-checkpoint.md).
 
 The current layouts, Student and Teacher audience projections and direct manual Admin assessment controls are retained. There are no new case entities, replacement lanes, automatic result holds or manual-exception workflows.
 
@@ -45,19 +45,31 @@ Core-only writers are protected by the same fence and an epoch comparison for co
 
 Private exports, SQL, diagnostics and verification snapshots are outside Git/public assets in `work/Academy-private-recovery/phase-5-20261023/`. No credential hash, session/token value, personal row or recovery payload is published in these documents.
 
-## Isolated release and hold
+## Original isolated release — V107.30
 
 - Website: <https://feature-split-db.academy-maktab4life.pages.dev/academy/>
 - API version URL: <https://split-db-feature_worker.maktab4life.workers.dev/>, version `43efe991-10e0-4f82-9882-4c137caaeb5d`.
 - Private coordinator: `academy_split_coordinator`, version `9f9a6cfe-268f-4e24-bccd-c21c5f4fe6c7`.
 
-The split API is an uploaded version of `feature_worker`, with its existing encrypted secrets inherited in place. It receives no default traffic; the existing feature default and Development Worker remain V107.28 against the original database. Its separate entrypoint has no cron. The split Pages target selects only the separate API and cannot silently fall back to Development.
+At the V107.30 isolated release, the split API was an uploaded version of `feature_worker`, with its encrypted secrets inherited in place and no default traffic. The feature default and Development were still V107.28 then. Its separate entrypoint has no cron. The split Pages target selects only the separate API and cannot silently fall back to Development.
 
-For isolation, this preview disables Hifz outbound/handoff and shared Open Library/My links writes; their existing reads and stores remain. New uploaded objects have explicit `dev-split-v1/` keys stored in their new database records. Physical deletes are suppressed in this preview, preserving original bytes and uncertain uploads. Promotion must restore the approved shared-service configuration deliberately, after reconciling preview work and the current source.
+For isolation, this preview disables Hifz outbound/handoff and shared Open Library/My links writes; their existing reads and stores remain. New uploaded objects have explicit `dev-split-v1/` keys stored in their new database records. Physical deletes are suppressed in this preview, preserving original bytes and uncertain uploads. These preview holds remain in V107.31. Restore shared-service writes deliberately during a separately authorised Development cutover, after reconciling preview work and the current source.
 
-## Promotion after Phase 4 review
+## Admin feature preview promotion — V107.31
 
-1. Obtain the user's Phase 4 review/promotion instruction; keep current Development and `feature-admin` held until then.
-2. Snapshot both sides, fence/drain original writers, select/reconcile final active source changes and any preview work. Verify exact authority, rows, references, accepted heads, retry outcomes and files again. Do not blindly overwrite a target after preview writes.
-3. Integrate into `feature-admin` with its matching split API/Pages configuration and intentional shared-service settings. Verify the complete role/file/recovery matrix before the later Development cutover.
-4. Keep original database/recovery copies until a separately reviewed retirement. Never fall back to a stale source once target work has been admitted.
+The user reviewed Phase 4 and requested Phase 4 on Development followed by Phase 5 on the Admin feature branch. Read-only live checks confirmed that the complete Phase 4 website and API were already live at V107.28. No new Development deployment is required for this instruction.
+
+`feature-admin` incorporates `feature-split-db` and selects `academy-split-runtime.js` for the default `feature_worker`. Its Pages config continues to call that Worker. The CORS allowlist admits both exact preview aliases and immutable Pages hosts; it rejects Development and unrelated hosts. Preview URLs stay enabled so the original V107.30 split URL remains usable. Authentication secrets are inherited encrypted in place. The private coordinator code is unchanged and is not redeployed.
+
+- Website: <https://feature-admin.academy-maktab4life.pages.dev/academy/>
+- API: <https://feature_worker.maktab4life.workers.dev/>
+- Stores: the same READY `dev-academy-core` and `dev-academy-admin` already used by the isolated preview. No reset, reimport or duplicate copy is part of promotion.
+- Recovery: fresh read-only snapshots of both preview stores and the original Development source are taken before promotion, with integrity/foreign-key verification. Target business data and journal readiness are checked before admission. Private exports remain outside Git and public assets.
+- Release verification: configuration/CORS, release markers, role/workflow/recovery regression, Worker dry run, Pages packaging, live health/config checks and desktop/mobile browser checks. The final deployed version and commit are attested by `academy-feature-admin-split-v107.31` after verification.
+
+## Later Development cutover
+
+1. Obtain separate authorisation to move Phase 5 into current Development. Snapshot both sides, fence/drain original writers and reconcile final active source changes with preview work. Do not blindly overwrite READY targets.
+2. Verify exact authority, rows, references, accepted heads, retry outcomes and files again. Deliberately restore the approved shared-service configuration before full Development use.
+3. Switch the matching Development website/API together and verify the complete role/file/recovery matrix. Never fall back to a stale source after admitting new target work.
+4. Retain the original database and recovery copies until separately reviewed retirement. Deletion is not part of the preview promotion.

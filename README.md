@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.30
+# Umm Abbad Academy — V107.31
+
+## V107.31 — Phase 5 on the Admin feature preview
+
+Promote the Phase 5 implementation after Phase 4 review to `feature-admin` and its matching `feature_worker`, using the existing fresh `dev-academy-core` and `dev-academy-admin` stores. Development retains the verified Phase 4 V107.28 release and original database. Preserve preview data, layouts, direct manual Admin controls and the isolated preview limits on shared-service writes. [Promotion record](docs/academy-separation/phase-5.md).
 
 ## V107.30 — Separate Core and Admin preview
 
@@ -202,11 +206,11 @@ Cloudflare Pages uses `npm --prefix backend ci && node backend/tools/academy-pag
 
 Deploy the matching API with `npm --prefix backend run deploy:development`. The default deploy command also selects Development. This branch contains no deployment configuration for the legacy production Worker.
 
-Development and `feature-admin` select separate Worker code. Changing a website or Worker Git branch selects code only. The Development database, uploaded files, sessions and Open Library metadata retain their existing storage identities. Test edits therefore affect this shared Development data.
+Development remains at the Phase 4 V107.28 checkpoint on `devrebootworker` and the original `maktab-academy` database. The Phase 5 `feature-admin` preview uses `feature_worker` with `dev-academy-core`, `dev-academy-admin` and the private split coordinator. The earlier `feature-split-db` preview uses its separate version URL against those same preview stores. Preview edits therefore affect both preview sites, independently of the current Development database.
 
 ## Storage and recovery
 
-Keep the existing D1, assessment and lesson-media buckets, shared public-media bucket, login rate limiter and `PROGRAM_TIMETABLE_COORDINATOR` binding. Its deployed class name remains stable to preserve Open Library metadata. `ACADEMY_OPEN_LIBRARY_STORAGE_KEY` stores the complete existing Cloudflare object name and has no Google dependency.
+Retain the original Development D1 database for the Phase 4 site and recovery. Phase 5 preview uses the two new D1 stores. Keep the existing assessment and lesson-media buckets, shared public-media bucket, login rate limiter and `PROGRAM_TIMETABLE_COORDINATOR` binding. Its deployed class name remains stable to preserve Open Library metadata. The split preview retains shared-service write holds, stores new object keys under `dev-split-v1/` and suppresses physical object deletion while the split is reviewed. `ACADEMY_OPEN_LIBRARY_STORAGE_KEY` stores the complete existing Cloudflare object name and has no Google dependency.
 
 Offline snapshot validation, import verification, provenance and recovery tools remain under `backend/tools/academy-migration/`. They read saved snapshots; the online Google capture client has been retired. No database migration runs during ordinary deployment.
 

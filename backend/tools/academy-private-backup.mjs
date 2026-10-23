@@ -10,7 +10,7 @@ import {fileURLToPath} from 'node:url';
 import {resolve,join} from 'node:path';
 const directory=process.argv[2];if(!directory?.startsWith('/private/tmp/academy-'))throw Error('Use a private /private/tmp/academy-… recovery directory.');
 await mkdir(directory,{recursive:true,mode:0o700});await chmod(directory,0o700);
-const root=fileURLToPath(new URL('../../',import.meta.url)),cli=join(root,'backend/node_modules/wrangler/bin/wrangler.js'),run=promisify(execFile),config=join(root,'backend/wrangler.feature.jsonc');
+const root=fileURLToPath(new URL('../../',import.meta.url)),cli=join(root,'backend/node_modules/wrangler/bin/wrangler.js'),run=promisify(execFile),config=join(root,'backend/wrangler.academy-main.jsonc');
 async function query(sql){
  try{const result=await run(process.execPath,[cli,'d1','execute','maktab-academy','--remote','--config',config,'--command',sql,'--json'],{cwd:join(root,'backend'),maxBuffer:32*1024*1024,env:{...process.env,WRANGLER_LOG_PATH:join(directory,'query.log'),WRANGLER_LOG_SANITIZE:'true',WRANGLER_SEND_METRICS:'false'}});const data=JSON.parse(result.stdout);if(!data.every(r=>r.success))throw Error('query failed');return data.flatMap(r=>r.results);}
  catch(error){await writeFile(join(directory,'failure.log'),String(error.stdout||error.stderr||error.message),{mode:0o600});throw Error('Recovery query failed. See the private failure log.');}

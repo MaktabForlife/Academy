@@ -1,5 +1,6 @@
 import academy from './academy-runtime.js';
-const allowed=origin=>/^https:\/\/(?:feature-split-db|[a-f0-9]{8})\.academy-maktab4life\.pages\.dev$/.test(origin||'');
+export const splitPreviewOrigin=origin=>/^https:\/\/(?:feature-admin|feature-split-db|[a-f0-9]{8})\.academy-maktab4life\.pages\.dev$/.test(origin||'');
+const allowed=splitPreviewOrigin;
 const protectedBucket=bucket=>bucket&&new Proxy(bucket,{get(target,name){if(name==='delete')return async()=>{};const value=target[name];return typeof value==='function'?value.bind(target):value;}});
 export default {
  fetch(request,env,ctx){

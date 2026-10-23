@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import {readFileSync,mkdtempSync,rmSync} from 'node:fs';
 import {join} from 'node:path';
 import {buildAcademyAssets} from '../tools/academy-assets.mjs';
-import feature,{featurePreviewOrigin} from '../src/academy-feature-runtime.js';
+import feature,{splitPreviewOrigin as featurePreviewOrigin} from '../src/academy-split-runtime.js';
 import {cleanupFixture} from './fixtures/academy-cleanup-fixture.mjs';
 
 test('feature packaging uses its own API and cannot select the main website',()=>{
@@ -22,13 +22,18 @@ test('feature packaging uses its own API and cannot select the main website',()=
  }finally{rmSync(directory,{recursive:true,force:true});}
 });
 
-test('the feature Worker shares current storage without changing the Development Worker or adding a schedule',()=>{
+test('the feature Worker uses separate Admin/Core stores while Development retains its current database and schedule',()=>{
  const read=file=>JSON.parse(readFileSync(new URL(file,import.meta.url),'utf8'));
  const config=read('../wrangler.feature.jsonc'),development=read('../wrangler.jsonc');
  assert.equal(config.name,'feature_worker');assert.equal(development.name,'devrebootworker');
- assert.deepEqual(config.d1_databases,development.d1_databases);assert.deepEqual(config.r2_buckets,development.r2_buckets);
+ assert.equal(config.main,'src/academy-split-runtime.js');
+ assert.deepEqual(config.d1_databases.map(d=>d.database_name).sort(),['dev-academy-admin','dev-academy-core']);
+ assert.equal(development.d1_databases[0].database_name,'maktab-academy');
+ assert.equal(config.vars.ACADEMY_DB_GENERATION,'SPLIT_V1');assert.equal(development.vars.ACADEMY_DB_GENERATION,undefined);
+ assert.deepEqual(config.r2_buckets,development.r2_buckets);
  assert.deepEqual(config.ratelimits,development.ratelimits);
- assert.deepEqual(config.durable_objects.bindings,[{name:'PROGRAM_TIMETABLE_COORDINATOR',class_name:'ProgramTimetableCoordinator',script_name:'devrebootworker'}]);
+ assert.deepEqual(config.durable_objects.bindings,[{name:'PROGRAM_TIMETABLE_COORDINATOR',class_name:'ProgramTimetableCoordinator',script_name:'devrebootworker'},{name:'ACADEMY_SPLIT_COORDINATOR',class_name:'AcademySplitCoordinator',script_name:'academy_split_coordinator'}]);
+ assert.equal(config.preview_urls,true);assert.equal(config.vars.HIFZ_HANDOFF_ENABLED,'0');
  assert.deepEqual(config.triggers.crons,[]);assert.equal(feature.scheduled,undefined);assert.equal(config.migrations,undefined);
  assert(config.secrets.required.includes('SHARED_PIN_SECRET'));assert(config.secrets.required.includes('ACADEMY_OPEN_LIBRARY_STORAGE_KEY'));
 });
@@ -36,7 +41,7 @@ test('the feature Worker shares current storage without changing the Development
 test('only feature Pages origins pass CORS, including immutable deployments; workspace headers are accepted',async()=>{
  const f=await cleanupFixture();
  try{
-  for(const origin of ['https://feature-admin.academy-maktab4life.pages.dev','https://abcdef12.academy-maktab4life.pages.dev']){
+  for(const origin of ['https://feature-admin.academy-maktab4life.pages.dev','https://feature-split-db.academy-maktab4life.pages.dev','https://abcdef12.academy-maktab4life.pages.dev']){
    assert(featurePreviewOrigin(origin));
    const response=await feature.fetch(new Request('https://feature.invalid/api/health',{headers:{Origin:origin}}),f.env);
    assert.equal(response.status,200);assert.equal(response.headers.get('Access-Control-Allow-Origin'),origin);
