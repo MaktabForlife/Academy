@@ -2,7 +2,7 @@
  'use strict';
  const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const token=()=>localStorage.getItem('m4l_account_token')||'',params=new URLSearchParams(location.search),now=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
- const calendarView=window.M4L_ACADEMY_WORKSPACE?.current().toLowerCase()||(['learn','teach'].includes(params.get('view'))?params.get('view'):'admin');
+ const calendarView=window.M4L_ACADEMY_WORKSPACE?.audience().toLowerCase()||(['learn','teach'].includes(params.get('view'))?params.get('view'):'admin');
  const model={rangeEdit:null,rangeOriginal:'',entryMode:'single',year:now.getFullYear(),month:now.getMonth()+1,scopeKey:params.get('program')?'PROGRAM:'+params.get('program'):'ACADEMY',teacherId:params.get('teacher')||undefined,data:null,cache:new Map(),generation:0,busy:false,entry:null,ranges:[],pending:null};
  if(params.get('embed')==='1'){
   document.documentElement.classList.add('calendar-embedded');

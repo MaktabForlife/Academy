@@ -41,12 +41,27 @@ test('an account change while resolving the publication cannot send the delayed 
  const pending=f.window.fetch('https://api.invalid/api/academy/progress/mark',{method:'POST',body:'{}'});f.token('another-actor');release();await assert.rejects(pending,{name:'AbortError'});assert.equal(f.calls.length,1);
 });
 
-test('class selection travels only with Learn and rejects a response captured for another class',async()=>{
+test('class selection travels only with Admin-Learn and rejects a response captured for another class',async()=>{
  const f=fixture(),workspace=f.window.M4L_ACADEMY_WORKSPACE,first={activityKey:'PROGRAM:scope',classId:'one'},second={...first,classId:'two'};
+ assert.equal(workspace.studentClass(first),false);f.location.pathname='/academy/admin/';workspace.commit();assert.equal(workspace.current(),'ADMIN_LEARN');
  assert.equal(workspace.studentClass(first),true);
  const response=await f.window.fetch('https://api.invalid/api/academy/entrance');
  assert.deepEqual(JSON.parse(decodeURIComponent(f.calls[0].options.headers.get('X-Academy-Class'))),first);
  workspace.studentClass(second);await assert.rejects(response.json(),{name:'AbortError'});
  f.location.hash='#timetable/teach';workspace.commit();await f.window.fetch('https://api.invalid/api/academy/attendance/get');
  assert.equal(f.calls[1].options.headers.get('X-Academy-Class'),null);
+});
+
+
+test('Admin reader URLs never redirect to personal pages and changing realms discards captured replies',async()=>{
+ const f=fixture(),w=f.window.M4L_ACADEMY_WORKSPACE;
+ const personal=await f.window.fetch('https://api.invalid/api/academy/entrance');
+ f.location.pathname='/academy/admin/';assert.equal(w.commit(),true);assert.equal(w.current(),'ADMIN_LEARN');assert.equal(w.audience(),'LEARN');assert.equal(w.canonical(),'');assert.equal(w.adminRealm(),true);
+ await assert.rejects(personal.json(),{name:'AbortError'});
+ const view={activityKey:'PROGRAM:scope',classId:'one'};w.studentClass(view);
+ const reader=new URL(w.readerUrl('/academy/pdf-reader/?file=fixture'));assert.equal(reader.searchParams.get('workspace'),'ADMIN_LEARN');assert.equal(reader.searchParams.get('studentClass'),'one');
+ f.location.hash='#activity/PROGRAM/scope/teach/assessment';w.commit();assert.equal(w.current(),'ADMIN_TEACH');assert.equal(w.classView(),null);
+ const teaching=await f.window.fetch('https://api.invalid/api/academy/assessments/list');assert.equal(f.calls.at(-1).options.headers.get('X-Academy-Workspace'),'ADMIN_TEACH');
+ f.location.pathname='/academy/';w.commit();assert.equal(w.current(),'TEACH');assert.equal(w.adminRealm(),false);await assert.rejects(teaching.json(),{name:'AbortError'});
+ await f.window.fetch('https://api.invalid/api/academy/entrance',{headers:{'X-Academy-Class':'forged','X-Academy-Workspace':'ADMIN_TEACH'}});assert.equal(f.calls.at(-1).options.headers.get('X-Academy-Class'),null);assert.equal(f.calls.at(-1).options.headers.get('X-Academy-Workspace'),'TEACH');
 });

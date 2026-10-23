@@ -1,3 +1,27 @@
+# Distinct Admin readers — V107.34
+
+The 23 October clarification supersedes the V107.32/33 routing: Admin-Learn and Admin-Teach must be distinct from personal Learn and Teach. The implementation below corrects the shared reader contexts described in the historical release record.
+
+| Workspace | Address | Request context | Access |
+| --- | --- | --- | --- |
+| Personal Learn | `/academy/#timetable/learn` | `LEARN` | Own enrolments/subscriptions and ordinary public Course access; no inherited Admin preview |
+| Personal Teach | `/academy/#timetable/teach` | `TEACH` | Own genuine Teacher/session/class assignments and dated substitute grants |
+| Admin-Learn | `/academy/admin/#timetable/learn` | `ADMIN_LEARN` | Read-only Student class audience within current Admin scope; no learner identity, membership, attempt, personal result or submission |
+| Admin-Teach | `/academy/admin/#timetable/teach` | `ADMIN_TEACH` | Actual Teacher actions in every session within current Admin scope, recorded under the real actor |
+| Admin management | `/academy/admin/#administration` | `ADMIN` | Existing current scoped management and explicit publication/release controls |
+
+Global Admin has Academy-wide Admin reader scope. Program/Course Admin has its assigned areas. A personal assignment outside an Admin’s managed areas stays in the personal workspace; it does not extend that account’s Admin readers. Role revocation takes effect on subsequent requests. Ordinary non-admin accounts cannot select either Admin reader context. Named-examiner, owner, moderation, publication, hidden media and release restrictions remain.
+
+The Admin shell displays ADMIN-LEARN / ADMIN-TEACH tabs and a persistent current-workspace banner. Personal exit links explicitly open the personal address. Home and Close retain the invoking realm. Calendar, Library/media and PDF tabs carry the exact context and selected class; the PDF reader also labels its own header. Switching contexts invalidates pending responses. New cache identities discard the earlier combined reader snapshots and keep pending attendance drafts separate. Existing unsaved-work guards apply before exits.
+
+No database migration, persisted assignment expansion or learner enrolment is introduced. Actual authority proof remains based on the real account/roles. Existing Core/Admin split ownership, manual edge-case handling and preview holds remain unchanged. Deployment is restricted to feature-admin and feature_worker; Development remains the Phase 4 V107.28 checkpoint.
+
+Regression coverage includes direct HTTP denial of inherited access from personal contexts, forged Admin contexts, cross-class protected media, own Teacher actions in Admin-Teach, current revocation, mixed personal/Admin scopes, examiner/release boundaries and client delayed-response isolation. Desktop/phone verification covers explicit Admin routing, class switching, attendance, personal exits and reader context preservation.
+
+Final V107.34 validation: all 98 regression test files passed. The 42 focused reader checks passed, including an Admin who also owns a learner card, without selecting a class. Isolated desktop/phone checks passed 16 Global/scoped Admin cases covering labels, class switching, attendance, explicit personal exits, browser Back and PDF context preservation; ordinary students receive no Admin selector/banner. Fresh read-only Core/Admin recovery exports passed integrity and foreign-key verification (1,970 and 528 rows respectively). No migration or reimport is part of this release.
+
+## Historical V107.33 record (shared routing superseded)
+
 # Admin teaching inheritance and student class views — V107.33
 
 The user clarified on 23 October 2026 that Global Admin is an actual Teacher in every session globally, and Program/Course Admin is an actual Teacher in every session of their assigned area. Learn provides the Student view for each selected class. It does not automatically enrol Admin in every class or create learner work.

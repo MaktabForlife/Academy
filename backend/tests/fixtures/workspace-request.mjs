@@ -9,7 +9,9 @@ export class WorkspaceRequest extends NativeRequest {
    try{role=JSON.parse(Buffer.from(token.split('.')[1],'base64url').toString()).role;}catch{}
    try{input=JSON.parse(typeof options.body==='string'?options.body:'{}');}catch{}
    const path=new URL(url instanceof NativeRequest?url.url:url).pathname;
-   headers.set('X-Academy-Workspace',path.startsWith('/api/admin/')||input.view==='admin'?'ADMIN':input.view==='learner'||input.view==='learn'||input.view==='self'?'LEARN':input.view==='teach'||input.view==='teacher'?'TEACH':['GLOBAL_ADMIN','PROGRAM_ADMIN'].includes(role)?'ADMIN':role==='TEACHER'?'TEACH':'LEARN');
+   // Legacy workflow fixtures request the explicit Admin reader when an Admin actor asks for a reader view. Native Request boundary tests exercise personal contexts separately.
+   const adminReader=['GLOBAL_ADMIN','PROGRAM_ADMIN'].includes(role);
+   headers.set('X-Academy-Workspace',path.startsWith('/api/admin/')||input.view==='admin'?'ADMIN':input.view==='learner'||input.view==='learn'||input.view==='self'?(adminReader?'ADMIN_LEARN':'LEARN'):input.view==='teach'||input.view==='teacher'?(adminReader?'ADMIN_TEACH':'TEACH'):['GLOBAL_ADMIN','PROGRAM_ADMIN'].includes(role)?'ADMIN':role==='TEACHER'?'TEACH':'LEARN');
   }
   super(url,{...options,headers});
  }

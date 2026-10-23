@@ -8,7 +8,7 @@
   const state={programs:[],id:'',accountPath:'',session:'',owner:'',data:null,busy:false,pending:null,stale:false,selection:new Map(),draft:new Map(),draftBase:new Map()};
   let generation=0;
   const current=run=>run===generation&&state.session===token();
-  const pendingKey=()=>`m4l-program-attendance-pending:${native()?'NATIVE_V1':'v2'}:${state.owner}:${state.id}`;
+  const pendingKey=()=>`m4l-program-attendance-pending:${window.M4L_ACADEMY_WORKSPACE?.current()||'TEACH'}:${native()?'NATIVE_V1':'v2'}:${state.owner}:${state.id}`;
   const message=(value,error=false)=>{$('pa-message').textContent=value;$('pa-message').classList.toggle('is-error',error);};
   const clearDraft=()=>{state.draft.clear();state.draftBase.clear();};
   const discard=()=>!state.draft.size||window.confirm('Discard your unsubmitted attendance changes?');

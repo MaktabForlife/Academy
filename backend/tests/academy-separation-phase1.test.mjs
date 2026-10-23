@@ -26,13 +26,13 @@ async function exam(f){
  return {id,input,paperId:file.fileId};
 }
 test('one real identity has separate Learn, Teach and Admin projections; headerless reads are Learn',()=>use(async f=>{
- for(const mode of ['LEARN','TEACH','ADMIN']){
+ for(const mode of ['LEARN','TEACH','ADMIN','ADMIN_LEARN','ADMIN_TEACH']){
   const home=ok(await f.request('/api/academy/entrance',{},'global',mode));
   assert.equal(home.workspace,mode);assert.equal(home.workspaceAccess.admin,true);
   assert.equal(home.globalAdmin,mode==='ADMIN');
   if(mode!=='ADMIN'){
-   assert(home.personalActivities.length>0);assert(home.personalActivities.every(a=>a.roles.every(r=>r===(mode==='TEACH'?'TEACHER':'STUDENT'))));
-   if(mode==='LEARN')assert(home.personalTimetable.every(r=>!r.joinKey&&!r.joinUrl));else assert(home.personalTimetable.some(r=>r.joinKey&&r.involvement==='teacher'));
+   if(mode.startsWith('ADMIN_'))assert(home.personalActivities.length>0);else assert(!home.personalActivities.some(a=>a.kind+':'+a.id===scopes.programA||a.kind+':'+a.id===scopes.courseA));assert(home.personalActivities.every(a=>a.roles.every(r=>r===(mode.endsWith('TEACH')?'TEACHER':'STUDENT'))));
+   if(mode==='ADMIN_TEACH')assert(home.personalTimetable.some(r=>r.joinKey&&r.involvement==='teacher'));else assert(home.personalTimetable.every(r=>!r.joinKey&&!r.joinUrl));
    assert(!home.activityPages.some(a=>a.tools?.manage||a.tools?.users||a.tools?.resources));
   }
  }
@@ -42,7 +42,7 @@ test('one real identity has separate Learn, Teach and Admin projections; headerl
 }));
 test('Admin commands and old aliases reject reader workspaces, including successful retry identifiers',()=>use(async f=>{
  const x=await exam(f);
- for(const mode of ['LEARN','TEACH']){
+ for(const mode of ['LEARN','TEACH','ADMIN_LEARN','ADMIN_TEACH']){
   const retry=await f.request('/api/academy/assessments/create',x.input,'global',mode);assert.equal(retry.status,403);
   for(const path of ['/api/admin/platform/programs/list','/api/admin/platform/user-profiles/get','/api/admin/platform/courses/list','/api/admin/platform/pdf-tools/get','/api/admin/platform/settings/get','/api/academy/assessments/report-data','/api/academy/assessments/release'])assert.equal((await f.request(path,{},'global',mode)).status,403,path);
  }
@@ -51,9 +51,9 @@ test('Admin commands and old aliases reject reader workspaces, including success
 test('Learn assessment JSON omits staff configuration and inline marks, including nested details',()=>use(async f=>{
  const x=await exam(f);
  for(const who of ['global','adminA','studentA','dual']){
-  const list=ok(await f.request('/api/academy/assessments/list',{activityKey:scopes.programA},who,'LEARN'));
+  const list=ok(await f.request('/api/academy/assessments/list',{activityKey:scopes.programA},who,['global','adminA'].includes(who)?'ADMIN_LEARN':'LEARN'));
   assert.equal(list.canAdmin,false);assert.deepEqual(list.classes,[]);assert.deepEqual(list.registers,[]);assert(list.assessments.some(a=>a.id===x.id));
-  const detail=ok(await f.request('/api/academy/assessments/get',{assessmentId:x.id,view:'teacher'},who,'LEARN'));
+  const detail=ok(await f.request('/api/academy/assessments/get',{assessmentId:x.id,view:'teacher'},who,['global','adminA'].includes(who)?'ADMIN_LEARN':'LEARN'));
   const json=JSON.stringify(detail);for(const field of ['durationMinutes','maximumMark','"mark":','details_json'])assert(!json.includes(field),field);
   assert.equal(detail.assessment.canTeach,false);assert.equal(detail.assessment.canAdmin,false);
   assert(detail.learners.every(r=>r.accountId===actors[who]));
@@ -62,35 +62,35 @@ test('Learn assessment JSON omits staff configuration and inline marks, includin
 }));
 test('previewing and downloading a paper starts no participant event; genuine own access still does',()=>use(async f=>{
  const x=await exam(f),before=f.db.prepare('SELECT count(*) n FROM assessment_events').get().n;
- for(const who of ['global','adminA','dual']){
-  assert.equal((await f.request('/api/academy/assessments/download',{fileId:x.paperId,...op()},who,'LEARN')).status,200);
+ for(const who of ['global','adminA']){
+  assert.equal((await f.request('/api/academy/assessments/download',{fileId:x.paperId,...op()},who,['global','adminA'].includes(who)?'ADMIN_LEARN':'LEARN')).status,200);
   const upload={kind:'ANSWER',assessmentId:x.id,recipientRevision:0,size:9,filename:'x.pdf',mimeType:'application/pdf',sha256:'0'.repeat(64),...op()};
-  assert.equal((await f.request('/api/academy/assessments/upload?metadata='+encodeURIComponent(JSON.stringify(upload)),{},who,'LEARN',Buffer.from('%PDF-test'))).status,403);
+  assert.equal((await f.request('/api/academy/assessments/upload?metadata='+encodeURIComponent(JSON.stringify(upload)),{},who,['global','adminA'].includes(who)?'ADMIN_LEARN':'LEARN',Buffer.from('%PDF-test'))).status,403);
  }
  assert.equal(f.db.prepare('SELECT count(*) n FROM assessment_events').get().n,before);
  const uploaded=ok(await f.upload({kind:'ANSWER',assessmentId:x.id,recipientRevision:0},await f.actor('studentA'))),received=f.db.prepare('SELECT count(*) n FROM assessment_events').get().n;
- assert.equal((await f.request('/api/academy/assessments/download',{fileId:uploaded.fileId,...op()},'global','TEACH')).status,200);
+ assert.equal((await f.request('/api/academy/assessments/download',{fileId:uploaded.fileId,...op()},'global','ADMIN_TEACH')).status,200);
  assert(f.db.prepare('SELECT count(*) n FROM assessment_events').get().n>received,'Inherited Teacher viewing records the actual answer check');
  assert.equal((await f.request('/api/academy/assessments/download',{fileId:x.paperId,...op()},'studentA','LEARN')).status,200);
  assert(f.db.prepare('SELECT first_accessed_at FROM assessment_recipients WHERE assessment_id=? AND account_id=?').get(x.id,actors.studentA).first_accessed_at);
 }));
 test('inherited teaching has ordinary Teacher fields while named-examiner and Admin boundaries remain',()=>use(async f=>{
  const x=await exam(f);
- const preview=ok(await f.request('/api/academy/assessments/get',{assessmentId:x.id},'global','TEACH'));
+ const preview=ok(await f.request('/api/academy/assessments/get',{assessmentId:x.id},'global','ADMIN_TEACH'));
  assert.equal(preview.assessment.canAdmin,false);assert.equal(preview.assessment.readOnly,false);assert.equal(preview.assessment.canSubmitPaper,false);assert.equal(preview.assessment.isExaminer,false);
  const before=f.db.prepare('SELECT count(*) n FROM assessment_events').get().n;
- for(const action of ['mark'])assert.equal((await f.request('/api/academy/assessments/'+action,{assessmentId:x.id,revision:preview.assessment.revision,...op()},'global','TEACH')).status,403);
+ for(const action of ['mark'])assert.equal((await f.request('/api/academy/assessments/'+action,{assessmentId:x.id,revision:preview.assessment.revision,...op()},'global','ADMIN_TEACH')).status,403);
  assert.equal(f.db.prepare('SELECT count(*) n FROM assessment_events').get().n,before);
  const teacher=ok(await f.request('/api/academy/assessments/get',{assessmentId:x.id},'teacherA','TEACH'));assert.equal(teacher.assessment.isExaminer,true);assert.equal(teacher.assessment.readOnly,false);
  const dual=ok(await f.request('/api/academy/assessments/get',{assessmentId:x.id},'dual','TEACH'));assert.equal(dual.assessment.canAdmin,false);assert.equal(dual.assessment.readOnly,false);
  assert.equal((await f.request('/api/academy/assessments/get',{assessmentId:x.id},'teacherB','TEACH')).status,403);
  f.db.prepare("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state) VALUES('global-real-teacher',?,?,'TEACHER',1,'CONFIRMED')").run(actors.global,scopes.programA);
- const unassigned=ok(await f.request('/api/academy/assessments/list',{activityKey:scopes.programA},'global','TEACH')).assessments.find(a=>a.id===x.id);assert.equal(unassigned.readOnly,false);assert.equal(unassigned.isExaminer,false);
- assert.equal((await f.request('/api/academy/assessments/ready-assessment',{assessmentId:x.id,revision:preview.assessment.revision,...op()},'global','TEACH')).status,409,'Teacher Ready respects outstanding submissions');
+ const unassigned=ok(await f.request('/api/academy/assessments/list',{activityKey:scopes.programA},'global','TEACH')).assessments.find(a=>a.id===x.id);assert.equal(unassigned,undefined,'Personal Teach needs this class assignment');
+ assert.equal((await f.request('/api/academy/assessments/ready-assessment',{assessmentId:x.id,revision:preview.assessment.revision,...op()},'global','ADMIN_TEACH')).status,409,'Teacher Ready respects outstanding submissions');
 }));
 test('published media metadata and bytes agree in all reader contexts; preview cannot edit or upload',()=>use(async f=>{
  const {lessonId,assetId}=await f.seedCoursePdf();
- for(const mode of ['LEARN','TEACH'])for(const who of ['global','adminA']){
+ for(const mode of ['ADMIN_LEARN','ADMIN_TEACH'])for(const who of ['global','adminA']){
   const download=await f.request('/api/academy/lesson-media/download',{lessonId,assetId},who,mode);assert.equal(download.status,200);assert(download.body.startsWith('%PDF-'));
   const view=ok(await f.request('/api/academy/lesson-media/calendar',{activityKey:scopes.courseA,startDate:'2026-10-01',endDate:'2026-10-07'},who,mode));
   assert.equal(view.courseFiles.canManage,false);assert.equal(view.courseFiles.media.canManage,false);assert.deepEqual(view.courseFiles.media.lessons,[]);
@@ -101,16 +101,16 @@ test('published media metadata and bytes agree in all reader contexts; preview c
  }
  assert.equal((await f.request('/api/academy/lesson-media/download',{lessonId,assetId},'adminB','LEARN')).status,403);
  f.db.prepare("UPDATE lesson_media_lessons SET state='HIDDEN' WHERE lesson_id=?").run(lessonId);
- assert.equal((await f.request('/api/academy/lesson-media/download',{lessonId,assetId},'global','LEARN')).status,403);
+ assert.equal((await f.request('/api/academy/lesson-media/download',{lessonId,assetId},'global','ADMIN_LEARN')).status,403);
  assert.equal((await f.request('/api/academy/lesson-media/download',{lessonId,assetId},'global','ADMIN')).status,200);
 }));
 test('a scoped Admin cannot teach outside their Program; Learn and management boundaries remain',()=>use(async f=>{
  const before=f.db.prepare('SELECT version FROM academy_write_state').get().version;
  for(const [path,input] of [['/api/program-attendance/submit',{id:scopes.programA.slice(8)}],['/api/academy/planning/save',{activityKey:scopes.programA}],['/api/academy/progress/confirm',{activityKey:scopes.programA,classId:'class-1',updates:[]}]])assert.equal((await f.request(path,{...input,...op()},'adminB','TEACH')).status,403,path);
  assert.equal(f.db.prepare('SELECT version FROM academy_write_state').get().version,before);
- assert.equal((await f.request('/api/academy/teacher-availability/get',{accountId:actors.teacherA},'global','TEACH')).status,403);
- assert.equal((await f.request('/api/academy/teacher-availability/save',op(),'global','TEACH')).status,403);
- assert.equal((await f.request('/api/academy/progress/grid',{activityKey:scopes.programA,classId:'class-1'},'global','LEARN')).status,403);
+ assert.equal((await f.request('/api/academy/teacher-availability/get',{accountId:actors.teacherA},'global','ADMIN_TEACH')).status,403);
+ assert.equal((await f.request('/api/academy/teacher-availability/save',op(),'global','ADMIN_TEACH')).status,403);
+ assert.equal((await f.request('/api/academy/progress/grid',{activityKey:scopes.programA,classId:'class-1'},'global','ADMIN_LEARN')).status,403);
  assert.equal((await f.request('/api/academy/teacher-availability/save',op(),'teacherA','ADMIN')).status,403,'selecting Admin does not give a Teacher administration rights');
 }));
 test('time zone is Global Admin only, uses the existing app setting, and preserves area/history data',()=>use(async f=>{
@@ -124,9 +124,9 @@ test('time zone is Global Admin only, uses the existing app setting, and preserv
 }));
 test('current revocation and account disable invalidate a previously usable preview and file reference',()=>use(async f=>{
  const {lessonId,assetId}=await f.seedCoursePdf();
- assert.equal((await f.request('/api/academy/lesson-media/download',{lessonId,assetId},'adminA','LEARN')).status,200);
+ assert.equal((await f.request('/api/academy/lesson-media/download',{lessonId,assetId},'adminA','ADMIN_LEARN')).status,200);
  f.db.prepare('UPDATE role_assignments SET active=0 WHERE account_id=?').run(actors.adminA);
- assert([401,403].includes((await f.request('/api/academy/lesson-media/download',{lessonId,assetId},'adminA','LEARN')).status));
+ assert([401,403].includes((await f.request('/api/academy/lesson-media/download',{lessonId,assetId},'adminA','ADMIN_LEARN')).status));
  f.db.prepare('UPDATE accounts SET active=0 WHERE account_id=?').run(actors.global);
  assert.equal((await f.request('/api/academy/entrance',{},'global','ADMIN')).status,401);
 }));

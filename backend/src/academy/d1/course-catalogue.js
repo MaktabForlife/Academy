@@ -26,7 +26,8 @@ export async function d1CourseCatalogue(repository,auth,now=new Date()) {
   const [rows,assignments,paid]=results.map(r=>r.results),globalAdmin=Boolean(auth.state.account.global_admin);
   const courses=[];
   for(const r of rows) {
-    const roles=readerRoles(auth,[...new Set([...assignments,...auth.state.roles].filter(a=>same(a.activity_key,r.activity_key)).map(a=>a.role))]);
+    if(auth.adminView&&!administers(auth,r.activity_key))continue;
+    const roles=readerRoles(auth,[...new Set([...assignments,...auth.state.roles].filter(a=>same(a.activity_key,r.activity_key)).map(a=>a.role))],r.activity_key);
     const free=repository.features?.mediaSeparation&&auth.workspace!=='TEACH'&&r.legacy_access_model==='FREE'&&r.policy_review_state==='CONFIRMED';
     const subscribed=free||paid.some(a=>same(a.activity_key,r.activity_key));
     const canManage=globalAdmin||Boolean(r.active&&r.lifecycle==='ACTIVE'&&roles.includes('PROGRAM_ADMIN'));

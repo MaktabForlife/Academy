@@ -54,13 +54,13 @@ export function managementStore(repository,auth,{versionKey}={}) {
       if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.operationId||''))throw managementError('This change needs its retry identifier.');
       const hash=await payloadHash({action,input});
       const selfTeacher=dataset==='TEACHER_AVAILABILITY'&&(!input.accountId||same(String(input.accountId).trim(),auth.user.accountid));
-      const scopedRoles=!isAdminWorkspace(auth)?['TEACHER','PROGRAM_ADMIN']:['PROGRAM_ATTENDANCE','LESSON_PLANS'].includes(dataset)?['PROGRAM_ADMIN','TEACHER']:
+      const scopedRoles=!isAdminWorkspace(auth)?(auth.adminView?['TEACHER','PROGRAM_ADMIN']:['TEACHER']):['PROGRAM_ATTENDANCE','LESSON_PLANS'].includes(dataset)?['PROGRAM_ADMIN','TEACHER']:
         ['PROGRAM_MANAGEMENT','PROGRAM_TIMETABLE','PROGRAM_LIBRARY','PROGRAM_REGISTRY','COURSE_MANAGEMENT','COURSE_SUBSCRIPTIONS','TEACHER_AVAILABILITY','ACADEMY_CALENDAR','LESSON_PLAN_ADMIN','ENROLMENT'].includes(dataset)?['PROGRAM_ADMIN']:[];
       for(let attempt=0;attempt<3;attempt++) {
         const receipt=await this.receipt(dataset,scope,input.operationId,hash);if(receipt)return receipt;
         const {data,statements,result,fields,authorityScopes=[scope],cacheEffects=[]}=await plan();
         const now=new Date().toISOString(),actor=auth.user.accountid;
-        const effectiveGlobal=auth.state.account.global_admin||auth.workspace==='TEACH'&&actualState(auth).account.global_admin;
+        const effectiveGlobal=auth.state.account.global_admin||auth.adminView&&auth.workspace==='TEACH'&&actualState(auth).account.global_admin;
         const checkedScopes=effectiveGlobal?[scope]:[...new Set(authorityScopes)];
         if(!checkedScopes.length)throw managementError('This action requires an authorised administrator.',403,'FORBIDDEN');
         const effects=[...new Set([...cacheEffects,...(publicRefreshNeeded(dataset,action,input,fields)?['public-timetable']:[])])];

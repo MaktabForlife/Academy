@@ -31,8 +31,8 @@
     try{return await labelsPending;}finally{labelsPending=null;}
   }
   function checkProfileLabels(){const revision=profileLabelRevision();if(revision!==dailyCache.profileRevision){dailyCache.profileRevision=revision;dailyCache.entries={};pageCache.snapshot=null;}return revision;}
-  const MEMORISATION_RETURN_KEY='m4l_academy_memorisation_return_v1';
-  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10726';
+  const MEMORISATION_RETURN_KEY='m4l_academy_memorisation_return_v2:'+window.M4L_ACADEMY_WORKSPACE.current();
+  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10734';
   let planningSelection=null;
   const academyDay = (timezone, instant = Date.now()) => {
     const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {timeZone:timezone || 'Africa/Johannesburg',
@@ -69,15 +69,15 @@
     const teach=location.hash==='#timetable/teach',mode=teach?'teach':'learn',data=state.home;
     const areas=$('timetable-areas');
     $('timetable').dataset.workspaceMode=data?.signedIn?mode:'public';
-    $('full-timetable-title').textContent=data?.signedIn?(teach?'TEACH':'LEARN'):'Academy timetable';
-    $('learn-enrolment-entry').hidden=!data?.signedIn||teach;
+    $('full-timetable-title').textContent=data?.signedIn?((window.M4L_ACADEMY_WORKSPACE?.adminRealm()?'ADMIN-':'')+(teach?'TEACH':'LEARN')):'Academy timetable';
+    $('learn-enrolment-entry').hidden=!data?.signedIn||teach||window.M4L_ACADEMY_WORKSPACE?.adminRealm();
     $('workspace-main-actions').hidden=!data?.signedIn;
     renderUpcomingCourses();
     if(!data?.signedIn){areas.replaceChildren();return;}
     areas.innerHTML=workspaceAreaLinks(mode);areas.setAttribute('aria-label',teach?'Your teaching Programs and Courses':'Your learning Programs and Courses');
   }
   const homeIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h5v-7h4v7h5V9"/></svg>';
-  const TIMETABLE_RETURN_KEY = 'm4l_academy_timetable_return';
+  const TIMETABLE_RETURN_KEY = 'm4l_academy_timetable_return_v2:'+window.M4L_ACADEMY_WORKSPACE.current();
   let workspaceFocusId = '';
   let lastRouteHash = '', navigationSession = token(), memorisationReturn = null, restoreMemorisation = null;
   const memorisationHash = hash => ['#progress','#hifz','#hifdh'].includes(hash) || hash.startsWith('#progress-admin') || hash.endsWith('/surahs-duas') || hash.endsWith('/assessment') || hash.startsWith('#assessment-admin') || hash.startsWith('#assessments');
@@ -344,7 +344,7 @@
     const personalSchedule = scheduleRows(data);
     $('schedule-title').textContent = data.signedIn ? 'My Timetable' : 'Academy timetable';
     if($('teaching-availability-link'))$('teaching-availability-link').hidden=!data.signedIn||!(data.globalAdmin||(data.personalActivities||[]).some(r=>r.roles?.some(role=>['TEACHER','PROGRAM_ADMIN','ADMIN'].includes(role))));
-    $('full-timetable-title').textContent = data.signedIn ? (location.hash==='#timetable/teach'?'TEACH':'LEARN') : 'Academy timetable';
+    $('full-timetable-title').textContent = data.signedIn ? ((window.M4L_ACADEMY_WORKSPACE?.adminRealm()?'ADMIN-':'')+(location.hash==='#timetable/teach'?'TEACH':'LEARN')) : 'Academy timetable';
     $('preview-title').textContent = data.signedIn ? 'My Academy timetable' : 'Coming up';
     const preview = data.signedIn ? personalSchedule : upcomingItems(data.timetable);
     renderSchedule('academy-preview-sessions', preview, false, true);
@@ -363,7 +363,7 @@
   function workspaceContext(row) {
     const parts = location.hash.slice(1).split('/'), explicit = ['learn','teach'].includes(parts[3]);
     const staff = Boolean(state.home?.globalAdmin || staffRoles(row.roles || []));
-    const mode = explicit ? parts[3] === 'teach' && staff ? 'teach' : 'learn' : staff ? 'teach' : 'learn';
+    const mode = (window.M4L_ACADEMY_WORKSPACE?.audience()||'LEARN').toLowerCase()==='teach'?'teach':'learn';
     const requested = (explicit ? parts[4] : parts[3]) || 'timetable';
     const tools = row.substituteOnly?['timetable','attendance']:mode === 'teach' ? ['timetable','attendance','planning','assessment','lesson-media','library','surahs-duas'] : ['timetable','assessment','lesson-media','library'];
     const tool = tools.includes(requested) ? requested : 'timetable';
@@ -376,7 +376,7 @@
   function renderAcademyMenu() {
     const data = state.home, activities = data?.signedIn ? data.personalActivities : [];
     const global = Boolean(data?.signedIn && data.globalAdmin), roles = [...new Set(activities.flatMap(row => row.roles || []))];
-    const available = {learn:global || data?.workspaceAccess?.learn || data?.workspaceAccess?.admin || Boolean(highestAccess(roles)), teach:global || data?.workspaceAccess?.teach || data?.workspaceAccess?.admin || staffRoles(roles), admin:global || data?.workspaceAccess?.admin || adminRoles(roles)};
+    const adminRealm=Boolean(window.M4L_ACADEMY_WORKSPACE?.adminRealm()),canAdmin=global||data?.workspaceAccess?.admin||adminRoles(roles),available={learn:adminRealm?canAdmin:data?.workspaceAccess?.learn||roles.length>0,teach:adminRealm?canAdmin:data?.workspaceAccess?.teach||roles.includes('TEACHER'),admin:canAdmin};
     const choices = ['learn','teach','admin'].filter(key => data?.signedIn && available[key]);
     const parts = location.hash.slice(1).split('/'), home = !parts[0] || ['overview','learning'].includes(parts[0]);
     const requested = parts[0]==='timetable'?parts[1]||'learn':['administration','assessment-admin','progress-admin'].includes(parts[0]) ? 'admin' : parts[0] === 'activity' && state.activity ? workspaceContext(state.activity).mode : home ? parts[1] : '';
@@ -388,11 +388,11 @@
     const helper=$('hifdh-helper'), loginId=window.M4L_ACADEMY_LOGIN?.currentId() || '', helperBase=window.M4L_CONFIG?.HIFZHELPER_URL;
     helper.hidden=!(data?.signedIn && /^[A-Za-z0-9]+$/.test(loginId) && /^https:\/\//.test(helperBase||''));
     if(!helper.hidden)helper.href=helperBase.replace(/\/$/,'')+'/'+encodeURIComponent(loginId)+'?academy='+encodeURIComponent(window.M4L_CONFIG?.HIFZ_ENTRY_SOURCE||'1');
-    $('academy-account-role').textContent = data?.signedIn ? highestAccess(roles) || 'None' : '';
+    $('academy-account-role').textContent = data?.signedIn ? (adminRealm&&state.academyTab!=='admin'?'Admin-'+state.academyTab+' · ':'')+(highestAccess(roles)||'None') : '';
     $('academy-access-empty').hidden = !data?.signedIn || Boolean(choices.length);
     for (const key of ['learn','teach','admin']) {
       const tab = $('academy-tab-'+key), active = !home && key === state.academyTab;
-      tab.hidden = !choices.includes(key);tab.setAttribute('aria-pressed', String(active));tab.setAttribute('aria-controls',key === 'admin' ? 'administration' : 'timetable');tab.tabIndex = 0;
+      tab.textContent=(adminRealm&&key!=='admin'?'ADMIN-':'')+key.toUpperCase();tab.hidden = !choices.includes(key);tab.setAttribute('aria-pressed', String(active));tab.setAttribute('aria-controls',key === 'admin' ? 'administration' : 'timetable');tab.tabIndex = 0;
     }
     panel.hidden = true;
     panel.setAttribute('aria-labelledby', 'academy-tab-'+state.academyTab);
@@ -511,7 +511,7 @@
     const names = {academy:'Academy',attendance:'Attendance',progress:'Progress',assessment:'Assessment',plan:'Planning',announcements:'Announcements',calendar:'Calendar'};
     if (!names[key] || key === 'academy' && !(state.home.globalAdmin || adminRoles(row.roles))) return;
     if (['attendance','plan'].includes(key) && !staffRoles(row.roles) && !state.home.globalAdmin) return;
-    if (key === 'calendar') { $('workspace-tool').close(); location.href='/academy/calendar/'+(row.kind==='PROGRAM'?'?program='+encodeURIComponent(row.id)+'&view='+workspaceContext(row).mode:'?view='+workspaceContext(row).mode); return; }
+    if (key === 'calendar') { $('workspace-tool').close(); location.href=window.M4L_ACADEMY_WORKSPACE.readerUrl('/academy/calendar/'+(row.kind==='PROGRAM'?'?program='+encodeURIComponent(row.id)+'&view='+workspaceContext(row).mode:'?view='+workspaceContext(row).mode)); return; }
     if (key === 'progress') { $('workspace-tool').close(); location.hash = row.id?`${activityHref(row)}/surahs-duas`:'#workshops/surahs-duas'; return; }
     $('workspace-tool-title').textContent = names[key];
     if (key === 'academy') {
@@ -574,7 +574,7 @@
     $('workshop-pills').innerHTML = rows.map(row => {
       const name = row.canOpenActivity ? `<a class="course-list-name" href="${activityHref({kind:'COURSE',id:row.id})}">${esc(row.name)}</a>` : `<strong class="course-list-name">${esc(row.name)}</strong>`;
       const dates = row.startDate ? `${formatDate(row.startDate)}${row.endDate && row.endDate !== row.startDate ? ` – ${formatDate(row.endDate)}` : ''}` : 'Dates to be confirmed';
-      return `<article class="course-list-row">${name}<span class="course-stage">${esc(stages[row.stage] || row.stage)}</span><span class="course-list-dates">${esc(dates)}</span><div class="course-list-actions">${row.mediaAvailable?`<a href="/academy/media/?course=${encodeURIComponent(row.id)}&amp;run=${encodeURIComponent(row.runId)}&amp;workspace=${row.canManage?'ADMIN':state.academyTab==='teach'?'TEACH':'LEARN'}">Media</a>`:`<button type="button" disabled title="${esc(row.mediaMessage)}">Media${['COMPLETE','ARCHIVED'].includes(row.stage) ? ' · coming soon' : ' · after completion'}</button>`}${row.canManage ? `<a href="/academy/courses/manage/?course=${encodeURIComponent(row.id)}${row.runId ? `&amp;run=${encodeURIComponent(row.runId)}` : ''}">Manage</a>` : ''}</div></article>`;
+      return `<article class="course-list-row">${name}<span class="course-stage">${esc(stages[row.stage] || row.stage)}</span><span class="course-list-dates">${esc(dates)}</span><div class="course-list-actions">${row.mediaAvailable?`<a href="/academy/media/?course=${encodeURIComponent(row.id)}&amp;run=${encodeURIComponent(row.runId)}&amp;workspace=${row.canManage?'ADMIN':window.M4L_ACADEMY_WORKSPACE.current()}">Media</a>`:`<button type="button" disabled title="${esc(row.mediaMessage)}">Media${['COMPLETE','ARCHIVED'].includes(row.stage) ? ' · coming soon' : ' · after completion'}</button>`}${row.canManage ? `<a href="/academy/courses/manage/?course=${encodeURIComponent(row.id)}${row.runId ? `&amp;run=${encodeURIComponent(row.runId)}` : ''}">Manage</a>` : ''}</div></article>`;
     }).join('');
   }
 

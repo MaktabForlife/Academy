@@ -10,6 +10,7 @@ const status=text=>{$('pr-status').textContent=text;},part=(pane,selector)=>pane
 function proxy(url){const file=publicPdfFile('/pdf-file/'+btoa(String.fromCharCode(...new TextEncoder().encode(url))).replaceAll('+','-').replaceAll('/','_').replaceAll('=',''));if(!file)throw Error('This PDF source is unavailable.');return file;}
 function updateBookmarkButtons(pane){for(const button of pane.header.querySelectorAll('[data-save-book],[data-save-page]'))button.disabled=!pane.loaded||!pane.file;part(pane,'[data-save-page]').textContent=pane.page?'Bookmark page '+(pane.pageLabel||pane.page):'Bookmark page';}
 window.M4L_PDF_READER={
+ canLeave:()=>panes.every(pane=>canReplace(pane)),
  settings:index=>({...defaults,...panes[Number(index)]?.choices}),
  remember:(index,changes)=>{const pane=panes[Number(index)];if(pane)try{pane.choices=normalizePdfTools({...defaults,...pane.choices,...changes},{session:true});}catch{}},
  location:(index,source,position)=>{const pane=panes[Number(index)];if(!pane||source!==pane.frame?.contentWindow||!pane.file||publicPdfFile(position.file)!==pane.file)return;pane.loaded=true;pane.page=position.page;pane.pageLabel=position.pageLabel||'';updateBookmarkButtons(pane);}
@@ -22,7 +23,8 @@ function libraryReturn(){
  try{const referrer=new URL(document.referrer);if(referrer.origin===location.origin&&['/academy/open-library/','/academy/library/'].includes(referrer.pathname))return referrer.pathname;}catch{}
  return academyBookmarks.signedIn()?'/academy/library/':'/academy/open-library/';
 }
-$('pr-close-reader').href=libraryReturn();
+$('pr-close-reader').href=window.M4L_ACADEMY_WORKSPACE.readerUrl(libraryReturn());
+if(window.M4L_ACADEMY_WORKSPACE.adminRealm())document.querySelector('.pr-brand small').append(' · '+window.M4L_ACADEMY_WORKSPACE.current().replace('_','-'));
 function canReplace(pane){return !changed(pane)||confirm('This PDF has unsaved annotations. Download a copy before replacing it. Continue?');}
 function setActive(index){const preserve=window.M4L_PDF_WHITEBOARD.isOpen()&&index!==active;if(preserve)rememberReadingPositions();active=index;for(const pane of panes){pane.element.classList.toggle('is-active',pane.index===index);$('pr-tab-'+pane.index).setAttribute('aria-selected',String(pane.index===index));$('pr-tab-'+pane.index).tabIndex=pane.index===index?0:-1;}focusLabels();if(preserve)restoreReadingPositions();}
 function focusLabels(){

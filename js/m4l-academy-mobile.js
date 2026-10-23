@@ -38,18 +38,31 @@
  const strip=document.querySelector('.academy-connected-activities');if(strip)strip.hidden=true;
  document.body.classList.add('academy-mobile-layout','academy-shell');
  let data=window.M4L_ACADEMY_SHELL_DATA||null;
- function openRole(key){const hash=key==='admin'?'#administration':'#timetable/'+key;if(key==='admin'){if(location.pathname.startsWith('/academy/admin/'))location.hash=hash;else if(location.pathname==='/academy/'||location.pathname==='/academy/index.html')location.hash=hash;else location.href='/academy/admin/'+hash;return;}if(location.pathname==='/academy/'||location.pathname==='/academy/index.html')location.hash=hash;else location.href='/academy/'+hash;}
+ const pageTitle=document.title||'Umm Abbad Academy',boundary=window.M4L_ACADEMY_WORKSPACE;
+ const adminRealm=()=>Boolean(boundary?.adminRealm());
+ function canLeave(){return ['M4L_ACADEMY_SETTINGS','M4L_PROGRAM_ATTENDANCE','M4L_ACADEMY_PROGRESS','M4L_MEMORISATION_ADMIN','M4L_ACADEMY_ASSESSMENTS','M4L_LESSON_MEDIA','M4L_PLANNING','M4L_ANNOUNCEMENTS','M4L_PDF_READER'].every(key=>window[key]?.canLeave?.()!==false);}
+ function openRole(key){const base=key==='admin'||adminRealm()?'/academy/admin/':'/academy/',hash=key==='admin'?'#administration':'#timetable/'+key;if([base,base+'index.html'].includes(location.pathname))location.hash=hash;else if(canLeave())location.href=base+hash;}
+ const context=document.createElement('section');context.id='academy-workspace-context';context.className='academy-workspace-context';context.setAttribute('aria-label','Current workspace');banners.append(context);
+ function contextBanner(){
+  const mode=boundary?.current()||'LEARN',isAdmin=adminRealm();context.hidden=!isAdmin;document.body.dataset.academyWorkspace=mode;document.title=(isAdmin?mode.replace('_','-')+' · ':'')+pageTitle;
+  if(!isAdmin)return;
+  const label=mode.replace('_','-'),description=mode==='ADMIN_LEARN'?'Student class view · read only':mode==='ADMIN_TEACH'?'Teaching within your Admin scope':'Academy management';
+  context.innerHTML='<div><strong>'+label+'</strong><span>'+description+'</span></div><nav aria-label="Switch workspace"><a href="/academy/admin/#administration">Admin workspace</a><a data-workspace-exit href="/academy/#timetable/learn">Personal Learn</a><a data-workspace-exit data-personal-teach href="/academy/#timetable/teach">Personal Teach</a></nav>';
+  context.querySelector('[data-personal-teach]').hidden=!(data?.workspaceAccess?.teach??(data?.workspaceRoles||[]).includes('TEACHER'));
+ }
+ document.addEventListener('click',event=>{if(event.target.closest?.('[data-workspace-exit]')&&!canLeave())event.preventDefault();});
+
  function update(next){
   data=next;const signed=Boolean(data?.signedIn),global=Boolean(signed&&data.globalAdmin),roles=signed?[...(data.workspaceRoles||[]),...(data.personalActivities||[]).flatMap(r=>r.roles||[])]:[];
   const staff=r=>r.some(x=>['TEACHER','SENIOR','PROGRAM_ADMIN','ADMIN','GLOBAL_ADMIN'].includes(x)),admin=r=>r.some(x=>['PROGRAM_ADMIN','ADMIN','GLOBAL_ADMIN'].includes(x));
-  const available={learn:signed&&(global||data?.workspaceAccess?.learn||data?.workspaceAccess?.admin||roles.length>0),teach:signed&&(global||data?.workspaceAccess?.teach||data?.workspaceAccess?.admin||staff(roles)),admin:signed&&(global||data?.workspaceAccess?.admin||admin(roles))};
-  const section=location.hash.slice(1).split('/'),path=location.pathname,calendarView=path.startsWith('/academy/calendar/')?(window.M4L_ACADEMY_WORKSPACE?.current().toLowerCase()||new URLSearchParams(location.search).get('view')):null;
+  const canAdmin=global||data?.workspaceAccess?.admin||admin(roles),available={learn:signed&&(adminRealm()?canAdmin:data?.workspaceAccess?.learn||roles.length>0),teach:signed&&(adminRealm()?canAdmin:data?.workspaceAccess?.teach||roles.includes('TEACHER')),admin:signed&&canAdmin};
+  const section=location.hash.slice(1).split('/'),path=location.pathname,calendarView=path.startsWith('/academy/calendar/')?(window.M4L_ACADEMY_WORKSPACE?.audience().toLowerCase()||new URLSearchParams(location.search).get('view')):null;
   const management=calendarView!=='learn'&&calendarView!=='teach'&&(['administration','assessment-admin','progress-admin'].includes(section[0])||/^\/(users|programs)(?:\/|$)/.test(path)||/^\/academy\/(subjects|calendar|pdf-tools|courses\/manage|library\/manage|enrolment\/manage)(?:\/|$)/.test(path));
   const home=['/academy/','/academy/index.html'].includes(path)&&(!section[0]||['overview','learning'].includes(section[0]));
-  const selected=home?'':section[0]==='timetable'&&section[1]==='teach'||calendarView==='teach'||path.startsWith('/academy/teaching/')?'teach':management?'admin':'learn';
-  for(const button of document.querySelectorAll('[data-shell-role]')){button.hidden=!available[button.dataset.shellRole];button.setAttribute('aria-pressed',String(button.dataset.shellRole===selected));}
-  const name=document.getElementById('academy-shell-name'),role=document.getElementById('academy-shell-role');if(name)name.textContent=signed?(data.profile?.name||'Academy member'):'Welcome';if(role)role.textContent=signed&&window.M4L_ACADEMY_WORKSPACE?.current()==='LEARN'?'Student':signed&&window.M4L_ACADEMY_WORKSPACE?.current()==='TEACH'?'Teacher':global?'Global Admin':admin(roles)?'Program Admin':staff(roles)?'Teacher':roles.includes('STUDENT')?'Student':signed?'None':'';
+  const selected=home?'':boundary?.current()==='ADMIN'?'admin':boundary?.audience()==='TEACH'?'teach':'learn';
+  for(const button of document.querySelectorAll('[data-shell-role]')){button.hidden=!available[button.dataset.shellRole];button.textContent=(adminRealm()&&button.dataset.shellRole!=='admin'?'ADMIN-':'')+button.dataset.shellRole.toUpperCase();button.setAttribute('aria-pressed',String(button.dataset.shellRole===selected));}
+  const name=document.getElementById('academy-shell-name'),role=document.getElementById('academy-shell-role');if(name)name.textContent=signed?(data.profile?.name||'Academy member'):'Welcome';if(role)role.textContent=signed&&boundary?.current()==='ADMIN_LEARN'?'Admin-Learn · Student view':signed&&boundary?.current()==='ADMIN_TEACH'?'Admin-Teach · Teacher':signed&&boundary?.current()==='LEARN'?'Student':signed&&boundary?.current()==='TEACH'?'Teacher':global?'Global Admin':admin(roles)?'Program Admin':staff(roles)?'Teacher':roles.includes('STUDENT')?'Student':signed?'None':'';contextBanner();
  }
  document.addEventListener('click',event=>{const button=event.target.closest('[data-shell-role]');if(button&&!button.hidden){event.preventDefault();openRole(button.dataset.shellRole);}});
- window.M4L_ACADEMY_SHELL={update,banners,openRole};update(data);
+ window.M4L_ACADEMY_SHELL={update,banners,openRole,canLeave};update(data);
 })();

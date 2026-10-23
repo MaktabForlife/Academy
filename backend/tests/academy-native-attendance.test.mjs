@@ -62,7 +62,7 @@ test('four recorded sessions count one date and three present sessions equal thr
  f.db.prepare('UPDATE program_publication_state SET latest_publication_id=? WHERE activity_key=?').run(row.publication_id,scopes.programA);
 }));
 test('inherited Teacher access is writable and a storage failure rolls back all explicit targets',()=>use(async f=>{
- const preview=await f.service('TEACH'),view=await preview.run('get',{activityKey:scopes.programA,date:today()});assert.equal(view.readOnly,false);assert(view.lessons.every(l=>l.canSubmit));
+ const preview=await f.service('ADMIN_TEACH'),view=await preview.run('get',{activityKey:scopes.programA,date:today()});assert.equal(view.readOnly,false);assert(view.lessons.every(l=>l.canSubmit));
  const service=preview,data=await service.run('get',{activityKey:scopes.programA,date:today()}),input=f.input(data);input.exceptions[data.lessons[0].lesson.anchor]=[{accountId:data.lessons[0].marks[0].accountId,status:'ABSENT'}];
  f.db.exec("CREATE TRIGGER reject_native_absence BEFORE INSERT ON attendance_absences BEGIN SELECT RAISE(ABORT,'injected_failure'); END");await assert.rejects(service.run('submit',input),/injected_failure/);
  assert.equal(f.db.prepare('SELECT count(*) n FROM attendance_days').get().n,0);assert.equal(f.db.prepare('SELECT count(*) n FROM attendance_register_versions').get().n,0);assert.equal(f.db.prepare("SELECT count(*) n FROM operation_receipts WHERE dataset_key='NATIVE_ATTENDANCE'").get().n,0);

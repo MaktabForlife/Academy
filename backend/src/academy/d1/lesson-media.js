@@ -29,6 +29,7 @@ export async function timetableMedia(repository,auth,input){
  const refs=new Map();
  for(const ref of input.sessions){
   if(!ref||typeof ref.activityKey!=='string'||ref.activityKey.length>200||!/^(PROGRAM|COURSE):[^:]+$/.test(ref.activityKey)||typeof ref.sessionKey!=='string'||ref.sessionKey.length>1200)throw fail('Choose valid timetable lessons.');
+  if(auth.adminView&&!administers(auth,ref.activityKey))continue;
   const roles=auth.state.roles.filter(r=>same(r.activity_key,ref.activityKey)).map(r=>r.role);
   const staff=Boolean(auth.state.account.global_admin||auth.workspace!=='LEARN'&&roles.some(r=>['PROGRAM_ADMIN','TEACHER'].includes(r)));
   const preview=readerPreview(auth,ref.activityKey);
@@ -68,6 +69,7 @@ export function lessonMedia(repository,auth,env){
   if(input.lessonId){const row=await p('SELECT activity_key FROM lesson_media_lessons WHERE lesson_id=?',String(input.lessonId)).first();if(!row)throw fail('Lesson not found.',404);if(key&&!same(key,row.activity_key))throw fail('This lesson belongs to another learning area.',403,'MEDIA_FORBIDDEN');key=row.activity_key;}
   if(typeof key!=='string'||key.length>200||!/^(PROGRAM|COURSE):/.test(key))throw fail('Choose a Program or Course.');
   scopeKey=key;activity=await scope();scopeKey=activity.activity_key;
+  if(auth.adminView&&!administers(auth,scopeKey))throw fail('This area is outside your Admin view.',403,'MEDIA_FORBIDDEN');
   admin=Boolean(auth.state.account.global_admin||auth.state.roles.some(r=>same(r.activity_key,scopeKey)&&r.role==='PROGRAM_ADMIN'));
   student=auth.state.roles.some(r=>same(r.activity_key,scopeKey)&&r.role==='STUDENT')||auth.state.subscriptions.some(r=>same(r.activity_key,scopeKey));
   if(repository.features?.mediaSeparation&&auth.workspace==='LEARN'&&activity.kind==='COURSE'&&await p("SELECT 1 ok FROM course_settings WHERE activity_key=? AND legacy_access_model='FREE' AND policy_review_state='CONFIRMED'",scopeKey).first())student=true;

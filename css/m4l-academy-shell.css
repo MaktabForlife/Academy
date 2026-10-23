@@ -128,3 +128,8 @@ body.academy-shell{padding-left:0!important;--academy-gutter:clamp(12px,3vw,28px
 #academy-public-quicklinks nav :is(a,button):focus-visible{outline:3px solid #a77db3;outline-offset:3px}
 @media(max-width:999px){#academy-public-quicklinks nav{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:600px){#academy-public-quicklinks nav{grid-template-columns:repeat(2,minmax(0,1fr))}#academy-public-quicklinks nav :is(a,button){min-height:144px}}
+
+/* Admin readers remain visibly distinct from personal learning/teaching. */
+.academy-workspace-context{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.55rem 1rem;background:#fff5dd;color:#593e08;border-bottom:2px solid #b77b16;font-size:.85rem}
+.academy-workspace-context[hidden]{display:none}.academy-workspace-context>div{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}.academy-workspace-context strong{letter-spacing:.03em}.academy-workspace-context nav{display:flex;gap:.8rem;flex-wrap:wrap}.academy-workspace-context a{color:inherit;text-decoration:underline;font-weight:600}
+@media(max-width:700px){.academy-workspace-context{align-items:flex-start;flex-direction:column;padding:.5rem .7rem;gap:.35rem;font-size:.78rem}.academy-workspace-context>div{gap:.45rem}}

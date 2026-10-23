@@ -13,10 +13,14 @@ export const paperAvailable=a=>Boolean(a.schedule_published&&a.paper_released_at
 
 export function assessmentStore(repository,auth){
  const db=repository.db,p=(sql,...values)=>db.prepare(sql).bind(...values),actor=auth.user.accountid;
- const clause=(mode)=>mode==='admin'?(isAdminWorkspace(auth)?adminClause:'(? IS NULL AND ? IS NULL)'):mode==='staff'?(isAdminWorkspace(auth)?teacherClause:auth.workspace==='TEACH'?teacherClause:'(? IS NULL AND ? IS NULL AND ? IS NULL)'):auth.workspace==='TEACH'?'(? IS NULL AND ? IS NULL)':learnerClause;
+ const clause=mode=>{
+  if(mode==='admin')return isAdminWorkspace(auth)?adminClause:'(? IS NULL AND ? IS NULL)';
+  if(mode==='staff')return isAdminWorkspace(auth)?teacherClause:auth.workspace!=='TEACH'?'(? IS NULL AND ? IS NULL AND ? IS NULL)':auth.adminView?`(${adminClause} AND ? IS NOT NULL)`:teacherClause.replace(adminClause,'(? IS NULL AND ? IS NULL)');
+  return auth.workspace==='TEACH'||auth.adminView?'(? IS NULL AND ? IS NULL)':learnerClause;
+ };
  const values=mode=>Array(mode==='staff'?3:2).fill(actor);
  async function classes(mode='staff',activityKey='',includePreview=true){
-  const preview=includePreview&&((mode==='learner'&&auth.workspace==='LEARN')||(mode==='staff'&&auth.workspace==='TEACH'));
+  const preview=includePreview&&auth.adminView&&((mode==='learner'&&auth.workspace==='LEARN')||(mode==='staff'&&auth.workspace==='TEACH'));
   const real=actualState(auth),keys=real.roles.filter(r=>r.role==='PROGRAM_ADMIN').map(r=>r.activity_key);
   return (await p(`SELECT c.activity_key,c.class_id,c.name,a.name activity_name,a.kind FROM classes c JOIN activities a USING(activity_key) WHERE c.active=1 AND a.active=1 AND a.lifecycle='ACTIVE' AND (${clause(mode)} ${preview?'OR ?=1 OR a.activity_key IN(SELECT value FROM json_each(?))':''}) ${activityKey?'AND a.activity_key=?':''} ORDER BY a.name,c.name LIMIT 501`,...values(mode),...(preview?[Number(Boolean(real.account.global_admin)),JSON.stringify(keys)]:[]),...(activityKey?[activityKey]:[])).all()).results;
  }

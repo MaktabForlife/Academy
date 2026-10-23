@@ -160,6 +160,8 @@ const fetch = async (_url, options) => {
 };
 const RealDate = Date;
 class FixtureDate extends RealDate { static now(){return RealDate.parse(fixtureNow);} constructor(...args) { super(...(args.length?args:[fixtureNow])); } }
+// This component fixture supplies its chosen reader perspective. URL and API boundary behavior is tested with the actual workspace module separately.
+window.M4L_ACADEMY_WORKSPACE={commit:()=>false,canonical:()=>'',head:()=>null,readyPublication:async()=>null,classView:()=>null,current:()=> 'LEARN',adminRealm:()=>false,audience:()=>{const explicit=location.hash.match(/\/(learn|teach)(?:\/|$)/);return explicit?explicit[1].toUpperCase():globalAdmin||[programRole].flat().some(role=>['TEACHER','PROGRAM_ADMIN'].includes(role))?'TEACH':'LEARN';}};
 vm.runInNewContext(script, { window, document, location, history:{replaceState(_state,_title,hash){location.hash=hash;}}, localStorage:{getItem:key=>storage.get(key)||null}, fetch, Event,
   crypto:webcrypto,TextEncoder,Uint8Array,sessionStorage:{getItem:key=>tabStore.get(key)||null,setItem:(key,value)=>tabStore.set(key,value),removeItem:key=>tabStore.delete(key)},Intl, Date:FixtureDate, setInterval() {}, setTimeout(fn,delay) { const id=++nextTimer;timers.set(id,{fn,delay});return id; }, clearTimeout(id) {timers.delete(id);}, matchMedia:()=>({matches:false}) });
 await flush();
@@ -234,7 +236,7 @@ assert.doesNotMatch($('activity-sessions').innerHTML,/Course item|Barakah|Salaah
 assert.equal(timers.size,1,'Scoped timetable has a local lesson-boundary timer, without polling');
 count=requests.length;documentHandlers.get('visibilitychange')();await flush();assert.equal(requests.length,count);
 const programOrigin='#activity/PROGRAM/'+activity.id;const navigationReads=requests.length;
-await navigate('#timetable');assert.equal(requests.length,navigationReads,'Opening the complete timetable adds no read');assert.equal($('timetable-close').href,programOrigin);assert.equal(tabStore.get('m4l_academy_timetable_return'),programOrigin);
+await navigate('#timetable');assert.equal(requests.length,navigationReads,'Opening the complete timetable adds no read');assert.equal($('timetable-close').href,programOrigin);assert.equal(tabStore.get('m4l_academy_timetable_return_v2:LEARN'),programOrigin);
 window.dispatchEvent(new Event('m4l-academy-session'));await flush();assert.equal($('timetable-close').href,programOrigin,'Restoring the same account session preserves the return destination');
 await navigate($('timetable-close').href);assert.equal($('activity-title').textContent,'Reboot');
 assert.match($('activity-back-link').innerHTML,/<svg/);assert.doesNotMatch($('activity-back-link').innerHTML,/My Academy/);
@@ -243,7 +245,7 @@ await navigate('#activity/COURSE/COURSE-SALAAH');assert.equal(timers.size,1);ass
 await navigate('#timetable');assert.equal($('timetable-close').href,'#activity/COURSE/COURSE-SALAAH');
 await navigate($('timetable-close').href);assert.equal($('activity-title').textContent,'Salaah');
 await navigate('#overview');await navigate('#timetable');assert.equal($('timetable-close').href,'#overview');
-tabStore.set('m4l_academy_timetable_return','https://outside.invalid');await navigate('#timetable');assert.equal($('timetable-close').href,'#overview','Stored navigation accepts local Academy views only');
+tabStore.set('m4l_academy_timetable_return_v2:LEARN','https://outside.invalid');await navigate('#timetable');assert.equal($('timetable-close').href,'#overview','Stored navigation accepts local Academy views only');
 hasWorkshops=false;programRole='TEACHER';location.hash='#activity/PROGRAM/'+activity.id;await refresh();
 assert.match($('activity-menu').innerHTML,/Teach tools/);assert.doesNotMatch($('activity-menu').innerHTML,/Admin tools/);assert.doesNotMatch($('activity-menu').innerHTML,/Learn tools/);for(const label of ['Timetable','Attendance','Assessment','Planning','Library'])assert.ok($('activity-menu').innerHTML.includes(`>${label}<`));
 assert.doesNotMatch($('activity-switcher').innerHTML,/<span>Courses<\/span>/,'No Course access means no Courses pill');
@@ -375,9 +377,9 @@ for(const role of ['STUDENT','TEACHER','PROGRAM_ADMIN']) {
   const mode=role==='STUDENT'?'learn':'teach';
   for(const suffix of ['', '/learn', '/teach', '/teach/planning', '/attendance']) {
     await navigate('#activity/PROGRAM/'+activity.id+suffix);
-    assert.equal(location.hash,'#timetable/'+(suffix.startsWith('/learn')?'learn':mode),'Old Hifz workspace links return to the correct chooser');
+    assert.equal(location.hash,'#timetable/'+(suffix.startsWith('/learn')?'learn':suffix.startsWith('/teach')?'teach':mode),'Old Hifz workspace links return to the correct chooser');
     assert.equal($('activity').classList.contains('active'),false,'The duplicate Hifz page is not opened');
-    assertHifzShortcut('timetable-areas','F1CJW7');
+    if(role==='STUDENT'&&suffix.startsWith('/teach'))assert.doesNotMatch($('timetable-areas').innerHTML,/HifzHelper/,'A Student cannot gain teaching through an explicit Teach link');else assertHifzShortcut('timetable-areas','F1CJW7');
   }
 }
 globalAdmin=true;personalLoginId='ABCDEFG';await refresh();

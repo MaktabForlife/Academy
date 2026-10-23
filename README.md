@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.33
+# Umm Abbad Academy — V107.34
+
+## V107.34 — Distinct Admin-Learn and Admin-Teach
+
+Keep personal Learn/Teach tied to the account’s own enrolments and teaching assignments. Open inherited Admin access only through explicitly labelled Admin-Learn and Admin-Teach under the Admin address, with a persistent context banner, separate request permissions and isolated caches. Carry the selected Admin view through reader tabs and reject delayed responses across changes. Preview only; no database changes. [Access and verification](docs/academy-separation/admin-inheritance.md).
 
 ## V107.33 — Refresh inherited-role labels
 

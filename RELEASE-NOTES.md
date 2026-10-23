@@ -1,3 +1,7 @@
+# V107.34 — Keep Admin readers separate from personal workspaces
+
+Separate Admin-Learn and Admin-Teach addresses, labels, request contexts and caches from personal Learn and Teach. Inherited class viewing and teaching apply only in the explicit Admin readers, within current Admin scope. Personal contexts retain genuine enrolments/assignments and ordinary public Course access. Persistent banners and reader context labels identify the active view; crossing realms is intentional navigation and retains unsaved-work guards. Preserve existing layouts, manual assessment controls and the fresh preview databases. Deploy only feature-admin and feature_worker; Development stays V107.28.
+
 # V107.33 — Inherited-role label cache
 
 Refresh the Users screen script version so existing browsers receive the V107.32 inherited Teacher labels. Retain the verified Admin teaching and student class-view behavior, layouts and preview isolation. Update website/API release markers together; Development remains V107.28.

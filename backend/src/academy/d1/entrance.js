@@ -91,10 +91,16 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
     result.calendarEvents=buildAcademyCalendarEvents(calendarRows(calendar,suppressions,calendarSettings),start,end);
   }
   if(auth){
-    result.workspace=auth.workspace;
+    result.workspace=auth.workspaceContext||auth.workspace;
+    result.audience=auth.workspace;result.adminView=Boolean(auth.adminView);
     const real=actualState(auth),canAdmin=Boolean(real.account.global_admin||real.roles.some(r=>r.role==='PROGRAM_ADMIN'));
-    result.workspaceAccess={learn:true,teach:canAdmin||real.roles.some(r=>r.role==='TEACHER'),admin:canAdmin};
+    result.workspaceAccess={learn:true,teach:real.roles.some(r=>r.role==='TEACHER'),admin:canAdmin,adminLearn:canAdmin,adminTeach:canAdmin};
     result.previewActivities=previewKeys;
+    if(auth.adminView){
+      for(const key of ['activities','personalActivities','activityPages'])result[key]=result[key].filter(a=>administers(auth,a.kind+':'+a.id));
+      for(const key of ['timetable','personalTimetable'])result[key]=result[key].filter(a=>administers(auth,a.kind+':'+a.activityId));
+      if(result.activity&&!administers(auth,result.activity.kind+':'+result.activity.id))throw rehearsalError('This area is outside your Admin view.',403,'FORBIDDEN');
+    }
     const classAudience=a=>({...a,studentPreview:auth.workspace==='LEARN'&&administers(auth,a.kind+':'+a.id),viewClassId:viewedClass(auth,a.kind+':'+a.id)});
     result.activityPages=result.activityPages.map(classAudience);if(result.activity)result.activity=classAudience(result.activity);
     const classRows=rows=>rows.filter(row=>classVisible(auth,row.kind+':'+row.activityId,row.classIds||[]));

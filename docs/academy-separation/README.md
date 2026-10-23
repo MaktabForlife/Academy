@@ -1,6 +1,6 @@
 # Academy separation final implementation brief
 
-Authorisation updated 23 October 2026: complete Phase 4 and the Development checkpoint, then begin Phase 5 on isolated feature-split-db with fresh dev-academy-admin and dev-academy-core. Copy active/unarchived records only. Hold Phase 5 merge into feature-admin and current Development routing until the user reviews Phase 4. Keep layouts and direct manual controls.
+Current position, 23 October 2026: Phase 4 was reviewed and deployed to Development at V107.28. Phase 5 is deployed only to feature-admin and its isolated feature_worker, using fresh dev-academy-admin and dev-academy-core copies. V107.34 separates explicit Admin-Learn/Admin-Teach from personal Learn/Teach; see [current reader access](admin-inheritance.md). Keep layouts and direct manual controls. Current Development remains on the original database; no Phase 5 cutover is authorised here.
 
 Implementation authorised 22 October 2026. Phases 0 and 1 are complete on `feature-admin` at V107.23; Phases 2–6 follow the agreed delivery gates. See the [Phase 1 execution record](phase-1.md). Preparation is complete at the design level. This brief, the final access map, data ownership and phased plan are the active instructions. Current implementation evidence is recorded separately below. They replace the earlier expanding review proposals.
 
@@ -70,6 +70,6 @@ The Phase 0 execution record is [phase-0.md](phase-0.md). Development is paused 
 
 [Phase 1](phase-1.md), [Phase 2](phase-2.md), [Phase 3](phase-3.md) and [Phase 4](phase-4.md) record implemented changes and actual verification. [Implementation evidence](implementation-evidence.csv) distinguishes isolated checks from live verification and future physical-cutover work. The original 118-scenario matrix and baseline counts above are historical planning evidence. Use the [new field delta](field-map-phases-2-4.csv) with the original maps.
 
-V107.28 remains the verified Development and feature-admin UI checkpoint, tagged `academy-ui-separation-v107.28`. [Phase 5](phase-5.md) implements the separate Core/Admin preview on `feature-split-db` at V107.30 with verified ownership, recovery and active-record copies. See [runtime field ownership](runtime-field-ownership.csv). Promotion into feature-admin and current Development is held for the user's Phase 4 review; the original database remains preserved.
+V107.28 is the retained Development UI checkpoint, tagged `academy-ui-separation-v107.28`. [Phase 5](phase-5.md) implements the separate Core/Admin preview on `feature-split-db` at V107.30 with verified ownership, recovery and active-record copies. See [runtime field ownership](runtime-field-ownership.csv). The reviewed Phase 5 preview was promoted into feature-admin at V107.31; current Development remains V107.28 and the original database stays preserved.
 
 The [database use and legacy notes](database-carryover-notes.md) and [carry-over register](database-carryover-register.csv) record active dependencies, retired workflows and default exclusions. Use these with the implemented field inventory; legacy names and empty tables alone are not exclusion evidence.

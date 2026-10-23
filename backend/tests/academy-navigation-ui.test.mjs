@@ -107,7 +107,7 @@ const shared=fixture('/academy/courses/manage/');shared.localStorage.setItem('m4
 const standalone=fixture('/recorder/');assert.equal(standalone.children.length,0,'Recorder use outside Academy keeps its existing interface');
 const recorder=fixture('/recorder/','?academy=1');assert.equal(recorder.children.length,2);
 const program=fixture('/programs/attendance.html','?program=Pilot-actual-id');program.localStorage.setItem('m4l_account_token','staff');program.refresh();await flush();
-assert.match(program.children[1].innerHTML,/Pilot-actual-id" aria-current="page"/);
+assert.match(program.children[1].innerHTML,/Pilot-actual-id\/learn" aria-current="page"/);
 const first={dataset:{academyProgram:'Pilot-actual-id'},attrs:{'aria-current':'page'},setAttribute(k,v){this.attrs[k]=v;},removeAttribute(k){delete this.attrs[k];}};
 const second={...first,dataset:{academyProgram:'next-program'},attrs:{}};
 program.children[1].querySelectorAll=()=>[first,second];

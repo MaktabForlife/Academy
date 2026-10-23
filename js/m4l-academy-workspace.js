@@ -2,31 +2,29 @@
  'use strict';
  const adminPage=()=>/^\/(?:users(?:\/|$)|programs(?:\/(?:$|index\.html|manage\.html|timetable\.html|lesson-media\.html|library\.html))|academy\/(?:admin|subjects|courses\/manage|enrolment\/manage|library\/manage|pdf-tools)(?:\/|$))/.test(location.pathname);
  function desired(){
-  if(location.pathname.startsWith('/academy/admin/')){
-   if(/^#timetable\/(learn|teach)$/.test(location.hash))return location.hash.split('/')[1].toUpperCase();
-   return 'ADMIN';
-  }
-  if(adminPage())return 'ADMIN';
   const explicit=location.hash.match(/^#(?:timetable\/(learn|teach)|activity\/[^/]+\/[^/]+\/(learn|teach)(?:\/|$))/);
+  if(location.pathname.startsWith('/academy/admin/'))return explicit?'ADMIN_'+(explicit[1]||explicit[2]).toUpperCase():'ADMIN';
+  if(adminPage())return 'ADMIN';
   if(explicit)return (explicit[1]||explicit[2]).toUpperCase();
   if(/^#(?:administration|assessment-admin|progress-admin)(?:\/|$)/.test(location.hash))return 'ADMIN';
   const query=new URLSearchParams(location.search),mode=(query.get('workspace')||query.get('view')||'').toUpperCase();
-  if(['LEARN','TEACH','ADMIN'].includes(mode))return mode;
+  if(['LEARN','TEACH','ADMIN','ADMIN_LEARN','ADMIN_TEACH'].includes(mode))return mode;
   if(location.pathname==='/programs/attendance.html'||location.pathname.startsWith('/academy/teaching/'))return 'TEACH';
   return 'LEARN';
  }
  let selected=desired(),generation=0,head=new URLSearchParams(location.search).get('setup')||null,headRequest=null,headEpoch=0;
  let classView=null;
- try{const q=new URLSearchParams(location.search);if(q.get('studentProgram')&&q.get('studentClass'))classView={activityKey:q.get('studentProgram'),classId:q.get('studentClass')};}catch{}
+ try{const q=new URLSearchParams(location.search);if(selected==='ADMIN_LEARN'&&q.get('studentProgram')&&q.get('studentClass'))classView={activityKey:q.get('studentProgram'),classId:q.get('studentClass')};}catch{}
  const classKey=()=>JSON.stringify(classView);
- function studentClass(value){const next=value?{activityKey:value.activityKey,classId:value.classId}:null;if(JSON.stringify(next)===classKey())return false;classView=next;generation++;return true;}
+ function studentClass(value){if(selected!=='ADMIN_LEARN')return false;const next=value?{activityKey:value.activityKey,classId:value.classId}:null;if(JSON.stringify(next)===classKey())return false;classView=next;generation++;return true;}
  const session=()=>{try{return localStorage.getItem('m4l_account_token')||'';}catch{return '';}};
  const current=()=>selected;
- function commit(){const next=desired();if(next===selected)return false;selected=next;generation++;head=null;headRequest=null;return true;}
+ const audience=()=>selected.replace(/^ADMIN_/,''),adminRealm=()=>selected==='ADMIN'||selected.startsWith('ADMIN_');
+ function commit(){const next=desired();if(next===selected)return false;selected=next;generation++;classView=null;head=null;headRequest=null;return true;}
  function canonical(){
   const adminHost=location.pathname.startsWith('/academy/admin/');
   if(!adminHost&&/^#(?:administration|assessment-admin|progress-admin)(?:\/|$)/.test(location.hash))return '/academy/admin/'+location.hash;
-  if(adminHost&&selected!=='ADMIN')return '/academy/'+location.hash;
+  if(!adminHost&&selected.startsWith('ADMIN_')&&['/academy/','/academy/index.html'].includes(location.pathname))return '/academy/admin/#timetable/'+audience().toLowerCase();
   return '';
  }
  const original=window.fetch.bind(window);
@@ -42,7 +40,8 @@
   if(url.origin!==api.origin||!url.pathname.startsWith('/api/'))return original(resource,options);
   const captured={selected,generation,session:session()},headers=new Headers(options?.headers||(resource instanceof Request?resource.headers:undefined));
   headers.set('X-Academy-Workspace',selected);
-  if(selected==='LEARN'&&classView)headers.set('X-Academy-Class',encodeURIComponent(classKey()));
+  headers.delete('X-Academy-Class');
+  if(selected==='ADMIN_LEARN'&&classView)headers.set('X-Academy-Class',encodeURIComponent(classKey()));
   const publicationEnabled=window.M4L_CONFIG?.ACCEPTED_SETUP===true;
   if(publicationEnabled&&selected!=='ADMIN'&&!url.pathname.startsWith('/api/account/')&&url.pathname!=='/api/academy/setup/head'){
    await readyPublication();
@@ -63,9 +62,18 @@
   // can populate another account/workspace or create a stale PDF object URL.
   return new Proxy(response,{get(target,name){if(['json','text','blob','arrayBuffer','formData'].includes(name))return async(...args)=>{check();const value=await target[name](...args);check();return value;};const value=Reflect.get(target,name,target);return typeof value==='function'?value.bind(target):value;}});
  };
- window.M4L_ACADEMY_WORKSPACE={current,desired,commit,canonical,studentClass,classView:()=>classView,head:()=>head,readyPublication,publication:value=>{headEpoch++;head=value;headRequest=null;}};
+ window.M4L_ACADEMY_WORKSPACE={current,audience,adminRealm,readerUrl,desired,commit,canonical,studentClass,classView:()=>classView,head:()=>head,readyPublication,publication:value=>{headEpoch++;head=value;headRequest=null;}};
  window.addEventListener('m4l-academy-session',()=>{generation++;classView=null;head=null;headRequest=null;});
- // Reader tools carry their invoking perspective across tabs and back links.
- document.addEventListener('click',event=>{const link=event.target.closest?.('a[href]');if(!link)return;const url=new URL(link.href,location.href);if(url.origin!==location.origin)return;if(/^\/academy\/(?:calendar|library|pdf-reader|pdf-compare)\//.test(url.pathname)&&!url.pathname.includes('/manage/')){url.searchParams.set('workspace',selected);if(selected==='LEARN'&&classView){url.searchParams.set('studentProgram',classView.activityKey);url.searchParams.set('studentClass',classView.classId);}if(head)url.searchParams.set('setup',head);link.href=url.href;}},true);
+ // Carry the exact realm through reader tabs and their return links.
+ function readerUrl(value){
+  const url=new URL(value,location.href);if(url.origin!==location.origin)return url.href;
+  url.searchParams.set('workspace',selected);url.searchParams.delete('studentProgram');url.searchParams.delete('studentClass');
+  if(selected==='ADMIN_LEARN'&&classView){url.searchParams.set('studentProgram',classView.activityKey);url.searchParams.set('studentClass',classView.classId);}
+  if(head)url.searchParams.set('setup',head);return url.href;
+ }
+ document.addEventListener('click',event=>{const link=event.target.closest?.('a[href]');if(!link||link.hasAttribute('data-workspace-exit'))return;const url=new URL(link.href,location.href);if(url.origin!==location.origin)return;
+  if(/^\/academy\/(?:calendar|library|open-library|media|pdf-reader|pdf-compare)\//.test(url.pathname)&&!url.pathname.includes('/manage/'))link.href=readerUrl(url.href);
+  else if(adminRealm()&&['/academy/','/academy/index.html'].includes(url.pathname)){url.pathname='/academy/admin/';if(!url.hash||url.hash==='#overview')url.hash='#administration';link.href=url.href;}
+ },true);
  if(location.pathname.startsWith('/academy/admin/')&&!location.hash)history.replaceState(null,'','#administration');
 })();

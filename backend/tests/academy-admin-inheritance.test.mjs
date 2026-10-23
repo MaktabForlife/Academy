@@ -10,7 +10,7 @@ const op=()=>({operationId:crypto.randomUUID()});
 const today=()=>academyDate(new Date(),'Africa/Johannesburg');
 async function use(fn){const f=await splitFixture(source=>{source.db.prepare("INSERT INTO classes(activity_key,class_id,name,active) VALUES(?,?,?,1)").run(source.scopes.programA,"student-view-other","Other student class");source.db.prepare("INSERT INTO class_memberships(activity_key,enrollment_id,class_id,account_id,active) VALUES(?,?,?,?,1)").run(source.scopes.programA,"view-other-member","student-view-other",source.actors.studentA);});try{
  f.databases.core.exec("UPDATE split_deployment_state SET state='READY'");Object.assign(f.source.env,{ACADEMY_DB:f.core,ACADEMY_ADMIN_DB:f.admin,ACADEMY_DB_GENERATION:'SPLIT_V1',ACADEMY_D1_RUN_ID:f.prepared.report.sourceDigest,ACADEMY_SPLIT_COORDINATOR:f.namespace,ACADEMY_ACCEPTED_SETUP:'1',ACADEMY_LEARNING_OPERATIONS:'3',ACADEMY_MEDIA_SEPARATION:'1'});
- f.request=async(path,input={},who='global',workspace='TEACH',classView=null,bytes=null)=>{
+ f.request=async(path,input={},who='global',workspace='ADMIN_TEACH',classView=null,bytes=null)=>{
   const token=await f.source.actor(who),response=await worker.fetch(new Request('http://localhost'+path,{method:'POST',headers:{Authorization:'Bearer '+token,'X-Academy-Workspace':workspace,...(classView?{'X-Academy-Class':encodeURIComponent(JSON.stringify(classView))}:{}),...(!bytes?{'Content-Type':'application/json'}:{})},body:bytes||JSON.stringify(input)}),f.source.env);
   return {status:response.status,body:response.headers.get('Content-Type')?.includes('application/json')?await response.json():await response.arrayBuffer()};
  };
@@ -48,19 +48,19 @@ test('inherited Teachers contribute only their own notes while student class vie
  const scope=f.scopes.programA,path='/api/academy/lesson-media/',input={activityKey:scope,startDate:today(),endDate:today()};
  const calendar=ok(await f.request(path+'calendar',input,'adminA')),session=calendar.sessions.find(s=>s.canContribute);assert(session);assert.equal(calendar.canManage,false);
  const bytes=Buffer.from('%PDF-1.4\n% inherited teacher\n%%EOF'),metadata={...op(),...input,sessionKey:session.sessionKey,sessionVersion:session.sessionVersion,size:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex'),filename:'own.pdf',name:'Own note'};
- const posted=ok(await f.request(path+'note-upload?metadata='+encodeURIComponent(JSON.stringify(metadata)),{},'adminA','TEACH',null,bytes));
+ const posted=ok(await f.request(path+'note-upload?metadata='+encodeURIComponent(JSON.stringify(metadata)),{},'adminA','ADMIN_TEACH',null,bytes));
  assert.equal(f.databases.core.prepare('SELECT owner_id FROM lesson_note_entries WHERE note_id=?').get(posted.noteId).owner_id,f.actors.adminA);
- assert.equal((await f.request(path+'note-upload?metadata='+encodeURIComponent(JSON.stringify({...metadata,...op(),noteId:posted.noteId,revision:1})),{},'global','TEACH',null,bytes)).status,403);
+ assert.equal((await f.request(path+'note-upload?metadata='+encodeURIComponent(JSON.stringify({...metadata,...op(),noteId:posted.noteId,revision:1})),{},'global','ADMIN_TEACH',null,bytes)).status,403);
  const before=f.databases.core.prepare('SELECT version FROM academy_write_state').get().version,classView={activityKey:scope,classId:session.classIds[0]};
- const home=ok(await f.request('/api/academy/entrance',{},'adminA','LEARN',classView));assert(home.activityPages.find(a=>a.kind+':'+a.id===scope).studentPreview);
+ const home=ok(await f.request('/api/academy/entrance',{},'adminA','ADMIN_LEARN',classView));assert(home.activityPages.find(a=>a.kind+':'+a.id===scope).studentPreview);
  assert(home.personalTimetable.filter(r=>'PROGRAM:'+r.activityId===scope).every(r=>r.classIds.includes(classView.classId)&&!r.joinKey));
- const learner=ok(await f.request(path+'calendar',input,'adminA','LEARN',classView));assert(learner.sessions.every(s=>!s.canContribute));assert(learner.sessions.some(s=>s.media?.assets.some(a=>a.id===posted.versionId)));
+ const learner=ok(await f.request(path+'calendar',input,'adminA','ADMIN_LEARN',classView));assert(learner.sessions.every(s=>!s.canContribute));assert(learner.sessions.some(s=>s.media?.assets.some(a=>a.id===posted.versionId)));
  const otherClass=home.activityPages.find(a=>a.kind+':'+a.id===scope).classes.find(c=>!session.classIds.includes(c.id));assert(otherClass);
- const otherView={activityKey:scope,classId:otherClass.id},other=ok(await f.request(path+'calendar',input,'adminA','LEARN',otherView));assert(!other.sessions.some(s=>s.media?.assets.some(a=>a.id===posted.versionId)));
- const media=learner.sessions.find(s=>s.media?.assets.some(a=>a.id===posted.versionId)).media;assert.equal((await f.request(path+'download',{lessonId:media.id,assetId:posted.versionId},'adminA','LEARN',otherView)).status,403);
- assert.equal((await f.request('/api/academy/progress/mark',{updates:[]},'adminA','LEARN',classView)).status,403);
- assert.equal((await f.request('/api/academy/entrance',{},'studentA','LEARN',classView)).status,403);
- assert.equal((await f.request('/api/academy/entrance',{},'adminB','LEARN',classView)).status,403);
+ const otherView={activityKey:scope,classId:otherClass.id},other=ok(await f.request(path+'calendar',input,'adminA','ADMIN_LEARN',otherView));assert(!other.sessions.some(s=>s.media?.assets.some(a=>a.id===posted.versionId)));
+ const media=learner.sessions.find(s=>s.media?.assets.some(a=>a.id===posted.versionId)).media;assert.equal((await f.request(path+'download',{lessonId:media.id,assetId:posted.versionId},'adminA','ADMIN_LEARN',otherView)).status,403);
+ assert.equal((await f.request('/api/academy/progress/mark',{updates:[]},'adminA','ADMIN_LEARN',classView)).status,403);
+ assert.equal((await f.request('/api/academy/entrance',{},'studentA','ADMIN_LEARN',classView)).status,403);
+ assert.equal((await f.request('/api/academy/entrance',{},'adminB','ADMIN_LEARN',classView)).status,403);
  assert.equal(f.databases.core.prepare('SELECT version FROM academy_write_state').get().version,before);
 }));
 test('Learn class selection shows only published class assessments without recipient or personal history',()=>use(async f=>{
@@ -71,8 +71,41 @@ test('Learn class selection shows only published class assessments without recip
   ok(await f.request('/api/academy/assessments/publish',{...op(),assessmentId:made.assessmentId,revision:detail.assessment.revision},'global','ADMIN'));
  }
  const selection={scopes:[scope]},review=ok(await f.request('/api/admin/platform/setup/review',selection,'global','ADMIN')),freeze=ok(await f.request('/api/admin/platform/setup/freeze',{...selection,digest:review.digest},'global','ADMIN'));ok(await f.request('/api/admin/platform/setup/publish',{batchId:freeze.batchId,digest:freeze.digest},'global','ADMIN'));
- const classView={activityKey:scope,classId:first},list=ok(await f.request('/api/academy/assessments/list',{activityKey:scope},'adminA','LEARN',classView));assert.deepEqual(list.assessments.map(a=>a.id),[ids[0]]);
- const detail=ok(await f.request('/api/academy/assessments/get',{assessmentId:ids[0]},'adminA','LEARN',classView));assert(detail.assessment.learnerPreview);assert.equal(detail.assessment.canUpload,false);assert.deepEqual(detail.learners,[]);assert.deepEqual(detail.history,[]);
- assert.equal((await f.request('/api/academy/assessments/get',{assessmentId:ids[1]},'adminA','LEARN',classView)).status,403);
+ const classView={activityKey:scope,classId:first},list=ok(await f.request('/api/academy/assessments/list',{activityKey:scope},'adminA','ADMIN_LEARN',classView));assert.deepEqual(list.assessments.map(a=>a.id),[ids[0]]);
+ const detail=ok(await f.request('/api/academy/assessments/get',{assessmentId:ids[0]},'adminA','ADMIN_LEARN',classView));assert(detail.assessment.learnerPreview);assert.equal(detail.assessment.canUpload,false);assert.deepEqual(detail.learners,[]);assert.deepEqual(detail.history,[]);
+ assert.equal((await f.request('/api/academy/assessments/get',{assessmentId:ids[1]},'adminA','ADMIN_LEARN',classView)).status,403);
  assert.equal(f.databases.core.prepare('SELECT count(*) n FROM assessment_recipients WHERE account_id=?').get(f.actors.adminA).n,0);
+}));
+
+
+test('personal readers never inherit Admin class or teaching access and Admin readers reject non-admin accounts',()=>use(async f=>{
+ const scope=f.scopes.programA;
+ for(const who of ['global','adminA']){
+  for(const mode of ['LEARN','TEACH']){
+   const home=ok(await f.request('/api/academy/entrance',{},who,mode));assert.equal(home.workspace,mode);assert.equal(home.adminView,false);assert(!home.personalActivities.some(a=>a.kind+':'+a.id===scope));
+   assert.equal((await f.request('/api/academy/attendance/get',{activityKey:scope,date:today()},who,mode)).status,403);
+  }
+  assert.equal((await f.request('/api/academy/entrance',{},who,'LEARN',{activityKey:scope,classId:'class-1'})).status,403);
+ }
+ for(const who of ['teacherA','studentA'])for(const mode of ['ADMIN_LEARN','ADMIN_TEACH'])assert.equal((await f.request('/api/academy/entrance',{},who,mode)).status,403);
+ const dual=ok(await f.request('/api/academy/entrance',{},'dual','TEACH'));assert(dual.personalActivities.some(a=>a.kind+':'+a.id===scope));assert.equal(dual.adminView,false);
+}));
+test('Admin scope and personal assignments remain distinct even when the same account has both',()=>use(async f=>{
+ const scope=f.scopes.programB,actor=f.actors.adminA;
+ for(const role of ['TEACHER','STUDENT'])f.databases.core.prepare("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state) VALUES(?,?,?,?,1,'CONFIRMED')").run('separate-'+role,actor,scope,role);
+ for(const [personal,admin] of [['LEARN','ADMIN_LEARN'],['TEACH','ADMIN_TEACH']]){
+  const own=ok(await f.request('/api/academy/entrance',{},'adminA',personal)),managed=ok(await f.request('/api/academy/entrance',{},'adminA',admin));assert(own.personalActivities.some(a=>a.kind+':'+a.id===scope));assert(!managed.personalActivities.some(a=>a.kind+':'+a.id===scope));
+  assert.equal((await f.request('/api/academy/attendance/get',{activityKey:scope,date:today()},'adminA',admin)).status,403);
+  assert.equal((await f.request('/api/academy/lesson-media/calendar',{activityKey:scope,startDate:today(),endDate:today()},'adminA',admin)).status,403);
+ }
+}));
+
+
+test('Admin-Learn stays a read-only catalogue even when the Admin also owns a learner card and no class was selected',()=>use(async f=>{
+ const before=f.databases.core.prepare('SELECT version FROM academy_write_state').get().version;
+ const view=ok(await f.request('/api/academy/progress/get',{activityKey:f.scopes.programA},'dual','ADMIN_LEARN'));assert.equal(view.student,false);assert.equal(view.readOnly,true);assert.deepEqual(view.records,[]);
+ assert.equal((await f.request('/api/academy/progress/mark',{updates:[],...op()},'dual','ADMIN_LEARN')).status,403);
+ const personal=ok(await f.request('/api/academy/progress/get',{activityKey:f.scopes.programA},'dual','LEARN'));assert.equal(personal.student,true);assert.equal(personal.readOnly,false);
+ assert.equal((await f.request('/api/academy/progress/get',{activityKey:f.scopes.programB},'adminA','ADMIN_LEARN')).status,403);
+ assert.equal(f.databases.core.prepare('SELECT version FROM academy_write_state').get().version,before);
 }));

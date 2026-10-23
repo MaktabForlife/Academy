@@ -41,7 +41,7 @@ export function d1Learning(repository,auth,now=()=>new Date()) {
       registers:p('SELECT * FROM attendance_registers WHERE activity_key=? ORDER BY sequence',activity),
       ...(!timetableOnly?{marks:p('SELECT * FROM attendance_marks WHERE activity_key=?',activity)}:{})
     },{timetableOnly});
-    const roles=readerRoles(auth,liveRoles(loaded.data,auth.user.accountid,loaded.a.activity_key));
+    const roles=readerRoles(auth,liveRoles(loaded.data,auth.user.accountid,loaded.a.activity_key),loaded.a.activity_key);
     loaded.roles=roles;
     if(loaded.data.teacherStaff){
       const ids=new Set(workspaceCatalog(loaded,learningCatalog(loaded)).teachers.map(t=>t.id));

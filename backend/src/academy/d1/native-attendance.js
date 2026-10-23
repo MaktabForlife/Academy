@@ -19,13 +19,13 @@ export function nativeAttendance(repository,auth,now=()=>new Date()){
   const key=input.activityKey||'PROGRAM:'+String(input.id||'');
   if(typeof key!=='string'||key.length>200||!/^(PROGRAM|COURSE):[^:]+$/i.test(key))throw fail('Choose a Program or Course.');
   const row=await p("SELECT * FROM activities WHERE activity_key=? COLLATE NOCASE AND active=1 AND lifecycle='ACTIVE'",key).first();
-  if(!row)throw fail('This learning area is unavailable.',403,'FORBIDDEN');return row;
+  if(!row||auth.adminView&&!administers(auth,row.activity_key))throw fail('This learning area is unavailable.',403,'FORBIDDEN');return row;
  }
  async function options(){
   if(auth.workspace==='LEARN')throw fail('Open Teach or Admin for attendance.',403,'TEACH_WORKSPACE_REQUIRED');
   const rows=(await p("SELECT activity_key,activity_id,kind,name FROM activities WHERE active=1 AND lifecycle='ACTIVE' ORDER BY name").all()).results;
   const grants=(await p("SELECT * FROM attendance_substitutes WHERE account_id=? AND revoked_at IS NULL AND starts_at<=? AND max(correction_until,coalesce(correction_reopen_until,''))>?",actor,now().toISOString(),now().toISOString()).all()).results;
-  return {generation:attendanceGeneration,store:'D1',programs:rows.filter(a=>isAdminWorkspace(auth)?administers(auth,a.activity_key):actualRole(auth,a.activity_key,'TEACHER')||administers(auth,a.activity_key)||grants.some(g=>same(g.activity_key,a.activity_key))).map(a=>({id:a.activity_id,kind:a.kind,activityKey:a.activity_key,name:a.name,role:isAdminWorkspace(auth)?'PROGRAM_ADMIN':actualRole(auth,a.activity_key,'TEACHER')?'TEACHER':grants.some(g=>same(g.activity_key,a.activity_key))?'SUBSTITUTE':'TEACHER'}))};
+  return {generation:attendanceGeneration,store:'D1',programs:rows.filter(a=>auth.adminView?administers(auth,a.activity_key):isAdminWorkspace(auth)?administers(auth,a.activity_key):actualRole(auth,a.activity_key,'TEACHER')||administers(auth,a.activity_key)||grants.some(g=>same(g.activity_key,a.activity_key))).map(a=>({id:a.activity_id,kind:a.kind,activityKey:a.activity_key,name:a.name,role:isAdminWorkspace(auth)?'PROGRAM_ADMIN':actualRole(auth,a.activity_key,'TEACHER')?'TEACHER':grants.some(g=>same(g.activity_key,a.activity_key))?'SUBSTITUTE':'TEACHER'}))};
  }
  async function load(a,date){
   const timezone=await appTimezone(repository),today=academyDate(now(),timezone),scope=a.activity_key;

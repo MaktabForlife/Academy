@@ -9,7 +9,7 @@
   const side = document.createElement('aside');
   side.className = 'academy-connected-sidebar';
   side.setAttribute('aria-label', 'Academy');
-  side.innerHTML = `<a class="academy-connected-brand" href="/academy/#overview"><img src="/ummabbadacademy.png" alt=""><span><strong>Umm Abbad<br>Academy</strong><span class="site-version">Website V107.33</span></span></a>
+  side.innerHTML = `<a class="academy-connected-brand" href="/academy/#overview"><img src="/ummabbadacademy.png" alt=""><span><strong>Umm Abbad<br>Academy</strong><span class="site-version">Website V107.34</span></span></a>
     <nav aria-label="Academy navigation"><a href="/academy/#overview">Academy home</a><a href="/activities/surahs-in-my-heart/">Surahs in my Heart</a><a href="/activities/kaaba-puzzle/">Kaaba puzzle</a><a id="ac-recorder" href="/academy/#recorder" hidden>Voice Recorder</a><a id="ac-library" href="/academy/open-library/">Library</a><a id="ac-calendar" href="/academy/calendar/" hidden>Academic Calendar</a><a href="/academy/#about">About</a><a href="/academy/#contact">Contact</a></nav>
     <div class="academy-connected-footer"><a href="https://ummabbadacademy.com" target="_blank" rel="noopener noreferrer">Original Academy site ↗</a><button id="ac-signout" type="button" hidden>Sign out</button></div>`;
   const strip = document.createElement('nav');
@@ -39,7 +39,7 @@
     }
     return {success:true,signedIn:true,sessionStore:result.sessionStore,profile:{name:result.account.displayName||'Academy member',uniqueid:result.account.uniqueid||''},
       globalAdmin:contexts.some(c=>c.scope==='PLATFORM'&&c.role==='GLOBAL_ADMIN'),student:contexts.some(c=>c.role==='STUDENT'),
-      workspaceRoles:[...new Set(contexts.filter(c=>roles([c.role])).map(c=>c.role))],personalActivities:[...activities.values()]};
+      workspaceAccess:{learn:true,teach:contexts.some(c=>c.role==='TEACHER'),admin:contexts.some(c=>['GLOBAL_ADMIN','PROGRAM_ADMIN','ADMIN'].includes(c.role))},workspaceRoles:[...new Set(contexts.filter(c=>roles([c.role])).map(c=>c.role))],personalActivities:[...activities.values()]};
   }
 
   function useSession(result,session){
@@ -88,9 +88,9 @@
           if(!/^[A-Za-z0-9]+$/.test(loginId)||typeof url!=='string'||!/^https:\/\//.test(url))return '';
           return `<a href="${esc(url.replace(/\/$/,'')+'/'+encodeURIComponent(loginId)+'?academy='+encodeURIComponent(window.M4L_CONFIG?.HIFZ_ENTRY_SOURCE||'1'))}" target="_blank" rel="noopener noreferrer" aria-label="HifzHelper (opens in a new tab)">HifzHelper ↗</a>`;
         }
-        return `<a data-academy-program="${esc(row.id)}" href="/academy/#activity/${row.kind}/${encodeURIComponent(row.id)}"${row.id === currentProgram ? ' aria-current="page"' : ''}><span>${esc(row.name)}</span><small>${esc(roles(result.globalAdmin ? ['GLOBAL_ADMIN'] : row.roles))}</small></a>`;
+        return `<a data-academy-program="${esc(row.id)}" href="${window.M4L_ACADEMY_WORKSPACE?.adminRealm()?'/academy/admin/':'/academy/'}#activity/${row.kind}/${encodeURIComponent(row.id)}/${(window.M4L_ACADEMY_WORKSPACE?.audience()||'LEARN').toLowerCase()}"${row.id === currentProgram ? ' aria-current="page"' : ''}><span>${esc(row.name)}</span><small>${esc(roles(result.globalAdmin ? ['GLOBAL_ADMIN'] : row.roles))}</small></a>`;
       }).join('') +
-        (result.signedIn && (result.globalAdmin || courses.some(row=>row.roles?.length)) ? `<a href="/academy/#workshops"><span>Courses</span><small>${esc(roles(result.globalAdmin ? ['GLOBAL_ADMIN','PROGRAM_ADMIN'] : [...new Set(courses.flatMap(row => row.roles))]) || 'None')}</small></a>` : '');
+        (result.signedIn && (result.globalAdmin || courses.some(row=>row.roles?.length)) ? `<a href="${window.M4L_ACADEMY_WORKSPACE?.adminRealm()?'/academy/admin/':'/academy/'}#workshops"><span>Courses</span><small>${esc(roles(result.globalAdmin ? ['GLOBAL_ADMIN','PROGRAM_ADMIN'] : [...new Set(courses.flatMap(row => row.roles))]) || 'None')}</small></a>` : '');
       strip.hidden = !result.signedIn;
       window.M4L_ACADEMY_SHELL_DATA=result;window.M4L_ACADEMY_SHELL?.update(result);
   }
@@ -101,14 +101,7 @@
     clear();
     if (!session) return;
     try {
-      let result, owner = '';
-      try {
-        owner = [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(session)))].map(b=>b.toString(16).padStart(2,'0')).join('');
-        const saved = JSON.parse(sessionStorage.getItem('m4l_academy_daily_timetable_10669') || 'null');
-        const home = saved?.owner === owner && saved.entries?.HOME;
-        const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:home?.timezone || 'Africa/Johannesburg',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(p=>[p.type,p.value]));
-        if (home?.cacheDay === `${parts.year}-${parts.month}-${parts.day}` && home.signedIn) result = home;
-      } catch {}
+      let result;
       if (!result) {
         // Shared banners need account authority, not a complete timetable.
         await accountSession(session);return;
