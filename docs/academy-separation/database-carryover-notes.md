@@ -45,3 +45,7 @@ Examples of retained active fields include `course_settings.legacy_access_model`
 Update the register when a route, flag, writer, view, field or setting is retired or replaced. Before the separately authorised physical move, refresh counts and actual dependencies, classify newly added objects, select the exact column/row allowlist, and verify the target does not include excluded history/provenance by default. A table may be excluded from a new target while still being preserved in the original store or private recovery archive. A later cleanup/deletion decision is separate from carrying only the necessary schema and data forward.
 
 Static literal references are navigation evidence, not proof that dynamic/external consumers do not exist. The register records that limitation explicitly. No automatic cleanup or deletion policy is introduced.
+
+## Phase 5 actual schema
+
+The [runtime field inventory](runtime-field-ownership.csv) and [copy register](phase-5-copy-register.csv) record the implemented split. Core holds 112 tables and Admin 51, including small technical recovery/reference tables. Admin has no credential/session/role tables or editable copies of Core timetable publications. Retired history/import tables remain only in the original database/private archive. Current active-owner deny controls and the minimal exact historical evidence cited by active work remain necessary. Preview writes may now exist: reconcile them and current source changes before promotion, rather than copying over either side.

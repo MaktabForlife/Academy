@@ -29,7 +29,7 @@ export async function copyProgram(repository,auth,input){
   collect('tasks','task_id','TASK-',r=>(!r.program_subject_id||mapped('subjects',r.program_subject_id))&&(!r.module_id||mapped('modules',r.module_id)));
   collect('classes','class_id','CLS-',()=>true);
   const statements=[...insertRecords(p,'activities',[{activity_key:activity,activity_id:id,kind:'PROGRAM',name:config.name,active:0,lifecycle:'DRAFT',website_visible:0,created_at:now,updated_at:now,revision:1}]),
-   ...insertRecords(p,'program_settings',[{activity_key:activity,duration_years:config.durationYears||null,timezone:config.timezone,revision:1,public_card_json:settings.public_card_json||'{}'}]),...insertRecords(p,'data_ownership',[repository.ownershipForNewActivity(activity)])];
+   ...insertRecords(p,'program_settings',[{activity_key:activity,duration_years:config.durationYears||null,timezone:config.timezone,revision:1,public_card_json:settings.public_card_json||'{}'}]),...insertRecords(p,'data_ownership',repository.features?.splitDatabases?[]:[repository.ownershipForNewActivity(activity)])];
   for(const [kind,pk]of [['subjects','program_subject_id'],['levels','level_id'],['modules','module_id'],['tasks','task_id'],['classes','class_id']]){
    const rows=records[kind].map(r=>({...r,activity_key:activity,[pk]:mapped(kind,r[pk]),...(kind!=='subjects'&&Object.hasOwn(r,'program_subject_id')?{program_subject_id:mapped('subjects',r.program_subject_id)}:{}),...(Object.hasOwn(r,'level_id')?{level_id:mapped('levels',r.level_id)}:{}),...(Object.hasOwn(r,'module_id')&&kind!=='modules'?{module_id:mapped('modules',r.module_id)}:{}),...(kind==='classes'?{academic_year:year,zoom_link:input.copySchedule?r.zoom_link:null}:{})}));
    statements.push(...insertRecords(p,tables[kind],rows));

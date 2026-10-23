@@ -1,14 +1,16 @@
 import {managementError,same} from './management-store.js';
 import {managementRowRevision} from '../../programs/management-model.js';
 import {payloadHash} from '../../programs/timetable-model.js';
+import {storeColumns} from '../separation/columns.js';
 
 // Reference checks stay within the selected Program. Shared catalogue rows are
 // never deleted or deactivated by this operation.
 export async function curriculumReferenceQueries(db,p,activity){
  const sources={timetable_drafts:['draft_json'],timetable_publications:['snapshot_json'],program_timetable_records:['draft_json'],attendance_registers:['lesson_json'],lesson_media_lessons:['source_lessons_json'],lesson_plans:['draft_json','submitted_json']};
- const tables=new Set((await db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all()).results.map(row=>row.name));
+ const split=db.splitGeneration==='SPLIT_V1',tables=new Set(split?[...Object.keys(storeColumns.core),...Object.keys(storeColumns.admin)]:(await db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all()).results.map(row=>row.name));
  const queries=Object.fromEntries(Object.entries(sources).filter(([table])=>tables.has(table)).map(([table,fields])=>['remove_'+table,p(`SELECT ${fields.join(',')} FROM ${table} WHERE activity_key=?`,activity)]));
  if(tables.has('lesson_plan_revisions')&&tables.has('lesson_plans'))queries.remove_plan_history=p('SELECT r.content_json FROM lesson_plan_revisions r JOIN lesson_plans l USING(plan_id) WHERE l.activity_key=?',activity);
+ if(tables.has('attendance_day_contexts'))queries.remove_native_attendance=p('SELECT c.lesson_json FROM attendance_day_contexts c JOIN attendance_days d USING(day_id) WHERE d.activity_key=?',activity);
  return queries;
 }
 export function referencesCurriculum(value,id){

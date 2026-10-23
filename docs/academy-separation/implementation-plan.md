@@ -56,7 +56,7 @@ Exit: UI complete; verification and Development release evidence recorded; compa
 
 ## Phase 5 move coherent Admin data families
 
-Execution on 23 October: [inactive target preparation](phase-5.md) is verified against exact hosted row hashes. Phase 5 remains in progress; owner routing, cross-store write/recovery and hosted workflow/query-budget exit gates remain open. Current Development and feature-admin remain at V107.28.
+Execution on 23 October: [Phase 5](phase-5.md) implements field-aware ownership, durable cross-store recovery and an isolated V107.30 preview with fresh active-record Core/Admin copies. Hosted integrity, write/rollback/revocation and local role/workflow/query-budget checks pass. Promotion into feature-admin and current Development remains held for Phase 4 review; those deployments stay V107.28.
 
 The required UI/Development checkpoint above must be complete before this phase begins. The 23 October scope creates fresh dev-academy-admin and dev-academy-core on feature-split-db, selects active/unarchived records, retains old Development as the legacy/recovery source, and holds merge/routing changes until the user reviews Phase 4.
 
@@ -91,7 +91,7 @@ Exit: release and rollback evidence recorded; obsolete writes cannot bypass the 
 
 ## Acceptance and deliverables
 
-The [design acceptance matrix](acceptance-matrix.csv) and matching [evidence map](rehearsal-evidence.csv) define the full separation checks, including future physical cutover. Their original design-time NOT RUN labels are not current execution claims. The [implementation evidence](implementation-evidence.csv) and phase records identify checks actually run and limits; physical cross-store scenarios remain deferred to Phase 5. Measure actual selected-family cost during implementation, rather than treating earlier provisional budgets as tested capacity.
+The [design acceptance matrix](acceptance-matrix.csv) and matching [evidence map](rehearsal-evidence.csv) define the full separation checks, including future physical cutover. Their original design-time NOT RUN labels are not current execution claims. The [implementation evidence](implementation-evidence.csv) and phase records identify checks actually run and limits; Phase 5 records the executed physical cross-store checks; final source reconciliation and current-site cutover remain separate promotion gates. Measure actual selected-family cost during implementation, rather than treating earlier provisional budgets as tested capacity.
 
 Each phase records the code/schema/map revision, role/context coverage, data/file preservation, actual test results and recovery evidence. Advance on verified deliverables, not a hidden button or a successful HTTP response alone. Routine checks are part of implementation and need no repeated policy-design approval. Implementation has been requested; advance on verified phase exit gates.
 

@@ -50,7 +50,7 @@ export async function processCacheRefresh(request,env,{repository,now=new Date()
     const claim=await p(`UPDATE academy_settings SET setting_value=json_set(setting_value,'$.leaseUntil',?) WHERE setting_key=?
       AND json_extract(setting_value,'$.requested')=? AND json_extract(setting_value,'$.published')<?
       AND COALESCE(json_extract(setting_value,'$.leaseUntil'),0)<=? AND COALESCE(json_extract(setting_value,'$.nextAttemptAt'),0)<=?`,time+120000,row.setting_key,revision,revision,time,time).run();
-    if(claim.meta.changes!==1)continue;
+    if(!claim.meta.changes)continue;
     try {
       if(kind==='profile-labels')await publishLabels(env,revision);
       else {
@@ -61,7 +61,7 @@ export async function processCacheRefresh(request,env,{repository,now=new Date()
         },now,edge);
       }
       const done=await p(`UPDATE academy_settings SET setting_value=json_set(setting_value,'$.published',?,'$.leaseUntil',0,'$.attempts',0,'$.nextAttemptAt',0) WHERE setting_key=? AND json_extract(setting_value,'$.requested')=?`,revision,row.setting_key,revision).run();
-      if(done.meta.changes===1)completed.push(kind);
+      if(done.meta.changes>0)completed.push(kind);
     }catch(error) {
       const quota=/daily.*(?:row|read|write).*limit|exceeded.*free tier/i.test(error.message);
       const tomorrow=new Date(time);tomorrow.setUTCHours(24,0,0,0);

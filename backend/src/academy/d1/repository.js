@@ -1,6 +1,7 @@
 import {personalLinksEstablished} from './personal-links.js';
 import {emptyCompatibilityDatabase} from '../separation/compatibility.js';
 import {emptyShapes} from '../separation/empty-shapes.js';
+import {splitClient} from '../separation/client.js';
 import { authorityRank, normalizePlatformIdentifier as key } from '../../lib/platform-schema.js';
 import {CORE_ACTIVATION_CHECKS,newActivityOwnership} from './activation-policy.js';
 import {programAccessJoin,programAccessSQL} from './program-access.js';
@@ -19,7 +20,8 @@ export function academyD1Repository(env) {
     throw rehearsalError('Academy activation configuration is incomplete.',503,'ACTIVATION_REQUIRED');
   const split=env.ACADEMY_DB_GENERATION==='SPLIT_V1';
   if(split&&!env.ACADEMY_ADMIN_DB)throw rehearsalError('The Admin database binding is required.',503,'SPLIT_BINDING_REQUIRED');
-  const raw=env.ACADEMY_DB.withSession('first-primary'),db=split?emptyCompatibilityDatabase(raw,emptyShapes,{currentGrants:true}):raw;
+  const raw=env.ACADEMY_DB.withSession('first-primary'),compatible=split?emptyCompatibilityDatabase(raw,emptyShapes,{currentGrants:true}):raw;
+  const client=split?splitClient(env,compatible,env.ACADEMY_ADMIN_DB.withSession('first-primary')):null,db=client?.core||compatible;
   const prepare=(sql,...values)=>db.prepare(sql).bind(...values);
   let schemas,activation;
   async function schemaNames(){
@@ -81,6 +83,8 @@ export function academyD1Repository(env) {
       SELECT ?,?,?,?,?,?,?,?,? ${conditional?'WHERE changes()=1':''}`,crypto.randomUUID(),new Date().toISOString(),actor,env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACCOUNT':'D1_REHEARSAL','ACADEMY',action,'USER_ACCOUNT',target,JSON.stringify(fields));
   }
   return {
+    bindActor:auth=>client?.bindActor(auth),
+    authoringRepository(){return client?{...this,db:client.admin}:this;},
     db,coreDb:db,adminDb:split?env.ACADEMY_ADMIN_DB.withSession('first-primary'):null,setup:{enabled:env.ACADEMY_ACCEPTED_SETUP==='1'},features:{nativeAttendance:env.ACADEMY_LEARNING_OPERATIONS==='3',mediaSeparation:env.ACADEMY_MEDIA_SEPARATION==='1',splitDatabases:split},
     ownershipForNewActivity:activity=>newActivityOwnership(activity,env),
     subscriptionSource,
@@ -144,9 +148,9 @@ export function academyD1Repository(env) {
         prepare(`UPDATE accounts SET last_login_at=? WHERE account_id=? AND active=1 AND EXISTS(SELECT 1 FROM account_credentials WHERE account_id=? AND credential_epoch=?)`,created,state.account.account_id,state.account.account_id,state.account.credential_epoch),
         prepare(`INSERT INTO account_sessions(session_id,account_id,credential_epoch,created_at,expires_at)
           SELECT ?,a.account_id,c.credential_epoch,?,? FROM accounts a JOIN account_credentials c USING(account_id)
-          WHERE a.account_id=? AND a.active=1 AND c.pin_setup=1 AND length(trim(c.pin_hash))>0 AND c.credential_epoch=?`,sid,created,expires,state.account.account_id,state.account.credential_epoch)
+          WHERE a.account_id=? AND a.active=1 AND c.pin_setup=1 AND length(trim(c.pin_hash))>0 AND c.credential_epoch=? RETURNING session_id`,sid,created,expires,state.account.account_id,state.account.credential_epoch)
       ]);
-      if(result[1].meta.changes!==1)throw rehearsalError('Account changed. Please sign in again.',401,'SESSION_ENDED');
+      if(result[1].results?.length!==1||result[1].results[0].session_id!==sid)throw rehearsalError('Account changed. Please sign in again.',401,'SESSION_ENDED');
       return {sid,expires,context};
     },
     async session(sid,accountId,epoch,now=new Date()) {

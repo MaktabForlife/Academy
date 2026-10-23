@@ -30,7 +30,7 @@ test('the fresh stores preserve authority and accepted content while Admin alone
  for(const table of ['accounts','account_credentials','account_sessions','role_assignments','global_role_assignments'])assert(!databases.admin.prepare('SELECT 1 FROM sqlite_schema WHERE type=\'table\' AND name=?').get(table));
  for(const table of excludedTables)for(const db of Object.values(databases))assert(!db.prepare("SELECT 1 FROM sqlite_schema WHERE type='table' AND name=?").get(table));
  assert.equal(databases.core.prepare("SELECT count(*) n FROM operation_receipts WHERE operation_id='retry-kept'").get().n,1);assert.equal(databases.admin.prepare('SELECT count(*) n FROM operation_receipts').get().n,0);
- const before=academyD1Repository(f.env),after=academyD1Repository({...f.env,ACADEMY_DB:sqliteD1(databases.core),ACADEMY_ADMIN_DB:sqliteD1(databases.admin),ACADEMY_DB_GENERATION:'SPLIT_V1',ACADEMY_D1_RUN_ID:selection.manifest.sourceDigest});
+ const before=academyD1Repository(f.env),after=academyD1Repository({...f.env,ACADEMY_DB:sqliteD1(databases.core),ACADEMY_ADMIN_DB:sqliteD1(databases.admin),ACADEMY_DB_GENERATION:'SPLIT_V1',ACADEMY_SPLIT_COORDINATOR:{getByName(){throw Error('Offline copy is read-only');}},ACADEMY_D1_RUN_ID:selection.manifest.sourceDigest});
  for(const row of selection.rows.accounts){const original=await before.byId(row.account_id),copied=await after.byId(row.account_id);assert.deepEqual(copied.roles,original.roles);assert.deepEqual(copied.contexts,original.contexts);assert.equal(copied.account.pin_hash,original.account.pin_hash);}
  await assert.rejects(after.ready(),e=>e.code==='SPLIT_PREPARATION_REQUIRED');
 }));
@@ -56,3 +56,6 @@ test('SQL command classification ignores comments, strings and nested CTEs',()=>
  for(const sql of ["/* UPDATE fake */ SELECT 'DELETE FROM accounts'",'WITH x AS(SELECT 1), y AS(SELECT * FROM x) SELECT * FROM y','WITH RECURSIVE x(n) AS(SELECT 1 UNION SELECT n+1 FROM x WHERE n<3) SELECT * FROM x'])assert.equal(sqlCommand(sql),'SELECT');
  for(const verb of ['INSERT','UPDATE','DELETE','REPLACE'])assert.equal(sqlCommand('WITH x AS(SELECT \'SELECT\') '+verb+' INTO examples'),verb);
 });
+test('federation preserves quoted literals, quoted table references and numbered bindings after comments',()=>use(async f=>{
+ const {databases}=await f.prepare(),view=federatedDatabase({core:emptyCompatibilityDatabase(sqliteD1(databases.core),emptyShapes,{currentGrants:true}),admin:sqliteD1(databases.admin),owner:'admin'}),row=await view.prepare(`/* source comment */ WITH x AS(SELECT '?2 FROM activities' note) SELECT "activities".name,x.note,?2 suffix FROM "activities" CROSS JOIN x WHERE activity_key=?1`).bind(scopes.programA,'literal binding').first();assert.equal(row.note,'?2 FROM activities');assert.equal(row.suffix,'literal binding');assert(row.name);
+}));

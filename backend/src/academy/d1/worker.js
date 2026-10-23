@@ -40,10 +40,11 @@ import {d1CourseCatalogue} from './course-catalogue.js';
 import {enrolmentCatalogue,enrolmentProfile,submitEnrolment,enrolmentManagement} from './enrolment.js';
 import {d1CourseSubscriptions} from './course-subscriptions.js';
 import {managedCourseScopes} from './course-authority.js';
-import {authenticatedD1Account as authenticated,d1Audience as audience,d1ContextEqual as contextEqual} from './session.js';
+import {authenticatedD1Account,d1Audience as audience,d1ContextEqual as contextEqual} from './session.js';
 import {openLibraryMetadataEndpoint as defaultMetadataEndpoint} from './library-metadata.js';
 
 export function createAcademyWorker({d1Library,d1LibraryStream,d1LibraryAreaRefs}=publicLibrary,{openLibraryMetadataEndpoint=defaultMetadataEndpoint,d1CourseCalendar=defaultCourseCalendar}={}){
+const authenticated=async(request,env,repository)=>{const auth=await authenticatedD1Account(request,env,repository);repository.bindActor?.(auth);return auth;};
 const publicAccount=state=>({displayName:state.account.display_name,uniqueid:state.account.login_link_id});
 const sessionResponse=(state,context,token)=>({account:publicAccount(state),context,contexts:state.contexts,courseManagement:state.account.global_admin||managedCourseScopes(state).length>0,sessionStore:'D1',operationalAccessActive:['COURSE','GLOBAL','SUBSTITUTE','OWN_LIBRARY'].includes(context.scope),...(token?{token}:{})});
 const requireActive=state=>{if(!state)throw rehearsalError('Invalid account link',404,'ACCOUNT_NOT_FOUND');if(!state.account.active)throw rehearsalError('Account disabled',403,'ACCOUNT_DISABLED');};
@@ -85,7 +86,7 @@ async function dispatch(request,env) {
   if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,setupEnabled(env)?await readRepository():repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(setupEnabled(env)?await readRepository():repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.29',
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.30',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(setupEnabled(env)?await readRepository():repository)};
@@ -104,6 +105,7 @@ async function dispatch(request,env) {
   if(path==='/api/admin/platform/announcements/save'){
     const auth=await authenticated(request,env,repository);
     guardWorkspace(request,auth);
+    repository=repository.authoringRepository();
     const editor=announcements(repository,auth,env),{input,image,pdf}=await announcementUpload(request);
     return {success:true,...await editor.run('save',input,image,pdf)};
   }
@@ -113,6 +115,7 @@ async function dispatch(request,env) {
     let input;try{input=JSON.parse(metadata);}catch{throw rehearsalError('Invalid upload details.',400);}
     if(!input||typeof input!=='object'||Array.isArray(input))throw rehearsalError('Invalid upload details.',400);
     guardWorkspace(request,auth,input);
+    if(isAdminWorkspace(auth))repository=repository.authoringRepository();
     if(setupEnabled(env)&&!isAdminWorkspace(auth))repository=await readRepository();
     if(path.endsWith('/note-upload')){if(!sourceRepository.features.mediaSeparation)throw rehearsalError('Own notes are unavailable.',503);return {success:true,...await lessonNotes(await readRepository(),auth,env).upload(request,input)};}
     return {success:true,...await lessonMedia(repository,auth,env).upload(request,input)};
@@ -123,6 +126,7 @@ async function dispatch(request,env) {
     let input;try{input=JSON.parse(metadata);}catch{throw rehearsalError('Invalid upload details.',400);}
     if(!input||typeof input!=='object'||Array.isArray(input))throw rehearsalError('Invalid upload details.',400);
     guardWorkspace(request,auth,input);
+    if(isAdminWorkspace(auth))repository=repository.authoringRepository();
     if(setupEnabled(env)&&!isAdminWorkspace(auth))repository=await readRepository();
     return {success:true,...await assessmentFiles(repository,auth,env).upload(request,input)};
   }
@@ -166,6 +170,7 @@ async function dispatch(request,env) {
   }
   const auth=await authenticated(request,env,repository);
   guardWorkspace(request,auth,input);
+  if(isAdminWorkspace(auth))repository=repository.authoringRepository();
   const nativeAction=path.match(/^\/api\/(?:academy\/attendance|program-attendance)\/(options|get|submit|prepare|recover|report|roster-get|roster-save|substitute-save|substitute-revoke|substitute-reopen)$/)?.[1];
   if(nativeAction&&sourceRepository.features.nativeAttendance)return {success:true,...await nativeAttendance(await readRepository(),auth).run(nativeAction,input)};
   const setupAction=path.match(/^\/api\/admin\/platform\/setup\/(options|review|freeze|publish|resolve)$/)?.[1];

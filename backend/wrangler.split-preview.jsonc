@@ -1,0 +1,95 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "feature_worker",
+  "account_id": "c9a3e355b3d7a795880b1d36a1dbe123",
+  "main": "src/academy-split-runtime.js",
+  "compatibility_date": "2026-10-23",
+  "workers_dev": true,
+  "preview_urls": true,
+  "keep_vars": true,
+  "d1_databases": [
+    {
+      "binding": "ACADEMY_DB",
+      "database_name": "dev-academy-core",
+      "database_id": "1c8aece3-dc1d-40d1-8a82-01ab4f63336f"
+    },
+    {
+      "binding": "ACADEMY_ADMIN_DB",
+      "database_name": "dev-academy-admin",
+      "database_id": "fe85dac1-b1f0-4079-9127-2e36089aa385"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "LESSON_MEDIA_BUCKET",
+      "bucket_name": "maktab-lesson-media-private-development"
+    },
+    {
+      "binding": "ASSESSMENT_BUCKET",
+      "bucket_name": "maktab-assessments-private-development"
+    },
+    {
+      "binding": "MEDIA_BUCKET",
+      "bucket_name": "maktab4lifemedia"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "AUTH_LOGIN_RATE_LIMITER",
+      "namespace_id": "100101",
+      "simple": {
+        "limit": 5,
+        "period": 60
+      }
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "PROGRAM_TIMETABLE_COORDINATOR",
+        "class_name": "ProgramTimetableCoordinator",
+        "script_name": "devrebootworker"
+      },
+      {
+        "name": "ACADEMY_SPLIT_COORDINATOR",
+        "class_name": "AcademySplitCoordinator",
+        "script_name": "academy_split_coordinator"
+      }
+    ]
+  },
+  "triggers": {
+    "crons": []
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "vars": {
+    "ACADEMY_D1_MODE": "ACTIVE",
+    "ACADEMY_D1_RUN_ID": "3ed73804e35f1d0c8b1bacd0a10e3b868644a38bbc30e11aa063a89716e6ac12",
+    "ACADEMY_LIBRARY_MODE": "PUBLIC_ONLY",
+    "ALLOWED_ORIGINS": "https://feature-split-db.academy-maktab4life.pages.dev",
+    "ENVIRONMENT": "development",
+    "HIFZ_DEVELOPMENT_HANDOFF_URL": "",
+    "HIFZ_HANDOFF_ENABLED": "0",
+    "HIFZ_PROFILE_SYNC_TARGET": "production",
+    "HIFZ_PROFILE_SYNC_URL": "",
+    "ACADEMY_DEPLOYMENT_KIND": "SPLIT_PREVIEW",
+    "ACADEMY_ACCEPTED_SETUP": "1",
+    "ACADEMY_LEARNING_OPERATIONS": "3",
+    "ACADEMY_MEDIA_SEPARATION": "1",
+    "ACADEMY_DB_GENERATION": "SPLIT_V1"
+  },
+  "secrets": {
+    "required": [
+      "PIN_SECRET",
+      "SESSION_SECRET",
+      "SHARED_PIN_SECRET",
+      "HIFZ_PROFILE_SYNC_SECRET",
+      "ACADEMY_OPEN_LIBRARY_STORAGE_KEY"
+    ]
+  },
+  "compatibility_flags": [
+    "nodejs_compat"
+  ]
+}

@@ -75,7 +75,7 @@ export function announcements(repository,auth,env){
    // Preserve the receipt hash for saves pending in older website versions.
    if(pdf||Object.hasOwn(input,'removePdf'))Object.assign(clean,{removePdf:input.removePdf===true,pdf:pdf?{hash:pdf.hash,type:pdf.type,name:pdf.name,size:pdf.size}:null});
   }
-  const prefix='academy-announcements/'+id+'/'+input.operationId+'/',newKey=image?prefix+image.hash:null,newPdfKey=pdf?prefix+pdf.hash+'.pdf':null;
+  const prefix=(env.ACADEMY_OBJECT_NAMESPACE||'')+'academy-announcements/'+id+'/'+input.operationId+'/',newKey=image?prefix+image.hash:null,newPdfKey=pdf?prefix+pdf.hash+'.pdf':null;
   let result;
   try{result=await store.change('ANNOUNCEMENTS','ACADEMY',action,clean,async()=>{
    const d=await load(),row=d.announcements.find(r=>r.announcement_id===id),oldPdf=attachment(row);

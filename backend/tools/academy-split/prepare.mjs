@@ -5,8 +5,11 @@ import {sqliteD1} from './sqlite-d1.mjs';
 import {emptyCompatibilityDatabase} from '../../src/academy/separation/compatibility.js';
 import {emptyShapes} from '../../src/academy/separation/empty-shapes.js';
 import {setupSchema} from '../../src/academy/d1/setup-schema.js';
+import {coreSetupTables,settingOwner} from '../../src/academy/separation/ownership.js';
 import {initialiseAcceptedSetup} from '../../src/academy/d1/setup-publication.js';
-function insert(db,table,rows){for(const row of rows){const columns=Object.keys(row);db.prepare('INSERT INTO '+identifier(table)+'('+columns.map(identifier).join(',')+') VALUES('+columns.map(()=>'?').join(',')+')').run(...Object.values(row));}}
+import {rewriteRead} from '../../src/academy/separation/federation.js';
+import {fieldOwner} from '../../src/academy/separation/ownership.js';
+function insert(db,table,rows){const allowed=new Set(db.prepare('PRAGMA table_info('+identifier(table)+')').all().map(c=>c.name));for(const row of rows){const columns=Object.keys(row).filter(c=>allowed.has(c));db.prepare('INSERT INTO '+identifier(table)+'('+columns.map(identifier).join(',')+') VALUES('+columns.map(()=>'?').join(',')+')').run(...columns.map(c=>row[c]));}}
 function acceptedRows(selection,table){
  const spec=setupSchema[table],selected=selection.rows[table]||[];
  // Accepted rows are supplied separately from the source's editable masters.
@@ -43,13 +46,18 @@ export async function prepareTargets(selection){
   for(const [owner,db]of Object.entries(databases)){
    db.exec(schemas[owner].tableSQL);db.exec('PRAGMA foreign_keys=OFF');
    const identities=[...new Set([...(selection.rows.accounts||[]).map(r=>r.account_id),...selection.actorReferences])].map(account_id=>({account_id}));
-   if(owner==='core')insert(db,'actor_refs',identities);else{insert(db,'identity_refs',identities);insert(db,'file_refs',(selection.rows.assessment_files||[]).map(r=>({file_id:r.file_id})));}
+   if(owner==='core'){insert(db,'actor_refs',identities);insert(db,'split_read_state',[{singleton:1,version:0}]);}else{insert(db,'identity_refs',identities);insert(db,'file_refs',(selection.rows.assessment_files||[]).map(r=>({file_id:r.file_id})));}
    for(const table of schemas[owner].tables){if(['actor_refs','identity_refs','file_refs'].includes(table)||table.startsWith('setup_'))continue;let rows=selection.rows[table]||[];
     if(owner==='admin'&&!adminMasters.has(table)&&table!=='academy_write_state')rows=[];
-    if(owner==='core'&&setupSchema[table]){
+    if(owner==='core'&&setupSchema[table]&&!coreSetupTables.has(table)){
      rows=acceptedRows(selection,table);
      if(table==='academy_settings')rows.push(...(selection.rows.academy_settings||[]).filter(r=>!rows.some(s=>s.setting_key===r.setting_key)));
+     else {
+      const spec=schemas.layout[table],signature=r=>JSON.stringify(spec.keys.map(k=>String(r[k]??'').toUpperCase())),present=new Set(rows.map(signature));
+      rows.push(...(selection.rows[table]||[]).filter(r=>!present.has(signature(r))).map(r=>Object.fromEntries(spec.columns.map(c=>[c,spec.keys.includes(c)||spec.referenceColumns.includes(c)||fieldOwner(table,c)==='core'?r[c]??null:null]))));
+     }
     }
+    if(owner==='admin'&&table==='academy_settings')rows=rows.filter(r=>settingOwner(r.setting_key)==='admin');
     // Existing retry outcomes remain Core evidence. New owner-local receipts
     // start only with the future verified writer switch; never clone outcomes.
     if(table==='operation_receipts')rows=owner==='core'?selection.rows.operation_receipts||[]:[];
@@ -58,7 +66,12 @@ export async function prepareTargets(selection){
    if(owner==='core')for(const [table,rows]of Object.entries(selection.referenceHistory||{}))insert(db,table,rows);
    db.exec(schemas[owner].afterSQL);db.exec('PRAGMA foreign_keys=ON');const fk=db.prepare('PRAGMA foreign_key_check').all();if(fk.length)throw Object.assign(Error('Target reference check failed: '+owner),{findings:fk.map(r=>({table:r.table,parent:r.parent}))});
   }
-  const core=emptyCompatibilityDatabase(sqliteD1(databases.core),emptyShapes,{currentGrants:true}),initial=await initialiseAcceptedSetup(core,'SPLIT_BOOTSTRAP');
+  const core=emptyCompatibilityDatabase(sqliteD1(databases.core),emptyShapes,{currentGrants:true});
+  // Stable keys for unpublished definitions support current foreign keys, but
+  // must never become an accepted definition during the fresh bootstrap.
+  const accepted=Object.fromEntries(Object.keys(setupSchema).map(table=>[table,acceptedRows(selection,table)]));
+  const projected=new Proxy(core,{get(target,name){if(name==='prepare')return sql=>{if(!/^\s*(SELECT|WITH)\b/i.test(sql))return target.prepare(sql);let params=[];const s={bind(...values){params=values;return s;},all(){const r=rewriteRead(sql,params,accepted);return target.prepare(r.sql).bind(...r.params).all();},async first(){return (await s.all()).results[0]||null;}};return s;};if(name==='batch')return statements=>Promise.all(statements.map(s=>s.all()));const value=target[name];return typeof value==='function'?value.bind(target):value;}});
+  const initial=await initialiseAcceptedSetup(projected,'SPLIT_BOOTSTRAP');
   const selectedDigest=digest(selection.manifest);databases.core.prepare("INSERT INTO split_deployment_state VALUES(1,'SPLIT_V1','PREPARING',?,?,?)").run(selection.manifest.sourceDigest,selectedDigest,selection.manifest.at);
   const report={generation:'SPLIT_V1',selectionDigest:selectedDigest,sourceDigest:selection.manifest.sourceDigest,head:initial.head,targets:{}};
   for(const [owner,db]of Object.entries(databases)){const tables=db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%'").all();const counts=Object.fromEntries(tables.map(t=>[t.name,db.prepare('SELECT count(*) n FROM '+identifier(t.name)).get().n]));report.targets[owner]={tables:tables.length,rows:Object.values(counts).reduce((a,b)=>a+b,0),counts,foreignKeyErrors:db.prepare('PRAGMA foreign_key_check').all().length,integrity:db.prepare('PRAGMA integrity_check').get().integrity_check};}

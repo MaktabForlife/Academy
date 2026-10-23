@@ -1,0 +1,30 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';
+import {splitFixture,runStatements} from './fixtures/academy-split-fixture.mjs';
+import {federationContext} from '../src/academy/separation/federation.js';
+import {materializer} from '../src/academy/separation/materialize.js';
+import {parseMutation,indexedSQL,boundSQL} from '../src/academy/separation/sql-plan.js';
+const use=async fn=>{const f=await splitFixture();try{await fn(f);}finally{f.close();}};
+test('split SQL planning preserves quoted placeholders and binds predicates after splitting expressions',()=>{
+ const sql="UPDATE activities SET name='literal ? with, comma',active=?,revision=revision+1 WHERE activity_key=? AND name<>'SET WHERE ?'";
+ const p=parseMutation(sql,{activities:{columns:['name','active','revision'],keys:['activity_key']}});assert.deepEqual(p.sets.map(s=>s.column),['name','active','revision']);assert.equal(p.where,"activity_key=?2 AND name<>'SET WHERE ?'");assert.deepEqual(boundSQL(p.where,[0,'scope']),{sql:"activity_key=? AND name<>'SET WHERE ?'",params:['scope']});assert.equal(indexedSQL("SELECT '?',?,json_extract(?,'$.key')"),"SELECT '?',?1,json_extract(?2,'$.key')");
+});
+test('one mixed definition save writes its name in Admin and its current disable fact only in Core; undo restores Admin',()=>use(async f=>{
+ const scope=f.scopes.programA,context=federationContext({core:f.core,admin:f.admin}),sql='UPDATE activities SET name=?,active=0,revision=revision+1 WHERE activity_key=?',data=await context.snapshot([sql],['activities']),before=f.databases.admin.prepare('SELECT name FROM activities WHERE activity_key=?').get(scope).name;
+ const m=materializer(context,data);await m.apply({sql,params:['Private renamed Program',scope]});await runStatements(f.admin,m.parts.admin);assert.equal(f.databases.admin.prepare('SELECT name FROM activities WHERE activity_key=?').get(scope).name,'Private renamed Program');assert(!f.databases.admin.prepare('PRAGMA table_info(activities)').all().some(c=>c.name==='active'));
+ assert.equal(f.databases.core.prepare('SELECT active FROM activities WHERE activity_key=?').get(scope).active,1);await runStatements(f.core,m.parts.core);assert.equal(f.databases.core.prepare('SELECT active FROM activities WHERE activity_key=?').get(scope).active,0);assert.notEqual(f.databases.core.prepare('SELECT name FROM activities WHERE activity_key=?').get(scope).name,'Private renamed Program');
+ await runStatements(f.admin,m.parts.undo);assert.equal(f.databases.admin.prepare('SELECT name FROM activities WHERE activity_key=?').get(scope).name,before);
+}));
+test('a new assessment keeps the draft title and timing in Admin and creates only Core keys/live facts',()=>use(async f=>{
+ const scope=f.scopes.programA,context=federationContext({core:f.core,admin:f.admin}),sql="INSERT INTO assessments(assessment_id,activity_key,class_id,title,subject,exam_date,duration_minutes,maximum_mark,created_at,created_by,updated_at) VALUES(?,?,?,?,?,'2026-10-23',60,100,?,?,?)",data=await context.snapshot([sql],['assessments']),at=new Date().toISOString(),m=materializer(context,data);
+ await m.apply({sql,params:['new-split-assessment',scope,'class-1','Private six week assignment','Qasas',at,f.actors.global,at]});await runStatements(f.admin,m.parts.admin);await runStatements(f.core,m.parts.core);
+ const admin=f.databases.admin.prepare("SELECT * FROM assessments WHERE assessment_id='new-split-assessment'").get(),core=f.databases.core.prepare("SELECT * FROM assessments WHERE assessment_id='new-split-assessment'").get();assert.equal(admin.title,'Private six week assignment');assert.equal(admin.duration_minutes,60);assert(!Object.hasOwn(admin,'paper_state'));assert.equal(core.title,null);assert.equal(core.maximum_mark,null);assert.equal(core.paper_state,'DRAFT');assert.equal(core.revision,1);assert.equal(core.activity_key,scope);assert.deepEqual(f.databases.core.prepare('PRAGMA foreign_key_check').all(),[]);
+}));
+test('UPSERT expressions use coherent current rows while owner-local counters increment only their own value',()=>use(async f=>{
+ f.databases.core.prepare("INSERT INTO academy_settings(setting_key,setting_value) VALUES('AcademyWrite:TEST','5')").run();f.databases.admin.prepare("INSERT INTO academy_settings(setting_key,setting_value) VALUES('AcademyWrite:TEST','3')").run();
+ const context=federationContext({core:f.core,admin:f.admin}),sql="INSERT INTO academy_settings(setting_key,setting_value) VALUES('AcademyWrite:TEST','1') ON CONFLICT(setting_key) DO UPDATE SET setting_value=CAST(CAST(academy_settings.setting_value AS INTEGER)+1 AS TEXT)",data=await context.snapshot([sql],['academy_settings']),m=materializer(context,data,{metadataOwner:'admin'});
+ await m.apply({sql,params:[]});await runStatements(f.admin,m.parts.admin);await runStatements(f.core,m.parts.core);assert.equal(f.databases.core.prepare("SELECT setting_value FROM academy_settings WHERE setting_key='AcademyWrite:TEST'").get().setting_value,'5');assert.equal(f.databases.admin.prepare("SELECT setting_value FROM academy_settings WHERE setting_key='AcademyWrite:TEST'").get().setting_value,'4');
+}));
+test('JSON bulk definition inserts preserve relationships and private draft tables do not enter Core',()=>use(async f=>{
+ const scope=f.scopes.programA,sql="INSERT INTO timetable_drafts(activity_key,scope_key,source_sequence,draft_json,source_draft_sha256) SELECT json_extract(value,'$.scope'),json_extract(value,'$.key'),0,json_extract(value,'$.draft'),json_extract(value,'$.hash') FROM json_each(?)",context=federationContext({core:f.core,admin:f.admin}),data=await context.snapshot([sql],['timetable_drafts']),m=materializer(context,data),rows=[{scope,key:'new-private',draft:'{"private":true}',hash:'a'.repeat(64)}];
+ await m.apply({sql,params:[JSON.stringify(rows)]});assert.equal(m.parts.core.length,0);await runStatements(f.admin,m.parts.admin);assert.equal(f.databases.admin.prepare("SELECT draft_json FROM timetable_drafts WHERE scope_key='new-private'").get().draft_json,'{"private":true}');assert(!f.databases.core.prepare("SELECT 1 FROM sqlite_schema WHERE name='timetable_drafts'").get());
+}));

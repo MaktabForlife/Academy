@@ -130,7 +130,7 @@ export function d1Programs(repository,auth) {
           p('UPDATE program_settings SET duration_years=?,timezone=?,revision=revision+1 WHERE activity_key=?',config.durationYears===''?null:config.durationYears,config.timezone,activity));
         else statements.push(p("INSERT INTO activities(activity_key,activity_id,kind,name,active,lifecycle,website_visible,created_at,updated_at,revision) VALUES(?,?,'PROGRAM',?,0,'DRAFT',0,?,?,1)",activity,id,config.name,now,now),
           p('INSERT INTO program_settings(activity_key,duration_years,timezone,revision) VALUES(?,?,?,1)',activity,config.durationYears===''?null:config.durationYears,config.timezone),
-          p('INSERT INTO data_ownership(dataset_key,scope_key,authoritative_store,phase,verified_run_id,switched_at,revision) VALUES(?,?,?,?,?,?,?)',...Object.values(repository.ownershipForNewActivity(activity))));
+          ...(!repository.features?.splitDatabases?[p('INSERT INTO data_ownership(dataset_key,scope_key,authoritative_store,phase,verified_run_id,switched_at,revision) VALUES(?,?,?,?,?,?,?)',...Object.values(repository.ownershipForNewActivity(activity)))]:[]));
         if(!existing){const year=new Intl.DateTimeFormat('en',{timeZone:config.timezone,year:'numeric'}).format(new Date());statements.push(p('INSERT INTO classes(activity_key,class_id,name,academic_year,active) VALUES(?,?,?,?,1)',activity,'CLS-'+crypto.randomUUID(),`${config.name.slice(0,140)} Class ${year}`,year));}
         let publicCard=data.programs.find(s=>same(s.activity_key,activity))?.public_card_json||'{}';
         if(Object.hasOwn(input,'publicCard')){

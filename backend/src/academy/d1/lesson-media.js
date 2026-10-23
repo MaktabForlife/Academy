@@ -234,7 +234,7 @@ export function lessonMedia(repository,auth,env){
   const filename=cleanText(input.filename,180,'a filename').replace(/[\r\n\x00-\x1f\\/]/g,'_');
   const hash=await payloadHash({action:'pdf-upload',input}),saved=await receipt(input,hash);if(saved)return saved;
   revision(row,input);
-  const id=crypto.randomUUID(),key='lessons/'+id+'.pdf',storage=bucket();let stored=false;
+  const id=crypto.randomUUID(),key=(env.ACADEMY_OBJECT_NAMESPACE||'')+'lessons/'+id+'.pdf',storage=bucket();let stored=false;
   try{
    await streamPdf(request,storage,key,input);stored=true;
    const result=await change('pdf-upload',input,row,'staff',async current=>{

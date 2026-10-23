@@ -27,7 +27,7 @@ function sqlValue(value){
  // literal newlines. These files are private and never enter public assets.
  return "CAST(X'"+Buffer.from(value,'utf8').toString('hex')+"' AS TEXT)";
 }
-export function importSQL(db,schema){
+export function importSQL(db,schema,{statementsOnly=false}={}){
  // D1 imports can commit between query groups. Prove every row's insertion
  // order with immediate FK enforcement, rather than relying on one large
  // SQLite transaction or the historical order of rebuilt source tables.
@@ -52,7 +52,7 @@ export function importSQL(db,schema){
   }
   if(Buffer.byteLength(sql)>100000)throw Error('A private import row exceeds the D1 statement limit.');statements.push(sql,'DELETE FROM _split_import_values;');
  }
- statements.push('DROP TABLE _split_import_values;',schema.afterSQL,'PRAGMA defer_foreign_keys=OFF;');return statements.join('\n')+'\n';
+ statements.push('DROP TABLE _split_import_values;',schema.afterSQL,'PRAGMA defer_foreign_keys=OFF;');return statementsOnly?statements:statements.join('\n')+'\n';
 }
 export async function writePreparation(snapshot,directory,{at=new Date().toISOString()}={}){
  directory=resolve(directory);if(!directory.startsWith('/private/tmp/academy-'))throw Error('Private /private/tmp/academy-… output is required.');

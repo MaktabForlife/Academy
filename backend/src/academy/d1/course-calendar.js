@@ -171,7 +171,7 @@ export async function courseCalendarStatements(store,data,tables,changes,auth,en
     if(!old){newSubjects.push(newActivityOwnership(key,env));policyRows.set(key,{activity_key:key,legacy_access_model:'PAID',policy_review_state:'CONFIRMED'});}
   }
   for(const r of records('GlobalSubjectAccessPolicy')){const key=activity(r.SubjectID);policyRows.set(key,{activity_key:key,legacy_access_model:r.AccessModel==='FREE'?'FREE':'PAID',policy_review_state:'CONFIRMED'});}
-  statements.push(...upsert(p,'activities',subjectRows,['activity_key']),...upsert(p,'course_settings',[...policyRows.values()],['activity_key']),...insertRecords(p,'data_ownership',newSubjects));
+  statements.push(...upsert(p,'activities',subjectRows,['activity_key']),...upsert(p,'course_settings',[...policyRows.values()],['activity_key']),...insertRecords(p,'data_ownership',env.ACADEMY_DB_GENERATION==='SPLIT_V1'?[]:newSubjects));
   if(subjectRows.length)statements.push(p("UPDATE subject_catalog AS s SET name=json_extract(j.value,'$.name'),active=json_extract(j.value,'$.active') FROM json_each(?) j WHERE s.source_namespace='GLOBAL_REFERENCE' AND s.subject_id=json_extract(j.value,'$.activity_id') COLLATE NOCASE",JSON.stringify(subjectRows)));
   for(const [name,oldRows,id] of [['GlobalModuleList',data.modules,'module_id'],['GlobalTaskList',data.tasks,'task_id']])for(const r of records(name)){
     const old=oldRows.find(s=>s.activity_key.startsWith('COURSE:')&&same(s[id],name==='GlobalModuleList'?r.ModuleID:r.TaskID));

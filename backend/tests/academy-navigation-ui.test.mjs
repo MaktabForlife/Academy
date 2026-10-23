@@ -193,7 +193,7 @@ const timetablePage=await readFile(new URL('../../programs/timetable.html',impor
 assert.doesNotMatch(timetablePage,/pw-name|pw-save-name|pw-program-zoom|pw-save-zoom|pw-access-model/,'Program settings live on the Program list, outside the timetable editor');
 assert.match(timetablePage,/id="pw-card-editor"/,'Public card editing belongs in Timetable');
 const attendancePage=await readFile(new URL('../../programs/attendance.html',import.meta.url),'utf8');
-assert.match(attendancePage,/m4l-program-attendance\.js\?v=107\.2/);
+assert.match(attendancePage,new RegExp('m4l-program-attendance\\.js\\?v='+JSON.parse(await readFile(new URL('../../version.json',import.meta.url),'utf8')).version.replaceAll('.','\\.')));
 assert.match(attendancePage,/id="pa-classes"/);assert.doesNotMatch(attendancePage,/Coming soon/);
 console.log('Program Library stays Coming soon; Attendance loads its real editor; timetable owns the public card and omits duplicated Program settings.');
 

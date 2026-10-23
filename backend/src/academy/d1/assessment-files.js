@@ -40,7 +40,7 @@ export function assessmentFiles(repository,auth,env){
   }
   if(['SCRIPT','REPORT'].includes(kind)&&!await s.recipient(a.assessment_id,owner))throw fail('Choose a learner in this assessment.',403);
   const receipt=await p('SELECT file_id FROM assessment_files WHERE uploaded_by=? AND operation_id=?',actor,input.operationId).first();
-  const id=crypto.randomUUID(),key='assessments/'+scope.replace(/[^A-Za-z0-9:_-]/g,'_')+'/'+id;
+  const id=crypto.randomUUID(),key=(env.ACADEMY_OBJECT_NAMESPACE||'')+'assessments/'+scope.replace(/[^A-Za-z0-9:_-]/g,'_')+'/'+id;
   const meta={...input,filename,mimeType:mime};
   if(receipt)return s.change('upload-'+kind,meta,a?.assessment_id||scope,async()=>{throw fail('This retry identifier belongs to another upload.',409,'OPERATION_ID_REUSED');});
   await authority();

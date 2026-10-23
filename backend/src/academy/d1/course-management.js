@@ -201,7 +201,7 @@ export function d1CourseManagement(repository,auth,env={}) {
       const creating=!data.activities.some(a=>same(a.activity_key,c.activityKey));
       function createActivity(name,accessModel,inactiveDraft=false){
         const now=new Date().toISOString();
-        statements.push(p("INSERT INTO activities(activity_key,activity_id,kind,name,active,lifecycle,website_visible,created_at,updated_at,revision) VALUES(?,?,'COURSE',?,?,?,0,?,?,1)",c.activityKey,c.courseId,name,Number(!inactiveDraft),inactiveDraft?'DRAFT':'ACTIVE',now,now),p("INSERT INTO course_settings(activity_key,legacy_access_model,policy_review_state) VALUES(?,?,'CONFIRMED')",c.activityKey,accessModel==='FREE'?'FREE':'PAID'),...insertRecords(p,'data_ownership',[repository.ownershipForNewActivity(c.activityKey)]));
+        statements.push(p("INSERT INTO activities(activity_key,activity_id,kind,name,active,lifecycle,website_visible,created_at,updated_at,revision) VALUES(?,?,'COURSE',?,?,?,0,?,?,1)",c.activityKey,c.courseId,name,Number(!inactiveDraft),inactiveDraft?'DRAFT':'ACTIVE',now,now),p("INSERT INTO course_settings(activity_key,legacy_access_model,policy_review_state) VALUES(?,?,'CONFIRMED')",c.activityKey,accessModel==='FREE'?'FREE':'PAID'),...insertRecords(p,'data_ownership',repository.features?.splitDatabases?[]:[repository.ownershipForNewActivity(c.activityKey)]));
       }
       let result;
       if(action==='public-card-save'){

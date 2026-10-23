@@ -1,0 +1,22 @@
+// Replace only an unchanged, privately verified inactive staging copy. This
+// cannot target the original database or any READY/changed split generation.
+import {readFile,writeFile,mkdir} from 'node:fs/promises';import {resolve,join} from 'node:path';import {fileURLToPath} from 'node:url';import {execFile} from 'node:child_process';import {promisify} from 'node:util';
+import {restoreSnapshot,identifier,digest} from './snapshot.mjs';import {splitTargets,databaseManifest} from './artifact.mjs';import {jsonRowSQL} from '../../src/academy/d1/json-row.js';
+const exec=promisify(execFile),root=fileURLToPath(new URL('../../../',import.meta.url));
+const [owner,previousDirectory,outputDirectory]=process.argv.slice(2),target=splitTargets[owner];if(!target)throw Error('Choose an explicitly authorised target.');
+const previous=resolve(previousDirectory),output=resolve(outputDirectory);if(!previous.startsWith('/private/tmp/academy-')||!output.startsWith('/private/tmp/academy-'))throw Error('Private preparation directories required.');
+const expected=JSON.parse(await readFile(join(previous,'verification.json'),'utf8')),beforeFile=join(previous,'hosted-'+owner,'database.json'),before=JSON.parse(await readFile(beforeFile,'utf8'));
+if(expected.activation!=='NOT_ENABLED'||expected.targets[owner].id!==target.id)throw Error('The previous copy must be verified and inactive.');
+await mkdir(output,{recursive:true,mode:0o700});
+async function command(args){const result=await exec(process.execPath,[join(root,'backend/node_modules/wrangler/bin/wrangler.js'),'d1','execute',target.name,'--remote','--config',join(root,'backend/wrangler.split-data.jsonc'),...args,'--json'],{cwd:root,maxBuffer:32*1024*1024,env:{...process.env,WRANGLER_LOG_PATH:join(output,owner+'-reset-wrangler.log'),WRANGLER_LOG_SANITIZE:'true',WRANGLER_SEND_METRICS:'false'}});if(args.includes('--file'))return [];const parsed=JSON.parse(result.stdout);if(parsed.some(r=>!r.success))throw Error('D1 validation failed.');return parsed.flatMap(r=>r.results||[]);}
+const schema=await command(['--command',"SELECT type,name,sql FROM sqlite_schema WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' ORDER BY type,name"]),columns=await command(['--command',"SELECT name,(SELECT json_group_array(name) FROM pragma_table_info(s.name)) columns_json FROM sqlite_schema s WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' ORDER BY name"]);
+const rows=await command(['--command',"WITH copied(name,data) AS(VALUES "+columns.map(t=>"('"+t.name+"',(SELECT json_group_array("+jsonRowSQL(JSON.parse(t.columns_json))+") FROM "+identifier(t.name)+'))').join(',')+") SELECT name,data FROM copied"]),snapshot={...before,at:new Date().toISOString(),records:[...schema.map(r=>({kind:'SCHEMA',type:r.type,name:r.name,data:r.sql})),...rows.map(r=>({kind:'DATA',name:r.name,data:r.data}))]},db=restoreSnapshot(snapshot);
+let drops=[];try{
+ if(JSON.stringify(databaseManifest(db))!==JSON.stringify(expected.targets[owner].tables))throw Error('The staging copy changed; preserve it instead of replacing it.');
+ if(owner==='core'&&db.prepare('SELECT state FROM split_deployment_state').get()?.state!=='PREPARING')throw Error('Never reset a READY generation.');
+ for(const object of schema.filter(r=>['trigger','view'].includes(r.type))){const sql='DROP '+object.type.toUpperCase()+' '+identifier(object.name)+';';db.exec(sql);drops.push(sql);}
+ let pending=schema.filter(r=>r.type==='table');while(pending.length){const deferred=[];for(const table of pending){const sql='DROP TABLE '+identifier(table.name)+';';try{db.exec(sql);drops.push(sql);}catch(e){if(!/FOREIGN KEY constraint failed/.test(e.message))throw e;deferred.push(table);}}if(pending.length===deferred.length)throw Error('Inactive reset order needs a separate rehearsal.');pending=deferred;}
+}finally{db.close();}
+await writeFile(join(output,owner+'-before-reset.json'),JSON.stringify(snapshot),{mode:0o600,flag:'wx'});const file=join(output,owner+'-reset.sql');await writeFile(file,drops.join('\n'),{mode:0o600,flag:'wx'});await command(['--file',file,'--yes']);
+const remaining=await command(['--command',"SELECT name FROM sqlite_schema WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%'"]);if(remaining.length)throw Error('The staging reset is incomplete; leave it inactive.');
+console.log(JSON.stringify({target:target.name,priorExactHashesVerified:true,priorSnapshotSha256:digest(snapshot),emptyTargetVerified:true,oldDatabaseChanged:false}));

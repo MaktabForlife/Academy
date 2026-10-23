@@ -5,7 +5,7 @@ const roleSet=state=>[...new Set(state.roles.map(r=>r.activity_key.toUpperCase()
 const subscriptions=state=>state.subscriptions.map(r=>r.activity_key.toUpperCase()).sort();
 export async function verifyCurrentAuthority(snapshot,selection,prepared){
  const original=restoreSnapshot(snapshot),run=original.prepare("SELECT run_id FROM migration_runs WHERE state='CUTOVER'").get();if(!run){original.close();throw Error('Verified active source run missing.');}
- const common={ENVIRONMENT:'development',ACADEMY_D1_MODE:'ACTIVE',ACADEMY_LIBRARY_MODE:'PUBLIC_ONLY',ACADEMY_ACCEPTED_SETUP:'1',ACADEMY_LEARNING_OPERATIONS:'3',ACADEMY_MEDIA_SEPARATION:'1'};
+ const common={ENVIRONMENT:'development',ACADEMY_D1_MODE:'ACTIVE',ACADEMY_LIBRARY_MODE:'PUBLIC_ONLY',ACADEMY_ACCEPTED_SETUP:'1',ACADEMY_LEARNING_OPERATIONS:'3',ACADEMY_MEDIA_SEPARATION:'1',ACADEMY_SPLIT_COORDINATOR:{getByName(){throw Error('Offline authority verification cannot write.');}}};
  const source=academyD1Repository({...common,ACADEMY_DB:sqliteD1(original),ACADEMY_D1_RUN_ID:run.run_id}),target=academyD1Repository({...common,ACADEMY_DB:sqliteD1(prepared.databases.core),ACADEMY_ADMIN_DB:sqliteD1(prepared.databases.admin),ACADEMY_DB_GENERATION:'SPLIT_V1',ACADEMY_D1_RUN_ID:selection.manifest.sourceDigest});
  try{
   await source.ready();const mismatches=[];

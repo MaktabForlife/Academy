@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.29
+# Umm Abbad Academy — V107.30
+
+## V107.30 — Separate Core and Admin preview
+
+Route definitions and private drafts to Admin, and identities, permissions, learner work, release controls and accepted content to Core. Add guarded cross-store commits and recovery, keeping layouts and direct manual Admin controls. Phase 5 uses its own preview on `feature-split-db`; Development and feature-admin remain at the V107.28 review checkpoint. [Phase 5 record](docs/academy-separation/phase-5.md).
 
 ## V107.29 — Inactive fresh database preparation
 
