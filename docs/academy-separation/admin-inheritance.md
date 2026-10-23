@@ -1,4 +1,4 @@
-# Admin teaching inheritance and student class views — V107.32
+# Admin teaching inheritance and student class views — V107.33
 
 The user clarified on 23 October 2026 that Global Admin is an actual Teacher in every session globally, and Program/Course Admin is an actual Teacher in every session of their assigned area. Learn provides the Student view for each selected class. It does not automatically enrol Admin in every class or create learner work.
 
@@ -22,4 +22,6 @@ Synthetic split-database HTTP checks exercise Global/scoped inheritance, own att
 
 The release is limited to feature-admin and feature_worker using the existing READY Core/Admin stores. No migration, reimport, backfill or physical assignment expansion is required. Development stays at Phase 4 V107.28. Existing preview holds on Hifz and shared Library/My links writes remain.
 
-Final validation: all 98 regression test files passed. The final reader-specific checks also passed after limiting the class-preview memorisation catalogue. Isolated desktop and phone browsers passed eight Global/scoped Admin Learn/Teach cases, including switching to a different class and back, no learner Join action, working attendance controls, no page errors and no horizontal overflow. Ordinary learners do not receive the Admin class selector. The verified live release is attested by `academy-admin-inheritance-v107.32`.
+Final validation: all 98 regression test files passed. The final reader-specific checks also passed after limiting the class-preview memorisation catalogue. Isolated desktop and phone browsers passed eight Global/scoped Admin Learn/Teach cases, including switching to a different class and back, no learner Join action, working attendance controls, no page errors and no horizontal overflow. Ordinary learners do not receive the Admin class selector. The verified live release is attested by `academy-admin-inheritance-v107.33`.
+
+V107.33 completes delivery by refreshing the Users screen’s previously retained script query version. The permission implementation and 98-file behavioral regression remain those verified for V107.32; release integrity and Users UI checks are repeated for the cache update.

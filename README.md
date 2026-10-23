@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.32
+# Umm Abbad Academy — V107.33
+
+## V107.33 — Refresh inherited-role labels
+
+Refresh the Users screen script cache so returning browsers receive the inherited Admin/Teacher role labels introduced in V107.32. Keep the new teaching permissions, Learn class selector and current layouts. Preview only.
 
 ## V107.32 — Inherited Admin teaching and student class viewing
 

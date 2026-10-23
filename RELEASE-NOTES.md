@@ -1,3 +1,7 @@
+# V107.33 — Inherited-role label cache
+
+Refresh the Users screen script version so existing browsers receive the V107.32 inherited Teacher labels. Retain the verified Admin teaching and student class-view behavior, layouts and preview isolation. Update website/API release markers together; Development remains V107.28.
+
 # V107.32 — Admin teaching inheritance and student class views
 
 Give Global Admin actual Teacher access to all sessions, and scoped Admin actual Teacher access to all sessions in their assigned Program/Course, without persisted per-session assignments. Retain ordinary examiner, note ownership, current access and Admin-workspace checks. Add a class selector to Admin Learn views and carry that class through timetable, assessments, media and PDF readers. Student class viewing creates no learner records or participant events. Publish only to feature-admin and its split Worker; Development stays at the Phase 4 checkpoint.
