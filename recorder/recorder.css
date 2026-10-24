@@ -533,3 +533,13 @@ h2 {
     min-height: 66px;
   }
 }
+
+/* Academy already provides its shared page header above the image selector. */
+.recorder-header[hidden] {
+  display: none;
+}
+
+/* Admin readers keep their workspace description and use Home for personal choices. */
+body[data-academy-workspace^="ADMIN"] .academy-account-bar .academy-role-tabs {
+  display: none;
+}

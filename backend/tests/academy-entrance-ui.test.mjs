@@ -25,7 +25,7 @@ const document = { getElementById: id => elements.get(id), createElement: () => 
   querySelector: selector => selector === '.container' ? container : null, querySelectorAll: selector => selector === '.view' ? views : [],
   addEventListener: (type, fn) => documentHandlers.set(type, fn) };
 const location = { hash: '#overview' };
-const window = { M4L_CONFIG: { API_BASE: 'https://test' }, location,
+const window = { M4L_CONFIG: { API_BASE: 'https://test', REBOOT_PROGRAM_ID:'PRG-46c8576d-9fcf-4000-96b9-856b00a0218a' }, location,
   addEventListener(type, fn) { handlers.set(type, fn); }, dispatchEvent(event) { handlers.get(event.type)?.(event); } };
 const $ = id => elements.get(id), flush = async () => { for (let i=0;i<4;i++) await new Promise(resolve=>setTimeout(resolve,2)); };
 const activity = { id:'PRG-46c8576d-9fcf-4000-96b9-856b00a0218a', name:'Reboot', kind:'PROGRAM', roles:['STUDENT'],
@@ -263,7 +263,7 @@ await navigate('#overview/teach');assert.match($('academy-role-panel').innerHTML
 await navigate('#workshops');assert.equal($('workshop-pills').innerHTML,'');assert.match($('course-list-message').textContent,/No Courses/);
 hasWorkshops=true;globalAdmin=true;location.hash='#activity/PROGRAM/'+activity.id;await refresh();
 assert.doesNotMatch($('activity-menu').innerHTML,/Admin tools/);assert.match($('activity-menu').innerHTML,/Teach tools/);
-await navigate('#administration');assert.match($('administration').innerHTML,/Academy-wide management|Manage user profiles|Update timetable/);assert.doesNotMatch($('administration').innerHTML,/id="admin-teach"/);assert.match($('administration').innerHTML,/id="admin-timetable-home"/);
+await navigate('#administration');assert.match($('administration').innerHTML,/Academy-wide management|Manage user profiles|Update timetable/);assert.doesNotMatch($('administration').innerHTML,/id="admin-teach"/);assert.match($('administration').innerHTML,/id="admin-timetable-home"/);assert.match($('administration').innerHTML,/href="\/recorder\/\?academy=1">Voice Recorder/);assert.equal($('academy-recorder-nav').hidden,false);
 for(const label of ['Users','Attendance','Planning','Assessments','Library','Curriculum','Programs','Courses','Enrolments'])assert.ok($('administration').innerHTML.includes(`>${label}<`));
 assert.match($('administration').innerHTML,/id="admin-tab-enrolments" href="\/academy\/enrolment\/manage\/\?view=requests"/);
 assert.match($('administration').innerHTML,/id="admin-tab-attendance" href="#administration\/attendance"/);
@@ -431,8 +431,8 @@ for(const [roles,label] of [[['STUDENT','TEACHER'],'Teacher'],[['TEACHER','STUDE
   programRole=roles;await refresh();assert.match($('activity-switcher').innerHTML,new RegExp('<small>'+label+'</small>'));assert.doesNotMatch($('activity-switcher').innerHTML,/<small>[^<]* · /);
 }
 globalAdmin=true;await refresh();assert.match($('activity-switcher').innerHTML,/<small>Global Admin<\/small>/);assert.doesNotMatch($('activity-switcher').innerHTML,/<small>[^<]* · /);
-globalAdmin=false;programRole='PROGRAM_ADMIN';await refresh();await navigate('#administration');assert.match($('administration').innerHTML,/Manage Academy/);assert.doesNotMatch($('administration').innerHTML,/id="admin-teach"/);assert.match($('administration').innerHTML,/id="admin-timetable-home"/);assert.doesNotMatch($('administration').innerHTML,/href="\/users\/"|Update public timetable/);
+globalAdmin=false;programRole='PROGRAM_ADMIN';await refresh();await navigate('#administration');assert.match($('administration').innerHTML,/Manage Academy/);assert.doesNotMatch($('administration').innerHTML,/id="admin-teach"/);assert.match($('administration').innerHTML,/id="admin-timetable-home"/);assert.match($('administration').innerHTML,/href="\/recorder\/\?academy=1">Voice Recorder/);assert.equal($('academy-recorder-nav').hidden,false);assert.doesNotMatch($('administration').innerHTML,/href="\/users\/"|Update public timetable/);
 await navigate('#administration/assessments');assert.equal(location.hash,'#assessment-admin/PROGRAM/'+encodeURIComponent(activity.id));assert.equal($('assessment-admin').classList.contains('active'),true);
-globalAdmin=false;programRole='STUDENT';await refresh();await navigate(programHash+'/attendance');assert.equal($('pa-main').hidden,true,'Students cannot open the staff register');
+globalAdmin=false;programRole='STUDENT';await refresh();await navigate(programHash+'/attendance');assert.equal($('pa-main').hidden,true,'Students cannot open the staff register');assert.match($('activity-menu').innerHTML,/href="\/recorder\/\?academy=1">Voice Recorder/);
 hasWorkshops=false;programRole='';await refresh();assert.equal($('academy-account-role').textContent,'None');assert.equal($('academy-access-empty').hidden,false);assert.equal($('academy-role-panel').hidden,true);assert.equal($('academy-role-panel').innerHTML,'');for(const key of ['learn','teach','admin'])assert.equal($('academy-tab-'+key).hidden,true);
 console.log('Academy timetable, inline Attendance routing and draft guards, highest pill access, scoped tools, cache, joining, sign-out and personal HifzHelper links passed.');

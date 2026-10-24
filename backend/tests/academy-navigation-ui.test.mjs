@@ -36,6 +36,8 @@ assert.doesNotMatch(app.children[0].innerHTML,/id="ac-progress"|href="\/academy\
 assert.equal(app.requests.length,0,'Public Library needs no account request for a visitor');
 for(const slug of ['surahs-in-my-heart','kaaba-puzzle'])assert.match(app.children[0].innerHTML,new RegExp('href="/activities/'+slug+'/"'));
 assert.equal(app.forYou.hidden,true);
+assert.equal(app.nodes.get('ac-recorder').hidden,true);
+assert.match(app.children[0].innerHTML,/id="ac-recorder" data-recorder-link href="\/recorder\/\?academy=1"/);
 assert.equal(app.nodes.get('ac-library').href,'/academy/open-library/');
 assert.equal(app.children[1].hidden,true);
 app.localStorage.setItem('m4l_account_token','first-account');app.refresh();await flush();
@@ -66,10 +68,10 @@ for(const role of ['STUDENT','TEACHER','PROGRAM_ADMIN','GLOBAL_ADMIN']){
  assert.doesNotMatch(app.children[1].innerHTML,/#activity\/PROGRAM\/|Bearer|first-account/,'The shared menu contains no old Hifz page link or session token');
 }
 app.setResult({success:true,signedIn:true,profile:{uniqueid:'bad/id'},personalActivities:[{id:app.window.M4L_CONFIG.HIFZ_PROGRAM_ID,name:'Hifz',kind:'PROGRAM',roles:['STUDENT']}]});app.refresh();await flush();assert.doesNotMatch(app.children[1].innerHTML,/HifzHelper|#activity/,'Invalid aliases cannot produce a shared Hifz destination');
-// Every account role can move between For You and Explore; student-only tools stay scoped.
+// Every signed-in role can open the local recorder directly, without Student enrolment.
 app.setResult({success:true,signedIn:true,student:false,personalActivities:[]});app.refresh();await flush();
 assert.equal(app.forYou.hidden,false);
-assert.equal(app.nodes.get('ac-recorder').hidden,true);
+assert.equal(app.nodes.get('ac-recorder').hidden,false);
 assert.equal(app.children[1].hidden,false);
 assert.doesNotMatch(app.children[1].innerHTML,/<span>Courses<\/span>/);
 app.setOk(false);app.refresh();await flush();

@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.43
+# Umm Abbad Academy — V107.44
+
+## V107.44 — Direct Voice Recorder access
+
+Open the image selector directly from Home for every signed-in role, Admin Home and the Reboot Program’s Learn/Teach tools. Preserve the current personal or Admin workspace. Retire the intermediate recorder page and remove its duplicate selector heading/back link; retain recording controls and the shared Academy Home action. No enrolments, learner-work writes or database changes.
 
 ## V107.43 — Course and Program media rails
 

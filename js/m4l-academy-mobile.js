@@ -21,7 +21,7 @@
  function quickBlocks(nav){
   const heading=document.createElement('h2');heading.textContent='Quick links';quick.prepend(heading);
   for(const item of nav.querySelectorAll('a,button')){
-   const label=item.textContent.trim(),href=item.getAttribute('href')||'',kind=item.dataset.nav==='overview'?'home':item.dataset.nav||(/calendar/.test(href)?'calendar':/library/.test(href)?'library':/surahs/.test(href)?'heart':/kaaba/.test(href)?'kaaba':'about');
+   const label=item.textContent.trim(),href=item.getAttribute('href')||'',kind=item.dataset.nav==='overview'?'home':item.dataset.nav||(/calendar/.test(href)?'calendar':/library/.test(href)?'library':/surahs/.test(href)?'heart':/kaaba/.test(href)?'kaaba':/recorder/.test(href)?'recorder':'about');
    if(document.getElementById('academy-home-card')&&(kind==='home'||kind==='calendar'||kind==='timetable')){item.remove();continue;}
    item.dataset.quickKind=kind;item.replaceChildren();const icon=document.createElement('span');icon.className='quicklink-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+(icons[kind]||icons.about)+'</svg>';const text=document.createElement('span');text.className='quicklink-label';text.textContent=label;item.append(icon,text);
   }
@@ -49,7 +49,7 @@
   const label=mode.replace('_','-'),description=mode==='ADMIN_LEARN'?'Student class view · read only':mode==='ADMIN_TEACH'?'Teaching within your Admin scope':'Academy management';
   context.innerHTML='<div><strong>'+label+'</strong><span>'+description+'</span></div>';
  }
- document.addEventListener('click',event=>{if(event.target.closest?.('[data-workspace-exit]')&&!canLeave())event.preventDefault();});
+ document.addEventListener('click',event=>{if(event.target.closest?.('[data-workspace-exit],[data-recorder-link]')&&!canLeave())event.preventDefault();});
 
  function update(next){
   data=next;const signed=Boolean(data?.signedIn),global=Boolean(signed&&data.globalAdmin),roles=signed?[...(data.workspaceRoles||[]),...(data.personalActivities||[]).flatMap(r=>r.roles||[])]:[];

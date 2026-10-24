@@ -2,7 +2,7 @@ import {PDF_TOOL_DEFAULTS,normalizePdfTools} from './m4l-pdf-tools-model.mjs?v=1
 import {publicPdfFile} from './m4l-pdf-bookmarks-model.mjs?v=106.82';
 import {academyBookmarks} from './m4l-pdf-bookmarks.mjs?v=106.82';
 import {publicPdfSource} from './m4l-pdf-source.mjs?v=107.40';
-import './m4l-pdf-whiteboard.js?v=107.43';
+import './m4l-pdf-whiteboard.js?v=107.44';
 const $=id=>document.getElementById(id),query=new URLSearchParams(location.search),mobile=matchMedia('(max-width:767px), (pointer:coarse) and (max-height:500px)');
 const panes=[0,1].map(index=>({index,element:$('pr-pane-'+index),choices:{},frame:null,loaded:false,file:'',title:'',page:0,mode:'books',drawerGeneration:0,loadGeneration:0}));
 let readingPositions=new Map(),readingRestore=0,readingLayoutPending=false;

@@ -81,6 +81,9 @@
   }
 
   function updateHeaderContext(screen) {
+    const academy = new URLSearchParams(location.search).get("academy") === "1";
+    const header = els.contextTitle?.closest(".recorder-header");
+    if (header) header.hidden = academy && screen === els.pageSelectScreen;
     if (els.pagePill) {
       els.pagePill.classList.toggle("hidden", screen === els.pageSelectScreen);
     }

@@ -83,7 +83,7 @@
   const memorisationHash = hash => ['#progress','#hifz','#hifdh'].includes(hash) || hash.startsWith('#progress-admin') || hash.endsWith('/surahs-duas') || hash.endsWith('/assessment') || hash.startsWith('#assessment-admin') || hash.startsWith('#assessments');
   const validReturnHash = hash => typeof hash === 'string' && (hash !== '#timetable' && Boolean(titles[hash.slice(1).split('/')[0]]) || /^#activity\/(PROGRAM|COURSE)\/[^/#]+(?:\/(?:learn|teach))?(?:\/(?:attendance|surahs-duas|assessment|library|planning))?$/.test(hash));
   const titles = { overview: 'Academy home', timetable: 'Academy timetable', learning: 'Programs and Courses', workshops: 'Courses', activity: 'Activity',
-    prospectus: '2026 Prospectus', about: 'About', contact: 'Contact', hifz:'Surahs and Duas', hifdh:'Surahs and Duas', progress: 'Surahs and Duas', 'progress-admin':'Manage Surahs and Duas', 'assessment-admin':'Manage Assessments', assessments:'My assessments', recorder: 'Voice Recorder', administration: 'Manage Academy' };
+    prospectus: '2026 Prospectus', about: 'About', contact: 'Contact', hifz:'Surahs and Duas', hifdh:'Surahs and Duas', progress: 'Surahs and Duas', 'progress-admin':'Manage Surahs and Duas', 'assessment-admin':'Manage Assessments', assessments:'My assessments', administration: 'Manage Academy' };
   const activityHref = row => `#activity/${row.kind}/${encodeURIComponent(row.id)}`;
   const staffRoles = roles => roles.some(role => ['TEACHER', 'PROGRAM_ADMIN', 'ADMIN', 'SENIOR', 'GLOBAL_ADMIN','SUBSTITUTE'].includes(role));
   const roleName = roles => roles.map(role => ({ GLOBAL_ADMIN: 'Global Admin', PROGRAM_ADMIN: 'Program Admin', ADMIN: 'Program Admin', SENIOR: 'Senior', TEACHER: 'Teacher', STUDENT: 'Student' })[role]).filter(Boolean).join(' · ') || 'None';
@@ -336,7 +336,7 @@
 
   function renderHome() {
     const data = state.home;
-    $('academy-recorder-nav').hidden = !(data.signedIn && data.student);
+    $('academy-recorder-nav').hidden = !data.signedIn;
     const activities = data.signedIn ? data.personalActivities : [];
     renderAcademyMenu();
     renderSubscriptions(activities);
@@ -445,7 +445,9 @@
       ? [['timetable','Timetable','activity-schedule'],['attendance','Attendance',!nativeAttendance()&&row.kind === 'COURSE' ? 'activity-planning' : 'pa-main'],['planning','Planning','activity-planning'],['assessment','Assessment','as-panel'],['lesson-media','Lesson media','activity-lesson-media'],['library','Library','activity-library']]
       : [['timetable','Timetable','activity-schedule'],['assessment','Assessment','as-panel'],['lesson-media','Lesson media','activity-lesson-media'],['library','Library','activity-library']];
     if(row.substituteOnly)tools.splice(2);
-    return `<nav class="workspace-tabs" aria-label="${context.mode === 'teach' ? 'Teach' : 'Learn'} tools" role="tablist">${tools.map(([key,label,panel]) => `<a id="activity-tab-${key}" role="tab" href="${key==='library'?'/academy/library/':workspaceHref(row,key)}" aria-controls="${panel}" aria-selected="${context.tool === key}" tabindex="${context.tool === key ? 0 : -1}">${label}</a>`).join('')}</nav>${hifzHelperLink(row,'workspace-helper')}`;
+    const recorder = row.kind === 'PROGRAM' && row.id === window.M4L_CONFIG?.REBOOT_PROGRAM_ID && !row.unavailable
+      ? '<a class="workspace-helper" data-recorder-link href="/recorder/?academy=1">Voice Recorder</a>' : '';
+    return `<nav class="workspace-tabs" aria-label="${context.mode === 'teach' ? 'Teach' : 'Learn'} tools" role="tablist">${tools.map(([key,label,panel]) => `<a id="activity-tab-${key}" role="tab" href="${key==='library'?'/academy/library/':workspaceHref(row,key)}" aria-controls="${panel}" aria-selected="${context.tool === key}" tabindex="${context.tool === key ? 0 : -1}">${label}</a>`).join('')}</nav>${hifzHelperLink(row,'workspace-helper')}${recorder}`;
   }
   function supportSections(row, mode) {
     const staff = mode !== 'learn';
@@ -969,6 +971,10 @@
     const changed=boundary?.commit(),destination=boundary?.canonical();
     if(destination){location.assign(destination);return;}
     if(changed){clearPersonal();dailyCache.entries={};void loadHome();return;}
+    if(hash === '#recorder'){
+      location.replace(boundary?.readerUrl('/recorder/?academy=1') || '/recorder/?academy=1');
+      return;
+    }
     if(hash === '#timetable'){
       let previous = '#overview';
       try{previous = sessionStorage.getItem(TIMETABLE_RETURN_KEY) || previous;}catch{}
@@ -998,7 +1004,6 @@
     if(name==='progress-admin'&&state.home){if(encodedId){try{void loadActivity(decodeURIComponent(encodedId));}catch{$('mp-admin-context').textContent='Invalid learning area.';}}else syncMemorisation({kind:hash.includes('/COURSE')?'COURSE':'',name:hash.includes('/COURSE')?'Courses':'Academy',roles:[],tools:{}});}
     if(name==='assessments'&&state.home){$('as-general-close').href='#workshops';void window.M4L_ACADEMY_ASSESSMENTS?.open({hostId:'as-general-host',view:'activity',kind:hash.includes('/COURSE')?'COURSE':''});}
     if(name==='assessment-admin'&&state.home){if(encodedId){try{void loadActivity(decodeURIComponent(encodedId));}catch{$('as-admin-host').textContent='Invalid learning area.';}}else syncAssessment({kind:hash.includes('/COURSE')?'COURSE':'',name:'Academy',roles:[]});}
-    if (name === 'recorder') $('recorder-card').innerHTML = state.home?.student ? '<p>Select an existing lesson image, record your voice, then preview and share your video.</p><a class="button" href="/recorder/?academy=1">Open Voice Recorder →</a>' : '<p>Voice Recorder is available to signed-in Academy students.</p>';
     if(name!=='administration')dockTimetable($('timetable-card-home'));
     if(name==='overview'&&state.home)void loadPublicHome();
     if(name==='timetable'){renderRoleLinks();if(state.home){renderSchedule('academy-sessions',roleRows({...state.home,personalTimetable:state.scheduleTimetable,timetable:state.scheduleTimetable}));$('schedule-range').textContent=formatDate(state.startDate)+' – '+formatDate(addWeekDays(state.startDate,6));weekButtons();}}
@@ -1037,7 +1042,7 @@
     const firstProgram=areas.find(programs), firstArea=areas[0];
     const direct={settings:'#administration/settings',users:global?'/users/':firstArea?manage(firstArea)+(programs(firstArea)?'&tab=profiles':'&tab=participants'):'#administration/users',attendance:'#administration/attendance',planning:'#administration/planning',announcements:'#administration/announcements',assessments:global?'#assessment-admin':firstArea?`#assessment-admin/${firstArea.kind}/${encodeURIComponent(firstArea.id)}`:'#assessment-admin',library:global?'/academy/library/manage/':'/academy/library/',curriculum:global?'/academy/subjects/':firstProgram?manage(firstProgram):'#administration/curriculum',programs:global?'/programs/':firstProgram?manage(firstProgram):'#administration/programs',courses:'/academy/courses/manage/',enrolments:'/academy/enrolment/manage/?view=requests'};
     view.innerHTML = `<div class="page-heading admin-heading"><h1>${requested?'Manage '+tabs.find(([id])=>id===key)[1]:'Manage Academy'}</h1></div>
-      <nav class="workspace-tabs admin-management-menu" aria-label="Administration tools">${tabs.map(([id,label])=>`<a id="admin-tab-${id}" href="${esc(direct[id])}"${id===requested?' aria-current="page"':''}>${label}</a>`).join('')}${window.M4L_CONFIG?.ACCEPTED_SETUP?'<button id="setup-publication-review" type="button">Review setup</button>':''}${global?'<button id="public-timetable-refresh" type="button">Update timetable</button>':''}</nav>${global?'<p id="public-timetable-refresh-message" class="tiny muted" role="status" aria-live="polite"></p>':''}${!requested?'<div id="admin-timetable-home"></div>':''}
+      <nav class="workspace-tabs admin-management-menu" aria-label="Administration tools">${tabs.map(([id,label])=>`<a id="admin-tab-${id}" href="${esc(direct[id])}"${id===requested?' aria-current="page"':''}>${label}</a>`).join('')}${window.M4L_CONFIG?.ACCEPTED_SETUP?'<button id="setup-publication-review" type="button">Review setup</button>':''}${global?'<button id="public-timetable-refresh" type="button">Update timetable</button>':''}</nav>${global?'<p id="public-timetable-refresh-message" class="tiny muted" role="status" aria-live="polite"></p>':''}${!requested?'<div class="workspace-actions"><a class="button secondary" data-recorder-link href="/recorder/?academy=1">Voice Recorder</a></div><div id="admin-timetable-home"></div>':''}
       ${requested?`<section class="card card-pad" id="admin-workspace"><div class="workspace-actions">${panels[key]||'<p class="muted">No assigned areas are available here.</p>'}</div></section>`:''}<div class="academy-support">${supportSections(null,'admin')}</div>`;
     if(requested==='attendance'&&nativeAttendance()){dockAttendance($('admin-attendance-host'));$('pa-main').hidden=false;$('pa-close').href='#administration';window.M4L_PROGRAM_ATTENDANCE?.open({admin:true});}
     if(requested==='planning')window.M4L_PLANNING?.open({hostId:'admin-planning',view:'admin'});
@@ -1110,7 +1115,7 @@
     $('administration').replaceChildren();
     renderAcademyMenu();
     $('academy-recorder-nav').hidden = true;
-    for (const id of ['workshop-pills', 'academy-preview-sessions', 'academy-sessions', 'activity-switcher', 'activity-menu', 'activity-sessions', 'workshop-tools', 'recorder-card']) $(id).replaceChildren();
+    for (const id of ['workshop-pills', 'academy-preview-sessions', 'academy-sessions', 'activity-switcher', 'activity-menu', 'activity-sessions', 'workshop-tools']) $(id).replaceChildren();
     $('activity-switcher').hidden = true;
     for (const id of ['activity-library','activity-planning','activity-support']) {$(id).hidden = true;$(id).replaceChildren();}
     $('schedule-title').textContent = 'Academy timetable';
