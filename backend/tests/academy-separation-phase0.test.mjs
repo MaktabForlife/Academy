@@ -82,7 +82,7 @@ test('Phase 0 inventory retains legacy aliases, raw uploads, scheduled and offli
 });
 test('Phase 0 tooling captures only binding names and keeps existing layout/PDF sources available',()=>{
  const bindings=sourceBindings(),contracts=JSON.parse(readFileSync(resolve(repositoryRoot,'docs/academy-separation/contracts.json'),'utf8'));
- assert.equal(bindings.worker,'devrebootworker');assert.equal(bindings.d1[0].database_name,'maktab-academy');
+ assert.equal(bindings.worker,'devrebootworker');assert.deepEqual(bindings.d1.map(b=>b.database_name).sort(),['dev-academy-admin','dev-academy-core']);
  assert.deepEqual(bindings.r2.map(r=>r.binding).sort(),['ASSESSMENT_BUCKET','LESSON_MEDIA_BUCKET','MEDIA_BUCKET']);
  assert(!JSON.stringify(bindings).includes('SESSION_SECRET'));assert.equal(contracts.screens.filter(s=>s.current_page_or_view.endsWith('.html')).length,24);
  for(const row of contracts.screens.filter(s=>s.current_page_or_view.endsWith('.html')))assert(existsSync(resolve(repositoryRoot,row.current_page_or_view)),row.current_page_or_view);

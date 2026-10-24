@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.37
+# Umm Abbad Academy — V107.38
+
+## V107.38 — Development Core/Admin cutover
+
+Deploy the reviewed Admin/personal workspaces to Development using dev-academy-core and dev-academy-admin. Preserve preview credentials, roles and work, reconcile final original-source sign-in changes, restore Hifz/Library/My links and scheduled recovery, and retain the original database and its files for recovery. Feature preview uses the same Development stores after this switch. [Cutover record](docs/academy-separation/phase-5.md#development-cutover--v10738).
 
 ## V107.37 — Personal workspaces from Admin Home
 
@@ -41,7 +45,7 @@ The `development` branch in `MaktabForlife/Academy` contains the Cloudflare D1 A
 - Website: https://maktab4life.org/academy/
 - Pages: `academy-maktab4life`, connected to `MaktabForlife/Academy` → `development`.
 - API: https://devrebootworker.maktab4life.workers.dev/
-- Database: existing `maktab-academy`; no data copy or reimport in this release.
+- Databases: `dev-academy-core` and `dev-academy-admin`. Original `maktab-academy` is retained for recovery, with its application activation gate closed.
 - HifzHelper keeps its separate Worker and D1; Academy provides profile and PIN updates plus a short-lived sign-in handoff.
 
 ## V107.28 — Phase 4 Development checkpoint

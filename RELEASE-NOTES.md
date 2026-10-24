@@ -1,3 +1,7 @@
+# V107.38 — Development Core/Admin cutover
+
+Promote the reviewed feature UI to Development and bind devrebootworker to dev-academy-core and dev-academy-admin through the existing split coordinator. Reconcile original-source sessions and revocations while preserving newer preview credentials, roles and business records. Restore existing Hifz handoff/profile delivery, Open Library/My links and the recovery schedule; keep original Library object identity and buckets. Scheduled cache recovery writes its Core-owned markers without impersonating an Admin and still respects the commit fence. Retain original database and referenced file bytes for recovery; current uploads retain ordinary cleanup within dev-split-v1/. Preview and Development share these new stores after activation.
+
 # V107.37 — Personal navigation from Home and one-row Admin banners
 
 Supersede V107.36: Global and scoped Admin Home offers Personal Learn, Personal Teach and Admin, each clearly labelled. Remove the second navigation row from all Admin, Admin-Learn and Admin-Teach banners; retain the first workspace label/description and existing Home action with draft guards. Personal workspaces retain their separate permissions and actual assignments, including an empty Personal Teach when none are assigned. Feature preview only; no database changes.

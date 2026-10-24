@@ -1,4 +1,8 @@
-# Phase 5 — separate Core and Admin preview
+# Phase 5 — separate Core and Admin Development
+
+24 October 2026: the user explicitly authorised deploying the reviewed feature release to Development and switching Development to the fresh Core/Admin stores. V107.38 implements that cutover. Its completion is attested only after live verification by `academy-development-split-v107.38`; the earlier preview-only limits below are historical.
+
+## Prior preview checkpoint
 
 23 October 2026, V107.31 on `feature-admin`, following the user's completed Phase 4 review and explicit preview promotion instruction. Owner routing, recovery and the isolated split API were implemented and verified at V107.30 on `feature-split-db`. This release promotes the same prepared stores to the Admin feature preview. Current Development remains on Phase 4 V107.28 and its original database; a Phase 5 Development cutover is not authorised. The old database must not be deleted.
 
@@ -73,3 +77,18 @@ The user reviewed Phase 4 and requested Phase 4 on Development followed by Phase
 2. Verify exact authority, rows, references, accepted heads, retry outcomes and files again. Deliberately restore the approved shared-service configuration before full Development use.
 3. Switch the matching Development website/API together and verify the complete role/file/recovery matrix. Never fall back to a stale source after admitting new target work.
 4. Retain the original database and recovery copies until separately reviewed retirement. Deletion is not part of the preview promotion.
+
+
+## Development cutover — V107.38
+
+User authorisation: “deploy to develop and swtich the dev db to the new core and admin”. Development uses dev-academy-core (1c8aece3-dc1d-40d1-8a82-01ab4f63336f) and dev-academy-admin (fe85dac1-b1f0-4079-9127-2e36089aa385), with the same generation and private coordinator. The existing ProgramTimetableCoordinator class, its object name, R2 buckets and encrypted bindings are retained. The original encrypted-key provisioning record confirms that the feature keys were copied from Development; no live diagnostic endpoint is added for this cutover.
+
+The original source changed only sign-in state after the copy: two new sessions, one revoked session and a last-login timestamp. The offline reconciliation rehearsal adds the two current sessions and carries the revocation; the target's newer last-login value already wins. No current credential, role, learner work, accepted head, private draft or retry history is replaced. Final application uses fresh quiesced snapshots and a Core mutation-epoch guard; readback must match the rehearsed manifest before admission.
+
+Pause Development and feature API writes, close the original migration activation gate and the target readiness gate, drain the coordinator and take final recoverable snapshots. Retain maktab-academy with its run in VERIFIED rather than CUTOVER, so old application versions cannot start new work on it. Do not delete or blindly reload either READY target. The new Development API stays paused until the matching Development website is published and the reconciled stores verify. Reopen only the new stores and restore the unchanged feature release after activation.
+
+The Development runtime restores Hifz handoff/profile delivery, shared Open Library curation, private My links and the 15-minute recovery schedule. Actorless scheduled cache recovery touches only Core-owned refresh markers and retains Core's write fence. Newly uploaded files continue under dev-split-v1/ and retain normal cleanup. Original file bytes remain protected from physical deletion while the former database is retained.
+
+Feature-admin remains its reviewed V107.37 preview, now sharing the new Development stores. Preview edits therefore affect Development data; its existing Hifz/shared-write holds remain. A future isolated preview database requires a separate copy. After any new-store work is admitted, recovery must preserve that work and retain the new bindings; reverting to the old database is not a routine code rollback.
+
+Validation includes all 99 regression files, current configuration/storage identity checks, scheduled refresh without an Admin actor and its outstanding-fence denial, both builds, private source/target integrity and reference checks, storage readback, exact session reconciliation and final website/API checks. Private snapshots and verification evidence stay outside Git and public assets in the Development cutover recovery directory. The retained annotated tag records actual deployment versions, source and evidence digests.

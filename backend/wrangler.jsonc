@@ -1,7 +1,7 @@
 {
   "name": "devrebootworker",
-  "main": "src/academy-worker-runtime.js",
-  "compatibility_date": "2026-10-14",
+  "main": "src/academy-development-runtime.js",
+  "compatibility_date": "2026-10-23",
   "keep_vars": true,
   "r2_buckets": [
     {
@@ -21,8 +21,8 @@
     "development": {
       "name": "devrebootworker",
       "account_id": "c9a3e355b3d7a795880b1d36a1dbe123",
-      "main": "src/academy-worker-runtime.js",
-      "compatibility_date": "2026-10-14",
+      "main": "src/academy-development-runtime.js",
+      "compatibility_date": "2026-10-23",
       "triggers": {
         "crons": [
           "*/15 * * * *"
@@ -31,9 +31,13 @@
       "d1_databases": [
         {
           "binding": "ACADEMY_DB",
-          "database_name": "maktab-academy",
-          "database_id": "7e732b79-a72f-4da6-be83-524919c49ba4",
-          "migrations_dir": "migrations/academy"
+          "database_name": "dev-academy-core",
+          "database_id": "1c8aece3-dc1d-40d1-8a82-01ab4f63336f"
+        },
+        {
+          "binding": "ACADEMY_ADMIN_DB",
+          "database_name": "dev-academy-admin",
+          "database_id": "fe85dac1-b1f0-4079-9127-2e36089aa385"
         }
       ],
       "observability": {
@@ -69,18 +73,37 @@
           {
             "name": "PROGRAM_TIMETABLE_COORDINATOR",
             "class_name": "ProgramTimetableCoordinator"
+          },
+          {
+            "name": "ACADEMY_SPLIT_COORDINATOR",
+            "class_name": "AcademySplitCoordinator",
+            "script_name": "academy_split_coordinator"
           }
         ]
       },
       "vars": {
-        "HIFZ_PROFILE_SYNC_URL": "https://hifzhelper-api.hifzhelper-app.workers.dev/internal/academy/profile-sync",
-        "HIFZ_PROFILE_SYNC_TARGET": "production",
-        "HIFZ_HANDOFF_ENABLED": "1",
-        "HIFZ_DEVELOPMENT_HANDOFF_URL": "https://hifzhelper-api-dev.hifzhelper-app.workers.dev/internal/academy/profile-sync",
         "ACADEMY_ACCEPTED_SETUP": "1",
+        "ACADEMY_D1_MODE": "ACTIVE",
+        "ACADEMY_D1_RUN_ID": "3ed73804e35f1d0c8b1bacd0a10e3b868644a38bbc30e11aa063a89716e6ac12",
         "ACADEMY_LEARNING_OPERATIONS": "3",
-        "ACADEMY_MEDIA_SEPARATION": "1"
-      }
+        "ACADEMY_LIBRARY_MODE": "PUBLIC_ONLY",
+        "ACADEMY_MEDIA_SEPARATION": "1",
+        "ALLOWED_ORIGINS": "https://maktab-development.pages.dev,https://75667fef.maktab-development.pages.dev,https://maktab4life.org,https://www.maktab4life.org,https://academy-maktab4life.pages.dev",
+        "ENVIRONMENT": "development",
+        "HIFZ_DEVELOPMENT_HANDOFF_URL": "https://hifzhelper-api-dev.hifzhelper-app.workers.dev/internal/academy/profile-sync",
+        "HIFZ_HANDOFF_ENABLED": "1",
+        "HIFZ_PROFILE_SYNC_TARGET": "production",
+        "HIFZ_PROFILE_SYNC_URL": "https://hifzhelper-api.hifzhelper-app.workers.dev/internal/academy/profile-sync",
+        "ACADEMY_DB_GENERATION": "SPLIT_V1",
+        "ACADEMY_DEPLOYMENT_KIND": "DEVELOPMENT_SPLIT",
+        "ACADEMY_OBJECT_NAMESPACE": "dev-split-v1/",
+        "API_ORIGIN": "https://devrebootworker.maktab4life.workers.dev"
+      },
+      "compatibility_flags": [
+        "nodejs_compat"
+      ],
+      "workers_dev": true,
+      "preview_urls": false
     }
   },
   "ratelimits": [
@@ -98,6 +121,11 @@
       {
         "name": "PROGRAM_TIMETABLE_COORDINATOR",
         "class_name": "ProgramTimetableCoordinator"
+      },
+      {
+        "name": "ACADEMY_SPLIT_COORDINATOR",
+        "class_name": "AcademySplitCoordinator",
+        "script_name": "academy_split_coordinator"
       }
     ]
   },
@@ -118,9 +146,13 @@
   "d1_databases": [
     {
       "binding": "ACADEMY_DB",
-      "database_name": "maktab-academy",
-      "database_id": "7e732b79-a72f-4da6-be83-524919c49ba4",
-      "migrations_dir": "migrations/academy"
+      "database_name": "dev-academy-core",
+      "database_id": "1c8aece3-dc1d-40d1-8a82-01ab4f63336f"
+    },
+    {
+      "binding": "ACADEMY_ADMIN_DB",
+      "database_name": "dev-academy-admin",
+      "database_id": "fe85dac1-b1f0-4079-9127-2e36089aa385"
     }
   ],
   "observability": {
@@ -128,12 +160,26 @@
     "head_sampling_rate": 1
   },
   "vars": {
-    "HIFZ_PROFILE_SYNC_URL": "https://hifzhelper-api.hifzhelper-app.workers.dev/internal/academy/profile-sync",
-    "HIFZ_PROFILE_SYNC_TARGET": "production",
-    "HIFZ_HANDOFF_ENABLED": "1",
-    "HIFZ_DEVELOPMENT_HANDOFF_URL": "https://hifzhelper-api-dev.hifzhelper-app.workers.dev/internal/academy/profile-sync",
     "ACADEMY_ACCEPTED_SETUP": "1",
+    "ACADEMY_D1_MODE": "ACTIVE",
+    "ACADEMY_D1_RUN_ID": "3ed73804e35f1d0c8b1bacd0a10e3b868644a38bbc30e11aa063a89716e6ac12",
     "ACADEMY_LEARNING_OPERATIONS": "3",
-    "ACADEMY_MEDIA_SEPARATION": "1"
-  }
+    "ACADEMY_LIBRARY_MODE": "PUBLIC_ONLY",
+    "ACADEMY_MEDIA_SEPARATION": "1",
+    "ALLOWED_ORIGINS": "https://maktab-development.pages.dev,https://75667fef.maktab-development.pages.dev,https://maktab4life.org,https://www.maktab4life.org,https://academy-maktab4life.pages.dev",
+    "ENVIRONMENT": "development",
+    "HIFZ_DEVELOPMENT_HANDOFF_URL": "https://hifzhelper-api-dev.hifzhelper-app.workers.dev/internal/academy/profile-sync",
+    "HIFZ_HANDOFF_ENABLED": "1",
+    "HIFZ_PROFILE_SYNC_TARGET": "production",
+    "HIFZ_PROFILE_SYNC_URL": "https://hifzhelper-api.hifzhelper-app.workers.dev/internal/academy/profile-sync",
+    "ACADEMY_DB_GENERATION": "SPLIT_V1",
+    "ACADEMY_DEPLOYMENT_KIND": "DEVELOPMENT_SPLIT",
+    "ACADEMY_OBJECT_NAMESPACE": "dev-split-v1/",
+    "API_ORIGIN": "https://devrebootworker.maktab4life.workers.dev"
+  },
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "workers_dev": true,
+  "preview_urls": false
 }

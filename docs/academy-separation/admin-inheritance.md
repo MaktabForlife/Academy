@@ -1,4 +1,6 @@
-# Distinct Admin readers — V107.37
+# Distinct Admin readers — V107.38
+
+V107.38 promotes the reviewed V107.37 navigation and banners to Development with the authorised Core/Admin database cutover. The personal/Admin access distinction and current layouts are unchanged.
 
 V107.37 supersedes the earlier Home navigation decision. Global and scoped Admin accounts have Personal Learn, Personal Teach and Admin choices on Home; personal choices carry explicit PERSONAL labels. Both personal choices remain available even when there are no personal assignments, without adding inherited permissions. Inside Admin, ADMIN-LEARN and ADMIN-TEACH retain their separate routes and labels. Admin context banners show only the first workspace label/description row; all second-row navigation links are removed. Use the existing Home action to return to personal choices, retaining draft guards.
 
@@ -26,7 +28,7 @@ Global Admin has Academy-wide Admin reader scope. Program/Course Admin has its a
 
 The Admin shell displays ADMIN-LEARN / ADMIN-TEACH tabs and a persistent current-workspace label/description banner. The banner contains no navigation links. Home explicitly opens normal Academy home, where Personal Learn/Teach and Admin are available, with existing unsaved-work guards; Close retains the invoking reader realm. Calendar, Library/media and PDF tabs carry the exact context and selected class; the PDF reader also labels its own header. Switching contexts invalidates pending responses. New cache identities discard the earlier combined reader snapshots and keep pending attendance drafts separate. Existing unsaved-work guards apply before exits.
 
-No database migration, persisted assignment expansion or learner enrolment is introduced. Actual authority proof remains based on the real account/roles. Existing Core/Admin split ownership, manual edge-case handling and preview holds remain unchanged. Deployment is restricted to feature-admin and feature_worker; Development remains the Phase 4 V107.28 checkpoint.
+No persisted assignment expansion or learner enrolment is introduced. Actual authority proof remains based on the real account/roles. Existing Core/Admin split ownership and manual edge-case handling remain unchanged. V107.38 promotes this reviewed UI to Development on the new stores; the feature preview retains its own shared-service holds and now shares Development data. See the Phase 5 cutover record for reconciliation and recovery.
 
 Regression coverage includes direct HTTP denial of inherited access from personal contexts, forged Admin contexts, cross-class protected media, own Teacher actions in Admin-Teach, current revocation, mixed personal/Admin scopes, examiner/release boundaries and client delayed-response isolation. Desktop/phone verification covers explicit Admin routing, class switching, attendance, personal exits and reader context preservation.
 

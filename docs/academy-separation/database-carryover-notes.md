@@ -1,5 +1,7 @@
 # Database use and future carry-over notes
 
+24 October 2026, V107.38: Development cutover is authorised to the existing fresh dev-academy-core and dev-academy-admin stores. The original maktab-academy becomes a retained recovery source with its application activation gate closed. Reconciliation carries only newer sign-in sessions/revocation; no retired import, old attendance or discussion tables are added to the clean stores. Existing selected business records and current deny settings remain authoritative in the new stores. Do not infer permission to delete the original database or its file bytes.
+
 Recorded 23 October 2026 from source checkpoint c70619a5, applied migrations through 0035, the private verified post-migration snapshot and current reader/writer/view references. This is a migration planning record. The source database remains intact and no new database is created here.
 
 The [carry-over register](database-carryover-register.csv) covers all **134 application tables, the deployment ledger and three SQL views**. It records current use, aggregate row count at this checkpoint, planned owner, default treatment for a new Admin database, observed consumers/foreign keys and the condition for retiring a dependency. Counts contain no account details or record contents. Cloudflare internal objects are excluded; target indexes/triggers/constraints must come from its deliberate schema, not a blind source-schema dump.

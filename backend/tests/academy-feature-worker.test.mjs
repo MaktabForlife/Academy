@@ -22,14 +22,14 @@ test('feature packaging uses its own API and cannot select the main website',()=
  }finally{rmSync(directory,{recursive:true,force:true});}
 });
 
-test('the feature Worker uses separate Admin/Core stores while Development retains its current database and schedule',()=>{
+test('the feature Worker retains preview controls while Development uses the reviewed Admin/Core stores',()=>{
  const read=file=>JSON.parse(readFileSync(new URL(file,import.meta.url),'utf8'));
  const config=read('../wrangler.feature.jsonc'),development=read('../wrangler.jsonc');
  assert.equal(config.name,'feature_worker');assert.equal(development.name,'devrebootworker');
  assert.equal(config.main,'src/academy-split-runtime.js');
  assert.deepEqual(config.d1_databases.map(d=>d.database_name).sort(),['dev-academy-admin','dev-academy-core']);
- assert.equal(development.d1_databases[0].database_name,'maktab-academy');
- assert.equal(config.vars.ACADEMY_DB_GENERATION,'SPLIT_V1');assert.equal(development.vars.ACADEMY_DB_GENERATION,undefined);
+ assert.deepEqual(development.d1_databases,config.d1_databases);
+ assert.equal(config.vars.ACADEMY_DB_GENERATION,'SPLIT_V1');assert.equal(development.vars.ACADEMY_DB_GENERATION,'SPLIT_V1');
  assert.deepEqual(config.r2_buckets,development.r2_buckets);
  assert.deepEqual(config.ratelimits,development.ratelimits);
  assert.deepEqual(config.durable_objects.bindings,[{name:'PROGRAM_TIMETABLE_COORDINATOR',class_name:'ProgramTimetableCoordinator',script_name:'devrebootworker'},{name:'ACADEMY_SPLIT_COORDINATOR',class_name:'AcademySplitCoordinator',script_name:'academy_split_coordinator'}]);

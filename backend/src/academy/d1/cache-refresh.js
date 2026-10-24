@@ -32,7 +32,10 @@ export async function processCacheRefresh(request,env,{repository,now=new Date()
   const pauseKey=refreshObject(env,'quota-pause'),pause=await env.MEDIA_BUCKET.get(pauseKey);
   if(pause&&Number((await pause.json()).until)>now.getTime())return {completed:[],pending:true};
   repository??=academyD1Repository(env);
-  const p=(sql,...values)=>repository.db.prepare(sql).bind(...values),time=now.getTime();
+  // These two recovery records belong only to Core. Scheduled recovery has no
+  // interactive Admin actor; Core's normal write fence still protects them.
+  const settings=env.ACADEMY_DB_GENERATION==='SPLIT_V1'?env.ACADEMY_DB.withSession('first-primary'):repository.db;
+  const p=(sql,...values)=>settings.prepare(sql).bind(...values),time=now.getTime();
   let rows;
   try{rows=(await p('SELECT setting_key,setting_value FROM academy_settings WHERE setting_key IN (?,?)',...refreshKinds.map(refreshSetting)).all()).results;}
   catch(error){

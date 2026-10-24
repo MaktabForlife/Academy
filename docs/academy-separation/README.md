@@ -1,6 +1,6 @@
 # Academy separation final implementation brief
 
-Current position, 23 October 2026: Phase 4 was reviewed and deployed to Development at V107.28. Phase 5 is deployed only to feature-admin and its isolated feature_worker, using fresh dev-academy-admin and dev-academy-core copies. V107.34 separates explicit Admin-Learn/Admin-Teach from personal Learn/Teach; see [current reader access](admin-inheritance.md). Keep layouts and direct manual controls. Current Development remains on the original database; no Phase 5 cutover is authorised here.
+Current position, 24 October 2026: the user authorised the Development Core/Admin cutover in V107.38 after reviewing the feature UI. Development switches to dev-academy-core and dev-academy-admin, preserving preview changes and reconciling original-source sign-in state. The original database remains a closed recovery source. Feature preview shares the new Development data after activation. Current personal/Admin labels are described in [reader access](admin-inheritance.md); actual cutover completion is recorded in [Phase 5](phase-5.md#development-cutover--v10738).
 
 Implementation authorised 22 October 2026. Phases 0 and 1 are complete on `feature-admin` at V107.23; Phases 2–6 follow the agreed delivery gates. See the [Phase 1 execution record](phase-1.md). Preparation is complete at the design level. This brief, the final access map, data ownership and phased plan are the active instructions. Current implementation evidence is recorded separately below. They replace the earlier expanding review proposals.
 

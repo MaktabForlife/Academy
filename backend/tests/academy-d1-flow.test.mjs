@@ -241,10 +241,10 @@ test('the application entrypoint keeps rehearsals isolated and fails closed on a
   }finally{globalThis.fetch=originalFetch;}
 }));
 
-test('only the current development Worker configuration binds the main Academy database',()=>{
+test('the Development Worker binds Core and Admin and keeps the original database in administration tooling only',()=>{
   const config=JSON.parse(readFileSync(new URL('../wrangler.jsonc',import.meta.url),'utf8'));
-  assert.equal(config.name,'devrebootworker');assert.equal(config.main,'src/academy-worker-runtime.js');
+  assert.equal(config.name,'devrebootworker');assert.equal(config.main,'src/academy-development-runtime.js');
   assert.equal(config.env.development.name,'devrebootworker');
-  assert.deepEqual(config.env.development.d1_databases,[{binding:'ACADEMY_DB',database_name:'maktab-academy',database_id:'7e732b79-a72f-4da6-be83-524919c49ba4',migrations_dir:'migrations/academy'}]);
-  assert.deepEqual(config.env.development.vars,{HIFZ_PROFILE_SYNC_URL:'https://hifzhelper-api.hifzhelper-app.workers.dev/internal/academy/profile-sync',HIFZ_PROFILE_SYNC_TARGET:'production',HIFZ_HANDOFF_ENABLED:'1',HIFZ_DEVELOPMENT_HANDOFF_URL:'https://hifzhelper-api-dev.hifzhelper-app.workers.dev/internal/academy/profile-sync',ACADEMY_ACCEPTED_SETUP:'1',ACADEMY_LEARNING_OPERATIONS:'3',ACADEMY_MEDIA_SEPARATION:'1'});
+  assert.deepEqual(config.env.development.d1_databases,[{binding:'ACADEMY_DB',database_name:'dev-academy-core',database_id:'1c8aece3-dc1d-40d1-8a82-01ab4f63336f'},{binding:'ACADEMY_ADMIN_DB',database_name:'dev-academy-admin',database_id:'fe85dac1-b1f0-4079-9127-2e36089aa385'}]);
+  const expected={HIFZ_PROFILE_SYNC_URL:'https://hifzhelper-api.hifzhelper-app.workers.dev/internal/academy/profile-sync',HIFZ_PROFILE_SYNC_TARGET:'production',HIFZ_HANDOFF_ENABLED:'1',HIFZ_DEVELOPMENT_HANDOFF_URL:'https://hifzhelper-api-dev.hifzhelper-app.workers.dev/internal/academy/profile-sync',ACADEMY_ACCEPTED_SETUP:'1',ACADEMY_LEARNING_OPERATIONS:'3',ACADEMY_MEDIA_SEPARATION:'1'};for(const [name,value]of Object.entries(expected))assert.equal(config.env.development.vars[name],value);assert.equal(config.env.development.vars.ACADEMY_DB_GENERATION,'SPLIT_V1');assert(!Object.keys(config.env.development.vars).some(name=>/SECRET/.test(name)));
 });
