@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.44
+# Umm Abbad Academy — V107.45
+
+## V107.45 — Compact PDF headers and markup comparison
+
+Use compact reader banners and named icon actions, with the volume beside the title. The pencil opens a hidden final annotation row. Select a page from an editable list or type its number. Split PDF and Whiteboard sit at the right of page/zoom controls on tablet and desktop, and remain hidden on phones. Keep the existing PDF.js reader, Library/bookmark controls and unsaved-work protection. The separate comparison page adds Preview-style sketch/freehand/shapes, in-place editable text, independent fill/ink colours and editable favourites. No database or access changes.
 
 ## V107.44 — Direct Voice Recorder access
 

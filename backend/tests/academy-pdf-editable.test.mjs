@@ -40,3 +40,8 @@ test('annotation import removes only editable appearances and leaves original pa
  fakePdf.getPage=async()=>({getViewport:()=>viewport,getAnnotations:async()=>[{id:textRef.objectNumber+'R',subtype:'FreeText',readOnly:true}]});
  const locked=await importEditable(bytes,fakePdf,lib);assert.equal(locked.marks.length,0);assert.equal(locked.bytes,bytes);
 });
+test('shape fill colours are independent from their border and metadata rejects invalid colours',()=>{
+ const box={id:'fill',page:1,type:'rectangle',x:20,y:40,w:120,h:60,width:3,colour:'#be273d',fill:true,fillColour:'#235dad'};
+ assert(validMark(box));assert.equal(validMark({...box,fillColour:'red<script>'}),false);
+ assert.deepEqual(annotationRecord(box,viewport,editorTypes).color,[190,39,61]);
+});

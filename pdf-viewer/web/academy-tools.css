@@ -1,3 +1,38 @@
 html:has(body.academy-pdf){--toolbar-bg-color:#faf7fb;--toolbar-border-color:#dfd3e4;--main-color:#302936;--toggled-btn-bg-color:#e8d9ed;--button-hover-color:#eee3f2;--button-active-color:#dfcbe7;font-family:Arial,sans-serif}.academy-pdf #toolbarContainer{border-bottom:1px solid #dfd3e4}.academy-pdf .editorParamsToolbar{border-color:#dfd3e4}.academy-pdf .colorPicker{accent-color:#70477c}
 .editorParamsNumber{box-sizing:border-box;width:76px;min-height:32px;margin-inline-start:14px;padding:4px 6px;border:1px solid var(--toolbar-border-color);border-radius:4px;background:var(--field-bg-color);color:var(--main-color);font:menu;font-size:14px;text-align:end}.editorParamsNumber:focus-visible{outline:2px solid #805088;outline-offset:2px}
 #editorHighlightThickness{flex-direction:row;align-items:center;justify-content:space-between}#editorHighlightThickness .editorParamsLabel{align-self:center}.editorParamsNumber:disabled{opacity:.4}
+
+/* Keep PDF.js rendering and editors; compact only Academy's embedded controls. */
+.academy-compact-reader #mainContainer{min-width:0}
+.academy-compact-reader #toolbarContainer{height:auto;min-height:44px;padding:3px 5px}
+.academy-compact-reader #toolbarContainer #toolbarViewer{height:auto;min-height:36px;gap:4px;justify-content:flex-start;flex-wrap:wrap}
+.academy-compact-reader #toolbarContainer #toolbarViewerLeft{margin:0;gap:8px;flex:0 1 auto}
+.academy-compact-reader #toolbarViewerMiddle,.academy-compact-reader :is(#previous,#next,#pageNumber,#numPages,#viewsManagerToggleButton),.academy-compact-reader #toolbarViewerLeft>.toolbarButtonSpacer,.academy-compact-reader #toolbarViewerLeft>.toolbarHorizontalGroup{display:none!important}
+.academy-compact-reader #toolbarViewerRight{margin-left:auto;flex:0 0 auto;gap:3px}
+.academy-compact-reader #toolbarViewerRight>.toolbarButtonSpacer{display:none!important}
+.academy-compact-reader #viewerContainer{inset-block-start:var(--academy-controls-height,44px)}
+.academy-compact-reader #academy-editor-row{display:flex;align-items:center;min-height:38px;border-top:1px solid #dfd3e4;margin-top:3px;padding-top:3px}
+.academy-compact-reader #academy-editor-row[hidden]{display:none!important}
+.academy-compact-reader #academy-editor-row #editorModeButtons{display:flex!important;flex-wrap:wrap}
+.academy-compact-reader #academy-workspace-tools{display:flex;gap:3px;margin-left:10px}
+.academy-compact-reader .academy-workspace-button{display:inline-flex;justify-content:center;align-items:center;width:36px;height:36px;padding:6px;border:1px solid #dfd3e4;border-radius:5px;background:white;color:#70477c;cursor:pointer}
+.academy-compact-reader .academy-workspace-button[hidden]{display:none!important}
+.academy-compact-reader .academy-workspace-button[aria-pressed=true]{background:#70477c;color:white}
+.academy-compact-reader .academy-workspace-button svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.academy-compact-reader .page-picker{display:flex;align-items:center;position:relative;gap:6px;font:12px Arial,sans-serif;color:#302936}
+.academy-compact-reader .academy-page-field{display:flex;border:1px solid #dfd3e4;background:#fff;border-radius:5px;height:36px;width:85px;overflow:hidden}
+.academy-compact-reader .academy-page-field input{font:14px Arial,sans-serif!important;padding:4px 6px;border:0;width:55px;min-width:0;color:#302936;background:transparent}
+.academy-compact-reader .academy-page-field button{border:0;border-left:1px solid #dfd3e4;width:28px;background:#fff;color:#70477c;font:18px Arial,sans-serif;cursor:pointer}
+.academy-compact-reader [role=listbox]{position:absolute;z-index:20;top:calc(100% + 4px);left:30px;width:85px;max-height:min(250px,45dvh);overflow:auto;background:#fff;border:1px solid #dfd3e4;border-radius:5px;box-shadow:0 4px 12px #30293633;color:#302936}
+.academy-compact-reader [role=option]{padding:9px 12px;cursor:pointer;min-height:36px;box-sizing:border-box}
+.academy-compact-reader [role=option]:is(.active,:hover){background:#eee3f2}
+.academy-compact-reader [role=option][aria-selected=true]{font-weight:bold;color:#70477c}
+.academy-compact-reader #scaleSelectContainer{width:105px;min-width:85px}
+.academy-compact-reader #scaleSelect{width:100%;font-size:12px}
+.academy-compact-reader #toolbarViewerLeft>label{font:12px Arial,sans-serif}
+@media(max-width:767px){.academy-compact-reader #toolbarViewerRight :is(#printButton,.splitToolbarButtonSeparator){display:none!important}.academy-compact-reader .academy-page-field{height:40px}.academy-compact-reader [role=option]{min-height:44px}.academy-compact-reader #toolbarViewerLeft{gap:5px!important}}
+
+.academy-compact-reader #academy-editor-row .editorParamsToolbar{inset-inline-start:0;inset-inline-end:auto;max-width:calc(100vw - 16px)}
+.academy-compact-reader #academy-editor-row .doorHangerRight::before,.academy-compact-reader #academy-editor-row .doorHangerRight::after{inset-inline-start:12px;inset-inline-end:auto}
+
+.academy-compact-reader #scaleSelectContainer{display:inline-block!important}

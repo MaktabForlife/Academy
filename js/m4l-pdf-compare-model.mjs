@@ -1,5 +1,22 @@
 // Coordinates belong to the page's scale-1 PDF.js viewport, independent of zoom.
 export const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
+// A short starting box; the existing corner handle can widen it afterwards.
+export function defaultTextBox(point,pageWidth){const w=Math.min(94,pageWidth-4);return {x:clamp(point.x,0,Math.max(0,pageWidth-w-4)),w};}
+// Only tidy confident single-stroke shapes. Handwriting stays freehand.
+export function tidySketch(mark){
+ const points=mark.points;if(!points||points.length<3)return mark;
+ const b=markBounds(mark),first=points[0],last=points.at(-1),diagonal=Math.hypot(b.w,b.h),gap=Math.hypot(first.x-last.x,first.y-last.y);
+ if(diagonal<16)return mark;
+ const {points:ignored,...style}=mark;
+ if(gap>diagonal*.7&&points.every(p=>distance(p,first,last)<Math.max(3,diagonal*.04)))return {...style,type:'line',points:[first,last]};
+ if(b.w<16||b.h<16||gap>diagonal*.2)return mark;
+ const coverage=new Set(points.map(p=>Math.floor((Math.atan2((p.y-b.y-b.h/2)/b.h,(p.x-b.x-b.w/2)/b.w)+Math.PI)*4/Math.PI)%8));
+ if(coverage.size<7)return mark;
+ const edge=points.reduce((n,p)=>n+Math.min(Math.abs(p.x-b.x),Math.abs(p.x-b.x-b.w),Math.abs(p.y-b.y),Math.abs(p.y-b.y-b.h)),0)/points.length;
+ if(edge<Math.min(b.w,b.h)*.045)return {...style,type:'rectangle',...b};
+ const ellipseError=points.reduce((n,p)=>n+Math.abs(Math.hypot((p.x-b.x-b.w/2)/(b.w/2),(p.y-b.y-b.h/2)/(b.h/2))-1),0)/points.length;
+ return ellipseError<.13?{...style,type:'ellipse',...b}:mark;
+}
 export function shapeMark(type,start,end,style={}){
  if(['line','arrow'].includes(type))return {...style,type,points:[start,end]};
  return {...style,type,x:Math.min(start.x,end.x),y:Math.min(start.y,end.y),w:Math.abs(end.x-start.x),h:Math.abs(end.y-start.y)};
@@ -60,7 +77,7 @@ export function paintMark(ctx,mark){
   }
  }else{
   ctx.beginPath();if(mark.type==='ellipse')ctx.ellipse(mark.x+mark.w/2,mark.y+mark.h/2,Math.max(.1,mark.w/2),Math.max(.1,mark.h/2),0,0,Math.PI*2);else ctx.rect(mark.x,mark.y,mark.w,mark.h);
-  if(mark.fill){ctx.globalAlpha=.18;ctx.fill();ctx.globalAlpha=1;}ctx.stroke();
+  if(mark.fill){ctx.fillStyle=mark.fillColour||mark.colour;ctx.globalAlpha=.18;ctx.fill();ctx.globalAlpha=1;}ctx.stroke();
  }
  ctx.restore();
 }

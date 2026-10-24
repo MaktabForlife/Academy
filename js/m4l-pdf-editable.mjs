@@ -1,10 +1,11 @@
-import {markBounds,textLayout} from './m4l-pdf-compare-model.mjs?v=107.21';
+import {markBounds,textLayout} from './m4l-pdf-compare-model.mjs?v=107.43';
 
 const types=new Set(['text','pen','highlight','rectangle','ellipse','line','arrow']);
 const finite=value=>typeof value==='number'&&Number.isFinite(value)&&Math.abs(value)<1e7;
 export function validMark(mark){
  if(!mark||typeof mark!=='object'||!types.has(mark.type)||!Number.isInteger(mark.page)||mark.page<1||typeof mark.id!=='string'||mark.id.length>150||!/^#[\da-f]{6}$/i.test(mark.colour))return false;
  if(!finite(mark.width??2)||mark.width<0||mark.width>200)return false;
+ if(mark.fillColour!==undefined&&!/^#[\da-f]{6}$/i.test(mark.fillColour))return false;
  if(mark.type==='text'&&(typeof mark.text!=='string'||mark.text.length>20000||!finite(mark.size)||mark.size<1||mark.size>300||!['auto','ltr','rtl'].includes(mark.direction)))return false;
  if(['line','arrow'].includes(mark.type)&&(!Array.isArray(mark.points)||mark.points.length!==2||mark.paths))return false;
  if(['text','rectangle','ellipse'].includes(mark.type)&&(mark.points||mark.paths))return false;
@@ -93,7 +94,8 @@ export async function exportEditable(bytes,marks,pdfjs,lib,measureContext){
   for(const [number,count] of counts){const list=doc.getPage(number-1).node.lookup(lib.PDFName.of('Annots'),lib.PDFArray),pageMarks=marks.filter(mark=>mark.page===number);for(let i=0;i<count;i++){const dict=doc.context.lookup(list.get(list.size()-count+i)),mark=pageMarks[i],record=records.get(mark.id);
    if(mark.fill&&['rectangle','ellipse'].includes(mark.type)){
     const points=record.paths.points[0],path=[];for(let j=0;j<points.length;j+=2)path.push(`${points[j]} ${points[j+1]} ${j?'l':'m'}`);path.push('h');const rgb=record.color.map(value=>value/255).join(' '),outline=path.join('\n');
-    const stream=doc.context.flateStream(`q /M4LFill gs ${rgb} rg ${outline} f Q q ${rgb} RG ${record.thickness} w 1 J 1 j ${outline} S Q`,{Type:'XObject',Subtype:'Form',FormType:1,BBox:record.rect,Resources:{ExtGState:{M4LFill:{Type:'ExtGState',ca:.18}}}});dict.set(lib.PDFName.of('AP'),doc.context.obj({N:doc.context.register(stream)}));
+    const fill=hexColour(mark.fillColour||mark.colour).map(value=>value/255).join(' ');
+    const stream=doc.context.flateStream(`q /M4LFill gs ${fill} rg ${outline} f Q q ${rgb} RG ${record.thickness} w 1 J 1 j ${outline} S Q`,{Type:'XObject',Subtype:'Form',FormType:1,BBox:record.rect,Resources:{ExtGState:{M4LFill:{Type:'ExtGState',ca:.18}}}});dict.set(lib.PDFName.of('AP'),doc.context.obj({N:doc.context.register(stream)}));
    }
    dict.set(lib.PDFName.of('M4LMark'),lib.PDFHexString.fromText(JSON.stringify({version:1,mark,fingerprint:fingerprint(dict,lib.PDFName)})));
   }}

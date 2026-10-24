@@ -1,3 +1,9 @@
+# V107.45 — PDF controls and annotation comparison
+
+Compact the normal PDF.js reader header, using the existing identity, date and workspace access. Keep full screen exit and Library return reachable. Book actions use icons with hover names; the volume picker follows the title. A pencil reveals the final editing row. The shared page chooser supports both typed page numbers and selection from the page list. The revised Split PDF icon has no stand; Whiteboard retains its easel. Both workspace tools are on the right of the page/zoom row and remain unavailable on phones. Preserve PDF documents, annotations and whiteboard drafts through responsive layout changes.
+
+Keep the alternative drawing/text tools on the separate comparison page. Add compact Preview-style menus, freehand and shape-tidying sketch, shapes with separate fill and border colours, shorter in-place text boxes, PDF text selection and editable favourite colours. Saved annotations remain editable when reopened. Normal PDF.js rendering is retained. No database/schema, account, role or PIN changes.
+
 # V107.44 — Direct Voice Recorder access
 
 Replace the recorder intermediary with direct image-selector links from Home, Admin Home and the verified new Reboot Program. Show Home’s local recorder tool to all signed-in account roles without requiring Student enrolment. Preserve personal Learn/Teach and verified Admin/Administration reader contexts, including Admin-Learn class context, through the recorder address. Saved #recorder links redirect directly. Remove the Academy back link and duplicate selector heading while retaining the shared Academy header/Home action and the recording/preview page-switch controls. The standalone recorder keeps its selector heading. No database, storage, enrolment or learner-work changes; the existing two-minute recording, preview, Share and Download behavior is unchanged.

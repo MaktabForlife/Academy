@@ -32,3 +32,18 @@ test('export places every overlay corner correctly on cropped pages at all four 
   }
  }
 });
+
+test('short initial text boxes remain inside the page even near its right edge',async()=>{
+ const {defaultTextBox}=await import('../../js/m4l-pdf-compare-model.mjs');
+ for(const width of [50,300,600])for(const x of [-10,0,width-1,width+10]){const b=defaultTextBox({x},width);assert(b.x>=0);assert(b.x+b.w<=width);assert(b.w<=94);}
+ assert.equal(defaultTextBox({x:100},600).w,94);
+});
+test('Sketch tidies confident basic shapes and preserves handwriting and short strokes',async()=>{
+ const {tidySketch}=await import('../../js/m4l-pdf-compare-model.mjs');
+ const base={type:'pen',id:'sketch',page:1,width:2.5,colour:'#235dad'};
+ const line={...base,points:[{x:10,y:20},{x:50,y:21},{x:100,y:20}]};assert.equal(tidySketch(line).type,'line');
+ const oval={...base,points:Array.from({length:49},(_,i)=>({x:100+70*Math.cos(i*Math.PI/24),y:100+40*Math.sin(i*Math.PI/24)}))};assert.equal(tidySketch(oval).type,'ellipse');
+ const corners=[{x:20,y:20},{x:120,y:20},{x:120,y:100},{x:20,y:100},{x:20,y:20}];
+ const box={...base,points:corners.slice(0,-1).flatMap((p,i)=>Array.from({length:16},(_,j)=>({x:p.x+(corners[i+1].x-p.x)*j/15,y:p.y+(corners[i+1].y-p.y)*j/15})))};assert.equal(tidySketch(box).type,'rectangle');
+ for(const points of [[{x:1,y:1}],[{x:1,y:1},{x:2,y:3},{x:4,y:1}],[{x:0,y:0},{x:30,y:70},{x:60,y:0},{x:90,y:70}]]){const mark={...base,points};assert.equal(tidySketch(mark),mark);}
+});

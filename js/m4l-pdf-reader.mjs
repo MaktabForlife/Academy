@@ -9,10 +9,13 @@ let readingPositions=new Map(),readingRestore=0,readingLayoutPending=false;
 let defaults={...PDF_TOOL_DEFAULTS},split=false,active=0,ratio=50,catalogue=null,cataloguePromise=null,ready=false;
 const status=text=>{$('pr-status').textContent=text;},part=(pane,selector)=>pane.element.querySelector(selector)||pane.header?.querySelector(selector);
 function proxy(url){const file=publicPdfFile('/pdf-file/'+btoa(String.fromCharCode(...new TextEncoder().encode(url))).replaceAll('+','-').replaceAll('/','_').replaceAll('=',''));if(!file)throw Error('This PDF source is unavailable.');return file;}
-function updateBookmarkButtons(pane){for(const button of pane.header.querySelectorAll('[data-save-book],[data-save-page]'))button.disabled=!pane.loaded||!pane.file;part(pane,'[data-save-page]').textContent=pane.page?'Bookmark page '+(pane.pageLabel||pane.page):'Bookmark page';}
+function updateBookmarkButtons(pane){for(const button of pane.header.querySelectorAll('[data-save-book],[data-save-page]'))button.disabled=!pane.loaded||!pane.file;const label=pane.page?'Bookmark page '+(pane.pageLabel||pane.page):'Bookmark page';part(pane,'[data-save-page]').setAttribute('aria-label',label);part(pane,'[data-save-page]').title=label;}
 window.M4L_PDF_READER={
  canLeave:()=>panes.every(pane=>canReplace(pane)),
  settings:index=>({...defaults,...panes[Number(index)]?.choices}),
+ workspaceState:()=>({mobile:mobile.matches,split:split&&!mobile.matches,whiteboard:window.M4L_PDF_WHITEBOARD.isOpen(),icons:['pr-split','m4l-teaching-panel-toggle'].map(id=>$(id).innerHTML)}),
+ workspaceAction:(index,action)=>{if(mobile.matches)return;setActive(index);$(action==='split'?'pr-split':'m4l-teaching-panel-toggle').click();},
+ toolbarReady:()=>document.body.classList.add('pr-toolbar-ready'),
  remember:(index,changes)=>{const pane=panes[Number(index)];if(pane)try{pane.choices=normalizePdfTools({...defaults,...pane.choices,...changes},{session:true});}catch{}},
  location:(index,source,position)=>{const pane=panes[Number(index)];if(!pane||source!==pane.frame?.contentWindow||!pane.file||publicPdfFile(position.file)!==pane.file)return;pane.loaded=true;pane.page=position.page;pane.pageLabel=position.pageLabel||'';updateBookmarkButtons(pane);}
 };
@@ -29,6 +32,7 @@ function readerContext(){const workspace=window.M4L_ACADEMY_WORKSPACE;readerLabe
 window.addEventListener('m4l-academy-access',readerContext);readerContext();
 function canReplace(pane){return !changed(pane)||confirm('This PDF has unsaved annotations. Download a copy before replacing it. Continue?');}
 function setActive(index){const preserve=window.M4L_PDF_WHITEBOARD.isOpen()&&index!==active;if(preserve)rememberReadingPositions();active=index;for(const pane of panes){pane.element.classList.toggle('is-active',pane.index===index);$('pr-tab-'+pane.index).setAttribute('aria-selected',String(pane.index===index));$('pr-tab-'+pane.index).tabIndex=pane.index===index?0:-1;}focusLabels();if(preserve)restoreReadingPositions();}
+function syncWorkspaceTools(){for(const pane of panes)try{pane.frame?.contentWindow.M4L_PDF_NATIVE?.refresh();}catch{}}
 function focusLabels(){
  const focused=$('pr-workspace').classList.contains('is-focused');
  for(const pane of panes){
@@ -37,7 +41,7 @@ function focusLabels(){
   button.disabled=window.M4L_PDF_WHITEBOARD.isOpen();button.setAttribute('aria-pressed',String(focused&&pane.index===active));
   button.setAttribute('aria-label',focused&&pane.index===active?'Restore split page':'Focus PDF '+(pane.index+1));
  }
- $('m4l-teaching-panel-toggle').title='Whiteboard beside PDF '+(active+1);
+ $('m4l-teaching-panel-toggle').title='Whiteboard beside PDF '+(active+1);syncWorkspaceTools();
 }
 // Keep PDF frames mounted so reading position and annotations survive layout changes.
 function rememberReadingPositions(){
@@ -61,9 +65,20 @@ window.addEventListener('m4l-whiteboard-change',()=>{const open=window.M4L_PDF_W
 function fullScreen(enabled){
  document.body.classList.toggle('pr-fullscreen',enabled);
  const button=$('pr-fullscreen');button.setAttribute('aria-pressed',String(enabled));
- button.textContent=enabled?'Exit full screen':'Full screen';
+ button.title=enabled?'Exit full screen':'Full screen';positionReaderActions();
  button.setAttribute('aria-label',enabled?'Exit full screen: show Academy headers':'Full screen: hide Academy headers');
 }
+function positionReaderActions(){
+ const normal=document.querySelector('.academy-banners .academy-page-actions'),fallback=document.querySelector('.pr-header nav');
+ const host=document.body.classList.contains('pr-fullscreen')?fallback:normal||fallback;
+ host.append($('pr-fullscreen'),$('pr-close-reader'));
+}
+function compactReaderIdentity(){
+ const identity=document.querySelector('.academy-brand-details'),brand=identity?.querySelector('.academy-connected-brand'),profile=document.querySelector('.academy-account-bar .academy-profile');
+ if(identity&&brand&&profile){const stack=document.createElement('div');stack.className='pr-identity-stack';identity.prepend(stack);stack.append(brand,profile);}
+ positionReaderActions();
+}
+compactReaderIdentity();
 function readerKeydown(event){
  if(event.key==='Escape'&&!event.defaultPrevented&&document.body.classList.contains('pr-fullscreen')&&!document.querySelector('dialog[open]')){event.preventDefault();fullScreen(false);$('pr-fullscreen').focus();}
 }
@@ -90,7 +105,7 @@ function openFile(pane,file,title,check=true,page=0){
  pane.loadGeneration++;
  pane.file=publicPdfFile(file);pane.title=title||'PDF '+(pane.index+1);pane.loaded=false;pane.page=0;pane.pageLabel='';
  part(pane,'[data-title]').textContent=pane.title;part(pane,'[data-empty]').hidden=Boolean(pane.file);volumeSelector(pane);updateBookmarkButtons(pane);
- pane.frame.src='/pdf-viewer/web/viewer.html?academy=1&pane='+pane.index+'&v=107.6&file='+encodeURIComponent(pane.file)+(page?'#page='+page:'');
+ pane.frame.src='/pdf-viewer/web/viewer.html?academy=1&pane='+pane.index+'&v=107.45&file='+encodeURIComponent(pane.file)+(page?'#page='+page:'');
  part(pane,'[data-drawer]').hidden=true;pane.drawerGeneration++;setActive(pane.index);updateAddress(pane,page);return true;
 }
 async function viewerApplication(pane){
@@ -176,11 +191,20 @@ async function saveBookmark(pane,page,button){
  try{await academyBookmarks.save(entry);status((page?'Page '+(entry.pageLabel||entry.page):'Book / volume')+' bookmarked in your Academy account.');}
  catch(error){status(error.message);}finally{updateBookmarkButtons(pane);}
 }
+const readerIcons={
+ edit:'<path d="m4 16 12-12 4 4L8 20H4v-4Zm10-10 4 4"/>',
+ library:'<path d="M12 6c-3-3-7-3-10-2v15c3-1 7-1 10 2m0-15c3-3 7-3 10-2v15c-3-1-7-1-10 2V6"/>',
+ device:'<path d="M3 7V4h7l2 3h9v14H3V7Zm9 11v-7m-3 3 3-3 3 3"/>',
+ bookmarks:'<path d="M5 3h14v19l-7-5-7 5V3Zm4 4h6m-6 4h6"/>',
+ 'save-book':'<path d="M3 4h13v17H3V4Zm4 0v17M19 3v8m-4-4h8"/>',
+ 'save-page':'<path d="M4 3h12v19l-6-4-6 4V3Zm15 5V0m-4 4h8"/>'
+};
+const readerIcon=(kind,label,extra='')=>`<button type="button" class="pr-icon-button" data-${kind} aria-label="${label}" title="${label}" ${extra}><svg viewBox="0 0 24 24" aria-hidden="true">${readerIcons[kind]}</svg></button>`;
 for(const pane of panes){
- pane.element.innerHTML=`<header class="pr-pane-header" aria-label="PDF ${pane.index+1} controls"><div class="pr-heading"><div class="pr-title-row"><span class="pr-pane-label">PDF ${pane.index+1}</span><h1 class="pr-pane-title" data-title>PDF ${pane.index+1}</h1></div><label class="pr-volume" data-volume-wrap hidden>Volume <select data-volume aria-label="Choose volume for PDF ${pane.index+1}"></select></label></div><div class="pr-document-actions"><div class="pr-pane-tools"><button type="button" data-library>Library</button><button type="button" data-device>Open file</button><button type="button" data-bookmarks>My bookmarks</button></div><div class="pr-bookmark-tools"><button type="button" data-save-book disabled>Save book</button><button type="button" data-save-page disabled>Bookmark page</button><button type="button" data-focus aria-pressed="false" aria-controls="pr-workspace" hidden>Focus</button></div></div><input type="file" accept="application/pdf,.pdf" data-file hidden></header><iframe title="PDF ${pane.index+1} reader" data-frame></iframe><p class="pr-empty" data-empty>Choose Library or Open file to read a PDF.</p><aside class="pr-drawer" data-drawer aria-label="Library and bookmarks for PDF ${pane.index+1}" hidden><div class="pr-drawer-head"><h2>Academy Library</h2><button type="button" data-close aria-label="Close Library drawer">Close</button></div><nav class="pr-drawer-tabs" aria-label="Books and bookmarks"><button type="button" data-drawer-mode="books" aria-pressed="true">Books &amp; volumes</button><button type="button" data-drawer-mode="bookmarks" aria-pressed="false">My bookmarks</button></nav><label>Search<input type="search" data-search placeholder="Title, volume or page" autocomplete="off"></label><button type="button" data-refresh>↻ Refresh</button><p class="pr-drawer-note" data-note></p><a href="/academy/" target="_blank" rel="noopener" class="pr-sign-in" data-sign-in>Academy home / Sign in ↗</a><div class="pr-book-list" data-books></div></aside>`;
+ pane.element.innerHTML=`<header class="pr-pane-header" aria-label="PDF ${pane.index+1} controls"><div class="pr-heading"><div class="pr-title-row"><span class="pr-pane-label">PDF ${pane.index+1}</span><h1 class="pr-pane-title" data-title>PDF ${pane.index+1}</h1><label class="pr-volume" data-volume-wrap hidden><select data-volume aria-label="Choose volume for PDF ${pane.index+1}"></select></label></div></div><div class="pr-document-actions"><div class="pr-pane-tools">${readerIcon('edit','Edit annotations','aria-expanded="false"')}${readerIcon('library','Library')}${readerIcon('device','Open file')}${readerIcon('bookmarks','My bookmarks')}</div><div class="pr-bookmark-tools">${readerIcon('save-book','Save book','disabled')}${readerIcon('save-page','Bookmark page','disabled')}<button type="button" data-focus aria-pressed="false" aria-controls="pr-workspace" hidden>Focus</button></div></div><input type="file" accept="application/pdf,.pdf" data-file hidden></header><iframe title="PDF ${pane.index+1} reader" data-frame></iframe><p class="pr-empty" data-empty>Choose Library or Open file to read a PDF.</p><aside class="pr-drawer" data-drawer aria-label="Library and bookmarks for PDF ${pane.index+1}" hidden><div class="pr-drawer-head"><h2>Academy Library</h2><button type="button" data-close aria-label="Close Library drawer">Close</button></div><nav class="pr-drawer-tabs" aria-label="Books and bookmarks"><button type="button" data-drawer-mode="books" aria-pressed="true">Books &amp; volumes</button><button type="button" data-drawer-mode="bookmarks" aria-pressed="false">My bookmarks</button></nav><label>Search<input type="search" data-search placeholder="Title, volume or page" autocomplete="off"></label><button type="button" data-refresh>↻ Refresh</button><p class="pr-drawer-note" data-note></p><a href="/academy/" target="_blank" rel="noopener" class="pr-sign-in" data-sign-in>Academy home / Sign in ↗</a><div class="pr-book-list" data-books></div></aside>`;
  pane.header=part(pane,'.pr-pane-header');pane.header.id='pr-controls-'+pane.index;pane.header.addEventListener('pointerdown',()=>setActive(pane.index));
  new ResizeObserver(()=>{const height=pane.header.getBoundingClientRect().height;if(height)pane.element.style.setProperty('--pr-controls-height',height+'px');}).observe(pane.header);
- pane.frame=part(pane,'[data-frame]');part(pane,'[data-library]').onclick=()=>void drawer(pane);
+ pane.frame=part(pane,'[data-frame]');part(pane,'[data-edit]').onclick=()=>{const button=part(pane,'[data-edit]'),open=button.getAttribute('aria-expanded')!=='true';button.setAttribute('aria-expanded',String(open));button.setAttribute('aria-pressed',String(open));pane.frame.contentWindow.M4L_PDF_NATIVE?.setEditing(open);};pane.frame.addEventListener('load',()=>{part(pane,'[data-edit]').setAttribute('aria-expanded','false');part(pane,'[data-edit]').setAttribute('aria-pressed','false');});part(pane,'[data-library]').onclick=()=>void drawer(pane);
  part(pane,'[data-bookmarks]').onclick=()=>void drawer(pane,'bookmarks');
  part(pane,'[data-focus]').onclick=()=>{if(!split||window.M4L_PDF_WHITEBOARD.isOpen())return;rememberReadingPositions();setActive(pane.index);$('pr-workspace').classList.toggle('is-focused');focusLabels();restoreReadingPositions();};
  part(pane,'[data-refresh]').onclick=()=>void drawer(pane,pane.mode,true);part(pane,'[data-search]').oninput=()=>pane.mode==='books'?renderBooks(pane):renderBookmarks(pane);
