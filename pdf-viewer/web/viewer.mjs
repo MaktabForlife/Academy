@@ -18495,7 +18495,9 @@ const PDFViewerApplication = {
     });
     const container = appConfig.mainContainer,
       viewer = appConfig.viewerContainer;
-    const annotationEditorMode = AppOptions.get("annotationEditorMode");
+    // Academy owns editing. Saved PDF.js preferences must not re-enable its editor.
+    const annotationEditorMode = AnnotationEditorType.DISABLE;
+    for (const option of ["enableComment", "enableSignatureEditor", "enableHighlightFloatingButton", "enableNewAltTextWhenAddingImage"]) AppOptions.set(option, false);
     const hasForcedColors = AppOptions.get("forcePageColors") || window.matchMedia("(forced-colors: active)").matches;
     const pageColors = hasForcedColors ? {
       background: AppOptions.get("pageColorsBackground"),
@@ -19587,7 +19589,7 @@ const PDFViewerApplication = {
     eventBus.on("namedaction", onNamedAction.bind(this), opts);
     eventBus.on("presentationmodechanged", evt => pdfViewer.presentationModeState = evt.state, opts);
     eventBus.on("presentationmode", this.requestPresentationMode.bind(this), opts);
-    eventBus.on("switchannotationeditormode", evt => pdfViewer.annotationEditorMode = evt, opts);
+    // Native editing modes are disabled; Academy supplies all annotation tools.
     eventBus.on("print", this.triggerPrinting.bind(this), opts);
     eventBus.on("download", this.downloadOrSave.bind(this), opts);
     eventBus.on("firstpage", () => this.page = 1, opts);

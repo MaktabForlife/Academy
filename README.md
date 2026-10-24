@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.47
+# Umm Abbad Academy — V107.48
+
+## V107.48 — Academy tools are the PDF editor
+
+Remove PDF.js annotation controls, the native editor bridge and its setup. Disable its editing modes, shortcuts and editing feature preferences throughout the app; retain the PDF.js renderer for documents and existing annotations. Academy tools remain available through the pencil. The tools preview opens Academy first and offers the original PDF as a reference. Verify text/shape exports, bookmarks, unsaved changes, phones, split PDFs and Whiteboard using local disposable data. No database changes.
 
 ## V107.47 — Open Academy tools from the PDF pencil
 

@@ -1,3 +1,9 @@
+# V107.48 — Remove native PDF.js editing tools
+
+Academy supplies all annotation editing. Remove the native PDF.js editing row and bridge, and disable its editor modes at viewer initialization so stored preferences cannot turn them back on. Disable the associated comments, signatures and floating editing buttons. Existing PDF annotations still display, and page navigation, zoom, search, print and download remain available. The Academy pencil, in-place text, drawings, shapes and editable exports remain. Open the tools preview in Academy mode with an optional original-document reference. No database/schema or account changes.
+
+Validation: local browser acceptance checks cover disabled native editing despite saved editor preferences, removal of native controls, Academy text edits and shape downloads, bookmarks, unsaved replacement guards, retained annotations when tools are hidden, phones, split PDFs and Whiteboard. No hosted data was used.
+
 # V107.47 — Reader pencil opens Academy editing tools
 
 Replace the pencil's PDF.js editing-row action with the same Academy annotation controller and markup used on the comparison page. Opening editing transfers the current PDF, current page and any existing PDF annotations. Hiding the tools preserves marks and the mounted editor; reopening editing retains them. Book and volume changes continue to guard unsaved work, and downloads save an editable copy. Page navigation continues to update the existing bookmark controls. Preserve desktop/tablet split PDFs, Whiteboard and full screen, with Split and Whiteboard hidden on phones. The separate comparison page remains available. No database/schema, login or role changes.

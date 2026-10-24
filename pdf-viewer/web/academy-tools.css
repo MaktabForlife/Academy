@@ -1,6 +1,4 @@
 html:has(body.academy-pdf){--toolbar-bg-color:#faf7fb;--toolbar-border-color:#dfd3e4;--main-color:#302936;--toggled-btn-bg-color:#e8d9ed;--button-hover-color:#eee3f2;--button-active-color:#dfcbe7;font-family:Arial,sans-serif}.academy-pdf #toolbarContainer{border-bottom:1px solid #dfd3e4}.academy-pdf .editorParamsToolbar{border-color:#dfd3e4}.academy-pdf .colorPicker{accent-color:#70477c}
-.editorParamsNumber{box-sizing:border-box;width:76px;min-height:32px;margin-inline-start:14px;padding:4px 6px;border:1px solid var(--toolbar-border-color);border-radius:4px;background:var(--field-bg-color);color:var(--main-color);font:menu;font-size:14px;text-align:end}.editorParamsNumber:focus-visible{outline:2px solid #805088;outline-offset:2px}
-#editorHighlightThickness{flex-direction:row;align-items:center;justify-content:space-between}#editorHighlightThickness .editorParamsLabel{align-self:center}.editorParamsNumber:disabled{opacity:.4}
 
 /* Keep PDF.js rendering and editors; compact only Academy's embedded controls. */
 .academy-compact-reader #mainContainer{min-width:0}
@@ -11,9 +9,6 @@ html:has(body.academy-pdf){--toolbar-bg-color:#faf7fb;--toolbar-border-color:#df
 .academy-compact-reader #toolbarViewerRight{margin-left:auto;flex:0 0 auto;gap:3px}
 .academy-compact-reader #toolbarViewerRight>.toolbarButtonSpacer{display:none!important}
 .academy-compact-reader #viewerContainer{inset-block-start:var(--academy-controls-height,44px)}
-.academy-compact-reader #academy-editor-row{display:flex;align-items:center;min-height:38px;border-top:1px solid #dfd3e4;margin-top:3px;padding-top:3px}
-.academy-compact-reader #academy-editor-row[hidden]{display:none!important}
-.academy-compact-reader #academy-editor-row #editorModeButtons{display:flex!important;flex-wrap:wrap}
 .academy-compact-reader #academy-workspace-tools{display:flex;gap:3px;margin-left:10px}
 .academy-compact-reader .academy-workspace-button{display:inline-flex;justify-content:center;align-items:center;width:36px;height:36px;padding:6px;border:1px solid #dfd3e4;border-radius:5px;background:white;color:#70477c;cursor:pointer}
 .academy-compact-reader .academy-workspace-button[hidden]{display:none!important}
@@ -32,7 +27,8 @@ html:has(body.academy-pdf){--toolbar-bg-color:#faf7fb;--toolbar-border-color:#df
 .academy-compact-reader #toolbarViewerLeft>label{font:12px Arial,sans-serif}
 @media(max-width:767px){.academy-compact-reader #toolbarViewerRight :is(#printButton,.splitToolbarButtonSeparator){display:none!important}.academy-compact-reader .academy-page-field{height:40px}.academy-compact-reader [role=option]{min-height:44px}.academy-compact-reader #toolbarViewerLeft{gap:5px!important}}
 
-.academy-compact-reader #academy-editor-row .editorParamsToolbar{inset-inline-start:0;inset-inline-end:auto;max-width:calc(100vw - 16px)}
-.academy-compact-reader #academy-editor-row .doorHangerRight::before,.academy-compact-reader #academy-editor-row .doorHangerRight::after{inset-inline-start:12px;inset-inline-end:auto}
 
 .academy-compact-reader #scaleSelectContainer{display:inline-block!important}
+
+/* Native annotation tools are removed. Existing PDF annotations still render. */
+#editorModeButtons,.editorParamsToolbar,#editorModeSeparator{display:none!important}

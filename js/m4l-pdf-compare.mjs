@@ -1,15 +1,15 @@
 import * as pdfjs from '../pdf-viewer/build/pdf.mjs';
-import {createPagePicker} from './m4l-pdf-page-picker.mjs?v=107.47';
-import {clamp,shapeMark,markBounds,moveMark,resizeMark,hitMark,textLayout,paintMark,defaultTextBox,tidySketch} from './m4l-pdf-compare-model.mjs?v=107.47';
-import {importEditable,exportEditable} from './m4l-pdf-editable.mjs?v=107.47';
-import {DEFAULT_FAVOURITES,readFavouriteColours,saveFavouriteColours,favouriteColours} from './m4l-pdf-favourites.mjs?v=107.47';
+import {createPagePicker} from './m4l-pdf-page-picker.mjs?v=107.48';
+import {clamp,shapeMark,markBounds,moveMark,resizeMark,hitMark,textLayout,paintMark,defaultTextBox,tidySketch} from './m4l-pdf-compare-model.mjs?v=107.48';
+import {importEditable,exportEditable} from './m4l-pdf-editable.mjs?v=107.48';
+import {DEFAULT_FAVOURITES,readFavouriteColours,saveFavouriteColours,favouriteColours} from './m4l-pdf-favourites.mjs?v=107.48';
 pdfjs.GlobalWorkerOptions.workerSrc='/pdf-viewer/build/pdf.worker.mjs';
 const $=id=>document.getElementById(id),frame=$('native-reader'),canvas=$('marks-canvas'),context=canvas.getContext('2d'),stage=$('page-stage');
 const sampleUrl='/academy/pdf-compare/sample.pdf',params=new URLSearchParams(location.search);
 let embedded=false;try{embedded=params.get('embedded')==='1'&&parent!==window&&parent.location.origin===location.origin&&Boolean(parent.M4L_PDF_READER);}catch{}const host=embedded?parent.M4L_PDF_READER:null,paneIndex=Number(params.get('pane')||0);
 if(embedded)document.body.classList.add('embedded-editor');
 const state={pdf:null,bytes:null,name:'',page:1,viewport:null,marks:[],undo:[],redo:[],selected:null,tool:'hand',colour:'#292336',width:2.5,size:20,fill:false,fillColour:'#235dad',busy:true,rendering:false,exporting:false,generation:0,saved:'[]',gesture:null,text:null,sourceDirty:false,sourceFile:''};
-let pagePicker=null,textLayer=null,native=null,loading=null,pendingReplace=null,currentView='both',viewSync=false,savedCopy=null;
+let pagePicker=null,textLayer=null,native=null,loading=null,pendingReplace=null,currentView='academy',viewSync=false,savedCopy=null;
 function nativePageChanged(event){if(!viewSync&&currentView!=='academy'&&$('link-pages').checked&&!state.busy&&event.pageNumber!==state.page)void showPage(event.pageNumber,false);}
 const serial=()=>JSON.stringify(state.marks),copy=value=>structuredClone(value),notice=(text,error=false)=>{$('status').textContent=text;$('status').classList.toggle('error',error);};
 const nativeReady=embedded?Promise.resolve(null):new Promise((resolve,reject)=>{
@@ -226,12 +226,12 @@ $('download').onclick=async()=>{
  try{
   const snapshot=serial(),bytes=await exportEditable(state.bytes,state.marks,pdfjs,window.PDFLib,context),name=state.name.replace(/(-academy)*\.pdf$/i,'')+'-academy.pdf';
   savedCopy={bytes:bytes.slice(),name};const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'})),link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);state.saved=snapshot;state.sourceDirty=false;
-  notice('Editable copy downloaded. Choose Reopen saved copy to continue editing, or open it in PDF.js.');
+  notice('Editable copy downloaded. Choose Reopen saved copy to continue editing, and keep using Academy’s tools.');
  }catch(error){console.warn('Editable PDF export failed',error);notice('This PDF could not be exported. Your marks are still here; try again or use the sample worksheet.',true);}
  finally{state.exporting=false;controls();}
 };
 if(!embedded)window.addEventListener('beforeunload',event=>{if(dirty()){event.preventDefault();event.returnValue='';}});
-chooseTool('hand');
+chooseTool('hand');setView('academy');
 if(embedded){
  const work=document.createElement('div');work.id='app-workspace-tools';work.setAttribute('role','group');work.setAttribute('aria-label','Reader workspace tools');
  for(const action of ['split','whiteboard']){const button=document.createElement('button');button.type='button';button.dataset.workspaceAction=action;button.onclick=()=>host.workspaceAction(paneIndex,action);work.append(button);}document.querySelector('.page-controls').append(work);
