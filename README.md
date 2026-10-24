@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.38
+# Umm Abbad Academy — V107.39
+
+## V107.39 — Reliable announcement loading
+
+Load the anonymous public announcement list independently of sign-in restoration and workspace changes, using the server's current accepted publication. Show “Loading announcements…” throughout initial loading and every retry; retain a retry action for actual failures and discard older refresh replies. Preserve the announcement layout and all authenticated workspace guards. The original report is confirmed on mobile; desktop occurrence was unconfirmed.
 
 ## V107.38 — Development Core/Admin cutover
 
@@ -226,9 +230,9 @@ Teach and Learn show separate Programs and Courses blocks. Global Admin navigati
 
 [Implementation and verification](docs/ACADEMY-UPCOMING-COURSES-106.83.md).
 
-## Deferred issues
+## Resolved issues
 
-- **Mobile announcements on first load — reported 23 October 2026.** The home page sometimes shows “Announcements could not be loaded”; selecting **Try again** loads them successfully. The user reports the same behaviour on Development and the feature-admin preview (V107.35), so track it as a shared issue rather than a Phase 5 regression. Root cause remains unconfirmed. Investigation and implementation are deferred at the user's request; retain the current layout and retry action.
+- **Mobile announcements on first load — reported 23 October 2026, addressed in V107.39.** The home page sometimes showed “Announcements could not be loaded”; selecting **Try again** then loaded them. The report covered Development and the former feature preview, before the database cutover. Desktop occurrence was not confirmed. An isolated check reproduced session restoration interrupting the public request. The public list now loads independently, with a loading message on initial load and retry; genuine failures retain **Try again**.
 
 ## Development and deployment
 

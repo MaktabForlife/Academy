@@ -1,3 +1,9 @@
+# V107.39 — Announcement loading and retry
+
+Keep the anonymous public announcement GET independent of session restoration, Admin verification and client publication-head startup. The server continues to select the current accepted publication. Show “Loading announcements…” with an accessible busy state for every load and retry; display Try again only after a failed request, validate the list response and discard older refresh replies. Authenticated requests and all other routes retain their workspace guards. The original issue was reported on mobile; desktop occurrence was unconfirmed. No schema, database, storage or layout change.
+
+Verification: all 100 regression test files pass, including the local-listener runtime checks with the required permission. Fourteen isolated browser checks pass, covering visitor and restored Student sessions at 320px, 390px and desktop widths, failed-request retries, complete posters, links and keyboard controls. Website and matching Development Worker builds pass.
+
 # V107.38 — Development Core/Admin cutover
 
 Promote the reviewed feature UI to Development and bind devrebootworker to dev-academy-core and dev-academy-admin through the existing split coordinator. Reconcile original-source sessions and revocations while preserving newer preview credentials, roles and business records. Restore existing Hifz handoff/profile delivery, Open Library/My links and the recovery schedule; keep original Library object identity and buckets. Scheduled cache recovery writes its Core-owned markers without impersonating an Admin and still respects the commit fence. Retain original database and referenced file bytes for recovery; current uploads retain ordinary cleanup within dev-split-v1/. Preview and Development share these new stores after activation.

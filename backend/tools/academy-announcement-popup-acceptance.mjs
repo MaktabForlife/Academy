@@ -24,9 +24,34 @@ const server=createServer(async(req,res)=>{try{
 await new Promise(r=>server.listen(0,'127.0.0.1',r));origin='http://127.0.0.1:'+server.address().port;f.env.ALLOWED_ORIGINS=origin;
 const {chromium}=createRequire(import.meta.url)('/Users/hbnaidu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const browser=await chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});
-async function pageFor(role){const context=await browser.newContext({viewport:{width:1440,height:1000}});if(role)await context.addInitScript(t=>localStorage.setItem('m4l_account_token',t),f.tokens[role]);const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('response',r=>{if(new URL(r.url()).origin===origin&&r.url().includes('/api/')&&r.status()>=400&&!r.headers()['x-synthetic-lost-ack'])failures.push({path:new URL(r.url()).pathname,status:r.status(),role});});await page.route('**/*',r=>new URL(r.request().url()).origin===origin?r.continue():r.abort());page.on('dialog',d=>d.accept());return {page,context};}
+async function pageFor(role,width=1440){const context=await browser.newContext({viewport:{width,height:1000},isMobile:width<700,hasTouch:width<700});if(role)await context.addInitScript(t=>localStorage.setItem('m4l_account_token',t),f.tokens[role]);const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('response',r=>{if(new URL(r.url()).origin===origin&&r.url().includes('/api/')&&r.status()>=400&&!r.headers()['x-synthetic-lost-ack']&&!r.headers()['x-synthetic-announcement-failure'])failures.push({path:new URL(r.url()).pathname,status:r.status(),role});});await page.route('**/*',r=>new URL(r.request().url()).origin===origin?r.continue():r.abort());page.on('dialog',d=>d.accept());return {page,context};}
 const noOverflow=async page=>{const s=await page.evaluate(()=>({w:innerWidth,s:document.documentElement.scrollWidth}));assert(s.s<=s.w+1,JSON.stringify(s));};
 try{
+ for(const role of [undefined,'student'])for(const width of [320,390,1440]){
+  const {page,context}=await pageFor(role,width);let release,arrived,headers;
+  const held=new Promise(resolve=>{release=resolve;}),started=new Promise(resolve=>{arrived=resolve;});
+  await page.route('**/api/academy/announcements',async route=>{headers=route.request().headers();arrived();await held;await route.continue();});
+  await page.goto(origin+'/academy/',{waitUntil:'domcontentloaded'});await started;
+  const news=page.locator('#academy-announcements');await news.getByRole('status').filter({hasText:'Loading announcements…'}).waitFor();assert.equal(await news.getAttribute('aria-busy'),'true');
+  for(const name of ['authorization','x-academy-workspace','x-academy-setup','x-academy-class'])assert.equal(headers[name],undefined);
+  await page.evaluate(()=>window.dispatchEvent(new Event('m4l-academy-session')));
+  if(width===390)await page.screenshot({path:join(out,'announcement-loading-'+(role||'visitor')+'-'+width+'.png'),fullPage:false});
+  release();await page.getByRole('button',{name:'Open announcement: Academy poster with details',exact:true}).waitFor();assert.equal(await news.getAttribute('aria-busy'),'false');assert.equal(await news.getByText('Announcements could not be loaded.').count(),0);await noOverflow(page);
+  checks.push('Slow initial announcement load survives session restoration: '+(role||'visitor')+' '+width);
+  await context.close();
+ }
+ for(const width of [390,1440]){
+  const {page,context}=await pageFor(undefined,width);let attempts=0,release,arrived;
+  const held=new Promise(resolve=>{release=resolve;}),started=new Promise(resolve=>{arrived=resolve;});
+  await page.route('**/api/academy/announcements',async route=>{
+   if(++attempts===1){await route.fulfill({status:503,contentType:'application/json',headers:{'X-Synthetic-Announcement-Failure':'yes'},body:JSON.stringify({success:false})});return;}
+   arrived();await held;await route.continue();
+  });
+  await page.goto(origin+'/academy/');const news=page.locator('#academy-announcements');await news.getByRole('button',{name:'Try again',exact:true}).click();await started;
+  await news.getByRole('status').filter({hasText:'Loading announcements…'}).waitFor();assert.equal(await news.getAttribute('aria-busy'),'true');assert.equal(await news.getByText('Announcements could not be loaded.').count(),0);assert.equal(await news.getByRole('button',{name:'Try again',exact:true}).count(),0);
+  await page.screenshot({path:join(out,'announcement-retry-loading-'+width+'.png'),fullPage:false});release();await page.getByRole('button',{name:'Open announcement: Academy poster with details',exact:true}).waitFor();assert.equal(await news.getAttribute('aria-busy'),'false');
+  checks.push('Failed request retries with a loading message: '+width);await context.close();
+ }
  const {page:visitor}=await pageFor();await visitor.goto(origin+'/academy/');const opener=visitor.getByRole('button',{name:'Open announcement: Academy poster with details',exact:true});await opener.waitFor();
  for(const width of [390,1440]){
   await visitor.setViewportSize({width,height:1000});assert.equal(await visitor.locator('.announcement-slide').count(),2);

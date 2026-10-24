@@ -5,7 +5,7 @@
  const messageHTML=message=>window.M4L_ANNOUNCEMENT_LINKS.render(message,{origin:location.origin,apiBase:base()});
  const attachmentUrl=()=>base()+'/api/academy/announcements/pdf?id='+encodeURIComponent(draft.id);
  function insertPdfLink(){const url=attachmentUrl();if(!draft.message.includes(url)){const text=(draft.message.trim()+'\n\n[Read PDF]('+url+')').trim();if(text.length>6000){notice='Shorten the message to insert the PDF link. The saved announcement will also have an Open PDF link.';dirty=true;return false;}draft.message=text;}dirty=true;return true;}
- let slides=[];
+ let slides=[],publicGeneration=0;
  const news=()=>document.getElementById('academy-announcements');
  function openPoster(row,opener){
   if(!row)return;
@@ -20,7 +20,22 @@
   for(const img of box.querySelectorAll('img'))img.onerror=()=>img.parentElement.classList.add('announcement-no-image');
   box.onclick=e=>{const button=e.target.closest('[data-news="image"]');if(button)openPoster(slides[Number(button.dataset.index)],button);};
  }
- async function refreshPublic(){try{const r=await fetch(base()+'/api/academy/announcements',{cache:'no-store'}),b=await r.json();if(!r.ok||!b.success)throw Error();slides=b.announcements;show();}catch{if(news()){news().innerHTML='<p>Announcements could not be loaded.</p><button type="button">Try again</button>';news().querySelector('button').onclick=refreshPublic;}}}
+ async function refreshPublic(){
+  const box=news();if(!box)return;
+  const current=++publicGeneration;
+  box.onclick=null;box.setAttribute('aria-busy','true');
+  box.innerHTML='<p role="status" aria-live="polite">Loading announcements…</p>';
+  try{
+   const r=await fetch(base()+'/api/academy/announcements',{cache:'no-store',credentials:'omit'}),b=await r.json();
+   if(!r.ok||!b.success||!Array.isArray(b.announcements))throw Error();
+   if(current!==publicGeneration)return;
+   slides=b.announcements;show();
+  }catch{
+   if(current!==publicGeneration)return;
+   box.innerHTML='<p role="alert">Announcements could not be loaded.</p><button type="button">Try again</button>';
+   box.querySelector('button').onclick=refreshPublic;
+  }finally{if(current===publicGeneration)box.setAttribute('aria-busy','false');}
+ }
  const fresh=()=>({id:crypto.randomUUID(),revision:0,title:'',message:'',imageAlt:'',active:false,order:0,removeImage:false,imageUrl:'',imageName:'',removePdf:false,pdfUrl:'',pdfName:''});
  let host=null,owner='',generation=0,rows=[],draft=fresh(),file=null,pdfFile=null,dirty=false,busy=false,pending=null,notice='',preview='';
  function revoke(){if(preview){URL.revokeObjectURL(preview);preview='';}}

@@ -16,6 +16,30 @@ test('every API helper carries the selected audience and cannot override it with
  await f.window.fetch('https://api.invalid/api/academy/lesson-media/upload?metadata=x');assert.equal(f.calls[1].options.headers.get('X-Academy-Workspace'),'TEACH');
  const options={headers:{}};await f.window.fetch('https://external.invalid/api/public',options);assert.equal(f.calls[2].options,options);
 });
+test('public announcements load independently of account, workspace and publication startup',async()=>{
+ let release;const f=fixture(()=>new Promise(resolve=>{release=()=>resolve(Response.json({success:true,announcements:[]}));}));
+ f.window.M4L_CONFIG.ACCEPTED_SETUP=true;
+ f.location.pathname='/academy/admin/';f.window.M4L_ACADEMY_WORKSPACE.commit();
+ const pending=f.window.fetch('https://api.invalid/api/academy/announcements',{cache:'no-store',credentials:'omit',headers:{'X-Academy-Workspace':'ADMIN','X-Academy-Class':'old-class','X-Academy-Setup':'old-head'}});
+ assert.equal(f.authCalls.length,0);assert.equal(f.calls.length,1);assert.equal(f.calls[0].url,'https://api.invalid/api/academy/announcements');
+ for(const name of ['X-Academy-Workspace','X-Academy-Class','X-Academy-Setup'])assert.equal(f.calls[0].options.headers.get(name),null);
+ f.token('another-actor');f.window.dispatchEvent(new Event('m4l-academy-session'));
+ f.location.pathname='/academy/';f.window.M4L_ACADEMY_WORKSPACE.commit();
+ release();const response=await pending;assert.deepEqual(await response.json(),{success:true,announcements:[]});
+});
+test('authenticated announcement reads and other announcement routes retain workspace response guards',async()=>{
+ for(const [resource,options] of [
+  ['https://api.invalid/api/academy/announcements',{headers:{Authorization:'Bearer fixture'}}],
+  [new Request('https://api.invalid/api/academy/announcements',{headers:{Authorization:'Bearer fixture'}}),undefined],
+  ['https://api.invalid/api/academy/announcements',{method:'POST'}],
+  ['https://api.invalid/api/academy/announcements/image?id=fixture',undefined],
+  ['https://api.invalid/api/admin/platform/announcements/list',{method:'POST'}]
+ ]){
+  const f=fixture(),response=await f.window.fetch(resource,options);
+  assert.equal(f.calls[0].options.headers.get('X-Academy-Workspace'),'LEARN');
+  f.token('another-actor');await assert.rejects(response.json(),{name:'AbortError'});
+ }
+});
 test('delayed JSON, errors and file blobs are discarded after a workspace or account change',async()=>{
  for(const method of ['json','text','blob','arrayBuffer']){
   const f=fixture(),response=await f.window.fetch('https://api.invalid/api/academy/assessments/download');

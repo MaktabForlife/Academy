@@ -61,7 +61,15 @@
   const url=new URL(typeof resource==='string'||resource instanceof URL?resource:resource.url,location.href);
   const api=new URL(window.M4L_CONFIG?.API_BASE||location.origin,location.href);
   if(url.origin!==api.origin||!url.pathname.startsWith('/api/'))return original(resource,options);
-  const captured={selected,generation,session:session()},headers=new Headers(options?.headers||(resource instanceof Request?resource.headers:undefined));
+  const headers=new Headers(options?.headers||(resource instanceof Request?resource.headers:undefined));
+  const method=String(options?.method||(resource instanceof Request?resource.method:'GET')).toUpperCase();
+  // This anonymous public list selects the current accepted publication on the
+  // server. Session restoration must not delay or discard its public response.
+  if(url.pathname==='/api/academy/announcements'&&method==='GET'&&!headers.has('Authorization')){
+   for(const name of ['X-Academy-Workspace','X-Academy-Class','X-Academy-Setup'])headers.delete(name);
+   return original(resource,{...options,headers});
+  }
+  const captured={selected,generation,session:session()};
   const accountRoute=url.pathname.startsWith('/api/account/');
   headers.set('X-Academy-Workspace',accountRoute?'LEARN':selected);
   if(adminRealm()&&!accountRoute)await readyAccess();
