@@ -1,3 +1,9 @@
+# Current Development workflow — 24 October 2026
+
+- Work directly on `development` until the user changes this instruction; do not create feature branches.
+- The user authorises deploying verified updates to Development immediately until further notice, without a separate deployment request. Deploy the matching website and Development Worker together.
+- Prefer local tests and disposable fixtures. Keep live verification minimal because D1 row reads and Worker requests have usage limits.
+
 # Feature branch version rule
 
 - Every update pushed to a `feature/*` branch must include a new release version in that same push. This applies to code, assets, tests, documentation and project-rule updates. Do not push a feature-branch update with the previous release number.

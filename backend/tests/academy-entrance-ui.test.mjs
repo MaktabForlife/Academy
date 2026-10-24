@@ -198,6 +198,14 @@ assert.equal($('public-timetable-title').textContent,'What’s on this week');
 $('public-home-previous').listeners.get('click')();
 assert.match($('academy-public-sessions').innerHTML,/datetime="2026-10-04"/,'A stale Previous click cannot open an earlier week');
 assert.equal(requests.length,publicReadCount,'Both homepage weeks use the same snapshot');
+for (const legacy of ['#timetable','#timetable/learn','#timetable/teach']) {
+  const reads=fetchUrls.length;
+  await navigate(legacy);
+  assert.equal(location.hash,'#overview','Signed-out timetable addresses return to the full Home page');
+  assert.equal($('overview').classList.contains('active'),true);
+  assert.equal($('timetable').classList.contains('active'),false);
+  assert.equal(fetchUrls.length,reads,'Retiring the visitor screen reuses the public snapshot');
+}
 let count=requests.length;
 documentHandlers.get('visibilitychange')();await flush();
 assert.equal(requests.length,count,'Returning to the public homepage never refreshes its daily snapshot');
@@ -333,19 +341,19 @@ fixtureNow='2026-10-06T10:00:00Z';storage.set('m4l_account_token','NEW-SESSION')
 fixtureNow='2026-10-07T10:00:00Z';documentHandlers.get('visibilitychange')();await flush();assert.equal(requests.length,count+2,'Next Academy day loads one account timetable and the shared public snapshot');
 assert.equal($('timetable-refresh').hidden,false);storage.clear();window.dispatchEvent(new Event('m4l-academy-session'));await flush();assert.equal(tabStore.size,0,'Signing out removes the protected daily snapshot');
 // Free public joining wakes the local clock and checks the server only on click.
-publicFreeFixture=true;cacheFixture=false;location.hash='#timetable';fixtureNow='2026-10-05T10:54:30Z';await refresh();
-assert.match($('academy-sessions').innerHTML,/data-public-join[^>]+disabled/);
-assert.doesNotMatch($('academy-sessions').innerHTML,/zoom\.test|Teacher A/);
+publicFreeFixture=true;cacheFixture=false;location.hash='#overview';fixtureNow='2026-10-05T10:54:30Z';await refresh();
+assert.match($('academy-public-sessions').innerHTML,/data-public-join[^>]+disabled/);
+assert.doesNotMatch($('academy-public-sessions').innerHTML,/zoom\.test|Teacher A/);
 assert.equal([...timers.values()][0].delay,30000);count=requests.length;
 fixtureNow='2026-10-05T10:55:00Z';timer=[...timers.values()][0];timers.clear();timer.fn();await flush();
-assert.match($('academy-sessions').innerHTML,/class="preview-pill is-open"/);
-assert.doesNotMatch($('academy-sessions').innerHTML,/data-public-join[^>]+disabled/);
+assert.match($('academy-public-sessions').innerHTML,/class="preview-pill is-open"/);
+assert.doesNotMatch($('academy-public-sessions').innerHTML,/data-public-join[^>]+disabled/);
 assert.equal(requests.length,count,'Public joining opens without refreshing the snapshot');
-const publicControl={dataset:{publicJoin:/data-public-join="([^"]+)"/.exec($('academy-sessions').innerHTML)[1]},textContent:'Join',disabled:false};
+const publicControl={dataset:{publicJoin:/data-public-join="([^"]+)"/.exec($('academy-public-sessions').innerHTML)[1]},textContent:'Join',disabled:false};
 documentHandlers.get('click')({target:{closest:selector=>selector==='[data-public-join]'?publicControl:null}});await flush();
 assert.equal(publicJoins.length,1);assert.equal(popup.url,'https://zoom.test/free-current-checked');assert.equal(requests.length,count);
 fixtureNow='2026-10-05T12:00:00Z';timer=[...timers.values()][0];timers.clear();timer.fn();await flush();
-assert.doesNotMatch($('academy-sessions').innerHTML,/data-public-join|is-open/,'Expired Free lessons cannot be joined');
+assert.doesNotMatch($('academy-public-sessions').innerHTML,/data-public-join|is-open/,'Expired Free lessons cannot be joined');
 documentHandlers.get('visibilitychange')();await flush();assert.equal(requests.length,count,'Returning to a Free public timetable does not poll');
 // Hifz is entered directly through HifzHelper in both workspaces, with no duplicate Academy page.
 window.M4L_CONFIG.HIFZ_PROGRAM_ID='PRG-3d6b7972-644c-4f81-b95c-8d6c7ffb8227';

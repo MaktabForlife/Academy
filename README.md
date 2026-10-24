@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.40
+# Umm Abbad Academy — V107.41
+
+## V107.41 — Retire the separate visitor timetable screen
+
+Open legacy signed-out timetable addresses on the complete Academy Home page, retaining announcements, course information, quick links and its public timetable. Keep the shared timetable for signed-in Learn, Teach and Admin workspaces. Reuse the current public snapshot without adding API requests.
 
 ## V107.40 — PDF.js reading on phones and desktop
 

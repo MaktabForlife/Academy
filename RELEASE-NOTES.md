@@ -1,3 +1,9 @@
+# V107.41 — One public Home page
+
+Retire the separate signed-out timetable view and its unused menu entry. Legacy visitor timetable addresses return to the complete Home page with its existing public timetable, announcements and other features. Keep the shared signed-in Learn/Teach and Admin timetable component and existing permissions. Navigation reuses the public snapshot and adds no API requests. No database or storage changes.
+
+Local verification: navigation, entrance, workspace boundary, Admin inheritance and release integrity checks pass. All 48 isolated Home browser checks pass across phone, tablet and desktop widths, including saved timetable addresses, cold entry, public joining, and signed-in Student/Teacher/Admin navigation. Website and matching Worker dry-run builds pass. No live D1 or Worker requests were used for these checks. Development deployment authorised by the user.
+
 # V107.40 — PDF.js opening and reader repair
 
 Move the setup script out of the whiteboard divider’s opening tag, restoring the PDF reader and its tools. Course and lesson PDF previews and assessment review use the bundled PDF.js renderer; assessment PDF read actions open a viewer with an explicit Download choice. Announcement attachments and local Academy PDF links open the Academy reader. Keep existing authenticated byte routes, exact workspace checks, publication rules, file identities, public-only bookmarks and explicit assessment confirmation. Preserve reader context in its address and discard delayed public-document loads after selecting another PDF. No database or storage changes. Reported on mobile; desktop occurrence was unconfirmed.

@@ -929,6 +929,12 @@
 
   function route() {
     let hash = location.hash || '#overview';
+    // The visitor timetable lives on Home. Retire its separate legacy screen;
+    // the same timetable component still serves signed-in workspaces.
+    if (!token() && /^#timetable(?:\/|$)/.test(hash)) {
+      hash = '#overview';
+      history.replaceState(null, '', hash);
+    }
     if (state.home && hash.startsWith('#activity/PROGRAM/')) {
       const parts = hash.slice(1).split('/');
       if (parts[2] === encodeURIComponent(window.M4L_CONFIG?.HIFZ_PROGRAM_ID || '')) {
