@@ -45,8 +45,6 @@ try{
    ['student','/academy/','#academy-recorder-nav','LEARN'],
    ['teacher','/academy/','#academy-recorder-nav','LEARN'],
    ['admin','/academy/','#academy-recorder-nav','LEARN'],
-   ['admin','/academy/admin/#administration','#administration [data-recorder-link]','ADMIN'],
-   ['scoped','/academy/admin/#administration','#administration [data-recorder-link]','ADMIN'],
    ['student',`/academy/#activity/PROGRAM/${attendanceProgramId}/learn`,'#activity-menu [data-recorder-link]','LEARN'],
    ['teacher',`/academy/#activity/PROGRAM/${attendanceProgramId}/teach`,'#activity-menu [data-recorder-link]','TEACH'],
    ['admin',`/academy/admin/#activity/PROGRAM/${attendanceProgramId}/learn`,'#activity-menu [data-recorder-link]','ADMIN_LEARN'],
@@ -58,6 +56,7 @@ try{
    page.on('pageerror',e=>errors.push(String(e)));
    await page.goto(origin+url);const link=page.locator(selector);await link.waitFor({state:'visible'});
    assert.match(await link.getAttribute('href'),/^\/recorder\/\?academy=1/);
+   if(selector.startsWith('#activity-menu'))assert.match(await link.evaluate(el=>el.previousElementSibling.textContent),/Library/);
    if(role==='teacher'&&workspace==='TEACH'&&width===390){
     const before=page.url();
     await page.evaluate(()=>{window.__recorderPlanningGuard=window.M4L_PLANNING.canLeave;window.M4L_PLANNING.canLeave=()=>false;});

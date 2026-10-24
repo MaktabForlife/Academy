@@ -15,28 +15,23 @@
 .role-areas small{font-size:10px;font-weight:400}
 #admin-timetable-home{margin:16px 0}
 #academy-public-timetable{margin:28px 0}
-.public-week-heading{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;margin-bottom:16px}
-.public-week-heading>div{grid-column:2;grid-row:1;min-width:0}
-.public-week-heading h2{margin:0}
-.public-week-heading button{min-height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:12px;background:var(--rose-soft);color:var(--rose-dark);font:600 13px/1.3 Arial,sans-serif}
-.public-week-heading button[hidden]{display:none}
-#public-home-previous{grid-column:1;grid-row:1;justify-self:start}
-#public-home-next{grid-column:3;grid-row:1;justify-self:end}
-#academy-public-sessions .preview-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px}
-#academy-public-sessions .upcoming-day{min-width:0}
-@media(max-width:999px){
- #academy-public-sessions{overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding:3px;padding:3px 3px 10px}
- #academy-public-sessions .preview-days{display:flex;align-items:flex-start;gap:12px}
- #academy-public-sessions .upcoming-day{flex:0 0 clamp(200px,70vw,260px);scroll-snap-align:start}
- #academy-public-sessions .upcoming-day>time{padding:0 4px;margin-bottom:10px;line-height:1.5}
- #academy-public-sessions .upcoming-items{display:grid;gap:8px}
- #academy-public-sessions .preview-pill{min-width:0;box-sizing:border-box}
-}
-@media(max-width:600px){
- .public-week-heading{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
- .public-week-heading>div{grid-column:1/-1;grid-row:1}
- #public-home-previous{grid-column:1;grid-row:2}
- #public-home-next{grid-column:2;grid-row:2}
+/* Date columns stay on one swipeable row at every screen size. */
+.public-week-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px}
+.public-week-heading h2{min-width:0;margin:0;font-size:clamp(19px,3vw,26px)}
+.timetable-heading-arrows{display:flex;flex:none;gap:6px;margin-left:auto}
+.public-week-heading button{min-width:44px;min-height:44px;padding:8px;border:1px solid var(--line);border-radius:12px;background:var(--rose-soft);color:var(--rose-dark);font:600 18px/1 Arial,sans-serif}
+.public-week-heading button:disabled{opacity:.4}
+#academy-public-sessions{overflow-x:auto;scroll-snap-type:x proximity;scroll-padding:3px;padding:3px 3px 10px}
+#academy-public-sessions .preview-days{display:flex;align-items:flex-start;gap:10px}
+#academy-public-sessions .upcoming-day{flex:0 0 max(170px,calc((100% - 60px)/7));min-width:0;scroll-snap-align:start}
+#academy-public-sessions .upcoming-day>time{padding:0 4px;margin-bottom:10px;line-height:1.5}
+#academy-public-sessions .upcoming-items{display:grid;gap:8px}
+#academy-public-sessions .preview-pill{min-width:0;box-sizing:border-box}
+@media(max-width:767px){
+ #academy-public-sessions .upcoming-day{flex-basis:clamp(165px,62vw,240px)}
+ #academy-public-quicklinks nav{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:8px;scroll-snap-type:x proximity;padding-bottom:8px}
+ #academy-public-quicklinks nav :is(a,button){flex:0 0 calc((100% - 20px)/3.4);min-height:104px;gap:8px;padding:10px 5px 14px;font-size:10px;scroll-snap-align:start}
+ #academy-public-quicklinks .quicklink-icon{width:32px;height:32px}
 }
 .admin-management-menu button{min-height:44px;padding:9px 15px;border:1px solid #d9c9df;border-radius:999px;color:#704578;background:#fff;font:600 13px Arial,sans-serif;white-space:nowrap}
 .academy-intro .intro-feature>.academy-news{position:relative;padding:0;height:100%;min-height:290px}
@@ -80,3 +75,13 @@
 .academy-join-contact{margin-top:14px;font-size:13px;line-height:1.6;text-align:left}.academy-join-contact summary{cursor:pointer}.academy-join-contact a{color:inherit;overflow-wrap:anywhere;text-decoration:underline}.academy-join-contact p{margin:8px 0 0}
 
 .academy-intro .intro-identity .academy-join-contact,.academy-intro .intro-identity .academy-join-contact :is(p,a){color:#fff}
+
+/* Self-paced courses use the same continuous rail as Explore our Programs. */
+.film-track.course-rail{display:flex;gap:18px;overflow-x:auto;scroll-snap-type:x proximity;padding:0 0 16px;scrollbar-width:thin}
+.course-rail .film-card{position:relative;display:block;flex:0 0 clamp(240px,30vw,310px);width:auto;min-width:0;margin:0;border:1px solid var(--line);border-radius:14px;background:#fff;transform:none;scroll-snap-align:start;overflow:hidden;box-shadow:none}
+.course-rail .film-art{display:block;height:280px;aspect-ratio:auto;padding:0;background:var(--rose-soft)}
+.course-rail .film-art img{display:block;width:100%;height:100%;object-fit:contain;padding:0}
+.course-rail .film-source{display:none}
+.course-rail .wall-caption{position:static;display:block;padding:16px;background:#fff;color:#58305f;font:600 16px/1.3 Arial,sans-serif;text-shadow:none}
+.film-section .film-pages[hidden]{display:none}
+.film-window .film-actions{position:static;justify-content:flex-end;margin:0 0 10px}

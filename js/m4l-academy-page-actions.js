@@ -19,16 +19,19 @@
     new MutationObserver(updateLogin).observe(signOut,{attributes:true,attributeFilter:['hidden']});
   }
   const path=location.pathname||'',calendarView=window.M4L_ACADEMY_WORKSPACE?.audience().toLowerCase()||new URLSearchParams(location.search).get('view');
-  const management=/^\/(users|programs)(?:\/|$)/.test(path)||/^\/academy\/(subjects|courses\/manage|library\/manage|enrolment\/manage|pdf-tools)(?:\/|$)/.test(path)||path.startsWith('/academy/calendar/')&&!['learn','teach'].includes(calendarView);
+  const management=Boolean(window.M4L_ACADEMY_WORKSPACE?.adminRealm())||/^\/(users|programs)(?:\/|$)/.test(path)||/^\/academy\/(subjects|courses\/manage|library\/manage|enrolment\/manage|pdf-tools)(?:\/|$)/.test(path)||path.startsWith('/academy/calendar/')&&!['learn','teach'].includes(calendarView);
   if(management){
+    const close=document.createElement('a');close.href='/academy/admin/#administration';close.className='academy-management-close';close.textContent='Close';close.setAttribute('data-workspace-exit','');close.setAttribute('aria-label','Close and return to Admin Home');
     function ensureClose(){
-      const headings=[...document.querySelectorAll('main .pgm-heading,main .pb-heading,main .up-titlebar,main .cm-page-heading,main .al-intro,main .cal-heading,main .pt-heading,main .enrolment-heading')];
-      const heading=headings.find(node=>node.getClientRects().length);if(!heading)return;
-      const close=document.querySelector('.academy-management-close')||document.createElement('a');
-      if(close.parentElement===heading)return;
-      close.href='/academy/admin/#administration';close.className='academy-management-close';close.textContent='Close';heading.append(close);
+      if(path.startsWith('/academy/admin/')&&(!location.hash||location.hash==='#administration')){close.remove();return;}
+      const headings=[...document.querySelectorAll('.view.active .page-heading,.view.active .workspace-banner,.view.active .workspace-identity,.view.active .activity-identity,main .pgm-heading,main .pb-heading,main .up-titlebar,main .cm-page-heading,main .al-intro,main .cal-heading,main .pt-heading,main .enrolment-heading')];
+      const visible=node=>node.getClientRects().length;
+      const heading=headings.find(visible);if(!heading)return;
+      for(const link of heading.querySelectorAll(':scope>a'))if(link!==close&&!link.hidden&&/^Close$/i.test(link.textContent.trim()))link.hidden=true;
+      if(close.parentElement!==heading)heading.append(close);
     }
-    ensureClose();const main=document.querySelector('main');if(main)new MutationObserver(ensureClose).observe(main,{childList:true,subtree:true});
+    ensureClose();window.addEventListener('hashchange',ensureClose);
+    const main=document.querySelector('main');if(main)new MutationObserver(ensureClose).observe(main,{childList:true,subtree:true,attributes:true,attributeFilter:['class','hidden']});
   }
   actions.querySelector('[data-page-refresh]').addEventListener('click',async()=>{
     if(await window.M4L_ANNOUNCEMENTS?.refreshPage?.())return;

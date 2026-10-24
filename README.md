@@ -1,4 +1,9 @@
-# Umm Abbad Academy — V107.48
+# Umm Abbad Academy — V107.49
+
+## V107.49 — Responsive timetables and workspace navigation
+
+Use date columns on one swipeable timetable row throughout Home, Learn, Teach and Admin. Mobile Home opens at today or the next lesson while the week starts on Sunday; week arrows sit beside the heading without duplicate range labels. Mobile Quick links uses compact cards and self-paced courses use a continuous rail. Update Library labels and its mobile right-hand menu; restore the existing My links panel. Add the scoped Curriculum chooser, rename the Admin tab Subjects, put Voice Recorder after Library in Reboot, retain Admin context in embedded calendars and provide Close to Admin Home across management tools. Preserve unsaved-work guards, the Core/Admin stores and the PDF changes. No database migration or live data corrections.
+
 
 ## V107.48 — Academy tools are the PDF editor
 

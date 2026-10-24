@@ -1,5 +1,5 @@
-import {createPagePicker} from '../../js/m4l-pdf-page-picker.mjs?v=107.48';
-import {PDFViewerApplication as app} from './viewer.mjs?v=107.48';
+import {createPagePicker} from '../../js/m4l-pdf-page-picker.mjs?v=107.49';
+import {PDFViewerApplication as app} from './viewer.mjs?v=107.49';
 if(new URLSearchParams(location.search).get('academy')==='1'){
  document.body.classList.add('academy-pdf');
  const pane=Number(new URLSearchParams(location.search).get('pane')||0);let parentReader=null;try{if(parent!==window&&parent.location.origin===location.origin)parentReader=parent.M4L_PDF_READER;}catch{}

@@ -179,15 +179,15 @@ for(const time of ['12:00','07:30'])assert.ok($('academy-preview-sessions').inne
 assert.doesNotMatch($('academy-preview-sessions').innerHTML,/data-information|Join lesson|zoom\.test|Teacher A/);
 assert.match($('public-snapshot-note').textContent,/Schedule preview/);
 assert.equal($('public-snapshot-note').hidden,false);
-assert.equal(($('academy-public-sessions').innerHTML.match(/<li class="preview-pill"/g)||[]).length,5,'Homepage public Program summaries appear once per Program/day; separate Course sessions stay visible');
+assert.equal(($('academy-public-sessions').innerHTML.match(/<li class="preview-pill"/g)||[]).length,6,'Homepage public Program summaries appear once per Program/day; separate Course sessions stay visible');
 assert.doesNotMatch($('academy-public-sessions').innerHTML,/data-information|Teacher A|zoom\.test|Cancelled item/);
 assert.equal(timers.size,0);
 assert.equal($('public-timetable-title').textContent,'What’s on this week');
-assert.equal($('public-home-previous').hidden,true);assert.equal($('public-home-next').hidden,false);
+assert.equal($('public-home-previous').hidden,false);assert.equal($('public-home-previous').disabled,true);assert.equal($('public-home-next').hidden,false);
 const publicReadCount=requests.length;
 $('public-home-next').listeners.get('click')();
 assert.equal($('public-timetable-title').textContent,'What’s on next week');
-assert.equal($('public-home-previous').hidden,false);assert.equal($('public-home-next').hidden,true);
+assert.equal($('public-home-previous').hidden,false);assert.equal($('public-home-next').hidden,false);assert.equal($('public-home-next').disabled,true);
 assert.match($('academy-public-sessions').innerHTML,/datetime="2026-10-11"/);
 assert.doesNotMatch($('academy-public-sessions').innerHTML,/datetime="2026-10-20"/);
 const nextWeekHtml=$('academy-public-sessions').innerHTML;
@@ -214,10 +214,10 @@ assert.ok(html.indexOf('aria-label="Bismillah"')<html.indexOf('id="overview-titl
 assert.match(html, /id="academy-login-dialog"[\s\S]*One account · Every program/);
 await navigate('#workshops');assert.match($('workshops-message').textContent,/Sign in/);assert.equal(catalogueRequests.length,0);
 
-publicCourseFixture=true;await refresh();assert.equal(($('academy-public-sessions').innerHTML.match(/Public &lt;Course&gt;/g)||[]).length,4,'Course marketing card appears once per scheduled day despite two same-day sessions');assert.match($('academy-public-sessions').innerHTML,/>7 pm<|<strong>summary<\/strong>/);assert.doesNotMatch($('academy-public-sessions').innerHTML,/aria-label="12:00"/);publicCourseFixture=false;await refresh();
+publicCourseFixture=true;await refresh();assert.equal(($('academy-public-sessions').innerHTML.match(/Public &lt;Course&gt;/g)||[]).length,6,'Course marketing card appears once per scheduled day despite two same-day sessions');assert.match($('academy-public-sessions').innerHTML,/>7 pm<|<strong>summary<\/strong>/);assert.doesNotMatch($('academy-public-sessions').innerHTML,/aria-label="12:00"/);publicCourseFixture=false;await refresh();
 storage.set('m4l_account_token','QA');await refresh();
 assert.equal($('academy-role-panel').hidden,true,'Chooser stays on Academy home');assert.equal($('public-snapshot-note').hidden,true);
-assert.equal(($('academy-public-sessions').innerHTML.match(/<li class="preview-pill"/g)||[]).length,5,'Signing in keeps the homepage public timetable independent of the personal schedule');
+assert.equal(($('academy-public-sessions').innerHTML.match(/<li class="preview-pill"/g)||[]).length,6,'Signing in keeps the homepage public timetable independent of the personal schedule');
 assert.equal(catalogueRequests.length,1);
 assert.match($('workshop-pills').innerHTML,/Barakah|Complete|Media · coming soon/);
 assert.doesNotMatch($('workshop-pills').innerHTML,/Program Admin|Teacher|User|COURSE-DRAFT|<small>Student/);
@@ -237,7 +237,7 @@ assert.match($('activity-support').innerHTML,/Messages|Academy calendar|Surahs a
 assert.doesNotMatch($('activity-support').innerHTML,/href="#(?:progress|hifz|hifdh)"/,'The public Hifz page is opened only through the website Menu');
 for(const hash of ['#hifz','#hifdh','#progress']){await navigate(hash);assert.equal($('current-view').textContent,'Academy home');}
 const learnHash='#activity/PROGRAM/'+activity.id+'/learn';
-await navigate(learnHash+'/library');assert.equal($('activity-library').hidden,false);assert.equal($('activity-schedule').hidden,true);assert.match($('activity-library').innerHTML,/For me|Browse/);
+await navigate(learnHash+'/library');assert.equal($('activity-library').hidden,false);assert.equal($('activity-schedule').hidden,true);assert.match($('activity-library').innerHTML,/This course|Public library/);
 await navigate(learnHash+'/assessment');assert.equal($('as-panel').hidden,false);assert.equal($('activity-library').hidden,true);
 await navigate('#activity/PROGRAM/'+activity.id);
 assert.doesNotMatch($('activity-sessions').innerHTML,/Course item|Barakah|Salaah/);assert.match($('activity-sessions').innerHTML,/Reboot/);
@@ -263,8 +263,8 @@ await navigate('#overview/teach');assert.match($('academy-role-panel').innerHTML
 await navigate('#workshops');assert.equal($('workshop-pills').innerHTML,'');assert.match($('course-list-message').textContent,/No Courses/);
 hasWorkshops=true;globalAdmin=true;location.hash='#activity/PROGRAM/'+activity.id;await refresh();
 assert.doesNotMatch($('activity-menu').innerHTML,/Admin tools/);assert.match($('activity-menu').innerHTML,/Teach tools/);
-await navigate('#administration');assert.match($('administration').innerHTML,/Academy-wide management|Manage user profiles|Update timetable/);assert.doesNotMatch($('administration').innerHTML,/id="admin-teach"/);assert.match($('administration').innerHTML,/id="admin-timetable-home"/);assert.match($('administration').innerHTML,/href="\/recorder\/\?academy=1">Voice Recorder/);assert.equal($('academy-recorder-nav').hidden,false);
-for(const label of ['Users','Attendance','Planning','Assessments','Library','Curriculum','Programs','Courses','Enrolments'])assert.ok($('administration').innerHTML.includes(`>${label}<`));
+await navigate('#administration');assert.match($('administration').innerHTML,/Academy-wide management|Manage user profiles|Update timetable/);assert.doesNotMatch($('administration').innerHTML,/id="admin-teach"/);assert.match($('administration').innerHTML,/id="admin-timetable-home"/);assert.doesNotMatch($('administration').innerHTML,/data-recorder-link/);assert.equal($('academy-recorder-nav').hidden,false);
+for(const label of ['Users','Attendance','Planning','Assessments','Library','Subjects','Programs','Courses','Enrolments'])assert.ok($('administration').innerHTML.includes(`>${label}<`));
 assert.match($('administration').innerHTML,/id="admin-tab-enrolments" href="\/academy\/enrolment\/manage\/\?view=requests"/);
 assert.match($('administration').innerHTML,/id="admin-tab-attendance" href="#administration\/attendance"/);
 await navigate('#administration/attendance');assert.match($('administration').innerHTML,/<h1>Manage Attendance<\/h1>/);assert.doesNotMatch($('administration').innerHTML,/\/programs\/attendance\.html/);assert.equal($('academy-tab-admin').attrs.get('aria-pressed'),'true');
@@ -431,7 +431,7 @@ for(const [roles,label] of [[['STUDENT','TEACHER'],'Teacher'],[['TEACHER','STUDE
   programRole=roles;await refresh();assert.match($('activity-switcher').innerHTML,new RegExp('<small>'+label+'</small>'));assert.doesNotMatch($('activity-switcher').innerHTML,/<small>[^<]* · /);
 }
 globalAdmin=true;await refresh();assert.match($('activity-switcher').innerHTML,/<small>Global Admin<\/small>/);assert.doesNotMatch($('activity-switcher').innerHTML,/<small>[^<]* · /);
-globalAdmin=false;programRole='PROGRAM_ADMIN';await refresh();await navigate('#administration');assert.match($('administration').innerHTML,/Manage Academy/);assert.doesNotMatch($('administration').innerHTML,/id="admin-teach"/);assert.match($('administration').innerHTML,/id="admin-timetable-home"/);assert.match($('administration').innerHTML,/href="\/recorder\/\?academy=1">Voice Recorder/);assert.equal($('academy-recorder-nav').hidden,false);assert.doesNotMatch($('administration').innerHTML,/href="\/users\/"|Update public timetable/);
+globalAdmin=false;programRole='PROGRAM_ADMIN';await refresh();await navigate('#administration');assert.match($('administration').innerHTML,/Manage Academy/);assert.doesNotMatch($('administration').innerHTML,/id="admin-teach"/);assert.match($('administration').innerHTML,/id="admin-timetable-home"/);assert.doesNotMatch($('administration').innerHTML,/data-recorder-link/);assert.equal($('academy-recorder-nav').hidden,false);assert.doesNotMatch($('administration').innerHTML,/href="\/users\/"|Update public timetable/);
 await navigate('#administration/assessments');assert.equal(location.hash,'#assessment-admin/PROGRAM/'+encodeURIComponent(activity.id));assert.equal($('assessment-admin').classList.contains('active'),true);
 globalAdmin=false;programRole='STUDENT';await refresh();await navigate(programHash+'/attendance');assert.equal($('pa-main').hidden,true,'Students cannot open the staff register');assert.match($('activity-menu').innerHTML,/href="\/recorder\/\?academy=1">Voice Recorder/);
 hasWorkshops=false;programRole='';await refresh();assert.equal($('academy-account-role').textContent,'None');assert.equal($('academy-access-empty').hidden,false);assert.equal($('academy-role-panel').hidden,true);assert.equal($('academy-role-panel').innerHTML,'');for(const key of ['learn','teach','admin'])assert.equal($('academy-tab-'+key).hidden,true);

@@ -126,6 +126,9 @@ for(const root of ['academy','account','programs','users','recorder','activities
     if(file==='academy/hifz/index.html')continue;
     // The approved annotation experiment is deliberately account-free. Its own
     // navigation returns to Academy/the normal reader without session API calls.
+    if(file==='academy/pdf-icon-samples/index.html'){
+      assert.match(html,/href="\/academy\/pdf-reader\/"/);assert.doesNotMatch(html,/m4l-config\.js|m4l-academy-navigation\.js/);continue;
+    }
     if(file==='academy/pdf-compare/index.html'){
       assert.match(html,/href="\/academy\/"/);assert.match(html,/href="\/academy\/pdf-reader\/"/);
       assert.match(html,/name="robots" content="noindex,nofollow"/);

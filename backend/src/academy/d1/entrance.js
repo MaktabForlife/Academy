@@ -65,7 +65,8 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
       ProgramTimetablePublications:scope(publications).map(p=>({Lifecycle:stopped.find(l=>l.activity_key===p.activity_key&&samePublication(l.publication_id,p.publication_id))?.status||'',PublicationID:p.publication_id,VersionNo:p.version_no,SnapshotJSON:p.snapshot_json,PublishedDate:p.published_at,PublishedByAccountID:p.published_by_source_id}))}};
   }});
   if(config.programWorkspace){
-    const project=row=>row.kind==='COURSE'?{...row,menuAvailable:activities.find(a=>a.activity_key.toUpperCase()===('COURSE:'+row.id).toUpperCase())?.course_menu_available!==0}:row;
+    const today=dateInTimezone(now,config.setting_value);
+    const project=row=>row.kind==='COURSE'?{...row,menuAvailable:activities.find(a=>a.activity_key.toUpperCase()===('COURSE:'+row.id).toUpperCase())?.course_menu_available!==0,curriculumActive:runs.some(run=>samePublication(run.activity_key,'COURSE:'+row.id)&&run.start_date&&run.end_date&&run.start_date<=today&&run.end_date>=today&&runStates.some(state=>state.run_id===run.run_id&&state.current_publication_id&&['PUBLISHED','ACTIVE'].includes(state.stage)))}:{...row,curriculumActive:true};
     for(const name of ['activities','personalActivities','activityPages'])result[name]=result[name].map(project);
     if(result.activity)result.activity=project(result.activity);
   }

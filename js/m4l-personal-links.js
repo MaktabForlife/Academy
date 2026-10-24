@@ -20,7 +20,7 @@
  function retryButton(){if(!pending)return;const p=host.querySelector('[data-message]');if(p&&!p.querySelector('button')){const b=document.createElement('button');b.type='button';b.textContent='Retry save';b.onclick=savePending;p.append(' ',b);}}
  async function load(){try{data=await api('list');pending=null;dirty=false;render();}catch(e){message(e.message);}}
  function show(open){host.hidden=!open;host.parentElement.toggleAttribute('data-personal-links-open',open);tab.setAttribute('aria-pressed',String(open));const home=nav.querySelector('a[href="/academy/library/"]');if(open)home?.removeAttribute('aria-current');else home?.setAttribute('aria-current','page');}
- tab.onclick=()=>{show(host.hidden);if(!host.hidden&&!data)void load();};
+ tab.onclick=()=>{show(host.hidden);if(!host.hidden){if(data){if(!host.querySelector('form'))render();}else void load();}};
  const reset=(reload=true)=>{epoch++;data=null;dirty=false;pending=null;host.replaceChildren();show(false);tab.hidden=true;if(reload&&token())void availability();};window.addEventListener('m4l-academy-session',reset);window.addEventListener('storage',e=>{if(e.key==='m4l_account_token'||e.key===null)reset();});window.addEventListener('beforeunload',e=>{if(dirty||pending){e.preventDefault();e.returnValue='';}});
  async function availability(){try{data=await api('list');tab.hidden=false;if(new URLSearchParams(location.search).get('view')==='my-links'){show(true);render();}}catch(e){if(new URLSearchParams(location.search).get('view')==='my-links'){show(true);message(e.message);}}}
  window.addEventListener('pagehide',()=>reset(false));window.addEventListener('pageshow',e=>{if(e.persisted)reset();});

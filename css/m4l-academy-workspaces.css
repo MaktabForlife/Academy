@@ -91,3 +91,13 @@
 @media(max-width:600px){.workspace-area-group{padding:8px}.workspace-area-links{gap:6px}.upcoming-course{padding:12px}.upcoming-course .workspace-actions{width:100%}.workspace-areas a{flex:1 1 110px;min-width:0;padding:8px 10px}#timetable .timetable-days,#activity-sessions .timetable-days{grid-template-columns:repeat(2,minmax(0,1fr))}#timetable .timetable-pill-details,#activity-sessions .timetable-pill-details{flex-wrap:wrap;gap:3px}}
 
 .workspace-enrolment-actions{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 20px}
+
+/* All personal and Admin timetable dates remain in one scrollable row. */
+.academy-shell :is(#academy-schedule,#activity-schedule)>.section-title{display:flex;flex-wrap:nowrap;align-items:center;justify-content:space-between;gap:10px}
+.academy-shell :is(#academy-schedule,#activity-schedule)>.section-title>div:first-child{min-width:0}
+.academy-shell :is(#academy-schedule,#activity-schedule) h2{font-size:clamp(19px,3vw,26px)}
+.academy-shell :is(.schedule-controls,.upcoming-controls){display:flex;flex:none;flex-wrap:nowrap;gap:6px;margin-left:auto}
+.academy-shell :is(#academy-sessions,#activity-sessions){max-width:100%;overflow-x:auto;scroll-snap-type:x proximity;padding:3px 3px 12px}
+.academy-shell :is(#academy-sessions,#activity-sessions) .timetable-days{display:flex;align-items:flex-start;gap:10px}
+.academy-shell :is(#academy-sessions,#activity-sessions) .upcoming-day{flex:0 0 max(170px,calc((100% - 60px)/7));min-width:0;scroll-snap-align:start}
+@media(max-width:767px){.academy-shell :is(#academy-sessions,#activity-sessions) .upcoming-day{flex-basis:clamp(165px,62vw,240px)}}

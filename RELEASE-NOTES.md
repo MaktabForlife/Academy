@@ -1,3 +1,13 @@
+# V107.49 — Responsive timetables and Admin navigation
+
+Show timetable dates in one horizontal row across Home, personal and Admin workspaces and their Program/Course views. Keep Sunday as the start of every week. On mobile, scroll Home to today or the next date with a lesson; desktop initially shows Sunday. Keep week arrows on the heading row and remove duplicate week labels/ranges. Mobile Quick links fits about three to four compact cards; self-paced opportunities become a continuous rail.
+
+Rename Library views This course, Public library and Bookmarks, with a right-hand mobile menu. Fix the existing My links tab rendering after its availability response. Add an alphabetical, scoped Curriculum chooser with current active areas on mobile; rename the existing Admin tab Subjects. Place Voice Recorder immediately after Library in Reboot Learn/Teach and remove it from Manage Academy. Embedded calendars carry the exact Admin-Learn/Admin-Teach context, class and accepted setup. Add Close to Admin Home across Admin sections and connected management tools, preserving draft guards. Preserve the V107.48 PDF work and Core/Admin ownership. No migrations, live data corrections or new editable masters.
+
+Validation uses disposable local databases/storage and blocked external browser traffic. Passed all 101 backend regression files, 48 Home/workspace browser checks, 16 recorder checks and the new menu/calendar/Admin exit browser checks, including active-area filtering and unsaved Planning protection. Website and Development Worker dry builds pass. Live release verification uses only the website and Worker health endpoints.
+
+Next review batch (requested during this build): allow one assessment to be selected for multiple classes; show Admin lesson media in the same swipeable cards as Learn/Teach, with Edit opening the editor. Apply the supplied editor annotations: compact date/teacher header and header Save action, remove duplicate status/metadata and Video/Discussion actions, and combine video/PDF entries under Attachments with the existing add/remove and file controls.
+
 # V107.48 — Remove native PDF.js editing tools
 
 Academy supplies all annotation editing. Remove the native PDF.js editing row and bridge, and disable its editor modes at viewer initialization so stored preferences cannot turn them back on. Disable the associated comments, signatures and floating editing buttons. Existing PDF annotations still display, and page navigation, zoom, search, print and download remain available. The Academy pencil, in-place text, drawings, shapes and editable exports remain. Open the tools preview in Academy mode with an optional original-document reference. No database/schema or account changes.

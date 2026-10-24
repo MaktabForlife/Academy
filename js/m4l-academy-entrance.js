@@ -316,22 +316,36 @@
     } catch(error){$('academy-public-sessions').textContent=error.message;}
   }
   const publicMobileView=matchMedia('(max-width:999px)');
-  publicMobileView.addEventListener?.('change',()=>{if(state.publicData)renderPublicHome();});
+  publicMobileView.addEventListener?.('change',()=>{if(!state.publicData)return;publicFocusDay='';$('academy-public-sessions').scrollLeft=0;state.publicStartDate=sunday(academyDay(state.publicData.timezone));renderPublicHome();});
   function publicWeekHeading(){
     const nextWeek=state.publicStartDate===addWeekDays(sunday(academyDay(state.publicData.timezone)),7);
     $('public-timetable-title').textContent=nextWeek?'What’s on next week':'What’s on this week';
     $('public-timetable-range').textContent=formatDate(state.publicStartDate)+' – '+formatDate(addWeekDays(state.publicStartDate,6));
-    $('public-home-previous').hidden=$('public-home-previous').disabled=!nextWeek;
-    $('public-home-next').hidden=$('public-home-next').disabled=nextWeek;
+    $('public-home-previous').hidden=false;$('public-home-previous').disabled=!nextWeek;
+    $('public-home-next').hidden=false;$('public-home-next').disabled=nextWeek;
   }
   function renderPublicHome(){
     const data=state.publicData;if(!data)return;
     const first=sunday(academyDay(data.timezone)),last=addWeekDays(first,7);
     if(state.publicStartDate!==first&&state.publicStartDate!==last)state.publicStartDate=first;
     const host=$('academy-public-sessions'),left=host.scrollLeft||0;
-    renderSchedule('academy-public-sessions',data.timetable,false,true,{public:true,startDate:publicMobileView.matches?first:state.publicStartDate,days:publicMobileView.matches?14:7});
-    if(publicMobileView.matches)host.scrollLeft=left;
+    renderSchedule('academy-public-sessions',data.timetable,false,true,{public:true,startDate:first,days:14});
+    host.scrollLeft=left;
+    focusPublicToday(host);
     publicWeekHeading();
+  }
+
+  let publicFocusDay='';
+  function focusPublicToday(host){
+    if(!publicMobileView.matches)return;
+    const today=academyDay(state.publicData.timezone);if(publicFocusDay===today)return;
+    window.requestAnimationFrame?.(()=>{
+      const columns=[...host.querySelectorAll('.upcoming-day')];
+      const future=columns.filter(column=>column.querySelector('time')?.dateTime>=today);
+      const target=future.find(column=>column.querySelector('.preview-pill'))||future[0];
+      if(!target)return;publicFocusDay=today;
+      host.scrollTo({left:target.offsetLeft-columns[0].offsetLeft,behavior:'auto'});
+    });
   }
 
   function renderHome() {
@@ -446,8 +460,8 @@
       : [['timetable','Timetable','activity-schedule'],['assessment','Assessment','as-panel'],['lesson-media','Lesson media','activity-lesson-media'],['library','Library','activity-library']];
     if(row.substituteOnly)tools.splice(2);
     const recorder = row.kind === 'PROGRAM' && row.id === window.M4L_CONFIG?.REBOOT_PROGRAM_ID && !row.unavailable
-      ? '<a class="workspace-helper" data-recorder-link href="/recorder/?academy=1">Voice Recorder</a>' : '';
-    return `<nav class="workspace-tabs" aria-label="${context.mode === 'teach' ? 'Teach' : 'Learn'} tools" role="tablist">${tools.map(([key,label,panel]) => `<a id="activity-tab-${key}" role="tab" href="${key==='library'?'/academy/library/':workspaceHref(row,key)}" aria-controls="${panel}" aria-selected="${context.tool === key}" tabindex="${context.tool === key ? 0 : -1}">${label}</a>`).join('')}</nav>${hifzHelperLink(row,'workspace-helper')}${recorder}`;
+      ? '<a class="workspace-recorder-pill" data-recorder-link href="/recorder/?academy=1">Voice Recorder</a>' : '';
+    return `<nav class="workspace-tabs" aria-label="${context.mode === 'teach' ? 'Teach' : 'Learn'} tools" role="tablist">${tools.map(([key,label,panel]) => `<a id="activity-tab-${key}" role="tab" href="${key==='library'?'/academy/library/':workspaceHref(row,key)}" aria-controls="${panel}" aria-selected="${context.tool === key}" tabindex="${context.tool === key ? 0 : -1}">${label}</a>`).join('')}${recorder}</nav>${hifzHelperLink(row,'workspace-helper')}`;
   }
   function supportSections(row, mode) {
     const staff = mode !== 'learn';
@@ -462,7 +476,7 @@
     const context = workspaceContext(row), permitted = Boolean(state.home?.signedIn && row.roles?.length && !row.unavailable);
     const library = $('activity-library'), planning = $('activity-planning'), support = $('activity-support');
     library.hidden = !permitted || context.tool !== 'library';
-    library.innerHTML = library.hidden ? '' : '<h2>Library</h2><p class="muted">Open your Academy resources or browse the public collection.</p><div class="workspace-actions"><a class="button" href="/academy/library/">For me</a><a class="button secondary" href="/academy/open-library/">Browse</a></div>';
+    library.innerHTML = library.hidden ? '' : '<h2>Library</h2><p class="muted">Open your Academy resources or browse the public collection.</p><div class="workspace-actions"><a class="button" href="/academy/library/">This course</a><a class="button secondary" href="/academy/open-library/">Public library</a></div>';
     planning.hidden = !permitted || context.mode !== 'teach' || context.tool !== 'planning';
     planning.setAttribute('aria-labelledby',context.tool === 'attendance' ? 'activity-tab-attendance' : 'activity-tab-planning');
     support.hidden = !permitted||row.substituteOnly;
@@ -1020,7 +1034,7 @@
     dockTimetable($('timetable-card-home'));
     const view = $('administration'), global = Boolean(state.home?.signedIn && state.home.globalAdmin), areas = state.home?.signedIn ? adminAreas() : [];
     if (!global && !areas.length) {view.innerHTML='<div class="page-heading"><h1>Admin sign-in</h1></div><p role="status">'+(!state.home&&token()?'Loading your Academy administration…':'Sign in with an authorised Academy admin account to open management tools.')+'</p>';return;}
-    const tabs = [['users','Users'],['attendance','Attendance'],['planning','Planning'],...(global?[['announcements','Announcements']]:[]),['assessments','Assessments'],['library','Library'],['curriculum','Curriculum'],['programs','Programs'],['courses','Courses'],['enrolments','Enrolments'],...(global?[['settings','App settings']]:[])];
+    const tabs = [['users','Users'],['attendance','Attendance'],['planning','Planning'],...(global?[['announcements','Announcements']]:[]),['assessments','Assessments'],['library','Library'],['curriculum','Subjects'],['programs','Programs'],['courses','Courses'],['enrolments','Enrolments'],...(global?[['settings','App settings']]:[])];
     const requested = location.hash.split('/')[1], key = tabs.some(([id]) => id === requested) ? requested : 'users';
     const link = (href,label) => `<a class="button secondary" href="${esc(href)}">${esc(label)}</a>`;
     const scoped = (filter,href) => areas.filter(filter).map(row => link(href(row),row.name)).join('');
@@ -1042,7 +1056,7 @@
     const firstProgram=areas.find(programs), firstArea=areas[0];
     const direct={settings:'#administration/settings',users:global?'/users/':firstArea?manage(firstArea)+(programs(firstArea)?'&tab=profiles':'&tab=participants'):'#administration/users',attendance:'#administration/attendance',planning:'#administration/planning',announcements:'#administration/announcements',assessments:global?'#assessment-admin':firstArea?`#assessment-admin/${firstArea.kind}/${encodeURIComponent(firstArea.id)}`:'#assessment-admin',library:global?'/academy/library/manage/':'/academy/library/',curriculum:global?'/academy/subjects/':firstProgram?manage(firstProgram):'#administration/curriculum',programs:global?'/programs/':firstProgram?manage(firstProgram):'#administration/programs',courses:'/academy/courses/manage/',enrolments:'/academy/enrolment/manage/?view=requests'};
     view.innerHTML = `<div class="page-heading admin-heading"><h1>${requested?'Manage '+tabs.find(([id])=>id===key)[1]:'Manage Academy'}</h1></div>
-      <nav class="workspace-tabs admin-management-menu" aria-label="Administration tools">${tabs.map(([id,label])=>`<a id="admin-tab-${id}" href="${esc(direct[id])}"${id===requested?' aria-current="page"':''}>${label}</a>`).join('')}${window.M4L_CONFIG?.ACCEPTED_SETUP?'<button id="setup-publication-review" type="button">Review setup</button>':''}${global?'<button id="public-timetable-refresh" type="button">Update timetable</button>':''}</nav>${global?'<p id="public-timetable-refresh-message" class="tiny muted" role="status" aria-live="polite"></p>':''}${!requested?'<div class="workspace-actions"><a class="button secondary" data-recorder-link href="/recorder/?academy=1">Voice Recorder</a></div><div id="admin-timetable-home"></div>':''}
+      <nav class="workspace-tabs admin-management-menu" aria-label="Administration tools">${tabs.map(([id,label])=>`<a id="admin-tab-${id}" href="${esc(direct[id])}"${id===requested?' aria-current="page"':''}>${label}</a>`).join('')}${window.M4L_CONFIG?.ACCEPTED_SETUP?'<button id="setup-publication-review" type="button">Review setup</button>':''}${global?'<button id="public-timetable-refresh" type="button">Update timetable</button>':''}</nav>${global?'<p id="public-timetable-refresh-message" class="tiny muted" role="status" aria-live="polite"></p>':''}${!requested?'<div id="admin-timetable-home"></div>':''}
       ${requested?`<section class="card card-pad" id="admin-workspace"><div class="workspace-actions">${panels[key]||'<p class="muted">No assigned areas are available here.</p>'}</div></section>`:''}<div class="academy-support">${supportSections(null,'admin')}</div>`;
     if(requested==='attendance'&&nativeAttendance()){dockAttendance($('admin-attendance-host'));$('pa-main').hidden=false;$('pa-close').href='#administration';window.M4L_PROGRAM_ATTENDANCE?.open({admin:true});}
     if(requested==='planning')window.M4L_PLANNING?.open({hostId:'admin-planning',view:'admin'});
@@ -1260,9 +1274,9 @@
   for(const [id,days] of [['public-home-previous',-7],['public-home-next',7]])$(id).addEventListener('click',()=>{
     if(!state.publicData||$(id).disabled)return;
     const first=sunday(academyDay(state.publicData.timezone));
-    state.publicStartDate=days>0?addWeekDays(first,7):first;renderPublicHome();if(publicMobileView.matches){const columns=$('academy-public-sessions').querySelectorAll('.upcoming-day');$('academy-public-sessions').scrollTo({left:days>0?columns[7].offsetLeft-columns[0].offsetLeft:0,behavior:'auto'});}armScheduleClock();
+    state.publicStartDate=days>0?addWeekDays(first,7):first;renderPublicHome();{const columns=$('academy-public-sessions').querySelectorAll('.upcoming-day');if(columns.length===14)$('academy-public-sessions').scrollTo({left:days>0?columns[7].offsetLeft-columns[0].offsetLeft:0,behavior:'auto'});}armScheduleClock();
   });
-  $('academy-public-sessions').addEventListener('scroll',()=>{if(!publicMobileView.matches||!state.publicData)return;const columns=$('academy-public-sessions').querySelectorAll('.upcoming-day');if(columns.length!==14)return;const first=sunday(academyDay(state.publicData.timezone));state.publicStartDate=$('academy-public-sessions').scrollLeft>=columns[7].offsetLeft-columns[0].offsetLeft-1?addWeekDays(first,7):first;publicWeekHeading();},{passive:true});
+  $('academy-public-sessions').addEventListener('scroll',()=>{if(!state.publicData)return;const columns=$('academy-public-sessions').querySelectorAll('.upcoming-day');if(columns.length!==14)return;const first=sunday(academyDay(state.publicData.timezone));state.publicStartDate=$('academy-public-sessions').scrollLeft>=Math.min(columns[7].offsetLeft-columns[0].offsetLeft,$('academy-public-sessions').scrollWidth-$('academy-public-sessions').clientWidth)-1?addWeekDays(first,7):first;publicWeekHeading();},{passive:true});
   window.addEventListener('hashchange', route);
   window.addEventListener('m4l-academy-access',()=>{if(state.home)renderAcademyMenu();});
   window.addEventListener('m4l-academy-session', () => { if (!token()) { dailyCache.session='';dailyCache.entries={};try { sessionStorage.removeItem(DAILY_CACHE_KEY); } catch {} } clearPersonal(); void loadHome(); });
