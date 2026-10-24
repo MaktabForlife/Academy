@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.41
+# Umm Abbad Academy — V107.42
+
+## V107.42 — Single PDF view on phones
+
+Remove Whiteboard and Split Page controls on phones, including touch landscape. Keep normal PDF viewing, annotations, Download and full screen. Tablet and desktop retain both features. Responsive changes keep PDF documents and annotations mounted, retain whiteboard drafts, and restore desktop split reading.
 
 ## V107.41 — Retire the separate visitor timetable screen
 

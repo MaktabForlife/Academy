@@ -1,3 +1,9 @@
+# V107.42 — Mobile PDF reader controls
+
+Hide Whiteboard, Split Page and their related controls on phone layouts, including touch landscape. Keep a single active PDF with its existing tools, Download, Library and full screen. Preserve tablet/desktop whiteboard and split reading. Changing to phone size closes the whiteboard without discarding its drawing or notes and retains both PDFs and their annotations for the wider layout. No database, storage or API changes.
+
+Verification: 17 focused PDF/release checks pass. Local PDF reader and whiteboard browser suites pass, covering 320px/390px/767px portrait, 844px/932px touch landscape, tablet and desktop. Downloads, editable annotations, bookmarks, split restoration and unsaved drafts remain intact. Source boundary and website/Worker dry-run builds pass. Browser tests block external traffic and use disposable local fixtures.
+
 # V107.41 — One public Home page
 
 Retire the separate signed-out timetable view and its unused menu entry. Legacy visitor timetable addresses return to the complete Home page with its existing public timetable, announcements and other features. Keep the shared signed-in Learn/Teach and Admin timetable component and existing permissions. Navigation reuses the public snapshot and adds no API requests. No database or storage changes.

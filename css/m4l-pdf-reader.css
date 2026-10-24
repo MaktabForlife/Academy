@@ -44,3 +44,11 @@
 
 /* Library drawers leave that PDF’s controls available above them. */
 .pr-drawer{top:var(--pr-controls-height,0px)}
+
+/* Phones retain the active PDF without split or whiteboard controls. */
+@media (max-width:767px), (pointer:coarse) and (max-height:500px){
+ #pr-split,#m4l-teaching-panel-toggle,#pr-tabs,#pr-both,#pr-divider,
+ .pr-pane [data-focus],#m4l-teaching-panel,#m4l-teaching-panel-divider{display:none!important}
+ #pr-workspace{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
+ #pr-workspace .pr-pane:not(.is-active){display:none!important}
+}

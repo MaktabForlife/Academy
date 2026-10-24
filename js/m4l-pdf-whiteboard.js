@@ -23,6 +23,7 @@
   };
 
   const byId = id => document.getElementById(id);
+  const mobile = window.matchMedia('(max-width:767px), (pointer:coarse) and (max-height:500px)');
   const isCompact = () => window.matchMedia("(max-width: 767px)").matches;
   const isTablet = () => window.matchMedia("(min-width: 768px) and (max-width: 1179px)").matches;
 
@@ -80,7 +81,7 @@
   }
 
   function open() {
-    if (!ensureInit()) return false;
+    if (mobile.matches || !ensureInit()) return false;
 
     const panel = byId("m4l-teaching-panel");
     const divider = byId("m4l-teaching-panel-divider");
@@ -128,7 +129,7 @@
     toggleButton?.setAttribute("aria-label", "Open whiteboard");
     state.open = false;
 
-    byId("m4l-teaching-panel-toggle")?.focus();
+    byId(mobile.matches ? "pr-fullscreen" : "m4l-teaching-panel-toggle")?.focus();
     window.dispatchEvent(new CustomEvent("m4l-whiteboard-change"));
     return true;
   }
@@ -484,6 +485,8 @@
       if (wrap) state.resizeObserver.observe(wrap);
     }
   }
+
+  mobile.addEventListener('change', () => { if (mobile.matches && state.open) close(); });
 
   window.M4L_PDF_WHITEBOARD = {
     init,
