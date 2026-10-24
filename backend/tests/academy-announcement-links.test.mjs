@@ -2,14 +2,14 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-const context=vm.createContext({URL});
+const context=vm.createContext({URL,URLSearchParams});
 vm.runInContext(readFileSync(new URL('../../js/m4l-announcement-links.js',import.meta.url),'utf8'),context);
 const {render,href}=context.M4L_ANNOUNCEMENT_LINKS;
 const options={origin:'https://academy.example',apiBase:'https://api.example'};
 test('announcement links support plain addresses, named links, Unicode and separate site/API origins',()=>{
  const html=render('Read [2026 Prospectus](/academy/prospectus.pdf).\nPDF: /api is plain text.\n[Read PDF](/api/academy/announcements/pdf?id=abc)\nVisit https://example.com/book.pdf. السلام عليكم',options);
- assert(html.includes('href="https://academy.example/academy/prospectus.pdf"'));assert(html.includes('>2026 Prospectus</a>.\n'));
- assert(html.includes('href="https://api.example/api/academy/announcements/pdf?id=abc"'));assert(html.includes('href="https://example.com/book.pdf"'));assert(html.includes('</a>. السلام عليكم'));
+ assert(html.includes('href="https://academy.example/academy/pdf-reader/?document=%2Facademy%2Fprospectus.pdf&amp;title=2026+Prospectus"'));assert(html.includes('>2026 Prospectus</a>.\n'));
+ assert(html.includes('href="https://academy.example/academy/pdf-reader/?announcement=abc&amp;title=Read+PDF"'));assert(html.includes('href="https://example.com/book.pdf"'));assert(html.includes('</a>. السلام عليكم'));
  assert.equal((html.match(/rel="noopener noreferrer"/g)||[]).length,3);
 });
 test('announcement link rendering never treats message HTML or unsafe protocols as executable content',()=>{

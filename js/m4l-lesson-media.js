@@ -59,6 +59,7 @@
  function close(force=false){
   if(!force&&busy){modalMessage('Please wait for this change to finish.');return false;}
   if(!force&&dirty&&!window.confirm('Discard your unfinished entry?'))return false;
+  if(!force&&dialog?.querySelector('.lm-pdf')?.contentWindow.PDFViewerApplication?._annotationStorageModified&&!window.confirm('This PDF has unsaved annotations. Download a copy before closing it. Continue?'))return false;
   dialogGeneration++;noteContext=null;editor=null;discussion=null;retry=null;busy=false;dirty=false;
   if(dialog){dialog.close();dialog.remove();dialog=null;}if(objectUrl){URL.revokeObjectURL(objectUrl);objectUrl='';}return true;
  }
@@ -76,7 +77,7 @@
  async function pdf(row,asset){
   const name=assetName(row.assets?.find(a=>a.id===asset)||{name:row.title});
   const dg=modal(name,'<p>Opening PDF…</p>');if(dg===null)return;
-  try{const blob=await api('download',{lessonId:row.id,assetId:asset},{blob:true});if(dg!==dialogGeneration)return;objectUrl=URL.createObjectURL(blob);dialog.querySelector('[data-lm-dialog-body]').innerHTML=`<a class="button secondary small" href="${esc(objectUrl)}" download="${esc(row.assets?.find(a=>a.id===asset)?.filename||'lesson-notes.pdf')}">Download PDF</a><iframe class="lm-pdf" src="${esc(objectUrl)}" title="${esc(name)}"></iframe>`;}catch(e){if(dg===dialogGeneration)modalMessage(e.message,true);}
+  try{const blob=await api('download',{lessonId:row.id,assetId:asset},{blob:true});if(dg!==dialogGeneration)return;objectUrl=URL.createObjectURL(blob);dialog.querySelector('[data-lm-dialog-body]').innerHTML=`<a class="button secondary small" href="${esc(objectUrl)}" download="${esc(row.assets?.find(a=>a.id===asset)?.filename||'lesson-notes.pdf')}">Download PDF</a><iframe class="lm-pdf" src="/pdf-viewer/web/viewer.html?academy=1&amp;file=${encodeURIComponent(objectUrl)}" title="${esc(name)}"></iframe>`;}catch(e){if(dg===dialogGeneration)modalMessage(e.message,true);}
  }
  async function edit(row){
   const dg=modal('Manage · '+row.title,'<p>Opening lesson…</p>');if(dg===null)return;

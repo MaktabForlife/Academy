@@ -1,3 +1,9 @@
+# V107.40 — PDF.js opening and reader repair
+
+Move the setup script out of the whiteboard divider’s opening tag, restoring the PDF reader and its tools. Course and lesson PDF previews and assessment review use the bundled PDF.js renderer; assessment PDF read actions open a viewer with an explicit Download choice. Announcement attachments and local Academy PDF links open the Academy reader. Keep existing authenticated byte routes, exact workspace checks, publication rules, file identities, public-only bookmarks and explicit assessment confirmation. Preserve reader context in its address and discard delayed public-document loads after selecting another PDF. No database or storage changes. Reported on mobile; desktop occurrence was unconfirmed.
+
+Local verification: all 101 regression files pass. Isolated phone and desktop browser checks render real PDF pages for Course/lesson files, announcement attachments, assessment papers and answer review. Explicit assessment downloads preserve exact bytes; opening never confirms, marks or releases work. The reader checks retain editable annotations, bookmarks, split panes, local device files and whiteboard drawing/notes, including 320px/390px touch layouts. Website and matching Worker dry-run builds pass. Development deployment authorised by the user.
+
 # V107.39 — Announcement loading and retry
 
 Keep the anonymous public announcement GET independent of session restoration, Admin verification and client publication-head startup. The server continues to select the current accepted publication. Show “Loading announcements…” with an accessible busy state for every load and retry; display Try again only after a failed request, validate the list response and discard older refresh replies. Authenticated requests and all other routes retain their workspace guards. The original issue was reported on mobile; desktop occurrence was unconfirmed. No schema, database, storage or layout change.

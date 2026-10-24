@@ -37,10 +37,10 @@ export async function separationFixture(){
    return tokens.get(role);
   };
   f.scopes=separationScopes;f.actors=separationActors;
-  f.seedCoursePdf=async({scope=separationScopes.courseA,name='Synthetic Course handbook'}={})=>{
+  f.seedCoursePdf=async({scope=separationScopes.courseA,name='Synthetic Course handbook',bytes}={})=>{
    const token=await f.actor('global');
    const made=ok(await f.media('course-files-create',{activityKey:scope,operationId:crypto.randomUUID()},token));
-   const uploaded=ok(await f.mediaUpload({lessonId:made.lessonId,revision:1,filename:'synthetic-handbook.pdf',name},token));
+   const uploaded=ok(await f.mediaUpload({lessonId:made.lessonId,revision:1,filename:'synthetic-handbook.pdf',name},token,bytes));
    ok(await f.media('save',{lessonId:made.lessonId,revision:2,operationId:crypto.randomUUID(),title:'Course PDFs',summary:'Synthetic baseline only',state:'PUBLISHED',commentsClosed:true,recordingUrls:[]},token));
    return {lessonId:made.lessonId,assetId:uploaded.assetId};
   };

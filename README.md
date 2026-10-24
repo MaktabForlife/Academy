@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.39
+# Umm Abbad Academy — V107.40
+
+## V107.40 — PDF.js reading on phones and desktop
+
+Repair the malformed PDF reader markup and open Course/lesson PDFs, assessment PDFs and Academy announcement attachments in PDF.js. Keep Download as an explicit choice. Preserve current file permissions, private byte delivery, manual answer confirmation, public-only bookmarks, annotations, split reading and the whiteboard. Reported on mobile; desktop occurrence was unconfirmed.
 
 ## V107.39 — Reliable announcement loading
 

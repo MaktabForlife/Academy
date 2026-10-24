@@ -1,9 +1,10 @@
 import {PDF_TOOL_DEFAULTS,normalizePdfTools} from './m4l-pdf-tools-model.mjs?v=106.49';
 import {publicPdfFile} from './m4l-pdf-bookmarks-model.mjs?v=106.82';
 import {academyBookmarks} from './m4l-pdf-bookmarks.mjs?v=106.82';
+import {publicPdfSource} from './m4l-pdf-source.mjs?v=107.40';
 import './m4l-pdf-whiteboard.js?v=107.13';
 const $=id=>document.getElementById(id),query=new URLSearchParams(location.search),mobile=matchMedia('(max-width:750px)');
-const panes=[0,1].map(index=>({index,element:$('pr-pane-'+index),choices:{},frame:null,loaded:false,file:'',title:'',page:0,mode:'books',drawerGeneration:0}));
+const panes=[0,1].map(index=>({index,element:$('pr-pane-'+index),choices:{},frame:null,loaded:false,file:'',title:'',page:0,mode:'books',drawerGeneration:0,loadGeneration:0}));
 let readingPositions=new Map(),readingRestore=0,readingLayoutPending=false;
 let defaults={...PDF_TOOL_DEFAULTS},split=false,active=0,ratio=50,catalogue=null,cataloguePromise=null,ready=false;
 const status=text=>{$('pr-status').textContent=text;},part=(pane,selector)=>pane.element.querySelector(selector)||pane.header?.querySelector(selector);
@@ -75,13 +76,44 @@ function volumeSelector(pane){
  for(const volume of volumes){const option=document.createElement('option');option.value=volume.file;option.textContent=volume.volumeLabel;select.append(option);}select.value=pane.file;
  if(row){pane.title=row.title;part(pane,'[data-title]').textContent=row.title;}part(pane,'[data-title]').title=pane.title;
 }
-function updateAddress(pane,page){if(pane.index!==0||!pane.file)return;const params=new URLSearchParams({file:pane.file,title:pane.title});if(['public','personal'].includes(query.get('library')))params.set('library',query.get('library'));if(page)params.set('page',String(page));history.replaceState(null,'','/academy/pdf-reader/?'+params);}
+function updateAddress(pane,page){if(pane.index!==0||!pane.file)return;const params=new URLSearchParams({file:pane.file,title:pane.title});if(['public','personal'].includes(query.get('library')))params.set('library',query.get('library'));for(const key of ['workspace','studentProgram','studentClass','setup'])if(query.has(key))params.set(key,query.get(key));if(page)params.set('page',String(page));history.replaceState(null,'','/academy/pdf-reader/?'+params);}
 function openFile(pane,file,title,check=true,page=0){
  if(!ready||check&&!canReplace(pane))return false;
+ pane.loadGeneration++;
  pane.file=publicPdfFile(file);pane.title=title||'PDF '+(pane.index+1);pane.loaded=false;pane.page=0;pane.pageLabel='';
  part(pane,'[data-title]').textContent=pane.title;part(pane,'[data-empty]').hidden=Boolean(pane.file);volumeSelector(pane);updateBookmarkButtons(pane);
  pane.frame.src='/pdf-viewer/web/viewer.html?academy=1&pane='+pane.index+'&v=107.6&file='+encodeURIComponent(pane.file)+(page?'#page='+page:'');
  part(pane,'[data-drawer]').hidden=true;pane.drawerGeneration++;setActive(pane.index);updateAddress(pane,page);return true;
+}
+async function viewerApplication(pane){
+ const frame=pane.frame;
+ if(frame.contentWindow.PDFViewerApplication){await frame.contentWindow.PDFViewerApplication.initializedPromise;return frame.contentWindow.PDFViewerApplication;}
+ await new Promise((resolve,reject)=>{
+  const timer=setTimeout(()=>{frame.removeEventListener('load',loaded);reject(Error('The PDF viewer could not start.'));},15000);
+  function loaded(){clearTimeout(timer);frame.contentWindow.PDFViewerApplication?resolve():reject(Error('The PDF viewer could not start.'));}
+  frame.addEventListener('load',loaded,{once:true});
+ });
+ const app=frame.contentWindow.PDFViewerApplication;await app.initializedPromise;return app;
+}
+async function openBinary(pane,file,generation=++pane.loadGeneration){
+ if(generation!==pane.loadGeneration)return false;
+ pane.file='';pane.loaded=false;volumeSelector(pane);updateBookmarkButtons(pane);
+ const app=await viewerApplication(pane),data=new Uint8Array(await file.arrayBuffer());if(generation!==pane.loadGeneration)return false;await app.open({data,originalUrl:file.name});if(generation!==pane.loadGeneration)return false;
+ pane.loaded=true;pane.title=file.name;part(pane,'[data-empty]').hidden=true;part(pane,'[data-title]').textContent=file.name;part(pane,'[data-drawer]').hidden=true;volumeSelector(pane);updateBookmarkButtons(pane);setActive(pane.index);
+ return true;
+}
+async function openPublicPdf(source){
+ const generation=++panes[0].loadGeneration;
+ status('Loading PDF…');
+ try{
+  const response=await fetch((source.api?window.M4L_CONFIG?.API_BASE||'':'')+source.path,{cache:'no-store',credentials:'omit'});
+  if(!response.ok)throw Error('This PDF could not be loaded.');
+  const name=(query.get('title')||'Academy PDF').slice(0,240),file=new File([await response.blob()],/\.pdf$/i.test(name)?name:name+'.pdf',{type:'application/pdf'});
+  if(await openBinary(panes[0],file,generation))status('');
+ }catch(error){
+  if(generation!==panes[0].loadGeneration)return;
+  status(error.message||'This PDF could not be opened.');const retry=document.createElement('button');retry.type='button';retry.textContent='Try again';retry.onclick=()=>void openPublicPdf(source);$('pr-status').append(' ',retry);
+ }
 }
 async function books(force=false){
  if(catalogue&&!force)return catalogue;if(cataloguePromise)return cataloguePromise;
@@ -152,7 +184,7 @@ for(const pane of panes){
  part(pane,'[data-device]').onclick=()=>part(pane,'[data-file]').click();
  part(pane,'[data-file]').onchange=async event=>{
   const file=event.target.files[0];if(!file||!canReplace(pane)){event.target.value='';return;}
-  try{pane.file='';pane.loaded=false;volumeSelector(pane);updateBookmarkButtons(pane);const app=pane.frame.contentWindow.PDFViewerApplication;await app.initializedPromise;await app.open({data:new Uint8Array(await file.arrayBuffer()),originalUrl:file.name});pane.file='';pane.loaded=true;pane.title=file.name;part(pane,'[data-empty]').hidden=true;part(pane,'[data-title]').textContent=file.name;part(pane,'[data-drawer]').hidden=true;volumeSelector(pane);updateBookmarkButtons(pane);setActive(pane.index);status('Device PDFs can be annotated and downloaded. Academy bookmarks are for public Library PDFs.');}
+  try{await openBinary(pane,file);status('Device PDFs can be annotated and downloaded. Academy bookmarks are for public Library PDFs.');}
   catch{status('This PDF could not be opened. Choose another file.');}finally{event.target.value='';}
  };
 }
@@ -171,5 +203,6 @@ try{const response=await fetch(`${window.M4L_CONFIG?.API_BASE||''}/api/academy/p
 ready=true;const page=Number(query.get('page')),startPage=Number.isInteger(page)&&page>0&&page<=100000?page:0;
 for(const pane of panes)openFile(pane,pane.index===0?publicPdfFile(query.get('file')):'',pane.index===0?query.get('title')||'PDF 1':'PDF 2',false,pane.index===0?startPage:0);
 setActive(0);layout();
-try{await books();const group=query.get('book')&&catalogue.filter(row=>row.bookId===query.get('book'));if(group?.length&&!query.get('file'))chooseBook(panes[0],group);else if(query.get('book')&&!query.get('file'))status('This book could not be found. Open Library to choose a PDF.');}catch{if(query.get('book'))status('The volume list could not load. Open Library and choose Refresh to try again.');}
+try{const source=publicPdfSource(query);if(source)await openPublicPdf(source);}catch(error){status(error.message);}
+if(!query.has('announcement')&&!query.has('document')){try{await books();const group=query.get('book')&&catalogue.filter(row=>row.bookId===query.get('book'));if(group?.length&&!query.get('file'))chooseBook(panes[0],group);else if(query.get('book')&&!query.get('file'))status('This book could not be found. Open Library to choose a PDF.');}catch{if(query.get('book'))status('The volume list could not load. Open Library and choose Refresh to try again.');}}
 if(query.get('bookmarks')==='1')await drawer(panes[0],'bookmarks');
