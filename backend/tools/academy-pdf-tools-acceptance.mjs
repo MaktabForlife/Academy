@@ -20,7 +20,7 @@ const browser=await chromium.launch({headless:true,executablePath:process.env.PD
 context.on('page',page=>page.on('pageerror',error=>errors.push(error.message)));await context.route('**/*',route=>{if(new URL(route.request().url()).origin!==base&&!route.request().url().startsWith('blob:')){outside.push(route.request().url());return route.abort();}return route.continue();});
 let page=await context.newPage(),reader;
 const frameOf=(page,index)=>page.frameLocator('#pr-pane-'+index+' iframe');
-async function loaded(page,index){await frameOf(page,index).locator('.page[data-page-number="1"] canvas').waitFor({state:'visible'});await frameOf(page,index).locator('.annotationEditorLayer').waitFor({state:'attached'});const edit=page.locator('#pr-controls-'+index+' [data-edit]');if(await edit.getAttribute('aria-expanded')!=='true')await edit.click();}
+async function loaded(page,index){await frameOf(page,index).locator('.page[data-page-number="1"] canvas').waitFor({state:'visible'});await frameOf(page,index).locator('.annotationEditorLayer').waitFor({state:'attached'});/* Retain PDF.js engine/defaults compatibility coverage; the reader pencil now opens the shared Academy editor. */await frameOf(page,index).locator('body').evaluate(()=>window.M4L_PDF_NATIVE.setEditing(true));}
 async function paneToolbars(page,width){
  await page.setViewportSize({width,height:1050});
  const layout=await page.locator('.pr-header').evaluate(header=>({height:header.getBoundingClientRect().height,controls:[...header.querySelectorAll('button,select,.pr-close-reader')].filter(el=>el.getClientRects().length).map(el=>{const r=el.getBoundingClientRect();return {middle:r.y+r.height/2,left:r.x,right:r.right};})}));

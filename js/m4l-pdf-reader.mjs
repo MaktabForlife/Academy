@@ -9,18 +9,19 @@ let readingPositions=new Map(),readingRestore=0,readingLayoutPending=false;
 let defaults={...PDF_TOOL_DEFAULTS},split=false,active=0,ratio=50,catalogue=null,cataloguePromise=null,ready=false;
 const status=text=>{$('pr-status').textContent=text;},part=(pane,selector)=>pane.element.querySelector(selector)||pane.header?.querySelector(selector);
 function proxy(url){const file=publicPdfFile('/pdf-file/'+btoa(String.fromCharCode(...new TextEncoder().encode(url))).replaceAll('+','-').replaceAll('/','_').replaceAll('=',''));if(!file)throw Error('This PDF source is unavailable.');return file;}
-function updateBookmarkButtons(pane){for(const button of pane.header.querySelectorAll('[data-save-book],[data-save-page]'))button.disabled=!pane.loaded||!pane.file;const label=pane.page?'Bookmark page '+(pane.pageLabel||pane.page):'Bookmark page';part(pane,'[data-save-page]').setAttribute('aria-label',label);part(pane,'[data-save-page]').title=label;}
+function updateBookmarkButtons(pane){part(pane,'[data-edit]').disabled=!pane.loaded||Boolean(pane.appOpening);for(const button of pane.header.querySelectorAll('[data-save-book],[data-save-page]'))button.disabled=!pane.loaded||!pane.file;const label=pane.page?'Bookmark page '+(pane.pageLabel||pane.page):'Bookmark page';part(pane,'[data-save-page]').setAttribute('aria-label',label);part(pane,'[data-save-page]').title=label;}
 window.M4L_PDF_READER={
+ activate:(index,source)=>{const pane=panes[index];if(pane&&(source===pane.frame?.contentWindow||source===pane.appFrame?.contentWindow))setActive(index);},
  canLeave:()=>panes.every(pane=>canReplace(pane)),
  settings:index=>({...defaults,...panes[Number(index)]?.choices}),
  workspaceState:()=>({mobile:mobile.matches,split:split&&!mobile.matches,whiteboard:window.M4L_PDF_WHITEBOARD.isOpen(),icons:['pr-split','m4l-teaching-panel-toggle'].map(id=>$(id).innerHTML)}),
  workspaceAction:(index,action)=>{if(mobile.matches)return;setActive(index);$(action==='split'?'pr-split':'m4l-teaching-panel-toggle').click();},
  toolbarReady:()=>document.body.classList.add('pr-toolbar-ready'),
  remember:(index,changes)=>{const pane=panes[Number(index)];if(pane)try{pane.choices=normalizePdfTools({...defaults,...pane.choices,...changes},{session:true});}catch{}},
- location:(index,source,position)=>{const pane=panes[Number(index)];if(!pane||source!==pane.frame?.contentWindow||!pane.file||publicPdfFile(position.file)!==pane.file)return;pane.loaded=true;pane.page=position.page;pane.pageLabel=position.pageLabel||'';updateBookmarkButtons(pane);}
+ location:(index,source,position)=>{const pane=panes[Number(index)];if(!pane||source!==(pane.appActive?pane.appFrame?.contentWindow:pane.frame?.contentWindow)||publicPdfFile(position.file)!==pane.file)return;pane.loaded=true;pane.page=position.page;pane.pageLabel=position.pageLabel||'';updateBookmarkButtons(pane);}
 };
 document.addEventListener('webviewerloaded',event=>{const source=event.detail?.source,pane=panes.find(item=>item.frame?.contentWindow===source);if(pane){const settings=window.M4L_PDF_READER.settings(pane.index);source.addEventListener('keydown',readerKeydown);source.addEventListener('pointerdown',()=>setActive(pane.index),true);source.addEventListener('focusin',()=>setActive(pane.index));source.PDFViewerApplicationOptions.set('highlightEditorColors',`Academy=${settings.highlightColor},yellow=#FFFF98,green=#53FFBC,blue=#80EBFF,pink=#FFCBE6,red=#FF4F5F`);}});
-function changed(pane){try{return Boolean(pane.frame.contentWindow.PDFViewerApplication?._annotationStorageModified);}catch{return false;}}
+function changed(pane){try{return pane.appActive?Boolean(pane.appFrame.contentWindow.M4L_PDF_APP?.hasUnsaved()):Boolean(pane.frame.contentWindow.PDFViewerApplication?._annotationStorageModified);}catch{return false;}}
 function libraryReturn(){
  if(query.get('library')==='public')return '/academy/open-library/';
  if(query.get('library')==='personal')return '/academy/library/';
@@ -32,7 +33,7 @@ function readerContext(){const workspace=window.M4L_ACADEMY_WORKSPACE;readerLabe
 window.addEventListener('m4l-academy-access',readerContext);readerContext();
 function canReplace(pane){return !changed(pane)||confirm('This PDF has unsaved annotations. Download a copy before replacing it. Continue?');}
 function setActive(index){const preserve=window.M4L_PDF_WHITEBOARD.isOpen()&&index!==active;if(preserve)rememberReadingPositions();active=index;for(const pane of panes){pane.element.classList.toggle('is-active',pane.index===index);$('pr-tab-'+pane.index).setAttribute('aria-selected',String(pane.index===index));$('pr-tab-'+pane.index).tabIndex=pane.index===index?0:-1;}focusLabels();if(preserve)restoreReadingPositions();}
-function syncWorkspaceTools(){for(const pane of panes)try{pane.frame?.contentWindow.M4L_PDF_NATIVE?.refresh();}catch{}}
+function syncWorkspaceTools(){for(const pane of panes)try{pane.frame?.contentWindow.M4L_PDF_NATIVE?.refresh();pane.appFrame?.contentWindow.M4L_PDF_APP?.refresh();}catch{}}
 function focusLabels(){
  const focused=$('pr-workspace').classList.contains('is-focused');
  for(const pane of panes){
@@ -48,14 +49,14 @@ function rememberReadingPositions(){
  if(readingLayoutPending)return;readingLayoutPending=true;
  for(const pane of panes){
   if(window.M4L_PDF_WHITEBOARD.isOpen()&&pane.index!==active)continue;
-  try{const app=pane.frame?.contentWindow.PDFViewerApplication;if(!app?.pdfDocument){readingPositions.delete(pane.index);continue;}const location=app.pdfViewer._location;readingPositions.set(pane.index,{document:app.pdfDocument,page:app.page,destination:location?.pageNumber===app.page?[null,{name:'XYZ'},location.left,location.top,null]:null});}catch{}
+  try{if(pane.appActive){readingPositions.set(pane.index,{academy:true,...pane.appFrame.contentWindow.M4L_PDF_APP.position()});continue;}const app=pane.frame?.contentWindow.PDFViewerApplication;if(!app?.pdfDocument){readingPositions.delete(pane.index);continue;}const location=app.pdfViewer._location;readingPositions.set(pane.index,{document:app.pdfDocument,page:app.page,destination:location?.pageNumber===app.page?[null,{name:'XYZ'},location.left,location.top,null]:null});}catch{}
  }
 }
 function restoreReadingPositions(){
  const generation=++readingRestore;
  requestAnimationFrame(()=>requestAnimationFrame(()=>{
   if(generation!==readingRestore)return;
-  for(const pane of panes){const saved=readingPositions.get(pane.index);if(!saved||!pane.element.getClientRects().length)continue;try{const app=pane.frame.contentWindow.PDFViewerApplication;if(app.pdfDocument===saved.document)app.pdfViewer.scrollPageIntoView({pageNumber:saved.page,destArray:saved.destination,allowNegativeOffset:true});}catch{}}
+  for(const pane of panes){const saved=readingPositions.get(pane.index);if(!saved||!pane.element.getClientRects().length)continue;try{if(saved.academy){pane.appFrame?.contentWindow.M4L_PDF_APP?.restore(saved);continue;}const app=pane.frame.contentWindow.PDFViewerApplication;if(app.pdfDocument===saved.document)app.pdfViewer.scrollPageIntoView({pageNumber:saved.page,destArray:saved.destination,allowNegativeOffset:true});}catch{}}
   readingLayoutPending=false;if(!window.M4L_PDF_WHITEBOARD.isOpen())readingPositions.clear();
  }));
 }
@@ -102,10 +103,10 @@ function volumeSelector(pane){
 function updateAddress(pane,page){if(pane.index!==0||!pane.file)return;const params=new URLSearchParams({file:pane.file,title:pane.title});if(['public','personal'].includes(query.get('library')))params.set('library',query.get('library'));for(const key of ['workspace','studentProgram','studentClass','setup'])if(query.has(key))params.set(key,query.get(key));if(page)params.set('page',String(page));history.replaceState(null,'','/academy/pdf-reader/?'+params);}
 function openFile(pane,file,title,check=true,page=0){
  if(!ready||check&&!canReplace(pane))return false;
- pane.loadGeneration++;
+ discardAppEditor(pane);pane.loadGeneration++;
  pane.file=publicPdfFile(file);pane.title=title||'PDF '+(pane.index+1);pane.loaded=false;pane.page=0;pane.pageLabel='';
  part(pane,'[data-title]').textContent=pane.title;part(pane,'[data-empty]').hidden=Boolean(pane.file);volumeSelector(pane);updateBookmarkButtons(pane);
- pane.frame.src='/pdf-viewer/web/viewer.html?academy=1&pane='+pane.index+'&v=107.46&file='+encodeURIComponent(pane.file)+(page?'#page='+page:'');
+ pane.frame.src='/pdf-viewer/web/viewer.html?academy=1&pane='+pane.index+'&v=107.47&file='+encodeURIComponent(pane.file)+(page?'#page='+page:'');
  part(pane,'[data-drawer]').hidden=true;pane.drawerGeneration++;setActive(pane.index);updateAddress(pane,page);return true;
 }
 async function viewerApplication(pane){
@@ -120,7 +121,7 @@ async function viewerApplication(pane){
 }
 async function openBinary(pane,file,generation=++pane.loadGeneration){
  if(generation!==pane.loadGeneration)return false;
- pane.file='';pane.loaded=false;volumeSelector(pane);updateBookmarkButtons(pane);
+ discardAppEditor(pane);pane.file='';pane.loaded=false;volumeSelector(pane);updateBookmarkButtons(pane);
  const app=await viewerApplication(pane),data=new Uint8Array(await file.arrayBuffer());if(generation!==pane.loadGeneration)return false;await app.open({data,originalUrl:file.name});if(generation!==pane.loadGeneration)return false;
  pane.loaded=true;pane.title=file.name;part(pane,'[data-empty]').hidden=true;part(pane,'[data-title]').textContent=file.name;part(pane,'[data-drawer]').hidden=true;volumeSelector(pane);updateBookmarkButtons(pane);setActive(pane.index);
  return true;
@@ -191,6 +192,26 @@ async function saveBookmark(pane,page,button){
  try{await academyBookmarks.save(entry);status((page?'Page '+(entry.pageLabel||entry.page):'Book / volume')+' bookmarked in your Academy account.');}
  catch(error){status(error.message);}finally{updateBookmarkButtons(pane);}
 }
+function discardAppEditor(pane){pane.appActive=false;pane.appOpening=false;pane.appFrame?.remove();pane.appFrame=null;pane.appPromise=null;pane.frame.hidden=false;}
+async function toggleAppEditor(pane){
+ const button=part(pane,'[data-edit]'),open=button.getAttribute('aria-expanded')!=='true';
+ if(pane.appActive){const editor=pane.appFrame.contentWindow.M4L_PDF_APP;if(editor.setEditing(open)){button.setAttribute('aria-expanded',String(open));button.setAttribute('aria-pressed',String(open));}return;}
+ if(button.disabled)return;const generation=pane.loadGeneration;pane.appOpening=true;button.disabled=true;status('Opening Academy editing tools…');
+ try{
+  const app=await viewerApplication(pane);if(!app.pdfDocument)throw Error('Choose a PDF before opening the editing tools.');
+  const unsaved=Boolean(app._annotationStorageModified),bytes=unsaved?await app.pdfDocument.saveDocument():await app.pdfDocument.getData(),page=app.page;
+  if(generation!==pane.loadGeneration)return;
+  const frame=document.createElement('iframe');frame.title='Academy PDF '+(pane.index+1)+' editing tools';frame.dataset.appEditor='';frame.hidden=true;pane.appFrame=frame;
+  const loaded=new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('Academy editing tools could not start. Please try again.')),20000);frame.addEventListener('load',()=>{clearTimeout(timer);const editor=frame.contentWindow.M4L_PDF_APP;editor?resolve(editor):reject(Error('Academy editing tools could not start. Please try again.'));},{once:true});});
+  frame.src='/academy/pdf-compare/?embedded=1&pane='+pane.index+'&v=107.47';pane.frame.after(frame);
+  const editor=await loaded;if(generation!==pane.loadGeneration)return;
+  frame.contentWindow.addEventListener('keydown',readerKeydown);
+  await editor.load({bytes:bytes.slice(),name:/\.pdf$/i.test(pane.title)?pane.title:pane.title+'.pdf',file:pane.file,page,unsaved});
+  if(generation!==pane.loadGeneration)return;
+  pane.appActive=true;pane.frame.hidden=true;frame.hidden=false;editor.setEditing(true);button.setAttribute('aria-expanded','true');button.setAttribute('aria-pressed','true');pane.page=page;updateBookmarkButtons(pane);status('');
+ }catch(error){if(generation===pane.loadGeneration){discardAppEditor(pane);status(error.message||'Academy editing tools could not open. Your PDF is still available.');}}
+ finally{if(generation===pane.loadGeneration){pane.appOpening=false;updateBookmarkButtons(pane);}}
+}
 const readerIcons={
  edit:'<path d="m4 16 12-12 4 4L8 20H4v-4Zm10-10 4 4"/>',
  library:'<path d="M12 6c-3-3-7-3-10-2v15c3-1 7-1 10 2m0-15c3-3 7-3 10-2v15c-3-1-7-1-10 2V6"/>',
@@ -204,7 +225,7 @@ for(const pane of panes){
  pane.element.innerHTML=`<header class="pr-pane-header" aria-label="PDF ${pane.index+1} controls"><div class="pr-heading"><div class="pr-title-row"><span class="pr-pane-label">PDF ${pane.index+1}</span><h1 class="pr-pane-title" data-title>PDF ${pane.index+1}</h1><label class="pr-volume" data-volume-wrap hidden><select data-volume aria-label="Choose volume for PDF ${pane.index+1}"></select></label></div></div><div class="pr-document-actions"><div class="pr-pane-tools">${readerIcon('edit','Edit annotations','aria-expanded="false"')}${readerIcon('library','Library')}${readerIcon('device','Open file')}${readerIcon('bookmarks','My bookmarks')}</div><div class="pr-bookmark-tools">${readerIcon('save-book','Save book','disabled')}${readerIcon('save-page','Bookmark page','disabled')}<button type="button" data-focus aria-pressed="false" aria-controls="pr-workspace" hidden>Focus</button></div></div><input type="file" accept="application/pdf,.pdf" data-file hidden></header><iframe title="PDF ${pane.index+1} reader" data-frame></iframe><p class="pr-empty" data-empty>Choose Library or Open file to read a PDF.</p><aside class="pr-drawer" data-drawer aria-label="Library and bookmarks for PDF ${pane.index+1}" hidden><div class="pr-drawer-head"><h2>Academy Library</h2><button type="button" data-close aria-label="Close Library drawer">Close</button></div><nav class="pr-drawer-tabs" aria-label="Books and bookmarks"><button type="button" data-drawer-mode="books" aria-pressed="true">Books &amp; volumes</button><button type="button" data-drawer-mode="bookmarks" aria-pressed="false">My bookmarks</button></nav><label>Search<input type="search" data-search placeholder="Title, volume or page" autocomplete="off"></label><button type="button" data-refresh>↻ Refresh</button><p class="pr-drawer-note" data-note></p><a href="/academy/" target="_blank" rel="noopener" class="pr-sign-in" data-sign-in>Academy home / Sign in ↗</a><div class="pr-book-list" data-books></div></aside>`;
  pane.header=part(pane,'.pr-pane-header');pane.header.id='pr-controls-'+pane.index;pane.header.addEventListener('pointerdown',()=>setActive(pane.index));
  new ResizeObserver(()=>{const height=pane.header.getBoundingClientRect().height;if(height)pane.element.style.setProperty('--pr-controls-height',height+'px');}).observe(pane.header);
- pane.frame=part(pane,'[data-frame]');part(pane,'[data-edit]').onclick=()=>{const button=part(pane,'[data-edit]'),open=button.getAttribute('aria-expanded')!=='true';button.setAttribute('aria-expanded',String(open));button.setAttribute('aria-pressed',String(open));pane.frame.contentWindow.M4L_PDF_NATIVE?.setEditing(open);};pane.frame.addEventListener('load',()=>{part(pane,'[data-edit]').setAttribute('aria-expanded','false');part(pane,'[data-edit]').setAttribute('aria-pressed','false');});part(pane,'[data-library]').onclick=()=>void drawer(pane);
+ pane.frame=part(pane,'[data-frame]');part(pane,'[data-edit]').onclick=()=>void toggleAppEditor(pane);pane.frame.addEventListener('load',()=>{part(pane,'[data-edit]').setAttribute('aria-expanded','false');part(pane,'[data-edit]').setAttribute('aria-pressed','false');});part(pane,'[data-library]').onclick=()=>void drawer(pane);
  part(pane,'[data-bookmarks]').onclick=()=>void drawer(pane,'bookmarks');
  part(pane,'[data-focus]').onclick=()=>{if(!split||window.M4L_PDF_WHITEBOARD.isOpen())return;rememberReadingPositions();setActive(pane.index);$('pr-workspace').classList.toggle('is-focused');focusLabels();restoreReadingPositions();};
  part(pane,'[data-refresh]').onclick=()=>void drawer(pane,pane.mode,true);part(pane,'[data-search]').oninput=()=>pane.mode==='books'?renderBooks(pane):renderBookmarks(pane);
@@ -225,7 +246,7 @@ $('pr-fullscreen').onclick=()=>fullScreen(!document.body.classList.contains('pr-
 window.addEventListener('keydown',readerKeydown);
 $('pr-volume-cancel').onclick=()=>$('pr-volume-dialog').close();
 window.addEventListener('m4l-pdf-bookmarks-change',()=>{for(const pane of panes)if(pane.mode==='bookmarks'&&!part(pane,'[data-drawer]').hidden){pane.drawerGeneration++;renderBookmarks(pane);}});
-window.addEventListener('blur',()=>{const pane=panes.find(pane=>pane.frame===document.activeElement);if(pane)setActive(pane.index);});
+window.addEventListener('blur',()=>{const pane=panes.find(pane=>pane.frame===document.activeElement||pane.appFrame===document.activeElement);if(pane)setActive(pane.index);});
 $('pr-split').onclick=()=>{if(mobile.matches)return;split=!split;$('pr-workspace').classList.remove('is-focused');if(!split)setActive(0);layout();};
 $('pr-both').onclick=()=>{$('pr-workspace').classList.toggle('show-both');$('pr-workspace').classList.remove('is-focused');layout();};
 for(const pane of panes){const tab=$('pr-tab-'+pane.index);tab.onclick=()=>setActive(pane.index);tab.onkeydown=event=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){event.preventDefault();setActive(event.key==='Home'?0:event.key==='End'?1:1-active);$('pr-tab-'+active).focus();}};}

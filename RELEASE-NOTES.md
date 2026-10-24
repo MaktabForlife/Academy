@@ -1,3 +1,7 @@
+# V107.47 — Reader pencil opens Academy editing tools
+
+Replace the pencil's PDF.js editing-row action with the same Academy annotation controller and markup used on the comparison page. Opening editing transfers the current PDF, current page and any existing PDF annotations. Hiding the tools preserves marks and the mounted editor; reopening editing retains them. Book and volume changes continue to guard unsaved work, and downloads save an editable copy. Page navigation continues to update the existing bookmark controls. Preserve desktop/tablet split PDFs, Whiteboard and full screen, with Split and Whiteboard hidden on phones. The separate comparison page remains available. No database/schema, login or role changes.
+
 # V107.46 — Compact publication confirmation and timetable Publish state
 
 Replace the long setup confirmation with Confirm publish, Areas to publish together, and Cancel / Review changes / Publish. Review details are optional; direct Publish prepares the same checked, frozen change and applies it only on the explicit click. Retain current scope/access checks, source/head checks, replay protection and accepted setup routing. Changing the selection invalidates the earlier review. No unpublished changes leaves publication unchanged.

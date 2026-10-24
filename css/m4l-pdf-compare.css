@@ -25,3 +25,19 @@ button[aria-pressed=true]:not([data-colour]):hover{background:#573260;color:#fff
 .page-picker{position:relative;display:flex;align-items:center;width:94px;border:1px solid var(--line);border-radius:6px;background:white}.page-controls .page-picker #page-number{width:60px;min-width:0;border:0;background:transparent;padding:7px 8px;outline-offset:-2px}.page-controls .page-picker #page-menu-toggle{width:30px;min-height:34px;height:34px;padding:7px 8px;border:0;border-left:1px solid var(--line);border-radius:0 5px 5px 0;font-size:12px}.page-picker button svg{display:block;width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}#page-options{position:absolute;top:calc(100% + 4px);left:0;min-width:100%;max-height:min(250px,45dvh);overflow:auto;z-index:9;padding:4px;background:white;border:1px solid var(--line);border-radius:7px;box-shadow:0 4px 15px #30273830;overscroll-behavior:contain}#page-options [role=option]{font-size:13px;min-height:34px;padding:7px 10px;cursor:pointer;border-radius:4px}#page-options [aria-selected=true]{font-weight:bold}#page-options .active,#page-options [role=option]:hover{background:#70477c;color:white}@media(max-width:900px){.page-controls .page-picker #page-number,.page-controls .page-picker #page-menu-toggle{min-height:44px;height:44px}#page-options [role=option]{min-height:40px;padding:9px 10px}}
 
 #compare-edit svg{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.markup-bar>.edit-actions{padding:0 0 0 5px;border-left:1px solid var(--line);margin-left:5px}.compare-header #compare-edit{border:1px solid var(--line)}body:not(.compare-editing) .mobile-dock{display:none!important}
+
+/* The reader embeds the same Academy editor used by the comparison page. */
+body.embedded-editor{height:100dvh;min-height:0;padding:0;display:flex;flex-direction:column;overflow:hidden;background:#e3dfe5}
+.embedded-editor :is(.compare-header,.intro,.view-bar,.native-pane,.pane-title,.marks-panel,.mobile-dock,#tool-hint,#selection-note){display:none!important}
+.embedded-editor #status{flex:none;margin:0;padding:0 10px;min-height:0}.embedded-editor #status:not(:empty){padding:4px 10px}
+.embedded-editor #comparison{display:flex!important;flex:1;min-height:0;min-width:0;margin:0;padding:0;gap:0;width:100%}
+.embedded-editor .academy-pane{flex:1;min-height:0;border:0;border-radius:0}
+.embedded-editor .page-scroll{flex:1;height:auto;min-height:0}
+.embedded-editor .page-controls{flex:none;display:flex;gap:8px 12px;background:#faf7fb;flex-wrap:wrap}
+.embedded-editor .page-controls .check{display:none}
+.embedded-editor .toolbox{flex:none;background:white}
+.embedded-editor #app-workspace-tools{display:flex;gap:4px;margin-left:auto}
+.embedded-editor #app-workspace-tools button{display:inline-flex;align-items:center;justify-content:center;padding:6px;min-width:36px;min-height:36px}
+.embedded-editor #app-workspace-tools button[hidden]{display:none!important}
+.embedded-editor #app-workspace-tools svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.embedded-editor .markup-bar>.edit-actions{flex-wrap:nowrap}

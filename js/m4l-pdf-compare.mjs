@@ -1,22 +1,27 @@
 import * as pdfjs from '../pdf-viewer/build/pdf.mjs';
-import {createPagePicker} from './m4l-pdf-page-picker.mjs?v=107.46';
-import {clamp,shapeMark,markBounds,moveMark,resizeMark,hitMark,textLayout,paintMark,defaultTextBox,tidySketch} from './m4l-pdf-compare-model.mjs?v=107.46';
-import {importEditable,exportEditable} from './m4l-pdf-editable.mjs?v=107.46';
-import {DEFAULT_FAVOURITES,readFavouriteColours,saveFavouriteColours,favouriteColours} from './m4l-pdf-favourites.mjs?v=107.46';
+import {createPagePicker} from './m4l-pdf-page-picker.mjs?v=107.47';
+import {clamp,shapeMark,markBounds,moveMark,resizeMark,hitMark,textLayout,paintMark,defaultTextBox,tidySketch} from './m4l-pdf-compare-model.mjs?v=107.47';
+import {importEditable,exportEditable} from './m4l-pdf-editable.mjs?v=107.47';
+import {DEFAULT_FAVOURITES,readFavouriteColours,saveFavouriteColours,favouriteColours} from './m4l-pdf-favourites.mjs?v=107.47';
 pdfjs.GlobalWorkerOptions.workerSrc='/pdf-viewer/build/pdf.worker.mjs';
 const $=id=>document.getElementById(id),frame=$('native-reader'),canvas=$('marks-canvas'),context=canvas.getContext('2d'),stage=$('page-stage');
-const sampleUrl='/academy/pdf-compare/sample.pdf';
-const state={pdf:null,bytes:null,name:'',page:1,viewport:null,marks:[],undo:[],redo:[],selected:null,tool:'hand',colour:'#292336',width:2.5,size:20,fill:false,fillColour:'#235dad',busy:true,rendering:false,exporting:false,generation:0,saved:'[]',gesture:null,text:null};
+const sampleUrl='/academy/pdf-compare/sample.pdf',params=new URLSearchParams(location.search);
+let embedded=false;try{embedded=params.get('embedded')==='1'&&parent!==window&&parent.location.origin===location.origin&&Boolean(parent.M4L_PDF_READER);}catch{}const host=embedded?parent.M4L_PDF_READER:null,paneIndex=Number(params.get('pane')||0);
+if(embedded)document.body.classList.add('embedded-editor');
+const state={pdf:null,bytes:null,name:'',page:1,viewport:null,marks:[],undo:[],redo:[],selected:null,tool:'hand',colour:'#292336',width:2.5,size:20,fill:false,fillColour:'#235dad',busy:true,rendering:false,exporting:false,generation:0,saved:'[]',gesture:null,text:null,sourceDirty:false,sourceFile:''};
 let pagePicker=null,textLayer=null,native=null,loading=null,pendingReplace=null,currentView='both',viewSync=false,savedCopy=null;
 function nativePageChanged(event){if(!viewSync&&currentView!=='academy'&&$('link-pages').checked&&!state.busy&&event.pageNumber!==state.page)void showPage(event.pageNumber,false);}
 const serial=()=>JSON.stringify(state.marks),copy=value=>structuredClone(value),notice=(text,error=false)=>{$('status').textContent=text;$('status').classList.toggle('error',error);};
-const nativeReady=new Promise((resolve,reject)=>{
- frame.addEventListener('load',async()=>{try{native=frame.contentWindow.PDFViewerApplication;await native.initializedPromise;
-  native.eventBus.on('pagechanging',nativePageChanged);resolve(native);
- }catch(error){reject(error);}},{once:true});
- // Cached iframe loads can finish before this module starts.
- if(frame.contentDocument?.readyState==='complete'&&frame.contentWindow.PDFViewerApplication){native=frame.contentWindow.PDFViewerApplication;native.initializedPromise.then(()=>{native.eventBus.on('pagechanging',nativePageChanged);resolve(native);}).catch(reject);}
+const nativeReady=embedded?Promise.resolve(null):new Promise((resolve,reject)=>{
+ async function loaded(){
+  const app=frame.contentWindow.PDFViewerApplication;if(!app)return;
+  frame.removeEventListener('load',loaded);
+  try{native=app;await native.initializedPromise;native.eventBus.on('pagechanging',nativePageChanged);resolve(native);}catch(error){reject(error);}
+ }
+ frame.addEventListener('load',loaded);
+ if(frame.contentDocument?.readyState==='complete'&&frame.contentWindow.PDFViewerApplication)void loaded();
 });
+if(!embedded)frame.src=frame.dataset.src;
 nativeReady.catch(()=>notice('PDF.js could not start. Reload this comparison page.',true));
 const toolbox=$('toolbox');document.querySelector('.page-controls').after(toolbox);
 const downloadButton=$('download');downloadButton.className='icon-button';downloadButton.setAttribute('aria-label','Download my copy');downloadButton.title='Download my copy';downloadButton.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg>';document.querySelector('.markup-bar').append(downloadButton,document.querySelector('.edit-actions'));
@@ -68,13 +73,13 @@ async function showPage(number,link=true){
   const base=$('pdf-canvas');base.width=rendered.width;base.height=rendered.height;base.getContext('2d').drawImage(rendered,0,0);canvas.width=rendered.width;canvas.height=rendered.height;state.viewport=viewport;
   textLayer=new pdfjs.TextLayer({textContentSource:page.streamTextContent(),container:$('pdf-text-layer'),viewport});
   await textLayer.render().catch(error=>{if(error.name!=='AbortException')console.warn('PDF text selection unavailable',error);});if(generation!==state.generation)return;
-  $('page-number').value=number;pagePicker?.setPages(state.pdf.numPages,number);$('page-count').textContent='/ '+state.pdf.numPages;fitStage();redraw();
+  host?.location(paneIndex,window,{file:state.sourceFile,page:number,pageLabel:''});$('page-number').value=number;pagePicker?.setPages(state.pdf.numPages,number);$('page-count').textContent='/ '+state.pdf.numPages;fitStage();redraw();
   if(link&&$('link-pages').checked&&native?.pdfDocument&&native.page!==number)native.page=number;
  }catch{if(generation===state.generation)notice('This page could not be displayed. Try another page.',true);}
  finally{if(generation===state.generation){state.rendering=false;canvas.style.visibility='';controls();}}
 }
 function baselineDirty(){return Boolean(native?._annotationStorageModified);}
-function dirty(){return serial()!==state.saved||baselineDirty()||Boolean(state.text&&$('text-value').value.trim()&&JSON.stringify(state.text.draft)!==state.text.originalDraft);}
+function dirty(){return state.sourceDirty||serial()!==state.saved||baselineDirty()||Boolean(state.text&&$('text-value').value.trim()&&JSON.stringify(state.text.draft)!==state.text.originalDraft);}
 function requestOpen(action){if(!dirty()){void action();return;}pendingReplace=action;$('replace-dialog').showModal();}
 $('replace-cancel').onclick=()=>{pendingReplace=null;$('replace-dialog').close();};
 $('replace-confirm').onclick=()=>{const action=pendingReplace;pendingReplace=null;$('replace-dialog').close();if(action)void action();};
@@ -86,10 +91,10 @@ async function loadPdf(bytes,name){
   loading.onPassword=()=>{void loading.destroy();notice('Choose an unlocked PDF for this comparison.',true);};prepared=await loading.promise;
   const editable=await importEditable(original,prepared,window.PDFLib);
   if(editable.bytes!==original){await prepared.loadingTask.destroy();loading=pdfjs.getDocument({data:editable.bytes.slice(),cMapUrl:'/pdf-viewer/web/cmaps/',cMapPacked:true,standardFontDataUrl:'/pdf-viewer/web/standard_fonts/',wasmUrl:'/pdf-viewer/web/wasm/',isEvalSupported:false});prepared=await loading.promise;}
-  await nativeReady;await native.open({data:original.slice(),originalUrl:name});
+  await nativeReady;if(native)await native.open({data:original.slice(),originalUrl:name});
   const old=state.pdf;state.pdf=prepared;prepared=null;state.bytes=editable.bytes;state.name=name;state.page=1;state.viewport=null;state.marks=editable.marks;state.undo=[];state.redo=[];state.selected=null;state.saved=serial();state.busy=false;state.text=null;$('text-form').hidden=true;
-  $('file-name').textContent=name;await showPage(1);update();if(old)void old.loadingTask.destroy().catch(()=>{});notice('Ready. Each view keeps its own marks. Try the same task in both.');
- }catch(error){if(prepared)void prepared.loadingTask.destroy().catch(()=>{});console.warn('PDF comparison load failed',error);notice('Could not open this PDF. Choose an unlocked, valid PDF (up to 30 MB).',true);}
+  $('file-name').textContent=name;await showPage(1);update();if(old)void old.loadingTask.destroy().catch(()=>{});notice(embedded?'Ready.':'Ready. Each view keeps its own marks. Try the same task in both.');
+ }catch(error){if(prepared)void prepared.loadingTask.destroy().catch(()=>{});console.warn('PDF comparison load failed',error);notice('Could not open this PDF. Choose an unlocked, valid PDF (up to 30 MB).',true);if(embedded)throw error;}
  finally{state.busy=false;controls();loading=null;}
 }
 async function loadSample(){try{state.busy=true;controls();const response=await fetch(sampleUrl);if(!response.ok)throw Error();await loadPdf(await response.arrayBuffer(),'Sample worksheet.pdf');}catch{state.busy=false;controls();notice('Sample unavailable. You can still open a PDF from your device.',true);}}
@@ -220,10 +225,25 @@ $('download').onclick=async()=>{
  if(!state.pdf||state.exporting||state.busy||!finishText(true))return;cancelGesture();state.exporting=true;controls();notice('Preparing your editable PDF copy…');
  try{
   const snapshot=serial(),bytes=await exportEditable(state.bytes,state.marks,pdfjs,window.PDFLib,context),name=state.name.replace(/(-academy)*\.pdf$/i,'')+'-academy.pdf';
-  savedCopy={bytes:bytes.slice(),name};const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'})),link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);state.saved=snapshot;
+  savedCopy={bytes:bytes.slice(),name};const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'})),link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);state.saved=snapshot;state.sourceDirty=false;
   notice('Editable copy downloaded. Choose Reopen saved copy to continue editing, or open it in PDF.js.');
  }catch(error){console.warn('Editable PDF export failed',error);notice('This PDF could not be exported. Your marks are still here; try again or use the sample worksheet.',true);}
  finally{state.exporting=false;controls();}
 };
-window.addEventListener('beforeunload',event=>{if(dirty()){event.preventDefault();event.returnValue='';}});
-chooseTool('hand');void loadSample();
+if(!embedded)window.addEventListener('beforeunload',event=>{if(dirty()){event.preventDefault();event.returnValue='';}});
+chooseTool('hand');
+if(embedded){
+ const work=document.createElement('div');work.id='app-workspace-tools';work.setAttribute('role','group');work.setAttribute('aria-label','Reader workspace tools');
+ for(const action of ['split','whiteboard']){const button=document.createElement('button');button.type='button';button.dataset.workspaceAction=action;button.onclick=()=>host.workspaceAction(paneIndex,action);work.append(button);}document.querySelector('.page-controls').append(work);
+ function refresh(){const layout=host.workspaceState();for(const [i,button] of [...work.children].entries()){if(!button.firstElementChild)button.innerHTML=layout.icons[i];const open=i===0?layout.split:layout.whiteboard;button.title=i===0?(open?'Close split page':'Split Page'):'Whiteboard';button.setAttribute('aria-label',button.title);button.setAttribute('aria-pressed',String(open));button.hidden=layout.mobile;button.disabled=i===0&&layout.whiteboard;}}
+ function setEditing(open){if(!open&&!finishText(true))return false;toolbox.hidden=!open;document.body.classList.toggle('compare-editing',open);if(!open)chooseTool('hand');return true;}
+ window.M4L_PDF_APP={
+  load:async({bytes,name,page=1,file='',unsaved=false})=>{state.sourceFile=file;await loadPdf(bytes,name);state.sourceDirty=Boolean(unsaved);await showPage(page);notice('');},
+  setEditing,hasUnsaved:dirty,refresh,
+  position:()=>({document:state.pdf,page:state.page,top:$('page-scroll').scrollTop,left:$('page-scroll').scrollLeft}),
+  restore:position=>{if(position.document===state.pdf){if(position.page!==state.page)void showPage(position.page);requestAnimationFrame(()=>{$('page-scroll').scrollTop=position.top;$('page-scroll').scrollLeft=position.left;});}},
+  busy:()=>state.busy||state.exporting||state.rendering
+ };
+ window.addEventListener('pointerdown',()=>host.activate(paneIndex,window),true);window.addEventListener('focusin',()=>host.activate(paneIndex,window));
+ setView('academy');setEditing(false);refresh();notice('');host.toolbarReady();
+}else void loadSample();

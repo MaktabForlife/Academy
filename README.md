@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.46
+# Umm Abbad Academy — V107.47
+
+## V107.47 — Open Academy tools from the PDF pencil
+
+The reader pencil opens the shared Academy editor from the comparison page, with freehand/sketch, shapes, colours and in-place editable text. Keep its annotations visible when the editing row is hidden. Transfer the current PDF and page without changing the selected book, volume or bookmark identity. Preserve unsaved-edit checks on file replacement, navigation and leaving the reader. Split/Whiteboard retain their existing phone restriction. No database changes.
 
 ## V107.46 — Compact publication confirmation
 
