@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.42
+# Umm Abbad Academy — V107.43
+
+## V107.43 — Course and Program media rails
+
+Replace media day columns with matching horizontal rails of equal-sized cards. Show dated Course/session identities, Teacher names for Programs, framed play and PDF icons with file names, and a Chat coming soon message. Keep date/class selectors, Course-wide PDFs, Admin curation, Teacher notes, private file delivery and PDF.js.
 
 ## V107.42 — Single PDF view on phones
 

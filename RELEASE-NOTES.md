@@ -1,3 +1,9 @@
+# V107.43 — Course and Program media rails
+
+Use the same horizontal card rail for Course and Program media in learning, teaching and management views. Each rail has equal-sized cards with dates in DDD dd mmm yy format. Course cards show the Course name and chat icon; Program cards show session and Teacher names with chat. Named video/PDF actions open the existing protected player and PDF.js viewer directly. The user-selected video icon is a play triangle in an outlined frame. Chat opens a local Coming soon message. Retain week/date, offering and class selectors, explicit Admin management, Teacher own-note contributions, Course-wide PDFs and all file/access boundaries. Browsing the rail itself adds no API requests. No database or storage changes.
+
+Verification: 22 focused media, access and release checks pass. Local browser suites pass for eight Course/Program rail layouts at 320/390/768/1440px, current separated media/own-note/PDF.js delivery, and compatibility management, draft guards, protected playback, retry and account-change cleanup. Check three-letter month formatting, equal card sizes with many attachments, chat without requests and rail browsing without requests. Source boundary and matching website/Worker dry-run builds pass. Header compaction and unfinished annotation work remain separate from this release.
+
 # V107.42 — Mobile PDF reader controls
 
 Hide Whiteboard, Split Page and their related controls on phone layouts, including touch landscape. Keep a single active PDF with its existing tools, Download, Library and full screen. Preserve tablet/desktop whiteboard and split reading. Changing to phone size closes the whiteboard without discarding its drawing or notes and retains both PDFs and their annotations for the wider layout. No database, storage or API changes.

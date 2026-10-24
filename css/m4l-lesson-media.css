@@ -5,7 +5,7 @@
 
 .lm-form select{min-width:0;max-width:100%}.lm-dialog .button{min-height:42px;cursor:pointer;border:1px solid #70477c;border-radius:.65rem;padding:.6rem 1rem;background:#70477c;color:#fff;font:600 14px Arial,sans-serif}.lm-dialog .button.secondary{background:#fff;color:#70477c}.lm-dialog .lm-actions{margin-top:.5rem}.lm-form [type=file]{max-width:100%}@media(max-width:600px){.lm-files li{flex-wrap:wrap}.lm-files span{overflow-wrap:anywhere;min-width:0}}
 
-/* One weekly lesson calendar is shared by management, LEARN and TEACH. */
+/* Date-scoped media controls are shared by management, LEARN and TEACH. */
 .lm-calendar{min-width:0}
 .lm-calendar .button{min-height:42px;cursor:pointer;border:1px solid #70477c;border-radius:.65rem;padding:.6rem .9rem;background:#70477c;color:#fff;font:600 14px Arial,sans-serif}
 .lm-calendar .button.secondary{background:#fff;color:#70477c}
@@ -17,21 +17,8 @@
 .lm-calendar-filters label{display:grid;gap:4px;font-size:12px;font-weight:600;min-width:0;max-width:100%}
 .lm-calendar-filters :is(input,select){min-width:0;max-width:260px;min-height:42px;border:1px solid #cdbbd5;border-radius:7px;padding:7px;background:#fff;font:14px Arial,sans-serif;color:#302735;box-sizing:border-box}
 .lm-calendar-help{font-size:14px;line-height:1.5;color:#65596b}
-.lm-timetable-scroll{max-width:100%;min-width:0;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;border:1px solid #ddcce4;border-radius:12px;scrollbar-color:#b594c2 transparent}
-.lm-timetable{display:grid;grid-template-columns:repeat(7,minmax(160px,1fr));min-width:1120px;align-items:stretch;background:#faf7fc}
-.lm-day{min-width:0;min-height:240px;padding:0 8px 12px;border-right:1px solid #e6dbe9;scroll-snap-align:start}
-.lm-day:last-child{border-right:0}
-.lm-day h3{margin:0 -8px 10px;padding:12px 6px;background:#eee3f3;color:#58305f;font-size:14px;text-align:center}
-.lm-day.is-today h3{background:#70477c;color:#fff}
-.lm-empty-day{font-size:13px;text-align:center;color:#786c7d;padding:12px 0}
-.lm-calendar .lm-session{display:flex;flex-direction:column;gap:7px;box-sizing:border-box;min-width:0;width:100%;min-height:130px;margin:0 0 10px;padding:12px 10px;border:1px solid #d6c2de;border-radius:10px;background:#fff;color:#46304d;font:14px/1.4 Arial,sans-serif;text-align:left;cursor:pointer;white-space:normal;overflow-wrap:anywhere}
-.lm-calendar .lm-session.has-media{border-color:#ad85ba;background:#f1e8f5}
-.lm-session:hover,.lm-session:focus-visible{outline:2px solid #805088;outline-offset:-2px}
-.lm-session strong{font-size:15px}.lm-session-time{font-weight:700}.lm-session-meta{font-size:12px;color:#6c5b74}.lm-attach-hint{font-size:12px;color:#70477c;margin-top:auto}
-.lm-media-icons{display:flex;gap:5px;flex-wrap:wrap;margin-top:auto;font-size:12px;font-weight:700;color:#70477c}
-.lm-media-icons>span{display:inline-flex;align-items:center;gap:4px}.lm-media-icons svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linejoin:round}
 .lm-session-summary{white-space:pre-wrap;overflow-wrap:anywhere}
-@media(max-width:600px){.lm-week-nav{padding:9px}.lm-week-controls>strong{flex:1;font-size:13px}.lm-calendar-filters{width:100%}.lm-calendar-filters label{flex:1 1 135px}.lm-calendar-filters :is(input,select){width:100%;max-width:100%}.lm-timetable{min-width:1050px;grid-template-columns:repeat(7,minmax(150px,1fr))}}
+@media(max-width:600px){.lm-week-nav{padding:9px}.lm-week-controls>strong{flex:1;font-size:13px}.lm-calendar-filters{width:100%}.lm-calendar-filters label{flex:1 1 135px}.lm-calendar-filters :is(input,select){width:100%;max-width:100%}}
 
 .lm-course-files{margin:16px 0 24px;padding:16px;border:1px solid #dfcde6;border-radius:14px;background:#faf6fc}
 .lm-course-files h3{margin:0 0 6px}.lm-course-files .lm-heading{margin-bottom:12px}
@@ -44,3 +31,30 @@
 .lm-asset-name-form{width:100%}.lm-files .lm-asset-name-form{margin:0}
 .lm-files .lm-asset-name-form input{width:100%;box-sizing:border-box}
 @media(max-width:650px){.lm-video-entry{grid-template-columns:minmax(0,1fr)}.lm-course-files{padding:12px}.lm-course-files .lm-heading{align-items:stretch}}
+
+/* Course and Program media share one horizontal rail of equal-sized cards. */
+.lm-rail-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px}
+.lm-rail-heading .lm-calendar-help{margin:0}.lm-rail-controls{display:flex;gap:6px;flex:none}
+.lm-media-rail{display:grid;grid-auto-flow:column;grid-auto-columns:min(284px,calc(100% - 24px));grid-template-rows:380px;gap:12px;max-width:100%;min-width:0;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scrollbar-color:#b594c2 transparent;padding:4px 3px 12px}
+.lm-media-rail:empty{display:none}
+.lm-calendar .lm-media-card{box-sizing:border-box;width:100%;font:14px/1.4 Arial,sans-serif;display:flex;flex-direction:column;gap:0;height:380px;min-height:0;margin:0;padding:0;border:1px solid #d6c2de;border-radius:12px;overflow:hidden;scroll-snap-align:start;background:#fff;color:#46304d;cursor:default}
+.lm-calendar .lm-media-card.has-media{background:#faf6fc;border-color:#ad85ba}
+.lm-media-card .lm-card-heading{display:flex;flex-direction:column;flex:none;height:164px;gap:7px;margin:0;padding:12px;border-bottom:1px solid #e6dbe9;box-sizing:border-box}
+.lm-card-date{font-size:13px;font-weight:700;color:#70477c}
+.lm-card-name,.lm-card-teacher{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.lm-card-name{align-items:flex-start;flex:1;min-height:0}.lm-card-name h3{min-width:0;flex:1;margin:0;font-size:16px;line-height:1.35}
+.lm-card-title{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;width:100%;max-height:2.7em;margin:0;padding:0;border:0;background:transparent;color:inherit;text-align:left;white-space:normal;font:700 16px/1.35 Arial,sans-serif;overflow-wrap:anywhere}
+button.lm-card-title{cursor:pointer}button.lm-card-title:hover{text-decoration:underline}
+.lm-card-title:focus-visible,.lm-card-chat:focus-visible,.lm-card-file:focus-visible{outline:2px solid #805088;outline-offset:2px}
+.lm-card-teacher{font-size:13px;min-height:36px}.lm-card-teacher>span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;min-width:0}
+.lm-card-chat{display:grid;place-items:center;flex:none;width:36px;height:36px;min-width:36px;min-height:36px;border:1px solid #d6c2de;border-radius:9px;background:#fff;color:#70477c;cursor:pointer;padding:7px}
+.lm-card-chat svg,.lm-card-file svg{width:22px;height:22px;flex:none;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.lm-card-chat.is-coming-soon{color:#8b7892;background:#faf7fc}
+.lm-card-session,.lm-card-meta{margin:0;font-size:12px;line-height:1.35;color:#6c5b74;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lm-card-files{display:flex;flex-direction:column;gap:6px;flex:1;min-height:0;overflow-y:auto;overscroll-behavior-y:contain;padding:10px 12px}
+.lm-card-file{display:flex;align-items:center;gap:8px;flex:none;min-height:44px;width:100%;padding:7px 8px;border:1px solid #e0d0e6;border-radius:8px;background:#fff;color:#58305f;text-align:left;font:500 13px/1.4 Arial,sans-serif;cursor:pointer}
+.lm-card-file>span{min-width:0;overflow-wrap:anywhere}.lm-card-file:hover{background:#f1e8f5}
+.lm-card-empty{margin:0;padding:8px 0;font-size:13px;color:#786c7d}
+.lm-card-footer{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex:none;min-height:56px;padding:6px 12px;border-top:1px solid #e6dbe9}
+.lm-calendar .lm-card-footer .button{min-height:42px;padding:7px 10px;font-size:12px}
+@media(max-width:600px){.lm-rail-heading{align-items:flex-start}.lm-rail-heading .lm-calendar-help{font-size:12px}.lm-card-chat{min-width:44px;width:44px;height:44px}.lm-card-teacher{min-height:44px}.lm-media-card .lm-card-heading{height:172px}.lm-card-title{font-size:15px}.lm-calendar .lm-card-footer .button{min-height:44px}}
