@@ -1,3 +1,7 @@
+# V107.37 — Personal navigation from Home and one-row Admin banners
+
+Supersede V107.36: Global and scoped Admin Home offers Personal Learn, Personal Teach and Admin, each clearly labelled. Remove the second navigation row from all Admin, Admin-Learn and Admin-Teach banners; retain the first workspace label/description and existing Home action with draft guards. Personal workspaces retain their separate permissions and actual assignments, including an empty Personal Teach when none are assigned. Feature preview only; no database changes.
+
 # V107.36 — Global Admin navigation
 
 Hide plain Learn and Teach switches for Global Admin on personal Home and connected reader pages. Keep explicitly labelled ADMIN-LEARN and ADMIN-TEACH inside Admin, plus the existing personal exit links. Preserve Program Admin, Teacher and Student navigation, access checks and layouts. Feature preview only; no database changes.

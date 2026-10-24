@@ -375,9 +375,8 @@
   }
   function renderAcademyMenu() {
     const data = state.home, activities = data?.signedIn ? data.personalActivities : [];
-    const global = Boolean(data?.signedIn && data.globalAdmin), globalAccount=Boolean(data?.signedIn&&(data.workspaceAccess?.globalAdmin??data.globalAdmin)), roles = [...new Set(activities.flatMap(row => row.roles || []))];
-    // Global Admin enters the labelled Admin readers through the Admin workspace.
-    const adminRealm=Boolean(window.M4L_ACADEMY_WORKSPACE?.adminRealm()&&window.M4L_ACADEMY_WORKSPACE?.adminAccess?.()),canAdmin=global||data?.workspaceAccess?.admin||adminRoles(roles),available={learn:adminRealm?canAdmin:!globalAccount&&(data?.workspaceAccess?.learn||roles.length>0),teach:adminRealm?canAdmin:!globalAccount&&(data?.workspaceAccess?.teach||roles.includes('TEACHER')),admin:canAdmin};
+    const global = Boolean(data?.signedIn && data.globalAdmin), roles = [...new Set(activities.flatMap(row => row.roles || []))];
+    const adminRealm=Boolean(window.M4L_ACADEMY_WORKSPACE?.adminRealm()&&window.M4L_ACADEMY_WORKSPACE?.adminAccess?.()),canAdmin=global||data?.workspaceAccess?.admin||adminRoles(roles),available={learn:canAdmin||data?.workspaceAccess?.learn||roles.length>0,teach:canAdmin||data?.workspaceAccess?.teach||roles.includes('TEACHER'),admin:canAdmin};
     const choices = ['learn','teach','admin'].filter(key => data?.signedIn && available[key] && (!window.M4L_ACADEMY_WORKSPACE?.adminRealm()||adminRealm));
     const parts = location.hash.slice(1).split('/'), home = !parts[0] || ['overview','learning'].includes(parts[0]);
     const requested = parts[0]==='timetable'?parts[1]||'learn':['administration','assessment-admin','progress-admin'].includes(parts[0]) ? 'admin' : parts[0] === 'activity' && state.activity ? workspaceContext(state.activity).mode : home ? parts[1] : '';
@@ -393,7 +392,7 @@
     $('academy-access-empty').hidden = !data?.signedIn || Boolean(choices.length);
     for (const key of ['learn','teach','admin']) {
       const tab = $('academy-tab-'+key), active = !home && key === state.academyTab;
-      tab.textContent=(adminRealm&&key!=='admin'?'ADMIN-':'')+key.toUpperCase();tab.hidden = !choices.includes(key);tab.setAttribute('aria-pressed', String(active));tab.setAttribute('aria-controls',key === 'admin' ? 'administration' : 'timetable');tab.tabIndex = 0;
+      tab.textContent=(key!=='admin'?(adminRealm?'ADMIN-':canAdmin?'PERSONAL ':''):'')+key.toUpperCase();tab.hidden = !choices.includes(key);tab.setAttribute('aria-pressed', String(active));tab.setAttribute('aria-controls',key === 'admin' ? 'administration' : 'timetable');tab.tabIndex = 0;
     }
     panel.hidden = true;
     panel.setAttribute('aria-labelledby', 'academy-tab-'+state.academyTab);

@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.36
+# Umm Abbad Academy — V107.37
+
+## V107.37 — Personal workspaces from Admin Home
+
+Restore Personal Learn, Personal Teach and Admin choices on Global Admin Home, and clearly label personal choices for scoped Admins too. Keep Admin-Learn and Admin-Teach inside the Admin workspace. Reduce every Admin context banner to its workspace label and description; use Home to return to personal choices. Personal views retain only genuine own access and may be empty. Preview only; no database or permission changes.
 
 ## V107.36 — Global Admin navigation
 
