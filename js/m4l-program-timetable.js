@@ -24,14 +24,19 @@
       try{
         state.draft=mergeValue(latest.baseDraft||sharedSnapshot||latest.draft,state.draft,latest.draft);
         if(!preferLocalRevision){
-          if(latest.revision===state.data.revision||Number(latest.revisionStamp||0)>revisionStamp){state.baseline=latest.baseline;state.data.revision=latest.revision;revisionStamp=Number(latest.revisionStamp||0);}
+          if(latest.revision===state.data.revision||Number(latest.revisionStamp||0)>revisionStamp){
+            state.baseline=latest.baseline;state.data.revision=latest.revision;revisionStamp=Number(latest.revisionStamp||0);
+            if(typeof latest.timetableEditable==='boolean')state.data.timetableEditable=latest.timetableEditable;
+            if(latest.timetableStatus)state.data.timetableStatus=latest.timetableStatus;
+            if(Array.isArray(latest.publications)){state.data.publications=latest.publications;state.data.currentPublicationId=latest.currentPublicationId;}
+          }
           else if(Number(latest.revisionStamp||0)===revisionStamp){showTabConflict();return false;}
         }
         sharedSnapshot=structuredClone(latest.draft);sharedStamp=latest.stamp;
       }catch{showTabConflict();return false;}
     }
     if(latest&&same(state.draft,latest.draft)&&state.data.revision===latest.revision)return true;
-    const record={draft:state.draft,baseDraft:sharedSnapshot||state.draft,baseline:state.baseline,revision:state.data.revision,revisionStamp,stamp:Math.max(Date.now(),sharedStamp+1)};
+    const record={draft:state.draft,baseDraft:sharedSnapshot||state.draft,baseline:state.baseline,revision:state.data.revision,revisionStamp,timetableEditable:state.data.timetableEditable,timetableStatus:state.data.timetableStatus,publications:state.data.publications,currentPublicationId:state.data.currentPublicationId,stamp:Math.max(Date.now(),sharedStamp+1)};
     try{localStorage.setItem(sharedKey,JSON.stringify(record));sharedSnapshot=structuredClone(state.draft);sharedStamp=record.stamp;}catch{return false;}
     return true;
   }
@@ -72,8 +77,9 @@
     $('tt-edit-message').textContent=editable
       ? `Your ${dirty()?'working':'saved'} draft is available to edit and publish.${state.data?.publications?.length?' The published timetable remains in effect until you publish your changes.':''}`
       : 'Open this published timetable for editing. Your changes are saved as a draft; the published timetable remains in effect until you publish again.';
-    $('tt-open-publish').disabled=locked||!ready||!editable||!state.preview?.valid||workspace?.hasEdits()||sharedConflict||Boolean(state.calendarView?.history);
-    $('tt-publish').disabled=locked||!ready||!editable||workspace?.hasEdits()||sharedConflict;
+    const unpublished=editable&&(!state.data?.workspaceReady||['DRAFT','VALID'].includes(state.data.timetableStatus));
+    $('tt-open-publish').disabled=locked||!ready||!unpublished||dirty()||!state.preview?.valid||workspace?.hasEdits()||sharedConflict||Boolean(state.calendarView?.history);
+    $('tt-publish').disabled=locked||!ready||!unpublished||dirty()||!state.preview?.valid||workspace?.hasEdits()||sharedConflict;
     $('tt-effective-from').disabled=locked;$('tt-preview-type').disabled=locked;$('tt-preview-target').disabled=locked||$('tt-preview-type').value==='program'||!$('tt-preview-target').value;
     for(const name of ['reload','history','prepare','convert'])$(`tt-${name}`).disabled=state.busy;
     for(const name of ['tt-discard-all','tt-review-discard'])$(name).disabled=state.busy||!(dirty()||state.pending||sharedConflict);
@@ -85,11 +91,17 @@
     for(const name of ['tt-edit-action','tt-review-edit-action'])$(name).disabled=locked||!ready||sharedConflict||(!editable&&(dirty()||Boolean(workspace?.hasEdits())));
     const edits=workspace?.editSections?.()||[];
     $('tt-review-classes').hidden=!edits.includes('classes');$('tt-review-card').hidden=!edits.includes('public-card');
-    const hint=edits.length?'Save or discard '+edits.map(section=>section==='classes'?'class changes':'public card changes').join(' and ')+' before publishing.':sharedConflict?'Resolve the other tab’s changes before publishing.':state.pending?'Confirm the pending save before publishing.':state.calendarView?.history?'Preview the current draft before publishing.':!state.preview?.valid?'Preview this timetable and resolve any validation issues before publishing.':'';
+    const hint=edits.length?'Save or discard '+edits.map(section=>section==='classes'?'class changes':'public card changes').join(' and ')+' before publishing.':sharedConflict?'Resolve the other tab’s changes before publishing.':state.pending?'Confirm the pending save before publishing.':dirty()?'Save draft before publishing.':state.calendarView?.history?'Preview the current draft before publishing.':!state.preview?.valid?'Preview this timetable and resolve any validation issues before publishing.':'';
     $('tt-publish-status').hidden=!editable||!hint;$('tt-publish-hint').textContent=hint;
-    $('tt-save-state').textContent=state.data?.workspaceReady? (dirty()?'Draft · unsaved':state.data.timetableStatus==='VALID'?'Valid · ready to publish':state.data.timetableStatus.toLowerCase()):state.pending?'Change not confirmed':dirty()?'Unsaved draft changes':'Saved draft';
+    $('tt-save-state').textContent=state.data?.workspaceReady? (!editable?(state.data.timetableStatus==='PUBLISHED'?'Published · no unpublished draft':state.data.timetableStatus.toLowerCase()):dirty()?'Draft · unsaved':state.data.timetableStatus==='VALID'?'Valid · ready to publish':state.data.timetableStatus.toLowerCase()):state.pending?'Change not confirmed':dirty()?'Unsaved draft changes':'Saved draft';
   }
-  async function work(fn){if(state.busy)return;state.busy=true;controls();try{await fn();}catch(error){message(error.message,true);}finally{state.busy=false;controls();}}
+  async function work(fn){if(state.busy)return;state.busy=true;controls();try{await fn();}catch(error){
+    if(error.code==='TIMETABLE_READ_ONLY'){
+      // Refresh stale publication status while retaining any local lesson edits.
+      try{state.data=await api('get');state.preview=null;closePublishDialog();render();}catch{state.data.timetableEditable=false;state.preview=null;closePublishDialog();}
+    }
+    message(error.message,true);
+  }finally{state.busy=false;controls();}}
   function closePublishDialog(){if($('tt-publish-dialog').open)$('tt-publish-dialog').close();}
   function invalidate(){exportGeneration++;exportFiles=null;exportPdf=null;state.preview=null;closePublishDialog();$('tt-preview-panel').hidden=true;$('tt-validation').hidden=true;remember();controls();planner?.render();}
   function modules(){const c=state.data.catalog;return [...c.subjects.filter(s=>s.active).map(s=>({id:'subject:'+s.id,name:s.name+' · Subject only'})),...c.modules.filter(m=>m.active).map(m=>{const s=c.subjects.find(s=>s.id===m.programSubjectId),l=c.levels.find(l=>l.id===m.levelId);return {id:m.id,name:`${m.name} · ${s?.name||'Missing subject'}${l?` / ${l.name}`:''}`};})];}
@@ -166,7 +178,7 @@
       message(wasPublish?`Version ${result.version} published, effective ${result.effectiveFrom||'as originally recorded'}.${refreshNote}`:'Weekly draft saved. The timetable in effect is unchanged.');
     }catch(error){
       if(error.status&&error.status<500){clearPending();if(error.status!==409||action!=='save')remember();}
-      if(action==='save'&&!retried&&error.status===409&&!sharedConflict){
+      if(action==='save'&&!retried&&error.status===409&&error.code!=='TIMETABLE_READ_ONLY'&&!sharedConflict){
         const latest=await api('get');
         try{state.draft=mergeValue(JSON.parse(state.baseline),state.draft,latest.draft);}catch{showTabConflict();throw Error('Another tab changed the same lesson. Copy any unsaved details before reloading the latest version.');}
         state.data=latest;state.baseline=JSON.stringify(latest.draft);revisionStamp=Math.max(Date.now(),revisionStamp+1);remember(true);render();

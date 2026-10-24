@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.45
+# Umm Abbad Academy — V107.46
+
+## V107.46 — Compact publication confirmation
+
+Show Confirm publish, the selected areas, and Cancel / optional Review changes / Publish. Remove the long explanation. Timetable Publish requires a saved, valid unpublished draft; publishing in another tab updates its read-only status and clears stale ready labels. Preserve the PDF updates released in V107.45.
 
 ## V107.45 — Compact PDF headers and markup comparison
 

@@ -105,7 +105,7 @@ function openFile(pane,file,title,check=true,page=0){
  pane.loadGeneration++;
  pane.file=publicPdfFile(file);pane.title=title||'PDF '+(pane.index+1);pane.loaded=false;pane.page=0;pane.pageLabel='';
  part(pane,'[data-title]').textContent=pane.title;part(pane,'[data-empty]').hidden=Boolean(pane.file);volumeSelector(pane);updateBookmarkButtons(pane);
- pane.frame.src='/pdf-viewer/web/viewer.html?academy=1&pane='+pane.index+'&v=107.45&file='+encodeURIComponent(pane.file)+(page?'#page='+page:'');
+ pane.frame.src='/pdf-viewer/web/viewer.html?academy=1&pane='+pane.index+'&v=107.46&file='+encodeURIComponent(pane.file)+(page?'#page='+page:'');
  part(pane,'[data-drawer]').hidden=true;pane.drawerGeneration++;setActive(pane.index);updateAddress(pane,page);return true;
 }
 async function viewerApplication(pane){

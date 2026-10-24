@@ -48,7 +48,7 @@ export function assertWorkspaceDraft(loaded,input) {
  const current=workspaceId(loaded),id=input.draft?.timetableId||current;
  if(id!==current)throw managementError('This timetable changed elsewhere. Reload before saving.',409);
  const record=loaded.data.workspaceRecords.find(r=>r.timetable_id===id);
- if(record&&['ARCHIVED','CANCELLED','PUBLISHED'].includes(record.status))throw managementError('Copy this timetable to create an editable draft.',409);
+ if(record&&['ARCHIVED','CANCELLED','PUBLISHED'].includes(record.status))throw managementError('Copy this timetable to create an editable draft.',409,'TIMETABLE_READ_ONLY');
  return id;
 }
 export function snapshotDraft(snapshot,id) {

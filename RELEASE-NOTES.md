@@ -1,3 +1,11 @@
+# V107.46 — Compact publication confirmation and timetable Publish state
+
+Replace the long setup confirmation with Confirm publish, Areas to publish together, and Cancel / Review changes / Publish. Review details are optional; direct Publish prepares the same checked, frozen change and applies it only on the explicit click. Retain current scope/access checks, source/head checks, replay protection and accepted setup routing. Changing the selection invalidates the earlier review. No unpublished changes leaves publication unchanged.
+
+Require a saved, valid unpublished timetable draft before enabling Publish. Share published/read-only status and publication labels across timetable tabs along with the revision, so publishing in one tab disables Publish and removes stale ready labels in the others. A server rejection of a published timetable refreshes its status while retaining local edits. Existing history, scheduled versions, draft copies and manual effective dates remain. No database corrections or schema changes. Preserve the complete V107.45 PDF release.
+
+Verification: 53 focused setup, timetable, workspace and release checks pass. The local confirmation suite covers direct Publish, optional review, cancellation, no changes, changed scope, stale reviews and accepted Admin-Learn reads. The Program suite checks publication in a second tab, saved drafts, published history, editable copies, preview/class guards and phone/tablet/desktop layouts. Functional checks use disposable SQLite/R2 fixtures and block external traffic. Source boundary and matching website/Worker dry-run builds pass.
+
 # V107.45 — PDF controls and annotation comparison
 
 Compact the normal PDF.js reader header, using the existing identity, date and workspace access. Keep full screen exit and Library return reachable. Book actions use icons with hover names; the volume picker follows the title. A pencil reveals the final editing row. The shared page chooser supports both typed page numbers and selection from the page list. The revised Split PDF icon has no stand; Whiteboard retains its easel. Both workspace tools are on the right of the page/zoom row and remain unavailable on phones. Preserve PDF documents, annotations and whiteboard drafts through responsive layout changes.

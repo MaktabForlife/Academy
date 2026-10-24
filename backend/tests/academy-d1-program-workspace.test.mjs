@@ -54,6 +54,8 @@ test('sessions require teachers, obey Zoom precedence and central availability a
  assert.equal((await change(env,tt+'publish',input,admin)).status,409);assert.equal(db.prepare('SELECT count(*) n FROM program_timetable_records WHERE status=?').get('PUBLISHED').n,0);
  ok(await change(env,av+'save',{accountId:'account-0003',revision:1,ranges:[]},admin));
  const published=ok(await change(env,tt+'publish',input,admin));assert.ok(published.publicationId);assert.equal((await get(env,admin)).timetableEditable,false);
+ const alreadyPublished=await get(env,admin),rejected=await change(env,tt+'validate',{id,revision:alreadyPublished.revision,draft:alreadyPublished.draft,effectiveFrom:tomorrow()},admin);
+ assert.equal(rejected.status,409);assert.equal(rejected.body.code,'TIMETABLE_READ_ONLY');
  assert.ok(db.prepare('SELECT zoom_link FROM published_lessons WHERE publication_id=?').all(published.publicationId).every(r=>r.zoom_link===d.programZoomLink));
 }));
 test('validation is invalidated by availability changes; copies get new IDs and keep originals',()=>use(async({env,db})=>{
