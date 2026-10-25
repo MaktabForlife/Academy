@@ -1,3 +1,4 @@
+import {assessmentManualMarks} from './assessment-manual-marks.js';
 import {conditionalRead} from './read-cache.js';
 import {privateSnapshot} from './private-snapshot.js';
 import {personalLinks} from './personal-links.js';
@@ -96,7 +97,7 @@ async function dispatch(request,env) {
   if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,setupEnabled(env)?await readRepository():repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(setupEnabled(env)?await readRepository():repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.65',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.66',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(setupEnabled(env)?await readRepository():repository)};
@@ -213,7 +214,8 @@ async function dispatch(request,env) {
   const mediaAction=path.match(/^\/api\/academy\/lesson-media\/(list|feed|calendar|sessions|create|course-files-create|get|save|watch|download|comments|comment-save|comment-moderate|attachment-remove|attachment-name)$/)?.[1];
   if(mediaAction){let result=await lessonMedia(repository,auth,env).run(mediaAction,input);if(sourceRepository.features.mediaSeparation&&['calendar','list','feed','get'].includes(mediaAction)&&!result.notModified){const notes=lessonNotes(await readRepository(),auth,env);if(mediaAction==='get'){if(result.lesson.sessionKey){const entries=await notes.notes([{activityKey:result.lesson.activityKey,sessionKey:result.lesson.sessionKey}]);result.assets.push(...entries.map(notes.asset));result.lesson.canCurateNotes=true;}}else result=await (mediaAction==='calendar'?notes.enrichCalendar(result,input):mediaAction==='feed'?notes.enrichFeed(result,input):notes.enrichList(result,input));}return result instanceof Response?result:{success:true,...result};}
   if(path==='/api/academy/assessments/download')return assessmentFiles(repository,auth,env).download(input);
-  const assessmentAction=path.match(/^\/api\/academy\/assessments\/(list|get|schedule-batch|register-create|register-save|register-validate|register-release|session-delete|phase-create|create|save|paper-details|publish|roster|review-paper|authorise-resubmission|confirm-submission|ready-assessment|mark|review-mark|release|release-papers|collection-save|finalise|withdraw-release)$/)?.[1];
+  if(['/api/academy/assessments/marks-list','/api/academy/assessments/marks-save'].includes(path))return {success:true,...await assessmentManualMarks(repository,auth).run(path.endsWith('marks-list')?'marks-list':'marks-save',input)};
+  const assessmentAction=path.match(/^\/api\/academy\/assessments\/(list|get|schedule-batch|register-create|register-save|register-validate|register-release|session-delete|phase-create|create|save|paper-details|publish|roster|review-paper|authorise-resubmission|confirm-submission|ready-assessment|mark|review-mark|release|release-papers|prepare-papers|collection-save|finalise|withdraw-release)$/)?.[1];
   if(assessmentAction){const produce=()=>d1Assessments(repository,auth).run(assessmentAction,input);return {success:true,...await (assessmentAction==='list'&&input.dashboard===true?privateSnapshot(repository,auth,{kind:'dashboard-assessments',input},produce):produce())};}
   const assessmentReportAction=path.match(/^\/api\/academy\/assessments\/(templates|template-save|report-data|report-save|report-list)$/)?.[1];
   if(assessmentReportAction)return {success:true,...await assessmentReports(repository,auth).run(assessmentReportAction,input)};

@@ -68,8 +68,9 @@ test('split shared paper uses one object and one file record for the original cl
  const saved=ok(await upload());assert.equal(ok(await upload()).fileId,saved.fileId);assert.equal(f.databases.core.prepare("SELECT count(*) n FROM assessment_files WHERE kind='PAPER'").get().n,1);
  assert(f.databases.core.prepare('SELECT paper_file_id FROM assessments').all().every(a=>a.paper_file_id===saved.fileId));
  d=await detail();ok(await f.request('/api/academy/assessments/paper-details',{operationId:crypto.randomUUID(),assessmentId:id,revision:d.assessment.revision,groupRevisions:d.group.members.map(m=>({id:m.id,revision:m.revision})),durationMinutes:45,allowanceMinutes:10,maximumMark:90}));assert(f.databases.admin.prepare('SELECT duration_minutes,maximum_mark FROM assessments').all().every(a=>a.duration_minutes===45&&a.maximum_mark===90));
- d=await detail();ok(await f.request('/api/academy/assessments/review-paper',{operationId:crypto.randomUUID(),assessmentId:id,revision:d.assessment.revision,groupRevisions:d.group.members.map(m=>({id:m.id,revision:m.revision})),decision:'APPROVE',paperReview:{fileId:saved.fileId,sha256:saved.sha256}}));await f.accept(scope);
- d=await detail();ok(await f.request('/api/academy/assessments/release-papers',{operationId:crypto.randomUUID(),papers:d.group.members.map(m=>({id:m.id,revision:m.revision}))}));
+ d=await detail();ok(await f.request('/api/academy/assessments/review-paper',{operationId:crypto.randomUUID(),assessmentId:id,revision:d.assessment.revision,groupRevisions:d.group.members.map(m=>({id:m.id,revision:m.revision})),decision:'APPROVE',paperReview:{fileId:saved.fileId,sha256:saved.sha256}}));d=await detail();const stageInput={operationId:crypto.randomUUID(),registerId:d.assessment.registerId,papers:d.group.members.map(m=>({id:m.id,revision:m.revision}))},staged=ok(await f.request('/api/academy/assessments/prepare-papers',stageInput));assert(staged.setupPublication);assert(f.databases.core.prepare('SELECT paper_released_at FROM assessments').all().every(a=>!a.paper_released_at));
+ const selection={sourceOperation:staged.setupPublication},review=ok(await f.request('/api/admin/platform/setup/review',selection)),frozen=ok(await f.request('/api/admin/platform/setup/freeze',{...selection,digest:review.digest}));ok(await f.request('/api/admin/platform/setup/publish',{batchId:frozen.batchId,digest:frozen.digest}));
+ ok(await f.request('/api/academy/assessments/release-papers',{operationId:crypto.randomUUID(),preparedOperation:stageInput.operationId,papers:staged.papers}));
  assert(f.databases.core.prepare('SELECT paper_released_at FROM assessments').all().every(a=>a.paper_released_at));
  assert(f.databases.admin.prepare('SELECT title FROM assessments').all().every(a=>a.title==='Shared split paper'));assert.equal(f.databases.core.prepare('SELECT count(*) n FROM assessment_attempts').get().n,0);
 }));
@@ -119,4 +120,19 @@ test('split batch setup saves 100 papers with bounded database calls and publish
  const saveCosts=f.costs.slice();assert(saveCosts.every(c=>c.queries<=50),JSON.stringify(saveCosts));console.log('100-paper batch coordinator calls',JSON.stringify(saveCosts));
  const released=ok(await request('register-release',{operationId:crypto.randomUUID(),registerId,revision:2}));assert.equal(released.released,100);
  assert.equal(f.databases.core.prepare('SELECT count(*) n FROM assessments WHERE register_id=? AND schedule_published=1').get(registerId).n,100);
+}));
+
+test('split batch-saved Imtihaan validates and publishes before manual marks save atomically and release explicitly',()=>use(async f=>{
+ const path='/api/academy/assessments/',scope=f.scopes.programA,name='Batch manual marks';
+ const registerId=ok(await f.request(path+'register-create',{operationId:crypto.randomUUID(),name,activityKeys:[scope],classMode:'ALL',status:'REGISTERED'})).registerId;
+ const saved=ok(await f.request(path+'schedule-batch',{operationId:crypto.randomUUID(),registerId,revision:1,rows:[{activityKey:scope,classId:'class-1',title:'Manual marks only',subject:'Qasas',examDate:new Date().toISOString().slice(0,10),durationMinutes:60,maximumMark:100}]})),id=saved.assessmentIds[0];
+ assert.equal((await f.request(path+'marks-list',{assessmentId:id})).body.code,'SCHEDULE_REQUIRED');
+ assert.equal(ok(await f.request(path+'register-validate',{registerId,revision:saved.revision,name,activityKeys:[scope],classMode:'ALL',status:'SCHEDULED'})).valid,true);
+ ok(await f.request(path+'register-release',{operationId:crypto.randomUUID(),registerId,revision:saved.revision}));await f.accept(scope);
+ let detail;
+ f.databases.core.prepare("INSERT INTO class_teacher_assignments VALUES(?,'class-1',?,'ADDITIONAL')").run(scope,f.actors.teacherA);
+ const list=ok(await f.request(path+'marks-list',{assessmentId:id},'teacherA','TEACH')),c=list.classes[0],r=c.students.find(r=>r.accountId==='account-0002'),body={operationId:crypto.randomUUID(),assessmentId:id,groupRevisions:[{id,revision:c.revision}],entries:[{assessmentId:id,accountId:r.accountId,recipientRevision:r.revision,markId:r.markId,mark:76}]};
+ assert.equal(ok(await f.request(path+'marks-save',body,'teacherA','TEACH')).saved,1);assert.equal(ok(await f.request(path+'marks-save',body,'teacherA','TEACH')).replayed,true);assert.equal(f.databases.core.prepare("SELECT count(*) n FROM assessment_events WHERE action='manual-mark'").get().n,1);assert.equal(f.databases.core.prepare('SELECT count(*) n FROM assessment_submissions').get().n,0);
+ detail=ok(await f.request(path+'get',{assessmentId:id}));assert.equal(detail.learners.find(r=>r.accountId==='account-0002').mark,76);assert.equal(detail.learners.find(r=>r.accountId==='account-0002').marksReleased,false);ok(await f.request(path+'release',{operationId:crypto.randomUUID(),assessmentId:id,revision:detail.assessment.revision,category:'marks',selection:'CLASS'}));
+ const report=ok(await f.request(path+'report-data',{activityKey:scope,classId:'class-1',assessmentIds:[id]}));assert.equal(report.learners.find(r=>r.id==='account-0002').results[0].mark,76);
 }));

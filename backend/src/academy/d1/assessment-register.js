@@ -1,3 +1,4 @@
+import {assessmentResultsSQL} from './assessment-results.js';
 import {cleanText} from './assessment-store.js';
 import {managementError as fail} from './management-store.js';
 import {statusValidation,requireValidStatus} from './assessment-validation.js';
@@ -41,11 +42,11 @@ export async function registerList(s,input){
  const summaries=ids.length?(await s.p(`SELECT a.register_id,count(DISTINCT a.assessment_id) papers,max(a.exam_date) last_day,
   count(DISTINCT CASE WHEN a.schedule_published=1 THEN a.assessment_id END) schedules_released,
   max(CASE WHEN a.paper_released_at IS NOT NULL THEN 1 ELSE 0 END) published,
-  sum(CASE WHEN r.latest_submission_id IS NOT NULL THEN 1 ELSE 0 END) answers,
-  sum(CASE WHEN r.latest_submission_id=m.submission_id AND m.state='APPROVED' THEN 1 ELSE 0 END) moderated,
-  sum(CASE WHEN r.latest_submission_id=m.submission_id AND m.state='APPROVED' AND r.released_mark_id=m.mark_id THEN 1 ELSE 0 END) released,
+  sum(CASE WHEN r.latest_submission_id IS NOT NULL OR m.manual=1 THEN 1 ELSE 0 END) answers,
+  sum(CASE WHEN (m.manual=1 OR r.latest_submission_id=m.submission_id) AND m.state='APPROVED' THEN 1 ELSE 0 END) moderated,
+  sum(CASE WHEN (m.manual=1 OR r.latest_submission_id=m.submission_id) AND m.state='APPROVED' AND r.released_mark_id=m.mark_id THEN 1 ELSE 0 END) released,
   sum(CASE WHEN r.resubmit_authorised=1 THEN 1 ELSE 0 END) outstanding
- FROM assessments a LEFT JOIN assessment_recipients r USING(assessment_id) LEFT JOIN assessment_markings m ON m.mark_id=r.latest_mark_id
+ FROM assessments a LEFT JOIN assessment_recipients r USING(assessment_id) LEFT JOIN (${assessmentResultsSQL}) m ON m.mark_id=r.latest_mark_id
  WHERE a.deleted_at IS NULL AND a.register_id IN(SELECT value FROM json_each(?)) GROUP BY a.register_id`,JSON.stringify(ids)).all()).results:[];
  const summaryById=new Map(summaries.map(row=>[row.register_id,row]));
  const registers=[...grouped.values()].map(r=>{const summary=summaryById.get(r.id),scheduleCount=Number(summary?.papers||0),releasedScheduleCount=Number(summary?.schedules_released||0);return {...r,imtihaanStatus:imtihaanStage(r.status,summary),scheduleCount,releasedScheduleCount,scheduleReleased:scheduleCount>0&&scheduleCount===releasedScheduleCount};}).filter(r=>(!input.activityKey||r.areas.some(a=>a.key===input.activityKey))&&(!['PROGRAM','COURSE'].includes(input.kind)||r.areas.some(a=>a.kind===input.kind)));

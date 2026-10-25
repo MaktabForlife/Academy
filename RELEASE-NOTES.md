@@ -1,3 +1,11 @@
+# V107.66 — Manual marks and one paper publication
+
+Add Enter marks to each Teacher and Admin assessment row. Open a popup with students grouped by class and sorted alphabetically, save numeric marks without an answer upload, and keep saved or corrected marks private until Admin uses Release marks. Retain scoped permissions, zero marks, exact retries, conflict checks and report results.
+
+Use Review paper to open and approve each paper individually. Approval no longer starts setup publication. Enable Publish papers once all remaining papers in the Imtihaan are approved, then publish the complete selection through one confirmation before releasing it. Preserve V107.65 dashboard timetable links. No migration or live data correction is required.
+
+[Release and verification notes](docs/ACADEMY-MANUAL-MARKS-107.66.md).
+
 # V107.65 — Dashboard Imtihaan timetables
 
 Add Assessments directly below For your attention on Learn, Teach and Admin dashboards. Group current and upcoming Imtihaan into links to their existing timetable, using each workspace’s authorised data. Learners see released schedules; staff can also see assigned draft schedules. Cache timetable summaries immediately and refresh them in the background. Exclude past, completed, cancelled and archived Imtihaan and assignments.

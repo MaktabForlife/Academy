@@ -1,3 +1,4 @@
+import {assessmentResultsSQL} from './assessment-results.js';
 import {assessmentGroup,assessmentListGroups,assessmentSelections,groupRevisions,sharedAssessmentAction} from './assessment-group.js';
 import {insertRecords} from './insert-records.js';
 import {assessmentOperations,timingFields,collectionPolicy,readyEligibility} from './assessment-timing.js';
@@ -47,10 +48,10 @@ export function d1Assessments(repository,auth){
  async function learnerList(input){
   const classes=await s.classes('learner',input.activityKey||''),visible=[];
   const rows=(await p(`SELECT ${listColumns(input)}${native&&input.dashboard!==true?',col.effective_due_at,col.closed_at,col.revision collection_revision':''},COALESCE(ar.name,ph.name) phase_name,ar.status register_status,c.name class_name,a.name activity_name FROM assessments x ${native&&input.dashboard!==true?'LEFT JOIN assessment_collection col ON col.assessment_id=x.assessment_id':''} LEFT JOIN assessment_phases ph ON ph.phase_id=x.phase_id LEFT JOIN assessment_registers ar ON ar.register_id=x.register_id JOIN classes c ON c.activity_key=x.activity_key AND c.class_id=x.class_id JOIN activities a ON a.activity_key=x.activity_key WHERE x.deleted_at IS NULL AND x.schedule_published=1 AND (?='' OR x.activity_key=?) ORDER BY x.exam_date,x.title LIMIT 1001`,input.activityKey||'',input.activityKey||'').all()).results;
-  const own=new Map((await p(input.dashboard===true?'SELECT assessment_id FROM assessment_recipients WHERE account_id=?':"SELECT r.assessment_id,r.latest_submission_id,m.mark,m.state,m.submission_id FROM assessment_recipients r LEFT JOIN assessment_markings m ON m.mark_id=r.released_mark_id AND m.assessment_id=r.assessment_id AND m.account_id=r.account_id WHERE r.account_id=?",actor).all()).results.map(r=>[r.assessment_id,r]));
+  const own=new Map((await p(input.dashboard===true?'SELECT assessment_id FROM assessment_recipients WHERE account_id=?':`SELECT r.assessment_id,r.latest_submission_id,m.mark,m.state,m.submission_id,m.manual FROM assessment_recipients r LEFT JOIN (${assessmentResultsSQL}) m ON m.mark_id=r.released_mark_id AND m.assessment_id=r.assessment_id AND m.account_id=r.account_id WHERE r.account_id=?`,actor).all()).results.map(r=>[r.assessment_id,r]));
   for(const a of rows){if(viewedClass(auth,a.activity_key)&&!same(viewedClass(auth,a.activity_key),a.class_id)||!classes.some(c=>same(c.activity_key,a.activity_key)&&same(c.class_id,a.class_id))||input.kind&&a.activity_key.split(':')[0]!==input.kind||!own.has(a.assessment_id)&&!administers(auth,a.activity_key))continue;
    if(input.dashboard===true){if((a.assessment_kind||'EXAM')==='EXAM')visible.push(dashboardAssessment(a));continue;}
-   const result=own.get(a.assessment_id),preview=readerPreview(auth,a.activity_key)||!own.has(a.assessment_id),released=!preview&&result?.state==='APPROVED'&&(native||result.submission_id===result.latest_submission_id);
+   const result=own.get(a.assessment_id),preview=readerPreview(auth,a.activity_key)||!own.has(a.assessment_id),released=!preview&&result?.state==='APPROVED'&&(native||result.manual===1||result.submission_id===result.latest_submission_id);
    visible.push({...metadata(a),learnerPreview:preview,...(released?{releasedMark:result.mark,releasedMaximumMark:a.maximum_mark}:{}),id:a.assessment_id,activityKey:a.activity_key,activityName:a.activity_name,classId:a.class_id,className:a.class_name,title:a.title,subject:a.subject,subjectDescriptor:a.subject_descriptor,registerId:a.register_id,phaseId:a.phase_id,phaseName:a.phase_name||'',registerStatus:a.register_status||'',examDate:a.exam_date,published:true,paperAvailable:paperAvailable(a),paperState:paperAvailable(a)?'AVAILABLE':'WAITING',canAdmin:false,canTeach:false,isExaminer:false,canModerate:false});
   }
   if(input.dashboard===true)return {assessments:visible,timezone:native?await appTimezone(repository):'Africa/Johannesburg',store:'D1'};
@@ -66,12 +67,12 @@ export function d1Assessments(repository,auth){
   const rows=(await p(`SELECT ${listColumns(input)}${native&&input.dashboard!==true?',col.effective_due_at,col.closed_at,col.revision collection_revision':''},COALESCE(ar.name,ph.name) phase_name,ar.status register_status,c.name class_name,a.name activity_name${input.dashboard===true?'':',(SELECT display_name FROM accounts u WHERE u.account_id=x.examiner_id) examiner_name,(SELECT u.display_name FROM assessment_files f JOIN accounts u ON u.account_id=f.uploaded_by WHERE f.file_id=x.paper_file_id) paper_uploader_name'} FROM assessments x ${native&&input.dashboard!==true?'LEFT JOIN assessment_collection col ON col.assessment_id=x.assessment_id':''} LEFT JOIN assessment_phases ph ON ph.phase_id=x.phase_id LEFT JOIN assessment_registers ar ON ar.register_id=x.register_id JOIN classes c ON c.activity_key=x.activity_key AND c.class_id=x.class_id JOIN activities a ON a.activity_key=x.activity_key WHERE x.deleted_at IS NULL AND (?='' OR x.activity_key=?) AND (EXISTS(SELECT 1 FROM json_each(?) j WHERE json_extract(j.value,'$.activity_key')=x.activity_key AND json_extract(j.value,'$.class_id')=x.class_id) OR x.schedule_published=1 AND EXISTS(SELECT 1 FROM assessment_recipients r WHERE r.assessment_id=x.assessment_id AND r.account_id=?) AND EXISTS(SELECT 1 FROM json_each(?) j WHERE json_extract(j.value,'$.activity_key')=x.activity_key AND json_extract(j.value,'$.class_id')=x.class_id) OR x.examiner_id=? AND x.activity_key IN(SELECT value FROM json_each(?)) AND c.active=1 AND a.active=1 AND a.lifecycle='ACTIVE') ORDER BY x.exam_date,x.title LIMIT 1001`,input.activityKey||'',input.activityKey||'',JSON.stringify(staff),actor,JSON.stringify(learner),actor,JSON.stringify(examinerAreas)).all()).results;
   if(rows.length>1000)throw fail('Choose a learning area to narrow the assessment list.',409);
   const ids=input.dashboard!==true&&(staff.length||examinerAreas.length)?rows.map(a=>a.assessment_id):[],results=ids.length?(await p(`SELECT r.assessment_id,
-   sum(CASE WHEN r.latest_submission_id IS NOT NULL THEN 1 ELSE 0 END) uploaded,
+   sum(CASE WHEN r.latest_submission_id IS NOT NULL OR m.manual=1 THEN 1 ELSE 0 END) uploaded,
    sum(CASE WHEN r.latest_submission_id IS NOT NULL AND b.confirmed_at IS NOT NULL THEN 1 ELSE 0 END) checked,
-   sum(CASE WHEN r.latest_submission_id=m.submission_id AND m.state IN('IN_REVIEW','APPROVED') THEN 1 ELSE 0 END) assessed,
-   sum(CASE WHEN r.latest_submission_id=m.submission_id AND m.state='APPROVED' THEN 1 ELSE 0 END) moderated,
-   sum(CASE WHEN r.latest_submission_id=m.submission_id AND m.state='APPROVED' AND r.released_mark_id=m.mark_id THEN 1 ELSE 0 END) released
-   FROM assessment_recipients r LEFT JOIN assessment_markings m ON m.mark_id=r.latest_mark_id LEFT JOIN assessment_submissions b ON b.submission_id=r.latest_submission_id
+   sum(CASE WHEN (m.manual=1 OR r.latest_submission_id=m.submission_id) AND m.state IN('IN_REVIEW','APPROVED') THEN 1 ELSE 0 END) assessed,
+   sum(CASE WHEN (m.manual=1 OR r.latest_submission_id=m.submission_id) AND m.state='APPROVED' THEN 1 ELSE 0 END) moderated,
+   sum(CASE WHEN (m.manual=1 OR r.latest_submission_id=m.submission_id) AND m.state='APPROVED' AND r.released_mark_id=m.mark_id THEN 1 ELSE 0 END) released
+   FROM assessment_recipients r LEFT JOIN (${assessmentResultsSQL}) m ON m.mark_id=r.latest_mark_id LEFT JOIN assessment_submissions b ON b.submission_id=r.latest_submission_id
    WHERE r.assessment_id IN(SELECT value FROM json_each(?)) GROUP BY r.assessment_id`,JSON.stringify(ids)).all()).results:[];
   const resultById=new Map(results.map(r=>[r.assessment_id,r]));
   const own=(await p(input.dashboard===true?'SELECT assessment_id FROM assessment_recipients WHERE account_id=?':'SELECT * FROM assessment_recipients WHERE account_id=?',actor).all()).results;
@@ -96,10 +97,10 @@ export function d1Assessments(repository,auth){
   const admin=await s.allowed(a.activity_key,a.class_id,'admin'),examiner=same(a.examiner_id,actor)&&await s.canWork(a);
   const learn=auth.workspace==='LEARN',preview=learn?readerPreview(auth,a.activity_key)||!await s.recipient(a.assessment_id):input.view==='learner';if(preview&&!learn){await s.requireClass(a.activity_key,a.class_id,'admin');if(!a.schedule_published)throw fail('This assessment has not been published to learners.',403,'FORBIDDEN');}
   const canTeach=!learn&&!preview&&await s.readStaff(a),staff=canTeach,readOnly=canTeach&&!await s.canWork(a);
-  const recipients=(await p(`SELECT r.*,u.display_name current_name,b.submitted_at,b.submission_number,b.file_id answer_file_id,b.confirmed_at,b.confirmed_by,m.mark,m.feedback,m.state mark_state,m.script_file_id,m.moderation_comment,m.mark_id,m.submission_id marked_submission_id${native?',rm.state released_mark_state,rm.mark released_mark,rf.state released_feedback_state,rf.feedback released_feedback,rs.state released_script_state,rs.script_file_id released_script_file_id,b.is_late,b.deadline_used':''} FROM assessment_recipients r JOIN accounts u ON u.account_id=r.account_id LEFT JOIN assessment_submissions b ON b.submission_id=r.latest_submission_id LEFT JOIN assessment_markings m ON m.mark_id=r.latest_mark_id ${native?'LEFT JOIN assessment_markings rm ON rm.mark_id=r.released_mark_id LEFT JOIN assessment_markings rf ON rf.mark_id=r.released_feedback_id LEFT JOIN assessment_markings rs ON rs.mark_id=r.released_script_id':''} WHERE r.assessment_id=? ${staff?'':'AND r.account_id=?'} ORDER BY r.display_name,r.account_id`,a.assessment_id,...(staff?[]:[actor])).all()).results;
+  const recipients=(await p(`SELECT r.*,u.display_name current_name,b.submitted_at,b.submission_number,b.file_id answer_file_id,b.confirmed_at,b.confirmed_by,m.mark,m.manual manual_mark,m.feedback,m.state mark_state,m.script_file_id,m.moderation_comment,m.mark_id,m.submission_id marked_submission_id${native?',rm.state released_mark_state,rm.mark released_mark,rf.state released_feedback_state,rf.feedback released_feedback,rs.state released_script_state,rs.script_file_id released_script_file_id,b.is_late,b.deadline_used':''} FROM assessment_recipients r JOIN accounts u ON u.account_id=r.account_id LEFT JOIN assessment_submissions b ON b.submission_id=r.latest_submission_id LEFT JOIN (${assessmentResultsSQL}) m ON m.mark_id=r.latest_mark_id ${native?`LEFT JOIN (${assessmentResultsSQL}) rm ON rm.mark_id=r.released_mark_id LEFT JOIN (${assessmentResultsSQL}) rf ON rf.mark_id=r.released_feedback_id LEFT JOIN (${assessmentResultsSQL}) rs ON rs.mark_id=r.released_script_id`:''} WHERE r.assessment_id=? ${staff?'':'AND r.account_id=?'} ORDER BY r.display_name,r.account_id`,a.assessment_id,...(staff?[]:[actor])).all()).results;
   const learners=(preview?[]:recipients).map(r=>{
    if(native){r.ownReleasedMark=r.released_mark_state==='APPROVED';r.ownReleasedFeedback=r.released_feedback_state==='APPROVED';r.ownReleasedScript=r.released_script_state==='APPROVED';}
-   const approved=r.mark_state==='APPROVED'&&r.marked_submission_id===r.latest_submission_id;
+   const approved=r.mark_state==='APPROVED'&&(r.manual_mark===1||r.marked_submission_id===r.latest_submission_id);
    return {...(native?{late:Boolean(r.is_late),...(staff?{releasedMarkIsCurrent:Boolean(approved&&r.released_mark_id===r.mark_id)}:{})}:{}),accountId:r.account_id,name:r.display_name,revision:r.revision,firstAccessedAt:r.first_accessed_at,submittedAt:r.submitted_at,submissionNumber:r.submission_number||0,submissionId:r.latest_submission_id,answerFileId:r.answer_file_id,submissionConfirmedAt:r.confirmed_at,submissionConfirmedBy:staff?r.confirmed_by:null,resubmissionAuthorised:Boolean(r.resubmit_authorised),
     markState:staff?r.mark_state:(native?r.ownReleasedMark:approved&&r.released_mark_id===r.mark_id)?'RELEASED':r.latest_submission_id?'PENDING':'NOT_SUBMITTED',
     mark:staff?r.mark:native?r.ownReleasedMark?r.released_mark:null:approved&&r.released_mark_id===r.mark_id?r.mark:null,feedback:staff?r.feedback:native?r.ownReleasedFeedback?r.released_feedback:'':approved&&r.released_feedback_id===r.mark_id?r.feedback:'',scriptFileId:staff?r.script_file_id:native?r.ownReleasedScript?r.released_script_file_id:null:approved&&r.released_script_id===r.mark_id?r.script_file_id:null,
@@ -223,11 +224,11 @@ export function d1Assessments(repository,auth){
    if(['publish','roster'].includes(action))context.rosters=await s.rosters(group);
    if(native&&['ready-assessment','collection-save'].includes(action))context.collections=(await p('SELECT * FROM assessment_collection WHERE assessment_id IN(SELECT value FROM json_each(?))',ids).all()).results;
    if(action==='ready-assessment')context.counts=(await p(`SELECT r.assessment_id,count(*) expected,sum(r.latest_submission_id IS NOT NULL) received,sum(r.latest_submission_id IS NOT NULL AND b.confirmed_at IS NULL) unchecked,sum(r.resubmit_authorised=1) replacements FROM assessment_recipients r LEFT JOIN assessment_submissions b ON b.submission_id=r.latest_submission_id WHERE r.assessment_id IN(SELECT value FROM json_each(?)) GROUP BY r.assessment_id`,ids).all()).results;
-   if(action==='release')context.recipients=(await p('SELECT r.*,m.state,m.submission_id,m.script_file_id FROM assessment_recipients r LEFT JOIN assessment_markings m ON m.mark_id=r.latest_mark_id WHERE r.assessment_id IN(SELECT value FROM json_each(?))',ids).all()).results;
+   if(action==='release')context.recipients=(await p(`SELECT r.*,m.state,m.submission_id,m.script_file_id,m.manual FROM assessment_recipients r LEFT JOIN (${assessmentResultsSQL}) m ON m.mark_id=r.latest_mark_id WHERE r.assessment_id IN(SELECT value FROM json_each(?))`,ids).all()).results;
 
    for(const member of group){
     if(action==='ready-assessment'&&member.ready_for_assessment_at)continue;
-    if(action==='release'&&!context.recipients.some(r=>r.assessment_id===member.assessment_id&&r.latest_submission_id))continue;
+    if(action==='release'&&!context.recipients.some(r=>r.assessment_id===member.assessment_id&&(r.latest_submission_id||r.manual===1)))continue;
     const c=action==='collection-save'?context.collections.find(c=>c.assessment_id===member.assessment_id):null;
     if(action==='collection-save'&&(input.groupCollections?.find(r=>r.id===member.assessment_id)?.revision??-1)!==(c?.revision||0))throw fail('Submission settings changed in a selected class. Refresh before saving.',409,'ROW_CHANGED');
     const plan=await mutationPlan(action,{...input,assessmentId:member.assessment_id,revision:member.revision,...(action==='review-paper'?{skipPaperEvidence:member.assessment_id!==a.assessment_id,paperReview:{fileId:member.paper_file_id,sha256:member.paper_sha256||null}}:{}),...(action==='collection-save'?{collectionRevision:c?.revision||0}:{})},member,context);
@@ -258,6 +259,7 @@ export function d1Assessments(repository,auth){
    }else if(action==='paper-details'){
     await s.requireExaminer(a);
     if(input.examinerId!==undefined&&!same(input.examinerId,a.examiner_id))await s.requireClass(a.activity_key,a.class_id,'admin');
+    if(await p('SELECT 1 found FROM assessment_recipients WHERE assessment_id=? AND latest_mark_id IS NOT NULL LIMIT 1',a.assessment_id).first())throw fail('Paper details are fixed after marks have been entered.',409);
     if(a.paper_released_at||(context.submitted?context.submitted.has(a.assessment_id):await p('SELECT 1 found FROM assessment_submissions WHERE assessment_id=? LIMIT 1',a.assessment_id).first()))throw fail('Paper details are fixed after release.',409);
     const v=await fields({...input,title:a.title,subject:a.subject,subjectDescriptor:a.subject_descriptor,examDate:a.exam_date},a,context.catalogue);
     statements.push(p(`UPDATE assessments SET duration_minutes=?,maximum_mark=?,examiner_id=?,subject_descriptor=?,paper_state=CASE WHEN paper_file_id IS NOT NULL THEN 'IN_REVIEW' ELSE paper_state END,paper_released_at=NULL${native?',timing_mode=?,allowance_minutes=?':''} WHERE assessment_id=?`,v.duration,v.maximum,v.examinerId,v.descriptor,...(native?[v.timing.mode,v.timing.allowance]:[]),a.assessment_id));
@@ -324,9 +326,9 @@ export function d1Assessments(repository,auth){
     if(!['marks','feedback','scripts'].includes(input.category))throw fail('Choose marks, feedback or scripts.');
     if(!native&&input.category==='marks'&&input.accountIds?.length)throw fail('Marks are released to the whole class together.');
     if(native&&(!['CLASS','SELECTED'].includes(input.selection)||input.selection==='SELECTED'&&!input.accountIds?.length||input.selection==='CLASS'&&input.accountIds?.length))throw fail('Choose the whole class or a nonempty learner selection explicitly.');
-    const rows=await selected(a,input,context.recipients),ready=rows.filter(r=>r.latest_submission_id);
+    const rows=await selected(a,input,context.recipients),ready=rows.filter(r=>r.latest_submission_id||r.manual===1);
     if(!ready.length)throw fail('There are no assessed submissions to release.',409);
-    if(ready.some(r=>r.state!=='APPROVED'||r.submission_id!==r.latest_submission_id))throw fail('Moderate every selected submitted assessment before release.',409);
+    if(ready.some(r=>r.state!=='APPROVED'||r.manual!==1&&r.submission_id!==r.latest_submission_id))throw fail('Moderate every selected submitted assessment before release.',409);
     if(input.category==='scripts'&&ready.some(r=>!r.script_file_id))throw fail('A selected learner has no marked script attached.',409);
     const column={marks:'released_mark_id',feedback:'released_feedback_id',scripts:'released_script_id'}[input.category];
     statements.push(p(`UPDATE assessment_recipients SET ${column}=latest_mark_id,revision=revision+1 WHERE assessment_id=? AND account_id IN(SELECT value FROM json_each(?))`,a.assessment_id,JSON.stringify(ready.map(r=>r.account_id))));
@@ -337,7 +339,7 @@ export function d1Assessments(repository,auth){
  async function selected(a,input,provided=null){
   const ids=input.accountIds;
   if(ids!==undefined&&(!Array.isArray(ids)||ids.length>2000||new Set(ids).size!==ids.length||ids.some(v=>typeof v!=='string')))throw fail('Choose valid learners.');
-  const rows=provided?provided.filter(r=>r.assessment_id===a.assessment_id):(await p(`SELECT r.*,m.state,m.submission_id,m.script_file_id FROM assessment_recipients r LEFT JOIN assessment_markings m ON m.mark_id=r.latest_mark_id WHERE r.assessment_id=?`,a.assessment_id).all()).results;
+  const rows=provided?provided.filter(r=>r.assessment_id===a.assessment_id):(await p(`SELECT r.*,m.state,m.submission_id,m.script_file_id,m.manual FROM assessment_recipients r LEFT JOIN (${assessmentResultsSQL}) m ON m.mark_id=r.latest_mark_id WHERE r.assessment_id=?`,a.assessment_id).all()).results;
   if(!ids?.length)return rows;
   if(ids.some(id=>!rows.some(r=>r.account_id===id)))throw fail('Choose learners in this assessment.',403);
   return rows.filter(r=>ids.includes(r.account_id));
@@ -356,20 +358,31 @@ export function d1Assessments(repository,auth){
    return {statements:s.combine([p('UPDATE assessments SET deleted_at=?,deleted_by=?,revision=revision+1,updated_at=? WHERE assessment_id IN(SELECT value FROM json_each(?))',now,actor,now,ids),...rows.map(a=>s.event(a,'session-delete',{registerId:a.register_id,title:a.title,subject:a.subject,examDate:a.exam_date}))]),result:{assessmentId:id,deleted:true,appliedClasses:rows.length}};
   });
  }
- async function releasePapers(input){
+ async function releasePapers(input,prepare=false){
   if(!Array.isArray(input.papers)||!input.papers.length||input.papers.length>200||new Set(input.papers.map(a=>a.id)).size!==input.papers.length)throw fail('Choose between 1 and 200 approved class papers.');
-  return s.change('release-papers',input,'PAPERS:'+actor,async()=>{
+  return s.change(prepare?'prepare-papers':'release-papers',input,'PAPERS:'+actor,async()=>{
    const statements=[],now=new Date().toISOString();
    const papers=(await p('SELECT * FROM assessments WHERE deleted_at IS NULL AND assessment_id IN(SELECT json_extract(value,\'$.id\') FROM json_each(?))',JSON.stringify(input.papers)).all()).results;
    if(papers.length!==input.papers.length)throw fail('An assessment was not found.',404);
+   if(prepare){
+    if(typeof input.registerId!=='string'||papers.some(a=>a.register_id!==input.registerId))throw fail('Choose papers from this Imtihaan.',403);
+    const waiting=(await p('SELECT * FROM assessments WHERE register_id=? AND deleted_at IS NULL AND paper_released_at IS NULL',input.registerId).all()).results;
+    await s.requireAdminClasses(waiting.map(a=>({activityKey:a.activity_key,classId:a.class_id})));
+    if(waiting.length!==papers.length||waiting.some(a=>!papers.some(row=>row.assessment_id===a.assessment_id)||a.paper_state!=='APPROVED'||!a.schedule_published||!a.paper_file_id))throw fail('Approve every remaining paper and release its schedule before publishing this Imtihaan.',409,'PAPERS_NOT_READY');
+   }
+   if(!prepare&&input.preparedOperation&&repository.setup?.enabled){
+    const receipt=await p("SELECT result_json FROM operation_receipts WHERE dataset_key='ASSESSMENT' AND scope_key=? AND operation_id=? AND actor_account_id=?",'PAPERS:'+actor,input.preparedOperation,actor).first(),saved=receipt?JSON.parse(receipt.result_json):null;
+    const accepted=saved?.prepared&&await p("SELECT 1 ok FROM setup_batches WHERE actor_account_id=? AND accepted_head IS NOT NULL AND json_extract(manifest_json,'$.sourceOperation.dataset')='ASSESSMENT' AND json_extract(manifest_json,'$.sourceOperation.scope')=? AND json_extract(manifest_json,'$.sourceOperation.operationId')=?",actor,'PAPERS:'+actor,input.preparedOperation).first();
+    if(!accepted||saved.papers.length!==input.papers.length||saved.papers.some(a=>!input.papers.some(row=>row.id===a.id&&row.revision===a.revision)))throw fail('Confirm the complete paper publication before releasing these papers.',409,'SETUP_REVIEW_REQUIRED');
+   }
    const checked=new Set();for(const a of papers){if(checked.has(a.assessment_id))continue;const group=await assessmentGroup(s,a);if(group&&group.some(member=>!input.papers.some(p=>p.id===member.assessment_id)))throw fail('Release the shared paper for every selected class together.',409,'ASSESSMENT_GROUP_CHANGED');for(const member of group||[a])checked.add(member.assessment_id);}
    await s.requireAdminClasses(papers.map(a=>({activityKey:a.activity_key,classId:a.class_id})));
-   for(const a of papers){const item=input.papers.find(item=>item.id===a.assessment_id);await s.requireClass(a.activity_key,a.class_id,'admin');s.revision(a,{revision:item.revision});if(!a.schedule_published||a.paper_state!=='APPROVED'||!a.paper_file_id)throw fail('Publish the schedule and approve every selected paper before release.',409);statements.push(p('UPDATE assessments SET paper_released_at=? WHERE assessment_id=?',now,a.assessment_id),s.touch(a),s.event(a,'release-paper'));}
-   return {statements:input.papers.length>1?s.combine(statements):statements,result:{released:input.papers.length}};
+   for(const a of papers){const item=input.papers.find(item=>item.id===a.assessment_id);await s.requireClass(a.activity_key,a.class_id,'admin');s.revision(a,{revision:item.revision});if(!a.schedule_published||a.paper_state!=='APPROVED'||!a.paper_file_id)throw fail('Publish the schedule and approve every selected paper before release.',409);if(prepare)statements.push(s.touch(a),s.event(a,'prepare-papers',{registerId:input.registerId}));else statements.push(p('UPDATE assessments SET paper_released_at=? WHERE assessment_id=?',now,a.assessment_id),s.touch(a),s.event(a,'release-paper'));}
+   return {statements:input.papers.length>1?s.combine(statements):statements,result:prepare?{prepared:true,papers:papers.map(a=>({id:a.assessment_id,revision:a.revision+1})),setupScopes:[...new Set(papers.map(a=>a.activity_key))]}:{released:input.papers.length}};
   });
  }
  return {store:s,run:async(action,input)=>{
   if(action==='schedule-batch')return saveScheduleBatch(input);
-  if(action==='register-release')return releaseRegister(s,input);if(action==='register-create')return createRegister(s,input);if(action==='register-save')return saveRegister(s,input);if(action==='register-validate')return validateRegister(s,input);if(action==='session-delete')return deleteSession(input);if(action==='phase-create')return createPhase(input);if(action==='list')return list(input);if(action==='get')return detail(input);if(action==='create')return create(input);if(action==='release-papers')return releasePapers(input);return mutate(action,input);
+  if(action==='register-release')return releaseRegister(s,input);if(action==='register-create')return createRegister(s,input);if(action==='register-save')return saveRegister(s,input);if(action==='register-validate')return validateRegister(s,input);if(action==='session-delete')return deleteSession(input);if(action==='phase-create')return createPhase(input);if(action==='list')return list(input);if(action==='get')return detail(input);if(action==='create')return create(input);if(action==='release-papers')return releasePapers(input);if(action==='prepare-papers')return releasePapers(input,true);return mutate(action,input);
  }};
 }

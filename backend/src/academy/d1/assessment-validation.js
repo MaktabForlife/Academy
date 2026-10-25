@@ -1,3 +1,4 @@
+import {assessmentResultsSQL} from './assessment-results.js';
 import {validDate} from './assessment-store.js';
 import {managementError as fail} from './management-store.js';
 
@@ -14,13 +15,14 @@ export async function statusValidation(s,registerId,status){
  if(['REGISTERED','DRAFT','CANCELLED','ARCHIVED'].includes(status))return {status,valid:true,checks};
  const rows=registerId?(await s.p(status==='SCHEDULED'?`SELECT * FROM assessments WHERE register_id=? AND deleted_at IS NULL LIMIT 1001`:`SELECT a.*,
   count(r.account_id) learners,
+  sum(CASE WHEN m.manual=1 THEN 1 ELSE 0 END) manual_results,
   sum(CASE WHEN r.first_accessed_at IS NOT NULL THEN 1 ELSE 0 END) accessed,
-  sum(CASE WHEN r.latest_submission_id IS NOT NULL THEN 1 ELSE 0 END) submitted,
-  sum(CASE WHEN r.latest_submission_id=m.submission_id AND m.state IN('IN_REVIEW','APPROVED') THEN 1 ELSE 0 END) assessed,
-  sum(CASE WHEN r.latest_submission_id=m.submission_id AND m.state='APPROVED' THEN 1 ELSE 0 END) moderated,
-  sum(CASE WHEN r.latest_submission_id=m.submission_id AND m.state='APPROVED' AND r.released_mark_id=m.mark_id THEN 1 ELSE 0 END) released,
+  sum(CASE WHEN r.latest_submission_id IS NOT NULL OR m.manual=1 THEN 1 ELSE 0 END) submitted,
+  sum(CASE WHEN (m.manual=1 OR r.latest_submission_id=m.submission_id) AND m.state IN('IN_REVIEW','APPROVED') THEN 1 ELSE 0 END) assessed,
+  sum(CASE WHEN (m.manual=1 OR r.latest_submission_id=m.submission_id) AND m.state='APPROVED' THEN 1 ELSE 0 END) moderated,
+  sum(CASE WHEN (m.manual=1 OR r.latest_submission_id=m.submission_id) AND m.state='APPROVED' AND r.released_mark_id=m.mark_id THEN 1 ELSE 0 END) released,
   sum(CASE WHEN r.resubmit_authorised=1 THEN 1 ELSE 0 END) replacements
- FROM assessments a LEFT JOIN assessment_recipients r USING(assessment_id) LEFT JOIN assessment_markings m ON m.mark_id=r.latest_mark_id
+ FROM assessments a LEFT JOIN assessment_recipients r USING(assessment_id) LEFT JOIN (${assessmentResultsSQL}) m ON m.mark_id=r.latest_mark_id
  WHERE a.register_id=? AND a.deleted_at IS NULL GROUP BY a.assessment_id LIMIT 1001`,registerId).all()).results:[];
  if(rows.length>1000)throw fail('This Imtihaan has too many assessments to validate together.',409);
  const check=(label,ok)=>checks.push({label,ok:Boolean(ok)}),all=fn=>rows.length>0&&rows.every(fn);
@@ -44,7 +46,7 @@ export async function statusValidation(s,registerId,status){
  const marking=['READY_FOR_ASSESSMENT','ASSESSED','MODERATED','READY_FOR_RELEASE','RELEASED','COMPLETE'];
  if(marking.includes(status)){
   check('At least one learner has submitted answers',rows.some(a=>a.submitted>0));
-  check('A teacher or admin has marked every assessment with received answers ready',all(a=>a.submitted===0||a.ready_for_assessment_at));
+  check('A teacher or admin has marked every assessment with received answers ready',all(a=>a.submitted===0||a.manual_results===a.submitted||a.ready_for_assessment_at));
  }
  if(['ASSESSED','MODERATED','READY_FOR_RELEASE','RELEASED','COMPLETE'].includes(status))check('Every latest submitted answer has been assessed',all(a=>a.assessed===a.submitted));
  if(['MODERATED','READY_FOR_RELEASE','RELEASED','COMPLETE'].includes(status))check('Every latest assessed answer has approved moderation',all(a=>a.moderated===a.submitted));

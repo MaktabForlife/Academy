@@ -3,6 +3,7 @@
 - Work on the local `feature/academy-read-optimisation` branch for the query and dashboard snapshot optimisation requested by the user.
 - Do not push or deploy this work until the user explicitly requests it. This suspends the earlier automatic Development deployment authorisations below.
 - Keep all database verification local using disposable fixtures during this work.
+- Keep code deployment and the hosted database upgrade on hold through the daily reset at 00:00 UTC / 03:00 Riyadh on 26 October 2026. The reset does not schedule a deployment or override the explicit-request requirement above.
 
 # Current Development workflow — 24 October 2026
 

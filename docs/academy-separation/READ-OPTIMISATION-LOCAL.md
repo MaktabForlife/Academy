@@ -2,7 +2,7 @@
 
 Branch: `feature/academy-read-optimisation`.
 
-This work is local and has not been pushed, deployed or applied to a hosted database. The user's deployment hold overrides the earlier Development deployment authorisation. The existing checkout's unrelated assessment edits were preserved in that checkout; this branch started from Development commit `411c7b01`.
+This work is local and has not been pushed, deployed or applied to a hosted database. The user's deployment hold overrides the earlier Development deployment authorisation. This branch started from Development commit `411c7b01` (V107.65) and now includes the already-deployed V107.66 commit `9b5b1361`. The original Development checkout remains separate. Code deployment and the hosted Core upgrade are on hold through the next daily reset, 00:00 UTC / 03:00 Riyadh on 26 October 2026; no automatic deployment is scheduled.
 
 ## Behaviour
 
@@ -41,12 +41,18 @@ Cache storage failures fall back to the established database readers. Missing in
 
 ## Verification
 
-- Academy regression group: all 106 test files passed; later affected permission/snapshot, workspace, batch and coordinator checks were rerun after the final refinements.
+- Combined V107.66 branch: all 106 Academy regression files passed, including targeted reruns after correcting the Attendance page's versioned asset references. The focused assessment/register/batch/snapshot checks passed all 97 cases.
 - Actual local Workers runtime: two D1 bindings, private Durable Object RPC, R2 permission cache at sign-in, and repeat dashboard snapshots passed.
 - Browser acceptance: local drafts, editing and batch saving, lost-response retries, whole-Imtihaan validation/release, shared-class scope, mobile layouts and existing paper/result/report workflows passed.
 - Additional checks cover stale register/member revisions, rollback of every batch write/event/receipt, denied authority, account/session/PIN changes, source changes during storage, timed grants, private-cache outage, snapshot isolation, policy disables, and idempotent schema installation.
 - A 100-paper batch saved and released atomically; every coordinator invocation stayed within the fixture's 50-query budget.
-- Academy boundary check passed. No hosted verification was performed during implementation.
+- Academy boundary check passed for 133 modules. Both local browser acceptance scripts passed, with external browser traffic blocked. No hosted verification was performed during implementation.
+
+## V107.66 integration
+
+The merge retains V107.66's class-grouped manual marks, actual-Teacher checks for assigned examiners, fresh permission and revision checks, and one publication step for the complete approved paper set. Marks remain private until explicit Admin release. Assessment detail, marks and report readers remain live; the dashboard snapshot still contains only its existing metadata.
+
+A split-store integration check now batch-saves an Imtihaan, rejects marks entry before schedule release, validates and publishes the whole schedule, and then saves and explicitly releases manual marks without fabricating an answer submission. The native browser acceptance starts from a batch-saved shared assessment and exercises paper publication, Teacher/Admin marks entry, lost-response retries, zero marks and learner-only released results. The earlier browser acceptance also verifies local draft editing, Save all and validation auto-save.
 
 ## Release preparation still subject to the user's deployment hold
 
