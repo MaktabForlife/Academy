@@ -30,6 +30,7 @@ export function assessmentFiles(repository,auth,env){
     const mode=native?(input.timingMode||current.timing_mode||'TIMED'):'TIMED',duration=mode==='UNTIMED'?null:input.durationMinutes??current.duration_minutes,allowance=mode==='UNTIMED'?null:input.allowanceMinutes??current.allowance_minutes??15,maximum=input.maximumMark??current.maximum_mark;
     if(!['TIMED','UNTIMED'].includes(mode)||mode==='TIMED'&&(!Number.isInteger(duration)||duration<1||duration>1440||!Number.isInteger(allowance)||allowance<0||allowance>1440)||typeof maximum!=='number'||!Number.isFinite(maximum)||maximum<=0||maximum>1000000)throw fail('Enter a valid paper duration and total mark.');
     paperMode=mode;paperDuration=duration;paperAllowance=allowance;
+    if(await p('SELECT 1 found FROM assessment_recipients WHERE assessment_id IN(SELECT value FROM json_each(?)) AND latest_mark_id IS NOT NULL LIMIT 1',JSON.stringify(paperTargets.map(a=>a.assessment_id))).first())throw fail('A paper with entered marks cannot be replaced.',409);
     if(paperTargets.some(a=>a.paper_released_at)||await p('SELECT 1 ok FROM assessment_submissions WHERE assessment_id IN(SELECT value FROM json_each(?)) LIMIT 1',JSON.stringify(paperTargets.map(a=>a.assessment_id))).first())throw fail('A released paper cannot be replaced. Create a new assessment.',409);
     if(paperTargets.some(member=>member.examiner_id&&!same(member.examiner_id,actor)))await s.requireAdminClasses(paperTargets.map(a=>({activityKey:a.activity_key,classId:a.class_id})));
    }

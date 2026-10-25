@@ -278,3 +278,60 @@ test('learner timetable returns only that learner’s explicitly released mark, 
  const preview=ok(await f.request('list',{view:'learner'}));assert(preview.assessments.every(a=>!Object.hasOwn(a,'releasedMark')));
  ok(await f.change(id,'withdraw-release',{category:'marks',selection:'SELECTED',accountIds:[account]}));assert(!Object.hasOwn(ok(await f.request('list',{},'student')).assessments.find(a=>a.id===id),'releasedMark'));
 }));
+
+test('manual marks group students by class and name, save without submissions, and release only explicitly',()=>use(async f=>{
+ const scope=scopes.programA;f.db.prepare("UPDATE classes SET name='Class B' WHERE activity_key=? AND class_id='class-1'").run(scope);
+ f.db.prepare("INSERT INTO classes(activity_key,class_id,name,active) VALUES(?,'marks-a','Class A',1)").run(scope);f.db.prepare("INSERT INTO class_teacher_assignments VALUES(?,'marks-a','account-0003','ADDITIONAL')").run(scope);
+ f.db.prepare("UPDATE accounts SET display_name='Zulu Student' WHERE account_id='account-0002'").run();f.db.prepare("UPDATE accounts SET display_name='amy Student' WHERE account_id=?").run(f.actors.studentA);
+ for(const [classId,account] of [['class-1',f.actors.studentA],['marks-a','account-0002'],['marks-a',f.actors.studentA]])f.db.prepare('INSERT OR IGNORE INTO class_memberships VALUES(?,?,?,?,NULL,NULL,1)').run(scope,crypto.randomUUID(),classId,account);
+ const id=await f.create({classes:[{activityKey:scope,classId:'class-1'},{activityKey:scope,classId:'marks-a'}]});await f.publish(id);
+ const list=ok(await f.request('marks-list',{assessmentId:id},'teacher'));assert.deepEqual(list.classes.map(c=>c.className),['Class A','Class B']);assert(list.classes.every(c=>c.students.findIndex(r=>r.name==='amy Student')<c.students.findIndex(r=>r.name==='Zulu Student')));
+ const entries=list.classes.map((c,i)=>{const r=c.students.find(r=>r.accountId==='account-0002');return {assessmentId:c.assessmentId,accountId:r.accountId,recipientRevision:r.revision,markId:r.markId,mark:i?92:0};}),input={...operation(),assessmentId:id,groupRevisions:list.classes.map(c=>({id:c.assessmentId,revision:c.revision})),entries};
+ const saved=ok(await f.request('marks-save',input,'teacher'));assert.equal(saved.saved,2);assert.equal(ok(await f.request('marks-save',input,'teacher')).replayed,true);assert.equal(f.db.prepare("SELECT count(*) n FROM assessment_events WHERE action='manual-mark'").get().n,2);assert.equal(f.db.prepare('SELECT count(*) n FROM assessment_submissions').get().n,0);assert.equal(f.db.prepare('SELECT count(*) n FROM assessment_files').get().n,0);
+ assert(ok(await f.request('list',{},'student')).assessments.every(a=>!Object.hasOwn(a,'releasedMark')));
+ ok(await f.change(id,'release',{category:'marks',selection:'CLASS'}));const released=ok(await f.request('list',{},'student')).assessments;assert.deepEqual(released.map(a=>a.releasedMark).sort((a,b)=>a-b),[0,92]);
+ const report=ok(await f.request('report-data',{activityKey:scope,classId:'class-1',assessmentIds:[id]}));assert.equal(report.learners.find(r=>r.id==='account-0002').results[0].mark,92);
+ const next=ok(await f.request('marks-list',{assessmentId:id})),c=next.classes.find(c=>c.assessmentId===id),r=c.students.find(r=>r.accountId==='account-0002');ok(await f.request('marks-save',{...operation(),assessmentId:id,groupRevisions:next.classes.map(c=>({id:c.assessmentId,revision:c.revision})),entries:[{assessmentId:id,accountId:r.accountId,recipientRevision:r.revision,markId:r.markId,mark:80.5}]}));assert.equal(ok(await f.request('list',{},'student')).assessments.find(a=>a.id===id).releasedMark,92,'Corrections stay private until another release');
+}));
+
+test('manual marks reject learners, outside teachers, stale edits and invalid totals without partial changes',()=>use(async f=>{
+ const id=await f.create();await f.publish(id);const list=ok(await f.request('marks-list',{assessmentId:id})),c=list.classes[0],r=c.students[0],base={...operation(),assessmentId:id,groupRevisions:[{id,revision:c.revision}],entries:[{assessmentId:id,accountId:r.accountId,recipientRevision:r.revision,markId:r.markId,mark:60}]};
+ assert.equal((await f.request('marks-list',{assessmentId:id},'student')).status,403);assert.equal((await f.request('marks-save',base,'student')).status,403);assert.equal((await f.request('marks-list',{assessmentId:id},'examiner')).status,403);
+ for(const mark of [-1,101,'70',null])assert.equal((await f.request('marks-save',{...base,...operation(),entries:[{...base.entries[0],mark}]})).status,400);
+ assert.equal((await f.request('marks-save',{...base,...operation(),entries:[base.entries[0],{...base.entries[0],accountId:f.actors.studentB}]})).status,403);assert.equal(f.db.prepare("SELECT count(*) n FROM assessment_events WHERE action='manual-mark'").get().n,0);
+ ok(await f.request('marks-save',base));assert.equal((await f.request('marks-save',{...base,...operation()})).body.code,'ROW_CHANGED');
+ assert.equal((await f.change(id,'paper-details',{durationMinutes:45,maximumMark:50})).status,409);
+}));
+
+test('paper approvals save individually without publication, then one preparation publishes the whole approved set',()=>use(async f=>{
+ const scope=scopes.programA,registerId=ok(await f.request('register-create',{...operation(),name:'One publication',activityKeys:[scope],classMode:'ONE',classActivityKey:scope,classId:'class-1',status:'REGISTERED'})).registerId;
+ const ids=[await f.create({registerId,title:'Paper A'}),await f.create({registerId,title:'Paper B'})];for(const id of ids)await f.publish(id);
+ const uploaded=[];for(const id of ids)uploaded.push(ok(await f.uploadNative(id,'PAPER')));
+ const first=ok(await f.change(ids[0],'review-paper',{decision:'APPROVE',paperReview:{fileId:uploaded[0].fileId,sha256:uploaded[0].sha256}}));assert(!first.setupPublication);assert.equal(f.db.prepare('SELECT paper_released_at FROM assessments WHERE assessment_id=?').get(ids[0]).paper_released_at,null);
+ assert.equal((await f.request('prepare-papers',{...operation(),registerId,papers:[{id:ids[0],revision:(await f.detail(ids[0])).assessment.revision}]})).body.code,'PAPERS_NOT_READY');
+ const second=ok(await f.change(ids[1],'review-paper',{decision:'APPROVE',paperReview:{fileId:uploaded[1].fileId,sha256:uploaded[1].sha256}}));assert(!second.setupPublication);
+ const body={...operation(),registerId,papers:await Promise.all(ids.map(async id=>({id,revision:(await f.detail(id)).assessment.revision})))},prepared=ok(await f.request('prepare-papers',body));assert(prepared.setupPublication);assert(f.db.prepare('SELECT paper_released_at FROM assessments').all().every(a=>!a.paper_released_at));
+ assert.equal((await f.request('release-papers',{...operation(),preparedOperation:body.operationId,papers:prepared.papers})).body.code,'SETUP_REVIEW_REQUIRED');
+ const selection={sourceOperation:prepared.setupPublication},review=ok(await f.request('/api/admin/platform/setup/review',selection)),batch=ok(await f.request('/api/admin/platform/setup/freeze',{...selection,digest:review.digest}));ok(await f.request('/api/admin/platform/setup/publish',{batchId:batch.batchId,digest:batch.digest}));
+ const release={...operation(),preparedOperation:body.operationId,papers:prepared.papers};assert.equal(ok(await f.request('release-papers',release)).released,2);assert.equal(ok(await f.request('release-papers',release)).replayed,true);assert(f.db.prepare('SELECT paper_released_at FROM assessments').all().every(a=>a.paper_released_at));
+}));
+
+test('a Teacher sees and edits only their own classes in a shared marks popup',()=>use(async f=>{
+ const scope=scopes.programA;f.db.prepare("INSERT INTO classes(activity_key,class_id,name,active) VALUES(?,'other-mark-class','Other class',1)").run(scope);f.db.prepare('INSERT INTO class_memberships VALUES(?,?,?,?,NULL,NULL,1)').run(scope,crypto.randomUUID(),'other-mark-class','account-0002');
+ const id=await f.create({classes:[{activityKey:scope,classId:'class-1'},{activityKey:scope,classId:'other-mark-class'}]});await f.publish(id);
+ const teacher=ok(await f.request('marks-list',{assessmentId:id},'teacher'));assert.equal(teacher.classes.length,1);assert.equal(teacher.classes[0].classId,'class-1');const admin=ok(await f.request('marks-list',{assessmentId:id})),outside=admin.classes.find(c=>c.classId==='other-mark-class'),r=outside.students[0];
+ assert.equal((await f.request('marks-save',{...operation(),assessmentId:id,groupRevisions:admin.classes.map(c=>({id:c.assessmentId,revision:c.revision})),entries:[{assessmentId:outside.assessmentId,accountId:r.accountId,recipientRevision:r.revision,markId:r.markId,mark:50}]},'teacher')).status,403);
+ assert.equal(f.db.prepare("SELECT count(*) n FROM assessment_events WHERE action='manual-mark'").get().n,0);
+}));
+
+test('a failed manual marks batch rolls back every student and exact retry saves once',()=>use(async f=>{
+ f.db.prepare('INSERT OR IGNORE INTO class_memberships VALUES(?,?,?,?,NULL,NULL,1)').run(scopes.programA,crypto.randomUUID(),'class-1',f.actors.studentA);const id=await f.create();await f.publish(id);const list=ok(await f.request('marks-list',{assessmentId:id})),c=list.classes[0],entries=c.students.map(r=>({assessmentId:id,accountId:r.accountId,recipientRevision:r.revision,markId:r.markId,mark:55})),input={...operation(),assessmentId:id,groupRevisions:[{id,revision:c.revision}],entries};assert(entries.length>=2);
+ f.db.exec("CREATE TRIGGER fail_manual_batch BEFORE INSERT ON assessment_events WHEN NEW.action='manual-mark' AND NEW.account_id='account-0002' BEGIN SELECT RAISE(ABORT,'synthetic_manual_failure'); END");assert.equal((await f.request('marks-save',input)).status,503);assert.equal(f.db.prepare("SELECT count(*) n FROM assessment_events WHERE action='manual-mark'").get().n,0);assert.equal(f.db.prepare('SELECT count(*) n FROM assessment_recipients WHERE latest_mark_id IS NOT NULL').get().n,0);assert.equal(f.db.prepare('SELECT count(*) n FROM operation_receipts WHERE operation_id=?').get(input.operationId).n,0);
+ f.db.exec('DROP TRIGGER fail_manual_batch');assert.equal(ok(await f.request('marks-save',input)).saved,entries.length);assert.equal(ok(await f.request('marks-save',input)).replayed,true);assert.equal(f.db.prepare("SELECT count(*) n FROM assessment_events WHERE action='manual-mark'").get().n,entries.length);
+}));
+
+test('revoking a designated examiner during a marks save prevents the whole commit',()=>use(async f=>{
+ const id=await f.create({examinerId:f.actors.teacherA});await f.publish(id);const list=ok(await f.request('marks-list',{assessmentId:id},'examiner')),c=list.classes[0],r=c.students[0],input={...operation(),assessmentId:id,groupRevisions:[{id,revision:c.revision}],entries:[{assessmentId:id,accountId:r.accountId,recipientRevision:r.revision,markId:r.markId,mark:66}]};
+ const db=f.env.ACADEMY_DB,withSession=db.withSession.bind(db);let intercepted=false;db.withSession=(...args)=>{const session=withSession(...args);return {...session,prepare(sql){if(!intercepted&&sql.startsWith('INSERT INTO academy_write_guards')){intercepted=true;f.db.prepare("UPDATE role_assignments SET active=0 WHERE account_id=? AND role='TEACHER'").run(f.actors.teacherA);f.db.exec('UPDATE academy_write_state SET version=version+1 WHERE singleton=1');}return session.prepare(sql);},batch:session.batch.bind(session)};};
+ const result=await f.request('marks-save',input,'examiner');assert(intercepted);assert([401,403,409].includes(result.status),JSON.stringify(result));assert.equal(f.db.prepare("SELECT count(*) n FROM assessment_events WHERE action='manual-mark'").get().n,0);assert.equal(f.db.prepare('SELECT count(*) n FROM assessment_recipients WHERE latest_mark_id IS NOT NULL').get().n,0);
+}));

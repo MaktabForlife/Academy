@@ -34,16 +34,16 @@ export function selectWorkspace(request,auth){
 }
 
 const adminActions={
- assessments:new Set(['register-create','register-save','register-validate','register-release','session-delete','phase-create','create','save','publish','roster','review-paper','authorise-resubmission','review-mark','release','release-papers','templates','template-save','report-data','report-save','collection-save','finalise','withdraw-release']),
+ assessments:new Set(['register-create','register-save','register-validate','register-release','session-delete','phase-create','create','save','publish','roster','review-paper','authorise-resubmission','review-mark','release','release-papers','prepare-papers','templates','template-save','report-data','report-save','collection-save','finalise','withdraw-release']),
  progress:new Set(['import','module-save','set-save','cards','card-active','activity-active']),
  planning:new Set(['policy','deadline','comment']),
  'lesson-media':new Set(['course-files-create']),
  calendar:new Set(['save'])
 };
-const teacherActions={assessments:new Set(['paper-details','confirm-submission','ready-assessment','mark']),planning:new Set(['save','submit']),progress:new Set(['confirm'])};
+const teacherActions={assessments:new Set(['marks-list','marks-save','paper-details','confirm-submission','ready-assessment','mark']),planning:new Set(['save','submit']),progress:new Set(['confirm'])};
 const readerActions={
  LEARN:{assessments:['list','get','download','upload','report-list'],progress:['get','mark'],'lesson-media':['list','feed','calendar','timetable','watch','download','comments','comment-save','comment-moderate'],calendar:['get'],planning:[]},
- TEACH:{assessments:['list','get','download','upload','report-list','paper-details','confirm-submission','ready-assessment','mark'],progress:['get','grid','confirm'],'lesson-media':['list','feed','calendar','timetable','sessions','create','get','save','upload','watch','download','comments','comment-save','comment-moderate','attachment-remove','attachment-name','note-upload','note-options','note-withdraw'],calendar:['get'],planning:['list','get','save','submit']}
+ TEACH:{assessments:['list','get','download','upload','report-list','marks-list','marks-save','paper-details','confirm-submission','ready-assessment','mark'],progress:['get','grid','confirm'],'lesson-media':['list','feed','calendar','timetable','sessions','create','get','save','upload','watch','download','comments','comment-save','comment-moderate','attachment-remove','attachment-name','note-upload','note-options','note-withdraw'],calendar:['get'],planning:['list','get','save','submit']}
 };
 export function guardWorkspace(request,auth,input={}){
  const path=new URL(request.url).pathname,admin=isAdminWorkspace(auth);

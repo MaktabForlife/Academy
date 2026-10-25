@@ -1,3 +1,4 @@
+import {assessmentResultsSQL} from './assessment-results.js';
 import {reportDefinitionHash} from './assessment-report-source.js';
 import {assessmentOperations} from './assessment-timing.js';
 import {assessmentStore,cleanText} from './assessment-store.js';
@@ -35,10 +36,10 @@ export function assessmentReports(repository,auth){
   const ids=input.assessmentIds;if(!Array.isArray(ids)||!ids.length||ids.length>50||new Set(ids).size!==ids.length)throw fail('Select up to 50 assessments for this report.');
   const exams=(await p(`SELECT x.*,c.name class_name,a.name activity_name FROM assessments x JOIN classes c ON c.activity_key=x.activity_key AND c.class_id=x.class_id JOIN activities a ON a.activity_key=x.activity_key WHERE x.deleted_at IS NULL AND x.activity_key=? AND x.class_id=? AND x.assessment_id IN(SELECT value FROM json_each(?)) ORDER BY x.exam_date,x.subject,x.title`,input.activityKey,input.classId,JSON.stringify(ids)).all()).results;
   if(exams.length!==ids.length)throw fail('Select assessments from the same class.',403);
-  const rows=(await p(`SELECT r.*,m.mark,m.state,m.submission_id FROM assessment_recipients r LEFT JOIN assessment_markings m ON m.mark_id=r.released_mark_id WHERE r.assessment_id IN(SELECT value FROM json_each(?)) ORDER BY r.display_name`,JSON.stringify(ids)).all()).results;
+  const rows=(await p(`SELECT r.*,m.mark,m.state,m.submission_id,m.manual FROM assessment_recipients r LEFT JOIN (${assessmentResultsSQL}) m ON m.mark_id=r.released_mark_id WHERE r.assessment_id IN(SELECT value FROM json_each(?)) ORDER BY r.display_name`,JSON.stringify(ids)).all()).results;
   const definitions=new Map();if(native)for(const a of exams)definitions.set(a.assessment_id,await reportDefinitionHash(a));
   const people=new Map();for(const r of rows)if(!people.has(r.account_id))people.set(r.account_id,r.display_name);
-  return {...(native?{timezone:(await repository.homeConfiguration()).setting_value}:{}),className:exams[0].class_name,activityName:exams[0].activity_name,learners:[...people].map(([id,name])=>({id,name,results:exams.map(a=>{const r=rows.find(r=>r.account_id===id&&r.assessment_id===a.assessment_id),released=r?.state==='APPROVED'&&(native||r.submission_id===r.latest_submission_id);return {...(native?{definitionHash:definitions.get(a.assessment_id)}:{}),assessmentId:a.assessment_id,title:a.title,subject:[a.subject,a.subject_descriptor].filter(Boolean).join(' · '),date:a.exam_date,...(!native?{maximumMark:a.maximum_mark}:{}),mark:released?r.mark:null,markId:released?r.released_mark_id:null};})}))};
+  return {...(native?{timezone:(await repository.homeConfiguration()).setting_value}:{}),className:exams[0].class_name,activityName:exams[0].activity_name,learners:[...people].map(([id,name])=>({id,name,results:exams.map(a=>{const r=rows.find(r=>r.account_id===id&&r.assessment_id===a.assessment_id),released=r?.state==='APPROVED'&&(native||r.manual===1||r.submission_id===r.latest_submission_id);return {...(native?{definitionHash:definitions.get(a.assessment_id)}:{}),assessmentId:a.assessment_id,title:a.title,subject:[a.subject,a.subject_descriptor].filter(Boolean).join(' · '),date:a.exam_date,...(!native?{maximumMark:a.maximum_mark}:{}),mark:released?r.mark:null,markId:released?r.released_mark_id:null};})}))};
  }
  async function saveReport(input){return s.change('report-save',input,input.activityKey,async()=>{
   await s.requireClass(input.activityKey,input.classId,'admin');
