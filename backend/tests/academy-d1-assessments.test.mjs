@@ -122,6 +122,7 @@ test('a person reviews the latest PDF before confirming it and manually marks th
  ok(await x.change('ready-assessment',{},x.teacher));
  assert.ok((await x.detail()).assessment.readyForAssessmentAt);
  assert.equal(ok(await f.call('list',{view:'admin'},x.admin)).assessments.find(a=>a.id===x.id).resultsStatus,'READY_FOR_ASSESSMENT');
+ assert.ok(ok(await f.call('list',{view:'admin'},x.admin)).assessments.find(a=>a.id===x.id).readyForAssessmentAt);
  const first=r.submissionId;
  ok(await x.change('authorise-resubmission',{accountIds:[r.accountId]}));
  assert.equal((await x.detail()).assessment.readyForAssessmentAt,null);

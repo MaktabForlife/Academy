@@ -6,10 +6,15 @@
   return '<option value="ALL" '+(value==='ALL'?'selected':'')+'>All classes</option>'+classes.filter(c=>areas.includes(c.activity_key)).map(c=>'<option value="'+esc(key(c))+'" '+(value===key(c)?'selected':'')+'>'+esc(c.activity_name+' · '+c.name)+'</option>').join('');
  }
  function releaseLabel(r){return r.scheduleReleased?'Schedule released':r.scheduleCount?`${r.releasedScheduleCount||0} of ${r.scheduleCount} dates released`:'No assessment dates';}
+ const exportButton=(r,kind,available)=>{
+  const share=kind==='share',label=share?'Share PDF':'Download PDF';
+  const icon=share?'<path d="M12 16V3m-4 4 4-4 4 4M5 13v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"/>':'<path d="M12 3v12m-4-4 4 4 4-4M5 17v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3"/>';
+  return `<button type="button" class="as-button as-secondary ar-export-icon" data-as="${kind}-schedule-pdf" data-id="${esc(r.id)}" aria-label="${label}" title="${label}" ${available?'':'disabled'}><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${icon}</svg></button>`;
+ };
  function rowActions(r){
   if(r.id==='new'||!r.canEdit)return '';
   const available=r.scheduleCount>0,release=available&&!r.scheduleReleased&&!['CANCELLED','ARCHIVED'].includes(r.status);
-  return (release?`<button type="button" class="as-button" data-as="release-register" data-id="${esc(r.id)}">Release schedule</button>`:'')+`<button type="button" class="as-button as-secondary" data-as="share-schedule-image" data-id="${esc(r.id)}" ${available?'':'disabled'}>Share image</button><button type="button" class="as-button as-secondary" data-as="share-schedule-pdf" data-id="${esc(r.id)}" ${available?'':'disabled'}>Share PDF</button><button type="button" class="as-button as-secondary" data-as="download-schedule-pdf" data-id="${esc(r.id)}" ${available?'':'disabled'}>Download PDF</button>`;
+  return (release?`<button type="button" class="as-button" data-as="release-register" data-id="${esc(r.id)}">Release schedule</button>`:'')+exportButton(r,'share',available)+exportButton(r,'download',available);
  }
  function render({list,editId,filter,activityKey}){
   const areas=[...new Map((list.registerClasses||[]).map(c=>[c.activity_key,{key:c.activity_key,name:c.activity_name,kind:c.kind}])).values()],statuses=list.imtihaanStatuses||[];

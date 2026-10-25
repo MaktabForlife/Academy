@@ -1,3 +1,9 @@
+# V107.58 — Assessment table and paper attachments
+
+Use Due date in assessment timetables and remove the Duration and Total mark columns from the table. Add a paper edit icon beside Paper status that opens the existing scoped attachment, moderation and publication controls in a popup. Keep full assessment access, unsaved-file checks, exact retries, shared-class paper controls and PDF preview. Show Results status only after the assessment is marked Ready for assessment; rows that are not ready remain blank when another row enables the column.
+
+Remove Share image from the Imtihaan Register. Use accessible share and download icons for its existing Draft/Final PDF actions. Preserve V107.57 dashboards, Course timetable card text, permissions, learner work and explicit releases. No migrations or live data corrections.
+
 # V107.56 — Lesson-linked Class Notes
 
 Add Class Notes beside Timetable to reveal note tools inside the existing swipeable lesson cards. Save multiple long-text notes with the author, due date and retained corrections. Default to the next accepted session for the same class, subject/module and Teacher, or select a fixed date. Due lesson reminders open the original note. Students correct their own notes; responsible Teachers and scoped Admin can correct, relink or withdraw with history. Admin-Learn stays read-only.
