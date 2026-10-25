@@ -1,3 +1,4 @@
+import {payloadHash} from '../../programs/timetable-model.js';
 import {setupEnabled,acceptedHead,acceptedRepository} from './setup-reader.js';
 import {academyD1Repository,rehearsalError} from './repository.js';
 import {d1Entrance} from './entrance.js';
@@ -61,6 +62,11 @@ export async function publicTimetable(request,env,now=new Date(),edgeCache=globa
   }
   const response=snapshotResponse(snapshot,period,now);
   if(edgeCache&&!edgeHit)try { await edgeCache.put(cacheKey,response.clone()); }catch { /* Serving R2 does not require an edge-cache write. */ }
+  const url=new URL(request.url);
+  if(url.searchParams.get('readCache')==='1'){
+    const readRevision=await payloadHash([key,snapshot.generatedAt,snapshot.sourceRevision]);
+    return new Response(JSON.stringify(url.searchParams.get('readRevision')===readRevision?{success:true,notModified:true,readRevision}:{...snapshot,readRevision}),{headers:response.headers});
+  }
   return response;
 }
 

@@ -260,6 +260,7 @@
   $('ol-refresh').addEventListener('click', () => void loadArchiveBooks(true));
   const saved = cache.read('public');
   if (saved) applySnapshot(saved);
-  if (!saved || saved.stale) void loadArchiveBooks();
+  window.addEventListener('m4l-library-public-updated',event=>{loadGeneration++;applySnapshot(event.detail);$('ol-refresh').disabled=false;});
+  if (window.M4L_ACADEMY_READ_CACHE || !saved || saved.stale) void loadArchiveBooks();
 
 })();

@@ -1,3 +1,4 @@
+import {payloadHash} from '../../programs/timetable-model.js';
 import { json } from '../../lib/http.js';
 import { problem } from '../../programs/model.js';
 import { programFailure } from '../../programs/error-model.js';
@@ -80,6 +81,11 @@ export function openLibraryMetadataEndpoint(action) {
         const records = (await stub.openLibraryMetadataList())
           .filter(record => action === 'list' || record.kind !== 'LINK' || record.active !== false)
           .map(record => openLibraryMetadataForClient(record, origin));
+        const url=new URL(request.url);
+        if(action==='public'&&url.searchParams.get('readCache')==='1'){
+          const readRevision=await payloadHash(records);
+          return json(url.searchParams.get('readRevision')===readRevision?{success:true,notModified:true,readRevision}:{success:true,records,readRevision});
+        }
         return json({ success: true, records });
       }
       if (action !== 'save') throw problem('Unknown Open Library action.', 404);

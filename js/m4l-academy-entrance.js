@@ -130,7 +130,12 @@
     $('learning-catalogue').innerHTML = `<ul class="learning-cards">${originalActivities.map(row => `<li class="card activity-card"><div class="activity-art"><img src="${esc(row.image)}" alt="Academy artwork for ${esc(row.name)}" loading="lazy"></div><div class="card-pad"><span class="eyebrow">${row.kind === 'PROGRAM' ? 'Program' : 'Course'}</span><h3>${esc(row.name)}</h3></div></li>`).join('')}</ul>`;
   }
 
-  async function dailyTimetable(body, force = false) {
+  async function dailyTimetable(body, force = false, onUpdate, onError, fallback=null) {
+    if(window.M4L_ACADEMY_READ_CACHE){
+      if(token()&&dailyCache.session!==token()){dailyCache.session=token();dailyCache.owner=await window.M4L_ACADEMY_READ_CACHE.owner(token());try{const back=JSON.parse(sessionStorage.getItem(MEMORISATION_RETURN_KEY)||'null');if(back?.owner===dailyCache.owner&&validReturnHash(back.hash))memorisationReturn=back;}catch{}}
+      return window.M4L_ACADEMY_READ_CACHE.load({key:['entrance',body],public:!token(),force,fallback,onUpdate,onError,
+        fetcher:revision=>request(body,revision)});
+    }
     checkProfileLabels();
     await checkRemoteProfileLabels(force);
     const setupHead=await window.M4L_ACADEMY_WORKSPACE?.readyPublication?.(force);
@@ -175,12 +180,12 @@
     }
   }
 
-  async function request(body) {
+  async function request(body, readRevision) {
     const session = token(), epoch = pageCache.epoch, key = JSON.stringify([session, classViewKey(), body]);
     if (pageCache.pending.has(key)) return pageCache.pending.get(key);
     const pending = (async () => {
-      const response = await fetch(`${window.M4L_CONFIG?.API_BASE || ''}/api/academy/entrance${session ? '' : '/public-snapshot'}`, session ? { method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session}` }, body: JSON.stringify(body) } : {method:'GET',cache:'no-cache'});
+      const response = await fetch((session?`${window.M4L_CONFIG?.API_BASE || ''}/api/academy/entrance`:window.M4L_ACADEMY_READ_CACHE?.publicUrl(`${window.M4L_CONFIG?.API_BASE || ''}/api/academy/entrance/public-snapshot`,readRevision)||`${window.M4L_CONFIG?.API_BASE || ''}/api/academy/entrance/public-snapshot`), session ? { method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session}`, ...(window.M4L_ACADEMY_READ_CACHE?.headers(readRevision)||{}) }, body: JSON.stringify(body) } : {method:'GET',cache:'no-cache'});
       const result = await response.json();
       if (token() !== session || pageCache.epoch !== epoch) throw new Error('The Academy account has changed.');
       if (!response.ok || !result.success) {
@@ -216,13 +221,17 @@
     return activity ? { ...result, activity } : null;
   }
 
-  async function loadHome(force = false) {
+  async function loadHome(force = false, fresh = null) {
     if(force)clearTimetableMedia();
     const generation = ++state.generation;
     $('entrance-message').textContent = 'Loading Academy information…';
     $('entrance-retry').hidden = true;
     try {
-      const result = await dailyTimetable({}, force);
+      const result = fresh || await dailyTimetable({}, force,updated=>{
+        if(generation!==state.generation)return;
+        if(state.startDate&&state.startDate!==state.home?.startDate){state.home=updated;rememberPages(updated);renderAcademyMenu();return;}
+        void loadHome(false,updated);
+      },(error,saved)=>{if(generation!==state.generation)return;if(!saved)clearPersonal();$('entrance-message').textContent=saved?'Showing saved Academy information. Couldn’t check for updates.':error.message;$('entrance-retry').hidden=false;});
       if (generation !== state.generation) return;
       rememberPages(result);
       state.home = result;state.homeDay=academyDay(result.timezone);
@@ -231,11 +240,11 @@
       $('schedule-date').value = result.startDate;
       $('schedule-range').textContent = `${formatDate(result.startDate)} – ${formatDate(result.endDate)}`;
       renderCalendar(result);
-      $('entrance-message').textContent = result.warnings.join(' ');
-      $('entrance-retry').hidden = !result.warnings.length;
+      $('entrance-message').textContent = result._cacheChecking?'Checking for updates…':result._cacheMessage||result.warnings.join(' ');
+      $('entrance-retry').hidden = !result._cacheMessage&&!result.warnings.length;
       renderHome();
       void loadPublicHome();
-      route();
+      if(!fresh)route();else if(location.hash.startsWith('#activity/')){const row=result.activityPages?.find(row=>row.id===state.activity?.id);if(row){state.activity=row;renderActivityTimetable();}}
     } catch (error) {
       if (generation !== state.generation) return;
       $('entrance-message').textContent = error.message;
@@ -260,19 +269,19 @@
     }
   }
 
-  async function loadSchedule(force = false) {
+  async function loadSchedule(force = false, fresh = null) {
     if(force)clearTimetableMedia();
     const generation = ++state.scheduleGeneration;
     $('schedule-message').textContent = 'Loading Academy timetable…';
     try {
-      const result = !token()&&state.home?{...state.home,startDate:state.startDate,endDate:addWeekDays(state.startDate,6)}:!force&&state.startDate===state.home?.startDate?state.home:state.startDate === state.home?.startDate ? await dailyTimetable({}, force) : await dailyTimetable({ startDate: state.startDate }, force);
+      const result = fresh || (window.M4L_ACADEMY_READ_CACHE?await dailyTimetable({startDate:state.startDate},force,updated=>{if(generation===state.scheduleGeneration)void loadSchedule(false,updated);},(error,saved)=>{if(generation!==state.scheduleGeneration)return;if(!saved)clearPersonal();$('schedule-message').textContent=saved?'Showing saved timetable. Couldn’t check for updates.':error.message;}):!token()&&state.home?{...state.home,startDate:state.startDate,endDate:addWeekDays(state.startDate,6)}:!force&&state.startDate===state.home?.startDate?state.home:state.startDate === state.home?.startDate ? await dailyTimetable({}, force) : await dailyTimetable({ startDate: state.startDate }, force));
       if (generation !== state.scheduleGeneration) return;
       if (result.startDate === state.home?.startDate) { state.home=result;rememberPages(result);renderHome(); }
       state.startDate = result.startDate;
       $('schedule-date').value = result.startDate;
       $('schedule-range').textContent = `${formatDate(result.startDate)} – ${formatDate(result.endDate)}`;
       renderCalendar(result);
-      $('schedule-message').textContent = result.warnings.join(' ');
+      $('schedule-message').textContent = result._cacheChecking?'Checking for updates…':result._cacheMessage||result.warnings.join(' ');
       state.scheduleTimetable = scheduleRows(result);
       renderSchedule('academy-sessions', roleRows(result));
       if(location.hash.startsWith('#activity/'))renderActivityTimetable();
@@ -299,7 +308,15 @@
     }).join('');
   }
 
-  async function loadPublicHome() {
+  async function loadPublicHome(fresh=null) {
+    if(window.M4L_ACADEMY_READ_CACHE&&!fresh){
+      try{const value=await window.M4L_ACADEMY_READ_CACHE.load({key:['entrance',{}],public:true,
+        fetcher:async revision=>{const response=await fetch(window.M4L_ACADEMY_READ_CACHE.publicUrl(`${window.M4L_CONFIG?.API_BASE||''}/api/academy/entrance/public-snapshot`,revision),{method:'GET',cache:'no-cache'});const data=await response.json();if(!response.ok||!data.success)throw Object.assign(Error(data.error||'Public timetable unavailable.'),{status:response.status});return data;},
+        onUpdate:value=>void loadPublicHome(value),onError:()=>{$('academy-public-sessions').insertAdjacentHTML('beforeend','<p role="status">Showing saved timetable. Couldn’t check for updates.</p>');}});
+        return loadPublicHome(value);
+      }catch(error){$('academy-public-sessions').textContent=error.message;return;}
+    }
+    if(fresh){state.publicData=fresh;state.publicDay=academyDay(fresh.timezone);}
     try {
       if(state.home?.signedIn===false&&state.home.snapshotDate===academyDay(state.home.timezone)){state.publicData=state.home;state.publicDay=academyDay(state.home.timezone);}
       if(!state.publicData||state.publicDay!==academyDay(state.publicData.timezone)) {
@@ -556,10 +573,10 @@
     $('course-list-retry').hidden = true;
     const pending = (async () => {
       try {
-        const response = await fetch(`${window.M4L_CONFIG?.API_BASE || ''}/api/academy/courses/catalogue`, {method:'POST', headers:{'Content-Type':'application/json', Authorization:`Bearer ${session}`}, body:'{}'});
-        const result = await response.json();
+        const read=async revision=>{const response=await fetch(`${window.M4L_CONFIG?.API_BASE || ''}/api/academy/courses/catalogue`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session}`,...(window.M4L_ACADEMY_READ_CACHE?.headers(revision)||{})},body:'{}'});const result=await response.json();if(!response.ok||!result.success)throw Object.assign(Error(result.error||'Courses unavailable.'),{status:response.status});return result;};
+        const result=window.M4L_ACADEMY_READ_CACHE?await window.M4L_ACADEMY_READ_CACHE.load({key:['courses'],fetcher:read,onUpdate:value=>{if(session===token()&&generation===state.courseGeneration){state.courseCatalogue=value;renderCourseList();}},onError:(error,saved)=>{if(session!==token()||generation!==state.courseGeneration)return;if(!saved){state.courseCatalogue=null;$('workshop-pills').replaceChildren();}$('course-list-message').textContent=saved?'Showing saved Courses. Couldn’t check for updates.':error.message;}}):await read();
         if (session !== token() || generation !== state.courseGeneration) return;
-        if (!response.ok || !result.success || !Array.isArray(result.courses)) throw new Error(result.error || 'Courses are temporarily unavailable.');
+        if (!result.success || !Array.isArray(result.courses)) throw new Error(result.error || 'Courses are temporarily unavailable.');
         const first = !state.courseCatalogue;
         state.courseCatalogue = result;
         state.courseCatalogueAt = Date.now();
@@ -798,11 +815,11 @@
     if(window.M4L_ACADEMY_ASSESSMENTS?.canLeave()===false||window.M4L_LESSON_MEDIA?.canLeave()===false||window.M4L_ACADEMY_PROGRESS?.canLeave()===false){$('activity-student-class').value=row.viewClassId;return;}
     if(changeStudentClass({activityKey:row.kind+':'+row.id,classId:$('activity-student-class').value}))void loadActivity(row.id,true);
   });
-  async function loadActivity(id, refresh = false) {
+  async function loadActivity(id, refresh = false, fresh = null) {
     clearTimeout(state.activityTimer);
     const generation = ++state.activityGeneration;
     const cached = !refresh && cachedActivity(id);
-    if (!cached) {
+    if (!cached&&!fresh) {
       state.activity = null;
       $('activity-title').textContent = 'Opening activity…';
       $('activity-role').textContent = '';
@@ -811,9 +828,9 @@
       $('activity-schedule').hidden = true;
     }
     try {
-      const result = cached || await request({ id });
+      const result = fresh || (window.M4L_ACADEMY_READ_CACHE?await dailyTimetable({id},refresh,updated=>{if(generation===state.activityGeneration&&state.activity?.id===id)void loadActivity(id,false,updated);},(error,saved)=>{if(generation!==state.activityGeneration)return;if(!saved)clearPersonal();$('activity-status').textContent=saved?'Showing saved timetable. Couldn’t check for updates.':error.message;},cached):cached||await request({id}));
       if (generation !== state.activityGeneration) return;
-      if (!cached) rememberPages(result);
+      if (!cached||fresh) rememberPages(result);
       const row = state.activity = result.activity;
       if (!row) throw new Error('This activity is unavailable.');
       const classPreview=row.studentPreview&&row.kind==='PROGRAM'&&row.classes?.length;
@@ -826,7 +843,7 @@
         $('activity-student-class').innerHTML=row.classes.map(c=>`<option value="${esc(c.id)}" ${c.id===chosen.id?'selected':''}>${esc(c.name)}</option>`).join('');
       }
       // The same authorised Academy snapshot supplies every scoped timetable.
-      if (!cached) state.home = result;
+      if (!cached||fresh) state.home = result;
       state.startDate=result.startDate;state.scheduleTimetable=scheduleRows(result);
       $('activity-back-link').href = '#timetable/'+workspaceContext(row).mode;
       $('activity-back-link').innerHTML = homeIcon;
@@ -842,18 +859,15 @@
       $('activity-areas').innerHTML=result.signedIn&&row.roles.length?workspaceAreaLinks(workspaceContext(row).mode,row,result.personalActivities):'';
       $('current-view').textContent = row.name;
       const message = row.unavailable ? 'This activity is temporarily unavailable. Please try again.' : !row.roles.length ? 'Sign in with an authorised Academy account to open protected lessons and tools.' : '';
-      $('activity-status').textContent = [message,...result.warnings.filter(warning => !$('entrance-message').textContent.includes(warning))].filter(Boolean).join(' ');
+      $('activity-status').textContent = [result._cacheChecking?'Checking for updates…':result._cacheMessage||'',message,...result.warnings.filter(warning => !$('entrance-message').textContent.includes(warning))].filter(Boolean).join(' ');
       $('activity-menu').innerHTML = row.roles.length ? roleTools(row) : '';
-      syncAttendance(row);
+      if(!fresh)syncAttendance(row);
       renderActivityTimetable();
-      syncMemorisation(row);
-      syncAssessment(row);
-      syncWorkspace(row);
-      revealWorkspaceTab();
+      if(!fresh){syncMemorisation(row);syncAssessment(row);syncWorkspace(row);revealWorkspaceTab();}
       const mediaContext=workspaceContext(row);
-      if(mediaContext.tool === 'lesson-media'&&location.hash.startsWith('#activity/')&&result.signedIn&&!row.unavailable&&row.roles.length)
+      if(!fresh&&mediaContext.tool === 'lesson-media'&&location.hash.startsWith('#activity/')&&result.signedIn&&!row.unavailable&&row.roles.length)
         window.M4L_LESSON_MEDIA.open({hostId:'activity-lesson-media',activityKey:row.kind+':'+row.id,learnerView:mediaContext.mode==='learn'});
-      else window.M4L_LESSON_MEDIA?.reset();
+      else if(!fresh)window.M4L_LESSON_MEDIA?.reset();
       if(restoreMemorisation){const saved=restoreMemorisation;restoreMemorisation=null;$('activity-sessions').scrollLeft=saved.left;window.requestAnimationFrame?.(()=>window.scrollTo?.(0,saved.top));}
     } catch (error) {
       if (generation !== state.activityGeneration) return;

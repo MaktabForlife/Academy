@@ -33,6 +33,21 @@
     catch { return ''; }
   }
   async function publicList(force = false) {
+    if(window.M4L_ACADEMY_READ_CACHE){
+      const cached=read('public');
+      const snapshot=data=>({...write('public',data),...(data._cacheChecking?{message:'Checking for updates…'}:{}),...(data._cacheMessage?{message:'Library update unavailable. Showing saved resources; refresh to try again.'}:{} )});
+      const updated=data=>window.dispatchEvent(new CustomEvent('m4l-library-public-updated',{detail:snapshot(data)}));
+      try{const data=await window.M4L_ACADEMY_READ_CACHE.load({key:['library-public'],public:true,force,fallback:cached?.data,onUpdate:updated,
+       onError:()=>window.dispatchEvent(new CustomEvent('m4l-library-public-updated',{detail:{data:read('public')?.data||cached?.data||{books:[],records:[]},message:'Library update unavailable. Showing saved resources; refresh to try again.'}})),
+       fetcher:async(revision,previous)=>{
+        const [a,m]=await Promise.all([fetch('/academy/open-library/catalogue',{cache:force?'reload':'default'}),fetch(window.M4L_ACADEMY_READ_CACHE.publicUrl(`${window.M4L_CONFIG?.API_BASE||''}/api/academy/open-library/metadata/public`,revision),{cache:'no-cache'})]);
+        if(!a.ok||!m.ok)throw Error('Library update unavailable.');const archive=await a.json(),metadata=await m.json();
+        if(!Array.isArray(archive.books)||metadata.success===false||!metadata.notModified&&!Array.isArray(metadata.records))throw Error('Library update unavailable.');
+        if(metadata.notModified&&JSON.stringify(archive.books)===JSON.stringify(previous?.books))return metadata;
+        return {books:archive.books,records:metadata.notModified?previous.records:metadata.records,readRevision:metadata.readRevision};
+       }});return snapshot(data);
+      }catch{return {data:cached?.data||{books:[],records:[]},stale:true,message:'Library update unavailable. Showing saved resources where available; refresh to try again.'};}
+    }
     const cached = read('public');
     if (!force && cached && !cached.stale) return cached;
     if (pendingPublic) return pendingPublic;

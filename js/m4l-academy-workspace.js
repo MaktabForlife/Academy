@@ -95,6 +95,7 @@
     catch(error){check();response=new Response(JSON.stringify({success:false,error:error.message,code:error.code||'SETUP_REVIEW_REQUIRED',publicationStaged:true}),{status:error.status||409,headers:response.headers});}
    }
   }
+  if(method==='POST'&&response.ok&&/(?:save|delete|publish|accept|status|register|mark|release|confirm|withdraw|upload|remove|create|close|cancel|archive|refresh)$/.test(url.pathname))window.M4L_ACADEMY_READ_CACHE?.invalidate();
   // Preserve streamed file delivery. Reject a delayed parsed response before it
   // can populate another account/workspace or create a stale PDF object URL.
   return new Proxy(response,{get(target,name){if(['json','text','blob','arrayBuffer','formData'].includes(name))return async(...args)=>{check();const value=await target[name](...args);check();return value;};const value=Reflect.get(target,name,target);return typeof value==='function'?value.bind(target):value;}});

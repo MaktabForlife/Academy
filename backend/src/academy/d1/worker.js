@@ -1,3 +1,4 @@
+import {conditionalRead} from './read-cache.js';
 import {personalLinks} from './personal-links.js';
 import {lessonNotes} from './lesson-notes.js';
 import {nativeAttendance} from './native-attendance.js';
@@ -80,13 +81,13 @@ async function dispatch(request,env) {
   const path=new URL(request.url).pathname;
   await repository.ready();
   if(path==='/api/academy/setup/head'&&request.method==='GET')return {success:true,head:setupEnabled(env)?await acceptedHead(repository):null};
-  if(path==='/api/academy/announcements'&&request.method==='GET')return {success:true,...await publicAnnouncements(setupEnabled(env)?await readRepository():repository)};
+  if(path==='/api/academy/announcements'&&request.method==='GET'){const source=setupEnabled(env)?await readRepository():repository;return conditionalRead(request,source,null,{},async()=>({success:true,...await publicAnnouncements(source)}));}
   if(path==='/api/academy/enrolment/catalogue'&&request.method==='GET')return {success:true,...await enrolmentCatalogue(setupEnabled(env)?await readRepository():repository)};
   if(path==='/api/academy/announcements/image'&&['GET','HEAD'].includes(request.method))return announcementImage(request,setupEnabled(env)?await readRepository():repository,env);
   if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,setupEnabled(env)?await readRepository():repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(setupEnabled(env)?await readRepository():repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.53',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.54',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(setupEnabled(env)?await readRepository():repository)};
@@ -161,7 +162,7 @@ async function dispatch(request,env) {
   }
   if(path==='/api/academy/entrance') {
     const auth=request.headers.has('Authorization')?await authenticated(request,env,repository):null;
-    return {success:true,sessionStore:'D1',...websiteEntrance(await d1Entrance(setupEnabled(env)?await readRepository():repository,auth?.state,auth?.user,input,undefined,{auth}))};
+    const source=setupEnabled(env)?await readRepository():repository;return conditionalRead(request,source,auth,input,async()=>({success:true,sessionStore:'D1',...websiteEntrance(await d1Entrance(source,auth?.state,auth?.user,input,undefined,{auth}))}));
   }
   if(path==='/api/academy/public-lesson/join')return {success:true,...await d1LessonJoin(setupEnabled(env)?await readRepository():repository,null,input)};
   if(path==='/api/academy/enrolment/submit'){
@@ -212,15 +213,15 @@ async function dispatch(request,env) {
   }
   if(path==='/api/admin/platform/program-timetable/refresh-public')return {success:true,...await refreshPublishedTimetable(request,env,repository,auth,input)};
   if(path==='/api/academy/lesson/join')return {success:true,...await d1LessonJoin(repository,auth,input)};
-  if(path==='/api/academy/courses/catalogue')return {success:true,...await d1CourseCatalogue(repository,auth)};
-  if(publicLibraryOnly&&path==='/api/academy/library/catalogue')return {success:true,resources:[],
+  if(path==='/api/academy/courses/catalogue')return conditionalRead(request,repository,auth,input,async()=>({success:true,...await d1CourseCatalogue(repository,auth)}));
+  if(publicLibraryOnly&&path==='/api/academy/library/catalogue')return conditionalRead(request,repository,auth,input,async()=>({success:true,resources:[],
     warnings:['Private Academy media will appear when Module subscriptions are available.'],learningAreaRefs:d1LibraryAreaRefs(auth.state),
-    libraryMode:'PUBLIC_ONLY',mediaSubscriptionsAvailable:false,store:'D1'};
+    libraryMode:'PUBLIC_ONLY',mediaSubscriptionsAvailable:false,store:'D1'}));
   const availabilityAction=path.match(/^\/api\/academy\/teacher-availability\/(get|save)$/)?.[1];
   if(availabilityAction)return {success:true,...await teacherAvailability(repository,auth,availabilityAction,input)};
   const progressAction=path.match(/^\/api\/academy\/progress\/(get|grid|mark|confirm|import|module-save|set-save|cards|card-active|activity-active)$/)?.[1];
   if(progressAction)return {success:true,...await d1Memorisation(repository,auth).run(progressAction,input)};
-  if(path==='/api/academy/timetable')return {success:true,...await d1AccountTimetable(repository,auth,input)};
+  if(path==='/api/academy/timetable')return conditionalRead(request,repository,auth,input,async()=>({success:true,...await d1AccountTimetable(repository,auth,input)}));
   if(path==='/api/account/personal-workspace'||path==='/api/account/substitute-workspace'){const expected=path.endsWith('/personal-workspace')?'OWN_LIBRARY':'SUBSTITUTE';if(auth.context.scope!==expected)throw rehearsalError('Choose your authorised personal context.',403,'FORBIDDEN_CONTEXT');return {success:true,sessionStore:'D1',workspace:{portalType:'academy',path:expected==='OWN_LIBRARY'?'/academy/library/?view=my-links':'/academy/#timetable/teach'}};}
   if(['/api/account/workspace','/api/account/global-workspace'].includes(path)){
     const expected=path.endsWith('/global-workspace')?'GLOBAL':'COURSE';
@@ -245,7 +246,7 @@ async function dispatch(request,env) {
     return {success:true,...await (timetableAction?learning.timetable(timetableAction,input):learning.attendance(attendanceAction,input))};
   }
   const libraryAction=path.match(/^\/api\/(admin\/platform\/program-library|program-library|academy\/library)\/(available|manage|save|recover|prepare-library|folder-set|browse|access|cover|covers|catalogue|upload-start)$/);
-  if(libraryAction)return {success:true,...await d1Library(repository,auth,env).run(libraryAction[2],input,request,{admin:libraryAction[1].startsWith('admin/'),academy:libraryAction[1]==='academy/library'})};
+  if(libraryAction){const produce=async()=>({success:true,...await d1Library(repository,auth,env).run(libraryAction[2],input,request,{admin:libraryAction[1].startsWith('admin/'),academy:libraryAction[1]==='academy/library'})});return path==='/api/academy/library/catalogue'?conditionalRead(request,repository,auth,input,produce):produce();}
   const profileAction=path.match(/^\/api\/admin\/platform\/user-profiles\/(get|link|save|recover)$/)?.[1];
   const registryAction=path.match(/^\/api\/admin\/platform\/programs\/(list|create|copy|save|readiness|prepare)$/)?.[1];
   const managementAction=path.match(/^\/api\/admin\/platform\/program-timetable\/(manage-get|manage-save|manage-remove|recover)$/)?.[1];
@@ -286,7 +287,7 @@ return {
     const origin=request.headers.get('Origin');
     const allowed=(env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
     const headers={'Content-Type':'application/json','Cache-Control':'private, no-store','Vary':'Origin',
-      'Access-Control-Allow-Methods':'POST, GET, HEAD, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization, Range, X-Academy-Workspace, X-Academy-Class, X-Academy-Setup, X-Library-Upload-Ticket, X-Library-Upload-Offset'};
+      'Access-Control-Allow-Methods':'POST, GET, HEAD, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization, Range, X-Academy-Workspace, X-Academy-Class, X-Academy-Setup, X-Library-Upload-Ticket, X-Library-Upload-Offset, X-Academy-Read-Cache, X-Academy-Read-Revision'};
     if(origin&&allowed.includes(origin))headers['Access-Control-Allow-Origin']=origin;
     if(origin&&!allowed.includes(origin))return new Response(JSON.stringify({success:false,error:'Origin is not allowed.'}),{status:403,headers});
     if(request.method==='OPTIONS')return new Response(null,{status:204,headers});

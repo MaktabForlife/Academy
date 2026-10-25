@@ -5,7 +5,7 @@ import {acceptedDatabase} from '../src/academy/d1/setup-reader.js';
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
 async function use(fn,seed){const f=await splitFixture(seed);try{
  f.databases.core.exec("UPDATE split_deployment_state SET state='READY'");Object.assign(f.source.env,{ACADEMY_DB:f.core,ACADEMY_ADMIN_DB:f.admin,ACADEMY_DB_GENERATION:'SPLIT_V1',ACADEMY_D1_RUN_ID:f.prepared.report.sourceDigest,ACADEMY_SPLIT_COORDINATOR:f.namespace,ACADEMY_ACCEPTED_SETUP:'1',ACADEMY_LEARNING_OPERATIONS:'3',ACADEMY_MEDIA_SEPARATION:'1'});
- f.request=async(path,input={},who='global',workspace='ADMIN')=>{const token=who?await f.source.actor(who):'',response=await worker.fetch(new Request('http://localhost'+path,{method:'POST',headers:{'Content-Type':'application/json','X-Academy-Workspace':workspace,...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),f.source.env);return {status:response.status,body:await response.json()};};
+ f.request=async(path,input={},who='global',workspace='ADMIN',extraHeaders={})=>{const token=who?await f.source.actor(who):'',response=await worker.fetch(new Request('http://localhost'+path,{method:'POST',headers:{'Content-Type':'application/json','X-Academy-Workspace':workspace,...extraHeaders,...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),f.source.env);return {status:response.status,body:await response.json()};};
  f.accept=async(scope=f.scopes.courseA)=>{const input={scopes:[scope]},review=ok(await f.request('/api/admin/platform/setup/review',input)),frozen=ok(await f.request('/api/admin/platform/setup/freeze',{...input,digest:review.digest}));return ok(await f.request('/api/admin/platform/setup/publish',{batchId:frozen.batchId,digest:frozen.digest}));};
  await fn(f);assert(f.costs.every(c=>c.queries<=50),JSON.stringify(f.costs.filter(c=>c.queries>50)));for(const db of Object.values(f.databases))assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
  }finally{f.close();}}
@@ -96,4 +96,15 @@ test('split media feed revalidates metadata cheaply and preserves private Admin 
  const draft=ok(await f.request(path+'feed',{activityKey,ifRevision:adminInitial.cacheRevision}));assert.notEqual(draft.cacheRevision,adminInitial.cacheRevision);assert.equal(draft.courseFiles.media.title,'Private cached Course collection');
  const beforeAcceptance=ok(await f.request(path+'feed',{activityKey,ifRevision:first.cacheRevision},'studentA','LEARN'));assert(!beforeAcceptance.courseFiles?.media,'Admin edits stay private before acceptance');
  await f.accept(activityKey);const accepted=ok(await f.request(path+'feed',{activityKey,ifRevision:beforeAcceptance.cacheRevision},'studentA','LEARN'));assert.equal(accepted.courseFiles.media.title,'Private cached Course collection');assert.notEqual(accepted.cacheRevision,beforeAcceptance.cacheRevision);
+}));
+
+
+test('split Home validators skip timetable reconstruction and keep account/workspace boundaries',()=>use(async f=>{
+ let queries=0;const wrap=stmt=>new Proxy(stmt,{get(target,name){if(name==='bind')return(...args)=>wrap(target.bind(...args));if(['all','first','run'].includes(name))return(...args)=>{queries++;return target[name](...args);};return Reflect.get(target,name,target);}});
+ f.source.env.ACADEMY_DB=new Proxy(f.core,{get(target,name){if(name==='withSession')return()=>f.source.env.ACADEMY_DB;if(name==='prepare')return sql=>wrap(target.prepare(sql));if(name==='batch')return statements=>{queries+=statements.length;return target.batch(statements);};return Reflect.get(target,name,target);}});
+ const path='/api/academy/entrance',headers={'X-Academy-Read-Cache':'1'},first=ok(await f.request(path,{},'studentA','LEARN',headers)),fullQueries=queries;assert(first.readRevision);assert(first.signedIn);
+ queries=0;const same=ok(await f.request(path,{},'studentA','LEARN',{...headers,'X-Academy-Read-Revision':first.readRevision})),conditionalQueries=queries;assert.equal(same.notModified,true);assert.equal(same.personalTimetable,undefined);assert(conditionalQueries<fullQueries,JSON.stringify({fullQueries,conditionalQueries}));
+ const other=ok(await f.request(path,{},'studentB','LEARN',{...headers,'X-Academy-Read-Revision':first.readRevision}));assert.notEqual(other.readRevision,first.readRevision);assert.equal(other.notModified,undefined);
+ f.databases.core.prepare('UPDATE academy_write_state SET version=version+1').run();const changed=ok(await f.request(path,{},'studentA','LEARN',{...headers,'X-Academy-Read-Revision':first.readRevision}));assert.notEqual(changed.readRevision,first.readRevision);
+ console.log('Synthetic Home query counts',JSON.stringify({fullQueries,conditionalQueries}));
 }));

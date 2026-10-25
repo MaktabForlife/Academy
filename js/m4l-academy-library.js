@@ -73,19 +73,19 @@
       coverUrl: record.coverUrl || '' };
   }
 
-  async function api(action, body = {}) {
+  async function api(action, body = {}, revision) {
     const token = localStorage.getItem('m4l_account_token');
     if (!token) throw new Error('Sign in through your personal Academy account link.');
     const response = await fetch(`${window.M4L_CONFIG?.API_BASE || ''}/api/academy/library/${action}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(revision!==undefined?window.M4L_ACADEMY_READ_CACHE?.headers(revision):{}) },
       body: JSON.stringify(body)
     });
     const result = await response.json();
     if (localStorage.getItem('m4l_account_token') !== token) throw new Error('Your Academy account has changed.');
     if (!response.ok || !result.success) {
       if (response.status === 401) showSignedOut();
-      throw new Error(result.error || 'Library access is unavailable.');
+      throw Object.assign(new Error(result.error || 'Library access is unavailable.'),{status:response.status});
     }
     return result;
   }
@@ -297,10 +297,24 @@
     if (publicSaved) applyArchiveBooks(publicSaved);
   }
 
+  async function startCached(force,current,session){
+    const active=()=>current===generation&&session===localStorage.getItem('m4l_account_token');
+    const apply=data=>{if(!active())return;applyPersonal(data);$('al-status').textContent=data._cacheChecking?'Checking for updates…':data._cacheMessage||data.warnings?.join(' ')||'';};
+    try{
+      const data=await window.M4L_ACADEMY_READ_CACHE.load({key:['library-catalogue'],force,onUpdate:apply,onError:(error,saved)=>{if(!active())return;if(!saved){state.rows=[];state.learningAreaRefs.clear();$('al-results').replaceChildren();$('al-manage-books').hidden=true;}$('al-status').textContent=saved?'Showing saved Library. Couldn’t check for updates.':error.message;},
+       fetcher:async revision=>{const result=await api('catalogue',{},revision);if(result.notModified)return result;
+        const fields=['id','name','subject','module','level','source','sourceName','type','description','author','publisher','hasCover','locked','forYou','learningAreas'];
+        const data={readRevision:result.readRevision,resources:(result.resources||[]).map(row=>Object.fromEntries(fields.filter(key=>key in row).map(key=>[key,row[key]]))),learningAreaRefs:result.learningAreaRefs||[],warnings:result.warnings||[],canManage:false};
+        try{const response=await fetch(`${window.M4L_CONFIG?.API_BASE||''}/api/academy/open-library/metadata/list`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session}`},body:'{}'});data.canManage=response.ok&&(await response.json()).success;}catch{}return data;}});
+      apply(data);const snapshot=await cache.publicList(force);if(active())applyArchiveBooks(snapshot);
+    }catch(error){if(active())$('al-status').textContent=error.message;}finally{if(active())$('al-refresh').disabled=false;}
+  }
+  window.addEventListener('m4l-library-public-updated',event=>{if(localStorage.getItem('m4l_account_token'))applyArchiveBooks(event.detail);});
   async function start(force = false) {
     const current = ++generation, session = localStorage.getItem('m4l_account_token');
     if (!session) return showSignedOut();
     $('al-refresh').disabled = true;
+    if(window.M4L_ACADEMY_READ_CACHE)return startCached(force,current,session);
     const owner = await cache.owner(session);
     if (current !== generation || session !== localStorage.getItem('m4l_account_token')) return;
     personalOwner = owner;

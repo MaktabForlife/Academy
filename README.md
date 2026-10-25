@@ -1,4 +1,10 @@
-# Umm Abbad Academy — V107.53
+# Umm Abbad Academy — V107.54
+
+## V107.54 — Cached Home, timetables, announcements and Library
+
+Show saved metadata immediately while checking for updates on Home, personal and Admin timetables, curriculum timetables, announcements, Course lists and Library catalogues. Keep a bounded 30-minute session cache, reuse checks for one minute and combine simultaneous requests. Refresh forces a check. Preserve cached content on temporary failures with a saved-information message. Separate private entries by account, workspace, selected Admin-Learn class and request scope; clear them on account/access changes and invalidate after successful writes/publication. Keep public announcements independent of session restoration. Preserve active editors during background timetable updates.
+
+Use opt-in revision validators before rebuilding authenticated Home/timetable/catalogue projections. Keep fresh session and permission checks and current accepted setup; skip unchanged projection queries. Public timetable snapshots continue using their existing durable/edge cache, and shared public Library metadata stays in its existing coordinator. Do not cache meeting URLs, signed file access, credentials, PDF bytes or editable forms. Joining lessons and opening protected media still rechecks current access. No polling, migrations, reloads or live data corrections.
 
 ## V107.53 — Individual lessons for assigned students and teachers
 
