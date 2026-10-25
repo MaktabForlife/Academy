@@ -118,3 +118,9 @@ test('account controls use personal verification even from an Admin reader and r
  await f.window.fetch('https://api.invalid/api/account/session');assert.equal(f.authCalls[0].options.headers.get('X-Academy-Workspace'),'LEARN');assert.equal(f.authCalls[0].options.headers.get('X-Academy-Class'),null);
  await assert.rejects(f.window.fetch('https://api.invalid/api/academy/entrance'),{name:'AbortError'});assert.equal(w.adminAccess(),false);assert.equal(f.location.destination,'/academy/#overview');
 });
+
+test('Class Note changes and submitting a plan invalidate protected read snapshots',async()=>{
+ const f=fixture();let invalidated=0;f.window.M4L_ACADEMY_READ_CACHE={invalidate(){invalidated++;}};
+ for(const path of ['class-notes/post','class-notes/revise','class-notes/relink','planning/submit'])await f.window.fetch('https://api.invalid/api/academy/'+path,{method:'POST',body:'{}'});
+ assert.equal(invalidated,4);
+});

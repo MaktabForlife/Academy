@@ -5,7 +5,8 @@
  const messageHTML=message=>window.M4L_ANNOUNCEMENT_LINKS.render(message,{origin:location.origin,apiBase:base()});
  const attachmentUrl=()=>base()+'/api/academy/announcements/pdf?id='+encodeURIComponent(draft.id);
  function insertPdfLink(){const url=attachmentUrl();if(!draft.message.includes(url)){const text=(draft.message.trim()+'\n\n[Read PDF]('+url+')').trim();if(text.length>6000){notice='Shorten the message to insert the PDF link. The saved announcement will also have an Open PDF link.';dirty=true;return false;}draft.message=text;}dirty=true;return true;}
- let slides=[],publicGeneration=0;
+ let slides=[],publicGeneration=0,publicStatus='loading';
+ const notify=()=>window.dispatchEvent(new Event('m4l-announcements-updated'));
  const news=()=>document.getElementById('academy-announcements');
  function openPoster(row,opener){
   if(!row)return;
@@ -14,6 +15,7 @@
   document.body.append(dialog);dialog.querySelector('button').onclick=()=>dialog.close();dialog.onclose=()=>{dialog.remove();opener?.focus();};dialog.onclick=event=>{if(event.target!==dialog)return;const box=dialog.getBoundingClientRect();if(event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom)dialog.close();};dialog.showModal();
  }
  function show(){
+  publicStatus='ready';notify();
   const box=news();if(!box)return;
   const placeholder='<span class="announcement-placeholder" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 6h16l8 8v28H12zM28 6v9h8M18 23h12M18 29h12M18 35h8"/></svg></span>';
   box.innerHTML=slides.length?'<div class="announcement-grid" role="list" aria-label="Academy announcements">'+slides.map((row,i)=>`<article class="announcement-slide" role="listitem"><button class="announcement-cover announcement-poster${row.imageUrl?'':' announcement-no-image'}" type="button" data-news="image" data-index="${i}" aria-label="Open announcement: ${esc(row.title)}">${row.imageUrl?`<img src="${esc(base()+row.imageUrl)}" alt="${esc(row.imageAlt||row.title)}" loading="lazy">`:''}${placeholder}</button></article>`).join('')+'</div>':'<p class="muted">No announcements at the moment.</p>';
@@ -24,9 +26,9 @@
   if(window.M4L_ACADEMY_READ_CACHE){
    const box=news();if(!box)return;const current=++publicGeneration;box.setAttribute('aria-busy','true');
    if(!slides.length)box.innerHTML='<p role="status">Loading announcements…</p>';
-   const apply=data=>{if(current!==publicGeneration)return;slides=data.announcements;show();box.setAttribute('aria-busy',String(Boolean(data._cacheChecking)));if(data._cacheChecking||data._cacheMessage)box.insertAdjacentHTML('beforeend','<p role="status">'+esc(data._cacheMessage||'Checking for updates…')+'</p>');};
-   const failure=()=>{if(current!==publicGeneration)return;show();box.insertAdjacentHTML('beforeend','<p role="status">'+(slides.length?'Showing saved announcements. Couldn’t check for updates.':'Announcements could not be loaded.')+'</p><button type="button" data-news-retry>Try again</button>');box.querySelector('[data-news-retry]').onclick=()=>refreshPublic(true);box.setAttribute('aria-busy','false');};
-   try{const data=await window.M4L_ACADEMY_READ_CACHE.load({key:['announcements'],public:true,force:arguments[0]===true,onUpdate:apply,onError:failure,fetcher:async revision=>{const r=await fetch(window.M4L_ACADEMY_READ_CACHE.publicUrl(base()+'/api/academy/announcements',revision),{cache:'no-store',credentials:'omit'}),b=await r.json();if(!r.ok||!b.success||!b.notModified&&!Array.isArray(b.announcements))throw Object.assign(Error('Announcements unavailable.'),{status:r.status});return b;}});apply(data);}catch{failure();}return;
+   const apply=data=>{if(current!==publicGeneration)return;slides=data.announcements;show();if(data._cacheMessage){publicStatus='error';notify();}box.setAttribute('aria-busy',String(Boolean(data._cacheChecking)));if(data._cacheChecking||data._cacheMessage)box.insertAdjacentHTML('beforeend','<p role="status">'+esc(data._cacheMessage||'Checking for updates…')+'</p>');};
+   const failure=()=>{if(current!==publicGeneration)return;show();publicStatus='error';notify();box.insertAdjacentHTML('beforeend','<p role="status">'+(slides.length?'Showing saved announcements. Couldn’t check for updates.':'Announcements could not be loaded.')+'</p><button type="button" data-news-retry>Try again</button>');box.querySelector('[data-news-retry]').onclick=()=>refreshPublic(true);box.setAttribute('aria-busy','false');};
+   try{const data=await window.M4L_ACADEMY_READ_CACHE.load({key:['announcements'],public:true,force:arguments[0]===true,revalidate:Boolean(token()),onUpdate:apply,onError:failure,fetcher:async revision=>{const r=await fetch(window.M4L_ACADEMY_READ_CACHE.publicUrl(base()+'/api/academy/announcements',revision),{cache:'no-store',credentials:'omit'}),b=await r.json();if(!r.ok||!b.success||!b.notModified&&!Array.isArray(b.announcements))throw Object.assign(Error('Announcements unavailable.'),{status:r.status});return b;}});apply(data);}catch{failure();}return;
   }
   const box=news();if(!box)return;
   const current=++publicGeneration;
@@ -39,6 +41,7 @@
    slides=b.announcements;show();
   }catch{
    if(current!==publicGeneration)return;
+   publicStatus='error';notify();
    box.innerHTML='<p role="alert">Announcements could not be loaded.</p><button type="button">Try again</button>';
    box.querySelector('button').onclick=refreshPublic;
   }finally{if(current===publicGeneration)box.setAttribute('aria-busy','false');}
@@ -63,7 +66,7 @@
  async function open({hostId}){const element=document.getElementById(hostId);if(!element||host===element)return;reset();host=element;owner=token();host.innerHTML='<p role="status">Loading announcements…</p>';try{await list();}catch(e){if(host){host.textContent=e.message;const button=document.createElement('button');button.textContent='Try again';button.onclick=()=>{host=null;void open({hostId});};host.append(button);}}}
  window.addEventListener('beforeunload',e=>{if(dirty||busy||pending){e.preventDefault();e.returnValue='';}});
  async function refreshPage(){if(!host?.isConnected)return false;if(!canLeave())return true;dirty=false;await list();return true;}
- window.M4L_ANNOUNCEMENTS={open,reset,canLeave,refreshPublic,refreshPage};
+ window.M4L_ANNOUNCEMENTS={snapshot:()=>({announcements:slides,status:publicStatus}),openNotice:(id,opener)=>openPoster(slides.find(row=>row.id===id),opener),open,reset,canLeave,refreshPublic,refreshPage};
  function init(){if(!news())return;void refreshPublic();}
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();

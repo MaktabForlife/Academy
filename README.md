@@ -327,3 +327,10 @@ Retain the original Development D1 database for the Phase 4 site and recovery. P
 Offline snapshot validation, import verification, provenance and recovery tools remain under `backend/tools/academy-migration/`. They read saved snapshots; the online Google capture client has been retired. No database migration runs during ordinary deployment.
 
 [Cleanup scope, checks and infrastructure inventory](docs/ACADEMY-DEVELOPMENT-CLEANUP-106.82.md). Earlier implementation history is retained in `docs/` and [the archived README](docs/archive/README-through-10681.md); historical instructions are not current deployment guidance.
+
+## Local feature: connected workspace dashboards (unreleased)
+
+The `feature/academy-role-dashboards` checkout adds Learn, Teach and Admin landing
+pages connected to existing Academy readers and tools, with cached background
+refresh, Program/Course tiles, the existing timetable and calendar. See
+[the local feature notes](docs/ACADEMY-DASHBOARDS-LOCAL.md). No deployment is included.

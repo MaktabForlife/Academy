@@ -8,8 +8,10 @@
  const at=value=>value?new Intl.DateTimeFormat('en-GB',{dateStyle:'medium',timeStyle:'short',timeZone:data?.timezone||'Africa/Johannesburg'}).format(new Date(value)):'';
  let visible=false,owner='',epoch=0,tableEpoch=0,dialog=null,data=null,edit=null,pending=null,busy=false,dirty=false,review=false,refresh=()=>{},dialogEpoch=0,dueRequest=0;
  const batches=new Map(),lessons=new Map();
+ let dashboardStatus='idle',dashboardMessage='';
+ const changed=()=>window.dispatchEvent(new Event('m4l-class-notes-updated'));
  function checkOwner(){const next=scope();if(next!==owner){if(owner&&JSON.stringify(JSON.parse(owner).slice(0,3))===JSON.stringify(JSON.parse(next).slice(0,3)))invalidate();else reset();owner=next;}return next;}
- function invalidate(){tableEpoch++;batches.clear();lessons.clear();}
+ function invalidate(){tableEpoch++;batches.clear();lessons.clear();dashboardStatus='idle';dashboardMessage='';changed();}
  async function api(action,input){
   const captured=scope(),generation=epoch,response=await fetch(`${window.M4L_CONFIG?.API_BASE||''}/api/academy/class-notes/${action}`,{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token()},body:JSON.stringify(input)});
   const result=await response.json();if(generation!==epoch||captured!==scope())throw new DOMException('The Academy account or workspace changed.','AbortError');
@@ -121,7 +123,17 @@
  function timetable(rows,onUpdate){
   checkOwner();refresh=onUpdate;const sources=[...new Map(rows.filter(row=>row.mediaSessionKey).map(row=>[ref(row),{activityKey:row.kind+':'+row.activityId,date:row.sourceDate||row.date,sessionKey:row.mediaSessionKey}])).values()];
   if(!sources.length||!token())return;const key=JSON.stringify(sources),generation=epoch,tableGeneration=tableEpoch;if(batches.has(key))return;batches.set(key,true);if(batches.size>8)batches.delete(batches.keys().next().value);
-  void (async()=>{try{for(let i=0;i<sources.length;i+=200){const result=await api('timetable',{sessions:sources.slice(i,i+200)});if(generation!==epoch||tableGeneration!==tableEpoch)return;for(const lesson of result.sessions)lessons.set(lesson.ref,{...lesson,today:result.today});}if(generation===epoch&&tableGeneration===tableEpoch)onUpdate();}catch(error){if(generation===epoch){window.dispatchEvent(new CustomEvent('m4l-class-notes-error',{detail:error.message}));}}})();
+  dashboardStatus='loading';dashboardMessage='';changed();
+  const current=()=>generation===epoch&&tableGeneration===tableEpoch;
+  const apply=result=>{if(!current())return;for(const lesson of result.sessions||[])lessons.set(lesson.ref,{...lesson,today:result.today});dashboardStatus=result._cacheChecking?'checking':result._cacheMessage?'stale':'ready';dashboardMessage=result._cacheMessage||'';changed();onUpdate();};
+  const failure=(error,saved)=>{if(!current()||error.name==='AbortError')return;if(!saved)lessons.clear();dashboardStatus=saved?'stale':'error';dashboardMessage=saved?'Showing saved Class Notes. Couldn’t check for updates.':'Class Notes could not be checked.';changed();window.dispatchEvent(new CustomEvent('m4l-class-notes-error',{detail:error.message}));};
+  void (async()=>{try{
+   for(let i=0;i<sources.length;i+=200){
+    const input={sessions:sources.slice(i,i+200)},cache=window.M4L_ACADEMY_READ_CACHE;
+    const result=cache?await cache.load({key:['class-notes-timetable',input],revalidate:true,fetcher:()=>api('timetable',input),onUpdate:apply,onError:failure}):await api('timetable',input);
+    apply(result);
+   }
+  }catch(error){failure(error,false);}})();
  }
  function buttons(row,detail=false){
   const key=ref(row),lesson=lessons.get(key);if(!lesson||!lesson.sources.length)return '';
@@ -136,5 +148,5 @@
   }else void openSources(lesson.sources,button.dataset.cnOpen==='add');
  });
  window.addEventListener('beforeunload',event=>{if(dirty||busy){event.preventDefault();event.returnValue='';}});
- window.M4L_CLASS_NOTES={timetable,buttons,visible:()=>visible,toggle:()=>{visible=!visible;return visible;},canLeave:()=>close(),invalidate,reset};
+ window.M4L_CLASS_NOTES={snapshot:()=>scope()===owner?{sessions:[...lessons.values()],status:dashboardStatus,message:dashboardMessage}:{sessions:[],status:'idle'},open:input=>{checkOwner();return load(input);},timetable,buttons,visible:()=>visible,toggle:()=>{visible=!visible;return visible;},canLeave:()=>close(),invalidate,reset};
 })();

@@ -235,7 +235,7 @@ await navigate('#activity/PROGRAM/'+activity.id);
 assert.equal($('activity-title').textContent,'Reboot');assert.doesNotMatch($('activity-menu').innerHTML,/aria-label="Admin tools"/);
 assert.doesNotMatch($('activity-menu').innerHTML,/Explore|Attendance|Lesson prep|Teach tools/);
 assert.match($('activity-menu').innerHTML,/Learn tools/);for(const label of ['Timetable','Assessment','Library'])assert.ok($('activity-menu').innerHTML.includes(`>${label}<`));
-assert.match($('activity-support').innerHTML,/Messages|Academy calendar|Surahs and Duas tracker/);
+assert.equal($('activity-support').innerHTML,'','Shared Messages, calendar and tracker belong to the dashboard, not individual activity tools');
 assert.doesNotMatch($('activity-support').innerHTML,/href="#(?:progress|hifz|hifdh)"/,'The public Hifz page is opened only through the website Menu');
 for(const hash of ['#hifz','#hifdh','#progress']){await navigate(hash);assert.equal($('current-view').textContent,'Academy home');}
 const learnHash='#activity/PROGRAM/'+activity.id+'/learn';

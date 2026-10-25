@@ -1,0 +1,186 @@
+/* Signed-in dashboards use the existing scoped Academy readers and tools. */
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const token = () => localStorage.getItem('m4l_account_token') || '';
+  const boundary = () => window.M4L_ACADEMY_WORKSPACE;
+  const context = () => JSON.stringify([token(),boundary()?.current(),boundary()?.head(),boundary()?.classView()]);
+  let owner = '', epoch = 0, options = null, home = null, mode = 'learn', plans = [], enrolments = [], failures = new Map(), loading = new Set(), read = new Set(), readOwner = '', timer, fetched = 0;
+  let dialog;
+  const link = (href,label,classes='ad-link') => `<a class="${classes}" href="${esc(href)}">${esc(label)}</a>`;
+  const key = row => row.kind + ':' + row.id;
+  const areas = () => (home?.personalActivities || []).filter(row => ['PROGRAM','COURSE'].includes(row.kind) && row.id && row.roles?.length && (mode!=='admin'||home.globalAdmin||row.roles.some(role=>['PROGRAM_ADMIN','ADMIN','GLOBAL_ADMIN'].includes(role))));
+  const href = (row,tool='timetable') => options.activityHref(row,tool,mode === 'admin' ? 'teach' : mode);
+  const date = value => value ? new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:home?.timezone||'Africa/Johannesburg'}).format(new Date(value)) : '';
+  const announce = (text,retry=false) => { const node=$('ad-status');if(node){node.textContent=text;if(retry)node.insertAdjacentHTML('beforeend',' <button type="button" data-ad-retry>Try again</button>');} };
+  const personalBase = () => boundary()?.adminRealm() ? '/academy/admin/' : '/academy/';
+  function homeUrl() { return boundary()?.homeUrl?.() || personalBase() + (mode === 'admin' ? '#administration' : '#timetable/' + mode); }
+  function landing(data) {
+    let selected='learn';
+    try { selected=sessionStorage.getItem('m4l_dashboard_workspace:'+data.profile?.uniqueid)||'learn'; } catch {}
+    const access=data.workspaceAccess||{};
+    if(selected==='admin'&&!access.admin&&!data.globalAdmin)selected='learn';
+    if(selected==='teach'&&!access.teach)selected='learn';
+    if(selected==='learn'&&!data.student&&!(data.personalActivities||[]).some(row=>row.roles?.includes('STUDENT'))){if(access.teach)selected='teach';else if(access.admin||data.globalAdmin)selected='admin';}
+    return selected==='admin'?'/academy/admin/#administration':'/academy/#timetable/'+selected;
+  }
+  function closeDialog() { if(dialog?.open)dialog.close(); }
+  function reset() {
+    epoch++;owner='';home=null;options=null;plans=[];enrolments=[];failures.clear();loading.clear();read.clear();readOwner='';fetched=0;clearTimeout(timer);closeDialog();
+    const host=$('dashboard');if(host)host.replaceChildren();
+  }
+  async function restoreRead() {
+    const captured=owner,revision=epoch;
+    const digest=await window.M4L_ACADEMY_READ_CACHE?.owner(token());
+    if(captured!==owner||revision!==epoch)return;
+    readOwner=digest?'m4l_dashboard_read:'+digest+':'+boundary().current():'';
+    try { read=new Set(JSON.parse(localStorage.getItem(readOwner)||'[]').filter(value=>typeof value==='string').slice(-300)); } catch { read=new Set(); }
+    renderMessages();
+  }
+  function markRead(id) { read.add(id);try{if(readOwner)localStorage.setItem(readOwner,JSON.stringify([...read].slice(-300)));}catch{}renderMessages(); }
+  function mount() {
+    const host=$('dashboard');if(!host)return;
+    host.innerHTML=`<div class="ad-layout"><aside class="ad-sidebar" aria-label="Your workspace"><h2>Your workspace</h2><button type="button" class="ad-menu-toggle" data-ad-nav-toggle aria-expanded="false" aria-controls="ad-navigation">Your workspace <span aria-hidden="true">⌄</span></button><nav id="ad-navigation"></nav></aside><div class="ad-main"><header class="ad-intro"><div><p class="ad-eyebrow" id="ad-workspace"></p><h1 id="ad-title"></h1><p class="ad-muted" id="ad-description"></p></div><div id="ad-primary-actions" class="ad-actions"></div></header><p id="ad-scope" class="ad-scope" hidden></p><p id="ad-status" class="ad-status" role="status" aria-live="polite"></p><div class="ad-grid"><section class="ad-panel ad-attention" aria-labelledby="ad-fya-title"><header><h2 id="ad-fya-title">For your attention</h2><span id="ad-fya-count" class="ad-count"></span></header><p class="ad-muted">FYA · Outstanding actions</p><div id="ad-attention"></div></section><section class="ad-panel ad-next" aria-labelledby="ad-next-title"><header><h2 id="ad-next-title">Coming up next</h2></header><div id="ad-next"></div></section><section class="ad-panel ad-messages" aria-labelledby="ad-messages-title"><header><h2 id="ad-messages-title">Messages <span id="ad-unread" class="ad-count"></span></h2><button type="button" data-ad-inbox>View inbox →</button></header><div id="ad-messages"></div></section></div><section class="ad-continue"><h2 id="ad-continue-title">Continue learning</h2><div id="ad-areas"></div></section><section class="ad-week" aria-labelledby="ad-week-title"><header><h2 id="ad-week-title">This week</h2><span class="ad-muted">Your existing Academy timetable</span></header><div id="ad-timetable-host"></div></section><section class="ad-panel ad-calendar" aria-labelledby="ad-calendar-title"><header><h2 id="ad-calendar-title">Academy calendar</h2></header><div id="ad-calendar-host"></div></section><section class="ad-panel ad-tools"><header><h2>Quick tools</h2></header><nav id="ad-tools" aria-label="Dashboard tools"></nav></section></div></div>`;
+    host.onclick=event=>{
+      const toggle=event.target.closest('[data-ad-nav-toggle]');if(toggle){const expanded=toggle.getAttribute('aria-expanded')!=='true';toggle.setAttribute('aria-expanded',String(expanded));toggle.closest('.ad-sidebar').dataset.navOpen=String(expanded);}
+      const note=event.target.closest('[data-ad-note]');
+      if(note){markRead(note.dataset.adRead);void window.M4L_CLASS_NOTES?.open({activityKey:note.dataset.adArea,noteId:note.dataset.adNote});}
+      const notice=event.target.closest('[data-ad-notice]');
+      if(notice){markRead(notice.dataset.adRead);window.M4L_ANNOUNCEMENTS?.openNotice(notice.dataset.adNotice,notice);}
+      if(event.target.closest('[data-ad-inbox]'))openInbox();
+      if(event.target.closest('[data-ad-week]'))$('ad-week-title').scrollIntoView({block:'start'});
+      const chooser=event.target.closest('[data-ad-choose]');if(chooser)chooseTool(chooser.dataset.adChoose);
+      const command=event.target.closest('[data-ad-command]');if(command&&!command.disabled)document.getElementById(command.dataset.adCommand)?.click();
+      if(event.target.closest('[data-ad-retry]')){fetched=0;void refresh(true);}
+    };
+  }
+  function tracker() {
+    if(mode==='admin')return link('#progress-admin','Surahs and Duas Tracker');
+    if(mode==='teach')return '<button type="button" data-ad-choose="surahs-duas">Surahs and Duas Tracker</button>';
+    return link('/academy/#progress','Surahs and Duas Tracker');
+  }
+  function chooseTool(tool) {
+    const rows=areas().filter(row=>tool!=='planning'||!row.substituteOnly);
+    const title={'attendance':'Mark attendance','planning':'Submit plans','surahs-duas':'Surahs and Duas Tracker'}[tool]||'Open workspace';
+    showDialog(title,rows.length?`<p>Choose a Program or Course.</p><ul class="ad-picker">${rows.map(row=>`<li>${link(href(row,tool),row.name,'ad-tool-choice')}</li>`).join('')}</ul>`:'<p>No assigned Programs or Courses are available in this workspace.</p>');
+  }
+  function showDialog(title,body) {
+    if(!dialog){dialog=document.createElement('dialog');dialog.className='ad-dialog';dialog.setAttribute('aria-labelledby','ad-dialog-title');document.body.append(dialog);dialog.addEventListener('click',event=>{if(event.target.closest('[data-ad-close]'))dialog.close();if(event.target.closest('a'))dialog.close();const note=event.target.closest('[data-ad-note]');const notice=event.target.closest('[data-ad-notice]');if(note||notice){dialog.close();$('dashboard').onclick(event);}});}
+    dialog.innerHTML=`<header><h2 id="ad-dialog-title">${esc(title)}</h2><button type="button" data-ad-close>Close</button></header>${body}`;
+    if(!dialog.open)dialog.showModal();
+  }
+  function renderNavigation() {
+    const adminLinks=options.adminLinks||[];
+    const tools=mode==='teach'?'<button type="button" data-ad-choose="attendance">Mark attendance</button><button type="button" data-ad-choose="planning">Submit plans</button>':mode==='admin'?adminLinks.map(row=>link(row.href,row.label)).join(''):link('/academy/enrolment/','Enrol now');
+    const shared=tracker()+link('/academy/library/','Library')+link(boundary()?.readerUrl('/recorder/?academy=1')||'/recorder/?academy=1','Voice Recorder');
+    $('ad-navigation').innerHTML=link(homeUrl(),'Home')+'<button type="button" data-ad-week>Timetable</button>'+'<button type="button" data-ad-inbox>Messages</button>'+tools+shared+'<a class="ad-visit" href="/academy/#website" data-workspace-exit>Visit website ↗</a>';
+    $('ad-tools').innerHTML=tools+shared+(mode==='admin'?(window.M4L_CONFIG?.ACCEPTED_SETUP?'<button type="button" data-ad-command="setup-publication-review">Review setup</button>':'')+(home.globalAdmin?'<button type="button" data-ad-command="public-timetable-refresh">Update timetable</button>':''):'');
+    $('ad-primary-actions').innerHTML=mode==='teach'?'<button type="button" class="ad-primary" data-ad-choose="attendance">Mark attendance</button><button type="button" class="ad-secondary" data-ad-choose="planning">Submit plans</button>':'';
+    $('ad-workspace').textContent=(boundary()?.adminRealm()&&mode!=='admin'?'ADMIN · ':'')+mode.toUpperCase()+' WORKSPACE';
+    $('ad-title').textContent=mode==='learn'?'Ahlan wa sahlan, '+(home.profile?.name||'Academy member'):mode==='teach'?'Your teaching dashboard':'Your administration dashboard';
+    $('ad-description').textContent=mode==='learn'?'Your learning, one next step at a time.':mode==='teach'?'Your lessons, attendance and planning in one place.':'Decisions and follow-up within your administrative scope.';
+    $('ad-scope').hidden=!boundary()?.adminRealm();
+    $('ad-scope').textContent=mode==='admin'?(home.globalAdmin?'Global Admin · Program Admin authority is inherited across every Program and Course.':'Administration · Your assigned Programs and Courses only.'):'Admin '+mode+' view · Administrative authority is separate from personal learning and teaching.';
+  }
+  function renderAreas() {
+    $('ad-continue-title').textContent=mode==='teach'?'Continue teaching':mode==='admin'?'Manage Programs and Courses':'Continue learning';
+    const rows=areas();
+    $('ad-areas').innerHTML=rows.length?['PROGRAM','COURSE'].map(kind=>{
+      const group=rows.filter(row=>row.kind===kind);if(!group.length)return '';
+      return `<section class="ad-area-group"><h3>${kind==='PROGRAM'?'Programs':'Courses'}</h3><div class="ad-tiles">${group.map(row=>{
+        const helper=options.hifzHref?.(row),target=helper||href(row),external=Boolean(helper);
+        const roles=(row.roles||[]).map(role=>({STUDENT:'Student',TEACHER:'Teacher',SUBSTITUTE:'Substitute Teacher',PROGRAM_ADMIN:'Program Admin',GLOBAL_ADMIN:'Global Admin'})[role]).filter(Boolean).join(' · ')||'None';
+        return `<a class="ad-tile" href="${esc(target)}"${external?' target="_blank" rel="noopener noreferrer"':''}><span class="ad-tile-kind">${kind==='PROGRAM'?'Program':'Course'}</span><strong>${esc(row.name)}</strong><span>${esc(row.studentPreview?'Admin student view':roles)}</span><span class="ad-tile-open">${external?'Open HifzHelper ↗':mode==='admin'?'Manage →':'Open workspace →'}</span></a>`;
+      }).join('')}</div></section>`;
+    }).join(''):`<div class="ad-empty"><h3>${mode==='teach'?'No teaching assigned yet':mode==='admin'?'No assigned learning areas':'Your learning starts here'}</h3><p>${mode==='learn'?'Your enrolled Programs and Courses will appear here.':'Assigned Programs and Courses will appear here.'}</p>${mode==='learn'?'<a href="/academy/#website" data-workspace-exit>Visit website →</a>':''}</div>`;
+  }
+  function notes() {
+    const snapshot=window.M4L_CLASS_NOTES?.snapshot?.()||{sessions:[],status:'idle'};
+    const rows=home.personalTimetable||[],result=new Map();
+    for(const session of snapshot.sessions){
+      const lesson=rows.find(row=>JSON.stringify([row.activityKey||row.kind+':'+row.activityId,row.sourceDate||row.date,row.sessionKey||row.mediaSessionKey])===session.ref);
+      if(!lesson||Number(lesson.startsAt)<=Date.now())continue;
+      for(const note of session.dueNotes||[]){const source=session.sources[0];if(!source)continue;result.set(note.id,{...note,activityKey:source.activityKey,activityName:source.activityName,startsAt:lesson.startsAt,startTime:source.startTime,readKey:'note:'+note.id+':'+note.date,title:'Class Note · '+note.title});}
+    }
+    return [...result.values()].sort((a,b)=>a.startsAt-b.startsAt);
+  }
+  function noteButton(note,label='Open Class Note') { return `<button type="button" data-ad-note="${esc(note.id)}" data-ad-area="${esc(note.activityKey)}" data-ad-read="${esc(note.readKey)}">${esc(label)} →</button>`; }
+  function tasks() {
+    const list=notes().map(note=>({title:note.title,description:note.activityName+' · '+date(note.date+'T12:00:00Z')+' · '+note.startTime,badge:'Due this lesson',action:noteButton(note)}));
+    for(const plan of plans.filter(row=>['DUE','OVERDUE'].includes(row.status)&&row.canSubmit)){
+      const row=areas().find(row=>key(row).toUpperCase()===plan.activityKey.toUpperCase());if(!row)continue;
+      list.push({title:mode==='admin'?'Lesson plan needs follow-up':'Submit your lesson plan',description:plan.activityName+' · '+plan.teacherName,badge:plan.status==='OVERDUE'?'Overdue':plan.dueAt?'Due '+date(plan.dueAt):'Plan due',action:link(mode==='admin'?'#administration/planning':href(row,'planning'),mode==='admin'?'View plans →':'Open planning →')});
+    }
+    if(mode==='admin'&&enrolments.length)list.unshift({title:'Enrolment requests need review',description:'Requests within your administrative scope',badge:enrolments.length+(enrolments.nextCursor?'+':'')+' requests',action:link('/academy/enrolment/manage/?view=requests','Review requests →')});
+    return list;
+  }
+  function renderAttention() {
+    if(!home||!$('ad-attention'))return;
+    const list=tasks(),noteState=window.M4L_CLASS_NOTES?.snapshot?.();
+    $('ad-fya-count').textContent=String(list.length);
+    $('ad-attention').innerHTML=list.length?`<ul class="ad-task-list">${list.map(row=>`<li><h3>${esc(row.title)}</h3><p class="ad-muted">${esc(row.description)}</p><div class="ad-task-bottom"><span class="ad-due">${esc(row.badge)}</span>${row.action}</div></li>`).join('')}</ul>`:'<p class="ad-empty-line">'+(loading.size||['idle','loading'].includes(noteState?.status)&&home.personalTimetable?.some(row=>row.mediaSessionKey)?'Checking your outstanding actions…':failures.size||noteState?.status==='error'?'Some actions could not be checked.':'No outstanding actions in the available Academy records.')+'</p>';
+    if(failures.size||['error','stale'].includes(noteState?.status))$('ad-attention').insertAdjacentHTML('beforeend','<p class="ad-warning" role="status">'+esc([...failures.values(),noteState?.message].filter(Boolean).join(' '))+'</p><button type="button" data-ad-retry>Try again</button>');
+  }
+  function messages() {
+    const announcements=(window.M4L_ANNOUNCEMENTS?.snapshot?.().announcements||[]).map(row=>({...row,type:'announcement',readKey:'announcement:'+row.id+':'+(row.revision||row.updatedAt||row.message||''),context:'Academy announcement'}));
+    return [...notes().map(row=>({...row,type:'note',context:row.activityName+' · Class Note'})),...announcements];
+  }
+  function messageRows(rows) {return rows.map(row=>`<div class="ad-message ${read.has(row.readKey)?'':'is-unread'}">${row.type==='note'?noteButton(row,row.title):`<button type="button" data-ad-notice="${esc(row.id)}" data-ad-read="${esc(row.readKey)}">${esc(row.title)}</button>`}<p>${esc(row.context)}${read.has(row.readKey)?' · Read':' · Unread'}</p></div>`).join('');}
+  function renderMessages() {
+    if(!home||!$('ad-messages'))return;
+    const rows=messages(),snapshot=window.M4L_ANNOUNCEMENTS?.snapshot?.();
+    $('ad-unread').textContent=String(rows.filter(row=>!read.has(row.readKey)).length);
+    $('ad-messages').innerHTML=rows.length?messageRows(rows.slice(0,3)):'<p class="ad-empty-line">'+(snapshot?.status==='error'?'Messages could not be checked.':snapshot?.status==='loading'?'Loading messages…':'No messages in the available Academy records.')+'</p>';
+    if(snapshot?.status==='error')$('ad-messages').insertAdjacentHTML('beforeend','<button type="button" data-ad-retry>Try again</button>');
+  }
+  function openInbox() { showDialog('Messages',messages().length?messageRows(messages()):'<p>No messages in the available Academy records.</p>'); }
+  function renderNext() {
+    const lesson=(home.personalTimetable||[]).filter(row=>row.status==='SCHEDULED'&&Number(row.endsAt)>Date.now()).sort((a,b)=>a.startsAt-b.startsAt)[0];
+    $('ad-next').innerHTML=lesson?`<p class="ad-next-time">${esc(date(lesson.startsAt))} · ${esc(lesson.startTime)}–${esc(lesson.endTime)}<small>${esc(lesson.timezone||home.timezone)}</small></p><h3>${esc(lesson.activityName)}</h3><p>${esc(lesson.moduleName||lesson.subjectName||lesson.title)}</p><p class="ad-muted">${esc((lesson.teacherNames||[lesson.teacherName]).filter(Boolean).join(', '))}</p><div class="ad-actions">${options.lessonActions(lesson)}</div>`:'<p class="ad-empty-line">No upcoming lesson in this timetable week. Use the timetable arrows to view later weeks.</p>';
+    clearTimeout(timer);const transition=lesson&&[lesson.joinAvailableAt,lesson.startsAt,lesson.endsAt].filter(time=>time>Date.now()).sort((a,b)=>a-b)[0];
+    if(transition)timer=setTimeout(()=>{if(owner===context()&&home){renderNext();renderAttention();renderMessages();}},Math.min(2147483647,Math.max(300,transition-Date.now()+100)));
+  }
+  async function request(path,input) {
+    const captured=context(),response=await fetch((window.M4L_CONFIG?.API_BASE||'')+path,{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token()},body:JSON.stringify(input)}),data=await response.json();
+    if(captured!==context())throw new DOMException('The Academy workspace changed.','AbortError');
+    if(!response.ok||!data.success){if(response.status===401)window.dispatchEvent(new Event('m4l-academy-session-ended'));throw Object.assign(Error(data.error||'Dashboard actions could not load.'),{status:response.status});}return data;
+  }
+  async function loadSource(name,path,input,apply,force) {
+    const captured=owner,ticket=epoch;loading.add(name);renderAttention();
+    const current=()=>owner===captured&&ticket===epoch&&captured===context();
+    const accept=data=>{if(!current())return;apply(data);loading.delete(name);failures.delete(name);if(data._cacheMessage)failures.set(name,data._cacheMessage);renderAttention();};
+    const failure=(error,saved)=>{if(!current()||error.name==='AbortError')return;if(!saved)apply({});loading.delete(name);failures.set(name,(saved?'Showing saved '+name+'. ':'')+'Couldn’t check '+name+'.');renderAttention();};
+    try { const cache=window.M4L_ACADEMY_READ_CACHE,result=cache?await cache.load({key:['dashboard',name,input],force,revalidate:true,fetcher:()=>request(path,input),onUpdate:accept,onError:failure}):await request(path,input);accept(result); }catch(error){failure(error,false);}
+  }
+  async function refresh(force=false) {
+    if(!home||owner!==context())return;
+    if(!force&&Date.now()-fetched<60000)return;
+    fetched=Date.now();
+    const work=[];
+    if(mode!=='learn')work.push(loadSource('planning','/api/academy/planning/list',{view:mode==='admin'?'admin':'teacher',...(mode==='admin'?{weekCount:3}:{})},data=>{plans=data.plans||[];},force));
+    if(mode==='admin')work.push(loadSource('enrolments','/api/admin/platform/enrolment/get',{},data=>{enrolments=data.requests||[];enrolments.nextCursor=data.nextCursor;},force));
+    if(force){window.M4L_CLASS_NOTES?.invalidate();void window.M4L_ANNOUNCEMENTS?.refreshPublic(true);options.refreshTimetable?.();}
+    await Promise.allSettled(work);
+  }
+  function open(data,settings) {
+    if(!data?.signedIn||!token()||!$('dashboard'))return;
+    const next=context(),returning=next===owner&&fetched===0;
+    if(next!==owner){reset();owner=next;home=data;options=settings;mode=settings.mode;mount();void restoreRead();}
+    else if(returning)mount();
+    home=data;options=settings;mode=settings.mode;
+    try{sessionStorage.setItem('m4l_dashboard_workspace:'+data.profile?.uniqueid,mode);}catch{}
+    renderNavigation();renderAreas();renderAttention();renderMessages();renderNext();
+    announce(data._cacheChecking?'Showing saved dashboard. Checking for updates…':data._cacheMessage||data.warnings?.join(' ')||'',Boolean(data._cacheMessage));
+    const calendar=$('ad-calendar-host');
+    if(!calendar.firstElementChild){const frame=document.createElement('iframe');frame.className='academy-calendar-frame';frame.title='Academy calendar';frame.loading='lazy';frame.src=boundary().readerUrl('/academy/calendar/?embed=1&view='+mode);calendar.append(frame);}
+    void refresh();
+    if(returning){window.M4L_CLASS_NOTES?.invalidate();void window.M4L_ANNOUNCEMENTS?.refreshPublic();options.refreshTimetable?.(false);}
+  }
+  window.addEventListener('m4l-class-notes-updated',()=>{renderAttention();renderMessages();});
+  window.addEventListener('m4l-announcements-updated',renderMessages);
+  window.addEventListener('m4l-academy-session',reset);
+  window.addEventListener('m4l-academy-session-ended',reset);
+  window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)reset();});
+  window.M4L_ACADEMY_DASHBOARD={leave:()=>{fetched=0;closeDialog();},open,reset,landing,homeUrl,refresh,unavailable:message=>announce(message,true)};
+})();

@@ -252,7 +252,7 @@
       pinInput.value = "";
       showStatus("");
       showSignedIn(result.account || { uniqueid: uniqueId }, result.sessionStore);
-      window.location.hash = "overview";
+      if (!window.location.hash || window.location.hash === "#login") window.location.hash = "overview";
     } catch (error) {
       pinInput.value = "";
       showStatus(error.message || "Sign-in could not be completed. Please try again.");

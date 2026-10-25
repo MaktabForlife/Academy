@@ -95,12 +95,13 @@
     catch(error){check();response=new Response(JSON.stringify({success:false,error:error.message,code:error.code||'SETUP_REVIEW_REQUIRED',publicationStaged:true}),{status:error.status||409,headers:response.headers});}
    }
   }
-  if(method==='POST'&&response.ok&&/(?:save|delete|publish|accept|status|register|mark|release|confirm|withdraw|upload|remove|create|close|cancel|archive|refresh)$/.test(url.pathname))window.M4L_ACADEMY_READ_CACHE?.invalidate();
+  if(method==='POST'&&response.ok&&/(?:save|submit|post|revise|relink|delete|publish|accept|status|register|mark|release|confirm|withdraw|upload|remove|create|close|cancel|archive|refresh)$/.test(url.pathname))window.M4L_ACADEMY_READ_CACHE?.invalidate();
   // Preserve streamed file delivery. Reject a delayed parsed response before it
   // can populate another account/workspace or create a stale PDF object URL.
   return new Proxy(response,{get(target,name){if(['json','text','blob','arrayBuffer','formData'].includes(name))return async(...args)=>{check();const value=await target[name](...args);check();return value;};const value=Reflect.get(target,name,target);return typeof value==='function'?value.bind(target):value;}});
  };
- window.M4L_ACADEMY_WORKSPACE={current,audience,adminRealm,adminAccess,readyAccess,readerUrl,desired,commit,canonical,studentClass,classView:()=>classView,head:()=>head,readyPublication,publication:value=>{headEpoch++;head=value;headRequest=null;}};
+ const homeUrl=()=>adminRealm()?'/academy/admin/'+(audience()==='TEACH'?'#timetable/teach':audience()==='LEARN'?'#timetable/learn':'#administration'):'/academy/#timetable/'+(audience()==='TEACH'?'teach':'learn');
+ window.M4L_ACADEMY_WORKSPACE={homeUrl,current,audience,adminRealm,adminAccess,readyAccess,readerUrl,desired,commit,canonical,studentClass,classView:()=>classView,head:()=>head,readyPublication,publication:value=>{headEpoch++;head=value;headRequest=null;}};
  function resetAccess(){generation++;classView=null;head=null;headRequest=null;accessEpoch++;access=null;accessRequest=null;accessChanged();}
  window.addEventListener('m4l-academy-session',resetAccess);
  window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)resetAccess();});

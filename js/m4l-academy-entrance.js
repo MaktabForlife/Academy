@@ -45,7 +45,7 @@
   const scheduleCard=$('academy-schedule');
   function dockTimetable(target){if(target&&scheduleCard.parentElement!==target)target.appendChild(scheduleCard);}
   function weekButtons(){for(const id of ['schedule-previous','activity-previous'])$(id).disabled=!state.startDate||state.startDate<=currentWeek();for(const id of ['schedule-next','activity-next'])$(id).disabled=!token()&&state.startDate>=addWeekDays(state.home?.availableEndDate||state.home?.endDate||state.startDate,-6);}
-  function roleRows(data){const rows=scheduleRows(data),teach=location.hash==='#timetable/teach';if(!teach||data.globalAdmin)return rows;const areas=new Set((data.personalActivities||[]).filter(r=>staffRoles(r.roles||[])).map(r=>r.kind+':'+r.id));return rows.filter(r=>areas.has(r.kind+':'+r.activityId));}
+  function roleRows(data){let rows=scheduleRows(data);if(window.M4L_ACADEMY_WORKSPACE?.adminRealm()&&window.M4L_ACADEMY_WORKSPACE?.current()==='ADMIN'&&!data.globalAdmin){const managed=new Set((data.personalActivities||[]).filter(row=>adminRoles(row.roles||[])).map(row=>row.kind+':'+row.id));rows=rows.filter(row=>managed.has(row.kind+':'+row.activityId));}const teach=location.hash==='#timetable/teach';if(!teach||data.globalAdmin)return rows;const areas=new Set((data.personalActivities||[]).filter(r=>staffRoles(r.roles||[])).map(r=>r.kind+':'+r.id));return rows.filter(r=>areas.has(r.kind+':'+r.activityId));}
   function workspaceAreaLinks(mode,current,activities=state.home?.personalActivities||[]){
     const rows=activities.filter(row=>menuActivity(row)&&(state.home?.globalAdmin||mode!=='teach'||staffRoles(row.roles||[])));
     return [['PROGRAM','Programs'],['COURSE','Courses']].map(([kind,label])=>{
@@ -82,7 +82,7 @@
   let lastRouteHash = '', navigationSession = token(), memorisationReturn = null, restoreMemorisation = null;
   const memorisationHash = hash => ['#progress','#hifz','#hifdh'].includes(hash) || hash.startsWith('#progress-admin') || hash.endsWith('/surahs-duas') || hash.endsWith('/assessment') || hash.startsWith('#assessment-admin') || hash.startsWith('#assessments');
   const validReturnHash = hash => typeof hash === 'string' && (hash !== '#timetable' && Boolean(titles[hash.slice(1).split('/')[0]]) || /^#activity\/(PROGRAM|COURSE)\/[^/#]+(?:\/(?:learn|teach))?(?:\/(?:attendance|surahs-duas|assessment|library|planning))?$/.test(hash));
-  const titles = { overview: 'Academy home', timetable: 'Academy timetable', learning: 'Programs and Courses', workshops: 'Courses', activity: 'Activity',
+  const titles = { dashboard:'Dashboard', website: 'Academy homepage', overview: 'Academy home', timetable: 'Academy timetable', learning: 'Programs and Courses', workshops: 'Courses', activity: 'Activity',
     prospectus: '2026 Prospectus', about: 'About', contact: 'Contact', hifz:'Surahs and Duas', hifdh:'Surahs and Duas', progress: 'Surahs and Duas', 'progress-admin':'Manage Surahs and Duas', 'assessment-admin':'Manage Assessments', assessments:'My assessments', administration: 'Manage Academy' };
   const activityHref = row => `#activity/${row.kind}/${encodeURIComponent(row.id)}`;
   const staffRoles = roles => roles.some(role => ['TEACHER', 'PROGRAM_ADMIN', 'ADMIN', 'SENIOR', 'GLOBAL_ADMIN','SUBSTITUTE'].includes(role));
@@ -133,7 +133,7 @@
   async function dailyTimetable(body, force = false, onUpdate, onError, fallback=null) {
     if(window.M4L_ACADEMY_READ_CACHE){
       if(token()&&dailyCache.session!==token()){dailyCache.session=token();dailyCache.owner=await window.M4L_ACADEMY_READ_CACHE.owner(token());try{const back=JSON.parse(sessionStorage.getItem(MEMORISATION_RETURN_KEY)||'null');if(back?.owner===dailyCache.owner&&validReturnHash(back.hash))memorisationReturn=back;}catch{}}
-      return window.M4L_ACADEMY_READ_CACHE.load({key:['entrance',body],public:!token(),force,fallback,onUpdate,onError,
+      return window.M4L_ACADEMY_READ_CACHE.load({key:['entrance',body],public:!token(),force,revalidate:Boolean(token()&&!body.id),fallback,onUpdate,onError,
         fetcher:revision=>request(body,revision)});
     }
     checkProfileLabels();
@@ -231,7 +231,7 @@
         if(generation!==state.generation)return;
         if(state.startDate&&state.startDate!==state.home?.startDate){state.home=updated;rememberPages(updated);renderAcademyMenu();return;}
         void loadHome(false,updated);
-      },(error,saved)=>{if(generation!==state.generation)return;if(!saved)clearPersonal();$('entrance-message').textContent=saved?'Showing saved Academy information. Couldn’t check for updates.':error.message;$('entrance-retry').hidden=false;});
+      },(error,saved)=>{if(generation!==state.generation)return;if(!saved)clearPersonal();const message=saved?'Showing saved Academy information. Couldn’t check for updates.':error.message;$('entrance-message').textContent=message;window.M4L_ACADEMY_DASHBOARD?.unavailable(message);$('entrance-retry').hidden=false;});
       if (generation !== state.generation) return;
       rememberPages(result);
       state.home = result;state.homeDay=academyDay(result.timezone);
@@ -248,6 +248,7 @@
     } catch (error) {
       if (generation !== state.generation) return;
       $('entrance-message').textContent = error.message;
+      window.M4L_ACADEMY_DASHBOARD?.unavailable(error.message);
       $('entrance-retry').hidden = false;
       if (!state.home || state.home.signedIn) {
         clearTimeout(state.activityTimer);
@@ -286,6 +287,7 @@
       renderSchedule('academy-sessions', roleRows(result));
       if(location.hash.startsWith('#activity/'))renderActivityTimetable();
       weekButtons();
+      updateDashboard();
       armScheduleClock();
     } catch (error) {
       if (generation !== state.scheduleGeneration) return;
@@ -389,8 +391,28 @@
     $('schedule-message').textContent = '';
     renderSchedule('academy-sessions', roleRows(data));
     weekButtons();
+    updateDashboard();
   }
 
+  let dashboardAdminLinks=[];
+  function renderDashboard(mode,links){
+    if(!state.home?.signedIn||!window.M4L_ACADEMY_DASHBOARD)return;
+    if(links)dashboardAdminLinks=links;
+    window.M4L_ACADEMY_DASHBOARD.open({...state.home,personalTimetable:roleRows({...state.home,personalTimetable:state.scheduleTimetable})},{mode,
+      activityHref:workspaceHref,adminLinks:dashboardAdminLinks,
+      hifzHref:row=>{const html=hifzHelperLink(row);return html?html.match(/href="([^"]+)"/)?.[1].replace(/&amp;/g,'&'):'';},
+      refreshTimetable:(force=true)=>void loadSchedule(force),
+      lessonActions:lesson=>{
+        state.information['dashboard-next']=[{title:lesson.activityName,lessons:[lesson]}];
+        const now=Date.now(),join=mode!=='admin'&&!lesson.preview&&lesson.joinKey&&now>=lesson.joinAvailableAt&&now<lesson.endsAt;
+        return (join?'<button type="button" class="ad-primary" data-join="dashboard-next:0:0">Join lesson</button>':'')+'<button type="button" data-information="dashboard-next:0">Lesson details</button>'+`<a href="${workspaceHref({kind:lesson.kind,id:lesson.activityId},'library',mode==='admin'?'teach':mode)}">Resources</a>`;
+      }});
+    dockTimetable($('ad-timetable-host'));
+  }
+  function updateDashboard(){
+    if(!$('dashboard')?.classList.contains('active')||!state.home?.signedIn)return;
+    renderDashboard(location.hash==='#administration'?'admin':window.M4L_ACADEMY_WORKSPACE.audience().toLowerCase());
+  }
   function workspaceContext(row) {
     const parts = location.hash.slice(1).split('/'), explicit = ['learn','teach'].includes(parts[3]);
     const staff = Boolean(state.home?.globalAdmin || staffRoles(row.roles || []));
@@ -480,15 +502,8 @@
       ? '<a class="workspace-recorder-pill" data-recorder-link href="/recorder/?academy=1">Voice Recorder</a>' : '';
     return `<nav class="workspace-tabs" aria-label="${context.mode === 'teach' ? 'Teach' : 'Learn'} tools" role="tablist">${tools.map(([key,label,panel]) => `<a id="activity-tab-${key}" role="tab" href="${key==='library'?'/academy/library/':workspaceHref(row,key)}" aria-controls="${panel}" aria-selected="${context.tool === key}" tabindex="${context.tool === key ? 0 : -1}">${label}</a>${key==='timetable'&&!row.substituteOnly?`<button type="button" class="cn-toggle" data-class-notes-toggle aria-pressed="${Boolean(window.M4L_CLASS_NOTES?.visible())}" aria-controls="activity-sessions">Class Notes</button>`:''}`).join('')}${recorder}</nav>${hifzHelperLink(row,'workspace-helper')}`;
   }
-  function supportSections(row, mode) {
-    const staff = mode !== 'learn';
-    const tracker = mode === 'teach' && row
-      ? `<details class="academy-support-card academy-progress-section" data-progress-activity="${esc(row.kind+':'+row.id)}"><summary><span>Surahs and Duas Tracker</span><small>Class progress</small></summary><div id="activity-progress-host" class="academy-inline-progress" aria-label="Surahs and Duas class progress"></div></details>`
-      : '<a class="academy-support-card academy-tracker-link" href="#progress-admin"><strong>Surahs and Duas Tracker</strong><small>Manage progress</small><span aria-hidden="true">›</span></a>';
-    return `<details class="academy-support-card academy-messages"><summary><span>${staff ? 'Reminders' : 'Messages'}</span><small>Coming soon</small></summary><p class="muted">${staff ? 'Editing and sending reminders' : 'Academy messaging'} is coming soon.</p></details>
-      <details class="academy-support-card academy-calendar-section" data-calendar-program="${row?.kind==='PROGRAM'?esc(row.id):''}" data-calendar-view="${esc(mode)}"><summary><span>Academy calendar</span><small>This month</small></summary><div class="academy-inline-calendar" aria-label="Academic Calendar"></div></details>
-      ${staff ? tracker : ''}`;
-  }
+  // Shared Messages, calendar and tracker are available from the dashboard.
+  function supportSections() { return ''; }
   function syncWorkspace(row) {
     const context = workspaceContext(row), permitted = Boolean(state.home?.signedIn && row.roles?.length && !row.unavailable);
     const library = $('activity-library'), planning = $('activity-planning'), support = $('activity-support');
@@ -931,7 +946,7 @@
       armTimetableClock(rows, () => renderSchedule('activity-sessions', rows));
     } else if (view === 'timetable'||location.hash==='#administration') {
       armTimetableClock(state.scheduleTimetable, () => {
-        renderSchedule('academy-sessions',roleRows({...state.home,personalTimetable:state.scheduleTimetable,timetable:state.scheduleTimetable}));
+        renderSchedule('academy-sessions',roleRows({...state.home,personalTimetable:state.scheduleTimetable,timetable:state.scheduleTimetable}));updateDashboard();
       });
 
     } else if(!view||view==='overview'||view==='learning'){
@@ -968,6 +983,13 @@
     if (!token() && /^#timetable(?:\/|$)/.test(hash)) {
       hash = '#overview';
       history.replaceState(null, '', hash);
+    }
+    if(window.M4L_ACADEMY_DASHBOARD&&state.home?.signedIn&&['#overview','#login'].includes(hash)){
+      const next=location.pathname.startsWith('/academy/admin/')?'/academy/admin/#administration':window.M4L_ACADEMY_DASHBOARD.landing(state.home);
+      if(next.startsWith(location.pathname+'#')||next.startsWith('/academy/#')&&location.pathname==='/academy/'){
+        history.replaceState(null,'',next);route();
+      }else location.assign(next);
+      return;
     }
     if (state.home && hash.startsWith('#activity/PROGRAM/')) {
       const parts = hash.slice(1).split('/');
@@ -1018,7 +1040,8 @@
     lastRouteHash = hash;
     const [requested, , encodedId] = location.hash.slice(1).split('/');
     if (requested !== 'activity') { clearTimeout(state.activityTimer); state.activityGeneration++; renderSubscriptions(state.home?.signedIn ? state.home.personalActivities : []); }
-    const name = ['hifz','hifdh','progress'].includes(requested) ? 'overview' : requested === 'learning' ? 'overview' : titles[requested] ? requested : 'overview';
+    const dashboardHome=Boolean(window.M4L_ACADEMY_DASHBOARD&&state.home?.signedIn&&(/^#timetable\/(learn|teach)$/.test(hash)||hash==='#administration'));
+    const name = dashboardHome?'dashboard':requested==='website'?'overview':['hifz','hifdh','progress'].includes(requested) ? 'overview' : requested === 'learning' ? 'overview' : titles[requested] ? requested : 'overview';
     document.querySelectorAll('.view').forEach(view => view.classList.toggle('active', view.id === name));
     document.querySelectorAll('[data-nav]').forEach(button => {
       const current = button.dataset.nav === requested || name === 'overview' && button.dataset.nav === 'overview';
@@ -1038,8 +1061,10 @@
     if(name==='assessment-admin'&&state.home){if(encodedId){try{void loadActivity(decodeURIComponent(encodedId));}catch{$('as-admin-host').textContent='Invalid learning area.';}}else syncAssessment({kind:hash.includes('/COURSE')?'COURSE':'',name:'Academy',roles:[]});}
     if(name!=='administration')dockTimetable($('timetable-card-home'));
     if(name==='overview'&&state.home)void loadPublicHome();
-    if(name==='timetable'){renderRoleLinks();if(state.home){renderSchedule('academy-sessions',roleRows({...state.home,personalTimetable:state.scheduleTimetable,timetable:state.scheduleTimetable}));$('schedule-range').textContent=formatDate(state.startDate)+' – '+formatDate(addWeekDays(state.startDate,6));weekButtons();}}
-    if (name === 'administration') renderAdministration();
+    if(name==='timetable'||dashboardHome&&requested==='timetable'){renderRoleLinks();if(state.home){renderSchedule('academy-sessions',roleRows({...state.home,personalTimetable:state.scheduleTimetable,timetable:state.scheduleTimetable}));$('schedule-range').textContent=formatDate(state.startDate)+' – '+formatDate(addWeekDays(state.startDate,6));weekButtons();}}
+    if (name === 'administration'||dashboardHome&&requested==='administration') renderAdministration();
+    if(dashboardHome)renderDashboard(requested==='administration'?'admin':boundary.audience().toLowerCase());
+    else window.M4L_ACADEMY_DASHBOARD?.leave?.();
     renderAcademyMenu();
     if (requested !== 'activity') armScheduleClock();
   }
@@ -1080,7 +1105,7 @@
     if(requested==='planning')window.M4L_PLANNING?.open({hostId:'admin-planning',view:'admin'});
     if(requested==='settings'&&global)window.M4L_ACADEMY_SETTINGS?.open('admin-app-settings');
     if(requested==='announcements'&&global)window.M4L_ANNOUNCEMENTS?.open({hostId:'admin-announcements'});
-    if(!requested){dockTimetable($('admin-timetable-home'));renderSchedule('academy-sessions',state.scheduleTimetable);weekButtons();}
+    if(!requested){dashboardAdminLinks=tabs.map(([id,label])=>({href:direct[id],label}));dockTimetable($('admin-timetable-home'));renderSchedule('academy-sessions',roleRows({...state.home,personalTimetable:state.scheduleTimetable}));weekButtons();}
     const publicationButton=$('setup-publication-review');if(publicationButton)publicationButton.onclick=async()=>{try{await window.M4L_SETUP_PUBLICATION.open();publicationButton.textContent='Setup published';}catch(error){if(error.code!=='SETUP_REVIEW_REQUIRED')alert(error.message);}};
     bindPublicTimetableRefresh();
     revealWorkspaceTab();
@@ -1110,9 +1135,10 @@
   window.addEventListener('m4l-class-notes-error',event=>{const el=location.hash.startsWith('#activity/')?$('activity-status'):$('schedule-message');if(el)el.textContent=event.detail+' Refresh to try again.';});
 
   function clearPersonal() {
-    window.M4L_CLASS_NOTES?.reset();
-    // Keep shared timetable elements attached before clearing their Admin host.
+    // Keep the real timetable attached before removing its dashboard or Admin host.
     dockTimetable($('timetable-card-home'));
+    window.M4L_ACADEMY_DASHBOARD?.reset();
+    window.M4L_CLASS_NOTES?.reset();
     window.M4L_LESSON_MEDIA?.reset();window.M4L_PLANNING?.reset();window.M4L_ANNOUNCEMENTS?.reset();
     window.M4L_ACADEMY_ASSESSMENTS?.reset();$('as-panel').hidden=true;
     memorisationReturn=null;restoreMemorisation=null;$('mp-teach-panel').hidden=true;$('mp-admin-context').textContent='';window.M4L_MEMORISATION_ADMIN?.reset();

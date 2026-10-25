@@ -80,7 +80,7 @@
  document.addEventListener('click',event=>{if(event.target.closest?.('[data-workspace-exit],[data-recorder-link]')&&!canLeave())event.preventDefault();});
 
  function update(next){
-  data=next;const signed=Boolean(data?.signedIn),global=Boolean(signed&&data.globalAdmin),roles=signed?[...(data.workspaceRoles||[]),...(data.personalActivities||[]).flatMap(r=>r.roles||[])]:[];
+  data=next;if(brand.matches?.('a'))brand.href=data?.signedIn?(boundary?.homeUrl?.()||'/academy/#overview'):'/academy/#overview';const signed=Boolean(data?.signedIn),global=Boolean(signed&&data.globalAdmin),roles=signed?[...(data.workspaceRoles||[]),...(data.personalActivities||[]).flatMap(r=>r.roles||[])]:[];
   const staff=r=>r.some(x=>['TEACHER','SENIOR','PROGRAM_ADMIN','ADMIN','GLOBAL_ADMIN'].includes(x)),admin=r=>r.some(x=>['PROGRAM_ADMIN','ADMIN','GLOBAL_ADMIN'].includes(x));
   const pendingAdmin=boundary?.adminRealm()&&!adminRealm(),canAdmin=global||data?.workspaceAccess?.admin||admin(roles),available={learn:signed&&!pendingAdmin&&(canAdmin||data?.workspaceAccess?.learn||roles.length>0),teach:signed&&!pendingAdmin&&(canAdmin||data?.workspaceAccess?.teach||roles.includes('TEACHER')),admin:signed&&!pendingAdmin&&canAdmin};
   const section=location.hash.slice(1).split('/'),path=location.pathname,calendarView=path.startsWith('/academy/calendar/')?(window.M4L_ACADEMY_WORKSPACE?.audience().toLowerCase()||new URLSearchParams(location.search).get('view')):null;
@@ -92,6 +92,6 @@
  }
  document.addEventListener('click',event=>{if(event.target.closest('[data-curriculum-open]')){void openCurriculum();return;}const button=event.target.closest('[data-shell-role]');if(button&&!button.hidden){event.preventDefault();openRole(button.dataset.shellRole);}});
  window.addEventListener('m4l-academy-access',()=>update(data));
- if(brand.matches?.('a')){brand.href='/academy/#overview';brand.setAttribute('data-workspace-exit','');brand.removeAttribute('data-nav');}
+ if(brand.matches?.('a')){brand.href=token()?boundary?.homeUrl?.()||'/academy/#overview':'/academy/#overview';brand.setAttribute('data-workspace-exit','');brand.removeAttribute('data-nav');}
  window.M4L_ACADEMY_SHELL={update,banners,openRole,canLeave};update(data);
 })();

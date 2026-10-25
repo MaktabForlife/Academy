@@ -24,7 +24,7 @@
   return publicationPending;
  }
  function authoritative(error){return [401,403,404].includes(error.status);}
- async function load({key:query,public:publicData=false,force=false,fetcher,onUpdate,onError,fallback=null}){
+ async function load({key:query,public:publicData=false,force=false,revalidate=false,fetcher,onUpdate,onError,fallback=null}){
   changed();const session=token(),realm=context(),ticket=publicData?epoch:privateEpoch,identity=publicData?'PUBLIC':await owner(session);
   const active=()=>ticket===(publicData?epoch:privateEpoch)&&(publicData||session===token()&&realm===context());
   if(!active())throw new DOMException('The Academy account or workspace changed.','AbortError');
@@ -34,7 +34,7 @@
   if(entry&&(!entry.data||!Number.isFinite(entry.at)||!Number.isFinite(entry.checkedAt))){remove(key);entry=null;}
   if(entry&&(Date.now()-entry.at>maxAge||entry.at>Date.now()||!publicData&&head()&&head()!==entry.head||entry.day!==day(entry.data?.timezone))){remove(key);entry=null;}
   const cached=entry?.data||fallback;
-  if(!force&&entry&&Date.now()-entry.checkedAt<freshFor)return {...cached};
+  if(!force&&!revalidate&&entry&&Date.now()-entry.checkedAt<freshFor)return {...cached};
   let update=pending.get(key);
   if(!update){
    update=(async()=>{

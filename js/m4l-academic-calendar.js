@@ -17,12 +17,31 @@
  const colour=kind=>['PUBLIC_HOLIDAY','ACADEMY_HOLIDAY','TERM_BREAK'].includes(kind)?'holiday':['ISLAMIC_DAY','RELIGIOUS_PERIOD'].includes(kind)?'islamic':'term';
  const status=(text,error=false)=>{$('cal-message').textContent=text;$('cal-message').classList.toggle('is-error',error);};
  async function api(path,body){const session=token(),generation=model.generation,response=await fetch((window.M4L_CONFIG?.API_BASE||'')+'/api/academy/'+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session},body:JSON.stringify(body)}),result=await response.json();if(session!==token()||generation!==model.generation)throw Error('Your Academy account changed. Refresh to continue.');if(response.status===401){clear();status('Your session ended. Sign in again.',true);}if(!response.ok||!result.success)throw Object.assign(Error(result.error||'Could not confirm the change. Your entries are kept.'),{status:response.status});void window.M4L_REFRESH_AFTER_SAVE?.(result,session);return result;}
+ let loadRevision=0;
  async function load(force=false){
-  if(model.busy)return;const generation=model.generation;if(!token()){clear();status('Sign in to view the Academic Calendar.');return;}
-  const key=JSON.stringify([token(),model.year,model.month,model.scopeKey,model.teacherId]),cached=model.cache.get(key);setBusy(true);status('Loading calendar…');
-  try{const data=!force&&cached&&Date.now()-cached.at<120000?cached.data:await api('calendar/get',{year:model.year,month:model.month,scopeKey:model.scopeKey,teacherId:model.teacherId,view:calendarView});if(generation!==model.generation)return;model.data=data;model.scopeKey=data.scopeKey;model.teacherId=data.teacherId;model.cache.set(JSON.stringify([token(),model.year,model.month,data.scopeKey,data.teacherId]),{at:Date.now(),data});if(model.cache.size>12)model.cache.delete(model.cache.keys().next().value);render();status('');if(params.get('edit')==='1'&&data.availability){params.delete('edit');openAvailability();}}
-  catch(error){if(generation===model.generation){model.data=null;model.cache.clear();$('cal-content').hidden=true;status(error.message,true);}}finally{if(generation===model.generation)setBusy(false);}
+  if(model.busy)return;
+  const generation=model.generation,revision=++loadRevision;
+  if(!token()){clear();status('Sign in to view the Academic Calendar.');return;}
+  const key=JSON.stringify([token(),model.year,model.month,model.scopeKey,model.teacherId]),cached=model.cache.get(key);
+  const input={year:model.year,month:model.month,scopeKey:model.scopeKey,teacherId:model.teacherId,view:calendarView};
+  const current=()=>generation===model.generation&&revision===loadRevision;
+  const apply=data=>{
+   if(!current())return;
+   model.data=data;model.scopeKey=data.scopeKey;model.teacherId=data.teacherId;
+   model.cache.set(JSON.stringify([token(),model.year,model.month,data.scopeKey,data.teacherId]),{at:Date.now(),data});
+   if(model.cache.size>12)model.cache.delete(model.cache.keys().next().value);
+   render();status(data._cacheChecking?'Showing saved calendar. Checking for updates…':data._cacheMessage||'');
+   if(params.get('edit')==='1'&&data.availability){params.delete('edit');openAvailability();}
+  };
+  const failure=(error,saved)=>{if(!current()||error.name==='AbortError')return;if(!saved){model.data=null;model.cache.clear();$('cal-content').hidden=true;}status(saved?'Showing saved calendar. Couldn’t check for updates.':error.message,true);};
+  setBusy(true);status('Loading calendar…');
+  try{
+   const shared=window.M4L_ACADEMY_READ_CACHE;
+   const data=shared?await shared.load({key:['calendar',input],force,revalidate:params.get('embed')==='1',fetcher:()=>api('calendar/get',input),onUpdate:apply,onError:failure}):!force&&cached&&Date.now()-cached.at<120000?cached.data:await api('calendar/get',input);
+   apply(data);
+  }catch(error){failure(error,false);}finally{if(current())setBusy(false);}
  }
+
  function render(){
   const d=model.data,admin=calendarView==='admin'&&Boolean(d.canManageAcademy||d.scopes.some(scope=>scope.editable));$('cal-scope-label').hidden=!admin;$('cal-content').hidden=false;$('cal-scope').innerHTML=d.scopes.map(s=>`<option value="${esc(s.key)}"${s.key===d.scopeKey?' selected':''}>${esc(s.name)}</option>`).join('');
   $('cal-teacher-label').hidden=!admin||!d.teachers.length;$('cal-teacher').innerHTML='<option value="">Calendar only</option>'+d.teachers.map(t=>`<option value="${esc(t.accountId)}"${t.accountId===d.teacherId?' selected':''}>${esc(t.name)}</option>`).join('');

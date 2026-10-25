@@ -10,7 +10,8 @@
   const host=shell?.banners.querySelector('.sidebar,.academy-connected-sidebar')||banner?.querySelector('.academy-account-row')||account||document.querySelector('main');if(!host)return;
   const actions=document.createElement('div');actions.className='academy-page-actions';actions.setAttribute('role','group');actions.setAttribute('aria-label','Page actions');
   const home='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9"/></svg>',refresh='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M20 12a8 8 0 1 1-2-6"/></svg>';
-  actions.innerHTML=`<a data-page-home data-workspace-exit href="${academy&&!window.M4L_ACADEMY_WORKSPACE?.adminRealm()?'#overview':'/academy/#overview'}" aria-label="Academy home" title="Home"><span class="page-action-icon">${home}</span><span class="page-action-label">Home</span></a><button data-page-refresh type="button" aria-label="Refresh this page" title="Refresh"><span class="page-action-icon">${refresh}</span><span class="page-action-label">Refresh</span></button>`;
+  actions.innerHTML=`<a data-page-home data-workspace-exit href="${window.M4L_ACADEMY_WORKSPACE?.homeUrl?.()||'/academy/#overview'}" aria-label="Academy home" title="Home"><span class="page-action-icon">${home}</span><span class="page-action-label">Home</span></a><button data-page-refresh type="button" aria-label="Refresh this page" title="Refresh"><span class="page-action-icon">${refresh}</span><span class="page-action-label">Refresh</span></button>`;
+  const syncHome=()=>{const anchor=actions.querySelector('[data-page-home]');if(anchor)anchor.href=window.M4L_ACADEMY_WORKSPACE?.homeUrl?.()||'/academy/#overview';};window.addEventListener('hashchange',syncHome);
   const login=document.getElementById('academy-login')||document.createElement('a');
   if(!login.id){login.id='academy-login';login.href='/academy/#login';login.textContent='Login';}
   signOut.textContent='Sign out';actions.append(login,signOut);host.append(actions);
@@ -34,6 +35,7 @@
     const main=document.querySelector('main');if(main)new MutationObserver(ensureClose).observe(main,{childList:true,subtree:true,attributes:true,attributeFilter:['class','hidden']});
   }
   actions.querySelector('[data-page-refresh]').addEventListener('click',async()=>{
+    if(document.getElementById('dashboard')?.classList.contains('active')){await window.M4L_ACADEMY_DASHBOARD?.refresh(true);return;}
     if(await window.M4L_ANNOUNCEMENTS?.refreshPage?.())return;
     if(await window.M4L_PLANNING?.refreshPage?.())return;
     if(await window.M4L_ACADEMY_ASSESSMENTS?.refreshPage?.())return;

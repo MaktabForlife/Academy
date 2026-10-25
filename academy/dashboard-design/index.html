@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="light dark">
+  <title>Academy · Dashboard design</title>
+  <link rel="icon" href="../../ummabbadacademy.png">
+  <link rel="stylesheet" href="dashboard.css">
+  <script src="dashboard.js" defer></script>
+</head>
+<body>
+  <section class="design-bar" aria-label="Design preview controls">
+    <div class="design-label"><span class="preview-dot"></span><strong>Dashboard design</strong><span>Sample data · local preview</span></div>
+    <div class="design-actions">
+      <div class="device-picker" aria-label="Preview size">
+        <button type="button" data-device="responsive" aria-pressed="true">Responsive</button>
+        <button type="button" data-device="phone" aria-pressed="false">Phone</button>
+      </div>
+      <button type="button" id="options-button" aria-expanded="false" aria-controls="design-options">Options</button>
+    </div>
+    <div id="design-options" class="design-options" hidden>
+      <label>Preview account<select id="account-preview">
+        <option value="all">Learner, Teacher & Global Admin</option>
+        <option value="learner">Learner only</option>
+        <option value="teacher">Teacher only</option>
+        <option value="scoped">Course Admin · Arabic foundations</option>
+        <option value="global">Global Admin only</option>
+        <option value="none">No assigned role</option>
+      </select></label>
+      <label>Dashboard state<select id="state-preview">
+        <option value="normal">A normal day</option>
+        <option value="clear">All actions completed</option>
+        <option value="empty">No Courses or Programs yet</option>
+        <option value="loading">Loading</option>
+        <option value="error">Connection unavailable</option>
+      </select></label>
+      <button type="button" id="sign-in-preview">Try sign-in</button>
+      <button type="button" id="deep-link-preview">Try a notice link</button>
+      <button type="button" id="reset-preview">Reset sample actions</button>
+      <p>Preview controls only. Actions here do not change Academy records.</p>
+    </div>
+  </section>
+  <div id="academy-design" class="academy-design">
+    <header class="academy-topbar">
+      <button type="button" class="brand" data-home aria-label="Home — your dashboard">
+        <img src="../../ummabbadacademy.png" alt="" width="42" height="42">
+        <span>Umm Abbad<strong>Academy</strong></span>
+      </button>
+      <div class="header-date"><span>Sunday, 25 October</span><small>2026 · Riyadh time</small></div>
+      <button type="button" class="profile-button" data-action="profile" aria-label="Your account"><span class="avatar">FA</span><span class="profile-name">Fatimah Ahmed<small>Academy member</small></span></button>
+    </header>
+    <div class="academy-layout">
+      <aside class="academy-sidebar" aria-label="Workspace navigation">
+        <div class="sidebar-heading">YOUR WORKSPACE</div>
+        <nav id="side-nav" aria-label="Dashboard navigation"></nav>
+        <div class="sidebar-footer"><button type="button" class="public-home" data-action="public-home">Academy homepage <span aria-hidden="true">↗</span></button><small>Discover Courses & Programs</small></div>
+      </aside>
+      <div class="workspace-area">
+        <div class="workspace-bar"><nav id="workspace-picker" class="workspace-picker" aria-label="Select workspace"></nav><span id="workspace-authority" class="workspace-authority"></span></div>
+        <main id="dashboard-main"></main>
+        <footer class="workspace-footer"><span>Umm Abbad Academy</span><button type="button" data-action="public-home">Academy homepage <span aria-hidden="true">↗</span></button></footer>
+      </div>
+    </div>
+    <nav id="mobile-nav" class="mobile-nav" aria-label="Mobile navigation"></nav>
+    <div id="preview-toast" class="preview-toast" role="status" aria-live="polite"></div>
+    <dialog id="detail-dialog" class="detail-dialog" aria-labelledby="dialog-heading"><div class="dialog-top"><span id="dialog-context"></span><button type="button" class="icon-button" id="close-dialog" aria-label="Close details">×</button></div><div id="dialog-content"></div></dialog>
+    <div id="live-announcement" class="visually-hidden" aria-live="polite"></div>
+  </div>
+</body>
+</html>
