@@ -1,4 +1,12 @@
-# Umm Abbad Academy — V107.64
+# Umm Abbad Academy — V107.65
+
+## V107.65 — Dashboard Imtihaan timetables
+
+Add Assessments directly below For your attention on Learn, Teach and Admin dashboards. Group current and upcoming Imtihaan into links to their existing timetable, using each workspace’s authorised data. Learners see released schedules; staff can also see assigned draft schedules. Cache timetable summaries immediately and refresh them in the background. Exclude past, completed, cancelled and archived Imtihaan and assignments.
+
+Admin Coming up next shows Courses only; active Program/Course management tiles, assessments and review queues keep their existing scope. Rename Review plans to Review Lesson Plans. No migration or live data correction.
+
+[Release and verification notes](docs/ACADEMY-DASHBOARD-ASSESSMENTS-107.65.md).
 
 ## V107.64 — Assessment controls in rows
 

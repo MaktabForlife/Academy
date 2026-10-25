@@ -44,7 +44,7 @@
  }
  async function render(){if(!state.list)return;const admin=state.options.view==='admin';if(admin&&!state.list.canAdmin){shell('<div class="as-empty">You do not have assessment administration access in this area.</div>');return;}
   const nav=admin?`<div class="as-navigation"><nav class="as-tabs" aria-label="Assessment administration">${[['schedule','Imtihaan Register'],['moderation','Moderation'],['release','Release'],['reports','Reports & designs']].map(([key,label])=>button(label,'tab',`data-tab="${key}" aria-pressed="${state.tab===key}"`,true)).join('')}</nav>${help()}</div>`:`<div class="as-navigation as-tools-only">${help()}</div>`;
-  let rows=state.list.assessments;if(admin)rows=rows.filter(a=>a.canAdmin);if(state.tab==='moderation')rows=rows.filter(a=>a.canModeratePaper??a.canModerate);if(state.tab==='release')rows=rows.filter(a=>a.published);
+  let rows=state.list.assessments;if(!admin&&state.options.registerId)rows=rows.filter(a=>a.registerId===state.options.registerId);if(admin)rows=rows.filter(a=>a.canAdmin);if(state.tab==='moderation')rows=rows.filter(a=>a.canModeratePaper??a.canModerate);if(state.tab==='release')rows=rows.filter(a=>a.published);
   if(state.detail){shell(nav+(admin&&state.tab==='schedule'?registerScheduleHTML(rows):timetableHTML(rows)));if(state.answerOnly)showAnswerDialog();else if(state.resultOnly)showResultsDialog();else showPaperDialog();return;}
   if(state.tab==='reports'&&admin){shell(nav+'<div id="as-reports-host"></div>');const epoch=state.epoch,session=state.session,fence=fn=>(...args)=>{if(!active(epoch,session))throw Object.assign(new Error('Session changed.'),{cancelled:true});return fn(...args);};await window.M4L_ASSESSMENT_REPORTS?.open({host:state.host.querySelector('#as-reports-host'),api:fence(api),upload:fence(upload),run:fence(run),download:fence(download),classes:state.list.classes,assessments:state.list.assessments,esc,button,field,dirty:()=>{if(active(epoch,session))state.dirty=true;}});return;}
   if(!admin||state.tab==='schedule'){shell(nav+(admin?registerScheduleHTML(rows):timetableHTML(rows)));return;}
@@ -260,7 +260,7 @@
    <p>Delete assessment removes an unused paper from the active schedule while retaining its audit record. Once learner access or submissions begin, deletion is blocked.</p></div>`;
   dialog.querySelector('[data-as="close-help"]').onclick=()=>dialog.close();dialog.showModal();
  }
- async function open(options){reset();state.options=options;state.host=document.getElementById(options.hostId);state.session=token();state.tab='schedule';if(!state.host)return;if(!state.session){state.host.textContent='Sign in to view assessments.';return;}shell('<p>Opening assessments…</p>');await run(async()=>{},refresh);}
+ async function open(options){reset();state.options=options;state.registerId=options.view==='admin'?options.registerId||null:null;state.host=document.getElementById(options.hostId);state.session=token();state.tab='schedule';if(!state.host)return;if(!state.session){state.host.textContent='Sign in to view assessments.';return;}shell('<p>Opening assessments…</p>');await run(async()=>{},refresh);}
  window.addEventListener('beforeunload',e=>{if(state.busy||state.dirty||state.pending||window.M4L_ASSESSMENT_REPORTS?.isDirty()){e.preventDefault();e.returnValue='';}});
  async function refreshPage(){if(!state.host?.closest('.view.active'))return false;if(!canLeave())return true;state.dirty=false;state.pending=null;await run(async()=>{},refresh);return true;}
  window.M4L_ACADEMY_ASSESSMENTS={open,reset,canLeave,refreshPage};

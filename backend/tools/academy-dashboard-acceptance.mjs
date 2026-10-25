@@ -11,7 +11,30 @@ const require=createRequire(import.meta.url);
 const {chromium}=require(process.env.ACADEMY_BROWSER_RUNTIME||'playwright');
 const root=resolve(fileURLToPath(new URL('../..',import.meta.url)));
 const output=resolve(process.env.DASHBOARD_ARTIFACTS||'/private/tmp/academy-dashboard-acceptance');await mkdir(output,{recursive:true});
-const fixture=await classNotesFixture(seedClassNotes),checks=[],errors=[],calls=[],snapshots=new Map();
+function seedDashboard(f){
+ seedClassNotes(f);
+ const today=new Intl.DateTimeFormat('en-CA',{year:'numeric',month:'2-digit',day:'2-digit',timeZone:'Africa/Johannesburg'}).format(new Date()),day=offset=>new Date(Date.parse(today+'T12:00:00Z')+offset*86400000).toISOString().slice(0,10),now=new Date().toISOString();
+ for(const [id,name,offsets,status,published,kind,scope] of [
+  ['current','Current Imtihaan',[-1,1],'SCHEDULED',1,'EXAM',f.scopes.programA],
+  ['upcoming','Upcoming Imtihaan',[7],'SCHEDULED',1,'EXAM',f.scopes.programA],
+  ['draft','Draft Imtihaan',[14],'REGISTERED',0,'EXAM',f.scopes.programA],
+  ['past','Past Imtihaan',[-10],'SCHEDULED',1,'EXAM',f.scopes.programA],
+  ['cancelled','Cancelled Imtihaan',[5],'CANCELLED',1,'EXAM',f.scopes.programA],
+  ['complete','Complete Imtihaan',[3],'COMPLETE',1,'EXAM',f.scopes.programA],
+  ['assignment','Assignment',[7],'SCHEDULED',1,'ASSIGNMENT',f.scopes.programA],
+  ['private','Private Imtihaan',[7],'SCHEDULED',1,'EXAM',f.scopes.programB]
+ ]){
+  f.db.prepare("INSERT INTO assessment_registers(register_id,name,class_mode,status,created_at,created_by,updated_at) VALUES(?,?,'ALL',?,?,'account-0001',?)").run(id,name,status,now,now);
+  f.db.prepare('INSERT INTO assessment_register_areas VALUES(?,?)').run(id,scope);
+  const classId=f.db.prepare('SELECT class_id FROM classes WHERE activity_key=? AND active=1 LIMIT 1').get(scope).class_id;
+  for(const [i,offset]of offsets.entries()){
+   const assessmentId=id+'-'+i,date=day(offset);
+   f.db.prepare("INSERT INTO assessments(assessment_id,activity_key,class_id,title,subject,exam_date,duration_minutes,maximum_mark,schedule_published,examiner_id,created_at,created_by,updated_at,register_id,assessment_kind,available_from,due_at) VALUES(?,?,?,?,?,?,60,100,?,'account-0003',?,'account-0001',?,?,?,?,?)").run(assessmentId,scope,classId,'Paper '+i,'Qasas',date,published,now,now,id,kind,date+'T03:00:00+02:00',date+'T23:59:00+02:00');
+   if(published&&scope===f.scopes.programA)f.db.prepare("INSERT INTO assessment_recipients(assessment_id,account_id,display_name) VALUES(?,'account-0002','Synthetic learner')").run(assessmentId);
+  }
+ }
+}
+const fixture=await classNotesFixture(seedDashboard),checks=[],errors=[],calls=[],snapshots=new Map();
 const service=await fixture.notes(),source=(await service.run('sessions',{activityKey:fixture.scopes.programA,date:fixture.today})).sources[0];
 const view=await service.run('get',{activityKey:fixture.scopes.programA,source});
 await service.run('post',fixture.post(view,{body:'Dashboard preparation · read paragraphs 1–3.'}));
@@ -34,7 +57,7 @@ let holdEntrance=false,releaseEntrance,backgroundGate;
 await page.route('**/api/**',async route=>{
  const req=route.request(),url=new URL(req.url()),headers={...req.headers()};delete headers.origin;
  calls.push({path:url.pathname,workspace:headers['x-academy-workspace'],method:req.method()});
- if(holdEntrance&&['/api/academy/entrance','/api/academy/class-notes/timetable'].includes(url.pathname))await backgroundGate;
+ if(holdEntrance&&['/api/academy/entrance','/api/academy/class-notes/timetable','/api/academy/assessments/list'].includes(url.pathname))await backgroundGate;
  const response=await worker.fetch(new Request('http://localhost'+url.pathname+url.search,{method:req.method(),headers,...(req.method()==='POST'?{body:req.postDataBuffer()}:{})}),fixture.env);
  const bytes=Buffer.from(await response.arrayBuffer());
  if(url.pathname==='/api/academy/entrance'&&response.ok)snapshots.set(headers['x-academy-workspace'],JSON.parse(bytes));
@@ -57,6 +80,17 @@ try{
  assert.equal(await page.locator('#ad-areas .ad-tile').count(),expected.length);
  assert.equal(await page.locator('#ad-navigation').getByRole('link',{name:'Visit website',exact:false}).count(),1);
  assert.equal(await page.locator('#ad-navigation').getByRole('link',{name:'Surahs and Duas Tracker',exact:true}).count(),1);
+ await page.locator('#ad-assessments .ad-assessment-row').first().waitFor();
+ assert.deepEqual(await page.locator('#ad-assessments strong').allTextContents(),['Current Imtihaan','Upcoming Imtihaan']);
+ assert.deepEqual(await page.locator('#ad-assessments .ad-assessment-status').allTextContents(),['Current','Upcoming']);
+ const cachedAssessmentKeys=await page.evaluate(()=>Object.keys(sessionStorage).filter(key=>key.includes('dashboard')&&key.includes('assessments')).flatMap(key=>(JSON.parse(sessionStorage.getItem(key)).data.assessments||[]).flatMap(row=>Object.keys(row))));
+ assert.ok(cachedAssessmentKeys.length);assert.ok(cachedAssessmentKeys.every(key=>['activityKey','title','registerId','phaseId','phaseName','registerStatus','examDate','published'].includes(key)),'Only timetable summary metadata enters the dashboard cache');
+ const fyaBounds=await page.locator('.ad-attention').boundingBox(),assessmentBounds=await page.locator('.ad-assessments').boundingBox();
+ assert.ok(assessmentBounds.y>=fyaBounds.y+fyaBounds.height,'Assessments is below FYA');
+ await page.locator('#ad-assessments .ad-assessment-row').first().click();
+ await page.locator('#as-host .as-schedule-table tbody tr').first().waitFor();
+ assert.equal(await page.locator('#as-host .as-schedule-table tbody tr').count(),2,'The link opens this Imtihaan timetable, including both dates');
+ await page.locator('[data-page-home]').click();await dashboard().waitFor();
  const weekBox=await page.locator('.ad-week').boundingBox(),calendarBox=await page.locator('.ad-calendar').boundingBox();assert.ok(calendarBox.y>weekBox.y);
  await page.locator('.ad-calendar').scrollIntoViewIfNeeded();
  await page.frameLocator('#ad-calendar-host iframe').locator('#cal-grid button').first().waitFor();
@@ -76,6 +110,7 @@ try{
  for(const width of [1440,768,390,320]){
   await page.setViewportSize({width,height:1000});
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'No document overflow at '+width);
+  const attention=await page.locator('.ad-attention').boundingBox(),assessments=await page.locator('.ad-assessments').boundingBox();assert.ok(assessments.y>=attention.y+attention.height,'Assessments follows FYA at '+width);
   if(width===1440||width===390)await capture('learn-'+width+'.png');
  }
  const first=expected.find(row=>row.kind==='PROGRAM');
@@ -90,6 +125,12 @@ try{
  await page.setViewportSize({width:1440,height:1000});await identity(await fixture.login('0003'),'/academy/#overview');
  assert.equal(new URL(page.url()).hash,'#timetable/teach','Normal entry gives teaching priority over learner access');
  await page.locator('#ad-plans a').first().waitFor();
+ await page.locator('#ad-assessments .ad-assessment-row').first().waitFor();
+ assert.deepEqual(await page.locator('#ad-assessments strong').allTextContents(),['Current Imtihaan','Upcoming Imtihaan','Draft Imtihaan']);
+ await page.locator('#ad-assessments .ad-assessment-row').first().click();
+ await page.locator('#as-host .as-schedule-table tbody tr').first().waitFor();
+ assert.equal(await page.locator('#as-host .as-schedule-table tbody tr').count(),2);
+ await page.locator('[data-page-home]').click();await dashboard().waitFor();
  assert.doesNotMatch(await page.locator('#ad-attention').innerText(),/Submit your lesson plan|Lesson plan needs follow-up/);
  assert.equal(await page.locator('#ad-plans-title').innerText(),'Lesson plans due');
  await page.locator('#ad-attendance a').first().waitFor();
@@ -124,12 +165,20 @@ try{
  const admin=snapshots.get('ADMIN');
  assert.ok(admin.personalActivities.filter(row=>row.roles?.includes('PROGRAM_ADMIN')).every(row=>[fixture.scopes.programA,fixture.scopes.courseA].includes(row.kind+':'+row.id)));
  assert.equal(await page.locator('#ad-areas .ad-tile').count(),admin.personalActivities.filter(row=>row.roles?.includes('PROGRAM_ADMIN')&&row.curriculumActive!==false).length);
+ assert.equal(await page.locator('#ad-next .ad-next-row[href*=PROGRAM]').count(),0);
  assert.equal(await page.locator('#ad-areas .ad-tile[href*=subject-1]').count(),0);
  assert.equal(await page.locator('#administration .academy-messages,#administration .academy-calendar-section,#administration .academy-progress-section').count(),0);
  assert.equal(await page.locator('#ad-navigation a[href="#progress-admin"]').count(),1);
  await capture('admin-desktop.png');
  assert.equal(await page.locator('#ad-attendance-title').innerText(),'Review attendance');
- assert.equal(await page.locator('#ad-plans-title').innerText(),'Review plans');
+ assert.equal(await page.locator('#ad-plans-title').innerText(),'Review Lesson Plans');
+ await page.locator('#ad-assessments .ad-assessment-row').first().waitFor();
+ assert.deepEqual(await page.locator('#ad-assessments strong').allTextContents(),['Current Imtihaan','Upcoming Imtihaan','Draft Imtihaan']);
+ await page.locator('#ad-assessments .ad-assessment-row').first().click();
+ await page.locator('#as-admin-host .as-schedule-table tbody tr').first().waitFor();
+ assert.equal(await page.locator('#as-admin-host .as-schedule-table tbody tr').count(),2);
+ assert.equal(await page.locator('#as-admin-host .as-phase-heading h3').innerText(),'Current Imtihaan');
+ await page.locator('[data-page-home]').click();await dashboard().waitFor();
  await page.locator('.ad-calendar').scrollIntoViewIfNeeded();
  const adminCalendar=page.frameLocator('#ad-calendar-host iframe');
  await adminCalendar.getByRole('button',{name:'Edit teacher availability',exact:true}).click();
@@ -153,13 +202,16 @@ try{
 
  await identity(await fixture.login('0002'));await page.locator('#ad-attention [data-ad-note]').first().waitFor();
  await page.waitForTimeout(500);
+ await page.evaluate(()=>{for(const key of Object.keys(sessionStorage)){if(!key.includes('dashboard')||!key.includes('assessments'))continue;const entry=JSON.parse(sessionStorage.getItem(key));for(const row of entry.data.assessments||[])if(row.registerId==='upcoming')row.phaseName='Saved upcoming Imtihaan';sessionStorage.setItem(key,JSON.stringify(entry));}});
  holdEntrance=true;backgroundGate=new Promise(resolve=>{releaseEntrance=resolve;});await page.reload();await dashboard().locator('#ad-title').waitFor();
  assert.equal(await page.locator('#ad-timetable-host .upcoming-day').count(),7);
  await page.locator('#ad-attention [data-ad-note]').first().waitFor();
  assert.equal(await page.locator('#ad-attention [data-ad-note]').count(),1,'The saved Class Note is available before the background response');
+ assert.deepEqual(await page.locator('#ad-assessments strong').allTextContents(),['Current Imtihaan','Saved upcoming Imtihaan'],'Saved Imtihaan appear before the background response');
  await service.run('post',fixture.post(view,{body:'New preparation posted while the saved dashboard is visible.'}));
  holdEntrance=false;releaseEntrance();releaseEntrance=null;
  await page.waitForFunction(()=>document.querySelectorAll('#ad-attention [data-ad-note]').length===2);
+ await page.locator('#ad-assessments strong').filter({hasText:'Upcoming Imtihaan'}).waitFor();
  assert.equal(await page.locator('#ad-timetable-host .upcoming-day').count(),7);
  checks.push('A freshly cached dashboard and saved Class Note appear before delayed responses; a newly posted Class Note then appears in the background without losing the seven-day timetable.');
 
@@ -197,6 +249,12 @@ try{
   assert.equal(await page.locator('.ad-menu-toggle').isVisible(),width<800);
   if(width!==320)await capture('next-sessions-'+width+'.png');
  }
+ await page.evaluate(()=>{
+  const t=Date.now(),program={kind:'PROGRAM',id:'admin-program',name:'Admin Program',roles:['PROGRAM_ADMIN']},course={kind:'COURSE',id:'admin-course',name:'Admin Course',roles:['PROGRAM_ADMIN']};
+  window.M4L_ACADEMY_DASHBOARD.open({signedIn:true,globalAdmin:true,personalActivities:[program,course],personalTimetable:[program,course].map(area=>({kind:area.kind,activityId:area.id,activityName:area.name,status:'SCHEDULED',startsAt:t+60000,endsAt:t+3600000,startTime:'11:00',endTime:'12:00',subjectName:'Admin upcoming lesson'})),profile:{name:'Synthetic admin'}},{mode:'admin',activityHref:(row,tool,mode)=>'/academy/admin/#activity/'+row.kind+'/'+row.id+'/'+mode+'/'+tool});
+ });
+ assert.equal(await page.locator('#ad-areas .ad-tile').count(),2,'Admin keeps active Program and Course management tiles');
+ assert.deepEqual(await page.locator('#ad-next .ad-next-subject>span').allTextContents(),['Admin Course'],'Only Admin Coming up next is Courses only');
  const priority=await page.evaluate(()=>{
   const landing=window.M4L_ACADEMY_DASHBOARD.landing;
   sessionStorage.setItem('m4l_dashboard_workspace:role-priority','learn');
@@ -204,7 +262,8 @@ try{
  });
  assert.deepEqual(priority,['/academy/admin/#administration','/academy/#timetable/teach','/academy/#timetable/learn','/academy/admin/#administration']);
  checks.push('Coming up next has one linked row per authorised Program/Course, ordered by start time, with subject/module, area and time; duplicates, ended and cancelled lessons are excluded, and rows fit desktop and phone screens.');
- checks.push('Normal landing uses Admin, then Teach, then Learn, regardless of a previously remembered lower workspace.');
+ checks.push('Normal landing uses Admin, then Teach, then Learn, regardless of a previously remembered lower workspace. Admin Coming up next shows Courses only, while active Program and Course management tiles remain available.');
+ checks.push('Assessments sits below FYA and groups current/upcoming Imtihaan dates into linked timetables; learners see released schedules, Teachers also see their drafts, and saved summaries update in the background. Past, cancelled, completed, assignment and unauthorised records stay out.');
  assert.equal(calls.some(call=>/class-notes\/(post|revise|withdraw)|enrolment\/(register|request-save)|planning\/(save|submit)/.test(call.path)),false,'Dashboard reads must not write records');
  assert.deepEqual(errors,[]);
  await writeFile(output+'/verification.json',JSON.stringify({success:true,checks,errors,calls},null,2));

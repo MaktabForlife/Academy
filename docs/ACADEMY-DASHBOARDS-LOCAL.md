@@ -1,6 +1,6 @@
-# Connected Academy dashboards — V107.57
+# Connected Academy dashboards — V107.65
 
-Branch: `feature/academy-role-dashboards`, based on deployed V107.56.
+Branch: `feature/academy-role-dashboards`, updated from deployed V107.64.
 Development deployment authorised on 25 October 2026. No database migration or
 live-data correction is required.
 
@@ -34,6 +34,8 @@ pages, including Assessment and Lesson media. Their title, local tool tabs and
 scoped timetable remain. A tracker opened deliberately is still available as a
 tool; it is no longer duplicated as a support panel.
 
+Admin **Coming up next** includes Courses only. Program assessment, attendance and planning authority remains available, as do active Program management tiles. Admin’s planning queue is labelled **Review Lesson Plans**.
+
 ## Data and cache
 
 | Dashboard area | Existing real source |
@@ -41,6 +43,7 @@ tool; it is no longer duplicated as a support panel.
 | Identity, authorised tiles, next sessions, This week | Scoped entrance snapshot |
 | This week | The original `academy-schedule` component, including seven swipeable days, week arrows, details, Class Notes, lesson media and timed joining |
 | FYA | Authorised Class Notes due this timetable week; scoped Admin enrolment inbox (plans have their own panel) |
+| Assessments | Existing scoped assessment list; current/upcoming EXAM timetables grouped by Imtihaan and learning area. Learners see published schedules; Teach/Admin also see authorised drafts. Only names, dates and schedule identifiers/status enter the dashboard cache. Links open the selected existing timetable. |
 | Messages | Existing public Academy announcements and the same authorised due Class Note records |
 | Attendance / Review attendance | Existing native register reads for started lessons in the displayed timetable week; Teacher lists unmarked registers and Admin can review both submitted and pending registers |
 | Lesson plans due / Review plans | Existing scoped planning reader; Teacher deadlines and Admin submitted/due plans |

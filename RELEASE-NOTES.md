@@ -1,3 +1,9 @@
+# V107.65 — Dashboard Imtihaan timetables
+
+Add Assessments directly below For your attention on Learn, Teach and Admin dashboards. Group current and upcoming Imtihaan into links to their existing timetable, using each workspace’s authorised data. Learners see released schedules; staff can also see assigned draft schedules. Cache timetable summaries immediately and refresh them in the background. Exclude past, completed, cancelled and archived Imtihaan and assignments.
+
+Admin Coming up next shows Courses only; active Program/Course management tiles, assessments and review queues keep their existing scope. Rename Review plans to Review Lesson Plans. No migration or live data correction.
+
 # V107.63 — Shared assessment rows for All classes
 
 Show a shared assessment once in an All classes Imtihaan timetable, with All classes and one set of paper, moderation and assessment actions. Use the original shared selection from creation events or receipts; keep independent matching assessments and differing paper definitions separate. Preserve per-class submissions and results behind the existing class picker, and summarise differing result stages without duplicating identical paper rows. Shared list identities are returned only when the complete group is within current Admin access. No migrations or live data corrections.

@@ -80,7 +80,7 @@
   const TIMETABLE_RETURN_KEY = 'm4l_academy_timetable_return_v2:'+window.M4L_ACADEMY_WORKSPACE.current();
   let workspaceFocusId = '';
   let lastRouteHash = '', navigationSession = token(), memorisationReturn = null, restoreMemorisation = null;
-  const memorisationHash = hash => ['#progress','#hifz','#hifdh'].includes(hash) || hash.startsWith('#progress-admin') || hash.endsWith('/surahs-duas') || hash.endsWith('/assessment') || hash.startsWith('#assessment-admin') || hash.startsWith('#assessments');
+  const memorisationHash = hash => ['#progress','#hifz','#hifdh'].includes(hash) || hash.startsWith('#progress-admin') || hash.endsWith('/surahs-duas') || /\/assessment(?:\/|$)/.test(hash) || hash.startsWith('#assessment-admin') || hash.startsWith('#assessments');
   const validReturnHash = hash => typeof hash === 'string' && (hash !== '#timetable' && Boolean(titles[hash.slice(1).split('/')[0]]) || /^#activity\/(PROGRAM|COURSE)\/[^/#]+(?:\/(?:learn|teach))?(?:\/(?:attendance|surahs-duas|assessment|library|planning))?$/.test(hash));
   const titles = { dashboard:'Dashboard', website: 'Academy homepage', overview: 'Academy home', timetable: 'Academy timetable', learning: 'Programs and Courses', workshops: 'Courses', activity: 'Activity',
     prospectus: '2026 Prospectus', about: 'About', contact: 'Contact', hifz:'Surahs and Duas', hifdh:'Surahs and Duas', progress: 'Surahs and Duas', 'progress-admin':'Manage Surahs and Duas', 'assessment-admin':'Manage Assessments', assessments:'My assessments', administration: 'Manage Academy' };
@@ -104,7 +104,7 @@
     const attendance = location.hash.endsWith('/attendance') && (state.home?.globalAdmin || staffRoles(row.roles || []));
     const teaching = location.hash.endsWith('/surahs-duas') && (state.home?.globalAdmin || staffRoles(row.roles || []));
     const administration = location.hash.startsWith('#progress-admin') && (state.home?.globalAdmin || adminRoles(row.roles || []));
-    const assessments = location.hash.endsWith('/assessment');
+    const assessments = /\/assessment(?:\/|$)/.test(location.hash);
     const assessmentAdmin = location.hash.startsWith('#assessment-admin');
     if (isHifzProgram(row) && !administration && !assessmentAdmin) return hifzHelperLink(row, 'activity-pill-shortcut');
     const pill = activityPill(assessmentAdmin?`#assessment-admin/${row.kind}/${encodeURIComponent(row.id)}`:administration?`#progress-admin/${row.kind}/${encodeURIComponent(row.id)}`:activityHref(row) + (attendance ? '/attendance' : teaching?'/surahs-duas':assessments?'/assessment':''), row.name, row.roles, current);
@@ -536,7 +536,8 @@
     const admin=location.hash.startsWith('#assessment-admin');
     const close=admin?$('as-admin-close'):$('as-close');
     close.href=admin?'#administration':workspaceHref(row);
-    window.M4L_ACADEMY_ASSESSMENTS?.open({hostId:admin?'as-admin-host':'as-host',view:admin?'admin':workspaceContext(row).mode==='learn'?'learner':'teacher',activityKey:row.id?`${row.kind}:${row.id}`:'',kind:row.id?'':row.kind});
+    const parts=location.hash.slice(1).split('/');let registerId='';try{registerId=decodeURIComponent(parts[admin?3:parts[4]==='assessment'?5:4]||'');}catch{}
+    window.M4L_ACADEMY_ASSESSMENTS?.open({hostId:admin?'as-admin-host':'as-host',view:admin?'admin':workspaceContext(row).mode==='learn'?'learner':'teacher',activityKey:row.id?`${row.kind}:${row.id}`:'',kind:row.id?'':row.kind,registerId});
   }
 
   function syncAttendance(row) {
@@ -939,7 +940,7 @@
   }
 
   function armScheduleClock() {
-    if(location.hash.endsWith('/surahs-duas')||location.hash.endsWith('/assessment')||location.hash.startsWith('#assessment-admin')||location.hash.startsWith('#progress-admin')){clearTimeout(state.activityTimer);return;}
+    if(location.hash.endsWith('/surahs-duas')||/\/assessment(?:\/|$)/.test(location.hash)||location.hash.startsWith('#assessment-admin')||location.hash.startsWith('#progress-admin')){clearTimeout(state.activityTimer);return;}
     const view = location.hash.slice(1).split('/')[0];
     if (view === 'activity' && state.activity) {
       const rows = activityRows();

@@ -4,6 +4,22 @@ import {assessmentFixture,assessmentScope as scope,pdf} from './fixtures/academy
 import {paperAvailable} from '../src/academy/d1/assessment-store.js';
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
 const op=()=>({operationId:crypto.randomUUID()});
+test('dashboard summaries keep Imtihaan identity and scope without marking or paper payloads',()=>use(async f=>{
+ const admin=await f.login('0001'),teacher=await f.login('0003'),student=await f.login('0002');
+ const id=ok(await f.call('create',{...op(),activityKey:scope,classId:'class-1',title:'Dashboard Imtihaan',subject:'Qasas',examDate:'2026-11-09',durationMinutes:60,maximumMark:100},admin)).assessmentId;
+ const summaries=async(token,view)=>ok(await f.call('list',{dashboard:true,view},token));
+ assert.deepEqual((await summaries(student,'learner')).assessments,[],'A learner cannot see the draft schedule');
+ for(const [token,view]of [[admin,'admin'],[teacher,'teacher']]){
+  const result=await summaries(token,view);assert.equal(result.assessments.length,1);
+  assert.deepEqual(Object.keys(result).sort(),['assessments','store','success','timezone']);
+  assert.ok(result.assessments.every(a=>Object.keys(a).every(k=>['activityKey','title','registerId','phaseId','phaseName','registerStatus','examDate','assessmentKind','published','canAdmin','canTeach'].includes(k))));
+  assert.equal(result.assessments[0].canTeach,true);
+ }
+ ok(await f.call('publish',{...op(),assessmentId:id,revision:1},admin));
+ const row=(await summaries(student,'learner')).assessments[0];
+ assert.ok(row.registerId);assert.equal(row.phaseName,'Dashboard Imtihaan');assert.equal(row.published,true);
+ assert.equal(row.canTeach,undefined);assert.equal(row.paperSHA256,undefined);assert.equal(row.releasedMark,undefined);
+}));
 test('scheduling resolves active Academy subjects and modules while retaining existing draft labels',()=>use(async f=>{
  const admin=await f.login('0001'),student=await f.login('0002'),key=f.db.prepare("SELECT subject_key FROM subject_catalog WHERE source_namespace='ACADEMY' AND name='Qasas'").get().subject_key;
  f.db.prepare("INSERT INTO academy_module_catalogue VALUES('ASSESSMENT-MODULE',?,'Qasas module','qasas module',1,1)").run(key);
