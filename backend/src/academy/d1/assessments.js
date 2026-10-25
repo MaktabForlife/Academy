@@ -1,4 +1,4 @@
-import {assessmentGroup,groupRevisions,sharedAssessmentAction} from './assessment-group.js';
+import {assessmentGroup,assessmentListGroups,groupRevisions,sharedAssessmentAction} from './assessment-group.js';
 import {assessmentOperations,timingFields,collectionPolicy,readyEligibility} from './assessment-timing.js';
 import {appTimezone,academyDate,dayStart,nextDate,localInstant} from './academy-clock.js';
 import {isAdminWorkspace} from './workspace-access.js';
@@ -73,6 +73,7 @@ export function d1Assessments(repository,auth){
    const paperStatus=!canTeach?null:!a.paper_file_id?'WAITING_FOR_SUBMISSION':a.paper_state==='RETURNED'?'RETURNED':a.paper_state!=='APPROVED'?'DRAFTED':!a.paper_released_at?'APPROVED':paperAvailable(a)?'PAPER_RELEASED':'PUBLISHED';
    return {...metadata(a),id:a.assessment_id,activityKey:a.activity_key,activityName:a.activity_name,classId:a.class_id,className:a.class_name,title:a.title,subject:a.subject,subjectDescriptor:a.subject_descriptor,registerId:a.register_id,phaseId:a.phase_id,phaseName:a.phase_name||'',examDate:a.exam_date,durationMinutes:a.duration_minutes,maximumMark:a.maximum_mark,published:Boolean(a.schedule_published),examinerName:a.examiner_name||'',paperState:canTeach?(a.paper_file_id?a.paper_state:'NONE'):paperAvailable(a)?'AVAILABLE':'WAITING',paperStatus,resultsStatus,...(canTeach?{readyForAssessmentAt:a.ready_for_assessment_at}:{}),paperReleased:canTeach?Boolean(a.paper_released_at):paperAvailable(a),paperAvailable:paperAvailable(a),revision:a.revision,canAdmin,canTeach,readOnly,isExaminer:!preview&&!readOnly&&same(a.examiner_id,actor),canModeratePaper:canAdmin,canModerate:canAdmin&&!same(a.examiner_id,actor)};
   });
+  if(input.view==='admin'&&!preview){const groups=await assessmentListGroups(s,rows,assessments);for(const a of assessments)Object.assign(a,groups.get(a.id)||{});}
   const phases=(await p(`SELECT ph.*,a.name activity_name FROM assessment_phases ph JOIN activities a USING(activity_key) WHERE ph.activity_key IN(SELECT json_extract(value,'$.activity_key') FROM json_each(?)) OR ph.phase_id IN(SELECT json_extract(value,'$.phaseId') FROM json_each(?)) ORDER BY ph.created_at DESC,ph.name LIMIT 501`,JSON.stringify(admin),JSON.stringify(assessments)).all()).results;
   if(phases.length>500)throw fail('Choose a learning area to narrow the phase list.',409);
   if(preview)return {assessments,phases:[],classes:[],registers:[],catalogue:[],canAdmin:false,learnerPreview:true,timezone:native?await appTimezone(repository):'Africa/Johannesburg',store:'D1'};

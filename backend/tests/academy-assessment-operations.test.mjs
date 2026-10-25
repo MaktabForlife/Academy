@@ -166,6 +166,13 @@ async function shared(f,extra={}){
  const id=await f.create({classes:[{activityKey:scopes.programA,classId:'class-1'},{activityKey:scopes.programA,classId:'class-shared'}],...extra});
  await f.accept();return id;
 }
+test('shared list identity groups only the original selection and keeps separate matching papers distinct',()=>use(async f=>{
+ const id=await shared(f),detail=await f.detail(id),ids=detail.group.members.map(m=>m.id),separate=await f.create({registerId:detail.assessment.registerId,title:'Native assessment'});
+ const list=ok(await f.request('list',{view:'admin'})).assessments;
+ for(const key of ids){const row=list.find(a=>a.id===key);assert.equal(row.sharedAssessmentId,id);assert.equal(row.sharedClassCount,2);}
+ assert.equal(list.find(a=>a.id===separate).sharedAssessmentId,undefined);
+ await f.accept();const teacher=ok(await f.request('list',{},'teacher')).assessments;assert(teacher.every(a=>!Object.hasOwn(a,'sharedAssessmentId')));
+}));
 test('shared assessment uploads once, reviews and releases for every class, with separate learner access and submissions',()=>use(async f=>{
  const id=await shared(f),d=await f.detail(id);assert.equal(d.group.members.length,2);const second=d.group.members.find(m=>m.id!==id).id;
  await f.publish(id);const paper=await f.releasePaper(id);
@@ -207,6 +214,7 @@ test('legacy multiple-class creation receipts retain the exact selection and nev
  const id=await shared(f),ids=(await f.detail(id)).group.members.map(m=>m.id);for(const key of ids)f.db.prepare("UPDATE assessment_events SET details_json=? WHERE assessment_id=? AND action='CREATED'").run(JSON.stringify({title:'Native assessment'}),key);
  assert.equal((await f.detail(id)).group.members.length,2);
  const separate=await f.create({title:'Native assessment'});assert(!Object.hasOwn(await f.detail(separate),'group'));
+ const list=ok(await f.request('list',{view:'admin'})).assessments;assert(ids.every(key=>list.find(a=>a.id===key).sharedAssessmentId===id));assert.equal(list.find(a=>a.id===separate).sharedAssessmentId,undefined);
  const original=ok(await f.uploadNative(id,'PAPER',{},'teacher'));assert(f.db.prepare('SELECT paper_file_id FROM assessments WHERE assessment_id IN (?,?)').all(...ids).every(a=>a.paper_file_id===original.fileId));assert.equal(f.db.prepare('SELECT paper_file_id FROM assessments WHERE assessment_id=?').get(separate).paper_file_id,null);
 }));
 test('Teacher cannot use one class endpoint to mutate a shared assessment beyond current assignments',()=>use(async f=>{

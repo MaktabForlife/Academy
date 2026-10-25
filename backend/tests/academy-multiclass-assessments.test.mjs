@@ -24,6 +24,8 @@ test('class keys include their learning area and scoped Admin cannot add any out
  const body={...input(),classes,registerId:await register(f,admin,{activityKeys:[scope,other.activity_key]})},scoped=await f.login('0004'),before=f.db.prepare('SELECT count(*) n FROM assessments').get().n;
  assert.equal((await f.call('create',body,scoped)).status,403);assert.equal(f.db.prepare('SELECT count(*) n FROM assessments').get().n,before);
  const result=ok(await f.call('create',body,admin));assert.equal(result.assessmentIds.length,2);assert.equal(new Set(f.db.prepare('SELECT activity_key FROM assessments').all().map(r=>r.activity_key)).size,2);
+ const scopedRows=ok(await f.call('list',{view:'admin'},scoped)).assessments;assert.equal(scopedRows.length,1);assert.equal(scopedRows[0].sharedAssessmentId,undefined,'Partial authority must not expose a shared identity for another area');
+ const complete=ok(await f.call('list',{view:'admin'},admin)).assessments;assert(complete.every(a=>a.sharedAssessmentId===result.assessmentId&&a.sharedClassCount===2));
 }));
 test('invalid, duplicate, inactive and register-excluded classes cannot create a partial assessment',()=>use(async(f,admin)=>{
  for(const classes of [[],[targets[0],targets[0]],[targets[0],{...targets[0],classId:'CLASS-1'}],[{activityKey:scope,classId:3}],Array.from({length:51},(_,i)=>({activityKey:scope,classId:'class-'+i}))])assert.equal((await f.call('create',{...input(),classes},admin)).status,400);
