@@ -242,7 +242,7 @@ const learnHash='#activity/PROGRAM/'+activity.id+'/learn';
 await navigate(learnHash+'/library');assert.equal($('activity-library').hidden,false);assert.equal($('activity-schedule').hidden,true);assert.match($('activity-library').innerHTML,/This course|Public library/);
 await navigate(learnHash+'/assessment');assert.equal($('as-panel').hidden,false);assert.equal($('activity-library').hidden,true);
 await navigate('#activity/PROGRAM/'+activity.id);
-assert.doesNotMatch($('activity-sessions').innerHTML,/Course item|Barakah|Salaah/);assert.match($('activity-sessions').innerHTML,/Reboot/);
+assert.doesNotMatch($('activity-sessions').innerHTML,/Course item|Barakah|Salaah|Reboot/);assert.match($('activity-sessions').innerHTML,/>Lesson &lt;one&gt;<\/strong><small>Teacher A, Teacher B<\/small>/);
 assert.equal(timers.size,1,'Scoped timetable has a local lesson-boundary timer, without polling');
 count=requests.length;documentHandlers.get('visibilitychange')();await flush();assert.equal(requests.length,count);
 const programOrigin='#activity/PROGRAM/'+activity.id;const navigationReads=requests.length;
@@ -337,7 +337,7 @@ count=requests.length;documentHandlers.get('visibilitychange')();await flush();a
 window.dispatchEvent(new Event('m4l-academy-session'));await flush();assert.equal(requests.length,count,'Restoring the same signed-in session reuses the daily snapshot');
 $('upcoming-next').listeners.get('click')();assert.equal($('academy-preview-sessions').lastScroll.left,400);
 count=requests.length;await navigate('#activity/COURSE/COURSE-BARAKAH');await navigate('#activity/PROGRAM/'+activity.id);
-assert.equal(requests.length,count,'Program and Course navigation reuse account-scoped page metadata');assert.equal(timers.size,1);assert.match($('activity-sessions').innerHTML,/Reboot/);assert.doesNotMatch($('activity-sessions').innerHTML,/Barakah|Salaah/);
+assert.equal(requests.length,count,'Program and Course navigation reuse account-scoped page metadata');assert.equal(timers.size,1);assert.match($('activity-sessions').innerHTML,/Lesson &lt;one&gt;|Teacher A/);assert.doesNotMatch($('activity-sessions').innerHTML,/Barakah|Salaah|Reboot/);
 count=requests.length;await navigate('#timetable');assert.match($('academy-sessions').innerHTML,/Barakah|Salaah/);assert.equal(requests.length,count);await navigate('#activity/PROGRAM/'+activity.id);
 fixtureNow='2026-10-05T10:56:01Z';handlers.get('hashchange')();await flush();assert.equal(requests.length,count,'Lesson boundaries do not refresh pages without a timetable');
 fixtureNow='2026-10-05T11:01:01Z';handlers.get('hashchange')();await flush();assert.equal(requests.length,count,'Daily page metadata is reused after lesson starts');

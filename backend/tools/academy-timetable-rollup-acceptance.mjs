@@ -37,6 +37,11 @@ async function verify(who,t,adminRealm=false,assigned=false){
    await page.goto(base+entry+'#activity/'+kind+'/'+id+'/'+mode+'/timetable');
    await page.locator('#activity-sessions .timetable-pill').first().waitFor();
    assert.equal(await countDay('activity-sessions','2026-10-21'),expected,who+' '+kind+' cards per day');
+   if(kind==='PROGRAM'){
+    const cards=await page.locator('#activity-sessions .timetable-pill').evaluateAll(nodes=>nodes.map(card=>({title:card.querySelector('.preview-name').textContent,copy:card.querySelector('.timetable-pill-copy').textContent,time:card.querySelector('.preview-clock').textContent})));
+    assert(cards.length&&cards.every(card=>card.title.includes('Shared lesson')||card.title==='Second lesson'));
+    assert(cards.every(card=>!card.copy.includes('Synthetic Program 1')&&card.copy.includes('Synthetic learner 3')&&/\d{2}:\d{2}/.test(card.time)));
+   }
    for(const width of [390,1440]){
     await page.setViewportSize({width,height:1050});
     assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),who+' '+kind+' width '+width);

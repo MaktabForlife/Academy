@@ -731,6 +731,7 @@
   }
 
   function renderPersonalWeek(id, rows, detailed, next, now) {
+    const programTimetable = id === 'activity-sessions' && state.activity?.kind === 'PROGRAM';
     const media=timetableAttachments(rows);
     const scrollLeft = $(id).scrollLeft || 0;
     const timezone = state.home?.timezone || rows[0]?.timezone || 'Africa/Johannesburg';
@@ -775,16 +776,20 @@
       const last = entries.reduce((latest,entry) => entry.row.endsAt > latest.endsAt ? entry.row : latest,first);
       const summary = summarizeLesson(first);
       const activities = [...new Set(entries.map(entry => entry.row.activityName))];
-      const label = activities.join(' · ');
+      const lessonNames = [...new Set(entries.map(({row}) => row.moduleName || row.subjectName || (row.title !== row.activityName ? row.title : '') || 'Lesson'))];
+      const teachers = [...new Set(entries.flatMap(({row}) => row.teacherNames?.length ? row.teacherNames : [row.teacherName]).filter(Boolean))];
+      const label = programTimetable ? lessonNames.join(' · ') : activities.join(' · ');
       const lessonTitle = first.moduleName || first.subjectName || first.title || first.activityName;
       const nextEntry = entries.find(entry => entry.index === next);
       const infoIndex = state.information[id].push({ title: label, lessons: entries.map(entry => entry.row) }) - 1;
       const joinable = entries.find(({ row }) => row.status === 'SCHEDULED' && now >= row.joinAvailableAt && now < row.endsAt && row.joinKey);
       const join = joinable ? `<button type="button" class="timetable-join" data-join="${id}:${infoIndex}:${entries.indexOf(joinable)}">Join lesson</button>` : '';
       const status = nextEntry ? nextEntry.row.startsAt <= now ? 'In progress' : 'Next lesson' : '';
-      const subtitle = summary && entries.length > 1 ? `${entries.length} lessons` : lessonTitle !== label ? lessonTitle : '';
+      const lessonCount = summary && entries.length > 1 ? `${entries.length} lessons` : '';
+      const subtitle = programTimetable ? teachers.join(', ') || 'No teacher assigned' : lessonCount || (lessonTitle !== label ? lessonTitle : '');
+      const count = programTimetable && lessonCount ? `<small>${esc(lessonCount)}</small>` : '';
       const attachments=entries.map((entry,i)=>{const lesson=media.get(mediaReference(entry.row));entry.row.media=lesson;return timetableMediaButtons(lesson,`${id}:${infoIndex}:${i}`);}).join('');
-      return `<li class="preview-pill timetable-pill ${nextEntry ? 'next-lesson ' : ''}${participation(entries)}${joinable ? ' join-open' : ''}"><button type="button" class="timetable-pill-details" data-information="${id}:${infoIndex}" aria-label="${esc(label)}${subtitle ? ' · ' + esc(subtitle) : ''}, ${esc(first.startTime)}–${esc(last.endTime)}${status ? ', ' + status : ''}. View lesson details">${previewTime(first.startTime)}<span class="timetable-pill-copy"><strong class="preview-name">${esc(label)}</strong>${subtitle ? `<small>${esc(subtitle)}</small>` : ''}${status ? `<small class="timetable-pill-status">${status}</small>` : ''}</span></button>${join}${attachments?`<div class="timetable-media-actions" aria-label="Lesson attachments">${attachments}</div>`:''}</li>`;
+      return `<li class="preview-pill timetable-pill ${nextEntry ? 'next-lesson ' : ''}${participation(entries)}${joinable ? ' join-open' : ''}"><button type="button" class="timetable-pill-details" data-information="${id}:${infoIndex}" aria-label="${esc(label)}${subtitle ? ' · ' + esc(subtitle) : ''}${programTimetable && lessonCount ? ' · ' + lessonCount : ''}, ${esc(first.startTime)}–${esc(last.endTime)}${status ? ', ' + status : ''}. View lesson details">${previewTime(first.startTime)}<span class="timetable-pill-copy"><strong class="preview-name">${esc(label)}</strong>${subtitle ? `<small>${esc(subtitle)}</small>` : ''}${count}${status ? `<small class="timetable-pill-status">${status}</small>` : ''}</span></button>${join}${attachments?`<div class="timetable-media-actions" aria-label="Lesson attachments">${attachments}</div>`:''}</li>`;
     };
     $(id).innerHTML = `<ol class="upcoming-days preview-days timetable-days">${[...days].sort(([a], [b]) => a.localeCompare(b)).map(([date, groups]) => `<li class="upcoming-day"><time datetime="${esc(date)}">${esc(formatDate(date))}</time><ul class="upcoming-items">${groups.size ? [...groups.values()].map(renderGroup).join('') : '<li class="timetable-empty">No lessons</li>'}</ul></li>`).join('')}</ol>`;
     $(id).scrollLeft = scrollLeft;

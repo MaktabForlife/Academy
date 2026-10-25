@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.54
+# Umm Abbad Academy — V107.55
+
+## V107.55 — Lesson details on Program timetable cards
+
+Within a Program timetable, show the module or subject as the card heading, followed by the current Teacher names and the lesson time. Keep the Program name in the timetable heading. Inherited Admin rollups show their distinct lesson titles and Teachers together with the lesson count. Preserve individual assigned lessons, joining, attachments and the V107.54 metadata caches. No database changes.
 
 ## V107.54 — Cached Home, timetables, announcements and Library
 

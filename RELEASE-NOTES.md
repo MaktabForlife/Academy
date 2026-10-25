@@ -1,3 +1,7 @@
+# V107.55 — Lesson details on Program timetable cards
+
+Within a Program timetable, show the module or subject as the card heading, followed by the current Teacher names and the lesson time. Keep the Program name in the timetable heading. Inherited Admin rollups show their distinct lesson titles and Teachers together with the lesson count. Preserve individual assigned lessons, joining, attachments and the V107.54 metadata caches. No database changes.
+
 # V107.54 — Cached Home, timetables, announcements and Library
 
 Show saved metadata immediately while checking for updates on Home, personal and Admin timetables, curriculum timetables, announcements, Course lists and Library catalogues. Keep a bounded 30-minute session cache, reuse checks for one minute and combine simultaneous requests. Refresh forces a check. Preserve cached content on temporary failures with a saved-information message. Separate private entries by account, workspace, selected Admin-Learn class and request scope; clear them on account/access changes and invalidate after successful writes/publication. Keep public announcements independent of session restoration. Preserve active editors during background timetable updates.
