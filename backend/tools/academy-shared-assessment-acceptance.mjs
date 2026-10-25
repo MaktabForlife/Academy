@@ -10,6 +10,7 @@ import {initialiseAcceptedSetup} from '../src/academy/d1/setup-publication.js';
 import worker from '../src/academy-runtime.js';
 const root=fileURLToPath(new URL('../../',import.meta.url)),out=process.env.ACADEMY_SHARED_ASSESSMENT_OUTPUT||'/private/tmp/academy-shared-assessment-10751';mkdirSync(out,{recursive:true});
 const f=await separationFixture(),ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;},op=()=>({operationId:crypto.randomUUID()});
+f.db.prepare('UPDATE activities SET name=? WHERE activity_key=?').run('Reboot Your Maktab',scopes.programA);
 f.db.prepare("INSERT INTO classes(activity_key,class_id,name,active) VALUES(?,'review-second','Second review class',1)").run(scopes.programA);
 f.db.prepare("INSERT INTO class_teacher_assignments VALUES(?,'review-second','account-0003','ADDITIONAL')").run(scopes.programA);
 f.db.prepare("INSERT INTO class_memberships VALUES(?,'shared-browser-membership','review-second',?,NULL,NULL,1)").run(scopes.programA,f.actors.studentA);
@@ -42,15 +43,30 @@ try{
  page.on('dialog',d=>d.accept());
  const registerId=ok(await call('/api/academy/assessments/register-create',{...op(),name:'Reboot 2026',activityKeys:[scopes.programA],classMode:'ALL',status:'REGISTERED'})).registerId;
  const made=ok(await call('/api/academy/assessments/create',{...op(),registerId,activityKey:scopes.programA,classId:'class-1',classes:[{activityKey:scopes.programA,classId:'class-1'},{activityKey:scopes.programA,classId:'review-second'}],title:'Shared browser paper',subject:'Qasas',assessmentKind:'ASSIGNMENT',timingMode:'UNTIMED',examDate:null,availableFrom:'2026-10-01T08:00:00Z',dueDate:'2026-10-24',durationMinutes:null,maximumMark:100})),id=made.assessmentId,second=made.assessmentIds[1];
- await identity('admin','/academy/admin/#assessment-admin/PROGRAM/'+scopes.programA.slice(8));await page.locator('[data-as=open-register][data-id="'+registerId+'"]').click();await idle();
+ await identity('admin','/academy/admin/#assessment-admin/PROGRAM/'+scopes.programA.slice(8));const registerRow=()=>page.locator('[data-register-row="'+registerId+'"]');await registerRow().waitFor();await idle();
+ assert.equal(await registerRow().getByRole('button',{name:'Validate schedule',exact:true}).count(),1);assert.equal(await registerRow().getByRole('button',{name:'Release schedule',exact:true}).isDisabled(),true);
+ await registerRow().getByRole('button',{name:'Validate schedule',exact:true}).click();await idle();assert.match(await page.locator('.ar-validation').textContent(),/Validation passed/);assert.equal(await registerRow().getByRole('button',{name:'Release schedule',exact:true}).isEnabled(),true);
+ for(const width of [390,1440]){await page.setViewportSize({width,height:1000});await fits('Register validation '+width);await registerRow().screenshot({path:join(out,'validate-row-'+width+'.png')});}
+ await registerRow().locator('[data-as=open-register]').click();await idle();
  assert.match(await page.locator('.ar-status-controls').textContent(),/Imtihaan status: Registered/);
+ assert.equal(await page.getByRole('button',{name:'Release schedule',exact:true}).isDisabled(),true,'Opening the schedule requires fresh validation');
  await page.getByRole('button',{name:'Validate schedule',exact:true}).click();await idle();assert.match(await page.locator('.ar-validation').textContent(),/Validation passed/);
  assert(f.db.prepare('SELECT schedule_published FROM assessments').all().every(a=>!a.schedule_published),'Validation must not release dates');
+ await page.locator('[data-as=register-back]').click();await idle();assert.equal(await registerRow().getByRole('button',{name:'Release schedule',exact:true}).isDisabled(),true,'Returning to the register clears validation');
+ await registerRow().getByRole('button',{name:'Validate schedule',exact:true}).click();await idle();
+ f.db.prepare("UPDATE assessments SET subject='' WHERE assessment_id=?").run(id);
+ await registerRow().getByRole('button',{name:'Release schedule',exact:true}).click();await idle();assert.match(await page.locator('[data-as-message]').textContent(),/Status cannot be changed yet/);assert.equal(await registerRow().getByRole('button',{name:'Release schedule',exact:true}).isDisabled(),true,'Changed assessments must be validated again');
+ assert(f.db.prepare('SELECT schedule_published FROM assessments').all().every(a=>!a.schedule_published));
+ f.db.prepare("UPDATE assessments SET subject='Qasas' WHERE assessment_id=?").run(id);
+ await registerRow().getByRole('button',{name:'Validate schedule',exact:true}).click();await idle();
  await page.getByRole('button',{name:'Release schedule',exact:true}).click();
- const scheduleDialog=page.getByRole('dialog',{name:'Confirm publish'});await scheduleDialog.waitFor();await scheduleDialog.getByRole('button',{name:'Publish',exact:true}).click();await scheduleDialog.waitFor({state:'hidden'});await idle();
- assert.match(await page.locator('.ar-status-controls').textContent(),/Imtihaan status: Scheduled/);assert(f.db.prepare('SELECT schedule_published,paper_released_at FROM assessments').all().every(a=>a.schedule_published&&!a.paper_released_at));
+ const scheduleDialog=page.getByRole('dialog',{name:'Confirm publish'});await scheduleDialog.waitFor();assert.equal(await scheduleDialog.getByLabel('Reboot Your Maktab - All classes',{exact:true}).isChecked(),true);assert.doesNotMatch(await scheduleDialog.textContent(),/Academy shared setup/);
+ let releasePublish,publishRequests=0;const gate=new Promise(resolve=>{releasePublish=resolve;}),publishPath='**/api/admin/platform/setup/publish';await page.route(publishPath,async route=>{publishRequests++;await gate;await route.continue();});
+ const started=page.waitForRequest(publishPath);await scheduleDialog.getByRole('button',{name:'Publish',exact:true}).click();await started;const publishing=scheduleDialog.getByRole('button',{name:'Publishing…',exact:true});assert.equal(await publishing.isDisabled(),true);assert.equal(await publishing.evaluate(el=>getComputedStyle(el).opacity),'0.5');assert.equal(await scheduleDialog.getAttribute('aria-busy'),'true');await publishing.evaluate(el=>el.click());assert.equal(publishRequests,1,'A second Publish cannot submit another request');await scheduleDialog.screenshot({path:join(out,'publishing-disabled.png')});releasePublish();await scheduleDialog.waitFor({state:'hidden'});await page.unroute(publishPath);await idle();
+ checks.push('Assessment publish uses Reboot Your Maktab - All classes; Publish dims, becomes disabled and shows Publishing while the request is pending');
+ assert.match(await registerRow().textContent(),/Scheduled/);assert.equal(await registerRow().locator('[data-as=validate-schedule],[data-as=release-register]').count(),0);assert(f.db.prepare('SELECT schedule_published,paper_released_at FROM assessments').all().every(a=>a.schedule_published&&!a.paper_released_at));
  for(const width of [390,1440]){await page.setViewportSize({width,height:1000});await fits('Registered to Scheduled '+width);await page.screenshot({path:join(out,'scheduled-'+width+'.png')});}
- checks.push('Reboot 2026 validates and moves from Registered to Scheduled through the page for shared untimed assignments, preserving null durations and separate paper release');
+ checks.push('Validate schedule is beside Release in the register; release is disabled before validation, reset on refresh or stale data, and moves Reboot 2026 to Scheduled without releasing papers');
  await identity('teacher','/academy/#activity/PROGRAM/'+scopes.programA.slice(8)+'/teach/assessment');await page.locator('[data-as=open][data-id="'+id+'"]').click();await page.locator('[data-assessment-group]').waitFor();await idle();
  assert.equal(await page.locator('[data-assessment-class] option').count(),2);
  for(const width of [320,390,768,1440]){await page.setViewportSize({width,height:1000});await fits('Shared assessment '+width);await page.screenshot({path:join(out,'shared-'+width+'.png')});}

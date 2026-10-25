@@ -55,8 +55,8 @@
  }
  function registerScheduleHTML(rows){
   const register=(state.list.registers||[]).find(r=>r.id===state.registerId);
-  if(!register){state.registerId=null;return window.M4L_ASSESSMENT_REGISTER.render({list:state.list,editId:state.editRegister,filter:state.registerFilter,activityKey:state.options.activityKey});}
-  return `<section class="as-phase-heading">${button('← Imtihaan Register','register-back','',true)}<h3>${esc(register.name)}</h3><p class="as-muted">${esc(register.areas.map(a=>a.name).join(' · '))} · ${esc(register.classMode==='ALL'?'All classes':register.className)}</p>${register.canEdit?window.M4L_ASSESSMENT_REGISTER.statusControls(register,state.list.imtihaanStatuses):''}</section>`+createHTML()+timetableHTML(rows.filter(a=>a.registerId===register.id));
+  if(!register){state.registerId=null;return window.M4L_ASSESSMENT_REGISTER.render({list:state.list,editId:state.editRegister,filter:state.registerFilter,activityKey:state.options.activityKey,validation:state.registerValidation});}
+  return `<section class="as-phase-heading">${button('← Imtihaan Register','register-back','',true)}<h3>${esc(register.name)}</h3><p class="as-muted">${esc(register.areas.map(a=>a.name).join(' · '))} · ${esc(register.classMode==='ALL'?'All classes':register.className)}</p>${register.canEdit?window.M4L_ASSESSMENT_REGISTER.statusControls(register,state.list.imtihaanStatuses,state.registerValidation):''}</section>`+createHTML()+timetableHTML(rows.filter(a=>a.registerId===register.id));
  }
  async function registryChange(event){
   if(state.busy)return;
@@ -151,11 +151,19 @@
   if(action==='close-paper'){await closePaperDialog();return;}
   if(action==='paper-attachment'){if(!canLeave())return;await run(async()=>{const detail=await api('get',{assessmentId:b.dataset.id});if(!detail.assessment.canTeach)throw new Error('Paper attachments require current Teacher or Admin access.');state.detail=detail;state.paperOnly=true;},render);return;}
   if(action==='classes-all'||action==='classes-clear'){const form=b.closest('form');for(const input of form.querySelectorAll('[name=classes]'))input.checked=action==='classes-all';syncClassPicker(form);state.dirty=true;return;}
+  if(action==='validate-schedule'){
+   if(!canLeave())return;
+   const entry=state.list.registers.find(r=>r.id===b.dataset.id);if(!entry?.canEdit)return;
+   const body={registerId:entry.id,revision:entry.revision,name:entry.name,activityKeys:entry.areas.map(a=>a.key),classMode:entry.classMode,classActivityKey:entry.classActivityKey,classId:entry.classId,status:'SCHEDULED'};
+   clearValidation();
+   await run(async()=>{state.registerValidation={purpose:'schedule',id:entry.id,revision:entry.revision,result:await api('register-validate',body)};},async()=>{state.host.querySelector('[data-register-validation="'+entry.id+'"]').innerHTML=window.M4L_ASSESSMENT_REGISTER.validationHTML(state.registerValidation.result);syncScheduleRelease();},{progressMessage:'Validating schedule…',successMessage:'Schedule validation completed.'});return;
+  }
   if(action==='release-register'){
    if(!canLeave())return;
    const entry=state.list.registers.find(r=>r.id===b.dataset.id);if(!entry?.canEdit)return;
+   if(!window.M4L_ASSESSMENT_REGISTER.scheduleValidated(entry,state.registerValidation)){message('Validate this schedule successfully before releasing it.',true);return;}
    const body={registerId:entry.id,revision:entry.revision,operationId:crypto.randomUUID()};
-   await run(()=>api('register-release',body),async()=>{state.editRegister=null;await refresh();},{successMessage:'Imtihaan schedule released to learners.'});return;
+   await run(async()=>{try{return await api('register-release',body);}catch(error){if(['STATUS_NOT_READY','ROW_CHANGED'].includes(error.code))clearValidation();throw error;}},async()=>{state.editRegister=null;await refresh();},{successMessage:'Imtihaan schedule released to learners.'});return;
   }
   if(['share-schedule-pdf','download-schedule-pdf'].includes(action)){
    if(!canLeave())return;
@@ -223,7 +231,8 @@
    // Script attachments do not change learner marking; use the latest assessment revision after upload.
    if(fileId&&!prepared){body.scriptFileId=fileId;body.revision=(await api('get',{assessmentId:a.id})).assessment.revision;prepared=true;}await api('mark',body);});}
  }
- function clearValidation(){state.registerValidation=null;state.host?.querySelectorAll('[data-register-validation]').forEach(el=>el.replaceChildren());}
+ function syncScheduleRelease(){state.host?.querySelectorAll('[data-as=release-register]').forEach(el=>{const entry=state.list?.registers.find(r=>r.id===el.dataset.id),valid=entry&&window.M4L_ASSESSMENT_REGISTER.scheduleValidated(entry,state.registerValidation);el.disabled=state.busy||!valid;if(el.dataset.asDisabled!==undefined)el.dataset.asDisabled=String(!valid);el.title=valid?'Release schedule':'Validate this schedule successfully before release';});}
+ function clearValidation(){state.registerValidation=null;state.host?.querySelectorAll('[data-register-validation]').forEach(el=>el.replaceChildren());syncScheduleRelease();}
  function showHelp(){
   let dialog=document.getElementById('as-help-dialog');
   if(!dialog){dialog=document.createElement('dialog');dialog.id='as-help-dialog';document.body.appendChild(dialog);}

@@ -1,3 +1,9 @@
+# V107.60 — Validate schedules before release
+
+Add Validate schedule beside Release schedule in each unreleased Imtihaan Register row, with its validation result directly below. Enable Release only after successful schedule validation for that entry; clear validation when its data refreshes or changes, and recheck current data on the server during release. Apply the same sequence inside the schedule.
+
+For an all-class assessment publication, replace Academy shared setup with the selected Program/Course name followed by All classes. Dim and disable Publish immediately and show Publishing… until completion. Preserve separate paper/results releases, access rules, exact retries and existing assessment data. No migrations or live data corrections.
+
 # V107.59 — Untimed assessment schedule validation
 
 Fix Imtihaan schedule validation so untimed exams and assignments can move from Registered to Scheduled. Use assignment opening and optional due times instead of requiring an exam date, and require a duration only for timed assessments. Show separate validation requirements for names/subjects, dates, timing and total marks. Preserve explicit schedule release, separate paper/result releases, scoped permissions, exact retries and existing assessment data. No migrations or live data corrections.

@@ -25,6 +25,7 @@
    const selection=()=>({scopes:[...body.querySelectorAll('input:checked')].map(n=>n.value),...(sourceOperation?{sourceOperation}:{})});
    const lock=value=>{
     busy=value;cancel.disabled=value;review.disabled=value||!ready||!selection().scopes.length;publish.disabled=review.disabled||noChanges;
+    dialog.setAttribute('aria-busy',String(value));publish.style.opacity=publish.disabled?'0.5':'';publish.style.cursor=publish.disabled?'not-allowed':'';
     for(const input of body.querySelectorAll('input'))input.disabled=value||Boolean(sourceOperation);
    };
    const check=()=>{if(session!==localStorage.getItem('m4l_account_token')||window.M4L_ACADEMY_WORKSPACE?.current()!=='ADMIN')throw new DOMException('The Academy account or workspace changed.','AbortError');};
@@ -46,17 +47,19 @@
     finally{lock(false);}
    };
    publish.onclick=async()=>{
-    if(busy||publish.disabled)return;lock(true);status.textContent='Publishing…';
+    if(busy||publish.disabled)return;lock(true);publish.textContent='Publishing…';status.textContent='Publishing…';
     try{
      check();if(!batch&&!await prepare())return;
      status.textContent='Publishing…';const result=await api('publish',{batchId:batch.batchId,digest:batch.digest});check();window.M4L_ACADEMY_WORKSPACE?.publication(result.head);end(null,result);
     }
     catch(error){status.textContent=error.message;if(error.status&&error.status<500&&error.code!=='SESSION_ENDED')invalidate();}
-    finally{lock(false);}
+    finally{publish.textContent='Publish';lock(false);}
    };
    dialog.showModal();
    api('options').then(data=>{
-    check();areaNames=Object.fromEntries(data.areas.map(a=>[a.activity_key.toUpperCase(),a.name]));const choices=sourceOperation?data.areas.filter(a=>sourceOperation.scopes.map(s=>s.toUpperCase()).includes(a.activity_key.toUpperCase())):data.areas;
+    check();let choices=sourceOperation?data.areas.filter(a=>sourceOperation.scopes.map(s=>s.toUpperCase()).includes(a.activity_key.toUpperCase())):data.areas;
+    if(sourceOperation?.dataset==='ASSESSMENT'&&choices.some(a=>a.activity_key.toUpperCase()==='GLOBAL')){const names=choices.filter(a=>a.activity_key.toUpperCase()!=='GLOBAL').map(a=>a.name);if(names.length)choices=choices.map(a=>a.activity_key.toUpperCase()==='GLOBAL'?{...a,name:names.join(', ')+' - All classes'}:a);}
+    areaNames=Object.fromEntries(data.areas.map(a=>[a.activity_key.toUpperCase(),a.name]));for(const area of choices)areaNames[area.activity_key.toUpperCase()]=area.name;
     body.innerHTML='<fieldset><legend>Areas to publish together</legend>'+choices.map(a=>'<label style="display:block;margin:8px 0"><input type="checkbox" value="'+esc(a.activity_key)+'"'+(sourceOperation?' checked disabled':'')+'> '+esc(a.name)+'</label>').join('')+'</fieldset>';ready=true;lock(false);
    }).catch(error=>{status.textContent=error.message;});
   });

@@ -1,4 +1,10 @@
-# Umm Abbad Academy — V107.59
+# Umm Abbad Academy — V107.60
+
+## V107.60 — Validate schedules before release
+
+Add Validate schedule beside Release schedule in each unreleased Imtihaan Register row, with its validation result directly below. Enable Release only after successful schedule validation for that entry; clear validation when its data refreshes or changes, and recheck current data on the server during release. Apply the same sequence inside the schedule.
+
+For an all-class assessment publication, replace Academy shared setup with the selected Program/Course name followed by All classes. Dim and disable Publish immediately and show Publishing… until completion. Preserve separate paper/results releases, access rules, exact retries and existing assessment data. No migrations or live data corrections.
 
 ## V107.59 — Untimed assessment schedule validation
 
