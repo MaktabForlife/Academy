@@ -76,14 +76,18 @@ test('schedule, examiner ownership and private PDF moderation enforce scoped aut
  await f.download(uploaded.fileId,x.student);assert.equal((await x.detail(x.student)).learners[0].firstAccessedAt,d.learners[0].firstAccessedAt);
  assert.equal((await f.call('create',{...op(),activityKey:scope,classId:'class-1',title:'Bad',subject:'Bad',examDate:'2026-02-30',durationMinutes:60,maximumMark:100},x.admin)).status,400);
 }));
-test('an administrator who submits a paper becomes examiner and cannot moderate paper or marks',()=>use(async f=>{
+test('a Global Admin can moderate their uploaded paper while mark moderation remains separate',()=>use(async f=>{
  const x=await setup(f,{examiner:'0001'}),moderator=await f.login('0004');
- assert.equal((await x.change('review-paper',{decision:'APPROVE'})).body.code,'SELF_MODERATION');
- ok(await x.change('review-paper',{decision:'APPROVE'},moderator));
+ const detail=(await x.detail()).assessment;assert.equal(detail.canModeratePaper,true);assert.equal(detail.canModerate,false);
+ ok(await x.change('review-paper',{decision:'APPROVE'}));
  const a=(await x.detail()).assessment;ok(await f.call('release-papers',{...op(),papers:[{id:x.id,revision:a.revision}]},x.admin));await submit(f,x);await reviewAndReady(f,x);
  let r=(await x.detail()).learners[0];ok(await x.change('mark',{accountId:r.accountId,recipientRevision:r.revision,submissionId:r.submissionId,mark:75,feedback:'Well done.'},x.admin));
  r=(await x.detail()).learners[0];assert.equal((await x.change('review-mark',{accountId:r.accountId,recipientRevision:r.revision,markId:r.markId,decision:'APPROVE'})).body.code,'SELF_MODERATION');
  ok(await x.change('review-mark',{accountId:r.accountId,recipientRevision:r.revision,markId:r.markId,decision:'APPROVE'},moderator));
+}));
+test('a scoped Program Admin can moderate their uploaded paper in their assigned area',()=>use(async f=>{
+ const x=await setup(f,{examiner:'0004'}),scoped=await f.login('0004'),detail=(await x.detail(scoped)).assessment;
+ assert.equal(detail.canModeratePaper,true);assert.equal(detail.canModerate,false);ok(await x.change('review-paper',{decision:'APPROVE'},scoped));
 }));
 test('03:00 Johannesburg gate and expected duration never block later submissions',()=>use(async f=>{
  const x=await setup(f,{examDate:'2999-01-01'});await available(f,x);assert.equal((await f.download(x.paperId,x.student)).status,403);assert.equal((await f.upload({kind:'ANSWER',assessmentId:x.id,recipientRevision:0},x.student)).status,403);

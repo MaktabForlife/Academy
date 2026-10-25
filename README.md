@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.61
+# Umm Abbad Academy — V107.62
+
+## V107.62 — Admin paper moderation
+
+Allow Global Admins and scoped Program Admins to upload and moderate the same assessment PDF, including shared papers across their authorised classes. Expose Approve paper in the attachment and Moderation views for that account. Keep paper moderation permission separate from marking moderation, require current Admin workspace access and exact PDF review evidence, preserve explicit confirmation and audit history, and keep student paper release separate. Program Admin authority stays within assigned Programs/Courses; Teacher permissions remain as before. No migrations or live data corrections.
 
 ## V107.61 — One Imtihaan table and paper moderation links
 

@@ -11,8 +11,8 @@ async function use(fn){
  const f=await separationFixture();try{
   for(const name of ['0032_accepted_setup.sql','0033_native_attendance.sql','0034_assessment_operations.sql']){f.db.exec('BEGIN');f.db.exec(readFileSync(new URL('../migrations/academy/'+name,import.meta.url),'utf8'));f.db.exec('COMMIT');}
   await initialiseAcceptedSetup(f.env.ACADEMY_DB);f.env.ACADEMY_ACCEPTED_SETUP='1';f.env.ACADEMY_LEARNING_OPERATIONS='3';
-  const tokens={admin:await f.actor('global'),teacher:await f.login('0003'),student:await f.login('0002')};
-  f.request=async(action,input={},who='admin',workspace=who==='admin'?'ADMIN':who==='teacher'?'TEACH':'LEARN',bytes)=>{
+  const tokens={admin:await f.actor('global'),programAdmin:await f.actor('adminA'),teacher:await f.login('0003'),student:await f.login('0002')};
+  f.request=async(action,input={},who='admin',workspace=['admin','programAdmin'].includes(who)?'ADMIN':who==='teacher'?'TEACH':'LEARN',bytes)=>{
    const path=action.startsWith('/')?action:'/api/academy/assessments/'+action,headers={Authorization:'Bearer '+tokens[who],'X-Academy-Workspace':workspace,...(!bytes?{'Content-Type':'application/json'}:{})};
    const response=await worker.fetch(new Request('http://localhost'+path,{method:'POST',headers,body:bytes||JSON.stringify(input)}),f.env);
    return {status:response.status,body:response.headers.get('Content-Type')?.includes('application/json')?await response.json():new Uint8Array(await response.arrayBuffer())};
@@ -23,7 +23,7 @@ async function use(fn){
   f.change=async(id,action,input={},who='admin')=>{const d=await f.detail(id);return f.request(action,{...operation(),assessmentId:id,revision:d.assessment.revision,...(d.group?.canManage?{groupRevisions:d.group.members.map(m=>({id:m.id,revision:m.revision})),groupCollections:d.group.members.map(m=>({id:m.id,revision:m.collectionRevision}))}:{}),...input},who);};
   f.uploadNative=async(id,kind,input={},who='admin')=>{
    const detail=await f.detail(id),bytes=Buffer.from('%PDF-1.4\n% native '+(input.label||'fixture')+'\n%%EOF'),metadata={...operation(),kind,assessmentId:id,mimeType:'application/pdf',size:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex'),filename:'answer.pdf',revision:detail.assessment.revision,...(kind==='PAPER'&&detail.group?{groupRevisions:detail.group.members.map(m=>({id:m.id,revision:m.revision}))}:{}),...input};
-   return f.request('/api/academy/assessments/upload?metadata='+encodeURIComponent(JSON.stringify(metadata)),{},who,who==='admin'?'ADMIN':who==='teacher'?'TEACH':'LEARN',bytes);
+   return f.request('/api/academy/assessments/upload?metadata='+encodeURIComponent(JSON.stringify(metadata)),{},who,['admin','programAdmin'].includes(who)?'ADMIN':who==='teacher'?'TEACH':'LEARN',bytes);
   };
   f.publish=async id=>{ok(await f.change(id,'publish'));await f.accept();};
   f.releasePaper=async id=>{const paper=ok(await f.uploadNative(id,'PAPER',{},'teacher'));ok(await f.change(id,'review-paper',{decision:'APPROVE',paperReview:{fileId:paper.fileId,sha256:f.db.prepare('SELECT sha256 FROM assessment_file_integrity WHERE file_id=?').get(paper.fileId).sha256}}));await f.accept();ok(await f.request('release-papers',{...operation(),papers:(await f.detail(id)).group?.members.map(m=>({id:m.id,revision:m.revision}))||[{id,revision:(await f.detail(id)).assessment.revision}]}));return paper;};
@@ -34,6 +34,28 @@ test('untimed six-week assignments store a real null duration and retain a separ
  const id=await f.create({assessmentKind:'ASSIGNMENT',timingMode:'UNTIMED',examDate:null,durationMinutes:null,availableFrom:new Date(Date.now()-60000).toISOString(),dueDate:nextDate(today(),42)}),row=f.db.prepare('SELECT * FROM assessments WHERE assessment_id=?').get(id);
  assert.equal(row.duration_minutes,null);assert.equal(row.allowance_minutes,null);assert.equal(row.exam_date,null);assert.equal(row.timing_mode,'UNTIMED');assert(row.due_at>row.available_from);
  await f.publish(id);await f.releasePaper(id);const learner=await f.detail(id,'student');assert.equal(learner.assessment.canUpload,true);assert(!Object.hasOwn(learner.assessment,'durationMinutes'));assert(!Object.hasOwn(learner.assessment,'maximumMark'));assert(!Object.hasOwn(learner.assessment,'allowanceMinutes'));
+}));
+test('Global Admin can approve their exact uploaded PDF for every shared class without releasing it',()=>use(async f=>{
+ f.db.prepare("INSERT INTO classes(activity_key,class_id,name,active) VALUES(?,'global-paper','Second assessment class',1)").run(scopes.programA);
+ const id=await f.create({classes:[{activityKey:scopes.programA,classId:'class-1'},{activityKey:scopes.programA,classId:'global-paper'}]}),file=ok(await f.uploadNative(id,'PAPER'));
+ const detail=await f.detail(id);assert.equal(detail.assessment.isExaminer,true);assert.equal(detail.assessment.canModeratePaper,true);assert.equal(detail.assessment.canModerate,false);
+ const list=ok(await f.request('list',{view:'admin'}));assert(list.assessments.every(a=>a.canModeratePaper&&!a.canModerate));
+ assert.equal((await f.change(id,'review-paper',{decision:'APPROVE',paperReview:{fileId:file.fileId,sha256:'0'.repeat(64)}})).body.code,'PAPER_REVIEW_REQUIRED');
+ ok(await f.change(id,'review-paper',{decision:'APPROVE',paperReview:{fileId:file.fileId,sha256:file.sha256}}));
+ const rows=f.db.prepare('SELECT paper_state,paper_released_at,examiner_id FROM assessments').all();assert(rows.every(a=>a.paper_state==='APPROVED'&&!a.paper_released_at&&a.examiner_id===f.actors.global));
+ assert.equal(f.db.prepare('SELECT reviewed_by FROM assessment_paper_review').get().reviewed_by,f.actors.global);
+ assert.equal(f.db.prepare('SELECT count(*) n FROM assessment_recipients').get().n,0);
+}));
+test('Program Admin can upload and moderate their paper only within their own scope',()=>use(async f=>{
+ const id=await f.create(),file=ok(await f.uploadNative(id,'PAPER',{},'programAdmin')),detail=await f.detail(id,'programAdmin');
+ assert.equal(detail.assessment.canModeratePaper,true);assert.equal(detail.assessment.isExaminer,true);assert.equal(detail.assessment.canModerate,false);
+ ok(await f.change(id,'review-paper',{decision:'APPROVE',paperReview:{fileId:file.fileId,sha256:file.sha256}},'programAdmin'));
+ assert.equal(f.db.prepare('SELECT paper_state FROM assessments WHERE assessment_id=?').get(id).paper_state,'APPROVED');
+ const otherClass=f.db.prepare('SELECT activity_key,class_id FROM classes WHERE activity_key=? AND active=1 LIMIT 1').get(scopes.programB),other=await f.create({activityKey:otherClass.activity_key,classId:otherClass.class_id});
+ const outside=ok(await f.uploadNative(other,'PAPER'));
+ assert.equal((await f.uploadNative(other,'PAPER',{},'programAdmin')).status,403);
+ assert.equal((await f.change(other,'review-paper',{decision:'APPROVE',paperReview:{fileId:outside.fileId,sha256:outside.sha256}},'programAdmin')).status,403);
+ assert.equal(f.db.prepare('SELECT paper_state FROM assessments WHERE assessment_id=?').get(other).paper_state,'IN_REVIEW');
 }));
 for(const [kind,mode,due] of [['EXAM','TIMED',true],['EXAM','UNTIMED',true],['ASSIGNMENT','TIMED',true],['ASSIGNMENT','UNTIMED',true],['ASSIGNMENT','UNTIMED',false]])test(`Imtihaan schedules release ${mode.toLowerCase()} ${kind.toLowerCase()}s${due?'':' without a due date'}`,()=>use(async f=>{
  const fields={name:'Reboot 2026',activityKeys:[scopes.programA],classMode:'ONE',classActivityKey:scopes.programA,classId:'class-1',status:'REGISTERED'};
