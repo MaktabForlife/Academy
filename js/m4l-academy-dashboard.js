@@ -200,12 +200,10 @@
   function messageRows(rows) {return rows.map(row=>`<div class="ad-message ${read.has(row.readKey)?'':'is-unread'}">${row.type==='note'?noteButton(row,row.title):`<button type="button" data-ad-notice="${esc(row.id)}" data-ad-read="${esc(row.readKey)}">${esc(row.title)}</button>`}<p>${esc(row.context)}${read.has(row.readKey)?' · Read':' · Unread'}</p></div>`).join('');}
   function renderMessages() {
     if(!home||!$('ad-messages'))return;
-    const rows=messages(),snapshot=window.M4L_ANNOUNCEMENTS?.snapshot?.();
-    $('ad-unread').textContent=String(rows.filter(row=>!read.has(row.readKey)).length);
-    $('ad-messages').innerHTML=rows.length?messageRows(rows.slice(0,3)):'<p class="ad-empty-line">'+(snapshot?.status==='error'?'Messages could not be checked.':snapshot?.status==='loading'?'Loading messages…':'No messages in the available Academy records.')+'</p>';
-    if(snapshot?.status==='error')$('ad-messages').insertAdjacentHTML('beforeend','<button type="button" data-ad-retry>Try again</button>');
+    if(window.M4L_MESSAGING){window.M4L_MESSAGING.renderCard($('ad-messages'),$('ad-unread'));return;}
+    $('ad-messages').innerHTML='<p class="ad-empty-line">Messages could not load. Refresh Academy to try again.</p>';
   }
-  function openInbox() { showDialog('Messages',messages().length?messageRows(messages()):'<p>No messages in the available Academy records.</p>'); }
+  function openInbox() { if(window.M4L_MESSAGING)void window.M4L_MESSAGING.open(); }
   function renderNext() {
     const now=Date.now(),allowed=new Map(areas().filter(row=>mode!=='admin'||row.kind==='COURSE').map(row=>[key(row).toUpperCase(),row])),next=new Map();
     const rows=(home.personalTimetable||[]).filter(row=>row.status==='SCHEDULED'&&Number.isFinite(Number(row.startsAt))&&Number(row.endsAt)>now&&allowed.has((row.kind+':'+row.activityId).toUpperCase())).sort((a,b)=>a.startsAt-b.startsAt||a.activityName.localeCompare(b.activityName));
@@ -261,6 +259,7 @@
   }
   window.addEventListener('m4l-class-notes-updated',()=>{renderAttention();renderMessages();});
   window.addEventListener('m4l-announcements-updated',renderMessages);
+  window.addEventListener('m4l-messaging-updated',renderMessages);
   window.addEventListener('m4l-academy-session',reset);
   window.addEventListener('m4l-academy-session-ended',reset);
   window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)reset();});

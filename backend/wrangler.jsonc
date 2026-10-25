@@ -25,7 +25,8 @@
       "compatibility_date": "2026-10-23",
       "triggers": {
         "crons": [
-          "*/15 * * * *"
+          "*/15 * * * *",
+          "* * * * *"
         ]
       },
       "d1_databases": [
@@ -83,6 +84,7 @@
       },
       "vars": {
         "ACADEMY_ACCEPTED_SETUP": "1",
+        "ACADEMY_MESSAGING": "1",
         "ACADEMY_D1_MODE": "ACTIVE",
         "ACADEMY_D1_RUN_ID": "3ed73804e35f1d0c8b1bacd0a10e3b868644a38bbc30e11aa063a89716e6ac12",
         "ACADEMY_LEARNING_OPERATIONS": "3",
@@ -140,7 +142,8 @@
   "account_id": "c9a3e355b3d7a795880b1d36a1dbe123",
   "triggers": {
     "crons": [
-      "*/15 * * * *"
+      "*/15 * * * *",
+      "* * * * *"
     ]
   },
   "d1_databases": [
@@ -161,6 +164,7 @@
   },
   "vars": {
     "ACADEMY_ACCEPTED_SETUP": "1",
+    "ACADEMY_MESSAGING": "1",
     "ACADEMY_D1_MODE": "ACTIVE",
     "ACADEMY_D1_RUN_ID": "3ed73804e35f1d0c8b1bacd0a10e3b868644a38bbc30e11aa063a89716e6ac12",
     "ACADEMY_LEARNING_OPERATIONS": "3",

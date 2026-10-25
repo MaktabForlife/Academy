@@ -1,3 +1,10 @@
+# Local messaging branch — 25 October 2026
+
+- Build messaging locally on `feature/academy-messaging`, based on `feature/academy-session-videos` and the copied local session-video changes.
+- Do not push, deploy, change hosted databases or apply hosted migrations. The user explicitly requested local development and verification only.
+- Keep FMA integration, push, PWA, email and event-generated notices for later. Preserve the swipeable timetable.
+- Use disposable local fixtures. Do not use a preview that forwards writes to Development.
+
 # Local session video branch — 25 October 2026
 
 - The user requested `feature/academy-session-videos` from commit `c62c901274881c191163586c33d55e2d8720a9ee`. This branch instruction supersedes the optimisation/development branch instructions below for this checkout.

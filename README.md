@@ -1,5 +1,11 @@
 # Umm Abbad Academy — V107.66
 
+## Local messaging feature — not deployed
+
+Build scoped browser notices on `feature/academy-messaging`, including the latest local session-video work. Connect the existing dashboard Messages card to an inbox, student/teacher/Admin sending, recipient review, scheduling, separate opened and acknowledged receipts, personal archiving and retained reports. FMA, PWA, push, email and event-generated notices remain deferred. No hosted migration or deployment has been performed.
+
+[Local preview and verification](docs/messaging-local-preview.md).
+
 ## V107.66 — Manual marks and one paper publication
 
 Add Enter marks to each Teacher and Admin assessment row. Open a popup with students grouped by class and sorted alphabetically, save numeric marks without an answer upload, and keep saved or corrected marks private until Admin uses Release marks. Retain scoped permissions, zero marks, exact retries, conflict checks and report results.

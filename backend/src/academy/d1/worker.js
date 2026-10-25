@@ -3,6 +3,7 @@ import {conditionalRead} from './read-cache.js';
 import {privateSnapshot} from './private-snapshot.js';
 import {personalLinks} from './personal-links.js';
 import {classNotes} from './class-notes.js';
+import {messaging,recoverMessaging} from './messaging.js';
 import {lessonNotes} from './lesson-notes.js';
 import {nativeAttendance} from './native-attendance.js';
 import {setupEnabled,acceptedHead,acceptedRepository} from './setup-reader.js';
@@ -154,7 +155,7 @@ async function dispatch(request,env) {
     guardWorkspace(request,auth);
     return {success:true,...await d1Library(repository,auth,env).uploadChunk(request)};
   }
-  const managementPath=path.startsWith('/api/admin/platform/');
+  const managementPath=path.startsWith('/api/admin/platform/')||path.startsWith('/api/academy/messaging/');
   const input=await boundedBody(request,path.startsWith('/api/academy/bookmarks/')?8192:managementPath||path.startsWith('/api/academy/teacher-availability/')||path.startsWith('/api/academy/progress/')||path.startsWith('/api/academy/assessments/')||path.startsWith('/api/academy/lesson-media/')||path.startsWith('/api/academy/planning/')||path.startsWith('/api/academy/attendance/')||path.startsWith('/api/academy/my-links/')||path.startsWith('/api/academy/class-notes/')?131072:path.startsWith('/api/program-attendance/')?65536:4096);
   if(['/api/account/check','/api/account/login','/api/account/setup-pin'].includes(path)) {
     const login=String(input.uniqueid || '').trim();
@@ -189,6 +190,12 @@ async function dispatch(request,env) {
   }
   const auth=await authenticated(request,env,repository);
   guardWorkspace(request,auth,input);
+  if(path.startsWith('/api/academy/messaging/')){
+    if(request.method!=='POST')throw rehearsalError('Use POST.',405,'METHOD_NOT_ALLOWED');
+    if(env.ACADEMY_MESSAGING!=='1')throw rehearsalError('Messaging is not enabled yet.',503,'MESSAGING_NOT_ENABLED');
+    const action=path.slice('/api/academy/messaging/'.length);
+    return {success:true,...await messaging(await readRepository(),auth).run(action,input)};
+  }
   if(isAdminWorkspace(auth))repository=repository.authoringRepository();
   const classNoteAction=path.match(/^\/api\/academy\/class-notes\/(timetable|sessions|get|due|history|post|revise|withdraw|relink)$/)?.[1];
   if(classNoteAction)return {success:true,...await classNotes(await readRepository(),auth).run(classNoteAction,input)};
@@ -301,6 +308,12 @@ async function dispatch(request,env) {
 }
 return {
   async scheduled(event,env,ctx){
+    // A dedicated minute tick must not multiply cache/Hifz recovery work.
+    if(event.cron==='* * * * *'){
+      ctx.waitUntil(recoverMessaging(env,new Date(event.scheduledTime)));
+      return;
+    }
+    ctx.waitUntil(recoverMessaging(env,new Date(event.scheduledTime)));
     ctx.waitUntil(recoverCacheRefresh(env,new Date(event.scheduledTime)));
     if(hifzSyncEnabled(env))ctx.waitUntil(recoverHifzProfiles(env,{limit:40}));
   },
@@ -329,7 +342,7 @@ return {
       if(dailyReadLimit)headers['Retry-After']=String(Math.ceil(retryAfterMs/1000));
       if(status===429)headers['Retry-After']='60';
       return new Response(JSON.stringify({success:false,error:dailyReadLimit?'Academy access has reached today’s service allowance. Please try again after 00:00 UTC (03:00 Riyadh), or contact an administrator.':unavailable?'Academy information is temporarily unavailable. Please try again.':error.message,
-        code:dailyReadLimit?'ACADEMY_D1_DAILY_READ_LIMIT':unavailable?(['ACADEMIC_CALENDAR_SCHEMA_REQUIRED','ACTIVATION_REQUIRED','MANAGEMENT_SCHEMA_REQUIRED','LEARNING_IMPORT_REQUIRED','COURSE_IMPORT_REQUIRED','COURSE_ACCESS_SCHEMA_REQUIRED','COURSE_MANAGEMENT_SCHEMA_REQUIRED','UPLOAD_BRIDGE_REQUIRED','MEMORISATION_SCHEMA_REQUIRED'].includes(error.code)?error.code:'ACADEMY_D1_UNAVAILABLE'):error.code,retryable:unavailable||status===429,...(dailyReadLimit?{retryAfterMs,resetAt:reset.toISOString()}:{}),...(status===429?{retryAfterMs:60000}:{}),
+        code:dailyReadLimit?'ACADEMY_D1_DAILY_READ_LIMIT':unavailable?(['MESSAGING_SCHEMA_REQUIRED','MESSAGING_NOT_ENABLED','ACADEMIC_CALENDAR_SCHEMA_REQUIRED','ACTIVATION_REQUIRED','MANAGEMENT_SCHEMA_REQUIRED','LEARNING_IMPORT_REQUIRED','COURSE_IMPORT_REQUIRED','COURSE_ACCESS_SCHEMA_REQUIRED','COURSE_MANAGEMENT_SCHEMA_REQUIRED','UPLOAD_BRIDGE_REQUIRED','MEMORISATION_SCHEMA_REQUIRED'].includes(error.code)?error.code:'ACADEMY_D1_UNAVAILABLE'):error.code,retryable:unavailable||status===429,...(dailyReadLimit?{retryAfterMs,resetAt:reset.toISOString()}:{}),...(status===429?{retryAfterMs:60000}:{}),
         ...(status===409&&request.headers.get('X-Academy-Workspace')==='ADMIN'?Object.fromEntries(['currentRecord','rowRevision','entryKey'].filter(k=>error[k]!==undefined).map(k=>[k,error[k]])):{} )}),{status,headers});}
   }
 };

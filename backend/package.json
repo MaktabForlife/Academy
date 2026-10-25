@@ -4,6 +4,9 @@
   "type": "module",
   "scripts": {
     "test": "node tests/run-all.mjs",
+    "test:messaging": "node --test tests/academy-messaging.test.mjs",
+    "test:messaging:browser": "node tools/academy-messaging-acceptance.mjs",
+    "preview:messaging": "node tools/academy-messaging-preview.mjs",
     "test:academy-mobile": "node tools/academy-mobile-layout-acceptance.mjs",
     "test:lesson-media": "node --test tests/academy-lesson-media.test.mjs tests/academy-session-media.test.mjs",
     "test:lesson-media:browser": "node tools/academy-lesson-media-acceptance.mjs && node tools/academy-session-media-acceptance.mjs",

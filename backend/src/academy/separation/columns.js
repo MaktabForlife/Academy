@@ -1,6 +1,13 @@
 // Physical target columns; Core facts are projected into Admin reads, not copied into its master rows.
 export const storeColumns={
  "core":{
+  "messaging_drafts":["draft_id","actor_id","workspace","subject","body","targets_json","link_json","requires_ack","schedule_local","schedule_at","timezone","revision","state","created_at","updated_at","notice_id","previous_notice_id","last_error","next_attempt_at","attempts"],
+  "messaging_reviews":["review_id","draft_id","actor_id","draft_revision","digest","recipient_digest","source_head","expires_at","created_at"],
+  "messaging_notices":["notice_id","draft_id","actor_id","sender_name","workspace","subject","body","targets_json","audience_json","link_json","requires_ack","recipient_count","recipients_json","created_at","issued_at","state","withdrawn_at","withdrawn_by","withdrawal_reason","previous_notice_id","source_head","scheduled_for"],
+  "messaging_recipients":["notice_id","account_id","display_name","delivered_at","first_opened_at","unread","acknowledged_at","archived_at"],
+  "messaging_jobs":["notice_id","position","attempts","next_attempt_at","last_error","state"],
+  "messaging_events":["event_id","notice_id","draft_id","actor_id","action","details_json","occurred_at"],
+  "messaging_operations":["actor_id","operation_id","request_hash","result_json","created_at"],
   "class_note_contexts":["context_id","activity_key","class_id","lesson_date","stable_key","source_json","source_head","created_at"],
   "class_notes":["note_id","activity_key","context_id","created_by","created_at","current_version_id","state","revision","updated_at","updated_by","withdrawn_at"],
   "class_note_versions":["version_id","note_id","revision","context_id","body","due_mode","due_date","due_context_id","due_json","source_head","previous_version_id","reason","created_at","created_by"],
