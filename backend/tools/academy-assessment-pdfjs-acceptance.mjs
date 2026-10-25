@@ -38,18 +38,14 @@ try{
   page.on('download',()=>downloads++);page.on('pageerror',error=>errors.push(error.message));
   await page.route('**/*',route=>new URL(route.request().url()).origin===origin?route.continue():route.abort());
   await page.goto(origin+'/synthetic-assessment?workspace=TEACH');await page.getByRole('button',{name:'Open assessment',exact:true}).click();
-  await page.getByRole('button',{name:'Open paper',exact:true}).click();
   await page.frameLocator('#as-pdf-dialog iframe').locator('.page[data-page-number="1"] canvas').waitFor({state:'visible'});
   assert.equal(downloads,0,'Opening a PDF must not start a download');
   await page.screenshot({path:join(out,'paper-'+width+'.png')});
   const downloaded=page.waitForEvent('download');await page.locator('#as-pdf-dialog a[download]').click();const file=await downloaded;await file.saveAs(join(out,'paper-'+width+'.pdf'));assert.deepEqual(readFileSync(join(out,'paper-'+width+'.pdf')),bytes);
   await page.locator('#as-pdf-dialog [data-pdf-close]').click();
-  await page.locator('.as-learner summary').click();await page.locator('[data-as=view-answer]').click();
-  await page.frameLocator('#as-answer-dialog iframe').locator('.page[data-page-number="1"] canvas').waitFor({state:'visible'});
-  assert(await page.locator('[data-review-confirm]').isVisible());assert(!requests.some(request=>/confirm|mark|release/.test(request.path)));
-  await page.screenshot({path:join(out,'answer-review-'+width+'.png')});await page.locator('[data-review-close]').click();
-  await page.getByRole('button',{name:'Open paper',exact:true}).click();await page.locator('#as-pdf-dialog').waitFor();await page.evaluate(()=>M4L_ACADEMY_ASSESSMENTS.reset());assert.equal(await page.locator('#as-pdf-dialog').count(),0);
-  checks.push('PDF.js paper and answer review, explicit exact-byte download, manual confirmation and reset: '+width);await context.close();
+  assert.equal(await page.locator('.as-timetable tbody tr').count(),1);assert.equal(await page.locator('.as-learner,[data-as=view-answer],[data-review-confirm]').count(),0);assert(!requests.some(request=>/confirm|mark|release/.test(request.path)));
+  await page.getByRole('button',{name:'Open assessment',exact:true}).click();await page.locator('#as-pdf-dialog').waitFor();await page.evaluate(()=>M4L_ACADEMY_ASSESSMENTS.reset());assert.equal(await page.locator('#as-pdf-dialog').count(),0);
+  checks.push('Row opens PDF.js paper directly; exact-byte download, table retained and reset: '+width);await context.close();
  }
  assert.deepEqual(errors,[]);assert(requests.every(request=>request.workspace==='TEACH'));const report={success:true,checks,errors,syntheticOnly:true,liveRequests:0};writeFileSync(join(out,'verification.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report));
 }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}

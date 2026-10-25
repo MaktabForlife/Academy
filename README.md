@@ -1,4 +1,12 @@
-# Umm Abbad Academy — V107.63
+# Umm Abbad Academy — V107.64
+
+## V107.64 — Assessment controls in rows
+
+Keep Student, Teacher and Admin assessment controls in their timetable rows. Open assessment opens the paper directly in PDF.js. Students submit PDF answers through an attachment popup and see their own released mark in the same row; results and reports remain available in a popup.
+
+Add Publish papers above the Admin list, Close submissions and Release marks in each row, with shared actions applying to every selected class. Use compact moderation and replacement-paper popups. Select the examiner from active Program/Course teachers and record the PDF uploader separately. Delete the former assessment detail screen, learner submissions/marking panel, screen handlers, answer-review dialog and unused styles. Retain stored learner records, existing release validation, exact retries and scoped permissions. No migrations or live data corrections.
+
+[Release and verification notes](docs/ACADEMY-ASSESSMENT-ROWS-107.64.md).
 
 ## V107.63 — Shared assessment rows for All classes
 

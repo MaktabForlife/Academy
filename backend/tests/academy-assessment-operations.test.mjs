@@ -11,8 +11,8 @@ async function use(fn){
  const f=await separationFixture();try{
   for(const name of ['0032_accepted_setup.sql','0033_native_attendance.sql','0034_assessment_operations.sql']){f.db.exec('BEGIN');f.db.exec(readFileSync(new URL('../migrations/academy/'+name,import.meta.url),'utf8'));f.db.exec('COMMIT');}
   await initialiseAcceptedSetup(f.env.ACADEMY_DB);f.env.ACADEMY_ACCEPTED_SETUP='1';f.env.ACADEMY_LEARNING_OPERATIONS='3';
-  const tokens={admin:await f.actor('global'),programAdmin:await f.actor('adminA'),teacher:await f.login('0003'),student:await f.login('0002')};
-  f.request=async(action,input={},who='admin',workspace=['admin','programAdmin'].includes(who)?'ADMIN':who==='teacher'?'TEACH':'LEARN',bytes)=>{
+  const tokens={admin:await f.actor('global'),programAdmin:await f.actor('adminA'),teacher:await f.login('0003'),examiner:await f.actor('teacherA'),student:await f.login('0002')};
+  f.request=async(action,input={},who='admin',workspace=['admin','programAdmin'].includes(who)?'ADMIN':['teacher','examiner'].includes(who)?'TEACH':'LEARN',bytes)=>{
    const path=action.startsWith('/')?action:'/api/academy/assessments/'+action,headers={Authorization:'Bearer '+tokens[who],'X-Academy-Workspace':workspace,...(!bytes?{'Content-Type':'application/json'}:{})};
    const response=await worker.fetch(new Request('http://localhost'+path,{method:'POST',headers,body:bytes||JSON.stringify(input)}),f.env);
    return {status:response.status,body:response.headers.get('Content-Type')?.includes('application/json')?await response.json():new Uint8Array(await response.arrayBuffer())};
@@ -23,7 +23,7 @@ async function use(fn){
   f.change=async(id,action,input={},who='admin')=>{const d=await f.detail(id);return f.request(action,{...operation(),assessmentId:id,revision:d.assessment.revision,...(d.group?.canManage?{groupRevisions:d.group.members.map(m=>({id:m.id,revision:m.revision})),groupCollections:d.group.members.map(m=>({id:m.id,revision:m.collectionRevision}))}:{}),...input},who);};
   f.uploadNative=async(id,kind,input={},who='admin')=>{
    const detail=await f.detail(id),bytes=Buffer.from('%PDF-1.4\n% native '+(input.label||'fixture')+'\n%%EOF'),metadata={...operation(),kind,assessmentId:id,mimeType:'application/pdf',size:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex'),filename:'answer.pdf',revision:detail.assessment.revision,...(kind==='PAPER'&&detail.group?{groupRevisions:detail.group.members.map(m=>({id:m.id,revision:m.revision}))}:{}),...input};
-   return f.request('/api/academy/assessments/upload?metadata='+encodeURIComponent(JSON.stringify(metadata)),{},who,['admin','programAdmin'].includes(who)?'ADMIN':who==='teacher'?'TEACH':'LEARN',bytes);
+   return f.request('/api/academy/assessments/upload?metadata='+encodeURIComponent(JSON.stringify(metadata)),{},who,['admin','programAdmin'].includes(who)?'ADMIN':['teacher','examiner'].includes(who)?'TEACH':'LEARN',bytes);
   };
   f.publish=async id=>{ok(await f.change(id,'publish'));await f.accept();};
   f.releasePaper=async id=>{const paper=ok(await f.uploadNative(id,'PAPER',{},'teacher'));ok(await f.change(id,'review-paper',{decision:'APPROVE',paperReview:{fileId:paper.fileId,sha256:f.db.prepare('SELECT sha256 FROM assessment_file_integrity WHERE file_id=?').get(paper.fileId).sha256}}));await f.accept();ok(await f.request('release-papers',{...operation(),papers:(await f.detail(id)).group?.members.map(m=>({id:m.id,revision:m.revision}))||[{id,revision:(await f.detail(id)).assessment.revision}]}));return paper;};
@@ -244,4 +244,37 @@ test('scoped publication includes only the required shared parent and preserves 
 
 test('deleting an unused shared assessment removes every selected class together and retains its audit',()=>use(async f=>{
  const id=await shared(f);ok(await f.change(id,'session-delete'));assert(f.db.prepare('SELECT deleted_at FROM assessments').all().every(a=>a.deleted_at));assert.equal(f.db.prepare("SELECT count(*) n FROM assessment_events WHERE action='session-delete'").get().n,2);assert.equal((await f.request('get',{assessmentId:id})).status,404);
+}));
+
+test('examiner choices are actual teachers; an Admin remains the separate uploader',()=>use(async f=>{
+ const list=ok(await f.request('list',{view:'admin'}));assert(list.examiners.some(t=>t.id===f.actors.teacherA&&t.activity_key===scopes.programA));assert(!list.examiners.some(t=>t.id===f.actors.global||t.id===f.actors.studentA));
+ const id=await f.create({examinerId:f.actors.teacherA}),file=ok(await f.uploadNative(id,'PAPER'));
+ const a=(await f.detail(id)).assessment;assert.equal(a.examinerId,f.actors.teacherA);assert.equal(a.examinerName,'Synthetic teacherA');assert.equal(a.subjectDescriptor,'Synthetic teacherA');assert.equal(a.paperUploaderName,'Synthetic global');
+ assert.equal(f.db.prepare('SELECT uploaded_by FROM assessment_files WHERE file_id=?').get(file.fileId).uploaded_by,f.actors.global);
+ await f.publish(id);const examiner=await f.detail(id,'examiner');assert.equal(examiner.assessment.isExaminer,true);assert.equal(examiner.assessment.readOnly,false);assert.equal(examiner.assessment.canSubmitPaper,true);assert.equal(examiner.assessment.canAdmin,false);
+ assert(ok(await f.request('list',{},'examiner')).assessments.some(a=>a.id===id));
+ const unrelated=await f.create();assert([403,404].includes((await f.request('get',{assessmentId:unrelated},'examiner')).status));
+ const changed=await f.change(id,'paper-details',{examinerId:'account-0003',durationMinutes:60,maximumMark:100},'examiner');assert.equal(changed.status,403);
+ const invalid=await f.request('create',{...operation(),activityKey:scopes.programA,classId:'class-1',title:'Invalid examiner',subject:'Qasas',examDate:today(),durationMinutes:60,maximumMark:100,examinerId:f.actors.teacherB});assert.equal(invalid.status,403);assert.equal(invalid.body.code,'EXAMINER_OUTSIDE_PROGRAM');
+ ok(await f.change(id,'paper-details',{examinerId:'account-0003',durationMinutes:60,maximumMark:100}));assert.equal((await f.detail(id)).assessment.examinerId,'account-0003');
+ assert.equal((await f.request('get',{assessmentId:id},'examiner')).status,403,'Reassignment revokes narrow examiner access');
+}));
+test('closing and reopening exam submissions retains the fixed exam cutoff',()=>use(async f=>{
+ const id=await f.create(),before=f.db.prepare('SELECT exam_cutoff FROM assessments WHERE assessment_id=?').get(id).exam_cutoff;
+ ok(await f.change(id,'collection-save',{closed:true,collectionRevision:0}));assert.equal((await f.detail(id)).assessment.collectionClosed,true);
+ assert.equal((await f.change(id,'collection-save',{closed:false,collectionRevision:0})).body.code,'ROW_CHANGED');
+ ok(await f.change(id,'collection-save',{closed:false,collectionRevision:1}));assert.equal((await f.detail(id)).assessment.collectionClosed,false);
+ assert.equal(f.db.prepare('SELECT exam_cutoff FROM assessments WHERE assessment_id=?').get(id).exam_cutoff,before);
+ assert.equal((await f.change(id,'collection-save',{closed:true,collectionRevision:2},'teacher')).status,403);
+}));
+
+test('learner timetable returns only that learner’s explicitly released mark, including zero',()=>use(async f=>{
+ const id=await f.create();await f.publish(id);const account='account-0002',file=ok(await f.uploadNative(id,'PAPER')),submission=crypto.randomUUID(),mark=crypto.randomUUID();
+ f.db.prepare('INSERT INTO assessment_submissions(submission_id,assessment_id,account_id,file_id,submitted_at,submission_number) VALUES(?,?,?,?,?,1)').run(submission,id,account,file.fileId,new Date().toISOString());
+ f.db.prepare("INSERT INTO assessment_markings(mark_id,assessment_id,account_id,submission_id,mark,feedback,state,examiner_id,created_at) VALUES(?,?,?,?,0,'','APPROVED',?,?)").run(mark,id,account,submission,'account-0003',new Date().toISOString());
+ f.db.prepare('UPDATE assessment_recipients SET latest_submission_id=?,latest_mark_id=? WHERE assessment_id=? AND account_id=?').run(submission,mark,id,account);
+ const before=ok(await f.request('list',{},'student')).assessments.find(a=>a.id===id);assert(!Object.hasOwn(before,'releasedMark'));assert(!Object.hasOwn(before,'releasedMaximumMark'));
+ ok(await f.change(id,'release',{category:'marks',selection:'CLASS'}));const after=ok(await f.request('list',{},'student')).assessments.find(a=>a.id===id);assert.equal(after.releasedMark,0);assert.equal(after.releasedMaximumMark,100);
+ const preview=ok(await f.request('list',{view:'learner'}));assert(preview.assessments.every(a=>!Object.hasOwn(a,'releasedMark')));
+ ok(await f.change(id,'withdraw-release',{category:'marks',selection:'SELECTED',accountIds:[account]}));assert(!Object.hasOwn(ok(await f.request('list',{},'student')).assessments.find(a=>a.id===id),'releasedMark'));
 }));
