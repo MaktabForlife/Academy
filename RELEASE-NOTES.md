@@ -1,3 +1,13 @@
+# V107.50 — Multiple-class assessment selection and Admin lesson media
+
+The Add assessment form accepts individual class checkboxes, Select all and Clear. Validate every selected class against current Admin authority and the Imtihaan's allowed areas/classes, then create the class schedules in one atomic operation with an exact retry receipt. Reuse one bounded class-authority query and the loaded register instead of repeating those reads per class. Retain single-class clients, class-specific paper/submission/marking records, native untimed assignments and future due dates. Creating assessments does not publish schedules, papers or results and does not create learner work or enrolments.
+
+Admin Program/Course media uses the shared rail of equal-sized cards with Edit opening the editor. Put date/teacher details and Save/Close in the compact header. Replace duplicate status/metadata and preview actions with a combined Attachments section containing named videos, YouTube links and PDF filenames, plus Add video and Add PDF. Header Save commits title, summary, video changes, PDF names and staged attachment removals together. Failed or uncertain saves retain the draft and retry identifier; Close guards unsaved edits. PDF uploads remain explicit. Preserve existing R2 bytes, asset identity, Teacher note ownership and Library/PDF tools. New Course session media retains its offering and session references, with no invalid Program-class foreign key.
+
+New-client capability checks prevent a partially updated API from silently accepting only the first class or ignoring attachment edits. Both items queued during V107.49 are completed here. Core/Admin owner routing and the private coordinator remain unchanged. No migrations, database reloads, live corrections or new editable masters are part of this release.
+
+Validation: all 102 regression files pass, including new rollback/retry, revocation, native assignment, PDF-byte preservation and physical split-store cases. Actual mobile/desktop assessment and Program/Course media pages pass at 320, 390, 768 and 1440px; existing media workflows and both builds pass. Tests use disposable local databases and R2. Final hosted verification is limited to release health endpoints.
+
 # V107.49 — Responsive timetables and Admin navigation
 
 Show timetable dates in one horizontal row across Home, personal and Admin workspaces and their Program/Course views. Keep Sunday as the start of every week. On mobile, scroll Home to today or the next date with a lesson; desktop initially shows Sunday. Keep week arrows on the heading row and remove duplicate week labels/ranges. Mobile Quick links fits about three to four compact cards; self-paced opportunities become a continuous rail.

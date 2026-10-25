@@ -1,4 +1,9 @@
-# Umm Abbad Academy — V107.49
+# Umm Abbad Academy — V107.50
+
+## V107.50 — Multiple-class assessments and Admin media cards
+
+Choose one or more classes when adding an assessment. Apply the shared details in one atomic, retry-safe operation while retaining each class's own paper, learner work, marking and explicit release controls. Admin lesson media uses the shared swipeable card rail with Edit on each card. The compact editor has date/teacher details and Save/Close in its header, plus one Attachments section for videos and PDFs. Save title, summary, video links, PDF names and staged removals together; upload PDFs explicitly. Preserve stored files and their identities. Fix new Course session media to reference its existing offering without treating the offering as a Program class. No migration, live data correction, enrolment or automatic schedule/paper/result release.
+
 
 ## V107.49 — Responsive timetables and workspace navigation
 

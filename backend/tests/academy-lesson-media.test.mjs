@@ -117,3 +117,18 @@ test('an uncertain commit acknowledgement retains the accepted private object fo
  const asset=f.db.prepare("SELECT a.* FROM lesson_media_assets a JOIN lesson_media_links l USING(asset_id) WHERE l.lesson_id=? AND a.kind='PDF'").get(id);assert(asset);assert(f.objects.has(asset.object_key));
  const retried=ok(await f.mediaUpload(uploaded.metadata,teacher));assert.equal(retried.assetId,asset.asset_id);assert.equal(retried.replayed,true);assert.equal(f.objects.size,1);assert.equal((await f.media('download',{lessonId:id,assetId:asset.asset_id},student)).status,200);
 }));
+
+test('one editor save renames PDFs, removes chosen links and updates videos atomically while preserving stored bytes',use(async f=>{
+ const admin=await f.login('0001');const first=ok(await f.mediaUpload({lessonId:id,revision:1,name:'First PDF'},admin)),second=ok(await f.mediaUpload({lessonId:id,revision:2,name:'Second PDF'},admin));
+ const objects=[...f.objects.keys()],body=save({revision:3,title:'Updated attachment editor',summary:'One saved change',videos:[{name:'Named recording',url:'https://youtu.be/9IuTDcSs6vQ'}],attachmentNames:[{assetId:first.assetId,name:'Renamed PDF'}],removeAssetIds:[second.assetId]});
+ const saved=ok(await f.media('save',body,admin));assert.equal(ok(await f.media('save',body,admin)).replayed,true);
+ const detail=ok(await f.media('get',{lessonId:id},admin));assert.equal(detail.lesson.revision,4);assert.equal(detail.lesson.title,body.title);assert.equal(detail.assets.find(a=>a.id===first.assetId).name,'Renamed PDF');assert(!detail.assets.some(a=>a.id===second.assetId));assert.equal(detail.assets.find(a=>a.kind==='YOUTUBE').name,'Named recording');assert.deepEqual([...f.objects.keys()],objects);assert.equal(saved.revision,4);
+}));
+test('combined editor save rejects foreign PDF identities and rolls back metadata when a later statement fails',use(async f=>{
+ const admin=await f.login('0001'),first=ok(await f.mediaUpload({lessonId:id,revision:1,name:'Unchanged'},admin)),foreign=ok(await f.mediaUpload({lessonId:'MOU-20261007',revision:1},admin));
+ const body=save({revision:2,title:'Atomic editor',attachmentNames:[{assetId:first.assetId,name:'Must roll back'}],removeAssetIds:[]});
+ assert.equal((await f.media('save',{...body,attachmentNames:[{assetId:foreign.assetId,name:'Forbidden'}]},admin)).status,404);
+ f.db.exec("CREATE TRIGGER fail_editor_title BEFORE UPDATE OF title ON lesson_media_lessons BEGIN SELECT RAISE(ABORT,'synthetic editor failure'); END;");assert.equal((await f.media('save',body,admin)).status,503);
+ let detail=ok(await f.media('get',{lessonId:id},admin));assert.equal(detail.lesson.revision,2);assert.equal(detail.assets.find(a=>a.id===first.assetId).name,'Unchanged');
+ f.db.exec('DROP TRIGGER fail_editor_title');ok(await f.media('save',body,admin));detail=ok(await f.media('get',{lessonId:id},admin));assert.equal(detail.assets.find(a=>a.id===first.assetId).name,'Must roll back');assert.equal(detail.lesson.title,'Atomic editor');
+}));

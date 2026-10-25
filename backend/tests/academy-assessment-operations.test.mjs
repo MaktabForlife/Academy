@@ -91,3 +91,12 @@ test('achieved-only reports bind the reviewed PDF, definition and explicitly rel
  ok(await f.request('report-save',{...operation(),...body,review:{sha256:file.sha256,layout}}));assert.equal(ok(await f.request('report-list',{assessmentId:id},'student')).reports.length,1);ok(await f.request('download',{fileId:file.fileId,...operation()},'student'));
  ok(await f.change(id,'withdraw-release',{category:'marks',selection:'SELECTED',accountIds:[learner.id]}));assert.equal(ok(await f.request('report-list',{assessmentId:id},'student')).reports.length,0);assert.equal((await f.request('download',{fileId:file.fileId,...operation()},'student')).status,409);
 }));
+
+test('multi-class native assignments retain untimed future due dates and remain private until explicit release',()=>use(async f=>{
+ f.db.prepare("INSERT INTO classes(activity_key,class_id,name,active) VALUES(?,'multi-native','Second native class',1)").run(scopes.programA);
+ const input={...operation(),activityKey:scopes.programA,classId:'class-1',classes:[{activityKey:scopes.programA,classId:'class-1'},{activityKey:scopes.programA,classId:'multi-native'}],title:'Shared assignment',subject:'Qasas',assessmentKind:'ASSIGNMENT',timingMode:'UNTIMED',availableFrom:today()+'T09:00',dueDate:nextDate(today()),maximumMark:100};
+ const result=ok(await f.request('create',input));assert.equal(result.assessmentIds.length,2);assert.deepEqual(ok(await f.request('create',input)).assessmentIds,result.assessmentIds);
+ for(const id of result.assessmentIds){const row=f.db.prepare('SELECT * FROM assessments WHERE assessment_id=?').get(id);assert.equal(row.timing_mode,'UNTIMED');assert.equal(row.duration_minutes,null);assert(row.due_at);assert.equal(row.schedule_published,0);assert.equal(row.paper_released_at,null);}
+ assert.equal(f.db.prepare('SELECT count(*) n FROM assessment_recipients').get().n,0);
+ const learn=await f.request('list',{},'admin','ADMIN_LEARN');assert.equal(learn.status,200);assert(!learn.body.assessments.some(a=>result.assessmentIds.includes(a.id)));
+}));

@@ -30,6 +30,10 @@ export function assessmentStore(repository,auth){
  async function requireClass(activityKey,classId,mode='staff'){
   if(!await allowed(activityKey,classId,mode))throw fail('This class is outside your assessment access.',403,'FORBIDDEN');
  }
+ async function requireAdminClasses(targets){
+  const rows=(await p(`SELECT c.activity_key,c.class_id FROM json_each(?) j JOIN classes c ON c.activity_key=json_extract(j.value,'$.activityKey') AND c.class_id=json_extract(j.value,'$.classId') JOIN activities a USING(activity_key) WHERE c.active=1 AND a.active=1 AND a.lifecycle='ACTIVE' AND ${clause('admin')}`,JSON.stringify(targets),...values('admin')).all()).results;
+  if(rows.length!==targets.length)throw fail('A selected class is outside your assessment access.',403,'FORBIDDEN');
+ }
  async function assessment(id){const a=await p(`SELECT x.*${repository.features?.nativeAttendance&&auth.workspace==='TEACH'?',current.duration_minutes,current.maximum_mark,current.timing_mode,current.allowance_minutes':''}${repository.features?.nativeAttendance?',f.sha256 paper_sha256':''},COALESCE(ar.name,ph.name) phase_name,c.name class_name,a.name activity_name FROM assessments x ${repository.features?.nativeAttendance&&auth.workspace==='TEACH'?'JOIN main.assessments current ON current.assessment_id=x.assessment_id':''} ${repository.features?.nativeAttendance?'LEFT JOIN assessment_file_integrity f ON f.file_id=x.paper_file_id':''} LEFT JOIN assessment_phases ph ON ph.phase_id=x.phase_id LEFT JOIN assessment_registers ar ON ar.register_id=x.register_id JOIN classes c ON c.activity_key=x.activity_key AND c.class_id=x.class_id JOIN activities a ON a.activity_key=x.activity_key WHERE x.assessment_id=? AND x.deleted_at IS NULL`,String(id||'')).first();if(!a)throw fail('Assessment not found.',404);return a;}
  const recipient=(id,accountId=actor)=>p('SELECT * FROM assessment_recipients WHERE assessment_id=? AND account_id=?',id,accountId).first();
  async function requireReader(a){
@@ -69,5 +73,5 @@ export function assessmentStore(repository,auth){
   }
  }
  const touch=a=>p('UPDATE assessments SET revision=revision+1,updated_at=? WHERE assessment_id=?',new Date().toISOString(),a.assessment_id);
- return {db,p,actor,classes,allowed,readStaff,requireClass,assessment,recipient,requireReader,requireExaminer,moderator,roster,event,revision,recipientRevision,change,touch};
+ return {db,p,actor,classes,allowed,readStaff,requireClass,requireAdminClasses,assessment,recipient,requireReader,requireExaminer,moderator,roster,event,revision,recipientRevision,change,touch};
 }

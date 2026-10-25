@@ -75,7 +75,7 @@ export function d1Assessments(repository,auth){
   const phases=(await p(`SELECT ph.*,a.name activity_name FROM assessment_phases ph JOIN activities a USING(activity_key) WHERE ph.activity_key IN(SELECT json_extract(value,'$.activity_key') FROM json_each(?)) OR ph.phase_id IN(SELECT json_extract(value,'$.phaseId') FROM json_each(?)) ORDER BY ph.created_at DESC,ph.name LIMIT 501`,JSON.stringify(admin),JSON.stringify(assessments)).all()).results;
   if(phases.length>500)throw fail('Choose a learning area to narrow the phase list.',409);
   if(preview)return {assessments,phases:[],classes:[],registers:[],catalogue:[],canAdmin:false,learnerPreview:true,timezone:native?await appTimezone(repository):'Africa/Johannesburg',store:'D1'};
-  return {...(admin.length?await registerList(s,input):{registers:[],registerClasses:[],registerStatuses:[],imtihaanStatuses:[]}),phases:phases.map(ph=>({id:ph.phase_id,name:ph.name,activityKey:ph.activity_key,activityName:ph.activity_name})),assessments,classes:input.view==='admin'?admin:staff,catalogue:admin.length?await catalogue():[],canAdmin:admin.length>0,timezone:native?await appTimezone(repository):'Africa/Johannesburg',store:'D1'};
+  return {...(admin.length?await registerList(s,input):{registers:[],registerClasses:[],registerStatuses:[],imtihaanStatuses:[]}),phases:phases.map(ph=>({id:ph.phase_id,name:ph.name,activityKey:ph.activity_key,activityName:ph.activity_name})),assessments,multiClassSelection:true,classes:input.view==='admin'?admin:staff,catalogue:admin.length?await catalogue():[],canAdmin:admin.length>0,timezone:native?await appTimezone(repository):'Africa/Johannesburg',store:'D1'};
  }
  async function detail(input){
   const a=await s.assessment(input.assessmentId);await s.requireReader(a);
@@ -99,10 +99,25 @@ export function d1Assessments(repository,auth){
   return result;
  }
  async function create(input){
+  const targets=input.classes===undefined?[{activityKey:input.activityKey,classId:input.classId}]:input.classes;
+  if(!Array.isArray(targets)||!targets.length||targets.length>50||targets.some(c=>!c||typeof c.activityKey!=='string'||typeof c.classId!=='string'||!c.activityKey||!c.classId||c.activityKey.length>200||c.classId.length>200)||new Set(targets.map(c=>JSON.stringify([c.activityKey.toLowerCase(),c.classId.toLowerCase()]))).size!==targets.length)throw fail('Choose between one and 50 different classes.');
+  if(targets[0].activityKey!==input.activityKey)throw fail('Choose a class in the selected learning area.');
   return s.change('create',input,input.activityKey,async()=>{
-   await s.requireClass(input.activityKey,input.classId,'admin');const v=await fields(input),phaseId=await phaseFor(input.phaseId,input.activityKey),id=crypto.randomUUID(),now=new Date().toISOString();
-   const register=input.registerId?{id:(await requireRegisterClass(s,input.registerId,input.activityKey,input.classId)).register_id,statements:[]}:await legacyRegisterPlan(s,{activityKey:input.activityKey,classId:input.classId,title:v.title,phaseId});
-   return {statements:[...register.statements,p(`INSERT INTO assessments(assessment_id,activity_key,class_id,title,subject,exam_date,duration_minutes,maximum_mark,phase_id,subject_descriptor,created_at,created_by,updated_at,register_id${native?',assessment_kind,timing_mode,timezone,available_from,due_at,exam_cutoff,allowance_minutes':''}) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?${native?',?,?,?,?,?,?,?':''})`,id,input.activityKey,input.classId,v.title,v.subject,v.date,v.duration,v.maximum,phaseId,v.descriptor,now,actor,now,register.id,...(native?[v.timing.kind,v.timing.mode,v.timing.timezone,v.timing.opens,v.timing.due,v.timing.cutoff,v.timing.allowance]:[])),s.event({assessment_id:id,activity_key:input.activityKey},'CREATED',{title:v.title})],result:{assessmentId:id}};
+   await s.requireAdminClasses(targets);
+   const selectedRegister=input.registerId?await requireRegisterClass(s,input.registerId,targets[0].activityKey,targets[0].classId):null;
+   const v=await fields(input),now=new Date().toISOString(),statements=[],ids=[],registers=new Map();
+   let shared=null;
+   if(targets.length>1&&!input.registerId&&!input.phaseId){shared=crypto.randomUUID();statements.push(...newRegisterStatements(s,{id:shared,name:v.title,keys:[...new Set(targets.map(c=>c.activityKey))]}));}
+   for(const target of targets){
+    const phaseId=await phaseFor(input.phaseId,target.activityKey),id=crypto.randomUUID();
+    let register;
+    if(input.registerId)register={id:(await requireRegisterClass(s,input.registerId,target.activityKey,target.classId,selectedRegister)).register_id,statements:[]};
+    else if(shared)register={id:shared,statements:[]};
+    else{const key=phaseId||JSON.stringify([target.activityKey,target.classId]);register=registers.get(key);if(!register){register=await legacyRegisterPlan(s,{...target,title:v.title,phaseId});registers.set(key,{id:register.id,statements:[]});}}
+    statements.push(...register.statements,p(`INSERT INTO assessments(assessment_id,activity_key,class_id,title,subject,exam_date,duration_minutes,maximum_mark,phase_id,subject_descriptor,created_at,created_by,updated_at,register_id${native?',assessment_kind,timing_mode,timezone,available_from,due_at,exam_cutoff,allowance_minutes':''}) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?${native?',?,?,?,?,?,?,?':''})`,id,target.activityKey,target.classId,v.title,v.subject,v.date,v.duration,v.maximum,phaseId,v.descriptor,now,actor,now,register.id,...(native?[v.timing.kind,v.timing.mode,v.timing.timezone,v.timing.opens,v.timing.due,v.timing.cutoff,v.timing.allowance]:[])),s.event({assessment_id:id,activity_key:target.activityKey},'CREATED',{title:v.title}));
+    ids.push(id);
+   }
+   return {statements,result:{assessmentId:ids[0],...(input.classes===undefined?{}:{assessmentIds:ids})}};
   });
  }
  async function mutate(action,input){

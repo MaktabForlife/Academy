@@ -137,7 +137,7 @@ export function lessonMedia(repository,auth,env){
  async function selectedSession(input){
   const result=await sessions(input),session=result.sessions.find(r=>r.sessionKey===input.sessionKey);
   if(!session||session.sessionVersion!==input.sessionVersion)throw fail('This session changed. Refresh the session list before attaching media.',409,'SESSION_CHANGED');
-  return {lesson_id:'LM-'+crypto.randomUUID(),activity_key:scopeKey,class_id:session.classIds.length===1?session.classIds[0]:null,lesson_date:session.date,title:session.title.slice(0,180),start_time:session.startTime,end_time:session.endTime,teacher_id:session.teacherIds[0]||null,teacher_name:session.teacherName,teacher_ids_json:JSON.stringify(session.teacherIds),source_publication_id:session.publicationId,source_lessons_json:JSON.stringify([session]),session_key:session.sessionKey,run_id:session.runId,isNew:true};
+  return {lesson_id:'LM-'+crypto.randomUUID(),activity_key:scopeKey,class_id:activity.kind==='PROGRAM'&&session.classIds.length===1?session.classIds[0]:null,lesson_date:session.date,title:session.title.slice(0,180),start_time:session.startTime,end_time:session.endTime,teacher_id:session.teacherIds[0]||null,teacher_name:session.teacherName,teacher_ids_json:JSON.stringify(session.teacherIds),source_publication_id:session.publicationId,source_lessons_json:JSON.stringify([session]),session_key:session.sessionKey,run_id:session.runId,isNew:true};
  }
  async function create(input){
   if(!admin&&!teacher)throw fail('Only teaching staff may attach media.',403,'MEDIA_FORBIDDEN');
@@ -189,7 +189,12 @@ export function lessonMedia(repository,auth,env){
     const id=youtubeId(named?value.url:value),previous=old.find(a=>a.youtube_id===id),name=named?cleanText(value.name||'',180,'a video name',true):previous?.display_name||'';
     if(!videos.has(id))videos.set(id,{id,name,previous,index});
    }
-   const statements=[...(repository.features?.mediaSeparation&&state==='HIDDEN'?[p('INSERT INTO lesson_media_visibility VALUES(?,0,?,?) ON CONFLICT(lesson_id) DO UPDATE SET visible=0,updated_at=excluded.updated_at,updated_by=excluded.updated_by',row.lesson_id,new Date().toISOString(),actor)]:[]),p('UPDATE lesson_media_lessons SET title=?,summary=?,state=?,comments_closed=?,revision=revision+1,updated_at=? WHERE lesson_id=?',title,summary,state,current.media_scope==='COURSE'?1:Number(input.commentsClosed),new Date().toISOString(),row.lesson_id),...old.filter(a=>!videos.has(a.youtube_id)).map(a=>p('DELETE FROM lesson_media_links WHERE lesson_id=? AND asset_id=?',row.lesson_id,a.asset_id))];
+   const names=input.attachmentNames??[],removed=input.removeAssetIds??[];
+   if(!Array.isArray(names)||!Array.isArray(removed)||names.length>50||removed.length>50||names.some(a=>!a||typeof a.assetId!=='string')||removed.some(id=>typeof id!=='string')||new Set([...names.map(a=>a.assetId),...removed]).size!==names.length+removed.length)throw fail('Choose different PDF attachments to update.');
+   const pdfs=names.length||removed.length?(await p("SELECT a.asset_id FROM lesson_media_links l JOIN lesson_media_assets a USING(asset_id) WHERE l.lesson_id=? AND a.kind='PDF'",row.lesson_id).all()).results:[];
+   if([...names.map(a=>a.assetId),...removed].some(id=>!pdfs.some(a=>a.asset_id===id)))throw fail('PDF attachment not found in this lesson.',404);
+   const pdfChanges=[...names.map(a=>p('UPDATE lesson_media_assets SET display_name=? WHERE asset_id=?',cleanText(a.name,180,'a PDF name',true),a.assetId)),...removed.map(id=>p('DELETE FROM lesson_media_links WHERE lesson_id=? AND asset_id=?',row.lesson_id,id))];
+   const statements=[...pdfChanges,...(repository.features?.mediaSeparation&&state==='HIDDEN'?[p('INSERT INTO lesson_media_visibility VALUES(?,0,?,?) ON CONFLICT(lesson_id) DO UPDATE SET visible=0,updated_at=excluded.updated_at,updated_by=excluded.updated_by',row.lesson_id,new Date().toISOString(),actor)]:[]),p('UPDATE lesson_media_lessons SET title=?,summary=?,state=?,comments_closed=?,revision=revision+1,updated_at=? WHERE lesson_id=?',title,summary,state,current.media_scope==='COURSE'?1:Number(input.commentsClosed),new Date().toISOString(),row.lesson_id),...old.filter(a=>!videos.has(a.youtube_id)).map(a=>p('DELETE FROM lesson_media_links WHERE lesson_id=? AND asset_id=?',row.lesson_id,a.asset_id))];
    for(const video of videos.values()){
     if(video.previous){statements.push(p('UPDATE lesson_media_assets SET display_name=? WHERE asset_id=?',video.name,video.previous.asset_id));continue;}
     const assetId=crypto.randomUUID();statements.push(p("INSERT INTO lesson_media_assets(asset_id,activity_key,kind,youtube_id,filename,display_name,created_at) VALUES(?,?,'YOUTUBE',?,?,?,?)",assetId,scopeKey,video.id,'Video '+(video.index+1),video.name,new Date().toISOString()),p('INSERT INTO lesson_media_links VALUES(?,?)',row.lesson_id,assetId));
@@ -257,7 +262,7 @@ export function lessonMedia(repository,auth,env){
   await ready(input);if(['comments','comment-save','comment-moderate'].includes(action)&&input.lessonId&&(await lesson(input.lessonId)).media_scope==='COURSE')throw fail('Discussion belongs to individual sessions.');if(action==='course-files-create')return createCourseFiles(input);if(action==='calendar')return calendar(input);if(action==='sessions')return sessions(input);if(action==='create')return create(input);if(action==='list')return list(input);if(action==='save')return save(input);if(action==='comments')return comments(input);if(action==='comment-save')return commentSave(input);if(action==='comment-moderate')return moderate(input);
   if(action==='download')return download(input);
   const row=await lesson(input.lessonId);
-  if(action==='get'){staff(row);return {lesson:dto(row),assets:await assets(row.lesson_id,true)};}
+  if(action==='get'){staff(row);return {lesson:dto(row),assets:await assets(row.lesson_id,true),attachmentEditing:true};}
   if(action==='watch'){
    reader(row);const a=await p("SELECT a.youtube_id FROM lesson_media_links l JOIN lesson_media_assets a USING(asset_id) WHERE l.lesson_id=? AND a.asset_id=? AND a.kind='YOUTUBE'",row.lesson_id,String(input.assetId||'')).first();if(!a)throw fail('Recording not found.',404);
    return {embedUrl:'https://www.youtube-nocookie.com/embed/'+a.youtube_id+'?rel=0',title:row.title};

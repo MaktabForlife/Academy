@@ -27,8 +27,8 @@ export async function legacyRegisterPlan(s,{activityKey,classId,title,phaseId}){
  if(old)return {id:old.register_id,statements:[]};
  const id=crypto.randomUUID();return {id,statements:newRegisterStatements(s,{id,name:phase?.name||title,keys:[activityKey],classMode:phase?'ALL':'ONE',classActivityKey:phase?null:activityKey,classId:phase?null:classId,status:'SCHEDULED',phaseId:phaseId||null})};
 }
-export async function requireRegisterClass(s,id,activityKey,classId){
- const r=await registerRecord(s,id);
+export async function requireRegisterClass(s,id,activityKey,classId,record=null){
+ const r=record||await registerRecord(s,id);
  if(!r.activityKeys.includes(activityKey)||r.class_mode==='ONE'&&(r.class_activity_key!==activityKey||r.class_id!==classId))throw fail('Choose a class included in this Imtihaan.',403);
  return r;
 }
