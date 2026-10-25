@@ -1,4 +1,10 @@
-# Umm Abbad Academy — V107.60
+# Umm Abbad Academy — V107.61
+
+## V107.61 — One Imtihaan table and paper moderation links
+
+Open an All classes Imtihaan as one assessment table headed with the Imtihaan name and All classes. Keep each class assessment and its actions, add a Class column, and order the combined entries by date, subject and class. Keep single-class and learner/teacher timetable views scoped as before.
+
+Make the Admin Paper status badge open that exact assessment in Moderation and focus its paper controls. Retain the pencil icon for the attachment popup and recheck current access before opening. Confirm paper approval explicitly after reviewing the attachment; cancelling keeps it unapproved, and student paper release remains separate. Includes the validation-first release controls, contextual All classes publish label and disabled Publishing button. No migrations or live data corrections.
 
 ## V107.60 — Validate schedules before release
 

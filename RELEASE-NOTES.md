@@ -1,3 +1,9 @@
+# V107.61 — One Imtihaan table and paper moderation links
+
+Open an All classes Imtihaan as one assessment table headed with the Imtihaan name and All classes. Keep each class assessment and its actions, add a Class column, and order the combined entries by date, subject and class. Keep single-class and learner/teacher timetable views scoped as before.
+
+Make the Admin Paper status badge open that exact assessment in Moderation and focus its paper controls. Retain the pencil icon for the attachment popup and recheck current access before opening. Confirm paper approval explicitly after reviewing the attachment; cancelling keeps it unapproved, and student paper release remains separate. Includes the validation-first release controls, contextual All classes publish label and disabled Publishing button. No migrations or live data corrections.
+
 # V107.60 — Validate schedules before release
 
 Add Validate schedule beside Release schedule in each unreleased Imtihaan Register row, with its validation result directly below. Enable Release only after successful schedule validation for that entry; clear validation when its data refreshes or changes, and recheck current data on the server during release. Apply the same sequence inside the schedule.
