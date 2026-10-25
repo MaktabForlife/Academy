@@ -1,3 +1,9 @@
+# Local optimisation branch and deployment hold — 25 October 2026
+
+- Work on the local `feature/academy-read-optimisation` branch for the query and dashboard snapshot optimisation requested by the user.
+- Do not push or deploy this work until the user explicitly requests it. This suspends the earlier automatic Development deployment authorisations below.
+- Keep all database verification local using disposable fixtures during this work.
+
 # Current Development workflow — 24 October 2026
 
 - Work directly on `development` until the user changes this instruction; do not create feature branches.

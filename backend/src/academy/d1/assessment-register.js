@@ -96,10 +96,13 @@ async function scheduleReleasePlan(s,register){
  if(dates.length>1000)throw fail('This Imtihaan has too many assessments to release together.',409);
  requireValidStatus(await statusValidation(s,register.register_id,'SCHEDULED'));
  const pending=dates.filter(a=>!a.schedule_published),recipients=[],events=[],now=new Date().toISOString();
+ const classes=[...new Map(pending.map(a=>[JSON.stringify([a.activity_key,a.class_id]),{activityKey:a.activity_key,classId:a.class_id}])).values()];
+ if(classes.length)await s.requireAdminClasses(classes);
+ const rosters=pending.length?await s.rosters(pending):[];
+ const byAssessment=new Map();for(const row of rosters){if(!byAssessment.has(row.assessment_id))byAssessment.set(row.assessment_id,[]);byAssessment.get(row.assessment_id).push(row);}
  for(const a of pending){
-  await s.requireClass(a.activity_key,a.class_id,'admin');
   if(!register.activityKeys.includes(a.activity_key)||register.class_mode==='ONE'&&(register.class_activity_key!==a.activity_key||register.class_id!==a.class_id))throw fail('An assessment is outside this Imtihaan’s class selection.',409);
-  const rows=await s.roster(a);if(!rows.length)throw fail(`This assessment class has no eligible learners: ${a.title} · ${a.exam_date}. Check its enrolments before release.`,409);
+  const rows=byAssessment.get(a.assessment_id)||[];if(!rows.length)throw fail(`This assessment class has no eligible learners: ${a.title} · ${a.exam_date}. Check its enrolments before release.`,409);
   if(rows.length>2000)throw fail('Split this class into smaller assessment groups.',409);
   if(recipients.length+rows.length>25000)throw fail('Split this Imtihaan into smaller groups before releasing its schedule.',409);
   recipients.push(...rows.map(r=>({assessmentId:a.assessment_id,accountId:r.account_id,name:r.display_name})));

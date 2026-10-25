@@ -1,7 +1,10 @@
 import {personalLinksEstablished} from './personal-links.js';
+import {permissionState,verifiedPermissionVersion} from './permission-state.js';
 import {emptyCompatibilityDatabase} from '../separation/compatibility.js';
 import {emptyShapes} from '../separation/empty-shapes.js';
 import {splitClient} from '../separation/client.js';
+import {actorProof,verifyActor,verifyActorVersion} from '../separation/proof.js';
+import {snapshotKeys,snapshotSchemaKey} from '../separation/snapshot-revisions.js';
 import { authorityRank, normalizePlatformIdentifier as key } from '../../lib/platform-schema.js';
 import {CORE_ACTIVATION_CHECKS,newActivityOwnership} from './activation-policy.js';
 import {programAccessJoin,programAccessSQL} from './program-access.js';
@@ -21,7 +24,21 @@ export function academyD1Repository(env) {
   const split=env.ACADEMY_DB_GENERATION==='SPLIT_V1';
   if(split&&!env.ACADEMY_ADMIN_DB)throw rehearsalError('The Admin database binding is required.',503,'SPLIT_BINDING_REQUIRED');
   const raw=env.ACADEMY_DB.withSession('first-primary'),compatible=split?emptyCompatibilityDatabase(raw,emptyShapes,{currentGrants:true}):raw;
-  const client=split?splitClient(env,compatible,env.ACADEMY_ADMIN_DB.withSession('first-primary')):null,db=client?.core||compatible;
+  const adminRaw=split?env.ACADEMY_ADMIN_DB.withSession('first-primary'):null;
+  const client=split?splitClient(env,compatible,adminRaw):null,db=client?.core||compatible;
+  const privateSnapshots=split&&env.LESSON_MEDIA_BUCKET?{
+    bucket:env.LESSON_MEDIA_BUCKET,namespace:[env.ENVIRONMENT,env.ACADEMY_D1_RUN_ID],
+    async revision(auth,previous,kind){
+      const keys=snapshotKeys(kind,auth.user.accountid),rows=(await raw.prepare('SELECT setting_key,setting_value FROM academy_settings WHERE setting_key IN(SELECT value FROM json_each(?)) ORDER BY setting_key').bind(JSON.stringify(keys)).all()).results;
+      if(rows.find(r=>r.setting_key===snapshotSchemaKey)?.setting_value!=='1')return {enabled:false};
+      const proof=actorProof(auth),verified=previous?.core??verifiedPermissionVersion(auth.authority||auth.state,proof.signature);
+      const core=await (Number.isInteger(verified)?verifyActorVersion(compatible,proof,verified):verifyActor(compatible,proof));
+      // Admin dashboards retain editable draft semantics; published readers
+      // reuse snapshots through unrelated attendance, marking and note writes.
+      const source=(auth.workspace==='ADMIN'&&kind!=='timetable-source')||keys.length===1?core:rows;
+      return {enabled:true,core,source};
+    }
+  }:null;
   const prepare=(sql,...values)=>db.prepare(sql).bind(...values);
   let schemas,activation;
   async function schemaNames(){
@@ -83,6 +100,7 @@ export function academyD1Repository(env) {
       SELECT ?,?,?,?,?,?,?,?,? ${conditional?'WHERE changes()=1':''}`,crypto.randomUUID(),new Date().toISOString(),actor,env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACCOUNT':'D1_REHEARSAL','ACADEMY',action,'USER_ACCOUNT',target,JSON.stringify(fields));
   }
   return {
+    privateSnapshots,
     bindActor:auth=>client?.bindActor(auth),
     authoringRepository(){return client?{...this,db:client.admin}:this;},
     db,coreDb:db,adminDb:split?env.ACADEMY_ADMIN_DB.withSession('first-primary'):null,setup:{enabled:env.ACADEMY_ACCEPTED_SETUP==='1'},features:{nativeAttendance:env.ACADEMY_LEARNING_OPERATIONS==='3',mediaSeparation:env.ACADEMY_MEDIA_SEPARATION==='1',splitDatabases:split},
@@ -154,9 +172,22 @@ export function academyD1Repository(env) {
       return {sid,expires,context};
     },
     async session(sid,accountId,epoch,now=new Date()) {
-      return stateFor(`a.account_id=? AND a.active=1 AND c.pin_setup=1 AND length(trim(c.pin_hash))>0 AND c.credential_epoch=?
+      const where=`a.account_id=? AND a.active=1 AND c.pin_setup=1 AND length(trim(c.pin_hash))>0 AND c.credential_epoch=?
         AND EXISTS(SELECT 1 FROM account_sessions s WHERE s.session_id=? AND s.account_id=a.account_id AND s.credential_epoch=c.credential_epoch
-          AND s.revoked_at IS NULL AND s.expires_at>?)`,[accountId,epoch,sid,now.toISOString()]);
+          AND s.revoked_at IS NULL AND s.expires_at>?)`,values=[accountId,epoch,sid,now.toISOString()],load=()=>stateFor(where,values);
+      if(!split||!env.LESSON_MEDIA_BUCKET)return load();
+      const started=Date.now(),gate=async()=>{
+        const current=(await raw.prepare(`WITH current_actor AS (${accountSQL} WHERE ${where}) SELECT a.*,
+          (SELECT head_id FROM setup_head_state WHERE singleton=1) cache_head,
+          (SELECT version FROM split_read_state WHERE singleton=1) cache_core,
+          (SELECT setting_value FROM academy_settings WHERE setting_key='${snapshotSchemaKey}') cache_schema,
+          (SELECT json_group_array(json_object('key',setting_key,'value',setting_value)) FROM (SELECT setting_key,setting_value FROM academy_settings WHERE setting_key IN(SELECT value FROM json_each(?)) ORDER BY setting_key)) cache_revisions
+          FROM current_actor a`).bind(accountId,epoch,sid,new Date(now.getTime()+Date.now()-started).toISOString(),JSON.stringify(snapshotKeys('permissions',accountId))).all()).results[0];
+        if(!current)return null;
+        const {cache_head,cache_core,cache_schema,cache_revisions,...account}=current;
+        return {enabled:cache_schema==='1',core:cache_core,account,revision:JSON.stringify([cache_head,cache_revisions,account.global_admin,account.credential_epoch,account.substitute_grants||'[]',env.ACADEMY_MEDIA_SEPARATION])};
+      };
+      return permissionState({bucket:env.LESSON_MEDIA_BUCKET,namespace:[env.ENVIRONMENT,env.ACADEMY_D1_RUN_ID],accountId,gate,load,now:now.getTime()});
     },
     async revoke(sid,accountId){await prepare('UPDATE account_sessions SET revoked_at=? WHERE session_id=? AND account_id=?',new Date().toISOString(),sid,accountId).run();},
     async setCredential(state,newHash,action,actor=state.account.account_id) {

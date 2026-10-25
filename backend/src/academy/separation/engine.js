@@ -1,6 +1,6 @@
 import {compilePlan} from './compile.js';
 import {federationContext,rewriteRead} from './federation.js';
-import {verifyActor} from './proof.js';
+import {verifyActor,verifyActorVersion} from './proof.js';
 import {payloadHash} from '../../programs/timetable-model.js';
 const item=(sql,...params)=>({sql,params}),fail=(message,code='SPLIT_RECOVERY_PENDING',status=503)=>Object.assign(Error(message),{code,status});
 const batch=(db,list)=>list.filter(Boolean).length?db.batch(list.filter(Boolean).map(s=>db.prepare(s.sql).bind(...s.params))):Promise.resolve([]);
@@ -43,6 +43,9 @@ export function splitEngine({core,admin,alarm=async()=>{},hook=async()=>{}}){
   const results=await batch(core,[item('PRAGMA defer_foreign_keys=ON'),guard(id,'PENDING'),
    item("INSERT INTO split_transaction_guards VALUES('actor',EXISTS(SELECT 1 FROM account_sessions s JOIN accounts a USING(account_id) JOIN account_credentials c USING(account_id) WHERE s.session_id=? AND a.account_id=? AND a.active=1 AND s.revoked_at IS NULL AND c.credential_epoch=? AND s.credential_epoch=c.credential_epoch AND c.pin_setup=1 AND length(trim(c.pin_hash))>0 AND s.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now'))) ON CONFLICT(guard_id) DO UPDATE SET accepted=excluded.accepted",proof.sid,proof.accountId,proof.epoch),
    item('UPDATE split_write_fence SET allow_write=1 WHERE command_id=?',id),...plan.core,
+   // Invalidate source snapshots even when a successful save changed only
+   // Admin-owned definitions and produced no mirrored Core field changes.
+   item('UPDATE split_read_state SET version=version+1 WHERE singleton=1'),
    item("UPDATE split_commands SET phase='COMMITTED' WHERE command_id=?",id),item('UPDATE split_write_fence SET allow_write=0 WHERE command_id=?',id),clear(id),clear(id+'-actor')]);
   const out=plan.outcomes.map((value,i)=>plan.indexes[i]>=0?results[4+plan.indexes[i]]:value);
   await hook('core-committed',id);await finish(id,plan);return out;
@@ -94,7 +97,7 @@ export function splitEngine({core,admin,alarm=async()=>{},hook=async()=>{}}){
   for(let attempt=0;attempt<3;attempt++){
    const before=await verifyActor(core,proof),context=federationContext({core,admin,owner}),data=await context.snapshot(statements.map(s=>s.sql));
    const results=await batch(context.sources[owner],statements.map(s=>rewriteRead(s.sql,s.params,data)));await hook('read-captured');
-   const after=await verifyActor(core,proof);if(before===after)return results;
+   const after=await verifyActorVersion(core,proof,before);if(before===after)return results;
   }
   throw fail('Access changed while loading. Refresh before continuing.','SPLIT_READ_CHANGED',409);
  });}

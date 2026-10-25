@@ -21,7 +21,7 @@ export function readReferences(sql){
 const prefix=(sql,ctes)=>{const list=tokens(sql);if(list[0]?.text.toUpperCase()!=='WITH')return 'WITH '+ctes+' '+sql;const end=(list[1]?.text.toUpperCase()==='RECURSIVE'?list[1]:list[0]).end;return sql.slice(0,end)+' '+ctes+', '+sql.slice(end).trimStart();};
 export function rewriteRead(original,params,data){
  const bound=boundSQL(indexedSQL(original),params),sql=bound.sql,{found,local,references,list}=readReferences(sql),names=[...found].filter(n=>Object.hasOwn(data,n));if(!names.length)return bound;
- const selected=new Set(names),ctes=names.map(n=>{const cols=sourceLayout[n]?.columns||storeColumns.core[n]||computed[n]||emptyShapes[n];return '__split_read_'+n+' AS(SELECT '+cols.map(c=>"json_extract(value,'$."+c+"')"+(setupSchema[n]?.nocase?.includes(c)?' COLLATE NOCASE':'')+' AS "'+c+'"').join(',')+' FROM json_each(?))';});
+ const selected=new Set(names),joined=names.length>1||names.some(n=>references.filter(r=>r.name===n).length>1),ctes=names.map(n=>{const cols=sourceLayout[n]?.columns||storeColumns.core[n]||computed[n]||emptyShapes[n];return '__split_read_'+n+' AS '+(joined?'MATERIALIZED ':'')+'(SELECT '+cols.map(c=>"json_extract(value,'$."+c+"')"+(setupSchema[n]?.nocase?.includes(c)?' COLLATE NOCASE':'')+' AS "'+c+'"').join(',')+' FROM json_each(?))';});
  const edits=references.filter(r=>selected.has(r.name)).map(r=>({...r,text:'__split_read_'+r.name}));
  for(let i=0;i<list.length;i++){
   const n=identifier(list[i]);if(n==='main'&&list[i+1]?.text==='.'&&selected.has(identifier(list[i+2]))&&list[i+3]?.text==='.'){

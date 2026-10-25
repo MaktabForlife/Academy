@@ -34,7 +34,7 @@ export function selectWorkspace(request,auth){
 }
 
 const adminActions={
- assessments:new Set(['register-create','register-save','register-validate','register-release','session-delete','phase-create','create','save','publish','roster','review-paper','authorise-resubmission','review-mark','release','release-papers','templates','template-save','report-data','report-save','collection-save','finalise','withdraw-release']),
+ assessments:new Set(['schedule-batch','register-create','register-save','register-validate','register-release','session-delete','phase-create','create','save','publish','roster','review-paper','authorise-resubmission','review-mark','release','release-papers','templates','template-save','report-data','report-save','collection-save','finalise','withdraw-release']),
  progress:new Set(['import','module-save','set-save','cards','card-active','activity-active']),
  planning:new Set(['policy','deadline','comment']),
  'lesson-media':new Set(['course-files-create']),

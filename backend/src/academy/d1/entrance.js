@@ -1,4 +1,5 @@
 import {substituteTimetable} from './substitute-timetable.js';
+import {privateSnapshot} from './private-snapshot.js';
 import {noTeachingCalendarEvents,holidayOnDate} from './calendar-holidays.js';
 import { buildEntrance, addDays, sunday } from '../entrance.js';
 import { dateInTimezone } from '../../lib/global-subject-delivery.js';
@@ -32,7 +33,7 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
   if(!/^\d{4}-\d{2}-\d{2}$/.test(start)||Number.isNaN(Date.parse(start))||addDays(start,0)!==start)throw rehearsalError('Choose a valid timetable date.',400,'INVALID_DATE');
   const courseWorkflows=config.courseWorkflows??await courseCalendarAvailable(repository.db,true);
   const end=addDays(start,days-1);
-  const [activities,publications,subjects,modules,classes,memberships,runs,runStates,lifecycles,calendar,suppressions,calendarSettings]=await repository.homeData(state,start,end,courseWorkflows,config.programWorkspace);
+  const [activities,publications,subjects,modules,classes,memberships,runs,runStates,lifecycles,calendar,suppressions,calendarSettings]=await privateSnapshot(repository,auth,{kind:'timetable-source',date:dateInTimezone(now,config.setting_value),now:now.getTime(),input:{start,end,courseWorkflows,programWorkspace:config.programWorkspace,globalAdmin:state?.account.global_admin,roles:state?.roles,subscriptions:state?.subscriptions}},()=>repository.homeData(state,start,end,courseWorkflows,config.programWorkspace));
   // The pilot's historical dates are in the past; ordinary timetable loads do
   // not query the extension table, and no historical lesson can be joined live.
   if(start<'2026-10-08'&&end>='2026-10-06'&&activities.some(a=>a.activity_key===MOU_MEDIA_PROGRAM))publications.push(...await historicalPublications(repository,start,end,Boolean(state)));

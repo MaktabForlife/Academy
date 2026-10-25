@@ -1,4 +1,5 @@
-import {assessmentGroup,assessmentListGroups,groupRevisions,sharedAssessmentAction} from './assessment-group.js';
+import {assessmentGroup,assessmentListGroups,assessmentSelections,groupRevisions,sharedAssessmentAction} from './assessment-group.js';
+import {insertRecords} from './insert-records.js';
 import {assessmentOperations,timingFields,collectionPolicy,readyEligibility} from './assessment-timing.js';
 import {appTimezone,academyDate,dayStart,nextDate,localInstant} from './academy-clock.js';
 import {isAdminWorkspace} from './workspace-access.js';
@@ -11,24 +12,27 @@ export function d1Assessments(repository,auth){
  const s=assessmentStore(repository,auth),{p,actor}=s,native=assessmentOperations(repository);
  const collection=a=>native?p('SELECT * FROM assessment_collection WHERE assessment_id=?',a.assessment_id).first():Promise.resolve(null);
  const metadata=(a,c=null)=>{c||=a.collection_revision?{effective_due_at:a.effective_due_at,closed_at:a.closed_at,revision:a.collection_revision}:null;return native?{assessmentKind:a.assessment_kind||'EXAM',timingMode:a.timing_mode||'TIMED',availableFrom:a.available_from,dueAt:c?.effective_due_at||a.due_at,timezone:a.timezone||'Africa/Johannesburg',collectionClosed:Boolean(c?.closed_at),collectionRevision:c?.revision||0,...(auth.workspace==='LEARN'?{}:{allowanceMinutes:a.allowance_minutes,paperSHA256:a.paper_sha256})}:{};};
+ const listColumns=input=>input.dashboard===true?"x.assessment_id,x.activity_key,x.class_id,x.title,x.register_id,x.phase_id,x.exam_date,x.schedule_published,x.examiner_id"+(native?',x.assessment_kind':''):'x.*';
  const dashboardAssessment=a=>({activityKey:a.activity_key,title:a.title,registerId:a.register_id,phaseId:a.phase_id,phaseName:a.phase_name||'',registerStatus:a.register_status||'',examDate:a.exam_date,assessmentKind:a.assessment_kind||'EXAM',published:Boolean(a.schedule_published)});
  async function catalogue(){
   const subjects=(await p("SELECT subject_key,name FROM subject_catalog WHERE source_namespace='ACADEMY' AND active=1 ORDER BY name").all()).results;
   const modules=(await p("SELECT m.module_id,m.name,s.name subject_name FROM academy_module_catalogue m LEFT JOIN subject_catalog s ON s.subject_key=m.subject_key WHERE m.active=1 AND (s.subject_key IS NULL OR s.active=1 AND s.source_namespace='ACADEMY') ORDER BY s.name,m.name").all()).results;
   return [...subjects.map(s=>({key:'SUBJECT:'+s.subject_key,label:s.name,kind:'SUBJECT'})),...modules.map(m=>({key:'MODULE:ACADEMY:'+m.module_id,label:m.subject_name?m.subject_name+' · '+m.name:m.name,kind:'MODULE'}))];
  }
- const fields=async(input,current=null,choices=null)=>{
-  const examiner=input.examinerId===undefined?{id:current?.examiner_id||null,name:''}:await s.examinerChoice(input.examinerId,input.activityKey||current?.activity_key);
+ const fields=async(input,current=null,choices=null,examiners=null,timezone=null)=>{
+  let examiner=input.examinerId===undefined?{id:current?.examiner_id||null,name:''}:examiners?(input.examinerId===null||input.examinerId===''?{id:null,name:''}:examiners.find(t=>t.id===input.examinerId&&t.activity_key===(input.activityKey||current?.activity_key))):await s.examinerChoice(input.examinerId,input.activityKey||current?.activity_key);
+  if(!examiner)throw fail('Choose an active teacher from this Program or Course as examiner.',403,'EXAMINER_OUTSIDE_PROGRAM');
   const descriptor=examiner.name||cleanText(input.subjectDescriptor??current?.subject_descriptor??'',160,'a subject descriptor',true);
   const title=cleanText(input.title,160,'an assessment title'),options=choices||await catalogue(),choice=input.catalogueKey?options.find(c=>c.key===input.catalogueKey):options.find(c=>c.label===input.subject);
   const subject=choice?.label||(current&&input.subject===current.subject&&!input.catalogueKey?current.subject:'');
   if(!subject)throw fail('Choose an active Academy subject or module.');
-  const timing=native?await timingFields(repository,input,current):null;
+  const timing=native?await timingFields(repository,input,current,timezone):null;
   if((!native&&(!validDate(input.examDate)||!Number.isInteger(input.durationMinutes)||input.durationMinutes<1||input.durationMinutes>1440))||typeof input.maximumMark!=='number'||!Number.isFinite(input.maximumMark)||input.maximumMark<=0||input.maximumMark>1000000)throw fail('Enter a valid exam date, duration and maximum mark.');
   return {title,subject,descriptor,examinerId:examiner.id,date:timing?timing.date:input.examDate,duration:timing?timing.duration:input.durationMinutes,maximum:input.maximumMark,timing};
  };
- async function phaseFor(id,activityKey){
+ async function phaseFor(id,activityKey,phases=null){
   if(id===undefined||id===null||id==='')return null;
+  if(phases){if(!phases.has(JSON.stringify([id,activityKey])))throw fail('Choose an assessment phase in this learning area.',403);return id;}
   if(typeof id!=='string'||!await p('SELECT 1 ok FROM assessment_phases WHERE phase_id=? AND activity_key=?',id,activityKey).first())throw fail('Choose an assessment phase in this learning area.',403);
   return id;
  }
@@ -42,7 +46,7 @@ export function d1Assessments(repository,auth){
  const rosterStatement=(a,rows)=>p(`INSERT INTO assessment_recipients(assessment_id,account_id,display_name) SELECT ?,json_extract(value,'$.account_id'),json_extract(value,'$.display_name') FROM json_each(?) WHERE 1 ON CONFLICT(assessment_id,account_id) DO NOTHING`,a.assessment_id,JSON.stringify(rows));
  async function learnerList(input){
   const classes=await s.classes('learner',input.activityKey||''),visible=[];
-  const rows=(await p(`SELECT x.*${native?',col.effective_due_at,col.closed_at,col.revision collection_revision':''},COALESCE(ar.name,ph.name) phase_name,ar.status register_status,c.name class_name,a.name activity_name FROM assessments x ${native?'LEFT JOIN assessment_collection col ON col.assessment_id=x.assessment_id':''} LEFT JOIN assessment_phases ph ON ph.phase_id=x.phase_id LEFT JOIN assessment_registers ar ON ar.register_id=x.register_id JOIN classes c ON c.activity_key=x.activity_key AND c.class_id=x.class_id JOIN activities a ON a.activity_key=x.activity_key WHERE x.deleted_at IS NULL AND x.schedule_published=1 AND (?='' OR x.activity_key=?) ORDER BY x.exam_date,x.title LIMIT 1001`,input.activityKey||'',input.activityKey||'').all()).results;
+  const rows=(await p(`SELECT ${listColumns(input)}${native&&input.dashboard!==true?',col.effective_due_at,col.closed_at,col.revision collection_revision':''},COALESCE(ar.name,ph.name) phase_name,ar.status register_status,c.name class_name,a.name activity_name FROM assessments x ${native&&input.dashboard!==true?'LEFT JOIN assessment_collection col ON col.assessment_id=x.assessment_id':''} LEFT JOIN assessment_phases ph ON ph.phase_id=x.phase_id LEFT JOIN assessment_registers ar ON ar.register_id=x.register_id JOIN classes c ON c.activity_key=x.activity_key AND c.class_id=x.class_id JOIN activities a ON a.activity_key=x.activity_key WHERE x.deleted_at IS NULL AND x.schedule_published=1 AND (?='' OR x.activity_key=?) ORDER BY x.exam_date,x.title LIMIT 1001`,input.activityKey||'',input.activityKey||'').all()).results;
   const own=new Map((await p(input.dashboard===true?'SELECT assessment_id FROM assessment_recipients WHERE account_id=?':"SELECT r.assessment_id,r.latest_submission_id,m.mark,m.state,m.submission_id FROM assessment_recipients r LEFT JOIN assessment_markings m ON m.mark_id=r.released_mark_id AND m.assessment_id=r.assessment_id AND m.account_id=r.account_id WHERE r.account_id=?",actor).all()).results.map(r=>[r.assessment_id,r]));
   for(const a of rows){if(viewedClass(auth,a.activity_key)&&!same(viewedClass(auth,a.activity_key),a.class_id)||!classes.some(c=>same(c.activity_key,a.activity_key)&&same(c.class_id,a.class_id))||input.kind&&a.activity_key.split(':')[0]!==input.kind||!own.has(a.assessment_id)&&!administers(auth,a.activity_key))continue;
    if(input.dashboard===true){if((a.assessment_kind||'EXAM')==='EXAM')visible.push(dashboardAssessment(a));continue;}
@@ -59,7 +63,7 @@ export function d1Assessments(repository,auth){
   const actualStaff=auth.workspace==='TEACH'?await s.classes('staff',input.activityKey||'',false):staff;
   const examinerAreas=auth.workspace==='TEACH'&&!auth.adminView?actualState(auth).roles.filter(r=>r.role==='TEACHER').map(r=>r.activity_key):[];
   const preview=input.view==='learner';if(preview&&!admin.length)throw fail('Learner preview requires this learning area’s Admin access.',403,'FORBIDDEN');
-  const rows=(await p(`SELECT x.*${native?',col.effective_due_at,col.closed_at,col.revision collection_revision':''},COALESCE(ar.name,ph.name) phase_name,ar.status register_status,c.name class_name,a.name activity_name,(SELECT display_name FROM accounts u WHERE u.account_id=x.examiner_id) examiner_name,(SELECT u.display_name FROM assessment_files f JOIN accounts u ON u.account_id=f.uploaded_by WHERE f.file_id=x.paper_file_id) paper_uploader_name FROM assessments x ${native?'LEFT JOIN assessment_collection col ON col.assessment_id=x.assessment_id':''} LEFT JOIN assessment_phases ph ON ph.phase_id=x.phase_id LEFT JOIN assessment_registers ar ON ar.register_id=x.register_id JOIN classes c ON c.activity_key=x.activity_key AND c.class_id=x.class_id JOIN activities a ON a.activity_key=x.activity_key WHERE x.deleted_at IS NULL AND (?='' OR x.activity_key=?) AND (EXISTS(SELECT 1 FROM json_each(?) j WHERE json_extract(j.value,'$.activity_key')=x.activity_key AND json_extract(j.value,'$.class_id')=x.class_id) OR x.schedule_published=1 AND EXISTS(SELECT 1 FROM assessment_recipients r WHERE r.assessment_id=x.assessment_id AND r.account_id=?) AND EXISTS(SELECT 1 FROM json_each(?) j WHERE json_extract(j.value,'$.activity_key')=x.activity_key AND json_extract(j.value,'$.class_id')=x.class_id) OR x.examiner_id=? AND x.activity_key IN(SELECT value FROM json_each(?)) AND c.active=1 AND a.active=1 AND a.lifecycle='ACTIVE') ORDER BY x.exam_date,x.title LIMIT 1001`,input.activityKey||'',input.activityKey||'',JSON.stringify(staff),actor,JSON.stringify(learner),actor,JSON.stringify(examinerAreas)).all()).results;
+  const rows=(await p(`SELECT ${listColumns(input)}${native&&input.dashboard!==true?',col.effective_due_at,col.closed_at,col.revision collection_revision':''},COALESCE(ar.name,ph.name) phase_name,ar.status register_status,c.name class_name,a.name activity_name${input.dashboard===true?'':',(SELECT display_name FROM accounts u WHERE u.account_id=x.examiner_id) examiner_name,(SELECT u.display_name FROM assessment_files f JOIN accounts u ON u.account_id=f.uploaded_by WHERE f.file_id=x.paper_file_id) paper_uploader_name'} FROM assessments x ${native&&input.dashboard!==true?'LEFT JOIN assessment_collection col ON col.assessment_id=x.assessment_id':''} LEFT JOIN assessment_phases ph ON ph.phase_id=x.phase_id LEFT JOIN assessment_registers ar ON ar.register_id=x.register_id JOIN classes c ON c.activity_key=x.activity_key AND c.class_id=x.class_id JOIN activities a ON a.activity_key=x.activity_key WHERE x.deleted_at IS NULL AND (?='' OR x.activity_key=?) AND (EXISTS(SELECT 1 FROM json_each(?) j WHERE json_extract(j.value,'$.activity_key')=x.activity_key AND json_extract(j.value,'$.class_id')=x.class_id) OR x.schedule_published=1 AND EXISTS(SELECT 1 FROM assessment_recipients r WHERE r.assessment_id=x.assessment_id AND r.account_id=?) AND EXISTS(SELECT 1 FROM json_each(?) j WHERE json_extract(j.value,'$.activity_key')=x.activity_key AND json_extract(j.value,'$.class_id')=x.class_id) OR x.examiner_id=? AND x.activity_key IN(SELECT value FROM json_each(?)) AND c.active=1 AND a.active=1 AND a.lifecycle='ACTIVE') ORDER BY x.exam_date,x.title LIMIT 1001`,input.activityKey||'',input.activityKey||'',JSON.stringify(staff),actor,JSON.stringify(learner),actor,JSON.stringify(examinerAreas)).all()).results;
   if(rows.length>1000)throw fail('Choose a learning area to narrow the assessment list.',409);
   const ids=input.dashboard!==true&&(staff.length||examinerAreas.length)?rows.map(a=>a.assessment_id):[],results=ids.length?(await p(`SELECT r.assessment_id,
    sum(CASE WHEN r.latest_submission_id IS NOT NULL THEN 1 ELSE 0 END) uploaded,
@@ -118,6 +122,62 @@ export function d1Assessments(repository,auth){
   }}
   if(learn)for(const r of result.learners)for(const key of ['mark','markId','moderationComment','submissionConfirmedBy'])delete r[key];
   return result;
+ }
+ async function saveScheduleBatch(input){
+  if(!isAdminWorkspace(auth))throw fail('Assessment setup requires Admin access.',403,'FORBIDDEN');
+  if(!Array.isArray(input.rows)||!input.rows.length||input.rows.length>100||input.rows.some(r=>!r||typeof r!=='object'||Array.isArray(r)))throw fail('Save between one and 100 assessment edits together.');
+  return s.change('schedule-batch',input,String(input.registerId||''),async()=>{
+   const register=await registerRecord(s,input.registerId);
+   if(input.revision!==register.revision)throw fail('This Imtihaan changed elsewhere. Refresh before saving.',409,'ROW_CHANGED');
+   if(['CANCELLED','ARCHIVED'].includes(register.status))throw fail('This Imtihaan is not available for assessment setup.',409);
+   const allowed=new Set((await s.classes('admin')).map(c=>c.activity_key));
+   if(register.activityKeys.some(key=>!allowed.has(key)))throw fail('This Imtihaan includes a learning area outside your administration access.',403,'FORBIDDEN');
+   const current=(await p('SELECT * FROM assessments WHERE register_id=? AND deleted_at IS NULL LIMIT 1001',register.register_id).all()).results;
+   if(current.length>1000)throw fail('This Imtihaan has too many assessments to save together.',409);
+   const records=new Map(current.map(a=>[a.assessment_id,a])),existing=input.rows.filter(r=>r.assessmentId),original=await assessmentSelections(s,existing.map(r=>r.assessmentId));
+   const entries=[],targets=[],seen=new Set();let newCount=0;
+   for(const row of input.rows){
+    let members,classes;
+    if(row.assessmentId){
+     const a=records.get(row.assessmentId);if(!a)throw fail('An assessment is outside this Imtihaan.',403,'FORBIDDEN');
+     const selected=original.get(a.assessment_id),ids=Array.isArray(selected)&&selected.length>1?selected:[a.assessment_id];
+     if(ids.length>50||new Set(ids).size!==ids.length||!ids.includes(a.assessment_id))throw fail('Refresh the shared assessment selection.',409,'ASSESSMENT_GROUP_CHANGED');
+     members=ids.map(id=>records.get(id));if(members.some(a=>!a))throw fail('A shared assessment class is unavailable.',409,'ASSESSMENT_GROUP_CHANGED');
+     if(members.length>1)groupRevisions(members,row);else s.revision(a,row);
+     for(const member of members){if(seen.has(member.assessment_id))throw fail('An assessment appears more than once in this save.');seen.add(member.assessment_id);}
+     classes=members.map(a=>({activityKey:a.activity_key,classId:a.class_id}));
+    }else{
+     classes=row.classes||[{activityKey:row.activityKey,classId:row.classId}];
+     if(!Array.isArray(classes)||!classes.length||classes.length>50||classes.some(c=>!c||typeof c.activityKey!=='string'||typeof c.classId!=='string')||new Set(classes.map(c=>JSON.stringify([c.activityKey,c.classId]))).size!==classes.length)throw fail('Choose between one and 50 different classes for each assessment.');
+     newCount+=classes.length;
+    }
+    for(const c of classes)await requireRegisterClass(s,register.register_id,c.activityKey,c.classId,register);
+    targets.push(...classes);entries.push({row,members,classes});
+   }
+   if(current.length+newCount>1000)throw fail('Keep this Imtihaan within 1,000 class assessments.',409);
+   await s.requireAdminClasses([...new Map(targets.map(c=>[JSON.stringify([c.activityKey,c.classId]),c])).values()]);
+   const keys=[...new Set(targets.map(c=>c.activityKey))],choices=await catalogue(),examiners=await s.examinerTeachers(keys),timezone=native?await appTimezone(repository):null;
+   const phaseIds=[...new Set(entries.flatMap(e=>e.members?.map(a=>e.row.phaseId===undefined?a.phase_id:e.row.phaseId)||[e.row.phaseId]).filter(Boolean))];
+   const phaseRows=phaseIds.length?(await p('SELECT phase_id,activity_key FROM assessment_phases WHERE phase_id IN(SELECT value FROM json_each(?))',JSON.stringify(phaseIds)).all()).results:[];
+   const phases=new Set(phaseRows.map(ph=>JSON.stringify([ph.phase_id,ph.activity_key]))),context={catalogue:choices,examiners,phases,timezone,registers:new Map([[register.register_id,register]])};
+   const statements=[],created=[],changed=[],now=new Date().toISOString();
+   for(const {row,members,classes} of entries){
+    if(row.examinerId&&classes.some(c=>!examiners.some(t=>t.id===row.examinerId&&t.activity_key===c.activityKey)))throw fail('Choose an examiner who teaches in every selected learning area.',403,'EXAMINER_OUTSIDE_PROGRAM');
+    if(members){
+     for(const a of members){const plan=await mutationPlan('save',{...row,registerId:register.register_id,activityKey:a.activity_key,assessmentId:a.assessment_id,revision:a.revision},a,context);statements.push(...plan.statements);changed.push(a.assessment_id);}
+    }else{
+     const v=await fields({...row,activityKey:classes[0].activityKey},null,choices,examiners,timezone),ids=classes.map(()=>crypto.randomUUID());
+     for(const [i,c] of classes.entries()){
+      const phaseId=await phaseFor(row.phaseId,c.activityKey,phases),id=ids[i];
+      created.push({assessment_id:id,activity_key:c.activityKey,class_id:c.classId,title:v.title,subject:v.subject,exam_date:v.date,duration_minutes:v.duration,maximum_mark:v.maximum,phase_id:phaseId,subject_descriptor:v.descriptor,created_at:now,created_by:actor,updated_at:now,register_id:register.register_id,examiner_id:v.examinerId,...(native?{assessment_kind:v.timing.kind,timing_mode:v.timing.mode,timezone:v.timing.timezone,available_from:v.timing.opens,due_at:v.timing.due,exam_cutoff:v.timing.cutoff,allowance_minutes:v.timing.allowance}:{})});
+      statements.push(s.event({assessment_id:id,activity_key:c.activityKey},'CREATED',{title:v.title,assessmentIds:ids}));changed.push(id);
+     }
+    }
+   }
+   statements.unshift(...insertRecords(p,'assessments',created));
+   statements.push(p('UPDATE assessment_registers SET revision=revision+1,updated_at=? WHERE register_id=?',now,register.register_id));
+   return {statements:s.combine(statements),result:{registerId:register.register_id,revision:register.revision+1,saved:entries.length,assessmentIds:changed}};
+  });
  }
  async function create(input){
   const targets=input.classes===undefined?[{activityKey:input.activityKey,classId:input.classId}]:input.classes;
@@ -191,7 +251,7 @@ export function d1Assessments(repository,auth){
     statements.push(p('INSERT INTO assessment_collection VALUES(?,?,?,?,?,?) ON CONFLICT(assessment_id) DO UPDATE SET effective_due_at=excluded.effective_due_at,closed_at=excluded.closed_at,revision=excluded.revision,updated_at=excluded.updated_at,updated_by=excluded.updated_by',a.assessment_id,t.due,input.closed?(c?.closed_at||now):null,(c?.revision||0)+1,now,actor));
    }else if(action==='save'){
     if(a.paper_state!=='DRAFT'||a.schedule_published)throw fail('Published assessments retain their schedule. Create a new assessment for a replacement schedule.',409);
-    const v=await fields(input,a,context.catalogue),phaseId=await phaseFor(input.phaseId===undefined?a.phase_id:input.phaseId,a.activity_key);
+    const v=await fields(input,a,context.catalogue,context.examiners,context.timezone),phaseId=await phaseFor(input.phaseId===undefined?a.phase_id:input.phaseId,a.activity_key,context.phases);
     if(input.registerId&&context.registers&&!context.registers.has(input.registerId))context.registers.set(input.registerId,await registerRecord(s,input.registerId));
     const register=input.registerId?{id:(await requireRegisterClass(s,input.registerId,a.activity_key,a.class_id,context.registers?.get(input.registerId))).register_id,statements:[]}:phaseId===a.phase_id&&a.register_id?{id:a.register_id,statements:[]}:await legacyRegisterPlan(s,{activityKey:a.activity_key,classId:a.class_id,title:v.title,phaseId});
     statements.push(...register.statements,p(`UPDATE assessments SET title=?,subject=?,exam_date=?,duration_minutes=?,maximum_mark=?,phase_id=?,subject_descriptor=?,register_id=?,examiner_id=?${native?',assessment_kind=?,timing_mode=?,timezone=?,available_from=?,due_at=?,exam_cutoff=?,allowance_minutes=?':''} WHERE assessment_id=?`,v.title,v.subject,v.date,v.duration,v.maximum,phaseId,v.descriptor,register.id,v.examinerId,...(native?[v.timing.kind,v.timing.mode,v.timing.timezone,v.timing.opens,v.timing.due,v.timing.cutoff,v.timing.allowance]:[]),a.assessment_id));
@@ -309,6 +369,7 @@ export function d1Assessments(repository,auth){
   });
  }
  return {store:s,run:async(action,input)=>{
+  if(action==='schedule-batch')return saveScheduleBatch(input);
   if(action==='register-release')return releaseRegister(s,input);if(action==='register-create')return createRegister(s,input);if(action==='register-save')return saveRegister(s,input);if(action==='register-validate')return validateRegister(s,input);if(action==='session-delete')return deleteSession(input);if(action==='phase-create')return createPhase(input);if(action==='list')return list(input);if(action==='get')return detail(input);if(action==='create')return create(input);if(action==='release-papers')return releasePapers(input);return mutate(action,input);
  }};
 }

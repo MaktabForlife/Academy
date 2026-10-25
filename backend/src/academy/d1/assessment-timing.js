@@ -9,8 +9,8 @@ const instant=(value,timezone,label)=>{
  if(!/^\d{4}-\d{2}-\d{2}T.+(?:Z|[+-]\d{2}:\d{2})$/.test(value)||!Number.isFinite(Date.parse(value)))throw fail('Choose a valid '+label+'.');
  return new Date(value).toISOString();
 };
-export async function timingFields(repository,input,current){
- const timezone=current?.timezone||await appTimezone(repository),kind=input.assessmentKind||current?.assessment_kind||'EXAM',mode=input.timingMode||current?.timing_mode||'TIMED';
+export async function timingFields(repository,input,current,defaultTimezone){
+ const timezone=current?.timezone||defaultTimezone||await appTimezone(repository),kind=input.assessmentKind||current?.assessment_kind||'EXAM',mode=input.timingMode||current?.timing_mode||'TIMED';
  if(!['EXAM','ASSIGNMENT'].includes(kind)||!['TIMED','UNTIMED'].includes(mode))throw fail('Choose Exam or Assignment and Timed or Untimed.');
  const duration=mode==='UNTIMED'?null:input.durationMinutes??current?.duration_minutes,allowance=mode==='UNTIMED'?null:input.allowanceMinutes??current?.allowance_minutes??15;
  if(mode==='TIMED'&&(!Number.isInteger(duration)||duration<1||duration>1440||!Number.isInteger(allowance)||allowance<0||allowance>1440))throw fail('Enter a writing duration and reading/printing allowance.');

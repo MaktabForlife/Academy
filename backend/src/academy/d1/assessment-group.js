@@ -17,21 +17,25 @@ export async function assessmentGroup(s,a){
  if(rows.length!==ids.length)throw fail('A class in this shared assessment is unavailable. Refresh or contact Admin.',409,'ASSESSMENT_GROUP_CHANGED');
  return rows;
 }
-export async function assessmentListGroups(s,rows,assessments){
- const visible=new Map(assessments.filter(a=>a.canAdmin).map(a=>[a.id,a])),shared=new Map();
- if(visible.size<2)return shared;
- const selected=JSON.stringify([...visible.keys()]),original=new Map(),records=new Map(rows.map(a=>[a.assessment_id,a]));
+export async function assessmentSelections(s,ids){
+ const selected=JSON.stringify(ids),original=new Map();if(!ids.length)return original;
  const events=(await s.p(`SELECT e.assessment_id,e.details_json FROM assessment_events e WHERE e.action='CREATED'
   AND e.assessment_id IN(SELECT value FROM json_each(?)) AND e.event_id=(SELECT first.event_id FROM assessment_events first
   WHERE first.assessment_id=e.assessment_id AND first.action='CREATED' ORDER BY first.occurred_at,first.event_id LIMIT 1)`,selected).all()).results;
  for(const event of events)original.set(event.assessment_id,JSON.parse(event.details_json).assessmentIds);
- const missing=[...visible.keys()].filter(id=>!original.get(id));
+ const missing=ids.filter(id=>!original.get(id));
  if(missing.length){
   const receipts=(await s.p(`SELECT result_json FROM operation_receipts WHERE dataset_key='ASSESSMENT'
    AND EXISTS(SELECT 1 FROM json_each(operation_receipts.result_json,'$.assessmentIds') member
    JOIN json_each(?) selected ON selected.value=member.value) LIMIT 1001`,JSON.stringify(missing)).all()).results;
-  for(const receipt of receipts){const ids=JSON.parse(receipt.result_json).assessmentIds;if(Array.isArray(ids))for(const id of ids)if(visible.has(id)&&!original.get(id))original.set(id,ids);}
+  const visible=new Set(ids);for(const receipt of receipts){const selected=JSON.parse(receipt.result_json).assessmentIds;if(Array.isArray(selected))for(const id of selected)if(visible.has(id)&&!original.get(id))original.set(id,selected);}
  }
+ return original;
+}
+export async function assessmentListGroups(s,rows,assessments){
+ const visible=new Map(assessments.filter(a=>a.canAdmin).map(a=>[a.id,a])),shared=new Map();
+ if(visible.size<2)return shared;
+ const original=await assessmentSelections(s,[...visible.keys()]),records=new Map(rows.map(a=>[a.assessment_id,a]));
  for(const [id,a] of visible){
   const ids=original.get(id);
   if(!Array.isArray(ids)||ids.length<2||ids.length>50||!ids.includes(id)||new Set(ids).size!==ids.length||!ids.every(member=>visible.has(member)&&records.get(member)?.register_id===a.registerId&&records.get(member)?.paper_file_id===records.get(id)?.paper_file_id))continue;

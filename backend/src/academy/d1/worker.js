@@ -1,4 +1,5 @@
 import {conditionalRead} from './read-cache.js';
+import {privateSnapshot} from './private-snapshot.js';
 import {personalLinks} from './personal-links.js';
 import {classNotes} from './class-notes.js';
 import {lessonNotes} from './lesson-notes.js';
@@ -63,6 +64,13 @@ async function boundedBody(request,limit=4096) {
 async function issueSession(env,repository,state,context) {
   if(!context)throw rehearsalError('No authorised Academy context is available.',403,'NO_CONTEXT');
   const session=await repository.createSession(state,context);
+  if(repository.privateSnapshots){
+    // Populate the permission cache at sign-in, using the same live session
+    // and revision checks that protect later navigation requests.
+    state=await repository.session(session.sid,state.account.account_id,state.account.credential_epoch);
+    context=state?.contexts.find(c=>contextEqual(c,context));
+    if(!context)throw rehearsalError('Your permissions changed. Please sign in again.',401,'SESSION_ENDED');
+  }
   const token=await createSessionToken({type:'account',aud:audience,sv:3,sid:session.sid,accountid:state.account.account_id,epoch:state.account.credential_epoch,scope:context.scope,courseid:context.courseId,role:context.role},env);
   return {success:true,...sessionResponse(state,context,token)};
 }
@@ -200,13 +208,13 @@ async function dispatch(request,env) {
   const pdfToolAction=path.match(/^\/api\/admin\/platform\/pdf-tools\/(get|save)$/)?.[1];
   if(pdfToolAction)return {success:true,...await pdfTools(repository,auth).run(pdfToolAction,input)};
   const academicCalendarAction=path.match(/^\/api\/academy\/calendar\/(get|save)$/)?.[1];
-  if(academicCalendarAction)return {success:true,...await academicCalendar(repository,auth).run(academicCalendarAction,input)};
+  if(academicCalendarAction){const produce=()=>academicCalendar(repository,auth).run(academicCalendarAction,input);return {success:true,...await (academicCalendarAction==='get'?privateSnapshot(repository,auth,{kind:'calendar',input},produce):produce())};}
   if(path==='/api/academy/lesson-media/timetable'){const result=await timetableMedia(repository,auth,input);if(sourceRepository.features.mediaSeparation){const additions=await lessonNotes(await readRepository(),auth,env).timetable(input);for(const row of additions.lessons){const existing=result.lessons.find(r=>r.activityKey===row.activityKey&&r.sessionKey===row.sessionKey);if(existing)existing.assets.push(...row.assets);else result.lessons.push(row);}}return {success:true,...result};}
   const mediaAction=path.match(/^\/api\/academy\/lesson-media\/(list|feed|calendar|sessions|create|course-files-create|get|save|watch|download|comments|comment-save|comment-moderate|attachment-remove|attachment-name)$/)?.[1];
   if(mediaAction){let result=await lessonMedia(repository,auth,env).run(mediaAction,input);if(sourceRepository.features.mediaSeparation&&['calendar','list','feed','get'].includes(mediaAction)&&!result.notModified){const notes=lessonNotes(await readRepository(),auth,env);if(mediaAction==='get'){if(result.lesson.sessionKey){const entries=await notes.notes([{activityKey:result.lesson.activityKey,sessionKey:result.lesson.sessionKey}]);result.assets.push(...entries.map(notes.asset));result.lesson.canCurateNotes=true;}}else result=await (mediaAction==='calendar'?notes.enrichCalendar(result,input):mediaAction==='feed'?notes.enrichFeed(result,input):notes.enrichList(result,input));}return result instanceof Response?result:{success:true,...result};}
   if(path==='/api/academy/assessments/download')return assessmentFiles(repository,auth,env).download(input);
-  const assessmentAction=path.match(/^\/api\/academy\/assessments\/(list|get|register-create|register-save|register-validate|register-release|session-delete|phase-create|create|save|paper-details|publish|roster|review-paper|authorise-resubmission|confirm-submission|ready-assessment|mark|review-mark|release|release-papers|collection-save|finalise|withdraw-release)$/)?.[1];
-  if(assessmentAction)return {success:true,...await d1Assessments(repository,auth).run(assessmentAction,input)};
+  const assessmentAction=path.match(/^\/api\/academy\/assessments\/(list|get|schedule-batch|register-create|register-save|register-validate|register-release|session-delete|phase-create|create|save|paper-details|publish|roster|review-paper|authorise-resubmission|confirm-submission|ready-assessment|mark|review-mark|release|release-papers|collection-save|finalise|withdraw-release)$/)?.[1];
+  if(assessmentAction){const produce=()=>d1Assessments(repository,auth).run(assessmentAction,input);return {success:true,...await (assessmentAction==='list'&&input.dashboard===true?privateSnapshot(repository,auth,{kind:'dashboard-assessments',input},produce):produce())};}
   const assessmentReportAction=path.match(/^\/api\/academy\/assessments\/(templates|template-save|report-data|report-save|report-list)$/)?.[1];
   if(assessmentReportAction)return {success:true,...await assessmentReports(repository,auth).run(assessmentReportAction,input)};
   if(path==='/api/admin/platform/public-timetable/refresh')return {success:true,...await refreshPublicTimetable(request,env,repository,auth)};

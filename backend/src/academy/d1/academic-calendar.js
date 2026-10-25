@@ -11,7 +11,7 @@ import {buildAcademyCalendarEvents,expandAnnualCalendarRows} from '../../lib/aca
 import {availabilityBlocks,exceptionRanges} from '../availability-ranges.js';
 import {programToday} from '../../programs/weekly-timetable.js';
 import {lessonTimes} from '../entrance.js';
-import {administers} from './workspace-access.js';
+import {administers,isAdminWorkspace} from './workspace-access.js';
 
 const validDate=v=>/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v+'T12:00:00Z'))&&new Date(v+'T12:00:00Z').toISOString().slice(0,10)===v;
 const add=(date,n)=>new Date(Date.parse(date+'T12:00:00Z')+n*86400000).toISOString().slice(0,10);
@@ -41,6 +41,7 @@ export function academicCalendar(repository,auth) {
   });return {startDate:start,endDate:end,days,totalMinutes:days.reduce((n,d)=>n+d.minutes,0),displayOnly:true};
  }
  async function get(input){
+  if(input.includeWorkload===true&&(!isAdminWorkspace(auth)||['learn','teach'].includes(input.view)))throw managementError('Teaching workload is available in Admin teacher availability only.',403,'FORBIDDEN');
   const data=await load(),view=['learn','teach'].includes(input.view)?input.view:'admin',management=view==='admin',year=Number(input.year||new Date().getUTCFullYear()),month=Number(input.month||new Date().getUTCMonth()+1);
   if(view==='learn'&&input.teacherId)throw managementError('Teacher availability is available in Teach or Admin.',403,'FORBIDDEN');
   if(!Number.isInteger(year)||year<2025||year>2100||!Number.isInteger(month)||month<1||month>12)throw managementError('Choose a valid calendar month and year.');
@@ -64,7 +65,7 @@ export function academicCalendar(repository,auth) {
   const forView=rows=>management?rows:rows.map(row=>({...row,editable:false}));
   return {year,month,today,view,scopes:management?choices:choices.filter(c=>same(c.key,scopeKey)).map(c=>({...c,editable:false})),scopeKey,events:forView(events.sort((a,b)=>a.startDate.localeCompare(b.startDate))),terms:forView(terms),currentTerms:forView(currentTerms),hijriEntries:management&&auth.state.account.global_admin?hijriYearRows(data.calendar,data.settings,year).map(row=>eventDTO(data,row)):[],teachers,teacherId,
    availability:teacherId?{accountId:teacherId,ranges,revision:entry?.revision||0,editable:management&&Boolean(auth.state.account.global_admin||availabilityAuthorityScopes(data,auth.user.accountid,teacherId).length),legacyHours:ranges.length>0&&!exceptionRanges(ranges),blocks:Array.from({length:new Date(Date.UTC(year,month,0)).getUTCDate()},(_,i)=>`${year}-${String(month).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`).flatMap(date=>availabilityBlocks(ranges,date).map(r=>({...r,date})))}:null,
-   teachingWeek:teacherId?await teachingWeek(data,teacherId,scopeKey,year,month,timezone):null,canManageAcademy:management&&Boolean(auth.state.account.global_admin)};
+   teachingWeek:input.includeWorkload===true&&management&&teacherId?await teachingWeek(data,teacherId,scopeKey,year,month,timezone):null,canManageAcademy:management&&Boolean(auth.state.account.global_admin)};
  }
  async function save(input){return store.change('ACADEMY_CALENDAR',input.entry?.scopeKey||'ACADEMY','save',input,async()=>{
   const data=await load(),entry=input.entry;

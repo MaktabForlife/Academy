@@ -12,7 +12,7 @@ function validSchedule(a){
 export async function statusValidation(s,registerId,status){
  const checks=[{label:'Assessment name, learning areas and class selection are valid',ok:true}];
  if(['REGISTERED','DRAFT','CANCELLED','ARCHIVED'].includes(status))return {status,valid:true,checks};
- const rows=registerId?(await s.p(`SELECT a.*,
+ const rows=registerId?(await s.p(status==='SCHEDULED'?`SELECT * FROM assessments WHERE register_id=? AND deleted_at IS NULL LIMIT 1001`:`SELECT a.*,
   count(r.account_id) learners,
   sum(CASE WHEN r.first_accessed_at IS NOT NULL THEN 1 ELSE 0 END) accessed,
   sum(CASE WHEN r.latest_submission_id IS NOT NULL THEN 1 ELSE 0 END) submitted,

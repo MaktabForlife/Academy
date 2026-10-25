@@ -65,7 +65,9 @@ test('Teachers read their own availability; scoped and Global Admins manage elig
  const teacher=await login(env,'0003'),admin=await login(env),scoped=await login(env,'0004'),student=await login(env,'0002');const ranges=[unavailable(),unavailable({id:'AVAIL-holiday',kind:'DATES',weekdays:[],startDate:'2026-10-12',endDate:'2026-10-16',allDay:true})];
  const input={accountId:'account-0003',revision:0,ranges,operationId:crypto.randomUUID()};assert.equal((await post(env,av+'save',input,teacher)).status,403);const result=ok(await post(env,av+'save',input,admin));assert.equal(result.ranges.length,2);assert.equal(ok(await post(env,av+'save',input,admin)).replayed,true);
  assert.equal((await post(env,base+'get',{teacherId:'account-0003',year:2026,month:10},student)).status,403);
- for(const token of [teacher,scoped,admin]){const data=ok(await post(env,base+'get',{teacherId:'account-0003',year:2026,month:10},token));assert.equal(data.availability.revision,1);assert.ok(data.availability.blocks.some(b=>b.date==='2026-10-12'));assert.equal(data.teachingWeek.displayOnly,true);}
+ for(const token of [teacher,scoped,admin]){const data=ok(await post(env,base+'get',{teacherId:'account-0003',year:2026,month:10},token));assert.equal(data.availability.revision,1);assert.ok(data.availability.blocks.some(b=>b.date==='2026-10-12'));assert.equal(data.teachingWeek,null);
+ if(token!==teacher)assert.equal(ok(await post(env,base+'get',{teacherId:'account-0003',year:2026,month:10,includeWorkload:true},token)).teachingWeek.displayOnly,true);}
+ assert.equal((await post(env,base+'get',{teacherId:'account-0003',includeWorkload:true},teacher)).status,403);
  assert.equal((await post(env,av+'save',{...input,accountId:'account-0005',operationId:crypto.randomUUID()},teacher)).status,403);assert.equal((await post(env,av+'save',{...input,accountId:'account-0005',operationId:crypto.randomUUID()},scoped)).status,403);
  ok(await post(env,av+'save',{revision:1,ranges:[],accountId:'account-0003',operationId:crypto.randomUUID()},admin));assert.equal(db.prepare('SELECT count(*) n FROM teacher_availability_changes').get().n,2);
 }));
@@ -80,22 +82,23 @@ test('teaching hours count overlapping lessons once and exclude cancelled Course
   db.prepare("INSERT INTO published_lessons(activity_key,publication_id,lesson_anchor,kind,status,weekday,start_time,end_time,timezone,snapshot_json) VALUES(?,'program-publication-1',?,'LESSON','SCHEDULED',?,?,?,'Africa/Johannesburg','{}')").run(scope,anchor,day,start,end);
   db.prepare("INSERT INTO published_lesson_teachers VALUES(?,'program-publication-1',?,?)").run(scope,anchor,teacher);
  }
- const data=ok(await post(env,base+'get',{teacherId:teacher,year:2026,month:10},admin));
+ const data=ok(await post(env,base+'get',{teacherId:teacher,year:2026,month:10,includeWorkload:true},admin));
  assert.equal(data.teachingWeek.totalMinutes,630);
  const date=data.teachingWeek.startDate;
  db.prepare("INSERT INTO published_lessons(activity_key,publication_id,lesson_anchor,kind,status,lesson_date,start_time,end_time,timezone,snapshot_json) VALUES('COURSE:subject-1','publication-1','published-hours','LESSON','SCHEDULED',?,'13:00','15:00','Africa/Johannesburg',?)").run(date,JSON.stringify({sourcesessionid:'source-hours'}));
  db.prepare("INSERT INTO published_lesson_teachers VALUES('COURSE:subject-1','publication-1','published-hours',?)").run(teacher);
- const withCourse=ok(await post(env,base+'get',{teacherId:teacher,year:2026,month:10},admin));assert.equal(withCourse.teachingWeek.totalMinutes,750);
+ const withCourse=ok(await post(env,base+'get',{teacherId:teacher,year:2026,month:10,includeWorkload:true},admin));assert.equal(withCourse.teachingWeek.totalMinutes,750);
  db.prepare("INSERT INTO lesson_lifecycle VALUES('COURSE:subject-1','hours-cancel','publication-1','source-hours','CANCELLED',NULL,NULL)").run();
- const cancelled=ok(await post(env,base+'get',{teacherId:teacher,year:2026,month:10},admin));assert.equal(cancelled.teachingWeek.totalMinutes,630);
+ const cancelled=ok(await post(env,base+'get',{teacherId:teacher,year:2026,month:10,includeWorkload:true},admin));assert.equal(cancelled.teachingWeek.totalMinutes,630);
  ok(await post(env,av+'save',{revision:0,accountId:teacher,ranges:[unavailable({weekdays:[0,1,2,3,4,5,6],allDay:true})],operationId:crypto.randomUUID()},admin));
- const unavailableData=ok(await post(env,base+'get',{teacherId:teacher,year:2026,month:10},admin));assert.equal(unavailableData.teachingWeek.totalMinutes,630,'The teaching-hours display does not change the published schedule');
+ const unavailableData=ok(await post(env,base+'get',{teacherId:teacher,year:2026,month:10,includeWorkload:true},admin));assert.equal(unavailableData.teachingWeek.totalMinutes,630,'The teaching-hours display does not change the published schedule');
 }));
 
  test('Admin learner and teaching calendars preserve their context; only central Admin manages terms, holidays and other teachers',()=>use(async({env,db})=>{
  env.AUTH_LOGIN_RATE_LIMITER={limit:async()=>({success:true})};const admin=await login(env),teacher=await login(env,'0003');
  const before=db.prepare('SELECT * FROM role_assignments ORDER BY assignment_id').all();
  const learn=ok(await post(env,base+'get',{scopeKey:scope,view:'learn'},admin));assert.equal(learn.canManageAcademy,false);assert.deepEqual(learn.teachers,[]);assert.equal(learn.availability,null);assert.equal(learn.teachingWeek,null);assert.ok(learn.scopes.every(s=>!s.editable));assert.ok(learn.events.every(e=>!e.editable));
+ for(const view of ['learn','teach'])assert.equal((await post(env,base+'get',{scopeKey:scope,view,includeWorkload:true},admin)).status,403);
  const teach=ok(await post(env,base+'get',{scopeKey:scope,view:'teach'},admin));assert.equal(teach.availability.accountId,'account-0001');assert.equal(teach.availability.editable,false);assert.equal(teach.teachers.length,1);assert.equal(teach.canManageAcademy,false);assert.ok(teach.scopes.every(s=>!s.editable));
  ok(await post(env,av+'save',{accountId:'account-0001',revision:0,ranges:[],operationId:crypto.randomUUID()},admin));
  assert.equal((await post(env,base+'get',{view:'teach',teacherId:'account-0003'},admin)).status,403);

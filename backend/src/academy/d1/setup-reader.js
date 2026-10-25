@@ -35,7 +35,12 @@ export function acceptedDatabase(db,head,features={}){
  const rewrite=sql=>{
   if(!/^\s*(?:SELECT|WITH)\b/i.test(sql))return sql;
   const names=new Set([...sql.matchAll(/\b(?:FROM|JOIN)\s+(?!main\.)([a-z_][a-z0-9_]*)\b/gi)].map(m=>m[1].toLowerCase()));
-  const ctes=[...names].filter(n=>setupSchema[n]||privateSetupTables.includes(n)).map(n=>`${n} AS (${privateSetupTables.includes(n)?`SELECT * FROM main.${n} WHERE 0`:tableProjection(n,head,features)})`);
+  // Joined JSON projections need a stable temporary relation. Flattening them
+  // into nested loops reparses the same accepted component for every join row.
+  // Keep simple one-table reads eligible for SQLite's normal push-down plan.
+  const projected=[...names].filter(n=>setupSchema[n]||privateSetupTables.includes(n));
+  const joined=projected.length>1||projected.some(n=>[...sql.matchAll(new RegExp(`\\b(?:FROM|JOIN)\\s+${n}\\b`,'gi'))].length>1);
+  const ctes=projected.map(n=>`${n} AS ${joined?'MATERIALIZED ':''}(${privateSetupTables.includes(n)?`SELECT * FROM main.${n} WHERE 0`:tableProjection(n,head,features)})`);
   if(!ctes.length)return sql;
   return /^\s*WITH\b/i.test(sql)?sql.replace(/^\s*WITH(\s+RECURSIVE)?\s+/i,(_,recursive)=>`WITH${recursive||''} ${ctes.join(',')}, `):`WITH ${ctes.join(',')} ${sql}`;
  };

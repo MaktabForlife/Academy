@@ -108,3 +108,15 @@ test('split Home validators skip timetable reconstruction and keep account/works
  f.databases.core.prepare('UPDATE academy_write_state SET version=version+1').run();const changed=ok(await f.request(path,{},'studentA','LEARN',{...headers,'X-Academy-Read-Revision':first.readRevision}));assert.notEqual(changed.readRevision,first.readRevision);
  console.log('Synthetic Home query counts',JSON.stringify({fullQueries,conditionalQueries}));
 }));
+
+test('split batch setup saves 100 papers with bounded database calls and publishes the entire Imtihaan',()=>use(async f=>{
+ const request=(action,input)=>f.request('/api/academy/assessments/'+action,input),key=f.scopes.programA;
+ const registerId=ok(await request('register-create',{operationId:crypto.randomUUID(),name:'Whole batch',activityKeys:[key],classMode:'ALL',status:'REGISTERED'})).registerId;
+ const body={operationId:crypto.randomUUID(),registerId,revision:1,rows:Array.from({length:100},(_,i)=>({activityKey:key,classId:'class-1',title:'Paper '+i,subject:'Qasas',examDate:'2099-11-09',durationMinutes:60,allowanceMinutes:15,maximumMark:100}))};
+ f.costs.length=0;const saved=ok(await request('schedule-batch',body));assert.equal(saved.saved,100);assert.equal(saved.revision,2);assert.equal(ok(await request('schedule-batch',body)).replayed,true);
+ assert.equal((await request('schedule-batch',{...body,operationId:crypto.randomUUID()})).body.code,'ROW_CHANGED');
+ const created=f.databases.admin.prepare('SELECT title,timezone FROM assessments WHERE register_id=?').all(registerId);assert.equal(created.length,100);assert(created.every(a=>a.timezone==='Africa/Johannesburg'));
+ const saveCosts=f.costs.slice();assert(saveCosts.every(c=>c.queries<=50),JSON.stringify(saveCosts));console.log('100-paper batch coordinator calls',JSON.stringify(saveCosts));
+ const released=ok(await request('register-release',{operationId:crypto.randomUUID(),registerId,revision:2}));assert.equal(released.released,100);
+ assert.equal(f.databases.core.prepare('SELECT count(*) n FROM assessments WHERE register_id=? AND schedule_published=1').get(registerId).n,100);
+}));

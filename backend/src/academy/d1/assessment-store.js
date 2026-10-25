@@ -15,7 +15,7 @@ export const paperAvailable=a=>Boolean(a.schedule_published&&a.paper_released_at
 export function assessmentStore(repository,auth){
  const db=repository.db,descriptions=new WeakMap(),p=(sql,...values)=>{const statement=db.prepare(sql).bind(...values);descriptions.set(statement,{sql,values});return statement;},actor=auth.user.accountid;
  const combine=statements=>assessmentBatch(statements,s=>descriptions.get(s),p);
- const classCache=new Map(),classKey=(key,id,mode)=>JSON.stringify([key,id,mode]);
+ const classCache=new Map(),classLists=new Map(),classKey=(key,id,mode)=>JSON.stringify([key,id,mode]);
  const clause=mode=>{
   if(mode==='admin')return isAdminWorkspace(auth)?adminClause:'(? IS NULL AND ? IS NULL)';
   if(mode==='staff')return isAdminWorkspace(auth)?teacherClause:auth.workspace!=='TEACH'?'(? IS NULL AND ? IS NULL AND ? IS NULL)':auth.adminView?`(${adminClause} AND ? IS NOT NULL)`:teacherClause.replace(adminClause,'(? IS NULL AND ? IS NULL)');
@@ -25,7 +25,9 @@ export function assessmentStore(repository,auth){
  async function classes(mode='staff',activityKey='',includePreview=true){
   const preview=includePreview&&auth.adminView&&((mode==='learner'&&auth.workspace==='LEARN')||(mode==='staff'&&auth.workspace==='TEACH'));
   const real=actualState(auth),keys=real.roles.filter(r=>r.role==='PROGRAM_ADMIN').map(r=>r.activity_key);
-  return (await p(`SELECT c.activity_key,c.class_id,c.name,a.name activity_name,a.kind FROM classes c JOIN activities a USING(activity_key) WHERE c.active=1 AND a.active=1 AND a.lifecycle='ACTIVE' AND (${clause(mode)} ${preview?'OR ?=1 OR a.activity_key IN(SELECT value FROM json_each(?))':''}) ${activityKey?'AND a.activity_key=?':''} ORDER BY a.name,c.name LIMIT 501`,...values(mode),...(preview?[Number(Boolean(real.account.global_admin)),JSON.stringify(keys)]:[]),...(activityKey?[activityKey]:[])).all()).results;
+  const cacheKey=JSON.stringify([mode,activityKey,Boolean(preview)]);
+  if(!classLists.has(cacheKey))classLists.set(cacheKey,p(`SELECT c.activity_key,c.class_id,c.name,a.name activity_name,a.kind FROM classes c JOIN activities a USING(activity_key) WHERE c.active=1 AND a.active=1 AND a.lifecycle='ACTIVE' AND (${clause(mode)} ${preview?'OR ?=1 OR a.activity_key IN(SELECT value FROM json_each(?))':''}) ${activityKey?'AND a.activity_key=?':''} ORDER BY a.name,c.name LIMIT 501`,...values(mode),...(preview?[Number(Boolean(real.account.global_admin)),JSON.stringify(keys)]:[]),...(activityKey?[activityKey]:[])).all().then(r=>r.results).catch(error=>{classLists.delete(cacheKey);throw error;}));
+  return classLists.get(cacheKey);
  }
  async function allowed(activityKey,classId,mode='staff'){
   if(classCache.has(classKey(activityKey,classId,mode)))return classCache.get(classKey(activityKey,classId,mode));
@@ -63,7 +65,7 @@ export function assessmentStore(repository,auth){
  async function moderator(a,{paper=false}={}){await requireClass(a.activity_key,a.class_id,'admin');if(same(a.examiner_id,actor)&&!paper)throw fail('An examiner cannot moderate their own assessment.',403,'SELF_MODERATION');}
  async function roster(a){return (await p(`SELECT DISTINCT u.account_id,u.display_name FROM accounts u JOIN class_memberships m ON m.account_id=u.account_id AND m.activity_key=? AND m.class_id=? WHERE u.active=1 AND m.active=1 AND (m.start_date IS NULL OR m.start_date<=?) AND (m.end_date IS NULL OR m.end_date>=?) AND (EXISTS(SELECT 1 FROM (${assessmentRolesSQL}) r WHERE r.account_id=u.account_id AND r.activity_key=m.activity_key AND r.role='STUDENT') OR EXISTS(SELECT 1 FROM effective_course_subscriptions s WHERE s.account_id=u.account_id AND s.activity_key=m.activity_key)) ORDER BY u.display_name,u.account_id LIMIT 2001`,a.activity_key,a.class_id,a.exam_date||a.available_from?.slice(0,10)||new Date().toISOString().slice(0,10),a.exam_date||a.available_from?.slice(0,10)||new Date().toISOString().slice(0,10)).all()).results;}
  async function rosters(assessments){
-  const targets=assessments.map(a=>({...a,rosterDate:a.exam_date||a.available_from?.slice(0,10)||new Date().toISOString().slice(0,10)}));
+  const targets=assessments.map(a=>({assessment_id:a.assessment_id,activity_key:a.activity_key,class_id:a.class_id,rosterDate:a.exam_date||a.available_from?.slice(0,10)||new Date().toISOString().slice(0,10)}));
   return (await p(`SELECT DISTINCT json_extract(j.value,'$.assessment_id') assessment_id,u.account_id,u.display_name FROM json_each(?) j JOIN class_memberships m ON m.activity_key=json_extract(j.value,'$.activity_key') AND m.class_id=json_extract(j.value,'$.class_id') JOIN accounts u ON u.account_id=m.account_id WHERE u.active=1 AND m.active=1 AND (m.start_date IS NULL OR m.start_date<=json_extract(j.value,'$.rosterDate')) AND (m.end_date IS NULL OR m.end_date>=json_extract(j.value,'$.rosterDate')) AND (EXISTS(SELECT 1 FROM (${assessmentRolesSQL}) r WHERE r.account_id=u.account_id AND r.activity_key=m.activity_key AND r.role='STUDENT') OR EXISTS(SELECT 1 FROM effective_course_subscriptions s WHERE s.account_id=u.account_id AND s.activity_key=m.activity_key)) ORDER BY u.display_name,u.account_id LIMIT 100001`,JSON.stringify(targets)).all()).results;
  }
  const event=(a,action,details={},accountId=null)=>p('INSERT INTO assessment_events VALUES(?,?,?,?,?,?,?,?)',crypto.randomUUID(),a.assessment_id||null,a.activity_key,actor,action,accountId,JSON.stringify(details),new Date().toISOString());
@@ -82,7 +84,7 @@ export function assessmentStore(repository,auth){
   for(let attempt=0;attempt<3;attempt++){
    const saved=await receipt();if(saved)return saved;
    const version=await p('SELECT version FROM academy_write_state WHERE singleton=1').first();
-   classCache.clear();
+   classCache.clear();classLists.clear();
    const {statements,result,commitGuard}=await plan(),guard=crypto.randomUUID(),now=new Date().toISOString();
    if(repository.setup?.enabled&&(['publish','register-release'].includes(action)||action==='review-paper'&&input.decision==='APPROVE'))result.setupPublication={dataset:'ASSESSMENT',scope,operationId:input.operationId,sourceVersion:version.version+1,scopes:result.setupScopes};
    delete result.setupScopes;

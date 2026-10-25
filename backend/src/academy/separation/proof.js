@@ -20,3 +20,17 @@ export async function verifyActor(core,proof){
  if(!proof||typeof proof.accountId!=='string'||typeof proof.sid!=='string'||!Number.isInteger(proof.epoch)||typeof proof.signature!=='string')throw Object.assign(Error('Sign in again before saving.'),{status:401,code:'SESSION_ENDED'});
  const row=await core.prepare(sql).bind(proof.accountId,proof.sid,proof.epoch).first();if(!row||permissionSignature({globalAdmin:row.global_admin,roles:JSON.parse(row.roles_json),subscriptions:JSON.parse(row.subscriptions_json),grants:JSON.parse(row.grants_json)})!==proof.signature)throw Object.assign(Error('Your session or permissions changed. Refresh before continuing.'),{status:401,code:'SESSION_ENDED'});return row.version;
 }
+// Only reuse a verification performed by this request/read batch. Every Core
+// table mutation increments split_read_state, so a changed epoch requires the
+// full authority comparison. Expiry and timed substitute grants are checked
+// even when no database write occurred in the meantime.
+export async function verifyActorVersion(core,proof,verifiedVersion){
+ if(!Number.isInteger(verifiedVersion))return verifyActor(core,proof);
+ const row=await core.prepare(`SELECT v.version,
+  (SELECT json_group_array(json_object('id',g.assignment_id,'activityKey',g.activity_key)) FROM attendance_substitutes g JOIN activities x USING(activity_key) WHERE g.account_id=a.account_id AND x.active=1 AND x.lifecycle='ACTIVE' AND g.revoked_at IS NULL AND g.starts_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now') AND max(g.correction_until,coalesce(g.correction_reopen_until,''))>strftime('%Y-%m-%dT%H:%M:%fZ','now')) grants_json
+  FROM split_read_state v JOIN accounts a ON a.account_id=?1 JOIN account_credentials c USING(account_id) JOIN account_sessions s USING(account_id)
+  WHERE v.singleton=1 AND v.version=?4 AND a.active=1 AND c.credential_epoch=?3 AND c.pin_setup=1 AND length(trim(c.pin_hash))>0
+  AND s.session_id=?2 AND s.revoked_at IS NULL AND s.credential_epoch=c.credential_epoch AND s.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')`).bind(proof.accountId,proof.sid,proof.epoch,verifiedVersion).first();
+ if(row&&permissionSignature({grants:JSON.parse(row.grants_json)})===JSON.stringify([false,[],[],JSON.parse(proof.signature)[3]]))return row.version;
+ return verifyActor(core,proof);
+}
