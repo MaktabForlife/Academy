@@ -81,7 +81,8 @@ try{
  await page.locator('[data-page-home]').click();await dashboard().waitFor();
  checks.push('Assessment and Lesson media keep their tools, with no duplicate chooser, Messages or calendar. Home returns to the dashboard.');
 
- await page.setViewportSize({width:1440,height:1000});await identity(await fixture.login('0003'),'/academy/#timetable/teach');
+ await page.setViewportSize({width:1440,height:1000});await identity(await fixture.login('0003'),'/academy/#overview');
+ assert.equal(new URL(page.url()).hash,'#timetable/teach','Normal entry gives teaching priority over learner access');
  await dashboard().getByRole('button',{name:'Mark attendance',exact:true}).first().click();
  await page.locator('.ad-dialog').getByRole('heading',{name:'Mark attendance',exact:true}).waitFor();
  await page.locator('.ad-dialog .ad-tool-choice').first().click();await page.locator('#pa-main').waitFor();
@@ -94,7 +95,9 @@ try{
  await page.locator('[data-page-home]').click();await dashboard().waitFor();await capture('teach-desktop.png');
  checks.push('Teacher Mark attendance and Submit plans open the real scoped tools; the old Reminders, calendar and tracker panels are absent from teaching spaces.');
 
- await identity(await fixture.actor('adminA'),'/academy/admin/#administration');
+ await identity(await fixture.actor('dual'),'/academy/#overview');
+ assert.equal(new URL(page.url()).pathname,'/academy/admin/');
+ assert.equal(new URL(page.url()).hash,'#administration','An account with Admin, Teacher and Student roles lands on Admin');
  await page.locator('#ad-tools a').first().waitFor();
  const admin=snapshots.get('ADMIN');
  assert.ok(admin.personalActivities.filter(row=>row.roles?.includes('PROGRAM_ADMIN')).every(row=>[fixture.scopes.programA,fixture.scopes.courseA].includes(row.kind+':'+row.id)));
@@ -120,6 +123,43 @@ try{
 
  await page.locator('#ad-navigation .ad-visit').click();await page.locator('#overview.active').waitFor();assert.equal(new URL(page.url()).hash,'#website');
  await page.locator('[data-page-home]').click();await dashboard().waitFor();
+ // Focused presentation cases exercise several learning areas, duplicates and
+ // ended/cancelled sessions without adding records to the connected service.
+ await page.waitForTimeout(300);
+ await page.evaluate(()=>{
+  const t=Date.now(),base={status:'SCHEDULED',timezone:'Africa/Johannesburg',startsAt:t+600000,endsAt:t+4200000,startTime:'11:00',endTime:'12:00'};
+  const program={id:'next-program',kind:'PROGRAM',name:'Next Program',roles:['STUDENT']},course={id:'next-course',kind:'COURSE',name:'Next Course',roles:['STUDENT']};
+  const session=(area,extra)=>({...base,kind:area.kind,activityId:area.id,activityName:area.name,...extra});
+  window.M4L_ACADEMY_DASHBOARD.open({signedIn:true,personalActivities:[program,course],personalTimetable:[
+   session(program,{subjectName:'Fiqh',moduleName:'Purification'}),
+   session(program,{subjectName:'Later duplicate',startsAt:t+7200000,endsAt:t+10800000}),
+   session(course,{subjectName:'Arabic',moduleName:'Arabic',startsAt:t+300000,endsAt:t+3900000,startTime:'10:55'}),
+   session(course,{subjectName:'Ended lesson',startsAt:t-7200000,endsAt:t-3600000}),
+   session(program,{subjectName:'Cancelled lesson',status:'CANCELLED',startsAt:t+1000}),
+   session({kind:'PROGRAM',id:'unassigned',name:'Unassigned'},{subjectName:'Private lesson'})
+  ],profile:{name:'Synthetic learner'},timezone:'Africa/Johannesburg'},
+  {mode:'learn',activityHref:(row,tool,mode)=>'/academy/#activity/'+row.kind+'/'+row.id+'/'+mode+'/'+tool});
+ });
+ const next=page.locator('#ad-next .ad-next-row');
+ assert.equal(await next.count(),2);
+ assert.deepEqual(await next.locator('.ad-next-subject>strong').allTextContents(),['Arabic','Fiqh · Purification']);
+ assert.deepEqual(await next.locator('.ad-next-subject>span').allTextContents(),['Next Course','Next Program']);
+ assert.equal(await next.first().getAttribute('href'),'/academy/#activity/COURSE/next-course/learn/timetable');
+ assert.match(await next.first().innerText(),/10:55–12:00/);
+ for(const width of [1440,390,320]){
+  await page.setViewportSize({width,height:1000});
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Next-session rows fit at '+width);
+  assert.equal(await page.locator('.ad-menu-toggle').isVisible(),width<800);
+  if(width!==320)await capture('next-sessions-'+width+'.png');
+ }
+ const priority=await page.evaluate(()=>{
+  const landing=window.M4L_ACADEMY_DASHBOARD.landing;
+  sessionStorage.setItem('m4l_dashboard_workspace:role-priority','learn');
+  return [landing({profile:{uniqueid:'role-priority'},student:true,workspaceAccess:{admin:true,teach:true}}),landing({student:true,workspaceAccess:{teach:true}}),landing({student:true}),landing({globalAdmin:true})];
+ });
+ assert.deepEqual(priority,['/academy/admin/#administration','/academy/#timetable/teach','/academy/#timetable/learn','/academy/admin/#administration']);
+ checks.push('Coming up next has one linked row per authorised Program/Course, ordered by start time, with subject/module, area and time; duplicates, ended and cancelled lessons are excluded, and rows fit desktop and phone screens.');
+ checks.push('Normal landing uses Admin, then Teach, then Learn, regardless of a previously remembered lower workspace.');
  assert.equal(calls.some(call=>/class-notes\/(post|revise|withdraw)|enrolment\/(register|request-save)|planning\/(save|submit)/.test(call.path)),false,'Dashboard reads must not write records');
  assert.deepEqual(errors,[]);
  await writeFile(output+'/verification.json',JSON.stringify({success:true,checks,errors,calls},null,2));

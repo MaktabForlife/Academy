@@ -7,9 +7,10 @@ No deployment, push, database migration or live-data correction is included.
 
 The existing Learn (`#timetable/learn`), Teach (`#timetable/teach`) and Admin
 (`/academy/admin/#administration`) home entries now render the dashboard. Normal
-sign-in selects an authorised landing workspace; an explicit lesson/tool link
-survives sign-in. A remembered workspace is checked against current access before
-reuse. Home and the Academy brand return to the current workspace dashboard.
+sign-in selects the highest authorised workspace: Admin first, then Teach, then
+Learn. A previously selected lower workspace does not override that priority. An
+explicit lesson/tool link survives sign-in. Home and the Academy brand return to
+the current workspace dashboard.
 
 Visit website opens `/academy/#website`, the public Academy homepage. This
 explicit public destination does not bounce signed-in users back to the dashboard.
@@ -36,11 +37,17 @@ tool; it is no longer duplicated as a support panel.
 
 | Dashboard area | Existing real source |
 | --- | --- |
-| Identity, authorised tiles, next lesson, This week | Scoped entrance snapshot |
+| Identity, authorised tiles, next sessions, This week | Scoped entrance snapshot |
 | This week | The original `academy-schedule` component, including seven swipeable days, week arrows, details, Class Notes, lesson media and timed joining |
 | FYA | Authorised Class Notes due this timetable week; teacher plans due/overdue; scoped Admin planning follow-up and enrolment inbox |
 | Messages | Existing public Academy announcements and the same authorised due Class Note records |
 | Calendar, directly below timetable | Existing embedded Academic Calendar with the selected workspace and accepted setup |
+
+Coming up next shows one row per authorised Program/Course with an upcoming
+scheduled session in the displayed timetable week, ordered by the next start time.
+Each whole row links to that learning area’s workspace and shows its subject/module,
+Program/Course name, date, time and timezone. Ended and cancelled sessions are
+excluded, and later sessions in the same learning area are not duplicated.
 
 The dashboard introduces no fictional submissions, acknowledgements, assessment
 releases or queue counts. It shows records that the current Academy services can

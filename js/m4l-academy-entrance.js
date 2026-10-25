@@ -401,12 +401,7 @@
     window.M4L_ACADEMY_DASHBOARD.open({...state.home,personalTimetable:roleRows({...state.home,personalTimetable:state.scheduleTimetable})},{mode,
       activityHref:workspaceHref,adminLinks:dashboardAdminLinks,
       hifzHref:row=>{const html=hifzHelperLink(row);return html?html.match(/href="([^"]+)"/)?.[1].replace(/&amp;/g,'&'):'';},
-      refreshTimetable:(force=true)=>void loadSchedule(force),
-      lessonActions:lesson=>{
-        state.information['dashboard-next']=[{title:lesson.activityName,lessons:[lesson]}];
-        const now=Date.now(),join=mode!=='admin'&&!lesson.preview&&lesson.joinKey&&now>=lesson.joinAvailableAt&&now<lesson.endsAt;
-        return (join?'<button type="button" class="ad-primary" data-join="dashboard-next:0:0">Join lesson</button>':'')+'<button type="button" data-information="dashboard-next:0">Lesson details</button>'+`<a href="${workspaceHref({kind:lesson.kind,id:lesson.activityId},'library',mode==='admin'?'teach':mode)}">Resources</a>`;
-      }});
+      refreshTimetable:(force=true)=>void loadSchedule(force)});
     dockTimetable($('ad-timetable-host'));
   }
   function updateDashboard(){

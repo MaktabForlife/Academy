@@ -17,12 +17,8 @@
   const personalBase = () => boundary()?.adminRealm() ? '/academy/admin/' : '/academy/';
   function homeUrl() { return boundary()?.homeUrl?.() || personalBase() + (mode === 'admin' ? '#administration' : '#timetable/' + mode); }
   function landing(data) {
-    let selected='learn';
-    try { selected=sessionStorage.getItem('m4l_dashboard_workspace:'+data.profile?.uniqueid)||'learn'; } catch {}
     const access=data.workspaceAccess||{};
-    if(selected==='admin'&&!access.admin&&!data.globalAdmin)selected='learn';
-    if(selected==='teach'&&!access.teach)selected='learn';
-    if(selected==='learn'&&!data.student&&!(data.personalActivities||[]).some(row=>row.roles?.includes('STUDENT'))){if(access.teach)selected='teach';else if(access.admin||data.globalAdmin)selected='admin';}
+    const selected=access.admin||data.globalAdmin?'admin':access.teach?'teach':'learn';
     return selected==='admin'?'/academy/admin/#administration':'/academy/#timetable/'+selected;
   }
   function closeDialog() { if(dialog?.open)dialog.close(); }
@@ -136,9 +132,16 @@
   }
   function openInbox() { showDialog('Messages',messages().length?messageRows(messages()):'<p>No messages in the available Academy records.</p>'); }
   function renderNext() {
-    const lesson=(home.personalTimetable||[]).filter(row=>row.status==='SCHEDULED'&&Number(row.endsAt)>Date.now()).sort((a,b)=>a.startsAt-b.startsAt)[0];
-    $('ad-next').innerHTML=lesson?`<p class="ad-next-time">${esc(date(lesson.startsAt))} · ${esc(lesson.startTime)}–${esc(lesson.endTime)}<small>${esc(lesson.timezone||home.timezone)}</small></p><h3>${esc(lesson.activityName)}</h3><p>${esc(lesson.moduleName||lesson.subjectName||lesson.title)}</p><p class="ad-muted">${esc((lesson.teacherNames||[lesson.teacherName]).filter(Boolean).join(', '))}</p><div class="ad-actions">${options.lessonActions(lesson)}</div>`:'<p class="ad-empty-line">No upcoming lesson in this timetable week. Use the timetable arrows to view later weeks.</p>';
-    clearTimeout(timer);const transition=lesson&&[lesson.joinAvailableAt,lesson.startsAt,lesson.endsAt].filter(time=>time>Date.now()).sort((a,b)=>a-b)[0];
+    const now=Date.now(),allowed=new Map(areas().map(row=>[key(row).toUpperCase(),row])),next=new Map();
+    const rows=(home.personalTimetable||[]).filter(row=>row.status==='SCHEDULED'&&Number.isFinite(Number(row.startsAt))&&Number(row.endsAt)>now&&allowed.has((row.kind+':'+row.activityId).toUpperCase())).sort((a,b)=>a.startsAt-b.startsAt||a.activityName.localeCompare(b.activityName));
+    for(const row of rows){const id=(row.kind+':'+row.activityId).toUpperCase();if(!next.has(id))next.set(id,row);}
+    const lessons=[...next.values()];
+    $('ad-next').innerHTML=lessons.length?`<ul class="ad-next-list">${lessons.map(lesson=>{
+      const area=allowed.get((lesson.kind+':'+lesson.activityId).toUpperCase()),helper=options.hifzHref?.(area),target=helper||href(area);
+      const subject=[lesson.subjectName,lesson.moduleName].filter(Boolean).filter((name,index,all)=>all.findIndex(other=>other.toLowerCase()===name.toLowerCase())===index).join(' · ')||lesson.title||'Session';
+      return `<li><a class="ad-next-row" href="${esc(target)}"${helper?' target="_blank" rel="noopener noreferrer" title="Open HifzHelper in a new tab"':''}><span class="ad-next-subject"><strong>${esc(subject)}</strong><span>${esc(lesson.activityName)}</span></span><span class="ad-next-time"><span>${esc(date(lesson.startsAt))}</span><strong>${esc(lesson.startTime)}–${esc(lesson.endTime)}</strong><small>${esc(lesson.timezone||home.timezone)}</small></span><span class="ad-next-arrow" aria-hidden="true">${helper?'↗':'→'}</span></a></li>`;
+    }).join('')}</ul>`:'<p class="ad-empty-line">No upcoming session in this timetable week. Use the timetable arrows to view later weeks.</p>';
+    clearTimeout(timer);const transition=lessons.flatMap(lesson=>[lesson.startsAt,lesson.endsAt]).filter(time=>time>now).sort((a,b)=>a-b)[0];
     if(transition)timer=setTimeout(()=>{if(owner===context()&&home){renderNext();renderAttention();renderMessages();}},Math.min(2147483647,Math.max(300,transition-Date.now()+100)));
   }
   async function request(path,input) {
@@ -169,7 +172,6 @@
     if(next!==owner){reset();owner=next;home=data;options=settings;mode=settings.mode;mount();void restoreRead();}
     else if(returning)mount();
     home=data;options=settings;mode=settings.mode;
-    try{sessionStorage.setItem('m4l_dashboard_workspace:'+data.profile?.uniqueid,mode);}catch{}
     renderNavigation();renderAreas();renderAttention();renderMessages();renderNext();
     announce(data._cacheChecking?'Showing saved dashboard. Checking for updates…':data._cacheMessage||data.warnings?.join(' ')||'',Boolean(data._cacheMessage));
     const calendar=$('ad-calendar-host');
