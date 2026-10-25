@@ -50,6 +50,7 @@ export function guardWorkspace(request,auth,input={}){
  const forbidden=()=>{throw fail('Open Admin for this action.',403,'ADMIN_WORKSPACE_REQUIRED');};
  if(/^\/api\/admin\/|^\/api\/academy\/d1\/accounts\//.test(path)&&!admin)forbidden();
  if(path==='/api/academy/cache/refresh'&&!admin)forbidden();
+ if(auth.adminView&&auth.workspace==='LEARN'&&/^\/api\/academy\/class-notes\/(post|revise|withdraw|relink)$/.test(path))throw fail('Student class viewing is read only.',403,'PREVIEW_READ_ONLY');
  const match=path.match(/^\/api\/academy\/(assessments|planning|progress|lesson-media|calendar)\/([^/]+)$/);
  if(match){const [,family,action]=match;
   if(auth.workspace==='LEARN'&&family==='planning')throw fail('Planning is available in Teach.',403,'TEACH_WORKSPACE_REQUIRED');

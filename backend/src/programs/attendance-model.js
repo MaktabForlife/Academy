@@ -25,7 +25,7 @@ export function scheduledLessons(publicationRows, program, date) {
   return publication.occurrences.filter(row=>row.kind!=='BREAK'&&row.status!=='CANCELLED' &&
     (publication.pattern==='WEEKLY'?row.weekday===weekday:row.date===date))
     .map(row=>({publicationId:publication.id,anchor:row.anchor,date,ruleId:row.ruleId,
-      moduleId:row.moduleId||'',moduleName:row.moduleName||'',subjectName:row.subjectName||'',
+      moduleId:row.moduleId||'',moduleName:row.moduleName||'',programSubjectId:row.programSubjectId||'',subjectName:row.subjectName||'',
       startTime:row.startTime,endTime:row.endTime,teacherId:row.teacherId||'',teacherName:row.teacherName||'',
       teacherIds:row.teacherIds||[row.teacherId].filter(Boolean),
       teacherNames:row.teacherNames||[row.teacherName].filter(Boolean),

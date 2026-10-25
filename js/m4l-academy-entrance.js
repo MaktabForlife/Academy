@@ -222,7 +222,7 @@
   }
 
   async function loadHome(force = false, fresh = null) {
-    if(force)clearTimetableMedia();
+    if(force){clearTimetableMedia();window.M4L_CLASS_NOTES?.invalidate();}
     const generation = ++state.generation;
     $('entrance-message').textContent = 'Loading Academy information…';
     $('entrance-retry').hidden = true;
@@ -270,7 +270,7 @@
   }
 
   async function loadSchedule(force = false, fresh = null) {
-    if(force)clearTimetableMedia();
+    if(force){clearTimetableMedia();window.M4L_CLASS_NOTES?.invalidate();}
     const generation = ++state.scheduleGeneration;
     $('schedule-message').textContent = 'Loading Academy timetable…';
     try {
@@ -478,7 +478,7 @@
     if(row.substituteOnly)tools.splice(2);
     const recorder = row.kind === 'PROGRAM' && row.id === window.M4L_CONFIG?.REBOOT_PROGRAM_ID && !row.unavailable
       ? '<a class="workspace-recorder-pill" data-recorder-link href="/recorder/?academy=1">Voice Recorder</a>' : '';
-    return `<nav class="workspace-tabs" aria-label="${context.mode === 'teach' ? 'Teach' : 'Learn'} tools" role="tablist">${tools.map(([key,label,panel]) => `<a id="activity-tab-${key}" role="tab" href="${key==='library'?'/academy/library/':workspaceHref(row,key)}" aria-controls="${panel}" aria-selected="${context.tool === key}" tabindex="${context.tool === key ? 0 : -1}">${label}</a>`).join('')}${recorder}</nav>${hifzHelperLink(row,'workspace-helper')}`;
+    return `<nav class="workspace-tabs" aria-label="${context.mode === 'teach' ? 'Teach' : 'Learn'} tools" role="tablist">${tools.map(([key,label,panel]) => `<a id="activity-tab-${key}" role="tab" href="${key==='library'?'/academy/library/':workspaceHref(row,key)}" aria-controls="${panel}" aria-selected="${context.tool === key}" tabindex="${context.tool === key ? 0 : -1}">${label}</a>${key==='timetable'&&!row.substituteOnly?`<button type="button" class="cn-toggle" data-class-notes-toggle aria-pressed="${Boolean(window.M4L_CLASS_NOTES?.visible())}" aria-controls="activity-sessions">Class Notes</button>`:''}`).join('')}${recorder}</nav>${hifzHelperLink(row,'workspace-helper')}`;
   }
   function supportSections(row, mode) {
     const staff = mode !== 'learn';
@@ -733,6 +733,7 @@
   function renderPersonalWeek(id, rows, detailed, next, now) {
     const programTimetable = id === 'activity-sessions' && state.activity?.kind === 'PROGRAM';
     const media=timetableAttachments(rows);
+    window.M4L_CLASS_NOTES?.timetable(rows,()=>{if(location.hash.startsWith('#activity/')&&state.activity)renderActivityTimetable();else if(location.hash.startsWith('#timetable')||location.hash==='#administration')renderSchedule('academy-sessions',roleRows({...state.home,personalTimetable:state.scheduleTimetable,timetable:state.scheduleTimetable}));});
     const scrollLeft = $(id).scrollLeft || 0;
     const timezone = state.home?.timezone || rows[0]?.timezone || 'Africa/Johannesburg';
     const formatter = new Intl.DateTimeFormat('en-GB', { timeZone: timezone,
@@ -789,7 +790,8 @@
       const subtitle = programTimetable ? teachers.join(', ') || 'No teacher assigned' : lessonCount || (lessonTitle !== label ? lessonTitle : '');
       const count = programTimetable && lessonCount ? `<small>${esc(lessonCount)}</small>` : '';
       const attachments=entries.map((entry,i)=>{const lesson=media.get(mediaReference(entry.row));entry.row.media=lesson;return timetableMediaButtons(lesson,`${id}:${infoIndex}:${i}`);}).join('');
-      return `<li class="preview-pill timetable-pill ${nextEntry ? 'next-lesson ' : ''}${participation(entries)}${joinable ? ' join-open' : ''}"><button type="button" class="timetable-pill-details" data-information="${id}:${infoIndex}" aria-label="${esc(label)}${subtitle ? ' · ' + esc(subtitle) : ''}${programTimetable && lessonCount ? ' · ' + lessonCount : ''}, ${esc(first.startTime)}–${esc(last.endTime)}${status ? ', ' + status : ''}. View lesson details">${previewTime(first.startTime)}<span class="timetable-pill-copy"><strong class="preview-name">${esc(label)}</strong>${subtitle ? `<small>${esc(subtitle)}</small>` : ''}${count}${status ? `<small class="timetable-pill-status">${status}</small>` : ''}</span></button>${join}${attachments?`<div class="timetable-media-actions" aria-label="Lesson attachments">${attachments}</div>`:''}</li>`;
+      const classNotes=entries.map(entry=>window.M4L_CLASS_NOTES?.buttons(entry.row)||'').join('');
+      return `<li class="preview-pill timetable-pill ${nextEntry ? 'next-lesson ' : ''}${participation(entries)}${joinable ? ' join-open' : ''}"><button type="button" class="timetable-pill-details" data-information="${id}:${infoIndex}" aria-label="${esc(label)}${subtitle ? ' · ' + esc(subtitle) : ''}${programTimetable && lessonCount ? ' · ' + lessonCount : ''}, ${esc(first.startTime)}–${esc(last.endTime)}${status ? ', ' + status : ''}. View lesson details">${previewTime(first.startTime)}<span class="timetable-pill-copy"><strong class="preview-name">${esc(label)}</strong>${subtitle ? `<small>${esc(subtitle)}</small>` : ''}${count}${status ? `<small class="timetable-pill-status">${status}</small>` : ''}</span></button>${join}${attachments?`<div class="timetable-media-actions" aria-label="Lesson attachments">${attachments}</div>`:''}${classNotes}</li>`;
     };
     $(id).innerHTML = `<ol class="upcoming-days preview-days timetable-days">${[...days].sort(([a], [b]) => a.localeCompare(b)).map(([date, groups]) => `<li class="upcoming-day"><time datetime="${esc(date)}">${esc(formatDate(date))}</time><ul class="upcoming-items">${groups.size ? [...groups.values()].map(renderGroup).join('') : '<li class="timetable-empty">No lessons</li>'}</ul></li>`).join('')}</ol>`;
     $(id).scrollLeft = scrollLeft;
@@ -811,13 +813,13 @@
   function changeStudentClass(value){
     if(!window.M4L_ACADEMY_WORKSPACE?.studentClass?.(value))return false;
     pageCache.epoch++;pageCache.snapshot=null;pageCache.pending.clear();dailyCache.entries={};
-    state.scheduleGeneration++;clearTimetableMedia();
+    state.scheduleGeneration++;clearTimetableMedia();window.M4L_CLASS_NOTES?.reset();
     window.M4L_ACADEMY_ASSESSMENTS?.reset();window.M4L_LESSON_MEDIA?.reset();window.M4L_ACADEMY_PROGRESS?.reset();
     return true;
   }
   $('activity-student-class')?.addEventListener('change',()=>{
     const row=state.activity;if(!row?.studentPreview)return;
-    if(window.M4L_ACADEMY_ASSESSMENTS?.canLeave()===false||window.M4L_LESSON_MEDIA?.canLeave()===false||window.M4L_ACADEMY_PROGRESS?.canLeave()===false){$('activity-student-class').value=row.viewClassId;return;}
+    if(window.M4L_CLASS_NOTES?.canLeave()===false||window.M4L_ACADEMY_ASSESSMENTS?.canLeave()===false||window.M4L_LESSON_MEDIA?.canLeave()===false||window.M4L_ACADEMY_PROGRESS?.canLeave()===false){$('activity-student-class').value=row.viewClassId;return;}
     if(changeStudentClass({activityKey:row.kind+':'+row.id,classId:$('activity-student-class').value}))void loadActivity(row.id,true);
   });
   async function loadActivity(id, refresh = false, fresh = null) {
@@ -984,7 +986,7 @@
       }
     }
     if (lastRouteHash && hash !== lastRouteHash) {
-      if (window.M4L_ACADEMY_SETTINGS?.canLeave() === false || window.M4L_PROGRAM_ATTENDANCE?.canLeave() === false || window.M4L_ACADEMY_PROGRESS?.canLeave() === false || window.M4L_MEMORISATION_ADMIN?.canLeave() === false || window.M4L_ACADEMY_ASSESSMENTS?.canLeave() === false || window.M4L_LESSON_MEDIA?.canLeave() === false || window.M4L_PLANNING?.canLeave() === false || window.M4L_ANNOUNCEMENTS?.canLeave() === false) { history.replaceState(null,'',lastRouteHash); workspaceFocusId='';renderAcademyMenu();return; }
+      if (window.M4L_CLASS_NOTES?.canLeave() === false || window.M4L_ACADEMY_SETTINGS?.canLeave() === false || window.M4L_PROGRAM_ATTENDANCE?.canLeave() === false || window.M4L_ACADEMY_PROGRESS?.canLeave() === false || window.M4L_MEMORISATION_ADMIN?.canLeave() === false || window.M4L_ACADEMY_ASSESSMENTS?.canLeave() === false || window.M4L_LESSON_MEDIA?.canLeave() === false || window.M4L_PLANNING?.canLeave() === false || window.M4L_ANNOUNCEMENTS?.canLeave() === false) { history.replaceState(null,'',lastRouteHash); workspaceFocusId='';renderAcademyMenu();return; }
       if(!memorisationHash(lastRouteHash)&&memorisationHash(hash)){memorisationReturn={hash:lastRouteHash,top:window.scrollY||0,left:$('activity-sessions').scrollLeft||0};if(dailyCache.owner)try{sessionStorage.setItem(MEMORISATION_RETURN_KEY,JSON.stringify({...memorisationReturn,owner:dailyCache.owner}));}catch{}}
       if(memorisationHash(lastRouteHash)&&hash===memorisationReturn?.hash)restoreMemorisation=memorisationReturn;
       window.M4L_ACADEMY_SETTINGS?.reset();window.M4L_PROGRAM_ATTENDANCE?.reset();
@@ -1105,7 +1107,10 @@
     };
   }
 
+  window.addEventListener('m4l-class-notes-error',event=>{const el=location.hash.startsWith('#activity/')?$('activity-status'):$('schedule-message');if(el)el.textContent=event.detail+' Refresh to try again.';});
+
   function clearPersonal() {
+    window.M4L_CLASS_NOTES?.reset();
     // Keep shared timetable elements attached before clearing their Admin host.
     dockTimetable($('timetable-card-home'));
     window.M4L_LESSON_MEDIA?.reset();window.M4L_PLANNING?.reset();window.M4L_ANNOUNCEMENTS?.reset();
@@ -1217,6 +1222,8 @@
     if(upcomingWeek){state.startDate=sunday(upcomingWeek.dataset.upcomingWeek);void loadSchedule();$('academy-schedule').scrollIntoView({block:'start'});}
     const upcomingPlan=event.target.closest('[data-upcoming-plan]');
     if(upcomingPlan)planningSelection={id:upcomingPlan.dataset.upcomingPlan,weekStart:upcomingPlan.dataset.planStart,runId:upcomingPlan.dataset.planRun};
+    const notesToggle=event.target.closest('[data-class-notes-toggle]');
+    if(notesToggle&&state.activity){const enabled=window.M4L_CLASS_NOTES?.toggle();notesToggle.setAttribute('aria-pressed',String(Boolean(enabled)));if(workspaceContext(state.activity).tool!=='timetable')location.hash=workspaceHref(state.activity,'timetable');else renderActivityTimetable();}
     const workspaceTab=event.target.closest('.workspace-tabs [role=tab]');
     if(workspaceTab) {workspaceFocusId=workspaceTab.id;if(workspaceTab.getAttribute('href')===location.hash)revealWorkspaceTab();}
     const nav = event.target.closest('[data-nav]');
@@ -1240,7 +1247,7 @@
       $('lesson-information-body').innerHTML = (row.lessons || [row]).map(lesson => {
         const classes = (lesson.classNames || [lesson.group]).filter(Boolean).join(', ');
         const teachers = (lesson.teacherNames || [lesson.teacherName]).filter(Boolean).join(', ');
-        return `<section class="combined-lesson"><h3>${esc(lesson.moduleName || lesson.subjectName || lesson.title)}</h3><div class="lesson-info-meta">${classes ? `<p class="lesson-info-class">${esc(classes)}</p>` : ''}<p class="lesson-info-time">${esc(lesson.startTime)}–${esc(lesson.endTime)}</p></div>${teachers ? `<p class="lesson-info-teacher">${esc(teachers)}</p>` : ''}</section>`;
+        return `<section class="combined-lesson"><h3>${esc(lesson.moduleName || lesson.subjectName || lesson.title)}</h3><div class="lesson-info-meta">${classes ? `<p class="lesson-info-class">${esc(classes)}</p>` : ''}<p class="lesson-info-time">${esc(lesson.startTime)}–${esc(lesson.endTime)}</p></div>${teachers ? `<p class="lesson-info-teacher">${esc(teachers)}</p>` : ''}${window.M4L_CLASS_NOTES?.buttons(lesson,true)||''}</section>`;
       }).join('');
       $('lesson-information').showModal();
     }

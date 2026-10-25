@@ -1,3 +1,11 @@
+# V107.56 — Lesson-linked Class Notes
+
+Add Class Notes beside Timetable to reveal note tools inside the existing swipeable lesson cards. Save multiple long-text notes with the author, due date and retained corrections. Default to the next accepted session for the same class, subject/module and Teacher, or select a fixed date. Due lesson reminders open the original note. Students correct their own notes; responsible Teachers and scoped Admin can correct, relink or withdraw with history. Admin-Learn stays read-only.
+
+Keep FMA, messaging, dashboard changes and alerts for later. This release adds three Core operational tables through the additive SPLIT_V1 migration in `backend/migrations/academy-core/0001_class_notes.sql`; it does not rebuild or import existing records.
+
+Validation: all 107 regression files pass. Class Notes has 11 focused domain/split-store checks and six real-browser acceptance groups covering mobile widths, retained swipe position, Arabic/English text, exact retry after a lost response, concurrent-edit review, selected dates, canonical reminders, staff withdrawal and account isolation. The website and Worker builds pass.
+
 # V107.55 — Lesson details on Program timetable cards
 
 Within a Program timetable, show the module or subject as the card heading, followed by the current Teacher names and the lesson time. Keep the Program name in the timetable heading. Inherited Admin rollups show their distinct lesson titles and Teachers together with the lesson count. Preserve individual assigned lessons, joining, attachments and the V107.54 metadata caches. No database changes.

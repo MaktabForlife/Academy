@@ -1,6 +1,9 @@
 // Physical target columns; Core facts are projected into Admin reads, not copied into its master rows.
 export const storeColumns={
  "core":{
+  "class_note_contexts":["context_id","activity_key","class_id","lesson_date","stable_key","source_json","source_head","created_at"],
+  "class_notes":["note_id","activity_key","context_id","created_by","created_at","current_version_id","state","revision","updated_at","updated_by","withdrawn_at"],
+  "class_note_versions":["version_id","note_id","revision","context_id","body","due_mode","due_date","due_context_id","due_json","source_head","previous_version_id","reason","created_at","created_by"],
   "actor_refs":["account_id"],
   "accounts":["account_id","display_name","login_link_id","active","last_login_at","created_at","updated_at","created_by_source_id","modified_by_source_id","revision"],
   "account_credentials":["account_id","pin_hash","pin_setup","credential_epoch","updated_at"],

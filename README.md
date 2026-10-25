@@ -1,4 +1,10 @@
-# Umm Abbad Academy — V107.55
+# Umm Abbad Academy — V107.56
+
+## V107.56 — Lesson-linked Class Notes
+
+Add Class Notes beside Timetable to reveal note tools inside the existing swipeable lesson cards. Save multiple long-text notes with the author, due date and retained corrections. Default to the next accepted session for the same class, subject/module and Teacher, or select a fixed date. Due lesson reminders open the original note. Students correct their own notes; responsible Teachers and scoped Admin can correct, relink or withdraw with history. Admin-Learn stays read-only.
+
+Keep FMA, messaging, dashboard changes and alerts for later. This release adds three Core operational tables through the additive SPLIT_V1 migration in `backend/migrations/academy-core/0001_class_notes.sql`; it does not rebuild or import existing records.
 
 ## V107.55 — Lesson details on Program timetable cards
 
