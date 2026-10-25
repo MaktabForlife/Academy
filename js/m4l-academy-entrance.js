@@ -32,7 +32,7 @@
   }
   function checkProfileLabels(){const revision=profileLabelRevision();if(revision!==dailyCache.profileRevision){dailyCache.profileRevision=revision;dailyCache.entries={};pageCache.snapshot=null;}return revision;}
   const MEMORISATION_RETURN_KEY='m4l_academy_memorisation_return_v2:'+window.M4L_ACADEMY_WORKSPACE.current();
-  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10736';
+  const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10753';
   let planningSelection=null;
   const academyDay = (timezone, instant = Date.now()) => {
     const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {timeZone:timezone || 'Africa/Johannesburg',
@@ -626,12 +626,9 @@
   }
 
   function summarizeLesson(row) {
-    if (row.kind === 'PROGRAM' && state.home?.signedIn) return true;
-    if (typeof row.summarize === 'boolean') return row.summarize;
-    // Retain the same presentation during a staggered frontend/backend release.
-    return Boolean(state.home?.globalAdmin || state.home?.personalActivities.some(activity =>
-      row.kind === activity.kind && activity.id === row.activityId &&
-      activity.roles.some(role => ['PROGRAM_ADMIN', 'ADMIN'].includes(role))));
+    // Only verified inherited access may combine lessons. Older cached replies
+    // without assignment metadata stay separate until the next fresh snapshot.
+    return row.summarize === true && row.assignedParticipation === '' && !row.preview;
   }
 
   function renderSchedule(id, rows, detailed = false, compact = false, options = {}) {

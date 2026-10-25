@@ -62,7 +62,7 @@ test('a Course cancelled after caching cannot be joined',async()=>{
   } finally {f.db.close();}
 });
 
-test('D1 timetables roll up every participant’s Program lessons while scoping administrator oversight to current roles',()=>use(async({env,db})=>{
+test('D1 timetables keep assigned lessons separate and scope administrator rollups to inherited access',()=>use(async({env,db})=>{
   const admin=await login(env,'0001'),student=await login(env,'0002'),teacher=await login(env,'0003');
   const overview=async token=>(await call(env,'/api/academy/entrance',{startDate:'2026-10-09'},token)).body;
   const entire=await overview(admin.body.token);
@@ -72,7 +72,7 @@ test('D1 timetables roll up every participant’s Program lessons while scoping 
     const home=await overview(signed.body.token);
     assert.ok(home.personalTimetable.length);
     assert.ok(home.personalTimetable.every(row=>row.relevant));
-    assert.ok(home.personalTimetable.filter(row=>row.kind==='PROGRAM').every(row=>row.summarize));
+    assert.ok(home.personalTimetable.every(row=>!row.summarize));
     assert.ok(home.personalTimetable.filter(row=>row.kind==='COURSE').every(row=>!row.summarize));
     const page=await call(env,'/api/academy/entrance',{id:home.personalActivities[0].id,startDate:'2026-10-09'},signed.body.token);
     assert.equal(page.status,200);
@@ -89,7 +89,7 @@ test('D1 timetables roll up every participant’s Program lessons while scoping 
   db.prepare("UPDATE role_assignments SET active=0 WHERE assignment_id='timetable-program-admin'").run();
   const after=await overview((await login(env,'0008')).body.token);
   assert.ok(after.personalTimetable.every(row=>row.relevant),'Revoking Program Admin removes its wider timetable immediately');
-  assert.ok(after.personalTimetable.filter(row=>row.kind==='PROGRAM').every(row=>row.summarize),'Direct Program lessons retain compact cards after oversight is revoked');
+  assert.ok(after.personalTimetable.every(row=>!row.summarize),'Direct lessons remain separate after oversight is revoked');
   assert.ok(!after.personalActivities.find(row=>row.kind==='PROGRAM'&&row.id===program)?.roles.includes('PROGRAM_ADMIN'));
 }));
 

@@ -1,5 +1,5 @@
 import { isActivePlatformValue as active, normalizePlatformIdentifier as key } from '../lib/platform-schema.js';
-import { canAccountAccessGlobalSubject, dateInTimezone } from '../lib/global-subject-delivery.js';
+import { canAccountAccessGlobalSubject, hasActiveGlobalSubjectSubscription, dateInTimezone } from '../lib/global-subject-delivery.js';
 import { buildGlobalCourseEvents, academyClockInTimezone } from '../lib/academy-timetable-model.js';
 import { resolveCurrentPublishedGlobalTimetable } from '../lib/global-timetable.js';
 import { publicationRecord, publicationSchedule } from '../programs/weekly-timetable.js';
@@ -68,7 +68,8 @@ export function programProjection(program, data, user, roles, start, end, now, d
   const enrolments = (snapshot.ProgramEnrollments || []).filter(row => row.CourseID === program.id);
   // An explicit allocation (including a withdrawn or dated one) wins. Only a
   // verified Student with no allocation may use the sole active class.
-  if (user && !preview && roles.includes('STUDENT') && classes.length === 1 && !enrolments.some(row => key(row.AccountID) === key(user.accountid)))
+  const studentAssignment=user?.enrolledActivities?user.enrolledActivities.some(k=>key(k)===key('PROGRAM:'+program.id)):!preview&&roles.includes('STUDENT');
+  if (user && studentAssignment && classes.length === 1 && !enrolments.some(row => key(row.AccountID) === key(user.accountid)))
     enrolments.push({AccountID:user.accountid,ClassID:classes[0].ClassID,Active:true});
   const timetable = [];
   const history = (data.tables?.ProgramTimetablePublications || []).map(row => publicationRecord(row, program));
@@ -83,7 +84,8 @@ export function programProjection(program, data, user, roles, start, end, now, d
         !(publication.pattern === 'WEEKLY' ? row.weekday === weekday : row.date === date)) continue;
       const classIds = row.classIds || [];
       const zoomLink=data.zoomLinkForLesson?data.zoomLinkForLesson(row,publication):row.zoomLink;
-      const teaching = !preview && staff(roles) && (user?.teachingActivities?.some(k=>key(k)===key('PROGRAM:'+program.id)) || (row.teacherIds || [row.teacherId]).some(id => key(id) === key(user?.accountid)));
+      const teacherAssignment=Boolean(user&&(row.teacherIds?.length?row.teacherIds:[row.teacherId]).some(id=>key(id)===key(user.accountid)));
+      const teaching = !preview && staff(roles) && (user?.teachingActivities?.some(k=>key(k)===key('PROGRAM:'+program.id)) || teacherAssignment);
       const enrolled = !preview && roles.includes('STUDENT') && enrolments.some(item => participant(item, user?.accountid, date, classIds));
       const oversight = roles.some(role => ['GLOBAL_ADMIN', 'PROGRAM_ADMIN', 'ADMIN', 'SENIOR'].includes(role));
       const involved = Boolean(teaching || enrolled);
@@ -94,6 +96,7 @@ export function programProjection(program, data, user, roles, start, end, now, d
         relevant: involved, involvement: teaching ? 'teacher' : enrolled ? 'student' : '',...(preview?{preview:true}:{}),
         status: row.status || 'SCHEDULED' };
       if (mayView) {
+        event.assignedParticipation=teacherAssignment?'teacher':studentAssignment&&enrolments.some(item=>participant(item,user.accountid,date,classIds))?'student':'';
         const teacherNames=timetableTeacherNames(row,teacherDisplayNames);
         event.mediaSessionKey = JSON.stringify(['PROGRAM', date, row.anchor]);
         event.subjectName = row.subjectName || '';
@@ -192,13 +195,16 @@ export async function buildEntrance({ tables, programs, rolesByProgram, rolesByC
         isGlobalAdmin: oversight||Boolean(user?.teachingActivities?.some(k=>key(k)===key('COURSE:'+subject.SubjectID))), allowAssignedTeacher:mayTeach, week: { start, end, today: dateInTimezone(now, timezone) },
         currentDate: dateInTimezone(now, runTimezone), currentMinutes: nowInMinutes(now, runTimezone) });
       for (const [index, event] of events.entries()) {
-        const teaching = Boolean(user && mayTeach && (user.teachingActivities?.some(k=>key(k)===key('COURSE:'+subject.SubjectID)) || key(published[index]?.teacheraccountid) === key(user.accountid)));
+        const teacherAssignment=Boolean(user&&key(published[index]?.teacheraccountid)===key(user.accountid));
+        const teaching = Boolean(user && mayTeach && (user.teachingActivities?.some(k=>key(k)===key('COURSE:'+subject.SubjectID)) || teacherAssignment));
         const relevant = Boolean(user && (event.relevant||teaching));
         const projected = { kind: 'COURSE', activityId: subject.SubjectID, offeringId: run.RunID,
           activityName: subject.SubjectName, date: event.date, startTime: event.startTime, endTime: event.endTime,
           timezone: runTimezone, title: event.title, status: event.status,
           relevant, involvement: relevant ? teaching ? 'teacher' : 'student' : '' };
         if (user && event.visibilityLevel === 'DETAIL') {
+          const studentAssignment=user.enrolledActivities?user.enrolledActivities.some(k=>key(k)===key('COURSE:'+subject.SubjectID)):assignedRoles.includes('STUDENT')||hasActiveGlobalSubjectSubscription(platform.matrix,user.accountid,subject.SubjectID);
+          projected.assignedParticipation=teacherAssignment?'teacher':studentAssignment?'student':'';
           projected.mediaSessionKey = JSON.stringify(['COURSE', run.RunID, published[index]?.sourcesessionid || published[index]?.publishedsessionid]);
           projected.subjectName = event.subjectName || subject.SubjectName;
           projected.moduleName = event.moduleName || '';
@@ -242,8 +248,9 @@ export async function buildEntrance({ tables, programs, rolesByProgram, rolesByC
   const administeredActivities = new Set([...programViews,...courseViews].filter(view => view.roles.some(role =>
     ['PROGRAM_ADMIN', 'ADMIN'].includes(role))).map(view => `${view.kind}:${key(view.id)}`));
   const oversees = row => globalAdmin(user) || administeredActivities.has(`${row.kind}:${key(row.activityId)}`);
+  const inheritedTeaching = row => oversees(row)||Boolean(user?.teachingActivities?.some(k=>key(k)===key(row.kind+':'+row.activityId)));
   const personalTimetable = user ? timetable.filter(row => (oversees(row) || row.relevant || row.preview) && row.status === 'SCHEDULED')
-    .map(row => ({ ...row, title: row.moduleName || row.subjectName || row.title, ...lessonTimes(row), summarize: row.kind === 'PROGRAM' || oversees(row) }))
+    .map(row => ({ ...row, title: row.moduleName || row.subjectName || row.title, ...lessonTimes(row), summarize: row.assignedParticipation===''&&!row.preview&&inheritedTeaching(row) }))
     .filter(row => Number.isFinite(row.startsAt) && Number.isFinite(row.endsAt))
     .sort((a, b) => a.startsAt - b.startsAt || a.activityId.localeCompare(b.activityId)) : [];
   const visibleTimetable = requestedId ? timetable.filter(row => key(row.activityId) === key(requestedId)) : timetable;

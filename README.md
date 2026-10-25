@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.52
+# Umm Abbad Academy — V107.53
+
+## V107.53 — Individual lessons for assigned students and teachers
+
+Show each assigned lesson separately across Home, Learn, Teach and every Program/Course curriculum timetable, including an Admin’s own student or named teacher lessons. Only inherited Admin teaching access may roll up sessions, with the existing room, learning area, day and Program continuity boundaries. Check real enrolments, dated class membership and named/co-teacher IDs independently of the Admin reader audience. Refresh the daily timetable cache to remove previous grouping. No database migration or live data corrections.
 
 ## V107.52 — Compact lesson media and cached background updates
 

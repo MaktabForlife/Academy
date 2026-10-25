@@ -1,3 +1,7 @@
+# V107.53 — Individual lessons for assigned students and teachers
+
+Show each assigned lesson separately across Home, Learn, Teach and every Program/Course curriculum timetable, including an Admin’s own student or named teacher lessons. Only inherited Admin teaching access may roll up sessions, with the existing room, learning area, day and Program continuity boundaries. Check real enrolments, dated class membership and named/co-teacher IDs independently of the Admin reader audience. Refresh the daily timetable cache to remove previous grouping. No database migration or live data corrections.
+
 # V107.52 — Compact lesson media and cached background updates
 
 Remove the week/date/offering toolbar and swipe-help text from lesson media. Keep compact rail arrows beside Refresh and browse saved lesson media across dates, with an explicit Load earlier lessons action for longer histories. Retain whole-Course PDFs, equal-sized cards and Admin editing.

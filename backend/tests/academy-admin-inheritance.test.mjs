@@ -25,6 +25,14 @@ test('Global and scoped Admins inherit teaching dynamically without new assignme
  assert(global.personalActivities.every(a=>a.roles.includes('TEACHER')));assert.equal(global.globalAdmin,false);
  assert.deepEqual(counts(),before);
 }));
+test('split Admin-Teach keeps an Admin’s genuine learner assignments separate from inherited Teacher lessons',()=>use(async f=>{
+ const scope=f.scopes.programA;
+ f.databases.core.prepare("INSERT INTO class_memberships(activity_key,enrollment_id,class_id,account_id,active) VALUES(?,'rollup-dual-member','class-1',?,1)").run(scope,f.actors.dual);
+ const own=ok(await f.request('/api/academy/entrance',{},'dual')),inherited=ok(await f.request('/api/academy/entrance',{},'adminA'));
+ const rows=own.personalTimetable.filter(r=>'PROGRAM:'+r.activityId===scope);assert(rows.length);
+ assert(rows.every(r=>r.involvement==='teacher'&&r.assignedParticipation==='student'&&!r.summarize));
+ assert(inherited.personalTimetable.filter(r=>'PROGRAM:'+r.activityId===scope).every(r=>r.assignedParticipation===''&&r.summarize));
+}));
 test('inherited Teachers record all session attendance under their own identity and lose scope immediately on revocation',()=>use(async f=>{
  const path='/api/academy/attendance/',scope=f.scopes.programA;
  const view=ok(await f.request(path+'get',{activityKey:scope,date:today()},'adminA'));assert.equal(view.readOnly,false);assert(view.lessons.length&&view.lessons.every(l=>l.canSubmit));
@@ -53,6 +61,7 @@ test('inherited Teachers contribute only their own notes while student class vie
  assert.equal((await f.request(path+'note-upload?metadata='+encodeURIComponent(JSON.stringify({...metadata,...op(),noteId:posted.noteId,revision:1})),{},'global','ADMIN_TEACH',null,bytes)).status,403);
  const before=f.databases.core.prepare('SELECT version FROM academy_write_state').get().version,classView={activityKey:scope,classId:session.classIds[0]};
  const home=ok(await f.request('/api/academy/entrance',{},'adminA','ADMIN_LEARN',classView));assert(home.activityPages.find(a=>a.kind+':'+a.id===scope).studentPreview);
+ assert(home.personalTimetable.filter(r=>'PROGRAM:'+r.activityId===scope).every(r=>r.assignedParticipation===''&&!r.summarize),'The read-only class audience is not a learner assignment');
  assert(home.personalTimetable.filter(r=>'PROGRAM:'+r.activityId===scope).every(r=>r.classIds.includes(classView.classId)&&!r.joinKey));
  const learner=ok(await f.request(path+'calendar',input,'adminA','ADMIN_LEARN',classView));assert(learner.sessions.every(s=>!s.canContribute));assert(learner.sessions.some(s=>s.media?.assets.some(a=>a.id===posted.versionId)));
  const otherClass=home.activityPages.find(a=>a.kind+':'+a.id===scope).classes.find(c=>!session.classIds.includes(c.id));assert(otherClass);

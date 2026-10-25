@@ -40,11 +40,13 @@ const timers=new Map();
 const stamp = event => {
   const startsAt=Date.parse(`${event.date}T${event.startTime}:00+02:00`);
   const endsAt=Date.parse(`${event.date}T${event.endTime}:00+02:00`);
-  const result={...event,joinKey:event.joinUrl?JSON.stringify([event.kind,event.activityId,event.date,event.startTime]):'',relevant:true,status:event.status||'SCHEDULED',startsAt,endsAt,joinAvailableAt:startsAt-300000};
+  const inherited=globalAdmin||[programRole].flat().includes('PROGRAM_ADMIN');
+  const result={...event,assignedParticipation:inherited?'':event.involvement||'',summarize:inherited,joinKey:event.joinUrl?JSON.stringify([event.kind,event.activityId,event.date,event.startTime]):'',relevant:true,status:event.status||'SCHEDULED',startsAt,endsAt,joinAvailableAt:startsAt-300000};
+  if(mixedAssignmentFixture&&event.meetingGroup==='room-a'&&event.startTime==='13:00')result.assignedParticipation=event.classNames[0]==='Class one'?'student':'teacher';
   if (Date.parse(fixtureNow)<result.joinAvailableAt || Date.parse(fixtureNow)>=endsAt || result.status!=='SCHEDULED') delete result.joinUrl;
   return result;
 };
-let deferNext=false, release, hasWorkshops=true, globalAdmin=false, programRole='STUDENT', roomFixture=false, rollupBoundaryFixture=false, colourFixture=false, cacheFixture=false, failNext=false, quotaNext=false, warningFixture=false, publicFreeFixture=false,publicCourseFixture=false;
+let deferNext=false, release, hasWorkshops=true, globalAdmin=false, programRole='STUDENT', roomFixture=false, rollupBoundaryFixture=false, mixedAssignmentFixture=false, colourFixture=false, cacheFixture=false, failNext=false, quotaNext=false, warningFixture=false, publicFreeFixture=false,publicCourseFixture=false;
 const publicJoins=[];let remoteLabelsVersion='0',labelChecks=0;
 const fetch = async (_url, options) => {
   fetchUrls.push(_url);
@@ -279,11 +281,11 @@ $('course-list-scope').value='MINE';$('course-list-scope').listeners.get('input'
 
 // The complete permitted timetable and timed joining remain on the homepage.
 roomFixture=true;fixtureNow='2026-10-05T10:55:00Z';globalAdmin=false;programRole='STUDENT';location.hash='#overview';await refresh();
-assert.equal(countPills('academy-preview-sessions'),7,'Students see one card for contiguous Program lessons in the same room');
+assert.equal(countPills('academy-preview-sessions'),9,'Students see every lesson separately even in the same room');
 assert.equal(($('academy-preview-sessions').innerHTML.match(/class="upcoming-day"/g)||[]).length,7);
 assert.match($('academy-preview-sessions').innerHTML,/aria-label="23:30"/);
-assert.equal(($('academy-preview-sessions').innerHTML.match(/>Join lesson<\/button>/g)||[]).length,1);
-assert.match($('academy-preview-sessions').innerHTML,/3 lessons, 13:00–15:00/);
+assert.equal(($('academy-preview-sessions').innerHTML.match(/>Join lesson<\/button>/g)||[]).length,2);
+assert.doesNotMatch($('academy-preview-sessions').innerHTML,/3 lessons/);
 clickInfo('academy-preview-sessions',firstInfo('academy-preview-sessions'));
 assert.match($('lesson-information-body').innerHTML,/Mishkaat|Class one|13:00–14:00/);
 assert.doesNotMatch($('lesson-information-body').innerHTML,/Duplicate subject|Unwanted level|Joining opens/);
@@ -299,11 +301,26 @@ assert.doesNotMatch($('academy-preview-sessions').innerHTML,/style=|hsl\(|linear
 assert.match(css,/\.timetable-pill\.join-open\{background:var\(--rose-dark\)/);
 rollupBoundaryFixture=true;
 for(const role of ['STUDENT','TEACHER','PROGRAM_ADMIN']){
- programRole=role;await refresh();assert.equal(countPills('academy-preview-sessions'),9,role+' keeps gaps and other Programs separate');
- assert.match($('academy-preview-sessions').innerHTML,/2 lessons, 17:30–18:30/);
+ programRole=role;await refresh();assert.equal(countPills('academy-preview-sessions'),role==='PROGRAM_ADMIN'?9:12,role+' keeps assigned lessons, gaps and other Programs separate');
+ if(role==='PROGRAM_ADMIN')assert.match($('academy-preview-sessions').innerHTML,/2 lessons, 17:30–18:30/);
+ else assert.doesNotMatch($('academy-preview-sessions').innerHTML,/2 lessons, 17:30–18:30/);
 }
 globalAdmin=true;await refresh();assert.equal(countPills('academy-preview-sessions'),9,'Global Admin uses the same Program boundaries');
 globalAdmin=false;rollupBoundaryFixture=false;
+
+// Every scoped curriculum uses the same rule, including an Admin's own lessons.
+for(const role of ['STUDENT','TEACHER','PROGRAM_ADMIN']){
+ programRole=role;mixedAssignmentFixture=role==='PROGRAM_ADMIN';await refresh();
+ assert.equal(countPills('academy-preview-sessions'),9);
+ for(const mode of ['learn','teach']){
+  await navigate('#activity/PROGRAM/'+activity.id+'/'+mode+'/timetable');
+  assert.equal(countPills('activity-sessions'),8,role+' scoped '+mode+' keeps each assigned lesson separate');
+  clickInfo('activity-sessions',firstInfo('activity-sessions'));
+  assert.equal(($('lesson-information-body').innerHTML.match(/class="combined-lesson"/g)||[]).length,1);
+ }
+ await navigate('#overview');
+}
+mixedAssignmentFixture=false;
 
 roomFixture=false;programRole='STUDENT';cacheFixture=true;fixtureNow='2026-10-05T10:54:30Z';await refresh();
 await navigate('#activity/PROGRAM/'+activity.id);const cachedNavigationReads=requests.length;await navigate('#timetable');await navigate($('timetable-close').href);assert.equal(requests.length,cachedNavigationReads,'Returning from My Timetable retains the daily activity cache');await navigate('#timetable/learn');

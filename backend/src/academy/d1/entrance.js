@@ -15,6 +15,10 @@ const samePublication=(a,b)=>String(a).toUpperCase()===String(b).toUpperCase();
 // Adapt normalized D1 records at the repository boundary. Reuse the established
 // timetable projection so privacy, class membership and timed joining are shared.
 export async function d1Entrance(repository,state,user,input={},now=new Date(),{days=7,detailed=false,auth}={}) {
+  // Keep real learner assignments available for presentation even when Admin
+  // readers project inherited teaching or a read-only student audience.
+  const ownState=auth?actualState(auth):state;
+  if(user&&ownState)user={...user,enrolledActivities:[...ownState.roles.filter(r=>r.role==='STUDENT'),...ownState.subscriptions].map(r=>r.activity_key)};
   const previewKeys=[];
   if(auth&&!isAdminWorkspace(auth)){
     const role=auth.workspace==='TEACH'?'TEACHER':'STUDENT';
