@@ -1,3 +1,7 @@
+# V107.59 — Untimed assessment schedule validation
+
+Fix Imtihaan schedule validation so untimed exams and assignments can move from Registered to Scheduled. Use assignment opening and optional due times instead of requiring an exam date, and require a duration only for timed assessments. Show separate validation requirements for names/subjects, dates, timing and total marks. Preserve explicit schedule release, separate paper/result releases, scoped permissions, exact retries and existing assessment data. No migrations or live data corrections.
+
 # V107.58 — Assessment table and paper attachments
 
 Use Due date in assessment timetables and remove the Duration and Total mark columns from the table. Add a paper edit icon beside Paper status that opens the existing scoped attachment, moderation and publication controls in a popup. Keep full assessment access, unsaved-file checks, exact retries, shared-class paper controls and PDF preview. Show Results status only after the assessment is marked Ready for assessment; rows that are not ready remain blank when another row enables the column.

@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import {separationFixture,separationScopes as scopes} from '../tests/fixtures/academy-separation-fixture.mjs';
 import {initialiseAcceptedSetup} from '../src/academy/d1/setup-publication.js';
 import worker from '../src/academy-runtime.js';
-const root=fileURLToPath(new URL('../../',import.meta.url)),out='/private/tmp/academy-shared-assessment-10751';mkdirSync(out,{recursive:true});
+const root=fileURLToPath(new URL('../../',import.meta.url)),out=process.env.ACADEMY_SHARED_ASSESSMENT_OUTPUT||'/private/tmp/academy-shared-assessment-10751';mkdirSync(out,{recursive:true});
 const f=await separationFixture(),ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;},op=()=>({operationId:crypto.randomUUID()});
 f.db.prepare("INSERT INTO classes(activity_key,class_id,name,active) VALUES(?,'review-second','Second review class',1)").run(scopes.programA);
 f.db.prepare("INSERT INTO class_teacher_assignments VALUES(?,'review-second','account-0003','ADDITIONAL')").run(scopes.programA);
@@ -22,7 +22,6 @@ for(const name of ['0032_accepted_setup.sql','0033_native_attendance.sql','0034_
 await initialiseAcceptedSetup(f.env.ACADEMY_DB);Object.assign(f.env,{ACADEMY_ACCEPTED_SETUP:'1',ACADEMY_LEARNING_OPERATIONS:'3',ACADEMY_MEDIA_SEPARATION:'1'});
 async function acceptMedia(key){const input={scopes:[key],families:['media']},review=ok(await call('/api/admin/platform/setup/review',input)),frozen=ok(await call('/api/admin/platform/setup/freeze',{...input,digest:review.digest}));ok(await call('/api/admin/platform/setup/publish',{batchId:frozen.batchId,digest:frozen.digest}));}
 const mime={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.svg':'image/svg+xml','.jpg':'image/jpeg','.webp':'image/webp','.pdf':'application/pdf'};
-async function acceptAssessment(){const input={scopes:[scopes.programA],families:['assessment']},review=ok(await call('/api/admin/platform/setup/review',input)),frozen=ok(await call('/api/admin/platform/setup/freeze',{...input,digest:review.digest}));ok(await call('/api/admin/platform/setup/publish',{batchId:frozen.batchId,digest:frozen.digest}));}
 const server=createServer(async(req,res)=>{try{const url=new URL(req.url,'http://localhost');res.setHeader('Cache-Control','no-store');
  if(url.pathname==='/js/m4l-config.js'){res.setHeader('Content-Type','text/javascript');res.end('window.M4L_CONFIG={API_BASE:location.origin,IS_DEVELOPMENT:true,SETUP_PUBLICATION:true,ACCEPTED_SETUP:true,NATIVE_ATTENDANCE:true,MEDIA_SEPARATION:true}');return;}
  if(url.pathname==='/api/academy/header-date'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({success:true,gregorian:'2026-10-25',hijri:'14 Jumada al-ula 1448'}));return;}
@@ -41,8 +40,17 @@ async function editorSave(){await page.locator('.lm-editor-actions button[type=s
 async function closeEditor(discard=false){if(discard)page.once('dialog',d=>d.accept());await page.locator('.lm-dialog [data-lm=close]').click();await page.locator('.lm-dialog').waitFor({state:'detached'});}
 try{
  page.on('dialog',d=>d.accept());
- const made=ok(await call('/api/academy/assessments/create',{...op(),activityKey:scopes.programA,classId:'class-1',classes:[{activityKey:scopes.programA,classId:'class-1'},{activityKey:scopes.programA,classId:'review-second'}],title:'Shared browser paper',subject:'Qasas',assessmentKind:'ASSIGNMENT',timingMode:'UNTIMED',examDate:null,availableFrom:'2026-10-01T08:00:00Z',dueDate:'2026-10-24',durationMinutes:null,maximumMark:100})),id=made.assessmentId,second=made.assessmentIds[1];
- const d=ok(await call('/api/academy/assessments/get',{assessmentId:id}));ok(await call('/api/academy/assessments/publish',{...op(),assessmentId:id,revision:d.assessment.revision,groupRevisions:d.group.members.map(m=>({id:m.id,revision:m.revision}))}));await acceptAssessment();
+ const registerId=ok(await call('/api/academy/assessments/register-create',{...op(),name:'Reboot 2026',activityKeys:[scopes.programA],classMode:'ALL',status:'REGISTERED'})).registerId;
+ const made=ok(await call('/api/academy/assessments/create',{...op(),registerId,activityKey:scopes.programA,classId:'class-1',classes:[{activityKey:scopes.programA,classId:'class-1'},{activityKey:scopes.programA,classId:'review-second'}],title:'Shared browser paper',subject:'Qasas',assessmentKind:'ASSIGNMENT',timingMode:'UNTIMED',examDate:null,availableFrom:'2026-10-01T08:00:00Z',dueDate:'2026-10-24',durationMinutes:null,maximumMark:100})),id=made.assessmentId,second=made.assessmentIds[1];
+ await identity('admin','/academy/admin/#assessment-admin/PROGRAM/'+scopes.programA.slice(8));await page.locator('[data-as=open-register][data-id="'+registerId+'"]').click();await idle();
+ assert.match(await page.locator('.ar-status-controls').textContent(),/Imtihaan status: Registered/);
+ await page.getByRole('button',{name:'Validate schedule',exact:true}).click();await idle();assert.match(await page.locator('.ar-validation').textContent(),/Validation passed/);
+ assert(f.db.prepare('SELECT schedule_published FROM assessments').all().every(a=>!a.schedule_published),'Validation must not release dates');
+ await page.getByRole('button',{name:'Release schedule',exact:true}).click();
+ const scheduleDialog=page.getByRole('dialog',{name:'Confirm publish'});await scheduleDialog.waitFor();await scheduleDialog.getByRole('button',{name:'Publish',exact:true}).click();await scheduleDialog.waitFor({state:'hidden'});await idle();
+ assert.match(await page.locator('.ar-status-controls').textContent(),/Imtihaan status: Scheduled/);assert(f.db.prepare('SELECT schedule_published,paper_released_at FROM assessments').all().every(a=>a.schedule_published&&!a.paper_released_at));
+ for(const width of [390,1440]){await page.setViewportSize({width,height:1000});await fits('Registered to Scheduled '+width);await page.screenshot({path:join(out,'scheduled-'+width+'.png')});}
+ checks.push('Reboot 2026 validates and moves from Registered to Scheduled through the page for shared untimed assignments, preserving null durations and separate paper release');
  await identity('teacher','/academy/#activity/PROGRAM/'+scopes.programA.slice(8)+'/teach/assessment');await page.locator('[data-as=open][data-id="'+id+'"]').click();await page.locator('[data-assessment-group]').waitFor();await idle();
  assert.equal(await page.locator('[data-assessment-class] option').count(),2);
  for(const width of [320,390,768,1440]){await page.setViewportSize({width,height:1000});await fits('Shared assessment '+width);await page.screenshot({path:join(out,'shared-'+width+'.png')});}

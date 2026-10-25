@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.58
+# Umm Abbad Academy — V107.59
+
+## V107.59 — Untimed assessment schedule validation
+
+Fix Imtihaan schedule validation so untimed exams and assignments can move from Registered to Scheduled. Use assignment opening and optional due times instead of requiring an exam date, and require a duration only for timed assessments. Show separate validation requirements for names/subjects, dates, timing and total marks. Preserve explicit schedule release, separate paper/result releases, scoped permissions, exact retries and existing assessment data. No migrations or live data corrections.
 
 ## V107.58 — Assessment table and paper attachments
 

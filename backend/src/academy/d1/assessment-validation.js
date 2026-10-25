@@ -1,6 +1,13 @@
 import {validDate} from './assessment-store.js';
 import {managementError as fail} from './management-store.js';
 
+const validInstant=value=>typeof value==='string'&&validDate(value.slice(0,10))&&/^\d{4}-\d{2}-\d{2}T.+(?:Z|[+-]\d{2}:\d{2})$/.test(value)&&Number.isFinite(Date.parse(value));
+function validSchedule(a){
+ const kind=a.assessment_kind||'EXAM';
+ if(kind==='EXAM')return validDate(a.exam_date);
+ return kind==='ASSIGNMENT'&&validInstant(a.available_from)&&(!a.due_at||validInstant(a.due_at)&&Date.parse(a.due_at)>=Date.parse(a.available_from));
+}
+
 // These checks validate an admin's tracking label. They never release a resource.
 export async function statusValidation(s,registerId,status){
  const checks=[{label:'Assessment name, learning areas and class selection are valid',ok:true}];
@@ -18,7 +25,10 @@ export async function statusValidation(s,registerId,status){
  if(rows.length>1000)throw fail('This Imtihaan has too many assessments to validate together.',409);
  const check=(label,ok)=>checks.push({label,ok:Boolean(ok)}),all=fn=>rows.length>0&&rows.every(fn);
  check('At least one assessment has been added',rows.length);
- check('Every assessment has a subject, date, duration and total mark',all(a=>a.subject.trim()&&a.title.trim()&&validDate(a.exam_date)&&a.duration_minutes>=1&&a.duration_minutes<=1440&&a.maximum_mark>0));
+ check('Every assessment has a name and subject',all(a=>a.subject?.trim()&&a.title?.trim()));
+ check('Every exam has a valid date; assignments have valid opening and optional due times',all(validSchedule));
+ check('Timed assessments have a valid duration; untimed assessments need no duration',all(a=>(a.timing_mode||'TIMED')==='UNTIMED'?a.duration_minutes==null:(a.timing_mode||'TIMED')==='TIMED'&&Number.isInteger(a.duration_minutes)&&a.duration_minutes>=1&&a.duration_minutes<=1440));
+ check('Every assessment has a valid total mark',all(a=>Number.isFinite(a.maximum_mark)&&a.maximum_mark>0&&a.maximum_mark<=1000000));
  if(status==='SCHEDULED')return {status,valid:checks.every(c=>c.ok),checks};
  check('Every assessment schedule has been released to its class',all(a=>a.schedule_published&&a.learners>0));
  if(status==='AWAITING_MODERATION'){
@@ -29,7 +39,7 @@ export async function statusValidation(s,registerId,status){
   if(status!=='APPROVED')check('Admin has published every assessment paper using the release controls',all(a=>a.paper_released_at));
  }
  const underway=['IN_PROGRESS','READY_FOR_ASSESSMENT','ASSESSED','MODERATED','READY_FOR_RELEASE','RELEASED','COMPLETE'];
- const started=a=>a.accessed>0||Date.now()>=Date.parse(a.exam_date+'T03:00:00+02:00');
+ const started=a=>a.accessed>0||Date.now()>=Date.parse(a.available_from||a.exam_date+'T03:00:00+02:00');
  if(underway.includes(status))check('An assessment has started',rows.some(started));
  const marking=['READY_FOR_ASSESSMENT','ASSESSED','MODERATED','READY_FOR_RELEASE','RELEASED','COMPLETE'];
  if(marking.includes(status)){

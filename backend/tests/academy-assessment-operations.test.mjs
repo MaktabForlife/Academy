@@ -35,6 +35,44 @@ test('untimed six-week assignments store a real null duration and retain a separ
  assert.equal(row.duration_minutes,null);assert.equal(row.allowance_minutes,null);assert.equal(row.exam_date,null);assert.equal(row.timing_mode,'UNTIMED');assert(row.due_at>row.available_from);
  await f.publish(id);await f.releasePaper(id);const learner=await f.detail(id,'student');assert.equal(learner.assessment.canUpload,true);assert(!Object.hasOwn(learner.assessment,'durationMinutes'));assert(!Object.hasOwn(learner.assessment,'maximumMark'));assert(!Object.hasOwn(learner.assessment,'allowanceMinutes'));
 }));
+for(const [kind,mode,due] of [['EXAM','TIMED',true],['EXAM','UNTIMED',true],['ASSIGNMENT','TIMED',true],['ASSIGNMENT','UNTIMED',true],['ASSIGNMENT','UNTIMED',false]])test(`Imtihaan schedules release ${mode.toLowerCase()} ${kind.toLowerCase()}s${due?'':' without a due date'}`,()=>use(async f=>{
+ const fields={name:'Reboot 2026',activityKeys:[scopes.programA],classMode:'ONE',classActivityKey:scopes.programA,classId:'class-1',status:'REGISTERED'};
+ const registerId=ok(await f.request('register-create',{...operation(),...fields})).registerId;
+ const id=await f.create({registerId,assessmentKind:kind,timingMode:mode,examDate:kind==='EXAM'?nextDate(today(),7):null,durationMinutes:mode==='TIMED'?60:null,...(kind==='ASSIGNMENT'?{availableFrom:new Date(Date.now()-86400000).toISOString(),...(due?{dueDate:nextDate(today(),42)}:{})}:{})});
+ const before=f.db.prepare('SELECT * FROM assessments WHERE assessment_id=?').get(id);
+ assert.equal(ok(await f.request('register-validate',{...fields,registerId,revision:1,status:'SCHEDULED'})).valid,true);
+ assert.deepEqual(f.db.prepare('SELECT * FROM assessments WHERE assessment_id=?').get(id),before,'Validate must remain read only');
+ const save=kind==='ASSIGNMENT'&&mode==='UNTIMED'&&due,action=save?'register-save':'register-release',body={...operation(),registerId,revision:1,...(save?{...fields,status:'SCHEDULED'}:{})};
+ ok(await f.request(action,body));assert.equal(ok(await f.request(action,body)).replayed,true);
+ const list=ok(await f.request('list',{view:'admin'})),register=list.registers.find(r=>r.id===registerId),after=f.db.prepare('SELECT * FROM assessments WHERE assessment_id=?').get(id);
+ assert.equal(register.status,'SCHEDULED');assert.equal(register.imtihaanStatus,'SCHEDULED');assert.equal(register.scheduleReleased,true);
+ assert.equal(after.schedule_published,1);assert.equal(after.duration_minutes,before.duration_minutes);assert.equal(after.exam_date,before.exam_date);assert.equal(after.due_at,before.due_at);assert.equal(after.paper_released_at,null);
+ assert(f.db.prepare('SELECT count(*) n FROM assessment_recipients WHERE assessment_id=?').get(id).n>0);
+}));
+test('invalid assignment schedules still block the whole Imtihaan release without changes',()=>use(async f=>{
+ const fields={name:'Reboot 2026',activityKeys:[scopes.programA],classMode:'ONE',classActivityKey:scopes.programA,classId:'class-1',status:'REGISTERED'};
+ const registerId=ok(await f.request('register-create',{...operation(),...fields})).registerId;
+ const id=await f.create({registerId,assessmentKind:'ASSIGNMENT',timingMode:'UNTIMED',examDate:null,durationMinutes:null,availableFrom:'2026-10-01T08:00:00Z',dueDate:'2026-12-05'});
+ const original=f.db.prepare('SELECT * FROM assessments WHERE assessment_id=?').get(id);
+ for(const invalid of [{subject:''},{available_from:'invalid'},{due_at:'invalid'},{due_at:'2026-09-01T08:00:00Z'},{maximum_mark:1000001}]){
+  const row={...original,...invalid};f.db.prepare('UPDATE assessments SET subject=?,available_from=?,due_at=?,maximum_mark=? WHERE assessment_id=?').run(row.subject,row.available_from,row.due_at,row.maximum_mark,id);
+  const before=f.db.prepare('SELECT * FROM assessments WHERE assessment_id=?').get(id);
+  assert.equal(ok(await f.request('register-validate',{...fields,registerId,revision:1,status:'SCHEDULED'})).valid,false,JSON.stringify(invalid));
+  assert.equal((await f.request('register-release',{...operation(),registerId,revision:1})).body.code,'STATUS_NOT_READY');
+  assert.deepEqual(f.db.prepare('SELECT * FROM assessments WHERE assessment_id=?').get(id),before);
+  assert.equal(f.db.prepare('SELECT status FROM assessment_registers WHERE register_id=?').get(registerId).status,'REGISTERED');assert.equal(f.db.prepare('SELECT count(*) n FROM assessment_recipients').get().n,0);
+ }
+}));
+test('assignment status validation uses its opening time without requiring an exam date or learner access',()=>use(async f=>{
+ const id=await f.create({assessmentKind:'ASSIGNMENT',timingMode:'UNTIMED',examDate:null,durationMinutes:null,availableFrom:new Date(Date.now()-86400000).toISOString(),dueDate:nextDate(today(),42)});
+ await f.publish(id);await f.releasePaper(id);
+ const registerId=f.db.prepare('SELECT register_id FROM assessments WHERE assessment_id=?').get(id).register_id,register=f.db.prepare('SELECT * FROM assessment_registers WHERE register_id=?').get(registerId);
+ const input={registerId,revision:register.revision,name:register.name,activityKeys:[scopes.programA],classMode:'ONE',classActivityKey:scopes.programA,classId:'class-1',status:'IN_PROGRESS'};
+ assert.equal(ok(await f.request('register-validate',input)).valid,true);
+ assert(f.db.prepare('SELECT first_accessed_at FROM assessment_recipients').all().every(r=>!r.first_accessed_at));
+ f.db.prepare('UPDATE assessments SET available_from=? WHERE assessment_id=?').run(new Date(Date.now()+86400000).toISOString(),id);
+ const future=ok(await f.request('register-validate',input));assert.equal(future.valid,false);assert(future.checks.some(c=>c.label==='An assessment has started'&&!c.ok));
+}));
 test('late assignments remain open, record acceptance facts, and Admin can extend or explicitly close',()=>use(async f=>{
  const id=await f.create({assessmentKind:'ASSIGNMENT',timingMode:'UNTIMED',examDate:null,durationMinutes:null,availableFrom:new Date(Date.now()-7*86400000).toISOString(),dueDate:nextDate(today(),-1)});await f.publish(id);await f.releasePaper(id);
  let d=await f.detail(id,'student');ok(await f.uploadNative(id,'ANSWER',{recipientRevision:d.learners[0].revision},'student'));
