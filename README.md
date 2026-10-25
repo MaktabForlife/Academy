@@ -1,4 +1,8 @@
-# Umm Abbad Academy — V107.50
+# Umm Abbad Academy — V107.51
+
+## V107.51 — Shared assessment process across selected classes
+
+Upload one PDF paper for a multiple-class assessment. The original class selection shares paper details, review, schedule, readiness, submission settings and explicit whole-class releases. Switch class submissions from the shared assessment screen; learner answers, attempts, marking, selected-learner decisions and results remain class-specific. Store one immutable PDF and enforce current authority for every selected class. Recover V107.50 selections from their saved creation receipt, never matching titles. Batch group writes within the existing split coordinator query budget. No migrations, database reloads, automatic result releases or new editable masters.
 
 ## V107.50 — Multiple-class assessments and Admin media cards
 

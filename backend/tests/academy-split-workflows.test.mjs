@@ -3,7 +3,7 @@ import {splitFixture} from './fixtures/academy-split-fixture.mjs';
 import worker from '../src/academy-runtime.js';
 import {acceptedDatabase} from '../src/academy/d1/setup-reader.js';
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
-async function use(fn){const f=await splitFixture();try{
+async function use(fn,seed){const f=await splitFixture(seed);try{
  f.databases.core.exec("UPDATE split_deployment_state SET state='READY'");Object.assign(f.source.env,{ACADEMY_DB:f.core,ACADEMY_ADMIN_DB:f.admin,ACADEMY_DB_GENERATION:'SPLIT_V1',ACADEMY_D1_RUN_ID:f.prepared.report.sourceDigest,ACADEMY_SPLIT_COORDINATOR:f.namespace,ACADEMY_ACCEPTED_SETUP:'1',ACADEMY_LEARNING_OPERATIONS:'3',ACADEMY_MEDIA_SEPARATION:'1'});
  f.request=async(path,input={},who='global',workspace='ADMIN')=>{const token=who?await f.source.actor(who):'',response=await worker.fetch(new Request('http://localhost'+path,{method:'POST',headers:{'Content-Type':'application/json','X-Academy-Workspace':workspace,...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),f.source.env);return {status:response.status,body:await response.json()};};
  f.accept=async(scope=f.scopes.courseA)=>{const input={scopes:[scope]},review=ok(await f.request('/api/admin/platform/setup/review',input)),frozen=ok(await f.request('/api/admin/platform/setup/freeze',{...input,digest:review.digest}));return ok(await f.request('/api/admin/platform/setup/publish',{batchId:frozen.batchId,digest:frozen.digest}));};
@@ -54,3 +54,36 @@ test('split multi-class assessment selection keeps both private definitions in A
  for(const id of result.assessmentIds){const definition=await f.admin.prepare('SELECT * FROM assessments WHERE assessment_id=?').bind(id).first(),live=await f.core.prepare('SELECT * FROM assessments WHERE assessment_id=?').bind(id).first();assert.equal(definition.title,input.title);assert.equal(live.title,null);assert.equal(live.schedule_published,0);assert.equal(live.paper_released_at,null);}
  assert.equal((await f.core.prepare('SELECT count(*) n FROM assessment_recipients').first()).n,0);
 }));
+
+test('split shared paper uses one object and one file record for the original class selection',()=>use(async f=>{
+ const {createHash}=await import('node:crypto'),scope=f.scopes.programA;
+ f.databases.core.prepare("INSERT OR IGNORE INTO class_teacher_assignments VALUES(?,'class-shared','account-0003','ADDITIONAL')").run(scope);
+ const created=ok(await f.request('/api/academy/assessments/create',{operationId:crypto.randomUUID(),activityKey:scope,classId:'class-1',classes:[{activityKey:scope,classId:'class-1'},{activityKey:scope,classId:'class-shared'}],title:'Shared split paper',subject:'Qasas',examDate:new Date().toISOString().slice(0,10),durationMinutes:60,maximumMark:100})),id=created.assessmentId;
+ for(const member of created.assessmentIds)f.databases.core.prepare("UPDATE assessment_events SET details_json=? WHERE assessment_id=? AND action='CREATED'").run(JSON.stringify({title:'Shared split paper'}),member);
+ const detail=async()=>ok(await f.request('/api/academy/assessments/get',{assessmentId:id}));
+ let d=await detail();const body={operationId:crypto.randomUUID(),assessmentId:id,revision:d.assessment.revision,groupRevisions:d.group.members.map(m=>({id:m.id,revision:m.revision}))};
+ ok(await f.request('/api/academy/assessments/publish',body));await f.accept(scope);
+ d=await detail();const bytes=Buffer.from('%PDF-1.4\n% one split group paper\n%%EOF'),metadata={operationId:crypto.randomUUID(),kind:'PAPER',assessmentId:id,revision:d.assessment.revision,groupRevisions:d.group.members.map(m=>({id:m.id,revision:m.revision})),filename:'shared.pdf',mimeType:'application/pdf',size:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')},token=await f.source.login('0003');
+ const upload=async()=>{const response=await worker.fetch(new Request('http://localhost/api/academy/assessments/upload?metadata='+encodeURIComponent(JSON.stringify(metadata)),{method:'POST',headers:{Authorization:'Bearer '+token,'X-Academy-Workspace':'TEACH'},body:bytes}),f.source.env);return {status:response.status,body:await response.json()};};
+ const saved=ok(await upload());assert.equal(ok(await upload()).fileId,saved.fileId);assert.equal(f.databases.core.prepare("SELECT count(*) n FROM assessment_files WHERE kind='PAPER'").get().n,1);
+ assert(f.databases.core.prepare('SELECT paper_file_id FROM assessments').all().every(a=>a.paper_file_id===saved.fileId));
+ d=await detail();ok(await f.request('/api/academy/assessments/paper-details',{operationId:crypto.randomUUID(),assessmentId:id,revision:d.assessment.revision,groupRevisions:d.group.members.map(m=>({id:m.id,revision:m.revision})),durationMinutes:45,allowanceMinutes:10,maximumMark:90}));assert(f.databases.admin.prepare('SELECT duration_minutes,maximum_mark FROM assessments').all().every(a=>a.duration_minutes===45&&a.maximum_mark===90));
+ d=await detail();ok(await f.request('/api/academy/assessments/review-paper',{operationId:crypto.randomUUID(),assessmentId:id,revision:d.assessment.revision,groupRevisions:d.group.members.map(m=>({id:m.id,revision:m.revision})),decision:'APPROVE',paperReview:{fileId:saved.fileId,sha256:saved.sha256}}));await f.accept(scope);
+ d=await detail();ok(await f.request('/api/academy/assessments/release-papers',{operationId:crypto.randomUUID(),papers:d.group.members.map(m=>({id:m.id,revision:m.revision}))}));
+ assert(f.databases.core.prepare('SELECT paper_released_at FROM assessments').all().every(a=>a.paper_released_at));
+ assert(f.databases.admin.prepare('SELECT title FROM assessments').all().every(a=>a.title==='Shared split paper'));assert.equal(f.databases.core.prepare('SELECT count(*) n FROM assessment_attempts').get().n,0);
+}));
+
+test('split 50-class paper upload remains one stored object and bounded coordinator operations',()=>use(async f=>{
+ const {createHash}=await import('node:crypto'),scope=f.scopes.programA,classes=['class-1','class-shared',...Array.from({length:48},(_,i)=>'shared-size-'+i)].map(classId=>({activityKey:scope,classId}));
+ const created=ok(await f.request('/api/academy/assessments/create',{operationId:crypto.randomUUID(),activityKey:scope,classId:'class-1',classes,title:'Fifty class paper',subject:'Qasas',examDate:new Date(Date.now()-86400000).toISOString().slice(0,10),durationMinutes:60,maximumMark:100})),d=ok(await f.request('/api/academy/assessments/get',{assessmentId:created.assessmentId}));assert.equal(d.group.members.length,50);
+ const bytes=Buffer.from('%PDF-1.4\n% fifty classes one upload\n%%EOF'),metadata={operationId:crypto.randomUUID(),kind:'PAPER',assessmentId:created.assessmentId,revision:d.assessment.revision,groupRevisions:d.group.members.map(m=>({id:m.id,revision:m.revision})),filename:'fifty.pdf',mimeType:'application/pdf',size:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')};
+ const response=await worker.fetch(new Request('http://localhost/api/academy/assessments/upload?metadata='+encodeURIComponent(JSON.stringify(metadata)),{method:'POST',headers:{Authorization:'Bearer '+await f.source.login('0001'),'X-Academy-Workspace':'ADMIN'},body:bytes}),f.source.env);const result=ok({status:response.status,body:await response.json()});assert.equal(result.appliedClasses,50);
+ assert.equal(f.databases.core.prepare("SELECT count(*) n FROM assessment_files WHERE kind='PAPER'").get().n,1);assert.equal(f.databases.core.prepare('SELECT count(*) n FROM assessments WHERE paper_file_id=?').get(result.fileId).n,50);
+ const detail=async()=>ok(await f.request('/api/academy/assessments/get',{assessmentId:created.assessmentId}));
+ const change=async(action,extra={})=>{const view=await detail();return ok(await f.request('/api/academy/assessments/'+action,{operationId:crypto.randomUUID(),assessmentId:created.assessmentId,revision:view.assessment.revision,groupRevisions:view.group.members.map(m=>({id:m.id,revision:m.revision})),...extra}));};
+ await change('publish');await f.accept(scope);await change('review-paper',{decision:'APPROVE',paperReview:{fileId:result.fileId,sha256:result.sha256}});await f.accept(scope);
+ const view=await detail();ok(await f.request('/api/academy/assessments/release-papers',{operationId:crypto.randomUUID(),papers:view.group.members.map(m=>({id:m.id,revision:m.revision}))}));await change('ready-assessment');
+ assert.equal(f.databases.core.prepare('SELECT count(*) n FROM assessments WHERE paper_released_at IS NOT NULL AND ready_for_assessment_at IS NOT NULL').get().n,50);
+
+},async source=>{for(let i=0;i<48;i++)source.db.prepare('INSERT INTO classes(activity_key,class_id,name,active) VALUES(?,?,?,1)').run(source.scopes.programA,'shared-size-'+i,'Shared class '+i);for(let i=0;i<48;i++)source.db.prepare("INSERT INTO class_memberships VALUES(?, ?, ?, 'account-0002',NULL,NULL,1)").run(source.scopes.programA,'shared-size-member-'+i,'shared-size-'+i);}));

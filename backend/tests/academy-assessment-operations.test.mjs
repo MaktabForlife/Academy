@@ -20,13 +20,13 @@ async function use(fn){
   f.accept=async()=>{const input={scopes:[scopes.programA]},review=ok(await f.request('/api/admin/platform/setup/review',input)),batch=ok(await f.request('/api/admin/platform/setup/freeze',{...input,digest:review.digest}));ok(await f.request('/api/admin/platform/setup/publish',{batchId:batch.batchId,digest:batch.digest}));};
   f.create=async(input={})=>ok(await f.request('create',{...operation(),activityKey:scopes.programA,classId:'class-1',title:'Native assessment',subject:'Qasas',examDate:today(),durationMinutes:60,maximumMark:100,...input})).assessmentId;
   f.detail=async(id,who='admin')=>ok(await f.request('get',{assessmentId:id},who));
-  f.change=async(id,action,input={},who='admin')=>f.request(action,{...operation(),assessmentId:id,revision:(await f.detail(id)).assessment.revision,...input},who);
+  f.change=async(id,action,input={},who='admin')=>{const d=await f.detail(id);return f.request(action,{...operation(),assessmentId:id,revision:d.assessment.revision,...(d.group?.canManage?{groupRevisions:d.group.members.map(m=>({id:m.id,revision:m.revision})),groupCollections:d.group.members.map(m=>({id:m.id,revision:m.collectionRevision}))}:{}),...input},who);};
   f.uploadNative=async(id,kind,input={},who='admin')=>{
-   const bytes=Buffer.from('%PDF-1.4\n% native '+(input.label||'fixture')+'\n%%EOF'),metadata={...operation(),kind,assessmentId:id,mimeType:'application/pdf',size:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex'),filename:'answer.pdf',revision:(await f.detail(id)).assessment.revision,...input};
+   const detail=await f.detail(id),bytes=Buffer.from('%PDF-1.4\n% native '+(input.label||'fixture')+'\n%%EOF'),metadata={...operation(),kind,assessmentId:id,mimeType:'application/pdf',size:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex'),filename:'answer.pdf',revision:detail.assessment.revision,...(kind==='PAPER'&&detail.group?{groupRevisions:detail.group.members.map(m=>({id:m.id,revision:m.revision}))}:{}),...input};
    return f.request('/api/academy/assessments/upload?metadata='+encodeURIComponent(JSON.stringify(metadata)),{},who,who==='admin'?'ADMIN':who==='teacher'?'TEACH':'LEARN',bytes);
   };
   f.publish=async id=>{ok(await f.change(id,'publish'));await f.accept();};
-  f.releasePaper=async id=>{const paper=ok(await f.uploadNative(id,'PAPER',{},'teacher'));ok(await f.change(id,'review-paper',{decision:'APPROVE',paperReview:{fileId:paper.fileId,sha256:f.db.prepare('SELECT sha256 FROM assessment_file_integrity WHERE file_id=?').get(paper.fileId).sha256}}));await f.accept();ok(await f.request('release-papers',{...operation(),papers:[{id,revision:(await f.detail(id)).assessment.revision}]}));return paper;};
+  f.releasePaper=async id=>{const paper=ok(await f.uploadNative(id,'PAPER',{},'teacher'));ok(await f.change(id,'review-paper',{decision:'APPROVE',paperReview:{fileId:paper.fileId,sha256:f.db.prepare('SELECT sha256 FROM assessment_file_integrity WHERE file_id=?').get(paper.fileId).sha256}}));await f.accept();ok(await f.request('release-papers',{...operation(),papers:(await f.detail(id)).group?.members.map(m=>({id:m.id,revision:m.revision}))||[{id,revision:(await f.detail(id)).assessment.revision}]}));return paper;};
   await fn(f);assert.deepEqual(f.db.prepare('PRAGMA foreign_key_check').all(),[]);
  }finally{f.close();}
 }
@@ -99,4 +99,81 @@ test('multi-class native assignments retain untimed future due dates and remain 
  for(const id of result.assessmentIds){const row=f.db.prepare('SELECT * FROM assessments WHERE assessment_id=?').get(id);assert.equal(row.timing_mode,'UNTIMED');assert.equal(row.duration_minutes,null);assert(row.due_at);assert.equal(row.schedule_published,0);assert.equal(row.paper_released_at,null);}
  assert.equal(f.db.prepare('SELECT count(*) n FROM assessment_recipients').get().n,0);
  const learn=await f.request('list',{},'admin','ADMIN_LEARN');assert.equal(learn.status,200);assert(!learn.body.assessments.some(a=>result.assessmentIds.includes(a.id)));
+}));
+
+async function shared(f,extra={}){
+ f.db.prepare("INSERT OR IGNORE INTO class_teacher_assignments VALUES(?,'class-shared','account-0003','ADDITIONAL')").run(scopes.programA);
+ const id=await f.create({classes:[{activityKey:scopes.programA,classId:'class-1'},{activityKey:scopes.programA,classId:'class-shared'}],...extra});
+ await f.accept();return id;
+}
+test('shared assessment uploads once, reviews and releases for every class, with separate learner access and submissions',()=>use(async f=>{
+ const id=await shared(f),d=await f.detail(id);assert.equal(d.group.members.length,2);const second=d.group.members.find(m=>m.id!==id).id;
+ await f.publish(id);const paper=await f.releasePaper(id);
+ assert.equal(f.objects.size,1);assert.equal(f.db.prepare("SELECT count(*) n FROM assessment_files WHERE kind='PAPER'").get().n,1);
+ const rows=f.db.prepare('SELECT * FROM assessments').all();assert(rows.every(a=>a.paper_file_id===paper.fileId&&a.paper_state==='APPROVED'&&a.paper_released_at));
+ assert.equal((await f.detail(id,'student')).assessment.id,id);assert(!Object.hasOwn(await f.detail(id,'student'),'group'));
+ assert.equal((await f.request('get',{assessmentId:second},'student')).status,403);
+ ok(await f.request('download',{...operation(),fileId:paper.fileId,assessmentId:id},'student'));
+ assert.equal(f.db.prepare('SELECT count(*) n FROM assessment_attempts').get().n,1);
+ const token=await f.login('0008'),response=await worker.fetch(new Request('http://localhost/api/academy/assessments/download',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json','X-Academy-Workspace':'LEARN'},body:JSON.stringify({...operation(),fileId:paper.fileId,assessmentId:second})}),f.env);assert.equal(response.status,200);await response.arrayBuffer();
+ const attempts=f.db.prepare('SELECT assessment_id,account_id FROM assessment_attempts ORDER BY account_id').all();assert.deepEqual(attempts.map(r=>({...r})),[{assessment_id:id,account_id:'account-0002'},{assessment_id:second,account_id:'account-0008'}]);
+ let r=(await f.detail(id,'student')).learners[0];ok(await f.uploadNative(id,'ANSWER',{recipientRevision:r.revision},'student'));
+ assert.equal(f.db.prepare('SELECT count(*) n FROM assessment_submissions WHERE assessment_id=?').get(second).n,0);
+ const blocked=await f.uploadNative(id,'PAPER',{},'teacher');assert.equal(blocked.status,409);
+}));
+test('shared controls cover details, schedule, readiness and explicit class releases while marks remain per learner',()=>use(async f=>{
+ const id=await shared(f,{examDate:nextDate(today(),-1)});await f.publish(id);
+ const paper=ok(await f.uploadNative(id,'PAPER',{},'teacher'));ok(await f.change(id,'paper-details',{timingMode:'TIMED',durationMinutes:45,allowanceMinutes:10,maximumMark:90},'teacher'));
+ assert(f.db.prepare('SELECT duration_minutes,maximum_mark FROM assessments').all().every(a=>a.duration_minutes===45&&a.maximum_mark===90));
+ const second=(await f.detail(id)).group.members.find(m=>m.id!==id).id;
+ ok(await f.change(id,'review-paper',{decision:'APPROVE',paperReview:{fileId:paper.fileId,sha256:paper.sha256}}));await f.accept();
+ const members=(await f.detail(id)).group.members;assert.equal((await f.request('release-papers',{...operation(),papers:[{id,revision:members.find(m=>m.id===id).revision}]})).body.code,'ASSESSMENT_GROUP_CHANGED');
+ ok(await f.request('release-papers',{...operation(),papers:members.map(m=>({id:m.id,revision:m.revision}))}));
+ for(const assessmentId of [id,second]){let r=(await f.detail(assessmentId)).learners[0];ok(await f.uploadNative(assessmentId,'ANSWER',{accountId:r.accountId,recipientRevision:r.revision}));}
+ assert.equal((await f.change(id,'ready-assessment')).body.code,'UNCHECKED_SUBMISSIONS_WARNING');ok(await f.change(id,'ready-assessment',{confirmUnchecked:true}));assert(f.db.prepare('SELECT ready_for_assessment_at FROM assessments').all().every(a=>a.ready_for_assessment_at));
+ for(const [assessmentId,mark] of [[id,71],[second,83]]){let r=(await f.detail(assessmentId)).learners[0];ok(await f.change(assessmentId,'mark',{accountId:r.accountId,recipientRevision:r.revision,submissionId:r.submissionId,mark,feedback:'Own class marking'}));r=(await f.detail(assessmentId)).learners[0];ok(await f.change(assessmentId,'finalise',{accountId:r.accountId,recipientRevision:r.revision,markId:r.markId}));}
+ assert(f.db.prepare('SELECT released_mark_id FROM assessment_recipients').all().every(r=>r.released_mark_id===null));
+ ok(await f.change(id,'release',{category:'marks',selection:'CLASS'}));assert(f.db.prepare('SELECT released_mark_id FROM assessment_recipients').all().every(r=>r.released_mark_id));assert.deepEqual(f.db.prepare('SELECT mark FROM assessment_markings ORDER BY mark').all().map(r=>r.mark),[71,83]);
+}));
+test('shared paper retries are exact and any stale member or failed class rolls back the whole upload reference',()=>use(async f=>{
+ const id=await shared(f),d=await f.detail(id),second=d.group.members.find(m=>m.id!==id).id,expected=d.group.members.map(m=>({id:m.id,revision:m.revision})),bytes=Buffer.from('%PDF-1.4\n% shared retry\n%%EOF'),metadata={...operation(),kind:'PAPER',assessmentId:id,revision:d.assessment.revision,groupRevisions:expected,filename:'once.pdf',mimeType:'application/pdf',size:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')};
+ const upload=()=>f.request('/api/academy/assessments/upload?metadata='+encodeURIComponent(JSON.stringify(metadata)),{},'teacher','TEACH',bytes);
+ f.db.exec(`CREATE TRIGGER fail_shared_paper BEFORE UPDATE OF paper_file_id ON assessments WHEN NEW.assessment_id='${second}' BEGIN SELECT RAISE(ABORT,'synthetic group failure'); END;`);
+ assert.equal((await upload()).status,503);assert.equal(f.db.prepare('SELECT count(*) n FROM assessment_files').get().n,0);assert(f.db.prepare('SELECT paper_file_id FROM assessments').all().every(a=>!a.paper_file_id));
+ f.db.exec('DROP TRIGGER fail_shared_paper');const saved=ok(await upload()),objectCount=f.objects.size;assert.equal(ok(await upload()).fileId,saved.fileId);assert.equal(ok(await upload()).replayed,true);assert.equal(f.objects.size,objectCount);
+ assert.equal((await f.change(id,'paper-details',{groupRevisions:expected,durationMinutes:30,maximumMark:100},'teacher')).body.code,'ASSESSMENT_GROUP_CHANGED');
+}));
+test('legacy multiple-class creation receipts retain the exact selection and never group matching names',()=>use(async f=>{
+ const id=await shared(f),ids=(await f.detail(id)).group.members.map(m=>m.id);for(const key of ids)f.db.prepare("UPDATE assessment_events SET details_json=? WHERE assessment_id=? AND action='CREATED'").run(JSON.stringify({title:'Native assessment'}),key);
+ assert.equal((await f.detail(id)).group.members.length,2);
+ const separate=await f.create({title:'Native assessment'});assert(!Object.hasOwn(await f.detail(separate),'group'));
+ const original=ok(await f.uploadNative(id,'PAPER',{},'teacher'));assert(f.db.prepare('SELECT paper_file_id FROM assessments WHERE assessment_id IN (?,?)').all(...ids).every(a=>a.paper_file_id===original.fileId));assert.equal(f.db.prepare('SELECT paper_file_id FROM assessments WHERE assessment_id=?').get(separate).paper_file_id,null);
+}));
+test('Teacher cannot use one class endpoint to mutate a shared assessment beyond current assignments',()=>use(async f=>{
+ const id=await shared(f);f.db.prepare("INSERT OR IGNORE INTO class_teacher_assignments VALUES(?,'class-1',?,'ADDITIONAL')").run(scopes.programA,f.actors.teacherA);
+ const token=await f.actor('teacherA'),request=async(path,input,bytes)=>{const r=await worker.fetch(new Request('http://localhost'+path,{method:'POST',headers:{Authorization:'Bearer '+token,'X-Academy-Workspace':'TEACH',...(!bytes?{'Content-Type':'application/json'}:{})},body:bytes||JSON.stringify(input)}),f.env);return {status:r.status,body:await r.json()};};
+ const detail=ok(await request('/api/academy/assessments/get',{assessmentId:id}));assert.equal(detail.group.canManage,false);assert.equal(detail.group.members.length,0);assert.equal(detail.assessment.canSubmitPaper,false);
+ const bytes=Buffer.from('%PDF-1.4\n% forbidden shared upload\n%%EOF'),d=await f.detail(id),metadata={...operation(),kind:'PAPER',assessmentId:id,revision:d.assessment.revision,groupRevisions:d.group.members.map(m=>({id:m.id,revision:m.revision})),filename:'shared.pdf',mimeType:'application/pdf',size:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')};
+ assert.equal((await request('/api/academy/assessments/upload?metadata='+encodeURIComponent(JSON.stringify(metadata)),{},bytes)).status,403);assert(f.db.prepare('SELECT paper_file_id FROM assessments').all().every(a=>!a.paper_file_id));
+}));
+
+test('shared assignment collection settings and unpublished edits apply atomically to every class',()=>use(async f=>{
+ const id=await shared(f,{assessmentKind:'ASSIGNMENT',timingMode:'UNTIMED',examDate:null,durationMinutes:null,availableFrom:new Date(Date.now()-86400000).toISOString(),dueDate:nextDate(today(),7)});
+ ok(await f.change(id,'save',{title:'Shared assignment revision',subject:'Qasas',subjectDescriptor:'',assessmentKind:'ASSIGNMENT',timingMode:'UNTIMED',examDate:null,durationMinutes:null,availableFrom:new Date(Date.now()-86400000).toISOString(),dueDate:nextDate(today(),7),maximumMark:100}));
+ assert(f.db.prepare('SELECT title FROM assessments').all().every(a=>a.title==='Shared assignment revision'));
+ const due=new Date(Date.now()+42*86400000).toISOString();ok(await f.change(id,'collection-save',{dueAt:due,closed:true}));
+ const saved=f.db.prepare('SELECT * FROM assessment_collection').all();assert.equal(saved.length,2);assert(saved.every(c=>c.effective_due_at===due&&c.closed_at));
+ const stale=(await f.detail(id)).group.members.map(m=>({id:m.id,revision:m.collectionRevision-1}));assert.equal((await f.change(id,'collection-save',{groupCollections:stale,dueAt:due,closed:false})).status,409);assert(f.db.prepare('SELECT closed_at FROM assessment_collection').all().every(c=>c.closed_at));
+ ok(await f.change(id,'collection-save',{dueAt:due,closed:false}));assert(f.db.prepare('SELECT closed_at FROM assessment_collection').all().every(c=>!c.closed_at));
+}));
+test('scoped publication includes only the required shared parent and preserves unrelated private registers',()=>use(async f=>{
+ const id=await f.create({classes:[{activityKey:scopes.programA,classId:'class-1'},{activityKey:scopes.programA,classId:'class-shared'}]}),own=f.db.prepare('SELECT register_id FROM assessments WHERE assessment_id=?').get(id).register_id;
+ const unrelated=ok(await f.request('register-create',{...operation(),name:'Unrelated private register',activityKeys:[scopes.programB],classMode:'ALL',status:'REGISTERED'})).registerId,token=await f.actor('adminA');
+ const request=async(action,input)=>{const response=await worker.fetch(new Request('http://localhost/api/admin/platform/setup/'+action,{method:'POST',headers:{Authorization:'Bearer '+token,'X-Academy-Workspace':'ADMIN','Content-Type':'application/json'},body:JSON.stringify(input)}),f.env);return {status:response.status,body:await response.json()};};
+ const selection={scopes:[scopes.programA],families:['assessment']},review=ok(await request('review',selection)),frozen=ok(await request('freeze',{...selection,digest:review.digest}));ok(await request('publish',{batchId:frozen.batchId,digest:frozen.digest}));
+ const rows=f.db.prepare("SELECT c.rows_json FROM setup_head_components v JOIN setup_components c USING(component_id) WHERE v.head_id=(SELECT head_id FROM setup_head_state WHERE singleton=1) AND c.table_name='assessment_registers' AND c.scope_key='GLOBAL'").all().flatMap(r=>JSON.parse(r.rows_json));assert(rows.some(r=>r.register_id===own));assert(!rows.some(r=>r.register_id===unrelated));assert(f.db.prepare('SELECT 1 FROM assessment_registers WHERE register_id=?').get(unrelated));assert.equal((await request('review',{scopes:[scopes.programB]})).status,403);
+}));
+
+test('deleting an unused shared assessment removes every selected class together and retains its audit',()=>use(async f=>{
+ const id=await shared(f);ok(await f.change(id,'session-delete'));assert(f.db.prepare('SELECT deleted_at FROM assessments').all().every(a=>a.deleted_at));assert.equal(f.db.prepare("SELECT count(*) n FROM assessment_events WHERE action='session-delete'").get().n,2);assert.equal((await f.request('get',{assessmentId:id})).status,404);
 }));

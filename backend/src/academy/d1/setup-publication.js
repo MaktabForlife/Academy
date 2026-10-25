@@ -53,7 +53,7 @@ function selections(auth,input,snapshot){
 }
 function includeCatalogueDependencies(snapshot,selected,scopes){
  const old=new Map(snapshot.accepted.map(c=>[key(c),c])),current=new Map(snapshot.current.map(c=>[key(c),c]));
- const addRow=(table,row)=>{const k=table+'|GLOBAL',base=selected.get(k)||old.get(k)||{table_name:table,scope_key:'GLOBAL',rows_json:'[]'},spec=setupSchema[table],rows=JSON.parse(base.rows_json),index=rows.findIndex(r=>spec.keys.every(k=>r[k]===row[k]));if(index<0)rows.push(row);else rows[index]=row;selected.set(k,{...base,rows_json:JSON.stringify(rows)});if(!scopes.includes('GLOBAL'))scopes.push('GLOBAL');};
+ const addRow=(table,row,globalAuthority=true)=>{const k=table+'|GLOBAL',base=selected.get(k)||old.get(k)||{table_name:table,scope_key:'GLOBAL',rows_json:'[]'},spec=setupSchema[table],rows=JSON.parse(base.rows_json),index=rows.findIndex(r=>spec.keys.every(k=>r[k]===row[k]));if(index<0)rows.push(row);else rows[index]=row;selected.set(k,{...base,rows_json:JSON.stringify(rows)});if(globalAuthority&&!scopes.includes('GLOBAL'))scopes.push('GLOBAL');};
  const catalogue=JSON.parse(current.get('academy_module_catalogue|GLOBAL')?.rows_json||'[]'),previous=JSON.parse(old.get('academy_module_catalogue|GLOBAL')?.rows_json||'[]');
  for(const c of [...selected.values()])if(c.table_name==='academy_module_usage')for(const u of JSON.parse(c.rows_json)){
   const shared=catalogue.find(r=>r.module_id===u.academy_module_id),before=previous.find(r=>r.module_id===u.academy_module_id),local=JSON.parse(selected.get('modules|'+c.scope_key.toUpperCase())?.rows_json||'[]').find(r=>r.module_id===u.module_id);
@@ -68,6 +68,15 @@ function includeCatalogueDependencies(snapshot,selected,scopes){
  // other pending catalogue rows as a side effect.
  for(const c of [...selected.values()])if(c.table_name==='program_subjects')for(const row of JSON.parse(c.rows_json))if(!JSON.parse(old.get('subject_catalog|GLOBAL')?.rows_json||'[]').some(r=>r.subject_key===row.subject_key)){
   const subject=JSON.parse(current.get('subject_catalog|GLOBAL')?.rows_json||'[]').find(r=>r.subject_key===row.subject_key);if(subject)addRow('subject_catalog',subject);
+ }
+ // A shared-class assessment may introduce its own ALL-classes Imtihaan.
+ // Accept only that missing parent, leaving other editable register masters private.
+ for(const c of [...selected.values()])if(c.table_name==='assessments')for(const row of JSON.parse(c.rows_json))if(row.register_id&&!JSON.parse(old.get('assessment_registers|GLOBAL')?.rows_json||'[]').some(r=>r.register_id===row.register_id)){
+  const register=JSON.parse(current.get('assessment_registers|GLOBAL')?.rows_json||'[]').find(r=>r.register_id===row.register_id);if(register){
+   const areas=snapshot.current.filter(c=>c.table_name==='assessment_register_areas').flatMap(c=>JSON.parse(c.rows_json)).filter(r=>r.register_id===register.register_id);
+   if(areas.some(r=>!scopes.some(s=>s.toUpperCase()===r.activity_key.toUpperCase())))throw fail('Publish the shared Imtihaan with all its learning areas.',409,'SETUP_REFERENCE_MISSING');
+   addRow('assessment_registers',register,false);
+  }
  }
 }
 function renameSnapshot(value,renames,scope){
