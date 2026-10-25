@@ -739,11 +739,12 @@
   const timetableMediaIcon=kind=>kind==='PDF'?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l5 5v15H6zM14 2v6h5M9 13h7M9 17h7"/></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="m10 8 6 4-6 4z"/></svg>';
   function timetableMediaButtons(lesson,reference){
     if(!lesson)return '';
+    const expired=asset=>asset.kind==='MP4'&&(asset.expired||Date.parse(asset.expiresAt)<=Date.now());
     return ['YOUTUBE','PDF'].map(kind=>{
-      const count=lesson.assets.filter(asset=>asset.kind===kind).length;if(!count)return '';
+      const count=lesson.assets.filter(asset=>kind==='PDF'?asset.kind==='PDF':['YOUTUBE','MP4'].includes(asset.kind)&&!expired(asset)).length;if(!count)return '';
       const label=(kind==='PDF'?'Open PDF':'Open video')+(count>1?'s':'')+' · '+lesson.title;
       return `<button type="button" class="timetable-media-button" data-timetable-media="${reference}:${kind}" aria-label="${esc(label)}" title="${esc(label)}">${timetableMediaIcon(kind)}<span>${kind==='PDF'?'PDF':'Video'}${count>1?' ×'+count:''}</span></button>`;
-    }).join('');
+    }).join('')+(lesson.assets.some(expired)?'<span class="lm-inline-help">Recording expired</span>':'');
   }
 
   function renderPersonalWeek(id, rows, detailed, next, now) {

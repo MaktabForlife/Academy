@@ -1,3 +1,9 @@
+# Local session video branch — 25 October 2026
+
+- The user requested `feature/academy-session-videos` from commit `c62c901274881c191163586c33d55e2d8720a9ee`. This branch instruction supersedes the optimisation/development branch instructions below for this checkout.
+- The user resumed manual R2 MP4 uploads linked to sessions, with in-app playback and native expiry fourteen days after upload. Recordings inherit the existing session permissions; do not introduce separate role assignments. Automatic Zoom import remains deferred.
+- Do not push, deploy, change hosted databases, or apply R2 lifecycle rules without an explicit deployment request. Use local fixtures for verification.
+
 # Local optimisation branch and deployment hold — 25 October 2026
 
 - Work on the local `feature/academy-read-optimisation` branch for the query and dashboard snapshot optimisation requested by the user.

@@ -1,0 +1,12 @@
+{
+  "rules": [
+    {
+      "id": "session-recordings-14-days",
+      "enabled": true,
+      "conditions": { "prefix": "dev-split-v1/session-recordings/" },
+      "deleteObjectsTransition": {
+        "condition": { "type": "Age", "maxAge": 1209600 }
+      }
+    }
+  ]
+}
