@@ -1,4 +1,12 @@
-# Umm Abbad Academy — V107.56
+# Umm Abbad Academy — V107.57
+
+## V107.57 — Connected workspace dashboards
+
+Open normal sign-in at the highest authorised workspace: Admin, Teach, then Learn. Show active Programs and Courses only, linked next-session rows, the existing timetable and the Academic Calendar. Display saved dashboard data immediately while checking for updates in the background.
+
+Teacher attendance and lesson-plan deadlines use fixed-height scrolling boxes beside the calendar; Admin has Review attendance and Review plans. Calendar Terms and Teaching hours open in dialogs, with scoped teacher-availability editing. Individual activity pages no longer repeat the shared dashboard support panels. Existing Class Notes, joining, assessment and media tools retain their permissions and draft guards. No migration or live data correction is required.
+
+[Dashboard release and verification notes](docs/ACADEMY-DASHBOARDS-107.57.md).
 
 ## V107.56 — Lesson-linked Class Notes
 
@@ -328,9 +336,9 @@ Offline snapshot validation, import verification, provenance and recovery tools 
 
 [Cleanup scope, checks and infrastructure inventory](docs/ACADEMY-DEVELOPMENT-CLEANUP-106.82.md). Earlier implementation history is retained in `docs/` and [the archived README](docs/archive/README-through-10681.md); historical instructions are not current deployment guidance.
 
-## Local feature: connected workspace dashboards (unreleased)
+## Connected workspace dashboards
 
 The `feature/academy-role-dashboards` checkout adds Learn, Teach and Admin landing
 pages connected to existing Academy readers and tools, with cached background
 refresh, Program/Course tiles, the existing timetable and calendar. See
-[the local feature notes](docs/ACADEMY-DASHBOARDS-LOCAL.md). No deployment is included.
+[the implementation notes](docs/ACADEMY-DASHBOARDS-LOCAL.md). Development deployment was authorised on 25 October 2026.

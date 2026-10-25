@@ -6,11 +6,12 @@
   const token = () => localStorage.getItem('m4l_account_token') || '';
   const boundary = () => window.M4L_ACADEMY_WORKSPACE;
   const context = () => JSON.stringify([token(),boundary()?.current(),boundary()?.head(),boundary()?.classView()]);
-  let owner = '', epoch = 0, options = null, home = null, mode = 'learn', plans = [], enrolments = [], failures = new Map(), loading = new Set(), read = new Set(), readOwner = '', timer, fetched = 0;
+  let owner = '', epoch = 0, options = null, home = null, mode = 'learn', plans = [], enrolments = [], attendance = [], attendanceWarning = '', attendanceRange = '', failures = new Map(), loading = new Set(), read = new Set(), readOwner = '', timer, fetched = 0;
   let dialog;
   const link = (href,label,classes='ad-link') => `<a class="${classes}" href="${esc(href)}">${esc(label)}</a>`;
   const key = row => row.kind + ':' + row.id;
-  const areas = () => (home?.personalActivities || []).filter(row => ['PROGRAM','COURSE'].includes(row.kind) && row.id && row.roles?.length && (mode!=='admin'||home.globalAdmin||row.roles.some(role=>['PROGRAM_ADMIN','ADMIN','GLOBAL_ADMIN'].includes(role))));
+  const activeArea = row => row.active!==false&&row.active!==0&&(!row.lifecycle||row.lifecycle==='ACTIVE')&&row.curriculumActive!==false&&row.menuAvailable!==false&&!['DRAFT','COMPLETE','CANCELLED','ARCHIVED'].includes(row.stage);
+  const areas = () => (home?.personalActivities || []).filter(row => activeArea(row)&&['PROGRAM','COURSE'].includes(row.kind) && row.id && row.roles?.length && (mode!=='admin'||home.globalAdmin||row.roles.some(role=>['PROGRAM_ADMIN','ADMIN','GLOBAL_ADMIN'].includes(role))));
   const href = (row,tool='timetable') => options.activityHref(row,tool,mode === 'admin' ? 'teach' : mode);
   const date = value => value ? new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:home?.timezone||'Africa/Johannesburg'}).format(new Date(value)) : '';
   const announce = (text,retry=false) => { const node=$('ad-status');if(node){node.textContent=text;if(retry)node.insertAdjacentHTML('beforeend',' <button type="button" data-ad-retry>Try again</button>');} };
@@ -23,7 +24,7 @@
   }
   function closeDialog() { if(dialog?.open)dialog.close(); }
   function reset() {
-    epoch++;owner='';home=null;options=null;plans=[];enrolments=[];failures.clear();loading.clear();read.clear();readOwner='';fetched=0;clearTimeout(timer);closeDialog();
+    epoch++;owner='';home=null;options=null;plans=[];enrolments=[];attendance=[];attendanceWarning='';attendanceRange='';failures.clear();loading.clear();read.clear();readOwner='';fetched=0;clearTimeout(timer);closeDialog();
     const host=$('dashboard');if(host)host.replaceChildren();
   }
   async function restoreRead() {
@@ -37,7 +38,7 @@
   function markRead(id) { read.add(id);try{if(readOwner)localStorage.setItem(readOwner,JSON.stringify([...read].slice(-300)));}catch{}renderMessages(); }
   function mount() {
     const host=$('dashboard');if(!host)return;
-    host.innerHTML=`<div class="ad-layout"><aside class="ad-sidebar" aria-label="Your workspace"><h2>Your workspace</h2><button type="button" class="ad-menu-toggle" data-ad-nav-toggle aria-expanded="false" aria-controls="ad-navigation">Your workspace <span aria-hidden="true">⌄</span></button><nav id="ad-navigation"></nav></aside><div class="ad-main"><header class="ad-intro"><div><p class="ad-eyebrow" id="ad-workspace"></p><h1 id="ad-title"></h1><p class="ad-muted" id="ad-description"></p></div><div id="ad-primary-actions" class="ad-actions"></div></header><p id="ad-scope" class="ad-scope" hidden></p><p id="ad-status" class="ad-status" role="status" aria-live="polite"></p><div class="ad-grid"><section class="ad-panel ad-attention" aria-labelledby="ad-fya-title"><header><h2 id="ad-fya-title">For your attention</h2><span id="ad-fya-count" class="ad-count"></span></header><p class="ad-muted">FYA · Outstanding actions</p><div id="ad-attention"></div></section><section class="ad-panel ad-next" aria-labelledby="ad-next-title"><header><h2 id="ad-next-title">Coming up next</h2></header><div id="ad-next"></div></section><section class="ad-panel ad-messages" aria-labelledby="ad-messages-title"><header><h2 id="ad-messages-title">Messages <span id="ad-unread" class="ad-count"></span></h2><button type="button" data-ad-inbox>View inbox →</button></header><div id="ad-messages"></div></section></div><section class="ad-continue"><h2 id="ad-continue-title">Continue learning</h2><div id="ad-areas"></div></section><section class="ad-week" aria-labelledby="ad-week-title"><header><h2 id="ad-week-title">This week</h2><span class="ad-muted">Your existing Academy timetable</span></header><div id="ad-timetable-host"></div></section><section class="ad-panel ad-calendar" aria-labelledby="ad-calendar-title"><header><h2 id="ad-calendar-title">Academy calendar</h2></header><div id="ad-calendar-host"></div></section><section class="ad-panel ad-tools"><header><h2>Quick tools</h2></header><nav id="ad-tools" aria-label="Dashboard tools"></nav></section></div></div>`;
+    host.innerHTML=`<div class="ad-layout"><aside class="ad-sidebar" aria-label="Your workspace"><h2>Your workspace</h2><button type="button" class="ad-menu-toggle" data-ad-nav-toggle aria-expanded="false" aria-controls="ad-navigation">Your workspace <span aria-hidden="true">⌄</span></button><nav id="ad-navigation"></nav></aside><div class="ad-main"><header class="ad-intro"><div><p class="ad-eyebrow" id="ad-workspace"></p><h1 id="ad-title"></h1><p class="ad-muted" id="ad-description"></p></div><div id="ad-primary-actions" class="ad-actions"></div></header><p id="ad-scope" class="ad-scope" hidden></p><p id="ad-status" class="ad-status" role="status" aria-live="polite"></p><div class="ad-grid"><section class="ad-panel ad-attention" aria-labelledby="ad-fya-title"><header><h2 id="ad-fya-title">For your attention</h2><span id="ad-fya-count" class="ad-count"></span></header><p class="ad-muted">FYA · Outstanding actions</p><div id="ad-attention"></div></section><section class="ad-panel ad-next" aria-labelledby="ad-next-title"><header><h2 id="ad-next-title">Coming up next</h2></header><div id="ad-next"></div></section><section class="ad-panel ad-messages" aria-labelledby="ad-messages-title"><header><h2 id="ad-messages-title">Messages <span id="ad-unread" class="ad-count"></span></h2><button type="button" data-ad-inbox>View inbox →</button></header><div id="ad-messages"></div></section></div><section class="ad-continue"><h2 id="ad-continue-title">Continue learning</h2><div id="ad-areas"></div></section><section class="ad-week" aria-labelledby="ad-week-title"><header><h2 id="ad-week-title">This week</h2><span class="ad-muted">Your existing Academy timetable</span></header><div id="ad-timetable-host"></div></section><div id="ad-calendar-row" class="ad-calendar-row"><section class="ad-panel ad-calendar" aria-labelledby="ad-calendar-title"><header><h2 id="ad-calendar-title">Academy calendar</h2></header><div id="ad-calendar-host"></div></section><div id="ad-calendar-actions" class="ad-calendar-actions" hidden><section id="ad-attendance-panel" class="ad-panel ad-queue" aria-labelledby="ad-attendance-title"><header><h2 id="ad-attendance-title">Mark attendance</h2><span id="ad-attendance-count" class="ad-count"></span></header><p class="ad-muted">Displayed timetable · through today</p><div id="ad-attendance" class="ad-queue-body" tabindex="0" role="region" aria-labelledby="ad-attendance-title"></div></section><section id="ad-plans-panel" class="ad-panel ad-queue" aria-labelledby="ad-plans-title"><header><h2 id="ad-plans-title">Lesson plans due</h2><span id="ad-plans-count" class="ad-count"></span></header><div id="ad-plans" class="ad-queue-body" tabindex="0" role="region" aria-labelledby="ad-plans-title"></div></section></div></div><section class="ad-panel ad-tools"><header><h2>Quick tools</h2></header><nav id="ad-tools" aria-label="Dashboard tools"></nav></section></div></div>`;
     host.onclick=event=>{
       const toggle=event.target.closest('[data-ad-nav-toggle]');if(toggle){const expanded=toggle.getAttribute('aria-expanded')!=='true';toggle.setAttribute('aria-expanded',String(expanded));toggle.closest('.ad-sidebar').dataset.navOpen=String(expanded);}
       const note=event.target.closest('[data-ad-note]');
@@ -46,6 +47,7 @@
       if(notice){markRead(notice.dataset.adRead);window.M4L_ANNOUNCEMENTS?.openNotice(notice.dataset.adNotice,notice);}
       if(event.target.closest('[data-ad-inbox]'))openInbox();
       if(event.target.closest('[data-ad-week]'))$('ad-week-title').scrollIntoView({block:'start'});
+      const queue=event.target.closest('[data-ad-queue]');if(queue)$('ad-'+queue.dataset.adQueue+'-title')?.scrollIntoView({block:'start'});
       const chooser=event.target.closest('[data-ad-choose]');if(chooser)chooseTool(chooser.dataset.adChoose);
       const command=event.target.closest('[data-ad-command]');if(command&&!command.disabled)document.getElementById(command.dataset.adCommand)?.click();
       if(event.target.closest('[data-ad-retry]')){fetched=0;void refresh(true);}
@@ -72,7 +74,7 @@
     const shared=tracker()+link('/academy/library/','Library')+link(boundary()?.readerUrl('/recorder/?academy=1')||'/recorder/?academy=1','Voice Recorder');
     $('ad-navigation').innerHTML=link(homeUrl(),'Home')+'<button type="button" data-ad-week>Timetable</button>'+'<button type="button" data-ad-inbox>Messages</button>'+tools+shared+'<a class="ad-visit" href="/academy/#website" data-workspace-exit>Visit website ↗</a>';
     $('ad-tools').innerHTML=tools+shared+(mode==='admin'?(window.M4L_CONFIG?.ACCEPTED_SETUP?'<button type="button" data-ad-command="setup-publication-review">Review setup</button>':'')+(home.globalAdmin?'<button type="button" data-ad-command="public-timetable-refresh">Update timetable</button>':''):'');
-    $('ad-primary-actions').innerHTML=mode==='teach'?'<button type="button" class="ad-primary" data-ad-choose="attendance">Mark attendance</button><button type="button" class="ad-secondary" data-ad-choose="planning">Submit plans</button>':'';
+    $('ad-primary-actions').innerHTML=mode==='admin'?'<button type="button" class="ad-primary" data-ad-queue="attendance">Review attendance</button><button type="button" data-ad-queue="plans">Review plans</button>':mode==='teach'?'<button type="button" class="ad-primary" data-ad-choose="attendance">Mark attendance</button><button type="button" class="ad-secondary" data-ad-choose="planning">Submit plans</button>':'';
     $('ad-workspace').textContent=(boundary()?.adminRealm()&&mode!=='admin'?'ADMIN · ':'')+mode.toUpperCase()+' WORKSPACE';
     $('ad-title').textContent=mode==='learn'?'Ahlan wa sahlan, '+(home.profile?.name||'Academy member'):mode==='teach'?'Your teaching dashboard':'Your administration dashboard';
     $('ad-description').textContent=mode==='learn'?'Your learning, one next step at a time.':mode==='teach'?'Your lessons, attendance and planning in one place.':'Decisions and follow-up within your administrative scope.';
@@ -104,23 +106,70 @@
   function noteButton(note,label='Open Class Note') { return `<button type="button" data-ad-note="${esc(note.id)}" data-ad-area="${esc(note.activityKey)}" data-ad-read="${esc(note.readKey)}">${esc(label)} →</button>`; }
   function tasks() {
     const list=notes().map(note=>({title:note.title,description:note.activityName+' · '+date(note.date+'T12:00:00Z')+' · '+note.startTime,badge:'Due this lesson',action:noteButton(note)}));
-    for(const plan of plans.filter(row=>['DUE','OVERDUE'].includes(row.status)&&row.canSubmit)){
-      const row=areas().find(row=>key(row).toUpperCase()===plan.activityKey.toUpperCase());if(!row)continue;
-      list.push({title:mode==='admin'?'Lesson plan needs follow-up':'Submit your lesson plan',description:plan.activityName+' · '+plan.teacherName,badge:plan.status==='OVERDUE'?'Overdue':plan.dueAt?'Due '+date(plan.dueAt):'Plan due',action:link(mode==='admin'?'#administration/planning':href(row,'planning'),mode==='admin'?'View plans →':'Open planning →')});
-    }
     if(mode==='admin'&&enrolments.length)list.unshift({title:'Enrolment requests need review',description:'Requests within your administrative scope',badge:enrolments.length+(enrolments.nextCursor?'+':'')+' requests',action:link('/academy/enrolment/manage/?view=requests','Review requests →')});
     return list;
   }
   function renderAttention() {
     if(!home||!$('ad-attention'))return;
-    const list=tasks(),noteState=window.M4L_CLASS_NOTES?.snapshot?.();
+    const list=tasks(),noteState=window.M4L_CLASS_NOTES?.snapshot?.(),pending=[...loading].some(name=>!['planning','attendance'].includes(name)),errors=[...failures].filter(([name])=>!['planning','attendance'].includes(name)).map(([,message])=>message);
     $('ad-fya-count').textContent=String(list.length);
-    $('ad-attention').innerHTML=list.length?`<ul class="ad-task-list">${list.map(row=>`<li><h3>${esc(row.title)}</h3><p class="ad-muted">${esc(row.description)}</p><div class="ad-task-bottom"><span class="ad-due">${esc(row.badge)}</span>${row.action}</div></li>`).join('')}</ul>`:'<p class="ad-empty-line">'+(loading.size||['idle','loading'].includes(noteState?.status)&&home.personalTimetable?.some(row=>row.mediaSessionKey)?'Checking your outstanding actions…':failures.size||noteState?.status==='error'?'Some actions could not be checked.':'No outstanding actions in the available Academy records.')+'</p>';
-    if(failures.size||['error','stale'].includes(noteState?.status))$('ad-attention').insertAdjacentHTML('beforeend','<p class="ad-warning" role="status">'+esc([...failures.values(),noteState?.message].filter(Boolean).join(' '))+'</p><button type="button" data-ad-retry>Try again</button>');
+    $('ad-attention').innerHTML=list.length?`<ul class="ad-task-list">${list.map(row=>`<li><h3>${esc(row.title)}</h3><p class="ad-muted">${esc(row.description)}</p><div class="ad-task-bottom"><span class="ad-due">${esc(row.badge)}</span>${row.action}</div></li>`).join('')}</ul>`:'<p class="ad-empty-line">'+(pending||['idle','loading'].includes(noteState?.status)&&home.personalTimetable?.some(row=>row.mediaSessionKey)?'Checking your outstanding actions…':errors.length||noteState?.status==='error'?'Some actions could not be checked.':'No outstanding actions in the available Academy records.')+'</p>';
+    if(errors.length||['error','stale'].includes(noteState?.status))$('ad-attention').insertAdjacentHTML('beforeend','<p class="ad-warning" role="status">'+esc([...errors,noteState?.message].filter(Boolean).join(' '))+'</p><button type="button" data-ad-retry>Try again</button>');
   }
   function messages() {
     const announcements=(window.M4L_ANNOUNCEMENTS?.snapshot?.().announcements||[]).map(row=>({...row,type:'announcement',readKey:'announcement:'+row.id+':'+(row.revision||row.updatedAt||row.message||''),context:'Academy announcement'}));
     return [...notes().map(row=>({...row,type:'note',context:row.activityName+' · Class Note'})),...announcements];
+  }
+  function taskList(rows) {
+    return `<ul class="ad-task-list">${rows.map(row=>`<li><h3>${esc(row.title)}</h3><p class="ad-muted">${esc(row.description)}</p><div class="ad-task-bottom"><span class="ad-due">${esc(row.badge)}</span>${row.action}</div></li>`).join('')}</ul>`;
+  }
+  function renderQueue(name,rows,empty) {
+    $('ad-'+name+'-count').textContent=String(rows.length);
+    const source=name==='plans'?'planning':'attendance',error=failures.get(source)||(name==='attendance'?attendanceWarning:'');
+    $('ad-'+name).innerHTML=rows.length?taskList(rows):`<p class="ad-empty-line">${loading.has(source)?'Checking…':error?'This list could not be fully checked.':esc(empty)}</p>`;
+    if(error)$('ad-'+name).insertAdjacentHTML('beforeend',`<p class="ad-warning" role="status">${esc(error)}</p><button type="button" data-ad-retry>Try again</button>`);
+  }
+  function renderQueues() {
+    renderAttention();if(!home||!$('ad-plans'))return;
+    const staff=mode!=='learn';$('ad-calendar-actions').hidden=!staff;$('ad-calendar-row').dataset.queues=String(staff);if(!staff)return;
+    $('ad-plans-title').textContent=mode==='admin'?'Review plans':'Lesson plans due';
+    $('ad-attendance-title').textContent=mode==='admin'?'Review attendance':'Mark attendance';
+    const planRows=[];
+    for(const plan of plans.filter(row=>mode==='admin'||['DUE','OVERDUE'].includes(row.status)&&row.canSubmit)){
+      const area=areas().find(row=>key(row).toUpperCase()===plan.activityKey.toUpperCase());if(!area)continue;
+      const status={DUE:plan.dueAt?'Due '+date(plan.dueAt):'Plan due',OVERDUE:'Overdue',SUBMITTED:'Submitted',SUBMITTED_LATE:'Submitted late',SUBMITTED_ON_TIME:'Submitted on time'}[plan.status]||plan.status;
+      planRows.push({title:plan.activityName,description:[plan.teacherName,plan.period==='WEEKLY'&&plan.weekStart?'Week of '+date(plan.weekStart+'T12:00:00Z'):plan.runName].filter(Boolean).join(' · '),badge:status,action:link(mode==='admin'?'#administration/planning':href(area,'planning'),mode==='admin'?'Review plan →':'Open planning →')});
+    }
+    renderQueue('plans',planRows,mode==='admin'?'No plans in the available review period.':'No lesson plans due.');
+    const registers=attendance.filter(row=>mode==='admin'||!row.submitted).map(row=>({title:row.moduleName||row.subjectName||'Lesson',description:[row.activityName,row.className,date(row.date+'T12:00:00Z'),row.startTime].filter(Boolean).join(' · '),badge:row.submitted?'Submitted':row.canSubmit?'Not marked':'Roster review needed',action:link(attendanceHref(row),mode==='admin'?'Review register →':'Open register →')}));
+    renderQueue('attendance',registers,mode==='admin'?'No started lessons in this timetable week.':'No unmarked lessons in this timetable week.');
+  }
+  function attendanceHref(row) {
+    const suffix=row.date+'/'+encodeURIComponent(row.anchor);
+    return mode==='admin'?'#administration/attendance/'+row.kind+'/'+encodeURIComponent(row.activityId)+'/'+suffix:href({kind:row.kind,id:row.activityId},'attendance')+'/'+suffix;
+  }
+  function attendanceUnits() {
+    if(mode==='learn'||!home)return [];
+    const allowed=new Set(areas().map(row=>key(row).toUpperCase()));
+    return [...new Map((home.personalTimetable||[]).filter(row=>row.status==='SCHEDULED'&&Number.isFinite(Number(row.startsAt))&&Number(row.startsAt)<=Date.now()&&allowed.has((row.kind+':'+row.activityId).toUpperCase())).map(row=>{const unit={activityKey:row.kind+':'+row.activityId,date:row.date};return [JSON.stringify(unit),unit];})).values()];
+  }
+  async function readAttendance(units) {
+    const captured=owner,lessons=[],errors=[];let cursor=0;
+    await Promise.all(Array.from({length:Math.min(3,units.length)},async()=>{
+      while(cursor<units.length){
+        if(captured!==context())throw new DOMException('The Academy workspace changed.','AbortError');
+        const unit=units[cursor++];
+        try {
+          const data=await request('/api/academy/attendance/get',unit);if(data.readOnly)continue;
+          // Keep register metadata only; learner names, marks and rosters never
+          // enter the dashboard cache.
+          const clock=new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:data.timezone||home.timezone}).format(new Date());
+          for(const row of data.lessons||[]){const lesson=row.lesson;if(!lesson||data.date===data.today&&lesson.startTime>clock)continue;lessons.push({kind:data.program.kind,activityId:data.program.id,activityName:data.program.name,date:data.date,anchor:lesson.anchor,subjectName:lesson.subjectName,moduleName:lesson.moduleName,className:lesson.className||lesson.classNames?.join(', '),startTime:lesson.startTime,submitted:Boolean(row.submitted),canSubmit:Boolean(row.canSubmit)});}
+        }catch(error){if(error.name==='AbortError'||[401,403,404].includes(error.status))throw error;errors.push(unit.activityKey);}
+      }
+    }));
+    lessons.sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime)||a.activityName.localeCompare(b.activityName));
+    return {success:true,lessons,warning:errors.length?'Some attendance registers could not be checked. The visible list may be incomplete.':''};
   }
   function messageRows(rows) {return rows.map(row=>`<div class="ad-message ${read.has(row.readKey)?'':'is-unread'}">${row.type==='note'?noteButton(row,row.title):`<button type="button" data-ad-notice="${esc(row.id)}" data-ad-read="${esc(row.readKey)}">${esc(row.title)}</button>`}<p>${esc(row.context)}${read.has(row.readKey)?' · Read':' · Unread'}</p></div>`).join('');}
   function renderMessages() {
@@ -142,26 +191,29 @@
       return `<li><a class="ad-next-row" href="${esc(target)}"${helper?' target="_blank" rel="noopener noreferrer" title="Open HifzHelper in a new tab"':''}><span class="ad-next-subject"><strong>${esc(subject)}</strong><span>${esc(lesson.activityName)}</span></span><span class="ad-next-time"><span>${esc(date(lesson.startsAt))}</span><strong>${esc(lesson.startTime)}–${esc(lesson.endTime)}</strong><small>${esc(lesson.timezone||home.timezone)}</small></span><span class="ad-next-arrow" aria-hidden="true">${helper?'↗':'→'}</span></a></li>`;
     }).join('')}</ul>`:'<p class="ad-empty-line">No upcoming session in this timetable week. Use the timetable arrows to view later weeks.</p>';
     clearTimeout(timer);const transition=lessons.flatMap(lesson=>[lesson.startsAt,lesson.endsAt]).filter(time=>time>now).sort((a,b)=>a-b)[0];
-    if(transition)timer=setTimeout(()=>{if(owner===context()&&home){renderNext();renderAttention();renderMessages();}},Math.min(2147483647,Math.max(300,transition-Date.now()+100)));
+    if(transition)timer=setTimeout(()=>{if(owner===context()&&home){renderNext();renderQueues();renderMessages();void refresh();}},Math.min(2147483647,Math.max(300,transition-Date.now()+100)));
   }
   async function request(path,input) {
     const captured=context(),response=await fetch((window.M4L_CONFIG?.API_BASE||'')+path,{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token()},body:JSON.stringify(input)}),data=await response.json();
     if(captured!==context())throw new DOMException('The Academy workspace changed.','AbortError');
     if(!response.ok||!data.success){if(response.status===401)window.dispatchEvent(new Event('m4l-academy-session-ended'));throw Object.assign(Error(data.error||'Dashboard actions could not load.'),{status:response.status});}return data;
   }
-  async function loadSource(name,path,input,apply,force) {
-    const captured=owner,ticket=epoch;loading.add(name);renderAttention();
+  async function loadSource(name,path,input,apply,force,reader) {
+    const captured=owner,ticket=epoch;loading.add(name);renderQueues();
     const current=()=>owner===captured&&ticket===epoch&&captured===context();
-    const accept=data=>{if(!current())return;apply(data);loading.delete(name);failures.delete(name);if(data._cacheMessage)failures.set(name,data._cacheMessage);renderAttention();};
-    const failure=(error,saved)=>{if(!current()||error.name==='AbortError')return;if(!saved)apply({});loading.delete(name);failures.set(name,(saved?'Showing saved '+name+'. ':'')+'Couldn’t check '+name+'.');renderAttention();};
-    try { const cache=window.M4L_ACADEMY_READ_CACHE,result=cache?await cache.load({key:['dashboard',name,input],force,revalidate:true,fetcher:()=>request(path,input),onUpdate:accept,onError:failure}):await request(path,input);accept(result); }catch(error){failure(error,false);}
+    const accept=data=>{if(!current())return;apply(data);loading.delete(name);failures.delete(name);if(data._cacheMessage)failures.set(name,data._cacheMessage);renderQueues();};
+    const failure=(error,saved)=>{if(!current()||error.name==='AbortError')return;if(!saved)apply({});loading.delete(name);failures.set(name,(saved?'Showing saved '+name+'. ':'')+'Couldn’t check '+name+'.');renderQueues();};
+    try { const cache=window.M4L_ACADEMY_READ_CACHE,result=cache?await cache.load({key:['dashboard',name,input],force,revalidate:true,fetcher:reader||(()=>request(path,input)),onUpdate:accept,onError:failure}):await (reader?reader():request(path,input));accept(result); }catch(error){failure(error,false);}
   }
   async function refresh(force=false) {
     if(!home||owner!==context())return;
-    if(!force&&Date.now()-fetched<60000)return;
+    const units=attendanceUnits(),range=JSON.stringify(units);
+    if(!force&&Date.now()-fetched<60000&&range===attendanceRange)return;
+    attendanceRange=range;
     fetched=Date.now();
     const work=[];
     if(mode!=='learn')work.push(loadSource('planning','/api/academy/planning/list',{view:mode==='admin'?'admin':'teacher',...(mode==='admin'?{weekCount:3}:{})},data=>{plans=data.plans||[];},force));
+    if(mode!=='learn'&&window.M4L_CONFIG?.NATIVE_ATTENDANCE)work.push(loadSource('attendance',null,units,data=>{attendance=data.lessons||[];attendanceWarning=data.warning||'';},force,()=>readAttendance(units)));
     if(mode==='admin')work.push(loadSource('enrolments','/api/admin/platform/enrolment/get',{},data=>{enrolments=data.requests||[];enrolments.nextCursor=data.nextCursor;},force));
     if(force){window.M4L_CLASS_NOTES?.invalidate();void window.M4L_ANNOUNCEMENTS?.refreshPublic(true);options.refreshTimetable?.();}
     await Promise.allSettled(work);
@@ -172,7 +224,7 @@
     if(next!==owner){reset();owner=next;home=data;options=settings;mode=settings.mode;mount();void restoreRead();}
     else if(returning)mount();
     home=data;options=settings;mode=settings.mode;
-    renderNavigation();renderAreas();renderAttention();renderMessages();renderNext();
+    renderNavigation();renderAreas();renderQueues();renderMessages();renderNext();
     announce(data._cacheChecking?'Showing saved dashboard. Checking for updates…':data._cacheMessage||data.warnings?.join(' ')||'',Boolean(data._cacheMessage));
     const calendar=$('ad-calendar-host');
     if(!calendar.firstElementChild){const frame=document.createElement('iframe');frame.className='academy-calendar-frame';frame.title='Academy calendar';frame.loading='lazy';frame.src=boundary().readerUrl('/academy/calendar/?embed=1&view='+mode);calendar.append(frame);}
@@ -184,5 +236,5 @@
   window.addEventListener('m4l-academy-session',reset);
   window.addEventListener('m4l-academy-session-ended',reset);
   window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)reset();});
-  window.M4L_ACADEMY_DASHBOARD={leave:()=>{fetched=0;closeDialog();},open,reset,landing,homeUrl,refresh,unavailable:message=>announce(message,true)};
+  window.M4L_ACADEMY_DASHBOARD={isActiveArea:activeArea,leave:()=>{fetched=0;closeDialog();},open,reset,landing,homeUrl,refresh,unavailable:message=>announce(message,true)};
 })();

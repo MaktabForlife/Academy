@@ -9,7 +9,7 @@ export function buildAcademyAssets({repo,directory,isolated=true,target='develop
   if(!['development','feature','split'].includes(target))throw Error('ACADEMY_ASSET_TARGET_REQUIRED');
   if(directory===repo||!['/private/tmp/',resolve(tmpdir())+'/'].some(root=>directory.startsWith(root)))throw Error('PRIVATE_BUILD_DIRECTORY_REQUIRED');
   mkdirSync(directory,{recursive:true,mode:0o700});
-  const tracked=execFileSync('git',['ls-files','-z','--',...roots],{cwd:repo,encoding:'utf8'}).split('\0').filter(file=>file&&existsSync(join(repo,file))&&!file.split('/').some(p=>p.startsWith('.')));
+  const tracked=execFileSync('git',['ls-files','-z','--',...roots],{cwd:repo,encoding:'utf8'}).split('\0').filter(file=>file&&!file.startsWith('academy/dashboard-design/')&&existsSync(join(repo,file))&&!file.split('/').some(p=>p.startsWith('.')));
   const pending=[...tracked,'version.json','js/version.json','ummabbadacademy.png','academy.png','logo.png','favicon.ico','js/vendor/pdf-lib-LICENSE.md','js/vendor/pdfjs/LICENSE'],written=new Map();
   while(pending.length){
     const file=pending.shift();if(written.has(file))continue;

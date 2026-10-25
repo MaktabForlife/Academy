@@ -53,7 +53,7 @@ try{
  await dashboard().locator('#ad-title').waitFor();assert.equal(new URL(page.url()).hash,'#timetable/learn');
  await page.locator('#ad-timetable-host #academy-sessions .upcoming-day').first().waitFor();
  assert.equal(await page.locator('#ad-timetable-host #academy-sessions .upcoming-day').count(),7);
- const expected=snapshots.get('LEARN').personalActivities.filter(row=>row.roles?.length&&['PROGRAM','COURSE'].includes(row.kind));
+ const expected=snapshots.get('LEARN').personalActivities.filter(row=>row.roles?.length&&row.curriculumActive!==false&&['PROGRAM','COURSE'].includes(row.kind));
  assert.equal(await page.locator('#ad-areas .ad-tile').count(),expected.length);
  assert.equal(await page.locator('#ad-navigation').getByRole('link',{name:'Visit website',exact:false}).count(),1);
  assert.equal(await page.locator('#ad-navigation').getByRole('link',{name:'Surahs and Duas Tracker',exact:true}).count(),1);
@@ -61,12 +61,18 @@ try{
  await page.locator('.ad-calendar').scrollIntoViewIfNeeded();
  await page.frameLocator('#ad-calendar-host iframe').locator('#cal-grid button').first().waitFor();
  assert.ok(await page.frameLocator('#ad-calendar-host iframe').locator('#cal-grid button').count()>=28);
+ const learnCalendar=page.frameLocator('#ad-calendar-host iframe');
+ assert.equal(await learnCalendar.locator('#cal-term-list').isVisible(),false);
+ await learnCalendar.getByRole('button',{name:'Terms',exact:true}).click();
+ await learnCalendar.locator('#cal-terms-dialog[open]').waitFor();
+ await learnCalendar.getByRole('button',{name:'Close term dates',exact:true}).click();
+ assert.equal(await page.locator('#ad-calendar-actions').isVisible(),false);
  await page.locator('#ad-attention [data-ad-note]').first().waitFor();
  const before=await page.locator('#ad-fya-count').innerText();
  await page.locator('#ad-messages [data-ad-note]').first().click();await page.locator('.cn-dialog .cn-text').filter({hasText:'Dashboard preparation'}).waitFor();
  await page.locator('.cn-dialog').getByRole('button',{name:'Close',exact:true}).click();
  assert.equal(await page.locator('#ad-fya-count').innerText(),before);
- checks.push('Real sign-in lands on Learn; every authorised Program/Course has a linked tile; the original seven-day timetable and calendar are on the dashboard; reading a Class Note keeps its FYA action.');
+ checks.push('Real sign-in lands on Learn; every active authorised Program/Course has a linked tile; the original seven-day timetable and calendar are on the dashboard; reading a Class Note keeps its FYA action.');
  for(const width of [1440,768,390,320]){
   await page.setViewportSize({width,height:1000});
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'No document overflow at '+width);
@@ -83,6 +89,22 @@ try{
 
  await page.setViewportSize({width:1440,height:1000});await identity(await fixture.login('0003'),'/academy/#overview');
  assert.equal(new URL(page.url()).hash,'#timetable/teach','Normal entry gives teaching priority over learner access');
+ await page.locator('#ad-plans a').first().waitFor();
+ assert.doesNotMatch(await page.locator('#ad-attention').innerText(),/Submit your lesson plan|Lesson plan needs follow-up/);
+ assert.equal(await page.locator('#ad-plans-title').innerText(),'Lesson plans due');
+ await page.locator('#ad-attendance a').first().waitFor();
+ const registerHref=await page.locator('#ad-attendance a').first().getAttribute('href');
+ await page.locator('#ad-attendance a').first().click();await page.locator('#pa-workspace').waitFor();
+ const registerParts=registerHref.split('/');
+ assert.equal(await page.locator('#pa-date').inputValue(),registerParts.at(-2));
+ assert.ok((await page.locator('#pa-classes [data-lesson]').evaluateAll(nodes=>nodes.map(node=>node.value))).includes(decodeURIComponent(registerParts.at(-1))));
+ await page.locator('[data-page-home]').click();await dashboard().waitFor();
+ await page.locator('.ad-calendar').scrollIntoViewIfNeeded();
+ const calendarBounds=await page.locator('.ad-calendar').boundingBox(),attendanceBounds=await page.locator('#ad-attendance-panel').boundingBox();
+ assert.ok(attendanceBounds.x>=calendarBounds.x+calendarBounds.width,'Attendance is beside the calendar on desktop');
+ assert.equal(Math.round(attendanceBounds.height),340);
+ assert.equal(Math.round((await page.locator('#ad-plans-panel').boundingBox()).height),340);
+ await page.screenshot({path:output+'/teacher-calendar-actions.png',fullPage:false});
  await dashboard().getByRole('button',{name:'Mark attendance',exact:true}).first().click();
  await page.locator('.ad-dialog').getByRole('heading',{name:'Mark attendance',exact:true}).waitFor();
  await page.locator('.ad-dialog .ad-tool-choice').first().click();await page.locator('#pa-main').waitFor();
@@ -101,11 +123,31 @@ try{
  await page.locator('#ad-tools a').first().waitFor();
  const admin=snapshots.get('ADMIN');
  assert.ok(admin.personalActivities.filter(row=>row.roles?.includes('PROGRAM_ADMIN')).every(row=>[fixture.scopes.programA,fixture.scopes.courseA].includes(row.kind+':'+row.id)));
- assert.equal(await page.locator('#ad-areas .ad-tile').count(),2);
+ assert.equal(await page.locator('#ad-areas .ad-tile').count(),admin.personalActivities.filter(row=>row.roles?.includes('PROGRAM_ADMIN')&&row.curriculumActive!==false).length);
  assert.equal(await page.locator('#ad-areas .ad-tile[href*=subject-1]').count(),0);
  assert.equal(await page.locator('#administration .academy-messages,#administration .academy-calendar-section,#administration .academy-progress-section').count(),0);
  assert.equal(await page.locator('#ad-navigation a[href="#progress-admin"]').count(),1);
  await capture('admin-desktop.png');
+ assert.equal(await page.locator('#ad-attendance-title').innerText(),'Review attendance');
+ assert.equal(await page.locator('#ad-plans-title').innerText(),'Review plans');
+ await page.locator('.ad-calendar').scrollIntoViewIfNeeded();
+ const adminCalendar=page.frameLocator('#ad-calendar-host iframe');
+ await adminCalendar.getByRole('button',{name:'Edit teacher availability',exact:true}).click();
+ await adminCalendar.locator('#cal-teacher-dialog[open]').waitFor();
+ const teacherOption=await adminCalendar.locator('#cal-teacher-choice option').evaluateAll(nodes=>nodes.find(node=>node.value)?.value);
+ assert.ok(teacherOption);await adminCalendar.locator('#cal-teacher-choice').selectOption(teacherOption);
+ await adminCalendar.locator('#cal-teacher-choose').click();await adminCalendar.locator('#cal-availability-dialog[open]').waitFor();
+ await adminCalendar.getByRole('button',{name:'Close availability editor',exact:true}).click();
+ await adminCalendar.getByRole('button',{name:'Teaching hours',exact:true}).click();await adminCalendar.locator('#cal-hours-dialog[open]').waitFor();
+ assert.equal(await adminCalendar.locator('#cal-hours-days>div').count(),7);
+ await adminCalendar.getByRole('button',{name:'Close teaching hours',exact:true}).click();
+ for(const width of [390,320]){
+  await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+  assert.equal(Math.round((await page.locator('#ad-attendance-panel').boundingBox()).height),340);
+  assert.equal(Math.round((await page.locator('#ad-plans-panel').boundingBox()).height),340);
+ }
+ await page.setViewportSize({width:1440,height:1000});
+ checks.push('Lesson-plan deadlines have their own fixed-height scrolling panel beside the calendar; Teacher attendance opens the exact date and lesson, Admin has review panels, and calendar Terms, Teaching hours and scoped teacher availability open in dialogs.');
  await identity(await fixture.actor('none'));assert.equal(await page.locator('#ad-areas .ad-tile[href*=PROGRAM]').count(),0);assert.equal(await page.getByText('Dashboard preparation · read paragraphs 1–3.',{exact:true}).count(),0);
  checks.push('Scoped Admin gets only authorised areas and tracker management; accounts without private enrolments see no private Program or another user’s Class Notes.');
 
@@ -130,18 +172,21 @@ try{
   const t=Date.now(),base={status:'SCHEDULED',timezone:'Africa/Johannesburg',startsAt:t+600000,endsAt:t+4200000,startTime:'11:00',endTime:'12:00'};
   const program={id:'next-program',kind:'PROGRAM',name:'Next Program',roles:['STUDENT']},course={id:'next-course',kind:'COURSE',name:'Next Course',roles:['STUDENT']};
   const session=(area,extra)=>({...base,kind:area.kind,activityId:area.id,activityName:area.name,...extra});
-  window.M4L_ACADEMY_DASHBOARD.open({signedIn:true,personalActivities:[program,course],personalTimetable:[
+  const inactive={id:'inactive-course',kind:'COURSE',name:'Completed Course',roles:['STUDENT'],curriculumActive:false},archived={id:'archived-program',kind:'PROGRAM',name:'Archived Program',roles:['STUDENT'],lifecycle:'ARCHIVED'};
+  window.M4L_ACADEMY_DASHBOARD.open({signedIn:true,personalActivities:[program,course,inactive,archived],personalTimetable:[
    session(program,{subjectName:'Fiqh',moduleName:'Purification'}),
    session(program,{subjectName:'Later duplicate',startsAt:t+7200000,endsAt:t+10800000}),
    session(course,{subjectName:'Arabic',moduleName:'Arabic',startsAt:t+300000,endsAt:t+3900000,startTime:'10:55'}),
    session(course,{subjectName:'Ended lesson',startsAt:t-7200000,endsAt:t-3600000}),
    session(program,{subjectName:'Cancelled lesson',status:'CANCELLED',startsAt:t+1000}),
-   session({kind:'PROGRAM',id:'unassigned',name:'Unassigned'},{subjectName:'Private lesson'})
+   session({kind:'PROGRAM',id:'unassigned',name:'Unassigned'},{subjectName:'Private lesson'}),
+   session(inactive,{subjectName:'Completed Course lesson'}),session(archived,{subjectName:'Archived Program lesson'})
   ],profile:{name:'Synthetic learner'},timezone:'Africa/Johannesburg'},
   {mode:'learn',activityHref:(row,tool,mode)=>'/academy/#activity/'+row.kind+'/'+row.id+'/'+mode+'/'+tool});
  });
  const next=page.locator('#ad-next .ad-next-row');
  assert.equal(await next.count(),2);
+ assert.equal(await page.locator('#ad-areas .ad-tile').count(),2,'Inactive areas stay off every dashboard list');
  assert.deepEqual(await next.locator('.ad-next-subject>strong').allTextContents(),['Arabic','Fiqh · Purification']);
  assert.deepEqual(await next.locator('.ad-next-subject>span').allTextContents(),['Next Course','Next Program']);
  assert.equal(await next.first().getAttribute('href'),'/academy/#activity/COURSE/next-course/learn/timetable');

@@ -217,7 +217,8 @@
       if(requested&&!state.programs.some(row=>row.id===requested)){message('This Program is unavailable to your account. Select one of your teaching Programs.',true);return;}
       state.id=requested||state.programs[0].id;restorePending();if(native())nativeControls();
       if(!embedded)history.replaceState(null,'',`${location.pathname}?program=${encodeURIComponent(state.id)}`);
-      await load(state.pending?.date);
+      const loaded=await load(state.pending?.date||options?.date);
+      if(loaded&&!state.pending&&options?.anchor){const row=state.data.lessons.find(row=>row.lesson.anchor===options.anchor);if(row)state.selection.set(row.lesson.classId,row.lesson.anchor);}
     }catch(error){if(current(run))message(error.message,true);}
     finally{if(current(run)){state.busy=false;render();}}
   }
@@ -227,7 +228,7 @@
   window.M4L_PROGRAM_ATTENDANCE={
     open(options){
       hostedOptions=options;
-      if(state.id===options.id&&state.session===token()&&(state.data||state.busy||state.pending))return;
+      if(state.id===options.id&&state.session===token()&&(state.busy||state.pending||state.data&&(!options.date||options.date===state.data.date)))return;
       void initialise(options);
     },
     canLeave(){

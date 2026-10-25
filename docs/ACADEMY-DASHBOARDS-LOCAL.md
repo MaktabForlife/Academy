@@ -1,7 +1,8 @@
-# Connected Academy dashboards — local feature
+# Connected Academy dashboards — V107.57
 
 Branch: `feature/academy-role-dashboards`, based on deployed V107.56.
-No deployment, push, database migration or live-data correction is included.
+Development deployment authorised on 25 October 2026. No database migration or
+live-data correction is required.
 
 ## Signed-in navigation
 
@@ -15,7 +16,7 @@ the current workspace dashboard.
 Visit website opens `/academy/#website`, the public Academy homepage. This
 explicit public destination does not bounce signed-in users back to the dashboard.
 
-Continue learning/teaching and management display linked tiles for **all**
+Continue learning/teaching and management display linked tiles for **active**
 authorised Programs and Courses, grouped by kind. Hifz uses the existing approved
 personal HifzHelper destination. Administrative tiles and timetable rows exclude
 personal/public learner memberships outside the account's management scope.
@@ -39,8 +40,10 @@ tool; it is no longer duplicated as a support panel.
 | --- | --- |
 | Identity, authorised tiles, next sessions, This week | Scoped entrance snapshot |
 | This week | The original `academy-schedule` component, including seven swipeable days, week arrows, details, Class Notes, lesson media and timed joining |
-| FYA | Authorised Class Notes due this timetable week; teacher plans due/overdue; scoped Admin planning follow-up and enrolment inbox |
+| FYA | Authorised Class Notes due this timetable week; scoped Admin enrolment inbox (plans have their own panel) |
 | Messages | Existing public Academy announcements and the same authorised due Class Note records |
+| Attendance / Review attendance | Existing native register reads for started lessons in the displayed timetable week; Teacher lists unmarked registers and Admin can review both submitted and pending registers |
+| Lesson plans due / Review plans | Existing scoped planning reader; Teacher deadlines and Admin submitted/due plans |
 | Calendar, directly below timetable | Existing embedded Academic Calendar with the selected workspace and accepted setup |
 
 Coming up next shows one row per authorised Program/Course with an upcoming
@@ -93,5 +96,15 @@ The connected dashboard is the normal Academy entry, not that sample route.
 - Existing Class Notes browser acceptance for posting, retrying, corrections,
   history, scoped withdrawal and sign-out privacy.
 
-The feature remains unreleased. Before a future push, follow AGENTS.md's version
-rule and synchronise all release markers with a new unused release number.
+V107.57 synchronises all release markers. Work remains on the feature branch.
+The sample design is excluded from the Development publish artifact.
+
+Attendance and plan panels remain 340px high, with independent keyboard-accessible
+scroll regions. They sit beside the calendar on wide screens and stack on phones.
+Class Note preparation remains in FYA; lesson-plan deadlines do not. Only register
+metadata is cached by the dashboard; learner names, rosters and marks are discarded.
+Attendance links select the actual date and lesson in the existing register editor.
+
+Calendar Terms and Teaching hours use read dialogs. Scoped Admin can choose a
+teacher and open the existing availability editor. An open availability draft keeps
+its reviewed revision if a background calendar response arrives.
