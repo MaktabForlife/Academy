@@ -1,3 +1,11 @@
+# V107.52 — Compact lesson media and cached background updates
+
+Remove the week/date/offering toolbar and swipe-help text from lesson media. Keep compact rail arrows beside Refresh and browse saved lesson media across dates, with an explicit Load earlier lessons action for longer histories. Retain whole-Course PDFs, equal-sized cards and Admin editing.
+
+Show previously loaded media metadata from a bounded, 30-minute session cache while checking for updates. Separate entries by account, personal/Admin workspace, selected Admin-Learn class, learning area and Course offering. Clear affected entries on access denial and media changes; discard delayed prior-account/workspace responses. Check the current accepted publication and use a server revision to skip unchanged media/schedule/note queries. Opening files, videos and editors still checks current access. No file-byte caching, polling, database migrations or live data corrections.
+
+Validation: all 103 regression files pass. Local browser checks cover 320/390/768/1440px Program and Course rails, delayed cached rendering, conditional updates, older-page retention, scroll position, temporary failures, denied access, account-change races, Admin editing and PDF/video access. Physical split-store checks preserve private versus accepted media and bounded coordinator operations. Both website and Worker builds pass. Hosted verification uses only the two release health endpoints.
+
 # V107.51 — Shared paper and assessment process for selected classes
 
 A multiple-class selection is one shared assessment process. Upload the PDF once; all selected class assessments reference the same immutable file and R2 object. Apply paper details, moderation, schedule publication, readiness, assignment due/close settings, whole-class marks/feedback/script releases and unused-assessment deletion to the complete original selection in one validated transaction. Keep each class's learner view, attempts, submissions, marking, finalisation and selected-learner decisions separate. Add a class-submissions selector and identify the scope of the shared controls.

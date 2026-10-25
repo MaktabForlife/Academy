@@ -17,7 +17,7 @@ export async function mediaSessions(repository,activity,input,actor,admin){
    const session=map.get(key);for(const [i,id] of row.classIds.entries())if(!session.classIds.includes(id)){session.classIds.push(id);session.classNames.push(row.classNames[i]);}
   }
   const rows=[...map.values()].filter(r=>admin||r.teacherIds.some(id=>same(id,actor)));if(rows.length>400)throw fail('Choose a shorter session period.');
-  const runs=result.runs.map(r=>({id:r.run_id,name:r.name,stage:r.stage})),runId=input.runId||runs[0]?.id||'';
+  const runs=result.runs.map(r=>({id:r.run_id,name:r.name,stage:r.stage})),runId=input.runId||(input.allRuns?'':runs[0]?.id)||'';
   return {sessions:await Promise.all(rows.filter(r=>activity.kind==='PROGRAM'||!runId||r.runId===runId).map(async r=>({...r,sessionVersion:await payloadHash(r)}))),runs,runId};
  }
 

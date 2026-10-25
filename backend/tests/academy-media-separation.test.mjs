@@ -68,3 +68,12 @@ test('Course PDFs retain current paid entitlement through an archived delivery; 
  assert.equal((await f.request('download',file,'none','LEARN')).status,403);assert.equal(f.db.prepare('SELECT count(*) n FROM role_assignments WHERE account_id=?').get(f.actors.none).n,0);
  f.db.prepare("UPDATE role_assignments SET active=0 WHERE account_id=? AND activity_key=?").run(f.actors.studentA,scopes.courseA);assert([401,403].includes((await f.request('download',file,'courseStudent','LEARN')).status));
 }));
+
+test('continuous feed retains older Teacher notes, deduplicates current attachments and isolates Admin-Learn classes',()=>use(async f=>{
+ const activityKey=scopes.programA,older=nextDate(today(),-7),historic=ok(await f.request('calendar',{activityKey,startDate:older,endDate:older})).sessions.find(s=>s.canContribute),current=(await f.calendar()).sessions.find(s=>s.canContribute);
+ const old=ok(await f.post(historic)),recent=ok(await f.post(current));
+ const result=ok(await f.request('feed',{activityKey},'student'));assert(result.sessions.some(s=>s.date===older&&s.media.assets.some(a=>a.id===old.versionId)));assert.equal(result.sessions.flatMap(s=>s.media?.assets||[]).filter(a=>a.id===recent.versionId).length,1,'Current notes are not duplicated by history and session enrichment');
+ const teacher=ok(await f.request('feed',{activityKey}));assert(teacher.sessions.some(s=>s.date===older&&s.media.assets.some(a=>a.id===old.versionId)));assert.equal(ok(await f.request('note-options',{activityKey,sessionKey:historic.sessionKey,date:older})).canContribute,true,'Older notes use a fresh per-date contribution check');
+ const view=async classId=>{const r=await worker.fetch(new Request('http://localhost/api/academy/lesson-media/feed',{method:'POST',headers:{Authorization:'Bearer '+f.tokens.admin,'Content-Type':'application/json','X-Academy-Workspace':'ADMIN_LEARN','X-Academy-Class':encodeURIComponent(JSON.stringify({activityKey,classId}))},body:JSON.stringify({activityKey})}),f.env);return ok({status:r.status,body:await r.json()});};
+ const own=await view(historic.classIds[0]);assert(own.sessions.some(s=>s.media?.assets.some(a=>a.id===old.versionId)));const other=f.db.prepare('SELECT class_id FROM classes WHERE activity_key=?').all(activityKey).find(c=>!historic.classIds.includes(c.class_id));if(other){const different=await view(other.class_id);assert.notEqual(different.cacheRevision,own.cacheRevision);assert(!different.sessions.some(s=>s.media?.assets.some(a=>a.id===old.versionId)));}
+}));

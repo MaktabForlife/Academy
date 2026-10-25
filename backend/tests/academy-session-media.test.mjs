@@ -90,3 +90,19 @@ test('calendar preserves permanent media without a matching current timetable an
  const empty=ok(await f.media('calendar',{activityKey,startDate:'2026-11-01',endDate:'2026-11-07',initial:true},student));assert.equal(empty.suggestedDate,'2026-10-08');assert.equal(empty.sessions.length,0);
  assert.equal(f.db.prepare('SELECT count(*) n FROM audit_events').get().n,before);
 }));
+
+test('continuous media feed keeps older weeks, conditional refreshes are cheap and current authority is rechecked',()=>use(async f=>{
+ const admin=await f.login('0001'),student=await f.login('0002'),activityKey='PROGRAM:PRG-656bcece-4310-49c7-87d7-ee06756f66c1';
+ const initial=ok(await f.media('feed',{activityKey},student));assert.equal(initial.sessions.length,3);assert(initial.sessions.every(s=>s.savedMedia&&s.media.assets.length));assert(initial.cacheRevision);assert.doesNotMatch(JSON.stringify(initial),/youtu\.be|youtube_id|object_key|zoom\.us/);
+ const audit=f.db.prepare('SELECT count(*) n FROM audit_events').get().n;
+ const unchanged=ok(await f.media('feed',{activityKey,ifRevision:initial.cacheRevision},student));assert.equal(unchanged.notModified,true);assert.equal(unchanged.sessions,undefined);assert.equal(f.db.prepare('SELECT count(*) n FROM audit_events').get().n,audit);
+ assert.notEqual(ok(await f.media('feed',{activityKey},admin)).cacheRevision,initial.cacheRevision,'Conditional tokens cannot cross accounts');
+ f.db.prepare('UPDATE academy_write_state SET version=version+1').run();const updated=ok(await f.media('feed',{activityKey,ifRevision:initial.cacheRevision},student));assert.notEqual(updated.cacheRevision,initial.cacheRevision);assert.equal(updated.notModified,undefined);
+ f.db.prepare("UPDATE role_assignments SET active=0 WHERE account_id='account-0002' AND activity_key=?").run(activityKey);
+ assert([401,403].includes((await f.media('feed',{activityKey,ifRevision:updated.cacheRevision},student)).status),'A cache validator never bypasses access checks');
+}));
+test('continuous feed cursor includes all saved sessions across dates without duplicates',()=>use(async f=>{
+ const admin=await f.login('0001'),old=f.db.prepare('SELECT * FROM lesson_media_lessons LIMIT 1').get(),activityKey=old.activity_key;
+ for(let n=0;n<35;n++)f.db.prepare('INSERT INTO lesson_media_lessons(lesson_id,activity_key,class_id,lesson_date,title,start_time,end_time,teacher_id,teacher_name,state,updated_at,teacher_ids_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').run('feed-'+String(n).padStart(2,'0'),activityKey,old.class_id,n<10?'2026-09-20':'2026-10-20','Session '+n,'09:00','10:00',old.teacher_id,old.teacher_name,'PUBLISHED',old.updated_at,old.teacher_ids_json);
+ const first=ok(await f.media('feed',{activityKey},admin)),second=ok(await f.media('feed',{activityKey,before:first.before},admin));assert.equal(first.lessons.length,30);assert.equal(second.lessons.length,8);assert.equal(new Set([...first.lessons,...second.lessons].map(r=>r.id)).size,38);assert.equal(first.cacheRevision,second.cacheRevision);
+}));

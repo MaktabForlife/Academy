@@ -10,15 +10,8 @@
 .lm-calendar .button{min-height:42px;cursor:pointer;border:1px solid #70477c;border-radius:.65rem;padding:.6rem .9rem;background:#70477c;color:#fff;font:600 14px Arial,sans-serif}
 .lm-calendar .button.secondary{background:#fff;color:#70477c}
 .lm-calendar .button:disabled{opacity:.5;cursor:default}
-.lm-week-nav{display:flex;align-items:end;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px;background:#f6eff8;border:1px solid #e0d0e6;border-radius:12px}
-.lm-week-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;flex:1}
-.lm-week-controls>strong{font-size:15px;line-height:1.5;color:#58305f}
-.lm-calendar-filters{display:flex;align-items:end;gap:10px;flex-wrap:wrap;max-width:100%;min-width:0}
-.lm-calendar-filters label{display:grid;gap:4px;font-size:12px;font-weight:600;min-width:0;max-width:100%}
-.lm-calendar-filters :is(input,select){min-width:0;max-width:260px;min-height:42px;border:1px solid #cdbbd5;border-radius:7px;padding:7px;background:#fff;font:14px Arial,sans-serif;color:#302735;box-sizing:border-box}
-.lm-calendar-help{font-size:14px;line-height:1.5;color:#65596b}
 .lm-session-summary{white-space:pre-wrap;overflow-wrap:anywhere}
-@media(max-width:600px){.lm-week-nav{padding:9px}.lm-week-controls>strong{flex:1;font-size:13px}.lm-calendar-filters{width:100%}.lm-calendar-filters label{flex:1 1 135px}.lm-calendar-filters :is(input,select){width:100%;max-width:100%}}
+.lm-earlier{margin-top:8px}.lm-calendar [hidden]{display:none}
 
 .lm-course-files{margin:16px 0 24px;padding:16px;border:1px solid #dfcde6;border-radius:14px;background:#faf6fc}
 .lm-course-files h3{margin:0 0 6px}.lm-course-files .lm-heading{margin-bottom:12px}

@@ -134,6 +134,18 @@ export function lessonMedia(repository,auth,env){
   }
   return {...media,timezone,sessions:rows.sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime)||a.sessionKey.localeCompare(b.sessionKey)),runs:schedule.runs,runId:schedule.runId,suggestedDate,courseFiles:await courseFiles(input.view==='learner')};
  }
+ // A rail pages saved media across dates. Current-week dated sessions remain
+ // available for Admin curation and genuine Teacher contributions.
+ async function feed(input){
+  if(typeof (input.runId||'')!=='string'||(input.runId||'').length>160)throw fail('Choose a Course offering.');
+  const timezone=repository.features?.mediaSeparation?await appTimezone(repository):'Africa/Johannesburg',today=academyDate(new Date(),timezone),startDate=new Date(Date.parse(today+'T12:00:00Z')-new Date(today+'T12:00:00Z').getUTCDay()*86400000).toISOString().slice(0,10),endDate=new Date(Date.parse(startDate+'T12:00:00Z')+6*86400000).toISOString().slice(0,10);
+  const state=await p('SELECT version FROM academy_write_state WHERE singleton=1').first(),cacheRevision=await payloadHash(['MEDIA_RAIL_V1',state.version,repository.setup?.head||'ADMIN',today,actor,auth.workspaceContext||auth.workspace,viewedClass(auth,scopeKey),scopeKey,input.runId||'',input.view||'']);
+  if(input.ifRevision===cacheRevision)return {activityKey:scopeKey,cacheRevision,notModified:true};
+  const media=await list(input),staffView=input.view!=='learner'&&(admin||teacher),schedule=staffView&&!input.before?await sessions({...input,startDate,endDate,allRuns:!input.runId}):{sessions:[],runs:[],runId:input.runId||''};
+  const rows=new Map(media.lessons.map(row=>[row.sessionKey||'media:'+row.id,{sessionKey:row.sessionKey||'media:'+row.id,date:row.date,title:row.title,startTime:row.startTime,endTime:row.endTime,classNames:row.className?[row.className]:[],classIds:row.classIds,teacherName:row.teacher,runId:row.runId,canManage:row.canManage,media:row,savedMedia:true}]));
+  for(const row of schedule.sessions)if(!rows.has(row.sessionKey))rows.set(row.sessionKey,{...row,canManage:Boolean(admin||!repository.setup?.enabled&&teacher),media:null});
+  return {...media,cacheRevision,timezone,startDate,endDate,sessions:[...rows.values()].sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime)||a.sessionKey.localeCompare(b.sessionKey)),runId:input.runId||'',runs:[],courseFiles:await courseFiles(input.view==='learner')};
+ }
  async function selectedSession(input){
   const result=await sessions(input),session=result.sessions.find(r=>r.sessionKey===input.sessionKey);
   if(!session||session.sessionVersion!==input.sessionVersion)throw fail('This session changed. Refresh the session list before attaching media.',409,'SESSION_CHANGED');
@@ -259,7 +271,7 @@ export function lessonMedia(repository,auth,env){
  }
  async function run(action,input){
   if(repository.features?.mediaSeparation&&['comments','comment-save','comment-moderate'].includes(action))throw fail('Discussion is retired.',410,'DISCUSSION_RETIRED');
-  await ready(input);if(['comments','comment-save','comment-moderate'].includes(action)&&input.lessonId&&(await lesson(input.lessonId)).media_scope==='COURSE')throw fail('Discussion belongs to individual sessions.');if(action==='course-files-create')return createCourseFiles(input);if(action==='calendar')return calendar(input);if(action==='sessions')return sessions(input);if(action==='create')return create(input);if(action==='list')return list(input);if(action==='save')return save(input);if(action==='comments')return comments(input);if(action==='comment-save')return commentSave(input);if(action==='comment-moderate')return moderate(input);
+  await ready(input);if(['comments','comment-save','comment-moderate'].includes(action)&&input.lessonId&&(await lesson(input.lessonId)).media_scope==='COURSE')throw fail('Discussion belongs to individual sessions.');if(action==='course-files-create')return createCourseFiles(input);if(action==='calendar')return calendar(input);if(action==='feed')return feed(input);if(action==='sessions')return sessions(input);if(action==='create')return create(input);if(action==='list')return list(input);if(action==='save')return save(input);if(action==='comments')return comments(input);if(action==='comment-save')return commentSave(input);if(action==='comment-moderate')return moderate(input);
   if(action==='download')return download(input);
   const row=await lesson(input.lessonId);
   if(action==='get'){staff(row);return {lesson:dto(row),assets:await assets(row.lesson_id,true),attachmentEditing:true};}

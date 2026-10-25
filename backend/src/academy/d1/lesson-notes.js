@@ -62,7 +62,7 @@ export function lessonNotes(repository,auth,env){
   return (await p(`SELECT DISTINCT ${fields} FROM json_each(?) ref JOIN lesson_note_entries n ON n.activity_key=json_extract(ref.value,'$.activityKey') COLLATE NOCASE ${allSessions?'':"AND n.session_key=json_extract(ref.value,'$.sessionKey')"} JOIN lesson_note_versions v ON v.version_id=n.current_version_id JOIN accounts a ON a.account_id=n.owner_id JOIN activities area ON area.activity_key=n.activity_key AND area.active=1 AND area.lifecycle='ACTIVE' LEFT JOIN lesson_media_lessons l ON l.activity_key=n.activity_key AND l.session_key=n.session_key WHERE n.state='ACTIVE' AND EXISTS(SELECT 1 FROM academy_settings WHERE setting_key='LessonMediaEnabled' AND setting_value='1') AND (json_extract(ref.value,'$.admin')=1 OR NOT EXISTS(SELECT 1 FROM main.lesson_media_lessons hidden WHERE hidden.activity_key=n.activity_key AND hidden.session_key=n.session_key AND (hidden.state='HIDDEN' OR EXISTS(SELECT 1 FROM lesson_media_visibility visibility WHERE visibility.lesson_id=hidden.lesson_id AND visibility.visible=0)))) AND ${audience} AND (json_extract(ref.value,'$.classId')='' OR EXISTS(SELECT 1 FROM json_each(v.source_json,'$.classIds') WHERE value=json_extract(ref.value,'$.classId') COLLATE NOCASE)) ${page?"AND (json_extract(v.source_json,'$.date')<? OR (json_extract(v.source_json,'$.date')=? AND COALESCE(l.lesson_id,n.container_id)<?))":''} ${page?.runId?"AND json_extract(v.source_json,'$.runId')=?":''} ${page?.startDate?"AND json_extract(v.source_json,'$.date') BETWEEN ? AND ?":''} ${keysOnly?'ORDER BY lesson_date DESC,result_id DESC LIMIT '+(page?.startDate?401:31):''}`,JSON.stringify(allowed),actor,actor,...(page?[date,date,id]:[]),...(page?.runId?[page.runId]:[]),...(page?.startDate?[page.startDate,page.endDate]:[])).all()).results;
  }
  const asset=row=>({id:row.version_id,noteId:row.note_id,noteRevision:row.revision,kind:'PDF',filename:row.filename,name:row.display_name||row.filename,author:row.author_name,own:same(row.owner_id,actor)});
- function container(session,id){return {id,sessionKey:session.sessionKey,date:session.date,title:session.title,startTime:session.startTime,endTime:session.endTime,className:session.classNames.join(', '),teacher:session.teacherName,state:'PUBLISHED',summary:'',canManage:false,canView:true,assets:[]};}
+ function container(session,id){return {id,sessionKey:session.sessionKey,date:session.date,title:session.title,startTime:session.startTime,endTime:session.endTime,className:session.classNames.join(', '),classIds:session.classIds||[],runId:session.runId||'',teacher:session.teacherName,state:'PUBLISHED',summary:'',canManage:false,canView:true,assets:[]};}
  async function enrichCalendar(base,input){
   const a=await scope(input.activityKey),scheduled=await candidates(a,input),refs=scheduled.sessions.map(s=>({activityKey:a.activity_key,sessionKey:s.sessionKey}));for(const r of base.sessions||[])if(!refs.some(ref=>ref.sessionKey===r.sessionKey))refs.push({activityKey:a.activity_key,sessionKey:r.sessionKey});
   const historical=await notes([{activityKey:a.activity_key,sessionKey:''}],{allSessions:true,page:{startDate:input.startDate,endDate:input.endDate,runId:scheduled.runId},keysOnly:true});if(historical.length>400)throw fail('Choose a shorter media period.');for(const row of historical)if(!refs.some(ref=>ref.sessionKey===row.session_key))refs.push({activityKey:a.activity_key,sessionKey:row.session_key});
@@ -83,11 +83,20 @@ export function lessonNotes(repository,auth,env){
  }
  async function enrichList(base,input){
   const a=await scope(input.activityKey),keys=await notes([{activityKey:a.activity_key,sessionKey:''}],{allSessions:true,page:input,keysOnly:true});
-  const entries=await notes(keys.map(r=>({activityKey:a.activity_key,sessionKey:r.session_key}))),rows=new Map(base.lessons.map(r=>[r.sessionKey,r]));
+  const entries=await notes(keys.map(r=>({activityKey:a.activity_key,sessionKey:r.session_key}))),rows=new Map(base.lessons.map(r=>[r.sessionKey||'media:'+r.id,r]));
   for(const entry of entries){if(!rows.has(entry.session_key))rows.set(entry.session_key,container(JSON.parse(entry.source_json),entry.lesson_id||entry.container_id));rows.get(entry.session_key).assets.push(asset(entry));}
   let date='9999-12-31',id='';if(input.before){try{[date,id]=JSON.parse(input.before);}catch{date=input.before;}}
   const sorted=[...rows.values()].filter(r=>r.date<date||r.date===date&&r.id<id).sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id)),page=sorted.slice(0,30);
   return {...base,lessons:page,before:sorted.length>30||keys.length>30?JSON.stringify([page.at(-1).date,page.at(-1).id]):base.before};
+ }
+ async function enrichFeed(base,input){
+  const listed=await enrichList(base,input),rows=new Map();
+  for(const row of base.sessions||[])if(!row.media)rows.set(row.sessionKey,row);
+  for(const row of listed.lessons)rows.set(row.sessionKey||'media:'+row.id,{sessionKey:row.sessionKey||'media:'+row.id,date:row.date,title:row.title,startTime:row.startTime,endTime:row.endTime,classNames:row.className?[row.className]:[],classIds:row.classIds||[],teacherName:row.teacher,runId:row.runId||'',canManage:row.canManage||false,savedMedia:true,media:row});
+  if(input.before)return {...base,...listed,sessions:[...rows.values()].sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime)||a.sessionKey.localeCompare(b.sessionKey))};
+  const enriched=await enrichCalendar({...base,lessons:listed.lessons,sessions:[...rows.values()]},{...input,startDate:base.startDate,endDate:base.endDate,allRuns:!input.runId});
+  for(const row of enriched.sessions)if(row.media)row.media.assets=[...new Map(row.media.assets.map(a=>[a.id,a])).values()];
+  return {...enriched,before:listed.before,runId:input.runId||'',runs:[]};
  }
  async function options(input){
   const a=await scope(input.activityKey);let key;try{key=JSON.parse(input.sessionKey);}catch{throw fail('Choose a dated session.');}
@@ -102,5 +111,5 @@ export function lessonNotes(repository,auth,env){
   if(!visible||![visible.lesson_id||visible.container_id,sourceParent?.lesson_id].includes(input.lessonId))throw fail('This note is outside your access.',403,'MEDIA_FORBIDDEN');
   const object=await env.LESSON_MEDIA_BUCKET.get(row.object_key);if(!object)throw fail('This note is temporarily unavailable.',404);return new Response(object.body,{headers:{'Content-Type':'application/pdf','Content-Length':String(row.byte_size),'Content-Disposition':`inline; filename*=UTF-8''${encodeURIComponent(row.filename)}`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':'sandbox'}});
  }
- return {upload,withdraw,notes,asset,enrichCalendar,enrichList,options,timetable,download};
+ return {upload,withdraw,notes,asset,enrichCalendar,enrichList,enrichFeed,options,timetable,download};
 }

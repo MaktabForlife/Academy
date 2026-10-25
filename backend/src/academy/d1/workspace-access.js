@@ -42,8 +42,8 @@ const adminActions={
 };
 const teacherActions={assessments:new Set(['paper-details','confirm-submission','ready-assessment','mark']),planning:new Set(['save','submit']),progress:new Set(['confirm'])};
 const readerActions={
- LEARN:{assessments:['list','get','download','upload','report-list'],progress:['get','mark'],'lesson-media':['list','calendar','timetable','watch','download','comments','comment-save','comment-moderate'],calendar:['get'],planning:[]},
- TEACH:{assessments:['list','get','download','upload','report-list','paper-details','confirm-submission','ready-assessment','mark'],progress:['get','grid','confirm'],'lesson-media':['list','calendar','timetable','sessions','create','get','save','upload','watch','download','comments','comment-save','comment-moderate','attachment-remove','attachment-name','note-upload','note-options','note-withdraw'],calendar:['get'],planning:['list','get','save','submit']}
+ LEARN:{assessments:['list','get','download','upload','report-list'],progress:['get','mark'],'lesson-media':['list','feed','calendar','timetable','watch','download','comments','comment-save','comment-moderate'],calendar:['get'],planning:[]},
+ TEACH:{assessments:['list','get','download','upload','report-list','paper-details','confirm-submission','ready-assessment','mark'],progress:['get','grid','confirm'],'lesson-media':['list','feed','calendar','timetable','sessions','create','get','save','upload','watch','download','comments','comment-save','comment-moderate','attachment-remove','attachment-name','note-upload','note-options','note-withdraw'],calendar:['get'],planning:['list','get','save','submit']}
 };
 export function guardWorkspace(request,auth,input={}){
  const path=new URL(request.url).pathname,admin=isAdminWorkspace(auth);

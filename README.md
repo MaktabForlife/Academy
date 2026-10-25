@@ -1,4 +1,10 @@
-# Umm Abbad Academy — V107.51
+# Umm Abbad Academy — V107.52
+
+## V107.52 — Compact lesson media and cached background updates
+
+Remove the week/date/offering toolbar and swipe-help text from lesson media. Keep compact rail arrows beside Refresh and browse saved lesson media across dates, with an explicit Load earlier lessons action for longer histories. Retain whole-Course PDFs, equal-sized cards and Admin editing.
+
+Show previously loaded media metadata from a bounded, 30-minute session cache while checking for updates. Separate entries by account, personal/Admin workspace, selected Admin-Learn class, learning area and Course offering. Clear affected entries on access denial and media changes; discard delayed prior-account/workspace responses. Check the current accepted publication and use a server revision to skip unchanged media/schedule/note queries. Opening files, videos and editors still checks current access. No file-byte caching, polling, database migrations or live data corrections.
 
 ## V107.51 — Shared assessment process across selected classes
 

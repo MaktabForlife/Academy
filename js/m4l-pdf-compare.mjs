@@ -1,8 +1,8 @@
 import * as pdfjs from '../pdf-viewer/build/pdf.mjs';
-import {createPagePicker} from './m4l-pdf-page-picker.mjs?v=107.51';
-import {clamp,shapeMark,markBounds,moveMark,resizeMark,hitMark,textLayout,paintMark,defaultTextBox,tidySketch} from './m4l-pdf-compare-model.mjs?v=107.51';
-import {importEditable,exportEditable} from './m4l-pdf-editable.mjs?v=107.51';
-import {DEFAULT_FAVOURITES,readFavouriteColours,saveFavouriteColours,favouriteColours} from './m4l-pdf-favourites.mjs?v=107.51';
+import {createPagePicker} from './m4l-pdf-page-picker.mjs?v=107.52';
+import {clamp,shapeMark,markBounds,moveMark,resizeMark,hitMark,textLayout,paintMark,defaultTextBox,tidySketch} from './m4l-pdf-compare-model.mjs?v=107.52';
+import {importEditable,exportEditable} from './m4l-pdf-editable.mjs?v=107.52';
+import {DEFAULT_FAVOURITES,readFavouriteColours,saveFavouriteColours,favouriteColours} from './m4l-pdf-favourites.mjs?v=107.52';
 pdfjs.GlobalWorkerOptions.workerSrc='/pdf-viewer/build/pdf.worker.mjs';
 const $=id=>document.getElementById(id),frame=$('native-reader'),canvas=$('marks-canvas'),context=canvas.getContext('2d'),stage=$('page-stage');
 const sampleUrl='/academy/pdf-compare/sample.pdf',params=new URLSearchParams(location.search);

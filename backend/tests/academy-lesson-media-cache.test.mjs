@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import vm from 'node:vm';
+import {webcrypto} from 'node:crypto';
+const script=await readFile(new URL('../../js/m4l-lesson-media-cache.js',import.meta.url),'utf8');
+let now=Date.now(),token='account-a',blocked=false;
+const values=new Map(),handlers=new Map(),store={getItem:key=>values.get(key)||null,setItem:(key,value)=>{if(blocked)throw Error('Quota');values.set(key,value);},removeItem:key=>values.delete(key),key:index=>[...values.keys()][index],get length(){return values.size;}};
+class Clock extends Date{static now(){return now;}}
+const window={M4L_CONFIG:{API_BASE:'https://api.test'},sessionStorage:store,addEventListener:(name,fn)=>handlers.set(name,fn)};
+vm.runInNewContext(script,{window,localStorage:{getItem:()=>token},location:{origin:'https://site.test'},crypto:webcrypto,TextEncoder,Uint8Array,Date:Clock});
+const cache=window.M4L_LESSON_MEDIA_CACHE,owner=await cache.owner(token),scope={owner,workspace:'LEARN',classView:null,activityKey:'PROGRAM:one',runId:'',learnerView:true},data={cacheRevision:'revision-one',sessions:[{title:'Saved',assets:[{id:'pdf',url:'protected-url',object_key:'private-key'}]}]};
+cache.write(scope,data,'head-one');assert.equal(cache.read(scope,'head-one').data.sessions[0].title,'Saved');assert.doesNotMatch(JSON.stringify([...values]),/account-a|protected-url|private-key/);
+handlers.get('m4l-academy-session')();assert(cache.read(scope,'head-one'),'Same-session restoration keeps cached metadata');
+for(const other of [{workspace:'TEACH'},{workspace:'ADMIN_TEACH'},{workspace:'ADMIN_LEARN'},{classView:{activityKey:'PROGRAM:one',classId:'class-2'}},{activityKey:'PROGRAM:two'},{runId:'run-2'},{learnerView:false},{owner:await cache.owner('account-b')}])assert.equal(cache.read({...scope,...other},'head-one'),null,'Every context has its own cache');
+assert.equal(cache.read(scope,'new-head'),null,'A known newer publication rejects the old snapshot');
+cache.write(scope,data,'head-one');const ticket=cache.ticket();cache.invalidate(scope);cache.write(scope,data,'head-one',ticket);assert.equal(cache.read(scope),null,'An obsolete in-flight response cannot repopulate an invalidated entry');
+cache.write(scope,data,'head-one');now+=30*60*1000+1;assert.equal(cache.read(scope),null,'Old metadata expires');
+blocked=true;cache.write(scope,data,'head-one');assert(cache.read(scope),'Storage failure falls back to bounded memory');blocked=false;
+for(let n=0;n<25;n++){now++;cache.write({...scope,activityKey:'PROGRAM:'+n},data,'head-one');}assert(values.size<=20);
+handlers.get('m4l-academy-session-ended')();assert.equal(values.size,0);
+cache.write(scope,data,'head-one');token='account-b';handlers.get('m4l-academy-session')();assert.equal(values.size,0,'An actual account switch clears every private snapshot');
+console.log('Lesson media cache: account/workspace/class/run isolation, publication expiry, safe metadata, mutation fencing, bounds and storage fallback passed.');

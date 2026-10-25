@@ -87,3 +87,13 @@ test('split 50-class paper upload remains one stored object and bounded coordina
  assert.equal(f.databases.core.prepare('SELECT count(*) n FROM assessments WHERE paper_released_at IS NOT NULL AND ready_for_assessment_at IS NOT NULL').get().n,50);
 
 },async source=>{for(let i=0;i<48;i++)source.db.prepare('INSERT INTO classes(activity_key,class_id,name,active) VALUES(?,?,?,1)').run(source.scopes.programA,'shared-size-'+i,'Shared class '+i);for(let i=0;i<48;i++)source.db.prepare("INSERT INTO class_memberships VALUES(?, ?, ?, 'account-0002',NULL,NULL,1)").run(source.scopes.programA,'shared-size-member-'+i,'shared-size-'+i);}));
+
+test('split media feed revalidates metadata cheaply and preserves private Admin versus accepted Learn boundaries',()=>use(async f=>{
+ const activityKey=f.scopes.courseA,path='/api/academy/lesson-media/',first=ok(await f.request(path+'feed',{activityKey},'studentA','LEARN'));assert(first.cacheRevision);
+ const mark=f.costs.length,unchanged=ok(await f.request(path+'feed',{activityKey,ifRevision:first.cacheRevision},'studentA','LEARN'));assert.equal(unchanged.notModified,true);assert.equal(unchanged.sessions,undefined);assert(f.costs.slice(mark).every(c=>c.queries<=50));
+ const adminInitial=ok(await f.request(path+'feed',{activityKey}));assert.notEqual(adminInitial.cacheRevision,first.cacheRevision);
+ const made=ok(await f.request(path+'course-files-create',{activityKey,operationId:crypto.randomUUID()}));ok(await f.request(path+'save',{activityKey,lessonId:made.lessonId,revision:1,operationId:crypto.randomUUID(),title:'Private cached Course collection',summary:'',state:'PUBLISHED',commentsClosed:true,recordingUrls:[]}));
+ const draft=ok(await f.request(path+'feed',{activityKey,ifRevision:adminInitial.cacheRevision}));assert.notEqual(draft.cacheRevision,adminInitial.cacheRevision);assert.equal(draft.courseFiles.media.title,'Private cached Course collection');
+ const beforeAcceptance=ok(await f.request(path+'feed',{activityKey,ifRevision:first.cacheRevision},'studentA','LEARN'));assert(!beforeAcceptance.courseFiles?.media,'Admin edits stay private before acceptance');
+ await f.accept(activityKey);const accepted=ok(await f.request(path+'feed',{activityKey,ifRevision:beforeAcceptance.cacheRevision},'studentA','LEARN'));assert.equal(accepted.courseFiles.media.title,'Private cached Course collection');assert.notEqual(accepted.cacheRevision,beforeAcceptance.cacheRevision);
+}));

@@ -3,10 +3,13 @@
  const separated=()=>window.M4L_CONFIG?.MEDIA_SEPARATION===true;
  const token=()=>localStorage.getItem('m4l_account_token')||'';
  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- let noteContext=null,host=null,session='',generation=0,dialogGeneration=0,data=null,dialog=null,editor=null,discussion=null,retry=null,busy=false,dirty=false,objectUrl='',learnerView=false,activityKey='',runId='',week='',calendarRequest=0,calendarLoading=false,calendarError='',classFilter='',touch=null;
+ let noteContext=null,host=null,session='',generation=0,dialogGeneration=0,data=null,dialog=null,editor=null,discussion=null,retry=null,busy=false,dirty=false,objectUrl='',learnerView=false,activityKey='',runId='',context='',cacheScope=null,calendarRequest=0,calendarLoading=false,calendarError='';
  const assetName=asset=>asset.name||asset.filename||(asset.kind==='PDF'?'PDF':'Video');
  const date=v=>new Intl.DateTimeFormat('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(v+'T12:00:00Z'));
- function active(g=generation){return g===generation&&session===token()&&Boolean(host);}
+ const workspace=()=>JSON.stringify([window.M4L_ACADEMY_WORKSPACE?.current()||'LEGACY',window.M4L_ACADEMY_WORKSPACE?.classView()||null]);
+ const cache=()=>window.M4L_LESSON_MEDIA_CACHE;
+ const head=()=>window.M4L_ACADEMY_WORKSPACE?.head()?.id||window.M4L_ACADEMY_WORKSPACE?.head()||null;
+ function active(g=generation){return g===generation&&session===token()&&context===workspace()&&Boolean(host);}
  function modalMessage(text,error=false){const el=dialog?.querySelector('[data-lm-dialog-message]');if(el){el.textContent=text;el.setAttribute('role',error?'alert':'status');el.classList.toggle('lm-save-confirmation',Boolean(editor&&text==='Saved.'));}}
  async function api(action,input,options={}){
   input={activityKey,...input};
@@ -14,12 +17,8 @@
   const current=session,g=generation,response=await fetch(`${window.M4L_CONFIG?.API_BASE||''}/api/academy/lesson-media/${action}${options.upload?'?metadata='+encodeURIComponent(JSON.stringify(input)):''}`,{method:'POST',headers:{Authorization:'Bearer '+current,...(!options.upload?{'Content-Type':'application/json'}:{})},body:options.upload?options.upload:JSON.stringify(input)});
   if(!active(g)||current!==session)throw Error('The Academy account has changed.');
   if(options.blob&&response.ok)return response.blob();
-  const result=await response.json();if(!response.ok||!result.success){if(response.status===401)window.dispatchEvent(new Event('m4l-academy-session-ended'));throw Error(result.error||'Lesson media is temporarily unavailable.');}return result;
+  const result=await response.json();if(!response.ok||!result.success){if(response.status===401)window.dispatchEvent(new Event('m4l-academy-session-ended'));throw Object.assign(Error(result.error||'Lesson media is temporarily unavailable.'),{status:response.status,code:result.code});}return result;
  }
- const dayOffset=(value,offset)=>new Date(Date.parse(value+'T12:00:00Z')+offset*86400000).toISOString().slice(0,10);
- const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:data?.timezone||window.M4L_ACADEMY_SHELL_DATA?.timezone||'Africa/Johannesburg',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
- const sunday=value=>dayOffset(value,-new Date(value+'T12:00:00Z').getUTCDay());
- const validDay=value=>/^\d{4}-\d{2}-\d{2}$/.test(value)&&!Number.isNaN(Date.parse(value+'T12:00:00Z'))&&new Date(value+'T12:00:00Z').toISOString().slice(0,10)===value;
  const cardDate=value=>{
   const parts=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'2-digit',timeZone:'UTC'}).formatToParts(new Date(value+'T12:00:00Z')).map(part=>[part.type,part.value]));
   return `${parts.weekday} ${parts.day} ${parts.month.slice(0,3)} ${parts.year}`;
@@ -46,30 +45,50 @@
  }
  function render(){
   if(!host)return;
-  const focus=host.contains(document.activeElement)?document.activeElement?.dataset.lm:null;
-  const rows=!calendarLoading&&!calendarError?data?.sessions||[]:[],classes=[...new Set(rows.flatMap(row=>row.classNames||[]))].sort((a,b)=>a.localeCompare(b));
-  const visible=rows.filter(row=>!classFilter||row.classNames?.includes(classFilter));
-  const railId=host.id+'-rail';
-  host.innerHTML=`<div class="lm-heading"><div><h2>Lesson media</h2><p>${esc(data?.activityName||'')}</p></div><button type="button" class="button secondary" data-lm="refresh">Refresh</button></div>${courseFilesSection()}<div class="lm-week-nav" data-lm-week-nav><div class="lm-week-controls"><button type="button" class="button secondary" data-lm="week-previous" aria-label="Previous week">←</button><strong data-lm-week-label>${esc(date(week))} – ${esc(date(dayOffset(week,6)))}</strong><button type="button" class="button secondary" data-lm="week-next" aria-label="Next week">→</button><button type="button" class="button secondary" data-lm="week-today">This week</button></div><div class="lm-calendar-filters"><label>Go to date<input type="date" data-lm-date value="${esc(week)}" aria-label="Lesson media date"></label>${data?.runs?.length?`<label>Course offering<select data-lm-run>${data.runs.map(run=>`<option value="${esc(run.id)}"${run.id===runId?' selected':''}>${esc(run.name)}</option>`).join('')}</select></label>`:''}${classes.length>1||classFilter?`<label>Class<select data-lm-class><option value="">All classes</option>${[...new Set([...classes,...(classFilter?[classFilter]:[])])].map(name=>`<option${name===classFilter?' selected':''}>${esc(name)}</option>`).join('')}</select></label>`:''}</div></div><div class="lm-rail-heading"><p class="lm-calendar-help">Swipe or use the arrows to browse lesson media. Choose a video or PDF to open it.</p><div class="lm-rail-controls" role="group" aria-label="Browse media cards"><button type="button" class="button secondary" data-lm="rail-previous" aria-label="Previous media cards" aria-controls="${railId}"${visible.length?'':' disabled'}>←</button><button type="button" class="button secondary" data-lm="rail-next" aria-label="Next media cards" aria-controls="${railId}"${visible.length?'':' disabled'}>→</button></div></div><p class="lm-message" data-lm-message role="${calendarError?'alert':'status'}" aria-live="polite">${calendarLoading?'Loading lesson media…':esc(calendarError)||(!visible.length?(data?.canManage?'No lessons this week. Choose another week, or publish the timetable / save Course sessions first.':'No published lesson media this week. Choose another week.'):'')}</p>${calendarError?'<button type="button" class="button secondary" data-lm="refresh">Try again</button>':''}<div id="${railId}" class="lm-media-rail" tabindex="0" role="region" aria-label="${data?.kind==='COURSE'?'Course':'Program'} lesson media cards" aria-busy="${calendarLoading}">${visible.map(mediaCard).join('')}</div>`;
+  const previous=host.querySelector('.lm-media-rail'),scroll=previous?.scrollLeft||0;
+  const anchor=previous&&[...previous.children].find(card=>card.offsetLeft+card.offsetWidth>previous.offsetLeft+scroll),anchorKey=anchor?.dataset.sessionKey,anchorOffset=anchor?anchor.offsetLeft-previous.offsetLeft-scroll:0;
+  const focus=host.contains(document.activeElement)?document.activeElement?.dataset.lm:null,rows=data?.sessions||[],railId=host.id+'-rail';
+  const message=calendarLoading?(data?'Checking for updates…':'Loading lesson media…'):calendarError?(data?'Showing saved lesson media. Couldn’t check for updates.':calendarError):!rows.length?'No lesson media available yet.':'';
+  host.innerHTML=`<div class="lm-heading"><div><h2>Lesson media</h2><p>${esc(data?.activityName||'')}</p></div><div class="lm-actions"><button type="button" class="button secondary" data-lm="refresh"${calendarLoading?' disabled':''}>Refresh</button><div class="lm-rail-controls" role="group" aria-label="Browse media cards"><button type="button" class="button secondary" data-lm="rail-previous" aria-label="Previous media cards" aria-controls="${railId}"${rows.length?'':' disabled'}>←</button><button type="button" class="button secondary" data-lm="rail-next" aria-label="Next media cards" aria-controls="${railId}"${rows.length?'':' disabled'}>→</button></div></div></div>${courseFilesSection()}<p class="lm-message" data-lm-message role="${calendarError?'alert':'status'}" aria-live="polite"${message?'':' hidden'}>${esc(message)}</p>${calendarError?'<button type="button" class="button secondary" data-lm="refresh">Try again</button>':''}<div id="${railId}" class="lm-media-rail" tabindex="0" role="region" aria-label="${data?.kind==='COURSE'?'Course':'Program'} lesson media cards" aria-busy="${calendarLoading}">${rows.map(mediaCard).join('')}</div>${data?.before?`<div class="lm-actions lm-earlier"><button type="button" class="button secondary" data-lm="more"${calendarLoading?' disabled':''}>Load earlier lessons</button></div>`:''}`;
+  const rail=host.querySelector('.lm-media-rail'),same=anchorKey&&[...rail.children].find(card=>card.dataset.sessionKey===anchorKey);
+  rail.scrollLeft=same?same.offsetLeft-rail.offsetLeft-anchorOffset:scroll;
   if(focus)host.querySelector('[data-lm="'+focus+'"]')?.focus({preventScroll:true});
  }
- async function load(initial=false){
-  const g=generation,request=++calendarRequest;calendarLoading=true;calendarError='';render();
-  try{const result=await api('calendar',{startDate:week,endDate:dayOffset(week,6),runId,initial,...(learnerView?{view:'learner'}:{})});if(!active(g)||request!==calendarRequest)return;
-   if(initial&&validDay(result.suggestedDate)&&sunday(result.suggestedDate)!==week){week=sunday(result.suggestedDate);return await load(false);}
-   data=result;runId=result.runId||runId;calendarLoading=false;render();
-  }catch(error){if(active(g)&&request===calendarRequest){calendarLoading=false;calendarError=error.message;render();}}
+ async function load({more=false,force=false}={}){
+  if(calendarLoading&&!force)return;
+  const g=generation,request=++calendarRequest,ticket=cache()?.ticket(),scope=cacheScope;
+  calendarLoading=true;calendarError='';render();
+  try{
+   await window.M4L_ACADEMY_WORKSPACE?.readyPublication(true);
+   if(!active(g)||request!==calendarRequest)return;
+   const result=await api('feed',{runId,...(more?{before:data.before}:!force&&data?.cacheRevision?{ifRevision:data.cacheRevision}:{}),...(learnerView?{view:'learner'}:{})});
+   if(!active(g)||request!==calendarRequest||ticket!==cache()?.ticket())return;
+   if(more&&data.cacheRevision!==result.cacheRevision){calendarLoading=false;return load({force:true});}
+   if(!result.notModified){
+    if(more){const rows=new Map(data.sessions.map(row=>[row.sessionKey,row]));for(const row of result.sessions)rows.set(row.sessionKey,row);data={...result,sessions:[...rows.values()].sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime)||a.sessionKey.localeCompare(b.sessionKey)),lessons:[...new Map([...data.lessons,...result.lessons].map(row=>[row.id,row])).values()]};}
+    else data=result;
+   }
+   calendarLoading=false;
+   if(scope)cache()?.write(scope,data,head(),ticket);render();
+  }catch(error){if(active(g)&&request===calendarRequest){calendarLoading=false;calendarError=error.message;if([401,403,404].includes(error.status)||['MEDIA_NOT_ENABLED','MEDIA_FORBIDDEN'].includes(error.code)){if(scope)cache()?.invalidate(scope);data=null;}render();}}
  }
- function moveWeek(offset){if(busy)return;week=offset===0?sunday(today()):dayOffset(week,offset);void load();}
- function calendarChange(event){if(busy)return;const input=event.target;if(input.matches('[data-lm-date]')){if(validDay(input.value)){week=sunday(input.value);void load();}}else if(input.matches('[data-lm-run]')){runId=input.value;void load(true);}else if(input.matches('[data-lm-class]')){classFilter=input.value;render();}}
- function swipeStart(event){const point=event.touches?.[0],nav=event.target.closest('[data-lm-week-nav]');if(!point||!nav||event.target.closest('input,select'))return;touch={x:point.clientX,y:point.clientY};}
- function swipeEnd(event){const point=event.changedTouches?.[0],start=touch;touch=null;if(!point||!start)return;const dx=point.clientX-start.x,dy=point.clientY-start.y;if(Math.abs(dx)>=70&&Math.abs(dy)<=Math.abs(dx)/2)moveWeek(dx<0?7:-7);}
+ async function start(){
+  const g=generation,current=session,[area,classView]=JSON.parse(context),owner=await cache()?.owner(current);
+  if(!active(g))return;
+  cacheScope=owner?{owner,workspace:area,classView,activityKey,runId,learnerView}:null;
+  const saved=cacheScope&&cache()?.read(cacheScope,head());
+  if(saved){data=saved.data;render();}
+  await load();
+ }
 
  async function selectSession(row){
   if(!row||busy)return;
+  if(separated()&&row.media&&!row.media.canManage&&window.M4L_ACADEMY_WORKSPACE?.audience()==='TEACH'){
+   const g=generation;try{const option=await api('note-options',{sessionKey:row.sessionKey,date:row.date,runId:row.runId||row.media.runId||runId});if(!active(g))return;row.canContribute=option.canContribute;row.media.canContribute=option.canContribute;}catch(error){if(!active(g))return;if([401,403].includes(error.status))return;row.canContribute=false;row.media.canContribute=false;}
+  }
   if(row.media){if(row.media.canManage)await edit(row.media);else if(row.media.canView)modal(row.media.title,`<p class="lm-inline-help">${esc(date(row.date))} · ${esc(row.startTime)}–${esc(row.endTime)}</p>${row.media.summary?`<p class="lm-session-summary">${esc(row.media.summary)}</p>`:''}<div class="lm-actions">${row.media.assets.map(asset=>`<button type="button" class="button${asset.kind==='PDF'?' secondary':''}" data-lm="${asset.kind==='PDF'?'pdf':'watch'}" data-id="${esc(row.media.id)}" data-asset="${esc(asset.id)}">${asset.kind==='PDF'?'▤':'▶'} ${esc(assetName(asset))}</button>`).join('')||'<p>No video or PDF attachments yet.</p>'}${separated()?'':`<button type="button" class="button secondary" data-lm="discussion" data-id="${esc(row.media.id)}">Discussion</button>`}</div>${separated()?notesHTML(row):''}`);if(separated())noteContext=row;return;}
   if(!row.canManage)return;
-  const dg=modal('Attach media · '+row.title,'<p>Opening lesson media…</p>');if(dg!==null)await mutate('create',{operationId:crypto.randomUUID(),startDate:week,endDate:dayOffset(week,6),runId,sessionKey:row.sessionKey,sessionVersion:row.sessionVersion});
+  const dg=modal('Attach media · '+row.title,'<p>Opening lesson media…</p>');if(dg!==null)await mutate('create',{operationId:crypto.randomUUID(),startDate:row.date,endDate:row.date,runId:row.runId||row.media?.runId||runId,sessionKey:row.sessionKey,sessionVersion:row.sessionVersion});
  }
  function close(force=false){
   if(!force&&busy){modalMessage('Please wait for this change to finish.');return false;}
@@ -120,7 +139,7 @@
   return `<section class="lm-editor-section"><h3>${canPost?'My PDF notes':'Teacher PDF notes'}</h3>${assets.filter(a=>a.noteId).map(a=>`<div class="lm-note"><p>${esc(assetName(a))}${a.author?' · '+esc(a.author):''}</p>${canPost&&a.own?noteForm(a):''}${curate||canPost&&a.own?`<button type="button" class="button secondary small" data-lm="note-withdraw" data-note="${esc(a.noteId)}" data-revision="${a.noteRevision}">Withdraw note</button>`:''}</div>`).join('')}${canPost?noteForm():''}</section>`;
  }
  function noteForm(asset){return `<form class="lm-form" data-lm-form="note-upload" data-note="${esc(asset?.noteId||'')}" data-revision="${asset?.noteRevision||0}"><label>PDF name<input name="name" maxlength="180" value="${esc(asset?.name||'')}"></label><label>${asset?'Replace my PDF note':'Post my PDF note'}<input type="file" name="file" accept="application/pdf,.pdf" required></label><button type="submit" class="button secondary">${asset?'Replace my note':'Post my note'}</button></form>`;}
- async function noteOptions(){if(!noteContext)throw Error('Open the dated lesson first.');return api('note-options',{sessionKey:noteContext.sessionKey,date:noteContext.date,runId,...(noteContext.media?.assets?.find(a=>a.noteId)?{noteId:noteContext.media.assets.find(a=>a.noteId).noteId}:{})});}
+ async function noteOptions(){if(!noteContext)throw Error('Open the dated lesson first.');return api('note-options',{sessionKey:noteContext.sessionKey,date:noteContext.date,runId:noteContext.runId||noteContext.media?.runId||runId,...(noteContext.media?.assets?.find(a=>a.noteId)?{noteId:noteContext.media.assets.find(a=>a.noteId).noteId}:{})});}
  async function loadComments(dg=dialogGeneration){
   try{const result=await api('comments',{lessonId:discussion.row.id});if(dg!==dialogGeneration)return;discussion={...discussion,...result};renderComments();}catch(e){if(dg===dialogGeneration)modalMessage(e.message,true);}
  }
@@ -130,7 +149,7 @@
  }
  async function mutate(action,input,options={}){
   if(busy)return;const dg=dialogGeneration,g=generation;busy=true;editorBusy(true);retry=()=>mutate(action,input,options);dialog?.setAttribute('aria-busy','true');modalMessage('Saving…');
-  try{const result=await api(action,input,options);if(!active(g)||dg!==dialogGeneration)return;if(action==='create'||action==='course-files-create'){dirty=false;busy=false;retry=null;await load();if(active(g)&&dg===dialogGeneration)await edit({id:result.lessonId,title:'Session media'});return;}dirty=false;retry=null;window.dispatchEvent(new Event('m4l-lesson-media-changed'));modalMessage('Saved.');if(discussion)await loadComments(dg);if(editor){editor=await api('get',{lessonId:editor.lesson.id});if(dg!==dialogGeneration)return;renderEditor();}await load();if(action.startsWith('note-')&&!editor&&noteContext){const row=data.sessions.find(r=>r.sessionKey===noteContext.sessionKey);busy=false;dirty=false;if(row)await selectSession(row);else close(true);}}
+  try{const result=await api(action,input,options);if(!active(g)||dg!==dialogGeneration)return;if(cacheScope)cache()?.invalidate(cacheScope);calendarRequest++;calendarLoading=false;if(action==='create'||action==='course-files-create'){dirty=false;busy=false;retry=null;await load({force:true});if(active(g)&&dg===dialogGeneration)await edit({id:result.lessonId,title:'Session media'});return;}dirty=false;retry=null;window.dispatchEvent(new Event('m4l-lesson-media-changed'));modalMessage('Saved.');if(discussion)await loadComments(dg);if(editor){editor=await api('get',{lessonId:editor.lesson.id});if(dg!==dialogGeneration)return;renderEditor();}await load({force:true});if(action.startsWith('note-')&&!editor&&noteContext){const row=data.sessions.find(r=>r.sessionKey===noteContext.sessionKey);busy=false;dirty=false;if(row)await selectSession(row);else close(true);}}
   catch(e){if(active(g)&&dg===dialogGeneration){modalMessage(e.message,true);const m=dialog.querySelector('[data-lm-dialog-message]');if(!m.querySelector('[data-lm=retry]'))m.insertAdjacentHTML('beforeend',' <button type="button" class="button secondary small" data-lm="retry">Retry this change</button>');}}
   finally{if(active(g)&&dg===dialogGeneration){busy=false;editorBusy(false);dialog?.removeAttribute('aria-busy');}}
  }
@@ -164,9 +183,9 @@
   if(action==='close'){close();return;}if(separated()&&['discussion','comments-refresh','comment-cancel','reply','comment-edit','moderate'].includes(action))return;if(busy)return;
   if(action==='chat-soon'){modal('Chat coming soon','<p>Lesson chat is coming soon.</p>');return;}
   if(action==='rail-previous'||action==='rail-next'){const rail=host.querySelector('.lm-media-rail');rail?.scrollBy({left:(action==='rail-next'?1:-1)*rail.clientWidth,behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'});return;}
-  if(action==='week-previous')moveWeek(-7);if(action==='week-next')moveWeek(7);if(action==='week-today')moveWeek(0);
+  if(action==='more'&&data?.before)void load({more:true});
   if(action==='calendar-session')void selectSession(data?.sessions.find(row=>row.sessionKey===b.dataset.key));
-  if(action==='refresh')void(async()=>{try{await window.M4L_ACADEMY_WORKSPACE?.readyPublication(true);await load();}catch(e){calendarError=e.message;render();}})();
+  if(action==='refresh')void load();
   if(action==='note-withdraw'&&noteContext&&window.confirm('Withdraw this PDF note? Its previous file remains in history.')){void(async()=>{try{if(noteContext.media?.canCurateNotes){await mutate('note-withdraw',{operationId:crypto.randomUUID(),noteId:b.dataset.note,revision:Number(b.dataset.revision)});return;}const option=await noteOptions();await mutate('note-withdraw',{operationId:crypto.randomUUID(),noteId:b.dataset.note,revision:Number(b.dataset.revision),sessionKey:option.session.sessionKey,sessionVersion:option.session.sessionVersion,startDate:option.session.date,endDate:option.session.date,runId:option.session.runId});}catch(e){modalMessage(e.message,true);}})();}
   if(action==='course-files'){const row=data?.courseFiles?.media;if(row)void edit(row);else if(data?.courseFiles?.canManage){const dg=modal('Course PDFs','<p>Opening Course PDFs…</p>');if(dg!==null)void mutate('course-files-create',{operationId:crypto.randomUUID()});}}
   if(action==='pdf-add'&&editor){const form=dialog.querySelector('[data-lm-form=upload]');form.hidden=false;form.querySelector('[name=file]').focus();}
@@ -181,11 +200,11 @@
   if(action==='moderate'){const c=discussion.comments.find(c=>c.id===b.dataset.comment);if(!c)return;if(b.dataset.decision==='DELETE'&&!window.confirm('Remove this comment?'))return;void mutate('comment-moderate',{operationId:crypto.randomUUID(),lessonId:discussion.row.id,commentId:c.id,revision:c.revision,decision:b.dataset.decision});}
   if(action==='retry'&&retry)void retry();
  }
- function reset(){generation++;calendarRequest++;calendarLoading=false;calendarError='';classFilter='';touch=null;close(true);if(host){host.removeEventListener('click',handleClick);host.removeEventListener('change',calendarChange);host.removeEventListener('touchstart',swipeStart);host.removeEventListener('touchend',swipeEnd);host.replaceChildren();host.classList.remove('lm-calendar','lm-rails');host.hidden=true;}host=null;session='';data=null;}
+ function reset(){generation++;calendarRequest++;calendarLoading=false;calendarError='';cacheScope=null;close(true);if(host){host.removeEventListener('click',handleClick);host.replaceChildren();host.classList.remove('lm-calendar','lm-rails');host.hidden=true;}host=null;session='';data=null;}
  window.M4L_LESSON_MEDIA={canLeave:()=>close(),reset,openAttachment({hostId,lesson,kind}){
   const target=document.getElementById(hostId);
   if(!target||!token()||!lesson||!['YOUTUBE','PDF'].includes(kind)||!lesson.assets?.length||!close())return;
-  reset();host=target;session=token();activityKey=lesson.activityKey;learnerView=true;data={lessons:[lesson]};
+  reset();host=target;session=token();context=workspace();activityKey=lesson.activityKey;learnerView=true;data={lessons:[lesson]};
   const assets=lesson.assets.filter(asset=>asset.kind===kind);
   if(assets.length===1){void (kind==='PDF'?pdf(lesson,assets[0].id):watch(lesson,assets[0].id));return;}
   modal(lesson.title,`<div class="lm-actions">${assets.map((asset,index)=>`<button type="button" class="button secondary" data-lm="${kind==='PDF'?'pdf':'watch'}" data-id="${esc(lesson.id)}" data-asset="${esc(asset.id)}">${kind==='PDF'?'▤':'▶'} ${esc(assetName(asset))}</button>`).join('')}</div>`);
@@ -193,10 +212,10 @@
   key=key||(programId?'PROGRAM:'+programId:'');
   if(!/^(PROGRAM|COURSE):[^:]+$/.test(key)||!token()){reset();return;}
   const target=document.getElementById(hostId);if(!target)return;
-  if(host===target&&session===token()&&learnerView===asLearner&&activityKey===key&&runId===offering){host.hidden=false;return;}
-  reset();activityKey=key;runId=offering;learnerView=asLearner;host=target;session=token();host.hidden=false;host.classList.add('lm-calendar','lm-rails');host.addEventListener('click',handleClick);host.addEventListener('change',calendarChange);host.addEventListener('touchstart',swipeStart,{passive:true});host.addEventListener('touchend',swipeEnd,{passive:true});week=sunday(today());void load(true);
+  if(host===target&&session===token()&&learnerView===asLearner&&activityKey===key&&runId===offering&&context===workspace()){host.hidden=false;void load();return;}
+  reset();activityKey=key;runId=offering;learnerView=asLearner;host=target;session=token();context=workspace();host.hidden=false;host.classList.add('lm-calendar','lm-rails');host.addEventListener('click',handleClick);render();void start();
  }};
  document.addEventListener('input',e=>{const form=e.target.closest('[data-lm-form=lesson],.lm-asset-name-form');if(form)form.dataset.changed='true';});
  window.addEventListener('beforeunload',event=>{if(dirty||busy){event.preventDefault();event.returnValue='';}});
- window.addEventListener('m4l-academy-session',reset);window.addEventListener('m4l-academy-session-ended',reset);window.addEventListener('storage',e=>{if(e.key==='m4l_account_token')reset();});window.addEventListener('pagehide',reset);
+ window.addEventListener('m4l-academy-session',reset);window.addEventListener('m4l-academy-session-ended',reset);window.addEventListener('storage',e=>{if(e.key==='m4l_account_token'||e.key===null)reset();});window.addEventListener('pagehide',reset);
 })();
