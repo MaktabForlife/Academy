@@ -75,7 +75,7 @@ test('status validation is read only; confirming Scheduled releases dates withou
  let current={...values,registerId:id,revision:1,status:'SCHEDULED'};
  let checked=ok(await f.call('register-validate',current,admin));assert.equal(checked.valid,false);
  assert.equal((await f.call('register-save',{...current,...op()},admin)).body.code,'STATUS_NOT_READY');
- const session=ok(await f.call('create',{...op(),registerId:id,activityKey:scope,classId:'class-1',title:values.name,subject:'Qasas',examDate:'2026-01-01',durationMinutes:60,maximumMark:100},admin)).assessmentId;
+ const session=ok(await f.call('create',{...op(),registerId:id,activityKey:scope,classId:'class-1',title:values.name,subject:'Qasas',examDate:'2026-01-01',durationMinutes:60,maximumMark:100,examinerId:'account-0003'},admin)).assessmentId;
  const listed=async()=>ok(await f.call('list',{view:'admin'},admin)).assessments.find(a=>a.id===session);
  assert.equal((await listed()).paperStatus,'WAITING_FOR_SUBMISSION');
  const teacher=await f.login('0003'),student=await f.login('0002');
@@ -117,7 +117,7 @@ test('status validation is read only; confirming Scheduled releases dates withou
  assert.equal(ok(await f.call('register-validate',{...current,status:'RELEASED'},admin)).valid,false);
  await change('release',{category:'marks'});
  assert.equal((await listed()).resultsStatus,'RELEASED');
- assert.equal((await registers(f,admin))[0].imtihaanStatus,'COMPLETE');
+ assert.equal((await registers(f,admin))[0].imtihaanStatus,'BEING_ASSESSED','Completion now needs the explicit confirmed register action');
  for(const status of ['RELEASED','COMPLETE'])assert.equal(ok(await f.call('register-validate',{...current,status},admin)).valid,true,status);
  // A successful Validate is informational: later changes are checked again atomically on Save.
  await change('authorise-resubmission',{accountIds:[r.accountId]});
@@ -127,7 +127,7 @@ test('status validation is read only; confirming Scheduled releases dates withou
 }));
 test('publishing a future paper starts an Imtihaan without opening the paper early',()=>use(async(f,admin)=>{
  const id=ok(await f.call('register-create',{...values,...op()},admin)).registerId;
- const paper=ok(await f.call('create',{...op(),registerId:id,activityKey:scope,classId:'class-1',title:'Future paper',subject:'Qasas',examDate:'2099-01-01',durationMinutes:60,maximumMark:100},admin)).assessmentId;
+ const paper=ok(await f.call('create',{...op(),registerId:id,activityKey:scope,classId:'class-1',title:'Future paper',subject:'Qasas',examDate:'2099-01-01',durationMinutes:60,maximumMark:100,examinerId:'account-0003'},admin)).assessmentId;
  ok(await f.call('register-save',{...values,...op(),registerId:id,revision:1,status:'SCHEDULED'},admin));
  const teacher=await f.login('0003');ok(await f.upload({kind:'PAPER',assessmentId:paper,revision:2},teacher));
  ok(await f.call('review-paper',{...op(),assessmentId:paper,revision:3,decision:'APPROVE'},admin));
@@ -139,7 +139,7 @@ test('publishing a future paper starts an Imtihaan without opening the paper ear
 }));
 test('session deletion is scoped, revision checked, retry safe and preserves audit and private attachments',()=>use(async(f,admin)=>{
  const teacher=await f.login('0003'),student=await f.login('0002'),other=await f.login('0008');
- const id=ok(await f.call('create',{...op(),activityKey:scope,classId:'class-1',title:'Delete me',subject:'Qasas',examDate:'2026-01-01',durationMinutes:60,maximumMark:100},admin)).assessmentId;
+ const id=ok(await f.call('create',{...op(),activityKey:scope,classId:'class-1',title:'Delete me',subject:'Qasas',examDate:'2026-01-01',durationMinutes:60,maximumMark:100,examinerId:'account-0003'},admin)).assessmentId;
  let input={...op(),assessmentId:id,revision:1};
  for(const token of [teacher,student,other])assert.equal((await f.call('session-delete',input,token)).status,403);
  const file=ok(await f.upload({kind:'PAPER',assessmentId:id,revision:1},teacher));
@@ -151,7 +151,7 @@ test('session deletion is scoped, revision checked, retry safe and preserves aud
  assert.equal((await f.call('release-papers',{...op(),papers:[{id,revision:3}]},admin)).status,404);
 }));
 test('deletion cannot erase learner access or submissions and failed deletion rolls back',()=>use(async(f,admin)=>{
- const id=ok(await f.call('create',{...op(),activityKey:scope,classId:'class-1',title:'Preserve me',subject:'Qasas',examDate:'2026-01-01',durationMinutes:60,maximumMark:100},admin)).assessmentId;
+ const id=ok(await f.call('create',{...op(),activityKey:scope,classId:'class-1',title:'Preserve me',subject:'Qasas',examDate:'2026-01-01',durationMinutes:60,maximumMark:100,examinerId:'account-0003'},admin)).assessmentId;
  const input={...op(),assessmentId:id,revision:1},before=f.db.prepare('SELECT * FROM assessments').get();
  f.db.exec("CREATE TRIGGER fail_delete BEFORE UPDATE OF deleted_at ON assessments BEGIN SELECT RAISE(ABORT,'synthetic delete failure'); END;");
  assert.equal((await f.call('session-delete',input,admin)).status,503);assert.deepEqual(f.db.prepare('SELECT * FROM assessments').get(),before);
@@ -194,7 +194,7 @@ test('an ineligible class prevents the whole Imtihaan release',()=>use(async(f,a
 }));
 test('Imtihaan release is atomic and preserves existing learner evidence when new dates are released',()=>use(async(f,admin)=>{
  const registerId=ok(await f.call('register-create',{...values,...op()},admin)).registerId;
- const add=async title=>ok(await f.call('create',{...op(),registerId,activityKey:scope,classId:'class-1',title,subject:'Qasas',examDate:'2999-11-09',durationMinutes:60,maximumMark:100},admin)).assessmentId;
+ const add=async title=>ok(await f.call('create',{...op(),registerId,activityKey:scope,classId:'class-1',title,subject:'Qasas',examDate:'2999-11-09',durationMinutes:60,maximumMark:100,examinerId:'account-0003'},admin)).assessmentId;
  const first=await add('First'),second=await add('Second'),before=f.db.prepare('SELECT * FROM assessments ORDER BY assessment_id').all(),receiptCount=f.db.prepare('SELECT count(*) n FROM operation_receipts').get().n;
  f.db.exec("CREATE TRIGGER fail_schedule_release BEFORE UPDATE OF schedule_published ON assessments BEGIN SELECT RAISE(ABORT,'synthetic release failure'); END;");
  assert.equal((await f.call('register-release',{...op(),registerId,revision:1},admin)).status,503);assert.deepEqual(f.db.prepare('SELECT * FROM assessments ORDER BY assessment_id').all(),before);assert.equal(f.db.prepare('SELECT count(*) n FROM assessment_recipients').get().n,0);assert.equal(f.db.prepare('SELECT count(*) n FROM operation_receipts').get().n,receiptCount);

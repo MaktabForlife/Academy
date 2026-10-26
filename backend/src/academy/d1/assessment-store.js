@@ -63,7 +63,18 @@ export function assessmentStore(repository,auth){
   if(!a.schedule_published||!await allowed(a.activity_key,a.class_id,'learner')||!await recipient(a.assessment_id))throw fail('This assessment is outside your access.',403,'FORBIDDEN');
  }
  const readStaff=a=>isAssignedExaminer(a)?canWork(a):auth.workspace==='TEACH'&&administers(auth,a.activity_key)?Promise.resolve(true):allowed(a.activity_key,a.class_id,'staff');
- async function requireExaminer(a){if(repository.features?.nativeAttendance&&await allowed(a.activity_key,a.class_id,'admin')||isAssignedExaminer(a))return;await requireClass(a.activity_key,a.class_id);if(!same(a.examiner_id,actor))throw fail('Only the examiner can assess this paper.',403,'FORBIDDEN');}
+ const canAssess=async a=>await allowed(a.activity_key,a.class_id,'admin')||auth.workspace==='TEACH'&&auth.adminView&&administers(auth,a.activity_key)&&await readStaff(a)||same(a.examiner_id,actor)&&await canWork(a);
+ async function requireAssessor(a){if(!await canAssess(a))throw fail('Only the assigned examiner or an authorised Admin can access papers, submissions and marks.',403,'EXAMINER_REQUIRED');}
+ async function assessorRows(rows){
+  const admin=isAdminWorkspace(auth),visible=new Set((await classes(admin?'admin':'staff')).map(c=>JSON.stringify([c.activity_key,c.class_id])));
+  return rows.filter(a=>isAssignedExaminer(a)||visible.has(JSON.stringify([a.activity_key,a.class_id]))&&(admin||auth.adminView&&administers(auth,a.activity_key)||same(a.examiner_id,actor)));
+ }
+ async function requireAssessorGroup(rows){
+  if(isAdminWorkspace(auth))return requireAdminClasses(rows.map(a=>({activityKey:a.activity_key,classId:a.class_id})));
+  await requireAssessmentStaffGroup(rows);
+  if(rows.some(a=>!(auth.adminView&&administers(auth,a.activity_key)||same(a.examiner_id,actor))))throw fail('Only the assigned examiner or an authorised Admin can access every class in this assessment.',403,'EXAMINER_REQUIRED');
+ }
+ const requireExaminer=requireAssessor;
  async function moderator(a,{paper=false}={}){await requireClass(a.activity_key,a.class_id,'admin');if(same(a.examiner_id,actor)&&!paper)throw fail('An examiner cannot moderate their own assessment.',403,'SELF_MODERATION');}
  async function roster(a){return (await p(`SELECT DISTINCT u.account_id,u.display_name FROM accounts u JOIN class_memberships m ON m.account_id=u.account_id AND m.activity_key=? AND m.class_id=? WHERE u.active=1 AND m.active=1 AND (m.start_date IS NULL OR m.start_date<=?) AND (m.end_date IS NULL OR m.end_date>=?) AND (EXISTS(SELECT 1 FROM (${assessmentRolesSQL}) r WHERE r.account_id=u.account_id AND r.activity_key=m.activity_key AND r.role='STUDENT') OR EXISTS(SELECT 1 FROM effective_course_subscriptions s WHERE s.account_id=u.account_id AND s.activity_key=m.activity_key)) ORDER BY u.display_name,u.account_id LIMIT 2001`,a.activity_key,a.class_id,a.exam_date||a.available_from?.slice(0,10)||new Date().toISOString().slice(0,10),a.exam_date||a.available_from?.slice(0,10)||new Date().toISOString().slice(0,10)).all()).results;}
  async function rosters(assessments){
@@ -99,5 +110,5 @@ export function assessmentStore(repository,auth){
   }
  }
  const touch=a=>p('UPDATE assessments SET revision=revision+1,updated_at=? WHERE assessment_id=?',new Date().toISOString(),a.assessment_id);
- return {db,p,actor,combine,classes,allowed,readStaff,isAssignedExaminer,canWork,requireAssessmentStaff,requireAssessmentStaffGroup,examinerTeachers,examinerChoice,requireClass,requireClasses,requireAdminClasses,assessment,assessments,recipient,requireReader,requireExaminer,moderator,roster,rosters,event,revision,recipientRevision,change,touch};
+ return {db,p,actor,combine,classes,allowed,readStaff,canAssess,assessorRows,requireAssessor,requireAssessorGroup,isAssignedExaminer,canWork,requireAssessmentStaff,requireAssessmentStaffGroup,examinerTeachers,examinerChoice,requireClass,requireClasses,requireAdminClasses,assessment,assessments,recipient,requireReader,requireExaminer,moderator,roster,rosters,event,revision,recipientRevision,change,touch};
 }

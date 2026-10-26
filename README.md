@@ -1,3 +1,11 @@
+# V107.74 — Imtihaan workflow and examiner access
+
+Use the Imtihaan Register, its assessment table and Edit reports as the three assessment screens. Save table edits together, validate schedules and current PDF approvals, and publish eligible approved papers partially. Enter marks before moderation, generate and review private reports, then release marks for the whole Imtihaan, with reports together or later. Global Admin can explicitly override missing marks and unconfirmed receipts with an audited reason; missing marks stay Pending.
+
+Only the assigned examiner and scoped Admins can open paper PDFs, attach papers, view and confirm submissions or enter marks. Other teachers see details and status. Released paper replacements require confirmation and retain existing answers. Learners retain PDF.js printing, guided answer upload, receipts and private results. Assignment due dates use 13:00 in the Academy timezone; schedule PDF sharing and downloads are corrected.
+
+The user authorised deployment after V107.73. No migration, live data correction, notification send or private coordinator change is required. [Implementation and verification notes](docs/ACADEMY-IMTIHAAN-10774.md).
+
 # V107.73 — Header recovery and daily Admin timetable cards
 
 Retry unavailable Hijri dates automatically while retaining today's last valid date. Show one daily card per Program or Course in Admin, with a class/lesson picker for joining. Preserve scoped access, live join checks and joining windows. No database upgrade or additional dashboard queries are required. Keep live checks small to limit database usage.

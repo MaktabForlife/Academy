@@ -6,11 +6,9 @@ import {statusValidation,requireValidStatus} from './assessment-validation.js';
 export const registerStatuses=[['REGISTERED','Registered'],['DRAFT','Draft'],['SCHEDULED','Scheduled'],['SCHEDULE_RELEASED','Schedule released'],['AWAITING_MODERATION','Awaiting moderation'],['APPROVED','Approved'],['PUBLISHED','Published'],['IN_PROGRESS','In progress'],['READY_FOR_ASSESSMENT','Ready for assessment'],['ASSESSED','Assessed'],['MODERATED','Moderated'],['READY_FOR_RELEASE','Ready for release'],['RELEASED','Released'],['COMPLETE','Complete'],['ARCHIVED','Archived'],['CANCELLED','Cancelled']];
 export const imtihaanStatuses=[['REGISTERED','Registered'],['SCHEDULED','Scheduled'],['IN_PROGRESS','In progress'],['BEING_ASSESSED','Being assessed'],['COMPLETE','Complete'],['ARCHIVED','Archived'],['CANCELLED','Cancelled']];
 function imtihaanStage(status,summary){
- if(status==='CANCELLED'||status==='ARCHIVED')return status;
+ if(['CANCELLED','ARCHIVED','COMPLETE'].includes(status))return status;
  if(!summary?.papers)return 'REGISTERED';
- const answers=Number(summary.answers||0),released=Number(summary.released||0),outstanding=Number(summary.outstanding||0);
  const lastDay=Date.now()>=Date.parse(summary.last_day+'T03:00:00+02:00');
- if(lastDay&&answers>0&&released===answers&&!outstanding)return 'COMPLETE';
  if(lastDay&&summary.published)return 'BEING_ASSESSED';
  if(summary.published)return 'IN_PROGRESS';
  return ['REGISTERED','DRAFT'].includes(status)?'REGISTERED':'SCHEDULED';

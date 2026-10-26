@@ -39,23 +39,24 @@ test('scheduling resolves active Academy subjects and modules while retaining ex
  ok(await f.call('save',{...body,...op(),assessmentId:id,revision:1,subject:'Existing imported label'},admin));
  assert.equal(ok(await f.call('get',{assessmentId:id},admin)).assessment.subject,'Existing imported label');
 }));
-test('the examiner can revise paper details before release with renewed moderation and stale-edit protection',()=>use(async f=>{
+test('Admin revises details only in Admin, with renewed moderation and stale-edit protection',()=>use(async f=>{
  const x=await setup(f);ok(await x.change('review-paper',{decision:'APPROVE'}));
  assert.equal((await x.change('paper-details',{durationMinutes:90,maximumMark:120},x.student)).status,403);
- assert.equal((await x.change('paper-details',{durationMinutes:90,maximumMark:120},x.admin)).status,403);
- assert.equal((await x.change('paper-details',{durationMinutes:0,maximumMark:120},x.teacher)).status,400);
+ assert.equal((await f.download(x.paperId,x.admin)).status,200);
+ assert.equal((await x.change('paper-details',{durationMinutes:0,maximumMark:120},x.admin)).status,400);
  const revision=(await x.detail()).assessment.revision;
- ok(await x.change('paper-details',{durationMinutes:90,maximumMark:120},x.teacher));
+ assert.equal((await x.change('paper-details',{durationMinutes:90,maximumMark:120},x.teacher)).status,403);
+ ok(await x.change('paper-details',{durationMinutes:90,maximumMark:120},x.admin));
  const a=(await x.detail()).assessment;assert.equal(a.durationMinutes,90);assert.equal(a.maximumMark,120);assert.equal(a.paperState,'IN_REVIEW');
- assert.equal((await f.call('paper-details',{...op(),assessmentId:x.id,revision,durationMinutes:30,maximumMark:50},x.teacher)).status,409);
+ assert.equal((await f.call('paper-details',{...op(),assessmentId:x.id,revision,durationMinutes:30,maximumMark:50},x.admin)).status,409);
  assert.equal(f.db.prepare("SELECT count(*) n FROM assessment_events WHERE assessment_id=? AND action='paper-details'").get(x.id).n,1);
  await available(f,x);
- assert.equal((await x.change('paper-details',{durationMinutes:30,maximumMark:50},x.teacher)).status,409);
+ assert.equal((await x.change('paper-details',{durationMinutes:30,maximumMark:50},x.admin)).status,409);
 }));
 async function use(fn){const f=await assessmentFixture();try{await fn(f);assert.deepEqual(f.db.prepare('PRAGMA foreign_key_check').all(),[]);assert.equal(f.db.prepare('SELECT count(*) n FROM academy_write_guards').get().n,0);}finally{f.db.close();}}
 async function setup(f,{examDate='2026-01-01',examiner='0003'}={}){
  const admin=await f.login('0001'),teacher=await f.login(examiner),student=await f.login('0002'),other=await f.login('0008');
- const id=ok(await f.call('create',{...op(),activityKey:scope,classId:'class-1',title:'Final assessment',subject:'Qasas',examDate,durationMinutes:60,maximumMark:100},admin)).assessmentId;
+ const id=ok(await f.call('create',{...op(),activityKey:scope,classId:'class-1',title:'Final assessment',subject:'Qasas',examDate,durationMinutes:60,maximumMark:100,examinerId:examiner==='0003'?'account-0003':null},admin)).assessmentId;
  const detail=async(token=admin)=>ok(await f.call('get',{assessmentId:id},token));
  const change=async(action,input={},token=admin)=>f.call(action,{...op(),assessmentId:id,revision:(await detail()).assessment.revision,...input},token);
  ok(await change('publish'));const uploaded=ok(await f.upload({kind:'PAPER',assessmentId:id,revision:(await detail()).assessment.revision},teacher));
@@ -269,8 +270,9 @@ test('separate descriptors distinguish papers for one subject in the schedule an
  for(const assessmentId of ids){a=ok(await f.call('get',{assessmentId},admin)).assessment;ok(await f.call('publish',{...op(),assessmentId,revision:a.revision},admin));}
  const results=ok(await f.call('report-data',{activityKey:scope,classId:'class-1',assessmentIds:ids},admin)).learners[0].results;
  assert.deepEqual(results.map(r=>r.subject).sort(),['Fiqh · MAC','Fiqh · Teacher MHM']);
- a=ok(await f.call('get',{assessmentId:ids[0]},teacher)).assessment;
- ok(await f.upload({kind:'PAPER',assessmentId:a.id,revision:a.revision},teacher));
+ assert.equal((await f.upload({kind:'PAPER',assessmentId:ids[0],revision:(await f.call('get',{assessmentId:ids[0]},teacher)).body.assessment.revision},teacher)).status,403,'A descriptor does not assign its teacher as examiner');
+ a=ok(await f.call('get',{assessmentId:ids[0]},admin)).assessment;
+ ok(await f.upload({kind:'PAPER',assessmentId:a.id,revision:a.revision},admin));
  assert.equal(ok(await f.call('get',{assessmentId:a.id},teacher)).assessment.paperState,'IN_REVIEW');
  assert.equal(ok(await f.call('get',{assessmentId:ids[1]},teacher)).assessment.paperState,'NONE');
 }));

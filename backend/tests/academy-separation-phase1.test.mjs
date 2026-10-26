@@ -16,7 +16,7 @@ async function exam(f){
  const scope=scopes.programA;
  for(const who of ['studentA','dual'])f.db.prepare('INSERT INTO class_memberships(activity_key,enrollment_id,class_id,account_id,active) VALUES(?,?,?,?,1)').run(scope,'sep-'+who,'class-1',actors[who]);
  for(const who of ['teacherA','dual'])f.db.prepare("INSERT INTO class_teacher_assignments VALUES(?,?,?,'ADDITIONAL')").run(scope,'class-1',actors[who]);
- const input={...op(),activityKey:scope,classId:'class-1',title:'Boundary paper',subject:'Qasas',examDate:'2026-01-01',durationMinutes:60,maximumMark:100};
+ const input={...op(),activityKey:scope,classId:'class-1',examinerId:actors.teacherA,title:'Boundary paper',subject:'Qasas',examDate:'2026-01-01',durationMinutes:60,maximumMark:100};
  const id=ok(await f.request('/api/academy/assessments/create',input,'global','ADMIN')).assessmentId;
  const detail=()=>f.request('/api/academy/assessments/get',{assessmentId:id},'global','ADMIN').then(ok);
  ok(await f.request('/api/academy/assessments/publish',{...op(),assessmentId:id,revision:(await detail()).assessment.revision},'global','ADMIN'));
@@ -77,12 +77,12 @@ test('previewing and downloading a paper starts no participant event; genuine ow
 test('inherited teaching has ordinary Teacher fields while named-examiner and Admin boundaries remain',()=>use(async f=>{
  const x=await exam(f);
  const preview=ok(await f.request('/api/academy/assessments/get',{assessmentId:x.id},'global','ADMIN_TEACH'));
- assert.equal(preview.assessment.canAdmin,false);assert.equal(preview.assessment.readOnly,false);assert.equal(preview.assessment.canSubmitPaper,false);assert.equal(preview.assessment.isExaminer,false);
+ assert.equal(preview.assessment.canAdmin,false);assert.equal(preview.assessment.readOnly,false);assert.equal(preview.assessment.canReplacePaper,false);assert.equal(preview.assessment.isExaminer,false);
  const before=f.db.prepare('SELECT count(*) n FROM assessment_events').get().n;
- for(const action of ['mark'])assert.equal((await f.request('/api/academy/assessments/'+action,{assessmentId:x.id,revision:preview.assessment.revision,...op()},'global','ADMIN_TEACH')).status,403);
+ assert.equal((await f.request('/api/academy/assessments/marks-list',{assessmentId:x.id},'global','ADMIN_TEACH')).status,200);
  assert.equal(f.db.prepare('SELECT count(*) n FROM assessment_events').get().n,before);
  const teacher=ok(await f.request('/api/academy/assessments/get',{assessmentId:x.id},'teacherA','TEACH'));assert.equal(teacher.assessment.isExaminer,true);assert.equal(teacher.assessment.readOnly,false);
- const dual=ok(await f.request('/api/academy/assessments/get',{assessmentId:x.id},'dual','TEACH'));assert.equal(dual.assessment.canAdmin,false);assert.equal(dual.assessment.readOnly,false);
+ const dual=ok(await f.request('/api/academy/assessments/get',{assessmentId:x.id},'dual','TEACH'));assert.equal(dual.assessment.canAdmin,false);assert.equal(dual.assessment.readOnly,true);assert.equal(dual.assessment.canOpenPaper,false);assert.equal(dual.assessment.canEnterMarks,false);
  assert.equal((await f.request('/api/academy/assessments/get',{assessmentId:x.id},'teacherB','TEACH')).status,403);
  f.db.prepare("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state) VALUES('global-real-teacher',?,?,'TEACHER',1,'CONFIRMED')").run(actors.global,scopes.programA);
  const unassigned=ok(await f.request('/api/academy/assessments/list',{activityKey:scopes.programA},'global','TEACH')).assessments.find(a=>a.id===x.id);assert.equal(unassigned,undefined,'Personal Teach needs this class assignment');

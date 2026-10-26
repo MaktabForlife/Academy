@@ -42,6 +42,7 @@ export function assessmentReports(repository,auth){
   return {...(native?{timezone:(await repository.homeConfiguration()).setting_value}:{}),className:exams[0].class_name,activityName:exams[0].activity_name,learners:[...people].map(([id,name])=>({id,name,results:exams.map(a=>{const r=rows.find(r=>r.account_id===id&&r.assessment_id===a.assessment_id),released=r?.state==='APPROVED'&&(native||r.manual===1||r.submission_id===r.latest_submission_id);return {...(native?{definitionHash:definitions.get(a.assessment_id)}:{}),assessmentId:a.assessment_id,title:a.title,subject:[a.subject,a.subject_descriptor].filter(Boolean).join(' · '),date:a.exam_date,...(!native?{maximumMark:a.maximum_mark}:{}),mark:released?r.mark:null,markId:released?r.released_mark_id:null};})}))};
  }
  async function saveReport(input){return s.change('report-save',input,input.activityKey,async()=>{
+  if(native)throw fail('Generate and review reports for the whole Imtihaan from the register, then release them separately or with marks.',409,'IMTIHAAN_REPORT_REQUIRED');
   await s.requireClass(input.activityKey,input.classId,'admin');
   const f=await p("SELECT * FROM assessment_files WHERE file_id=? AND kind='REPORT' AND activity_key=? AND owner_id=? AND uploaded_by=?",input.fileId,input.activityKey,input.accountId,actor).first();
   if(!f)throw fail('Upload this learner’s generated PDF first.',403);
@@ -59,7 +60,9 @@ export function assessmentReports(repository,auth){
   const reports=(await p(`SELECT report_id,file_id,account_id,created_at,source_json FROM assessment_reports WHERE activity_key=? AND class_id=? ${admin?'':'AND account_id=?'} ${native&&!admin?'AND EXISTS(SELECT 1 FROM assessment_report_evidence e WHERE e.report_id=assessment_reports.report_id)':''} ORDER BY created_at DESC LIMIT 200`,a.activity_key,a.class_id,...(admin?[]:[actor])).all()).results;
   const records=native&&!admin?(await p('SELECT a.*,r.released_mark_id FROM assessment_recipients r JOIN assessments a USING(assessment_id) WHERE r.account_id=?',actor).all()).results:null;
   const definitions=new Map();if(records)for(const row of records)definitions.set(row.assessment_id,await reportDefinitionHash(row));
-  return {reports:reports.filter(r=>!records||JSON.parse(r.source_json).every(e=>records.some(c=>c.assessment_id===e.assessmentId&&c.released_mark_id===(e.markId??null)&&definitions.get(e.assessmentId)===e.definitionHash))).map(({source_json,...r})=>r)};
+  const staged=!admin&&reports.length?(await p(`SELECT json_extract(e.details_json,'$.reportId') report_id FROM assessment_events e WHERE e.action='report-staged' AND e.account_id=? AND NOT EXISTS(SELECT 1 FROM assessment_events released WHERE released.action='report-released' AND released.account_id=e.account_id AND json_extract(released.details_json,'$.reportId')=json_extract(e.details_json,'$.reportId'))`,actor).all()).results:[];
+  const unreleased=new Set(staged.map(r=>r.report_id));
+  return {reports:reports.filter(r=>!unreleased.has(r.report_id)&&(!records||JSON.parse(r.source_json).every(e=>records.some(c=>c.assessment_id===e.assessmentId&&c.released_mark_id===(e.markId??null)&&definitions.get(e.assessmentId)===e.definitionHash)))).map(({source_json,...r})=>r)};
  }
  return {run:(action,input)=>action==='templates'?templates(input):action==='template-save'?saveTemplate(input):action==='report-data'?data(input):action==='report-save'?saveReport(input):list(input)};
 }

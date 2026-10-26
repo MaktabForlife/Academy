@@ -330,7 +330,7 @@ assert.match($('academy-sessions').innerHTML,/join-open|Join lesson/);
 assert.equal(requests.length,count,'Opening a lesson locally causes no server fetch');
 assert.equal([...timers.values()][0].delay,5*60000,'Next browser-only transition is lesson start');
 assert.doesNotMatch(JSON.stringify([...tabStore.values()]),/zoom\.test|joinUrl|Bearer|"QA"/);
-const joinControl={dataset:{join:/data-join="([^"]+)"/.exec($('academy-sessions').innerHTML)[1]},textContent:'Join lesson',disabled:false,closest:()=>null};
+const joinControl={closest:()=>null,dataset:{join:/data-join="([^"]+)"/.exec($('academy-sessions').innerHTML)[1]},textContent:'Join lesson',disabled:false};
 documentHandlers.get('click')({target:{closest:selector=>selector==='[data-join]'?joinControl:null}});await flush();assert.equal(joins.length,1);assert.equal(popup.url,'https://zoom.test/current-checked');
 joinFailure=true;documentHandlers.get('click')({target:{closest:selector=>selector==='[data-join]'?joinControl:null}});await flush();assert.equal(popup.closed,true);assert.match($('schedule-message').textContent,/no longer available/);joinFailure=false;
 count=requests.length;documentHandlers.get('visibilitychange')();await flush();assert.equal(requests.length,count,'Returning to the tab uses the daily snapshot');
@@ -366,7 +366,7 @@ fixtureNow='2026-10-05T10:55:00Z';timer=[...timers.values()][0];timers.clear();t
 assert.match($('academy-public-sessions').innerHTML,/class="preview-pill is-open"/);
 assert.doesNotMatch($('academy-public-sessions').innerHTML,/data-public-join[^>]+disabled/);
 assert.equal(requests.length,count,'Public joining opens without refreshing the snapshot');
-const publicControl={dataset:{publicJoin:/data-public-join="([^"]+)"/.exec($('academy-public-sessions').innerHTML)[1]},textContent:'Join',disabled:false,closest:()=>null};
+const publicControl={closest:()=>null,dataset:{publicJoin:/data-public-join="([^"]+)"/.exec($('academy-public-sessions').innerHTML)[1]},textContent:'Join',disabled:false};
 documentHandlers.get('click')({target:{closest:selector=>selector==='[data-public-join]'?publicControl:null}});await flush();
 assert.equal(publicJoins.length,1);assert.equal(popup.url,'https://zoom.test/free-current-checked');assert.equal(requests.length,count);
 fixtureNow='2026-10-05T12:00:00Z';timer=[...timers.values()][0];timers.clear();timer.fn();await flush();
