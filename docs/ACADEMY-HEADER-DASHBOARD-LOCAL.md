@@ -1,6 +1,6 @@
-# Header recovery and Admin dashboard — local only
+# Header recovery and Admin dashboard — V107.73
 
-Branch: `feature/academy-header-dashboard-fixes`, based on deployed V107.72 (`29293ea2`). The app version remains V107.72 until a new release is approved. This work is not pushed or deployed and requires no database migration.
+Branch: `feature/academy-header-dashboard-fixes`, based on deployed V107.72 (`29293ea2`). The reviewed implementation is `5f7b31ba`. On 26 October 2026 the user explicitly authorised deploying these changes as V107.73 to the existing Academy website and matching Development API. No database migration or private coordinator change is required.
 
 ## Hijri date recovery
 
@@ -27,4 +27,4 @@ Joining uses the existing server endpoint and current authority/publication chec
 
 The existing Student, Teacher and scoped Admin role-dashboard browser runner also passes against the current UI. Its old Class Note selector was updated from Messages to For your attention, and its removed dashboard Teaching hours expectation now verifies that workload stays absent. Header-date responses are synthetic so the runner never contacts Jamiat.
 
-Local evidence: `outputs/academy-header-dashboard-local/` in the project workspace. Keep live checks small to limit database usage. Deployment requires a separate approval and a new release version.
+Original local evidence: `outputs/academy-header-dashboard-local/` in the project workspace. V107.73 build, verification and deployment evidence is recorded in `outputs/academy-header-dashboard-10773/`. Keep live checks small to limit database usage. Future deployments require new user approval.

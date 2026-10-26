@@ -1,3 +1,13 @@
+# V107.73 — Header recovery and daily Admin timetable cards
+
+Automatically retry failed/unavailable Hijri date lookups after one minute while visible, preserve any valid current-day date during refresh failures, stop repeat requests after recovery and reject responses from the previous day. The public date route remains independent of D1.
+
+Group each Program or Course into one card per day in Admin. Open the card to choose a class/lesson, retaining current permission and publication checks and the existing joining window. Bind an open choice to its original lesson across background grid refreshes. Global Admin sees all areas; scoped Admin sees only authorised areas. Personal and individual Program timetable views retain their existing grouping.
+
+The user authorised this deployment on 26 October 2026. No database migration or coordinator change is required. Local header, permissions, role dashboards, five distinct lesson joins and desktop/phone checks passed; release verification remains small.
+
+[Implementation and verification notes](docs/ACADEMY-HEADER-DASHBOARD-LOCAL.md).
+
 # V107.72 — Fewer repeated configuration and assessment reads
 
 Cache fixed published time-zone settings by deployment/publication and read current readiness directly from Core. Prepare a shared private assessment-definition snapshot at publication, reuse it for learner lists/details, and limit current assessment facts to the learner's IDs. Preserve current access, revocation, release, timing and personal result checks, with safe database fallbacks. Avoid transferring irrelevant Admin settings when Core combines write counters.

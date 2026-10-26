@@ -1,3 +1,9 @@
+# V107.73 — Header recovery and daily Admin timetable cards
+
+Retry unavailable Hijri dates automatically while retaining today's last valid date. Show one daily card per Program or Course in Admin, with a class/lesson picker for joining. Preserve scoped access, live join checks and joining windows. No database upgrade or additional dashboard queries are required. Keep live checks small to limit database usage.
+
+[Implementation and verification notes](docs/ACADEMY-HEADER-DASHBOARD-LOCAL.md).
+
 # V107.72 — Fewer repeated configuration and assessment reads
 
 Reuse fixed published time-zone settings and shared published assessment definitions. Keep current readiness, sessions, permissions, marks, submissions and paper release/timing checks. Preserve V107.71 assessment tables and learner submission tools. No database upgrade is required. Keep live checks small to limit database usage.

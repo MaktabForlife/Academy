@@ -1,3 +1,10 @@
+# Header and Admin dashboard release — 26 October 2026
+
+- The user explicitly requested deploying the reviewed header recovery and daily Admin timetable cards. Release `feature/academy-header-dashboard-fixes` as V107.73 to the existing Academy website and matching Development API.
+- This authorisation supersedes the local-only hold below for this release. No database migration, live data correction or private coordinator change is required.
+- Preserve one card per Program or Course per day for Admin, current scoped permissions and joining windows. Keep live checks small to limit database usage; use local fixtures and minimal version/readiness verification.
+- Future deployments require new user approval.
+
 # Local header and dashboard fixes — 26 October 2026
 
 - Work on `feature/academy-header-dashboard-fixes`, starting from deployed V107.72 (`29293ea2`). Implement automatic Hijri-date recovery and one daily card for each Program or Course on the Admin dashboard, with an explicit class choice for joining.
