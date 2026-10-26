@@ -37,14 +37,14 @@
     let html='';
     if(editing){
       const name=`<input data-field="name" aria-label="${modules?'Module':'Subject'} name" maxlength="160" value="${esc(e.name)}" ${locked?'disabled':''}>`;
-      if(!modules)html='<tr class="lc-edit"><td>'+name+'</td><td>'+(e.active?'Active':'Archived')+'</td><td class="lc-usage">'+usedIn(currentRow())+'</td>';
+      if(!modules)html='<tr class="lc-edit"><td>'+name+'</td><td><select data-field="active" aria-label="Subject status" '+(locked?'disabled':'')+'>'+option('true','Active',String(e.active))+option('false','Archived',String(e.active))+'</select></td><td class="lc-usage">'+usedIn(currentRow())+'</td>';
       else html='<tr class="lc-edit"><td>'+name+'</td><td><select data-field="subjectId" aria-label="Module subject" '+(locked?'disabled':'')+'>'+option('','Choose a Subject',e.subjectId)+state.data.subjects.filter(s=>s.Active||s.SubjectID===e.subjectId).map(s=>option(s.SubjectID,s.SubjectName,e.subjectId)).join('')+'</select></td><td><select data-field="active" aria-label="Module status" '+(locked?'disabled':'')+'>'+option('true','Active',String(e.active))+option('false','Archived',String(e.active))+'</select></td><td class="lc-usage">'+usedIn(currentRow())+'</td>';
       html+='<td><button data-save '+(locked||state.conflict?'disabled':'')+'>Save</button><button data-cancel class="pb-secondary" '+(locked?'disabled':'')+'>Discard</button></td></tr>';
     }
     for(const row of rows){if(editing&&(modules?row.id===e.id:row.SubjectID===e.id))continue;
       const index=(modules?state.data.modules:state.data.subjects).indexOf(row);
       html+=modules?'<tr><td>'+esc(row.name)+'</td><td>'+esc(row.subjectName||'Choose a Subject')+'</td><td>'+(row.active?'Active':'Archived')+'</td>':'<tr><td>'+esc(row.SubjectName)+'</td><td>'+(row.Active?'Active':'Archived')+'</td>';
-      html+='<td class="lc-usage">'+usedIn(row)+'</td><td><button data-edit="'+index+'" class="pb-secondary" '+(locked||state.conflict||!modules&&!row.Active?'disabled':'')+'>Edit</button></td></tr>';
+      html+='<td class="lc-usage">'+usedIn(row)+'</td><td><button data-edit="'+index+'" class="pb-secondary" '+(locked||state.conflict?'disabled':'')+'>Edit</button></td></tr>';
     }
     $('lc-rows').innerHTML=html||'<tr><td class="lc-empty" colspan="'+(modules?5:4)+'">No matching records.</td></tr>';
   }
@@ -59,7 +59,7 @@
   }
   function begin(row){if(state.edit){tell('Save or discard your current entry first.',true);return;}state.edit=draft(row);state.conflict=false;remember();render();$('lc-rows').querySelector?.('input')?.focus();}
   function request(){const e=state.edit,operationId=crypto.randomUUID();
-    if(e.kind==='subject')return {path:'academy-subjects/save',body:{mode:e.id?'rename':'create',subjectId:e.id,subjectName:e.name,baseRevision:e.baseRevision,operationId}};
+    if(e.kind==='subject')return {path:'academy-subjects/save',body:{mode:e.id?'rename':'create',subjectId:e.id,subjectName:e.name,active:e.active,baseRevision:e.baseRevision,operationId}};
     return {path:'learning-catalogue/module/save',body:{id:e.id,name:e.name,subjectId:e.subjectId,active:e.active,baseRevision:e.baseRevision,operationId}};
   }
   async function save(){

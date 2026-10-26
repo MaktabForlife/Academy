@@ -1,3 +1,9 @@
+# Curriculum and workspace correction release — 27 October 2026
+
+- Complete the authorised NAV-01 follow-up from “UI and lesson updates” and the user's direct instructions in this chat: remove the extra Curriculum chooser; rename the previous subjects screen Curriculum management; add Programs/Courses navigation tabs; make subject status editable; restrict the Global Admin dashboard workspace menu to exactly the nine supplied items without changing its formatting; add a Public Library source option when attaching lesson PDFs.
+- Work on local `feature/academy-curriculum-navigation`, based on deployed V107.80, and complete this active correction release as V107.81 through the existing Development API/website workflow. Preserve the other V107.80 features, current permissions, automatic homepage refresh and Update timetable fallback.
+- No database migration or private coordinator update is required. Keep live checks small to limit database usage. Use disposable local fixtures and targeted version/static release checks. Future deployments require new authorisation.
+
 # UI and session update release — 27 October 2026
 
 - The human user explicitly requested “pls pass to optimisation for deployment” in “UI and lesson updates”; the verified handoff authorises implementing, testing and deploying SPDF-01, PLAN-01, NAV-01, SETUP-01 and QUICK-01. Release the complete batch as V107.80 from `feature/academy-ui-session-updates`, incorporating deployed V107.79.

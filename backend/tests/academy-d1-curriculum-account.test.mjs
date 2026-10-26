@@ -120,3 +120,16 @@ test('older account timetable shares paid privacy, timed joining and a bounded 1
   const workspace=ok(await post(env,'/api/account/workspace',{},token));assert.equal(workspace.sessionStore,'D1');assert.match(workspace.workspace.path,/^\/academy\/#activity\/PROGRAM\//);
   assert.equal((await post(env,'/api/account/global-workspace',{},token)).status,403);
 },snapshot=>setCell(snapshot,'PublishedGlobalTimetableSessions',1,'ZoomLink','https://zoom.us/j/12345678901')));
+
+test('subject status archives and restores the same linked subject with guarded exact retries',()=>use(async({env,db})=>{
+ const owner=await login(env),created=ok(await post(env,subjects+'save',{mode:'create',subjectName:'Status subject',operationId:crypto.randomUUID()},owner)).subject;
+ const view=ok(await post(env,management+'manage-get',{id:PROGRAM_IDS[0]},owner));ok(await post(env,management+'manage-save',{id:PROGRAM_IDS[0],kind:'subjects',creating:true,record:{ProgramSubjectID:'PS-status-link',SubjectID:created.SubjectID,Active:true},baseRowRevision:view.emptyRowRevision,referenceRevision:view.referenceRevision,operationId:crypto.randomUUID()},owner));
+ const links=db.prepare('SELECT * FROM program_subjects').all(),publications=db.prepare('SELECT * FROM timetable_publications').all(),archive={mode:'rename',subjectId:created.SubjectID,subjectName:created.SubjectName,active:false,baseRevision:created.Revision,operationId:crypto.randomUUID()};
+ const saved=ok(await post(env,subjects+'save',archive,owner));assert.equal(saved.subject.Active,false);assert.notEqual(saved.subject.Revision,created.Revision);assert.equal(ok(await post(env,subjects+'save',archive,owner)).replayed,true);
+ assert.equal((await post(env,subjects+'save',{...archive,active:true,operationId:crypto.randomUUID()},owner)).body.code,'ROW_CHANGED');
+ const olderClient=ok(await post(env,subjects+'save',{mode:'rename',subjectId:created.SubjectID,subjectName:'Renamed archived subject',baseRevision:saved.subject.Revision,operationId:crypto.randomUUID()},owner)).subject;assert.equal(olderClient.Active,false);
+ assert.equal((await post(env,subjects+'save',{mode:'rename',subjectId:created.SubjectID,subjectName:olderClient.SubjectName,active:'false',baseRevision:olderClient.Revision,operationId:crypto.randomUUID()},owner)).status,400);
+ const restore={mode:'rename',subjectId:created.SubjectID,subjectName:olderClient.SubjectName,active:true,baseRevision:olderClient.Revision,operationId:crypto.randomUUID()};
+ for(const id of ['0004','0003','0002'])assert.equal((await post(env,subjects+'save',restore,await login(env,id))).status,403);
+ const restored=ok(await post(env,subjects+'save',restore,owner)).subject;assert.equal(restored.Active,true);assert.equal(restored.SubjectID,created.SubjectID);assert.deepEqual(db.prepare('SELECT * FROM program_subjects').all(),links);assert.deepEqual(db.prepare('SELECT * FROM timetable_publications').all(),publications);
+}));

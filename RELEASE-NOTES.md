@@ -1,3 +1,13 @@
+# V107.81 — Curriculum management, Admin menu and Library lesson PDFs
+
+Curriculum opens the renamed **Curriculum management** screen directly for Global Admins. Subjects & Modules, Programs and Courses remain connected through secondary tabs; the old Curriculum chooser redirects to the relevant management page. Scoped Admins open only their permitted Programs/Courses and retain the existing catalogue restrictions.
+
+Subject status is editable as Active or Archived, including restoration of an archived subject. Saves retain the same identity, linked records, current Global Admin checks, conflict protection and exact retries. Central subject/module saves confirm only the edited catalogue definitions. The Global Admin dashboard workspace list contains exactly the nine requested items, in order, using its existing formatting.
+
+Lesson PDF attachment forms now offer **Upload a PDF** or **Public Library**, including individual volumes. A selected public PDF uses the existing guarded upload, the same 16 MB limit and lesson/recurring audience. The public catalogue cache is reused; no new database lookup is added to ordinary navigation.
+
+Preserve V107.80 session resources, plan policies, Quick tools, automatic homepage snapshot refresh and the Update timetable fallback. No database migration or private coordinator change is required. Keep live checks small to limit database usage. [Implementation and verification](docs/ACADEMY-CURRICULUM-10781.md).
+
 # V107.80 — Session resources, plan requirements and simpler Admin tools
 
 Teachers can attach one PDF to a dated lesson or every accepted occurrence of the same session, with current assignment checks on both listings and downloads. Session plan requirements inherit the Program/Course default; an Admin can save several overrides or restore inheritance from a future teaching day. Optional plans stay editable and saved history remains available.

@@ -24,7 +24,7 @@ const container = element('container');
 const document = { getElementById: id => elements.get(id), createElement: () => element(), visibilityState: 'visible',
   querySelector: selector => selector === '.container' ? container : null, querySelectorAll: selector => selector === '.view' ? views : [],
   addEventListener: (type, fn) => documentHandlers.set(type, fn) };
-const location = { hash: '#overview' };
+const location = { hash: '#overview', replace(url){this.redirect=url;} };
 const window = { M4L_CONFIG: { API_BASE: 'https://test', REBOOT_PROGRAM_ID:'PRG-46c8576d-9fcf-4000-96b9-856b00a0218a' }, location,
   addEventListener(type, fn) { handlers.set(type, fn); }, dispatchEvent(event) { handlers.get(event.type)?.(event); } };
 const $ = id => elements.get(id), flush = async () => { for (let i=0;i<4;i++) await new Promise(resolve=>setTimeout(resolve,2)); };
@@ -272,7 +272,7 @@ assert.deepEqual(Array.from(window.M4L_ACADEMY_ADMIN_MENU.rows({signedIn:true,gl
 await navigate('#administration/attendance');assert.match($('administration').innerHTML,/<h1>Manage Attendance<\/h1>/);assert.doesNotMatch($('administration').innerHTML,/\/programs\/attendance\.html/);assert.equal($('academy-tab-admin').attrs.get('aria-pressed'),'true');
 await navigate('#assessment-admin');assert.equal($('academy-tab-admin').attrs.get('aria-pressed'),'true');assert.equal($('academy-tab-learn').attrs.get('aria-pressed'),'false');
 await navigate('#progress-admin');assert.equal($('academy-tab-admin').attrs.get('aria-pressed'),'true');
-await navigate('#administration/curriculum');assert.match($('administration').innerHTML,/>Subjects<.*>Programs<.*>Courses</);
+await navigate('#administration/curriculum');assert.equal(location.redirect,'/academy/subjects/');
 await navigate('#activity/PROGRAM/'+activity.id);
 documentHandlers.get('click')({target:{closest:selector=>selector==='[data-workspace-tool]'?{dataset:{workspaceTool:'academy'}}:null}});assert.match($('workspace-tool-body').innerHTML,/Subjects &amp; Modules/);$('workspace-tool-close').listeners.get('click')();
 await navigate('#workshops');assert.equal($('course-list-scope-wrap').hidden,false);assert.equal($('course-list-title').textContent,'All Courses');

@@ -8,6 +8,7 @@ import worker from '../src/academy-runtime.js';
 import {separationFixture,separationScopes as scopes} from './fixtures/academy-separation-fixture.mjs';
 import {initialiseAcceptedSetup} from '../src/academy/d1/setup-publication.js';
 import {academyDate,nextDate} from '../src/academy/d1/academy-clock.js';
+
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;},operation=()=>({operationId:crypto.randomUUID()}),today=()=>academyDate(new Date(),'Africa/Johannesburg');
 async function use(fn){
  const f=await separationFixture();try{
@@ -20,7 +21,7 @@ async function use(fn){
    return {status:response.status,body:response.headers.get('Content-Type')?.includes('application/json')?await response.json():new Uint8Array(await response.arrayBuffer())};
   };
   f.accept=async()=>acceptFixtureSetup(f.env,tokens.admin,[scopes.programA]);
-  f.create=async(input={})=>ok(await f.request('create',{...operation(),activityKey:scopes.programA,classId:'class-1',title:'Native assessment',subject:'Qasas',examDate:today(),durationMinutes:60,maximumMark:100,examinerId:!input.activityKey||input.activityKey===scopes.programA?'account-0003':null,...input})).assessmentId;
+  f.create=async(input={})=>{const created=ok(await f.request('create',{...operation(),activityKey:scopes.programA,classId:'class-1',title:'Native assessment',subject:'Qasas',examDate:today(),durationMinutes:60,maximumMark:100,examinerId:!input.activityKey||input.activityKey===scopes.programA?'account-0003':null,...input}));const id=created.assessmentId;/* Access tests use an already-open synthetic exam; opening-time policy is tested separately. */if(!input.examDate&&input.assessmentKind!=='ASSIGNMENT')f.db.prepare('UPDATE assessments SET available_from=? WHERE assessment_id IN(SELECT value FROM json_each(?))').run(new Date(Date.now()-4*3600000).toISOString(),JSON.stringify(created.assessmentIds||[id]));return id;};
   f.detail=async(id,who='admin')=>ok(await f.request('get',{assessmentId:id},who));
   f.change=async(id,action,input={},who='admin')=>{const d=await f.detail(id);return f.request(action,{...operation(),assessmentId:id,revision:d.assessment.revision,...(d.group?.canManage?{groupRevisions:d.group.members.map(m=>({id:m.id,revision:m.revision})),groupCollections:d.group.members.map(m=>({id:m.id,revision:m.collectionRevision}))}:{}),...input},who);};
   f.uploadNative=async(id,kind,input={},who='admin')=>{

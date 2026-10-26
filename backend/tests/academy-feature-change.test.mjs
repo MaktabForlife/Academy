@@ -61,3 +61,13 @@ test('saving the visible form also confirms its older saved fields, leaving unto
  f.db.prepare('UPDATE activities SET name=? WHERE activity_key=?').run('Older saved Program form',f.scopes.programA);
  const saved=ok(await f.save());ok(await f.finish(saved));assert.equal((await f.read().prepare('SELECT name FROM activities WHERE activity_key=?').bind(f.scopes.programA).first()).name,'Older saved Program form');
 }));
+
+test('central catalogue saves confirm only the subject or module edited and preserve unrelated private definitions',()=>use(async f=>{
+ const path='/api/admin/platform/',subject=ok(await f.send(path+'academy-subjects/save',{mode:'create',subjectName:'Confirmed catalogue subject',active:true,operationId:crypto.randomUUID()}));assert(subject.acceptedChange);ok(await f.finish(subject));
+ const key='ACADEMY:'+subject.subject.SubjectID;assert.equal((await f.read().prepare('SELECT name FROM subject_catalog WHERE subject_key=?').bind(key).first()).name,subject.subject.SubjectName);
+ f.db.prepare("INSERT INTO subject_catalog VALUES('ACADEMY:private-status-subject','ACADEMY','private-status-subject','Private unrelated subject',1)").run();
+ const archived=ok(await f.send(path+'academy-subjects/save',{mode:'rename',subjectId:subject.subject.SubjectID,subjectName:subject.subject.SubjectName,active:false,baseRevision:subject.subject.Revision,operationId:crypto.randomUUID()}));ok(await f.finish(archived));assert.equal((await f.read().prepare('SELECT active FROM subject_catalog WHERE subject_key=?').bind(key).first()).active,0);assert.equal(await f.read().prepare("SELECT name FROM subject_catalog WHERE subject_key='ACADEMY:private-status-subject'").first(),null);
+ const restored=ok(await f.send(path+'academy-subjects/save',{mode:'rename',subjectId:subject.subject.SubjectID,subjectName:subject.subject.SubjectName,active:true,baseRevision:archived.subject.Revision,operationId:crypto.randomUUID()}));ok(await f.finish(restored));
+ const catalogue=ok(await f.send(path+'learning-catalogue/get')),module=ok(await f.send(path+'learning-catalogue/module/save',{name:'Confirmed central module',subjectId:subject.subject.SubjectID,active:true,baseRevision:catalogue.emptyRevision,operationId:crypto.randomUUID()}));ok(await f.finish(module));assert.equal((await f.read().prepare('SELECT name FROM academy_module_catalogue WHERE module_id=?').bind(module.module.id).first()).name,module.module.name);
+ assert.equal((await f.send(path+'academy-subjects/save',{mode:'rename',subjectId:subject.subject.SubjectID,subjectName:subject.subject.SubjectName,active:false,baseRevision:restored.subject.Revision,operationId:crypto.randomUUID()},'adminA')).status,403);
+}));

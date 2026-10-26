@@ -29,6 +29,9 @@ try{
  assert.equal((await post('/api/admin/platform/academy-subjects/save',{mode:'rename',subjectId:subject.SubjectID,subjectName:'Other admin rename',baseRevision:subject.Revision,operationId:crypto.randomUUID()},signed.token)).status,200);
  await row({save:''});assert.equal(element('lc-conflict').hidden,false);assert.match(element('lc-comparison').innerHTML,/Other admin rename/);assert.match(element('lc-comparison').innerHTML,/My subject rename/);
  await click('lc-keep');await row({save:''});assert.equal(f.db.prepare('SELECT name FROM subject_catalog WHERE subject_id=? AND source_namespace=\'ACADEMY\'').get(subject.SubjectID).name,'My subject rename');
+ const statusIndex=async()=>{const data=await (await post('/api/admin/platform/learning-catalogue/get',{},signed.token)).json();return String(data.subjects.findIndex(s=>s.SubjectID===subject.SubjectID));};
+ await row({edit:await statusIndex()});assert.match(element('lc-rows').innerHTML,/aria-label="Subject status"/);field('active','false');await row({save:''});assert.equal(f.db.prepare('SELECT active FROM subject_catalog WHERE subject_id=?').get(subject.SubjectID).active,0);
+ await row({edit:await statusIndex()});field('active','true');await row({save:''});assert.equal(f.db.prepare('SELECT active FROM subject_catalog WHERE subject_id=?').get(subject.SubjectID).active,1);
  await click('lc-modules');assert.match(element('lc-rows').innerHTML,/First module/);
  let data=await (await post('/api/admin/platform/learning-catalogue/get',{},signed.token)).json(),programIndex=data.modules.findIndex(m=>m.usedIn.some(a=>a.kind==='PROGRAM'));
  await row({edit:String(programIndex)});field('name','Module from central UI');await row({save:''});assert.equal(f.db.prepare("SELECT count(*) n FROM modules WHERE name='Module from central UI'").get().n,1);

@@ -72,7 +72,7 @@
     const adminLinks=options.adminLinks||[];
     const tools=mode==='teach'?'<button type="button" data-ad-choose="attendance">Mark attendance</button><button type="button" data-ad-choose="planning">Submit plans</button>':mode==='admin'?adminLinks.map(row=>row.action?'<button type="button" data-admin-public-refresh>Update timetable</button>':link(row.href,row.label)).join(''):link('/academy/enrolment/','Enrol now');
     const shared=tracker()+link('/academy/library/','Library')+link(boundary()?.readerUrl('/recorder/?academy=1')||'/recorder/?academy=1','Voice Recorder');
-    $('ad-navigation').innerHTML=link(homeUrl(),'Home')+'<button type="button" data-ad-week>Timetable</button>'+'<button type="button" data-ad-inbox>Messages</button>'+tools+shared+'<a class="ad-visit" href="/academy/#website" data-workspace-exit>Visit website ↗</a>';
+    $('ad-navigation').innerHTML=mode==='admin'&&home.globalAdmin?tools:link(homeUrl(),'Home')+'<button type="button" data-ad-week>Timetable</button>'+'<button type="button" data-ad-inbox>Messages</button>'+tools+shared+'<a class="ad-visit" href="/academy/#website" data-workspace-exit>Visit website ↗</a>';
     $('ad-tools').innerHTML=(mode==='admin'?'':tools)+shared;
     $('ad-primary-actions').innerHTML=mode==='admin'?'<button type="button" class="ad-primary" data-ad-queue="attendance">Review attendance</button><button type="button" data-ad-queue="plans">Review Lesson Plans</button>':mode==='teach'?'<button type="button" class="ad-primary" data-ad-choose="attendance">Mark attendance</button><button type="button" class="ad-secondary" data-ad-choose="planning">Submit plans</button>':'';
     $('ad-workspace').textContent=(boundary()?.adminRealm()&&mode!=='admin'?'ADMIN · ':'')+mode.toUpperCase()+' WORKSPACE';

@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {classNotesFixture} from './fixtures/academy-class-notes-fixture.mjs';
-import {nextDate} from '../src/academy/d1/academy-clock.js';
+import {nextDate,academyDate} from '../src/academy/d1/academy-clock.js';
 import {seedClassNotes} from './fixtures/academy-class-notes-fixture.mjs';
 
 async function use(fn,seed=seedClassNotes){const f=await classNotesFixture(seed);try{await fn(f);assert.deepEqual(f.db.prepare('PRAGMA foreign_key_check').all(),[]);assert.equal(f.db.prepare('SELECT count(*) n FROM academy_write_guards').get().n,0);}finally{f.close();}}
@@ -63,7 +63,7 @@ test('Course notes need both genuine delivery membership and learning access; NE
  f.db.prepare("UPDATE attendance_delivery_members SET state='VOID' WHERE interval_id='cn-member'").run();await assert.rejects(student.run('get',{activityKey,noteId:made.noteId}),e=>e.status===403);
 },f=>{
  f.db.prepare("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state) VALUES('cn-course-student','account-0002','COURSE:subject-1','STUDENT',1,'CONFIRMED')").run();
- const row=f.db.prepare("SELECT * FROM timetable_publications WHERE activity_key='COURSE:subject-1'").get(),snapshot=JSON.parse(row.snapshot_json),today=new Date().toISOString().slice(0,10),first=snapshot.sessions[0];
+ const row=f.db.prepare("SELECT * FROM timetable_publications WHERE activity_key='COURSE:subject-1'").get(),snapshot=JSON.parse(row.snapshot_json),today=academyDate(new Date(),'Africa/Johannesburg'),first=snapshot.sessions[0];
  snapshot.sessions=Array.from({length:4},(_,i)=>({...first,SessionDate:nextDate(today,i),PublishedSessionID:'published-cn-'+i,SourceSessionID:'source-cn-'+i,...(i===1?{TeacherAccountID:'account-0004'}:i===2?{ModuleID:'another-module'}:{})}));
  const updated={...row,publication_id:'course-notes-publication',version_no:row.version_no+1,snapshot_json:JSON.stringify(snapshot)},columns=Object.keys(updated);f.db.prepare('INSERT INTO timetable_publications('+columns.join(',')+') VALUES('+columns.map(()=>'?').join(',')+')').run(...Object.values(updated));f.db.prepare("UPDATE course_run_state SET current_publication_id=? WHERE activity_key=? AND run_id='run-1'").run(updated.publication_id,row.activity_key);
 }));

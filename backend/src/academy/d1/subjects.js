@@ -26,12 +26,14 @@ export function d1Subjects(repository,auth) {
         if(input.baseRevision!==current.Revision)throw rowChanged(current,current.Revision);
         if(data.subjects.some(s=>!same(s.subject_id,existing.subject_id)&&subjectKey(s.name)===subjectKey(name)))throw managementError('Another Academy subject already uses this name.',409);
       }
-      if(existing&&!existing.active)throw managementError('This Academy subject is archived. Choose an active subject.',409);
-      const id=existing?.subject_id||'AS-'+crypto.randomUUID(),updated={subject_id:id,name:input.mode==='create'&&existing?existing.name:name,active:1,source_namespace:'ACADEMY'};
+      if(input.active!==undefined&&typeof input.active!=='boolean')throw managementError('Choose Active or Archived for this subject.');
+      if(input.mode==='create'&&existing&&!existing.active)throw managementError('This Academy subject is archived. Edit it to restore it, or choose an active subject.',409);
+      const active=input.mode==='create'&&existing?Boolean(existing.active):input.active??Boolean(existing?.active??true);
+      const id=existing?.subject_id||'AS-'+crypto.randomUUID(),updated={subject_id:id,name:input.mode==='create'&&existing?existing.name:name,active:Number(active),source_namespace:'ACADEMY'};
       const statements=input.mode==='create'&&existing?[]:[existing?
-        p("UPDATE subject_catalog SET name=? WHERE subject_key=?",name,existing.subject_key):
-        p("INSERT INTO subject_catalog(subject_key,source_namespace,subject_id,name,active) VALUES(?,'ACADEMY',?,?,1)",'ACADEMY:'+id,id,name)];
-      return {data,statements,result:{subject:await subjectDTO(updated),store:'D1'},fields:input.mode==='rename'?['SubjectName']:['SubjectID','SubjectName']};
+        p("UPDATE subject_catalog SET name=?,active=? WHERE subject_key=?",name,Number(active),existing.subject_key):
+        p("INSERT INTO subject_catalog(subject_key,source_namespace,subject_id,name,active) VALUES(?,'ACADEMY',?,?,?)",'ACADEMY:'+id,id,name,Number(active))];
+      return {data,statements,result:{subject:await subjectDTO(updated),store:'D1'},authorityScopes:['GLOBAL'],fields:input.mode==='rename'?['SubjectName',...(input.active!==undefined?['Active']:[])]:['SubjectID','SubjectName','Active']};
     });
   }};
 }

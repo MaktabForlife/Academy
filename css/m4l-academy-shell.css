@@ -142,3 +142,5 @@ body.academy-shell{padding-left:0!important;--academy-gutter:clamp(12px,3vw,28px
 .academy-admin-links>[aria-current=page]{background:#72477b;color:#fff;border-color:#72477b}
 .academy-admin-tools [role=status]{margin:8px 0 0;font-size:.85rem;color:#583361}
 @media(max-width:600px){.academy-admin-links{flex-wrap:nowrap;overflow-x:auto;max-width:100%;padding-bottom:4px}}
+.academy-curriculum-tabs{margin-top:8px;padding-top:8px;border-top:1px solid #eadbbb}
+.academy-curriculum-tabs[hidden]{display:none}

@@ -1092,6 +1092,7 @@
     if (!global && !areas.length) {view.innerHTML='<div class="page-heading"><h1>Admin sign-in</h1></div><p role="status">'+(!state.home&&token()?'Loading your Academy administration…':'Sign in with an authorised Academy admin account to open management tools.')+'</p>';return;}
     const menu=window.M4L_ACADEMY_ADMIN_MENU?.rows(state.home)||[],tabs=menu.filter(row=>!row.action).map(row=>[row.id,row.label]);
     const sections=[...tabs,['programs','Programs'],['courses','Courses'],['enrolments','Enrolments']],requested = location.hash.split('/')[1], key = sections.some(([id]) => id === requested) ? requested : 'users';
+    if(requested==='curriculum'){location.replace(menu.find(row=>row.id==='curriculum')?.href||'/academy/admin/');return;}
     const link = (href,label) => `<a class="button secondary" href="${esc(href)}">${esc(label)}</a>`;
     const scoped = (filter,href) => areas.filter(filter).map(row => link(href(row),row.name)).join('');
     const programs = row => row.kind === 'PROGRAM', courses = row => row.kind === 'COURSE';
@@ -1104,7 +1105,6 @@
       announcements:'<div id="admin-announcements"></div>',
       assessments:global ? link('#assessment-admin','Manage assessments') : scoped(()=>true,row=>`#assessment-admin/${row.kind}/${encodeURIComponent(row.id)}`),
       library:global ? link('/academy/library/manage/','Manage Library')+link('/academy/pdf-tools/','PDF tool defaults') : link('/academy/library/','Open my Library'),
-      curriculum:(global ? link('/academy/subjects/','Subjects')+link('/programs/','Programs')+link('/academy/courses/manage/','Courses') : scoped(programs,manage)+scoped(courses,manage)),
       programs:global ? link('/programs/','Manage Programs') : scoped(programs,manage),
       courses:global ? link('/academy/courses/manage/','Manage Courses')+link('/academy/courses/manage/?view=scheduling','Course scheduling') : scoped(courses,manage),
       enrolments:link('/academy/enrolment/manage/?view=requests','Manage Enrolments')

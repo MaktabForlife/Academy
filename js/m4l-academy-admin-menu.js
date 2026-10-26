@@ -8,8 +8,9 @@
   if(!data?.signedIn)return [];
   const global=Boolean(data.globalAdmin),areas=(data.personalActivities||data.activities||[]).filter(a=>global||(a.roles||[]).some(r=>['PROGRAM_ADMIN','ADMIN'].includes(r))),first=areas[0];
   if(!global&&!data.workspaceAccess?.admin&&!areas.length&&!data.workspaceRoles?.some(r=>['PROGRAM_ADMIN','ADMIN'].includes(r)))return [];
+  const curriculum=global?'/academy/subjects/':areas.some(a=>a.kind==='PROGRAM')?'/programs/':'/academy/courses/manage/';
   const assessment=global?'#assessment-admin':first?`#assessment-admin/${first.kind}/${encodeURIComponent(first.id)}`:'#assessment-admin';
-  return [{id:'users',label:'Users',href:global?'/users/':base+'#administration/users'},...(global?[{id:'announcements',label:'Announcements',href:base+'#administration/announcements'}]:[]),{id:'attendance',label:'Attendance',href:base+'#administration/attendance'},{id:'curriculum',label:'Curriculum',href:base+'#administration/curriculum'},{id:'library',label:'Library',href:global?'/academy/library/manage/':'/academy/library/'},{id:'planning',label:'Lesson plans',href:base+'#administration/planning'},{id:'assessments',label:'Assessments',href:base+assessment},...(global?[{id:'settings',label:'App settings',href:base+'#administration/settings'},{id:'refresh',label:'Update timetable',action:'refresh'}]:[])];
+  return [{id:'users',label:'Users',href:global?'/users/':base+'#administration/users'},...(global?[{id:'announcements',label:'Announcements',href:base+'#administration/announcements'}]:[]),{id:'attendance',label:'Attendance',href:base+'#administration/attendance'},{id:'curriculum',label:'Curriculum',href:curriculum},{id:'library',label:'Library',href:global?'/academy/library/manage/':'/academy/library/'},{id:'planning',label:'Lesson plans',href:base+'#administration/planning'},{id:'assessments',label:'Assessments',href:base+assessment},...(global?[{id:'settings',label:'App settings',href:base+'#administration/settings'},{id:'refresh',label:'Update timetable',action:'refresh'}]:[])];
  }
  function active(){const path=location.pathname,hash=location.hash;
   if(path.startsWith('/users/')||path.startsWith('/academy/enrolment/manage/'))return 'users';
@@ -18,11 +19,15 @@
   if(hash.startsWith('#assessment-admin'))return 'assessments';
   return hash.split('/')[1]||'';
  }
+ function curriculumTabs(data){
+  const areas=(data.personalActivities||data.activities||[]).filter(a=>(a.roles||[]).some(r=>['PROGRAM_ADMIN','ADMIN'].includes(r))),global=Boolean(data.globalAdmin);
+  return [...(global?[{href:'/academy/subjects/',label:'Subjects & Modules',selected:location.pathname.startsWith('/academy/subjects/')}]:[]),...(global||areas.some(a=>a.kind==='PROGRAM')?[{href:'/programs/',label:'Programs',selected:location.pathname.startsWith('/programs/')}]:[]),...(global||areas.some(a=>a.kind==='COURSE')?[{href:'/academy/courses/manage/',label:'Courses',selected:location.pathname.startsWith('/academy/courses/manage/')}]:[])].map(row=>`<a href="${esc(row.href)}"${row.selected?' aria-current="page"':''}>${esc(row.label)}</a>`).join('');
+ }
  function markup(data,selected=active()){return rows(data).map(row=>row.action?'<button type="button" data-admin-public-refresh data-admin-key="refresh">Update timetable</button>':`<a href="${esc(row.href)}" data-admin-key="${row.id}"${row.id===selected?' aria-current="page"':''}>${row.label}</a>`).join('');}
  function update(data=currentData){
   currentData=data;const visible=window.M4L_ACADEMY_WORKSPACE?.current()==='ADMIN'&&rows(data).length>0;
-  if(!host&&visible){host=document.createElement('section');host.className='academy-admin-tools';host.innerHTML='<nav class="academy-admin-links" aria-label="Admin tools"></nav><p data-admin-refresh-status role="status" aria-live="polite" hidden></p>';document.querySelector('.academy-banners')?.after(host);}
-  if(!host)return;host.hidden=!visible;if(visible)host.querySelector('nav').innerHTML=markup(data);
+  if(!host&&visible){host=document.createElement('section');host.className='academy-admin-tools';host.innerHTML='<nav class="academy-admin-links" aria-label="Admin tools"></nav><nav class="academy-admin-links academy-curriculum-tabs" aria-label="Curriculum areas" hidden></nav><p data-admin-refresh-status role="status" aria-live="polite" hidden></p>';document.querySelector('.academy-banners')?.after(host);}
+  if(!host)return;host.hidden=!visible;if(visible){host.querySelector('nav').innerHTML=markup(data);const tabs=host.querySelector('.academy-curriculum-tabs');tabs.hidden=active()!=='curriculum';tabs.innerHTML=tabs.hidden?'':curriculumTabs(data);}
  }
  async function refresh(button){
   if(button.disabled)return;const session=token(),status=host?.querySelector('[data-admin-refresh-status]');button.disabled=true;

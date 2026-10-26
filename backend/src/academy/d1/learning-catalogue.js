@@ -61,6 +61,6 @@ export async function saveLearningModule(repository,auth,input) {
         statements.push(p(`INSERT INTO management_revisions(activity_key,source_revision,source_sequence,source_snapshot_sha256,modified_at,modified_by_source_id) VALUES(?,?,?,?,?,?) ON CONFLICT(activity_key) DO UPDATE SET source_revision=excluded.source_revision,source_sequence=excluded.source_sequence,source_snapshot_sha256=excluded.source_snapshot_sha256,modified_at=excluded.modified_at,modified_by_source_id=excluded.modified_by_source_id`,loaded.a.activity_key,crypto.randomUUID(),loaded.current.sequence+1,await payloadHash(snapshot),new Date().toISOString(),auth.user.accountid));
       }
     }
-    return {data,statements,result:{module:{id,name,subjectId:subject.subject_id,subjectName:subject.name,active:input.active,revision:await moduleRevision(record)},store:'D1'},fields:['ModuleName','Subject','Active']};
+    return {data,statements,result:{module:{id,name,subjectId:subject.subject_id,subjectName:subject.name,active:input.active,revision:await moduleRevision(record)},store:'D1'},authorityScopes:['GLOBAL'],fields:['ModuleName','Subject','Active']};
   });
 }
