@@ -44,3 +44,10 @@
 .lp-settings input[name=plansRequired]{width:20px;min-height:20px;height:20px;flex:none}
 
 .lp-root .lp-primary-actions{align-items:center;margin:16px 0 20px}.lp-root [data-lp-icon]{flex:0 0 44px;width:44px;height:44px;min-width:44px;padding:10px}.lp-root [data-lp-icon] svg{display:block;width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.lp-plan-heading .lp-plan-week{font-size:13px;min-width:170px}.lp-root .lp-share-dialog{width:min(480px,calc(100vw - 24px))}
+.lp-session-settings{margin-top:20px;padding-top:12px;border-top:1px solid #e5d7e8}
+.lp-session-effective{display:block;max-width:260px;margin:12px 0}
+.lp-session-choices{display:grid;gap:10px;margin:12px 0}
+.lp-session-choice{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,260px);gap:14px;align-items:center;padding:12px;background:#fff;border:1px solid #e5d7e8;border-radius:10px;min-width:0}
+.lp-session-choice p{margin:4px 0;overflow-wrap:anywhere}
+.lp-session-requirements{margin:12px 0}
+@media(max-width:600px){.lp-session-choice{grid-template-columns:minmax(0,1fr)}}

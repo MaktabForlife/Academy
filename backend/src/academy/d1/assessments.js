@@ -385,8 +385,8 @@ export function d1Assessments(repository,auth){
    }
    if(!prepare&&input.preparedOperation&&repository.setup?.enabled){
     const receipt=await p("SELECT result_json FROM operation_receipts WHERE dataset_key='ASSESSMENT' AND scope_key=? AND operation_id=? AND actor_account_id=?",'PAPERS:'+actor,input.preparedOperation,actor).first(),saved=receipt?JSON.parse(receipt.result_json):null;
-    const accepted=saved?.prepared&&await p("SELECT 1 ok FROM setup_batches WHERE actor_account_id=? AND accepted_head IS NOT NULL AND json_extract(manifest_json,'$.sourceOperation.dataset')='ASSESSMENT' AND json_extract(manifest_json,'$.sourceOperation.scope')=? AND json_extract(manifest_json,'$.sourceOperation.operationId')=?",actor,'PAPERS:'+actor,input.preparedOperation).first();
-    if(!accepted||saved.papers.length!==input.papers.length||saved.papers.some(a=>!input.papers.some(row=>row.id===a.id&&row.revision===a.revision)))throw fail('Confirm the complete paper publication before releasing these papers.',409,'SETUP_REVIEW_REQUIRED');
+    const accepted=saved?.prepared&&typeof saved._acceptedHead==='string'&&saved.acceptedChange?.operationId===input.preparedOperation;
+    if(!accepted||saved.papers.length!==input.papers.length||saved.papers.some(a=>!input.papers.some(row=>row.id===a.id&&row.revision===a.revision)))throw fail('Complete the approved paper publication before releasing these papers.',409,'PAPERS_NOT_PREPARED');
    }
    const checked=new Set();for(const a of papers){if(checked.has(a.assessment_id))continue;const group=await assessmentGroup(s,a);if(group&&group.some(member=>!input.papers.some(p=>p.id===member.assessment_id)))throw fail('Release the shared paper for every selected class together.',409,'ASSESSMENT_GROUP_CHANGED');for(const member of group||[a])checked.add(member.assessment_id);}
    await s.requireAdminClasses(papers.map(a=>({activityKey:a.activity_key,classId:a.class_id})));

@@ -70,8 +70,8 @@
   const active=()=>session&&session===token()&&realm===context()&&ticket===refreshEpoch;
   if(!active()||window.M4L_ACADEMY_WORKSPACE?.current()!=='ADMIN')return Promise.resolve(pendingRefresh());
   if(refreshResults.has(result))return refreshResults.get(result);
-  const scope=JSON.stringify([session,realm]),publication=result.head||(result.setupPublication?head():null),publicationKey=publication&&kinds.includes('public-timetable')?JSON.stringify([scope,publication]):null;
-  // The setup dialog and its originating Publish action share one rebuild.
+  const scope=JSON.stringify([session,realm]),publication=result.head||null,publicationKey=publication&&kinds.includes('public-timetable')?JSON.stringify([scope,publication]):null;
+  // The completed change and its originating Publish action share one rebuild.
   if(publicationKey&&refreshHeads.has(publicationKey))return refreshHeads.get(publicationKey);
   let job=refreshJobs.get(scope);
   if(job)job.again=true;

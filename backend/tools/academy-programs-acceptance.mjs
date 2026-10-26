@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import {mediaFixture} from '../tests/fixtures/academy-lesson-media-fixture.mjs';
 import {MOU_MEDIA_PROGRAM as activity} from '../src/academy/d1/lesson-media.js';
 import worker from '../src/academy-runtime.js';
+import {initialiseAcceptedSetup} from '../src/academy/d1/setup-publication.js';
 import {PROGRAM_IDS} from '../tests/fixtures/academy-migration-fixture.mjs';
 const root=fileURLToPath(new URL('../../',import.meta.url)),out=process.env.ACADEMY_PROGRAMS_OUTPUT||'/private/tmp/academy-programs-10680';mkdirSync(out,{recursive:true});
 const f=await mediaFixture();for(const migration of ['0022_academic_calendar.sql','0023_lesson_planning.sql','0024_announcements_and_plan_requirements.sql'])f.db.exec(readFileSync(new URL('../migrations/academy/'+migration,import.meta.url),'utf8'));
@@ -21,10 +22,14 @@ f.db.prepare('UPDATE timetable_drafts SET draft_json=? WHERE activity_key=?').ru
 const course=f.db.prepare("SELECT * FROM activities WHERE kind='COURSE' LIMIT 1").get();
 f.db.prepare("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state) VALUES('planning-course-teacher','account-0003',?,'TEACHER',1,'CONFIRMED')").run(course.activity_key);
 const images=new Map();f.env.LESSON_MEDIA_BUCKET={put:async(k,b)=>images.set(k,new Uint8Array(b)),get:async k=>images.has(k)?{body:images.get(k)}:null,delete:async k=>images.delete(k)};
+if(process.env.ACADEMY_FEATURE_ACCEPTANCE==='1'){
+ for(const migration of ['0025_pdf_bookmarks.sql','0026_enrolment_requests.sql','0027_enrolment_profile_contacts.sql','0028_hifz_profile_sync.sql','0029_hifz_shared_pin.sql','0032_accepted_setup.sql','0033_native_attendance.sql','0034_assessment_operations.sql','0035_media_contributions.sql','0036_class_notes.sql']){f.db.exec('BEGIN');f.db.exec(readFileSync(new URL('../migrations/academy/'+migration,import.meta.url),'utf8'));f.db.exec('COMMIT');}
+ await initialiseAcceptedSetup(f.env.ACADEMY_DB);f.env.ACADEMY_ACCEPTED_SETUP='1';
+}
 const tokens={teacher:await f.login('0003'),admin:await f.login('0001'),student:await f.login('0002')};
 const types={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.pdf':'application/pdf','.css':'text/css','.json':'application/json','.png':'image/png','.svg':'image/svg+xml','.jpg':'image/jpeg','.webp':'image/webp'};
 const server=createServer(async(req,res)=>{try{const url=new URL(req.url,'http://localhost');res.setHeader('Cache-Control','no-store');
- if(url.pathname==='/js/m4l-config.js'){res.writeHead(200,{'Content-Type':'text/javascript'});res.end('window.M4L_CONFIG={API_BASE:location.origin,IS_DEVELOPMENT:true};');return;}
+ if(url.pathname==='/js/m4l-config.js'){res.writeHead(200,{'Content-Type':'text/javascript'});res.end('window.M4L_CONFIG={API_BASE:location.origin,IS_DEVELOPMENT:true,ACCEPTED_SETUP:'+JSON.stringify(f.env.ACADEMY_ACCEPTED_SETUP==='1')+'};');return;}
  if(url.pathname.startsWith('/__signin/')){const who=url.pathname.split('/').at(-1);if(!tokens[who])throw Error('Unknown synthetic identity');res.writeHead(200,{'Content-Type':'text/html'});res.end('<script>localStorage.clear();sessionStorage.clear();localStorage.setItem("m4l_account_token",'+JSON.stringify(tokens[who])+');location.replace("/academy/");</script>');return;}
  if(url.pathname==='/academy/open-library/catalogue'){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({books:[]}));return;}
  if(url.pathname==='/api/academy/header-date'){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({success:true,gregorian:new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Johannesburg',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()),hijri:'4 Jumada al-ula 1448',source:'https://jamiat.org.za/'}));return;}

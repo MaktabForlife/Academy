@@ -20,10 +20,12 @@ test('the actual Workers runtime coordinates both D1 bindings through private Du
  const cached=await (await storage.get(permissions.objects[0].key)).json();assert(!Object.hasOwn(cached.data,'account'));assert(!JSON.stringify(cached).includes('pin_hash'));
  const firstDashboard=await request('/api/academy/assessments/list',{view:'admin',dashboard:true},token),secondDashboard=await request('/api/academy/assessments/list',{view:'admin',dashboard:true},token);assert.deepEqual(secondDashboard,firstDashboard);assert.equal((await storage.list({prefix:'academy-private-snapshots/'})).objects.length,1);
  const media=await request('/api/academy/lesson-media/course-files-create',{activityKey:scope,operationId:crypto.randomUUID()},token);assert(media.lessonId);
- const selection={scopes:[scope]},review=await request('/api/admin/platform/setup/review',selection,token),frozen=await request('/api/admin/platform/setup/freeze',{...selection,digest:review.digest},token),accepted=await request('/api/admin/platform/setup/publish',{batchId:frozen.batchId,digest:frozen.digest},token);assert(accepted.head);
+ const mediaSaved=await request('/api/academy/lesson-media/save',{activityKey:scope,lessonId:media.lessonId,revision:1,operationId:crypto.randomUUID(),title:'Runtime Course PDFs',summary:'',recordingUrls:[],state:'PUBLISHED',commentsClosed:true},token);
+ const accepted=await request('/api/academy/changes/accept',mediaSaved.acceptedChange,token);assert(accepted.head);
  const admin=await runtime.getD1Database('ACADEMY_ADMIN_DB','api'),core=await runtime.getD1Database('ACADEMY_DB','api');assert.equal((await admin.prepare('SELECT count(*) n FROM split_command_parts').first()).n,0);assert.equal((await core.prepare('SELECT count(*) n FROM split_write_fence').first()).n,0);
- await admin.prepare('UPDATE activities SET name=? WHERE activity_key=?').bind('Automatically refreshed runtime Program',f.scopes.programA).run();
- const publicSelection={scopes:[f.scopes.programA]},publicReview=await request('/api/admin/platform/setup/review',publicSelection,token),publicFrozen=await request('/api/admin/platform/setup/freeze',{...publicSelection,digest:publicReview.digest},token),publicAccepted=await request('/api/admin/platform/setup/publish',{batchId:publicFrozen.batchId,digest:publicFrozen.digest},token);
+ const program=(await request('/api/admin/platform/programs/list',{},token)).programs.find(p=>'PROGRAM:'+p.id===f.scopes.programA);
+ const publicSaved=await request('/api/admin/platform/programs/save',{id:program.id,name:'Automatically refreshed runtime Program',status:program.status,revision:program.revision,durationYears:program.durationYears,timezone:program.timezone,operationId:crypto.randomUUID()},token);assert(publicSaved.acceptedChange);assert(!publicSaved._acceptedChange);
+ const publicAccepted=await request('/api/academy/changes/accept',publicSaved.acceptedChange,token);
  assert.deepEqual(publicAccepted.cacheRefreshPending,['public-timetable']);
  assert.deepEqual((await request('/api/academy/cache/refresh',{},token)).completed,['public-timetable']);
  const publicStorage=await runtime.getR2Bucket('MEDIA_BUCKET','api'),publicObjects=await publicStorage.list({prefix:'academy-public-timetable/'}),publicObject=publicObjects.objects.find(o=>o.key.endsWith('.accepted-'+publicAccepted.head));assert(publicObject,'The unchanged coordinator handles the public refresh marker and accepted projection');
@@ -32,9 +34,8 @@ test('the actual Workers runtime coordinates both D1 bindings through private Du
  const operation=()=>({operationId:crypto.randomUUID()}),path='/api/academy/assessments/',activityKey=f.scopes.programA;
  const register=await request(path+'register-create',{...operation(),name:'Runtime snapshot',activityKeys:[activityKey],classMode:'ALL',status:'REGISTERED'},token);
  const saved=await request(path+'schedule-batch',{...operation(),registerId:register.registerId,revision:1,rows:[{activityKey,classId:'class-1',title:'Runtime published paper',subject:'Qasas',examDate:'2099-11-09',durationMinutes:60,maximumMark:100}]},token);
- await request(path+'register-release',{...operation(),registerId:register.registerId,revision:saved.revision},token);
- const assessmentReview=await request('/api/admin/platform/setup/review',{scopes:[activityKey]},token),assessmentFrozen=await request('/api/admin/platform/setup/freeze',{scopes:[activityKey],digest:assessmentReview.digest},token);
- const assessmentAccepted=await request('/api/admin/platform/setup/publish',{batchId:assessmentFrozen.batchId,digest:assessmentFrozen.digest},token);
+ const schedulePublished=await request(path+'register-release',{...operation(),registerId:register.registerId,revision:saved.revision},token);
+ const assessmentAccepted=await request('/api/academy/changes/accept',schedulePublished.acceptedChange,token);
  const definitionObjects=await storage.list({prefix:'academy-published-assessments/'});assert.equal(definitionObjects.objects.length,1,'Publication warms the actual private R2 snapshot');
  const definition=await (await storage.get(definitionObjects.objects[0].key)).json();assert.equal(definition.head,assessmentAccepted.head);assert.equal(definition.rows[0].assessment_id,saved.assessmentIds[0]);assert(!Object.hasOwn(definition.rows[0],'paper_file_id'));
  const learner=await request('/api/account/login',{uniqueid:f.source.db.prepare("SELECT login_link_id FROM accounts WHERE account_id='account-0002'").get().login_link_id,pin:'1234'},undefined,'LEARN');

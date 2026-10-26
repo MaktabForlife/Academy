@@ -1,3 +1,4 @@
+import {acceptFixtureSetup} from '../tests/fixtures/academy-accepted-fixture.mjs';
 // Actual pages and Worker with disposable D1/R2. All external browser traffic is blocked.
 import {createServer} from 'node:http';
 import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
@@ -18,10 +19,10 @@ const course=ok(await call('/api/admin/platform/courses/save',{...op(),details})
 const checked=ok(await call('/api/admin/platform/courses/validate',{...op(),...course,baseRevision:c.revision}));assert(checked.validation.valid);const accepted=ok(await call('/api/admin/platform/courses/accept',{...op(),...course,baseRevision:checked.revision,validationToken:checked.validation.token,acknowledgeWarnings:true}));ok(await call('/api/admin/platform/courses/publish',{...op(),...course,baseRevision:accepted.revision,validationToken:checked.validation.token}));
 for(const name of ['0032_accepted_setup.sql','0033_native_attendance.sql','0034_assessment_operations.sql','0035_media_contributions.sql'])f.db.exec(readFileSync(new URL('../migrations/academy/'+name,import.meta.url),'utf8'));
 await initialiseAcceptedSetup(f.env.ACADEMY_DB);Object.assign(f.env,{ACADEMY_ACCEPTED_SETUP:'1',ACADEMY_LEARNING_OPERATIONS:'3',ACADEMY_MEDIA_SEPARATION:'1'});
-async function acceptMedia(key){const input={scopes:[key],families:['media']},review=ok(await call('/api/admin/platform/setup/review',input)),frozen=ok(await call('/api/admin/platform/setup/freeze',{...input,digest:review.digest}));ok(await call('/api/admin/platform/setup/publish',{batchId:frozen.batchId,digest:frozen.digest}));}
+async function acceptMedia(key){await acceptFixtureSetup(f.env,tokens.admin,[key],['media']);}
 const mime={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.svg':'image/svg+xml','.jpg':'image/jpeg','.webp':'image/webp','.pdf':'application/pdf'};
 const server=createServer(async(req,res)=>{try{const url=new URL(req.url,'http://localhost');res.setHeader('Cache-Control','no-store');
- if(url.pathname==='/js/m4l-config.js'){res.setHeader('Content-Type','text/javascript');res.end('window.M4L_CONFIG={API_BASE:location.origin,IS_DEVELOPMENT:true,SETUP_PUBLICATION:true,NATIVE_ATTENDANCE:true,MEDIA_SEPARATION:true}');return;}
+ if(url.pathname==='/js/m4l-config.js'){res.setHeader('Content-Type','text/javascript');res.end('window.M4L_CONFIG={API_BASE:location.origin,IS_DEVELOPMENT:true,NATIVE_ATTENDANCE:true,MEDIA_SEPARATION:true}');return;}
  if(url.pathname==='/api/academy/header-date'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({success:true,gregorian:'2026-10-25',hijri:'14 Jumada al-ula 1448'}));return;}
  if(url.pathname==='/academy/open-library/catalogue'){res.setHeader('Content-Type','application/json');res.end('{"books":[]}');return;}
  if(url.pathname.startsWith('/api/')){const chunks=[];for await(const chunk of req)chunks.push(chunk);const r=await worker.fetch(new Request('http://localhost'+url.pathname+url.search,{method:req.method,headers:req.headers,...(!['GET','HEAD'].includes(req.method)?{body:Buffer.concat(chunks)}:{})}),f.env);res.writeHead(r.status,Object.fromEntries(r.headers));res.end(Buffer.from(await r.arrayBuffer()));return;}

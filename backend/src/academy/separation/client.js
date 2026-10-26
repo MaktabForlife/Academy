@@ -6,7 +6,7 @@ import {actorProof} from './proof.js';
 import {sqlCommand} from './sql-command.js';
 const fail=()=>{throw Object.assign(Error('Split-store coordination is not configured.'),{status:503,code:'SPLIT_COORDINATOR_REQUIRED'});};
 export function needsOwnerPlan(statements){return statements.some(s=>{
- const table=targetTable(s.sql);if(['setup_heads','setup_batches','setup_components'].includes(table))return true;
+ const table=targetTable(s.sql);if(table==='operation_receipts'&&s.sql.includes("'$._acceptedChange'"))return true;if(['setup_heads','setup_batches','setup_components'].includes(table))return true;
  if(!adminTables.has(table))return false;
  if(table==='academy_settings')return true;
  if(sqlCommand(s.sql)==='UPDATE'){const plan=parseMutation(s.sql,sourceLayout);return plan.sets.some(c=>fieldOwner(table,c.column)==='admin');}

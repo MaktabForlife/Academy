@@ -1,3 +1,11 @@
+# V107.80 — Session resources, plan requirements and simpler Admin tools
+
+Teachers can attach one PDF to a dated lesson or every accepted occurrence of the same session, with current assignment checks on both listings and downloads. Session plan requirements inherit the Program/Course default; an Admin can save several overrides or restore inheritance from a future teaching day. Optional plans stay editable and saved history remains available.
+
+Use the requested nine Admin destinations, with Curriculum grouping Subjects/Programs/Courses and Enrolments under Users. Admin Quick tools retain only Surahs and Duas Tracker, Library and Voice Recorder. Ordinary Save and feature Publish now complete their exact saved changes without a separate Review setup screen or popup; unrelated drafts, timetable publication, paper approval and marks/report release gates remain protected. Preserve automatic homepage refresh and the Update timetable fallback.
+
+Deploy the compatible private coordinator before the matching Development API and website. No database migration or live data correction is required. Keep live checks small to limit database usage. [Implementation and local verification](docs/ACADEMY-UI-SESSION-10780.md).
+
 # V107.79 — Refresh from standalone management pages
 
 Load the shared refresh helper on all Academy workspace pages, including standalone Program/Course management and user profiles. Keep V107.78 automatic accepted-publication refresh, durable recovery and the Update timetable fallback. Local browser verification confirms that the actual Program Publish action warms the public snapshot; a regression check covers all 27 workspace pages. No database or private coordinator upgrade is required. Keep live checks small to limit database usage.

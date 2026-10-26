@@ -1,3 +1,4 @@
+import {sessionBinding,recurringSessionKey} from './session-identity.js';
 import {publishedSessionRange} from './published-sessions.js';
 import {managementError as fail,same} from './management-store.js';
 import {validDate} from './assessment-store.js';
@@ -8,17 +9,17 @@ import {historicalPublications} from './historical-timetable.js';
 
 // Resolve only the selected learning area's saved/published sessions. Client
 // supplied dates, teachers and class names never become authoritative media data.
-export async function mediaSessions(repository,activity,input,actor,admin){
+export async function mediaSessions(repository,activity,input,actor,admin,{facts=null}={}){
  const p=(sql,...v)=>repository.db.prepare(sql).bind(...v);
  if(repository.features?.mediaSeparation){
-  const result=await publishedSessionRange(repository,activity,input.startDate,input.endDate,{runId:input.runId||''}),map=new Map();
+  const result=await publishedSessionRange(repository,activity,input.startDate,input.endDate,{runId:input.runId||'',facts}),map=new Map();
   for(const row of result.lessons){const key=activity.kind==='PROGRAM'?JSON.stringify(['PROGRAM',row.date,row.sourceAnchor||row.anchor]):JSON.stringify(['COURSE',row.runId,row.sourceSessionId]);
-   if(!map.has(key))map.set(key,{sessionKey:key,date:row.date,title:row.moduleName||row.subjectName||activity.name,startTime:row.startTime,endTime:row.endTime,classIds:[],classNames:[],teacherIds:row.teacherIds,teacherName:row.teacherNames.join(', '),publicationId:row.publicationId,sourceSessionId:row.sourceSessionId||row.sourceAnchor||row.anchor,sourceAnchor:row.sourceAnchor||row.anchor,runId:row.runId||'',timezone:row.timezone});
+   if(!map.has(key))map.set(key,{sessionKey:key,ruleId:row.ruleId||'',moduleId:row.moduleId||'',programSubjectId:row.programSubjectId||row.subjectId||'',date:row.date,title:row.moduleName||row.subjectName||activity.name,startTime:row.startTime,endTime:row.endTime,classIds:[],classNames:[],teacherIds:row.teacherIds,teacherName:row.teacherNames.join(', '),publicationId:row.publicationId,sourceSessionId:row.sourceSessionId||row.sourceAnchor||row.anchor,sourceAnchor:row.sourceAnchor||row.anchor,runId:row.runId||'',timezone:row.timezone});
    const session=map.get(key);for(const [i,id] of row.classIds.entries())if(!session.classIds.includes(id)){session.classIds.push(id);session.classNames.push(row.classNames[i]);}
   }
   const rows=[...map.values()].filter(r=>admin||r.teacherIds.some(id=>same(id,actor)));if(rows.length>400)throw fail('Choose a shorter session period.');
   const runs=result.runs.map(r=>({id:r.run_id,name:r.name,stage:r.stage})),runId=input.runId||(input.allRuns?'':runs[0]?.id)||'';
-  return {sessions:await Promise.all(rows.filter(r=>activity.kind==='PROGRAM'||!runId||r.runId===runId).map(async r=>({...r,sessionVersion:await payloadHash(r)}))),runs,runId};
+  return {sessions:await Promise.all(rows.filter(r=>activity.kind==='PROGRAM'||!runId||r.runId===runId).map(async r=>({...r,recurringKey:recurringSessionKey(r.sessionKey),attachmentIdentity:sessionBinding(activity.activity_key,r),sessionVersion:await payloadHash(r)}))),runs,runId};
  }
 
  let sessions=[],runs=[],runId='';
@@ -47,5 +48,5 @@ export async function mediaSessions(repository,activity,input,actor,admin){
  }
  sessions=sessions.filter(r=>admin||r.teacherIds.some(id=>same(id,actor))).sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime)||a.sessionKey.localeCompare(b.sessionKey));
  if(sessions.length>400)throw fail('Choose a shorter session period.');
- return {sessions:await Promise.all(sessions.map(async r=>({...r,sessionVersion:await payloadHash(r)}))),runs,runId};
+ return {sessions:await Promise.all(sessions.map(async r=>({...r,recurringKey:recurringSessionKey(r.sessionKey),attachmentIdentity:sessionBinding(activity.activity_key,r),sessionVersion:await payloadHash(r)}))),runs,runId};
 }

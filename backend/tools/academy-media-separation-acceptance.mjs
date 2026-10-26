@@ -1,3 +1,4 @@
+import {acceptFixtureSetup} from '../tests/fixtures/academy-accepted-fixture.mjs';
 // Full target UI, isolated synthetic SQLite/R2. No live records or external fetches.
 import {AsyncLocalStorage} from 'node:async_hooks';import {createServer} from 'node:http';import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';import path from 'node:path';import {fileURLToPath} from 'node:url';import {createRequire} from 'node:module';import assert from 'node:assert/strict';
 import {separationFixture,separationScopes as scopes} from '../tests/fixtures/academy-separation-fixture.mjs';import {initialiseAcceptedSetup} from '../src/academy/d1/setup-publication.js';import worker from '../src/academy-runtime.js';
@@ -10,8 +11,7 @@ const tokens={admin:await f.actor('global'),teacher:await f.login('0003'),studen
 f.queries.push=function(...sql){const id=context.getStore();if(id)counts.set(id,(counts.get(id)||0)+sql.length);return Array.prototype.push.apply(this,sql);};
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
 const pdfBytes=readFileSync(path.join(root,'academy/pdf-compare/sample.pdf'));await f.seedCoursePdf({scope:scopes.courseA,bytes:pdfBytes});
-async function setup(action,input){const response=await worker.fetch(new Request('http://localhost/api/admin/platform/setup/'+action,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+tokens.admin,'X-Academy-Workspace':'ADMIN'},body:JSON.stringify(input)}),f.env);return ok({status:response.status,body:await response.json()});}
-const selection={scopes:[scopes.courseA],families:['media']},review=await setup('review',selection),batch=await setup('freeze',{...selection,digest:review.digest});await setup('publish',{batchId:batch.batchId,digest:batch.digest});
+await acceptFixtureSetup(f.env,tokens.admin,[scopes.courseA],['media']);
 const server=createServer(async(req,res)=>{try{const url=new URL(req.url,'http://localhost');
  if(url.pathname==='/js/m4l-config.js'){res.writeHead(200,{'Content-Type':'text/javascript'});res.end('window.M4L_CONFIG={API_BASE:location.origin,IS_DEVELOPMENT:true,ACCEPTED_SETUP:true,NATIVE_ATTENDANCE:true,MEDIA_SEPARATION:true,MY_LINKS:true};');return;}
  if(url.pathname.startsWith('/api/')){const parts=[];for await(const part of req)parts.push(part);const id=crypto.randomUUID(),response=await context.run(id,()=>worker.fetch(new Request('http://localhost'+url.pathname+url.search,{method:req.method,headers:req.headers,...(!['GET','HEAD'].includes(req.method)?{body:Buffer.concat(parts)}:{})}),f.env));queries.push({path:url.pathname,status:response.status,queries:counts.get(id)||0});res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));return;}

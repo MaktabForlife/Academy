@@ -1,3 +1,4 @@
+import {acceptFixtureSetup} from './academy-accepted-fixture.mjs';
 import assert from 'node:assert/strict';
 import {splitFixture} from './academy-split-fixture.mjs';
 import {videoBucket} from './academy-session-video-fixture.mjs';
@@ -21,6 +22,6 @@ export async function splitVideoFixture(){
   const response=await worker.fetch(new Request('http://localhost'+path,{method:'POST',headers:{Authorization:'Bearer '+token,'X-Academy-Workspace':workspace,...(!bytes?{'Content-Type':'application/json'}:{})},body:bytes||JSON.stringify(input)}),f.source.env);
   return {status:response.status,body:await response.json()};
  };
- f.accept=async(token,scope)=>{const input={scopes:[scope],families:['media']},review=ok(await f.request('/api/admin/platform/setup/review',input,token)),frozen=ok(await f.request('/api/admin/platform/setup/freeze',{...input,digest:review.digest},token));return ok(await f.request('/api/admin/platform/setup/publish',{batchId:frozen.batchId,digest:frozen.digest},token));};
+ f.accept=async(token,scope)=>acceptFixtureSetup(f.source.env,token,[scope],['media']);
  return f;
 }

@@ -1,3 +1,4 @@
+import {prepareFeatureChange} from './feature-change.js';
 import { payloadHash } from '../../programs/timetable-model.js';
 import { rehearsalError } from './repository.js';
 import {policyReadSQL} from './program-access.js';
@@ -19,7 +20,7 @@ export const profileDTO=(data,row)=>row?{accountId:row.account_id,displayName:ro
 // A consistent read transaction for planning, followed by a guarded write
 // transaction. No request state, permissions or database handles are global.
 export function managementStore(repository,auth,{versionKey}={}) {
-  const db=repository.db,p=(sql,...values)=>db.prepare(sql).bind(...values);
+  const db=repository.db,descriptions=new WeakMap(),p=(sql,...values)=>{const statement=db.prepare(sql).bind(...values);descriptions.set(statement,{sql,values});return statement;};
   const tables={accounts:'accounts',admins:'global_role_assignments',activities:'activities',roles:'role_assignments',reviews:'role_import_reviews',policies:'activity_policy_imports',programs:'program_settings',mappings:'role_mapping_decisions',evidence:'legacy_access_evidence'};
   return {
     db,p,
@@ -41,7 +42,7 @@ export function managementStore(repository,auth,{versionKey}={}) {
       return data;
     },
     async receipt(dataset,scope,operationId,hash) {
-      const row=await p('SELECT payload_sha256,result_json,actor_account_id FROM operation_receipts WHERE dataset_key=? AND scope_key=? AND operation_id=?',dataset,scope,operationId).first();
+      const row=await p("SELECT payload_sha256,json_remove(result_json,'$._acceptedChange','$._acceptedHead','$._acceptedPublic') result_json,actor_account_id FROM operation_receipts WHERE dataset_key=? AND scope_key=? AND operation_id=?",dataset,scope,operationId).first();
       if(!row)return null;
       if(row.payload_sha256!==hash||!same(row.actor_account_id,auth.user.accountid))throw managementError('This retry identifier belongs to a different change.',409,'OPERATION_ID_REUSED');
       return {...JSON.parse(row.result_json),replayed:true};
@@ -58,14 +59,15 @@ export function managementStore(repository,auth,{versionKey}={}) {
         ['PROGRAM_MANAGEMENT','PROGRAM_TIMETABLE','PROGRAM_LIBRARY','PROGRAM_REGISTRY','COURSE_MANAGEMENT','COURSE_SUBSCRIPTIONS','TEACHER_AVAILABILITY','ACADEMY_CALENDAR','LESSON_PLAN_ADMIN','ENROLMENT'].includes(dataset)?['PROGRAM_ADMIN']:[];
       for(let attempt=0;attempt<3;attempt++) {
         const receipt=await this.receipt(dataset,scope,input.operationId,hash);if(receipt)return receipt;
-        const {data,statements,result,fields,authorityScopes=[scope],cacheEffects=[]}=await plan();
+        const {data,statements,result,fields,authorityScopes=[scope],cacheEffects=[],acceptDefinitions=true}=await plan();
         const now=new Date().toISOString(),actor=auth.user.accountid;
         const effectiveGlobal=auth.state.account.global_admin||auth.adminView&&auth.workspace==='TEACH'&&actualState(auth).account.global_admin;
         const checkedScopes=effectiveGlobal?[scope]:[...new Set(authorityScopes)];
         if(!checkedScopes.length)throw managementError('This action requires an authorised administrator.',403,'FORBIDDEN');
         const effects=[...new Set([...cacheEffects,...(publicRefreshNeeded(dataset,action,input,fields)?['public-timetable']:[])])];
         if(effects.length)result.cacheRefreshPending=effects;
-        if(repository.setup?.enabled&&(dataset==='PROGRAM_TIMETABLE'&&action==='publish'||dataset==='COURSE_MANAGEMENT'&&action==='course-editor/publish'))result.setupPublication={dataset,scope,operationId:input.operationId,sourceVersion:data.version+1,scopes:[scope]};
+        const acceptance=await prepareFeatureChange(repository,auth,{dataset,scope,operationId:input.operationId,statements,describe:statement=>descriptions.get(statement),enabled:acceptDefinitions,scopes:dataset==='TEACHER_AVAILABILITY'?['TEACHER:'+String(input.accountId||actor).toUpperCase()]:authorityScopes});
+        if(acceptance)result.acceptedChange=acceptance.reference;
         const json=JSON.stringify(result);if(json.length>100000)throw managementError('Save fewer changed entries together.');
         // Check authority again INSIDE the same transaction as the writes.
         // Account revision checks protect profile and role edits planned before
@@ -78,7 +80,7 @@ export function managementStore(repository,auth,{versionKey}={}) {
         const revisions=JSON.stringify(scopes.read.map(key=>({key:writeVersionKey(key),version:data.scopedVersions?.[writeVersionKey(key)]||0})));
         const guards=checkedScopes.map(()=>crypto.randomUUID());
         const checks=checkedScopes.map((checkedScope,index)=>p(`INSERT INTO academy_write_guards(guard_id,accepted)
-          VALUES(?,NOT EXISTS(SELECT 1 FROM json_each(?) j LEFT JOIN academy_settings s ON s.setting_key=json_extract(j.value,'$.key')
+          VALUES(?,${acceptance?`(SELECT version=${Number(acceptance.version)} FROM academy_write_state WHERE singleton=1) AND `:''}NOT EXISTS(SELECT 1 FROM json_each(?) j LEFT JOIN academy_settings s ON s.setting_key=json_extract(j.value,'$.key')
             WHERE COALESCE(CAST(s.setting_value AS INTEGER),0)<>json_extract(j.value,'$.version'))
           AND NOT EXISTS(SELECT 1 FROM json_each(?) j LEFT JOIN accounts a ON a.account_id=json_extract(j.value,'$.id')
             LEFT JOIN account_credentials tc ON tc.account_id=a.account_id
@@ -92,11 +94,12 @@ export function managementStore(repository,auth,{versionKey}={}) {
                   OR EXISTS(SELECT 1 FROM legacy_access_evidence e JOIN role_import_reviews v ON v.account_id=e.account_id AND v.activity_key=e.activity_key AND v.source_value=e.source_role
                     JOIN role_mapping_decisions m ON m.source_role=e.source_role WHERE e.account_id=a.account_id AND e.activity_key=? COLLATE NOCASE AND e.source_effective=1 AND v.status='REQUIRED' AND m.target_role IN (SELECT value FROM json_each(?))))))))`,guards[index],revisions,accounts,actor,auth.sid,now,auth.state.account.credential_epoch,Number(selfTeacher),actor,Number(effectiveGlobal),Number(effectiveGlobal),checkedScope,checkedScope,JSON.stringify(scopedRoles),checkedScope,JSON.stringify(scopedRoles)));
         try {
+          const savedResult=acceptance?.receipt(result)||{expression:'?',values:[json]};
           await db.batch([...checks,...statements,
             ...(effects.length||scopes.write.length?[managementSettings(p,scopes.write,effects,actor,now)]:[]),
             p(`INSERT INTO audit_events(event_id,occurred_at,actor_account_id,authority,scope_key,action,record_kind,record_id,changed_fields_json)
               VALUES(?,?,?,?,?,?,?,?,?)`,crypto.randomUUID(),now,actor,auth.state.account.global_admin?'GLOBAL_ADMIN':checkedScopes.some(s=>liveRoles(data,actor,s).includes('PROGRAM_ADMIN'))?'PROGRAM_ADMIN':'TEACHER',scope,action,dataset,input.operationId,JSON.stringify(fields||[])),
-            p('INSERT INTO operation_receipts(dataset_key,scope_key,operation_id,payload_sha256,result_json,actor_account_id,completed_at) VALUES(?,?,?,?,?,?,?)',dataset,scope,input.operationId,hash,json,actor,now),
+            p(`INSERT INTO operation_receipts(dataset_key,scope_key,operation_id,payload_sha256,result_json,actor_account_id,completed_at) VALUES(?,?,?,?,${savedResult.expression},?,?)`,dataset,scope,input.operationId,hash,...savedResult.values,actor,now),
             p('UPDATE academy_write_state SET version=version+1 WHERE singleton=1'),
             ...guards.map(guard=>p('DELETE FROM academy_write_guards WHERE guard_id=?',guard))
           ]);

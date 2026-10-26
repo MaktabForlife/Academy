@@ -31,7 +31,7 @@ assert.equal(f.db.prepare('SELECT due_at FROM assessments WHERE assessment_id=?'
 const mime={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.svg':'image/svg+xml','.ttf':'font/ttf'};
 const server=createServer(async(req,res)=>{try{
  const url=new URL(req.url,'http://localhost');res.setHeader('Cache-Control','no-store');
- if(url.pathname==='/js/m4l-config.js'){res.setHeader('Content-Type','text/javascript');res.end('window.M4L_CONFIG={API_BASE:location.origin,IS_DEVELOPMENT:true,SETUP_PUBLICATION:true,ACCEPTED_SETUP:true,NATIVE_ATTENDANCE:true}');return;}
+ if(url.pathname==='/js/m4l-config.js'){res.setHeader('Content-Type','text/javascript');res.end('window.M4L_CONFIG={API_BASE:location.origin,IS_DEVELOPMENT:true,ACCEPTED_SETUP:true,NATIVE_ATTENDANCE:true}');return;}
  if(url.pathname==='/api/academy/header-date'){res.setHeader('Content-Type','application/json');res.end('{"success":true,"gregorian":"2026-10-26","hijri":"15 Jumada al-ula 1448"}');return;}
  if(url.pathname.startsWith('/api/')){
   const chunks=[];for await(const chunk of req)chunks.push(chunk);

@@ -1,3 +1,4 @@
+import {acceptFixtureSetup} from './academy-accepted-fixture.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
@@ -16,7 +17,7 @@ export async function nativeImtihaan(fn){
    const response=await worker.fetch(new Request('http://localhost'+path,{method:'POST',headers,body:bytes||JSON.stringify(input)}),f.env);
    return {status:response.status,body:response.headers.get('Content-Type')?.includes('application/json')?await response.json():new Uint8Array(await response.arrayBuffer())};
   };
-  f.accept=async()=>{const input={scopes:[scopes.programA]},review=ok(await f.request('/api/admin/platform/setup/review',input)),batch=ok(await f.request('/api/admin/platform/setup/freeze',{...input,digest:review.digest}));ok(await f.request('/api/admin/platform/setup/publish',{batchId:batch.batchId,digest:batch.digest}));};
+  f.accept=async()=>acceptFixtureSetup(f.env,tokens.admin,[scopes.programA]);
   f.create=async(input={})=>ok(await f.request('create',{...operation(),activityKey:scopes.programA,classId:'class-1',title:'Native assessment',subject:'Qasas',examDate:today(),durationMinutes:60,maximumMark:100,examinerId:!input.activityKey||input.activityKey===scopes.programA?'account-0003':null,...input})).assessmentId;
   f.detail=async(id,who='admin')=>ok(await f.request('get',{assessmentId:id},who));
   f.change=async(id,action,input={},who='admin')=>{const d=await f.detail(id);return f.request(action,{...operation(),assessmentId:id,revision:d.assessment.revision,...(d.group?.canManage?{groupRevisions:d.group.members.map(m=>({id:m.id,revision:m.revision})),groupCollections:d.group.members.map(m=>({id:m.id,revision:m.collectionRevision}))}:{}),...input},who);};

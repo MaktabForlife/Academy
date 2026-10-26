@@ -1,3 +1,4 @@
+import {acceptFixtureSetup} from './fixtures/academy-accepted-fixture.mjs';
 import {releaseImtihaanFixture} from './fixtures/imtihaan-release-helpers.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -18,7 +19,7 @@ async function use(fn){
    const response=await worker.fetch(new Request('http://localhost'+path,{method:'POST',headers,body:bytes||JSON.stringify(input)}),f.env);
    return {status:response.status,body:response.headers.get('Content-Type')?.includes('application/json')?await response.json():new Uint8Array(await response.arrayBuffer())};
   };
-  f.accept=async()=>{const input={scopes:[scopes.programA]},review=ok(await f.request('/api/admin/platform/setup/review',input)),batch=ok(await f.request('/api/admin/platform/setup/freeze',{...input,digest:review.digest}));ok(await f.request('/api/admin/platform/setup/publish',{batchId:batch.batchId,digest:batch.digest}));};
+  f.accept=async()=>acceptFixtureSetup(f.env,tokens.admin,[scopes.programA]);
   f.create=async(input={})=>ok(await f.request('create',{...operation(),activityKey:scopes.programA,classId:'class-1',title:'Native assessment',subject:'Qasas',examDate:today(),durationMinutes:60,maximumMark:100,examinerId:!input.activityKey||input.activityKey===scopes.programA?'account-0003':null,...input})).assessmentId;
   f.detail=async(id,who='admin')=>ok(await f.request('get',{assessmentId:id},who));
   f.change=async(id,action,input={},who='admin')=>{const d=await f.detail(id);return f.request(action,{...operation(),assessmentId:id,revision:d.assessment.revision,...(d.group?.canManage?{groupRevisions:d.group.members.map(m=>({id:m.id,revision:m.revision})),groupCollections:d.group.members.map(m=>({id:m.id,revision:m.collectionRevision}))}:{}),...input},who);};
@@ -239,9 +240,20 @@ test('shared assignment collection settings and unpublished edits apply atomical
 test('scoped publication includes only the required shared parent and preserves unrelated private registers',()=>use(async f=>{
  const id=await f.create({classes:[{activityKey:scopes.programA,classId:'class-1'},{activityKey:scopes.programA,classId:'class-shared'}]}),own=f.db.prepare('SELECT register_id FROM assessments WHERE assessment_id=?').get(id).register_id;
  const unrelated=ok(await f.request('register-create',{...operation(),name:'Unrelated private register',activityKeys:[scopes.programB],classMode:'ALL',status:'REGISTERED'})).registerId,token=await f.actor('adminA');
- const request=async(action,input)=>{const response=await worker.fetch(new Request('http://localhost/api/admin/platform/setup/'+action,{method:'POST',headers:{Authorization:'Bearer '+token,'X-Academy-Workspace':'ADMIN','Content-Type':'application/json'},body:JSON.stringify(input)}),f.env);return {status:response.status,body:await response.json()};};
- const selection={scopes:[scopes.programA],families:['assessment']},review=ok(await request('review',selection)),frozen=ok(await request('freeze',{...selection,digest:review.digest}));ok(await request('publish',{batchId:frozen.batchId,digest:frozen.digest}));
- const rows=f.db.prepare("SELECT c.rows_json FROM setup_head_components v JOIN setup_components c USING(component_id) WHERE v.head_id=(SELECT head_id FROM setup_head_state WHERE singleton=1) AND c.table_name='assessment_registers' AND c.scope_key='GLOBAL'").all().flatMap(r=>JSON.parse(r.rows_json));assert(rows.some(r=>r.register_id===own));assert(!rows.some(r=>r.register_id===unrelated));assert(f.db.prepare('SELECT 1 FROM assessment_registers WHERE register_id=?').get(unrelated));assert.equal((await request('review',{scopes:[scopes.programB]})).status,403);
+ const published=ok(await f.change(id,'publish',{},'programAdmin'));ok(await f.request('/api/academy/changes/accept',published.acceptedChange,'programAdmin'));
+ const rows=f.db.prepare("SELECT c.rows_json FROM setup_head_components v JOIN setup_components c USING(component_id) WHERE v.head_id=(SELECT head_id FROM setup_head_state WHERE singleton=1) AND c.table_name='assessment_registers' AND c.scope_key='GLOBAL'").all().flatMap(r=>JSON.parse(r.rows_json));assert(rows.some(r=>r.register_id===own));assert(!rows.some(r=>r.register_id===unrelated));assert(f.db.prepare('SELECT 1 FROM assessment_registers WHERE register_id=?').get(unrelated));
+ assert.equal((await f.request('/api/academy/changes/accept',{...published.acceptedChange,scope:scopes.programB},'programAdmin')).status,403);
+}));
+
+test('scoped Admin releases an entire all-class Imtihaan through its normal operation receipt',()=>use(async f=>{
+ const fields={name:'Scoped all-class Imtihaan',activityKeys:[scopes.programA],classMode:'ALL',status:'REGISTERED'},made=ok(await f.request('register-create',{...operation(),...fields},'programAdmin')),registerId=made.registerId;
+ assert.equal(made.acceptedChange,undefined,'A new private Imtihaan remains private until its feature release.');
+ const first=await f.create({registerId,examDate:nextDate(today(),7)}),second=await f.create({registerId,classId:'class-shared',examDate:nextDate(today(),8)});
+ const unrelated=ok(await f.request('register-create',{...operation(),name:'Private other area',activityKeys:[scopes.programB],classMode:'ALL',status:'REGISTERED'})).registerId;
+ const result=ok(await f.request('register-release',{...operation(),registerId,revision:1},'programAdmin'));ok(await f.request('/api/academy/changes/accept',result.acceptedChange,'programAdmin'));
+ const components=f.db.prepare("SELECT c.table_name,c.rows_json FROM setup_head_components v JOIN setup_components c USING(component_id) WHERE v.head_id=(SELECT head_id FROM setup_head_state WHERE singleton=1) AND c.table_name IN('assessment_registers','assessments')").all(),rows=table=>components.filter(c=>c.table_name===table).flatMap(c=>JSON.parse(c.rows_json));
+ assert(rows('assessment_registers').some(r=>r.register_id===registerId));assert(!rows('assessment_registers').some(r=>r.register_id===unrelated));assert.deepEqual(rows('assessments').filter(r=>r.register_id===registerId).map(r=>r.assessment_id).sort(),[first,second].sort());
+ assert(f.db.prepare('SELECT schedule_published,paper_released_at FROM assessments WHERE register_id=?').all(registerId).every(r=>r.schedule_published&&!r.paper_released_at));
 }));
 
 test('deleting an unused shared assessment removes every selected class together and retains its audit',()=>use(async f=>{
@@ -312,9 +324,9 @@ test('paper approvals save individually without publication, then one preparatio
  const first=ok(await f.change(ids[0],'review-paper',{decision:'APPROVE',paperReview:{fileId:uploaded[0].fileId,sha256:uploaded[0].sha256}}));assert(!first.setupPublication);assert.equal(f.db.prepare('SELECT paper_released_at FROM assessments WHERE assessment_id=?').get(ids[0]).paper_released_at,null);
  assert.equal(ok(await f.request('prepare-papers',{...operation(),registerId,papers:[{id:ids[0],revision:(await f.detail(ids[0])).assessment.revision}]})).prepared,true,'An approved paper can be prepared while another awaits approval');
  const second=ok(await f.change(ids[1],'review-paper',{decision:'APPROVE',paperReview:{fileId:uploaded[1].fileId,sha256:uploaded[1].sha256}}));assert(!second.setupPublication);
- const body={...operation(),registerId,papers:await Promise.all(ids.map(async id=>({id,revision:(await f.detail(id)).assessment.revision})))},prepared=ok(await f.request('prepare-papers',body));assert(prepared.setupPublication);assert(f.db.prepare('SELECT paper_released_at FROM assessments').all().every(a=>!a.paper_released_at));
- assert.equal((await f.request('release-papers',{...operation(),preparedOperation:body.operationId,papers:prepared.papers})).body.code,'SETUP_REVIEW_REQUIRED');
- const selection={sourceOperation:prepared.setupPublication},review=ok(await f.request('/api/admin/platform/setup/review',selection)),batch=ok(await f.request('/api/admin/platform/setup/freeze',{...selection,digest:review.digest}));ok(await f.request('/api/admin/platform/setup/publish',{batchId:batch.batchId,digest:batch.digest}));
+ const body={...operation(),registerId,papers:await Promise.all(ids.map(async id=>({id,revision:(await f.detail(id)).assessment.revision})))},prepared=ok(await f.request('prepare-papers',body));assert(prepared.acceptedChange);assert(f.db.prepare('SELECT paper_released_at FROM assessments').all().every(a=>!a.paper_released_at));
+ assert.equal((await f.request('release-papers',{...operation(),preparedOperation:body.operationId,papers:prepared.papers})).body.code,'PAPERS_NOT_PREPARED');
+ ok(await f.request('/api/academy/changes/accept',prepared.acceptedChange));
  const release={...operation(),preparedOperation:body.operationId,papers:prepared.papers};assert.equal(ok(await f.request('release-papers',release)).released,2);assert.equal(ok(await f.request('release-papers',release)).replayed,true);assert(f.db.prepare('SELECT paper_released_at FROM assessments').all().every(a=>a.paper_released_at));
 }));
 

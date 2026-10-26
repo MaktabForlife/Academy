@@ -11,7 +11,7 @@ import {messaging,recoverMessaging} from './messaging.js';
 import {lessonNotes} from './lesson-notes.js';
 import {nativeAttendance} from './native-attendance.js';
 import {setupEnabled,acceptedHead,acceptedRepository} from './setup-reader.js';
-import {setupPublication} from './setup-publication.js';
+import {acceptFeatureChange} from './setup-publication.js';
 import {announcements,publicAnnouncements,announcementImage,announcementPdf,announcementUpload} from './announcements.js';
 import {guardWorkspace,actualState,isAdminWorkspace} from './workspace-access.js';
 import {globalSettings} from './global-settings.js';
@@ -103,7 +103,7 @@ async function dispatch(request,env) {
   if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,setupEnabled(env)?await readRepository():repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(setupEnabled(env)?await readRepository():repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.79',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.80',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(setupEnabled(env)?await readRepository():repository)};
@@ -205,8 +205,11 @@ async function dispatch(request,env) {
   if(classNoteAction)return {success:true,...await classNotes(await readRepository(),auth).run(classNoteAction,input)};
   const nativeAction=path.match(/^\/api\/(?:academy\/attendance|program-attendance)\/(options|get|submit|prepare|recover|report|roster-get|roster-save|substitute-save|substitute-revoke|substitute-reopen)$/)?.[1];
   if(nativeAction&&sourceRepository.features.nativeAttendance)return {success:true,...await nativeAttendance(await readRepository(),auth).run(nativeAction,input)};
-  const setupAction=path.match(/^\/api\/admin\/platform\/setup\/(options|review|freeze|publish|resolve)$/)?.[1];
-  if(setupAction){if(!setupEnabled(env))throw rehearsalError('Accepted setup is not enabled.',503,'SETUP_PUBLICATION_REQUIRED');const publishing={...repository,onAssessmentPublication:head=>warmPublishedAssessments(acceptedRepository(sourceRepository,head),auth)};return {success:true,...await setupPublication(publishing,auth).run(setupAction,input)};}
+  if(path.startsWith('/api/admin/platform/setup/'))throw rehearsalError('This separate publication workflow has been retired. Save or Publish from the relevant editor.',404,'NOT_FOUND');
+  if(path==='/api/academy/changes/accept'){
+    if(request.method!=='POST'||!setupEnabled(env))throw rehearsalError('This saved change is not available.',404);
+    return {success:true,...await acceptFeatureChange({...repository,onAssessmentPublication:head=>warmPublishedAssessments(acceptedRepository(sourceRepository,head),auth)},auth,input)};
+  }
   if(setupEnabled(env)&&(!isAdminWorkspace(auth)||path==='/api/academy/lesson/join')&&!path.startsWith('/api/account/'))repository=await readRepository();
   const personalAction=path.match(/^\/api\/academy\/my-links\/(list|save|export)$/)?.[1];
   if(personalAction)return {success:true,...await personalLinks(sourceRepository,auth,env).run(personalAction,input)};
@@ -223,7 +226,7 @@ async function dispatch(request,env) {
   if(bookmarkAction)return {success:true,...await pdfBookmarks(repository,auth).run(bookmarkAction,input)};
   const announcementAction=path.match(/^\/api\/admin\/platform\/announcements\/(list|delete)$/)?.[1];
   if(announcementAction)return {success:true,...await announcements(repository,auth,env).run(announcementAction,input)};
-  const planningAction=path.match(/^\/api\/academy\/planning\/(list|get|save|submit|comment|policy|deadline)$/)?.[1];
+  const planningAction=path.match(/^\/api\/academy\/planning\/(list|get|save|submit|comment|policy|deadline|sessions|session-policy)$/)?.[1];
   if(planningAction)return {success:true,...await lessonPlanning(repository,auth).run(planningAction,input)};
   const pdfToolAction=path.match(/^\/api\/admin\/platform\/pdf-tools\/(get|save)$/)?.[1];
   if(pdfToolAction)return {success:true,...await pdfTools(repository,auth).run(pdfToolAction,input)};

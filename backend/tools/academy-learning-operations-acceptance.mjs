@@ -1,3 +1,4 @@
+import {acceptFixtureSetup} from '../tests/fixtures/academy-accepted-fixture.mjs';
 // Synthetic UI acceptance. No remote service, credentials or live records.
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {createServer} from 'node:http';
@@ -20,8 +21,7 @@ const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
 const exam=ok(await f.call('create',{operationId:crypto.randomUUID(),activityKey:scopes.programA,classId:'class-1',title:'Manual review assessment',subject:'Qasas',examDate:nextDate(today,-1),durationMinutes:60,maximumMark:100},tokens.admin)).assessmentId;
 const assignment=ok(await f.call('create',{operationId:crypto.randomUUID(),activityKey:scopes.programA,classId:'class-1',title:'Six week assignment',subject:'Qasas',assessmentKind:'ASSIGNMENT',timingMode:'UNTIMED',durationMinutes:null,maximumMark:100,availableFrom:new Date().toISOString(),dueDate:nextDate(today,42)},tokens.admin)).assessmentId;
 for(const id of [exam,assignment])ok(await f.call('publish',{operationId:crypto.randomUUID(),assessmentId:id,revision:1},tokens.admin));
-async function setup(action,input){const response=await worker.fetch(new Request('http://localhost/api/admin/platform/setup/'+action,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+tokens.admin,'X-Academy-Workspace':'ADMIN'},body:JSON.stringify(input)}),f.env);return ok({status:response.status,body:await response.json()});}
-const selection={scopes:[scopes.programA]},review=await setup('review',selection),batch=await setup('freeze',{...selection,digest:review.digest});await setup('publish',{batchId:batch.batchId,digest:batch.digest});
+await acceptFixtureSetup(f.env,tokens.admin,[scopes.programA]);
 const requestContext=new AsyncLocalStorage(),counts=new Map();f.queries.push=function(...sql){const id=requestContext.getStore();if(id)counts.set(id,(counts.get(id)||0)+sql.length);return Array.prototype.push.apply(this,sql);};
 const server=createServer(async(req,res)=>{try{
  const url=new URL(req.url,'http://localhost');

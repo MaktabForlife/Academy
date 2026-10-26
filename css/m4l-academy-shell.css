@@ -133,3 +133,12 @@ body.academy-shell{padding-left:0!important;--academy-gutter:clamp(12px,3vw,28px
 .academy-workspace-context{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.55rem 1rem;background:#fff5dd;color:#593e08;border-bottom:2px solid #b77b16;font-size:.85rem}
 .academy-workspace-context[hidden]{display:none}.academy-workspace-context>div{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}.academy-workspace-context strong{letter-spacing:.03em}.academy-workspace-context nav{display:flex;gap:.8rem;flex-wrap:wrap}.academy-workspace-context a{color:inherit;text-decoration:underline;font-weight:600}
 @media(max-width:700px){.academy-workspace-context{align-items:flex-start;flex-direction:column;padding:.5rem .7rem;gap:.35rem;font-size:.78rem}.academy-workspace-context>div{gap:.45rem}}
+
+/* One consistent Admin menu on every management page. */
+.academy-admin-tools{padding:8px clamp(12px,3vw,32px);background:#fff9ed;border-bottom:1px solid #eadbbb;min-width:0}
+.academy-admin-tools[hidden]{display:none}
+.academy-admin-links{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.academy-admin-links>a,.academy-admin-links>button{font:inherit;font-size:.85rem;white-space:nowrap;text-decoration:none;color:#583361;background:#fff;border:1px solid #e5d7e8;border-radius:999px;padding:8px 12px;cursor:pointer}
+.academy-admin-links>[aria-current=page]{background:#72477b;color:#fff;border-color:#72477b}
+.academy-admin-tools [role=status]{margin:8px 0 0;font-size:.85rem;color:#583361}
+@media(max-width:600px){.academy-admin-links{flex-wrap:nowrap;overflow-x:auto;max-width:100%;padding-bottom:4px}}

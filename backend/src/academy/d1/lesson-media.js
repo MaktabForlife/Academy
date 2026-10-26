@@ -1,3 +1,5 @@
+import {sessionPdfCount} from './session-pdf-policy.js';
+import {prepareFeatureChange} from './feature-change.js';
 import {managementError as fail,same} from './management-store.js';
 import {validDate,cleanText} from './assessment-store.js';
 import {payloadHash} from '../../programs/timetable-model.js';
@@ -51,7 +53,7 @@ export async function timetableMedia(repository,auth,input){
 }
 
 export function lessonMedia(repository,auth,env){
- const db=repository.db,p=(sql,...values)=>db.prepare(sql).bind(...values),actor=auth.user.accountid;
+ const db=repository.db,descriptions=new WeakMap(),p=(sql,...values)=>{const statement=db.prepare(sql).bind(...values);descriptions.set(statement,{sql,values});return statement;},actor=auth.user.accountid;
  let activity,scopeKey,admin=false,student=false,teacher=false,preview=false;
  const teachers=row=>[...new Set([...JSON.parse(row.teacher_ids_json||'[]'),row.teacher_id].filter(Boolean))];
  const manages=row=>admin||!repository.setup?.enabled&&row.media_scope!=='COURSE'&&teacher&&!preview&&actualRole(auth,scopeKey,'TEACHER')&&teachers(row).some(id=>same(id,actor));
@@ -164,7 +166,7 @@ export function lessonMedia(repository,auth,env){
    const at=new Date().toISOString();return {statements:[p(`INSERT INTO lesson_media_lessons(lesson_id,activity_key,class_id,lesson_date,title,start_time,end_time,teacher_id,teacher_name,state,source_publication_id,source_lessons_json,updated_at,session_key,run_id,teacher_ids_json) VALUES(?,?,?,?,?,?,?,?,?,'DRAFT',?,?,?,?,?,?)`,current.lesson_id,scopeKey,current.class_id,current.lesson_date,current.title,current.start_time,current.end_time,current.teacher_id,current.teacher_name,current.source_publication_id,current.source_lessons_json,at,current.session_key,current.run_id,current.teacher_ids_json)],result:{lessonId:current.lesson_id,revision:1}};
   });
  }
- async function receipt(input,hash){const r=await p("SELECT * FROM operation_receipts WHERE dataset_key='LESSON_MEDIA' AND scope_key=? AND operation_id=?",scopeKey,input.operationId).first();if(!r)return null;if(!same(r.actor_account_id,actor)||r.payload_sha256!==hash)throw fail('This retry belongs to another change.',409,'OPERATION_ID_REUSED');return {...JSON.parse(r.result_json),replayed:true};}
+ async function receipt(input,hash){const r=await p("SELECT payload_sha256,actor_account_id,json_remove(result_json,'$._acceptedChange','$._acceptedHead','$._acceptedPublic') result_json FROM operation_receipts WHERE dataset_key='LESSON_MEDIA' AND scope_key=? AND operation_id=?",scopeKey,input.operationId).first();if(!r)return null;if(!same(r.actor_account_id,actor)||r.payload_sha256!==hash)throw fail('This retry belongs to another change.',409,'OPERATION_ID_REUSED');return {...JSON.parse(r.result_json),replayed:true};}
  // Version and current account/session/role guards share the write transaction.
  // Media operations never load the Academy-wide account or media catalogue.
  async function change(action,input,row,mode,plan){
@@ -177,13 +179,15 @@ export function lessonMedia(repository,auth,env){
    const current=row.isNew?(row.media_scope==='COURSE'?newCourseFiles():await selectedSession(input)):await lesson(row.lesson_id);await scope();
    if(mode==='student')reader(current);else if(mode==='staff')staff(current);else if(!manages(current))reader(current);
    const {statements,result}=await plan(current),guard=crypto.randomUUID(),now=new Date().toISOString();
-   if(repository.setup?.enabled&&admin&&action==='save'&&input.state==='PUBLISHED')result.setupPublication={dataset:'LESSON_MEDIA',scope:scopeKey,operationId:input.operationId,sourceVersion:version.version+1,scopes:[scopeKey],families:['media']};
+   const acceptance=await prepareFeatureChange(repository,auth,{dataset:'LESSON_MEDIA',scope:scopeKey,operationId:input.operationId,statements,describe:statement=>descriptions.get(statement),scopes:[scopeKey],enabled:admin&&action==='save'&&input.state==='PUBLISHED',fullRows:true,entities:{lesson_media_lessons:{sql:'lesson_id=?',values:[current.lesson_id]},lesson_media_links:{sql:'lesson_id=?',values:[current.lesson_id]},lesson_media_assets:{sql:'asset_id IN(SELECT asset_id FROM lesson_media_links WHERE lesson_id=?)',values:[current.lesson_id]}}});
+   if(acceptance)result.acceptedChange=acceptance.reference;
    const authority=isAdminWorkspace(auth)?mode==='student'?`(${globalSQL} OR ${rolesSQL} OR EXISTS(SELECT 1 FROM effective_course_subscriptions cs WHERE cs.account_id=a.account_id AND cs.activity_key=?))`:`(${globalSQL} OR ${rolesSQL} OR (${rolesSQL} AND EXISTS(SELECT 1 FROM json_each(?) WHERE value=a.account_id COLLATE NOCASE)))`:mode==='student'?`(${rolesSQL} OR (?=1 AND EXISTS(SELECT 1 FROM effective_course_subscriptions cs WHERE cs.account_id=a.account_id AND cs.activity_key=?)))`:`(${rolesSQL} AND EXISTS(SELECT 1 FROM json_each(?) WHERE value=a.account_id COLLATE NOCASE))`;
    const roleValues=isAdminWorkspace(auth)?mode==='student'?[scopeKey,JSON.stringify(['STUDENT','TEACHER']),scopeKey]:[scopeKey,JSON.stringify(['PROGRAM_ADMIN']),scopeKey,JSON.stringify(['TEACHER']),JSON.stringify(teachers(current))]:mode==='student'?[scopeKey,JSON.stringify([auth.workspace==='TEACH'?'TEACHER':'STUDENT']),Number(auth.workspace==='LEARN'),scopeKey]:[scopeKey,JSON.stringify(['TEACHER']),JSON.stringify(teachers(current))];
    try{
+    const savedResult=acceptance?.receipt(result)||{expression:'?',values:[JSON.stringify(result)]};
     await db.batch([p(`INSERT INTO academy_write_guards(guard_id,accepted) VALUES(?,(SELECT version=? FROM academy_write_state WHERE singleton=1) AND EXISTS(SELECT 1 FROM accounts a JOIN account_credentials c USING(account_id) JOIN account_sessions s USING(account_id) WHERE a.account_id=? AND a.active=1 AND c.pin_setup=1 AND length(trim(c.pin_hash))>0 AND c.credential_epoch=? AND s.session_id=? AND s.revoked_at IS NULL AND s.credential_epoch=c.credential_epoch AND s.expires_at>? AND ${authority}))`,guard,version.version,actor,auth.state.account.credential_epoch,auth.sid,now,...roleValues),...statements,
      p('INSERT INTO audit_events(event_id,occurred_at,actor_account_id,authority,scope_key,action,record_kind,record_id,changed_fields_json) VALUES(?,?,?,?,?,?,?,?,?)',crypto.randomUUID(),now,actor,auth.user.role,scopeKey,action,'LESSON_MEDIA',current.lesson_id,JSON.stringify({action})),
-     p("INSERT INTO operation_receipts(dataset_key,scope_key,operation_id,payload_sha256,result_json,actor_account_id,completed_at) VALUES('LESSON_MEDIA',?,?,?,?,?,?)",scopeKey,input.operationId,hash,JSON.stringify(result),actor,now),p('UPDATE academy_write_state SET version=version+1 WHERE singleton=1'),p('DELETE FROM academy_write_guards WHERE guard_id=?',guard)]);
+     p(`INSERT INTO operation_receipts(dataset_key,scope_key,operation_id,payload_sha256,result_json,actor_account_id,completed_at) VALUES('LESSON_MEDIA',?,?,?,${savedResult.expression},?,?)`,scopeKey,input.operationId,hash,...savedResult.values,actor,now),p('UPDATE academy_write_state SET version=version+1 WHERE singleton=1'),p('DELETE FROM academy_write_guards WHERE guard_id=?',guard)]);
     return result;
    }catch(e){const recovered=await receipt(input,hash);if(recovered)return recovered;if(!/academy_management_stale/.test(e.message))throw e;const state=await repository.session(auth.sid,actor,auth.state.account.credential_epoch);if(!state)throw fail('Your Academy session has ended.',401);if(attempt===2)throw fail('The entry changed. Refresh before saving.',409,'ROW_CHANGED');}
   }
@@ -262,7 +266,7 @@ export function lessonMedia(repository,auth,env){
   try{
    await streamPdf(request,storage,key,input);stored=true;
    const result=await change('pdf-upload',input,row,'staff',async current=>{
-    revision(current,input);const noteCount=repository.features?.mediaSeparation?(await p("SELECT count(*) n FROM lesson_note_entries WHERE activity_key=? AND session_key=? AND state='ACTIVE'",scopeKey,current.session_key).first()).n:0;if((await assets(row.lesson_id)).filter(a=>a.kind==='PDF').length+noteCount>=(current.media_scope==='COURSE'?50:10))throw fail(current.media_scope==='COURSE'?'Use up to 50 Course PDFs.':'Use up to ten PDFs per lesson.');
+    revision(current,input);const pdfCount=repository.features?.mediaSeparation&&current.media_scope!=='COURSE'?await sessionPdfCount(repository,{activityKey:scopeKey,session:{...(JSON.parse(current.source_lessons_json||'[]')[0]||{}),sessionKey:current.session_key}}):(await assets(row.lesson_id)).filter(a=>a.kind==='PDF').length;if(pdfCount>=(current.media_scope==='COURSE'?50:10))throw fail(current.media_scope==='COURSE'?'Use up to 50 Course PDFs.':'Use up to ten PDFs per lesson.');
     const now=new Date().toISOString();return {statements:[p("INSERT INTO lesson_media_assets(asset_id,activity_key,kind,object_key,filename,byte_size,created_at,display_name) VALUES(?,?,'PDF',?,?,?,?,?)",id,scopeKey,key,filename,input.size,now,displayName),p('INSERT INTO lesson_media_links VALUES(?,?)',row.lesson_id,id),p('UPDATE lesson_media_lessons SET revision=revision+1,updated_at=? WHERE lesson_id=?',now,row.lesson_id)],result:{assetId:id,filename,name:displayName||filename}};
    });
    if(result.assetId!==id)await storage.delete(key);return result;

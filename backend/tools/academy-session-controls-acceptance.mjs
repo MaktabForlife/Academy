@@ -1,0 +1,58 @@
+// Real UI/Worker, synthetic SQLite/R2. Never writes to the preview database.
+import {createServer} from 'node:http';
+import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import path from 'node:path';
+import {createRequire} from 'node:module';
+import assert from 'node:assert/strict';
+import {classNotesFixture} from '../tests/fixtures/academy-class-notes-fixture.mjs';
+import {academyDate,nextDate} from '../src/academy/d1/academy-clock.js';
+import {planningMonday} from '../src/academy/d1/lesson-planning.js';
+import {initialiseAcceptedSetup} from '../src/academy/d1/setup-publication.js';
+import {publicTimetableDay,publicTimetableKey} from '../src/academy/d1/public-timetable.js';
+import worker from '../src/academy-runtime.js';
+const require=createRequire(import.meta.url),{chromium}=require(process.env.ACADEMY_BROWSER_RUNTIME||'/Users/hbnaidu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const root=fileURLToPath(new URL('../../',import.meta.url)),out=process.env.ACADEMY_SETUP_OUTPUT||'/private/tmp/academy-session-controls-acceptance';mkdirSync(out,{recursive:true});
+const f=await classNotesFixture(),token=await f.actor('global'),errors=[],requests=[];
+const objects=new Map();let etag=0,storageFails=false;
+f.env.MEDIA_BUCKET={get:async key=>{const value=objects.get(key);return value?{etag:value.etag,json:async()=>JSON.parse(value.body)}:null;},put:async(key,body,{onlyIf}={})=>{
+ if(storageFails)throw Error('Synthetic snapshot storage failure');
+ const current=objects.get(key);if(onlyIf?.etagMatches!==undefined&&onlyIf.etagMatches!==current?.etag||onlyIf?.etagDoesNotMatch==='*'&&current)return null;
+ const value={body,etag:String(++etag)};objects.set(key,value);return {etag:value.etag};
+}};
+const refreshCount=()=>requests.filter(r=>r.path==='/api/academy/cache/refresh').length;
+const snapshot=()=>objects.get(publicTimetableKey(f.env,publicTimetableDay())+'.accepted-'+f.db.prepare('SELECT head_id FROM setup_head_state').get().head_id);
+f.env.ACADEMY_MEDIA_SEPARATION='1';
+const server=createServer(async(req,res)=>{try{
+ const url=new URL(req.url,'http://localhost');
+ if(url.pathname==='/js/m4l-config.js'){res.writeHead(200,{'Content-Type':'text/javascript'});res.end('window.M4L_CONFIG={API_BASE:location.origin,IS_DEVELOPMENT:true,ACCEPTED_SETUP:true,MEDIA_SEPARATION:true};');return;}
+ if(url.pathname==='/api/academy/header-date'){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({success:true,gregorian:new Date().toISOString().slice(0,10),hijri:'13 Jumada al-ula 1448'}));return;}
+ if(url.pathname.startsWith('/api/')){const bytes=[];for await(const chunk of req)bytes.push(chunk);requests.push({path:url.pathname,head:req.headers['x-academy-setup']});const response=await worker.fetch(new Request('http://localhost'+url.pathname+url.search,{method:req.method,headers:req.headers,...(!['GET','HEAD'].includes(req.method)?{body:Buffer.concat(bytes)}:{})}),f.env);res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));return;}
+ const target=path.resolve(root,'.'+url.pathname);if(!target.startsWith(root))throw Error();const file=url.pathname.endsWith('/')?path.join(target,'index.html'):target;
+ const content=readFileSync(file);res.writeHead(200,{'Content-Type':{'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png'}[path.extname(file)]||'application/octet-stream'});res.end(content);
+ }catch{if(!res.headersSent)res.writeHead(404);res.end();}});
+await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const origin='http://127.0.0.1:'+server.address().port;f.env.ALLOWED_ORIGINS=origin;
+const browser=await chromium.launch({headless:true,executablePath:process.env.ACADEMY_CHROME_PATH||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'}),page=await browser.newPage({viewport:{width:1440,height:1000}});
+page.on('pageerror',e=>errors.push(String(e)));await page.route('**/*',route=>new URL(route.request().url()).origin===origin?route.continue():route.abort());
+async function open(url){await page.goto(origin+url);await page.waitForFunction(()=>window.M4L_ACADEMY_SHELL_DATA?.signedIn);}
+try{
+ const today=academyDate(new Date(),'Africa/Johannesburg'),future=planningMonday(nextDate(today,14)),id=f.scopes.programA.slice(8);
+ await page.goto(origin+'/version.json');await page.evaluate(t=>localStorage.setItem('m4l_account_token',t),token);
+ await open('/academy/admin/#administration/planning');await page.locator('[data-lp-change=area]').selectOption(f.scopes.programA);await page.locator('.lp-settings summary').click();
+ await page.getByRole('button',{name:'Load sessions',exact:true}).click();await page.locator('[data-lp-session-choice]').first().waitFor();
+ const choices=page.locator('[data-lp-session-choice]');assert((await choices.count())>0);assert.deepEqual(await choices.first().locator('option').allTextContents(),['Use Program setting (Required)','Require a plan','Make a plan optional']);
+ for(const choice of await choices.all())await choice.selectOption('OPTIONAL');
+ await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);await page.screenshot({path:path.join(out,'session-choices-phone.png'),fullPage:true});
+ await page.getByRole('button',{name:'Save session choices',exact:true}).click();await page.locator('.lp-message').filter({hasText:'Saved.'}).waitFor();
+ const policy=JSON.parse(f.db.prepare("SELECT setting_value FROM academy_settings WHERE setting_key=?").get('LessonPlanSessions:'+f.scopes.programA.toUpperCase()).setting_value);assert(policy.records.every(r=>r.required===false));assert.equal(await page.locator('dialog[aria-label="Confirm publish"]').count(),0);
+ const teacher=await f.login('0003');await page.goto(origin+'/version.json');await page.evaluate(t=>{localStorage.clear();sessionStorage.clear();localStorage.setItem('m4l_account_token',t);},teacher);
+ await open('/academy/#activity/PROGRAM/'+id+'/teach/planning');await page.locator('[data-lp-change=load-week]').fill(future);await page.locator('[data-lp-change=load-week]').dispatchEvent('change');await page.locator('.lp-meta').filter({hasText:'This plan is optional.'}).waitFor();
+ await page.locator('[data-lp-field=reflection]').fill('An optional plan remains available to save.');await page.getByRole('button',{name:'Save draft',exact:true}).click();await page.locator('.lp-message').filter({hasText:'Draft saved.'}).waitFor();assert.equal(f.db.prepare('SELECT count(*) n FROM lesson_plans').get().n,1);
+ await open('/academy/#activity/PROGRAM/'+id+'/teach/lesson-media');await page.locator('#activity-lesson-media .lm-session [data-lm=calendar-session]').first().click();await page.locator('[data-lm-form=note-upload]').waitFor();
+ const form=page.locator('[data-lm-form=note-upload]').last();assert.deepEqual(await form.locator('select[name=attachmentScope] option').allTextContents(),['This lesson only','Every occurrence of this session']);await form.locator('[name=attachmentScope]').selectOption('RECURRING');await form.locator('[name=file]').setInputFiles({name:'recurring-session.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4\n% local recurring resource\n%%EOF')});await form.getByRole('button',{name:'Post my note',exact:true}).click();await page.locator('.lm-note').filter({hasText:'Every occurrence of this session'}).waitFor();assert.equal(f.db.prepare('SELECT count(*) n FROM lesson_note_versions').get().n,1);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);await page.screenshot({path:path.join(out,'recurring-pdf-phone.png'),fullPage:true});
+ const student=await f.login('0002');await page.goto(origin+'/version.json');await page.evaluate(t=>{localStorage.clear();sessionStorage.clear();localStorage.setItem('m4l_account_token',t);},student);await open('/academy/#activity/PROGRAM/'+id+'/learn/lesson-media');await page.locator('#activity-lesson-media [data-lm=pdf]').first().click();await page.locator('.lm-pdf').waitFor();assert.equal(await page.locator('[data-lm-form=note-upload]').count(),0);
+ assert.deepEqual(errors,[]);assert.deepEqual(f.db.prepare('PRAGMA foreign_key_check').all(),[]);
+ const result={passed:true,checks:['Program default and three session choices','many session choices save in one operation','future effective date','no extra setup popup','optional Teacher plan stays editable and saves','recurring PDF scope selector','one stored PDF version','assigned learner opens protected PDF bytes','learner has no upload controls','phone layout fits'],pageErrors:errors};writeFileSync(path.join(out,'verification.json'),JSON.stringify(result,null,2));console.log(JSON.stringify({...result,output:out}));
+}catch(error){await page.screenshot({path:path.join(out,'failure.png'),fullPage:true});throw error;}
+finally{await browser.close();await new Promise(resolve=>server.close(resolve));f.close();}

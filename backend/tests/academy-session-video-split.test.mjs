@@ -21,7 +21,7 @@ test('split manual recording upload publishes once, keeps draft links private an
   const complete={lessonId,uploadToken:start.uploadToken,parts:[{partNumber:part.partNumber,etag:part.etag}]},asset=ok(await f.request('video-complete',complete,admin));
   assert.equal(ok(await f.request('video-complete',complete,admin)).replayed,true);
   assert.equal((await f.request('watch',{lessonId,assetId:asset.assetId},student,'LEARN')).status,404);
-  const saved=ok(await f.request('save',{lessonId,revision:2,operationId:crypto.randomUUID(),title:'Session recording',summary:'',state:'PUBLISHED',commentsClosed:true,videos:[{name:'YouTube alternative',url:'https://youtu.be/9IuTDcSs6vQ'}]},admin));assert(saved.setupPublication);
+  const saved=ok(await f.request('save',{lessonId,revision:2,operationId:crypto.randomUUID(),title:'Session recording',summary:'',state:'PUBLISHED',commentsClosed:true,videos:[{name:'YouTube alternative',url:'https://youtu.be/9IuTDcSs6vQ'}]},admin));assert(saved.acceptedChange);
   await f.accept(global,scope);
   const feed=ok(await f.request('feed',{activityKey:scope},student,'LEARN')),row=feed.lessons.find(r=>r.id===lessonId);assert(row);assert.deepEqual(row.assets.map(a=>a.kind).sort(),['MP4','YOUTUBE']);
   const video=ok(await f.request('watch',{lessonId,assetId:asset.assetId},student,'LEARN'));let response=await worker.fetch(new Request('http://localhost'+video.playbackPath,{headers:{Range:'bytes=4-11'}}),f.source.env);assert.equal(response.status,206);assert.equal(await response.text(),'ftypisom');

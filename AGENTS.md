@@ -1,3 +1,10 @@
+# UI and session update release — 27 October 2026
+
+- The human user explicitly requested “pls pass to optimisation for deployment” in “UI and lesson updates”; the verified handoff authorises implementing, testing and deploying SPDF-01, PLAN-01, NAV-01, SETUP-01 and QUICK-01. Release the complete batch as V107.80 from `feature/academy-ui-session-updates`, incorporating deployed V107.79.
+- Deploy the backward-compatible private split coordinator first, then the matching Development API and Academy website. Preserve the automatic homepage snapshot refresh and Update timetable fallback already authorised in this chat.
+- Keep current permissions, immutable accepted snapshots, unrelated drafts, explicit timetable publication, assessment approval and learner release gates. No database migration or live data correction is required.
+- Keep live checks small to limit database usage: use disposable local fixtures, release metadata, one API readiness check and targeted static asset verification. Future deployments require new authorisation.
+
 # Homepage refresh page-coverage correction — 26 October 2026
 
 - Complete the user's authorised automatic-refresh deployment as V107.79, loading the shared helper on every Academy workspace page. Preserve V107.78 and its planning-image follow-up. Test actual Program publication locally before deploying the matching Development API and website.

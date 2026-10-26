@@ -29,7 +29,7 @@ test('a successful refresh clears saved public metadata and announces the public
 });
 test('the accepted publication and originating Publish response share one rebuild, including later duplicate callbacks',async()=>{
  let release;const f=fixture(()=>new Promise(resolve=>{release=()=>resolve(Response.json({success:true,completed:['public-timetable'],pending:false}));}));
- const accepted=hint({head:'accepted-one'}),origin=hint({setupPublication:{scope:'PROGRAM:A'}}),first=f.refresh(accepted,'current-account');
+ const accepted=hint({head:'accepted-one'}),origin=hint({acceptedChange:{scope:'PROGRAM:A'},head:'accepted-one'}),first=f.refresh(accepted,'current-account');
  assert.equal(f.refresh(accepted,'current-account'),first);assert.equal(f.refresh(origin,'current-account'),first);assert.equal(f.calls.length,1);release();await first;
  await f.refresh(hint({head:'accepted-one'}),'current-account');assert.equal(f.calls.length,1,'A completed publication is not rebuilt twice');
 });

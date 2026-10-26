@@ -88,14 +88,21 @@
    const error=await response.clone().json();check();
    if(error.code==='ADMIN_VIEW_FORBIDDEN'){access={session:session(),admin:false};accessChanged();leaveAdmin();throw new DOMException('Admin access changed.','AbortError');}
   }
-  if(publicationEnabled&&selected==='ADMIN'&&!url.pathname.startsWith('/api/admin/platform/setup/')&&response.ok&&response.headers.get('Content-Type')?.includes('application/json')){
+  if(publicationEnabled&&selected==='ADMIN'&&url.pathname!=='/api/academy/changes/accept'&&response.ok&&response.headers.get('Content-Type')?.includes('application/json')){
    const result=await response.clone().json();check();
-   if(result.success&&result.setupPublication){
-    try{await window.M4L_SETUP_PUBLICATION.open(result.setupPublication);check();}
-    catch(error){check();response=new Response(JSON.stringify({success:false,error:error.message,code:error.code||'SETUP_REVIEW_REQUIRED',publicationStaged:true}),{status:error.status||409,headers:response.headers});}
+   if(result.success&&(result.acceptedChange||result.setupPublication)){
+    try{
+     if(!result.acceptedChange)throw Object.assign(Error('Open this older change in its editor and save it again.'),{status:409,code:'LEGACY_CHANGE_RETRY'});
+     const completed=await original(api.origin+'/api/academy/changes/accept',{method:'POST',headers,body:JSON.stringify(result.acceptedChange)}),accepted=await completed.json();check();
+     if(!completed.ok||!accepted.success)throw Object.assign(Error(accepted.error||'The saved change could not be completed.'),{status:completed.status,code:accepted.code});
+     window.M4L_ACADEMY_WORKSPACE.publication(accepted.head);result.head=accepted.head;
+     result.cacheRefreshPending=[...new Set([...(result.cacheRefreshPending||[]),...(accepted.cacheRefreshPending||[])])];
+     response=new Response(JSON.stringify(result),{status:response.status,headers:response.headers});
+     void window.M4L_REFRESH_AFTER_SAVE?.(result,captured.session);
+    }catch(error){check();response=new Response(JSON.stringify({success:false,error:error.message,code:error.code||'CHANGE_PENDING',publicationStaged:true}),{status:error.status||503,headers:response.headers});}
    }
   }
-  if(method==='POST'&&response.ok&&/(?:save|submit|post|revise|relink|delete|publish|accept|status|register|mark|release|confirm|withdraw|upload|remove|create|close|cancel|archive|refresh)$/.test(url.pathname))window.M4L_ACADEMY_READ_CACHE?.invalidate();
+  if(method==='POST'&&response.ok&&/(?:save|submit|post|revise|relink|delete|publish|accept|status|register|mark|release|confirm|withdraw|upload|remove|create|close|cancel|archive|refresh|policy)$/.test(url.pathname))window.M4L_ACADEMY_READ_CACHE?.invalidate();
   // Preserve streamed file delivery. Reject a delayed parsed response before it
   // can populate another account/workspace or create a stale PDF object URL.
   return new Proxy(response,{get(target,name){if(['json','text','blob','arrayBuffer','formData'].includes(name))return async(...args)=>{check();const value=await target[name](...args);check();return value;};const value=Reflect.get(target,name,target);return typeof value==='function'?value.bind(target):value;}});

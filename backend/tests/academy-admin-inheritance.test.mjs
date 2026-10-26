@@ -1,3 +1,4 @@
+import {acceptFixtureSetup} from './fixtures/academy-accepted-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
@@ -79,7 +80,7 @@ test('Learn class selection shows only published class assessments without recip
   const detail=ok(await f.request('/api/academy/assessments/get',{assessmentId:made.assessmentId},'global','ADMIN'));
   ok(await f.request('/api/academy/assessments/publish',{...op(),assessmentId:made.assessmentId,revision:detail.assessment.revision},'global','ADMIN'));
  }
- const selection={scopes:[scope]},review=ok(await f.request('/api/admin/platform/setup/review',selection,'global','ADMIN')),freeze=ok(await f.request('/api/admin/platform/setup/freeze',{...selection,digest:review.digest},'global','ADMIN'));ok(await f.request('/api/admin/platform/setup/publish',{batchId:freeze.batchId,digest:freeze.digest},'global','ADMIN'));
+ await acceptFixtureSetup(f.source.env,await f.source.actor('global'),[scope]);
  const classView={activityKey:scope,classId:first},list=ok(await f.request('/api/academy/assessments/list',{activityKey:scope},'adminA','ADMIN_LEARN',classView));assert.deepEqual(list.assessments.map(a=>a.id),[ids[0]]);
  const detail=ok(await f.request('/api/academy/assessments/get',{assessmentId:ids[0]},'adminA','ADMIN_LEARN',classView));assert(detail.assessment.learnerPreview);assert.equal(detail.assessment.canUpload,false);assert.deepEqual(detail.learners,[]);assert.deepEqual(detail.history,[]);
  assert.equal((await f.request('/api/academy/assessments/get',{assessmentId:ids[1]},'adminA','ADMIN_LEARN',classView)).status,403);

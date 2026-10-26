@@ -1,6 +1,7 @@
+import {acceptFixtureSetup} from './academy-accepted-fixture.mjs';
 import {readFileSync} from 'node:fs';
 import {separationFixture} from './academy-separation-fixture.mjs';
-import {setupPublication,initialiseAcceptedSetup} from '../../src/academy/d1/setup-publication.js';
+import {initialiseAcceptedSetup} from '../../src/academy/d1/setup-publication.js';
 import {acceptedRepository} from '../../src/academy/d1/setup-reader.js';
 import {academyD1Repository} from '../../src/academy/d1/repository.js';
 import {authenticatedD1Account} from '../../src/academy/d1/session.js';
@@ -18,7 +19,7 @@ export async function classNotesFixture(seed){
    const auth=await authenticatedD1Account(new Request('http://localhost/api/academy/class-notes/get',{headers:{Authorization:'Bearer '+token,'X-Academy-Workspace':workspace}}),f.env,repository);
    return classNotes(acceptedRepository(repository,head),auth);
   };
-  f.accept=async activityKey=>{const repository=academyD1Repository(f.env);await repository.ready();const auth=await authenticatedD1Account(new Request('http://localhost/api/admin/platform/setup/review',{headers:{Authorization:'Bearer '+await f.actor('global'),'X-Academy-Workspace':'ADMIN'}}),f.env,repository),service=setupPublication(repository,auth),selection={scopes:[activityKey]},review=await service.run('review',selection),frozen=await service.run('freeze',{...selection,digest:review.digest});head=(await service.run('publish',{batchId:frozen.batchId,digest:frozen.digest})).head;};
+  f.accept=async activityKey=>{head=(await acceptFixtureSetup(f.env,await f.actor('global'),[activityKey])).head;};
   f.post=(view,extra={})=>({activityKey:view.source.activityKey,source:{date:view.source.date,sessionKey:view.source.sessionKey,classId:view.source.classId},sourceToken:view.source.token,body:'Prepare paragraphs 1–3. حفظ الدرس',due:{mode:'NEXT',token:view.nextDue?.token},operationId:crypto.randomUUID(),...extra});
   return f;
  }catch(e){f.close();throw e;}

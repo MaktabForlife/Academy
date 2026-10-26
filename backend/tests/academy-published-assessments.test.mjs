@@ -1,3 +1,4 @@
+import {acceptFixtureSetup} from './fixtures/academy-accepted-fixture.mjs';
 import test from 'node:test';
 import {createHash} from 'node:crypto';
 import assert from 'node:assert/strict';
@@ -17,7 +18,7 @@ async function use(fn){const f=await splitFixture();try{
  f.databases.core.exec("UPDATE split_deployment_state SET state='READY'");f.bucket=bucket();
  Object.assign(f.source.env,{ACADEMY_DB:f.core,ACADEMY_ADMIN_DB:f.admin,ACADEMY_DB_GENERATION:'SPLIT_V1',ACADEMY_D1_RUN_ID:f.prepared.report.sourceDigest,ACADEMY_SPLIT_COORDINATOR:f.namespace,ACADEMY_ACCEPTED_SETUP:'1',ACADEMY_LEARNING_OPERATIONS:'3',ACADEMY_MEDIA_SEPARATION:'1',LESSON_MEDIA_BUCKET:f.bucket});
  f.request=async(action,input={},who='global',workspace='ADMIN',headers={})=>{const token=await f.source.actor(who),r=await worker.fetch(new Request('http://localhost/api/academy/assessments/'+action,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json','X-Academy-Workspace':workspace,...headers},body:JSON.stringify(input)}),f.source.env);return {status:r.status,body:await r.json()};};
- f.accept=async(scopes=[f.scopes.programA])=>{const token=await f.source.actor('global'),call=async(action,input)=>{const r=await worker.fetch(new Request('http://localhost/api/admin/platform/setup/'+action,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json','X-Academy-Workspace':'ADMIN'},body:JSON.stringify(input)}),f.source.env);return ok({status:r.status,body:await r.json()});};const review=await call('review',{scopes}),frozen=await call('freeze',{scopes,digest:review.digest});return (await call('publish',{batchId:frozen.batchId,digest:frozen.digest})).head;};
+ f.accept=async(scopes=[f.scopes.programA])=>(await acceptFixtureSetup(f.source.env,await f.source.actor('global'),scopes)).head;
  f.seed=async(overrides={})=>{const key=f.scopes.programA;
   for(const who of ['studentA','studentB']){
    f.databases.core.prepare("INSERT OR IGNORE INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state) VALUES(?,?,?,'STUDENT',1,'CONFIRMED')").run('snapshot-role-'+who,f.actors[who],key);

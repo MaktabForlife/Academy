@@ -570,9 +570,7 @@
     $('workspace-tool-title').textContent = names[key];
     if (key === 'academy') {
       $('workspace-tool-body').innerHTML = (state.home.globalAdmin ? '<div class="academy-tool-pills"><a href="/academy/subjects/">Subjects &amp; Modules</a></div>' : '') +
-        `<div class="academy-tool-pills"><button type="button" data-workspace-tool="calendar">Calendar</button><button type="button" data-workspace-tool="announcements">Announcements</button><a href="${row.id?'#progress-admin/'+row.kind+'/'+encodeURIComponent(row.id):'#progress-admin/COURSE'}">Surahs and Duas</a>`+ (state.home.globalAdmin?'<button id="public-timetable-refresh" type="button">Update public timetable</button>':'')+'</div><p id="public-timetable-refresh-message" role="status" aria-live="polite"></p>';
-      const publicationButton=$('setup-publication-review');if(publicationButton)publicationButton.onclick=async()=>{try{await window.M4L_SETUP_PUBLICATION.open();publicationButton.textContent='Setup published';}catch(error){if(error.code!=='SETUP_REVIEW_REQUIRED')alert(error.message);}};
-    bindPublicTimetableRefresh();
+        `<div class="academy-tool-pills"><button type="button" data-workspace-tool="calendar">Calendar</button><button type="button" data-workspace-tool="announcements">Announcements</button><a href="${row.id?'#progress-admin/'+row.kind+'/'+encodeURIComponent(row.id):'#progress-admin/COURSE'}">Surahs and Duas</a>`+'</div>';
     } else $('workspace-tool-body').innerHTML = `<p>${esc(names[key])} for ${esc(row.name)} is coming soon.</p>`;
     if (!$('workspace-tool').open) $('workspace-tool').showModal();
   }
@@ -716,7 +714,7 @@
   const mediaReference=row=>JSON.stringify([row.kind+':'+row.activityId,row.mediaSessionKey]);
   function clearTimetableMedia(){mediaGeneration++;mediaSnapshots.clear();}
   function timetableAttachments(rows){
-    const refs=[...new Map(rows.filter(row=>row.mediaSessionKey).map(row=>[mediaReference(row),{activityKey:row.kind+':'+row.activityId,sessionKey:row.mediaSessionKey}])).values()];
+    const refs=[...new Map(rows.filter(row=>row.mediaSessionKey).map(row=>[mediaReference(row),{activityKey:row.kind+':'+row.activityId,sessionKey:row.mediaSessionKey,date:row.date}])).values()];
     if(!refs.length||!token())return new Map();
     const key=JSON.stringify(refs),session=token(),epoch=mediaGeneration;
     const cached=mediaSnapshots.get(key);if(cached?.session===session)return cached.lessons;
@@ -1092,59 +1090,39 @@
     dockTimetable($('timetable-card-home'));
     const view = $('administration'), global = Boolean(state.home?.signedIn && state.home.globalAdmin), areas = state.home?.signedIn ? adminAreas() : [];
     if (!global && !areas.length) {view.innerHTML='<div class="page-heading"><h1>Admin sign-in</h1></div><p role="status">'+(!state.home&&token()?'Loading your Academy administration…':'Sign in with an authorised Academy admin account to open management tools.')+'</p>';return;}
-    const tabs = [['users','Users'],['attendance','Attendance'],['planning','Planning'],...(global?[['announcements','Announcements']]:[]),['assessments','Assessments'],['library','Library'],['curriculum','Subjects'],['programs','Programs'],['courses','Courses'],['enrolments','Enrolments'],...(global?[['settings','App settings']]:[])];
-    const requested = location.hash.split('/')[1], key = tabs.some(([id]) => id === requested) ? requested : 'users';
+    const menu=window.M4L_ACADEMY_ADMIN_MENU?.rows(state.home)||[],tabs=menu.filter(row=>!row.action).map(row=>[row.id,row.label]);
+    const sections=[...tabs,['programs','Programs'],['courses','Courses'],['enrolments','Enrolments']],requested = location.hash.split('/')[1], key = sections.some(([id]) => id === requested) ? requested : 'users';
     const link = (href,label) => `<a class="button secondary" href="${esc(href)}">${esc(label)}</a>`;
     const scoped = (filter,href) => areas.filter(filter).map(row => link(href(row),row.name)).join('');
     const programs = row => row.kind === 'PROGRAM', courses = row => row.kind === 'COURSE';
     const manage = row => row.kind === 'PROGRAM' ? `/programs/manage.html?program=${encodeURIComponent(row.id)}` : `/academy/courses/manage/?course=${encodeURIComponent(row.id)}`;
     const panels = {
       settings:'<div id="admin-app-settings"></div>',
-      users:global ? link('/users/','Manage user profiles') : scoped(()=>true,row=>manage(row)+(programs(row)?'&tab=profiles':'&tab=participants')),
+      users:(global ? link('/users/','Manage user profiles') : scoped(()=>true,row=>manage(row)+(programs(row)?'&tab=profiles':'&tab=participants')))+link('/academy/enrolment/manage/?view=requests','Enrolments'),
       attendance:nativeAttendance()?'<div id="admin-attendance-host"></div>':'<p class="muted">Admin Attendance is coming soon, in shaa Allah.</p>',
       planning:'<div id="admin-planning"></div>',
       announcements:'<div id="admin-announcements"></div>',
       assessments:global ? link('#assessment-admin','Manage assessments') : scoped(()=>true,row=>`#assessment-admin/${row.kind}/${encodeURIComponent(row.id)}`),
       library:global ? link('/academy/library/manage/','Manage Library')+link('/academy/pdf-tools/','PDF tool defaults') : link('/academy/library/','Open my Library'),
-      curriculum:global ? link('/academy/subjects/','Manage Subjects and Modules') : scoped(programs,manage),
+      curriculum:(global ? link('/academy/subjects/','Subjects')+link('/programs/','Programs')+link('/academy/courses/manage/','Courses') : scoped(programs,manage)+scoped(courses,manage)),
       programs:global ? link('/programs/','Manage Programs') : scoped(programs,manage),
       courses:global ? link('/academy/courses/manage/','Manage Courses')+link('/academy/courses/manage/?view=scheduling','Course scheduling') : scoped(courses,manage),
       enrolments:link('/academy/enrolment/manage/?view=requests','Manage Enrolments')
     };
-    const firstProgram=areas.find(programs), firstArea=areas[0];
-    const direct={settings:'#administration/settings',users:global?'/users/':firstArea?manage(firstArea)+(programs(firstArea)?'&tab=profiles':'&tab=participants'):'#administration/users',attendance:'#administration/attendance',planning:'#administration/planning',announcements:'#administration/announcements',assessments:global?'#assessment-admin':firstArea?`#assessment-admin/${firstArea.kind}/${encodeURIComponent(firstArea.id)}`:'#assessment-admin',library:global?'/academy/library/manage/':'/academy/library/',curriculum:global?'/academy/subjects/':firstProgram?manage(firstProgram):'#administration/curriculum',programs:global?'/programs/':firstProgram?manage(firstProgram):'#administration/programs',courses:'/academy/courses/manage/',enrolments:'/academy/enrolment/manage/?view=requests'};
-    view.innerHTML = `<div class="page-heading admin-heading"><h1>${requested?'Manage '+tabs.find(([id])=>id===key)[1]:'Manage Academy'}</h1></div>
-      <nav class="workspace-tabs admin-management-menu" aria-label="Administration tools">${tabs.map(([id,label])=>`<a id="admin-tab-${id}" href="${esc(direct[id])}"${id===requested?' aria-current="page"':''}>${label}</a>`).join('')}${window.M4L_CONFIG?.ACCEPTED_SETUP?'<button id="setup-publication-review" type="button">Review setup</button>':''}${global?'<button id="public-timetable-refresh" type="button">Update timetable</button>':''}</nav>${global?'<p id="public-timetable-refresh-message" class="tiny muted" role="status" aria-live="polite"></p>':''}${!requested?'<div id="admin-timetable-home"></div>':''}
+    view.innerHTML = `<div class="page-heading admin-heading"><h1>${requested?'Manage '+sections.find(([id])=>id===key)[1]:'Manage Academy'}</h1></div>
+      ${!requested?'<div id="admin-timetable-home"></div>':''}
       ${requested?`<section class="card card-pad" id="admin-workspace"><div class="workspace-actions">${panels[key]||'<p class="muted">No assigned areas are available here.</p>'}</div></section>`:''}<div class="academy-support">${supportSections(null,'admin')}</div>`;
     if(requested==='attendance'&&nativeAttendance()){dockAttendance($('admin-attendance-host'));$('pa-main').hidden=false;$('pa-close').href='#administration';const parts=location.hash.slice(1).split('/');let id='';try{id=['PROGRAM','COURSE'].includes(parts[2])?decodeURIComponent(parts[3]||''):'';}catch{}window.M4L_PROGRAM_ATTENDANCE?.open({admin:true,...(id?{id,...attendanceTarget(parts,4)}:{})});}
     if(requested==='planning')window.M4L_PLANNING?.open({hostId:'admin-planning',view:'admin'});
     if(requested==='settings'&&global)window.M4L_ACADEMY_SETTINGS?.open('admin-app-settings');
     if(requested==='announcements'&&global)window.M4L_ANNOUNCEMENTS?.open({hostId:'admin-announcements'});
-    if(!requested){dashboardAdminLinks=tabs.map(([id,label])=>({href:direct[id],label}));dockTimetable($('admin-timetable-home'));renderSchedule('academy-sessions',roleRows({...state.home,personalTimetable:state.scheduleTimetable}));weekButtons();}
-    const publicationButton=$('setup-publication-review');if(publicationButton)publicationButton.onclick=async()=>{try{await window.M4L_SETUP_PUBLICATION.open();publicationButton.textContent='Setup published';}catch(error){if(error.code!=='SETUP_REVIEW_REQUIRED')alert(error.message);}};
-    bindPublicTimetableRefresh();
+    if(!requested){dashboardAdminLinks=menu;dockTimetable($('admin-timetable-home'));renderSchedule('academy-sessions',roleRows({...state.home,personalTimetable:state.scheduleTimetable}));weekButtons();}
     revealWorkspaceTab();
   }
   function revealWorkspaceTab() {
     const selected = document.querySelector('.view.active .workspace-tabs [aria-selected="true"]');
     if (selected) {const strip=selected.parentElement;if(selected.offsetLeft < strip.scrollLeft)strip.scrollLeft=selected.offsetLeft;else if(selected.offsetLeft+selected.offsetWidth>strip.scrollLeft+strip.clientWidth)strip.scrollLeft=selected.offsetLeft+selected.offsetWidth-strip.clientWidth;}
     if (workspaceFocusId) {$(workspaceFocusId)?.focus();workspaceFocusId='';}
-  }
-
-  function bindPublicTimetableRefresh(){
-    const button=$('public-timetable-refresh');
-    if(button)button.onclick=async()=>{
-      if(button.disabled)return;const session=token(),epoch=pageCache.epoch;button.disabled=true;
-      const status=$('public-timetable-refresh-message');status.textContent='Refreshing the public timetable…';
-      try{
-        const response=await fetch(`${window.M4L_CONFIG?.API_BASE||''}/api/admin/platform/public-timetable/refresh`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session}`},body:'{}'}),result=await response.json();
-        if(session!==token()||epoch!==pageCache.epoch)return;
-        if(!response.ok||!result.success)throw Error(result.error||'The public timetable could not be refreshed.');
-        state.publicData=null;state.publicDay='';
-        status.textContent='Public timetable refreshed. Visitors will see the update within one minute.';
-      }catch(error){if(session===token()&&epoch===pageCache.epoch)status.textContent=error.message;}
-      finally{button.disabled=false;}
-    };
   }
 
   window.addEventListener('m4l-academy-public-timetable-updated',()=>{

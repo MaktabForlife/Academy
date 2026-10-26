@@ -1,3 +1,4 @@
+import {prepareFeatureChange} from './feature-change.js';
 import {publishedAssessmentRows} from './published-assessments.js';
 import {assessmentBatch} from './assessment-batch.js';
 import {managementError as fail,same} from './management-store.js';
@@ -93,18 +94,20 @@ export function assessmentStore(repository,auth){
   }
   if(!/^[0-9a-f-]{36}$/i.test(input.operationId||''))throw fail('This action needs its retry identifier.');
   const hash=await payloadHash({action,input});
-  const receipt=async()=>{const r=await p("SELECT * FROM operation_receipts WHERE dataset_key='ASSESSMENT' AND scope_key=? AND operation_id=?",scope,input.operationId).first();if(!r)return null;if(r.actor_account_id!==actor||r.payload_sha256!==hash)throw fail('This retry identifier belongs to another change.',409,'OPERATION_ID_REUSED');return {...JSON.parse(r.result_json),replayed:true};};
+  const receipt=async()=>{const r=await p("SELECT payload_sha256,actor_account_id,json_remove(result_json,'$._acceptedChange','$._acceptedHead','$._acceptedPublic') result_json FROM operation_receipts WHERE dataset_key='ASSESSMENT' AND scope_key=? AND operation_id=?",scope,input.operationId).first();if(!r)return null;if(r.actor_account_id!==actor||r.payload_sha256!==hash)throw fail('This retry identifier belongs to another change.',409,'OPERATION_ID_REUSED');return {...JSON.parse(r.result_json),replayed:true};};
   for(let attempt=0;attempt<3;attempt++){
    const saved=await receipt();if(saved)return saved;
    const version=await p('SELECT version FROM academy_write_state WHERE singleton=1').first();
    classCache.clear();classLists.clear();
    const {statements,result,commitGuard}=await plan(),guard=crypto.randomUUID(),now=new Date().toISOString();
-   if(repository.setup?.enabled&&['publish','register-release','prepare-papers'].includes(action))result.setupPublication={dataset:'ASSESSMENT',scope,operationId:input.operationId,sourceVersion:version.version+1,scopes:result.setupScopes};
+   const acceptance=await prepareFeatureChange(repository,auth,{dataset:'ASSESSMENT',scope,operationId:input.operationId,statements,describe:statement=>descriptions.get(statement),scopes:result.setupScopes||[scope],enabled:['publish','register-release','prepare-papers'].includes(action),fullRows:true});
+   if(acceptance)result.acceptedChange=acceptance.reference;
    delete result.setupScopes;
    try{
+    const savedResult=acceptance?.receipt(result)||{expression:'?',values:[JSON.stringify(result)]};
     await db.batch([p(`INSERT INTO academy_write_guards(guard_id,accepted) VALUES(?,(SELECT version=? FROM academy_write_state WHERE singleton=1) AND EXISTS(SELECT 1 FROM accounts a JOIN account_credentials c USING(account_id) JOIN account_sessions s USING(account_id) WHERE a.account_id=? AND a.active=1 AND c.pin_setup=1 AND length(trim(c.pin_hash))>0 AND c.credential_epoch=? AND s.session_id=? AND s.revoked_at IS NULL AND s.credential_epoch=c.credential_epoch AND s.expires_at>?) AND (${commitGuard?.sql||'1'}))`,guard,version.version,actor,auth.state.account.credential_epoch,auth.sid,now,...(commitGuard?.values||[])),...statements,
      p(`INSERT INTO audit_events(event_id,occurred_at,actor_account_id,authority,scope_key,action,record_kind,record_id,changed_fields_json) VALUES(?,?,?,?,?,?,?,?,?)`,crypto.randomUUID(),now,actor,auth.user.role,scope,action,'ASSESSMENT',input.operationId,JSON.stringify({action})),
-     p("INSERT INTO operation_receipts(dataset_key,scope_key,operation_id,payload_sha256,result_json,actor_account_id,completed_at) VALUES('ASSESSMENT',?,?,?,?,?,?)",scope,input.operationId,hash,JSON.stringify(result),actor,now),p('UPDATE academy_write_state SET version=version+1 WHERE singleton=1'),p('DELETE FROM academy_write_guards WHERE guard_id=?',guard)]);
+     p(`INSERT INTO operation_receipts(dataset_key,scope_key,operation_id,payload_sha256,result_json,actor_account_id,completed_at) VALUES('ASSESSMENT',?,?,?,${savedResult.expression},?,?)`,scope,input.operationId,hash,...savedResult.values,actor,now),p('UPDATE academy_write_state SET version=version+1 WHERE singleton=1'),p('DELETE FROM academy_write_guards WHERE guard_id=?',guard)]);
     return result;
    }catch(e){const recovered=await receipt();if(recovered)return recovered;if(!/academy_management_stale/.test(e.message))throw e;if(!await repository.session(auth.sid,actor,auth.state.account.credential_epoch))throw fail('Your Academy session has ended.',401);if(attempt===2)throw fail('Assessment information changed. Refresh before saving.',409,'ROW_CHANGED');}
   }

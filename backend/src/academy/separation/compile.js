@@ -51,6 +51,15 @@ export async function compilePlan(core,admin,statements){
    // Unaccepted immutable candidates belong to Admin only. They carry no
    // successful operation receipt until the Core admission has committed.
    plan.admin.push(item);
+   }else if(table==='operation_receipts'&&item.sql.includes("'$._acceptedChange'")){
+   // Feature receipts read the AFTER state of Core-owned publication facts.
+   // Evaluate them in the Core commit, with new private definitions projected
+   // from the guarded owner plan. No pending source fields become accepted.
+   coreIndex=plan.core.length;plan.core.push(rewrite(item));
+  }else if(table==='operation_receipts'&&item.sql.includes("'$._acceptedHead'")){
+   // New feature receipts are Core operation evidence; fixture/older owner-local
+   // receipts may still be in Admin. Update only an existing matching receipt.
+   coreIndex=plan.core.length;plan.core.push(rewrite(item));plan.finalize.push(rewrite(item));
   }else if(localMetadata.has(table))plan.finalize.push(rewrite(item));
   else if(table==='setup_batches'&&publication){plan.core.push(item);plan.finalize.push(item);}
   else {coreIndex=plan.core.length;plan.core.push(rewrite(item,isGuard?initial:data));}

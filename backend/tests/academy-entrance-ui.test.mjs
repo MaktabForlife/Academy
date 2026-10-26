@@ -164,6 +164,8 @@ const RealDate = Date;
 class FixtureDate extends RealDate { static now(){return RealDate.parse(fixtureNow);} constructor(...args) { super(...(args.length?args:[fixtureNow])); } }
 // This component fixture supplies its chosen reader perspective. URL and API boundary behavior is tested with the actual workspace module separately.
 window.M4L_ACADEMY_WORKSPACE={commit:()=>false,canonical:()=>'',head:()=>null,readyPublication:async()=>null,classView:()=>null,current:()=> 'LEARN',adminRealm:()=>false,audience:()=>{const explicit=location.hash.match(/\/(learn|teach)(?:\/|$)/);return explicit?explicit[1].toUpperCase():globalAdmin||[programRole].flat().some(role=>['TEACHER','PROGRAM_ADMIN'].includes(role))?'TEACH':'LEARN';}};
+const adminMenuScript=await readFile(new URL('../../js/m4l-academy-admin-menu.js',import.meta.url),'utf8');
+vm.runInNewContext(adminMenuScript,{window,document,location,localStorage:{getItem:key=>storage.get(key)||null},Event});
 vm.runInNewContext(script, { window, document, location, history:{replaceState(_state,_title,hash){location.hash=hash;}}, localStorage:{getItem:key=>storage.get(key)||null}, fetch, Event,
   crypto:webcrypto,TextEncoder,Uint8Array,sessionStorage:{getItem:key=>tabStore.get(key)||null,setItem:(key,value)=>tabStore.set(key,value),removeItem:key=>tabStore.delete(key)},Intl, Date:FixtureDate, setInterval() {}, setTimeout(fn,delay) { const id=++nextTimer;timers.set(id,{fn,delay});return id; }, clearTimeout(id) {timers.delete(id);}, matchMedia:()=>({matches:false}) });
 await flush();
@@ -265,14 +267,12 @@ await navigate('#overview/teach');assert.match($('academy-role-panel').innerHTML
 await navigate('#workshops');assert.equal($('workshop-pills').innerHTML,'');assert.match($('course-list-message').textContent,/No Courses/);
 hasWorkshops=true;globalAdmin=true;location.hash='#activity/PROGRAM/'+activity.id;await refresh();
 assert.doesNotMatch($('activity-menu').innerHTML,/Admin tools/);assert.match($('activity-menu').innerHTML,/Teach tools/);
-await navigate('#administration');assert.match($('administration').innerHTML,/Academy-wide management|Manage user profiles|Update timetable/);assert.doesNotMatch($('administration').innerHTML,/id="admin-teach"/);assert.match($('administration').innerHTML,/id="admin-timetable-home"/);assert.doesNotMatch($('administration').innerHTML,/data-recorder-link/);assert.equal($('academy-recorder-nav').hidden,false);
-for(const label of ['Users','Attendance','Planning','Assessments','Library','Subjects','Programs','Courses','Enrolments'])assert.ok($('administration').innerHTML.includes(`>${label}<`));
-assert.match($('administration').innerHTML,/id="admin-tab-enrolments" href="\/academy\/enrolment\/manage\/\?view=requests"/);
-assert.match($('administration').innerHTML,/id="admin-tab-attendance" href="#administration\/attendance"/);
+await navigate('#administration');assert.match($('administration').innerHTML,/Manage Academy/);assert.doesNotMatch($('administration').innerHTML,/id="admin-teach"/);assert.match($('administration').innerHTML,/id="admin-timetable-home"/);assert.doesNotMatch($('administration').innerHTML,/data-recorder-link/);assert.equal($('academy-recorder-nav').hidden,false);
+assert.deepEqual(Array.from(window.M4L_ACADEMY_ADMIN_MENU.rows({signedIn:true,globalAdmin:true}),r=>r.label),['Users','Announcements','Attendance','Curriculum','Library','Lesson plans','Assessments','App settings','Update timetable']);
 await navigate('#administration/attendance');assert.match($('administration').innerHTML,/<h1>Manage Attendance<\/h1>/);assert.doesNotMatch($('administration').innerHTML,/\/programs\/attendance\.html/);assert.equal($('academy-tab-admin').attrs.get('aria-pressed'),'true');
 await navigate('#assessment-admin');assert.equal($('academy-tab-admin').attrs.get('aria-pressed'),'true');assert.equal($('academy-tab-learn').attrs.get('aria-pressed'),'false');
 await navigate('#progress-admin');assert.equal($('academy-tab-admin').attrs.get('aria-pressed'),'true');
-await navigate('#administration/curriculum');assert.match($('administration').innerHTML,/Subjects and Modules/);
+await navigate('#administration/curriculum');assert.match($('administration').innerHTML,/>Subjects<.*>Programs<.*>Courses</);
 await navigate('#activity/PROGRAM/'+activity.id);
 documentHandlers.get('click')({target:{closest:selector=>selector==='[data-workspace-tool]'?{dataset:{workspaceTool:'academy'}}:null}});assert.match($('workspace-tool-body').innerHTML,/Subjects &amp; Modules/);$('workspace-tool-close').listeners.get('click')();
 await navigate('#workshops');assert.equal($('course-list-scope-wrap').hidden,false);assert.equal($('course-list-title').textContent,'All Courses');

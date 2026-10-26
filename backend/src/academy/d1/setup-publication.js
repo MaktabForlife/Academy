@@ -1,3 +1,4 @@
+import {validateAcceptedSessionPdfs} from './session-pdf-policy.js';
 import {jsonRowSQL} from './json-row.js';
 import {setupSchema,setupForeignKeys} from './setup-schema.js';
 import {definitionSettingsSQL} from './setup-reader.js';
@@ -36,49 +37,6 @@ function authorize(auth,scopes,teacherAreas=[]){
  if(!actualState(auth).account.global_admin&&scopes.some(s=>s.startsWith('TEACHER:')&&!teacherAreas.some(t=>t.account_id.toUpperCase()===s.slice(8).toUpperCase())))throw fail('This availability publication needs a Global Admin.',403,'SETUP_SCOPE_FORBIDDEN');
  if(authorityScopes.some(s=>!administers(auth,s)))throw fail('The complete change needs an administrator for every affected area.',403,'SETUP_SCOPE_FORBIDDEN');
  return authorityScopes;
-}
-function selections(auth,input,snapshot){
- if(!Array.isArray(input.scopes)||input.families!==undefined&&!Array.isArray(input.families))throw fail('Choose the areas to review.',400,'INVALID_SETUP_SELECTION');
- const scopes=[...new Set((input.scopes||[]).map(s=>String(s).toUpperCase()))];
- const families=input.families?.length===1&&input.families[0]==='media'?['media']:[...new Set(Object.values(setupSchema).map(s=>s.family))];
- if(!scopes.length||scopes.length>250||!Array.isArray(families)||families.some(f=>!Object.values(setupSchema).some(s=>s.family===f)))throw fail('Choose the areas and setup to review.',400,'INVALID_SETUP_SELECTION');
- authorize(auth,scopes,snapshot.teacherAreas);
- // Availability is shared by a teacher's areas; publication checks every
- // affected area rather than widening a scoped administrator's authority.
- const permitted=scope=>scopes.includes(scope.toUpperCase())||scopes.includes('GLOBAL')&&scope.startsWith('TEACHER:');
- const selected=new Map();
- for(const c of [...snapshot.accepted,...snapshot.current])if(permitted(c.scope_key)&&families.includes(setupSchema[c.table_name].family))selected.set(key(c),{...c,rows_json:'[]'});
- for(const scope of scopes)for(const name of tables)if(families.includes(setupSchema[name].family)&&!['GLOBAL','TEACHER:'].some(prefix=>scope.startsWith(prefix))&&setupSchema[name].scope.includes('activity_key'))selected.set(name+'|'+scope,{table_name:name,scope_key:scope,rows_json:'[]'});
- for(const c of snapshot.current)if(selected.has(key(c)))selected.set(key(c),c);
- return {scopes,families,selected};
-}
-function includeCatalogueDependencies(snapshot,selected,scopes){
- const old=new Map(snapshot.accepted.map(c=>[key(c),c])),current=new Map(snapshot.current.map(c=>[key(c),c]));
- const addRow=(table,row,globalAuthority=true)=>{const k=table+'|GLOBAL',base=selected.get(k)||old.get(k)||{table_name:table,scope_key:'GLOBAL',rows_json:'[]'},spec=setupSchema[table],rows=JSON.parse(base.rows_json),index=rows.findIndex(r=>spec.keys.every(k=>r[k]===row[k]));if(index<0)rows.push(row);else rows[index]=row;selected.set(k,{...base,rows_json:JSON.stringify(rows)});if(globalAuthority&&!scopes.includes('GLOBAL'))scopes.push('GLOBAL');};
- const catalogue=JSON.parse(current.get('academy_module_catalogue|GLOBAL')?.rows_json||'[]'),previous=JSON.parse(old.get('academy_module_catalogue|GLOBAL')?.rows_json||'[]');
- for(const c of [...selected.values()])if(c.table_name==='academy_module_usage')for(const u of JSON.parse(c.rows_json)){
-  const shared=catalogue.find(r=>r.module_id===u.academy_module_id),before=previous.find(r=>r.module_id===u.academy_module_id),local=JSON.parse(selected.get('modules|'+c.scope_key.toUpperCase())?.rows_json||'[]').find(r=>r.module_id===u.module_id);
-  if(shared&&local&&(!before||before.name!==shared.name)&&local.name===shared.name){
-   addRow('academy_module_catalogue',shared);
-   if(shared.subject_key&&!JSON.parse(old.get('subject_catalog|GLOBAL')?.rows_json||'[]').some(r=>r.subject_key===shared.subject_key)){
-    const subject=JSON.parse(current.get('subject_catalog|GLOBAL')?.rows_json||'[]').find(r=>r.subject_key===shared.subject_key);if(subject)addRow('subject_catalog',subject);
-   }
-  }
- }
- // A new Program subject needs its exact shared definition, without accepting
- // other pending catalogue rows as a side effect.
- for(const c of [...selected.values()])if(c.table_name==='program_subjects')for(const row of JSON.parse(c.rows_json))if(!JSON.parse(old.get('subject_catalog|GLOBAL')?.rows_json||'[]').some(r=>r.subject_key===row.subject_key)){
-  const subject=JSON.parse(current.get('subject_catalog|GLOBAL')?.rows_json||'[]').find(r=>r.subject_key===row.subject_key);if(subject)addRow('subject_catalog',subject);
- }
- // A shared-class assessment may introduce its own ALL-classes Imtihaan.
- // Accept only that missing parent, leaving other editable register masters private.
- for(const c of [...selected.values()])if(c.table_name==='assessments')for(const row of JSON.parse(c.rows_json))if(row.register_id&&!JSON.parse(old.get('assessment_registers|GLOBAL')?.rows_json||'[]').some(r=>r.register_id===row.register_id)){
-  const register=JSON.parse(current.get('assessment_registers|GLOBAL')?.rows_json||'[]').find(r=>r.register_id===row.register_id);if(register){
-   const areas=snapshot.current.filter(c=>c.table_name==='assessment_register_areas').flatMap(c=>JSON.parse(c.rows_json)).filter(r=>r.register_id===register.register_id);
-   if(areas.some(r=>!scopes.some(s=>s.toUpperCase()===r.activity_key.toUpperCase())))throw fail('Publish the shared Imtihaan with all its learning areas.',409,'SETUP_REFERENCE_MISSING');
-   addRow('assessment_registers',register,false);
-  }
- }
 }
 function renameSnapshot(value,renames,scope){
  if(Array.isArray(value))return value.map(v=>renameSnapshot(v,renames,scope));
@@ -127,11 +85,22 @@ function includeSharedNames(snapshot,selected,scopes){
   if(changed){selected.set(key(c),{...base,rows_json:JSON.stringify(rows)});if(!scopes.includes(c.scope_key.toUpperCase()))scopes.push(c.scope_key.toUpperCase());}
  }
 }
-function includeAvailability(snapshot,selected,scopes){
- const old=new Map(snapshot.accepted.map(c=>[key(c),c])),current=new Map(snapshot.current.map(c=>[key(c),c]));
- const ids=new Set([...selected.values()].filter(c=>['program_publication_state','course_run_state'].includes(c.table_name)).flatMap(c=>JSON.parse(c.rows_json)).flatMap(r=>[r.latest_publication_id,r.current_publication_id]).filter(Boolean));
- const teachers=new Set([...selected.values()].filter(c=>c.table_name==='published_lesson_teachers').flatMap(c=>JSON.parse(c.rows_json)).filter(r=>ids.has(r.publication_id)).map(r=>r.account_id.toUpperCase()));
- for(const account of teachers){const scope='TEACHER:'+account,k='teacher_availability|'+scope,c=current.get(k);if(c&&c.rows_json!==old.get(k)?.rows_json){selected.set(k,c);if(!scopes.includes(scope))scopes.push(scope);}}
+async function includeRequiredDefinitions(db,accepted,selected,scopes,touchedRegisters,auth){
+ const rows=(table,source=[...selected.values()])=>source.filter(c=>c.table_name===table).flatMap(c=>JSON.parse(c.rows_json));
+ const present=(table,column,id)=>rows(table,[...accepted,...selected.values()]).some(r=>String(r[column]).toUpperCase()===String(id).toUpperCase());
+ const add=(table,scope,row,globalAuthority=true)=>{const k=table+'|'+scope.toUpperCase(),base=selected.get(k)||accepted.find(c=>key(c)===k)||{table_name:table,scope_key:scope,rows_json:'[]'},data=JSON.parse(base.rows_json);if(!data.some(r=>setupSchema[table].keys.every(k=>r[k]===row[k])))data.push(row);selected.set(k,{...base,rows_json:JSON.stringify(data)});if(globalAuthority&&!scopes.includes(scope.toUpperCase()))scopes.push(scope.toUpperCase());};
+ const modules=[...new Set(rows('academy_module_usage').map(r=>r.academy_module_id).filter(id=>!present('academy_module_catalogue','module_id',id)))];
+ if(modules.length){const found=(await db.prepare('SELECT * FROM academy_module_catalogue WHERE module_id IN(SELECT value FROM json_each(?))').bind(JSON.stringify(modules)).all()).results;for(const row of found)add('academy_module_catalogue','GLOBAL',row);}
+ const subjects=[...new Set([...rows('program_subjects').map(r=>r.subject_key),...rows('academy_module_catalogue').map(r=>r.subject_key)].filter(id=>id&&!present('subject_catalog','subject_key',id)))];
+ if(subjects.length){const found=(await db.prepare('SELECT * FROM subject_catalog WHERE subject_key IN(SELECT value FROM json_each(?))').bind(JSON.stringify(subjects)).all()).results;for(const row of found)add('subject_catalog','GLOBAL',row);}
+ const registers=[...new Set(rows('assessments').map(r=>r.register_id).filter(id=>id&&!present('assessment_registers','register_id',id)))],relevant=[...new Set([...registers,...touchedRegisters])];
+ if(relevant.length){const result=await db.batch([db.prepare('SELECT * FROM assessment_registers WHERE register_id IN(SELECT value FROM json_each(?))').bind(JSON.stringify(registers)),db.prepare('SELECT * FROM assessment_register_areas WHERE register_id IN(SELECT value FROM json_each(?))').bind(JSON.stringify(relevant))]),areas=result[1].results;
+  if(areas.some(r=>registers.includes(r.register_id)&&!scopes.includes(r.activity_key.toUpperCase())))throw fail('Publish this Imtihaan with all its learning areas from its register.',409,'SETUP_REFERENCE_MISSING');
+  for(const row of areas){if(!scopes.includes(row.activity_key.toUpperCase()))scopes.push(row.activity_key.toUpperCase());add('assessment_register_areas',row.activity_key,row,false);}
+  if([...touchedRegisters].some(id=>!areas.some(r=>r.register_id===id))&&!actualState(auth).account.global_admin)throw fail('This shared Imtihaan needs an authorised learning area.',403,'FORBIDDEN');
+  for(const row of result[0].results)add('assessment_registers',row.class_activity_key||'GLOBAL',row,false);
+ }
+
 }
 function validateReferences(accepted,selected){
  const combined=new Map(accepted.map(c=>[key(c),c]));for(const [k,c] of selected)combined.set(k,c);
@@ -142,28 +111,9 @@ function validateReferences(accepted,selected){
   for(const group of groups.values()){
    group.sort((a,b)=>a.seq-b.seq);const target=group[0].table,indexKey=target+'|'+group.map(k=>k.to).join('|'),normal=value=>JSON.stringify(value.map(v=>typeof v==='string'?v.toUpperCase():v));
    if(!indexes.has(indexKey))indexes.set(indexKey,new Set(rows.get(target).map(r=>normal(group.map(k=>r[k.to])))));
-   for(const r of rows.get(name)){const values=group.map(k=>r[k.from]);if(values.some(v=>v===null||v===undefined))continue;if(!indexes.get(indexKey).has(normal(values)))throw fail('This change needs its related setup published together. Review all affected areas and shared setup.',409,'SETUP_REFERENCE_MISSING');}
+   for(const r of rows.get(name)){const values=group.map(k=>r[k.from]);if(values.some(v=>v===null||v===undefined))continue;if(!indexes.get(indexKey).has(normal(values)))throw fail('Save the related setup before completing this change.',409,'SETUP_REFERENCE_MISSING');}
   }
  }
-}
-async function candidate(db,auth,input){
- const snapshot=await source(db);
- if(input.sourceOperation){const receipt=await sourceOperation(db,auth,input.sourceOperation);if(snapshot.version!==receipt.sourceVersion)throw fail('Other work was saved after this publication. Open Review setup to review the current complete change.',409,'SETUP_REVIEW_CHANGED');input={...input,scopes:receipt.scopes,families:receipt.families||input.families};}
- const {scopes,families,selected}=selections(auth,input,snapshot);
- if(!snapshot.head)throw fail('Initial accepted setup must be prepared before publishing.',503,'SETUP_PUBLICATION_REQUIRED');
- includeCatalogueDependencies(snapshot,selected,scopes);includeSharedNames(snapshot,selected,scopes);includeAvailability(snapshot,selected,scopes);const authorityScopes=authorize(auth,scopes,snapshot.teacherAreas);
- validateReferences(snapshot.accepted,selected);
- const previous=new Map(snapshot.accepted.map(c=>[key(c),c]));
- const components=[];
- for(const c of selected.values()){
-  const rows=canonicalRows(c.table_name,JSON.parse(c.rows_json)),json=JSON.stringify(rows),digest=await payloadHash(rows);
-  if(rows.length===0&&!previous.has(key(c)))continue;
-  if(digest!==previous.get(key(c))?.digest)components.push({table_name:c.table_name,scope_key:c.scope_key,rows_json:json,row_count:rows.length,digest});
- }
- components.sort((a,b)=>key(a).localeCompare(key(b),'en'));
- const changes=components.map(c=>{const spec=setupSchema[c.table_name],old=JSON.parse(previous.get(key(c))?.rows_json||'[]'),next=JSON.parse(c.rows_json),identity=r=>stableJSON(spec.keys.map(k=>r[k])),oldRows=new Map(old.map(r=>[identity(r),r])),nextRows=new Map(next.map(r=>[identity(r),r]));const entries=[];for(const [id,r] of nextRows){const before=oldRows.get(id),fields=spec.columns.filter(k=>stableJSON(before?.[k]??null)!==stableJSON(r[k]??null));if(!before||fields.length)entries.push({id,label:r.name||r.title||r.display_name||r.filename||r.lesson_date||r.calendar_date||'Entry',action:before?'Changed':'Added',fields:fields.map(field=>({field,before:String(before?.[field]??'').slice(0,180),after:String(r[field]??'').slice(0,180)}))});}for(const [id,row] of oldRows)if(!nextRows.has(id))entries.push({id,label:row.name||row.title||row.display_name||row.filename||row.lesson_date||row.calendar_date||'Entry',action:'Removed',fields:[]});return {table:c.table_name,scope:c.scope_key,count:entries.length,entries:entries.slice(0,100)};});
- const manifest={format,schemaDigest:await payloadHash(setupSchema),selection:{scopes:input.scopes.map(s=>String(s).toUpperCase()).sort(),families:families.slice().sort()},...(input.sourceOperation?{sourceOperation:{dataset:input.sourceOperation.dataset,scope:input.sourceOperation.scope,operationId:input.sourceOperation.operationId}}:{}),sourceVersion:snapshot.version,expectedHead:snapshot.head,scopes:scopes.sort(),authorityScopes:authorityScopes.sort(),families:families.slice().sort(),components:components.map(({table_name,scope_key,row_count,digest})=>({table:table_name,scope:scope_key,rows:row_count,digest,previousRows:previous.get(table_name+'|'+scope_key.toUpperCase())?.row_count||0}))};
- return {manifest,components,changes,digest:await payloadHash(manifest)};
 }
 function guard(db,{version,head},auth,scopes){
  const guardId=id(),now=new Date().toISOString(),base=`(SELECT version=? FROM academy_write_state WHERE singleton=1) AND (SELECT head_id FROM setup_head_state WHERE singleton=1) IS ?`;
@@ -188,56 +138,57 @@ export async function initialiseAcceptedSetup(db,actor='RELEASE_BOOTSTRAP'){
  await db.batch([g.check,db.prepare('INSERT INTO setup_batches VALUES(?,?,?,?,?,?,?,?,NULL)').bind(batch,actor,'["GLOBAL"]',snapshot.version,null,digest,JSON.stringify(manifest),now),...insertComponents(db,batch,components),...headStatements(db,batch,head,null,actor,now),g.clear]);
  return {head,batchId:batch,components:components.length,digest};
 }
-async function sourceOperation(db,auth,operation){
- const row=await db.prepare('SELECT actor_account_id,result_json FROM operation_receipts WHERE dataset_key=? AND scope_key=? AND operation_id=?').bind(String(operation.dataset||''),String(operation.scope||''),String(operation.operationId||'')).first();
- const publication=row&&JSON.parse(row.result_json).setupPublication;
- if(!publication||row.actor_account_id!==auth.user.accountid)throw fail('The original saved publication is not available.',404,'SETUP_SOURCE_NOT_FOUND');
- return publication;
-}
-export function setupPublication(repository,auth){
- const db=repository.db;
- const publicTables=new Set(['activities','program_settings','course_settings','course_runs','course_run_state','timetable_publications','published_lessons','program_publication_state','academy_calendar_events','academy_calendar_suppressions','academy_settings']);
- const publicChanged=manifest=>manifest.components?.some(c=>publicTables.has(c.table));
- const published=async(result,manifest)=>{if(manifest.components?.some(c=>['assessments','assessment_registers','assessment_phases','classes','activities'].includes(c.table)))try{await repository.onAssessmentPublication?.(result.head);}catch{/* Publication is already committed; snapshot storage is optional. */}return {...result,...(publicChanged(manifest)?{cacheRefreshPending:['public-timetable']}:{})};};
- return {async run(action,input={}){
-  if(action==='publish'){
-   const saved=await db.prepare('SELECT * FROM setup_batches WHERE batch_id=?').bind(String(input.batchId||'')).first();
-   if(saved?.accepted_head&&saved.actor_account_id===auth.user.accountid&&saved.digest===input.digest)return published({head:saved.accepted_head,batchId:saved.batch_id,replayed:true},JSON.parse(saved.manifest_json));
+// Finish one verified feature operation. The receipt contains only that
+// operation's before/after rows, captured inside its source transaction.
+export async function acceptFeatureChange(repository,auth,input){
+ requireAdmin(auth);const db=repository.db,p=(sql,...values)=>db.prepare(sql).bind(...values);
+ if(!['dataset','scope','operationId'].every(k=>typeof input[k]==='string'&&input[k].length<=250))throw fail('Choose the saved change.',400,'INVALID_CHANGE');
+ for(let attempt=0;attempt<3;attempt++){
+  const receipt=await p('SELECT * FROM operation_receipts WHERE dataset_key=? AND scope_key=? AND operation_id=?',input.dataset,input.scope,input.operationId).first();
+  if(!receipt||receipt.actor_account_id!==auth.user.accountid)throw fail('This saved change belongs to another account.',403,'FORBIDDEN');
+  const saved=JSON.parse(receipt.result_json),change=saved._acceptedChange;
+  if(!change)throw fail('Open this older change in its editor and save it again.',409,'LEGACY_CHANGE_RETRY');
+  const read=(await db.batch([p('SELECT version,(SELECT head_id FROM setup_head_state WHERE singleton=1) head FROM academy_write_state WHERE singleton=1'),p('SELECT c.* FROM setup_head_components v JOIN setup_components c USING(component_id) WHERE v.head_id=(SELECT head_id FROM setup_head_state WHERE singleton=1)'),p(teacherAreasSQL)])).map(r=>r.results);
+  const state=read[0][0],accepted=read[1];
+  if(saved._acceptedHead)return {head:state.head,replayed:true,...(saved._acceptedPublic?{cacheRefreshPending:['public-timetable']}:{})};
+  const selected=new Map(),scopes=[],touchedRegisters=new Set();
+  for(const delta of change.tables){
+   const spec=setupSchema[delta.table];if(!spec)throw fail('Saved change verification failed.',409,'CHANGE_INVALID');
+   const identity=row=>stableJSON(spec.keys.map(k=>typeof row[k]==='string'&&spec.nocase?.includes(k)?row[k].toUpperCase():row[k]));
+   const before=new Map(delta.before.map(v=>[identity(v.row),v])),after=new Map(delta.after.map(v=>[identity(v.row),v]));
+   const keys=[...new Set([...before.keys(),...after.keys()])];if(delta.table==='assessment_registers')for(const v of [...before.values(),...after.values()])touchedRegisters.add(v.row.register_id);
+   const sourceRows=(await p(`SELECT ${jsonRowSQL(spec.columns)} row_json FROM json_each(?) key JOIN ${delta.table} ON ${spec.keys.map(k=>`${delta.table}.${k} IS json_extract(key.value,'$.${k}')${spec.nocase?.includes(k)?' COLLATE NOCASE':''}`).join(' AND ')}`,JSON.stringify(keys.map(key=>Object.fromEntries(spec.keys.map(k=>[k,(after.get(key)||before.get(key)).row[k]]))))).all()).results;
+   const source=new Map(sourceRows.map(r=>{const row=JSON.parse(r.row_json);return [identity(row),row];}));
+   const material=spec.columns.filter(c=>!spec.live?.includes(c)&&!['revision','updated_at','updated_by','updated_by_account_id','created_at'].includes(c));
+   for(const rowKey of keys){
+    const prior=before.get(rowKey),next=after.get(rowKey),scope=String((next||prior).scope).toUpperCase(),componentKey=delta.table+'|'+scope,current=source.get(rowKey);
+    const confirmed=new Set((change.confirmations||[]).filter(c=>c.table===delta.table&&c.keys.some(k=>identity(k)===rowKey)).flatMap(c=>c.fields));
+    const changed=next?material.filter(k=>change.fullRows||confirmed.has(k)||!prior||stableJSON(prior.row[k])!==stableJSON(next.row[k])):material;
+    if(next?(!current||changed.some(k=>stableJSON(current[k])!==stableJSON(next.row[k]))):current)throw fail('This saved entry has changed again. Open the latest entry before saving.',409,'CHANGE_SUPERSEDED');
+    if(!selected.has(componentKey)){const old=accepted.find(c=>key(c)===componentKey);selected.set(componentKey,{table_name:delta.table,scope_key:scope,rows_json:old?.rows_json||'[]'});}
+    const component=selected.get(componentKey),rows=JSON.parse(component.rows_json),index=rows.findIndex(r=>identity(r)===rowKey);
+    if(!next){if(index>=0)rows.splice(index,1);}
+    else if(index<0)rows.push(next.row);
+    else{const row={...rows[index]};for(const field of changed)row[field]=next.row[field];rows[index]=row;}
+    component.rows_json=JSON.stringify(rows);if(!(delta.table==='assessment_registers'&&scope==='GLOBAL')&&!scopes.includes(scope))scopes.push(scope);
+   }
   }
-  if(action==='resolve'){await sourceOperation(db,auth,input.sourceOperation||{});const batch=await db.prepare("SELECT accepted_head FROM setup_batches WHERE actor_account_id=? AND json_extract(manifest_json,'$.sourceOperation.operationId')=? AND json_extract(manifest_json,'$.sourceOperation.dataset')=? AND json_extract(manifest_json,'$.sourceOperation.scope')=? AND accepted_head IS NOT NULL ORDER BY created_at LIMIT 1").bind(auth.user.accountid,input.sourceOperation.operationId,input.sourceOperation.dataset,input.sourceOperation.scope).first();return {head:batch?.accepted_head||null};}
-  requireAdmin(auth);
-  if(action==='options'){
-   const state=actualState(auth),areas=(await db.prepare('SELECT activity_key,name FROM activities ORDER BY name').all()).results.filter(a=>administers(auth,a.activity_key));
-   const teacherAreas=(await db.prepare(teacherAreasSQL).all()).results,availability=(await db.prepare('SELECT t.account_id,a.display_name FROM teacher_availability t JOIN accounts a USING(account_id) ORDER BY a.display_name').all()).results.filter(t=>state.account.global_admin||teacherAreas.some(a=>a.account_id===t.account_id)&&teacherAreas.filter(a=>a.account_id===t.account_id).every(a=>administers(auth,a.activity_key)));
-   return {areas:[...(state.account.global_admin?[{activity_key:'GLOBAL',name:'Academy shared setup'}]:[]),...areas,...availability.map(t=>({activity_key:'TEACHER:'+t.account_id.toUpperCase(),name:t.display_name+' availability'}))],families:[...new Set(Object.values(setupSchema).map(s=>s.family))]};
+  await includeRequiredDefinitions(db,accepted,selected,scopes,touchedRegisters,auth);includeSharedNames({accepted},selected,scopes);const authorityScopes=authorize(auth,scopes,read[2]);
+  validateReferences(accepted,selected);await validateAcceptedSessionPdfs(db,accepted,selected);
+  const components=[];for(const c of selected.values()){
+   const rows=canonicalRows(c.table_name,JSON.parse(c.rows_json)),digest=await payloadHash(rows),previous=accepted.find(v=>key(v)===key(c));
+   if(digest!==previous?.digest&&(rows.length||previous))components.push({...c,rows_json:JSON.stringify(rows),row_count:rows.length,digest});
   }
-  if(action==='review'){
-   const c=await candidate(db,auth,input);return {manifest:c.manifest,digest:c.digest,changes:c.changes};
-  }
-  if(action==='freeze'){
-   const c=await candidate(db,auth,input);
-   if(input.digest!==c.digest)throw fail('Setup changed after review. Review the complete change again.',409,'SETUP_REVIEW_CHANGED');
-   if(!c.components.length)throw fail('There are no unpublished changes in this selection.',409,'SETUP_NO_CHANGES');
-   const batch=id(),now=new Date().toISOString(),g=guard(db,{version:c.manifest.sourceVersion,head:c.manifest.expectedHead},auth,c.manifest.authorityScopes);
-   try{await db.batch([g.check,db.prepare('INSERT INTO setup_batches VALUES(?,?,?,?,?,?,?,?,NULL)').bind(batch,auth.user.accountid,JSON.stringify(c.manifest.scopes),c.manifest.sourceVersion,c.manifest.expectedHead,c.digest,JSON.stringify(c.manifest),now),...insertComponents(db,batch,c.components),g.clear]);}
-   catch(e){if(/academy_management_stale/.test(e.message))throw fail('Setup or your access changed. Review again.',409,'SETUP_REVIEW_CHANGED');throw e;}
-   return {batchId:batch,digest:c.digest,manifest:c.manifest};
-  }
-  if(action==='publish'){
-   const batch=await db.prepare('SELECT * FROM setup_batches WHERE batch_id=?').bind(String(input.batchId||'')).first();
-   if(!batch||batch.actor_account_id!==auth.user.accountid||batch.digest!==input.digest)throw fail('This reviewed publication is not available.',404,'SETUP_BATCH_NOT_FOUND');
-   const manifest=JSON.parse(batch.manifest_json);authorize(auth,manifest.authorityScopes);
-   if(batch.accepted_head)return published({head:batch.accepted_head,batchId:batch.batch_id,replayed:true},manifest);
-   const components=(await db.prepare('SELECT * FROM setup_components WHERE batch_id=? ORDER BY table_name,scope_key').bind(batch.batch_id).all()).results;
-   if(components.length!==manifest.components.length)throw fail('The complete publication is not available.',409,'SETUP_COMPONENT_MISSING');
-   for(const c of components){const entry=manifest.components.find(e=>e.table===c.table_name&&e.scope===c.scope_key);if(!entry||entry.digest!==c.digest||c.row_count!==entry.rows||await payloadHash(JSON.parse(c.rows_json))!==c.digest)throw fail('Publication verification failed.',409,'SETUP_COMPONENT_CHANGED');}
-   const current=await candidate(db,auth,{...manifest.selection,...(manifest.sourceOperation?{sourceOperation:manifest.sourceOperation}:{})});
-   if(current.digest!==batch.digest)throw fail('Setup changed after review. Review again before publishing.',409,'SETUP_REVIEW_CHANGED');
-   const head=id(),now=new Date().toISOString(),g=guard(db,{version:batch.source_version,head:batch.expected_head},auth,manifest.authorityScopes);
-   try{await db.batch([g.check,...headStatements(db,batch.batch_id,head,batch.expected_head,auth.user.accountid,now,repository.features?.mediaSeparation),...(publicChanged(manifest)?[markRefresh((sql,...values)=>db.prepare(sql).bind(...values),'public-timetable',auth.user.accountid)]:[]),db.prepare(`INSERT INTO audit_events(event_id,occurred_at,actor_account_id,authority,scope_key,action,record_kind,record_id,changed_fields_json) VALUES(?,?,?,?,?,'setup-publish','ACCEPTED_SETUP',?,?)`).bind(id(),now,auth.user.accountid,actualState(auth).account.global_admin?'GLOBAL_ADMIN':'PROGRAM_ADMIN',manifest.scopes.join(','),batch.batch_id,JSON.stringify(manifest.components)),g.clear]);}
-   catch(e){const saved=await db.prepare('SELECT accepted_head FROM setup_batches WHERE batch_id=?').bind(batch.batch_id).first();if(saved?.accepted_head)return published({head:saved.accepted_head,batchId:batch.batch_id,replayed:true},manifest);if(/lesson_media_pdf_limit/.test(e.message))throw fail('A session would exceed ten PDFs including Teacher notes. Curate its attachments before publishing.',409,'SETUP_MEDIA_LIMIT');if(/academy_management_stale/.test(e.message))throw fail('Setup, publication or access changed. Review again.',409,'SETUP_REVIEW_CHANGED');throw e;}
-   return published({head,batchId:batch.batch_id},manifest);
-  }
-  throw fail('Unknown setup action.',400);
- }};
+  const batch=id(),head=components.length?id():state.head,now=new Date().toISOString(),publicChanged=components.some(c=>['activities','program_settings','course_settings','course_runs','course_run_state','timetable_publications','published_lessons','program_publication_state','academy_calendar_events','academy_calendar_suppressions','academy_settings'].includes(c.table_name)),g=guard(db,{version:state.version,head:state.head},auth,authorityScopes);
+  const manifest={format,schemaDigest:await payloadHash(setupSchema),sourceOperation:{dataset:input.dataset,scope:input.scope,operationId:input.operationId},sourceVersion:state.version,expectedHead:state.head,automatic:true,scopes,authorityScopes,components:components.map(c=>({table:c.table_name,scope:c.scope_key,rows:c.row_count,digest:c.digest}))};
+  try{
+   // Immutable candidates are staged privately before Core acceptance. This
+   // retains the existing split coordinator's publication fence and recovery.
+   if(components.length)await db.batch([g.check,p('INSERT INTO setup_batches VALUES(?,?,?,?,?,?,?,?,NULL)',batch,auth.user.accountid,JSON.stringify(scopes),state.version,state.head,await payloadHash(manifest),JSON.stringify(manifest),now),...insertComponents(db,batch,components),g.clear]);
+   await db.batch([g.check,...(components.length?headStatements(db,batch,head,state.head,auth.user.accountid,now,repository.features?.mediaSeparation):[]),...(publicChanged?[markRefresh(p,'public-timetable',auth.user.accountid)]:[]),p("UPDATE operation_receipts SET result_json=json_set(result_json,'$._acceptedHead',?,'$._acceptedPublic',?) WHERE dataset_key=? AND scope_key=? AND operation_id=? AND actor_account_id=?",head,Number(publicChanged),input.dataset,input.scope,input.operationId,auth.user.accountid),p("INSERT INTO audit_events(event_id,occurred_at,actor_account_id,authority,scope_key,action,record_kind,record_id,changed_fields_json) VALUES(?,?,?,?,?,'feature-accept','ACCEPTED_SETUP',?,?)",id(),now,auth.user.accountid,actualState(auth).account.global_admin?'GLOBAL_ADMIN':'PROGRAM_ADMIN',scopes.join(','),input.operationId,JSON.stringify(manifest.components)),g.clear]);}
+  catch(error){if(/academy_management_stale/.test(error.message)&&attempt<2)continue;if(/lesson_media_pdf_limit/.test(error.message))throw fail('A session would exceed ten PDFs including Teacher notes. Curate its attachments before publishing.',409,'SETUP_MEDIA_LIMIT');throw error;}
+  if(components.some(c=>['assessments','assessment_registers','assessment_phases','classes','activities'].includes(c.table_name)))try{await repository.onAssessmentPublication?.(head);}catch{/* Accepted publication is committed; private snapshots can recover on read. */}
+  return {head,...(publicChanged?{cacheRefreshPending:['public-timetable']}:{})};
+ }
+ throw fail('Other work changed while saving. Retry this change.',409,'CHANGE_CHANGED');
 }
