@@ -195,10 +195,11 @@ async function sourceOperation(db,auth,operation){
 }
 export function setupPublication(repository,auth){
  const db=repository.db;
+ const published=async(result,manifest)=>{if(manifest.components?.some(c=>['assessments','assessment_registers','assessment_phases','classes','activities'].includes(c.table)))try{await repository.onAssessmentPublication?.(result.head);}catch{/* Publication is already committed; snapshot storage is optional. */}return result;};
  return {async run(action,input={}){
   if(action==='publish'){
    const saved=await db.prepare('SELECT * FROM setup_batches WHERE batch_id=?').bind(String(input.batchId||'')).first();
-   if(saved?.accepted_head&&saved.actor_account_id===auth.user.accountid&&saved.digest===input.digest)return {head:saved.accepted_head,batchId:saved.batch_id,replayed:true};
+   if(saved?.accepted_head&&saved.actor_account_id===auth.user.accountid&&saved.digest===input.digest)return published({head:saved.accepted_head,batchId:saved.batch_id,replayed:true},JSON.parse(saved.manifest_json));
   }
   if(action==='resolve'){await sourceOperation(db,auth,input.sourceOperation||{});const batch=await db.prepare("SELECT accepted_head FROM setup_batches WHERE actor_account_id=? AND json_extract(manifest_json,'$.sourceOperation.operationId')=? AND json_extract(manifest_json,'$.sourceOperation.dataset')=? AND json_extract(manifest_json,'$.sourceOperation.scope')=? AND accepted_head IS NOT NULL ORDER BY created_at LIMIT 1").bind(auth.user.accountid,input.sourceOperation.operationId,input.sourceOperation.dataset,input.sourceOperation.scope).first();return {head:batch?.accepted_head||null};}
   requireAdmin(auth);
@@ -223,7 +224,7 @@ export function setupPublication(repository,auth){
    const batch=await db.prepare('SELECT * FROM setup_batches WHERE batch_id=?').bind(String(input.batchId||'')).first();
    if(!batch||batch.actor_account_id!==auth.user.accountid||batch.digest!==input.digest)throw fail('This reviewed publication is not available.',404,'SETUP_BATCH_NOT_FOUND');
    const manifest=JSON.parse(batch.manifest_json);authorize(auth,manifest.authorityScopes);
-   if(batch.accepted_head)return {head:batch.accepted_head,batchId:batch.batch_id,replayed:true};
+   if(batch.accepted_head)return published({head:batch.accepted_head,batchId:batch.batch_id,replayed:true},manifest);
    const components=(await db.prepare('SELECT * FROM setup_components WHERE batch_id=? ORDER BY table_name,scope_key').bind(batch.batch_id).all()).results;
    if(components.length!==manifest.components.length)throw fail('The complete publication is not available.',409,'SETUP_COMPONENT_MISSING');
    for(const c of components){const entry=manifest.components.find(e=>e.table===c.table_name&&e.scope===c.scope_key);if(!entry||entry.digest!==c.digest||c.row_count!==entry.rows||await payloadHash(JSON.parse(c.rows_json))!==c.digest)throw fail('Publication verification failed.',409,'SETUP_COMPONENT_CHANGED');}
@@ -231,8 +232,8 @@ export function setupPublication(repository,auth){
    if(current.digest!==batch.digest)throw fail('Setup changed after review. Review again before publishing.',409,'SETUP_REVIEW_CHANGED');
    const head=id(),now=new Date().toISOString(),g=guard(db,{version:batch.source_version,head:batch.expected_head},auth,manifest.authorityScopes);
    try{await db.batch([g.check,...headStatements(db,batch.batch_id,head,batch.expected_head,auth.user.accountid,now,repository.features?.mediaSeparation),db.prepare(`INSERT INTO audit_events(event_id,occurred_at,actor_account_id,authority,scope_key,action,record_kind,record_id,changed_fields_json) VALUES(?,?,?,?,?,'setup-publish','ACCEPTED_SETUP',?,?)`).bind(id(),now,auth.user.accountid,actualState(auth).account.global_admin?'GLOBAL_ADMIN':'PROGRAM_ADMIN',manifest.scopes.join(','),batch.batch_id,JSON.stringify(manifest.components)),g.clear]);}
-   catch(e){const saved=await db.prepare('SELECT accepted_head FROM setup_batches WHERE batch_id=?').bind(batch.batch_id).first();if(saved?.accepted_head)return {head:saved.accepted_head,batchId:batch.batch_id,replayed:true};if(/lesson_media_pdf_limit/.test(e.message))throw fail('A session would exceed ten PDFs including Teacher notes. Curate its attachments before publishing.',409,'SETUP_MEDIA_LIMIT');if(/academy_management_stale/.test(e.message))throw fail('Setup, publication or access changed. Review again.',409,'SETUP_REVIEW_CHANGED');throw e;}
-   return {head,batchId:batch.batch_id};
+   catch(e){const saved=await db.prepare('SELECT accepted_head FROM setup_batches WHERE batch_id=?').bind(batch.batch_id).first();if(saved?.accepted_head)return published({head:saved.accepted_head,batchId:batch.batch_id,replayed:true},manifest);if(/lesson_media_pdf_limit/.test(e.message))throw fail('A session would exceed ten PDFs including Teacher notes. Curate its attachments before publishing.',409,'SETUP_MEDIA_LIMIT');if(/academy_management_stale/.test(e.message))throw fail('Setup, publication or access changed. Review again.',409,'SETUP_REVIEW_CHANGED');throw e;}
+   return published({head,batchId:batch.batch_id},manifest);
   }
   throw fail('Unknown setup action.',400);
  }};

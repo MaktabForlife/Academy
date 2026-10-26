@@ -13,7 +13,7 @@ test('the actual Workers runtime coordinates both D1 bindings through private Du
   const db=f.databases[owner],target=await runtime.getD1Database(owner==='core'?'ACADEMY_DB':'ACADEMY_ADMIN_DB','api'),objects=db.prepare("SELECT type,sql FROM sqlite_schema WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY rowid").all(),schema=f.prepared.schemas[owner],list=importSQL(db,schema,{statementsOnly:true}).flatMap(sql=>sql===schema.tableSQL?objects.filter(o=>o.type==='table').map(o=>o.sql):sql===schema.afterSQL?objects.filter(o=>o.type!=='table').map(o=>o.sql):[sql]);
   for(let i=0;i<list.length;i+=30)await target.batch(list.slice(i,i+30).map(sql=>target.prepare(sql)));
  }
- const request=async(path,input,token)=>{const r=await runtime.dispatchFetch('https://academy.test'+path,{method:'POST',headers:{'Content-Type':'application/json','X-Academy-Workspace':'ADMIN',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),body=await r.json();assert.equal(r.status,200,JSON.stringify(body));return body;};
+ const request=async(path,input,token,workspace='ADMIN')=>{const r=await runtime.dispatchFetch('https://academy.test'+path,{method:'POST',headers:{'Content-Type':'application/json','X-Academy-Workspace':workspace,...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),body=await r.json();assert.equal(r.status,200,JSON.stringify(body));return body;};
  const login=await request('/api/account/login',{uniqueid:'separation-global',pin:'1234'}),token=login.token,scope=f.scopes.courseA;
  const storage=await runtime.getR2Bucket('LESSON_MEDIA_BUCKET','api'),permissions=await storage.list({prefix:'academy-private-permissions/'});assert.equal(permissions.objects.length,1,'Sign-in creates the private permission snapshot');
  const cached=await (await storage.get(permissions.objects[0].key)).json();assert(!Object.hasOwn(cached.data,'account'));assert(!JSON.stringify(cached).includes('pin_hash'));
@@ -21,5 +21,17 @@ test('the actual Workers runtime coordinates both D1 bindings through private Du
  const media=await request('/api/academy/lesson-media/course-files-create',{activityKey:scope,operationId:crypto.randomUUID()},token);assert(media.lessonId);
  const selection={scopes:[scope]},review=await request('/api/admin/platform/setup/review',selection,token),frozen=await request('/api/admin/platform/setup/freeze',{...selection,digest:review.digest},token),accepted=await request('/api/admin/platform/setup/publish',{batchId:frozen.batchId,digest:frozen.digest},token);assert(accepted.head);
  const admin=await runtime.getD1Database('ACADEMY_ADMIN_DB','api'),core=await runtime.getD1Database('ACADEMY_DB','api');assert.equal((await admin.prepare('SELECT count(*) n FROM split_command_parts').first()).n,0);assert.equal((await core.prepare('SELECT count(*) n FROM split_write_fence').first()).n,0);
+ const operation=()=>({operationId:crypto.randomUUID()}),path='/api/academy/assessments/',activityKey=f.scopes.programA;
+ const register=await request(path+'register-create',{...operation(),name:'Runtime snapshot',activityKeys:[activityKey],classMode:'ALL',status:'REGISTERED'},token);
+ const saved=await request(path+'schedule-batch',{...operation(),registerId:register.registerId,revision:1,rows:[{activityKey,classId:'class-1',title:'Runtime published paper',subject:'Qasas',examDate:'2099-11-09',durationMinutes:60,maximumMark:100}]},token);
+ await request(path+'register-release',{...operation(),registerId:register.registerId,revision:saved.revision},token);
+ const assessmentReview=await request('/api/admin/platform/setup/review',{scopes:[activityKey]},token),assessmentFrozen=await request('/api/admin/platform/setup/freeze',{scopes:[activityKey],digest:assessmentReview.digest},token);
+ const assessmentAccepted=await request('/api/admin/platform/setup/publish',{batchId:assessmentFrozen.batchId,digest:assessmentFrozen.digest},token);
+ const definitionObjects=await storage.list({prefix:'academy-published-assessments/'});assert.equal(definitionObjects.objects.length,1,'Publication warms the actual private R2 snapshot');
+ const definition=await (await storage.get(definitionObjects.objects[0].key)).json();assert.equal(definition.head,assessmentAccepted.head);assert.equal(definition.rows[0].assessment_id,saved.assessmentIds[0]);assert(!Object.hasOwn(definition.rows[0],'paper_file_id'));
+ const learner=await request('/api/account/login',{uniqueid:f.source.db.prepare("SELECT login_link_id FROM accounts WHERE account_id='account-0002'").get().login_link_id,pin:'1234'},undefined,'LEARN');
+ const learnerList=await request(path+'list',{},learner.token,'LEARN');assert.equal(learnerList.assessments[0].id,saved.assessmentIds[0]);
+ assert.deepEqual(await request(path+'list',{},learner.token,'LEARN'),learnerList);
+ assert.equal((await request(path+'get',{assessmentId:saved.assessmentIds[0]},learner.token,'LEARN')).assessment.title,'Runtime published paper');
  }finally{await runtime?.dispose();f.close();}
 });

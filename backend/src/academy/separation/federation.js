@@ -35,7 +35,11 @@ export function federationContext({core,admin,owner='admin'}){
  const sources={core,admin};
  async function capture(store,names){
   names=[...new Set(names)].filter(n=>storeColumns[store][n]||store==='core'&&(computed[n]||emptyShapes[n]));if(!names.length)return {};
-  const parts=names.map(n=>{const cols=storeColumns[store][n]||computed[n]||emptyShapes[n],row=n==='account_credentials'?"json_object('account_id',account_id,'pin_hash',CASE WHEN length(trim(pin_hash))>0 THEN 'VERIFIED' ELSE '' END,'pin_setup',pin_setup,'credential_epoch',credential_epoch)":jsonRowSQL(cols);return '('+literal(n)+',(SELECT json_group_array('+row+') FROM '+n+'))';});
+  const parts=names.map(n=>{const cols=storeColumns[store][n]||computed[n]||emptyShapes[n],row=n==='account_credentials'?"json_object('account_id',account_id,'pin_hash',CASE WHEN length(trim(pin_hash))>0 THEN 'VERIFIED' ELSE '' END,'pin_setup',pin_setup,'credential_epoch',credential_epoch)":jsonRowSQL(cols);
+   // Core ignores Admin-owned settings except the counters that combine both
+   // owners. Keep their exact, case-sensitive prefix and use the existing PK.
+   const where=store==='admin'&&owner==='core'&&n==='academy_settings'?" WHERE setting_key>='AcademyWrite:' AND setting_key<'AcademyWrite;'":'';
+   return '('+literal(n)+',(SELECT json_group_array('+row+') FROM '+n+where+'))';});
   const result=await sources[store].prepare('WITH split_capture(name,data) AS(VALUES '+parts.join(',')+') SELECT name,data FROM split_capture').all();return Object.fromEntries(result.results.map(r=>[r.name,JSON.parse(r.data)]));
  }
  async function snapshot(sqls,extra=[]){

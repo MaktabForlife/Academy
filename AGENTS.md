@@ -1,3 +1,10 @@
+# Local read optimisation follow-up — 26 October 2026
+
+- Work on `feature/academy-read-optimisation-2`, based on V107.70, to reduce remaining reads and assess reusable published assessment snapshots for learners.
+- Do not push, deploy, apply hosted SQL or change live settings until the user approves. This overrides earlier release authorisations below.
+- Preserve app behaviour and permissions. Keep sessions, revocations, learner ownership, release gates and time-based access current.
+- Keep live checks small: reuse saved analytics and use local disposable fixtures for implementation and measurements.
+
 # Messaging release — 26 October 2026
 
 - The user explicitly requested deploying messaging after confirming V107.68 was deployed. Release V107.69 from `feature/academy-messaging` to the existing Development API and website, including only the additive Core messaging schema upgrade.

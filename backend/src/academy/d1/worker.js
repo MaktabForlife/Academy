@@ -1,3 +1,4 @@
+import {warmPublishedAssessments} from './published-assessments.js';
 import {assessmentManualMarks} from './assessment-manual-marks.js';
 import {conditionalRead} from './read-cache.js';
 import {privateSnapshot} from './private-snapshot.js';
@@ -202,7 +203,7 @@ async function dispatch(request,env) {
   const nativeAction=path.match(/^\/api\/(?:academy\/attendance|program-attendance)\/(options|get|submit|prepare|recover|report|roster-get|roster-save|substitute-save|substitute-revoke|substitute-reopen)$/)?.[1];
   if(nativeAction&&sourceRepository.features.nativeAttendance)return {success:true,...await nativeAttendance(await readRepository(),auth).run(nativeAction,input)};
   const setupAction=path.match(/^\/api\/admin\/platform\/setup\/(options|review|freeze|publish|resolve)$/)?.[1];
-  if(setupAction){if(!setupEnabled(env))throw rehearsalError('Accepted setup is not enabled.',503,'SETUP_PUBLICATION_REQUIRED');return {success:true,...await setupPublication(repository,auth).run(setupAction,input)};}
+  if(setupAction){if(!setupEnabled(env))throw rehearsalError('Accepted setup is not enabled.',503,'SETUP_PUBLICATION_REQUIRED');const publishing={...repository,onAssessmentPublication:head=>warmPublishedAssessments(acceptedRepository(sourceRepository,head),auth)};return {success:true,...await setupPublication(publishing,auth).run(setupAction,input)};}
   if(setupEnabled(env)&&(!isAdminWorkspace(auth)||path==='/api/academy/lesson/join')&&!path.startsWith('/api/account/'))repository=await readRepository();
   const personalAction=path.match(/^\/api\/academy\/my-links\/(list|save|export)$/)?.[1];
   if(personalAction)return {success:true,...await personalLinks(sourceRepository,auth,env).run(personalAction,input)};

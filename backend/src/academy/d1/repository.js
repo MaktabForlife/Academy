@@ -1,4 +1,5 @@
 import {personalLinksEstablished} from './personal-links.js';
+import {publishedSettings} from './published-settings.js';
 import {permissionState,verifiedPermissionVersion} from './permission-state.js';
 import {emptyCompatibilityDatabase} from '../separation/compatibility.js';
 import {emptyShapes} from '../separation/empty-shapes.js';
@@ -40,6 +41,7 @@ export function academyD1Repository(env) {
     }
   }:null;
   const prepare=(sql,...values)=>db.prepare(sql).bind(...values);
+  const configurationNamespace=[env.ENVIRONMENT,env.ACADEMY_D1_RUN_ID,env.ACADEMY_DB_GENERATION];
   let schemas,activation;
   async function schemaNames(){
     if(split)return ['role_mapping_decisions','effective_course_subscriptions'];
@@ -107,28 +109,35 @@ export function academyD1Repository(env) {
     ownershipForNewActivity:activity=>newActivityOwnership(activity,env),
     subscriptionSource,
     publicAccount,
+    async publishedConfiguration(head){
+      const settings=await publishedSettings(raw,configurationNamespace,head);if(!settings)return null;
+      const live=await raw.prepare("SELECT setting_value FROM academy_settings WHERE setting_key='PersonalMemorisationCards'").first();
+      return {...settings,memorisation_cards:live?.setting_value==='0'?'0':settings.memorisation_cards};
+    },
     async homeConfiguration(){
       if(activation)return {setting_value:activation.timezone,courseWorkflows:true,programWorkspace:activation.program_workspace==='1',memorisationCards:activation.memorisation_cards==='1'};
       return prepare("SELECT setting_value,(SELECT setting_value FROM academy_settings WHERE setting_key='ProgramWorkspace') AS program_workspace,(SELECT setting_value FROM academy_settings WHERE setting_key='PersonalMemorisationCards') AS memorisation_cards FROM academy_settings WHERE setting_key='PlatformTimezone'").first().then(r=>r?{...r,programWorkspace:r.program_workspace==='1',memorisationCards:r.memorisation_cards==='1'}:null);
     },
     async ready(){
       if(split){
-        const result=await prepare(`SELECT generation,source_digest,1 mapped_roles,
+        // Readiness uses only Core facts. Core's settings are already the same
+        // values selected by its federation; no Admin/settings capture is needed.
+        const result=await raw.prepare(`SELECT generation,source_digest,1 mapped_roles,
           (SELECT setting_value FROM academy_settings WHERE setting_key='ProgramWorkspace') program_workspace,
           (SELECT setting_value FROM academy_settings WHERE setting_key='PersonalMemorisationCards') memorisation_cards,
-          (SELECT json_extract(row.value,'$.setting_value') FROM setup_head_state h JOIN setup_head_components v ON v.head_id=h.head_id AND v.table_name='academy_settings' JOIN setup_components c USING(component_id),json_each(c.rows_json) row WHERE json_extract(row.value,'$.setting_key')='PlatformTimezone' LIMIT 1) timezone
+          (SELECT head_id FROM setup_head_state WHERE singleton=1) accepted_head
           FROM split_deployment_state WHERE singleton=1 AND generation='SPLIT_V1' AND state='READY' AND source_digest=?
           AND EXISTS(SELECT 1 FROM setup_head_state) AND EXISTS(SELECT 1 FROM accounts WHERE active=1)
-          AND EXISTS(SELECT 1 FROM global_role_assignments WHERE active=1 AND role='GLOBAL_ADMIN' AND review_state='CONFIRMED')`,env.ACADEMY_D1_RUN_ID).first();
+          AND EXISTS(SELECT 1 FROM global_role_assignments WHERE active=1 AND role='GLOBAL_ADMIN' AND review_state='CONFIRMED')`).bind(env.ACADEMY_D1_RUN_ID).first();
         if(!result)throw rehearsalError('The fresh databases have not completed their verified preparation.',503,'SPLIT_PREPARATION_REQUIRED');
-        activation=result;return;
+        activation={...result,timezone:(await publishedSettings(raw,configurationNamespace,result.accepted_head))?.setting_value??null};return;
       }
       if(env.ACADEMY_D1_MODE==='ACTIVE') {
         // WHERE 0 validates that required schema objects compile without scanning
         // sqlite_schema or subscription rows. All live ownership/evidence guards remain.
         const result=await prepare(`SELECT m.run_id,
           1 AS mapped_roles,(SELECT setting_value FROM academy_settings WHERE setting_key='ProgramWorkspace') AS program_workspace,(SELECT setting_value FROM academy_settings WHERE setting_key='PersonalMemorisationCards') AS memorisation_cards,
-          ${env.ACADEMY_ACCEPTED_SETUP==='1'?`(SELECT json_extract(row.value,'$.setting_value') FROM setup_head_state h JOIN setup_head_components v ON v.head_id=h.head_id AND v.table_name='academy_settings' JOIN setup_components c USING(component_id),json_each(c.rows_json) row WHERE json_extract(row.value,'$.setting_key')='PlatformTimezone' LIMIT 1)`:`(SELECT setting_value FROM academy_settings WHERE setting_key='PlatformTimezone')`} AS timezone FROM migration_runs m
+          ${env.ACADEMY_ACCEPTED_SETUP==='1'?`(SELECT head_id FROM setup_head_state WHERE singleton=1) AS accepted_head`:`(SELECT setting_value FROM academy_settings WHERE setting_key='PlatformTimezone') AS timezone`} FROM migration_runs m
           JOIN learning_imports l ON l.base_run_id=m.run_id AND l.singleton=1 AND l.source_sha256=m.source_snapshot_sha256
           JOIN course_workflow_imports c ON c.base_run_id=m.run_id AND c.singleton=1 AND c.source_sha256=m.source_snapshot_sha256
           WHERE m.run_id=? AND m.state='CUTOVER' AND m.environment IN ('LOCAL','DEVELOPMENT')
@@ -147,7 +156,7 @@ export function academyD1Repository(env) {
         if(!result)throw rehearsalError('Academy activation has not been verified.',503,'ACTIVATION_REQUIRED');
         // Reuse only facts verified in THIS request. Never retain readiness,
         // account permissions or subscriptions across requests.
-        activation=result;
+        activation={...result,...(env.ACADEMY_ACCEPTED_SETUP==='1'?{timezone:(await publishedSettings(raw,configurationNamespace,result.accepted_head))?.setting_value??null}:{})};
         schemas=Promise.resolve({results:[...(result.mapped_roles?[{name:'role_mapping_decisions'}]:[]),{name:'effective_course_subscriptions'}]});
         return;
       }

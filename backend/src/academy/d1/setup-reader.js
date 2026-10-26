@@ -49,5 +49,5 @@ export function acceptedDatabase(db,head,features={}){
 export function acceptedRepository(repository,head){
  const db=acceptedDatabase(repository.db,head,repository.features);
  return {...repository,db,setup:{...repository.setup,head,reader:true},
-  homeConfiguration:async()=>{const row=await db.prepare("SELECT setting_value,(SELECT setting_value FROM academy_settings WHERE setting_key='PersonalMemorisationCards') memorisation_cards FROM academy_settings WHERE setting_key='PlatformTimezone'").first();const base=await repository.homeConfiguration();return {...base,...row,memorisationCards:row?.memorisation_cards==='1'};}};
+  homeConfiguration:async()=>{const row=repository.publishedConfiguration?await repository.publishedConfiguration(head):await db.prepare("SELECT setting_value,(SELECT setting_value FROM academy_settings WHERE setting_key='PersonalMemorisationCards') memorisation_cards FROM academy_settings WHERE setting_key='PlatformTimezone'").first();const base=await repository.homeConfiguration();return {...base,...row,memorisationCards:row?.memorisation_cards==='1'};}};
 }
