@@ -1,17 +1,9 @@
-import {assessmentResultsSQL} from './assessment-results.js';
+import {imtihaanMarkingSnapshot,requireMarkingValidation,reportReleaseStatements} from './assessment-imtihaan-workflow.js';
 import {managementError as fail} from './management-store.js';
 import {paperReplacementOpen} from './assessment-store.js';
 
-// External moderation is confirmed before marks are transcribed. Read its
-// latest audited decision; entering numbers does not imply moderation.
-export async function assessmentTableStates(s,rows){
- if(!rows.length)return new Map();const ids=JSON.stringify(rows.map(a=>a.assessment_id));
- const data=(await s.p(`SELECT a.assessment_id,COALESCE(r.entered,0) entered,COALESCE(r.accessed,0) accessed,
-  (SELECT details_json FROM assessment_events e WHERE e.assessment_id=a.assessment_id AND e.action='marks-moderated' ORDER BY CAST(json_extract(e.details_json,'$.revision') AS INTEGER) DESC,e.occurred_at DESC,e.event_id DESC LIMIT 1) moderation
-  FROM assessments a LEFT JOIN (SELECT assessment_id,sum(latest_mark_id IS NOT NULL) entered,sum(first_accessed_at IS NOT NULL OR latest_submission_id IS NOT NULL) accessed FROM assessment_recipients WHERE assessment_id IN(SELECT value FROM json_each(?)) GROUP BY assessment_id) r USING(assessment_id)
-  WHERE a.assessment_id IN(SELECT value FROM json_each(?))`,ids,ids).all()).results;
- return new Map(data.map(r=>{const m=r.moderation?JSON.parse(r.moderation):null;return [r.assessment_id,{...r,moderated:Boolean(m?.approved)}];}));
-}
+import {assessmentTableStates} from './assessment-marking-state.js';
+export {assessmentTableStates} from './assessment-marking-state.js';
 
 export async function assessmentTablePlan(s,a,row,context){
  const {p}=s,changes=row.changes||{},stats=context.tableStates.get(a.assessment_id),now=new Date().toISOString(),statements=[];
@@ -43,37 +35,22 @@ export async function assessmentTablePlan(s,a,row,context){
   statements.push(p('INSERT INTO assessment_collection VALUES(?,?,?,?,?,?) ON CONFLICT(assessment_id) DO UPDATE SET closed_at=excluded.closed_at,revision=excluded.revision,updated_at=excluded.updated_at,updated_by=excluded.updated_by',a.assessment_id,collection?.effective_due_at||null,changes.closed?(collection?.closed_at||now):null,revision+1,now,s.actor));
  }
  if('marksModerated' in changes){
-  // This checkbox confirms external moderation before mark transcription.
-  statements.push(s.event(a,'marks-moderated',{approved:changes.marksModerated,mode:'EXTERNAL',revision:a.revision+1}));
+  if(changes.marksModerated)await s.moderator(a);
+  statements.push(s.event(a,'marks-moderated',{approved:changes.marksModerated,mode:'MANUAL',revision:a.revision+1}));
  }
  statements.push(s.touch(a),s.event(a,'table-save',{fields:Object.keys(changes),revision:a.revision+1}));
  return {statements};
 }
 
-export async function assessmentRegisterMarks(s,input,preview=false){
- const build=async()=>{
-  const register=await s.p('SELECT * FROM assessment_registers WHERE register_id=?',String(input.registerId||'')).first();
-  if(!register)throw fail('Imtihaan not found.',404);
-  const rows=(await s.p('SELECT * FROM assessments WHERE register_id=? AND deleted_at IS NULL LIMIT 1001',register.register_id).all()).results;
-  if(!rows.length||rows.length>1000)throw fail('Choose an Imtihaan with between 1 and 1,000 class assessments.',409);
-  await s.requireAdminClasses([...new Map(rows.map(a=>[JSON.stringify([a.activity_key,a.class_id]),{activityKey:a.activity_key,classId:a.class_id}])).values()]);
-  const states=await assessmentTableStates(s,rows),ids=JSON.stringify(rows.map(a=>a.assessment_id));
-  const recipients=(await s.p(`SELECT r.*,m.state,m.manual,m.submission_id FROM assessment_recipients r LEFT JOIN (${assessmentResultsSQL}) m ON m.mark_id=r.latest_mark_id WHERE r.assessment_id IN(SELECT value FROM json_each(?))`,ids).all()).results;
-  const roster=await s.rosters(rows),expected=new Set([...roster.map(r=>JSON.stringify([r.assessment_id,r.account_id])),...recipients.map(r=>JSON.stringify([r.assessment_id,r.account_id]))]);
-  const entered=recipients.filter(r=>r.latest_mark_id),pending=entered.filter(r=>r.released_mark_id!==r.latest_mark_id),missing=expected.size-entered.length;
-  const unmoderated=rows.filter(a=>pending.some(r=>r.assessment_id===a.assessment_id)&&(!states.get(a.assessment_id)?.moderated||entered.some(r=>r.assessment_id===a.assessment_id&&(r.state!=='APPROVED'||r.manual!==1&&r.submission_id!==r.latest_submission_id))));
-  const result={registerId:register.register_id,name:register.name,revision:register.revision,papers:rows.map(a=>({id:a.assessment_id,revision:a.revision})),marks:pending.length,missing,unmoderated:unmoderated.map(a=>a.title)};
-  return {register,rows,pending,result};
- };
- if(preview)return (await build()).result;
+export async function assessmentRegisterMarks(s,input,preview=false,auth){
+ if(preview)return (await imtihaanMarkingSnapshot(s,input,auth)).result;
  return s.change('register-marks-release',input,String(input.registerId||''),async()=>{
-  const {register,rows,pending,result}=await build();
-  if(input.revision!==register.revision||!Array.isArray(input.papers)||input.papers.length!==rows.length||new Set(input.papers.map(p=>p.id)).size!==rows.length||rows.some(a=>!input.papers.some(p=>p.id===a.assessment_id&&p.revision===a.revision)))throw fail('The Imtihaan changed. Review its marks again before release.',409,'ROW_CHANGED');
-  if(input.marks!==result.marks||input.missing!==result.missing)throw fail('The marks or student list changed. Review the Imtihaan release again.',409,'ROW_CHANGED');
+  const snapshot=await imtihaanMarkingSnapshot(s,input,auth),{register,rows,pending,result}=snapshot;
+  requireMarkingValidation(snapshot);
+  if(input.confirm!==true||input.fingerprint!==result.fingerprint||input.revision!==register.revision||!Array.isArray(input.papers)||input.papers.length!==rows.length||rows.some(a=>!input.papers.some(p=>p.id===a.assessment_id&&p.revision===a.revision)))throw fail('The Imtihaan changed. Validate its marking again before release.',409,'ROW_CHANGED');
+  if(!result.reportsReady)throw fail('Generate current Imtihaan reports after moderation and before releasing marks.',409,'REPORTS_REQUIRED');
   if(!pending.length)throw fail('There are no new marks to release.',409,'MARKS_REQUIRED');
-  if(result.unmoderated.length)throw fail('Confirm Marks moderated for: '+result.unmoderated.join(', '),409,'MARKS_NOT_MODERATED');
-  if(result.missing&&input.confirmIncomplete!==true)throw fail(`${result.missing} marks are missing. Confirm that blanks will remain pending.`,409,'INCOMPLETE_MARKS');
   const ids=[...new Set(pending.map(r=>r.assessment_id))];
-  return {statements:[s.p(`UPDATE assessment_recipients SET released_mark_id=latest_mark_id,revision=revision+1 WHERE assessment_id IN(SELECT value FROM json_each(?)) AND latest_mark_id IS NOT NULL AND released_mark_id IS NOT latest_mark_id`,JSON.stringify(ids)),...rows.filter(a=>ids.includes(a.assessment_id)).flatMap(a=>[s.touch(a),s.event(a,'release',{category:'marks',registerId:register.register_id,accountIds:'CLASS'})]),s.p('UPDATE assessment_registers SET revision=revision+1,updated_at=? WHERE register_id=?',new Date().toISOString(),register.register_id)],result:{released:pending.length,missing:result.missing,registerId:register.register_id}};
+  return {statements:[s.p(`UPDATE assessment_recipients SET released_mark_id=latest_mark_id,revision=revision+1 WHERE assessment_id IN(SELECT value FROM json_each(?)) AND latest_mark_id IS NOT NULL AND released_mark_id IS NOT latest_mark_id`,JSON.stringify(ids)),...rows.filter(a=>ids.includes(a.assessment_id)).flatMap(a=>[s.touch(a),s.event(a,'release',{category:'marks',registerId:register.register_id,accountIds:'CLASS',fingerprint:result.fingerprint})]),...(input.releaseReports===true?reportReleaseStatements(s,snapshot):[]),s.p('UPDATE assessment_registers SET revision=revision+1,updated_at=? WHERE register_id=?',new Date().toISOString(),register.register_id)],result:{released:pending.length,missing:result.missing,reportsReleased:input.releaseReports===true?snapshot.reports.length:0,registerId:register.register_id}};
  });
 }

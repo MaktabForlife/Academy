@@ -1,3 +1,4 @@
+import {generateImtihaanFixture} from './fixtures/imtihaan-release-helpers.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -18,7 +19,7 @@ async function use(fn){
    return {status:response.status,body:response.headers.get('Content-Type')?.includes('application/json')?await response.json():new Uint8Array(await response.arrayBuffer())};
   };
   f.accept=async()=>{const input={scopes:[scopes.programA]},review=ok(await f.request('/api/admin/platform/setup/review',input)),batch=ok(await f.request('/api/admin/platform/setup/freeze',{...input,digest:review.digest}));ok(await f.request('/api/admin/platform/setup/publish',{batchId:batch.batchId,digest:batch.digest}));};
-  f.create=async(input={})=>ok(await f.request('create',{...operation(),activityKey:scopes.programA,classId:'class-1',title:'Native assessment',subject:'Qasas',examDate:today(),durationMinutes:60,maximumMark:100,...input})).assessmentId;
+  f.create=async(input={})=>ok(await f.request('create',{...operation(),activityKey:scopes.programA,classId:'class-1',title:'Native assessment',subject:'Qasas',examDate:today(),durationMinutes:60,maximumMark:100,examinerId:!input.activityKey||input.activityKey===scopes.programA?'account-0003':null,...input})).assessmentId;
   f.detail=async(id,who='admin')=>ok(await f.request('get',{assessmentId:id},who));
   f.change=async(id,action,input={},who='admin')=>{const d=await f.detail(id);return f.request(action,{...operation(),assessmentId:id,revision:d.assessment.revision,...(d.group?.canManage?{groupRevisions:d.group.members.map(m=>({id:m.id,revision:m.revision})),groupCollections:d.group.members.map(m=>({id:m.id,revision:m.collectionRevision}))}:{}),...input},who);};
   f.uploadNative=async(id,kind,input={},who='admin')=>{
@@ -55,25 +56,24 @@ test('invalid files, stale revisions, scoped authority and failures cannot parti
  ok(await saveTable(f,registerId,[first]));assert.equal((await saveTable(f,registerId,[first])).body.code,'ROW_CHANGED');
 }));
 
-test('Program Admin replaces released future paper; replacement needs fresh approval and is locked at availability',()=>use(async f=>{
+test('Program Admin replaces released papers before and after availability with confirmation and fresh approval',()=>use(async f=>{
  const id=await f.create({examDate:nextDate(today(),5)});await f.publish(id);const old=await f.releasePaper(id);
  assert.equal((await f.uploadNative(id,'PAPER',{},'teacher')).status,403);
- const changed=ok(await f.uploadNative(id,'PAPER',{label:'replacement'},'programAdmin'));assert.notEqual(changed.fileId,old.fileId);let a=f.db.prepare('SELECT * FROM assessments WHERE assessment_id=?').get(id);assert.equal(a.paper_state,'IN_REVIEW');assert.equal(a.paper_released_at,null);
+ const impact=ok(await f.request('paper-replacement-preview',{assessmentId:id}));const changed=ok(await f.uploadNative(id,'PAPER',{label:'replacement',confirmReplacement:true,replacementFingerprint:impact.fingerprint},'programAdmin'));assert.notEqual(changed.fileId,old.fileId);let a=f.db.prepare('SELECT * FROM assessments WHERE assessment_id=?').get(id);assert.equal(a.paper_state,'IN_REVIEW');assert.equal(a.paper_released_at,null);
  ok(await f.change(id,'review-paper',{decision:'APPROVE',paperReview:{fileId:changed.fileId,sha256:changed.sha256}}));ok(await f.request('release-papers',{...operation(),papers:[{id,revision:(await f.detail(id)).assessment.revision}]}));
  f.db.prepare('UPDATE assessments SET available_from=? WHERE assessment_id=?').run(new Date(Date.now()-1000).toISOString(),id);
- assert.equal((await f.uploadNative(id,'PAPER',{},'programAdmin')).body.code,'PAPER_ALREADY_AVAILABLE');
+ const after=ok(await f.request('paper-replacement-preview',{assessmentId:id}));ok(await f.uploadNative(id,'PAPER',{label:'available replacement',confirmReplacement:true,replacementFingerprint:after.fingerprint},'programAdmin'));assert.equal(f.db.prepare('SELECT paper_state FROM assessments WHERE assessment_id=?').get(id).paper_state,'IN_REVIEW');
 }));
 
-test('Imtihaan marks release requires external moderation before entry, retains blanks, includes zero and preserves the external confirmation during transcription',()=>use(async f=>{
- const registerId=await reg(f),ids=[await f.create({registerId,title:'Paper A'}),await f.create({registerId,title:'Paper B'})];for(const id of ids){await f.publish(id);assert.equal((await f.request('marks-list',{assessmentId:id})).body.code,'MARKS_NOT_MODERATED');await f.allowMarks(id);}
+test('Imtihaan release follows entry, moderation and private report generation, preserving zero and pending marks',()=>use(async f=>{
+ const registerId=await reg(f),ids=[await f.create({registerId,title:'Paper A'}),await f.create({registerId,title:'Paper B'})];for(const id of ids){await f.publish(id);ok(await f.request('marks-list',{assessmentId:id}));}
  for(const [i,id] of ids.entries()){const list=ok(await f.request('marks-list',{assessmentId:id})),c=list.classes[0],r=c.students[0];ok(await f.request('marks-save',{...operation(),assessmentId:id,groupRevisions:[{id,revision:c.revision}],entries:[{assessmentId:id,accountId:r.accountId,recipientRevision:r.revision,markId:r.markId,mark:i?70:0}]}));}
- let summary=ok(await f.request('register-marks-preview',{registerId}));assert.equal(summary.marks,2);assert.equal(summary.unmoderated.length,0);
- await saveTable(f,registerId,[await tableRow(f,ids[0],{marksModerated:false})]);const blocked=ok(await f.request('register-marks-preview',{registerId}));assert.equal((await f.request('register-marks-release',{...operation(),...blocked,confirmIncomplete:true})).body.code,'MARKS_NOT_MODERATED');
+ let summary=ok(await f.request('register-marks-preview',{registerId}));assert.equal(summary.marks,2);assert.equal(summary.unmoderated.length,2);assert.equal((await f.request('register-marks-release',{...operation(),...summary,confirm:true})).body.code,'MARKING_NOT_READY');
  ok(await saveTable(f,registerId,await Promise.all(ids.map(id=>tableRow(f,id,{ready:true,marksModerated:true})))));
- let list=ok(await f.request('list',{view:'admin'}));assert(ids.every(id=>list.assessments.find(a=>a.id===id).marksModerated));
- summary=ok(await f.request('register-marks-preview',{registerId}));const body={...operation(),...summary,confirmIncomplete:true};assert.equal(ok(await f.request('register-marks-release',body)).released,2);assert.equal(ok(await f.request('register-marks-release',body)).replayed,true);
- list=ok(await f.request('marks-list',{assessmentId:ids[0]}));const c=list.classes[0],r=c.students[0];ok(await f.request('marks-save',{...operation(),assessmentId:ids[0],groupRevisions:[{id:ids[0],revision:c.revision}],entries:[{assessmentId:ids[0],accountId:r.accountId,recipientRevision:r.revision,markId:r.markId,mark:25}]}));
- list=ok(await f.request('list',{view:'admin'}));assert.equal(list.assessments.find(a=>a.id===ids[0]).marksModerated,true);summary=ok(await f.request('register-marks-preview',{registerId}));assert.equal(summary.unmoderated.length,0);assert.equal(summary.marks,1);
+ summary=ok(await f.request('register-marks-preview',{registerId}));assert.equal((await f.request('register-marks-release',{...operation(),...summary,confirm:true})).body.code,'REPORTS_REQUIRED');
+ await generateImtihaanFixture(f,registerId);summary=ok(await f.request('register-marks-preview',{registerId}));const body={...operation(),...summary,confirm:true};assert.equal(ok(await f.request('register-marks-release',body)).released,2);assert.equal(ok(await f.request('register-marks-release',body)).replayed,true);
+ const next=ok(await f.request('marks-list',{assessmentId:ids[0]})),c=next.classes[0],r=c.students[0];ok(await f.request('marks-save',{...operation(),assessmentId:ids[0],groupRevisions:[{id:ids[0],revision:c.revision}],entries:[{assessmentId:ids[0],accountId:r.accountId,recipientRevision:r.revision,markId:r.markId,mark:25}]}));
+ const listed=ok(await f.request('list',{view:'admin'}));assert.equal(listed.assessments.find(a=>a.id===ids[0]).marksModerated,false);summary=ok(await f.request('register-marks-preview',{registerId}));assert.equal(summary.unmoderated.length,1);assert.equal(summary.reportsReady,false);assert.equal(summary.marks,1);
 }));
 
 test('staff progress records actual access and submission times, requires PDF review before receipt, and rejects learners',()=>use(async f=>{

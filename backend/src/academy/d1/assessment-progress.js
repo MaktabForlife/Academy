@@ -3,10 +3,10 @@ import {assessmentGroup} from './assessment-group.js';
 import {managementError as fail} from './management-store.js';
 
 export async function assessmentProgress(repository,auth,input){
- const s=assessmentStore(repository,auth),a=await s.assessment(input.assessmentId);await s.requireAssessmentStaff(a);
+ const s=assessmentStore(repository,auth),a=await s.assessment(input.assessmentId);await s.requireAssessor(a);
  if(!paperAvailable(a))throw fail('Review progress is available once the paper opens to students.',409,'PAPER_NOT_AVAILABLE');
- const group=await assessmentGroup(s,a)||[a],allowed=new Set((await s.classes('staff')).map(c=>JSON.stringify([c.activity_key,c.class_id]))),rows=group.filter(r=>allowed.has(JSON.stringify([r.activity_key,r.class_id]))||s.isAssignedExaminer(r));
- await s.requireAssessmentStaffGroup(rows);
+ const group=await assessmentGroup(s,a)||[a],rows=await s.assessorRows(group);
+ await s.requireAssessorGroup(rows);
  const recipients=(await s.p(`SELECT r.*,u.display_name current_name,b.submitted_at,b.file_id,b.confirmed_at,b.confirmed_by
   FROM assessment_recipients r JOIN accounts u USING(account_id) LEFT JOIN assessment_submissions b ON b.submission_id=r.latest_submission_id
   WHERE r.assessment_id IN(SELECT value FROM json_each(?)) ORDER BY u.display_name COLLATE NOCASE,r.account_id`,JSON.stringify(rows.map(r=>r.assessment_id))).all()).results;

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {splitFixture} from './fixtures/academy-split-fixture.mjs';
 import worker from '../src/academy-runtime.js';
-import {academyDate} from '../src/academy/d1/academy-clock.js';
+import {nextDate,academyDate} from '../src/academy/d1/academy-clock.js';
 import {planningMonday} from '../src/academy/d1/lesson-planning.js';
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
 const op=()=>({operationId:crypto.randomUUID()});
@@ -75,7 +75,7 @@ test('inherited Teachers contribute only their own notes while student class vie
 test('Learn class selection shows only published class assessments without recipient or personal history',()=>use(async f=>{
  const scope=f.scopes.programA,first='class-1',second='student-view-other',ids=[];
  for(const classId of [first,second]){
-  const made=ok(await f.request('/api/academy/assessments/create',{...op(),activityKey:scope,classId,title:'Class '+classId,subject:'Qasas',assessmentKind:'ASSIGNMENT',timingMode:'UNTIMED',durationMinutes:null,examDate:null,availableFrom:new Date(Date.now()-60000).toISOString(),dueDate:today(),maximumMark:100},'global','ADMIN'));ids.push(made.assessmentId);
+  const made=ok(await f.request('/api/academy/assessments/create',{...op(),activityKey:scope,classId,title:'Class '+classId,subject:'Qasas',assessmentKind:'ASSIGNMENT',timingMode:'UNTIMED',durationMinutes:null,examDate:null,availableFrom:new Date(Date.now()-60000).toISOString(),dueDate:nextDate(today()),maximumMark:100},'global','ADMIN'));ids.push(made.assessmentId);
   const detail=ok(await f.request('/api/academy/assessments/get',{assessmentId:made.assessmentId},'global','ADMIN'));
   ok(await f.request('/api/academy/assessments/publish',{...op(),assessmentId:made.assessmentId,revision:detail.assessment.revision},'global','ADMIN'));
  }

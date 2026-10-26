@@ -17,7 +17,7 @@ export async function timingFields(repository,input,current,defaultTimezone){
  const date=kind==='EXAM'?input.examDate??current?.exam_date:null;
  if(kind==='EXAM'&&!validDate(date))throw fail('Choose a valid exam date.');
  const opens=kind==='EXAM'?localInstant(date,'03:00',timezone):instant(input.availableFrom??current?.available_from,timezone,'opening time')||new Date().toISOString();
- const due=kind==='ASSIGNMENT'?(input.dueDate?validDate(input.dueDate)?dayStart(nextDate(input.dueDate),timezone):(()=>{throw fail('Choose a valid due date.');})():instant(input.dueAt===undefined?current?.due_at:input.dueAt,timezone,'due time')):null;
+ const due=kind==='ASSIGNMENT'?(input.dueDate?validDate(input.dueDate)?localInstant(input.dueDate,'13:00',timezone):(()=>{throw fail('Choose a valid due date.');})():instant(input.dueAt===undefined?current?.due_at:input.dueAt,timezone,'due time')):null;
  if(due&&due<opens)throw fail('The due date must follow opening.');
  return {kind,mode,duration,allowance,date,timezone,opens,due,cutoff:kind==='EXAM'?dayStart(nextDate(date),timezone):null};
 }

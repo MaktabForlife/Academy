@@ -2,8 +2,9 @@ import {assessmentGroup,groupRevisions} from './assessment-group.js';
 import {reportDefinitionHash} from './assessment-report-source.js';
 import {assessmentOperations,collectionPolicy} from './assessment-timing.js';
 import {isAdminWorkspace,readerPreview} from './workspace-access.js';
-import {assessmentStore,paperAvailable,paperReplacementOpen,cleanText,adminClause,learnerClause} from './assessment-store.js';
+import {assessmentStore,paperAvailable,cleanText,adminClause,learnerClause} from './assessment-store.js';
 import {managementError as fail,same} from './management-store.js';
+import {paperReplacementImpact} from './assessment-paper-replacement.js';
 
 export const ASSESSMENT_FILE_LIMIT=16*1024*1024;
 export function assessmentFiles(repository,auth,env){
@@ -19,20 +20,26 @@ export function assessmentFiles(repository,auth,env){
   const a=template?null:await s.assessment(input.assessmentId),scope=a?.activity_key||input.activityKey,classId=a?.class_id||input.classId;
   const manual=native&&kind==='ANSWER'&&isAdminWorkspace(auth)&&Boolean(input.accountId);
   const owner=kind==='ANSWER'&&manual||['SCRIPT','REPORT'].includes(kind)?String(input.accountId||''):actor;
-  let paperMode,paperDuration,paperAllowance,paperExaminer=null,paperDescriptor=null,submissionPolicy,paperTargets;
+  let paperMode,paperDuration,paperAllowance,paperExaminer=null,paperDescriptor=null,submissionPolicy,paperTargets,replacementImpact;
   async function authority(){
    if(kind==='TEMPLATE'||kind==='REPORT')await s.requireClass(scope,classId,'admin');
    if(kind==='PAPER'){
     const current=await s.assessment(a.assessment_id),group=await assessmentGroup(s,current);paperTargets=group||[current];
     if(group)groupRevisions(group,input);else s.revision(current,input);
-    await s.requireAssessmentStaffGroup(paperTargets);
-    if(input.examinerId!==undefined){await s.requireAdminClasses(paperTargets.map(a=>({activityKey:a.activity_key,classId:a.class_id})));for(const key of new Set(paperTargets.map(a=>a.activity_key))){const teacher=await s.examinerChoice(input.examinerId,key);paperExaminer=teacher.id||actor;paperDescriptor=teacher.name||current.subject_descriptor;}}
+    await s.requireAssessorGroup(paperTargets);
+    if(input.examinerId!==undefined){await s.requireAdminClasses(paperTargets.map(a=>({activityKey:a.activity_key,classId:a.class_id})));for(const key of new Set(paperTargets.map(a=>a.activity_key))){const teacher=await s.examinerChoice(input.examinerId,key);paperExaminer=teacher.id||(native?null:actor);paperDescriptor=teacher.name||current.subject_descriptor;}}
+
     const mode=native?(input.timingMode||current.timing_mode||'TIMED'):'TIMED',duration=mode==='UNTIMED'?null:input.durationMinutes??current.duration_minutes,allowance=mode==='UNTIMED'?null:input.allowanceMinutes??current.allowance_minutes??15,maximum=input.maximumMark??current.maximum_mark;
     if(!['TIMED','UNTIMED'].includes(mode)||mode==='TIMED'&&(!Number.isInteger(duration)||duration<1||duration>1440||!Number.isInteger(allowance)||allowance<0||allowance>1440)||typeof maximum!=='number'||!Number.isFinite(maximum)||maximum<=0||maximum>1000000)throw fail('Enter a valid paper duration and total mark.');
+    if(native&&!isAdminWorkspace(auth)&&(mode!==current.timing_mode||duration!==current.duration_minutes||allowance!==current.allowance_minutes||maximum!==current.maximum_mark))throw fail('Open Admin to change assessment timing or total marks.',403,'ADMIN_WORKSPACE_REQUIRED');
     paperMode=mode;paperDuration=duration;paperAllowance=allowance;
-    if(await p('SELECT 1 found FROM assessment_recipients WHERE assessment_id IN(SELECT value FROM json_each(?)) AND latest_mark_id IS NOT NULL LIMIT 1',JSON.stringify(paperTargets.map(a=>a.assessment_id))).first())throw fail('A paper with entered marks cannot be replaced.',409);
-    if(paperTargets.some(a=>a.paper_released_at)){if(paperTargets.some(a=>!paperReplacementOpen(a)))throw fail('This paper is already available to students and cannot be replaced.',409,'PAPER_ALREADY_AVAILABLE');await s.requireAdminClasses(paperTargets.map(a=>({activityKey:a.activity_key,classId:a.class_id})));}
-    if(await p('SELECT 1 ok FROM assessment_recipients WHERE assessment_id IN(SELECT value FROM json_each(?)) AND (first_accessed_at IS NOT NULL OR latest_submission_id IS NOT NULL) LIMIT 1',JSON.stringify(paperTargets.map(a=>a.assessment_id))).first())throw fail('A paper accessed by students cannot be replaced.',409);
+    replacementImpact=await paperReplacementImpact(s,paperTargets);
+    if(paperTargets.some(a=>a.paper_released_at||a.paper_state==='APPROVED')||replacementImpact.accessed||replacementImpact.submitted||replacementImpact.marked){
+     await s.requireAdminClasses(paperTargets.map(a=>({activityKey:a.activity_key,classId:a.class_id})));
+     if(input.confirmReplacement!==true||input.replacementFingerprint!==replacementImpact.fingerprint)throw fail('Review the learners who accessed or submitted this paper and confirm its replacement.',409,'PAPER_REPLACEMENT_CONFIRMATION');
+    }
+    if(replacementImpact.marked&&(maximum!==current.maximum_mark||mode!==current.timing_mode||duration!==current.duration_minutes||allowance!==current.allowance_minutes))throw fail('Keep the existing timing and total marks when replacing a paper with entered marks.',409);
+    if(input.replacementNotice!==undefined&&(typeof input.replacementNotice!=='string'||input.replacementNotice.length>4000))throw fail('Keep the replacement notice within 4000 characters.');
     if(paperTargets.some(member=>member.examiner_id&&!same(member.examiner_id,actor)))await s.requireAdminClasses(paperTargets.map(a=>({activityKey:a.activity_key,classId:a.class_id})));
    }
    if(kind==='SCRIPT'){await s.requireExaminer(await s.assessment(a.assessment_id));if(native){const r=await s.recipient(a.assessment_id,owner);if(!r?.latest_submission_id||r.latest_submission_id!==input.submissionId)throw fail('Attach a marked PDF to this learner’s exact latest answer.',409,'SCRIPT_SOURCE_CHANGED');}}
@@ -73,12 +80,13 @@ export function assessmentFiles(repository,auth,env){
     if(native)statements.push(p('INSERT INTO assessment_file_integrity VALUES(?,?)',id,input.sha256));
     if(native&&kind==='SCRIPT')statements.push(p('INSERT INTO assessment_script_sources VALUES(?,?,?,?)',id,input.submissionId,a.paper_file_id,a.maximum_mark));
     let submissionId=null;
-    if(kind==='PAPER')statements.push(...paperTargets.map(a=>s.event(a,'marks-moderated',{approved:false,mode:'EXTERNAL',revision:a.revision+1})),p(`UPDATE assessments SET paper_file_id=?,examiner_id=COALESCE(?,examiner_id,?),subject_descriptor=COALESCE(?,subject_descriptor),paper_state='IN_REVIEW',paper_comment='',paper_released_at=NULL,duration_minutes=?,maximum_mark=?${native?',timing_mode=?,allowance_minutes=?':''} WHERE assessment_id IN(SELECT value FROM json_each(?))`,id,paperExaminer,actor,paperDescriptor,paperDuration,input.maximumMark??a.maximum_mark,...(native?[paperMode,paperAllowance]:[]),JSON.stringify(paperTargets.map(a=>a.assessment_id))));
+    if(kind==='PAPER')statements.push(...paperTargets.map(a=>s.event(a,'marks-moderated',{approved:false,mode:'EXTERNAL',revision:a.revision+1})),p(`UPDATE assessments SET paper_file_id=?,examiner_id=COALESCE(?,examiner_id,?),subject_descriptor=COALESCE(?,subject_descriptor),paper_state='IN_REVIEW',paper_comment='',paper_released_at=NULL,duration_minutes=?,maximum_mark=?${native?',timing_mode=?,allowance_minutes=?':''} WHERE assessment_id IN(SELECT value FROM json_each(?))`,id,paperExaminer,native?null:actor,paperDescriptor,paperDuration,input.maximumMark??a.maximum_mark,...(native?[paperMode,paperAllowance]:[]),JSON.stringify(paperTargets.map(a=>a.assessment_id))));
     if(kind==='ANSWER'){
     if(!manual&&readerPreview(auth,scope))throw fail('Student class viewing is read only.',403,'PREVIEW_READ_ONLY');
      const r=await s.recipient(a.assessment_id,owner),number=(await p('SELECT coalesce(max(submission_number),0)+1 n FROM assessment_submissions WHERE assessment_id=? AND account_id=?',a.assessment_id,owner).first()).n;
      submissionId=crypto.randomUUID();statements.push(p(`INSERT INTO assessment_submissions(submission_id,assessment_id,account_id,file_id,submitted_at,submission_number${native?',is_late,deadline_used,collection_revision':''}) VALUES(?,?,?,?,?,?${native?',?,?,?':''})`,submissionId,a.assessment_id,owner,id,now,number,...(native?[Number(!manual&&submissionPolicy.late),manual?null:submissionPolicy.deadline,manual?null:submissionPolicy.revision]:[])),p(`UPDATE assessment_recipients SET latest_submission_id=?,latest_mark_id=NULL,resubmit_authorised=0,${native?'':'released_mark_id=NULL,released_feedback_id=NULL,released_script_id=NULL,'}revision=revision+1 WHERE assessment_id=? AND account_id=?`,submissionId,a.assessment_id,r.account_id),p('UPDATE assessments SET ready_for_assessment_at=NULL,ready_for_assessment_by=NULL WHERE assessment_id=?',a.assessment_id));
     }
+    if(kind==='PAPER'&&paperTargets.some(member=>member.paper_file_id))statements.push(s.event(a,'paper-replacement',{previousFileIds:[...new Set(paperTargets.map(member=>member.paper_file_id).filter(Boolean))],fileId:id,...replacementImpact,notice:input.replacementNotice||null,submissions:'KEPT',markHistory:'KEPT'}));
     if(kind==='PAPER'){for(const member of paperTargets)if(member.assessment_id!==a.assessment_id)statements.push(s.touch(member),s.event(member,'upload-PAPER',{fileId:id,filename,sharedPaper:true}));}
     if(a)statements.push(s.touch(a));
     statements.push(s.event(a||{activity_key:scope},'upload-'+kind,{fileId:id,filename,...(native&&kind==='ANSWER'?{manual,learnerId:owner,late:Boolean(!manual&&submissionPolicy.late),deadlineUsed:manual?null:submissionPolicy.deadline}:{})},['ANSWER','SCRIPT','REPORT'].includes(kind)?owner:null));
@@ -97,14 +105,11 @@ export function assessmentFiles(repository,auth,env){
   }else{
    a=await s.assessment(f.kind==='PAPER'&&input.assessmentId?input.assessmentId:f.assessment_id);await s.requireReader(a);
    let paperGroup=null;if(f.kind==='PAPER'&&a.assessment_id!==f.assessment_id){paperGroup=await assessmentGroup(s,a);if(a.paper_file_id!==f.file_id||!paperGroup?.some(member=>member.assessment_id===f.assessment_id))throw fail('This paper is outside this class assessment.',403);}
-    const staff=await s.allowed(a.activity_key,a.class_id,'admin')||same(a.examiner_id,actor)&&await s.canWork(a);
+    const staff=await s.canAssess(a);
+    if(auth.workspace==='TEACH'&&!staff)throw fail('Only the assigned examiner or an authorised Admin can open this attachment.',403,'EXAMINER_REQUIRED');
     if(native&&f.kind==='PAPER'&&!staff){const integrity=await p('SELECT sha256 FROM assessment_file_integrity WHERE file_id=?',f.file_id).first();if(integrity){const review=await p('SELECT assessment_id FROM assessment_paper_review WHERE file_id=? AND sha256=?',f.file_id,integrity.sha256).first();if(review&&review.assessment_id!==a.assessment_id)paperGroup||=await assessmentGroup(s,a);if(!review||review.assessment_id!==a.assessment_id&&!paperGroup?.some(member=>member.assessment_id===review.assessment_id))throw fail('The learner paper needs its exact-file approval.',403,'PAPER_REVIEW_REQUIRED');}}
-    const answerReviewer=f.kind==='ANSWER'&&await s.readStaff(a);
+    const answerReviewer=f.kind==='ANSWER'&&staff;
    if(!staff&&!answerReviewer){
-    if(f.kind==='PAPER'&&auth.workspace==='TEACH'){
-     if(f.file_id!==a.paper_file_id||!paperAvailable(a))throw fail('This paper is not available yet.',403);
-     const object=await bucket().get(f.object_key);if(!object)throw fail('This attachment is temporarily unavailable.',404);return fileResponse(object,f);
-    }
     const r=readerPreview(auth,a.activity_key)?null:await s.recipient(a.assessment_id);
     if(!r){
      // An authorised preview has no learner record and starts no timer.
@@ -121,16 +126,17 @@ export function assessmentFiles(repository,auth,env){
     }else if(f.kind==='REPORT'){
      if(native&&!await p('SELECT 1 ok FROM assessment_report_evidence WHERE report_id=(SELECT report_id FROM assessment_reports WHERE file_id=?)',f.file_id).first())throw fail('Ask Admin to issue a reviewed learner report.',403,'REPORT_REVIEW_REQUIRED');
      const report=await p('SELECT * FROM assessment_reports WHERE file_id=? AND account_id=?',f.file_id,actor).first();if(!report)throw fail('This report is outside your access.',403);
+     const held=await p(`SELECT 1 ok FROM assessment_events e WHERE e.action='report-staged' AND e.account_id=? AND json_extract(e.details_json,'$.reportId')=? AND NOT EXISTS(SELECT 1 FROM assessment_events released WHERE released.action='report-released' AND released.account_id=e.account_id AND json_extract(released.details_json,'$.reportId')=?) LIMIT 1`,actor,report.report_id,report.report_id).first();if(held)throw fail('Admin has not released this report yet.',403,'REPORT_NOT_RELEASED');
      const source=JSON.parse(report.source_json),records=(await p('SELECT a.*,r.released_mark_id FROM assessment_recipients r JOIN assessments a USING(assessment_id) WHERE r.account_id=? AND a.assessment_id IN(SELECT json_extract(value,\'$.assessmentId\') FROM json_each(?))',actor,report.source_json).all()).results;
      if(native)for(const row of records)if(source.find(e=>e.assessmentId===row.assessment_id)?.definitionHash!==await reportDefinitionHash(row))throw fail('This report has been superseded. Ask Admin for a reviewed report.',409,'REPORT_SOURCE_CHANGED');
      if(records.length!==source.length||records.some(r=>r.released_mark_id!==(source.find(e=>e.assessmentId===r.assessment_id).markId??null)))throw fail('This report has been superseded. Ask an administrator for an updated report.',409);
     }else throw fail('This attachment is outside your access.',403);
    }
-   if(f.kind==='ANSWER'&&(staff||answerReviewer)&&await s.allowed(a.activity_key,a.class_id))staffAnswer=await p('SELECT submission_id,account_id FROM assessment_submissions WHERE assessment_id=? AND file_id=?',a.assessment_id,f.file_id).first();
+   if(f.kind==='ANSWER'&&(staff||answerReviewer))staffAnswer=await p('SELECT submission_id,account_id FROM assessment_submissions WHERE assessment_id=? AND file_id=?',a.assessment_id,f.file_id).first();
   }
   const object=await bucket().get(f.object_key);if(!object)throw fail('This attachment is temporarily unavailable.',404);
   if(staffAnswer){await s.change('view-answer',{fileId:f.file_id,operationId:input.operationId},a.assessment_id,async()=>{
-   await s.requireClass(a.activity_key,a.class_id);
+   await s.requireAssessor(a);
    return {statements:[s.event(a,'view-answer',{submissionId:staffAnswer.submission_id},staffAnswer.account_id)],result:{viewed:true}};
   });}
   if(studentPaper){await s.change('access-paper',{fileId:f.file_id,operationId:input.operationId},a.assessment_id,async()=>{
