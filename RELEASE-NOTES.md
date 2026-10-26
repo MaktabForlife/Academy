@@ -1,3 +1,11 @@
+# V107.75 — A smoother sign-in handover
+
+Replace the public home-page flash with a neutral loading screen during sign-in and session restoration. Use verified D1 session contexts to choose Admin, Teach or Learn before fetching its timetable, avoid the discarded personal timetable on Admin entry, and remove duplicate initial/overlapping session restoration. Keep explicit Visit website addresses and existing deep links. Errors expose the existing retry or sign-out controls, and reduced-motion settings are respected.
+
+Includes V107.74 Imtihaan workflows and examiner permissions. The user authorised deployment on 26 October 2026. No database migration or private coordinator change is required; current server permission checks remain intact. Keep live checks small to limit database usage.
+
+[Implementation and verification notes](docs/ACADEMY-SIGN-IN-10775.md).
+
 # V107.74 — Imtihaan workflow and examiner access
 
 Use the Imtihaan Register, its assessment table and Edit reports as the three assessment screens. Save table edits together, validate schedules and current PDF approvals, and publish eligible approved papers partially. Enter marks before moderation, generate and review private reports, then release marks for the whole Imtihaan, with reports together or later. Global Admin can explicitly override missing marks and unconfirmed receipts with an audited reason; missing marks stay Pending.

@@ -1,3 +1,9 @@
+# V107.75 — A smoother sign-in handover
+
+Show a dashboard loading screen immediately while restoring sign-in or opening the selected workspace. Reuse verified sign-in roles to avoid building a timetable before changing workspaces, and share overlapping session restoration requests. Preserve V107.74 assessment workflows and all current permission checks. No database upgrade is required. Keep live checks small to limit database usage.
+
+[Implementation and verification notes](docs/ACADEMY-SIGN-IN-10775.md).
+
 # V107.74 — Imtihaan workflow and examiner access
 
 Use the Imtihaan Register, its assessment table and Edit reports as the three assessment screens. Save table edits together, validate schedules and current PDF approvals, and publish eligible approved papers partially. Enter marks before moderation, generate and review private reports, then release marks for the whole Imtihaan, with reports together or later. Global Admin can explicitly override missing marks and unconfirmed receipts with an audited reason; missing marks stay Pending.

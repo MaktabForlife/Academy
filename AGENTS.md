@@ -1,3 +1,9 @@
+# Sign-in handover release — 26 October 2026
+
+- The user explicitly requested deploying the sign-in transition when ready. Incorporate V107.74 (`473a12ea`) and release as V107.75 to the existing Academy website and matching Development API.
+- Show a neutral dashboard loading screen and use verified session contexts to choose the destination before timetable loading. Preserve workspace authority, revocations, explicit website visits and deep links. No database migration or private coordinator change is required.
+- Keep live checks small to limit database usage. Use disposable local fixtures and minimal version/readiness and static asset checks. Future deployments require new approval.
+
 # Header and Admin dashboard release — 26 October 2026
 
 - The user explicitly requested deploying the reviewed header recovery and daily Admin timetable cards. Release `feature/academy-header-dashboard-fixes` as V107.73 to the existing Academy website and matching Development API.

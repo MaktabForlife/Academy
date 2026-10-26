@@ -213,7 +213,7 @@ try{
  await page.locator('#ad-assessments .ad-assessment-row').first().click();
  await page.locator('#as-admin-host .as-schedule-table tbody tr').first().waitFor();
  assert.equal(await page.locator('#as-admin-host .as-schedule-table tbody tr').count(),2);
- assert.equal(await page.locator('#as-admin-host .as-phase-heading h3').innerText(),'Current Imtihaan');
+ assert.equal(await page.locator('#as-admin-host .as-timetable h3').innerText(),'Current Imtihaan - All classes');
  await page.locator('[data-page-home]').click();await dashboard().waitFor();
  await page.locator('.ad-calendar').scrollIntoViewIfNeeded();
  const adminCalendar=page.frameLocator('#ad-calendar-host iframe');
