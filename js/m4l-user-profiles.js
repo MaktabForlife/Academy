@@ -43,7 +43,7 @@
     state.edits=state.edits.filter(e=>!clean(e));
     if(state.edit&&clean(state.edit))state.edit=null;
   }
-  const icons={view:'<svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>',share:'<svg viewBox="0 0 24 24"><path d="M12 16V3m-4 4 4-4 4 4M5 12v8h14v-8"/></svg>',copy:'<svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V3H3v13h5"/></svg>',save:'<svg viewBox="0 0 24 24"><path d="M4 3h13l4 4v14H3V3Zm3 0v7h10V3M7 21v-7h10v7"/></svg>'};
+  const icons={view:'<svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>',share:'<svg viewBox="0 0 24 24"><use href="/icons/share.svg?v=107.70#academy-share"/></svg>',copy:'<svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V3H3v13h5"/></svg>',save:'<svg viewBox="0 0 24 24"><path d="M4 3h13l4 4v14H3V3Zm3 0v7h10V3M7 21v-7h10v7"/></svg>'};
   const actionIcon=(action,id,label,disabled=false)=>`<button type="button" class="pb-secondary ${action==='reset-pin'?'up-reset-pin':'up-icon'}" data-${action}="${esc(id)}" title="${esc(label)}" aria-label="${esc(label)}" ${disabled?'disabled':''}>${action==='reset-pin'?'Reset PIN':icons[action]}</button>`;
   function remember(){for(const key of ['edit','edits','pinned','pending']){if(state[key])sessionStorage.setItem(`${storageKey}:${key}`,JSON.stringify(state[key]));else sessionStorage.removeItem(`${storageKey}:${key}`);}}
   async function api(action,input={}){

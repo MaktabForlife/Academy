@@ -32,3 +32,15 @@ html:has(body.academy-pdf){--toolbar-bg-color:#faf7fb;--toolbar-border-color:#df
 
 /* Native annotation tools are removed. Existing PDF annotations still render. */
 #editorModeButtons,.editorParamsToolbar,#editorModeSeparator{display:none!important}
+
+/* Reading and editing expose the same Page / Zoom / Edit controls. */
+.academy-compact-reader :is(#printButton,#downloadButton,#secondaryToolbarToggle,#toolbarViewerLeft>.toolbarButton){display:none!important}
+.academy-compact-reader #toolbarContainer #toolbarViewerLeft{flex-wrap:wrap;min-width:0}
+.academy-compact-reader #scaleSelectContainer{height:36px;border:1px solid #dfd3e4;border-radius:5px;background:white}
+.academy-compact-reader #scaleSelect{height:100%;padding:4px 6px;color:#302936}
+.academy-edit-button{min-height:36px;padding:6px 13px;border:1px solid #dfd3e4;border-radius:6px;color:#70477c;background:white;font:600 13px Arial,sans-serif;cursor:pointer}
+.academy-edit-button[aria-pressed=true]{background:#70477c;color:white}.academy-edit-button:disabled{opacity:.5;cursor:default}
+@media(max-width:767px){.academy-compact-reader #scaleSelectContainer,.academy-edit-button{height:40px;min-height:40px}}
+@media(max-width:900px){.academy-compact-reader .academy-page-field,.academy-compact-reader #scaleSelectContainer,.academy-compact-reader .academy-edit-button{height:44px;min-height:44px}}
+
+html.academy-reader-loading:not(.academy-reader-ready) #toolbarViewer{visibility:hidden}

@@ -1,3 +1,7 @@
+## V107.70 — PDF reader and Library improvements
+
+Edit beside Zoom restores swipeable multi-page reading when switched off while preserving annotations. Document actions sit beside the PDF name; panes close independently, Split Page is global, favourite colours stay visible, and Public Library offers subjects plus bookmarks. Manage Library retains readable titles through catalogue failures. Share uses the common connected-nodes artwork. See [release notes](RELEASE-NOTES.md).
+
 # Umm Abbad Academy — V107.69
 
 ## V107.69 — Scoped browser messaging

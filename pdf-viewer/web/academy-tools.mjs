@@ -14,10 +14,9 @@ if(new URLSearchParams(location.search).get('academy')==='1'){
   const pagePicker=createPagePicker({input:byId('academy-page-number'),button:byId('academy-page-toggle'),list:byId('academy-page-options'),onSelect:page=>{app.page=page;}});
   const updatePage=()=>{pagePicker.setPages(app.pagesCount||0,app.page||1);pagePicker.setDisabled(!app.pdfDocument);};
   app.eventBus.on('pagesinit',updatePage);app.eventBus.on('pagechanging',updatePage);app.eventBus.on('pagesdestroy',()=>pagePicker.setDisabled(true));updatePage();
-  const work=document.createElement('div');work.id='academy-workspace-tools';work.setAttribute('role','group');work.setAttribute('aria-label','Reader workspace tools');
-  for(const action of ['split','whiteboard']){const button=document.createElement('button');button.type='button';button.id='academy-'+action;button.className='academy-workspace-button';button.onclick=()=>parentReader.workspaceAction(pane,action);work.append(button);}right.append(work);
-  function refresh(){const state=parentReader.workspaceState();for(const [i,button] of [...work.children].entries()){const open=i===0?state.split:state.whiteboard;if(!button.firstElementChild)button.innerHTML=state.icons[i];button.title=i===0?(open?'Close split page':'Split Page'):'Whiteboard';button.setAttribute('aria-label',button.title);button.setAttribute('aria-pressed',String(open));button.hidden=state.mobile;button.disabled=i===0&&state.whiteboard;}}
-  window.M4L_PDF_NATIVE={refresh};refresh();parentReader.toolbarReady();
+  const edit=document.createElement('button');edit.type='button';edit.id='academy-edit';edit.className='academy-edit-button';edit.textContent='Edit';left.append(edit);edit.onclick=()=>parentReader.toggleEdit(pane);
+  function refresh(){const state=parentReader.editState(pane);edit.disabled=state.disabled;edit.setAttribute('aria-pressed',String(state.open));edit.setAttribute('aria-expanded',String(state.open));}
+  window.M4L_PDF_NATIVE={refresh};refresh();document.documentElement.classList.add('academy-reader-ready');parentReader.toolbarReady();
   const resize=()=>{document.documentElement.style.setProperty('--academy-controls-height',toolbar.getBoundingClientRect().height+'px');};new ResizeObserver(resize).observe(toolbar);resize();
  }
  const reportLocation=()=>parentReader?.location?.(pane,window,{file:new URLSearchParams(location.search).get('file'),page:app.pdfViewer.currentPageNumber,pageLabel:app.pdfViewer.currentPageLabel||''});

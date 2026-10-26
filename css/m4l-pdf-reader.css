@@ -84,3 +84,13 @@
 /* The native viewer owns the page/zoom row and its workspace buttons. */
 .pr-body.pr-toolbar-ready:not(.pr-fullscreen)>.pr-header{display:none}
 .pr-body.pr-toolbar-ready .pr-header :is(#pr-split,#m4l-teaching-panel-toggle){display:none!important}
+
+/* V107.70: document actions follow the title; split belongs to the global controls. */
+.pr-body .pr-heading{flex:0 1 auto;min-width:0}.pr-body .pr-pane-header{justify-content:flex-start;flex-wrap:wrap}
+.pr-body .pr-document-actions{flex:0 1 auto;flex-wrap:wrap}.pr-body .pr-document-actions :is(.pr-pane-tools,.pr-bookmark-tools){flex-wrap:wrap}
+.pr-body .pr-document-actions [data-edit]{display:none!important}.pr-tabs,[data-focus]{display:none!important}
+.pr-body.pr-toolbar-ready .pr-header #pr-split{display:inline-flex!important}.pr-body.pr-toolbar-ready .pr-header #m4l-teaching-panel-toggle{display:none!important}
+.pr-subject{border:1px solid var(--pr-line);border-radius:7px;overflow:hidden}.pr-subject summary{padding:12px;cursor:pointer;color:var(--pr-purple);font-weight:700;background:#faf7fb}.pr-subject>button{display:block;width:100%;border:0;border-top:1px solid var(--pr-line);border-radius:0}
+.pr-favourites{border-bottom:2px solid var(--pr-line);padding-bottom:12px}.pr-favourites h3{font-size:14px;margin:2px 0 9px;color:var(--pr-purple)}.pr-favourites>div{font-size:12px;color:#6b5d72}.pr-favourites .pr-bookmark-row{margin:5px 0}.pr-favourites .pr-bookmark-row>button{min-height:44px}
+@media(max-width:767px){.pr-body .pr-heading{flex-basis:100%}.pr-body .pr-document-actions{width:100%}.pr-body .pr-bookmark-tools{max-width:100%}.pr-body .pr-document-actions .pr-icon-button{width:40px;height:44px;min-width:40px;padding:9px}}
+@media(min-width:768px){.pr-body .pr-workspace.is-split .pr-heading{display:block;flex:0 1 auto;min-height:36px}.pr-body .pr-pane-header{column-gap:12px}}

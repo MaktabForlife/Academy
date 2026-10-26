@@ -1,3 +1,13 @@
+# V107.70 — PDF reader and Public Library controls
+
+Edit is a labelled button beside Zoom. Switching Edit off opens the normal multi-page PDF.js reading view, including a preview of unsaved annotations; returning to Edit preserves editable marks and follows the reading page. Downloads remain explicit, and closing/replacing a PDF still checks for unsaved work.
+
+Document actions follow each PDF title. Download is the last action; saved-book bookmarks use a disk icon. Split Page is global, Whiteboard belongs to each PDF, and each pane can be closed independently. Redundant pane tabs and Focus controls are removed. Favourite ink colours are visible in the editing toolbar, and Zoom matches the Page field height. Native duplicate controls no longer appear transiently.
+
+The reader’s Public Library lists alphabetical subjects with expandable alphabetical titles and account bookmarks above them. Manage Library removes learner navigation and remembers readable public catalogue titles across refresh failures, always preferring an assigned Academy title. Shared Share artwork uses connected nodes, including embedded profile/register controls. LIB-05 is already completed in V107.69 and is not reimplemented. No database migration or live record correction is required.
+
+Validation: all 115 regression files pass (four local-runtime checks were rerun with local-server permission). Synthetic browser checks cover desktop and phone finger scrolling after Edit is off, preserved/visible unsaved annotations, editable PDF downloads, bookmarks, independent pane closing, whiteboard, and Library title-cache recovery at 1440px, 390px and 320px. Website and API dry-run builds pass. Development website and matching API deployment authorised on 26 October 2026.
+
 # V107.69 — Scoped browser messaging
 
 - Add the dashboard inbox, class/session and multi-area sending, recipient review, drafts and scheduling.

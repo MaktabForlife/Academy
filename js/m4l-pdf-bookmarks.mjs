@@ -17,7 +17,8 @@ export const academyBookmarks={
   async list(){const result=await request('list');saved=result.bookmarks;return saved;},
   async save(entry){const result=await request('save',{bookmark:pdfBookmark(entry)});if(saved)saved=[result.bookmark,...saved.filter(b=>b.key!==result.bookmark.key)];changed();return result.bookmark;},
   async remove(key){await request('delete',{key});if(saved)saved=saved.filter(b=>b.key!==key);changed();},
-  current:()=>saved||[]
+  loaded:()=>owner===token()&&saved!==null,
+  current:()=>owner===token()?saved||[]:[]
 };
 window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)reset();});
 window.addEventListener('m4l-academy-session',()=>{if(owner!==token())reset();});

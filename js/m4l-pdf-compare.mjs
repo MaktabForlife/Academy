@@ -24,7 +24,8 @@ const nativeReady=embedded?Promise.resolve(null):new Promise((resolve,reject)=>{
 if(!embedded)frame.src=frame.dataset.src;
 nativeReady.catch(()=>notice('PDF.js could not start. Reload this comparison page.',true));
 const toolbox=$('toolbox');document.querySelector('.page-controls').after(toolbox);
-const downloadButton=$('download');downloadButton.className='icon-button';downloadButton.setAttribute('aria-label','Download my copy');downloadButton.title='Download my copy';downloadButton.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg>';document.querySelector('.markup-bar').append(downloadButton,document.querySelector('.edit-actions'));
+const downloadButton=$('download');downloadButton.className='icon-button';downloadButton.setAttribute('aria-label','Download my copy');downloadButton.title='Download my copy';downloadButton.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg>';document.querySelector('.markup-bar').append(downloadButton,document.querySelector('.edit-actions'));if(embedded)downloadButton.hidden=true;
+const favouriteSwatches=document.createElement('div');favouriteSwatches.className='colours toolbar-favourites';favouriteSwatches.setAttribute('role','group');favouriteSwatches.setAttribute('aria-label','Favourite ink colours');for(const button of document.querySelectorAll('[data-colour]'))favouriteSwatches.append(button);$('border-menu').after(favouriteSwatches);
 $('compare-edit').onclick=()=>{const open=toolbox.hidden;toolbox.hidden=!open;document.body.classList.toggle('compare-editing',open);$('compare-edit').setAttribute('aria-expanded',String(open));$('compare-edit').setAttribute('aria-pressed',String(open));if(!open)chooseTool('hand');};
 const names={pen:'Freehand stroke',highlight:'Highlight',rectangle:'Box',ellipse:'Circle / oval',line:'Line',arrow:'Arrow',text:'Text'};
 const hints={hand:'Read without making marks. Scroll normally, or drag with your mouse to move the page.',
@@ -37,7 +38,7 @@ function controls(){
  pagePicker?.setDisabled(locked||!state.pdf);
  $('undo').disabled=locked||!state.undo.length;$('redo').disabled=locked||!state.redo.length;$('delete').disabled=locked||!selected();$('edit-text').disabled=locked||selected()?.type!=='text';
  $('quick-undo').disabled=$('undo').disabled;$('quick-tool').disabled=locked||!state.pdf;
- $('toolbox').inert=state.busy||state.exporting;
+ $('toolbox').inert=state.busy||state.exporting;host?.editorState(paneIndex);
  $('selection-note').textContent=selected()?names[selected().type]+' selected':state.marks.length?'Select a mark to move or edit it.':'Choose a tool to begin.';
 }
 function commit(before){if(before===serial())return;state.undo.push(before);if(state.undo.length>50)state.undo.shift();state.redo=[];update();}
@@ -233,13 +234,19 @@ $('download').onclick=async()=>{
 if(!embedded)window.addEventListener('beforeunload',event=>{if(dirty()){event.preventDefault();event.returnValue='';}});
 chooseTool('hand');setView('academy');
 if(embedded){
- const work=document.createElement('div');work.id='app-workspace-tools';work.setAttribute('role','group');work.setAttribute('aria-label','Reader workspace tools');
- for(const action of ['split','whiteboard']){const button=document.createElement('button');button.type='button';button.dataset.workspaceAction=action;button.onclick=()=>host.workspaceAction(paneIndex,action);work.append(button);}document.querySelector('.page-controls').append(work);
- function refresh(){const layout=host.workspaceState();for(const [i,button] of [...work.children].entries()){if(!button.firstElementChild)button.innerHTML=layout.icons[i];const open=i===0?layout.split:layout.whiteboard;button.title=i===0?(open?'Close split page':'Split Page'):'Whiteboard';button.setAttribute('aria-label',button.title);button.setAttribute('aria-pressed',String(open));button.hidden=layout.mobile;button.disabled=i===0&&layout.whiteboard;}}
+ const edit=document.createElement('button');edit.type='button';edit.id='app-edit';edit.className='academy-edit-button';edit.textContent='Edit';$('zoom').closest('label').after(edit);edit.onclick=()=>host.toggleEdit(paneIndex);
+ function refresh(){const state=host.editState(paneIndex);edit.disabled=state.disabled;edit.setAttribute('aria-pressed',String(state.open));edit.setAttribute('aria-expanded',String(state.open));}
+ let previewCache=null;
+ async function preview(){
+  if(!finishText(true))throw Error('Finish editing this text before returning to reading.');cancelGesture();
+  const snapshot=serial();if(previewCache?.document===state.pdf&&previewCache.snapshot===snapshot)return previewCache.bytes.slice();
+  if(state.busy||state.exporting)throw Error('Please wait for the PDF to finish preparing.');state.exporting=true;controls();
+  try{const bytes=await exportEditable(state.bytes,state.marks,pdfjs,window.PDFLib,context);previewCache={document:state.pdf,snapshot,bytes:bytes.slice()};return bytes;}finally{state.exporting=false;controls();}
+ }
  function setEditing(open){if(!open&&!finishText(true))return false;toolbox.hidden=!open;document.body.classList.toggle('compare-editing',open);if(!open)chooseTool('hand');return true;}
  window.M4L_PDF_APP={
   load:async({bytes,name,page=1,file='',unsaved=false})=>{state.sourceFile=file;await loadPdf(bytes,name);state.sourceDirty=Boolean(unsaved);await showPage(page);notice('');},
-  setEditing,hasUnsaved:dirty,refresh,
+  setEditing,hasUnsaved:dirty,refresh,preview,navigate:page=>showPage(page),download:()=>$('download').click(),
   position:()=>({document:state.pdf,page:state.page,top:$('page-scroll').scrollTop,left:$('page-scroll').scrollLeft}),
   restore:position=>{if(position.document===state.pdf){if(position.page!==state.page)void showPage(position.page);requestAnimationFrame(()=>{$('page-scroll').scrollTop=position.top;$('page-scroll').scrollLeft=position.left;});}},
   busy:()=>state.busy||state.exporting||state.rendering

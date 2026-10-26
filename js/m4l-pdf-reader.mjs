@@ -1,6 +1,6 @@
 import {PDF_TOOL_DEFAULTS,normalizePdfTools} from './m4l-pdf-tools-model.mjs?v=106.49';
 import {publicPdfFile} from './m4l-pdf-bookmarks-model.mjs?v=106.82';
-import {academyBookmarks} from './m4l-pdf-bookmarks.mjs?v=106.82';
+import {academyBookmarks} from './m4l-pdf-bookmarks.mjs?v=107.70';
 import {publicPdfSource} from './m4l-pdf-source.mjs?v=107.40';
 import './m4l-pdf-whiteboard.js?v=107.44';
 const $=id=>document.getElementById(id),query=new URLSearchParams(location.search),mobile=matchMedia('(max-width:767px), (pointer:coarse) and (max-height:500px)');
@@ -9,7 +9,7 @@ let readingPositions=new Map(),readingRestore=0,readingLayoutPending=false;
 let defaults={...PDF_TOOL_DEFAULTS},split=false,active=0,ratio=50,catalogue=null,cataloguePromise=null,ready=false;
 const status=text=>{$('pr-status').textContent=text;},part=(pane,selector)=>pane.element.querySelector(selector)||pane.header?.querySelector(selector);
 function proxy(url){const file=publicPdfFile('/pdf-file/'+btoa(String.fromCharCode(...new TextEncoder().encode(url))).replaceAll('+','-').replaceAll('/','_').replaceAll('=',''));if(!file)throw Error('This PDF source is unavailable.');return file;}
-function updateBookmarkButtons(pane){part(pane,'[data-edit]').disabled=!pane.loaded||Boolean(pane.appOpening);for(const button of pane.header.querySelectorAll('[data-save-book],[data-save-page]'))button.disabled=!pane.loaded||!pane.file;const label=pane.page?'Bookmark page '+(pane.pageLabel||pane.page):'Bookmark page';part(pane,'[data-save-page]').setAttribute('aria-label',label);part(pane,'[data-save-page]').title=label;}
+function updateBookmarkButtons(pane){part(pane,'[data-edit]').disabled=!pane.loaded||Boolean(pane.appOpening);const download=part(pane,'[data-download]');const close=part(pane,'[data-close-pdf]');if(close)close.disabled=Boolean(pane.appOpening);if(download)download.disabled=!pane.loaded||Boolean(pane.appOpening)||Boolean(pane.appFrame?.contentWindow.M4L_PDF_APP?.busy());for(const button of pane.header.querySelectorAll('[data-save-book],[data-save-page]'))button.disabled=!pane.loaded||!pane.file;const label=pane.page?'Bookmark page '+(pane.pageLabel||pane.page):'Bookmark page';part(pane,'[data-save-page]').setAttribute('aria-label',label);part(pane,'[data-save-page]').title=label;}
 window.M4L_PDF_READER={
  activate:(index,source)=>{const pane=panes[index];if(pane&&(source===pane.frame?.contentWindow||source===pane.appFrame?.contentWindow))setActive(index);},
  canLeave:()=>panes.every(pane=>canReplace(pane)),
@@ -17,11 +17,14 @@ window.M4L_PDF_READER={
  workspaceState:()=>({mobile:mobile.matches,split:split&&!mobile.matches,whiteboard:window.M4L_PDF_WHITEBOARD.isOpen(),icons:['pr-split','m4l-teaching-panel-toggle'].map(id=>$(id).innerHTML)}),
  workspaceAction:(index,action)=>{if(mobile.matches)return;setActive(index);$(action==='split'?'pr-split':'m4l-teaching-panel-toggle').click();},
  toolbarReady:()=>document.body.classList.add('pr-toolbar-ready'),
+ editState:index=>({open:Boolean(panes[index]?.appActive),disabled:!panes[index]?.loaded||Boolean(panes[index]?.appOpening)}),
+ toggleEdit:index=>part(panes[index],'[data-edit]').click(),
+ editorState:index=>updateBookmarkButtons(panes[index]),
  remember:(index,changes)=>{const pane=panes[Number(index)];if(pane)try{pane.choices=normalizePdfTools({...defaults,...pane.choices,...changes},{session:true});}catch{}},
- location:(index,source,position)=>{const pane=panes[Number(index)];if(!pane||source!==(pane.appActive?pane.appFrame?.contentWindow:pane.frame?.contentWindow)||publicPdfFile(position.file)!==pane.file)return;pane.loaded=true;pane.page=position.page;pane.pageLabel=position.pageLabel||'';updateBookmarkButtons(pane);}
+ location:(index,source,position)=>{const pane=panes[Number(index)];if(!pane||source!==(pane.appActive?pane.appFrame?.contentWindow:pane.frame?.contentWindow)||publicPdfFile(position.file)!==pane.file)return;pane.loaded=true;pane.page=position.page;pane.pageLabel=position.pageLabel||'';updateBookmarkButtons(pane);syncWorkspaceTools();}
 };
 document.addEventListener('webviewerloaded',event=>{const source=event.detail?.source,pane=panes.find(item=>item.frame?.contentWindow===source);if(pane){source.addEventListener('keydown',readerKeydown);source.addEventListener('pointerdown',()=>setActive(pane.index),true);source.addEventListener('focusin',()=>setActive(pane.index));source.PDFViewerApplicationOptions.set('annotationEditorMode',-1);}});
-function changed(pane){try{return pane.appActive?Boolean(pane.appFrame.contentWindow.M4L_PDF_APP?.hasUnsaved()):Boolean(pane.frame.contentWindow.PDFViewerApplication?._annotationStorageModified);}catch{return false;}}
+function changed(pane){try{return pane.appFrame?Boolean(pane.appFrame.contentWindow.M4L_PDF_APP?.hasUnsaved()):Boolean(pane.frame.contentWindow.PDFViewerApplication?._annotationStorageModified);}catch{return false;}}
 function libraryReturn(){
  if(query.get('library')==='public')return '/academy/open-library/';
  if(query.get('library')==='personal')return '/academy/library/';
@@ -31,18 +34,12 @@ function libraryReturn(){
 const readerLabel=document.querySelector('.pr-brand small'),baseReaderLabel=readerLabel.textContent;
 function readerContext(){const workspace=window.M4L_ACADEMY_WORKSPACE;readerLabel.textContent=baseReaderLabel+(workspace.adminRealm()&&workspace.adminAccess()?' · '+workspace.current().replace('_','-'):'');$('pr-close-reader').href=workspace.readerUrl(libraryReturn());}
 window.addEventListener('m4l-academy-access',readerContext);readerContext();
-function canReplace(pane){return !changed(pane)||confirm('This PDF has unsaved annotations. Download a copy before replacing it. Continue?');}
-function setActive(index){const preserve=window.M4L_PDF_WHITEBOARD.isOpen()&&index!==active;if(preserve)rememberReadingPositions();active=index;for(const pane of panes){pane.element.classList.toggle('is-active',pane.index===index);$('pr-tab-'+pane.index).setAttribute('aria-selected',String(pane.index===index));$('pr-tab-'+pane.index).tabIndex=pane.index===index?0:-1;}focusLabels();if(preserve)restoreReadingPositions();}
+function canReplace(pane){return !changed(pane)||confirm('This PDF has unsaved annotations. Download a copy before continuing. Discard these annotations?');}
+function setActive(index){const preserve=window.M4L_PDF_WHITEBOARD.isOpen()&&index!==active;if(preserve)rememberReadingPositions();active=index;for(const pane of panes){pane.element.classList.toggle('is-active',pane.index===index);}focusLabels();if(preserve)restoreReadingPositions();}
 function syncWorkspaceTools(){for(const pane of panes)try{pane.frame?.contentWindow.M4L_PDF_NATIVE?.refresh();pane.appFrame?.contentWindow.M4L_PDF_APP?.refresh();}catch{}}
 function focusLabels(){
- const focused=$('pr-workspace').classList.contains('is-focused');
- for(const pane of panes){
-  const button=part(pane,'[data-focus]');if(!button)continue;
-  button.hidden=!split||mobile.matches;button.textContent=focused&&pane.index===active?'Restore split':'Focus';
-  button.disabled=window.M4L_PDF_WHITEBOARD.isOpen();button.setAttribute('aria-pressed',String(focused&&pane.index===active));
-  button.setAttribute('aria-label',focused&&pane.index===active?'Restore split page':'Focus PDF '+(pane.index+1));
- }
- $('m4l-teaching-panel-toggle').title='Whiteboard beside PDF '+(active+1);syncWorkspaceTools();
+ for(const pane of panes){const button=part(pane,'[data-whiteboard]');if(button){button.hidden=mobile.matches;button.setAttribute('aria-pressed',String(window.M4L_PDF_WHITEBOARD.isOpen()&&pane.index===active));}}
+ syncWorkspaceTools();
 }
 // Keep PDF frames mounted so reading position and annotations survive layout changes.
 function rememberReadingPositions(){
@@ -72,7 +69,7 @@ function fullScreen(enabled){
 function positionReaderActions(){
  const normal=document.querySelector('.academy-banners .academy-page-actions'),fallback=document.querySelector('.pr-header nav');
  const host=document.body.classList.contains('pr-fullscreen')?fallback:normal||fallback;
- host.append($('pr-fullscreen'),$('pr-close-reader'));
+ host.append($('pr-split'),$('pr-fullscreen'),$('pr-close-reader'));
 }
 function compactReaderIdentity(){
  const identity=document.querySelector('.academy-brand-details'),brand=identity?.querySelector('.academy-connected-brand'),profile=document.querySelector('.academy-account-bar .academy-profile');
@@ -87,8 +84,8 @@ function closeDrawer(pane){pane.drawerGeneration++;part(pane,'[data-drawer]').hi
 function layout(){
  const work=$('pr-workspace'),showSplit=split&&!mobile.matches;
  work.classList.toggle('is-split',showSplit);work.classList.remove('show-both');
- $('pr-divider').hidden=!showSplit;$('pr-tabs').hidden=!showSplit;$('pr-both').hidden=true;
- for(const pane of panes)pane.element.hidden=mobile.matches?pane.index!==active:pane.index===1&&!split;
+ $('pr-divider').hidden=!showSplit;$('pr-tabs').hidden=true;$('pr-both').hidden=true;
+ for(const pane of panes)pane.element.hidden=mobile.matches||!split?pane.index!==active:false;
  $('pr-split').hidden=mobile.matches;$('m4l-teaching-panel-toggle').hidden=mobile.matches;
  $('pr-split').setAttribute('aria-pressed',String(showSplit));$('pr-divider').setAttribute('aria-orientation','vertical');
  focusLabels();
@@ -106,7 +103,7 @@ function openFile(pane,file,title,check=true,page=0){
  discardAppEditor(pane);pane.loadGeneration++;
  pane.file=publicPdfFile(file);pane.title=title||'PDF '+(pane.index+1);pane.loaded=false;pane.page=0;pane.pageLabel='';
  part(pane,'[data-title]').textContent=pane.title;part(pane,'[data-empty]').hidden=Boolean(pane.file);volumeSelector(pane);updateBookmarkButtons(pane);
- pane.frame.src='/pdf-viewer/web/viewer.html?academy=1&pane='+pane.index+'&v=107.52&file='+encodeURIComponent(pane.file)+(page?'#page='+page:'');
+ pane.frame.src='/pdf-viewer/web/viewer.html?academy=1&pane='+pane.index+'&v=107.70&file='+encodeURIComponent(pane.file)+(page?'#page='+page:'');
  part(pane,'[data-drawer]').hidden=true;pane.drawerGeneration++;setActive(pane.index);updateAddress(pane,page);return true;
 }
 async function viewerApplication(pane){
@@ -155,14 +152,23 @@ function chooseBook(pane,rows){
  const dialog=$('pr-volume-dialog'),list=$('pr-volume-options');$('pr-volume-book').textContent=rows[0].bookTitle;list.replaceChildren();
  for(const row of rows){const button=document.createElement('button');button.type='button';button.textContent=row.volumeLabel;button.onclick=()=>{if(openFile(pane,row.file,row.title))dialog.close();};list.append(button);}dialog.showModal();
 }
-function renderBooks(pane){
- const list=part(pane,'[data-books]'),search=part(pane,'[data-search]').value.trim().toLowerCase(),groups=new Map();list.replaceChildren();
- for(const row of catalogue||[])if((row.title+' '+row.subject).toLowerCase().includes(search)){if(!groups.has(row.bookId))groups.set(row.bookId,[]);groups.get(row.bookId).push(row);}
- for(const rows of groups.values()){
-  const button=document.createElement('button'),small=document.createElement('small');button.type='button';button.textContent=rows[0].bookTitle;
-  const all=catalogue.filter(row=>row.bookId===rows[0].bookId);small.textContent=[all.length>1?all.length+' volumes':'',rows[0].subject].filter(Boolean).join(' · ');button.append(small);button.onclick=()=>chooseBook(pane,all);list.append(button);
+function bookmarkRows(pane,list,search=''){
+ for(const entry of academyBookmarks.current().filter(entry=>(entry.title+' '+entry.pageLabel+' '+entry.page).toLowerCase().includes(search))){
+  const row=document.createElement('div'),open=document.createElement('button'),remove=document.createElement('button'),small=document.createElement('small');row.className='pr-bookmark-row';
+  open.type='button';open.textContent=entry.title;small.textContent=entry.page?'Page '+(entry.pageLabel||entry.page):'Saved book / volume';open.append(small);open.onclick=()=>openFile(pane,entry.file,entry.title,true,entry.page);
+  remove.type='button';remove.textContent='Remove';remove.setAttribute('aria-label','Remove '+entry.title+(entry.page?' page '+entry.page:''));remove.onclick=async()=>{remove.disabled=true;try{await academyBookmarks.remove(entry.key);status('Bookmark removed.');}catch(error){status(error.message);remove.disabled=false;}};row.append(open,remove);list.append(row);
  }
- if(!groups.size)list.textContent=search?'No matching PDFs.':'No PDF books are available.';
+}
+function renderBooks(pane){
+ const list=part(pane,'[data-books]'),search=part(pane,'[data-search]').value.trim().toLowerCase(),groups=new Map(),alphabet=new Intl.Collator('en',{sensitivity:'base',numeric:true});list.replaceChildren();
+ const favourites=document.createElement('section'),heading=document.createElement('h3'),saved=document.createElement('div');favourites.className='pr-favourites';heading.textContent='Favourites / Bookmarks';bookmarkRows(pane,saved,search);
+ if(!saved.children.length)saved.textContent=academyBookmarks.signedIn()?'No saved books or pages yet.':'Sign in to see your saved books and pages.';favourites.append(heading,saved);list.append(favourites);
+ for(const row of catalogue||[])if((row.title+' '+row.subject).toLowerCase().includes(search)){const subject=row.subject||'UNCATEGORISED';if(!groups.has(subject))groups.set(subject,new Map());const books=groups.get(subject);if(!books.has(row.bookId))books.set(row.bookId,[]);books.get(row.bookId).push(row);}
+ for(const [subject,books] of [...groups].sort(([a],[b])=>alphabet.compare(a,b))){
+  const group=document.createElement('details'),summary=document.createElement('summary');group.className='pr-subject';summary.textContent=subject;group.open=Boolean(search)||pane.subject===subject;group.append(summary);group.ontoggle=()=>{if(group.open)pane.subject=subject;};
+  for(const rows of [...books.values()].sort((a,b)=>alphabet.compare(a[0].bookTitle,b[0].bookTitle))){const button=document.createElement('button'),small=document.createElement('small');button.type='button';button.textContent=rows[0].bookTitle;const all=catalogue.filter(row=>row.bookId===rows[0].bookId);if(all.length>1){small.textContent=all.length+' volumes';button.append(small);}button.onclick=()=>chooseBook(pane,all);group.append(button);}list.append(group);
+ }
+ if(!groups.size){const empty=document.createElement('p');empty.textContent=search?'No matching PDFs.':'No PDF books are available.';list.append(empty);}
 }
 function renderBookmarks(pane){
  if(pane.mode!=='bookmarks')return;part(pane,'[data-sign-in]').hidden=academyBookmarks.signedIn();
@@ -179,9 +185,9 @@ function renderBookmarks(pane){
 async function drawer(pane,mode='books',force=false){
  setActive(pane.index);pane.mode=mode;part(pane,'[data-sign-in]').hidden=academyBookmarks.signedIn();part(pane,'[data-drawer]').hidden=false;const generation=++pane.drawerGeneration,note=part(pane,'[data-note]');
  for(const button of pane.element.querySelectorAll('[data-drawer-mode]'))button.setAttribute('aria-pressed',String(button.dataset.drawerMode===mode));
- part(pane,'[data-books]').replaceChildren();note.textContent=mode==='books'?'Loading Library…':'Loading your bookmarks…';
+ part(pane,'[data-books]').replaceChildren();note.textContent=mode==='books'?'Loading Public Library…':'Loading your bookmarks…';
  try{
-  if(mode==='books')await books(force);else await academyBookmarks.list();if(generation!==pane.drawerGeneration)return;
+  if(mode==='books'){await Promise.all([books(force),academyBookmarks.signedIn()&&(!academyBookmarks.loaded()||force)?academyBookmarks.list().catch(()=>{}):Promise.resolve()]);}else await academyBookmarks.list();if(generation!==pane.drawerGeneration)return;
   note.textContent=mode==='books'?'Choose a book, then a volume where available.':'Saved to your Academy account · available across devices.';
   if(mode==='books')renderBooks(pane);else renderBookmarks(pane);part(pane,'[data-search]').focus();
  }catch(error){if(generation===pane.drawerGeneration)note.textContent=mode==='books'?'Library could not load. Choose Refresh to try again.':error.message;}
@@ -195,7 +201,16 @@ async function saveBookmark(pane,page,button){
 function discardAppEditor(pane){pane.appActive=false;pane.appOpening=false;pane.appFrame?.remove();pane.appFrame=null;pane.appPromise=null;pane.frame.hidden=false;}
 async function toggleAppEditor(pane){
  const button=part(pane,'[data-edit]'),open=button.getAttribute('aria-expanded')!=='true';
- if(pane.appActive){const editor=pane.appFrame.contentWindow.M4L_PDF_APP;if(editor.setEditing(open)){button.setAttribute('aria-expanded',String(open));button.setAttribute('aria-pressed',String(open));}return;}
+ if(pane.appFrame){
+  if(button.disabled)return;const editor=pane.appFrame.contentWindow.M4L_PDF_APP,generation=pane.loadGeneration;pane.appOpening=true;updateBookmarkButtons(pane);
+  try{
+   if(!editor.setEditing(open))return;
+   if(open){await editor.navigate(pane.page||1);if(generation!==pane.loadGeneration)return;pane.appActive=true;pane.frame.hidden=true;pane.appFrame.hidden=false;}
+   else{const page=pane.page||1,bytes=await editor.preview();if(generation!==pane.loadGeneration)return;const app=await viewerApplication(pane);await app.open({data:bytes,originalUrl:pane.title});await app.pdfViewer.firstPagePromise;if(generation!==pane.loadGeneration)return;pane.appActive=false;pane.appFrame.hidden=true;pane.frame.hidden=false;app.page=page;}
+   button.setAttribute('aria-expanded',String(open));button.setAttribute('aria-pressed',String(open));status('');
+  }catch(error){if(generation!==pane.loadGeneration)return;editor.setEditing(true);pane.appActive=true;pane.frame.hidden=true;pane.appFrame.hidden=false;button.setAttribute('aria-expanded','true');status(error.message||'The reading view could not open. Your annotations are still here.');}
+  finally{if(generation===pane.loadGeneration){pane.appOpening=false;updateBookmarkButtons(pane);syncWorkspaceTools();}}return;
+ }
  if(button.disabled)return;const generation=pane.loadGeneration;pane.appOpening=true;button.disabled=true;status('Opening Academy editing tools…');
  try{
   const app=await viewerApplication(pane);if(!app.pdfDocument)throw Error('Choose a PDF before opening the editing tools.');
@@ -203,31 +218,36 @@ async function toggleAppEditor(pane){
   if(generation!==pane.loadGeneration)return;
   const frame=document.createElement('iframe');frame.title='Academy PDF '+(pane.index+1)+' editing tools';frame.dataset.appEditor='';frame.hidden=true;pane.appFrame=frame;
   const loaded=new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('Academy editing tools could not start. Please try again.')),20000);frame.addEventListener('load',()=>{clearTimeout(timer);const editor=frame.contentWindow.M4L_PDF_APP;editor?resolve(editor):reject(Error('Academy editing tools could not start. Please try again.'));},{once:true});});
-  frame.src='/academy/pdf-compare/?embedded=1&pane='+pane.index+'&v=107.52';pane.frame.after(frame);
+  frame.src='/academy/pdf-compare/?embedded=1&pane='+pane.index+'&v=107.70';pane.frame.after(frame);
   const editor=await loaded;if(generation!==pane.loadGeneration)return;
   frame.contentWindow.addEventListener('keydown',readerKeydown);
   await editor.load({bytes:bytes.slice(),name:/\.pdf$/i.test(pane.title)?pane.title:pane.title+'.pdf',file:pane.file,page,unsaved});
   if(generation!==pane.loadGeneration)return;
   pane.appActive=true;pane.frame.hidden=true;frame.hidden=false;editor.setEditing(true);button.setAttribute('aria-expanded','true');button.setAttribute('aria-pressed','true');pane.page=page;updateBookmarkButtons(pane);status('');
  }catch(error){if(generation===pane.loadGeneration){discardAppEditor(pane);status(error.message||'Academy editing tools could not open. Your PDF is still available.');}}
- finally{if(generation===pane.loadGeneration){pane.appOpening=false;updateBookmarkButtons(pane);}}
+ finally{if(generation===pane.loadGeneration){pane.appOpening=false;updateBookmarkButtons(pane);syncWorkspaceTools();}}
 }
 const readerIcons={
  edit:'<path d="m4 16 12-12 4 4L8 20H4v-4Zm10-10 4 4"/>',
  library:'<path d="M12 6c-3-3-7-3-10-2v15c3-1 7-1 10 2m0-15c3-3 7-3 10-2v15c-3-1-7-1-10 2V6"/>',
  device:'<path d="M3 7V4h7l2 3h9v14H3V7Zm9 11v-7m-3 3 3-3 3 3"/>',
+ whiteboard:'<rect x="4" y="4" width="16" height="13" rx="2"/><path d="M12 17v5m-5 0 5-5 5 5"/>',
+ download:'<path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/>',
+ 'close-pdf':'<path d="m6 6 12 12M6 18 18 6"/>',
  bookmarks:'<path d="M5 3h14v19l-7-5-7 5V3Zm4 4h6m-6 4h6"/>',
- 'save-book':'<path d="M3 4h13v17H3V4Zm4 0v17M19 3v8m-4-4h8"/>',
+ 'save-book':'<path d="M4 3h13l4 4v14H3V3Zm3 0v7h10V3M7 21v-7h10v7"/>',
  'save-page':'<path d="M4 3h12v19l-6-4-6 4V3Zm15 5V0m-4 4h8"/>'
 };
 const readerIcon=(kind,label,extra='')=>`<button type="button" class="pr-icon-button" data-${kind} aria-label="${label}" title="${label}" ${extra}><svg viewBox="0 0 24 24" aria-hidden="true">${readerIcons[kind]}</svg></button>`;
 for(const pane of panes){
- pane.element.innerHTML=`<header class="pr-pane-header" aria-label="PDF ${pane.index+1} controls"><div class="pr-heading"><div class="pr-title-row"><span class="pr-pane-label">PDF ${pane.index+1}</span><h1 class="pr-pane-title" data-title>PDF ${pane.index+1}</h1><label class="pr-volume" data-volume-wrap hidden><select data-volume aria-label="Choose volume for PDF ${pane.index+1}"></select></label></div></div><div class="pr-document-actions"><div class="pr-pane-tools">${readerIcon('edit','Edit annotations','aria-expanded="false"')}${readerIcon('library','Library')}${readerIcon('device','Open file')}${readerIcon('bookmarks','My bookmarks')}</div><div class="pr-bookmark-tools">${readerIcon('save-book','Save book','disabled')}${readerIcon('save-page','Bookmark page','disabled')}<button type="button" data-focus aria-pressed="false" aria-controls="pr-workspace" hidden>Focus</button></div></div><input type="file" accept="application/pdf,.pdf" data-file hidden></header><iframe title="PDF ${pane.index+1} reader" data-frame></iframe><p class="pr-empty" data-empty>Choose Library or Open file to read a PDF.</p><aside class="pr-drawer" data-drawer aria-label="Library and bookmarks for PDF ${pane.index+1}" hidden><div class="pr-drawer-head"><h2>Academy Library</h2><button type="button" data-close aria-label="Close Library drawer">Close</button></div><nav class="pr-drawer-tabs" aria-label="Books and bookmarks"><button type="button" data-drawer-mode="books" aria-pressed="true">Books &amp; volumes</button><button type="button" data-drawer-mode="bookmarks" aria-pressed="false">My bookmarks</button></nav><label>Search<input type="search" data-search placeholder="Title, volume or page" autocomplete="off"></label><button type="button" data-refresh>↻ Refresh</button><p class="pr-drawer-note" data-note></p><a href="/academy/" target="_blank" rel="noopener" class="pr-sign-in" data-sign-in>Academy home / Sign in ↗</a><div class="pr-book-list" data-books></div></aside>`;
+ pane.element.innerHTML=`<header class="pr-pane-header" aria-label="PDF ${pane.index+1} controls"><div class="pr-heading"><div class="pr-title-row"><span class="pr-pane-label">PDF ${pane.index+1}</span><h1 class="pr-pane-title" data-title>PDF ${pane.index+1}</h1><label class="pr-volume" data-volume-wrap hidden><select data-volume aria-label="Choose volume for PDF ${pane.index+1}"></select></label></div></div><div class="pr-document-actions"><div class="pr-pane-tools">${readerIcon('edit','Edit annotations','aria-expanded="false" hidden')}${readerIcon('library','Library')}${readerIcon('device','Open file')}${readerIcon('bookmarks','My bookmarks')}</div><div class="pr-bookmark-tools">${readerIcon('save-book','Save book','disabled')}${readerIcon('save-page','Bookmark page','disabled')}${readerIcon('whiteboard','Whiteboard','aria-pressed="false"')}${readerIcon('close-pdf','Close PDF '+(pane.index+1))}${readerIcon('download','Download my copy','disabled')}</div></div><input type="file" accept="application/pdf,.pdf" data-file hidden></header><iframe title="PDF ${pane.index+1} reader" data-frame></iframe><p class="pr-empty" data-empty>Choose Library or Open file to read a PDF.</p><aside class="pr-drawer" data-drawer aria-label="Library and bookmarks for PDF ${pane.index+1}" hidden><div class="pr-drawer-head"><h2>Public Library</h2><button type="button" data-close aria-label="Close Library drawer">Close</button></div><nav class="pr-drawer-tabs" aria-label="Books and bookmarks"><button type="button" data-drawer-mode="books" aria-pressed="true">Books &amp; volumes</button><button type="button" data-drawer-mode="bookmarks" aria-pressed="false">My bookmarks</button></nav><label>Search<input type="search" data-search placeholder="Title, volume or page" autocomplete="off"></label><button type="button" data-refresh>↻ Refresh</button><p class="pr-drawer-note" data-note></p><a href="/academy/" target="_blank" rel="noopener" class="pr-sign-in" data-sign-in>Academy home / Sign in ↗</a><div class="pr-book-list" data-books></div></aside>`;
  pane.header=part(pane,'.pr-pane-header');pane.header.id='pr-controls-'+pane.index;pane.header.addEventListener('pointerdown',()=>setActive(pane.index));
  new ResizeObserver(()=>{const height=pane.header.getBoundingClientRect().height;if(height)pane.element.style.setProperty('--pr-controls-height',height+'px');}).observe(pane.header);
  pane.frame=part(pane,'[data-frame]');part(pane,'[data-edit]').onclick=()=>void toggleAppEditor(pane);pane.frame.addEventListener('load',()=>{part(pane,'[data-edit]').setAttribute('aria-expanded','false');part(pane,'[data-edit]').setAttribute('aria-pressed','false');});part(pane,'[data-library]').onclick=()=>void drawer(pane);
  part(pane,'[data-bookmarks]').onclick=()=>void drawer(pane,'bookmarks');
- part(pane,'[data-focus]').onclick=()=>{if(!split||window.M4L_PDF_WHITEBOARD.isOpen())return;rememberReadingPositions();setActive(pane.index);$('pr-workspace').classList.toggle('is-focused');focusLabels();restoreReadingPositions();};
+ part(pane,'[data-whiteboard]').onclick=()=>window.M4L_PDF_READER.workspaceAction(pane.index,'whiteboard');
+ part(pane,'[data-close-pdf]').onclick=()=>{if(!canReplace(pane))return;if(window.M4L_PDF_WHITEBOARD.isOpen())window.M4L_PDF_WHITEBOARD.close();openFile(pane,'','PDF '+(pane.index+1),false);split=false;const other=panes[1-pane.index];setActive(other.loaded?other.index:0);layout();};
+ part(pane,'[data-download]').onclick=async()=>{if(pane.appFrame)pane.appFrame.contentWindow.M4L_PDF_APP.download();else{const app=await viewerApplication(pane);await app.downloadOrSave();}};
  part(pane,'[data-refresh]').onclick=()=>void drawer(pane,pane.mode,true);part(pane,'[data-search]').oninput=()=>pane.mode==='books'?renderBooks(pane):renderBookmarks(pane);
  for(const button of pane.element.querySelectorAll('[data-drawer-mode]'))button.onclick=()=>void drawer(pane,button.dataset.drawerMode);
  part(pane,'[data-close]').onclick=()=>closeDrawer(pane);part(pane,'[data-drawer]').onkeydown=event=>{if(event.key==='Escape'){event.preventDefault();closeDrawer(pane);}};
@@ -245,9 +265,9 @@ for(const pane of panes){
 $('pr-fullscreen').onclick=()=>fullScreen(!document.body.classList.contains('pr-fullscreen'));
 window.addEventListener('keydown',readerKeydown);
 $('pr-volume-cancel').onclick=()=>$('pr-volume-dialog').close();
-window.addEventListener('m4l-pdf-bookmarks-change',()=>{for(const pane of panes)if(pane.mode==='bookmarks'&&!part(pane,'[data-drawer]').hidden){pane.drawerGeneration++;renderBookmarks(pane);}});
+window.addEventListener('m4l-pdf-bookmarks-change',()=>{for(const pane of panes)if(!part(pane,'[data-drawer]').hidden){pane.drawerGeneration++;if(pane.mode==='bookmarks')renderBookmarks(pane);else renderBooks(pane);}});
 window.addEventListener('blur',()=>{const pane=panes.find(pane=>pane.frame===document.activeElement||pane.appFrame===document.activeElement);if(pane)setActive(pane.index);});
-$('pr-split').onclick=()=>{if(mobile.matches)return;split=!split;$('pr-workspace').classList.remove('is-focused');if(!split)setActive(0);layout();};
+$('pr-split').onclick=()=>{if(mobile.matches)return;split=!split;$('pr-workspace').classList.remove('is-focused');layout();};
 $('pr-both').onclick=()=>{$('pr-workspace').classList.toggle('show-both');$('pr-workspace').classList.remove('is-focused');layout();};
 for(const pane of panes){const tab=$('pr-tab-'+pane.index);tab.onclick=()=>setActive(pane.index);tab.onkeydown=event=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){event.preventDefault();setActive(event.key==='Home'?0:event.key==='End'?1:1-active);$('pr-tab-'+active).focus();}};}
 const divider=$('pr-divider');divider.onpointerdown=event=>{event.preventDefault();divider.setPointerCapture(event.pointerId);document.body.classList.add('is-dragging');};divider.onpointermove=event=>{if(!divider.hasPointerCapture(event.pointerId))return;const rect=$('pr-workspace').getBoundingClientRect();setRatio(100*(mobile.matches?(event.clientY-rect.top)/rect.height:(event.clientX-rect.left)/rect.width));};const stop=()=>document.body.classList.remove('is-dragging');divider.onpointerup=stop;divider.onpointercancel=stop;divider.onlostpointercapture=stop;divider.ondblclick=()=>setRatio(50);divider.onkeydown=event=>{if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home'].includes(event.key)){event.preventDefault();setRatio(event.key==='Home'?50:ratio+(['ArrowRight','ArrowDown'].includes(event.key)?5:-5));}};

@@ -16,7 +16,8 @@
   let editorTouched = false;
   let resourceDirty = false;
   const alphabet = new Intl.Collator('en', { sensitivity: 'base', numeric: true });
-  const resourceTitle = book => saved.get(book.id)?.title || book.title || book.id;
+  const readableTitle=value=>typeof value==='string'&&!/^EXTERNAL:/i.test(value.trim())?value.trim():'';
+  const resourceTitle = book => window.M4L_LIBRARY_TITLES?.title(book,saved.get(book.id)?.title) || readableTitle(saved.get(book.id)?.title) || readableTitle(book.title) || 'Untitled resource';
   const resourceSubject = book => {
     const record = saved.get(book.id) || {};
     return taxonomy.subjects.find(subject => subject.id === record.subjectRef)?.name || record.subject?.trim() || '';
@@ -132,7 +133,7 @@
     $('olm-category-wrap').hidden = true;
     $('olm-search').value = '';
     $('olm-book').replaceChildren(option('', 'Select a resource to edit'), ...books.map(book =>
-      option(book.id, saved.get(book.id)?.title || book.title)));
+      option(book.id, resourceTitle(book))));
     $('olm-book').disabled = !books.length;
     $('olm-book').value = '';
     $('olm-save').disabled = false;
@@ -205,7 +206,7 @@
     $('olm-subject').required = manual;
     $('olm-linkUrl').value = manual ? record.linkUrl || '' : '';
     $('olm-active').checked = record.active !== false;
-    $('olm-source').textContent = `${book.source} · ${book.title}${book.volumes ? ` · ${book.volumes.length} volumes` : ''}`;
+    $('olm-source').textContent = `${book.source} · ${resourceTitle(book)}${book.volumes ? ` · ${book.volumes.length} volumes` : ''}`;
     for (const field of fields) $(`olm-${field}`).value = record[field] || '';
     const assigned = new Set(record.learningAreaRefs || []);
     for (const box of areaBoxes) box.checked = assigned.has(box.value);
@@ -230,7 +231,7 @@
   function refreshBookChoices(preferredId = $('olm-book').value, preserveForm = false) {
     const matches = books.slice().sort((left, right) => alphabet.compare(resourceTitle(left), resourceTitle(right)));
     $('olm-book').replaceChildren(...(matches.length ? matches.map(book =>
-      option(book.id, saved.get(book.id)?.title || book.title)) :
+      option(book.id, resourceTitle(book))) :
       [option('', 'No matching resources')]));
     $('olm-book').disabled = !matches.length;
     if(preserveForm){if(isNew){$('olm-book').replaceChildren(option('', 'Select a resource to edit'), ...$('olm-book').children);$('olm-book').value='';}else $('olm-book').value=preferredId;renderResourceBoard();return;}
@@ -253,7 +254,7 @@
       const archivePending=fetch('/academy/open-library/catalogue',typeof AbortSignal!=='undefined'&&AbortSignal.timeout?{signal:AbortSignal.timeout(12000)}:{}).then(async response=>response.ok?(await response.json()).books||[]:[]).catch(()=>[]);
       const [metadata, options] = await Promise.all([api('list'), api('options')]);
       saved = new Map((Array.isArray(metadata.records) ? metadata.records : []).map(record => [record.id, record]));
-      const savedBooks=()=>[...saved.values()].map(record=>({id:record.id,title:record.title||record.id,source:'Academy',resourceType:record.resourceType||'OTHER',coverUrl:record.coverUrl||''}));
+      const savedBooks=()=>[...saved.values()].map(record=>({id:record.id,title:resourceTitle(record),source:'Academy',resourceType:record.resourceType||'OTHER',coverUrl:record.coverUrl||''}));
       books=savedBooks();
       taxonomy = { subjects: Array.isArray(options.subjects) ? options.subjects : [],
         modules: Array.isArray(options.modules) ? options.modules : [],
@@ -276,6 +277,7 @@
       if(books.length)refreshBookChoices();else showNew();
       status.textContent='Editor ready. Loading resources…';
       const archiveBooks=await archivePending;
+      window.M4L_LIBRARY_TITLES?.remember(archiveBooks);
       books=[...archiveBooks,...savedBooks().filter(book=>!archiveBooks.some(source=>source.id===book.id))];
       if(books.length)refreshBookChoices($('olm-book').value,editorTouched);
       else if(!editorTouched)showNew();
