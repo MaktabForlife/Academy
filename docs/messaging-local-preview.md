@@ -1,8 +1,8 @@
-# Academy browser messaging — local feature
+# Academy browser messaging — V107.69
 
 Branch: `feature/academy-messaging`.
 
-Base: `feature/academy-session-videos` at `c62c901274881c191163586c33d55e2d8720a9ee`, plus a snapshot of its then-current tracked and untracked local changes (`d2580f62`). The source checkout was left untouched. Existing V107.66 release labels are inherited; this local feature does not reserve a new release version.
+Base: `feature/academy-session-videos` at `c62c901274881c191163586c33d55e2d8720a9ee`, plus a snapshot of its then-current tracked and untracked local changes (`d2580f62`). The source checkout was left untouched. On 26 October 2026 the user explicitly requested deployment after V107.68. The messaging branch incorporates deployed V107.68 (`e3acc1ee`) and is prepared as V107.69.
 
 ## Preview
 
@@ -36,9 +36,9 @@ The additive migrations are:
 - `backend/migrations/academy/0038_messaging.sql` for a disposable unsplit database.
 - `backend/migrations/academy-core/0003_messaging.sql` for the existing split Core database. No Admin schema change is required.
 
-Both paths are exercised locally. Do not apply both paths to the same database. Neither has been applied to a hosted database.
+Both paths are exercised locally. Do not apply both paths to the same database. Only the split Core upgrade is required by the existing deployment; activation evidence is recorded below after verification.
 
-`ACADEMY_MESSAGING=1` enables the API. The prepared Worker configuration includes a dedicated minute cron; that tick runs messaging only. Cache and Hifz recovery retain their existing cadence. These configuration edits remain local.
+`ACADEMY_MESSAGING=1` enables the API. The prepared Worker configuration includes a dedicated minute cron; that tick runs messaging only. Cache and Hifz recovery retain their existing cadence. The dedicated minute tick is part of the V107.69 release configuration.
 
 FMA integration, private conversations/replies, PWA/push, email and learning-event automation are outside this implementation. Existing Class Note posting does not automatically issue a messaging notice.
 
@@ -51,4 +51,14 @@ FMA integration, private conversations/replies, PWA/push, email and learning-eve
 
 The browser acceptance tool writes screenshots and `verification.json` to `/private/tmp/academy-messaging-acceptance`.
 
-Before any future release, reconcile with the then-current local base, allocate a release version, apply the reviewed Core upgrade and release matching website/Worker assets. Publishing remains subject to a new explicit user instruction. Nothing in this document authorises deployment.
+The user authorised this release on 26 October 2026. Future releases still require user authorisation. Keep live checks small under `../AGENTS.md`; the 200-recipient check uses local fixtures, never a real-account broadcast.
+
+
+## V107.69 release — 26 October 2026
+
+- Incorporated deployed V107.68 (`e3acc1ee`) and removed superseded standalone video-preview pages from the release artifact. Retain session uploads, fourteen-day expiry, read optimisations and the existing timetable.
+- Local regression covered all 114 test files. The initial full run passed 112; the two release-invariant files were updated to expect the dedicated messaging minute timer alongside the original quarter-hour timer, then all six tests in those files passed. Messaging separately verifies that the minute tick does not run cache/Hifz recovery.
+- Browser acceptance passed six workflows with synthetic split stores: dashboard inbox, 200-recipient send/review/report, independent receipts and personal archive, 390px/320px full-screen layouts, canonical Class Note links, scheduled cancellation and account clearing. No hosted test broadcast is performed.
+- API dry-run build passes (1,521.67 KiB / 326.38 KiB compressed). Website build passes (752 assets). Boundary check passes for 136 modules, with no legacy Google backend client. Active release markers agree on V107.69.
+- Recorded a Core Time Travel bookmark, then applied only `academy-core/0003_messaging.sql`. One targeted query confirms seven tables, 21 write fences, 21 read-epoch triggers and eight retention triggers, initially zero notices and recipients. Existing learning tables and the Admin schema are unchanged. Private schema/bookmark evidence is under ignored `.academy-migration/messaging-10769/`.
+- Website, API and private coordinator activation evidence is recorded in the release output after deployment. Future deployments still require user authorisation.

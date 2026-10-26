@@ -1,10 +1,27 @@
-# Umm Abbad Academy — V107.66
+# Umm Abbad Academy — V107.69
 
-## Local messaging feature — not deployed
+## V107.69 — Scoped browser messaging
 
-Build scoped browser notices on `feature/academy-messaging`, including the latest local session-video work. Connect the existing dashboard Messages card to an inbox, student/teacher/Admin sending, recipient review, scheduling, separate opened and acknowledged receipts, personal archiving and retained reports. FMA, PWA, push, email and event-generated notices remain deferred. No hosted migration or deployment has been performed.
+Connect the existing dashboard Messages card to a personal inbox and scoped sending for Students, attached Teachers, Program/Course Admins and Global Admin. Include recipient review and de-duplication, drafts, scheduling, independent opened and acknowledged receipts, personal archiving, canonical lesson/Class Note links and retained reports. Use an additive Core-only messaging schema and a bounded delivery queue. Preserve deployed V107.68 videos and V107.67 read optimisations. FMA, PWA/push, email and learning-event automation remain deferred.
 
-[Local preview and verification](docs/messaging-local-preview.md).
+[Release and verification notes](docs/messaging-local-preview.md).
+
+## V107.68 — Session MP4 recordings
+
+Manual MP4 uploads attach recordings to existing sessions, using the same session permissions and publication flow. Play uploaded MP4s and YouTube videos in the app. Stop MP4 playback fourteen days after upload, show Recording expired, and omit expired-only sessions from the learner media rail while preserving session records and other links.
+
+Use native R2 expiry only for the recording prefix. Includes a store-specific attachment schema upgrade preserving existing assets, references, indexes and triggers. Automatic Zoom imports remain deferred. Retains the deployed V107.67 read optimisations.
+
+[Implementation and verification notes](docs/session-video-local-preview.md).
+
+
+## V107.67 — Fewer database reads and batched assessment setup
+
+Reuse private, permission-aware snapshots for dashboard timetables, assessment summaries, calendars and sign-in permission data. Refresh them when relevant published data, enrolments or permissions change, while retaining current session, account and access checks. Materialize repeated JSON table projections once per query. Calculate teacher workload only when Admin opens teacher availability.
+
+Stage assessment schedule edits locally, save the full batch together, and validate and publish the complete Imtihaan against current data. Preserve V107.66 manual marks and grouped paper publication. Includes the additive Core snapshot counter upgrade; existing learning records remain intact.
+
+[Implementation and verification notes](docs/academy-separation/READ-OPTIMISATION-LOCAL.md). Keep live release checks small to limit database usage.
 
 ## V107.66 — Manual marks and one paper publication
 

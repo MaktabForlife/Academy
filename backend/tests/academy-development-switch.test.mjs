@@ -19,10 +19,10 @@ test('Development deployments select the clean runtime and retain existing stora
     ['LESSON_MEDIA_BUCKET','maktab-lesson-media-private-development'],['ASSESSMENT_BUCKET','maktab-assessments-private-development'],['MEDIA_BUCKET','maktab4lifemedia']]);
   assert.deepEqual(config.env.development.durable_objects.bindings,[{name:'PROGRAM_TIMETABLE_COORDINATOR',class_name:'ProgramTimetableCoordinator'},{name:'ACADEMY_SPLIT_COORDINATOR',class_name:'AcademySplitCoordinator',script_name:'academy_split_coordinator'}]);
   assert.equal(config.env.development.ratelimits[0].namespace_id,'100101');
-  assert.deepEqual(config.env.development.triggers.crons,['*/15 * * * *']);
+  assert.deepEqual(config.env.development.triggers.crons,['*/15 * * * *','* * * * *']);
   assert.deepEqual(config.migrations,[{tag:'v1052-program-timetable',new_sqlite_classes:['ProgramTimetableCoordinator']}]);
   assert.equal(config.main,'src/academy-development-runtime.js');assert.equal(config.name,'devrebootworker');
-  for(const vars of [config.vars,config.env.development.vars])for(const [key,value] of Object.entries({ACADEMY_ACCEPTED_SETUP:'1',ACADEMY_LEARNING_OPERATIONS:'3',ACADEMY_MEDIA_SEPARATION:'1'}))assert.equal(vars[key],value,key);
+  for(const vars of [config.vars,config.env.development.vars])for(const [key,value] of Object.entries({ACADEMY_ACCEPTED_SETUP:'1',ACADEMY_LEARNING_OPERATIONS:'3',ACADEMY_MEDIA_SEPARATION:'1',ACADEMY_MESSAGING:'1'}))assert.equal(vars[key],value,key);
 });
 test('the shared website calls Development on stable and preview addresses, with no production fallback',()=>{
   const directory=mkdtempSync('/private/tmp/academy-development-assets-');

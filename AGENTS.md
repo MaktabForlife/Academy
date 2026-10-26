@@ -1,22 +1,23 @@
-# Local messaging branch — 25 October 2026
+# Messaging release — 26 October 2026
 
-- Build messaging locally on `feature/academy-messaging`, based on `feature/academy-session-videos` and the copied local session-video changes.
-- Do not push, deploy, change hosted databases or apply hosted migrations. The user explicitly requested local development and verification only.
-- Keep FMA integration, push, PWA, email and event-generated notices for later. Preserve the swipeable timetable.
-- Use disposable local fixtures. Do not use a preview that forwards writes to Development.
+- The user explicitly requested deploying messaging after confirming V107.68 was deployed. Release V107.69 from `feature/academy-messaging` to the existing Development API and website, including only the additive Core messaging schema upgrade.
+- Incorporate deployed V107.68 first. Preserve its read optimisations, session videos, fourteen-day expiry and scoped permissions.
+- Keep FMA integration, PWA/push, transactional email and learning-event automation deferred. Preserve the swipeable timetable.
+- Follow `../AGENTS.md`: keep live verification small; use disposable local fixtures for the 200-recipient check. Do not send test broadcasts to real accounts.
+- This request supersedes earlier local-only deployment holds for this release. Future deployments require user authorisation.
 
-# Local session video branch — 25 October 2026
+# Session video release — 26 October 2026
 
-- The user requested `feature/academy-session-videos` from commit `c62c901274881c191163586c33d55e2d8720a9ee`. This branch instruction supersedes the optimisation/development branch instructions below for this checkout.
-- The user resumed manual R2 MP4 uploads linked to sessions, with in-app playback and native expiry fourteen days after upload. Recordings inherit the existing session permissions; do not introduce separate role assignments. Automatic Zoom import remains deferred.
-- Do not push, deploy, change hosted databases, or apply R2 lifecycle rules without an explicit deployment request. Use local fixtures for verification.
+- The user explicitly requested deployment of the session video feature after confirming V107.67 was deployed. Release this work as V107.68 to the existing Development website and API targets, including the required split-store attachment schema upgrade and the native fourteen-day recording expiry rule.
+- Work on `feature/academy-session-videos`, originally created from `c62c901274881c191163586c33d55e2d8720a9ee`, incorporating deployed V107.67 (`385b1675`). This supersedes earlier branch/deployment holds for this release only.
+- Recordings inherit existing session permissions. Automatic Zoom imports remain deferred. Apply expiry only to `dev-split-v1/session-recordings/`, preserving other bucket rules and media.
+- Follow the shared `../AGENTS.md` live-usage rule. Keep hosted checks targeted and small; use disposable local fixtures for regression coverage. Future deployments still require user authorisation.
 
-# Local optimisation branch and deployment hold — 25 October 2026
+# Academy read optimisation release — 26 October 2026
 
-- Work on the local `feature/academy-read-optimisation` branch for the query and dashboard snapshot optimisation requested by the user.
-- Do not push or deploy this work until the user explicitly requests it. This suspends the earlier automatic Development deployment authorisations below.
-- Keep all database verification local using disposable fixtures during this work.
-- Keep code deployment and the hosted database upgrade on hold through the daily reset at 00:00 UTC / 03:00 Riyadh on 26 October 2026. The reset does not schedule a deployment or override the explicit-request requirement above.
+- The user explicitly authorised completing this deployment on 26 October 2026, after the daily reset. Deploy verified V107.67 from `feature/academy-read-optimisation` to the existing Development targets, including the additive Core snapshot upgrade, private split coordinator, API Worker and matching website.
+- This authorisation supersedes the 25 October deployment/database hold for this release. Future deployments still require the user's authorisation.
+- **Keep live checks small to limit database usage.** Prefer local disposable fixtures; batch targeted metadata/version/schema checks, avoid broad live scans or acceptance runs, and do not repeatedly poll database-backed endpoints. Follow the shared `../AGENTS.md` rule across project work.
 
 # Current Development workflow — 24 October 2026
 
