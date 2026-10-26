@@ -1,10 +1,11 @@
+import {assessmentTableStates,assessmentTablePlan,assessmentRegisterMarks} from './assessment-table.js';
 import {assessmentResultsSQL} from './assessment-results.js';
 import {assessmentGroup,assessmentListGroups,assessmentSelections,groupRevisions,sharedAssessmentAction} from './assessment-group.js';
 import {insertRecords} from './insert-records.js';
 import {assessmentOperations,timingFields,collectionPolicy,readyEligibility} from './assessment-timing.js';
 import {appTimezone,academyDate,dayStart,nextDate,localInstant} from './academy-clock.js';
 import {isAdminWorkspace} from './workspace-access.js';
-import {assessmentStore,cleanText,validDate,paperAvailable} from './assessment-store.js';
+import {assessmentStore,cleanText,validDate,paperAvailable,paperReplacementOpen} from './assessment-store.js';
 import {administers,viewedClass,readerPreview,actualState} from './workspace-access.js';
 import {managementError as fail,same} from './management-store.js';
 import {registerList,createRegister,saveRegister,validateRegister,releaseRegister,legacyRegisterPlan,requireRegisterClass,newRegisterStatements,registerRecord} from './assessment-register.js';
@@ -75,6 +76,8 @@ export function d1Assessments(repository,auth){
    FROM assessment_recipients r LEFT JOIN (${assessmentResultsSQL}) m ON m.mark_id=r.latest_mark_id LEFT JOIN assessment_submissions b ON b.submission_id=r.latest_submission_id
    WHERE r.assessment_id IN(SELECT value FROM json_each(?)) GROUP BY r.assessment_id`,JSON.stringify(ids)).all()).results:[];
   const resultById=new Map(results.map(r=>[r.assessment_id,r]));
+  const tableStates=input.dashboard===true?new Map():await assessmentTableStates(s,rows);
+  const files=input.dashboard===true||!native?new Map():new Map((await p('SELECT f.file_id,i.sha256 FROM assessment_files f LEFT JOIN assessment_file_integrity i USING(file_id) WHERE f.file_id IN(SELECT value FROM json_each(?))',JSON.stringify([...new Set(rows.map(a=>a.paper_file_id).filter(Boolean))])).all()).results.map(f=>[f.file_id,f.sha256]));
   const own=(await p(input.dashboard===true?'SELECT assessment_id FROM assessment_recipients WHERE account_id=?':'SELECT * FROM assessment_recipients WHERE account_id=?',actor).all()).results;
   const assessments=rows.filter(a=>preview?a.schedule_published&&admin.some(c=>same(c.activity_key,a.activity_key)&&same(c.class_id,a.class_id)):(staff.some(c=>same(c.activity_key,a.activity_key)&&same(c.class_id,a.class_id))||s.isAssignedExaminer(a))||a.schedule_published&&own.some(r=>r.assessment_id===a.assessment_id)&&learner.some(c=>same(c.activity_key,a.activity_key)&&same(c.class_id,a.class_id))).map(a=>{
    const canAdmin=!preview&&admin.some(c=>same(c.activity_key,a.activity_key)&&same(c.class_id,a.class_id)),canTeach=!preview&&(staff.some(c=>same(c.activity_key,a.activity_key)&&same(c.class_id,a.class_id))||s.isAssignedExaminer(a));
@@ -82,11 +85,12 @@ export function d1Assessments(repository,auth){
    const readOnly=canTeach&&!s.isAssignedExaminer(a)&&!actualStaff.some(c=>same(c.activity_key,a.activity_key)&&same(c.class_id,a.class_id));
    const result=resultById.get(a.assessment_id),uploaded=Number(result?.uploaded||0);
    const resultsStatus=!canTeach?null:!uploaded?a.ready_for_assessment_at?'READY_FOR_ASSESSMENT':'WAITING':result.released===uploaded?'RELEASED':result.moderated===uploaded?'MODERATED':result.assessed===uploaded?'ASSESSED':a.ready_for_assessment_at?'READY_FOR_ASSESSMENT':native&&result.checked===uploaded?'CHECKED':'UPLOADED';
+   const tableState=tableStates.get(a.assessment_id);
    const paperStatus=!canTeach?null:!a.paper_file_id?'WAITING_FOR_SUBMISSION':a.paper_state==='RETURNED'?'RETURNED':a.paper_state!=='APPROVED'?'DRAFTED':!a.paper_released_at?'APPROVED':paperAvailable(a)?'PAPER_RELEASED':'PUBLISHED';
-   return {...metadata(a),id:a.assessment_id,activityKey:a.activity_key,activityName:a.activity_name,classId:a.class_id,className:a.class_name,title:a.title,subject:a.subject,subjectDescriptor:a.subject_descriptor,registerId:a.register_id,phaseId:a.phase_id,phaseName:a.phase_name||'',registerStatus:a.register_status||'',examDate:a.exam_date,durationMinutes:a.duration_minutes,maximumMark:a.maximum_mark,published:Boolean(a.schedule_published),examinerId:canTeach?a.examiner_id:null,examinerName:canTeach?a.examiner_name||'':'',paperUploaderName:canTeach?a.paper_uploader_name||'':'',paperState:canTeach?(a.paper_file_id?a.paper_state:'NONE'):paperAvailable(a)?'AVAILABLE':'WAITING',paperStatus,resultsStatus,...(canTeach?{readyForAssessmentAt:a.ready_for_assessment_at}:{}),paperReleased:canTeach?Boolean(a.paper_released_at):paperAvailable(a),paperAvailable:paperAvailable(a),revision:a.revision,canAdmin,canTeach,readOnly,isExaminer:!preview&&!readOnly&&same(a.examiner_id,actor),canModeratePaper:canAdmin,canModerate:canAdmin&&!same(a.examiner_id,actor)};
+   return {...metadata(a),id:a.assessment_id,activityKey:a.activity_key,activityName:a.activity_name,classId:a.class_id,className:a.class_name,title:a.title,subject:a.subject,subjectDescriptor:a.subject_descriptor,registerId:a.register_id,phaseId:a.phase_id,phaseName:a.phase_name||'',registerStatus:a.register_status||'',examDate:a.exam_date,durationMinutes:a.duration_minutes,maximumMark:a.maximum_mark,published:Boolean(a.schedule_published),examinerId:canTeach?a.examiner_id:null,examinerName:canTeach?a.examiner_name||'':'',paperUploaderName:canTeach?a.paper_uploader_name||'':'',paperState:canTeach?(a.paper_file_id?a.paper_state:'NONE'):paperAvailable(a)?'AVAILABLE':'WAITING',paperStatus,resultsStatus,...(canTeach?{paperFileId:a.paper_file_id,paperSHA256:files.get(a.paper_file_id)||null,marksModerated:Boolean(tableState?.moderated),canEditDetails:canAdmin&&paperReplacementOpen(a)&&!tableState?.accessed&&!tableState?.entered,canEnterMarks:canTeach&&(!readOnly||auth.adminView&&administers(auth,a.activity_key)),canReplacePaper:!readOnly&&(!a.paper_released_at||canAdmin&&paperReplacementOpen(a))}:{}),...(canTeach?{readyForAssessmentAt:a.ready_for_assessment_at}:{}),paperReleased:canTeach?Boolean(a.paper_released_at):paperAvailable(a),paperAvailable:paperAvailable(a),revision:a.revision,canAdmin,canTeach,readOnly,isExaminer:!preview&&!readOnly&&same(a.examiner_id,actor),canModeratePaper:canAdmin,canModerate:canAdmin&&!same(a.examiner_id,actor)};
   });
   if(input.dashboard===true)return {assessments:assessments.filter(a=>a.assessmentKind==='EXAM'),timezone:native?await appTimezone(repository):'Africa/Johannesburg',store:'D1'};
-  if(input.view==='admin'&&!preview){const groups=await assessmentListGroups(s,rows,assessments);for(const a of assessments)Object.assign(a,groups.get(a.id)||{});}
+  if(!preview&&assessments.some(a=>a.canTeach)){const groups=await assessmentListGroups(s,rows,assessments,input.view!=='admin');for(const a of assessments)Object.assign(a,groups.get(a.id)||{});}
   const phases=(await p(`SELECT ph.*,a.name activity_name FROM assessment_phases ph JOIN activities a USING(activity_key) WHERE ph.activity_key IN(SELECT json_extract(value,'$.activity_key') FROM json_each(?)) OR ph.phase_id IN(SELECT json_extract(value,'$.phaseId') FROM json_each(?)) ORDER BY ph.created_at DESC,ph.name LIMIT 501`,JSON.stringify(admin),JSON.stringify(assessments)).all()).results;
   if(phases.length>500)throw fail('Choose a learning area to narrow the phase list.',409);
   if(preview)return {assessments,phases:[],classes:[],registers:[],catalogue:[],canAdmin:false,learnerPreview:true,timezone:native?await appTimezone(repository):'Africa/Johannesburg',store:'D1'};
@@ -109,7 +113,7 @@ export function d1Assessments(repository,auth){
   const history=staff?(await p('SELECT action,account_id,details_json,occurred_at FROM assessment_events WHERE assessment_id=? ORDER BY occurred_at DESC,event_id DESC LIMIT 100',a.assessment_id).all()).results:[];
   const ownAttempt=native&&learn&&!preview?await p('SELECT deadline_at FROM assessment_attempts WHERE assessment_id=? AND account_id=?',a.assessment_id,actor).first():null;
   const currentCollection=await collection(a),policy=native?collectionPolicy(a,currentCollection):null,counts={expected:recipients.length,received:recipients.filter(r=>r.latest_submission_id).length,unchecked:recipients.filter(r=>r.latest_submission_id&&!r.confirmed_at).length,replacements:recipients.filter(r=>r.resubmit_authorised).length},ready=native?readyEligibility(a,counts,currentCollection):null;
-  const result={assessment:{...metadata(a,currentCollection),...(native?{canUpload:!preview&&policy.open&&paperAvailable(a),...(learn?{attemptDeadline:ownAttempt?.deadline_at||null,serverNow:new Date().toISOString()}:{}),readyAvailable:!readOnly&&ready.available,readyUnchecked:ready.unchecked,canDirectAdmin:admin&&!preview}:{}),id:a.assessment_id,examinerId:canTeach?a.examiner_id:null,examinerName:canTeach?a.examiner_name||'':'',paperUploaderName:canTeach?a.paper_uploader_name||'':'',title:a.title,subject:a.subject,subjectDescriptor:a.subject_descriptor,registerId:a.register_id,phaseId:a.phase_id,phaseName:a.phase_name||'',examDate:a.exam_date,...(!learn?{durationMinutes:a.duration_minutes,maximumMark:a.maximum_mark}:{}),activityKey:a.activity_key,activityName:a.activity_name,classId:a.class_id,className:a.class_name,revision:a.revision,published:Boolean(a.schedule_published),paperAvailable:paperAvailable(a),paperState:canTeach?(a.paper_file_id?a.paper_state:'NONE'):paperAvailable(a)?'AVAILABLE':'WAITING',paperComment:canTeach?a.paper_comment:'',paperFileId:canTeach||paperAvailable(a)?a.paper_file_id:null,paperReleased:canTeach?Boolean(a.paper_released_at):paperAvailable(a),readyForAssessmentAt:canTeach?a.ready_for_assessment_at:null,readyForAssessmentBy:canTeach?a.ready_for_assessment_by:null,learnerPreview:preview,readOnly,canAdmin:!preview&&admin,canTeach,isExaminer:!preview&&examiner,canModeratePaper:!preview&&admin,canModerate:!preview&&admin&&!same(a.examiner_id,actor),canSubmitPaper:!preview&&await s.canWork(a)&&(!a.examiner_id||examiner||admin)},learners,history:preview?[]:admin?history:history.filter(e=>['upload-ANSWER','view-answer','confirm-submission','ready-assessment','mark'].includes(e.action)).map(({action,account_id,occurred_at})=>({action,account_id,occurred_at})),store:'D1'};
+  const result={assessment:{...metadata(a,currentCollection),...(native?{canUpload:!preview&&policy.open&&paperAvailable(a),...(learn?{attemptDeadline:ownAttempt?.deadline_at||null,serverNow:new Date().toISOString()}:{}),readyAvailable:!readOnly&&ready.available,readyUnchecked:ready.unchecked,canDirectAdmin:admin&&!preview}:{}),id:a.assessment_id,examinerId:canTeach?a.examiner_id:null,examinerName:canTeach?a.examiner_name||'':'',paperUploaderName:canTeach?a.paper_uploader_name||'':'',title:a.title,subject:a.subject,subjectDescriptor:a.subject_descriptor,registerId:a.register_id,phaseId:a.phase_id,phaseName:a.phase_name||'',examDate:a.exam_date,...(!learn?{durationMinutes:a.duration_minutes,maximumMark:a.maximum_mark}:{}),activityKey:a.activity_key,activityName:a.activity_name,classId:a.class_id,className:a.class_name,revision:a.revision,published:Boolean(a.schedule_published),paperAvailable:paperAvailable(a),paperState:canTeach?(a.paper_file_id?a.paper_state:'NONE'):paperAvailable(a)?'AVAILABLE':'WAITING',paperComment:canTeach?a.paper_comment:'',paperFileId:canTeach||paperAvailable(a)?a.paper_file_id:null,canReplacePaper:canTeach&&(!a.paper_released_at||admin&&paperReplacementOpen(a)),paperReleased:canTeach?Boolean(a.paper_released_at):paperAvailable(a),readyForAssessmentAt:canTeach?a.ready_for_assessment_at:null,readyForAssessmentBy:canTeach?a.ready_for_assessment_by:null,learnerPreview:preview,readOnly,canAdmin:!preview&&admin,canTeach,isExaminer:!preview&&examiner,canModeratePaper:!preview&&admin,canModerate:!preview&&admin&&!same(a.examiner_id,actor),canSubmitPaper:!preview&&await s.canWork(a)&&(!a.examiner_id||examiner||admin)},learners,history:preview?[]:admin?history:history.filter(e=>['upload-ANSWER','view-answer','confirm-submission','ready-assessment','mark'].includes(e.action)).map(({action,account_id,occurred_at})=>({action,account_id,occurred_at})),store:'D1'};
   if(staff&&!preview){const group=await assessmentGroup(s,a);if(group){
    let canManage=true;try{await s.requireAssessmentStaffGroup(group);}catch(e){if(e.status!==403)throw e;canManage=false;}
    result.group={shared:true,canManage,members:[]};
@@ -127,7 +131,7 @@ export function d1Assessments(repository,auth){
  async function saveScheduleBatch(input){
   if(!isAdminWorkspace(auth))throw fail('Assessment setup requires Admin access.',403,'FORBIDDEN');
   if(!Array.isArray(input.rows)||!input.rows.length||input.rows.length>100||input.rows.some(r=>!r||typeof r!=='object'||Array.isArray(r)))throw fail('Save between one and 100 assessment edits together.');
-  return s.change('schedule-batch',input,String(input.registerId||''),async()=>{
+  return s.change(input.table?'table-save':'schedule-batch',input,String(input.registerId||''),async()=>{
    const register=await registerRecord(s,input.registerId);
    if(input.revision!==register.revision)throw fail('This Imtihaan changed elsewhere. Refresh before saving.',409,'ROW_CHANGED');
    if(['CANCELLED','ARCHIVED'].includes(register.status))throw fail('This Imtihaan is not available for assessment setup.',409);
@@ -135,6 +139,7 @@ export function d1Assessments(repository,auth){
    if(register.activityKeys.some(key=>!allowed.has(key)))throw fail('This Imtihaan includes a learning area outside your administration access.',403,'FORBIDDEN');
    const current=(await p('SELECT * FROM assessments WHERE register_id=? AND deleted_at IS NULL LIMIT 1001',register.register_id).all()).results;
    if(current.length>1000)throw fail('This Imtihaan has too many assessments to save together.',409);
+   if(input.table&&native){const hashes=new Map((await p('SELECT file_id,sha256 FROM assessment_file_integrity WHERE file_id IN(SELECT value FROM json_each(?))',JSON.stringify(current.map(a=>a.paper_file_id).filter(Boolean))).all()).results.map(f=>[f.file_id,f.sha256]));for(const a of current)a.paper_sha256=hashes.get(a.paper_file_id)||null;}
    const records=new Map(current.map(a=>[a.assessment_id,a])),existing=input.rows.filter(r=>r.assessmentId),original=await assessmentSelections(s,existing.map(r=>r.assessmentId));
    const entries=[],targets=[],seen=new Set();let newCount=0;
    for(const row of input.rows){
@@ -161,11 +166,13 @@ export function d1Assessments(repository,auth){
    const phaseIds=[...new Set(entries.flatMap(e=>e.members?.map(a=>e.row.phaseId===undefined?a.phase_id:e.row.phaseId)||[e.row.phaseId]).filter(Boolean))];
    const phaseRows=phaseIds.length?(await p('SELECT phase_id,activity_key FROM assessment_phases WHERE phase_id IN(SELECT value FROM json_each(?))',JSON.stringify(phaseIds)).all()).results:[];
    const phases=new Set(phaseRows.map(ph=>JSON.stringify([ph.phase_id,ph.activity_key]))),context={catalogue:choices,examiners,phases,timezone,registers:new Map([[register.register_id,register]])};
+   context.fields=fields;context.native=native;if(input.table){context.tableStates=await assessmentTableStates(s,current);context.collections=new Map(native?(await p('SELECT * FROM assessment_collection WHERE assessment_id IN(SELECT value FROM json_each(?))',JSON.stringify(current.map(a=>a.assessment_id))).all()).results.map(c=>[c.assessment_id,c]):[]);}
    const statements=[],created=[],changed=[],now=new Date().toISOString();
    for(const {row,members,classes} of entries){
     if(row.examinerId&&classes.some(c=>!examiners.some(t=>t.id===row.examinerId&&t.activity_key===c.activityKey)))throw fail('Choose an examiner who teaches in every selected learning area.',403,'EXAMINER_OUTSIDE_PROGRAM');
     if(members){
-     for(const a of members){const plan=await mutationPlan('save',{...row,registerId:register.register_id,activityKey:a.activity_key,assessmentId:a.assessment_id,revision:a.revision},a,context);statements.push(...plan.statements);changed.push(a.assessment_id);}
+     context.groupHasMarks=input.table&&members.some(a=>context.tableStates.get(a.assessment_id)?.entered);
+     for(const a of members){const plan=input.table&&row.changes?await assessmentTablePlan(s,a,row,context):await mutationPlan('save',{...row,registerId:register.register_id,activityKey:a.activity_key,assessmentId:a.assessment_id,revision:a.revision},a,context);statements.push(...plan.statements);changed.push(a.assessment_id);}
     }else{
      const v=await fields({...row,activityKey:classes[0].activityKey},null,choices,examiners,timezone),ids=classes.map(()=>crypto.randomUUID());
      for(const [i,c] of classes.entries()){
@@ -366,9 +373,9 @@ export function d1Assessments(repository,auth){
    if(papers.length!==input.papers.length)throw fail('An assessment was not found.',404);
    if(prepare){
     if(typeof input.registerId!=='string'||papers.some(a=>a.register_id!==input.registerId))throw fail('Choose papers from this Imtihaan.',403);
-    const waiting=(await p('SELECT * FROM assessments WHERE register_id=? AND deleted_at IS NULL AND paper_released_at IS NULL',input.registerId).all()).results;
+    const waiting=(await p("SELECT * FROM assessments WHERE register_id=? AND deleted_at IS NULL AND paper_released_at IS NULL AND paper_state='APPROVED' AND schedule_published=1 AND paper_file_id IS NOT NULL",input.registerId).all()).results;
     await s.requireAdminClasses(waiting.map(a=>({activityKey:a.activity_key,classId:a.class_id})));
-    if(waiting.length!==papers.length||waiting.some(a=>!papers.some(row=>row.assessment_id===a.assessment_id)||a.paper_state!=='APPROVED'||!a.schedule_published||!a.paper_file_id))throw fail('Approve every remaining paper and release its schedule before publishing this Imtihaan.',409,'PAPERS_NOT_READY');
+    if(waiting.length!==papers.length||waiting.some(a=>!papers.some(row=>row.assessment_id===a.assessment_id)||a.paper_state!=='APPROVED'||!a.schedule_published||!a.paper_file_id))throw fail('Publish the current approved papers together. Refresh if their approvals changed.',409,'PAPERS_NOT_READY');
    }
    if(!prepare&&input.preparedOperation&&repository.setup?.enabled){
     const receipt=await p("SELECT result_json FROM operation_receipts WHERE dataset_key='ASSESSMENT' AND scope_key=? AND operation_id=? AND actor_account_id=?",'PAPERS:'+actor,input.preparedOperation,actor).first(),saved=receipt?JSON.parse(receipt.result_json):null;
@@ -382,6 +389,8 @@ export function d1Assessments(repository,auth){
   });
  }
  return {store:s,run:async(action,input)=>{
+  if(action==='table-save')return saveScheduleBatch({...input,table:true});
+  if(action==='register-marks-preview'||action==='register-marks-release')return assessmentRegisterMarks(s,input,action==='register-marks-preview');
   if(action==='schedule-batch')return saveScheduleBatch(input);
   if(action==='register-release')return releaseRegister(s,input);if(action==='register-create')return createRegister(s,input);if(action==='register-save')return saveRegister(s,input);if(action==='register-validate')return validateRegister(s,input);if(action==='session-delete')return deleteSession(input);if(action==='phase-create')return createPhase(input);if(action==='list')return list(input);if(action==='get')return detail(input);if(action==='create')return create(input);if(action==='release-papers')return releasePapers(input);if(action==='prepare-papers')return releasePapers(input,true);return mutate(action,input);
  }};

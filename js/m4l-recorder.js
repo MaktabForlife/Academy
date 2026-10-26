@@ -399,7 +399,7 @@ Mediabunny was loaded twice. This will likely cause Mediabunny not to work corre
             <span>Redo</span>
           </button>
           <button id="m4l-recorder-share-btn" class="m4l-recorder-preview-action" type="button">
-            <img class="m4l-recorder-preview-icon" src="/icons/share.svg?v=107.70" alt="" aria-hidden="true" />
+            <img class="m4l-recorder-preview-icon" src="/icons/share.svg?v=107.71" alt="" aria-hidden="true" />
             <span id="m4l-recorder-share-label">Share</span>
           </button>
           <button id="m4l-recorder-save-btn" class="m4l-recorder-preview-action" type="button">

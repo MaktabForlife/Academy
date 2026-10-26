@@ -85,7 +85,7 @@
 .pr-body.pr-toolbar-ready:not(.pr-fullscreen)>.pr-header{display:none}
 .pr-body.pr-toolbar-ready .pr-header :is(#pr-split,#m4l-teaching-panel-toggle){display:none!important}
 
-/* V107.70: document actions follow the title; split belongs to the global controls. */
+/* V107.71: document actions follow the title; split belongs to the global controls. */
 .pr-body .pr-heading{flex:0 1 auto;min-width:0}.pr-body .pr-pane-header{justify-content:flex-start;flex-wrap:wrap}
 .pr-body .pr-document-actions{flex:0 1 auto;flex-wrap:wrap}.pr-body .pr-document-actions :is(.pr-pane-tools,.pr-bookmark-tools){flex-wrap:wrap}
 .pr-body .pr-document-actions [data-edit]{display:none!important}.pr-tabs,[data-focus]{display:none!important}

@@ -1,3 +1,4 @@
+import {assessmentTableStates} from './assessment-table.js';
 import {assessmentStore} from './assessment-store.js';
 import {assessmentGroup} from './assessment-group.js';
 import {assessmentResultsSQL} from './assessment-results.js';
@@ -12,6 +13,7 @@ export function assessmentManualMarks(repository,auth){
   const visible=group.filter(row=>allowed.has(JSON.stringify([row.activity_key,row.class_id]))||s.isAssignedExaminer(row));
   await s.requireAssessmentStaffGroup(visible);
   if(visible.some(row=>!row.schedule_published))throw fail('Release the assessment schedule before entering marks.',409,'SCHEDULE_REQUIRED');
+  const moderation=await assessmentTableStates(s,visible);if(visible.some(row=>!moderation.get(row.assessment_id)?.moderated))throw fail('Admin must confirm Marks moderated before marks can be entered.',409,'MARKS_NOT_MODERATED');
   return {a,rows:visible.sort((a,b)=>compare(a.activity_name,b.activity_name)||compare(a.class_name,b.class_name)||compare(a.class_id,b.class_id))};
  }
  async function records(rows){

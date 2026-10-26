@@ -10,6 +10,7 @@ export const teacherClause=`(${adminClause} OR EXISTS(SELECT 1 FROM (${assessmen
 export const learnerClause=`(EXISTS(SELECT 1 FROM (${assessmentRolesSQL}) r WHERE r.account_id=? AND r.activity_key=a.activity_key AND r.role='STUDENT') OR EXISTS(SELECT 1 FROM effective_course_subscriptions s WHERE s.account_id=? AND s.activity_key=a.activity_key))`;
 export const cleanText=(value,max,label,optional=false)=>{if(typeof value!=='string'||value.trim().length>max||!optional&&!value.trim())throw fail(`Enter ${label} of up to ${max} characters.`);return value.trim();};
 export const validDate=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&!Number.isNaN(Date.parse(value+'T00:00:00Z'))&&new Date(value+'T00:00:00Z').toISOString().slice(0,10)===value;
+export const paperReplacementOpen=(a,at=Date.now())=>!a.paper_released_at||at<Date.parse(a.available_from||a.exam_date+'T03:00:00+02:00');
 export const paperAvailable=a=>Boolean(a.schedule_published&&a.paper_released_at&&a.paper_state==='APPROVED'&&a.paper_file_id&&Date.now()>=Date.parse(a.available_from||a.exam_date+'T03:00:00+02:00'));
 
 export function assessmentStore(repository,auth){

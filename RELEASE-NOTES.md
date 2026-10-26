@@ -1,3 +1,11 @@
+# V107.71 — Assessment rows, learner support and submission review
+
+Edit assessment details and control checkboxes inline and save an Imtihaan batch once. Publish the currently approved papers without waiting for the remaining papers. Replace released PDFs before student availability, with fresh approval. Confirm external marks moderation before revealing Enter marks, then release marks once for the Imtihaan, leaving blanks pending.
+
+Group Teach/Admin-Teach assessments across authorised classes. Add expandable submission progress with access/submission timestamps, elapsed time, PDF review and receipt confirmation. Learners get cached tables with background refresh, Open PDF with native Print, scanning help, local answer preview and confirmed submission receipts. Hide View results until personal results are released. No schema migration or live record correction.
+
+[Implementation and verification notes](docs/ACADEMY-ASSESSMENT-TABLE-107.71.md).
+
 # V107.70 — PDF reader and Public Library controls
 
 Edit is a labelled button beside Zoom. Switching Edit off opens the normal multi-page PDF.js reading view, including a preview of unsaved annotations; returning to Edit preserves editable marks and follows the reading page. Downloads remain explicit, and closing/replacing a PDF still checks for unsaved work.
