@@ -7,6 +7,9 @@
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const token = () => localStorage.getItem('m4l_account_token') || '';
   const state = { publicData:null,publicDay:'',publicPending:null,publicStartDate:'', home: null, activity: null, scheduleTimetable: [], activityTimer: null, generation: 0, scheduleGeneration: 0, activityGeneration: 0, information: {}, startDate: '', courseCatalogue: null, courseCatalogueAt: 0, coursePending: null, courseGeneration: 0 };
+  // A timer/background refresh can rebuild the grid while the picker is open.
+  // Keep each visible choice bound to its original lesson, never a new index.
+  const joinChoices = new WeakMap();
   const pageCache = { epoch: 0, snapshot: null, pending: new Map() };
   const classViewKey=()=>JSON.stringify(window.M4L_ACADEMY_WORKSPACE?.classView?.()||null);
   const PAGE_CACHE_MS = 60000;
@@ -749,6 +752,7 @@
 
   function renderPersonalWeek(id, rows, detailed, next, now) {
     const programTimetable = id === 'activity-sessions' && state.activity?.kind === 'PROGRAM';
+    const adminRollup = id === 'academy-sessions' && state.home?.signedIn && window.M4L_ACADEMY_WORKSPACE.current() === 'ADMIN' && location.hash === '#administration';
     const media=timetableAttachments(rows);
     window.M4L_CLASS_NOTES?.timetable(rows,()=>{if(location.hash.startsWith('#activity/')&&state.activity)renderActivityTimetable();else if(location.hash.startsWith('#timetable')||location.hash==='#administration')renderSchedule('academy-sessions',roleRows({...state.home,personalTimetable:state.scheduleTimetable,timetable:state.scheduleTimetable}));});
     const scrollLeft = $(id).scrollLeft || 0;
@@ -771,7 +775,8 @@
       // Combine overlapping/contiguous Program lessons only within one Program,
       // day and room. A gap, different Program or missing link starts a new card.
       let key = `lesson:${index}`;
-      if (summarizeLesson(row) && row.meetingGroup) {
+      if (adminRollup && ['PROGRAM','COURSE'].includes(row.kind))key=JSON.stringify(['admin-day',row.kind,row.activityId]);
+      else if (summarizeLesson(row) && row.meetingGroup) {
         const roomKey = JSON.stringify([row.date,row.kind,row.activityId,row.meetingGroup]);
         const previous = roomGroups.get(roomKey);
         if (previous && (row.kind !== 'PROGRAM' || row.startsAt <= previous.endsAt)) {
@@ -792,22 +797,24 @@
     const renderGroup = entries => {
       const first = entries[0].row;
       const last = entries.reduce((latest,entry) => entry.row.endsAt > latest.endsAt ? entry.row : latest,first);
-      const summary = summarizeLesson(first);
+      const dailyRollup = adminRollup && ['PROGRAM','COURSE'].includes(first.kind);
+      const summary = dailyRollup || summarizeLesson(first);
       const activities = [...new Set(entries.map(entry => entry.row.activityName))];
       const lessonNames = [...new Set(entries.map(({row}) => row.moduleName || row.subjectName || (row.title !== row.activityName ? row.title : '') || 'Lesson'))];
       const teachers = [...new Set(entries.flatMap(({row}) => row.teacherNames?.length ? row.teacherNames : [row.teacherName]).filter(Boolean))];
       const label = programTimetable ? lessonNames.join(' · ') : activities.join(' · ');
       const lessonTitle = first.moduleName || first.subjectName || first.title || first.activityName;
       const nextEntry = entries.find(entry => entry.index === next);
-      const infoIndex = state.information[id].push({ title: label, lessons: entries.map(entry => entry.row) }) - 1;
+      const infoIndex = state.information[id].push({ title: label, dailyRollup: dailyRollup, lessons: entries.map(entry => entry.row) }) - 1;
       const joinable = entries.find(({ row }) => row.status === 'SCHEDULED' && now >= row.joinAvailableAt && now < row.endsAt && row.joinKey);
-      const join = joinable ? `<button type="button" class="timetable-join" data-join="${id}:${infoIndex}:${entries.indexOf(joinable)}">Join lesson</button>` : '';
+      const join = joinable ? dailyRollup ? `<button type="button" class="timetable-join" data-information="${id}:${infoIndex}">Join class</button>` : `<button type="button" class="timetable-join" data-join="${id}:${infoIndex}:${entries.indexOf(joinable)}">Join lesson</button>` : '';
       const status = nextEntry ? nextEntry.row.startsAt <= now ? 'In progress' : 'Next lesson' : '';
       const lessonCount = summary && entries.length > 1 ? `${entries.length} lessons` : '';
-      const subtitle = programTimetable ? teachers.join(', ') || 'No teacher assigned' : lessonCount || (lessonTitle !== label ? lessonTitle : '');
+      const classCount = new Set(entries.flatMap(({row})=>row.classIds||row.classNames||[])).size;
+      const subtitle = dailyRollup ? `${classCount?classCount+' class'+(classCount===1?'':'es')+' · ':''}${entries.length} lesson${entries.length===1?'':'s'}` : programTimetable ? teachers.join(', ') || 'No teacher assigned' : lessonCount || (lessonTitle !== label ? lessonTitle : '');
       const count = programTimetable && lessonCount ? `<small>${esc(lessonCount)}</small>` : '';
-      const attachments=entries.map((entry,i)=>{const lesson=media.get(mediaReference(entry.row));entry.row.media=lesson;return timetableMediaButtons(lesson,`${id}:${infoIndex}:${i}`);}).join('');
-      const classNotes=entries.map(entry=>window.M4L_CLASS_NOTES?.buttons(entry.row)||'').join('');
+      const attachments=entries.map((entry,i)=>{const lesson=media.get(mediaReference(entry.row));entry.row.media=lesson;return dailyRollup?'':timetableMediaButtons(lesson,`${id}:${infoIndex}:${i}`);}).join('');
+      const classNotes=dailyRollup?'':entries.map(entry=>window.M4L_CLASS_NOTES?.buttons(entry.row)||'').join('');
       return `<li class="preview-pill timetable-pill ${nextEntry ? 'next-lesson ' : ''}${participation(entries)}${joinable ? ' join-open' : ''}"><button type="button" class="timetable-pill-details" data-information="${id}:${infoIndex}" aria-label="${esc(label)}${subtitle ? ' · ' + esc(subtitle) : ''}${programTimetable && lessonCount ? ' · ' + lessonCount : ''}, ${esc(first.startTime)}–${esc(last.endTime)}${status ? ', ' + status : ''}. View lesson details">${previewTime(first.startTime)}<span class="timetable-pill-copy"><strong class="preview-name">${esc(label)}</strong>${subtitle ? `<small>${esc(subtitle)}</small>` : ''}${count}${status ? `<small class="timetable-pill-status">${status}</small>` : ''}</span></button>${join}${attachments?`<div class="timetable-media-actions" aria-label="Lesson attachments">${attachments}</div>`:''}${classNotes}</li>`;
     };
     $(id).innerHTML = `<ol class="upcoming-days preview-days timetable-days">${[...days].sort(([a], [b]) => a.localeCompare(b)).map(([date, groups]) => `<li class="upcoming-day"><time datetime="${esc(date)}">${esc(formatDate(date))}</time><ul class="upcoming-items">${groups.size ? [...groups.values()].map(renderGroup).join('') : '<li class="timetable-empty">No lessons</li>'}</ul></li>`).join('')}</ol>`;
@@ -913,15 +920,16 @@
   async function joinLesson(button) {
     const publicJoin=Boolean(button.dataset.publicJoin);
     const [group,index,lessonIndex] = (button.dataset.publicJoin||button.dataset.join).split(':');
-    const lesson = publicJoin?state.information[group]?.[Number(index)]:state.information[group]?.[Number(index)]?.lessons?.[Number(lessonIndex)];
+    const lesson = joinChoices.get(button) || (publicJoin?state.information[group]?.[Number(index)]:state.information[group]?.[Number(index)]?.lessons?.[Number(lessonIndex)]);
     const session = token(), epoch = pageCache.epoch;
     if (!lesson?.joinKey || !publicJoin&&!session || button.disabled) return;
     // Open synchronously so the browser permits the window; never put a cached meeting URL in it.
     const popup = window.open('about:blank','_blank');
     if (popup) popup.opener = null;
     button.disabled = true;
+    const label = button.textContent;
     button.textContent = 'Checking access…';
-    const message = group === 'activity-sessions' ? $('activity-status') : group === 'academy-sessions' ? $('schedule-message') : $('entrance-message');
+    const message = button.closest('#lesson-information') ? $('lesson-information-message') : group === 'activity-sessions' ? $('activity-status') : group === 'academy-sessions' ? $('schedule-message') : $('entrance-message');
     try {
       const response = await fetch(`${window.M4L_CONFIG?.API_BASE || ''}/api/academy/${publicJoin?'public-lesson':'lesson'}/join`,{method:'POST',
         headers:{'Content-Type':'application/json',...(!publicJoin?{Authorization:`Bearer ${session}`}:{})},body:JSON.stringify({joinKey:lesson.joinKey,date:lesson.sourceDate || lesson.date})});
@@ -937,7 +945,7 @@
     } catch (error) {
       popup?.close();
       if (session === token() && epoch === pageCache.epoch) message.textContent = error.message;
-    } finally { button.disabled=false;button.textContent=publicJoin?'Join':'Join lesson'; }
+    } finally { button.disabled=false;button.textContent=label; }
   }
 
   function armScheduleClock() {
@@ -1272,11 +1280,14 @@
       const row = state.information[group]?.[Number(index)];
       if (!row) return;
       $('lesson-information-title').textContent = row.title;
-      $('lesson-information-body').innerHTML = (row.lessons || [row]).map(lesson => {
+      $('lesson-information-body').innerHTML = (row.dailyRollup?'<p id="lesson-information-message" role="status" aria-live="polite"></p>':'')+(row.lessons || [row]).map((lesson,lessonIndex) => {
         const classes = (lesson.classNames || [lesson.group]).filter(Boolean).join(', ');
         const teachers = (lesson.teacherNames || [lesson.teacherName]).filter(Boolean).join(', ');
-        return `<section class="combined-lesson"><h3>${esc(lesson.moduleName || lesson.subjectName || lesson.title)}</h3><div class="lesson-info-meta">${classes ? `<p class="lesson-info-class">${esc(classes)}</p>` : ''}<p class="lesson-info-time">${esc(lesson.startTime)}–${esc(lesson.endTime)}</p></div>${teachers ? `<p class="lesson-info-teacher">${esc(teachers)}</p>` : ''}${window.M4L_CLASS_NOTES?.buttons(lesson,true)||''}</section>`;
+        const open=lesson.status==='SCHEDULED'&&lesson.joinKey&&Date.now()>=lesson.joinAvailableAt&&Date.now()<lesson.endsAt;
+        const join=row.dailyRollup?(open?`<button type="button" class="timetable-join" data-join="${group}:${index}:${lessonIndex}" aria-label="Join ${esc(classes||lesson.activityName)}">Join class</button>`:`<p class="muted">${Date.now()>=lesson.endsAt?'Lesson ended.':lesson.joinKey?'Joining opens 5 min before the lesson.':'Joining is unavailable for this lesson.'}</p>`)+timetableMediaButtons(lesson.media,`${group}:${index}:${lessonIndex}`):'';
+        return `<section class="combined-lesson"><h3>${row.dailyRollup?esc(lesson.activityName)+' · ':''}${esc(lesson.moduleName || lesson.subjectName || lesson.title)}</h3><div class="lesson-info-meta">${classes ? `<p class="lesson-info-class">${esc(classes)}</p>` : ''}<p class="lesson-info-time">${esc(lesson.startTime)}–${esc(lesson.endTime)}</p></div>${teachers ? `<p class="lesson-info-teacher">${esc(teachers)}</p>` : ''}${join}${window.M4L_CLASS_NOTES?.buttons(lesson,true)||''}</section>`;
       }).join('');
+      if(row.dailyRollup)for(const button of $('lesson-information-body').querySelectorAll('[data-join]'))joinChoices.set(button,row.lessons[Number(button.dataset.join.split(':').at(-1))]);
       $('lesson-information').showModal();
     }
   });

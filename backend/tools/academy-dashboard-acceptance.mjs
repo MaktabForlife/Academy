@@ -57,6 +57,7 @@ let holdEntrance=false,releaseEntrance,backgroundGate;
 await page.route('**/api/**',async route=>{
  const req=route.request(),url=new URL(req.url()),headers={...req.headers()};delete headers.origin;
  calls.push({path:url.pathname,workspace:headers['x-academy-workspace'],method:req.method()});
+ if(url.pathname==='/api/academy/header-date'){await route.fulfill({status:200,json:{gregorian:fixture.today,hijri:'15 Jumada al-ula 1448'}});return;}
  if(holdEntrance&&['/api/academy/entrance','/api/academy/class-notes/timetable','/api/academy/assessments/list'].includes(url.pathname))await backgroundGate;
  const response=await worker.fetch(new Request('http://localhost'+url.pathname+url.search,{method:req.method(),headers,...(req.method()==='POST'?{body:req.postDataBuffer()}:{})}),fixture.env);
  const bytes=Buffer.from(await response.arrayBuffer());
@@ -103,7 +104,7 @@ try{
  assert.equal(await page.locator('#ad-calendar-actions').isVisible(),false);
  await page.locator('#ad-attention [data-ad-note]').first().waitFor();
  const before=await page.locator('#ad-fya-count').innerText();
- await page.locator('#ad-messages [data-ad-note]').first().click();await page.locator('.cn-dialog .cn-text').filter({hasText:'Dashboard preparation'}).waitFor();
+ await page.locator('#ad-attention [data-ad-note]').first().click();await page.locator('.cn-dialog .cn-text').filter({hasText:'Dashboard preparation'}).waitFor();
  await page.locator('.cn-dialog').getByRole('button',{name:'Close',exact:true}).click();
  assert.equal(await page.locator('#ad-fya-count').innerText(),before);
  checks.push('Real sign-in lands on Learn; every active authorised Program/Course has a linked tile; the original seven-day timetable and calendar are on the dashboard; reading a Class Note keeps its FYA action.');
@@ -187,16 +188,14 @@ try{
  assert.ok(teacherOption);await adminCalendar.locator('#cal-teacher-choice').selectOption(teacherOption);
  await adminCalendar.locator('#cal-teacher-choose').click();await adminCalendar.locator('#cal-availability-dialog[open]').waitFor();
  await adminCalendar.getByRole('button',{name:'Close availability editor',exact:true}).click();
- await adminCalendar.getByRole('button',{name:'Teaching hours',exact:true}).click();await adminCalendar.locator('#cal-hours-dialog[open]').waitFor();
- assert.equal(await adminCalendar.locator('#cal-hours-days>div').count(),7);
- await adminCalendar.getByRole('button',{name:'Close teaching hours',exact:true}).click();
+ assert.equal(await adminCalendar.getByRole('button',{name:'Teaching hours',exact:true}).count(),0,'Dashboard calendars do not request teacher workload');
  for(const width of [390,320]){
   await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   assert.equal(Math.round((await page.locator('#ad-attendance-panel').boundingBox()).height),340);
   assert.equal(Math.round((await page.locator('#ad-plans-panel').boundingBox()).height),340);
  }
  await page.setViewportSize({width:1440,height:1000});
- checks.push('Lesson-plan deadlines have their own fixed-height scrolling panel beside the calendar; Teacher attendance opens the exact date and lesson, Admin has review panels, and calendar Terms, Teaching hours and scoped teacher availability open in dialogs.');
+ checks.push('Lesson-plan deadlines have their own fixed-height scrolling panel beside the calendar; Teacher attendance opens the exact date and lesson, Admin has review panels, and calendar Terms and scoped teacher availability open in dialogs without dashboard workload calculations.');
  await identity(await fixture.actor('none'));assert.equal(await page.locator('#ad-areas .ad-tile[href*=PROGRAM]').count(),0);assert.equal(await page.getByText('Dashboard preparation · read paragraphs 1–3.',{exact:true}).count(),0);
  checks.push('Scoped Admin gets only authorised areas and tracker management; accounts without private enrolments see no private Program or another user’s Class Notes.');
 

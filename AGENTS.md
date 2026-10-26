@@ -1,3 +1,9 @@
+# Local header and dashboard fixes — 26 October 2026
+
+- Work on `feature/academy-header-dashboard-fixes`, starting from deployed V107.72 (`29293ea2`). Implement automatic Hijri-date recovery and one daily card for each Program or Course on the Admin dashboard, with an explicit class choice for joining.
+- Keep this work local. Do not push, deploy, apply SQL or change live settings without a new user deployment approval. Earlier release approvals apply only to those releases.
+- Preserve current permissions and joining windows. Use local fixtures for validation and keep live checks small to limit database usage.
+
 # Read optimisation release — 26 October 2026
 
 - The user confirmed V107.71 is deployed and explicitly requested deploying the reviewed read optimisations. Incorporate V107.71 and release as V107.72 to the existing Development API, private split coordinator and Academy website at `https://academy-maktab4life.pages.dev`.
