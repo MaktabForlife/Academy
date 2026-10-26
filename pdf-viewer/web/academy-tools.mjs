@@ -4,6 +4,7 @@ if(new URLSearchParams(location.search).get('academy')==='1'){
  document.body.classList.add('academy-pdf');
  const pane=Number(new URLSearchParams(location.search).get('pane')||0);let parentReader=null;try{if(parent!==window&&parent.location.origin===location.origin)parentReader=parent.M4L_PDF_READER;}catch{}
  await app.initializedPromise;
+ if(new URLSearchParams(location.search).get('assessment')==='1'){document.body.classList.add('academy-assessment');window.M4L_ASSESSMENT_PRINT=()=>{if(app.pdfDocument)app.triggerPrinting();};}
  const byId=id=>document.getElementById(id);
  for(const id of ['editorModeButtons','editorModeSeparator','imageAltTextSettings','imageAltTextSettingsSeparator'])byId(id)?.remove();
  const toolbar=byId('toolbarContainer'),left=byId('toolbarViewerLeft'),right=byId('toolbarViewerRight');

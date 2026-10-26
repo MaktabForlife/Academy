@@ -2,7 +2,7 @@ import {assessmentGroup,groupRevisions} from './assessment-group.js';
 import {reportDefinitionHash} from './assessment-report-source.js';
 import {assessmentOperations,collectionPolicy} from './assessment-timing.js';
 import {isAdminWorkspace,readerPreview} from './workspace-access.js';
-import {assessmentStore,paperAvailable,cleanText,adminClause,learnerClause} from './assessment-store.js';
+import {assessmentStore,paperAvailable,paperReplacementOpen,cleanText,adminClause,learnerClause} from './assessment-store.js';
 import {managementError as fail,same} from './management-store.js';
 
 export const ASSESSMENT_FILE_LIMIT=16*1024*1024;
@@ -31,7 +31,8 @@ export function assessmentFiles(repository,auth,env){
     if(!['TIMED','UNTIMED'].includes(mode)||mode==='TIMED'&&(!Number.isInteger(duration)||duration<1||duration>1440||!Number.isInteger(allowance)||allowance<0||allowance>1440)||typeof maximum!=='number'||!Number.isFinite(maximum)||maximum<=0||maximum>1000000)throw fail('Enter a valid paper duration and total mark.');
     paperMode=mode;paperDuration=duration;paperAllowance=allowance;
     if(await p('SELECT 1 found FROM assessment_recipients WHERE assessment_id IN(SELECT value FROM json_each(?)) AND latest_mark_id IS NOT NULL LIMIT 1',JSON.stringify(paperTargets.map(a=>a.assessment_id))).first())throw fail('A paper with entered marks cannot be replaced.',409);
-    if(paperTargets.some(a=>a.paper_released_at)||await p('SELECT 1 ok FROM assessment_submissions WHERE assessment_id IN(SELECT value FROM json_each(?)) LIMIT 1',JSON.stringify(paperTargets.map(a=>a.assessment_id))).first())throw fail('A released paper cannot be replaced. Create a new assessment.',409);
+    if(paperTargets.some(a=>a.paper_released_at)){if(paperTargets.some(a=>!paperReplacementOpen(a)))throw fail('This paper is already available to students and cannot be replaced.',409,'PAPER_ALREADY_AVAILABLE');await s.requireAdminClasses(paperTargets.map(a=>({activityKey:a.activity_key,classId:a.class_id})));}
+    if(await p('SELECT 1 ok FROM assessment_recipients WHERE assessment_id IN(SELECT value FROM json_each(?)) AND (first_accessed_at IS NOT NULL OR latest_submission_id IS NOT NULL) LIMIT 1',JSON.stringify(paperTargets.map(a=>a.assessment_id))).first())throw fail('A paper accessed by students cannot be replaced.',409);
     if(paperTargets.some(member=>member.examiner_id&&!same(member.examiner_id,actor)))await s.requireAdminClasses(paperTargets.map(a=>({activityKey:a.activity_key,classId:a.class_id})));
    }
    if(kind==='SCRIPT'){await s.requireExaminer(await s.assessment(a.assessment_id));if(native){const r=await s.recipient(a.assessment_id,owner);if(!r?.latest_submission_id||r.latest_submission_id!==input.submissionId)throw fail('Attach a marked PDF to this learner’s exact latest answer.',409,'SCRIPT_SOURCE_CHANGED');}}
@@ -72,7 +73,7 @@ export function assessmentFiles(repository,auth,env){
     if(native)statements.push(p('INSERT INTO assessment_file_integrity VALUES(?,?)',id,input.sha256));
     if(native&&kind==='SCRIPT')statements.push(p('INSERT INTO assessment_script_sources VALUES(?,?,?,?)',id,input.submissionId,a.paper_file_id,a.maximum_mark));
     let submissionId=null;
-    if(kind==='PAPER')statements.push(p(`UPDATE assessments SET paper_file_id=?,examiner_id=COALESCE(?,examiner_id,?),subject_descriptor=COALESCE(?,subject_descriptor),paper_state='IN_REVIEW',paper_comment='',paper_released_at=NULL,duration_minutes=?,maximum_mark=?${native?',timing_mode=?,allowance_minutes=?':''} WHERE assessment_id IN(SELECT value FROM json_each(?))`,id,paperExaminer,actor,paperDescriptor,paperDuration,input.maximumMark??a.maximum_mark,...(native?[paperMode,paperAllowance]:[]),JSON.stringify(paperTargets.map(a=>a.assessment_id))));
+    if(kind==='PAPER')statements.push(...paperTargets.map(a=>s.event(a,'marks-moderated',{approved:false,mode:'EXTERNAL',revision:a.revision+1})),p(`UPDATE assessments SET paper_file_id=?,examiner_id=COALESCE(?,examiner_id,?),subject_descriptor=COALESCE(?,subject_descriptor),paper_state='IN_REVIEW',paper_comment='',paper_released_at=NULL,duration_minutes=?,maximum_mark=?${native?',timing_mode=?,allowance_minutes=?':''} WHERE assessment_id IN(SELECT value FROM json_each(?))`,id,paperExaminer,actor,paperDescriptor,paperDuration,input.maximumMark??a.maximum_mark,...(native?[paperMode,paperAllowance]:[]),JSON.stringify(paperTargets.map(a=>a.assessment_id))));
     if(kind==='ANSWER'){
     if(!manual&&readerPreview(auth,scope))throw fail('Student class viewing is read only.',403,'PREVIEW_READ_ONLY');
      const r=await s.recipient(a.assessment_id,owner),number=(await p('SELECT coalesce(max(submission_number),0)+1 n FROM assessment_submissions WHERE assessment_id=? AND account_id=?',a.assessment_id,owner).first()).n;

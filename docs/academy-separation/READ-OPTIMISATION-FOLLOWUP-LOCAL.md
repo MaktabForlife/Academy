@@ -1,8 +1,8 @@
-# Academy read optimisation follow-up — local only
+# Academy read optimisation follow-up — V107.72
 
-Branch: `feature/academy-read-optimisation-2`, based on deployed V107.70 (`113d6e61`). The original V107.67 optimisation branch is preserved. This follow-up has not been pushed or deployed. The current version remains 107.70 until a release is authorised and assigned a new version.
+Branch: `feature/academy-read-optimisation-2`. The reviewed optimisation commit `9a89551e` was based on V107.70; this release incorporates deployed V107.71 (`3b472e2a`). The original V107.67 optimisation branch is preserved. On 26 October 2026 the user confirmed V107.71 was deployed and authorised releasing these optimisations as V107.72 to the existing Development API, private coordinator and Academy website. No database upgrade is required.
 
-**Keep live checks small to limit database usage.** Implementation and measurements use saved analytics and disposable local fixtures. No hosted Academy request, SQL query, migration or setting change was made for this follow-up. One Git fetch obtained the Development baseline.
+**Keep live checks small to limit database usage.** Implementation and measurements use saved analytics and disposable local fixtures. No hosted Academy request, SQL query, migration or setting change was made during implementation. Release verification uses targeted version/readiness metadata; no live assessment records are changed.
 
 ## Remaining costs identified
 
@@ -43,10 +43,11 @@ One stable object per deployment namespace replaces previous publications. A pin
 
 ## Local verification
 
+- V107.72 integration: all 118 backend regression files passed across the full run and targeted rerun. One new optimisation fixture was updated to confirm V107.71's required external marks moderation before entering a mark; the application's gate remains intact. The other 117 files passed in the full run, and all eight cases in the corrected fixture passed on rerun. Current release/version checks and the actual local split Workers/D1/R2 runtime passed. API, private coordinator and matching website builds passed; the dependency boundary covers 140 modules.
 - All 113 Academy regression files passed. The affected settings/assessment tests were rerun after the final review.
 - Actual local Workers runtime passed with two D1 bindings, private Durable Object RPC and R2, including whole-register save/release/publication and repeated learner list/detail requests using the shared source.
 - Cached and original learner responses match. Coverage includes separate learners, private and explicitly released zero marks, live collection closure, unpublished Admin renames, publication changes, pinned heads, denied scope, role changes, session revocation during both storage reads and writes, time-based paper opening and release withdrawal.
 - Local D1 query-cost tests passed. Warm assessment reads skip the definition-producing joins and restrict live reads to the learner's assessment IDs.
 - The Academy dependency boundary passed. API and private coordinator bundles passed local dry runs; nothing was uploaded.
 
-Saved run logs and bundles are in the project outputs directory `outputs/academy-read-optimisation-2-20261026/`. Hosted savings have not been measured for this follow-up. A future approved release should use minimal targeted verification, then compare bounded analytics windows that account for development/testing traffic, D1 reads and R2 operations.
+Original local run logs and bundles are in `outputs/academy-read-optimisation-2-20261026/`. V107.72 integration, build and deployment evidence is in `outputs/academy-read-optimisation-10772/`. Hosted savings have not been measured for this follow-up. Any later usage comparison should use bounded analytics windows that account for development/testing traffic, D1 reads and R2 operations.

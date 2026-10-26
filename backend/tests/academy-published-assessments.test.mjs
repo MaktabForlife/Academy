@@ -48,7 +48,10 @@ test('publication warms one shared definition snapshot; learners retain exactly 
 }));
 
 test('saved/released marks and collection changes stay live and individual while definitions are reused',()=>use(async f=>{
- const {id}=await f.seed(),before=f.bucket.puts.filter(k=>k.startsWith(snapshotPrefix)).length;
+ const {id,registerId}=await f.seed(),before=f.bucket.puts.filter(k=>k.startsWith(snapshotPrefix)).length;
+ assert.equal((await f.request('marks-list',{assessmentId:id})).body.code,'MARKS_NOT_MODERATED');
+ const table=ok(await f.request('list',{view:'admin'})),row=table.assessments.find(a=>a.id===id),register=table.registers.find(r=>r.id===registerId);
+ ok(await f.request('table-save',{...op(),registerId,revision:register.revision,rows:[{assessmentId:id,revision:row.revision,changes:{marksModerated:true}}]}));
  const list=ok(await f.request('marks-list',{assessmentId:id})),c=list.classes[0],r=c.students.find(s=>s.accountId===f.actors.studentA);
  ok(await f.request('marks-save',{...op(),assessmentId:id,groupRevisions:[{id,revision:c.revision}],entries:[{assessmentId:id,accountId:r.accountId,recipientRevision:r.revision,markId:r.markId,mark:0}]}));
  assert(!Object.hasOwn(ok(await f.request('list',{},'studentA','LEARN')).assessments[0],'releasedMark'));

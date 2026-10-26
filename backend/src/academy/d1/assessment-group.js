@@ -32,14 +32,15 @@ export async function assessmentSelections(s,ids){
  }
  return original;
 }
-export async function assessmentListGroups(s,rows,assessments){
- const visible=new Map(assessments.filter(a=>a.canAdmin).map(a=>[a.id,a])),shared=new Map();
- if(visible.size<2)return shared;
+export async function assessmentListGroups(s,rows,assessments,staff=false){
+ const visible=new Map(assessments.filter(a=>staff?a.canTeach:a.canAdmin).map(a=>[a.id,a])),shared=new Map();
+ if(!visible.size)return shared;
  const original=await assessmentSelections(s,[...visible.keys()]),records=new Map(rows.map(a=>[a.assessment_id,a]));
  for(const [id,a] of visible){
   const ids=original.get(id);
-  if(!Array.isArray(ids)||ids.length<2||ids.length>50||!ids.includes(id)||new Set(ids).size!==ids.length||!ids.every(member=>visible.has(member)&&records.get(member)?.register_id===a.registerId&&records.get(member)?.paper_file_id===records.get(id)?.paper_file_id))continue;
-  shared.set(id,{sharedAssessmentId:ids[0],sharedClassCount:ids.length});
+  if(!Array.isArray(ids)||ids.length<2||ids.length>50||!ids.includes(id)||new Set(ids).size!==ids.length)continue;
+  const shown=staff?ids.filter(member=>visible.has(member)):ids;if(!shown.length||!shown.every(member=>visible.has(member)&&records.get(member)?.register_id===a.registerId&&records.get(member)?.paper_file_id===records.get(id)?.paper_file_id))continue;
+  shared.set(id,{sharedAssessmentId:shown[0],sharedClassCount:shown.length,sharedAllClasses:shown.length===ids.length});
  }
  return shared;
 }

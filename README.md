@@ -1,3 +1,17 @@
+# V107.72 — Fewer repeated configuration and assessment reads
+
+Reuse fixed published time-zone settings and shared published assessment definitions. Keep current readiness, sessions, permissions, marks, submissions and paper release/timing checks. Preserve V107.71 assessment tables and learner submission tools. No database upgrade is required. Keep live checks small to limit database usage.
+
+[Implementation and verification notes](docs/academy-separation/READ-OPTIMISATION-FOLLOWUP-LOCAL.md).
+
+# V107.71 — Assessment rows, learner support and submission review
+
+Edit assessment details and control checkboxes inline and save an Imtihaan batch once. Publish the currently approved papers without waiting for the remaining papers. Replace released PDFs before student availability, with fresh approval. Confirm external marks moderation before revealing Enter marks, then release marks once for the Imtihaan, leaving blanks pending.
+
+Group Teach/Admin-Teach assessments across authorised classes. Add expandable submission progress with access/submission timestamps, elapsed time, PDF review and receipt confirmation. Learners get cached tables with background refresh, Open PDF with native Print, scanning help, local answer preview and confirmed submission receipts. Hide View results until personal results are released. No schema migration or live record correction.
+
+[Implementation and verification notes](docs/ACADEMY-ASSESSMENT-TABLE-107.71.md).
+
 ## V107.70 — PDF reader and Library improvements
 
 Edit beside Zoom restores swipeable multi-page reading when switched off while preserving annotations. Document actions sit beside the PDF name; panes close independently, Split Page is global, favourite colours stay visible, and Public Library offers subjects plus bookmarks. Manage Library retains readable titles through catalogue failures. Share uses the common connected-nodes artwork. See [release notes](RELEASE-NOTES.md).

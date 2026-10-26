@@ -8,7 +8,7 @@
  function releaseLabel(r){return r.scheduleReleased?'Schedule released':r.scheduleCount?`${r.releasedScheduleCount||0} of ${r.scheduleCount} dates released`:'No assessment dates';}
  const exportButton=(r,kind,available)=>{
   const share=kind==='share',label=share?'Share PDF':'Download PDF';
-  const icon=share?'<use href="/icons/share.svg?v=107.70#academy-share"/>':'<path d="M12 3v12m-4-4 4 4 4-4M5 17v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3"/>';
+  const icon=share?'<use href="/icons/share.svg?v=107.72#academy-share"/>':'<path d="M12 3v12m-4-4 4 4 4-4M5 17v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3"/>';
   return `<button type="button" class="as-button as-secondary ar-export-icon" data-as="${kind}-schedule-pdf" data-id="${esc(r.id)}" aria-label="${label}" title="${label}" ${available?'':'disabled'}><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${icon}</svg></button>`;
  };
  const canSchedule=r=>r.id!=='new'&&r.canEdit&&!r.scheduleReleased&&!['CANCELLED','ARCHIVED'].includes(r.status);

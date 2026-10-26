@@ -1,3 +1,10 @@
+# Read optimisation release — 26 October 2026
+
+- The user confirmed V107.71 is deployed and explicitly requested deploying the reviewed read optimisations. Incorporate V107.71 and release as V107.72 to the existing Development API, private split coordinator and Academy website at `https://academy-maktab4life.pages.dev`.
+- This approval supersedes the local-only hold below for this release. No database migration or live data correction is required.
+- Preserve V107.71 assessment tables, learner submissions and permissions. Keep live verification small: reuse release metadata, run local disposable fixtures, and perform only targeted version/readiness checks.
+- Future deployments still require user approval.
+
 # Local read optimisation follow-up — 26 October 2026
 
 - Work on `feature/academy-read-optimisation-2`, based on V107.70, to reduce remaining reads and assess reusable published assessment snapshots for learners.
