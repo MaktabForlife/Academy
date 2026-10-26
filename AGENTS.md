@@ -1,3 +1,9 @@
+# Planner and Admin dashboard release — 27 October 2026
+
+- The user confirmed V107.81 was deployed and explicitly requested “pls build and deploy” for the pending planner and Admin dashboard follow-ups in this chat. This supersedes the investigation-only hold for PLAN-02/03 and DASH-01–05. Release V107.82 from the verified V107.81 baseline through the existing Development API and website workflow.
+- Keep work in this chat; do not communicate with other chats. Preserve current permissions, saved plans, publication/release gates and V107.81 features. No database migration or coordinator update is required.
+- Keep live checks small under ../AGENTS.md. Use disposable local fixtures for behavioural checks and targeted release metadata/static checks after deployment.
+
 # Curriculum and workspace correction release — 27 October 2026
 
 - Complete the authorised NAV-01 follow-up from “UI and lesson updates” and the user's direct instructions in this chat: remove the extra Curriculum chooser; rename the previous subjects screen Curriculum management; add Programs/Courses navigation tabs; make subject status editable; restrict the Global Admin dashboard workspace menu to exactly the nine supplied items without changing its formatting; add a Public Library source option when attaching lesson PDFs.

@@ -72,14 +72,16 @@
     const adminLinks=options.adminLinks||[];
     const tools=mode==='teach'?'<button type="button" data-ad-choose="attendance">Mark attendance</button><button type="button" data-ad-choose="planning">Submit plans</button>':mode==='admin'?adminLinks.map(row=>row.action?'<button type="button" data-admin-public-refresh>Update timetable</button>':link(row.href,row.label)).join(''):link('/academy/enrolment/','Enrol now');
     const shared=tracker()+link('/academy/library/','Library')+link(boundary()?.readerUrl('/recorder/?academy=1')||'/recorder/?academy=1','Voice Recorder');
-    $('ad-navigation').innerHTML=mode==='admin'&&home.globalAdmin?tools:link(homeUrl(),'Home')+'<button type="button" data-ad-week>Timetable</button>'+'<button type="button" data-ad-inbox>Messages</button>'+tools+shared+'<a class="ad-visit" href="/academy/#website" data-workspace-exit>Visit website ↗</a>';
+    const visitWebsite='<a class="ad-visit" href="/academy/#website" data-workspace-exit>Visit website ↗</a>';
+    $('ad-navigation').innerHTML=mode==='admin'&&home.globalAdmin?tools+visitWebsite:link(homeUrl(),'Home')+'<button type="button" data-ad-week>Timetable</button>'+'<button type="button" data-ad-inbox>Messages</button>'+tools+shared+visitWebsite;
     $('ad-tools').innerHTML=(mode==='admin'?'':tools)+shared;
     $('ad-primary-actions').innerHTML=mode==='admin'?'<button type="button" class="ad-primary" data-ad-queue="attendance">Review attendance</button><button type="button" data-ad-queue="plans">Review Lesson Plans</button>':mode==='teach'?'<button type="button" class="ad-primary" data-ad-choose="attendance">Mark attendance</button><button type="button" class="ad-secondary" data-ad-choose="planning">Submit plans</button>':'';
     $('ad-workspace').textContent=(boundary()?.adminRealm()&&mode!=='admin'?'ADMIN · ':'')+mode.toUpperCase()+' WORKSPACE';
     $('ad-title').textContent=mode==='learn'?'Ahlan wa sahlan, '+(home.profile?.name||'Academy member'):mode==='teach'?'Your teaching dashboard':'Your administration dashboard';
     $('ad-description').textContent=mode==='learn'?'Your learning, one next step at a time.':mode==='teach'?'Your lessons, attendance and planning in one place.':'Decisions and follow-up within your administrative scope.';
-    $('ad-scope').hidden=!boundary()?.adminRealm();
-    $('ad-scope').textContent=mode==='admin'?(home.globalAdmin?'Global Admin · Program Admin authority is inherited across every Program and Course.':'Administration · Your assigned Programs and Courses only.'):'Admin '+mode+' view · Administrative authority is separate from personal learning and teaching.';
+    $('ad-scope').hidden=!boundary()?.adminRealm()||mode==='admin'&&home.globalAdmin;
+    $('ad-scope').textContent=mode==='admin'?(home.globalAdmin?'':'Administration · Your assigned Programs and Courses only.'):'Admin '+mode+' view · Administrative authority is separate from personal learning and teaching.';
+    $('ad-assessment-title').textContent=mode==='admin'?'Imtehaan':'Assessments';
   }
   function renderAreas() {
     $('ad-continue-title').textContent=mode==='teach'?'Continue teaching':mode==='admin'?'Manage Programs and Courses':'Continue learning';
@@ -116,7 +118,7 @@
     for(const row of assessments){
       const area=allowed.get(row.activityKey?.toUpperCase());
       if(!area||!/^\d{4}-\d{2}-\d{2}$/.test(row.examDate)||['COMPLETE','RELEASED','ARCHIVED','CANCELLED'].includes(row.registerStatus))continue;
-      const id=JSON.stringify([row.registerId||row.phaseId||row.title,mode==='admin'?'':key(area)]);
+      const id=JSON.stringify([row.registerId||row.phaseId||row.title,key(area)]);
       if(!groups.has(id))groups.set(id,{title:row.phaseName||row.title,registerId:row.registerId,area,names:new Set(),dates:[],published:true});
       const group=groups.get(id);group.names.add(area.name);group.dates.push(row.examDate);group.published&&=row.published;
     }
@@ -124,7 +126,7 @@
     $('ad-assessment-count').textContent=String(rows.length);
     const error=failures.get('assessments');
     $('ad-assessments').innerHTML=rows.length?`<ul class="ad-assessment-list" tabindex="0" aria-label="Imtihaan timetables">${rows.map(row=>{
-      const base=mode==='admin'?'#assessment-admin/'+row.area.kind+'/'+encodeURIComponent(row.area.id):href(row.area,'assessment');
+      const base=href(row.area,'assessment');
       const target=base+(row.registerId?'/'+encodeURIComponent(row.registerId):''),dates=date(row.first+'T12:00:00Z')+(row.last!==row.first?' – '+date(row.last+'T12:00:00Z'):'');
       return `<li><a class="ad-assessment-row" href="${esc(target)}"><span class="ad-assessment-status">${row.first<=today?'Current':'Upcoming'}${row.published?'':' · Schedule draft'}</span><strong>${esc(row.title)}</strong><span>${esc([...row.names].join(' · '))}</span><span>${esc(dates)}</span><span class="ad-assessment-open">View timetable →</span></a></li>`;
     }).join('')}</ul>`:`<p class="ad-empty-line">${loading.has('assessments')?'Checking Imtihaan timetables…':error?'Imtihaan timetables could not be checked.':'No current or upcoming Imtihaan.'}</p>`;
@@ -161,14 +163,14 @@
     $('ad-plans-title').textContent=mode==='admin'?'Review Lesson Plans':'Lesson plans due';
     $('ad-attendance-title').textContent=mode==='admin'?'Review attendance':'Mark attendance';
     const planRows=[];
-    for(const plan of plans.filter(row=>mode==='admin'||['DUE','OVERDUE'].includes(row.status)&&row.canSubmit)){
+    for(const plan of plans.filter(row=>mode==='admin'?Boolean(row.submittedAt||row.submittedRevision):['DUE','OVERDUE'].includes(row.status)&&row.canSubmit)){
       const area=areas().find(row=>key(row).toUpperCase()===plan.activityKey.toUpperCase());if(!area)continue;
       const status={DUE:plan.dueAt?'Due '+date(plan.dueAt):'Plan due',OVERDUE:'Overdue',SUBMITTED:'Submitted',SUBMITTED_LATE:'Submitted late',SUBMITTED_ON_TIME:'Submitted on time'}[plan.status]||plan.status;
       planRows.push({title:plan.activityName,description:[plan.teacherName,plan.period==='WEEKLY'&&plan.weekStart?'Week of '+date(plan.weekStart+'T12:00:00Z'):plan.runName].filter(Boolean).join(' · '),badge:status,action:link(mode==='admin'?'#administration/planning':href(area,'planning'),mode==='admin'?'Review plan →':'Open planning →')});
     }
-    renderQueue('plans',planRows,mode==='admin'?'No plans in the available review period.':'No lesson plans due.');
-    const registers=attendance.filter(row=>mode==='admin'||!row.submitted).map(row=>({title:row.moduleName||row.subjectName||'Lesson',description:[row.activityName,row.className,date(row.date+'T12:00:00Z'),row.startTime].filter(Boolean).join(' · '),badge:row.submitted?'Submitted':row.canSubmit?'Not marked':'Roster review needed',action:link(attendanceHref(row),mode==='admin'?'Review register →':'Open register →')}));
-    renderQueue('attendance',registers,mode==='admin'?'No started lessons in this timetable week.':'No unmarked lessons in this timetable week.');
+    renderQueue('plans',planRows,mode==='admin'?'No submitted plans in the available review period.':'No lesson plans due.');
+    const registers=attendance.filter(row=>mode==='admin'?row.submitted&&row.absentCount>0:!row.submitted).map(row=>({title:row.moduleName||row.subjectName||'Lesson',description:[row.activityName,row.className,date(row.date+'T12:00:00Z'),row.startTime].filter(Boolean).join(' · '),badge:mode==='admin'?row.absentCount+' absent':row.submitted?'Submitted':row.canSubmit?'Not marked':'Roster review needed',action:link(attendanceHref(row),mode==='admin'?'Review register →':'Open register →')}));
+    renderQueue('attendance',registers,mode==='admin'?'No submitted registers with absentees in this timetable week.':'No unmarked lessons in this timetable week.');
   }
   function attendanceHref(row) {
     const suffix=row.date+'/'+encodeURIComponent(row.anchor);
@@ -190,7 +192,7 @@
           // Keep register metadata only; learner names, marks and rosters never
           // enter the dashboard cache.
           const clock=new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:data.timezone||home.timezone}).format(new Date());
-          for(const row of data.lessons||[]){const lesson=row.lesson;if(!lesson||data.date===data.today&&lesson.startTime>clock)continue;lessons.push({kind:data.program.kind,activityId:data.program.id,activityName:data.program.name,date:data.date,anchor:lesson.anchor,subjectName:lesson.subjectName,moduleName:lesson.moduleName,className:lesson.className||lesson.classNames?.join(', '),startTime:lesson.startTime,submitted:Boolean(row.submitted),canSubmit:Boolean(row.canSubmit)});}
+          for(const row of data.lessons||[]){const lesson=row.lesson;if(!lesson||data.date===data.today&&lesson.startTime>clock)continue;lessons.push({kind:data.program.kind,activityId:data.program.id,activityName:data.program.name,date:data.date,anchor:lesson.anchor,subjectName:lesson.subjectName,moduleName:lesson.moduleName,className:lesson.className||lesson.classNames?.join(', '),startTime:lesson.startTime,submitted:Boolean(row.submitted),canSubmit:Boolean(row.canSubmit),absentCount:(row.marks||[]).filter(mark=>mark.status==='ABSENT').length});}
         }catch(error){if(error.name==='AbortError'||[401,403,404].includes(error.status))throw error;errors.push(unit.activityKey);}
       }
     }));
@@ -227,7 +229,7 @@
     const current=()=>owner===captured&&ticket===epoch&&captured===context();
     const accept=data=>{if(!current())return;apply(data);loading.delete(name);failures.delete(name);if(data._cacheMessage)failures.set(name,data._cacheMessage);renderQueues();};
     const failure=(error,saved)=>{if(!current()||error.name==='AbortError')return;if(!saved)apply({});loading.delete(name);failures.set(name,(saved?'Showing saved '+name+'. ':'')+'Couldn’t check '+name+'.');renderQueues();};
-    try { const cache=window.M4L_ACADEMY_READ_CACHE,result=cache?await cache.load({key:['dashboard',name,input],force,revalidate:true,fetcher:reader||(()=>request(path,input)),onUpdate:accept,onError:failure}):await (reader?reader():request(path,input));accept(result); }catch(error){failure(error,false);}
+    try { const cache=window.M4L_ACADEMY_READ_CACHE,result=cache?await cache.load({key:['dashboard',name,input,...(name==='attendance'?['absence-summary-v1']:[])],force,revalidate:true,fetcher:reader||(()=>request(path,input)),onUpdate:accept,onError:failure}):await (reader?reader():request(path,input));accept(result); }catch(error){failure(error,false);}
   }
   async function refresh(force=false) {
     if(!home||owner!==context())return;
