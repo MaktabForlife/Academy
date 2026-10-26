@@ -1,13 +1,13 @@
-/* Academy A4 weekly plan: Program/teacher/week header, subject/class boxes, admin note. */
+/* Academy plans: paginated A4 PDF download and one continuous PNG for sharing. */
 (function(){
  'use strict';
  let generation=0;
  function reset(){generation++;for(const dialog of document.querySelectorAll('.lp-share-dialog'))dialog.close();}
- async function create(plan){
-  if(!window.PDFLib)throw Error('The PDF tools are still loading. Try again.');
+ async function create(plan,imageOnly=false){
+  if(!imageOnly&&!window.PDFLib)throw Error('The PDF tools are still loading. Try again.');
   await document.fonts.ready;
-  const pdf=await PDFLib.PDFDocument.create(),pages=[],W=1190,H=1684,margin=76,inner=22,bottom=H-100;
-  let canvas,ctx,y;
+  const pdf=imageOnly?null:await PDFLib.PDFDocument.create(),pages=[],drawing=[],W=1190,H=1684,margin=76,inner=22,bottom=H-100;
+  let canvas,ctx,y,recording=imageOnly;
   const date=iso=>new Intl.DateTimeFormat('en-GB',{dateStyle:'medium',timeStyle:'short',timeZone:plan.timezone||'Africa/Johannesburg'}).format(new Date(iso));
   function wrap(text,size=24,bold=false,width=W-2*margin-2*inner){
    ctx.font=`${bold?'bold ':''}${size}px Arial`;
@@ -25,8 +25,13 @@
    return out;
   }
   function paint(line,x,baseline,size=24,bold=false,width=W-2*margin-2*inner,color='#292631'){
+   if(recording){drawing.push({text:[line,x,baseline,size,bold,width,color]});return;}
    ctx.font=`${bold?'bold ':''}${size}px Arial`;ctx.fillStyle=color;
    const rtl=/^[\s\d\W]*[\u0590-\u08ff]/.test(line);ctx.direction=rtl?'rtl':'ltr';ctx.textAlign=rtl?'right':'left';ctx.fillText(line,rtl?x+width:x,baseline);ctx.direction='ltr';ctx.textAlign='left';
+  }
+  function border(x,top,width,height,color){
+   if(recording){drawing.push({border:[x,top,width,height,color]});return;}
+   ctx.strokeStyle=color;ctx.lineWidth=2;ctx.strokeRect(x,top,width,height);
   }
   function finish(){
    ctx.strokeStyle='#72477b';ctx.lineWidth=2;ctx.strokeRect(40,40,W-80,H-80);
@@ -34,7 +39,7 @@
    ctx.font='19px Arial';ctx.textAlign='right';ctx.fillText('Page '+(pages.length+1),W-margin,H-63);ctx.textAlign='left';pages.push(canvas.toDataURL('image/png'));
   }
   function page(){
-   if(canvas)finish();canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);y=98;
+   if(canvas)finish();canvas=document.createElement('canvas');canvas.width=W;canvas.height=imageOnly?1:H;ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);y=98;
    paint(plan.period==='ENTIRE'?'Entire-course plan':'Weekly plan',margin,y,28,false);y+=56;
    for(const line of wrap(plan.activityName,42,true,W-2*margin)){paint(line,margin,y,42,true,W-2*margin);y+=51;}
    if(plan.runName){paint(plan.runName,margin,y,22,false,W-2*margin,'#696574');y+=35;}
@@ -53,10 +58,10 @@
     const heading=wrap(left+(first?'':' (continued)'),26,true,leftWidth),second=right?wrap(right,24,true,rightWidth):[];
     const headerHeight=Math.max(heading.length,second.length)*34+22;
     const remaining=lines.length-offset,desired=Math.max(minHeight,headerHeight+remaining*32+20);
-    if(y+Math.min(desired,headerHeight+96)>bottom)page();
-    const maxLines=Math.max(1,Math.floor((bottom-y-headerHeight-20)/32)),count=Math.min(remaining,maxLines),height=Math.max(minHeight,headerHeight+count*32+20);
-    if(y+height>bottom){page();continue;}
-    const top=y;ctx.strokeStyle='#72557c';ctx.lineWidth=2;ctx.strokeRect(margin,top,W-2*margin,height);
+    if(!imageOnly&&y+Math.min(desired,headerHeight+96)>bottom)page();
+    const maxLines=imageOnly?remaining:Math.max(1,Math.floor((bottom-y-headerHeight-20)/32)),count=Math.min(remaining,maxLines),height=Math.max(minHeight,headerHeight+count*32+20);
+    if(!imageOnly&&y+height>bottom){page();continue;}
+    const top=y;border(margin,top,W-2*margin,height,'#72557c');
     heading.forEach((line,i)=>paint(line,margin+inner,top+35+i*34,26,true,leftWidth));
     second.forEach((line,i)=>paint(line,W-margin-inner-rightWidth,top+35+i*34,24,true,rightWidth));
     for(let i=0;i<count;i++){const line=lines[offset+i];paint(line.text,margin+inner,top+headerHeight+27+i*32,24,line.bold,availableWidth,line.color);}
@@ -74,6 +79,25 @@
   if(plan.content.reflection)box('Reflection / follow-up','',[[null,plan.content.reflection]],90);
   const notes=(plan.comments||[]).flatMap(c=>[[''+c.author+' · '+date(c.at)+' · submitted version '+c.submittedRevision,c.body]]);
   box('Admin note','',notes,100);
+  if(imageOnly){
+   const height=Math.ceil(y+100);
+   // Bound memory and image dimensions. Never crop content or produce unreadable text.
+   async function image(maxDimension,maxPixels){
+    const scale=Math.min(1,maxDimension/height,Math.sqrt(maxPixels/(W*height)));
+    if(scale<.5)throw Error('This plan is too long for a readable single image. Download the PDF to share the complete plan.');
+    canvas.width=Math.floor(W*scale);canvas.height=Math.floor(height*scale);ctx=canvas.getContext('2d');
+    ctx.scale(scale,scale);ctx.fillStyle='#fff';ctx.fillRect(0,0,W,height);recording=false;
+    for(const item of drawing)item.text?paint(...item.text):border(...item.border);
+    border(40,40,W-80,height-80,'#72477b');paint('Umm Abbad Academy',margin,height-63,19,false,650,'#72477b');
+    return new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+   }
+   let blob;
+   try{blob=await image(8192,8000000);}catch(error){if(error.message.includes('too long'))throw error;}
+   if(!blob)try{blob=await image(4096,4000000);}catch(error){if(error.message.includes('too long'))throw error;}
+   canvas.width=canvas.height=1;
+   if(!blob)throw Error('The plan image could not be created on this device. Download the PDF instead.');
+   return blob;
+  }
   finish();
   for(const data of pages){const png=await pdf.embedPng(data);pdf.addPage([595.28,841.89]).drawImage(png,{x:0,y:0,width:595.28,height:841.89});}
   return new Blob([await pdf.save()],{type:'application/pdf'});
@@ -84,27 +108,27 @@
  function shareFile(file){
   return new Promise(resolve=>{
    const dialog=document.createElement('dialog');dialog.className='lp-dialog lp-root lp-share-dialog';dialog.setAttribute('aria-labelledby','lp-share-title');
-   const heading=document.createElement('h2');heading.id='lp-share-title';heading.textContent='Share PDF';
+   const heading=document.createElement('h2');heading.id='lp-share-title';heading.textContent='Share plan image';
    const name=document.createElement('p');name.className='lp-meta';name.textContent=file.name+' · '+Math.max(1,Math.ceil(file.size/1024))+' KB';
-   const message=document.createElement('p');message.setAttribute('role','status');message.textContent='Your PDF is ready to attach.';
+   const message=document.createElement('p');message.setAttribute('role','status');message.textContent='Your whole plan is ready as one image.';
    const actions=document.createElement('div');actions.className='lp-actions';
-   const share=document.createElement('button');share.type='button';share.textContent='Share PDF';
-   const save=document.createElement('button');save.type='button';save.className='lp-secondary';save.textContent='Download PDF';
+   const share=document.createElement('button');share.type='button';share.textContent='Share image';
+   const save=document.createElement('button');save.type='button';save.className='lp-secondary';save.textContent='Download image';
    const close=document.createElement('button');close.type='button';close.className='lp-secondary';close.textContent='Cancel';
    let result='cancelled';
-   share.onclick=async()=>{share.disabled=true;try{await navigator.share({files:[file]});result='shared';dialog.close();}catch(error){if(error.name==='AbortError')dialog.close();else{message.textContent='The PDF could not be shared. Try again, or download it and attach the file yourself.';share.disabled=false;}}};
+   share.onclick=async()=>{share.disabled=true;try{await navigator.share({files:[file]});result='shared';dialog.close();}catch(error){if(error.name==='AbortError')dialog.close();else{message.textContent='The image could not be shared. Try again, or download it and attach the image yourself.';share.disabled=false;}}};
    save.onclick=()=>{result=download(file);dialog.close();};close.onclick=()=>dialog.close();
    dialog.addEventListener('close',()=>{dialog.remove();resolve(result);},{once:true});actions.append(share,save,close);dialog.append(heading,name,message,actions);document.body.appendChild(dialog);dialog.showModal();
   });
  }
  async function output(plan,share=false){
-  const owner=generation,blob=await create(plan);if(owner!==generation)return 'cancelled';
-  const name=(plan.activityName+' - '+plan.teacherName+' - '+(plan.weekStart||'entire-course')).replace(/[^\p{L}\p{N} ._-]/gu,'').slice(0,150)+'.pdf',file=new File([blob],name,{type:'application/pdf'});
+  const owner=generation,blob=await create(plan,share);if(owner!==generation)return 'cancelled';
+  const name=(plan.activityName+' - '+plan.teacherName+' - '+(plan.weekStart||'entire-course')).replace(/[^\p{L}\p{N} ._-]/gu,'').slice(0,150)+(share?'.png':'.pdf'),file=new File([blob],name,{type:share?'image/png':'application/pdf'});
   let canShare=false;try{canShare=Boolean(navigator.share&&navigator.canShare?.({files:[file]}));}catch{}
-  // Generation is asynchronous. A fresh click shares only the actual PDF file,
+  // Generation is asynchronous. A fresh click shares only the single image file,
   // without a text/title payload that some share targets send on its own.
   if(share&&canShare)return shareFile(file);
   return download(file);
  }
- window.M4L_PLANNING_PDF={create,output,reset};
+ window.M4L_PLANNING_PDF={create:plan=>create(plan),createImage:plan=>create(plan,true),output,reset};
 })();

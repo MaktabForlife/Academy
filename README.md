@@ -1,3 +1,9 @@
+# V107.77 — Share a plan as one image
+
+Share the complete weekly plan as one continuous PNG image for compatible image-sharing destinations such as ChatShare. Download remains a paginated A4 PDF. Preserve all subjects, Arabic text and Admin notes; retain fresh-tap sharing, cancellation and clear download/error guidance. Very large plans receive PDF guidance rather than being cropped.
+
+The user authorised deployment of the verified changes. No database migration, live correction or private coordinator change is required. [Implementation and verification](docs/ACADEMY-PLANNING-IMAGE-SHARING.md).
+
 # V107.76 — Planning controls and PDF file sharing
 
 Use one top action row with Save draft, Submit, Reload and PDF download/share icons. Load a saved plan by its week, then choose another Week starting date to save it as a new plan while protecting the original and existing target plans. Remove the marked teacher-screen information and overview input, retaining stored content. Remove the submission timestamp from exported A4 PDFs.
