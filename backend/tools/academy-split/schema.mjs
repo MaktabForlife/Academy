@@ -20,6 +20,7 @@ function tableDDL(record,owner,names,layout){
   if(field&&!kept?.includes(column))continue;
   if(!field&&owner==='ADMIN'&&layout[record.name]?.columns.some(c=>!kept.includes(c)&&new RegExp('\\b'+c+'\\b','i').test(part)))continue;
   if(field&&owner==='CORE'&&adminTables.has(record.name)&&!layout[record.name].referenceColumns.includes(column)&&fieldOwner(record.name,column)==='admin')part=part.replace(/\bNOT NULL\b/gi,'');
+  if(owner==='CORE'&&record.name==='lesson_media_assets'&&!field&&/^CHECK\(/i.test(part)&&part.includes('youtube_id'))part=part.replace(/^CHECK\(/i,'CHECK(kind IS NULL OR ');
   if(ref){
    let target=ref[1];
    if(owner==='ADMIN'&&target==='accounts')target='identity_refs';

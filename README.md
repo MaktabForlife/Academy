@@ -1,4 +1,13 @@
-# Umm Abbad Academy — V107.67
+# Umm Abbad Academy — V107.68
+
+## V107.68 — Session MP4 recordings
+
+Manual MP4 uploads attach recordings to existing sessions, using the same session permissions and publication flow. Play uploaded MP4s and YouTube videos in the app. Stop MP4 playback fourteen days after upload, show Recording expired, and omit expired-only sessions from the learner media rail while preserving session records and other links.
+
+Use native R2 expiry only for the recording prefix. Includes a store-specific attachment schema upgrade preserving existing assets, references, indexes and triggers. Automatic Zoom imports remain deferred. Retains the deployed V107.67 read optimisations.
+
+[Implementation and verification notes](docs/session-video-local-preview.md).
+
 
 ## V107.67 — Fewer database reads and batched assessment setup
 

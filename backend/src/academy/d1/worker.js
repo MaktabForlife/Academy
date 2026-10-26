@@ -16,6 +16,7 @@ import {d1Memorisation,d1MemorisationPreview} from './memorisation.js';
 import {d1Assessments} from './assessments.js';
 import {assessmentFiles} from './assessment-files.js';
 import {assessmentReports} from './assessment-reports.js';
+import {authenticateVideo} from './session-video.js';
 import {lessonMedia,timetableMedia} from './lesson-media.js';
 import {pdfTools,publicPdfTools} from './pdf-tools.js';
 import {pdfBookmarks} from './pdf-bookmarks.js';
@@ -97,7 +98,7 @@ async function dispatch(request,env) {
   if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,setupEnabled(env)?await readRepository():repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(setupEnabled(env)?await readRepository():repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.67',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.68',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(setupEnabled(env)?await readRepository():repository)};
@@ -112,6 +113,12 @@ async function dispatch(request,env) {
     /^\/api\/admin\/platform\/global\/(?:resources?|drive(?:-root)?)\//.test(path)))
     throw rehearsalError('Private Academy media is not available yet.',403,'PRIVATE_MEDIA_NOT_ENABLED');
   if(path==='/api/academy/d1/library/file'&&['GET','HEAD'].includes(request.method))return d1LibraryStream(request,repository,env);
+  if(path==='/api/academy/lesson-media/video'&&['GET','HEAD'].includes(request.method)){
+    const {auth,input}=await authenticateVideo(request,env,repository);repository.bindActor?.(auth);
+    if(isAdminWorkspace(auth))repository=repository.authoringRepository();
+    else if(setupEnabled(env))repository=await readRepository();
+    return lessonMedia(repository,auth,env).videoStream(request,input);
+  }
   if(request.method!=='POST')throw rehearsalError('Use POST.',405,'METHOD_NOT_ALLOWED');
   if(path==='/api/admin/platform/announcements/save'){
     const auth=await authenticated(request,env,repository);
@@ -120,7 +127,7 @@ async function dispatch(request,env) {
     const editor=announcements(repository,auth,env),{input,image,pdf}=await announcementUpload(request);
     return {success:true,...await editor.run('save',input,image,pdf)};
   }
-  if(['/api/academy/lesson-media/upload','/api/academy/lesson-media/note-upload'].includes(path)) {
+  if(['/api/academy/lesson-media/upload','/api/academy/lesson-media/note-upload','/api/academy/lesson-media/video-part'].includes(path)) {
     const auth=await authenticated(request,env,repository),metadata=new URL(request.url).searchParams.get('metadata')||'';
     if(metadata.length>8192)throw rehearsalError('Upload details are too large.',413);
     let input;try{input=JSON.parse(metadata);}catch{throw rehearsalError('Invalid upload details.',400);}
@@ -128,6 +135,7 @@ async function dispatch(request,env) {
     guardWorkspace(request,auth,input);
     if(isAdminWorkspace(auth))repository=repository.authoringRepository();
     if(setupEnabled(env)&&!isAdminWorkspace(auth))repository=await readRepository();
+    if(path.endsWith('/video-part'))return {success:true,...await lessonMedia(repository,auth,env).videoPart(request,input)};
     if(path.endsWith('/note-upload')){if(!sourceRepository.features.mediaSeparation)throw rehearsalError('Own notes are unavailable.',503);return {success:true,...await lessonNotes(await readRepository(),auth,env).upload(request,input)};}
     return {success:true,...await lessonMedia(repository,auth,env).upload(request,input)};
   }
@@ -211,7 +219,7 @@ async function dispatch(request,env) {
   const academicCalendarAction=path.match(/^\/api\/academy\/calendar\/(get|save)$/)?.[1];
   if(academicCalendarAction){const produce=()=>academicCalendar(repository,auth).run(academicCalendarAction,input);return {success:true,...await (academicCalendarAction==='get'?privateSnapshot(repository,auth,{kind:'calendar',input},produce):produce())};}
   if(path==='/api/academy/lesson-media/timetable'){const result=await timetableMedia(repository,auth,input);if(sourceRepository.features.mediaSeparation){const additions=await lessonNotes(await readRepository(),auth,env).timetable(input);for(const row of additions.lessons){const existing=result.lessons.find(r=>r.activityKey===row.activityKey&&r.sessionKey===row.sessionKey);if(existing)existing.assets.push(...row.assets);else result.lessons.push(row);}}return {success:true,...result};}
-  const mediaAction=path.match(/^\/api\/academy\/lesson-media\/(list|feed|calendar|sessions|create|course-files-create|get|save|watch|download|comments|comment-save|comment-moderate|attachment-remove|attachment-name)$/)?.[1];
+  const mediaAction=path.match(/^\/api\/academy\/lesson-media\/(list|feed|calendar|sessions|create|course-files-create|get|save|watch|download|comments|comment-save|comment-moderate|attachment-remove|attachment-name|video-start|video-complete|video-abort)$/)?.[1];
   if(mediaAction){let result=await lessonMedia(repository,auth,env).run(mediaAction,input);if(sourceRepository.features.mediaSeparation&&['calendar','list','feed','get'].includes(mediaAction)&&!result.notModified){const notes=lessonNotes(await readRepository(),auth,env);if(mediaAction==='get'){if(result.lesson.sessionKey){const entries=await notes.notes([{activityKey:result.lesson.activityKey,sessionKey:result.lesson.sessionKey}]);result.assets.push(...entries.map(notes.asset));result.lesson.canCurateNotes=true;}}else result=await (mediaAction==='calendar'?notes.enrichCalendar(result,input):mediaAction==='feed'?notes.enrichFeed(result,input):notes.enrichList(result,input));}return result instanceof Response?result:{success:true,...result};}
   if(path==='/api/academy/assessments/download')return assessmentFiles(repository,auth,env).download(input);
   if(['/api/academy/assessments/marks-list','/api/academy/assessments/marks-save'].includes(path))return {success:true,...await assessmentManualMarks(repository,auth).run(path.endsWith('marks-list')?'marks-list':'marks-save',input)};

@@ -14,7 +14,7 @@
  function read(scope,head){changed();const name=key(scope);let raw=memory.get(name);try{raw=storage()?.getItem(name)||raw;}catch{}try{const entry=JSON.parse(raw);if(entry.version!==1||Date.now()-entry.savedAt>ttl||entry.savedAt>Date.now()||head&&entry.head!==head||!entry.data?.cacheRevision)throw Error();return entry;}catch{remove(name);return null;}}
  function write(scope,data,head,ticket=epoch){changed();if(!scope.owner||ticket!==epoch||!data?.cacheRevision)return;
   // Defence in depth: the feed contains IDs and display metadata, never URLs or credentials.
-  const raw=JSON.stringify({version:1,savedAt:Date.now(),head:head||null,scope,data},(field,value)=>/^(url|embedUrl|object_key|objectKey|youtube_id|token|authorization)$/i.test(field)?undefined:value);
+  const raw=JSON.stringify({version:1,savedAt:Date.now(),head:head||null,scope,data},(field,value)=>/^(url|embedUrl|playbackPath|ticket|uploadToken|object_key|objectKey|youtube_id|token|authorization)$/i.test(field)?undefined:value);
   if(raw.length>400*1024)return;const name=key(scope);memory.set(name,raw);try{storage()?.setItem(name,raw);}catch{}
   const all=[...entries()].map(([key,value])=>{try{return {key,bytes:value.length*2,time:JSON.parse(value).savedAt};}catch{return {key,bytes:(value?.length||0)*2,time:0};}}).sort((a,b)=>b.time-a.time);let total=0;
   all.forEach((entry,index)=>{total+=entry.bytes;if(index>=maxEntries||total>maxBytes||Date.now()-entry.time>ttl)remove(entry.key);});
