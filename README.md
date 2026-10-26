@@ -1,3 +1,11 @@
+# V107.76 — Planning controls and PDF file sharing
+
+Use one top action row with Save draft, Submit, Reload and PDF download/share icons. Load a saved plan by its week, then choose another Week starting date to save it as a new plan while protecting the original and existing target plans. Remove the marked teacher-screen information and overview input, retaining stored content. Remove the submission timestamp from exported A4 PDFs.
+
+PDF sharing sends only the actual PDF file after a fresh Share confirmation. Unsupported file sharing downloads the PDF with attachment guidance; cancellation does not trigger a download. Preserve V107.75 sign-in improvements and V107.74 assessment permissions. The user authorised this deployment; no database migration, live correction or private coordinator change is required.
+
+[Implementation and verification](docs/ACADEMY-PLANNING-10776.md).
+
 # V107.75 — A smoother sign-in handover
 
 Show a dashboard loading screen immediately while restoring sign-in or opening the selected workspace. Reuse verified sign-in roles to avoid building a timetable before changing workspaces, and share overlapping session restoration requests. Preserve V107.74 assessment workflows and all current permission checks. No database upgrade is required. Keep live checks small to limit database usage.

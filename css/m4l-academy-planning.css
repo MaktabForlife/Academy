@@ -42,3 +42,5 @@
 .lp-grid tbody th{text-align:left}.lp-grid caption{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .lp-settings label:has([name=plansRequired]){display:flex;align-items:center;gap:10px;margin:16px 0}
 .lp-settings input[name=plansRequired]{width:20px;min-height:20px;height:20px;flex:none}
+
+.lp-root .lp-primary-actions{align-items:center;margin:16px 0 20px}.lp-root [data-lp-icon]{flex:0 0 44px;width:44px;height:44px;min-width:44px;padding:10px}.lp-root [data-lp-icon] svg{display:block;width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.lp-plan-heading .lp-plan-week{font-size:13px;min-width:170px}.lp-root .lp-share-dialog{width:min(480px,calc(100vw - 24px))}

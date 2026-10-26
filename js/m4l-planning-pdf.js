@@ -1,6 +1,8 @@
 /* Academy A4 weekly plan: Program/teacher/week header, subject/class boxes, admin note. */
 (function(){
  'use strict';
+ let generation=0;
+ function reset(){generation++;for(const dialog of document.querySelectorAll('.lp-share-dialog'))dialog.close();}
  async function create(plan){
   if(!window.PDFLib)throw Error('The PDF tools are still loading. Try again.');
   await document.fonts.ready;
@@ -39,7 +41,7 @@
    const teacher=wrap('Teacher: '+plan.teacherName,24,false,W-2*margin);
    for(const line of teacher){paint(line,margin,y,24);y+=32;}
    paint(plan.period==='ENTIRE'?'Entire course':'Week starting: '+plan.weekStart,margin,y,24);y+=32;
-   paint(plan.submittedAt?'Submitted: '+date(plan.submittedAt):'DRAFT',margin,y,19,!plan.submittedAt,W-2*margin,'#696574');y+=34;
+   if(!plan.submittedAt){paint('DRAFT',margin,y,19,true,W-2*margin,'#696574');y+=34;}
   }
   function bodyLines(parts){
    return parts.flatMap(([label,text])=>text?[...(label?wrap(label,23,true).map(text=>({text,bold:true,color:'#72477b'})):[]),...wrap(text).map(text=>({text})),{text:''}]:[]);
@@ -76,10 +78,33 @@
   for(const data of pages){const png=await pdf.embedPng(data);pdf.addPage([595.28,841.89]).drawImage(png,{x:0,y:0,width:595.28,height:841.89});}
   return new Blob([await pdf.save()],{type:'application/pdf'});
  }
- async function output(plan,share=false){
-  const blob=await create(plan),name=(plan.activityName+' - '+plan.teacherName+' - '+(plan.weekStart||'entire-course')).replace(/[^\p{L}\p{N} ._-]/gu,'').slice(0,150)+'.pdf',file=new File([blob],name,{type:'application/pdf'});
-  if(share&&navigator.share&&navigator.canShare?.({files:[file]})){try{await navigator.share({files:[file],title:plan.content.title});return;}catch(e){if(e.name==='AbortError')return;}}
-  const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
+ function download(file){
+  const url=URL.createObjectURL(file),link=document.createElement('a');link.href=url;link.download=file.name;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);return 'downloaded';
  }
- window.M4L_PLANNING_PDF={create,output};
+ function shareFile(file){
+  return new Promise(resolve=>{
+   const dialog=document.createElement('dialog');dialog.className='lp-dialog lp-root lp-share-dialog';dialog.setAttribute('aria-labelledby','lp-share-title');
+   const heading=document.createElement('h2');heading.id='lp-share-title';heading.textContent='Share PDF';
+   const name=document.createElement('p');name.className='lp-meta';name.textContent=file.name+' · '+Math.max(1,Math.ceil(file.size/1024))+' KB';
+   const message=document.createElement('p');message.setAttribute('role','status');message.textContent='Your PDF is ready to attach.';
+   const actions=document.createElement('div');actions.className='lp-actions';
+   const share=document.createElement('button');share.type='button';share.textContent='Share PDF';
+   const save=document.createElement('button');save.type='button';save.className='lp-secondary';save.textContent='Download PDF';
+   const close=document.createElement('button');close.type='button';close.className='lp-secondary';close.textContent='Cancel';
+   let result='cancelled';
+   share.onclick=async()=>{share.disabled=true;try{await navigator.share({files:[file]});result='shared';dialog.close();}catch(error){if(error.name==='AbortError')dialog.close();else{message.textContent='The PDF could not be shared. Try again, or download it and attach the file yourself.';share.disabled=false;}}};
+   save.onclick=()=>{result=download(file);dialog.close();};close.onclick=()=>dialog.close();
+   dialog.addEventListener('close',()=>{dialog.remove();resolve(result);},{once:true});actions.append(share,save,close);dialog.append(heading,name,message,actions);document.body.appendChild(dialog);dialog.showModal();
+  });
+ }
+ async function output(plan,share=false){
+  const owner=generation,blob=await create(plan);if(owner!==generation)return 'cancelled';
+  const name=(plan.activityName+' - '+plan.teacherName+' - '+(plan.weekStart||'entire-course')).replace(/[^\p{L}\p{N} ._-]/gu,'').slice(0,150)+'.pdf',file=new File([blob],name,{type:'application/pdf'});
+  let canShare=false;try{canShare=Boolean(navigator.share&&navigator.canShare?.({files:[file]}));}catch{}
+  // Generation is asynchronous. A fresh click shares only the actual PDF file,
+  // without a text/title payload that some share targets send on its own.
+  if(share&&canShare)return shareFile(file);
+  return download(file);
+ }
+ window.M4L_PLANNING_PDF={create,output,reset};
 })();
