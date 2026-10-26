@@ -1147,6 +1147,11 @@
     };
   }
 
+  window.addEventListener('m4l-academy-public-timetable-updated',()=>{
+    state.publicData=null;state.publicDay='';
+    if($('overview').classList.contains('active'))void loadPublicHome();
+  });
+
   window.addEventListener('m4l-class-notes-error',event=>{const el=location.hash.startsWith('#activity/')?$('activity-status'):$('schedule-message');if(el)el.textContent=event.detail+' Refresh to try again.';});
 
   function clearPersonal() {

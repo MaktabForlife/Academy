@@ -59,6 +59,56 @@
  const headers=revision=>({'X-Academy-Read-Cache':'1',...(revision?{'X-Academy-Read-Revision':revision}:{})});
  const publicUrl=(url,revision)=>url+(url.includes('?')?'&':'?')+'readCache=1'+(revision?'&readRevision='+encodeURIComponent(revision):'');
  window.M4L_ACADEMY_READ_CACHE={load,headers,publicUrl,invalidate,owner};
+ // Process only refresh work confirmed by a successful save/publication. No
+ // navigation polling or browser retry loop: durable recovery owns failures.
+ const refreshJobs=new Map(),refreshHeads=new Map();let refreshResults=new WeakMap(),refreshEpoch=0;
+ const pendingRefresh=()=>({completed:[],pending:true});
+ function refreshAfterSave(result,session=token()){
+  const kinds=Array.isArray(result?.cacheRefreshPending)?result.cacheRefreshPending.filter(kind=>['public-timetable','profile-labels'].includes(kind)):[];
+  if(result?.success!==true||!kinds.length)return Promise.resolve({completed:[],pending:false});
+  const realm=context(),ticket=refreshEpoch;
+  const active=()=>session&&session===token()&&realm===context()&&ticket===refreshEpoch;
+  if(!active()||window.M4L_ACADEMY_WORKSPACE?.current()!=='ADMIN')return Promise.resolve(pendingRefresh());
+  if(refreshResults.has(result))return refreshResults.get(result);
+  const scope=JSON.stringify([session,realm]),publication=result.head||(result.setupPublication?head():null),publicationKey=publication&&kinds.includes('public-timetable')?JSON.stringify([scope,publication]):null;
+  // The setup dialog and its originating Publish action share one rebuild.
+  if(publicationKey&&refreshHeads.has(publicationKey))return refreshHeads.get(publicationKey);
+  let job=refreshJobs.get(scope);
+  if(job)job.again=true;
+  else{
+   job={again:false};refreshJobs.set(scope,job);
+   job.promise=(async()=>{
+    let state=pendingRefresh();
+    // One extra pass covers a new confirmed save during a rebuild. Further
+    // concurrent changes remain durable work for the existing recovery job.
+    for(let pass=0;pass<2;pass++){
+     job.again=false;if(!active())return pendingRefresh();
+     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
+     try{
+      const response=await window.fetch((window.M4L_CONFIG?.API_BASE||'').replace(/\/$/,'')+'/api/academy/cache/refresh',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session},body:'{}',signal:controller.signal});
+      const data=await response.json();if(!active())return pendingRefresh();
+      if(!response.ok||data.success!==true)return pendingRefresh();
+      state={completed:Array.isArray(data.completed)?data.completed.filter(kind=>['public-timetable','profile-labels'].includes(kind)):[],pending:data.pending!==false};
+      if(state.completed.includes('public-timetable')){invalidate();window.dispatchEvent(new Event('m4l-academy-public-timetable-updated'));}
+     }catch{return pendingRefresh();}finally{clearTimeout(timer);}
+     if(!job.again)break;
+    }
+    return job.again?{...state,pending:true}:state;
+   })().finally(()=>{if(refreshJobs.get(scope)===job)refreshJobs.delete(scope);});
+  }
+  refreshResults.set(result,job.promise);
+  if(publicationKey){
+   refreshHeads.set(publicationKey,job.promise);
+   void job.promise.then(state=>{if(state.pending&&refreshHeads.get(publicationKey)===job.promise)refreshHeads.delete(publicationKey);});
+   while(refreshHeads.size>16)refreshHeads.delete(refreshHeads.keys().next().value);
+  }
+  return job.promise;
+ }
+ window.M4L_REFRESH_AFTER_SAVE=refreshAfterSave;
+ function clearRefresh(){refreshEpoch++;refreshJobs.clear();refreshHeads.clear();refreshResults=new WeakMap();}
+ window.addEventListener('m4l-academy-session',clearRefresh);
+ window.addEventListener('m4l-academy-session-ended',clearRefresh);
+ window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)clearRefresh();});
  window.addEventListener('m4l-academy-session',()=>{if(account!==token()){changed();return;}privateEpoch++;for(const key of pending.keys())if(JSON.parse(key.slice(prefix.length))[1]!=='PUBLIC')pending.delete(key);publicationAt=0;publicationPending=null;});
  window.addEventListener('m4l-academy-session-ended',()=>invalidate({privateOnly:true}));
  window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)changed();});

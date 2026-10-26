@@ -7,10 +7,19 @@ import {createRequire} from 'node:module';
 import assert from 'node:assert/strict';
 import {separationFixture,separationScopes as scopes} from '../tests/fixtures/academy-separation-fixture.mjs';
 import {initialiseAcceptedSetup} from '../src/academy/d1/setup-publication.js';
+import {publicTimetableDay,publicTimetableKey} from '../src/academy/d1/public-timetable.js';
 import worker from '../src/academy-runtime.js';
 const require=createRequire(import.meta.url),{chromium}=require(process.env.ACADEMY_BROWSER_RUNTIME||'/Users/hbnaidu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const root=fileURLToPath(new URL('../../',import.meta.url)),out=process.env.ACADEMY_SETUP_OUTPUT||'/private/tmp/academy-setup-acceptance';mkdirSync(out,{recursive:true});
 const f=await separationFixture(),token=await f.actor('global'),errors=[],requests=[];
+const objects=new Map();let etag=0,storageFails=false;
+f.env.MEDIA_BUCKET={get:async key=>{const value=objects.get(key);return value?{etag:value.etag,json:async()=>JSON.parse(value.body)}:null;},put:async(key,body,{onlyIf}={})=>{
+ if(storageFails)throw Error('Synthetic snapshot storage failure');
+ const current=objects.get(key);if(onlyIf?.etagMatches!==undefined&&onlyIf.etagMatches!==current?.etag||onlyIf?.etagDoesNotMatch==='*'&&current)return null;
+ const value={body,etag:String(++etag)};objects.set(key,value);return {etag:value.etag};
+}};
+const refreshCount=()=>requests.filter(r=>r.path==='/api/academy/cache/refresh').length;
+const snapshot=()=>objects.get(publicTimetableKey(f.env,publicTimetableDay())+'.accepted-'+f.db.prepare('SELECT head_id FROM setup_head_state').get().head_id);
 f.db.exec(readFileSync(new URL('../migrations/academy/0032_accepted_setup.sql',import.meta.url),'utf8'));
 f.db.exec('BEGIN');f.db.exec(readFileSync(new URL('../migrations/academy/0034_assessment_operations.sql',import.meta.url),'utf8'));f.db.exec('COMMIT');
 const baseline=await initialiseAcceptedSetup(f.env.ACADEMY_DB);
@@ -33,7 +42,7 @@ try{
  await open('/academy/admin/#timetable/learn');assert(!(await page.locator('body').innerText()).includes('Reviewed setup browser name'));
  assert(requests.some(r=>r.path==='/api/academy/entrance'&&r.head===baseline.head));
  for(const width of [1440,390]){
-  await page.setViewportSize({width,height:1000});await open('/academy/admin/#administration');
+  await page.setViewportSize({width,height:1000});await open('/academy/admin/#administration/settings');
   await page.locator('#setup-publication-review').click();await page.locator('dialog input[value="'+scopes.programA+'"]').check();
   assert.equal(await page.locator('[data-setup-publish]').isEnabled(),true);
   assert.deepEqual(await page.locator('dialog .workspace-actions button').allTextContents(),['Cancel','Review changes','Publish']);
@@ -43,18 +52,21 @@ try{
   assert.equal(await page.locator('dialog[aria-label="Confirm publish"]').evaluate(el=>el.getBoundingClientRect().right<=innerWidth&&el.getBoundingClientRect().left>=0),true);
   await page.screenshot({path:path.join(out,'setup-review-'+width+'.png'),fullPage:true});
   if(width===1440){await page.locator('[data-setup-close]').click();assert.equal(f.db.prepare('SELECT head_id FROM setup_head_state').get().head_id,baseline.head);}
-  else{await page.locator('[data-setup-publish]').click();await page.locator('dialog[aria-label="Confirm publish"]').waitFor({state:'detached'});}
+  else{const refreshing=page.waitForResponse(r=>r.url().endsWith('/api/academy/cache/refresh'));await page.locator('[data-setup-publish]').click();await page.locator('dialog[aria-label="Confirm publish"]').waitFor({state:'detached'});await (await refreshing).finished();}
  }
+ assert.equal(refreshCount(),1);assert(snapshot(),'Publishing warmed the accepted homepage snapshot without clicking Update timetable');assert(JSON.parse(snapshot().body).timetable.some(r=>r.activityName==='Reviewed setup browser name'));
  await open('/academy/admin/#timetable/learn');await page.waitForFunction(()=>document.body.innerText.includes('Reviewed setup browser name'));assert((await page.locator('body').innerText()).includes('Reviewed setup browser name'));
  assert.notEqual(f.db.prepare('SELECT head_id FROM setup_head_state').get().head_id,baseline.head);
  // Changing areas discards the earlier optional review and publishes the new selection.
  f.db.prepare('UPDATE activities SET name=? WHERE activity_key=?').run('Second private A draft',scopes.programA);
  f.db.prepare('UPDATE activities SET name=? WHERE activity_key=?').run('Directly published B draft',scopes.programB);
- await open('/academy/admin/#administration');await page.locator('#setup-publication-review').click();
+ await open('/academy/admin/#administration/settings');await page.locator('#setup-publication-review').click();
  await page.locator('dialog input[value="'+scopes.programA+'"]').check();await page.locator('[data-setup-review]').click();await page.locator('[data-setup-details]').waitFor({state:'visible'});
  await page.locator('dialog input[value="'+scopes.programA+'"]').uncheck();assert.equal(await page.locator('[data-setup-publish]').isDisabled(),true);
  await page.locator('dialog input[value="'+scopes.programB+'"]').check();assert.equal(await page.locator('[data-setup-details]').isVisible(),false);
- await page.locator('[data-setup-publish]').click();await page.locator('dialog[aria-label="Confirm publish"]').waitFor({state:'detached'});
+ storageFails=true;const failedRefresh=page.waitForResponse(r=>r.url().endsWith('/api/academy/cache/refresh'));
+ await page.locator('[data-setup-publish]').click();await page.locator('dialog[aria-label="Confirm publish"]').waitFor({state:'detached'});assert.equal((await (await failedRefresh).json()).pending,true);assert.equal(refreshCount(),2);assert.equal(snapshot(),undefined);
+ storageFails=false;assert.equal(await page.locator('#public-timetable-refresh').isVisible(),true);await page.locator('#public-timetable-refresh').click();await page.locator('#public-timetable-refresh-message').filter({hasText:'Public timetable refreshed.'}).waitFor();assert(snapshot(),'Manual fallback repairs the accepted snapshot');assert.equal(refreshCount(),2);
  const accepted=JSON.parse(f.db.prepare('SELECT manifest_json FROM setup_batches WHERE accepted_head=(SELECT head_id FROM setup_head_state)').get().manifest_json);
  assert.deepEqual(accepted.selection.scopes,[scopes.programB.toUpperCase()]);
  // No-change publication remains a no-op and disables Publish after checking.
@@ -69,7 +81,8 @@ try{
  await page.locator('[data-setup-publish]').click();await page.locator('[data-setup-status]').filter({hasText:'Setup changed after review.'}).waitFor();
  assert.equal(f.db.prepare('SELECT head_id FROM setup_head_state').get().head_id,head);await page.locator('[data-setup-close]').click();
  assert.deepEqual(errors,[]);assert.deepEqual(f.db.prepare('PRAGMA foreign_key_check').all(),[]);
- const result={passed:true,checks:['private draft name','pinned reader request','compact desktop and mobile confirmation','optional review and direct Publish','area changes invalidate the old review','no unpublished changes leaves head unchanged','stale reviewed changes cannot publish','cancel leaves accepted head unchanged','explicit whole-change publication','new reader receives accepted name'],pageErrors:errors};
+ assert.equal(refreshCount(),2,'No-change and rejected publications add no refresh or browser polling');
+ const result={passed:true,checks:['private draft name','pinned reader request','compact desktop and mobile confirmation','optional review and direct Publish','area changes invalidate the old review','no unpublished changes leaves head unchanged','stale reviewed changes cannot publish','cancel leaves accepted head unchanged','explicit whole-change publication','new reader receives accepted name','one automatic refresh per accepted public publication','storage failure preserves successful publication','visible Update timetable fallback repairs the snapshot','no refresh on rejected or no-change publication'],pageErrors:errors};
  writeFileSync(path.join(out,'verification.json'),JSON.stringify(result,null,2));console.log(JSON.stringify({...result,output:out}));
 }catch(error){await page.screenshot({path:path.join(out,'failure.png'),fullPage:true});throw error;}
 finally{await browser.close();await new Promise(resolve=>server.close(resolve));f.close();}

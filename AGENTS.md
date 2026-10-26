@@ -1,3 +1,10 @@
+# Homepage refresh release — 26 October 2026
+
+- The user explicitly requested restoring automatic homepage snapshot refresh after publishing, retaining Update timetable as a fallback, local testing and deployment. Release as V107.78 to the existing Development API and Academy website.
+- Include the planning-image follow-up directly authorised by the user in “v107.71 assessment”: preserve PDF text size and allow a single image up to two page heights. No database migration, live data correction or private coordinator change is required for this release.
+- Keep live checks small to limit database usage. Use disposable local fixtures, one targeted API readiness check and static release verification.
+- The five-category UI and lesson update batch was separately handed over with direct user deployment authorisation from “UI and lesson updates”. Implement and test that following this release; preserve this automatic refresh and its fallback when replacing the extra setup-publication workflow. Other future deployments require new authorisation.
+
 # Sign-in handover release — 26 October 2026
 
 - The user explicitly requested deploying the sign-in transition when ready. Incorporate V107.74 (`473a12ea`) and release as V107.75 to the existing Academy website and matching Development API.

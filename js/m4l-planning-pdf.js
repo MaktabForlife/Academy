@@ -81,22 +81,19 @@
   box('Admin note','',notes,100);
   if(imageOnly){
    const height=Math.ceil(y+100);
-   // Bound memory and image dimensions. Never crop content or produce unreadable text.
-   async function image(maxDimension,maxPixels){
-    const scale=Math.min(1,maxDimension/height,Math.sqrt(maxPixels/(W*height)));
-    if(scale<.5)throw Error('This plan is too long for a readable single image. Download the PDF to share the complete plan.');
-    canvas.width=Math.floor(W*scale);canvas.height=Math.floor(height*scale);ctx=canvas.getContext('2d');
-    ctx.scale(scale,scale);ctx.fillStyle='#fff';ctx.fillRect(0,0,W,height);recording=false;
+   // Extend to two A4 page heights using the PDF's exact width and font sizes.
+   if(height>H*2)throw Error('This plan is longer than two pages at the PDF text size. Download the PDF to share the complete plan.');
+   try{
+    canvas.width=W;canvas.height=height;ctx=canvas.getContext('2d');
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,W,height);recording=false;
     for(const item of drawing)item.text?paint(...item.text):border(...item.border);
     border(40,40,W-80,height-80,'#72477b');paint('Umm Abbad Academy',margin,height-63,19,false,650,'#72477b');
-    return new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
-   }
-   let blob;
-   try{blob=await image(8192,8000000);}catch(error){if(error.message.includes('too long'))throw error;}
-   if(!blob)try{blob=await image(4096,4000000);}catch(error){if(error.message.includes('too long'))throw error;}
-   canvas.width=canvas.height=1;
-   if(!blob)throw Error('The plan image could not be created on this device. Download the PDF instead.');
-   return blob;
+    const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+    if(!blob)throw Error('Image encoding failed');
+    return blob;
+   }catch{
+    throw Error('The plan image could not be created on this device. Download the PDF instead.');
+   }finally{canvas.width=canvas.height=1;}
   }
   finish();
   for(const data of pages){const png=await pdf.embedPng(data);pdf.addPage([595.28,841.89]).drawImage(png,{x:0,y:0,width:595.28,height:841.89});}

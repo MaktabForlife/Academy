@@ -1,3 +1,9 @@
+# V107.78 — Automatic homepage refresh after publishing
+
+Restore immediate homepage snapshot refresh after a confirmed publication. Record pending work atomically with the accepted publication, coalesce duplicate callbacks, and retain durable recovery if refresh fails. Keep the Global Admin **Update timetable** button and existing permissions. No navigation polling or database upgrade is added. Keep live checks small to limit database usage.
+
+Includes the authorised planning-image follow-up: retain PDF text size in one full-width PNG up to two A4 page heights. [Implementation and local verification](docs/ACADEMY-PUBLIC-REFRESH-10778.md).
+
 # V107.77 — Share a plan as one image
 
 Share the complete weekly plan as one continuous PNG image for compatible image-sharing destinations such as ChatShare. Download remains a paginated A4 PDF. Preserve all subjects, Arabic text and Admin notes; retain fresh-tap sharing, cancellation and clear download/error guidance. Very large plans receive PDF guidance rather than being cropped.

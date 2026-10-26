@@ -50,7 +50,7 @@
     if(busy||publish.disabled)return;lock(true);publish.textContent='Publishing…';status.textContent='Publishing…';
     try{
      check();if(!batch&&!await prepare())return;
-     status.textContent='Publishing…';const result=await api('publish',{batchId:batch.batchId,digest:batch.digest});check();window.M4L_ACADEMY_WORKSPACE?.publication(result.head);end(null,result);
+     status.textContent='Publishing…';const result=await api('publish',{batchId:batch.batchId,digest:batch.digest});check();window.M4L_ACADEMY_WORKSPACE?.publication(result.head);void window.M4L_REFRESH_AFTER_SAVE?.(result,session);end(null,result);
     }
     catch(error){status.textContent=error.message;if(error.status&&error.status<500&&error.code!=='SESSION_ENDED')invalidate();}
     finally{publish.textContent='Publish';lock(false);}

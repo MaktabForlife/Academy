@@ -4,6 +4,7 @@ import {definitionSettingsSQL} from './setup-reader.js';
 import {payloadHash,stableJSON} from '../../programs/timetable-model.js';
 import {rehearsalError as fail} from './repository.js';
 import {actualState,isAdminWorkspace,administers} from './workspace-access.js';
+import {markRefresh} from './refresh-state.js';
 
 // The source tables remain editable. Each accepted head refers to immutable,
 // complete components; publication changes only the head, never source drafts.
@@ -195,7 +196,9 @@ async function sourceOperation(db,auth,operation){
 }
 export function setupPublication(repository,auth){
  const db=repository.db;
- const published=async(result,manifest)=>{if(manifest.components?.some(c=>['assessments','assessment_registers','assessment_phases','classes','activities'].includes(c.table)))try{await repository.onAssessmentPublication?.(result.head);}catch{/* Publication is already committed; snapshot storage is optional. */}return result;};
+ const publicTables=new Set(['activities','program_settings','course_settings','course_runs','course_run_state','timetable_publications','published_lessons','program_publication_state','academy_calendar_events','academy_calendar_suppressions','academy_settings']);
+ const publicChanged=manifest=>manifest.components?.some(c=>publicTables.has(c.table));
+ const published=async(result,manifest)=>{if(manifest.components?.some(c=>['assessments','assessment_registers','assessment_phases','classes','activities'].includes(c.table)))try{await repository.onAssessmentPublication?.(result.head);}catch{/* Publication is already committed; snapshot storage is optional. */}return {...result,...(publicChanged(manifest)?{cacheRefreshPending:['public-timetable']}:{})};};
  return {async run(action,input={}){
   if(action==='publish'){
    const saved=await db.prepare('SELECT * FROM setup_batches WHERE batch_id=?').bind(String(input.batchId||'')).first();
@@ -231,7 +234,7 @@ export function setupPublication(repository,auth){
    const current=await candidate(db,auth,{...manifest.selection,...(manifest.sourceOperation?{sourceOperation:manifest.sourceOperation}:{})});
    if(current.digest!==batch.digest)throw fail('Setup changed after review. Review again before publishing.',409,'SETUP_REVIEW_CHANGED');
    const head=id(),now=new Date().toISOString(),g=guard(db,{version:batch.source_version,head:batch.expected_head},auth,manifest.authorityScopes);
-   try{await db.batch([g.check,...headStatements(db,batch.batch_id,head,batch.expected_head,auth.user.accountid,now,repository.features?.mediaSeparation),db.prepare(`INSERT INTO audit_events(event_id,occurred_at,actor_account_id,authority,scope_key,action,record_kind,record_id,changed_fields_json) VALUES(?,?,?,?,?,'setup-publish','ACCEPTED_SETUP',?,?)`).bind(id(),now,auth.user.accountid,actualState(auth).account.global_admin?'GLOBAL_ADMIN':'PROGRAM_ADMIN',manifest.scopes.join(','),batch.batch_id,JSON.stringify(manifest.components)),g.clear]);}
+   try{await db.batch([g.check,...headStatements(db,batch.batch_id,head,batch.expected_head,auth.user.accountid,now,repository.features?.mediaSeparation),...(publicChanged(manifest)?[markRefresh((sql,...values)=>db.prepare(sql).bind(...values),'public-timetable',auth.user.accountid)]:[]),db.prepare(`INSERT INTO audit_events(event_id,occurred_at,actor_account_id,authority,scope_key,action,record_kind,record_id,changed_fields_json) VALUES(?,?,?,?,?,'setup-publish','ACCEPTED_SETUP',?,?)`).bind(id(),now,auth.user.accountid,actualState(auth).account.global_admin?'GLOBAL_ADMIN':'PROGRAM_ADMIN',manifest.scopes.join(','),batch.batch_id,JSON.stringify(manifest.components)),g.clear]);}
    catch(e){const saved=await db.prepare('SELECT accepted_head FROM setup_batches WHERE batch_id=?').bind(batch.batch_id).first();if(saved?.accepted_head)return published({head:saved.accepted_head,batchId:batch.batch_id,replayed:true},manifest);if(/lesson_media_pdf_limit/.test(e.message))throw fail('A session would exceed ten PDFs including Teacher notes. Curate its attachments before publishing.',409,'SETUP_MEDIA_LIMIT');if(/academy_management_stale/.test(e.message))throw fail('Setup, publication or access changed. Review again.',409,'SETUP_REVIEW_CHANGED');throw e;}
    return published({head,batchId:batch.batch_id},manifest);
   }
