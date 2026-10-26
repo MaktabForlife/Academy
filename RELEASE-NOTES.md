@@ -1,3 +1,11 @@
+# V107.67 — Fewer database reads and batched assessment setup
+
+Reuse private, permission-aware snapshots for dashboard timetables, assessment summaries, calendars and sign-in permission data. Refresh them when relevant published data, enrolments or permissions change, while retaining current session, account and access checks. Materialize repeated JSON table projections once per query. Calculate teacher workload only when Admin opens teacher availability.
+
+Stage assessment schedule edits locally, save the full batch together, and validate and publish the complete Imtihaan against current data. Preserve V107.66 manual marks and grouped paper publication. Includes the additive Core snapshot counter upgrade; existing learning records remain intact.
+
+[Implementation and verification notes](docs/academy-separation/READ-OPTIMISATION-LOCAL.md). Keep live release checks small to limit database usage.
+
 # V107.66 — Manual marks and one paper publication
 
 Add Enter marks to each Teacher and Admin assessment row. Open a popup with students grouped by class and sorted alphabetically, save numeric marks without an answer upload, and keep saved or corrected marks private until Admin uses Release marks. Retain scoped permissions, zero marks, exact retries, conflict checks and report results.

@@ -1,9 +1,8 @@
-# Local optimisation branch and deployment hold — 25 October 2026
+# Academy read optimisation release — 26 October 2026
 
-- Work on the local `feature/academy-read-optimisation` branch for the query and dashboard snapshot optimisation requested by the user.
-- Do not push or deploy this work until the user explicitly requests it. This suspends the earlier automatic Development deployment authorisations below.
-- Keep all database verification local using disposable fixtures during this work.
-- Keep code deployment and the hosted database upgrade on hold through the daily reset at 00:00 UTC / 03:00 Riyadh on 26 October 2026. The reset does not schedule a deployment or override the explicit-request requirement above.
+- The user explicitly authorised completing this deployment on 26 October 2026, after the daily reset. Deploy verified V107.67 from `feature/academy-read-optimisation` to the existing Development targets, including the additive Core snapshot upgrade, private split coordinator, API Worker and matching website.
+- This authorisation supersedes the 25 October deployment/database hold for this release. Future deployments still require the user's authorisation.
+- **Keep live checks small to limit database usage.** Prefer local disposable fixtures; batch targeted metadata/version/schema checks, avoid broad live scans or acceptance runs, and do not repeatedly poll database-backed endpoints. Follow the shared `../AGENTS.md` rule across project work.
 
 # Current Development workflow — 24 October 2026
 

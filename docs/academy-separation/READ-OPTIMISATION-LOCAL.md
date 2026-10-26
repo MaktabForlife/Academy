@@ -1,8 +1,8 @@
-# Local Academy read optimisation
+# Academy read optimisation — V107.67
 
 Branch: `feature/academy-read-optimisation`.
 
-This work is local and has not been pushed, deployed or applied to a hosted database. The user's deployment hold overrides the earlier Development deployment authorisation. This branch started from Development commit `411c7b01` (V107.65) and now includes the already-deployed V107.66 commit `9b5b1361`. The original Development checkout remains separate. Code deployment and the hosted Core upgrade are on hold through the next daily reset, 00:00 UTC / 03:00 Riyadh on 26 October 2026; no automatic deployment is scheduled.
+The tested local integration reference is `c62c9012`, incorporating V107.66 commit `9b5b1361`. On 26 October 2026, after the daily reset, the user authorised releasing this work as V107.67 to the existing Development targets and applying the additive Core snapshot upgrade. Deployment evidence is recorded separately in the project outputs. The shared project rule remains: **keep live checks small to limit database usage**; prefer local disposable fixtures and targeted, batched live verification.
 
 ## Behaviour
 
@@ -54,8 +54,8 @@ The merge retains V107.66's class-grouped manual marks, actual-Teacher checks fo
 
 A split-store integration check now batch-saves an Imtihaan, rejects marks entry before schedule release, validates and publishes the whole schedule, and then saves and explicitly releases manual marks without fabricating an answer submission. The native browser acceptance starts from a batch-saved shared assessment and exercises paper publication, Teacher/Admin marks entry, lost-response retries, zero marks and learner-only released results. The earlier browser acceptance also verifies local draft editing, Save all and validation auto-save.
 
-## Release preparation still subject to the user's deployment hold
+## Release preparation and verification
 
-The additive Core upgrade is `backend/migrations/academy-core/0002_private_dashboard_snapshots.sql`, generated from `snapshot-revisions.js`. It installs only counter triggers/settings; it does not rewrite learning records. The final schema marker activates caching. Installation and SQL-copy round trips are tested for repeatability. This file has not been applied remotely.
+The additive Core upgrade is `backend/migrations/academy-core/0002_private_dashboard_snapshots.sql`, generated from `snapshot-revisions.js`. It installs only counter triggers/settings; it does not rewrite learning records. The final schema marker activates caching. Installation and SQL-copy round trips are tested for repeatability. Apply this file only to the existing Development Core database as part of the authorised V107.67 release; verify its marker and trigger count afterward.
 
-When deployment is explicitly authorised, follow the repository version/cache-busting rules and release the matching website and Worker. Apply the reviewed Core upgrade through the normal migration workflow. The code falls back to existing readers until that upgrade is present. R2 storage/read/write operations and small Core counter writes should be included in post-release usage checks alongside D1 row-read totals. No automatic deployment or usage polling is scheduled by this change.
+Follow the repository version/cache-busting rules and release the matching website, API Worker and private split coordinator. Apply the reviewed Core upgrade through the normal migration workflow. The code falls back to existing readers until that upgrade is present. R2 storage/read/write operations and small Core counter writes should be included in post-release usage checks alongside D1 row-read totals. No automatic deployment or usage polling is scheduled by this change.

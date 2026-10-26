@@ -1,4 +1,12 @@
-# Umm Abbad Academy — V107.66
+# Umm Abbad Academy — V107.67
+
+## V107.67 — Fewer database reads and batched assessment setup
+
+Reuse private, permission-aware snapshots for dashboard timetables, assessment summaries, calendars and sign-in permission data. Refresh them when relevant published data, enrolments or permissions change, while retaining current session, account and access checks. Materialize repeated JSON table projections once per query. Calculate teacher workload only when Admin opens teacher availability.
+
+Stage assessment schedule edits locally, save the full batch together, and validate and publish the complete Imtihaan against current data. Preserve V107.66 manual marks and grouped paper publication. Includes the additive Core snapshot counter upgrade; existing learning records remain intact.
+
+[Implementation and verification notes](docs/academy-separation/READ-OPTIMISATION-LOCAL.md). Keep live release checks small to limit database usage.
 
 ## V107.66 — Manual marks and one paper publication
 
