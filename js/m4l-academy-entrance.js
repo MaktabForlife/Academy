@@ -225,6 +225,7 @@
   }
 
   async function loadHome(force = false, fresh = null) {
+    if (!state.home) window.M4L_ACADEMY_STARTUP?.begin();
     if(force){clearTimetableMedia();window.M4L_CLASS_NOTES?.invalidate();}
     const generation = ++state.generation;
     $('entrance-message').textContent = 'Loading Academy information…';
@@ -234,7 +235,7 @@
         if(generation!==state.generation)return;
         if(state.startDate&&state.startDate!==state.home?.startDate){state.home=updated;rememberPages(updated);renderAcademyMenu();return;}
         void loadHome(false,updated);
-      },(error,saved)=>{if(generation!==state.generation)return;if(!saved)clearPersonal();const message=saved?'Showing saved Academy information. Couldn’t check for updates.':error.message;$('entrance-message').textContent=message;window.M4L_ACADEMY_DASHBOARD?.unavailable(message);$('entrance-retry').hidden=false;});
+      },(error,saved)=>{if(generation!==state.generation)return;if(!saved){clearPersonal();window.M4L_ACADEMY_STARTUP?.fail();}const message=saved?'Showing saved Academy information. Couldn’t check for updates.':error.message;$('entrance-message').textContent=message;window.M4L_ACADEMY_DASHBOARD?.unavailable(message);$('entrance-retry').hidden=false;});
       if (generation !== state.generation) return;
       rememberPages(result);
       state.home = result;state.homeDay=academyDay(result.timezone);
@@ -250,6 +251,7 @@
       if(!fresh)route();else if(location.hash.startsWith('#activity/')){const row=result.activityPages?.find(row=>row.id===state.activity?.id);if(row){state.activity=row;renderActivityTimetable();}}
     } catch (error) {
       if (generation !== state.generation) return;
+      window.M4L_ACADEMY_STARTUP?.fail();
       $('entrance-message').textContent = error.message;
       window.M4L_ACADEMY_DASHBOARD?.unavailable(error.message);
       $('entrance-retry').hidden = false;
@@ -988,6 +990,8 @@
 
   function route() {
     let hash = location.hash || '#overview';
+    if (token() && !state.home && window.M4L_ACADEMY_STARTUP?.entry()) window.M4L_ACADEMY_STARTUP.begin();
+    else if (!token() || !window.M4L_ACADEMY_STARTUP?.entry()) window.M4L_ACADEMY_STARTUP?.complete();
     // The visitor timetable lives on Home. Retire its separate legacy screen;
     // the same timetable component still serves signed-in workspaces.
     if (!token() && /^#timetable(?:\/|$)/.test(hash)) {
@@ -1075,6 +1079,7 @@
     if (name === 'administration'||dashboardHome&&requested==='administration') renderAdministration();
     if(dashboardHome)renderDashboard(requested==='administration'?'admin':boundary.audience().toLowerCase());
     else window.M4L_ACADEMY_DASHBOARD?.leave?.();
+    if (state.home) window.M4L_ACADEMY_STARTUP?.complete();
     renderAcademyMenu();
     if (requested !== 'activity') armScheduleClock();
   }
@@ -1341,7 +1346,7 @@
   $('academy-public-sessions').addEventListener('scroll',()=>{if(!state.publicData)return;const columns=$('academy-public-sessions').querySelectorAll('.upcoming-day');if(columns.length!==14)return;const first=sunday(academyDay(state.publicData.timezone));state.publicStartDate=$('academy-public-sessions').scrollLeft>=Math.min(columns[7].offsetLeft-columns[0].offsetLeft,$('academy-public-sessions').scrollWidth-$('academy-public-sessions').clientWidth)-1?addWeekDays(first,7):first;publicWeekHeading();},{passive:true});
   window.addEventListener('hashchange', route);
   window.addEventListener('m4l-academy-access',()=>{if(state.home)renderAcademyMenu();});
-  window.addEventListener('m4l-academy-session', () => { if (!token()) { dailyCache.session='';dailyCache.entries={};try { sessionStorage.removeItem(DAILY_CACHE_KEY); } catch {} } clearPersonal(); void loadHome(); });
+  window.addEventListener('m4l-academy-session', () => { if (!token()) { dailyCache.session='';dailyCache.entries={};try { sessionStorage.removeItem(DAILY_CACHE_KEY); } catch {} } clearPersonal(); if(token()&&window.M4L_ACADEMY_LOGIN&&!window.M4L_ACADEMY_LOGIN.currentId())return; void loadHome(); });
   const checkReturnedPage=()=>{if(document.visibilityState!=='hidden'&&token())void checkRemoteProfileLabels().then(async changed=>{
     if(!changed)return;
     if(location.hash.startsWith('#timetable')){void loadSchedule(true);return;}
@@ -1351,11 +1356,11 @@
     }else if(['#overview',''].includes(location.hash))void loadHome(true);
   });};
   window.addEventListener('focus',checkReturnedPage);
-  window.addEventListener('storage', event => { if (event.key === 'm4l_account_token') { clearPersonal(); void loadHome(); } });
-  window.addEventListener('pageshow', event => { if (event.persisted) { clearPersonal(); void loadHome(); } });
+  window.addEventListener('storage', event => { if (event.key === 'm4l_account_token' && !window.M4L_ACADEMY_STARTUP) { clearPersonal(); void loadHome(); } });
+  window.addEventListener('pageshow', event => { if (event.persisted && (!token() || !window.M4L_ACADEMY_STARTUP)) { clearPersonal(); void loadHome(); } });
 
   route();
   renderCatalogue();
   if(token())void loadPublicHome();
-  void loadHome();
+  if (!window.M4L_ACADEMY_STARTUP?.restoring) void loadHome();
 })();

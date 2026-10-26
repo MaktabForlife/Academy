@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+<script src="/js/m4l-academy-startup.js?v=107.74"></script>
 <script src="/js/m4l-academy-workspace.js?v=107.57"></script><script src="/js/m4l-academy-read-cache.js?v=107.57"></script>
 <script src="/js/m4l-academy-setup.js?v=107.60"></script>
 <meta charset="utf-8">
@@ -257,7 +258,7 @@
 <link rel="stylesheet" href="/css/m4l-academy-shell.css?v=107.52">
 <link rel="stylesheet" href="/css/m4l-academy-planning.css?v=106.55">
 <link rel="stylesheet" href="/css/m4l-academy-announcements.css?v=107.57">
-<link rel="stylesheet" href="/css/m4l-academy-home.css?v=107.52">
+<link rel="stylesheet" href="/css/m4l-academy-home.css?v=107.74">
 <link rel="stylesheet" href="/css/m4l-academy-workspaces.css?v=107.52">
 <link rel="stylesheet" href="/css/m4l-academy-dashboard.css?v=107.65">
 <link rel="stylesheet" href="/css/m4l-messaging.css?v=107.73">
@@ -300,6 +301,12 @@
 <div class="academy-global-strip" hidden><nav class="activity-pills activity-switcher" id="activity-switcher" aria-label="Your subscribed Programs and Courses" hidden></nav></div>
 <div class="container">
 <div class="entrance-status" id="entrance-status" role="status" aria-live="polite"><span id="entrance-message">Loading Academy information…</span><button type="button" class="button secondary small" id="entrance-retry" hidden>Try again</button></div>
+<section id="academy-startup" aria-labelledby="academy-startup-title">
+  <div class="academy-startup-heading"><span class="academy-startup-spinner" aria-hidden="true"></span><h1 id="academy-startup-title" role="status" aria-live="polite">Opening your dashboard…</h1></div>
+  <p>Your timetable and updates will appear here shortly.</p>
+  <div class="academy-startup-cards" aria-hidden="true"><div></div><div></div><div></div></div>
+</section>
+<div id="academy-session-loading" role="status" hidden><span id="academy-session-message">Checking your sign-in…</span> <button class="button secondary" id="academy-session-retry" type="button" hidden>Try again</button></div>
 <section id="overview" class="view active" aria-label="Academy home">
 <section class="academy-intro" aria-labelledby="overview-title">
           <div class="intro-next">
@@ -308,7 +315,7 @@
               <h1 id="overview-title">ummabbadacademy.com</h1>
               <p class="intro-mission">Flexible, Qur’an-centred learning making space for work, motherhood, and spiritual growth.</p><a href="https://wa.me/27828478639?text=Assalaamu%20alaikum.%0A%0AI%20would%20like%20to%20enroll%20in%20the%20Academy.%0A%0APlease%20contact%20me." data-academy-join target="_blank" rel="noopener noreferrer" class="button academy-join">Contact Admin</a><details class="academy-join-contact"><summary>Can’t use WhatsApp? Contact Admin</summary><p><a href="tel:+27828478639" data-admin-phone>+27 82 847 8639</a><br><a href="mailto:admin@ummabbadacademy.com">admin@ummabbadacademy.com</a></p></details>
             </div>
-            <div class="login-preview" id="academy-session-loading" role="status" hidden><span id="academy-session-message">Opening your Academy home…</span> <button class="button secondary" id="academy-session-retry" type="button" hidden>Try again</button></div>
+
 
           </div>
           <div class="intro-feature">
@@ -487,9 +494,9 @@
 <script src="/js/m4l-class-notes.js?v=107.57"></script>
 <script src="/js/m4l-messaging.js?v=107.73"></script>
 <script src="/js/m4l-academy-dashboard.js?v=107.73"></script>
-<script src="/js/m4l-academy-entrance.js?v=107.73"></script>
+<script src="/js/m4l-academy-entrance.js?v=107.74"></script>
 <script src="/js/m4l-academy-catalogue.js?v=107.52"></script>
-<script src="/js/m4l-academy-login.js?v=107.57"></script>
+<script src="/js/m4l-academy-login.js?v=107.74"></script>
 <script src="/js/m4l-academy-mobile.js?v=107.57"></script>
 <script src="/js/m4l-academy-header-date.js?v=107.73"></script>
 <script src="/js/m4l-academy-page-actions.js?v=107.57"></script>

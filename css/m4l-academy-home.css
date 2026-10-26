@@ -1,4 +1,22 @@
 /* Header dates, visible shortcuts, full-height notices and the course wall. */
+#academy-startup{display:none;padding:clamp(22px,4vw,48px);border:1px solid var(--line);border-radius:20px;background:var(--paper);margin:10px 0 24px}
+.academy-opening #academy-startup{display:block}
+.academy-opening .container>.view{display:none!important}
+.academy-opening:not(.academy-opening-failed) #entrance-status{display:none}
+.academy-opening #academy-login{visibility:hidden}
+.academy-startup-heading{display:flex;align-items:center;gap:14px}
+.academy-startup-heading h1{font:600 clamp(22px,3vw,32px)/1.25 Arial,sans-serif;margin:0;color:var(--rose-dark)}
+#academy-startup p{color:var(--muted);margin:14px 0 24px}
+.academy-startup-spinner{width:26px;height:26px;flex:none;border:3px solid var(--rose-soft);border-top-color:var(--rose);border-radius:50%;animation:academy-startup-spin .9s linear infinite}
+.academy-startup-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.academy-startup-cards>div{height:150px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(110deg,var(--rose-soft) 20%,var(--paper) 45%,var(--rose-soft) 70%);background-size:250% 100%;animation:academy-startup-glow 1.8s ease-in-out infinite}
+.academy-opening-failed .academy-startup-spinner,.academy-opening-failed .academy-startup-cards{display:none}
+.academy-opening-failed #academy-startup p{display:none}
+#academy-session-loading{margin:12px 0 24px;color:var(--muted)}
+@keyframes academy-startup-spin{to{transform:rotate(360deg)}}
+@keyframes academy-startup-glow{to{background-position:100% 0}}
+@media(max-width:600px){.academy-startup-cards{grid-template-columns:1fr}.academy-startup-cards>div{height:85px}}
+@media(prefers-reduced-motion:reduce){.academy-startup-spinner,.academy-startup-cards>div{animation:none}}
 .academy-sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
 .academy-date-box{flex:none;display:grid;gap:4px;padding:5px 10px;border:1px solid #e2d4e7;border-radius:10px;background:#f7f1f9;color:#58305f;max-width:48%}
 .academy-date-box>div{text-align:right;font:500 12px/1.3 Arial,sans-serif}

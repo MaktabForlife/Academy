@@ -24,6 +24,7 @@
   let activeLoginId = "";
   let sessionStore = "";
   let sessionGeneration = 0;
+  let restoringSession = null;
   let loginRequested = window.location.hash === "#login";
 
   if (!form || !linkInput || !pinInput || !apiBase) return;
@@ -81,9 +82,9 @@
     clearStoredAccountState();
     showSignedOut();
   });
-  window.addEventListener("pageshow", () => {
+  window.addEventListener("pageshow", event => {
     if (activeToken && localStorage.getItem(tokenKey) !== activeToken) showSignedOut();
-    if (localStorage.getItem(tokenKey)) void restoreAcademySession();
+    if (event.persisted && localStorage.getItem(tokenKey)) void restoreAcademySession();
   });
   void restoreAcademySession();
   if (loginRequested && !localStorage.getItem(tokenKey)) openLogin();
@@ -134,6 +135,7 @@
     avatar.textContent = "A";
     avatar.setAttribute("aria-label", "Academy account");
     document.body.classList.remove("academy-signed-in");
+    window.M4L_ACADEMY_STARTUP?.complete();
     libraryNav.href = "/academy/open-library/";
     showStatus("");
     setBusy(false);
@@ -142,7 +144,18 @@
     window.dispatchEvent(new Event("m4l-academy-session"));
   }
 
-  async function restoreAcademySession() {
+  function restoreAcademySession() {
+    const token = localStorage.getItem(tokenKey);
+    if (restoringSession?.token === token) return restoringSession.promise;
+    const pending = { token };
+    restoringSession = pending;
+    pending.promise = restoreSession().finally(() => {
+      if (restoringSession === pending) restoringSession = null;
+    });
+    return pending.promise;
+  }
+
+  async function restoreSession() {
     const expectedId = sessionStorage.getItem(academySessionKey);
     const token = localStorage.getItem(tokenKey);
     if (!token) {
@@ -153,7 +166,8 @@
     loginButton.hidden = true;
     form.hidden = true;
     sessionLoading.hidden = false;
-    sessionMessage.textContent = "Opening your Academy home…";
+    window.M4L_ACADEMY_STARTUP?.begin();
+    sessionMessage.textContent = "Checking your sign-in…";
     sessionRetry.hidden = true;
     setBusy(true);
     try {
@@ -164,7 +178,7 @@
         throw Object.assign(new Error("The signed-in account has changed."), { status: 401 });
       }
       sessionStorage.setItem(academySessionKey, account.uniqueid);
-      showSignedIn(account, result.sessionStore);
+      showSignedIn(account, result.sessionStore, result);
     } catch (error) {
       if (generation !== sessionGeneration || localStorage.getItem(tokenKey) !== token) return;
       if (isTemporaryServiceError(error) &&
@@ -172,16 +186,17 @@
         sessionStorage.getItem(academySessionKey) === expectedId) {
         sessionMessage.textContent = "The account service is temporarily unavailable. Your sign-in is saved.";
         sessionRetry.hidden = false;
+        window.M4L_ACADEMY_STARTUP?.fail();
       } else {
         clearStoredAccountState();
         showSignedOut();
       }
     } finally {
-      setBusy(false);
+      if (generation === sessionGeneration) setBusy(false);
     }
   }
 
-  function showSignedIn(account, store = "") {
+  function showSignedIn(account, store = "", result = {}) {
     activeToken = localStorage.getItem(tokenKey) || "";
     sessionStore = store;
     const uniqueId = String(account.uniqueid || "").trim();
@@ -198,6 +213,23 @@
     signOutButton.hidden = false;
     document.body.classList.add("academy-signed-in");
     libraryNav.href = "/academy/library/";
+    window.M4L_ACADEMY_STARTUP?.begin();
+    // The verified session already includes roles. Choose the landing address
+    // before fetching a timetable that would be discarded on a workspace move.
+    if (store === "D1" && Array.isArray(result.contexts) &&
+        ["", "#overview", "#login"].includes(window.location.hash)) {
+      const contexts = result.contexts;
+      const admin = contexts.some(row => row.scope === "PLATFORM" && row.role === "GLOBAL_ADMIN" ||
+        ["COURSE", "GLOBAL"].includes(row.scope) && row.role === "PROGRAM_ADMIN");
+      if (admin && ["/academy/", "/academy/index.html"].includes(window.location.pathname)) {
+        window.location.replace("/academy/admin/#administration");
+        return true;
+      }
+      const hash = window.location.pathname?.startsWith("/academy/admin/") ? "#administration" :
+        contexts.some(row => ["COURSE", "GLOBAL"].includes(row.scope) && row.role === "TEACHER") ? "#timetable/teach" : "#timetable/learn";
+      window.history.replaceState(null, "", hash);
+      window.M4L_ACADEMY_WORKSPACE?.commit();
+    }
     window.dispatchEvent(new Event("m4l-academy-session"));
   }
 
@@ -251,7 +283,7 @@
       sessionStorage.setItem(academySessionKey, result.account?.uniqueid || uniqueId);
       pinInput.value = "";
       showStatus("");
-      showSignedIn(result.account || { uniqueid: uniqueId }, result.sessionStore);
+      if (showSignedIn(result.account || { uniqueid: uniqueId }, result.sessionStore, result)) return;
       if (!window.location.hash || window.location.hash === "#login") window.location.hash = "overview";
     } catch (error) {
       pinInput.value = "";

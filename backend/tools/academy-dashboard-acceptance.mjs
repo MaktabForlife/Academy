@@ -53,11 +53,12 @@ await new Promise((done,reject)=>{server.once('error',reject);server.listen(0,'1
 const base='http://127.0.0.1:'+server.address().port;
 const browser=await chromium.launch({headless:true,channel:'chrome'}),page=await browser.newPage({viewport:{width:1440,height:1000}});
 page.on('pageerror',error=>errors.push(error.message));
-let holdEntrance=false,releaseEntrance,backgroundGate;
+let holdEntrance=false,releaseEntrance,backgroundGate,failEntranceOnce=false;
 await page.route('**/api/**',async route=>{
  const req=route.request(),url=new URL(req.url()),headers={...req.headers()};delete headers.origin;
  calls.push({path:url.pathname,workspace:headers['x-academy-workspace'],method:req.method()});
  if(url.pathname==='/api/academy/header-date'){await route.fulfill({status:200,json:{gregorian:fixture.today,hijri:'15 Jumada al-ula 1448'}});return;}
+ if(failEntranceOnce&&url.pathname==='/api/academy/entrance'){failEntranceOnce=false;await route.fulfill({status:503,json:{success:false,error:'Synthetic temporary timetable outage'}});return;}
  if(holdEntrance&&['/api/academy/entrance','/api/academy/class-notes/timetable','/api/academy/assessments/list'].includes(url.pathname))await backgroundGate;
  const response=await worker.fetch(new Request('http://localhost'+url.pathname+url.search,{method:req.method(),headers,...(req.method()==='POST'?{body:req.postDataBuffer()}:{})}),fixture.env);
  const bytes=Buffer.from(await response.arrayBuffer());
@@ -73,8 +74,42 @@ async function identity(token,path='/academy/#timetable/learn'){
 async function capture(name){await page.evaluate(()=>scrollTo(0,0));await page.waitForTimeout(200);await page.screenshot({path:output+'/'+name,fullPage:false});}
 try{
  await page.goto(base+'/academy/#overview');
+ const adminStart=calls.length;
+ await page.locator('#academy-login').click();await page.locator('#demo-username').fill('separation-dual');await page.locator('#demo-pin').fill('1234');await page.locator('#login-preview button[type=submit]').click();
+ await page.waitForURL('**/academy/admin/#administration');await dashboard().locator('#ad-title').waitFor();
+ assert.equal(calls.slice(adminStart).filter(call=>call.path==='/api/academy/entrance'&&call.workspace==='LEARN').length,0,'Admin sign-in must not build a personal timetable before opening Admin');
+ assert.equal(calls.slice(adminStart).filter(call=>call.path==='/api/academy/entrance'&&call.workspace==='ADMIN').length,1,'Admin loads its destination timetable once');
+ checks.push('Verified Admin sign-in opens Admin directly, avoiding a discarded personal timetable');
+ await page.goto(base+'/version.json');await page.evaluate(()=>{localStorage.clear();sessionStorage.clear();});
+ await page.goto(base+'/academy/#overview');
+ backgroundGate=new Promise(resolve=>{releaseEntrance=resolve;});holdEntrance=true;
+ const firstTimetable=page.waitForRequest(req=>new URL(req.url()).pathname==='/api/academy/entrance');
  await page.locator('#academy-login').click();await page.locator('#demo-username').fill('login-0002');await page.locator('#demo-pin').fill('1234');await page.locator('#login-preview button[type=submit]').click();
+ await firstTimetable;await page.locator('#academy-startup').waitFor();
+ assert.equal(await page.locator('#overview').isVisible(),false,'Public Home stays hidden during the sign-in handover');
+ assert.match(await page.locator('#academy-startup').innerText(),/Opening your dashboard/);
+ for(const width of [1440,390,320]){await page.setViewportSize({width,height:900});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await capture('sign-in-loading-'+width+'.png');}
+ await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await page.locator('.academy-startup-spinner').evaluate(el=>getComputedStyle(el).animationName),'none');await page.emulateMedia({reducedMotion:'no-preference'});
+ holdEntrance=false;releaseEntrance();
  await dashboard().locator('#ad-title').waitFor();assert.equal(new URL(page.url()).hash,'#timetable/learn');
+ assert.equal(await page.locator('#academy-startup').isVisible(),false);
+ await page.setViewportSize({width:1440,height:1000});
+ // A cold refresh validates the session once and starts only its final timetable.
+ await page.evaluate(()=>sessionStorage.clear());const reloadStart=calls.length;
+ backgroundGate=new Promise(resolve=>{releaseEntrance=resolve;});holdEntrance=true;
+ const restoredTimetable=page.waitForRequest(req=>new URL(req.url()).pathname==='/api/academy/entrance');
+ await page.reload();await restoredTimetable;await page.locator('#academy-startup').waitFor();
+ assert.equal(await page.locator('#overview').isVisible(),false);
+ assert.equal(calls.slice(reloadStart).filter(call=>call.path==='/api/account/session').length,1,'Cold page restoration shares one account check');
+ assert.equal(calls.slice(reloadStart).filter(call=>call.path==='/api/academy/entrance').length,1,'Restoration does not discard an early timetable request');
+ holdEntrance=false;releaseEntrance();await dashboard().locator('#ad-title').waitFor();
+ // A failed cold load exposes a working retry instead of an endless animation.
+ await page.evaluate(()=>sessionStorage.clear());failEntranceOnce=true;await page.reload();
+ await page.locator('#academy-startup-title').filter({hasText:'Your dashboard couldn’t open'}).waitFor();
+ assert.equal(await page.locator('#entrance-retry').isVisible(),true);assert.equal(await page.locator('#overview').isVisible(),false);
+ await page.locator('#entrance-retry').click();await dashboard().locator('#ad-title').waitFor();
+ assert.equal(await page.locator('#academy-startup').isVisible(),false);
+ checks.push('Slow sign-in and cold restoration show a responsive loading screen at desktop and phone sizes; reduced motion, one session/timetable load, outage recovery and retry pass');
  await page.locator('#ad-timetable-host #academy-sessions .upcoming-day').first().waitFor();
  assert.equal(await page.locator('#ad-timetable-host #academy-sessions .upcoming-day').count(),7);
  const expected=snapshots.get('LEARN').personalActivities.filter(row=>row.roles?.length&&row.curriculumActive!==false&&['PROGRAM','COURSE'].includes(row.kind));

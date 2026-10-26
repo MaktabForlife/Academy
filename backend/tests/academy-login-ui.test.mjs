@@ -15,7 +15,7 @@ assert.ok(html.includes('Website V'+JSON.parse(readFileSync(new URL('../../versi
 assert.doesNotMatch(html, /ABCDEFG/);
 assert.match(redirects, /^\/academy\/:uniqueid \/academy\/#overview 302$/m);
 
-async function loadPage({ id = '', pin = '', replies = {}, storedToken = '', academyId = '' } = {}) {
+async function loadPage({ id = '', pin = '', replies = {}, storedToken = '', academyId = '', hash = '', pathname = '/academy/' } = {}) {
   const elements = new Map();
   for (const name of ['login-preview', 'demo-username', 'demo-pin', 'demo-pin-toggle', 'login-status',
     'academy-session-loading', 'academy-session-message', 'academy-session-retry', 'academy-home-card', 'academy-account-name', 'academy-maktab-link',
@@ -37,12 +37,16 @@ async function loadPage({ id = '', pin = '', replies = {}, storedToken = '', aca
   const session = new Map(academyId ? [['m4l_academy_signed_in', academyId]] : []);
   const calls = [];
   const windowHandlers = {};
+  const events = [], startup = [], commits = [];
   let destination = '';
   const context = {
     Event,
-    window: { M4L_CONFIG: { API_BASE: 'https://test.example' }, location: { hash: '', assign(path) { destination = path; } },
+    window: { M4L_CONFIG: { API_BASE: 'https://test.example' }, location: { hash, pathname, assign(path) { destination = path; }, replace(path) { destination = path; } },
+      history: { replaceState(_state, _title, hash) { context.window.location.hash = hash; } },
+      M4L_ACADEMY_STARTUP: { begin() { startup.push('begin'); }, complete() { startup.push('complete'); }, fail() { startup.push('fail'); } },
+      M4L_ACADEMY_WORKSPACE: { commit() { commits.push(context.window.location.hash); } },
       addEventListener(type, handler) { windowHandlers[type] = handler; },
-      dispatchEvent(event) { windowHandlers[event.type]?.(event); } },
+      dispatchEvent(event) { events.push(event.type); windowHandlers[event.type]?.(event); } },
     document: { getElementById(name) { return elements.get(name); }, body: { classList: { add() {}, remove() {} } } },
     localStorage: {
       get length() { return storage.size; },
@@ -62,7 +66,7 @@ async function loadPage({ id = '', pin = '', replies = {}, storedToken = '', aca
       const path = url.slice('https://test.example'.length);
       calls.push({ path, body: JSON.parse(options.body), headers: options.headers });
       const configuredReply = replies[path];
-      const reply = Array.isArray(configuredReply) ? configuredReply.shift() : configuredReply;
+      const reply = await (typeof configuredReply === 'function' ? configuredReply() : Array.isArray(configuredReply) ? configuredReply.shift() : configuredReply);
       assert.ok(reply, `Unexpected request: ${path}`);
       return { ok: reply.ok !== false, status: reply.status || 200, json: async () => reply.body };
     }
@@ -70,7 +74,7 @@ async function loadPage({ id = '', pin = '', replies = {}, storedToken = '', aca
   vm.runInNewContext(script, context);
   await new Promise(resolve => setImmediate(resolve));
   return {
-    elements, storage, session, calls,
+    elements, storage, session, calls, events, startup, commits,
     get currentLoginId() { return context.window.M4L_ACADEMY_LOGIN.currentId(); },
     get destination() { return destination; },
     get hash() { return context.window.location.hash; },
@@ -79,7 +83,8 @@ async function loadPage({ id = '', pin = '', replies = {}, storedToken = '', aca
     async submit() { elements.get('academy-login').handlers.click(); await elements.get('login-preview').handlers.submit({ preventDefault() {} }); },
     async retrySession() { elements.get('academy-session-retry').handlers.click(); await new Promise(resolve => setImmediate(resolve)); },
     signOut() { elements.get('academy-sign-out').handlers.click(); },
-    storageChanged(event) { windowHandlers.storage(event); }
+    storageChanged(event) { windowHandlers.storage(event); },
+    pageShown(persisted = false) { windowHandlers.pageshow({ persisted }); }
   };
 }
 
@@ -217,4 +222,39 @@ failedD1Logout.signOut();
 await new Promise(resolve => setImmediate(resolve));
 assert.equal(failedD1Logout.storage.get('m4l_account_token'), undefined);
 assert.match(failedD1Logout.elements.get('academy-session-message').textContent, /server session could not be ended/);
+
+for (const [role, scope, destination] of [
+  ['GLOBAL_ADMIN', 'PLATFORM', '/academy/admin/#administration'],
+  ['PROGRAM_ADMIN', 'COURSE', '/academy/admin/#administration'],
+  ['TEACHER', 'COURSE', '#timetable/teach'],
+  ['STUDENT', 'COURSE', '#timetable/learn']
+]) {
+  const result = { success: true, sessionStore: 'D1', token: 'verified', account: { uniqueid: 'TEST-USER' }, contexts: [{ role, scope }] };
+  const page = await loadPage({ id: 'TEST-USER', pin: '1234', replies: { '/api/account/login': { body: result } } });
+  await page.submit();
+  assert.equal(page.destination || page.hash, destination, 'The verified login selects the workspace before requesting a timetable');
+  assert.equal(page.events.length, destination.startsWith('/') ? 0 : 1, 'Admin leaves directly without starting a discarded personal timetable');
+  assert(page.startup.includes('begin'));
+  if (role === 'TEACHER') assert.deepEqual(page.commits, ['#timetable/teach']);
+}
+const explicitWebsite = await loadPage({ storedToken: 'verified', hash: '#website', replies: {
+  '/api/account/session': { body: { success: true, sessionStore: 'D1', account: { uniqueid: 'TEST-USER' }, contexts: [{ role: 'GLOBAL_ADMIN', scope: 'PLATFORM' }] } }
+} });
+assert.equal(explicitWebsite.destination, '');
+assert.equal(explicitWebsite.hash, '#website', 'Visit website remains an explicit public-home destination');
+explicitWebsite.pageShown();
+await new Promise(resolve => setImmediate(resolve));
+assert.equal(explicitWebsite.calls.length, 1, 'The initial pageshow does not repeat session restoration');
+
+let finishSession;
+const deferredSession = new Promise(resolve => { finishSession = resolve; });
+const restoring = await loadPage({ storedToken: 'verified', replies: { '/api/account/session': () => deferredSession } });
+restoring.pageShown();
+restoring.pageShown(true);
+assert.equal(restoring.calls.length, 1, 'Simultaneous restoration requests share one current session check');
+restoring.signOut();
+finishSession({ body: { success: true, sessionStore: 'D1', account: { uniqueid: 'TEST-USER' }, contexts: [{ role: 'GLOBAL_ADMIN', scope: 'PLATFORM' }] } });
+await new Promise(resolve => setImmediate(resolve));
+assert.equal(restoring.destination, '', 'A delayed session cannot redirect after sign-out');
+assert.equal(restoring.currentLoginId, '');
 console.log('Academy overview sign-in, session, sign-out, D1 revocation and page restoration checks passed.');
