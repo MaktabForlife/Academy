@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import {readFileSync} from 'node:fs';
+import {readFileSync,readdirSync} from 'node:fs';
 import {webcrypto} from 'node:crypto';
 const source=readFileSync(new URL('../../js/m4l-academy-read-cache.js',import.meta.url),'utf8');
 const hint=(extra={})=>({success:true,cacheRefreshPending:['public-timetable'],...extra});
@@ -58,4 +58,14 @@ test('a later explicit response can retry a failed publication refresh',async()=
  let fail=true;const f=fixture(async()=>fail?Response.json({success:false},{status:503}):Response.json({success:true,completed:['public-timetable'],pending:false}));
  assert.equal((await f.refresh(hint({head:'accepted-one'}),'current-account')).pending,true);fail=false;
  assert.equal((await f.refresh(hint({head:'accepted-one'}),'current-account')).pending,false);assert.equal(f.calls.length,2);
+});
+
+test('every Academy workspace page loads the shared refresh helper once before feature scripts',()=>{
+ const root=new URL('../../',import.meta.url);let pages=0;
+ for(const entry of readdirSync(root,{recursive:true,withFileTypes:true})){
+  if(!entry.isFile()||!entry.name.endsWith('.html')||/node_modules|\.academy-pages|\.git/.test(entry.parentPath))continue;
+  const html=readFileSync(entry.parentPath+'/'+entry.name,'utf8');if(!html.includes('m4l-academy-workspace.js'))continue;
+  assert.equal((html.match(/<script src="\/js\/m4l-academy-read-cache\.js\?v=/g)||[]).length,1,entry.parentPath+'/'+entry.name);pages++;
+ }
+ assert(pages>=27);
 });

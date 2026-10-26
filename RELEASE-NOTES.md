@@ -1,3 +1,7 @@
+# V107.79 — Refresh from standalone management pages
+
+Load the shared refresh helper on all Academy workspace pages, including standalone Program/Course management and user profiles. Keep V107.78 automatic accepted-publication refresh, durable recovery and the Update timetable fallback. Local browser verification confirms that the actual Program Publish action warms the public snapshot; a regression check covers all 27 workspace pages. No database or private coordinator upgrade is required. Keep live checks small to limit database usage.
+
 # V107.78 — Automatic homepage refresh after publishing
 
 Restore immediate homepage snapshot refresh after a confirmed publication. Record pending work atomically with the accepted publication, coalesce duplicate callbacks, and retain durable recovery if refresh fails. Keep the Global Admin **Update timetable** button and existing permissions. No navigation polling or database upgrade is added. Keep live checks small to limit database usage.

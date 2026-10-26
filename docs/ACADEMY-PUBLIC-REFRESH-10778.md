@@ -19,3 +19,7 @@ Current server-side Admin scope, revocation, workspace and manual Global Admin c
 - Thirty-six planning browser checks, including a real two-page PDF becoming one complete full-width image with unchanged fonts and scale, sharing, cancellation, PDF fallback, Arabic and Admin notes.
 
 Verification artefacts are outside the published site in the project's outputs directory. Live checks are limited to release metadata/static assets and one targeted API readiness response; no live timetable publication or snapshot rebuilding is used for acceptance.
+
+## V107.79 page-coverage correction
+
+V107.78 covered the Academy dashboard but missed the shared-helper script on standalone management pages. V107.79 loads it exactly once on all 27 workspace pages. The real Program management browser fixture now verifies a successful Program Publish explicitly reports the public snapshot refreshed and writes the public R2 object. All 24 Program browser checks and nine helper/page-coverage tests pass. Existing V107.78 backend/permissions and accepted-publication browser evidence remains applicable; this correction changes HTML script coverage and release version markers only.

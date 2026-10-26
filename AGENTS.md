@@ -1,3 +1,8 @@
+# Homepage refresh page-coverage correction — 26 October 2026
+
+- Complete the user's authorised automatic-refresh deployment as V107.79, loading the shared helper on every Academy workspace page. Preserve V107.78 and its planning-image follow-up. Test actual Program publication locally before deploying the matching Development API and website.
+- No database migration or private coordinator change. Keep live checks small to limit database usage. The separately authorised UI/session batch follows this correction.
+
 # Homepage refresh release — 26 October 2026
 
 - The user explicitly requested restoring automatic homepage snapshot refresh after publishing, retaining Update timetable as a fallback, local testing and deployment. Release as V107.78 to the existing Development API and Academy website.
