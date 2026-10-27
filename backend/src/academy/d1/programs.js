@@ -12,6 +12,7 @@ import {learningAvailable} from './learning-state.js';
 import {programAccessKey} from './program-access.js';
 import {programZoomKey} from './program-zoom.js';
 import {normalizeZoomLink} from '../../programs/zoom-links.js';
+import {normalizeWebsiteCards,checkWebsiteCardImages} from './website-cards.js';
 
 const dto=(data,a)=>{
   const settings=data.programs.find(p=>same(p.activity_key,a.activity_key));
@@ -31,7 +32,7 @@ const shape={
   ProgramModuleProgress:{table:'class_module_progress',key:'ProgressID',columns:{progress_id:'ProgressID',class_id:'ClassID',module_id:'ProgramModuleID',status:'Status'}}
 };
 
-export function d1Programs(repository,auth) {
+export function d1Programs(repository,auth,env={}) {
   const store=managementStore(repository,auth),p=store.p;
   function queriesFor(activityKey) {
     const values=activityKey?[activityKey]:[];
@@ -142,8 +143,14 @@ export function d1Programs(repository,auth) {
             card[key]=value[key].trim();
           }
           if(Object.values(card).some(Boolean)&&!Object.values(card).every(Boolean))throw managementError('Fill all three public card fields, or leave all three empty to hide the card.');
-          publicCard=JSON.stringify(card);statements.push(p('UPDATE program_settings SET public_card_json=? WHERE activity_key=?',publicCard,activity));
+          const saved=JSON.parse(publicCard);publicCard=JSON.stringify({...saved,...card});
         }
+        if(Object.hasOwn(input,'websiteCards')){
+          if(!cardsReady)throw managementError('Website cards need the Program workspace update.',503);
+          const websiteCards=normalizeWebsiteCards(input.websiteCards);await checkWebsiteCardImages(websiteCards,activity,env);
+          publicCard=JSON.stringify({...JSON.parse(publicCard),websiteCards});
+        }
+        if(Object.hasOwn(input,'publicCard')||Object.hasOwn(input,'websiteCards'))statements.push(p('UPDATE program_settings SET public_card_json=? WHERE activity_key=?',publicCard,activity));
         const updated={activity_key:activity,activity_id:id,name:config.name,active:Number(status==='ACTIVE'),lifecycle:status,revision:(existing?.revision||0)+1};
         const settings=data.programs.find(s=>same(s.activity_key,activity))||{};
         const nextSettings={...settings,activity_key:activity,duration_years:config.durationYears,timezone:config.timezone,...(cardsReady?{public_card_json:publicCard}:{})};
@@ -157,7 +164,7 @@ export function d1Programs(repository,auth) {
           statements.push(p('INSERT INTO academy_settings(setting_key,setting_value,updated_at,updated_by_account_id) VALUES(?,?,?,?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value,updated_at=excluded.updated_at,updated_by_account_id=excluded.updated_by_account_id',programAccessKey(activity),input.accessModel,now,auth.user.accountid));
           next.policies=[...data.policies.filter(s=>!same(s.activity_key,activity)),{activity_key:activity,access_model:input.accessModel}];
         }
-        return {data,statements,cacheEffects:existing?.website_visible||status==='ACTIVE'?['public-timetable']:[],result:{program:dto(next,updated)},fields:['Name','DurationYears','Timezone','Lifecycle',...(Object.hasOwn(input,'publicCard')?['PublicCard']:[]),...(Object.hasOwn(input,'accessModel')?['AccessModel']:[]),...(Object.hasOwn(input,'programZoomLink')?['ProgramZoomLink']:[])]};
+        return {data,statements,cacheEffects:existing?.website_visible||status==='ACTIVE'?['public-timetable']:[],result:{program:dto(next,updated)},fields:['Name','DurationYears','Timezone','Lifecycle',...(Object.hasOwn(input,'publicCard')?['PublicCard']:[]),...(Object.hasOwn(input,'websiteCards')?['WebsiteCards']:[]),...(Object.hasOwn(input,'accessModel')?['AccessModel']:[]),...(Object.hasOwn(input,'programZoomLink')?['ProgramZoomLink']:[])]};
       });
     },
     async management(action,input,verifyLibraryChange,extra={},initialLoaded=null) {

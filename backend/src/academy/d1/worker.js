@@ -13,6 +13,8 @@ import {lessonNotes} from './lesson-notes.js';
 import {nativeAttendance} from './native-attendance.js';
 import {setupEnabled,acceptedHead,acceptedRepository} from './setup-reader.js';
 import {courseWebsites} from './course-websites.js';
+import {publicWebsiteCards,publicWebsiteCardImage,uploadWebsiteCardImage} from './website-cards.js';
+import {publicFoundationsLinks} from './surah-websites-access.js';
 import {acceptFeatureChange} from './setup-publication.js';
 import {announcements,publicAnnouncements,announcementImage,announcementPdf,announcementUpload} from './announcements.js';
 import {guardWorkspace,actualState,isAdminWorkspace} from './workspace-access.js';
@@ -101,13 +103,15 @@ async function dispatch(request,env) {
   const path=new URL(request.url).pathname;
   await repository.ready();
   if(path==='/api/academy/setup/head'&&request.method==='GET')return {success:true,head:setupEnabled(env)?await acceptedHead(repository):null};
+  if(path==='/api/academy/website-cards'&&request.method==='GET'){const source=setupEnabled(env)?await readRepository():repository;return {success:true,...await publicWebsiteCards(source),publicLinks:await publicFoundationsLinks(source)}};
+  if(path==='/api/academy/website-card-image'&&['GET','HEAD'].includes(request.method))return publicWebsiteCardImage(request,setupEnabled(env)?await readRepository():repository,env);
   if(path==='/api/academy/announcements'&&request.method==='GET'){const source=setupEnabled(env)?await readRepository():repository;return conditionalRead(request,source,null,{},async()=>({success:true,...await publicAnnouncements(source)}));}
   if(path==='/api/academy/enrolment/catalogue'&&request.method==='GET')return {success:true,...await enrolmentCatalogue(setupEnabled(env)?await readRepository():repository)};
   if(path==='/api/academy/announcements/image'&&['GET','HEAD'].includes(request.method))return announcementImage(request,setupEnabled(env)?await readRepository():repository,env);
   if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,setupEnabled(env)?await readRepository():repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(setupEnabled(env)?await readRepository():repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.105',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.106',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(setupEnabled(env)?await readRepository():repository)};
@@ -129,6 +133,14 @@ async function dispatch(request,env) {
     return lessonMedia(repository,auth,env).videoStream(request,input);
   }
   if(request.method!=='POST')throw rehearsalError('Use POST.',405,'METHOD_NOT_ALLOWED');
+  if(path==='/api/admin/platform/programs/website-card-image'){
+    const auth=await authenticated(request,env,repository),metadata=new URL(request.url).searchParams.get('metadata')||'';
+    if(metadata.length>8192)throw rehearsalError('Upload details are too large.',413);
+    let input;try{input=JSON.parse(metadata);}catch{throw rehearsalError('Invalid image details.');}
+    if(!input||typeof input!=='object'||Array.isArray(input))throw rehearsalError('Invalid image details.');
+    guardWorkspace(request,auth,input);
+    return {success:true,...await uploadWebsiteCardImage(request,repository.authoringRepository(),auth,env,input)};
+  }
   if(path==='/api/admin/platform/course-websites/upload'){
     const auth=await authenticated(request,env,repository),metadata=new URL(request.url).searchParams.get('metadata')||'';
     if(metadata.length>8192)throw rehearsalError('Upload details are too large.',413);
@@ -172,7 +184,7 @@ async function dispatch(request,env) {
     return {success:true,...await d1Library(repository,auth,env).uploadChunk(request)};
   }
   const managementPath=path.startsWith('/api/admin/platform/')||path.startsWith('/api/academy/messaging/');
-  const input=await boundedBody(request,path==='/api/admin/platform/course-websites/save'?750000:path.endsWith('/register-reports-generate')?524288:path.startsWith('/api/academy/bookmarks/')?8192:managementPath||path.startsWith('/api/academy/teacher-availability/')||path.startsWith('/api/academy/progress/')||path.startsWith('/api/academy/assessments/')||path.startsWith('/api/academy/lesson-media/')||path.startsWith('/api/academy/planning/')||path.startsWith('/api/academy/attendance/')||path.startsWith('/api/academy/my-links/')||path.startsWith('/api/academy/class-notes/')?131072:path.startsWith('/api/program-attendance/')?65536:4096);
+  const input=await boundedBody(request,['/api/admin/platform/course-websites/save','/api/admin/platform/programs/save'].includes(path)?750000:path.endsWith('/register-reports-generate')?524288:path.startsWith('/api/academy/bookmarks/')?8192:managementPath||path.startsWith('/api/academy/teacher-availability/')||path.startsWith('/api/academy/progress/')||path.startsWith('/api/academy/assessments/')||path.startsWith('/api/academy/lesson-media/')||path.startsWith('/api/academy/planning/')||path.startsWith('/api/academy/attendance/')||path.startsWith('/api/academy/my-links/')||path.startsWith('/api/academy/class-notes/')?131072:path.startsWith('/api/program-attendance/')?65536:4096);
   if(['/api/account/check','/api/account/login','/api/account/setup-pin'].includes(path)) {
     const login=String(input.uniqueid || '').trim();
     if(!login||login.length>160)throw rehearsalError('Missing or invalid account link.',400,'INVALID_ACCOUNT_LINK');
@@ -203,6 +215,12 @@ async function dispatch(request,env) {
   if(path==='/api/academy/enrolment/submit'){
     const auth=await authenticated(request,env,repository);
     return {success:true,...await submitEnrolment(setupEnabled(env)?await readRepository():repository,auth,input,request,env)};
+  }
+  const publicSurahAction=path.match(/^\/api\/academy\/public-surah-websites\/(read|asset)$/)?.[1];
+  if(publicSurahAction){
+    if(typeof input.surahId!=='string'||typeof input.activityKey!=='string'||!input.activityKey.startsWith('PROGRAM:'))throw rehearsalError('Choose the public Foundations website.',400);
+    const source=setupEnabled(env)?await readRepository():repository,result=await courseWebsites(source,null,env).run(publicSurahAction,input);
+    return result instanceof Response?result:{success:true,...result};
   }
   const auth=await authenticated(request,env,repository);
   guardWorkspace(request,auth,input);
@@ -327,7 +345,7 @@ async function dispatch(request,env) {
     const programAdmin=(managementAction||['list','save'].includes(registryAction))&&auth.state.roles.some(r=>r.role==='PROGRAM_ADMIN'&&(registryAction==='list'||r.activity_key.toUpperCase()===`PROGRAM:${String(input.id||'')}`.toUpperCase()));
     if(!auth.state.account.global_admin&&!programAdmin)throw rehearsalError('This action requires an authorised administrator.',403,'FORBIDDEN');
     const learningView=managementAction==='manage-get'&&await learningAvailable(repository.db);
-    const result=profileAction?await d1Profiles(repository,auth).run(profileAction,input):registryAction?await d1Programs(repository,auth).registry(registryAction,input):learningView?await d1Learning(repository,auth).timetable('manage-get',input):await d1Programs(repository,auth).management(managementAction,input);
+    const result=profileAction?await d1Profiles(repository,auth).run(profileAction,input):registryAction?await d1Programs(repository,auth,env).registry(registryAction,input):learningView?await d1Learning(repository,auth).timetable('manage-get',input):await d1Programs(repository,auth,env).management(managementAction,input);
     return {success:true,...result};
   }
   if(path==='/api/account/session')return {success:true,...sessionResponse(actualState(auth),auth.context)};

@@ -3,11 +3,23 @@ import {monthlyEnabled} from './monthly-media-policy.js';
 
 const same=(a,b)=>String(a).toUpperCase()===String(b).toUpperCase();
 export function mayReadSurah(auth,row){
+ if(row.card_key==='foundations')return true;
  if(!auth)return false;
  if(auth.adminView)return administers(auth,row.activity_key);
  if(administers(auth,row.activity_key)||readerPreview(auth,row.activity_key))return true;
  if(auth.state.roles.some(r=>same(r.activity_key,row.activity_key)&&['PROGRAM_ADMIN','TEACHER'].includes(r.role)))return true;
  return Boolean(row.monthly_enabled&&(actualState(auth).monthlyMedia||[]).some(r=>same(r.activity_key,row.activity_key)&&r.lesson_month===row.completion_date.slice(0,7)));
+}
+
+export async function publicFoundationsLinks(repository){
+ if(!monthlyEnabled(repository))return {};
+ const db=repository.coreDb||repository.db;
+ const rows=(await db.prepare(`SELECT s.surah_id,s.activity_key FROM program_surahs s JOIN activities a USING(activity_key)
+  JOIN program_surah_website_documents d USING(surah_id)
+  WHERE s.card_key='foundations' AND s.active=1 AND a.active=1 AND a.lifecycle='ACTIVE' AND d.enabled=1
+  AND EXISTS(SELECT 1 FROM academy_settings f WHERE f.setting_key='SurahWebsitePublished:'||s.surah_id AND f.setting_value='1') LIMIT 2`).all()).results;
+ if(rows.length!==1)return {};
+ const row=rows[0];return {foundations:{href:'/academy/course-websites/public/?program='+encodeURIComponent(row.activity_key.slice(8))+'&surah='+encodeURIComponent(row.surah_id),label:'Open lessons'}};
 }
 
 // Return destinations only. Card design and summaries belong to the website.

@@ -1,3 +1,10 @@
+# Tafseer card table and website release — 27 October 2026
+
+- The user authorised connecting the links and completing deployment after the Tafseer handover. V107.105 (`56e87389098dcb5da34ddbac87918de289880f34`) is deployed and its handover has arrived. Incorporate it and release the reviewed cards/table as V107.106 on this feature branch, then the existing Development targets. Preserve V107.104 absentee jobs and V107.105 monthly access, retention, bindings, data and accepted heads.
+- Show Foundations first and open to all, with published-only public website/assets. Other public cards and unentitled dashboard cards open an editable Contact Admin popup; eligible dashboards open the supplied surah links.
+- In Admin → Programs → Public card, place timetable settings on the left and a matching Surah website cards table on the right. Stage additions, text, optional images, visibility/order and per-card contact messages; one Save table commits the complete table independently of timetable edits. Preserve scoped Admin rights, current-session checks, conflicts and exact retries.
+- Use existing Program public-card JSON and the existing private media bucket; no schema/coordinator upgrade or live content seeding/publication is required. Admins attach real surahs/dates and publish actual websites themselves. Keep live verification small under ../AGENTS.md. Do not message other chats. The existing local browser restriction remains in force.
+
 # Tafseer subscriptions and Surah website access release — 27 October 2026
 
 - The user confirms V107.104 is deployed and authorises deploying this feature on top of it, including the matching coordinator/API/website and additive schema. This supersedes earlier local-only holds for this feature. Preserve V107.104 weekly attendance behaviour and its scheduled jobs.

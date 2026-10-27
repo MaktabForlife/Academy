@@ -17,7 +17,7 @@
   signOut.innerHTML='<span class="page-signout-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 4H4v16h5m5-13 5 5-5 5m-6-5h11"/></svg></span><span class="page-signout-label">Sign out</span>';signOut.setAttribute('aria-label','Sign out');signOut.title='Sign out';actions.append(login,signOut);host.append(actions);
   const profile=banner?.querySelector('.academy-profile');
   if(shell&&profile){const accountRow=document.createElement('div');accountRow.className='academy-header-account';accountRow.append(profile,actions);host.append(accountRow);}
-  void import('/js/m4l-academy-accounts.mjs?v=107.105').then(module=>module.installAccounts({actions,signOut})).catch(()=>{ /* Existing Login and Sign out remain available if the optional chooser cannot load. */ });
+  void import('/js/m4l-academy-accounts.mjs?v=107.106').then(module=>module.installAccounts({actions,signOut})).catch(()=>{ /* Existing Login and Sign out remain available if the optional chooser cannot load. */ });
   if(!academy){
     const updateLogin=()=>{login.hidden=!signOut.hidden;};updateLogin();
     new MutationObserver(updateLogin).observe(signOut,{attributes:true,attributeFilter:['hidden']});
@@ -58,5 +58,5 @@
     // Defer layout writes outside ResizeObserver delivery, including Safari's PDF header.
     new ResizeObserver(()=>{if(!frame)frame=requestAnimationFrame(measure);}).observe(shell.banners);measure();
   }
-  void import('/js/m4l-academy-history.js?v=107.105').catch(()=>{ /* Existing page links remain available if navigation cannot load. */ });
+  void import('/js/m4l-academy-history.js?v=107.106').catch(()=>{ /* Existing page links remain available if navigation cannot load. */ });
 })();

@@ -173,6 +173,7 @@
     const section=$('ad-tafseer'),cards=window.M4L_TAFSEER_CARDS;
     if(section)section.hidden=!cards;
     cards?.mount($('ad-tafseer-cards'),{context:mode,links:home?.tafseerLinks||options?.tafseerLinks||{}});
+    if(typeof fetch==='function')void cards?.loadCatalogue?.();
   }
   function notes() {
     const snapshot=window.M4L_CLASS_NOTES?.snapshot?.()||{sessions:[],status:'idle'};
@@ -275,7 +276,7 @@
     const assessmentInput={dashboard:true,summaryVersion:2,view:mode==='admin'?'admin':mode==='teach'?'teacher':'learner'};
     work.push(loadSource('assessments',null,assessmentInput,data=>{assessments=data.assessments||[];},force,async()=>assessmentSummary(await request('/api/academy/assessments/list',assessmentInput))));
     if(mode==='admin')work.push(loadSource('enrolments','/api/admin/platform/enrolment/get',{},data=>{enrolments=data.requests||[];enrolments.nextCursor=data.nextCursor;},force));
-    if(force){window.M4L_CLASS_NOTES?.invalidate();void window.M4L_ANNOUNCEMENTS?.refreshPublic(true);options.refreshTimetable?.();}
+    if(force){window.M4L_CLASS_NOTES?.invalidate();void window.M4L_ANNOUNCEMENTS?.refreshPublic(true);work.push(window.M4L_TAFSEER_CARDS?.loadCatalogue?.(true));options.refreshTimetable?.();}
     await Promise.allSettled(work);
   }
   function open(data,settings) {

@@ -4,7 +4,7 @@
  const token=()=>localStorage.getItem('m4l_account_token')||'',esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  let host=null,program='',owner='',generation=0,busy=false,data=null,pending=null;
  const cards=[['yaseen','Surah Yaseen'],['saffat','Surah As-Saffat'],['ankabut','Surah Al-Ankabut'],['luqman','Surah Luqman'],['muzammil','Surah Al-Muzzammil'],['foundations','Foundations of Tafseer'],['qasas','Surah Al-Qasas'],['sajdah','Surah As-Sajdah']];
- const cardOptions=key=>[['','Not linked yet'],...cards,...(key&&!cards.some(c=>c[0]===key)?[[key,key]]:[])].map(([id,label])=>'<option value="'+esc(id)+'"'+(id===(key||'')?' selected':'')+'>'+esc(label)+'</option>').join('');
+ const cardOptions=key=>{const choices=data?.websiteCards?.map(c=>[c.id,c.title])||cards;return [['','Not linked yet'],...choices,...(key&&!choices.some(c=>c[0]===key)?[[key,key]]:[])].map(([id,label])=>'<option value="'+esc(id)+'"'+(id===(key||'')?' selected':'')+'>'+esc(label+(id==='foundations'?' · Open to all':''))+'</option>').join('');};
  const drafts=new Map();
  const message=(text,error=false)=>{const node=host?.querySelector('[data-surah-message]');if(node){node.textContent=text;node.setAttribute('role',error?'alert':'status');}};
  const dirty=()=>drafts.size>0||Boolean(pending)||busy;

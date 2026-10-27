@@ -1,3 +1,9 @@
+# V107.106 — Tafseer website cards and Admin card table
+
+Show the approved Tafseer cards on the Academy home page and every dashboard, with Foundations first and public after publication. Other public/unentitled cards open their editable Contact Admin popup; eligible dashboards use the V107.105 access links.
+
+Admin → Programs → Public card now has timetable settings on the left and a matching Surah website cards table on the right. Add cards, edit text, upload optional images, arrange/show cards and edit each contact message, then save the complete table once. Timetable edits save independently. Published-only image delivery, scoped Admin writes and live paid-month website/media checks remain enforced. No migration, reseeding or real content publication.
+
 # V107.104 — Complete dashboard attendance removal
 
 Hide Attendance in the shared Admin toolbar on dashboard landing pages, while retaining its destination on management screens. Includes the V107.103 weekly absentee lists and removal of dashboard register reads. The Monday 08:00 Riyadh schedule and current Admin scopes remain unchanged. No further database or coordinator upgrade. [Verification](docs/ACADEMY-WEEKLY-ABSENTEES.md).

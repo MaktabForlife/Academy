@@ -1,3 +1,9 @@
+# V107.106 — Tafseer website cards and Admin card table
+
+Show the approved Tafseer cards on the Academy home page and every dashboard, with Foundations first and public after publication. Other public/unentitled cards open their editable Contact Admin popup; eligible dashboards use the V107.105 access links.
+
+Admin → Programs → Public card now has timetable settings on the left and a matching Surah website cards table on the right. Add cards, edit text, upload optional images, arrange/show cards and edit each contact message, then save the complete table once. Timetable edits save independently. Published-only image delivery, scoped Admin writes and live paid-month website/media checks remain enforced. No migration, reseeding or real content publication.
+
 # V107.102 — Save lesson plan requirements together
 
 Stage changes to Plans required on the Admin Lesson plans page, then apply the whole selection with **Save changes**. **Discard** restores the saved checkboxes. Unsaved selections survive refresh within the same signed-in browser session, with navigation protection. Save is one scoped atomic operation: a conflict or invalid entry prevents the whole selection from being saved. Preserve manual Submit plan, private drafts, existing documents and Teach access controls. No database migration or coordinator update is required. [Verification](docs/ACADEMY-PLAN-SAVE-ALL-107102.md).

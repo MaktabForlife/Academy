@@ -1,7 +1,18 @@
 (() => {'use strict';
  window.M4L_PROGRAM_WORKSPACE={mount({state,$,esc,api,work,refresh,onEditsChanged=()=>{}}){
   const retries=new Map();let newClasses=[],classDrafts=new Map(),cardDraft=null,cardBase=null,categoryChoice="",showInactive=false;
-  const cardDirty=()=>cardDraft&&JSON.stringify(cardDraft)!==JSON.stringify(cardBase.publicCard||{});
+  const timetableCard=value=>Object.fromEntries(['time','title','description'].map(key=>[key,value?.[key]||'']));
+  const cardDirty=()=>cardDraft&&JSON.stringify(timetableCard(cardDraft))!==JSON.stringify(timetableCard(cardBase.publicCard));
+  const imageUrls=(cards,id)=>cards.map(card=>({...card,...(card.image?{image:{...card.image,url:(window.M4L_CONFIG?.API_BASE||'')+'/api/academy/website-card-image?program='+encodeURIComponent(id)+'&card='+encodeURIComponent(card.id)}}:{})}));
+  const websiteTable=$('pw-website-card-table')&&window.M4L_WEBSITE_CARD_TABLE?.mount({host:$('pw-website-card-table'),onChange:onEditsChanged,onSave:async(rows,files)=>{
+   const session=localStorage.getItem('m4l_account_token'),program=structuredClone(state.data.program);
+   const check=()=>{if(session!==localStorage.getItem('m4l_account_token')||program.id!==state.data?.program.id)throw Error('Your account or Program changed. Reopen the card table.');};
+   for(const row of rows){const file=files.get(row.id);if(!file)continue;const bytes=await file.arrayBuffer();check();const sha256=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');const metadata={...row.image,activityKey:'PROGRAM:'+program.id,sha256};
+    const response=await fetch((window.M4L_CONFIG?.API_BASE||'')+'/api/admin/platform/programs/website-card-image?metadata='+encodeURIComponent(JSON.stringify(metadata)),{method:'POST',headers:{Authorization:'Bearer '+session,'X-Academy-Workspace':'ADMIN'},body:file}),result=await response.json();check();if(!response.ok||!result.success)throw Error(result.error||'The image upload failed. Your table edits are kept.');row.image=result.image;
+   }
+   check();const result=await post('/api/admin/platform/programs/save',{id:program.id,name:program.name,durationYears:program.durationYears,timezone:program.timezone,status:program.status,revision:program.revision,websiteCards:rows});check();state.data.program=result.program;
+   return imageUrls(result.program.publicCard.websiteCards||[],program.id);
+  }});
   const classDirty=c=>newClasses.includes(c)||JSON.stringify(c)!==JSON.stringify(state.data.setup.rows.classes.find(saved=>saved.ClassID===c.ClassID));
   function cardPreview(){const card=cardDraft||state.data.program.publicCard||{};$('pw-card-preview').innerHTML=card.title?`<strong>${esc(card.time)}</strong><div><b>${esc(card.title)}</b><p>${esc(card.description).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')}</p></div>`:'';$('pw-save-card').disabled=state.busy||!cardDirty();$('pw-discard-card').disabled=state.busy||!cardDirty();}
   function rowControls(tr,row){const dirty=classDirty(row);tr.classList.toggle('is-editing',dirty);tr.querySelectorAll('[data-pw-save],[data-pw-discard]').forEach(button=>button.disabled=state.busy||!dirty);tr.querySelector('[data-pw-state]').textContent=dirty?'Unsaved':'Saved';}
@@ -17,8 +28,9 @@
    if(!state.data?.workspaceReady)return;
    const d=state.data,rows=[...d.setup.rows.classes.filter(c=>c.Active).map(c=>classDrafts.get(c.ClassID)||c),...newClasses];
    $('pw-classes').querySelectorAll('[data-pw-class]').forEach(tr=>rowControls(tr,rows.find(c=>c.ClassID===tr.dataset.pwClass)));
-   for(const el of $('pw-setup').querySelectorAll('input,select,textarea,button'))if(!el.matches('[data-pw-save],[data-pw-discard],#pw-save-card,#pw-discard-card'))el.disabled=state.busy||d.managementEditable===false;
+   for(const el of $('pw-setup').querySelectorAll('input,select,textarea,button'))if(!el.closest('#pw-website-card-table')&&!el.matches('[data-pw-save],[data-pw-discard],#pw-save-card,#pw-discard-card'))el.disabled=state.busy||d.managementEditable===false;
    cardPreview();
+   websiteTable?.disable(state.busy||d.managementEditable===false);
   }
   function render(){
    if(!$('pw-setup'))return;const d=state.data;if(!d?.workspaceReady)return;window.M4L_PROGRAM_MANAGEMENT_NAV?.update(d.program);
@@ -30,6 +42,7 @@
    $('pw-card-editor').hidden=!d.program.publicCardEditable;
    if(!cardDraft||!cardDirty()){cardBase=structuredClone(d.program);cardDraft=structuredClone(d.program.publicCard||{});}
    for(const key of ['time','title','description'])$('pw-card-'+key).value=cardDraft[key]||'';
+   websiteTable?.sync(localStorage.getItem('m4l_account_token')+'|'+d.program.id,imageUrls(d.program.publicCard.websiteCards||[],d.program.id),state.busy||d.managementEditable===false);
    cardPreview();
    const alphabetical=(a,b)=>String(a.name||a.SubjectName||'').localeCompare(String(b.name||b.SubjectName||''),undefined,{sensitivity:'base',numeric:true});
    const subjects=setup.sharedSubjects.filter(s=>s.Active&&!s.Legacy).slice().sort(alphabetical),mods=setup.sharedModules||[];
@@ -39,7 +52,7 @@
    $('pw-categories').innerHTML=selectedSubjects.map(s=>`<tr class="${s.active?'':'is-inactive'}"><td>Subject${s.active?'':' · Inactive'}</td><td><strong>${esc(s.name)}</strong></td><td>${actions('subjects',s)}</td></tr>`+selectedModules.filter(m=>m.programSubjectId===s.id&&(showInactive||m.active)).slice().sort(alphabetical).map(m=>`<tr class="${m.active?'':'is-inactive'}"><td>Module${m.active?'':' · Inactive'}</td><td class="pw-module-name">${esc(m.name)}</td><td>${actions('modules',m)}</td></tr>`).join('')).join('')||'<tr><td colspan="3">No active Subjects or Modules. Add from the Academy list below.</td></tr>';
    if($('pw-show-inactive'))$('pw-show-inactive').checked=showInactive;
    $('pw-catalogue').hidden=!setup.sharedSubjectsEditable;
-   for(const control of $('pw-setup').querySelectorAll('input,select,textarea,button'))if(!control.matches('[data-pw-save],[data-pw-discard],#pw-save-card,#pw-discard-card'))control.disabled=state.busy||d.managementEditable===false;
+   for(const control of $('pw-setup').querySelectorAll('input,select,textarea,button'))if(!control.closest('#pw-website-card-table')&&!control.matches('[data-pw-save],[data-pw-discard],#pw-save-card,#pw-discard-card'))control.disabled=state.busy||d.managementEditable===false;
 
   }
   async function ensureClass(){
@@ -67,7 +80,7 @@
   }catch(e){note(e.message,true);}});
   if($('pw-show-inactive'))$('pw-show-inactive').onchange=e=>{showInactive=e.target.checked;render();};
   $('pw-categories').onclick=e=>{const button=e.target.closest('[data-pw-remove],[data-pw-active]');if(!button||state.busy||state.data.managementEditable===false)return;
-   if(newClasses.length||[...classDrafts.values()].some(classDirty)||cardDirty()){note('Save or discard the class and public card changes first.',true);return;}
+   if(newClasses.length||[...classDrafts.values()].some(classDirty)||cardDirty()||websiteTable?.dirty()){note('Save or discard the class and public card changes first.',true);return;}
    const kind=button.dataset.pwKind,id=button.dataset.pwRemove||button.dataset.pwId,setup=state.data.setup,key=kind==='subjects'?'ProgramSubjectID':'ProgramModuleID',row=setup.rows[kind].find(r=>r[key]===id);if(!row)return;
    void work(async()=>{try{if(button.dataset.pwRemove)await post('/api/admin/platform/program-timetable/manage-remove',{id:state.data.program.id,kind,recordId:id,baseRowRevision:setup.rowRevisions[kind][id]});else await post('/api/admin/platform/program-timetable/manage-save',{id:state.data.program.id,kind,record:{...row,Active:button.dataset.pwActive==='true'},creating:false,baseRowRevision:setup.rowRevisions[kind][id]});await update();note(button.dataset.pwRemove?'Removed from this Program. Its Academy record remains active.':'Program availability updated. The Academy record is unchanged.');}catch(error){note(error.message,true);}});
   };
@@ -75,10 +88,12 @@
   for(const key of ['time','title','description'])$('pw-card-'+key).oninput=e=>{cardDraft={...cardDraft,[key]:e.target.value};cardPreview();onEditsChanged();};
   $('pw-discard-card').onclick=()=>{cardDraft=null;render();onEditsChanged();};
   $('pw-save-card').onclick=()=>work(async()=>{try{
-   const program=cardBase,result=await post('/api/admin/platform/programs/save',{id:program.id,name:program.name,durationYears:program.durationYears,timezone:program.timezone,status:program.status,revision:program.revision,publicCard:cardDraft});
+   const program=state.data.program,result=await post('/api/admin/platform/programs/save',{id:program.id,name:program.name,durationYears:program.durationYears,timezone:program.timezone,status:program.status,revision:program.revision,publicCard:timetableCard(cardDraft)});
    state.data.program=result.program;cardDraft=null;render();note('Public timetable card saved.');
   }catch(e){note(e.message,true);}});
-  window.addEventListener('beforeunload',e=>{if(newClasses.length||[...classDrafts.values()].some(classDirty)||cardDirty()){e.preventDefault();e.returnValue='';}});
-  return {render,controls,ensureClass,editSections:()=>[...(newClasses.length||[...classDrafts.values()].some(classDirty)?['classes']:[]),...(cardDirty()?['public-card']:[])],hasEdits:()=>Boolean(newClasses.length||[...classDrafts.values()].some(classDirty)||cardDirty())};
+  window.addEventListener('beforeunload',e=>{if(newClasses.length||[...classDrafts.values()].some(classDirty)||cardDirty()||websiteTable?.dirty()){e.preventDefault();e.returnValue='';}});
+  window.addEventListener('m4l-academy-session-ended',()=>websiteTable?.reset());
+  window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)websiteTable?.reset();});
+  return {render,controls,ensureClass,editSections:()=>[...(newClasses.length||[...classDrafts.values()].some(classDirty)?['classes']:[]),...(cardDirty()||websiteTable?.dirty()?['public-card']:[])],hasEdits:()=>Boolean(newClasses.length||[...classDrafts.values()].some(classDirty)||cardDirty()||websiteTable?.dirty())};
  }};
 })();

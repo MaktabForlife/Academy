@@ -8,6 +8,7 @@
  const safeHref=value=>typeof value==='string'&&/^\/academy\/course-websites\/view\/\?program=[^&]+&surah=[0-9a-f-]{36}$/.test(value)?value:'';
  function apply(){
   if(identity()!==owner){reset();return;}
+  if(window.M4L_TAFSEER_CARDS?.updateLinks){window.M4L_TAFSEER_CARDS.updateLinks(token()?links:{});return;}
   for(const action of document.querySelectorAll('[data-tafseer-card] [data-tafseer-link]')){
    const key=action.dataset.tafseerLink,value=links[key],href=token()?safeHref(typeof value==='string'?value:value?.href):'';
    if(action.tagName===(href?'A':'BUTTON')&&(href?action.getAttribute('href')===href:action.disabled))continue;
@@ -36,8 +37,8 @@
   }catch{if(stamp===generation){loaded=true;links={};apply();}}
   finally{if(stamp===generation)pending=false;}
  }
- function reset(){generation++;owner=identity();links={};loaded=false;pending=false;apply();}
- window.M4L_TAFSEER_ACCESS={setLinks,refresh,reset};
+ function reset(){generation++;owner=identity();links={};loaded=false;pending=false;window.M4L_TAFSEER_CARDS?.closeAccessPrompt?.();apply();}
+ window.M4L_TAFSEER_ACCESS={setLinks,refresh,reset,links:()=>token()&&identity()===owner?links:{}};
  const update=()=>{apply();void refresh();};
  new MutationObserver(update).observe(document.body,{childList:true,subtree:true});
  for(const event of ['m4l-academy-session','m4l-academy-session-ended','hashchange'])window.addEventListener(event,()=>{reset();void refresh();});

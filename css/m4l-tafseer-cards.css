@@ -8,6 +8,7 @@
 .tf-card{--tf-soft:#f4eaf2;box-sizing:border-box;display:flex;flex-direction:column;align-items:flex-start;min-width:0;padding:22px 21px 18px;border:1px solid #d9c5d6;border-radius:15px;background:linear-gradient(150deg,#fffdfb 0%,var(--tf-soft) 100%);box-shadow:0 3px 13px #50334c08}
 .tf-card-rose{--tf-soft:#f5e8e7}.tf-card-sage{--tf-soft:#edf0e8}.tf-card-gold{--tf-soft:#f4eddf}
 .tf-card-tag{font:700 10px/1.6 Arial,sans-serif;letter-spacing:1.3px;color:#765671}
+.tf-card-image{display:block;width:100%;height:auto;max-height:260px;object-fit:contain;border-radius:9px;margin-bottom:18px}
 .tf-card-arabic{display:block;margin-top:14px;font:27px/1.65 TafseerArabic,'Geeza Pro',serif;color:#694165;unicode-bidi:isolate}
 .tf-card h3{margin:9px 0 13px;font:400 30px/1.14 Georgia,serif;letter-spacing:-.4px;color:#382c3c;overflow-wrap:anywhere}
 .tf-card-access{display:inline-block;margin:0 0 13px;padding:3px 9px;border:1px solid #c7d0bf;border-radius:20px;background:#f5f8f0;color:#4c6041;font:600 11px/1.6 Arial,sans-serif}

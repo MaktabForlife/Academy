@@ -14,6 +14,8 @@
     {id:'sajdah',title:'Surah As-Sajdah',arabic:'سورة السجدة',tone:'rose',summary:'Pause over selected ayahs about Allah’s care, listening to guidance and recognising His signs in everyday life.'}
   ].map(Object.freeze));
   const contexts = new Set(['public','learn','teach','admin']);
+  let catalogue = cards, publicLinks = {}, catalogueJob;
+  const rendered = new WeakMap();
   let accessDialog;
   const interactiveHosts = new WeakSet();
   function closeAccessPrompt() { if (accessDialog?.open) accessDialog.close(); }
@@ -35,7 +37,7 @@
     } catch {}
     const message = 'Assalaamu alaikum. I would like to receive access to '+card.title+'. Please assist me.';
     const href = 'https://wa.me/'+digits+'?text='+encodeURIComponent(message);
-    accessDialog.innerHTML = `<header class="tf-access-heading"><h2 id="tf-access-title">Contact Admin to receive access</h2><button type="button" class="tf-access-close" data-tafseer-close aria-label="Close">×</button></header><p id="tf-access-description">Please contact the Academy Admin for access to <strong>${esc(card.title)}</strong>.</p><div class="tf-access-actions"><a href="${esc(href)}" target="_blank" rel="noopener noreferrer">Contact Admin ↗</a><button type="button" data-tafseer-close>Close</button></div>`;
+    accessDialog.innerHTML = `<header class="tf-access-heading"><h2 id="tf-access-title">${esc(card.title)}</h2><button type="button" class="tf-access-close" data-tafseer-close aria-label="Close">×</button></header><p id="tf-access-description">${esc(card.contactMessage||'Contact Admin to receive access.')}</p><div class="tf-access-actions"><a href="${esc(href)}" target="_blank" rel="noopener noreferrer">Contact Admin ↗</a><button type="button" data-tafseer-close>Close</button></div>`;
     if (!accessDialog.open) accessDialog.showModal();
     accessDialog.querySelector('[data-tafseer-close]').focus();
   }
@@ -50,27 +52,30 @@
   function render({context='public',links={}}={}) {
     context = contexts.has(context) ? context : 'public';
     links = links && typeof links === 'object' ? links : {};
-    return cards.map(card => {
-      const supplied = Object.hasOwn(links,card.id) ? links[card.id] : null;
+    return catalogue.filter(card=>card.visible!==false).map(card => {
+      const supplied = card.id==='foundations'&&publicLinks.foundations || (Object.hasOwn(links,card.id) ? links[card.id] : null);
       const binding = typeof supplied === 'string' ? {href:supplied} : supplied || {};
       if (binding.visible === false) return '';
       const href = destination(binding.href), titleId = `tafseer-${context}-${card.id}`;
       const arrow = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>';
-      const mayOpen = card.access === 'public' || context !== 'public' && binding.canAccess === true;
+      const mayOpen = card.access === 'public' || context !== 'public' && Boolean(href) && binding.canAccess !== false;
       const action = !mayOpen
         ? `<button class="tf-card-action" data-tafseer-link="${card.id}" data-tafseer-request="${card.id}" type="button" aria-haspopup="dialog" aria-label="Contact Admin to receive access: ${esc(card.title)}"><span>Request access</span>${arrow}</button>`
         : href
         ? `<a class="tf-card-action" data-tafseer-link="${card.id}" href="${esc(href)}" aria-label="${esc(binding.label||'Open lessons')}: ${esc(card.title)}"><span>${esc(binding.label||'Open lessons')}</span>${arrow}</a>`
         : `<button class="tf-card-action tf-card-pending" data-tafseer-link="${card.id}" type="button" disabled aria-label="${esc(card.title)}: coming soon"><span>Coming soon</span>${arrow}</button>`;
       const accessLabel = card.access === 'public' ? '<span class="tf-card-access">Open to all</span>' : '';
-      return `<article class="tf-card tf-card-${card.tone}" data-tafseer-card="${card.id}"${binding.code?` data-tafseer-code="${esc(binding.code)}"`:''} aria-labelledby="${titleId}"><span class="tf-card-tag">TAFSEER &amp; TADABBUR</span><span class="tf-card-arabic" lang="ar" dir="rtl">${card.arabic}</span><h3 id="${titleId}">${card.title}</h3>${accessLabel}<p class="tf-card-summary">${card.summary}</p>${action}</article>`;
+      const image = card.image?.url && /^(?:https:\/\/[^/]+)?\/api\/academy\/website-card-image\?/.test(card.image.url) ? `<img class="tf-card-image" src="${esc(card.image.url)}" alt="${esc(card.image.alt||card.title)}" loading="lazy">` : '';
+      return `<article class="tf-card tf-card-${esc(card.tone)}" data-tafseer-card="${esc(card.id)}"${binding.code?` data-tafseer-code="${esc(binding.code)}"`:''} aria-labelledby="${esc(titleId)}">${image}<span class="tf-card-tag">TAFSEER &amp; TADABBUR</span><span class="tf-card-arabic" lang="ar" dir="rtl">${esc(card.arabic)}</span><h3 id="${esc(titleId)}">${esc(card.title)}</h3>${accessLabel}<p class="tf-card-summary">${esc(card.summary)}</p>${action}</article>`;
     }).join('');
   }
   function mount(host,options={}) {
     if (typeof host === 'string') host = document.getElementById(host);
     if (!host) return;
-    closeAccessPrompt();
     const context = contexts.has(options.context) ? options.context : 'public';
+    const signature=JSON.stringify([context,options.links||{},catalogue,publicLinks]);
+    if(rendered.get(host)===signature)return;
+    closeAccessPrompt();rendered.set(host,signature);
     host.classList.add('tf-card-grid');
     host.dataset.tafseerContext = context;
     host.innerHTML = render({...options,context});
@@ -78,12 +83,27 @@
       host.addEventListener('click',event => {
         const button = event.target.closest('[data-tafseer-request]');
         if (!button || !host.contains(button)) return;
-        const card = cards.find(row => row.id === button.dataset.tafseerRequest);
+        const card = catalogue.find(row => row.id === button.dataset.tafseerRequest);
         if (card) requestAccess(card);
       });
       interactiveHosts.add(host);
     }
   }
-  window.M4L_TAFSEER_CARDS = Object.freeze({cards,render,mount,closeAccessPrompt});
+  function updateLinks(links={}){
+    document.querySelectorAll('[data-tafseer-context]').forEach(host=>mount(host,{context:host.dataset.tafseerContext,links:host.dataset.tafseerContext==='public'?publicLinks:links}));
+  }
+  function setGroups(groups){
+    if(!Array.isArray(groups)||!groups.length)return;
+    const seen=new Set();catalogue=groups.flatMap(group=>(group.cards||[]).filter(card=>{
+      if(!card||typeof card.id!=='string'||!/^[a-z0-9][a-z0-9-]{0,79}$/.test(card.id)||seen.has(card.id))return false;seen.add(card.id);return true;
+    }).map(card=>({...card,access:card.id==='foundations'?'public':undefined,...(card.image?.url?{image:{...card.image,url:(window.M4L_CONFIG?.API_BASE||'')+card.image.url}}:{})}))).sort((a,b)=>Number(b.id==='foundations')-Number(a.id==='foundations'));
+    window.M4L_TAFSEER_ACCESS?.refresh();updateLinks(window.M4L_TAFSEER_ACCESS?.links?.()||{});
+  }
+  async function fetchCatalogue(){
+    try{const response=await fetch((window.M4L_CONFIG?.API_BASE||'')+'/api/academy/website-cards',{cache:'no-store'}),result=await response.json();if(!response.ok||!result.success)return;publicLinks=result.publicLinks||{};setGroups(result.groups);updateLinks(window.M4L_TAFSEER_ACCESS?.links?.()||{});}catch{}
+  }
+  const loadCatalogue=(force=false)=>{if(force)catalogueJob=null;return catalogueJob??=fetchCatalogue();};
+  window.M4L_TAFSEER_CARDS = Object.freeze({get cards(){return catalogue;},defaults:cards,render,mount,closeAccessPrompt,updateLinks,setGroups,loadCatalogue});
   document.querySelectorAll('[data-tafseer-cards="public"]').forEach(host => mount(host,{context:'public',links:window.M4L_TAFSEER_PUBLIC_LINKS||{}}));
+  if(typeof fetch==='function'&&document.querySelector('[data-tafseer-cards="public"]'))void loadCatalogue();
 })();

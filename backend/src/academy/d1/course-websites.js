@@ -15,7 +15,7 @@ const assetDTO=row=>({id:row.asset_id,name:row.filename,type:row.mime_type,size:
 const scopeKey=input=>{if(typeof input.activityKey!=='string'||!/^COURSE:[^:]{1,160}$/.test(input.activityKey))throw fail('Choose a Course.');return input.activityKey;};
 const uuid=value=>/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value||'');
 export function courseWebsites(repository,auth,env){
- const store=managementStore(repository,auth),p=store.p,actor=auth.user.accountid;
+ const store=managementStore(repository,auth),p=store.p,actor=auth?.user.accountid||'PUBLIC';
  let target={documents:'course_website_documents',assets:'course_website_assets',column:'activity_key',id:'',surahId:null};
  const template=area=>{const document=courseWebsiteTemplate(area);if(area.surahId){document.id=area.surahId;document.tag='TAFSEER';document.menu.home='Surah';document.pages.sessions=false;document.pages.assessments=false;}return document;};
  async function activity(input,write=false){
@@ -25,12 +25,13 @@ export function courseWebsites(repository,auth,env){
    if(!monthlyEnabled(repository))throw fail('Surah websites need the monthly access upgrade.',503);
    key=input.activityKey;target={documents:'program_surah_website_documents',assets:'program_surah_website_assets',column:'surah_id',id:input.surahId,surahId:input.surahId};
    const core=repository.coreDb||repository.db;
-   row=await core.prepare("SELECT a.*,s.name surah_name,s.completion_date,s.active surah_active,p.enabled monthly_enabled FROM activities a JOIN program_surahs s USING(activity_key) JOIN program_monthly_media_policies p USING(activity_key) WHERE a.activity_key=? AND a.kind='PROGRAM' AND a.active=1 AND a.lifecycle='ACTIVE' AND s.surah_id=?").bind(key,input.surahId).first();
+   row=await core.prepare("SELECT a.*,s.name surah_name,s.card_key,s.completion_date,s.active surah_active,p.enabled monthly_enabled FROM activities a JOIN program_surahs s USING(activity_key) JOIN program_monthly_media_policies p USING(activity_key) WHERE a.activity_key=? AND a.kind='PROGRAM' AND a.active=1 AND a.lifecycle='ACTIVE' AND s.surah_id=?").bind(key,input.surahId).first();
    if(row){row={...row,name:row.surah_name,surahId:input.surahId};if(!write&&!row.surah_active)throw fail('This surah website is unavailable.',403,'COURSE_WEBSITE_FORBIDDEN');}
   }else{key=scopeKey(input);target={documents:'course_website_documents',assets:'course_website_assets',column:'activity_key',id:key,surahId:null};row=await p("SELECT * FROM activities WHERE activity_key=? AND kind='COURSE' AND active=1 AND lifecycle='ACTIVE'",key).first();}
   if(!row)throw fail('This Course is unavailable.',403,'COURSE_WEBSITE_FORBIDDEN');
-  if(write){if(!isAdminWorkspace(auth)||!administers(auth,row.activity_key))throw fail('Open Admin with authority for this Course.',403,'COURSE_WEBSITE_FORBIDDEN');}
-  else{
+  if(write){if(!auth||!isAdminWorkspace(auth)||!administers(auth,row.activity_key))throw fail('Open Admin with authority for this Course.',403,'COURSE_WEBSITE_FORBIDDEN');}
+  else if(!(target.surahId&&row.card_key==='foundations')){
+   if(!auth)throw fail('Contact Admin to receive access.',403,'COURSE_WEBSITE_FORBIDDEN');
    const roles=auth.state.roles.filter(r=>same(r.activity_key,row.activity_key)).map(r=>r.role);
    const free=!target.surahId&&auth.workspace==='LEARN'&&await p("SELECT 1 ok FROM course_settings WHERE activity_key=? AND legacy_access_model='FREE' AND policy_review_state='CONFIRMED'",row.activity_key).first();
    const subscribed=target.surahId?mayReadSurah(auth,row):roles.includes('STUDENT')||auth.state.subscriptions.some(r=>same(r.activity_key,row.activity_key));
@@ -49,6 +50,7 @@ export function courseWebsites(repository,auth,env){
  }
  async function readable(input){
   const area=await activity(input),row=await record(area.activity_key);
+  if(!auth&&!(target.surahId&&area.card_key==='foundations'))throw fail('Contact Admin to receive access.',403,'COURSE_WEBSITE_FORBIDDEN');
   if(row&&!row.enabled)throw fail('This course website is currently withdrawn.',404,'COURSE_WEBSITE_UNPUBLISHED');
   await legacyGate(area,row);
   if(!row&&!isSurahKahfCourse(area))throw fail('This course website has not been published.',404,'COURSE_WEBSITE_UNPUBLISHED');

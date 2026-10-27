@@ -2,13 +2,19 @@
 
 The Website chat owns the card layout and summaries. The Tafseer chat supplies each access destination and its existing Tafseer identifier. This change is local and has not been published or deployed.
 
-## Deployment handover pending
+## Deployment handover received
 
-On 27 October 2026 the user said the Tafseer chat is deploying access control and will hand over to this chat to complete deployment. Keep the cards local until that handover arrives. This authorises completing the combined release after the handover; it is not an instruction to interrupt the access-control deployment or deploy the cards ahead of it.
+V107.105 was deployed and verified by the Tafseer chat, which handed over commit `56e87389098dcb5da34ddbac87918de289880f34`. It has been merged into `feature/academy-course-website-builder`. The user explicitly authorised attaching the supplied links and completing deployment after this handover. Prepare the combined card/table release as V107.106. Preserve the monthly access controls, retained lesson recording namespace and V107.104 absentee jobs; no migration, reseeding or real website publication is included.
 
-Use the handover's deployed version and commit as the baseline, preserve its access-control changes, attach its confirmed card destinations, run the relevant combined checks, and complete the website/dashboard release through the existing deployment workflow. Confirm the supplied link map, source branch/commit, deployed version and affected targets from the handover before preparing the release. Do not message the other chat unless the user separately authorises it.
+Cards appear on the public Academy website and Learn, Teach and Admin dashboards. Per the user's later instruction, public restricted cards and dashboard cards without a supplied eligible link open the editable **Contact Admin to receive access** popup. Foundations remains first and public, with its real reading destination available only after explicit website publication. No fabricated destination or protected course bypass is assigned.
 
-The same component appears on the public Academy website and the Learn, Teach and Admin dashboards. An unset destination displays **Coming soon** without a clickable link. The component does not create routes, grant course access, or infer access from a card title.
+## Admin card table
+
+Open **Admin → Programs → Tafseer → Public card**. Timetable settings are in the left block; the matching right block contains the Surah website cards table. Admin can use the original Tafseer summaries as a starting point, add rows, edit titles/Arabic/summaries/contact-popup text, upload optional PNG/JPEG/WebP images up to 5 MB, and arrange or hide cards. One **Save table** saves the complete table; additions, field edits and image selection alone make no server writes. Discard restores the saved table. Timetable changes save independently.
+
+The table uses `program_settings.public_card_json.websiteCards`, preserving existing timetable fields. Images use immutable SHA-256 keys under `dev-split-v1/public-website-cards/` in the existing **private** lesson-media bucket, outside the recording expiry prefix. Uploading a file does not publish it. Only image references in the accepted, visible card table can be served from the public image route. Current scoped Admin/session guards, optimistic revisions, exact retries and the existing acceptance process apply to table saves. No schema or coordinator upgrade is required.
+
+New cards get stable references; the Lesson media → Surah websites → Website card dropdown includes the saved table's cards. Admin still enters actual completion dates, associates cards with real surahs and explicitly publishes each website. Paid-month rights and lesson media are separate. Linking `foundations` explicitly marks that published website and its referenced files as public; other direct public website/file requests are denied.
 
 ## Stable card identifiers
 
@@ -29,13 +35,13 @@ Titles may be edited without changing these IDs. The complete card copy is expor
 
 ## Attach destinations
 
-The shared presentation API is `window.M4L_TAFSEER_CARDS.mount(host, {context, links})`. Context is `public`, `learn`, `teach` or `admin`. Links are keyed by the stable IDs above. Each value can be a URL string or `{href, code, label, visible}`. `code` is optional and is rendered as `data-tafseer-code`; `visible: false` omits a card in that context.
+The shared presentation API is `window.M4L_TAFSEER_CARDS.mount(host, {context, links})`. Context is `public`, `learn`, `teach` or `admin`. Links are keyed by the stable IDs above. Each eligible value can be a URL string or `{href, code, label, visible}`. A supplied scoped link represents access; `canAccess: false` explicitly denies it. `code` is optional and is rendered as `data-tafseer-code`; `visible: false` omits a card in that context.
 
 For the public page, provide `window.M4L_TAFSEER_PUBLIC_LINKS` before the component loads, or remount `tafseer-public-cards` after resolving the destinations. For authenticated dashboards, provide `home.tafseerLinks` in the scoped dashboard data, or `tafseerLinks` in its open options. The dashboard remounts with the current data each time; the component retains no account-specific link cache.
 
 The Tafseer integration owns the real code-to-page mapping, login return destination, visibility decisions and reader/asset permission checks. Only approved public summaries belong on the public website. Neither a supplied URL nor a displayed identifier establishes permission to read protected material.
 
-Internal same-origin paths and HTTPS URLs are supported. No placeholder production URL is assigned in this change. Existing course websites, sessions and permissions are unchanged.
+Internal same-origin paths and HTTPS URLs are supported. Real protected destinations come from `home.tafseerLinks` or the normal authenticated Tafseer-links endpoint. The shared access adapter retains its account/workspace reset and late-response guards and delegates card action rendering to the shared component. Public marketing cards do not reuse protected destinations. Published Foundations uses the dedicated public reader and checks current active association, accepted content and enabled state on every read/download.
 
 ## Files and review
 

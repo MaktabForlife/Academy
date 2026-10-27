@@ -16,6 +16,11 @@ test('every API helper carries the selected audience and cannot override it with
  await f.window.fetch('https://api.invalid/api/academy/lesson-media/upload?metadata=x');assert.equal(f.calls[1].options.headers.get('X-Academy-Workspace'),'TEACH');
  const options={headers:{}};await f.window.fetch('https://external.invalid/api/public',options);assert.equal(f.calls[2].options,options);
 });
+test('the public Foundations reader remains a guest Learn page and does not require Admin verification',async()=>{
+ const f=fixture(()=>Response.json({success:true,document:{name:'Foundations'}}));f.token('');f.location.pathname='/academy/course-websites/public/';f.location.hash='';f.window.M4L_ACADEMY_WORKSPACE.commit();
+ assert.equal(f.window.M4L_ACADEMY_WORKSPACE.current(),'LEARN');assert.equal(f.window.M4L_ACADEMY_WORKSPACE.adminRealm(),false);
+ const result=await f.window.fetch('https://api.invalid/api/academy/public-surah-websites/read',{method:'POST',body:'{}'});assert.equal((await result.json()).document.name,'Foundations');assert.equal(f.authCalls.length,0);assert.equal(f.location.destination,undefined);
+});
 test('public announcements load independently of account, workspace and publication startup',async()=>{
  let release;const f=fixture(()=>new Promise(resolve=>{release=()=>resolve(Response.json({success:true,announcements:[]}));}));
  f.window.M4L_CONFIG.ACCEPTED_SETUP=true;
