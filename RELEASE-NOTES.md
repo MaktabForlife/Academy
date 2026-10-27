@@ -1,3 +1,7 @@
+# V107.87 — Library subject display correction
+
+Prevent the PDF reader Public Library grid from shrinking subject rows below their contents. Preserve complete labels, expanded books and bookmarks, and scroll the list within its existing drawer. Based on V107.86; mobile-first development remains separate. No schema, data or coordinator changes.
+
 # V107.86 — Remember IDs by default
 
 Remember my ID on this browser starts selected for Academy Login, personal-link login/PIN setup and Switch account, including Use another ID and subsequent sign-ins. Users can still untick it; an unchecked ID is not retained. Remove and Forget all continue to clear remembered IDs. Every account switch still requires fresh server PIN verification.

@@ -1,3 +1,7 @@
+# V107.87 — Library subject display correction
+
+The PDF reader Library keeps complete subject headings and expanded book rows visible, with scrolling inside the list. This corrects clipping when bookmarks and many subjects exceed the available drawer height. The separate mobile-first feature is not included. No database migration or permission changes.
+
 # V107.86 — Remember IDs by default
 
 Remember my ID on this browser starts selected for Academy Login, personal-link login/PIN setup and Switch account, including Use another ID and subsequent sign-ins. Users can still untick it; an unchecked ID is not retained. Remove and Forget all continue to clear remembered IDs. Every account switch still requires fresh server PIN verification.

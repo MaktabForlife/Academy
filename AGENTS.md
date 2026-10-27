@@ -1,3 +1,11 @@
+# Library display correction — 27 October 2026
+
+- The user reported clipped Public Library subject headings and changed screen headers, and explicitly requested a correction deployed to Development, followed by a review of the live site.
+- Work from current Development V107.86 on feature/academy-library-display-fix. Release the verified correction as V107.87. Preserve remembered account IDs, PIN switching and all existing permissions.
+- The mobile-first feature remains on its separate V107.84-based branch. It is not part of this Development correction. Do not communicate with other chats.
+- The confirmed Library defect comes from shrinking automatic grid rows when bookmarks and subjects exceed the drawer height. Preserve natural row heights and scroll the list. Verify headers against deployed assets before making unrelated layout changes.
+- Deploy the matching Development API and Academy website with no schema, data or coordinator change. Keep live checks small; use synthetic local fixtures for full display checks.
+
 # Remember-ID default follow-up release — 27 October 2026
 
 - The user requested Remember my ID selected by default, then explicitly asked to deploy the completed follow-up to Development. Release V107.86 from `feature/academy-account-switching`, incorporating deployed V107.85.
