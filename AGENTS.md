@@ -1,6 +1,6 @@
 # Course website builder connection and release — 27 October 2026
 
-- The user explicitly requested connecting and deploying the desktop Admin Website builder, with Course websites in the Admin menu opening a list of websites to edit. Work on `feature/academy-course-website-builder`, incorporating deployed V107.97.
+- The user explicitly requested connecting and deploying the desktop Admin Website builder, with Course websites in the Admin menu opening a list of websites to edit. Work on `feature/academy-course-website-builder`, incorporating deployed V107.98 (`8e502ba4`), and release as V107.99.
 - This authorises implementing guarded course-scoped drafts/uploads, explicit publication, editing the existing Surah Al Kahf website and additive split-store schema changes required by this feature, followed by the matching coordinator/API/website release. Preserve all existing course/session/media/login/assessment permissions and V107.97 behaviour. Do not publish course content or change timetables on the user's behalf; the deployment exposes the editor, and Admins explicitly publish their later edits.
 - Use disposable local fixtures and minimal hosted schema/version/static/readiness checks under ../AGENTS.md. Keep existing database IDs, accepted heads, records, secrets and storage. Do not bootstrap, reseed or export live databases. This supersedes the earlier design-only release hold for this implementation and deployment only.
 
@@ -11,6 +11,28 @@
 - The current deliverable is the working local editor design in `designs/course-website-studio/`, with browser-local drafts and student previews. Production course storage, login integration, publishing and migrations are a separate implementation stage described in `docs/ACADEMY-COURSE-WEBSITE-BUILDER.md`.
 - Keep the current portal and release markers unchanged. Do not push, deploy, export source to external hosting, apply SQL or alter live data/settings without fresh authorisation. Previous release approvals apply to their completed releases only.
 - Use synthetic local fixtures. The managed browser rejected local HTML URLs, and automatic approval review rejected external private-preview source export as beyond feature-branch authorisation; do not work around either denial. A self-contained local HTML file is available for the user to open manually. Browser visual checks remain pending.
+
+# Header, Menu and Imtehaan release — 27 October 2026
+
+- The user explicitly authorised deployment of the reviewed local changes. Release V107.98 to the existing Development API and Academy website. This supersedes the local-only hold below for this release.
+- Include the reference header with username-only highlight, standard Menu and separate X, four Admin upcoming cards in a 2×2 grid, two-column published Imtehaan cards including assignment windows, and Global Admin daily timetable grouping in Admin-Learn/Admin-Teach. Exclude draft/registered, complete, cancelled and archived Imtehaan; preserve access and publication gates.
+- No migration, live data correction, settings/binding change, timetable publication or private coordinator deployment is required. Keep hosted verification small, using versions/static assets and one API readiness check. Do not contact other chats. Future deployments require new authorisation.
+
+# Header, Menu and dashboard review — 27 October 2026
+
+- The user explicitly said **do not deploy**. Keep all follow-ups after V107.97 local, including Global Admin daily timetable grouping. Do not push or contact other chats.
+- Rebuild the shared header to the supplied reference: Academy/version and dates above; welcome, highlighted username only and highest role on the left, actions on the right. No extra Admin text inside the yellow name highlight. Retain account/PIN safeguards, workspace navigation and Curriculum access.
+- Use the supplied white Menu/hamburger button throughout navigation; replace visible Contents labels. Give Close a separate column so it cannot overlap Menu.
+- Admin Coming up next shows up to four permitted Course cards in a 2×2 grid on phone and desktop, with the open arrow at each card's top right.
+- Rename dashboard Assessments to Imtehaan and show two columns: small Program/Course name, Imtehaan name, date window and open arrow. Include published dated exams and assignment-based Imtehaan regardless of dates; exclude REGISTERED/DRAFT, COMPLETE, CANCELLED and ARCHIVED. Preserve role/class/publication boundaries.
+- Reboot's missing card was confirmed with two bounded read-only Development metadata queries: its 16 published papers are ASSIGNMENT/UNTIMED with no exam_date, using available_from/due_at. Fix the safe dashboard metadata and date-window rendering; do not modify live records or assessment types.
+- The user cancelled the full screenshot/PDF review-pack request. Local synthetic phone/desktop screenshots for verification remain appropriate; do not create that PDF pack.
+
+# Global Admin reader timetable grouping — 27 October 2026
+
+- After V107.97, the user requested one daily timetable card per Program or Course, explicitly including Global Admin's Admin-Learn and Admin-Teach views. Extend the dashboard grouping to those readers and their Program/Course timetable pages, with all permitted lessons/classes and actions retained in the information dialog.
+- Use the verified real-account `workspaceAccess.globalAdmin` value; keep projected reader permissions, class filtering, fresh join checks and ordinary/scoped Admin grouping unchanged. No backend, schema or data changes are required.
+- Verify with disposable local fixtures. Keep this follow-up local pending a new deployment request; the V107.97 deployment authorisation below was completed. Do not contact other chats.
 
 # Dashboard and Program mobile refinement release — 27 October 2026
 

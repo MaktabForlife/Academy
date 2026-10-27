@@ -43,3 +43,8 @@
 .academy-shell .workspace-banner>.academy-management-close{position:absolute;top:0;right:0}
 .academy-shell .workspace-banner:has(>.academy-management-close)>.workspace-areas{margin-right:80px}
 @media(max-width:999px){.academy-shell .workspace-banner:has(>.academy-management-close)>.workspace-areas{margin-right:0}.academy-shell .workspace-banner:has(>.academy-management-close)>:is(.activity-identity,.workspace-identity){padding-right:80px}}
+/* Reserve a separate column for Close beside a title that contains Menu. */
+.academy-shell .workspace-banner:has(>.academy-management-close){display:grid!important;grid-template-columns:minmax(0,1fr) 44px;align-items:start;gap:12px}
+.academy-shell .workspace-banner:has(>.academy-management-close)>:is(.activity-identity,.workspace-identity){grid-column:1;grid-row:1;min-width:0;padding-right:0}
+.academy-shell .workspace-banner>.academy-management-close{position:static;grid-column:2;grid-row:1;margin:0}
+.academy-shell .workspace-banner:has(>.academy-management-close)>.workspace-areas{grid-column:1/-1;grid-row:2;margin-right:0}

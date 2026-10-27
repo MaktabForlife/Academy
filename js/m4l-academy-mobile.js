@@ -77,8 +77,8 @@
   if(!isAdmin){const identity=banners.querySelector('.academy-admin-identity');if(identity){identity.replaceWith(...identity.childNodes);}context.replaceChildren();if(curriculum.open)curriculum.close();return;}
   const label=mode.replace('_','-'),description=mode==='ADMIN_LEARN'?'Student class view · read only':mode==='ADMIN_TEACH'?'Teaching within your Admin scope':'Academy management';
   const profile=banners.querySelector('.academy-profile'),name=profile?.querySelector('#academy-header-name,#academy-shell-name');
-  if(profile&&name){let identity=profile.querySelector('.academy-admin-identity');if(!identity){identity=document.createElement('span');identity.className='academy-admin-identity';name.before(identity);identity.append(name);}if(context.parentElement!==identity)identity.append(context);}
-  const text='Admin',hint=label+' · '+description;
+  if(profile&&name){let identity=profile.querySelector('.academy-admin-identity');if(!identity){identity=document.createElement('span');identity.className='academy-admin-identity';name.before(identity);identity.append(name);}if(context.parentElement!==profile)profile.append(context);}
+  const text=data?.globalAdmin||data?.workspaceAccess?.globalAdmin?'Global Admin':'Admin',hint=label+' · '+description;
   context.innerHTML=mode==='ADMIN'?'<span class="academy-admin-badge" title="'+hint+'">'+text+'</span>':'<button type="button" class="academy-admin-badge" data-curriculum-open aria-haspopup="dialog" aria-controls="academy-curriculum-menu" aria-label="'+hint+' · Open Curriculum" title="'+hint+' · Open Curriculum">'+text+' <span aria-hidden="true">⌄</span></button>';
  }
  document.addEventListener('click',event=>{if(event.target.closest?.('[data-workspace-exit],[data-recorder-link]')&&!canLeave())event.preventDefault();});

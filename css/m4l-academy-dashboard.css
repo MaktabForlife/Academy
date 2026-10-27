@@ -82,6 +82,20 @@ body #ad-contents-drawer :is(a,button):focus-visible{outline:3px solid #865694;o
 #dashboard .ad-next-time>strong{font-size:.9375rem;line-height:1.5;margin-top:.25rem}
 #dashboard .ad-next-arrow{display:block;align-self:flex-end;margin-top:auto;font-size:1.125rem;color:#75427f}
 @media(min-width:48rem){#dashboard .ad-next-list{grid-template-columns:repeat(3,minmax(0,1fr))}}
+#dashboard.ad-admin-dashboard .ad-next-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+#dashboard.ad-admin-dashboard .ad-next-row{position:relative;min-height:0;gap:.5rem;padding:.625rem}
+#dashboard.ad-admin-dashboard .ad-next-subject{padding-right:1.125rem}
+#dashboard.ad-admin-dashboard .ad-next-arrow{position:absolute;top:.5rem;right:.625rem;margin:0;line-height:1}
+/* Imtehaan cards show the learning area, register name and date window. */
+#dashboard .ad-assessment-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;max-height:34rem;padding:.25rem;overflow:auto}
+#dashboard .ad-assessment-list>li{min-width:0;border:0}
+#dashboard .ad-assessment-row{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 20px;gap:.375rem .5rem;align-content:start;box-sizing:border-box;height:100%;min-height:44px;padding:.75rem;border:1px solid #ded0e4;border-radius:.75rem;background:#fffcff}
+#dashboard .ad-assessment-program{grid-column:1/-1;font-size:.75rem;line-height:1.4;color:#726777}
+#dashboard .ad-assessment-row>strong{grid-column:1/-1;font-size:.9375rem;line-height:1.4}
+#dashboard .ad-assessment-date{grid-column:1;font-size:.75rem;line-height:1.5;color:#726777}
+#dashboard .ad-assessment-open{grid-column:2;align-self:center;margin:0;color:#75427f;font-size:1.125rem;line-height:1}
+#dashboard .ad-assessment-status{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+#dashboard .ad-assessment-draft{font-size:.6875rem;font-weight:400;color:#79551d}
 #dashboard .ad-tile .ad-tile-open{position:relative;display:inline-flex;align-self:flex-end;align-items:center;justify-content:center;flex:none;width:44px;min-width:44px;height:44px;box-sizing:border-box;margin-top:auto;border:1px solid #dfcfe4;border-radius:50%;background:#f3eaf6;color:#75427f}
 #dashboard .ad-tile-open svg{flex:none}
 #dashboard .ad-open-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}

@@ -1,6 +1,10 @@
-# V107.98 — Admin course website builder
+# V107.99 — Admin course website builder
 
 Add **Course websites** to Admin, opening a course-scoped list with existing websites and templates. Edit all eleven Surah Al Kahf lessons, type new web lessons, arrange images/PDFs, preview and save private drafts. Explicitly publish the reviewed website to the mobile-first student reader. Preserve current login, course permissions, native sessions/recordings/Teacher note PDFs, assessments and download-only course materials. Includes additive split Core/Admin schema upgrades and the matching coordinator/API/website release. [Implementation and release checks](docs/ACADEMY-COURSE-WEBSITE-BUILDER.md).
+
+## V107.98 — Shared header, Menu and Imtehaan cards
+
+Rebuild the shared header to the supplied reference, highlighting only the username. Use the white Menu/hamburger design throughout navigation and keep Close in a separate position. Admin Coming up next shows four compact cards in a 2×2 grid. Dashboard Imtehaan uses two-column cards for published exams and assignments, excluding draft, complete, cancelled and archived registers. Assignment opening/due windows restore Reboot's missing Imtehaan. Global Admin's Admin-Learn and Admin-Teach timetables group each day's lessons into one Program/Course card with full information-dialog details. Preserve current permissions, joining and draft safeguards. [Implementation and verification](docs/ACADEMY-HEADER-MENU-IMTEHAAN-10798.md).
 
 ## V107.97 — Compact dashboards and Program navigation
 

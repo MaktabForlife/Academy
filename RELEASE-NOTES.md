@@ -1,10 +1,14 @@
-# V107.98 — Course websites
+# V107.99 — Course websites
 
 - Add a desktop Website builder under Admin → Course websites, with a scoped list of existing course websites and course templates.
 - Edit the eleven existing Al Kahf lessons as native components, or author another course directly. Support Arabic, ayahs/translations, quotations, lists, word study, reflections, images, source notes and takeaways, plus arranged course PDF/image downloads.
 - Keep drafts private until explicit publication. Preserve exact revision/retry checks, scoped Admin authority, immutable accepted versions, current withdrawal and same-course file membership. Course switching cancels queued work for the prior course; portable copies preserve text when saving fails.
 - Use the existing student login, combined session cards, live-only header joining, recording playback, Teacher note PDFs and assessment tools. Downloads remain in Course materials, with no print controls. Existing Kahf links use the edited website after its first explicit publication; its original PDF publication gate remains in force.
 - Upgrade only the two additive course website tables in each split store, then deploy the matching private coordinator, Development API and Academy website. Preserve V107.97 and all existing data, accepted heads and hosted course publications.
+
+## V107.98 — Shared header, Menu and Imtehaan cards
+
+Rebuild the shared header to the supplied reference, highlighting only the username. Use the white Menu/hamburger design throughout navigation and keep Close in a separate position. Admin Coming up next shows four compact cards in a 2×2 grid. Dashboard Imtehaan uses two-column cards for published exams and assignments, excluding draft, complete, cancelled and archived registers. Assignment opening/due windows restore Reboot's missing Imtehaan. Global Admin's Admin-Learn and Admin-Teach timetables group each day's lessons into one Program/Course card with full information-dialog details. Preserve current permissions, joining and draft safeguards. [Implementation and verification](docs/ACADEMY-HEADER-MENU-IMTEHAAN-10798.md).
 
 # V107.97 — Dashboard and mobile reading refinements
 

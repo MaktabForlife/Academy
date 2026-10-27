@@ -1,5 +1,7 @@
 /* Shared Academy components take the course's quiet, mobile-first appearance. */
-/* Keep the shared account headers above the course's own contents and reading layout. */
+/* Keep the shared account headers above the course's own menu and reading layout. */
+.kahf-course-portal .contents-toggle{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:10px 14px;border:0;border-radius:12px;background:#fffcff;color:#6d3f76;font:700 16px/1.3 Arial,sans-serif}
+.kahf-course-portal .contents-toggle svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
 html{scroll-padding-top:calc(var(--academy-banner-height,180px) + 12px)}
 .kahf-course-portal>.skip-link{z-index:70}
 .kahf-course-portal.academy-shell.academy-connected main{padding:0;margin:0;max-width:none}

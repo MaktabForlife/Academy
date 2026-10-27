@@ -46,7 +46,7 @@ const stamp = event => {
   if (Date.parse(fixtureNow)<result.joinAvailableAt || Date.parse(fixtureNow)>=endsAt || result.status!=='SCHEDULED') delete result.joinUrl;
   return result;
 };
-let deferNext=false, release, hasWorkshops=true, globalAdmin=false, programRole='STUDENT', roomFixture=false, rollupBoundaryFixture=false, mixedAssignmentFixture=false, colourFixture=false, cacheFixture=false, failNext=false, quotaNext=false, warningFixture=false, publicFreeFixture=false,publicCourseFixture=false;
+let deferNext=false, release, hasWorkshops=true, globalAdmin=false, workspace='LEARN', programRole='STUDENT', roomFixture=false, rollupBoundaryFixture=false, mixedAssignmentFixture=false, colourFixture=false, cacheFixture=false, failNext=false, quotaNext=false, warningFixture=false, publicFreeFixture=false,publicCourseFixture=false;
 const publicJoins=[];let remoteLabelsVersion='0',labelChecks=0;
 const fetch = async (_url, options) => {
   fetchUrls.push(_url);
@@ -90,7 +90,7 @@ const fetch = async (_url, options) => {
     {...base,kind:'COURSE',activityId:'COURSE-TEST',activityName:'Course item',title:'Course item',date:'2026-10-06',...(!signedIn?{startTime:'12:00',endTime:'13:00'}:{})},
     {...base,kind:'COURSE',activityId:'COURSE-TEST',title:'Later Course offering',date:'2026-10-07',...(!signedIn?{startTime:'07:30',endTime:'08:30'}:{})},
     {...base,activityId:'CANCELLED',title:'Cancelled item',status:'CANCELLED'}];
-  const result = { success:true,signedIn,globalAdmin:signedIn&&globalAdmin,student:signedIn&&activities.some(item=>item.roles.includes('STUDENT')),startDate:body.startDate||'2026-10-04',endDate:'2026-10-10',warnings:[],
+  const result = { success:true,signedIn,globalAdmin:signedIn&&globalAdmin&&!workspace.startsWith('ADMIN_'),workspaceAccess:{globalAdmin:signedIn&&globalAdmin},student:signedIn&&activities.some(item=>item.roles.includes('STUDENT')),startDate:body.startDate||'2026-10-04',endDate:'2026-10-10',warnings:[],
     activities,personalActivities:signedIn?activities.filter(item=>item.roles.length):[],timetable:homeTimetable.map(event=>{const publicEvent={...event};delete publicEvent.joinUrl;return publicEvent;}),activity:body.id?activities.find(item=>item.id===body.id):null };
   if(!signedIn){
     result.snapshotDate='2026-10-05';result.availableEndDate='2026-12-26';
@@ -163,7 +163,7 @@ const fetch = async (_url, options) => {
 const RealDate = Date;
 class FixtureDate extends RealDate { static now(){return RealDate.parse(fixtureNow);} constructor(...args) { super(...(args.length?args:[fixtureNow])); } }
 // This component fixture supplies its chosen reader perspective. URL and API boundary behavior is tested with the actual workspace module separately.
-window.M4L_ACADEMY_WORKSPACE={commit:()=>false,canonical:()=>'',head:()=>null,readyPublication:async()=>null,classView:()=>null,current:()=> 'LEARN',adminRealm:()=>false,audience:()=>{const explicit=location.hash.match(/\/(learn|teach)(?:\/|$)/);return explicit?explicit[1].toUpperCase():globalAdmin||[programRole].flat().some(role=>['TEACHER','PROGRAM_ADMIN'].includes(role))?'TEACH':'LEARN';}};
+window.M4L_ACADEMY_WORKSPACE={commit:()=>false,canonical:()=>'',head:()=>null,readyPublication:async()=>null,classView:()=>null,current:()=>workspace,adminRealm:()=>workspace.startsWith('ADMIN'),audience:()=>{if(workspace.startsWith('ADMIN_'))return workspace.slice(6);const explicit=location.hash.match(/\/(learn|teach)(?:\/|$)/);return explicit?explicit[1].toUpperCase():globalAdmin||[programRole].flat().some(role=>['TEACHER','PROGRAM_ADMIN'].includes(role))?'TEACH':'LEARN';}};
 const adminMenuScript=await readFile(new URL('../../js/m4l-academy-admin-menu.js',import.meta.url),'utf8');
 vm.runInNewContext(adminMenuScript,{window,document,location,localStorage:{getItem:key=>storage.get(key)||null},Event});
 vm.runInNewContext(script, { window, document, location, history:{replaceState(_state,_title,hash){location.hash=hash;}}, localStorage:{getItem:key=>storage.get(key)||null}, fetch, Event,
@@ -306,6 +306,23 @@ for(const role of ['STUDENT','TEACHER','PROGRAM_ADMIN']){
  else assert.doesNotMatch($('academy-preview-sessions').innerHTML,/2 lessons, 17:30–18:30/);
 }
 globalAdmin=true;await refresh();assert.equal(countPills('academy-preview-sessions'),9,'Global Admin uses the same Program boundaries');
+for(const mode of ['learn','teach']){
+ workspace='ADMIN_'+mode.toUpperCase();await navigate('#timetable/'+mode);await refresh();
+ assert.equal(countPills('academy-sessions'),mode==='learn'?4:3,'Global Admin '+mode+' bundles each authorised Program/Course once per day across rooms and gaps');
+ assert.doesNotMatch($('academy-sessions').innerHTML,/preview-name\">Mishkaat|preview-name\">Fiqh/);
+ clickInfo('academy-sessions',firstInfo('academy-sessions'));
+ assert.equal($('lesson-information-title').textContent,'Reboot');
+ assert.equal(($('lesson-information-body').innerHTML.match(/class="combined-lesson"/g)||[]).length,9);
+ for(const detail of ['Mishkaat','Class one','Class two','Class three','Teacher &lt;two&gt;','After a gap','Contiguous later lesson','23:30–00:30'])assert.ok($('lesson-information-body').innerHTML.includes(detail),detail);
+ assert.doesNotMatch($('lesson-information-body').innerHTML,/Barakah|Other Program/);
+ $('lesson-information').close();
+ await navigate('#activity/PROGRAM/'+activity.id+'/'+mode+'/timetable');
+ assert.equal(countPills('activity-sessions'),2,'Global Admin Program '+mode+' uses one card on each of two days');
+ clickInfo('activity-sessions',firstInfo('activity-sessions'));assert.equal($('lesson-information-title').textContent,'Reboot');assert.equal(($('lesson-information-body').innerHTML.match(/class="combined-lesson"/g)||[]).length,9);$('lesson-information').close();
+ await navigate('#activity/COURSE/COURSE-BARAKAH/'+mode+'/timetable');assert.equal(countPills('activity-sessions'),1);clickInfo('activity-sessions',firstInfo('activity-sessions'));assert.equal($('lesson-information-title').textContent,'Barakah');assert.match($('lesson-information-body').innerHTML,/Teacher C|15:00–16:00/);assert.doesNotMatch($('lesson-information-body').innerHTML,/Reboot|Other Program/);$('lesson-information').close();
+}
+globalAdmin=false;workspace='ADMIN_TEACH';await navigate('#timetable/teach');await refresh();assert.equal(countPills('academy-sessions'),8,'A scoped Admin keeps the existing assigned/contiguous lesson grouping');
+workspace='LEARN';await navigate('#overview');
 globalAdmin=false;rollupBoundaryFixture=false;
 
 // Every scoped curriculum uses the same rule, including an Admin's own lessons.

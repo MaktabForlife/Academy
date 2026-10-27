@@ -131,13 +131,13 @@ try{
  assert.equal(await page.locator('#ad-navigation').getByRole('link',{name:'Visit website',exact:false}).count(),1);
  assert.equal(await page.locator('#ad-navigation').getByRole('link',{name:'Surahs and Duas Tracker',exact:true}).count(),1);
  await page.locator('#ad-assessments .ad-assessment-row').first().waitFor();
- assert.deepEqual(await page.locator('#ad-assessments strong').allTextContents(),['Current Imtihaan','Upcoming Imtihaan']);
- assert.deepEqual(await page.locator('#ad-assessments .ad-assessment-status').allTextContents(),['Current','Upcoming']);
+ assert.deepEqual(await page.locator('#ad-assessments strong').allTextContents(),['Past Imtihaan','Current Imtihaan','Assignment','Upcoming Imtihaan']);
+ assert.deepEqual(await page.locator('#ad-assessments .ad-assessment-status').allTextContents(),['Current','Current','Upcoming','Upcoming']);
  const cachedAssessmentKeys=await page.evaluate(()=>Object.keys(sessionStorage).filter(key=>key.includes('dashboard')&&key.includes('assessments')).flatMap(key=>(JSON.parse(sessionStorage.getItem(key)).data.assessments||[]).flatMap(row=>Object.keys(row))));
- assert.ok(cachedAssessmentKeys.length);assert.ok(cachedAssessmentKeys.every(key=>['activityKey','title','registerId','phaseId','phaseName','registerStatus','examDate','published'].includes(key)),'Only timetable summary metadata enters the dashboard cache');
+ assert.ok(cachedAssessmentKeys.length);assert.ok(cachedAssessmentKeys.every(key=>['activityKey','title','registerId','phaseId','phaseName','registerStatus','examDate','assessmentKind','availableFrom','dueAt','timezone','published'].includes(key)),'Only timetable summary metadata enters the dashboard cache');
  const fyaBounds=await page.locator('.ad-attention').boundingBox(),assessmentBounds=await page.locator('.ad-assessments').boundingBox();
  assert.ok(assessmentBounds.y>=fyaBounds.y+fyaBounds.height,'Assessments is below FYA');
- await page.locator('#ad-assessments .ad-assessment-row').first().click();
+ await page.locator('#ad-assessments .ad-assessment-row').filter({hasText:'Current Imtihaan'}).first().click();
  await page.locator('#as-host .as-schedule-table tbody tr').first().waitFor();
  assert.equal(await page.locator('#as-host .as-schedule-table tbody tr').count(),2,'The link opens this Imtihaan timetable, including both dates');
  await page.locator('[data-page-home]').click();await dashboard().waitFor();
@@ -176,8 +176,8 @@ try{
  assert.equal(new URL(page.url()).hash,'#timetable/teach','Normal entry gives teaching priority over learner access');
  await page.locator('#ad-plans a').first().waitFor();
  await page.locator('#ad-assessments .ad-assessment-row').first().waitFor();
- assert.deepEqual(await page.locator('#ad-assessments strong').allTextContents(),['Current Imtihaan','Upcoming Imtihaan','Draft Imtihaan']);
- await page.locator('#ad-assessments .ad-assessment-row').first().click();
+ assert.deepEqual(await page.locator('#ad-assessments strong').allTextContents(),['Past Imtihaan','Current Imtihaan','Assignment','Upcoming Imtihaan']);
+ await page.locator('#ad-assessments .ad-assessment-row').filter({hasText:'Current Imtihaan'}).first().click();
  await page.locator('#as-host .as-schedule-table tbody tr').first().waitFor();
  assert.equal(await page.locator('#as-host .as-schedule-table tbody tr').count(),2);
  await page.locator('[data-page-home]').click();await dashboard().waitFor();
@@ -232,8 +232,8 @@ try{
  checks.push('Admin reviews only absent submitted registers and submitted plans; current corrections remove resolved absence flags; cached summaries contain no learners or marks');
  assert.equal(await page.locator('#ad-assessment-title').innerText(),'Imtehaan');
  await page.locator('#ad-assessments .ad-assessment-row').first().waitFor();
- assert.deepEqual(await page.locator('#ad-assessments strong').allTextContents(),['Current Imtihaan','Upcoming Imtihaan','Draft Imtihaan']);
- await page.locator('#ad-assessments .ad-assessment-row').first().click();
+ assert.deepEqual(await page.locator('#ad-assessments strong').allTextContents(),['Past Imtihaan','Current Imtihaan','Assignment','Upcoming Imtihaan']);
+ await page.locator('#ad-assessments .ad-assessment-row').filter({hasText:'Current Imtihaan'}).first().click();
  await page.locator('#as-host .as-schedule-table tbody tr').first().waitFor();
  assert.equal(await page.locator('#as-host .as-schedule-table tbody tr').count(),2);
  assert.equal(await page.locator('#as-host .as-timetable h3').innerText(),'Current Imtihaan - All classes');
@@ -268,7 +268,7 @@ try{
  assert.equal(await page.locator('#ad-timetable-host .upcoming-day').count(),7);
  await page.locator('#ad-attention [data-ad-note]').first().waitFor();
  assert.equal(await page.locator('#ad-attention [data-ad-note]').count(),1,'The saved Class Note is available before the background response');
- assert.deepEqual(await page.locator('#ad-assessments strong').allTextContents(),['Current Imtihaan','Saved upcoming Imtihaan'],'Saved Imtihaan appear before the background response');
+ assert.deepEqual(await page.locator('#ad-assessments strong').allTextContents(),['Past Imtihaan','Current Imtihaan','Assignment','Saved upcoming Imtihaan'],'Saved Imtihaan appear before the background response');
  await service.run('post',fixture.post(view,{body:'New preparation posted while the saved dashboard is visible.'}));
  holdEntrance=false;releaseEntrance();releaseEntrance=null;
  await page.waitForFunction(()=>document.querySelectorAll('#ad-attention [data-ad-note]').length===2);
@@ -344,7 +344,7 @@ try{
  assert.deepEqual(priority,['/academy/admin/#administration','/academy/#timetable/teach','/academy/#timetable/learn','/academy/admin/#administration']);
  checks.push('Coming up next has one linked row per authorised Program/Course, ordered by start time, with subject/module, area and time; duplicates, ended and cancelled lessons are excluded, and rows fit desktop and phone screens.');
  checks.push('Normal landing uses Admin, then Teach, then Learn, regardless of a previously remembered lower workspace. Admin Coming up next shows Courses only, while active Program and Course management tiles remain available.');
- checks.push('Assessments sits below FYA and groups current/upcoming Imtihaan dates into linked timetables; learners see released schedules, Teachers also see their drafts, and saved summaries update in the background. Past, cancelled, completed, assignment and unauthorised records stay out.');
+ checks.push('Imtehaan sits below FYA and groups all published dated exams and assignment windows into linked timetables, including past unfinished registers. Draft, cancelled, completed, archived and unauthorised records stay out; saved summaries update in the background.');
  assert.equal(calls.some(call=>/class-notes\/(post|revise|withdraw)|enrolment\/(register|request-save)|planning\/(save|submit)/.test(call.path)),false,'Dashboard reads must not write records');
  assert.deepEqual(errors,[]);
  await writeFile(output+'/verification.json',JSON.stringify({success:true,checks,errors,calls},null,2));

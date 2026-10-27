@@ -1,6 +1,6 @@
-# V107.98 — Academy Course websites
+# V107.99 — Academy Course websites
 
-The user authorised connecting and deploying the desktop Admin Website builder on 27 October 2026. Implementation is on `feature/academy-course-website-builder`, incorporating V107.97 (`f2174a5f`).
+The user authorised connecting and deploying the desktop Admin Website builder on 27 October 2026. Implementation is on `feature/academy-course-website-builder`, incorporating V107.98 (`8e502ba4`).
 
 ## Admin workflow
 
