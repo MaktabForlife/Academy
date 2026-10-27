@@ -1,3 +1,7 @@
+# V107.96 — Live course joining and recording controls
+
+Add Join now beside the course title on phones and in the desktop course header, only while the scheduled lesson is live and a join reference is available. A local clock updates the header and session cards at the existing early-join, start and end boundaries without polling the course feed. Joining still requires the existing fresh API permission/window check. Use uniform highlighted recording controls, dates without visible years, and no time on finished sessions, including older media in the course timezone. Reuse the app header Refresh through the shared content-refresh hook. Preserve account cleanup, publication gates and download placement. No migration, live data/settings change or private coordinator deployment.
+
 # V107.95 — Surah Al Kahf course refinements
 
 Use one card per session for dates, times, joining, recordings and notes, with two columns on phones. Remove the home page schedule strip and its two repeated heading rows. Add a small BOOTCAMP label beneath the course name and make Contents text larger with compact rows and 44px touch targets. Local checks verify that joining and recording actions remain attached to the correct session when older media is loaded. Existing account, course permissions, publication gates and Course materials downloads remain in place. The user confirmed live recordings and PDF downloads worked before this release and explicitly requested deployment. No schema, live data or private coordinator changes.

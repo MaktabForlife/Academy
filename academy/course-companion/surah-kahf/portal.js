@@ -8,12 +8,14 @@
  const course=new URLSearchParams(location.search).get('course')||'';
  const activityKey='COURSE:'+course;
  const owner=token();
- let stopped=false,feed=null,sessionCards=[],assessmentLoading=null,assessmentOpen=false,assessmentRequest=0,fetching=false;
+ let stopped=false,feed=null,sessionCards=[],sessionClockTimer,assessmentLoading=null,assessmentOpen=false,assessmentRequest=0,fetching=false;
+ const headerJoinButtons=[$('course-join-now'),$('sidebar-join-now')];
  const blobs=new Set(),controller=new AbortController();
  window.KAHF_EXTRA_VIEWS=['assessments'];
  function active(){return !stopped&&owner===token()&&Boolean(owner);}
  function end(message='Your Academy account has changed. Open the course again from your dashboard.'){
   stopped=true;controller.abort();window.M4L_LESSON_MEDIA?.reset();window.M4L_ACADEMY_ASSESSMENTS?.reset();
+  clearTimeout(sessionClockTimer);for(const button of headerJoinButtons){button.hidden=true;delete button.dataset.joinSession;}
   document.querySelectorAll('dialog[open]').forEach(dialog=>dialog.close());
   document.body.classList.add('course-loading');$('main').replaceChildren();$('sidebar-contents').replaceChildren();$('dialog-contents').replaceChildren();
   window.KAHF_LESSONS=null;window.KAHF_STORAGE_SCOPE=null;feed=null;sessionCards=[];
@@ -33,10 +35,10 @@
   return data;
  }
  const isoDate=date=>new Date(date+'T12:00:00Z');
- const dateLabel=date=>new Intl.DateTimeFormat('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(isoDate(date));
+ const dateLabel=date=>new Intl.DateTimeFormat('en-GB',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'}).format(isoDate(date));
  function assetsHTML(media){return (media?.assets||[]).filter(a=>['PDF','YOUTUBE','MP4'].includes(a.kind)).map(a=>{
   const expired=a.kind==='MP4'&&(a.expired||Date.parse(a.expiresAt)<=Date.now());
-  return `<button type="button" class="subtle-button portal-attachment" data-attachment="${escape(a.id)}" data-lesson="${escape(media.id)}" ${expired?'disabled':''}>${a.kind==='PDF'?'▤':'▷'} ${escape(a.name||a.filename||(a.kind==='PDF'?'Lesson notes':'Recording'))}${expired?' · Expired':''}</button>`;
+  return `<button type="button" class="subtle-button portal-attachment${a.kind==='PDF'?'':' portal-recording'}" data-attachment="${escape(a.id)}" data-lesson="${escape(media.id)}" ${expired?'disabled':''}><span class="portal-attachment-icon" aria-hidden="true">${a.kind==='PDF'?'▤':'▷'}</span><span class="portal-attachment-label">${escape(a.name||a.filename||(a.kind==='PDF'?'Lesson notes':'Recording'))}${expired?' · Expired':''}</span></button>`;
  }).join('');}
  function renderMaterials(){
   const schedule=feed.courseCompanion?.schedule?.sessions||[];
@@ -69,13 +71,22 @@
   finally{fetching=false;}
  }
  function renderSessionCards(){
+  clearTimeout(sessionClockTimer);if(!active())return;
+  const now=Date.now(),parts=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:feed.timezone||'Africa/Johannesburg',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(now).map(part=>[part.type,part.value]));
+  const today=`${parts.year}-${parts.month}-${parts.day}`,clock=`${parts.hour}:${parts.minute}`;
   $('live-sessions').innerHTML=sessionCards.map((row,index)=>{
-   const opens=row.status==='SCHEDULED'&&row.joinKey&&Date.now()>=row.joinAvailableAt&&Date.now()<row.endsAt;
-   const status=!row.status?'':row.status!=='SCHEDULED'?(row.holidayName||row.status):Date.now()>=row.endsAt?'Session ended':row.joinKey?'Joining opens five minutes before the session.':'Joining is unavailable for this session.';
+   const endDate=row.endTime&&row.startTime&&row.endTime<=row.startTime?new Date(isoDate(row.date).getTime()+86400000).toISOString().slice(0,10):row.date;
+   const ended=Number.isFinite(row.endsAt)?now>=row.endsAt:endDate<today||endDate===today&&Boolean(row.endTime&&row.endTime<=clock);
+   const opens=row.status==='SCHEDULED'&&row.joinKey&&now>=row.joinAvailableAt&&now<row.endsAt;
+   const status=!row.status?'':row.status!=='SCHEDULED'?(row.holidayName||row.status):ended?'Session ended':row.joinKey?'Joining opens five minutes before the session.':'Joining is unavailable for this session.';
    const joinAction=opens?`<button class="button button-primary" data-join-session="${index}">Join session ↗</button>`:status?`<span class="session-availability">${escape(status)}</span>`:'';
    const files=row.mediaItems.map(assetsHTML).join('');
-   return `<article class="session-card portal-session"><div class="session-details"><span class="eyebrow">SESSION ${String(index+1).padStart(2,'0')}</span><h3><time datetime="${escape(row.date)}">${escape(dateLabel(row.date))}</time></h3><p class="portal-session-title">${escape(row.title||row.activityName||feed.activityName)}</p>${row.startTime?`<p class="portal-session-time">${escape(row.startTime)}${row.endTime?'–'+escape(row.endTime):''}</p>`:''}${row.teacherName?`<p>${escape(row.teacherName)}</p>`:''}${joinAction?`<div class="portal-session-status">${joinAction}</div>`:''}${row.mediaItems.map(media=>media.summary?`<p>${escape(media.summary)}</p>`:'').join('')}<div class="portal-file-list" aria-label="Recordings and lesson notes">${files||'<span class="session-availability">Materials will appear here when published.</span>'}</div></div></article>`;
+   return `<article class="session-card portal-session"><div class="session-details"><span class="eyebrow">SESSION ${String(index+1).padStart(2,'0')}</span><h3><time datetime="${escape(row.date)}">${escape(dateLabel(row.date))}</time></h3><p class="portal-session-title">${escape(row.title||row.activityName||feed.activityName)}</p>${row.startTime&&!ended?`<p class="portal-session-time">${escape(row.startTime)}${row.endTime?'–'+escape(row.endTime):''}</p>`:''}${row.teacherName?`<p>${escape(row.teacherName)}</p>`:''}${joinAction?`<div class="portal-session-status">${joinAction}</div>`:''}${row.mediaItems.map(media=>media.summary?`<p>${escape(media.summary)}</p>`:'').join('')}<div class="portal-file-list" aria-label="Recordings and lesson notes">${files||'<span class="session-availability">Materials will appear here when published.</span>'}</div></div></article>`;
   }).join('')||'<p class="info-note">'+(feed?.courseCompanion?.schedule?.unavailable?'Your course timetable is temporarily unavailable. Please refresh.':'No course sessions or lesson media have been published yet.')+'</p>';
+  const liveIndex=sessionCards.findIndex(row=>row.status==='SCHEDULED'&&row.joinKey&&now>=row.startsAt&&now<row.endsAt);
+  for(const button of headerJoinButtons){button.hidden=liveIndex<0;if(liveIndex<0)delete button.dataset.joinSession;else button.dataset.joinSession=String(liveIndex);}
+  const transitions=sessionCards.filter(row=>row.status==='SCHEDULED').flatMap(row=>[row.endsAt,...(row.joinKey?[row.joinAvailableAt,row.startsAt]:[])]).filter(time=>Number.isFinite(time)&&time>now);
+  if(transitions.length&&document.visibilityState==='visible')sessionClockTimer=setTimeout(()=>{if(active()&&document.visibilityState==='visible')renderSessionCards();},Math.min(2147483647,Math.min(...transitions)-now+1));
  }
  async function join(index,button){
   const row=sessionCards[index];if(!row?.joinKey||button.disabled)return;
@@ -104,7 +115,7 @@
  async function assessments(){
   if(assessmentOpen||!active())return;const requestId=++assessmentRequest,host=$('kahf-assessments');host.textContent='Opening assessments…';
   try{
-   assessmentLoading??=(async()=>{for(const src of ['/js/vendor/pdf-lib-1.17.1.min.js?v=106.82','/js/m4l-assessment-reports.js?v=107.95','/js/m4l-assessment-register.js?v=107.95','/js/m4l-imtihaan-export.js?v=107.95','/js/m4l-academy-assessments.js?v=107.95'])await loadScript(src);})();
+   assessmentLoading??=(async()=>{for(const src of ['/js/vendor/pdf-lib-1.17.1.min.js?v=106.82','/js/m4l-assessment-reports.js?v=107.96','/js/m4l-assessment-register.js?v=107.96','/js/m4l-imtihaan-export.js?v=107.96','/js/m4l-academy-assessments.js?v=107.96'])await loadScript(src);})();
    await assessmentLoading;if(!active()||location.hash!=='#assessments'||requestId!==assessmentRequest)return;
    assessmentOpen=true;$('view-assessments').classList.add('active');
    await window.M4L_ACADEMY_ASSESSMENTS.open({hostId:'kahf-assessments',view:boundary?.audience()==='TEACH'?'teacher':'learner',activityKey,kind:''});

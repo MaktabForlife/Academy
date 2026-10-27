@@ -13,17 +13,18 @@ function element(id=''){
  setAttribute:(k,v)=>attrs.set(k,String(v)),getAttribute:k=>attrs.get(k),removeAttribute:k=>attrs.delete(k),hasAttribute:k=>attrs.has(k),
  querySelector:()=>element(),querySelectorAll:()=>[],replaceChildren(){this.textContent='';this.innerHTML='';},focus(){},close(){this.open=false;},showModal(){this.open=true;},contains:()=>false,closest:()=>null,after(){},append(){},click(){},remove(){}};
 }
-function fixture({session='actor-one',fetcher=async()=>Response.json({success:false,error:'Unavailable'},{status:503})}={}){
+function fixture({session='actor-one',now=Date.now(),fetcher=async()=>Response.json({success:false,error:'Unavailable'},{status:503})}={}){
  const elements=new Map([...html.matchAll(/id="([^"]+)"/g)].map(m=>[m[1],element(m[1])])),storage=new Map([['m4l_account_token',session]]),handlers=new Map(),documentHandlers=new Map(),calls=[];
  const body=element('body');body.classList.add('course-loading');
  const location=new URL('https://academy.invalid/academy/course-companion/surah-kahf/?course=kahf-test&workspace=LEARN#overview');location.reload=()=>{};
  const document={body,documentElement:element(),visibilityState:'visible',getElementById:id=>elements.get(id),querySelector:s=>s==='main'?elements.get('main'):element(),querySelectorAll:()=>[],createElement:()=>element(),addEventListener:(type,fn)=>{const list=documentHandlers.get(type)||[];list.push(fn);documentHandlers.set(type,list);}};
  const window={location,M4L_CONFIG:{API_BASE:'https://api.invalid'},M4L_ACADEMY_WORKSPACE:{readyPublication:async()=>{},homeUrl:()=>'/academy/#timetable/learn',audience:()=>'LEARN'},M4L_LESSON_MEDIA:{reset(){},canLeave:()=>true,openAttachment(){}},addEventListener(type,fn){const list=handlers.get(type)||[];list.push(fn);handlers.set(type,list);},dispatchEvent(event){for(const fn of handlers.get(event.type)||[])fn(event);},scrollTo(){}};
- const objectUrls=[],downloads=[];
+ const objectUrls=[],downloads=[],timers=new Map();let clock=now,timerId=0;
+ class TestDate extends Date{static now(){return clock;}}
  class TestURL extends URL{static createObjectURL(blob){const url='blob:fixture-'+objectUrls.length;objectUrls.push({url,blob,revoked:false});return url;}static revokeObjectURL(url){const entry=objectUrls.find(e=>e.url===url);if(entry)entry.revoked=true;}}
  document.createElement=()=>({...element(),click(){downloads.push({href:this.href,name:this.download});}});
- const context=vm.createContext({window,document,location,history:{replaceState(_,__,hash){location.hash=hash;}},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,String(v))},CustomEvent,Event,DOMException,AbortController,URL:TestURL,URLSearchParams,Blob,Response,requestAnimationFrame:fn=>fn(),setTimeout:()=>1,fetch:async(url,options)=>{calls.push({url,options});return fetcher(url,options);}});
- return {elements,storage,window,body,location,context,calls,objectUrls,downloads,click(target){for(const fn of documentHandlers.get('click')||[])fn({target,preventDefault(){}});},run:()=>vm.runInContext(bridge,context),reader:()=>vm.runInContext(reader,context)};
+ const context=vm.createContext({window,document,location,history:{replaceState(_,__,hash){location.hash=hash;}},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,String(v))},CustomEvent,Event,DOMException,AbortController,URL:TestURL,URLSearchParams,Blob,Response,Date:TestDate,requestAnimationFrame:fn=>fn(),setTimeout:(fn,delay)=>{const id=++timerId;timers.set(id,{fn,at:clock+delay});return id;},clearTimeout:id=>timers.delete(id),fetch:async(url,options)=>{calls.push({url,options});return fetcher(url,options);}});
+ return {elements,storage,window,body,location,context,calls,objectUrls,downloads,timers,advance(ms){clock+=ms;for(const [id,timer] of [...timers])if(timer.at<=clock){timers.delete(id);timer.fn();}},click(target){for(const fn of documentHandlers.get('click')||[])fn({target,preventDefault(){}});},run:()=>vm.runInContext(bridge,context),reader:()=>vm.runInContext(reader,context)};
 }
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 const feed=()=>({success:true,activityName:'Surah Al Kahf',lessons:[],sessions:[],courseFiles:null,courseCompanion:{lessons:SURAH_KAHF_LESSONS,readerKey:'verified-course-owner',pdf:{lessonId:'book',assetId:'pdf'}}});
@@ -31,6 +32,7 @@ test('the static Academy package holds a shell without the protected readings or
  for(const name of ['course-content.js','verses.js','assets/surah-al-kahf-course.pdf','assets/verses.json'])assert.equal(existsSync(new URL(name,root)),false);
  assert.doesNotMatch(html,/Whoever memorises ten|booklet p\.|view the original|#page=/i);
  assert.match(html,/data-dashboard/);assert.match(html,/m4l-academy-read-cache\.js\?v=/);
+ assert.match(html,/id="refresh-materials" data-page-content-refresh/);
  assert.ok(html.indexOf('m4l-academy-workspace.js')<html.indexOf('m4l-academy-read-cache.js')&&html.indexOf('m4l-academy-read-cache.js')<html.indexOf('src="portal.js'));
  assert.match(html,/data-course-pdf download/);assert.doesNotMatch(html,/id="print-reading"|#i-print|download or print|Open \/ print/i);
  const materials=html.slice(html.indexOf('id="view-resources"'),html.indexOf('id="view-assessments"'));
@@ -45,12 +47,34 @@ test('four published course sessions and their lesson media render together with
  const data=feed(),dates=['2026-10-18','2026-10-25','2026-11-01','2026-11-08'];
  data.courseCompanion.schedule={sessions:dates.map((date,index)=>({kind:'COURSE',activityId:'kahf-test',date,title:'Surah Al Kahf',startTime:'19:00',endTime:'20:00',status:'SCHEDULED',mediaSessionKey:'session-'+index,endsAt:Date.parse(date+'T18:00:00Z')}))};
  data.sessions=dates.slice(0,2).map((date,index)=>({sessionKey:'session-'+index,date,media:{id:'media-'+index,assets:[{id:'recording-'+index,kind:'YOUTUBE',name:'Session recording'}]}}));
- const f=fixture({fetcher:async()=>Response.json(data)});f.run();await tick();await tick();
+ const f=fixture({now:Date.parse('2026-10-27T12:00:00Z'),fetcher:async()=>Response.json(data)});f.run();await tick();await tick();
  assert.equal(f.calls.length,1);assert.equal((f.elements.get('live-sessions').innerHTML.match(/<article /g)||[]).length,4);assert.doesNotMatch(html,/id="live-timetable"|id="lesson-media-grid-title"/);
  assert.match(f.elements.get('live-sessions').innerHTML,/recording-0/);assert.match(f.elements.get('live-sessions').innerHTML,/recording-1/);assert.match(f.elements.get('live-sessions').innerHTML,/Materials will appear here when published/);assert.doesNotMatch(f.elements.get('live-sessions').innerHTML,/\|\||undefined/);
  assert.doesNotMatch(html,/week-previous|week-next|Previous week|Next week/);
- const cards=f.elements.get('live-sessions').innerHTML.split('</article>');assert.match(cards[0],/2026-10-18/);assert.match(cards[0],/19:00–20:00/);assert.match(cards[0],/recording-0/);assert.doesNotMatch(cards[0],/recording-1/);assert.match(cards[1],/recording-1/);
+ const cards=f.elements.get('live-sessions').innerHTML.split('</article>');assert.match(cards[0],/2026-10-18/);assert.doesNotMatch(cards[0],/portal-session-time/);assert.match(cards[2],/19:00–20:00/);assert.match(cards[0],/recording-0/);assert.doesNotMatch(cards[0],/recording-1/);assert.match(cards[1],/recording-1/);
  const overview=html.slice(html.indexOf('id="view-overview"'),html.indexOf('id="view-reading"'));assert.doesNotMatch(overview,/Four Sundays|7:00 PM SAST|18 Oct – 8 Nov 2026/);
+});
+test('the header joins only during the live lesson while cards open early and hide finished times automatically',async()=>{
+ const data=feed(),now=Date.parse('2026-10-27T16:54:00Z');
+ data.courseCompanion.schedule={sessions:[{date:'2026-10-27',title:'Current session',startTime:'19:00',endTime:'20:00',status:'SCHEDULED',joinKey:'live-join',joinAvailableAt:now+60000,startsAt:now+6*60000,endsAt:now+66*60000,mediaSessionKey:'current'}]};
+ data.sessions=[{sessionKey:'current',date:'2026-10-27',media:{id:'current-media',assets:[{id:'recording',kind:'YOUTUBE',name:'Session recording'}]}}];
+ const opened=[],f=fixture({now,fetcher:async url=>Response.json(String(url).endsWith('/join')?{success:true,joinUrl:'https://session.invalid/live'}:data)});
+ f.window.open=()=>({opener:null,location:{replace:url=>opened.push(url)},close(){}});
+ f.run();await tick();await tick();const card=()=>f.elements.get('live-sessions').innerHTML,buttons=['course-join-now','sidebar-join-now'].map(id=>f.elements.get(id));
+ assert.equal(buttons.every(button=>button.hidden),true);assert.doesNotMatch(card(),/data-join-session/);assert.match(card(),/19:00–20:00/);assert.doesNotMatch(card().match(/<time[^>]*>([^<]+)<\/time>/)[1],/2026/);
+ f.advance(60001);assert.match(card(),/data-join-session="0"/);assert.equal(buttons.every(button=>button.hidden),true);
+ f.advance(5*60000);assert.equal(buttons.every(button=>!button.hidden&&button.dataset.joinSession==='0'),true);assert.equal(f.calls.length,1,'Clock changes never poll the course feed');
+ f.click({closest:selector=>selector==='[data-join-session]'?buttons[0]:null});await tick();await tick();assert.deepEqual(opened,['https://session.invalid/live']);assert.deepEqual(JSON.parse(f.calls[1].options.body),{joinKey:'live-join',date:'2026-10-27'});
+ f.advance(60*60000);assert.equal(buttons.every(button=>button.hidden&&!button.dataset.joinSession),true);assert.doesNotMatch(card(),/data-join-session|portal-session-time/);assert.match(card(),/Session ended/);assert.match(card(),/portal-recording/);assert.match(card(),/data-attachment="recording"/);
+});
+test('older media without timetable instants hides finished times in the course timezone',async()=>{
+ const data=feed();data.timezone='Africa/Johannesburg';data.sessions=[{sessionKey:'ended',date:'2026-10-27',title:'Ended',startTime:'18:00',endTime:'19:00'},{sessionKey:'ongoing',date:'2026-10-27',title:'Ongoing',startTime:'19:00',endTime:'20:00'}];
+ const f=fixture({now:Date.parse('2026-10-27T17:30:00Z'),fetcher:async()=>Response.json(data)});f.run();await tick();await tick();const cards=f.elements.get('live-sessions').innerHTML.split('</article>');assert.doesNotMatch(cards[0],/portal-session-time/);assert.match(cards[1],/19:00–20:00/);assert.equal(f.elements.get('course-join-now').hidden,true);
+});
+test('an account switch removes the live header action and its scheduled clock update',async()=>{
+ const data=feed(),now=Date.now();data.courseCompanion.schedule={sessions:[{date:'2026-10-27',status:'SCHEDULED',joinKey:'current',startsAt:now-1000,endsAt:now+60000}]};
+ const f=fixture({now,fetcher:async()=>Response.json(data)});f.run();await tick();await tick();assert.equal(f.elements.get('course-join-now').hidden,false);assert.equal(f.timers.size,1);
+ f.storage.set('m4l_account_token','actor-two');f.window.dispatchEvent(Object.assign(new Event('storage'),{key:'m4l_account_token'}));assert.equal(f.elements.get('course-join-now').hidden,true);assert.equal(f.elements.get('sidebar-join-now').hidden,true);assert.equal(f.timers.size,0);f.advance(60001);assert.equal(f.elements.get('main').innerHTML,'');assert.equal(f.calls.length,1);
 });
 test('combined cards keep join and recording actions attached to the right session after sorting older media',async()=>{
  const data=feed(),now=Date.now(),date=new Date(now).toISOString().slice(0,10);

@@ -9,6 +9,10 @@ html{scroll-padding-top:calc(var(--academy-banner-height,180px) + 12px)}
 .course-navigation-heading>a small,.kahf-course-portal .sidebar-subtitle{font:500 11px/1.3 var(--sans);letter-spacing:1.5px;color:var(--plum)}
 .kahf-course-portal .overview-page .hero h1{margin-top:0}
 .course-navigation-heading .subtle-button{font-size:12px}
+.course-navigation-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.kahf-course-portal .course-join-now{min-height:44px;padding:8px 10px;font-size:12px;white-space:nowrap}
+.sidebar-heading .course-join-now{margin-top:12px}
+@media(max-width:480px){.course-navigation-heading:has(#course-join-now:not([hidden])) .course-contents-label{display:none}.course-navigation-heading:has(#course-join-now:not([hidden])) .contents-toggle{width:44px;padding:8px}}
 .course-loading>.course-navigation-heading{display:none!important}
 .kahf-course-portal .academy-date-box{flex:none;display:grid;gap:4px;padding:5px 10px;border:1px solid #e2d4e7;border-radius:10px;background:#f7f1f9;color:#58305f}
 .kahf-course-portal .academy-date-box>div{text-align:right;font:500 12px/1.3 Arial,sans-serif}
@@ -45,6 +49,10 @@ html{scroll-padding-top:calc(var(--academy-banner-height,180px) + 12px)}
 #view-sessions .portal-session .session-availability{font-size:12px;line-height:1.6}
 #view-sessions .portal-session .portal-file-list{display:grid;gap:8px;margin-top:auto;padding-top:16px}
 #view-sessions .portal-session :is(.portal-attachment,.button){width:100%;min-width:0;min-height:44px;padding:10px 8px;font-size:13px;white-space:normal;line-height:1.4}
+#view-sessions .portal-session .portal-recording{width:min(100%,160px);height:56px;min-height:56px;gap:8px;padding:8px;font-weight:600;background:#eee3eb;border-color:#b998b2;color:var(--plum-dark);box-shadow:0 2px 0 #69416512}
+#view-sessions .portal-recording:not(:disabled):hover{background:#e5d3e2;border-color:#8e6385}
+#view-sessions .portal-recording .portal-attachment-icon{display:grid;place-items:center;width:22px;height:22px;flex:none;border-radius:50%;background:var(--plum);color:#fff;font-size:13px}
+#view-sessions .portal-recording .portal-attachment-label{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;min-width:0;line-height:1.4}
 #view-sessions .portal-session [data-join-session]{margin-top:auto}
 #view-sessions .portal-session-status{padding-bottom:12px}
 #view-sessions .section-heading h2{font-size:30px}

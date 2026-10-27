@@ -1,3 +1,7 @@
+# V107.96 — Live course joining and recording controls
+
+Show Join now beside the Surah Al Kahf course title only during an authorised live lesson, updating automatically at the lesson boundaries. Session cards retain their five-minute early join window. Use consistent highlighted recording buttons, omit years from visible session dates, and hide finished session times. The shared app header owns Refresh. Preserve existing login, fresh join checks, published materials and Course materials downloads; no database or coordinator changes.
+
 # V107.95 — Surah Al Kahf course refinements
 
 Combine each published session's date, time, join action, recordings and lesson notes in one card, retaining two columns on phones. Keep session details on those cards and simplify the home page: remove the two repeated heading rows, and show BOOTCAMP beneath the course name. Enlarge Contents text and reduce row spacing while retaining 44px touch targets. Preserve existing login, permissions and downloads through Course materials. No database or private coordinator changes.

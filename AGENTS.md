@@ -1,3 +1,9 @@
+# Surah Kahf live joining release — 27 October 2026
+
+- The user requested deployment of the prepared recording-button/date/finished-time refinements and removal of the duplicate visible Refresh control, and reiterated that a Join lesson action should appear in the course header only while the link is live. Release V107.96 from `feature/surah-kahf-course-companion`, preserving V107.95.
+- Deploy the matching Development API and Academy website through the existing workflow. Preserve fresh join permission/time checks, current login/account boundaries, publication gates, two phone columns and downloads only through Course materials. No migration, live material upload, timetable publication, data/settings change or private coordinator deployment is required.
+- Use disposable local fixtures for checks, including live-only header timing and account cleanup. Keep hosted verification to release/static metadata and one readiness check under ../AGENTS.md. Future deployments require fresh user authorisation.
+
 # Surah Kahf course refinement release — 27 October 2026
 
 - The user explicitly requested deployment after reviewing the combined session cards, removal of home page schedule/duplicate heading rows, small BOOTCAMP course label and more readable, compact Contents menu. Release V107.95 from `feature/surah-kahf-course-companion`, preserving V107.94.

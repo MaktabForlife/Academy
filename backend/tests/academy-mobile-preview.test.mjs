@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import preview from '../tools/mobile-first-preview/worker.mjs';
 import {mobileFirstFixture} from '../tools/mobile-first-preview/fixture.mjs';
 const origin='https://academy-mobile-first-preview.maktab4life.workers.dev';
-const configure=f=>Object.assign(f.env,{ACADEMY_DEPLOYMENT_KIND:'ISOLATED_PREVIEW',PREVIEW_SYNTHETIC_ONLY:'1',PREVIEW_ORIGIN:origin,PREVIEW_VERSION:'107.95',ALLOWED_ORIGINS:origin,PREVIEW_PIN:'1234'});
+const configure=f=>Object.assign(f.env,{ACADEMY_DEPLOYMENT_KIND:'ISOLATED_PREVIEW',PREVIEW_SYNTHETIC_ONLY:'1',PREVIEW_ORIGIN:origin,PREVIEW_VERSION:'107.96',ALLOWED_ORIGINS:origin,PREVIEW_PIN:'1234'});
 const request=(path,options)=>new Request(origin+path,options);
 
 test('preview offers three real sample sessions and opens Admin directly in Admin-Teach',async()=>{
