@@ -1,8 +1,20 @@
+# Shared lesson PDF release — 27 October 2026
+
+- The user confirmed V107.82 was deployed and explicitly authorised deployment of the prepared PDF reuse change. Incorporate V107.82 and release V107.83 from `feature/academy-shared-pdfs` through the existing Development API and Academy website workflow. This supersedes the local deployment hold below for this PDF release only.
+- Keep each lesson attachment and Teacher note version independent, with current permissions, audience, immutable history and the 16 MB limit. No database migration or private coordinator change is required. Preserve all V107.82 planner/dashboard changes.
+- The user confirmed timetable cards are no longer an issue. No timetable-card behaviour changes are included. After deployment review yesterday's Cloudflare read/write analytics using management metadata only. Keep live checks small; no live SQL, publication or backfill. Future deployments need fresh authorisation.
+
 # Local PDF reuse and timetable-card investigation — 27 October 2026
 
 - Work on local `feature/academy-shared-pdfs`, based on V107.81. Reuse identical lesson PDF bytes while preserving each attachment, immutable note history and all current permissions. Investigate stale teacher names on Admin/Teach Class notes and Lesson media cards after a timetable publication.
 - The user explicitly instructed **dont deploy**. Do not push, deploy, apply live SQL, republish live timetables or change live data/settings. Prior deployment permissions apply to their completed releases only.
 - Keep live checks small to limit database usage; use local fixtures. Preserve other unfinished planner work in the original checkout. Assign a release number only when preparing an authorised release.
+
+# Planner and Admin dashboard release — 27 October 2026
+
+- The user confirmed V107.81 was deployed and explicitly requested “pls build and deploy” for the pending planner and Admin dashboard follow-ups in this chat. This supersedes the investigation-only hold for PLAN-02/03 and DASH-01–05. Release V107.82 from the verified V107.81 baseline through the existing Development API and website workflow.
+- Keep work in this chat; do not communicate with other chats. Preserve current permissions, saved plans, publication/release gates and V107.81 features. No database migration or coordinator update is required.
+- Keep live checks small under ../AGENTS.md. Use disposable local fixtures for behavioural checks and targeted release metadata/static checks after deployment.
 
 # Curriculum and workspace correction release — 27 October 2026
 

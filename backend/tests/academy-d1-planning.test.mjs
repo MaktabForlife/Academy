@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {mediaFixture} from './fixtures/academy-lesson-media-fixture.mjs';
 import {MOU_MEDIA_PROGRAM as area} from '../src/academy/d1/lesson-media.js';
 import {planningInstant} from '../src/academy/d1/lesson-planning.js';
+import {classNotesFixture} from './fixtures/academy-class-notes-fixture.mjs';
 const week='2026-10-19',content=()=>({title:'Weekly plan',overview:'Prepare the class',reflection:'',lessons:[{date:week,className:'Class A',subject:'Quran',objectives:'Read clearly',activities:'Read and revise',resources:'Pages 1–4'}]});
 export async function planningFixture(){const f=await mediaFixture();for(const migration of ['0023_lesson_planning.sql','0024_announcements_and_plan_requirements.sql'])f.db.exec(readFileSync(new URL('../migrations/academy/'+migration,import.meta.url),'utf8'));return f;}
 async function use(fn){const f=await planningFixture();try{await fn(f);assert.deepEqual(f.db.prepare('PRAGMA foreign_key_check').all(),[]);assert.equal(f.db.prepare('SELECT count(*) n FROM academy_write_guards').get().n,0);}finally{f.db.close();}}
@@ -11,6 +12,30 @@ const post=(f,action,input,token)=>f.call('/api/academy/planning/'+action,input,
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
 const key={activityKey:area,weekStart:week,period:'WEEKLY'};
 const change=(f,action,input,token)=>post(f,action,{...input,operationId:crypto.randomUUID()},token);
+test('new Program plans start with one blank section and bounded curriculum/class choices, preserving saved content',()=>use(async f=>{
+ f.db.prepare("INSERT INTO subject_catalog VALUES('ACADEMY:planning-choice','ACADEMY','planning-choice','Hadith',1)").run();
+ f.db.prepare("INSERT INTO program_subjects VALUES(?,'planning-subject','ACADEMY:planning-choice',1)").run(area);
+ f.db.prepare("INSERT INTO modules(activity_key,module_id,program_subject_id,name,sort_order,active) VALUES(?,'planning-module','planning-subject','Mishkaat',1,1)").run(area);
+ for(const [id,name]of [['choice-a','Class A'],['choice-b','Class B'],['choice-other','Unassigned class']])f.db.prepare('INSERT INTO classes(activity_key,class_id,name,active) VALUES(?,?,?,1)').run(area,id,name);
+ for(const [id,responsibility]of [['choice-a','ADDITIONAL'],['choice-b','DEFAULT']])f.db.prepare("INSERT INTO class_teacher_assignments VALUES(?,?,'account-0003',?)").run(area,id,responsibility);
+ const teacher=await f.login('0003'),mine=ok(await post(f,'get',key,teacher));
+ assert.deepEqual(mine.content.lessons,[{date:'',className:'Class B',subject:'',objectives:'',activities:'',resources:''}]);
+ assert.deepEqual(mine.choices,{subjects:['Hadith','Hadith · Mishkaat'],classes:['Class B','Class A'],defaultClass:'Class B'});
+ const saved=content();saved.lessons[0].subject='Former subject label';saved.lessons[0].className='Former class';
+ ok(await change(f,'save',{...key,revision:0,content:saved},teacher));
+ assert.deepEqual(ok(await post(f,'get',key,teacher)).content,saved);
+ assert.equal((await post(f,'get',{...key,activityKey:'PROGRAM:outside-scope'},teacher)).status,403);
+}));
+test('Program chooser uses accepted curriculum and class labels rather than unpublished Admin edits',async()=>{
+ const f=await classNotesFixture(f=>f.db.prepare("INSERT INTO class_teacher_assignments VALUES(?,'class-1',?,'ADDITIONAL')").run(f.scopes.programA,f.actors.teacherA));
+ try{
+  const teacher=await f.actor('teacherA'),input={activityKey:f.scopes.programA,weekStart:week,period:'WEEKLY',view:'teacher'};
+  const before=ok(await post(f,'get',input,teacher));assert(before.choices.subjects.length);assert(before.choices.classes.length);
+  f.db.prepare("UPDATE subject_catalog SET name='Private curriculum rename' WHERE subject_key IN(SELECT subject_key FROM program_subjects WHERE activity_key=?)").run(f.scopes.programA);
+  f.db.prepare("UPDATE classes SET name='Private class rename' WHERE activity_key=? AND class_id='class-1'").run(f.scopes.programA);
+  const after=ok(await post(f,'get',input,teacher));assert.deepEqual(after.choices,before.choices);assert.equal(after.content.lessons.length,1);assert.equal(after.content.lessons[0].activities,'');
+ }finally{f.close();}
+});
 test('planning scopes, expected missing plans, private drafts, submissions and admin feedback',()=>use(async f=>{
  const teacher=await f.login('0003'),admin=await f.login('0004'),student=await f.login('0002'),other=await f.login('0006');
  assert.equal((await post(f,'list',{view:'teacher'},student)).status,403);

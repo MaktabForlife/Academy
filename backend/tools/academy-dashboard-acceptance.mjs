@@ -13,6 +13,7 @@ const root=resolve(fileURLToPath(new URL('../..',import.meta.url)));
 const output=resolve(process.env.DASHBOARD_ARTIFACTS||'/private/tmp/academy-dashboard-acceptance');await mkdir(output,{recursive:true});
 function seedDashboard(f){
  seedClassNotes(f);
+ f.db.prepare("UPDATE class_memberships SET start_date='2026-01-01',end_date=CASE WHEN active=0 THEN '2026-12-31' ELSE end_date END WHERE activity_key=?").run(f.scopes.programA);
  const today=new Intl.DateTimeFormat('en-CA',{year:'numeric',month:'2-digit',day:'2-digit',timeZone:'Africa/Johannesburg'}).format(new Date()),day=offset=>new Date(Date.parse(today+'T12:00:00Z')+offset*86400000).toISOString().slice(0,10),now=new Date().toISOString();
  for(const [id,name,offsets,status,published,kind,scope] of [
   ['current','Current Imtihaan',[-1,1],'SCHEDULED',1,'EXAM',f.scopes.programA],
@@ -38,6 +39,19 @@ const fixture=await classNotesFixture(seedDashboard),checks=[],errors=[],calls=[
 const service=await fixture.notes(),source=(await service.run('sessions',{activityKey:fixture.scopes.programA,date:fixture.today})).sources[0];
 const view=await service.run('get',{activityKey:fixture.scopes.programA,source});
 await service.run('post',fixture.post(view,{body:'Dashboard preparation · read paragraphs 1–3.'}));
+const checked=async result=>{assert.equal(result.status,200,JSON.stringify(result.body));return result.body;};
+const adminToken=await fixture.actor('global'),attendanceDate=new Date(Date.parse(fixture.today+'T12:00:00Z')-86400000).toISOString().slice(0,10);
+const register=await checked(await fixture.call('/api/academy/attendance/get',{activityKey:fixture.scopes.programA,date:attendanceDate},adminToken));
+const absenceLesson=register.lessons.find(row=>row.marks.length),presentLesson=register.lessons.find(row=>row!==absenceLesson&&row.marks.length);
+const submitAttendance=async(rows,absent)=>{
+ const current=await checked(await fixture.call('/api/academy/attendance/get',{activityKey:fixture.scopes.programA,date:attendanceDate},adminToken));
+ return checked(await fixture.call('/api/academy/attendance/submit',{activityKey:fixture.scopes.programA,date:attendanceDate,generation:current.generation,scope:'lesson',anchor:rows[0].lesson.anchor,exceptions:Object.fromEntries(rows.map(r=>[r.lesson.anchor,absent?[{accountId:r.marks[0].accountId,status:'ABSENT'}]:[]])),baseRegisterIds:Object.fromEntries(current.lessons.map(r=>[r.lesson.anchor,r.registerId])),operationId:crypto.randomUUID()},adminToken));
+};
+await submitAttendance([absenceLesson],true);if(presentLesson)await submitAttendance([presentLesson],false);
+const teachingWeek=new Date(Date.parse(fixture.today+'T12:00:00Z')-((new Date(fixture.today+'T12:00:00Z').getUTCDay()+6)%7)*86400000).toISOString().slice(0,10);
+for(const [actor,offset,action]of [['teacherA',0,'submit'],['teacherA',-7,'submit'],['dual',0,'save']]){
+ const result=await fixture.call('/api/academy/planning/'+action,{activityKey:fixture.scopes.programA,period:'WEEKLY',weekStart:new Date(Date.parse(teachingWeek+'T12:00:00Z')+offset*86400000).toISOString().slice(0,10),revision:0,content:{title:'Dashboard plan',lessons:[{subject:'Qasas',activities:action==='save'?'Private draft text':'Submitted teaching plan'}]},operationId:crypto.randomUUID()},await fixture.actor(actor));await checked(result);
+}
 const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.svg':'image/svg+xml','.jpg':'image/jpeg','.webp':'image/webp'};
 const server=createServer(async(req,res)=>{
  try{
@@ -208,13 +222,25 @@ try{
  await capture('admin-desktop.png');
  assert.equal(await page.locator('#ad-attendance-title').innerText(),'Review attendance');
  assert.equal(await page.locator('#ad-plans-title').innerText(),'Review Lesson Plans');
+ await page.waitForFunction(()=>document.getElementById('ad-attendance-count')?.textContent==='1'&&document.getElementById('ad-plans-count')?.textContent==='2');
+ assert.match(await page.locator('#ad-attendance').innerText(),/1 absent/);assert.doesNotMatch(await page.locator('#ad-plans').innerText(),/Overdue|Not submitted|Private draft text/);
+ const summary=await page.evaluate(()=>Object.keys(sessionStorage).filter(k=>k.includes('dashboard')&&k.includes('attendance')).flatMap(k=>JSON.parse(sessionStorage.getItem(k)).data.lessons||[]));
+ assert(summary.some(row=>row.absentCount===1));assert(summary.every(row=>!row.marks&&!row.learners&&!row.roster));
+ await submitAttendance([absenceLesson],false);await page.evaluate(()=>M4L_ACADEMY_DASHBOARD.refresh(true));
+ await page.waitForFunction(()=>document.getElementById('ad-attendance-count')?.textContent==='0');assert.match(await page.locator('#ad-attendance').innerText(),/No submitted registers with absentees/);
+ checks.push('Admin reviews only absent submitted registers and submitted plans; current corrections remove resolved absence flags; cached summaries contain no learners or marks');
+ assert.equal(await page.locator('#ad-assessment-title').innerText(),'Imtehaan');
  await page.locator('#ad-assessments .ad-assessment-row').first().waitFor();
  assert.deepEqual(await page.locator('#ad-assessments strong').allTextContents(),['Current Imtihaan','Upcoming Imtihaan','Draft Imtihaan']);
  await page.locator('#ad-assessments .ad-assessment-row').first().click();
- await page.locator('#as-admin-host .as-schedule-table tbody tr').first().waitFor();
- assert.equal(await page.locator('#as-admin-host .as-schedule-table tbody tr').count(),2);
- assert.equal(await page.locator('#as-admin-host .as-timetable h3').innerText(),'Current Imtihaan - All classes');
- await page.locator('[data-page-home]').click();await dashboard().waitFor();
+ await page.locator('#as-host .as-schedule-table tbody tr').first().waitFor();
+ assert.equal(await page.locator('#as-host .as-schedule-table tbody tr').count(),2);
+ assert.equal(await page.locator('#as-host .as-timetable h3').innerText(),'Current Imtihaan - All classes');
+ assert.equal(await page.evaluate(()=>M4L_ACADEMY_WORKSPACE.current()),'ADMIN_TEACH');
+ assert(new URL(page.url()).hash.endsWith('/teach/assessment/current'));
+ assert(calls.some(call=>call.path==='/api/academy/assessments/list'&&call.workspace==='ADMIN_TEACH'));
+ checks.push('Admin Imtehaan opens the correct Program and register in Admin-Teach');
+ await identity(await fixture.actor('dual'),'/academy/admin/#administration');
  await page.locator('.ad-calendar').scrollIntoViewIfNeeded();
  const adminCalendar=page.frameLocator('#ad-calendar-host iframe');
  await adminCalendar.getByRole('button',{name:'Edit teacher availability',exact:true}).click();
@@ -283,6 +309,24 @@ try{
   assert.equal(await page.locator('.ad-menu-toggle').isVisible(),width<800);
   if(width!==320)await capture('next-sessions-'+width+'.png');
  }
+ await identity(await fixture.actor('global'),'/academy/admin/#administration');
+ await page.locator('#ad-assessments .ad-assessment-row').first().waitFor();
+ assert.equal(await page.locator('#ad-scope').isVisible(),false);assert.equal(await page.locator('#ad-scope').innerText(),'');
+ assert.deepEqual(await page.locator('#ad-navigation > :not([data-workspace-exit])').allTextContents(),['Users','Announcements','Attendance','Curriculum','Library','Lesson plans','Assessments','App settings','Update timetable']);
+ const visit=page.locator('#ad-navigation').getByRole('link',{name:'Visit website',exact:false,includeHidden:true});assert.equal(await visit.count(),1);assert.equal(await visit.getAttribute('href'),'/academy/#website');assert.equal(await visit.getAttribute('data-workspace-exit'),'');
+ if(!await visit.isVisible())await page.locator('[data-ad-nav-toggle]').click();await visit.click();await page.waitForURL(url=>url.pathname==='/academy/'&&url.hash==='#website');await page.locator('#overview.active').waitFor();
+ await identity(await fixture.actor('global'),'/academy/admin/#administration');await page.locator('#ad-assessments .ad-assessment-row').first().waitFor();
+ checks.push('Global Admin Visit website opens the public website and preserves the nine management menu entries');
+ fixture.db.prepare('INSERT INTO assessment_register_areas VALUES(?,?)').run('current',fixture.scopes.programB);
+ const otherClass=fixture.db.prepare('SELECT class_id FROM classes WHERE activity_key=? AND active=1 LIMIT 1').get(fixture.scopes.programB).class_id;
+ for(const original of fixture.db.prepare("SELECT * FROM assessments WHERE register_id='current'").all()){
+  const shared={...original,assessment_id:'shared-b-'+original.assessment_id,activity_key:fixture.scopes.programB,class_id:otherClass};
+  fixture.db.prepare('INSERT INTO assessments('+Object.keys(shared).join(',')+') VALUES('+Object.keys(shared).map(()=>'?').join(',')+')').run(...Object.values(shared));
+ }
+ await page.evaluate(()=>M4L_ACADEMY_DASHBOARD.refresh(true));
+ const sharedLinks=await page.locator('#ad-assessments .ad-assessment-row').filter({hasText:'Current Imtihaan'}).evaluateAll(nodes=>nodes.map(node=>node.getAttribute('href')));
+ assert.equal(sharedLinks.length,2);assert(sharedLinks.includes('#activity/PROGRAM/'+fixture.scopes.programA.slice(8)+'/teach/assessment/current'));assert(sharedLinks.includes('#activity/PROGRAM/'+fixture.scopes.programB.slice(8)+'/teach/assessment/current'));
+ checks.push('Global Admin banner removed without changing authority; a shared Imtehaan retains a separate correct Program link');
  await page.evaluate(()=>{
   const t=Date.now(),program={kind:'PROGRAM',id:'admin-program',name:'Admin Program',roles:['PROGRAM_ADMIN']},course={kind:'COURSE',id:'admin-course',name:'Admin Course',roles:['PROGRAM_ADMIN']};
   window.M4L_ACADEMY_DASHBOARD.open({signedIn:true,globalAdmin:true,personalActivities:[program,course],personalTimetable:[program,course].map(area=>({kind:area.kind,activityId:area.id,activityName:area.name,status:'SCHEDULED',startsAt:t+60000,endsAt:t+3600000,startTime:'11:00',endTime:'12:00',subjectName:'Admin upcoming lesson'})),profile:{name:'Synthetic admin'}},{mode:'admin',activityHref:(row,tool,mode)=>'/academy/admin/#activity/'+row.kind+'/'+row.id+'/'+mode+'/'+tool});

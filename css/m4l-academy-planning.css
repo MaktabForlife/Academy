@@ -51,3 +51,5 @@
 .lp-session-choice p{margin:4px 0;overflow-wrap:anywhere}
 .lp-session-requirements{margin:12px 0}
 @media(max-width:600px){.lp-session-choice{grid-template-columns:minmax(0,1fr)}}
+
+.lp-load-controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:end}.lp-load-controls button{width:100%}

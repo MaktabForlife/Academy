@@ -1,3 +1,9 @@
+# V107.83 — Reuse identical lesson PDFs
+
+Identical PDFs now share one stored file across separate lesson attachments and Teacher dated/recurring note versions. Attachment names, audiences, permissions and immutable history remain independent. File contents are streamed and verified even when the bytes are already stored. The same 16 MB limit and protected download checks apply; existing files remain readable. No additional D1 lookup is added for reuse.
+
+Incorporates V107.82 planner and Admin dashboard changes. No database migration, private coordinator update or live file backfill is required. Timetable cards are unchanged, following the user's confirmation that this is no longer an issue. Keep live checks small to limit database usage. [Implementation and verification](docs/ACADEMY-SHARED-LESSON-PDFS.md).
+
 # V107.81 — Curriculum management, Admin menu and Library lesson PDFs
 
 Curriculum opens the renamed **Curriculum management** screen directly for Global Admins. Subjects & Modules, Programs and Courses remain connected through secondary tabs; the old Curriculum chooser redirects to the relevant management page. Scoped Admins open only their permitted Programs/Courses and retain the existing catalogue restrictions.

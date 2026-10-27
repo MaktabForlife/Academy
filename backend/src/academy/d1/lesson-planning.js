@@ -137,19 +137,30 @@ export function lessonPlanning(repository,auth,now=()=>new Date()){
   if(!editing&&!preview&&!r?.submitted_at)throw fail('This plan has not been submitted yet.',409,'PLAN_NOT_SUBMITTED');
   let content=r&&!preview?JSON.parse(editing?r.draft_json:r.submitted_json):{title:'Weekly teaching plan',overview:'',reflection:'',lessons:[]};
   if(!r&&key.period==='ENTIRE')content.title='Entire-course teaching plan';
-  if(!r&&key.period==='WEEKLY'&&key.activityKey.startsWith('PROGRAM:')){
-   const publications=(await p('SELECT p.*,l.status lifecycle FROM timetable_publications p LEFT JOIN program_publication_lifecycle l USING(activity_key,publication_id) WHERE p.activity_key=?',key.activityKey).all()).results;
-   const classes=(await p('SELECT t.class_id FROM class_teacher_assignments t JOIN classes c USING(activity_key,class_id) WHERE t.activity_key=? AND t.account_id=? AND c.active=1',key.activityKey,actor).all()).results;
-   const rows=publications.map(r=>({PublicationID:r.publication_id,VersionNo:r.version_no,SnapshotJSON:r.snapshot_json,PublishedDate:r.published_at,PublishedByAccountID:r.published_by_source_id,Lifecycle:r.lifecycle||''}));
-   for(let day=0;day<7;day++)for(const lesson of scheduledLessons(rows,{id:key.activityKey.slice(8)},addDays(key.weekStart,day)))if(administers(auth,key.activityKey)||lesson.teacherIds.some(id=>same(id,actor))||lesson.classIds.some(id=>classes.some(c=>same(c.class_id,id))))content.lessons.push({date:lesson.date,className:lesson.classNames.join(', '),subject:lesson.subjectName||lesson.moduleName,objectives:'',activities:'',resources:''});
-  }
+  const choices=editing&&key.activityKey.startsWith('PROGRAM:')?await editorChoices(key):null;
+  if(!r&&key.activityKey.startsWith('PROGRAM:'))content.lessons=[{date:'',className:choices?.defaultClass||'',subject:'',objectives:'',activities:'',resources:''}];
   if(!r&&key.activityKey.startsWith('COURSE:'))content.lessons=d.sessions.filter(s=>same(s.activity_key,key.activityKey)&&same(s.run_id,key.runId)&&(administers(auth,key.activityKey)||same(s.teacher_account_id,actor))&&s.session_kind!=='BREAK'&&(key.period==='ENTIRE'||s.session_date>=key.weekStart&&s.session_date<=addDays(key.weekStart,6))).slice(0,60).map(s=>({date:s.session_date,className:'',subject:s.description||'Lesson',objectives:'',activities:'',resources:''}));
-  if(!r&&key.activityKey.startsWith('PROGRAM:'))content.lessons=[...new Map(content.lessons.map(l=>{const section={...l,date:''};return [[section.subject,section.className].join('\u0000'),section];})).values()];
   if(content.lessons.length>60)content.lessons=content.lessons.slice(0,60);
   const comments=r?(await p('SELECT c.*,a.display_name FROM lesson_plan_comments c JOIN accounts a ON a.account_id=c.actor_id WHERE c.plan_id=? ORDER BY c.created_at,c.comment_id',r.plan_id).all()).results.map(c=>({id:c.comment_id,author:c.display_name,at:c.created_at,body:c.body,submittedRevision:c.submitted_revision})):[];
   const details=await summary(d,key,tz);let sessionRequirements=[];
   if(sessionPolicy(d,key.activityKey).records.some(r=>key.period==='ENTIRE'||r.effectiveFrom<=addDays(key.weekStart,6))){const rows=await requirementSessions(d,key),{assignments}=await policyFacts(d);sessionRequirements=rows.filter(s=>s.teacherIds.some(id=>same(id,key.teacherId))||assignments.some(t=>same(t.account_id,key.teacherId)&&same(t.activity_key,key.activityKey)&&s.classIds.some(id=>same(id,t.class_id)))).map(s=>({date:s.date,title:s.title,className:s.classNames.join(', '),required:effectiveSession(d,key.activityKey,s)}));}
-  return {...details,sessionRequirements,timezone:tz,canEdit:editing&&details.canSubmit,canComment:admin(d,key.activityKey)&&Boolean(r?.submitted_at)&&Boolean(d.activities.find(x=>same(x.activity_key,key.activityKey)&&x.active&&x.lifecycle==='ACTIVE')),content,comments};
+  return {...details,...(choices?{choices}:{}),sessionRequirements,timezone:tz,canEdit:editing&&details.canSubmit,canComment:admin(d,key.activityKey)&&Boolean(r?.submitted_at)&&Boolean(d.activities.find(x=>same(x.activity_key,key.activityKey)&&x.active&&x.lifecycle==='ACTIVE')),content,comments};
+ }
+ async function editorChoices(key){
+  const source=await accepted(),query=(sql,...args)=>source.db.prepare(sql).bind(...args);
+  const [subjects,modules,classes,assigned,publications]=await source.db.batch([
+   query('SELECT s.name FROM program_subjects ps JOIN subject_catalog s USING(subject_key) WHERE ps.activity_key=? AND ps.active=1 AND s.active=1 ORDER BY s.name',key.activityKey),
+   query('SELECT m.name,s.name subject_name FROM modules m LEFT JOIN program_subjects ps USING(activity_key,program_subject_id) LEFT JOIN subject_catalog s USING(subject_key) WHERE m.activity_key=? AND m.active=1 AND (m.program_subject_id IS NULL OR ps.active=1 AND s.active=1) ORDER BY m.sort_order,m.name',key.activityKey),
+   query('SELECT class_id,name FROM classes WHERE activity_key=? AND active=1 ORDER BY name',key.activityKey),
+   query('SELECT class_id,responsibility FROM class_teacher_assignments WHERE activity_key=? AND account_id=?',key.activityKey,actor),
+   query('SELECT p.*,l.status lifecycle FROM timetable_publications p LEFT JOIN program_publication_lifecycle l USING(activity_key,publication_id) WHERE p.activity_key=?',key.activityKey)
+  ]);
+  const classIds=new Set(assigned.results.map(r=>r.class_id.toUpperCase())),defaults=new Set(assigned.results.filter(r=>r.responsibility==='DEFAULT').map(r=>r.class_id.toUpperCase()));
+  const rows=publications.results.map(r=>({PublicationID:r.publication_id,VersionNo:r.version_no,SnapshotJSON:r.snapshot_json,PublishedDate:r.published_at,PublishedByAccountID:r.published_by_source_id,Lifecycle:r.lifecycle||''}));
+  for(let day=0;day<7;day++)for(const lesson of scheduledLessons(rows,{id:key.activityKey.slice(8)},addDays(key.weekStart,day)))if(lesson.teacherIds.some(id=>same(id,actor)))for(const id of lesson.classIds)classIds.add(id.toUpperCase());
+  const names=[...subjects.results.map(r=>r.name),...modules.results.map(r=>r.subject_name&&r.subject_name!==r.name?r.subject_name+' · '+r.name:r.name)];
+  const available=classes.results.filter(r=>administers(auth,key.activityKey)||classIds.has(r.class_id.toUpperCase())).sort((a,b)=>Number(defaults.has(b.class_id.toUpperCase()))-Number(defaults.has(a.class_id.toUpperCase()))||a.name.localeCompare(b.name));
+  return {subjects:[...new Set(names)],classes:available.map(r=>r.name),defaultClass:available[0]?.name||''};
  }
  async function write(action,input){
   const adminAction=['policy','session-policy','deadline','comment'].includes(action),dataset=adminAction?'LESSON_PLAN_ADMIN':'LESSON_PLANS';

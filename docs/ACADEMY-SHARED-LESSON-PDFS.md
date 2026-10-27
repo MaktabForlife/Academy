@@ -1,6 +1,6 @@
-# Local lesson PDF reuse correction — 27 October 2026
+# V107.83 — Shared lesson PDF storage
 
-Status: prepared locally on `feature/academy-shared-pdfs`, based on deployed V107.81. The user explicitly instructed **dont deploy**. No push, deployment, live SQL or live data/storage migration is authorised or performed. Active release markers remain V107.81 until an authorised release is prepared.
+The user confirmed V107.82 was deployed and authorised this PDF-only release as V107.83 from `feature/academy-shared-pdfs`. It incorporates V107.82, preserves its planner/dashboard changes and requires matching Development API/website deployment only. No database migration, coordinator change or live storage backfill is required. Keep live checks small.
 
 ## Existing deployed behaviour
 

@@ -68,7 +68,7 @@ test('split multi-class assessment selection keeps both private definitions in A
 test('split shared paper uses one object and one file record for the original class selection',()=>use(async f=>{
  const {createHash}=await import('node:crypto'),scope=f.scopes.programA;
  f.databases.core.prepare("INSERT OR IGNORE INTO class_teacher_assignments VALUES(?,'class-shared','account-0003','ADDITIONAL')").run(scope);
- const created=ok(await f.request('/api/academy/assessments/create',{operationId:crypto.randomUUID(),activityKey:scope,classId:'class-1',classes:[{activityKey:scope,classId:'class-1'},{activityKey:scope,classId:'class-shared'}],examinerId:'account-0003',title:'Shared split paper',subject:'Qasas',examDate:new Date().toISOString().slice(0,10),durationMinutes:60,maximumMark:100})),id=created.assessmentId;
+ const created=ok(await f.request('/api/academy/assessments/create',{operationId:crypto.randomUUID(),activityKey:scope,classId:'class-1',classes:[{activityKey:scope,classId:'class-1'},{activityKey:scope,classId:'class-shared'}],examinerId:'account-0003',title:'Shared split paper',subject:'Qasas',examDate:new Date(Date.now()-86400000).toISOString().slice(0,10),durationMinutes:60,maximumMark:100})),id=created.assessmentId;
  for(const member of created.assessmentIds)f.databases.core.prepare("UPDATE assessment_events SET details_json=? WHERE assessment_id=? AND action='CREATED'").run(JSON.stringify({title:'Shared split paper'}),member);
  const detail=async()=>ok(await f.request('/api/academy/assessments/get',{assessmentId:id}));
  let d=await detail();const body={operationId:crypto.randomUUID(),assessmentId:id,revision:d.assessment.revision,groupRevisions:d.group.members.map(m=>({id:m.id,revision:m.revision}))};
