@@ -423,6 +423,7 @@
     return {mode,tool,explicit,staff};
   }
   function workspaceHref(row, tool = 'timetable', mode = '') {
+    const companion=window.M4L_COURSE_COMPANION?.href(row,tool,mode);if(companion)return companion;
     const context = workspaceContext(row), role = mode || (context.explicit ? context.mode : '');
     return activityHref(row) + (role ? '/'+role : '') + (tool === 'timetable' ? '' : '/'+tool);
   }
@@ -864,6 +865,8 @@
       if (!cached||fresh) rememberPages(result);
       const row = state.activity = result.activity;
       if (!row) throw new Error('This activity is unavailable.');
+      const companion=window.M4L_COURSE_COMPANION?.href(row,workspaceContext(row).tool,workspaceContext(row).mode);
+      if(result.signedIn&&!row.unavailable&&row.roles.length&&companion){location.replace(companion);return;}
       const classPreview=row.studentPreview&&row.kind==='PROGRAM'&&row.classes?.length;
       $('activity-student-class-wrap').hidden=!classPreview;
       if(classPreview){

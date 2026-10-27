@@ -1,3 +1,7 @@
+# Local work — Surah Al Kahf course website
+
+The complete course text now forms eleven mobile-first web lessons, with a matching course dashboard card, existing Academy login and published materials. Readings have no PDF page references or original-document prompts; PDF download and print remain separate options. Mobile visual checks, 41 local checks and the website/API preparation builds pass. Teacher editing tools retain their existing course screens. Prepared on `feature/surah-kahf-course-companion` while another release deploys. No new version, push, deployment or live data change. [Scope, access and local verification](docs/ACADEMY-SURAH-KAHF-COMPANION.md).
+
 # V107.85 — Remembered IDs and account switching
 
 Optionally remember account IDs in this browser and choose them from Login or Switch account. Every switch requires a fresh PIN verified by the existing account service. Wrong PINs and cancellation keep the current account; successful switching ends its session, clears private cached information and opens the new authorised workspace across Academy tabs. Include local removal/forget controls and protect unfinished work.
