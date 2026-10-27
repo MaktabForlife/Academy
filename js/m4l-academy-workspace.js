@@ -118,6 +118,12 @@
   const url=new URL(value,location.href);if(url.origin!==location.origin)return url.href;
   const context=adminRealm()&&!adminAccess()?'LEARN':selected;url.searchParams.set('workspace',context);url.searchParams.delete('studentProgram');url.searchParams.delete('studentClass');
   if(context==='ADMIN_LEARN'&&classView){url.searchParams.set('studentProgram',classView.activityKey);url.searchParams.set('studentClass',classView.classId);}
+  if(/^\/academy\/(?:library|open-library)\//.test(url.pathname)&&!url.pathname.includes('/manage/')){
+    const currentArea=location.hash.match(/^#activity\/(PROGRAM|COURSE)\/([^/]+)/),inherited=new URLSearchParams(location.search).get('activity');
+    let area=inherited;if(currentArea){try{area=currentArea[1]+':'+decodeURIComponent(currentArea[2]);}catch{area='';}}
+    if(!area&&location.pathname.startsWith('/academy/course-companion/')){const course=new URLSearchParams(location.search).get('course');if(course)area='COURSE:'+course;}
+    if(area&&!url.searchParams.has('activity'))url.searchParams.set('activity',area);
+  }
   if(head)url.searchParams.set('setup',head);return url.href;
  }
  document.addEventListener('click',event=>{const link=event.target.closest?.('a[href]');if(!link||link.hasAttribute('data-workspace-exit'))return;const url=new URL(link.href,location.href);if(url.origin!==location.origin)return;
@@ -125,4 +131,5 @@
   else if(adminRealm()&&adminAccess()&&['/academy/','/academy/index.html'].includes(url.pathname)){url.pathname='/academy/admin/';if(!url.hash||url.hash==='#overview')url.hash='#administration';link.href=url.href;}
  },true);
  if(location.pathname.startsWith('/academy/admin/')&&!location.hash)history.replaceState(null,'','#administration');
+  void import('/js/m4l-academy-history.js?v=107.97').catch(()=>{ /* Existing page links remain available if navigation cannot load. */ });
 })();

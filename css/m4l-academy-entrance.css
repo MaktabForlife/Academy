@@ -207,3 +207,5 @@ body.academy-login-open{overflow:hidden}
 .timetable-media-button svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linejoin:round}
 .timetable-media-button:hover{background:var(--rose-pale,#f2eaf5)}
 .timetable-media-button:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+
+.learning-today,.learning-week-label,.timetable-today-label{display:none}

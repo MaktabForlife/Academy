@@ -18,12 +18,13 @@
   about:'<circle cx="12" cy="12" r="10"/><path d="M12 10v7m0-11v.1"/>',
   contact:'<rect x="2" y="5" width="20" height="15" rx="2"/><path d="m3 6 9 7 9-7"/>'
  };
+ const quickIcon=kind=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+(icons[kind]||icons.about)+'</svg>';
  function quickBlocks(nav){
   const heading=document.createElement('h2');heading.textContent='Quick links';quick.prepend(heading);
   for(const item of nav.querySelectorAll('a,button')){
    const label=item.textContent.trim(),href=item.getAttribute('href')||'',kind=item.dataset.nav==='overview'?'home':item.dataset.nav||(/calendar/.test(href)?'calendar':/library/.test(href)?'library':/surahs/.test(href)?'heart':/kaaba/.test(href)?'kaaba':/recorder/.test(href)?'recorder':'about');
    if(document.getElementById('academy-home-card')&&(kind==='home'||kind==='calendar'||kind==='timetable')){item.remove();continue;}
-   item.dataset.quickKind=kind;item.replaceChildren();const icon=document.createElement('span');icon.className='quicklink-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+(icons[kind]||icons.about)+'</svg>';const text=document.createElement('span');text.className='quicklink-label';text.textContent=label;item.append(icon,text);
+   item.dataset.quickKind=kind;item.replaceChildren();const icon=document.createElement('span');icon.className='quicklink-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML=quickIcon(kind);const text=document.createElement('span');text.className='quicklink-label';text.textContent=label;item.append(icon,text);
   }
  }
  quick.hidden=!document.getElementById('academy-home-card');
@@ -73,9 +74,10 @@
  phone.addEventListener('change',()=>{if(curriculum.open)renderCurriculum(curriculumData||data);});
  function contextBanner(){
   const mode=boundary?.current()||'LEARN',isAdmin=adminRealm();context.hidden=!isAdmin;document.body.dataset.academyWorkspace=isAdmin||!boundary?.adminRealm()?mode:'';document.title=(isAdmin?mode.replace('_','-')+' · ':boundary?.adminRealm()&&!data?.signedIn?'Admin sign-in · ':'')+pageTitle;
-  if(!isAdmin){context.replaceChildren();if(curriculum.open)curriculum.close();return;}
+  if(!isAdmin){const identity=banners.querySelector('.academy-admin-identity');if(identity){identity.replaceWith(...identity.childNodes);}context.replaceChildren();if(curriculum.open)curriculum.close();return;}
   const label=mode.replace('_','-'),description=mode==='ADMIN_LEARN'?'Student class view · read only':mode==='ADMIN_TEACH'?'Teaching within your Admin scope':'Academy management';
-  const profile=banners.querySelector('.academy-profile');if(profile&&context.parentElement!==profile)profile.insertBefore(context,profile.querySelector('small'));
+  const profile=banners.querySelector('.academy-profile'),name=profile?.querySelector('#academy-header-name,#academy-shell-name');
+  if(profile&&name){let identity=profile.querySelector('.academy-admin-identity');if(!identity){identity=document.createElement('span');identity.className='academy-admin-identity';name.before(identity);identity.append(name);}if(context.parentElement!==identity)identity.append(context);}
   const text='Admin',hint=label+' · '+description;
   context.innerHTML=mode==='ADMIN'?'<span class="academy-admin-badge" title="'+hint+'">'+text+'</span>':'<button type="button" class="academy-admin-badge" data-curriculum-open aria-haspopup="dialog" aria-controls="academy-curriculum-menu" aria-label="'+hint+' · Open Curriculum" title="'+hint+' · Open Curriculum">'+text+' <span aria-hidden="true">⌄</span></button>';
  }
@@ -100,5 +102,5 @@
  document.addEventListener('click',event=>{if(event.target.closest('[data-curriculum-open]')){void openCurriculum();return;}const button=event.target.closest('[data-shell-role]');if(button&&!button.hidden){event.preventDefault();openRole(button.dataset.shellRole);}});
  window.addEventListener('m4l-academy-access',()=>update(data));
  if(brand.matches?.('a')){brand.href=token()?boundary?.homeUrl?.()||'/academy/#overview':'/academy/#overview';brand.setAttribute('data-workspace-exit','');brand.removeAttribute('data-nav');}
- window.M4L_ACADEMY_SHELL={update,banners,openRole,canLeave};update(data);
+ window.M4L_ACADEMY_SHELL={update,banners,openRole,canLeave,icon:quickIcon};update(data);
 })();

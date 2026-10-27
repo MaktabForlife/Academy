@@ -193,8 +193,8 @@ try{
  await page.locator('.ad-calendar').scrollIntoViewIfNeeded();
  const calendarBounds=await page.locator('.ad-calendar').boundingBox(),attendanceBounds=await page.locator('#ad-attendance-panel').boundingBox();
  assert.ok(attendanceBounds.x>=calendarBounds.x+calendarBounds.width,'Attendance is beside the calendar on desktop');
- assert.equal(Math.round(attendanceBounds.height),340);
- assert.equal(Math.round((await page.locator('#ad-plans-panel').boundingBox()).height),340);
+ assert(attendanceBounds.height>=340,'Teacher review content retains its natural reading height');
+ assert((await page.locator('#ad-plans-panel').boundingBox()).height>44,'Teacher plans retain a visible reading panel');assert.equal(await page.locator('#ad-plans').evaluate(el=>getComputedStyle(el).overflow),'visible','Teacher plans expand naturally instead of clipping their content');
  await page.screenshot({path:output+'/teacher-calendar-actions.png',fullPage:false});
  await dashboard().getByRole('button',{name:'Mark attendance',exact:true}).first().click();
  await page.locator('.ad-dialog').getByRole('heading',{name:'Mark attendance',exact:true}).waitFor();
@@ -223,6 +223,7 @@ try{
  assert.equal(await page.locator('#ad-attendance-title').innerText(),'Review attendance');
  assert.equal(await page.locator('#ad-plans-title').innerText(),'Review Lesson Plans');
  await page.waitForFunction(()=>document.getElementById('ad-attendance-count')?.textContent==='1'&&document.getElementById('ad-plans-count')?.textContent==='2');
+ assert.equal(await page.locator('#ad-plans .ad-due').count(),0);assert.doesNotMatch(await page.locator('#ad-plans .ad-task-list').innerText(),/Submitted late|Submitted on time|Overdue|Plan due/);
  assert.match(await page.locator('#ad-attendance').innerText(),/1 absent/);assert.doesNotMatch(await page.locator('#ad-plans').innerText(),/Overdue|Not submitted|Private draft text/);
  const summary=await page.evaluate(()=>Object.keys(sessionStorage).filter(k=>k.includes('dashboard')&&k.includes('attendance')).flatMap(k=>JSON.parse(sessionStorage.getItem(k)).data.lessons||[]));
  assert(summary.some(row=>row.absentCount===1));assert(summary.every(row=>!row.marks&&!row.learners&&!row.roster));
@@ -297,26 +298,28 @@ try{
   {mode:'learn',activityHref:(row,tool,mode)=>'/academy/#activity/'+row.kind+'/'+row.id+'/'+mode+'/'+tool});
  });
  const next=page.locator('#ad-next .ad-next-row');
- assert.equal(await next.count(),2);
+ assert.equal(await next.count(),3);
  assert.equal(await page.locator('#ad-areas .ad-tile').count(),2,'Inactive areas stay off every dashboard list');
- assert.deepEqual(await next.locator('.ad-next-subject>strong').allTextContents(),['Arabic','Fiqh · Purification']);
- assert.deepEqual(await next.locator('.ad-next-subject>span').allTextContents(),['Next Course','Next Program']);
+ assert.deepEqual(await next.locator('.ad-next-subject>strong').allTextContents(),['Arabic','Fiqh · Purification','Later duplicate']);
+ assert.deepEqual(await next.locator('.ad-next-subject>span').allTextContents(),['Next Course','Next Program','Next Program']);
  assert.equal(await next.first().getAttribute('href'),'/academy/#activity/COURSE/next-course/learn/timetable');
  assert.match(await next.first().innerText(),/10:55–12:00/);
  for(const width of [1440,390,320]){
   await page.setViewportSize({width,height:1000});
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Next-session rows fit at '+width);
-  assert.equal(await page.locator('.ad-menu-toggle').isVisible(),width<800);
+  assert.equal(await page.locator('.ad-menu-toggle').count(),0);
+  assert.equal(await page.locator('[data-ad-contents-toggle]').isVisible(),width<1120);
   if(width!==320)await capture('next-sessions-'+width+'.png');
  }
  await identity(await fixture.actor('global'),'/academy/admin/#administration');
  await page.locator('#ad-assessments .ad-assessment-row').first().waitFor();
- assert.equal(await page.locator('#ad-scope').isVisible(),false);assert.equal(await page.locator('#ad-scope').innerText(),'');
+ assert.equal(await page.locator('#ad-scope').isVisible(),false);assert.equal(await page.locator('#ad-scope').count(),0);
  assert.deepEqual(await page.locator('#ad-navigation > :not([data-workspace-exit])').allTextContents(),['Users','Announcements','Attendance','Curriculum','Library','Lesson plans','Assessments','App settings','Update timetable']);
  const visit=page.locator('#ad-navigation').getByRole('link',{name:'Visit website',exact:false,includeHidden:true});assert.equal(await visit.count(),1);assert.equal(await visit.getAttribute('href'),'/academy/#website');assert.equal(await visit.getAttribute('data-workspace-exit'),'');
- if(!await visit.isVisible())await page.locator('[data-ad-nav-toggle]').click();await visit.click();await page.waitForURL(url=>url.pathname==='/academy/'&&url.hash==='#website');await page.locator('#overview.active').waitFor();
+ if(!await visit.isVisible())await page.locator('[data-ad-contents-toggle]').click();await visit.click();await page.waitForURL(url=>url.pathname==='/academy/'&&url.hash==='#website');await page.locator('#overview.active').waitFor();
  await identity(await fixture.actor('global'),'/academy/admin/#administration');await page.locator('#ad-assessments .ad-assessment-row').first().waitFor();
  checks.push('Global Admin Visit website opens the public website and preserves the nine management menu entries');
+ await page.locator('#ad-plans .ad-task-list li').first().waitFor();assert.equal(await page.locator('#ad-plans .ad-due').count(),0,'Review plans omits every status badge');assert.doesNotMatch(await page.locator('#ad-plans .ad-task-list').innerText(),/Submitted late|Submitted on time|Overdue|Plan due/);assert.equal(await page.locator('#ad-primary-actions button').count(),0);checks.push('Submitted plans remain reviewable without status labels or duplicate header review buttons');
  fixture.db.prepare('INSERT INTO assessment_register_areas VALUES(?,?)').run('current',fixture.scopes.programB);
  const otherClass=fixture.db.prepare('SELECT class_id FROM classes WHERE activity_key=? AND active=1 LIMIT 1').get(fixture.scopes.programB).class_id;
  for(const original of fixture.db.prepare("SELECT * FROM assessments WHERE register_id='current'").all()){

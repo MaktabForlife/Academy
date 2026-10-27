@@ -137,7 +137,7 @@
  }
  function buttons(row,detail=false){
   const key=ref(row),lesson=lessons.get(key);if(!lesson||!lesson.sources.length)return '';
-  return (visible||detail?`<div class="cn-card-actions">${lesson.sources.some(s=>s.canPost)?`<button type="button" data-cn-open="add" data-cn-ref="${esc(key)}">+ Note</button>`:''}<button type="button" data-cn-open="notes" data-cn-ref="${esc(key)}">Class Notes${lesson.noteCount?' ('+lesson.noteCount+')':''}</button></div>`:'')+(lesson.dueNotes.length?`<button type="button" class="cn-reminder" data-cn-open="due" data-cn-ref="${esc(key)}">${row.date===lesson.today?'Due today':'Due this lesson'} · Class Note${lesson.dueNotes.length>1?' ('+lesson.dueNotes.length+')':''}</button>`:'');
+  return (visible||detail?`<div class="cn-card-actions"><button type="button" class="cn-note-button" data-cn-open="notes" data-cn-ref="${esc(key)}" aria-label="Class Notes${lesson.noteCount?' ('+lesson.noteCount+')':''}" title="Class Notes"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V10L14 3Z M14 3v7h7 M7 14h10 M7 17h7"/></svg>${lesson.noteCount?'<span aria-hidden="true">'+lesson.noteCount+'</span>':''}</button></div>`:'')+(lesson.dueNotes.length?`<button type="button" class="cn-reminder" data-cn-open="due" data-cn-ref="${esc(key)}">${row.date===lesson.today?'Due today':'Due this lesson'} · Class Note${lesson.dueNotes.length>1?' ('+lesson.dueNotes.length+')':''}</button>`:'');
  }
  document.addEventListener('click',event=>{
   const button=event.target.closest('[data-cn-open]');if(!button)return;const lesson=lessons.get(button.dataset.cnRef);if(!lesson)return;
@@ -145,7 +145,7 @@
    const source=lesson.sources[0],notes=lesson.dueNotes;if(notes.length===1)return void load({activityKey:source.activityKey,noteId:notes[0].id});
    if(!modal())return;body('<h3>Class Notes due this lesson</h3>'+notes.map((note,i)=>`<p><button type="button" class="button secondary" data-cn-due-index="${i}">${esc(note.title)} · ${esc(note.author)}</button></p>`).join(''));
    dialog.querySelectorAll('[data-cn-due-index]').forEach(el=>el.addEventListener('click',()=>void load({activityKey:source.activityKey,noteId:notes[Number(el.dataset.cnDueIndex)].id},false,true)));
-  }else void openSources(lesson.sources,button.dataset.cnOpen==='add');
+  }else void openSources(lesson.sources);
  });
  window.addEventListener('beforeunload',event=>{if(dirty||busy){event.preventDefault();event.returnValue='';}});
  window.M4L_CLASS_NOTES={snapshot:()=>scope()===owner?{sessions:[...lessons.values()],status:dashboardStatus,message:dashboardMessage}:{sessions:[],status:'idle'},open:input=>{checkOwner();return load(input);},timetable,buttons,visible:()=>visible,toggle:()=>{visible=!visible;return visible;},canLeave:()=>close(),invalidate,reset};

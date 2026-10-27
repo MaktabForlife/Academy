@@ -4,6 +4,10 @@ The reusable desktop Admin course editor design is on `feature/academy-course-we
 
 See [the design guide](designs/course-website-studio/README.md) and [portal integration plan](docs/ACADEMY-COURSE-WEBSITE-BUILDER.md). The deployed portal remains V107.96.
 
+## V107.97 — Compact dashboards and Program navigation
+
+Use compact Admin identity and navigation, a right-side dashboard menu, three-column management cards with Open icons and highest-role labels, small Quick tools icons, and upcoming-session grids without timezone captions. Program Contents opens beside the title in a right-side menu. Timetables show two days with today in focus, including a No lessons today card. Notes use one icon entry point, phone assessments use one complete card per row, and course Library links select that course’s assigned resources. Remove repeated dashboard explanations and plan-review status labels while preserving the existing review filters, draft safeguards, permissions and V107.96 Surah Kahf joining/recording controls. [Implementation and verification](docs/ACADEMY-MOBILE-REFINEMENTS-10797.md).
+
 # V107.96 — Live course joining and recording controls
 
 Show Join now beside the Surah Al Kahf course title only during an authorised live lesson, updating automatically at the lesson boundaries. Session cards retain their five-minute early join window. Use consistent highlighted recording buttons, omit years from visible session dates, and hide finished session times. The shared app header owns Refresh. Preserve existing login, fresh join checks, published materials and Course materials downloads; no database or coordinator changes.

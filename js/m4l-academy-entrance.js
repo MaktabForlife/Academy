@@ -45,6 +45,44 @@
   const addWeekDays=(date,days)=>new Date(Date.parse(date+'T12:00:00Z')+days*86400000).toISOString().slice(0,10);
   const sunday=date=>addWeekDays(date,-new Date(date+'T12:00:00Z').getUTCDay());
   const currentWeek=()=>sunday(academyDay(state.home?.timezone));
+  const personalDays=new Map();let personalDayFrame=0;
+  function alignPersonalDays(){
+    personalDayFrame=0;
+    for(const [id,view] of personalDays){
+      const host=$(id);if(!host.clientWidth||view.width===host.clientWidth)continue;
+      const columns=[...host.querySelectorAll('.timetable-days>.upcoming-day')];
+      const target=columns.find(column=>column.dataset.date===view.day)||columns[0];
+      if(!target)continue;
+      host.scrollTo({left:target.offsetLeft-columns[0].offsetLeft,behavior:'auto'});
+      view.automaticLeft=host.scrollLeft;view.width=host.clientWidth;
+    }
+  }
+  function queuePersonalDays(){if(!personalDayFrame)personalDayFrame=window.requestAnimationFrame?.(alignPersonalDays)||0;}
+  function rememberPersonalDay(id){
+    const host=$(id),view=personalDays.get(id);
+    if(!view||!host.clientWidth||view.width!==host.clientWidth)return;
+    // Automatic positioning can clamp to the start when all seven days fit.
+    // Keep the requested day until the learner deliberately browses elsewhere.
+    if(view.automaticLeft!==null&&view.automaticLeft!==undefined&&Math.abs(host.scrollLeft-view.automaticLeft)<2)return;
+    view.automaticLeft=null;
+    const columns=[...host.querySelectorAll('.timetable-days>.upcoming-day')],first=columns[0];
+    const visible=columns.find(column=>column.offsetLeft-first.offsetLeft+column.offsetWidth>host.scrollLeft+1);
+    if(visible)view.day=visible.dataset.date;
+  }
+  function preparePersonalDays(id,start,today){
+    const scope=id==='activity-sessions'?[state.activity?.kind,state.activity?.id,state.activity?.viewClassId]:[];
+    const key=JSON.stringify([window.M4L_ACADEMY_WORKSPACE.current(),scope,start,today]);
+    if(personalDays.get(id)?.key!==key)personalDays.set(id,{key,day:today>=start&&today<=addWeekDays(start,6)?today:start,width:0});
+    queuePersonalDays();
+  }
+  function showPersonalToday(id){
+    if(!state.home?.signedIn)return;
+    const week=currentWeek();
+    if(state.startDate!==week){state.startDate=week;personalDays.delete(id);void loadSchedule();return;}
+    const view=personalDays.get(id);
+    if(view){view.day=academyDay(state.home.timezone);view.width=0;queuePersonalDays();}
+  }
+
   const scheduleCard=$('academy-schedule');
   function dockTimetable(target){if(target&&scheduleCard.parentElement!==target)target.appendChild(scheduleCard);}
   function weekButtons(){for(const id of ['schedule-previous','activity-previous'])$(id).disabled=!state.startDate||state.startDate<=currentWeek();for(const id of ['schedule-next','activity-next'])$(id).disabled=!token()&&state.startDate>=addWeekDays(state.home?.availableEndDate||state.home?.endDate||state.startDate,-6);}
@@ -504,7 +542,7 @@
     const courseWebsite=context.mode==='teach'?window.M4L_COURSE_COMPANION?.href(row,'course-website','teach'):'';
     const websiteLink=courseWebsite?`<a id="activity-course-website" data-workspace-exit href="${esc(courseWebsite)}">Course website ↗</a>`:'';
     const currentLabel=tools.find(([key])=>key===context.tool)?.[1]||'Timetable';
-    return `<details class="workspace-contents"><summary><span>Contents</span><span class="workspace-current">${esc(currentLabel)}</span></summary><nav class="workspace-tabs" aria-label="${context.mode === 'teach' ? 'Teach' : 'Learn'} tools">${tools.map(([key,label,panel]) => `<a id="activity-tab-${key}" data-workspace-link href="${key==='library'?'/academy/library/':workspaceHref(row,key)}" aria-controls="${panel}"${context.tool===key?' aria-current="page"':''}>${label}</a>${key==='timetable'&&!row.substituteOnly?`<button type="button" class="cn-toggle" data-class-notes-toggle aria-pressed="${Boolean(window.M4L_CLASS_NOTES?.visible())}" aria-controls="activity-sessions">Class Notes</button>`:''}`).join('')}${websiteLink}${recorder}</nav></details>${hifzHelperLink(row,'workspace-helper')}`;
+    return `<details class="workspace-contents" data-learning-kind="${esc(row.kind)}"><summary><span>Contents</span><span class="workspace-current">${esc(currentLabel)}</span></summary><nav class="workspace-tabs" aria-label="${context.mode === 'teach' ? 'Teach' : 'Learn'} tools">${tools.map(([key,label,panel]) => `<a id="activity-tab-${key}" data-workspace-link href="${key==='library'?'/academy/library/':workspaceHref(row,key)}" aria-controls="${panel}"${context.tool===key?' aria-current="page"':''}>${label}</a>${key==='timetable'&&!row.substituteOnly?`<button type="button" class="cn-toggle" data-class-notes-toggle aria-pressed="${Boolean(window.M4L_CLASS_NOTES?.visible())}" aria-controls="activity-sessions">Class Notes</button>`:''}`).join('')}${websiteLink}${recorder}</nav></details>${hifzHelperLink(row,'workspace-helper')}`;
   }
   // Shared Messages, calendar and tracker are available from the dashboard.
   function supportSections() { return ''; }
@@ -821,8 +859,10 @@
       const classNotes=dailyRollup?'':entries.map(entry=>window.M4L_CLASS_NOTES?.buttons(entry.row)||'').join('');
       return `<li class="preview-pill timetable-pill ${nextEntry ? 'next-lesson ' : ''}${participation(entries)}${joinable ? ' join-open' : ''}"><button type="button" class="timetable-pill-details" data-information="${id}:${infoIndex}" aria-label="${esc(label)}${subtitle ? ' · ' + esc(subtitle) : ''}${programTimetable && lessonCount ? ' · ' + lessonCount : ''}, ${esc(first.startTime)}–${esc(last.endTime)}${status ? ', ' + status : ''}. View lesson details">${previewTime(first.startTime)}<span class="timetable-pill-copy"><strong class="preview-name">${esc(label)}</strong>${subtitle ? `<small>${esc(subtitle)}</small>` : ''}${count}${status ? `<small class="timetable-pill-status">${status}</small>` : ''}</span></button>${join}${attachments?`<div class="timetable-media-actions" aria-label="Lesson attachments">${attachments}</div>`:''}${classNotes}</li>`;
     };
-    $(id).innerHTML = `<ol class="upcoming-days preview-days timetable-days">${[...days].sort(([a], [b]) => a.localeCompare(b)).map(([date, groups]) => `<li class="upcoming-day"><time datetime="${esc(date)}">${esc(formatDate(date))}</time><ul class="upcoming-items">${groups.size ? [...groups.values()].map(renderGroup).join('') : '<li class="timetable-empty">No lessons</li>'}</ul></li>`).join('')}</ol>`;
+    const today=clock(now).date,learningRail=['academy-sessions','activity-sessions'].includes(id);
+    $(id).innerHTML = `<ol class="upcoming-days preview-days timetable-days">${[...days].sort(([a], [b]) => a.localeCompare(b)).map(([date, groups]) => `<li class="upcoming-day${learningRail&&date===today?' is-today':''}" data-date="${esc(date)}"><time datetime="${esc(date)}"${learningRail&&date===today?' aria-current="date"':''}>${esc(formatDate(date))}${learningRail&&date===today?'<span class="timetable-today-label">Today</span>':''}</time><ul class="upcoming-items">${groups.size ? [...groups.values()].map(renderGroup).join('') : '<li class="timetable-empty">'+(learningRail&&date===today?'No lessons today':'No lessons')+'</li>'}</ul></li>`).join('')}</ol>`;
     $(id).scrollLeft = scrollLeft;
+    if(learningRail)preparePersonalDays(id,start,today);
   }
 
   function activityRows() {
@@ -905,7 +945,7 @@
       if(!fresh&&mediaContext.tool === 'lesson-media'&&location.hash.startsWith('#activity/')&&result.signedIn&&!row.unavailable&&row.roles.length)
         window.M4L_LESSON_MEDIA.open({hostId:'activity-lesson-media',activityKey:row.kind+':'+row.id,learnerView:mediaContext.mode==='learn'});
       else if(!fresh)window.M4L_LESSON_MEDIA?.reset();
-      if(restoreMemorisation){const saved=restoreMemorisation;restoreMemorisation=null;$('activity-sessions').scrollLeft=saved.left;window.requestAnimationFrame?.(()=>window.scrollTo?.(0,saved.top));}
+      if(restoreMemorisation){const saved=restoreMemorisation;restoreMemorisation=null;$('activity-sessions').scrollLeft=saved.left;const view=personalDays.get('activity-sessions');if(view){view.automaticLeft=null;view.width=$('activity-sessions').clientWidth;rememberPersonalDay('activity-sessions');}window.requestAnimationFrame?.(()=>window.scrollTo?.(0,saved.top));}
     } catch (error) {
       if (generation !== state.activityGeneration) return;
       pageCache.snapshot = null;
@@ -1173,6 +1213,7 @@
     state.courseGeneration++;
     state.coursePending = null;
     state.scheduleTimetable = [];
+    personalDays.clear();
     clearTimeout(state.activityTimer);
     const publicRows=state.information['academy-public-sessions'];state.information = {'academy-public-sessions':publicRows||[]};
     state.academyTab = '';
@@ -1322,6 +1363,15 @@
   $('timetable-refresh').addEventListener('click', () => void loadHome(true));
   $('schedule-refresh').addEventListener('click', () => void loadSchedule(true));
   $('schedule-date').addEventListener('change', () => { state.startDate = $('schedule-date').value; void loadSchedule(); });
+  for(const [button,id] of [['schedule-today','academy-sessions'],['activity-today','activity-sessions']]){
+    $(button).addEventListener('click',()=>showPersonalToday(id));
+    $(id).addEventListener('scroll',()=>rememberPersonalDay(id),{passive:true});
+  }
+  if(typeof ResizeObserver!=='undefined'){
+    const observer=new ResizeObserver(queuePersonalDays);
+    for(const id of ['academy-sessions','activity-sessions'])observer.observe($(id));
+  }
+  window.addEventListener('resize',queuePersonalDays);
   for (const [id, days] of [['schedule-previous', -7], ['schedule-next', 7], ['activity-previous',-7], ['activity-next',7]]) $(id).addEventListener('click', () => {
     if (!state.startDate||days<0&&state.startDate<=currentWeek()) return;
     state.startDate = new Date(Date.parse(`${state.startDate}T12:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
