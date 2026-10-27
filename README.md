@@ -1,3 +1,9 @@
+# V107.101 — Manual lesson plans
+
+Admin Lesson plans opens a compact alphabetical table of active Programs and Courses, with a Plans required checkbox and Open plans shown only when required. Open plans retains the teacher-by-week grid with submitted documents and neutral empty cells. Turning plans off hides planning throughout Teach and blocks direct planner access while preserving saved work.
+
+Save draft stays private. The manual **Submit plan** button shares the selected version with Admin; later drafts remain private until submitted again. Remove automatic status/deadline calculations, reminder queues, session overrides, extensions and feedback workflow. Retain creation, saved history, PDF/image sharing and viewing. No database migration or private coordinator update is required. [Implementation and verification](docs/ACADEMY-MANUAL-LESSON-PLANS-107101.md).
+
 # V107.100 — Compact course headers and full-screen reading
 
 Keep the account ID and page actions together in one compact row, remove the Admin role dropdown and reduce course/lesson heading spacing. Both the original Surah Al Kahf reader and editable course websites offer **Full screen reading**, with a sticky Exit control, Menu and text sizing. Reading position is retained; leaving lessons or changing accounts restores the headers. [Release checks](docs/ACADEMY-COMPACT-READING-107100.md).

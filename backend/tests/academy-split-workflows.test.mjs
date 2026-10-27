@@ -159,3 +159,14 @@ test('split catalogue status and immutable acceptance retain the same subject id
  const catalogue=ok(await f.request(path+'learning-catalogue/get')),module=ok(await f.request(path+'learning-catalogue/module/save',{name:'Split central module',subjectId:created.subject.SubjectID,active:true,baseRevision:catalogue.emptyRevision,operationId:crypto.randomUUID()}));ok(await f.request('/api/academy/changes/accept',module.acceptedChange));assert.equal((await f.core.prepare('SELECT name FROM academy_module_catalogue WHERE module_id=?').bind(module.module.id).first()).name,module.module.name);
  assert.equal((await f.request(path+'academy-subjects/save',{mode:'rename',subjectId:created.subject.SubjectID,subjectName:created.subject.SubjectName,active:false,baseRevision:restored.subject.Revision,operationId:crypto.randomUUID()},'adminA')).status,403);
 }));
+
+test('manual plan requirement crosses accepted split storage and closes Teach links without changing plans',()=>use(async f=>{
+ const scope=f.scopes.programA,path='/api/academy/planning/';
+ ok(await f.request(path+'save',{activityKey:scope,weekStart:'2026-10-26',revision:0,content:{title:'Private preserved draft',overview:'Manual plan',reflection:'',lessons:[]},operationId:crypto.randomUUID()},'teacherA','TEACH'));const before=f.databases.core.prepare('SELECT count(*) n FROM lesson_plans').get().n;
+ const off=ok(await f.request(path+'requirement',{activityKey:scope,plansRequired:false,previousRequired:true,operationId:crypto.randomUUID()}));assert(off.acceptedChange);ok(await f.request('/api/academy/changes/accept',off.acceptedChange));
+ const list=ok(await f.request(path+'list',{view:'admin'}));assert.equal(list.areas.find(a=>a.key===scope).plansRequired,false);
+ const blocked=await f.request(path+'get',{activityKey:scope,weekStart:'2026-10-26'},'teacherA','TEACH');assert.equal(blocked.status,403);
+ const home=ok(await f.request('/api/academy/entrance',{},'teacherA','TEACH'));assert.equal(home.personalActivities.find(a=>a.kind+':'+a.id===scope).plansRequired,false);
+ assert.equal(f.databases.core.prepare('SELECT count(*) n FROM lesson_plans').get().n,before);
+ const on=ok(await f.request(path+'requirement',{activityKey:scope,plansRequired:true,previousRequired:false,operationId:crypto.randomUUID()}));ok(await f.request('/api/academy/changes/accept',on.acceptedChange));assert.equal(ok(await f.request(path+'get',{activityKey:scope,weekStart:'2026-10-26'},'teacherA','TEACH')).canEdit,true);
+}));

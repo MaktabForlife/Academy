@@ -1,3 +1,10 @@
+# Manual lesson plans release — 27 October 2026
+
+- The user authorised implementation of the planned lesson-plan simplification, keeping the manual Submit plan button, and deployment after confirming V107.100 is live. Work on `feature/academy-manual-lesson-plans`, based on `0e767b89`, and release V107.101 to the existing Development API and Academy website.
+- Admin opens an alphabetical table of active Programs/Courses with Plans required and conditional Open plans controls. Retain the existing teacher/week submission grid. Plans off removes Teach access and blocks direct planner requests. Save draft remains private; manual Submit shares the chosen version with Admin.
+- Remove automatic plan statuses, missing-plan/reminder queues, deadlines/extensions, per-session policies and feedback workflow. Preserve generation, storage/history, PDF/image sharing, viewing, permissions and every existing plan. Retired schema/history remains inert; no migration, live content/settings change or private coordinator deployment is required.
+- Use synthetic local fixtures and browser checks. Keep hosted verification to matching release/static metadata and one API readiness call under ../AGENTS.md. Do not contact other chats. This supersedes historical holds below for this release only; future deployments require fresh authorisation.
+
 # Compact course reading release — 27 October 2026
 
 - The user explicitly requested deployment of the reviewed compact headers and full-screen reading option. Release V107.100 from `feature/academy-course-website-builder`, preserving deployed V107.99 (`965d7c51`). This supersedes the local-only hold below for this release.

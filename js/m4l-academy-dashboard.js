@@ -6,7 +6,7 @@
   const token = () => localStorage.getItem('m4l_account_token') || '';
   const boundary = () => window.M4L_ACADEMY_WORKSPACE;
   const context = () => JSON.stringify([token(),boundary()?.current(),boundary()?.head(),boundary()?.classView()]);
-  let owner = '', epoch = 0, options = null, home = null, mode = 'learn', plans = [], assessments = [], enrolments = [], attendance = [], attendanceWarning = '', attendanceRange = '', failures = new Map(), loading = new Set(), read = new Set(), readOwner = '', timer, fetched = 0;
+  let owner = '', epoch = 0, options = null, home = null, mode = 'learn', assessments = [], enrolments = [], attendance = [], attendanceWarning = '', attendanceRange = '', failures = new Map(), loading = new Set(), read = new Set(), readOwner = '', timer, fetched = 0;
   let dialog, contentsDrawer;
   const wideContents = matchMedia('(min-width:70rem)');
   const link = (href,label,classes='ad-link') => `<a class="${classes}" href="${esc(href)}">${esc(label)}</a>`;
@@ -78,7 +78,7 @@
     }
   });
   function reset() {
-    epoch++;owner='';home=null;options=null;plans=[];assessments=[];enrolments=[];attendance=[];attendanceWarning='';attendanceRange='';failures.clear();loading.clear();read.clear();readOwner='';fetched=0;clearTimeout(timer);closeContents(false);closeDialog();
+    epoch++;owner='';home=null;options=null;assessments=[];enrolments=[];attendance=[];attendanceWarning='';attendanceRange='';failures.clear();loading.clear();read.clear();readOwner='';fetched=0;clearTimeout(timer);closeContents(false);closeDialog();
     const host=$('dashboard');if(host)host.replaceChildren();
   }
   async function restoreRead() {
@@ -100,7 +100,7 @@
     const host=$('dashboard');if(!host)return;
     closeContents(false);
     host.classList.toggle('ad-admin-dashboard',mode==='admin');
-    host.innerHTML=`<div class="ad-layout"><aside class="ad-sidebar" aria-label="Menu"><h2>Menu</h2><nav id="ad-navigation"></nav></aside><div class="ad-main"><header class="ad-intro"><div class="ad-welcome"><div class="ad-welcome-copy"><h1 id="ad-title"></h1></div><button type="button" class="ad-contents-toggle academy-menu-button" data-ad-contents-toggle aria-haspopup="dialog" aria-expanded="false" aria-controls="ad-navigation"><span>Menu</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button></div><div id="ad-primary-actions" class="ad-actions"></div></header><p id="ad-status" class="ad-status" role="status" aria-live="polite"></p><div class="ad-grid"><div class="ad-stack"><section class="ad-panel ad-attention" aria-labelledby="ad-fya-title"><header><h2 id="ad-fya-title">For your attention</h2><span id="ad-fya-count" class="ad-count"></span></header><div id="ad-attention"></div></section><section class="ad-panel ad-assessments" aria-labelledby="ad-assessment-title"><header><h2 id="ad-assessment-title">Imtehaan</h2><span id="ad-assessment-count" class="ad-count"></span></header><div id="ad-assessments" aria-live="polite"></div></section></div><div class="ad-stack"><section class="ad-panel ad-next" aria-labelledby="ad-next-title"><header><h2 id="ad-next-title">Coming up next</h2></header><div id="ad-next"></div></section><section class="ad-panel ad-messages" aria-labelledby="ad-messages-title"><header><h2 id="ad-messages-title">Messages <span id="ad-unread" class="ad-count"></span></h2><button type="button" data-ad-inbox>View inbox →</button></header><div id="ad-messages"></div></section></div></div><section class="ad-continue"><h2 id="ad-continue-title">Continue learning</h2><div id="ad-areas"></div></section><section class="ad-week" aria-labelledby="ad-week-title"><header><h2 id="ad-week-title">This week</h2></header><div id="ad-timetable-host"></div></section><div id="ad-calendar-row" class="ad-calendar-row"><section class="ad-panel ad-calendar" aria-labelledby="ad-calendar-title"><header><h2 id="ad-calendar-title">Academy calendar</h2></header><div id="ad-calendar-host"></div></section><div id="ad-calendar-actions" class="ad-calendar-actions" hidden><section id="ad-attendance-panel" class="ad-panel ad-queue" aria-labelledby="ad-attendance-title"><header><h2 id="ad-attendance-title">Mark attendance</h2><span id="ad-attendance-count" class="ad-count"></span></header><div id="ad-attendance" class="ad-queue-body" tabindex="0" role="region" aria-labelledby="ad-attendance-title"></div></section><section id="ad-plans-panel" class="ad-panel ad-queue" aria-labelledby="ad-plans-title"><header><h2 id="ad-plans-title">Lesson plans due</h2><span id="ad-plans-count" class="ad-count"></span></header><div id="ad-plans" class="ad-queue-body" tabindex="0" role="region" aria-labelledby="ad-plans-title"></div></section></div></div><section class="ad-panel ad-tools"><header><h2>Quick tools</h2></header><nav id="ad-tools" aria-label="Dashboard tools"></nav></section></div></div>`;
+    host.innerHTML=`<div class="ad-layout"><aside class="ad-sidebar" aria-label="Menu"><h2>Menu</h2><nav id="ad-navigation"></nav></aside><div class="ad-main"><header class="ad-intro"><div class="ad-welcome"><div class="ad-welcome-copy"><h1 id="ad-title"></h1></div><button type="button" class="ad-contents-toggle academy-menu-button" data-ad-contents-toggle aria-haspopup="dialog" aria-expanded="false" aria-controls="ad-navigation"><span>Menu</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button></div><div id="ad-primary-actions" class="ad-actions"></div></header><p id="ad-status" class="ad-status" role="status" aria-live="polite"></p><div class="ad-grid"><div class="ad-stack"><section class="ad-panel ad-attention" aria-labelledby="ad-fya-title"><header><h2 id="ad-fya-title">For your attention</h2><span id="ad-fya-count" class="ad-count"></span></header><div id="ad-attention"></div></section><section class="ad-panel ad-assessments" aria-labelledby="ad-assessment-title"><header><h2 id="ad-assessment-title">Imtehaan</h2><span id="ad-assessment-count" class="ad-count"></span></header><div id="ad-assessments" aria-live="polite"></div></section></div><div class="ad-stack"><section class="ad-panel ad-next" aria-labelledby="ad-next-title"><header><h2 id="ad-next-title">Coming up next</h2></header><div id="ad-next"></div></section><section class="ad-panel ad-messages" aria-labelledby="ad-messages-title"><header><h2 id="ad-messages-title">Messages <span id="ad-unread" class="ad-count"></span></h2><button type="button" data-ad-inbox>View inbox →</button></header><div id="ad-messages"></div></section></div></div><section class="ad-continue"><h2 id="ad-continue-title">Continue learning</h2><div id="ad-areas"></div></section><section class="ad-week" aria-labelledby="ad-week-title"><header><h2 id="ad-week-title">This week</h2></header><div id="ad-timetable-host"></div></section><div id="ad-calendar-row" class="ad-calendar-row"><section class="ad-panel ad-calendar" aria-labelledby="ad-calendar-title"><header><h2 id="ad-calendar-title">Academy calendar</h2></header><div id="ad-calendar-host"></div></section><div id="ad-calendar-actions" class="ad-calendar-actions" hidden><section id="ad-attendance-panel" class="ad-panel ad-queue" aria-labelledby="ad-attendance-title"><header><h2 id="ad-attendance-title">Mark attendance</h2><span id="ad-attendance-count" class="ad-count"></span></header><div id="ad-attendance" class="ad-queue-body" tabindex="0" role="region" aria-labelledby="ad-attendance-title"></div></section></div></div><section class="ad-panel ad-tools"><header><h2>Quick tools</h2></header><nav id="ad-tools" aria-label="Dashboard tools"></nav></section></div></div>`;
     if(mode!=='admin'){
       const main=host.querySelector('.ad-main');
       main.insertBefore(host.querySelector('.ad-next'),host.querySelector('.ad-grid'));
@@ -126,7 +126,7 @@
     return link('/academy/#progress','Surahs and Duas Tracker');
   }
   function chooseTool(tool) {
-    const rows=areas().filter(row=>tool!=='planning'||!row.substituteOnly);
+    const rows=areas().filter(row=>tool!=='planning'||!row.substituteOnly&&row.plansRequired!==false);
     const title={'attendance':'Mark attendance','planning':'Submit plans','surahs-duas':'Surahs and Duas Tracker'}[tool]||'Open workspace';
     showDialog(title,rows.length?`<p>Choose a Program or Course.</p><ul class="ad-picker">${rows.map(row=>`<li>${link(href(row,tool),row.name,'ad-tool-choice')}</li>`).join('')}</ul>`:'<p>No assigned Programs or Courses are available in this workspace.</p>');
   }
@@ -140,7 +140,8 @@
     const sidebar=document.querySelector('#dashboard .ad-sidebar'),caption='Menu';
     sidebar.setAttribute('aria-label',caption);sidebar.querySelector('h2').textContent=caption;
     document.querySelector('[data-ad-contents-toggle]>span').textContent=caption;
-    const tools=mode==='teach'?'<button type="button" data-ad-choose="attendance">Mark attendance</button><button type="button" data-ad-choose="planning">Submit plans</button>':mode==='admin'?adminLinks.map(row=>row.action?'<button type="button" data-admin-public-refresh>Update timetable</button>':link(row.href,row.label)).join(''):link('/academy/enrolment/','Enrol now');
+    const planning=areas().some(row=>!row.substituteOnly&&row.plansRequired!==false)?'<button type="button" data-ad-choose="planning">Submit plans</button>':'';
+    const tools=mode==='teach'?'<button type="button" data-ad-choose="attendance">Mark attendance</button>'+planning:mode==='admin'?adminLinks.map(row=>row.action?'<button type="button" data-admin-public-refresh>Update timetable</button>':link(row.href,row.label)).join(''):link('/academy/enrolment/','Enrol now');
     const shared=tracker()+link('/academy/library/','Library')+link(boundary()?.readerUrl('/recorder/?academy=1')||'/recorder/?academy=1','Voice Recorder');
     const visitWebsite='<a class="ad-visit" href="/academy/#website" data-workspace-exit>Visit website ↗</a>';
     $('ad-navigation').innerHTML=mode==='admin'&&home.globalAdmin?tools+visitWebsite:link(homeUrl(),'Home')+'<button type="button" data-ad-week>Timetable</button>'+'<button type="button" data-ad-inbox>Messages</button>'+tools+shared+visitWebsite;
@@ -149,7 +150,7 @@
       const label=item.textContent,kind=['heart','library','recorder'][index],icon=document.createElement('span'),caption=document.createElement('span');
       icon.className='quicklink-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML=window.M4L_ACADEMY_SHELL?.icon(kind)||'';caption.className='quicklink-label';caption.textContent=label;item.dataset.quickKind=kind;item.replaceChildren(icon,caption);
     }
-    $('ad-primary-actions').innerHTML=mode==='teach'?'<button type="button" class="ad-primary" data-ad-choose="attendance">Mark attendance</button><button type="button" class="ad-secondary" data-ad-choose="planning">Submit plans</button>':'';
+    $('ad-primary-actions').innerHTML=mode==='teach'?'<button type="button" class="ad-primary" data-ad-choose="attendance">Mark attendance</button>'+planning:'';
     $('ad-title').innerHTML=mode==='learn'?'Ahlan wa sahlan<span class="ad-greeting-name">, '+esc(home.profile?.name||'Academy member')+'</span>':mode==='teach'?'Your teaching dashboard':'Dashboard';
     $('ad-assessment-title').textContent='Imtehaan';
   }
@@ -215,7 +216,7 @@
   }
   function renderAttention() {
     if(!home||!$('ad-attention'))return;
-    const list=tasks(),noteState=window.M4L_CLASS_NOTES?.snapshot?.(),pending=[...loading].some(name=>!['planning','attendance','assessments'].includes(name)),errors=[...failures].filter(([name])=>!['planning','attendance','assessments'].includes(name)).map(([,message])=>message);
+    const list=tasks(),noteState=window.M4L_CLASS_NOTES?.snapshot?.(),pending=[...loading].some(name=>!['attendance','assessments'].includes(name)),errors=[...failures].filter(([name])=>!['attendance','assessments'].includes(name)).map(([,message])=>message);
     $('ad-fya-count').textContent=String(list.length);
     $('ad-attention').innerHTML=list.length?`<ul class="ad-task-list">${list.map(row=>`<li><h3>${esc(row.title)}</h3><p class="ad-muted">${esc(row.description)}</p><div class="ad-task-bottom">${row.badge?`<span class="ad-due">${esc(row.badge)}</span>`:''}${row.action}</div></li>`).join('')}</ul>`:'<p class="ad-empty-line">'+(pending||['idle','loading'].includes(noteState?.status)&&home.personalTimetable?.some(row=>row.mediaSessionKey)?'Checking your outstanding actions…':errors.length||noteState?.status==='error'?'Some actions could not be checked.':'No outstanding actions in the available Academy records.')+'</p>';
     if(errors.length||['error','stale'].includes(noteState?.status))$('ad-attention').insertAdjacentHTML('beforeend','<p class="ad-warning" role="status">'+esc([...errors,noteState?.message].filter(Boolean).join(' '))+'</p><button type="button" data-ad-retry>Try again</button>');
@@ -229,22 +230,14 @@
   }
   function renderQueue(name,rows,empty) {
     $('ad-'+name+'-count').textContent=String(rows.length);
-    const source=name==='plans'?'planning':'attendance',error=failures.get(source)||(name==='attendance'?attendanceWarning:'');
+    const source='attendance',error=failures.get(source)||(name==='attendance'?attendanceWarning:'');
     $('ad-'+name).innerHTML=rows.length?taskList(rows):`<p class="ad-empty-line">${loading.has(source)?'Checking…':error?'This list could not be fully checked.':esc(empty)}</p>`;
     if(error)$('ad-'+name).insertAdjacentHTML('beforeend',`<p class="ad-warning" role="status">${esc(error)}</p><button type="button" data-ad-retry>Try again</button>`);
   }
   function renderQueues() {
-    renderAttention();renderAssessments();if(!home||!$('ad-plans'))return;
+    renderAttention();renderAssessments();if(!home||!$('ad-attendance'))return;
     const staff=mode!=='learn';$('ad-calendar-actions').hidden=!staff;$('ad-calendar-row').dataset.queues=String(staff);if(!staff)return;
-    $('ad-plans-title').textContent=mode==='admin'?'Review Lesson Plans':'Lesson plans due';
     $('ad-attendance-title').textContent=mode==='admin'?'Review attendance':'Mark attendance';
-    const planRows=[];
-    for(const plan of plans.filter(row=>mode==='admin'?Boolean(row.submittedAt||row.submittedRevision):['DUE','OVERDUE'].includes(row.status)&&row.canSubmit)){
-      const area=areas().find(row=>key(row).toUpperCase()===plan.activityKey.toUpperCase());if(!area)continue;
-      const status={DUE:plan.dueAt?'Due '+date(plan.dueAt):'Plan due',OVERDUE:'Overdue',SUBMITTED:'Submitted',SUBMITTED_LATE:'Submitted late',SUBMITTED_ON_TIME:'Submitted on time'}[plan.status]||plan.status;
-      planRows.push({title:plan.activityName,description:[plan.teacherName,plan.period==='WEEKLY'&&plan.weekStart?'Week of '+date(plan.weekStart+'T12:00:00Z'):plan.runName].filter(Boolean).join(' · '),badge:mode==='admin'?'':status,action:link(mode==='admin'?'#administration/planning':href(area,'planning'),mode==='admin'?'Review plan →':'Open planning →')});
-    }
-    renderQueue('plans',planRows,mode==='admin'?'No submitted plans in the available review period.':'No lesson plans due.');
     const registers=attendance.filter(row=>mode==='admin'?row.submitted&&row.absentCount>0:!row.submitted).map(row=>({title:row.moduleName||row.subjectName||'Lesson',description:[row.activityName,row.className,date(row.date+'T12:00:00Z'),row.startTime].filter(Boolean).join(' · '),badge:mode==='admin'?row.absentCount+' absent':row.submitted?'Submitted':row.canSubmit?'Not marked':'Roster review needed',action:link(attendanceHref(row),mode==='admin'?'Review register →':'Open register →')}));
     renderQueue('attendance',registers,mode==='admin'?'No submitted registers with absentees in this timetable week.':'No unmarked lessons in this timetable week.');
   }
@@ -320,7 +313,6 @@
     const work=[];
     const assessmentInput={dashboard:true,summaryVersion:2,view:mode==='admin'?'admin':mode==='teach'?'teacher':'learner'};
     work.push(loadSource('assessments',null,assessmentInput,data=>{assessments=data.assessments||[];},force,async()=>assessmentSummary(await request('/api/academy/assessments/list',assessmentInput))));
-    if(mode!=='learn')work.push(loadSource('planning','/api/academy/planning/list',{view:mode==='admin'?'admin':'teacher',...(mode==='admin'?{weekCount:3}:{})},data=>{plans=data.plans||[];},force));
     if(mode!=='learn'&&window.M4L_CONFIG?.NATIVE_ATTENDANCE)work.push(loadSource('attendance',null,units,data=>{attendance=data.lessons||[];attendanceWarning=data.warning||'';},force,()=>readAttendance(units)));
     if(mode==='admin')work.push(loadSource('enrolments','/api/admin/platform/enrolment/get',{},data=>{enrolments=data.requests||[];enrolments.nextCursor=data.nextCursor;},force));
     if(force){window.M4L_CLASS_NOTES?.invalidate();void window.M4L_ANNOUNCEMENTS?.refreshPublic(true);options.refreshTimetable?.();}
