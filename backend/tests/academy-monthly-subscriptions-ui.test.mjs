@@ -47,6 +47,45 @@ test('grid expands years, preserves hidden edits through search and retries the 
   assert.deepEqual(rows.map(r=>[r.account_id,r.lesson_month]),[['account-0002','2024-01'],['account-0008','2025-02']]);
  }finally{t.f.db.close();}
 });
+test('whole-year checkbox selects 12 months, allows exceptions and saves several students together',async()=>{
+ const t=await setup();try{
+  const year=(account,y)=>'[data-pms-year-cell][data-account="'+account+'"][data-year="'+y+'"]';
+  const month=(account,m)=>'[data-pms-cell][data-account="'+account+'"][data-month="'+m+'"]';
+  await t.change(year('account-0002',2024),true);
+  assert.equal(t.document.querySelector(year('account-0002',2024)).checked,true);assert.equal(t.document.querySelector(year('account-0002',2024)).indeterminate,false);
+  assert.match(t.document.querySelector('[data-pms-delta]').textContent,/12 unsaved/);
+  await t.click('[data-pms-year="2024"]');
+  assert.equal([...t.document.querySelectorAll('[data-pms-cell][data-account="account-0002"]')].filter(c=>c.checked).length,12);
+  await t.change(month('account-0002','2024-03'),false);
+  assert.equal(t.document.querySelector(year('account-0002',2024)).checked,false);assert.equal(t.document.querySelector(year('account-0002',2024)).indeterminate,true);
+  assert.equal(t.document.querySelector(year('account-0002',2024)).getAttribute('aria-checked'),'mixed');
+  await t.click('[data-pms-year="2024"]');await t.search('0008');
+  await t.change(year('account-0008',2025),true);await t.search('0002');await t.click('[data-pms-year="2024"]');
+  assert.equal(t.document.querySelector(month('account-0002','2024-03')).checked,false);
+  assert.equal(t.document.querySelector(month('account-0002','2024-04')).checked,true);
+  await t.click('[data-pms-action="save"]');
+  const calls=t.calls.filter(c=>c.url.endsWith('/grid-save'));assert.equal(calls.length,1);assert.equal(calls[0].input.entries.length,23);
+  const rows=t.f.db.prepare('SELECT account_id,lesson_month FROM program_monthly_subscriptions WHERE active=1').all();
+  assert.equal(rows.filter(r=>r.account_id==='account-0002').length,11);assert.equal(rows.filter(r=>r.account_id==='account-0008').length,12);
+  assert.equal(rows.some(r=>r.lesson_month==='2024-03'),false);assert.equal(rows.some(r=>r.lesson_month.startsWith('2026')),false);
+  assert.equal(t.document.querySelector(year('account-0002',2024)).indeterminate,true);
+ }finally{t.f.db.close();}
+});
+test('whole-year clearing only revokes saved months and keeps removal safeguards',async()=>{
+ const t=await setup();try{
+  const selector='[data-pms-year-cell][data-account="account-0002"][data-year="2025"]';
+  await t.change(selector,true);await t.change(selector,false);assert.equal(t.window.M4L_PROGRAM_MONTHLY.dirty(),false);
+  await t.change(selector,true);await t.click('[data-pms-action="save"]');
+  assert.equal(t.document.querySelector(selector).checked,true);
+  await t.change(selector,false);await t.click('[data-pms-action="save"]');
+  assert.equal(t.calls.filter(c=>c.url.endsWith('/grid-save')).length,1);
+  assert.match(t.document.querySelector('[data-pms-review]').textContent,/12 paid month/);
+  t.document.querySelector('[data-pms-removal-reason]').value='Wrong year entered';await t.click('[data-pms-action="confirm-save"]');
+  const calls=t.calls.filter(c=>c.url.endsWith('/grid-save'));assert.equal(calls.length,2);assert.equal(calls[1].input.entries.length,12);
+  assert.equal(t.f.db.prepare('SELECT count(*) n FROM program_monthly_subscriptions WHERE active=1').get().n,0);
+  assert.equal(t.document.querySelector(selector).indeterminate,false);assert.equal(t.document.querySelector(selector).checked,false);
+ }finally{t.f.db.close();}
+});
 test('grid revocation requires a reason and cancelling a tick creates no save',async()=>{
  const t=await setup();try{
   await t.click('[data-pms-year="2024"]');const selector='[data-pms-cell][data-account="account-0002"][data-month="2024-01"]';

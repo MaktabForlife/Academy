@@ -73,7 +73,7 @@
   if(!data.prepared){content.innerHTML='<p>Prepare Tafseer’s register before entering paid months and earlier lessons. Preparation retains new recordings; it does not change student access yet.</p>'+(data.canConfigure?'<button type="button" data-pms-action="prepare">Prepare monthly register</button>':'<p>Ask Global Admin to prepare this register.</p>')+'<div data-pms-review></div>';return;}
   content.innerHTML='<p>'+(data.policy.enabled?'Students keep access to the lesson months checked here, including recordings added later.':'Preparation mode: enter and review paid months before activating monthly access.')+'</p>'+
    '<div class="pms-grid-toolbar"><form data-pms-search-form class="pms-search"><label>Find a student<input type="search" data-pms-search value="'+esc(search)+'" maxlength="100" placeholder="Name or account ID"></label><button type="submit">Find</button></form><div class="pms-toolbar"><button type="button" data-pms-action="save">Save changes</button><button type="button" data-pms-action="discard">Discard edits</button><button type="button" data-pms-action="refresh">Refresh</button></div></div>'+
-   '<p class="pms-grid-help">Click a year to show its months. Tick paid months for any students, then save all your changes together. Student names stay on the left as you scroll.</p>'+
+   '<p class="pms-grid-help">Click a year to show its months. Use each student’s All checkbox for a whole year, or tick individual months. Save all your changes together. Student names stay on the left as you scroll.</p>'+
    '<div data-pms-grid></div><div class="pms-grid-footer"><p data-pms-delta aria-live="polite"></p><p>'+data.students.length+' student(s) shown'+(data.after?' · more available':'')+'</p>'+(data.after?'<button type="button" data-pms-action="more">Load more students</button>':'')+'</div><div data-pms-review></div>'+
    (data.canConfigure&&!data.policy.enabled?'<p><button type="button" data-pms-action="activate">Activate monthly access…</button></p>':'')+
    '<details class="pms-history"><summary>Earlier lessons and media · including 2024 / 2025</summary><p>Use the original lesson date: it determines the paid month even when media is added later. Tafseer recordings are retained beyond 14 days.</p><form data-pms-history-form><label>Original lesson date<input name="date" type="date" required></label><label>Lesson title<input name="title" maxlength="180" required></label><fieldset><legend>Lesson classes</legend>'+classOptions(data.classes.length===1?[data.classes[0].class_id]:[])+'</fieldset><button type="submit">Add historical lesson</button><button type="reset">Clear entry</button></form><label>Browse lesson media<input type="month" data-pms-history-month value="'+esc(month)+'" required></label><div data-pms-history-list></div></details>';
@@ -82,31 +82,37 @@
  function renderGrid(focusKey){
   const slot=host.querySelector('[data-pms-grid]');if(!slot)return;
   const old=slot.querySelector('.pms-grid-wrap'),left=old?.scrollLeft||0,top=old?.scrollTop||0;
-  const head=years.map(y=>'<th scope="colgroup" colspan="'+(expanded.has(y)?12:1)+'"><button type="button" data-pms-year="'+y+'" aria-expanded="'+expanded.has(y)+'" aria-label="'+(expanded.has(y)?'Collapse ':'Expand ')+y+'"><span aria-hidden="true">'+(expanded.has(y)?'▾':'▸')+'</span> '+y+'</button></th>').join('');
-  const monthHeads=years.map(y=>expanded.has(y)?shortMonths.map((m,i)=>'<th scope="col" aria-label="'+esc(monthLabel(monthsIn(y)[i]))+'">'+m+'</th>').join(''):'<th scope="col" class="pms-year-summary">Paid months</th>').join('');
+  const head=years.map(y=>'<th scope="colgroup" colspan="'+(expanded.has(y)?13:1)+'"><button type="button" data-pms-year="'+y+'" aria-expanded="'+expanded.has(y)+'" aria-label="'+(expanded.has(y)?'Collapse ':'Expand ')+y+'"><span aria-hidden="true">'+(expanded.has(y)?'▾':'▸')+'</span> '+y+'</button></th>').join('');
+  const monthHeads=years.map(y=>expanded.has(y)?'<th scope="col" class="pms-year-select" aria-label="All 12 months of '+y+'">All</th>'+shortMonths.map((m,i)=>'<th scope="col" aria-label="'+esc(monthLabel(monthsIn(y)[i]))+'">'+m+'</th>').join(''):'<th scope="col" class="pms-year-summary">All months</th>').join('');
   const rows=data.students.map(row=>'<tr><th scope="row" class="pms-student"><strong>'+esc(row.name)+'</strong><small>'+esc(row.accountId)+(row.active?'':' · Inactive')+'</small></th>'+years.map(y=>{
-   if(!expanded.has(y)){const count=monthsIn(y).filter(m=>cell(row,m).subscribed).length;return '<td class="pms-year-summary">'+(count?count+' / 12':'—')+'</td>';}
-   return monthsIn(y).map(m=>{
+   const count=monthsIn(y).filter(m=>cell(row,m).subscribed).length,edited=monthsIn(y).some(m=>drafts.has(key(row.accountId,m)));
+   const wholeYear='<td class="pms-year-select'+(expanded.has(y)?'':' pms-year-summary')+(edited?' pms-edited':'')+'"><label><span class="pms-visually-hidden">'+esc(row.name)+' · All 12 months of '+y+'</span><input type="checkbox" data-pms-year-cell data-account="'+esc(row.accountId)+'" data-year="'+y+'" data-pms-inactive="'+!row.active+'" aria-checked="'+(count===12?'true':count?'mixed':'false')+'"'+(count===12?' checked':'')+'>'+(expanded.has(y)?'':'<span aria-hidden="true">'+count+' / 12</span>')+'</label></td>';
+   if(!expanded.has(y))return wholeYear;
+   return wholeYear+monthsIn(y).map(m=>{
     const value=cell(row,m),edited=drafts.has(key(row.accountId,m)),inactive=!row.active&&!savedCell(row,m).subscribed;
     return '<td class="pms-month-cell'+(edited?' pms-edited':'')+'"><label><span class="pms-visually-hidden">'+esc(row.name)+' · '+esc(monthLabel(m))+'</span><input type="checkbox" data-pms-cell data-account="'+esc(row.accountId)+'" data-month="'+m+'" data-pms-inactive="'+inactive+'"'+(value.subscribed?' checked':'')+'></label></td>';
    }).join('');
   }).join('')+'</tr>').join('');
-  const columns=1+years.reduce((n,y)=>n+(expanded.has(y)?12:1),0);
+  const columns=1+years.reduce((n,y)=>n+(expanded.has(y)?13:1),0);
   slot.innerHTML='<div class="pms-grid-wrap" tabindex="0" role="region" aria-label="Tafseer paid months"><table class="pms-grid"><caption class="pms-visually-hidden">Tafseer students and subscribed months, 2024 to 2026</caption><thead><tr><th scope="col" rowspan="2" class="pms-student">Student</th>'+head+'</tr><tr>'+monthHeads+'</tr></thead><tbody>'+(rows||'<tr><td colspan="'+columns+'">No matching Tafseer students.</td></tr>')+'</tbody></table></div>';
   const wrap=slot.querySelector('.pms-grid-wrap');wrap.scrollLeft=left;wrap.scrollTop=top;
-  if(focusKey){for(const control of slot.querySelectorAll('[data-pms-cell]'))if(key(control.dataset.account,control.dataset.month)===focusKey){control.focus?.({preventScroll:true});break;}}
+  for(const control of slot.querySelectorAll('[data-pms-year-cell]'))control.indeterminate=control.getAttribute('aria-checked')==='mixed';
+  if(focusKey){for(const control of slot.querySelectorAll('[data-pms-cell],[data-pms-year-cell]'))if(key(control.dataset.account,control.dataset.month||'YEAR:'+control.dataset.year)===focusKey){control.focus?.({preventScroll:true});break;}}
   delta();controls();
  }
  function delta(){const node=host.querySelector('[data-pms-delta]');if(node)node.textContent=drafts.size?drafts.size+' unsaved month change(s)'+([...drafts.values()].some(e=>!data.students.some(r=>r.accountId===e.accountId))?', including students outside this search':''):'No unsaved changes';}
  function change(event){
   const control=event.target;
   if(control.matches('[data-pms-history-month]')){const next=control.value;if(!canLeave()){control.value=month;return;}if(!/^[1-9]\d{3}-(0[1-9]|1[0-2])$/.test(next)){message('Choose a month and year.',true);return;}month=next;historyRows=[];void history();return;}
-  if(!control.matches('[data-pms-cell]')||busy||pending)return;
-  const row=students.get(control.dataset.account),m=control.dataset.month,k=key(row.accountId,m),saved=savedCell(row,m),draft=drafts.get(k);
-  const original=draft?.wasSubscribed??saved.subscribed;
-  if(control.checked===original)drafts.delete(k);
-  else{if(!drafts.size)draftRevision=data.policy.revision;drafts.set(k,{accountId:row.accountId,month:m,subscribed:control.checked,revision:draft?.revision??saved.revision,classIds:draft?.classIds??(saved.classIds.length?saved.classIds:row.suggestedClassIds[m]||[]),wasSubscribed:original});}
-  if(!drafts.size)draftRevision=null;host.querySelector('[data-pms-review]').replaceChildren();renderGrid(k);
+  if(!control.matches('[data-pms-cell],[data-pms-year-cell]')||control.disabled||busy||pending)return;
+  const row=students.get(control.dataset.account),wholeYear=control.hasAttribute('data-pms-year-cell');
+  for(const m of wholeYear?monthsIn(Number(control.dataset.year)):[control.dataset.month])stageCell(row,m,control.checked);
+  if(!drafts.size)draftRevision=null;host.querySelector('[data-pms-review]').replaceChildren();renderGrid(key(row.accountId,wholeYear?'YEAR:'+control.dataset.year:control.dataset.month));
+ }
+ function stageCell(row,m,subscribed){
+  const k=key(row.accountId,m),saved=savedCell(row,m),draft=drafts.get(k),original=draft?.wasSubscribed??saved.subscribed;
+  if(subscribed===original)drafts.delete(k);
+  else{if(!drafts.size)draftRevision=data.policy.revision;drafts.set(k,{accountId:row.accountId,month:m,subscribed,revision:draft?.revision??saved.revision,classIds:draft?.classIds??(saved.classIds.length?saved.classIds:row.suggestedClassIds[m]||[]),wasSubscribed:original});}
  }
  const saveInput=()=>({entries:[...drafts.values()].map(({wasSubscribed,...entry})=>entry),removalReason:host.querySelector('[data-pms-removal-reason]')?.value.trim()||''});
  function review(){
