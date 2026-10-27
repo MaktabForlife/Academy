@@ -18,7 +18,7 @@ Canva files are exported as PNG/JPG/WebP or PDF, then uploaded and arranged here
 
 The accepted student website is `/academy/course-websites/view/?course=<course-id>`, using the current Academy login and workspace/class boundary. Published websites appear on authorised dashboards and Course Teach links. Existing Kahf links retain their route and redirect to its edited website after the first explicit publication. Merely opening or saving its Admin draft preserves the current student website.
 
-The reader includes compact Contents, adjustable text size, progress, previous/next lessons, browser-local account-scoped reflections, and mobile-first layouts. Existing Kahf completion marks and reflection keys are migrated into the component view. The original course PDF and public flyer remain in Course materials; new downloadable materials are added there. No print controls are included.
+The reader includes compact Menu, adjustable text size, progress, previous/next lessons, browser-local account-scoped reflections, and mobile-first layouts. Existing Kahf completion marks and reflection keys are migrated into the component view. The original course PDF and public flyer remain in Course materials; new downloadable materials are added there. No print controls are included.
 
 Native session and media feeds retain the published timetable, two-column phone cards, recording playback, Teacher own-note PDFs and current course/class permissions. Header Join now appears only inside the live lesson window; session cards retain the normal early joining window. Actual joins and file opens recheck current server authority. Assessments retain their existing release, submission and marking tools.
 
