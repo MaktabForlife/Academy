@@ -1,3 +1,7 @@
+# V107.95 — Surah Al Kahf course refinements
+
+Use one card per session for dates, times, joining, recordings and notes, with two columns on phones. Remove the home page schedule strip and its two repeated heading rows. Add a small BOOTCAMP label beneath the course name and make Contents text larger with compact rows and 44px touch targets. Local checks verify that joining and recording actions remain attached to the correct session when older media is loaded. Existing account, course permissions, publication gates and Course materials downloads remain in place. The user confirmed live recordings and PDF downloads worked before this release and explicitly requested deployment. No schema, live data or private coordinator changes.
+
 # V107.93 — Mobile Learn and Teach
 
 Release the phone-tested Learn/Teach layout to Development, incorporating deployed V107.89. Use one reading column on phones, a compact Contents menu and wider layouts built on the same content. Include compact headers, the Admin badge, standard X Close controls, the clearer Refresh arrow, contained date fields and the four planner icon actions. Preserve saved drafts, permissions and all V107.89 account, PDF reader and Surah Kahf features.

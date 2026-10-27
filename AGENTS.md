@@ -1,3 +1,9 @@
+# Surah Kahf course refinement release — 27 October 2026
+
+- The user explicitly requested deployment after reviewing the combined session cards, removal of home page schedule/duplicate heading rows, small BOOTCAMP course label and more readable, compact Contents menu. Release V107.95 from `feature/surah-kahf-course-companion`, preserving V107.94.
+- Deploy the matching Development API and Academy website through the existing workflow. Preserve login, account boundaries, permissions, publication gates and downloads only through Course materials. No migration, live material upload, timetable publication, data/settings change or private coordinator deployment is required.
+- Use synthetic local regression fixtures and keep hosted verification to release/static metadata and one readiness check under ../AGENTS.md. Future deployments require fresh user authorisation.
+
 # Surah Kahf follow-up release — 27 October 2026
 
 - The user explicitly requested deployment after confirming V107.93 and clarifying that the course is visible in Learn. Release the reviewed follow-ups as V107.94 from `feature/surah-kahf-course-companion`, incorporating deployed V107.93 (`6774854c`). This authorisation lifts the review-only hold for this release.

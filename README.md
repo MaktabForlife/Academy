@@ -1,3 +1,7 @@
+# V107.95 — Surah Al Kahf course refinements
+
+Combine each published session's date, time, join action, recordings and lesson notes in one card, retaining two columns on phones. Keep session details on those cards and simplify the home page: remove the two repeated heading rows, and show BOOTCAMP beneath the course name. Enlarge Contents text and reduce row spacing while retaining 44px touch targets. Preserve existing login, permissions and downloads through Course materials. No database or private coordinator changes.
+
 # V107.94 — Surah Al Kahf course access and mobile sessions
 
 Open the course website from Learn, Teach and Admin dashboards, and from the Surah Al Kahf Teach Contents menu. Preserve teaching and management destinations. Include the shared compact account headers/Admin badge, a narrow dashboard card, two-column course-session and Lesson media grids on phones, and PDF/reflection downloads only in Course materials. The full course timetable comes from accepted publications through the existing account/class projection; joining and recordings retain their current authorisation. Incorporates V107.93. No database migration, live data correction or private coordinator deployment.

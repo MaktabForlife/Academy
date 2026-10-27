@@ -1,3 +1,9 @@
+# V107.95 — Course layout refinements
+
+The user explicitly requested deployment of the combined session cards, home page simplification and Contents typography changes. Release from `feature/surah-kahf-course-companion`, preserving V107.94. Each session card holds its timetable details, joining action and matching published recordings/notes. Older published media stays accessible, and local tests verify the action mapping after sorting. The home page omits its schedule strip, breadcrumb and repeated bootcamp heading; the course title carries a small BOOTCAMP label instead. Contents uses larger headings and lesson titles, less spacing and flexible rows with a 44px minimum touch target. Two phone columns, existing login, publication gates and Course materials downloads remain. No schema, live data or coordinator change.
+
+Validation: all 137 regression files passed (the five runtime files needed local server permissions), the Academy boundary check passed with 150 modules and zero Google backend clients, and both the Development API dry build and normal 783-file Pages build passed. Release markers agree on 107.95; the public package excludes protected course readings, the course PDF and synthetic preview entrypoints. Live playback and the PDF download were confirmed by the user before this refinement; they were not repeated with a live account for this release.
+
 # V107.94 — Surah Al Kahf course follow-up
 
 The user authorised deployment after reviewing V107.93. Branch `feature/surah-kahf-course-companion` incorporates `6774854c` and preserves its mobile Learn/Teach changes.

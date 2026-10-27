@@ -5,7 +5,9 @@ html{scroll-padding-top:calc(var(--academy-banner-height,180px) + 12px)}
 .kahf-course-portal.academy-shell.academy-connected main{padding:0;margin:0;max-width:none}
 .kahf-course-portal .app-layout>.sidebar{display:none}
 .kahf-course-portal .course-navigation-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 22px;border-bottom:1px solid var(--border)}
-.course-navigation-heading>a{font:26px/1.2 var(--serif);color:var(--ink)}
+.course-navigation-heading>a{display:flex;flex-direction:column;gap:4px;min-width:0;font:26px/1.2 var(--serif);color:var(--ink)}
+.course-navigation-heading>a small,.kahf-course-portal .sidebar-subtitle{font:500 11px/1.3 var(--sans);letter-spacing:1.5px;color:var(--plum)}
+.kahf-course-portal .overview-page .hero h1{margin-top:0}
 .course-navigation-heading .subtle-button{font-size:12px}
 .course-loading>.course-navigation-heading{display:none!important}
 .kahf-course-portal .academy-date-box{flex:none;display:grid;gap:4px;padding:5px 10px;border:1px solid #e2d4e7;border-radius:10px;background:#f7f1f9;color:#58305f}
@@ -18,9 +20,20 @@ html{scroll-padding-top:calc(var(--academy-banner-height,180px) + 12px)}
 @media(max-width:800px){.kahf-course-portal .academy-page-actions{flex-wrap:wrap;width:100%;justify-content:flex-end}.kahf-course-portal .academy-date-box{padding:5px 7px}.kahf-course-portal .academy-date-box>div{font-size:10px}}
 @media(min-width:900px){.kahf-course-portal .course-navigation-heading{display:none}.kahf-course-portal.academy-shell .app-layout>.sidebar{display:flex;flex-direction:column;position:sticky;inset:auto;top:var(--academy-banner-height,180px);align-self:start;width:auto;max-width:none;height:calc(100dvh - var(--academy-banner-height,180px));max-height:none;overflow-y:auto;gap:0;padding:32px 20px;border-right:1px solid var(--border);background:var(--paper);box-shadow:none}.kahf-course-portal .app-layout>.sidebar .brand{display:none}}
 @media(min-width:1200px){.kahf-course-portal.academy-shell .app-layout>.sidebar{padding:37px 24px 25px}}
+/* Larger contents text with compact, flexible rows and comfortable tap targets. */
+.kahf-course-portal .contents-group{margin-bottom:14px}
+.kahf-course-portal .contents-group>.eyebrow{font-size:14px;font-weight:600;line-height:1.4;letter-spacing:.2px;margin-bottom:4px}
+.kahf-course-portal .contents-group>a{align-items:center;gap:10px;font-size:16px;line-height:1.35;min-height:44px;padding:6px 4px;overflow-wrap:anywhere}
+.kahf-course-portal .contents-group>a:not(.lesson-done) .lesson-number{font-size:12px;min-width:18px;padding-top:0;color:var(--plum)}
+.kahf-course-portal .contents-group>a.lesson-done .lesson-number::before{font-size:14px}
+.kahf-course-portal #contents-dialog .dialog-top{margin-bottom:16px}
+.kahf-course-portal #contents-dialog .dialog-top .eyebrow{font-size:11px;letter-spacing:1px}
+.kahf-course-portal #contents-dialog .dialog-note{font-size:13px;margin:12px 0 0}
+@media(min-width:900px){.kahf-course-portal .sidebar .contents-group>a{font-size:14px}.kahf-course-portal .sidebar .contents-group>.eyebrow{font-size:13px}}
 .course-gate{max-width:560px;margin:18vh auto;padding:30px 24px}.course-gate h1{font:52px/1.05 var(--serif);margin:20px 0}.course-gate p{margin-bottom:24px;color:var(--muted)}body:not(.course-loading)>.course-gate{display:none}.course-loading>.topbar,.course-loading>.app-layout,.course-loading>.mobile-nav{display:none!important}.portal-back{display:block;color:var(--plum);font-size:12px;margin:0 0 18px;min-height:44px;padding-top:12px}.portal-assessment-link{display:flex;justify-content:space-between;align-items:center;min-height:50px;font-size:12px;color:var(--plum);border-top:1px solid var(--border)}.portal-week-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin:24px 0 16px}.portal-week-tools span{font-size:11px;order:3;width:100%;color:var(--muted)}.portal-session{display:block;padding:24px;margin:0 0 14px;border:1px solid var(--border);border-radius:6px;background:var(--white)}.portal-session h2{font:30px/1.15 var(--serif);margin:8px 0 12px}.portal-session p{overflow-wrap:anywhere}.portal-file-list,#live-course-files{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}.portal-attachment{min-height:48px;font-size:12px;text-align:left;overflow-wrap:anywhere;max-width:100%;justify-content:flex-start}.portal-attachment:disabled{opacity:.5}.portal-extra-files{border-top:1px solid var(--border);padding:28px 0}.portal-extra-files h2,#view-sessions .section-heading h2{font:32px/1.15 var(--serif)}#materials-status{color:var(--plum);font-size:13px;overflow-wrap:anywhere;margin-bottom:14px}#live-timetable{margin-bottom:32px}#view-sessions .section-heading{align-items:center;flex-wrap:wrap}.lm-dialog{max-width:min(1100px,calc(100vw - 24px));border:1px solid var(--border);background:var(--paper);border-radius:10px;color:var(--ink);padding:18px;font-family:var(--sans)}.lm-dialog .button.secondary,#kahf-assessments .button.secondary{color:var(--plum);border:1px solid var(--border);background:var(--white)}.lm-dialog .lm-modal-head h2{font:28px/1.1 var(--serif)}.lm-dialog .lm-player,.lm-dialog .lm-pdf{max-width:100%}.lm-dialog .lm-pdf{height:75vh;width:100%;border:0}#view-assessments .as-workspace{min-width:0;font-family:var(--sans)}#view-assessments .as-box,#view-assessments .as-empty{background:var(--white);border-color:var(--border);border-radius:5px}#view-assessments .as-table-wrap{max-width:100%;overflow-x:auto}#view-assessments .as-workspace .button{background:var(--plum);color:#fff}#view-assessments .as-workspace .button.secondary{background:var(--white);color:var(--plum)}
 @media(min-width:600px){.portal-week-tools span{width:auto;order:0}.portal-file-list{gap:12px}}
-/* One card per published session, with the same two-column layout for media. */
+/* Each session keeps its timetable, recording and lesson notes in one card. */
+.course-facts.course-facts-resources{grid-template-columns:minmax(0,1fr)}
 #view-sessions .portal-session-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:stretch;margin:20px 0 32px}
 #view-sessions .portal-session-grid>.info-note{grid-column:1/-1}
 #view-sessions .portal-session{min-width:0;margin:0;padding:16px 12px;overflow-wrap:anywhere;display:flex}
@@ -33,6 +46,7 @@ html{scroll-padding-top:calc(var(--academy-banner-height,180px) + 12px)}
 #view-sessions .portal-session .portal-file-list{display:grid;gap:8px;margin-top:auto;padding-top:16px}
 #view-sessions .portal-session :is(.portal-attachment,.button){width:100%;min-width:0;min-height:44px;padding:10px 8px;font-size:13px;white-space:normal;line-height:1.4}
 #view-sessions .portal-session [data-join-session]{margin-top:auto}
+#view-sessions .portal-session-status{padding-bottom:12px}
 #view-sessions .section-heading h2{font-size:30px}
 .portal-media-description{font-size:13px;line-height:1.6;color:var(--muted)}
 @media(min-width:1100px){#view-sessions .portal-session-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}

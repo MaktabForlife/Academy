@@ -8,7 +8,7 @@
  const course=new URLSearchParams(location.search).get('course')||'';
  const activityKey='COURSE:'+course;
  const owner=token();
- let stopped=false,feed=null,schedule=[],assessmentLoading=null,assessmentOpen=false,assessmentRequest=0,fetching=false;
+ let stopped=false,feed=null,sessionCards=[],assessmentLoading=null,assessmentOpen=false,assessmentRequest=0,fetching=false;
  const blobs=new Set(),controller=new AbortController();
  window.KAHF_EXTRA_VIEWS=['assessments'];
  function active(){return !stopped&&owner===token()&&Boolean(owner);}
@@ -16,7 +16,7 @@
   stopped=true;controller.abort();window.M4L_LESSON_MEDIA?.reset();window.M4L_ACADEMY_ASSESSMENTS?.reset();
   document.querySelectorAll('dialog[open]').forEach(dialog=>dialog.close());
   document.body.classList.add('course-loading');$('main').replaceChildren();$('sidebar-contents').replaceChildren();$('dialog-contents').replaceChildren();
-  window.KAHF_LESSONS=null;window.KAHF_STORAGE_SCOPE=null;feed=null;schedule=[];
+  window.KAHF_LESSONS=null;window.KAHF_STORAGE_SCOPE=null;feed=null;sessionCards=[];
   for(const url of blobs)URL.revokeObjectURL(url);blobs.clear();
   $('course-gate-message').textContent=message;
  }
@@ -39,7 +39,7 @@
   return `<button type="button" class="subtle-button portal-attachment" data-attachment="${escape(a.id)}" data-lesson="${escape(media.id)}" ${expired?'disabled':''}>${a.kind==='PDF'?'▤':'▷'} ${escape(a.name||a.filename||(a.kind==='PDF'?'Lesson notes':'Recording'))}${expired?' · Expired':''}</button>`;
  }).join('');}
  function renderMaterials(){
-  schedule=feed.courseCompanion?.schedule?.sessions||[];renderSchedule();
+  const schedule=feed.courseCompanion?.schedule?.sessions||[];
   const saved=feed.sessions||[],used=new Set();
   const rows=schedule.map(row=>{
    const matches=saved.filter(media=>row.mediaSessionKey&&media.sessionKey===row.mediaSessionKey);
@@ -47,8 +47,8 @@
    return {...row,teacherName:row.teacherName||row.teacherNames?.join(', '),mediaItems:matches.map(row=>row.media).filter(Boolean)};
   });
   for(const row of saved.filter(row=>!used.has(row))){const existing=rows.find(r=>row.sessionKey&&r.sessionKey===row.sessionKey);if(existing){if(row.media)existing.mediaItems.push(row.media);}else rows.push({...row,mediaItems:row.media?[row.media]:[]});}
-  rows.sort((a,b)=>a.date.localeCompare(b.date)||(a.startTime||'').localeCompare(b.startTime||''));
-  $('live-sessions').innerHTML=rows.map((row,index)=>`<article class="session-card portal-session"><div class="session-details"><span class="eyebrow">LESSON MEDIA ${String(index+1).padStart(2,'0')}</span><h3><time datetime="${escape(row.date)}">${escape(dateLabel(row.date))}</time></h3><p class="portal-session-title">${escape(row.title||feed.activityName)}</p>${row.teacherName?`<p>${escape(row.teacherName)}</p>`:''}${row.mediaItems.map(media=>media.summary?`<p>${escape(media.summary)}</p>`:'').join('')}<div class="portal-file-list">${row.mediaItems.map(assetsHTML).join('')||'<span class="session-availability">Materials will appear here when published.</span>'}</div></div></article>`).join('')||'<p class="info-note">No recordings or session notes have been published yet.</p>';
+  sessionCards=rows.sort((a,b)=>a.date.localeCompare(b.date)||(a.startTime||'').localeCompare(b.startTime||''));
+  renderSessionCards();
   const courseFiles=feed.courseFiles?.media,pdf=feed.courseCompanion?.pdf;
   const additionalFiles=courseFiles&&{...courseFiles,assets:(courseFiles.assets||[]).filter(a=>courseFiles.id!==pdf?.lessonId||a.id!==pdf?.assetId)};
   $('live-course-files').innerHTML=assetsHTML(additionalFiles)||'<p>No additional course files are available.</p>';
@@ -68,18 +68,20 @@
   }catch(error){if(active())$('materials-status').textContent=error.message;}
   finally{fetching=false;}
  }
- function renderSchedule(){
-  $('live-timetable').innerHTML=schedule.map((row,index)=>{
+ function renderSessionCards(){
+  $('live-sessions').innerHTML=sessionCards.map((row,index)=>{
    const opens=row.status==='SCHEDULED'&&row.joinKey&&Date.now()>=row.joinAvailableAt&&Date.now()<row.endsAt;
-   const status=row.status!=='SCHEDULED'?(row.holidayName||row.status):Date.now()>=row.endsAt?'Session ended':row.joinKey?'Joining opens five minutes before the session.':'Joining is unavailable for this session.';
-   return `<article class="session-card portal-session"><div class="session-details"><span class="eyebrow">SESSION ${String(index+1).padStart(2,'0')}</span><h3><time datetime="${escape(row.date)}">${escape(dateLabel(row.date))}</time></h3><p class="portal-session-title">${escape(row.title||row.activityName)}</p><p>${escape(row.startTime)}–${escape(row.endTime)}</p>${row.teacherName?`<p>${escape(row.teacherName)}</p>`:''}${opens?`<button class="button button-primary" data-join-session="${index}">Join session ↗</button>`:`<span class="session-availability">${escape(status)}</span>`}</div></article>`;
-  }).join('')||'<p class="info-note">'+(feed?.courseCompanion?.schedule?.unavailable?'Your course timetable is temporarily unavailable. Please refresh.':'No course sessions have been published yet.')+'</p>';
+   const status=!row.status?'':row.status!=='SCHEDULED'?(row.holidayName||row.status):Date.now()>=row.endsAt?'Session ended':row.joinKey?'Joining opens five minutes before the session.':'Joining is unavailable for this session.';
+   const joinAction=opens?`<button class="button button-primary" data-join-session="${index}">Join session ↗</button>`:status?`<span class="session-availability">${escape(status)}</span>`:'';
+   const files=row.mediaItems.map(assetsHTML).join('');
+   return `<article class="session-card portal-session"><div class="session-details"><span class="eyebrow">SESSION ${String(index+1).padStart(2,'0')}</span><h3><time datetime="${escape(row.date)}">${escape(dateLabel(row.date))}</time></h3><p class="portal-session-title">${escape(row.title||row.activityName||feed.activityName)}</p>${row.startTime?`<p class="portal-session-time">${escape(row.startTime)}${row.endTime?'–'+escape(row.endTime):''}</p>`:''}${row.teacherName?`<p>${escape(row.teacherName)}</p>`:''}${joinAction?`<div class="portal-session-status">${joinAction}</div>`:''}${row.mediaItems.map(media=>media.summary?`<p>${escape(media.summary)}</p>`:'').join('')}<div class="portal-file-list" aria-label="Recordings and lesson notes">${files||'<span class="session-availability">Materials will appear here when published.</span>'}</div></div></article>`;
+  }).join('')||'<p class="info-note">'+(feed?.courseCompanion?.schedule?.unavailable?'Your course timetable is temporarily unavailable. Please refresh.':'No course sessions or lesson media have been published yet.')+'</p>';
  }
  async function join(index,button){
-  const row=schedule[index];if(!row?.joinKey||button.disabled)return;
+  const row=sessionCards[index];if(!row?.joinKey||button.disabled)return;
   const popup=window.open('about:blank','_blank');if(popup)popup.opener=null;button.disabled=true;
   try{const data=await request('academy/lesson/join',{joinKey:row.joinKey,date:row.sourceDate||row.date});const url=new URL(data.joinUrl);if(url.protocol!=='https:')throw Error('The session link is unavailable.');if(popup)popup.location.replace(url.href);else{$('materials-status').innerHTML=`<a class="button button-primary" href="${escape(url.href)}" target="_blank" rel="noopener">Open your session ↗</a>`;}}
-  catch(error){popup?.close();if(active()){$('materials-status').textContent=error.message;renderSchedule();}}
+  catch(error){popup?.close();if(active()){$('materials-status').textContent=error.message;renderSessionCards();}}
   finally{if(active())button.disabled=false;}
  }
  function findMedia(id){return feed?.courseFiles?.media?.id===id?feed.courseFiles.media:feed?.lessons.find(row=>row.id===id)||feed?.sessions.map(row=>row.media).find(row=>row?.id===id);}
@@ -102,7 +104,7 @@
  async function assessments(){
   if(assessmentOpen||!active())return;const requestId=++assessmentRequest,host=$('kahf-assessments');host.textContent='Opening assessments…';
   try{
-   assessmentLoading??=(async()=>{for(const src of ['/js/vendor/pdf-lib-1.17.1.min.js?v=106.82','/js/m4l-assessment-reports.js?v=107.94','/js/m4l-assessment-register.js?v=107.94','/js/m4l-imtihaan-export.js?v=107.94','/js/m4l-academy-assessments.js?v=107.94'])await loadScript(src);})();
+   assessmentLoading??=(async()=>{for(const src of ['/js/vendor/pdf-lib-1.17.1.min.js?v=106.82','/js/m4l-assessment-reports.js?v=107.95','/js/m4l-assessment-register.js?v=107.95','/js/m4l-imtihaan-export.js?v=107.95','/js/m4l-academy-assessments.js?v=107.95'])await loadScript(src);})();
    await assessmentLoading;if(!active()||location.hash!=='#assessments'||requestId!==assessmentRequest)return;
    assessmentOpen=true;$('view-assessments').classList.add('active');
    await window.M4L_ACADEMY_ASSESSMENTS.open({hostId:'kahf-assessments',view:boundary?.audience()==='TEACH'?'teacher':'learner',activityKey,kind:''});
@@ -112,7 +114,7 @@
  window.addEventListener('kahf-view',event=>{
   if(event.detail.route==='assessments')void assessments();
   else {assessmentRequest++;if(assessmentOpen){window.M4L_ACADEMY_ASSESSMENTS.reset();assessmentOpen=false;$('view-assessments').classList.remove('active');}}
-  if(event.detail.route==='sessions')renderSchedule();
+  if(event.detail.route==='sessions')renderSessionCards();
  });
  document.addEventListener('click',event=>{
   const pdf=event.target.closest('[data-course-pdf]');if(pdf){event.preventDefault();if(pdf.getAttribute('aria-busy')!=='true')void coursePDF(pdf);return;}

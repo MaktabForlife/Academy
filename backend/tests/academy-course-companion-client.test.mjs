@@ -46,9 +46,24 @@ test('four published course sessions and their lesson media render together with
  data.courseCompanion.schedule={sessions:dates.map((date,index)=>({kind:'COURSE',activityId:'kahf-test',date,title:'Surah Al Kahf',startTime:'19:00',endTime:'20:00',status:'SCHEDULED',mediaSessionKey:'session-'+index,endsAt:Date.parse(date+'T18:00:00Z')}))};
  data.sessions=dates.slice(0,2).map((date,index)=>({sessionKey:'session-'+index,date,media:{id:'media-'+index,assets:[{id:'recording-'+index,kind:'YOUTUBE',name:'Session recording'}]}}));
  const f=fixture({fetcher:async()=>Response.json(data)});f.run();await tick();await tick();
- assert.equal(f.calls.length,1);assert.equal((f.elements.get('live-timetable').innerHTML.match(/<article /g)||[]).length,4);assert.equal((f.elements.get('live-sessions').innerHTML.match(/<article /g)||[]).length,4);
+ assert.equal(f.calls.length,1);assert.equal((f.elements.get('live-sessions').innerHTML.match(/<article /g)||[]).length,4);assert.doesNotMatch(html,/id="live-timetable"|id="lesson-media-grid-title"/);
  assert.match(f.elements.get('live-sessions').innerHTML,/recording-0/);assert.match(f.elements.get('live-sessions').innerHTML,/recording-1/);assert.match(f.elements.get('live-sessions').innerHTML,/Materials will appear here when published/);assert.doesNotMatch(f.elements.get('live-sessions').innerHTML,/\|\||undefined/);
  assert.doesNotMatch(html,/week-previous|week-next|Previous week|Next week/);
+ const cards=f.elements.get('live-sessions').innerHTML.split('</article>');assert.match(cards[0],/2026-10-18/);assert.match(cards[0],/19:00–20:00/);assert.match(cards[0],/recording-0/);assert.doesNotMatch(cards[0],/recording-1/);assert.match(cards[1],/recording-1/);
+ const overview=html.slice(html.indexOf('id="view-overview"'),html.indexOf('id="view-reading"'));assert.doesNotMatch(overview,/Four Sundays|7:00 PM SAST|18 Oct – 8 Nov 2026/);
+});
+test('combined cards keep join and recording actions attached to the right session after sorting older media',async()=>{
+ const data=feed(),now=Date.now(),date=new Date(now).toISOString().slice(0,10);
+ data.courseCompanion.schedule={sessions:[{date,title:'Current session',startTime:'19:00',status:'SCHEDULED',joinKey:'current-join',joinAvailableAt:now-60000,endsAt:now+60000,mediaSessionKey:'current'}]};
+ data.sessions=[{sessionKey:'current',date,media:{id:'current-media',assets:[{id:'current-recording',kind:'YOUTUBE',name:'Current recording'}]}},{sessionKey:'older',date:'2000-01-01',media:{id:'older-media',assets:[{id:'older-recording',kind:'YOUTUBE',name:'Older recording'}]}}];
+ const opened=[],attachments=[],f=fixture({fetcher:async url=>Response.json(String(url).endsWith('/join')?{success:true,joinUrl:'https://session.invalid/current'}:data)});
+ f.window.open=()=>({opener:null,location:{replace:url=>opened.push(url)},close(){}});
+ f.window.M4L_LESSON_MEDIA.openAttachment=options=>attachments.push(options);
+ f.run();await tick();await tick();
+ const cards=f.elements.get('live-sessions').innerHTML.split('</article>');assert.equal(cards.length-1,2);assert.match(cards[0],/older-recording/);assert.doesNotMatch(cards[0],/data-join-session/);assert.match(cards[1],/data-join-session="1"/);assert.match(cards[1],/current-recording/);
+ const button=element();button.dataset.joinSession='1';f.click({closest:selector=>selector==='[data-join-session]'?button:null});await tick();await tick();
+ const request=f.calls.find(call=>String(call.url).endsWith('/join'));assert.deepEqual(JSON.parse(request.options.body),{joinKey:'current-join',date});assert.deepEqual(opened,['https://session.invalid/current']);
+ f.click({closest:selector=>selector==='[data-attachment]'?{dataset:{lesson:'current-media',attachment:'current-recording'}}:null});assert.equal(attachments.length,1);assert.equal(attachments[0].lesson.id,'current-media');assert.equal(attachments[0].kind,'YOUTUBE');
 });
 test('an account switch while the course response is delayed never reveals the previous account text',async()=>{
  let finish;const f=fixture({fetcher:()=>new Promise(resolve=>{finish=resolve;})});f.run();await tick();assert.equal(f.calls.length,1);
