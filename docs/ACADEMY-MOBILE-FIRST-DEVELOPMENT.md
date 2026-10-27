@@ -1,6 +1,6 @@
 # Mobile-first Learn/Teach development
 
-Status: preview V107.92, based exactly on V107.84 (`5a1731c0`). Branch: `feature/academy-mobile-first`. The user authorised a separate phone preview on 27 October 2026. The live Academy remains unchanged.
+Status: V107.93 Development release, incorporating deployed V107.89 (`819ab547`). Branch: `feature/academy-mobile-first`. The user approved deployment after phone testing the V107.84-based preview through V107.92.
 
 ## Shared foundation
 
@@ -56,3 +56,17 @@ The preview landing page now offers Open Learn, Open Teach and Open Admin. `/__s
 ## Clearer Refresh icon — V107.92
 
 The shared header Refresh icon now uses an open circular arrow with a distinct arrowhead, matching the user's example. Its accessible name, tooltip, touch target and guarded refresh handler are unchanged. The update is limited to the existing isolated preview and preserves sample Admin access and saved plans.
+
+## Development release — V107.93
+
+The user confirmed V107.89 was deployed and authorised releasing the tested mobile Learn/Teach feature to Development. Merge the current Development baseline, preserving its remembered-ID/PIN account switcher, two-row PDF toolbar/zoom/colour tools, natural Library rows and protected Surah Kahf companion. Keep the four header actions usable on phones, including the existing Switch account action; the account-name shortcut retains a 44px tap target. Refresh changed asset cache queries to ensure returning browsers receive the release.
+
+Build the standard Development Pages entrypoint and API runtime. Do not deploy the synthetic preview Worker or its sign-in routes, storage, seed or credentials. No migration, database correction, private coordinator update or timetable publication is needed. Use synthetic local browser/regression checks and targeted hosted version/static verification.
+
+### Final verification for V107.93
+
+- All 134 backend regression files passed. Five actual Workers-runtime files required local loopback permission and passed separately; the refresh unit fixture was updated for the standard DOM attribute API.
+- Chrome and WebKit each passed 38 mobile checks, covering 320–1440px, 200% text, Contents/role boundaries, planner drafts, the account-switch dialog, native date fields, four planner actions, Admin badges and PDF Library dismissal.
+- The preserved V107.88 PDF controls passed annotation, zoom/colour, bookmarks, fullscreen and unsaved-replacement checks. Library rows and all 13 remembered-account/PIN switching checks passed. The unchanged V107.89 account build was also compared during verification.
+- Header measurement writes are deferred outside ResizeObserver delivery and skip unchanged values, avoiding Safari resize loops without changing reading positions.
+- The standard 783-file Pages build uses the Development API and contains the course companion and mobile assets. Preview sample sign-in routes, seed, credentials and backend tooling are absent. API dry-run succeeds; its only difference from deployed V107.89 is the release marker.

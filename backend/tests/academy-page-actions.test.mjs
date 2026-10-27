@@ -8,7 +8,7 @@ function control({active=true,hidden=false,parentHidden=false,disabled=false,sta
 }
 function fixture(controls=[],assessmentRefresh){
   let handler,reloads=0;const removed=[];
-  const refresh={addEventListener:(_event,fn)=>{handler=fn;}},signOut={};
+  const refresh={addEventListener:(_event,fn)=>{handler=fn;}},signOut={setAttribute(){}};
   const actions={setAttribute(){},append(){},querySelector:()=>refresh};
   const document={getElementById:id=>id==='ac-signout'?signOut:null,querySelector:selector=>selector==='main'?{append(){}}:null,querySelectorAll:()=>controls,createElement:()=>actions};
   const window={addEventListener(){},M4L_ACADEMY_ASSESSMENTS:assessmentRefresh?{refreshPage:assessmentRefresh}:undefined};

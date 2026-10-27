@@ -172,8 +172,16 @@ const wrongAccount = await loadPage({ academyId: 'TEST-USER', storedToken: 'NEW_
 } });
 assert.equal(wrongAccount.elements.get('login-preview').hidden, true);
 assert.equal(wrongAccount.elements.get('academy-home-card').hidden, false);
-assert.equal(wrongAccount.currentLoginId, '');
-assert.equal(wrongAccount.elements.get('academy-library-nav').href, '/academy/open-library/');
+assert.equal(wrongAccount.currentLoginId, 'OTHER-USER', 'A stale tab-local ID cannot override the identity verified for the current token');
+assert.equal(wrongAccount.storage.get('m4l_account_token'), 'NEW_SESSION', 'Restoration must not sign other tabs out after an account switch');
+assert.equal(wrongAccount.session.get('m4l_academy_signed_in'), 'OTHER-USER');
+assert.equal(wrongAccount.elements.get('academy-library-nav').href, '/academy/library/');
+
+const supersededWorkspace = await loadPage({ academyId: 'TEST-USER', storedToken: 'NEW_SESSION', replies: {
+  '/api/account/session': () => { throw Object.assign(new Error('The workspace changed.'), { name: 'AbortError' }); }
+} });
+assert.equal(supersededWorkspace.storage.get('m4l_account_token'), 'NEW_SESSION', 'A cancelled old workspace request cannot sign out the current account');
+assert.equal(supersededWorkspace.currentLoginId, '', 'Cancelled verification never grants an identity');
 
 const temporaryOutage = await loadPage({ academyId: 'TEST-USER', storedToken: 'NEW_SESSION', replies: {
   '/api/account/session': [

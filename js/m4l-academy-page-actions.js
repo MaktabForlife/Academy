@@ -15,6 +15,7 @@
   const login=document.getElementById('academy-login')||document.createElement('a');
   if(!login.id){login.id='academy-login';login.href='/academy/#login';login.textContent='Login';}
   signOut.innerHTML='<span class="page-signout-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 4H4v16h5m5-13 5 5-5 5m-6-5h11"/></svg></span><span class="page-signout-label">Sign out</span>';signOut.setAttribute('aria-label','Sign out');signOut.title='Sign out';actions.append(login,signOut);host.append(actions);
+  void import('/js/m4l-academy-accounts.mjs?v=107.93').then(module=>module.installAccounts({actions,signOut})).catch(()=>{ /* Existing Login and Sign out remain available if the optional chooser cannot load. */ });
   if(!academy){
     const updateLogin=()=>{login.hidden=!signOut.hidden;};updateLogin();
     new MutationObserver(updateLogin).observe(signOut,{attributes:true,attributeFilter:['hidden']});
@@ -49,5 +50,10 @@
     try{sessionStorage.removeItem('m4l_academy_daily_timetable_10656');}catch{}location.reload();
   });
   shell?.update(window.M4L_ACADEMY_SHELL_DATA||null);
-  if(shell&&typeof ResizeObserver!=='undefined')new ResizeObserver(()=>document.documentElement.style.setProperty('--academy-banner-height',shell.banners.offsetHeight+'px')).observe(shell.banners);
+  if(shell&&typeof ResizeObserver!=='undefined'){
+    let frame=0;
+    const measure=()=>{frame=0;const height=shell.banners.offsetHeight+'px',style=document.documentElement.style;if(style.getPropertyValue('--academy-banner-height')!==height)style.setProperty('--academy-banner-height',height);};
+    // Defer layout writes outside ResizeObserver delivery, including Safari's PDF header.
+    new ResizeObserver(()=>{if(!frame)frame=requestAnimationFrame(measure);}).observe(shell.banners);measure();
+  }
 })();

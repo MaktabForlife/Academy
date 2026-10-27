@@ -138,6 +138,16 @@ for(const root of ['academy','account','programs','users','recorder','activities
       assert.match(html,/\/js\/m4l-pdf-compare\.mjs/);assert.doesNotMatch(html,/m4l-config\.js|m4l-academy-navigation\.js/);
       continue;
     }
+    // The approved course reader has its own phone contents/navigation and
+    // return-to-dashboard link. Retain that layout instead of mounting the
+    // general workspace banners; the portal bridge owns its session fencing.
+    if(file==='academy/course-companion/surah-kahf/index.html'){
+      for(const asset of ['m4l-config.js','m4l-academy-workspace.js','m4l-academy-read-cache.js'])assert.ok(html.includes('/js/'+asset),file+' must retain '+asset);
+      assert.match(html,/<body class="course-loading">/);assert.match(html,/data-dashboard/);assert.match(html,/id="contents-dialog"/);assert.match(html,/portal\.js\?v=/);
+      assert.ok(html.indexOf('/js/m4l-academy-read-cache.js')<html.indexOf('src="portal.js'),file+' must initialise refresh boundaries before the reader');
+      assert.doesNotMatch(html,/m4l-academy-navigation\.js|m4l-academy-mobile\.js/,'Course contents must not be replaced by the general workspace shell');
+      continue;
+    }
     for(const asset of ['m4l-academy-mobile.js','m4l-academy-mobile.css','m4l-academy-shell.css','m4l-academy-page-actions.js','m4l-academy-page-actions.css'])assert.ok(html.includes('/'+(asset.endsWith('.js')?'js/':'css/')+asset),file+' must include '+asset);
     if(!['academy/index.html','academy/admin/index.html'].includes(file)) {
       assert.match(html,/m4l-academy-navigation\.js/,file);assert.match(html,/m4l-academy-navigation\.css/,file);

@@ -1,3 +1,10 @@
+# Mobile Learn/Teach Development release — 27 October 2026
+
+- The user checked the isolated mobile preview, then explicitly requested building and deploying the tested Learn/Teach changes to Development, confirming V107.89 was deployed. Merge `819ab547` into the tested mobile branch and release V107.93 through the existing Development API and Academy website workflow. This supersedes the preview-only holds below for this release.
+- Preserve V107.85–89 remembered account/PIN switching, PDF toolbar/zoom/colour updates, Library rows and the Surah Kahf course website. Include the shared reading layout, Contents, compact headers/Admin badge, phone planner dates/icon actions, standard X Close and clearer Refresh icon.
+- Keep sample preview entrypoints, accounts, credentials and isolated storage out of Development deployment. Do not reseed or modify either database. No migration, private coordinator deployment, timetable publication or live data correction is required.
+- Keep this chat independent. Use disposable synthetic fixtures for full checks; keep hosted verification to release metadata, one API readiness call and targeted static asset checks. Future deployments require fresh user authorisation.
+
 # Clearer Refresh icon preview — 27 October 2026
 
 - The user requested a more intuitive Refresh icon, using their open circular-arrow example. Replace the shared Academy header icon while retaining its labels, touch target and refresh/draft-guard handlers. Release V107.92 only to the existing isolated preview.
@@ -35,6 +42,37 @@
 - Implement the shared Learn/Teach reading structure, compact Contents navigation, comfortable text and touch controls; add wider layouts on that same structure. Preserve the swipeable timetable, current permissions, saved drafts, accepted publications and assessment release gates. Admin management and the public website retain their current layout.
 - Keep work in this chat. Do not contact other chats, push, deploy, run live SQL or alter hosted settings. Assign a new release version only when preparing an authorised release. Cache labels may identify this local feature build.
 - Verify with synthetic local fixtures and phone/tablet/desktop checks under ../AGENTS.md. No live database checks are needed.
+# Surah Al Kahf student course release — 27 October 2026
+
+- The user confirmed V107.88 was deployed and explicitly instructed deploying the prepared Surah Kahf course package. Incorporate V107.88 into `feature/surah-kahf-course-companion` and release V107.89 through the existing Development API and Academy website workflow. This supersedes the earlier local branch hold for this course release only.
+- Use existing Academy login, course permissions and publication gates. Keep the eleven web lessons, mobile layout, protected recordings/materials, PDF download and print. Preserve Teacher editing tools, Admin navigation, V107.88 PDF controls, Library rows and remembered account switching.
+- No migration, private coordinator deployment, live material upload or timetable publication is required. Keep live checks small under ../AGENTS.md: local disposable fixtures, release metadata, static checks and one API readiness check. Future deployments require fresh user authorisation.
+
+# PDF toolbar update — 27 October 2026
+
+- The user requested the annotated PDF reader changes: two header rows with PDF workspace controls on the lower row; compact AUTO/ACTUAL zoom labels without grey shading; favourite colours inside Border/ink and a matching Fill palette. Follow the user's latest instruction to deploy completed work to Development.
+- Work on `feature/academy-pdf-toolbar-layout`, incorporating deployed V107.87, and release V107.88. Preserve the Library row correction, account switching, editable annotations, scrolling after Edit is off, bookmarks, fullscreen recovery and current permissions.
+- No database migration, live record correction, PDF.js engine upgrade or private coordinator change is required. Keep live checks small under ../AGENTS.md, using synthetic PDFs/accounts locally and targeted deployment/static/version verification.
+
+# Library display correction — 27 October 2026
+
+- The user reported clipped Public Library subject headings and changed screen headers, and explicitly requested a correction deployed to Development, followed by a review of the live site.
+- Work from current Development V107.86 on feature/academy-library-display-fix. Release the verified correction as V107.87. Preserve remembered account IDs, PIN switching and all existing permissions.
+- The mobile-first feature remains on its separate V107.84-based branch. It is not part of this Development correction. Do not communicate with other chats.
+- The confirmed Library defect comes from shrinking automatic grid rows when bookmarks and subjects exceed the drawer height. Preserve natural row heights and scroll the list. Verify headers against deployed assets before making unrelated layout changes.
+- Deploy the matching Development API and Academy website with no schema, data or coordinator change. Keep live checks small; use synthetic local fixtures for full display checks.
+
+# Remember-ID default follow-up release — 27 October 2026
+
+- The user requested Remember my ID selected by default, then explicitly asked to deploy the completed follow-up to Development. Release V107.86 from `feature/academy-account-switching`, incorporating deployed V107.85.
+- Apply the selected default to Login, personal-link login/PIN setup and Switch account. Respect an explicit untick and Remove/Forget all. Preserve fresh PIN checks, session revocation, private cache cleanup and unsaved-work guards. No database or coordinator change.
+- Keep live checks small under ../AGENTS.md. Use disposable local accounts and targeted release/version/static verification. Future deployments require fresh user authorisation.
+
+# Remembered-ID account switching release — 27 October 2026
+
+- The user explicitly requested building and deploying the approved remembered-ID / fresh-PIN account switcher on a new feature branch. Work on `feature/academy-account-switching`, incorporating deployed V107.84, and release V107.85 through the existing Academy Development website and API workflow.
+- Remember IDs and optional names only after successful opt-in login. Every switch requires server PIN verification. Preserve current permissions, scoped caches, pending-work guards, existing rate limits and revocations. No database migration or private coordinator change is required.
+- Keep live checks small under ../AGENTS.md. Use disposable local accounts and targeted deployment/readiness/static checks. Future deployments require fresh user authorisation.
 
 # Permission and timetable/calendar optimisation release — 27 October 2026
 

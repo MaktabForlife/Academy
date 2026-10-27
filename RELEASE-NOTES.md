@@ -1,3 +1,9 @@
+# V107.93 — Mobile Learn and Teach
+
+Release the phone-tested Learn/Teach layout to Development, incorporating deployed V107.89. Use one reading column on phones, a compact Contents menu and wider layouts built on the same content. Include compact headers, the Admin badge, standard X Close controls, the clearer Refresh arrow, contained date fields and the four planner icon actions. Preserve saved drafts, permissions and all V107.89 account, PDF reader and Surah Kahf features.
+
+Build the matching Development API and Academy website without schema, data or coordinator changes. Sample preview sign-in routes and accounts remain isolated from Development. Verified with all 134 backend regression files, 38 checks each in Chrome/WebKit, and PDF, Library and PIN-switching browser checks.
+
 # V107.92 — Clearer Refresh icon
 
 Use an open circular arrow with a distinct arrowhead for the shared Refresh control, following the supplied example. Keep existing accessible labels, touch targets and refresh behaviour. Update only the isolated sample preview, preserving saved test data.
@@ -17,6 +23,33 @@ Correct iPhone date-field overflow and oversized planner action rows in the isol
 # V107.88 — Mobile Learn/Teach preview
 
 Deploy the V107.84-based mobile feature to a dedicated synthetic preview. Provide Learn and Teach sample sign-in links, isolated D1/R2 storage, a same-origin API and a noindex landing page. No live Academy service or data changes.
+# V107.89 — Surah Al Kahf course website
+
+Surah Al Kahf opens a complete mobile-first course website from the Learn dashboard, using the existing Academy login. Eleven web lessons include selectable Arabic and English text, word studies, journaling, browser-local reflections and progress. Published recordings, session notes, course PDFs and assessments use the current protected Academy readers and permissions. PDF download and print stay available separately. Teacher editing and Admin tools retain their existing destinations.
+
+Incorporates deployed V107.88, preserving its PDF toolbar, Library display and remembered-ID changes. Mobile checks pass at 320/390/430 px and in landscape; local access, revocation, account-switch and file-delivery tests pass. No schema, live material upload or private coordinator change. The user authorised deployment after confirming V107.88 was live. [Implementation and verification](docs/ACADEMY-SURAH-KAHF-COMPANION.md).
+
+# V107.88 — PDF reader header, zoom and colour menus
+
+Keep the Academy identity/date and Home/Refresh/account actions in the top banner. Put PDF Split, Full screen and Close on the lower account/workspace banner. Native PDF zoom shows AUTO and ACTUAL on a white field. Favourite colours stay inside the Border/ink dropdown; Fill offers the same saved palette and custom colour picker. Border and fill selections remain independent.
+
+Preserve the V107.87 Library row correction, editable annotations, bookmarks, swipe scrolling, per-PDF controls, fullscreen recovery and existing permissions. No database or coordinator change. [Implementation and verification](docs/ACADEMY-PDF-TOOLBAR-10788.md).
+
+# V107.87 — Library subject display correction
+
+Prevent the PDF reader Public Library grid from shrinking subject rows below their contents. Preserve complete labels, expanded books and bookmarks, and scroll the list within its existing drawer. Based on V107.86; mobile-first development remains separate. No schema, data or coordinator changes.
+
+# V107.86 — Remember IDs by default
+
+Remember my ID on this browser starts selected for Academy Login, personal-link login/PIN setup and Switch account, including Use another ID and subsequent sign-ins. Users can still untick it; an unchecked ID is not retained. Remove and Forget all continue to clear remembered IDs. Every account switch still requires fresh server PIN verification.
+
+The user requested deployment to Development after verification. No database or coordinator change. [Implementation and verification](docs/ACADEMY-ACCOUNT-SWITCHING-10785.md).
+
+# V107.85 — Remembered IDs and PIN-protected account switching
+
+Login can remember verified IDs on this browser. Choose a remembered ID or enter another from Switch account in the shared header, then authorise with a fresh PIN. Keep the current session on failed or cancelled attempts; end it and clear private account state after success. Reopen all Academy tabs in the new account's authorised workspace and block switching during unfinished work. Sign-out retains the optional ID list; Remove and Forget all work locally.
+
+Preserves V107.84. No database migration, coordinator change or new authentication bypass. [Implementation and verification](docs/ACADEMY-ACCOUNT-SWITCHING-10785.md).
 
 # V107.84 — Reduce permission and timetable/calendar reads
 

@@ -67,16 +67,13 @@ function fullScreen(enabled){
  button.setAttribute('aria-label',enabled?'Exit full screen: show Academy headers':'Full screen: hide Academy headers');
 }
 function positionReaderActions(){
- const normal=document.querySelector('.academy-banners .academy-page-actions'),fallback=document.querySelector('.pr-header nav');
+ const account=document.querySelector('.academy-banners .academy-account-bar'),fallback=document.querySelector('.pr-header nav');
+ let normal=account?.querySelector('.pr-reader-actions');
+ if(account&&!normal){normal=document.createElement('nav');normal.className='pr-reader-actions';normal.setAttribute('aria-label','PDF reader controls');account.append(normal);}
  const host=document.body.classList.contains('pr-fullscreen')?fallback:normal||fallback;
- host.append($('pr-split'),$('pr-fullscreen'),$('pr-close-reader'));
+ for(const id of ['pr-split','pr-fullscreen','pr-close-reader'])if($(id).parentElement!==host)host.append($(id));
 }
-function compactReaderIdentity(){
- const identity=document.querySelector('.academy-brand-details'),brand=identity?.querySelector('.academy-connected-brand'),profile=document.querySelector('.academy-account-bar .academy-profile');
- if(identity&&brand&&profile){const stack=document.createElement('div');stack.className='pr-identity-stack';identity.prepend(stack);stack.append(brand,profile);}
- positionReaderActions();
-}
-compactReaderIdentity();
+positionReaderActions();
 function readerKeydown(event){
  if(event.key==='Escape'&&!event.defaultPrevented&&document.body.classList.contains('pr-fullscreen')&&!document.querySelector('dialog[open]')){event.preventDefault();fullScreen(false);$('pr-fullscreen').focus();}
 }
@@ -103,7 +100,7 @@ function openFile(pane,file,title,check=true,page=0){
  discardAppEditor(pane);pane.loadGeneration++;
  pane.file=publicPdfFile(file);pane.title=title||'PDF '+(pane.index+1);pane.loaded=false;pane.page=0;pane.pageLabel='';
  part(pane,'[data-title]').textContent=pane.title;part(pane,'[data-empty]').hidden=Boolean(pane.file);volumeSelector(pane);updateBookmarkButtons(pane);
- pane.frame.src='/pdf-viewer/web/viewer.html?academy=1&pane='+pane.index+'&v=107.73&file='+encodeURIComponent(pane.file)+(page?'#page='+page:'');
+ pane.frame.src='/pdf-viewer/web/viewer.html?academy=1&pane='+pane.index+'&v=107.93&file='+encodeURIComponent(pane.file)+(page?'#page='+page:'');
  part(pane,'[data-drawer]').hidden=true;pane.drawerGeneration++;setActive(pane.index);updateAddress(pane,page);return true;
 }
 async function viewerApplication(pane){
@@ -218,7 +215,7 @@ async function toggleAppEditor(pane){
   if(generation!==pane.loadGeneration)return;
   const frame=document.createElement('iframe');frame.title='Academy PDF '+(pane.index+1)+' editing tools';frame.dataset.appEditor='';frame.hidden=true;pane.appFrame=frame;
   const loaded=new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('Academy editing tools could not start. Please try again.')),20000);frame.addEventListener('load',()=>{clearTimeout(timer);const editor=frame.contentWindow.M4L_PDF_APP;editor?resolve(editor):reject(Error('Academy editing tools could not start. Please try again.'));},{once:true});});
-  frame.src='/academy/pdf-compare/?embedded=1&pane='+pane.index+'&v=107.73';pane.frame.after(frame);
+  frame.src='/academy/pdf-compare/?embedded=1&pane='+pane.index+'&v=107.93';pane.frame.after(frame);
   const editor=await loaded;if(generation!==pane.loadGeneration)return;
   frame.contentWindow.addEventListener('keydown',readerKeydown);
   await editor.load({bytes:bytes.slice(),name:/\.pdf$/i.test(pane.title)?pane.title:pane.title+'.pdf',file:pane.file,page,unsaved});
@@ -242,7 +239,7 @@ const readerIcon=(kind,label,extra='')=>`<button type="button" class="pr-icon-bu
 for(const pane of panes){
  pane.element.innerHTML=`<header class="pr-pane-header" aria-label="PDF ${pane.index+1} controls"><div class="pr-heading"><div class="pr-title-row"><span class="pr-pane-label">PDF ${pane.index+1}</span><h1 class="pr-pane-title" data-title>PDF ${pane.index+1}</h1><label class="pr-volume" data-volume-wrap hidden><select data-volume aria-label="Choose volume for PDF ${pane.index+1}"></select></label></div></div><div class="pr-document-actions"><div class="pr-pane-tools">${readerIcon('edit','Edit annotations','aria-expanded="false" hidden')}${readerIcon('library','Library')}${readerIcon('device','Open file')}${readerIcon('bookmarks','My bookmarks')}</div><div class="pr-bookmark-tools">${readerIcon('save-book','Save book','disabled')}${readerIcon('save-page','Bookmark page','disabled')}${readerIcon('whiteboard','Whiteboard','aria-pressed="false"')}${readerIcon('close-pdf','Close PDF '+(pane.index+1))}${readerIcon('download','Download my copy','disabled')}</div></div><input type="file" accept="application/pdf,.pdf" data-file hidden></header><iframe title="PDF ${pane.index+1} reader" data-frame></iframe><p class="pr-empty" data-empty>Choose Library or Open file to read a PDF.</p><aside class="pr-drawer" data-drawer aria-label="Library and bookmarks for PDF ${pane.index+1}" hidden><div class="pr-drawer-head"><h2>Public Library</h2><button type="button" data-close aria-label="Close Library drawer" class="academy-close" title="Close">Close</button></div><nav class="pr-drawer-tabs" aria-label="Books and bookmarks"><button type="button" data-drawer-mode="books" aria-pressed="true">Books &amp; volumes</button><button type="button" data-drawer-mode="bookmarks" aria-pressed="false">My bookmarks</button></nav><label>Search<input type="search" data-search placeholder="Title, volume or page" autocomplete="off"></label><button type="button" data-refresh>↻ Refresh</button><p class="pr-drawer-note" data-note></p><a href="/academy/" target="_blank" rel="noopener" class="pr-sign-in" data-sign-in>Academy home / Sign in ↗</a><div class="pr-book-list" data-books></div></aside>`;
  pane.header=part(pane,'.pr-pane-header');pane.header.id='pr-controls-'+pane.index;pane.header.addEventListener('pointerdown',()=>setActive(pane.index));
- new ResizeObserver(()=>{const height=pane.header.getBoundingClientRect().height;if(height)pane.element.style.setProperty('--pr-controls-height',height+'px');}).observe(pane.header);
+ let controlsFrame=0;new ResizeObserver(()=>{if(!controlsFrame)controlsFrame=requestAnimationFrame(()=>{controlsFrame=0;const height=pane.header.getBoundingClientRect().height,value=height+'px';if(height&&pane.element.style.getPropertyValue('--pr-controls-height')!==value)pane.element.style.setProperty('--pr-controls-height',value);});}).observe(pane.header);
  pane.frame=part(pane,'[data-frame]');part(pane,'[data-edit]').onclick=()=>void toggleAppEditor(pane);pane.frame.addEventListener('load',()=>{part(pane,'[data-edit]').setAttribute('aria-expanded','false');part(pane,'[data-edit]').setAttribute('aria-pressed','false');});part(pane,'[data-library]').onclick=()=>void drawer(pane);
  part(pane,'[data-bookmarks]').onclick=()=>void drawer(pane,'bookmarks');
  part(pane,'[data-whiteboard]').onclick=()=>window.M4L_PDF_READER.workspaceAction(pane.index,'whiteboard');
