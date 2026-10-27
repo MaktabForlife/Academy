@@ -65,6 +65,7 @@ try{
  for(const [who,workspace]of [['global','ADMIN'],['adminA','ADMIN'],['teacherA','TEACH'],['studentA','LEARN'],['global','ADMIN_TEACH'],['global','ADMIN_LEARN']]){
   const begin=calls.length;await identity(who,workspace);await page.evaluate(()=>window.M4L_ACADEMY_DASHBOARD.refresh(true));
   assert.equal(await page.locator('#ad-attendance-panel').count(),0);
+  assert.equal(await page.locator('.academy-admin-tools:visible [data-admin-key=attendance]:visible').count(),0);
   assert.doesNotMatch(await page.locator('#dashboard.active').innerText(),/Mark attendance|Review attendance/);
   assert.equal(await page.locator('#dashboard.active a[href*="attendance"],#dashboard.active [data-ad-choose="attendance"]').count(),0);
   assert.equal(calls.slice(begin).filter(c=>/attendance/.test(c.path)).length,0,'Dashboard must not read attendance registers');
@@ -81,6 +82,7 @@ try{
  // Deliberately open the ordinary register after proving dashboard calls are absent.
  await page.goto(origin+'/academy/admin/#administration/attendance/program/'+encodeURIComponent(f.scopes.programA.slice(8)));
  await page.locator('#pa-workspace').waitFor();await page.waitForTimeout(400);
+ assert.equal(await page.locator('.academy-admin-tools:visible [data-admin-key=attendance]:visible').count(),1);
  assert(calls.some(c=>c.path==='/api/academy/attendance/get'&&c.status===200));
  checks.push('Admin attendance tools remain available and load the real register on explicit opening');
  assert.deepEqual(errors,[]);

@@ -44,7 +44,7 @@
   window.addEventListener('m4l-academy-session',accountChanged);
   window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)accountChanged();});
   function install(){
-    const style=document.createElement('link');style.rel='stylesheet';style.href='/css/m4l-academy-history.css?v=107.103';document.head.append(style);
+    const style=document.createElement('link');style.rel='stylesheet';style.href='/css/m4l-academy-history.css?v=107.104';document.head.append(style);
     bar=document.createElement('nav');bar.id='academy-app-navigation';bar.setAttribute('aria-label','Page navigation');
     const icon=path=>'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="'+path+'"/></svg>';
     bar.innerHTML='<button type="button" data-app-back aria-label="Go back" title="Back">'+icon('m14 5-7 7 7 7M7 12h14')+'<span>Back</span></button><button type="button" data-app-forward aria-label="Go forward" title="Forward">'+icon('m10 5 7 7-7 7M3 12h14')+'<span>Forward</span></button>';

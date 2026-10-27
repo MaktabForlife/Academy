@@ -1,5 +1,7 @@
 # Weekly absentee list and dashboard attendance — 27 October 2026
 
+- Complete the authorised release as V107.104, including the final shared Admin toolbar correction after V107.103. The Core schema and coordinator are already upgraded; do not repeat either migration.
+
 - Work on `feature/academy-weekly-absentees`, preserving V107.102. The user requested removing attendance from all dashboards and a Monday 08:00 Riyadh in-app absentee list for Admins, then explicitly authorised deployment when tested.
 - Preserve ordinary attendance tools and current permissions. Build weekly lists from latest submitted registers, never infer absence from missing registers. Global Admins see all areas; scoped Admins see their current areas only. No repeated dashboard roster reads.
 - Use disposable local tests and keep live checks small under ../AGENTS.md. Deploy only required additive schema and matching existing coordinator/API/website after testing. Do not publish timetables or change live attendance records.

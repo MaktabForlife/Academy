@@ -1,6 +1,6 @@
 # Dashboard attendance and weekly absentee list
 
-V107.103 follows V107.102 on feature/academy-weekly-absentees. The user approved Monday 08:00 Riyadh in-app delivery and deployment after local testing.
+V107.104 completes V107.103, based on V107.102, on feature/academy-weekly-absentees. The final shared Admin toolbar correction hides Attendance on dashboard landings while preserving its management-screen destination. The user approved Monday 08:00 Riyadh in-app delivery and deployment after local testing.
 
 Attendance panels, quick actions, workspace-menu entries and background register loading are removed from every dashboard audience. Other attendance screens, access checks, submissions and corrections are unchanged. The calendar now occupies the available width. Dashboard refresh no longer enumerates activity/date pairs or calls attendance/get.
 
@@ -13,3 +13,5 @@ Generation is one guarded atomic Core transaction. It reads no live enrolment, e
 Required additive migration: backend/migrations/academy-core/0005_weekly_absentees.sql, applied only to existing Core. It creates three private operational tables and indexes, including a date index on attendance_days. Split fences and epoch triggers cover all new tables. No Admin schema changes, backfill, live attendance edits, timetable publication or historical report generation are required. The unsplit migration 0040_weekly_absentees.sql is only for disposable fixtures. Deploy matching coordinator layout metadata before API and website; retain all IDs, accepted heads, secrets and existing variables. New API setting ACADEMY_WEEKLY_ABSENTEES=1 enables system notices and weekly generation.
 
 Keep live checks small to limit database usage. Validate with disposable local databases and browser accounts. Live verification is limited to schema metadata, deployment/schedule management metadata, version/static assets and one readiness request. Do not trigger report generation or open real attendance dashboards as a smoke test.
+
+Local validation: all 140 backend test files passed across the full run and targeted reruns of the runtime/updated schedule checks. The browser fixture covers six dashboard audiences at phone and desktop widths, forced refresh with zero attendance requests, opening the weekly report in Messages, and explicit opening of the ordinary attendance register. V107.104 repeats the affected browser and release checks after the shared-toolbar correction.
