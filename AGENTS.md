@@ -1,3 +1,10 @@
+# Mobile planner phone correction — 27 October 2026
+
+- The user reported iPhone date controls extending past the screen and requested compact icons for Save, Submit, Download and Share in one row. Update the existing isolated preview as V107.89.
+- Keep date inputs native, put the revert icon immediately left of Load a plan, retain accessible full action names and short visible captions, and maintain at least 44px touch targets. Preserve save, submit, export, share and draft safeguards.
+- Deploy only academy-mobile-first-preview with its existing sample D1/R2 bindings and secrets. Preserve phone-test drafts. Do not deploy Development/live, push a Git branch, apply SQL or contact other chats.
+- Verify in Chrome and WebKit at phone/tablet/desktop sizes, including 200% text. Keep hosted checks targeted to the preview.
+
 # Isolated mobile preview release — 27 October 2026
 
 - The user explicitly requested deploying this feature branch to a preview link for phone testing. Release the V107.84-based mobile feature as preview V107.88, after checking that remote Development is V107.87.

@@ -53,3 +53,7 @@
 @media(max-width:600px){.lp-session-choice{grid-template-columns:minmax(0,1fr)}}
 
 .lp-load-controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:end}.lp-load-controls button{width:100%}
+
+/* Compact planner symbols and captions are enabled by the Learn/Teach layout. */
+.lp-root :is(.lp-compact-symbol,.lp-compact-label){display:none}
+.lp-root .lp-compact-symbol{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}

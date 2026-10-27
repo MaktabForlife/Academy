@@ -98,6 +98,22 @@ body.academy-learning-layout :is(.lp-actions,.lm-actions,.as-actions,.cn-actions
 body.academy-learning-layout .lp-actions button{flex:1 1 10rem}
 body.academy-learning-layout .lp-load-controls{gap:.75rem}
 body.academy-learning-layout .lp-load-controls button{font-size:.9375rem}
+/* Native date controls can otherwise exceed their grid cell in iPhone browsers. */
+body.academy-learning-layout .lp-root input:is([type=date],[type=time]){display:block;box-sizing:border-box;inline-size:100%;min-inline-size:0;max-inline-size:100%;-webkit-appearance:none;appearance:none}
+body.academy-learning-layout .lp-root input:is([type=date],[type=time])::-webkit-date-and-time-value{min-width:0;text-align:left}
+body.academy-learning-layout .lp-load-controls{min-width:0;max-width:100%;grid-template-columns:minmax(0,1fr)}
+body.academy-learning-layout .lp-load-controls:has(>button):has(>label){grid-template-columns:44px minmax(0,1fr)}
+body.academy-learning-layout .lp-load-controls [data-lp=reload-plan]{display:flex;align-items:center;justify-content:center;min-width:44px;width:44px;height:44px;min-height:44px;padding:10px}
+body.academy-learning-layout .lp-load-controls [data-lp=reload-plan] .lp-compact-symbol{display:block}
+body.academy-learning-layout .lp-load-controls [data-lp=reload-plan] .lp-full-label{display:none}
+body.academy-learning-layout .lp-plan-heading .lp-plan-week{flex:0 1 15rem;width:100%;min-width:0;max-width:100%}
+/* Four actions share one row; short visible captions also identify the icons. */
+body.academy-learning-layout .lp-root .lp-primary-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));width:min(100%,20rem);gap:.5rem;align-items:stretch}
+body.academy-learning-layout .lp-root .lp-primary-actions button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.25rem;width:100%;min-width:44px;min-height:3.5rem;height:auto;padding:.5rem .25rem}
+body.academy-learning-layout .lp-primary-actions :is(.lp-compact-symbol,.lp-compact-label){display:block}
+body.academy-learning-layout .lp-primary-actions .lp-full-label{display:none}
+body.academy-learning-layout .lp-primary-actions .lp-compact-label{font-size:.75rem;line-height:1.25}
+
 body.academy-learning-layout .lp-plan-heading h2{font-size:1.75rem;line-height:1.3}
 /* The containing Program/Course already has its heading above Contents. */
 body.academy-learning-layout #activity-planning :is(.lp-top h2,.lp-plan-heading h2){display:none}

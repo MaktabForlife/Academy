@@ -26,14 +26,22 @@ if(process.argv.includes('--serve')){
  console.log(JSON.stringify({origin,teacher:origin+'/__signin/teacherA',learn:origin+'/__signin/studentA',admin:origin+'/__signin/global',syntheticOnly:true}));
  await new Promise(done=>{process.once('SIGTERM',done);process.once('SIGINT',done);});await new Promise(done=>server.close(done));f.close();
 }else{
- const {chromium}=createRequire(import.meta.url)(process.env.ACADEMY_BROWSER_RUNTIME||'/Users/hbnaidu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
- const browser=await chromium.launch({headless:true,channel:'chrome'}),page=await browser.newPage({viewport:{width:390,height:844},hasTouch:true}),errors=[],checks=[];
+ const browsers=createRequire(import.meta.url)(process.env.ACADEMY_BROWSER_RUNTIME||'/Users/hbnaidu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright'),engine=process.env.LEARNING_MOBILE_BROWSER||'chromium';
+ const browser=await browsers[engine].launch({headless:true,...(engine==='chromium'?{channel:'chrome'}:{})}),page=await browser.newPage({viewport:{width:390,height:844},hasTouch:true}),errors=[],checks=[];
  page.on('pageerror',error=>errors.push(error.message));await page.route('**/*',route=>new URL(route.request().url()).origin===origin?route.continue():route.abort());
  const area='/academy/#activity/PROGRAM/'+f.scopes.programA.slice(8),contents=()=>page.locator('#activity-menu .workspace-contents');
  const ready=async()=>{await page.waitForFunction(()=>document.body.classList.contains('academy-learning-layout'));};
  const identity=async who=>{await page.goto(origin+'/__signin/'+who);await page.waitForURL(url=>!url.pathname.startsWith('/__signin/'));};
  const fit=async label=>{const size=await page.evaluate(()=>({w:innerWidth,s:document.documentElement.scrollWidth}));assert(size.s<=size.w+1,label+JSON.stringify(size));checks.push(label);};
  const choose=async label=>{if(!await contents().evaluate(el=>el.open))await contents().locator('summary').click();await contents().getByRole('link',{name:label,exact:true}).click();};
+ const plannerControls=async()=>{
+  const controls=await page.locator('.lp-primary-actions button').evaluateAll(nodes=>nodes.filter(el=>el.getClientRects().length).map(el=>{const r=el.getBoundingClientRect();return {label:el.getAttribute('aria-label')||el.textContent,top:r.top,left:r.left,right:r.right,width:r.width,height:r.height,icon:!!el.querySelector('svg')?.getClientRects().length};}));
+  assert.equal(controls.length,4);assert.equal(new Set(controls.map(c=>Math.round(c.top))).size,1,'Planner actions must share one row: '+JSON.stringify(controls));
+  assert(controls.every(c=>c.width>=44&&c.height>=44&&c.icon),'Every planner action has an icon and a 44px tap target');
+  assert.deepEqual(controls.map(c=>c.label),['Save draft','Submit plan','Download A4 PDF','Share plan image']);
+  const dates=await page.locator('#activity-planning input[type=date]').evaluateAll(els=>els.filter(el=>el.getClientRects().length).map(el=>{const r=el.getBoundingClientRect(),p=el.parentElement.getBoundingClientRect();return {type:el.type,value:el.value,left:r.left,right:r.right,parentLeft:p.left,parentRight:p.right,contentWidth:el.scrollWidth,width:el.clientWidth};}));
+  for(const date of dates){assert(date.left>=date.parentLeft-1&&date.right<=date.parentRight+1,'Date field outside its column: '+JSON.stringify(date));assert(date.contentWidth<=date.width+1,'Date content is clipped: '+JSON.stringify(date));assert.match(date.value,/^\d{4}-\d{2}-\d{2}$/);}
+ };
  const screenshot=async name=>{await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:path.join(out,name),fullPage:false});};
  try{
   await identity('studentA');await page.locator('#ad-title').waitFor();await ready();
@@ -67,15 +75,15 @@ if(process.argv.includes('--serve')){
   for(const width of [320,390,768,1024,1440]){
    await page.setViewportSize({width,height:950});await fit('Teacher planner fits '+width);await page.locator('.lp-lesson').first().evaluate(el=>el.open=true);await page.locator('[data-lp-field=activities]').first().waitFor({state:'visible'});
    const form=await page.locator('[data-lp-field=activities]').first().evaluate(el=>({font:parseFloat(getComputedStyle(el).fontSize),height:el.getBoundingClientRect().height}));assert(form.font>=16);assert(form.height>=144,JSON.stringify(form));
-   const buttons=await page.locator('.lp-primary-actions button').evaluateAll(nodes=>nodes.filter(n=>n.getClientRects().length).map(n=>n.getBoundingClientRect().height));assert(buttons.every(h=>h>=44));await screenshot('planner-'+width+'.png');
+   await plannerControls();await screenshot('planner-'+width+'.png');
   }
-  await page.setViewportSize({width:390,height:844});await page.evaluate(()=>document.documentElement.style.fontSize='200%');await fit('Planner reflows at 200 percent text size');await page.evaluate(()=>document.documentElement.style.fontSize='');checks.push('Planner has readable inputs, touch targets and 200 percent text reflow');
+  await page.setViewportSize({width:390,height:844});await page.evaluate(()=>document.documentElement.style.fontSize='200%');await fit('Planner reflows at 200 percent text size');await plannerControls();await page.evaluate(()=>document.documentElement.style.fontSize='');checks.push('Planner dates fit their columns; four labelled icon actions share one row at every size and at 200 percent text');
   await choose('Attendance');await page.locator('#pa-workspace').waitFor();await fit('Teacher attendance fits phone');const classes=await page.locator('.pa-classes').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length);assert.equal(classes,1);await screenshot('attendance-phone.png');
   if(f.mobileCourse){await page.goto(origin+'/academy/#activity/COURSE/'+f.mobileCourse.activity_id+'/teach');await page.locator('#activity-title').filter({hasText:f.mobileCourse.name}).waitFor();await ready();await fit('Course teaching uses the same phone reading structure');assert.equal(await contents().evaluate(el=>el.open),false);}
   await identity('global');await page.locator('#ad-title').waitFor();assert.equal(await page.evaluate(()=>document.body.classList.contains('academy-learning-layout')),false);assert.equal(await page.locator('#ad-title').innerText(),'Your administration dashboard');
   await page.goto(origin+'/academy/admin/#activity/PROGRAM/'+f.scopes.programA.slice(8)+'/teach/planning');await page.locator('[data-lp-field=activities]').first().waitFor();await ready();assert.equal(await page.evaluate(()=>M4L_ACADEMY_WORKSPACE.current()),'ADMIN_TEACH');await fit('Admin-Teach shares the reading layout and preserves its authority');
   await page.goto(origin+'/academy/#website');await page.locator('#overview.active').waitFor();assert.equal(await page.evaluate(()=>document.body.classList.contains('academy-learning-layout')),false);checks.push('Admin management and public website retain their layout; Admin-Teach keeps its realm');
-  assert.deepEqual(errors,[]);const result={passed:true,baseline:'107.84',version:'107.88',branch:'feature/academy-mobile-first',checks,errors,requests:calls.length,liveDataChanged:false};writeFileSync(path.join(out,'verification.json'),JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result));
+  assert.deepEqual(errors,[]);const result={passed:true,baseline:'107.84',version:'107.89',engine,branch:'feature/academy-mobile-first',checks,errors,requests:calls.length,liveDataChanged:false};writeFileSync(path.join(out,'verification.json'),JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result));
  }catch(error){await page.screenshot({path:path.join(out,'failure.png'),fullPage:true});writeFileSync(path.join(out,'failure.html'),await page.content());console.error(JSON.stringify({checks,errors}));throw error;}
  finally{await browser.close();await new Promise(done=>server.close(done));f.close();}
 }

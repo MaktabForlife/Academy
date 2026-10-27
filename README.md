@@ -1,3 +1,7 @@
+# V107.89 — Compact mobile planner controls
+
+The phone preview keeps native date fields inside their columns, places an accessible revert icon left of Load a plan, and shows Save, Submit, PDF and Share together in one row with labelled icons and 44px tap targets. Verified in Chrome and WebKit, including enlarged text. Existing preview drafts and the live Academy are unchanged.
+
 # V107.88 — Mobile Learn/Teach preview
 
 # Mobile-first Learn/Teach

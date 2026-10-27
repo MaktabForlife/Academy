@@ -1,6 +1,6 @@
 # Mobile-first Learn/Teach development
 
-Status: preview V107.88, based exactly on V107.84 (`5a1731c0`). Branch: `feature/academy-mobile-first`. The user authorised a separate phone preview on 27 October 2026. The live Academy remains unchanged.
+Status: preview V107.89, based exactly on V107.84 (`5a1731c0`). Branch: `feature/academy-mobile-first`. The user authorised a separate phone preview on 27 October 2026. The live Academy remains unchanged.
 
 ## Shared foundation
 
@@ -34,3 +34,10 @@ Review this first implementation on actual iPhone/Safari and Android hardware, e
 - Source entrypoint and offline builder are in `backend/tools/mobile-first-preview/`. The builder creates a fresh private artifact, random preview-only authentication secrets, a foreign-key ordered synthetic seed and bounded import batches. Secrets never enter the repository or static assets.
 - Thirty local layout/workflow checks pass at 320–1440px. Hosted checks verify both sample sign-ins, the 390px layout, a persisted teaching draft, learner navigation, the public Library and a rendered two-page PDF. No real account was used for preview testing.
 - The V107.87 Library row correction is also included. Development/live retain V107.87 and their existing headers; the mobile-first feature remains separate. The user's additional header-display concern awaits clarification.
+
+## Phone planner correction — V107.89
+
+- The native Load a plan and Week starting date fields have explicit shrinkable inline sizing and retain native date-picker semantics. The load row gives its remaining width to the date; the revert control remains immediately to its left as an accessible 44px icon.
+- Save draft, Submit plan, Download A4 PDF and Share plan image share one compact row. Each has an icon, a short visible caption, its full accessible name and title, and a tap target at least 44px wide/high. Other planner views keep their existing full labels.
+- Chrome and WebKit each pass the 30 shared fixture checks. Planner checks now measure individual date fields within their columns and assert a single action row, actual icon visibility, labels and touch targets at 320, 390, 768, 1024 and 1440 pixels and with 200% text.
+- Eleven planning behaviour checks pass. Deploy the same preview URL with existing bindings and secrets; do not reset its synthetic database or drafts. Development/live remain V107.87.

@@ -1,3 +1,7 @@
+# V107.89 — Compact mobile planner controls
+
+Correct iPhone date-field overflow and oversized planner action rows in the isolated Learn/Teach preview. Preserve native date pickers, full accessible names, clear short captions, 44px tap targets, saved drafts and all existing actions. Chrome and WebKit responsive checks pass. No Development/live, storage, schema or account changes.
+
 # V107.88 — Mobile Learn/Teach preview
 
 Deploy the V107.84-based mobile feature to a dedicated synthetic preview. Provide Learn and Teach sample sign-in links, isolated D1/R2 storage, a same-origin API and a noindex landing page. No live Academy service or data changes.
