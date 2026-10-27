@@ -111,11 +111,11 @@
    const actions=document.createElement('div');actions.className='lp-actions';
    const share=document.createElement('button');share.type='button';share.textContent='Share image';
    const save=document.createElement('button');save.type='button';save.className='lp-secondary';save.textContent='Download image';
-   const close=document.createElement('button');close.type='button';close.className='lp-secondary';close.textContent='Cancel';
+   const close=document.createElement('button');close.type='button';close.className='lp-secondary academy-close';close.textContent='Close';close.title='Close';close.setAttribute('aria-label','Close share plan');
    let result='cancelled';
    share.onclick=async()=>{share.disabled=true;try{await navigator.share({files:[file]});result='shared';dialog.close();}catch(error){if(error.name==='AbortError')dialog.close();else{message.textContent='The image could not be shared. Try again, or download it and attach the image yourself.';share.disabled=false;}}};
    save.onclick=()=>{result=download(file);dialog.close();};close.onclick=()=>dialog.close();
-   dialog.addEventListener('close',()=>{dialog.remove();resolve(result);},{once:true});actions.append(share,save,close);dialog.append(heading,name,message,actions);document.body.appendChild(dialog);dialog.showModal();
+   dialog.addEventListener('close',()=>{dialog.remove();resolve(result);},{once:true});const header=document.createElement('div');header.className='academy-close-heading';header.append(heading,close);actions.append(share,save);dialog.append(header,name,message,actions);document.body.appendChild(dialog);dialog.showModal();
   });
  }
  async function output(plan,share=false){

@@ -1,3 +1,10 @@
+# Compact headers and Admin badge preview — 27 October 2026
+
+- The user requested shorter Learn/Teach headers on mobile, standard top-right X Close controls on mobile/desktop, and replacing the extra Admin banner with an account badge. Keep this on the existing isolated preview as V107.90.
+- Retain dates, identity, workspace authority, accessible action names, Curriculum access and 44px touch targets. Preserve unsaved-entry safeguards and existing handlers.
+- Deploy only academy-mobile-first-preview, retaining its sample D1/R2 bindings, secrets and drafts. Do not push, deploy Development/live, apply SQL or communicate with other chats.
+- Verify locally in Chrome/WebKit and at enlarged text sizes; keep hosted smoke checks small.
+
 # Mobile planner phone correction — 27 October 2026
 
 - The user reported iPhone date controls extending past the screen and requested compact icons for Save, Submit, Download and Share in one row. Update the existing isolated preview as V107.89.

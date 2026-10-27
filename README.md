@@ -1,3 +1,7 @@
+# V107.90 — Compact headers and Admin badge
+
+The phone Learn/Teach header uses less space with inline dates and compact action icons. Replace the extra Admin context banner with an account badge that retains Curriculum access and the read-only Learn description. Standardise Close as a 44px top-right X on phone and desktop, retaining existing draft safeguards. Deploy only the isolated sample preview; existing preview drafts and live Academy services are preserved.
+
 # V107.89 — Compact mobile planner controls
 
 The phone preview keeps native date fields inside their columns, places an accessible revert icon left of Load a plan, and shows Save, Submit, PDF and Share together in one row with labelled icons and 44px tap targets. Verified in Chrome and WebKit, including enlarged text. Existing preview drafts and the live Academy are unchanged.

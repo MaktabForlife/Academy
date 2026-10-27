@@ -14,7 +14,7 @@
   const syncHome=()=>{const anchor=actions.querySelector('[data-page-home]');if(anchor)anchor.href=window.M4L_ACADEMY_WORKSPACE?.homeUrl?.()||'/academy/#overview';};window.addEventListener('hashchange',syncHome);
   const login=document.getElementById('academy-login')||document.createElement('a');
   if(!login.id){login.id='academy-login';login.href='/academy/#login';login.textContent='Login';}
-  signOut.textContent='Sign out';actions.append(login,signOut);host.append(actions);
+  signOut.innerHTML='<span class="page-signout-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 4H4v16h5m5-13 5 5-5 5m-6-5h11"/></svg></span><span class="page-signout-label">Sign out</span>';signOut.setAttribute('aria-label','Sign out');signOut.title='Sign out';actions.append(login,signOut);host.append(actions);
   if(!academy){
     const updateLogin=()=>{login.hidden=!signOut.hidden;};updateLogin();
     new MutationObserver(updateLogin).observe(signOut,{attributes:true,attributeFilter:['hidden']});
@@ -22,7 +22,7 @@
   const path=location.pathname||'',calendarView=window.M4L_ACADEMY_WORKSPACE?.audience().toLowerCase()||new URLSearchParams(location.search).get('view');
   const management=Boolean(window.M4L_ACADEMY_WORKSPACE?.adminRealm())||/^\/(users|programs)(?:\/|$)/.test(path)||/^\/academy\/(subjects|courses\/manage|library\/manage|enrolment\/manage|pdf-tools)(?:\/|$)/.test(path)||path.startsWith('/academy/calendar/')&&!['learn','teach'].includes(calendarView);
   if(management){
-    const close=document.createElement('a');close.href='/academy/admin/#administration';close.className='academy-management-close';close.textContent='Close';close.setAttribute('data-workspace-exit','');close.setAttribute('aria-label','Close and return to Admin Home');
+    const close=document.createElement('a');close.href='/academy/admin/#administration';close.className='academy-management-close academy-close';close.title='Close';close.textContent='Close';close.setAttribute('data-workspace-exit','');close.setAttribute('aria-label','Close and return to Admin Home');
     function ensureClose(){
       if(path.startsWith('/academy/admin/')&&(!location.hash||location.hash==='#administration')){close.remove();return;}
       const headings=[...document.querySelectorAll('.view.active .page-heading,.view.active .workspace-banner,.view.active .workspace-identity,.view.active .activity-identity,main .pgm-heading,main .pb-heading,main .up-titlebar,main .cm-page-heading,main .al-intro,main .cal-heading,main .pt-heading,main .enrolment-heading')];

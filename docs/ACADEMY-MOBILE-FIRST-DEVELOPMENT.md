@@ -1,6 +1,6 @@
 # Mobile-first Learn/Teach development
 
-Status: preview V107.89, based exactly on V107.84 (`5a1731c0`). Branch: `feature/academy-mobile-first`. The user authorised a separate phone preview on 27 October 2026. The live Academy remains unchanged.
+Status: preview V107.90, based exactly on V107.84 (`5a1731c0`). Branch: `feature/academy-mobile-first`. The user authorised a separate phone preview on 27 October 2026. The live Academy remains unchanged.
 
 ## Shared foundation
 
@@ -41,3 +41,10 @@ Review this first implementation on actual iPhone/Safari and Android hardware, e
 - Save draft, Submit plan, Download A4 PDF and Share plan image share one compact row. Each has an icon, a short visible caption, its full accessible name and title, and a tap target at least 44px wide/high. Other planner views keep their existing full labels.
 - Chrome and WebKit each pass the 30 shared fixture checks. Planner checks now measure individual date fields within their columns and assert a single action row, actual icon visibility, labels and touch targets at 320, 390, 768, 1024 and 1440 pixels and with 200% text.
 - Eleven planning behaviour checks pass. Deploy the same preview URL with existing bindings and secrets; do not reset its synthetic database or drafts. Development/live remain V107.87.
+
+## Compact headers, Admin badge and Close — V107.90
+
+- Phone Learn/Teach headers now keep Home, Refresh and Sign out as accessible icons; dates share a row, secondary identity text and version labels yield space to content, and workspace tabs use short visible names with their full audience names available to assistive technology. Desktop header spacing is retained.
+- Admin context is a badge beside the account name. Admin-Learn retains its read-only description in its accessible label/title. The badge opens the same scoped Curriculum chooser; management shows the same Admin badge without adding another banner. Permissions and available workspaces are unchanged.
+- Explicit Close controls use the same top-right 44px X in workspaces, Class Notes, lesson media, plans, assessments, notices, progress and Library drawers. Original links/handlers and unsaved-entry guards are retained. Form Cancel actions remain distinct.
+- Local Chrome and WebKit checks cover 320–1440px, 200% text, guarded X dismissal and Admin Curriculum on phone/desktop. Phone sample headers measure about 126px, down from 167px. The existing isolated preview is updated without reseeding or touching Development/live.

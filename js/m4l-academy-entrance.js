@@ -445,7 +445,7 @@
     $('academy-access-empty').hidden = !data?.signedIn || Boolean(choices.length);
     for (const key of ['learn','teach','admin']) {
       const tab = $('academy-tab-'+key), active = !home && key === state.academyTab;
-      tab.textContent=(key!=='admin'?(adminRealm?'ADMIN-':canAdmin?'PERSONAL ':''):'')+key.toUpperCase();tab.hidden = !choices.includes(key);tab.setAttribute('aria-pressed', String(active));tab.setAttribute('aria-controls',key === 'admin' ? 'administration' : 'timetable');tab.tabIndex = 0;
+      const short=key.toUpperCase(),label=(key!=='admin'?(adminRealm?'ADMIN-':canAdmin?'PERSONAL ':''):'')+short;tab.setAttribute('aria-label',label);tab.title=label;tab.innerHTML='<span class="academy-role-label">'+label+'</span><span class="academy-role-short" aria-hidden="true">'+short+'</span>';tab.hidden = !choices.includes(key);tab.setAttribute('aria-pressed', String(active));tab.setAttribute('aria-controls',key === 'admin' ? 'administration' : 'timetable');tab.tabIndex = 0;
     }
     panel.hidden = true;
     panel.setAttribute('aria-labelledby', 'academy-tab-'+state.academyTab);

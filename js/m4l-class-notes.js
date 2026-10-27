@@ -27,7 +27,7 @@
  function modal(){
   if(!close())return false;
   dialog=document.createElement('dialog');dialog.className='cn-dialog';dialog.setAttribute('aria-labelledby','cn-title');
-  dialog.innerHTML='<header class="cn-heading"><h2 id="cn-title">Class Notes</h2><button type="button" class="button secondary" data-cn="close">Close</button></header><p data-cn-message role="status" aria-live="polite"></p><div data-cn-body></div>';
+  dialog.innerHTML='<header class="cn-heading"><h2 id="cn-title">Class Notes</h2><button type="button" class="button secondary academy-close" data-cn="close" title="Close">Close</button></header><p data-cn-message role="status" aria-live="polite"></p><div data-cn-body></div>';
   dialog.addEventListener('cancel',event=>{event.preventDefault();close();});dialog.addEventListener('click',click);dialog.addEventListener('submit',submit);dialog.addEventListener('input',event=>{if(event.target.closest('form'))dirty=true;});dialog.addEventListener('change',change);document.body.append(dialog);dialog.showModal();return true;
  }
  const body=html=>{if(dialog)dialog.querySelector('[data-cn-body]').innerHTML=html;};
