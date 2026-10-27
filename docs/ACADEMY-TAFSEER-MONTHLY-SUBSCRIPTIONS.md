@@ -7,8 +7,8 @@ Implemented locally on `feature/academy-tafseer-monthly-subscriptions`, based on
 Open **Programs → Tafseer → Participants → Monthly subscriptions**.
 
 1. Global Admin prepares the monthly register. This establishes the existing Program's stable key and retained recording policy; it does not yet restrict students' existing access.
-2. Choose the full month/year. Tick subscribed students, confirm their covered classes, and optionally enter payment date, reference and note. Search by name/account ID to find former students with an existing Academy account.
-3. Review and save the edited entries. Only edited students in that month change. Previous paid months persist. Removing access requires a reason. Conflicting edits and uncertain responses keep the draft; Retry reuses the original operation.
+2. The register shows Tafseer students in the first column and collapsed **2024**, **2025** and **2026** year groups. Click a year to expand its January–December checkbox columns. Student names remain fixed while the months scroll. Collapsed years show the count of paid months.
+3. Use **Find a student** to search by name/account ID within the Tafseer roster, including former students with class or subscription history. Load more students when available. Tick paid months across years, then **Save changes**. Search, pagination and collapsing years preserve unsaved edits, including edits to students hidden by a search. Only edited cells change; saving multiple months is atomic. Existing payment references, dates and notes are preserved. Classes are inferred from the saved grant or dated membership, with an explicit choice when ambiguous. Removing a previously saved month requires a reason. Conflicting edits and uncertain responses keep the draft; Retry reuses the original operation.
 4. Record and review the historical opening register before Global Admin activates monthly access. Activation is explicit and requires a recorded paid month. No current Student role or class enrolment is automatically treated as payment history.
 
 Scoped Tafseer Program Admins can manage grants once the register is prepared. Teachers and Admin reader previews cannot grant access. Payment references/notes are administrative records and are excluded from learner responses. This is a manual subscription register, not a payment collection or invoicing system.
@@ -20,7 +20,7 @@ Expand **Earlier lessons and media** inside Monthly subscriptions.
 1. Enter the original lesson date, title and classes. Dates are not limited to the app's start date or current academic year. If the original cohort needs its own class, create that historical class through the existing Classes editor; monthly classes are unnecessary.
 2. Add the historical lesson. Its draft opens in the existing attachment editor.
 3. Attach MP4 recordings, YouTube recordings and/or PDFs, then save/publish through the normal media workflow. In the split-store application, explicit accepted media publication remains required. A historical entry does not invent a timetable publication, attendance session or meeting link.
-4. Separately record the months each student paid for, using the original year. January 2024, January 2025 and January 2026 are independent grants. Create missing student accounts through the normal account workflow before recording them.
+4. Separately record the months each student paid for, using the original year. January 2024, January 2025 and January 2026 are independent grants. Create missing student accounts and add them to Tafseer through the normal Participants workflow before recording them in the grid.
 
 Example: a lesson dated **16 January 2024**, whose recording is uploaded now, is available to students with **January 2024** access. An October lesson whose recording arrives in November still uses October access. The attachment's upload date never chooses the paid month.
 
@@ -58,7 +58,7 @@ Open [the local sample](http://127.0.0.1:4318/) and choose Admin or Student. Use
 npm run test:tafseer
 ```
 
-Verification covers month/year boundaries, late attachments, 2024/2025 history, a 100-student atomic delta, retained byte-range playback, shared PDFs, teacher notes, scoped authority, current-role removal, revocation, immutable publication, cache/proof invalidation, missing authority storage, retries, navigation guards and account switching. All 154 selected local checks passed, including existing media, workspace, Program, snapshot and split-store regressions. Source-boundary, JavaScript syntax and screen-asset reference checks also passed. DOM interaction tests exercise the new screens; browser visual review at phone/desktop sizes remains a separate manual preview check.
+Verification covers month/year boundaries, late attachments, 2024/2025 history, a 100-student atomic delta, cross-year atomic grid saves, roster search/pagination, collapsible years, hidden draft preservation, retained byte-range playback, shared PDFs, teacher notes, scoped authority, current-role removal, revocation, immutable publication, cache/proof invalidation, missing authority storage, retries, navigation guards and account switching. All 111 selected local checks passed, including existing media, workspace, Program, snapshot and split-store regressions. Source-boundary and JavaScript syntax checks also pass. DOM interaction tests exercise search, expansion, multi-year edits, removals, retries and account switching; the updated grid has also been checked in the local Chrome preview.
 
 ## Future release requirements — not performed
 

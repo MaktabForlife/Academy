@@ -37,7 +37,7 @@ export function programMonthlySubscriptions(repository,auth){
       WHERE a.account_id=? AND a.active=1 AND c.pin_setup=1 AND length(trim(c.pin_hash))>0 AND c.credential_epoch=?
       AND s.session_id=? AND s.revoked_at IS NULL AND s.credential_epoch=c.credential_epoch AND s.expires_at>?
       AND (EXISTS(SELECT 1 FROM global_role_assignments g WHERE g.account_id=a.account_id AND g.active=1 AND g.role='GLOBAL_ADMIN' AND g.review_state='CONFIRMED')
-       OR (?=0 AND EXISTS(SELECT 1 FROM (${assessmentRolesSQL}) r WHERE r.account_id=a.account_id AND r.activity_key=? AND r.role='PROGRAM_ADMIN')))))`,guard,version.version,area.activity_key,policy?.revision||0,area.activity_key,actor,actualState(auth).account.credential_epoch,auth.sid,now,Number(action!=='save'),area.activity_key),
+       OR (?=0 AND EXISTS(SELECT 1 FROM (${assessmentRolesSQL}) r WHERE r.account_id=a.account_id AND r.activity_key=? AND r.role='PROGRAM_ADMIN')))))`,guard,version.version,area.activity_key,policy?.revision||0,area.activity_key,actor,actualState(auth).account.credential_epoch,auth.sid,now,Number(!['save','grid-save'].includes(action)),area.activity_key),
     ...statements,
     p('INSERT INTO audit_events(event_id,occurred_at,actor_account_id,authority,scope_key,action,record_kind,record_id,changed_fields_json) VALUES(?,?,?,?,?,?,?,?,?)',crypto.randomUUID(),now,actor,actualState(auth).account.global_admin?'GLOBAL_ADMIN':'PROGRAM_ADMIN',area.activity_key,action,'PROGRAM_MONTHLY_SUBSCRIPTIONS',input.operationId,JSON.stringify(details)),
     p("INSERT INTO operation_receipts(dataset_key,scope_key,operation_id,payload_sha256,result_json,actor_account_id,completed_at) VALUES('PROGRAM_MONTHLY_SUBSCRIPTIONS',?,?,?,?,?,?)",area.activity_key,input.operationId,hash,JSON.stringify(result),actor,now),
@@ -79,30 +79,73 @@ export function programMonthlySubscriptions(repository,auth){
    return {statements:[p('INSERT INTO program_monthly_media_policies(activity_key,updated_at,updated_by_account_id) VALUES(?,?,?)',area.activity_key,now,actor)],details:{prepared:true,retainedRecordings:true},result:{prepared:true,revision:1}};
   });
  }
- async function save(input){
+ function suggestedClasses(month,memberships,classes,existing=[]){
+  if(existing.length)return existing;
+  const start=month+'-01',end=new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7)),0)).toISOString().slice(0,10);
+  const ids=[...new Set(memberships.filter(c=>(c.active||c.start_date&&c.end_date)&&(!c.start_date||c.start_date<=end)&&(!c.end_date||c.end_date>=start)).map(c=>c.class_id))];
+  return ids.length?ids:classes.length===1?[classes[0].class_id]:[];
+ }
+ async function grid(input){
+  const available=Boolean(policy||area.name.trim().toLowerCase()==='tafseer');if(!available)return {available:false};
+  const years=input.years??[2024,2025,2026];
+  if(!Array.isArray(years)||!years.length||years.length>5||years.some(y=>!Number.isInteger(y)||y<1000||y>9999)||new Set(years).size!==years.length)throw fail('Choose up to five different calendar years.');
+  const months=years.slice().sort().flatMap(y=>Array.from({length:12},(_,m)=>y+'-'+String(m+1).padStart(2,'0')));
+  const timezone=(await p('SELECT timezone FROM program_settings WHERE activity_key=?',area.activity_key).first())?.timezone||'Africa/Johannesburg';
+  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit'}).formatToParts(new Date()).map(p=>[p.type,p.value]));
+  const classes=(await p('SELECT class_id,name,active FROM classes WHERE activity_key=? ORDER BY name',area.activity_key).all()).results;
+  const base={available:true,prepared:Boolean(policy),canConfigure:Boolean(actualState(auth).account.global_admin),currentMonth:parts.year+'-'+parts.month,years:years.slice().sort(),classes,...(policy?{policy:{enabled:Boolean(policy.enabled),retainRecordings:true,revision:policy.revision}}:{})};
+  if(!policy)return base;
+  const search=cleanText(input.search||'',100,'a student search',true);let name='',id='';
+  if(input.after){try{const cursor=JSON.parse(input.after);if(!Array.isArray(cursor)||cursor.length!==2)throw Error();[name,id]=cursor;}catch{throw fail('Choose a valid student page.');}if(typeof name!=='string'||name.length>200||typeof id!=='string'||id.length>200)throw fail('Choose a valid student page.');}
+  const page=(await p(`SELECT a.account_id,a.display_name,a.active,lower(a.display_name) sort_name FROM accounts a
+   WHERE (lower(a.display_name)>? OR (lower(a.display_name)=? AND a.account_id>?)) AND (?='' OR instr(lower(a.display_name||' '||a.account_id),lower(?))>0)
+   AND (EXISTS(SELECT 1 FROM effective_activity_roles r WHERE r.account_id=a.account_id AND r.activity_key=? AND r.role='STUDENT')
+    OR EXISTS(SELECT 1 FROM program_monthly_subscriptions s WHERE s.account_id=a.account_id AND s.activity_key=?)
+    OR EXISTS(SELECT 1 FROM class_memberships c WHERE c.account_id=a.account_id AND c.activity_key=?))
+   ORDER BY lower(a.display_name),a.account_id LIMIT 51`,name,name,id,search,search,area.activity_key,area.activity_key,area.activity_key).all()).results;
+  const rows=page.slice(0,50),ids=JSON.stringify(rows.map(r=>r.account_id));
+  const [subscriptions,memberships]=(await db.batch([
+   p('SELECT account_id,lesson_month,active,revision,class_ids_json FROM program_monthly_subscriptions WHERE activity_key=? AND account_id IN(SELECT value FROM json_each(?)) AND lesson_month IN(SELECT value FROM json_each(?))',area.activity_key,ids,JSON.stringify(months)),
+   p('SELECT account_id,class_id,start_date,end_date,active FROM class_memberships WHERE activity_key=? AND account_id IN(SELECT value FROM json_each(?))',area.activity_key,ids)
+  ])).map(r=>r.results);
+  return {...base,students:rows.map(r=>{
+   const saved=subscriptions.filter(s=>same(s.account_id,r.account_id)),history=memberships.filter(m=>same(m.account_id,r.account_id));
+   return {accountId:r.account_id,name:r.display_name,active:Boolean(r.active),months:Object.fromEntries(saved.map(s=>[s.lesson_month,{subscribed:Boolean(s.active),revision:s.revision,classIds:JSON.parse(s.class_ids_json)}])),suggestedClassIds:Object.fromEntries(months.map(m=>[m,suggestedClasses(m,history,classes)]))};
+  }),after:page.length>50?JSON.stringify([rows.at(-1).sort_name,rows.at(-1).account_id]):null};
+ }
+ async function save(input,asGrid=false){
   if(!policy)throw fail('Prepare the monthly register first.',409);
-  if(!validMonth(input.month)||!Array.isArray(input.entries)||!input.entries.length||input.entries.length>100||input.entries.some(e=>!e||typeof e.accountId!=='string')||new Set(input.entries.map(e=>e.accountId.toUpperCase())).size!==input.entries.length)throw fail('Choose a valid month and up to 100 different student changes.');
-  return change('save',input,async()=>{
-   const statements=[],details=[],rows=[],now=new Date().toISOString(),ids=JSON.stringify(input.entries.map(e=>e.accountId));
-   const [accounts,existing,classes]=(await db.batch([p('SELECT account_id,active FROM accounts WHERE account_id IN(SELECT value FROM json_each(?))',ids),p('SELECT * FROM program_monthly_subscriptions WHERE activity_key=? AND lesson_month=? AND account_id IN(SELECT value FROM json_each(?))',area.activity_key,input.month,ids),p('SELECT class_id FROM classes WHERE activity_key=?',area.activity_key)])).map(r=>r.results);
-   for(const e of input.entries){
-    if(!e||typeof e.accountId!=='string'||typeof e.subscribed!=='boolean'||!Number.isInteger(e.revision)||!Array.isArray(e.classIds)||e.classIds.length>50||e.classIds.some(v=>typeof v!=='string'||!v||v.length>160)||new Set(e.classIds).size!==e.classIds.length)throw fail('Review each changed student and covered class.');
+  const entries=Array.isArray(input.entries)?input.entries.map(e=>({...e,month:asGrid?e?.month:input.month})):[];
+  if(!entries.length||entries.length>(asGrid?500:100)||entries.some(e=>typeof e.accountId!=='string'||!validMonth(e.month))||new Set(entries.map(e=>JSON.stringify([e.accountId.toUpperCase(),e.month]))).size!==entries.length)throw fail(asGrid?'Save up to 500 different student/month changes together.':'Choose a valid month and up to 100 different student changes.');
+  return change(asGrid?'grid-save':'save',input,async()=>{
+   const statements=[],details=[],rows=[],now=new Date().toISOString(),ids=JSON.stringify([...new Set(entries.map(e=>e.accountId))]),cells=JSON.stringify(entries.map(e=>({accountId:e.accountId,month:e.month})));
+   const [accounts,existing,classes,memberships]=(await db.batch([
+    p('SELECT account_id,active FROM accounts WHERE account_id IN(SELECT value FROM json_each(?))',ids),
+    p("SELECT s.* FROM program_monthly_subscriptions s JOIN json_each(?) e ON s.account_id=json_extract(e.value,'$.accountId') COLLATE NOCASE AND s.lesson_month=json_extract(e.value,'$.month') WHERE s.activity_key=?",cells,area.activity_key),
+    p('SELECT class_id FROM classes WHERE activity_key=?',area.activity_key),
+    p('SELECT account_id,class_id,start_date,end_date,active FROM class_memberships WHERE activity_key=? AND account_id IN(SELECT value FROM json_each(?))',area.activity_key,ids)
+   ])).map(r=>r.results);
+   const removalReason=asGrid?cleanText(input.removalReason||'',500,'a reason for removing access',true):'';
+   for(const e of entries){
+    if(typeof e.subscribed!=='boolean'||!Number.isInteger(e.revision))throw fail('Review each changed student and month.');
     const a=accounts.find(a=>same(a.account_id,e.accountId));if(!a||e.subscribed&&!a.active)throw fail('Choose an existing active account before granting access.');
-    const old=existing.find(r=>same(r.account_id,a.account_id));
+    const old=existing.find(r=>same(r.account_id,a.account_id)&&r.lesson_month===e.month);
     if((old?.revision||0)!==e.revision)throw fail('A student entry changed. Your draft is kept; review the saved entry.',409,'ROW_CHANGED');
-    const ids=e.classIds,known=classes.filter(c=>ids.includes(c.class_id));
-    if(e.subscribed&&(!ids.length||known.length!==ids.length))throw fail('Select the Tafseer classes covered by this paid month.');
-    const note=cleanText(e.note||'',500,'a note',true),reference=cleanText(e.paymentReference||'',100,'a payment reference',true),paymentDate=e.paymentDate||'';
-    if(paymentDate&&!validDate(paymentDate))throw fail('Choose a valid payment date.');
-    if(old?.active&&!e.subscribed&&!note.trim())throw fail('Enter a reason when removing month access.');
-    rows.push({activity_key:area.activity_key,account_id:a.account_id,lesson_month:input.month,active:Number(e.subscribed),class_ids_json:JSON.stringify(ids),payment_date:paymentDate,payment_reference:reference,note,updated_at:now,updated_by_account_id:actor});
-    details.push({accountId:a.account_id,month:input.month,before:old||null,after:{subscribed:e.subscribed,classIds:ids,paymentDate,paymentReference:reference,note}});
+    const ids=e.classIds??(asGrid?suggestedClasses(e.month,memberships.filter(m=>same(m.account_id,a.account_id)),classes,JSON.parse(old?.class_ids_json||'[]')):null);
+    if(!Array.isArray(ids)||ids.length>50||ids.some(v=>typeof v!=='string'||!v||v.length>160)||new Set(ids).size!==ids.length)throw fail('Review each changed student and covered class.');
+    const known=classes.filter(c=>ids.includes(c.class_id));if(e.subscribed&&(!ids.length||known.length!==ids.length))throw fail('Select the Tafseer classes covered by this paid month.');
+    const removing=Boolean(old?.active&&!e.subscribed);
+    const note=asGrid?(removing?removalReason:old?.note||''):cleanText(e.note||'',500,'a note',true),reference=asGrid?old?.payment_reference||'':cleanText(e.paymentReference||'',100,'a payment reference',true),paymentDate=asGrid?old?.payment_date||'':e.paymentDate||'';
+    if(paymentDate&&!validDate(paymentDate))throw fail('Choose a valid payment date.');if(removing&&!note.trim())throw fail('Enter a reason when removing month access.');
+    rows.push({activity_key:area.activity_key,account_id:a.account_id,lesson_month:e.month,active:Number(e.subscribed),class_ids_json:JSON.stringify(ids),payment_date:paymentDate,payment_reference:reference,note,updated_at:now,updated_by_account_id:actor});
+    details.push({accountId:a.account_id,month:e.month,before:old||null,after:{subscribed:e.subscribed,classIds:ids,paymentDate,paymentReference:reference,note}});
    }
    const columns=['activity_key','account_id','lesson_month','active','class_ids_json','payment_date','payment_reference','note','updated_at','updated_by_account_id'];
    statements.push(p(`INSERT INTO program_monthly_subscriptions(${columns.join(',')}) SELECT ${columns.map(c=>"json_extract(value,'$."+c+"')").join(',')} FROM json_each(?) WHERE 1 ON CONFLICT(activity_key,account_id,lesson_month) DO UPDATE SET active=excluded.active,class_ids_json=excluded.class_ids_json,payment_date=excluded.payment_date,payment_reference=excluded.payment_reference,note=excluded.note,revision=program_monthly_subscriptions.revision+1,updated_at=excluded.updated_at,updated_by_account_id=excluded.updated_by_account_id`,JSON.stringify(rows)));
    statements.push(p('UPDATE program_monthly_media_policies SET revision=revision+1,updated_at=?,updated_by_account_id=? WHERE activity_key=?',now,actor,area.activity_key));
-   return {statements,details,result:{saved:input.entries.length,revision:policy.revision+1}};
+   return {statements,details,result:{saved:entries.length,revision:policy.revision+1}};
   });
  }
- return {async run(action,input){await prepare(input);if(action==='get')return get(input);if(action==='configure')return configure(input);if(action==='save')return save(input);throw fail('Unknown monthly subscription action.',404);}};
+
+ return {async run(action,input){await prepare(input);if(action==='get')return get(input);if(action==='grid')return grid(input);if(action==='grid-save')return save(input,true);if(action==='configure')return configure(input);if(action==='save')return save(input);throw fail('Unknown monthly subscription action.',404);}};
 }

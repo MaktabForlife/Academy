@@ -204,7 +204,7 @@ async function dispatch(request,env) {
   }
   const auth=await authenticated(request,env,repository);
   guardWorkspace(request,auth,input);
-  const monthlyAction=path.match(/^\/api\/admin\/platform\/program-monthly-subscriptions\/(get|configure|save)$/)?.[1];
+  const monthlyAction=path.match(/^\/api\/admin\/platform\/program-monthly-subscriptions\/(get|configure|save|grid|grid-save)$/)?.[1];
   if(monthlyAction)return {success:true,...await programMonthlySubscriptions(sourceRepository,auth).run(monthlyAction,input)};
   if(path==='/api/academy/monthly-media/months'){
     if(!sourceRepository.features.monthlySubscriptions)throw rehearsalError('Monthly media is unavailable.',503);

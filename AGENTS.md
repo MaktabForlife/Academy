@@ -1,5 +1,6 @@
 # Tafseer monthly subscriptions — local implementation — 27 October 2026
 
+- The user requested a simpler checkbox grid: Tafseer students in the first column, expandable year groups 2024/2025/2026 that reveal month columns, and student search. Replace the month-by-month cards with this grid, support saving edited cells across months atomically, and preserve lesson-month access, recording retention and historical media entry. Keep the feature local; do not push or deploy.
 - The user now authorizes implementing the reviewed plan locally on this feature branch, including retaining Tafseer recordings beyond 14 days. Support dated historical lesson/media entries for lessons before the app, explicitly including 2024 and 2025, and explicit historical student/month subscriptions. This supersedes the planning-only hold below for local implementation.
 - Do not push, deploy, apply hosted migrations, change live data or bucket lifecycle rules. Use disposable synthetic local databases/objects, preserve other Programs' access/retention and current release markers. No other-chat communication or delegation was requested.
 

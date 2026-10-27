@@ -20,7 +20,9 @@ test('split Core grants, cached permissions, historical publication and retained
   const admin=await f.source.actor('global'),student=await f.source.login('0002');
   const monthly=(action,input)=>f.request('/api/admin/platform/program-monthly-subscriptions/'+action,{activityKey:scope,...input},admin);
   ok(await monthly('configure',{mode:'prepare',policyRevision:0,operationId:op()}));
-  ok(await monthly('save',{month:'2024-01',policyRevision:1,operationId:op(),entries:[{accountId:'account-0002',subscribed:true,revision:0,classIds:['class-1'],note:'Historical paid month'}]}));
+  ok(await monthly('grid-save',{policyRevision:1,operationId:op(),entries:['2024-01','2025-01'].map(month=>({accountId:'account-0002',month,subscribed:true,revision:0,classIds:['class-1']}))}));
+  const grid=ok(await monthly('grid',{years:[2024,2025,2026],search:'0002'}));
+  assert.deepEqual(Object.keys(grid.students[0].months).sort(),['2024-01','2025-01'],'Cross-year grid grants are read from authoritative Core');
   ok(await monthly('configure',{mode:'activate',policyRevision:2,reviewed:true,operationId:op()}));
   const made=ok(await f.request('historical-create',{activityKey:scope,date:'2024-01-16',title:'Tafseer January 2024',classIds:['class-1'],operationId:op()},admin));
   const start=ok(await f.request('video-start',{lessonId:made.lessonId,revision:1,filename:'archive.mp4',size:mp4.length,operationId:op()},admin));

@@ -18,34 +18,54 @@ function dom(html){
 async function setup(){
  const f=await monthlyFixture(),token=await f.login('0001');ok(await f.monthly('configure',{mode:'prepare',policyRevision:0,operationId:crypto.randomUUID()},token));
  const d=dom('<html><body><section id="pg-people-tool"><section id="pm-main">Participants</section></section></body></html>'),calls=[],managed=[];let owner=token,loseResponse=false,hold=null;
- const fetch=async(url,options)=>{const input=JSON.parse(options.body);calls.push({url,input});if(hold)return new Promise(resolve=>{hold.resolve=()=>resolve(new Response(JSON.stringify({success:true,available:true,prepared:false,canConfigure:true,classes:[]})));});const result=await f.call(url,input,owner);if(loseResponse&&url.endsWith('/save')){loseResponse=false;throw Error('Lost save response');}return new Response(JSON.stringify(result.body),{status:result.status});};
+ const fetch=async(url,options)=>{const input=JSON.parse(options.body);calls.push({url,input});if(hold)return new Promise(resolve=>{hold.resolve=()=>resolve(new Response(JSON.stringify({success:true,available:true,prepared:false,canConfigure:true,classes:[]})));});const result=await f.call(url,input,owner);if(loseResponse&&url.endsWith('/grid-save')){loseResponse=false;throw Error('Lost save response');}return new Response(JSON.stringify(result.body),{status:result.status});};
  Object.assign(d.window,{M4L_CONFIG:{API_BASE:''},M4L_LESSON_MEDIA:{canLeave:()=>true,async manage(input){managed.push(input);}}});
  vm.runInNewContext(source,{...d,location:{search:'?participants=monthly'},localStorage:{getItem:()=>owner},fetch,crypto,URLSearchParams,Intl,Date,console});
  await d.window.M4L_PROGRAM_MONTHLY.select(scope.slice(8));await settle();
  const click=async(selector)=>{const target=d.document.querySelector(selector);assert(target,selector);target.dispatchEvent(new d.window.Event('click',{bubbles:true}));await settle();};
  const change=async(selector,value)=>{const target=d.document.querySelector(selector);assert(target,selector);if(target.type==='checkbox')target.checked=value;else target.value=value;target.dispatchEvent(new d.window.Event('change',{bubbles:true}));await settle();};
- return {...d,f,calls,managed,click,change,lose(){loseResponse=true;},hold(){hold={};return hold;},switchAccount(){owner='replacement';d.window.dispatchEvent(new d.window.Event('m4l-academy-session-ended'));}};
+ const search=async(value)=>{d.document.querySelector('[data-pms-search]').value=value;d.document.querySelector('[data-pms-search-form]').dispatchEvent(new d.window.Event('submit',{bubbles:true,cancelable:true}));await settle();};
+ return {...d,f,calls,managed,click,change,search,lose(){loseResponse=true;},hold(){hold={};return hold;},switchAccount(){owner='replacement';d.window.dispatchEvent(new d.window.Event('m4l-academy-session-ended'));}};
 }
-test('monthly UI guards month changes, saves only edited students and retries the exact lost-response operation',async()=>{
+test('grid expands years, preserves hidden edits through search and retries the exact cross-year save',async()=>{
  const t=await setup();try{
   assert.equal(t.document.querySelector('[data-pms-panel]').hidden,false);assert.equal(t.document.getElementById('pm-main').hidden,true);
-  await t.change('[data-pms-month]','2024-01');
-  await t.change('[data-pms-account="account-0002"] [data-pms-field="subscribed"]',true);
-  await t.change('[data-pms-account="account-0002"] [data-pms-field="paymentReference"]','JAN-2024');
-  const calls=t.calls.length;await t.change('[data-pms-month]','2025-01');assert.equal(t.document.querySelector('[data-pms-month]').value,'2024-01');assert.equal(t.calls.length,calls);assert.equal(t.window.M4L_PROGRAM_MONTHLY.canLeave(),false);
-  await t.click('[data-pms-action="review"]');t.lose();await t.click('[data-pms-action="save"]');assert(t.document.querySelector('[data-pms-action="retry"]'));assert.equal(t.window.M4L_PROGRAM_MONTHLY.canLeave(),false);
+  assert.equal(t.document.querySelectorAll('[data-pms-cell]').length,0);
+  for(const year of ['2024','2025','2026'])assert.equal(t.document.querySelector('[data-pms-year="'+year+'"]').getAttribute('aria-expanded'),'false');
+  await t.click('[data-pms-year="2024"]');assert.equal(t.document.querySelectorAll('[data-pms-cell][data-account="account-0002"]').length,12);
+  await t.change('[data-pms-cell][data-account="account-0002"][data-month="2024-01"]',true);
+  await t.click('[data-pms-year="2024"]');assert.equal(t.document.querySelectorAll('[data-pms-cell]').length,0);assert.match(t.document.querySelector('tbody').textContent,/1 \/ 12/);
+  await t.search('0008');assert.equal(t.document.querySelectorAll('tbody tr').length,1);assert.match(t.document.querySelector('[data-pms-delta]').textContent,/outside this search/);
+  await t.click('[data-pms-year="2025"]');await t.change('[data-pms-cell][data-account="account-0008"][data-month="2025-02"]',true);
+  await t.search('0002');await t.click('[data-pms-year="2024"]');
+  assert.equal(t.document.querySelector('[data-pms-cell][data-account="account-0002"][data-month="2024-01"]').checked,true);assert.match(t.document.querySelector('[data-pms-delta]').textContent,/2 unsaved/);
+  assert.equal(t.window.M4L_PROGRAM_MONTHLY.canLeave(),false);
+  t.lose();await t.click('[data-pms-action="save"]');assert(t.document.querySelector('[data-pms-action="retry"]'));assert.equal(t.window.M4L_PROGRAM_MONTHLY.canLeave(),false);
   await t.click('[data-pms-action="retry"]');assert.equal(t.window.M4L_PROGRAM_MONTHLY.canLeave(),true);
-  const saved=t.calls.filter(c=>c.url.endsWith('/save'));assert.equal(saved.length,2);assert.equal(saved[0].input.operationId,saved[1].input.operationId);assert.equal(saved[0].input.entries.length,1);assert.equal(saved[0].input.entries[0].accountId,'account-0002');
-  const rows=t.f.db.prepare('SELECT * FROM program_monthly_subscriptions').all();assert.equal(rows.length,1);assert.equal(rows[0].lesson_month,'2024-01');assert.equal(rows[0].payment_reference,'JAN-2024');
+  const saved=t.calls.filter(c=>c.url.endsWith('/grid-save'));assert.equal(saved.length,2);assert.deepEqual(saved[0].input,saved[1].input);assert.equal(saved[0].input.entries.length,2);
+  const rows=t.f.db.prepare('SELECT account_id,lesson_month FROM program_monthly_subscriptions ORDER BY account_id').all();
+  assert.deepEqual(rows.map(r=>[r.account_id,r.lesson_month]),[['account-0002','2024-01'],['account-0008','2025-02']]);
+ }finally{t.f.db.close();}
+});
+test('grid revocation requires a reason and cancelling a tick creates no save',async()=>{
+ const t=await setup();try{
+  await t.click('[data-pms-year="2024"]');const selector='[data-pms-cell][data-account="account-0002"][data-month="2024-01"]';
+  await t.change(selector,true);await t.change(selector,false);assert.equal(t.window.M4L_PROGRAM_MONTHLY.dirty(),false);
+  await t.change(selector,true);await t.click('[data-pms-action="save"]');
+  await t.change(selector,false);await t.click('[data-pms-action="save"]');assert(t.document.querySelector('[data-pms-removal-reason]'));
+  const before=t.calls.length;await t.click('[data-pms-action="confirm-save"]');assert.equal(t.calls.length,before);assert.match(t.document.querySelector('[data-pms-message]').textContent,/reason/);
+  t.document.querySelector('[data-pms-removal-reason]').value='Wrong account';await t.click('[data-pms-action="confirm-save"]');
+  const row=t.f.db.prepare("SELECT active,note FROM program_monthly_subscriptions WHERE account_id='account-0002'").get();assert.equal(row.active,0);assert.equal(row.note,'Wrong account');
  }finally{t.f.db.close();}
 });
 test('historical media form creates an original 2025 date and opens the existing attachment editor',async()=>{
  const t=await setup();try{
   const form=t.document.querySelector('[data-pms-history-form]');form.querySelector('[name=date]').value='2025-03-18';form.querySelector('[name=title]').value='Earlier Tafseer recording';
   form.querySelector('[name=title]').dispatchEvent(new t.window.Event('input',{bubbles:true}));assert.equal(t.window.M4L_PROGRAM_MONTHLY.canLeave(),false);
-  const previous=t.document.querySelector('[data-pms-month]').value;await t.change('[data-pms-month]','2024-01');assert.equal(t.document.querySelector('[data-pms-month]').value,previous);
+  await t.click('[data-pms-year="2024"]');assert.equal(form.querySelector('[name=title]').value,'Earlier Tafseer recording');
+  const previous=t.document.querySelector('[data-pms-history-month]').value;await t.change('[data-pms-history-month]','2024-01');assert.equal(t.document.querySelector('[data-pms-history-month]').value,previous);
   form.dispatchEvent(new t.window.Event('submit',{bubbles:true,cancelable:true}));await settle();
-  assert.equal(t.managed.length,1);const row=t.f.db.prepare('SELECT * FROM lesson_media_lessons WHERE lesson_id=?').get(t.managed[0].lessonId);assert.equal(row.lesson_date,'2025-03-18');assert.equal(row.state,'DRAFT');assert.equal(t.document.querySelector('[data-pms-month]').value,'2025-03');assert.equal(JSON.parse(row.session_key)[0],'HISTORICAL');
+  assert.equal(t.managed.length,1);const row=t.f.db.prepare('SELECT * FROM lesson_media_lessons WHERE lesson_id=?').get(t.managed[0].lessonId);assert.equal(row.lesson_date,'2025-03-18');assert.equal(row.state,'DRAFT');assert.equal(t.document.querySelector('[data-pms-history-month]').value,'2025-03');assert.equal(JSON.parse(row.session_key)[0],'HISTORICAL');
  }finally{t.f.db.close();}
 });
 test('opening Monthly subscriptions preserves an unfinished existing participant edit',async()=>{
