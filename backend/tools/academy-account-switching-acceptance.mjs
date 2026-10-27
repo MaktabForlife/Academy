@@ -51,12 +51,13 @@ try{
  await page.goto(origin+'/academy/#login');await ready();await page.locator('#academy-login-dialog').waitFor({state:'visible'});
  const accountCalls=()=>calls.filter(c=>c.path.startsWith('/api/account/'));
  assert.equal(accountCalls().length,0,'Opening Login does not query remembered IDs or accounts');
- await page.locator('#demo-username').fill('login-0002');await page.locator('#demo-pin').fill('1234');await page.locator('#academy-remember-id').check();
+ assert.equal(await page.locator('#academy-remember-id').isChecked(),true,'Login remembers IDs by default');
+ await page.locator('#demo-username').fill('login-0002');await page.locator('#demo-pin').fill('1234');
  await page.locator('#login-preview [type=submit]').click();await page.waitForFunction(()=>location.hash==='#timetable/learn');await ready();
  const studentToken=await token(),key=rememberedKey(origin);
  assert.equal(await sessionStatus(studentToken),200);let saved=await page.evaluate(k=>JSON.parse(localStorage.getItem(k)),key);assert.equal(saved[0].id,'login-0002');
  assert.deepEqual(Object.keys(saved[0]),['id','name','lastUsed']);checks.push('Successful optional login remembers ID/name/time only; opening the chooser makes no account lookup');
- await open();assert.equal(await page.locator('#account-switch-pin').inputValue(),'');
+ await open();assert.equal(await page.locator('#account-switch-pin').inputValue(),'');assert.equal(await page.locator('[data-switch-remember]').isChecked(),true,'Switch account remembers IDs by default');
  await fill('login-0001','9999');await submit();await page.locator('[data-switch-status]').filter({hasText:'Incorrect PIN'}).waitFor();
  assert.equal(await token(),studentToken);assert.equal(await sessionStatus(studentToken),200);assert(!calls.some(c=>c.path==='/api/account/logout'));
  await fill('login-0001','');const count=accountCalls().length;await submit();assert.equal(accountCalls().length,count);await chooser().locator('[data-switch-close]').click();assert.equal(await token(),studentToken);
@@ -76,7 +77,7 @@ try{
 
  const other=await context.newPage();other.on('pageerror',e=>errors.push(e.message));await other.goto(origin+'/activities/kaaba-puzzle/');await ready(other);
  await page.evaluate(()=>{sessionStorage.setItem('m4l_read_v1:synthetic-old-private','private');localStorage.setItem('m4l_library_v1:synthetic:personal:old','private');});
- await fill();await page.locator('[data-switch-remember]').check();await submit();await page.waitForURL('**/academy/admin/#administration');await ready();await other.waitForURL('**/academy/admin/#administration');
+ await fill();await submit();await page.waitForURL('**/academy/admin/#administration');await ready();await other.waitForURL('**/academy/admin/#administration');
  const adminToken=await token();assert.notEqual(adminToken,studentToken);assert.equal(await sessionStatus(studentToken),401);assert.equal(await sessionStatus(adminToken),200);
  assert.equal(await page.evaluate(()=>sessionStorage.getItem('m4l_read_v1:synthetic-old-private')),null);assert.equal(await page.evaluate(()=>localStorage.getItem('m4l_library_v1:synthetic:personal:old')),null);
  saved=await page.evaluate(k=>JSON.parse(localStorage.getItem(k)),key);assert.deepEqual(saved.map(r=>r.id),['login-0001','login-0002']);
@@ -105,7 +106,9 @@ try{
  checks.push('Sign out and refresh retain opted-in IDs; remove/forget operate locally without deleting accounts or making API requests');
 
  await page.goto(origin+'/account/login-0003?academy=1');await ready();await page.locator('#login-form').waitFor({state:'visible'});
- await page.locator('#login-form-remember-id').check();await page.locator('#login-pin').fill('1234');await page.locator('#login-form [type=submit]').click();await page.waitForURL('**/academy/#timetable/teach');await ready();
+ assert.equal(await page.locator('#login-form-remember-id').isChecked(),true,'Personal-link login remembers IDs by default');
+ assert.equal(await page.locator('#setup-form-remember-id').isChecked(),true,'PIN setup remembers IDs by default');
+ await page.locator('#login-pin').fill('1234');await page.locator('#login-form [type=submit]').click();await page.waitForURL('**/academy/#timetable/teach');await ready();
  assert.equal((await page.evaluate(k=>JSON.parse(localStorage.getItem(k)),key))[0].id,'login-0003');
  checks.push('Personal-link PIN login also supports the optional remembered-ID preference');
 
@@ -124,6 +127,11 @@ try{
  const restoredToken=await f.login('0002');assert.equal(typeof restoredToken,'string');assert.equal(await sessionStatus(restoredToken),200);await page.evaluate(t=>{localStorage.setItem('m4l_account_token',t);window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true}));},restoredToken);
  await page.waitForURL('**/academy/#timetable/learn');await ready();assert.equal(await page.locator('[data-shell-role=admin]').isVisible(),false);
  checks.push('A back/forward restored document with changed account ownership opens the current account instead of retaining old authority');
+ await open();await chooser().getByRole('button',{name:'Use another ID',exact:true}).click();assert.equal(await page.locator('[data-switch-remember]').isChecked(),true,'Entering another ID keeps the default selected');
+ await fill('login-0003');await page.locator('[data-switch-remember]').uncheck();await submit();await page.waitForURL('**/academy/#timetable/teach');await ready();
+ assert(!(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)),key)).some(row=>row.id==='login-0003'),'An explicitly unticked ID is not retained');
+ await open();assert.equal(await page.locator('[data-switch-remember]').isChecked(),true,'The next switch starts with the default selected');await chooser().locator('[data-switch-close]').click();
+ checks.push('Remember ID defaults to selected for Login, personal-link login, PIN setup and account switching; explicitly unticking it still prevents remembering that ID');
  assert.deepEqual(errors,[]);
  const report={success:true,syntheticOnly:true,liveDataChanged:false,checks,errors};writeFileSync(join(out,'acceptance.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
 }catch(error){await page.screenshot({path:join(out,'failure.png')});console.error(JSON.stringify({error:error.message,url:page.url(),errors,trace:trace.slice(-12),responses:responses.slice(-15)}));throw error;}

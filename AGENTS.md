@@ -1,3 +1,9 @@
+# Remember-ID default follow-up release — 27 October 2026
+
+- The user requested Remember my ID selected by default, then explicitly asked to deploy the completed follow-up to Development. Release V107.86 from `feature/academy-account-switching`, incorporating deployed V107.85.
+- Apply the selected default to Login, personal-link login/PIN setup and Switch account. Respect an explicit untick and Remove/Forget all. Preserve fresh PIN checks, session revocation, private cache cleanup and unsaved-work guards. No database or coordinator change.
+- Keep live checks small under ../AGENTS.md. Use disposable local accounts and targeted release/version/static verification. Future deployments require fresh user authorisation.
+
 # Remembered-ID account switching release — 27 October 2026
 
 - The user explicitly requested building and deploying the approved remembered-ID / fresh-PIN account switcher on a new feature branch. Work on `feature/academy-account-switching`, incorporating deployed V107.84, and release V107.85 through the existing Academy Development website and API workflow.

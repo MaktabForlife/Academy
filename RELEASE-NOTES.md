@@ -1,3 +1,9 @@
+# V107.86 — Remember IDs by default
+
+Remember my ID on this browser starts selected for Academy Login, personal-link login/PIN setup and Switch account, including Use another ID and subsequent sign-ins. Users can still untick it; an unchecked ID is not retained. Remove and Forget all continue to clear remembered IDs. Every account switch still requires fresh server PIN verification.
+
+The user requested deployment to Development after verification. No database or coordinator change. [Implementation and verification](docs/ACADEMY-ACCOUNT-SWITCHING-10785.md).
+
 # V107.85 — Remembered IDs and PIN-protected account switching
 
 Login can remember verified IDs on this browser. Choose a remembered ID or enter another from Switch account in the shared header, then authorise with a fresh PIN. Keep the current session on failed or cancelled attempts; end it and clear private account state after success. Reopen all Academy tabs in the new account's authorised workspace and block switching during unfinished work. Sign-out retains the optional ID list; Remove and Forget all work locally.
