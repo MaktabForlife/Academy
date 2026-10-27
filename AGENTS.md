@@ -1,3 +1,9 @@
+# PDF toolbar update — 27 October 2026
+
+- The user requested the annotated PDF reader changes: two header rows with PDF workspace controls on the lower row; compact AUTO/ACTUAL zoom labels without grey shading; favourite colours inside Border/ink and a matching Fill palette. Follow the user's latest instruction to deploy completed work to Development.
+- Work on `feature/academy-pdf-toolbar-layout`, incorporating deployed V107.87, and release V107.88. Preserve the Library row correction, account switching, editable annotations, scrolling after Edit is off, bookmarks, fullscreen recovery and current permissions.
+- No database migration, live record correction, PDF.js engine upgrade or private coordinator change is required. Keep live checks small under ../AGENTS.md, using synthetic PDFs/accounts locally and targeted deployment/static/version verification.
+
 # Library display correction — 27 October 2026
 
 - The user reported clipped Public Library subject headings and changed screen headers, and explicitly requested a correction deployed to Development, followed by a review of the live site.

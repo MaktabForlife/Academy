@@ -15,7 +15,7 @@
   const login=document.getElementById('academy-login')||document.createElement('a');
   if(!login.id){login.id='academy-login';login.href='/academy/#login';login.textContent='Login';}
   signOut.textContent='Sign out';actions.append(login,signOut);host.append(actions);
-  void import('/js/m4l-academy-accounts.mjs?v=107.87').then(module=>module.installAccounts({actions,signOut})).catch(()=>{ /* Existing Login and Sign out remain available if the optional chooser cannot load. */ });
+  void import('/js/m4l-academy-accounts.mjs?v=107.88').then(module=>module.installAccounts({actions,signOut})).catch(()=>{ /* Existing Login and Sign out remain available if the optional chooser cannot load. */ });
   if(!academy){
     const updateLogin=()=>{login.hidden=!signOut.hidden;};updateLogin();
     new MutationObserver(updateLogin).observe(signOut,{attributes:true,attributeFilter:['hidden']});

@@ -1,3 +1,9 @@
+# V107.88 — PDF reader header, zoom and colour menus
+
+Keep the Academy identity/date and Home/Refresh/account actions in the top banner. Put PDF Split, Full screen and Close on the lower account/workspace banner. Native PDF zoom shows AUTO and ACTUAL on a white field. Favourite colours stay inside the Border/ink dropdown; Fill offers the same saved palette and custom colour picker. Border and fill selections remain independent.
+
+Preserve the V107.87 Library row correction, editable annotations, bookmarks, swipe scrolling, per-PDF controls, fullscreen recovery and existing permissions. No database or coordinator change. [Implementation and verification](docs/ACADEMY-PDF-TOOLBAR-10788.md).
+
 # V107.87 — Library subject display correction
 
 Prevent the PDF reader Public Library grid from shrinking subject rows below their contents. Preserve complete labels, expanded books and bookmarks, and scroll the list within its existing drawer. Based on V107.86; mobile-first development remains separate. No schema, data or coordinator changes.
