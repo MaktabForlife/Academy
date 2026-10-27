@@ -66,6 +66,28 @@ test('Admin curriculum contains all active areas, no synthetic missing plans and
  assert.equal((await change(f,'requirement',{...off,plansRequired:true,previousRequired:true},admin)).status,409);
  assert.equal((await change(f,'requirement',{activityKey:'COURSE:manual-empty',plansRequired:false,previousRequired:true},scoped)).status,403);
 }));
+test('Save changes commits all requirements together, retries once and rejects an entire stale or unauthorised selection',()=>use(async f=>{
+ const admin=await f.login('0001'),scoped=await f.login('0004'),teacher=await f.login('0003'),course=f.db.prepare("SELECT activity_key FROM activities WHERE kind='COURSE' LIMIT 1").get().activity_key;
+ const entries=[area,course].map(activityKey=>({activityKey,previousRequired:true,plansRequired:false})),input={entries,operationId:crypto.randomUUID()};
+ assert.equal((await post(f,'requirements',input,teacher)).status,403);
+ assert.equal((await post(f,'requirements',input,scoped)).status,403);assert.equal(f.db.prepare('SELECT count(*) n FROM lesson_plan_requirements').get().n,0);
+ ok(await change(f,'requirement',{activityKey:course,previousRequired:true,plansRequired:false},admin));
+ assert.equal((await post(f,'requirements',input,admin)).status,409);assert.equal(f.db.prepare('SELECT plans_required FROM lesson_plan_requirements WHERE activity_key=?').get(area),undefined);
+ ok(await change(f,'requirement',{activityKey:course,previousRequired:false,plansRequired:true},admin));
+ const saved=ok(await post(f,'requirements',input,admin));assert.equal(saved.changed,2);assert(ok(await post(f,'requirements',input,admin)).replayed);
+ assert.equal(f.db.prepare('SELECT count(*) n FROM lesson_plan_requirements WHERE plans_required=0').get().n,2);
+ assert.equal(f.db.prepare("SELECT count(*) n FROM operation_receipts WHERE dataset_key='LESSON_PLAN_ADMIN' AND scope_key='GLOBAL'").get().n,1);
+ assert.equal((await post(f,'requirements',{...input,entries:[{...entries[0],plansRequired:true}]},admin)).status,409);
+}));
+test('Save changes validates the complete selection and commits no partial requirements on storage failure',()=>use(async f=>{
+ const admin=await f.login('0001'),row={activityKey:area,previousRequired:true,plansRequired:false};
+ for(const entries of [[],[row,row],[{...row,plansRequired:'false'}],[row,{...row,activityKey:'COURSE:missing'}]])assert((await change(f,'requirements',{entries},admin)).status>=400);
+ assert.equal(f.db.prepare('SELECT count(*) n FROM lesson_plan_requirements').get().n,0);
+ const course=f.db.prepare("SELECT activity_key FROM activities WHERE kind='COURSE' LIMIT 1").get().activity_key;
+ f.db.exec("CREATE TRIGGER reject_requirements BEFORE INSERT ON lesson_plan_requirements WHEN NEW.activity_key='"+course+"' BEGIN SELECT RAISE(ABORT,'synthetic failure');END");
+ assert((await change(f,'requirements',{entries:[row,{...row,activityKey:course}]},admin)).status>=400);
+ assert.equal(f.db.prepare('SELECT count(*) n FROM lesson_plan_requirements').get().n,0);assert.equal(f.db.prepare("SELECT count(*) n FROM operation_receipts WHERE dataset_key='LESSON_PLAN_ADMIN'").get().n,0);
+}));
 test('disabling and re-enabling planning preserves every stored draft and submission',()=>use(async f=>{
  const teacher=await f.login('0003'),admin=await f.login('0001');ok(await change(f,'submit',{...key,revision:0,content:content()},teacher));
  const before=f.db.prepare('SELECT * FROM lesson_plans').get();

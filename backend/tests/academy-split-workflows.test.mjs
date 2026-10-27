@@ -170,3 +170,12 @@ test('manual plan requirement crosses accepted split storage and closes Teach li
  assert.equal(f.databases.core.prepare('SELECT count(*) n FROM lesson_plans').get().n,before);
  const on=ok(await f.request(path+'requirement',{activityKey:scope,plansRequired:true,previousRequired:false,operationId:crypto.randomUUID()}));ok(await f.request('/api/academy/changes/accept',on.acceptedChange));assert.equal(ok(await f.request(path+'get',{activityKey:scope,weekStart:'2026-10-26'},'teacherA','TEACH')).canEdit,true);
 }));
+
+test('Save changes accepts one exact multi-area requirement batch within the split-store budget',()=>use(async f=>{
+ const scopes=[f.scopes.programA,f.scopes.courseA],path='/api/academy/planning/requirements',input={entries:scopes.map(activityKey=>({activityKey,previousRequired:true,plansRequired:false})),operationId:crypto.randomUUID()};
+ const result=ok(await f.request(path,input));assert.equal(result.changed,2);assert(result.acceptedChange);assert.equal(ok(await f.request(path,input)).replayed,true);
+ for(const scope of scopes)assert.notEqual((await f.core.prepare('SELECT plans_required FROM lesson_plan_requirements WHERE activity_key=?').bind(scope).first())?.plans_required,0);
+ ok(await f.request('/api/academy/changes/accept',result.acceptedChange));
+ for(const scope of scopes){assert.equal((await f.core.prepare('SELECT plans_required FROM lesson_plan_requirements WHERE activity_key=?').bind(scope).first()).plans_required,0);assert.equal((await f.admin.prepare('SELECT plans_required FROM lesson_plan_requirements WHERE activity_key=?').bind(scope).first()).plans_required,0);}
+ const home=ok(await f.request('/api/academy/entrance',{},'teacherA','TEACH'));for(const scope of scopes)assert.equal(home.personalActivities.find(a=>a.kind+':'+a.id===scope).plansRequired,false);
+}));

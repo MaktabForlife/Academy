@@ -105,6 +105,25 @@ export function lessonPlanning(repository,auth,now=()=>new Date()){
   const available=classes.results.filter(r=>administers(auth,key.activityKey)||classIds.has(r.class_id.toUpperCase())).sort((a,b)=>Number(defaults.has(b.class_id.toUpperCase()))-Number(defaults.has(a.class_id.toUpperCase()))||a.name.localeCompare(b.name));
   return {subjects:[...new Set(names)],classes:available.map(r=>r.name),defaultClass:available[0]?.name||''};
  }
+ async function saveRequirements(input){
+  if(!Array.isArray(input.entries)||!input.entries.length||input.entries.length>200)throw fail('Choose between one and 200 requirement changes.');
+  const seen=new Set();for(const row of input.entries){
+   if(!row||typeof row.activityKey!=='string'||row.activityKey.length>200||typeof row.plansRequired!=='boolean'||typeof row.previousRequired!=='boolean')throw fail('Choose valid lesson plan requirements.');
+   const key=row.activityKey.toUpperCase();if(seen.has(key))throw fail('Include each Program or Course only once.');seen.add(key);
+  }
+  return store.change('LESSON_PLAN_ADMIN','GLOBAL','requirements',input,async()=>{
+   const d=await load({view:'admin'}),rows=input.entries.map(row=>{
+    const a=d.activities.find(a=>same(a.activity_key,row.activityKey)&&a.active&&a.lifecycle==='ACTIVE'&&['PROGRAM','COURSE'].includes(a.kind));
+    if(!a||!admin(d,a.activity_key))throw fail('A changed Program or Course is outside your planning access.',403,'FORBIDDEN');
+    if(row.previousRequired!==required(d,a.activity_key))throw fail('A requirement changed elsewhere. Refresh to review your selections before saving.',409,'ROW_CHANGED');
+    return {activityKey:a.activity_key,plansRequired:Number(row.plansRequired)};
+   });
+   const statements=[p(`INSERT INTO lesson_plan_requirements(activity_key,plans_required)
+    SELECT json_extract(value,'$.activityKey'),json_extract(value,'$.plansRequired') FROM json_each(?) WHERE 1
+    ON CONFLICT(activity_key) DO UPDATE SET plans_required=excluded.plans_required`,JSON.stringify(rows))];
+   return {data:d,statements,result:{saved:true,changed:rows.length},fields:['LessonPlanning'],authorityScopes:rows.map(r=>r.activityKey),acceptDefinitions:true};
+  });
+ }
  async function write(action,input){
   if(!['requirement','save','submit'].includes(action))throw fail('This planning action is no longer available.',410,'PLANNING_ACTION_RETIRED');
   const adminAction=action==='requirement',dataset=adminAction?'LESSON_PLAN_ADMIN':'LESSON_PLANS';
@@ -138,5 +157,5 @@ export function lessonPlanning(repository,auth,now=()=>new Date()){
    return {data:d,statements,result:{saved:true},fields:['LessonPlanning'],authorityScopes:[a.activity_key],acceptDefinitions:adminAction};
   });
  }
- return {run:async(action,input)=>action==='list'?list(input):action==='get'?get(input):write(action,input)};
+ return {run:async(action,input)=>action==='list'?list(input):action==='get'?get(input):action==='requirements'?saveRequirements(input):write(action,input)};
 }

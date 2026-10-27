@@ -1,3 +1,10 @@
+# Lesson plan Save changes release — 27 October 2026
+
+- After V107.101, the user requested staging all Plans required checkboxes on the page and saving them together, then explicitly authorised deployment. Release V107.102 from `feature/academy-manual-lesson-plans`, preserving deployed `3df676f6`.
+- Add one Save changes button and Discard. Checkbox selection alone makes no server writes. Save all changed requirements as one guarded, scoped, atomic operation with retry/conflict protection and exact multi-area acceptance. Retain manual Submit plan, private drafts, history, PDF/image sharing and Teach visibility/access gates.
+- Preserve unsaved selections in this account's browser session, guard navigation, and clear on account cleanup. Use synthetic local tests, phone/desktop browser checks and matching builds; hosted verification stays limited to release/static metadata and one API readiness call under ../AGENTS.md.
+- Deploy only the matching existing Development API and Academy website. No database migration, coordinator update, user settings edit or content publication is required. Future deployments need fresh authorisation.
+
 # Manual lesson plans release — 27 October 2026
 
 - The user authorised implementation of the planned lesson-plan simplification, keeping the manual Submit plan button, and deployment after confirming V107.100 is live. Work on `feature/academy-manual-lesson-plans`, based on `0e767b89`, and release V107.101 to the existing Development API and Academy website.
