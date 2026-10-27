@@ -1,6 +1,6 @@
 # Local feature — Course Website Studio
 
-The reusable course editor design is on `feature/academy-course-website-builder`. It supports direct lesson text, Arabic, reflections, images, arranged PDF downloads and a mobile-first student preview based on Surah Al Kahf. Drafts stay in the browser, with portable copies containing their uploaded files. It is not connected to live course publishing and has not been deployed.
+The reusable desktop Admin course editor design is on `feature/academy-course-website-builder`. It supports direct lesson text, Arabic, reflections, images, arranged PDF downloads and a mobile-first student preview based on Surah Al Kahf. Drafts stay in the browser, with portable copies containing their uploaded files. It is not connected to live course publishing and has not been deployed.
 
 See [the design guide](designs/course-website-studio/README.md) and [portal integration plan](docs/ACADEMY-COURSE-WEBSITE-BUILDER.md). The deployed portal remains V107.96.
 

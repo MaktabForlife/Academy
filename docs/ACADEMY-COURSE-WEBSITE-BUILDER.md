@@ -4,6 +4,8 @@ Status: local editor design, 27 October 2026. Branch: `feature/academy-course-we
 
 ## Authoring and student experience
 
+The user clarified that course building is a desktop function. Design the Admin authoring workspace around a persistent page outline, a spacious editor and a student preview beside it. Phone/Wide controls preview the learner layout; mobile authoring is not a release requirement.
+
 Add **Course website** to the authorised course Admin menu. Select an existing course and begin with the Surah Al Kahf template. Edit its home, ordered web lessons, journey, course materials, menu labels and appearance. Each lesson contains ordered sections and typed components: text, Arabic passage, ayah/translation, quotation, list, word study, reflection, image, source note and takeaway.
 
 The student course uses the current Academy header and login, compact Contents, reading controls, progress and reflections. The same accepted course content serves mobile and wider screens. Combine sessions, recordings and notes in the existing two-column phone cards. Show the header Join now action only during the authorised live window. Keep downloads in Course materials and retain assessment release/submission/marking rules.

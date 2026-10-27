@@ -1,6 +1,7 @@
 # Course website editor design — 27 October 2026
 
 - The user requested reusable templates using all Surah Al Kahf components, direct web-lesson entry and arranged Canva PDF/image uploads, then explicitly requested a feature branch. Work on `feature/academy-course-website-builder`, based on deployed V107.96 (`168a4698`).
+- The user clarified that course authoring is a desktop function. Prioritise a desktop Admin workspace with a persistent outline, editor and adjacent student preview; keep published student pages mobile first. Mobile authoring is not a release requirement.
 - The current deliverable is the working local editor design in `designs/course-website-studio/`, with browser-local drafts and student previews. Production course storage, login integration, publishing and migrations are a separate implementation stage described in `docs/ACADEMY-COURSE-WEBSITE-BUILDER.md`.
 - Keep the current portal and release markers unchanged. Do not push, deploy, export source to external hosting, apply SQL or alter live data/settings without fresh authorisation. Previous release approvals apply to their completed releases only.
 - Use synthetic local fixtures. The managed browser rejected local HTML URLs, and automatic approval review rejected external private-preview source export as beyond feature-branch authorisation; do not work around either denial. A self-contained local HTML file is available for the user to open manually. Browser visual checks remain pending.
