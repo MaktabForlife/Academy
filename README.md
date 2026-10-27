@@ -1,3 +1,7 @@
+# V107.92 — Clearer Refresh icon
+
+Use an open circular arrow with a distinct arrowhead for the shared Refresh control, following the supplied example. Keep existing accessible labels, touch targets and refresh behaviour. Update only the isolated sample preview, preserving saved test data.
+
 # V107.91 — Sample Admin preview
 
 Add Open Admin to the isolated mobile preview, using the existing sample Global Admin account and opening Admin-Teach so the badge is immediately visible. Learn, Teach and Admin switches remain available. Preserve existing preview data and credentials; Development/live services are unchanged.

@@ -1,6 +1,6 @@
 # Mobile-first Learn/Teach development
 
-Status: preview V107.91, based exactly on V107.84 (`5a1731c0`). Branch: `feature/academy-mobile-first`. The user authorised a separate phone preview on 27 October 2026. The live Academy remains unchanged.
+Status: preview V107.92, based exactly on V107.84 (`5a1731c0`). Branch: `feature/academy-mobile-first`. The user authorised a separate phone preview on 27 October 2026. The live Academy remains unchanged.
 
 ## Shared foundation
 
@@ -52,3 +52,7 @@ Review this first implementation on actual iPhone/Safari and Android hardware, e
 ## Sample Admin entry — V107.91
 
 The preview landing page now offers Open Learn, Open Teach and Open Admin. `/__signin/global` signs into the existing synthetic Global Admin account through the real login flow, then opens the sample Program planner in Admin-Teach. The badge is visible immediately, and the Learn/Teach/Admin tabs allow testing the other Admin contexts. The fixed account allowlist, dedicated preview origin and synthetic-only configuration checks remain in place. This release preserves storage, secrets and sample drafts without reseeding or changing hosted SQL.
+
+## Clearer Refresh icon — V107.92
+
+The shared header Refresh icon now uses an open circular arrow with a distinct arrowhead, matching the user's example. Its accessible name, tooltip, touch target and guarded refresh handler are unchanged. The update is limited to the existing isolated preview and preserves sample Admin access and saved plans.

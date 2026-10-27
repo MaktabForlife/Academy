@@ -1,3 +1,8 @@
+# Clearer Refresh icon preview — 27 October 2026
+
+- The user requested a more intuitive Refresh icon, using their open circular-arrow example. Replace the shared Academy header icon while retaining its labels, touch target and refresh/draft-guard handlers. Release V107.92 only to the existing isolated preview.
+- Preserve preview storage, credentials and sample plans. Do not reseed, run hosted SQL, push, deploy Development/live or contact other chats. Verify the icon visually at phone and desktop sizes; this change needs no new behavioural tests.
+
 # Sample Admin preview entry — 27 October 2026
 
 - The user explicitly requested an Admin option on the mobile preview to test the Admin badge on their phone. Add Open Admin using the existing synthetic Global Admin account and open Admin-Teach directly. Release only the isolated preview as V107.91.
