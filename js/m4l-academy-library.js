@@ -10,6 +10,14 @@
   const state = { rows: [], view: 'you', category: 'ALL', covers: new Map(), observer: null, openRow: null,
     learningAreaRefs: new Set() };
 
+  const requestedArea=new URLSearchParams(location.search).get('activity')||'',areaMatch=requestedArea.match(/^(PROGRAM|COURSE):(.{1,160})$/);
+  const selectedRefs=areaMatch?(areaMatch[1]==='PROGRAM'?['PROGRAM:','REBOOT:']:['GLOBAL:','COURSE:']).map(prefix=>(prefix+areaMatch[2]).toUpperCase()):[];
+  function belongsToArea(row){
+    if(!requestedArea)return true;
+    if(!selectedRefs.length||![...state.learningAreaRefs].some(ref=>selectedRefs.includes(ref.toUpperCase())))return false;
+    return (row.learningAreaRefs||[]).some(ref=>selectedRefs.includes(String(ref).toUpperCase()))||!row.publicBook&&selectedRefs.some(ref=>String(row.id).toUpperCase().startsWith(ref+':'));
+  }
+
   const cache = window.M4L_LIBRARY_CACHE;
   let generation = 0;
   let personalOwner = '';
@@ -52,7 +60,7 @@
     if (!volumes.length && !pdfUrl && !(mediaType && (mediaFiles.length || mediaUrl))) return null;
     return {
       id: book.id, name: book.title, subject: book.subject || 'Books', module: book.module || '',
-      learningAreas: Array.isArray(book.learningAreas) ? book.learningAreas : [],
+      learningAreas: Array.isArray(book.learningAreas) ? book.learningAreas : [],learningAreaRefs:book.learningAreaRefs||[],
       source: 'EXTERNAL', sourceName: 'Open Library', type: mediaType || (book.resourceType === 'PRINTABLE' ? 'PRINTABLE' : 'EBOOK'),
       description: book.description || '', author: book.details || '',
       forYou: (book.learningAreaRefs || []).some(ref => state.learningAreaRefs.has(ref)),
@@ -65,7 +73,7 @@
         !record.id?.startsWith('EXTERNAL:ACADEMY_LINK:') ||
         typeof record.linkUrl !== 'string' || !/^https:\/\//i.test(record.linkUrl)) return null;
     return { id: record.id, name: record.title, subject: record.subject || 'Other',
-      module: record.module || '', learningAreas: record.learningAreas || [],
+      module: record.module || '', learningAreas: record.learningAreas || [],learningAreaRefs:record.learningAreaRefs||[],
       source: 'EXTERNAL', sourceName: 'Website', type: 'OTHER',
       description: record.description || '', author: record.author || '',
       forYou: (record.learningAreaRefs || []).some(ref => state.learningAreaRefs.has(ref)),
@@ -94,7 +102,7 @@
     const query = $('al-search').value.trim().toLocaleLowerCase();
     const source = $('al-source').value;
     return state.rows.filter(row =>
-      (row.forYou) &&
+      (row.forYou) && belongsToArea(row) &&
       matchesCategory(row.type) &&
       (source === 'ALL' || `${row.source}:${row.sourceName}` === source) &&
       (!query || [row.name, row.subject, row.module, row.level, ...(row.learningAreas || []), row.sourceName, row.description, row.author]
@@ -156,7 +164,7 @@
     }
     $('al-results').innerHTML = groups.size
       ? [...groups].map(([subject, entries]) => `<section class="al-section"><h2>${esc(subject)}</h2><div class="al-subject-books">${entries.map(card).join('')}</div></section>`).join('')
-      : `<p class="al-empty">${state.view === 'you' ? 'No resources are assigned to you yet.' : 'No resources match this selection.'}</p>`;
+      : `<p class="al-empty">${state.view === 'you' ? (selectedRefs.length?'No resources are assigned to this course yet.':'No resources are assigned to you yet.') : 'No resources match this selection.'}</p>`;
     state.observer?.disconnect();
     if ('IntersectionObserver' in window) {
       state.observer = new IntersectionObserver(entries => {
@@ -303,7 +311,7 @@
     try{
       const data=await window.M4L_ACADEMY_READ_CACHE.load({key:['library-catalogue'],force,onUpdate:apply,onError:(error,saved)=>{if(!active())return;if(!saved){state.rows=[];state.learningAreaRefs.clear();$('al-results').replaceChildren();$('al-manage-books').hidden=true;}$('al-status').textContent=saved?'Showing saved Library. Couldn’t check for updates.':error.message;},
        fetcher:async revision=>{const result=await api('catalogue',{},revision);if(result.notModified)return result;
-        const fields=['id','name','subject','module','level','source','sourceName','type','description','author','publisher','hasCover','locked','forYou','learningAreas'];
+        const fields=['id','name','subject','module','level','source','sourceName','type','description','author','publisher','hasCover','locked','forYou','learningAreas','learningAreaRefs'];
         const data={readRevision:result.readRevision,resources:(result.resources||[]).map(row=>Object.fromEntries(fields.filter(key=>key in row).map(key=>[key,row[key]]))),learningAreaRefs:result.learningAreaRefs||[],warnings:result.warnings||[],canManage:false};
         try{const response=await fetch(`${window.M4L_CONFIG?.API_BASE||''}/api/academy/open-library/metadata/list`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session}`},body:'{}'});data.canManage=response.ok&&(await response.json()).success;}catch{}return data;}});
       apply(data);const snapshot=await cache.publicList(force);if(active())applyArchiveBooks(snapshot);
@@ -326,7 +334,7 @@
         const result = await api('catalogue');
         if (current !== generation || session !== localStorage.getItem('m4l_account_token')) return;
         // Persist catalogue labels only. File access and signed URLs are never cached here.
-        const fields = ['id','name','subject','module','level','source','sourceName','type','description','author','publisher','hasCover','locked','forYou','learningAreas'];
+        const fields = ['id','name','subject','module','level','source','sourceName','type','description','author','publisher','hasCover','locked','forYou','learningAreas','learningAreaRefs'];
         const data = {resources:(result.resources || []).map(row=>Object.fromEntries(fields.filter(key=>key in row).map(key=>[key,row[key]]))),learningAreaRefs:result.learningAreaRefs||[],warnings:result.warnings||[],canManage:false};
         applyPersonal(data);
         try {

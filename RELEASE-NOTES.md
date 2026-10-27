@@ -1,3 +1,7 @@
+# V107.97 — Dashboard and mobile reading refinements
+
+Compact Admin headers and workspace navigation; right-side dashboard and Program Contents menus; management and upcoming-session card grids; small Quick tools and Notes icons; two-day timetables focused on today; complete assessment cards on phones; and course-scoped Library selection. Remove duplicate review buttons, plan-review status labels and redundant helper text. Preserve V107.96 course features, current access/publication gates and unsaved-work safeguards. No schema, hosted data or private coordinator changes.
+
 # V107.96 — Live course joining and recording controls
 
 Add Join now beside the course title on phones and in the desktop course header, only while the scheduled lesson is live and a join reference is available. A local clock updates the header and session cards at the existing early-join, start and end boundaries without polling the course feed. Joining still requires the existing fresh API permission/window check. Use uniform highlighted recording controls, dates without visible years, and no time on finished sessions, including older media in the course timezone. Reuse the app header Refresh through the shared content-refresh hook. Preserve account cleanup, publication gates and download placement. No migration, live data/settings change or private coordinator deployment.

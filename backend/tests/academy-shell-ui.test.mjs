@@ -11,6 +11,9 @@ function fixture({compact=true,verified=true,mode='ADMIN_LEARN'}={}){
    setAttribute(k,v){this.attrs[k]=v;},removeAttribute(k){delete this.attrs[k];},getAttribute(k){return this.attrs[k]??null;},
    append(...items){for(const item of items){item.remove();item.parentElement=this;this.children.push(item);}},
    prepend(item){item.remove();item.parentElement=this;this.children.unshift(item);},
+   get childNodes(){return this.children;},
+   before(item){this.parentElement.insertBefore(item,this);},
+   replaceWith(...items){const parent=this.parentElement;for(const item of items)parent.insertBefore(item,this);this.remove();},
    after(item){item.remove();item.parentElement=this.parentElement;const siblings=this.parentElement.children;siblings.splice(siblings.indexOf(this)+1,0,item);},
    remove(){if(this.parentElement)this.parentElement.children=this.parentElement.children.filter(child=>child!==this);this.parentElement=null;},
    insertBefore(item,before){item.remove();item.parentElement=this;const index=this.children.indexOf(before);this.children.splice(index<0?this.children.length:index,0,item);},
@@ -34,7 +37,7 @@ function fixture({compact=true,verified=true,mode='ADMIN_LEARN'}={}){
 }
 
 test('course headers use the compact Admin badge beside the verified account and retain read-only context',()=>{
- const f=fixture();assert.equal(f.context.hidden,false);assert.equal(f.context.parentElement,f.profile);assert.equal(f.context.className,'academy-admin-context');
+ const f=fixture();assert.equal(f.context.hidden,false);assert.equal(f.context.parentElement.className,'academy-admin-identity');assert.equal(f.context.parentElement.parentElement,f.profile);assert.equal(f.context.className,'academy-admin-context');
  assert.match(f.context.innerHTML,/class="academy-admin-badge"/);assert.match(f.context.innerHTML,/ADMIN-LEARN · Student class view · read only/);assert.match(f.context.innerHTML,/data-curriculum-open/);assert.match(f.context.innerHTML,/aria-haspopup="dialog"/);
  assert.equal(f.role.textContent,'Admin-Learn · Student view');assert.ok(f.document.querySelector('.academy-date-box'));assert.ok(f.document.querySelector('.academy-connected-brand'));
 });
@@ -44,5 +47,5 @@ test('an Admin URL alone never displays the badge and revoked access clears it',
  const learner=fixture({mode:'LEARN'});assert.equal(learner.context.hidden,true);assert.equal(learner.role.textContent,'Student');
 });
 test('the course reuses the V107.94 badge already shared by other workspace pages',()=>{
- const f=fixture({compact:false});assert.equal(f.context.className,'academy-admin-context');assert.equal(f.context.parentElement,f.profile);assert.match(f.context.innerHTML,/class="academy-admin-badge"/);assert.equal(f.document.querySelector('.academy-date-box'),null);
+ const f=fixture({compact:false});assert.equal(f.context.className,'academy-admin-context');assert.equal(f.context.parentElement.className,'academy-admin-identity');assert.equal(f.context.parentElement.parentElement,f.profile);assert.match(f.context.innerHTML,/class="academy-admin-badge"/);assert.equal(f.document.querySelector('.academy-date-box'),null);
 });

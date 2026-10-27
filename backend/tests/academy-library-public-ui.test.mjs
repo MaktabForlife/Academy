@@ -101,7 +101,7 @@ const cacheScript = await readFile(new URL('../../js/m4l-library-cache.js', impo
 const saved = new Map([['m4l_account_token','signed-in-token']]);
 const localStorage = {getItem:key=>saved.get(key)||null,setItem:(key,value)=>saved.set(key,value),removeItem:key=>saved.delete(key),key:index=>[...saved.keys()][index],get length(){return saved.size;}};
 const context = {
-  document, window, fetch, TextEncoder, btoa, encodeURIComponent,
+  document, window, fetch, TextEncoder, btoa, encodeURIComponent,URLSearchParams,
   location:{origin:'https://academy.test'},localStorage, crypto:webcrypto,Uint8Array, console, setTimeout
 };
 runInNewContext(cacheScript,context);runInNewContext(script,context);
@@ -200,6 +200,8 @@ assert.equal(calls.filter(call=>call.url==='/api/academy/library/catalogue').len
 assert.equal(calls.filter(call=>call.url==='/academy/open-library/catalogue').length,2);
 saved.set('m4l_account_token','another-account');windowHandlers.get('storage')({key:'m4l_account_token',newValue:'another-account'});await new Promise(resolve=>setTimeout(resolve,15));
 assert.equal(calls.filter(call=>call.url==='/api/academy/library/catalogue').length,3,'An account change reloads its own assignments');
+context.location.search='?activity=PROGRAM%3AP1';runInNewContext(script,context);await new Promise(resolve=>setTimeout(resolve,15));assert.match(nodes['al-results'].innerHTML,/Assigned book|Academy Quran book/);assert.doesNotMatch(nodes['al-results'].innerHTML,/Second Program audio|Assigned video|Course book/);
+context.location.search='?activity=PROGRAM%3AP2';runInNewContext(script,context);await new Promise(resolve=>setTimeout(resolve,15));assert.doesNotMatch(nodes['al-results'].innerHTML,/Assigned book|Academy Quran book|Second Program audio|Assigned video/,'An unassigned course cannot select another course resources');
 saved.delete('m4l_account_token');windowHandlers.get('storage')({key:'m4l_account_token',newValue:null});
 assert.equal(nodes['al-content'].hidden,true);assert.equal([...saved.keys()].some(key=>key.includes(':personal:')),false);
 console.log('academy-library-public-ui.test.mjs: PASS, including repeat visits, forced refresh, fresh file access and account isolation');
