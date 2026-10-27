@@ -1,3 +1,7 @@
+# Local read optimisation — awaiting deployment approval
+
+Permission rechecks and accepted timetable/calendar reads have been reduced on feature/academy-permission-timetable-reads, based on V107.83. All access checks remain current. No changes have been deployed and no database upgrade is required. Keep live checks small to limit database usage. [Implementation, local measurements and verification](docs/ACADEMY-PERMISSION-TIMETABLE-READS.md).
+
 # V107.83 — Reuse identical lesson PDFs
 
 Identical PDFs now share one stored file across separate lesson attachments and Teacher dated/recurring note versions. Attachment names, audiences, permissions and immutable history remain independent. File contents are streamed and verified even when the bytes are already stored. The same 16 MB limit and protected download checks apply; existing files remain readable. No additional D1 lookup is added for reuse.

@@ -33,19 +33,43 @@ export function rewriteRead(original,params,data){
 }
 export function federationContext({core,admin,owner='admin'}){
  const sources={core,admin};
- async function capture(store,names){
+ async function capture(store,names,accepted=null){
   names=[...new Set(names)].filter(n=>storeColumns[store][n]||store==='core'&&(computed[n]||emptyShapes[n]));if(!names.length)return {};
+  const params=[];
   const parts=names.map(n=>{const cols=storeColumns[store][n]||computed[n]||emptyShapes[n],row=n==='account_credentials'?"json_object('account_id',account_id,'pin_hash',CASE WHEN length(trim(pin_hash))>0 THEN 'VERIFIED' ELSE '' END,'pin_setup',pin_setup,'credential_epoch',credential_epoch)":jsonRowSQL(cols);
    // Core ignores Admin-owned settings except the counters that combine both
    // owners. Keep their exact, case-sensitive prefix and use the existing PK.
-   const where=store==='admin'&&owner==='core'&&n==='academy_settings'?" WHERE setting_key>='AcademyWrite:' AND setting_key<'AcademyWrite;'":'';
+   let where=store==='admin'&&owner==='core'&&n==='academy_settings'?" WHERE setting_key>='AcademyWrite:' AND setting_key<'AcademyWrite;'":'';
+   if(accepted&&n==='setup_components'){where=' WHERE component_id IN(SELECT value FROM json_each(?))';params.push(JSON.stringify(accepted.ids));}
    return '('+literal(n)+',(SELECT json_group_array('+row+') FROM '+n+where+'))';});
-  const result=await sources[store].prepare('WITH split_capture(name,data) AS(VALUES '+parts.join(',')+') SELECT name,data FROM split_capture').all();return Object.fromEntries(result.results.map(r=>[r.name,JSON.parse(r.data)]));
+  const result=await sources[store].prepare('WITH split_capture(name,data) AS(VALUES '+parts.join(',')+') SELECT name,data FROM split_capture').bind(...params).all();return Object.fromEntries(result.results.map(r=>[r.name,JSON.parse(r.data)]));
  }
- async function snapshot(sqls,extra=[]){
+ async function acceptedSelection(sqls,scopes){
+  if(owner!=='admin'||!scopes||extraComponentRead(sqls,scopes))return null;
+  const selected=sqls.flatMap((sql,i)=>readReferences(sql).found.has('setup_components')?[scopes[i]]:[]);
+  if(!selected.length)return null;
+  const heads=new Map();for(const s of selected){if(!heads.has(s.head))heads.set(s.head,new Set());for(const t of s.tables)heads.get(s.head).add(t);}
+  // Preserve the unrestricted fallback for an unusually large mixed-head
+  // batch rather than approaching D1's SQL/bind limits.
+  if(heads.size>40)return null;
+  const params=[...heads].flatMap(([head,tables])=>[head,JSON.stringify([...tables])]),where=[...heads].map(()=>'head_id=? AND table_name IN(SELECT value FROM json_each(?))').join(' OR ');
+  const rows=(await core.prepare('SELECT * FROM setup_head_components WHERE '+where).bind(...params).all()).results;
+  return {rows,ids:[...new Set(rows.map(r=>r.component_id))]};
+ }
+ // Hints are produced only by acceptedDatabase for its generated projections.
+ // Any unscoped component read in the batch falls back to full capture.
+ function extraComponentRead(sqls,scopes){return sqls.some((sql,i)=>{
+  const refs=readReferences(sql).found;if(!refs.has('setup_components')&&!refs.has('setup_head_components'))return false;
+  const s=scopes[i];return !s||typeof s.head!=='string'||!Array.isArray(s.tables)||!s.tables.length||s.tables.some(t=>!Object.hasOwn(setupSchema,t));
+ });}
+ async function snapshot(sqls,extra=[],scopes=null){
   const needs=new Set([...extra,...sqls.flatMap(s=>[...readReferences(s).found])]),cn=new Set(),an=new Set();
   for(const n of needs){if(owner==='admin'){if(adminTables.has(n)||localMetadata.has(n)||['setup_components','setup_batches'].includes(n))an.add(n);cn.add(n);}else if(['academy_settings','operation_receipts'].includes(n)){cn.add(n);an.add(n);}else if(n==='assessments'&&/main\.assessments\s+current\b/i.test(sqls.join('\n'))){cn.add(n);an.add(n);}}
-  const [c,a]=await Promise.all([capture('core',[...cn]),capture('admin',[...an])]),data={};
+  // A pinned publication needs only the components it references, not every
+  // historical head and component in either store. Keep owner merging intact.
+  const accepted=extra.includes('setup_components')||extra.includes('setup_head_components')?null:await acceptedSelection(sqls,scopes);
+  const [c,a]=await Promise.all([capture('core',[...cn].filter(n=>!accepted||n!=='setup_head_components'),accepted),capture('admin',[...an],accepted)]),data={};
+  if(accepted)c.setup_head_components=accepted.rows;
   for(const n of needs){
    if(owner==='core'&&!an.has(n))continue;
    if(n==='academy_settings'){
@@ -66,9 +90,9 @@ export function federationContext({core,admin,owner='admin'}){
 }
 export function federatedDatabase({core,admin,owner='core',mutate=null,read=null}){
  const context=federationContext({core,admin,owner});
- async function execute(statements){if(statements.some(s=>sqlCommand(s.sql)!=='SELECT'))throw Object.assign(Error('Split writes require their owner transaction.'),{status:503,code:'SPLIT_WRITES_PREPARING'});if(read&&(owner==='admin'||statements.some(s=>/main\.assessments\s+current\b|\b(?:FROM|JOIN)\s+operation_receipts\b/i.test(s.sql))))return read(statements,owner);const data=await context.snapshot(statements.map(s=>s.sql));return context.sources[owner].batch(statements.map(s=>{const r=rewriteRead(s.sql,s.params,data);return context.sources[owner].prepare(r.sql).bind(...r.params);}));}
+ async function execute(statements){if(statements.some(s=>sqlCommand(s.sql)!=='SELECT'))throw Object.assign(Error('Split writes require their owner transaction.'),{status:503,code:'SPLIT_WRITES_PREPARING'});if(read&&(owner==='admin'||statements.some(s=>/main\.assessments\s+current\b|\b(?:FROM|JOIN)\s+operation_receipts\b/i.test(s.sql))))return read(statements,owner);const data=await context.snapshot(statements.map(s=>s.sql),[],statements.map(s=>s.acceptedScope));return context.sources[owner].batch(statements.map(s=>{const r=rewriteRead(s.sql,s.params,data);return context.sources[owner].prepare(r.sql).bind(...r.params);}));}
  const missing=()=>{throw Object.assign(Error('Fresh-store writes await their verified owner protocol.'),{status:503,code:'SPLIT_WRITES_PREPARING'});};
- const binding={splitGeneration:'SPLIT_V1',prepare(sql){let params=[];const s={sql,get params(){return params;},bind(...v){params=v;return s;},async all(){if(sqlCommand(sql)==='SELECT')return(await execute([s]))[0];return(await mutateOrFail([s]))[0];},async first(column){const row=(await s.all()).results[0]||null;return column?row?.[column]??null:row;},async run(){return(await mutateOrFail([s]))[0];}};return s;},async batch(statements){return statements.every(s=>sqlCommand(s.sql)==='SELECT')?execute(statements):mutateOrFail(statements);}};
+ const binding={splitGeneration:'SPLIT_V1',prepareAccepted(sql,scope){return binding.prepare(sql,scope);},prepare(sql,acceptedScope=null){let params=[];const s={sql,acceptedScope,get params(){return params;},bind(...v){params=v;return s;},async all(){if(sqlCommand(sql)==='SELECT')return(await execute([s]))[0];return(await mutateOrFail([s]))[0];},async first(column){const row=(await s.all()).results[0]||null;return column?row?.[column]??null:row;},async run(){return(await mutateOrFail([s]))[0];}};return s;},async batch(statements){return statements.every(s=>sqlCommand(s.sql)==='SELECT')?execute(statements):mutateOrFail(statements);}};
  async function mutateOrFail(statements){if(!mutate)return missing();return mutate(statements.map(s=>({sql:s.sql,params:s.params})),owner);}
  return binding;
 }

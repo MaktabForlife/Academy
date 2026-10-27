@@ -20,7 +20,9 @@ export async function verifyActor(core,proof){
  if(!proof||typeof proof.accountId!=='string'||typeof proof.sid!=='string'||!Number.isInteger(proof.epoch)||typeof proof.signature!=='string')throw Object.assign(Error('Sign in again before saving.'),{status:401,code:'SESSION_ENDED'});
  const row=await core.prepare(sql).bind(proof.accountId,proof.sid,proof.epoch).first();if(!row||permissionSignature({globalAdmin:row.global_admin,roles:JSON.parse(row.roles_json),subscriptions:JSON.parse(row.subscriptions_json),grants:JSON.parse(row.grants_json)})!==proof.signature)throw Object.assign(Error('Your session or permissions changed. Refresh before continuing.'),{status:401,code:'SESSION_ENDED'});return row.version;
 }
-// Only reuse a verification performed by this request/read batch. Every Core
+// Only reuse a verification performed by trusted server code for this exact
+// actor proof (request/read batch or engine-private cache). Never accept a
+// caller-supplied version as verification. Every Core
 // table mutation increments split_read_state, so a changed epoch requires the
 // full authority comparison. Expiry and timed substitute grants are checked
 // even when no database write occurred in the meantime.

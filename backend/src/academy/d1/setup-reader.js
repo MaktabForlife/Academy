@@ -1,5 +1,6 @@
 import {setupSchema,privateSetupTables} from './setup-schema.js';
 import {rehearsalError as fail} from './repository.js';
+import {tokens} from '../separation/sql-plan.js';
 
 export const setupEnabled=env=>env.ACADEMY_ACCEPTED_SETUP==='1';
 export const definitionSetting=key=>key==='PlatformTimezone'||key==='PersonalMemorisationCards'||key==='AcademyPdfToolDefaults'||/^(?:ProgramZoom:|AcademyCoursePublicCard:|AcademyHijriAnnual:|AcademyHolidayAnnual:)/.test(key);
@@ -33,7 +34,7 @@ function tableProjection(name,head,features={}){
 }
 export function acceptedDatabase(db,head,features={}){
  const rewrite=sql=>{
-  if(!/^\s*(?:SELECT|WITH)\b/i.test(sql))return sql;
+  if(!/^\s*(?:SELECT|WITH)\b/i.test(sql))return {sql};
   const names=new Set([...sql.matchAll(/\b(?:FROM|JOIN)\s+(?!main\.)([a-z_][a-z0-9_]*)\b/gi)].map(m=>m[1].toLowerCase()));
   // Joined JSON projections need a stable temporary relation. Flattening them
   // into nested loops reparses the same accepted component for every join row.
@@ -41,10 +42,15 @@ export function acceptedDatabase(db,head,features={}){
   const projected=[...names].filter(n=>setupSchema[n]||privateSetupTables.includes(n));
   const joined=projected.length>1||projected.some(n=>[...sql.matchAll(new RegExp(`\\b(?:FROM|JOIN)\\s+${n}\\b`,'gi'))].length>1);
   const ctes=projected.map(n=>`${n} AS ${joined?'MATERIALIZED ':''}(${privateSetupTables.includes(n)?`SELECT * FROM main.${n} WHERE 0`:tableProjection(n,head,features)})`);
-  if(!ctes.length)return sql;
-  return /^\s*WITH\b/i.test(sql)?sql.replace(/^\s*WITH(\s+RECURSIVE)?\s+/i,(_,recursive)=>`WITH${recursive||''} ${ctes.join(',')}, `):`WITH ${ctes.join(',')} ${sql}`;
+  if(!ctes.length)return {sql};
+  const rewritten=/^\s*WITH\b/i.test(sql)?sql.replace(/^\s*WITH(\s+RECURSIVE)?\s+/i,(_,recursive)=>`WITH${recursive||''} ${ctes.join(',')}, `):`WITH ${ctes.join(',')} ${sql}`;
+  // Only generated projections may narrow component capture. An explicit
+  // component/history query keeps its original, unrestricted semantics.
+  const explicit=tokens(sql).some(t=>['word','quoted'].includes(t.type)&&/^setup_(?:components|head_components)$/i.test(t.text.replace(/^["`\[]|["`\]]$/g,'')));
+  const scope=explicit?null:{head,tables:projected.filter(n=>setupSchema[n])};
+  return {sql:rewritten,scope};
  };
- return new Proxy(db,{get(target,name){if(name==='prepare')return sql=>target.prepare(rewrite(sql));const value=target[name];return typeof value==='function'?value.bind(target):value;}});
+ return new Proxy(db,{get(target,name){if(name==='prepare')return sql=>{const result=rewrite(sql);return result.scope&&typeof target.prepareAccepted==='function'?target.prepareAccepted(result.sql,result.scope):target.prepare(result.sql);};const value=target[name];return typeof value==='function'?value.bind(target):value;}});
 }
 export function acceptedRepository(repository,head){
  const db=acceptedDatabase(repository.db,head,repository.features);

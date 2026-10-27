@@ -15,6 +15,11 @@ const semantic=e=>/academy_management_stale|constraint|split_transaction_state|l
 // Core reads/writes stay on D1; its triggers fence them only during this commit.
 export function splitEngine({core,admin,alarm=async()=>{},hook=async()=>{}}){
  let tail=Promise.resolve();
+ // Engine-private hints, never caller-supplied versions or cached acceptance.
+ // Every reuse still checks the live Core version, session and timed grants.
+ // Eviction/restart simply restores a full proof on the next read.
+ const verifiedReaders=new Map(),readerKey=proof=>JSON.stringify([proof.accountId,proof.sid,proof.epoch,proof.signature]);
+ const rememberReader=(key,version)=>{verifiedReaders.delete(key);verifiedReaders.set(key,version);if(verifiedReaders.size>128)verifiedReaders.delete(verifiedReaders.keys().next().value);};
  const exclusive=fn=>{const run=tail.then(fn,fn);tail=run.catch(()=>{});return run;};
  async function clean(id,state){await batch(core,[item('UPDATE split_commands SET phase=?,proof_json=NULL WHERE command_id=?',state,id),item('DELETE FROM split_command_parts WHERE command_id=?',id),item('DELETE FROM split_write_fence WHERE command_id=?',id)]);}
  async function abort(id){
@@ -94,12 +99,15 @@ export function splitEngine({core,admin,alarm=async()=>{},hook=async()=>{}}){
  });}
  async function read(statements,proof,owner='admin'){return exclusive(async()=>{
   await recover();if(!proof)throw fail('Sign in before opening Admin.','SESSION_ENDED',401);
+  const key=readerKey(proof);
+  try{
   for(let attempt=0;attempt<3;attempt++){
-   const before=await verifyActor(core,proof),context=federationContext({core,admin,owner}),data=await context.snapshot(statements.map(s=>s.sql));
+   const before=await verifyActorVersion(core,proof,verifiedReaders.get(key)),context=federationContext({core,admin,owner}),data=await context.snapshot(statements.map(s=>s.sql),[],statements.map(s=>s.acceptedScope));
    const results=await batch(context.sources[owner],statements.map(s=>rewriteRead(s.sql,s.params,data)));await hook('read-captured');
-   const after=await verifyActorVersion(core,proof,before);if(before===after)return results;
+   const after=await verifyActorVersion(core,proof,before);if(before===after){rememberReader(key,after);return results;}
   }
   throw fail('Access changed while loading. Refresh before continuing.','SPLIT_READ_CHANGED',409);
+  }catch(error){verifiedReaders.delete(key);throw error;}
  });}
  return {write,read,recover:()=>exclusive(recover)};
 }

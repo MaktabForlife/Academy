@@ -3,8 +3,10 @@ import {build} from 'esbuild';import {Miniflare,convertV4MiniflareOptions} from 
 import {splitFixture} from './fixtures/academy-split-fixture.mjs';
 import {importSQL} from '../tools/academy-split/artifact.mjs';
 import {createHash} from 'node:crypto';
+import {seedReadHistory} from './fixtures/academy-read-history-fixture.mjs';
 test('the actual Workers runtime coordinates both D1 bindings through private Durable Object RPC',async()=>{
  const f=await splitFixture();let runtime;try{
+ seedReadHistory(f,2);
  f.databases.core.exec("UPDATE split_deployment_state SET state='READY'");
  const apiPath=new URL('../src/academy-runtime.js',import.meta.url).pathname,coordinatorPath=new URL('../src/academy-split-coordinator.js',import.meta.url).pathname;
  const api=await build({stdin:{contents:`import api from ${JSON.stringify(apiPath)};export default{fetch:(r,e,c)=>api.fetch(r,{...e,AUTH_LOGIN_RATE_LIMITER:{limit:async()=>({success:true})}},c)};`,resolveDir:process.cwd()},bundle:true,format:'esm',platform:'browser',write:false,external:['cloudflare:workers']}),coordinator=await build({entryPoints:[coordinatorPath],bundle:true,format:'esm',platform:'browser',write:false,external:['cloudflare:workers']});
@@ -18,6 +20,9 @@ test('the actual Workers runtime coordinates both D1 bindings through private Du
  const login=await request('/api/account/login',{uniqueid:'separation-global',pin:'1234'}),token=login.token,scope=f.scopes.courseA;
  const storage=await runtime.getR2Bucket('LESSON_MEDIA_BUCKET','api'),permissions=await storage.list({prefix:'academy-private-permissions/'});assert.equal(permissions.objects.length,1,'Sign-in creates the private permission snapshot');
  const cached=await (await storage.get(permissions.objects[0].key)).json();assert(!Object.hasOwn(cached.data,'account'));assert(!JSON.stringify(cached).includes('pin_hash'));
+ const planInput={activityKey:f.scopes.programA,period:'WEEKLY',weekStart:'2026-10-19'};
+ const weeklyPlan=await request('/api/academy/planning/get',planInput,token);assert(weeklyPlan.choices.classes.length>0,'Admin published projections cross real private RPC with their component scope');
+ assert.deepEqual(await request('/api/academy/planning/get',planInput,token),weeklyPlan);
  const firstDashboard=await request('/api/academy/assessments/list',{view:'admin',dashboard:true},token),secondDashboard=await request('/api/academy/assessments/list',{view:'admin',dashboard:true},token);assert.deepEqual(secondDashboard,firstDashboard);assert.equal((await storage.list({prefix:'academy-private-snapshots/'})).objects.length,1);
  const media=await request('/api/academy/lesson-media/course-files-create',{activityKey:scope,operationId:crypto.randomUUID()},token);assert(media.lessonId);
  const mediaSaved=await request('/api/academy/lesson-media/save',{activityKey:scope,lessonId:media.lessonId,revision:1,operationId:crypto.randomUUID(),title:'Runtime Course PDFs',summary:'',recordingUrls:[],state:'PUBLISHED',commentsClosed:true},token);

@@ -1,3 +1,9 @@
+# Local permission and timetable/calendar read optimisation — 27 October 2026
+
+- Work on local `feature/academy-permission-timetable-reads`, based on deployed V107.83. Reduce repeated permission proofs and published timetable/calendar reads without changing behaviour or permissions.
+- **Do not push, deploy, apply live SQL or change live settings until the user approves.** Previous deployment permissions applied only to their completed releases. Assign a release number only when preparing an authorised release.
+- Keep live checks small to limit database usage. Reuse saved analytics and measure with disposable local fixtures. Keep live session validity, revocations, scoped roles, subscriptions and time-based grants current. Preserve publication and release gates.
+
 # Shared lesson PDF release — 27 October 2026
 
 - The user confirmed V107.82 was deployed and explicitly authorised deployment of the prepared PDF reuse change. Incorporate V107.82 and release V107.83 from `feature/academy-shared-pdfs` through the existing Development API and Academy website workflow. This supersedes the local deployment hold below for this PDF release only.
