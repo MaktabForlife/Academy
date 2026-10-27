@@ -1,3 +1,9 @@
+# Sample Admin preview entry — 27 October 2026
+
+- The user explicitly requested an Admin option on the mobile preview to test the Admin badge on their phone. Add Open Admin using the existing synthetic Global Admin account and open Admin-Teach directly. Release only the isolated preview as V107.91.
+- Keep the fixed sample-account allowlist and preview-origin/synthetic-only guards. Preserve existing credentials, D1/R2 bindings, saved plans and other test data. Do not reseed, run hosted SQL, push, deploy Development/live or communicate with other chats.
+- Verify the real preview login flow with disposable local fixtures and a small hosted phone check. Retain the V107.90 compact headers, badge and standard X controls.
+
 # Compact headers and Admin badge preview — 27 October 2026
 
 - The user requested shorter Learn/Teach headers on mobile, standard top-right X Close controls on mobile/desktop, and replacing the extra Admin banner with an account badge. Keep this on the existing isolated preview as V107.90.

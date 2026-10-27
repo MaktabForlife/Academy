@@ -1,6 +1,6 @@
 # Mobile-first Learn/Teach development
 
-Status: preview V107.90, based exactly on V107.84 (`5a1731c0`). Branch: `feature/academy-mobile-first`. The user authorised a separate phone preview on 27 October 2026. The live Academy remains unchanged.
+Status: preview V107.91, based exactly on V107.84 (`5a1731c0`). Branch: `feature/academy-mobile-first`. The user authorised a separate phone preview on 27 October 2026. The live Academy remains unchanged.
 
 ## Shared foundation
 
@@ -48,3 +48,7 @@ Review this first implementation on actual iPhone/Safari and Android hardware, e
 - Admin context is a badge beside the account name. Admin-Learn retains its read-only description in its accessible label/title. The badge opens the same scoped Curriculum chooser; management shows the same Admin badge without adding another banner. Permissions and available workspaces are unchanged.
 - Explicit Close controls use the same top-right 44px X in workspaces, Class Notes, lesson media, plans, assessments, notices, progress and Library drawers. Original links/handlers and unsaved-entry guards are retained. Form Cancel actions remain distinct.
 - Local Chrome and WebKit checks cover 320–1440px, 200% text, guarded X dismissal and Admin Curriculum on phone/desktop. Phone sample headers measure about 126px, down from 167px. The existing isolated preview is updated without reseeding or touching Development/live.
+
+## Sample Admin entry — V107.91
+
+The preview landing page now offers Open Learn, Open Teach and Open Admin. `/__signin/global` signs into the existing synthetic Global Admin account through the real login flow, then opens the sample Program planner in Admin-Teach. The badge is visible immediately, and the Learn/Teach/Admin tabs allow testing the other Admin contexts. The fixed account allowlist, dedicated preview origin and synthetic-only configuration checks remain in place. This release preserves storage, secrets and sample drafts without reseeding or changing hosted SQL.
