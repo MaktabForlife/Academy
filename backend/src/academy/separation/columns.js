@@ -7,6 +7,9 @@ export const storeColumns={
 
   "program_monthly_media_policies":["activity_key","enabled","retain_recordings","revision","updated_at","updated_by_account_id"],
   "program_monthly_subscriptions":["activity_key","account_id","lesson_month","active","class_ids_json","payment_date","payment_reference","note","revision","updated_at","updated_by_account_id"],
+  "weekly_absentee_reports":["week_start", "week_end", "created_at"],
+  "weekly_absentee_rows":["week_start", "activity_key", "series_id", "account_id", "display_name", "attendance_date", "lesson_json"],
+  "weekly_absentee_recipients":["week_start", "account_id", "first_opened_at", "unread", "archived_at"],
 
   "messaging_drafts":["draft_id","actor_id","workspace","subject","body","targets_json","link_json","requires_ack","schedule_local","schedule_at","timezone","revision","state","created_at","updated_at","notice_id","previous_notice_id","last_error","next_attempt_at","attempts"],
   "messaging_reviews":["review_id","draft_id","actor_id","draft_revision","digest","recipient_digest","source_head","expires_at","created_at"],

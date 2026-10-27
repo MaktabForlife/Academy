@@ -1,3 +1,4 @@
+import {planRequirements} from './plan-requirements.js';
 import {substituteTimetable} from './substitute-timetable.js';
 import {privateSnapshot} from './private-snapshot.js';
 import {noTeachingCalendarEvents,holidayOnDate} from './calendar-holidays.js';
@@ -137,6 +138,13 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
       if(input.kind===area.kind&&samePublication(input.id,area.id)&&(!result.activity||!result.activity.roles?.length))result.activity=area;
     }
     result.personalTimetable.push(...substitute.rows.filter(s=>!result.personalTimetable.some(r=>r.joinKey===s.joinKey)));result.workspaceAccess.teach=true;
+  }
+  if(state){
+    const flags=await planRequirements(repository,[...(result.activities||[]),...(result.personalActivities||[]),...(result.activityPages||[])].filter(a=>a.id).map(a=>a.kind+':'+a.id));
+    const withRequirement=a=>({...a,plansRequired:flags.get((a.kind+':'+a.id).toUpperCase())!==false});
+    for(const name of ['activities','personalActivities','activityPages'])result[name]=result[name].map(withRequirement);
+    if(result.activity)result.activity=withRequirement(result.activity);
+    for(const row of result.upcomingCourses||[])row.canPlan&&=flags.get(('COURSE:'+row.id).toUpperCase())!==false;
   }
   return result;
 }

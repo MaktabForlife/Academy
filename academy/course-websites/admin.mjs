@@ -29,7 +29,7 @@ async function list(){
 }
 async function open(activityKey){
  if(opening||studio&&!studio.canLeave())return;opening=true;$('website-editor').inert=true;$('website-list-status').textContent='Opening the course editor…';
- try{const next=await api(base+'get',{activityKey});if(!active())return;record=next;$('selected-course-name').textContent=next.name;$('website-list-panel').hidden=true;$('website-editor').hidden=false;if(studio)await studio.openRemote();else studio=await import('./studio.mjs?v=107.100');}
+ try{const next=await api(base+'get',{activityKey});if(!active())return;record=next;$('selected-course-name').textContent=next.name;$('website-list-panel').hidden=true;$('website-editor').hidden=false;if(studio)await studio.openRemote();else studio=await import('./studio.mjs?v=107.104');}
  catch(error){if(active()){$('website-editor').hidden=true;$('website-list-panel').hidden=false;$('website-list-status').textContent=error.message;}}
  finally{opening=false;if(active())$('website-editor').inert=false;}
 }

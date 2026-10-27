@@ -14,7 +14,7 @@ const op=()=>crypto.randomUUID();
 test('split Core grants, cached permissions, historical publication and retained recordings enforce paid months',async()=>{
  const f=await splitVideoFixture();try{
   const core=f.databases.core,scope=f.scopes.programA;
-  core.exec(readFileSync(new URL('../migrations/academy-core/0005_program_monthly_subscriptions.sql',import.meta.url),'utf8'));
+  core.exec(readFileSync(new URL('../migrations/academy-core/0006_program_monthly_subscriptions.sql',import.meta.url),'utf8'));
   for(const db of Object.values(f.databases))db.prepare('UPDATE activities SET name=? WHERE activity_key=?').run('Tafseer',scope);
   f.source.env.ACADEMY_MONTHLY_SUBSCRIPTIONS='1';
   const admin=await f.source.actor('global'),student=await f.source.login('0002');
@@ -55,7 +55,7 @@ test('split Core grants, cached permissions, historical publication and retained
 test('teacher note PDFs and timetable indicators use the same month gate, including direct downloads',async()=>{
  const f=await splitVideoFixture();try{
   const scope=f.scopes.programA,core=f.databases.core;
-  core.exec(readFileSync(new URL('../migrations/academy-core/0005_program_monthly_subscriptions.sql',import.meta.url),'utf8'));
+  core.exec(readFileSync(new URL('../migrations/academy-core/0006_program_monthly_subscriptions.sql',import.meta.url),'utf8'));
   for(const db of Object.values(f.databases))db.prepare('UPDATE activities SET name=? WHERE activity_key=?').run('Tafseer',scope);
   f.source.env.ACADEMY_MONTHLY_SUBSCRIPTIONS='1';
   const admin=await f.source.actor('global'),teacher=await f.source.login('0003'),student=await f.source.login('0002'),date=academyDate(new Date(),'Africa/Johannesburg');

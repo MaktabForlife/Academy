@@ -40,12 +40,12 @@ try {
     for(const [count,burst] of Object.entries(report.bursts)) {
       assert.equal(burst.succeeded,Number(count));assert.equal(burst.failed,0,JSON.stringify(burst.failures));
       // Staff homes add the safe Course catalogue (one schema probe and one
-      // batch of three reads). Learner homes retain their original budget.
-      for(const [stage,calls] of Object.entries({check:2,login:3,session:2,home:5}))assert.equal(burst.stages[stage].calls.max,calls);
-      assert.equal(Object.values(burst.stages).reduce((sum,s)=>sum+s.statements.max,0),35);
+      // batch of three reads), plus bounded fresh requirement metadata reads.
+      for(const [stage,calls] of Object.entries({check:2,login:3,session:2,home:7}))assert.equal(burst.stages[stage].calls.max,calls);
+      assert.equal(Object.values(burst.stages).reduce((sum,s)=>sum+s.statements.max,0),37);
     }
     const learner=await login(1),learnerHome=await post('/api/academy/entrance',{startDate:'2026-10-01'},learner);
-    assert.equal(learnerHome.status,200);assert.equal(learnerHome.metrics.calls,3);assert.equal(learnerHome.data.upcomingCourses,undefined);
+    assert.equal(learnerHome.status,200);assert.equal(learnerHome.metrics.calls,4);assert.equal(learnerHome.data.upcomingCourses,undefined);
     // Native SQLite is a correctness/query-budget test, not hosted capacity.
   }));
   await test('request-local optimization retains immediate revocation, enrolment and paid-Course changes',()=>use(async({db,post,login})=>{

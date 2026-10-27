@@ -131,5 +131,5 @@
   else if(adminRealm()&&adminAccess()&&['/academy/','/academy/index.html'].includes(url.pathname)){url.pathname='/academy/admin/';if(!url.hash||url.hash==='#overview')url.hash='#administration';link.href=url.href;}
  },true);
  if(location.pathname.startsWith('/academy/admin/')&&!location.hash)history.replaceState(null,'','#administration');
-  void import('/js/m4l-academy-history.js?v=107.100').catch(()=>{ /* Existing page links remain available if navigation cannot load. */ });
+  void import('/js/m4l-academy-history.js?v=107.104').catch(()=>{ /* Existing page links remain available if navigation cannot load. */ });
 })();

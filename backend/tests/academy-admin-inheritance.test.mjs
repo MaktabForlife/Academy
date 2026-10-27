@@ -45,10 +45,10 @@ test('inherited Teachers record all session attendance under their own identity 
 }));
 test('inherited Teachers save their own plans and cannot edit another Teacher or use Admin controls from Teach',()=>use(async f=>{
  const scope=f.scopes.programA,path='/api/academy/planning/',key={activityKey:scope,weekStart:planningMonday(today()),period:'WEEKLY'};
- const board=ok(await f.request(path+'list',key,'adminA'));assert(board.plans.some(p=>p.teacherId===f.actors.adminA));
+ const board=ok(await f.request(path+'list',key,'adminA'));assert(board.areas.some(a=>a.key===scope&&a.plansRequired));assert.equal(board.plans.length,0);
  const initial=ok(await f.request(path+'get',key,'adminA'));assert(initial.canEdit);assert(initial.content.lessons.length);
  ok(await f.request(path+'save',{...key,...op(),revision:initial.revision,content:{...initial.content,title:'Inherited Teacher plan',overview:'Prepare lessons'}},'adminA'));
- const saved=ok(await f.request(path+'get',key,'adminA'));assert.equal(saved.content.title,'Inherited Teacher plan');
+ const saved=ok(await f.request(path+'get',key,'adminA'));assert.equal(saved.content.title,'Inherited Teacher plan');assert(ok(await f.request(path+'list',key,'adminA')).plans.some(p=>p.teacherId===f.actors.adminA));
  assert.equal((await f.request(path+'get',{...key,teacherId:'account-0003'},'adminA')).status,403);
  assert.equal((await f.request(path+'policy',{...key,...op()},'adminA')).status,403);
  assert.equal((await f.request(path+'get',{...key,activityKey:f.scopes.programB},'adminA')).status,403);

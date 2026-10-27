@@ -9,7 +9,7 @@ const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;},o
 test('split surah websites keep drafts private, publish only one surah and protect PDFs with live manual completion dates',async()=>{
  const f=await splitVideoFixture();try{
   const core=f.databases.core,scope=f.scopes.programA;
-  core.exec(readFileSync(new URL('../migrations/academy-core/0005_program_monthly_subscriptions.sql',import.meta.url),'utf8'));
+  core.exec(readFileSync(new URL('../migrations/academy-core/0006_program_monthly_subscriptions.sql',import.meta.url),'utf8'));
   // Check the additive hosted migration against freshly generated split schemas.
   for(const owner of ['core','admin']){
    const db=f.databases[owner],tables=owner==='core'?['program_surahs','program_surah_website_documents','program_surah_website_assets']:['program_surah_website_documents','program_surah_website_assets'];

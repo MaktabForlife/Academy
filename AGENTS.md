@@ -22,6 +22,27 @@
 - The paid month follows the parent lesson's month, not the upload date. A recording added later to an October lesson belongs to October access. Students retain access to every month they paid for when they stop renewing; monthly classes are unnecessary.
 - This stage is planning only. Save the implementation plan in `docs/ACADEMY-TAFSEER-MONTHLY-SUBSCRIPTIONS-PLAN.md`. Do not implement runtime changes, apply migrations, alter live data/settings/storage, push, deploy or contact other chats. Earlier release approvals below apply to their completed releases only.
 - Plan against the existing Program identity, scoped Admin authority, historical lesson audiences, private media delivery and split-store permission checks. Address archive navigation and the existing 14-day MP4 retention explicitly. Preserve unrelated work and use disposable local fixtures for a later implementation.
+# Weekly absentee list and dashboard attendance — 27 October 2026
+
+- Complete the authorised release as V107.104, including the final shared Admin toolbar correction after V107.103. The Core schema and coordinator are already upgraded; do not repeat either migration.
+
+- Work on `feature/academy-weekly-absentees`, preserving V107.102. The user requested removing attendance from all dashboards and a Monday 08:00 Riyadh in-app absentee list for Admins, then explicitly authorised deployment when tested.
+- Preserve ordinary attendance tools and current permissions. Build weekly lists from latest submitted registers, never infer absence from missing registers. Global Admins see all areas; scoped Admins see their current areas only. No repeated dashboard roster reads.
+- Use disposable local tests and keep live checks small under ../AGENTS.md. Deploy only required additive schema and matching existing coordinator/API/website after testing. Do not publish timetables or change live attendance records.
+
+# Lesson plan Save changes release — 27 October 2026
+
+- After V107.101, the user requested staging all Plans required checkboxes on the page and saving them together, then explicitly authorised deployment. Release V107.102 from `feature/academy-manual-lesson-plans`, preserving deployed `3df676f6`.
+- Add one Save changes button and Discard. Checkbox selection alone makes no server writes. Save all changed requirements as one guarded, scoped, atomic operation with retry/conflict protection and exact multi-area acceptance. Retain manual Submit plan, private drafts, history, PDF/image sharing and Teach visibility/access gates.
+- Preserve unsaved selections in this account's browser session, guard navigation, and clear on account cleanup. Use synthetic local tests, phone/desktop browser checks and matching builds; hosted verification stays limited to release/static metadata and one API readiness call under ../AGENTS.md.
+- Deploy only the matching existing Development API and Academy website. No database migration, coordinator update, user settings edit or content publication is required. Future deployments need fresh authorisation.
+
+# Manual lesson plans release — 27 October 2026
+
+- The user authorised implementation of the planned lesson-plan simplification, keeping the manual Submit plan button, and deployment after confirming V107.100 is live. Work on `feature/academy-manual-lesson-plans`, based on `0e767b89`, and release V107.101 to the existing Development API and Academy website.
+- Admin opens an alphabetical table of active Programs/Courses with Plans required and conditional Open plans controls. Retain the existing teacher/week submission grid. Plans off removes Teach access and blocks direct planner requests. Save draft remains private; manual Submit shares the chosen version with Admin.
+- Remove automatic plan statuses, missing-plan/reminder queues, deadlines/extensions, per-session policies and feedback workflow. Preserve generation, storage/history, PDF/image sharing, viewing, permissions and every existing plan. Retired schema/history remains inert; no migration, live content/settings change or private coordinator deployment is required.
+- Use synthetic local fixtures and browser checks. Keep hosted verification to matching release/static metadata and one API readiness call under ../AGENTS.md. Do not contact other chats. This supersedes historical holds below for this release only; future deployments require fresh authorisation.
 
 # Compact course reading release — 27 October 2026
 

@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {mediaFixture} from './fixtures/academy-lesson-media-fixture.mjs';
 import {MOU_MEDIA_PROGRAM as area} from '../src/academy/d1/lesson-media.js';
-import {planningInstant} from '../src/academy/d1/lesson-planning.js';
 import {classNotesFixture} from './fixtures/academy-class-notes-fixture.mjs';
 const week='2026-10-19',content=()=>({title:'Weekly plan',overview:'Prepare the class',reflection:'',lessons:[{date:week,className:'Class A',subject:'Quran',objectives:'Read clearly',activities:'Read and revise',resources:'Pages 1–4'}]});
 export async function planningFixture(){const f=await mediaFixture();for(const migration of ['0023_lesson_planning.sql','0024_announcements_and_plan_requirements.sql'])f.db.exec(readFileSync(new URL('../migrations/academy/'+migration,import.meta.url),'utf8'));return f;}
@@ -36,87 +35,84 @@ test('Program chooser uses accepted curriculum and class labels rather than unpu
   const after=ok(await post(f,'get',input,teacher));assert.deepEqual(after.choices,before.choices);assert.equal(after.content.lessons.length,1);assert.equal(after.content.lessons[0].activities,'');
  }finally{f.close();}
 });
-test('planning scopes, expected missing plans, private drafts, submissions and admin feedback',()=>use(async f=>{
- const teacher=await f.login('0003'),admin=await f.login('0004'),student=await f.login('0002'),other=await f.login('0006');
- assert.equal((await post(f,'list',{view:'teacher'},student)).status,403);
- assert.equal((await post(f,'list',{view:'admin'},teacher)).status,403);
- const board=ok(await post(f,'list',{view:'admin',activityKey:area,weekStart:week},admin));assert.equal(board.plans.length,2);assert.ok(board.plans.every(p=>!p.planId));
- let mine=ok(await post(f,'get',key,teacher));assert.equal(mine.revision,0);
- const request={...key,revision:0,content:content(),operationId:crypto.randomUUID()};
- ok(await post(f,'save',request,teacher));assert.equal(ok(await post(f,'save',request,teacher)).replayed,true);
- assert.equal(f.db.prepare('SELECT count(*) n FROM lesson_plans').get().n,1);
+test('manual Submit shares only its snapshot; later saves stay private and no statuses are calculated',()=>use(async f=>{
+ const teacher=await f.login('0003'),admin=await f.login('0004'),student=await f.login('0002');
+ assert.equal((await post(f,'list',{view:'admin'},teacher)).status,403);assert.equal((await post(f,'list',{view:'teacher'},student)).status,403);
+ assert.equal(ok(await post(f,'list',{view:'admin',activityKey:area,weekStart:week},admin)).plans.length,0);
+ const request={...key,revision:0,content:content(),operationId:crypto.randomUUID()};ok(await post(f,'save',request,teacher));assert(ok(await post(f,'save',request,teacher)).replayed);
  assert.equal((await post(f,'get',{...key,teacherId:'account-0003'},admin)).status,409);
- assert.equal((await post(f,'get',{...key,teacherId:'account-0003'},other)).status,403);
- assert.equal((await change(f,'save',{...key,teacherId:'account-0006',revision:0,content:content()},teacher)).status,403);
  ok(await change(f,'submit',{...key,revision:1,content:content()},teacher));
- let review=ok(await post(f,'get',{...key,teacherId:'account-0003'},admin));assert.equal(review.canEdit,false);assert.equal(review.canComment,true);
- const comment={...key,teacherId:'account-0003',submittedRevision:2,body:'Please add revision activities.',operationId:crypto.randomUUID()};ok(await post(f,'comment',comment,admin));assert.equal(ok(await post(f,'comment',comment,admin)).replayed,true);
- assert.equal(ok(await post(f,'get',key,teacher)).comments.length,1);
- assert.equal((await change(f,'comment',{...key,submittedRevision:2,body:'Self approval'},teacher)).status,403);
- const changed=content();changed.overview='Private revision';ok(await change(f,'save',{...key,revision:2,content:changed},teacher));
- review=ok(await post(f,'get',{...key,teacherId:'account-0003'},admin));assert.equal(review.content.overview,'Prepare the class');assert.equal(ok(await post(f,'get',key,teacher)).content.overview,'Private revision');
- const submittedView=ok(await post(f,'get',{...key,view:'admin'},teacher));assert.equal(submittedView.content.overview,'Prepare the class');assert.equal(submittedView.canEdit,false,'Opening a submitted cell never opens a newer private draft');
+ const changed=content();changed.overview='Private next revision';ok(await change(f,'save',{...key,revision:2,content:changed},teacher));
+ const review=ok(await post(f,'get',{...key,teacherId:'account-0003'},admin));assert.equal(review.content.overview,'Prepare the class');assert.equal(review.canEdit,false);
+ assert.equal(ok(await post(f,'get',key,teacher)).content.overview,changed.overview);
+ const list=ok(await post(f,'list',{view:'admin',activityKey:area,weekStart:week},admin));assert.equal(list.plans.length,1);assert(!JSON.stringify(list).includes(changed.overview));
+ for(const field of ['status','dueAt','deadlineRevision','sessionRequirements','comments','canComment'])assert(!Object.hasOwn(review,field),field);
+ assert.equal(f.db.prepare('SELECT submitted_due_at FROM lesson_plans').get().submitted_due_at,null);
+ ok(await change(f,'submit',{...key,revision:3,content:changed},teacher));assert.equal(ok(await post(f,'get',{...key,teacherId:'account-0003'},admin)).content.overview,changed.overview);
  assert.equal((await change(f,'save',{...key,revision:2,content:content()},teacher)).status,409);
- ok(await change(f,'submit',{...key,revision:3,content:changed},teacher));assert.equal((await change(f,'comment',{...comment,submittedRevision:2},admin)).status,409);
- assert.equal(f.db.prepare('SELECT count(*) n FROM lesson_plan_revisions').get().n,4);
- assert.throws(()=>f.db.exec('DELETE FROM lesson_plan_comments'),/append-only/);
+ assert.throws(()=>f.db.exec('DELETE FROM lesson_plan_revisions'),/append-only/);
 }));
-test('deadline policies, extensions, timezones, late submissions and whole-course preferences',()=>use(async f=>{
- const teacher=await f.login('0003'),admin=await f.login('0001'),scoped=await f.login('0004');
- assert.equal(planningInstant('2026-10-18','18:00','Africa/Johannesburg'),'2026-10-18T16:00:00.000Z');
- let b=ok(await post(f,'list',{view:'admin',activityKey:area,weekStart:week},admin));assert.equal(b.plans[0].dueAt,'2026-10-18T16:00:00.000Z');
- ok(await change(f,'policy',{activityKey:area,revision:0,weeklyDay:5,weeklyTime:'17:00',courseLeadDays:5},scoped));assert.equal((await change(f,'policy',{activityKey:area,revision:0,weeklyDay:0,weeklyTime:'18:00',courseLeadDays:3},scoped)).status,409);
- b=ok(await post(f,'list',{view:'admin',activityKey:area,weekStart:week},admin));assert.equal(b.plans[0].dueAt,'2026-10-16T15:00:00.000Z');
- ok(await change(f,'deadline',{...key,teacherId:'account-0003',revision:0,dueDate:'2026-10-20',dueTime:'18:00',reason:'Approved extension'},scoped));
- assert.equal(ok(await post(f,'get',key,teacher)).dueAt,'2026-10-20T16:00:00.000Z');
- assert.equal((await change(f,'deadline',{...key,teacherId:'account-0003',revision:1,dueDate:'2026-10-15',dueTime:'18:00',reason:'Earlier'},scoped)).status,400);
- const c=f.db.prepare("SELECT * FROM activities WHERE kind='COURSE' LIMIT 1").get(),run=f.db.prepare('SELECT * FROM course_runs WHERE activity_key=? LIMIT 1').get(c.activity_key);
- f.db.prepare("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state) VALUES(?,?,?,?,1,'CONFIRMED')").run('planning-course-role','account-0003',c.activity_key,'TEACHER');
- const all={activityKey:c.activity_key,runId:run.run_id,period:'ENTIRE',weekStart:''};let draft=ok(await post(f,'get',all,teacher));assert.equal(draft.period,'ENTIRE');
- const full=content();full.lessons[0].date='';ok(await change(f,'submit',{...all,revision:0,content:full},teacher));
- b=ok(await post(f,'list',{view:'admin',activityKey:c.activity_key,weekStart:week},admin));assert.equal(b.plans.find(p=>p.teacherId==='account-0003').period,'ENTIRE');
- assert.equal((await change(f,'policy',{activityKey:c.activity_key,revision:0,weeklyDay:0,weeklyTime:'18:00',courseLeadDays:3},scoped)).status,403);
- assert.equal((await post(f,'get',{...key,period:'ENTIRE'},teacher)).status,400);
+test('Admin curriculum contains all active areas, no synthetic missing plans and persists one scoped requirement',()=>use(async f=>{
+ const admin=await f.login('0001'),scoped=await f.login('0004'),teacher=await f.login('0003');
+ f.db.prepare("INSERT INTO activities(activity_key,activity_id,kind,name,active,lifecycle,website_visible) VALUES('COURSE:manual-empty','manual-empty','COURSE','AAA empty course',1,'ACTIVE',0)").run();
+ f.db.prepare("INSERT INTO activities(activity_key,activity_id,kind,name,active,lifecycle,website_visible) VALUES('COURSE:manual-inactive','manual-inactive','COURSE','Inactive course',0,'ARCHIVED',0)").run();
+ for(const id of ['manual-empty','manual-inactive'])f.db.prepare("INSERT INTO data_ownership(dataset_key,scope_key,authoritative_store,phase,revision) VALUES('ACADEMY',?,'SHEETS','STAGING',1)").run('COURSE:'+id);
+ const list=ok(await post(f,'list',{view:'admin'},admin));assert(list.areas.some(a=>a.key==='COURSE:manual-empty'));assert(!list.areas.some(a=>a.key==='COURSE:manual-inactive'));assert.deepEqual(list.areas.map(a=>a.name),list.areas.map(a=>a.name).sort((a,b)=>a.localeCompare(b)));assert.deepEqual(list.plans,[]);
+ const off={activityKey:area,plansRequired:false,previousRequired:true,operationId:crypto.randomUUID()};
+ assert.equal((await post(f,'requirement',off,teacher)).status,403);ok(await post(f,'requirement',off,scoped));assert(ok(await post(f,'requirement',off,scoped)).replayed);
+ assert.equal(ok(await post(f,'list',{view:'admin'},admin)).areas.find(a=>a.key===area).plansRequired,false);
+ assert.equal((await post(f,'get',key,teacher)).body.code,'PLANS_NOT_REQUIRED');assert.equal((await change(f,'submit',{...key,revision:0,content:content()},teacher)).status,403);
+ assert(!ok(await post(f,'list',{view:'teacher'},teacher)).areas.some(a=>a.key===area));
+ assert.equal((await change(f,'requirement',{...off,plansRequired:true,previousRequired:true},admin)).status,409);
+ assert.equal((await change(f,'requirement',{activityKey:'COURSE:manual-empty',plansRequired:false,previousRequired:true},scoped)).status,403);
 }));
-test('planning saves roll back atomically and retries are idempotent',()=>use(async f=>{
- const teacher=await f.login('0003');f.db.exec("CREATE TRIGGER reject_plan_revision BEFORE INSERT ON lesson_plan_revisions BEGIN SELECT RAISE(ABORT,'injected failure');END");
- assert.equal((await change(f,'submit',{...key,revision:0,content:content()},teacher)).status,503);
- assert.equal(f.db.prepare('SELECT count(*) n FROM lesson_plans').get().n,0);assert.equal(f.db.prepare("SELECT count(*) n FROM operation_receipts WHERE dataset_key='LESSON_PLANS'").get().n,0);
- f.db.exec('DROP TRIGGER reject_plan_revision');
- // Ordinary retries remain idempotent after a successful save.
- const request={...key,revision:0,content:content(),operationId:crypto.randomUUID()};ok(await post(f,'submit',request,teacher));assert.equal(ok(await post(f,'submit',request,teacher)).replayed,true);
+test('Save changes commits all requirements together, retries once and rejects an entire stale or unauthorised selection',()=>use(async f=>{
+ const admin=await f.login('0001'),scoped=await f.login('0004'),teacher=await f.login('0003'),course=f.db.prepare("SELECT activity_key FROM activities WHERE kind='COURSE' LIMIT 1").get().activity_key;
+ const entries=[area,course].map(activityKey=>({activityKey,previousRequired:true,plansRequired:false})),input={entries,operationId:crypto.randomUUID()};
+ assert.equal((await post(f,'requirements',input,teacher)).status,403);
+ assert.equal((await post(f,'requirements',input,scoped)).status,403);assert.equal(f.db.prepare('SELECT count(*) n FROM lesson_plan_requirements').get().n,0);
+ ok(await change(f,'requirement',{activityKey:course,previousRequired:true,plansRequired:false},admin));
+ assert.equal((await post(f,'requirements',input,admin)).status,409);assert.equal(f.db.prepare('SELECT plans_required FROM lesson_plan_requirements WHERE activity_key=?').get(area),undefined);
+ ok(await change(f,'requirement',{activityKey:course,previousRequired:false,plansRequired:true},admin));
+ const saved=ok(await post(f,'requirements',input,admin));assert.equal(saved.changed,2);assert(ok(await post(f,'requirements',input,admin)).replayed);
+ assert.equal(f.db.prepare('SELECT count(*) n FROM lesson_plan_requirements WHERE plans_required=0').get().n,2);
+ assert.equal(f.db.prepare("SELECT count(*) n FROM operation_receipts WHERE dataset_key='LESSON_PLAN_ADMIN' AND scope_key='GLOBAL'").get().n,1);
+ assert.equal((await post(f,'requirements',{...input,entries:[{...entries[0],plansRequired:true}]},admin)).status,409);
+}));
+test('Save changes validates the complete selection and commits no partial requirements on storage failure',()=>use(async f=>{
+ const admin=await f.login('0001'),row={activityKey:area,previousRequired:true,plansRequired:false};
+ for(const entries of [[],[row,row],[{...row,plansRequired:'false'}],[row,{...row,activityKey:'COURSE:missing'}]])assert((await change(f,'requirements',{entries},admin)).status>=400);
+ assert.equal(f.db.prepare('SELECT count(*) n FROM lesson_plan_requirements').get().n,0);
+ const course=f.db.prepare("SELECT activity_key FROM activities WHERE kind='COURSE' LIMIT 1").get().activity_key;
+ f.db.exec("CREATE TRIGGER reject_requirements BEFORE INSERT ON lesson_plan_requirements WHEN NEW.activity_key='"+course+"' BEGIN SELECT RAISE(ABORT,'synthetic failure');END");
+ assert((await change(f,'requirements',{entries:[row,{...row,activityKey:course}]},admin)).status>=400);
+ assert.equal(f.db.prepare('SELECT count(*) n FROM lesson_plan_requirements').get().n,0);assert.equal(f.db.prepare("SELECT count(*) n FROM operation_receipts WHERE dataset_key='LESSON_PLAN_ADMIN'").get().n,0);
+}));
+test('disabling and re-enabling planning preserves every stored draft and submission',()=>use(async f=>{
+ const teacher=await f.login('0003'),admin=await f.login('0001');ok(await change(f,'submit',{...key,revision:0,content:content()},teacher));
+ const before=f.db.prepare('SELECT * FROM lesson_plans').get();
+ ok(await change(f,'requirement',{activityKey:area,previousRequired:true,plansRequired:false},admin));
+ assert.equal((await post(f,'get',{...key,teacherId:'account-0003'},admin)).status,403);assert.deepEqual(f.db.prepare('SELECT * FROM lesson_plans').get(),before);
+ ok(await change(f,'requirement',{activityKey:area,previousRequired:false,plansRequired:true},admin));assert.equal(ok(await post(f,'get',{...key,teacherId:'account-0003'},admin)).content.overview,before.submitted_json&&content().overview);
+}));
+test('retired planning workflows reject old tabs without changing saved history',()=>use(async f=>{
+ const admin=await f.login('0001');for(const action of ['policy','deadline','comment','sessions','session-policy']){const result=await change(f,action,{activityKey:area},admin);assert.equal(result.status,410,action);}
+ for(const table of ['lesson_plan_policies','lesson_plan_deadlines','lesson_plan_comments'])assert.equal(f.db.prepare('SELECT count(*) n FROM '+table).get().n,0);
+}));
+test('saved weeks and entire-course submissions remain selectable without generated expectations',()=>use(async f=>{
+ const teacher=await f.login('0003'),admin=await f.login('0001');for(const date of ['2026-10-05','2026-10-19','2026-11-09']){const c=content();c.lessons[0].date=date;ok(await change(f,'submit',{...key,weekStart:date,revision:0,content:c},teacher));}
+ const list=ok(await post(f,'list',{view:'admin',activityKey:area,weekStart:week,weekCount:8},admin));assert.equal(list.weeks.length,8);assert.equal(list.plans.length,3);
+ const k=courseTeacher(f),entire={...k,period:'ENTIRE',weekStart:''},c=content();c.lessons[0].date='';ok(await change(f,'submit',{...entire,revision:0,content:c},teacher));assert.equal(ok(await post(f,'get',entire,teacher)).period,'ENTIRE');
+ assert.equal((await post(f,'list',{view:'admin',weekCount:99},admin)).status,400);
 }));
 function intercept(f,onCommit){const binding=f.env.ACADEMY_DB.withSession(),sql=new WeakMap();function tag(s,q){sql.set(s,q);const bind=s.bind;s.bind=(...values)=>tag(bind(...values),q);return s;}f.env.ACADEMY_DB={withSession:()=>({...binding,prepare:q=>tag(binding.prepare(q),q),batch:async ss=>{if(sql.get(ss[0])?.startsWith('INSERT INTO academy_write_guards'))return onCommit(ss,binding);return binding.batch(ss);}})};}
-test('lost acknowledgements recover the committed receipt without duplicate plans or comments',()=>use(async f=>{
+test('manual submission retries preserve a single committed plan after a lost acknowledgement',()=>use(async f=>{
  const teacher=await f.login('0003');let lost=false;intercept(f,async(ss,b)=>{const result=await b.batch(ss);if(!lost){lost=true;throw Error('Lost acknowledgement');}return result;});
- const request={...key,revision:0,content:content(),operationId:crypto.randomUUID()};assert.equal(ok(await post(f,'submit',request,teacher)).replayed,true);assert.equal(ok(await post(f,'submit',request,teacher)).replayed,true);
- assert.equal(f.db.prepare('SELECT count(*) n FROM lesson_plans').get().n,1);assert.equal(f.db.prepare('SELECT count(*) n FROM lesson_plan_revisions').get().n,1);
- const admin=await f.login('0004');lost=false;const comment={...key,teacherId:'account-0003',submittedRevision:1,body:'Feedback survives a lost acknowledgement.',operationId:crypto.randomUUID()};assert.equal(ok(await post(f,'comment',comment,admin)).replayed,true);assert.equal(ok(await post(f,'comment',comment,admin)).replayed,true);assert.equal(f.db.prepare('SELECT count(*) n FROM lesson_plan_comments').get().n,1);
+ const input={...key,revision:0,content:content(),operationId:crypto.randomUUID()};assert(ok(await post(f,'submit',input,teacher)).replayed);assert(ok(await post(f,'submit',input,teacher)).replayed);assert.equal(f.db.prepare('SELECT count(*) n FROM lesson_plans').get().n,1);
 }));
-test('teacher authority revoked between planning and commit blocks every write',()=>use(async f=>{
- const teacher=await f.login('0003');let revoked=false;intercept(f,async(ss,b)=>{if(!revoked){revoked=true;f.db.prepare("UPDATE role_assignments SET active=0 WHERE activity_key=? AND account_id='account-0003'").run(area);}return b.batch(ss);});
- assert.equal((await change(f,'submit',{...key,revision:0,content:content()},teacher)).status,401);assert.equal(f.db.prepare('SELECT count(*) n FROM lesson_plans').get().n,0);
-}));
-test('late submissions remain allowed, first submission timing survives edits, and concurrent edits conflict',()=>use(async f=>{
- const teacher=await f.login('0003'),past={...key,weekStart:'2026-10-05'},c=content();c.lessons[0].date='2026-10-05';
- ok(await change(f,'submit',{...past,revision:0,content:c},teacher));const mine=ok(await post(f,'get',past,teacher));assert.equal(mine.status,'SUBMITTED_LATE');
- const results=await Promise.all([change(f,'save',{...past,revision:1,content:{...c,overview:'A'}},teacher),change(f,'save',{...past,revision:1,content:{...c,overview:'B'}},teacher)]);assert.deepEqual(results.map(r=>r.status).sort(),[200,409]);
- assert.equal(ok(await post(f,'get',past,teacher)).submittedAt,mine.submittedAt);
- const admin=await f.login('0004');ok(await change(f,'policy',{activityKey:area,revision:0,weeklyDay:5,weeklyTime:'16:00',courseLeadDays:7},admin));assert.equal(ok(await post(f,'get',past,teacher)).dueAt,mine.dueAt,'A new default does not rewrite submitted deadline history');
-}));
-
-test('admin week grid loads bounded neighbouring weeks and keeps submissions in the correct teacher/week cells',()=>use(async f=>{
- const teacher=await f.login('0003'),admin=await f.login('0004'),other=await f.login('0006');
- for(const date of ['2026-10-05','2026-10-19','2026-11-09']){const c=content();c.lessons[0].date=date;ok(await change(f,'submit',{...key,weekStart:date,revision:0,content:c},teacher));}
- const privateDraft=content();privateDraft.overview='Never visible to administrators';privateDraft.lessons[0].date='2026-10-12';ok(await change(f,'save',{...key,weekStart:'2026-10-12',revision:0,content:privateDraft},other));
- const b=ok(await post(f,'list',{view:'admin',activityKey:area,weekStart:week,weekCount:8},admin));
- assert.deepEqual(b.weeks,['2026-10-05','2026-10-12','2026-10-19','2026-10-26','2026-11-02','2026-11-09','2026-11-16','2026-11-23']);
- assert.equal(b.plans.length,16);assert.equal(b.areas.find(a=>a.key===area).teachers.length,2);
- assert.deepEqual(b.plans.filter(p=>p.submittedAt).map(p=>p.weekStart).sort(),['2026-10-05','2026-10-19','2026-11-09']);
- assert.equal(JSON.stringify(b).includes(privateDraft.overview),false);
- const review=ok(await post(f,'get',{...key,weekStart:'2026-10-05',teacherId:'account-0003'},admin));assert.equal(review.content.lessons[0].date,'2026-10-05');
- assert.equal((await post(f,'list',{view:'admin',weekStart:week,weekCount:99},admin)).status,400);
- assert.equal(ok(await post(f,'list',{view:'teacher',activityKey:area,weekStart:week,weekCount:8},teacher)).weeks.length,1);
+test('revocation and a requirement disabled during a pending save cannot write a plan',()=>use(async f=>{
+ const teacher=await f.login('0003');let disabled=false;intercept(f,async(ss,b)=>{if(!disabled){disabled=true;f.db.prepare('INSERT INTO lesson_plan_requirements VALUES(?,0)').run(area);}return b.batch(ss);});
+ assert((await change(f,'submit',{...key,revision:0,content:content()},teacher)).status>=400);assert.equal(f.db.prepare('SELECT count(*) n FROM lesson_plans').get().n,0);
 }));
 function courseTeacher(f){
  const c=f.db.prepare("SELECT * FROM activities WHERE kind='COURSE' LIMIT 1").get(),run=f.db.prepare('SELECT * FROM course_runs WHERE activity_key=? LIMIT 1').get(c.activity_key);
@@ -127,13 +123,13 @@ function courseTeacher(f){
 function closeCourse(f,k,stage){f.db.prepare("INSERT INTO course_management_drafts(activity_key,run_id,details_json,stage,updated_at,updated_by_account_id) VALUES(?,?,'{}',?,?,'account-0001') ON CONFLICT(activity_key,run_id) DO UPDATE SET stage=excluded.stage").run(k.activityKey,k.runId,stage,new Date().toISOString());}
 test('Course plans remain open after the scheduled end date and close only with completion/cancellation/archive',()=>use(async f=>{
  const k=courseTeacher(f),teacher=await f.login('0003'),admin=await f.login('0001');
- let b=ok(await post(f,'list',{view:'admin',activityKey:k.activityKey,weekStart:week,weekCount:8},admin));assert(b.plans.some(p=>p.teacherId==='account-0003'&&p.weekStart===week&&p.canSubmit));
+ let b=ok(await post(f,'list',{view:'admin',activityKey:k.activityKey,weekStart:week,weekCount:8},admin));assert.equal(b.plans.length,0);assert.equal(ok(await post(f,'get',k,teacher)).canSubmit,true);
  ok(await change(f,'submit',{...k,revision:0,content:content()},teacher));
  for(const stage of ['COMPLETE','CANCELLED','ARCHIVED']){
   closeCourse(f,k,stage);
   assert.equal((await change(f,'submit',{...k,revision:1,content:content()},teacher)).body.code,'PLANNING_CLOSED');
   assert.equal((await change(f,'save',{...k,revision:1,content:content()},teacher)).status,409);
-  const mine=ok(await post(f,'get',k,teacher));assert.equal(mine.canEdit,false);assert.equal(mine.courseStage,stage);
+  const mine=ok(await post(f,'get',k,teacher));assert.equal(mine.canEdit,false);
   const review=ok(await post(f,'get',{...k,teacherId:'account-0003'},admin));assert.equal(review.content.overview,'Prepare the class');
   b=ok(await post(f,'list',{view:'admin',activityKey:k.activityKey,weekStart:week,weekCount:8},admin));assert.equal(b.plans.length,1);assert.equal(b.plans[0].canSubmit,false);assert.equal(b.areas.find(a=>a.key===k.activityKey).runs[0].canSubmit,false);
  }

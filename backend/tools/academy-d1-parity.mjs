@@ -32,6 +32,8 @@ export async function compareSnapshotFlow(snapshot,policy) {
     const baseline=async(user,input,now)=>{
       const result=await buildEntrance({tables,programs:sourcePrograms,rolesByProgram:roleAccounts,user,input,now,programLifecycle:'ACTIVE',publicJoining:true,loadProgram:async p=>programData[p.id]});
       result.timetable=result.timetable.map(row=>row.kind==='COURSE'?{...row,publicCard:null}:row);
+      // Legacy source has no requirement overrides; the current presentation defaults to required.
+      if(user){for(const name of ['activities','personalActivities','activityPages'])result[name]=result[name].map(a=>({...a,plansRequired:true}));if(result.activity)result.activity={...result.activity,plansRequired:true};}
       return result;
     };
     const now=new Date(snapshot.completedAt),timezone=plan.tables.academy_settings.find(r=>r.setting_key==='PlatformTimezone')?.setting_value;

@@ -1,3 +1,4 @@
+import {planRequirements} from './plan-requirements.js';
 import {same} from './management-store.js';
 import {optionalSchema} from './schema-probe.js';
 import {dateInTimezone} from '../../lib/global-subject-delivery.js';
@@ -24,6 +25,7 @@ export async function d1CourseCatalogue(repository,auth,now=new Date()) {
     p(`SELECT activity_key FROM ${subscriptions} WHERE account_id=?`,auth.user.accountid)
   ]);
   const [rows,assignments,paid]=results.map(r=>r.results),globalAdmin=Boolean(auth.state.account.global_admin);
+  const required=await planRequirements(repository,rows.map(r=>r.activity_key));
   const courses=[];
   for(const r of rows) {
     if(auth.adminView&&!administers(auth,r.activity_key))continue;
@@ -47,7 +49,7 @@ export async function d1CourseCatalogue(repository,auth,now=new Date()) {
     courses.push({id:r.activity_id,runId:r.run_id||'',name:(draft?r.draft_name:r.run_name)||r.name,
       stage,startDate,endDate,accessModel:r.legacy_access_model,personal,canManage,
       canOpenActivity:Boolean(r.active&&r.lifecycle==='ACTIVE'&&(r.website_visible&&r.run_active||canManage||canTeach)&&!['CANCELLED','ARCHIVED'].includes(stage)),
-      canPlan:Boolean((canManage||canTeach)&&r.run_active&&r.current_publication_id&&['PUBLISHED','ACTIVE'].includes(stage)),
+      canPlan:Boolean(required.get(r.activity_key.toUpperCase())!==false&&(canManage||canTeach)&&r.run_active&&r.current_publication_id&&['PUBLISHED','ACTIVE'].includes(stage)),
       mediaAvailable:Boolean(repository.features?.mediaSeparation&&r.active&&r.lifecycle==='ACTIVE'&&r.current_publication_id&&['PUBLISHED','ACTIVE','COMPLETE','ARCHIVED'].includes(stage)&&(canManage||canTeach||personal||administers(auth,r.activity_key))),mediaMessage:['COMPLETE','ARCHIVED'].includes(stage)
         ? 'Course media is not available yet.' : 'Course media becomes available after completion.'});
   }

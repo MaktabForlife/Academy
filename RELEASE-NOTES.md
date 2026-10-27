@@ -1,3 +1,13 @@
+# V107.102 — Save lesson plan requirements together
+
+Stage changes to Plans required on the Admin Lesson plans page, then apply the whole selection with **Save changes**. **Discard** restores the saved checkboxes. Unsaved selections survive refresh within the same signed-in browser session, with navigation protection. Save is one scoped atomic operation: a conflict or invalid entry prevents the whole selection from being saved. Preserve manual Submit plan, private drafts, existing documents and Teach access controls. No database migration or coordinator update is required. [Verification](docs/ACADEMY-PLAN-SAVE-ALL-107102.md).
+
+# V107.101 — Manual lesson plans
+
+Admin Lesson plans opens a compact alphabetical table of active Programs and Courses, with a Plans required checkbox and Open plans shown only when required. Open plans retains the teacher-by-week grid with submitted documents and neutral empty cells. Turning plans off hides planning throughout Teach and blocks direct planner access while preserving saved work.
+
+Save draft stays private. The manual **Submit plan** button shares the selected version with Admin; later drafts remain private until submitted again. Remove automatic status/deadline calculations, reminder queues, session overrides, extensions and feedback workflow. Retain creation, saved history, PDF/image sharing and viewing. No database migration or private coordinator update is required. [Implementation and verification](docs/ACADEMY-MANUAL-LESSON-PLANS-107101.md).
+
 # V107.99 — Course websites
 
 - Add a desktop Website builder under Admin → Course websites, with a scoped list of existing course websites and course templates.

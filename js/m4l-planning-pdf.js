@@ -77,8 +77,7 @@
    await new Promise(resolve=>setTimeout(resolve,0));
   }
   if(plan.content.reflection)box('Reflection / follow-up','',[[null,plan.content.reflection]],90);
-  const notes=(plan.comments||[]).flatMap(c=>[[''+c.author+' · '+date(c.at)+' · submitted version '+c.submittedRevision,c.body]]);
-  box('Admin note','',notes,100);
+
   if(imageOnly){
    const height=Math.ceil(y+100);
    // Extend to two A4 page heights using the PDF's exact width and font sizes.
