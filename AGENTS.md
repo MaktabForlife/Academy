@@ -1,3 +1,9 @@
+# Weekly absentee list and dashboard attendance — 27 October 2026
+
+- Work on `feature/academy-weekly-absentees`, preserving V107.102. The user requested removing attendance from all dashboards and a Monday 08:00 Riyadh in-app absentee list for Admins, then explicitly authorised deployment when tested.
+- Preserve ordinary attendance tools and current permissions. Build weekly lists from latest submitted registers, never infer absence from missing registers. Global Admins see all areas; scoped Admins see their current areas only. No repeated dashboard roster reads.
+- Use disposable local tests and keep live checks small under ../AGENTS.md. Deploy only required additive schema and matching existing coordinator/API/website after testing. Do not publish timetables or change live attendance records.
+
 # Lesson plan Save changes release — 27 October 2026
 
 - After V107.101, the user requested staging all Plans required checkboxes on the page and saving them together, then explicitly authorised deployment. Release V107.102 from `feature/academy-manual-lesson-plans`, preserving deployed `3df676f6`.

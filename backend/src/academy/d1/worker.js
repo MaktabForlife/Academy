@@ -1,3 +1,4 @@
+import {recoverWeeklyAbsentees,weeklyAbsenteeCron} from './weekly-absentees.js';
 import {imtihaanWorkflow} from './assessment-imtihaan-workflow.js';
 import {assessmentStore} from './assessment-store.js';
 import {warmPublishedAssessments} from './published-assessments.js';
@@ -104,7 +105,7 @@ async function dispatch(request,env) {
   if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,setupEnabled(env)?await readRepository():repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(setupEnabled(env)?await readRepository():repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.102',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.103',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(setupEnabled(env)?await readRepository():repository)};
@@ -331,6 +332,7 @@ async function dispatch(request,env) {
 }
 return {
   async scheduled(event,env,ctx){
+    if(event.cron===weeklyAbsenteeCron){ctx.waitUntil(recoverWeeklyAbsentees(env,new Date(event.scheduledTime)));return;}
     // A dedicated minute tick must not multiply cache/Hifz recovery work.
     if(event.cron==='* * * * *'){
       ctx.waitUntil(recoverMessaging(env,new Date(event.scheduledTime)));

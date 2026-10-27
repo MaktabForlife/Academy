@@ -1,3 +1,7 @@
+# V107.103 — Weekly Admin absentee list
+
+Remove attendance panels, shortcuts and repeated register reads from every dashboard. Admins receive one in-app absentee list each Monday at 08:00 Riyadh for the previous Monday–Sunday. Lists use latest submitted registers, exclude unknown attendance, and check current Admin scope whenever opened. Ordinary attendance tools and permissions remain available. Includes a small additive Core schema upgrade and matching coordinator metadata. [Implementation and verification](docs/ACADEMY-WEEKLY-ABSENTEES.md).
+
 # V107.102 — Save lesson plan requirements together
 
 Stage changes to Plans required on the Admin Lesson plans page, then apply the whole selection with **Save changes**. **Discard** restores the saved checkboxes. Unsaved selections survive refresh within the same signed-in browser session, with navigation protection. Save is one scoped atomic operation: a conflict or invalid entry prevents the whole selection from being saved. Preserve manual Submit plan, private drafts, existing documents and Teach access controls. No database migration or coordinator update is required. [Verification](docs/ACADEMY-PLAN-SAVE-ALL-107102.md).

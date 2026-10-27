@@ -1,6 +1,10 @@
 // Physical target columns; Core facts are projected into Admin reads, not copied into its master rows.
 export const storeColumns={
  "core":{
+  "weekly_absentee_reports":["week_start", "week_end", "created_at"],
+  "weekly_absentee_rows":["week_start", "activity_key", "series_id", "account_id", "display_name", "attendance_date", "lesson_json"],
+  "weekly_absentee_recipients":["week_start", "account_id", "first_opened_at", "unread", "archived_at"],
+
   "messaging_drafts":["draft_id","actor_id","workspace","subject","body","targets_json","link_json","requires_ack","schedule_local","schedule_at","timezone","revision","state","created_at","updated_at","notice_id","previous_notice_id","last_error","next_attempt_at","attempts"],
   "messaging_reviews":["review_id","draft_id","actor_id","draft_revision","digest","recipient_digest","source_head","expires_at","created_at"],
   "messaging_notices":["notice_id","draft_id","actor_id","sender_name","workspace","subject","body","targets_json","audience_json","link_json","requires_ack","recipient_count","recipients_json","created_at","issued_at","state","withdrawn_at","withdrawn_by","withdrawal_reason","previous_notice_id","source_head","scheduled_for"],

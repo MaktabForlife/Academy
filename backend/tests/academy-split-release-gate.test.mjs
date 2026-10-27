@@ -12,7 +12,7 @@ test('authorised Development cutover uses the reviewed split stores and retains 
  assert.deepEqual(feature.d1_databases,config.d1_databases);assert.deepEqual(development.d1_databases,config.d1_databases);assert.deepEqual(development.env.development.d1_databases,config.d1_databases);
  assert.equal(feature.vars.ACADEMY_DB_GENERATION,'SPLIT_V1');assert.equal(development.env.development.vars.ACADEMY_DB_GENERATION,'SPLIT_V1');
  assert.equal(development.main,'src/academy-development-runtime.js');assert.equal(development.env.development.vars.HIFZ_HANDOFF_ENABLED,'1');assert(development.env.development.vars.HIFZ_PROFILE_SYNC_URL);
- assert.deepEqual(development.env.development.triggers.crons,['*/15 * * * *','* * * * *']);assert.equal(development.env.development.durable_objects.bindings.find(b=>b.name==='PROGRAM_TIMETABLE_COORDINATOR').script_name,undefined);
+ assert.deepEqual(development.env.development.triggers.crons,['0,15,30,45 5-6 * * MON','*/15 * * * *','* * * * *']);assert.equal(development.env.development.durable_objects.bindings.find(b=>b.name==='PROGRAM_TIMETABLE_COORDINATOR').script_name,undefined);
  assert.equal(development.env.development.durable_objects.bindings.find(b=>b.name==='ACADEMY_SPLIT_COORDINATOR').script_name,'academy_split_coordinator');
  assert(!development.d1_databases.some(b=>b.database_name==='maktab-academy'));
 });
