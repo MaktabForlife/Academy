@@ -2,7 +2,8 @@ import {recurringSessionKey,sessionBinding} from './session-identity.js';
 import {sessionPdfCount} from './session-pdf-policy.js';
 import {publishedSessionFacts} from './published-sessions.js';
 import {mediaSessions} from './lesson-media-sessions.js';
-import {streamPdf,MEDIA_PDF_LIMIT} from './lesson-media.js';
+import {MEDIA_PDF_LIMIT} from './lesson-media.js';
+import {storeLessonPdf,lessonPdfReference,lessonPdfObjectKey} from './lesson-pdf-storage.js';
 import {managementError as fail,same} from './management-store.js';
 import {cleanText,assessmentRolesSQL,validDate} from './assessment-store.js';
 import {payloadHash} from '../../programs/timetable-model.js';
@@ -51,12 +52,13 @@ export function lessonNotes(repository,auth,env){
   if(existing&&attachmentScope==='RECURRING'){const prior=await p('SELECT source_json FROM lesson_note_versions WHERE version_id=?',existing.current_version_id).first();if(!prior||JSON.parse(prior.source_json).attachmentIdentity!==sessionBinding(a.activity_key,session))throw fail('Choose a matching occurrence of this session.',409,'SESSION_CHANGED');}
   if(existing&&(input.revision!==existing.revision||existing.state!=='ACTIVE'))throw fail('This note changed. Refresh before replacing it.',409,'ROW_CHANGED');
   if(!Number.isSafeInteger(input.size)||input.size<5||input.size>MEDIA_PDF_LIMIT||!/^[a-f0-9]{64}$/.test(input.sha256||''))throw fail('Choose a PDF up to 16 MB with its checksum.');
-  const filename=cleanText(input.filename,180,'a filename').replace(/[\r\n\x00-\x1f\\/]/g,'_'),name=cleanText(input.name||'',180,'a PDF name',true),versionId='NOTE-'+crypto.randomUUID(),noteId=existing?.note_id||crypto.randomUUID(),containerId=existing?.container_id||'NTS-'+await payloadHash([a.activity_key,entryKey]),key=(env.ACADEMY_OBJECT_NAMESPACE||'')+'lesson-notes/'+versionId+'.pdf';
+  const filename=cleanText(input.filename,180,'a filename').replace(/[\r\n\x00-\x1f\\/]/g,'_'),name=cleanText(input.name||'',180,'a PDF name',true),versionId='NOTE-'+crypto.randomUUID(),noteId=existing?.note_id||crypto.randomUUID(),containerId=existing?.container_id||'NTS-'+await payloadHash([a.activity_key,entryKey]);
   const version=(await p('SELECT version FROM academy_write_state WHERE singleton=1').first()).version;
   const count=await sessionPdfCount(repository,{activityKey:a.activity_key,session,exclude:noteId,recurring:attachmentScope==='RECURRING'});if(count>=10)throw fail('This session already has ten PDFs. Replace your existing note or ask Admin to curate it.',409,'MEDIA_PDF_LIMIT');
-  if(!env.LESSON_MEDIA_BUCKET?.put)throw fail('Private note storage is unavailable.',503);await streamPdf(request,env.LESSON_MEDIA_BUCKET,key,input);
+  await storeLessonPdf(request,env.LESSON_MEDIA_BUCKET,env.ACADEMY_OBJECT_NAMESPACE,input);
+  const key=lessonPdfReference(env.ACADEMY_OBJECT_NAMESPACE,versionId,input.sha256);
   const timestamp=new Date().toISOString(),statements=[...(!existing?[p("INSERT INTO lesson_note_entries VALUES(?,?,?,?,?,NULL,'ACTIVE',1,?,?)",noteId,a.activity_key,entryKey,containerId,actor,timestamp,actor)]:[]),p('INSERT INTO lesson_note_versions VALUES(?,?,?,?,?,?,?,?,?,?,?)',versionId,noteId,key,filename,name,input.size,input.sha256,repository.setup.head,JSON.stringify({...session,attachmentScope}),actor,timestamp),p('UPDATE lesson_note_entries SET current_version_id=?,revision=? WHERE note_id=?',versionId,existing?existing.revision+1:1,noteId)];
-  const result=await commit(a,'post',input,session,version,statements,{noteId,versionId,revision:existing?existing.revision+1:1,ownerId:actor});if(result.versionId!==versionId)await env.LESSON_MEDIA_BUCKET.delete(key);return result;
+  const result=await commit(a,'post',input,session,version,statements,{noteId,versionId,revision:existing?existing.revision+1:1,ownerId:actor});return result;
  }
  async function withdraw(input){
   if(!uuid.test(input.operationId||''))throw fail('This note needs its retry identifier.');const a=await scope(input.activityKey),saved=await receipt(a.activity_key,'withdraw',input);if(saved.result)return saved.result;
@@ -146,7 +148,7 @@ export function lessonNotes(repository,auth,env){
   const row=await p('SELECT n.*,v.* FROM lesson_note_entries n JOIN lesson_note_versions v ON v.version_id=n.current_version_id WHERE v.version_id=? AND n.state=\'ACTIVE\'',input.assetId).first();if(!row)throw fail('Note not found.',404);
   const visible=(await notes([{activityKey:row.activity_key,sessionKey:input.sessionKey||JSON.parse(row.source_json).sessionKey,date:input.date||JSON.parse(row.source_json).date}])).find(n=>n.version_id===row.version_id);const sourceParent=isAdminWorkspace(auth)&&administers(auth,row.activity_key)?await parent({activity_key:row.activity_key},row.session_key):null;
   if(!visible||![visible.lesson_id||visible.container_id,sourceParent?.lesson_id].includes(input.lessonId))throw fail('This note is outside your access.',403,'MEDIA_FORBIDDEN');
-  const object=await env.LESSON_MEDIA_BUCKET.get(row.object_key);if(!object)throw fail('This note is temporarily unavailable.',404);return new Response(object.body,{headers:{'Content-Type':'application/pdf','Content-Length':String(row.byte_size),'Content-Disposition':`inline; filename*=UTF-8''${encodeURIComponent(row.filename)}`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':'sandbox'}});
+  const object=await env.LESSON_MEDIA_BUCKET.get(lessonPdfObjectKey(row.object_key));if(!object)throw fail('This note is temporarily unavailable.',404);return new Response(object.body,{headers:{'Content-Type':'application/pdf','Content-Length':String(row.byte_size),'Content-Disposition':`inline; filename*=UTF-8''${encodeURIComponent(row.filename)}`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':'sandbox'}});
  }
  return {upload,withdraw,notes,asset,enrichCalendar,enrichList,enrichFeed,options,timetable,download};
 }

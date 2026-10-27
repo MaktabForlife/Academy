@@ -1,3 +1,4 @@
+import {storeLessonPdf,lessonPdfReference,lessonPdfObjectKey} from './lesson-pdf-storage.js';
 import {sessionPdfCount} from './session-pdf-policy.js';
 import {prepareFeatureChange} from './feature-change.js';
 import {managementError as fail,same} from './management-store.js';
@@ -262,20 +263,21 @@ export function lessonMedia(repository,auth,env){
   const filename=cleanText(input.filename,180,'a filename').replace(/[\r\n\x00-\x1f\\/]/g,'_');
   const hash=await payloadHash({action:'pdf-upload',input}),saved=await receipt(input,hash);if(saved)return saved;
   revision(row,input);
-  const id=crypto.randomUUID(),key=(env.ACADEMY_OBJECT_NAMESPACE||'')+'lessons/'+id+'.pdf',storage=bucket();let stored=false;
+  const id=crypto.randomUUID(),storage=bucket();
   try{
-   await streamPdf(request,storage,key,input);stored=true;
+   await storeLessonPdf(request,storage,env.ACADEMY_OBJECT_NAMESPACE,input);
+   const key=lessonPdfReference(env.ACADEMY_OBJECT_NAMESPACE,id,input.sha256);
    const result=await change('pdf-upload',input,row,'staff',async current=>{
     revision(current,input);const pdfCount=repository.features?.mediaSeparation&&current.media_scope!=='COURSE'?await sessionPdfCount(repository,{activityKey:scopeKey,session:{...(JSON.parse(current.source_lessons_json||'[]')[0]||{}),sessionKey:current.session_key}}):(await assets(row.lesson_id)).filter(a=>a.kind==='PDF').length;if(pdfCount>=(current.media_scope==='COURSE'?50:10))throw fail(current.media_scope==='COURSE'?'Use up to 50 Course PDFs.':'Use up to ten PDFs per lesson.');
     const now=new Date().toISOString();return {statements:[p("INSERT INTO lesson_media_assets(asset_id,activity_key,kind,object_key,filename,byte_size,created_at,display_name) VALUES(?,?,'PDF',?,?,?,?,?)",id,scopeKey,key,filename,input.size,now,displayName),p('INSERT INTO lesson_media_links VALUES(?,?)',row.lesson_id,id),p('UPDATE lesson_media_lessons SET revision=revision+1,updated_at=? WHERE lesson_id=?',now,row.lesson_id)],result:{assetId:id,filename,name:displayName||filename}};
    });
-   if(result.assetId!==id)await storage.delete(key);return result;
+   return result;
   }catch(e){/* Preserve an immutable upload while its database acknowledgement is uncertain. */throw e;}
  }
  async function download(input){
   const row=await lesson(input.lessonId);if(!manages(row))reader(row);
   const asset=await p("SELECT a.* FROM lesson_media_links l JOIN lesson_media_assets a USING(asset_id) WHERE l.lesson_id=? AND a.asset_id=? AND a.kind='PDF'",row.lesson_id,String(input.assetId||'')).first();if(!asset)throw fail('PDF not found.',404);
-  const object=await bucket().get(asset.object_key);if(!object)throw fail('This PDF is temporarily unavailable.',404);
+  const object=await bucket().get(lessonPdfObjectKey(asset.object_key));if(!object)throw fail('This PDF is temporarily unavailable.',404);
   return new Response(object.body,{headers:{'Content-Type':'application/pdf','Content-Length':String(asset.byte_size),'Content-Disposition':`inline; filename*=UTF-8''${encodeURIComponent(asset.filename)}`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':'sandbox'}});
  }
  async function videoPart(request,input){await ready(input);return video.part(request,input);}
@@ -299,16 +301,4 @@ export function lessonMedia(repository,auth,env){
   throw fail('Unknown media action.',404);
  }
  return {run,upload,videoPart,videoStream};
-}
-
-export async function streamPdf(request,storage,key,input){
- const reader=request.body?.getReader();if(!reader)throw fail('Choose a PDF.');
- const chunks=[];let bytes=0;
- while(bytes<5){const next=await reader.read();if(next.done)break;chunks.push(next.value);bytes+=next.value.length;if(bytes>input.size){await reader.cancel();throw fail('The file size changed.');}}
- const prefix=new Uint8Array(5);let offset=0;for(const chunk of chunks){const take=Math.min(5-offset,chunk.length);if(take>0)prefix.set(chunk.subarray(0,take),offset);offset+=take;}
- if(new TextDecoder().decode(prefix)!=='%PDF-'){await reader.cancel();throw fail('Choose a valid PDF file.');}
- const stream=typeof FixedLengthStream==='function'?new FixedLengthStream(input.size):new TransformStream(),writer=stream.writable.getWriter();
- const pump=(async()=>{let size=0;try{for(const chunk of chunks){size+=chunk.length;await writer.write(chunk);}while(true){const next=await reader.read();if(next.done)break;size+=next.value.length;if(size>input.size)throw fail('The file size changed.');await writer.write(next.value);}if(size!==input.size)throw fail('The upload was interrupted.');await writer.close();}catch(e){await reader.cancel().catch(()=>{});await writer.abort(e).catch(()=>{});throw e;}})();
- const put=storage.put(key,stream.readable,{sha256:input.sha256,httpMetadata:{contentType:'application/pdf'}}).catch(async e=>{await writer.abort(e).catch(()=>{});await reader.cancel().catch(()=>{});throw e;});
- const results=await Promise.allSettled([pump,put]),failed=results.find(r=>r.status==='rejected');if(failed)throw failed.reason;
 }

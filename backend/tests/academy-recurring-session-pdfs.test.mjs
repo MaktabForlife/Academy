@@ -1,3 +1,4 @@
+import {lessonPdfObjectKey} from '../src/academy/d1/lesson-pdf-storage.js';
 import {test} from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {createHash} from 'node:crypto';
 import worker from '../src/academy-runtime.js';import {separationFixture} from './fixtures/academy-separation-fixture.mjs';import {initialiseAcceptedSetup} from '../src/academy/d1/setup-publication.js';import {acceptFixtureSetup} from './fixtures/academy-accepted-fixture.mjs';import {academyDate,nextDate} from '../src/academy/d1/academy-clock.js';
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;},op=()=>({operationId:crypto.randomUUID()});
@@ -15,7 +16,7 @@ async function use(run){const f=await separationFixture();try{
 const resource=(view,id)=>view.sessions.find(s=>s.media?.assets.some(a=>a.id===id));
 test('one recurring file is reused across accepted occurrences while this-lesson PDFs stay dated',()=>use(async f=>{
  const session=await f.session(),once=ok(await f.upload(session)),shared=ok(await f.upload(session,{attachmentScope:'RECURRING'}));
- assert.equal(f.db.prepare('SELECT count(*) n FROM lesson_note_versions').get().n,2);
+ assert.equal(f.db.prepare('SELECT count(*) n FROM lesson_note_versions').get().n,2);const stored=f.db.prepare('SELECT object_key FROM lesson_note_versions').all();assert.notEqual(stored[0].object_key,stored[1].object_key);assert.equal(lessonPdfObjectKey(stored[0].object_key),lessonPdfObjectKey(stored[1].object_key));assert.equal(f.objects.size,1);
  const now=ok(await f.calendar(f.day,'student')),future=ok(await f.calendar(nextDate(f.day,7),'student'));assert(resource(now,once.versionId));assert(resource(now,shared.versionId));assert(!resource(future,once.versionId));const row=resource(future,shared.versionId);assert(row);assert.equal(row.media.assets.find(a=>a.id===shared.versionId).attachmentScope,'RECURRING');
  ok(await f.send('download',{lessonId:row.media.id,assetId:shared.versionId,sessionKey:row.sessionKey,date:row.date},'student'));assert.equal(f.db.prepare('SELECT count(*) n FROM lesson_note_versions').get().n,2);
  const forged=ok(await f.send('timetable',{sessions:[{activityKey:f.area,sessionKey:JSON.stringify(['PROGRAM',nextDate(f.day,7),'another-rule@1']),recurringKey:JSON.stringify(['RECURRING','PROGRAM','RULE-shared'])}]},'student'));assert(!forged.lessons.some(r=>r.assets.some(a=>a.id===shared.versionId)));

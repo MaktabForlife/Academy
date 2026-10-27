@@ -1,3 +1,4 @@
+import {lessonPdfObjectKey} from '../src/academy/d1/lesson-pdf-storage.js';
 import {test,mock} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,existsSync} from 'node:fs';
@@ -53,10 +54,10 @@ test('published Course PDFs retain names, original bytes, private ownership and 
   const r=await f.media('download',ref,await f.actor(role));assert.equal(r.status,200,role);assert.match(r.headers.get('content-disposition'),/synthetic-handbook\.pdf/);
  }
  for(const role of ['studentB','teacherB','adminB'])assert.equal((await f.media('download',ref,await f.actor(role))).status,403,role);
- const admin=await f.actor('global'),before=f.db.prepare('SELECT * FROM lesson_media_assets WHERE asset_id=?').get(ref.assetId),bytes=Buffer.from(f.objects.get(before.object_key));
+ const admin=await f.actor('global'),before=f.db.prepare('SELECT * FROM lesson_media_assets WHERE asset_id=?').get(ref.assetId),bytes=Buffer.from(f.objects.get(lessonPdfObjectKey(before.object_key)));
  ok(await f.media('attachment-name',{...ref,name:'Renamed synthetic handbook',revision:3,operationId:crypto.randomUUID()},admin));
  const after=f.db.prepare('SELECT * FROM lesson_media_assets WHERE asset_id=?').get(ref.assetId);
- assert.equal(after.object_key,before.object_key);assert.equal(after.filename,before.filename);assert.equal(after.asset_id,before.asset_id);assert.deepEqual(Buffer.from(f.objects.get(after.object_key)),bytes);
+ assert.equal(after.object_key,before.object_key);assert.equal(after.filename,before.filename);assert.equal(after.asset_id,before.asset_id);assert.deepEqual(Buffer.from(f.objects.get(lessonPdfObjectKey(after.object_key))),bytes);
  f.db.prepare('UPDATE role_assignments SET active=0 WHERE account_id=? AND activity_key=?').run(actors.studentA,scopes.courseA);
  assert([401,403].includes((await f.media('download',ref,await f.actor('studentA'))).status),'Revocation must deny bytes even when it also ends the selected session context');
 }));

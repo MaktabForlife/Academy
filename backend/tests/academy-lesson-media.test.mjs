@@ -1,3 +1,4 @@
+import {lessonPdfObjectKey} from '../src/academy/d1/lesson-pdf-storage.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mediaFixture} from './fixtures/academy-lesson-media-fixture.mjs';
@@ -69,7 +70,7 @@ test('private PDF uploads, download scope, removed attachments and lost-response
  ok(await f.media('attachment-remove',{...op(),lessonId:id,assetId:asset,revision:2},teacher));assert.equal((await f.media('download',{lessonId:id,assetId:asset},student)).status,404);
  assert.equal((await f.mediaUpload({revision:3},student)).status,403);
  assert.equal((await f.mediaUpload({revision:3},teacher,Buffer.from('not a PDF'))).status,400);
- const size=f.objects.size;f.db.exec("CREATE TRIGGER fail_media_file BEFORE INSERT ON lesson_media_assets BEGIN SELECT RAISE(ABORT,'synthetic file failure'); END;");assert.equal((await f.mediaUpload({revision:3},teacher)).status,503);assert.equal(f.objects.size,size+1);
+ const size=f.objects.size;f.db.exec("CREATE TRIGGER fail_media_file BEFORE INSERT ON lesson_media_assets BEGIN SELECT RAISE(ABORT,'synthetic file failure'); END;");assert.equal((await f.mediaUpload({revision:3},teacher)).status,503);assert.equal(f.objects.size,size);
 }));
 test('YouTube links accept supported secure formats and reject foreign hosts or malformed IDs',()=>{
  for(const url of ['https://youtu.be/9IuTDcSs6vQ?si=test','https://www.youtube.com/watch?v=9IuTDcSs6vQ','https://youtube.com/embed/9IuTDcSs6vQ'])assert.equal(youtubeId(url),'9IuTDcSs6vQ');
@@ -114,7 +115,7 @@ test('an uncertain commit acknowledgement retains the accepted private object fo
  const teacher=await f.login('0003'),student=await f.login('0002'),original=f.env.ACADEMY_DB,session=original.withSession('first-primary');let loseCommit=true,failReceipt=false;
  const wrapped={...session,prepare(sql){const statement=session.prepare(sql);if(!sql.includes('FROM operation_receipts'))return statement;const wrap=stmt=>({...stmt,bind:(...v)=>wrap(stmt.bind(...v)),first:async(...args)=>{if(failReceipt){failReceipt=false;throw Error('synthetic receipt connection loss');}return stmt.first(...args);}});return wrap(statement);},async batch(statements){const result=await session.batch(statements);if(loseCommit&&statements.some(s=>s.sql.includes('INSERT INTO lesson_media_assets'))){loseCommit=false;failReceipt=true;throw Error('synthetic lost acknowledgement after commit');}return result;}};
  f.env.ACADEMY_DB={...original,withSession:()=>wrapped};const uploaded=await f.mediaUpload({},teacher);assert.equal(uploaded.status,503);f.env.ACADEMY_DB=original;
- const asset=f.db.prepare("SELECT a.* FROM lesson_media_assets a JOIN lesson_media_links l USING(asset_id) WHERE l.lesson_id=? AND a.kind='PDF'").get(id);assert(asset);assert(f.objects.has(asset.object_key));
+ const asset=f.db.prepare("SELECT a.* FROM lesson_media_assets a JOIN lesson_media_links l USING(asset_id) WHERE l.lesson_id=? AND a.kind='PDF'").get(id);assert(asset);assert(f.objects.has(lessonPdfObjectKey(asset.object_key)));
  const retried=ok(await f.mediaUpload(uploaded.metadata,teacher));assert.equal(retried.assetId,asset.asset_id);assert.equal(retried.replayed,true);assert.equal(f.objects.size,1);assert.equal((await f.media('download',{lessonId:id,assetId:asset.asset_id},student)).status,200);
 }));
 

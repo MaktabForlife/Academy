@@ -1,3 +1,9 @@
+# Local PDF reuse and timetable-card investigation — 27 October 2026
+
+- Work on local `feature/academy-shared-pdfs`, based on V107.81. Reuse identical lesson PDF bytes while preserving each attachment, immutable note history and all current permissions. Investigate stale teacher names on Admin/Teach Class notes and Lesson media cards after a timetable publication.
+- The user explicitly instructed **dont deploy**. Do not push, deploy, apply live SQL, republish live timetables or change live data/settings. Prior deployment permissions apply to their completed releases only.
+- Keep live checks small to limit database usage; use local fixtures. Preserve other unfinished planner work in the original checkout. Assign a release number only when preparing an authorised release.
+
 # Curriculum and workspace correction release — 27 October 2026
 
 - Complete the authorised NAV-01 follow-up from “UI and lesson updates” and the user's direct instructions in this chat: remove the extra Curriculum chooser; rename the previous subjects screen Curriculum management; add Programs/Courses navigation tabs; make subject status editable; restrict the Global Admin dashboard workspace menu to exactly the nine supplied items without changing its formatting; add a Public Library source option when attaching lesson PDFs.
