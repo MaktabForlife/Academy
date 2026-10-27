@@ -1,3 +1,9 @@
+# Isolated mobile preview release — 27 October 2026
+
+- The user explicitly requested deploying this feature branch to a preview link for phone testing. Release the V107.84-based mobile feature as preview V107.88, after checking that remote Development is V107.87.
+- This authorises creating a dedicated preview Worker with new synthetic-only D1/R2 resources and its own secrets. It supersedes the local deployment hold only for this preview. Do not update the live Development API, coordinator, website, databases or settings.
+- Keep this chat independent; do not communicate with other chats. Provide Learn/Teach sample-account links. Use local fixtures for full verification and a small targeted hosted smoke check.
+
 # Local mobile-first Learn/Teach development — 27 October 2026
 
 - The user explicitly requested starting the proposed mobile-first development on a new feature branch from V107.84. Work on `feature/academy-mobile-first`, based exactly on `5a1731c0` (V107.84).

@@ -1,3 +1,7 @@
+# V107.88 — Mobile Learn/Teach preview
+
+Deploy the V107.84-based mobile feature to a dedicated synthetic preview. Provide Learn and Teach sample sign-in links, isolated D1/R2 storage, a same-origin API and a noindex landing page. No live Academy service or data changes.
+
 # V107.84 — Reduce permission and timetable/calendar reads
 
 Repeated coordinator reads reuse a server-verified permission proof only while live account/session validity, database version and timed grants still match. Writes retain full authority verification and atomic guards. Accepted timetable/calendar queries capture only the requested publication components from both stores, preserving owner merging, live visibility and published behaviour.

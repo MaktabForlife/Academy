@@ -1,6 +1,8 @@
-# Mobile-first Learn/Teach — local feature development
+# V107.88 — Mobile Learn/Teach preview
 
-`feature/academy-mobile-first` starts from V107.84 (`5a1731c0`). The initial frontend development adds a shared single-column reading layout, native Contents navigation, larger controls and text, and a wider sidebar using the same content. Admin management and the public website retain their layout. This work is local and has not been pushed or deployed. [Scope and verification](docs/ACADEMY-MOBILE-FIRST-DEVELOPMENT.md).
+# Mobile-first Learn/Teach
+
+`feature/academy-mobile-first` starts from V107.84 (`5a1731c0`). The initial frontend development adds a shared single-column reading layout, native Contents navigation, larger controls and text, and a wider sidebar using the same content. Admin management and the public website retain their layout. Preview V107.88 packages this V107.84-based feature for isolated phone testing with sample accounts and dedicated storage. The live Academy is unchanged. [Scope and verification](docs/ACADEMY-MOBILE-FIRST-DEVELOPMENT.md).
 
 # V107.84 — Permission and timetable/calendar read optimisation
 

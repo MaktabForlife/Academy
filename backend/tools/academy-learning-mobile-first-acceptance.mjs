@@ -5,21 +5,10 @@ import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import {createRequire} from 'node:module';
 import assert from 'node:assert/strict';
-import {classNotesFixture,seedClassNotes} from '../tests/fixtures/academy-class-notes-fixture.mjs';
+import {mobileFirstFixture} from './mobile-first-preview/fixture.mjs';
 import worker from '../src/academy-runtime.js';
 const root=fileURLToPath(new URL('../../',import.meta.url)),out=path.resolve(process.env.LEARNING_MOBILE_OUTPUT||'../../outputs/academy-mobile-first-local');mkdirSync(out,{recursive:true});
-const f=await classNotesFixture(f=>{
- seedClassNotes(f);
- f.db.prepare("INSERT INTO class_teacher_assignments VALUES(?,'class-1',?,'ADDITIONAL')").run(f.scopes.programA,f.actors.teacherA);
- f.db.prepare("INSERT INTO class_memberships VALUES(?,'mobile-first-learner','class-1',?,'2026-01-01',NULL,1)").run(f.scopes.programA,f.actors.studentA);
- f.mobileCourse=f.db.prepare("SELECT a.activity_key,a.activity_id,a.name FROM activities a JOIN course_runs r USING(activity_key) WHERE a.kind='COURSE' AND a.active=1 AND r.active=1 LIMIT 1").get();
- if(f.mobileCourse)f.db.prepare("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state) VALUES('mobile-first-course-teacher',?,?,'TEACHER',1,'CONFIRMED')").run(f.actors.teacherA,f.mobileCourse.activity_key);
- const now=new Date().toISOString(),today=now.slice(0,10);
- f.db.prepare("INSERT INTO assessment_registers(register_id,name,class_mode,status,created_at,created_by,updated_at) VALUES('mobile-exam','Current Imtehaan','ALL','SCHEDULED',?,'account-0001',?)").run(now,now);
- f.db.prepare('INSERT INTO assessment_register_areas VALUES(?,?)').run('mobile-exam',f.scopes.programA);
- f.db.prepare("INSERT INTO assessments(assessment_id,activity_key,class_id,title,subject,exam_date,duration_minutes,maximum_mark,schedule_published,examiner_id,created_at,created_by,updated_at,register_id,assessment_kind) VALUES('mobile-paper',?,'class-1','Reading and revision','Qasas',?,60,100,1,?,?,'account-0001',?,'mobile-exam','EXAM')").run(f.scopes.programA,today,f.actors.teacherA,now,now);
- f.db.prepare("INSERT INTO assessment_recipients(assessment_id,account_id,display_name) VALUES('mobile-paper',?,'Synthetic studentA')").run(f.actors.studentA);
-});
+const f=await mobileFirstFixture();
 const tokens=Object.fromEntries(await Promise.all(['studentA','teacherA','global'].map(async who=>[who,await f.actor(who)])));
 const mime={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.svg':'image/svg+xml','.jpg':'image/jpeg','.webp':'image/webp','.ttf':'font/ttf','.ico':'image/x-icon'};
 const calls=[];
@@ -86,7 +75,7 @@ if(process.argv.includes('--serve')){
   await identity('global');await page.locator('#ad-title').waitFor();assert.equal(await page.evaluate(()=>document.body.classList.contains('academy-learning-layout')),false);assert.equal(await page.locator('#ad-title').innerText(),'Your administration dashboard');
   await page.goto(origin+'/academy/admin/#activity/PROGRAM/'+f.scopes.programA.slice(8)+'/teach/planning');await page.locator('[data-lp-field=activities]').first().waitFor();await ready();assert.equal(await page.evaluate(()=>M4L_ACADEMY_WORKSPACE.current()),'ADMIN_TEACH');await fit('Admin-Teach shares the reading layout and preserves its authority');
   await page.goto(origin+'/academy/#website');await page.locator('#overview.active').waitFor();assert.equal(await page.evaluate(()=>document.body.classList.contains('academy-learning-layout')),false);checks.push('Admin management and public website retain their layout; Admin-Teach keeps its realm');
-  assert.deepEqual(errors,[]);const result={passed:true,baseline:'107.84',branch:'feature/academy-mobile-first',checks,errors,requests:calls.length,liveDataChanged:false};writeFileSync(path.join(out,'verification.json'),JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result));
+  assert.deepEqual(errors,[]);const result={passed:true,baseline:'107.84',version:'107.88',branch:'feature/academy-mobile-first',checks,errors,requests:calls.length,liveDataChanged:false};writeFileSync(path.join(out,'verification.json'),JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result));
  }catch(error){await page.screenshot({path:path.join(out,'failure.png'),fullPage:true});writeFileSync(path.join(out,'failure.html'),await page.content());console.error(JSON.stringify({checks,errors}));throw error;}
  finally{await browser.close();await new Promise(done=>server.close(done));f.close();}
 }

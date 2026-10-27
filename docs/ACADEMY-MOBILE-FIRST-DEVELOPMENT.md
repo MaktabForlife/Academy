@@ -1,6 +1,6 @@
 # Mobile-first Learn/Teach development
 
-Status: local feature development, based exactly on V107.84 (`5a1731c0`). Branch: `feature/academy-mobile-first`. No new release number is assigned and no push, deployment or hosted changes are authorised by this development request.
+Status: preview V107.88, based exactly on V107.84 (`5a1731c0`). Branch: `feature/academy-mobile-first`. The user authorised a separate phone preview on 27 October 2026. The live Academy remains unchanged.
 
 ## Shared foundation
 
@@ -16,7 +16,7 @@ Status: local feature development, based exactly on V107.84 (`5a1731c0`). Branch
 
 Use `backend/tools/academy-learning-mobile-first-acceptance.mjs` against synthetic SQLite/R2 data only. It covers 320, 390, 768, 1024 and 1440 pixel viewports; dashboard and Program Contents, keyboard behaviour, selected-section focus, the day rail, assessments, Class Notes, media, Library, teacher drafts/save, attendance, 200% text sizing, Course layout and workspace isolation. External browser requests are blocked.
 
-The existing entrance routing, sign-in, workspace client, Program workspace, planning and source-boundary checks provide targeted regression coverage. Build the Pages artifact locally to confirm the new assets are packaged; do not deploy it.
+The existing entrance routing, sign-in, workspace client, Program workspace, planning and source-boundary checks provide targeted regression coverage. Build the isolated preview artifact to confirm the new assets are packaged. Deploy only its dedicated Worker and new synthetic D1/R2 resources.
 
 ## Local preview
 
@@ -24,4 +24,13 @@ Run the acceptance tool with `--serve` and `LEARNING_MOBILE_PORT=4186`. The `/__
 
 ## Review before release
 
-Review this first implementation on actual iPhone/Safari and Android hardware, especially keyboard opening, long lesson text and PDF interactions. Confirm the final spacing and menu labels with the user, then assign a release version and run the affected release checks when a deployment is authorised. This development does not change backend services, schema, permissions, publication/release gates or current V107.84 optimisations.
+Review this first implementation on actual iPhone/Safari and Android hardware, especially keyboard opening, long lesson text and PDF interactions. Confirm the final spacing and menu labels with the user, before preparing a later live release. This development does not change backend services, schema, permissions, publication/release gates or current V107.84 optimisations.
+
+## Hosted phone preview — V107.88
+
+- URL: https://academy-mobile-first-preview.maktab4life.workers.dev/
+- The landing page opens synthetic Learn or Teach accounts without a PIN. Sample changes are saved only in the dedicated preview database and bucket, both named `academy-mobile-first-preview`. No live Academy binding, coordinator or account is used.
+- Public Library titles/PDFs use the existing read-only Archive.org routes. Preview public metadata is empty; private Library coordination is not enabled.
+- Source entrypoint and offline builder are in `backend/tools/mobile-first-preview/`. The builder creates a fresh private artifact, random preview-only authentication secrets, a foreign-key ordered synthetic seed and bounded import batches. Secrets never enter the repository or static assets.
+- Thirty local layout/workflow checks pass at 320–1440px. Hosted checks verify both sample sign-ins, the 390px layout, a persisted teaching draft, learner navigation, the public Library and a rendered two-page PDF. No real account was used for preview testing.
+- The V107.87 Library row correction is also included. Development/live retain V107.87 and their existing headers; the mobile-first feature remains separate. The user's additional header-display concern awaits clarification.
