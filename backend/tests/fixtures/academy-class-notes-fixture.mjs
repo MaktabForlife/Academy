@@ -9,7 +9,7 @@ import {classNotes} from '../../src/academy/d1/class-notes.js';
 import {academyDate} from '../../src/academy/d1/academy-clock.js';
 export async function classNotesFixture(seed){
  const f=await separationFixture();try{
-  for(const name of ['0039_course_websites.sql','0032_accepted_setup.sql','0033_native_attendance.sql','0034_assessment_operations.sql','0035_media_contributions.sql','0036_class_notes.sql']){f.db.exec('BEGIN');f.db.exec(readFileSync(new URL('../../migrations/academy/'+name,import.meta.url),'utf8'));f.db.exec('COMMIT');}
+  for(const name of ['0039_course_websites.sql','0041_program_surah_websites.sql','0032_accepted_setup.sql','0033_native_attendance.sql','0034_assessment_operations.sql','0035_media_contributions.sql','0036_class_notes.sql']){f.db.exec('BEGIN');f.db.exec(readFileSync(new URL('../../migrations/academy/'+name,import.meta.url),'utf8'));f.db.exec('COMMIT');}
   if(seed)await seed(f);
   let head=(await initialiseAcceptedSetup(f.env.ACADEMY_DB)).head;
   f.env.ACADEMY_ACCEPTED_SETUP='1';f.env.ACADEMY_LEARNING_OPERATIONS='3';

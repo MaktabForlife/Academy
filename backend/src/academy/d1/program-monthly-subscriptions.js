@@ -2,6 +2,7 @@ import {managementError as fail,same} from './management-store.js';
 import {actualState,hasAdminAuthority,isAdminWorkspace} from './workspace-access.js';
 import {assessmentRolesSQL,validDate,cleanText} from './assessment-store.js';
 import {payloadHash} from '../../programs/timetable-model.js';
+import {academyDate} from './academy-clock.js';
 import {monthlyEnabled} from './monthly-media-policy.js';
 
 export const validMonth=value=>typeof value==='string'&&/^[1-9]\d{3}-(0[1-9]|1[0-2])$/.test(value);
@@ -37,7 +38,7 @@ export function programMonthlySubscriptions(repository,auth){
       WHERE a.account_id=? AND a.active=1 AND c.pin_setup=1 AND length(trim(c.pin_hash))>0 AND c.credential_epoch=?
       AND s.session_id=? AND s.revoked_at IS NULL AND s.credential_epoch=c.credential_epoch AND s.expires_at>?
       AND (EXISTS(SELECT 1 FROM global_role_assignments g WHERE g.account_id=a.account_id AND g.active=1 AND g.role='GLOBAL_ADMIN' AND g.review_state='CONFIRMED')
-       OR (?=0 AND EXISTS(SELECT 1 FROM (${assessmentRolesSQL}) r WHERE r.account_id=a.account_id AND r.activity_key=? AND r.role='PROGRAM_ADMIN')))))`,guard,version.version,area.activity_key,policy?.revision||0,area.activity_key,actor,actualState(auth).account.credential_epoch,auth.sid,now,Number(!['save','grid-save'].includes(action)),area.activity_key),
+       OR (?=0 AND EXISTS(SELECT 1 FROM (${assessmentRolesSQL}) r WHERE r.account_id=a.account_id AND r.activity_key=? AND r.role='PROGRAM_ADMIN')))))`,guard,version.version,area.activity_key,policy?.revision||0,area.activity_key,actor,actualState(auth).account.credential_epoch,auth.sid,now,Number(!['save','grid-save','surah-save'].includes(action)),area.activity_key),
     ...statements,
     p('INSERT INTO audit_events(event_id,occurred_at,actor_account_id,authority,scope_key,action,record_kind,record_id,changed_fields_json) VALUES(?,?,?,?,?,?,?,?,?)',crypto.randomUUID(),now,actor,actualState(auth).account.global_admin?'GLOBAL_ADMIN':'PROGRAM_ADMIN',area.activity_key,action,'PROGRAM_MONTHLY_SUBSCRIPTIONS',input.operationId,JSON.stringify(details)),
     p("INSERT INTO operation_receipts(dataset_key,scope_key,operation_id,payload_sha256,result_json,actor_account_id,completed_at) VALUES('PROGRAM_MONTHLY_SUBSCRIPTIONS',?,?,?,?,?,?)",area.activity_key,input.operationId,hash,JSON.stringify(result),actor,now),
@@ -113,6 +114,36 @@ export function programMonthlySubscriptions(repository,auth){
    return {accountId:r.account_id,name:r.display_name,active:Boolean(r.active),months:Object.fromEntries(saved.map(s=>[s.lesson_month,{subscribed:Boolean(s.active),revision:s.revision,classIds:JSON.parse(s.class_ids_json)}])),suggestedClassIds:Object.fromEntries(months.map(m=>[m,suggestedClasses(m,history,classes)]))};
   }),after:page.length>50?JSON.stringify([rows.at(-1).sort_name,rows.at(-1).account_id]):null};
  }
+ async function surahs(){
+  if(!policy)return {available:Boolean(area.name.trim().toLowerCase()==='tafseer'),prepared:false,surahs:[]};
+  const rows=(await p(`SELECT s.*,d.surah_id draft_id,d.enabled,
+   (SELECT count(*) FROM program_monthly_subscriptions m JOIN accounts eligible_account ON eligible_account.account_id=m.account_id WHERE eligible_account.active=1 AND m.activity_key=s.activity_key AND m.lesson_month=substr(s.completion_date,1,7) AND m.active=1) eligible
+   FROM program_surahs s LEFT JOIN program_surah_website_documents d USING(surah_id) WHERE s.activity_key=? ORDER BY s.completion_date,s.name,s.surah_id LIMIT 201`,area.activity_key).all()).results;
+  return {available:true,prepared:true,policyRevision:policy.revision,surahs:rows.slice(0,200).map(r=>({id:r.surah_id,name:r.name,completionDate:r.completion_date,active:Boolean(r.active),revision:r.revision,eligibleStudents:r.eligible,hasDraft:Boolean(r.draft_id),editorUrl:'/academy/course-websites/?program='+encodeURIComponent(area.activity_id)+'&surah='+encodeURIComponent(r.surah_id),websiteUrl:'/academy/course-websites/view/?program='+encodeURIComponent(area.activity_id)+'&surah='+encodeURIComponent(r.surah_id)})),truncated:rows.length>200};
+ }
+ async function saveSurahs(input){
+  if(!policy)throw fail('Prepare Tafseer’s monthly register first.',409);
+  const entries=input.entries;
+  if(!Array.isArray(entries)||!entries.length||entries.length>200||entries.some(e=>!e||!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(e.id||''))||new Set(entries.map(e=>e.id.toLowerCase())).size!==entries.length)throw fail('Save up to 200 different surahs together.');
+  return change('surah-save',input,async()=>{
+   const existing=(await p('SELECT * FROM program_surahs WHERE surah_id IN(SELECT value FROM json_each(?))',JSON.stringify(entries.map(e=>e.id))).all()).results;
+   const timezone=(await p('SELECT timezone FROM program_settings WHERE activity_key=?',area.activity_key).first())?.timezone||'Africa/Johannesburg',today=academyDate(new Date(),timezone),now=new Date().toISOString(),rows=[],details=[];
+   const count=await p('SELECT count(*) n FROM program_surahs WHERE activity_key=?',area.activity_key).first();
+   if(count.n+entries.filter(e=>!existing.some(r=>r.surah_id===e.id)).length>200)throw fail('Keep up to 200 surah entries in this Program.');
+   for(const entry of entries){
+    const old=existing.find(r=>r.surah_id===entry.id);
+    if(old&&!same(old.activity_key,area.activity_key))throw fail('This surah belongs to another Program.',403,'FORBIDDEN');
+    if(!Number.isInteger(entry.revision)||entry.revision!==(old?.revision||0))throw fail('A surah entry changed. Your draft is kept; reopen the saved list.',409,'ROW_CHANGED');
+    const name=cleanText(entry.name,160,'a surah name');
+    if(!name||!validDate(entry.completionDate)||entry.completionDate>today||typeof entry.active!=='boolean')throw fail('Enter a surah name and a valid completion date up to today.');
+    rows.push({surah_id:entry.id,activity_key:area.activity_key,name,completion_date:entry.completionDate,active:Number(entry.active),updated_at:now,updated_by_account_id:actor});
+    details.push({surahId:entry.id,before:old||null,after:rows.at(-1)});
+   }
+   const columns=['surah_id','activity_key','name','completion_date','active','updated_at','updated_by_account_id'];
+   const statements=[p(`INSERT INTO program_surahs(${columns.join(',')}) SELECT ${columns.map(c=>"json_extract(value,'$."+c+"')").join(',')} FROM json_each(?) WHERE 1 ON CONFLICT(surah_id) DO UPDATE SET name=excluded.name,completion_date=excluded.completion_date,active=excluded.active,revision=program_surahs.revision+1,updated_at=excluded.updated_at,updated_by_account_id=excluded.updated_by_account_id`,JSON.stringify(rows)),p('UPDATE program_monthly_media_policies SET revision=revision+1,updated_at=?,updated_by_account_id=? WHERE activity_key=?',now,actor,area.activity_key)];
+   return {statements,details,result:{saved:rows.length,revision:policy.revision+1}};
+  });
+ }
  async function save(input,asGrid=false){
   if(!policy)throw fail('Prepare the monthly register first.',409);
   const entries=Array.isArray(input.entries)?input.entries.map(e=>({...e,month:asGrid?e?.month:input.month})):[];
@@ -147,5 +178,5 @@ export function programMonthlySubscriptions(repository,auth){
   });
  }
 
- return {async run(action,input){await prepare(input);if(action==='get')return get(input);if(action==='grid')return grid(input);if(action==='grid-save')return save(input,true);if(action==='configure')return configure(input);if(action==='save')return save(input);throw fail('Unknown monthly subscription action.',404);}};
+ return {async run(action,input){await prepare(input);if(action==='surahs')return surahs();if(action==='surah-save')return saveSurahs(input);if(action==='get')return get(input);if(action==='grid')return grid(input);if(action==='grid-save')return save(input,true);if(action==='configure')return configure(input);if(action==='save')return save(input);throw fail('Unknown monthly subscription action.',404);}};
 }

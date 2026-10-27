@@ -1,6 +1,10 @@
 // Physical target columns; Core facts are projected into Admin reads, not copied into its master rows.
 export const storeColumns={
  "core":{
+  "program_surahs":["surah_id","activity_key","name","completion_date","active","revision","updated_at","updated_by_account_id"],
+  "program_surah_website_documents":["surah_id","activity_key","document_json","schema_version","source_kind","revision","enabled","updated_at","updated_by"],
+  "program_surah_website_assets":["asset_id","surah_id","activity_key","object_key","filename","mime_type","byte_size","sha256","created_at","created_by"],
+
   "program_monthly_media_policies":["activity_key","enabled","retain_recordings","revision","updated_at","updated_by_account_id"],
   "program_monthly_subscriptions":["activity_key","account_id","lesson_month","active","class_ids_json","payment_date","payment_reference","note","revision","updated_at","updated_by_account_id"],
 
@@ -130,6 +134,9 @@ export const storeColumns={
   "course_website_assets":["asset_id","activity_key","object_key","filename","mime_type","byte_size","sha256","created_at","created_by"]
  },
  "admin":{
+  "program_surah_website_documents":["surah_id","activity_key","document_json","schema_version","source_kind","revision","updated_at","updated_by"],
+  "program_surah_website_assets":["asset_id","surah_id","activity_key","object_key","filename","mime_type","byte_size","sha256","created_at","created_by"],
+
   "identity_refs":["account_id"],
   "file_refs":["file_id"],
   "activities":["activity_key","name"],

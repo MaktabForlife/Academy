@@ -1,4 +1,14 @@
+# Tafseer subscriptions and Surah website access release — 27 October 2026
+
+- The user confirms V107.104 is deployed and authorises deploying this feature on top of it, including the matching coordinator/API/website and additive schema. This supersedes earlier local-only holds for this feature. Preserve V107.104 weekly attendance behaviour and its scheduled jobs.
+- Complete the manually maintained Surah table in Tafseer Lesson media and attach eligible website card links. Lesson videos/PDFs remain attached to lessons and governed by the paid lesson month; website access follows the manually entered completion month independently.
+- Do not reseed, fabricate subscriptions/completion dates or publish real course content. Preserve existing database IDs, accepted heads, objects, secrets and scoped retention. Admins prepare/review/activate their own real monthly register and publish their own websites.
+- After verified deployment, the user explicitly authorises messaging the existing `website` chat with the card links/integration contract and release so that it can complete its card deployment. Do not message unrelated chats.
+- Use disposable local fixtures and minimal hosted schema/version/static/readiness checks under ../AGENTS.md.
+
 # Tafseer monthly subscriptions — local implementation — 27 October 2026
+
+- Add the manually maintained Surah websites table specifically inside Admin → Tafseer Program → Lesson media. Admin enters both surah names and completion dates; never infer or link dates to lessons or PDF releases. This table is the source of truth: a student with a paid subscription in the completion date’s calendar month may read that surah’s published website and retains it after stopping renewal. Reuse the website editor without manufacturing Course enrolments. Keep all work local; do not push/deploy/apply hosted migrations.
 
 - Add a per-student whole-year checkbox for all 12 months, while keeping individual months editable. Whole-year and individual edits use the existing bulk Save changes flow. Keep this local on the feature branch; do not push or deploy.
 

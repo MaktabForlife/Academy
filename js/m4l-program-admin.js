@@ -3,7 +3,7 @@
  const $=id=>document.getElementById(id),host=$('program-workspace');if(!$('pg-tabs'))return;
  const sections=[['list','List of programs'],['details','Details'],['curriculum','Curriculum'],['classes','Classes'],['participants','Participants'],['public-card','Public card'],['timetable','Timetable'],['review','Review & publish'],['media','Lesson media'],['enrolment','Enrolment requests']];
  const group=tab=>['curriculum','classes','public-card','timetable','review'].includes(tab)?'timetable':tab==='participants'?'people':tab==='media'?'media':'';
- const definitions={timetable:{page:'/programs/timetable.html',root:'timetable',scripts:['/js/vendor/pdf-lib-1.17.1.min.js','/js/m4l-time.js?v=106.9','/js/m4l-timetable-presentation.js?v=106.82','/js/m4l-timetable-blocks.js?v=106.82','/js/m4l-timetable-sync.js?v=105.3.4.4','/js/m4l-timetable-periods.js?v=107.11','/js/m4l-timetable-planner.js?v=107.11','/js/m4l-program-workspace.js?v=106.82','/js/m4l-program-timetable.js?v=107.16']},people:{page:'/programs/manage.html',root:'pm-main',scripts:['/js/m4l-program-overview.js?v=105.3.3.4','/js/m4l-time.js?v=106.9','/js/m4l-teacher-availability-dialog.js?v=106.82','/js/m4l-program-management.js?v=106.85']},media:{page:'/programs/lesson-media.html',root:'program-lesson-media-main',scripts:['/js/m4l-lesson-media-cache.js?v=107.69','/js/m4l-library-cache.js?v=107.100','/js/m4l-lesson-pdf-library.js?v=107.100','/js/m4l-lesson-media.js?v=107.100','/js/m4l-program-lesson-media.js?v=107.7']}};
+ const definitions={timetable:{page:'/programs/timetable.html',root:'timetable',scripts:['/js/vendor/pdf-lib-1.17.1.min.js','/js/m4l-time.js?v=106.9','/js/m4l-timetable-presentation.js?v=106.82','/js/m4l-timetable-blocks.js?v=106.82','/js/m4l-timetable-sync.js?v=105.3.4.4','/js/m4l-timetable-periods.js?v=107.11','/js/m4l-timetable-planner.js?v=107.11','/js/m4l-program-workspace.js?v=106.82','/js/m4l-program-timetable.js?v=107.16']},people:{page:'/programs/manage.html',root:'pm-main',scripts:['/js/m4l-program-overview.js?v=105.3.3.4','/js/m4l-time.js?v=106.9','/js/m4l-teacher-availability-dialog.js?v=106.82','/js/m4l-program-management.js?v=106.85']},media:{page:'/programs/lesson-media.html',root:'program-lesson-media-main',scripts:['/js/m4l-lesson-media-cache.js?v=107.69','/js/m4l-library-cache.js?v=107.100','/js/m4l-lesson-pdf-library.js?v=107.100','/js/m4l-lesson-media.js?v=107.100','/js/m4l-program-surahs.js','/js/m4l-program-lesson-media.js?v=107.7']}};
  const pending=new Map(),loaded=new Set(),scripts=new Map();let selected=null,available=false,current=new URLSearchParams(location.search).get('tab')||'list',revision='',owner=localStorage.getItem('m4l_account_token')||'',generation=0;
  if(!sections.some(([id])=>id===current))current='list';
  $('pg-tabs').innerHTML=sections.map(([id,label])=>`<button type="button" id="pg-tab-${id}" role="tab" data-pg-tab="${id}" aria-controls="${id==='list'?'pg-list':id==='details'?'program-detail':id==='enrolment'?'pg-enrolment-tool':'pg-'+group(id)+'-tool'}" aria-selected="false" tabindex="-1" ${id==='list'?'':'disabled'}>${label}</button>`).join('');
@@ -41,7 +41,7 @@
   })().finally(()=>pending.delete(name));pending.set(name,promise);await promise;
  }
  async function show(tab,{historyMode='replace'}={}){
-  if(window.M4L_PROGRAM_MONTHLY?.canLeave()===false)return;
+  if(window.M4L_PROGRAM_MONTHLY?.canLeave()===false||window.M4L_PROGRAM_SURAHS?.canLeave()===false)return;
   if(!sections.some(([id])=>id===tab)||tab!=='list'&&(!selected||tab!=='details'&&!available))return;
   if(!window.M4L_ENROLMENT_WORKSPACE.canLeave($('pg-enrolment-tool'))){$('pg-tool-message').textContent='Finish or retry the enrolment request change before leaving this tab.';$('pg-tool-message').hidden=false;return;}
   if(current==='media'&&tab!=='media'&&window.M4L_LESSON_MEDIA?.canLeave?.()===false)return;
@@ -56,7 +56,7 @@
  }
  function setSelection(selection){
   if(!selection?.ready)return;
-  if(selected?.id!==selection.program?.id&&window.M4L_PROGRAM_MONTHLY?.canLeave()===false)return;
+  if(selected?.id!==selection.program?.id&&(window.M4L_PROGRAM_MONTHLY?.canLeave()===false||window.M4L_PROGRAM_SURAHS?.canLeave()===false))return;
   const previous=selected?.id;selected=selection.program;available=selection.available;
   if(selected){$('pg-program-name').textContent=selected.name||'New Program';$('pg-program-status').textContent=selected.status+(available?' · Saved':' · Save details before opening other sections');
    if(!selected.revision&&previous!==selected.id)current='details';

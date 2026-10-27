@@ -1,6 +1,6 @@
 import {esc} from './model.mjs';
 import {renderCourse} from './student.mjs';
-const $=id=>document.getElementById(id),owner=localStorage.getItem('m4l_account_token')||'',query=new URLSearchParams(location.search),courseId=query.get('course')||'',activityKey='COURSE:'+courseId,controller=new AbortController();
+const $=id=>document.getElementById(id),owner=localStorage.getItem('m4l_account_token')||'',query=new URLSearchParams(location.search),courseId=query.get('course')||'',surahId=query.get('surah'),programId=query.get('program'),activityKey=surahId&&programId?'PROGRAM:'+programId:'COURSE:'+courseId,controller=new AbortController();
 let stopped=false,data=null,course=null,assets=new Map(),sessionCards=[],timer,prefix='',assessmentReady=null,assessmentOpen=false,requestEpoch=0,loadJob=null;
 let ui={portal:true,route:'home',lessonId:'',readingSize:18,completed:[],reflections:{},sessionState:'upcoming',sessionsHTML:'',assessmentsHTML:''};
 const urls=new Set(),imageJobs=new Map(),boundary=window.M4L_ACADEMY_WORKSPACE;
@@ -10,6 +10,7 @@ function end(message='Your Academy account changed. Reopen the course from your 
 }
 async function api(path,input={},blob=false){
  if(!active())throw new DOMException('Your Academy account changed.','AbortError');
+ if(surahId&&programId&&path.startsWith('academy/course-websites/'))input={...input,activityKey,surahId};
  const response=await fetch((window.M4L_CONFIG?.API_BASE||'')+'/api/'+path,{method:'POST',cache:'no-store',signal:controller.signal,headers:{Authorization:'Bearer '+owner,'Content-Type':'application/json'},body:JSON.stringify(input)});
  if(!active())throw new DOMException('Your Academy account changed.','AbortError');
  if(blob&&response.ok){const result=await response.blob();if(!active())throw new DOMException('Your Academy account changed.','AbortError');return result;}
@@ -64,4 +65,4 @@ window.addEventListener('m4l-academy-session-ended',()=>end());window.addEventLi
 const refreshButton=document.createElement('button');refreshButton.dataset.pageContentRefresh='';refreshButton.style.display='none';refreshButton.textContent='Refresh course';document.getElementById('reader-refresh-host').append(refreshButton);refreshButton.addEventListener('click',()=>void refresh());
 window.M4L_COURSE_WEBSITES={canLeave};
 const initial=location.hash.slice(1).split('/');ui.route=({overview:'home',reading:'lessons',resources:'materials',sessions:'sessions',assessments:'assessments',lesson:'lesson'})[initial[0]]||'home';ui.lessonId=initial[1]||'';
-if(!owner||!courseId||courseId.length>160||courseId.includes(':'))end('Open your course through the Academy dashboard.');else await refresh();
+if(!owner||!(surahId&&programId||courseId)||[courseId,programId||''].some(id=>id.length>160||id.includes(':')))end('Open your course through the Academy dashboard.');else await refresh();

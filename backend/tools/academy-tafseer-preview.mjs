@@ -26,6 +26,15 @@ for(const [date,title] of [['2024-01-16','Tafseer · January 2024 sample'],['202
  ok(await f.media('save',{lessonId:lesson.lessonId,revision:1,title,summary:'Local sample lesson. Attach the original recording or PDFs in Admin.',state:'PUBLISHED',commentsClosed:true,videos:[],operationId:op()},admin));
 }
 ok(await f.monthly('configure',{mode:'activate',policyRevision:f.db.prepare('SELECT revision FROM program_monthly_media_policies').get().revision,reviewed:true,operationId:op()},admin));
+// Explicit synthetic entries, independent of the historical lesson records above.
+for(const [name,completionDate] of [['Sample · Surah Maryam','2024-01-23'],['Sample · Surah Yusuf','2025-01-22']]){
+ const id=op(),policy=f.db.prepare('SELECT revision FROM program_monthly_media_policies').get();
+ ok(await f.monthly('surah-save',{policyRevision:policy.revision,operationId:op(),entries:[{id,name,completionDate,active:true,revision:0}]},admin));
+ const input={activityKey:scope,surahId:id},view=ok(await f.call('/api/admin/platform/course-websites/get',input,admin));
+ view.document.home.headline=name;view.document.home.description='Disposable sample website. Admin enters its completion date manually in Tafseer → Lesson media.';
+ const saved=ok(await f.call('/api/admin/platform/course-websites/save',{...input,document:view.document,revision:0,operationId:op()},admin));
+ ok(await f.call('/api/admin/platform/course-websites/publish',{...input,revision:saved.revision,operationId:op()},admin));
+}
 const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ico':'image/x-icon','.woff2':'font/woff2','.woff':'font/woff','.bcmap':'application/octet-stream','.ttf':'font/ttf','.wasm':'application/wasm','.mjs':'text/javascript; charset=utf-8','.ftl':'text/plain; charset=utf-8'};
 const server=createServer(async(req,res)=>{
  try{

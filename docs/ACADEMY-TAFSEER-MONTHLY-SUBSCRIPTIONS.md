@@ -26,6 +26,18 @@ Example: a lesson dated **16 January 2024**, whose recording is uploaded now, is
 
 The historical lesson date is fixed after creation in this first version. Correct a wrongly dated draft before publication by creating the correctly dated entry and withdrawing the wrong one; there is no silent cross-month date edit or upload-month override.
 
+## Surah websites: the manual completion table
+
+Open **Admin → Programs → Tafseer → Lesson media → Surah websites**. Admin enters each surah name and its completion date manually, including historical dates in 2024/2025. The table is the source of truth; nothing is inferred from timetable lessons, media upload dates, full PDF release dates or website publication dates.
+
+Use **Add surah**, fill in names/dates, then **Save table changes** to save several rows together. Each saved row has a **Build website / Edit website** link to the existing desktop website editor and student reading layout. Each surah has its own private draft, files and explicit publication. Draft text/files stay private; publishing one surah does not publish another surah's draft. Original lesson media continues to use its existing lesson-month rules.
+
+A student qualifies when the Tafseer register records the calendar month containing the manual completion date. Example: **23 January 2024** requires **January 2024** in the grid, even if the full PDF or website is published in 2026. The student retains website access after renewal ends or current enrolment is removed. This grants the published surah website and its uploaded materials, without creating a Course, enrolment, joining permission or access to other monthly lesson media.
+
+Students find eligible published websites under **My surah websites** in **Paid months**. The same completion-date check protects direct website URLs and every private website image/PDF request. Changing the table's date immediately changes eligibility; withdrawing the website or revoking the qualifying paid month blocks further delivery, including through older accepted website versions. Existing account/session/lifecycle safeguards remain.
+
+The schema adds a Core-owned manual register and separate Admin-owned website drafts/files with immutable publication. No real surah list, dates or content have been imported. The disposable preview includes two explicitly marked sample entries and websites.
+
 ## Student access
 
 Learn has a **Tafseer · Paid months** link, also available at `/academy/monthly-media/`. It shows recorded months by year and published lesson media, including Teacher PDF notes. Students retain their covered months after renewal ends or their current enrolment/class changes.
@@ -58,11 +70,12 @@ Open [the local sample](http://127.0.0.1:4318/) and choose Admin or Student. Use
 npm run test:tafseer
 ```
 
-Verification covers month/year boundaries, late attachments, 2024/2025 history, a 100-student atomic delta, cross-year atomic grid saves, roster search/pagination, collapsible years, hidden draft preservation, retained byte-range playback, shared PDFs, teacher notes, scoped authority, current-role removal, revocation, immutable publication, cache/proof invalidation, missing authority storage, retries, navigation guards and account switching. All 111 selected local checks passed, including existing media, workspace, Program, snapshot and split-store regressions. Source-boundary and JavaScript syntax checks also pass. DOM interaction tests exercise search, expansion, multi-year edits, removals, retries and account switching; the updated grid has also been checked in the local Chrome preview.
+Verification covers month/year boundaries, late attachments, 2024/2025 history, a 100-student atomic delta, cross-year atomic grid saves, roster search/pagination, collapsible years, hidden draft preservation, retained byte-range playback, shared PDFs, teacher notes, scoped authority, current-role removal, revocation, immutable publication, cache/proof invalidation, missing authority storage, retries, navigation guards and account switching. Selected local checks pass, including existing media, workspace, Program, snapshot and split-store regressions. Source-boundary and JavaScript syntax checks also pass. DOM interaction tests exercise search, expansion, multi-year edits, removals, retries and account switching; the updated grid has also been checked in the local Chrome preview.
 
 ## Future release requirements — not performed
 
 - Apply additive `academy-core/0005_program_monthly_subscriptions.sql` to the existing split Core store; `academy/0040_program_monthly_subscriptions.sql` is the monolithic/source equivalent. No table is seeded with paid access or an enabled Program by either migration. Do not apply both alternatives to the same database.
+- For the Surah table/websites, additionally apply academy-core/0006_program_surah_websites.sql and academy-admin/0002_program_surah_websites.sql to their corresponding stores before releasing the matching coordinator/API. academy/0041_program_surah_websites.sql is the monolithic/source equivalent. Preserve all existing rows and accepted heads.
 - Release a compatible coordinator, API and website before activation. Set `ACADEMY_MONTHLY_SUBSCRIPTIONS=1` for the API only after schema/coordinator support is ready. Missing authority schema with this feature enabled fails closed.
 - Prepare the real Tafseer register against its verified existing Program key, retain still-available recordings/re-upload missing files, and review the actual historical paid-month list. No real subscriptions or historical media were imported by this local implementation.
 - Activate protection explicitly after that review. Once enabled, do not disable the feature flag, delete the policy or roll back to code that ignores monthly protection. Use a compatible rollback that preserves the permission checks and stored grants.

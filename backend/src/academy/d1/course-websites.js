@@ -7,6 +7,7 @@ import {isSurahKahfCourse} from '../course-books/course-companion.js';
 import {courseReaderSessions} from './course-reader-sessions.js';
 import {lessonNotes} from './lesson-notes.js';
 import {lessonMedia} from './lesson-media.js';
+import {monthlyEnabled} from './monthly-media-policy.js';
 import {storeLessonPdf} from './lesson-pdf-storage.js';
 
 const assetDTO=row=>({id:row.asset_id,name:row.filename,type:row.mime_type,size:row.byte_size,createdAt:row.created_at});
@@ -14,20 +15,31 @@ const scopeKey=input=>{if(typeof input.activityKey!=='string'||!/^COURSE:[^:]{1,
 const uuid=value=>/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value||'');
 export function courseWebsites(repository,auth,env){
  const store=managementStore(repository,auth),p=store.p,actor=auth.user.accountid;
+ let target={documents:'course_website_documents',assets:'course_website_assets',column:'activity_key',id:'',surahId:null};
+ const template=area=>{const document=courseWebsiteTemplate(area);if(area.surahId){document.id=area.surahId;document.tag='TAFSEER';document.menu.home='Surah';document.pages.sessions=false;document.pages.assessments=false;}return document;};
  async function activity(input,write=false){
-  const key=scopeKey(input),row=await p("SELECT * FROM activities WHERE activity_key=? AND kind='COURSE' AND active=1 AND lifecycle='ACTIVE'",key).first();
+  let key,row;
+  if(input.surahId!==undefined){
+   if(!uuid(input.surahId)||typeof input.activityKey!=='string'||!/^PROGRAM:[^:]{1,160}$/.test(input.activityKey))throw fail('Choose a Tafseer surah website.');
+   if(!monthlyEnabled(repository))throw fail('Surah websites need the monthly access upgrade.',503);
+   key=input.activityKey;target={documents:'program_surah_website_documents',assets:'program_surah_website_assets',column:'surah_id',id:input.surahId,surahId:input.surahId};
+   const core=repository.coreDb||repository.db;
+   row=await core.prepare("SELECT a.*,s.name surah_name,s.completion_date,s.active surah_active,p.enabled monthly_enabled FROM activities a JOIN program_surahs s USING(activity_key) JOIN program_monthly_media_policies p USING(activity_key) WHERE a.activity_key=? AND a.kind='PROGRAM' AND a.active=1 AND a.lifecycle='ACTIVE' AND s.surah_id=?").bind(key,input.surahId).first();
+   if(row){row={...row,name:row.surah_name,surahId:input.surahId};if(!write&&!row.surah_active)throw fail('This surah website is unavailable.',403,'COURSE_WEBSITE_FORBIDDEN');}
+  }else{key=scopeKey(input);target={documents:'course_website_documents',assets:'course_website_assets',column:'activity_key',id:key,surahId:null};row=await p("SELECT * FROM activities WHERE activity_key=? AND kind='COURSE' AND active=1 AND lifecycle='ACTIVE'",key).first();}
   if(!row)throw fail('This Course is unavailable.',403,'COURSE_WEBSITE_FORBIDDEN');
   if(write){if(!isAdminWorkspace(auth)||!administers(auth,row.activity_key))throw fail('Open Admin with authority for this Course.',403,'COURSE_WEBSITE_FORBIDDEN');}
   else{
    const roles=auth.state.roles.filter(r=>same(r.activity_key,row.activity_key)).map(r=>r.role);
-   const free=auth.workspace==='LEARN'&&await p("SELECT 1 ok FROM course_settings WHERE activity_key=? AND legacy_access_model='FREE' AND policy_review_state='CONFIRMED'",row.activity_key).first();
-   if(!(auth.state.account.global_admin||roles.some(r=>['PROGRAM_ADMIN','TEACHER','STUDENT'].includes(r))||readerPreview(auth,row.activity_key)||auth.state.subscriptions.some(r=>same(r.activity_key,row.activity_key))||free))throw fail('This Course is outside your access.',403,'COURSE_WEBSITE_FORBIDDEN');
+   const free=!target.surahId&&auth.workspace==='LEARN'&&await p("SELECT 1 ok FROM course_settings WHERE activity_key=? AND legacy_access_model='FREE' AND policy_review_state='CONFIRMED'",row.activity_key).first();
+   const subscribed=target.surahId?row.monthly_enabled&&(auth.state.monthlyMedia||[]).some(r=>same(r.activity_key,row.activity_key)&&r.lesson_month===row.completion_date.slice(0,7)):roles.includes('STUDENT')||auth.state.subscriptions.some(r=>same(r.activity_key,row.activity_key));
+   if(!(auth.state.account.global_admin||roles.some(r=>['PROGRAM_ADMIN','TEACHER'].includes(r))||readerPreview(auth,row.activity_key)||subscribed||free))throw fail('This Course is outside your access.',403,'COURSE_WEBSITE_FORBIDDEN');
    if(auth.adminView&&!administers(auth,row.activity_key))throw fail('This Course is outside your Admin view.',403,'COURSE_WEBSITE_FORBIDDEN');
   }
   return row;
  }
- const record=key=>p('SELECT * FROM course_website_documents WHERE activity_key=?',key).first();
- const files=async key=>(await p('SELECT * FROM course_website_assets WHERE activity_key=? ORDER BY created_at,asset_id LIMIT 101',key).all()).results;
+ const record=()=>p('SELECT * FROM '+target.documents+' WHERE '+target.column+'=?',target.id).first();
+ const files=async key=>(await p('SELECT * FROM '+target.assets+' WHERE '+target.column+'=? ORDER BY created_at,asset_id LIMIT 101',target.id).all()).results;
  async function legacyGate(area,row){
   if(row?.source_kind!=='KAHF'&&row||!row&&!isSurahKahfCourse(area))return;
   const pdfs=(await p("SELECT a.filename,a.display_name FROM lesson_media_lessons l JOIN lesson_media_links k USING(lesson_id) JOIN lesson_media_assets a USING(asset_id) WHERE l.activity_key=? AND l.media_scope='COURSE' AND l.state='PUBLISHED' AND a.kind='PDF' LIMIT 101",area.activity_key).all()).results;
@@ -39,12 +51,12 @@ export function courseWebsites(repository,auth,env){
   if(row&&!row.enabled)throw fail('This course website is currently withdrawn.',404,'COURSE_WEBSITE_UNPUBLISHED');
   await legacyGate(area,row);
   if(!row&&!isSurahKahfCourse(area))throw fail('This course website has not been published.',404,'COURSE_WEBSITE_UNPUBLISHED');
-  const document=row?JSON.parse(row.document_json):courseWebsiteTemplate(area);validateCourse(document);
+  const document=row?JSON.parse(row.document_json):template(area);validateCourse(document);
   return {area,row,document};
  }
  async function load(area){
   // Only the actor and selected Course are needed to guard this operation.
-  return store.load({accounts:p('SELECT * FROM accounts WHERE account_id=?',actor),admins:p('SELECT * FROM global_role_assignments WHERE account_id=?',actor),activities:p('SELECT * FROM activities WHERE activity_key=?',area.activity_key),roles:p('SELECT * FROM role_assignments WHERE account_id=?',actor),reviews:p('SELECT * FROM role_import_reviews WHERE 0'),policies:p('SELECT * FROM activity_policy_imports WHERE 0'),programs:p('SELECT * FROM program_settings WHERE 0'),mappings:p('SELECT * FROM role_mapping_decisions WHERE 0'),evidence:p('SELECT * FROM legacy_access_evidence WHERE 0'),website:p('SELECT * FROM course_website_documents WHERE activity_key=?',area.activity_key)});
+  return store.load({accounts:p('SELECT * FROM accounts WHERE account_id=?',actor),admins:p('SELECT * FROM global_role_assignments WHERE account_id=?',actor),activities:p('SELECT * FROM activities WHERE activity_key=?',area.activity_key),roles:p('SELECT * FROM role_assignments WHERE account_id=?',actor),reviews:p('SELECT * FROM role_import_reviews WHERE 0'),policies:p('SELECT * FROM activity_policy_imports WHERE 0'),programs:p('SELECT * FROM program_settings WHERE 0'),mappings:p('SELECT * FROM role_mapping_decisions WHERE 0'),evidence:p('SELECT * FROM legacy_access_evidence WHERE 0'),website:p('SELECT * FROM '+target.documents+' WHERE '+target.column+'=?',target.id)});
  }
  function documentInput(input){
   let errors;try{errors=validateCourse(input.document,{review:input.review===true});}catch(error){throw fail(error.message);}
@@ -69,23 +81,25 @@ export function courseWebsites(repository,auth,env){
    if(action==='save'){
     await checkAssets(key,input.document);
     const json=JSON.stringify(input.document);
-    const statement=row?p('UPDATE course_website_documents SET document_json=?,revision=?,updated_at=?,updated_by=? WHERE activity_key=?',json,revision,now,actor,key):p('INSERT INTO course_website_documents(activity_key,document_json,schema_version,source_kind,revision,enabled,updated_at,updated_by) VALUES(?,?,1,?,?,1,?,?)',key,json,isSurahKahfCourse(area)?'KAHF':'TEMPLATE',revision,now,actor);
+    const values={...(target.surahId?{surah_id:target.surahId}:{}),activity_key:key,document_json:json,schema_version:1,source_kind:isSurahKahfCourse(area)?'KAHF':'TEMPLATE',revision,enabled:target.surahId?0:1,updated_at:now,updated_by:actor};
+    const statement=row?p('UPDATE '+target.documents+' SET document_json=?,revision=?,updated_at=?,updated_by=? WHERE '+target.column+'=?',json,revision,now,actor,target.id):p('INSERT INTO '+target.documents+'('+Object.keys(values).join(',')+') VALUES('+Object.keys(values).map(()=>'?').join(',')+')',...Object.values(values));
     return {data,statements:[statement],result:{saved:true,revision},acceptDefinitions:false,fields:['Course website draft']};
    }
    if(!row)throw fail('Save the website draft first.');
-   if(action==='withdraw')return {data,statements:[p('UPDATE course_website_documents SET enabled=0,revision=?,updated_at=?,updated_by=? WHERE activity_key=?',revision,now,actor,key),p("INSERT INTO academy_settings(setting_key,setting_value,updated_at,updated_by_account_id) VALUES(?,'0',?,?) ON CONFLICT(setting_key) DO UPDATE SET setting_value='0',updated_at=excluded.updated_at,updated_by_account_id=excluded.updated_by_account_id",'CourseWebsitePublished:'+key.toUpperCase(),now,actor),p("INSERT INTO academy_settings(setting_key,setting_value,updated_at,updated_by_account_id) VALUES('AcademySnapshot:timetable:GLOBAL','1',?,?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=CAST(setting_value AS INTEGER)+1,updated_at=excluded.updated_at",now,actor)],result:{withdrawn:true,revision},acceptDefinitions:false,fields:['Course website availability']};
+   if(action==='withdraw')return {data,statements:[p('UPDATE '+target.documents+' SET enabled=0,revision=?,updated_at=?,updated_by=? WHERE '+target.column+'=?',revision,now,actor,target.id),p("INSERT INTO academy_settings(setting_key,setting_value,updated_at,updated_by_account_id) VALUES(?,'0',?,?) ON CONFLICT(setting_key) DO UPDATE SET setting_value='0',updated_at=excluded.updated_at,updated_by_account_id=excluded.updated_by_account_id",(target.surahId?'SurahWebsitePublished:'+target.surahId:'CourseWebsitePublished:'+key.toUpperCase()),now,actor),p("INSERT INTO academy_settings(setting_key,setting_value,updated_at,updated_by_account_id) VALUES('AcademySnapshot:timetable:GLOBAL','1',?,?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=CAST(setting_value AS INTEGER)+1,updated_at=excluded.updated_at",now,actor)],result:{withdrawn:true,revision},acceptDefinitions:false,fields:['Course website availability']};
    const document=JSON.parse(row.document_json),refs=await checkAssets(key,document,true);
-   return {data,statements:[p('UPDATE course_website_documents SET enabled=1,revision=?,updated_at=?,updated_by=? WHERE activity_key=?',revision,now,actor,key)],result:{published:true,revision},acceptFullRows:true,acceptEntities:{course_website_documents:{sql:'activity_key=?',values:[key]},course_website_assets:{sql:'activity_key=? AND asset_id IN(SELECT value FROM json_each(?))',values:[key,JSON.stringify(refs)]}},fields:['Published course website']};
+   const localFlag=target.surahId&&!repository.setup?.enabled?[p("INSERT INTO academy_settings(setting_key,setting_value,updated_at,updated_by_account_id) VALUES(?,'1',?,?) ON CONFLICT(setting_key) DO UPDATE SET setting_value='1',updated_at=excluded.updated_at",'SurahWebsitePublished:'+target.surahId,now,actor)]:[];
+   return {data,statements:[p('UPDATE '+target.documents+' SET enabled=1,revision=?,updated_at=?,updated_by=? WHERE '+target.column+'=?',revision,now,actor,target.id),...localFlag],result:{published:true,revision},acceptFullRows:true,acceptEntities:{[target.documents]:{sql:target.column+'=?',values:[target.id]},[target.assets]:{sql:target.column+'=? AND asset_id IN(SELECT value FROM json_each(?))',values:[target.id,JSON.stringify(refs)]}},fields:['Published course website']};
   });
  }
  async function upload(request,input){
   const area=await activity(input,true),key=area.activity_key;
   if(!uuid(input.assetId)||!uuid(input.operationId)||!/^[a-f0-9]{64}$/.test(input.sha256||'')||typeof input.filename!=='string'||!input.filename.trim()||input.filename.length>240||/[\x00-\x1f\x7f]/.test(input.filename)||!Number.isSafeInteger(input.size)||input.size<5)throw fail('Choose a valid image or PDF.');
   const type=input.type;if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(type)||input.size>(type==='application/pdf'?16:5)*1024*1024)throw fail('Choose an image up to 5 MB or PDF up to 16 MB.',413);
-  const existing=await p('SELECT * FROM course_website_assets WHERE asset_id=?',input.assetId).first();
-  if(existing&&(!same(existing.activity_key,key)||existing.sha256!==input.sha256||existing.filename!==input.filename||existing.mime_type!==type||existing.byte_size!==input.size))throw fail('Choose a fresh file identifier.',409,'ASSET_ID_REUSED');
+  const existing=await p('SELECT * FROM '+target.assets+' WHERE asset_id=?',input.assetId).first();
+  if(existing&&(!same(existing.activity_key,key)||target.surahId&&existing.surah_id!==target.surahId||existing.sha256!==input.sha256||existing.filename!==input.filename||existing.mime_type!==type||existing.byte_size!==input.size))throw fail('Choose a fresh file identifier.',409,'ASSET_ID_REUSED');
   if((await files(key)).length>=100&&!existing)throw fail('Keep up to 100 uploaded files per Course.');
-  const storage=env.LESSON_MEDIA_BUCKET,namespace=(env.ACADEMY_OBJECT_NAMESPACE||'')+'course-websites/'+encodeURIComponent(key)+'/',objectKey=namespace+input.sha256;
+  const storage=env.LESSON_MEDIA_BUCKET,namespace=(env.ACADEMY_OBJECT_NAMESPACE||'')+(target.surahId?'program-surah-websites/'+encodeURIComponent(key)+'/'+target.surahId+'/':'course-websites/'+encodeURIComponent(key)+'/'),objectKey=namespace+input.sha256;
   let storedKey;
   if(type==='application/pdf')storedKey=await storeLessonPdf(request,storage,namespace,input);
   else{
@@ -100,16 +114,16 @@ export function courseWebsites(repository,auth,env){
   }
   // Authority and concurrent source changes are checked again in the guarded write.
   return store.change('COURSE_WEBSITE',key,'upload',input,async()=>{
-   const data=await load(area);if((await files(key)).length>=100&&!existing)throw fail('Keep up to 100 uploaded files per Course.');const duplicate=await p('SELECT * FROM course_website_assets WHERE asset_id=?',input.assetId).first();
-   if(duplicate&&(!same(duplicate.activity_key,key)||duplicate.sha256!==input.sha256||duplicate.filename!==input.filename))throw fail('This file identifier is already in use.',409,'ASSET_ID_REUSED');
-   const row={asset_id:input.assetId,activity_key:key,object_key:storedKey,filename:input.filename,mime_type:type,byte_size:input.size,sha256:input.sha256,created_at:new Date().toISOString(),created_by:actor};
-   return {data,statements:duplicate?[]:[p('INSERT INTO course_website_assets(asset_id,activity_key,object_key,filename,mime_type,byte_size,sha256,created_at,created_by) VALUES(?,?,?,?,?,?,?,?,?)',...Object.values(row))],result:{asset:assetDTO(duplicate||row)},acceptDefinitions:false,fields:['Course website file']};
+   const data=await load(area);if((await files(key)).length>=100&&!existing)throw fail('Keep up to 100 uploaded files per Course.');const duplicate=await p('SELECT * FROM '+target.assets+' WHERE asset_id=?',input.assetId).first();
+   if(duplicate&&(!same(duplicate.activity_key,key)||target.surahId&&duplicate.surah_id!==target.surahId||duplicate.sha256!==input.sha256||duplicate.filename!==input.filename))throw fail('This file identifier is already in use.',409,'ASSET_ID_REUSED');
+   const row={asset_id:input.assetId,...(target.surahId?{surah_id:target.surahId}:{}),activity_key:key,object_key:storedKey,filename:input.filename,mime_type:type,byte_size:input.size,sha256:input.sha256,created_at:new Date().toISOString(),created_by:actor};
+   return {data,statements:duplicate?[]:[p('INSERT INTO '+target.assets+'('+Object.keys(row).join(',')+') VALUES('+Object.keys(row).map(()=>'?').join(',')+')',...Object.values(row))],result:{asset:assetDTO(duplicate||row)},acceptDefinitions:false,fields:['Course website file']};
   });
  }
  async function asset(input,admin=false){
   const source=admin?{area:await activity(input,true)}:await readable(input),id=String(input.assetId||'');
   if(!admin&&!referencedAssets(source.document).includes(id))throw fail('This file is not published in this Course.',404,'NOT_FOUND');
-  const row=await p('SELECT * FROM course_website_assets WHERE activity_key=? AND asset_id=?',source.area.activity_key,id).first();
+  const row=await p('SELECT * FROM '+target.assets+' WHERE '+target.column+'=? AND asset_id=?',target.id,id).first();
   const object=row?await env.LESSON_MEDIA_BUCKET?.get(row.object_key):null;if(!object)throw fail('This file is unavailable.',404,'NOT_FOUND');
   return new Response(object.body,{headers:{'Content-Type':row.mime_type,'Content-Length':String(row.byte_size),'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"sandbox",'Content-Disposition':"attachment; filename*=UTF-8''"+encodeURIComponent(row.filename).replace(/['()*]/g,c=>'%'+c.charCodeAt(0).toString(16).toUpperCase())}});
  }
@@ -120,12 +134,14 @@ export function courseWebsites(repository,auth,env){
    const rows=(await p("SELECT a.activity_key,a.activity_id,a.name,d.revision,d.enabled,d.updated_at FROM activities a LEFT JOIN course_website_documents d USING(activity_key) WHERE a.kind='COURSE' AND a.active=1 AND a.lifecycle='ACTIVE' AND (?=1 OR a.activity_key IN(SELECT value FROM json_each(?))) ORDER BY a.name LIMIT 501",Number(auth.state.account.global_admin),JSON.stringify(scopes)).all()).results;
    return {websites:rows.slice(0,500).map(r=>({activityKey:r.activity_key,courseId:r.activity_id,name:r.name,hasDraft:Boolean(r.revision),revision:r.revision||0,enabled:r.enabled!==0,updatedAt:r.updated_at||'',existing:isSurahKahfCourse({kind:'COURSE',name:r.name})})),truncated:rows.length>500};
   }
-  if(action==='get'){const area=await activity(input,true),row=await record(area.activity_key);return {activityKey:area.activity_key,courseId:area.activity_id,name:area.name,revision:row?.revision||0,enabled:row?.enabled!==0,document:row?JSON.parse(row.document_json):courseWebsiteTemplate(area),assets:(await files(area.activity_key)).map(assetDTO),legacy:isSurahKahfCourse(area)};}
+  if(action==='get'){const area=await activity(input,true),row=await record(area.activity_key);return {activityKey:area.activity_key,...(target.surahId?{surahId:target.surahId,completionDate:area.completion_date}:{}),courseId:area.activity_id,name:area.name,revision:row?.revision||0,enabled:row?.enabled!==0,document:row?JSON.parse(row.document_json):template(area),assets:(await files(area.activity_key)).map(assetDTO),legacy:isSurahKahfCourse(area)};}
   if(['save','publish','withdraw'].includes(action))return change(action,input);
   if(action==='asset')return asset(input,false);
   if(action==='admin-asset')return asset(input,true);
   if(action==='read'){
-   const {area,document}=await readable(input);let native=await lessonMedia(repository,auth,env).run('feed',{activityKey:area.activity_key,view:'learner',includeCourseCompanion:true,includeCourseSessions:true});
+   const {area,document}=await readable(input);
+   if(target.surahId){document.pages.sessions=false;document.pages.assessments=false;return {document,surahId:target.surahId,activityKey:area.activity_key,completionDate:area.completion_date,readerKey:await payloadHash(['SURAH_READER_OWNER',actor,area.activity_key,target.surahId]),assets:(await files(area.activity_key)).filter(r=>referencedAssets(document).includes(r.asset_id)).map(assetDTO),native:{lessons:[],sessions:[]}};}
+   let native=await lessonMedia(repository,auth,env).run('feed',{activityKey:area.activity_key,view:'learner',includeCourseCompanion:true,includeCourseSessions:true});
    if(repository.features?.mediaSeparation)native=await lessonNotes(repository,auth,env).enrichFeed(native,{activityKey:area.activity_key,view:'learner'});
    if(!native.courseCompanion?.schedule)try{native.courseWebsiteSchedule=await courseReaderSessions(repository,auth,area);}catch(error){if([401,403].includes(error.status))throw error;native.courseWebsiteSchedule={sessions:[],unavailable:true};}
    return {document,readerKey:await payloadHash(['COURSE_READER_OWNER',actor,area.activity_key]),assets:(await files(area.activity_key)).filter(r=>referencedAssets(document).includes(r.asset_id)).map(assetDTO),activityKey:area.activity_key,courseId:area.activity_id,native};

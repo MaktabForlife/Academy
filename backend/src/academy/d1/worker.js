@@ -204,8 +204,20 @@ async function dispatch(request,env) {
   }
   const auth=await authenticated(request,env,repository);
   guardWorkspace(request,auth,input);
-  const monthlyAction=path.match(/^\/api\/admin\/platform\/program-monthly-subscriptions\/(get|configure|save|grid|grid-save)$/)?.[1];
+  const monthlyAction=path.match(/^\/api\/admin\/platform\/program-monthly-subscriptions\/(get|configure|save|grid|grid-save|surahs|surah-save)$/)?.[1];
   if(monthlyAction)return {success:true,...await programMonthlySubscriptions(sourceRepository,auth).run(monthlyAction,input)};
+  if(path==='/api/academy/monthly-media/surahs'){
+    if(!sourceRepository.features.monthlySubscriptions)throw rehearsalError('Surah websites are unavailable.',503);
+    if(auth.workspace!=='LEARN'||auth.adminView)return {success:true,surahs:[]};
+    const rows=(await sourceRepository.coreDb.prepare(`SELECT s.surah_id,s.activity_key,s.name,s.completion_date FROM program_surahs s
+     JOIN program_monthly_media_policies p USING(activity_key) JOIN activities a USING(activity_key)
+     JOIN program_surah_website_documents d USING(surah_id)
+     WHERE s.active=1 AND a.active=1 AND a.lifecycle='ACTIVE' AND p.enabled=1 AND d.enabled=1
+     AND EXISTS(SELECT 1 FROM academy_settings f WHERE f.setting_key='SurahWebsitePublished:'||s.surah_id AND f.setting_value='1')
+     AND EXISTS(SELECT 1 FROM program_monthly_subscriptions m WHERE m.activity_key=s.activity_key AND m.account_id=? AND m.lesson_month=substr(s.completion_date,1,7) AND m.active=1)
+     ORDER BY s.completion_date DESC,s.name LIMIT 200`).bind(auth.user.accountid).all()).results;
+    return {success:true,surahs:rows.map(r=>({id:r.surah_id,activityKey:r.activity_key,name:r.name,completionDate:r.completion_date,href:'/academy/course-websites/view/?program='+encodeURIComponent(r.activity_key.slice(8))+'&surah='+encodeURIComponent(r.surah_id)}))};
+  }
   if(path==='/api/academy/monthly-media/months'){
     if(!sourceRepository.features.monthlySubscriptions)throw rehearsalError('Monthly media is unavailable.',503);
     const grants=auth.workspace==='LEARN'&&!auth.adminView?(auth.state.monthlyMedia||[]):[];

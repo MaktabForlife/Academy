@@ -6,6 +6,8 @@ export async function monthlyFixture(){
  const f=await videoFixture();
  f.db.exec(readFileSync(new URL('../../migrations/academy/0040_program_monthly_subscriptions.sql',import.meta.url),'utf8'));
  f.db.prepare('UPDATE activities SET name=? WHERE activity_key=?').run('Tafseer',scope);
+ f.db.exec(readFileSync(new URL('../../migrations/academy/0039_course_websites.sql',import.meta.url),'utf8'));
+ f.db.exec(readFileSync(new URL('../../migrations/academy/0041_program_surah_websites.sql',import.meta.url),'utf8'));
  f.env.ACADEMY_MONTHLY_SUBSCRIPTIONS='1';
  f.monthly=(action,input,token)=>f.call('/api/admin/platform/program-monthly-subscriptions/'+action,{activityKey:scope,...input},token);
  f.monthlyOwn=(action,input,token)=>f.call('/api/academy/monthly-media/'+action,{...input},token);

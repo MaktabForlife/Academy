@@ -9,7 +9,7 @@ import {academyDate,nextDate} from '../../src/academy/d1/academy-clock.js';
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;},operation=()=>({operationId:crypto.randomUUID()}),today=()=>academyDate(new Date(),'Africa/Johannesburg');
 export async function nativeImtihaan(fn){
  const f=await separationFixture();try{
-  for(const name of ['0039_course_websites.sql','0032_accepted_setup.sql','0033_native_attendance.sql','0034_assessment_operations.sql']){f.db.exec('BEGIN');f.db.exec(readFileSync(new URL('../../migrations/academy/'+name,import.meta.url),'utf8'));f.db.exec('COMMIT');}
+  for(const name of ['0039_course_websites.sql','0041_program_surah_websites.sql','0032_accepted_setup.sql','0033_native_attendance.sql','0034_assessment_operations.sql']){f.db.exec('BEGIN');f.db.exec(readFileSync(new URL('../../migrations/academy/'+name,import.meta.url),'utf8'));f.db.exec('COMMIT');}
   await initialiseAcceptedSetup(f.env.ACADEMY_DB);f.env.ACADEMY_ACCEPTED_SETUP='1';f.env.ACADEMY_LEARNING_OPERATIONS='3';
   const tokens={admin:await f.actor('global'),programAdmin:await f.actor('adminA'),teacher:await f.login('0003'),examiner:await f.actor('teacherA'),student:await f.login('0002')};
   f.request=async(action,input={},who='admin',workspace=['admin','programAdmin'].includes(who)?'ADMIN':['teacher','examiner'].includes(who)?'TEACH':'LEARN',bytes)=>{
