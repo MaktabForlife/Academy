@@ -130,6 +130,7 @@
     try {
       const result = await api("/api/account/login", { uniqueid: uniqueId, pin });
       await acceptSession(result, true, { autoOpen: false, redirectingToAcademy: returnToAcademy });
+      window.M4L_ACADEMY_ACCOUNTS?.recordLogin(result.account, 'login-form');
       if (returnToAcademy) {
         sessionStorage.setItem("m4l_academy_signed_in", uniqueId);
         window.location.assign("/academy/#overview");
@@ -170,6 +171,7 @@
         pinConfirmation
       });
       await acceptSession(result, true, { autoOpen: false, redirectingToAcademy: returnToAcademy });
+      window.M4L_ACADEMY_ACCOUNTS?.recordLogin(result.account, 'setup-form');
       if (returnToAcademy) {
         sessionStorage.setItem("m4l_academy_signed_in", uniqueId);
         window.location.assign("/academy/#overview");

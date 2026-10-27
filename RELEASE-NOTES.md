@@ -1,3 +1,9 @@
+# V107.85 — Remembered IDs and PIN-protected account switching
+
+Login can remember verified IDs on this browser. Choose a remembered ID or enter another from Switch account in the shared header, then authorise with a fresh PIN. Keep the current session on failed or cancelled attempts; end it and clear private account state after success. Reopen all Academy tabs in the new account's authorised workspace and block switching during unfinished work. Sign-out retains the optional ID list; Remove and Forget all work locally.
+
+Preserves V107.84. No database migration, coordinator change or new authentication bypass. [Implementation and verification](docs/ACADEMY-ACCOUNT-SWITCHING-10785.md).
+
 # V107.84 — Reduce permission and timetable/calendar reads
 
 Repeated coordinator reads reuse a server-verified permission proof only while live account/session validity, database version and timed grants still match. Writes retain full authority verification and atomic guards. Accepted timetable/calendar queries capture only the requested publication components from both stores, preserving owner merging, live visibility and published behaviour.

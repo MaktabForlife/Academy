@@ -174,13 +174,21 @@
       const result = await api("/api/account/session", {}, token);
       if (generation !== sessionGeneration || localStorage.getItem(tokenKey) !== token) return;
       const account = result.account;
-      if (!account?.uniqueid || (expectedId && String(account.uniqueid).trim().toUpperCase() !== expectedId.toUpperCase())) {
+      if (!account?.uniqueid) {
         throw Object.assign(new Error("The signed-in account has changed."), { status: 401 });
+      }
+      if (expectedId && String(account.uniqueid).trim().toUpperCase() !== expectedId.toUpperCase()) {
+        // A loading/restored tab may retain the previous account's local ID hint.
+        // The current token has just been verified by the server; keep it and
+        // discard the old private state instead of signing every tab out.
+        clearStoredAccountState(true);
+        window.M4L_ACADEMY_READ_CACHE?.invalidate({ privateOnly: true });
       }
       sessionStorage.setItem(academySessionKey, account.uniqueid);
       showSignedIn(account, result.sessionStore, result);
     } catch (error) {
       if (generation !== sessionGeneration || localStorage.getItem(tokenKey) !== token) return;
+      if (error?.name === 'AbortError') return; // A superseded workspace request cannot end the current sign-in.
       if (isTemporaryServiceError(error) &&
         localStorage.getItem(tokenKey) === token &&
         sessionStorage.getItem(academySessionKey) === expectedId) {
@@ -281,6 +289,7 @@
       clearStoredAccountState();
       localStorage.setItem(tokenKey, result.token);
       sessionStorage.setItem(academySessionKey, result.account?.uniqueid || uniqueId);
+      window.M4L_ACADEMY_ACCOUNTS?.recordLogin(result.account);
       pinInput.value = "";
       showStatus("");
       if (showSignedIn(result.account || { uniqueid: uniqueId }, result.sessionStore, result)) return;
@@ -293,10 +302,10 @@
     }
   }
 
-  function clearStoredAccountState() {
+  function clearStoredAccountState(keepToken = false) {
     sessionStorage.removeItem(academySessionKey);
     for (const key of [tokenKey, "m4l_account_context", "m4l_account_contexts", "m4l_account_workspace", "maktab_token", "maktab_user_type"]) {
-      localStorage.removeItem(key);
+      if (key !== tokenKey || !keepToken) localStorage.removeItem(key);
     }
     for (let index = localStorage.length - 1; index >= 0; index -= 1) {
       const key = localStorage.key(index);

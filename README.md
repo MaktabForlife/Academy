@@ -1,3 +1,9 @@
+# V107.85 — Remembered IDs and account switching
+
+Optionally remember account IDs in this browser and choose them from Login or Switch account. Every switch requires a fresh PIN verified by the existing account service. Wrong PINs and cancellation keep the current account; successful switching ends its session, clears private cached information and opens the new authorised workspace across Academy tabs. Include local removal/forget controls and protect unfinished work.
+
+Released from `feature/academy-account-switching`, incorporating V107.84. No database upgrade or coordinator change. [Implementation and verification](docs/ACADEMY-ACCOUNT-SWITCHING-10785.md).
+
 # V107.84 — Permission and timetable/calendar read optimisation
 
 Repeated permission proofs now reuse a server-verified database version while retaining live session, revocation, expiry and timed-grant checks. Accepted timetable/calendar reads capture only the requested publication components instead of unrelated history. Write guards, owner merging, published visibility and app responses are preserved.

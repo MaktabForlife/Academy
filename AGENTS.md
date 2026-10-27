@@ -1,3 +1,9 @@
+# Remembered-ID account switching release — 27 October 2026
+
+- The user explicitly requested building and deploying the approved remembered-ID / fresh-PIN account switcher on a new feature branch. Work on `feature/academy-account-switching`, incorporating deployed V107.84, and release V107.85 through the existing Academy Development website and API workflow.
+- Remember IDs and optional names only after successful opt-in login. Every switch requires server PIN verification. Preserve current permissions, scoped caches, pending-work guards, existing rate limits and revocations. No database migration or private coordinator change is required.
+- Keep live checks small under ../AGENTS.md. Use disposable local accounts and targeted deployment/readiness/static checks. Future deployments require fresh user authorisation.
+
 # Permission and timetable/calendar optimisation release — 27 October 2026
 
 - The user explicitly approved deploying the tested permission and timetable/calendar optimisations. Release feature/academy-permission-timetable-reads as V107.84, incorporating deployed V107.83. This supersedes the local deployment hold below for this release only.
