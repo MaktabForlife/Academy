@@ -2,6 +2,10 @@
 
 Branch: `feature/surah-kahf-course-companion`. The preparation was based on V107.85; the authorised release incorporates deployed V107.88 (`f569350d`). The user confirmed V107.88 was live and explicitly authorised deployment as the next release, V107.89. No live data/settings/schema changes are included.
 
+## Local review follow-ups — not deployed
+
+The user has explicitly asked to hold deployment while sending feedback. The working branch now keeps the dashboard entry to one card column, puts the course PDF and reflection downloads only in Course materials, and removes course print controls and prompts. The course uses the existing Academy identity/date, Home, Refresh, Switch account, Sign out and workspace headers. Verified Admin readers use the mobile design's compact Admin badge, including its Curriculum action and read-only context, instead of the full-width banner. The course keeps its own lesson sidebar, mobile contents menu and bottom navigation. Existing workspace pages retain their current header presentation. The release description below records V107.89 before these local follow-ups.
+
 ## Student experience
 
 The Surah Al Kahf dashboard course card opens the new cream/plum mobile-first course website. Existing learner course links for timetable, lesson media, Library and assessments also lead to the relevant website section. Teacher workspace links retain their original course screens so dated/recurring note uploads, material editing and other teaching tools remain available. Course management, attendance and planning destinations remain in their existing tools; Admin management navigation is retained. Explicit Teach links from a Learn page also retain their teaching destination.

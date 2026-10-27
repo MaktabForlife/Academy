@@ -153,7 +153,6 @@
   function updateType(){ document.documentElement.style.setProperty('--reading-size',readingSize+'px'); document.getElementById('type-smaller').disabled=readingSize<=16; document.getElementById('type-larger').disabled=readingSize>=24; store.set('text-size',String(readingSize)); }
   document.getElementById('type-smaller').addEventListener('click',()=>{readingSize=Math.max(16,readingSize-2);updateType();});
   document.getElementById('type-larger').addEventListener('click',()=>{readingSize=Math.min(24,readingSize+2);updateType();});
-  document.getElementById('print-reading').addEventListener('click',()=>window.print());
   note.addEventListener('input',()=>{if(activeLesson)saveField(note,activeLesson,'general');});
   completion.addEventListener('click',()=>{
     if(!activeLesson)return;
@@ -182,7 +181,6 @@
     const url=URL.createObjectURL(new Blob([lines.join('\n')],{type:'text/plain;charset=utf-8'}));
     const a=document.createElement('a');a.href=url;a.download=selected.length===1?`surah-al-kahf-${selected[0].id}-reflections.txt`:'surah-al-kahf-all-my-reflections.txt';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
-  document.getElementById('download-note').addEventListener('click',()=>{if(activeLesson)exportNotes([activeLesson]);});
   document.getElementById('download-all-notes').addEventListener('click',()=>exportNotes(lessons));
   window.addEventListener('hashchange',()=>showRoute());
   updateType();showRoute(true);

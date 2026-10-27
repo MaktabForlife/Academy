@@ -29,7 +29,7 @@
  quick.hidden=!document.getElementById('academy-home-card');
  const nav=sidebar.querySelector('nav');if(nav){nav.setAttribute('aria-label','Academy quick links');quick.append(nav);quickBlocks(nav);}
  for(const child of [...sidebar.children])if(child!==brand)child.hidden=true;
- if(document.getElementById('academy-home-card')||document.body.classList.contains('pr-body')){const dates=document.createElement('aside');dates.className='academy-date-box';dates.setAttribute('aria-label','Today’s Hijri and Gregorian dates');dates.innerHTML='<div aria-label="Hijri date"><em id="academy-hijri-date" title="Hijri date from Jamiat">Loading Hijri date…</em></div><div aria-label="Gregorian date"><time id="academy-gregorian-date"></time></div>';sidebar.append(dates);}
+ if(document.getElementById('academy-home-card')||document.body.classList.contains('pr-body')||document.body.dataset.academyHeaderDates==='true'){const dates=document.createElement('aside');dates.className='academy-date-box';dates.setAttribute('aria-label','Today’s Hijri and Gregorian dates');dates.innerHTML='<div aria-label="Hijri date"><em id="academy-hijri-date" title="Hijri date from Jamiat">Loading Hijri date…</em></div><div aria-label="Gregorian date"><time id="academy-gregorian-date"></time></div>';sidebar.append(dates);}
  // Match Hifz's two-banner layout: identity/date together at the left;
  // page actions join this top banner after the shared account bar is ready.
  const identity=document.createElement('div');identity.className='academy-brand-details';identity.append(brand);
@@ -43,7 +43,8 @@
  const adminRealm=()=>Boolean(boundary?.adminRealm()&&boundary?.adminAccess());
  function canLeave(){return ['M4L_CLASS_NOTES','M4L_ACADEMY_SETTINGS','M4L_PROGRAM_ATTENDANCE','M4L_ACADEMY_PROGRESS','M4L_MEMORISATION_ADMIN','M4L_ACADEMY_ASSESSMENTS','M4L_LESSON_MEDIA','M4L_PLANNING','M4L_ANNOUNCEMENTS','M4L_PDF_READER'].every(key=>window[key]?.canLeave?.()!==false);}
  function openRole(key){const base=key==='admin'||adminRealm()?'/academy/admin/':'/academy/',hash=key==='admin'?'#administration':'#timetable/'+key;if([base,base+'index.html'].includes(location.pathname))location.hash=hash;else if(canLeave())location.href=base+hash;}
- const context=document.createElement('section');context.hidden=true;context.id='academy-workspace-context';context.className='academy-workspace-context';context.setAttribute('aria-label','Current workspace');banners.append(context);
+ const compactAdmin=document.body.dataset.academyAdminContext==='badge';
+ const context=document.createElement('section');context.hidden=true;context.id='academy-workspace-context';context.className=compactAdmin?'academy-admin-context':'academy-workspace-context';context.setAttribute('aria-label','Current workspace');banners.append(context);
  const curriculum=document.createElement('dialog');curriculum.className='academy-side-menu';curriculum.id='academy-curriculum-menu';curriculum.setAttribute('aria-label','Curriculum');document.body.append(curriculum);
  const phone=matchMedia('(max-width:767px)'),esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
  let curriculumData=null,curriculumOwner='';
@@ -75,6 +76,12 @@
   const mode=boundary?.current()||'LEARN',isAdmin=adminRealm();context.hidden=!isAdmin;document.body.dataset.academyWorkspace=isAdmin||!boundary?.adminRealm()?mode:'';document.title=(isAdmin?mode.replace('_','-')+' · ':boundary?.adminRealm()&&!data?.signedIn?'Admin sign-in · ':'')+pageTitle;
   if(!isAdmin){context.replaceChildren();if(curriculum.open)curriculum.close();return;}
   const label=mode.replace('_','-'),description=mode==='ADMIN_LEARN'?'Student class view · read only':mode==='ADMIN_TEACH'?'Teaching within your Admin scope':'Academy management';
+  if(compactAdmin){
+   const profile=banners.querySelector('.academy-profile');if(profile&&context.parentElement!==profile)profile.insertBefore(context,profile.querySelector('small'));
+   const hint=label+' · '+description;
+   context.innerHTML=mode==='ADMIN'?'<span class="academy-admin-badge" title="'+hint+'">Admin</span>':'<button type="button" class="academy-admin-badge" data-curriculum-open aria-haspopup="dialog" aria-controls="academy-curriculum-menu" aria-label="'+hint+' · Open Curriculum" title="'+hint+' · Open Curriculum">Admin <span aria-hidden="true">⌄</span></button>';
+   return;
+  }
   context.innerHTML='<div><strong>'+label+'</strong>'+(mode==='ADMIN'?'':'<button type="button" class="academy-curriculum-button" data-curriculum-open aria-haspopup="dialog" aria-controls="academy-curriculum-menu">Curriculum</button>')+'<span>'+description+'</span></div>';
  }
  document.addEventListener('click',event=>{if(event.target.closest?.('[data-workspace-exit],[data-recorder-link]')&&!canLeave())event.preventDefault();});

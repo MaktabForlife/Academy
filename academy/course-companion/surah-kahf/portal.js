@@ -42,7 +42,9 @@
  function renderMaterials(){
   const rows=feed.sessions||[];
   $('live-sessions').innerHTML=rows.map(row=>`<article class="session-card portal-session"><div class="session-details"><span class="eyebrow">${escape(dateLabel(row.date))}${row.startTime?' · '+escape(row.startTime):''}</span><h2>${escape(row.title||feed.activityName)}</h2>${row.teacherName?`<p>${escape(row.teacherName)}</p>`:''}${row.media?.summary?`<p>${escape(row.media.summary)}</p>`:''}<div class="portal-file-list">${assetsHTML(row.media)||'<span class="session-availability">Materials will appear here when published.</span>'}</div></div></article>`).join('')||'<p class="info-note">No recordings or session notes have been published yet.</p>';
-  $('live-course-files').innerHTML=assetsHTML(feed.courseFiles?.media)||'<p>No additional course files are available.</p>';
+  const courseFiles=feed.courseFiles?.media,pdf=feed.courseCompanion?.pdf;
+  const additionalFiles=courseFiles&&{...courseFiles,assets:(courseFiles.assets||[]).filter(a=>courseFiles.id!==pdf?.lessonId||a.id!==pdf?.assetId)};
+  $('live-course-files').innerHTML=assetsHTML(additionalFiles)||'<p>No additional course files are available.</p>';
   $('earlier-materials').hidden=!feed.before;
   $('materials-status').textContent='';
   $('session-timezone').textContent='Session times: '+(feed.timezone||'Africa/Johannesburg').replaceAll('_',' ');
@@ -91,7 +93,6 @@
  async function coursePDF(link){
   if(!feed?.courseCompanion?.pdf)return;
   const {lessonId,assetId}=feed.courseCompanion.pdf,media=findMedia(lessonId);
-  if(!link.hasAttribute('download')){openAttachment(media,assetId);return;}
   link.setAttribute('aria-busy','true');
   try{
    const blob=await request('academy/lesson-media/download',{activityKey,lessonId,assetId},true);

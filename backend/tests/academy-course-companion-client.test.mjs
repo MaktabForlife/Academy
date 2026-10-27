@@ -32,7 +32,10 @@ test('the static Academy package holds a shell without the protected readings or
  assert.doesNotMatch(html,/Whoever memorises ten|booklet p\.|view the original|#page=/i);
  assert.match(html,/data-dashboard/);assert.match(html,/m4l-academy-read-cache\.js\?v=/);
  assert.ok(html.indexOf('m4l-academy-workspace.js')<html.indexOf('m4l-academy-read-cache.js')&&html.indexOf('m4l-academy-read-cache.js')<html.indexOf('src="portal.js'));
- assert.match(html,/data-course-pdf download/);assert.match(html,/id="print-reading"/);
+ assert.match(html,/data-course-pdf download/);assert.doesNotMatch(html,/id="print-reading"|#i-print|download or print|Open \/ print/i);
+ const materials=html.slice(html.indexOf('id="view-resources"'),html.indexOf('id="view-assessments"'));
+ assert.equal((html.match(/data-course-pdf/g)||[]).length,1);assert.match(materials,/data-course-pdf download/);assert.match(materials,/id="download-all-notes"/);
+ assert.doesNotMatch(reader,/window\.print\(|getElementById\('(?:print-reading|download-note)'\)/);
  for(const id of [...bridge.matchAll(/\$\('([^']+)'\)/g)].map(m=>m[1]))assert.match(html,new RegExp('id="'+id+'"'));
 });
 test('a signed-out visitor gets a sign-in message before any course request',async()=>{
@@ -68,6 +71,7 @@ const timetable=()=>({success:true,signedIn:true,startDate:'2026-10-25',activity
 test('a course PDF download is freshly authorised and its temporary URL is cleared on account change',async()=>{
  const f=fixture({fetcher:async url=>String(url).endsWith('/download')?new Response('%PDF-fixture',{headers:{'Content-Type':'application/pdf'}}):Response.json(String(url).endsWith('/feed')?pdfFeed():timetable())});
  f.run();await tick();await tick();const {target}=pdfLink();f.click(target);await tick();await tick();
+ assert.doesNotMatch(f.elements.get('live-course-files').innerHTML,/data-attachment="pdf"/);
  const request=f.calls.find(c=>String(c.url).endsWith('/download'));assert.ok(request);assert.equal(request.options.headers.Authorization,'Bearer actor-one');assert.deepEqual(JSON.parse(request.options.body),{activityKey:'COURSE:kahf-test',lessonId:'book',assetId:'pdf'});
  assert.equal(f.downloads.length,1);assert.equal(f.downloads[0].name,'surah-kahf.pdf');assert.equal(f.objectUrls[0].blob.type,'application/pdf');
  f.storage.set('m4l_account_token','actor-two');f.window.dispatchEvent(Object.assign(new Event('storage'),{key:'m4l_account_token'}));assert.equal(f.objectUrls[0].revoked,true);
