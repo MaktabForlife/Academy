@@ -12,6 +12,7 @@ import worker from '../src/academy-runtime.js';
 const port=Number(process.env.TAFSEER_PREVIEW_PORT||4318);
 if(!Number.isInteger(port)||port<1024||port>65535)throw Error('Choose a local preview port between 1024 and 65535.');
 const origin='http://127.0.0.1:'+port,root=resolve(fileURLToPath(new URL('../../',import.meta.url))),f=await monthlyFixture();
+f.env.ALLOWED_ORIGINS=origin;
 f.db.prepare("UPDATE accounts SET display_name='Sample account '||substr(account_id,-4)").run();
 const admin=await f.login('0001'),student=await f.login('0002'),op=()=>crypto.randomUUID();
 const ok=result=>{if(result.status!==200)throw Error(JSON.stringify(result.body));return result.body;};
