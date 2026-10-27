@@ -541,8 +541,7 @@
       ? '<a class="workspace-recorder-pill" data-recorder-link href="/recorder/?academy=1">Voice Recorder</a>' : '';
     const courseWebsite=context.mode==='teach'?window.M4L_COURSE_COMPANION?.href(row,'course-website','teach'):'';
     const websiteLink=courseWebsite?`<a id="activity-course-website" data-workspace-exit href="${esc(courseWebsite)}">Course website ↗</a>`:'';
-    const currentLabel=tools.find(([key])=>key===context.tool)?.[1]||'Timetable';
-    return `<details class="workspace-contents" data-learning-kind="${esc(row.kind)}"><summary><span>Contents</span><span class="workspace-current">${esc(currentLabel)}</span></summary><nav class="workspace-tabs" aria-label="${context.mode === 'teach' ? 'Teach' : 'Learn'} tools">${tools.map(([key,label,panel]) => `<a id="activity-tab-${key}" data-workspace-link href="${key==='library'?'/academy/library/':workspaceHref(row,key)}" aria-controls="${panel}"${context.tool===key?' aria-current="page"':''}>${label}</a>${key==='timetable'&&!row.substituteOnly?`<button type="button" class="cn-toggle" data-class-notes-toggle aria-pressed="${Boolean(window.M4L_CLASS_NOTES?.visible())}" aria-controls="activity-sessions">Class Notes</button>`:''}`).join('')}${websiteLink}${recorder}</nav></details>${hifzHelperLink(row,'workspace-helper')}`;
+    return `<details class="workspace-contents" data-learning-kind="${esc(row.kind)}"><summary class="academy-menu-button"><span>Menu</span><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></summary><nav class="workspace-tabs" aria-label="${context.mode === 'teach' ? 'Teach' : 'Learn'} tools">${tools.map(([key,label,panel]) => `<a id="activity-tab-${key}" data-workspace-link href="${key==='library'?'/academy/library/':workspaceHref(row,key)}" aria-controls="${panel}"${context.tool===key?' aria-current="page"':''}>${label}</a>${key==='timetable'&&!row.substituteOnly?`<button type="button" class="cn-toggle" data-class-notes-toggle aria-pressed="${Boolean(window.M4L_CLASS_NOTES?.visible())}" aria-controls="activity-sessions">Class Notes</button>`:''}`).join('')}${websiteLink}${recorder}</nav></details>${hifzHelperLink(row,'workspace-helper')}`;
   }
   // Shared Messages, calendar and tracker are available from the dashboard.
   function supportSections() { return ''; }
@@ -794,7 +793,9 @@
 
   function renderPersonalWeek(id, rows, detailed, next, now) {
     const programTimetable = id === 'activity-sessions' && state.activity?.kind === 'PROGRAM';
-    const adminRollup = id === 'academy-sessions' && state.home?.signedIn && window.M4L_ACADEMY_WORKSPACE.current() === 'ADMIN' && location.hash === '#administration';
+    const workspace=window.M4L_ACADEMY_WORKSPACE.current();
+    const globalAdminReader=state.home?.workspaceAccess?.globalAdmin===true&&['ADMIN_LEARN','ADMIN_TEACH'].includes(workspace);
+    const adminRollup = state.home?.signedIn && (globalAdminReader&&['academy-sessions','activity-sessions'].includes(id)||id==='academy-sessions'&&workspace==='ADMIN'&&location.hash==='#administration');
     const media=timetableAttachments(rows);
     window.M4L_CLASS_NOTES?.timetable(rows,()=>{if(location.hash.startsWith('#activity/')&&state.activity)renderActivityTimetable();else if(location.hash.startsWith('#timetable')||location.hash==='#administration')renderSchedule('academy-sessions',roleRows({...state.home,personalTimetable:state.scheduleTimetable,timetable:state.scheduleTimetable}));});
     const scrollLeft = $(id).scrollLeft || 0;
@@ -814,8 +815,8 @@
       const row = { ...original, sourceDate: original.date, date: begins.date, startTime: begins.time, endTime: ends.time, endDate: ends.date };
       if (!days.has(row.date)) return;
       const groups = days.get(row.date);
-      // Combine overlapping/contiguous Program lessons only within one Program,
-      // day and room. A gap, different Program or missing link starts a new card.
+      // Admin overview cards contain a whole learning area's day. Other readers
+      // combine only authorised contiguous lessons within the same room.
       let key = `lesson:${index}`;
       if (adminRollup && ['PROGRAM','COURSE'].includes(row.kind))key=JSON.stringify(['admin-day',row.kind,row.activityId]);
       else if (summarizeLesson(row) && row.meetingGroup) {
@@ -844,14 +845,14 @@
       const activities = [...new Set(entries.map(entry => entry.row.activityName))];
       const lessonNames = [...new Set(entries.map(({row}) => row.moduleName || row.subjectName || (row.title !== row.activityName ? row.title : '') || 'Lesson'))];
       const teachers = [...new Set(entries.flatMap(({row}) => row.teacherNames?.length ? row.teacherNames : [row.teacherName]).filter(Boolean))];
-      const label = programTimetable ? lessonNames.join(' · ') : activities.join(' · ');
+      const label = programTimetable && !dailyRollup ? lessonNames.join(' · ') : activities.join(' · ');
       const lessonTitle = first.moduleName || first.subjectName || first.title || first.activityName;
       const nextEntry = entries.find(entry => entry.index === next);
       const infoIndex = state.information[id].push({ title: label, dailyRollup: dailyRollup, lessons: entries.map(entry => entry.row) }) - 1;
       const joinable = entries.find(({ row }) => row.status === 'SCHEDULED' && now >= row.joinAvailableAt && now < row.endsAt && row.joinKey);
       const join = joinable ? dailyRollup ? `<button type="button" class="timetable-join" data-information="${id}:${infoIndex}">Join class</button>` : `<button type="button" class="timetable-join" data-join="${id}:${infoIndex}:${entries.indexOf(joinable)}">Join lesson</button>` : '';
       const status = nextEntry ? nextEntry.row.startsAt <= now ? 'In progress' : 'Next lesson' : '';
-      const lessonCount = summary && entries.length > 1 ? `${entries.length} lessons` : '';
+      const lessonCount = !dailyRollup && summary && entries.length > 1 ? `${entries.length} lessons` : '';
       const classCount = new Set(entries.flatMap(({row})=>row.classIds||row.classNames||[])).size;
       const subtitle = dailyRollup ? `${classCount?classCount+' class'+(classCount===1?'':'es')+' · ':''}${entries.length} lesson${entries.length===1?'':'s'}` : programTimetable ? teachers.join(', ') || 'No teacher assigned' : lessonCount || (lessonTitle !== label ? lessonTitle : '');
       const count = programTimetable && lessonCount ? `<small>${esc(lessonCount)}</small>` : '';

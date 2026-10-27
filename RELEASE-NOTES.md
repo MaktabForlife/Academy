@@ -1,3 +1,7 @@
+## V107.98 — Shared header, Menu and Imtehaan cards
+
+Rebuild the shared header to the supplied reference, highlighting only the username. Use the white Menu/hamburger design throughout navigation and keep Close in a separate position. Admin Coming up next shows four compact cards in a 2×2 grid. Dashboard Imtehaan uses two-column cards for published exams and assignments, excluding draft, complete, cancelled and archived registers. Assignment opening/due windows restore Reboot's missing Imtehaan. Global Admin's Admin-Learn and Admin-Teach timetables group each day's lessons into one Program/Course card with full information-dialog details. Preserve current permissions, joining and draft safeguards. [Implementation and verification](docs/ACADEMY-HEADER-MENU-IMTEHAAN-10798.md).
+
 # V107.97 — Dashboard and mobile reading refinements
 
 Compact Admin headers and workspace navigation; right-side dashboard and Program Contents menus; management and upcoming-session card grids; small Quick tools and Notes icons; two-day timetables focused on today; complete assessment cards on phones; and course-scoped Library selection. Remove duplicate review buttons, plan-review status labels and redundant helper text. Preserve V107.96 course features, current access/publication gates and unsaved-work safeguards. No schema, hosted data or private coordinator changes.

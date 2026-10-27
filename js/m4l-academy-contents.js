@@ -17,7 +17,7 @@
   if(drawer){close();return;}if(!program(menu))return;
   nav=menu.querySelector('.workspace-tabs');if(!nav)return;drawerMenu=menu;
   drawer=document.createElement('dialog');drawer.id='activity-contents-drawer';drawer.className='academy-drawer';drawer.setAttribute('aria-labelledby','activity-contents-title');
-  drawer.innerHTML='<header class="academy-drawer-heading academy-close-heading"><h2 id="activity-contents-title">Contents</h2><button type="button" class="academy-close" data-activity-contents-close aria-label="Close Contents" title="Close Contents" autofocus>Close Contents</button></header>';
+  drawer.innerHTML='<header class="academy-drawer-heading academy-close-heading"><h2 id="activity-contents-title">Menu</h2><button type="button" class="academy-close" data-activity-contents-close aria-label="Close Menu" title="Close Menu" autofocus>Close Menu</button></header>';
   drawer.append(nav);document.body.append(drawer);menu.open=true;menu.querySelector('summary').setAttribute('aria-expanded','true');document.body.classList.add('activity-contents-open');
   drawer.addEventListener('cancel',event=>{event.preventDefault();close();});
   drawer.addEventListener('close',()=>{if(drawer)close();});

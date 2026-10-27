@@ -158,3 +158,11 @@ body.academy-shell{padding-left:0!important;--academy-gutter:clamp(12px,3vw,28px
 .academy-admin-badge{display:inline-flex;align-items:center;justify-content:center;gap:4px;border:1px solid #c89b43;border-radius:999px;padding:3px 8px;background:#fff5dd;color:#593e08;font:inherit;white-space:normal}
 button.academy-admin-badge{min-height:44px;cursor:pointer}
 .academy-role-short,.page-signout-icon{display:none}
+/* One Menu trigger, matching the shared white button and hamburger icon. */
+#dashboard.ad-admin-dashboard .ad-contents-toggle,
+body.academy-shell .ad-contents-toggle.academy-menu-button,
+body.academy-shell .workspace-contents>summary.academy-menu-button{align-items:center;justify-content:center;gap:.625rem;min-height:48px;padding:.625rem .875rem;border:0;border-radius:12px;background:#fffcff;color:#6d3f76;font:700 1rem/1.3 Arial,sans-serif;list-style:none;cursor:pointer}
+body.academy-shell .academy-menu-button svg{display:block;flex:none;width:24px;height:24px;stroke:currentColor}
+body.academy-shell .workspace-contents>summary.academy-menu-button::after{content:none}
+body.academy-shell .workspace-contents:has(>summary.academy-menu-button)::before{content:none;display:none}
+body.academy-shell .workspace-contents>summary.academy-menu-button::-webkit-details-marker{display:none}

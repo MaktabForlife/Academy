@@ -44,7 +44,7 @@
     const drawer=document.createElement('dialog');contentsDrawer=drawer;
     drawer.id='ad-contents-drawer';drawer.className='academy-drawer ad-contents-drawer';
     drawer.setAttribute('aria-labelledby','ad-contents-title');
-    const caption=mode==='admin'?'Menu':'Contents';
+    const caption='Menu';
     drawer.innerHTML='<header class="academy-drawer-heading academy-close-heading"><h2 id="ad-contents-title">'+caption+'</h2><button type="button" class="academy-close" data-ad-contents-close aria-label="Close '+caption+'" title="Close '+caption+'" autofocus>Close '+caption+'</button></header>';
     drawer.append(nav);document.body.append(drawer);
     drawer.addEventListener('cancel',event=>{event.preventDefault();closeContents();});
@@ -100,7 +100,7 @@
     const host=$('dashboard');if(!host)return;
     closeContents(false);
     host.classList.toggle('ad-admin-dashboard',mode==='admin');
-    host.innerHTML=`<div class="ad-layout"><aside class="ad-sidebar" aria-label="Contents"><h2>Contents</h2><nav id="ad-navigation"></nav></aside><div class="ad-main"><header class="ad-intro"><div class="ad-welcome"><div class="ad-welcome-copy"><h1 id="ad-title"></h1></div><button type="button" class="ad-contents-toggle" data-ad-contents-toggle aria-haspopup="dialog" aria-expanded="false" aria-controls="ad-navigation"><span>Contents</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button></div><div id="ad-primary-actions" class="ad-actions"></div></header><p id="ad-status" class="ad-status" role="status" aria-live="polite"></p><div class="ad-grid"><div class="ad-stack"><section class="ad-panel ad-attention" aria-labelledby="ad-fya-title"><header><h2 id="ad-fya-title">For your attention</h2><span id="ad-fya-count" class="ad-count"></span></header><div id="ad-attention"></div></section><section class="ad-panel ad-assessments" aria-labelledby="ad-assessment-title"><header><h2 id="ad-assessment-title">Assessments</h2><span id="ad-assessment-count" class="ad-count"></span></header><div id="ad-assessments" aria-live="polite"></div></section></div><div class="ad-stack"><section class="ad-panel ad-next" aria-labelledby="ad-next-title"><header><h2 id="ad-next-title">Coming up next</h2></header><div id="ad-next"></div></section><section class="ad-panel ad-messages" aria-labelledby="ad-messages-title"><header><h2 id="ad-messages-title">Messages <span id="ad-unread" class="ad-count"></span></h2><button type="button" data-ad-inbox>View inbox →</button></header><div id="ad-messages"></div></section></div></div><section class="ad-continue"><h2 id="ad-continue-title">Continue learning</h2><div id="ad-areas"></div></section><section class="ad-week" aria-labelledby="ad-week-title"><header><h2 id="ad-week-title">This week</h2></header><div id="ad-timetable-host"></div></section><div id="ad-calendar-row" class="ad-calendar-row"><section class="ad-panel ad-calendar" aria-labelledby="ad-calendar-title"><header><h2 id="ad-calendar-title">Academy calendar</h2></header><div id="ad-calendar-host"></div></section><div id="ad-calendar-actions" class="ad-calendar-actions" hidden><section id="ad-attendance-panel" class="ad-panel ad-queue" aria-labelledby="ad-attendance-title"><header><h2 id="ad-attendance-title">Mark attendance</h2><span id="ad-attendance-count" class="ad-count"></span></header><div id="ad-attendance" class="ad-queue-body" tabindex="0" role="region" aria-labelledby="ad-attendance-title"></div></section><section id="ad-plans-panel" class="ad-panel ad-queue" aria-labelledby="ad-plans-title"><header><h2 id="ad-plans-title">Lesson plans due</h2><span id="ad-plans-count" class="ad-count"></span></header><div id="ad-plans" class="ad-queue-body" tabindex="0" role="region" aria-labelledby="ad-plans-title"></div></section></div></div><section class="ad-panel ad-tools"><header><h2>Quick tools</h2></header><nav id="ad-tools" aria-label="Dashboard tools"></nav></section></div></div>`;
+    host.innerHTML=`<div class="ad-layout"><aside class="ad-sidebar" aria-label="Menu"><h2>Menu</h2><nav id="ad-navigation"></nav></aside><div class="ad-main"><header class="ad-intro"><div class="ad-welcome"><div class="ad-welcome-copy"><h1 id="ad-title"></h1></div><button type="button" class="ad-contents-toggle academy-menu-button" data-ad-contents-toggle aria-haspopup="dialog" aria-expanded="false" aria-controls="ad-navigation"><span>Menu</span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button></div><div id="ad-primary-actions" class="ad-actions"></div></header><p id="ad-status" class="ad-status" role="status" aria-live="polite"></p><div class="ad-grid"><div class="ad-stack"><section class="ad-panel ad-attention" aria-labelledby="ad-fya-title"><header><h2 id="ad-fya-title">For your attention</h2><span id="ad-fya-count" class="ad-count"></span></header><div id="ad-attention"></div></section><section class="ad-panel ad-assessments" aria-labelledby="ad-assessment-title"><header><h2 id="ad-assessment-title">Imtehaan</h2><span id="ad-assessment-count" class="ad-count"></span></header><div id="ad-assessments" aria-live="polite"></div></section></div><div class="ad-stack"><section class="ad-panel ad-next" aria-labelledby="ad-next-title"><header><h2 id="ad-next-title">Coming up next</h2></header><div id="ad-next"></div></section><section class="ad-panel ad-messages" aria-labelledby="ad-messages-title"><header><h2 id="ad-messages-title">Messages <span id="ad-unread" class="ad-count"></span></h2><button type="button" data-ad-inbox>View inbox →</button></header><div id="ad-messages"></div></section></div></div><section class="ad-continue"><h2 id="ad-continue-title">Continue learning</h2><div id="ad-areas"></div></section><section class="ad-week" aria-labelledby="ad-week-title"><header><h2 id="ad-week-title">This week</h2></header><div id="ad-timetable-host"></div></section><div id="ad-calendar-row" class="ad-calendar-row"><section class="ad-panel ad-calendar" aria-labelledby="ad-calendar-title"><header><h2 id="ad-calendar-title">Academy calendar</h2></header><div id="ad-calendar-host"></div></section><div id="ad-calendar-actions" class="ad-calendar-actions" hidden><section id="ad-attendance-panel" class="ad-panel ad-queue" aria-labelledby="ad-attendance-title"><header><h2 id="ad-attendance-title">Mark attendance</h2><span id="ad-attendance-count" class="ad-count"></span></header><div id="ad-attendance" class="ad-queue-body" tabindex="0" role="region" aria-labelledby="ad-attendance-title"></div></section><section id="ad-plans-panel" class="ad-panel ad-queue" aria-labelledby="ad-plans-title"><header><h2 id="ad-plans-title">Lesson plans due</h2><span id="ad-plans-count" class="ad-count"></span></header><div id="ad-plans" class="ad-queue-body" tabindex="0" role="region" aria-labelledby="ad-plans-title"></div></section></div></div><section class="ad-panel ad-tools"><header><h2>Quick tools</h2></header><nav id="ad-tools" aria-label="Dashboard tools"></nav></section></div></div>`;
     if(mode!=='admin'){
       const main=host.querySelector('.ad-main');
       main.insertBefore(host.querySelector('.ad-next'),host.querySelector('.ad-grid'));
@@ -137,7 +137,7 @@
   }
   function renderNavigation() {
     const adminLinks=options.adminLinks||[];
-    const sidebar=document.querySelector('#dashboard .ad-sidebar'),caption=mode==='admin'?'Menu':'Contents';
+    const sidebar=document.querySelector('#dashboard .ad-sidebar'),caption='Menu';
     sidebar.setAttribute('aria-label',caption);sidebar.querySelector('h2').textContent=caption;
     document.querySelector('[data-ad-contents-toggle]>span').textContent=caption;
     const tools=mode==='teach'?'<button type="button" data-ad-choose="attendance">Mark attendance</button><button type="button" data-ad-choose="planning">Submit plans</button>':mode==='admin'?adminLinks.map(row=>row.action?'<button type="button" data-admin-public-refresh>Update timetable</button>':link(row.href,row.label)).join(''):link('/academy/enrolment/','Enrol now');
@@ -151,7 +151,7 @@
     }
     $('ad-primary-actions').innerHTML=mode==='teach'?'<button type="button" class="ad-primary" data-ad-choose="attendance">Mark attendance</button><button type="button" class="ad-secondary" data-ad-choose="planning">Submit plans</button>':'';
     $('ad-title').innerHTML=mode==='learn'?'Ahlan wa sahlan<span class="ad-greeting-name">, '+esc(home.profile?.name||'Academy member')+'</span>':mode==='teach'?'Your teaching dashboard':'Dashboard';
-    $('ad-assessment-title').textContent=mode==='admin'?'Imtehaan':'Assessments';
+    $('ad-assessment-title').textContent='Imtehaan';
   }
   function renderAreas() {
     $('ad-continue-title').textContent=mode==='teach'?'Continue teaching':mode==='admin'?'Manage Programs and Courses':'Continue learning';
@@ -182,27 +182,30 @@
   function assessmentSummary(data) {
     const allowed=new Set(areas().map(row=>key(row).toUpperCase()));
     // Cache timetable metadata only, never marks, recipients, paper files or staff details.
-    return {success:true,timezone:data.timezone,assessments:(data.assessments||[]).filter(row=>allowed.has(row.activityKey?.toUpperCase())&&(row.assessmentKind||'EXAM')==='EXAM'&&(mode==='learn'?row.published:mode==='admin'?row.canAdmin:row.canTeach)).map(row=>({activityKey:row.activityKey,title:row.title,registerId:row.registerId,phaseId:row.phaseId,phaseName:row.phaseName,registerStatus:row.registerStatus,examDate:row.examDate,published:row.published}))};
+    return {success:true,timezone:data.timezone,assessments:(data.assessments||[]).filter(row=>allowed.has(row.activityKey?.toUpperCase())&&row.published&&(mode==='learn'||(mode==='admin'?row.canAdmin:row.canTeach))).map(row=>({activityKey:row.activityKey,title:row.title,registerId:row.registerId,phaseId:row.phaseId,phaseName:row.phaseName,registerStatus:row.registerStatus,examDate:row.examDate,assessmentKind:row.assessmentKind,availableFrom:row.availableFrom,dueAt:row.dueAt,timezone:row.timezone,published:row.published}))};
   }
   function renderAssessments() {
     if(!home||!$('ad-assessments'))return;
     const today=new Intl.DateTimeFormat('en-CA',{year:'numeric',month:'2-digit',day:'2-digit',timeZone:home.timezone||'Africa/Johannesburg'}).format(new Date());
     const allowed=new Map(areas().map(row=>[key(row).toUpperCase(),row])),groups=new Map();
+    const day=(value,timezone,deadline=false)=>{const instant=Date.parse(value);if(!Number.isFinite(instant))return '';try{return new Intl.DateTimeFormat('en-CA',{year:'numeric',month:'2-digit',day:'2-digit',timeZone:timezone||home.timezone||'Africa/Johannesburg'}).format(new Date(instant-(deadline?1:0)));}catch{return '';}};
     for(const row of assessments){
       const area=allowed.get(row.activityKey?.toUpperCase());
-      if(!area||!/^\d{4}-\d{2}-\d{2}$/.test(row.examDate)||['COMPLETE','RELEASED','ARCHIVED','CANCELLED'].includes(row.registerStatus))continue;
+      if(!area||!row.published||['REGISTERED','DRAFT','COMPLETE','ARCHIVED','CANCELLED'].includes(String(row.registerStatus||'').toUpperCase()))continue;
+      const assignment=row.assessmentKind==='ASSIGNMENT',first=assignment?day(row.availableFrom,row.timezone):row.examDate,last=assignment?day(row.dueAt,row.timezone,true):row.examDate;
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(first||''))continue;
       const id=JSON.stringify([row.registerId||row.phaseId||row.title,key(area)]);
-      if(!groups.has(id))groups.set(id,{title:row.phaseName||row.title,registerId:row.registerId,area,names:new Set(),dates:[],published:true});
-      const group=groups.get(id);group.names.add(area.name);group.dates.push(row.examDate);group.published&&=row.published;
+      if(!groups.has(id))groups.set(id,{title:row.phaseName||row.title,registerId:row.registerId,area,names:new Set(),starts:[],ends:[],openEnded:false,published:true});
+      const group=groups.get(id);group.names.add(area.name);group.starts.push(first);if(last)group.ends.push(last);else group.openEnded=true;group.published&&=row.published;
     }
-    const rows=[...groups.values()].map(group=>({...group,first:group.dates.sort()[0],last:group.dates.at(-1)})).filter(row=>row.last>=today).sort((a,b)=>a.first.localeCompare(b.first)||a.title.localeCompare(b.title));
+    const rows=[...groups.values()].map(group=>({...group,first:group.starts.sort()[0],last:group.openEnded?null:group.ends.sort().at(-1)})).sort((a,b)=>a.first.localeCompare(b.first)||a.title.localeCompare(b.title));
     $('ad-assessment-count').textContent=String(rows.length);
     const error=failures.get('assessments');
-    $('ad-assessments').innerHTML=rows.length?`<ul class="ad-assessment-list" tabindex="0" aria-label="Imtihaan timetables">${rows.map(row=>{
-      const base=href(row.area,'assessment');
-      const target=base+(row.registerId?'/'+encodeURIComponent(row.registerId):''),dates=date(row.first+'T12:00:00Z')+(row.last!==row.first?' – '+date(row.last+'T12:00:00Z'):'');
-      return `<li><a class="ad-assessment-row" href="${esc(target)}"><span class="ad-assessment-status">${row.first<=today?'Current':'Upcoming'}${row.published?'':' · Schedule draft'}</span><strong>${esc(row.title)}</strong><span>${esc([...row.names].join(' · '))}</span><span>${esc(dates)}</span><span class="ad-assessment-open">View timetable →</span></a></li>`;
-    }).join('')}</ul>`:`<p class="ad-empty-line">${loading.has('assessments')?'Checking Imtihaan timetables…':error?'Imtihaan timetables could not be checked.':'No current or upcoming Imtihaan.'}</p>`;
+    const label=(value,short=false)=>new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',...(short?{}:{year:'numeric'}),timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'));
+    $('ad-assessments').innerHTML=rows.length?`<ul class="ad-assessment-list" tabindex="0" aria-label="Imtehaan timetables">${rows.map(row=>{
+      const base=href(row.area,'assessment'),target=base+(row.registerId?'/'+encodeURIComponent(row.registerId):''),dates=!row.last?'From '+label(row.first):label(row.first,row.last!==row.first&&row.first.slice(0,4)===row.last.slice(0,4))+(row.last!==row.first?' – '+label(row.last):''),status=(row.first<=today?'Current':'Upcoming')+(row.published?'':' · Schedule draft');
+      return `<li><a class="ad-assessment-row" href="${esc(target)}" aria-label="${esc([...row.names].join(' · ')+' · '+row.title+' · '+dates+' · '+status)}"><span class="ad-assessment-program">${esc([...row.names].join(' · '))}</span><strong>${esc(row.title)}${row.published?'':' <span class="ad-assessment-draft">Draft</span>'}</strong><span class="ad-assessment-date">${esc(dates)}</span><span class="ad-assessment-open" aria-hidden="true">→</span><span class="ad-assessment-status">${esc(status)}</span></a></li>`;
+    }).join('')}</ul>`:`<p class="ad-empty-line">${loading.has('assessments')?'Checking Imtehaan…':error?'Imtehaan could not be checked.':'No published Imtehaan.'}</p>`;
     if(error)$('ad-assessments').insertAdjacentHTML('beforeend',`<p class="ad-warning" role="status">${esc(error)}</p><button type="button" data-ad-retry>Try again</button>`);
   }
   function tasks() {
@@ -285,7 +288,7 @@
     for(const row of rows){
       const id=mode==='admin'?(row.kind+':'+row.activityId).toUpperCase():JSON.stringify([row.kind,row.activityId,row.startsAt,row.endsAt,row.subjectName,row.moduleName]);
       if(!next.has(id))next.set(id,row);
-      if(mode!=='admin'&&next.size===3)break;
+      if(next.size===(mode==='admin'?4:3))break;
     }
     const lessons=[...next.values()];
     $('ad-next').innerHTML=lessons.length?`<ul class="ad-next-list" aria-label="Upcoming sessions">${lessons.map(lesson=>{
@@ -315,7 +318,7 @@
     attendanceRange=range;
     fetched=Date.now();
     const work=[];
-    const assessmentInput={dashboard:true,view:mode==='admin'?'admin':mode==='teach'?'teacher':'learner'};
+    const assessmentInput={dashboard:true,summaryVersion:2,view:mode==='admin'?'admin':mode==='teach'?'teacher':'learner'};
     work.push(loadSource('assessments',null,assessmentInput,data=>{assessments=data.assessments||[];},force,async()=>assessmentSummary(await request('/api/academy/assessments/list',assessmentInput))));
     if(mode!=='learn')work.push(loadSource('planning','/api/academy/planning/list',{view:mode==='admin'?'admin':'teacher',...(mode==='admin'?{weekCount:3}:{})},data=>{plans=data.plans||[];},force));
     if(mode!=='learn'&&window.M4L_CONFIG?.NATIVE_ATTENDANCE)work.push(loadSource('attendance',null,units,data=>{attendance=data.lessons||[];attendanceWarning=data.warning||'';},force,()=>readAttendance(units)));

@@ -39,6 +39,17 @@ test('untimed six-week assignments store a real null duration and retain a separ
  assert.equal(row.duration_minutes,null);assert.equal(row.allowance_minutes,null);assert.equal(row.exam_date,null);assert.equal(row.timing_mode,'UNTIMED');assert(row.due_at>row.available_from);
  await f.publish(id);await f.releasePaper(id);const learner=await f.detail(id,'student');assert.equal(learner.assessment.canUpload,true);assert(!Object.hasOwn(learner.assessment,'durationMinutes'));assert(!Object.hasOwn(learner.assessment,'maximumMark'));assert(!Object.hasOwn(learner.assessment,'allowanceMinutes'));
 }));
+test('dashboard Imtehaan summaries include published untimed assignments and their effective due windows',()=>use(async f=>{
+ const opens=new Date(Date.now()-86400000).toISOString(),id=await f.create({title:'Reboot-style Imtehaan',assessmentKind:'ASSIGNMENT',timingMode:'UNTIMED',examDate:null,durationMinutes:null,availableFrom:opens,dueDate:nextDate(today(),7)});
+ const summary=async who=>ok(await f.request('list',{dashboard:true,summaryVersion:2,view:who==='student'?'learner':'admin'},who));
+ assert.equal((await summary('student')).assessments.length,0,'Draft schedules remain private');
+ const draft=(await summary('admin')).assessments[0];assert.equal(draft.assessmentKind,'ASSIGNMENT');assert.equal(draft.examDate,null);assert.equal(draft.availableFrom,opens);assert(draft.dueAt);assert.equal(draft.canAdmin,true);
+ await f.publish(id);const row=(await summary('student')).assessments[0];assert.equal(row.assessmentKind,'ASSIGNMENT');assert.equal(row.availableFrom,opens);assert(row.dueAt);assert.equal(row.timezone,'Africa/Johannesburg');assert.equal(row.published,true);
+ for(const key of ['recipients','mark','releasedMark','paperFileId','paperSHA256','examinerId','paperState'])assert(!Object.hasOwn(row,key),'Dashboard omits '+key);
+ const due=new Date(Date.now()+14*86400000).toISOString(),detail=await f.detail(id);ok(await f.change(id,'collection-save',{collectionRevision:detail.assessment.collectionRevision,dueAt:due,closed:false}));
+ assert.equal((await summary('student')).assessments[0].dueAt,due,'A collection extension updates the dashboard date window');
+ assert.equal((await summary('programAdmin')).assessments[0].dueAt,due);
+}));
 test('Global Admin can approve their exact uploaded PDF for every shared class without releasing it',()=>use(async f=>{
  f.db.prepare("INSERT INTO classes(activity_key,class_id,name,active) VALUES(?,'global-paper','Second assessment class',1)").run(scopes.programA);
  const id=await f.create({examinerId:null,classes:[{activityKey:scopes.programA,classId:'class-1'},{activityKey:scopes.programA,classId:'global-paper'}]}),file=ok(await f.uploadNative(id,'PAPER'));

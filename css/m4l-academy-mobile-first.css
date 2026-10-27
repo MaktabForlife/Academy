@@ -29,53 +29,9 @@ body.academy-learning-layout :is(main,dialog) :is(button,a,input,select,textarea
 body.academy-learning-layout :is(dialog){width:min(54rem,calc(100% - 1.5rem));max-width:calc(100% - 1.5rem);max-height:calc(100dvh - 1.5rem);padding:1rem;box-sizing:border-box}
 body.academy-learning-layout :is(dialog)::backdrop{background:#21152699}
 
-/* Keep identity, dates and existing actions in two compact shared rows. */
-body.academy-learning-layout .academy-banners>:is(.sidebar,.academy-connected-sidebar){display:flex!important;flex-wrap:wrap;align-items:center;gap:.5rem;padding:.5rem var(--academy-gutter)!important}
-body.academy-learning-layout .academy-brand-details{flex:1 1 7rem;flex-direction:column;align-items:flex-start;gap:.25rem;min-width:0}
-body.academy-learning-layout :is(.brand,.academy-connected-brand){gap:.5rem}
-body.academy-learning-layout :is(.brand,.academy-connected-brand) img{width:1.75rem;height:1.75rem}
-body.academy-learning-layout :is(.brand,.academy-connected-brand) strong{font-size:.875rem;line-height:1.15}
-body.academy-learning-layout .academy-brand-details>.academy-date-box{max-width:none;margin:0;padding:0;border:0;background:transparent;font-size:.75rem;line-height:1.4;text-align:left}
-body.academy-learning-layout .academy-date-box :is(em,time){font-size:inherit;white-space:normal}
-body.academy-learning-layout .academy-page-actions{gap:.25rem;margin-left:auto;align-items:center}
-body.academy-learning-layout .academy-page-actions>[data-page-home],body.academy-learning-layout .academy-page-actions>[data-page-refresh]{width:2.75rem;min-width:2.75rem;height:3rem;gap:.125rem;justify-content:center}
-body.academy-learning-layout .page-action-icon{width:2rem;height:1.75rem;border:0;background:transparent}
-body.academy-learning-layout .page-action-label{font-size:.75rem;line-height:1.2}
-body.academy-learning-layout .academy-page-actions :is(#academy-sign-out,#ac-signout,#logout-button){font-size:.875rem;line-height:1.3;padding:.5rem}
-body.academy-learning-layout .academy-account-bar{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem .75rem;padding:.5rem var(--academy-gutter)}
-body.academy-learning-layout .academy-account-row{flex:1 1 8rem;min-width:0}
-body.academy-learning-layout .academy-profile .academy-welcome{display:none}
-body.academy-learning-layout .academy-profile :is(strong,.academy-header-name){font-size:.9375rem;line-height:1.35}
-body.academy-learning-layout .academy-profile>small{font-size:.8125rem;line-height:1.4}
+/* The shared account/header layout is owned by m4l-academy-history.css. */
 body.academy-learning-layout .academy-role-tabs{flex:1 1 10rem;width:auto;min-width:0;max-width:100%;margin:0;gap:.25rem}
 body.academy-learning-layout .academy-role-tabs button{min-width:0;font-size:.875rem;line-height:1.3;padding:.5rem .625rem;white-space:normal}
-
-/* Phone header: actions and identity, inline dates, then account/workspaces. */
-@media(max-width:47.999rem){
-  body.academy-learning-layout .academy-banners>:is(.sidebar,.academy-connected-sidebar){display:grid!important;grid-template-columns:minmax(0,1fr) auto;gap:2px 6px;min-height:0;padding:4px var(--academy-gutter)!important;padding-top:calc(4px + env(safe-area-inset-top,0px))!important}
-  body.academy-learning-layout .academy-brand-details{display:contents}
-  body.academy-learning-layout :is(.brand,.academy-connected-brand){grid-column:1;grid-row:1;min-width:0;gap:6px}
-  body.academy-learning-layout :is(.brand,.academy-connected-brand) img{width:24px;height:24px}
-  body.academy-learning-layout :is(.brand,.academy-connected-brand) strong{font-size:.8125rem;line-height:1.1}
-  body.academy-learning-layout :is(.brand,.academy-connected-brand) .site-version{display:none}
-  body.academy-learning-layout .academy-brand-details>.academy-date-box{display:flex;flex-wrap:wrap;justify-content:space-between;gap:0 12px;grid-column:1/-1;grid-row:2;font-size:.6875rem;line-height:1.5}
-  body.academy-learning-layout .academy-date-box>div{margin:0}
-  body.academy-learning-layout .academy-page-actions{grid-column:2;grid-row:1;gap:2px;margin:0}
-  body.academy-learning-layout .academy-page-actions>:is([data-page-home],[data-page-refresh],#academy-sign-out,#ac-signout,#logout-button){display:inline-flex;align-items:center;justify-content:center;width:44px;min-width:44px;height:44px;min-height:44px;padding:10px;gap:0}
-  body.academy-learning-layout .academy-page-actions .page-action-icon{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px}
-  body.academy-learning-layout .academy-page-actions :is(.page-action-label,.page-signout-label){position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-  body.academy-learning-layout .page-signout-icon{display:inline-flex}
-  body.academy-learning-layout .academy-account-bar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;padding:4px var(--academy-gutter)}
-  body.academy-learning-layout .academy-profile :is(strong,.academy-header-name){font-size:.8125rem;line-height:1.25;flex:0 1 auto;max-width:100%}
-  body.academy-learning-layout .academy-profile :is(strong,.academy-header-name)[role=button]{display:inline-flex;align-items:center;min-height:44px}
-  body.academy-learning-layout .academy-profile>small{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-  body.academy-learning-layout .academy-role-tabs{min-width:0;width:auto;padding:2px;gap:0;border-radius:10px}
-  body.academy-learning-layout .academy-role-tabs button{min-width:44px;min-height:44px;font-size:.75rem;padding:6px 7px;flex:1 0 auto;white-space:nowrap;overflow-wrap:normal}
-  body.academy-learning-layout .academy-role-label{display:none}
-  body.academy-learning-layout .academy-role-short{display:inline;white-space:nowrap}
-  body.academy-learning-layout .academy-admin-context{font-size:.6875rem}
-  body.academy-learning-layout .academy-admin-badge{padding:3px 6px}
-}
 
 /* The same Contents links collapse on a phone and form the wider sidebar. */
 body.academy-learning-layout .learning-workspace{display:block}
@@ -203,7 +159,7 @@ body.academy-learning-layout :is(#academy-sessions,#activity-sessions) .timetabl
   body.academy-learning-layout .learning-workspace{display:grid;grid-template-columns:14rem minmax(0,1fr);gap:2rem;align-items:start}
   body.academy-learning-layout #activity-menu{position:sticky;top:calc(var(--academy-banner-height,10rem) + 1rem);margin:0}
   body.academy-learning-layout .workspace-contents>summary{display:none}
-  body.academy-learning-layout .workspace-contents::before{content:'Contents';display:block;padding:1rem 1rem .5rem;font-weight:700}
+  body.academy-learning-layout .workspace-contents::before{content:'Menu';display:block;padding:1rem 1rem .5rem;font-weight:700}
   body.academy-learning-layout .learning-reading{max-width:60rem}
   body.academy-learning-layout .ad-layout{display:grid;grid-template-columns:14rem minmax(0,1fr);gap:2rem;align-items:start}
   body.academy-learning-layout .ad-sidebar{display:block;position:sticky;top:calc(var(--academy-banner-height,10rem) + 1rem);margin:0;padding:1rem}

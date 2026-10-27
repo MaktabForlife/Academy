@@ -1,3 +1,25 @@
+# Header, Menu and Imtehaan release — 27 October 2026
+
+- The user explicitly authorised deployment of the reviewed local changes. Release V107.98 to the existing Development API and Academy website. This supersedes the local-only hold below for this release.
+- Include the reference header with username-only highlight, standard Menu and separate X, four Admin upcoming cards in a 2×2 grid, two-column published Imtehaan cards including assignment windows, and Global Admin daily timetable grouping in Admin-Learn/Admin-Teach. Exclude draft/registered, complete, cancelled and archived Imtehaan; preserve access and publication gates.
+- No migration, live data correction, settings/binding change, timetable publication or private coordinator deployment is required. Keep hosted verification small, using versions/static assets and one API readiness check. Do not contact other chats. Future deployments require new authorisation.
+
+# Header, Menu and dashboard review — 27 October 2026
+
+- The user explicitly said **do not deploy**. Keep all follow-ups after V107.97 local, including Global Admin daily timetable grouping. Do not push or contact other chats.
+- Rebuild the shared header to the supplied reference: Academy/version and dates above; welcome, highlighted username only and highest role on the left, actions on the right. No extra Admin text inside the yellow name highlight. Retain account/PIN safeguards, workspace navigation and Curriculum access.
+- Use the supplied white Menu/hamburger button throughout navigation; replace visible Contents labels. Give Close a separate column so it cannot overlap Menu.
+- Admin Coming up next shows up to four permitted Course cards in a 2×2 grid on phone and desktop, with the open arrow at each card's top right.
+- Rename dashboard Assessments to Imtehaan and show two columns: small Program/Course name, Imtehaan name, date window and open arrow. Include published dated exams and assignment-based Imtehaan regardless of dates; exclude REGISTERED/DRAFT, COMPLETE, CANCELLED and ARCHIVED. Preserve role/class/publication boundaries.
+- Reboot's missing card was confirmed with two bounded read-only Development metadata queries: its 16 published papers are ASSIGNMENT/UNTIMED with no exam_date, using available_from/due_at. Fix the safe dashboard metadata and date-window rendering; do not modify live records or assessment types.
+- The user cancelled the full screenshot/PDF review-pack request. Local synthetic phone/desktop screenshots for verification remain appropriate; do not create that PDF pack.
+
+# Global Admin reader timetable grouping — 27 October 2026
+
+- After V107.97, the user requested one daily timetable card per Program or Course, explicitly including Global Admin's Admin-Learn and Admin-Teach views. Extend the dashboard grouping to those readers and their Program/Course timetable pages, with all permitted lessons/classes and actions retained in the information dialog.
+- Use the verified real-account `workspaceAccess.globalAdmin` value; keep projected reader permissions, class filtering, fresh join checks and ordinary/scoped Admin grouping unchanged. No backend, schema or data changes are required.
+- Verify with disposable local fixtures. Keep this follow-up local pending a new deployment request; the V107.97 deployment authorisation below was completed. Do not contact other chats.
+
 # Dashboard and Program mobile refinement release — 27 October 2026
 
 - The user confirmed V107.96 was deployed and explicitly requested deployment of the accumulated dashboard and mobile refinements. Incorporate V107.96 and release V107.97 through the existing Development API and Academy website workflow.
