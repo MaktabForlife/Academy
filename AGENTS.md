@@ -1,3 +1,10 @@
+# Local mobile-first Learn/Teach development — 27 October 2026
+
+- The user explicitly requested starting the proposed mobile-first development on a new feature branch from V107.84. Work on `feature/academy-mobile-first`, based exactly on `5a1731c0` (V107.84).
+- Implement the shared Learn/Teach reading structure, compact Contents navigation, comfortable text and touch controls; add wider layouts on that same structure. Preserve the swipeable timetable, current permissions, saved drafts, accepted publications and assessment release gates. Admin management and the public website retain their current layout.
+- Keep work in this chat. Do not contact other chats, push, deploy, run live SQL or alter hosted settings. Assign a new release version only when preparing an authorised release. Cache labels may identify this local feature build.
+- Verify with synthetic local fixtures and phone/tablet/desktop checks under ../AGENTS.md. No live database checks are needed.
+
 # Permission and timetable/calendar optimisation release — 27 October 2026
 
 - The user explicitly approved deploying the tested permission and timetable/calendar optimisations. Release feature/academy-permission-timetable-reads as V107.84, incorporating deployed V107.83. This supersedes the local deployment hold below for this release only.

@@ -70,6 +70,9 @@
   }
   function renderNavigation() {
     const adminLinks=options.adminLinks||[];
+    const sidebar=$('ad-navigation').closest('.ad-sidebar'),caption=mode==='admin'?'Your workspace':'Contents';
+    sidebar.setAttribute('aria-label',caption);sidebar.querySelector('h2').textContent=caption;
+    sidebar.querySelector('.ad-menu-toggle').innerHTML=caption+' <span aria-hidden="true">⌄</span>';
     const tools=mode==='teach'?'<button type="button" data-ad-choose="attendance">Mark attendance</button><button type="button" data-ad-choose="planning">Submit plans</button>':mode==='admin'?adminLinks.map(row=>row.action?'<button type="button" data-admin-public-refresh>Update timetable</button>':link(row.href,row.label)).join(''):link('/academy/enrolment/','Enrol now');
     const shared=tracker()+link('/academy/library/','Library')+link(boundary()?.readerUrl('/recorder/?academy=1')||'/recorder/?academy=1','Voice Recorder');
     const visitWebsite='<a class="ad-visit" href="/academy/#website" data-workspace-exit>Visit website ↗</a>';

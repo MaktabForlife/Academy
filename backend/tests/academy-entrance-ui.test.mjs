@@ -438,7 +438,7 @@ storage.set('m4l_account_token','inline-account');cacheFixture=true;globalAdmin=
 const inlineCalls=[];let allowLeave=true;
 window.M4L_PROGRAM_ATTENDANCE={open:options=>inlineCalls.push(options),reset(){},canLeave:()=>allowLeave};
 const programHash='#activity/PROGRAM/'+activity.id;
-await navigate(programHash);assert.equal($('pa-main').hidden,true);assert.match($('activity-menu').innerHTML,/\/attendance" aria-controls="pa-main" aria-selected="false"/);
+await navigate(programHash);assert.equal($('pa-main').hidden,true);assert.match($('activity-menu').innerHTML,/\/attendance" aria-controls="pa-main"/);
 await navigate(programHash+'/attendance');assert.equal($('pa-main').hidden,false);assert.equal(inlineCalls.at(-1).id,activity.id);assert.equal($('pa-close').href,programHash);
 assert.equal($('workspace-tool').open,false,'Attendance stays on the Program page');assert.doesNotMatch($('activity-menu').innerHTML,/\/programs\/attendance/);
 assert.match($('activity-switcher').innerHTML,/\/attendance"/,'Program pills keep the Attendance view selected');

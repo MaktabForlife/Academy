@@ -87,6 +87,11 @@
   const management=calendarView!=='learn'&&calendarView!=='teach'&&(['administration','assessment-admin','progress-admin'].includes(section[0])||/^\/(users|programs)(?:\/|$)/.test(path)||/^\/academy\/(subjects|calendar|pdf-tools|courses\/manage|library\/manage|enrolment\/manage)(?:\/|$)/.test(path));
   const home=['/academy/','/academy/index.html'].includes(path)&&(!section[0]||['overview','learning'].includes(section[0]));
   const selected=home?'':boundary?.current()==='ADMIN'?'admin':boundary?.audience()==='TEACH'?'teach':'learn';
+  const entrance=['/academy/','/academy/index.html','/academy/admin/','/academy/admin/index.html'].includes(path);
+  const reader=/^\/academy\/(?:library|open-library|media|pdf-reader|pdf-compare|calendar|hifz)\//.test(path)||path==='/recorder/';
+  const learning=signed&&!pendingAdmin&&['LEARN','TEACH'].includes(boundary?.audience())&&!management&&(entrance?/^#(?:timetable|activity|progress|hifz|hifdh|assessments)(?:\/|$)/.test(location.hash):reader);
+  document.body.classList.toggle('academy-learning-layout',learning);
+  window.M4L_ACADEMY_CONTENTS?.sync();
   for(const button of document.querySelectorAll('[data-shell-role]')){button.hidden=!available[button.dataset.shellRole];button.textContent=(button.dataset.shellRole!=='admin'?(adminRealm()?'ADMIN-':canAdmin?'PERSONAL ':''):'')+button.dataset.shellRole.toUpperCase();button.setAttribute('aria-pressed',String(button.dataset.shellRole===selected));}
   const name=document.getElementById('academy-shell-name'),role=document.getElementById('academy-shell-role');if(name)name.textContent=signed?(data.profile?.name||'Academy member'):'Welcome';if(role)role.textContent=signed&&adminRealm()&&boundary?.current()==='ADMIN_LEARN'?'Admin-Learn · Student view':signed&&adminRealm()&&boundary?.current()==='ADMIN_TEACH'?'Admin-Teach · Teacher':signed&&boundary?.current()==='LEARN'?'Student':signed&&boundary?.current()==='TEACH'?'Teacher':global?'Global Admin':admin(roles)?'Program Admin':staff(roles)?'Teacher':roles.includes('STUDENT')?'Student':signed?'None':'';contextBanner();window.M4L_ACADEMY_ADMIN_MENU?.update(data);
  }

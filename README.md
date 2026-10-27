@@ -1,3 +1,7 @@
+# Mobile-first Learn/Teach — local feature development
+
+`feature/academy-mobile-first` starts from V107.84 (`5a1731c0`). The initial frontend development adds a shared single-column reading layout, native Contents navigation, larger controls and text, and a wider sidebar using the same content. Admin management and the public website retain their layout. This work is local and has not been pushed or deployed. [Scope and verification](docs/ACADEMY-MOBILE-FIRST-DEVELOPMENT.md).
+
 # V107.84 — Permission and timetable/calendar read optimisation
 
 Repeated permission proofs now reuse a server-verified database version while retaining live session, revocation, expiry and timed-grant checks. Accepted timetable/calendar reads capture only the requested publication components instead of unrelated history. Write guards, owner merging, published visibility and app responses are preserved.

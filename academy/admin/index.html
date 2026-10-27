@@ -261,6 +261,7 @@
 <link rel="stylesheet" href="/css/m4l-academy-workspaces.css?v=107.52">
 <link rel="stylesheet" href="/css/m4l-academy-dashboard.css?v=107.65">
 <link rel="stylesheet" href="/css/m4l-messaging.css?v=107.84">
+<link rel="stylesheet" href="/css/m4l-academy-mobile-first.css?v=mobile-first.1">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -407,8 +408,8 @@
   <a href="#overview" id="activity-back-link" class="academy-home-icon" aria-label="Academy home" title="Academy home"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h5v-7h4v7h5V9"/></svg></a>
   <div class="page-heading activity-heading workspace-banner"><div class="activity-identity"><span class="eyebrow" id="activity-kind"></span><div class="academy-title-row"><h1 id="activity-title"></h1></div><p id="activity-role"></p></div><nav id="activity-areas" class="workspace-areas" aria-label="Your Programs and Courses"></nav></div>
   <label id="activity-student-class-wrap" hidden>View as student · Class <select id="activity-student-class" aria-label="Student class view"></select></label>
-  <p id="activity-status" role="status"></p><div class="academy-role-tools" id="activity-menu"></div>
-  <section id="pa-main" role="tabpanel" class="card card-pad academy-attendance" data-embedded="true" hidden aria-labelledby="pa-title">
+  <p id="activity-status" role="status"></p><div class="learning-workspace"><div class="academy-role-tools" id="activity-menu"></div><div class="learning-reading">
+  <section id="pa-main" role="region" class="card card-pad academy-attendance" data-embedded="true" hidden aria-labelledby="pa-title">
     <div class="section-title"><h2 id="pa-title">Attendance</h2><a id="pa-close" class="text-link" href="#overview">Close</a></div>
     <p id="pa-message" class="pb-message" role="status" aria-live="polite"></p>
     <div id="pa-pending" class="pb-refresh-warning" hidden><span>The last submission needs confirmation.</span><button id="pa-retry" type="button">Retry submission</button></div>
@@ -421,12 +422,12 @@
     </div>
   </section>
   <section id="mp-teach-panel" class="academy-memorisation-panel" hidden aria-labelledby="mp-teach-title"><div class="section-title"><h2 id="mp-teach-title">Surahs and Duas Tracker · Class progress</h2><a id="mp-teach-close" class="button secondary" href="#overview">Close</a></div><div id="mp-teach-host"></div></section>
-  <section id="as-panel" role="tabpanel" aria-labelledby="activity-tab-assessment" hidden class="card card-pad"><div class="section-title"><span></span><a id="as-close" class="button secondary" href="#overview">Close</a></div><div id="as-host"></div></section>
-  <section class="card card-pad academy-personal-schedule" id="activity-schedule" role="tabpanel" hidden aria-labelledby="activity-schedule-title"><div class="section-title"><h2 id="activity-schedule-title">Timetable</h2><p id="activity-week-range" class="tiny muted" hidden></p><div class="upcoming-controls"><button type="button" id="activity-refresh" aria-label="Refresh this timetable" title="Refresh timetable" data-page-content-refresh>↻</button><button type="button" id="activity-previous" aria-label="Previous week">←</button><button type="button" id="activity-next" aria-label="Next week">→</button></div></div><div id="activity-sessions" class="upcoming-strip" tabindex="0" role="region" aria-label="This learning area's timetable"></div></section>
-  <section class="card card-pad" id="activity-library" role="tabpanel" tabindex="0" hidden aria-labelledby="activity-tab-library"></section>
-  <section class="card card-pad" id="activity-planning" role="tabpanel" tabindex="0" hidden aria-labelledby="activity-tab-planning"><h2>Planning</h2><p class="muted">Planning tools are coming soon.</p></section>
+  <section id="as-panel" role="region" aria-labelledby="activity-tab-assessment" hidden class="card card-pad"><div class="section-title"><span></span><a id="as-close" class="button secondary" href="#overview">Close</a></div><div id="as-host"></div></section>
+  <section class="card card-pad academy-personal-schedule" id="activity-schedule" role="region" hidden aria-labelledby="activity-schedule-title"><div class="section-title"><h2 id="activity-schedule-title">Timetable</h2><p id="activity-week-range" class="tiny muted" hidden></p><div class="upcoming-controls"><button type="button" id="activity-refresh" aria-label="Refresh this timetable" title="Refresh timetable" data-page-content-refresh>↻</button><button type="button" id="activity-previous" aria-label="Previous week">←</button><button type="button" id="activity-next" aria-label="Next week">→</button></div></div><div id="activity-sessions" class="upcoming-strip" tabindex="0" role="region" aria-label="This learning area's timetable"></div></section>
+  <section class="card card-pad" id="activity-library" role="region" tabindex="0" hidden aria-labelledby="activity-tab-library"></section>
+  <section class="card card-pad" id="activity-planning" role="region" tabindex="0" hidden aria-labelledby="activity-tab-planning"><h2>Planning</h2><p class="muted">Planning tools are coming soon.</p></section>
   <section class="card card-pad" id="activity-lesson-media" hidden aria-label="Lesson media"></section>
-  <div class="academy-support" id="activity-support" hidden></div>
+  <div class="academy-support" id="activity-support" hidden></div></div></div>
 </section>
 <section id="administration" class="view" aria-label="Academy administration"></section>
 <section id="prospectus" class="view" aria-labelledby="prospectus-title">
@@ -492,11 +493,11 @@
 <script src="/js/m4l-academy-settings.js?v=107.52"></script>
 <script src="/js/m4l-class-notes.js?v=107.57"></script>
 <script src="/js/m4l-messaging.js?v=107.84"></script>
-<script src="/js/m4l-academy-dashboard.js?v=107.84"></script>
-<script src="/js/m4l-academy-entrance.js?v=107.84"></script>
+<script src="/js/m4l-academy-dashboard.js?v=mobile-first.1"></script>
+<script src="/js/m4l-academy-entrance.js?v=mobile-first.1"></script>
 <script src="/js/m4l-academy-catalogue.js?v=107.52"></script>
 <script src="/js/m4l-academy-login.js?v=107.84"></script>
-<script src="/js/m4l-academy-mobile.js?v=107.84"></script>
+<script src="/js/m4l-academy-mobile.js?v=mobile-first.1"></script><script src="/js/m4l-academy-contents.js?v=mobile-first.1"></script>
 <script src="/js/m4l-academy-header-date.js?v=107.84"></script>
 <script src="/js/m4l-academy-page-actions.js?v=107.57"></script>
 </body></html>
