@@ -1,0 +1,25 @@
+@font-face{font-family:TafseerArabic;src:url('/academy/course-websites/assets/amiri-regular.ttf') format('truetype');font-display:swap}
+.tf-section{margin:28px 0;min-width:0;max-width:80rem}
+.tf-section-heading{margin-bottom:18px;max-width:58ch}
+.tf-section-heading .tf-eyebrow{display:block;margin-bottom:8px;color:#694165;font-size:11px;font-weight:700;letter-spacing:1.6px}
+.tf-section-heading h2{margin:0 0 10px;font:400 clamp(29px,4vw,38px)/1.12 Georgia,serif;color:#382c3c}
+.tf-section-heading p{margin:0;color:#6e626d;font-size:15px;line-height:1.7}
+.tf-card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr));gap:16px;min-width:0}
+.tf-card{--tf-soft:#f4eaf2;box-sizing:border-box;display:flex;flex-direction:column;align-items:flex-start;min-width:0;padding:22px 21px 18px;border:1px solid #d9c5d6;border-radius:15px;background:linear-gradient(150deg,#fffdfb 0%,var(--tf-soft) 100%);box-shadow:0 3px 13px #50334c08}
+.tf-card-rose{--tf-soft:#f5e8e7}.tf-card-sage{--tf-soft:#edf0e8}.tf-card-gold{--tf-soft:#f4eddf}
+.tf-card-tag{font:700 10px/1.6 Arial,sans-serif;letter-spacing:1.3px;color:#765671}
+.tf-card-arabic{display:block;margin-top:14px;font:27px/1.65 TafseerArabic,'Geeza Pro',serif;color:#694165;unicode-bidi:isolate}
+.tf-card h3{margin:9px 0 13px;font:400 30px/1.14 Georgia,serif;letter-spacing:-.4px;color:#382c3c;overflow-wrap:anywhere}
+.tf-card-access{display:inline-block;margin:0 0 13px;padding:3px 9px;border:1px solid #c7d0bf;border-radius:20px;background:#f5f8f0;color:#4c6041;font:600 11px/1.6 Arial,sans-serif}
+.tf-card-summary{margin:0 0 21px;font:400 14px/1.75 Arial,sans-serif;color:#655763;overflow-wrap:anywhere}
+.tf-card .tf-card-action{box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:46px;margin-top:auto;padding:10px 13px;border:1px solid #694165;border-radius:9px;background:#694165;color:#fff;text-decoration:none;font:600 13px/1.5 Arial,sans-serif;text-align:left;cursor:pointer}
+.tf-card-action svg{flex:none}.tf-card .tf-card-action:hover{background:#573452;border-color:#573452}
+.tf-card .tf-card-pending,.tf-card .tf-card-pending:hover{background:#fffcfa;color:#786376;border-color:#dbcbd7;cursor:default;opacity:1}
+.tf-card :is(a,button):focus-visible,.tf-access-dialog :is(a,button):focus-visible{outline:3px solid #aa789b;outline-offset:4px}
+.tf-access-dialog{box-sizing:border-box;width:min(30rem,calc(100% - 32px));max-height:calc(100dvh - 32px);margin:auto;padding:24px;border:1px solid #d9c5d6;border-radius:16px;background:#fffdfb;color:#382c3c;overflow:auto;font:15px/1.7 Arial,sans-serif}
+.tf-access-dialog::backdrop{background:#30283288}
+.tf-access-heading{display:flex;align-items:flex-start;gap:12px}.tf-access-heading h2{margin:4px 0;font:400 27px/1.2 Georgia,serif;color:#382c3c}
+.tf-access-dialog .tf-access-close{flex:none;min-width:44px;min-height:44px;margin-left:auto;padding:0;border:1px solid #d9c5d6;border-radius:9px;background:#fffdfb;color:#694165;font:26px/1 Arial,sans-serif;cursor:pointer}
+.tf-access-dialog p{margin:18px 0 24px;color:#655763}.tf-access-actions{display:flex;flex-wrap:wrap;gap:10px}
+.tf-access-actions :is(a,button){box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:10px 16px;border:1px solid #694165;border-radius:9px;background:#694165;color:white;text-decoration:none;font:600 14px/1.5 Arial,sans-serif;cursor:pointer}.tf-access-actions button{background:transparent;color:#694165}
+@media(max-width:25rem){.tf-card{padding:20px}.tf-card h3{font-size:28px}.tf-card-summary{font-size:14px}}
