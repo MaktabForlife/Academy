@@ -1,3 +1,10 @@
+# Tafseer monthly subscriptions — local planning — 27 October 2026
+
+- The user requested a new feature branch and a local plan for a Tafseer Monthly subscriptions tab. Work on `feature/academy-tafseer-monthly-subscriptions`, based on the local V107.100 Development commit `0e767b892e7cb69c6b6447576aef8ad61c15ac1b`.
+- The paid month follows the parent lesson's month, not the upload date. A recording added later to an October lesson belongs to October access. Students retain access to every month they paid for when they stop renewing; monthly classes are unnecessary.
+- This stage is planning only. Save the implementation plan in `docs/ACADEMY-TAFSEER-MONTHLY-SUBSCRIPTIONS-PLAN.md`. Do not implement runtime changes, apply migrations, alter live data/settings/storage, push, deploy or contact other chats. Earlier release approvals below apply to their completed releases only.
+- Plan against the existing Program identity, scoped Admin authority, historical lesson audiences, private media delivery and split-store permission checks. Address archive navigation and the existing 14-day MP4 retention explicitly. Preserve unrelated work and use disposable local fixtures for a later implementation.
+
 # Compact course reading release — 27 October 2026
 
 - The user explicitly requested deployment of the reviewed compact headers and full-screen reading option. Release V107.100 from `feature/academy-course-website-builder`, preserving deployed V107.99 (`965d7c51`). This supersedes the local-only hold below for this release.
