@@ -1,3 +1,9 @@
+# V107.84 — Reduce permission and timetable/calendar reads
+
+Repeated coordinator reads reuse a server-verified permission proof only while live account/session validity, database version and timed grants still match. Writes retain full authority verification and atomic guards. Accepted timetable/calendar queries capture only the requested publication components from both stores, preserving owner merging, live visibility and published behaviour.
+
+Local verification passed all 130 backend regression files and 66 final targeted checks, including real Workers RPC. Synthetic D1 benchmarks returned identical results with fewer reads. The user authorised coordinator, Development API and matching website deployment; no database migration or republishing is required. Keep live checks small to limit database usage. [Implementation and verification](docs/ACADEMY-PERMISSION-TIMETABLE-READS.md).
+
 # V107.83 — Reuse identical lesson PDFs
 
 Identical PDFs now share one stored file across separate lesson attachments and Teacher dated/recurring note versions. Attachment names, audiences, permissions and immutable history remain independent. File contents are streamed and verified even when the bytes are already stored. The same 16 MB limit and protected download checks apply; existing files remain readable. No additional D1 lookup is added for reuse.

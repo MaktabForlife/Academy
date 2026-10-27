@@ -1,8 +1,8 @@
-# Local permission and timetable/calendar read optimisation
+# V107.84 — Permission and timetable/calendar read optimisation
 
-Status: **local only; deployment requires the user's approval**. Branch: feature/academy-permission-timetable-reads, based on deployed V107.83 (3a67676d7949d316ea8a41369ab77acede753b01). No release number has been assigned.
+The user authorised deployment of the tested work as V107.84 from feature/academy-permission-timetable-reads. It incorporates deployed V107.83 (3a67676d7949d316ea8a41369ab77acede753b01) and local optimisation commit b2ac731a.
 
-**Keep live checks small to limit database usage.** This work used saved analytics and disposable local fixtures. It made no hosted database queries, deployments, live SQL changes or live data corrections.
+**Keep live checks small to limit database usage.** Implementation used saved analytics and disposable local fixtures, with no hosted database queries or live data corrections. Release verification is limited to management deployment metadata, one API readiness request and static/version checks.
 
 ## Changes
 
@@ -34,6 +34,6 @@ These are bounded local measurements, not production savings or a daily allowanc
 - Security coverage includes forged verification versions/signatures; actor/session separation; session revocation, disabled accounts, PIN removal and credential changes; scoped roles, subscriptions and lifecycle changes; clock-only session expiry and substitute activation/expiry; revocation after capture; bounded-cache eviction/restart; unchanged write admission and recovery.
 - Publication differential tests include current and historical pinned heads, mixed-head batches, live disables, unpublished names, owner-local setting counters, explicit/quoted history reads, invalid hints and the non-split fallback.
 
-## Eventual release
+## Authorised release
 
-No database migration, backfill, republishing or configuration change is required. Once the user approves deployment, prepare a new release and deploy the private coordinator before the matching API through the existing release workflow. Older coordinators safely ignore the optional read scope and use the unrestricted path during rollout. Keep live verification to small release/readiness checks; do not run this synthetic benchmark against hosted databases.
+No database migration, backfill, republishing or configuration change is required. Deploy the private coordinator before the matching API and website through the existing release workflow. Older coordinators safely ignore the optional read scope and use the unrestricted path during rollout. Keep live verification to small release/readiness checks; do not run this synthetic benchmark against hosted databases. Future deployments require fresh user authorisation.

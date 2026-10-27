@@ -1,6 +1,8 @@
-# Local read optimisation — awaiting deployment approval
+# V107.84 — Permission and timetable/calendar read optimisation
 
-Permission rechecks and accepted timetable/calendar reads have been reduced on feature/academy-permission-timetable-reads, based on V107.83. All access checks remain current. No changes have been deployed and no database upgrade is required. Keep live checks small to limit database usage. [Implementation, local measurements and verification](docs/ACADEMY-PERMISSION-TIMETABLE-READS.md).
+Repeated permission proofs now reuse a server-verified database version while retaining live session, revocation, expiry and timed-grant checks. Accepted timetable/calendar reads capture only the requested publication components instead of unrelated history. Write guards, owner merging, published visibility and app responses are preserved.
+
+Incorporates V107.83. The user authorised deploying the private coordinator before the matching Development API and website; no database upgrade, backfill or timetable republishing is required. Keep live checks small to limit database usage. [Implementation, local measurements and verification](docs/ACADEMY-PERMISSION-TIMETABLE-READS.md).
 
 # V107.83 — Reuse identical lesson PDFs
 

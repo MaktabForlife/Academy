@@ -1,3 +1,10 @@
+# Permission and timetable/calendar optimisation release — 27 October 2026
+
+- The user explicitly approved deploying the tested permission and timetable/calendar optimisations. Release feature/academy-permission-timetable-reads as V107.84, incorporating deployed V107.83. This supersedes the local deployment hold below for this release only.
+- Deploy the backward-compatible private split coordinator first, then the matching Development API and Academy website. No database migration, backfill, timetable republishing or live data correction is required.
+- Preserve current permissions, sessions, revocations, time-based grants, write guards, accepted publication boundaries and all V107.83 features. Keep live checks small to limit database usage: use local regression/runtime tests, management deployment metadata, one API readiness check and targeted static/version verification.
+- Future deployments require fresh user authorisation.
+
 # Local permission and timetable/calendar read optimisation — 27 October 2026
 
 - Work on local `feature/academy-permission-timetable-reads`, based on deployed V107.83. Reduce repeated permission proofs and published timetable/calendar reads without changing behaviour or permissions.
