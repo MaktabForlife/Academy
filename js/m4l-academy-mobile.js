@@ -45,41 +45,14 @@
  function canLeave(){return ['M4L_COURSE_WEBSITES','M4L_CLASS_NOTES','M4L_ACADEMY_SETTINGS','M4L_PROGRAM_ATTENDANCE','M4L_ACADEMY_PROGRESS','M4L_MEMORISATION_ADMIN','M4L_ACADEMY_ASSESSMENTS','M4L_LESSON_MEDIA','M4L_PLANNING','M4L_ANNOUNCEMENTS','M4L_PDF_READER'].every(key=>window[key]?.canLeave?.()!==false);}
  function openRole(key){const base=key==='admin'||adminRealm()?'/academy/admin/':'/academy/',hash=key==='admin'?'#administration':'#timetable/'+key;if([base,base+'index.html'].includes(location.pathname))location.hash=hash;else if(canLeave())location.href=base+hash;}
  const context=document.createElement('span');context.hidden=true;context.id='academy-workspace-context';context.className='academy-admin-context';context.setAttribute('aria-label','Current Admin workspace');
- const curriculum=document.createElement('dialog');curriculum.className='academy-side-menu';curriculum.id='academy-curriculum-menu';curriculum.setAttribute('aria-label','Curriculum');document.body.append(curriculum);
- const phone=matchMedia('(max-width:767px)'),esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
- let curriculumData=null,curriculumOwner='';
- const curriculumHeading='<div class="side-menu-heading"><h2>Curriculum</h2><button type="button" data-curriculum-close class="academy-close" aria-label="Close Curriculum menu">×</button></div>';
- function renderCurriculum(source=data){
-  if(!adminRealm()){if(curriculum.open)curriculum.close();return;}
-  const mode=boundary.audience()==='TEACH'?'teach':'learn';
-  const rows=(source?.personalActivities||[]).filter(row=>['PROGRAM','COURSE'].includes(row.kind)&&row.id&&(!phone.matches||row.curriculumActive!==false&&row.active!==false&&(![row.stage,row.lifecycle,row.status].filter(Boolean).length||[row.stage,row.lifecycle,row.status].filter(Boolean).every(value=>String(value).toUpperCase()==='ACTIVE'))));
-  curriculum.innerHTML=curriculumHeading+[['PROGRAM','Programs'],['COURSE','Courses']].map(([kind,label])=>'<section><h3>'+label+'</h3><nav aria-label="'+label+'">'+rows.filter(row=>row.kind===kind).sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:'base'})).map(row=>'<a data-workspace-exit href="/academy/admin/#activity/'+kind+'/'+encodeURIComponent(row.id)+'/'+mode+'">'+esc(row.name)+'</a>').join('')+'</nav></section>').join('');
- }
- async function openCurriculum(){
-  if(!adminRealm())return;
-  const owner=token(),workspace=boundary.current();
-  if(curriculumOwner!==owner){curriculumOwner=owner;curriculumData=null;}
-  if(Array.isArray(data?.activityPages))curriculumData=data;
-  if(curriculumData){renderCurriculum(curriculumData);if(!curriculum.open)curriculum.showModal();return;}
-  curriculum.innerHTML=curriculumHeading+'<p role="status">Loading curriculum…</p>';if(!curriculum.open)curriculum.showModal();
-  try{
-   // Connected tools load only account headers. Fetch the scoped catalogue on demand.
-   const response=await fetch((window.M4L_CONFIG?.API_BASE||'')+'/api/academy/entrance',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+owner},body:'{}'}),result=await response.json();
-   if(owner!==token()||workspace!==boundary.current()||!adminRealm())return;
-   if(!response.ok||!result.success)throw Error(result.error||'Curriculum could not load.');
-   curriculumData=result;renderCurriculum(result);
-  }catch{if(owner===token()&&adminRealm())curriculum.innerHTML=curriculumHeading+'<p role="status">Curriculum could not load.</p><button type="button" data-curriculum-open>Try again</button>';}
- }
- curriculum.addEventListener('click',event=>{if(event.target===curriculum||event.target.closest('[data-curriculum-close],nav a'))curriculum.close();});
- phone.addEventListener('change',()=>{if(curriculum.open)renderCurriculum(curriculumData||data);});
  function contextBanner(){
   const mode=boundary?.current()||'LEARN',isAdmin=adminRealm();context.hidden=!isAdmin;document.body.dataset.academyWorkspace=isAdmin||!boundary?.adminRealm()?mode:'';document.title=(isAdmin?mode.replace('_','-')+' · ':boundary?.adminRealm()&&!data?.signedIn?'Admin sign-in · ':'')+pageTitle;
-  if(!isAdmin){const identity=banners.querySelector('.academy-admin-identity');if(identity){identity.replaceWith(...identity.childNodes);}context.replaceChildren();if(curriculum.open)curriculum.close();return;}
+  if(!isAdmin){const identity=banners.querySelector('.academy-admin-identity');if(identity){identity.replaceWith(...identity.childNodes);}context.replaceChildren();return;}
   const label=mode.replace('_','-'),description=mode==='ADMIN_LEARN'?'Student class view · read only':mode==='ADMIN_TEACH'?'Teaching within your Admin scope':'Academy management';
   const profile=banners.querySelector('.academy-profile'),name=profile?.querySelector('#academy-header-name,#academy-shell-name');
   if(profile&&name){let identity=profile.querySelector('.academy-admin-identity');if(!identity){identity=document.createElement('span');identity.className='academy-admin-identity';name.before(identity);identity.append(name);}if(context.parentElement!==profile)profile.append(context);}
   const text=data?.globalAdmin||data?.workspaceAccess?.globalAdmin?'Global Admin':'Admin',hint=label+' · '+description;
-  context.innerHTML=mode==='ADMIN'?'<span class="academy-admin-badge" title="'+hint+'">'+text+'</span>':'<button type="button" class="academy-admin-badge" data-curriculum-open aria-haspopup="dialog" aria-controls="academy-curriculum-menu" aria-label="'+hint+' · Open Curriculum" title="'+hint+' · Open Curriculum">'+text+' <span aria-hidden="true">⌄</span></button>';
+  context.innerHTML='<span class="academy-admin-badge" title="'+hint+'">'+text+'</span>';
  }
  document.addEventListener('click',event=>{if(event.target.closest?.('[data-workspace-exit],[data-recorder-link]')&&!canLeave())event.preventDefault();});
 
@@ -99,7 +72,7 @@
   for(const button of document.querySelectorAll('[data-shell-role]')){button.hidden=!available[button.dataset.shellRole];const short=button.dataset.shellRole.toUpperCase(),label=(button.dataset.shellRole!=='admin'?(adminRealm()?'ADMIN-':canAdmin?'PERSONAL ':''):'')+short;button.setAttribute('aria-label',label);button.title=label;button.innerHTML='<span class="academy-role-label">'+label+'</span><span class="academy-role-short" aria-hidden="true">'+short+'</span>';button.setAttribute('aria-pressed',String(button.dataset.shellRole===selected));}
   const name=document.getElementById('academy-shell-name'),role=document.getElementById('academy-shell-role');if(name)name.textContent=signed?(data.profile?.name||'Academy member'):'Welcome';if(role)role.textContent=signed&&adminRealm()&&boundary?.current()==='ADMIN_LEARN'?'Admin-Learn · Student view':signed&&adminRealm()&&boundary?.current()==='ADMIN_TEACH'?'Admin-Teach · Teacher':signed&&boundary?.current()==='LEARN'?'Student':signed&&boundary?.current()==='TEACH'?'Teacher':global?'Global Admin':admin(roles)?'Program Admin':staff(roles)?'Teacher':roles.includes('STUDENT')?'Student':signed?'None':'';contextBanner();window.M4L_ACADEMY_ADMIN_MENU?.update(data);
  }
- document.addEventListener('click',event=>{if(event.target.closest('[data-curriculum-open]')){void openCurriculum();return;}const button=event.target.closest('[data-shell-role]');if(button&&!button.hidden){event.preventDefault();openRole(button.dataset.shellRole);}});
+ document.addEventListener('click',event=>{const button=event.target.closest('[data-shell-role]');if(button&&!button.hidden){event.preventDefault();openRole(button.dataset.shellRole);}});
  window.addEventListener('m4l-academy-access',()=>update(data));
  if(brand.matches?.('a')){brand.href=token()?boundary?.homeUrl?.()||'/academy/#overview':'/academy/#overview';brand.setAttribute('data-workspace-exit','');brand.removeAttribute('data-nav');}
  window.M4L_ACADEMY_SHELL={update,banners,openRole,canLeave,icon:quickIcon};update(data);

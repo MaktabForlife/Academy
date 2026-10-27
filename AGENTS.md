@@ -1,3 +1,9 @@
+# Compact course reading follow-up — 27 October 2026
+
+- The user requested the account ID and action icons on one compact row, removal of the menu attached to the Admin role, smaller reading-page headings, and an optional full-screen reading view without app headers.
+- Apply the fixes to the current Surah Al Kahf reader and reusable course website reader on `feature/academy-course-website-builder`. Preserve login, account switching, course permissions, native session/media and reading controls. Curriculum remains accessible through the Admin tools menu.
+- V107.99 deployment is complete. Keep this follow-up local; do not push or deploy until requested. Use local functional fixtures and source/build checks. The previously recorded browser local-URL restriction remains in effect; do not work around it.
+
 # Course website builder connection and release — 27 October 2026
 
 - The user explicitly requested connecting and deploying the desktop Admin Website builder, with Course websites in the Admin menu opening a list of websites to edit. Work on `feature/academy-course-website-builder`, incorporating deployed V107.98 (`8e502ba4`), and release as V107.99.
