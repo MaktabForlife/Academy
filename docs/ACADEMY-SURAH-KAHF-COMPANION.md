@@ -1,6 +1,6 @@
-# Surah Al Kahf course website — local preparation
+# V107.89 — Surah Al Kahf course website
 
-Branch: `feature/surah-kahf-course-companion`. Based on V107.85 (`b05ef792`). The user requested a separate working branch while another release deploys. No release number has been assigned; nothing from this branch has been pushed or deployed and no live data/settings/schema have changed.
+Branch: `feature/surah-kahf-course-companion`. The preparation was based on V107.85; the authorised release incorporates deployed V107.88 (`f569350d`). The user confirmed V107.88 was live and explicitly authorised deployment as the next release, V107.89. No live data/settings/schema changes are included.
 
 ## Student experience
 
@@ -16,6 +16,7 @@ The Sessions section uses the current authorised media feed and the published ti
 - The opt-in `includeCourseCompanion: true` flag on the existing media feed returns static lesson content only after its usual account, role/subscription, activity, feature and publication checks. Normal feed output/cache identity is unchanged.
 - A published Course PDF collection must be available. The selected PDF prefers the Nurturing System/Surah Kahf title or filename; a single PDF is accepted. Ambiguous unmatched collections do not release the edition.
 - Public website assets contain no lesson content module, verse module, source PDF or verse JSON. The private API module retains all lesson text. PDF bytes are obtained from the existing protected streaming download endpoint.
+- The approved course reader retains its own phone contents/navigation and dashboard return link instead of adding the general workspace banners. It loads the shared read-cache/refresh helper before course features. Its account-switch and revocation fences are covered by the course client tests.
 - The current Academy bearer session and workspace/accepted-setup wrapper are reused. Tokens are never put in URLs. No separate account or login service is added.
 - Account/session changes clear the mounted text, dialogs and pending requests. Delayed responses are discarded. Browser back/forward restoration reloads authorization. Visibility return refreshes the authorised feed without polling.
 - No new database schema, private coordinator change, SQL migration, live upload or publication is needed. Existing published PDF availability is checked at runtime.
@@ -42,8 +43,8 @@ Mobile visual verification completed on 27 October 2026 using the existing signe
 
 The authenticated portal shell and live session/assessment connections were checked with disposable local fixtures and the Academy asset/API build, not with live student accounts or live database-backed acceptance runs. No new portal code has been deployed. The first post-release check should therefore verify one authorised course opening using the existing login and one session/material view, with minimal live reads.
 
-Deployment preparation passed: 41 targeted local tests, the Development API dry build, and the normal Academy Pages build (781 public files, including 21 course files). The resulting website artifact contains neither the lesson source module nor the course PDF. Build output is ignored and intentionally retains the V107.85 baseline until an authorised release number is assigned.
+V107.89 release validation passed: all 133 regression test files, the Academy boundary check (149 modules, no Google backend clients), the Development API dry build, and the normal Academy Pages build (781 public files, including 21 course files). The 41 targeted course/media/workspace checks are included in this coverage. The resulting website artifact contains neither the lesson source module nor the course PDF. Build output is ignored. Current release/version/cache labels are V107.89 and the built source includes V107.88.
 
-## Before any authorised release
+## Release workflow
 
-Keep this branch local while the other update is unfinished, as explicitly requested by the user. Then reconcile the release currently deploying and latest `origin/development` without overwriting its changes. Assign the next release version only when deployment is authorised; update release/cache labels and required matching version files, run the targeted checks and normal website/API build. Verify the new Pages asset allowlist includes the public shell/fonts and excludes the backend text. Deploy only after fresh user authorisation under AGENTS.md. Keep live checks small.
+The user lifted the branch hold after V107.88 completed. V107.89 incorporates that release and uses matching API/website versions and asset cache labels. Run the required local regression/boundary checks and normal API/Pages builds; verify that public assets exclude the backend lesson text and course PDF. Publish the matching Development API and website, keeping live verification to release/static metadata and one readiness check. No database or coordinator update is needed.

@@ -30,6 +30,8 @@ const feed=()=>({success:true,activityName:'Surah Al Kahf',lessons:[],sessions:[
 test('the static Academy package holds a shell without the protected readings or PDF',()=>{
  for(const name of ['course-content.js','verses.js','assets/surah-al-kahf-course.pdf','assets/verses.json'])assert.equal(existsSync(new URL(name,root)),false);
  assert.doesNotMatch(html,/Whoever memorises ten|booklet p\.|view the original|#page=/i);
+ assert.match(html,/data-dashboard/);assert.match(html,/m4l-academy-read-cache\.js\?v=/);
+ assert.ok(html.indexOf('m4l-academy-workspace.js')<html.indexOf('m4l-academy-read-cache.js')&&html.indexOf('m4l-academy-read-cache.js')<html.indexOf('src="portal.js'));
  assert.match(html,/data-course-pdf download/);assert.match(html,/id="print-reading"/);
  for(const id of [...bridge.matchAll(/\$\('([^']+)'\)/g)].map(m=>m[1]))assert.match(html,new RegExp('id="'+id+'"'));
 });

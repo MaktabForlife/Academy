@@ -1,3 +1,9 @@
+# Surah Al Kahf student course release — 27 October 2026
+
+- The user confirmed V107.88 was deployed and explicitly instructed deploying the prepared Surah Kahf course package. Incorporate V107.88 into `feature/surah-kahf-course-companion` and release V107.89 through the existing Development API and Academy website workflow. This supersedes the earlier local branch hold for this course release only.
+- Use existing Academy login, course permissions and publication gates. Keep the eleven web lessons, mobile layout, protected recordings/materials, PDF download and print. Preserve Teacher editing tools, Admin navigation, V107.88 PDF controls, Library rows and remembered account switching.
+- No migration, private coordinator deployment, live material upload or timetable publication is required. Keep live checks small under ../AGENTS.md: local disposable fixtures, release metadata, static checks and one API readiness check. Future deployments require fresh user authorisation.
+
 # PDF toolbar update — 27 October 2026
 
 - The user requested the annotated PDF reader changes: two header rows with PDF workspace controls on the lower row; compact AUTO/ACTUAL zoom labels without grey shading; favourite colours inside Border/ink and a matching Fill palette. Follow the user's latest instruction to deploy completed work to Development.
