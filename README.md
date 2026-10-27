@@ -1,3 +1,21 @@
+# V107.104 — Complete dashboard attendance removal
+
+Hide Attendance in the shared Admin toolbar on dashboard landing pages, while retaining its destination on management screens. Includes the V107.103 weekly absentee lists and removal of dashboard register reads. The Monday 08:00 Riyadh schedule and current Admin scopes remain unchanged. No further database or coordinator upgrade. [Verification](docs/ACADEMY-WEEKLY-ABSENTEES.md).
+
+# V107.103 — Weekly Admin absentee list
+
+Remove attendance panels, shortcuts and repeated register reads from every dashboard. Admins receive one in-app absentee list each Monday at 08:00 Riyadh for the previous Monday–Sunday. Lists use latest submitted registers, exclude unknown attendance, and check current Admin scope whenever opened. Ordinary attendance tools and permissions remain available. Includes a small additive Core schema upgrade and matching coordinator metadata. [Implementation and verification](docs/ACADEMY-WEEKLY-ABSENTEES.md).
+
+# V107.102 — Save lesson plan requirements together
+
+Stage changes to Plans required on the Admin Lesson plans page, then apply the whole selection with **Save changes**. **Discard** restores the saved checkboxes. Unsaved selections survive refresh within the same signed-in browser session, with navigation protection. Save is one scoped atomic operation: a conflict or invalid entry prevents the whole selection from being saved. Preserve manual Submit plan, private drafts, existing documents and Teach access controls. No database migration or coordinator update is required. [Verification](docs/ACADEMY-PLAN-SAVE-ALL-107102.md).
+
+# V107.101 — Manual lesson plans
+
+Admin Lesson plans opens a compact alphabetical table of active Programs and Courses, with a Plans required checkbox and Open plans shown only when required. Open plans retains the teacher-by-week grid with submitted documents and neutral empty cells. Turning plans off hides planning throughout Teach and blocks direct planner access while preserving saved work.
+
+Save draft stays private. The manual **Submit plan** button shares the selected version with Admin; later drafts remain private until submitted again. Remove automatic status/deadline calculations, reminder queues, session overrides, extensions and feedback workflow. Retain creation, saved history, PDF/image sharing and viewing. No database migration or private coordinator update is required. [Implementation and verification](docs/ACADEMY-MANUAL-LESSON-PLANS-107101.md).
+
 # V107.100 — Compact course headers and full-screen reading
 
 Keep the account ID and page actions together in one compact row, remove the Admin role dropdown and reduce course/lesson heading spacing. Both the original Surah Al Kahf reader and editable course websites offer **Full screen reading**, with a sticky Exit control, Menu and text sizing. Reading position is retained; leaving lessons or changing accounts restores the headers. [Release checks](docs/ACADEMY-COMPACT-READING-107100.md).

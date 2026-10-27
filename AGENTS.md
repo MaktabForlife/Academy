@@ -1,3 +1,49 @@
+# Tafseer subscriptions and Surah website access release — 27 October 2026
+
+- The user confirms V107.104 is deployed and authorises deploying this feature on top of it, including the matching coordinator/API/website and additive schema. This supersedes earlier local-only holds for this feature. Preserve V107.104 weekly attendance behaviour and its scheduled jobs.
+- Complete the manually maintained Surah table in Tafseer Lesson media and attach eligible website card links. Lesson videos/PDFs remain attached to lessons and governed by the paid lesson month; website access follows the manually entered completion month independently.
+- Do not reseed, fabricate subscriptions/completion dates or publish real course content. Preserve existing database IDs, accepted heads, objects, secrets and scoped retention. Admins prepare/review/activate their own real monthly register and publish their own websites.
+- After verified deployment, the user explicitly authorises messaging the existing `website` chat with the card links/integration contract and release so that it can complete its card deployment. Do not message unrelated chats.
+- Use disposable local fixtures and minimal hosted schema/version/static/readiness checks under ../AGENTS.md.
+
+# Tafseer monthly subscriptions — local implementation — 27 October 2026
+
+- Add the manually maintained Surah websites table specifically inside Admin → Tafseer Program → Lesson media. Admin enters both surah names and completion dates; never infer or link dates to lessons or PDF releases. This table is the source of truth: a student with a paid subscription in the completion date’s calendar month may read that surah’s published website and retains it after stopping renewal. Reuse the website editor without manufacturing Course enrolments. Keep all work local; do not push/deploy/apply hosted migrations.
+
+- Add a per-student whole-year checkbox for all 12 months, while keeping individual months editable. Whole-year and individual edits use the existing bulk Save changes flow. Keep this local on the feature branch; do not push or deploy.
+
+- The user requested a simpler checkbox grid: Tafseer students in the first column, expandable year groups 2024/2025/2026 that reveal month columns, and student search. Replace the month-by-month cards with this grid, support saving edited cells across months atomically, and preserve lesson-month access, recording retention and historical media entry. Keep the feature local; do not push or deploy.
+- The user now authorizes implementing the reviewed plan locally on this feature branch, including retaining Tafseer recordings beyond 14 days. Support dated historical lesson/media entries for lessons before the app, explicitly including 2024 and 2025, and explicit historical student/month subscriptions. This supersedes the planning-only hold below for local implementation.
+- Do not push, deploy, apply hosted migrations, change live data or bucket lifecycle rules. Use disposable synthetic local databases/objects, preserve other Programs' access/retention and current release markers. No other-chat communication or delegation was requested.
+
+# Tafseer monthly subscriptions — local planning — 27 October 2026
+
+- The user requested a new feature branch and a local plan for a Tafseer Monthly subscriptions tab. Work on `feature/academy-tafseer-monthly-subscriptions`, based on the local V107.100 Development commit `0e767b892e7cb69c6b6447576aef8ad61c15ac1b`.
+- The paid month follows the parent lesson's month, not the upload date. A recording added later to an October lesson belongs to October access. Students retain access to every month they paid for when they stop renewing; monthly classes are unnecessary.
+- This stage is planning only. Save the implementation plan in `docs/ACADEMY-TAFSEER-MONTHLY-SUBSCRIPTIONS-PLAN.md`. Do not implement runtime changes, apply migrations, alter live data/settings/storage, push, deploy or contact other chats. Earlier release approvals below apply to their completed releases only.
+- Plan against the existing Program identity, scoped Admin authority, historical lesson audiences, private media delivery and split-store permission checks. Address archive navigation and the existing 14-day MP4 retention explicitly. Preserve unrelated work and use disposable local fixtures for a later implementation.
+# Weekly absentee list and dashboard attendance — 27 October 2026
+
+- Complete the authorised release as V107.104, including the final shared Admin toolbar correction after V107.103. The Core schema and coordinator are already upgraded; do not repeat either migration.
+
+- Work on `feature/academy-weekly-absentees`, preserving V107.102. The user requested removing attendance from all dashboards and a Monday 08:00 Riyadh in-app absentee list for Admins, then explicitly authorised deployment when tested.
+- Preserve ordinary attendance tools and current permissions. Build weekly lists from latest submitted registers, never infer absence from missing registers. Global Admins see all areas; scoped Admins see their current areas only. No repeated dashboard roster reads.
+- Use disposable local tests and keep live checks small under ../AGENTS.md. Deploy only required additive schema and matching existing coordinator/API/website after testing. Do not publish timetables or change live attendance records.
+
+# Lesson plan Save changes release — 27 October 2026
+
+- After V107.101, the user requested staging all Plans required checkboxes on the page and saving them together, then explicitly authorised deployment. Release V107.102 from `feature/academy-manual-lesson-plans`, preserving deployed `3df676f6`.
+- Add one Save changes button and Discard. Checkbox selection alone makes no server writes. Save all changed requirements as one guarded, scoped, atomic operation with retry/conflict protection and exact multi-area acceptance. Retain manual Submit plan, private drafts, history, PDF/image sharing and Teach visibility/access gates.
+- Preserve unsaved selections in this account's browser session, guard navigation, and clear on account cleanup. Use synthetic local tests, phone/desktop browser checks and matching builds; hosted verification stays limited to release/static metadata and one API readiness call under ../AGENTS.md.
+- Deploy only the matching existing Development API and Academy website. No database migration, coordinator update, user settings edit or content publication is required. Future deployments need fresh authorisation.
+
+# Manual lesson plans release — 27 October 2026
+
+- The user authorised implementation of the planned lesson-plan simplification, keeping the manual Submit plan button, and deployment after confirming V107.100 is live. Work on `feature/academy-manual-lesson-plans`, based on `0e767b89`, and release V107.101 to the existing Development API and Academy website.
+- Admin opens an alphabetical table of active Programs/Courses with Plans required and conditional Open plans controls. Retain the existing teacher/week submission grid. Plans off removes Teach access and blocks direct planner requests. Save draft remains private; manual Submit shares the chosen version with Admin.
+- Remove automatic plan statuses, missing-plan/reminder queues, deadlines/extensions, per-session policies and feedback workflow. Preserve generation, storage/history, PDF/image sharing, viewing, permissions and every existing plan. Retired schema/history remains inert; no migration, live content/settings change or private coordinator deployment is required.
+- Use synthetic local fixtures and browser checks. Keep hosted verification to matching release/static metadata and one API readiness call under ../AGENTS.md. Do not contact other chats. This supersedes historical holds below for this release only; future deployments require fresh authorisation.
+
 # Compact course reading release — 27 October 2026
 
 - The user explicitly requested deployment of the reviewed compact headers and full-screen reading option. Release V107.100 from `feature/academy-course-website-builder`, preserving deployed V107.99 (`965d7c51`). This supersedes the local-only hold below for this release.

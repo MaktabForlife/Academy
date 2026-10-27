@@ -456,7 +456,8 @@
     const staff = Boolean(state.home?.globalAdmin || staffRoles(row.roles || []));
     const mode = (window.M4L_ACADEMY_WORKSPACE?.audience()||'LEARN').toLowerCase()==='teach'?'teach':'learn';
     const requested = (explicit ? parts[4] : parts[3]) || 'timetable';
-    const tools = row.substituteOnly?['timetable','attendance']:mode === 'teach' ? ['timetable','attendance','planning','assessment','lesson-media','library','surahs-duas'] : ['timetable','assessment','lesson-media','library'];
+    let tools = row.substituteOnly?['timetable','attendance']:mode === 'teach' ? ['timetable','attendance','planning','assessment','lesson-media','library','surahs-duas'] : ['timetable','assessment','lesson-media','library'];
+    if(row.plansRequired===false)tools=tools.filter(tool=>tool!=='planning');
     const tool = tools.includes(requested) ? requested : 'timetable';
     return {mode,tool,explicit,staff};
   }
@@ -511,6 +512,7 @@
       Boolean(current && item.id === current.id && current.kind === 'PROGRAM'))).join('') +
       (state.home?.signedIn && (state.home.globalAdmin || courses.some(row=>row.roles.length)) ? activityPill('#workshops', 'Courses', state.home.globalAdmin ? ['GLOBAL_ADMIN', 'PROGRAM_ADMIN'] : [...new Set(courses.flatMap(item => item.roles))],
         view === 'workshops' || current?.kind === 'COURSE') : '');
+    strip.innerHTML+=(state.home?.monthlyMedia||[]).map(row=>`<a class="al-activity-pill" href="${esc(row.href)}">${esc(row.name)} · Paid months</a>`).join('');
     strip.hidden = !state.home?.signedIn;
   }
 
@@ -527,7 +529,7 @@
     return (admin ? group('Admin', link('Users', users) + link('Library', global ? '/academy/library/manage/' : row.tools?.resources || '/academy/library/') +
       link('Programs', global ? '/programs/' : row.kind === 'PROGRAM' && row.id ? `/programs/timetable.html?program=${encodeURIComponent(row.id)}` : '') +
       link('Courses', global || row.kind !== 'PROGRAM' ? '/academy/courses/manage/' : '') + (row.kind==='PROGRAM'?link('Surahs and Duas',`#progress-admin/PROGRAM/${encodeURIComponent(row.id)}`):'') + link('Assessments',row.id?`#assessment-admin/${row.kind}/${encodeURIComponent(row.id)}`:'#assessment-admin/COURSE') + tool('Academy','academy')) : '') +
-      (staff ? group('Teach', hifzHelper + (row.kind === 'PROGRAM' ? `<a href="${activityHref(row)}/attendance" aria-expanded="${location.hash.endsWith('/attendance')}" aria-controls="pa-main">Attendance</a>` + link('Surahs and Duas',`${activityHref(row)}/surahs-duas`) : tool('Attendance','attendance')) + link('Assessment',row.id?`${activityHref(row)}/assessment`:'#assessments/COURSE') + link('Planning',`${activityHref(row)}/planning`) + tool('Announcements','announcements') + link('My Timetable','#timetable') + (window.M4L_CONFIG?.ACCEPTED_SETUP?'':link('Edit availability','/academy/teaching/'))) : '') +
+      (staff ? group('Teach', hifzHelper + (row.kind === 'PROGRAM' ? `<a href="${activityHref(row)}/attendance" aria-expanded="${location.hash.endsWith('/attendance')}" aria-controls="pa-main">Attendance</a>` + link('Surahs and Duas',`${activityHref(row)}/surahs-duas`) : tool('Attendance','attendance')) + link('Assessment',row.id?`${activityHref(row)}/assessment`:'#assessments/COURSE') + (row.plansRequired!==false?link('Planning',`${activityHref(row)}/planning`):'') + tool('Announcements','announcements') + link('My Timetable','#timetable') + (window.M4L_CONFIG?.ACCEPTED_SETUP?'':link('Edit availability','/academy/teaching/'))) : '') +
       (learner && !staff ? group('Learn', (!staff?hifzHelper:'') + link('Library','/academy/library/') + link('My Assessment',row.id?`${activityHref(row)}/assessment`:'#assessments/COURSE') + tool('Calendar','calendar') + tool('Announcements','announcements') + link('My Timetable','#timetable')) : '');
   }
 
@@ -536,6 +538,7 @@
     const context = workspaceContext(row), tools = context.mode === 'teach'
       ? [['timetable','Timetable','activity-schedule'],['attendance','Attendance',!nativeAttendance()&&row.kind === 'COURSE' ? 'activity-planning' : 'pa-main'],['planning','Planning','activity-planning'],['assessment','Assessment','as-panel'],['lesson-media','Lesson media','activity-lesson-media'],['library','Library','activity-library']]
       : [['timetable','Timetable','activity-schedule'],['assessment','Assessment','as-panel'],['lesson-media','Lesson media','activity-lesson-media'],['library','Library','activity-library']];
+    if(row.plansRequired===false){const index=tools.findIndex(t=>t[0]==='planning');if(index>=0)tools.splice(index,1);}
     if(row.substituteOnly)tools.splice(2);
     const recorder = row.kind === 'PROGRAM' && row.id === window.M4L_CONFIG?.REBOOT_PROGRAM_ID && !row.unavailable
       ? '<a class="workspace-recorder-pill" data-recorder-link href="/recorder/?academy=1">Voice Recorder</a>' : '';
@@ -550,7 +553,7 @@
     const library = $('activity-library'), planning = $('activity-planning'), support = $('activity-support');
     library.hidden = !permitted || context.tool !== 'library';
     library.innerHTML = library.hidden ? '' : '<h2>Library</h2><p class="muted">Open your Academy resources or browse the public collection.</p><div class="workspace-actions"><a class="button" href="/academy/library/">This course</a><a class="button secondary" href="/academy/open-library/">Public library</a></div>';
-    planning.hidden = !permitted || context.mode !== 'teach' || context.tool !== 'planning';
+    planning.hidden = row.plansRequired===false || !permitted || context.mode !== 'teach' || context.tool !== 'planning';
     planning.setAttribute('aria-labelledby',context.tool === 'attendance' ? 'activity-tab-attendance' : 'activity-tab-planning');
     support.hidden = !permitted||row.substituteOnly;
     const oldTracker = support.querySelector?.('.academy-progress-section'), trackerOpen = oldTracker?.open && oldTracker.dataset.progressActivity === `${row.kind}:${row.id}`;
@@ -558,8 +561,8 @@
     if (trackerOpen && context.mode === 'teach') support.querySelector('.academy-progress-section').open = true;
     if (!nativeAttendance() && context.tool === 'attendance' && row.kind === 'COURSE' && permitted && context.mode === 'teach') {
       planning.hidden = false;planning.innerHTML = '<h2>Attendance</h2><p class="muted">Course attendance tools are coming soon.</p>';
-    } else if(permitted && context.mode==='teach' && context.tool==='planning') window.M4L_PLANNING?.open({hostId:'activity-planning',view:'teacher',activityKey:`${row.kind}:${row.id}`,...(planningSelection?.id===row.id?planningSelection:{})});
-    else if(context.tool!=='planning')planning.replaceChildren();
+    } else if(permitted && row.plansRequired!==false && context.mode==='teach' && context.tool==='planning') window.M4L_PLANNING?.open({hostId:'activity-planning',view:'teacher',activityKey:`${row.kind}:${row.id}`,...(planningSelection?.id===row.id?planningSelection:{})});
+    else planning.replaceChildren();
     renderAcademyMenu();
   }
 

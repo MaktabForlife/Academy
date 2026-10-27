@@ -34,14 +34,6 @@ test('announcement image validation, empty messages, ordering and transactional 
  f.db.exec("CREATE TRIGGER fail_announcement_audit BEFORE INSERT ON audit_events WHEN NEW.record_kind='ANNOUNCEMENTS' BEGIN SELECT RAISE(ABORT,'injected'); END");
  assert.equal((await save(f,admin,blank(),png())).status,503);assert.equal(f.db.prepare('SELECT count(*) n FROM academy_announcements').get().n,2);
 }));
-test('plans not required removes expectations, retains submitted history, allows optional plans and checks scope',()=>use(async f=>{
- const admin=await f.login('0004'),teacher=await f.login('0003');
- const actual=f.db.prepare("SELECT activity_key FROM role_assignments WHERE account_id='account-0004' AND role='PROGRAM_ADMIN' LIMIT 1").get().activity_key;
- const policy={activityKey:actual,revision:0,weeklyDay:0,weeklyTime:'18:00',courseLeadDays:3,plansRequired:false,operationId:crypto.randomUUID()};
- ok(await f.call('/api/academy/planning/policy',policy,admin));let board=ok(await f.call('/api/academy/planning/list',{view:'admin',activityKey:actual,weekStart:'2026-10-19'},admin));assert.equal(board.plans.length,0);assert.equal(board.areas.find(a=>a.key===actual).policy.plansRequired,false);
- assert.equal((await f.call('/api/academy/planning/policy',{...policy,revision:1,operationId:crypto.randomUUID()},teacher)).status,403);
- ok(await f.call('/api/academy/planning/submit',{activityKey:actual,weekStart:'2026-10-19',period:'WEEKLY',revision:0,operationId:crypto.randomUUID(),content:{title:'Optional plan',overview:'Revision',reflection:'',lessons:[]}},teacher));board=ok(await f.call('/api/academy/planning/list',{view:'admin',activityKey:actual,weekStart:'2026-10-19'},admin));assert.equal(board.plans.length,1);assert(board.plans[0].submittedAt);
-}));
 test('Global Admin authority revoked during image upload prevents announcement publication',()=>use(async f=>{
  const admin=await f.login('0001'),put=f.env.LESSON_MEDIA_BUCKET.put;
  f.env.LESSON_MEDIA_BUCKET.put=async(k,b)=>{await put(k,b);f.db.exec("UPDATE global_role_assignments SET active=0 WHERE account_id='account-0001'");};

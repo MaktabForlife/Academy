@@ -1,9 +1,11 @@
 {
   "name": "maktab-academy-development",
-  "version": "107.100",
+  "version": "107.105",
   "type": "module",
   "scripts": {
     "test": "node tests/run-all.mjs",
+    "preview:tafseer": "node tools/academy-tafseer-preview.mjs",
+    "test:tafseer": "node --test tests/academy-monthly-subscriptions.test.mjs tests/academy-monthly-subscriptions-grid.test.mjs tests/academy-monthly-subscriptions-split.test.mjs tests/academy-monthly-subscriptions-ui.test.mjs tests/academy-program-surahs.test.mjs tests/academy-program-surahs-split.test.mjs tests/academy-program-surahs-ui.test.mjs tests/academy-tafseer-card-links.test.mjs",
     "test:messaging": "node --test tests/academy-messaging.test.mjs",
     "test:messaging:browser": "node tools/academy-messaging-acceptance.mjs",
     "preview:messaging": "node tools/academy-messaging-preview.mjs",
@@ -30,6 +32,7 @@
     "deploy:feature": "wrangler deploy --config wrangler.feature.jsonc --keep-vars"
   },
   "devDependencies": {
+    "linkedom": "^0.18.14",
     "wrangler": "^4.36.0"
   }
 }

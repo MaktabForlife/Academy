@@ -1,3 +1,4 @@
+import {recoverWeeklyAbsentees,weeklyAbsenteeCron} from './weekly-absentees.js';
 import {imtihaanWorkflow} from './assessment-imtihaan-workflow.js';
 import {assessmentStore} from './assessment-store.js';
 import {warmPublishedAssessments} from './published-assessments.js';
@@ -33,6 +34,7 @@ import {d1AccountTimetable} from './account-timetable.js';
 import { createAuthRateLimitKey, createSessionToken, isValidFourDigitPin } from '../../lib/auth-primitives.js';
 import {createAcademyPinHash,verifyAcademyPin} from '../../lib/academy-pin.js';
 import { academyD1Repository, rehearsalError } from './repository.js';
+import {surahWebsiteLinks} from './surah-websites-access.js';
 import { d1Entrance } from './entrance.js';
 import {d1LessonJoin,websiteEntrance} from './lesson-join.js';
 import {publicTimetable,refreshPublicTimetable,refreshPublishedTimetable} from './public-timetable.js';
@@ -49,6 +51,7 @@ import {academicCalendar} from './academic-calendar.js';
 import {d1CourseManagement} from './course-management.js';
 import {d1CourseCatalogue} from './course-catalogue.js';
 import {enrolmentCatalogue,enrolmentProfile,submitEnrolment,enrolmentManagement} from './enrolment.js';
+import {programMonthlySubscriptions} from './program-monthly-subscriptions.js';
 import {d1CourseSubscriptions} from './course-subscriptions.js';
 import {managedCourseScopes} from './course-authority.js';
 import {authenticatedD1Account,d1Audience as audience,d1ContextEqual as contextEqual} from './session.js';
@@ -104,7 +107,7 @@ async function dispatch(request,env) {
   if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,setupEnabled(env)?await readRepository():repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(setupEnabled(env)?await readRepository():repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.100',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.105',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(setupEnabled(env)?await readRepository():repository)};
@@ -203,6 +206,23 @@ async function dispatch(request,env) {
   }
   const auth=await authenticated(request,env,repository);
   guardWorkspace(request,auth,input);
+  const monthlyAction=path.match(/^\/api\/admin\/platform\/program-monthly-subscriptions\/(get|configure|save|grid|grid-save|surahs|surah-save)$/)?.[1];
+  if(monthlyAction)return {success:true,...await programMonthlySubscriptions(sourceRepository,auth).run(monthlyAction,input)};
+  if(path==='/api/academy/tafseer-links'||path==='/api/academy/monthly-media/surahs'){
+    const result=await surahWebsiteLinks(sourceRepository,auth);
+    return {success:true,...result,...(path.endsWith('/surahs')?{surahs:result.websites}:{})};
+  }
+  if(path==='/api/academy/monthly-media/months'){
+    if(!sourceRepository.features.monthlySubscriptions)throw rehearsalError('Monthly media is unavailable.',503);
+    const grants=auth.workspace==='LEARN'&&!auth.adminView?(auth.state.monthlyMedia||[]):[];
+    return {success:true,programs:[...new Set(grants.map(g=>g.activity_key))].map(key=>({activityKey:key,name:auth.state.activities.find(a=>a.activity_key===key)?.name||'Program',months:grants.filter(g=>g.activity_key===key).map(g=>g.lesson_month)}))};
+  }
+  if(path==='/api/academy/monthly-media/list'){
+    if(!sourceRepository.features.monthlySubscriptions||auth.workspace!=='LEARN'||auth.adminView)throw rehearsalError('Open your paid months in Learn.',403,'FORBIDDEN');
+    const source=setupEnabled(env)?await readRepository():sourceRepository,selection={...input,view:'learner'};
+    const result=await lessonMedia(source,auth,env).run('list',selection);
+    return {success:true,...(sourceRepository.features.mediaSeparation?await lessonNotes(source,auth,env).enrichList(result,selection):result)};
+  }
   if(path.startsWith('/api/academy/messaging/')){
     if(request.method!=='POST')throw rehearsalError('Use POST.',405,'METHOD_NOT_ALLOWED');
     if(env.ACADEMY_MESSAGING!=='1')throw rehearsalError('Messaging is not enabled yet.',503,'MESSAGING_NOT_ENABLED');
@@ -239,14 +259,14 @@ async function dispatch(request,env) {
   if(bookmarkAction)return {success:true,...await pdfBookmarks(repository,auth).run(bookmarkAction,input)};
   const announcementAction=path.match(/^\/api\/admin\/platform\/announcements\/(list|delete)$/)?.[1];
   if(announcementAction)return {success:true,...await announcements(repository,auth,env).run(announcementAction,input)};
-  const planningAction=path.match(/^\/api\/academy\/planning\/(list|get|save|submit|comment|policy|deadline|sessions|session-policy)$/)?.[1];
+  const planningAction=path.match(/^\/api\/academy\/planning\/(list|get|save|submit|requirement|requirements|comment|policy|deadline|sessions|session-policy)$/)?.[1];
   if(planningAction)return {success:true,...await lessonPlanning(repository,auth).run(planningAction,input)};
   const pdfToolAction=path.match(/^\/api\/admin\/platform\/pdf-tools\/(get|save)$/)?.[1];
   if(pdfToolAction)return {success:true,...await pdfTools(repository,auth).run(pdfToolAction,input)};
   const academicCalendarAction=path.match(/^\/api\/academy\/calendar\/(get|save)$/)?.[1];
   if(academicCalendarAction){const produce=()=>academicCalendar(repository,auth).run(academicCalendarAction,input);return {success:true,...await (academicCalendarAction==='get'?privateSnapshot(repository,auth,{kind:'calendar',input},produce):produce())};}
   if(path==='/api/academy/lesson-media/timetable'){const result=await timetableMedia(repository,auth,input);if(sourceRepository.features.mediaSeparation){const additions=await lessonNotes(await readRepository(),auth,env).timetable(input);for(const row of additions.lessons){const existing=result.lessons.find(r=>r.activityKey===row.activityKey&&r.sessionKey===row.sessionKey);if(existing)existing.assets.push(...row.assets);else result.lessons.push(row);}}return {success:true,...result};}
-  const mediaAction=path.match(/^\/api\/academy\/lesson-media\/(list|feed|calendar|sessions|create|course-files-create|get|save|watch|download|comments|comment-save|comment-moderate|attachment-remove|attachment-name|video-start|video-complete|video-abort)$/)?.[1];
+  const mediaAction=path.match(/^\/api\/academy\/lesson-media\/(list|feed|calendar|sessions|create|historical-create|course-files-create|get|save|watch|download|comments|comment-save|comment-moderate|attachment-remove|attachment-name|video-start|video-complete|video-abort|video-retain)$/)?.[1];
   if(mediaAction){let result=await lessonMedia(repository,auth,env).run(mediaAction,input);if(sourceRepository.features.mediaSeparation&&['calendar','list','feed','get'].includes(mediaAction)&&!result.notModified){const notes=lessonNotes(await readRepository(),auth,env);if(mediaAction==='get'){if(result.lesson.sessionKey){const entries=await notes.notes([{activityKey:result.lesson.activityKey,sessionKey:result.lesson.sessionKey}]);result.assets.push(...entries.map(notes.asset));result.lesson.canCurateNotes=true;}}else result=await (mediaAction==='calendar'?notes.enrichCalendar(result,input):mediaAction==='feed'?notes.enrichFeed(result,input):notes.enrichList(result,input));}return result instanceof Response?result:{success:true,...result};}
   if(path==='/api/academy/assessments/progress-list')return {success:true,...await assessmentProgress(repository,auth,input)};
   if(path==='/api/academy/assessments/download')return assessmentFiles(repository,auth,env).download(input);
@@ -331,6 +351,7 @@ async function dispatch(request,env) {
 }
 return {
   async scheduled(event,env,ctx){
+    if(event.cron===weeklyAbsenteeCron){ctx.waitUntil(recoverWeeklyAbsentees(env,new Date(event.scheduledTime)));return;}
     // A dedicated minute tick must not multiply cache/Hifz recovery work.
     if(event.cron==='* * * * *'){
       ctx.waitUntil(recoverMessaging(env,new Date(event.scheduledTime)));

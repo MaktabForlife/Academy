@@ -1,3 +1,4 @@
+import {messageInboxSQL,isWeeklyAbsenteeNotice,weeklyAbsentees} from './weekly-absentees.js';
 import {managementError as fail,same} from './management-store.js';
 import {cleanText,validDate} from './assessment-store.js';
 import {messagingAudience} from './messaging-audience.js';
@@ -14,7 +15,7 @@ const noticeDTO=n=>({id:n.notice_id,subject:n.subject,body:n.state==='WITHDRAWN'
 
 export function messaging(repository,auth,now=()=>new Date(),{system=false}={}){
  const db=repository.db,p=(sql,...v)=>db.prepare(sql).bind(...v),actor=auth.user.accountid,audiences=messagingAudience(repository,auth,now);
- const stamp=()=>now().toISOString();
+ const stamp=()=>now().toISOString(),inbox='('+messageInboxSQL(auth,repository.features?.weeklyAbsentees)+')',weekly=weeklyAbsentees(repository,auth);
  async function ready(){
   try{await p('SELECT draft_id FROM messaging_drafts WHERE 0').all();}catch(e){if(/no such table/.test(e.message))throw fail('Messaging needs its local database upgrade.',503,'MESSAGING_SCHEMA_REQUIRED');throw e;}
  }
@@ -106,8 +107,8 @@ export function messaging(repository,auth,now=()=>new Date(),{system=false}={}){
   return result;
  }
  async function summary(){
-  const counts=await p("SELECT coalesce(sum(r.archived_at IS NULL),0) total,coalesce(sum(CASE WHEN r.archived_at IS NULL THEN r.unread ELSE 0 END),0) unread,coalesce(sum(CASE WHEN n.requires_ack=1 AND r.acknowledged_at IS NULL AND n.state='SENT' THEN 1 ELSE 0 END),0) toAcknowledge FROM messaging_recipients r JOIN messaging_notices n USING(notice_id) WHERE r.account_id=? AND n.state IN('SENT','WITHDRAWN')",actor).first();
-  const rows=(await p("SELECT n.notice_id,n.subject,n.sender_name,n.state,n.issued_at,n.requires_ack,r.unread,r.acknowledged_at FROM messaging_recipients r JOIN messaging_notices n USING(notice_id) WHERE r.account_id=? AND r.archived_at IS NULL AND n.state IN('SENT','WITHDRAWN') ORDER BY n.created_at DESC,n.notice_id DESC LIMIT 3",actor).all()).results;
+  const counts=await p(`SELECT coalesce(sum(n.archived_at IS NULL),0) total,coalesce(sum(CASE WHEN n.archived_at IS NULL THEN n.unread ELSE 0 END),0) unread,coalesce(sum(CASE WHEN n.requires_ack=1 AND n.acknowledged_at IS NULL AND n.state='SENT' THEN 1 ELSE 0 END),0) toAcknowledge FROM ${inbox} n WHERE n.account_id=? AND n.state IN('SENT','WITHDRAWN')`,actor).first();
+  const rows=(await p(`SELECT n.notice_id,n.subject,n.sender_name,n.state,n.issued_at,n.requires_ack,n.unread,n.acknowledged_at FROM ${inbox} n WHERE n.account_id=? AND n.archived_at IS NULL AND n.state IN('SENT','WITHDRAWN') ORDER BY n.created_at DESC,n.notice_id DESC LIMIT 3`,actor).all()).results;
   return {counts,notices:rows.map(n=>({id:n.notice_id,subject:n.subject,sender:n.sender_name,state:n.state,issuedAt:n.issued_at,unread:Boolean(n.unread),requiresAcknowledgement:Boolean(n.requires_ack),acknowledgedAt:n.acknowledged_at})),canSend:(await audiences.options()).canSend};
  }
  async function list(input){
@@ -126,13 +127,14 @@ export function messaging(repository,auth,now=()=>new Date(),{system=false}={}){
    const rows=(await p('SELECT n.*,0 unread FROM messaging_notices n WHERE n.actor_id=? ORDER BY n.created_at DESC,n.notice_id DESC LIMIT ? OFFSET ?',actor,pageSize+1,offset).all()).results;
    return {notices:rows.slice(0,pageSize).map(noticeDTO),nextOffset:rows.length>pageSize?offset+pageSize:null};
   }
-  const filter=input.filter==='unread'?'AND r.unread=1':input.filter==='ack'?'AND n.requires_ack=1 AND r.acknowledged_at IS NULL AND n.state=\'SENT\'':'';
-  const rows=(await p(`SELECT n.notice_id,n.subject,n.sender_name,n.workspace,n.audience_json,n.requires_ack,n.recipient_count,n.state,n.created_at,n.issued_at,n.scheduled_for,n.withdrawn_at,n.withdrawal_reason,n.previous_notice_id,n.actor_id,'null' link_json,'' body,r.first_opened_at,r.unread,r.acknowledged_at,r.archived_at FROM messaging_recipients r JOIN messaging_notices n USING(notice_id) WHERE r.account_id=? AND n.state IN('SENT','WITHDRAWN') ${input.filter==='ack'&&input.folder!=='archived'?'':`AND r.archived_at IS ${input.folder==='archived'?'NOT ':''}NULL`} ${filter} ORDER BY n.created_at DESC,n.notice_id DESC LIMIT ? OFFSET ?`,actor,pageSize+1,offset).all()).results;
-  return {notices:rows.slice(0,pageSize).map(noticeDTO),nextOffset:rows.length>pageSize?offset+pageSize:null};
+  const filter=input.filter==='unread'?'AND n.unread=1':input.filter==='ack'?"AND n.requires_ack=1 AND n.acknowledged_at IS NULL AND n.state='SENT'":'';
+  const rows=(await p(`SELECT n.notice_id,n.subject,n.sender_name,n.workspace,n.audience_json,n.requires_ack,n.recipient_count,n.state,n.created_at,n.issued_at,n.scheduled_for,n.withdrawn_at,n.withdrawal_reason,n.previous_notice_id,n.actor_id,n.first_opened_at,n.unread,n.acknowledged_at,n.archived_at,'' body,'null' link_json FROM ${inbox} n WHERE n.account_id=? ${input.filter==='ack'&&input.folder!=='archived'?'':`AND n.archived_at IS ${input.folder==='archived'?'NOT ':''}NULL`} ${filter} ORDER BY n.created_at DESC,n.notice_id DESC LIMIT ? OFFSET ?`,actor,pageSize+1,offset).all()).results;
+  return {notices:rows.slice(0,pageSize).map(n=>noticeDTO({...n,body:'',link_json:'null'})),nextOffset:rows.length>pageSize?offset+pageSize:null};
  }
- async function recipientNotice(id){const n=await p("SELECT n.*,r.first_opened_at,r.unread,r.acknowledged_at,r.archived_at FROM messaging_notices n JOIN messaging_recipients r USING(notice_id) WHERE n.notice_id=? AND r.account_id=? AND n.state IN('SENT','WITHDRAWN')",id,actor).first();if(!n)throw fail('Notice not found in your inbox.',404,'MESSAGING_NOT_FOUND');return n;}
+ async function recipientNotice(id){const n=await p(`SELECT * FROM ${inbox} n WHERE n.notice_id=? AND n.account_id=?`,id,actor).first();if(!n)throw fail('Notice not found in your inbox.',404,'MESSAGING_NOT_FOUND');return n;}
  async function receipt(action,input){
   return transact(action,input,async()=>{
+   if(isWeeklyAbsenteeNotice(input.noticeId))return weekly.receiptPlan(action,input,stamp());
    const n=await recipientNotice(input.noticeId);
    if(action==='acknowledge'&&(n.state!=='SENT'||!n.requires_ack))throw fail('This notice does not need acknowledgement.');
    const set=action==='open'?"first_opened_at=coalesce(first_opened_at,?),unread=0":action==='acknowledge'?"first_opened_at=coalesce(first_opened_at,?),unread=0,acknowledged_at=coalesce(acknowledged_at,?)":action==='unread'?'unread=1':action==='archive'?'archived_at=?':'archived_at=NULL';
@@ -169,7 +171,7 @@ export function messaging(repository,auth,now=()=>new Date(),{system=false}={}){
    const offset=Number.isInteger(input.offset)&&input.offset>=0?input.offset:0;return {recipients:resolved.recipients.slice(offset,offset+pageSize),nextOffset:resolved.recipients.length>offset+pageSize?offset+pageSize:null};
   }
   if(action==='confirm')return confirm(input);
-  if(action==='get'){await receipt('open',input);return {notice:noticeDTO(await recipientNotice(input.noticeId))};}
+  if(action==='get'){await receipt('open',input);const n=await recipientNotice(input.noticeId);if(isWeeklyAbsenteeNotice(input.noticeId))n.body=await weekly.body(input);return {notice:noticeDTO(n)};}
   if(['acknowledge','unread','archive','restore'].includes(action))return receipt(action,input);
   if(action==='report')return report(input);
   if(action==='cancel'){

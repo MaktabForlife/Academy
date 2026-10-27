@@ -116,7 +116,7 @@
  async function assessments(){
   if(assessmentOpen||!active())return;const requestId=++assessmentRequest,host=$('kahf-assessments');host.textContent='Opening assessments…';
   try{
-   assessmentLoading??=(async()=>{for(const src of ['/js/vendor/pdf-lib-1.17.1.min.js?v=106.82','/js/m4l-assessment-reports.js?v=107.100','/js/m4l-assessment-register.js?v=107.100','/js/m4l-imtihaan-export.js?v=107.100','/js/m4l-academy-assessments.js?v=107.100'])await loadScript(src);})();
+   assessmentLoading??=(async()=>{for(const src of ['/js/vendor/pdf-lib-1.17.1.min.js?v=106.82','/js/m4l-assessment-reports.js?v=107.105','/js/m4l-assessment-register.js?v=107.105','/js/m4l-imtihaan-export.js?v=107.105','/js/m4l-academy-assessments.js?v=107.105'])await loadScript(src);})();
    await assessmentLoading;if(!active()||location.hash!=='#assessments'||requestId!==assessmentRequest)return;
    assessmentOpen=true;$('view-assessments').classList.add('active');
    await window.M4L_ACADEMY_ASSESSMENTS.open({hostId:'kahf-assessments',view:boundary?.audience()==='TEACH'?'teacher':'learner',activityKey,kind:''});

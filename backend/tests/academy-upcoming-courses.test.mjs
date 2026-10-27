@@ -31,6 +31,13 @@ test('upcoming Courses are independent of the week, scoped to teaching authority
   assert.equal((await f.call('/api/academy/entrance',{id:f.draft.courseId},f.tokens.student)).status,404);
   const plan=ok(await f.call('/api/academy/planning/get',{activityKey:'COURSE:'+f.published.courseId,runId:f.published.runId,period:'WEEKLY',weekStart:sunday(f.startDate)},f.tokens.teacher));
   assert.equal(plan.canEdit,true);assert.ok(plan.content.lessons.some(l=>l.date===f.startDate));
+  const courseKey='COURSE:'+f.published.courseId;
+  f.db.prepare('INSERT INTO lesson_plan_requirements VALUES(?,0)').run(courseKey);
+  for(const role of ['admin','teacher']){
+   const hidden=ok(await f.call('/api/academy/entrance',{},f.tokens[role]));assert.equal(hidden.upcomingCourses.find(c=>c.id===f.published.courseId).canPlan,false);assert.equal(hidden.personalActivities.find(a=>a.id===f.published.courseId).plansRequired,false);
+  }
+  assert.equal((await f.call('/api/academy/planning/get',{activityKey:courseKey,runId:f.published.runId,weekStart:f.startDate},f.tokens.teacher)).body.code,'PLANS_NOT_REQUIRED');
+  f.db.prepare('UPDATE lesson_plan_requirements SET plans_required=1 WHERE activity_key=?').run(courseKey);
   f.db.prepare("UPDATE role_assignments SET active=0 WHERE account_id='account-0003' AND activity_key IN (?,?)").run('COURSE:'+f.published.courseId,'COURSE:'+f.draft.courseId);
   const revoked=ok(await f.call('/api/academy/entrance',{},f.tokens.teacher));
   assert.ok(!revoked.upcomingCourses?.some(c=>[f.draft.courseId,f.published.courseId].includes(c.id)));

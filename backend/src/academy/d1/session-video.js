@@ -3,13 +3,15 @@ import {cleanText} from './assessment-store.js';
 import {createSessionToken,verifySessionToken} from '../../lib/auth-primitives.js';
 import {payloadHash} from '../../programs/timetable-model.js';
 import {selectWorkspace} from './workspace-access.js';
-import {d1ContextEqual} from './session.js';
+import {retainedRecordingPrefix} from './monthly-media-policy.js';
+import {findD1Context} from './session.js';
 
 export const VIDEO_RETENTION_MS=14*86400000;
 export const VIDEO_PART_SIZE=8*1024*1024;
 export const VIDEO_MAX_SIZE=512*1024*1024;
 const audience='academy-session-recording';
-export function videoExpiry(asset,now=Date.now()){
+export function videoExpiry(asset,now=Date.now(),retained=false){
+ if(retained)return {uploadedAt:asset.created_at,expiresAt:null,expired:false,retained:true};
  const expiresAt=new Date(Date.parse(asset.created_at)+VIDEO_RETENTION_MS).toISOString();
  return {uploadedAt:asset.created_at,expiresAt,expired:Date.parse(expiresAt)<=now};
 }
@@ -26,14 +28,14 @@ async function verify(value,env,purpose){
 export async function authenticateVideo(request,env,repository){
  const ticket=await verify(new URL(request.url).searchParams.get('ticket'),env,'playback');
  const state=await repository.session(ticket.sid,ticket.accountid,ticket.epoch);
- const context=state?.contexts.find(c=>d1ContextEqual(c,{scope:ticket.scope,courseId:ticket.courseid,role:ticket.role}));
+ const context=findD1Context(state,{scope:ticket.scope,courseId:ticket.courseid,role:ticket.role});
  if(!state||!context)throw fail('Your Academy session has ended.',401,'SESSION_ENDED');
  const headers=new Headers({'X-Academy-Workspace':ticket.workspace});
  if(ticket.classView)headers.set('X-Academy-Class',encodeURIComponent(JSON.stringify(ticket.classView)));
  const auth=selectWorkspace(new Request(request.url,{headers}),{state,sid:ticket.sid,context,user:{type:'account',accountid:state.account.account_id,uniqueid:state.account.login_link_id,username:state.account.display_name,role:state.account.global_admin?'GLOBAL_ADMIN':context.role,scope:context.scope,courseid:context.courseId}});
  return {auth,input:{lessonId:ticket.lessonId,assetId:ticket.assetId}};
 }
-export function sessionVideos({p,auth,env,lesson,staff,reader,revision,change,receipt,assets,scopeKey}){
+export function sessionVideos({p,auth,env,lesson,staff,reader,revision,change,receipt,assets,scopeKey,retained=()=>false,retentionPrefix=()=>false}){
  function bucket(){const b=env.LESSON_MEDIA_BUCKET;if(!b?.createMultipartUpload||!b?.resumeMultipartUpload||!b?.head)throw fail('Recording storage is not configured.',503,'VIDEO_STORAGE_REQUIRED');return b;}
  async function uploadTicket(input){
   const t=await verify(input.uploadToken,env,'upload');
@@ -50,7 +52,7 @@ export function sessionVideos({p,auth,env,lesson,staff,reader,revision,change,re
   const filename=cleanText(input.filename,180,'an MP4 filename').replace(/[\r\n\x00-\x1f\\/]/g,'_');
   if(!/\.mp4$/i.test(filename))throw fail('Choose an MP4 video.');
   if((await assets(row.lesson_id)).filter(a=>['MP4','YOUTUBE'].includes(a.kind)&&!a.expired).length>=10)throw fail('Use up to ten videos per session.');
-  const assetId=crypto.randomUUID(),key=(env.ACADEMY_OBJECT_NAMESPACE||'')+'session-recordings/'+assetId+'.mp4';
+  const assetId=crypto.randomUUID(),key=(retentionPrefix()?retainedRecordingPrefix(env,scopeKey()):(env.ACADEMY_OBJECT_NAMESPACE||'')+'session-recordings/')+assetId+'.mp4';
   const upload=await bucket().createMultipartUpload(key,{httpMetadata:{contentType:'video/mp4',cacheControl:'private, no-store'}});
   const details={lessonId:row.lesson_id,revision:input.revision,operationId:input.operationId,size:input.size,filename,name:cleanText(input.name||'',180,'a video name',true),assetId,key,uploadId:upload.uploadId};
   return {uploadToken:await issue(auth,env,'upload',details),partSize:VIDEO_PART_SIZE,maxSize:VIDEO_MAX_SIZE};
@@ -78,24 +80,24 @@ export function sessionVideos({p,auth,env,lesson,staff,reader,revision,change,re
   if(!object)object=await storage.resumeMultipartUpload(t.key,t.uploadId).complete(parts.map(({partNumber,etag})=>({partNumber,etag})));
   if(object.size!==t.size||object.httpMetadata?.contentType!=='video/mp4')throw fail('The uploaded video size does not match.',409);
   const createdAt=new Date(object.uploaded||Date.now()).toISOString();
-  if(Date.parse(createdAt)+VIDEO_RETENTION_MS<=Date.now())throw fail('This recording has expired.',410,'VIDEO_EXPIRED');
+  if(!retained({object_key:t.key})&&Date.parse(createdAt)+VIDEO_RETENTION_MS<=Date.now())throw fail('This recording has expired.',410,'VIDEO_EXPIRED');
   return change('video-upload',metadata(t),row,'staff',async current=>{
    revision(current,{revision:t.revision});
    if((await assets(row.lesson_id)).filter(a=>['MP4','YOUTUBE'].includes(a.kind)&&!a.expired).length>=10)throw fail('Use up to ten videos per session.');
-   return {statements:[p("INSERT INTO lesson_media_assets(asset_id,activity_key,kind,object_key,filename,byte_size,created_at,display_name) VALUES(?,?,'MP4',?,?,?,?,?)",t.assetId,scopeKey(),t.key,t.filename,t.size,createdAt,t.name),p('INSERT INTO lesson_media_links VALUES(?,?)',row.lesson_id,t.assetId),p('UPDATE lesson_media_lessons SET revision=revision+1,updated_at=? WHERE lesson_id=?',new Date().toISOString(),row.lesson_id)],result:{assetId:t.assetId,filename:t.filename,name:t.name||t.filename,...videoExpiry({created_at:createdAt})}};
+   return {statements:[p("INSERT INTO lesson_media_assets(asset_id,activity_key,kind,object_key,filename,byte_size,created_at,display_name) VALUES(?,?,'MP4',?,?,?,?,?)",t.assetId,scopeKey(),t.key,t.filename,t.size,createdAt,t.name),p('INSERT INTO lesson_media_links VALUES(?,?)',row.lesson_id,t.assetId),p('UPDATE lesson_media_lessons SET revision=revision+1,updated_at=? WHERE lesson_id=?',new Date().toISOString(),row.lesson_id)],result:{assetId:t.assetId,filename:t.filename,name:t.name||t.filename,...videoExpiry({created_at:createdAt},Date.now(),retained({object_key:t.key}))}};
   });
  }
  async function abort(input){const {t}=await uploadTicket(input);await bucket().resumeMultipartUpload(t.key,t.uploadId).abort();return {aborted:true};}
  async function watch(row,asset){
-  if(videoExpiry(asset).expired)throw fail('This recording expired 14 days after upload.',410,'VIDEO_EXPIRED');
+  if(videoExpiry(asset,Date.now(),retained(asset)).expired)throw fail('This recording expired 14 days after upload.',410,'VIDEO_EXPIRED');
   const ticket=await issue(auth,env,'playback',{lessonId:row.lesson_id,assetId:asset.asset_id});
-  return {kind:'MP4',playbackPath:'/api/academy/lesson-media/video?ticket='+encodeURIComponent(ticket),title:asset.display_name||asset.filename,...videoExpiry(asset)};
+  return {kind:'MP4',playbackPath:'/api/academy/lesson-media/video?ticket='+encodeURIComponent(ticket),title:asset.display_name||asset.filename,...videoExpiry(asset,Date.now(),retained(asset))};
  }
  async function stream(request,input){
   const row=await lesson(input.lessonId);reader(row);
   const asset=await p("SELECT a.* FROM lesson_media_links l JOIN lesson_media_assets a USING(asset_id) WHERE l.lesson_id=? AND a.asset_id=? AND a.kind='MP4'",row.lesson_id,String(input.assetId||'')).first();
   if(!asset)throw fail('Recording not found.',404);
-  if(videoExpiry(asset).expired)throw fail('This recording expired 14 days after upload.',410,'VIDEO_EXPIRED');
+  if(videoExpiry(asset,Date.now(),retained(asset)).expired)throw fail('This recording expired 14 days after upload.',410,'VIDEO_EXPIRED');
   const storage=bucket(),object=await storage.head(asset.object_key);
   if(!object)throw fail('This recording has expired or is unavailable.',410,'VIDEO_EXPIRED');
   const headers=new Headers({'Content-Type':'video/mp4','Accept-Ranges':'bytes','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Content-Length':String(object.size)});
@@ -111,5 +113,23 @@ export function sessionVideos({p,auth,env,lesson,staff,reader,revision,change,re
   if(!data)throw fail('This recording has expired or is unavailable.',410,'VIDEO_EXPIRED');
   return new Response(data.body,{status:range?206:200,headers});
  }
- return {start,part,complete,abort,watch,stream};
+ async function retain(input){
+  const row=await lesson(input.lessonId);staff(row);
+  if(!retentionPrefix()||auth.workspace!=='ADMIN')throw fail('Retaining older recordings requires this monthly Program in Admin.',403,'MEDIA_FORBIDDEN');
+  const asset=await p("SELECT a.* FROM lesson_media_links l JOIN lesson_media_assets a USING(asset_id) WHERE l.lesson_id=? AND a.asset_id=? AND a.activity_key=? AND a.kind='MP4'",row.lesson_id,input.assetId,scopeKey()).first();
+  if(!asset)throw fail('Recording not found.',404);
+  const saved=await receipt(input,await payloadHash({action:'video-retain',input}));if(saved)return saved;
+  if(retained(asset))return {retained:true,assetId:asset.asset_id};
+  revision(row,input);
+  const storage=bucket();if(!storage.get||!storage.put)throw fail('Private recording copy storage is not configured.',503,'VIDEO_STORAGE_REQUIRED');
+  const key=retainedRecordingPrefix(env,scopeKey())+asset.asset_id+'.mp4';
+  if(!await storage.head(key)){
+   const source=await storage.get(asset.object_key);if(!source)throw fail('This recording is no longer stored. Re-upload the original file.',410,'VIDEO_MISSING');
+   if(source.size!==asset.byte_size||source.size>VIDEO_MAX_SIZE)throw fail('The original recording size does not match. Re-upload the original file.',409);
+   await storage.put(key,source.body,{httpMetadata:{contentType:'video/mp4',cacheControl:'private, no-store'}});
+  }
+  const object=await storage.head(key);if(!object||object.size!==asset.byte_size)throw fail('The retained copy could not be verified. Retry without deleting the original.',409);
+  return change('video-retain',input,row,'staff',async current=>{revision(current,input);return {statements:[p('UPDATE lesson_media_assets SET object_key=? WHERE asset_id=? AND object_key=?',key,asset.asset_id,asset.object_key),p('UPDATE lesson_media_lessons SET revision=revision+1 WHERE lesson_id=?',row.lesson_id)],result:{retained:true,assetId:asset.asset_id}};});
+ }
+ return {start,part,complete,abort,watch,stream,retain};
 }
