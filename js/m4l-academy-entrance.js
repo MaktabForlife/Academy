@@ -511,6 +511,7 @@
       Boolean(current && item.id === current.id && current.kind === 'PROGRAM'))).join('') +
       (state.home?.signedIn && (state.home.globalAdmin || courses.some(row=>row.roles.length)) ? activityPill('#workshops', 'Courses', state.home.globalAdmin ? ['GLOBAL_ADMIN', 'PROGRAM_ADMIN'] : [...new Set(courses.flatMap(item => item.roles))],
         view === 'workshops' || current?.kind === 'COURSE') : '');
+    strip.innerHTML+=(state.home?.monthlyMedia||[]).map(row=>`<a class="al-activity-pill" href="${esc(row.href)}">${esc(row.name)} · Paid months</a>`).join('');
     strip.hidden = !state.home?.signedIn;
   }
 

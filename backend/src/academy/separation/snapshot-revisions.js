@@ -2,6 +2,8 @@ const prefix='AcademySnapshot:',literal=value=>"'"+value.replaceAll("'","''")+"'
 // Immutable definitions are identified by the accepted setup head. Only these
 // current facts can change a published dashboard without accepting a new head.
 const rules={
+ program_monthly_media_policies:{dataset:'authority',global:true},
+ program_monthly_subscriptions:{dataset:'authority',account:'account_id'},
  activities:{dataset:'audience',columns:['active','lifecycle','website_visible']},
  accounts:{dataset:'audience',columns:['active','display_name']},
  classes:{dataset:'audience',columns:['active']},

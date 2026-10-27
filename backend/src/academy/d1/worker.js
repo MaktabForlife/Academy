@@ -49,6 +49,7 @@ import {academicCalendar} from './academic-calendar.js';
 import {d1CourseManagement} from './course-management.js';
 import {d1CourseCatalogue} from './course-catalogue.js';
 import {enrolmentCatalogue,enrolmentProfile,submitEnrolment,enrolmentManagement} from './enrolment.js';
+import {programMonthlySubscriptions} from './program-monthly-subscriptions.js';
 import {d1CourseSubscriptions} from './course-subscriptions.js';
 import {managedCourseScopes} from './course-authority.js';
 import {authenticatedD1Account,d1Audience as audience,d1ContextEqual as contextEqual} from './session.js';
@@ -203,6 +204,19 @@ async function dispatch(request,env) {
   }
   const auth=await authenticated(request,env,repository);
   guardWorkspace(request,auth,input);
+  const monthlyAction=path.match(/^\/api\/admin\/platform\/program-monthly-subscriptions\/(get|configure|save)$/)?.[1];
+  if(monthlyAction)return {success:true,...await programMonthlySubscriptions(sourceRepository,auth).run(monthlyAction,input)};
+  if(path==='/api/academy/monthly-media/months'){
+    if(!sourceRepository.features.monthlySubscriptions)throw rehearsalError('Monthly media is unavailable.',503);
+    const grants=auth.workspace==='LEARN'&&!auth.adminView?(auth.state.monthlyMedia||[]):[];
+    return {success:true,programs:[...new Set(grants.map(g=>g.activity_key))].map(key=>({activityKey:key,name:auth.state.activities.find(a=>a.activity_key===key)?.name||'Program',months:grants.filter(g=>g.activity_key===key).map(g=>g.lesson_month)}))};
+  }
+  if(path==='/api/academy/monthly-media/list'){
+    if(!sourceRepository.features.monthlySubscriptions||auth.workspace!=='LEARN'||auth.adminView)throw rehearsalError('Open your paid months in Learn.',403,'FORBIDDEN');
+    const source=setupEnabled(env)?await readRepository():sourceRepository,selection={...input,view:'learner'};
+    const result=await lessonMedia(source,auth,env).run('list',selection);
+    return {success:true,...(sourceRepository.features.mediaSeparation?await lessonNotes(source,auth,env).enrichList(result,selection):result)};
+  }
   if(path.startsWith('/api/academy/messaging/')){
     if(request.method!=='POST')throw rehearsalError('Use POST.',405,'METHOD_NOT_ALLOWED');
     if(env.ACADEMY_MESSAGING!=='1')throw rehearsalError('Messaging is not enabled yet.',503,'MESSAGING_NOT_ENABLED');
@@ -246,7 +260,7 @@ async function dispatch(request,env) {
   const academicCalendarAction=path.match(/^\/api\/academy\/calendar\/(get|save)$/)?.[1];
   if(academicCalendarAction){const produce=()=>academicCalendar(repository,auth).run(academicCalendarAction,input);return {success:true,...await (academicCalendarAction==='get'?privateSnapshot(repository,auth,{kind:'calendar',input},produce):produce())};}
   if(path==='/api/academy/lesson-media/timetable'){const result=await timetableMedia(repository,auth,input);if(sourceRepository.features.mediaSeparation){const additions=await lessonNotes(await readRepository(),auth,env).timetable(input);for(const row of additions.lessons){const existing=result.lessons.find(r=>r.activityKey===row.activityKey&&r.sessionKey===row.sessionKey);if(existing)existing.assets.push(...row.assets);else result.lessons.push(row);}}return {success:true,...result};}
-  const mediaAction=path.match(/^\/api\/academy\/lesson-media\/(list|feed|calendar|sessions|create|course-files-create|get|save|watch|download|comments|comment-save|comment-moderate|attachment-remove|attachment-name|video-start|video-complete|video-abort)$/)?.[1];
+  const mediaAction=path.match(/^\/api\/academy\/lesson-media\/(list|feed|calendar|sessions|create|historical-create|course-files-create|get|save|watch|download|comments|comment-save|comment-moderate|attachment-remove|attachment-name|video-start|video-complete|video-abort|video-retain)$/)?.[1];
   if(mediaAction){let result=await lessonMedia(repository,auth,env).run(mediaAction,input);if(sourceRepository.features.mediaSeparation&&['calendar','list','feed','get'].includes(mediaAction)&&!result.notModified){const notes=lessonNotes(await readRepository(),auth,env);if(mediaAction==='get'){if(result.lesson.sessionKey){const entries=await notes.notes([{activityKey:result.lesson.activityKey,sessionKey:result.lesson.sessionKey}]);result.assets.push(...entries.map(notes.asset));result.lesson.canCurateNotes=true;}}else result=await (mediaAction==='calendar'?notes.enrichCalendar(result,input):mediaAction==='feed'?notes.enrichFeed(result,input):notes.enrichList(result,input));}return result instanceof Response?result:{success:true,...result};}
   if(path==='/api/academy/assessments/progress-list')return {success:true,...await assessmentProgress(repository,auth,input)};
   if(path==='/api/academy/assessments/download')return assessmentFiles(repository,auth,env).download(input);

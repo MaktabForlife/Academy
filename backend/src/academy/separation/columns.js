@@ -1,6 +1,9 @@
 // Physical target columns; Core facts are projected into Admin reads, not copied into its master rows.
 export const storeColumns={
  "core":{
+  "program_monthly_media_policies":["activity_key","enabled","retain_recordings","revision","updated_at","updated_by_account_id"],
+  "program_monthly_subscriptions":["activity_key","account_id","lesson_month","active","class_ids_json","payment_date","payment_reference","note","revision","updated_at","updated_by_account_id"],
+
   "messaging_drafts":["draft_id","actor_id","workspace","subject","body","targets_json","link_json","requires_ack","schedule_local","schedule_at","timezone","revision","state","created_at","updated_at","notice_id","previous_notice_id","last_error","next_attempt_at","attempts"],
   "messaging_reviews":["review_id","draft_id","actor_id","draft_revision","digest","recipient_digest","source_head","expires_at","created_at"],
   "messaging_notices":["notice_id","draft_id","actor_id","sender_name","workspace","subject","body","targets_json","audience_json","link_json","requires_ack","recipient_count","recipients_json","created_at","issued_at","state","withdrawn_at","withdrawn_by","withdrawal_reason","previous_notice_id","source_head","scheduled_for"],

@@ -1,6 +1,6 @@
 # Tafseer monthly subscriptions: local implementation plan
 
-Status: **planning only**, prepared 27 October 2026. No feature code, migrations, live records, storage policies or deployed assets have changed.
+Original plan prepared 27 October 2026. The user subsequently authorized local implementation, including retained recordings and historical 2024/2025 media. See [the implementation and local workflow](ACADEMY-TAFSEER-MONTHLY-SUBSCRIPTIONS.md). The design below is preserved as the planning record; its planning-only status and approval prerequisites describe that earlier stage. No hosted records, storage policies or deployed assets have changed.
 
 Branch: `feature/academy-tafseer-monthly-subscriptions`.
 

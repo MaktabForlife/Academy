@@ -1,3 +1,8 @@
+# Tafseer monthly subscriptions — local implementation — 27 October 2026
+
+- The user now authorizes implementing the reviewed plan locally on this feature branch, including retaining Tafseer recordings beyond 14 days. Support dated historical lesson/media entries for lessons before the app, explicitly including 2024 and 2025, and explicit historical student/month subscriptions. This supersedes the planning-only hold below for local implementation.
+- Do not push, deploy, apply hosted migrations, change live data or bucket lifecycle rules. Use disposable synthetic local databases/objects, preserve other Programs' access/retention and current release markers. No other-chat communication or delegation was requested.
+
 # Tafseer monthly subscriptions — local planning — 27 October 2026
 
 - The user requested a new feature branch and a local plan for a Tafseer Monthly subscriptions tab. Work on `feature/academy-tafseer-monthly-subscriptions`, based on the local V107.100 Development commit `0e767b892e7cb69c6b6447576aef8ad61c15ac1b`.

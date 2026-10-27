@@ -29,7 +29,7 @@ export function selectWorkspace(request,auth){
   if(!administers({state:authority},classView.activityKey))throw fail('This student class view is outside your Admin scope.',403,'FORBIDDEN');
  }
  const state=workspace==='ADMIN'?authority:{...authority,account:{...authority.account,global_admin:false,...(adminView?{substitute_grants:'[]'}:{})},roles:adminView?(workspace==='TEACH'?inherited:[]):authority.roles.filter(r=>r.role===(workspace==='TEACH'?'TEACHER':'STUDENT')),
-  subscriptions:!adminView&&workspace==='LEARN'?authority.subscriptions:[]};
+  subscriptions:!adminView&&workspace==='LEARN'?authority.subscriptions:[],monthlyMedia:!adminView&&workspace==='LEARN'?(authority.monthlyMedia||[]):[]};
  return {...auth,authority,state,workspace,workspaceContext,adminView,classView};
 }
 
@@ -37,7 +37,7 @@ const adminActions={
  assessments:new Set(['paper-details','register-finish','papers-validate','paper-replacement-preview','register-marking-validate','register-marking-override','register-reports-plan','register-reports-generate','register-reports-release','table-save','register-marks-preview','register-marks-release','schedule-batch','register-create','register-save','register-validate','register-release','session-delete','phase-create','create','save','publish','roster','review-paper','authorise-resubmission','review-mark','release','release-papers','prepare-papers','templates','template-save','report-data','report-save','collection-save','finalise','withdraw-release']),
  progress:new Set(['import','module-save','set-save','cards','card-active','activity-active']),
  planning:new Set(['policy','deadline','comment']),
- 'lesson-media':new Set(['course-files-create']),
+ 'lesson-media':new Set(['course-files-create','historical-create','video-retain']),
  calendar:new Set(['save'])
 };
 const teacherActions={assessments:new Set(['marks-list','marks-save','paper-details','confirm-submission','ready-assessment','mark']),planning:new Set(['save','submit']),progress:new Set(['confirm'])};

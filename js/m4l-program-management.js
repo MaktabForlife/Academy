@@ -494,7 +494,8 @@
     const result=await api('recover',{},true);
     message((result.recovered?'An interrupted catalogue save was completed.':'No interrupted catalogue save was found.')+' Recovery does not add subjects to this Program. '+(state.importPending?'Choose Retry same import to finish adding your subjects.':state.pending?'Choose Retry same change to finish your pending save.':'Review Reboot subjects, select names, then choose Import and add to this Program.'));
   });
-  document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key==='Enter'&&(!window.M4L_PROGRAM_ADMIN||window.M4L_PROGRAM_ADMIN.tab()==='participants')&&visibleEdit()&&!state.busy&&!state.pending){event.preventDefault();void work(save);}});
+  window.M4L_PROGRAM_PEOPLE={canLeave(){if(state.edit||state.pending||state.importPending){message('Finish or cancel the participant change before opening Monthly subscriptions.',true);return false;}return true;}};
+  document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key==='Enter'&&!window.M4L_PROGRAM_MONTHLY?.isOpen?.()&&(!window.M4L_PROGRAM_ADMIN||window.M4L_PROGRAM_ADMIN.tab()==='participants')&&visibleEdit()&&!state.busy&&!state.pending){event.preventDefault();void work(save);}});
   window.addEventListener('beforeunload',event=>{if(state.edit||state.pending||state.importPending){event.preventDefault();event.returnValue='';}});
   void work(async()=>{await refresh();if(state.pending&&!state.refreshWaiting)await save();});
 })();

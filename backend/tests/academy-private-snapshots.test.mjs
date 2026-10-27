@@ -104,7 +104,7 @@ test('the additive snapshot upgrade is idempotent and missing schema safely bypa
  await f.core.prepare("DELETE FROM academy_settings WHERE setting_key='AcademySnapshot:Schema'").run();
  await read();await read();assert.equal(produced,3);assert.equal(f.bucket.gets,gets,'No stored data is read before the invalidation upgrade exists');
  for(const row of f.databases.core.prepare("SELECT name FROM sqlite_schema WHERE type='trigger' AND name LIKE 'academy_snapshot_%'").all())f.databases.core.exec('DROP TRIGGER "'+row.name+'"');
- const sql=readFileSync(new URL('../migrations/academy-core/0002_private_dashboard_snapshots.sql',import.meta.url),'utf8');assert(sql.endsWith(snapshotRevisionDDL()+'\n'));
+ const sql=readFileSync(new URL('../migrations/academy-core/0002_private_dashboard_snapshots.sql',import.meta.url),'utf8');const existingTables=f.databases.core.prepare("SELECT name FROM sqlite_schema WHERE type='table'").all().map(r=>r.name);assert(sql.endsWith(snapshotRevisionDDL(existingTables)+'\n'));
  f.databases.core.exec('BEGIN;'+sql+'COMMIT;');
  const version=f.databases.core.prepare('SELECT version FROM split_read_state WHERE singleton=1').get().version;
  f.databases.core.exec('BEGIN;'+sql+'COMMIT;');

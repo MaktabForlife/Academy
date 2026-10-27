@@ -20,6 +20,7 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
   // readers project inherited teaching or a read-only student audience.
   const ownState=auth?actualState(auth):state;
   if(user&&ownState)user={...user,enrolledActivities:[...ownState.roles.filter(r=>r.role==='STUDENT'),...ownState.subscriptions].map(r=>r.activity_key)};
+  const monthlyArchive=auth?.workspace==='LEARN'&&!auth.adminView?(state?.monthlyMedia||[]):[];
   const previewKeys=[];
   if(auth&&!isAdminWorkspace(auth)){
     const role=auth.workspace==='TEACH'?'TEACHER':'STUDENT';
@@ -69,6 +70,7 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
       ProgramTeachers:[],ProgramResources:[],ProgramTasks:[],ProgramModuleProgress:[],ProgramLibraryRoots:[],
       ProgramTimetablePublications:scope(publications).map(p=>({Lifecycle:stopped.find(l=>l.activity_key===p.activity_key&&samePublication(l.publication_id,p.publication_id))?.status||'',PublicationID:p.publication_id,VersionNo:p.version_no,SnapshotJSON:p.snapshot_json,PublishedDate:p.published_at,PublishedByAccountID:p.published_by_source_id}))}};
   }});
+  result.monthlyMedia= [...new Set(monthlyArchive.map(g=>g.activity_key))].map(key=>({activityKey:key,name:ownState.activities.find(a=>a.activity_key===key)?.name||'Program',months:monthlyArchive.filter(g=>g.activity_key===key).map(g=>g.lesson_month),href:'/academy/monthly-media/?program='+encodeURIComponent(key)}));
   if(config.programWorkspace){
     const today=dateInTimezone(now,config.setting_value);
     const project=row=>row.kind==='COURSE'?{...row,courseWebsite:activities.find(a=>samePublication(a.activity_key,'COURSE:'+row.id))?.course_website_available==='1',menuAvailable:activities.find(a=>a.activity_key.toUpperCase()===('COURSE:'+row.id).toUpperCase())?.course_menu_available!==0,curriculumActive:runs.some(run=>samePublication(run.activity_key,'COURSE:'+row.id)&&run.start_date&&run.end_date&&run.start_date<=today&&run.end_date>=today&&runStates.some(state=>state.run_id===run.run_id&&state.current_publication_id&&['PUBLISHED','ACTIVE'].includes(state.stage)))}:{...row,curriculumActive:true};
