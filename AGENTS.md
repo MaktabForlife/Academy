@@ -1,3 +1,9 @@
+# Compact course reading release — 27 October 2026
+
+- The user explicitly requested deployment of the reviewed compact headers and full-screen reading option. Release V107.100 from `feature/academy-course-website-builder`, preserving deployed V107.99 (`965d7c51`). This supersedes the local-only hold below for this release.
+- Deploy the matching Development API and Academy website. No database migration, coordinator update, live course content publication or settings change is required. Preserve login, current permissions, existing recordings/PDFs, draft safeguards and normal Admin Curriculum access.
+- Use the tested local reading/account fixtures, release integrity and public asset checks. Hosted verification stays limited to matching release/static assets and one readiness call under ../AGENTS.md. Do not contact other chats. Future deployments require fresh authorisation.
+
 # Compact course reading follow-up — 27 October 2026
 
 - The user requested the account ID and action icons on one compact row, removal of the menu attached to the Admin role, smaller reading-page headings, and an optional full-screen reading view without app headers.

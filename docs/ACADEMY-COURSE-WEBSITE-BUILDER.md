@@ -51,6 +51,6 @@ The course-specific checks exercise scoped list/get/save, read-only workspace de
 
 Release checks also include the full backend regression suite, native shared-header/navigation tests, public asset boundary/build, matching versions and API dry-run. Hosted verification is limited to additive schema metadata, essential release/static assets and one API readiness check. Existing protected recordings and student uploads are not changed by release testing. Local browser visual testing remains unavailable under the managed browser's local-URL policy; any authenticated live visual review must use the existing user login.
 
-## Local compact reading follow-up
+## V107.100 compact reading follow-up
 
-Pending a later release: the original Al Kahf reader and reusable reader share smaller lesson headings and a Full screen reading control. It hides the Academy headers, course sidebar and bottom navigation while retaining Menu, text size and a sticky Exit control. It works on phones without requiring the browser Fullscreen API, preserves the reading position, and returns the headers on leaving lessons or changing accounts. The shared Admin role is a plain label; Curriculum remains in the normal Admin tools menu.
+Released in V107.100: the original Al Kahf reader and reusable reader share smaller lesson headings and a Full screen reading control. It hides the Academy headers, course sidebar and bottom navigation while retaining Menu, text size and a sticky Exit control. It works on phones without requiring the browser Fullscreen API, preserves the reading position, and returns the headers on leaving lessons or changing accounts. The shared Admin role is a plain label; Curriculum remains in the normal Admin tools menu.

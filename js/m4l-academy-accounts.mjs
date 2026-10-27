@@ -56,7 +56,7 @@ export function installAccounts({ actions, signOut }) {
   const local = window.localStorage, session = window.sessionStorage, base = apiBase();
   const currentToken = () => local.getItem(tokenKey) || '';
   let pageToken = currentToken(), ticket = 0, committing = false, leaving = false, requesting = false;
-  const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = '/css/m4l-academy-accounts.css?v=107.99'; document.head.append(css);
+  const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = '/css/m4l-academy-accounts.css?v=107.100'; document.head.append(css);
   const switchButton = document.createElement('button');
   switchButton.type = 'button'; switchButton.id = 'academy-switch-account';
   switchButton.setAttribute('aria-label', 'Switch account'); switchButton.setAttribute('aria-haspopup', 'dialog');

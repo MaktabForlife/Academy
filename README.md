@@ -1,4 +1,8 @@
-# V107.99 — Admin course website builder
+# V107.100 — Compact course headers and full-screen reading
+
+Keep the account ID and page actions together in one compact row, remove the Admin role dropdown and reduce course/lesson heading spacing. Both the original Surah Al Kahf reader and editable course websites offer **Full screen reading**, with a sticky Exit control, Menu and text sizing. Reading position is retained; leaving lessons or changing accounts restores the headers. [Release checks](docs/ACADEMY-COMPACT-READING-107100.md).
+
+## V107.99 — Admin course website builder
 
 Add **Course websites** to Admin, opening a course-scoped list with existing websites and templates. Edit all eleven Surah Al Kahf lessons, type new web lessons, arrange images/PDFs, preview and save private drafts. Explicitly publish the reviewed website to the mobile-first student reader. Preserve current login, course permissions, native sessions/recordings/Teacher note PDFs, assessments and download-only course materials. Includes additive split Core/Admin schema upgrades and the matching coordinator/API/website release. [Implementation and release checks](docs/ACADEMY-COURSE-WEBSITE-BUILDER.md).
 
