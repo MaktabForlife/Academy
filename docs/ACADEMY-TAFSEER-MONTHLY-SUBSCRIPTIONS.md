@@ -1,6 +1,6 @@
-# Tafseer monthly subscriptions — local implementation
+# Tafseer monthly subscriptions — V107.105
 
-Implemented locally on `feature/academy-tafseer-monthly-subscriptions`, based on V107.100. The release version is unchanged. Nothing has been pushed, deployed or applied to a hosted database/bucket.
+Release V107.105 on `feature/academy-tafseer-monthly-subscriptions`, incorporating deployed V107.104. The release includes the monthly register, historical lesson media, retained recordings, manual surah completion dates and eligible card destinations. See `ACADEMY-TAFSEER-CARD-LINKS.md` for the website handover. Real subscriptions/completion dates and website content are entered and explicitly activated/published by Admin.
 
 ## Admin workflow
 
@@ -52,7 +52,7 @@ Preparing Tafseer's policy places new native MP4s under the private namespace's 
 
 For an existing Tafseer MP4, **Retain recording** in the media editor streams a copy into the retained prefix, verifies its byte size, and updates its reference with normal authority/revision guards. The original is left intact for safe recovery and remains subject to its existing expiry. Published reference changes use normal accepted-media publication. An uncertain save can be retried safely. If the original bytes have already been deleted, re-upload the original recording; a month grant cannot recover a deleted file.
 
-No hosted lifecycle rule was changed or inspected during implementation. Before a future release, verify that no existing bucket-wide rule expires the retained prefix. The previously recorded narrow `dev-split-v1/session-recordings/` lifecycle does not match the new prefix. Unlinked retained copies after uncertain operations are preserved rather than deleted without evidence.
+The release verifies that no existing bucket-wide rule expires the retained prefix; lifecycle rules are not modified. The previously recorded narrow `dev-split-v1/session-recordings/` lifecycle does not match the new prefix. Unlinked retained copies after uncertain operations are preserved rather than deleted without evidence.
 
 ## Local sample and verification
 
@@ -72,7 +72,7 @@ npm run test:tafseer
 
 Verification covers month/year boundaries, late attachments, 2024/2025 history, a 100-student atomic delta, cross-year atomic grid saves, roster search/pagination, collapsible years, hidden draft preservation, retained byte-range playback, shared PDFs, teacher notes, scoped authority, current-role removal, revocation, immutable publication, cache/proof invalidation, missing authority storage, retries, navigation guards and account switching. Selected local checks pass, including existing media, workspace, Program, snapshot and split-store regressions. Source-boundary and JavaScript syntax checks also pass. DOM interaction tests exercise search, expansion, multi-year edits, removals, retries and account switching; the updated grid has also been checked in the local Chrome preview.
 
-## Future release requirements — not performed
+## Release and activation requirements
 
 - Apply additive `academy-core/0006_program_monthly_subscriptions.sql` to the existing split Core store; `academy/0041_program_monthly_subscriptions.sql` is the monolithic/source equivalent. No table is seeded with paid access or an enabled Program by either migration. Do not apply both alternatives to the same database.
 - For the Surah table/websites, additionally apply academy-core/0007_program_surah_websites.sql and academy-admin/0002_program_surah_websites.sql to their corresponding stores before releasing the matching coordinator/API. academy/0042_program_surah_websites.sql is the monolithic/source equivalent. Preserve all existing rows and accepted heads.

@@ -10,7 +10,7 @@ const site=(f,admin,action,surahId,input={})=>f.call('/api/admin/platform/course
 const read=(f,student,surahId,input={})=>f.call('/api/academy/course-websites/read',{activityKey:scope,surahId,...input},student);
 async function seed(f,admin){
  const id=op(),second=op();
- ok(await f.monthly('surah-save',{policyRevision:1,operationId:op(),entries:[{id,name:'Surah Maryam',completionDate:'2024-01-16',active:true,revision:0},{id:second,name:'Surah Yusuf',completionDate:'2025-01-10',active:true,revision:0}]},admin));
+ ok(await f.monthly('surah-save',{policyRevision:1,operationId:op(),entries:[{id,name:'Surah Maryam',cardKey:'yaseen',completionDate:'2024-01-16',active:true,revision:0},{id:second,name:'Surah Yusuf',completionDate:'2025-01-10',active:true,revision:0}]},admin));
  ok(await f.monthly('grid-save',{policyRevision:2,operationId:op(),entries:[{accountId:'account-0002',month:'2024-01',subscribed:true,revision:0,classIds:['mou-class']},{accountId:'account-0008',month:'2025-01',subscribed:true,revision:0,classIds:['mou-class']}]},admin));
  ok(await f.monthly('configure',{mode:'activate',policyRevision:3,operationId:op(),reviewed:true},admin));return {id,second};
 }
@@ -36,6 +36,9 @@ test('only the completion-month subscribers can read each published surah websit
  f.db.prepare("DELETE FROM class_memberships WHERE account_id='account-0002' AND activity_key=?").run(scope);f.db.prepare("UPDATE role_assignments SET active=0 WHERE account_id='account-0002' AND activity_key=?").run(scope);
  assert.equal((await read(f,student,id)).status,200);
  const list=ok(await f.monthlyOwn('surahs',{},student));assert.deepEqual(list.surahs.map(r=>r.id),[id]);
+ assert.equal(list.links.yaseen.href,list.surahs[0].href);assert.equal(list.links.yaseen.code,id);
+ const links=ok(await f.call('/api/academy/tafseer-links',{},student));assert.deepEqual(links.links,list.links);
+ assert.equal((await f.call('/api/academy/tafseer-links',{},null)).status,401);
  const current=ok(await f.monthly('surahs',{},admin)),entry=current.surahs.find(r=>r.id===id);
  ok(await f.monthly('surah-save',{policyRevision:current.policyRevision,operationId:op(),entries:[{id,name:entry.name,completionDate:'2025-01-10',active:true,revision:entry.revision}]},admin));
  assert.equal((await read(f,student,id,{completionDate:'2024-01-16'})).status,403,'Client-supplied dates cannot override the Admin table');
@@ -49,4 +52,12 @@ test('withdrawn surah websites and removed paid months immediately block direct 
  ok(await f.monthly('grid-save',{policyRevision:current.policy.revision,operationId:op(),removalReason:'Wrong month recorded',entries:[{accountId:row.accountId,month:'2024-01',subscribed:false,revision:row.months['2024-01'].revision,classIds:['mou-class']}]},admin));
  assert.equal((await read(f,student,id)).status,403);
  ok(await site(f,admin,'withdraw',id,{revision:published.revision,operationId:op()}));assert.equal((await read(f,admin,id)).status,404);
+}));
+
+test('card association rejects duplicate mappings atomically',()=>use(async(f,admin)=>{
+ const first=op(),second=op(),entry=id=>({id,name:'Surah '+id,cardKey:'yaseen',completionDate:'2024-01-16',active:true,revision:0});
+ const invalid={policyRevision:1,operationId:op(),entries:[entry(first),entry(second)]};
+ assert.equal((await f.monthly('surah-save',invalid,admin)).status,400);assert.equal(f.db.prepare('SELECT count(*) n FROM program_surahs').get().n,0);
+ ok(await f.monthly('surah-save',{...invalid,operationId:op(),entries:[entry(first)]},admin));
+ assert.equal(ok(await f.monthly('surahs',{},admin)).surahs[0].cardKey,'yaseen');
 }));

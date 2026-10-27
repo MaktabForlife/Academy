@@ -7,6 +7,7 @@ import {isSurahKahfCourse} from '../course-books/course-companion.js';
 import {courseReaderSessions} from './course-reader-sessions.js';
 import {lessonNotes} from './lesson-notes.js';
 import {lessonMedia} from './lesson-media.js';
+import {mayReadSurah} from './surah-websites-access.js';
 import {monthlyEnabled} from './monthly-media-policy.js';
 import {storeLessonPdf} from './lesson-pdf-storage.js';
 
@@ -32,7 +33,7 @@ export function courseWebsites(repository,auth,env){
   else{
    const roles=auth.state.roles.filter(r=>same(r.activity_key,row.activity_key)).map(r=>r.role);
    const free=!target.surahId&&auth.workspace==='LEARN'&&await p("SELECT 1 ok FROM course_settings WHERE activity_key=? AND legacy_access_model='FREE' AND policy_review_state='CONFIRMED'",row.activity_key).first();
-   const subscribed=target.surahId?row.monthly_enabled&&(auth.state.monthlyMedia||[]).some(r=>same(r.activity_key,row.activity_key)&&r.lesson_month===row.completion_date.slice(0,7)):roles.includes('STUDENT')||auth.state.subscriptions.some(r=>same(r.activity_key,row.activity_key));
+   const subscribed=target.surahId?mayReadSurah(auth,row):roles.includes('STUDENT')||auth.state.subscriptions.some(r=>same(r.activity_key,row.activity_key));
    if(!(auth.state.account.global_admin||roles.some(r=>['PROGRAM_ADMIN','TEACHER'].includes(r))||readerPreview(auth,row.activity_key)||subscribed||free))throw fail('This Course is outside your access.',403,'COURSE_WEBSITE_FORBIDDEN');
    if(auth.adminView&&!administers(auth,row.activity_key))throw fail('This Course is outside your Admin view.',403,'COURSE_WEBSITE_FORBIDDEN');
   }

@@ -3,11 +3,13 @@ CREATE TABLE program_surahs(
  surah_id TEXT PRIMARY KEY,
  activity_key TEXT NOT NULL COLLATE NOCASE REFERENCES activities(activity_key),
  name TEXT NOT NULL,
+ card_key TEXT NOT NULL DEFAULT '',
  completion_date TEXT NOT NULL CHECK(length(completion_date)=10),
  active INTEGER NOT NULL DEFAULT 1 CHECK(active IN(0,1)),
  revision INTEGER NOT NULL DEFAULT 1,
  updated_at TEXT NOT NULL,
  updated_by_account_id TEXT NOT NULL REFERENCES actor_refs(account_id));
+CREATE UNIQUE INDEX program_surahs_card ON program_surahs(activity_key,card_key) WHERE card_key<>'';
 CREATE INDEX program_surahs_scope ON program_surahs(activity_key,completion_date,surah_id);
 CREATE TABLE program_surah_website_documents(
  surah_id TEXT PRIMARY KEY,

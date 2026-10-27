@@ -14,7 +14,7 @@ test('split surah websites keep drafts private, publish only one surah and prote
   for(const owner of ['core','admin']){
    const db=f.databases[owner],tables=owner==='core'?['program_surahs','program_surah_website_documents','program_surah_website_assets']:['program_surah_website_documents','program_surah_website_assets'];
    for(const table of tables)db.exec('DROP TABLE '+table);
-   db.exec(readFileSync(new URL('../migrations/academy-'+owner+'/'+(owner==='core'?'0006':'0002')+'_program_surah_websites.sql',import.meta.url),'utf8'));
+   db.exec(readFileSync(new URL('../migrations/academy-'+owner+'/'+(owner==='core'?'0007':'0002')+'_program_surah_websites.sql',import.meta.url),'utf8'));
    for(const table of tables)assert.deepEqual(db.prepare('PRAGMA table_info('+table+')').all().map(c=>c.name),storeColumns[owner][table]);
   }
   for(const db of Object.values(f.databases))db.prepare('UPDATE activities SET name=? WHERE activity_key=?').run('Tafseer',scope);

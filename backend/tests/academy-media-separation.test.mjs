@@ -3,7 +3,7 @@ import {test} from 'node:test';import assert from 'node:assert/strict';import {r
 import worker from '../src/academy-runtime.js';import {separationFixture,separationScopes as scopes} from './fixtures/academy-separation-fixture.mjs';import {initialiseAcceptedSetup} from '../src/academy/d1/setup-publication.js';import {academyDate,nextDate} from '../src/academy/d1/academy-clock.js';
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;},op=()=>({operationId:crypto.randomUUID()}),today=()=>academyDate(new Date(),'Africa/Johannesburg');
 async function use(fn){const f=await separationFixture();try{
- for(const name of ['0039_course_websites.sql','0032_accepted_setup.sql','0033_native_attendance.sql','0034_assessment_operations.sql','0035_media_contributions.sql']){f.db.exec('BEGIN');f.db.exec(readFileSync(new URL('../migrations/academy/'+name,import.meta.url),'utf8'));f.db.exec('COMMIT');}
+ for(const name of ['0039_course_websites.sql','0042_program_surah_websites.sql','0032_accepted_setup.sql','0033_native_attendance.sql','0034_assessment_operations.sql','0035_media_contributions.sql']){f.db.exec('BEGIN');f.db.exec(readFileSync(new URL('../migrations/academy/'+name,import.meta.url),'utf8'));f.db.exec('COMMIT');}
  await initialiseAcceptedSetup(f.env.ACADEMY_DB);Object.assign(f.env,{ACADEMY_ACCEPTED_SETUP:'1',ACADEMY_LEARNING_OPERATIONS:'3',ACADEMY_MEDIA_SEPARATION:'1'});
  const tokens={admin:await f.actor('global'),teacher:await f.login('0003'),otherTeacher:await f.login('0006'),student:await f.login('0002'),courseStudent:await f.actor('studentA')};
  f.tokens=tokens;

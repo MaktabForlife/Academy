@@ -119,7 +119,7 @@ export function programMonthlySubscriptions(repository,auth){
   const rows=(await p(`SELECT s.*,d.surah_id draft_id,d.enabled,
    (SELECT count(*) FROM program_monthly_subscriptions m JOIN accounts eligible_account ON eligible_account.account_id=m.account_id WHERE eligible_account.active=1 AND m.activity_key=s.activity_key AND m.lesson_month=substr(s.completion_date,1,7) AND m.active=1) eligible
    FROM program_surahs s LEFT JOIN program_surah_website_documents d USING(surah_id) WHERE s.activity_key=? ORDER BY s.completion_date,s.name,s.surah_id LIMIT 201`,area.activity_key).all()).results;
-  return {available:true,prepared:true,policyRevision:policy.revision,surahs:rows.slice(0,200).map(r=>({id:r.surah_id,name:r.name,completionDate:r.completion_date,active:Boolean(r.active),revision:r.revision,eligibleStudents:r.eligible,hasDraft:Boolean(r.draft_id),editorUrl:'/academy/course-websites/?program='+encodeURIComponent(area.activity_id)+'&surah='+encodeURIComponent(r.surah_id),websiteUrl:'/academy/course-websites/view/?program='+encodeURIComponent(area.activity_id)+'&surah='+encodeURIComponent(r.surah_id)})),truncated:rows.length>200};
+  return {available:true,prepared:true,policyRevision:policy.revision,surahs:rows.slice(0,200).map(r=>({id:r.surah_id,name:r.name,cardKey:r.card_key,completionDate:r.completion_date,active:Boolean(r.active),revision:r.revision,eligibleStudents:r.eligible,hasDraft:Boolean(r.draft_id),editorUrl:'/academy/course-websites/?program='+encodeURIComponent(area.activity_id)+'&surah='+encodeURIComponent(r.surah_id),websiteUrl:'/academy/course-websites/view/?program='+encodeURIComponent(area.activity_id)+'&surah='+encodeURIComponent(r.surah_id)})),truncated:rows.length>200};
  }
  async function saveSurahs(input){
   if(!policy)throw fail('Prepare Tafseer’s monthly register first.',409);
@@ -134,13 +134,16 @@ export function programMonthlySubscriptions(repository,auth){
     const old=existing.find(r=>r.surah_id===entry.id);
     if(old&&!same(old.activity_key,area.activity_key))throw fail('This surah belongs to another Program.',403,'FORBIDDEN');
     if(!Number.isInteger(entry.revision)||entry.revision!==(old?.revision||0))throw fail('A surah entry changed. Your draft is kept; reopen the saved list.',409,'ROW_CHANGED');
-    const name=cleanText(entry.name,160,'a surah name');
+    const name=cleanText(entry.name,160,'a surah name'),cardKey=entry.cardKey??old?.card_key??'';
+    if(typeof cardKey!=='string'||cardKey!==''&&!/^[a-z0-9][a-z0-9-]{0,79}$/.test(cardKey))throw fail('Choose a valid website card.');
     if(!name||!validDate(entry.completionDate)||entry.completionDate>today||typeof entry.active!=='boolean')throw fail('Enter a surah name and a valid completion date up to today.');
-    rows.push({surah_id:entry.id,activity_key:area.activity_key,name,completion_date:entry.completionDate,active:Number(entry.active),updated_at:now,updated_by_account_id:actor});
+    rows.push({surah_id:entry.id,activity_key:area.activity_key,name,card_key:cardKey,completion_date:entry.completionDate,active:Number(entry.active),updated_at:now,updated_by_account_id:actor});
     details.push({surahId:entry.id,before:old||null,after:rows.at(-1)});
    }
-   const columns=['surah_id','activity_key','name','completion_date','active','updated_at','updated_by_account_id'];
-   const statements=[p(`INSERT INTO program_surahs(${columns.join(',')}) SELECT ${columns.map(c=>"json_extract(value,'$."+c+"')").join(',')} FROM json_each(?) WHERE 1 ON CONFLICT(surah_id) DO UPDATE SET name=excluded.name,completion_date=excluded.completion_date,active=excluded.active,revision=program_surahs.revision+1,updated_at=excluded.updated_at,updated_by_account_id=excluded.updated_by_account_id`,JSON.stringify(rows)),p('UPDATE program_monthly_media_policies SET revision=revision+1,updated_at=?,updated_by_account_id=? WHERE activity_key=?',now,actor,area.activity_key)];
+   const linked=(await p('SELECT surah_id,card_key FROM program_surahs WHERE activity_key=?',area.activity_key).all()).results.filter(r=>!entries.some(e=>e.id===r.surah_id)).concat(rows),keys=linked.map(r=>r.card_key).filter(Boolean);
+   if(new Set(keys).size!==keys.length)throw fail('Each website card can be linked to only one surah in this Program.');
+   const columns=['surah_id','activity_key','name','card_key','completion_date','active','updated_at','updated_by_account_id'];
+   const statements=[p("UPDATE program_surahs SET card_key='' WHERE activity_key=? AND surah_id IN(SELECT value FROM json_each(?))",area.activity_key,JSON.stringify(entries.map(e=>e.id))),p(`INSERT INTO program_surahs(${columns.join(',')}) SELECT ${columns.map(c=>"json_extract(value,'$."+c+"')").join(',')} FROM json_each(?) WHERE 1 ON CONFLICT(surah_id) DO UPDATE SET name=excluded.name,card_key=excluded.card_key,completion_date=excluded.completion_date,active=excluded.active,revision=program_surahs.revision+1,updated_at=excluded.updated_at,updated_by_account_id=excluded.updated_by_account_id`,JSON.stringify(rows)),p('UPDATE program_monthly_media_policies SET revision=revision+1,updated_at=?,updated_by_account_id=? WHERE activity_key=?',now,actor,area.activity_key)];
    return {statements,details,result:{saved:rows.length,revision:policy.revision+1}};
   });
  }

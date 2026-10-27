@@ -34,6 +34,7 @@ import {d1AccountTimetable} from './account-timetable.js';
 import { createAuthRateLimitKey, createSessionToken, isValidFourDigitPin } from '../../lib/auth-primitives.js';
 import {createAcademyPinHash,verifyAcademyPin} from '../../lib/academy-pin.js';
 import { academyD1Repository, rehearsalError } from './repository.js';
+import {surahWebsiteLinks} from './surah-websites-access.js';
 import { d1Entrance } from './entrance.js';
 import {d1LessonJoin,websiteEntrance} from './lesson-join.js';
 import {publicTimetable,refreshPublicTimetable,refreshPublishedTimetable} from './public-timetable.js';
@@ -106,7 +107,7 @@ async function dispatch(request,env) {
   if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,setupEnabled(env)?await readRepository():repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(setupEnabled(env)?await readRepository():repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.104',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.105',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(setupEnabled(env)?await readRepository():repository)};
@@ -207,17 +208,9 @@ async function dispatch(request,env) {
   guardWorkspace(request,auth,input);
   const monthlyAction=path.match(/^\/api\/admin\/platform\/program-monthly-subscriptions\/(get|configure|save|grid|grid-save|surahs|surah-save)$/)?.[1];
   if(monthlyAction)return {success:true,...await programMonthlySubscriptions(sourceRepository,auth).run(monthlyAction,input)};
-  if(path==='/api/academy/monthly-media/surahs'){
-    if(!sourceRepository.features.monthlySubscriptions)throw rehearsalError('Surah websites are unavailable.',503);
-    if(auth.workspace!=='LEARN'||auth.adminView)return {success:true,surahs:[]};
-    const rows=(await sourceRepository.coreDb.prepare(`SELECT s.surah_id,s.activity_key,s.name,s.completion_date FROM program_surahs s
-     JOIN program_monthly_media_policies p USING(activity_key) JOIN activities a USING(activity_key)
-     JOIN program_surah_website_documents d USING(surah_id)
-     WHERE s.active=1 AND a.active=1 AND a.lifecycle='ACTIVE' AND p.enabled=1 AND d.enabled=1
-     AND EXISTS(SELECT 1 FROM academy_settings f WHERE f.setting_key='SurahWebsitePublished:'||s.surah_id AND f.setting_value='1')
-     AND EXISTS(SELECT 1 FROM program_monthly_subscriptions m WHERE m.activity_key=s.activity_key AND m.account_id=? AND m.lesson_month=substr(s.completion_date,1,7) AND m.active=1)
-     ORDER BY s.completion_date DESC,s.name LIMIT 200`).bind(auth.user.accountid).all()).results;
-    return {success:true,surahs:rows.map(r=>({id:r.surah_id,activityKey:r.activity_key,name:r.name,completionDate:r.completion_date,href:'/academy/course-websites/view/?program='+encodeURIComponent(r.activity_key.slice(8))+'&surah='+encodeURIComponent(r.surah_id)}))};
+  if(path==='/api/academy/tafseer-links'||path==='/api/academy/monthly-media/surahs'){
+    const result=await surahWebsiteLinks(sourceRepository,auth);
+    return {success:true,...result,...(path.endsWith('/surahs')?{surahs:result.websites}:{})};
   }
   if(path==='/api/academy/monthly-media/months'){
     if(!sourceRepository.features.monthlySubscriptions)throw rehearsalError('Monthly media is unavailable.',503);

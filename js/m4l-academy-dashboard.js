@@ -279,6 +279,7 @@
     if(next!==owner){reset();owner=next;home=data;options=settings;mode=settings.mode;mount();void restoreRead();}
     else if(returning)mount();
     home=data;options=settings;mode=settings.mode;
+    if(!data._cacheChecking)window.M4L_TAFSEER_ACCESS?.setLinks(data.tafseerLinks||{});
     renderNavigation();renderAreas();renderQueues();renderMessages();renderNext();
     announce(data._cacheChecking?'Showing saved dashboard. Checking for updates…':data._cacheMessage||data.warnings?.join(' ')||'',Boolean(data._cacheMessage));
     const calendar=$('ad-calendar-host');
