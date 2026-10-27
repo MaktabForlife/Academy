@@ -4,7 +4,7 @@ The Website chat owns the card layout and summaries. The Tafseer chat supplies e
 
 ## Deployment handover received
 
-V107.105 was deployed and verified by the Tafseer chat, which handed over commit `56e87389098dcb5da34ddbac87918de289880f34`. It has been merged into `feature/academy-course-website-builder`. The user explicitly authorised attaching the supplied links and completing deployment after this handover. Prepare the combined card/table release as V107.106. Preserve the monthly access controls, retained lesson recording namespace and V107.104 absentee jobs; no migration, reseeding or real website publication is included.
+V107.105 was deployed and verified by the Tafseer chat, which handed over commit `56e87389098dcb5da34ddbac87918de289880f34`. It has been merged into `feature/academy-course-website-builder`. The user explicitly authorised attaching the supplied links and completing deployment after this handover. Prepare the combined card/table release as V107.107. Preserve the monthly access controls, retained lesson recording namespace and V107.104 absentee jobs; no migration, reseeding or real website publication is included.
 
 Cards appear on the public Academy website and Learn, Teach and Admin dashboards. Per the user's later instruction, public restricted cards and dashboard cards without a supplied eligible link open the editable **Contact Admin to receive access** popup. Foundations remains first and public, with its real reading destination available only after explicit website publication. No fabricated destination or protected course bypass is assigned.
 

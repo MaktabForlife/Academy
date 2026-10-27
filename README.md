@@ -1,4 +1,4 @@
-# V107.106 — Tafseer website cards and Admin card table
+# V107.107 — Tafseer website cards and Admin card table
 
 Show the approved Tafseer cards on the Academy home page and every dashboard, with Foundations first and public after publication. Other public/unentitled cards open their editable Contact Admin popup; eligible dashboards use the V107.105 access links.
 
