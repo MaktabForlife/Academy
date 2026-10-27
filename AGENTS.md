@@ -1,3 +1,47 @@
+# Mobile Learn/Teach Development release — 27 October 2026
+
+- The user checked the isolated mobile preview, then explicitly requested building and deploying the tested Learn/Teach changes to Development, confirming V107.89 was deployed. Merge `819ab547` into the tested mobile branch and release V107.93 through the existing Development API and Academy website workflow. This supersedes the preview-only holds below for this release.
+- Preserve V107.85–89 remembered account/PIN switching, PDF toolbar/zoom/colour updates, Library rows and the Surah Kahf course website. Include the shared reading layout, Contents, compact headers/Admin badge, phone planner dates/icon actions, standard X Close and clearer Refresh icon.
+- Keep sample preview entrypoints, accounts, credentials and isolated storage out of Development deployment. Do not reseed or modify either database. No migration, private coordinator deployment, timetable publication or live data correction is required.
+- Keep this chat independent. Use disposable synthetic fixtures for full checks; keep hosted verification to release metadata, one API readiness call and targeted static asset checks. Future deployments require fresh user authorisation.
+
+# Clearer Refresh icon preview — 27 October 2026
+
+- The user requested a more intuitive Refresh icon, using their open circular-arrow example. Replace the shared Academy header icon while retaining its labels, touch target and refresh/draft-guard handlers. Release V107.92 only to the existing isolated preview.
+- Preserve preview storage, credentials and sample plans. Do not reseed, run hosted SQL, push, deploy Development/live or contact other chats. Verify the icon visually at phone and desktop sizes; this change needs no new behavioural tests.
+
+# Sample Admin preview entry — 27 October 2026
+
+- The user explicitly requested an Admin option on the mobile preview to test the Admin badge on their phone. Add Open Admin using the existing synthetic Global Admin account and open Admin-Teach directly. Release only the isolated preview as V107.91.
+- Keep the fixed sample-account allowlist and preview-origin/synthetic-only guards. Preserve existing credentials, D1/R2 bindings, saved plans and other test data. Do not reseed, run hosted SQL, push, deploy Development/live or communicate with other chats.
+- Verify the real preview login flow with disposable local fixtures and a small hosted phone check. Retain the V107.90 compact headers, badge and standard X controls.
+
+# Compact headers and Admin badge preview — 27 October 2026
+
+- The user requested shorter Learn/Teach headers on mobile, standard top-right X Close controls on mobile/desktop, and replacing the extra Admin banner with an account badge. Keep this on the existing isolated preview as V107.90.
+- Retain dates, identity, workspace authority, accessible action names, Curriculum access and 44px touch targets. Preserve unsaved-entry safeguards and existing handlers.
+- Deploy only academy-mobile-first-preview, retaining its sample D1/R2 bindings, secrets and drafts. Do not push, deploy Development/live, apply SQL or communicate with other chats.
+- Verify locally in Chrome/WebKit and at enlarged text sizes; keep hosted smoke checks small.
+
+# Mobile planner phone correction — 27 October 2026
+
+- The user reported iPhone date controls extending past the screen and requested compact icons for Save, Submit, Download and Share in one row. Update the existing isolated preview as V107.89.
+- Keep date inputs native, put the revert icon immediately left of Load a plan, retain accessible full action names and short visible captions, and maintain at least 44px touch targets. Preserve save, submit, export, share and draft safeguards.
+- Deploy only academy-mobile-first-preview with its existing sample D1/R2 bindings and secrets. Preserve phone-test drafts. Do not deploy Development/live, push a Git branch, apply SQL or contact other chats.
+- Verify in Chrome and WebKit at phone/tablet/desktop sizes, including 200% text. Keep hosted checks targeted to the preview.
+
+# Isolated mobile preview release — 27 October 2026
+
+- The user explicitly requested deploying this feature branch to a preview link for phone testing. Release the V107.84-based mobile feature as preview V107.88, after checking that remote Development is V107.87.
+- This authorises creating a dedicated preview Worker with new synthetic-only D1/R2 resources and its own secrets. It supersedes the local deployment hold only for this preview. Do not update the live Development API, coordinator, website, databases or settings.
+- Keep this chat independent; do not communicate with other chats. Provide Learn/Teach sample-account links. Use local fixtures for full verification and a small targeted hosted smoke check.
+
+# Local mobile-first Learn/Teach development — 27 October 2026
+
+- The user explicitly requested starting the proposed mobile-first development on a new feature branch from V107.84. Work on `feature/academy-mobile-first`, based exactly on `5a1731c0` (V107.84).
+- Implement the shared Learn/Teach reading structure, compact Contents navigation, comfortable text and touch controls; add wider layouts on that same structure. Preserve the swipeable timetable, current permissions, saved drafts, accepted publications and assessment release gates. Admin management and the public website retain their current layout.
+- Keep work in this chat. Do not contact other chats, push, deploy, run live SQL or alter hosted settings. Assign a new release version only when preparing an authorised release. Cache labels may identify this local feature build.
+- Verify with synthetic local fixtures and phone/tablet/desktop checks under ../AGENTS.md. No live database checks are needed.
 # Surah Al Kahf student course release — 27 October 2026
 
 - The user confirmed V107.88 was deployed and explicitly instructed deploying the prepared Surah Kahf course package. Incorporate V107.88 into `feature/surah-kahf-course-companion` and release V107.89 through the existing Development API and Academy website workflow. This supersedes the earlier local branch hold for this course release only.

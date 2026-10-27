@@ -65,11 +65,14 @@
   }
   function showDialog(title,body) {
     if(!dialog){dialog=document.createElement('dialog');dialog.className='ad-dialog';dialog.setAttribute('aria-labelledby','ad-dialog-title');document.body.append(dialog);dialog.addEventListener('click',event=>{if(event.target.closest('[data-ad-close]'))dialog.close();if(event.target.closest('a'))dialog.close();const note=event.target.closest('[data-ad-note]');const notice=event.target.closest('[data-ad-notice]');if(note||notice){dialog.close();$('dashboard').onclick(event);}});}
-    dialog.innerHTML=`<header><h2 id="ad-dialog-title">${esc(title)}</h2><button type="button" data-ad-close>Close</button></header>${body}`;
+    dialog.innerHTML=`<header><h2 id="ad-dialog-title">${esc(title)}</h2><button type="button" data-ad-close class="academy-close" title="Close">Close</button></header>${body}`;
     if(!dialog.open)dialog.showModal();
   }
   function renderNavigation() {
     const adminLinks=options.adminLinks||[];
+    const sidebar=$('ad-navigation').closest('.ad-sidebar'),caption=mode==='admin'?'Your workspace':'Contents';
+    sidebar.setAttribute('aria-label',caption);sidebar.querySelector('h2').textContent=caption;
+    sidebar.querySelector('.ad-menu-toggle').innerHTML=caption+' <span aria-hidden="true">⌄</span>';
     const tools=mode==='teach'?'<button type="button" data-ad-choose="attendance">Mark attendance</button><button type="button" data-ad-choose="planning">Submit plans</button>':mode==='admin'?adminLinks.map(row=>row.action?'<button type="button" data-admin-public-refresh>Update timetable</button>':link(row.href,row.label)).join(''):link('/academy/enrolment/','Enrol now');
     const shared=tracker()+link('/academy/library/','Library')+link(boundary()?.readerUrl('/recorder/?academy=1')||'/recorder/?academy=1','Voice Recorder');
     const visitWebsite='<a class="ad-visit" href="/academy/#website" data-workspace-exit>Visit website ↗</a>';

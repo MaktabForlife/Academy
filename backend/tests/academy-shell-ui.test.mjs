@@ -5,7 +5,7 @@ import {runInNewContext} from 'node:vm';
 
 const source=readFileSync(new URL('../../js/m4l-academy-mobile.js',import.meta.url),'utf8');
 function fixture({compact=true,verified=true,mode='ADMIN_LEARN'}={}){
- const handlers=new Map();
+ const handlers=new Map(),created=[];
  function node(tag='div'){
   const n={tag,className:'',children:[],dataset:{},attrs:{},hidden:false,innerHTML:'',textContent:'',parentElement:null,
    setAttribute(k,v){this.attrs[k]=v;},removeAttribute(k){delete this.attrs[k];},getAttribute(k){return this.attrs[k]??null;},
@@ -18,7 +18,8 @@ function fixture({compact=true,verified=true,mode='ADMIN_LEARN'}={}){
    matches(s){return s.split(',').some(value=>{const q=value.trim();return q.startsWith('.')?this.className.split(' ').includes(q.slice(1)):q==='[data-shell-role]'?Boolean(this.dataset.shellRole):q.startsWith('#')?this.id===q.slice(1):this.tag===q;});},
    querySelectorAll(s){return this.children.flatMap(child=>[...(child.matches(s)?[child]:[]),...child.querySelectorAll(s)]);},
    querySelector(s){return this.querySelectorAll(s)[0]||null;}};
-  n.classList={contains:c=>n.className.split(' ').includes(c),add:(...classes)=>{n.className=[...new Set([...n.className.split(' ').filter(Boolean),...classes])].join(' ');}};
+  n.classList={contains:c=>n.className.split(' ').includes(c),add:(...classes)=>{n.className=[...new Set([...n.className.split(' ').filter(Boolean),...classes])].join(' ');},toggle(c,on){const classes=new Set(n.className.split(' ').filter(Boolean));if(on??!classes.has(c))classes.add(c);else classes.delete(c);n.className=[...classes].join(' ');}};
+  created.push(n);
   return n;
  }
  const body=node('body');if(compact){body.dataset.academyAdminContext='badge';body.dataset.academyHeaderDates='true';}
@@ -29,7 +30,7 @@ function fixture({compact=true,verified=true,mode='ADMIN_LEARN'}={}){
  const window={M4L_ACADEMY_WORKSPACE:boundary,M4L_ACADEMY_SHELL_DATA:data,addEventListener:(key,fn)=>handlers.set(key,fn)};
  runInNewContext(source,{window,document,location:{pathname:'/academy/course-companion/surah-kahf/',hash:'#overview'},localStorage:{getItem:()=>verified?'synthetic-session':''},matchMedia:()=>({matches:false,addEventListener(){}})});
  const profile=node();profile.className='academy-profile';const name=node('strong');name.id='academy-shell-name';const role=node('small');role.id='academy-shell-role';profile.append(name,role);window.M4L_ACADEMY_SHELL.banners.append(profile);window.M4L_ACADEMY_SHELL.update(data);
- return {window,document,body,profile,role,context:document.getElementById('academy-workspace-context'),boundary,handlers,update(next=data){window.M4L_ACADEMY_SHELL.update(next);}};
+ return {window,document,body,profile,role,context:created.find(n=>n.id==='academy-workspace-context'),boundary,handlers,update(next=data){window.M4L_ACADEMY_SHELL.update(next);}};
 }
 
 test('course headers use the compact Admin badge beside the verified account and retain read-only context',()=>{
@@ -42,6 +43,6 @@ test('an Admin URL alone never displays the badge and revoked access clears it',
  const f=fixture();f.boundary.adminAccess=()=>false;f.handlers.get('m4l-academy-access')();assert.equal(f.context.hidden,true);assert.equal(f.context.innerHTML,'');
  const learner=fixture({mode:'LEARN'});assert.equal(learner.context.hidden,true);assert.equal(learner.role.textContent,'Student');
 });
-test('existing workspace pages retain their banner unless they opt in to the badge',()=>{
- const f=fixture({compact:false});assert.equal(f.context.className,'academy-workspace-context');assert.notEqual(f.context.parentElement,f.profile);assert.match(f.context.innerHTML,/<strong>ADMIN-LEARN<\/strong>/);assert.equal(f.document.querySelector('.academy-date-box'),null);
+test('the course reuses the V107.93 badge already shared by other workspace pages',()=>{
+ const f=fixture({compact:false});assert.equal(f.context.className,'academy-admin-context');assert.equal(f.context.parentElement,f.profile);assert.match(f.context.innerHTML,/class="academy-admin-badge"/);assert.equal(f.document.querySelector('.academy-date-box'),null);
 });

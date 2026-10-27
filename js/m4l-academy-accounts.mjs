@@ -56,7 +56,7 @@ export function installAccounts({ actions, signOut }) {
   const local = window.localStorage, session = window.sessionStorage, base = apiBase();
   const currentToken = () => local.getItem(tokenKey) || '';
   let pageToken = currentToken(), ticket = 0, committing = false, leaving = false, requesting = false;
-  const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = '/css/m4l-academy-accounts.css?v=107.89'; document.head.append(css);
+  const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = '/css/m4l-academy-accounts.css?v=107.93'; document.head.append(css);
   const switchButton = document.createElement('button');
   switchButton.type = 'button'; switchButton.id = 'academy-switch-account';
   switchButton.setAttribute('aria-label', 'Switch account'); switchButton.setAttribute('aria-haspopup', 'dialog');
@@ -66,7 +66,7 @@ export function installAccounts({ actions, signOut }) {
 
   const dialog = document.createElement('dialog'); dialog.id = 'academy-account-switcher'; dialog.className = 'academy-account-switcher';
   dialog.setAttribute('aria-labelledby', 'account-switch-title');
-  dialog.innerHTML = `<div class="account-switch-heading"><h2 id="account-switch-title">Switch account</h2><button type="button" data-switch-close aria-label="Close account switcher">×</button></div>
+  dialog.innerHTML = `<div class="account-switch-heading"><h2 id="account-switch-title">Switch account</h2><button type="button" data-switch-close class="academy-close" aria-label="Close account switcher">×</button></div>
     <p>Choose an account and enter its PIN. This switches all Academy tabs in this browser.</p>
     <section data-switch-list></section>
     <form data-switch-form autocomplete="off" novalidate>

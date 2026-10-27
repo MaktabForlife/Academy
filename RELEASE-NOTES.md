@@ -1,3 +1,28 @@
+# V107.93 — Mobile Learn and Teach
+
+Release the phone-tested Learn/Teach layout to Development, incorporating deployed V107.89. Use one reading column on phones, a compact Contents menu and wider layouts built on the same content. Include compact headers, the Admin badge, standard X Close controls, the clearer Refresh arrow, contained date fields and the four planner icon actions. Preserve saved drafts, permissions and all V107.89 account, PDF reader and Surah Kahf features.
+
+Build the matching Development API and Academy website without schema, data or coordinator changes. Sample preview sign-in routes and accounts remain isolated from Development. Verified with all 134 backend regression files, 38 checks each in Chrome/WebKit, and PDF, Library and PIN-switching browser checks.
+
+# V107.92 — Clearer Refresh icon
+
+Use an open circular arrow with a distinct arrowhead for the shared Refresh control, following the supplied example. Keep existing accessible labels, touch targets and refresh behaviour. Update only the isolated sample preview, preserving saved test data.
+
+# V107.91 — Sample Admin preview
+
+Add Open Admin to the isolated mobile preview, using the existing sample Global Admin account and opening Admin-Teach so the badge is immediately visible. Learn, Teach and Admin switches remain available. Preserve existing preview data and credentials; Development/live services are unchanged.
+
+# V107.90 — Compact headers and Admin badge
+
+The phone Learn/Teach header uses less space with inline dates and compact action icons. Replace the extra Admin context banner with an account badge that retains Curriculum access and the read-only Learn description. Standardise Close as a 44px top-right X on phone and desktop, retaining existing draft safeguards. Deploy only the isolated sample preview; existing preview drafts and live Academy services are preserved.
+
+# V107.89 — Compact mobile planner controls
+
+Correct iPhone date-field overflow and oversized planner action rows in the isolated Learn/Teach preview. Preserve native date pickers, full accessible names, clear short captions, 44px tap targets, saved drafts and all existing actions. Chrome and WebKit responsive checks pass. No Development/live, storage, schema or account changes.
+
+# V107.88 — Mobile Learn/Teach preview
+
+Deploy the V107.84-based mobile feature to a dedicated synthetic preview. Provide Learn and Teach sample sign-in links, isolated D1/R2 storage, a same-origin API and a noindex landing page. No live Academy service or data changes.
 # V107.89 — Surah Al Kahf course website
 
 Surah Al Kahf opens a complete mobile-first course website from the Learn dashboard, using the existing Academy login. Eleven web lessons include selectable Arabic and English text, word studies, journaling, browser-local reflections and progress. Published recordings, session notes, course PDFs and assessments use the current protected Academy readers and permissions. PDF download and print stay available separately. Teacher editing and Admin tools retain their existing destinations.

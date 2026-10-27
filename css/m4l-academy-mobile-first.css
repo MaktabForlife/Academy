@@ -1,0 +1,194 @@
+/* Local Learn/Teach feature. Phone rules are the base; wider rules add space. */
+body.academy-learning-layout{
+  --learning-ink:#33263b;
+  --learning-muted:#67566d;
+  --learning-line:#ded0e4;
+  --learning-space:1rem;
+  font-size:1rem;
+  line-height:1.65;
+}
+body.academy-learning-layout :is(main,.container,.view,.learning-reading,.learning-workspace){min-width:0;max-width:100%}
+body.academy-learning-layout :is(.container,.al-main){width:100%;max-width:80rem;margin-inline:auto;padding:1rem var(--academy-gutter) 3rem;box-sizing:border-box}
+body.academy-learning-layout :is(h1,h2,h3,p,li,label,button,a){overflow-wrap:anywhere}
+body.academy-learning-layout :is(.ad-intro h1,#activity .workspace-banner h1,.al-intro h1){font-size:clamp(1.65rem,5vw,2.25rem);line-height:1.25;letter-spacing:normal}
+body.academy-learning-layout :is(.ad-panel h2,.ad-week h2,.lp-top h2,.lm-heading h2,.as-workspace h2){font-size:1.5rem;line-height:1.3}
+body.academy-learning-layout :is(.ad-muted,.ad-status,.ad-empty-line,.ad-warning,.ad-message p,.ad-area-group>h3,.ad-tile>span,.ad-assessment-row>span,.lp-meta,.as-muted,.cn-audience,.lm-inline-help,.pa-register-state){font-size:.875rem;line-height:1.6;color:var(--learning-muted)}
+body.academy-learning-layout :is(.lp-root,.as-workspace,.lm-calendar,.cn-dialog,.lm-dialog,.academy-dashboard-view){font-size:1rem;line-height:1.65}
+body.academy-learning-layout :is(.cn-text,.lm-session-summary,.lp-readonly){max-width:70ch;font-size:1.0625rem;line-height:1.75}
+body.academy-learning-layout :lang(ar){font-size:1.25em;line-height:1.9}
+body.academy-learning-layout :is(.cn-text,.lm-session-summary,.lp-readonly){unicode-bidi:plaintext}
+body.academy-learning-layout :is(main,dialog,.academy-banners) :is(button,.button,input:not([type=checkbox]):not([type=radio]):not([type=range]),select){min-height:2.75rem;box-sizing:border-box}
+body.academy-learning-layout :is(main,dialog) :is(button,.button,input:not([type=checkbox]):not([type=radio]),select,textarea){font-size:1rem;line-height:1.5}
+body.academy-learning-layout :is(main,dialog) :is(input,select,textarea){max-width:100%;min-width:0}
+/* Override the legacy phone field rule's fixed 16px text for browser resizing. */
+body.academy-learning-layout.academy-mobile-layout :is(main,dialog) :is(input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea){font-size:1rem}
+body.academy-learning-layout :is(#activity,dialog) textarea{min-height:9rem;line-height:1.7}
+body.academy-learning-layout :is(main,dialog) label{font-size:.9375rem;line-height:1.5}
+body.academy-learning-layout :is(main,dialog) label:has(>input:is([type=checkbox],[type=radio])){min-height:2.75rem}
+body.academy-learning-layout :is(main,dialog) :is(button,a,input,select,textarea,summary):focus-visible{outline:3px solid #865694;outline-offset:3px}
+body.academy-learning-layout :is(dialog){width:min(54rem,calc(100% - 1.5rem));max-width:calc(100% - 1.5rem);max-height:calc(100dvh - 1.5rem);padding:1rem;box-sizing:border-box}
+body.academy-learning-layout :is(dialog)::backdrop{background:#21152699}
+
+/* Keep identity, dates and existing actions in two compact shared rows. */
+body.academy-learning-layout .academy-banners>:is(.sidebar,.academy-connected-sidebar){display:flex!important;flex-wrap:wrap;align-items:center;gap:.5rem;padding:.5rem var(--academy-gutter)!important}
+body.academy-learning-layout .academy-brand-details{flex:1 1 7rem;flex-direction:column;align-items:flex-start;gap:.25rem;min-width:0}
+body.academy-learning-layout :is(.brand,.academy-connected-brand){gap:.5rem}
+body.academy-learning-layout :is(.brand,.academy-connected-brand) img{width:1.75rem;height:1.75rem}
+body.academy-learning-layout :is(.brand,.academy-connected-brand) strong{font-size:.875rem;line-height:1.15}
+body.academy-learning-layout .academy-brand-details>.academy-date-box{max-width:none;margin:0;padding:0;border:0;background:transparent;font-size:.75rem;line-height:1.4;text-align:left}
+body.academy-learning-layout .academy-date-box :is(em,time){font-size:inherit;white-space:normal}
+body.academy-learning-layout .academy-page-actions{gap:.25rem;margin-left:auto;align-items:center}
+body.academy-learning-layout .academy-page-actions>[data-page-home],body.academy-learning-layout .academy-page-actions>[data-page-refresh]{width:2.75rem;min-width:2.75rem;height:3rem;gap:.125rem;justify-content:center}
+body.academy-learning-layout .page-action-icon{width:2rem;height:1.75rem;border:0;background:transparent}
+body.academy-learning-layout .page-action-label{font-size:.75rem;line-height:1.2}
+body.academy-learning-layout .academy-page-actions :is(#academy-sign-out,#ac-signout,#logout-button){font-size:.875rem;line-height:1.3;padding:.5rem}
+body.academy-learning-layout .academy-account-bar{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem .75rem;padding:.5rem var(--academy-gutter)}
+body.academy-learning-layout .academy-account-row{flex:1 1 8rem;min-width:0}
+body.academy-learning-layout .academy-profile .academy-welcome{display:none}
+body.academy-learning-layout .academy-profile :is(strong,.academy-header-name){font-size:.9375rem;line-height:1.35}
+body.academy-learning-layout .academy-profile>small{font-size:.8125rem;line-height:1.4}
+body.academy-learning-layout .academy-role-tabs{flex:1 1 10rem;width:auto;min-width:0;max-width:100%;margin:0;gap:.25rem}
+body.academy-learning-layout .academy-role-tabs button{min-width:0;font-size:.875rem;line-height:1.3;padding:.5rem .625rem;white-space:normal}
+
+/* Phone header: actions and identity, inline dates, then account/workspaces. */
+@media(max-width:47.999rem){
+  body.academy-learning-layout .academy-banners>:is(.sidebar,.academy-connected-sidebar){display:grid!important;grid-template-columns:minmax(0,1fr) auto;gap:2px 6px;min-height:0;padding:4px var(--academy-gutter)!important;padding-top:calc(4px + env(safe-area-inset-top,0px))!important}
+  body.academy-learning-layout .academy-brand-details{display:contents}
+  body.academy-learning-layout :is(.brand,.academy-connected-brand){grid-column:1;grid-row:1;min-width:0;gap:6px}
+  body.academy-learning-layout :is(.brand,.academy-connected-brand) img{width:24px;height:24px}
+  body.academy-learning-layout :is(.brand,.academy-connected-brand) strong{font-size:.8125rem;line-height:1.1}
+  body.academy-learning-layout :is(.brand,.academy-connected-brand) .site-version{display:none}
+  body.academy-learning-layout .academy-brand-details>.academy-date-box{display:flex;flex-wrap:wrap;justify-content:space-between;gap:0 12px;grid-column:1/-1;grid-row:2;font-size:.6875rem;line-height:1.5}
+  body.academy-learning-layout .academy-date-box>div{margin:0}
+  body.academy-learning-layout .academy-page-actions{grid-column:2;grid-row:1;gap:2px;margin:0}
+  body.academy-learning-layout .academy-page-actions>:is([data-page-home],[data-page-refresh],#academy-sign-out,#ac-signout,#logout-button){display:inline-flex;align-items:center;justify-content:center;width:44px;min-width:44px;height:44px;min-height:44px;padding:10px;gap:0}
+  body.academy-learning-layout .academy-page-actions .page-action-icon{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px}
+  body.academy-learning-layout .academy-page-actions :is(.page-action-label,.page-signout-label){position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  body.academy-learning-layout .page-signout-icon{display:inline-flex}
+  body.academy-learning-layout .academy-account-bar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;padding:4px var(--academy-gutter)}
+  body.academy-learning-layout .academy-profile :is(strong,.academy-header-name){font-size:.8125rem;line-height:1.25;flex:0 1 auto;max-width:100%}
+  body.academy-learning-layout .academy-profile :is(strong,.academy-header-name)[role=button]{display:inline-flex;align-items:center;min-height:44px}
+  body.academy-learning-layout .academy-profile>small{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  body.academy-learning-layout .academy-role-tabs{min-width:0;width:auto;padding:2px;gap:0;border-radius:10px}
+  body.academy-learning-layout .academy-role-tabs button{min-width:44px;min-height:44px;font-size:.75rem;padding:6px 7px;flex:1 0 auto;white-space:nowrap;overflow-wrap:normal}
+  body.academy-learning-layout .academy-role-label{display:none}
+  body.academy-learning-layout .academy-role-short{display:inline;white-space:nowrap}
+  body.academy-learning-layout .academy-admin-context{font-size:.6875rem}
+  body.academy-learning-layout .academy-admin-badge{padding:3px 6px}
+}
+
+/* The same Contents links collapse on a phone and form the wider sidebar. */
+body.academy-learning-layout .learning-workspace{display:block}
+body.academy-learning-layout #activity-menu{margin:0 0 1rem;padding:0;min-width:0}
+body.academy-learning-layout .workspace-contents{border:1px solid var(--learning-line);border-radius:.75rem;background:#fffcff;min-width:0}
+body.academy-learning-layout .workspace-contents>summary{display:flex;align-items:center;flex-wrap:wrap;gap:.5rem;min-height:3rem;box-sizing:border-box;padding:.75rem 1rem;font-size:1rem;font-weight:700;cursor:pointer;list-style:none}
+body.academy-learning-layout .workspace-contents>summary::-webkit-details-marker{display:none}
+body.academy-learning-layout .workspace-contents>summary::after{content:'⌄';margin-left:auto;color:#75427f}
+body.academy-learning-layout .workspace-contents[open]>summary{border-bottom:1px solid var(--learning-line)}
+body.academy-learning-layout .workspace-contents[open]>summary::after{content:'⌃'}
+body.academy-learning-layout .workspace-current{font-size:.875rem;font-weight:400;color:var(--learning-muted)}
+body.academy-learning-layout .workspace-tabs{display:grid;grid-template-columns:minmax(0,1fr);gap:.25rem;margin:0;padding:.5rem;overflow:visible;scroll-snap-type:none}
+body.academy-learning-layout .workspace-tabs :is(a,button){display:flex;justify-content:flex-start;align-items:center;min-height:3rem;width:100%;padding:.625rem .75rem;border:0;border-radius:.375rem;background:transparent;color:#62346b;text-decoration:none;text-align:left;font:600 1rem/1.5 Arial,sans-serif;white-space:normal}
+body.academy-learning-layout .workspace-tabs :is(a[aria-current=page],button[aria-pressed=true]){background:#75427f;color:white}
+body.academy-learning-layout .workspace-helper{min-height:2.75rem;font-size:.9375rem;margin-top:.5rem}
+body.academy-learning-layout #activity .workspace-banner{display:block;margin:0 0 1rem}
+body.academy-learning-layout .learning-reading{min-width:0;width:100%}
+body.academy-learning-layout .learning-reading>:first-child{margin-top:0}
+
+/* Reading order stays identical as columns are added on larger screens. */
+body.academy-learning-layout .ad-layout{display:block}
+body.academy-learning-layout .ad-sidebar{position:static;padding:.25rem 1rem;margin:0 0 1rem}
+body.academy-learning-layout .ad-sidebar h2{display:none}
+body.academy-learning-layout .ad-sidebar .ad-menu-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:3rem;padding:.5rem 0;font:600 1rem/1.5 Arial,sans-serif}
+body.academy-learning-layout .ad-sidebar:not([data-nav-open=true]) #ad-navigation{display:none}
+body.academy-learning-layout .ad-sidebar[data-nav-open=true] #ad-navigation{display:grid;gap:.25rem;padding:.5rem 0}
+body.academy-learning-layout .ad-sidebar :is(a,button){min-height:3rem;font-size:1rem;padding:.625rem .5rem}
+body.academy-learning-layout :is(.ad-grid,.ad-calendar-row[data-queues=true],.ad-calendar-actions,.ad-tiles){display:grid;grid-template-columns:minmax(0,1fr);gap:1rem}
+body.academy-learning-layout .ad-intro{display:block}
+body.academy-learning-layout .ad-intro .ad-actions{margin-top:1rem}
+body.academy-learning-layout .ad-panel{padding:1rem}
+body.academy-learning-layout :is(.ad-task-list,.ad-assessment-list){max-height:none;overflow:visible}
+body.academy-learning-layout .ad-queue{height:auto;min-height:0}
+body.academy-learning-layout .ad-queue-body{overflow:visible;padding:0}
+body.academy-learning-layout :is(.ad-task-list h3,.ad-message>button,.ad-assessment-row strong,.ad-next-subject strong){font-size:1rem;line-height:1.5}
+body.academy-learning-layout :is(.ad-task-bottom a,.ad-task-bottom button,.ad-tools a,.ad-tools button,.ad-actions a,.ad-actions button,.ad-panel>header>button){min-height:2.75rem;font-size:.9375rem;white-space:normal}
+body.academy-learning-layout .ad-next-row{align-items:flex-start;flex-wrap:wrap;gap:.75rem;padding:1rem 0}
+body.academy-learning-layout .ad-next-row .ad-next-time{font-size:.875rem;text-align:left;max-width:none}
+body.academy-learning-layout .ad-next-time>strong{font-size:1rem}
+body.academy-learning-layout .ad-next-time small{font-size:.8125rem}
+
+/* Forms, lesson notes, media and resources use a full-width phone column. */
+body.academy-learning-layout :is(.lp-filters,.lp-fields,.as-form,.lm-form,.al-filters){grid-template-columns:minmax(0,1fr);gap:1rem}
+body.academy-learning-layout :is(.lp-editor,.lp-feedback,.lm-session-summary){max-width:60rem}
+body.academy-learning-layout :is(.lp-card,.lp-lesson,.lp-feedback,.as-box,.as-create,.cn-note){padding:1rem;border-radius:.75rem}
+body.academy-learning-layout :is(.lp-actions,.lm-actions,.as-actions,.cn-actions){gap:.75rem}
+body.academy-learning-layout .lp-actions button{flex:1 1 10rem}
+body.academy-learning-layout .lp-load-controls{gap:.75rem}
+body.academy-learning-layout .lp-load-controls button{font-size:.9375rem}
+/* Native date controls can otherwise exceed their grid cell in iPhone browsers. */
+body.academy-learning-layout .lp-root input:is([type=date],[type=time]){display:block;box-sizing:border-box;inline-size:100%;min-inline-size:0;max-inline-size:100%;-webkit-appearance:none;appearance:none}
+body.academy-learning-layout .lp-root input:is([type=date],[type=time])::-webkit-date-and-time-value{min-width:0;text-align:left}
+body.academy-learning-layout .lp-load-controls{min-width:0;max-width:100%;grid-template-columns:minmax(0,1fr)}
+body.academy-learning-layout .lp-load-controls:has(>button):has(>label){grid-template-columns:44px minmax(0,1fr)}
+body.academy-learning-layout .lp-load-controls [data-lp=reload-plan]{display:flex;align-items:center;justify-content:center;min-width:44px;width:44px;height:44px;min-height:44px;padding:10px}
+body.academy-learning-layout .lp-load-controls [data-lp=reload-plan] .lp-compact-symbol{display:block}
+body.academy-learning-layout .lp-load-controls [data-lp=reload-plan] .lp-full-label{display:none}
+body.academy-learning-layout .lp-plan-heading .lp-plan-week{flex:0 1 15rem;width:100%;min-width:0;max-width:100%}
+/* Four actions share one row; short visible captions also identify the icons. */
+body.academy-learning-layout .lp-root .lp-primary-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));width:min(100%,20rem);gap:.5rem;align-items:stretch}
+body.academy-learning-layout .lp-root .lp-primary-actions button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.25rem;width:100%;min-width:44px;min-height:3.5rem;height:auto;padding:.5rem .25rem}
+body.academy-learning-layout .lp-primary-actions :is(.lp-compact-symbol,.lp-compact-label){display:block}
+body.academy-learning-layout .lp-primary-actions .lp-full-label{display:none}
+body.academy-learning-layout .lp-primary-actions .lp-compact-label{font-size:.75rem;line-height:1.25}
+
+body.academy-learning-layout .lp-plan-heading h2{font-size:1.75rem;line-height:1.3}
+/* The containing Program/Course already has its heading above Contents. */
+body.academy-learning-layout #activity-planning :is(.lp-top h2,.lp-plan-heading h2){display:none}
+body.academy-learning-layout #activity-planning .lp-top:has(>h2:only-child){display:none}
+body.academy-learning-layout #activity-planning .lp-plan-heading{padding:.5rem 0 1rem}
+body.academy-learning-layout .lp-session-choice{grid-template-columns:minmax(0,1fr)}
+body.academy-learning-layout .pa-classes{display:grid;grid-template-columns:minmax(0,1fr);gap:1rem;overflow:visible}
+body.academy-learning-layout .pa-class{width:100%;max-width:none;padding:1rem;font-size:1rem}
+body.academy-learning-layout .pa-class :is(h2,strong){font-size:1rem}
+body.academy-learning-layout .pa-learners li{gap:.75rem;padding:.625rem 0}
+body.academy-learning-layout .pa-learners select{width:7rem;min-width:0;flex:0 0 7rem}
+body.academy-learning-layout .lm-files li{flex-wrap:wrap;gap:.75rem}
+body.academy-learning-layout .lm-files li>:first-child{min-width:0;overflow-wrap:anywhere}
+body.academy-learning-layout :is(.lm-player,.lm-pdf,.as-answer-dialog iframe){width:100%;max-width:100%}
+body.academy-learning-layout .al-ribbon{display:grid;grid-template-columns:minmax(0,1fr);overflow:visible}
+body.academy-learning-layout .al-ribbon>*{width:100%;min-width:0;max-width:100%}
+body.academy-learning-layout :is(.al-tabs,.as-navigation .as-tabs){flex-wrap:wrap;overflow:visible;gap:.5rem}
+body.academy-learning-layout :is(.as-table-scroll,.pa-scroll,.lp-grid-scroll){max-width:100%;min-width:0;overflow:auto;overscroll-behavior:contain}
+
+/* Each day remains swipeable; a lesson's text fits that day's reading width. */
+body.academy-learning-layout :is(#academy-sessions,#activity-sessions){max-width:100%;min-width:0;overflow-x:auto;scroll-snap-type:x proximity}
+body.academy-learning-layout :is(#academy-sessions,#activity-sessions) .timetable-days{display:flex;gap:1rem}
+body.academy-learning-layout :is(#academy-sessions,#activity-sessions) .upcoming-day{flex:0 0 min(100%,26rem);min-width:0;scroll-snap-align:start}
+body.academy-learning-layout :is(.timetable-pill-subject,.timetable-pill-title,.timetable-pill-copy .preview-name){font-size:1rem;line-height:1.5}
+body.academy-learning-layout :is(.timetable-pill-details,.timetable-pill-meta,.timetable-pill-copy small){font-size:.875rem;line-height:1.6}
+body.academy-learning-layout :is(.timetable-join,.cn-card-actions button,.cn-reminder){min-height:2.75rem;font-size:.9375rem}
+
+@media(min-width:48rem){
+  body.academy-learning-layout .academy-brand-details{flex-direction:row;align-items:center;gap:1rem}
+  body.academy-learning-layout .academy-role-tabs{flex:0 1 auto}
+  body.academy-learning-layout .academy-role-tabs button{min-width:5rem}
+  body.academy-learning-layout :is(.lp-filters,.lp-fields,.al-filters){grid-template-columns:repeat(2,minmax(0,1fr))}
+  body.academy-learning-layout :is(.ad-tiles,.pa-classes,.al-ribbon){grid-template-columns:repeat(2,minmax(0,1fr))}
+  body.academy-learning-layout .al-ribbon>*{width:auto}
+  body.academy-learning-layout :is(#academy-sessions,#activity-sessions) .upcoming-day{flex-basis:calc((100% - 1rem)/2)}
+}
+@media(min-width:70rem){
+  body.academy-learning-layout .learning-workspace{display:grid;grid-template-columns:14rem minmax(0,1fr);gap:2rem;align-items:start}
+  body.academy-learning-layout #activity-menu{position:sticky;top:calc(var(--academy-banner-height,10rem) + 1rem);margin:0}
+  body.academy-learning-layout .workspace-contents>summary{display:none}
+  body.academy-learning-layout .workspace-contents::before{content:'Contents';display:block;padding:1rem 1rem .5rem;font-weight:700}
+  body.academy-learning-layout .learning-reading{max-width:60rem}
+  body.academy-learning-layout .ad-layout{display:grid;grid-template-columns:14rem minmax(0,1fr);gap:2rem;align-items:start}
+  body.academy-learning-layout .ad-sidebar{position:sticky;top:calc(var(--academy-banner-height,10rem) + 1rem);margin:0;padding:1rem}
+  body.academy-learning-layout .ad-sidebar h2{display:block;font:700 1rem/1.5 Arial,sans-serif;letter-spacing:normal;text-transform:none}
+  body.academy-learning-layout .ad-sidebar .ad-menu-toggle{display:none}
+  body.academy-learning-layout .ad-sidebar #ad-navigation{display:grid;padding:0;gap:.25rem}
+  body.academy-learning-layout .ad-grid{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);align-items:start}
+  body.academy-learning-layout .ad-calendar-row[data-queues=true]{grid-template-columns:minmax(0,1.4fr) minmax(17rem,1fr);align-items:start}
+  body.academy-learning-layout :is(#academy-sessions,#activity-sessions) .upcoming-day{flex-basis:calc((100% - 2rem)/3)}
+}

@@ -446,7 +446,7 @@
     $('academy-access-empty').hidden = !data?.signedIn || Boolean(choices.length);
     for (const key of ['learn','teach','admin']) {
       const tab = $('academy-tab-'+key), active = !home && key === state.academyTab;
-      tab.textContent=(key!=='admin'?(adminRealm?'ADMIN-':canAdmin?'PERSONAL ':''):'')+key.toUpperCase();tab.hidden = !choices.includes(key);tab.setAttribute('aria-pressed', String(active));tab.setAttribute('aria-controls',key === 'admin' ? 'administration' : 'timetable');tab.tabIndex = 0;
+      const short=key.toUpperCase(),label=(key!=='admin'?(adminRealm?'ADMIN-':canAdmin?'PERSONAL ':''):'')+short;tab.setAttribute('aria-label',label);tab.title=label;tab.innerHTML='<span class="academy-role-label">'+label+'</span><span class="academy-role-short" aria-hidden="true">'+short+'</span>';tab.hidden = !choices.includes(key);tab.setAttribute('aria-pressed', String(active));tab.setAttribute('aria-controls',key === 'admin' ? 'administration' : 'timetable');tab.tabIndex = 0;
     }
     panel.hidden = true;
     panel.setAttribute('aria-labelledby', 'academy-tab-'+state.academyTab);
@@ -501,7 +501,8 @@
     if(row.substituteOnly)tools.splice(2);
     const recorder = row.kind === 'PROGRAM' && row.id === window.M4L_CONFIG?.REBOOT_PROGRAM_ID && !row.unavailable
       ? '<a class="workspace-recorder-pill" data-recorder-link href="/recorder/?academy=1">Voice Recorder</a>' : '';
-    return `<nav class="workspace-tabs" aria-label="${context.mode === 'teach' ? 'Teach' : 'Learn'} tools" role="tablist">${tools.map(([key,label,panel]) => `<a id="activity-tab-${key}" role="tab" href="${key==='library'?'/academy/library/':workspaceHref(row,key)}" aria-controls="${panel}" aria-selected="${context.tool === key}" tabindex="${context.tool === key ? 0 : -1}">${label}</a>${key==='timetable'&&!row.substituteOnly?`<button type="button" class="cn-toggle" data-class-notes-toggle aria-pressed="${Boolean(window.M4L_CLASS_NOTES?.visible())}" aria-controls="activity-sessions">Class Notes</button>`:''}`).join('')}${recorder}</nav>${hifzHelperLink(row,'workspace-helper')}`;
+    const currentLabel=tools.find(([key])=>key===context.tool)?.[1]||'Timetable';
+    return `<details class="workspace-contents"><summary><span>Contents</span><span class="workspace-current">${esc(currentLabel)}</span></summary><nav class="workspace-tabs" aria-label="${context.mode === 'teach' ? 'Teach' : 'Learn'} tools">${tools.map(([key,label,panel]) => `<a id="activity-tab-${key}" data-workspace-link href="${key==='library'?'/academy/library/':workspaceHref(row,key)}" aria-controls="${panel}"${context.tool===key?' aria-current="page"':''}>${label}</a>${key==='timetable'&&!row.substituteOnly?`<button type="button" class="cn-toggle" data-class-notes-toggle aria-pressed="${Boolean(window.M4L_CLASS_NOTES?.visible())}" aria-controls="activity-sessions">Class Notes</button>`:''}`).join('')}${recorder}</nav></details>${hifzHelperLink(row,'workspace-helper')}`;
   }
   // Shared Messages, calendar and tracker are available from the dashboard.
   function supportSections() { return ''; }
@@ -1123,7 +1124,7 @@
     revealWorkspaceTab();
   }
   function revealWorkspaceTab() {
-    const selected = document.querySelector('.view.active .workspace-tabs [aria-selected="true"]');
+    const selected = document.querySelector('.view.active .workspace-tabs [aria-current="page"]');
     if (selected) {const strip=selected.parentElement;if(selected.offsetLeft < strip.scrollLeft)strip.scrollLeft=selected.offsetLeft;else if(selected.offsetLeft+selected.offsetWidth>strip.scrollLeft+strip.clientWidth)strip.scrollLeft=selected.offsetLeft+selected.offsetWidth-strip.clientWidth;}
     if (workspaceFocusId) {$(workspaceFocusId)?.focus();workspaceFocusId='';}
   }
@@ -1251,8 +1252,8 @@
     if(upcomingPlan)planningSelection={id:upcomingPlan.dataset.upcomingPlan,weekStart:upcomingPlan.dataset.planStart,runId:upcomingPlan.dataset.planRun};
     const notesToggle=event.target.closest('[data-class-notes-toggle]');
     if(notesToggle&&state.activity){const enabled=window.M4L_CLASS_NOTES?.toggle();notesToggle.setAttribute('aria-pressed',String(Boolean(enabled)));if(workspaceContext(state.activity).tool!=='timetable')location.hash=workspaceHref(state.activity,'timetable');else renderActivityTimetable();}
-    const workspaceTab=event.target.closest('.workspace-tabs [role=tab]');
-    if(workspaceTab) {workspaceFocusId=workspaceTab.id;if(workspaceTab.getAttribute('href')===location.hash)revealWorkspaceTab();}
+    const workspaceTab=event.target.closest('.workspace-tabs [data-workspace-link]');
+    if(workspaceTab) {workspaceFocusId='';if(workspaceTab.getAttribute('href')===location.hash)revealWorkspaceTab();}
     const nav = event.target.closest('[data-nav]');
     if (nav) { event.preventDefault();const next='#'+nav.dataset.nav;if(location.hash===next)route();else location.hash=next; }
     const tool = event.target.closest('[data-workspace-tool]');
@@ -1283,11 +1284,11 @@
     }
   });
   document.addEventListener('keydown', event => {
-    const tab = event.target.closest?.('.workspace-tabs [role=tab]');
-    if (!tab || !['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
-    const tabs = [...tab.parentElement.querySelectorAll('[role=tab]')], current=tabs.indexOf(tab);
-    const next = event.key==='Home'?0:event.key==='End'?tabs.length-1:(current+(event.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;
-    event.preventDefault();workspaceFocusId=tabs[next].id;const hash=tabs[next].getAttribute('href');if(hash===location.hash)revealWorkspaceTab();else location.hash=hash;
+    const tab = event.target.closest?.('.workspace-tabs [data-workspace-link]');
+    if (!tab || !['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+    const tabs = [...tab.parentElement.querySelectorAll('[data-workspace-link]')], current=tabs.indexOf(tab);
+    const next = event.key==='Home'?0:event.key==='End'?tabs.length-1:(current+(['ArrowRight','ArrowDown'].includes(event.key)?1:-1)+tabs.length)%tabs.length;
+    event.preventDefault();tabs[next].focus();
   });
   $('academy-role-tabs')?.addEventListener('click', event => {
     const tab = event.target.closest('[data-academy-tab]');

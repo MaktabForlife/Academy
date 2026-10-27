@@ -9,13 +9,13 @@
   if(banner&&shell){banner.hidden=false;shell.banners.append(banner);}
   const host=shell?.banners.querySelector('.sidebar,.academy-connected-sidebar')||banner?.querySelector('.academy-account-row')||account||document.querySelector('main');if(!host)return;
   const actions=document.createElement('div');actions.className='academy-page-actions';actions.setAttribute('role','group');actions.setAttribute('aria-label','Page actions');
-  const home='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9"/></svg>',refresh='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M20 12a8 8 0 1 1-2-6"/></svg>';
+  const home='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9"/></svg>',refresh='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 8.5A9 9 0 1 1 12 3h2M11 1l3 2-2 3"/></svg>';
   actions.innerHTML=`<a data-page-home data-workspace-exit href="${window.M4L_ACADEMY_WORKSPACE?.homeUrl?.()||'/academy/#overview'}" aria-label="Academy home" title="Home"><span class="page-action-icon">${home}</span><span class="page-action-label">Home</span></a><button data-page-refresh type="button" aria-label="Refresh this page" title="Refresh"><span class="page-action-icon">${refresh}</span><span class="page-action-label">Refresh</span></button>`;
   const syncHome=()=>{const anchor=actions.querySelector('[data-page-home]');if(anchor)anchor.href=window.M4L_ACADEMY_WORKSPACE?.homeUrl?.()||'/academy/#overview';};window.addEventListener('hashchange',syncHome);
   const login=document.getElementById('academy-login')||document.createElement('a');
   if(!login.id){login.id='academy-login';login.href='/academy/#login';login.textContent='Login';}
-  signOut.textContent='Sign out';actions.append(login,signOut);host.append(actions);
-  void import('/js/m4l-academy-accounts.mjs?v=107.89').then(module=>module.installAccounts({actions,signOut})).catch(()=>{ /* Existing Login and Sign out remain available if the optional chooser cannot load. */ });
+  signOut.innerHTML='<span class="page-signout-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 4H4v16h5m5-13 5 5-5 5m-6-5h11"/></svg></span><span class="page-signout-label">Sign out</span>';signOut.setAttribute('aria-label','Sign out');signOut.title='Sign out';actions.append(login,signOut);host.append(actions);
+  void import('/js/m4l-academy-accounts.mjs?v=107.93').then(module=>module.installAccounts({actions,signOut})).catch(()=>{ /* Existing Login and Sign out remain available if the optional chooser cannot load. */ });
   if(!academy){
     const updateLogin=()=>{login.hidden=!signOut.hidden;};updateLogin();
     new MutationObserver(updateLogin).observe(signOut,{attributes:true,attributeFilter:['hidden']});
@@ -23,7 +23,7 @@
   const path=location.pathname||'',calendarView=window.M4L_ACADEMY_WORKSPACE?.audience().toLowerCase()||new URLSearchParams(location.search).get('view');
   const management=Boolean(window.M4L_ACADEMY_WORKSPACE?.adminRealm())||/^\/(users|programs)(?:\/|$)/.test(path)||/^\/academy\/(subjects|courses\/manage|library\/manage|enrolment\/manage|pdf-tools)(?:\/|$)/.test(path)||path.startsWith('/academy/calendar/')&&!['learn','teach'].includes(calendarView);
   if(management){
-    const close=document.createElement('a');close.href='/academy/admin/#administration';close.className='academy-management-close';close.textContent='Close';close.setAttribute('data-workspace-exit','');close.setAttribute('aria-label','Close and return to Admin Home');
+    const close=document.createElement('a');close.href='/academy/admin/#administration';close.className='academy-management-close academy-close';close.title='Close';close.textContent='Close';close.setAttribute('data-workspace-exit','');close.setAttribute('aria-label','Close and return to Admin Home');
     function ensureClose(){
       if(path.startsWith('/academy/admin/')&&(!location.hash||location.hash==='#administration')){close.remove();return;}
       const headings=[...document.querySelectorAll('.view.active .page-heading,.view.active .workspace-banner,.view.active .workspace-identity,.view.active .activity-identity,main .pgm-heading,main .pb-heading,main .up-titlebar,main .cm-page-heading,main .al-intro,main .cal-heading,main .pt-heading,main .enrolment-heading')];
@@ -50,5 +50,10 @@
     try{sessionStorage.removeItem('m4l_academy_daily_timetable_10656');}catch{}location.reload();
   });
   shell?.update(window.M4L_ACADEMY_SHELL_DATA||null);
-  if(shell&&typeof ResizeObserver!=='undefined')new ResizeObserver(()=>document.documentElement.style.setProperty('--academy-banner-height',shell.banners.offsetHeight+'px')).observe(shell.banners);
+  if(shell&&typeof ResizeObserver!=='undefined'){
+    let frame=0;
+    const measure=()=>{frame=0;const height=shell.banners.offsetHeight+'px',style=document.documentElement.style;if(style.getPropertyValue('--academy-banner-height')!==height)style.setProperty('--academy-banner-height',height);};
+    // Defer layout writes outside ResizeObserver delivery, including Safari's PDF header.
+    new ResizeObserver(()=>{if(!frame)frame=requestAnimationFrame(measure);}).observe(shell.banners);measure();
+  }
 })();
