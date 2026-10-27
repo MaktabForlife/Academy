@@ -1,6 +1,8 @@
 // Setup definitions and accepted references. Core permissions and work are excluded.
 // Column order, keys, foreign keys and case collations follow the inspected source schema.
 export const setupSchema={
+ "course_website_documents":{"publicationRevision":"revision","columns":["activity_key","document_json","schema_version","source_kind","revision","enabled","updated_at","updated_by"],"keys":["activity_key"],"scope":"COALESCE(activity_key,'GLOBAL')","family":"presentation","live":["enabled"],"nocase":["activity_key","updated_by"]},
+ "course_website_assets":{"columns":["asset_id","activity_key","object_key","filename","mime_type","byte_size","sha256","created_at","created_by"],"keys":["asset_id"],"scope":"COALESCE(activity_key,'GLOBAL')","family":"presentation","nocase":["activity_key","created_by"]},
  "activities":{"columns":["activity_key","activity_id","kind","name","active","lifecycle","website_visible","created_at","updated_at","revision"],"keys":["activity_key"],"scope":"COALESCE(activity_key,'GLOBAL')","family":"presentation","live":["active","lifecycle","revision","created_at","updated_at"],"nocase":["activity_key","activity_id","kind"]},
  "program_settings":{"columns":["activity_key","kind","duration_years","timezone","revision","public_card_json"],"keys":["activity_key"],"scope":"COALESCE(activity_key,'GLOBAL')","family":"presentation","nocase":["activity_key"]},
  "academy_module_usage":{"columns":["activity_key","module_id","academy_module_id"],"keys":["activity_key","module_id"],"scope":"COALESCE(activity_key,'GLOBAL')","family":"curriculum","nocase":["activity_key","module_id","academy_module_id"]},
@@ -46,6 +48,8 @@ export const setupSchema={
 };
 export const privateSetupTables=["timetable_drafts","course_draft_sessions","course_draft_lifecycle","course_management_drafts","program_timetable_records","teacher_availability_changes","teacher_availability_notices"];
 export const setupForeignKeys={
+ "course_website_documents":[{"id":0,"seq":0,"table":"activities","from":"activity_key","to":"activity_key"}],
+ "course_website_assets":[{"id":0,"seq":0,"table":"activities","from":"activity_key","to":"activity_key"}],
  "academy_announcements":[],
  "academy_calendar_events":[],
  "academy_calendar_suppressions":[],

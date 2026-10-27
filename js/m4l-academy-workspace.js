@@ -1,6 +1,6 @@
 (() => {
  'use strict';
- const adminPage=()=>/^\/(?:users(?:\/|$)|programs(?:\/(?:$|index\.html|manage\.html|timetable\.html|lesson-media\.html|library\.html))|academy\/(?:admin|subjects|courses\/manage|enrolment\/manage|library\/manage|pdf-tools)(?:\/|$))/.test(location.pathname);
+ const adminPage=()=>/^\/(?:users(?:\/|$)|programs(?:\/(?:$|index\.html|manage\.html|timetable\.html|lesson-media\.html|library\.html))|academy\/(?:admin|subjects|courses\/manage|course-websites(?!\/view)|enrolment\/manage|library\/manage|pdf-tools)(?:\/|$))/.test(location.pathname);
  function desired(){
   const explicit=location.hash.match(/^#(?:timetable\/(learn|teach)|activity\/[^/]+\/[^/]+\/(learn|teach)(?:\/|$))/);
   if(location.pathname.startsWith('/academy/admin/'))return explicit?'ADMIN_'+(explicit[1]||explicit[2]).toUpperCase():'ADMIN';
@@ -131,5 +131,5 @@
   else if(adminRealm()&&adminAccess()&&['/academy/','/academy/index.html'].includes(url.pathname)){url.pathname='/academy/admin/';if(!url.hash||url.hash==='#overview')url.hash='#administration';link.href=url.href;}
  },true);
  if(location.pathname.startsWith('/academy/admin/')&&!location.hash)history.replaceState(null,'','#administration');
-  void import('/js/m4l-academy-history.js?v=107.97').catch(()=>{ /* Existing page links remain available if navigation cannot load. */ });
+  void import('/js/m4l-academy-history.js?v=107.98').catch(()=>{ /* Existing page links remain available if navigation cannot load. */ });
 })();

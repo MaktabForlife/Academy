@@ -1,3 +1,11 @@
+# V107.98 — Course websites
+
+- Add a desktop Website builder under Admin → Course websites, with a scoped list of existing course websites and course templates.
+- Edit the eleven existing Al Kahf lessons as native components, or author another course directly. Support Arabic, ayahs/translations, quotations, lists, word study, reflections, images, source notes and takeaways, plus arranged course PDF/image downloads.
+- Keep drafts private until explicit publication. Preserve exact revision/retry checks, scoped Admin authority, immutable accepted versions, current withdrawal and same-course file membership. Course switching cancels queued work for the prior course; portable copies preserve text when saving fails.
+- Use the existing student login, combined session cards, live-only header joining, recording playback, Teacher note PDFs and assessment tools. Downloads remain in Course materials, with no print controls. Existing Kahf links use the edited website after its first explicit publication; its original PDF publication gate remains in force.
+- Upgrade only the two additive course website tables in each split store, then deploy the matching private coordinator, Development API and Academy website. Preserve V107.97 and all existing data, accepted heads and hosted course publications.
+
 # V107.97 — Dashboard and mobile reading refinements
 
 Compact Admin headers and workspace navigation; right-side dashboard and Program Contents menus; management and upcoming-session card grids; small Quick tools and Notes icons; two-day timetables focused on today; complete assessment cards on phones; and course-scoped Library selection. Remove duplicate review buttons, plan-review status labels and redundant helper text. Preserve V107.96 course features, current access/publication gates and unsaved-work safeguards. No schema, hosted data or private coordinator changes.

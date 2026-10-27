@@ -71,7 +71,7 @@ export async function d1Entrance(repository,state,user,input={},now=new Date(),{
   }});
   if(config.programWorkspace){
     const today=dateInTimezone(now,config.setting_value);
-    const project=row=>row.kind==='COURSE'?{...row,menuAvailable:activities.find(a=>a.activity_key.toUpperCase()===('COURSE:'+row.id).toUpperCase())?.course_menu_available!==0,curriculumActive:runs.some(run=>samePublication(run.activity_key,'COURSE:'+row.id)&&run.start_date&&run.end_date&&run.start_date<=today&&run.end_date>=today&&runStates.some(state=>state.run_id===run.run_id&&state.current_publication_id&&['PUBLISHED','ACTIVE'].includes(state.stage)))}:{...row,curriculumActive:true};
+    const project=row=>row.kind==='COURSE'?{...row,courseWebsite:activities.find(a=>samePublication(a.activity_key,'COURSE:'+row.id))?.course_website_available==='1',menuAvailable:activities.find(a=>a.activity_key.toUpperCase()===('COURSE:'+row.id).toUpperCase())?.course_menu_available!==0,curriculumActive:runs.some(run=>samePublication(run.activity_key,'COURSE:'+row.id)&&run.start_date&&run.end_date&&run.start_date<=today&&run.end_date>=today&&runStates.some(state=>state.run_id===run.run_id&&state.current_publication_id&&['PUBLISHED','ACTIVE'].includes(state.stage)))}:{...row,curriculumActive:true};
     for(const name of ['activities','personalActivities','activityPages'])result[name]=result[name].map(project);
     if(result.activity)result.activity=project(result.activity);
   }

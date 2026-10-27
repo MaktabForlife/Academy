@@ -11,7 +11,7 @@ import {academyDate,nextDate} from '../src/academy/d1/academy-clock.js';
 const today=()=>academyDate(new Date(),'Africa/Johannesburg');
 async function use(fn,seed){
  const f=await separationFixture();try{
-  for(const name of ['0032_accepted_setup.sql','0033_native_attendance.sql'])f.db.exec(readFileSync(new URL('../migrations/academy/'+name,import.meta.url),'utf8'));
+  for(const name of ['0039_course_websites.sql','0032_accepted_setup.sql','0033_native_attendance.sql'])f.db.exec(readFileSync(new URL('../migrations/academy/'+name,import.meta.url),'utf8'));
   if(seed)await seed(f);f.db.exec('BEGIN');f.db.exec(readFileSync(new URL('../migrations/academy/0034_assessment_operations.sql',import.meta.url),'utf8'));f.db.exec('COMMIT');const head=(await initialiseAcceptedSetup(f.env.ACADEMY_DB)).head;
   f.env.ACADEMY_ACCEPTED_SETUP='1';f.env.ACADEMY_LEARNING_OPERATIONS='3';
   f.service=async(workspace='ADMIN',who='global')=>{

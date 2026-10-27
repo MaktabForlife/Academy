@@ -16,7 +16,7 @@ import {federatedDatabase} from '../src/academy/separation/federation.js';
 import {sqlCommand} from '../src/academy/separation/sql-command.js';
 const at='2026-10-23T04:00:00.000Z';
 async function use(fn){const f=await separationFixture();let prepared;try{
- for(const name of ['0032_accepted_setup.sql','0033_native_attendance.sql','0034_assessment_operations.sql','0035_media_contributions.sql']){f.db.exec('BEGIN');f.db.exec(readFileSync(new URL('../migrations/academy/'+name,import.meta.url),'utf8'));f.db.exec('COMMIT');}
+ for(const name of ['0039_course_websites.sql','0032_accepted_setup.sql','0033_native_attendance.sql','0034_assessment_operations.sql','0035_media_contributions.sql']){f.db.exec('BEGIN');f.db.exec(readFileSync(new URL('../migrations/academy/'+name,import.meta.url),'utf8'));f.db.exec('COMMIT');}
  f.env.ACADEMY_ACCEPTED_SETUP='1';f.env.ACADEMY_LEARNING_OPERATIONS='3';f.env.ACADEMY_MEDIA_SEPARATION='1';const initial=await initialiseAcceptedSetup(f.env.ACADEMY_DB);
  f.prepare=async()=>{const source=databaseSnapshot(f.db,'synthetic',at),selection=addAcceptedSource(selectActiveSnapshot(source,{at}),source);prepared=await prepareTargets(selection);return {source,selection,...prepared};};await fn(f,initial);
  }finally{prepared?.close();f.close();}}

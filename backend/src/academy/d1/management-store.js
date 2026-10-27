@@ -56,17 +56,17 @@ export function managementStore(repository,auth,{versionKey}={}) {
       const hash=await payloadHash({action,input});
       const selfTeacher=dataset==='TEACHER_AVAILABILITY'&&(!input.accountId||same(String(input.accountId).trim(),auth.user.accountid));
       const scopedRoles=!isAdminWorkspace(auth)?(auth.adminView?['TEACHER','PROGRAM_ADMIN']:['TEACHER']):['PROGRAM_ATTENDANCE','LESSON_PLANS'].includes(dataset)?['PROGRAM_ADMIN','TEACHER']:
-        ['PROGRAM_MANAGEMENT','PROGRAM_TIMETABLE','PROGRAM_LIBRARY','PROGRAM_REGISTRY','COURSE_MANAGEMENT','COURSE_SUBSCRIPTIONS','TEACHER_AVAILABILITY','ACADEMY_CALENDAR','LESSON_PLAN_ADMIN','ENROLMENT'].includes(dataset)?['PROGRAM_ADMIN']:[];
+        ['PROGRAM_MANAGEMENT','PROGRAM_TIMETABLE','PROGRAM_LIBRARY','PROGRAM_REGISTRY','COURSE_MANAGEMENT','COURSE_SUBSCRIPTIONS','COURSE_WEBSITE','TEACHER_AVAILABILITY','ACADEMY_CALENDAR','LESSON_PLAN_ADMIN','ENROLMENT'].includes(dataset)?['PROGRAM_ADMIN']:[];
       for(let attempt=0;attempt<3;attempt++) {
         const receipt=await this.receipt(dataset,scope,input.operationId,hash);if(receipt)return receipt;
-        const {data,statements,result,fields,authorityScopes=[scope],cacheEffects=[],acceptDefinitions=true}=await plan();
+        const {data,statements,result,fields,authorityScopes=[scope],cacheEffects=[],acceptDefinitions=true,acceptEntities={},acceptFullRows=false}=await plan();
         const now=new Date().toISOString(),actor=auth.user.accountid;
         const effectiveGlobal=auth.state.account.global_admin||auth.adminView&&auth.workspace==='TEACH'&&actualState(auth).account.global_admin;
         const checkedScopes=effectiveGlobal?[scope]:[...new Set(authorityScopes)];
         if(!checkedScopes.length)throw managementError('This action requires an authorised administrator.',403,'FORBIDDEN');
         const effects=[...new Set([...cacheEffects,...(publicRefreshNeeded(dataset,action,input,fields)?['public-timetable']:[])])];
         if(effects.length)result.cacheRefreshPending=effects;
-        const acceptance=await prepareFeatureChange(repository,auth,{dataset,scope,operationId:input.operationId,statements,describe:statement=>descriptions.get(statement),enabled:acceptDefinitions,scopes:dataset==='TEACHER_AVAILABILITY'?['TEACHER:'+String(input.accountId||actor).toUpperCase()]:authorityScopes});
+        const acceptance=await prepareFeatureChange(repository,auth,{dataset,scope,operationId:input.operationId,statements,describe:statement=>descriptions.get(statement),enabled:acceptDefinitions,entities:acceptEntities,fullRows:acceptFullRows,scopes:dataset==='TEACHER_AVAILABILITY'?['TEACHER:'+String(input.accountId||actor).toUpperCase()]:authorityScopes});
         if(acceptance)result.acceptedChange=acceptance.reference;
         const json=JSON.stringify(result);if(json.length>100000)throw managementError('Save fewer changed entries together.');
         // Check authority again INSIDE the same transaction as the writes.

@@ -11,6 +11,7 @@ import {messaging,recoverMessaging} from './messaging.js';
 import {lessonNotes} from './lesson-notes.js';
 import {nativeAttendance} from './native-attendance.js';
 import {setupEnabled,acceptedHead,acceptedRepository} from './setup-reader.js';
+import {courseWebsites} from './course-websites.js';
 import {acceptFeatureChange} from './setup-publication.js';
 import {announcements,publicAnnouncements,announcementImage,announcementPdf,announcementUpload} from './announcements.js';
 import {guardWorkspace,actualState,isAdminWorkspace} from './workspace-access.js';
@@ -103,7 +104,7 @@ async function dispatch(request,env) {
   if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,setupEnabled(env)?await readRepository():repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(setupEnabled(env)?await readRepository():repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.97',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.98',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(setupEnabled(env)?await readRepository():repository)};
@@ -125,6 +126,14 @@ async function dispatch(request,env) {
     return lessonMedia(repository,auth,env).videoStream(request,input);
   }
   if(request.method!=='POST')throw rehearsalError('Use POST.',405,'METHOD_NOT_ALLOWED');
+  if(path==='/api/admin/platform/course-websites/upload'){
+    const auth=await authenticated(request,env,repository),metadata=new URL(request.url).searchParams.get('metadata')||'';
+    if(metadata.length>8192)throw rehearsalError('Upload details are too large.',413);
+    let input;try{input=JSON.parse(metadata);}catch{throw rehearsalError('Invalid upload details.');}
+    if(!input||typeof input!=='object'||Array.isArray(input))throw rehearsalError('Invalid upload details.');
+    guardWorkspace(request,auth,input);
+    return {success:true,...await courseWebsites(repository.authoringRepository(),auth,env).upload(request,input)};
+  }
   if(path==='/api/admin/platform/announcements/save'){
     const auth=await authenticated(request,env,repository);
     guardWorkspace(request,auth);
@@ -160,7 +169,7 @@ async function dispatch(request,env) {
     return {success:true,...await d1Library(repository,auth,env).uploadChunk(request)};
   }
   const managementPath=path.startsWith('/api/admin/platform/')||path.startsWith('/api/academy/messaging/');
-  const input=await boundedBody(request,path.endsWith('/register-reports-generate')?524288:path.startsWith('/api/academy/bookmarks/')?8192:managementPath||path.startsWith('/api/academy/teacher-availability/')||path.startsWith('/api/academy/progress/')||path.startsWith('/api/academy/assessments/')||path.startsWith('/api/academy/lesson-media/')||path.startsWith('/api/academy/planning/')||path.startsWith('/api/academy/attendance/')||path.startsWith('/api/academy/my-links/')||path.startsWith('/api/academy/class-notes/')?131072:path.startsWith('/api/program-attendance/')?65536:4096);
+  const input=await boundedBody(request,path==='/api/admin/platform/course-websites/save'?750000:path.endsWith('/register-reports-generate')?524288:path.startsWith('/api/academy/bookmarks/')?8192:managementPath||path.startsWith('/api/academy/teacher-availability/')||path.startsWith('/api/academy/progress/')||path.startsWith('/api/academy/assessments/')||path.startsWith('/api/academy/lesson-media/')||path.startsWith('/api/academy/planning/')||path.startsWith('/api/academy/attendance/')||path.startsWith('/api/academy/my-links/')||path.startsWith('/api/academy/class-notes/')?131072:path.startsWith('/api/program-attendance/')?65536:4096);
   if(['/api/account/check','/api/account/login','/api/account/setup-pin'].includes(path)) {
     const login=String(input.uniqueid || '').trim();
     if(!login||login.length>160)throw rehearsalError('Missing or invalid account link.',400,'INVALID_ACCOUNT_LINK');
@@ -211,6 +220,10 @@ async function dispatch(request,env) {
     return {success:true,...await acceptFeatureChange({...repository,onAssessmentPublication:head=>warmPublishedAssessments(acceptedRepository(sourceRepository,head),auth)},auth,input)};
   }
   if(setupEnabled(env)&&(!isAdminWorkspace(auth)||path==='/api/academy/lesson/join')&&!path.startsWith('/api/account/'))repository=await readRepository();
+  const websiteAdmin=path.match(/^\/api\/admin\/platform\/course-websites\/(list|get|save|publish|withdraw|asset)$/)?.[1];
+  if(websiteAdmin){const result=await courseWebsites(repository,auth,env).run(websiteAdmin==='asset'?'admin-asset':websiteAdmin,input);return result instanceof Response?result:{success:true,...result};}
+  const websiteRead=path.match(/^\/api\/academy\/course-websites\/(read|asset)$/)?.[1];
+  if(websiteRead){const source=setupEnabled(env)?await readRepository():repository;const result=await courseWebsites(source,auth,env).run(websiteRead,input);return result instanceof Response?result:{success:true,...result};}
   const personalAction=path.match(/^\/api\/academy\/my-links\/(list|save|export)$/)?.[1];
   if(personalAction)return {success:true,...await personalLinks(sourceRepository,auth,env).run(personalAction,input)};
   const noteAction=path.match(/^\/api\/academy\/lesson-media\/note-(options|withdraw)$/)?.[1];

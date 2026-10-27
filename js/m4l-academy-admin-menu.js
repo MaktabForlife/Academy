@@ -10,9 +10,10 @@
   if(!global&&!data.workspaceAccess?.admin&&!areas.length&&!data.workspaceRoles?.some(r=>['PROGRAM_ADMIN','ADMIN'].includes(r)))return [];
   const curriculum=global?'/academy/subjects/':areas.some(a=>a.kind==='PROGRAM')?'/programs/':'/academy/courses/manage/';
   const assessment=global?'#assessment-admin':first?`#assessment-admin/${first.kind}/${encodeURIComponent(first.id)}`:'#assessment-admin';
-  return [{id:'users',label:'Users',href:global?'/users/':base+'#administration/users'},...(global?[{id:'announcements',label:'Announcements',href:base+'#administration/announcements'}]:[]),{id:'attendance',label:'Attendance',href:base+'#administration/attendance'},{id:'curriculum',label:'Curriculum',href:curriculum},{id:'library',label:'Library',href:global?'/academy/library/manage/':'/academy/library/'},{id:'planning',label:'Lesson plans',href:base+'#administration/planning'},{id:'assessments',label:'Assessments',href:base+assessment},...(global?[{id:'settings',label:'App settings',href:base+'#administration/settings'},{id:'refresh',label:'Update timetable',action:'refresh'}]:[])];
+  return [{id:'users',label:'Users',href:global?'/users/':base+'#administration/users'},...(global?[{id:'announcements',label:'Announcements',href:base+'#administration/announcements'}]:[]),{id:'attendance',label:'Attendance',href:base+'#administration/attendance'},{id:'curriculum',label:'Curriculum',href:curriculum},{id:'library',label:'Library',href:global?'/academy/library/manage/':'/academy/library/'},{id:'websites',label:'Course websites',href:'/academy/course-websites/'},{id:'planning',label:'Lesson plans',href:base+'#administration/planning'},{id:'assessments',label:'Assessments',href:base+assessment},...(global?[{id:'settings',label:'App settings',href:base+'#administration/settings'},{id:'refresh',label:'Update timetable',action:'refresh'}]:[])];
  }
  function active(){const path=location.pathname,hash=location.hash;
+  if(path.startsWith('/academy/course-websites/'))return 'websites';
   if(path.startsWith('/users/')||path.startsWith('/academy/enrolment/manage/'))return 'users';
   if(path.startsWith('/programs/')||/\/academy\/(?:subjects|courses\/manage)\//.test(path)||hash.includes('/curriculum'))return 'curriculum';
   if(/\/academy\/(?:library\/manage|pdf-tools)\//.test(path))return 'library';

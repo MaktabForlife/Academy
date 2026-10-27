@@ -1,3 +1,9 @@
+# Course website builder connection and release — 27 October 2026
+
+- The user explicitly requested connecting and deploying the desktop Admin Website builder, with Course websites in the Admin menu opening a list of websites to edit. Work on `feature/academy-course-website-builder`, incorporating deployed V107.97.
+- This authorises implementing guarded course-scoped drafts/uploads, explicit publication, editing the existing Surah Al Kahf website and additive split-store schema changes required by this feature, followed by the matching coordinator/API/website release. Preserve all existing course/session/media/login/assessment permissions and V107.97 behaviour. Do not publish course content or change timetables on the user's behalf; the deployment exposes the editor, and Admins explicitly publish their later edits.
+- Use disposable local fixtures and minimal hosted schema/version/static/readiness checks under ../AGENTS.md. Keep existing database IDs, accepted heads, records, secrets and storage. Do not bootstrap, reseed or export live databases. This supersedes the earlier design-only release hold for this implementation and deployment only.
+
 # Course website editor design — 27 October 2026
 
 - The user requested reusable templates using all Surah Al Kahf components, direct web-lesson entry and arranged Canva PDF/image uploads, then explicitly requested a feature branch. Work on `feature/academy-course-website-builder`, based on deployed V107.96 (`168a4698`).

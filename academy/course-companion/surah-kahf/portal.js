@@ -64,6 +64,7 @@
    await boundary?.readyPublication(true);
    let next=await request('academy/lesson-media/feed',{activityKey,view:'learner',includeCourseCompanion:true,includeCourseSessions:true,...(more?{before:feed.before}:{})});
    if(more&&feed.cacheRevision!==next.cacheRevision)next=await request('academy/lesson-media/feed',{activityKey,view:'learner',includeCourseCompanion:true,includeCourseSessions:true});
+   if(next.courseCompanion?.editableWebsite){location.replace('/academy/course-websites/view/?'+new URLSearchParams(location.search).toString()+location.hash);return;}
    if(!next.courseCompanion){end('These course readings are not currently published. Return to your dashboard for help.');return;}
    if(more&&feed.cacheRevision===next.cacheRevision){next.sessions=[...new Map([...feed.sessions,...next.sessions].map(r=>[r.sessionKey,r])).values()];next.lessons=[...new Map([...feed.lessons,...next.lessons].map(r=>[r.id,r])).values()];}
    feed=next;renderMaterials();
@@ -115,7 +116,7 @@
  async function assessments(){
   if(assessmentOpen||!active())return;const requestId=++assessmentRequest,host=$('kahf-assessments');host.textContent='Opening assessments…';
   try{
-   assessmentLoading??=(async()=>{for(const src of ['/js/vendor/pdf-lib-1.17.1.min.js?v=106.82','/js/m4l-assessment-reports.js?v=107.97','/js/m4l-assessment-register.js?v=107.97','/js/m4l-imtihaan-export.js?v=107.97','/js/m4l-academy-assessments.js?v=107.97'])await loadScript(src);})();
+   assessmentLoading??=(async()=>{for(const src of ['/js/vendor/pdf-lib-1.17.1.min.js?v=106.82','/js/m4l-assessment-reports.js?v=107.98','/js/m4l-assessment-register.js?v=107.98','/js/m4l-imtihaan-export.js?v=107.98','/js/m4l-academy-assessments.js?v=107.98'])await loadScript(src);})();
    await assessmentLoading;if(!active()||location.hash!=='#assessments'||requestId!==assessmentRequest)return;
    assessmentOpen=true;$('view-assessments').classList.add('active');
    await window.M4L_ACADEMY_ASSESSMENTS.open({hostId:'kahf-assessments',view:boundary?.audience()==='TEACH'?'teacher':'learner',activityKey,kind:''});
@@ -146,6 +147,7 @@
    feed=await request('academy/lesson-media/feed',{activityKey,view:'learner',includeCourseCompanion:true,includeCourseSessions:true});
    const content=feed.courseCompanion;
    if(!content?.lessons?.length||!content.readerKey){end('These course readings are not currently published. Return to your dashboard for help.');return;}
+   if(content.editableWebsite){location.replace('/academy/course-websites/view/?'+new URLSearchParams(location.search).toString()+location.hash);return;}
    window.KAHF_LESSONS=content.lessons;window.KAHF_STORAGE_SCOPE=content.readerKey;
    document.querySelectorAll('[data-dashboard]').forEach(a=>a.href=boundary?.homeUrl()||'/academy/');
    renderMaterials();document.body.classList.remove('course-loading');window.dispatchEvent(new Event('kahf-course-ready'));

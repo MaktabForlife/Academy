@@ -122,7 +122,9 @@ export const storeColumns={
   "split_transaction_guards":["guard_id","accepted"],
   "split_write_fence":["singleton","command_id","allow_write"],
   "split_read_state":["singleton","version"],
-  "split_deployment_state":["singleton","generation","state","source_digest","selection_digest","prepared_at"]
+  "split_deployment_state":["singleton","generation","state","source_digest","selection_digest","prepared_at"],
+  "course_website_documents":["activity_key","document_json","schema_version","source_kind","revision","enabled","updated_at","updated_by"],
+  "course_website_assets":["asset_id","activity_key","object_key","filename","mime_type","byte_size","sha256","created_at","created_by"]
  },
  "admin":{
   "identity_refs":["account_id"],
@@ -175,6 +177,8 @@ export const storeColumns={
   "assessments":["assessment_id","activity_key","class_id","title","subject","exam_date","duration_minutes","maximum_mark","phase_id","subject_descriptor","register_id","assessment_kind","timing_mode","timezone","available_from","due_at","exam_cutoff","allowance_minutes"],
   "split_commands":["command_id","phase","payload_hash","proof_json","created_at","error_code"],
   "split_command_parts":["command_id","part_index","payload"],
-  "split_transaction_guards":["guard_id","accepted"]
+  "split_transaction_guards":["guard_id","accepted"],
+  "course_website_documents":["activity_key","document_json","schema_version","source_kind","revision","updated_at","updated_by"],
+  "course_website_assets":["asset_id","activity_key","object_key","filename","mime_type","byte_size","sha256","created_at","created_by"]
  }
 };

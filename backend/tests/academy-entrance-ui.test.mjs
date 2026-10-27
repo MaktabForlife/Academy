@@ -268,7 +268,7 @@ await navigate('#workshops');assert.equal($('workshop-pills').innerHTML,'');asse
 hasWorkshops=true;globalAdmin=true;location.hash='#activity/PROGRAM/'+activity.id;await refresh();
 assert.doesNotMatch($('activity-menu').innerHTML,/Admin tools/);assert.match($('activity-menu').innerHTML,/Teach tools/);
 await navigate('#administration');assert.match($('administration').innerHTML,/Manage Academy/);assert.doesNotMatch($('administration').innerHTML,/id="admin-teach"/);assert.match($('administration').innerHTML,/id="admin-timetable-home"/);assert.doesNotMatch($('administration').innerHTML,/data-recorder-link/);assert.equal($('academy-recorder-nav').hidden,false);
-assert.deepEqual(Array.from(window.M4L_ACADEMY_ADMIN_MENU.rows({signedIn:true,globalAdmin:true}),r=>r.label),['Users','Announcements','Attendance','Curriculum','Library','Lesson plans','Assessments','App settings','Update timetable']);
+assert.deepEqual(Array.from(window.M4L_ACADEMY_ADMIN_MENU.rows({signedIn:true,globalAdmin:true}),r=>r.label),['Users','Announcements','Attendance','Curriculum','Library','Course websites','Lesson plans','Assessments','App settings','Update timetable']);
 await navigate('#administration/attendance');assert.match($('administration').innerHTML,/<h1>Manage Attendance<\/h1>/);assert.doesNotMatch($('administration').innerHTML,/\/programs\/attendance\.html/);assert.equal($('academy-tab-admin').attrs.get('aria-pressed'),'true');
 await navigate('#assessment-admin');assert.equal($('academy-tab-admin').attrs.get('aria-pressed'),'true');assert.equal($('academy-tab-learn').attrs.get('aria-pressed'),'false');
 await navigate('#progress-admin');assert.equal($('academy-tab-admin').attrs.get('aria-pressed'),'true');

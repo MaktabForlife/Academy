@@ -1,8 +1,6 @@
-# Local feature — Course Website Studio
+# V107.98 — Admin course website builder
 
-The reusable desktop Admin course editor design is on `feature/academy-course-website-builder`. It supports direct lesson text, Arabic, reflections, images, arranged PDF downloads and a mobile-first student preview based on Surah Al Kahf. Drafts stay in the browser, with portable copies containing their uploaded files. It is not connected to live course publishing and has not been deployed.
-
-See [the design guide](designs/course-website-studio/README.md) and [portal integration plan](docs/ACADEMY-COURSE-WEBSITE-BUILDER.md). The deployed portal remains V107.96.
+Add **Course websites** to Admin, opening a course-scoped list with existing websites and templates. Edit all eleven Surah Al Kahf lessons, type new web lessons, arrange images/PDFs, preview and save private drafts. Explicitly publish the reviewed website to the mobile-first student reader. Preserve current login, course permissions, native sessions/recordings/Teacher note PDFs, assessments and download-only course materials. Includes additive split Core/Admin schema upgrades and the matching coordinator/API/website release. [Implementation and release checks](docs/ACADEMY-COURSE-WEBSITE-BUILDER.md).
 
 ## V107.97 — Compact dashboards and Program navigation
 

@@ -152,13 +152,14 @@ export function lessonMedia(repository,auth,env){
   const media=await list(input),staffView=input.view!=='learner'&&(admin||teacher),schedule=staffView&&!input.before?await sessions({...input,startDate,endDate,allRuns:!input.runId}):{sessions:[],runs:[],runId:input.runId||''};
   const rows=new Map(media.lessons.map(row=>[row.sessionKey||'media:'+row.id,{sessionKey:row.sessionKey||'media:'+row.id,date:row.date,title:row.title,startTime:row.startTime,endTime:row.endTime,classNames:row.className?[row.className]:[],classIds:row.classIds,teacherName:row.teacher,runId:row.runId,canManage:row.canManage,media:row,savedMedia:true}]));
   for(const row of schedule.sessions)if(!rows.has(row.sessionKey))rows.set(row.sessionKey,{...row,canManage:Boolean(admin||!repository.setup?.enabled&&teacher),media:null});
-  const files=await courseFiles(input.view==='learner'),companion=input.includeCourseCompanion===true?courseCompanion(activity,files):null;
+  const websiteFlag=input.includeCourseCompanion===true?await p("SELECT setting_value FROM academy_settings WHERE setting_key=?",'CourseWebsitePublished:'+scopeKey.toUpperCase()).first():null;
+  const files=await courseFiles(input.view==='learner'),companion=websiteFlag?.setting_value==='0'?null:input.includeCourseCompanion===true?courseCompanion(activity,files):null;
   let readerSchedule;
   if(companion&&input.includeCourseSessions===true){
    try{readerSchedule=await courseReaderSessions(repository,auth,activity);}
    catch(error){if([401,403].includes(error.status))throw error;readerSchedule={sessions:[],unavailable:true};}
   }
-  return {...media,cacheRevision,timezone,startDate,endDate,...(input.includeCourseCompanion===true?{courseCompanion:companion?{...companion,readerKey:await payloadHash(['COURSE_READER_OWNER',actor,scopeKey]),...(readerSchedule?{schedule:readerSchedule}:{})}:null}:{}),sessions:[...rows.values()].sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime)||a.sessionKey.localeCompare(b.sessionKey)),runId:input.runId||'',runs:[],courseFiles:files};
+  return {...media,cacheRevision,timezone,startDate,endDate,...(input.includeCourseCompanion===true?{courseCompanion:companion?{...companion,...(websiteFlag?.setting_value==='1'?{editableWebsite:true}:{}),readerKey:await payloadHash(['COURSE_READER_OWNER',actor,scopeKey]),...(readerSchedule?{schedule:readerSchedule}:{})}:null}:{}),sessions:[...rows.values()].sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime)||a.sessionKey.localeCompare(b.sessionKey)),runId:input.runId||'',runs:[],courseFiles:files};
  }
  async function selectedSession(input){
   const result=await sessions(input),session=result.sessions.find(r=>r.sessionKey===input.sessionKey);

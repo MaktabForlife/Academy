@@ -56,7 +56,7 @@ export function installAccounts({ actions, signOut }) {
   const local = window.localStorage, session = window.sessionStorage, base = apiBase();
   const currentToken = () => local.getItem(tokenKey) || '';
   let pageToken = currentToken(), ticket = 0, committing = false, leaving = false, requesting = false;
-  const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = '/css/m4l-academy-accounts.css?v=107.97'; document.head.append(css);
+  const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = '/css/m4l-academy-accounts.css?v=107.98'; document.head.append(css);
   const switchButton = document.createElement('button');
   switchButton.type = 'button'; switchButton.id = 'academy-switch-account';
   switchButton.setAttribute('aria-label', 'Switch account'); switchButton.setAttribute('aria-haspopup', 'dialog');
@@ -182,6 +182,7 @@ export function installAccounts({ actions, signOut }) {
     if (!/^\d{4}$/.test(pin)) { message('Enter your complete 4-digit PIN.'); pinInput.focus(); return; }
     if (!oldToken) { message('Your sign-in changed. Open Login again.'); return; }
     // Existing page guards also save recoverable drafts. Do not switch during unfinished work.
+    if(window.M4L_COURSE_WEBSITES?.canLeave?.()===false)return false;
     if (!window.dispatchEvent(new Event('beforeunload', { cancelable: true }))) { message('Save or close your unfinished work before switching accounts.'); return; }
     const optIn = remember.checked;
     busy(true); message('Checking PIN…');
