@@ -56,7 +56,7 @@ export function installAccounts({ actions, signOut }) {
   const local = window.localStorage, session = window.sessionStorage, base = apiBase();
   const currentToken = () => local.getItem(tokenKey) || '';
   let pageToken = currentToken(), ticket = 0, committing = false, leaving = false, requesting = false;
-  const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = '/css/m4l-academy-accounts.css?v=107.85'; document.head.append(css);
+  const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = '/css/m4l-academy-accounts.css?v=107.88'; document.head.append(css);
   const switchButton = document.createElement('button');
   switchButton.type = 'button'; switchButton.id = 'academy-switch-account';
   switchButton.setAttribute('aria-label', 'Switch account'); switchButton.setAttribute('aria-haspopup', 'dialog');
@@ -72,7 +72,7 @@ export function installAccounts({ actions, signOut }) {
     <form data-switch-form autocomplete="off" novalidate>
       <label for="account-switch-id">Account ID</label><input id="account-switch-id" autocomplete="username" spellcheck="false" maxlength="128" required>
       <label for="account-switch-pin">PIN</label><div class="account-switch-pin"><input id="account-switch-pin" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" required><button type="button" data-switch-pin-toggle aria-label="Show PIN">Show</button></div>
-      <label class="academy-remember-id"><input type="checkbox" data-switch-remember>Remember my ID on this browser</label>
+      <label class="academy-remember-id"><input type="checkbox" data-switch-remember checked>Remember my ID on this browser</label>
       <button type="submit" class="account-switch-submit">Switch account</button>
       <p data-switch-status role="status" aria-live="polite" hidden></p>
     </form>`;
@@ -85,7 +85,7 @@ export function installAccounts({ actions, signOut }) {
     normalList = document.createElement('section'); normalList.className = 'academy-remembered-login';
     normalForm.querySelector('label').before(normalList);
     const label = document.createElement('label'); label.className = 'academy-remember-id';
-    normalRemember = document.createElement('input'); normalRemember.type = 'checkbox'; normalRemember.id = 'academy-remember-id';
+    normalRemember = document.createElement('input'); normalRemember.type = 'checkbox'; normalRemember.id = 'academy-remember-id'; normalRemember.defaultChecked = normalRemember.checked = true;
     label.append(normalRemember, document.createTextNode('Remember my ID on this browser'));
     normalForm.querySelector('button[type="submit"]').before(label);
   }
@@ -94,7 +94,7 @@ export function installAccounts({ actions, signOut }) {
     const accountForm = document.getElementById(name);
     if (!accountForm) continue;
     const label = document.createElement('label'); label.className = 'academy-remember-id';
-    const input = document.createElement('input'); input.type = 'checkbox'; input.id = name + '-remember-id';
+    const input = document.createElement('input'); input.type = 'checkbox'; input.id = name + '-remember-id'; input.defaultChecked = input.checked = true;
     label.append(input, document.createTextNode('Remember my ID on this browser'));
     accountForm.querySelector('button[type="submit"]').before(label);
   }
@@ -108,7 +108,7 @@ export function installAccounts({ actions, signOut }) {
     input.value = row?.id || '';
     const pin = normal ? document.getElementById('demo-pin') : pinInput;
     resetPin(pin, normal ? document.getElementById('demo-pin-toggle') : toggle);
-    (normal ? normalRemember : remember).checked = Boolean(row);
+    (normal ? normalRemember : remember).checked = true;
     if (!normal) message('');
     (row ? pin : input).focus();
   }
@@ -150,7 +150,7 @@ export function installAccounts({ actions, signOut }) {
   }
   function open() {
     if (!currentToken() || dialog.open) return;
-    ++ticket; committing = false; busy(false); resetPin(); idInput.value = ''; remember.checked = false; message(''); renderLists();
+    ++ticket; committing = false; busy(false); resetPin(); idInput.value = ''; remember.checked = true; message(''); renderLists();
     dialog.showModal(); (dialog.querySelector('[data-remembered-id]') || idInput).focus();
   }
   switchButton.addEventListener('click', open);
@@ -236,9 +236,10 @@ export function installAccounts({ actions, signOut }) {
   window.M4L_ACADEMY_ACCOUNTS = Object.freeze({
     recordLogin(account, source = 'login-preview') {
       pageToken = currentToken();
-      const optIn = source === 'login-preview' ? normalRemember?.checked : document.getElementById(source + '-remember-id')?.checked;
+      const preference = source === 'login-preview' ? normalRemember : document.getElementById(source + '-remember-id');
+      const optIn = preference?.checked;
       if (optIn) rememberVerified(local, base, account); else if (validId(account?.uniqueid)) forgetRemembered(local, base, account.uniqueid);
-      if (normalRemember) normalRemember.checked = false;
+      if (preference) preference.checked = true;
       renderLists(); update();
     }, open
   });

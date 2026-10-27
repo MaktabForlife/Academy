@@ -42,8 +42,12 @@ body.embedded-editor{height:100dvh;min-height:0;padding:0;display:flex;flex-dire
 .embedded-editor #app-workspace-tools svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .embedded-editor .markup-bar>.edit-actions{flex-wrap:nowrap}
 
-/* Keep favourite colours visible without opening the colour menu. */
-.toolbar-favourites{display:flex;gap:4px;align-items:center;margin:0 6px}.toolbar-favourites button{width:28px;min-width:28px;height:28px;min-height:28px;border:3px solid white;border-radius:50%;padding:0;background:var(--swatch);box-shadow:0 0 0 1px #ddd2e2}.toolbar-favourites button[aria-pressed=true]{outline:2px solid #70477c;outline-offset:2px;background:var(--swatch)}
+/* Border and fill menus share the saved palette without widening the tool row. */
+:is(#border-menu,#fill-menu) .menu-panel{min-width:248px;max-width:calc(100vw - 24px)}
+.menu-panel .colours button{width:34px;min-width:34px;height:34px;min-height:34px;border:3px solid white;border-radius:50%;padding:0;background:var(--swatch);box-shadow:0 0 0 1px #ddd2e2}
+.menu-panel .colours button:is(:hover,[aria-pressed=true]){background:var(--swatch)}
+.menu-panel .colours button[aria-pressed=true]{outline:2px solid #70477c;outline-offset:2px}
+#edit-fill-favourites{min-height:34px;margin-top:9px;padding:5px 8px;font-size:11px}
 .embedded-editor .page-controls{align-items:center}.embedded-editor .page-controls>label:has(#zoom){display:flex;flex-direction:row;align-items:center;gap:6px}.embedded-editor #zoom{height:36px;min-height:36px}.embedded-editor #app-edit{min-height:36px;padding:6px 13px;border:1px solid var(--line);border-radius:6px;color:var(--purple);background:white;font-weight:600}.embedded-editor #app-edit[aria-pressed=true]{background:var(--purple);color:white}.embedded-editor #download{display:none!important}
-@media(max-width:900px){.embedded-editor #zoom,.embedded-editor #app-edit{height:44px;min-height:44px}.toolbar-favourites button{height:32px;min-height:32px;width:32px;min-width:32px}}
+@media(max-width:900px){.embedded-editor #zoom,.embedded-editor #app-edit{height:44px;min-height:44px}}
 .embedded-editor #app-edit{font:600 13px Arial,sans-serif}

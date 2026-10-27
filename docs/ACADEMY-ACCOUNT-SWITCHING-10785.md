@@ -1,3 +1,9 @@
+# V107.86 follow-up — Remember ID selected by default
+
+The user requested that Remember my ID on this browser start ticked, followed by an explicit request to deploy to Development. The default is selected in Academy Login, personal-link login/PIN setup and Switch account, including Use another ID and a later sign-in. Explicitly unticking it still prevents remembering that ID. Remove and Forget all preserve their deliberate clearing behaviour; PIN verification and session switching are unchanged.
+
+The existing browser acceptance now verifies all four default states, automatic remembering without clicking the checkbox, explicit opt-out after successful PIN verification and the selected default on the next switch. Release V107.86 on the same feature branch. No database migration or coordinator deployment is required.
+
 # V107.85 — Remembered IDs and PIN-protected account switching
 
 AUTH-01 implements the user's approved proposal on `feature/academy-account-switching`, based on deployed V107.84 (`5a1731c0`). The user explicitly requested building and deploying this feature on a new feature branch. Preserve existing permissions and the previous release's read optimisations. No database schema, private coordinator or live record correction is required.

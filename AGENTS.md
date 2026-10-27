@@ -1,3 +1,23 @@
+# PDF toolbar update — 27 October 2026
+
+- The user requested the annotated PDF reader changes: two header rows with PDF workspace controls on the lower row; compact AUTO/ACTUAL zoom labels without grey shading; favourite colours inside Border/ink and a matching Fill palette. Follow the user's latest instruction to deploy completed work to Development.
+- Work on `feature/academy-pdf-toolbar-layout`, incorporating deployed V107.87, and release V107.88. Preserve the Library row correction, account switching, editable annotations, scrolling after Edit is off, bookmarks, fullscreen recovery and current permissions.
+- No database migration, live record correction, PDF.js engine upgrade or private coordinator change is required. Keep live checks small under ../AGENTS.md, using synthetic PDFs/accounts locally and targeted deployment/static/version verification.
+
+# Library display correction — 27 October 2026
+
+- The user reported clipped Public Library subject headings and changed screen headers, and explicitly requested a correction deployed to Development, followed by a review of the live site.
+- Work from current Development V107.86 on feature/academy-library-display-fix. Release the verified correction as V107.87. Preserve remembered account IDs, PIN switching and all existing permissions.
+- The mobile-first feature remains on its separate V107.84-based branch. It is not part of this Development correction. Do not communicate with other chats.
+- The confirmed Library defect comes from shrinking automatic grid rows when bookmarks and subjects exceed the drawer height. Preserve natural row heights and scroll the list. Verify headers against deployed assets before making unrelated layout changes.
+- Deploy the matching Development API and Academy website with no schema, data or coordinator change. Keep live checks small; use synthetic local fixtures for full display checks.
+
+# Remember-ID default follow-up release — 27 October 2026
+
+- The user requested Remember my ID selected by default, then explicitly asked to deploy the completed follow-up to Development. Release V107.86 from `feature/academy-account-switching`, incorporating deployed V107.85.
+- Apply the selected default to Login, personal-link login/PIN setup and Switch account. Respect an explicit untick and Remove/Forget all. Preserve fresh PIN checks, session revocation, private cache cleanup and unsaved-work guards. No database or coordinator change.
+- Keep live checks small under ../AGENTS.md. Use disposable local accounts and targeted release/version/static verification. Future deployments require fresh user authorisation.
+
 # Remembered-ID account switching release — 27 October 2026
 
 - The user explicitly requested building and deploying the approved remembered-ID / fresh-PIN account switcher on a new feature branch. Work on `feature/academy-account-switching`, incorporating deployed V107.84, and release V107.85 through the existing Academy Development website and API workflow.
