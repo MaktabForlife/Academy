@@ -1,3 +1,9 @@
+# Local feature — Course Website Studio
+
+The reusable course editor design is on `feature/academy-course-website-builder`. It supports direct lesson text, Arabic, reflections, images, arranged PDF downloads and a mobile-first student preview based on Surah Al Kahf. Drafts stay in the browser, with portable copies containing their uploaded files. It is not connected to live course publishing and has not been deployed.
+
+See [the design guide](designs/course-website-studio/README.md) and [portal integration plan](docs/ACADEMY-COURSE-WEBSITE-BUILDER.md). The deployed portal remains V107.96.
+
 # V107.96 — Live course joining and recording controls
 
 Show Join now beside the Surah Al Kahf course title only during an authorised live lesson, updating automatically at the lesson boundaries. Session cards retain their five-minute early join window. Use consistent highlighted recording buttons, omit years from visible session dates, and hide finished session times. The shared app header owns Refresh. Preserve existing login, fresh join checks, published materials and Course materials downloads; no database or coordinator changes.

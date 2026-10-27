@@ -1,0 +1,6 @@
+const NAME='academy-course-studio-design-v1';
+let connection;
+function database(){return connection||=(new Promise((resolve,reject)=>{if(!globalThis.indexedDB){reject(Error('Browser storage is unavailable. Use Save a copy to keep this draft.'));return;}const request=indexedDB.open(NAME,1);request.onupgradeneeded=()=>{request.result.createObjectStore('drafts',{keyPath:'id'});request.result.createObjectStore('assets',{keyPath:'id'});};request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);}));}
+async function transaction(store,mode,fn){const db=await database();return new Promise((resolve,reject)=>{const tx=db.transaction(store,mode),request=fn(tx.objectStore(store));let result;request.onsuccess=()=>{result=request.result;};tx.oncomplete=()=>resolve(result);tx.onerror=()=>reject(tx.error||Error('The draft could not be saved.'));tx.onabort=()=>reject(tx.error||Error('The draft could not be saved.'));});}
+export const drafts={list:()=>transaction('drafts','readonly',s=>s.getAll()),save:course=>transaction('drafts','readwrite',s=>s.put(structuredClone(course)))};
+export const assets={list:()=>transaction('assets','readonly',s=>s.getAll()),save:asset=>transaction('assets','readwrite',s=>s.put(asset))};
