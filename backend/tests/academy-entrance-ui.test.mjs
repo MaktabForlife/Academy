@@ -414,6 +414,9 @@ await navigate('#administration/programs');assert.match($('administration').inne
 await navigate('#assessment-admin/PROGRAM/'+activity.id);assert.equal(location.hash,'#assessment-admin/PROGRAM/'+activity.id,'Hifz administration is retained');
 await navigate('#activity/COURSE/COURSE-BARAKAH');assert.doesNotMatch($('activity-menu').innerHTML,/HifzHelper/,'Courses do not inherit the Hifz destination');
 assertHifzShortcut('activity-areas','ABCDEFG');
+window.M4L_COURSE_COMPANION={href:(row,tool,mode)=>row.id==='COURSE-BARAKAH'&&tool==='course-website'&&mode==='teach'?'/academy/course-companion/surah-kahf/?course=COURSE-BARAKAH&workspace=TEACH#overview':''};
+await navigate('#activity/COURSE/COURSE-BARAKAH/teach');assert.match($('activity-menu').innerHTML,/id="activity-course-website" data-workspace-exit/);assert.match($('activity-menu').innerHTML,/Course website/);assert.match($('activity-menu').innerHTML,/activity-tab-attendance/);assert.match($('activity-menu').innerHTML,/activity-tab-planning/);
+delete window.M4L_COURSE_COMPANION;
 globalAdmin=false;
 for(const role of ['', 'GLOBAL_TEACHER']) {
   programRole=role;await refresh();await navigate('#timetable/learn');

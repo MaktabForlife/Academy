@@ -41,6 +41,15 @@ test('the static Academy package holds a shell without the protected readings or
 test('a signed-out visitor gets a sign-in message before any course request',async()=>{
  const f=fixture({session:''});f.run();await tick();assert.equal(f.calls.length,0);assert.equal(f.body.classList.contains('course-loading'),true);assert.match(f.elements.get('course-gate-message').textContent,/Sign in/);assert.equal(f.window.KAHF_LESSONS,null);
 });
+test('four published course sessions and their lesson media render together without week requests',async()=>{
+ const data=feed(),dates=['2026-10-18','2026-10-25','2026-11-01','2026-11-08'];
+ data.courseCompanion.schedule={sessions:dates.map((date,index)=>({kind:'COURSE',activityId:'kahf-test',date,title:'Surah Al Kahf',startTime:'19:00',endTime:'20:00',status:'SCHEDULED',mediaSessionKey:'session-'+index,endsAt:Date.parse(date+'T18:00:00Z')}))};
+ data.sessions=dates.slice(0,2).map((date,index)=>({sessionKey:'session-'+index,date,media:{id:'media-'+index,assets:[{id:'recording-'+index,kind:'YOUTUBE',name:'Session recording'}]}}));
+ const f=fixture({fetcher:async()=>Response.json(data)});f.run();await tick();await tick();
+ assert.equal(f.calls.length,1);assert.equal((f.elements.get('live-timetable').innerHTML.match(/<article /g)||[]).length,4);assert.equal((f.elements.get('live-sessions').innerHTML.match(/<article /g)||[]).length,4);
+ assert.match(f.elements.get('live-sessions').innerHTML,/recording-0/);assert.match(f.elements.get('live-sessions').innerHTML,/recording-1/);assert.match(f.elements.get('live-sessions').innerHTML,/Materials will appear here when published/);assert.doesNotMatch(f.elements.get('live-sessions').innerHTML,/\|\||undefined/);
+ assert.doesNotMatch(html,/week-previous|week-next|Previous week|Next week/);
+});
 test('an account switch while the course response is delayed never reveals the previous account text',async()=>{
  let finish;const f=fixture({fetcher:()=>new Promise(resolve=>{finish=resolve;})});f.run();await tick();assert.equal(f.calls.length,1);
  f.storage.set('m4l_account_token','actor-two');f.window.dispatchEvent(Object.assign(new Event('storage'),{key:'m4l_account_token'}));finish(Response.json(feed()));await tick();await tick();
@@ -49,7 +58,7 @@ test('an account switch while the course response is delayed never reveals the p
 test('the authorised course opens all lessons and confines reflection storage to its verified owner',async()=>{
  const f=fixture({fetcher:async url=>Response.json(String(url).endsWith('/feed')?feed():{success:true,signedIn:true,startDate:'2026-10-25',activity:{kind:'COURSE',id:'kahf-test'},personalTimetable:[]})});
  f.run();f.reader();await tick();await tick();assert.equal(f.body.classList.contains('course-loading'),false);assert.equal(f.window.KAHF_LESSONS.length,11);assert.equal(f.window.KAHF_APP_STARTED,true);
- assert.equal(f.calls.length,2);assert.equal(JSON.parse(f.calls[0].options.body).includeCourseCompanion,true);assert.equal(f.calls[0].options.headers.Authorization,'Bearer actor-one');
+ assert.equal(f.calls.length,1);assert.equal(JSON.parse(f.calls[0].options.body).includeCourseCompanion,true);assert.equal(JSON.parse(f.calls[0].options.body).includeCourseSessions,true);assert.equal(f.calls[0].options.headers.Authorization,'Bearer actor-one');
  f.location.hash='#lesson/praise-guidance';f.window.dispatchEvent(new Event('hashchange'));
  assert.match(f.elements.get('lesson-content').innerHTML,/قَيِّم/);assert.doesNotMatch(f.elements.get('lesson-content').innerHTML,/booklet|\bPDF\b|#page=/i);
  const note=f.elements.get('reflection');note.value='My reflection';for(const fn of note.listeners.get('input'))fn();
@@ -63,6 +72,8 @@ test('dashboard links preserve the workspace and leave Admin management destinat
  assert.equal(helper.href(course,'lesson-media','teach'),'');for(const workspace of ['TEACH','ADMIN_TEACH']){window.M4L_ACADEMY_WORKSPACE.current=()=>workspace;assert.equal(helper.href(course,'lesson-media'),'');}
  window.M4L_ACADEMY_WORKSPACE.current=()=>'ADMIN';assert.equal(helper.href(course),'');window.M4L_ACADEMY_WORKSPACE.current=()=>'ADMIN_LEARN';assert.match(helper.href(course),/workspace=ADMIN_LEARN/);window.M4L_ACADEMY_WORKSPACE.classView=()=>({activityKey:'COURSE:real-course-id',classId:'selected-class'});assert.match(helper.href(course),/studentClass=selected-class/);
  assert.equal(helper.href({...course,name:'Another course'}),'');assert.equal(helper.href(course,'attendance'),'');
+ for(const workspace of ['LEARN','TEACH','ADMIN','ADMIN_LEARN','ADMIN_TEACH']){window.M4L_ACADEMY_WORKSPACE.current=()=>workspace;const link=new URL(helper.href(course,'course-website'), 'https://academy.invalid');assert.equal(link.searchParams.get('workspace'),workspace==='ADMIN'?'ADMIN_LEARN':workspace);assert.equal(link.hash,'#overview');assert.equal(link.searchParams.get('course'),course.id);}
+ assert.equal(helper.href({...course,name:'Another course'},'course-website'),'');
 });
 
 function pdfFeed(){const data=feed();data.courseFiles={media:{id:'book',state:'PUBLISHED',assets:[{id:'pdf',kind:'PDF',filename:'surah-kahf.pdf'}]}};return data;}

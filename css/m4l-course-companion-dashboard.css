@@ -6,6 +6,8 @@
 #ad-areas .ad-kahf-course .ad-kahf-theme{font-family:Georgia,serif;font-style:italic;max-width:200px;font-size:19px;line-height:1.45;color:#704765}
 #ad-areas .ad-kahf-course .ad-kahf-materials{font-size:10px;color:#7b6475;max-width:195px}
 #ad-areas .ad-kahf-course .ad-tile-open{color:#694165;border-top:1px solid #d4becf;padding-top:13px;font-size:12px;font-weight:600;align-self:stretch;margin-top:auto;min-height:44px;display:flex;align-items:center}
+#ad-areas .ad-kahf-course .ad-kahf-workspace-link{display:flex;align-items:center;min-height:44px;font-size:12px;color:#694165}
+#ad-areas .ad-kahf-course a:focus-visible{outline:3px solid #805088;outline-offset:3px}
 #ad-areas .ad-kahf-course:hover{background:#eee0e9;border-color:#ae8ea4}
 @media(min-width:700px){#ad-areas .ad-kahf-course{min-height:280px;padding:27px}}
 @media(max-width:800px){#ad-areas .ad-tiles:has(>.ad-kahf-course){grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}}

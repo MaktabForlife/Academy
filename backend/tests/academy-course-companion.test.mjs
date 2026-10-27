@@ -26,7 +26,21 @@ async function fixture(){
  return f;
 }
 const use=fn=>async()=>{const f=await fixture();try{await fn(f);}finally{f.db.close();}};
-const input={activityKey:scope,view:'learner',includeCourseCompanion:true};
+const input={activityKey:scope,view:'learner',includeCourseCompanion:true,includeCourseSessions:true};
+test('the authorised course feed returns its four accepted sessions across weeks without meeting URLs',use(async f=>{
+ const dates=['2026-10-18','2026-10-25','2026-11-01','2026-11-08'],runId='kahf-four-week-run',publicationId='kahf-four-week-publication';
+ f.db.prepare("INSERT INTO course_settings(activity_key,legacy_access_model,policy_review_state) VALUES(?,'PAID','CONFIRMED')").run(scope);
+ f.db.prepare("INSERT INTO course_runs(activity_key,run_id,name,timezone,start_date,end_date,active) VALUES(?,?,?,'Africa/Johannesburg',?,?,1)").run(scope,runId,'Surah Al Kahf',dates[0],dates[3]);
+ f.db.prepare("INSERT INTO course_run_access(activity_key,run_id,access_model) VALUES(?,?,'PAID')").run(scope,runId);
+ const original=f.db.prepare("SELECT * FROM timetable_publications WHERE activity_key='COURSE:subject-1'").get(),snapshot=JSON.parse(original.snapshot_json),template=snapshot.sessions[0];
+ Object.assign(snapshot.publication,{PublicationID:publicationId,RunID:runId,SubjectID:'kahf-reader-test',SubjectName:'Surah Al Kahf',PublishStartDate:dates[0],PublishEndDate:dates[3],SessionCount:4});
+ snapshot.sessions=dates.map((date,index)=>({...template,PublicationID:publicationId,RunID:runId,SubjectID:'kahf-reader-test',SubjectName:'Surah Al Kahf',SessionDate:date,PublishedSessionID:'kahf-published-'+index,SourceSessionID:'kahf-source-'+index,ZoomLink:'https://zoom.invalid/private-course-meeting'}));
+ const publication={...original,activity_key:scope,publication_id:publicationId,scope_key:runId,effective_from:dates[0],effective_until:dates[3],snapshot_json:JSON.stringify(snapshot)},columns=Object.keys(publication);
+ f.db.prepare('INSERT INTO timetable_publications('+columns.join(',')+') VALUES('+columns.map(()=>'?').join(',')+')').run(...Object.values(publication));
+ f.db.prepare("INSERT INTO course_run_state(activity_key,run_id,stage,current_publication_id) VALUES(?,?,'PUBLISHED',?)").run(scope,runId,publicationId);
+ const result=await f.media('feed',input,await f.login('0002'));assert.equal(result.status,200,JSON.stringify(result.body));
+ assert.deepEqual(result.body.courseCompanion.schedule.sessions.map(s=>s.date),dates,JSON.stringify(result.body.courseCompanion.schedule));assert.doesNotMatch(JSON.stringify(result.body),/zoom\.invalid|joinUrl/);
+}));
 test('only a current authorised Academy session receives the full lesson text',use(async f=>{
  const student=await f.login('0002'),peer=await f.login('0008'),other=await f.login('0005');
  const result=await f.media('feed',input,student);assert.equal(result.status,200,JSON.stringify(result.body));

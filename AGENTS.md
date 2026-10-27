@@ -1,3 +1,9 @@
+# Surah Kahf follow-up release — 27 October 2026
+
+- The user explicitly requested deployment after confirming V107.93 and clarifying that the course is visible in Learn. Release the reviewed follow-ups as V107.94 from `feature/surah-kahf-course-companion`, incorporating deployed V107.93 (`6774854c`). This authorisation lifts the review-only hold for this release.
+- Add the course website card on all authorised dashboards and a Course website link to Surah Al Kahf Teach Contents. Preserve existing teaching/management tools, login, permissions, class preview and publication gates. Use shared compact headers/Admin badge, a narrow dashboard card, all published course sessions and Lesson media in two phone columns, and downloads only through Course materials. Remove print controls and duplicate download shortcuts.
+- No migration, private coordinator deployment, live material upload, timetable publication or live data/settings change is required. Use synthetic local fixtures for full checks; keep hosted verification to release/static metadata and one readiness call. Future deployments require fresh user authorisation.
+
 # Mobile Learn/Teach Development release — 27 October 2026
 
 - The user checked the isolated mobile preview, then explicitly requested building and deploying the tested Learn/Teach changes to Development, confirming V107.89 was deployed. Merge `819ab547` into the tested mobile branch and release V107.93 through the existing Development API and Academy website workflow. This supersedes the preview-only holds below for this release.

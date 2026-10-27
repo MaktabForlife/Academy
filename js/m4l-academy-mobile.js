@@ -90,7 +90,7 @@
   const home=['/academy/','/academy/index.html'].includes(path)&&(!section[0]||['overview','learning'].includes(section[0]));
   const selected=home?'':boundary?.current()==='ADMIN'?'admin':boundary?.audience()==='TEACH'?'teach':'learn';
   const entrance=['/academy/','/academy/index.html','/academy/admin/','/academy/admin/index.html'].includes(path);
-  const reader=/^\/academy\/(?:library|open-library|media|pdf-reader|pdf-compare|calendar|hifz)\//.test(path)||path==='/recorder/';
+  const reader=/^\/academy\/(?:library|open-library|media|pdf-reader|pdf-compare|calendar|hifz|course-companion)\//.test(path)||path==='/recorder/';
   const learning=signed&&!pendingAdmin&&['LEARN','TEACH'].includes(boundary?.audience())&&!management&&(entrance?/^#(?:timetable|activity|progress|hifz|hifdh|assessments)(?:\/|$)/.test(location.hash):reader);
   document.body.classList.toggle('academy-learning-layout',learning);
   window.M4L_ACADEMY_CONTENTS?.sync();

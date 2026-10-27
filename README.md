@@ -1,3 +1,7 @@
+# V107.94 — Surah Al Kahf course access and mobile sessions
+
+Open the course website from Learn, Teach and Admin dashboards, and from the Surah Al Kahf Teach Contents menu. Preserve teaching and management destinations. Include the shared compact account headers/Admin badge, a narrow dashboard card, two-column course-session and Lesson media grids on phones, and PDF/reflection downloads only in Course materials. The full course timetable comes from accepted publications through the existing account/class projection; joining and recordings retain their current authorisation. Incorporates V107.93. No database migration, live data correction or private coordinator deployment.
+
 # V107.93 — Mobile Learn and Teach
 
 Release the phone-tested Learn/Teach layout to Development, incorporating deployed V107.89. Use one reading column on phones, a compact Contents menu and wider layouts built on the same content. Include compact headers, the Admin badge, standard X Close controls, the clearer Refresh arrow, contained date fields and the four planner icon actions. Preserve saved drafts, permissions and all V107.89 account, PDF reader and Surah Kahf features.

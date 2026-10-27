@@ -43,6 +43,6 @@ test('an Admin URL alone never displays the badge and revoked access clears it',
  const f=fixture();f.boundary.adminAccess=()=>false;f.handlers.get('m4l-academy-access')();assert.equal(f.context.hidden,true);assert.equal(f.context.innerHTML,'');
  const learner=fixture({mode:'LEARN'});assert.equal(learner.context.hidden,true);assert.equal(learner.role.textContent,'Student');
 });
-test('the course reuses the V107.93 badge already shared by other workspace pages',()=>{
+test('the course reuses the V107.94 badge already shared by other workspace pages',()=>{
  const f=fixture({compact:false});assert.equal(f.context.className,'academy-admin-context');assert.equal(f.context.parentElement,f.profile);assert.match(f.context.innerHTML,/class="academy-admin-badge"/);assert.equal(f.document.querySelector('.academy-date-box'),null);
 });

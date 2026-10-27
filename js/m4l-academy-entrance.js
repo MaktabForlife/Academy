@@ -501,8 +501,10 @@
     if(row.substituteOnly)tools.splice(2);
     const recorder = row.kind === 'PROGRAM' && row.id === window.M4L_CONFIG?.REBOOT_PROGRAM_ID && !row.unavailable
       ? '<a class="workspace-recorder-pill" data-recorder-link href="/recorder/?academy=1">Voice Recorder</a>' : '';
+    const courseWebsite=context.mode==='teach'?window.M4L_COURSE_COMPANION?.href(row,'course-website','teach'):'';
+    const websiteLink=courseWebsite?`<a id="activity-course-website" data-workspace-exit href="${esc(courseWebsite)}">Course website ↗</a>`:'';
     const currentLabel=tools.find(([key])=>key===context.tool)?.[1]||'Timetable';
-    return `<details class="workspace-contents"><summary><span>Contents</span><span class="workspace-current">${esc(currentLabel)}</span></summary><nav class="workspace-tabs" aria-label="${context.mode === 'teach' ? 'Teach' : 'Learn'} tools">${tools.map(([key,label,panel]) => `<a id="activity-tab-${key}" data-workspace-link href="${key==='library'?'/academy/library/':workspaceHref(row,key)}" aria-controls="${panel}"${context.tool===key?' aria-current="page"':''}>${label}</a>${key==='timetable'&&!row.substituteOnly?`<button type="button" class="cn-toggle" data-class-notes-toggle aria-pressed="${Boolean(window.M4L_CLASS_NOTES?.visible())}" aria-controls="activity-sessions">Class Notes</button>`:''}`).join('')}${recorder}</nav></details>${hifzHelperLink(row,'workspace-helper')}`;
+    return `<details class="workspace-contents"><summary><span>Contents</span><span class="workspace-current">${esc(currentLabel)}</span></summary><nav class="workspace-tabs" aria-label="${context.mode === 'teach' ? 'Teach' : 'Learn'} tools">${tools.map(([key,label,panel]) => `<a id="activity-tab-${key}" data-workspace-link href="${key==='library'?'/academy/library/':workspaceHref(row,key)}" aria-controls="${panel}"${context.tool===key?' aria-current="page"':''}>${label}</a>${key==='timetable'&&!row.substituteOnly?`<button type="button" class="cn-toggle" data-class-notes-toggle aria-pressed="${Boolean(window.M4L_CLASS_NOTES?.visible())}" aria-controls="activity-sessions">Class Notes</button>`:''}`).join('')}${websiteLink}${recorder}</nav></details>${hifzHelperLink(row,'workspace-helper')}`;
   }
   // Shared Messages, calendar and tracker are available from the dashboard.
   function supportSections() { return ''; }
