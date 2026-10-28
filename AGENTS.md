@@ -1,3 +1,8 @@
+# V107.115 final current-head read repair — 28 October 2026
+
+- V107.114 is live. The remaining native publications fail in the coordinator’s read batch with a D1 size/bytes limit, not a daily-read quota. Safe diagnostics logged only predefined error categories and function/line names, and are removed from the release.
+- Restrict the exact generated current-head component query to current component IDs before capture. The snapshot version/session checks still bracket that selection. Generic unscoped reads keep their full meaning. A synthetic request-size regression reproduces the oversized old read and passes with this selection; 42 targeted checks pass. Run the native Workers test and release matching V107.115 API/coordinator/website under the existing deployment authorisation, then publish the saved As-Sajdah and Kahf editions. No schema/data-policy/access changes or media-draft publication.
+
 # V107.114 publication admission bound — 28 October 2026
 
 - V107.113 is live with seven revised Tafseer source editions and the saved eight-card table. As-Sajdah and Kahf full source drafts are saved but acceptance failed. Keep private Lesson media drafts unpublished.

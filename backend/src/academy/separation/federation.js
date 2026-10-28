@@ -19,6 +19,8 @@ export function readReferences(sql){
  return {found,local,references,list};
 }
 const prefix=(sql,ctes)=>{const list=tokens(sql);if(list[0]?.text.toUpperCase()!=='WITH')return 'WITH '+ctes+' '+sql;const end=(list[1]?.text.toUpperCase()==='RECURSIVE'?list[1]:list[0]).end;return sql.slice(0,end)+' '+ctes+', '+sql.slice(end).trimStart();};
+const currentComponentsSQL='SELECT c.* FROM setup_head_components v JOIN setup_components c USING(component_id) WHERE v.head_id=(SELECT head_id FROM setup_head_state WHERE singleton=1)';
+const currentComponents=sql=>sql.trim()===currentComponentsSQL;
 function chunkSource(chunks){let selects=chunks.map(()=> 'SELECT value FROM json_each(?)');while(selects.length>4){const groups=[];for(let i=0;i<selects.length;i+=4)groups.push('SELECT value FROM ('+selects.slice(i,i+4).join(' UNION ALL ')+')');selects=groups;}return '('+selects.join(' UNION ALL ')+')';}
 function tableChunks(rows){
  const chunks=[];let parts=[],bytes=2;
@@ -58,13 +60,13 @@ export function federationContext({core,admin,owner='admin'}){
  }
  async function acceptedSelection(sqls,scopes){
   if(owner!=='admin'||!scopes||extraComponentRead(sqls,scopes))return null;
-  const selected=sqls.flatMap((sql,i)=>readReferences(sql).found.has('setup_components')?[scopes[i]]:[]);
-  if(!selected.length)return null;
+  const current=sqls.some(currentComponents),selected=sqls.flatMap((sql,i)=>readReferences(sql).found.has('setup_components')&&!currentComponents(sql)?[scopes[i]]:[]);
+  if(!selected.length&&!current)return null;
   const heads=new Map();for(const s of selected){if(!heads.has(s.head))heads.set(s.head,new Set());for(const t of s.tables)heads.get(s.head).add(t);}
   // Preserve the unrestricted fallback for an unusually large mixed-head
   // batch rather than approaching D1's SQL/bind limits.
   if(heads.size>40)return null;
-  const params=[...heads].flatMap(([head,tables])=>[head,JSON.stringify([...tables])]),where=[...heads].map(()=>'head_id=? AND table_name IN(SELECT value FROM json_each(?))').join(' OR ');
+  const params=[...heads].flatMap(([head,tables])=>[head,JSON.stringify([...tables])]),where=[...(current?['head_id=(SELECT head_id FROM setup_head_state WHERE singleton=1)']:[]),...[...heads].map(()=>'head_id=? AND table_name IN(SELECT value FROM json_each(?))')].join(' OR ');
   const rows=(await core.prepare('SELECT * FROM setup_head_components WHERE '+where).bind(...params).all()).results;
   return {rows,ids:[...new Set(rows.map(r=>r.component_id))]};
  }
@@ -72,6 +74,7 @@ export function federationContext({core,admin,owner='admin'}){
  // Any unscoped component read in the batch falls back to full capture.
  function extraComponentRead(sqls,scopes){return sqls.some((sql,i)=>{
   const refs=readReferences(sql).found;if(!refs.has('setup_components')&&!refs.has('setup_head_components'))return false;
+  if(currentComponents(sql))return false;
   const s=scopes[i];return !s||typeof s.head!=='string'||!Array.isArray(s.tables)||!s.tables.length||s.tables.some(t=>!Object.hasOwn(setupSchema,t));
  });}
  async function snapshot(sqls,extra=[],scopes=null,publication=null){

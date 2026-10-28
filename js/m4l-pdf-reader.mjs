@@ -100,7 +100,7 @@ function openFile(pane,file,title,check=true,page=0){
  discardAppEditor(pane);pane.loadGeneration++;
  pane.file=publicPdfFile(file);pane.title=title||'PDF '+(pane.index+1);pane.loaded=false;pane.page=0;pane.pageLabel='';
  part(pane,'[data-title]').textContent=pane.title;part(pane,'[data-empty]').hidden=Boolean(pane.file);volumeSelector(pane);updateBookmarkButtons(pane);
- pane.frame.src='/pdf-viewer/web/viewer.html?academy=1&pane='+pane.index+'&v=107.114&file='+encodeURIComponent(pane.file)+(page?'#page='+page:'');
+ pane.frame.src='/pdf-viewer/web/viewer.html?academy=1&pane='+pane.index+'&v=107.115&file='+encodeURIComponent(pane.file)+(page?'#page='+page:'');
  part(pane,'[data-drawer]').hidden=true;pane.drawerGeneration++;setActive(pane.index);updateAddress(pane,page);return true;
 }
 async function viewerApplication(pane){
@@ -215,7 +215,7 @@ async function toggleAppEditor(pane){
   if(generation!==pane.loadGeneration)return;
   const frame=document.createElement('iframe');frame.title='Academy PDF '+(pane.index+1)+' editing tools';frame.dataset.appEditor='';frame.hidden=true;pane.appFrame=frame;
   const loaded=new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('Academy editing tools could not start. Please try again.')),20000);frame.addEventListener('load',()=>{clearTimeout(timer);const editor=frame.contentWindow.M4L_PDF_APP;editor?resolve(editor):reject(Error('Academy editing tools could not start. Please try again.'));},{once:true});});
-  frame.src='/academy/pdf-compare/?embedded=1&pane='+pane.index+'&v=107.114';pane.frame.after(frame);
+  frame.src='/academy/pdf-compare/?embedded=1&pane='+pane.index+'&v=107.115';pane.frame.after(frame);
   const editor=await loaded;if(generation!==pane.loadGeneration)return;
   frame.contentWindow.addEventListener('keydown',readerKeydown);
   await editor.load({bytes:bytes.slice(),name:/\.pdf$/i.test(pane.title)?pane.title:pane.title+'.pdf',file:pane.file,page,unsaved});

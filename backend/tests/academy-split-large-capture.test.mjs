@@ -30,3 +30,22 @@ test('publication history can exceed D1’s per-value limit without aggregating 
   assert(Buffer.byteLength(JSON.stringify(publication))<1000000,'Publication payload stays bounded independently of archive growth');
  }finally{db.close();}
 });
+
+test('current-publication reads omit archived bodies before reaching the platform request-size limit',async()=>{
+ const db=new DatabaseSync(':memory:');
+ try{
+  db.exec('CREATE TABLE setup_components(component_id TEXT,batch_id TEXT,table_name TEXT,scope_key TEXT,rows_json TEXT,row_count INTEGER,digest TEXT); CREATE TABLE setup_head_components(head_id TEXT,table_name TEXT,scope_key TEXT,component_id TEXT); CREATE TABLE setup_head_state(singleton INTEGER,head_id TEXT); INSERT INTO setup_head_state VALUES(1,\'parent\')');
+  const payload=JSON.stringify([{document_json:'Synthetic archived course wording. '.repeat(36000)}]);
+  for(let i=0;i<14;i++)db.prepare('INSERT INTO setup_components VALUES(?,?,?,?,?,?,?)').run('component-'+i,'batch-'+i,'program_surah_website_documents','PROGRAM:synthetic',payload,1,'a'.repeat(64));
+  db.prepare('INSERT INTO setup_head_components VALUES(?,?,?,?)').run('parent','program_surah_website_documents','PROGRAM:synthetic','component-13');
+  db.prepare('INSERT INTO setup_head_components VALUES(?,?,?,?)').run('archived','program_surah_website_documents','PROGRAM:synthetic','component-0');
+  const source=sqliteD1(db),limited={prepare(sql){const statement=source.prepare(sql);const wrapped={bind(...values){assert(values.reduce((n,v)=>n+(typeof v==='string'?Buffer.byteLength(v):0),0)<10000000,'Synthetic platform request size limit');statement.bind(...values);return wrapped;},all:()=>statement.all()};return wrapped;},batch:statements=>Promise.all(statements.map(s=>s.all()))};
+  const context=federationContext({core:limited,admin:limited,owner:'admin'}),sql='SELECT c.* FROM setup_head_components v JOIN setup_components c USING(component_id) WHERE v.head_id=(SELECT head_id FROM setup_head_state WHERE singleton=1)';
+  const snapshot=await context.snapshot([sql],[],[undefined]);
+  assert.deepEqual(snapshot.setup_components.map(r=>r.component_id),['component-13']);
+  assert.deepEqual((await context.query(sql,[],snapshot)).results.map(r=>r.component_id),['component-13']);
+  const unrestricted=await context.snapshot(['SELECT * FROM setup_components'],[],[undefined]);
+  assert.equal(unrestricted.setup_components.length,14,'An unrestricted read must not silently change its meaning');
+  await assert.rejects(context.query('SELECT count(*) n FROM setup_components',[],unrestricted),/request size limit/,'The pre-fix all-history read crosses the reproduced request bound');
+ }finally{db.close();}
+});

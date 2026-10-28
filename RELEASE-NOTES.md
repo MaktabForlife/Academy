@@ -1,3 +1,7 @@
+# V107.115 — Read only current publication components
+
+Restrict the generated current-head component read to that head before capturing immutable bodies. Archived history remains intact and other unscoped reads retain their original meaning. This keeps the final course acceptance read below platform request-size limits as the library grows. Includes bounded batch admission, with existing actor revalidation, pinned readers and recovery unchanged. No schema, bindings or access changes.
+
 # V107.114 — Bound course publication admission
 
 Admit only the reviewed immutable batch and its parent head, keeping archived component bodies out of the current publication plan. Preserve exact retries, actor checks, scoped acceptance, old pinned readers and transaction recovery. The API and existing private coordinator use the same repair; no schema, binding or access-policy change.
