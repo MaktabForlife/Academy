@@ -1,3 +1,8 @@
+# V107.114 publication admission bound — 28 October 2026
+
+- V107.113 is live with seven revised Tafseer source editions and the saved eight-card table. As-Sajdah and Kahf full source drafts are saved but acceptance failed. Keep private Lesson media drafts unpublished.
+- Bound final admission to its reviewed immutable candidate batch and exact parent head; archived component bodies cannot affect that generated operation. Preserve all actor, reference, retry and recovery guards. Targeted split and native large-history checks pass. Release the necessary code-only API/coordinator repair and matching website as V107.114 under the user’s explicit deployment authorisation, then complete the two native publications. No schema/binding/access/subscription changes.
+
 # V107.113 required publication read repair — 28 October 2026
 
 - Four revised source-text websites published successfully under V107.112: Foundations, Yaseen, As-Saffat and Al-Ankabut. Luqman’s full wording is safely saved in Admin but its Core acceptance is blocked. The first-publication history has grown past D1’s per-value limit in an existing whole-table JSON aggregation.

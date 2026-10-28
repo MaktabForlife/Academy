@@ -1,3 +1,7 @@
+# V107.114 — Bound course publication admission
+
+Admit only the reviewed immutable batch and its parent head, keeping archived component bodies out of the current publication plan. Preserve exact retries, actor checks, scoped acceptance, old pinned readers and transaction recovery. The API and existing private coordinator use the same repair; no schema, binding or access-policy change.
+
 # V107.113 — Publish larger course libraries
 
 Read publication history as separate database rows instead of aggregating an entire table into one JSON value. This prevents D1’s per-value limit from blocking publication as full course wording accumulates. Preserve accepted-head selection, owner merging, credential masking, actor revalidation, transaction fences and recovery. Deploy the same small read-path fix in the existing API and private split coordinator; no schema or binding change.

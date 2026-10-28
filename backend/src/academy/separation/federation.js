@@ -39,13 +39,15 @@ export function rewriteRead(original,params,data){
 }
 export function federationContext({core,admin,owner='admin'}){
  const sources={core,admin};
- async function capture(store,names,accepted=null){
+ async function capture(store,names,accepted=null,publication=null){
   names=[...new Set(names)].filter(n=>storeColumns[store][n]||store==='core'&&(computed[n]||emptyShapes[n]));if(!names.length)return {};
   const parts=names.map(n=>{const cols=storeColumns[store][n]||computed[n]||emptyShapes[n],row=n==='account_credentials'?"json_object('account_id',account_id,'pin_hash',CASE WHEN length(trim(pin_hash))>0 THEN 'VERIFIED' ELSE '' END,'pin_setup',pin_setup,'credential_epoch',credential_epoch)":jsonRowSQL(cols);
    // Core ignores Admin-owned settings except the counters that combine both
    // owners. Keep their exact, case-sensitive prefix and use the existing PK.
    const params=[];let where=store==='admin'&&owner==='core'&&n==='academy_settings'?" WHERE setting_key>='AcademyWrite:' AND setting_key<'AcademyWrite;'":'';
-   if(accepted&&n==='setup_components'){where=' WHERE component_id IN(SELECT value FROM json_each(?))';params.push(JSON.stringify(accepted.ids));}
+   if(publication&&n==='setup_components'){where=' WHERE batch_id=?';params.push(publication.batch);}
+   else if(publication&&n==='setup_head_components'){where=' WHERE head_id=?';params.push(publication.parent);}
+   else if(accepted&&n==='setup_components'){where=' WHERE component_id IN(SELECT value FROM json_each(?))';params.push(JSON.stringify(accepted.ids));}
    // Keep one result value per stored row. Aggregating publication history
    // into one JSON string can exceed D1's 2 MB value limit as courses grow.
    return {sql:'SELECT '+literal(n)+' name,'+row+' data FROM '+n+where,params};});
@@ -72,13 +74,13 @@ export function federationContext({core,admin,owner='admin'}){
   const refs=readReferences(sql).found;if(!refs.has('setup_components')&&!refs.has('setup_head_components'))return false;
   const s=scopes[i];return !s||typeof s.head!=='string'||!Array.isArray(s.tables)||!s.tables.length||s.tables.some(t=>!Object.hasOwn(setupSchema,t));
  });}
- async function snapshot(sqls,extra=[],scopes=null){
+ async function snapshot(sqls,extra=[],scopes=null,publication=null){
   const needs=new Set([...extra,...sqls.flatMap(s=>[...readReferences(s).found])]),cn=new Set(),an=new Set();
   for(const n of needs){if(owner==='admin'){if(adminTables.has(n)||localMetadata.has(n)||['setup_components','setup_batches'].includes(n))an.add(n);cn.add(n);}else if(['academy_settings','operation_receipts'].includes(n)){cn.add(n);an.add(n);}else if(n==='assessments'&&/main\.assessments\s+current\b/i.test(sqls.join('\n'))){cn.add(n);an.add(n);}}
   // A pinned publication needs only the components it references, not every
   // historical head and component in either store. Keep owner merging intact.
-  const accepted=extra.includes('setup_components')||extra.includes('setup_head_components')?null:await acceptedSelection(sqls,scopes);
-  const [c,a]=await Promise.all([capture('core',[...cn].filter(n=>!accepted||n!=='setup_head_components'),accepted),capture('admin',[...an],accepted)]),data={};
+  const accepted=publication||extra.includes('setup_components')||extra.includes('setup_head_components')?null:await acceptedSelection(sqls,scopes);
+  const [c,a]=await Promise.all([capture('core',[...cn].filter(n=>!accepted||n!=='setup_head_components'),accepted,publication),capture('admin',[...an],accepted,publication)]),data={};
   if(accepted)c.setup_head_components=accepted.rows;
   for(const n of needs){
    if(owner==='core'&&!an.has(n))continue;
