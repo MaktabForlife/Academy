@@ -1,3 +1,9 @@
+# On-page Admin text editor — 28 October 2026
+
+- The human requested an Edit text button on each website so Admin can edit directly on the page. Their earlier “you can deploy when ready” instruction remains the current deployment authorisation. Release the verified feature as V107.117 from the existing course-website feature branch, preserving the now-integrated V107.116 grant/cache release.
+- Derive the entry point from fresh actual Global/own-Program Admin authority. Enter the existing ADMIN workspace on the same reader page before loading a fresh editor draft; do not add permission bypasses. Keep private Save draft and explicit review/publication, immutable native media links, revision conflicts, exact retries and account-bound cleanup.
+- No new schema, coordinator release, media-draft publication, subscriptions or grants edits. Use synthetic fixtures and minimal live checks under ../AGENTS.md. The V107.115 source editions are all published: nine websites and 91 lessons.
+
 # V107.116 additional Surah grants and cache release — 28 October 2026
 
 - The human explicitly authorised implementing additional Surah grants in the Tafseer participants table, testing locally and deploying this work together with all outstanding cache updates. This supersedes the historical cache deployment hold below. Preserve V107.115 and its publication fixes.

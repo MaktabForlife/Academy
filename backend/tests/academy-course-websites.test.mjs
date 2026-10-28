@@ -30,6 +30,9 @@ test('publication captures the selected document, preserves other drafts and sup
  a.revision=ok(await save(f,a)).revision;ok(await save(f,b));const input={activityKey:a.activityKey,revision:a.revision,operationId:operation()},made=ok(await f.send('publish',input));assert(made.acceptedChange);const head=f.db.prepare('SELECT head_id FROM setup_head_state').get().head_id;
  assert.equal((await f.send('/api/academy/course-websites/read',{activityKey:a.activityKey},'studentA')).status,404);
  ok(await f.send('/api/academy/changes/accept',made.acceptedChange));const read=ok(await f.send('/api/academy/course-websites/read',{activityKey:a.activityKey},'studentA'));assert.equal(read.document.name,a.document.name);
+ assert.equal(read.canEdit,false,'Students never receive website editing controls');
+ for(const who of ['global','adminA'])for(const workspace of ['ADMIN','ADMIN_LEARN','ADMIN_TEACH'])assert.equal(ok(await f.send('/api/academy/course-websites/read',{activityKey:a.activityKey},who,workspace)).canEdit,true,'Only current, scoped Admin authority enables text editing');
+ assert.equal(ok(await f.send('/api/academy/course-websites/read',{activityKey:a.activityKey},'teacherA','TEACH')).canEdit,false,'Teaching alone does not grant website editing');
  assert.equal((await f.send('/api/academy/course-websites/read',{activityKey:b.activityKey},'studentB')).status,404);
  const next=f.db.prepare('SELECT head_id FROM setup_head_state').get().head_id;assert.notEqual(next,head);assert.equal(ok(await f.send('publish',input)).replayed,true);ok(await f.send('/api/academy/changes/accept',made.acceptedChange));assert.equal(f.db.prepare('SELECT head_id FROM setup_head_state').get().head_id,next);
  assert.equal((await f.send('/api/academy/course-websites/read',{activityKey:a.activityKey},'studentB')).status,403);

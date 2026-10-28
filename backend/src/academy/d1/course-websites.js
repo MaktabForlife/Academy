@@ -1,7 +1,7 @@
 import {publishedWebsiteValue} from './published-facts-cache.js';
 import {payloadHash} from '../../programs/timetable-model.js';
 import {managementStore,managementError as fail,same} from './management-store.js';
-import {isAdminWorkspace,administers,readerPreview} from './workspace-access.js';
+import {isAdminWorkspace,administers,readerPreview,hasAdminAuthority} from './workspace-access.js';
 import {validateCourse,referencedAssets,fileKind} from '../../../../academy/course-websites/model.mjs';
 import {courseWebsiteTemplate} from '../course-books/website-template.js';
 import {isSurahKahfCourse} from '../course-books/course-companion.js';
@@ -159,12 +159,12 @@ export function courseWebsites(repository,auth,env){
     let native={lessons:[],sessions:[]};
     if(auth)try{native=await lessonMedia(repository,auth,env).run('feed',{activityKey:area.activity_key,view:'learner',websiteRecordingTerms:surahRecordingTerms(area),before:input.mediaBefore});}catch(error){if(![403,503].includes(error.status))throw error;}
     document.pages.sessions=Boolean(native.sessions.length);document.pages.assessments=false;
-    return {document,surahId:target.surahId,activityKey:area.activity_key,completionDate:area.completion_date,readerKey:await payloadHash(['SURAH_READER_OWNER',actor,area.activity_key,target.surahId]),assets:(await files(area.activity_key)).filter(r=>referencedAssets(document).includes(r.asset_id)).map(assetDTO),native:{...native,lessonMediaMaterials:true}};
+    return {document,canEdit:Boolean(auth&&hasAdminAuthority(auth,area.activity_key)),surahId:target.surahId,activityKey:area.activity_key,completionDate:area.completion_date,readerKey:await payloadHash(['SURAH_READER_OWNER',actor,area.activity_key,target.surahId]),assets:(await files(area.activity_key)).filter(r=>referencedAssets(document).includes(r.asset_id)).map(assetDTO),native:{...native,lessonMediaMaterials:true}};
    }
    let native=await lessonMedia(repository,auth,env).run('feed',{activityKey:area.activity_key,view:'learner',includeCourseCompanion:true,includeCourseSessions:true});
    if(repository.features?.mediaSeparation)native=await lessonNotes(repository,auth,env).enrichFeed(native,{activityKey:area.activity_key,view:'learner'});
    if(!native.courseCompanion?.schedule)try{native.courseWebsiteSchedule=await courseReaderSessions(repository,auth,area);}catch(error){if([401,403].includes(error.status))throw error;native.courseWebsiteSchedule={sessions:[],unavailable:true};}
-   return {document,readerKey:await payloadHash(['COURSE_READER_OWNER',actor,area.activity_key]),assets:(await files(area.activity_key)).filter(r=>referencedAssets(document).includes(r.asset_id)).map(assetDTO),activityKey:area.activity_key,courseId:area.activity_id,native};
+   return {document,canEdit:Boolean(auth&&hasAdminAuthority(auth,area.activity_key)),readerKey:await payloadHash(['COURSE_READER_OWNER',actor,area.activity_key]),assets:(await files(area.activity_key)).filter(r=>referencedAssets(document).includes(r.asset_id)).map(assetDTO),activityKey:area.activity_key,courseId:area.activity_id,native};
   }
   throw fail('Unknown course website action.',404,'NOT_FOUND');
  }};

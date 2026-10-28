@@ -1,3 +1,7 @@
+# V107.117 — Edit course text on the page
+
+Add Edit text for actual Global and own-scope Program Admins on published Course and Tafseer websites. Click an outlined heading or passage, save a private draft, then review and publish. Open the current Admin draft with its revision before editing; preserve native file/session links, conflict handling, exact retries and account-switch cleanup. Includes V107.116 Surah grants and source-fact caches. No schema, coordinator or media publication change.
+
 # V107.116 — Additional Surah access and published source caches
 
 In Tafseer → Participants, select Additional Surah access beside a student, choose individual Surahs and Save. Paid months remain the normal rule and their payment history stays unchanged. The same editor is available in Monthly subscriptions. Only actual Global Admin and the Program’s own Admin can manage grants. Changes are audited, revision-checked and safely retryable. Grants apply to published Surah websites and their website attachments, never recording paid-month rights. Revocation invalidates that student’s cached permissions immediately; session, active-account, publication and withdrawal checks remain current.

@@ -35,14 +35,14 @@ test('split surah websites keep drafts private, publish only one surah and prote
   assert.equal((await read(id)).status,404);
   const published=ok(await site('publish',id,{revision:first.revision,operationId:op()}));assert(published.acceptedChange);
   ok(await f.request('/api/academy/changes/accept',published.acceptedChange,admin));
-  assert.equal(ok(await read(id)).document.name,'Surah Maryam');assert.equal((await read(second)).status,404,'A sibling surah draft stays private even for an otherwise eligible student');
+  assert.equal(ok(await read(id)).document.name,'Surah Maryam');assert.equal(ok(await read(id)).canEdit,false);assert.equal((await read(second)).status,404,'A sibling surah draft stays private even for an otherwise eligible student');
   const pdf=()=>worker.fetch(new Request('http://localhost/api/academy/course-websites/asset',{method:'POST',headers:{Authorization:'Bearer '+student,'X-Academy-Workspace':'LEARN','Content-Type':'application/json'},body:JSON.stringify({activityKey:scope,surahId:id,assetId})}),f.source.env);
   let response=await pdf();assert.equal(response.status,200);assert.deepEqual(Buffer.from(await response.arrayBuffer()),bytes);
   const scoped=await f.source.actor('adminA'),outside=await f.source.actor('adminB');
   assert.equal(core.prepare('SELECT count(*) n FROM program_monthly_subscriptions WHERE account_id IN (?,?)').get(f.actors.global,f.actors.adminA).n,0,'Admin access is checked without paid months');
   for(const workspace of ['LEARN','TEACH','ADMIN','ADMIN_LEARN','ADMIN_TEACH']){
    for(const token of [admin,scoped]){
-    assert.equal(ok(await f.request('/api/academy/course-websites/read',{activityKey:scope,surahId:id},token,workspace)).document.name,'Surah Maryam',workspace);
+    const website=ok(await f.request('/api/academy/course-websites/read',{activityKey:scope,surahId:id},token,workspace));assert.equal(website.document.name,'Surah Maryam',workspace);assert.equal(website.canEdit,true,'Current Admin authority enables the entry point across workspaces');
     const links=ok(await f.request('/api/academy/tafseer-links',{},token,workspace));
     assert.equal(links.links.yaseen.code,id,workspace);assert.equal(links.links.saffat.label,'Edit website','An Admin can edit an unpublished website without requesting access');assert(links.links.saffat.href.startsWith('/academy/course-websites/?program='));
     const asset=await worker.fetch(new Request('http://localhost/api/academy/course-websites/asset',{method:'POST',headers:{Authorization:'Bearer '+token,'X-Academy-Workspace':workspace,'Content-Type':'application/json'},body:JSON.stringify({activityKey:scope,surahId:id,assetId})}),f.source.env);
