@@ -1,0 +1,6 @@
+{
+ // Merge into the existing Development configuration only for an approved release.
+ // No new D1 binding and no changes to existing buckets or coordinator.
+ "services":[{"binding":"WEBSITE_STUDIO_CONTENT","service":"academy-website-studio","entrypoint":"StudioContent"}],
+ "vars":{"ACADEMY_WEBSITE_STUDIO":"0","WEBSITE_STUDIO_ORIGIN":"https://studio.example.invalid"}
+}

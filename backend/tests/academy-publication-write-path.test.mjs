@@ -27,3 +27,13 @@ test('bootstrap and reviewed publication each admit once, with current scope/ses
   assert.deepEqual(f.db.prepare('PRAGMA foreign_key_check').all(),[]);assert.equal(f.db.prepare('SELECT count(*) n FROM academy_write_guards').get().n,0);
  }finally{f.close();}
 });
+
+test('accepting an older Academy website change cannot override the current Studio publication switch',async()=>{
+ const f=await classNotesFixture(source=>source.db.exec(admissionUpgrade));try{
+  const token=await f.actor('global'),call=async(action,input)=>{const r=await worker.fetch(new Request('http://localhost'+action,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token,'X-Academy-Workspace':'ADMIN'},body:JSON.stringify(input)}),f.env);return {status:r.status,body:await r.json()};},base='/api/admin/platform/course-websites/',scope={activityKey:f.scopes.courseA};
+  const view=ok(await call(base+'get',scope)),saved=ok(await call(base+'save',{...scope,document:view.document,revision:view.revision,operationId:op()})),staged=ok(await call(base+'publish',{...scope,revision:saved.revision,operationId:op()}));
+  // A minimal operational pointer suffices to represent a migrated site here.
+  f.db.exec('CREATE TABLE website_studio_state(website_id TEXT PRIMARY KEY)');f.db.prepare('INSERT INTO website_studio_state VALUES(?)').run(scope.activityKey.toUpperCase());const key='CourseWebsitePublished:'+scope.activityKey.toUpperCase();f.db.prepare("INSERT INTO academy_settings(setting_key,setting_value,updated_at,updated_by_account_id) VALUES(?,'0','local',?)").run(key,f.actors.global);f.env.ACADEMY_WEBSITE_STUDIO='1';
+  ok(await call('/api/academy/changes/accept',staged.acceptedChange));assert.equal(f.db.prepare('SELECT setting_value FROM academy_settings WHERE setting_key=?').get(key).setting_value,'0');
+ }finally{f.close();}
+});

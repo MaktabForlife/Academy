@@ -1,0 +1,23 @@
+// Offline rehearsal using previously saved website packages. No hosted reads.
+import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';import {resolve,dirname} from 'node:path';import assert from 'node:assert/strict';import {createHash,randomUUID} from 'node:crypto';
+import {studioRuntimeFixture} from '../tests/fixtures/academy-studio-runtime-fixture.mjs';import {validateCourse,referencedAssets} from '../../academy/course-websites/model.mjs';import {getVersion} from '../../website-studio/src/storage.mjs';
+const measurements=resolve(process.argv[2]||''),output=resolve(process.argv[3]||'');if(!process.argv[2]||!process.argv[3])throw Error('Supply a saved measurements JSON and an output JSON path.');
+const project=resolve(dirname(measurements),'../..'),manifest=JSON.parse(readFileSync(measurements)),files=new Map(),sites=manifest.rows.map((row,i)=>{
+ const bundle=JSON.parse(readFileSync(resolve(project,row.source))),course=structuredClone(bundle.course),map=new Map(),assets=bundle.assets.map(a=>{const bytes=Buffer.from(a.data,'base64'),hash=createHash('sha256').update(bytes).digest('hex'),id=randomUUID();files.set(hash,bytes);map.set(a.id,id);return {id,hash,filename:a.name,type:a.type,size:bytes.length};});
+ course.home.imageId=map.get(course.home.imageId)||course.home.imageId;for(const l of course.lessons)for(const s of l.sections)for(const b of s.blocks)if(b.type==='image')b.assetId=map.get(b.assetId)||b.assetId;for(const f of course.materials.files)f.assetId=map.get(f.assetId)||f.assetId;validateCourse(course);
+ assert(referencedAssets(course).every(id=>assets.some(a=>a.id===id)));return {name:row.name,key:'COURSE:STUDIO_REHEARSAL_'+i,course,assets};
+});
+const f=await studioRuntimeFixture({seed:source=>{
+ const base=source.db.prepare('SELECT * FROM activities WHERE activity_key=?').get(source.scopes.courseA);
+ for(const site of sites){const activity={...base,activity_key:site.key,activity_id:site.key.slice(7),name:'Studio rehearsal '+site.name};const keys=Object.keys(activity);source.db.prepare('INSERT INTO activities('+keys.join(',')+') VALUES('+keys.map(()=>'?').join(',')+')').run(...Object.values(activity));
+ source.db.prepare('INSERT INTO course_website_documents(activity_key,document_json,revision,source_kind,enabled,updated_at,updated_by) VALUES(?,?,1,\'TEMPLATE\',1,\'local\',?)').run(site.key,JSON.stringify(site.course),source.actors.global);
+ for(const a of site.assets)source.db.prepare('INSERT INTO course_website_assets(asset_id,activity_key,object_key,filename,mime_type,byte_size,sha256,created_at,created_by) VALUES(?,?,?,?,?,?,?,\'local\',?)').run(a.id,site.key,'image-refs/'+a.id+'/'+a.hash,a.filename,a.type,a.size,a.hash,source.actors.global);
+ }
+}});const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
+try{
+ for(const [key,bytes]of files)await f.mediaBucket.put(key,bytes);
+ const head=await f.core.prepare('SELECT head_id FROM setup_head_state').first('head_id'),components=await f.core.prepare('SELECT count(*) n FROM setup_components').first('n'),connection=await f.connect(await f.login('global'));ok(connection);const rows=[];
+ for(const site of sites){const selection={activityKey:site.key};ok(await f.send(connection.cookie,'migrate',selection));const current=ok(await f.send(connection.cookie,'get',selection));assert.deepEqual(current.document,site.course);const state=await f.core.prepare('SELECT * FROM website_studio_state WHERE website_id=?').bind(site.key).first(),published=await getVersion(f.content,{websiteId:site.key,key:state.published_key,sha256:state.published_sha256});assert.deepEqual(published.document,site.course);rows.push({name:site.name,lessons:site.course.lessons.length,assets:site.assets.length,draftBytes:state.draft_bytes,publishedBytes:Buffer.byteLength(JSON.stringify(published)),teachingContentPreserved:true});}
+ assert.equal(await f.core.prepare('SELECT head_id FROM setup_head_state').first('head_id'),head);assert.equal(await f.core.prepare('SELECT count(*) n FROM setup_components').first('n'),components);const objects=(await f.content.list({prefix:'images/sha256/'})).objects;assert.equal(objects.length,files.size);
+ const report={localOnly:true,savedPackageBasis:manifest.basis,websites:rows,sharedImageObjects:objects.length,sharedImageBytes:objects.reduce((sum,o)=>sum+o.size,0),legacyRepeatedImageBytes:manifest.totals.imageBytes,legacyHistoryDeleted:false,acceptedHeadChanged:false,acceptedComponentsAdded:0,liveDatabaseQueries:0,deployed:false};mkdirSync(dirname(output),{recursive:true});writeFileSync(output,JSON.stringify(report,null,2));console.log(JSON.stringify({websites:rows.length,sharedImages:objects.length,contentPreserved:true,liveDatabaseQueries:0}));
+}finally{await f.close();}

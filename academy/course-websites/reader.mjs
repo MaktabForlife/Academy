@@ -1,3 +1,4 @@
+import {openWebsiteStudio} from '/js/m4l-website-studio.mjs';
 import {createJournalControls} from './journal-controls.mjs';
 import {handleReflectionAction} from './reflection-actions.mjs';
 import {esc} from './model.mjs';
@@ -14,7 +15,7 @@ const active=()=>!stopped&&(owner||publicReading)&&owner===(localStorage.getItem
 function setAssets(rows){for(const url of urls)URL.revokeObjectURL(url);urls.clear();imageJobs.clear();assets=new Map(rows.map(a=>[a.id,{...a,url:''}]));}
 const inlineEditor=createInlineEditor({
  root:$('course-reader'),request:(action,input)=>api('admin/platform/course-websites/'+action,{activityKey,...input}),active,
- allowed:()=>Boolean(owner&&data?.canEdit),workspace:()=>boundary?.current(),route:()=>ui,canStart:canLeave,
+ allowed:()=>Boolean(owner&&data?.canEdit),launchEditor:()=>openWebsiteStudio({activityKey,...(surahId?{surahId}:{}),edit:'text',lesson:ui.lessonId}),workspace:()=>boundary?.current(),route:()=>ui,canStart:canLeave,
  enterAdmin(){const url=new URL(location.href);url.searchParams.set('workspace','ADMIN');url.searchParams.set('edit','text');for(const key of ['setup','studentProgram','studentClass'])url.searchParams.delete(key);url.hash=ui.route==='lesson'?'lesson/'+ui.lessonId:({home:'overview',lessons:'reading',materials:'resources'})[ui.route]||'overview';location.assign(url.href);},
  showDraft(record){course=record.document;setAssets(record.assets);if(!['home','lessons','lesson','materials'].includes(ui.route))ui.route='home';if(ui.route==='lesson'&&!course.lessons.some(l=>l.id===ui.lessonId))ui.route='lessons';draw();},
  showPublished(){course=data.document;setAssets(data.assets);sessions();draw();},async published(){await refresh();if(active()){$('website-status').hidden=false;$('website-status').textContent='Text changes published.';}},

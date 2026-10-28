@@ -1,7 +1,7 @@
 import {esc,validateCourse} from './model.mjs';
 import {inlineSession,decorateInlineText} from './inline-text.mjs?v=107.120';
 
-export function createInlineEditor({root,request,active,allowed,workspace,enterAdmin,canStart=()=>true,showDraft,showPublished,published,route,dialog,dialogTitle,dialogBody}){
+export function createInlineEditor({root,request,active,allowed,workspace,enterAdmin,canStart=()=>true,launchEditor=async()=>false,showDraft,showPublished,published,route,dialog,dialogTitle,dialogBody}){
  const session=inlineSession({request,active}),host=document.createElement('section');
  host.className='sp-inline-toolbar';host.hidden=true;host.setAttribute('aria-label','Edit website text');root.before(host);
  let editing=false,notice='',opened=false,errorNotice=false;
@@ -17,6 +17,7 @@ export function createInlineEditor({root,request,active,allowed,workspace,enterA
  }
  async function start(){
   if(!allowed()||busy()||editing||!canStart())return;
+  if(await launchEditor())return;
   if(workspace()!=='ADMIN'){enterAdmin();return;}
   opened=true;errorNotice=false;root.inert=true;
   try{const record=await session.open();if(!active())return;editing=true;notice='Editing the saved draft';showDraft(record);document.body.classList.add('website-inline-editing');controls();}

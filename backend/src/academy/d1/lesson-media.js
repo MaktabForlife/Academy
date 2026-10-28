@@ -332,5 +332,5 @@ export function lessonMedia(repository,auth,env){
   if(action==='attachment-remove'){staff(row);return change(action,input,row,'staff',async current=>{revision(current,input);const a=await p('SELECT 1 ok FROM lesson_media_links WHERE lesson_id=? AND asset_id=?',row.lesson_id,input.assetId).first();if(!a)throw fail('Attachment not found.',404);return {statements:[p('DELETE FROM lesson_media_links WHERE lesson_id=? AND asset_id=?',row.lesson_id,input.assetId),p('UPDATE lesson_media_lessons SET revision=revision+1 WHERE lesson_id=?',row.lesson_id)],result:{removed:true}};});}
   throw fail('Unknown media action.',404);
  }
- return {run,upload,videoPart,videoStream};
+ return {async websiteCard(input){await ready(input);const row=await lesson(input.lessonId);reader(row);return {...dto(row),assets:await assets(row.lesson_id)};},run,upload,videoPart,videoStream};
 }

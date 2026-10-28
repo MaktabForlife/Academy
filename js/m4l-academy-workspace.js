@@ -133,3 +133,6 @@
  if(location.pathname.startsWith('/academy/admin/')&&!location.hash)history.replaceState(null,'','#administration');
   void import('/js/m4l-academy-history.js?v=107.120').catch(()=>{ /* Existing page links remain available if navigation cannot load. */ });
 })();
+
+// Restore Studio account continuity after ordinary Academy navigation; no DB polling.
+try{if(sessionStorage.getItem('academy_website_studio_origin'))void import('/js/m4l-website-studio.mjs').catch(()=>{});}catch{}

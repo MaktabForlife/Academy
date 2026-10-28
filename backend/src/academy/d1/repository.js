@@ -114,7 +114,7 @@ export function academyD1Repository(env) {
     privateSnapshots,recordingEnv:{ACADEMY_OBJECT_NAMESPACE:env.ACADEMY_OBJECT_NAMESPACE},
     bindActor:auth=>client?.bindActor(auth),
     authoringRepository(){return client?{...this,db:client.admin}:this;},
-    db,coreDb:db,adminDb:split?env.ACADEMY_ADMIN_DB.withSession('first-primary'):null,setup:{enabled:env.ACADEMY_ACCEPTED_SETUP==='1'},features:{surahGrants:env.ACADEMY_SURAH_GRANTS==='1',weeklyAbsentees:env.ACADEMY_WEEKLY_ABSENTEES==='1',monthlySubscriptions:env.ACADEMY_MONTHLY_SUBSCRIPTIONS==='1',nativeAttendance:env.ACADEMY_LEARNING_OPERATIONS==='3',mediaSeparation:env.ACADEMY_MEDIA_SEPARATION==='1',splitDatabases:split},
+    db,coreDb:db,adminDb:split?env.ACADEMY_ADMIN_DB.withSession('first-primary'):null,setup:{enabled:env.ACADEMY_ACCEPTED_SETUP==='1'},features:{websiteStudio:env.ACADEMY_WEBSITE_STUDIO==='1',surahGrants:env.ACADEMY_SURAH_GRANTS==='1',weeklyAbsentees:env.ACADEMY_WEEKLY_ABSENTEES==='1',monthlySubscriptions:env.ACADEMY_MONTHLY_SUBSCRIPTIONS==='1',nativeAttendance:env.ACADEMY_LEARNING_OPERATIONS==='3',mediaSeparation:env.ACADEMY_MEDIA_SEPARATION==='1',splitDatabases:split},
     ownershipForNewActivity:activity=>newActivityOwnership(activity,env),
     subscriptionSource,
     publicAccount,

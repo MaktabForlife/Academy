@@ -1,3 +1,12 @@
+# Separate Website Studio — local implementation — 28 October 2026
+
+- The human explicitly requested moving website building, editing and publishing out of Academy, reusing Academy PDFs, videos and access, preserving behaviour, testing locally and keeping live checks small. Work on `feature/academy-website-studio` in this isolated worktree from V107.120 (`4cbb787c`).
+- Do not deploy, push, create hosted resources, apply hosted SQL, import/republish content or change live settings until the human approves. Keep existing release markers unchanged. Historical release authorisations below are complete and do not apply.
+- Keep one actual Academy authority for current sessions, account switching, scoped Admin editing, paid months, additional Surah grants, live withdrawal, media publication/class/expiry gates and journal ownership. Website wording must not enter the shared Academy setup publication path after migration. Do not copy PDF/video bytes or publish private media drafts as part of website publication.
+- Build a separately deployable Studio frontend/backend with private R2 content. Reuse this repo and existing Core only for small guarded revision/publication/file-reference records; no additional D1 database or duplicated roles/payment register. Provide disabled integration configuration, reversible migration tooling and local evidence.
+- Preserve legacy published websites until each site's verified migration completes; reject legacy editor writes after cutover. Test current authority inside metadata commits, exact retry conflicts, stale saves, failed R2 writes, private/public boundaries, account switching, media links and published-reader parity. Use only synthetic local Workers/D1/R2 fixtures. Follow ../AGENTS.md.
+- A three-version retention policy was discussed but has not been separately implemented/approved. Do not destroy existing history or old publication references; retain immutable version evidence. No Journal deployment or edits to its branch.
+
 # V107.120 publication optimisation release — 28 October 2026
 
 - The human explicitly requested “pls deploy” for the tested publication optimisation. This supersedes the historical local-only hold below. Release from `feature/academy-publication-reads`, retaining all V107.119 work.

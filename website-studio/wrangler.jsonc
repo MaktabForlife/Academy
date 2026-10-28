@@ -1,0 +1,13 @@
+{
+ "$schema":"../backend/node_modules/wrangler/config-schema.json",
+ "name":"academy-website-studio",
+ "main":"src/worker.mjs",
+ "compatibility_date":"2026-10-28",
+ "compatibility_flags":["nodejs_compat"],
+ "workers_dev":false,
+ "assets":{"directory":".build","binding":"ASSETS","run_worker_first":["/api/*"]},
+ "services":[{"binding":"ACADEMY","service":"devrebootworker","entrypoint":"WebsiteStudioAcademy"}],
+ "r2_buckets":[{"binding":"CONTENT","bucket_name":"academy-website-studio-private"}],
+ "vars":{"STUDIO_ORIGIN":"https://studio.example.invalid","ACADEMY_ORIGIN":"https://academy-maktab4life.pages.dev"},
+ "observability":{"enabled":true,"head_sampling_rate":0.01}
+}

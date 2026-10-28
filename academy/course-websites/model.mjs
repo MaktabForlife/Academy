@@ -34,6 +34,7 @@ export function validateCourse(course,{review=false}={}){
  if(JSON.stringify(course).length>500000)throw Error('This course is too large for the design editor.');
  id(course.id);
  if(!text(course.name,160)||!text(course.tag,40)||!Object.hasOwn(THEMES,course.theme))throw Error('Check the course name and appearance.');
+ if(course.academyMediaIds!==undefined&&(!Array.isArray(course.academyMediaIds)||course.academyMediaIds.length>80||course.academyMediaIds.some(v=>typeof v!=='string'||v.length>80)))throw Error('Choose valid Academy media references.');
  if(!course.home||!course.pages||!course.menu||!course.materials||!course.sessionOptions)throw Error('The draft is missing course settings.');
  for(const [key,limit] of Object.entries({headline:300,subtitle:500,description:4000,imageId:80,imageAlt:500,caption:500,journeyTitle:300}))if(!text(course.home[key],limit))throw Error('Check the course home fields.');
  if(!Array.isArray(course.home.themes)||course.home.themes.length>8)throw Error('Use up to eight journey cards.');
@@ -69,6 +70,6 @@ export function validateCourse(course,{review=false}={}){
  for(const file of course.materials.files){if(review&&!file.assetId)errors.push('Choose a file for each course material.');id(file.id);if(!text(file.assetId,80)||!text(file.title,300)||!text(file.description,2000))throw Error('Check the material details.');}
  return errors;
 }
-export function referencedAssets(course){return [...new Set([course.home.imageId,...course.lessons.flatMap(l=>l.sections.flatMap(s=>s.blocks.filter(b=>b.type==='image').map(b=>b.assetId))),...course.materials.files.map(f=>f.assetId)].filter(Boolean))];}
+export function referencedAssets(course){return [...new Set([...(course.academyMediaIds||[]),course.home.imageId,...course.lessons.flatMap(l=>l.sections.flatMap(s=>s.blocks.filter(b=>b.type==='image').map(b=>b.assetId))),...course.materials.files.map(f=>f.assetId)].filter(Boolean))];}
 export function fileKind(bytes){if(bytes[0]===0x25&&bytes[1]===0x50&&bytes[2]===0x44&&bytes[3]===0x46&&bytes[4]===0x2d)return 'application/pdf';if(bytes[0]===0x89&&bytes[1]===0x50&&bytes[2]===0x4e&&bytes[3]===0x47&&bytes[4]===0x0d&&bytes[5]===0x0a&&bytes[6]===0x1a&&bytes[7]===0x0a)return 'image/png';if(bytes[0]===0xff&&bytes[1]===0xd8&&bytes[2]===0xff)return 'image/jpeg';if(String.fromCharCode(...bytes.slice(0,4))==='RIFF'&&String.fromCharCode(...bytes.slice(8,12))==='WEBP')return 'image/webp';return '';}
 export async function checkFile(file){const kind=fileKind(new Uint8Array(await file.slice(0,16).arrayBuffer()));if(!kind)throw Error('Choose a PDF, PNG, JPG or WebP file.');const limit=(kind==='application/pdf'?16:5)*1024*1024;if(!file.size||file.size>limit)throw Error(kind==='application/pdf'?'Choose a PDF no larger than 16 MB.':'Choose an image no larger than 5 MB.');return kind;}

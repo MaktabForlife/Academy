@@ -1,3 +1,4 @@
+import {studioOrigin,studioHandoff} from './website-studio-handoff.js';
 import {recoverWeeklyAbsentees,weeklyAbsenteeCron} from './weekly-absentees.js';
 import {imtihaanWorkflow} from './assessment-imtihaan-workflow.js';
 import {assessmentStore} from './assessment-store.js';
@@ -101,6 +102,7 @@ async function dispatch(request,env) {
   let reader;
   const readRepository=async()=>reader??=acceptedRepository(sourceRepository,await acceptedHead(sourceRepository,request.headers.get('X-Academy-Setup')||''));
   const path=new URL(request.url).pathname;
+  if(path==='/api/academy/website-studio/config'&&request.method==='GET')return {success:true,enabled:Boolean(studioOrigin(env)),origin:studioOrigin(env)};
   await repository.ready();
   if(path==='/api/academy/setup/head'&&request.method==='GET')return {success:true,head:setupEnabled(env)?await acceptedHead(repository):null};
   if(path==='/api/academy/website-cards'&&request.method==='GET'){const source=setupEnabled(env)?await readRepository():repository;return {success:true,...await publicWebsiteCards(source),publicLinks:await publicFoundationsLinks(source)}};
@@ -142,6 +144,7 @@ async function dispatch(request,env) {
     return {success:true,...await uploadWebsiteCardImage(request,repository.authoringRepository(),auth,env,input)};
   }
   if(path==='/api/admin/platform/course-websites/upload'){
+    if(studioOrigin(env))throw rehearsalError('Open Website Studio to edit website content.',409,'WEBSITE_STUDIO_REQUIRED');
     const auth=await authenticated(request,env,repository),metadata=new URL(request.url).searchParams.get('metadata')||'';
     if(metadata.length>8192)throw rehearsalError('Upload details are too large.',413);
     let input;try{input=JSON.parse(metadata);}catch{throw rehearsalError('Invalid upload details.');}
@@ -259,7 +262,7 @@ async function dispatch(request,env) {
   }
   if(setupEnabled(env)&&(!isAdminWorkspace(auth)||path==='/api/academy/lesson/join')&&!path.startsWith('/api/account/'))repository=await readRepository();
   const websiteAdmin=path.match(/^\/api\/admin\/platform\/course-websites\/(list|get|save|publish|withdraw|asset|prepared-copy)$/)?.[1];
-  if(websiteAdmin){const result=await courseWebsites(repository,auth,env).run(websiteAdmin==='asset'?'admin-asset':websiteAdmin,input);return result instanceof Response?result:{success:true,...result};}
+  if(websiteAdmin){if(studioOrigin(env)&&['save','publish','withdraw'].includes(websiteAdmin))throw rehearsalError('Open Website Studio to edit and publish this website.',409,'WEBSITE_STUDIO_REQUIRED');const result=await courseWebsites(repository,auth,env).run(websiteAdmin==='asset'?'admin-asset':websiteAdmin,input);return result instanceof Response?result:{success:true,...result};}
   const websiteRead=path.match(/^\/api\/academy\/course-websites\/(read|asset)$/)?.[1];
   if(websiteRead){const source=setupEnabled(env)?await readRepository():repository;const result=await courseWebsites(source,auth,env).run(websiteRead,input);return result instanceof Response?result:{success:true,...result};}
   const personalAction=path.match(/^\/api\/academy\/my-links\/(list|save|export)$/)?.[1];
@@ -269,6 +272,7 @@ async function dispatch(request,env) {
   if(path==='/api/academy/lesson-media/download'&&sourceRepository.features.mediaSeparation&&String(input.assetId||'').startsWith('NOTE-'))return lessonNotes(await readRepository(),auth,env).download(input);
   const settingsAction=path.match(/^\/api\/admin\/platform\/settings\/(get|save)$/)?.[1];
   if(settingsAction)return {success:true,...await globalSettings(repository,auth).run(settingsAction,input)};
+  if(path==='/api/academy/website-studio/handoff')return studioHandoff(request,env,sourceRepository,auth,input);
   if(path==='/api/academy/hifz/sign-in')return issueHifzHandoff(env,auth,input);
   if(path==='/api/academy/enrolment/profile')return {success:true,...await enrolmentProfile(repository,auth)};
   const enrolmentAction=path.match(/^\/api\/admin\/platform\/enrolment\/(get|catalogue-save|request-save|request-delete|accounts|register|settings-save)$/)?.[1];

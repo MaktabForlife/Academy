@@ -1,3 +1,5 @@
+import {studioPublished,studioAsset} from './website-studio-content.js';
+import {websiteActivity} from './website-access.js';
 import {publishedWebsiteValue} from './published-facts-cache.js';
 import {payloadHash} from '../../programs/timetable-model.js';
 import {managementStore,managementError as fail,same} from './management-store.js';
@@ -8,45 +10,34 @@ import {isSurahKahfCourse} from '../course-books/course-companion.js';
 import {courseReaderSessions} from './course-reader-sessions.js';
 import {lessonNotes} from './lesson-notes.js';
 import {lessonMedia} from './lesson-media.js';
-import {mayReadSurah} from './surah-websites-access.js';
 import {preparedTafseerCopies,preparedTafseerKey} from '../course-books/tafseer-prepared.js';
-import {monthlyEnabled} from './monthly-media-policy.js';
 import {storeLessonPdf,lessonPdfReference,lessonPdfObjectKey} from './lesson-pdf-storage.js';
 import {surahRecordingTerms} from './surah-recording-titles.js';
 
 const websiteAssetKey=reference=>lessonPdfObjectKey(String(reference).replace(/image-refs\/[a-f0-9-]{36}\/([a-f0-9]{64})$/,'$1'));
 const assetDTO=row=>({id:row.asset_id,name:row.filename,type:row.mime_type,size:row.byte_size,createdAt:row.created_at});
-const scopeKey=input=>{if(typeof input.activityKey!=='string'||!/^COURSE:[^:]{1,160}$/.test(input.activityKey))throw fail('Choose a Course.');return input.activityKey;};
 const uuid=value=>/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value||'');
+export const preparedWebsiteCopy=area=>isSurahKahfCourse(area)&&!area.surahId?preparedTafseerCopies.kahf:area.surahId&&area.programName.trim().toLowerCase()==='tafseer'&&Object.hasOwn(preparedTafseerCopies,area.card_key)?preparedTafseerCopies[area.card_key]:null;
 export function courseWebsites(repository,auth,env){
  const store=managementStore(repository,auth),p=store.p,actor=auth?.user.accountid||'PUBLIC';
+ let studioSource=null;
  let target={documents:'course_website_documents',assets:'course_website_assets',column:'activity_key',id:'',surahId:null};
  const template=area=>{const document=courseWebsiteTemplate(area);if(area.surahId){document.id=area.surahId;document.tag='TAFSEER';document.menu.home='Surah';document.pages.sessions=false;document.pages.assessments=false;}return document;};
- async function activity(input,write=false){
-  let key,row;
-  if(input.surahId!==undefined){
-   if(!uuid(input.surahId)||typeof input.activityKey!=='string'||!/^PROGRAM:[^:]{1,160}$/.test(input.activityKey))throw fail('Choose a Tafseer surah website.');
-   if(!monthlyEnabled(repository))throw fail('Surah websites need the monthly access upgrade.',503);
-   key=input.activityKey;target={documents:'program_surah_website_documents',assets:'program_surah_website_assets',column:'surah_id',id:input.surahId,surahId:input.surahId};
-   const core=repository.coreDb||repository.db;
-   row=await core.prepare("SELECT a.*,s.name surah_name,s.card_key,s.completion_date,s.active surah_active,p.enabled monthly_enabled FROM activities a JOIN program_surahs s USING(activity_key) JOIN program_monthly_media_policies p USING(activity_key) WHERE a.activity_key=? AND a.kind='PROGRAM' AND a.active=1 AND a.lifecycle='ACTIVE' AND s.surah_id=?").bind(key,input.surahId).first();
-   if(row){row={...row,programName:row.name,name:row.surah_name,surahId:input.surahId};if(!write&&!row.surah_active)throw fail('This surah website is unavailable.',403,'COURSE_WEBSITE_FORBIDDEN');}
-  }else{key=scopeKey(input);target={documents:'course_website_documents',assets:'course_website_assets',column:'activity_key',id:key,surahId:null};row=await p("SELECT * FROM activities WHERE activity_key=? AND kind='COURSE' AND active=1 AND lifecycle='ACTIVE'",key).first();}
-  if(!row)throw fail('This Course is unavailable.',403,'COURSE_WEBSITE_FORBIDDEN');
-  if(write){if(!auth||!isAdminWorkspace(auth)||!administers(auth,row.activity_key))throw fail('Open Admin with authority for this Course.',403,'COURSE_WEBSITE_FORBIDDEN');}
-  else if(!(target.surahId&&row.card_key==='foundations')){
-   if(!auth)throw fail('Contact Admin to receive access.',403,'COURSE_WEBSITE_FORBIDDEN');
-   const roles=auth.state.roles.filter(r=>same(r.activity_key,row.activity_key)).map(r=>r.role);
-   const free=!target.surahId&&auth.workspace==='LEARN'&&await p("SELECT 1 ok FROM course_settings WHERE activity_key=? AND legacy_access_model='FREE' AND policy_review_state='CONFIRMED'",row.activity_key).first();
-   const subscribed=target.surahId?mayReadSurah(auth,row):roles.includes('STUDENT')||auth.state.subscriptions.some(r=>same(r.activity_key,row.activity_key));
-   if(!(auth.state.account.global_admin||roles.some(r=>['PROGRAM_ADMIN','TEACHER'].includes(r))||readerPreview(auth,row.activity_key)||subscribed||free))throw fail('This Course is outside your access.',403,'COURSE_WEBSITE_FORBIDDEN');
-   if(auth.adminView&&!administers(auth,row.activity_key))throw fail('This Course is outside your Admin view.',403,'COURSE_WEBSITE_FORBIDDEN');
+ async function activity(input,write=false){const result=await websiteActivity(repository,auth,input,write);target=result.target;return result.area;}
+ async function selectedMedia(native,document,area){
+  if(!studioSource||!auth||!document.academyMediaIds?.length)return native;
+  const map=new Map(studioSource.assets.map(a=>[a.id,a]));native={...native,lessons:[...(native.lessons||[])],sessions:[...(native.sessions||[])]};
+  for(const id of document.academyMediaIds){const ref=map.get(id);if(ref?.source!=='ACADEMY')continue;
+   try{const card=await lessonMedia(repository,auth,env).websiteCard({activityKey:area.activity_key,lessonId:ref.lessonId});if(!card.assets.some(a=>a.id===ref.nativeAssetId))continue;
+    if(!native.lessons.some(l=>l.id===card.id))native.lessons.push(card);
+    if(!native.sessions.some(s=>s.media?.id===card.id))native.sessions.push({sessionKey:card.sessionKey||'media:'+card.id,date:card.date,startTime:card.startTime||'',endTime:card.endTime||'',title:card.title,teacherNames:card.teacher?[card.teacher]:[],media:card,savedMedia:true});
+   }catch(e){if(![403,404].includes(e.status))throw e;}
   }
-  return row;
+  return native;
  }
  const record=scope=>publishedWebsiteValue(repository,{table:target.documents,scope,id:target.id},()=>p('SELECT * FROM '+target.documents+' WHERE '+target.column+'=?',target.id).first());
- const preparedCopy=area=>isSurahKahfCourse(area)&&!area.surahId?preparedTafseerCopies.kahf:area.surahId&&area.programName.trim().toLowerCase()==='tafseer'&&Object.hasOwn(preparedTafseerCopies,area.card_key)?preparedTafseerCopies[area.card_key]:null;
- const files=key=>publishedWebsiteValue(repository,{table:target.assets,scope:key,id:target.id},async()=>(await p('SELECT * FROM '+target.assets+' WHERE '+target.column+'=? ORDER BY created_at,asset_id LIMIT 101',target.id).all()).results);
+ const preparedCopy=preparedWebsiteCopy;
+ const files=key=>studioSource?Promise.resolve(studioSource.assets.map(a=>({asset_id:a.id,filename:a.name,mime_type:a.type,byte_size:a.size,created_at:a.createdAt}))):publishedWebsiteValue(repository,{table:target.assets,scope:key,id:target.id},async()=>(await p('SELECT * FROM '+target.assets+' WHERE '+target.column+'=? ORDER BY created_at,asset_id LIMIT 101',target.id).all()).results);
  async function legacyGate(area,row){
   if(row?.source_kind!=='KAHF'&&row||!row&&!isSurahKahfCourse(area))return;
   const pdfs=(await p("SELECT a.filename,a.display_name FROM lesson_media_lessons l JOIN lesson_media_links k USING(lesson_id) JOIN lesson_media_assets a USING(asset_id) WHERE l.activity_key=? AND l.media_scope='COURSE' AND l.state='PUBLISHED' AND a.kind='PDF' LIMIT 101",area.activity_key).all()).results;
@@ -54,13 +45,13 @@ export function courseWebsites(repository,auth,env){
   if(!pdf)throw fail('These course readings are not currently published.',403,'COURSE_WEBSITE_UNPUBLISHED');
  }
  async function readable(input){
-  const area=await activity(input),row=await record(area.activity_key);
+  const area=await activity(input);studioSource=await studioPublished(env,input);const row=studioSource?{enabled:studioSource.state.enabled,source_kind:studioSource.source_kind,document_json:JSON.stringify(studioSource.document)}:await record(area.activity_key);
   if(!auth&&!(target.surahId&&area.card_key==='foundations'))throw fail('Contact Admin to receive access.',403,'COURSE_WEBSITE_FORBIDDEN');
   if(row&&!row.enabled)throw fail('This course website is currently withdrawn.',404,'COURSE_WEBSITE_UNPUBLISHED');
   await legacyGate(area,row);
   if(!row&&!isSurahKahfCourse(area))throw fail('This course website has not been published.',404,'COURSE_WEBSITE_UNPUBLISHED');
   const document=row?JSON.parse(row.document_json):template(area);validateCourse(document);
-  return {area,row,document};
+  return {area,row,document,...(studioSource?{studioSource}:{})};
  }
  async function load(area){
   // Only the actor and selected Course are needed to guard this operation.
@@ -130,6 +121,7 @@ export function courseWebsites(repository,auth,env){
  }
  async function asset(input,admin=false){
   const source=admin?{area:await activity(input,true)}:await readable(input),id=String(input.assetId||'');
+  if(source.studioSource)return studioAsset(env,repository,auth,input,source.studioSource);
   if(!admin&&!referencedAssets(source.document).includes(id))throw fail('This file is not published in this Course.',404,'NOT_FOUND');
   const row=await p('SELECT * FROM '+target.assets+' WHERE '+target.column+'=? AND asset_id=?',target.id,id).first();
   const object=row?await env.LESSON_MEDIA_BUCKET?.get(websiteAssetKey(row.object_key)):null;if(!object)throw fail('This file is unavailable.',404,'NOT_FOUND');
@@ -153,15 +145,17 @@ export function courseWebsites(repository,auth,env){
   if(['save','publish','withdraw'].includes(action))return change(action,input);
   if(action==='asset')return asset(input,false);
   if(action==='admin-asset')return asset(input,true);
+  if(action==='export'){await activity(input,true);const {area,row,document}=await readable(input);return {document,enabled:row?.enabled!==0,revision:row?.revision||0,assets:(await files(area.activity_key)).map(assetDTO)};}
   if(action==='read'){
    const {area,document}=await readable(input);
    if(target.surahId){
     let native={lessons:[],sessions:[]};
     if(auth)try{native=await lessonMedia(repository,auth,env).run('feed',{activityKey:area.activity_key,view:'learner',websiteRecordingTerms:surahRecordingTerms(area),before:input.mediaBefore});}catch(error){if(![403,503].includes(error.status))throw error;}
-    document.pages.sessions=Boolean(native.sessions.length);document.pages.assessments=false;
+    native=await selectedMedia(native,document,area);document.pages.sessions=Boolean(native.sessions.length);document.pages.assessments=false;
     return {document,canEdit:Boolean(auth&&hasAdminAuthority(auth,area.activity_key)),surahId:target.surahId,activityKey:area.activity_key,completionDate:area.completion_date,readerKey:await payloadHash(['SURAH_READER_OWNER',actor,area.activity_key,target.surahId]),assets:(await files(area.activity_key)).filter(r=>referencedAssets(document).includes(r.asset_id)).map(assetDTO),native:{...native,lessonMediaMaterials:true}};
    }
    let native=await lessonMedia(repository,auth,env).run('feed',{activityKey:area.activity_key,view:'learner',includeCourseCompanion:true,includeCourseSessions:true});
+   native=await selectedMedia(native,document,area);
    if(repository.features?.mediaSeparation)native=await lessonNotes(repository,auth,env).enrichFeed(native,{activityKey:area.activity_key,view:'learner'});
    if(!native.courseCompanion?.schedule)try{native.courseWebsiteSchedule=await courseReaderSessions(repository,auth,area);}catch(error){if([401,403].includes(error.status))throw error;native.courseWebsiteSchedule={sessions:[],unavailable:true};}
    return {document,canEdit:Boolean(auth&&hasAdminAuthority(auth,area.activity_key)),readerKey:await payloadHash(['COURSE_READER_OWNER',actor,area.activity_key]),assets:(await files(area.activity_key)).filter(r=>referencedAssets(document).includes(r.asset_id)).map(assetDTO),activityKey:area.activity_key,courseId:area.activity_id,native};
