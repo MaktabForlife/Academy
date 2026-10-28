@@ -9,21 +9,48 @@ The subsequent discussion expands the desired scope from an editor to an indepen
 | Owner | Responsibilities |
 | --- | --- |
 | Academy | Master accounts, account status and admission; timetable authoring; master programme/course Zoom links. |
-| Website/learning platform | Tafseer and migrated paid-course content, local participation/content rights, persistent media and grants, websites, lesson-media management, journals, private session cards and joining. Public homepage editing, timetable-card presentation and public announcements also move here. |
+| Website/learning platform | Tafseer and migrated paid-course content, local participation/content rights, persistent media and grants, websites, lesson-media management, private session cards and joining. Public homepage editing, timetable-card presentation and public announcements also move here. |
 | Published connection | Versioned timetable facts and private effective Zoom settings; website presentation and locally owned media are combined there. Link changes and timetable corrections must trigger delivery. Routine website page views and Join checks should use the target's stored publication and current local authority. |
 | Library navigation | Academy Library remains in Academy with approved return navigation to the originating website/course/lesson; no duplicate Library store. |
 
 Persistent content access is distinct from current subscription/live-session access and staff privileges. Historic paid material and explicit grants must survive subscription expiry; Academy admission must still allow those former participants. Master-account suspension and staff revocation must remain enforceable. Retention/backups must match the material-access promise, and existing website-only Surah grants must not silently gain recording rights.
+
+The human confirmed that no personal journals currently exist to migrate. The existing-data migration covers materials, their relationships and access rights. Future Journal development is separate and is not a dependency for this migration; optional journal hooks in the prototype are not evidence of a deployed journal service.
+
+### Administration sections moving to the website
+
+The Course screenshot and the later Tafseer Program screenshot identify the same four sections:
+
+| Current Academy section | Website responsibility after migration |
+| --- | --- |
+| Participants | Manage participation, scoped local staff roles, paid months and additional content grants, preserving existing rights and permissions. Reuse the Academy master account ID. |
+| Public card | Edit website/homepage card wording, display-time labels, appearance and visibility using Academy's published scheduling facts. |
+| Media / Lesson media | Upload, attach, manage and publish lesson PDFs, videos and notes, preserving existing file identities, relationships and access gates. Inventory shared Library/media references before moving storage. |
+| Enrolment requests | Receive and manage course/Tafseer requests; coordinate authorised Academy account creation/linking with website enrolment. |
+
+Academy retains timetable preparation, validation and review/publication, plus the scheduling-owned parts of Details, Classes and Sessions. A website content publication remains separate from an Academy timetable publication. The participant/media/enrolment moves apply to Tafseer and courses actually migrating; they do not remove those tools from programmes remaining in Academy. Homepage public-card authoring follows the separately agreed website ownership above.
+
+### Coordinated enrolment
+
+Provide one administrator workflow across the two services:
+
+1. A website request identifies the desired offering. For an existing learner, explicitly select/link the existing Academy account; do not merge identities by name or phone alone.
+2. For a new learner, an authorised operation creates the master Academy user using the current account-creation and scope permissions. Academy retains sign-in credentials and returns a stable account ID.
+3. The website enrols that ID into the selected offering and applies only the participation/material rights approved under the existing policy. Creating an Academy account alone does not grant course access; a request's self-reported payment is not verification of payment.
+4. Persist pending/acknowledged completion and reuse operation IDs on retries. If Academy account creation succeeds but website enrolment fails, retain the account and resume the outstanding enrolment without creating a duplicate or reporting false completion. Account/PIN credentials are not copied through the browser.
+5. Course withdrawal changes local participation/live rights while retaining the Academy account and any previously acquired material rights under the agreed policy. Master account suspension still applies.
+
+The current public enrolment endpoint requires an existing signed-in Academy account; it is not an anonymous new-user registration flow. Any future public new-user request flow needs its own defined approval/provisioning path. Preserve the actual existing authority boundaries: generic account registration/linking is Global Admin-only, while the scoped course participant-create operation currently has its own authorised account-creation path. The split must not widen either permission.
 
 ### Retire Academy Learn and Teach for migrated offerings
 
 The human requested removal of these delivery screens for Tafseer and Courses. This is a retirement of the migrated offerings' Academy interface, not deletion of the shared Academy Learn/Teach system or their data.
 
 1. Identify migrated offerings by stable IDs. The scope is Tafseer and courses actually moved to the new platform, not every activity sharing a Learn/Teach component.
-2. Verify the replacement learner/staff website, access and historical rights, media/notes/journals, published timetable corrections, joining, account revocation and Library round-trip before retiring the corresponding Academy route.
+2. Verify the replacement learner/staff website, access and historical rights, media/notes, coordinated enrolment, published timetable corrections, joining, account revocation and Library round-trip before retiring the corresponding Academy route. There is no existing journal migration to verify.
 3. Replace their Learn/Teach entrances and saved destinations with verified website entry/handoff links. Keep old bookmarked URLs as scoped redirects. Preserve the existing Academy destinations for other programmes.
 4. Remove the migrated offerings' duplicated background reads, prefetches and media/session-card assembly from Academy's delivery responses. Do not remove the authoritative timetable data/export, master-user/admission information or shared permission code.
-5. Transfer media and attachment relationships using stable IDs; inventory shared files first. Retain read-only recovery sources and history until separate cleanup approval. Do not delete users, paid-month records, grants, files, notes or journals merely because their old screen is removed.
+5. Transfer media and attachment relationships using stable IDs; inventory shared files first. Retain read-only recovery sources and history until separate cleanup approval. Do not delete users, paid-month records, grants, files or notes merely because their old screen is removed.
 
 No product-code removal, live migration, resource creation or deployment has been performed for this revised scope. The existing local validation below proves the narrower Studio prototype only; it does not validate this future cutover.
 
