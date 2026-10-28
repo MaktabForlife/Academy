@@ -2,6 +2,8 @@
 
 Local implementation on `feature/academy-website-studio`, based on V107.120 (`4cbb787c`). Deployment, pushing, hosted migrations, resource creation and live content changes require the human's approval. Release markers and active deployment configuration remain unchanged. Keep live checks small: use the saved packages and synthetic local fixtures first.
 
+All further migration work must remain on a dedicated feature branch, including integration, configuration and tests; do not work directly on development/main. No deployments tonight (28 October 2026, Riyadh), and no automatic deployment afterward: the approval hold remains in force. Do not deploy APIs/Workers/frontends, apply hosted schema/resource changes, publish content or cut over production as part of this handoff.
+
 ## Revised target and retirement boundary — 28 October 2026
 
 The subsequent discussion expands the desired scope from an editor to an independent Tafseer and Courses learning platform. The current code is the Studio prototype; the broader migration is not implemented or deployed. The prototype's same-account/Core-only infrastructure below is not a final commitment for the larger platform.
