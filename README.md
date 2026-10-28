@@ -1,3 +1,7 @@
+# V107.112 — Re-import existing course images
+
+Fix revised course imports when their cover image is already stored. Each uploaded attachment retains an immutable scoped reference while sharing its stored bytes. Existing published assets still resolve, and no schema or permission change is required. Includes the V107.111 source wording, shared Lesson media and Admin card style/text controls.
+
 # V107.111 — Complete course readings and recording cards
 
 Use the supplied PDF teaching text as the main Tafseer and Surah Al Kahf lessons, with spelling/reference and extraction corrections recorded during preparation. Keep summaries in optional expandable asides and retain editable headings and reflections. Link Course materials to the existing protected Lesson media PDFs rather than importing duplicate files. Default to plain access cards; Admin can choose original PDF artwork or upload a replacement image.

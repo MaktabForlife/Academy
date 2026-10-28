@@ -36,7 +36,11 @@ test('publication captures the selected document, preserves other drafts and sup
 }));
 test('published assets are same-course, byte checked and remain immutable for old heads',()=>use(async f=>{
  const bytes=new Uint8Array([137,80,78,71,13,10,26,10]),assetId=operation(),metadata={activityKey:f.scopes.courseA,assetId,filename:'canva-cover.png',type:'image/png',size:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex'),operationId:operation()};
- ok(await f.send('upload',metadata,'global','ADMIN',bytes));assert.equal((await f.send('/api/academy/course-websites/asset',{activityKey:f.scopes.courseA,assetId},'studentA')).status,404);
+ ok(await f.send('upload',metadata,'global','ADMIN',bytes));
+ const replacement={...metadata,assetId:operation(),operationId:operation()};ok(await f.send('upload',replacement,'global','ADMIN',bytes));
+ const linked=f.db.prepare('SELECT asset_id,object_key FROM course_website_assets WHERE activity_key=?').all(f.scopes.courseA);assert.equal(linked.length,2);assert.notEqual(linked[0].object_key,linked[1].object_key,'Each upload keeps an immutable reference even when its bytes match');
+ const originalKey=linked.find(row=>row.asset_id===assetId).object_key.replace(/image-refs\/[a-f0-9-]{36}\/([a-f0-9]{64})$/,'$1');f.db.prepare('UPDATE course_website_assets SET object_key=? WHERE asset_id=?').run(originalKey,assetId);
+ assert.equal((await f.send('/api/academy/course-websites/asset',{activityKey:f.scopes.courseA,assetId},'studentA')).status,404);
  const a=ok(await f.send('get',{activityKey:f.scopes.courseA})),b=ok(await f.send('get',{activityKey:f.scopes.courseB}));b.document.home.imageId=assetId;assert.equal((await save(f,b)).status,400);a.document.home.imageId=assetId;a.revision=ok(await save(f,a)).revision;await publish(f,a);
  assert.deepEqual(ok(await f.send('/api/academy/course-websites/asset',{activityKey:a.activityKey,assetId},'studentA')),bytes);
  assert.equal((await f.send('/api/academy/course-websites/asset',{activityKey:f.scopes.courseB,assetId},'studentB')).status,404);

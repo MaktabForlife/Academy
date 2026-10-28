@@ -1,3 +1,9 @@
+# V107.112 publication repair — 28 October 2026
+
+- V107.111 was deployed and its card/reader public assets verified. Native revised imports then exposed an existing duplicate-image object-key constraint. The failure is reproduced by a synthetic regression and fixed using immutable per-attachment references that resolve shared bytes, including compatibility with existing published keys. No schema, user permissions or student records change.
+- The user explicitly authorised deployment when ready. Release the repair as V107.112, preserving the deployed V107.111 work, then finish native Admin review/publication of all nine revised source-text editions. The private packages are uploaded, contain 91 lessons and images only, and have zero PDF/recording bytes. Their frozen manifest is unchanged.
+- Remove temporary image error diagnostics before the final repair release. Keep media drafts private, preserve saved completion dates, and use minimal targeted live checks.
+
 # Revised publication approval and shared media — 28 October 2026
 
 - The human answered the revised upload/publication question: PDFs and recordings are being attached as Lesson media; websites must link to those existing files so the Academy has one active copy. They explicitly authorised going ahead with the rest. Upload/publish only the nine revised text-and-image packages (91 lessons), with zero PDF or recording bytes. This resolves the earlier revised-payload approval hold only within that clarified scope.

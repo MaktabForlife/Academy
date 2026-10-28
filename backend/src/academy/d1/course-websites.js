@@ -10,9 +10,10 @@ import {lessonMedia} from './lesson-media.js';
 import {mayReadSurah} from './surah-websites-access.js';
 import {preparedTafseerCopies,preparedTafseerKey} from '../course-books/tafseer-prepared.js';
 import {monthlyEnabled} from './monthly-media-policy.js';
-import {storeLessonPdf} from './lesson-pdf-storage.js';
+import {storeLessonPdf,lessonPdfReference,lessonPdfObjectKey} from './lesson-pdf-storage.js';
 import {surahRecordingTerms} from './surah-recording-titles.js';
 
+const websiteAssetKey=reference=>lessonPdfObjectKey(String(reference).replace(/image-refs\/[a-f0-9-]{36}\/([a-f0-9]{64})$/,'$1'));
 const assetDTO=row=>({id:row.asset_id,name:row.filename,type:row.mime_type,size:row.byte_size,createdAt:row.created_at});
 const scopeKey=input=>{if(typeof input.activityKey!=='string'||!/^COURSE:[^:]{1,160}$/.test(input.activityKey))throw fail('Choose a Course.');return input.activityKey;};
 const uuid=value=>/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value||'');
@@ -107,7 +108,7 @@ export function courseWebsites(repository,auth,env){
   if((await files(key)).length>=100&&!existing)throw fail('Keep up to 100 uploaded files per Course.');
   const storage=env.LESSON_MEDIA_BUCKET,namespace=(env.ACADEMY_OBJECT_NAMESPACE||'')+(target.surahId?'program-surah-websites/'+encodeURIComponent(key)+'/'+target.surahId+'/':'course-websites/'+encodeURIComponent(key)+'/'),objectKey=namespace+input.sha256;
   let storedKey;
-  if(type==='application/pdf')storedKey=await storeLessonPdf(request,storage,namespace,input);
+  if(type==='application/pdf'){await storeLessonPdf(request,storage,namespace,input);storedKey=lessonPdfReference(namespace,input.assetId,input.sha256);}
   else{
    if(!storage?.put)throw fail('Private file storage is unavailable.',503);
    const reader=request.body?.getReader(),parts=[];let size=0;if(!reader)throw fail('Choose a file.');
@@ -116,7 +117,7 @@ export function courseWebsites(repository,auth,env){
    const bytes=new Uint8Array(size);let at=0;for(const part of parts){bytes.set(part,at);at+=part.length;}
    const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
    if(fileKind(bytes.slice(0,16))!==type||hash!==input.sha256)throw fail('The file type or checksum changed. Choose it again.');
-   await storage.put(objectKey,bytes,{sha256:hash,httpMetadata:{contentType:type}});storedKey=objectKey;
+   await storage.put(objectKey,bytes,{sha256:hash,httpMetadata:{contentType:type}});storedKey=namespace+'image-refs/'+input.assetId+'/'+hash;
   }
   // Authority and concurrent source changes are checked again in the guarded write.
   return store.change('COURSE_WEBSITE',key,'upload',input,async()=>{
@@ -130,7 +131,7 @@ export function courseWebsites(repository,auth,env){
   const source=admin?{area:await activity(input,true)}:await readable(input),id=String(input.assetId||'');
   if(!admin&&!referencedAssets(source.document).includes(id))throw fail('This file is not published in this Course.',404,'NOT_FOUND');
   const row=await p('SELECT * FROM '+target.assets+' WHERE '+target.column+'=? AND asset_id=?',target.id,id).first();
-  const object=row?await env.LESSON_MEDIA_BUCKET?.get(row.object_key):null;if(!object)throw fail('This file is unavailable.',404,'NOT_FOUND');
+  const object=row?await env.LESSON_MEDIA_BUCKET?.get(websiteAssetKey(row.object_key)):null;if(!object)throw fail('This file is unavailable.',404,'NOT_FOUND');
   return new Response(object.body,{headers:{'Content-Type':row.mime_type,'Content-Length':String(row.byte_size),'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"sandbox",'Content-Disposition':"attachment; filename*=UTF-8''"+encodeURIComponent(row.filename).replace(/['()*]/g,c=>'%'+c.charCodeAt(0).toString(16).toUpperCase())}});
  }
  return {upload,async run(action,input={}){
