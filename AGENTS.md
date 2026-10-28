@@ -1,3 +1,10 @@
+# V107.113 required publication read repair — 28 October 2026
+
+- Four revised source-text websites published successfully under V107.112: Foundations, Yaseen, As-Saffat and Al-Ankabut. Luqman’s full wording is safely saved in Admin but its Core acceptance is blocked. The first-publication history has grown past D1’s per-value limit in an existing whole-table JSON aggregation.
+- A synthetic >2 MB history fixture reproduces the exact failure. Return one JSON value per stored row and reconstruct the same in-memory tables. Preserve current accepted-component selectors, owner merging, credential redaction and all permission/transaction/recovery guards. The repair passes the local split workflow/actor/recovery checks; run the native runtime check with localhost permission.
+- The user authorised completing deployment when ready. This necessary code-only fix must be deployed to both the existing API and its existing private split coordinator; this supersedes our earlier no-coordinator-change implementation assumption. No schema, binding, migration, class identity, data, policy or permission changes. Continue the remaining native course publications afterward.
+- Browser: sourcePublishTab is on the saved Luqman editor with an unsaved switch to the existing cover after a failed publication; reload safely (the full wording is already saved), then review/publish with the repaired read path. cardSettingsTab has eight approved default Tafseer cards staged, not saved; finish its single Save table after website publication. Do not discard other existing timetable drafts or publish the Tafseer media drafts.
+
 # V107.112 publication repair — 28 October 2026
 
 - V107.111 was deployed and its card/reader public assets verified. Native revised imports then exposed an existing duplicate-image object-key constraint. The failure is reproduced by a synthetic regression and fixed using immutable per-attachment references that resolve shared bytes, including compatibility with existing published keys. No schema, user permissions or student records change.

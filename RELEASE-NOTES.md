@@ -1,3 +1,7 @@
+# V107.113 — Publish larger course libraries
+
+Read publication history as separate database rows instead of aggregating an entire table into one JSON value. This prevents D1’s per-value limit from blocking publication as full course wording accumulates. Preserve accepted-head selection, owner merging, credential masking, actor revalidation, transaction fences and recovery. Deploy the same small read-path fix in the existing API and private split coordinator; no schema or binding change.
+
 # V107.112 — Re-import existing course images
 
 Fix revised course imports when their cover image is already stored. Each uploaded attachment retains an immutable scoped reference while sharing its stored bytes. Existing published assets still resolve, and no schema or permission change is required. Includes the V107.111 source wording, shared Lesson media and Admin card style/text controls.

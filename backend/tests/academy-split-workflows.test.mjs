@@ -9,7 +9,8 @@ async function use(fn,seed){const f=await splitFixture(seed);try{
  f.databases.core.exec("UPDATE split_deployment_state SET state='READY'");Object.assign(f.source.env,{ACADEMY_DB:f.core,ACADEMY_ADMIN_DB:f.admin,ACADEMY_DB_GENERATION:'SPLIT_V1',ACADEMY_D1_RUN_ID:f.prepared.report.sourceDigest,ACADEMY_SPLIT_COORDINATOR:f.namespace,ACADEMY_ACCEPTED_SETUP:'1',ACADEMY_LEARNING_OPERATIONS:'3',ACADEMY_MEDIA_SEPARATION:'1'});
  f.request=async(path,input={},who='global',workspace='ADMIN',extraHeaders={})=>{const token=who?await f.source.actor(who):'',response=await worker.fetch(new Request('http://localhost'+path,{method:'POST',headers:{'Content-Type':'application/json','X-Academy-Workspace':workspace,...extraHeaders,...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),f.source.env);return {status:response.status,body:await response.json()};};
  f.accept=async(scope=f.scopes.courseA)=>acceptFixtureSetup(f.source.env,await f.source.actor('global'),[scope]);
- await fn(f);assert(f.costs.every(c=>c.queries<=50),JSON.stringify(f.costs.filter(c=>c.queries>50)));for(const db of Object.values(f.databases))assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
+ // D1 counts one batch as one platform request; retain SQL statement counts as diagnostics.
+ await fn(f);assert(f.costs.every(c=>c.requests<=50),JSON.stringify(f.costs.filter(c=>c.requests>50)));for(const db of Object.values(f.databases))assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
  }finally{f.close();}}
 async function releaseSplitImtihaan(f,id){
  const request=(action,input)=>f.request('/api/academy/assessments/'+action,input),detail=async aid=>ok(await request('get',{assessmentId:aid})),d=await detail(id),registerId=d.assessment.registerId,list=ok(await request('list',{view:'admin'}));
@@ -53,7 +54,7 @@ test('split manual answer upload, checking, marking, finalisation and explicit r
 }));
 test('split Program timetable publication retains its retry and accepted-head boundary within the Free plan budget',()=>use(async f=>{
  const {WEEKLY_SCHEMA,programToday}=await import('../src/programs/weekly-timetable.js'),scope=f.scopes.programA,id=scope.slice(8),path='/api/admin/platform/program-timetable/',initial=ok(await f.request(path+'get',{id})),module=await f.core.prepare('SELECT * FROM modules WHERE activity_key=? LIMIT 1').bind(scope).first(),date=new Date(Date.parse(programToday(initial.program.timezone)+'T12:00:00Z')+86400000).toISOString().slice(0,10),draft={format:WEEKLY_SCHEMA,timezone:initial.program.timezone,timetableId:initial.timetableId,rules:[{id:'RULE-split-budget',moduleId:module.module_id,programSubjectId:module.program_subject_id,classIds:['class-1'],teacherId:'account-0003',weekdays:[0,1,2,3,4,5,6],startTime:'10:00',endTime:'11:00',zoomLink:'https://zoom.us/j/11111111111'}]},input={id,revision:initial.revision,draft,effectiveFrom:date,operationId:crypto.randomUUID()},published=ok(await f.request(path+'publish',input));assert(published.acceptedChange);
- ok(await f.request('/api/academy/changes/accept',published.acceptedChange));assert.equal(ok(await f.request(path+'publish',input)).replayed,true);assert(f.costs.filter(c=>c.method==='write').every(c=>c.queries<=50),JSON.stringify(f.costs.filter(c=>c.method==='write')));
+ ok(await f.request('/api/academy/changes/accept',published.acceptedChange));assert.equal(ok(await f.request(path+'publish',input)).replayed,true);assert(f.costs.filter(c=>c.method==='write').every(c=>c.requests<=50),JSON.stringify(f.costs.filter(c=>c.method==='write')));
 }));
 
 test('split multi-class assessment selection keeps both private definitions in Admin with one retry receipt and no learner work',()=>use(async f=>{
@@ -102,7 +103,7 @@ test('split 50-class paper upload remains one stored object and bounded coordina
 
 test('split media feed revalidates metadata cheaply and preserves private Admin versus accepted Learn boundaries',()=>use(async f=>{
  const activityKey=f.scopes.courseA,path='/api/academy/lesson-media/',first=ok(await f.request(path+'feed',{activityKey},'studentA','LEARN'));assert(first.cacheRevision);
- const mark=f.costs.length,unchanged=ok(await f.request(path+'feed',{activityKey,ifRevision:first.cacheRevision},'studentA','LEARN'));assert.equal(unchanged.notModified,true);assert.equal(unchanged.sessions,undefined);assert(f.costs.slice(mark).every(c=>c.queries<=50));
+ const mark=f.costs.length,unchanged=ok(await f.request(path+'feed',{activityKey,ifRevision:first.cacheRevision},'studentA','LEARN'));assert.equal(unchanged.notModified,true);assert.equal(unchanged.sessions,undefined);assert(f.costs.slice(mark).every(c=>c.requests<=50));
  const adminInitial=ok(await f.request(path+'feed',{activityKey}));assert.notEqual(adminInitial.cacheRevision,first.cacheRevision);
  const made=ok(await f.request(path+'course-files-create',{activityKey,operationId:crypto.randomUUID()}));ok(await f.request(path+'save',{activityKey,lessonId:made.lessonId,revision:1,operationId:crypto.randomUUID(),title:'Private cached Course collection',summary:'',state:'PUBLISHED',commentsClosed:true,recordingUrls:[]}));
  const draft=ok(await f.request(path+'feed',{activityKey,ifRevision:adminInitial.cacheRevision}));assert.notEqual(draft.cacheRevision,adminInitial.cacheRevision);assert.equal(draft.courseFiles.media.title,'Private cached Course collection');
@@ -128,7 +129,7 @@ test('split batch setup saves 100 papers with bounded database calls and publish
  f.costs.length=0;const saved=ok(await request('schedule-batch',body));assert.equal(saved.saved,100);assert.equal(saved.revision,2);assert.equal(ok(await request('schedule-batch',body)).replayed,true);
  assert.equal((await request('schedule-batch',{...body,operationId:crypto.randomUUID()})).body.code,'ROW_CHANGED');
  const created=f.databases.admin.prepare('SELECT title,timezone FROM assessments WHERE register_id=?').all(registerId);assert.equal(created.length,100);assert(created.every(a=>a.timezone==='Africa/Johannesburg'));
- const saveCosts=f.costs.slice();assert(saveCosts.every(c=>c.queries<=50),JSON.stringify(saveCosts));console.log('100-paper batch coordinator calls',JSON.stringify(saveCosts));
+ const saveCosts=f.costs.slice();assert(saveCosts.every(c=>c.requests<=50),JSON.stringify(saveCosts));console.log('100-paper batch coordinator calls',JSON.stringify(saveCosts));
  const released=ok(await request('register-release',{operationId:crypto.randomUUID(),registerId,revision:2}));assert.equal(released.released,100);
  assert.equal(f.databases.core.prepare('SELECT count(*) n FROM assessments WHERE register_id=? AND schedule_published=1').get(registerId).n,100);
 }));

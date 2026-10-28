@@ -19,9 +19,15 @@ export function readReferences(sql){
  return {found,local,references,list};
 }
 const prefix=(sql,ctes)=>{const list=tokens(sql);if(list[0]?.text.toUpperCase()!=='WITH')return 'WITH '+ctes+' '+sql;const end=(list[1]?.text.toUpperCase()==='RECURSIVE'?list[1]:list[0]).end;return sql.slice(0,end)+' '+ctes+', '+sql.slice(end).trimStart();};
+function chunkSource(chunks){let selects=chunks.map(()=> 'SELECT value FROM json_each(?)');while(selects.length>4){const groups=[];for(let i=0;i<selects.length;i+=4)groups.push('SELECT value FROM ('+selects.slice(i,i+4).join(' UNION ALL ')+')');selects=groups;}return '('+selects.join(' UNION ALL ')+')';}
+function tableChunks(rows){
+ const chunks=[];let parts=[],bytes=2;
+ for(const row of rows){const json=JSON.stringify(row),length=new TextEncoder().encode(json).length+1;if(parts.length&&bytes+length>1400000){chunks.push('['+parts.join(',')+']');parts=[];bytes=2;}parts.push(json);bytes+=length;}
+ if(parts.length||!chunks.length)chunks.push('['+parts.join(',')+']');return chunks;
+}
 export function rewriteRead(original,params,data){
  const bound=boundSQL(indexedSQL(original),params),sql=bound.sql,{found,local,references,list}=readReferences(sql),names=[...found].filter(n=>Object.hasOwn(data,n));if(!names.length)return bound;
- const selected=new Set(names),joined=names.length>1||names.some(n=>references.filter(r=>r.name===n).length>1),ctes=names.map(n=>{const cols=sourceLayout[n]?.columns||storeColumns.core[n]||computed[n]||emptyShapes[n];return '__split_read_'+n+' AS '+(joined?'MATERIALIZED ':'')+'(SELECT '+cols.map(c=>"json_extract(value,'$."+c+"')"+(setupSchema[n]?.nocase?.includes(c)?' COLLATE NOCASE':'')+' AS "'+c+'"').join(',')+' FROM json_each(?))';});
+ const values=[],selected=new Set(names),joined=names.length>1||names.some(n=>references.filter(r=>r.name===n).length>1),ctes=names.map(n=>{const cols=sourceLayout[n]?.columns||storeColumns.core[n]||computed[n]||emptyShapes[n],chunks=tableChunks(data[n]);values.push(...chunks);const rows=chunks.length===1?'json_each(?)':chunkSource(chunks);return '__split_read_'+n+' AS '+(joined?'MATERIALIZED ':'')+'(SELECT '+cols.map(c=>"json_extract(value,'$."+c+"')"+(setupSchema[n]?.nocase?.includes(c)?' COLLATE NOCASE':'')+' AS "'+c+'"').join(',')+' FROM '+rows+')';});
  const edits=references.filter(r=>selected.has(r.name)).map(r=>({...r,text:'__split_read_'+r.name}));
  for(let i=0;i<list.length;i++){
   const n=identifier(list[i]);if(n==='main'&&list[i+1]?.text==='.'&&selected.has(identifier(list[i+2]))&&list[i+3]?.text==='.'){
@@ -29,20 +35,24 @@ export function rewriteRead(original,params,data){
   }else if(selected.has(n)&&!local.has(n)&&list[i+1]?.text==='.'&&list[i-1]?.text!=='.')edits.push({start:list[i].start,end:list[i].end,text:'__split_read_'+n});
  }
  let result='',at=0;for(const edit of edits.sort((a,b)=>a.start-b.start||b.end-a.end)){if(edit.start<at)continue;result+=sql.slice(at,edit.start)+edit.text;at=edit.end;}result+=sql.slice(at);
- return {sql:prefix(result,ctes.join(',')),params:[...names.map(n=>JSON.stringify(data[n])),...bound.params]};
+ return {sql:prefix(result,ctes.join(',')),params:[...values,...bound.params]};
 }
 export function federationContext({core,admin,owner='admin'}){
  const sources={core,admin};
  async function capture(store,names,accepted=null){
   names=[...new Set(names)].filter(n=>storeColumns[store][n]||store==='core'&&(computed[n]||emptyShapes[n]));if(!names.length)return {};
-  const params=[];
   const parts=names.map(n=>{const cols=storeColumns[store][n]||computed[n]||emptyShapes[n],row=n==='account_credentials'?"json_object('account_id',account_id,'pin_hash',CASE WHEN length(trim(pin_hash))>0 THEN 'VERIFIED' ELSE '' END,'pin_setup',pin_setup,'credential_epoch',credential_epoch)":jsonRowSQL(cols);
    // Core ignores Admin-owned settings except the counters that combine both
    // owners. Keep their exact, case-sensitive prefix and use the existing PK.
-   let where=store==='admin'&&owner==='core'&&n==='academy_settings'?" WHERE setting_key>='AcademyWrite:' AND setting_key<'AcademyWrite;'":'';
+   const params=[];let where=store==='admin'&&owner==='core'&&n==='academy_settings'?" WHERE setting_key>='AcademyWrite:' AND setting_key<'AcademyWrite;'":'';
    if(accepted&&n==='setup_components'){where=' WHERE component_id IN(SELECT value FROM json_each(?))';params.push(JSON.stringify(accepted.ids));}
-   return '('+literal(n)+',(SELECT json_group_array('+row+') FROM '+n+where+'))';});
-  const result=await sources[store].prepare('WITH split_capture(name,data) AS(VALUES '+parts.join(',')+') SELECT name,data FROM split_capture').bind(...params).all();return Object.fromEntries(result.results.map(r=>[r.name,JSON.parse(r.data)]));
+   // Keep one result value per stored row. Aggregating publication history
+   // into one JSON string can exceed D1's 2 MB value limit as courses grow.
+   return {sql:'SELECT '+literal(n)+' name,'+row+' data FROM '+n+where,params};});
+  const statements=parts.map(part=>sources[store].prepare(part.sql).bind(...part.params));
+  const results=statements.length===1?[await statements[0].all()]:await sources[store].batch(statements),captured=Object.fromEntries(names.map(n=>[n,[]]));
+  for(const result of results)for(const row of result.results)captured[row.name].push(JSON.parse(row.data));
+  return captured;
  }
  async function acceptedSelection(sqls,scopes){
   if(owner!=='admin'||!scopes||extraComponentRead(sqls,scopes))return null;
