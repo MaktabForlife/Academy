@@ -2,7 +2,32 @@
 
 Local implementation on `feature/academy-website-studio`, based on V107.120 (`4cbb787c`). Deployment, pushing, hosted migrations, resource creation and live content changes require the human's approval. Release markers and active deployment configuration remain unchanged. Keep live checks small: use the saved packages and synthetic local fixtures first.
 
-## Infrastructure
+## Revised target and retirement boundary — 28 October 2026
+
+The subsequent discussion expands the desired scope from an editor to an independent Tafseer and Courses learning platform. The current code is the Studio prototype; the broader migration is not implemented or deployed. The prototype's same-account/Core-only infrastructure below is not a final commitment for the larger platform.
+
+| Owner | Responsibilities |
+| --- | --- |
+| Academy | Master accounts, account status and admission; timetable authoring; master programme/course Zoom links. |
+| Website/learning platform | Tafseer and migrated paid-course content, local participation/content rights, persistent media and grants, websites, lesson-media management, journals, private session cards and joining. Public homepage editing, timetable-card presentation and public announcements also move here. |
+| Published connection | Versioned timetable facts and private effective Zoom settings; website presentation and locally owned media are combined there. Link changes and timetable corrections must trigger delivery. Routine website page views and Join checks should use the target's stored publication and current local authority. |
+| Library navigation | Academy Library remains in Academy with approved return navigation to the originating website/course/lesson; no duplicate Library store. |
+
+Persistent content access is distinct from current subscription/live-session access and staff privileges. Historic paid material and explicit grants must survive subscription expiry; Academy admission must still allow those former participants. Master-account suspension and staff revocation must remain enforceable. Retention/backups must match the material-access promise, and existing website-only Surah grants must not silently gain recording rights.
+
+### Retire Academy Learn and Teach for migrated offerings
+
+The human requested removal of these delivery screens for Tafseer and Courses. This is a retirement of the migrated offerings' Academy interface, not deletion of the shared Academy Learn/Teach system or their data.
+
+1. Identify migrated offerings by stable IDs. The scope is Tafseer and courses actually moved to the new platform, not every activity sharing a Learn/Teach component.
+2. Verify the replacement learner/staff website, access and historical rights, media/notes/journals, published timetable corrections, joining, account revocation and Library round-trip before retiring the corresponding Academy route.
+3. Replace their Learn/Teach entrances and saved destinations with verified website entry/handoff links. Keep old bookmarked URLs as scoped redirects. Preserve the existing Academy destinations for other programmes.
+4. Remove the migrated offerings' duplicated background reads, prefetches and media/session-card assembly from Academy's delivery responses. Do not remove the authoritative timetable data/export, master-user/admission information or shared permission code.
+5. Transfer media and attachment relationships using stable IDs; inventory shared files first. Retain read-only recovery sources and history until separate cleanup approval. Do not delete users, paid-month records, grants, files, notes or journals merely because their old screen is removed.
+
+No product-code removal, live migration, resource creation or deployment has been performed for this revised scope. The existing local validation below proves the narrower Studio prototype only; it does not validate this future cutover.
+
+## Infrastructure of the current Studio prototype
 
 | Component | Requirement |
 | --- | --- |
