@@ -3,6 +3,7 @@ const prefix='AcademySnapshot:',literal=value=>"'"+value.replaceAll("'","''")+"'
 // current facts can change a published dashboard without accepting a new head.
 const rules={
  program_monthly_media_policies:{dataset:'authority',global:true},
+ program_surah_grants:{dataset:'authority',account:'account_id'},
  program_monthly_subscriptions:{dataset:'authority',account:'account_id'},
  activities:{dataset:'audience',columns:['active','lifecycle','website_visible']},
  accounts:{dataset:'audience',columns:['active','display_name']},

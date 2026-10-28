@@ -1,4 +1,5 @@
 import {calendarFacts,holidaySettings} from './published-facts-cache.js';
+import {surahRightsSQL} from './surah-grants.js';
 import {monthlyRightsSQL} from './monthly-media-policy.js';
 import {personalLinksEstablished} from './personal-links.js';
 import {publishedSettings} from './published-settings.js';
@@ -77,6 +78,7 @@ export function academyD1Repository(env) {
     const [accounts,activities,roles,subscriptions]=results.map(r=>r.results),account=accounts[0];
     if(!account)return null;
     const monthlyMedia=env.ACADEMY_MONTHLY_SUBSCRIPTIONS==='1'?(await prepare(monthlyRightsSQL('?'),account.account_id).all()).results:[];
+    const surahGrants=env.ACADEMY_SURAH_GRANTS==='1'?(await prepare(surahRightsSQL('?'),account.account_id).all()).results:[];
     const contexts=[];
     if(account.global_admin)contexts.push({scope:'PLATFORM',courseId:'',courseName:'M4L Platform',role:'GLOBAL_ADMIN'});
     for(const activity of activities.filter(a=>a.kind==='PROGRAM')) {
@@ -92,7 +94,7 @@ export function academyD1Repository(env) {
         contexts.push({scope:'GLOBAL',courseId:activity.activity_id,courseName:activity.name,role,activityKind:'COURSE'});
     }
     for(const grant of JSON.parse(account.substitute_grants||'[]')){const area=activities.find(a=>key(a.activity_key)===key(grant.activityKey));if(area)contexts.push({scope:'SUBSTITUTE',courseId:grant.id,courseName:area.name,role:'SUBSTITUTE',activityKey:area.activity_key});}
-    if(!account.global_admin)for(const activity of activities.filter(a=>a.kind==='PROGRAM'&&monthlyMedia.some(g=>key(g.activity_key)===key(a.activity_key)))){
+    if(!account.global_admin)for(const activity of activities.filter(a=>a.kind==='PROGRAM'&&[...monthlyMedia,...surahGrants].some(g=>key(g.activity_key)===key(a.activity_key)))){
       if(!contexts.some(c=>c.scope==='COURSE'&&key(c.courseId)===key(activity.activity_id)&&c.role==='STUDENT'))contexts.push({scope:'COURSE',courseId:activity.activity_id,courseName:activity.name,role:'MEDIA_READER',mediaOnly:true});
     }
     const rank=role=>role==='PROGRAM_ADMIN'?1:authorityRank(role);
@@ -101,7 +103,7 @@ export function academyD1Repository(env) {
       contexts.push({scope:'GLOBAL',courseId:'',courseName:'Global Subjects',role:'STUDENT'});
     const myLinksAvailable=env.ACADEMY_MEDIA_SEPARATION==='1'&&Boolean(account.global_admin||roles.some(r=>['TEACHER','PROGRAM_ADMIN'].includes(r.role))||!contexts.length&&await personalLinksEstablished(env,account.account_id));
     if(myLinksAvailable&&!contexts.length)contexts.push({scope:'OWN_LIBRARY',courseId:'',courseName:'My links',role:'LIBRARY_OWNER'});
-    return {account,activities,roles,subscriptions,contexts,myLinksAvailable,monthlyMedia,monthlyMediaEnabled:env.ACADEMY_MONTHLY_SUBSCRIPTIONS==='1'};
+    return {account,activities,roles,subscriptions,contexts,myLinksAvailable,monthlyMedia,monthlyMediaEnabled:env.ACADEMY_MONTHLY_SUBSCRIPTIONS==='1',surahGrants,surahGrantsEnabled:env.ACADEMY_SURAH_GRANTS==='1'};
   }
   function audit(actor,target,action,fields,conditional=false) {
     return prepare(`INSERT INTO audit_events(event_id,occurred_at,actor_account_id,authority,scope_key,action,record_kind,record_id,changed_fields_json)
@@ -112,7 +114,7 @@ export function academyD1Repository(env) {
     privateSnapshots,recordingEnv:{ACADEMY_OBJECT_NAMESPACE:env.ACADEMY_OBJECT_NAMESPACE},
     bindActor:auth=>client?.bindActor(auth),
     authoringRepository(){return client?{...this,db:client.admin}:this;},
-    db,coreDb:db,adminDb:split?env.ACADEMY_ADMIN_DB.withSession('first-primary'):null,setup:{enabled:env.ACADEMY_ACCEPTED_SETUP==='1'},features:{weeklyAbsentees:env.ACADEMY_WEEKLY_ABSENTEES==='1',monthlySubscriptions:env.ACADEMY_MONTHLY_SUBSCRIPTIONS==='1',nativeAttendance:env.ACADEMY_LEARNING_OPERATIONS==='3',mediaSeparation:env.ACADEMY_MEDIA_SEPARATION==='1',splitDatabases:split},
+    db,coreDb:db,adminDb:split?env.ACADEMY_ADMIN_DB.withSession('first-primary'):null,setup:{enabled:env.ACADEMY_ACCEPTED_SETUP==='1'},features:{surahGrants:env.ACADEMY_SURAH_GRANTS==='1',weeklyAbsentees:env.ACADEMY_WEEKLY_ABSENTEES==='1',monthlySubscriptions:env.ACADEMY_MONTHLY_SUBSCRIPTIONS==='1',nativeAttendance:env.ACADEMY_LEARNING_OPERATIONS==='3',mediaSeparation:env.ACADEMY_MEDIA_SEPARATION==='1',splitDatabases:split},
     ownershipForNewActivity:activity=>newActivityOwnership(activity,env),
     subscriptionSource,
     publicAccount,
@@ -203,7 +205,7 @@ export function academyD1Repository(env) {
         const {cache_head,cache_core,cache_schema,cache_revisions,...account}=current;
         return {enabled:cache_schema==='1',core:cache_core,account,revision:JSON.stringify([cache_head,cache_revisions,account.global_admin,account.credential_epoch,account.substitute_grants||'[]',env.ACADEMY_MEDIA_SEPARATION])};
       };
-      return permissionState({bucket:env.LESSON_MEDIA_BUCKET,namespace:[env.ENVIRONMENT,env.ACADEMY_D1_RUN_ID,env.ACADEMY_MONTHLY_SUBSCRIPTIONS==='1'?'MONTHLY_V1':'DEFAULT'],accountId,gate,load,now:now.getTime()});
+      return permissionState({bucket:env.LESSON_MEDIA_BUCKET,namespace:[env.ENVIRONMENT,env.ACADEMY_D1_RUN_ID,env.ACADEMY_MONTHLY_SUBSCRIPTIONS==='1'?'MONTHLY_V1':'DEFAULT',env.ACADEMY_SURAH_GRANTS==='1'?'SURAH_GRANTS_V1':'NO_SURAH_GRANTS'],accountId,gate,load,now:now.getTime()});
     },
     async revoke(sid,accountId){await prepare('UPDATE account_sessions SET revoked_at=? WHERE session_id=? AND account_id=?',new Date().toISOString(),sid,accountId).run();},
     async setCredential(state,newHash,action,actor=state.account.account_id) {

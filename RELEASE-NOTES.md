@@ -1,3 +1,9 @@
+# V107.116 — Additional Surah access and published source caches
+
+In Tafseer → Participants, select Additional Surah access beside a student, choose individual Surahs and Save. Paid months remain the normal rule and their payment history stays unchanged. The same editor is available in Monthly subscriptions. Only actual Global Admin and the Program’s own Admin can manage grants. Changes are audited, revision-checked and safely retryable. Grants apply to published Surah websites and their website attachments, never recording paid-month rights. Revocation invalidates that student’s cached permissions immediately; session, active-account, publication and withdrawal checks remain current.
+
+Cache published holiday/calendar facts (including empty results), Course/Surah website documents and attachment lists until their relevant accepted source or live availability changes. Keep Admin drafts fresh and final audience/permission checks live. Preserve all V107.115 publication fixes. Adds one empty Core operational grant table and a backwards-compatible coordinator authority proof; no student grants or monthly-policy activation are part of deployment.
+
 # V107.115 — Read only current publication components
 
 Restrict the generated current-head component read to that head before capturing immutable bodies. Archived history remains intact and other unscoped reads retain their original meaning. This keeps the final course acceptance read below platform request-size limits as the library grows. Includes bounded batch admission, with existing actor revalidation, pinned readers and recovery unchanged. No schema, bindings or access changes.

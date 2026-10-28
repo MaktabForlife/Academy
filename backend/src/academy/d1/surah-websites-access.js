@@ -10,6 +10,7 @@ export function mayReadSurah(auth,row){
  // Website reading follows current Admin authority even in personal Learn/Teach.
  if(hasAdminAuthority(auth,row.activity_key))return true;
  if(auth.state.roles.some(r=>same(r.activity_key,row.activity_key)&&['PROGRAM_ADMIN','TEACHER'].includes(r.role)))return true;
+ if((actualState(auth).surahGrants||[]).some(r=>same(r.activity_key,row.activity_key)&&r.surah_id===(row.surah_id||row.surahId)))return true;
  return Boolean(row.monthly_enabled&&(actualState(auth).monthlyMedia||[]).some(r=>same(r.activity_key,row.activity_key)&&r.lesson_month===row.completion_date.slice(0,7)));
 }
 
@@ -32,7 +33,8 @@ export async function surahWebsiteLinks(repository,auth){
  if(!auth||!monthlyEnabled(repository))return empty;
  const state=actualState(auth),global=Boolean(state.account.global_admin),keys=[...new Set([
   ...state.roles.filter(r=>['PROGRAM_ADMIN','TEACHER'].includes(r.role)).map(r=>r.activity_key),
-  ...(state.monthlyMedia||[]).map(r=>r.activity_key)
+  ...(state.monthlyMedia||[]).map(r=>r.activity_key),
+  ...(state.surahGrants||[]).map(r=>r.activity_key)
  ])];
  if(!global&&!keys.length)return empty;
  const db=repository.coreDb||repository.db,adminKeys=[...new Set(state.roles.filter(r=>r.role==='PROGRAM_ADMIN').map(r=>r.activity_key))];

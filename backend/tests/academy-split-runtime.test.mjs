@@ -2,10 +2,12 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {build} from 'esbuild';import {Miniflare,convertV4MiniflareOptions} from 'miniflare';
 import {splitFixture} from './fixtures/academy-split-fixture.mjs';
 import {importSQL} from '../tools/academy-split/artifact.mjs';
-import {createHash} from 'node:crypto';
+import {createHash} from 'node:crypto';import {readFileSync} from 'node:fs';
 import {seedReadHistory} from './fixtures/academy-read-history-fixture.mjs';
 test('the actual Workers runtime coordinates both D1 bindings through private Durable Object RPC',async()=>{
  const f=await splitFixture();let runtime;try{
+ for(const name of ['0006_program_monthly_subscriptions.sql','0008_program_surah_grants.sql'])f.databases.core.exec(readFileSync(new URL('../migrations/academy-core/'+name,import.meta.url),'utf8'));
+ for(const db of Object.values(f.databases))db.prepare('UPDATE activities SET name=? WHERE activity_key=?').run('Tafseer',f.scopes.programA);
  seedReadHistory(f,2);
  const historyBatch=f.databases.core.prepare('SELECT batch_id FROM setup_batches LIMIT 1').get().batch_id;
  const largeHistory=JSON.stringify([{document_json:'Synthetic archived course wording. '.repeat(36000)}]);
@@ -13,7 +15,7 @@ test('the actual Workers runtime coordinates both D1 bindings through private Du
  f.databases.core.exec("UPDATE split_deployment_state SET state='READY'");
  const apiPath=new URL('../src/academy-runtime.js',import.meta.url).pathname,coordinatorPath=new URL('../src/academy-split-coordinator.js',import.meta.url).pathname;
  const api=await build({stdin:{contents:`import api from ${JSON.stringify(apiPath)};export default{fetch:(r,e,c)=>api.fetch(r,{...e,AUTH_LOGIN_RATE_LIMITER:{limit:async()=>({success:true})}},c)};`,resolveDir:process.cwd()},bundle:true,format:'esm',platform:'browser',write:false,external:['cloudflare:workers']}),coordinator=await build({entryPoints:[coordinatorPath],bundle:true,format:'esm',platform:'browser',write:false,external:['cloudflare:workers']});
- const bindings={...Object.fromEntries(Object.entries(f.source.env).filter(([,v])=>typeof v==='string')),ACADEMY_DB_GENERATION:'SPLIT_V1',ACADEMY_D1_RUN_ID:f.prepared.report.sourceDigest,ACADEMY_ACCEPTED_SETUP:'1',ACADEMY_LEARNING_OPERATIONS:'3',ACADEMY_MEDIA_SEPARATION:'1'},d1Databases={ACADEMY_DB:'split-runtime-core',ACADEMY_ADMIN_DB:'split-runtime-admin'},durableObjects={ACADEMY_SPLIT_COORDINATOR:{className:'AcademySplitCoordinator',scriptName:'coordinator',useSQLite:true}};
+ const bindings={...Object.fromEntries(Object.entries(f.source.env).filter(([,v])=>typeof v==='string')),ACADEMY_MONTHLY_SUBSCRIPTIONS:'1',ACADEMY_SURAH_GRANTS:'1',ACADEMY_DB_GENERATION:'SPLIT_V1',ACADEMY_D1_RUN_ID:f.prepared.report.sourceDigest,ACADEMY_ACCEPTED_SETUP:'1',ACADEMY_LEARNING_OPERATIONS:'3',ACADEMY_MEDIA_SEPARATION:'1'},d1Databases={ACADEMY_DB:'split-runtime-core',ACADEMY_ADMIN_DB:'split-runtime-admin'},durableObjects={ACADEMY_SPLIT_COORDINATOR:{className:'AcademySplitCoordinator',scriptName:'coordinator',useSQLite:true}};
  runtime=new Miniflare(convertV4MiniflareOptions({workers:[{name:'api',modules:true,script:api.outputFiles[0].text,compatibilityDate:'2026-09-28',compatibilityFlags:['nodejs_compat'],bindings,d1Databases,durableObjects,r2Buckets:{MEDIA_BUCKET:'split-runtime-public',LESSON_MEDIA_BUCKET:'split-runtime-private',ASSESSMENT_BUCKET:'split-runtime-assessments'}},{name:'coordinator',modules:true,script:coordinator.outputFiles[0].text,compatibilityDate:'2026-09-28',compatibilityFlags:['nodejs_compat'],d1Databases,durableObjects}]}));
  for(const owner of ['core','admin']){
   const db=f.databases[owner],target=await runtime.getD1Database(owner==='core'?'ACADEMY_DB':'ACADEMY_ADMIN_DB','api'),objects=db.prepare("SELECT type,sql FROM sqlite_schema WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY rowid").all(),schema=f.prepared.schemas[owner],list=importSQL(db,schema,{statementsOnly:true}).flatMap(sql=>sql===schema.tableSQL?objects.filter(o=>o.type==='table').map(o=>o.sql):sql===schema.afterSQL?objects.filter(o=>o.type!=='table').map(o=>o.sql):[sql]);
@@ -78,5 +80,24 @@ test('the actual Workers runtime coordinates both D1 bindings through private Du
  await request(path+'register-marks-release',{...operation(),...marking,confirm:true,releaseReports:true},token);
  assert.equal((await request(path+'report-list',{assessmentId},learner.token,'LEARN')).reports.length,1);
  assert.equal((await request(path+'list',{},learner.token,'LEARN')).assessments.find(a=>a.id===assessmentId).releasedMark,0);
+ const tafseerProgram=(await request('/api/admin/platform/programs/list',{},token)).programs.find(p=>'PROGRAM:'+p.id===f.scopes.programA);
+ const renamed=await request('/api/admin/platform/programs/save',{id:tafseerProgram.id,name:'Tafseer',status:tafseerProgram.status,revision:tafseerProgram.revision,durationYears:tafseerProgram.durationYears,timezone:tafseerProgram.timezone,operationId:crypto.randomUUID()},token);
+ await request('/api/academy/changes/accept',renamed.acceptedChange,token);
+ // Additional Surah grants cross the real D1/session/cache/private RPC boundary too.
+ const monthly='/api/admin/platform/program-monthly-subscriptions/',programKey=f.scopes.programA,surahId=crypto.randomUUID();
+ await request(monthly+'configure',{activityKey:programKey,mode:'prepare',policyRevision:0,operationId:crypto.randomUUID()},token);
+ await request(monthly+'surah-save',{activityKey:programKey,policyRevision:1,operationId:crypto.randomUUID(),entries:[{id:surahId,name:'Runtime granted Surah',completionDate:'2024-01-16',active:true,revision:0}]},token);
+ const change=async(active,revision)=>request(monthly+'surah-grants-save',{activityKey:programKey,accountId:f.actors.studentA,policyRevision:2,operationId:crypto.randomUUID(),entries:[{id:surahId,active,revision}]},token);
+ const surah={activityKey:programKey,surahId},websitePath='/api/admin/platform/course-websites/';
+ const draft=await request(websitePath+'get',surah,token),draftSaved=await request(websitePath+'save',{...surah,document:draft.document,revision:0,operationId:crypto.randomUUID()},token);
+ const surahPublished=await request(websitePath+'publish',{...surah,revision:draftSaved.revision,operationId:crypto.randomUUID()},token);
+ await request('/api/academy/changes/accept',surahPublished.acceptedChange,token);
+ const surahStudent=await request('/api/account/login',{uniqueid:'separation-studentA',pin:'1234'});
+ await change(true,0);
+ assert.equal((await request('/api/academy/course-websites/read',surah,surahStudent.token,'LEARN')).document.name,'Runtime granted Surah');
+ await request('/api/academy/course-websites/read',surah,surahStudent.token,'LEARN');
+ await change(false,1);
+ const revoked=await runtime.dispatchFetch('https://academy.test/api/academy/course-websites/read',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+surahStudent.token,'X-Academy-Workspace':'LEARN'},body:JSON.stringify(surah)});assert.equal(revoked.status,403,await revoked.text());
+ assert.equal((await core.prepare('SELECT count(*) n FROM program_monthly_subscriptions').first()).n,0);
  }finally{await runtime?.dispose();f.close();}
 });

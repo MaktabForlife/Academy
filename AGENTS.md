@@ -1,3 +1,10 @@
+# V107.116 additional Surah grants and cache release — 28 October 2026
+
+- The human explicitly authorised implementing additional Surah grants in the Tafseer participants table, testing locally and deploying this work together with all outstanding cache updates. This supersedes the historical cache deployment hold below. Preserve V107.115 and its publication fixes.
+- Paid months remain the normal rule. Additional grants apply to individual published Surah websites and their website attachments; do not change paid months, activate the monthly policy, publish private media drafts or widen recording access. Require actual Global/own-Program Admin and current sessions. Invalidate only the affected account’s cached authority on grant changes.
+- Release the additive Core grant schema, backwards-compatible coordinator, matching API and website after local tests. Keep live checks small under ../AGENTS.md: no live user login, broad scans, production fixtures or unnecessary dashboard loads.
+- After deployment, review Journal’s latest completed local build read-only. Do not deploy Journal or change its branch. The existing authorisation to send concrete review findings to Journal remains applicable.
+
 # Holiday/calendar facts cache — 28 October 2026
 
 - Work locally on `feature/academy-calendar-facts-cache`, based on V107.110 (`6071931c`), retaining all newer Tafseer changes and V107.104 weekly absentee behaviour. The user requested caching holiday/calendar facts including empty results until changed, preserving behaviour and permissions. Include the subsequently requested published Surah/Course website cache, with live permission/subscription/withdrawal gates and fresh Admin drafts. Review Journal separately without editing its branch.

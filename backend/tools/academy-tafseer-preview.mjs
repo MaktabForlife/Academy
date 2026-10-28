@@ -1,6 +1,6 @@
 // Disposable synthetic preview, loopback only. Never opens or copies a live database.
 import {createServer} from 'node:http';
-import {createReadStream} from 'node:fs';
+import {createReadStream,readFileSync} from 'node:fs';
 import {stat} from 'node:fs/promises';
 import {Readable} from 'node:stream';
 import {pipeline} from 'node:stream/promises';
@@ -13,6 +13,7 @@ const port=Number(process.env.TAFSEER_PREVIEW_PORT||4318);
 if(!Number.isInteger(port)||port<1024||port>65535)throw Error('Choose a local preview port between 1024 and 65535.');
 const origin='http://127.0.0.1:'+port,root=resolve(fileURLToPath(new URL('../../',import.meta.url))),f=await monthlyFixture();
 f.env.ALLOWED_ORIGINS=origin;
+f.db.exec(readFileSync(new URL('../migrations/academy/0043_program_surah_grants.sql',import.meta.url),'utf8'));f.env.ACADEMY_SURAH_GRANTS='1';
 f.db.prepare("UPDATE accounts SET display_name='Sample account '||substr(account_id,-4)").run();
 const admin=await f.login('0001'),student=await f.login('0002'),op=()=>crypto.randomUUID();
 const ok=result=>{if(result.status!==200)throw Error(JSON.stringify(result.body));return result.body;};

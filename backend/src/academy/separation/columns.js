@@ -1,6 +1,7 @@
 // Physical target columns; Core facts are projected into Admin reads, not copied into its master rows.
 export const storeColumns={
  "core":{
+  "program_surah_grants":["activity_key","account_id","surah_id","active","note","revision","updated_at","updated_by_account_id"],
   "program_surahs":["surah_id","activity_key","name","card_key","completion_date","active","revision","updated_at","updated_by_account_id"],
   "program_surah_website_documents":["surah_id","activity_key","document_json","schema_version","source_kind","revision","enabled","updated_at","updated_by"],
   "program_surah_website_assets":["asset_id","surah_id","activity_key","object_key","filename","mime_type","byte_size","sha256","created_at","created_by"],

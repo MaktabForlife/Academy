@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {createRequire} from 'node:module';
 import {readFileSync} from 'node:fs';
+import {grantsFixture} from './fixtures/academy-surah-grants-fixture.mjs';
 import {monthlyFixture,scope} from './fixtures/academy-monthly-subscriptions-fixture.mjs';
 const {parseHTML}=createRequire(import.meta.url)('linkedom');
 const source=readFileSync(new URL('../../js/m4l-program-monthly-subscriptions.js',import.meta.url),'utf8');
@@ -15,11 +16,11 @@ function dom(html){
  class TestFormData{constructor(form){this.values=new Map([...form.querySelectorAll('[name]')].map(i=>[i.name,i.value]));}get(key){return this.values.get(key)||null;}}
  return {window,document,FormData:TestFormData};
 }
-async function setup(){
- const f=await monthlyFixture(),token=await f.login('0001');ok(await f.monthly('configure',{mode:'prepare',policyRevision:0,operationId:crypto.randomUUID()},token));
+async function setup({grants=false}={}){
+ const f=await (grants?grantsFixture():monthlyFixture()),token=grants?f.admin:await f.login('0001');if(!grants)ok(await f.monthly('configure',{mode:'prepare',policyRevision:0,operationId:crypto.randomUUID()},token));
  const d=dom('<html><body><section id="pg-people-tool"><section id="pm-main">Participants</section></section></body></html>'),calls=[],managed=[];let owner=token,loseResponse=false,hold=null;
- const fetch=async(url,options)=>{const input=JSON.parse(options.body);calls.push({url,input});if(hold)return new Promise(resolve=>{hold.resolve=()=>resolve(new Response(JSON.stringify({success:true,available:true,prepared:false,canConfigure:true,classes:[]})));});const result=await f.call(url,input,owner);if(loseResponse&&url.endsWith('/grid-save')){loseResponse=false;throw Error('Lost save response');}return new Response(JSON.stringify(result.body),{status:result.status});};
- Object.assign(d.window,{M4L_CONFIG:{API_BASE:''},M4L_LESSON_MEDIA:{canLeave:()=>true,async manage(input){managed.push(input);}}});
+ const fetch=async(url,options)=>{const input=JSON.parse(options.body);calls.push({url,input});if(hold)return new Promise(resolve=>{hold.resolve=()=>resolve(new Response(JSON.stringify({success:true,available:true,prepared:false,canConfigure:true,classes:[]})));});const result=await f.call(url,input,owner);if(loseResponse&&(url.endsWith('/grid-save')||url.endsWith('/surah-grants-save'))){loseResponse=false;throw Error('Lost save response');}return new Response(JSON.stringify(result.body),{status:result.status});};
+ Object.assign(d.window,{M4L_PROGRAM_PEOPLE:{canLeave:()=>true},M4L_CONFIG:{API_BASE:''},M4L_LESSON_MEDIA:{canLeave:()=>true,async manage(input){managed.push(input);}}});
  vm.runInNewContext(source,{...d,location:{search:'?participants=monthly'},localStorage:{getItem:()=>owner},fetch,crypto,URLSearchParams,Intl,Date,console});
  await d.window.M4L_PROGRAM_MONTHLY.select(scope.slice(8));await settle();
  const click=async(selector)=>{const target=d.document.querySelector(selector);assert(target,selector);target.dispatchEvent(new d.window.Event('click',{bubbles:true}));await settle();};
@@ -130,4 +131,30 @@ test('learner paid-month screen distinguishes years and clears all visible media
   const labels=[...d.document.querySelectorAll('#monthly-month option')].map(o=>o.textContent);assert.deepEqual(labels,['January 2025','January 2024']);
   owner='';d.window.dispatchEvent(new d.window.Event('m4l-academy-session-ended'));await settle();assert.equal(d.document.getElementById('monthly-lessons').textContent,'');assert.match(d.document.getElementById('monthly-message').textContent,/Sign in/);
  }finally{f.db.close();}
+});
+
+test('participant additional access is manual, labels paid/public access, and retries the identical save without editing paid months',async()=>{
+ const t=await setup({grants:true});try{
+  const button='[data-pms-grants="account-0002"]';assert(t.document.querySelector(button));
+  await t.click('[data-pms-tab="participants"]');await t.window.M4L_PROGRAM_MONTHLY.manageGrants('account-0002');await settle();
+  const id=t.f.ids[0],selector='[data-pms-grant="'+id+'"]';
+  assert.match(t.document.querySelector('[data-pms-grant-editor]').textContent,/Paid months remain the normal/);
+  assert.equal(t.document.querySelector('[data-pms-grant="'+t.f.ids[2]+'"]').disabled,true,'Public Foundations needs no individual grant');
+  await t.change(selector,true);assert.equal(t.f.db.prepare('SELECT count(*) n FROM program_surah_grants').get().n,0,'Changing a checkbox never saves automatically');
+  assert.equal(t.window.M4L_PROGRAM_MONTHLY.canLeave(),false);
+  const note=t.document.querySelector('[data-pms-grant-note]');note.value='Additional study';note.dispatchEvent(new t.window.Event('input',{bubbles:true}));
+  t.lose();await t.click('[data-pms-grant-action="save"]');assert(t.document.querySelector('[data-pms-grant-action="retry"]'));assert.equal(t.document.querySelector(selector).disabled,true);
+  await t.click('[data-pms-grant-action="close"]');assert(t.document.querySelector('[data-pms-grant-editor]'),'An uncertain save must be retried before discarding');
+  await t.click('[data-pms-grant-action="retry"]');assert.equal(t.document.querySelector('[data-pms-grant-editor]'),null);
+  const saved=t.calls.filter(c=>c.url.endsWith('/surah-grants-save'));assert.equal(saved.length,2);assert.deepEqual(saved[0].input,saved[1].input);
+  assert.equal(t.f.db.prepare('SELECT note,active,revision FROM program_surah_grants').get().note,'Additional study');assert.equal(t.f.db.prepare('SELECT count(*) n FROM program_monthly_subscriptions').get().n,0);
+  assert.equal(t.window.M4L_PROGRAM_MONTHLY.dirty(),false);
+ }finally{t.f.db.close();}
+});
+test('additional access discard and account switch clear the private student editor and reject delayed responses',async()=>{
+ const t=await setup({grants:true});try{
+  const button='[data-pms-grants="account-0002"]',selector='[data-pms-grant="'+t.f.ids[0]+'"]';
+  await t.click(button);await t.change(selector,true);await t.click('[data-pms-grant-action="close"]');assert.equal(t.f.db.prepare('SELECT count(*) n FROM program_surah_grants').get().n,0);
+  await t.click(button);t.switchAccount();assert.equal(t.document.querySelector('[data-pms-content]').textContent,'');assert.equal(t.window.M4L_PROGRAM_MONTHLY.dirty(),false);
+ }finally{t.f.db.close();}
 });
