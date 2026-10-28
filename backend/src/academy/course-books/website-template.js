@@ -23,6 +23,7 @@ export function kahfBlocks(html,prefix){
  const visit=node=>{
   if(typeof node==='string'){if(node.trim())add('text',{text:decode(node).trim()});return;}
   if(['button','textarea','input'].includes(node.tag))return;
+  if(node.tag==='details'&&node.cls.includes('course-summary-aside')){add('note',{aside:true,attribution:find(node,n=>n.tag==='summary').map(clean).join(' '),text:nodes(node).filter(n=>n.tag!=='summary').map(clean).join('\n\n')});return;}
   if(node.cls.includes('ayah-card')){const arabic=find(node,n=>n.cls.includes('arabic-text'))[0],reference=find(node,n=>n.cls.includes('ayah-reference'))[0];add('ayah',{arabic:arabic?clean(arabic):'',reference:reference?clean(reference):'',translation:find(node,n=>n.tag==='p'&&!n.cls.includes('arabic-text')).map(clean).join('\n')});return;}
   if(node.cls.includes('word-pair')){const pair=nodes(node);for(let i=0;i<pair.length;i+=2){const values=pair.slice(i,i+2).map(n=>({arabic:find(n,x=>x.tag==='span').map(clean).join(' '),meaning:find(n,x=>['strong','small'].includes(x.tag)).map(clean).join(' · ')}));add('words',{leftArabic:values[0]?.arabic||'',leftMeaning:values[0]?.meaning||'',rightArabic:values[1]?.arabic||'',rightMeaning:values[1]?.meaning||''});}return;}
   if(node.tag==='blockquote'){const arabic=nodes(node).filter(n=>n.cls.includes('arabic-text'));for(const a of arabic)add('arabic',{arabic:clean(a)});add('quote',{text:nodes(node).filter(n=>n.tag!=='cite'&&!n.cls.includes('arabic-text')).map(clean).filter(Boolean).join('\n\n'),attribution:find(node,n=>n.tag==='cite').map(clean).join(' ')});return;}
@@ -38,7 +39,7 @@ export function courseWebsiteTemplate(activity){
  const course=newCourse();
  if(isSurahKahfCourse(activity)){
   course.lessons=SURAH_KAHF_LESSONS.map(lesson=>({...lesson,sections:lesson.sections.map((section,i)=>({id:lesson.id+'-s'+i,title:section.title,label:section.label,blocks:kahfBlocks(section.body,lesson.id+'-s'+i)}))}));
-  for(const lesson of course.lessons)if(!lesson.journal){const block=newBlock('reflection');block.id=lesson.id+'-general-reflection';block.text='What would you like to carry from this lesson?';block.legacyNoteKey='general';lesson.sections.push({id:lesson.id+'-reflection',title:'Pause and reflect',label:'YOUR REFLECTION',blocks:[block]});}
+  for(const lesson of course.lessons)if(!lesson.journal&&!lesson.sections.some(s=>s.blocks.some(b=>b.type==='reflection'))){const block=newBlock('reflection');block.id=lesson.id+'-general-reflection';block.text='What would you like to carry from this lesson?';block.legacyNoteKey='general';lesson.sections.push({id:lesson.id+'-reflection',title:'Pause and reflect',label:'YOUR REFLECTION',blocks:[block]});}
   for(const theme of course.home.themes)theme.lessonId=course.lessons.find(l=>l.title.toLowerCase().includes(theme.label.toLowerCase()))?.id||'';
  }else{
   course.name=activity.name;course.tag='COURSE';course.home.headline='A space to learn and grow.';course.home.subtitle=activity.name;course.home.description='Welcome to your course.';course.home.themes=[];course.home.journeyTitle='Your learning journey';

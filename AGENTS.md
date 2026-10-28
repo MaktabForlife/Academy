@@ -1,3 +1,23 @@
+# Revised publication approval and shared media — 28 October 2026
+
+- The human answered the revised upload/publication question: PDFs and recordings are being attached as Lesson media; websites must link to those existing files so the Academy has one active copy. They explicitly authorised going ahead with the rest. Upload/publish only the nine revised text-and-image packages (91 lessons), with zero PDF or recording bytes. This resolves the earlier revised-payload approval hold only within that clarified scope.
+- Plain access cards and dark text are now the default. Admin can choose dark or light text per card; light text uses a contrasting darker surface. Admin may select original PDF artwork or upload/replace an image per card, using the existing single Save table flow. Preserve existing uploaded choices.
+- The Tafseer handover confirms 10 PDFs across 8 completion lessons and 36 recordings, all still DRAFT. Connect the native published lesson references; do not publish another chat’s media drafts, alter monthly policy or subscriptions. Published website reading retains the existing gates and public Foundations; private Lesson media retains its existing publication/account access.
+- Complete the matching V107.111 API/website release and native Admin review/publication of the nine source-text editions. No schema/coordinator changes or unrelated live edits. Preserve Saffat 19 September 2026 and Qasas 30 December 2024.
+
+# Revised source package approval hold — 28 October 2026
+
+- Nine revised packages are prepared locally: 91 lessons using the supplied PDF wording, 10 nonduplicate packaged PDFs and original PDF artwork. All package hashes, 75 targeted checks, the API dry run and the Pages build passed. This edition has not been uploaded or published.
+- Automatic approval review rejected the first revised R2 upload before execution because the earlier human approval covered the original eight packages, not this materially changed payload. A direct question now requests approval for the nine revised packages to the existing private `maktab-lesson-media-private-development` bucket and their native Admin publication with the matching reader/card update. Do not retry, push revised content, deploy or use an indirect upload workaround before a direct human answer approves this revision.
+- Local review is at the project’s `outputs/tafseer-source-edition/review/index.html`; immutable package metadata is in its parent `manifest.json`. The earlier original package publication remains unchanged. Tafseer’s 36 recording drafts remain unpublished. Preserve Qasas 30 December 2024 and Saffat 19 September 2026.
+
+# Source wording and recording cards — 28 October 2026
+
+- The user requested using the full supplied PDF teaching text as the main lessons for all eight Tafseer modules and Surah Al Kahf. Retain headings/reflections; summaries may appear as optional asides. Correct only clear spelling/reference/extraction errors. Use the PDF artwork on the website access cards, and retain only one copy of duplicated handouts.
+- Connect available Tafseer recordings through the existing Surah Al Kahf dated lesson-card model, using the protected parent lesson/media checks. The Tafseer handover contains 36 saved historical DRAFT recordings; do not publish another chat’s unfinished media or activate the prepared monthly policy. Global and own-scope Tafseer Program Admins retain full reading access, while students retain their paid-month and class gates.
+- Complete the active authorised website upload/publication and matching V107.111 reader/card release from this feature branch. Keep existing login, all unrelated updates and accepted heads, and manual Surah dates. Qasas was set to 30 December 2024 at the user’s request. Tafseer separately corrected Saffat to 19 September 2026 from the final recording; do not restore the stale date.
+- Use local synthetic tests and minimal live checks under ../AGENTS.md. No schema/coordinator upgrade, student subscription edits, source-file deletion, other-chat messages or local-HTML browser workarounds.
+
 # Tafseer content publication and private import — 28 October 2026
 
 - The user supplied Saffat 23 September 2026, Yaseen 11 July (interpreted as 2026 in the reply), and 30 November 2025 for all other modules for now. The eight rows and card associations were saved through Admin. Retain their saved IDs and the existing prepared/disabled monthly policy; do not change student subscriptions or activate the register.

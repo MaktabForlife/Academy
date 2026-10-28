@@ -1,3 +1,9 @@
+# V107.111 — Complete course readings and recording cards
+
+Use the supplied PDF teaching text as the main Tafseer and Surah Al Kahf lessons, with spelling/reference and extraction corrections recorded during preparation. Keep summaries in optional expandable asides and retain editable headings and reflections. Link Course materials to the existing protected Lesson media PDFs rather than importing duplicate files. Default to plain access cards; Admin can choose original PDF artwork or upload a replacement image.
+
+Connect each Surah reader to explicitly named, published native lesson-media cards, preserving each parent lesson’s paid-month, class, publication and playback checks. Actual Global and own-scope Program Admin authority grants reading across personal and Admin views without granting editing in personal Learn. The private prepared importer also supports the existing Kahf Course. No schema/coordinator upgrade or subscription activation.
+
 # V107.110 — Private prepared course import
 
 The Tafseer website editor can import the eight prepared module packages from the Academy’s private storage, using current scoped Admin authority. Imported lesson text and files follow the existing private Save draft and explicit Publish flow. Published reader/PDF permissions and public Foundations remain unchanged. No schema or coordinator upgrade.

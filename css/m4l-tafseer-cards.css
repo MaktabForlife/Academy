@@ -24,3 +24,15 @@
 .tf-access-dialog p{margin:18px 0 24px;color:#655763}.tf-access-actions{display:flex;flex-wrap:wrap;gap:10px}
 .tf-access-actions :is(a,button){box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:10px 16px;border:1px solid #694165;border-radius:9px;background:#694165;color:white;text-decoration:none;font:600 14px/1.5 Arial,sans-serif;cursor:pointer}.tf-access-actions button{background:transparent;color:#694165}
 @media(max-width:25rem){.tf-card{padding:20px}.tf-card h3{font-size:28px}.tf-card-summary{font-size:14px}}
+
+.tf-card-image.tf-card-pdf-artwork{width:100%;aspect-ratio:16/10;object-fit:cover;object-position:center;max-height:none;background:#fff}
+
+.tf-card[data-tafseer-card="qasas"] .tf-card-pdf-artwork{object-fit:contain;background:#fff}
+
+/* Light text uses a contrasting card surface for both plain and image cards. */
+.tf-card[data-text-tone="light"]{--tf-dark:#493446;background:linear-gradient(150deg,var(--tf-dark),#302730);border-color:#796175;color:#fffaf3}
+.tf-card-rose[data-text-tone="light"]{--tf-dark:#653f48}.tf-card-sage[data-text-tone="light"]{--tf-dark:#3f5140}.tf-card-gold[data-text-tone="light"]{--tf-dark:#5f492f}
+.tf-card[data-text-tone="light"] :is(.tf-card-tag,.tf-card-arabic,.tf-card-summary){color:#eee2e8}.tf-card[data-text-tone="light"] h3{color:#fffaf3}
+.tf-card[data-text-tone="light"] .tf-card-access{background:#364734;border-color:#acbda4;color:#f4f9ee}
+.tf-card[data-text-tone="light"] .tf-card-action{background:#fffaf3;border-color:#fffaf3;color:#493446}.tf-card[data-text-tone="light"] .tf-card-action:hover{background:#eee2e8;border-color:#eee2e8}
+.tf-card[data-text-tone="light"] .tf-card-pending{background:transparent;border-color:#c7afc0;color:#eee2e8}
