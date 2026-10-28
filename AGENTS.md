@@ -1,3 +1,10 @@
+# Publication read optimisation — local only — 28 October 2026
+
+- The human authorised implementing the publication optimisation identified in the allowance investigation. Today's roughly 40 PDFs and similar video count are setup activity, not a normal daily workload. Work on `feature/academy-publication-reads` from committed V107.119 (`75797b85`), preserving the safe component insert envelope and all prior caches/grants/publication fixes.
+- Keep publication authority, current-session/actor checks, reference validation, immutable accepted heads, exact retries/recovery and the existing ten-PDF shared limit. Optimise only duplicate head admission and repeated PDF-limit JSON projections. Retain bootstrap checks and own-note/history/withdrawal semantics. Videos must remain unaffected.
+- Test entirely locally with synthetic small and bulk workloads, permission/conflict/rollback checks and the native D1/private coordinator runtime. Keep live checks small under ../AGENTS.md; no additional hosted analytics, SQL or application checks are needed.
+- Do not push, deploy, apply hosted migrations, republish content, change real student/media/settings data or message other chats. Earlier deployments are complete. Keep release markers unchanged while this work awaits deployment approval.
+
 # Foundations publication envelope repair and ordered editorial reviews — 28 October 2026
 
 - The human asked to finish Foundations deployment, then review the other eight using the agreed principles, starting with Kahf and proceeding from most recent. Keep the eight revised editions local for review. Kahf now has a manually reconciled local edition, 11 lessons, 26 paired ayah boxes, 9 original graphics and all existing 16 reflection IDs. All 11 lessons pass 320/390-pixel overflow checks and desktop centring.

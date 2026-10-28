@@ -5,7 +5,7 @@ import {importSQL} from '../tools/academy-split/artifact.mjs';
 import {createHash} from 'node:crypto';import {readFileSync} from 'node:fs';
 import {seedReadHistory} from './fixtures/academy-read-history-fixture.mjs';
 test('the actual Workers runtime coordinates both D1 bindings through private Durable Object RPC',async()=>{
- const f=await splitFixture();let runtime;try{
+ const f=await splitFixture(source=>source.db.exec(readFileSync(new URL('../migrations/academy/0044_publication_pdf_projection_cache.sql',import.meta.url),'utf8')));let runtime;try{
  for(const name of ['0006_program_monthly_subscriptions.sql','0008_program_surah_grants.sql'])f.databases.core.exec(readFileSync(new URL('../migrations/academy-core/'+name,import.meta.url),'utf8'));
  for(const db of Object.values(f.databases))db.prepare('UPDATE activities SET name=? WHERE activity_key=?').run('Tafseer',f.scopes.programA);
  seedReadHistory(f,2);
@@ -21,6 +21,8 @@ test('the actual Workers runtime coordinates both D1 bindings through private Du
   const db=f.databases[owner],target=await runtime.getD1Database(owner==='core'?'ACADEMY_DB':'ACADEMY_ADMIN_DB','api'),objects=db.prepare("SELECT type,sql FROM sqlite_schema WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY rowid").all(),schema=f.prepared.schemas[owner],list=importSQL(db,schema,{statementsOnly:true}).flatMap(sql=>sql===schema.tableSQL?objects.filter(o=>o.type==='table').map(o=>o.sql):sql===schema.afterSQL?objects.filter(o=>o.type!=='table').map(o=>o.sql):[sql]);
   for(let i=0;i<list.length;i+=30)await target.batch(list.slice(i,i+30).map(sql=>target.prepare(sql)));
  }
+ const publicationCore=await runtime.getD1Database('ACADEMY_DB','api');
+ await publicationCore.batch([publicationCore.prepare('CREATE TABLE publication_observations(singleton INTEGER PRIMARY KEY,inserts INTEGER,updates INTEGER)'),publicationCore.prepare('INSERT INTO publication_observations VALUES(1,0,0)'),publicationCore.prepare('CREATE TRIGGER observe_head_insert BEFORE INSERT ON setup_head_state BEGIN UPDATE publication_observations SET inserts=inserts+1; END'),publicationCore.prepare('CREATE TRIGGER observe_head_update BEFORE UPDATE ON setup_head_state BEGIN UPDATE publication_observations SET updates=updates+1; END')]);
  const request=async(path,input,token,workspace='ADMIN')=>{const r=await runtime.dispatchFetch('https://academy.test'+path,{method:'POST',headers:{'Content-Type':'application/json','X-Academy-Workspace':workspace,...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(input)}),body=await r.json();assert.equal(r.status,200,JSON.stringify(body));return body;};
  const login=await request('/api/account/login',{uniqueid:'separation-global',pin:'1234'}),token=login.token,scope=f.scopes.courseA;
  const storage=await runtime.getR2Bucket('LESSON_MEDIA_BUCKET','api'),permissions=await storage.list({prefix:'academy-private-permissions/'});assert.equal(permissions.objects.length,1,'Sign-in creates the private permission snapshot');
@@ -32,6 +34,7 @@ test('the actual Workers runtime coordinates both D1 bindings through private Du
  const media=await request('/api/academy/lesson-media/course-files-create',{activityKey:scope,operationId:crypto.randomUUID()},token);assert(media.lessonId);
  const mediaSaved=await request('/api/academy/lesson-media/save',{activityKey:scope,lessonId:media.lessonId,revision:1,operationId:crypto.randomUUID(),title:'Runtime Course PDFs',summary:'',recordingUrls:[],state:'PUBLISHED',commentsClosed:true},token);
  const accepted=await request('/api/academy/changes/accept',mediaSaved.acceptedChange,token);assert(accepted.head);
+ assert.deepEqual(await publicationCore.prepare('SELECT inserts,updates FROM publication_observations').first(),{inserts:0,updates:1},'The native private coordinator commits one UPDATE admission for an existing head');
  const admin=await runtime.getD1Database('ACADEMY_ADMIN_DB','api'),core=await runtime.getD1Database('ACADEMY_DB','api');assert.equal((await admin.prepare('SELECT count(*) n FROM split_command_parts').first()).n,0);assert.equal((await core.prepare('SELECT count(*) n FROM split_write_fence').first()).n,0);
  const program=(await request('/api/admin/platform/programs/list',{},token)).programs.find(p=>'PROGRAM:'+p.id===f.scopes.programA);
  const publicSaved=await request('/api/admin/platform/programs/save',{id:program.id,name:'Automatically refreshed runtime Program',status:program.status,revision:program.revision,durationYears:program.durationYears,timezone:program.timezone,operationId:crypto.randomUUID()},token);assert(publicSaved.acceptedChange);assert(!publicSaved._acceptedChange);

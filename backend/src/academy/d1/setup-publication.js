@@ -141,7 +141,10 @@ function headStatements(db,batch,head,parent,actor,now,mediaSeparation=false){re
  db.prepare('INSERT INTO setup_heads VALUES(?,?,?,?,?)').bind(head,parent,batch,now,actor),
  ...(parent?[db.prepare(`INSERT INTO setup_head_components SELECT ?,v.table_name,v.scope_key,v.component_id FROM setup_head_components v WHERE v.head_id=? AND NOT EXISTS(SELECT 1 FROM setup_components c WHERE c.batch_id=? AND c.table_name=v.table_name AND c.scope_key=v.scope_key)`).bind(head,parent,batch)]:[]),
  db.prepare('INSERT INTO setup_head_components SELECT ?,table_name,scope_key,component_id FROM setup_components WHERE batch_id=?').bind(head,batch),
- db.prepare('INSERT INTO setup_head_state VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET head_id=excluded.head_id').bind(head),
+ // The guarded parent already exists for normal publication. UPSERT would
+ // execute both BEFORE INSERT and BEFORE UPDATE admission triggers. Bootstrap
+ // still uses INSERT, and each path keeps its complete database admission check.
+ parent?db.prepare('UPDATE setup_head_state SET head_id=? WHERE singleton=1').bind(head):db.prepare('INSERT INTO setup_head_state VALUES(1,?)').bind(head),
  ...(mediaSeparation?[db.prepare(`UPDATE lesson_media_visibility SET visible=1,updated_at=?,updated_by=? WHERE lesson_id IN(SELECT json_extract(row.value,'$.lesson_id') FROM setup_components c,json_each(c.rows_json) row JOIN lesson_media_lessons current ON current.lesson_id=json_extract(row.value,'$.lesson_id') WHERE c.batch_id=? AND c.table_name='lesson_media_lessons' AND json_extract(row.value,'$.state')='PUBLISHED' AND current.state='PUBLISHED')`).bind(now,actor,batch)]:[]),
  db.prepare('UPDATE setup_batches SET accepted_head=? WHERE batch_id=?').bind(head,batch)
  ];}
