@@ -1,3 +1,7 @@
+# V107.109 — Tafseer Admin card actions
+
+Global Admins and scoped Tafseer Program Admins receive website-management links while the Surah register is empty and editor links for unpublished websites. Published sites still open their lessons. Students and public visitors retain their existing access rules. Refresh the Lesson media integration asset so existing browsers load the Surah register, and include its table stylesheet in the embedded Program tools. No schema or subscription changes.
+
 # V107.108 — Tafseer Admin website access
 
 Tafseer Program Admins can open every published Surah website and its Course materials across Learn, Teach and Admin without a paid-month subscription. Global Admins have the same access across all Programs. Other Program Admins remain scoped to their own Programs, and student paid-month checks and private-draft/publication gates remain enforced. No schema, coordinator or live data changes.

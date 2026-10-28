@@ -5,7 +5,7 @@
  const workspace=()=>window.M4L_ACADEMY_WORKSPACE?.current?.()||'LEARN';
  const identity=()=>token()+'|'+workspace();
  let owner=identity(),generation=0,links={},loaded=false,pending=false;
- const safeHref=value=>typeof value==='string'&&/^\/academy\/course-websites\/view\/\?program=[^&]+&surah=[0-9a-f-]{36}$/.test(value)?value:'';
+ const safeHref=value=>typeof value==='string'&&(/^(?:\/academy\/course-websites\/(?:view\/)?\?program=[^&]+&surah=[0-9a-f-]{36}|\/programs\/\?program=[^&]+&tab=media)$/.test(value))?value:'';
  function apply(){
   if(identity()!==owner){reset();return;}
   if(window.M4L_TAFSEER_CARDS?.updateLinks){window.M4L_TAFSEER_CARDS.updateLinks(token()?links:{});return;}
@@ -16,7 +16,7 @@
    replacement.className=action.className;replacement.classList.toggle('tf-card-pending',!href);
    replacement.dataset.tafseerLink=key;
    replacement.innerHTML=action.innerHTML;
-   const label=replacement.querySelector('span');if(label)label.textContent=href?'Open lessons':'Coming soon';
+   const label=replacement.querySelector('span');if(label)label.textContent=href?value?.label||'Open lessons':'Coming soon';
    if(href)replacement.setAttribute('href',href);
    else{replacement.type='button';replacement.disabled=true;replacement.setAttribute('aria-disabled','true');}
    action.replaceWith(replacement);

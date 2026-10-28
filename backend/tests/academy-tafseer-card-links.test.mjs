@@ -5,9 +5,25 @@ import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {mayReadSurah,surahWebsiteLinks} from '../src/academy/d1/surah-websites-access.js';
 import {selectWorkspace} from '../src/academy/d1/workspace-access.js';
+import {monthlyFixture,scope} from './fixtures/academy-monthly-subscriptions-fixture.mjs';
+import worker from '../src/academy-runtime.js';
 const {parseHTML}=createRequire(import.meta.url)('linkedom');
 const href='/academy/course-websites/view/?program=PRG-one&surah=11111111-1111-4111-8111-111111111111';
 const settle=async()=>{for(let i=0;i<8;i++)await new Promise(r=>setImmediate(r));};
+test('an Admin with an empty Tafseer register gets management actions instead of requesting access; students get no management links',async()=>{
+ const f=await monthlyFixture();try{
+  const admin=await f.login('0001'),scoped=await f.login('0004'),student=await f.login('0002');
+  for(const token of [admin,scoped])for(const workspace of ['LEARN','TEACH','ADMIN','ADMIN_LEARN','ADMIN_TEACH']){
+   const response=await worker.fetch(new Request('http://localhost/api/academy/tafseer-links',{method:'POST',headers:{Authorization:'Bearer '+token,'X-Academy-Workspace':workspace,'Content-Type':'application/json'},body:'{}'}),f.env);
+   assert.equal(response.status,200);const value=await response.json();assert.equal(value.websites.length,0);
+   assert.equal(Object.keys(value.links).length,8);assert.equal(value.links.yaseen.label,'Manage websites');assert.equal(value.links.yaseen.href,'/programs/?program='+encodeURIComponent(scope.slice(8))+'&tab=media');
+  }
+  const noAccess=await f.call('/api/academy/tafseer-links',{},student);assert.deepEqual(noAccess.body.links,{});
+  const id=crypto.randomUUID();assert.equal((await f.monthly('configure',{mode:'prepare',policyRevision:0,operationId:crypto.randomUUID()},admin)).status,200);
+  assert.equal((await f.monthly('surah-save',{policyRevision:1,operationId:crypto.randomUUID(),entries:[{id,name:'Surah Yaseen',cardKey:'yaseen',completionDate:'2025-01-01',active:true,revision:0}]},admin)).status,200);
+  const pending=await f.call('/api/academy/tafseer-links',{},admin);assert.equal(pending.body.links.yaseen.label,'Edit website');assert.equal(pending.body.websites.length,0);
+ }finally{f.db.close();}
+});
 test('real Global and Program Admin authority opens every own-scope surah across personal and Admin dashboards without paid months',()=>{
  const own='PROGRAM:tafseer',row={activity_key:own,completion_date:'2024-01-18',monthly_enabled:0};
  for(const global_admin of [true,false])for(const workspace of ['LEARN','TEACH','ADMIN','ADMIN_LEARN','ADMIN_TEACH']){

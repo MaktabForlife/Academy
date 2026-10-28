@@ -1,3 +1,10 @@
+# Tafseer card correction and content publication — 28 October 2026
+
+- The user reports that the Global Admin card still says Request access and explicitly requests fixing it and deploying the prepared Tafseer websites. Release the verified card/management correction as V107.109 from the existing feature branch, preserving V107.108.
+- Admins must receive management actions when a Surah has not been entered and editor actions before its publication, while published lessons retain their reader links. Keep actual scoped authority, student paid-month access, private drafts and public Foundations publication gates.
+- The eight prepared independent module packages may now be imported and explicitly published through the existing authorised Admin editor. The live Tafseer register was checked once: its prepared policy is disabled and it has no Surah rows. Completion dates remain manually supplied by the human; do not infer dates from PDFs, publication dates or lessons, or activate/change subscriptions. The question requesting the real dates is pending. Keep unrelated data and accepted heads intact.
+- Deploy the matching existing Development API and website, with no schema/coordinator change. Use disposable fixtures and small live checks under ../AGENTS.md. Do not message other chats. The local-HTML browser restriction remains in effect.
+
 # Tafseer Admin website access release — 28 October 2026
 
 - The user clarified that Tafseer Program Admins and Global Admins have access to all Surah websites, then explicitly authorised updating and deploying if needed. Release the verified cross-dashboard authority correction as V107.108 from the existing feature branch, incorporating deployed V107.107.

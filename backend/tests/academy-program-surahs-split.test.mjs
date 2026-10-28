@@ -44,7 +44,7 @@ test('split surah websites keep drafts private, publish only one surah and prote
    for(const token of [admin,scoped]){
     assert.equal(ok(await f.request('/api/academy/course-websites/read',{activityKey:scope,surahId:id},token,workspace)).document.name,'Surah Maryam',workspace);
     const links=ok(await f.request('/api/academy/tafseer-links',{},token,workspace));
-    assert.equal(links.links.yaseen.code,id,workspace);assert.equal(links.links.saffat,undefined,'An unpublished draft never appears as a reading link');
+    assert.equal(links.links.yaseen.code,id,workspace);assert.equal(links.links.saffat.label,'Edit website','An Admin can edit an unpublished website without requesting access');assert(links.links.saffat.href.startsWith('/academy/course-websites/?program='));
     const asset=await worker.fetch(new Request('http://localhost/api/academy/course-websites/asset',{method:'POST',headers:{Authorization:'Bearer '+token,'X-Academy-Workspace':workspace,'Content-Type':'application/json'},body:JSON.stringify({activityKey:scope,surahId:id,assetId})}),f.source.env);
     assert.equal(asset.status,200,workspace);assert.deepEqual(Buffer.from(await asset.arrayBuffer()),bytes);
    }

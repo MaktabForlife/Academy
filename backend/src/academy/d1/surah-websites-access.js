@@ -2,6 +2,7 @@ import {actualState,administers,hasAdminAuthority} from './workspace-access.js';
 import {monthlyEnabled} from './monthly-media-policy.js';
 
 const same=(a,b)=>String(a).toUpperCase()===String(b).toUpperCase();
+const defaultCardKeys=['foundations','yaseen','saffat','ankabut','luqman','muzammil','qasas','sajdah'];
 export function mayReadSurah(auth,row){
  if(row.card_key==='foundations')return true;
  if(!auth)return false;
@@ -34,20 +35,30 @@ export async function surahWebsiteLinks(repository,auth){
   ...(state.monthlyMedia||[]).map(r=>r.activity_key)
  ])];
  if(!global&&!keys.length)return empty;
- const db=repository.coreDb||repository.db;
- const rows=(await db.prepare(`SELECT s.surah_id,s.activity_key,s.name,s.card_key,s.completion_date,p.enabled monthly_enabled
-  FROM program_surahs s JOIN program_monthly_media_policies p USING(activity_key) JOIN activities a USING(activity_key)
-  JOIN program_surah_website_documents d USING(surah_id)
-  WHERE s.active=1 AND a.active=1 AND a.lifecycle='ACTIVE' AND d.enabled=1
-  AND (?=1 OR s.activity_key IN(SELECT value FROM json_each(?)))
-  AND EXISTS(SELECT 1 FROM academy_settings f WHERE f.setting_key='SurahWebsitePublished:'||s.surah_id AND f.setting_value='1')
-  ORDER BY s.completion_date DESC,s.name LIMIT 201`).bind(Number(global),JSON.stringify(keys)).all()).results;
- const websites=rows.filter(r=>mayReadSurah(auth,r)).slice(0,200).map(r=>({id:r.surah_id,activityKey:r.activity_key,name:r.name,cardKey:r.card_key,completionDate:r.completion_date,href:'/academy/course-websites/view/?program='+encodeURIComponent(r.activity_key.slice(8))+'&surah='+encodeURIComponent(r.surah_id)}));
+ const db=repository.coreDb||repository.db,adminKeys=[...new Set(state.roles.filter(r=>r.role==='PROGRAM_ADMIN').map(r=>r.activity_key))];
  const links={},ambiguous=new Set();
- for(const site of websites){
-  if(!site.cardKey)continue;
-  if(links[site.cardKey]||ambiguous.has(site.cardKey)){delete links[site.cardKey];ambiguous.add(site.cardKey);continue;}
-  links[site.cardKey]={href:site.href,label:'Open lessons',code:site.id};
+ const adminAreas=(state.activities||[]).filter(a=>a.kind==='PROGRAM'&&a.name.trim().toLowerCase()==='tafseer'&&hasAdminAuthority(auth,a.activity_key));
+ if(adminAreas.length===1){
+  const area=adminAreas[0],setting=await repository.db.prepare('SELECT public_card_json FROM program_settings WHERE activity_key=?').bind(area.activity_key).first();
+  const saved=JSON.parse(setting?.public_card_json||'{}').websiteCards;
+  for(const key of Array.isArray(saved)?saved.map(c=>c.id):defaultCardKeys)links[key]={href:'/programs/?program='+encodeURIComponent(area.activity_key.slice(8))+'&tab=media',label:'Manage websites'};
  }
+ const rows=(await db.prepare(`SELECT s.surah_id,s.activity_key,s.name,s.card_key,s.completion_date,p.enabled monthly_enabled,
+  (d.enabled=1 AND EXISTS(SELECT 1 FROM academy_settings f WHERE f.setting_key='SurahWebsitePublished:'||s.surah_id AND f.setting_value='1')) published
+  FROM program_surahs s JOIN program_monthly_media_policies p USING(activity_key) JOIN activities a USING(activity_key)
+  LEFT JOIN program_surah_website_documents d USING(surah_id)
+  WHERE s.active=1 AND a.active=1 AND a.lifecycle='ACTIVE'
+  AND (?=1 OR s.activity_key IN(SELECT value FROM json_each(?)))
+  AND ((d.enabled=1 AND EXISTS(SELECT 1 FROM academy_settings f WHERE f.setting_key='SurahWebsitePublished:'||s.surah_id AND f.setting_value='1'))
+   OR ?=1 OR s.activity_key IN(SELECT value FROM json_each(?)))
+  ORDER BY s.completion_date DESC,s.name LIMIT 201`).bind(Number(global),JSON.stringify(keys),Number(global),JSON.stringify(adminKeys)).all()).results;
+ const sites=rows.filter(r=>r.published?mayReadSurah(auth,r):hasAdminAuthority(auth,r.activity_key)).slice(0,200).map(r=>({id:r.surah_id,activityKey:r.activity_key,name:r.name,cardKey:r.card_key,completionDate:r.completion_date,published:Boolean(r.published),href:'/academy/course-websites/'+(r.published?'view/':'')+'?program='+encodeURIComponent(r.activity_key.slice(8))+'&surah='+encodeURIComponent(r.surah_id)}));
+ const mapped=new Set();
+ for(const site of sites){
+  if(!site.cardKey)continue;
+  if(mapped.has(site.cardKey)||ambiguous.has(site.cardKey)){delete links[site.cardKey];ambiguous.add(site.cardKey);continue;}
+  mapped.add(site.cardKey);links[site.cardKey]={href:site.href,label:site.published?'Open lessons':'Edit website',code:site.id};
+ }
+ const websites=sites.filter(s=>s.published).map(({published,...s})=>s);
  return {links,websites};
 }
