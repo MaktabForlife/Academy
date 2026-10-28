@@ -1,3 +1,10 @@
+# Tafseer content publication and private import — 28 October 2026
+
+- The user supplied Saffat 23 September 2026, Yaseen 11 July (interpreted as 2026 in the reply), and 30 November 2025 for all other modules for now. The eight rows and card associations were saved through Admin. Retain their saved IDs and the existing prepared/disabled monthly policy; do not change student subscriptions or activate the register.
+- Browser file import remained unavailable after the user enabled extension file access, and native computer permissions were unavailable. A private prepared-copy import option is implemented locally as V107.110, requiring actual scoped Admin, known module associations and immutable private-package keys. It streams bounded packages into the existing editor, which retains normal draft/upload/explicit publication guards.
+- The human explicitly approved uploading these eight packages to R2 after the specific approval question naming the lesson text, PDFs, cover images and existing private bucket. The transfer and existing requested import/publication may now proceed. This resolves the earlier automatic approval-review block for that exact transfer; no browser or computer permission workaround is allowed.
+- After that approval, complete the previously requested website publication through the existing portal and deploy the matching API/website update. Use local tests and minimal targeted live verification under ../AGENTS.md. No schema or coordinator change; do not message other chats.
+
 # Tafseer card correction and content publication — 28 October 2026
 
 - The user reports that the Global Admin card still says Request access and explicitly requests fixing it and deploying the prepared Tafseer websites. Release the verified card/management correction as V107.109 from the existing feature branch, preserving V107.108.

@@ -1,3 +1,7 @@
+# V107.110 — Private prepared course import
+
+The Tafseer website editor can import the eight prepared module packages from the Academy’s private storage, using current scoped Admin authority. Imported lesson text and files follow the existing private Save draft and explicit Publish flow. Published reader/PDF permissions and public Foundations remain unchanged. No schema or coordinator upgrade.
+
 # V107.109 — Tafseer Admin card actions
 
 Global Admins and scoped Tafseer Program Admins receive website-management links while the Surah register is empty and editor links for unpublished websites. Published sites still open their lessons. Students and public visitors retain their existing access rules. Refresh the Lesson media integration asset so existing browsers load the Surah register, and include its table stylesheet in the embedded Program tools. No schema or subscription changes.

@@ -111,7 +111,7 @@ async function dispatch(request,env) {
   if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,setupEnabled(env)?await readRepository():repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(setupEnabled(env)?await readRepository():repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.109',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'107.110',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(setupEnabled(env)?await readRepository():repository)};
@@ -258,7 +258,7 @@ async function dispatch(request,env) {
     return {success:true,...await acceptFeatureChange({...repository,onAssessmentPublication:head=>warmPublishedAssessments(acceptedRepository(sourceRepository,head),auth)},auth,input)};
   }
   if(setupEnabled(env)&&(!isAdminWorkspace(auth)||path==='/api/academy/lesson/join')&&!path.startsWith('/api/account/'))repository=await readRepository();
-  const websiteAdmin=path.match(/^\/api\/admin\/platform\/course-websites\/(list|get|save|publish|withdraw|asset)$/)?.[1];
+  const websiteAdmin=path.match(/^\/api\/admin\/platform\/course-websites\/(list|get|save|publish|withdraw|asset|prepared-copy)$/)?.[1];
   if(websiteAdmin){const result=await courseWebsites(repository,auth,env).run(websiteAdmin==='asset'?'admin-asset':websiteAdmin,input);return result instanceof Response?result:{success:true,...result};}
   const websiteRead=path.match(/^\/api\/academy\/course-websites\/(read|asset)$/)?.[1];
   if(websiteRead){const source=setupEnabled(env)?await readRepository():repository;const result=await courseWebsites(source,auth,env).run(websiteRead,input);return result instanceof Response?result:{success:true,...result};}

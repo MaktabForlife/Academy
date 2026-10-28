@@ -29,7 +29,7 @@ async function list(){
 }
 async function open(activityKey){
  if(opening||studio&&!studio.canLeave())return;opening=true;$('website-editor').inert=true;$('website-list-status').textContent='Opening the course editor…';
- try{const next=await api(base+'get',{activityKey});if(!active())return;record=next;$('selected-course-name').textContent=next.name;$('website-list-panel').hidden=true;$('website-editor').hidden=false;if(studio)await studio.openRemote();else studio=await import('./studio.mjs?v=107.109');}
+ try{const next=await api(base+'get',{activityKey});if(!active())return;record=next;$('website-import-prepared').hidden=!next.preparedCopyAvailable;$('selected-course-name').textContent=next.name;$('website-list-panel').hidden=true;$('website-editor').hidden=false;if(studio)await studio.openRemote();else studio=await import('./studio.mjs?v=107.110');}
  catch(error){if(active()){$('website-editor').hidden=true;$('website-list-panel').hidden=false;$('website-list-status').textContent=error.message;}}
  finally{opening=false;if(active())$('website-editor').inert=false;}
 }
@@ -44,6 +44,14 @@ window.COURSE_WEBSITE_ADMIN={surahId:surahScope?.surahId||null,list,revision:()=
  async publish(){const selected=record,result=await mutate('publish',{activityKey:selected.activityKey,revision:selected.revision});if(record!==selected||!active())throw new DOMException('The selected Course changed.','AbortError');selected.revision=result.revision;selected.enabled=true;},
  async withdraw(){if(!confirm('Withdraw this website from students? Its saved draft and existing course records will be kept.'))return;const selected=record,result=await mutate('withdraw',{activityKey:selected.activityKey,revision:selected.revision});if(record!==selected||!active())throw new DOMException('The selected Course changed.','AbortError');selected.revision=result.revision;selected.enabled=false;return true;}
 };
+$('website-import-prepared').addEventListener('click',async()=>{
+ const button=$('website-import-prepared'),selected=record;if(!selected||!active()||opening)return;
+ if(studio&&!studio.canLeave())return;
+ button.disabled=true;$('save-status').textContent='Importing prepared lessons and course files…';
+ try{const copy=await api(base+'prepared-copy',{activityKey:selected.activityKey},true);if(record!==selected||!active())return;await studio.importCopy(copy);}
+ catch(error){if(active())$('save-status').textContent=error.message;}
+ finally{if(active())button.disabled=false;}
+});
 $('website-search').addEventListener('input',renderList);
 document.addEventListener('click',event=>{const button=event.target.closest('[data-open-website]');if(button)void open(button.dataset.openWebsite);});
 window.addEventListener('m4l-academy-session-ended',()=>end());window.addEventListener('m4l-academy-session',()=>end());window.addEventListener('storage',event=>{if((event.key==='m4l_account_token'||event.key===null)&&!active())end();});
