@@ -22,12 +22,12 @@ test('one guarded table save publishes card text only after acceptance, preserve
   const save=(p,extra={},who='global')=>send('/api/admin/platform/programs/save',{...fields(p),operationId:op(),...extra},who);
   const saved=ok(await save(program,{publicCard:{time:'8am',title:'Timetable title',description:'Timetable summary.'}}));
   ok(await send('/api/academy/changes/accept',saved.acceptedChange));
-  const changed=ok(await save(saved.program,{websiteCards:[row(),row('foundations')]}));
+  const changed=ok(await save(saved.program,{websiteCards:[{...row(),appearance:'pdf',textTone:'light'},row('foundations')]}));
   const get=async()=>{const r=await worker.fetch(new Request('http://localhost/api/academy/website-cards'),f.env);assert.equal(r.status,200);return r.json();};
   assert.equal((await get()).groups.length,0,'The private change is not yet public');
   ok(await send('/api/academy/changes/accept',changed.acceptedChange));
   const cards=(await get()).groups.find(g=>g.activityKey===f.scopes.programA).cards;
-  assert.equal(cards[0].id,'foundations');assert.equal(cards[0].access,'public');assert.equal(cards[1].summary,row().summary);
+  assert.equal(cards[0].id,'foundations');assert.equal(cards[0].access,'public');assert.equal(cards[1].summary,row().summary);assert.equal(cards[1].appearance,'pdf');assert.equal(cards[1].textTone,'light');
   assert.equal(changed.program.publicCard.title,'Timetable title');
   assert.equal((await save(saved.program,{websiteCards:[row('luqman')]})).status,409);
   assert.equal((await save(changed.program,{websiteCards:[row()]},'adminB')).status,403);
@@ -94,6 +94,9 @@ test('public cards show the custom contact popup while entitled dashboard cards 
  const context={window,document,URL,localStorage:{getItem:()=>token},MutationObserver:window.MutationObserver};
  vm.runInNewContext(readFileSync(new URL('../../js/m4l-tafseer-cards.js',import.meta.url),'utf8'),context);
  const cards=window.M4L_TAFSEER_CARDS,host=document.getElementById('cards'),href='/academy/course-websites/view/?program=one&surah=11111111-1111-4111-8111-111111111111';
+ cards.mount(host,{context:'public'});assert.equal(host.querySelector('img'),null,'Plain cards are the default');
+ cards.setGroups([{cards:[{...row(),appearance:'pdf'}]}]);cards.mount(host,{context:'public'});assert(host.querySelector('img').getAttribute('src').endsWith('/yaseen.jpg'));
+ cards.setGroups([{cards:[{...row(),appearance:'plain'}]}]);cards.mount(host,{context:'public'});assert.equal(host.querySelector('img'),null,'Plain selection removes the artwork');
  cards.setGroups([{cards:[row('foundations'),{...row(),contactMessage:'Please contact our Admin to join this study.'}]}]);
  cards.mount(host,{context:'public',links:{yaseen:{href}}});assert.equal(host.querySelector('a'),null);
  host.querySelector('[data-tafseer-request]').click();const dialog=document.querySelector('dialog');assert(dialog.open);assert.match(dialog.textContent,/Please contact our Admin/);assert.match(dialog.querySelector('a').href,/wa\.me/);dialog.querySelector('[data-tafseer-close]').click();assert.equal(dialog.open,false);
@@ -110,4 +113,7 @@ test('Admin stages multiple card edits and additions until one table save; disca
  host.querySelector('[data-wct-action="add"]').click();const message=host.querySelectorAll('[data-wct-field="contactMessage"]')[1];message.value='A new contact message';message.dispatchEvent(new window.Event('input',{bubbles:true}));
  assert.equal(saves,0);assert(table.dirty());host.querySelector('[data-wct-action="save"]').click();await settle();assert.equal(saves,1);assert.equal(last.length,2);assert.equal(last[0].title,'Edited title');assert.equal(last[1].contactMessage,'A new contact message');assert.equal(table.dirty(),false);
  host.querySelector('[data-wct-action="add"]').click();assert(table.dirty());host.querySelector('[data-wct-action="discard"]').click();assert.equal(table.values().length,2);assert.equal(saves,1);
+ const style=host.querySelector('[data-wct-field="appearance"]');style.querySelector('[selected]')?.removeAttribute('selected');style.querySelector('[value="pdf"]').setAttribute('selected','');style.dispatchEvent(new window.Event('input',{bubbles:true}));assert.equal(saves,1);assert(table.dirty());assert(host.querySelector('.wct-image').getAttribute('src').endsWith('/yaseen.jpg'));
+ host.querySelector('[data-wct-action="save"]').click();await settle();assert.equal(saves,2);assert.equal(last[0].appearance,'pdf');
+ const plain=host.querySelector('[data-wct-field="appearance"]');plain.querySelector('[selected]')?.removeAttribute('selected');plain.querySelector('[value="plain"]').setAttribute('selected','');plain.dispatchEvent(new window.Event('input',{bubbles:true}));assert.equal(host.querySelector('.wct-image'),null);host.querySelector('[data-wct-action="save"]').click();await settle();assert.equal(last[0].appearance,'plain');
 });

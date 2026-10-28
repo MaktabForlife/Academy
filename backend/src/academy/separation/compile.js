@@ -10,12 +10,15 @@ const append=(list,table,row)=>{const cols=Object.keys(row);list.push(s('INSERT 
 const dummy=()=>({success:true,results:[],meta:{changes:0}});
 export async function compilePlan(core,admin,statements){
  const context=federationContext({core,admin,owner:'admin'}),targets=statements.map(x=>targetTable(x.sql)).filter(Boolean);
- const data=await context.snapshot(statements.map(x=>x.sql),targets),initial=structuredClone(data),mat=materializer(context,data),plan={core:[],admin:[],undo:[],finalize:[],preflight:[],outcomes:[],indexes:[],fileRefs:[]};
+ const publication=statements.find(x=>targetTable(x.sql)==='setup_heads'&&/\bINSERT\b/i.test(x.sql));
+ // A publication admits its staged batch and inherits only its parent head.
+ // Archived component bodies are immutable and cannot affect this operation.
+ const selectedPublication=publication?{batch:publication.params[2],parent:publication.params[1]}:null;
+ const data=await context.snapshot(statements.map(x=>x.sql),targets,null,selectedPublication),initial=structuredClone(data),mat=materializer(context,data),plan={core:[],admin:[],undo:[],finalize:[],preflight:[],outcomes:[],indexes:[],fileRefs:[]};
  const privateReads=frame=>Object.fromEntries(Object.entries(frame).filter(([n])=>adminTables.has(n)||localMetadata.has(n)));
  const rewrite=(item,frame=data)=>rewriteRead(item.sql,item.params,privateReads(frame));
  // Frozen components cross into Core only when their complete reviewed batch
  // is accepted. Current work fields are never copied back from that snapshot.
- const publication=statements.find(x=>targetTable(x.sql)==='setup_heads'&&/\bINSERT\b/i.test(x.sql));
  if(publication){
   const batchId=publication.params[2],batch=(data.setup_batches||[]).find(x=>x.batch_id===batchId),components=(data.setup_components||[]).filter(x=>x.batch_id===batchId);
   if(!batch||!components.length)throw Object.assign(Error('The reviewed publication is incomplete.'),{status:409,code:'SETUP_COMPONENT_MISSING'});

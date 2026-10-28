@@ -9,9 +9,12 @@ export function normalizeWebsiteCards(value){
  const rows=value.map(row=>{
   if(!row||typeof row!=='object'||typeof row.id!=='string'||!/^[a-z0-9][a-z0-9-]{0,79}$/.test(row.id)||ids.has(row.id))throw fail('Every website card needs a different reference.');ids.add(row.id);
   if(!['plum','rose','sage','gold'].includes(row.tone)||typeof row.visible!=='boolean')throw fail('Choose a card colour and visibility.');
+  const appearance=row.appearance||(row.image?'upload':'plain');
+  if(!['plain','pdf','upload'].includes(appearance)||appearance==='pdf'&&!['foundations','yaseen','saffat','ankabut','luqman','muzammil','qasas','sajdah'].includes(row.id))throw fail('Choose a plain card, PDF artwork or an uploaded image.');
+  const textTone=row.textTone||'dark';if(!['dark','light'].includes(textTone))throw fail('Choose dark or light card text.');
   let image=null;
   if(row.image){const i=row.image;if(!/^[a-f0-9]{64}$/.test(i.sha256)||!['image/png','image/jpeg','image/webp'].includes(i.type)||!Number.isSafeInteger(i.size)||i.size<8||i.size>5*1024*1024)throw fail('Choose a valid card image up to 5 MB.');image={sha256:i.sha256,type:i.type,size:i.size,alt:text(i.alt,240,'an image description',true)};}
-  return {id:row.id,title:text(row.title,160,'a card title',true),arabic:text(row.arabic||'',160,'an Arabic heading'),summary:text(row.summary||'',700,'a card summary'),contactMessage:text(row.contactMessage||'Contact Admin to receive access.',700,'a contact message',true),tone:row.tone,visible:row.id==='foundations'?true:row.visible,...(row.id==='foundations'?{access:'public'}:{}),image};
+  return {id:row.id,title:text(row.title,160,'a card title',true),arabic:text(row.arabic||'',160,'an Arabic heading'),summary:text(row.summary||'',700,'a card summary'),contactMessage:text(row.contactMessage||'Contact Admin to receive access.',700,'a contact message',true),tone:row.tone,appearance,textTone,visible:row.id==='foundations'?true:row.visible,...(row.id==='foundations'?{access:'public'}:{}),image};
  });
  if(new TextEncoder().encode(JSON.stringify(rows)).length>80000)throw fail('Keep the combined card text below 80 KB. Shorten the summaries or popup messages.');
  return rows.sort((a,b)=>Number(b.id==='foundations')-Number(a.id==='foundations'));

@@ -1,36 +1,40 @@
 // Private, immutable import packages. Reading one never publishes a website.
 export const preparedTafseerCopies=Object.freeze({
  "foundations": {
-  "sha256": "fb3a64153301e2d0d85f68703cc0c2841901da5e6e87ad59a3fd2f9df8f3ed79",
-  "size": 11307625
+  "sha256": "55f8dbec4cffc53b727f8877a5f5064a73ef270693b1c728141e7a60cda1cbd2",
+  "size": 2005821
  },
  "yaseen": {
-  "sha256": "bc997ac4d1292400fa409e86f4cee9034d0a778bf0ff6148c166fc242f992761",
-  "size": 12053434
+  "sha256": "80fdd7a69ed323872037dbbc7771900f349aefc757416b27b8970c782947e27e",
+  "size": 2145064
  },
  "saffat": {
-  "sha256": "f45625db9f0170f58435cda9febf01fb10b23564e3f2bef9074370cd31fac04b",
-  "size": 14202747
+  "sha256": "d3bc7f6bedb3ed101e23b34432347696d7aabc0a88d88b97a24f0e6dbeb12c60",
+  "size": 2245769
  },
  "ankabut": {
-  "sha256": "b4a637b4cb7ec97a8c13b6ca42f74a5ccd748d75f7826fe997364a3c2e21ac66",
-  "size": 5861380
+  "sha256": "e031b479c09936ba9c3187f88aadee1c9a3e0c6181606a99466904d19a0e1488",
+  "size": 2027129
  },
  "luqman": {
-  "sha256": "d5547241c5b579b8ec451974698350309fa83a78e33825a7d71f64627b6da999",
-  "size": 4402755
+  "sha256": "fb626ffd10638c42a10b7ce86540264c67f229146e1bc7bd8df265b9f0127027",
+  "size": 2073790
  },
  "muzammil": {
-  "sha256": "7ea942c2ec856acb7997ca5124fd3c6d70595f3d43d936c9772276d3b3960067",
-  "size": 6002695
+  "sha256": "748bd923e7b314abe8505bf2c52d11e493b4def8a775239c6333095ffcc96e96",
+  "size": 1977953
  },
  "qasas": {
-  "sha256": "9134d636dff2d5e6415e92690fd28d599c42a167b53b225541a1b26baf420839",
-  "size": 3436989
+  "sha256": "ea993f0e3f0371b0c0a3b730cd6c9fb34a326386bac3faf7cc51a397614640e0",
+  "size": 1928797
  },
  "sajdah": {
-  "sha256": "4dcdf9a5ef2f933a1c78367575e4af7a17ec2e9d3a5fd50b26d925ea36df97e0",
-  "size": 5389500
+  "sha256": "499c5a54da7d85efea23f2b500d8ad978d6883d0a9abd2f73436376cc709b259",
+  "size": 1924592
+ },
+ "kahf": {
+  "sha256": "b4daea8f1d4239ede85418b01837fda9d0275cc152824e2fe3fe7208f7393fa7",
+  "size": 74308
  }
 });
 export const preparedTafseerKey=(env,copy)=>(env.ACADEMY_OBJECT_NAMESPACE||'')+'course-website-imports/tafseer/'+copy.sha256+'.json';

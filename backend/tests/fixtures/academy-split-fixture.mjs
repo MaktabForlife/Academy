@@ -15,9 +15,9 @@ export async function splitFixture(seed){
   if(seed)await seed(source);
   await initialiseAcceptedSetup(source.env.ACADEMY_DB);const snapshot=databaseSnapshot(source.db,'synthetic',new Date().toISOString()),selection=addAcceptedSource(selectActiveSnapshot(snapshot),snapshot);prepared=await prepareTargets(selection);
   const core=emptyCompatibilityDatabase(sqliteD1(prepared.databases.core),emptyShapes,{currentGrants:true}),admin=sqliteD1(prepared.databases.admin);
-  let queryCount=0;const costs=[];
-  const counted=db=>({prepare(sql){const st=db.prepare(sql);let params=[];const value={sql:st.sql,get params(){return params;},bind(...v){params=v;st.bind(...v);return value;},async all(){queryCount++;return st.all();},async first(...args){queryCount++;return st.first(...args);},async run(){queryCount++;return st.run();}};return value;},batch(statements){queryCount+=statements.length;return db.batch(statements);}});
-  const engine=splitEngine({core:counted(core),admin:counted(admin)}),invoke=async(method,args)=>{queryCount=0;try{return {result:await engine[method](...args)};}catch(e){console.error('Synthetic split '+method+':',e);throw e;}finally{costs.push({method,queries:queryCount});}},namespace={getByName(){return {write:(...args)=>invoke('write',args),read:(...args)=>invoke('read',args)};}};
+  let queryCount=0,requestCount=0;const costs=[];
+  const counted=db=>({prepare(sql){const st=db.prepare(sql);let params=[];const value={sql:st.sql,get params(){return params;},bind(...v){params=v;st.bind(...v);return value;},async all(){queryCount++;requestCount++;return st.all();},async first(...args){queryCount++;requestCount++;return st.first(...args);},async run(){queryCount++;requestCount++;return st.run();}};return value;},batch(statements){queryCount+=statements.length;requestCount++;return db.batch(statements);}});
+  const engine=splitEngine({core:counted(core),admin:counted(admin)}),invoke=async(method,args)=>{queryCount=0;requestCount=0;try{return {result:await engine[method](...args)};}catch(e){console.error('Synthetic split '+method+':',e);throw e;}finally{costs.push({method,queries:queryCount,requests:requestCount});}},namespace={getByName(){return {write:(...args)=>invoke('write',args),read:(...args)=>invoke('read',args)};}};
   const result={source,selection,prepared,core,admin,namespace,costs,databases:prepared.databases,head:prepared.report.head,scopes:source.scopes,actors:source.actors,close(){prepared.close();source.close();}};return result;
  }catch(error){prepared?.close();source.close();throw error;}
 }

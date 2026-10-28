@@ -1,3 +1,25 @@
+# V107.115 — Read only current publication components
+
+Restrict the generated current-head component read to that head before capturing immutable bodies. Archived history remains intact and other unscoped reads retain their original meaning. This keeps the final course acceptance read below platform request-size limits as the library grows. Includes bounded batch admission, with existing actor revalidation, pinned readers and recovery unchanged. No schema, bindings or access changes.
+
+# V107.114 — Bound course publication admission
+
+Admit only the reviewed immutable batch and its parent head, keeping archived component bodies out of the current publication plan. Preserve exact retries, actor checks, scoped acceptance, old pinned readers and transaction recovery. The API and existing private coordinator use the same repair; no schema, binding or access-policy change.
+
+# V107.113 — Publish larger course libraries
+
+Read publication history as separate database rows instead of aggregating an entire table into one JSON value. This prevents D1’s per-value limit from blocking publication as full course wording accumulates. Preserve accepted-head selection, owner merging, credential masking, actor revalidation, transaction fences and recovery. Deploy the same small read-path fix in the existing API and private split coordinator; no schema or binding change.
+
+# V107.112 — Re-import existing course images
+
+Fix revised course imports when their cover image is already stored. Each uploaded attachment retains an immutable scoped reference while sharing its stored bytes. Existing published assets still resolve, and no schema or permission change is required. Includes the V107.111 source wording, shared Lesson media and Admin card style/text controls.
+
+# V107.111 — Complete course readings and recording cards
+
+Use the supplied PDF teaching text as the main Tafseer and Surah Al Kahf lessons, with spelling/reference and extraction corrections recorded during preparation. Keep summaries in optional expandable asides and retain editable headings and reflections. Link Course materials to the existing protected Lesson media PDFs rather than importing duplicate files. Default to plain access cards; Admin can choose original PDF artwork or upload a replacement image.
+
+Connect each Surah reader to explicitly named, published native lesson-media cards, preserving each parent lesson’s paid-month, class, publication and playback checks. Actual Global and own-scope Program Admin authority grants reading across personal and Admin views without granting editing in personal Learn. The private prepared importer also supports the existing Kahf Course. No schema/coordinator upgrade or subscription activation.
+
 # V107.110 — Private prepared course import
 
 The Tafseer website editor can import the eight prepared module packages from the Academy’s private storage, using current scoped Admin authority. Imported lesson text and files follow the existing private Save draft and explicit Publish flow. Published reader/PDF permissions and public Foundations remain unchanged. No schema or coordinator upgrade.

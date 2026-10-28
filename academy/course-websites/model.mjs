@@ -7,7 +7,7 @@ export const clone=value=>structuredClone(value);
 export const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function newBlock(type='text'){
  if(!Object.hasOwn(BLOCKS,type))throw Error('Choose a supported lesson component.');
- return {id:uid(),type,text:'',arabic:'',translation:'',reference:'',attribution:'',items:[''],leftArabic:'',leftMeaning:'',rightArabic:'',rightMeaning:'',assetId:'',alt:'',caption:''};
+ return {id:uid(),type,aside:false,text:'',arabic:'',translation:'',reference:'',attribution:'',items:[''],leftArabic:'',leftMeaning:'',rightArabic:'',rightMeaning:'',assetId:'',alt:'',caption:''};
 }
 export function newSection(){return {id:uid(),title:'New section',label:'',blocks:[newBlock()]};}
 export function newLesson(title='New lesson',group='Your lessons'){return {id:uid(),title,group,summary:'',sections:[newSection()]};}
@@ -23,7 +23,7 @@ export function exampleBlock(type){
 }
 export function move(array,index,direction){const next=index+direction;if(next<0||next>=array.length)return false;[array[index],array[next]]=[array[next],array[index]];return true;}
 export function duplicateLesson(lesson){const copy=clone(lesson);copy.id=uid();copy.title+=' — copy';for(const section of copy.sections){section.id=uid();for(const block of section.blocks)block.id=uid();}return copy;}
-export function setPath(root,path,value){const parts=path.split('.');if(parts.some(p=>['__proto__','constructor','prototype'].includes(p)))throw Error('Invalid field.');let target=root;for(const part of parts.slice(0,-1)){if(!Object.hasOwn(target,part))throw Error('Unknown field.');target=target[part];}const key=parts.at(-1);if(!Object.hasOwn(target,key))throw Error('Unknown field.');target[key]=value;}
+export function setPath(root,path,value){const parts=path.split('.');if(parts.some(p=>['__proto__','constructor','prototype'].includes(p)))throw Error('Invalid field.');let target=root;for(const part of parts.slice(0,-1)){if(!Object.hasOwn(target,part))throw Error('Unknown field.');target=target[part];}const key=parts.at(-1);if(!Object.hasOwn(target,key)&&!(key==='aside'&&target.type==='note'&&typeof value==='boolean'))throw Error('Unknown field.');target[key]=value;}
 const text=(value,max=20000)=>typeof value==='string'&&value.length<=max;
 export function validateCourse(course,{review=false}={}){
  const errors=[],ids=new Set();let blocks=0;

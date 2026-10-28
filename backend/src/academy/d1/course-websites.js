@@ -11,8 +11,10 @@ import {lessonMedia} from './lesson-media.js';
 import {mayReadSurah} from './surah-websites-access.js';
 import {preparedTafseerCopies,preparedTafseerKey} from '../course-books/tafseer-prepared.js';
 import {monthlyEnabled} from './monthly-media-policy.js';
-import {storeLessonPdf} from './lesson-pdf-storage.js';
+import {storeLessonPdf,lessonPdfReference,lessonPdfObjectKey} from './lesson-pdf-storage.js';
+import {surahRecordingTerms} from './surah-recording-titles.js';
 
+const websiteAssetKey=reference=>lessonPdfObjectKey(String(reference).replace(/image-refs\/[a-f0-9-]{36}\/([a-f0-9]{64})$/,'$1'));
 const assetDTO=row=>({id:row.asset_id,name:row.filename,type:row.mime_type,size:row.byte_size,createdAt:row.created_at});
 const scopeKey=input=>{if(typeof input.activityKey!=='string'||!/^COURSE:[^:]{1,160}$/.test(input.activityKey))throw fail('Choose a Course.');return input.activityKey;};
 const uuid=value=>/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value||'');
@@ -43,7 +45,7 @@ export function courseWebsites(repository,auth,env){
   return row;
  }
  const record=scope=>publishedWebsiteValue(repository,{table:target.documents,scope,id:target.id},()=>p('SELECT * FROM '+target.documents+' WHERE '+target.column+'=?',target.id).first());
- const preparedCopy=area=>area.surahId&&area.programName.trim().toLowerCase()==='tafseer'&&Object.hasOwn(preparedTafseerCopies,area.card_key)?preparedTafseerCopies[area.card_key]:null;
+ const preparedCopy=area=>isSurahKahfCourse(area)&&!area.surahId?preparedTafseerCopies.kahf:area.surahId&&area.programName.trim().toLowerCase()==='tafseer'&&Object.hasOwn(preparedTafseerCopies,area.card_key)?preparedTafseerCopies[area.card_key]:null;
  const files=key=>publishedWebsiteValue(repository,{table:target.assets,scope:key,id:target.id},async()=>(await p('SELECT * FROM '+target.assets+' WHERE '+target.column+'=? ORDER BY created_at,asset_id LIMIT 101',target.id).all()).results);
  async function legacyGate(area,row){
   if(row?.source_kind!=='KAHF'&&row||!row&&!isSurahKahfCourse(area))return;
@@ -107,7 +109,7 @@ export function courseWebsites(repository,auth,env){
   if((await files(key)).length>=100&&!existing)throw fail('Keep up to 100 uploaded files per Course.');
   const storage=env.LESSON_MEDIA_BUCKET,namespace=(env.ACADEMY_OBJECT_NAMESPACE||'')+(target.surahId?'program-surah-websites/'+encodeURIComponent(key)+'/'+target.surahId+'/':'course-websites/'+encodeURIComponent(key)+'/'),objectKey=namespace+input.sha256;
   let storedKey;
-  if(type==='application/pdf')storedKey=await storeLessonPdf(request,storage,namespace,input);
+  if(type==='application/pdf'){await storeLessonPdf(request,storage,namespace,input);storedKey=lessonPdfReference(namespace,input.assetId,input.sha256);}
   else{
    if(!storage?.put)throw fail('Private file storage is unavailable.',503);
    const reader=request.body?.getReader(),parts=[];let size=0;if(!reader)throw fail('Choose a file.');
@@ -116,7 +118,7 @@ export function courseWebsites(repository,auth,env){
    const bytes=new Uint8Array(size);let at=0;for(const part of parts){bytes.set(part,at);at+=part.length;}
    const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
    if(fileKind(bytes.slice(0,16))!==type||hash!==input.sha256)throw fail('The file type or checksum changed. Choose it again.');
-   await storage.put(objectKey,bytes,{sha256:hash,httpMetadata:{contentType:type}});storedKey=objectKey;
+   await storage.put(objectKey,bytes,{sha256:hash,httpMetadata:{contentType:type}});storedKey=namespace+'image-refs/'+input.assetId+'/'+hash;
   }
   // Authority and concurrent source changes are checked again in the guarded write.
   return store.change('COURSE_WEBSITE',key,'upload',input,async()=>{
@@ -130,7 +132,7 @@ export function courseWebsites(repository,auth,env){
   const source=admin?{area:await activity(input,true)}:await readable(input),id=String(input.assetId||'');
   if(!admin&&!referencedAssets(source.document).includes(id))throw fail('This file is not published in this Course.',404,'NOT_FOUND');
   const row=await p('SELECT * FROM '+target.assets+' WHERE '+target.column+'=? AND asset_id=?',target.id,id).first();
-  const object=row?await env.LESSON_MEDIA_BUCKET?.get(row.object_key):null;if(!object)throw fail('This file is unavailable.',404,'NOT_FOUND');
+  const object=row?await env.LESSON_MEDIA_BUCKET?.get(websiteAssetKey(row.object_key)):null;if(!object)throw fail('This file is unavailable.',404,'NOT_FOUND');
   return new Response(object.body,{headers:{'Content-Type':row.mime_type,'Content-Length':String(row.byte_size),'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"sandbox",'Content-Disposition':"attachment; filename*=UTF-8''"+encodeURIComponent(row.filename).replace(/['()*]/g,c=>'%'+c.charCodeAt(0).toString(16).toUpperCase())}});
  }
  return {upload,async run(action,input={}){
@@ -147,13 +149,18 @@ export function courseWebsites(repository,auth,env){
    const rows=(await p("SELECT a.activity_key,a.activity_id,a.name,d.revision,d.enabled,d.updated_at FROM activities a LEFT JOIN course_website_documents d USING(activity_key) WHERE a.kind='COURSE' AND a.active=1 AND a.lifecycle='ACTIVE' AND (?=1 OR a.activity_key IN(SELECT value FROM json_each(?))) ORDER BY a.name LIMIT 501",Number(auth.state.account.global_admin),JSON.stringify(scopes)).all()).results;
    return {websites:rows.slice(0,500).map(r=>({activityKey:r.activity_key,courseId:r.activity_id,name:r.name,hasDraft:Boolean(r.revision),revision:r.revision||0,enabled:r.enabled!==0,updatedAt:r.updated_at||'',existing:isSurahKahfCourse({kind:'COURSE',name:r.name})})),truncated:rows.length>500};
   }
-  if(action==='get'){const area=await activity(input,true),row=await record(area.activity_key);return {activityKey:area.activity_key,...(target.surahId?{surahId:target.surahId,completionDate:area.completion_date,preparedCopyAvailable:Boolean(preparedCopy(area))}:{}),courseId:area.activity_id,name:area.name,revision:row?.revision||0,enabled:row?.enabled!==0,document:row?JSON.parse(row.document_json):template(area),assets:(await files(area.activity_key)).map(assetDTO),legacy:isSurahKahfCourse(area)};}
+  if(action==='get'){const area=await activity(input,true),row=await record(area.activity_key);return {activityKey:area.activity_key,preparedCopyAvailable:Boolean(preparedCopy(area)),...(target.surahId?{surahId:target.surahId,completionDate:area.completion_date}:{}),courseId:area.activity_id,name:area.name,revision:row?.revision||0,enabled:row?.enabled!==0,document:row?JSON.parse(row.document_json):template(area),assets:(await files(area.activity_key)).map(assetDTO),legacy:isSurahKahfCourse(area)};}
   if(['save','publish','withdraw'].includes(action))return change(action,input);
   if(action==='asset')return asset(input,false);
   if(action==='admin-asset')return asset(input,true);
   if(action==='read'){
    const {area,document}=await readable(input);
-   if(target.surahId){document.pages.sessions=false;document.pages.assessments=false;return {document,surahId:target.surahId,activityKey:area.activity_key,completionDate:area.completion_date,readerKey:await payloadHash(['SURAH_READER_OWNER',actor,area.activity_key,target.surahId]),assets:(await files(area.activity_key)).filter(r=>referencedAssets(document).includes(r.asset_id)).map(assetDTO),native:{lessons:[],sessions:[]}};}
+   if(target.surahId){
+    let native={lessons:[],sessions:[]};
+    if(auth)try{native=await lessonMedia(repository,auth,env).run('feed',{activityKey:area.activity_key,view:'learner',websiteRecordingTerms:surahRecordingTerms(area),before:input.mediaBefore});}catch(error){if(![403,503].includes(error.status))throw error;}
+    document.pages.sessions=Boolean(native.sessions.length);document.pages.assessments=false;
+    return {document,surahId:target.surahId,activityKey:area.activity_key,completionDate:area.completion_date,readerKey:await payloadHash(['SURAH_READER_OWNER',actor,area.activity_key,target.surahId]),assets:(await files(area.activity_key)).filter(r=>referencedAssets(document).includes(r.asset_id)).map(assetDTO),native:{...native,lessonMediaMaterials:true}};
+   }
    let native=await lessonMedia(repository,auth,env).run('feed',{activityKey:area.activity_key,view:'learner',includeCourseCompanion:true,includeCourseSessions:true});
    if(repository.features?.mediaSeparation)native=await lessonNotes(repository,auth,env).enrichFeed(native,{activityKey:area.activity_key,view:'learner'});
    if(!native.courseCompanion?.schedule)try{native.courseWebsiteSchedule=await courseReaderSessions(repository,auth,area);}catch(error){if([401,403].includes(error.status))throw error;native.courseWebsiteSchedule={sessions:[],unavailable:true};}

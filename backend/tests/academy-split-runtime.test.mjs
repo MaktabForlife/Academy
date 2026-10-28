@@ -7,6 +7,9 @@ import {seedReadHistory} from './fixtures/academy-read-history-fixture.mjs';
 test('the actual Workers runtime coordinates both D1 bindings through private Durable Object RPC',async()=>{
  const f=await splitFixture();let runtime;try{
  seedReadHistory(f,2);
+ const historyBatch=f.databases.core.prepare('SELECT batch_id FROM setup_batches LIMIT 1').get().batch_id;
+ const largeHistory=JSON.stringify([{document_json:'Synthetic archived course wording. '.repeat(36000)}]);
+ for(let i=0;i<14;i++)f.databases.core.prepare('INSERT INTO setup_components VALUES(?,?,?,?,?,?,?)').run('large-course-history-'+i,historyBatch,'program_surah_website_documents','PROGRAM:synthetic-history-'+i,largeHistory,1,'a'.repeat(64));
  f.databases.core.exec("UPDATE split_deployment_state SET state='READY'");
  const apiPath=new URL('../src/academy-runtime.js',import.meta.url).pathname,coordinatorPath=new URL('../src/academy-split-coordinator.js',import.meta.url).pathname;
  const api=await build({stdin:{contents:`import api from ${JSON.stringify(apiPath)};export default{fetch:(r,e,c)=>api.fetch(r,{...e,AUTH_LOGIN_RATE_LIMITER:{limit:async()=>({success:true})}},c)};`,resolveDir:process.cwd()},bundle:true,format:'esm',platform:'browser',write:false,external:['cloudflare:workers']}),coordinator=await build({entryPoints:[coordinatorPath],bundle:true,format:'esm',platform:'browser',write:false,external:['cloudflare:workers']});

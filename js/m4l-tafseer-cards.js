@@ -65,8 +65,11 @@
         ? `<a class="tf-card-action" data-tafseer-link="${card.id}" href="${esc(href)}" aria-label="${esc(binding.label||'Open lessons')}: ${esc(card.title)}"><span>${esc(binding.label||'Open lessons')}</span>${arrow}</a>`
         : `<button class="tf-card-action tf-card-pending" data-tafseer-link="${card.id}" type="button" disabled aria-label="${esc(card.title)}: coming soon"><span>Coming soon</span>${arrow}</button>`;
       const accessLabel = card.access === 'public' ? '<span class="tf-card-access">Open to all</span>' : '';
-      const image = card.image?.url && /^(?:https:\/\/[^/]+)?\/api\/academy\/website-card-image\?/.test(card.image.url) ? `<img class="tf-card-image" src="${esc(card.image.url)}" alt="${esc(card.image.alt||card.title)}" loading="lazy">` : '';
-      return `<article class="tf-card tf-card-${esc(card.tone)}" data-tafseer-card="${esc(card.id)}"${binding.code?` data-tafseer-code="${esc(binding.code)}"`:''} aria-labelledby="${esc(titleId)}">${image}<span class="tf-card-tag">TAFSEER &amp; TADABBUR</span><span class="tf-card-arabic" lang="ar" dir="rtl">${esc(card.arabic)}</span><h3 id="${esc(titleId)}">${esc(card.title)}</h3>${accessLabel}<p class="tf-card-summary">${esc(card.summary)}</p>${action}</article>`;
+      const uploadedImage=card.image?.url && /^(?:https:\/\/[^/]+)?\/api\/academy\/website-card-image\?/.test(card.image.url);
+      const pdfArtwork=['foundations','yaseen','saffat','ankabut','luqman','muzammil','qasas','sajdah'].includes(card.id)?'/academy/learning-images/tafseer-cards/'+card.id+'.jpg':'';
+      const appearance=card.appearance||(uploadedImage?'upload':'plain');
+      const image=appearance==='upload'&&uploadedImage?`<img class="tf-card-image" src="${esc(card.image.url)}" alt="${esc(card.image.alt||card.title)}" loading="lazy">`:appearance==='pdf'&&pdfArtwork?`<img class="tf-card-image tf-card-pdf-artwork" src="${pdfArtwork}" alt="Artwork from ${esc(card.title)}" loading="lazy">`:'';
+      return `<article class="tf-card tf-card-${esc(card.tone)}" data-tafseer-card="${esc(card.id)}" data-text-tone="${card.textTone==='light'?'light':'dark'}"${binding.code?` data-tafseer-code="${esc(binding.code)}"`:''} aria-labelledby="${esc(titleId)}">${image}<span class="tf-card-tag">TAFSEER &amp; TADABBUR</span><span class="tf-card-arabic" lang="ar" dir="rtl">${esc(card.arabic)}</span><h3 id="${esc(titleId)}">${esc(card.title)}</h3>${accessLabel}<p class="tf-card-summary">${esc(card.summary)}</p>${action}</article>`;
     }).join('');
   }
   function mount(host,options={}) {
