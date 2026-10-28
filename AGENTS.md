@@ -1,3 +1,9 @@
+# Foundations publication envelope repair and ordered editorial reviews — 28 October 2026
+
+- The human asked to finish Foundations deployment, then review the other eight using the agreed principles, starting with Kahf and proceeding from most recent. Keep the eight revised editions local for review. Kahf now has a manually reconciled local edition, 11 lessons, 26 paired ayah boxes, 9 original graphics and all existing 16 reflection IDs. All 11 lessons pass 320/390-pixel overflow checks and desktop centring.
+- The V107.118 code/API/Pages deployment succeeded, and the reviewed Foundations draft is safely saved in Admin. Its final acceptance failed with SETUP_TOO_LARGE: a 1.33 MB stored component becomes 1.56 MB when re-encoded inside a JSON insert envelope. The old public edition remains live. Do not claim Foundations complete until the public reader shows the reviewed edition.
+- Release the minimal, synthetic-tested direct-bind fallback as V107.119 under the existing explicit Foundations deployment authorisation. Preserve the 1.5 MB actual-row safety bound, small-component batching, authority/immutable-head/retry protections and all content/access policies. No schema or coordinator code/config change. Then retry only the saved Foundations native publication and verify one public lesson. No other reviewed website is to be uploaded or published.
+
 # Foundations authorised release and remaining editorial drafts — 28 October 2026
 
 - The human explicitly requested “deploy foundations”, then instructed continuing the other eight on the same principles and holding those for review. Release only the reviewed Foundations course content, plus required shared reader/model support, as V107.118 from the existing feature branch.

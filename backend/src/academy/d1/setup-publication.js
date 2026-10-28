@@ -122,7 +122,21 @@ function guard(db,{version,head},auth,scopes){
  if(auth){authority=` AND EXISTS(SELECT 1 FROM accounts a JOIN account_credentials c USING(account_id) JOIN account_sessions s USING(account_id) WHERE a.account_id=? AND a.active=1 AND c.pin_setup=1 AND length(trim(c.pin_hash))>0 AND c.credential_epoch=? AND s.session_id=? AND s.revoked_at IS NULL AND s.credential_epoch=c.credential_epoch AND s.expires_at>?) AND (EXISTS(SELECT 1 FROM global_role_assignments g WHERE g.account_id=? AND g.active=1 AND g.review_state='CONFIRMED' AND g.role='GLOBAL_ADMIN') OR NOT EXISTS(SELECT 1 FROM json_each(?) scope WHERE NOT EXISTS(SELECT 1 FROM (SELECT account_id,activity_key,role FROM effective_activity_roles UNION SELECT e.account_id,e.activity_key,m.target_role FROM legacy_access_evidence e JOIN role_import_reviews v ON v.account_id=e.account_id AND v.activity_key=e.activity_key AND v.source_value=e.source_role JOIN role_mapping_decisions m ON m.source_role=e.source_role WHERE e.source_effective=1 AND v.status='REQUIRED') r JOIN activities a USING(activity_key) WHERE r.account_id=? AND r.role='PROGRAM_ADMIN' AND r.activity_key=scope.value COLLATE NOCASE AND a.active=1 AND a.lifecycle='ACTIVE')))`;values.push(auth.user.accountid,actualState(auth).account.credential_epoch,auth.sid,now,auth.user.accountid,JSON.stringify(scopes),auth.user.accountid);}
  return {check:db.prepare(`INSERT INTO academy_write_guards VALUES(?,${base}${authority})`).bind(...values),clear:db.prepare('DELETE FROM academy_write_guards WHERE guard_id=?').bind(guardId)};
 }
-const insertComponents=(db,batch,components)=>chunks(components.map(c=>({...c,component_id:id()}))).map(chunk=>db.prepare(`INSERT INTO setup_components(component_id,batch_id,table_name,scope_key,rows_json,row_count,digest) SELECT json_extract(value,'$.component_id'),?,json_extract(value,'$.table_name'),json_extract(value,'$.scope_key'),json_extract(value,'$.rows_json'),json_extract(value,'$.row_count'),json_extract(value,'$.digest') FROM json_each(?)`).bind(batch,JSON.stringify(chunk)));
+export function insertComponents(db,batch,components){
+ const statements=[],pending=[];
+ const flush=()=>{for(const chunk of chunks(pending.splice(0)))statements.push(db.prepare(`INSERT INTO setup_components(component_id,batch_id,table_name,scope_key,rows_json,row_count,digest) SELECT json_extract(value,'$.component_id'),?,json_extract(value,'$.table_name'),json_extract(value,'$.scope_key'),json_extract(value,'$.rows_json'),json_extract(value,'$.row_count'),json_extract(value,'$.digest') FROM json_each(?)`).bind(batch,JSON.stringify(chunk)));};
+ for(const value of components){
+  const c={...value,component_id:id()},size=value=>new TextEncoder().encode(value).length;
+  if(size(JSON.stringify(c))+1<=1500000){pending.push(c);continue;}
+  // Nested course JSON can exceed the transport envelope solely because its
+  // quotes are escaped again. Bind this unchanged component directly instead;
+  // retain the same conservative limit on the actual stored row and each value.
+  const fields=[c.component_id,batch,c.table_name,c.scope_key,c.rows_json,c.row_count,c.digest];
+  if(fields.reduce((n,v)=>n+size(String(v)),0)>1500000)throw fail('This setup component exceeds the publication limit.',413,'SETUP_TOO_LARGE');
+  flush();statements.push(db.prepare('INSERT INTO setup_components(component_id,batch_id,table_name,scope_key,rows_json,row_count,digest) VALUES(?,?,?,?,?,?,?)').bind(...fields));
+ }
+ flush();return statements;
+}
 function headStatements(db,batch,head,parent,actor,now,mediaSeparation=false){return [
  db.prepare('INSERT INTO setup_heads VALUES(?,?,?,?,?)').bind(head,parent,batch,now,actor),
  ...(parent?[db.prepare(`INSERT INTO setup_head_components SELECT ?,v.table_name,v.scope_key,v.component_id FROM setup_head_components v WHERE v.head_id=? AND NOT EXISTS(SELECT 1 FROM setup_components c WHERE c.batch_id=? AND c.table_name=v.table_name AND c.scope_key=v.scope_key)`).bind(head,parent,batch)]:[]),
