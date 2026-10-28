@@ -103,6 +103,7 @@ export function academyD1Repository(env) {
       contexts.push({scope:'GLOBAL',courseId:'',courseName:'Global Subjects',role:'STUDENT'});
     const myLinksAvailable=env.ACADEMY_MEDIA_SEPARATION==='1'&&Boolean(account.global_admin||roles.some(r=>['TEACHER','PROGRAM_ADMIN'].includes(r.role))||!contexts.length&&await personalLinksEstablished(env,account.account_id));
     if(myLinksAvailable&&!contexts.length)contexts.push({scope:'OWN_LIBRARY',courseId:'',courseName:'My links',role:'LIBRARY_OWNER'});
+    if(!contexts.length&&env.ACADEMY_WEB_PLATFORM==='1'&&(await raw.prepare('SELECT active FROM website_platform_admissions WHERE account_id=?').bind(account.account_id).first())?.active===1)contexts.push({scope:'WEBSITE',courseId:'',courseName:'Acquired website materials',role:'CONTENT_READER'});
     return {account,activities,roles,subscriptions,contexts,myLinksAvailable,monthlyMedia,monthlyMediaEnabled:env.ACADEMY_MONTHLY_SUBSCRIPTIONS==='1',surahGrants,surahGrantsEnabled:env.ACADEMY_SURAH_GRANTS==='1'};
   }
   function audit(actor,target,action,fields,conditional=false) {

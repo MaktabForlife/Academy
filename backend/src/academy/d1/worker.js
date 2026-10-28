@@ -1,4 +1,5 @@
 import {studioOrigin,studioHandoff} from './website-studio-handoff.js';
+import {bridge as websitePlatformBridge,recoverWebsite,enabled as websitePlatformEnabled} from './web-platform/bridge.mjs';
 import {recoverWeeklyAbsentees,weeklyAbsenteeCron} from './weekly-absentees.js';
 import {imtihaanWorkflow} from './assessment-imtihaan-workflow.js';
 import {assessmentStore} from './assessment-store.js';
@@ -75,7 +76,7 @@ async function boundedBody(request,limit=4096) {
   if(!body||typeof body!=='object'||Array.isArray(body))throw rehearsalError('Invalid request.',400,'INVALID_REQUEST');
   return body;
 }
-async function issueSession(env,repository,state,context) {
+async function issueSession(env,repository,state,context,capture) {
   if(!context)throw rehearsalError('No authorised Academy context is available.',403,'NO_CONTEXT');
   const session=await repository.createSession(state,context);
   if(repository.privateSnapshots){
@@ -86,6 +87,7 @@ async function issueSession(env,repository,state,context) {
     if(!context)throw rehearsalError('Your permissions changed. Please sign in again.',401,'SESSION_ENDED');
   }
   const token=await createSessionToken({type:'account',aud:audience,sv:3,sid:session.sid,accountid:state.account.account_id,epoch:state.account.credential_epoch,scope:context.scope,courseid:context.courseId,role:context.role},env);
+  capture?.({state,context,sid:session.sid});
   return {success:true,...sessionResponse(state,context,token)};
 }
 async function rateLimit(env,login) {
@@ -94,7 +96,7 @@ async function rateLimit(env,login) {
   const result=await env.AUTH_LOGIN_RATE_LIMITER.limit({key});
   if(!result.success)throw rehearsalError('Too many sign-in attempts. Please wait one minute.',429,'LOGIN_RATE_LIMITED');
 }
-async function dispatch(request,env) {
+async function dispatch(request,env,options={}) {
   if (![env.PIN_SECRET,env.SESSION_SECRET].every(value=>typeof value==='string'&&value.trim()))
     throw rehearsalError('Academy authentication is not configured.');
   let repository=academyD1Repository(env);
@@ -102,6 +104,10 @@ async function dispatch(request,env) {
   let reader;
   const readRepository=async()=>reader??=acceptedRepository(sourceRepository,await acceptedHead(sourceRepository,request.headers.get('X-Academy-Setup')||''));
   const path=new URL(request.url).pathname;
+  if(path.startsWith('/internal/website/')||path.startsWith('/api/website-platform/'))return websitePlatformBridge(request,env,{
+    login:async input=>{let captured;await dispatch(new Request(new URL(input.setup?'/api/account/setup-pin':'/api/account/login',request.url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)}),env,{capture:value=>captured=value});return captured;},
+    mint:session=>{const context=JSON.parse(session.context_json);return createSessionToken({type:'account',aud:audience,sv:3,sid:session.session_id,accountid:session.account_id,epoch:session.epoch,scope:context.scope,courseid:context.courseId,role:context.role},env);}
+  });
   if(path==='/api/academy/website-studio/config'&&request.method==='GET')return {success:true,enabled:Boolean(studioOrigin(env)),origin:studioOrigin(env)};
   await repository.ready();
   if(path==='/api/academy/setup/head'&&request.method==='GET')return {success:true,head:setupEnabled(env)?await acceptedHead(repository):null};
@@ -208,7 +214,7 @@ async function dispatch(request,env) {
       if(!verification.valid)throw rehearsalError('Incorrect PIN',401,'INCORRECT_PIN');
       if(verification.needsMigration)state=await repository.setCredential(state,verification.upgradedHash,'ACCOUNT_PIN_HASH_UPGRADE');
     }
-    return issueSession(env,repository,state,state.contexts[0]);
+    return issueSession(env,repository,state,state.contexts[0],options.capture);
   }
   if(path==='/api/academy/entrance') {
     const auth=request.headers.has('Authorization')?await authenticated(request,env,repository):null;
@@ -382,6 +388,7 @@ return {
     ctx.waitUntil(recoverMessaging(env,new Date(event.scheduledTime)));
     ctx.waitUntil(recoverCacheRefresh(env,new Date(event.scheduledTime)));
     if(hifzSyncEnabled(env))ctx.waitUntil(recoverHifzProfiles(env,{limit:40}));
+    if(websitePlatformEnabled(env))ctx.waitUntil(recoverWebsite(env));
   },
   async fetch(request,env,ctx) {
     const origin=request.headers.get('Origin');
@@ -395,6 +402,7 @@ return {
       const result=await (path==='/api/academy/header-date'?(request.method==='GET'?headerDate(request):Response.json({success:false,error:'Use GET.'},{status:405})):path==='/api/academy/entrance/public-snapshot'?publicTimetable(request,env):path==='/api/academy/profile-labels-version'?profileLabelsVersion(request,env):dispatch(request,env));
       if(request.method==='POST'&&hifzSyncChangePath(path)&&hifzSyncEnabled(env)&&ctx?.waitUntil&&!(result instanceof Response)&&result.success)
         ctx.waitUntil(recoverHifzProfiles(env));
+      if(request.method==='POST'&&websitePlatformEnabled(env)&&ctx?.waitUntil&&!(result instanceof Response)&&result.success&&(/\/user-profiles\/(save|link|recover)$/.test(path)||['/api/account/logout','/api/account/setup-pin'].includes(path)))ctx.waitUntil(recoverWebsite(env));
       if(result instanceof Response){const mediaHeaders=new Headers(result.headers);for(const name of ['Vary','Access-Control-Allow-Methods','Access-Control-Allow-Headers'])mediaHeaders.set(name,headers[name]);
         mediaHeaders.set('X-Content-Type-Options','nosniff');
         mediaHeaders.delete('Access-Control-Allow-Origin');if(headers['Access-Control-Allow-Origin'])mediaHeaders.set('Access-Control-Allow-Origin',headers['Access-Control-Allow-Origin']);
