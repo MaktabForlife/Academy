@@ -1,3 +1,4 @@
+import {calendarFacts,holidaySettings} from './published-facts-cache.js';
 import {scheduledLessons,classLesson} from '../../programs/attendance-model.js';
 import {same,managementError as fail} from './management-store.js';
 import {validDate} from './assessment-store.js';
@@ -8,13 +9,13 @@ import {noTeachingCalendarEvents,holidayOnDate} from './calendar-holidays.js';
 export const publishedSessions=async(repository,activity,date,options={})=>{const result=await publishedSessionRange(repository,activity,date,date,options);return {lessons:result.lessons,runs:result.runs};};
 export async function publishedSessionFacts(repository,activityKeys){
  const db=repository.db,p=(sql,...v)=>db.prepare(sql).bind(...v),keys=JSON.stringify(activityKeys);
- const [classes,publications,runs,lifecycles,calendar,suppressions,settings]=(await db.batch([
+ const [result,facts]=await Promise.all([db.batch([
   p('SELECT * FROM classes WHERE activity_key IN(SELECT value FROM json_each(?)) AND active=1',keys),
   p('SELECT p.*,l.status publication_lifecycle FROM timetable_publications p LEFT JOIN program_publication_lifecycle l USING(activity_key,publication_id) WHERE p.activity_key IN(SELECT value FROM json_each(?)) ORDER BY p.version_no',keys),
   p('SELECT r.*,s.stage,s.current_publication_id FROM course_runs r JOIN course_run_state s USING(activity_key,run_id) WHERE r.activity_key IN(SELECT value FROM json_each(?))',keys),
-  p('SELECT * FROM lesson_lifecycle WHERE activity_key IN(SELECT value FROM json_each(?))',keys),
-  p('SELECT * FROM academy_calendar_events'),p('SELECT * FROM academy_calendar_suppressions'),p("SELECT * FROM academy_settings WHERE setting_key LIKE 'AcademyHolidayAnnual:%'")
- ])).map(r=>r.results);
+  p('SELECT * FROM lesson_lifecycle WHERE activity_key IN(SELECT value FROM json_each(?))',keys)
+ ]),calendarFacts(repository)]);
+ const [classes,publications,runs,lifecycles]=result.map(r=>r.results),{calendar,suppressions}=facts,settings=holidaySettings(facts);
  return new Map(activityKeys.map(key=>[key.toUpperCase(),{classes:classes.filter(r=>same(r.activity_key,key)),publications:publications.filter(r=>same(r.activity_key,key)),runs:runs.filter(r=>same(r.activity_key,key)),lifecycles:lifecycles.filter(r=>same(r.activity_key,key)),calendar,suppressions,settings}]));
 }
 export async function publishedSessionRange(repository,activity,startDate,endDate,{runId='',maxDays=31,classId='',facts=null}={}){

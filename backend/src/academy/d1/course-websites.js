@@ -1,3 +1,4 @@
+import {publishedWebsiteValue} from './published-facts-cache.js';
 import {payloadHash} from '../../programs/timetable-model.js';
 import {managementStore,managementError as fail,same} from './management-store.js';
 import {isAdminWorkspace,administers,readerPreview} from './workspace-access.js';
@@ -41,9 +42,9 @@ export function courseWebsites(repository,auth,env){
   }
   return row;
  }
- const record=()=>p('SELECT * FROM '+target.documents+' WHERE '+target.column+'=?',target.id).first();
+ const record=scope=>publishedWebsiteValue(repository,{table:target.documents,scope,id:target.id},()=>p('SELECT * FROM '+target.documents+' WHERE '+target.column+'=?',target.id).first());
  const preparedCopy=area=>area.surahId&&area.programName.trim().toLowerCase()==='tafseer'&&Object.hasOwn(preparedTafseerCopies,area.card_key)?preparedTafseerCopies[area.card_key]:null;
- const files=async key=>(await p('SELECT * FROM '+target.assets+' WHERE '+target.column+'=? ORDER BY created_at,asset_id LIMIT 101',target.id).all()).results;
+ const files=key=>publishedWebsiteValue(repository,{table:target.assets,scope:key,id:target.id},async()=>(await p('SELECT * FROM '+target.assets+' WHERE '+target.column+'=? ORDER BY created_at,asset_id LIMIT 101',target.id).all()).results);
  async function legacyGate(area,row){
   if(row?.source_kind!=='KAHF'&&row||!row&&!isSurahKahfCourse(area))return;
   const pdfs=(await p("SELECT a.filename,a.display_name FROM lesson_media_lessons l JOIN lesson_media_links k USING(lesson_id) JOIN lesson_media_assets a USING(asset_id) WHERE l.activity_key=? AND l.media_scope='COURSE' AND l.state='PUBLISHED' AND a.kind='PDF' LIMIT 101",area.activity_key).all()).results;

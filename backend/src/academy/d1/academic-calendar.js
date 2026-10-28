@@ -1,3 +1,4 @@
+import {calendarFacts} from './published-facts-cache.js';
 import {noTeachingCalendarEvents,holidayOnDate} from './calendar-holidays.js';
 import {annualFlag,annualKey,annualRevision,hijriYearRows} from './calendar-annual.js';
 import {termBreaks} from '../calendar-dates.js';
@@ -24,8 +25,8 @@ export function academicCalendar(repository,auth) {
  const store=managementStore(repository,auth),p=store.p;
  async function load(){
   if(!await optionalSchema(repository.db,'SELECT scope_key,calendar_kind,revision FROM academy_calendar_events WHERE 0'))throw managementError('The Academic Calendar needs its database upgrade.',503,'ACADEMIC_CALENDAR_SCHEMA_REQUIRED');
-  const teachers=await teacherDesignations(repository);
-  return store.load({teachers:teachers.statement,calendar:p('SELECT * FROM academy_calendar_events'),suppressions:p('SELECT * FROM academy_calendar_suppressions'),availability:p('SELECT * FROM teacher_availability'),classes:p('SELECT t.* FROM class_teacher_assignments t JOIN classes c USING(activity_key,class_id) WHERE c.active=1'),drafts:p('SELECT activity_key,draft_json FROM timetable_drafts'),teaching:p('SELECT activity_key,account_id FROM published_lesson_teachers'),settings:p("SELECT * FROM academy_settings WHERE setting_key='PlatformTimezone' OR setting_key LIKE 'AcademyHijriAnnual:%' OR setting_key LIKE 'AcademyHolidayAnnual:%'")});
+  const teachers=await teacherDesignations(repository),facts=repository.setup?.reader?await calendarFacts(repository):null;
+  return store.load({teachers:teachers.statement,calendar:p('SELECT * FROM academy_calendar_events'),suppressions:p('SELECT * FROM academy_calendar_suppressions'),availability:p('SELECT * FROM teacher_availability'),classes:p('SELECT t.* FROM class_teacher_assignments t JOIN classes c USING(activity_key,class_id) WHERE c.active=1'),drafts:p('SELECT activity_key,draft_json FROM timetable_drafts'),teaching:p('SELECT activity_key,account_id FROM published_lesson_teachers'),settings:p("SELECT * FROM academy_settings WHERE setting_key='PlatformTimezone' OR setting_key LIKE 'AcademyHijriAnnual:%' OR setting_key LIKE 'AcademyHolidayAnnual:%'")},facts||{});
  }
  function scopes(data){return [{key:'ACADEMY',name:'Academy',editable:Boolean(auth.state.account.global_admin)},...data.activities.filter(a=>activeProgram(a)&&(auth.state.account.global_admin||administers(auth,a.activity_key)||liveRoles(data,auth.user.accountid,a.activity_key).length)).map(a=>({key:a.activity_key,name:a.name,editable:canManage(data,auth,a.activity_key)}))];}
  function eventDTO(data,row){return {id:row.event_id,kind:row.calendar_kind==='REFERENCE'?row.event_type:row.calendar_kind,description:row.description,scopeKey:row.scope_key,scopeName:scopeLabel(data,row.scope_key),startDate:row.start_date,endDate:row.end_date,active:Boolean(row.active),revision:row.revision,annual:row.annual??annualFlag(data.settings,row),annualRevision:annualRevision(data.settings,row),dateRequired:Boolean(row.date_required),editable:canManage(data,auth,row.scope_key),teachingImpact:row.teaching_impact};}

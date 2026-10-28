@@ -11,9 +11,10 @@ import {acceptedRepository} from '../src/academy/d1/setup-reader.js';
 import {actorProof,verifyActor,verifyActorVersion} from '../src/academy/separation/proof.js';
 import {selectWorkspace} from '../src/academy/d1/workspace-access.js';
 import {splitEngine} from '../src/academy/separation/engine.js';
+import {acceptFixtureSetup} from './fixtures/academy-accepted-fixture.mjs';
 
 function bucket(){const objects=new Map();return {objects,gets:0,puts:0,async get(key){this.gets++;const raw=objects.get(key);return raw===undefined?null:{size:new TextEncoder().encode(raw).length,json:async()=>JSON.parse(raw)};},async put(key,raw){this.puts++;objects.set(key,raw);}};}
-async function fixture(run){const f=await splitFixture();try{
+async function fixture(run,seed){const f=await splitFixture(seed);try{
  f.databases.core.exec("UPDATE split_deployment_state SET state='READY'");
  f.bucket=bucket();Object.assign(f.source.env,{ACADEMY_DB:f.core,ACADEMY_ADMIN_DB:f.admin,ACADEMY_DB_GENERATION:'SPLIT_V1',ACADEMY_D1_RUN_ID:f.prepared.report.sourceDigest,ACADEMY_SPLIT_COORDINATOR:f.namespace,ACADEMY_ACCEPTED_SETUP:'1',ACADEMY_LEARNING_OPERATIONS:'3',ACADEMY_MEDIA_SEPARATION:'1',LESSON_MEDIA_BUCKET:f.bucket});
  f.request=async(path,input={},who='global',workspace='ADMIN',headers={})=>{const token=await f.source.actor(who),response=await worker.fetch(new Request('http://localhost'+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token,'X-Academy-Workspace':workspace,...headers},body:JSON.stringify(input)}),f.source.env);const body=await response.json();return {status:response.status,body};};
@@ -21,6 +22,40 @@ async function fixture(run){const f=await splitFixture();try{
  await run(f);
 }finally{f.close();}}
 const ok=result=>{assert.equal(result.status,200,JSON.stringify(result.body));return result.body;};
+
+test('a reused dashboard timetable snapshot still reflects live deactivation of published annual calendar facts',()=>fixture(async f=>{
+ const input={startDate:'2026-10-11'},path='/api/academy/entrance';
+ const first=ok(await f.request(path,input)),event=first.calendarEvents.find(e=>e.id==='cache-holiday');
+ assert(event,'The accepted calendar fact reaches the dashboard');
+ const future=ok(await f.request('/api/academy/calendar/get',{view:'learn',year:2027,month:10},'studentA','LEARN'));
+ assert(future.events.some(e=>e.id==='cache-holiday'&&e.startDate==='2027-10-12'),'The cached accepted annual setting is projected for each requested year');
+ const puts=f.bucket.puts;
+ assert.deepEqual(ok(await f.request(path,input)).calendarEvents,first.calendarEvents);assert.equal(f.bucket.puts,puts);
+ await f.core.prepare("UPDATE academy_calendar_events SET active=0 WHERE event_id='cache-holiday'").run();
+ const changed=ok(await f.request(path,input));
+ assert(!changed.calendarEvents.some(e=>e.id==='cache-holiday'),'A warm source cache must not retain a disabled holiday');
+ assert.equal(f.bucket.puts,puts,'The expensive timetable source itself remains reusable through a calendar-only change');
+ const before=ok(await f.request('/api/academy/calendar/get',{view:'learn',year:2027,month:10},'studentA','LEARN'));
+ assert(!before.events.some(e=>e.id==='cache-holiday'),'Disabled events stay disabled in another account and projection');
+ await f.core.prepare('UPDATE account_sessions SET revoked_at=? WHERE account_id=?').bind(new Date().toISOString(),f.actors.studentA).run();
+ assert.equal((await f.request('/api/academy/calendar/get',{view:'learn',year:2027,month:10},'studentA','LEARN')).status,401,'Shared source facts cannot replace current session checks');
+},source=>{
+ source.db.prepare("INSERT INTO academy_calendar_events(event_id,event_type,description,start_date,end_date,teaching_impact,active,scope_key,calendar_kind,revision) VALUES('cache-holiday','TERM','Synthetic cache holiday','2026-10-12','2026-10-12','NO_TEACHING',1,'ACADEMY','ACADEMY_HOLIDAY',1)").run();
+ source.db.prepare("INSERT INTO academy_settings(setting_key,setting_value,updated_at) VALUES('AcademyHolidayAnnual:cache-holiday','1','2026-10-01T00:00:00Z')").run();
+}));
+
+test('cached empty annual settings stay private until accepted and a changed component refreshes every reader',()=>fixture(async f=>{
+ const input={view:'learn',year:2027,month:10},read=()=>f.request('/api/academy/calendar/get',input,'studentA','LEARN');
+ assert(!ok(await read()).events.some(e=>e.id==='cache-new-annual'));
+ const {auth}=await f.auth();
+ await splitEngine(f).write([{sql:"INSERT INTO academy_settings(setting_key,setting_value,updated_at,updated_by_account_id) VALUES(?,'1',?,?)",params:['AcademyHolidayAnnual:cache-new-annual',new Date().toISOString(),f.actors.global]}],actorProof(auth));
+ assert(!ok(await read()).events.some(e=>e.id==='cache-new-annual'),'Saving an unpublished setting cannot replace cached published facts');
+ await acceptFixtureSetup(f.source.env,await f.source.actor('global'),['GLOBAL'],['presentation']);
+ assert(ok(await read()).events.some(e=>e.id==='cache-new-annual'&&e.startDate==='2027-10-12'),'A new accepted settings component invalidates both the fact cache and the calendar snapshot');
+ assert(ok(await f.request('/api/academy/calendar/get',input,'studentB','LEARN')).events.some(e=>e.id==='cache-new-annual'),'The shared immutable facts work for another authorised account too');
+},source=>{
+ source.db.prepare("INSERT INTO academy_calendar_events(event_id,event_type,description,start_date,end_date,teaching_impact,active,scope_key,calendar_kind,revision) VALUES('cache-new-annual','TERM','New annual setting','2026-10-12','2026-10-12','NO_TEACHING',1,'ACADEMY','ACADEMY_HOLIDAY',1)").run();
+}));
 
 test('published snapshots survive unrelated work, but enrolment and live timetable facts invalidate them',()=>fixture(async f=>{
  const {repository,auth}=await f.auth('studentA','LEARN'),reader=acceptedRepository(repository,f.head);let produced=0;

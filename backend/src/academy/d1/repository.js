@@ -1,3 +1,4 @@
+import {calendarFacts,holidaySettings} from './published-facts-cache.js';
 import {monthlyRightsSQL} from './monthly-media-policy.js';
 import {personalLinksEstablished} from './personal-links.js';
 import {publishedSettings} from './published-settings.js';
@@ -107,6 +108,7 @@ export function academyD1Repository(env) {
       SELECT ?,?,?,?,?,?,?,?,? ${conditional?'WHERE changes()=1':''}`,crypto.randomUUID(),new Date().toISOString(),actor,env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACCOUNT':'D1_REHEARSAL','ACADEMY',action,'USER_ACCOUNT',target,JSON.stringify(fields));
   }
   return {
+    publishedFactsSource:{db:raw,namespace:configurationNamespace,requests:new Map(),versionSQL:split?'(SELECT version FROM split_read_state WHERE singleton=1)':'(SELECT version FROM academy_write_state WHERE singleton=1)'},
     privateSnapshots,recordingEnv:{ACADEMY_OBJECT_NAMESPACE:env.ACADEMY_OBJECT_NAMESPACE},
     bindActor:auth=>client?.bindActor(auth),
     authoringRepository(){return client?{...this,db:client.admin}:this;},
@@ -217,7 +219,7 @@ export function academyD1Repository(env) {
       if(result[0].results?.length!==1||result[0].results[0].account_id!==row.account_id)throw rehearsalError('Account changed. Please refresh and try again.',409,'ACCOUNT_CHANGED');
       return this.byId(row.account_id);
     },
-    async homeData(state,start,end,courseWorkflows=false,programWorkspace=false) {
+    async homeData(state,start,end,courseWorkflows=false,programWorkspace=false,includeCalendar=true) {
       const readDb=this.db,readPrepare=(sql,...values)=>readDb.prepare(sql).bind(...values);
       // Private curriculum is needed only for learning areas this account can
       // access. Anonymous previews need class destinations only for free joining.
@@ -242,10 +244,11 @@ export function academyD1Repository(env) {
         `SELECT r.*${courseWorkflows?',ca.access_model AS run_access_model':''} FROM course_runs r JOIN activities a USING(activity_key) ${courseWorkflows?'JOIN course_run_access ca USING(activity_key,run_id)':''} WHERE r.active=1 AND a.active=1 AND a.lifecycle='ACTIVE'`,
         `SELECT s.* FROM course_run_state s JOIN course_runs r USING(activity_key,run_id) WHERE r.active=1`,
         `SELECT * FROM lesson_lifecycle`,
-        ...(courseWorkflows?[`SELECT * FROM academy_calendar_events`,`SELECT * FROM academy_calendar_suppressions`,`SELECT * FROM academy_settings WHERE setting_key LIKE 'AcademyHolidayAnnual:%'`]:[])
       ];
       const results=await readDb.batch(queries.map((sql,i)=>i===0?readPrepare(sql,Number(Boolean(state?.account.global_admin)),staffScope):i===1?readPrepare(sql,end,start):[2,3].includes(i)||i===4&&state?readPrepare(sql,privateScope):i===5?readPrepare(sql,state?.account.account_id || ''):readPrepare(sql)));
-      return results.map(r=>r.results);
+      const rows=results.map(r=>r.results);
+      if(courseWorkflows&&includeCalendar){const facts=await calendarFacts(this);rows.push(facts.calendar,facts.suppressions,holidaySettings(facts));}
+      return rows;
     }
   };
 }

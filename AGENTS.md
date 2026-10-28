@@ -1,3 +1,11 @@
+# Holiday/calendar facts cache — 28 October 2026
+
+- Work locally on `feature/academy-calendar-facts-cache`, based on V107.110 (`6071931c`), retaining all newer Tafseer changes and V107.104 weekly absentee behaviour. The user requested caching holiday/calendar facts including empty results until changed, preserving behaviour and permissions. Include the subsequently requested published Surah/Course website cache, with live permission/subscription/withdrawal gates and fresh Admin drafts. Review Journal separately without editing its branch.
+- The human subsequently explicitly authorised passing relevant findings to the existing Journal chat and reviewing its next completed local build. That handoff includes manual Save only, private device copies updated after confirmed Save, the private R2 JSON recommendation and bounded source/retry storage. Contact only that chat for this requested coordination; do not edit its worktree or deploy it.
+- Do not push, deploy, apply hosted migrations, publish content, change live settings/data or contact unrelated chats. Prior release authorisations are complete and do not apply to this task. Keep release markers unchanged until a release is authorised.
+- Use only local synthetic fixtures for correctness, permission and read-cost checks. Keep live checks small under ../AGENTS.md; no live application/SQL/analytics calls are needed for this task.
+- Cache source facts only, never sessions, authority, editor drafts or final date/audience projections. Invalidate on accepted calendar/settings changes and immediate live deactivation/suppression changes. Cache successful empty results, not failures. Verify stale/concurrent source and permission changes fail safely.
+
 # Tafseer content publication and private import — 28 October 2026
 
 - The user supplied Saffat 23 September 2026, Yaseen 11 July (interpreted as 2026 in the reply), and 30 November 2025 for all other modules for now. The eight rows and card associations were saved through Admin. Retain their saved IDs and the existing prepared/disabled monthly policy; do not change student subscriptions or activate the register.
