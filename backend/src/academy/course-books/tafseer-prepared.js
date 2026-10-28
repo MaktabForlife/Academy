@@ -1,8 +1,8 @@
 // Private, immutable import packages. Reading one never publishes a website.
 export const preparedTafseerCopies=Object.freeze({
  "foundations": {
-  "sha256": "55f8dbec4cffc53b727f8877a5f5064a73ef270693b1c728141e7a60cda1cbd2",
-  "size": 2005821
+  "sha256": "78597ba91afab2d3cb3cbae603e7b5019a6978be3d9ec4262395af9f7103c77e",
+  "size": 4842079
  },
  "yaseen": {
   "sha256": "80fdd7a69ed323872037dbbc7771900f349aefc757416b27b8970c782947e27e",

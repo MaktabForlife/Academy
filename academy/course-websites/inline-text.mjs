@@ -10,8 +10,9 @@ export function inlineFields(course){
  course.lessons.forEach((l,i)=>{
   for(const key of ['title','summary'])add(`lessons.${i}.${key}`,'Lesson '+key);
   l.sections.forEach((s,j)=>{const prefix=`lessons.${i}.sections.${j}`;add(prefix+'.title','Section heading');
-   s.blocks.forEach((b,k)=>{const p=prefix+`.blocks.${k}`,keys=({text:['text'],arabic:['arabic'],ayah:['arabic','translation','reference'],quote:['text','arabic','attribution'],words:['leftArabic','leftMeaning','rightArabic','rightMeaning'],reflection:['text'],image:['caption'],note:['text','attribution'],callout:['text']})[b.type]||[];
+   s.blocks.forEach((b,k)=>{const p=prefix+`.blocks.${k}`,keys=({text:['text'],arabic:['arabic'],ayah:['arabic','translation','reference'],quote:['text','arabic','attribution','reference'],words:['leftArabic','leftMeaning','rightArabic','rightMeaning'],reflection:['text'],image:['caption'],note:['text','attribution'],callout:['text']})[b.type]||[];
     for(const key of keys)add(p+'.'+key,({text:'Lesson text',arabic:'Arabic text',translation:'Translation',reference:'Ayah reference',attribution:'Source or summary heading',caption:'Image caption'})[key]||'Word study');
+    if(b.type==='list'&&['concept','radial','steps'].includes(b.presentation)){add(p+'.text','Graphic heading');add(p+'.attribution','Graphic subtitle');}
     if(b.type==='list')b.items.forEach((_,n)=>add(p+'.items.'+n,'List item '+(n+1)));
    });
   });
@@ -61,17 +62,17 @@ export function decorateInlineText(root,course,ui){
  }else if(ui.route==='lessons')root.querySelectorAll('.sp-lesson-card').forEach(card=>{const i=course.lessons.findIndex(l=>l.id===card.dataset.inlineLessonId);if(i>=0){one('h3',`lessons.${i}.title`,card);one('p',`lessons.${i}.summary`,card);}});
  else if(ui.route==='lesson'){
   const index=course.lessons.findIndex(l=>l.id===ui.lessonId),lesson=course.lessons[index];if(!lesson)return;
-  const prefix=`lessons.${index}`;one('.sp-page>.sp-page-title',prefix+'.title');one('.sp-page>.sp-lead',prefix+'.summary');
+  const prefix=`lessons.${index}`;one('.sp-lesson-article>.sp-page-title',prefix+'.title');one('.sp-lesson-article>.sp-lead',prefix+'.summary');
   root.querySelectorAll('.sp-reading-section').forEach((section,j)=>{const p=prefix+`.sections.${j}`;one('h2',p+'.title',section);
    const blocks=[...section.children].filter(el=>el.classList.contains('sp-block'));
    lesson.sections[j].blocks.forEach((block,k)=>{const el=blocks[k];if(!el)return;const path=p+`.blocks.${k}`,text=(selector,key)=>one(selector,path+'.'+key,el);
     if(block.type==='arabic')mark(el,path+'.arabic');
     else if(['text','callout'].includes(block.type))text('p','text');
     else if(block.type==='ayah'){text('.sp-reference','reference');text('.sp-arabic','arabic');text('figcaption','translation');}
-    else if(block.type==='quote'){text('.sp-arabic','arabic');text('p:not(.sp-arabic)','text');text('cite','attribution');}
-    else if(block.type==='list')el.querySelectorAll('li').forEach((li,n)=>mark(li,path+'.items.'+n));
+    else if(block.type==='quote'){text('.sp-arabic','arabic');if(block.reference){text('.sp-reference','reference');text('figcaption','text');}else{text('p:not(.sp-arabic)','text');text('cite','attribution');}}
+    else if(block.type==='list'){if(['concept','radial','steps'].includes(block.presentation)){text('.sp-diagram-centre strong','text');text('.sp-diagram-centre>span','attribution');el.querySelectorAll('.sp-diagram-text').forEach((li,n)=>mark(li,path+'.items.'+n));}else el.querySelectorAll('li').forEach((li,n)=>mark(li,path+'.items.'+n));}
     else if(block.type==='words')el.querySelectorAll(':scope>div').forEach((div,n)=>{one('.sp-arabic',path+'.'+(n?'rightArabic':'leftArabic'),div);one('p:not(.sp-arabic)',path+'.'+(n?'rightMeaning':'leftMeaning'),div);});
-    else if(block.type==='reflection'){text('label','text');el.querySelector('textarea').disabled=true;}
+    else if(block.type==='reflection'){text('label','text');el.querySelector('textarea').disabled=true;for(const button of el.querySelectorAll('.sp-reflection-actions button'))button.disabled=true;}
     else if(block.type==='image')text('figcaption','caption');
     else if(block.type==='note'){text('summary','attribution');text('p','text');}
    });

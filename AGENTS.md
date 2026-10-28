@@ -1,3 +1,37 @@
+# Foundations authorised release and remaining editorial drafts — 28 October 2026
+
+- The human explicitly requested “deploy foundations”, then instructed continuing the other eight on the same principles and holding those for review. Release only the reviewed Foundations course content, plus required shared reader/model support, as V107.118 from the existing feature branch.
+- The fresh Foundations native export is identical to the review starting backup (lessons, home, materials). Store it in outputs/foundations-editorial-review/before-release-current-draft.json. The immutable reviewed package contains 13 lessons, 31 inline Arabic/meaning boxes and 14 images; it has zero PDFs or recordings. Import/save/review/publish only Foundations through native scoped Admin.
+- Keep the other eight revised packages local and unpublished for review. Keep the separate student journal branch and backend out of this deployment; the optional reader journal bridge stays disabled. Preserve current authentication, public Foundations, surah dates, subscriptions, grants, accepted heads and native media links. No schema or coordinator change is required.
+- Tafseer has handed over completed native media publication: 42 lessons, 36 YouTube videos, 10 PDFs, monthly protection active. Use existing protected published records; do not duplicate, change paid selections, dates or media publication.
+
+# Clarification: inline Qur’anic text — 28 October 2026
+
+- Every translation placed in an ayah box needs the relevant verified Arabic displayed alongside its meaning. Use Quran.com as the source, not an outgoing link in the website. References are plain text. For partial translations, especially long ayahs, use an explicitly labelled matching excerpt and clarify uncertain selections. This applies to all nine websites.
+- Retain a speaker’s name in surrounding prose where it forms part of the explanation or conversation; also attribute the quotation inside its box. Remove only an independent source-only label.
+
+# Reader, reflection controls and editorial follow-ups — local review — 28 October 2026
+
+- Keep the revised course pages local for review. No publication, deployment, release number change or content upload has been made for this editorial pass.
+- Centre the desktop lesson column, including its heading, text and footer controls. Completion and previous/next lesson buttons must remain compact and bounded on desktop and phone.
+- Reflection actions follow the text entry: Copy, three-node Share, Save reflection and Open journal (open book). Guests have no personal journal controls. Admin author previews must never write into a real personal journal.
+- The separate `feature/academy-student-journal` work is still local and is not copied or released here. This reader has an optional integration through `journal-controls.mjs`; it stays disabled unless `M4L_CONFIG.STUDENT_JOURNAL_ENABLED` is explicitly true after that journal is released. Save is explicit; opening/navigation/Refresh never uploads a reflection. Local editorial preview journalling is labelled device-only and never talks to the live API.
+- Use complete semantic HTML lesson articles with headings, paragraphs, quotations, figures and Arabic direction/language. Keep navigation outside the article and support existing full-screen reading. Actual Safari Reader UI validation is still unverified because native Safari control timed out; do not claim a Safari pass.
+- Remove “(noor). Allah says,” from point 6 as requested. Keep short speaker/source references inside quotation boxes, including Al-Suyuti / Al-Itqan.
+- General principle for all nine course websites: pair Qur’anic quotations/translations with verified Arabic and a plain verse reference. Preserve the author’s translation. For a partial quotation, especially a long ayah, label it clearly as an excerpt and source the text from Quran.com; clarify any ambiguous selection rather than silently extending or reinterpreting it. Every one of the 31 ayah boxes in the local Foundations package now pairs verified Arabic with its meaning; plain references have no outgoing link.
+
+# Foundations review checkpoint — 28 October 2026
+
+- Foundations is now ready for the human’s first-PDF review in the local preview at `http://127.0.0.1:4331/`. The human requested this checkpoint. All 13 lessons retain the teaching; all 13 original diagrams are copied with CSS colour treatment, enlargement and readable equivalents. British spelling, ﷺ, semantic headings/lists, verse references and separate rounded pink italic quotation boxes are applied. The “Summary & connections” sections are removed; reflections have copy/share icons.
+- `../../outputs/foundations-editorial-review/foundations-reviewed.json` is the reviewed package; `final-validation.json`, source audit, mobile/narrow checks and screenshots are beside it. 24 targeted component/editor checks pass. All 13 lessons have no horizontal overflow at 320 and 390 pixels; enlargement, full-screen reading and real copying were checked. Existing lesson/reflection IDs, home and materials are preserved. No PDF/recording bytes added and no editorial changes deployed.
+- The other eight sites remain in progress. Their candidates in `../../outputs/course-editorial-review/` are provisional and must not be imported/published as finished. The layout-aware compositor still needs detailed mixed Arabic/English reading-order checks (especially Saffat pp. 2–7) and repair of source-printed OCR debris in Qasas. All current native drafts have UI backups. Do not overwrite the reviewed Foundations with the general converter. Keep the source PDFs unchanged and native media drafts private.
+
+# Course editorial review — 28 October 2026
+
+- The human clarified that preserving PDF text means preserving teaching content, while intelligently adapting formatting. Review all nine websites, starting with all 13 Foundations lessons. Repeated page banners belong in headings, ayah captions must not duplicate the styled verse reference, quotations need attribution, numbering must be repaired, graphics must retain their meaning through responsive graphics, and underlined passages need appropriate emphasis.
+- Back up current native drafts before changing them and preserve human edits, lesson/reflection identities, images, media links and access. Source PDFs remain untouched. Source summaries stay optional asides. Do not silently rewrite religious claims, translations or uncertain historical details.
+- Current Foundations native backup is `../../outputs/foundations-editorial-review/before-course-draft.json`; the reviewed local edition and per-line source audit are in that folder. A backwards-compatible list presentation is being added for editable concept/sequence graphics. No new permissions, schema or media publication is needed.
+
 # On-page Admin text editor — 28 October 2026
 
 - The human requested an Edit text button on each website so Admin can edit directly on the page. Their earlier “you can deploy when ready” instruction remains the current deployment authorisation. Release the verified feature as V107.117 from the existing course-website feature branch, preserving the now-integrated V107.116 grant/cache release.

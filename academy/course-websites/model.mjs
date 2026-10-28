@@ -1,5 +1,5 @@
 export const FORMAT='ACADEMY_COURSE_STUDIO_V1';
-export const BLOCKS={text:'Lesson text',arabic:'Arabic passage',ayah:'Ayah & translation',quote:'Quotation',list:'Bullet points',words:'Word study',reflection:'Reflection question',image:'Image',note:'Source note',callout:'Key takeaway'};
+export const BLOCKS={text:'Lesson text',arabic:'Arabic passage',ayah:'Ayah & translation',quote:'Quotation',list:'List or graphic',words:'Word study',reflection:'Reflection question',image:'Image',note:'Source note',callout:'Key takeaway'};
 export const THEMES={plum:{name:'Kahf plum',accent:'#694165',soft:'#eee3eb'},olive:{name:'Quiet olive',accent:'#526147',soft:'#e9ede3'},clay:{name:'Warm clay',accent:'#8b514b',soft:'#f1e4df'}};
 export const PAGES=[['home','Course home'],['lessons','Web lessons'],['sessions','Sessions & recordings'],['materials','Course materials'],['assessments','Assessments'],['appearance','Appearance & menu']];
 export const uid=()=>crypto.randomUUID();
@@ -7,7 +7,7 @@ export const clone=value=>structuredClone(value);
 export const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function newBlock(type='text'){
  if(!Object.hasOwn(BLOCKS,type))throw Error('Choose a supported lesson component.');
- return {id:uid(),type,aside:false,text:'',arabic:'',translation:'',reference:'',attribution:'',items:[''],leftArabic:'',leftMeaning:'',rightArabic:'',rightMeaning:'',assetId:'',alt:'',caption:''};
+ return {id:uid(),type,aside:false,text:'',arabic:'',translation:'',reference:'',attribution:'',items:[''],...(type==='list'?{presentation:'list',ordered:false}:{}),leftArabic:'',leftMeaning:'',rightArabic:'',rightMeaning:'',assetId:'',alt:'',caption:''};
 }
 export function newSection(){return {id:uid(),title:'New section',label:'',blocks:[newBlock()]};}
 export function newLesson(title='New lesson',group='Your lessons'){return {id:uid(),title,group,summary:'',sections:[newSection()]};}
@@ -23,12 +23,13 @@ export function exampleBlock(type){
 }
 export function move(array,index,direction){const next=index+direction;if(next<0||next>=array.length)return false;[array[index],array[next]]=[array[next],array[index]];return true;}
 export function duplicateLesson(lesson){const copy=clone(lesson);copy.id=uid();copy.title+=' — copy';for(const section of copy.sections){section.id=uid();for(const block of section.blocks)block.id=uid();}return copy;}
-export function setPath(root,path,value){const parts=path.split('.');if(parts.some(p=>['__proto__','constructor','prototype'].includes(p)))throw Error('Invalid field.');let target=root;for(const part of parts.slice(0,-1)){if(!Object.hasOwn(target,part))throw Error('Unknown field.');target=target[part];}const key=parts.at(-1);if(!Object.hasOwn(target,key)&&!(key==='aside'&&target.type==='note'&&typeof value==='boolean'))throw Error('Unknown field.');target[key]=value;}
+export function setPath(root,path,value){const parts=path.split('.');if(parts.some(p=>['__proto__','constructor','prototype'].includes(p)))throw Error('Invalid field.');let target=root;for(const part of parts.slice(0,-1)){if(!Object.hasOwn(target,part))throw Error('Unknown field.');target=target[part];}const key=parts.at(-1);const optional=target.type==='image'&&(key==='tint'&&['none','course'].includes(value)||key==='graphic'&&typeof value==='boolean')||key==='aside'&&target.type==='note'&&typeof value==='boolean'||target.type==='list'&&(key==='presentation'&&['list','concept','radial','steps'].includes(value)||key==='ordered'&&typeof value==='boolean');if(!Object.hasOwn(target,key)&&!optional)throw Error('Unknown field.');target[key]=value;}
 const text=(value,max=20000)=>typeof value==='string'&&value.length<=max;
 export function validateCourse(course,{review=false}={}){
  const errors=[],ids=new Set();let blocks=0;
  const id=value=>{if(!text(value,80)||!/^[\w-]+$/.test(value)||ids.has(value))throw Error('The draft contains an invalid or repeated identifier.');ids.add(value);};
  if(!course||course.format!==FORMAT)throw Error('Choose an Academy Course Studio draft.');
+ if(course.editorialLayout!==undefined&&typeof course.editorialLayout!=='boolean')throw Error('Check the reading layout.');
  if(typeof course.updatedAt!=='string'||!Number.isFinite(Date.parse(course.updatedAt)))throw Error('The draft has an invalid saved date.');
  if(JSON.stringify(course).length>500000)throw Error('This course is too large for the design editor.');
  id(course.id);
@@ -51,6 +52,12 @@ export function validateCourse(course,{review=false}={}){
    for(const block of section.blocks){id(block.id);if(!Object.hasOwn(BLOCKS,block.type))throw Error('The draft uses an unsupported lesson component.');blocks++;
     for(const key of ['text','arabic','translation','reference','attribution','leftArabic','leftMeaning','rightArabic','rightMeaning','assetId','alt','caption'])if(!text(block[key]))throw Error('Check the lesson component text.');
     if(!Array.isArray(block.items)||block.items.length>60||block.items.some(item=>!text(item,2000)))throw Error('Check the bullet points.');
+    if(block.tint!==undefined&&(block.type!=='image'||!['none','course'].includes(block.tint)))throw Error('Check the image colour treatment.');
+    if(block.graphic!==undefined&&typeof block.graphic!=='boolean')throw Error('Check the graphic setting.');
+    if(block.presentation!==undefined&&(block.type!=='list'||!['list','concept','radial','steps'].includes(block.presentation)))throw Error('Choose a list or diagram layout.');
+    if(block.ordered!==undefined&&typeof block.ordered!=='boolean')throw Error('Check list numbering.');
+    if(block.emphasis!==undefined&&(block.type!=='text'||block.emphasis!=='key'))throw Error('Check the passage emphasis.');
+    if(review&&['concept','radial','steps'].includes(block.presentation)&&(!block.text.trim()||!block.items.length||block.items.some(item=>!item.trim())))errors.push(`Complete the graphic in “${lesson.title}”.`);
     if(review&&block.type==='image'&&(!block.assetId||!block.alt.trim()))errors.push(`Add an image and description in “${lesson.title}”.`);
     if(review&&block.type==='ayah'&&(!block.arabic.trim()||!block.reference.trim()))errors.push(`Check the Arabic and reference in “${lesson.title}”.`);
    }
