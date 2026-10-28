@@ -1,3 +1,10 @@
+# V107.120 publication optimisation release — 28 October 2026
+
+- The human explicitly requested “pls deploy” for the tested publication optimisation. This supersedes the historical local-only hold below. Release from `feature/academy-publication-reads`, retaining all V107.119 work.
+- Apply only the tested Core PDF-admission trigger replacement as one atomic batch; then deploy the matching API and website. Preserve every session/actor/scope, immutable head, retry, reference and shared ten-PDF check. No Admin upgrade or coordinator deployment is needed.
+- Keep live checks small: one bounded trigger preflight, atomic replacement with trigger verification, and minimal release/version checks. No real content publication or user-data changes. The allowance is already heavily used today.
+- The human also requested assessing Course/Tafseer website publication and maintenance costs. Reuse local source/tests and saved analytics; assessment does not authorise further implementation or deployment.
+
 # Publication read optimisation — local only — 28 October 2026
 
 - The human authorised implementing the publication optimisation identified in the allowance investigation. Today's roughly 40 PDFs and similar video count are setup activity, not a normal daily workload. Work on `feature/academy-publication-reads` from committed V107.119 (`75797b85`), preserving the safe component insert envelope and all prior caches/grants/publication fixes.

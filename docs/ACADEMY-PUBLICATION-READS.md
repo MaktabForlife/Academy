@@ -1,6 +1,6 @@
 # Publication admission read optimisation
 
-Local branch: `feature/academy-publication-reads`, based on V107.119 (`75797b85`). No release number change, push, deployment, hosted migration or live application/database check is part of this work. Preserve newer content, source caches, grants and V107.119's safe component insertion.
+Local branch: `feature/academy-publication-reads`, based on V107.119 (`75797b85`). The user authorised release as V107.120 on 28 October 2026. The local implementation and evidence below precede deployment; release results are recorded separately. Preserve newer content, source caches, grants and V107.119's safe component insertion.
 
 ## Behaviour and change
 
@@ -28,7 +28,7 @@ Tests compare original and upgraded guards on bootstrap/update paths: ten/eleven
 
 Native tests use actual local D1 and private coordinator RPC. They verify single UPDATE admission, atomic schema-upgrade rollback and complete publication rollback on a PDF-limit failure. The broader suite checks immutable heads, stale drafts/actors, retries/recovery, timetable/assessment publication, media, grants and current size protections. Evidence is under project `outputs/academy-publication-reads-20261028/` outside the repository.
 
-## Pending release
+## Authorised release
 
 Deployment needs the trigger upgrade in existing Development Core (`backend/migrations/academy-core/0009_publication_pdf_projection_cache.sql`) and the API change. Apply the four trigger replacement statements atomically so the checks remain continuously present. No Admin schema, bucket or binding change is needed. The existing private coordinator accepts the SQL UPDATE path; it needs no change for this optimisation.
 

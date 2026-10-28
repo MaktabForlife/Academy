@@ -1,3 +1,7 @@
+# V107.120 — Reduce publication validation reads
+
+Validate an accepted publication once, retaining a separate bootstrap insert. Reuse the candidate's lesson/link/PDF projections inside the existing admission check. Preserve the shared ten-PDF limit, current authority, immutable history and retry/recovery protections. Requires only the matching Core trigger upgrade and API/website release; no content is republished. Local regression and native D1 tests passed (111 checks); a synthetic 40-PDF/40-video validation fell from 19,688 to 608 rows read, excluding other upload/publication costs.
+
 # V107.117 — Edit course text on the page
 
 Add Edit text for actual Global and own-scope Program Admins on published Course and Tafseer websites. Click an outlined heading or passage, save a private draft, then review and publish. Open the current Admin draft with its revision before editing; preserve native file/session links, conflict handling, exact retries and account-switch cleanup. Includes V107.116 Surah grants and source-fact caches. No schema, coordinator or media publication change.
