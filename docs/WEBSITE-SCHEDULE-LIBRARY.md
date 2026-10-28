@@ -1,0 +1,29 @@
+# Website schedule and Library connection — local only
+
+This extends the disabled website connector on `feature/academy-website-studio`. No hosted schema, configuration, content, account, DNS or deployment was changed. The separate website repository is `../Maktab-web-platform`; deployment remains with the other chat.
+
+Apply `0011_website_platform.sql` then additive `0012_website_schedule_library.sql` only to disposable local Core fixtures during this phase. Both the existing environment flag and database control must be enabled for runtime integration. The migration seeds no offering mappings, people or rights. Future source activation and real mappings require the separately authorised migration workflow.
+
+## Published timetable and Zoom
+
+`website_platform_timetable_scopes` explicitly maps one stable Academy activity key to one target offering ID and kind. Do not infer these from titles or seed all Programs as Tafseer. The mapping's kind must agree with Course versus Program delivery. Master publications, run state/lifecycle, current Program/class Zoom, relevant calendar records and annual flags mark only mapped scheduling scopes dirty. A global Academy holiday necessarily affects all mapped scopes. No learner/account sweep is involved.
+
+`web-platform/timetable.mjs` projects at most two due scopes per recovery by default. It reuses `publicationRecord`, `publicationSchedule`, `resolveCurrentPublishedGlobalTimetable`, `currentProgramZoom`, `lessonTimes` and the existing no-teaching calendar helpers. Program reads select the current eligible version and only scheduled versions within the window, with an explicit version index for the current publication; Course reads select current publication bodies per active run. It does not load historical publication bodies, rosters, payment registers or `d1Entrance`.
+
+The rolling window covers yesterday through 56 days ahead, refreshed daily without visitor requests. A snapshot is capped at 200 occurrences and 240 KB before envelope signing. Current publication/clock/Zoom errors or overflow queue an empty live snapshot, retain a diagnostic `last_error` and retry after five minutes. This closes stale joining while retaining content rights; do not silently truncate a published timetable. Review/change the window or delivery contract if an actual offering exceeds these bounds.
+
+Session IDs hash the exact source key: Program activity/date/occurrence anchor, or Course activity/run/source-session ID. Publication revision, title and Zoom changes do not change that key. The authoritative source occurrence identity must be used when future media migration creates attachment mappings; do not guess by title/date. Cancellation, rescheduling and holidays clear live joining and do not modify website attachment/media rights. Retiring an Academy activity sends an empty live snapshot while keeping target retained-content availability; verified offering cutover/retirement routing remains separate work.
+
+Projection and durable outbox creation recheck the dirty revision and activation control atomically. A concurrent source change leaves the scope dirty; it cannot acknowledge stale facts. At most one timetable event per scope remains unacknowledged; newer edits coalesce until its exact predecessor is acknowledged. Existing signed, versioned, retryable delivery preserves stream order. Publication/status, Program settings/classes and calendar mutation paths start bounded recovery after success. The existing quarter-hour cron is the recovery backstop; the minute messaging tick does not gain website database work. During an outage, the predecessor may need one recovery pass before the latest coalesced revision is projected.
+
+## Academy Library and return
+
+The website opens `/academy/website-platform/connect/` as a child tab. It sends only a one-use PKCE/state code after its own server has checked the requested website and actual published lesson. The signed source command stores a fixed website/lesson return context on that code. `/api/website-platform/exchange` returns the Academy token only to the exact Academy origin and returns the approved context after consuming the code.
+
+The connector stores return context in that tab's sessionStorage, then opens the existing Academy Library. `library-return.mjs` adds a visible Back to website control to personal and public Library content. It ignores arbitrary `websiteReturn` query strings. PDF links remain in the Library tab only for this connector flow; the existing PDF reader Close goes back to Library. A verified opener acknowledgement closes the Library tab and preserves/restores the originating website/lesson. If the opener is gone or cannot acknowledge, the approved exact-origin link restores that location in the Library tab. No bearer tokens appear in URLs or website storage.
+
+Existing Library resource permissions, catalogue caching, PDF reader and PDF bytes remain Academy-owned. The local fixture uses the actual Library/PDF frontends, a native synthetic metadata Durable Object and one labelled synthetic PDF. This does not enable private Module media or copy any real Library files.
+
+## Local evidence
+
+The target repository contains `tests/academy-timetable.test.mjs`, `tests/library-return.test.mjs`, the actual source runtime fixture and both browser tools. Native tests include source publication/Zoom/holiday/cancellation, unchanged rights, 4,000 historical publication bodies, late source-change rollback, lost ACK replay, disabled/reactivated catch-up and fail-closed overflow. They also cover exact-origin, entitlement/lesson, one-use, PKCE and suspension checks for Library handoffs. Reports and read counts are recorded in the target's `docs/READ-BUDGETS.md`; hosted connectivity and final migration inventory remain unverified here.

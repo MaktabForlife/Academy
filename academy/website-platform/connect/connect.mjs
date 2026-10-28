@@ -8,5 +8,7 @@ try{
  const received=new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('This handoff expired. Reopen Academy from the website.')),60_000);const listener=event=>{if(event.source!==window.opener||event.origin!==config.websiteOrigin||event.data?.type!=='WEBSITE_ACADEMY_CODE'||event.data.state!==state)return;clearTimeout(timer);window.removeEventListener('message',listener);resolve(event.data);};window.addEventListener('message',listener);});
  window.opener.postMessage({type:'ACADEMY_WEBSITE_CHALLENGE',state,challenge},config.websiteOrigin);
  const result=await received,session=await request('/api/website-platform/exchange',{code:result.code,state,verifier});
- localStorage.setItem('m4l_account_token',session.token);window.dispatchEvent(new Event('m4l-academy-session'));location.replace('/academy/');
+ localStorage.setItem('m4l_account_token',session.token);window.dispatchEvent(new Event('m4l-academy-session'));
+ sessionStorage.removeItem('m4l_website_library_return');
+ if(session.library){sessionStorage.setItem('m4l_website_library_return',JSON.stringify({...session.library,websiteOrigin:config.websiteOrigin,expiresAt:Date.now()+8*3600_000}));location.replace('/academy/library/');}else location.replace('/academy/');
 }catch(error){status.textContent=error.message;}

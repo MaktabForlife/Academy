@@ -1,3 +1,4 @@
+import {queueTimetables} from './timetable.mjs';
 import {fail,bytes,verify,envelopePurpose,signedHeaders,sha256,random,challenge,bodyJSON,safeToken,id,text,integer,json} from './protocol.mjs';
 export const enabled=env=>env.ACADEMY_WEB_PLATFORM==='1';
 const dbFor=env=>env.ACADEMY_DB.withSession('first-primary');
@@ -32,7 +33,7 @@ export async function bridge(request,env,{login,mint}){
   if(!code||code.used||code.state!==input.state||code.challenge!==await challenge(input.verifier)||code.expires_at<=Date.now())throw fail('Academy handoff expired or was used.',401);
   const session=await sourceSession(db,code.source_ref),guard=crypto.randomUUID();
   await db.batch([db.prepare('INSERT INTO website_platform_guards VALUES(?,EXISTS(SELECT 1 FROM website_platform_return_codes WHERE code_hash=? AND used=0 AND expires_at>?))').bind(guard,hash,Date.now()),db.prepare('UPDATE website_platform_return_codes SET used=1 WHERE code_hash=?').bind(hash),db.prepare('DELETE FROM website_platform_guards WHERE guard_id=?').bind(guard)]);
-  return {token:await mint(session),websiteOrigin:env.WEBSITE_PLATFORM_ORIGIN};
+  return {token:await mint(session),websiteOrigin:env.WEBSITE_PLATFORM_ORIGIN,...(code.return_context?{library:JSON.parse(code.return_context)}:{})};
  }
  if(request.method!=='POST')throw fail('Use a POST request.',405);
  const payload=new TextDecoder().decode(await bytes(request.body,16384));if(!await verify(env.WEBSITE_TO_ACADEMY_SECRET,envelopePurpose('POST',path),payload,request.headers.get('X-Maktab-Signature')))throw fail('Invalid website connection.',401);
@@ -53,7 +54,9 @@ export async function bridge(request,env,{login,mint}){
  }
  if(path==='/internal/website/continue-sign-in'){const session=await sourceSession(db,input.sourceRef);if(input.statusOnly){const result=await pendingAccount(env,db,session.account_id);return result.more?{...result,continuation:session.source_ref,statusOnly:true}:result;}return completeSignIn(env,db,session);}
  if(path==='/internal/website/open-academy'){
-  const session=await sourceSession(db,input.sourceRef);if(!safeToken(input.challenge)||!safeToken(input.state))throw fail('Reopen Academy from the website.');const code=random();await db.prepare('INSERT INTO website_platform_return_codes VALUES(?,?,?,?,?,0)').bind(await sha256(code),session.source_ref,input.challenge,input.state,Date.now()+60_000).run();return {code};
+  const session=await sourceSession(db,input.sourceRef);if(!safeToken(input.challenge)||!safeToken(input.state))throw fail('Reopen Academy from the website.');let context=null;
+  if(input.library){const websiteId=id(input.library.websiteId),lessonId=input.library.lessonId?id(input.library.lessonId):null,origin=new URL(env.WEBSITE_PLATFORM_ORIGIN);if(origin.protocol!=='https:'||origin.origin!==env.WEBSITE_PLATFORM_ORIGIN)throw fail('Invalid website return origin.',503);context={websiteId,lessonId,returnUrl:origin.origin+'/?'+new URLSearchParams({website:websiteId,...(lessonId?{lesson:lessonId}:{})})};}
+  const code=random();await db.prepare('INSERT INTO website_platform_return_codes(code_hash,source_ref,challenge,state,expires_at,used,return_context) VALUES(?,?,?,?,?,0,?)').bind(await sha256(code),session.source_ref,input.challenge,input.state,Date.now()+60_000,context?JSON.stringify(context):null).run();return {code};
  }
  if(path==='/internal/website/identity')return identity(db,env,input);
  throw fail('Unknown website connection action.',404);
@@ -83,6 +86,8 @@ async function identity(db,env,input){
 }
 export async function recoverWebsite(env,{fetcher=fetch,limit=20}={}){
  if(!enabled(env))return;const db=dbFor(env),origin=new URL(env.WEBSITE_PLATFORM_ORIGIN);if(origin.protocol!=='https:'||origin.origin!==env.WEBSITE_PLATFORM_ORIGIN)throw fail('Invalid website receiver.',503);
+ if(await db.prepare('SELECT enabled FROM website_platform_control WHERE singleton=1').first('enabled')!==1)return;
+ await queueTimetables(db,{limit:2});
  const rows=(await db.prepare(`SELECT q.* FROM (SELECT * FROM website_platform_outbox WHERE acknowledged=0 AND next_attempt<=? ORDER BY next_attempt,stream,version LIMIT ?) q
   WHERE NOT EXISTS(SELECT 1 FROM website_platform_outbox older WHERE older.stream=q.stream AND older.acknowledged=0 AND older.version<q.version)`).bind(Date.now(),Math.min(40,limit)).all()).results;
  for(const row of rows){try{const item=await signedDelivery(env,row),reply=await fetcher(origin.origin+'/internal/academy/events',{method:'POST',headers:{'Content-Type':'application/json','X-Maktab-Signature':item.signature},body:JSON.stringify(item.delivery),redirect:'manual',signal:AbortSignal.timeout(5000)});const body=await bodyJSON(reply.body,4096);if(!reply.ok||body.version!==row.version)throw Error();await db.prepare('UPDATE website_platform_outbox SET acknowledged=1 WHERE operation_id=?').bind(row.operation_id).run();}catch{await db.prepare('UPDATE website_platform_outbox SET attempts=attempts+1,next_attempt=? WHERE operation_id=?').bind(Date.now()+Math.min(3600_000,5000*2**Math.min(row.attempts,9)),row.operation_id).run();}}
