@@ -1,3 +1,9 @@
+# Tafseer Admin website access release — 28 October 2026
+
+- The user clarified that Tafseer Program Admins and Global Admins have access to all Surah websites, then explicitly authorised updating and deploying if needed. Release the verified cross-dashboard authority correction as V107.108 from the existing feature branch, incorporating deployed V107.107.
+- Use real current Admin authority for published website reading and Course materials in personal Learn/Teach as well as Admin and Admin reader previews. Keep Program Admin scope, student paid-month checks and private draft/publication/withdrawal gates. Preserve existing card editing, monthly access, retention and absentee schedules.
+- Deploy only the matching existing Development API and Academy website. No schema, coordinator, live subscriptions, real content publication or settings changes. Use disposable fixtures and small hosted version/static/readiness checks under ../AGENTS.md. Do not message other chats. Future releases require fresh user authorisation.
+
 # Tafseer card table and website release — 27 October 2026
 
 - The user authorised connecting the links and completing deployment after the Tafseer handover. V107.105 (`56e87389098dcb5da34ddbac87918de289880f34`) is deployed and its handover has arrived. Incorporate it and release the reviewed cards/table as V107.107 on this feature branch, then the existing Development targets. Preserve V107.104 absentee jobs and V107.105 monthly access, retention, bindings, data and accepted heads.

@@ -22,7 +22,7 @@ test('split surah websites keep drafts private, publish only one surah and prote
   const admin=await f.source.actor('global'),student=await f.source.login('0002'),monthly=(action,input)=>f.request('/api/admin/platform/program-monthly-subscriptions/'+action,{activityKey:scope,...input},admin),site=(action,id,input={})=>f.request('/api/admin/platform/course-websites/'+action,{activityKey:scope,surahId:id,...input},admin);
   ok(await monthly('configure',{mode:'prepare',policyRevision:0,operationId:op()}));
   const id=op(),second=op();
-  ok(await monthly('surah-save',{policyRevision:1,operationId:op(),entries:[{id,name:'Surah Maryam',completionDate:'2024-01-16',active:true,revision:0},{id:second,name:'Surah Yusuf',completionDate:'2024-01-28',active:true,revision:0}]}));
+  ok(await monthly('surah-save',{policyRevision:1,operationId:op(),entries:[{id,name:'Surah Maryam',cardKey:'yaseen',completionDate:'2024-01-16',active:true,revision:0},{id:second,name:'Surah Yusuf',cardKey:'saffat',completionDate:'2024-01-28',active:true,revision:0}]}));
   ok(await monthly('grid-save',{policyRevision:2,operationId:op(),entries:[{accountId:'account-0002',month:'2024-01',subscribed:true,revision:0,classIds:['class-1']}]}));
   ok(await monthly('configure',{mode:'activate',policyRevision:3,operationId:op(),reviewed:true}));
   const bytes=Buffer.from('%PDF-1.4\n% Full surah PDF\n%%EOF'),assetId=op(),metadata={activityKey:scope,surahId:id,assetId,operationId:op(),filename:'maryam.pdf',type:'application/pdf',size:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')};
@@ -38,6 +38,19 @@ test('split surah websites keep drafts private, publish only one surah and prote
   assert.equal(ok(await read(id)).document.name,'Surah Maryam');assert.equal((await read(second)).status,404,'A sibling surah draft stays private even for an otherwise eligible student');
   const pdf=()=>worker.fetch(new Request('http://localhost/api/academy/course-websites/asset',{method:'POST',headers:{Authorization:'Bearer '+student,'X-Academy-Workspace':'LEARN','Content-Type':'application/json'},body:JSON.stringify({activityKey:scope,surahId:id,assetId})}),f.source.env);
   let response=await pdf();assert.equal(response.status,200);assert.deepEqual(Buffer.from(await response.arrayBuffer()),bytes);
+  const scoped=await f.source.actor('adminA'),outside=await f.source.actor('adminB');
+  assert.equal(core.prepare('SELECT count(*) n FROM program_monthly_subscriptions WHERE account_id IN (?,?)').get(f.actors.global,f.actors.adminA).n,0,'Admin access is checked without paid months');
+  for(const workspace of ['LEARN','TEACH','ADMIN','ADMIN_LEARN','ADMIN_TEACH']){
+   for(const token of [admin,scoped]){
+    assert.equal(ok(await f.request('/api/academy/course-websites/read',{activityKey:scope,surahId:id},token,workspace)).document.name,'Surah Maryam',workspace);
+    const links=ok(await f.request('/api/academy/tafseer-links',{},token,workspace));
+    assert.equal(links.links.yaseen.code,id,workspace);assert.equal(links.links.saffat,undefined,'An unpublished draft never appears as a reading link');
+    const asset=await worker.fetch(new Request('http://localhost/api/academy/course-websites/asset',{method:'POST',headers:{Authorization:'Bearer '+token,'X-Academy-Workspace':workspace,'Content-Type':'application/json'},body:JSON.stringify({activityKey:scope,surahId:id,assetId})}),f.source.env);
+    assert.equal(asset.status,200,workspace);assert.deepEqual(Buffer.from(await asset.arrayBuffer()),bytes);
+   }
+   assert.equal((await f.request('/api/academy/course-websites/read',{activityKey:scope,surahId:id},outside,workspace)).status,403,'Another Program Admin is outside Tafseer scope in '+workspace);
+   assert.equal(ok(await f.request('/api/academy/tafseer-links',{},outside,workspace)).links.yaseen,undefined);
+  }
   const rows=ok(await monthly('surahs',{})),row=rows.surahs.find(s=>s.id===id);
   ok(await monthly('surah-save',{policyRevision:rows.policyRevision,operationId:op(),entries:[{id,name:row.name,completionDate:'2025-02-10',active:true,revision:row.revision}]}));
   assert.equal((await read(id,{completionDate:'2024-01-16'})).status,403);assert.equal((await pdf()).status,403,'A cached/accepted website cannot bypass the live source-of-truth date');

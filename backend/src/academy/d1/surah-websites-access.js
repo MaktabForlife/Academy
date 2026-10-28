@@ -1,4 +1,4 @@
-import {actualState,administers,readerPreview} from './workspace-access.js';
+import {actualState,administers,hasAdminAuthority} from './workspace-access.js';
 import {monthlyEnabled} from './monthly-media-policy.js';
 
 const same=(a,b)=>String(a).toUpperCase()===String(b).toUpperCase();
@@ -6,7 +6,8 @@ export function mayReadSurah(auth,row){
  if(row.card_key==='foundations')return true;
  if(!auth)return false;
  if(auth.adminView)return administers(auth,row.activity_key);
- if(administers(auth,row.activity_key)||readerPreview(auth,row.activity_key))return true;
+ // Website reading follows current Admin authority even in personal Learn/Teach.
+ if(hasAdminAuthority(auth,row.activity_key))return true;
  if(auth.state.roles.some(r=>same(r.activity_key,row.activity_key)&&['PROGRAM_ADMIN','TEACHER'].includes(r.role)))return true;
  return Boolean(row.monthly_enabled&&(actualState(auth).monthlyMedia||[]).some(r=>same(r.activity_key,row.activity_key)&&r.lesson_month===row.completion_date.slice(0,7)));
 }

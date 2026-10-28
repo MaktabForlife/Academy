@@ -1,3 +1,7 @@
+# V107.108 — Tafseer Admin website access
+
+Tafseer Program Admins can open every published Surah website and its Course materials across Learn, Teach and Admin without a paid-month subscription. Global Admins have the same access across all Programs. Other Program Admins remain scoped to their own Programs, and student paid-month checks and private-draft/publication gates remain enforced. No schema, coordinator or live data changes.
+
 # V107.107 — Tafseer website cards and Admin card table
 
 Show the approved Tafseer cards on the Academy home page and every dashboard, with Foundations first and public after publication. Other public/unentitled cards open their editable Contact Admin popup; eligible dashboards use the V107.105 access links.
