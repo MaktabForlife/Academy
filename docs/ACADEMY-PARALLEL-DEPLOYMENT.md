@@ -1,0 +1,19 @@
+# V107.121 parallel access deployment
+
+This release is authorised to connect the separately deployed AcademyStudio while leaving every existing Academy screen and route available. Source branch: `feature/academy-parallel-access-release`, based on deployed V107.120 plus the reviewed disabled connector. Target branch: `feature/academy-studio-rollout-20261029`. No DNS change, old-screen retirement, account/payment cleanup or Git push is part of this release.
+
+The new target has dedicated real-integration resources, separate from invited preview identities: Worker/DB `academy-studio-parallel`, D1 `c261eb73-7145-4f73-940c-5816db287612`, R2 `academy-studio-parallel-content` and `academy-studio-parallel-media`, new account `2b01ca929611669e032703ff19f7098f`. The target is source-authoritative (`AUTHORITY_MODE=ACADEMY`), with learner freshness 300 seconds and staff 60 seconds. Browser and API Academy origins are separate. Both connection keys are private encrypted Worker bindings, never public variables.
+
+## Release sequence
+
+1. Prepare exact source mappings from the saved targeted metadata inventory. The initial pilot has Al Kahf and Tafseer: two active offerings, paid Course policy confirmed, one Tafseer class, exact Surah IDs/dates and fixed `Africa/Johannesburg` timezone. Foundations' current public Academy location remains available; do not infer its final cutover from the preserved copy.
+2. Verify source/target migrations and all import, retry, removal, master-status, historical-cohort, scoped staff and wrong-class cases locally. Keep real browser access closed while preparing the additive source control, source exporter, target projection and private teaching copies. No synthetic accounts/rights enter the real target.
+3. Apply the source's additive schemas through 0013 with database control still disabled. Deploy the matching source connector and Academy static frontend without removing old UI. Source config is `backend/wrangler.parallel-release.jsonc`; pin old account `c9a3e355b3d7a795880b1d36a1dbe123`. Existing secrets, bindings and features must be retained.
+4. Deploy the reviewed target receiver with `PLATFORM_ENABLED=1`, `PARALLEL_ACCESS_ENABLED=0`. Configure reviewed offering/Surah mappings and enable source dirty capture before extraction. Complete bounded checkpointed import and ordered delivery, including changes made during baseline preparation. The operator-only recovery tool advances actual exporter work through D1 management credentials and a fixed target; it cannot directly write master users, subscriptions or grants.
+5. Reconcile versions/checkpoints, then enable real browser access. Use a bounded smoke batch; keep broad revocation/retry/growth acceptance local. Account or access freshness failures close protected operations; they cannot extend a permission indefinitely. Routine website reading does not query Academy. Material bytes not yet migrated remain unavailable rather than receiving blanket/public access.
+
+## Verification and rollback
+
+Private evidence, manifests and usage totals: parent `outputs/academy-parallel-access-20261029/`. Initial source regressions: 76 passed; release integrity and restricted recovery adapter also pass. Record final integration tests and actual deployed IDs after completion rather than treating preparation as activation.
+
+The pre-release Academy Worker is `18060467-ec82-4bd5-a7f8-fab311d0b5c7`; static Academy was V107.120. Close target browser/API access first on a failed activation, disable source database control (environment flags alone do not stop SQL trigger capture), then disable/revert the source connector if needed. Preserve additive tables, ordered outbox/receipts, legitimately synced accounts/rights, independent drafts/publications and recovery copies. Never restore an old whole database, reset sequence numbers, reseed permissions or delete data as rollback shortcuts.
