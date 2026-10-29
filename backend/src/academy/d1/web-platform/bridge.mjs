@@ -1,3 +1,4 @@
+import {prepareAccountAccess,pumpAccess} from './access.mjs';
 import {queueTimetables} from './timetable.mjs';
 import {fail,bytes,verify,envelopePurpose,signedHeaders,sha256,random,challenge,bodyJSON,safeToken,id,text,integer,json} from './protocol.mjs';
 export const enabled=env=>env.ACADEMY_WEB_PLATFORM==='1';
@@ -12,8 +13,20 @@ export async function enqueueAccount(db,accountId){
    FROM website_platform_account_state a JOIN website_platform_streams v ON v.stream=? WHERE a.account_id=?`).bind(op,stream,Date.now(),stream,accountId)
  ]);return op;
 }
-async function signedDelivery(env,row){const delivery={issuedAt:Date.now(),operationId:row.operation_id,stream:row.stream,version:row.version,event:JSON.parse(row.event_json)},signed=await signedHeaders(env.ACADEMY_TO_WEBSITE_SECRET,'/internal/academy/events',delivery);return {delivery,signature:signed.headers['X-Maktab-Signature']};}
-async function pendingAccount(env,db,accountId){const rows=(await db.prepare('SELECT * FROM website_platform_outbox WHERE stream=? AND acknowledged=0 ORDER BY version LIMIT 41').bind('account:'+accountId).all()).results;return {deliveries:await Promise.all(rows.slice(0,40).map(row=>signedDelivery(env,row))),acknowledge:rows.slice(0,40).map(row=>row.operation_id),more:rows.length>40};}
+async function signedDelivery(env,row){
+ const event=JSON.parse(row.event_json);let superseded=false;
+ if(row.access_scope){const db=dbFor(env),dirty=await db.prepare('SELECT revision FROM website_platform_access_dirty WHERE activity_key=? AND account_id=?').bind(row.access_scope,row.access_account).first(),scope=await db.prepare('SELECT revision,enabled FROM website_platform_access_scopes WHERE activity_key=?').bind(row.access_scope).first();superseded=Boolean(!scope||dirty?.revision>row.access_revision||scope.revision!==event.generation||event.type==='access'&&!scope.enabled);if(event.type==='access'){const master=await db.prepare('SELECT * FROM website_platform_account_state WHERE account_id=?').bind(event.account.accountId).first();superseded=superseded||!master||!master.active||!master.admitted||master.epoch!==event.account.epoch||Boolean(master.global_admin)!==event.account.globalAdmin;}}
+ const delivery={issuedAt:Date.now(),operationId:row.operation_id,stream:row.stream,version:row.version,event,...(row.access_scope?{superseded}:{})},signed=await signedHeaders(env.ACADEMY_TO_WEBSITE_SECRET,'/internal/academy/events',delivery);return {delivery,signature:signed.headers['X-Maktab-Signature']};
+}
+async function pendingAccount(env,db,accountId){
+ const rows=(await db.prepare(`SELECT * FROM (
+ SELECT * FROM (SELECT * FROM website_platform_outbox INDEXED BY website_platform_account_pending WHERE stream=? AND acknowledged=0 ORDER BY version LIMIT 41)
+ UNION ALL SELECT * FROM (SELECT * FROM website_platform_outbox INDEXED BY website_platform_access_pending WHERE access_account=? AND acknowledged=0 ORDER BY stream,version LIMIT 41)
+ UNION ALL SELECT * FROM (SELECT q.* FROM website_platform_access_scopes s CROSS JOIN website_platform_outbox q INDEXED BY website_platform_scope_pending WHERE s.enabled=1 AND q.access_scope=s.activity_key AND q.access_account='' AND q.acknowledged=0 ORDER BY q.stream,q.version LIMIT 41)
+ ) ORDER BY CASE WHEN access_scope IS NULL THEN 0 WHEN access_account='' THEN 1 ELSE 2 END,stream,version LIMIT 41`).bind('account:'+accountId,accountId.toLowerCase()).all()).results,deliveries=[],acknowledge=[];let size=0;
+ for(const row of rows.slice(0,40)){const item=await signedDelivery(env,row),bytes=new TextEncoder().encode(JSON.stringify(item)).length;if(size+bytes>230_000)break;size+=bytes;deliveries.push(item);acknowledge.push(row.operation_id);}
+ return {deliveries,acknowledge,more:rows.length>deliveries.length};
+}
 async function completeSignIn(env,db,session){
  const result=await pendingAccount(env,db,session.account_id);if(result.more)return {...result,continuation:session.source_ref};
  const code=random(),event={type:'handoff',sourceRef:session.source_ref,accountId:session.account_id,epoch:session.epoch,codeHash:await sha256(code),challenge:session.challenge,state:session.state,expiresAt:Date.now()+60_000};
@@ -44,13 +57,13 @@ export async function bridge(request,env,{login,mint}){
   const authority=await db.prepare('SELECT * FROM website_platform_account_state WHERE account_id=?').bind(accountId).first();if(!authority?.active||!authority.admitted)throw fail('Website admission is not currently available.',403);
   const sourceRef=random(),expires=Date.now()+7*86400_000;
   await db.prepare('INSERT INTO website_platform_sessions VALUES(?,?,?,?,?,?,?,?)').bind(sourceRef,accountId,captured.sid,state.account.credential_epoch,JSON.stringify(captured.context),expires,input.challenge,input.state).run();
-  await enqueueAccount(db,accountId);return completeSignIn(env,db,await sourceSession(db,sourceRef));
+  await enqueueAccount(db,accountId);await prepareAccountAccess(db,accountId);return completeSignIn(env,db,await sourceSession(db,sourceRef));
  }
  if(path==='/internal/website/ack'){
   if(!Array.isArray(input.operationIds)||input.operationIds.length>40)throw fail('Invalid acknowledgement.');for(const operationId of input.operationIds)id(operationId);await db.prepare('UPDATE website_platform_outbox SET acknowledged=1 WHERE operation_id IN(SELECT value FROM json_each(?))').bind(JSON.stringify(input.operationIds)).run();return {acknowledged:true};
  }
  if(path==='/internal/website/status'){
-  const session=await sourceSession(db,input.sourceRef);if(!input.draining)await enqueueAccount(db,session.account_id);const result=await pendingAccount(env,db,session.account_id);return result.more?{...result,continuation:session.source_ref,statusOnly:true}:result;
+  const session=await sourceSession(db,input.sourceRef);if(!input.draining){await enqueueAccount(db,session.account_id);await prepareAccountAccess(db,session.account_id);}const result=await pendingAccount(env,db,session.account_id);return result.more?{...result,continuation:session.source_ref,statusOnly:true}:result;
  }
  if(path==='/internal/website/continue-sign-in'){const session=await sourceSession(db,input.sourceRef);if(input.statusOnly){const result=await pendingAccount(env,db,session.account_id);return result.more?{...result,continuation:session.source_ref,statusOnly:true}:result;}return completeSignIn(env,db,session);}
  if(path==='/internal/website/open-academy'){
@@ -87,8 +100,19 @@ async function identity(db,env,input){
 export async function recoverWebsite(env,{fetcher=fetch,limit=20}={}){
  if(!enabled(env))return;const db=dbFor(env),origin=new URL(env.WEBSITE_PLATFORM_ORIGIN);if(origin.protocol!=='https:'||origin.origin!==env.WEBSITE_PLATFORM_ORIGIN)throw fail('Invalid website receiver.',503);
  if(await db.prepare('SELECT enabled FROM website_platform_control WHERE singleton=1').first('enabled')!==1)return;
+ await pumpAccess(db);
  await queueTimetables(db,{limit:2});
- const rows=(await db.prepare(`SELECT q.* FROM (SELECT * FROM website_platform_outbox WHERE acknowledged=0 AND next_attempt<=? ORDER BY next_attempt,stream,version LIMIT ?) q
-  WHERE NOT EXISTS(SELECT 1 FROM website_platform_outbox older WHERE older.stream=q.stream AND older.acknowledged=0 AND older.version<q.version)`).bind(Date.now(),Math.min(40,limit)).all()).results;
+ const due=Date.now(),bound=Math.max(1,Math.min(40,limit));
+ // Reserve bounded candidates for prerequisites so blocked people cannot hide them.
+ const candidates=(await db.prepare(`SELECT q.* FROM (
+  SELECT * FROM (SELECT * FROM website_platform_outbox INDEXED BY website_platform_unscoped_due WHERE acknowledged=0 AND access_scope IS NULL AND next_attempt<=? ORDER BY next_attempt,stream,version LIMIT 4)
+  UNION ALL SELECT * FROM (SELECT * FROM website_platform_outbox INDEXED BY website_platform_access_pending WHERE access_account='' AND acknowledged=0 AND next_attempt<=? ORDER BY stream,version LIMIT 4)
+  UNION ALL SELECT * FROM (SELECT * FROM website_platform_outbox WHERE acknowledged=0 AND next_attempt<=? ORDER BY next_attempt,stream,version LIMIT ?)
+ ) q
+  WHERE NOT EXISTS(SELECT 1 FROM website_platform_outbox older WHERE older.stream=q.stream AND older.acknowledged=0 AND older.version<q.version)
+  AND (q.access_scope IS NULL OR q.access_account='' OR (
+   NOT EXISTS(SELECT 1 FROM website_platform_outbox metadata INDEXED BY website_platform_scope_pending WHERE metadata.access_scope=q.access_scope AND metadata.access_account='' AND metadata.acknowledged=0)
+   AND NOT EXISTS(SELECT 1 FROM website_platform_outbox master INDEXED BY website_platform_account_pending WHERE master.stream='account:'||json_extract(q.event_json,'$.account.accountId') AND master.acknowledged=0))) ORDER BY CASE WHEN q.access_scope IS NULL THEN 0 WHEN q.access_account='' THEN 1 ELSE 2 END,q.stream,q.version`).bind(due,due,due,bound).all()).results;
+ const rows=[...new Map(candidates.map(row=>[row.operation_id,row])).values()].slice(0,bound);
  for(const row of rows){try{const item=await signedDelivery(env,row),reply=await fetcher(origin.origin+'/internal/academy/events',{method:'POST',headers:{'Content-Type':'application/json','X-Maktab-Signature':item.signature},body:JSON.stringify(item.delivery),redirect:'manual',signal:AbortSignal.timeout(5000)});const body=await bodyJSON(reply.body,4096);if(!reply.ok||body.version!==row.version)throw Error();await db.prepare('UPDATE website_platform_outbox SET acknowledged=1 WHERE operation_id=?').bind(row.operation_id).run();}catch{await db.prepare('UPDATE website_platform_outbox SET attempts=attempts+1,next_attempt=? WHERE operation_id=?').bind(Date.now()+Math.min(3600_000,5000*2**Math.min(row.attempts,9)),row.operation_id).run();}}
 }

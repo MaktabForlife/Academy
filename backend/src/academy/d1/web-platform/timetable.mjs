@@ -22,9 +22,9 @@ export async function projectTimetable(db,scope,{now=Date.now()}={}){
  const settings=await all(db,'SELECT * FROM academy_settings WHERE setting_key IN(SELECT value FROM json_each(?))',JSON.stringify([...new Set(calendar.map(annualKey))]));
  const suppressions=await all(db,'SELECT * FROM academy_calendar_suppressions WHERE calendar_date>=? AND calendar_date<=?',start,end);
  const holidays=noTeachingCalendarEvents({calendar,suppressions,settings},start,end,activity.activity_key);
- const append=async(key,title,date,startTime,endTime,timezone,meeting,cancelled=false)=>{
+ const append=async(key,title,date,startTime,endTime,timezone,meeting,cancelled=false,classIds=[],teacherIds=[])=>{
   const times=lessonTimes({date,startTime,endTime,timezone});if(!Number.isSafeInteger(times.startsAt)||!Number.isSafeInteger(times.endsAt)||times.endsAt<=times.startsAt)throw Error('INVALID_PUBLISHED_CLOCK');
-  const off=Boolean(cancelled||holidayOnDate(holidays,date));sessions.push({id:'ws-'+await sha256(JSON.stringify(key)),title,startsAt:times.startsAt,endsAt:times.endsAt,zoomUrl:off?'':zoom(meeting),cancelled:off});
+  const off=Boolean(cancelled||holidayOnDate(holidays,date));sessions.push({id:'ws-'+await sha256(JSON.stringify(key)),title,startsAt:times.startsAt,endsAt:times.endsAt,zoomUrl:off?'':zoom(meeting),cancelled:off,classIds,teacherIds});
   bounded(sessions,200,'TIMETABLE_WINDOW_TOO_LARGE');
  };
  if(activity.kind==='PROGRAM'){
@@ -38,7 +38,7 @@ export async function projectTimetable(db,scope,{now=Date.now()}={}){
   for(let date=start;date<=end;date=addDays(date,1)){
    const chosen=publicationSchedule(history,date),pub=history.find(p=>p.id===chosen.currentPublicationId);if(!pub)continue;
    for(const row of pub.occurrences){if(row.kind==='BREAK'||!(pub.pattern==='WEEKLY'?row.weekday===new Date(date+'T12:00:00Z').getUTCDay():row.date===date))continue;
-    await append(['PROGRAM',activity.activity_key,date,row.anchor],row.moduleName||row.subjectName||activity.name,date,row.startTime,row.endTime,pub.snapshot.timezone||pub.sourceTimezone,currentProgramZoom(override??undefined,row,pub,classes),row.status==='CANCELLED');
+    await append(['PROGRAM',activity.activity_key,date,row.anchor],row.moduleName||row.subjectName||activity.name,date,row.startTime,row.endTime,pub.snapshot.timezone||pub.sourceTimezone,currentProgramZoom(override??undefined,row,pub,classes),row.status==='CANCELLED',row.classIds||[],row.teacherIds||[row.teacherId].filter(Boolean));
    }
   }
  }else if(activity.kind==='COURSE'){
@@ -47,7 +47,7 @@ export async function projectTimetable(db,scope,{now=Date.now()}={}){
   for(const run of runs){const snapshot=JSON.parse(run.snapshot_json),resolved=resolveCurrentPublishedGlobalTimetable({GlobalTimetableRunState:[{RunID:run.run_id,Stage:run.stage,CurrentPublicationID:run.current_publication_id}],GlobalTimetablePublications:[snapshot.publication],PublishedGlobalTimetableSessions:snapshot.sessions,GlobalTimetableSessionLifecycle:lifecycles.map(l=>({SessionLifecycleID:l.lifecycle_id,SessionID:l.source_session_id,PublicationID:l.publication_id,Status:l.status,RescheduledFromSessionID:l.previous_source_session_id||'',RescheduledToSessionID:l.replacement_source_session_id||''}))},run.run_id,{startDate:start,endDate:end});
    if(!resolved.ok)throw Error('INVALID_CURRENT_COURSE_PUBLICATION');
    const states=new Map(resolved.lifecycles.map(l=>[l.sessionid.toUpperCase(),l.status]));
-   for(const s of resolved.sessions)await append(['COURSE',activity.activity_key,run.run_id,s.sourcesessionid],s.sessiondescription||s.modulename||s.runname,s.sessiondate,s.starttime,s.endtime,s.timezone,s.zoomlink,states.get(s.sourcesessionid.toUpperCase())!=='SCHEDULED');
+   for(const s of resolved.sessions)await append(['COURSE',activity.activity_key,run.run_id,s.sourcesessionid],s.sessiondescription||s.modulename||s.runname,s.sessiondate,s.starttime,s.endtime,s.timezone,s.zoomlink,states.get(s.sourcesessionid.toUpperCase())!=='SCHEDULED',[],[s.teacheraccountid].filter(Boolean));
   }
  }else throw Error('UNSUPPORTED_SOURCE_KIND');
  if(new Set(sessions.map(s=>s.id)).size!==sessions.length)throw Error('DUPLICATE_SOURCE_SESSION');
