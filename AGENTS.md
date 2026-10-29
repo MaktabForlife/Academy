@@ -1,3 +1,8 @@
+# V108.0 release completed — 29 October 2026
+
+- The authorised parallel deployment is complete: Academy API/frontend and the separate AcademyStudio site report V108.0. Existing Academy screens remain available, Academy remains access authority, and no DNS cutover, old-screen retirement or Git push occurred.
+- Final implementation/evidence: docs/ACADEMY-PARALLEL-DEPLOYMENT.md and parent outputs/academy-parallel-access-20261029/release-verification.json. Further changes stay local on feature branches until another deployment approval. Preserve current capture/outbox data and the separate synthetic preview.
+
 # Parallel access deployment — 29 October 2026
 
 - You explicitly authorised completing and testing access synchronisation, then deploying it for parallel testing. Work on `feature/academy-parallel-access-release`, reconciled with deployed V107.120 (`4cbb787c`). Release V108.0 with matching API and website version markers. This supersedes older local-only holds for this parallel integration, including necessary additive Core schemas and exact connector origin/secret settings.

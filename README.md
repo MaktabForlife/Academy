@@ -1,6 +1,6 @@
 # V108.0 — Parallel AcademyStudio access synchronisation
 
-Keep existing Academy learner and management screens available while the independent AcademyStudio platform mirrors current scoped access. Deploy the additive connector and conservative permission freshness controls only after native import, grant/removal, retry and read-growth tests pass. No old routes, users, payments, material or historical rights are deleted; no DNS cutover is included. Release evidence is recorded separately after deployment.
+V108.0 is deployed for parallel testing. Existing Academy screens and permissions remain available; the separate website uses Academy-authoritative access projections. The combined suite passed 68 tests and five bounded hosted checks passed. The initial import completed with 17 deliveries, no delivery errors and no unfinished phases, dirty projections or pending events; the operator measured 886 source rows read and 470 written, excluding background traffic and target receiver work. Existing source bindings/secrets were retained. No DNS cutover, old-screen retirement, Git push or PDF/recording byte migration was included.
 
 # V107.120 — Reduce publication validation reads
 
