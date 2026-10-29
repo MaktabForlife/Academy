@@ -10,3 +10,5 @@ node_modules/
 
 website-studio/.build/
 website-studio/.wrangler/
+
+/backend/node_modules

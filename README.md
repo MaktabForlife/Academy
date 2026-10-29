@@ -1,3 +1,7 @@
+# V107.121 — Parallel AcademyStudio access synchronisation
+
+Keep existing Academy learner and management screens available while the independent AcademyStudio platform mirrors current scoped access. Deploy the additive connector and conservative permission freshness controls only after native import, grant/removal, retry and read-growth tests pass. No old routes, users, payments, material or historical rights are deleted; no DNS cutover is included. Release evidence is recorded separately after deployment.
+
 # V107.120 — Reduce publication validation reads
 
 Validate an accepted publication once, retaining a separate bootstrap insert. Reuse the candidate's lesson/link/PDF projections inside the existing admission check. Preserve the shared ten-PDF limit, current authority, immutable history and retry/recovery protections. Requires only the matching Core trigger upgrade and API/website release; no content is republished. Local regression and native D1 tests passed (111 checks); a synthetic 40-PDF/40-video validation fell from 19,688 to 608 rows read, excluding other upload/publication costs.

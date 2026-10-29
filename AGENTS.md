@@ -1,3 +1,10 @@
+# Parallel access deployment — 29 October 2026
+
+- You explicitly authorised completing and testing access synchronisation, then deploying it for parallel testing. Work on `feature/academy-parallel-access-release`, reconciled with deployed V107.120 (`4cbb787c`). Release V107.121 with matching API and website version markers. This supersedes older local-only holds for this parallel integration, including necessary additive Core schemas and exact connector origin/secret settings.
+- Preserve all existing Academy screens, routes, users, payment/grant records, media and permissions. Academy remains the access/enrolment authority during parallel testing. No screen retirement, DNS cutover, destructive cleanup or Git push is included.
+- Keep live checks small under ../AGENTS.md. Use disposable native Workers/D1/R2 fixtures for permissions, replay, revocation and growth. Pin each Cloudflare account explicitly. Never connect synthetic preview identities or rights to real Academy. Keep private exports and secrets out of tracked files and public assets.
+- Address the user as “you”; state disagreements and concerns directly.
+
 # Website platform review decisions — 28 October 2026
 
 - The human supplied the new canonical GitHub repository https://github.com/MaktabForlife/AcademyStudio.git and explicitly authorised communicating it where necessary. Notify only the relevant web migration and web build chats. Coordinate their existing local feature branches/worktrees with this remote; do not discard local work or create another remote repository. This identifies the repository but does not lift the push, deployment, hosted-change or publication holds.
