@@ -10,7 +10,7 @@ export function assertRecoverySQL(sql){
  if(!match)throw Error('RECOVERY_SQL_OUTSIDE_OPERATIONAL_TABLES');
 }
 export function apiQuery(sql,args=[]){
- assertRecoverySQL(sql);let i=0;const params=[],query=sql.replace(/\?/g,()=>{const value=args[i++];if(value===null)return 'NULL';if(!['string','number'].includes(typeof value)||typeof value==='number'&&!Number.isFinite(value))throw Error('INVALID_RECOVERY_PARAMETER');params.push(String(value));return '?';});
+ assertRecoverySQL(sql);let i=0;const params=[],query=sql.replace(/\?/g,()=>{const value=args[i++];if(value===null)return 'NULL';if(!['string','number'].includes(typeof value)||typeof value==='number'&&!Number.isFinite(value))throw Error('INVALID_RECOVERY_PARAMETER');params.push(String(value));return typeof value==='number'?(Number.isInteger(value)?'CAST(? AS INTEGER)':'CAST(? AS REAL)'):'?';});
  if(i!==args.length)throw Error('RECOVERY_PARAMETER_MISMATCH');return {sql:query,params};
 }
 export function recoveryDatabase(execute){
