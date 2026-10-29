@@ -1,4 +1,4 @@
-# V107.121 — Parallel AcademyStudio access synchronisation
+# V108.0 — Parallel AcademyStudio access synchronisation
 
 Keep existing Academy learner and management screens available while the independent AcademyStudio platform mirrors current scoped access. Deploy the additive connector and conservative permission freshness controls only after native import, grant/removal, retry and read-growth tests pass. No old routes, users, payments, material or historical rights are deleted; no DNS cutover is included. Release evidence is recorded separately after deployment.
 

@@ -1,4 +1,4 @@
-# V107.121 parallel access deployment
+# V108.0 parallel access deployment
 
 This release is authorised to connect the separately deployed AcademyStudio while leaving every existing Academy screen and route available. Source branch: `feature/academy-parallel-access-release`, based on deployed V107.120 plus the reviewed disabled connector. Target branch: `feature/academy-studio-rollout-20261029`. No DNS change, old-screen retirement, account/payment cleanup or Git push is part of this release.
 
