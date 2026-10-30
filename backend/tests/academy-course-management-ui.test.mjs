@@ -8,11 +8,12 @@ import {courseFixture} from './fixtures/academy-d1-course-fixture.mjs';
 const source=readFileSync(new URL('../../js/m4l-academy-course-management.js',import.meta.url),'utf8');
 const markup=readFileSync(new URL('../../academy/courses/manage/index.html',import.meta.url),'utf8');
 async function fixture(){const f=await courseFixture();f.env.ACADEMY_LIBRARY_MODE='PUBLIC_ONLY';for(const m of ['0007_course_subscriptions.sql','0008_course_management.sql','0009_course_review_and_teachers.sql'])f.db.exec(readFileSync(new URL('../migrations/academy/'+m,import.meta.url),'utf8'));return f;}
-async function screen(env,identity='0001',search='') {
+async function screen(env,identity='0001',search='',accessOwner=null) {
  const login=await worker.fetch(new WorkspaceRequest('http://localhost/api/account/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uniqueid:'login-'+identity,pin:'1234'})}),env);let token=(await login.json()).token;
  const elements=new Map(),events=new Map(),documentEvents=new Map(),requests=[];
  const element=id=>{if(!elements.has(id))elements.set(id,{hidden:true,textContent:'',innerHTML:'',value:'',disabled:false,listeners:{},showModal(){this.open=true;},classList:{toggle(){},add(){},remove(){}},replaceChildren(){this.innerHTML='';},close(){this.open=false;},focus(){},setSelectionRange(){},querySelector:selector=>id==='course-dialog'?element('dialog:'+selector):null,querySelectorAll:()=>[],addEventListener(type,fn){this.listeners[type]=fn;},setAttribute(){}});return elements.get(id);};
  const context={console,URLSearchParams,crypto,Date,Map,Set,WeakMap,location:{search,origin:'http://localhost'},localStorage:{getItem:()=>token},document:{createElement:tag=>element('created:'+tag),getElementById:element,querySelectorAll:()=>[],querySelector:()=>null,addEventListener:(type,fn)=>documentEvents.set(type,[...(documentEvents.get(type)||[]),fn])},window:{M4L_ENROLMENT_WORKSPACE:{reset(){},canLeave:()=>true,open:async()=>{}},M4L_CONFIG:{API_BASE:''},addEventListener:(type,fn)=>events.set(type,fn)},fetch:async(path,options)=>{requests.push(path);return worker.fetch(new WorkspaceRequest('http://localhost'+path,options),env);}};
+ if(accessOwner)context.window.M4L_STUDIO_ACCESS={attach(){},reset(){},canLeave:()=>true,ensure:async()=>accessOwner};
  context.window.history={replaceState:(_state,_title,url)=>{context.location.search=url.startsWith('?')?url:'';}};
  vm.createContext(context);vm.runInContext(readFileSync(new URL('../../js/m4l-time.js',import.meta.url),'utf8'),context);vm.runInContext(source,context);await documentEvents.get('DOMContentLoaded')[0]();
  const settle=async()=>{for(let i=0;i<30;i++)await new Promise(r=>setTimeout(r,2));};await settle();
@@ -166,3 +167,5 @@ test('Course list is the first tab, preserves drafts across tabs and guards swit
   page.element('dialog:[data-dialog-cancel]').listeners.click();await page.click('tab',{tab:'details'});assert.match(page.element('course-editor').innerHTML,/value="Kept when returning to list"/);
  }finally{f.db.close();}
 });
+
+test('migrated Course Participants bypass the old full roster reader while Academy-owned Courses retain it',async()=>{const f=await fixture();try{const migrated=await screen(f.env,'0001','?course=subject-1&run=run-1&tab=participants','WEBSITE');assert.equal(migrated.requests.filter(p=>p.endsWith('/courses/participants')).length,0);assert.match(migrated.element('course-editor').innerHTML,/Learning access is managed below/);const unavailable=await screen(f.env,'0001','?course=subject-1&run=run-1&tab=participants','UNAVAILABLE');assert.equal(unavailable.requests.filter(p=>p.endsWith('/courses/participants')).length,0);const retained=await screen(f.env,'0001','?course=subject-1&run=run-1&tab=participants','ACADEMY');assert.equal(retained.requests.filter(p=>p.endsWith('/courses/participants')).length,1);}finally{f.db.close();}});

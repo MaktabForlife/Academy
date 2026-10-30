@@ -498,5 +498,5 @@
   window.M4L_PROGRAM_PEOPLE={canLeave(){if(state.edit||state.pending||state.importPending){message('Finish or cancel the participant change before opening Monthly subscriptions.',true);return false;}return true;}};
   document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key==='Enter'&&!window.M4L_PROGRAM_MONTHLY?.isOpen?.()&&(!window.M4L_PROGRAM_ADMIN||window.M4L_PROGRAM_ADMIN.tab()==='participants')&&visibleEdit()&&!state.busy&&!state.pending){event.preventDefault();void work(save);}});
   window.addEventListener('beforeunload',event=>{if(state.edit||state.pending||state.importPending){event.preventDefault();event.returnValue='';}});
-  void work(async()=>{if(await window.M4L_STUDIO_ACCESS?.ensure($('pm-main'),'PROGRAM:'+programId)==='WEBSITE')return;await refresh();if(state.pending&&!state.refreshWaiting)await save();});
+  void work(async()=>{const accessOwner=await window.M4L_STUDIO_ACCESS?.ensure($('pm-main'),'PROGRAM:'+programId);if(accessOwner&&accessOwner!=='ACADEMY')return;await refresh();if(state.pending&&!state.refreshWaiting)await save();});
 })();

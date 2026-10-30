@@ -36,7 +36,7 @@
    const panel=$('pg-'+name+'-tool');if(!panel.firstElementChild){const root=document.createElement('section');root.id=source.id;root.className=source.className;root.innerHTML=source.innerHTML;panel.append(root);}
    for(const aside of doc.body.querySelectorAll(':scope > aside[id]'))if(!$(aside.id))document.body.append(aside.cloneNode(true));
    if(name==='timetable'){$('pw-card-editor').open=true;$('tt-select-program').hidden=true;}
-   if(name==='people'){await script('/js/m4l-studio-access.js');const accessOwner=await window.M4L_STUDIO_ACCESS.ensure(panel.firstElementChild,'PROGRAM:'+selected.id);if(version!==generation||account!==localStorage.getItem('m4l_account_token'))return;if(accessOwner==='WEBSITE'){loaded.add(name);return;}}
+   if(name==='people'){await script('/js/m4l-studio-access.js');const accessOwner=await window.M4L_STUDIO_ACCESS.ensure(panel.firstElementChild,'PROGRAM:'+selected.id);if(version!==generation||account!==localStorage.getItem('m4l_account_token'))return;if(accessOwner&&accessOwner!=='ACADEMY'){loaded.add(name);return;}}
    for(const src of definition.scripts){if(version!==generation||account!==localStorage.getItem('m4l_account_token'))return;await script(src);}
    loaded.add(name);
   })().finally(()=>pending.delete(name));pending.set(name,promise);await promise;

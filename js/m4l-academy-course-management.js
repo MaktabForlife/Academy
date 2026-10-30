@@ -169,7 +169,7 @@
   async function loadParticipants(){
     if(!state.course?.courseId)return;
     const sequence=state.selection;
-    const owner=await window.M4L_STUDIO_ACCESS?.ensure($('cm-panel'),'COURSE:'+state.course.courseId);if(sequence!==state.selection)return;if(owner==='WEBSITE'){state.participants={studio:true,accounts:[]};if(state.tab==='participants')renderEditor();return;}
+    const owner=await window.M4L_STUDIO_ACCESS?.ensure($('cm-panel'),'COURSE:'+state.course.courseId);if(sequence!==state.selection)return;if(owner&&owner!=='ACADEMY'){state.participants={studio:true,accounts:[]};if(state.tab==='participants')renderEditor();return;}
     const result=await api(base+'participants',selected());
     if(sequence!==state.selection)return;
     state.participants=result;if(state.tab==='participants')renderEditor();
@@ -248,7 +248,7 @@
   }
   async function perform(fn){if(state.busy)return;busy(true);try{await fn();}catch(error){tell(error.message+(error.code==='ROW_CHANGED'?' Refresh and review the saved Course. Your unfinished changes are kept.':''),true);}finally{busy(false);if(state.participants)updateParticipantControls();}}
   async function action(name,el){
-    if(name==='select'){const tab=!state.course&&new URLSearchParams(location.search).get('view')==='scheduling'?'sessions':'details';reviewDiscard(()=>select(el.dataset.course,el.dataset.run,tab));return;}
+    if(name==='select'){if(window.M4L_STUDIO_ACCESS?.canLeave()===false)throw Error('Finish the learning-access change before selecting another Course.');const tab=!state.course&&new URLSearchParams(location.search).get('view')==='scheduling'?'sessions':'details';reviewDiscard(()=>select(el.dataset.course,el.dataset.run,tab));return;}
     if(name==='tab'){if(window.M4L_STUDIO_ACCESS?.canLeave()===false)throw Error('Finish the learning-access Save before leaving this tab.');if(state.tab==='media'&&window.M4L_LESSON_MEDIA?.canLeave()===false)return;if(!tabs.some(([tab])=>tab===el.dataset.tab)||el.dataset.tab!=='list'&&!state.course||el.dataset.tab==='enrolment'&&!state.course?.courseId)return;if(!window.M4L_ENROLMENT_WORKSPACE.canLeave(enrolmentPanel))throw Error('Finish or retry the enrolment request change before leaving this tab.');state.tab=el.dataset.tab;rememberSelection();renderEditor();if(state.tab==='participants'&&!state.participants)await loadParticipants();return;}
     if(name==='save-card'){
       const result=await mutate('public-card-save',{...selected(),baseCardRevision:state.course.publicCardRevision,publicCard:copy(state.cardDraft)});Object.assign(state.course,{publicCard:result.publicCard,publicCardRevision:result.publicCardRevision});state.cardDraft=copy(result.publicCard);renderEditor();tell(result.message);return;

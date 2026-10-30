@@ -14,10 +14,13 @@ async function adminProof(db,auth){
 }
 
 export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_SERVICE?.fetch.bind(env.WEBSITE_PLATFORM_SERVICE)||fetch}={}){
- if(env.ACADEMY_WEB_PLATFORM!=='1')throw fail('Studio integration is not enabled.',503);
- const db=env.ACADEMY_DB.withSession('first-primary');if(await db.prepare('SELECT enabled FROM website_platform_control WHERE singleton=1').first('enabled')!==1)throw fail('Studio integration is not activated.',503);
- const activity=id(input.activityKey),mapping=await db.prepare('SELECT t.offering_id,t.kind,s.revision generation FROM website_platform_timetable_scopes t JOIN website_platform_access_scopes s USING(activity_key) WHERE t.activity_key=? COLLATE NOCASE AND s.enabled=1').bind(activity).first();if(!mapping)throw fail('This programme has no Studio access migration.',404,'STUDIO_SCOPE_UNMAPPED');
- const proof=await adminProof(db,auth),owner=await db.prepare('SELECT * FROM website_platform_access_ownership WHERE activity_key=? COLLATE NOCASE').bind(activity).first();
+ const db=env.ACADEMY_DB.withSession('first-primary');
+ const activity=id(input.activityKey),mapping=await db.prepare('SELECT t.offering_id,t.kind,s.enabled,s.revision generation FROM website_platform_timetable_scopes t JOIN website_platform_access_scopes s USING(activity_key) WHERE t.activity_key=? COLLATE NOCASE').bind(activity).first();if(!mapping)throw fail('This programme has no Studio access migration.',404,'STUDIO_SCOPE_UNMAPPED');
+ const owner=await db.prepare('SELECT * FROM website_platform_access_ownership WHERE activity_key=? COLLATE NOCASE').bind(activity).first(),command=input.command||{action:'read'};
+ if(!owner||owner.state==='ACADEMY'){if(command.action==='read')return {success:true,legacyOnly:true,ownership:{authority:'ACADEMY'}};if(!command.action?.startsWith('handover-'))throw fail('Manage enrolment and access in the current Academy controls until handover.',409,'ACADEMY_AUTHORITY');}
+ if(env.ACADEMY_WEB_PLATFORM!=='1'||await db.prepare('SELECT enabled FROM website_platform_control WHERE singleton=1').first('enabled')!==1)throw fail('Studio integration is unavailable. Keep the current authority locked.',503,'STUDIO_UNAVAILABLE');
+ if(!mapping.enabled&&!['handover-status','handover-abort','handover-commit'].includes(command.action))throw fail('This migration scope is unavailable.',503,'STUDIO_UNAVAILABLE');
+ const proof=await adminProof(db,auth);
  const send=async command=>{
   await enqueueAccount(db,proof.accountId,env);
   // Only this actor and offering; never sweep other participants for an Admin read.
@@ -31,11 +34,12 @@ export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_S
   if(env.ENVIRONMENT==='local')result.localReadBudget={targetRowsRead:Number(response.headers.get('X-Local-D1-Rows-Read')),targetQueries:Number(response.headers.get('X-Local-D1-Queries'))};
   delete result.acknowledge;if(result.pending)throw fail('Access confirmation is catching up. Retry this same action.',409,'STUDIO_CONFIRMATION_PENDING');return result;
  };
- const command=input.command||{action:'read'};
  if(command.action?.startsWith('handover-')){
   if(!proof.globalAdmin)throw fail('Only Global Admin can hand over an offering.',403);
   return handover(db,activity,mapping,owner,proof,command,send);
  }
+ if(owner?.state==='FROZEN'&&command.action==='read')return {success:true,blocked:true,ownership:{authority:'FROZEN'}};
+ if(owner?.state==='FROZEN')throw fail('The handover is in progress. Keep access edits locked until it finishes.',409,'HANDOVER_IN_PROGRESS');
  if(command.action==='live-allocation'){
   if(mapping.kind!=='TAFSEER'||owner?.state!=='STUDIO')throw fail('Complete the offering handover before using this allocation control.',409);
   const accountId=id(command.accountId),confirmed=await send({action:'read',accountId});if(confirmed.ownership?.authority!=='WEBSITE'||confirmed.ownership.phase!=='COMMITTED'||!confirmed.person)throw fail('This offering has not completed its Studio handover.',409);
@@ -67,6 +71,9 @@ async function handover(db,activity,mapping,owner,proof,input,send){
   await db.prepare("UPDATE website_platform_access_ownership SET state='ACADEMY',updated_at=? WHERE activity_key=? AND state='FROZEN' AND transfer_id=?").bind(now,activity,transfer).run();return {success:true,state:'ACADEMY'};
  }
  if(owner.state==='STUDIO'){if(input.action==='handover-commit')return {success:true,state:'STUDIO',replayed:true};throw fail('This offering is already managed by Studio.',409);}
+ if(input.action==='handover-commit'){
+  const status=await send({action:'handover-status',transferId:transfer});if(status.handover?.phase==='COMMITTED'&&status.handover.transfer_id===transfer){await finishHandover(db,activity,transfer,proof);return {success:true,state:'STUDIO',recovered:true};}
+ }
  if(input.action==='handover-reconcile'){
   const page=await importAccessPage(db,{activityKey:activity,limit:25});await queueAccess(db,{limit:8});return {success:true,state:'FROZEN',reconciliation:page};
  }
@@ -85,7 +92,14 @@ async function handover(db,activity,mapping,owner,proof,input,send){
  if(input.action==='handover-commit'){
   if(await db.prepare('SELECT 1 FROM website_platform_access_dirty WHERE activity_key=? AND account_id>? LIMIT 1').bind(activity,owner.cursor).first())throw fail('Check all final participant pages first.',409,'HANDOVER_PENDING');
   await send({action:'handover-commit',operationId:'handover:'+transfer+':commit',transferId:transfer,after:owner.cursor,count:owner.checked,final:true});
-  await db.prepare("UPDATE website_platform_access_ownership SET state='STUDIO',updated_at=? WHERE activity_key=? AND transfer_id=? AND state='FROZEN'").bind(now,activity,transfer).run();return {success:true,state:'STUDIO'};
+  await finishHandover(db,activity,transfer,proof);return {success:true,state:'STUDIO'};
  }
  throw fail('Unknown handover step.');
+}
+
+async function finishHandover(db,activity,transfer,proof){
+ const guard=crypto.randomUUID();await db.batch([
+  db.prepare(`INSERT INTO website_platform_guards VALUES(?,EXISTS(SELECT 1 FROM website_platform_sessions b JOIN website_platform_account_state a USING(account_id) JOIN account_sessions s ON s.session_id=b.session_id WHERE b.source_ref=? AND a.active=1 AND a.admitted=1 AND a.global_admin=1 AND a.epoch=b.epoch AND s.credential_epoch=a.epoch AND s.revoked_at IS NULL AND s.expires_at>?) AND EXISTS(SELECT 1 FROM website_platform_access_ownership WHERE activity_key=? AND transfer_id=? AND state='FROZEN'))`).bind(guard,proof.sourceRef,new Date().toISOString(),activity,transfer),
+  db.prepare("UPDATE website_platform_access_ownership SET state='STUDIO',updated_at=? WHERE activity_key=? AND transfer_id=? AND state='FROZEN'").bind(Date.now(),activity,transfer),db.prepare('DELETE FROM website_platform_guards WHERE guard_id=?').bind(guard)
+ ]);
 }
