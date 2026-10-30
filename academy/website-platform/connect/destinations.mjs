@@ -11,6 +11,6 @@ export function academyDestination(value,origin){
   if(home===hash&&['','?circlesTool=messages'].includes(query))return url.href;
   if(!query&&hash===(path==='/academy/admin/'?'#progress-admin':'#progress'))return url.href;
  }
- if(path==='/academy/library/'&&!query&&!hash||path==='/academy/calendar/'&&/^\?view=(learn|teach|admin)$/.test(query)&&!hash||path==='/academy/enrolment/manage/'&&query==='?view=requests'&&!hash||path==='/recorder/'&&query==='?academy=1'&&!hash)return url.href;
+ if(path==='/academy/library/'&&(!query||/^\?workspace=(LEARN|TEACH|ADMIN)$/.test(query))&&!hash||path==='/academy/calendar/'&&/^\?view=(learn|teach|admin)$/.test(query)&&!hash||path==='/academy/enrolment/manage/'&&query==='?view=requests'&&!hash||path==='/recorder/'&&query==='?academy=1'&&!hash)return url.href;
  return null;
 }

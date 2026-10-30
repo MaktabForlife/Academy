@@ -59,4 +59,5 @@
     new ResizeObserver(()=>{if(!frame)frame=requestAnimationFrame(measure);}).observe(shell.banners);measure();
   }
   void import('/js/m4l-academy-history.js?v=108.4').catch(()=>{ /* Existing page links remain available if navigation cannot load. */ });
+  void import('/academy/website-platform/circles-return.mjs').catch(()=>{ /* Native workspace Home remains available. */ });
 })();
