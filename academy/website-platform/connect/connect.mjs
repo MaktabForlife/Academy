@@ -10,6 +10,8 @@ try{
  window.opener.postMessage({type:'ACADEMY_WEBSITE_CHALLENGE',state,challenge},config.websiteOrigin);
  const result=await received,session=await request('/api/website-platform/exchange',{code:result.code,state,verifier});
  localStorage.setItem('m4l_account_token',session.token);window.dispatchEvent(new Event('m4l-academy-session'));
+ sessionStorage.removeItem('m4l_circles_return');
+ if(session.circles){const owner=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(session.token))),b=>b.toString(16).padStart(2,'0')).join('');sessionStorage.setItem('m4l_circles_return',JSON.stringify({...session.circles,websiteOrigin:config.websiteOrigin,owner,expiresAt:Date.now()+12*3600_000}));}
  sessionStorage.removeItem('m4l_website_library_return');
  if(session.library){sessionStorage.setItem('m4l_website_library_return',JSON.stringify({...session.library,websiteOrigin:config.websiteOrigin,expiresAt:Date.now()+8*3600_000}));location.replace('/academy/library/');}else if(session.destination){const destination=academyDestination(session.destination,location.origin);if(!destination)throw Error('Choose a valid Academy destination.');location.replace(destination);}else location.replace('/academy/');
 }catch(error){status.textContent=error.message;}

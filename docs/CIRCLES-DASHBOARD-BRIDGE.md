@@ -9,3 +9,11 @@ The paired target's docs/CIRCLES-DASHBOARD-AND-ACCOUNTS.md describes the display
 ## Global Admin workspace clarification — 30 October 2026
 
 The owner requires Learn, Teach and Admin pills for every Global Admin. dashboardModes now includes the existing Teach workspace for Global Admin without requiring a separate Teacher context. Scoped programme/teaching continuations still check exact native contexts at issuance and exchange. The paired target dashboard integration verifies successful Global Admin Teach display and continued learner rejection of forged Teach/Admin requests. Local only; no deployment, membership or permission record was changed.
+
+## Connected Library and PDF returns — 30 October 2026
+
+Library continuations retain the selected workspace through the exact allowlisted /academy/library/?workspace=LEARN|TEACH|ADMIN destination. Source validates native context at both issuance and exchange as before. The one-use exchange supplies the configured Circles root and selected workspace; the connector stores this expiring return context in this tab, tied to a SHA-256 hash of the existing native token. Arbitrary return query strings and mismatched/expired contexts are rejected. No additional raw credential is saved.
+
+The shared page actions module installs the connected Home/brand return and icon styling only when that context matches the current native token. Native account changes restore the original navigation. PDF links open in the same Library tab so the account-bound return survives; Close PDF returns to the native Library. Existing lesson-specific Library return behavior and native draft guards remain. Library/Open Library display the existing Academy Gregorian/Hijri date helper.
+
+The paired target's final affected suite passes25 checks, including exact-workspace issuance/exchange, denied forged modes, return URL validation and purchase-only course placement. Browser checks verify Learn Library → PDF.js → Close → Library → Circles and Teach Library → teaching dashboard. This is local only; no schema, hosted change, publication or new media. Keep the separate access-transfer implementation and its pending independent review outside this UI checkpoint.

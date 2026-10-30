@@ -48,3 +48,9 @@
 .academy-shell .workspace-banner:has(>.academy-management-close)>:is(.activity-identity,.workspace-identity){grid-column:1;grid-row:1;min-width:0;padding-right:0}
 .academy-shell .workspace-banner>.academy-management-close{position:static;grid-column:2;grid-row:1;margin:0}
 .academy-shell .workspace-banner:has(>.academy-management-close)>.workspace-areas{grid-column:1/-1;grid-row:2;margin-right:0}
+
+body.academy-shell.academy-has-app-navigation.circles-connected-academy .academy-page-actions>:is([data-page-home],[data-page-refresh],#academy-sign-out,#ac-signout,#logout-button){display:inline-flex;align-items:center;justify-content:center;min-width:40px;min-height:40px;width:40px;height:40px;padding:9px;border:0;border-radius:50%;background:transparent}
+body.academy-shell.academy-has-app-navigation.circles-connected-academy .academy-page-actions :is(.page-action-label,.page-signout-label){display:none}
+body.academy-shell.academy-has-app-navigation.circles-connected-academy :is(.page-action-icon,.page-signout-icon){display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:0;background:transparent}
+body.circles-connected-academy .page-signout-icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+body.circles-connected-academy #academy-app-navigation>button>span{display:none}
