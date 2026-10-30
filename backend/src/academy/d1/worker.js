@@ -154,7 +154,7 @@ async function dispatch(request,env,options={}) {
   if(request.method!=='POST')throw rehearsalError('Use POST.',405,'METHOD_NOT_ALLOWED');
   if(path==='/api/admin/platform/studio-access'){
     if(request.headers.get('Origin')!==env.WEBSITE_PLATFORM_ACADEMY_ORIGIN)throw rehearsalError('Reopen access management inside Academy Admin.',403,'ORIGIN_REQUIRED');
-    const auth=await authenticated(request,env,repository),input=await boundedBody(request,65536);guardWorkspace(request,auth,input);
+    const auth=await authenticated(request,env,repository),input=await boundedBody(request,131072);guardWorkspace(request,auth,input);
     return studioAdmin(env,auth,input);
   }
   if(path==='/api/admin/platform/programs/website-card-image'){

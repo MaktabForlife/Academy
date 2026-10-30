@@ -6,11 +6,11 @@ import {id,integer,fail,random,signedHeaders,bodyJSON} from './protocol.mjs';
 // All actor facts originate in current Core state, never in browser fields.
 async function adminProof(db,auth){
  const now=Date.now(),iso=new Date(now).toISOString(),a=auth.state.account;
- const current=await db.prepare(`SELECT a.* FROM website_platform_account_state a JOIN account_sessions s ON s.account_id=a.account_id COLLATE NOCASE WHERE s.session_id=? AND a.account_id=? COLLATE NOCASE AND a.active=1 AND a.admitted=1 AND a.epoch=? AND s.credential_epoch=a.epoch AND s.revoked_at IS NULL AND s.expires_at>?`).bind(auth.sid,a.account_id,a.credential_epoch,iso).first();
+ const current=await db.prepare(`SELECT a.*,s.expires_at native_expires_at FROM website_platform_account_state a JOIN account_sessions s ON s.account_id=a.account_id COLLATE NOCASE WHERE s.session_id=? AND a.account_id=? COLLATE NOCASE AND a.active=1 AND a.admitted=1 AND a.epoch=? AND s.credential_epoch=a.epoch AND s.revoked_at IS NULL AND s.expires_at>?`).bind(auth.sid,a.account_id,a.credential_epoch,iso).first();
  if(!current)throw fail('Your Academy session has ended.',401,'SESSION_ENDED');
  let session=await db.prepare('SELECT * FROM website_platform_sessions WHERE session_id=? AND epoch=? AND expires_at>? ORDER BY expires_at DESC LIMIT 1').bind(auth.sid,current.epoch,now).first();
  if(!session){const ref=random();await db.prepare('INSERT INTO website_platform_sessions VALUES(?,?,?,?,?,?,?,?)').bind(ref,current.account_id,auth.sid,current.epoch,JSON.stringify(auth.context),now+7*86400_000,random(),random()).run();session=await sourceSession(db,ref);}
- return {sourceRef:session.source_ref,accountId:current.account_id,epoch:current.epoch,verifiedAt:now,expiresAt:now+55_000,globalAdmin:Boolean(current.global_admin)};
+ return {sourceRef:session.source_ref,accountId:current.account_id,epoch:current.epoch,verifiedAt:now,expiresAt:Math.min(now+55_000,Date.parse(current.native_expires_at),session.expires_at),globalAdmin:Boolean(current.global_admin)};
 }
 
 export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_SERVICE?.fetch.bind(env.WEBSITE_PLATFORM_SERVICE)||fetch}={}){
@@ -23,7 +23,7 @@ export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_S
   // Only this actor and offering; never sweep other participants for an Admin read.
   if(!owner||owner.state!=='FROZEN'){await queueAccess(db,{onlyScope:activity,onlyAccount:''});await markAccess(db,activity,proof.accountId);await queueAccess(db,{onlyScope:activity,onlyAccount:proof.accountId.toLowerCase()});}
   const pending=await pendingAccount(env,db,proof.accountId),origin=new URL(env.WEBSITE_PLATFORM_ORIGIN);if(origin.protocol!=='https:'||origin.origin!==env.WEBSITE_PLATFORM_ORIGIN)throw fail('Invalid Studio server origin.',503);
-  const path='/internal/studio/access',signed=await signedHeaders(env.ACADEMY_TO_WEBSITE_SECRET,path,{issuedAt:Date.now(),proof,offeringId:mapping.offering_id,command,deliveries:pending.deliveries,more:pending.more});
+  const path='/internal/studio/access',envelope={issuedAt:Date.now(),proof,offeringId:mapping.offering_id,command,deliveries:pending.deliveries,more:pending.more};if(new TextEncoder().encode(JSON.stringify(envelope)).length>250_000){envelope.command={action:'read'};envelope.more=true;}const signed=await signedHeaders(env.ACADEMY_TO_WEBSITE_SECRET,path,envelope);
   const response=await fetcher(origin.origin+path,{method:'POST',headers:signed.headers,body:signed.payload,redirect:'manual',signal:AbortSignal.timeout(8000)}),result=await bodyJSON(response.body,262144);
   const acknowledge=result.acknowledge;if(!Array.isArray(acknowledge)||acknowledge.some(x=>!pending.acknowledge.includes(x)))throw fail('Invalid Studio acknowledgement.',503);
   if(acknowledge.length)await db.prepare('UPDATE website_platform_outbox SET acknowledged=1 WHERE operation_id IN(SELECT value FROM json_each(?))').bind(JSON.stringify(acknowledge)).run();

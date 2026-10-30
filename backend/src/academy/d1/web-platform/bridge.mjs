@@ -85,7 +85,9 @@ async function identity(db,env,input){
  const canonical={operationId:id(input.operationId),offeringId:offer,actorId:input.actorId,actorEpoch:input.actorEpoch,...(isCreate?{displayName:text(input.displayName,160),create:true}:{accountId:id(input.accountId)})},hash=await sha256(JSON.stringify(canonical));
  let receipt=await db.prepare('SELECT * FROM website_platform_provisioning WHERE operation_id=?').bind(input.operationId).first();
  if(receipt&&(receipt.actor_id!==session.account_id||receipt.payload_hash!==hash))throw fail('This enrolment operation has different details.',409);
- if(!receipt&&session.epoch!==input.actorEpoch)throw fail('Reopen this account creation with your current Academy session.',403);
+ // The stored intent may predate a fresh login. Authority always comes from
+ // this current source session and its atomic Core guard, never the old epoch.
+ integer(input.actorEpoch,0,session.epoch);
  if(!receipt){
   const accountId=isCreate?crypto.randomUUID():id(input.accountId),guard=crypto.randomUUID(),statements=[];
   if(!isCreate&&!await db.prepare('SELECT account_id FROM accounts WHERE account_id=?').bind(accountId).first())throw fail('Choose an existing Academy account.',404);
