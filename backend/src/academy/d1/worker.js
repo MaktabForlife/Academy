@@ -1,3 +1,4 @@
+import {studioAdmin} from './web-platform/studio-admin.mjs';
 import {studioOrigin,studioHandoff} from './website-studio-handoff.js';
 import {bridge as websitePlatformBridge,recoverWebsite,enabled as websitePlatformEnabled} from './web-platform/bridge.mjs';
 import {recoverWeeklyAbsentees,weeklyAbsenteeCron} from './weekly-absentees.js';
@@ -143,6 +144,11 @@ async function dispatch(request,env,options={}) {
     return lessonMedia(repository,auth,env).videoStream(request,input);
   }
   if(request.method!=='POST')throw rehearsalError('Use POST.',405,'METHOD_NOT_ALLOWED');
+  if(path==='/api/admin/platform/studio-access'){
+    if(request.headers.get('Origin')!==env.WEBSITE_PLATFORM_ACADEMY_ORIGIN)throw rehearsalError('Reopen access management inside Academy Admin.',403,'ORIGIN_REQUIRED');
+    const auth=await authenticated(request,env,repository),input=await boundedBody(request,65536);guardWorkspace(request,auth,input);
+    return studioAdmin(env,auth,input);
+  }
   if(path==='/api/admin/platform/programs/website-card-image'){
     const auth=await authenticated(request,env,repository),metadata=new URL(request.url).searchParams.get('metadata')||'';
     if(metadata.length>8192)throw rehearsalError('Upload details are too large.',413);
@@ -410,7 +416,7 @@ return {
         mediaHeaders.delete('Access-Control-Allow-Origin');if(headers['Access-Control-Allow-Origin'])mediaHeaders.set('Access-Control-Allow-Origin',headers['Access-Control-Allow-Origin']);
         return new Response(result.body,{status:result.status,headers:mediaHeaders});}
       return new Response(JSON.stringify(result),{headers});}
-    catch(error){const status=Number.isInteger(error.status)?error.status:503;
+    catch(error){if(String(error.message).includes('STUDIO_ACCESS_MANAGED'))error=rehearsalError('Manage this offering through Studio access in Academy Admin. Its old access controls are locked.',409,'STUDIO_ACCESS_MANAGED');const status=Number.isInteger(error.status)?error.status:503;
       const unavailable=status>=500&&status!==501;
       const dailyReadLimit=/exceeded D1.s free tier daily row read limit/i.test(String(error.message));
       const reset=new Date();reset.setUTCHours(24,0,0,0);

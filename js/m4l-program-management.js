@@ -211,7 +211,7 @@
     $('pm-shared').hidden=state.overview||state.kind!=='subjects'||state.data.sharedSubjectsEditable===false||state.data.sharedSubjectImportAvailable===false;$('pm-legacy').hidden=state.overview||state.kind!=='subjects'||!state.data.sharedSubjects.some(s=>s.Legacy);
     $('pm-section-note').hidden=true;
     if(state.overview){$('pm-add').textContent='＋ Add module';renderOverview();controls();return;}
-    if(state.kind==='profiles'){renderProfiles();controls();return;}
+    if(state.kind==='profiles'){renderProfiles();controls();window.M4L_STUDIO_ACCESS?.attach($('pm-workspace'),'PROGRAM:'+programId);return;}
     $('pm-help').textContent=def.help+(state.kind==='tasks'&&!state.data.libraryPrepared?' Prepare Library tables first.':' Ctrl/⌘ + Enter saves the edited row.');$('pm-caption').textContent=def.label;$('pm-add').textContent=`＋ Add ${def.singular}`;
     let notice='';
     if(state.kind==='enrollments')notice=`Class memberships for ${state.data.accounts.find(a=>a.AccountID===state.profileAccountId)?.DisplayName||'this user'}. `+(!state.data.rows.classes.some(r=>active(r.Active))?'Add an active class in Classes first.':'Student roles are granted in shared User profiles.');
@@ -498,5 +498,5 @@
   window.M4L_PROGRAM_PEOPLE={canLeave(){if(state.edit||state.pending||state.importPending){message('Finish or cancel the participant change before opening Monthly subscriptions.',true);return false;}return true;}};
   document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key==='Enter'&&!window.M4L_PROGRAM_MONTHLY?.isOpen?.()&&(!window.M4L_PROGRAM_ADMIN||window.M4L_PROGRAM_ADMIN.tab()==='participants')&&visibleEdit()&&!state.busy&&!state.pending){event.preventDefault();void work(save);}});
   window.addEventListener('beforeunload',event=>{if(state.edit||state.pending||state.importPending){event.preventDefault();event.returnValue='';}});
-  void work(async()=>{await refresh();if(state.pending&&!state.refreshWaiting)await save();});
+  void work(async()=>{if(await window.M4L_STUDIO_ACCESS?.ensure($('pm-main'),'PROGRAM:'+programId)==='WEBSITE')return;await refresh();if(state.pending&&!state.refreshWaiting)await save();});
 })();
