@@ -1,3 +1,4 @@
+import {academyDestination} from './destinations.mjs';
 const status=document.getElementById('status');
 const encode=bytes=>btoa(String.fromCharCode(...new Uint8Array(bytes))).replaceAll('+','-').replaceAll('/','_').replaceAll('=','');
 try{
@@ -10,5 +11,5 @@ try{
  const result=await received,session=await request('/api/website-platform/exchange',{code:result.code,state,verifier});
  localStorage.setItem('m4l_account_token',session.token);window.dispatchEvent(new Event('m4l-academy-session'));
  sessionStorage.removeItem('m4l_website_library_return');
- if(session.library){sessionStorage.setItem('m4l_website_library_return',JSON.stringify({...session.library,websiteOrigin:config.websiteOrigin,expiresAt:Date.now()+8*3600_000}));location.replace('/academy/library/');}else if(session.destination){const destination=new URL(session.destination,location.origin);if(!(destination.origin===location.origin&&/^\/academy\/(?:admin\/)?#activity\/PROGRAM\/[-A-Za-z0-9_:]+(?:\/(?:learn|teach))?$/.test(destination.pathname+destination.hash))&&destination.href!=='https://hifz.maktab4life.org/')throw Error('Choose a valid Academy destination.');location.replace(destination.href);}else location.replace('/academy/');
+ if(session.library){sessionStorage.setItem('m4l_website_library_return',JSON.stringify({...session.library,websiteOrigin:config.websiteOrigin,expiresAt:Date.now()+8*3600_000}));location.replace('/academy/library/');}else if(session.destination){const destination=academyDestination(session.destination,location.origin);if(!destination)throw Error('Choose a valid Academy destination.');location.replace(destination);}else location.replace('/academy/');
 }catch(error){status.textContent=error.message;}

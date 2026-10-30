@@ -291,6 +291,7 @@
     const calendar=$('ad-calendar-host');
     if(!calendar.firstElementChild){const frame=document.createElement('iframe');frame.className='academy-calendar-frame';frame.title='Academy calendar';frame.loading='lazy';frame.src=boundary().readerUrl('/academy/calendar/?embed=1&view='+mode);calendar.append(frame);}
     void refresh();
+    const entry=new URL(location.href);if(entry.searchParams.get('circlesTool')==='messages'&&window.M4L_MESSAGING){entry.searchParams.delete('circlesTool');history.replaceState(null,'',entry);void window.M4L_MESSAGING.open();}
     if(returning){window.M4L_CLASS_NOTES?.invalidate();void window.M4L_ANNOUNCEMENTS?.refreshPublic();options.refreshTimetable?.(false);}
   }
   window.addEventListener('m4l-class-notes-updated',()=>{renderAttention();renderMessages();});

@@ -59,6 +59,7 @@ import {programMonthlySubscriptions} from './program-monthly-subscriptions.js';
 import {d1CourseSubscriptions} from './course-subscriptions.js';
 import {managedCourseScopes} from './course-authority.js';
 import {programmeChoice} from './web-platform/navigation.mjs';
+import {dashboardSummary,dashboardChoice} from './web-platform/dashboard.mjs';
 import {authenticatedD1Account,d1Audience as audience,d1ContextEqual as contextEqual} from './session.js';
 import {openLibraryMetadataEndpoint as defaultMetadataEndpoint} from './library-metadata.js';
 
@@ -108,6 +109,13 @@ async function dispatch(request,env,options={}) {
   if(path.startsWith('/internal/website/')||path.startsWith('/api/website-platform/'))return websitePlatformBridge(request,env,{
     login:async input=>{let captured;await dispatch(new Request(new URL(input.setup?'/api/account/setup-pin':'/api/account/login',request.url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)}),env,{capture:value=>captured=value});return captured;},
     navigation:async(session,key)=>programmeChoice(await sourceRepository.byId(session.account_id),key,env),
+    destination:async(session,input)=>dashboardChoice(await sourceRepository.session(session.session_id,session.account_id,session.epoch),input),
+    dashboard:async(session,input)=>{
+      const state=await sourceRepository.session(session.session_id,session.account_id,session.epoch);if(!state)throw rehearsalError('Your Academy session has ended.',401,'SESSION_ENDED');
+      const context=JSON.parse(session.context_json),token=await createSessionToken({type:'account',aud:audience,sv:3,sid:session.session_id,accountid:session.account_id,epoch:session.epoch,scope:context.scope,courseid:context.courseId,role:context.role},env);
+      const nativeScopes=(await sourceRepository.db.prepare('SELECT s.activity_key,m.offering_id,m.kind FROM json_each(?) a JOIN website_platform_access_scopes s ON s.activity_key=a.value COLLATE NOCASE JOIN website_platform_timetable_scopes m USING(activity_key) WHERE s.enabled=1').bind(JSON.stringify(state.activities.slice(0,100).map(a=>a.activity_key))).all()).results;
+      return dashboardSummary(state,env,input,(path,body,mode)=>dispatch(new Request(new URL(path,request.url),{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token,'X-Academy-Workspace':mode.toUpperCase()},body:JSON.stringify(body)}),env),nativeScopes);
+    },
     mint:(session,selected)=>{const context=selected||JSON.parse(session.context_json);return createSessionToken({type:'account',aud:audience,sv:3,sid:session.session_id,accountid:session.account_id,epoch:session.epoch,scope:context.scope,courseid:context.courseId,role:context.role},env);}
   });
   if(path==='/api/academy/website-studio/config'&&request.method==='GET')return {success:true,enabled:Boolean(studioOrigin(env)),origin:studioOrigin(env)};
