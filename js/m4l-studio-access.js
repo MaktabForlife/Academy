@@ -18,7 +18,8 @@
   host.append(p.root);if(!p.data&&!p.busy)p.loading=load(p);else if(!p.dirty&&!p.liveDirty&&!p.pending&&!p.livePending&&!p.job)render(p);return p;
  }
  function tell(p,message){p.root.querySelector('[data-access-status]')?.replaceChildren(document.createTextNode(message));}
- async function perform(p,fn){if(p.busy)return;p.busy=true;for(const node of p.root.querySelectorAll('input,select,button'))if(!node.disabled){node.dataset.accessTemporaryLock='';node.disabled=true;}try{await fn();}catch(error){if([401,403].includes(error.status)){p.root.replaceChildren(document.createTextNode('Your Academy session or access changed. Reopen Academy Admin to continue.'));p.data=null;p.pending=null;p.dirty=false;cache.clear();}else tell(p,error.message);}finally{p.busy=false;for(const node of p.root.querySelectorAll('[data-access-temporary-lock]')){node.disabled=Boolean((p.pending||p.livePending)&&node.matches('input,select'));delete node.dataset.accessTemporaryLock;}}}
+ function deny(p){p.root.replaceChildren(document.createTextNode('Your Academy session or access changed. Reopen Academy Admin to continue.'));p.data=null;p.pending=null;p.livePending=null;p.job=null;p.dirty=false;p.liveDirty=false;cache.clear();}
+ async function perform(p,fn){if(p.busy)return;p.busy=true;for(const node of p.root.querySelectorAll('input,select,button'))if(!node.disabled){node.dataset.accessTemporaryLock='';node.disabled=true;}try{await fn();}catch(error){if([401,403].includes(error.status)){deny(p);}else tell(p,error.message);}finally{p.busy=false;for(const node of p.root.querySelectorAll('[data-access-temporary-lock]')){node.disabled=Boolean((p.pending||p.livePending)&&node.matches('input,select'));delete node.dataset.accessTemporaryLock;}}}
  async function load(p,{refresh=false}={}){
   p.busy=true;const selection=JSON.stringify([p.after,p.accountId]),saved=cache.get(p.activityKey+selection);
   if(!p.data)p.root.innerHTML='<h3>Learning access</h3><p data-access-status role="status">Loading access…</p>';
@@ -26,7 +27,7 @@
    if(selection!==JSON.stringify([p.after,p.accountId])||owner!==localStorage.getItem('m4l_account_token'))return;
    p.data=data.notModified?{...saved,...(data.liveAllocation?{liveAllocation:data.liveAllocation}:{})}:data;if(!data.notModified)cache.set(p.activityKey+selection,data);p.dirty=false;p.liveDirty=false;p.liveWindow=null;render(p);
    if(p.data.ownership?.authority==='WEBSITE')for(const child of p.root.parentElement?.children||[])if(child!==p.root)child.hidden=true;
-  }catch(error){tell(p,error.code==='STUDIO_SCOPE_UNMAPPED'?'This programme continues to use Academy access controls.':error.message);if(error.status===404)p.root.hidden=true;}
+  }catch(error){if([401,403].includes(error.status)){deny(p);return;}tell(p,error.code==='STUDIO_SCOPE_UNMAPPED'?'This programme continues to use Academy access controls.':error.message);if(error.status===404)p.root.hidden=true;}
   finally{p.busy=false;}
  }
  const checked=value=>value?' checked':'';
