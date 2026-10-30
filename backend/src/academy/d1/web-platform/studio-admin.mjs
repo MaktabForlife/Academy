@@ -24,6 +24,7 @@ export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_S
  if(!mapping.enabled&&!['handover-status','handover-abort','handover-commit'].includes(command.action))throw fail('This migration scope is unavailable.',503,'STUDIO_UNAVAILABLE');
  const proof=await adminProof(db,auth);
  const send=async command=>{
+  if(['handover-begin','handover-page','handover-commit'].includes(command.action)&&!await db.prepare("SELECT 1 FROM website_platform_access_ownership WHERE activity_key=? AND transfer_id=? AND state='FROZEN'").bind(activity,command.transferId).first())throw fail('This handover is no longer frozen. Start a new transfer after cancellation.',409,'HANDOVER_NOT_FROZEN');
   await enqueueAccount(db,proof.accountId,env);
   // Only this actor and offering; never sweep other participants for an Admin read.
   if(!owner||owner.state!=='FROZEN'){await queueAccess(db,{onlyScope:activity,onlyAccount:''});await markAccess(db,activity,proof.accountId);await queueAccess(db,{onlyScope:activity,onlyAccount:proof.accountId.toLowerCase()});}
@@ -56,10 +57,11 @@ export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_S
 async function handover(db,activity,mapping,owner,proof,input,send){
  const transfer=id(input.transferId),now=Date.now();
  if(input.action==='handover-start'){
+  if(await db.prepare('SELECT 1 FROM website_platform_access_cancellations WHERE transfer_id=?').bind(transfer).first())throw fail('This handover was cancelled. Start with a new transfer ID.',409,'HANDOVER_CANCELLED');
   if(owner?.state==='STUDIO'||owner?.state==='FROZEN'&&owner.transfer_id!==transfer)throw fail('Resume or recover the existing handover.',409);
   if(owner?.state==='FROZEN')return {success:true,state:'FROZEN',transferId:transfer};
   const guard=crypto.randomUUID();await db.batch([
-   db.prepare(`INSERT INTO website_platform_guards VALUES(?,EXISTS(SELECT 1 FROM website_platform_sessions b JOIN website_platform_account_state a USING(account_id) JOIN account_sessions s ON s.session_id=b.session_id WHERE b.source_ref=? AND NOT EXISTS(SELECT 1 FROM website_platform_access_ownership o WHERE o.activity_key=? AND o.state<>'ACADEMY') AND a.active=1 AND a.admitted=1 AND a.global_admin=1 AND a.epoch=b.epoch AND s.credential_epoch=a.epoch AND s.revoked_at IS NULL AND s.expires_at>?))`).bind(guard,proof.sourceRef,activity,new Date().toISOString()),
+   db.prepare(`INSERT INTO website_platform_guards VALUES(?,EXISTS(SELECT 1 FROM website_platform_sessions b JOIN website_platform_account_state a USING(account_id) JOIN account_sessions s ON s.session_id=b.session_id WHERE b.source_ref=? AND NOT EXISTS(SELECT 1 FROM website_platform_access_ownership o WHERE o.activity_key=? AND o.state<>'ACADEMY') AND NOT EXISTS(SELECT 1 FROM website_platform_access_cancellations WHERE transfer_id=?) AND a.active=1 AND a.admitted=1 AND a.global_admin=1 AND a.epoch=b.epoch AND s.credential_epoch=a.epoch AND s.revoked_at IS NULL AND s.expires_at>?))`).bind(guard,proof.sourceRef,activity,transfer,new Date().toISOString()),
    db.prepare("INSERT INTO website_platform_access_ownership VALUES(?,'FROZEN',?,?,NULL,'',0,?) ON CONFLICT(activity_key) DO UPDATE SET state='FROZEN',transfer_id=excluded.transfer_id,generation=excluded.generation,source_version=NULL,cursor='',checked=0,updated_at=excluded.updated_at WHERE website_platform_access_ownership.state='ACADEMY'").bind(activity,transfer,mapping.generation,now),
    db.prepare('DELETE FROM website_platform_access_imports WHERE activity_key=?').bind(activity),
    db.prepare('DELETE FROM website_platform_guards WHERE guard_id=?').bind(guard)
@@ -69,10 +71,12 @@ async function handover(db,activity,mapping,owner,proof,input,send){
  if(input.action==='handover-status')return {success:true,state:owner.state,...await send({action:'handover-status',transferId:transfer})};
  if(input.action==='handover-abort'){
   const status=await send({action:'handover-status',transferId:transfer});if(status.handover?.phase==='COMMITTED'||owner.state==='STUDIO')throw fail('Studio already owns this offering. Keep Academy locked; a reverse migration needs a separate reviewed plan.',409,'HANDOVER_COMMITTED');
-  if(status.handover?.phase==='PREPARING')await send({action:'handover-abort',transferId:transfer,operationId:'handover:'+transfer+':abort'});
-  await db.prepare("UPDATE website_platform_access_ownership SET state='ACADEMY',updated_at=? WHERE activity_key=? AND state='FROZEN' AND transfer_id=?").bind(now,activity,transfer).run();return {success:true,state:'ACADEMY'};
+  await send({action:'handover-abort',transferId:transfer,operationId:'handover:'+transfer+':abort'});
+  if(owner.state==='ACADEMY'&&await db.prepare('SELECT 1 FROM website_platform_access_cancellations WHERE transfer_id=? AND activity_key=?').bind(transfer,activity).first())return {success:true,state:'ACADEMY',replayed:true};
+  await finishHandover(db,activity,transfer,proof,'ACADEMY');return {success:true,state:'ACADEMY'};
  }
  if(owner.state==='STUDIO'){if(input.action==='handover-commit')return {success:true,state:'STUDIO',replayed:true};throw fail('This offering is already managed by Studio.',409);}
+ if(owner.state!=='FROZEN')throw fail('This handover is no longer frozen. Start a new transfer after cancellation.',409,'HANDOVER_NOT_FROZEN');
  if(input.action==='handover-commit'){
   const status=await send({action:'handover-status',transferId:transfer});if(status.handover?.phase==='COMMITTED'&&status.handover.transfer_id===transfer){await finishHandover(db,activity,transfer,proof);return {success:true,state:'STUDIO',recovered:true};}
  }
@@ -99,9 +103,10 @@ async function handover(db,activity,mapping,owner,proof,input,send){
  throw fail('Unknown handover step.');
 }
 
-async function finishHandover(db,activity,transfer,proof){
+async function finishHandover(db,activity,transfer,proof,state='STUDIO'){
  const guard=crypto.randomUUID();await db.batch([
   db.prepare(`INSERT INTO website_platform_guards VALUES(?,EXISTS(SELECT 1 FROM website_platform_sessions b JOIN website_platform_account_state a USING(account_id) JOIN account_sessions s ON s.session_id=b.session_id WHERE b.source_ref=? AND a.active=1 AND a.admitted=1 AND a.global_admin=1 AND a.epoch=b.epoch AND s.credential_epoch=a.epoch AND s.revoked_at IS NULL AND s.expires_at>?) AND EXISTS(SELECT 1 FROM website_platform_access_ownership WHERE activity_key=? AND transfer_id=? AND state='FROZEN'))`).bind(guard,proof.sourceRef,new Date().toISOString(),activity,transfer),
-  db.prepare("UPDATE website_platform_access_ownership SET state='STUDIO',updated_at=? WHERE activity_key=? AND transfer_id=? AND state='FROZEN'").bind(Date.now(),activity,transfer),db.prepare('DELETE FROM website_platform_guards WHERE guard_id=?').bind(guard)
+  ...(state==='ACADEMY'?[db.prepare('INSERT INTO website_platform_access_cancellations VALUES(?,?,?) ON CONFLICT(transfer_id) DO NOTHING').bind(transfer,activity,Date.now())]:[]),
+  db.prepare("UPDATE website_platform_access_ownership SET state=?,updated_at=? WHERE activity_key=? AND transfer_id=? AND state='FROZEN'").bind(state,Date.now(),activity,transfer),db.prepare('DELETE FROM website_platform_guards WHERE guard_id=?').bind(guard)
  ]);
 }
