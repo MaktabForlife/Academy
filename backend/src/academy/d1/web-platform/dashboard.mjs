@@ -4,7 +4,7 @@ import {navigationMappings} from './navigation.mjs';
 export function dashboardModes(state){
  if(!state?.account?.active)throw fail('Your Academy session has ended.',401,'SESSION_ENDED');
  const admin=Boolean(state.account.global_admin||state.contexts.some(c=>['GLOBAL_ADMIN','PROGRAM_ADMIN','ADMIN'].includes(c.role)));
- return ['learn',...(state.contexts.some(c=>['TEACHER','SENIOR','SUBSTITUTE'].includes(c.role))?['teach']:[]),...(admin?['admin']:[])];
+ return ['learn',...(state.account.global_admin||state.contexts.some(c=>['TEACHER','SENIOR','SUBSTITUTE'].includes(c.role))?['teach']:[]),...(admin?['admin']:[])];
 }
 export function dashboardChoice(state,input={}){
  if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).some(k=>!['mode','tool','activityKey'].includes(k)))throw fail('Choose an Academy dashboard destination.');
