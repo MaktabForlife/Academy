@@ -1,3 +1,7 @@
+# V108.4 — Circles permission navigation
+
+Connect Circles programme choices to current Academy membership and native Student, Teacher and Admin contexts. Preserve all existing grants and protected media. The matching source/target release adds navigation presentation and invalidation only. See docs/CIRCLES-PERMISSION-NAVIGATION.md.
+
 # V108.0 — Parallel AcademyStudio access synchronisation
 
 V108.0 is deployed for parallel testing. Existing Academy screens and permissions remain available; the separate website uses Academy-authoritative access projections. The combined suite passed 68 tests and five bounded hosted checks passed. The initial import completed with 17 deliveries, no delivery errors and no unfinished phases, dirty projections or pending events; the operator measured 886 source rows read and 470 written, excluding background traffic and target receiver work. Existing source bindings/secrets were retained. No DNS cutover, old-screen retirement, Git push or PDF/recording byte migration was included.

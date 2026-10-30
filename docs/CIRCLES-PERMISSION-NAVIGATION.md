@@ -1,3 +1,7 @@
+## V108.4 deployment authorised
+
+The owner approved the reviewed navigation release on 30 October 2026. Deploy the coordinated pair and only its additive schemas and private mappings; record actual completion after verification.
+
 # Circles permission navigation — local source change
 
 Prepared on `feature/circles-permission-navigation` from the deployed V108.0 source baseline. Deployment approval for the previous release is fulfilled; this work remains local pending fresh approval.
