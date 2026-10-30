@@ -1,3 +1,9 @@
+# Circles permission navigation — local preparation, 30 October 2026
+
+- The owner specified the circle blocks as navigation and confirmed that Mothers of the Ummah must use existing programme membership. Each short Course retains independent access. The paired source/target changes and local tests are in docs/CIRCLES-PERMISSION-NAVIGATION.md. No new role, grant, teaching publication, hosted schema or deployment has been applied.
+- Preserve live V108.3 and its 49 enabled original media attachments. The prepared navigation bundle uses approved UI e68d0b7; newer compact/layout-editor trials are excluded. Mothers currently has a membership-gated Studio landing with an explicit materials-pending notice; its separate author draft remains unpublished.
+- Keep these changes local pending fresh coordinated deployment approval. Normal navigation retains twelve-hour proofs, sensitive Admin checks remain sixty seconds, and presentation invalidation must never delay protected-access revocations.
+
 # V108.0 release completed — 29 October 2026
 
 - The authorised parallel deployment is complete: Academy API/frontend and the separate AcademyStudio site report V108.0. Existing Academy screens remain available, Academy remains access authority, and no DNS cutover, old-screen retirement or Git push occurred.
