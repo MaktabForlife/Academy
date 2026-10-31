@@ -11,7 +11,7 @@ const zoom=value=>{if(!value)return '';const u=new URL(value);if(u.protocol!=='h
 // Only current and scheduled publications for one explicitly mapped offering.
 // Visitors, rosters, payment registers and historical publication bodies are absent.
 export async function projectTimetable(db,scope,{now=Date.now()}={}){
- const activity=await db.prepare('SELECT activity_key,activity_id,kind,name,active,lifecycle FROM activities WHERE activity_key=?').bind(scope.activity_key).first();
+ const activity=await db.prepare(`SELECT a.activity_key,a.activity_id,a.kind,COALESCE(NULLIF(n.published_title,''),a.name) name,a.active,a.lifecycle FROM activities a LEFT JOIN website_platform_new_courses n USING(activity_key) WHERE a.activity_key=?`).bind(scope.activity_key).first();
  if(!activity)throw Error('SOURCE_OFFERING_MISSING');
  const start=addDays(new Date(now).toISOString().slice(0,10),-1),end=addDays(start,57),sessions=[];
  if(activity.kind==='COURSE'&&scope.kind!=='COURSE'||activity.kind==='PROGRAM'&&scope.kind==='COURSE')throw Error('INVALID_OFFERING_MAPPING');

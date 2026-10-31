@@ -35,7 +35,11 @@ export async function prepareFeatureChange(repository,auth,{dataset,scope,operat
  if(new TextEncoder().encode(before).length>1500000)throw fail('Save a smaller group of related changes.',413,'CHANGE_TOO_LARGE');
  const version=captured[0].source_version,reference={dataset,scope,operationId};
  return {reference,version,receipt(result){
-  const after=names.map(name=>`SELECT '${name}' table_name,row_json FROM (${rows(name,false)})`).join(' UNION ALL ');
+  let selections=names.map(name=>`SELECT '${name}' table_name,row_json FROM (${rows(name,false)})`);
+  // D1 bounds the terms in each compound SELECT. Group independently selected
+  // tables without changing the exact accepted rows or growing a flat UNION.
+  while(selections.length>4){const groups=[];for(let i=0;i<selections.length;i+=4)groups.push('SELECT * FROM ('+selections.slice(i,i+4).join(' UNION ALL ')+')');selections=groups;}
+  const after=selections.join(' UNION ALL ');
   // Confirmed rows also include unchanged fields explicitly present in Save.
   const expression=`(WITH captured_before AS MATERIALIZED(SELECT ? payload),confirmed AS MATERIALIZED(SELECT json_extract(value,'$.table') table_name,json_extract(value,'$.keys') keys_json FROM captured_before,json_each(payload,'$.confirmations')),previous AS MATERIALIZED(SELECT json_extract(t.value,'$.table') table_name,r.value row_json FROM captured_before,json_each(payload,'$.tables') t,json_each(t.value,'$.rows') r),current AS MATERIALIZED(${after}),changed AS(SELECT table_name FROM previous UNION SELECT table_name FROM current) SELECT json_set(?,'$._acceptedChange',json_object('sourceVersion',?,'scopes',json(?),'fullRows',${Number(fullRows)},'confirmations',json((SELECT json_extract(payload,'$.confirmations') FROM captured_before)),'tables',json((SELECT json_group_array(json_object('table',t.table_name,'before',json((SELECT json_group_array(json(b.row_json)) FROM previous b WHERE b.table_name=t.table_name)),'after',json((SELECT json_group_array(json(a.row_json)) FROM current a WHERE a.table_name=t.table_name)))) FROM changed t)))))`;
   return {expression,values:[before,...values(),JSON.stringify(result),version+1,JSON.stringify(selection)]};

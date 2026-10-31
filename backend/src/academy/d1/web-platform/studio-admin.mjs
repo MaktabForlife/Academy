@@ -1,3 +1,4 @@
+import {courseStudioEnabled} from './course-publication.mjs';
 import {liveAllocation,saveLiveAllocation} from './studio-live.mjs';
 import {enqueueAccount,pendingAccount,sourceSession} from './bridge.mjs';
 import {markAccess,queueAccess,importAccessPage,accessStream} from './access.mjs';
@@ -37,6 +38,7 @@ export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_S
   if(env.ENVIRONMENT==='local')result.localReadBudget={targetRowsRead:Number(response.headers.get('X-Local-D1-Rows-Read')),targetQueries:Number(response.headers.get('X-Local-D1-Queries'))};
   delete result.acknowledge;if(result.pending)throw fail('Access confirmation is catching up. Retry this same action.',409,'STUDIO_CONFIRMATION_PENDING');return result;
  };
+ if(command.action?.startsWith('handover-')&&courseStudioEnabled(env)&&await db.prepare("SELECT 1 FROM website_platform_course_jobs WHERE activity_key=? AND phase<>'COMPLETE'").bind(activity).first())throw fail('This Course has automatic Studio setup. Resume setup from its Course screen.',409,'COURSE_SETUP_AUTOMATIC');
  if(command.action?.startsWith('handover-')){
   if(!proof.globalAdmin)throw fail('Only Global Admin can hand over an offering.',403);
   return handover(db,activity,mapping,owner,proof,command,send);

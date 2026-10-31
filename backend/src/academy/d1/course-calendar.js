@@ -1,3 +1,4 @@
+import {courseStudioEnabled} from './web-platform/course-publication.mjs';
 import {annualFlag} from './calendar-annual.js';
 import {createGlobalDeliveryEndpoints} from '../../domain/platform-global-delivery.js';
 import {createGlobalTimetableEndpoints} from '../../domain/platform-global-timetable.js';
@@ -285,6 +286,7 @@ export function d1CourseCalendar(repository,auth,env={}) {
       const data=await load();
       if(input.workflowRevision!==String(data.version))throw managementError('Courses or calendar records changed elsewhere. Your draft is kept; refresh and review the saved records.',409,'WORKFLOW_CHANGED');
       const scoped=courseManagementData(data,auth),{tables,changes,body}=await execute(action,input,scoped,request);
+      if(courseStudioEnabled(env)&&[...(changes.get('GlobalSubjectList')?.values()||[])].some(r=>!data.activities.some(a=>a.kind==='COURSE'&&same(a.activity_id,r.SubjectID))))throw managementError('Create new Courses in Course management so first publication includes Studio setup.',409,'COURSE_EDITOR_REQUIRED');
       // Once a delivery has been adopted by the new editor, older scheduling
       // clients must not overwrite its independently saved draft/lifecycle.
       if(await optionalSchema(repository.db,'SELECT activity_key FROM course_management_drafts WHERE 0')) {

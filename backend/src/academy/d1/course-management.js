@@ -1,3 +1,4 @@
+import {courseStudioEnabled,planCourseStudio,courseStudioStatus,resumeCourseStudio} from './web-platform/course-publication.mjs';
 import {moduleCatalogueQueries,academyModuleCategory,resolveModuleCategory} from './module-catalogue.js';
 import {managementStore,managementError,same,liveRoles,profileDTO,rowChanged} from './management-store.js';
 import {assignmentDTO,scopeDTO,d1Profiles} from './profiles.js';
@@ -170,7 +171,7 @@ export function d1CourseManagement(repository,auth,env={}) {
       const data=await load(),c=await selected(data,input);
       return d1Profiles(repository,auth).run('course-roles',{...input,mode:'matrix-roles',scopeType:'SUBJECT',scopeId:c.courseId});
     }
-    if(['list','get','participants'].includes(action)){
+    if(['list','get','participants','studio-resume'].includes(action)){
       const data=await load();
       if(action==='list') {
         const courses=[];
@@ -182,7 +183,9 @@ export function d1CourseManagement(repository,auth,env={}) {
         return {courses,capabilities:{create:Boolean(auth.state.account.global_admin),privateMedia:false},timezone:data.settings.find(s=>s.setting_key==='PlatformTimezone')?.setting_value||'Africa/Johannesburg',categories:categories(data),teachers:teacherDirectory(data),store:'D1'};
       }
       const course=await selected(data,input);
+      if(action==='studio-resume'){await resumeCourseStudio(env,{activityKey:course.activityKey});return {studioSetup:await courseStudioStatus(env.ACADEMY_DB.withSession('first-primary'),course.activityKey)};}
       if(action==='get'){
+        if(courseStudioEnabled(env))course.studioSetup=await courseStudioStatus(env.ACADEMY_DB.withSession('first-primary'),course.activityKey);
         if(course.stage==='DRAFT'&&course.validationToken)data.teaching=(await teachingQuery().all()).results;
         const checked=course.stage==='DRAFT'&&course.validationToken?await validate(data,course,course.details):null;
         return {course,validation:checked?.valid&&checked.token===course.validationToken?checked:null,calendarWarnings:holidayWarnings(data,course.details),media:data.resources.filter(r=>same(r.activity_key,course.activityKey)&&r.active).map(r=>({id:r.resource_id,name:r.name,type:r.resource_type||'Media'})),privateMedia:false};
@@ -202,6 +205,7 @@ export function d1CourseManagement(repository,auth,env={}) {
       function createActivity(name,accessModel,inactiveDraft=false){
         const now=new Date().toISOString();
         statements.push(p("INSERT INTO activities(activity_key,activity_id,kind,name,active,lifecycle,website_visible,created_at,updated_at,revision) VALUES(?,?,'COURSE',?,?,?,0,?,?,1)",c.activityKey,c.courseId,name,Number(!inactiveDraft),inactiveDraft?'DRAFT':'ACTIVE',now,now),p("INSERT INTO course_settings(activity_key,legacy_access_model,policy_review_state) VALUES(?,?,'CONFIRMED')",c.activityKey,accessModel==='FREE'?'FREE':'PAID'),...insertRecords(p,'data_ownership',repository.features?.splitDatabases?[]:[repository.ownershipForNewActivity(c.activityKey)]));
+        if(courseStudioEnabled(env))statements.push(p('INSERT INTO website_platform_new_courses(activity_key,created_operation) VALUES(?,?)',c.activityKey,input.operationId));
       }
       let result;
       if(action==='public-card-save'){
@@ -246,7 +250,8 @@ export function d1CourseManagement(repository,auth,env={}) {
             const plan=await planCoursePublication(store,data,auth,env,c.courseId,c.runId,d);statements.push(...plan.statements,p('UPDATE activities SET website_visible=1 WHERE activity_key=?',c.activityKey));
             if(!c.legacySharedAccess)statements.push(p("UPDATE course_settings SET legacy_access_model=?,policy_review_state='CONFIRMED' WHERE activity_key=?",d.accessModel,c.activityKey));
             for(const teacher of [...new Set(d.sessions.filter(s=>s.status==='SCHEDULED').map(s=>s.teacherId))])statements.push(p("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state,granted_at,granted_by_account_id,revision) SELECT ?,?,?,'TEACHER',1,'CONFIRMED',?,?,1 WHERE NOT EXISTS(SELECT 1 FROM effective_activity_roles WHERE account_id=? AND activity_key=? AND role='TEACHER')",crypto.randomUUID(),teacher,c.activityKey,new Date().toISOString(),auth.user.accountid,teacher,c.activityKey));
-            const revision=saveMeta(statements,c,d,'PUBLISHED');result={courseId:c.courseId,runId:c.runId,revision,publication:plan.publication,message:'Course published to the Academy timetable.'};
+            const studioPlan=await planCourseStudio(store,env,c,input,d);statements.push(...studioPlan.statements);
+            const revision=saveMeta(statements,c,d,'PUBLISHED');result={courseId:c.courseId,runId:c.runId,revision,publication:plan.publication,studioSetupPending:studioPlan.started,message:studioPlan.started?'Course published. Studio access setup is pending; existing rights are preserved.':'Course published to the Academy timetable.'};
           }
         }
       }else if(action==='status'){
@@ -274,13 +279,14 @@ export function d1CourseManagement(repository,auth,env={}) {
           for(const [from,to]of moduleIds)if(d.categoryKey==='MODULE:'+original.activityKey+':'+from)d.categoryKey='MODULE:'+c.activityKey+':'+to;
         }
         if(action==='copy'&&input.copyEnrollments){
+          if(env.ACADEMY_WEB_PLATFORM==='1'&&await env.ACADEMY_DB.withSession('first-primary').prepare("SELECT 1 FROM website_platform_access_ownership WHERE activity_key=? AND state IN('FROZEN','STUDIO')").bind(original.activityKey).first())throw managementError('Studio owns this learner roster. Copy the Course without learners, then manage the new enrolment in Studio after publication.',409,'STUDIO_ROSTER_COPY_UNAVAILABLE');
           const learners=data.accounts.filter(a=>a.active&&(liveRoles(data,a.account_id,original.activityKey).includes('STUDENT')||data.subscriptions.some(s=>same(s.account_id,a.account_id)&&same(s.activity_key,original.activityKey))));
           const now=new Date().toISOString();
-          statements.push(...insertRecords(p,'role_assignments',learners.map(a=>({assignment_id:crypto.randomUUID(),account_id:a.account_id,activity_key:c.activityKey,role:'STUDENT',active:1,review_state:'CONFIRMED',granted_at:now,granted_by_account_id:auth.user.accountid,revision:1}))),...insertRecords(p,'course_subscription_decisions',learners.map(a=>({account_id:a.account_id,activity_key:c.activityKey,active:1,revision:1,updated_at:now,updated_by_account_id:auth.user.accountid}))));
+          statements.push(...insertRecords(p,'role_assignments',learners.map(a=>({assignment_id:crypto.randomUUID(),account_id:a.account_id,activity_key:c.activityKey,role:'STUDENT',active:1,review_state:'CONFIRMED',granted_at:now,granted_by_account_id:auth.user.accountid,revision:1}))));
         }
         if(action==='copy'&&original.publicCard)statements.push(p('INSERT INTO academy_settings(setting_key,setting_value,updated_at,updated_by_account_id) VALUES(?,?,?,?)',courseCardKey(c.activityKey),JSON.stringify(original.publicCard),new Date().toISOString(),auth.user.accountid));
         if(input.reuseMedia)for(const resource of data.resources.filter(r=>same(r.activity_key,original.activityKey)&&r.active))statements.push(...insertRecords(p,'course_resources',[{...resource,activity_key:c.activityKey,resource_id:'CMRESOURCE-'+crypto.randomUUID(),module_id:null,task_id:null}]));
-        const revision=saveMeta(statements,c,d,'DRAFT',null,null,null);result={courseId:c.courseId,runId:c.runId,revision,message:action==='copy'?(input.copyEnrollments?'Course copied with an editable learner roster. Access starts after publication.':'Course copied as a separate draft.'):'New Course draft created with a new Course ID. Students have not been copied.'};
+        const revision=saveMeta(statements,c,d,'DRAFT',null,null,null);result={courseId:c.courseId,runId:c.runId,revision,message:action==='copy'?(input.copyEnrollments?'Course copied with an editable learner roster. Purchases are not copied; this Course requires its own purchase.':'Course copied as a separate draft.'):'New Course draft created with a new Course ID. Students have not been copied.'};
       }else if(action==='participant-create'){
         const name=clean(input.displayName);if(!name||name.length>160)throw managementError('Enter a user name of up to 160 characters.');
         if(!data.accounts.some(a=>same(a.account_id,auth.user.accountid)&&a.active))throw managementError('Your account is no longer active.',401);

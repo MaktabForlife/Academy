@@ -1,3 +1,4 @@
+import {resumeCourseStudio} from './course-publication.mjs';
 import {navigationMappings,navigationSQL} from './navigation.mjs';
 import {prepareAccountAccess,pumpAccess} from './access.mjs';
 import {queueTimetables} from './timetable.mjs';
@@ -105,9 +106,10 @@ async function identity(db,env,input){
  const event=JSON.parse(await db.prepare('SELECT event_json FROM website_platform_provisioning WHERE operation_id=?').bind(input.operationId).first('event_json')),delivery={issuedAt:Date.now(),operationId:'identity:'+input.operationId,stream:'identity:'+input.operationId,version:1,event},signed=await signedHeaders(env.ACADEMY_TO_WEBSITE_SECRET,'/internal/academy/events',delivery);
  return {delivery,signature:signed.headers['X-Maktab-Signature']};
 }
-export async function recoverWebsite(env,{fetcher=fetch,limit=20}={}){
+export async function recoverWebsite(env,{fetcher=env.WEBSITE_PLATFORM_SERVICE?.fetch.bind(env.WEBSITE_PLATFORM_SERVICE)||fetch,limit=20}={}){
  if(!enabled(env))return;const db=dbFor(env),origin=new URL(env.WEBSITE_PLATFORM_ORIGIN);if(origin.protocol!=='https:'||origin.origin!==env.WEBSITE_PLATFORM_ORIGIN)throw fail('Invalid website receiver.',503);
  if(await db.prepare('SELECT enabled FROM website_platform_control WHERE singleton=1').first('enabled')!==1)return;
+ await resumeCourseStudio(env,{fetcher});
  await pumpAccess(db);
  await queueTimetables(db,{limit:2});
  const due=Date.now(),bound=Math.max(1,Math.min(40,limit));

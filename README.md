@@ -686,3 +686,5 @@ The `feature/academy-role-dashboards` checkout adds Learn, Teach and Admin landi
 pages connected to existing Academy readers and tools, with cached background
 refresh, Program/Course tiles, the existing timetable and calendar. See
 [the implementation notes](docs/ACADEMY-DASHBOARDS-LOCAL.md). Development deployment was authorised on 25 October 2026.
+
+Local feature candidate: [first-publication Studio access setup](docs/COURSE-STUDIO-PUBLICATION.md). Deployment and activation remain with the separate release owner.
