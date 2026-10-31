@@ -1,0 +1,238 @@
+/* Circles Academy workspace theme. Presentation only; native rights and actions stay intact. */
+@import url('/academy/course-websites/assets/fonts.css');
+:root,body.academy-shell{
+ --bg:#f8f5ef;--paper:#fffdf8;--panel:#fffdf8;--ink:#44363f;--muted:#796e73;
+ --rose:#67515f;--rose-dark:#51404c;--rose-soft:#eee5e8;--line:#e1d7ce;
+ --sage:#49645c;--sage-soft:#e6ebdd;--gold:#a78051;--shadow:0 5px 20px #49394306;
+ --pb-ink:var(--ink);--pb-muted:var(--muted);--pb-line:var(--line);--pb-purple:var(--rose);--pb-tint:#eee5e8;--pb-focus:#856272;
+ --learning-line:var(--line);--learning-muted:var(--muted);--learning-paper:var(--paper);
+ --pt-ink:var(--ink);--pt-purple:var(--rose);--pt-line:var(--line);--pt-tint:var(--rose-soft);
+ --academy-gutter:clamp(16px,3vw,38px);
+ color-scheme:light;
+}
+body.academy-shell{background:var(--bg)!important;color:var(--ink);font:14px/1.5 'DM Sans',Arial,sans-serif}
+body.academy-shell :is(main,.container,.view,.lp-root,.as-workspace,.lm-calendar,.academy-dashboard-view){color:var(--ink);font-family:'DM Sans',Arial,sans-serif}
+body.academy-shell :is(.app,main,.container){background:transparent}
+body.academy-shell :is(button,input,select,textarea,.button){font-family:'DM Sans',Arial,sans-serif}
+body.academy-shell :is(h1,h2,.workspace-role-title,.ad-tile strong,.ad-next h3){font-family:'Libre Caslon Display',Georgia,serif!important;font-weight:400!important;letter-spacing:-.015em}
+body.academy-shell :is(h1,.page-heading h1,.pb-heading h1,.up-titlebar h1,.al-intro h1){font-size:34px;line-height:1.1}
+body.academy-shell :is(h2,.ad-panel h2,.lp-top h2,.lm-heading h2,.as-workspace h2){font-size:26px;line-height:1.2}
+body.academy-shell h3{font-weight:600}
+body.academy-shell a{color:var(--rose-dark);text-underline-offset:4px}
+body.academy-shell :is(.muted,.ad-muted,.ad-status,.lp-meta,.as-muted,.lm-inline-help,.al-muted,.cn-audience,.pa-register-state){color:var(--muted)}
+body.academy-shell :is(.eyebrow,.pb-eyebrow,.ad-eyebrow,.kicker){color:#97727d;font-size:10px;letter-spacing:.14em;font-weight:600}
+body.academy-shell :is(button,a,input,select,textarea,summary):focus-visible{outline:3px solid #a07a89!important;outline-offset:3px}
+body.academy-shell :is(button,.button){border-radius:8px;box-shadow:none;transition:background .15s,border-color .15s}
+body.academy-shell :is(input,select,textarea){border-color:var(--line)!important;border-radius:7px;background:var(--paper);color:var(--ink);accent-color:var(--rose)}
+body.academy-shell :is(input,select,textarea):focus{border-color:#9e7c8b!important}
+body.academy-shell :is(input,select,textarea):disabled{background:#f0ebe4}
+body.academy-shell :is(.button,.lp-root button,.as-workspace button,.pa-save,.lm-primary,.pb-primary){background:var(--rose);border-color:var(--rose);color:#fffdf8}
+body.academy-shell :is(.button.secondary,.pb-secondary,.lp-root button.lp-secondary,.as-secondary,.lm-secondary){background:var(--paper);border-color:var(--line);color:var(--rose-dark)}
+body.academy-shell :is(button,.button):disabled{opacity:.45;cursor:default}
+body.academy-shell :is(.card,.ad-panel,.ad-tile,.ad-empty,.lp-card,.lp-lesson,.as-box,.as-create,.cn-note,.cn-context,.lm-media-card,.pa-class,.academy-support-card,.workspace-area-group,.al-card,.cal-panel,.pb-detail,.pg-panel,.up-panel,.cm-panel){background:var(--paper);border-color:var(--line);border-radius:12px;box-shadow:var(--shadow)}
+body.academy-shell :is(dialog,.academy-drawer){background:var(--paper);border-color:var(--line);color:var(--ink);font-family:'DM Sans',Arial,sans-serif;box-shadow:0 20px 70px #44363f26}
+body.academy-shell dialog::backdrop{background:#382a3270;backdrop-filter:blur(3px)}
+body.academy-shell :is(.lp-root,.as-workspace){--lp-purple:var(--rose);--lp-line:var(--line);--as-purple:var(--rose);--as-line:var(--line)}
+body.academy-shell .am-dialog{--am-purple:var(--rose);--am-ink:var(--ink);--am-line:var(--line);--am-muted:var(--muted)}
+body.academy-shell :is(.am-heading,.am-detail,.am-card,.am-list-pane,.am-dialog fieldset){background:var(--paper);border-color:var(--line)}
+body.academy-shell :is(.am-folders,.am-status,.am-stat,.am-link){background:#f2ece6;color:var(--rose-dark)}
+body.academy-shell .am-notice-row[aria-selected=true]{background:var(--rose-soft)}
+body.academy-shell :is(.lp-lane,.lp-feedback,.context-bar,.note,.ad-count,.tag.rose,.workspace-areas a[aria-current=page]){background:var(--rose-soft);color:var(--rose-dark);border-color:var(--line)}
+body.academy-shell :is(.tag,.pb-check.is-ready,.ad-next){background:var(--sage-soft);color:var(--sage)}
+body.academy-shell :is(.lp-pending,.ad-warning,.ad-scope,.pb-refresh-warning){background:#f5ebd9;color:#775b35;border-color:#d7bc8f}
+body.academy-shell :is(.is-error,.pb-message.is-error,.lp-message.is-error){color:#a13f40}
+
+/* Shared identity bar: calm on mobile, one compact row plus workspace choices on desktop. */
+body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-banners{background:var(--paper);box-shadow:none;border-bottom:1px solid var(--line)}
+body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-banners>:is(.sidebar,.academy-connected-sidebar){background:var(--paper)!important;border-color:var(--line);gap:4px 20px}
+body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-account-bar{background:var(--paper);border-color:var(--line);padding-block:5px}
+body.academy-shell.academy-has-app-navigation.academy-mobile-layout :is(.brand,.academy-connected-brand) strong{font-family:'Libre Caslon Display',Georgia,serif;font-size:19px;color:var(--ink)}
+body.academy-shell.academy-has-app-navigation.academy-mobile-layout :is(.brand,.academy-connected-brand) .site-version{color:var(--muted);font-family:'DM Sans',Arial,sans-serif;font-size:9px;font-weight:400}
+body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-brand-details>.academy-date-box{border:0;border-radius:0;background:transparent;color:var(--muted);padding:0;font-size:11px}
+body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-profile :is(strong,.academy-header-name){font-family:'DM Sans',Arial,sans-serif;color:var(--rose-dark);font-weight:600}
+body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-profile :is(.academy-welcome,small){color:var(--muted)}
+body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-page-actions :is(.page-action-icon,#academy-switch-account,#academy-sign-out,#ac-signout,#logout-button){background:transparent;border-color:var(--line);color:var(--rose-dark);font-family:'DM Sans',Arial,sans-serif}
+body.academy-shell.academy-has-app-navigation.academy-mobile-layout .page-action-label{color:var(--muted);font-family:'DM Sans',Arial,sans-serif}
+body.academy-shell.academy-has-app-navigation.academy-mobile-layout #academy-app-navigation{color:var(--rose);font-family:'DM Sans',Arial,sans-serif}
+body.academy-shell .academy-role-tabs{background:#f0ebe5;border:1px solid var(--line);padding:3px;border-radius:9px}
+body.academy-shell .academy-role-tabs button{font-family:'DM Sans',Arial,sans-serif;font-weight:600;color:var(--muted);border-radius:6px}
+body.academy-shell .academy-role-tabs button:is([aria-pressed=true],[aria-expanded=true]){background:var(--rose);color:#fffdf8}
+body.academy-shell .academy-admin-identity::before{background:#e9d9bf!important}
+body.academy-shell :is(.academy-drawer-heading h2,.academy-close-heading h2){font-size:28px}
+body.academy-shell .academy-drawer :is(a,button){font-family:'DM Sans',Arial,sans-serif;color:var(--rose-dark);border-color:var(--line)}
+
+/* Programme workspace and native lesson cards. */
+body.academy-shell #activity .workspace-banner{margin:0 0 14px}
+body.academy-shell #activity .activity-heading h1{font-size:36px;line-height:1.15}
+body.academy-shell .workspace-contents{background:var(--paper);border-color:var(--line)}
+body.academy-shell .workspace-contents>summary{color:var(--rose-dark)}
+body.academy-shell :is(.workspace-tabs,#activity-contents-drawer .workspace-tabs) :is(a,button){font-family:'DM Sans',Arial,sans-serif;background:transparent;color:var(--rose-dark);border-color:transparent;font-weight:500}
+body.academy-shell :is(.workspace-tabs,#activity-contents-drawer .workspace-tabs) :is([aria-current=page],[aria-pressed=true]){background:var(--rose);color:var(--paper);border-color:var(--rose)}
+body.academy-shell :is(.workspace-tabs,#activity-contents-drawer .workspace-tabs) :is(a,button):hover{background:var(--rose-soft);color:var(--rose-dark)}
+body.academy-shell .workspace-tabs a[aria-current=page]{background:var(--rose)!important;color:var(--paper)!important}
+body.academy-shell.academy-program-contents .workspace-tabs button[aria-pressed=true]{background:var(--sage-soft);color:var(--sage);box-shadow:inset 0 0 0 1px #b7c3aa}
+body.academy-shell .lp-root .lp-load-controls:has(>button):has(>label){grid-template-columns:minmax(9rem,auto) minmax(0,1fr)}
+body.academy-shell .lp-root .lp-load-controls [data-lp=reload-plan]{width:auto;height:auto;padding:10px 12px;white-space:normal;font-size:13px}
+body.academy-shell .as-workspace h3{font:400 26px/1.2 'Libre Caslon Display',Georgia,serif}
+body.academy-shell :is(.as-schedule-table thead,.as-schedule-table th,.ar-register-table thead th:first-child){background:#eeeae1;color:var(--muted)}
+body.academy-shell :is(.as-badge,.lm-badge){background:var(--rose-soft);color:var(--rose-dark);font-family:'DM Sans',Arial,sans-serif}
+body.academy-shell :is(.as-notice,.as-empty,.lm-course-files,.lm-upload-card){background:#f4efe8;border-color:var(--line)}
+body.academy-shell #as-panel{position:relative;padding-top:18px}
+body.academy-shell #as-panel>.section-title{position:absolute;right:18px;top:18px;margin:0;z-index:1}
+body.academy-shell #as-panel .as-navigation{min-height:44px;padding-right:56px;margin:0 0 12px}
+body.academy-shell #as-panel .as-box:last-child{margin-bottom:0}
+body.academy-shell :is(.lm-calendar .lm-media-card,.lm-calendar .lm-media-card.has-media){background:var(--paper);border-color:var(--line);color:var(--ink);font-family:'DM Sans',Arial,sans-serif}
+body.academy-shell :is(.lm-card-date,.lm-card-meta,.lm-card-session){color:var(--muted)}
+body.academy-shell :is(.lm-card-file,.lm-card-chat){border-color:var(--line);color:var(--rose-dark);background:var(--paper);font-family:'DM Sans',Arial,sans-serif}
+body.academy-shell :is(.lm-card-heading,.lm-card-footer){border-color:var(--line)}
+body.academy-shell :is(#activity-schedule,#academy-schedule){padding:18px 20px;background:var(--paper);border:1px solid var(--line);border-radius:12px;box-shadow:none}
+body.academy-shell :is(#activity-schedule,#academy-schedule)>.section-title{margin-bottom:16px}
+body.academy-shell :is(#activity-schedule,#academy-schedule) h2{font-size:26px}
+body.academy-shell :is(.schedule-controls,.upcoming-controls) button{background:#f3eee7;border:1px solid var(--line);border-radius:8px;color:var(--rose-dark);font-family:'DM Sans',Arial,sans-serif}
+body.academy-shell .upcoming-day>h3{color:var(--muted);font-size:11px;font-weight:500}
+body.academy-shell :is(.timetable-pill,.cn-context){background:#f3eee7;border:1px solid var(--line);border-radius:9px;box-shadow:none;color:var(--ink)}
+body.academy-shell .timetable-pill:is(.is-live,.is-current,.is-active,[data-live=true]){background:var(--rose);color:var(--paper);border-color:var(--rose)}
+body.academy-shell .timetable-pill.join-open{background:var(--rose);color:var(--paper);border-color:var(--rose)}
+body.academy-shell .is-today>time>span{background:var(--rose);color:var(--paper)}
+body.academy-shell .timetable-pill :is(strong,b){font-family:'DM Sans',Arial,sans-serif;font-weight:600}
+body.academy-shell .timetable-time{background:var(--paper);color:var(--rose-dark);border-radius:6px}
+body.academy-shell .timetable-join{border-color:var(--line);border-radius:7px;background:var(--paper);color:var(--rose-dark);font-family:'DM Sans',Arial,sans-serif}
+body.academy-shell :is(.cn-text,.lp-readonly,.lm-session-summary){font-size:15px;line-height:1.7}
+body.academy-shell .cn-context{padding:12px}
+body.academy-shell :is(.pa-learners,.as-table-scroll,.lp-grid-scroll,.lp-curriculum-scroll){border-color:var(--line);border-radius:9px}
+body.academy-shell :is(.lp-grid,.lp-curriculum,.as-table,.pa-table,.pb-grid,.up-grid,.tt-grid) th{background:#eeeae1;color:var(--muted);border-color:var(--line);font-family:'DM Sans',Arial,sans-serif}
+body.academy-shell :is(.lp-grid,.lp-curriculum,.as-table,.pa-table,.pb-grid,.up-grid,.tt-grid) td{border-color:var(--line)}
+body.academy-shell :is(.lp-grid,.lp-curriculum) .lp-teacher-column{background:var(--paper)}
+body.academy-shell :is(.lp-grid,.lp-curriculum) button{font-size:13px}
+
+/* Home/queues and all retained management screens share the same materials. */
+body.academy-shell :is(.ad-panel,.ad-tile,.ad-empty){padding:18px}
+body.academy-shell :is(.ad-panel,.ad-tile) :is(a,button){font-family:'DM Sans',Arial,sans-serif}
+body.academy-shell :is(.ad-task-list li,.ad-message,.ad-tools,.pb-footer,.al-tabs,.up-tabs){border-color:var(--line)}
+body.academy-shell #dashboard :is(.ad-next-row,.ad-assessment-row){background:var(--paper);border-color:var(--line);border-radius:9px}
+body.academy-shell #dashboard .ad-tile-open{background:var(--rose-soft);border-color:var(--line);color:var(--rose)}
+body.academy-shell :is(.ad-task-bottom,.ad-tools,.ad-actions) :is(a,button){color:var(--rose-dark)}
+body.academy-shell :is(.ad-actions .ad-primary){background:var(--rose);color:var(--paper);border-color:var(--rose)}
+body.academy-shell :is(#admin-workspace,.academy-admin-tools,.academy-admin-links){border-color:var(--line);border-radius:12px}
+body.academy-shell :is(#admin-workspace,.academy-admin-tools,.academy-admin-links) :is(a,button){font-family:'DM Sans',Arial,sans-serif}
+body.academy-shell .academy-admin-tools{background:var(--paper);border-radius:0;padding:6px var(--academy-gutter);border-color:var(--line)}
+body.academy-shell .academy-admin-links{border-radius:0;gap:4px}
+body.academy-shell .academy-admin-links>:is(a,button){background:transparent;border:0;border-radius:6px;color:var(--muted);min-height:40px;padding:10px 13px;font-size:12px}
+body.academy-shell .academy-admin-links>[aria-current=page]{background:var(--rose-soft);color:var(--rose-dark)}
+body.academy-shell .academy-curriculum-tabs{border-top:1px solid var(--line);margin-top:4px;padding-top:4px}
+body.academy-shell .pb-management-open{background:var(--rose);border-color:var(--rose);color:var(--paper)}
+body.academy-shell main table{font-family:'DM Sans',Arial,sans-serif;font-size:13px}
+body.academy-shell main table th{background:#eeeae1!important;border-color:var(--line);color:var(--muted);font-size:11px;font-weight:600}
+body.academy-shell main .lp-grid thead th[aria-current]{background:var(--sage-soft)!important;color:var(--sage)}
+body.academy-shell main table td{border-color:var(--line)}
+body.academy-shell :is(.up-matrix,.lc-grid,.pm-grid,.cm-table,.pw-content-table) :is(input:not([type=checkbox]),select){font:inherit;background:var(--paper)}
+body.academy-shell :is(.lc-tabs,.pg-list-panel,.pg-context,.pg-tabs,.tt-card,.pgm-media-card,.pl-panel){background:var(--paper);border-color:var(--line);color:var(--ink)}
+body.academy-shell :is(.pg-program-card,.pg-program-card.is-selected){background:var(--paper);border-color:var(--line);color:var(--ink);border-radius:10px}
+body.academy-shell :is(.cm-sidebar,.cm-course,.cm-list-panel,.cm-unified-workspace,.cm-tabs){background:var(--paper);border-color:var(--line);color:var(--ink)}
+body.academy-shell .cm-course{border-radius:10px}
+body.academy-shell .cm-course strong{font:400 24px/1.2 'Libre Caslon Display',Georgia,serif}
+body.academy-shell .cm-course:is(:hover,.is-selected){background:var(--rose-soft);border-color:#ac8c98}
+body.academy-shell .pg-program-card:is(:hover,.is-selected){border-color:#ac8c98;background:var(--rose-soft)}
+body.academy-shell .pg-program-card strong{font:400 25px/1.2 'Libre Caslon Display',Georgia,serif}
+body.academy-shell :is(.pg-badge,.pb-capabilities span,.pb-check){background:#eeeae1;color:var(--muted);font-family:'DM Sans',Arial,sans-serif}
+body.academy-shell :is(#olm-add,#olm-save,.announcements-editor button[type=submit]){background:var(--rose);border-color:var(--rose);color:var(--paper)}
+body.academy-shell :is(#olm-form,.olm-resource-column,.olm-paste,.pt-group){border-color:var(--line);background:var(--paper);border-radius:10px;color:var(--ink)}
+body.academy-shell :is(#olm-form label,.olm-learning-areas,.olm-cover-preview,.olm-paste){color:var(--muted);font-weight:500}
+body.academy-shell .olm-resource-column>header{background:#eeeae1;border-color:var(--line)}
+body.academy-shell #olm-browser{padding:18px;border:1px solid var(--line)}
+body.academy-shell #admin-app-settings form{display:grid;grid-template-columns:minmax(200px,440px) auto;align-items:end;gap:12px 18px;width:min(100%,720px)}
+body.academy-shell #admin-app-settings label{display:grid;gap:8px;font-weight:500;font-size:13px}
+body.academy-shell #admin-app-settings input{width:100%;min-height:44px;padding:10px 12px;font:inherit}
+body.academy-shell #admin-app-settings p:not([role=status]){grid-column:1/-1;grid-row:2;color:var(--muted);font-size:13px;margin:0}
+body.academy-shell #admin-app-settings [role=status]{grid-column:1/-1}
+body.academy-shell #admin-app-settings button{grid-column:2;grid-row:1;min-height:44px;padding:10px 18px}
+body.academy-shell :is(#mp-root,.mp-root){--mp-ink:var(--ink);--mp-muted:var(--muted)}
+body.academy-shell :is(#ma-root,.ma-root){--ma-accent:var(--rose);--ma-ink:var(--ink);--ma-line:var(--line);--ma-muted:var(--muted)}
+body.academy-shell :is(#program-workspace,#pm-workspace,#course-workspace,#enrol-admin-workspace,#lc-workspace,#olm-browser,.pt-preview){background:var(--paper);border-color:var(--line);border-radius:12px;box-shadow:var(--shadow)}
+body.academy-shell :is(.pb-toolbar,.pb-footer,.pb-note,.up-toolbar,.cm-toolbar,.pg-tabs,.up-tabs,.pm-tabs){background:#f4efe8;border-color:var(--line);color:var(--muted)}
+body.academy-shell :is(#program-workspace .pb-grid tr[data-id],.up-card,.pg-card,.olm-card){background:var(--paper);border-color:var(--line);box-shadow:none;border-radius:10px}
+body.academy-shell #program-workspace .pb-grid tr[data-id].is-selected{background:var(--rose-soft);border-color:var(--rose);box-shadow:inset 3px 0 var(--rose)}
+body.academy-shell :is(#pg-tabs,#pm-tabs,#up-tabs,#course-tabs,.al-tabs,.cal-view-tabs) :is(a,button){font-family:'DM Sans',Arial,sans-serif;border-color:var(--line);color:var(--rose-dark);background:var(--paper);border-radius:7px;min-height:44px}
+body.academy-shell :is(#pg-tabs,#pm-tabs,#up-tabs,#course-tabs,.al-tabs,.cal-view-tabs) :is([aria-selected=true],[aria-pressed=true],.active){background:var(--rose);color:var(--paper);border-color:var(--rose)}
+body.academy-shell :is(.pgm-header,.pb-heading,.up-titlebar,.cal-heading,.cm-page-heading){margin-bottom:18px}
+body.academy-shell :is(.al-result,.al-resource,.cal-day,.cal-month,.tt-board-shell,.tt-calendar,.mp-card,.ma-card){border-color:var(--line);border-radius:9px;background:var(--paper)}
+body.academy-shell :is(.cal-day.is-today,.cal-day[aria-current=date]){background:var(--sage-soft);border-color:#aab9a0}
+body.academy-shell .foot{margin-top:20px;padding-top:12px;border-color:var(--line);font-size:11px;color:var(--muted)}
+
+@media(min-width:70rem){
+ body.academy-shell{font-size:14px}
+ body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-banners>:is(.sidebar,.academy-connected-sidebar){flex-wrap:nowrap;min-height:76px;padding-block:10px!important}
+ body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-brand-details{flex:1 1 auto;gap:28px;justify-content:flex-start}
+ body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-header-account{width:auto;flex:0 1 auto;gap:24px}
+ body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-header-account>.academy-profile{flex:0 1 200px;min-width:130px}
+ body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-profile :is(strong,.academy-header-name)[role=button]{min-height:24px}
+ body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-welcome{font-size:10px}
+ body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-profile>small{font-size:10px}
+ body.academy-shell .academy-account-bar{justify-content:flex-end;min-height:54px}
+ body.academy-shell .academy-account-bar .academy-role-tabs{width:max-content!important;min-width:0;max-width:540px;margin-left:auto}
+ body.academy-shell .academy-role-tabs button{min-width:130px;min-height:38px;font-size:12px}
+ body.academy-shell .container{padding-top:20px;max-width:1500px}
+ body.academy-shell.academy-program-contents #activity .academy-title-row{display:block}
+ body.academy-shell.academy-program-contents #activity-menu{width:100%;max-width:none;margin:15px 0 0}
+ body.academy-shell.academy-program-contents .workspace-contents{border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent}
+ body.academy-shell.academy-program-contents .workspace-contents>summary{display:none}
+ body.academy-shell.academy-program-contents .workspace-tabs{display:flex;flex-wrap:wrap;gap:4px;margin:0;padding:0 0 10px}
+ body.academy-shell.academy-program-contents .workspace-tabs :is(a,button){width:auto;min-height:40px;padding:9px 15px;border-radius:7px;font-size:13px;line-height:1.4}
+ body.academy-shell.academy-program-contents .learning-reading{max-height:calc(100dvh - var(--academy-banner-height,140px) - 255px);min-height:260px;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:0 4px 12px 0}
+ body.academy-shell.academy-program-contents #activity-sessions .timetable-days>.upcoming-day{flex:0 0 max(160px,calc((100% - 60px)/7))}
+ body.academy-shell.academy-learning-layout .lp-root :is(.lp-filters,.lp-fields){grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+ body.academy-shell.academy-learning-layout :is(.lp-root,.as-workspace,.lm-calendar,.academy-dashboard-view){font-size:14px;line-height:1.5}
+ body.academy-shell.academy-learning-layout :is(main,dialog) :is(button,.button,input,select,textarea){font-size:14px}
+ body.academy-shell.academy-learning-layout :is(main,dialog) label{font-size:12px}
+ body.academy-shell .lp-root :is(.lp-primary-actions,.lp-load-controls){margin-block:12px}
+ body.academy-shell #activity-planning .lp-editor{max-width:none}
+ body.academy-shell #activity-planning .lp-plan-heading{padding:0 0 12px;margin-bottom:12px}
+ body.academy-shell #activity-planning .lp-editor>.lp-fields{grid-template-columns:minmax(0,1fr);max-width:600px;margin-block:12px}
+ body.academy-shell #activity-planning .lp-lesson{padding:16px}
+ body.academy-shell #activity-planning textarea{min-height:120px}
+ body.academy-shell #pa-workspace{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(250px,1fr);gap:8px 20px;align-items:start}
+ body.academy-shell #pa-workspace>:not(.pa-classes):not(.pa-summary){grid-column:1/-1;margin-block:4px}
+ body.academy-shell #pa-workspace .pa-classes{grid-template-columns:1fr;max-height:none;overflow:visible;margin:8px 0}
+ body.academy-shell #pa-workspace>.pa-summary{grid-column:2;grid-row:5;align-self:start;padding:16px;margin:8px 0;border:1px solid var(--line);border-radius:10px;background:var(--sage-soft)}
+ body.academy-shell #pa-workspace>.pa-summary h2{margin-top:0}
+ body.academy-shell .pa-class{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;padding:16px}
+ body.academy-shell .pa-class>h2{grid-column:1/-1;margin:0}
+ body.academy-shell .pa-class>:is(.pa-register-state,.pa-learners,ul){grid-column:1/-1}
+ body.academy-shell .pa-class>button{align-self:end;min-height:44px;height:44px}
+ body.academy-shell .lm-media-rail{grid-template-rows:320px;scrollbar-color:#b19aa3 transparent}
+ body.academy-shell .lm-calendar .lm-media-card{height:320px}
+ body.academy-shell .announcements-editor form{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;border-color:var(--line)}
+ body.academy-shell .announcements-editor form>:is(h2,p,.announcement-actions,.announcement-options),body.academy-shell .announcements-editor label:has(textarea){grid-column:1/-1}
+ body.academy-shell .ad-layout{grid-template-columns:170px minmax(0,1fr);gap:22px}
+ body.academy-shell .ad-sidebar{display:block;background:transparent;border:0;border-right:1px solid var(--line);border-radius:0;padding:0 20px 0 0}
+ body.academy-shell .ad-sidebar :is(a,button){font:500 13px/1.4 'DM Sans',Arial,sans-serif;color:var(--rose-dark)}
+ body.academy-shell .ad-grid{gap:16px}
+ body.academy-shell .ad-task-list{max-height:420px}
+ body.academy-shell .ad-contents-toggle{display:none}
+}
+@media(max-width:420px){body.academy-shell .lp-root .lp-load-controls:has(>button):has(>label){grid-template-columns:minmax(0,1fr)}}
+@media(max-width:69.999rem){
+ body.academy-shell{font-size:16px}
+ body.academy-shell :is(main,dialog) :is(button,.button,input:not([type=checkbox]):not([type=radio]),select){min-height:44px}
+ body.academy-shell :is(main,dialog) :is(input,select,textarea){font-size:16px}
+ body.academy-shell :is(h1,.page-heading h1,.pb-heading h1,.up-titlebar h1){font-size:30px}
+ body.academy-shell #activity .activity-heading h1{font-size:30px}
+ body.academy-shell :is(#activity-schedule,#academy-schedule){padding:15px 12px}
+ body.academy-shell :is(.card-pad,.ad-panel,.lp-card,.as-box){padding:16px}
+ body.academy-shell :is(.pb-grid-scroll,.up-grid-scroll,.tt-board-shell,.lp-grid-scroll,.as-table-scroll){overscroll-behavior-x:contain;scrollbar-width:thin}
+ body.academy-shell :is(.pb-heading,.up-titlebar,.pgm-heading,.cm-page-heading,.cal-heading){flex-wrap:wrap;gap:12px}
+ body.academy-shell #admin-app-settings form{grid-template-columns:minmax(0,1fr)}
+ body.academy-shell #admin-app-settings button{grid-column:1;grid-row:auto}
+}
+@media(min-width:90rem){
+ body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-account-bar{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:max-content;max-width:420px;min-height:0;margin:0;padding:0;border:0;background:transparent}
+ body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-account-bar .academy-role-tabs{margin:0}
+}
+@media(prefers-reduced-motion:reduce){body.academy-shell *{transition:none!important}}
+@media print{
+ body.academy-shell{background:#fff!important;color:#000}
+ body.academy-shell.academy-program-contents .learning-reading{max-height:none;overflow:visible}
+ body.academy-shell :is(.academy-banners,#activity-menu){display:none!important}
+}
+/* Keep native disclosure, access and disabled states authoritative. */
+body.academy-shell [hidden]{display:none!important}

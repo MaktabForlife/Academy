@@ -86,9 +86,9 @@
   const scheduleCard=$('academy-schedule');
   function dockTimetable(target){if(target&&scheduleCard.parentElement!==target)target.appendChild(scheduleCard);}
   function weekButtons(){for(const id of ['schedule-previous','activity-previous'])$(id).disabled=!state.startDate||state.startDate<=currentWeek();for(const id of ['schedule-next','activity-next'])$(id).disabled=!token()&&state.startDate>=addWeekDays(state.home?.availableEndDate||state.home?.endDate||state.startDate,-6);}
-  function roleRows(data){let rows=scheduleRows(data);if(data.signedIn&&window.M4L_ACADEMY_DASHBOARD?.isActiveArea){const active=new Set((data.personalActivities||[]).filter(window.M4L_ACADEMY_DASHBOARD.isActiveArea).map(row=>row.kind+':'+row.id));rows=rows.filter(row=>active.has(row.kind+':'+row.activityId));}if(window.M4L_ACADEMY_WORKSPACE?.adminRealm()&&window.M4L_ACADEMY_WORKSPACE?.current()==='ADMIN'&&!data.globalAdmin){const managed=new Set((data.personalActivities||[]).filter(row=>adminRoles(row.roles||[])).map(row=>row.kind+':'+row.id));rows=rows.filter(row=>managed.has(row.kind+':'+row.activityId));}const teach=location.hash==='#timetable/teach';if(!teach||data.globalAdmin)return rows;const areas=new Set((data.personalActivities||[]).filter(r=>staffRoles(r.roles||[])).map(r=>r.kind+':'+r.id));return rows.filter(r=>areas.has(r.kind+':'+r.activityId));}
+  function roleRows(data){let rows=scheduleRows(data);if(data.signedIn&&window.M4L_ACADEMY_WORKSPACE?.current()!=='ADMIN'&&/^#timetable\/(learn|teach)$/.test(location.hash))rows=rows.filter(row=>row.kind==='PROGRAM');if(data.signedIn&&window.M4L_ACADEMY_DASHBOARD?.isActiveArea){const active=new Set((data.personalActivities||[]).filter(window.M4L_ACADEMY_DASHBOARD.isActiveArea).map(row=>row.kind+':'+row.id));rows=rows.filter(row=>active.has(row.kind+':'+row.activityId));}if(window.M4L_ACADEMY_WORKSPACE?.adminRealm()&&window.M4L_ACADEMY_WORKSPACE?.current()==='ADMIN'&&!data.globalAdmin){const managed=new Set((data.personalActivities||[]).filter(row=>adminRoles(row.roles||[])).map(row=>row.kind+':'+row.id));rows=rows.filter(row=>managed.has(row.kind+':'+row.activityId));}const teach=location.hash==='#timetable/teach';if(!teach||data.globalAdmin)return rows;const areas=new Set((data.personalActivities||[]).filter(r=>staffRoles(r.roles||[])).map(r=>r.kind+':'+r.id));return rows.filter(r=>areas.has(r.kind+':'+r.activityId));}
   function workspaceAreaLinks(mode,current,activities=state.home?.personalActivities||[]){
-    const rows=activities.filter(row=>menuActivity(row)&&(state.home?.globalAdmin||mode!=='teach'||staffRoles(row.roles||[])));
+    const rows=activities.filter(row=>row.kind==='PROGRAM'&&menuActivity(row)&&(state.home?.globalAdmin||mode!=='teach'||staffRoles(row.roles||[])));
     return [['PROGRAM','Programs'],['COURSE','Courses']].map(([kind,label])=>{
       const links=rows.filter(row=>row.kind===kind).map(row=>{
         const selected=Boolean(current&&row.kind===current.kind&&row.id===current.id);
@@ -490,12 +490,12 @@
     panel.hidden = true;
     panel.setAttribute('aria-labelledby', 'academy-tab-'+state.academyTab);
     if (!choices.length || state.academyTab === 'admin') {panel.replaceChildren();return;}
-    const mode = state.academyTab, rows = activities.filter(row => menuActivity(row) && (global || (mode === 'teach' ? staffRoles(row.roles || []) : adminRoles(row.roles||[])||row.roles?.includes('STUDENT'))));
-    panel.innerHTML = `<p class="academy-chooser-heading">Select a Program or Course to ${mode === 'teach' ? 'teach' : 'learn'}</p><div class="academy-choices">${rows.map(row => {
+    const mode = state.academyTab, rows = activities.filter(row => row.kind==='PROGRAM' && menuActivity(row) && (global || (mode === 'teach' ? staffRoles(row.roles || []) : adminRoles(row.roles||[])||row.roles?.includes('STUDENT'))));
+    panel.innerHTML = `<p class="academy-chooser-heading">Select a programme to ${mode === 'teach' ? 'teach' : 'learn'}</p><div class="academy-choices">${rows.map(row => {
       const pill = row.kind === 'PROGRAM' && row.id === window.M4L_CONFIG?.HIFZ_PROGRAM_ID ? '' : activityPill(workspaceHref(row,'timetable',mode),row.name,row.roles);
       const helper = hifzHelperLink(row,'activity-pill-shortcut');
       return `<div class="academy-choice"><span class="academy-choice-kind">${row.kind === 'PROGRAM' ? 'Program' : 'Course'}</span>${pill}${helper}</div>`;
-    }).join('')}</div>${rows.length ? '' : `<p class="muted">No ${mode === 'teach' ? 'teaching' : 'learning'} Programs or Courses are assigned to this account.</p>`}`;
+    }).join('')}</div>${rows.length ? '' : `<p class="muted">No ${mode === 'teach' ? 'teaching' : 'learning'} programmes are assigned to this account.</p>`}`;
   }
 
   function renderSubscriptions(activities, current) {

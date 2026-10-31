@@ -9,15 +9,21 @@ function fixture(workspace,{assessmentRows=[],now}={}){
  const document={getElementById:id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);},querySelectorAll:()=>[],querySelector:()=>element(),createElement:element};
  const window={M4L_ACADEMY_WORKSPACE:{current:()=>workspace,head:()=>null,adminRealm:()=>workspace.startsWith('ADMIN'),classView:()=>null,readerUrl:url=>url},addEventListener(){}};
  const Clock=now?class extends Date{constructor(...args){super(...(args.length?args:[now]));}static now(){return Date.parse(now);}}:Date;
- const context={window,document,localStorage:{getItem:key=>key==='m4l_account_token'?'synthetic-session':null},URLSearchParams,Intl,Date:Clock,matchMedia:()=>({matches:false,addEventListener(){}}),setTimeout:()=>1,clearTimeout(){},fetch:async url=>Response.json({success:true,...(url.endsWith('/api/academy/assessments/list')?{assessments:assessmentRows}:{})})};
+ const context={window,document,localStorage:{getItem:key=>key==='m4l_account_token'?'synthetic-session':null},URL,location:{href:"http://academy.invalid/academy/",hash:""},URLSearchParams,Intl,Date:Clock,matchMedia:()=>({matches:false,addEventListener(){}}),setTimeout:()=>1,clearTimeout(){},fetch:async url=>Response.json({success:true,...(url.endsWith('/api/academy/assessments/list')?{assessments:assessmentRows}:{})})};
  runInNewContext(helper,context);runInNewContext(source,context);
  return {window,nodes,open(mode,roles=['STUDENT']){window.M4L_ACADEMY_DASHBOARD.open({signedIn:true,globalAdmin:mode==='admin',personalActivities:[{kind:'COURSE',id:'kahf',name:'Surah Al Kahf',roles}],personalTimetable:[],workspaceAccess:{learn:true,teach:true,admin:true}},{mode,activityHref:()=>'/academy/#activity/COURSE/kahf/'+(mode==='admin'?'teach':mode),adminLinks:[]});}};
 }
 for(const [workspace,mode,roles] of [['LEARN','learn',['STUDENT']],['TEACH','teach',['TEACHER']],['ADMIN','admin',['PROGRAM_ADMIN']],['ADMIN_LEARN','learn',['PROGRAM_ADMIN']],['ADMIN_TEACH','teach',['PROGRAM_ADMIN']]]){
- test('Surah Kahf has a website entry in '+workspace+' while retaining its workspace tools',async()=>{
+ test('standalone courses stay in website delivery; Admin retains management in '+workspace,async()=>{
   const f=fixture(workspace);f.open(mode,roles);await new Promise(resolve=>setImmediate(resolve));const markup=f.nodes.get('ad-areas').innerHTML;
-  assert.match(markup,/ad-kahf-course/);assert.match(markup,/course-companion\/surah-kahf\/\?course=kahf/);assert.match(markup,/Open course website/);assert.match(markup,new RegExp('workspace='+(workspace==='ADMIN'?'ADMIN_LEARN':workspace)));
-  if(mode!=='learn'){assert.match(markup,/ad-kahf-workspace-link/);assert.match(markup,/Teaching tools|Manage course/);assert.match(markup,/#activity\/COURSE\/kahf\/teach/);}
+  if(mode!=='admin'){
+   assert.doesNotMatch(markup,/ad-kahf-course|course-companion|#activity\/COURSE/);
+   assert.match(markup,/Your learning starts here|No teaching assigned yet/);
+  }else{
+   assert.match(markup,/ad-kahf-course/);assert.match(markup,/course-companion\/surah-kahf\/\?course=kahf/);
+   assert.match(markup,/Open course website/);assert.match(markup,/workspace=ADMIN_LEARN/);
+   assert.match(markup,/Manage course/);assert.match(markup,/#activity\/COURSE\/kahf\/teach/);
+  }
  });
 }
 test('course cards do not appear for accounts with no assigned course role',async()=>{

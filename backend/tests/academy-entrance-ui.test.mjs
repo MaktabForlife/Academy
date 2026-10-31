@@ -262,7 +262,7 @@ hasWorkshops=false;programRole='TEACHER';location.hash='#activity/PROGRAM/'+acti
 assert.match($('activity-menu').innerHTML,/Teach tools/);assert.doesNotMatch($('activity-menu').innerHTML,/Admin tools/);assert.doesNotMatch($('activity-menu').innerHTML,/Learn tools/);for(const label of ['Timetable','Attendance','Assessment','Planning','Library'])assert.ok($('activity-menu').innerHTML.includes(`>${label}<`));
 assert.doesNotMatch($('activity-switcher').innerHTML,/<span>Courses<\/span>/,'No Course access means no Courses pill');
 assert.equal($('academy-tab-teach').hidden,false);assert.equal($('academy-tab-learn').hidden,false);assert.equal($('academy-tab-admin').hidden,true);
-await navigate('#overview/learn');assert.match($('academy-role-panel').innerHTML,/No learning Programs or Courses/);
+await navigate('#overview/learn');assert.match($('academy-role-panel').innerHTML,/No learning programmes/);
 await navigate('#overview/teach');assert.match($('academy-role-panel').innerHTML,/\/teach/);
 await navigate('#workshops');assert.equal($('workshop-pills').innerHTML,'');assert.match($('course-list-message').textContent,/No Courses/);
 hasWorkshops=true;globalAdmin=true;location.hash='#activity/PROGRAM/'+activity.id;await refresh();
@@ -308,7 +308,7 @@ for(const role of ['STUDENT','TEACHER','PROGRAM_ADMIN']){
 globalAdmin=true;await refresh();assert.equal(countPills('academy-preview-sessions'),9,'Global Admin uses the same Program boundaries');
 for(const mode of ['learn','teach']){
  workspace='ADMIN_'+mode.toUpperCase();await navigate('#timetable/'+mode);await refresh();
- assert.equal(countPills('academy-sessions'),mode==='learn'?4:3,'Global Admin '+mode+' bundles each authorised Program/Course once per day across rooms and gaps');
+ assert.equal(countPills('academy-sessions'),mode==='learn'?3:2,'Global Admin '+mode+' bundles each authorised Program once per day and excludes website courses');
  assert.doesNotMatch($('academy-sessions').innerHTML,/preview-name\">Mishkaat|preview-name\">Fiqh/);
  clickInfo('academy-sessions',firstInfo('academy-sessions'));
  assert.equal($('lesson-information-title').textContent,'Reboot');
@@ -321,7 +321,7 @@ for(const mode of ['learn','teach']){
  clickInfo('activity-sessions',firstInfo('activity-sessions'));assert.equal($('lesson-information-title').textContent,'Reboot');assert.equal(($('lesson-information-body').innerHTML.match(/class="combined-lesson"/g)||[]).length,9);$('lesson-information').close();
  await navigate('#activity/COURSE/COURSE-BARAKAH/'+mode+'/timetable');assert.equal(countPills('activity-sessions'),1);clickInfo('activity-sessions',firstInfo('activity-sessions'));assert.equal($('lesson-information-title').textContent,'Barakah');assert.match($('lesson-information-body').innerHTML,/Teacher C|15:00–16:00/);assert.doesNotMatch($('lesson-information-body').innerHTML,/Reboot|Other Program/);$('lesson-information').close();
 }
-globalAdmin=false;workspace='ADMIN_TEACH';await navigate('#timetable/teach');await refresh();assert.equal(countPills('academy-sessions'),8,'A scoped Admin keeps the existing assigned/contiguous lesson grouping');
+globalAdmin=false;workspace='ADMIN_TEACH';await navigate('#timetable/teach');await refresh();assert.equal(countPills('academy-sessions'),7,'A scoped Admin keeps assigned programme lessons and excludes website courses');
 workspace='LEARN';await navigate('#overview');
 globalAdmin=false;rollupBoundaryFixture=false;
 

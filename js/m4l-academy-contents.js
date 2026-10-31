@@ -1,4 +1,4 @@
-/* Program Contents opens beside the title; Course navigation keeps its layout. */
+/* Desktop programmes keep their native tools visible; compact screens use the Menu drawer. */
 (() => {
  'use strict';
  const wide=matchMedia('(min-width:70rem)'),active=()=>document.body.classList.contains('academy-learning-layout');
@@ -14,7 +14,7 @@
   if(returnFocus&&menu.isConnected)menu.querySelector('summary')?.focus({preventScroll:true});
  }
  function open(menu){
-  if(drawer){close();return;}if(!program(menu))return;
+  if(wide.matches)return;if(drawer){close();return;}if(!program(menu))return;
   nav=menu.querySelector('.workspace-tabs');if(!nav)return;drawerMenu=menu;
   drawer=document.createElement('dialog');drawer.id='activity-contents-drawer';drawer.className='academy-drawer';drawer.setAttribute('aria-labelledby','activity-contents-title');
   drawer.innerHTML='<header class="academy-drawer-heading academy-close-heading"><h2 id="activity-contents-title">Menu</h2><button type="button" class="academy-close" data-activity-contents-close aria-label="Close Menu" title="Close Menu" autofocus>Close Menu</button></header>';
@@ -26,7 +26,7 @@
   drawer.showModal();
  }
  function sync(){
-  if(drawer&&(!drawerMenu.isConnected||!program(drawerMenu)))close(false);
+  if(drawer&&(wide.matches||!drawerMenu.isConnected||!program(drawerMenu)))close(false);
   const menus=[...document.querySelectorAll('.workspace-contents')],isProgram=menus.some(program);
   document.body.classList.toggle('academy-program-contents',isProgram);
   if(host){
@@ -37,13 +37,17 @@
   for(const menu of menus){
    const selected=(menu===drawerMenu?nav:menu)?.querySelector('[aria-current=page]'),href=selected?.getAttribute('href')||'';
    if(program(menu)){
-    const summary=menu.querySelector('summary');summary.setAttribute('aria-haspopup','dialog');summary.setAttribute('aria-controls','activity-contents-drawer');summary.setAttribute('aria-expanded',String(drawerMenu===menu));menu.open=drawerMenu===menu;
+    const summary=menu.querySelector('summary');
+    if(wide.matches){summary.removeAttribute('aria-haspopup');summary.removeAttribute('aria-controls');summary.setAttribute('aria-expanded','true');menu.open=true;}
+    else{summary.setAttribute('aria-haspopup','dialog');summary.setAttribute('aria-controls','activity-contents-drawer');summary.setAttribute('aria-expanded',String(drawerMenu===menu));menu.open=drawerMenu===menu;}
    }else if(wide.matches||!active())menu.open=true;else if(menu.dataset.selection!==href)menu.open=false;
    menu.dataset.selection=href;
    if(destination&&destination===href&&destination===location.hash){destination='';const heading=document.getElementById('activity-title');if(heading){heading.setAttribute('tabindex','-1');heading.focus({preventScroll:true});}}
   }
  }
  function resize(){
+  const wasInDrawer=drawer?.contains(document.activeElement);if(drawer&&wide.matches)close(false);
+  sync();if(wasInDrawer&&wide.matches)host?.querySelector('[aria-current=page]')?.focus({preventScroll:true});
   for(const menu of document.querySelectorAll('.workspace-contents')){if(program(menu))continue;const inside=menu.contains(document.activeElement);menu.open=wide.matches||!active();if(inside&&!menu.open)menu.querySelector('summary').focus();}
  }
  if(host)new MutationObserver(sync).observe(host,{childList:true});
@@ -52,7 +56,7 @@
   const summary=event.target.closest('.workspace-contents>summary'),menu=summary?.parentElement||event.target.closest('.workspace-contents')||drawerMenu;
   if(summary&&program(menu)){event.preventDefault();open(menu);return;}
   const link=event.target.closest('[data-workspace-link]'),noteToggle=event.target.closest('[data-class-notes-toggle]');
-  if(link){const href=link.getAttribute('href');if(href?.startsWith('#'))destination=href;if(drawer)close();if(href===location.hash){if(!wide.matches||program(menu))menu.open=false;menu?.querySelector('summary')?.focus();destination='';}}
+  if(link){const href=link.getAttribute('href');if(href?.startsWith('#'))destination=href;if(drawer)close();if(href===location.hash){if(!wide.matches){menu.open=false;menu?.querySelector('summary')?.focus();}destination='';}}
   if(noteToggle){if(drawer)close();else if(menu&&!wide.matches){menu.open=false;menu.querySelector('summary').focus();}}
   if(!wide.matches&&!drawer)for(const contents of document.querySelectorAll('.workspace-contents[open]'))if(!program(contents)&&!contents.contains(event.target))contents.open=false;
  });

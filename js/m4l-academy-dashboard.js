@@ -14,7 +14,7 @@
   const openCardIcon = external => '<span class="ad-tile-open" title="'+(external?'Open in a new tab':'Open')+'"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+(external?'M7 17 17 7M7 7h10v10':'M5 12h14m-6-6 6 6-6 6')+'"/></svg><span class="ad-open-label">'+(external?'Open in a new tab':'Open')+'</span></span>';
   const highestRole = (roles=[]) => roles.some(role=>['GLOBAL_ADMIN','PROGRAM_ADMIN','ADMIN'].includes(role))?'Admin':roles.some(role=>['TEACHER','SENIOR'].includes(role))?'Teacher':roles.includes('SUBSTITUTE')?'Substitute Teacher':roles.includes('STUDENT')?'Student':'None';
   const activeArea = row => row.active!==false&&row.active!==0&&(!row.lifecycle||row.lifecycle==='ACTIVE')&&row.curriculumActive!==false&&row.menuAvailable!==false&&!['DRAFT','COMPLETE','CANCELLED','ARCHIVED'].includes(row.stage);
-  const areas = () => (home?.personalActivities || []).filter(row => activeArea(row)&&['PROGRAM','COURSE'].includes(row.kind) && row.id && row.roles?.length && (mode!=='admin'||home.globalAdmin||row.roles.some(role=>['PROGRAM_ADMIN','ADMIN','GLOBAL_ADMIN'].includes(role))));
+  const areas = () => (home?.personalActivities || []).filter(row => activeArea(row)&&(mode==='admin'?['PROGRAM','COURSE'].includes(row.kind):row.kind==='PROGRAM') && row.id && row.roles?.length && (mode!=='admin'||home.globalAdmin||row.roles.some(role=>['PROGRAM_ADMIN','ADMIN','GLOBAL_ADMIN'].includes(role))));
   const href = (row,tool='timetable') => options.activityHref(row,tool,mode === 'admin' ? 'teach' : mode);
   const date = value => value ? new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:home?.timezone||'Africa/Johannesburg'}).format(new Date(value)) : '';
   const announce = (text,retry=false) => { const node=$('ad-status');if(node){node.textContent=text;if(retry)node.insertAdjacentHTML('beforeend',' <button type="button" data-ad-retry>Try again</button>');} };
@@ -167,11 +167,12 @@
         if(website)return `<div class="ad-tile ad-kahf-course"><span class="ad-tile-kind">${window.M4L_COURSE_COMPANION?.isKahf(row)?'SURAH AL KAHF BOOTCAMP':'COURSE WEBSITE'}</span><strong><a href="${esc(website)}">${esc(row.name)}</a></strong>${window.M4L_COURSE_COMPANION?.isKahf(row)?'<span class="ad-kahf-theme">A complete nurturing from my Rabb.</span>':''}<span class="ad-kahf-materials">Readings · Recordings · Course PDFs</span><span class="ad-tile-role">${esc(row.studentPreview?'Admin student view':roles)}</span><a class="ad-tile-open" href="${esc(website)}"> <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg><span class="ad-open-label">Open course website</span></a>${mode==='learn'?'':`<a class="ad-kahf-workspace-link" href="${esc(target)}">${mode==='admin'?'Manage course':'Teaching tools'} →</a>`}</div>`;
         return `<a class="ad-tile" href="${esc(target)}"${external?' target="_blank" rel="noopener noreferrer"':''}><span class="ad-tile-kind">${kind==='PROGRAM'?'Program':'Course'}</span><strong>${esc(row.name)}</strong><span class="ad-tile-role">${esc(row.studentPreview?'Admin student view':roles)}</span>${openCardIcon(external)}</a>`;
       }).join('')}</div></section>`;
-    }).join(''):`<div class="ad-empty"><h3>${mode==='teach'?'No teaching assigned yet':mode==='admin'?'No assigned learning areas':'Your learning starts here'}</h3><p>${mode==='learn'?'Your enrolled Programs and Courses will appear here.':'Assigned Programs and Courses will appear here.'}</p>${mode==='learn'?'<a href="/academy/#website" data-workspace-exit>Visit website →</a>':''}</div>`;
+    }).join(''):`<div class="ad-empty"><h3>${mode==='teach'?'No teaching assigned yet':mode==='admin'?'No assigned learning areas':'Your learning starts here'}</h3><p>${mode==='learn'?'Your enrolled programmes will appear here.':mode==='admin'?'Assigned Programs and Courses will appear here.':'Assigned teaching programmes will appear here.'}</p>${mode==='learn'?'<a href="/academy/#website" data-workspace-exit>Visit website →</a>':''}</div>`;
   }
   function renderTafseerCards() {
     const section=$('ad-tafseer'),cards=window.M4L_TAFSEER_CARDS;
-    if(section)section.hidden=!cards;
+    if(section)section.hidden=mode!=='admin'||!cards;
+    if(mode!=='admin')return;
     cards?.mount($('ad-tafseer-cards'),{context:mode,links:home?.tafseerLinks||options?.tafseerLinks||{}});
     if(typeof fetch==='function')void cards?.loadCatalogue?.();
   }
