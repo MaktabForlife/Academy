@@ -1,5 +1,6 @@
 import {courseStudioEnabled,planCourseStudio,courseStudioStatus,resumeCourseStudio} from './web-platform/course-publication.mjs';
 import {planCompletedCourse} from './web-platform/completed-course.mjs';
+import {managedCoursePolicies,applyManagedCoursePolicy} from './web-platform/course-policy.mjs';
 import {moduleCatalogueQueries,academyModuleCategory,resolveModuleCategory} from './module-catalogue.js';
 import {managementStore,managementError,same,liveRoles,profileDTO,rowChanged} from './management-store.js';
 import {assignmentDTO,scopeDTO,d1Profiles} from './profiles.js';
@@ -175,15 +176,16 @@ export function d1CourseManagement(repository,auth,env={}) {
     if(['list','get','participants','studio-resume'].includes(action)){
       const data=await load();
       if(action==='list') {
-        const courses=[];
+        const courses=[],policies=await managedCoursePolicies(env,data.activities.filter(a=>a.kind==='COURSE'&&hasScope(data,auth,a.activity_key)).map(a=>a.activity_key));
         for(const a of data.activities.filter(a=>a.kind==='COURSE'&&hasScope(data,auth,a.activity_key))){
           const runIds=[...new Set([...data.runs.filter(r=>same(r.activity_key,a.activity_key)).map(r=>r.run_id),...data.editor.filter(m=>same(m.activity_key,a.activity_key)).map(m=>m.run_id)])];
           if(!runIds.length)runIds.push('CMRUN-'+a.activity_id);
-          for(const runId of runIds){const c=await courseRecord(data,a,runId);courses.push({courseId:c.courseId,runId,name:c.details.name,stage:c.displayStage,accessModel:c.details.accessModel,startDate:c.details.startDate,endDate:c.details.endDate,sessionCount:c.details.sessions.length,legacySharedAccess:c.legacySharedAccess});}
+          for(const runId of runIds){const c=await courseRecord(data,a,runId);applyManagedCoursePolicy(c,policies);courses.push({courseId:c.courseId,runId,name:c.details.name,stage:c.displayStage,accessModel:c.details.accessModel,startDate:c.details.startDate,endDate:c.details.endDate,sessionCount:c.details.sessions.length,legacySharedAccess:c.legacySharedAccess});}
         }
         return {courses,capabilities:{create:Boolean(auth.state.account.global_admin),privateMedia:false},timezone:data.settings.find(s=>s.setting_key==='PlatformTimezone')?.setting_value||'Africa/Johannesburg',categories:categories(data),teachers:teacherDirectory(data),store:'D1'};
       }
       const course=await selected(data,input);
+      applyManagedCoursePolicy(course,await managedCoursePolicies(env,[course.activityKey]));
       if(action==='studio-resume'){await resumeCourseStudio(env,{activityKey:course.activityKey});return {studioSetup:await courseStudioStatus(env.ACADEMY_DB.withSession('first-primary'),course.activityKey)};}
       if(action==='get'){
         if(courseStudioEnabled(env))course.studioSetup=await courseStudioStatus(env.ACADEMY_DB.withSession('first-primary'),course.activityKey);
@@ -201,7 +203,7 @@ export function d1CourseManagement(repository,auth,env={}) {
       if(['save','register-completed'].includes(action)&&!input.courseId){
         if(!auth.state.account.global_admin)throw managementError('Only a Global Admin can create Courses.',403,'FORBIDDEN');
         c={courseId:'COURSE-'+crypto.randomUUID(),runId:'CMRUN-'+crypto.randomUUID(),revision:'0',stage:'DRAFT',completedAt:null,repeatedFrom:null};c.activityKey='COURSE:'+c.courseId;
-      }else{c=await selected(data,input);if(!['participant-create','public-card-save','register-completed'].includes(action))checkRevision(c,input);}
+      }else{c=await selected(data,input);applyManagedCoursePolicy(c,await managedCoursePolicies(env,[c.activityKey]));if(!['participant-create','public-card-save','register-completed'].includes(action))checkRevision(c,input);}
       const creating=!data.activities.some(a=>same(a.activity_key,c.activityKey));
       function createActivity(name,accessModel,inactiveDraft=false){
         const now=new Date().toISOString();
@@ -232,6 +234,7 @@ export function d1CourseManagement(repository,auth,env={}) {
       }else if(action==='save') {
         if(c.stage!=='DRAFT')throw managementError('Create a revision before editing a published Course. Repeat a completed or archived Course to run it again.',409);
         const d=normalize(input.details,data.settings.find(s=>s.setting_key==='PlatformTimezone')?.setting_value||'Africa/Johannesburg');
+        if(c.studioManagedAccess&&d.accessModel!==c.details.accessModel)throw managementError('Change Free or Paid in Participants → Learning access for this Course.',409,'STUDIO_ACCESS_MANAGED');
         if(d.timezone!==(creating?data.settings.find(s=>s.setting_key==='PlatformTimezone')?.setting_value:c.details.timezone))throw managementError('Time zone is an app setting managed by Global Admin.',403,'APP_TIMEZONE_ONLY');
         if(creating)createActivity(d.name,d.accessModel);
         const revision=saveMeta(statements,c,d,'DRAFT');
@@ -264,7 +267,7 @@ export function d1CourseManagement(repository,auth,env={}) {
           }else{
             if(c.acceptedToken!==review.token)throw managementError('Review and accept the current sessions before publishing.',409,'REVIEW_ACCEPTANCE_REQUIRED');
             const plan=await planCoursePublication(store,data,auth,env,c.courseId,c.runId,d);statements.push(...plan.statements,p('UPDATE activities SET website_visible=1 WHERE activity_key=?',c.activityKey));
-            if(!c.legacySharedAccess)statements.push(p("UPDATE course_settings SET legacy_access_model=?,policy_review_state='CONFIRMED' WHERE activity_key=?",d.accessModel,c.activityKey));
+            if(!c.legacySharedAccess&&!c.studioManagedAccess)statements.push(p("UPDATE course_settings SET legacy_access_model=?,policy_review_state='CONFIRMED' WHERE activity_key=?",d.accessModel,c.activityKey));
             for(const teacher of [...new Set(d.sessions.filter(s=>s.status==='SCHEDULED').map(s=>s.teacherId))])statements.push(p("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state,granted_at,granted_by_account_id,revision) SELECT ?,?,?,'TEACHER',1,'CONFIRMED',?,?,1 WHERE NOT EXISTS(SELECT 1 FROM effective_activity_roles WHERE account_id=? AND activity_key=? AND role='TEACHER')",crypto.randomUUID(),teacher,c.activityKey,new Date().toISOString(),auth.user.accountid,teacher,c.activityKey));
             const studioPlan=await planCourseStudio(store,env,c,input,d);statements.push(...studioPlan.statements);
             const revision=saveMeta(statements,c,d,'PUBLISHED');result={courseId:c.courseId,runId:c.runId,revision,publication:plan.publication,studioSetupPending:studioPlan.started,message:studioPlan.started?'Course published. Studio access setup is pending; existing rights are preserved.':'Course published to the Academy timetable.'};

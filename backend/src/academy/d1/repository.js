@@ -54,7 +54,12 @@ export function academyD1Repository(env) {
   async function subscriptionSource(){
     return (await schemaNames()).includes('effective_course_subscriptions')?'effective_course_subscriptions':"(SELECT account_id,activity_key FROM legacy_access_evidence WHERE source_role='LEGACY_SUBSCRIPTION' AND source_effective=1)";
   }
-  const activityColumns=env.ACADEMY_ACCEPTED_SETUP==='1'?`a.activity_key,a.activity_id,a.kind,COALESCE((SELECT json_extract(r.value,'$.name') FROM setup_head_state h JOIN setup_head_components v ON v.head_id=h.head_id AND v.table_name='activities' JOIN setup_components c USING(component_id) JOIN json_each(c.rows_json) r WHERE h.singleton=1 AND json_extract(r.value,'$.activity_key')=a.activity_key COLLATE NOCASE LIMIT 1),'Learning area') AS name,a.active,a.lifecycle,a.website_visible,a.created_at,a.updated_at,a.revision`:'a.*';
+  // Expand accepted names once per sign-in, rather than scanning the accepted
+  // JSON again for every Course/programme. Operational identity/lifecycle and
+  // all role/payment/session checks still come from the same current Core rows.
+  const acceptedActivities=env.ACADEMY_ACCEPTED_SETUP==='1';
+  const activityNames=acceptedActivities?`WITH accepted_activity_names AS MATERIALIZED (SELECT json_group_object(lower(json_extract(r.value,'$.activity_key')),json_extract(r.value,'$.name')) names FROM setup_head_state h JOIN setup_head_components v ON v.head_id=h.head_id AND v.table_name='activities' JOIN setup_components c USING(component_id) JOIN json_each(c.rows_json) r WHERE h.singleton=1) `:'';
+  const activityColumns=acceptedActivities?`a.activity_key,a.activity_id,a.kind,COALESCE(json_extract(n.names,'$.'||json_quote(lower(a.activity_key))),'Learning area') AS name,a.active,a.lifecycle,a.website_visible,a.created_at,a.updated_at,a.revision`:'a.*';
   const accountSQL=`SELECT a.*,c.pin_hash,c.pin_setup,c.credential_epoch,
     ${env.ACADEMY_LEARNING_OPERATIONS==='3'?`(SELECT json_group_array(json_object('id',g.assignment_id,'activityKey',g.activity_key)) FROM attendance_substitutes g JOIN activities area USING(activity_key) WHERE g.account_id=a.account_id AND area.active=1 AND area.lifecycle='ACTIVE' AND g.revoked_at IS NULL AND g.starts_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now') AND max(g.correction_until,coalesce(g.correction_reopen_until,''))>strftime('%Y-%m-%dT%H:%M:%fZ','now')) AS substitute_grants,`:''}
     EXISTS(SELECT 1 FROM global_role_assignments g WHERE g.account_id=a.account_id AND g.role='GLOBAL_ADMIN' AND g.active=1 AND g.review_state='CONFIRMED') AS global_admin
@@ -65,7 +70,7 @@ export function academyD1Repository(env) {
     const target=`(SELECT a.account_id FROM accounts a JOIN account_credentials c USING(account_id) WHERE ${where})`;
     const results=await db.batch([
       prepare(`${accountSQL} WHERE ${where}`,...values),
-      prepare(`SELECT ${activityColumns},cs.legacy_access_model,cs.policy_review_state FROM activities a LEFT JOIN course_settings cs USING(activity_key)
+      prepare(`${activityNames}SELECT ${activityColumns},cs.legacy_access_model,cs.policy_review_state FROM activities a ${acceptedActivities?'CROSS JOIN accepted_activity_names n':''} LEFT JOIN course_settings cs ON cs.activity_key=a.activity_key
         WHERE a.active=1 AND a.lifecycle='ACTIVE' AND a.kind IN ('PROGRAM','COURSE')`),
       prepare(`SELECT r.activity_key,r.role FROM effective_activity_roles r JOIN activities a USING(activity_key)
         WHERE r.account_id=${target} AND a.active=1 AND a.lifecycle='ACTIVE'

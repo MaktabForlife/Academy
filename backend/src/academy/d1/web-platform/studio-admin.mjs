@@ -1,4 +1,5 @@
 import {courseStudioEnabled} from './course-publication.mjs';
+import {mirrorCoursePolicy} from './course-policy.mjs';
 import {liveAllocation,saveLiveAllocation} from './studio-live.mjs';
 import {enqueueAccount,pendingAccount,sourceSession} from './bridge.mjs';
 import {markAccess,queueAccess,importAccessPage,accessStream} from './access.mjs';
@@ -36,7 +37,9 @@ export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_S
   if(acknowledge.length)await db.prepare('UPDATE website_platform_outbox SET acknowledged=1 WHERE operation_id IN(SELECT value FROM json_each(?))').bind(JSON.stringify(acknowledge)).run();
   if(!response.ok)throw fail(result.error||'Studio could not confirm the change.',response.status,result.code||'STUDIO_UNAVAILABLE');
   if(env.ENVIRONMENT==='local')result.localReadBudget={targetRowsRead:Number(response.headers.get('X-Local-D1-Rows-Read')),targetQueries:Number(response.headers.get('X-Local-D1-Queries'))};
-  delete result.acknowledge;if(result.pending)throw fail('Access confirmation is catching up. Retry this same action.',409,'STUDIO_CONFIRMATION_PENDING');return result;
+  delete result.acknowledge;if(result.pending)throw fail('Access confirmation is catching up. Retry this same action.',409,'STUDIO_CONFIRMATION_PENDING');
+  if(mapping.kind==='COURSE'&&owner?.state==='STUDIO')await mirrorCoursePolicy(db,auth,activity,mapping.offering_id,result.coursePolicy);
+  return result;
  };
  if(command.action?.startsWith('handover-')&&courseStudioEnabled(env)&&await db.prepare("SELECT 1 FROM website_platform_course_jobs WHERE activity_key=? AND phase<>'COMPLETE'").bind(activity).first())throw fail('This Course has automatic Studio setup. Resume setup from its Course screen.',409,'COURSE_SETUP_AUTOMATIC');
  if(command.action?.startsWith('handover-')){

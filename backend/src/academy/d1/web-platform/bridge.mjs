@@ -67,7 +67,7 @@ export async function bridge(request,env,{login,mint,navigation,dashboard,destin
   if(!Array.isArray(input.operationIds)||input.operationIds.length>40)throw fail('Invalid acknowledgement.');for(const operationId of input.operationIds)id(operationId);await db.prepare('UPDATE website_platform_outbox SET acknowledged=1 WHERE operation_id IN(SELECT value FROM json_each(?))').bind(JSON.stringify(input.operationIds)).run();return {acknowledged:true};
  }
  if(path==='/internal/website/status'){
-  const session=await sourceSession(db,input.sourceRef);if(!input.draining){await enqueueAccount(db,session.account_id,env);await prepareAccountAccess(db,session.account_id);}const result=await pendingAccount(env,db,session.account_id);return result.more?{...result,continuation:session.source_ref,statusOnly:true}:result;
+  const session=await sourceSession(db,input.sourceRef);if(!input.draining){await enqueueAccount(db,session.account_id,env);await prepareAccountAccess(db,session.account_id,{offeringId:input.offeringId?id(input.offeringId):undefined});}const result=await pendingAccount(env,db,session.account_id);return result.more?{...result,continuation:session.source_ref,statusOnly:true}:result;
  }
  if(path==='/internal/website/continue-sign-in'){const session=await sourceSession(db,input.sourceRef);if(input.statusOnly){const result=await pendingAccount(env,db,session.account_id);return result.more?{...result,continuation:session.source_ref,statusOnly:true}:result;}return completeSignIn(env,db,session);}
  if(path==='/internal/website/dashboard'){const session=await sourceSession(db,input.sourceRef);return {dashboard:await dashboard(session,{mode:input.mode})};}

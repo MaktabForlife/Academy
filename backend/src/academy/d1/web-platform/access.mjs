@@ -59,9 +59,30 @@ export async function queueAccess(db,{limit=4,onlyScope,onlyAccount,now=Date.now
   ]);
  }catch(error){await db.prepare('UPDATE website_platform_access_dirty SET next_attempt=?,last_error=? WHERE activity_key=? AND account_id=? AND revision=?').bind(now+30_000,/^[A-Z_]+$/.test(error.message)?error.message:'ACCESS_RETRY',row.activity_key,row.account_id,row.revision).run();}}
 }
-export async function prepareAccountAccess(db,accountId){
- const scopes=check(await all(db,`SELECT s.activity_key,m.offering_id FROM website_platform_access_scopes s JOIN website_platform_timetable_scopes m USING(activity_key) WHERE s.enabled=1 ORDER BY s.activity_key LIMIT 33`),32,'ACCESS_SCOPE_LIMIT');
- for(const s of scopes){await db.prepare('INSERT INTO website_platform_access_dirty(activity_key,account_id) VALUES(?,\'\') ON CONFLICT DO NOTHING').bind(s.activity_key).run();await queueAccess(db,{onlyScope:s.activity_key,onlyAccount:''});const metadata=await db.prepare("SELECT revision,exported_revision,last_error FROM website_platform_access_dirty WHERE activity_key=? AND account_id=''").bind(s.activity_key).first();if(!metadata||metadata.revision!==metadata.exported_revision||metadata.last_error)throw Error('ACCESS_SCOPE_PENDING');await markAccess(db,s.activity_key,accountId);await queueAccess(db,{onlyScope:s.activity_key,onlyAccount:accountId.toLowerCase()});const row=await db.prepare('SELECT revision,exported_revision,last_error FROM website_platform_access_dirty WHERE activity_key=? AND account_id=?').bind(s.activity_key,accountId).first();if(!row||row.revision!==row.exported_revision||row.last_error)throw Error('ACCESS_CONFIRMATION_PENDING');}
+export async function prepareAccountAccess(db,accountId,{offeringId}={}){
+ const scopes=check(await all(db,`SELECT s.activity_key,CASE WHEN o.state='STUDIO' THEN 1 ELSE EXISTS(SELECT 1 FROM course_settings c WHERE c.activity_key=s.activity_key AND c.legacy_access_model='FREE' AND c.policy_review_state='CONFIRMED') END shared,
+ d.revision metadata_revision,d.exported_revision metadata_exported,d.last_error metadata_error,
+ p.revision person_revision,p.exported_revision person_exported,p.last_error person_error
+ FROM website_platform_access_scopes s ${offeringId?'JOIN website_platform_timetable_scopes m USING(activity_key)':''}
+ LEFT JOIN website_platform_access_ownership o USING(activity_key)
+ LEFT JOIN website_platform_access_dirty d ON d.activity_key=s.activity_key AND d.account_id=''
+ LEFT JOIN website_platform_access_dirty p ON p.activity_key=s.activity_key AND p.account_id=?
+ WHERE s.enabled=1 ${offeringId?'AND m.offering_id=?':''} ORDER BY s.activity_key LIMIT 33`,accountId.toLowerCase(),...(offeringId?[offeringId]:[])),32,'ACCESS_SCOPE_LIMIT');
+ if(offeringId&&!scopes.length)throw Error('ACCESS_SCOPE_MISSING');
+ for(const s of scopes){
+  if(s.metadata_revision==null||s.metadata_revision!==s.metadata_exported||s.metadata_error){
+   await db.prepare('INSERT INTO website_platform_access_dirty(activity_key,account_id) VALUES(?,\'\') ON CONFLICT DO NOTHING').bind(s.activity_key).run();await queueAccess(db,{onlyScope:s.activity_key,onlyAccount:''});
+   const metadata=await db.prepare("SELECT revision,exported_revision,last_error FROM website_platform_access_dirty WHERE activity_key=? AND account_id=''").bind(s.activity_key).first();if(!metadata||metadata.revision!==metadata.exported_revision||metadata.last_error)throw Error('ACCESS_SCOPE_PENDING');
+  }
+  // Studio rights and default FREE access need no new per-account Source
+  // snapshot at sign-in. Still flush known role/class/master changes; an actual
+  // live/staff action can explicitly refresh this exact offering when needed.
+  const shared=!offeringId&&Boolean(s.shared);
+  const dirty=s.person_revision!=null&&(s.person_revision!==s.person_exported||s.person_error);
+  if(shared&&!dirty)continue;
+  if(!shared)await markAccess(db,s.activity_key,accountId);
+  await queueAccess(db,{onlyScope:s.activity_key,onlyAccount:accountId.toLowerCase()});const row=await db.prepare('SELECT revision,exported_revision,last_error FROM website_platform_access_dirty WHERE activity_key=? AND account_id=?').bind(s.activity_key,accountId.toLowerCase()).first();if(!row||row.revision!==row.exported_revision||row.last_error)throw Error('ACCESS_CONFIRMATION_PENDING');
+ }
 }
 export async function pumpAccess(db){
  const scope=await db.prepare(`SELECT s.activity_key FROM website_platform_access_scopes s WHERE s.enabled=1 AND (NOT EXISTS(SELECT 1 FROM website_platform_access_imports i WHERE i.activity_key=s.activity_key) OR EXISTS(SELECT 1 FROM website_platform_access_imports i WHERE i.activity_key=s.activity_key AND i.done=0)) ORDER BY s.activity_key LIMIT 1`).first();if(scope)await importAccessPage(db,{activityKey:scope.activity_key});await queueAccess(db);
