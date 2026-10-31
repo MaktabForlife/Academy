@@ -310,6 +310,14 @@
     void open();
   });
   function sessionChanged(){if(token()===state.token&&state.session)return;++state.generation;lock('Your Academy account changed. Return to Academy home and open Course management again.');}
+  window.addEventListener('m4l-course-policy-saved',event=>{
+    const {activityKey,coursePolicy}=event.detail||{};
+    if(state.token!==token()||!state.course?.studioManagedAccess||state.course.activityKey!==activityKey||!['FREE','PAID'].includes(coursePolicy?.model))return;
+    if(state.course.details.accessModel===coursePolicy.model&&state.draft?.accessModel===coursePolicy.model)return;
+    state.course.details.accessModel=coursePolicy.model;if(state.draft)state.draft.accessModel=coursePolicy.model;state.review=null;state.course.acceptedToken=null;
+    for(const course of state.courses)if(course.courseId===state.course.courseId)course.accessModel=coursePolicy.model;
+    const control=document.querySelector('[data-field="accessModel"]');if(control)control.value=coursePolicy.model;renderList();
+  });
   window.addEventListener('resize',revealTab);
   window.addEventListener('storage',e=>{if(e.key==='m4l_account_token'||e.key===null)sessionChanged();});window.addEventListener('m4l-academy-session',sessionChanged);
   window.addEventListener('pageshow',e=>{if(e.persisted){sessionChanged();if(state.session&&!hasUnsavedChanges())void open();}});

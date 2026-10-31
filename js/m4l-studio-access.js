@@ -31,6 +31,7 @@
    if(selection!==JSON.stringify([p.after,p.accountId])||loadOwner!==owner||loadOwner!==localStorage.getItem('m4l_account_token'))return;
    p.lastReadError=false;p.data=data.notModified?{...saved,...(data.coursePolicy?{coursePolicy:data.coursePolicy}:{}),...(data.liveAllocation?{liveAllocation:data.liveAllocation}:{})}:data;if(!data.notModified)cache.set(p.activityKey+selection,data);p.dirty=false;p.policyDirty=false;p.liveDirty=false;p.liveWindow=null;render(p);
    legacyControls(p,p.data.ownership?.authority==='WEBSITE'||p.data.blocked);
+   if(p.data.coursePolicy&&p.data.ownership?.authority==='WEBSITE'&&panels.get(p.activityKey)===p&&owner===loadOwner)window.dispatchEvent(new window.CustomEvent('m4l-course-policy-saved',{detail:{activityKey:p.activityKey,coursePolicy:p.data.coursePolicy}}));
   }catch(error){p.lastReadError=true;if([401,403].includes(error.status)){deny(p);return;}if(!p.data||p.data.legacyOnly||p.data.blocked){p.root.hidden=false;p.root.innerHTML='<h3>Learning access</h3><p data-access-status role="status"></p>';legacyControls(p,error.status!==404);}tell(p,error.code==='STUDIO_SCOPE_UNMAPPED'?'This programme continues to use Academy access controls.':error.message);p.unmapped=error.status===404;if(p.unmapped)p.root.hidden=true;}
   finally{p.busy=false;}
  }
@@ -78,7 +79,7 @@
  async function savePolicy(p){
   if(p.dirty||p.liveDirty||p.pending||p.livePending)throw Error('Save or discard the current learner or class changes first.');
   if(!p.policyPending){const model=p.root.querySelector('[data-access-policy]').elements.courseAccessModel.value;if(model===p.data.coursePolicy.model){p.policyDirty=false;tell(p,'No Course access change to save.');return;}p.policyPending={action:'save',revision:p.data.revision,change:{action:'course-policy',operationId:crypto.randomUUID(),accessModel:model}};}
-  try{await api(p.activityKey,p.policyPending);p.policyPending=null;p.policyDirty=false;for(const key of cache.keys())if(key.startsWith(p.activityKey))cache.delete(key);await load(p,{refresh:true});tell(p,'Course access saved. Existing purchases are preserved.');}
+  try{await api(p.activityKey,p.policyPending);p.policyPending=null;p.policyDirty=false;for(const key of cache.keys())if(key.startsWith(p.activityKey))cache.delete(key);await load(p,{refresh:true});if(panels.get(p.activityKey)!==p||owner!==localStorage.getItem('m4l_account_token'))return;window.dispatchEvent(new window.CustomEvent('m4l-course-policy-saved',{detail:{activityKey:p.activityKey,coursePolicy:p.data.coursePolicy}}));tell(p,'Course access saved. Existing purchases are preserved.');}
   catch(error){if([400,413].includes(error.status)||['CHANGE_CONFLICT','RETRY_CONFLICT'].includes(error.code))p.policyPending=null;throw error;}
  }
  async function saveLive(p){
