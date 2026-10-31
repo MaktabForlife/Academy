@@ -1,5 +1,5 @@
 import {esc,validateCourse} from './model.mjs';
-import {inlineSession,decorateInlineText} from './inline-text.mjs?v=108.4';
+import {inlineSession,decorateInlineText} from './inline-text.mjs?v=108.6';
 
 export function createInlineEditor({root,request,active,allowed,workspace,enterAdmin,canStart=()=>true,launchEditor=async()=>false,showDraft,showPublished,published,route,dialog,dialogTitle,dialogBody}){
  const session=inlineSession({request,active}),host=document.createElement('section');

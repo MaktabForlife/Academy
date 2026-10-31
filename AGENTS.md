@@ -1,3 +1,8 @@
+# V108.6 combined release approved — 31 October 2026
+
+- You explicitly said “deploy” after the combined local review passed. Release the reviewed Circles/access integration and date-header recovery as V108.6, with its additive source0015/target0004 structures. Preserve existing screens, all49 enabled original media, current bindings and43200/43200/60. Keep live checks small.
+- This approves deployment only: Academy remains access/enrolment owner. No live offering transfer, new media/publication, DNS, retirement or Git push. Preserve the separately owned original candidates and held later UI/Kahf/free links. See docs/RELEASE-1086.md and private parent outputs/academy-studio-release-1086-20261031.
+
 # V108.4 permission navigation deployed — 30 October 2026
 
 - The approved coordinated release completed at 30 Oct 2026, 15:42 Riyadh. Academy Worker 6b58c57b-ec48-48d0-bd37-07eaccb8d912 and Circles Worker d1b846ae-535c-48e9-b9f6-34eac3aab51e are each 100% active. Academy Pages 6bd1bf8f-5a76-4c53-afd6-c64cccc37862 is the production deployment. Eleven release checks, nine bounded live checks and the live login form passed; no real PIN was used.

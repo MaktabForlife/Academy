@@ -1,3 +1,7 @@
+# V108.6 — Combined Circles dashboard and Academy access administration
+
+Connect the reviewed Circles dashboard, purchased-course navigation and Library returns with guarded Studio access administration in Academy. Recover the Hijri header after temporary lookup failures while retaining today’s valid date. Additive database structures prepare future offering transfers; Academy remains authoritative until a separately approved handover. Existing screens, rights and all49 original media references are preserved.
+
 # V108.4 — Circles permission navigation
 
 Connect Circles programme choices to current Academy membership and native Student, Teacher and Admin contexts. Preserve all existing grants and protected media. The matching source/target release adds navigation presentation and invalidation only. See docs/CIRCLES-PERMISSION-NAVIGATION.md.
