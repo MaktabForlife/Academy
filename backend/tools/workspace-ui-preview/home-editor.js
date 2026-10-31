@@ -62,6 +62,17 @@ function refresh(){
   const position=draft.positions[profile()][key]||{x:0,y:0};
   block.style.setProperty('--preview-move-x',position.x*hub.offsetWidth+'px');
   block.style.setProperty('--preview-move-y',position.y*hub.offsetHeight+'px');
+  // Anchors and images otherwise start the browser's native HTML drag,
+  // which cancels the pointer stream before our layout drag can begin.
+  for(const item of [block,...block.querySelectorAll('a,img')]){
+   if(mode==='move'){
+    if(!item.hasAttribute('data-preview-draggable'))item.dataset.previewDraggable=item.getAttribute('draggable')??'missing';
+    item.setAttribute('draggable','false');
+   }else if(item.hasAttribute('data-preview-draggable')){
+    if(item.dataset.previewDraggable==='missing')item.removeAttribute('draggable');else item.setAttribute('draggable',item.dataset.previewDraggable);
+    delete item.dataset.previewDraggable;
+   }
+  }
   if(mode==='move'){
    if(!block.hasAttribute('data-preview-tabindex'))block.dataset.previewTabindex=block.getAttribute('tabindex')??'missing';
    block.tabIndex=0;block.setAttribute('aria-description','Drag to move, or use arrow keys. Hold Shift for larger steps.');
@@ -118,6 +129,9 @@ document.addEventListener('pointerdown',event=>{
  const hub=block.closest('#animated-hub'),scale=hub.getBoundingClientRect().width/hub.offsetWidth;
  drag={block,hub,scale,x:event.clientX,y:event.clientY,start:{...(draft.positions[profile()][block.dataset.previewBlock]||{x:0,y:0})},profile:profile(),moved:false};
 });
+document.addEventListener('dragstart',event=>{
+ if(mode==='move'&&event.target.closest('[data-preview-block]'))event.preventDefault();
+},true);
 document.addEventListener('pointermove',event=>{
  if(!drag)return;
  const {block,hub,scale,start,x,y}=drag;

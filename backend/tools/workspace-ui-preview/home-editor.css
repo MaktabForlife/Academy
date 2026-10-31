@@ -6,6 +6,7 @@ html[data-preview-edit-mode=text] [data-preview-copy]:focus{outline:2px solid #b
 @media(min-width:821px){
  body.circle .single-circle-home #animated-hub>[data-preview-block]{translate:calc(var(--home-layout-x,0px) + var(--preview-move-x,0px)) calc(var(--home-layout-y,0px) + var(--preview-move-y,0px))!important}
  html[data-preview-edit-mode=move] #animated-hub>[data-preview-block]{outline:2px dashed #a97490;outline-offset:5px;cursor:grab;touch-action:none;user-select:none;transition:none!important;animation:none!important}
+ html[data-preview-edit-mode=move] #animated-hub [data-preview-block],html[data-preview-edit-mode=move] #animated-hub [data-preview-block] *{-webkit-user-drag:none}
  html[data-preview-edit-mode=move] #animated-hub>.preview-block-dragging{cursor:grabbing;outline-style:solid}
 }
 @media(max-width:600px){.preview-home-editor{right:8px;bottom:8px;max-width:calc(100vw - 16px);padding:10px}.preview-home-editor p{max-width:320px}.preview-editor-actions{gap:4px}.preview-home-editor button{min-height:40px}}
