@@ -52,7 +52,7 @@
   const profile=banners.querySelector('.academy-profile'),name=profile?.querySelector('#academy-header-name,#academy-shell-name');
   if(profile&&name){let identity=profile.querySelector('.academy-admin-identity');if(!identity){identity=document.createElement('span');identity.className='academy-admin-identity';name.before(identity);identity.append(name);}if(context.parentElement!==profile)profile.append(context);}
   const text=data?.globalAdmin||data?.workspaceAccess?.globalAdmin?'Global Admin':'Admin',hint=label+' · '+description;
-  context.innerHTML='<span class="academy-admin-badge" title="'+hint+'">'+text+'</span>';
+  context.innerHTML='<span class="academy-admin-badge" title="'+hint+'">'+text+(mode==='ADMIN'?'':' · '+label)+'</span>';
  }
  document.addEventListener('click',event=>{if(event.target.closest?.('[data-workspace-exit],[data-recorder-link]')&&!canLeave())event.preventDefault();});
 
@@ -70,6 +70,10 @@
   document.body.classList.toggle('academy-learning-layout',learning);
   window.M4L_ACADEMY_CONTENTS?.sync();
   for(const button of document.querySelectorAll('[data-shell-role]')){button.hidden=!available[button.dataset.shellRole];const short=button.dataset.shellRole.toUpperCase(),label=(button.dataset.shellRole!=='admin'?(adminRealm()?'ADMIN-':canAdmin?'PERSONAL ':''):'')+short;button.setAttribute('aria-label',label);button.title=label;button.innerHTML='<span class="academy-role-label">'+label+'</span><span class="academy-role-short" aria-hidden="true">'+short+'</span>';button.setAttribute('aria-pressed',String(button.dataset.shellRole===selected));}
+  // One Dashboard link replaces the role-home switches. Programme audiences
+  // are chosen from the hub; the native role controls remain compatibility hooks.
+  const tabs=document.querySelector('.academy-role-tabs');
+  if(tabs){let hub=tabs.querySelector('.academy-dashboard-home-link');if(!hub){hub=document.createElement('a');hub.className='academy-dashboard-home-link';hub.textContent='Dashboard';hub.setAttribute('data-workspace-exit','');tabs.append(hub);}hub.href=boundary?.homeUrl?.()||'/academy/#dashboard';hub.hidden=!signed;if(location.hash==='#dashboard')hub.setAttribute('aria-current','page');else hub.removeAttribute('aria-current');}
   const name=document.getElementById('academy-shell-name'),role=document.getElementById('academy-shell-role');if(name)name.textContent=signed?(data.profile?.name||'Academy member'):'Welcome';if(role)role.textContent=signed&&adminRealm()&&boundary?.current()==='ADMIN_LEARN'?'Admin-Learn · Student view':signed&&adminRealm()&&boundary?.current()==='ADMIN_TEACH'?'Admin-Teach · Teacher':signed&&boundary?.current()==='LEARN'?'Student':signed&&boundary?.current()==='TEACH'?'Teacher':global?'Global Admin':admin(roles)?'Program Admin':staff(roles)?'Teacher':roles.includes('STUDENT')?'Student':signed?'None':'';contextBanner();window.M4L_ACADEMY_ADMIN_MENU?.update(data);
  }
  document.addEventListener('click',event=>{const button=event.target.closest('[data-shell-role]');if(button&&!button.hidden){event.preventDefault();openRole(button.dataset.shellRole);}});

@@ -3,7 +3,7 @@
   'use strict';
   const root = document.documentElement;
   const session = () => { try { return localStorage.getItem('m4l_account_token'); } catch { return ''; } };
-  const entry = () => /^(?:#(?:overview|login|timetable\/(?:learn|teach)|administration))?$/.test(location.hash);
+  const entry = () => /^(?:#(?:overview|login|dashboard|timetable\/(?:learn|teach)|administration))?$/.test(location.hash);
   const restoring = Boolean(session());
   function begin() {
     if (!session() || !entry()) return;

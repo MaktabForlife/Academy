@@ -25,7 +25,7 @@
   const path=location.pathname||'',calendarView=window.M4L_ACADEMY_WORKSPACE?.audience().toLowerCase()||new URLSearchParams(location.search).get('view');
   const management=Boolean(window.M4L_ACADEMY_WORKSPACE?.adminRealm())||/^\/(users|programs)(?:\/|$)/.test(path)||/^\/academy\/(subjects|courses\/manage|library\/manage|enrolment\/manage|pdf-tools)(?:\/|$)/.test(path)||path.startsWith('/academy/calendar/')&&!['learn','teach'].includes(calendarView);
   if(management){
-    const close=document.createElement('a');close.href='/academy/admin/#administration';close.className='academy-management-close academy-close';close.title='Close';close.textContent='Close';close.setAttribute('data-workspace-exit','');close.setAttribute('aria-label','Close and return to Admin Home');
+    const close=document.createElement('a');close.href='/academy/admin/#dashboard';close.className='academy-management-close academy-close';close.title='Close';close.textContent='Close';close.setAttribute('data-workspace-exit','');close.setAttribute('aria-label','Close and return to dashboard');
     function ensureClose(){
       if(path.startsWith('/academy/admin/')&&(!location.hash||location.hash==='#administration')){close.remove();return;}
       const headings=[...document.querySelectorAll('.view.active .page-heading,.view.active .workspace-banner,.view.active .workspace-identity,.view.active .activity-identity,main .pgm-heading,main .pb-heading,main .up-titlebar,main .cm-page-heading,main .al-intro,main .cal-heading,main .pt-heading,main .enrolment-heading')];

@@ -24,10 +24,10 @@
   const areas=(data.personalActivities||data.activities||[]).filter(a=>(a.roles||[]).some(r=>['PROGRAM_ADMIN','ADMIN'].includes(r))),global=Boolean(data.globalAdmin);
   return [...(global?[{href:'/academy/subjects/',label:'Subjects & Modules',selected:location.pathname.startsWith('/academy/subjects/')}]:[]),...(global||areas.some(a=>a.kind==='PROGRAM')?[{href:'/programs/',label:'Programs',selected:location.pathname.startsWith('/programs/')}]:[]),...(global||areas.some(a=>a.kind==='COURSE')?[{href:'/academy/courses/manage/',label:'Courses',selected:location.pathname.startsWith('/academy/courses/manage/')}]:[])].map(row=>`<a href="${esc(row.href)}"${row.selected?' aria-current="page"':''}>${esc(row.label)}</a>`).join('');
  }
- const dashboard=()=>location.pathname.startsWith('/academy/')&&(!location.hash||['#overview','#administration'].includes(location.hash)||/^#timetable(?:\/(?:learn|teach))?$/.test(location.hash));
+ const dashboard=()=>location.pathname.startsWith('/academy/')&&(!location.hash||['#overview','#dashboard','#administration'].includes(location.hash)||/^#timetable(?:\/(?:learn|teach))?$/.test(location.hash));
  function markup(data,selected=active()){return rows(data).filter(row=>row.id!=='attendance'||!dashboard()).map(row=>row.action?'<button type="button" data-admin-public-refresh data-admin-key="refresh">Update timetable</button>':`<a href="${esc(row.href)}" data-admin-key="${row.id}"${row.id===selected?' aria-current="page"':''}>${row.label}</a>`).join('');}
  function update(data=currentData){
-  currentData=data;const visible=window.M4L_ACADEMY_WORKSPACE?.current()==='ADMIN'&&rows(data).length>0;
+  currentData=data;const visible=window.M4L_ACADEMY_WORKSPACE?.current()==='ADMIN'&&location.hash!=='#dashboard'&&rows(data).length>0;
   if(!host&&visible){host=document.createElement('section');host.className='academy-admin-tools';host.innerHTML='<nav class="academy-admin-links" aria-label="Admin tools"></nav><nav class="academy-admin-links academy-curriculum-tabs" aria-label="Curriculum areas" hidden></nav><p data-admin-refresh-status role="status" aria-live="polite" hidden></p>';document.querySelector('.academy-banners')?.after(host);}
   if(!host)return;host.hidden=!visible;if(visible){host.querySelector('nav').innerHTML=markup(data);const tabs=host.querySelector('.academy-curriculum-tabs');tabs.hidden=active()!=='curriculum';tabs.innerHTML=tabs.hidden?'':curriculumTabs(data);}
  }

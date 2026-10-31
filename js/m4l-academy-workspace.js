@@ -1,11 +1,15 @@
 (() => {
  'use strict';
+ // A hub has one address. Its summary reader follows the verified account's audience.
+ // This is a navigation choice only; every request still uses the native server guards.
+ let hubAudience='LEARN',hubOwner='';
  const adminPage=()=>/^\/(?:users(?:\/|$)|programs(?:\/(?:$|index\.html|manage\.html|timetable\.html|lesson-media\.html|library\.html))|academy\/(?:admin|subjects|courses\/manage|course-websites(?!\/(?:view|public)(?:\/|$))|enrolment\/manage|library\/manage|pdf-tools)(?:\/|$))/.test(location.pathname);
  function desired(){
   const explicit=location.hash.match(/^#(?:timetable\/(learn|teach)|activity\/[^/]+\/[^/]+\/(learn|teach)(?:\/|$))/);
   if(location.pathname.startsWith('/academy/admin/'))return explicit?'ADMIN_'+(explicit[1]||explicit[2]).toUpperCase():'ADMIN';
   if(adminPage())return 'ADMIN';
   if(explicit)return (explicit[1]||explicit[2]).toUpperCase();
+  if(location.hash==='#dashboard')return hubAudience;
   if(/^#(?:administration|assessment-admin|progress-admin)(?:\/|$)/.test(location.hash))return 'ADMIN';
   const query=new URLSearchParams(location.search),mode=(query.get('workspace')||query.get('view')||'').toUpperCase();
   if(['LEARN','TEACH','ADMIN','ADMIN_LEARN','ADMIN_TEACH'].includes(mode))return mode;
@@ -107,9 +111,10 @@
   // can populate another account/workspace or create a stale PDF object URL.
   return new Proxy(response,{get(target,name){if(['json','text','blob','arrayBuffer','formData'].includes(name))return async(...args)=>{check();const value=await target[name](...args);check();return value;};const value=Reflect.get(target,name,target);return typeof value==='function'?value.bind(target):value;}});
  };
- const homeUrl=()=>adminRealm()?'/academy/admin/'+(audience()==='TEACH'?'#timetable/teach':audience()==='LEARN'?'#timetable/learn':'#administration'):'/academy/#timetable/'+(audience()==='TEACH'?'teach':'learn');
- window.M4L_ACADEMY_WORKSPACE={homeUrl,current,audience,adminRealm,adminAccess,readyAccess,readerUrl,desired,commit,canonical,studentClass,classView:()=>classView,head:()=>head,readyPublication,publication:value=>{headEpoch++;head=value;headRequest=null;}};
- function resetAccess(){generation++;classView=null;head=null;headRequest=null;accessEpoch++;access=null;accessRequest=null;accessChanged();}
+ const homeUrl=()=>adminRealm()?'/academy/admin/#dashboard':'/academy/#dashboard';
+ const preferHubAudience=value=>{hubAudience=value==='TEACH'?'TEACH':'LEARN';hubOwner=session();};
+ window.M4L_ACADEMY_WORKSPACE={homeUrl,preferHubAudience,current,audience,adminRealm,adminAccess,readyAccess,readerUrl,desired,commit,canonical,studentClass,classView:()=>classView,head:()=>head,readyPublication,publication:value=>{headEpoch++;head=value;headRequest=null;}};
+ function resetAccess(){if(hubOwner!==session()){hubAudience='LEARN';hubOwner=session();}generation++;classView=null;head=null;headRequest=null;accessEpoch++;access=null;accessRequest=null;accessChanged();}
  window.addEventListener('m4l-academy-session',resetAccess);
  window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)resetAccess();});
  window.addEventListener('DOMContentLoaded',()=>{if(adminRealm()&&session())void readyAccess().catch(()=>{});});
@@ -130,7 +135,7 @@
   if((/^\/academy\/(?:calendar|library|open-library|media|pdf-reader|pdf-compare)\//.test(url.pathname)||url.pathname.startsWith('/recorder/'))&&!url.pathname.includes('/manage/'))link.href=readerUrl(url.href);
   else if(adminRealm()&&adminAccess()&&['/academy/','/academy/index.html'].includes(url.pathname)){url.pathname='/academy/admin/';if(!url.hash||url.hash==='#overview')url.hash='#administration';link.href=url.href;}
  },true);
- if(location.pathname.startsWith('/academy/admin/')&&!location.hash)history.replaceState(null,'','#administration');
+ if(location.pathname.startsWith('/academy/admin/')&&!location.hash)history.replaceState(null,'','#dashboard');
   void import('/js/m4l-academy-history.js?v=108.8').catch(()=>{ /* Existing page links remain available if navigation cannot load. */ });
 })();
 

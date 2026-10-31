@@ -416,12 +416,10 @@ for(const role of ['STUDENT','TEACHER','PROGRAM_ADMIN']) {
   await navigate('#timetable/learn');assertHifzShortcut('timetable-areas','F1CJW7');
   assertHifzShortcut('activity-switcher','F1CJW7');
   if(role!=='STUDENT'){await navigate('#timetable/teach');assertHifzShortcut('timetable-areas','F1CJW7');}
-  const mode=role==='STUDENT'?'learn':'teach';
   for(const suffix of ['', '/learn', '/teach', '/teach/planning', '/attendance']) {
     await navigate('#activity/PROGRAM/'+activity.id+suffix);
-    assert.equal(location.hash,'#timetable/'+(suffix.startsWith('/learn')?'learn':suffix.startsWith('/teach')?'teach':mode),'Old Hifz workspace links return to the correct chooser');
+    assert.equal(location.hash,'#dashboard','Old Hifz workspace links return to the shared hub');
     assert.equal($('activity').classList.contains('active'),false,'The duplicate Hifz page is not opened');
-    if(role==='STUDENT'&&suffix.startsWith('/teach'))assert.doesNotMatch($('timetable-areas').innerHTML,/HifzHelper/,'A Student cannot gain teaching through an explicit Teach link');else assertHifzShortcut('timetable-areas','F1CJW7');
   }
 }
 globalAdmin=true;personalLoginId='ABCDEFG';await refresh();

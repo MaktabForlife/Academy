@@ -298,3 +298,24 @@ body.academy-shell #dashboard.circles-dashboard .ad-calendar iframe{min-height:4
  body.academy-shell #dashboard.circles-dashboard .ad-welcome-copy{flex:1 1 100%;width:100%;min-width:0}
  body.academy-shell #dashboard.circles-dashboard .ad-home-actions{justify-content:flex-start}
 }
+
+/* A single Circles hub precedes all programme audiences and management. */
+body.academy-shell .academy-role-tabs>:is([data-shell-role],[data-academy-tab]){display:none!important}
+body.academy-shell .academy-role-tabs .academy-dashboard-home-link{display:flex;flex:1;align-items:center;justify-content:center;min-width:130px;min-height:38px;padding:9px 20px;border-radius:6px;text-decoration:none;color:var(--rose-dark);font:600 12px/1.4 'DM Sans',Arial,sans-serif}
+body.academy-shell .academy-role-tabs .academy-dashboard-home-link[aria-current=page]{background:var(--rose);color:var(--paper)}
+body.academy-shell #dashboard.circles-dashboard .ad-hub-entry{margin:0 0 24px}
+body.academy-shell #dashboard.circles-dashboard .ad-hub-entry>header{margin-bottom:14px}
+body.academy-shell #dashboard.circles-dashboard .ad-hub-entry h2{font-size:27px;margin:0}
+body.academy-shell #dashboard.circles-dashboard .ad-hub-gateways{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+body.academy-shell #dashboard.circles-dashboard .ad-hub-gateways>:is(a,button){display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:9px;min-width:0;min-height:112px;padding:20px;text-align:left;text-decoration:none;border:1px solid #d7cccb;border-radius:12px;background:#eee5e8;color:var(--rose-dark)}
+body.academy-shell #dashboard.circles-dashboard .ad-hub-gateways>:nth-child(2){background:#e6ebdd;color:var(--sage)}
+body.academy-shell #dashboard.circles-dashboard .ad-hub-gateways>:nth-child(3){background:#eddfd4;color:#6b4b3d}
+body.academy-shell #dashboard.circles-dashboard .ad-hub-gateways strong{font:400 28px/1.15 'Libre Caslon Display',Georgia,serif}
+body.academy-shell #dashboard.circles-dashboard .ad-hub-gateways span{font:400 12px/1.5 'DM Sans',Arial,sans-serif}
+body.academy-shell #dashboard.circles-dashboard .ad-hub-programmes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px}
+body.academy-shell #dashboard.circles-dashboard .ad-hub-programme{min-width:0;padding:20px;border:1px solid #e3d9db;border-radius:12px;background:var(--paper)}
+body.academy-shell #dashboard.circles-dashboard .ad-hub-programme h3{margin:0 0 15px;font:400 26px/1.2 'Libre Caslon Display',Georgia,serif}
+body.academy-shell #dashboard.circles-dashboard .ad-hub-programme nav{display:flex;flex-wrap:wrap;gap:8px}
+body.academy-shell #dashboard.circles-dashboard .ad-hub-programme-link{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:9px 20px;border:1px solid #d3c5ca;border-radius:999px;color:var(--rose-dark);font:500 13px/1.4 'DM Sans',Arial,sans-serif;text-decoration:none}
+body.academy-shell #dashboard.circles-dashboard .ad-hub-programme-link:hover{background:var(--rose-soft)}
+@media(max-width:680px){body.academy-shell #dashboard.circles-dashboard .ad-hub-gateways{grid-template-columns:1fr}body.academy-shell #dashboard.circles-dashboard .ad-hub-gateways>:is(a,button){min-height:94px}}

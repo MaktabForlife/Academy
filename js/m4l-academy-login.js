@@ -22,6 +22,7 @@
   const avatar = document.getElementById("academy-avatar");
   let activeToken = "";
   let activeLoginId = "";
+  let verifiedContexts = null;
   let sessionStore = "";
   let sessionGeneration = 0;
   let restoringSession = null;
@@ -31,7 +32,8 @@
 
   // Reuse the identity from the existing login/session response; no extra lookup.
   window.M4L_ACADEMY_LOGIN = Object.freeze({
-    currentId: () => activeToken && activeToken === localStorage.getItem(tokenKey) ? activeLoginId : ""
+    currentId: () => activeToken && activeToken === localStorage.getItem(tokenKey) ? activeLoginId : "",
+    contexts: () => activeToken && activeToken === localStorage.getItem(tokenKey) ? verifiedContexts?.map(row => ({...row})) ?? null : []
   });
 
   form.addEventListener("submit", signIn);
@@ -117,6 +119,7 @@
     sessionGeneration++;
     activeToken = "";
     activeLoginId = "";
+    verifiedContexts = null;
     sessionStore = "";
     homeCard.hidden = false;
     signOutButton.hidden = true;
@@ -209,6 +212,8 @@
     sessionStore = store;
     const uniqueId = String(account.uniqueid || "").trim();
     activeLoginId = uniqueId;
+    verifiedContexts = Array.isArray(result.contexts) ? result.contexts.map(row => ({...row})) : null;
+    window.M4L_ACADEMY_WORKSPACE?.preferHubAudience?.(verifiedContexts?.some(row => ["TEACHER", "SENIOR", "SUBSTITUTE"].includes(row.role)) ? "TEACH" : "LEARN");
     const name = String(account.displayName || "Academy member").trim();
     headerName.textContent = name;
     headerName.hidden = false;
@@ -222,20 +227,18 @@
     document.body.classList.add("academy-signed-in");
     libraryNav.href = "/academy/library/";
     window.M4L_ACADEMY_STARTUP?.begin();
-    // The verified session already includes roles. Choose the landing address
-    // before fetching a timetable that would be discarded on a workspace move.
+    // Every verified login starts at the shared hub. Programme audiences are
+    // entered from there, while Admin retains its verified native realm.
     if (store === "D1" && Array.isArray(result.contexts) &&
-        ["", "#overview", "#login"].includes(window.location.hash)) {
+        ["", "#overview", "#login", "#dashboard", "#timetable/learn", "#timetable/teach"].includes(window.location.hash)) {
       const contexts = result.contexts;
       const admin = contexts.some(row => row.scope === "PLATFORM" && row.role === "GLOBAL_ADMIN" ||
         ["COURSE", "GLOBAL"].includes(row.scope) && row.role === "PROGRAM_ADMIN");
       if (admin && ["/academy/", "/academy/index.html"].includes(window.location.pathname)) {
-        window.location.replace("/academy/admin/#administration");
+        window.location.replace("/academy/admin/#dashboard");
         return true;
       }
-      const hash = window.location.pathname?.startsWith("/academy/admin/") ? "#administration" :
-        contexts.some(row => ["COURSE", "GLOBAL"].includes(row.scope) && row.role === "TEACHER") ? "#timetable/teach" : "#timetable/learn";
-      window.history.replaceState(null, "", hash);
+      window.history.replaceState(null, "", "#dashboard");
       window.M4L_ACADEMY_WORKSPACE?.commit();
     }
     window.dispatchEvent(new Event("m4l-academy-session"));

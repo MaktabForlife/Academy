@@ -12,19 +12,46 @@
   const wideContents = matchMedia('(min-width:70rem)');
   const link = (href,label,classes='ad-link') => `<a class="${classes}" href="${esc(href)}">${esc(label)}</a>`;
   const key = row => row.kind + ':' + row.id;
-  const openCardIcon = external => '<span class="ad-tile-open" title="'+(external?'Open in a new tab':'Open')+'"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+(external?'M7 17 17 7M7 7h10v10':'M5 12h14m-6-6 6 6-6 6')+'"/></svg><span class="ad-open-label">'+(external?'Open in a new tab':'Open')+'</span></span>';
-  const highestRole = (roles=[]) => roles.some(role=>['GLOBAL_ADMIN','PROGRAM_ADMIN','ADMIN'].includes(role))?'Admin':roles.some(role=>['TEACHER','SENIOR'].includes(role))?'Teacher':roles.includes('SUBSTITUTE')?'Substitute Teacher':roles.includes('STUDENT')?'Student':'None';
   const activeArea = row => row.active!==false&&row.active!==0&&(!row.lifecycle||row.lifecycle==='ACTIVE')&&row.curriculumActive!==false&&row.menuAvailable!==false&&!['DRAFT','COMPLETE','CANCELLED','ARCHIVED'].includes(row.stage);
   const areas = () => (home?.personalActivities || []).filter(row => activeArea(row)&&(mode==='admin'?['PROGRAM','COURSE'].includes(row.kind):row.kind==='PROGRAM') && row.id && row.roles?.length && (mode!=='admin'||home.globalAdmin||row.roles.some(role=>['PROGRAM_ADMIN','ADMIN','GLOBAL_ADMIN'].includes(role))));
   const href = (row,tool='timetable') => options.activityHref(row,tool,mode === 'admin' ? 'teach' : mode);
   const date = value => value ? new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:home?.timezone||'Africa/Johannesburg'}).format(new Date(value)) : '';
   const announce = (text,retry=false) => { const node=$('ad-status');if(node){node.textContent=text;if(retry)node.insertAdjacentHTML('beforeend',' <button type="button" data-ad-retry>Try again</button>');} };
   const personalBase = () => boundary()?.adminRealm() ? '/academy/admin/' : '/academy/';
-  function homeUrl() { return boundary()?.homeUrl?.() || personalBase() + (mode === 'admin' ? '#administration' : '#timetable/' + mode); }
+  function homeUrl() { return boundary()?.homeUrl?.() || personalBase()+'#dashboard'; }
   function landing(data) {
-    const access=data.workspaceAccess||{};
-    const selected=access.admin||data.globalAdmin?'admin':access.teach?'teach':'learn';
-    return selected==='admin'?'/academy/admin/#administration':'/academy/#timetable/'+selected;
+    return data.workspaceAccess?.admin||data.globalAdmin?'/academy/admin/#dashboard':'/academy/#dashboard';
+  }
+  const globalAdmin=()=>Boolean(home?.globalAdmin||home?.workspaceAccess?.globalAdmin&&boundary()?.adminAccess?.());
+  // Use the existing account/session response for navigation metadata, not a
+  // projected Learn/Teach role. Opening each destination still verifies its scope.
+  function hubAreas() {
+    const contexts=window.M4L_ACADEMY_LOGIN?.contexts?.(),verified=Array.isArray(contexts),rows=new Map(),blocked=new Set();
+    for(const row of [...(home?.activities||[]),...(home?.personalActivities||[])]){
+      if(row.kind!=='PROGRAM'||!row.id)continue;
+      if(!activeArea(row)){blocked.add(row.id.toUpperCase());continue;}
+      rows.set(row.id.toUpperCase(),{...row,roles:verified&&!globalAdmin()?[]:[...(row.roles||[])]});
+    }
+    if(verified&&!globalAdmin())for(const grant of contexts){
+      const substitute=grant.scope==='SUBSTITUTE'&&grant.activityKey?.startsWith('PROGRAM:');
+      if(grant.scope!=='COURSE'&&!substitute)continue;
+      const id=substitute?grant.activityKey.slice(8):grant.courseId;
+      if(!id||blocked.has(id.toUpperCase())||!['STUDENT','TEACHER','SENIOR','SUBSTITUTE','PROGRAM_ADMIN','ADMIN'].includes(grant.role))continue;
+      const row=rows.get(id.toUpperCase())||{kind:'PROGRAM',id,name:grant.courseName,roles:[]};
+      if(!row.roles.includes(grant.role))row.roles.push(grant.role);
+      rows.set(id.toUpperCase(),row);
+    }
+    return [...rows.values()].filter(row=>globalAdmin()||row.roles.length);
+  }
+  function programmeHref(row,view) {
+    if(view==='admin')return '/programs/manage.html?program='+encodeURIComponent(row.id);
+    const admin=view.startsWith('admin-'),audience=view.replace('admin-','');
+    return (admin?'/academy/admin/':'/academy/')+'#activity/PROGRAM/'+encodeURIComponent(row.id)+'/'+audience;
+  }
+  function chooseProgramme(view) {
+    if(!['admin-learn','admin-teach'].includes(view)||!globalAdmin())return;
+    const title=view==='admin-learn'?'Admin-Learn':'Admin-Teach',rows=hubAreas();
+    showDialog(title,rows.length?'<p>Choose a programme.</p><ul class="ad-picker">'+rows.map(row=>'<li>'+link(programmeHref(row,view),row.name,'ad-tool-choice')+'</li>').join('')+'</ul>':'<p>No programmes are available.</p>');
   }
   function closeDialog() { if(dialog?.open)dialog.close(); window.M4L_TAFSEER_CARDS?.closeAccessPrompt?.(); }
   function closeContents(returnFocus=true) {
@@ -105,11 +132,11 @@
     host.innerHTML=`<div class="ad-layout"><aside class="ad-sidebar" aria-label="Menu"><h2>Menu</h2><nav id="ad-navigation"></nav></aside><div class="ad-main">
       <header class="ad-intro circles-dashboard-heading"><div class="ad-welcome-copy"><p class="eyebrow">YOUR ACADEMY</p><h1 id="ad-title"></h1><p id="ad-checked"></p></div><div class="ad-home-actions"><button type="button" data-ad-retry>Refresh dashboard</button><button type="button" class="ad-contents-toggle academy-menu-button" data-ad-contents-toggle aria-haspopup="dialog" aria-expanded="false" aria-controls="ad-navigation"><span>Menu</span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button></div></header>
       <div id="ad-primary-actions" class="ad-actions" hidden></div><p id="ad-status" class="ad-status" role="status" aria-live="polite"></p>
+      <section class="ad-hub-entry" aria-labelledby="ad-continue-title"><header><h2 id="ad-continue-title">Your programmes</h2></header><nav id="ad-hub-gateways" class="ad-hub-gateways" aria-label="Global Admin workspaces"></nav><div id="ad-areas"></div></section>
       <div class="circles-dashboard-grid">
         <section class="ad-panel circles-dashboard-panel circles-attention" aria-labelledby="ad-fya-title"><header><h2 id="ad-fya-title">For your attention</h2><span id="ad-fya-count" class="ad-count"></span></header><div id="ad-attention"></div><div class="ad-assessments"><header><h3 id="ad-assessment-title">Upcoming exams (Imtehaan)</h3><span id="ad-assessment-count" class="ad-count"></span></header><div id="ad-assessments" aria-live="polite"></div></div></section>
         <section class="ad-panel circles-dashboard-panel ad-next" aria-labelledby="ad-next-title"><header><h2 id="ad-next-title">Coming up next</h2></header><div id="ad-next"></div></section>
         <section class="ad-panel circles-dashboard-panel ad-messages" aria-labelledby="ad-messages-title"><header><h2 id="ad-messages-title">Messages <span id="ad-unread" class="ad-count"></span></h2></header><div id="ad-messages"></div><button type="button" data-ad-inbox>View inbox</button></section>
-        <section class="ad-panel circles-dashboard-panel ad-continue" aria-labelledby="ad-continue-title"><header><h2 id="ad-continue-title">Continue learning</h2></header><div id="ad-areas"></div></section>
         <section class="ad-panel circles-dashboard-panel ad-week" aria-labelledby="ad-week-title"><header><h2 id="ad-week-title">This week</h2></header><div id="ad-timetable-host"></div></section>
         <section id="ad-calendar-row" class="ad-panel circles-dashboard-panel ad-calendar" aria-labelledby="ad-calendar-title"><header><h2 id="ad-calendar-title">Academy calendar</h2></header><div id="ad-calendar-host"></div></section>
         <section class="ad-panel circles-dashboard-panel ad-tools"><header><h2>Quick tools</h2></header><nav id="ad-tools" aria-label="Dashboard tools"></nav></section>
@@ -120,6 +147,7 @@
   }
   function handleClick(event) {
       if(event.target.closest('[data-ad-contents-toggle]')){openContents();return;}
+      const programme=event.target.closest('[data-ad-programme-choice]');if(programme){chooseProgramme(programme.dataset.adProgrammeChoice);return;}
       const note=event.target.closest('[data-ad-note]');
       if(note){markRead(note.dataset.adRead);void window.M4L_CLASS_NOTES?.open({activityKey:note.dataset.adArea,noteId:note.dataset.adNote});}
       const notice=event.target.closest('[data-ad-notice]');
@@ -157,24 +185,24 @@
     $('ad-navigation').innerHTML=mode==='admin'&&home.globalAdmin?tools+visitWebsite:link(homeUrl(),'Home')+'<button type="button" data-ad-week>Timetable</button>'+'<button type="button" data-ad-inbox>Messages</button>'+tools+shared+visitWebsite;
     $('ad-tools').innerHTML=(mode==='admin'?'':tools)+shared;
     $('ad-primary-actions').innerHTML=mode==='teach'?planning:'';
-    $('ad-title').textContent=mode==='teach'?'Your teaching dashboard':mode==='admin'?'Your Admin dashboard':'Your learning dashboard';
+    $('ad-title').textContent='Your Academy dashboard';
     $('ad-checked').textContent='Last checked '+new Intl.DateTimeFormat('en-GB',{dateStyle:'medium',timeStyle:'short',timeZone:home.timezone||'Africa/Johannesburg'}).format(new Date(home.generatedAt||Date.now()));
     $('ad-assessment-title').textContent='Upcoming exams (Imtehaan)';
   }
   function renderAreas() {
-    $('ad-continue-title').textContent=mode==='teach'?'Continue teaching':mode==='admin'?'Manage programmes and courses':'Continue learning';
-    const rows=areas();
-    $('ad-areas').innerHTML=rows.length?['PROGRAM','COURSE'].map(kind=>{
-      const group=rows.filter(row=>row.kind===kind);if(!group.length)return '';
-      const rail=kind==='PROGRAM'&&mode!=='admin';
-      return `<section class="ad-area-group"><h3>${kind==='PROGRAM'?'Programs':'Courses'}</h3><div class="ad-tiles${rail?' ad-program-rail':''}"${rail?' role="region" aria-label="Programs" tabindex="0"':''}>${group.map(row=>{
-        const helper=options.hifzHref?.(row),target=helper||href(row),external=Boolean(helper);
-        const roles=mode==='admin'&&home.globalAdmin?'Admin':highestRole(row.roles);
-        const website=window.M4L_COURSE_COMPANION?.href(row,'course-website',mode);
-        if(website)return `<div class="ad-tile ad-kahf-course"><span class="ad-tile-kind">${window.M4L_COURSE_COMPANION?.isKahf(row)?'SURAH AL KAHF BOOTCAMP':'COURSE WEBSITE'}</span><strong><a href="${esc(website)}">${esc(row.name)}</a></strong>${window.M4L_COURSE_COMPANION?.isKahf(row)?'<span class="ad-kahf-theme">A complete nurturing from my Rabb.</span>':''}<span class="ad-kahf-materials">Readings · Recordings · Course PDFs</span><span class="ad-tile-role">${esc(row.studentPreview?'Admin student view':roles)}</span><a class="ad-tile-open" href="${esc(website)}"> <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg><span class="ad-open-label">Open course website</span></a>${mode==='learn'?'':`<a class="ad-kahf-workspace-link" href="${esc(target)}">${mode==='admin'?'Manage course':'Teaching tools'} →</a>`}</div>`;
-        return `<a class="ad-tile" href="${esc(target)}"${external?' target="_blank" rel="noopener noreferrer"':''}><span class="ad-tile-kind">${kind==='PROGRAM'?'Program':'Course'}</span><strong>${esc(row.name)}</strong><span class="ad-tile-role">${esc(row.studentPreview?'Admin student view':roles)}</span>${openCardIcon(external)}</a>`;
-      }).join('')}</div></section>`;
-    }).join(''):`<div class="ad-empty"><h3>${mode==='teach'?'No teaching assigned yet':mode==='admin'?'No assigned learning areas':'Your learning starts here'}</h3><p>${mode==='learn'?'Your enrolled programmes will appear here.':mode==='admin'?'Assigned Programs and Courses will appear here.':'Assigned teaching programmes will appear here.'}</p>${mode==='learn'?'<a href="/academy/#website" data-workspace-exit>Visit website →</a>':''}</div>`;
+    const global=globalAdmin(),rows=hubAreas();
+    $('ad-continue-title').textContent=global?'Your workspaces':'Your programmes';
+    $('ad-hub-gateways').hidden=!global;
+    $('ad-hub-gateways').innerHTML=global?'<button type="button" data-ad-programme-choice="admin-learn"><strong>Admin-Learn</strong><span>Choose a programme · Student class view</span></button><button type="button" data-ad-programme-choice="admin-teach"><strong>Admin-Teach</strong><span>Choose a programme · Teaching workspace</span></button><a href="/academy/admin/#administration"><strong>Management</strong><span>People, programmes and Academy tools</span></a>':'';
+    $('ad-areas').hidden=global;
+    $('ad-areas').innerHTML=global?'':rows.length?'<div class="ad-hub-programmes">'+rows.map(row=>{
+      const roles=row.roles||[],admin=roles.some(role=>['PROGRAM_ADMIN','ADMIN'].includes(role));
+      const entries=[];
+      if(roles.includes('STUDENT')){const helper=options.hifzHref?.(row);entries.push(helper?'<a class="ad-hub-programme-link" href="'+esc(helper)+'" target="_blank" rel="noopener noreferrer">Learn ↗</a>':link(programmeHref(row,'learn'),'Learn','ad-hub-programme-link'));}
+      if(roles.some(role=>['TEACHER','SENIOR','SUBSTITUTE'].includes(role)))entries.push(link(programmeHref(row,'teach'),'Teach','ad-hub-programme-link'));
+      if(admin)entries.push(link(programmeHref(row,'admin-learn'),'Admin-Learn','ad-hub-programme-link'),link(programmeHref(row,'admin-teach'),'Admin-Teach','ad-hub-programme-link'),link(programmeHref(row,'admin'),'Admin','ad-hub-programme-link'));
+      return '<article class="ad-hub-programme"><h3>'+esc(row.name)+'</h3><nav aria-label="'+esc(row.name)+' workspaces">'+entries.join('')+'</nav></article>';
+    }).join('')+'</div>':'<p class="ad-empty-line">Your assigned programmes will appear here.</p>';
   }
   function notes() {
     const snapshot=window.M4L_CLASS_NOTES?.snapshot?.()||{sessions:[],status:'idle'};

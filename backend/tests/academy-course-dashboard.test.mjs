@@ -16,14 +16,9 @@ function fixture(workspace,{assessmentRows=[],now}={}){
 for(const [workspace,mode,roles] of [['LEARN','learn',['STUDENT']],['TEACH','teach',['TEACHER']],['ADMIN','admin',['PROGRAM_ADMIN']],['ADMIN_LEARN','learn',['PROGRAM_ADMIN']],['ADMIN_TEACH','teach',['PROGRAM_ADMIN']]]){
  test('standalone courses stay in website delivery; Admin retains management in '+workspace,async()=>{
   const f=fixture(workspace);f.open(mode,roles);await new Promise(resolve=>setImmediate(resolve));const markup=f.nodes.get('ad-areas').innerHTML;
-  if(mode!=='admin'){
-   assert.doesNotMatch(markup,/ad-kahf-course|course-companion|#activity\/COURSE/);
-   assert.match(markup,/Your learning starts here|No teaching assigned yet/);
-  }else{
-   assert.match(markup,/ad-kahf-course/);assert.match(markup,/course-companion\/surah-kahf\/\?course=kahf/);
-   assert.match(markup,/Open course website/);assert.match(markup,/workspace=ADMIN_LEARN/);
-   assert.match(markup,/Manage course/);assert.match(markup,/#activity\/COURSE\/kahf\/teach/);
-  }
+  assert.doesNotMatch(markup,/ad-kahf-course|course-companion|#activity\/COURSE/);
+  if(mode==='admin')assert.match(f.nodes.get('ad-hub-gateways').innerHTML,/Management/);
+  else assert.match(markup,/Your assigned programmes/);
  });
 }
 test('course cards do not appear for accounts with no assigned course role',async()=>{
@@ -51,4 +46,42 @@ for(const mode of ['admin','teach','learn'])test('Imtehaan cards include dated e
  for(const title of ['Reboot 2026','Upcoming Imtehaan','Ongoing assignment'])assert(markup.includes(title),title);
  assert.match(markup,/25 Oct – 4 Dec 2026/);assert.match(markup,/From 1 Sept 2026/);assert.match(markup,/class="ad-assessment-program">Reboot Your Maktab/);assert.match(markup,/assessment\/reboot-2026/);
  assert.doesNotMatch(markup,/Hidden|Unpublished schedule|Private Imtehaan|Previous Imtehaan/);
+});
+
+
+test('the hub shows all actual programme roles together, independently of its summary audience',()=>{
+ const f=fixture('TEACH');
+ f.window.M4L_ACADEMY_LOGIN={contexts:()=>[
+  {scope:'COURSE',courseId:'student-program',courseName:'Student programme',role:'STUDENT'},
+  {scope:'COURSE',courseId:'teacher-program',courseName:'Teaching programme',role:'TEACHER'},
+  {scope:'COURSE',courseId:'both-program',courseName:'Both roles',role:'STUDENT'},
+  {scope:'COURSE',courseId:'both-program',courseName:'Both roles',role:'TEACHER'},
+  {scope:'GLOBAL',courseId:'website-course',courseName:'Website course',role:'STUDENT'}
+ ]};
+ f.window.M4L_ACADEMY_DASHBOARD.open({signedIn:true,personalActivities:[{kind:'PROGRAM',id:'teacher-program',name:'Teaching programme',roles:['TEACHER']},{kind:'PROGRAM',id:'unassigned',name:'Not assigned',roles:[]}],personalTimetable:[]},{mode:'teach',activityHref:()=>''});
+ const markup=f.nodes.get('ad-areas').innerHTML;
+ assert.match(markup,/\/academy\/#activity\/PROGRAM\/student-program\/learn/);
+ assert.match(markup,/\/academy\/#activity\/PROGRAM\/teacher-program\/teach/);
+ assert.match(markup,/\/academy\/#activity\/PROGRAM\/both-program\/learn/);
+ assert.match(markup,/\/academy\/#activity\/PROGRAM\/both-program\/teach/);
+ assert.doesNotMatch(markup,/teacher-program\/learn|student-program\/teach|Not assigned|Website course|Management/);
+ assert.equal(f.nodes.get('ad-title').textContent,'Your Academy dashboard');
+});
+test('programme administration keeps learner, teacher and management destinations distinct',()=>{
+ const f=fixture('ADMIN');f.window.M4L_ACADEMY_LOGIN={contexts:()=>[{scope:'COURSE',courseId:'managed',courseName:'Managed programme',role:'PROGRAM_ADMIN'}]};
+ f.window.M4L_ACADEMY_DASHBOARD.open({signedIn:true,globalAdmin:false,personalActivities:[{kind:'PROGRAM',id:'managed',name:'Managed programme',roles:['PROGRAM_ADMIN']}],personalTimetable:[]},{mode:'admin',activityHref:()=>''});
+ const markup=f.nodes.get('ad-areas').innerHTML;
+ assert.match(markup,/\/academy\/admin\/#activity\/PROGRAM\/managed\/learn/);
+ assert.match(markup,/\/academy\/admin\/#activity\/PROGRAM\/managed\/teach/);
+ assert.match(markup,/\/programs\/manage.html\?program=managed/);
+ assert.equal(f.nodes.get('ad-hub-gateways').hidden,true,'Only Global Admin gets Academy-wide gateways');
+});
+
+
+test('the hub retains the personal HifzHelper handoff and never invents a teaching role',()=>{
+ const f=fixture('LEARN');f.window.M4L_ACADEMY_LOGIN={contexts:()=>[{scope:'COURSE',courseId:'hifz',courseName:'Hifz',role:'STUDENT'}]};
+ f.window.M4L_ACADEMY_DASHBOARD.open({signedIn:true,personalActivities:[{kind:'PROGRAM',id:'hifz',name:'Hifz',roles:['STUDENT']}],personalTimetable:[]},{mode:'learn',activityHref:()=>'',hifzHref:()=> 'https://hifz.example/synthetic?academy=1'});
+ const markup=f.nodes.get('ad-areas').innerHTML;
+ assert.match(markup,/href="https:\/\/hifz.example\/synthetic\?academy=1" target="_blank" rel="noopener noreferrer"/);
+ assert.doesNotMatch(markup,/#activity\/PROGRAM\/hifz\/learn|>Teach<|Admin-Teach|Admin-Learn/);
 });

@@ -76,6 +76,7 @@ async function loadPage({ id = '', pin = '', replies = {}, storedToken = '', aca
   return {
     elements, storage, session, calls, events, startup, commits,
     get currentLoginId() { return context.window.M4L_ACADEMY_LOGIN.currentId(); },
+    get currentContexts() { return context.window.M4L_ACADEMY_LOGIN.contexts(); },
     get destination() { return destination; },
     get hash() { return context.window.location.hash; },
     openLogin() { elements.get('academy-login').handlers.click(); },
@@ -232,18 +233,23 @@ assert.equal(failedD1Logout.storage.get('m4l_account_token'), undefined);
 assert.match(failedD1Logout.elements.get('academy-session-message').textContent, /server session could not be ended/);
 
 for (const [role, scope, destination] of [
-  ['GLOBAL_ADMIN', 'PLATFORM', '/academy/admin/#administration'],
-  ['PROGRAM_ADMIN', 'COURSE', '/academy/admin/#administration'],
-  ['TEACHER', 'COURSE', '#timetable/teach'],
-  ['STUDENT', 'COURSE', '#timetable/learn']
+  ['GLOBAL_ADMIN', 'PLATFORM', '/academy/admin/#dashboard'],
+  ['PROGRAM_ADMIN', 'COURSE', '/academy/admin/#dashboard'],
+  ['TEACHER', 'COURSE', '#dashboard'],
+  ['STUDENT', 'COURSE', '#dashboard']
 ]) {
   const result = { success: true, sessionStore: 'D1', token: 'verified', account: { uniqueid: 'TEST-USER' }, contexts: [{ role, scope }] };
   const page = await loadPage({ id: 'TEST-USER', pin: '1234', replies: { '/api/account/login': { body: result } } });
   await page.submit();
-  assert.equal(page.destination || page.hash, destination, 'The verified login selects the workspace before requesting a timetable');
+  assert.equal(page.destination || page.hash, destination, 'Every verified login opens the single hub, retaining the Admin realm');
+  assert.equal(page.currentContexts[0].role, role);
+  const navigation=page.currentContexts;navigation[0].role='UNTRUSTED';
+  assert.equal(page.currentContexts[0].role,role,'Navigation metadata is detached from the verified session');
+  page.storage.set('m4l_account_token','another-owner');
+  assert.equal(page.currentContexts.length,0,'An account change immediately hides the old navigation metadata');
   assert.equal(page.events.length, destination.startsWith('/') ? 0 : 1, 'Admin leaves directly without starting a discarded personal timetable');
   assert(page.startup.includes('begin'));
-  if (role === 'TEACHER') assert.deepEqual(page.commits, ['#timetable/teach']);
+  if (role === 'TEACHER') assert.deepEqual(page.commits, ['#dashboard']);
 }
 const explicitWebsite = await loadPage({ storedToken: 'verified', hash: '#website', replies: {
   '/api/account/session': { body: { success: true, sessionStore: 'D1', account: { uniqueid: 'TEST-USER' }, contexts: [{ role: 'GLOBAL_ADMIN', scope: 'PLATFORM' }] } }
