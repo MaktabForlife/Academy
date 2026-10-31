@@ -94,7 +94,7 @@ No mobile action was disabled in this pass. The suggested desktop candidates abo
 
 Run `node backend/tools/academy-workspace-ui-preview.mjs` using Node 24 with its built-in SQLite support, then open `http://127.0.0.1:9031/`.
 
-Choose Learn, Teach or Admin. These are synthetic accounts; preview edits and saves affect only memory and are reset when the server restarts. Each role change clears storage on this preview origin only. Other app ports and browser accounts are untouched.
+The root opens the Circles Learn home. Switch Learn, Teach or Admin using the sample-account bar. These are synthetic accounts; preview edits and saves affect only memory and are reset when the server restarts. Each role change clears storage on this preview origin only. Other app ports and browser accounts are untouched.
 
 The server binds only to loopback, uses a same-origin CSP, rejects foreign hosts/origins, blocks external navigation/fetch and live Join endpoints, stubs external date lookup and serves only the necessary local UI assets. Open Library uses an additional disposable native coordinator fixture. No real credentials, database snapshots or copied private media are present.
 
@@ -103,3 +103,16 @@ The server binds only to loopback, uses a same-origin CSP, rejects foreign hosts
 Hold this branch for the owner's visual review. Do not merge or deploy it as part of the active Circles migration. Review the shared theme and native UI diffs against the then-current released Academy before connecting. Preserve the separate MOU monthly-access/timetable project, frozen website assets and Studio ownership boundaries. In particular, do not use this GUI branch to move MOU media, link recordings, change enrolment/access or re-run a migration.
 
 Owner review can settle programme density, which bulk Admin tasks should have limited phone actions, and the desktop treatment of timetable/report design. No new teaching content or new feature is proposed in this checkpoint.
+
+
+## Circles home correction — 31 October 2026
+
+The owner requested the current Circles dashboard as the home for Learn, Teach and Admin. The local role homes now follow the released V108.7 `public/shared/circles-dashboard-view.mjs` and `public/circles-login.css` presentation: Your Academy heading, full-width attention/Imtehaan panel, then paired Coming up next, Messages, programme continuation, timetable, calendar and Quick tools panels. Programme launchers are compact rows with Open links. All roles use the same home structure; native role and class scoping stays authoritative.
+
+The existing native timetable and calendar remain functional inside their Circles panels instead of introducing a second API/auth integration. Programme actions and Home return keep their original role routes. The existing Menu drawer is available on desktop as well as phone, and Admin management remains available through its retained links. Website Tafseer cards no longer extend these role home pages; Course websites management remains available under Admin.
+
+The upcoming panel includes authorised programmes as well as Courses under Admin and shows three programme/day entries in time order. The Imtehaan section excludes expired date windows, matching the current Circles upcoming section. No roles, content, publications, database adapters or access ownership changed.
+
+The preview root now opens Learn directly. Its slim sample-account bar switches to each role home; it replaces the invented role-choice landing page. This is only disposable preview navigation, not a replacement sign-in or permission mechanism. Embedded calendars do not repeat the preview banner.
+
+Validation: all 27 existing workspace/entrance/dashboard checks pass, including updated upcoming scope and expired exam expectations. Browser checks cover Learn and Teach programme entry and Home return, Admin Menu → App settings → Home, next-week timetable refresh, desktop two-column layout at 1440px, and single-column layout at 390/320px with no document overflow. The phone heading now occupies its own row above the action buttons. Existing integration limits above still apply. Keep this checkpoint local for owner review; no deploy, push, migration change or live data check.
