@@ -15,7 +15,7 @@ const connectedFiles=new Set(['shared/circles-workspaces.css','shared/assets/fon
  'shared/pin-entry.mjs','shared/account-history.mjs','shared/header-icons.mjs',
  'shared/header-dates.mjs','shared/remembered-accounts.mjs','shared/model.mjs',
  'shared/circles-block-navigation.mjs','shared/circles-dashboard-view.mjs',
- 'shared/circles-course-row.mjs','shared/circles-sign-in.mjs']);
+ 'shared/circles-course-row.mjs','shared/homepage-free-courses.mjs','shared/circles-sign-in.mjs']);
 
 export function circlesPublicFile(publicRoot,pathname){
  const relative=connectedFiles.has(pathname.slice(1))?pathname.slice(1):pathname==='/circles-login.css'?'circles-login.css':
@@ -77,7 +77,9 @@ document.addEventListener('click',event=>{
  event.preventDefault();event.stopImmediatePropagation();openPreviewLogin();
 },true);
 const requestedLogin=window.AcademyCirclesEntry?.login;
-if(window.AcademyCirclesEntry)window.AcademyCirclesEntry.login=false;
+const publicReview=document.documentElement.dataset.workspacePreviewDashboard!=='true';
+window.AcademyCirclesEntry={...(window.AcademyCirclesEntry||{}),login:false,public:publicReview};
+if(publicReview){const {applyHomepageReview}=await import('/__preview/homepage-review.js');applyHomepageReview(document.querySelector('#experience'));}
 await import('/circles-login.mjs');
 for(const field of document.querySelectorAll('#circles-sign-in-form input,#circles-sign-in-form button'))field.disabled=true;
 if(requestedLogin)openPreviewLogin();

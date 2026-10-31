@@ -1,3 +1,9 @@
+# Current homepage work — LOCAL ONLY, 31 October 2026
+
+- Latest owner instruction in Circles migration: “add the current version to the home page. dont deploy”. V109.1.1 had already completed; no rollback was requested. All further homepage-reference/course activation work stays local pending review and new deployment approval.
+- Local9031 must reuse the single CURRENT V109.1.1 homepage label and the owner’s18:42 public-reference arrangement. Preserve the signed-in dashboard button columns and browser text/layout drafts. The frozen deployed109.1.1 asset tree stays read-only.
+- Migration owns the isolated five-card activation patch on feature/circles-homecourse-active. The five requested free cards supersede their former inactive hold; await and compose its tested patch instead of duplicating it. All existing rights, native routes, R2 content, bindings and origins remain intact.
+
 # V109.1 UI release authorised — 31 October 2026
 
 - The owner now explicitly requested the centred dashboard circle with separated programme-button columns, Circles styling through other pages, and deployment for V109.1 review. This supersedes this branch's earlier local-only hold within that UI scope. Preserve the prior draft and all native rights/data/functions.

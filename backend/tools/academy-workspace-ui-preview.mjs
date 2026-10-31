@@ -10,7 +10,7 @@ import {circlesPublicFile,circlesHomepage,previewLogin,previewWebsiteReturn} fro
 import {createCirclesTransport,previewApi} from './workspace-ui-preview/circles-transport.mjs';
 
 const root=realpathSync(fileURLToPath(new URL('../../',import.meta.url)));
-const circlesRoot=path.resolve(process.env.WORKSPACE_UI_CIRCLES_ROOT||path.join(root,'../AcademyStudio-launch-109/local-content/release-109/public'));
+const circlesRoot=path.resolve(process.env.WORKSPACE_UI_CIRCLES_ROOT||path.join(root,'../AcademyStudio-ui-1091/local-content/dashboard-style-review/public'));
 const fixture=await mobileFirstFixture();
 // Explicit disposable programme mappings, never inferred from course names.
 fixture.env.WEBSITE_PLATFORM_NAVIGATION=JSON.stringify({alimiyah:fixture.scopes.programA.slice(8),reboot:fixture.scopes.programB.slice(8),mothers:'PRG-656bcece-4310-49c7-87d7-ee06756f66c1'});

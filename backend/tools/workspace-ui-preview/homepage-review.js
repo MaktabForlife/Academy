@@ -22,7 +22,7 @@ export function applyHomepageReview(root){
  const tafseer=hub.querySelector('[data-home-area="tafseer"]');
  if(tafseer){
   const combined=document.createElement('section');
-  combined.className='hub-panel hub-next hub-worship-learning';
+  combined.className='hub-next hub-worship-learning';
   combined.dataset.homeArea='tafseer';combined.dataset.combinedWorship='';
   combined.dataset.previewTextScope='reference-worship';
   combined.setAttribute('aria-labelledby','worship-learning-title');
