@@ -1,3 +1,9 @@
+# V109.1 UI release authorised — 31 October 2026
+
+- The owner now explicitly requested the centred dashboard circle with separated programme-button columns, Circles styling through other pages, and deployment for V109.1 review. This supersedes this branch's earlier local-only hold within that UI scope. Preserve the prior draft and all native rights/data/functions.
+- Deploy the native frontend from this V109-based checkout with only genuine native modules/styles. Target uses the reviewed feature/circles-ui-1091 overlay on frozen V109. Never deploy the backend/tools workspace preview, synthetic auth/transport or homepage editor.
+- Preserve Source Worker runtime/origin bindings (42), Target runtime integration/bindings (17), return-owner validation, R2 content, 43200/43200/60, inactive free cards and date recovery. No new schema, media publication, right, DNS or Git push is authorised.
+
 # V109 UI continuation — local review only
 
 - Continue in `feature/academy-workspaces-ui-109`, based on verified deployed Source V109 `60ca4db4` (runtime `18ed9708`), and read-only prepared Target `AcademyStudio-launch-109/local-content/release-109/public` (runtime `e14e5b9`). The prior GUI `193943a6` and browser drafts remain preserved.

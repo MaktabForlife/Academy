@@ -1,3 +1,5 @@
+V109.1: Circles dashboard and native workspace UI release. See [release details](docs/RELEASE-1091.md).
+
 # V108.6 — Combined Circles dashboard and Academy access administration
 
 Connect the reviewed Circles dashboard, purchased-course navigation and Library returns with guarded Studio access administration in Academy. Recover the Hijri header after temporary lookup failures while retaining today’s valid date. Additive database structures prepare future offering transfers; Academy remains authoritative until a separately approved handover. Existing screens, rights and all49 original media references are preserved.

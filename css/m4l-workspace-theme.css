@@ -319,3 +319,11 @@ body.academy-shell #dashboard.circles-dashboard .ad-hub-programme nav{display:fl
 body.academy-shell #dashboard.circles-dashboard .ad-hub-programme-link{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:9px 20px;border:1px solid #d3c5ca;border-radius:999px;color:var(--rose-dark);font:500 13px/1.4 'DM Sans',Arial,sans-serif;text-decoration:none}
 body.academy-shell #dashboard.circles-dashboard .ad-hub-programme-link:hover{background:var(--rose-soft)}
 @media(max-width:680px){body.academy-shell #dashboard.circles-dashboard .ad-hub-gateways{grid-template-columns:1fr}body.academy-shell #dashboard.circles-dashboard .ad-hub-gateways>:is(a,button){min-height:94px}}
+
+/* Standalone native account, PDF and recorder shells share the same family.
+   The document canvas and teaching content keep their own appearance. */
+body.circles-workspace-page:not(.academy-shell){background:var(--bg);color:var(--ink);font-family:'DM Sans',Arial,sans-serif}
+body.circles-workspace-page:not(.academy-shell) :is(h1,h2){font-family:'Libre Caslon Display',Georgia,serif;font-weight:400;letter-spacing:-.02em}
+body.circles-workspace-page:not(.academy-shell) :is(button,input,select,textarea){font-family:'DM Sans',Arial,sans-serif}
+body.circles-workspace-page:not(.academy-shell) :is(.account-header,.al-header,.pr-header,.pr-toolbar,.pdf-toolbar){border-color:var(--line);color:var(--ink)}
+body.circles-workspace-page:not(.academy-shell) :is(button,a,input,select,textarea,summary):focus-visible{outline:3px solid #a07a89;outline-offset:3px}

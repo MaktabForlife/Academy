@@ -11,7 +11,7 @@ const homepageFiles=new Set([
  'free-learning-catalogue.js','free-learning.js','memorisation-catalogue.js',
  'memorisation.js','prospectus-2027.js','homepage-layout.js'
 ]);
-const connectedFiles=new Set(['circles-login.mjs','circles-dashboard.mjs','api.mjs',
+const connectedFiles=new Set(['shared/circles-workspaces.css','shared/assets/fonts.css','shared/assets/arabic-font.css','shared/assets/amiri-regular.ttf',...Array.from({length:5},(_,i)=>'shared/assets/course-font-'+(i+1)+'.ttf'),'circles-login.mjs','circles-dashboard.mjs','api.mjs',
  'shared/pin-entry.mjs','shared/account-history.mjs','shared/header-icons.mjs',
  'shared/header-dates.mjs','shared/remembered-accounts.mjs','shared/model.mjs',
  'shared/circles-block-navigation.mjs','shared/circles-dashboard-view.mjs',
@@ -33,8 +33,8 @@ export function circlesPublicFile(publicRoot,pathname){
 
 export function circlesHomepage(file,{dashboard=false}={}){
  const source=readFileSync(file,'utf8');
- const original='<script type="module">if(!window.AcademyCirclesRedirecting)await import("/circles-login.mjs");</script>';
- if(!source.includes(original))throw new Error('The released Circles homepage entry changed; review its preview adapter.');
+ const original=source.match(/<script type="module">if\(!window\.AcademyCirclesRedirecting\)await import\("\/circles-login\.mjs(?:\?v=[0-9.]+)?"\);<\/script>/)?.[0];
+ if(!original)throw new Error('The released Circles homepage entry changed; review its preview adapter.');
  return source.replace('<html lang="en">','<html lang="en" data-workspace-preview-dashboard="'+dashboard+'">').replace(original,'<script type="module" src="/__preview/circles-login.js"></script>'+(dashboard?'':'<script type="module" src="/__preview/home-editor.js"></script>'))
   .replace('</head>','<link rel="stylesheet" href="/academy/course-websites/assets/fonts.css"><link rel="stylesheet" href="/academy/course-websites/assets/arabic-font.css">'+(dashboard?'':'<link rel="stylesheet" href="/__preview/home-editor.css"><link rel="stylesheet" href="/__preview/homepage-review.css">')+'</head>');
 }

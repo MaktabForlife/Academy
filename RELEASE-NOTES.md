@@ -1,3 +1,7 @@
+## V109.1 — Circles workspace presentation
+
+Centred dashboard circle with separated programme-button columns, responsive stacking, and shared Circles styling across native Learn, Teach and Admin screens. The existing account-bound Circles Home return remains intact. Frontend-only deployment; see [release details](docs/RELEASE-1091.md).
+
 # V107.120 — Reduce publication validation reads
 
 Validate an accepted publication once, retaining a separate bootstrap insert. Reuse the candidate's lesson/link/PDF projections inside the existing admission check. Preserve the shared ten-PDF limit, current authority, immutable history and retry/recovery protections. Requires only the matching Core trigger upgrade and API/website release; no content is republished. Local regression and native D1 tests passed (111 checks); a synthetic 40-PDF/40-video validation fell from 19,688 to 608 rows read, excluding other upload/publication costs.
