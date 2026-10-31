@@ -1,0 +1,11 @@
+# V108.7 — Global Admin handover controls
+
+Add a narrow Academy page at `/academy/website-platform/handover/` for operating the already deployed per-offering transfer protocol with the actual signed-in Academy session. It supports one bounded step per explicit click, stable transfer references and exact retries. The server retains current Global Admin/session/epoch checks and all source/target atomic guards. It performs no automatic requests or polling. Account changes clear its reference/result and discard any delayed response.
+
+The user approved the actual development handover of the currently mapped Tafseer and Surah Al Kahf offerings on 31 October, followed by deployment when ready, and accepts correcting missing rights afterwards. Academy retains master identities, credentials, sessions, admission/suspension, staff roles, class allocation, timetables and Zoom. Studio owns participation and acquired material rights only after the guarded protocol commits. The other five Course records currently have no Studio access mapping and remain Academy-owned. Nine existing websites cover the two mapped offerings.
+
+Scoped private source/target access backups and release metadata are saved under parent `outputs/academy-studio-handover-20261031`. The preflight read 191 source and 512 target rows, wrote none, and confirmed two Academy-owned scopes and no existing transfers. No full database export, R2 writes, media changes, DNS changes, screen retirement or Git push is needed. Retain the original 49 enabled attachments and additional existing media. Normal verification remains 43200/43200 seconds and sensitive Admin verification 60 seconds.
+
+Local control tests cover no background traffic, actual session headers, bounded allowed scopes/actions, repeated clicks, account switching, stale responses, permission failures and unknown outcomes. Re-run the native transfer/authority/recovery suite on disposable databases before release. Keep live checks small.
+
+The code release and ownership activation are separate outcomes. Record both explicitly; deployment alone is not evidence of a completed transfer. No Global Admin session is fabricated or recovered from database session records.
