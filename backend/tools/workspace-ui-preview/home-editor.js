@@ -1,8 +1,9 @@
 // Local review tools only. Text is kept as text; no HTML or production writes.
+import {applyHomepageReview} from './homepage-review.js';
 const storageKey='academy-workspace-homepage-v1';
 const selectors={circle:'.hub-academy-centre',hifz:'[data-home-area="hifz"]',tafseer:'[data-home-area="tafseer"]',academy:'[data-home-area="academy"]',mothers:'[data-home-area="mothers"]','arabic-adventures':'[data-home-area="arabic-adventures"]'};
 const empty=()=>({version:1,text:{},positions:{full:{},compact:{}}});
-let draft=empty(),mode='',drag=null,refreshQueued=false;
+let draft=empty(),mode='',drag=null,suppressClick=null,refreshQueued=false;
 const originals=new Map();
 try{
  const stored=JSON.parse(localStorage.getItem(storageKey));
@@ -23,13 +24,18 @@ function save(){
 }
 function profile(){return window.AcademyHomepageLayout?.profile==='compact'?'compact':'full';}
 function nodeKey(node,root){
+ const scope=node.parentElement.closest('[data-preview-text-scope]');
+ if(scope)root=scope;
  const path=[];
  for(let current=node;current&&current!==root;current=current.parentNode)path.unshift(Array.prototype.indexOf.call(current.parentNode.childNodes,current));
- return path.join('.');
+ return (scope?'review:'+scope.dataset.previewTextScope+':':'')+path.join('.');
 }
 function refresh(){
  refreshQueued=false;
  const root=document.querySelector('#experience');if(!root)return;
+ const homepage=Boolean(root.querySelector('.single-circle-home #animated-hub'));
+ toolbar.hidden=!homepage;
+ if(!homepage){mode='';document.documentElement.dataset.previewEditMode='';return;}
  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT),nodes=[];
  while(walker.nextNode())nodes.push(walker.currentNode);
  for(const node of nodes){
@@ -41,6 +47,10 @@ function refresh(){
   span.textContent=Object.hasOwn(draft.text,key)?draft.text[key]:node.textContent;
   node.replaceWith(span);
  }
+ // Apply prior browser edits before moving their existing nodes. This keeps
+ // the original draft keys stable when the header is rearranged.
+ applyHomepageReview(root);
+ window.AcademyHomepageLayout?.refresh();
  for(const element of root.querySelectorAll('[data-preview-copy]')){
   element.contentEditable=mode==='text'?'plaintext-only':'false';
   if(mode==='text')element.setAttribute('aria-label','Edit text: '+element.textContent.trim());else element.removeAttribute('aria-label');
@@ -94,25 +104,32 @@ document.addEventListener('input',event=>{
  if(value===originals.get(key))delete draft.text[key];else draft.text[key]=value;
  save();
 });
-// Editing must never follow an underlying programme link or open a visitor dialog.
+// Only an actual edit/drag consumes a click. Menus and navigation stay usable.
 document.addEventListener('click',event=>{
- if(mode&&event.target.closest('#experience')){event.preventDefault();event.stopImmediatePropagation();}
+ const target=event.target;
+ if((mode==='text'&&target.closest('[data-preview-copy]'))||(suppressClick&&target.closest('[data-preview-block]')===suppressClick)){
+  event.preventDefault();event.stopImmediatePropagation();suppressClick=null;return;
+ }
+ if(mode&&target.closest('#experience a,#experience button,[data-action]')){setMode('');save();}
 },true);
 document.addEventListener('pointerdown',event=>{
  const block=event.target.closest('[data-preview-block]');
  if(mode!=='move'||!block||event.button!==0)return;
- event.preventDefault();block.focus();block.setPointerCapture(event.pointerId);
  const hub=block.closest('#animated-hub'),scale=hub.getBoundingClientRect().width/hub.offsetWidth;
- drag={block,hub,scale,x:event.clientX,y:event.clientY,start:{...(draft.positions[profile()][block.dataset.previewBlock]||{x:0,y:0})},profile:profile()};
- block.classList.add('preview-block-dragging');
+ drag={block,hub,scale,x:event.clientX,y:event.clientY,start:{...(draft.positions[profile()][block.dataset.previewBlock]||{x:0,y:0})},profile:profile(),moved:false};
 });
 document.addEventListener('pointermove',event=>{
  if(!drag)return;
  const {block,hub,scale,start,x,y}=drag;
+ if(!drag.moved){
+  if(Math.hypot(event.clientX-x,event.clientY-y)<5)return;
+  drag.moved=true;block.focus({preventScroll:true});block.setPointerCapture(event.pointerId);block.classList.add('preview-block-dragging');
+ }
+ event.preventDefault();
  draft.positions[drag.profile][block.dataset.previewBlock]={x:Math.max(-2,Math.min(2,start.x+(event.clientX-x)/scale/hub.offsetWidth)),y:Math.max(-2,Math.min(2,start.y+(event.clientY-y)/scale/hub.offsetHeight))};
  refresh();
 });
-function endDrag(){if(!drag)return;drag.block.classList.remove('preview-block-dragging');drag=null;save();}
+function endDrag(){if(!drag)return;const moved=drag.moved;drag.block.classList.remove('preview-block-dragging');suppressClick=moved?drag.block:null;drag=null;if(moved){save();setTimeout(()=>{suppressClick=null;},0);}}
 document.addEventListener('pointerup',endDrag);document.addEventListener('pointercancel',endDrag);
 document.addEventListener('keydown',event=>{
  if(event.key==='Escape'&&mode){setMode('');save();return;}

@@ -31,7 +31,7 @@ export function circlesHomepage(file){
  const original='<script type="module">if(!window.AcademyCirclesRedirecting)await import("/circles-login.mjs");</script>';
  if(!source.includes(original))throw new Error('The released Circles homepage entry changed; review its preview adapter.');
  return source.replace(original,'<script type="module" src="/__preview/circles-login.js"></script><script type="module" src="/__preview/home-editor.js"></script>')
-  .replace('</head>','<link rel="stylesheet" href="/academy/course-websites/assets/fonts.css"><link rel="stylesheet" href="/academy/course-websites/assets/arabic-font.css"><link rel="stylesheet" href="/__preview/home-editor.css"></head>');
+  .replace('</head>','<link rel="stylesheet" href="/academy/course-websites/assets/fonts.css"><link rel="stylesheet" href="/academy/course-websites/assets/arabic-font.css"><link rel="stylesheet" href="/__preview/home-editor.css"><link rel="stylesheet" href="/__preview/homepage-review.css"></head>');
 }
 
 export const previewLogin=String.raw`

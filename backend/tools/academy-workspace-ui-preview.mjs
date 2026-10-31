@@ -55,7 +55,7 @@ const server=createServer(async(req,res)=>{
   if(url.pathname==='/__preview/circles-login.js'){
    res.setHeader('Content-Type','text/javascript; charset=utf-8');res.end(previewLogin);return;
   }
-  if(['/__preview/home-editor.js','/__preview/home-editor.css'].includes(url.pathname)){
+  if(['/__preview/home-editor.js','/__preview/home-editor.css','/__preview/homepage-review.js','/__preview/homepage-review.css'].includes(url.pathname)){
    res.setHeader('Content-Type',mime[path.extname(url.pathname)]);res.end(readFileSync(new URL('./workspace-ui-preview/'+path.basename(url.pathname),import.meta.url)));return;
   }
   const circlesFile=circlesPublicFile(circlesRoot,decodeURIComponent(url.pathname));
