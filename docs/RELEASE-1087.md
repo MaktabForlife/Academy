@@ -9,3 +9,9 @@ Scoped private source/target access backups and release metadata are saved under
 Local control tests cover no background traffic, actual session headers, bounded allowed scopes/actions, repeated clicks, account switching, stale responses, permission failures and unknown outcomes. Re-run the native transfer/authority/recovery suite on disposable databases before release. Keep live checks small.
 
 The code release and ownership activation are separate outcomes. Record both explicitly; deployment alone is not evidence of a completed transfer. No Global Admin session is fabricated or recovered from database session records.
+
+## Deployment outcome
+
+V108.7 is deployed and verified. Source Worker740bafda-78ec-45b8-8b41-f17af7b26cd7, Pages3c19a1ed-2435-4ae4-aa32-002c62dcc568; Studio Worker62d221de-e180-4ae0-b3ce-bcd2ba5914dd. All39/17 bindings and43200/43200/60 remain unchanged. The21 native transfer/permission/recovery tests and12 source control/release checks pass. Four bounded unsigned version/exact-asset checks pass. Existing prepared154 website files are byte-for-byte unchanged.
+
+No handover commands have been sent. Actual ownership activation awaits a legitimate current Global Admin sign-in; the available native session was Teststudent, and the account switcher was left open for you. The earlier handover approval remains valid. Scoped saved backups agree on15 member/offering pairs,108 historical paid-month/cohort rows and2 Course purchases. Five other Courses remain unmapped. No new credentials, authority flip, schema/content/media publication, DNS, screen retirement or push occurred. Private evidence is in parent outputs/academy-studio-handover-20261031/release-verification.json.
