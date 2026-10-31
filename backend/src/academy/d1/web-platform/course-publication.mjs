@@ -1,5 +1,5 @@
 import {importAccessPage,queueAccess,accessStream} from './access.mjs';
-import {signedHeaders,bodyJSON,fail,integer} from './protocol.mjs';
+import {signedHeaders,bodyJSON,fail,integer,websiteServerOrigin} from './protocol.mjs';
 
 export const courseStudioEnabled=env=>env.ACADEMY_WEB_PLATFORM==='1'&&env.ACADEMY_COURSE_STUDIO_PUBLICATION==='1';
 // These statements run inside the existing publication transaction, after its
@@ -27,8 +27,7 @@ export async function courseStudioStatus(db,activity){
 const p=(db,sql,...args)=>db.prepare(sql).bind(...args);
 async function send(env,db,job,owner,command,fetcher){
  if(!await p(db,"SELECT 1 FROM website_platform_access_ownership WHERE activity_key=? AND transfer_id=? AND state IN('FROZEN','STUDIO')",job.activity_key,owner.transfer_id).first())throw fail('Setup checkpoint changed.',409,'HANDOVER_CHANGED');
- const path='/internal/studio/course-publication',origin=new URL(env.WEBSITE_PLATFORM_ORIGIN);
- if(origin.protocol!=='https:'||origin.origin!==env.WEBSITE_PLATFORM_ORIGIN)throw fail('Invalid Studio server origin.',503);
+ const path='/internal/studio/course-publication',origin=websiteServerOrigin(env);
  const envelope={issuedAt:Date.now(),registration:{activityKey:job.activity_key,offeringId:job.offering_id,registrationId:job.registration_id,runId:job.run_id,publicationId:job.publication_id,accessModel:job.access_model},command:{...command,transferId:owner.transfer_id}};
  const signed=await signedHeaders(env.ACADEMY_TO_WEBSITE_SECRET,path,envelope),response=await fetcher(origin.origin+path,{method:'POST',headers:signed.headers,body:signed.payload,redirect:'manual',signal:AbortSignal.timeout(8000)}),result=await bodyJSON(response.body,262144);
  if(!response.ok)throw fail(result.error||'Studio setup could not be confirmed.',response.status,result.code||'STUDIO_UNAVAILABLE');return result;

@@ -2,7 +2,7 @@ import {resumeCourseStudio} from './course-publication.mjs';
 import {navigationMappings,navigationSQL} from './navigation.mjs';
 import {prepareAccountAccess,pumpAccess} from './access.mjs';
 import {queueTimetables} from './timetable.mjs';
-import {fail,bytes,verify,envelopePurpose,signedHeaders,sha256,random,challenge,bodyJSON,safeToken,id,text,integer,json} from './protocol.mjs';
+import {fail,bytes,verify,envelopePurpose,websiteServerOrigin,signedHeaders,sha256,random,challenge,bodyJSON,safeToken,id,text,integer,json} from './protocol.mjs';
 export const enabled=env=>env.ACADEMY_WEB_PLATFORM==='1';
 const dbFor=env=>env.ACADEMY_DB.withSession('first-primary');
 export async function enqueueAccount(db,accountId,env={}){
@@ -107,7 +107,7 @@ async function identity(db,env,input){
  return {delivery,signature:signed.headers['X-Maktab-Signature']};
 }
 export async function recoverWebsite(env,{fetcher=env.WEBSITE_PLATFORM_SERVICE?.fetch.bind(env.WEBSITE_PLATFORM_SERVICE)||fetch,limit=20}={}){
- if(!enabled(env))return;const db=dbFor(env),origin=new URL(env.WEBSITE_PLATFORM_ORIGIN);if(origin.protocol!=='https:'||origin.origin!==env.WEBSITE_PLATFORM_ORIGIN)throw fail('Invalid website receiver.',503);
+ if(!enabled(env))return;const db=dbFor(env),origin=websiteServerOrigin(env);
  if(await db.prepare('SELECT enabled FROM website_platform_control WHERE singleton=1').first('enabled')!==1)return;
  await resumeCourseStudio(env,{fetcher});
  await pumpAccess(db);

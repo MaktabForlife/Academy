@@ -26,3 +26,11 @@ export async function verify(secret,purpose,payload,signature){if(!/^[a-f0-9]{64
 export const envelopePurpose=(method,path)=>'maktab-web-v1:'+method+':'+path;
 export async function signedHeaders(secret,path,value){const payload=JSON.stringify(value);return {payload,headers:{'Content-Type':'application/json','X-Maktab-Signature':await sign(secret,envelopePurpose('POST',path),payload)}};}
 export function httpsURL(value,{zoom=false}={}){const url=new URL(value);if(url.protocol!=='https:'||url.username||url.password||url.hash||zoom&&!/^(?:[a-z0-9-]+\.)?zoom\.us$/.test(url.hostname))throw fail('Choose an approved HTTPS destination.');return url.href;}
+// Browser return URLs and server transport can have separate origins. The
+// transport remains direct to Studio, avoiding the public domain router.
+export function websiteServerOrigin(env){
+ const value=env.WEBSITE_PLATFORM_SERVER_ORIGIN??env.WEBSITE_PLATFORM_ORIGIN;let origin;
+ try{origin=new URL(value);}catch{throw fail('Invalid Studio server origin.',503);}
+ if(origin.protocol!=='https:'||origin.origin!==value)throw fail('Invalid Studio server origin.',503);
+ return origin;
+}

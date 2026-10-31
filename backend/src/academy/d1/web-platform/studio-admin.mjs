@@ -3,7 +3,7 @@ import {mirrorCoursePolicy} from './course-policy.mjs';
 import {liveAllocation,saveLiveAllocation} from './studio-live.mjs';
 import {enqueueAccount,pendingAccount,sourceSession} from './bridge.mjs';
 import {markAccess,queueAccess,importAccessPage,accessStream} from './access.mjs';
-import {id,integer,fail,random,signedHeaders,bodyJSON} from './protocol.mjs';
+import {id,integer,fail,random,signedHeaders,bodyJSON,websiteServerOrigin} from './protocol.mjs';
 
 // All actor facts originate in current Core state, never in browser fields.
 async function adminProof(db,auth){
@@ -30,7 +30,7 @@ export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_S
   await enqueueAccount(db,proof.accountId,env);
   // Only this actor and offering; never sweep other participants for an Admin read.
   if(!owner||owner.state!=='FROZEN'){await queueAccess(db,{onlyScope:activity,onlyAccount:''});await markAccess(db,activity,proof.accountId);await queueAccess(db,{onlyScope:activity,onlyAccount:proof.accountId.toLowerCase()});}
-  const pending=await pendingAccount(env,db,proof.accountId),origin=new URL(env.WEBSITE_PLATFORM_ORIGIN);if(origin.protocol!=='https:'||origin.origin!==env.WEBSITE_PLATFORM_ORIGIN)throw fail('Invalid Studio server origin.',503);
+  const pending=await pendingAccount(env,db,proof.accountId),origin=websiteServerOrigin(env);
   const path='/internal/studio/access',envelope={issuedAt:Date.now(),proof,offeringId:mapping.offering_id,command,deliveries:pending.deliveries,more:pending.more};if(new TextEncoder().encode(JSON.stringify(envelope)).length>250_000){envelope.command={action:'read'};envelope.more=true;}const signed=await signedHeaders(env.ACADEMY_TO_WEBSITE_SECRET,path,envelope);
   const response=await fetcher(origin.origin+path,{method:'POST',headers:signed.headers,body:signed.payload,redirect:'manual',signal:AbortSignal.timeout(8000)}),result=await bodyJSON(response.body,262144);
   const acknowledge=result.acknowledge;if(!Array.isArray(acknowledge)||acknowledge.some(x=>!pending.acknowledge.includes(x)))throw fail('Invalid Studio acknowledgement.',503);
