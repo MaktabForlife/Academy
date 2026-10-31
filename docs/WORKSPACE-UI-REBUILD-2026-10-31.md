@@ -94,7 +94,7 @@ No mobile action was disabled in this pass. The suggested desktop candidates abo
 
 Run `node backend/tools/academy-workspace-ui-preview.mjs` using Node 24 with its built-in SQLite support, then open `http://127.0.0.1:9031/`.
 
-The root opens the Circles Learn home. Switch Learn, Teach or Admin using the sample-account bar. These are synthetic accounts; preview edits and saves affect only memory and are reset when the server restarts. Each role change clears storage on this preview origin only. Other app ports and browser accounts are untouched.
+The root opens the released Circles public website homepage. Log in opens the local sample-account chooser; choosing an account enters the shared dashboard. The sample-account bar also offers direct entry for review. These are synthetic accounts; preview edits and saves affect only memory and are reset when the server restarts. Each role change clears storage on this preview origin only. Other app ports and browser accounts are untouched.
 
 The server binds only to loopback, uses a same-origin CSP, rejects foreign hosts/origins, blocks external navigation/fetch and live Join endpoints, stubs external date lookup and serves only the necessary local UI assets. Open Library uses an additional disposable native coordinator fixture. No real credentials, database snapshots or copied private media are present.
 
@@ -131,3 +131,25 @@ This supersedes the earlier role-home checkpoint. The owner clarified that login
 - Sample-account links are now labelled Student account, Teacher account and Global Admin account so they cannot be mistaken for production role switches. All use disposable fixture accounts and enter the hub.
 
 Validation: 40 checks pass across the workspace, login, dashboard, entrance, shell and remembered-account suites. Added coverage for mixed real programme roles, scoped programme administration, the shared Home address, account-change rejection of old hub context and the existing HifzHelper handoff. Browser checks covered Student → programme Learn → Home; Teacher → programme Teach → Home; Global Admin → Admin-Learn → class selector → Home; Global Admin → Admin-Teach → native teaching tools → Home; Management → Home; desktop at 1440px and single-column 390/320px with no document overflow. All work remains local, with no deploy, push, live sign-in, migration or MOU data/media change.
+
+
+## Public homepage correction — 31 October 2026
+
+The owner clarified that the preview must start at the Circles website homepage, rather than the old native Academy public overview or an automatically signed-in dashboard. The root now renders the exact released public Circles entry and its approved single-circle composition from the frozen V108.7 prepared assets. That separately owned bundle is read-only. Set `WORKSPACE_UI_CIRCLES_ROOT` to an equivalent prepared public directory if its local checkout moves; the default is the sibling `AcademyStudio-handover-1087/local-content/release-1087/public` directory.
+
+Only the local preview server adapts that entry: the Studio authentication module is replaced with an explicitly labelled sample-account chooser. Choosing Student, Teacher or Global Admin enters the existing synthetic shared hub. Signing out or opening the native entrance without a sample session returns to the public Circles website. Signed-in Home links remain dashboard links. No native production homepage, login authority, Studio connector, rights or migration adapter changed.
+
+The server allowlists the homepage scripts, styles and public images. Lesson JSON/PDF payloads and the real Studio login module are excluded. No third-party requests are enabled; the remote font import is removed in the served response, and existing local DM Sans/Arabic fonts are supplied. The serif uses its existing offline fallback. Remote prospectus flyer images, external links and standalone website readers remain outside this offline workspace review; they are not evidence of live Studio integration.
+
+Validation: the three preview adapter checks cover the public-only file boundary, symlink/traversal exclusion, explicit replacement of Studio authentication, signed-out returns, and preservation of signed-in dashboard/public reader routes. Browser verification confirms root → public Circles homepage → Log in → sample account → shared dashboard → Sign out → public Circles homepage. Desktop proof is saved in the parent outputs folder. No deploy, push, hosted sign-in or production API/database request.
+
+
+## Owner-operated homepage editing — 31 October 2026
+
+The owner requested direct text editing and moving elements. The public local preview now includes a fixed Homepage editor toolbar: Edit text, Move blocks, Save locally, Export edits, Reset edits and Done. Text editing preserves the existing surrounding typography and inline emphasis; pasted values remain plain text. Static homepage copy is editable, including the central circle and programme blocks. Rotating catalogue/tracker card data, flyer artwork, navigation destinations, roles and teaching material are excluded.
+
+Move blocks supports the circle and all five surrounding programme blocks on desktop. Pointer dragging accounts for the scaled composition, and arrow keys move a focused block by one pixel (Shift: ten). The approved full and compact desktop layouts remain separate profiles, with draft offsets added to the original positions. Phone presentation remains untouched.
+
+Edits autosave to the local preview origin's `academy-workspace-homepage-v1` browser key. The synthetic account selector preserves only this homepage draft while clearing account/session storage; draft copy is never authority or enrolment data. Export edits downloads `umm-abbad-homepage-edits.json`, with original/revised text, draft offsets, viewport and the base layout identifier for later review. This does not update any source teaching text or publish the homepage. Reset edits restores the supplied text and layout.
+
+Browser validation covered an actual copy edit, refresh persistence, pointer drag (24px right / 16px down), persisted offsets after refresh, Teacher sample login, sign-out and preservation of both draft changes. The test changes were reset and the delivered tab is left in Move blocks mode. Proof: `outputs/academy-workspaces-ui-20261031/circles-public-home-editor.png` in the parent project. The three preview boundary/entry/return checks and JavaScript syntax/diff checks pass. All changes remain offline on this feature branch.

@@ -6,8 +6,10 @@ import path from 'node:path';
 import {mobileFirstFixture} from './mobile-first-preview/fixture.mjs';
 import {openLibraryFixture} from '../tests/fixtures/academy-d1-open-library-fixture.mjs';
 import worker from '../src/academy-runtime.js';
+import {circlesPublicFile,circlesHomepage,previewLogin,previewWebsiteReturn} from './workspace-ui-preview/circles-home.mjs';
 
 const root=realpathSync(fileURLToPath(new URL('../../',import.meta.url)));
+const circlesRoot=path.resolve(process.env.WORKSPACE_UI_CIRCLES_ROOT||path.join(root,'../AcademyStudio-handover-1087/local-content/release-1087/public'));
 const fixture=await mobileFirstFixture();
 const libraryFixture=await openLibraryFixture();
 for(const key of ['PROGRAM_TIMETABLE_COORDINATOR','ACADEMY_OPEN_LIBRARY_STORAGE_KEY','MEDIA_BUCKET'])fixture.env[key]=libraryFixture.env[key];
@@ -50,13 +52,25 @@ const server=createServer(async(req,res)=>{
   if(!allowedHosts.includes(req.headers.host)||req.headers.origin&&!allowedHosts.some(host=>req.headers.origin==='http://'+host)){res.writeHead(403);res.end('Local review only.');return;}
   const url=new URL(req.url,origin);
   res.setHeader('Cache-Control','no-store');res.setHeader('X-Robots-Tag','noindex, nofollow');res.setHeader('Content-Security-Policy',csp);res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Content-Type-Options','nosniff');
-  if(url.pathname==='/'){
-   res.writeHead(302,{Location:'/__signin/studentA'});res.end();return;
+  if(url.pathname==='/__preview/circles-login.js'){
+   res.setHeader('Content-Type','text/javascript; charset=utf-8');res.end(previewLogin);return;
+  }
+  if(['/__preview/home-editor.js','/__preview/home-editor.css'].includes(url.pathname)){
+   res.setHeader('Content-Type',mime[path.extname(url.pathname)]);res.end(readFileSync(new URL('./workspace-ui-preview/'+path.basename(url.pathname),import.meta.url)));return;
+  }
+  const circlesFile=circlesPublicFile(circlesRoot,decodeURIComponent(url.pathname));
+  if(circlesFile){
+   const extension=path.extname(circlesFile);
+   let body=readFileSync(circlesFile);
+   if(extension==='.html')body=Buffer.from(circlesHomepage(circlesFile).replace(/<body([^>]*)>/i,'<body$1>'+guard));
+   // Keep this review offline. DM Sans is provided by the existing local font files.
+   if(path.basename(circlesFile)==='style.css')body=Buffer.from(body.toString().replace(/@import url\(['"]https:\/\/fonts\.googleapis\.com\/[^)]+\)\s*;/g,''));
+   res.setHeader('Content-Type',mime[extension]);res.end(body);return;
   }
   if(url.pathname==='/js/m4l-config.js'){res.setHeader('Content-Type','text/javascript');res.end('window.M4L_CONFIG={API_BASE:location.origin,ACCEPTED_SETUP:true,NATIVE_ATTENDANCE:true,MEDIA_SEPARATION:true,LEARNING_OPERATIONS:3,IS_DEVELOPMENT:true};');return;}
   if(url.pathname.startsWith('/__signin/')){
    const who=url.pathname.split('/').at(-1);if(!tokens[who]){res.writeHead(404);res.end();return;}
-   res.setHeader('Content-Type','text/html; charset=utf-8');res.end('<script>localStorage.clear();sessionStorage.clear();localStorage.setItem("m4l_account_token",'+JSON.stringify(tokens[who])+');location.replace('+JSON.stringify(destinations[who])+');</script>');return;
+   res.setHeader('Content-Type','text/html; charset=utf-8');res.end('<script>const homepageDraft=localStorage.getItem("academy-workspace-homepage-v1");localStorage.clear();if(homepageDraft)localStorage.setItem("academy-workspace-homepage-v1",homepageDraft);sessionStorage.clear();localStorage.setItem("m4l_account_token",'+JSON.stringify(tokens[who])+');location.replace('+JSON.stringify(destinations[who])+');</script>');return;
   }
   if(url.pathname==='/api/academy/header-date'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({success:true,gregorian:new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Johannesburg',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()),hijri:null,hijriUnavailable:true}));return;}
   if(url.pathname.startsWith('/api/')){
@@ -70,7 +84,7 @@ const server=createServer(async(req,res)=>{
   let file=path.resolve(root,'.'+decodeURIComponent(url.pathname));if(url.pathname.endsWith('/'))file=path.join(file,'index.html');file=realpathSync(file);
   if(!file.startsWith(root+path.sep)||!mime[path.extname(file)]){res.writeHead(404);res.end();return;}
   let body=readFileSync(file);res.setHeader('Content-Type',mime[path.extname(file)]);
-  if(file.endsWith('.html'))body=Buffer.from(body.toString().replace(/<body([^>]*)>/i,'<body$1>'+guard));
+  if(file.endsWith('.html'))body=Buffer.from(body.toString().replace(/<body([^>]*)>/i,'<body$1>'+guard+'<script>'+previewWebsiteReturn+'</script>'));
   res.end(body);
  }catch(error){res.statusCode=error.code==='ENOENT'?404:500;res.end('The local review could not open this item.');console.error(error.message);}
 });
