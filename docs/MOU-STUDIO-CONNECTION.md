@@ -1,0 +1,13 @@
+# Independent monthly MOU connection
+
+Local candidate on `feature/mou-studio-migration`, following the frozen Course first-publication feature. Deployment belongs to the coordinated V108.8 release owner.
+
+Core migration0017 adds only the programme registration/operation metadata. `ACADEMY_MOU_STUDIO=1` and the existing platform control are required for native `POST /api/admin/platform/programme-studio/register`. The actual programme comes exclusively from the reviewed server `WEBSITE_PLATFORM_NAVIGATION.mothers` mapping. The caller must be the current native Global Admin in ADMIN workspace; the same transaction checks master admission/suspension, exact session/credential epoch and programme identity. Input confirms `programmeKey:mothers`, `accessModel:MONTHLY`, `noMediaMigration:true` and a retry UUID. No course/programme ID supplied by a browser establishes the mapping.
+
+Registration prepares an independent monthly access/timetable scope, initially ACADEMY-owned. Reuse the existing guarded Global Admin reconciliation/handover before Studio access edits. The legacy internal TAFSEER storage kind is only a monthly gate family; the signed `programmeKey:mothers` discriminator and actual offering ID keep all rights independent. Native MOU role membership creates no paid months. Registration never enables the old Academy monthly-media policy or imports old Academy media.
+
+Source retains current master identity, session/epoch, scoped staff, class allocations, published timetable, lifecycle/cancellation and Zoom settings. Signed session facts now include source timezone and safe native class IDs/labels (label null when unavailable). Zoom stays private. Studio filters each actor's session audience and rechecks protected Join. Current scoped MOU Admins retain their existing authority; ordinary classroom/content reads do not call Source. Keep43200/43200/60.
+
+Baqarah is ongoing, so no completion date or invented timetable is required to attach its separate approved prepared recording lessons. Old Academy MOU PDF/video references remain untouched and excluded. Actual historical recording month/cohort and native website/asset identities need review before activation. Recordings may have zero or multiple supporting readings; they are independent of live timetable sessions. The target V1/native-operation contract and paired local evidence are in the shared `outputs/academy-mou-studio-20261031` handoff.
+
+No release configuration, deployed version, hosted data, DNS, old screen or Git remote is changed by this candidate. Source0017 is required even when the new registration flag is disabled because signed access projection consults its empty registry.

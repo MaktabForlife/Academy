@@ -22,9 +22,10 @@ export async function projectTimetable(db,scope,{now=Date.now()}={}){
  const settings=await all(db,'SELECT * FROM academy_settings WHERE setting_key IN(SELECT value FROM json_each(?))',JSON.stringify([...new Set(calendar.map(annualKey))]));
  const suppressions=await all(db,'SELECT * FROM academy_calendar_suppressions WHERE calendar_date>=? AND calendar_date<=?',start,end);
  const holidays=noTeachingCalendarEvents({calendar,suppressions,settings},start,end,activity.activity_key);
+ const classLabels=new Map();
  const append=async(key,title,date,startTime,endTime,timezone,meeting,cancelled=false,classIds=[],teacherIds=[])=>{
   const times=lessonTimes({date,startTime,endTime,timezone});if(!Number.isSafeInteger(times.startsAt)||!Number.isSafeInteger(times.endsAt)||times.endsAt<=times.startsAt)throw Error('INVALID_PUBLISHED_CLOCK');
-  const off=Boolean(cancelled||holidayOnDate(holidays,date));sessions.push({id:'ws-'+await sha256(JSON.stringify(key)),title,startsAt:times.startsAt,endsAt:times.endsAt,zoomUrl:off?'':zoom(meeting),cancelled:off,classIds,teacherIds});
+  const off=Boolean(cancelled||holidayOnDate(holidays,date));sessions.push({id:'ws-'+await sha256(JSON.stringify(key)),title,startsAt:times.startsAt,endsAt:times.endsAt,timezone,classes:classIds.map(id=>({id,label:classLabels.get(id)||null})),zoomUrl:off?'':zoom(meeting),cancelled:off,classIds,teacherIds});
   bounded(sessions,200,'TIMETABLE_WINDOW_TOO_LARGE');
  };
  if(activity.kind==='PROGRAM'){
@@ -33,7 +34,8 @@ export async function projectTimetable(db,scope,{now=Date.now()}={}){
   const future=bounded(await all(db,select+' AND p.effective_from>? AND p.effective_from<=? AND p.version_no>? ORDER BY p.effective_from LIMIT 51',activity.activity_key,activity.activity_key,start,end,base[0]?.version_no||0),50,'TOO_MANY_SCHEDULED_PUBLICATIONS');
   const history=[...base,...future].map(p=>publicationRecord({PublicationID:p.publication_id,VersionNo:p.version_no,SnapshotJSON:p.snapshot_json,Lifecycle:p.lifecycle}, {id:activity.activity_id})).map((p,i)=>({...p,sourceTimezone:[...base,...future][i].timezone}));
   const classIds=[...new Set(history.flatMap(p=>p.occurrences.flatMap(r=>r.classIds||[])))];
-  const classes=await all(db,'SELECT class_id,zoom_link FROM classes WHERE activity_key=? AND class_id IN(SELECT value FROM json_each(?))',activity.activity_key,JSON.stringify(classIds));
+  const classes=await all(db,'SELECT class_id,name,zoom_link FROM classes WHERE activity_key=? AND class_id IN(SELECT value FROM json_each(?))',activity.activity_key,JSON.stringify(classIds));
+  for(const c of classes)if(c.name)classLabels.set(c.class_id,c.name);
   const override=await db.prepare('SELECT setting_value FROM academy_settings WHERE setting_key=?').bind(programZoomKey(activity.activity_key)).first('setting_value');
   for(let date=start;date<=end;date=addDays(date,1)){
    const chosen=publicationSchedule(history,date),pub=history.find(p=>p.id===chosen.currentPublicationId);if(!pub)continue;
