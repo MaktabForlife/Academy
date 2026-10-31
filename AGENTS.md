@@ -22,6 +22,16 @@
 - The public R2 catalogue retains its original10 entries (9 ready and1 pending) and adds13 verified native Course links. Qana’ah remains within Imra’tun Mu’minah; unbuilt notices stay inert. The approved updated Spending version4/podcast presentation is published through protected native media.
 - Keep live checks small. Final scoped postflight examined1072 rows and wrote0; five small unsigned HTTP requests verified the catalogue, cover and sign-in denials. This excludes necessary migration/publication work and is not a daily usage estimate. No live learner playback/Zoom Join, mobile/audio QA, DNS/V109 launch, screen retirement or Git push was performed. Private evidence remains in parent outputs/academy-release-1088-20261031.
 - Future UI releases must include this backend/access baseline and the reviewed asset composition. Do not deploy raw public/: the frozen release excludes the obsolete anonymous Imra’tun payload and private author packages. Reconcile UI assets with local-content/release-1088-final/public and preserve the native public catalogue and R2 teaching content.
+# Offline Learn / Teach / Admin GUI rebuild — 31 October 2026
+
+- Work locally on `feature/academy-workspaces-ui` in this isolated checkout, based on the released V108.7 source and completed handover documentation at `67000f231305ca52f8ef0ea89d16f00c0f2dfa91`. Do not edit the separately owned migration, MOU, release or Circles UI worktrees.
+- The owner requested rebuilding Learn, Teach and Admin offline on a separate feature branch. Use sample data and an isolated preview for UI review. No live sign-in, production API/database calls, hosted changes, deployment or push is authorised by this request.
+- Preserve the current content and functions. Do not add teaching content or new features without asking the owner. Layout, hierarchy, spacing and interaction design may change.
+- Learn and Teach on desktop should aim for one compact screen per programme. Keep programme/class context while opening details in place. Preserve the current programme, class, lesson, permission and publication boundaries; do not combine data merely because it shares a screen.
+- Mobile-first remains the default for Learn and routine Teach. Some Admin screens may offer limited mobile functionality; review full-mobile, limited-mobile or desktop-only support screen by screen with the owner. Some teaching operations may also need desktop treatment where necessary.
+- Keep Tafseer and standalone Course websites out of Academy Learn/Teach. Preserve the current per-offering Studio handover and the separately owned MOU monthly-access/timetable work. MOU media is not to be moved by this GUI project.
+- Build presentation against local fixtures first, keeping real Academy/Studio adapters and auth/rights rules intact. A prototype role switch or sample save is not real authority, enrolment, payment, publication or account editing.
+- See `docs/WORKSPACE-UI-REBUILD-2026-10-31.md` for the working brief and baseline. Release markers stay unchanged until a separately authorised release. Historical deployment approvals below are fulfilled and do not authorise this branch's release.
 
 # Course and Tafseer ownership handover complete — 31 October 2026
 
