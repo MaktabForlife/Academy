@@ -6,7 +6,7 @@ export const courseStudioEnabled=env=>env.ACADEMY_WEB_PLATFORM==='1'&&env.ACADEM
 // current-session/scope guards. A job is never inferred from an ordinary read.
 export async function planCourseStudio(store,env,course,input,details){
  if(!courseStudioEnabled(env))return {statements:[],started:false};
- const eligible=await env.ACADEMY_DB.withSession('first-primary').prepare('SELECT EXISTS(SELECT 1 FROM website_platform_course_jobs j WHERE j.activity_key=n.activity_key) existing FROM website_platform_new_courses n WHERE activity_key=?').bind(course.activityKey).first();
+ const eligible=await env.ACADEMY_DB.withSession('first-primary').prepare('SELECT EXISTS(SELECT 1 FROM website_platform_course_jobs j WHERE j.activity_key=n.activity_key) existing FROM website_platform_new_courses n WHERE activity_key=? AND NOT EXISTS(SELECT 1 FROM website_platform_completed_courses h WHERE h.activity_key=n.activity_key)').bind(course.activityKey).first();
  if(!eligible)return {statements:[],started:false};
  const metadata=store.p('UPDATE website_platform_new_courses SET published_title=?,published_timezone=? WHERE activity_key=?',details.name,details.timezone,course.activityKey);
  if(eligible.existing)return {statements:[metadata],started:false};

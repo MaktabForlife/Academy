@@ -1,4 +1,5 @@
 import {courseStudioEnabled,planCourseStudio,courseStudioStatus,resumeCourseStudio} from './web-platform/course-publication.mjs';
+import {planCompletedCourse} from './web-platform/completed-course.mjs';
 import {moduleCatalogueQueries,academyModuleCategory,resolveModuleCategory} from './module-catalogue.js';
 import {managementStore,managementError,same,liveRoles,profileDTO,rowChanged} from './management-store.js';
 import {assignmentDTO,scopeDTO,d1Profiles} from './profiles.js';
@@ -193,14 +194,14 @@ export function d1CourseManagement(repository,auth,env={}) {
       const a=data.activities.find(a=>same(a.activity_key,course.activityKey));
       return {scope:await scopeDTO(data,a),accounts:await Promise.all(data.accounts.map(async account=>({...profileDTO(data,account),assignment:await assignmentDTO(data,account,a)}))),roles:editableRoles};
     }
-    if(!['save','public-card-save','validate','accept','publish','status','repeat','copy','participant-create'].includes(action))throw managementError('Unknown Course action.',404);
+    if(!['save','register-completed','public-card-save','validate','accept','publish','status','repeat','copy','participant-create'].includes(action))throw managementError('Unknown Course action.',404);
     return store.change('COURSE_MANAGEMENT',input.courseId?'COURSE:'+input.courseId:'ACADEMY','course-editor/'+action,input,async()=>{
       const data=await load(['validate','accept','publish'].includes(action)),guardData={...data,accounts:data.accounts.map(a=>({...a}))},statements=[];
       let c;
-      if(action==='save'&&!input.courseId){
+      if(['save','register-completed'].includes(action)&&!input.courseId){
         if(!auth.state.account.global_admin)throw managementError('Only a Global Admin can create Courses.',403,'FORBIDDEN');
         c={courseId:'COURSE-'+crypto.randomUUID(),runId:'CMRUN-'+crypto.randomUUID(),revision:'0',stage:'DRAFT',completedAt:null,repeatedFrom:null};c.activityKey='COURSE:'+c.courseId;
-      }else{c=await selected(data,input);if(!['participant-create','public-card-save'].includes(action))checkRevision(c,input);}
+      }else{c=await selected(data,input);if(!['participant-create','public-card-save','register-completed'].includes(action))checkRevision(c,input);}
       const creating=!data.activities.some(a=>same(a.activity_key,c.activityKey));
       function createActivity(name,accessModel,inactiveDraft=false){
         const now=new Date().toISOString();
@@ -208,7 +209,22 @@ export function d1CourseManagement(repository,auth,env={}) {
         if(courseStudioEnabled(env))statements.push(p('INSERT INTO website_platform_new_courses(activity_key,created_operation) VALUES(?,?)',c.activityKey,input.operationId));
       }
       let result;
-      if(action==='public-card-save'){
+      if(action==='register-completed'){
+        if(!auth.state.account.global_admin)throw managementError('Current Global Admin authority is required to register completed Courses.',403,'FORBIDDEN');
+        if(c.currentPublication||data.runs.some(r=>same(r.activity_key,c.activityKey)&&r.active))throw managementError('This Course still has a timetable delivery. Complete that delivery through its existing controls.',409,'COURSE_DELIVERY_ACTIVE');
+        const timezone=creating?data.settings.find(s=>s.setting_key==='PlatformTimezone')?.setting_value||'Africa/Johannesburg':c.details.timezone;
+        const registration=await planCompletedCourse(store,env,c,input,{timezone});
+        if(!registration.existing){
+          const details=creating?{...blank(timezone),name:input.name.trim(),accessModel:input.accessModel}:{...c.details,name:input.name.trim(),accessModel:input.accessModel};
+          if(creating)createActivity(details.name,details.accessModel);
+          else statements.push(p('UPDATE activities SET name=?,updated_at=?,revision=revision+1 WHERE activity_key=?',details.name,new Date().toISOString(),c.activityKey),p("UPDATE course_settings SET legacy_access_model=?,policy_review_state='CONFIRMED' WHERE activity_key=?",details.accessModel,c.activityKey));
+          // Completion is explicitly confirmed. Its historical date is unknown;
+          // registration time must not be presented as a lesson/completion date.
+          saveMeta(statements,c,details,'COMPLETE',null,c.completedAt||null);
+          statements.push(...registration.statements);
+        }
+        result={...registration.result,message:'Completed Course registered for Studio. Reconcile and hand over existing access before managing it in Studio.'};
+      }else if(action==='public-card-save'){
         if(input.baseCardRevision!==c.publicCardRevision)throw rowChanged(c.publicCard,c.publicCardRevision);
         const publicCard=normalizePublicCard(input.publicCard),publicCardRevision=await payloadHash(publicCard);
         statements.push(p(`INSERT INTO academy_settings(setting_key,setting_value,updated_at,updated_by_account_id) VALUES(?,?,?,?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value,updated_at=excluded.updated_at,updated_by_account_id=excluded.updated_by_account_id`,courseCardKey(c.activityKey),JSON.stringify(publicCard),new Date().toISOString(),auth.user.accountid));

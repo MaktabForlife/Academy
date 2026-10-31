@@ -11,13 +11,13 @@ const zoom=value=>{if(!value)return '';const u=new URL(value);if(u.protocol!=='h
 // Only current and scheduled publications for one explicitly mapped offering.
 // Visitors, rosters, payment registers and historical publication bodies are absent.
 export async function projectTimetable(db,scope,{now=Date.now()}={}){
- const activity=await db.prepare(`SELECT a.activity_key,a.activity_id,a.kind,COALESCE(NULLIF(n.published_title,''),a.name) name,a.active,a.lifecycle FROM activities a LEFT JOIN website_platform_new_courses n USING(activity_key) WHERE a.activity_key=?`).bind(scope.activity_key).first();
+ const activity=await db.prepare(`SELECT a.activity_key,a.activity_id,a.kind,COALESCE(h.title,NULLIF(n.published_title,''),a.name) name,a.active,a.lifecycle,h.registration_id completed_registration FROM activities a LEFT JOIN website_platform_completed_courses h USING(activity_key) LEFT JOIN website_platform_new_courses n USING(activity_key) WHERE a.activity_key=?`).bind(scope.activity_key).first();
  if(!activity)throw Error('SOURCE_OFFERING_MISSING');
  const start=addDays(new Date(now).toISOString().slice(0,10),-1),end=addDays(start,57),sessions=[];
  if(activity.kind==='COURSE'&&scope.kind!=='COURSE'||activity.kind==='PROGRAM'&&scope.kind==='COURSE')throw Error('INVALID_OFFERING_MAPPING');
  const event={type:'timetable',mode:'snapshot',offering:{id:scope.offering_id,kind:scope.kind,title:activity.name,active:true},sessions};
  // Source retirement stops live delivery, never a former purchaser's retained material rights.
- if(!activity.active||activity.lifecycle!=='ACTIVE')return event;
+ if(activity.completed_registration||!activity.active||activity.lifecycle!=='ACTIVE')return event;
  const calendar=bounded(await all(db,"SELECT * FROM academy_calendar_events WHERE scope_key IN ('ACADEMY',?) AND teaching_impact='NO_TEACHING' AND active=1 AND start_date<=? LIMIT 501",activity.activity_key,end),500,'CALENDAR_SCOPE_TOO_LARGE');
  const settings=await all(db,'SELECT * FROM academy_settings WHERE setting_key IN(SELECT value FROM json_each(?))',JSON.stringify([...new Set(calendar.map(annualKey))]));
  const suppressions=await all(db,'SELECT * FROM academy_calendar_suppressions WHERE calendar_date>=? AND calendar_date<=?',start,end);
