@@ -22,3 +22,50 @@
  .circle .single-circle-home .hub-worship-learning .hub-panel-copy>h3{font-size:11px}
  .circle .single-circle-home .hub-worship-learning .tafseer-name{font-size:28px}
 }
+
+/* Arrangement supplied by the owner on 31 October at 18:42. */
+.circle .single-circle-home .home-reference-arrangement .hub-academy-centre{background:#674f5f;color:#fff9f4}
+.circle .single-circle-home .home-reference-arrangement .hub-worship-learning{background:#8b7778;color:#fffaf6;border:0;border-radius:0}
+.circle .single-circle-home .home-reference-arrangement .hub-worship-learning .hub-panel-copy>h3{font-size:15px;line-height:1.4;letter-spacing:0;margin:0 0 12px}
+.circle .single-circle-home .home-reference-arrangement .worship-programme-row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);align-items:center;gap:12px;width:auto;margin:0 0 8px 76px}
+.circle .single-circle-home .home-reference-arrangement .worship-programme-row h4{font:400 16px/1.4 var(--sans);margin:0}
+.circle .single-circle-home .home-reference-arrangement .worship-programme-row [lang=ar]{font:400 25px/1.4 'Amiri',serif;text-align:right;white-space:nowrap}
+.circle .single-circle-home .home-reference-arrangement .hub-worship-learning .worship-purpose{font:italic 18px/1.3 Georgia,serif;margin:10px 0 0;text-align:right;color:inherit}
+.circle .single-circle-home .home-reference-arrangement .hub-image-copy>*{max-width:none!important;color:inherit}
+.circle .single-circle-home .home-reference-arrangement .hub-image-copy .meta{display:block;font:600 8px/1.4 var(--sans);letter-spacing:0;margin:0 0 3px}
+.circle .single-circle-home .home-reference-arrangement .hub-image-copy .arwa-name{font:400 25px/1.35 'Amiri',serif;max-width:none;text-align:center;margin:0 0 8px}
+.circle .single-circle-home .home-reference-arrangement .hub-image-copy p{font:400 10px/1.5 var(--sans);margin:0}
+.circle .single-circle-home .home-reference-arrangement .hub-progress{display:flex;flex-direction:column;justify-content:space-between;background:#b77961;border-radius:2px}
+.circle .single-circle-home .home-reference-arrangement .hub-progress>.meta{font:400 10px/1.5 var(--sans);letter-spacing:.025em;margin:0}
+.circle .single-circle-home .home-reference-arrangement .academia-programmes{font:500 18px/1.55 var(--sans);letter-spacing:.045em;margin:0;color:inherit}
+.circle .single-circle-home .home-reference-arrangement .academia-purpose{font:400 20px/1.3 var(--serif);letter-spacing:-.3px;margin:0;color:inherit}
+@media(min-width:821px){
+ .circle .single-circle-home .circle-hub-frame:has(>.home-reference-arrangement){height:calc(590px * var(--home-composition-scale,1))}
+ .circle .single-circle-home .circle-hub-frame>#animated-hub.home-reference-arrangement{display:block;width:1246px;height:590px;min-height:590px;margin:0}
+ body.circle .single-circle-home #animated-hub.home-reference-arrangement>[data-preview-block]{--home-layout-x:0px!important;--home-layout-y:0px!important;position:absolute;inset:auto;bottom:auto!important;min-height:0;margin:0;transform:none;animation:none!important;opacity:1;border-radius:2px;box-sizing:border-box}
+ body.circle .single-circle-home #animated-hub.home-reference-arrangement>.hub-academy-centre{left:360px;top:0;width:535px!important;height:535px;aspect-ratio:1;border-radius:50%;padding:64px 48px;z-index:2}
+ .circle .single-circle-home #animated-hub.home-reference-arrangement>.hub-academy-centre h1{font-size:52px;line-height:1.13;letter-spacing:-1.7px;margin:0 0 28px}
+ .circle .single-circle-home #animated-hub.home-reference-arrangement>.hub-academy-centre .hub-academy-tagline{font:italic 28px/1.25 var(--serif);max-width:none;width:100%;margin:0 0 35px}
+ .circle .single-circle-home #animated-hub.home-reference-arrangement>.hub-academy-centre .hub-academy-signoff{font:500 18px/1.4 var(--sans);max-width:none;margin:0}
+ body.circle .single-circle-home #animated-hub.home-reference-arrangement>.hub-photo-card{left:0;top:64px;width:440px!important;height:238px;padding:0;overflow:hidden;z-index:3}
+ .circle .single-circle-home #animated-hub.home-reference-arrangement>.hub-photo-card>img{width:100%;height:142px;object-fit:cover;object-position:50% 36%}
+ .circle .single-circle-home #animated-hub.home-reference-arrangement>.hub-photo-card .hub-image-copy{padding:10px 12px;height:96px;background:#46635f}
+ body.circle .single-circle-home #animated-hub.home-reference-arrangement>.hub-worship-learning{left:790px;top:11px;width:456px!important;height:184px;padding:13px 18px 14px 28px;z-index:1}
+ body.circle .single-circle-home #animated-hub.home-reference-arrangement>.hub-progress{left:823px;top:271px;width:354px!important;height:212px;padding:26px;z-index:3}
+ body.circle .single-circle-home #animated-hub.home-reference-arrangement>.hub-arabic{left:205px;top:447px;width:410px!important;height:108px;grid-template-columns:102px minmax(0,1fr);z-index:3}
+ .circle .single-circle-home #animated-hub.home-reference-arrangement>.hub-arabic>.hub-panel-copy{padding:13px 16px}
+ .circle .single-circle-home #animated-hub.home-reference-arrangement>.hub-arabic h3{font-size:23px;line-height:1.2;margin:0 0 10px}
+ .circle .single-circle-home #animated-hub.home-reference-arrangement>.hub-arabic p{font-size:13px;line-height:1.55;margin:0}
+}
+@media(max-width:820px){
+ .circle .single-circle-home .home-reference-arrangement>.hub-photo-card{order:1;min-height:210px}
+ .circle .single-circle-home .home-reference-arrangement>.hub-worship-learning{order:2;padding:20px}
+ .circle .single-circle-home .home-reference-arrangement>.hub-progress{order:3;gap:20px;padding:22px}
+ .circle .single-circle-home .home-reference-arrangement>.hub-arabic{order:4}
+ .circle .single-circle-home .home-reference-arrangement .worship-programme-row{margin-left:0;gap:10px}
+ .circle .single-circle-home .home-reference-arrangement .worship-programme-row h4{font-size:12px}
+ .circle .single-circle-home .home-reference-arrangement .worship-programme-row [lang=ar]{font-size:20px}
+ .circle .single-circle-home .home-reference-arrangement .hub-worship-learning .hub-panel-copy>h3{font-size:12px}
+ .circle .single-circle-home .home-reference-arrangement .hub-worship-learning .worship-purpose{font-size:16px}
+ .circle .single-circle-home .home-reference-arrangement .academia-programmes{font-size:16px}
+}

@@ -70,7 +70,7 @@ const server=createServer(async(req,res)=>{
   if(url.pathname==='/js/m4l-config.js'){res.setHeader('Content-Type','text/javascript');res.end('window.M4L_CONFIG={API_BASE:location.origin,ACCEPTED_SETUP:true,NATIVE_ATTENDANCE:true,MEDIA_SEPARATION:true,LEARNING_OPERATIONS:3,IS_DEVELOPMENT:true};');return;}
   if(url.pathname.startsWith('/__signin/')){
    const who=url.pathname.split('/').at(-1);if(!tokens[who]){res.writeHead(404);res.end();return;}
-   res.setHeader('Content-Type','text/html; charset=utf-8');res.end('<script>const homepageDraft=localStorage.getItem("academy-workspace-homepage-v1");localStorage.clear();if(homepageDraft)localStorage.setItem("academy-workspace-homepage-v1",homepageDraft);sessionStorage.clear();localStorage.setItem("m4l_account_token",'+JSON.stringify(tokens[who])+');location.replace('+JSON.stringify(destinations[who])+');</script>');return;
+   res.setHeader('Content-Type','text/html; charset=utf-8');res.end('<script>const homepageDrafts=Object.entries(localStorage).filter(([key])=>key==="academy-workspace-homepage-v1"||key.startsWith("academy-workspace-homepage-v1-before-"));localStorage.clear();for(const [key,value] of homepageDrafts)localStorage.setItem(key,value);sessionStorage.clear();localStorage.setItem("m4l_account_token",'+JSON.stringify(tokens[who])+');location.replace('+JSON.stringify(destinations[who])+');</script>');return;
   }
   if(url.pathname==='/api/academy/header-date'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({success:true,gregorian:new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Johannesburg',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()),hijri:null,hijriUnavailable:true}));return;}
   if(url.pathname.startsWith('/api/')){

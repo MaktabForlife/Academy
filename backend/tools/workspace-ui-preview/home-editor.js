@@ -1,15 +1,19 @@
 // Local review tools only. Text is kept as text; no HTML or production writes.
-import {applyHomepageReview} from './homepage-review.js';
+import {applyHomepageReview,homepageReviewId} from './homepage-review.js';
 const storageKey='academy-workspace-homepage-v1';
 const selectors={circle:'.hub-academy-centre',hifz:'[data-home-area="hifz"]',tafseer:'[data-home-area="tafseer"]',academy:'[data-home-area="academy"]',mothers:'[data-home-area="mothers"]','arabic-adventures':'[data-home-area="arabic-adventures"]'};
-const empty=()=>({version:1,text:{},positions:{full:{},compact:{}}});
+const empty=()=>({version:1,layoutId:homepageReviewId,text:{},positions:{full:{},compact:{}}});
 let draft=empty(),mode='',drag=null,suppressClick=null,refreshQueued=false;
 const originals=new Map();
 try{
  const stored=JSON.parse(localStorage.getItem(storageKey));
  if(stored?.version===1){
+  const sameLayout=stored.layoutId===homepageReviewId;
+  if(!sameLayout){
+   try{const backup=storageKey+'-before-'+homepageReviewId;if(!localStorage.getItem(backup))localStorage.setItem(backup,JSON.stringify(stored));}catch{}
+  }
   for(const [key,value] of Object.entries(stored.text||{}))if(typeof value==='string'&&value.length<20000)draft.text[key]=value;
-  for(const profile of ['full','compact'])for(const [key,p] of Object.entries(stored.positions?.[profile]||{}))if(Object.hasOwn(selectors,key)&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&Math.abs(p.x)<=2&&Math.abs(p.y)<=2)draft.positions[profile][key]={x:p.x,y:p.y};
+  if(sameLayout)for(const profile of ['full','compact'])for(const [key,p] of Object.entries(stored.positions?.[profile]||{}))if(Object.hasOwn(selectors,key)&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&Math.abs(p.x)<=2&&Math.abs(p.y)<=2)draft.positions[profile][key]={x:p.x,y:p.y};
  }
 }catch{}
 
@@ -103,7 +107,7 @@ toolbar.addEventListener('click',event=>{
  if(action==='export'){
   save();
   const text=Object.entries(draft.text).map(([key,value])=>({key,original:originals.get(key)||'',text:value}));
-  const payload={kind:'umm-abbad-homepage-ui-draft',...draft,textEdits:text,baseLayoutId:window.AcademyHomepageLayout?.id,exportedAt:new Date().toISOString(),viewport:{width:innerWidth,height:innerHeight}};
+  const payload={kind:'umm-abbad-homepage-ui-draft',...draft,textEdits:text,baseLayoutId:homepageReviewId,sourceLayoutId:window.AcademyHomepageLayout?.id,exportedAt:new Date().toISOString(),viewport:{width:innerWidth,height:innerHeight}};
   const href=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));
   const link=document.createElement('a');link.href=href;link.download='umm-abbad-homepage-edits.json';link.click();setTimeout(()=>URL.revokeObjectURL(href),1000);
   status('Exported your text and layout edits.');
