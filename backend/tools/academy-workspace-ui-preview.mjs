@@ -7,10 +7,13 @@ import {mobileFirstFixture} from './mobile-first-preview/fixture.mjs';
 import {openLibraryFixture} from '../tests/fixtures/academy-d1-open-library-fixture.mjs';
 import worker from '../src/academy-runtime.js';
 import {circlesPublicFile,circlesHomepage,previewLogin,previewWebsiteReturn} from './workspace-ui-preview/circles-home.mjs';
+import {createCirclesTransport,previewApi} from './workspace-ui-preview/circles-transport.mjs';
 
 const root=realpathSync(fileURLToPath(new URL('../../',import.meta.url)));
-const circlesRoot=path.resolve(process.env.WORKSPACE_UI_CIRCLES_ROOT||path.join(root,'../AcademyStudio-handover-1087/local-content/release-1087/public'));
+const circlesRoot=path.resolve(process.env.WORKSPACE_UI_CIRCLES_ROOT||path.join(root,'../AcademyStudio-launch-109/local-content/release-109/public'));
 const fixture=await mobileFirstFixture();
+// Explicit disposable programme mappings, never inferred from course names.
+fixture.env.WEBSITE_PLATFORM_NAVIGATION=JSON.stringify({alimiyah:fixture.scopes.programA.slice(8),reboot:fixture.scopes.programB.slice(8),mothers:'PRG-656bcece-4310-49c7-87d7-ee06756f66c1'});
 const libraryFixture=await openLibraryFixture();
 for(const key of ['PROGRAM_TIMETABLE_COORDINATOR','ACADEMY_OPEN_LIBRARY_STORAGE_KEY','MEDIA_BUCKET'])fixture.env[key]=libraryFixture.env[key];
 // Match the published synthetic lessons to the preview's teacher account.
@@ -35,10 +38,11 @@ for(let i=1;i<=3;i++){
  fixture.db.prepare("INSERT INTO lesson_media_lessons(lesson_id,activity_key,class_id,lesson_date,title,start_time,end_time,teacher_id,teacher_name,summary,state,teacher_ids_json,updated_at) VALUES(?,?,'class-1',?,'Shared lesson','10:00','11:00',?,'Synthetic teacherA','Sample recording entry for reviewing the existing media controls.','PUBLISHED',?,?)").run(id,fixture.scopes.programA,date,fixture.actors.teacherA,JSON.stringify([fixture.actors.teacherA]),new Date().toISOString());
 }
 const tokens=Object.fromEntries(await Promise.all(['studentA','teacherA','global'].map(async who=>[who,await fixture.actor(who)])));
-const destinations={studentA:'/academy/#dashboard',teacherA:'/academy/#dashboard',global:'/academy/admin/#dashboard'};
+const destinations={studentA:'/?previewDashboard=1',teacherA:'/?previewDashboard=1',global:'/?previewDashboard=1'};
 const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json','.png':'image/png','.svg':'image/svg+xml','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ttf':'font/ttf','.woff':'font/woff','.woff2':'font/woff2','.ico':'image/x-icon','.pdf':'application/pdf'};
 const csp="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src 'self' blob:; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'";
 let origin='';
+const circlesTransport=createCirclesTransport({env:fixture.env,worker,origin:()=>origin});
 const originalFetch=globalThis.fetch;
 globalThis.fetch=(resource,options)=>{
  const url=new URL(typeof resource==='string'||resource instanceof URL?resource:resource.url);
@@ -51,7 +55,18 @@ const server=createServer(async(req,res)=>{
   const allowedHosts=['127.0.0.1:'+server.address().port,'localhost:'+server.address().port];
   if(!allowedHosts.includes(req.headers.host)||req.headers.origin&&!allowedHosts.some(host=>req.headers.origin==='http://'+host)){res.writeHead(403);res.end('Local review only.');return;}
   const url=new URL(req.url,origin);
+  // A display preference only: authority always comes from the fixture session.
+  const dashboardView=url.searchParams.get('public')!=='1'&&(url.searchParams.get('previewDashboard')==='1'||/(?:^|;\s*)workspace-preview-view=dashboard(?:;|$)/.test(req.headers.cookie||''));
+  if(url.searchParams.get('previewDashboard')==='1')res.setHeader('Set-Cookie','workspace-preview-view=dashboard; Path=/; SameSite=Strict; HttpOnly');
+  if(url.searchParams.get('public')==='1')res.setHeader('Set-Cookie','workspace-preview-view=public; Path=/; SameSite=Strict; HttpOnly');
   res.setHeader('Cache-Control','no-store');res.setHeader('X-Robots-Tag','noindex, nofollow');res.setHeader('Content-Security-Policy',csp);res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Content-Type-Options','nosniff');
+  if(url.pathname.startsWith('/__preview/transport/')){
+   const chunks=[];for await(const part of req)chunks.push(part);
+   const response=await circlesTransport(url.pathname.slice('/__preview/transport'.length),new Request(origin+url.pathname,{method:req.method,headers:req.headers,...(!['GET','HEAD'].includes(req.method)?{body:Buffer.concat(chunks)}:{})}));
+   if(url.pathname.endsWith('/auth/logout')&&response.ok)res.setHeader('Set-Cookie','workspace-preview-view=public; Path=/; SameSite=Strict; HttpOnly');
+   res.statusCode=response.status;res.setHeader('Content-Type','application/json');res.end(Buffer.from(await response.arrayBuffer()));return;
+  }
+  if(url.pathname==='/__preview/circles-connector.mjs'){res.setHeader('Content-Type','text/javascript');res.end(readFileSync(new URL('./workspace-ui-preview/circles-connector.mjs',import.meta.url)));return;}
   if(url.pathname==='/__preview/circles-login.js'){
    res.setHeader('Content-Type','text/javascript; charset=utf-8');res.end(previewLogin);return;
   }
@@ -62,7 +77,9 @@ const server=createServer(async(req,res)=>{
   if(circlesFile){
    const extension=path.extname(circlesFile);
    let body=readFileSync(circlesFile);
-   if(extension==='.html')body=Buffer.from(circlesHomepage(circlesFile).replace(/<body([^>]*)>/i,'<body$1>'+guard));
+   if(extension==='.html')body=Buffer.from(circlesHomepage(circlesFile,{dashboard:dashboardView}).replace(/<body([^>]*)>/i,'<body$1>'+guard));
+   if(path.basename(circlesFile)==='api.mjs')body=Buffer.from(previewApi(body.toString()));
+   if(path.basename(circlesFile)==='circles-login.mjs')body=Buffer.from(body.toString().replace("from './shared/circles-sign-in.mjs'","from '/__preview/circles-connector.mjs'"));
    // Keep this review offline. DM Sans is provided by the existing local font files.
    if(path.basename(circlesFile)==='style.css')body=Buffer.from(body.toString().replace(/@import url\(['"]https:\/\/fonts\.googleapis\.com\/[^)]+\)\s*;/g,''));
    res.setHeader('Content-Type',mime[extension]);res.end(body);return;
@@ -72,7 +89,7 @@ const server=createServer(async(req,res)=>{
    const who=url.pathname.split('/').at(-1);if(!tokens[who]){res.writeHead(404);res.end();return;}
    res.setHeader('Content-Type','text/html; charset=utf-8');res.end('<script>const homepageDrafts=Object.entries(localStorage).filter(([key])=>key==="academy-workspace-homepage-v1"||key.startsWith("academy-workspace-homepage-v1-before-"));localStorage.clear();for(const [key,value] of homepageDrafts)localStorage.setItem(key,value);sessionStorage.clear();localStorage.setItem("m4l_account_token",'+JSON.stringify(tokens[who])+');location.replace('+JSON.stringify(destinations[who])+');</script>');return;
   }
-  if(url.pathname==='/api/academy/header-date'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({success:true,gregorian:new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Johannesburg',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()),hijri:null,hijriUnavailable:true}));return;}
+  if(['/api/academy/header-date','/api/public/header-date'].includes(url.pathname)){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({success:true,gregorian:new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Johannesburg',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()),hijri:null,hijriUnavailable:true,timezone:'Africa/Johannesburg',source:'https://jamiat.org.za/'}));return;}
   if(url.pathname.startsWith('/api/')){
    if(/\/(?:join|program-join|course-join)(?:\/|$)/.test(url.pathname)){res.writeHead(409,{'Content-Type':'application/json'});res.end(JSON.stringify({success:false,error:'Live joining is unavailable in this offline review.',code:'OFFLINE_REVIEW'}));return;}
    const chunks=[];for await(const part of req)chunks.push(part);

@@ -10,13 +10,15 @@ test('preview serves only public homepage assets and never lesson payloads or fi
  const temporary=realpathSync(mkdtempSync(path.join(os.tmpdir(),'academy-ui-circles-')));
  t.after(()=>rmSync(temporary,{recursive:true,force:true}));
  const root=path.join(temporary,'public');mkdirSync(path.join(root,'circles/assets'),{recursive:true});
- for(const name of ['index.html','circles/app.js','circles/assets/logo.png'])writeFileSync(path.join(root,name),'fixture');
+ mkdirSync(path.join(root,'shared'));
+ for(const name of ['index.html','circles/app.js','circles/assets/logo.png','circles-login.mjs','shared/circles-block-navigation.mjs'])writeFileSync(path.join(root,name),'fixture');
  writeFileSync(path.join(temporary,'private.png'),'private');
  symlinkSync(path.join(temporary,'private.png'),path.join(root,'circles/assets/outside.png'));
  assert.equal(circlesPublicFile(root,'/'),path.join(root,'index.html'));
  assert.equal(circlesPublicFile(root,'/circles/app.js'),path.join(root,'circles/app.js'));
  assert.equal(circlesPublicFile(root,'/circles/assets/logo.png'),path.join(root,'circles/assets/logo.png'));
- for(const target of ['/circles/free-learning/lesson.json','/circles/free-learning/notes.pdf','/circles-login.mjs','/circles/assets/../../private.png','/circles/assets/outside.png'])assert.equal(circlesPublicFile(root,target),null,target);
+ assert.equal(circlesPublicFile(root,'/shared/circles-block-navigation.mjs'),path.join(root,'shared/circles-block-navigation.mjs'));
+ for(const target of ['/circles/free-learning/lesson.json','/circles/free-learning/notes.pdf','/admin.mjs','/shared/website-edit-session.mjs','/circles/assets/../../private.png','/circles/assets/outside.png'])assert.equal(circlesPublicFile(root,target),null,target);
 });
 
 test('preview adapts the released entry without running Studio authentication or rewriting the source',t=>{
@@ -28,20 +30,21 @@ test('preview adapts the released entry without running Studio authentication or
  assert.match(output,/<main id="experience">/);
  assert.match(output,/src="\/__preview\/circles-login.js"/);
  assert.doesNotMatch(output,/import\("\/circles-login.mjs"\)/);
+ assert.doesNotMatch(circlesHomepage(file,{dashboard:true}),/home-editor|homepage-review/,'Signed-in circle must retain the released composition, separate from public draft edits');
  writeFileSync(file,'<head></head><body>Changed upstream entry</body>');
  assert.throws(()=>circlesHomepage(file),/entry changed/);
 });
 
-test('signed-out native entrances return to the website while signed-in Home and public readers remain intact',()=>{
+test('native Home returns to the existing root circle while signed-out and public readers remain distinct',()=>{
  function run(pathname,token,hash=''){
   const handlers=new Map(),location={pathname,hash,replace(value){this.destination=value;}};
   vm.runInNewContext(previewWebsiteReturn,{location,localStorage:{getItem:()=>token},window:{addEventListener:(type,fn)=>handlers.set(type,fn)}});
   return {location,handlers,signOut(){token='';handlers.get('m4l-academy-session')?.();}};
  }
- assert.equal(run('/academy/','').location.destination,'/');
- assert.equal(run('/academy/admin/','').location.destination,'/');
+ assert.equal(run('/academy/','').location.destination,'/?public=1');
+ assert.equal(run('/academy/admin/','').location.destination,'/?public=1');
  assert.equal(run('/academy/course-websites/public/','').location.destination,undefined);
  const signedIn=run('/academy/','sample','#dashboard');
- assert.equal(signedIn.location.destination,undefined);
- signedIn.signOut();assert.equal(signedIn.location.destination,'/');
+ assert.equal(signedIn.location.destination,'/?previewDashboard=1');
+ signedIn.signOut();assert.equal(signedIn.location.destination,'/?public=1');
 });

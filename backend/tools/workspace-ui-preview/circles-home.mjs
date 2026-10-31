@@ -11,14 +11,19 @@ const homepageFiles=new Set([
  'free-learning-catalogue.js','free-learning.js','memorisation-catalogue.js',
  'memorisation.js','prospectus-2027.js','homepage-layout.js'
 ]);
+const connectedFiles=new Set(['circles-login.mjs','circles-dashboard.mjs','api.mjs',
+ 'shared/pin-entry.mjs','shared/account-history.mjs','shared/header-icons.mjs',
+ 'shared/header-dates.mjs','shared/remembered-accounts.mjs','shared/model.mjs',
+ 'shared/circles-block-navigation.mjs','shared/circles-dashboard-view.mjs',
+ 'shared/circles-course-row.mjs','shared/circles-sign-in.mjs']);
 
 export function circlesPublicFile(publicRoot,pathname){
- const relative=pathname==='/circles-login.css'?'circles-login.css':
+ const relative=connectedFiles.has(pathname.slice(1))?pathname.slice(1):pathname==='/circles-login.css'?'circles-login.css':
   ['/', '/index.html','/circles/'].includes(pathname)?'index.html':
   pathname.startsWith('/circles/')?pathname.slice(1):'';
  if(!relative)return null;
  const item=relative.slice('circles/'.length);
- const allowed=relative==='index.html'||relative==='circles-login.css'||
+ const allowed=connectedFiles.has(relative)||relative==='index.html'||relative==='circles-login.css'||
   relative.startsWith('circles/')&&(homepageFiles.has(item)||
    /^assets\/[\w./-]+\.(?:png|jpe?g|webp|svg)$/i.test(item));
  if(!allowed||relative.split('/').includes('..'))return null;
@@ -26,17 +31,22 @@ export function circlesPublicFile(publicRoot,pathname){
  return file.startsWith(base+path.sep)?file:null;
 }
 
-export function circlesHomepage(file){
+export function circlesHomepage(file,{dashboard=false}={}){
  const source=readFileSync(file,'utf8');
  const original='<script type="module">if(!window.AcademyCirclesRedirecting)await import("/circles-login.mjs");</script>';
  if(!source.includes(original))throw new Error('The released Circles homepage entry changed; review its preview adapter.');
- return source.replace(original,'<script type="module" src="/__preview/circles-login.js"></script><script type="module" src="/__preview/home-editor.js"></script>')
-  .replace('</head>','<link rel="stylesheet" href="/academy/course-websites/assets/fonts.css"><link rel="stylesheet" href="/academy/course-websites/assets/arabic-font.css"><link rel="stylesheet" href="/__preview/home-editor.css"><link rel="stylesheet" href="/__preview/homepage-review.css"></head>');
+ return source.replace('<html lang="en">','<html lang="en" data-workspace-preview-dashboard="'+dashboard+'">').replace(original,'<script type="module" src="/__preview/circles-login.js"></script>'+(dashboard?'':'<script type="module" src="/__preview/home-editor.js"></script>'))
+  .replace('</head>','<link rel="stylesheet" href="/academy/course-websites/assets/fonts.css"><link rel="stylesheet" href="/academy/course-websites/assets/arabic-font.css">'+(dashboard?'':'<link rel="stylesheet" href="/__preview/home-editor.css"><link rel="stylesheet" href="/__preview/homepage-review.css">')+'</head>');
 }
 
 export const previewLogin=String.raw`
 // No production sign-in or role grant: these links select disposable local fixtures.
 let chooser;
+function unavailableOffline(){
+ let notice=document.getElementById('preview-unavailable');
+ if(!notice){notice=document.createElement('dialog');notice.id='preview-unavailable';notice.className='circles-sign-in';notice.setAttribute('aria-labelledby','preview-unavailable-title');notice.innerHTML='<button type="button" class="circles-sign-in-close" aria-label="Close offline notice">×</button><h2 id="preview-unavailable-title">Offline review</h2><p>This classroom is unavailable in the offline review.</p>';notice.querySelector('button').onclick=()=>notice.close();document.body.append(notice);}
+ if(!notice.open)notice.showModal();
+}
 function openPreviewLogin(){
  document.querySelector('#detail[open]')?.close();
  if(!chooser){
@@ -50,18 +60,35 @@ function openPreviewLogin(){
  if(!chooser.open)chooser.showModal();
 }
 document.addEventListener('click',event=>{
+ const switcher=event.target.closest('[data-circles-switch-user]');
+ if(switcher){event.preventDefault();event.stopImmediatePropagation();openPreviewLogin();return;}
+ const website=event.target.closest('[data-circles-visit-website]');
+ if(website){event.preventDefault();event.stopImmediatePropagation();location.assign('/?public=1');return;}
+ const home=event.target.closest('[data-circles-home]');
+ if(home){event.preventDefault();event.stopImmediatePropagation();location.assign('/?previewDashboard=1');return;}
+ const content=event.target.closest('a[href]'),contentPath=content&&new URL(content.href,location.href).pathname;
+ if(content&&/^\/(?:studio\/|circles\/(?:free-learning\.html|prospectus-2027\.html|academy\/))/.test(contentPath)){event.preventDefault();event.stopImmediatePropagation();unavailableOffline();return;}
  const target=event.target.closest('[data-access-login],[data-circles-login],[data-action="dashboard"],[data-action="academy"],[data-action="collection"],[data-action="course"]');
  if(!target)return;
+ if(localStorage.getItem('m4l_account_token')){
+  if(target.matches('button.public-login'))return;
+  event.preventDefault();event.stopImmediatePropagation();location.assign('/?previewDashboard=1');return;
+ }
  event.preventDefault();event.stopImmediatePropagation();openPreviewLogin();
 },true);
-if(window.AcademyCirclesEntry?.login)openPreviewLogin();
+const requestedLogin=window.AcademyCirclesEntry?.login;
+if(window.AcademyCirclesEntry)window.AcademyCirclesEntry.login=false;
+await import('/circles-login.mjs');
+for(const field of document.querySelectorAll('#circles-sign-in-form input,#circles-sign-in-form button'))field.disabled=true;
+if(requestedLogin)openPreviewLogin();
 `;
 
 export const previewWebsiteReturn=String.raw`
 (()=>{
  const entrance=/^\/academy\/(?:admin\/)?(?:index\.html)?$/.test(location.pathname);
  const returnToWebsite=()=>{
-  if(entrance&&(!localStorage.getItem('m4l_account_token')||location.hash==='#website'))location.replace('/');
+  if(entrance&&(!localStorage.getItem('m4l_account_token')||location.hash==='#website'))location.replace('/?public=1');
+  else if(entrance&&location.hash==='#dashboard')location.replace('/?previewDashboard=1');
  };
  returnToWebsite();
  window.addEventListener('m4l-academy-session',returnToWebsite);
