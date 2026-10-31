@@ -107,7 +107,9 @@
         "HIFZ_PROFILE_SYNC_URL": "https://hifzhelper-api.hifzhelper-app.workers.dev/internal/academy/profile-sync",
         "WEBSITE_PLATFORM_ACADEMY_ORIGIN": "https://academy-maktab4life.pages.dev",
         "WEBSITE_PLATFORM_NAVIGATION": "{\"alimiyah\":\"PRG-7aaad778-bdf8-42e2-8596-d8c2967cda63\",\"reboot\":\"PRG-46c8576d-9fcf-4000-96b9-856b00a0218a\",\"arabic-intensive\":\"PRG-9f2dc5a6-0752-4c89-86a4-39038c64daf9\",\"mothers\":\"PRG-656bcece-4310-49c7-87d7-ee06756f66c1\",\"hifz\":\"PRG-3d6b7972-644c-4f81-b95c-8d6c7ffb8227\"}",
-        "WEBSITE_PLATFORM_ORIGIN": "https://academy-studio-parallel.naidu-hajira.workers.dev"
+        "WEBSITE_PLATFORM_ORIGIN": "https://academy-studio-parallel.naidu-hajira.workers.dev",
+        "ACADEMY_COURSE_STUDIO_PUBLICATION": "1",
+        "ACADEMY_MOU_STUDIO": "1"
       },
       "compatibility_flags": [
         "nodejs_compat"
@@ -195,7 +197,9 @@
     "HIFZ_PROFILE_SYNC_URL": "https://hifzhelper-api.hifzhelper-app.workers.dev/internal/academy/profile-sync",
     "WEBSITE_PLATFORM_ACADEMY_ORIGIN": "https://academy-maktab4life.pages.dev",
     "WEBSITE_PLATFORM_NAVIGATION": "{\"alimiyah\":\"PRG-7aaad778-bdf8-42e2-8596-d8c2967cda63\",\"reboot\":\"PRG-46c8576d-9fcf-4000-96b9-856b00a0218a\",\"arabic-intensive\":\"PRG-9f2dc5a6-0752-4c89-86a4-39038c64daf9\",\"mothers\":\"PRG-656bcece-4310-49c7-87d7-ee06756f66c1\",\"hifz\":\"PRG-3d6b7972-644c-4f81-b95c-8d6c7ffb8227\"}",
-    "WEBSITE_PLATFORM_ORIGIN": "https://academy-studio-parallel.naidu-hajira.workers.dev"
+    "WEBSITE_PLATFORM_ORIGIN": "https://academy-studio-parallel.naidu-hajira.workers.dev",
+    "ACADEMY_COURSE_STUDIO_PUBLICATION": "1",
+    "ACADEMY_MOU_STUDIO": "1"
   },
   "compatibility_flags": [
     "nodejs_compat"
