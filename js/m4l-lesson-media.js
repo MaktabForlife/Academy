@@ -1,12 +1,14 @@
 (() => {
  'use strict';
- let readViewMarker=null,mediaHistoryNonce=crypto.randomUUID(),nativeReader=null,collectionModule=null,recordingView={},managementDate='',binding=null,companionEditor=null;
+ let playlistSettingsOpen=false,readViewMarker=null,mediaHistoryNonce=crypto.randomUUID(),nativeReader=null,collectionModule=null,recordingView={},managementDate='',binding=null,companionEditor=null;
  void import('./m4l-recording-collections.mjs').then(module=>{collectionModule=module;render();});
  const nativeReaderReady=import('./m4l-native-playlist-view.mjs').then(({nativePlaylistReader,recordingViewMarker})=>{readViewMarker=recordingViewMarker;nativeReader=nativePlaylistReader({request:(action,input)=>api(action,{...input,view:'learner'},{playlist:true}),isCurrent:()=>active(),onChange:()=>render()});});
  const currentMediaRows=()=>[...new Map([...(data?.lessons||[]),...(nativeReader?.state().selected?.recordings||[])].map(row=>[row.id,row])).values()];
+ const canLeaveEditor=()=>window.M4L_ACADEMY_PLAYLISTS?.canLeaveRecording?.()!==false&&close();
+ const canLeaveMedia=()=>playlistSettingsOpen?(window.M4L_ACADEMY_PLAYLISTS?.canLeave?.()??canLeaveEditor()):canLeaveEditor();
  function rememberRecordingView(playlistId=nativeReader?.state().selected?.playlist.id||null,replace=false){if(!active())return;const value={...(window.history?.state||{}),m4lRecordingView:{nonce:mediaHistoryNonce,activityKey,view:{...recordingView},playlistId}};window.history?.[replace?'replaceState':'pushState'](value,'');}
  async function restoreRecordingView(){
-  const saved=readViewMarker?.(window.history?.state?.m4lRecordingView,{nonce:mediaHistoryNonce,activityKey});if(!saved||!active())return;recordingView=saved.view;
+  const saved=readViewMarker?.(window.history?.state?.m4lRecordingView,{nonce:mediaHistoryNonce,activityKey});if(!saved||!active()||!canLeaveMedia())return;if(playlistSettingsOpen){window.M4L_ACADEMY_PLAYLISTS?.unmount?.();playlistSettingsOpen=false;}recordingView=saved.view;
   if(saved.playlistId&&nativeReader?.state().selected?.playlist.id!==saved.playlistId)await nativeReader.open({activityKey,playlistId:saved.playlistId,limit:30});else if(!saved.playlistId)nativeReader?.back();
   if(!active())return;render();if(recordingView.lesson){const [id,assetId]=JSON.parse(recordingView.lesson);await recordingPage(currentMediaRows().find(row=>row.id===id),{assetId});}
  }
@@ -61,12 +63,12 @@
  function addMediaButton(){return data?.canCreateContent?'<button type="button" class="button" data-lm="binding-open">Add media</button>':'';}
  function managementDateForm(){return `<form class="lm-form" data-lm-form="management-date"><label>Timetable lesson date<input type="date" name="date" required value="${esc(managementDate||data.startDate)}"></label><div class="lm-actions"><button type="submit" class="button secondary"${calendarLoading?' disabled':''}>Show date</button><button type="button" class="button secondary" data-lm="management-current"${calendarLoading?' disabled':''}>Current week</button></div><p class="lm-inline-help">Choose a past date to attach a recording. This does not change the timetable.</p></form>`;}
  function render(){
-  if(!host)return;
+  if(!host||playlistSettingsOpen)return;
   if(data?.kind==='PROGRAM'&&collectionModule){
    const native=nativeReader?.state(),selected=native?.selected,nativeIds=new Set((native?.catalogue?.playlists||[]).map(p=>p.id)),legacy=(data.lessons||[]).filter(row=>!nativeIds.has(row.playlistId)),collection=selected?collectionModule.nativePlaylistContentsHTML(selected,recordingView):collectionModule.recordingCollectionHTML(legacy,recordingView),catalogue=selected||recordingView.group?'':collectionModule.nativePlaylistTableHTML(native?.catalogue);
    const nativeCollection=selected?collection+(selected.before?'<button type="button" class="button secondary" data-lm="native-recordings-more">Load more recordings</button>':''):catalogue+(legacy.length?(catalogue?'<details class="lm-legacy-recordings"><summary>Other and historical recordings</summary>'+collection+'</details>':collection):'');
    clearTimeout(expiryTimer);const now=Date.now(),deadlines=currentMediaRows().flatMap(r=>[...(r.assets||[]).map(a=>Date.parse(a.expiresAt)),...(r.recordingCompanions||[]).map(c=>Date.parse(c.companionExpiresAt))]).filter(d=>Number.isFinite(d)&&d>now);if(deadlines.length)expiryTimer=setTimeout(()=>{expiryTimer=null;if(cacheScope)cache()?.invalidate(cacheScope);if(recordingView.lesson){const [id,assetId]=JSON.parse(recordingView.lesson);void recordingPage(currentMediaRows().find(r=>r.id===id),{assetId});}else render();},Math.min(2147483647,Math.max(1,Math.min(...deadlines)-now+20)));
-   host.innerHTML=`<div class="lm-heading"><h2>Lesson media</h2><div class="lm-actions">${addMediaButton()}<button type="button" class="button secondary" data-lm="refresh"${calendarLoading?' disabled':''}>Refresh</button></div></div>${calendarError?`<p role="alert">${esc(calendarError)}</p>`:''}${native?.pending?'<p role="status">Loading playlists…</p>':''}${native?.error?'<p role="alert">'+esc(native.error)+'</p>':''}${nativeCollection}${!selected&&data.before?'<button type="button" class="button secondary" data-lm="more">Load earlier recordings</button>':''}${rowsForMaterials().length?'<section><h3>Lesson materials</h3>'+data.sessions.filter(r=>r.media?.canView&&r.media.assets.some(a=>a.kind==='PDF')&&!r.media.assets.some(isVideo)).map(mediaCard).join('')+'</section>':''}${data.canManage?`<details${managementDate?' open':''}><summary>Manage media</summary><div class="lm-media-rail">${rowsForManagement().map(mediaCard).join('')||'<p>No saved media yet. Choose Add media to begin.</p>'}</div></details>`:''}`;
+   host.innerHTML=`<div class="lm-heading"><h2>Lesson media</h2><div class="lm-actions">${data.canManage?'<button type="button" class="button secondary" data-lm="playlist-settings">Playlist settings</button>':''}${addMediaButton()}<button type="button" class="button secondary" data-lm="refresh"${calendarLoading?' disabled':''}>Refresh</button></div></div>${calendarError?`<p role="alert">${esc(calendarError)}</p>`:''}${native?.pending?'<p role="status">Loading playlists…</p>':''}${native?.error?'<p role="alert">'+esc(native.error)+'</p>':''}${nativeCollection}${!selected&&data.before?'<button type="button" class="button secondary" data-lm="more">Load earlier recordings</button>':''}${rowsForMaterials().length?'<section><h3>Lesson materials</h3>'+data.sessions.filter(r=>r.media?.canView&&r.media.assets.some(a=>a.kind==='PDF')&&!r.media.assets.some(isVideo)).map(mediaCard).join('')+'</section>':''}${data.canManage?`<details${managementDate?' open':''}><summary>Manage media</summary><div class="lm-media-rail">${rowsForManagement().map(mediaCard).join('')||'<p>No saved media yet. Choose Add media to begin.</p>'}</div></details>`:''}`;
    return;
   }
   const previous=host.querySelector('.lm-media-rail'),scroll=previous?.scrollLeft||0;
@@ -108,6 +110,17 @@
   await load();if(!active(g))return;await nativeReaderReady;if(active(g)&&data?.kind==='PROGRAM')await nativeReader.loadList({activityKey,limit:50});if(active(g))rememberRecordingView(null,true);
  }
 
+ async function openPlaylistSettings(){
+  if(data?.kind!=='PROGRAM'||data.canManage!==true||!canLeaveEditor())return;
+  const g=generation;try{
+   if(!window.M4L_RECORDING_PLAYLISTS)await import('./m4l-mou-playlists.js');if(!window.M4L_ACADEMY_PLAYLISTS)await import('./m4l-academy-playlists.js');if(!active(g))return;
+   playlistSettingsOpen=true;host.innerHTML='<header class="lm-heading"><h2>Programme playlists</h2><button type="button" class="button secondary" data-lm="playlist-settings-close">← Recordings</button></header><div data-lm-native-settings></div>';
+   await window.M4L_ACADEMY_PLAYLISTS.mount(host.querySelector('[data-lm-native-settings]'),{activityKey,label:(data.activityName||'Programme')+' playlists',onRecording:async result=>{if(active(g))await edit({id:result.lessonId,title:'Playlist recording'});}});
+  }catch(error){if(active(g)){playlistSettingsOpen=false;window.M4L_ACADEMY_PLAYLISTS?.unmount?.();calendarError=error.message;render();}}
+ }
+ async function closePlaylistSettings(){
+  if(!canLeaveMedia())return;window.M4L_ACADEMY_PLAYLISTS?.unmount?.();playlistSettingsOpen=false;const g=generation;render();await load({force:true});if(!active(g))return;await nativeReaderReady;await nativeReader.loadList({activityKey,limit:50},{force:true});
+ }
  async function openBinding(){
   if(data?.kind==='PROGRAM'){const g=generation;try{if(!window.M4L_ACADEMY_PLAYLISTS)await import('./m4l-academy-playlists.js');if(!active(g))return;const result=await window.M4L_ACADEMY_PLAYLISTS.createRecording({activityKey,playlistId:nativeReader?.state().selected?.playlist.id});if(result&&active(g)){await load({force:true});await edit({id:result.lessonId,title:'Playlist recording'});}}catch(error){if(active(g)){calendarError=error.message;render();}}return;}
   const dg=modal('Add media','<p>Loading native media choices…</p>');if(dg===null)return;
@@ -327,6 +340,8 @@
  function handleClick(event){
   const b=event.target.closest('[data-lm]');if(!b)return;const action=b.dataset.lm,row=(b.dataset.key?data?.sessions?.find(r=>r.sessionKey===b.dataset.key)?.media:null)||currentMediaRows().find(r=>r.id===b.dataset.id)||data?.sessions?.map(r=>r.media).find(r=>r?.id===b.dataset.id)||(b.dataset.id&&data?.courseFiles?.media?.id===b.dataset.id?data.courseFiles.media:null);
   if(action==='close'){close();return;}if(separated()&&['discussion','comments-refresh','comment-cancel','reply','comment-edit','moderate'].includes(action))return;if(busy)return;
+  if(action==='playlist-settings'){void openPlaylistSettings();return;}
+  if(action==='playlist-settings-close'){void closePlaylistSettings();return;}
   if(action==='binding-open'){void openBinding();return;}
   if(action==='binding-refresh'){const form=dialog.querySelector('[data-lm-form=binding-create]');if(!binding||!form)return;const values=new FormData(form);binding.operationId=crypto.randomUUID();void bindingChoices(values.get('classId')||'',dialogGeneration,values);return;}
   if(action==='companion-open'){void openCompanion(b.dataset.asset);return;}
@@ -371,14 +386,14 @@
   if(action==='moderate'){const c=discussion.comments.find(c=>c.id===b.dataset.comment);if(!c)return;if(b.dataset.decision==='DELETE'&&!window.confirm('Remove this comment?'))return;void mutate('comment-moderate',{operationId:crypto.randomUUID(),lessonId:discussion.row.id,commentId:c.id,revision:c.revision,decision:b.dataset.decision});}
   if(action==='retry'&&retry)void retry();
  }
- function reset(){window.M4L_ACADEMY_PLAYLISTS?.cancelRecording?.();mediaHistoryNonce=crypto.randomUUID();nativeReader?.clear();managementDate='';for(const video of host?.querySelectorAll('video')||[])video.pause();recordingView={};clearTimeout(expiryTimer);expiryTimer=null;generation++;calendarRequest++;calendarLoading=false;calendarError='';cacheScope=null;close(true);if(host){host.removeEventListener('click',handleClick);host.removeEventListener('submit',handleSubmit);host.replaceChildren();host.classList.remove('lm-calendar','lm-rails');host.hidden=true;}host=null;session='';data=null;}
+ function reset(){if(playlistSettingsOpen)window.M4L_ACADEMY_PLAYLISTS?.unmount?.();playlistSettingsOpen=false;window.M4L_ACADEMY_PLAYLISTS?.cancelRecording?.();mediaHistoryNonce=crypto.randomUUID();nativeReader?.clear();managementDate='';for(const video of host?.querySelectorAll('video')||[])video.pause();recordingView={};clearTimeout(expiryTimer);expiryTimer=null;generation++;calendarRequest++;calendarLoading=false;calendarError='';cacheScope=null;close(true);if(host){host.removeEventListener('click',handleClick);host.removeEventListener('submit',handleSubmit);host.replaceChildren();host.classList.remove('lm-calendar','lm-rails');host.hidden=true;}host=null;session='';data=null;}
  window.M4L_LESSON_MEDIA={async manage({hostId,activityKey:key,lessonId}){
-  if(!close())return;reset();host=document.getElementById(hostId);if(!host||!token())return;
+  if(!canLeaveMedia())return;reset();host=document.getElementById(hostId);if(!host||!token())return;
   activityKey=key;session=token();context=workspace();data={sessions:[],lessons:[]};learnerView=false;runId='';
   await edit({id:lessonId,title:'Lesson media'});
- },canLeave:()=>window.M4L_ACADEMY_PLAYLISTS?.canLeaveRecording?.()!==false&&close(),reset,openAttachment({hostId,lesson,kind}){
+ },canLeave:canLeaveMedia,canLeaveEditor,reset,openAttachment({hostId,lesson,kind}){
   const target=document.getElementById(hostId);
-  if(!target||!token()||!lesson||!['YOUTUBE','MP4','PDF'].includes(kind)||!lesson.assets?.length||!close())return;
+  if(!target||!token()||!lesson||!['YOUTUBE','MP4','PDF'].includes(kind)||!lesson.assets?.length||!canLeaveMedia())return;
   reset();host=target;session=token();context=workspace();activityKey=lesson.activityKey;learnerView=true;data={lessons:[lesson]};
   const assets=lesson.assets.filter(asset=>kind==='PDF'?asset.kind==='PDF':isVideo(asset)&&!videoExpired(asset));
   if(assets.length===1){void (kind==='PDF'?pdf(lesson,assets[0].id):watch(lesson,assets[0].id));return;}
@@ -386,7 +401,7 @@
  },open({hostId,activityKey:key,programId,runId:offering='',learnerView:asLearner=false}){
   key=key||(programId?'PROGRAM:'+programId:'');
   if(!/^(PROGRAM|COURSE):[^:]+$/.test(key)||!token()){reset();return;}
-  const target=document.getElementById(hostId);if(!target)return;
+  const target=document.getElementById(hostId);if(!target||!canLeaveMedia())return;
   if(host===target&&session===token()&&learnerView===asLearner&&activityKey===key&&runId===offering&&context===workspace()){host.hidden=false;void load();return;}
   reset();activityKey=key;runId=offering;learnerView=asLearner;host=target;session=token();context=workspace();host.hidden=false;host.classList.add('lm-calendar','lm-rails');host.addEventListener('click',handleClick);host.addEventListener('submit',handleSubmit);render();void start();
  }};

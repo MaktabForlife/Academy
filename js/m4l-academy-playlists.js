@@ -5,7 +5,7 @@
  const common=()=>window.M4L_RECORDING_PLAYLISTS||window.M4L_MOU_PLAYLISTS;
  const scope=activityKey=>({activityKey,owner:token(),workspace:workspace(),generation});
  const current=ctx=>ctx.generation===generation&&ctx.owner===token()&&ctx.workspace===workspace()&&(!ctx.host||ctx.host.isConnected);
- const canLeave=()=>!formState?.dirty&&!formState?.busy&&(common()?.canLeave?.()??true)&&(window.M4L_LESSON_MEDIA?.canLeave?.()??true);
+ const canLeave=()=>!formState?.dirty&&!formState?.busy&&(common()?.canLeave?.()??true)&&(window.M4L_LESSON_MEDIA?.canLeaveEditor?.()??window.M4L_LESSON_MEDIA?.canLeave?.()??true);
  function close(force=false,result=false){const f=formState;if(!f)return true;if(!force&&f.pending){f.message('Retry the uncertain save before leaving.');return false;}if(!force&&f.busy){f.message('Wait for this change to finish.');return false;}if(!force&&f.dirty&&!window.confirm('Discard your unfinished playlist entry?'))return false;formState=null;f.dialog.close();f.dialog.remove();f.resolve(result);return true;}
  function reset(){generation++;close(true);const previous=mounted;mounted=null;common()?.unmount?.();previous?.frame.remove();}
  async function api(ctx,action,input={}){
@@ -43,7 +43,7 @@
    };
   }catch(error){if(f.active())f.message(error.message,true);}return f.promise;
  }
- async function mount(container,{activityKey,label='Academy playlists',onLegacy}={}){
+ async function mount(container,{activityKey,label='Academy playlists',onLegacy,onRecording}={}){
   if(!canLeave())return false;generation++;close(true);mounted?.frame.remove();common()?.unmount?.();const ctx=scope(activityKey),frame=document.createElement('section'),controls=document.createElement('div'),table=document.createElement('div'),editor=document.createElement('div');ctx.host=frame;frame.className='native-playlist-settings';controls.className='lm-actions';controls.innerHTML='<button type="button" class="button secondary" data-native-recording-add>Add recording</button>';const pagination=document.createElement('nav');pagination.className='lm-actions';pagination.innerHTML='<button type="button" class="button secondary" data-native-page="previous" disabled>Previous playlists</button><button type="button" class="button secondary" data-native-page="next" disabled>More playlists</button>';frame.append(controls,table,pagination,editor);container.append(frame);mounted={ctx,frame,table,editor,before:null,page:null,history:[]};
   const transport=async command=>{
    const actions={'mou-playlists':'list','mou-playlist-save':'save','mou-playlist-publication':'publish','mou-playlist-correction':'get'},action=actions[command.action];if(!action)throw Error('Unknown native playlist command.');
@@ -52,7 +52,7 @@
   };
   async function render(){return common().mount(table,{transport,label,itemLabel:'playlist',accessModel:'ACADEMY',onCreate:()=>contextForm(ctx),onEditContext:async row=>{if(await contextForm(ctx,row))await render();},onLegacy});}
   pagination.onclick=async event=>{const next=event.target.closest('[data-native-page]')?.dataset.nativePage;if(!next||!canLeave())return;if(next==='next'&&mounted.before){mounted.history.push(mounted.page);mounted.page=mounted.before;}else if(next==='previous'&&mounted.history.length)mounted.page=mounted.history.pop();else return;await render();};
-  controls.onclick=async event=>{if(!event.target.closest('[data-native-recording-add]')||!canLeave())return;const result=await createRecording({activityKey});if(!result||!current(ctx))return;if(!window.M4L_LESSON_MEDIA)await import('./m4l-lesson-media.js');editor.id='native-playlist-media-editor';await window.M4L_LESSON_MEDIA.manage({hostId:editor.id,activityKey,lessonId:result.lessonId});await render();};
+  controls.onclick=async event=>{if(!event.target.closest('[data-native-recording-add]')||!canLeave())return;const result=await createRecording({activityKey});if(!result||!current(ctx))return;if(onRecording)await onRecording(result);else {if(!window.M4L_LESSON_MEDIA)await import('./m4l-lesson-media.js');editor.id='native-playlist-media-editor';await window.M4L_LESSON_MEDIA.manage({hostId:editor.id,activityKey,lessonId:result.lessonId});}if(current(ctx))await render();};
   if(!common()){frame.remove();throw Error('Load the shared playlist settings component first.');}return render();
  }
  window.M4L_ACADEMY_PLAYLISTS={mount,createRecording,canLeave,cancelRecording:()=>{if(formState?.kind==='recording')close(true);},canLeaveRecording:()=>formState?.kind!=='recording'||close(),unmount:reset,dirty:()=>Boolean(formState?.dirty||formState?.busy||common()?.dirty?.())};
