@@ -1,3 +1,10 @@
+# Current Access management UI — local only, 1 November 2026
+
+- Owner requested an Access management UI for Tafseer, Mothers of the Ummah and Courses. Work on `feature/circles-access-management-ui` from deployed Source078bcc8b, paired with the disposable Target review helper from deployedf4e2f3ed.
+- Reuse existing native access handlers, account/session/role/ownership checks and bounded roster reads. Keep paid months, original cohorts, website-only grants, purchases and live participation distinct. No live grant, media, database, account or deployment change is authorised by this UI work.
+- `tools/access-review/` is a local review host. Its synthetic catalogue/bootstrap is supplied only by the paired helper. A bounded checked native catalogue and real Admin Access entry remain integration work; never deploy the sample wrapper/identities or replace native authority with UI metadata.
+- Keep the approved9043dashboard and all editor/retention/academic/MOU media holds. Follow `../AGENTS.md` for eventual matching Academy/Studio releases.
+
 # V109.3 workspace separation correction — 1 November 2026
 
 - Work on `feature/academy-workspace-separation`, based on verified V109.2. The owner confirmed the live Teach programme button opens Admin above Learn instead of Teach, then requested deployment once separation is fixed. This authorises the targeted matching Source/Studio correction after combined local checks; do not release a partial pair.
