@@ -5,6 +5,12 @@
 - MOU independent playlists are now authorised for local implementation by Circles: assigned playlist month unlocks the whole playlist; no Academy subject dependency. Preserve current rights, identity/session/epoch, live Join gates and original recording metadata; wait for the final reviewed Target handoff.
 - Root alone deploys the matching Academy API/coordinator/Pages and Studio runtime/assets. No Git push, automatic real recording attachment/publication, guessed dates, hosted SQL scans, DNS changes or dependency upgrades. Keep live checks small. Actual MOU/academic publication remains manual/held.
 - Retention and content media must share exact per-lesson PDF limits, hiding purging/deleted PDFs from counts and readers without discarding legacy or accepted-publication checks. Core0021, Core0022 and Admin0003 are additive local prerequisites; no hosted migration has occurred here.
+# Current Access management UI — local only, 1 November 2026
+
+- Owner requested an Access management UI for Tafseer, Mothers of the Ummah and Courses. Work on `feature/circles-access-management-ui` from deployed Source078bcc8b, paired with the disposable Target review helper from deployedf4e2f3ed.
+- Reuse existing native access handlers, account/session/role/ownership checks and bounded roster reads. Keep paid months, original cohorts, website-only grants, purchases and live participation distinct. No live grant, media, database, account or deployment change is authorised by this UI work.
+- `tools/access-review/` is a local review host. Its synthetic catalogue/bootstrap is supplied only by the paired helper. A bounded checked native catalogue and real Admin Access entry remain integration work; never deploy the sample wrapper/identities or replace native authority with UI metadata.
+- Keep the approved9043dashboard and all editor/retention/academic/MOU media holds. Follow `../AGENTS.md` for eventual matching Academy/Studio releases.
 
 # V109.3 workspace separation correction — 1 November 2026
 
