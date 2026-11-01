@@ -2,6 +2,7 @@ import {fail,id,date} from './protocol.mjs';
 import {navigationMappings} from './navigation.mjs';
 import {nativeJoinTarget} from './native-join.mjs';
 import {dashboardStudioSessionId} from './timetable.mjs';
+import {lessonTimes} from '../../entrance.js';
 
 export function dashboardModes(state){
  if(!state?.account?.active)throw fail('Your Academy session has ended.',401,'SESSION_ENDED');
@@ -70,7 +71,13 @@ export async function dashboardSummary(state,env,input,read,nativeScopes=[]){
  const activities=(home.personalActivities||[]).filter(a=>a.active!==false&&a.lifecycle!=='ARCHIVED'&&a.menuAvailable!==false&&['PROGRAM','COURSE'].includes(a.kind)&&a.roles?.length).slice(0,60).map(a=>({...fields(a,['kind','id','name','roles','substituteOnly','plansRequired']),activityKey:a.kind+':'+a.id,navigationKey:Object.keys(mappings).find(k=>mappings[k].toLowerCase()===a.id.toLowerCase())||null}));
  for(const area of activities){const mapped=nativeScopes.find(s=>s.activity_key.toUpperCase()===area.activityKey.toUpperCase());if(mapped){area.websiteOfferingId=mapped.offering_id;area.websiteKind=mapped.kind;area.accessOwner=mapped.access_owner||'ACADEMY';}}
  const allowed=new Map(activities.map(a=>[a.activityKey.toUpperCase(),a]));
- const timetable=(home.personalTimetable||[]).filter(r=>allowed.has((r.kind+':'+r.activityId).toUpperCase())).slice(0,200);
+ const personal=(home.personalTimetable||[]).filter(r=>allowed.has((r.kind+':'+r.activityId).toUpperCase()));
+ // Public FREE references add no personal roles, class labels or enrolment.
+ // Retain future metadata so the existing local clock can open Join at -5min
+ // even when this dashboard is reused for twelve hours without a network poll.
+ const free=(home.timetable||[]).filter(r=>r.publicJoin===true&&r.status==='SCHEDULED'&&!nativeScopes.some(s=>s.activity_key.toUpperCase()===(r.kind+':'+r.activityId).toUpperCase()&&['STUDIO','FROZEN'].includes(s.access_owner))).map(r=>({...fields(r,['kind','activityId','activityName','date','sourceDate','startTime','endTime','timezone','status','joinKey']),title:r.activityName,...lessonTimes(r)})).filter(r=>Number.isFinite(r.startsAt)&&Number.isFinite(r.endsAt));
+ const publicByKey=new Map(free.map(row=>[row.joinKey,row])),personalKeys=new Set(personal.map(row=>row.joinKey));
+ const timetable=[...personal.map(row=>row.preview&&publicByKey.has(row.joinKey)?publicByKey.get(row.joinKey):row),...free.filter(row=>!personalKeys.has(row.joinKey))].slice(0,200);
  const optional=async(name,path,body)=>{try{return await read(path,body,mode);}catch(error){if(error.status===401||error.status===403)throw error;warnings.push(name+' could not be checked.');return null;}};
  const sources=[...new Map(timetable.filter(r=>r.mediaSessionKey).map(r=>[JSON.stringify([r.kind,r.activityId,r.sourceDate||r.date,r.mediaSessionKey]),{activityKey:r.kind+':'+r.activityId,date:r.sourceDate||r.date,sessionKey:r.mediaSessionKey}])).values()];
  const [assessments,notes,messages,enrolments]=await Promise.all([
@@ -80,7 +87,7 @@ export async function dashboardSummary(state,env,input,read,nativeScopes=[]){
   mode==='admin'?optional('Enrolment requests','/api/admin/platform/enrolment/get',{}):null
  ]);
  const dueNotes=[];for(const session of notes?.sessions||[]){const lesson=timetable.find(r=>JSON.stringify([r.kind+':'+r.activityId,r.sourceDate||r.date,r.mediaSessionKey])===session.ref);if(!lesson||Number(lesson.startsAt)<=Date.now())continue;const source=session.sources?.[0];if(!source||!allowed.has(source.activityKey.toUpperCase()))continue;for(const note of session.dueNotes||[])dueNotes.push({...fields(note,['id','title','date']),activityKey:source.activityKey,activityName:source.activityName});}
- return {mode,availableModes,programmeNavigation,nativeJoinVersion:1,studioJoinVersion:1,adminBadge:availableModes.includes('admin')?(state.account.global_admin?'Global Admin':'Admin'):null,checkedAt:Date.now(),timezone:home.timezone||'Africa/Johannesburg',startDate:home.startDate,endDate:home.endDate,activities,
+ return {mode,availableModes,programmeNavigation,nativeJoinVersion:1,studioJoinVersion:1,freeProgrammeJoinVersion:1,adminBadge:availableModes.includes('admin')?(state.account.global_admin?'Global Admin':'Admin'):null,checkedAt:Date.now(),timezone:home.timezone||'Africa/Johannesburg',startDate:home.startDate,endDate:home.endDate,activities,
   timetable:await Promise.all(timetable.map(async r=>({...fields(r,['kind','activityId','activityName','date','startTime','endTime','startsAt','endsAt','joinAvailableAt','timezone','status','subjectName','moduleName','title']),...nativeJoinReference(r,nativeScopes),...await studioJoinReference(r,nativeScopes)}))),
   calendar:(home.calendarEvents||[]).slice(0,100).map(r=>fields(r,['id','title','name','description','date','startDate','endDate','type'])),
   assessments:assessments?(assessments.assessments||[]).filter(r=>allowed.has(r.activityKey?.toUpperCase())&&r.published).slice(0,200).map(r=>fields(r,['activityKey','title','phaseName','registerId','registerStatus','examDate','assessmentKind','availableFrom','dueAt','timezone','published'])):null,

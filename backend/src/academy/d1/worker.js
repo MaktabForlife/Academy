@@ -135,7 +135,15 @@ async function dispatch(request,env,options={}) {
       const selected=dashboardJoinInput(state,input),context=JSON.parse(session.context_json);
       await nativeJoinOwnership(sourceRepository.coreDb,session.account_id,selected.target);
       const token=await createSessionToken({type:'account',aud:audience,sv:3,sid:session.session_id,accountid:session.account_id,epoch:session.epoch,scope:context.scope,courseid:context.courseId,role:context.role},env);
-      const result=await dispatch(new Request(new URL('/api/academy/lesson/join',request.url),{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token,'X-Academy-Workspace':selected.mode.toUpperCase()},body:JSON.stringify({joinKey:selected.joinKey,date:selected.date})}),env);
+      const body=JSON.stringify({joinKey:selected.joinKey,date:selected.date});let result;
+      try{result=await dispatch(new Request(new URL('/api/academy/lesson/join',request.url),{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token,'X-Academy-Workspace':selected.mode.toUpperCase()},body}),env);}
+      catch(error){
+        if(error.status!==403||error.code!=='LESSON_UNAVAILABLE')throw error;
+        // A current admitted account may join a public FREE lesson without
+        // acquiring its programme role. The unchanged anonymous accepted
+        // reader rechecks FREE/publication/calendar/window; paid lessons fail.
+        result=await dispatch(new Request(new URL('/api/academy/public-lesson/join',request.url),{method:'POST',headers:{'Content-Type':'application/json','X-Academy-Workspace':'LEARN'},body}),env);
+      }
       const current=await sourceRepository.session(session.session_id,session.account_id,session.epoch);
       const permissions=value=>JSON.stringify([value.account.global_admin,value.account.substitute_grants,value.roles,value.contexts,value.subscriptions,value.monthlyMedia]);
       if(!current||permissions(current)!==permissions(state))throw rehearsalError('Your Academy permissions changed. Refresh the timetable.',409,'ACCESS_REFRESH_REQUIRED');

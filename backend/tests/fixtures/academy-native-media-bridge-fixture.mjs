@@ -2,8 +2,8 @@ import {readFileSync} from 'node:fs';
 import worker from '../../src/academy-runtime.js';
 import {signedHeaders} from '../../src/academy/d1/web-platform/protocol.mjs';
 import {contentMediaFixture} from './academy-content-media-fixture.mjs';
-export async function nativeMediaBridgeFixture({growth=0}={}){
- const f=await contentMediaFixture({growth});
+export async function nativeMediaBridgeFixture({growth=0,seed}={}){
+ const f=await contentMediaFixture({growth,seed});
  try{
   const db=f.databases.core;
   for(const name of ['0006_program_monthly_subscriptions.sql','0008_program_surah_grants.sql','0011_website_platform.sql','0012_website_schedule_library.sql','0013_website_parallel_access.sql','0015_studio_access_admin.sql','0019_course_policy_mirror.sql'])db.exec(readFileSync(new URL('../../migrations/academy-core/'+name,import.meta.url),'utf8'));

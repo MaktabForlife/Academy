@@ -238,8 +238,11 @@ export function academyD1Repository(env) {
       ])]:[];
       const privateScope=JSON.stringify(privateKeys);
       const staffScope=JSON.stringify(state?.roles.filter(r=>['PROGRAM_ADMIN','ADMIN','SENIOR','TEACHER'].includes(r.role)).map(r=>r.activity_key)||[]);
-      const classScope=state?`c.activity_key IN (SELECT value FROM json_each(?))`:
-        `c.activity_key IN (SELECT a.activity_key FROM activities a ${programAccessJoin} WHERE a.kind='PROGRAM' AND a.active=1 AND a.lifecycle='ACTIVE' AND a.website_visible=1 AND ${programAccessSQL}='FREE')`;
+      // Reuse the existing single accepted class read for personal and public
+      // FREE classrooms. A public Join needs its current class-level Zoom even
+      // when this account is not enrolled; no memberships or roles are added.
+      const publicClassKeys=`SELECT a.activity_key FROM activities a ${programAccessJoin} WHERE a.kind='PROGRAM' AND a.active=1 AND a.lifecycle='ACTIVE' AND a.website_visible=1 AND ${programAccessSQL}='FREE'`;
+      const classScope=`c.activity_key IN (${state?'SELECT value FROM json_each(?) UNION ':''}${publicClassKeys})`;
       const queries=[
         `SELECT a.*,p.timezone,p.duration_years,(SELECT setting_value FROM academy_settings WHERE setting_key='CourseWebsitePublished:'||upper(a.activity_key)) AS course_website_available,(SELECT setting_value FROM academy_settings WHERE setting_key='AcademyCoursePublicCard:'||upper(a.activity_key)) AS course_public_card_json${programWorkspace?`,p.public_card_json,CASE WHEN a.kind<>'COURSE' THEN 1
           WHEN EXISTS(SELECT 1 FROM course_management_drafts d WHERE d.activity_key=a.activity_key AND d.stage NOT IN ('CANCELLED','ARCHIVED')) THEN 1

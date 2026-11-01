@@ -109,8 +109,8 @@ export function programProjection(program, data, user, roles, start, end, now, d
           ...(row.classNames || []), ...teacherNames].filter(Boolean);
         if(compatibilityDetails){event.teacherName=teacherNames.join(', ');event.group=(row.classNames||[]).join(', ');}
       }
-      if ((mayView && (involved || oversight) || !user && program.publicFree) && zoomLink) {
-        if(!user&&program.publicFree)event.publicJoin=true;
+      if ((mayView && (involved || oversight) || program.publicFree) && zoomLink) {
+        if(program.publicFree)event.publicJoin=true;
         event.joinKey = JSON.stringify(['PROGRAM', program.id, publication.id, occurrenceIndex, date]);
         if (joinWindowOpen(event, now)) event.joinUrl = zoomLink;
       }
@@ -215,7 +215,7 @@ export async function buildEntrance({ tables, programs, rolesByProgram, rolesByC
           if(detailedTimetable)projected.teacherName=event.teacherName||'';
         }
         // Keep the shared/legacy timetable gate unchanged. The new website opens five minutes early.
-        const publicFree=publicJoining&&!user&&(run.AccessModel?run.AccessModel==='FREE':platform.policies.some(p=>key(p.SubjectID)===key(subject.SubjectID)&&active(p.Active)&&p.AccessModel==='FREE'));
+        const publicFree=publicJoining&&(run.AccessModel?run.AccessModel==='FREE':platform.policies.some(p=>key(p.SubjectID)===key(subject.SubjectID)&&active(p.Active)&&p.AccessModel==='FREE'));
         if ((user && (relevant || oversight) && event.visibilityLevel === 'DETAIL' || publicFree) && published[index]?.zoomlink) {
           if(publicFree)projected.publicJoin=true;
           projected.joinKey = JSON.stringify(['COURSE', subject.SubjectID, run.RunID,

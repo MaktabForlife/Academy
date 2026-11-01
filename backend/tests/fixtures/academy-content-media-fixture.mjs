@@ -5,8 +5,8 @@ import worker from '../../src/academy-runtime.js';
 import {createHash} from 'node:crypto';
 import {seedContextReadGrowth} from './academy-context-read-growth.mjs';
 export {ok};
-export async function contentMediaFixture({growth=0}={}){
- const f=await splitVideoFixture(source=>seedContextReadGrowth(source,growth));
+export async function contentMediaFixture({growth=0,seed}={}){
+ const f=await splitVideoFixture(source=>{seedContextReadGrowth(source,growth);return seed?.(source);});
  f.databases.core.exec(readFileSync(new URL('../../migrations/academy-core/0020_recording_companions.sql',import.meta.url),'utf8'));
  f.admin=await f.source.actor('adminA');f.global=await f.source.actor('global');f.scope=f.scopes.programA;
  f.binding=async(extra={})=>{const input={activityKey:f.scope,classId:'class-1',recordingDate:'2026-10-28',subjectKey:'MODULE:recorded-subject-module',teacherIds:['account-0006'],operationId:crypto.randomUUID(),...extra},options=ok(await f.request('binding-options',{activityKey:input.activityKey,classId:input.classId||''},f.admin));input.optionsRevision=options.optionsRevision;return {...ok(await f.request('binding-create',input,f.admin)),input};};
