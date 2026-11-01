@@ -2,7 +2,7 @@
  'use strict';
  const prefix='m4l_read_v1:',memory=new Map(),pending=new Map(),maxAge=30*60*1000,freshFor=60000;
  const token=()=>localStorage.getItem('m4l_account_token')||'';
- let account=token(),epoch=0,privateEpoch=0,viewEpoch=0,lastDenial=null,publicationPending=null,publicationAt=0;
+ let account=token(),epoch=0,privateEpoch=0,viewEpoch=0,lastDenial=null,publicationPending=null,publicationAt=0,publicationScope='';
  const confirmed=new Map();
  const context=()=>JSON.stringify([window.M4L_ACADEMY_WORKSPACE?.current()||'LEARN',window.M4L_ACADEMY_WORKSPACE?.classView()||null]);
  const head=()=>window.M4L_ACADEMY_WORKSPACE?.head()||null;
@@ -20,9 +20,16 @@
  }
  async function publication(force){
   if(!window.M4L_ACADEMY_WORKSPACE)return;
-  if(!force&&Date.now()-publicationAt<freshFor)return window.M4L_ACADEMY_WORKSPACE.readyPublication();
-  publicationPending??=Promise.resolve(window.M4L_ACADEMY_WORKSPACE.readyPublication(true)).then(value=>{publicationAt=Date.now();return value;}).finally(()=>{publicationPending=null;});
-  return publicationPending;
+  const session=token(),realm=context();
+  if(publicationPending?.session===session&&publicationPending.realm===realm)return publicationPending.promise;
+  if(!force&&publicationScope===realm&&Date.now()-publicationAt<freshFor)return window.M4L_ACADEMY_WORKSPACE.readyPublication();
+  // Selecting an Admin learner class supersedes the previous publication read.
+  // The new scope must not inherit that read's abort or clear a newer job.
+  const job={session,realm};publicationPending=job;
+  job.promise=Promise.resolve(window.M4L_ACADEMY_WORKSPACE.readyPublication(true)).then(value=>{
+   if(publicationPending===job&&session===token()&&realm===context()){publicationAt=Date.now();publicationScope=realm;}return value;
+  }).finally(()=>{if(publicationPending===job)publicationPending=null;});
+  return job.promise;
  }
  function authoritative(error){return [401,403,404].includes(error.status);}
  async function load({key:query,public:publicData=false,force=false,revalidate=false,fetcher,onUpdate,onError,fallback=null}){
