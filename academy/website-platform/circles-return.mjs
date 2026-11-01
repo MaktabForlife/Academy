@@ -6,6 +6,18 @@ export function approvedCirclesReturn(raw,now=Date.now()){
   return c;
  }catch{return null;}
 }
+// Returning to the exact live opener preserves its DOM, selected mode and
+// scroll position. If it cannot acknowledge, the checked ordinary URL remains.
+export function returnToOpenDashboard({window,context,isCurrent=()=>true,timeoutMs=1000}){
+ const opener=window.opener;if(!opener||opener.closed||!approvedCirclesReturn(JSON.stringify(context))||!isCurrent())return false;
+ const requestId=window.crypto.randomUUID();let done=false;
+ const finish=()=>{if(done)return;done=true;window.clearTimeout(timer);window.removeEventListener('message',receive);};
+ const fallback=()=>{if(done)return;finish();if(isCurrent())window.location.assign(context.returnUrl);};
+ const receive=event=>{if(event.source!==opener||event.origin!==context.websiteOrigin||event.data?.type!=='CIRCLES_DASHBOARD_RETURNED'||event.data.requestId!==requestId||event.data.mode!==context.mode||!isCurrent())return;finish();window.close();if(!window.closed)window.location.assign(context.returnUrl);};
+ window.addEventListener('message',receive);const timer=window.setTimeout(fallback,timeoutMs);
+ try{opener.postMessage({type:'ACADEMY_CIRCLES_RETURN',requestId,mode:context.mode},context.websiteOrigin);}catch{fallback();}
+ return true;
+}
 if(typeof window!=='undefined'){
  const originals=new Map();let context=null,matchedToken='',generation=0,checking=Promise.resolve();
  window.M4L_CIRCLES_RETURN={ready:()=>checking,modeHref(mode){
@@ -22,5 +34,9 @@ if(typeof window!=='undefined'){
  new MutationObserver(apply).observe(document.body,{attributes:true,attributeFilter:['href'],subtree:true});
  // Keep the native Library and PDF reader in the same tab. A noopener PDF tab
  // would lose this account-bound return context and fall back to Academy Home.
- document.addEventListener('click',event=>{if(!context)return;const link=event.target.closest('a[href]');if(!link)return;const url=new URL(link.href,location.origin);if(url.origin===location.origin&&url.pathname==='/academy/pdf-reader/'){link.removeAttribute('target');link.removeAttribute('rel');}},true);
+ document.addEventListener('click',event=>{if(!context)return;const link=event.target.closest('a[href]');if(!link)return;const url=new URL(link.href,location.origin);if(url.origin===location.origin&&url.pathname==='/academy/pdf-reader/'){link.removeAttribute('target');link.removeAttribute('rel');}
+  if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||event.defaultPrevented||url.href!==context.returnUrl)return;
+  const selected=context,owner=matchedToken;
+  if(returnToOpenDashboard({window,context:selected,isCurrent:()=>context===selected&&matchedToken===owner&&owner===localStorage.getItem('m4l_account_token')&&Boolean(approvedCirclesReturn(JSON.stringify(selected)))}))event.preventDefault();
+ },true);
 }
