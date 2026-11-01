@@ -2,30 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {writeFile} from 'node:fs/promises';
 import {splitVideoFixture} from './fixtures/academy-session-video-split-fixture.mjs';
-import {seedRecordedOptions,ok,correction} from './fixtures/academy-recorded-context-fixture.mjs';
+import {ok,correction} from './fixtures/academy-recorded-context-fixture.mjs';
 import {recordedFilter} from '../src/academy/separation/recorded-context-read.js';
 import {recordedOptionsSQL} from '../src/academy/d1/lesson-recorded-options.js';
 import {splitEngine} from '../src/academy/separation/engine.js';
 import {actorProof} from '../src/academy/separation/proof.js';
 import {academyD1Repository} from '../src/academy/d1/repository.js';
 import {authenticatedD1Account} from '../src/academy/d1/session.js';
-const seed=(f,growth=0)=>{
- seedRecordedOptions(f);f.db.exec("DELETE FROM modules WHERE module_id LIKE 'inactive%';DELETE FROM program_subjects WHERE program_subject_id='inactive-subject';DELETE FROM subject_catalog WHERE subject_id='inactive-subject';");
- const other=f.scopes.programB;
- for(let n=0;n<growth;n++){
-  const id='unrelated-'+n;f.db.prepare('INSERT INTO accounts(account_id,display_name,login_link_id,active) VALUES(?,?,?,1)').run(id,id,id);
-  f.db.prepare("INSERT INTO account_credentials(account_id,pin_hash,pin_setup,credential_epoch) SELECT ?,pin_hash,1,1 FROM account_credentials WHERE account_id='account-0002'").run(id);
-  f.db.prepare("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state) VALUES(?,?,?,'STUDENT',1,'CONFIRMED')").run(id,id,other);
-  f.db.prepare("INSERT INTO subject_catalog VALUES(?,'ACADEMY',?,?,1)").run(id,id,id);f.db.prepare('INSERT INTO program_subjects VALUES(?,?,?,1)').run(other,id,id);f.db.prepare('INSERT INTO modules VALUES(?,?,?,NULL,?,1,1)').run(other,id,id,id);
-  f.db.prepare("INSERT INTO lesson_media_lessons(lesson_id,activity_key,lesson_date,title,start_time,end_time,teacher_name,state,updated_at) VALUES(?,?,'2026-10-01',?,'','','','PUBLISHED','2026-10-01')").run(id,other,id);
- }
-};
-const sum=rows=>rows.reduce((n,r)=>n+Object.values(r.capturedRows).reduce((s,x)=>s+x,0),0);
-const summarize=costs=>{
- const recipe=costs.filter(c=>c.capturedRows.modules&&c.capturedRows.program_subjects),inherited=costs.filter(c=>!recipe.includes(c));
- return {coordinatorCalls:costs.length,coordinatorStatements:costs.reduce((s,c)=>s+c.queries,0),coordinatorRequests:costs.reduce((s,c)=>s+c.requests,0),recipeStatements:recipe.reduce((s,c)=>s+c.queries,0),recipeCaptureRows:sum(recipe),recipeCaptureTables:recipe.map(c=>c.capturedRows),inheritedCaptureRows:sum(inherited),inheritedCaptureTables:inherited.map(c=>c.capturedRows)};
-};
-test('new option capture is constant under unrelated population/media/curriculum growth; inherited media costs are reported separately',async()=>{
+import {seedContextReadGrowth as seed,summarizeContextReadCosts as summarize} from './fixtures/academy-context-read-growth.mjs';
+test('editor option/retry reads stay scoped under unrelated growth; unchanged owner write-plan costs remain explicit',async()=>{
  const reports=[];
  for(const growth of [0,250]){
   const f=await splitVideoFixture(source=>seed(source,growth));try{
@@ -37,9 +22,11 @@ test('new option capture is constant under unrelated population/media/curriculum
   }finally{f.close();}
  }
  for(const name of ['coldOptions','repeatOptions','save'])assert.deepEqual(reports[0].actions[name].recipeCaptureTables,reports[1].actions[name].recipeCaptureTables,name+' never captures unrelated accounts/curriculum/media');
- assert(reports[1].actions.coldOptions.inheritedCaptureRows>reports[0].actions.coldOptions.inheritedCaptureRows,'Inherited broad ready/lesson/receipt paths remain separately visible');
+ for(const name of ['coldOptions','repeatOptions','save','exactRetry'])assert.equal(reports[0].actions[name].readCaptureRows,reports[1].actions[name].readCaptureRows,name+' read captures remain scoped');
+ for(const name of ['coldOptions','repeatOptions','exactRetry'])assert.equal(reports[1].actions[name].inheritedCaptureRows,reports[0].actions[name].inheritedCaptureRows,name+' does not capture unrelated rows');
+ assert(reports[1].actions.save.inheritedCaptureRows>reports[0].actions.save.inheritedCaptureRows,'Unchanged owner write-plan costs remain separately visible');
  if(process.env.RECORDED_CONTEXT_BUDGET_OUTPUT)await writeFile(process.env.RECORDED_CONTEXT_BUDGET_OUTPUT,JSON.stringify({hostedActions:0,measurement:'Synthetic coordinator SQL statements and materialized source rows; not D1 billed rows-read estimates',reports},null,2));
- console.log('Recorded-context growth budget:',JSON.stringify(reports.map(r=>({growth:r.growth,actions:Object.fromEntries(Object.entries(r.actions).map(([k,v])=>[k,{statements:v.coordinatorStatements,recipeStatements:v.recipeStatements,recipeRows:v.recipeCaptureRows,inheritedRows:v.inheritedCaptureRows}]))}))));
+ console.log('Recorded-context growth budget:',JSON.stringify(reports.map(r=>({growth:r.growth,actions:Object.fromEntries(Object.entries(r.actions).map(([k,v])=>[k,{statements:v.coordinatorStatements,recipeStatements:v.recipeStatements,recipeRows:v.recipeCaptureRows,inheritedRows:v.inheritedCaptureRows,readRows:v.readCaptureRows,writePlanRows:v.writePlanCaptureRows}]))}))));
 });
 test('scope recipe rejects changed SQL, mismatched keys, wrong owner and out-of-scope authority before capture',async()=>{
  const f=await splitVideoFixture(source=>seed(source));try{

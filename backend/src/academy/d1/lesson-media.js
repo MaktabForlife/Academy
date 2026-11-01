@@ -1,3 +1,4 @@
+import {lessonContextRead,lessonContextSQL} from './lesson-context-reads.js';
 import {academicCompanions,companionIndexes} from './recording-companions.js';
 import {recordedOptions} from './lesson-recorded-options.js';
 import {recordedLessonContext,recordedTeacherName} from './lesson-recorded-context.js';
@@ -64,6 +65,7 @@ export async function timetableMedia(repository,auth,input){
 
 export function lessonMedia(repository,auth,env){
  const db=repository.db,descriptions=new WeakMap(),p=(sql,...values)=>{const statement=db.prepare(sql).bind(...values);descriptions.set(statement,{sql,values});return statement;},actor=auth.user.accountid;
+ let contextEditor=false;
  let activity,scopeKey,monthlyPolicy=null,admin=false,student=false,teacher=false,preview=false,readerAdmin=false;
  const teachers=row=>[...new Set([...JSON.parse(row.teacher_ids_json||'[]'),row.teacher_id].filter(Boolean))];
  const manages=row=>admin||!repository.setup?.enabled&&row.media_scope!=='COURSE'&&teacher&&!preview&&actualRole(auth,scopeKey,'TEACHER')&&teachers(row).some(id=>same(id,actor));
@@ -75,17 +77,17 @@ export function lessonMedia(repository,auth,env){
  const readerAccess=row=>(admin||readerAdmin||teacher||preview||student&&Boolean(row.learner_allowed))&&classVisible(auth,row.activity_key,[row.class_id,...JSON.parse(row.source_lessons_json||'[]').flatMap(r=>r.classIds||[])]);
 
  const scope=async()=>{
-  const a=await p("SELECT * FROM activities WHERE activity_key=? AND active=1 AND lifecycle='ACTIVE'",scopeKey).first();
+  const a=await (contextEditor?lessonContextRead(db,'activity',scopeKey):p("SELECT * FROM activities WHERE activity_key=? AND active=1 AND lifecycle='ACTIVE'",scopeKey)).first();
   if(!a)throw fail('These lesson materials are not available.',403,'MEDIA_FORBIDDEN');return a;
  };
  const ready=async input=>{
-  if(!await optionalSchema(db,'SELECT l.session_key,l.teacher_ids_json,l.media_scope,a.display_name FROM lesson_media_lessons l,lesson_media_assets a WHERE 0'))throw fail('Lesson media needs its database upgrade.',503,'MEDIA_SCHEMA_REQUIRED');
-  if(!await p("SELECT 1 ok FROM academy_settings WHERE setting_key='LessonMediaEnabled' AND setting_value='1'").first())throw fail('Lesson media is not available yet.',503,'MEDIA_NOT_ENABLED');
+  if(!await optionalSchema(contextEditor?{prepare:()=>lessonContextRead(db,'schema')}:db,contextEditor?lessonContextSQL.schema:'SELECT l.session_key,l.teacher_ids_json,l.media_scope,a.display_name FROM lesson_media_lessons l,lesson_media_assets a WHERE 0'))throw fail('Lesson media needs its database upgrade.',503,'MEDIA_SCHEMA_REQUIRED');
+  if(!await (contextEditor?lessonContextRead(db,'enabled'):p("SELECT 1 ok FROM academy_settings WHERE setting_key='LessonMediaEnabled' AND setting_value='1'")).first())throw fail('Lesson media is not available yet.',503,'MEDIA_NOT_ENABLED');
   let key=input.activityKey;
-  if(input.lessonId){const row=await p('SELECT activity_key FROM lesson_media_lessons WHERE lesson_id=?',String(input.lessonId)).first();if(!row)throw fail('Lesson not found.',404);if(key&&!same(key,row.activity_key))throw fail('This lesson belongs to another learning area.',403,'MEDIA_FORBIDDEN');key=row.activity_key;}
+  if(input.lessonId){const row=await (contextEditor?lessonContextRead(db,'area',String(input.lessonId)):p('SELECT activity_key FROM lesson_media_lessons WHERE lesson_id=?',String(input.lessonId))).first();if(!row)throw fail('Lesson not found.',404);if(key&&!same(key,row.activity_key))throw fail('This lesson belongs to another learning area.',403,'MEDIA_FORBIDDEN');key=row.activity_key;}
   if(typeof key!=='string'||key.length>200||!/^(PROGRAM|COURSE):/.test(key))throw fail('Choose a Program or Course.');
   scopeKey=key;activity=await scope();scopeKey=activity.activity_key;
-  monthlyPolicy=monthlyEnabled(repository)?await p('SELECT * FROM program_monthly_media_policies WHERE activity_key=?',scopeKey).first():null;
+  monthlyPolicy=monthlyEnabled(repository)?await (contextEditor?lessonContextRead(db,'policy',scopeKey):p('SELECT * FROM program_monthly_media_policies WHERE activity_key=?',scopeKey)).first():null;
   if(auth.adminView&&!administers(auth,scopeKey))throw fail('This area is outside your Admin view.',403,'MEDIA_FORBIDDEN');
   admin=Boolean(auth.state.account.global_admin||auth.state.roles.some(r=>same(r.activity_key,scopeKey)&&r.role==='PROGRAM_ADMIN'));
   readerAdmin=hasAdminAuthority(auth,scopeKey);
@@ -96,7 +98,7 @@ export function lessonMedia(repository,auth,env){
   if(preview&&auth.workspace==='TEACH')teacher=true;
   if(!canRead())throw fail('This lesson media is outside your access.',403,'MEDIA_FORBIDDEN');
  };
- async function lesson(id){const row=await p(`SELECT l.*,c.name class_name,${audienceSQL} learner_allowed FROM lesson_media_lessons l LEFT JOIN classes c ON c.activity_key=l.activity_key AND c.class_id=l.class_id WHERE l.lesson_id=? AND l.activity_key=?`,...audienceValues(),String(id||''),scopeKey).first();if(!row)throw fail('Lesson not found.',404);return row;}
+ async function lesson(id){const row=await (contextEditor?lessonContextRead(db,'lesson',String(id||''),scopeKey):p(`SELECT l.*,c.name class_name,${audienceSQL} learner_allowed FROM lesson_media_lessons l LEFT JOIN classes c ON c.activity_key=l.activity_key AND c.class_id=l.class_id WHERE l.lesson_id=? AND l.activity_key=?`,...audienceValues(),String(id||''),scopeKey)).first();if(!row)throw fail('Lesson not found.',404);return row;}
  function reader(row){if(!readerAccess(row)||row.state!=='PUBLISHED')throw fail('Published lesson media is available to assigned learners, teachers and admins.',403,'MEDIA_FORBIDDEN');}
  function staff(row){if(!manages(row))throw fail('This session is outside your media management access.',403,'MEDIA_FORBIDDEN');}
  function revision(row,input){if(!Number.isInteger(input.revision)||row.revision!==input.revision)throw fail('This entry changed. Refresh before saving; your entry is kept.',409,'ROW_CHANGED');}
@@ -209,7 +211,7 @@ export function lessonMedia(repository,auth,env){
    const at=new Date().toISOString();return {statements:[p(`INSERT INTO lesson_media_lessons(lesson_id,activity_key,class_id,lesson_date,title,start_time,end_time,teacher_id,teacher_name,state,source_publication_id,source_lessons_json,updated_at,session_key,run_id,teacher_ids_json) VALUES(?,?,?,?,?,?,?,?,?,'DRAFT',?,?,?,?,?,?)`,current.lesson_id,scopeKey,current.class_id,current.lesson_date,current.title,current.start_time,current.end_time,current.teacher_id,current.teacher_name,current.source_publication_id,current.source_lessons_json,at,current.session_key,current.run_id,current.teacher_ids_json)],result:{lessonId:current.lesson_id,revision:1}};
   });
  }
- async function receipt(input,hash){const r=await p("SELECT payload_sha256,actor_account_id,json_remove(result_json,'$._acceptedChange','$._acceptedHead','$._acceptedPublic') result_json FROM operation_receipts WHERE dataset_key='LESSON_MEDIA' AND scope_key=? AND operation_id=?",scopeKey,input.operationId).first();if(!r)return null;if(!same(r.actor_account_id,actor)||r.payload_sha256!==hash)throw fail('This retry belongs to another change.',409,'OPERATION_ID_REUSED');return {...JSON.parse(r.result_json),replayed:true};}
+ async function receipt(input,hash){const r=await (contextEditor?lessonContextRead(db,'receipt',scopeKey,input.operationId):p("SELECT payload_sha256,actor_account_id,json_remove(result_json,'$._acceptedChange','$._acceptedHead','$._acceptedPublic') result_json FROM operation_receipts WHERE dataset_key='LESSON_MEDIA' AND scope_key=? AND operation_id=?",scopeKey,input.operationId)).first();if(!r)return null;if(!same(r.actor_account_id,actor)||r.payload_sha256!==hash)throw fail('This retry belongs to another change.',409,'OPERATION_ID_REUSED');return {...JSON.parse(r.result_json),replayed:true};}
  // Version and current account/session/role guards share the write transaction.
  // Media operations never load the Academy-wide account or media catalogue.
  async function change(action,input,row,mode,plan){
@@ -353,6 +355,7 @@ export function lessonMedia(repository,auth,env){
  async function videoPart(request,input){await ready(input);return video.part(request,input);}
  async function videoStream(request,input){await ready(input);return video.stream(request,input);}
  async function run(action,input){
+  contextEditor=['context-options','context-save'].includes(action);
   if(repository.features?.mediaSeparation&&['comments','comment-save','comment-moderate'].includes(action))throw fail('Discussion is retired.',410,'DISCUSSION_RETIRED');
   await ready(input);if(['comments','comment-save','comment-moderate'].includes(action)&&input.lessonId&&(await lesson(input.lessonId)).media_scope==='COURSE')throw fail('Discussion belongs to individual sessions.');if(action==='course-files-create')return createCourseFiles(input);if(action==='calendar')return calendar(input);if(action==='feed')return feed(input);if(action==='sessions')return sessions(input);if(action==='historical-create')return create({...input,historical:true});if(action==='create')return create(input);if(action==='list')return list(input);if(action==='save')return save(input);if(action==='comments')return comments(input);if(action==='comment-save')return commentSave(input);if(action==='comment-moderate')return moderate(input);
   if(action==='companion')return companions.read(input);

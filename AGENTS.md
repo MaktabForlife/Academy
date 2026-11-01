@@ -4,6 +4,13 @@
 - Preserve current native Admin-Learn/Admin-Teach inheritance and ordinary learner/teacher scope. Carry the selected view through the existing checked one-use connector; do not create teacher or learner grants or weaken authority checks.
 - Circles owns the isolated Target routing patch; optimisation owns this Source correction and combined release. Keep unfinished UI drafts, academic editor, retention and all deferred recording attachments out of this release. Failed MOU publication and its separate order fix remain held.
 - No production SQL, content/permission changes, timetable publication or Git push. Keep live checks small and use local synthetic fixtures for acceptance.
+# Lesson editor read-cost follow-up — locally tested, 1 November 2026
+
+- Local validation passes 165 regressions, including 23 focused checks, and eight native browser flows. See `docs/ACADEMIC-LESSON-CONTEXT-READS.md` and parent `outputs/academy-lesson-editor-read-budget-20261101/` for exact budgets, tests and the final local commit. The unchanged write-plan cost remains an explicit limitation.
+- This separate `feature/academic-lesson-editor-read-budget` checkout follows reviewed editor `ad1401ee`; preserve that original branch and its receipts. Optimise only exact scoped editor read captures, retaining current actor/epoch verification, Core/Admin live-column merge, stale/retry semantics and the guarded owner write plan. No generic planner rewrite or direct-binding bypass.
+- The V109.3 paired separation release is live at Source `078bcc8b` / Studio `f4e2f3ed`. Later compose these changes with it and retention `547345ca`; do not replace the deployed separation code with this older baseline. Academy and Studio require matching-version paired releases under parent `work/AGENTS.md`.
+- No release, live checks, hosted data/schema changes, actual recording attachments, MOU action, push, dependency upgrades or speculative version changes. Use synthetic local fixtures only. Report remaining inherited owner-write-plan costs honestly.
+
 # Dedicated lesson editor — locally complete, 1 November 2026
 
 - The preserved one-day recorded-context/date-selection feature is complete locally on `feature/academic-lesson-corrections`. The relevant suite passes 160 checks, including 18 new feature checks; eight isolated browser flows and 18 changed JS/MJS syntax checks pass. See `docs/ACADEMIC-RECORDED-CONTEXT.md` and parent `outputs/academy-lesson-editor-development-handoff-20261101/` for the exact commit, evidence and UI contract.
