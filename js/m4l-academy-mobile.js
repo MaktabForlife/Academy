@@ -42,8 +42,17 @@
  const pageTitle=document.title||'Umm Abbad Academy',boundary=window.M4L_ACADEMY_WORKSPACE;
  const token=()=>{try{return localStorage.getItem('m4l_account_token')||'';}catch{return '';}};
  const adminRealm=()=>Boolean(boundary?.adminRealm()&&boundary?.adminAccess());
- function canLeave(){return ['M4L_COURSE_WEBSITES','M4L_CLASS_NOTES','M4L_ACADEMY_SETTINGS','M4L_PROGRAM_ATTENDANCE','M4L_ACADEMY_PROGRESS','M4L_MEMORISATION_ADMIN','M4L_ACADEMY_ASSESSMENTS','M4L_LESSON_MEDIA','M4L_PLANNING','M4L_ANNOUNCEMENTS','M4L_PDF_READER'].every(key=>window[key]?.canLeave?.()!==false);}
- function openRole(key){const base=key==='admin'||adminRealm()?'/academy/admin/':'/academy/',hash=key==='admin'?'#administration':'#timetable/'+key;if([base,base+'index.html'].includes(location.pathname))location.hash=hash;else if(canLeave())location.href=base+hash;}
+ let availableViews={learn:false,teach:false,admin:false};
+ function canLeave(){return ['M4L_COURSE_WEBSITES','M4L_CLASS_NOTES','M4L_ACADEMY_SETTINGS','M4L_PROGRAM_ATTENDANCE','M4L_ACADEMY_PROGRESS','M4L_MEMORISATION_ADMIN','M4L_ACADEMY_ASSESSMENTS','M4L_LESSON_MEDIA','M4L_PLANNING','M4L_ANNOUNCEMENTS','M4L_PDF_READER','M4L_CIRCLES_ACCESS','M4L_STUDIO_ACCESS'].every(key=>window[key]?.canLeave?.()!==false);}
+ function openRole(key){
+  if(!['learn','teach','admin'].includes(key)||!availableViews[key]||!canLeave())return false;
+  const navigate=()=>{const connected=window.M4L_CIRCLES_RETURN?.modeHref(key);if(connected){location.href=connected;return true;}
+   const base=key==='admin'||adminRealm()?'/academy/admin/':'/academy/',hash=key==='admin'?'#administration':'#timetable/'+key;
+   if([base,base+'index.html'].includes(location.pathname))location.hash=hash;else location.href=base+hash;return true;
+  };
+  if(window.M4L_CIRCLES_RETURN_READY){const owner=token();void Promise.resolve(window.M4L_CIRCLES_RETURN_READY).then(()=>window.M4L_CIRCLES_RETURN?.ready?.()).then(()=>{if(owner===token()&&availableViews[key]&&canLeave())navigate();}).catch(()=>{});return true;}
+  return navigate();
+ }
  const context=document.createElement('span');context.hidden=true;context.id='academy-workspace-context';context.className='academy-admin-context';context.setAttribute('aria-label','Current Admin workspace');
  function contextBanner(){
   const mode=boundary?.current()||'LEARN',isAdmin=adminRealm();context.hidden=!isAdmin;document.body.dataset.academyWorkspace=isAdmin||!boundary?.adminRealm()?mode:'';document.title=(isAdmin?mode.replace('_','-')+' · ':boundary?.adminRealm()&&!data?.signedIn?'Admin sign-in · ':'')+pageTitle;
@@ -69,11 +78,11 @@
   const learning=signed&&!pendingAdmin&&['LEARN','TEACH'].includes(boundary?.audience())&&!management&&(entrance?/^#(?:timetable|activity|progress|hifz|hifdh|assessments)(?:\/|$)/.test(location.hash):reader);
   document.body.classList.toggle('academy-learning-layout',learning);
   window.M4L_ACADEMY_CONTENTS?.sync();
-  for(const button of document.querySelectorAll('[data-shell-role]')){button.hidden=!available[button.dataset.shellRole];const short=button.dataset.shellRole.toUpperCase(),label=(button.dataset.shellRole!=='admin'?(adminRealm()?'ADMIN-':canAdmin?'PERSONAL ':''):'')+short;button.setAttribute('aria-label',label);button.title=label;button.innerHTML='<span class="academy-role-label">'+label+'</span><span class="academy-role-short" aria-hidden="true">'+short+'</span>';button.setAttribute('aria-pressed',String(button.dataset.shellRole===selected));}
-  // One Dashboard link replaces the role-home switches. Programme audiences
-  // are chosen from the hub; the native role controls remain compatibility hooks.
+  availableViews=available;
+  for(const button of document.querySelectorAll('[data-shell-role],[data-academy-tab]')){const key=button.dataset.shellRole||button.dataset.academyTab,label=key==='learn'?'Learn':key==='teach'?'Teach':'Admin';button.hidden=!available[key];button.setAttribute('aria-label',label);button.title=label;button.textContent=label;button.setAttribute('aria-pressed',String(key===selected));}
+  // Keep one checked workspace selector row on both programme and tool pages.
   const tabs=document.querySelector('.academy-role-tabs');
-  if(tabs){let hub=tabs.querySelector('.academy-dashboard-home-link');if(!hub){hub=document.createElement('a');hub.className='academy-dashboard-home-link';hub.textContent='Dashboard';hub.setAttribute('data-workspace-exit','');hub.setAttribute('data-page-home','');tabs.append(hub);}hub.href=boundary?.homeUrl?.()||'/academy/#dashboard';hub.hidden=!signed;if(location.hash==='#dashboard')hub.setAttribute('aria-current','page');else hub.removeAttribute('aria-current');}
+  tabs?.querySelector('.academy-dashboard-home-link')?.remove();
   const name=document.getElementById('academy-shell-name'),role=document.getElementById('academy-shell-role');if(name)name.textContent=signed?(data.profile?.name||'Academy member'):'Welcome';if(role)role.textContent=signed&&adminRealm()&&boundary?.current()==='ADMIN_LEARN'?'Admin-Learn · Student view':signed&&adminRealm()&&boundary?.current()==='ADMIN_TEACH'?'Admin-Teach · Teacher':signed&&boundary?.current()==='LEARN'?'Student':signed&&boundary?.current()==='TEACH'?'Teacher':global?'Global Admin':admin(roles)?'Program Admin':staff(roles)?'Teacher':roles.includes('STUDENT')?'Student':signed?'None':'';contextBanner();window.M4L_ACADEMY_ADMIN_MENU?.update(data);
  }
  document.addEventListener('click',event=>{const button=event.target.closest('[data-shell-role]');if(button&&!button.hidden){event.preventDefault();openRole(button.dataset.shellRole);}});

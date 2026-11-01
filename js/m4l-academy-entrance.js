@@ -486,8 +486,9 @@
     $('academy-account-role').textContent = data?.signedIn ? (adminRealm&&['learn','teach'].includes(state.academyTab)?'Admin-'+state.academyTab+' · ':'')+(highestAccess(roles)||'None') : '';
     $('academy-access-empty').hidden = !data?.signedIn || Boolean(choices.length);
     for (const key of ['learn','teach','admin']) {
-      const tab = $('academy-tab-'+key), active = !home && key === state.academyTab;
-      const short=key.toUpperCase(),label=(key!=='admin'?(adminRealm?'ADMIN-':canAdmin?'PERSONAL ':''):'')+short;tab.setAttribute('aria-label',label);tab.title=label;tab.innerHTML='<span class="academy-role-label">'+label+'</span><span class="academy-role-short" aria-hidden="true">'+short+'</span>';tab.hidden = !choices.includes(key);tab.setAttribute('aria-pressed', String(active));tab.setAttribute('aria-controls',key === 'admin' ? 'administration' : 'timetable');tab.tabIndex = 0;
+      const boundary=window.M4L_ACADEMY_WORKSPACE,selected=boundary?(boundary.current()==='ADMIN'?'admin':boundary.audience()==='TEACH'?'teach':'learn'):state.academyTab;
+      const tab = $('academy-tab-'+key), active = !home && key === selected,label=key==='learn'?'Learn':key==='teach'?'Teach':'Admin';
+      tab.setAttribute('aria-label',label);tab.title=label;tab.textContent=label;tab.hidden = !choices.includes(key);tab.setAttribute('aria-pressed', String(active));tab.setAttribute('aria-controls',key === 'admin' ? 'administration' : 'timetable');tab.tabIndex = 0;
     }
     panel.hidden = true;
     panel.setAttribute('aria-labelledby', 'academy-tab-'+state.academyTab);
@@ -1350,7 +1351,7 @@
   $('academy-role-tabs')?.addEventListener('click', event => {
     const tab = event.target.closest('[data-academy-tab]');
     if (!tab || tab.hidden || !state.home?.signedIn) return;
-    if(tab.dataset.academyTab !== 'admin' && window.M4L_ACADEMY_SHELL){window.M4L_ACADEMY_SHELL.openRole(tab.dataset.academyTab);return;}
+    if(window.M4L_ACADEMY_SHELL){window.M4L_ACADEMY_SHELL.openRole(tab.dataset.academyTab);return;}
     state.academyTab = tab.dataset.academyTab;
     const next=state.academyTab === 'admin' ? '#administration' : '#timetable/'+state.academyTab;
     if(location.hash===next)route();else location.hash=next;
