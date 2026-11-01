@@ -7,13 +7,18 @@ export function approvedCirclesReturn(raw,now=Date.now()){
  }catch{return null;}
 }
 if(typeof window!=='undefined'){
- const originals=new Map();let context=null,generation=0;
+ const originals=new Map();let context=null,matchedToken='',generation=0,checking=Promise.resolve();
+ window.M4L_CIRCLES_RETURN={ready:()=>checking,modeHref(mode){
+  if(!['learn','teach','admin'].includes(mode)||!context||!matchedToken||matchedToken!==localStorage.getItem('m4l_account_token')||!approvedCirclesReturn(JSON.stringify(context)))return null;
+  return new URL('/?workspace='+mode,context.websiteOrigin).href;
+ }};
  const restore=()=>{document.body.classList.remove('circles-connected-academy');for(const [link,previous]of originals){link.href=previous.href;if(previous.label===null)link.removeAttribute('aria-label');else link.setAttribute('aria-label',previous.label);link.title=previous.title;}originals.clear();};
  const apply=()=>{if(!context)return;document.body.classList.add('circles-connected-academy');for(const link of document.querySelectorAll('[data-page-home],.academy-brand-details>a,.al-header>a:first-child,.pr-brand')){if(!originals.has(link))originals.set(link,{href:link.href,label:link.getAttribute('aria-label'),title:link.title});if(link.href!==context.returnUrl)link.href=context.returnUrl;link.setAttribute('aria-label','Return to your Circles dashboard');link.title='Home · Circles dashboard';}};
- async function connect(){const current=++generation;context=null;restore();const value=approvedCirclesReturn(sessionStorage.getItem('m4l_circles_return')),token=localStorage.getItem('m4l_account_token');if(!value||!token)return;
-  const owner=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token))),b=>b.toString(16).padStart(2,'0')).join('');if(current!==generation||token!==localStorage.getItem('m4l_account_token'))return;if(owner!==value.owner){sessionStorage.removeItem('m4l_circles_return');return;}context=value;apply();
+ async function connect(){const current=++generation;context=null;matchedToken='';restore();const value=approvedCirclesReturn(sessionStorage.getItem('m4l_circles_return')),token=localStorage.getItem('m4l_account_token');if(!value||!token)return;
+  const owner=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token))),b=>b.toString(16).padStart(2,'0')).join('');if(current!==generation||token!==localStorage.getItem('m4l_account_token'))return;if(owner!==value.owner){sessionStorage.removeItem('m4l_circles_return');return;}context=value;matchedToken=token;apply();
  }
- void connect();window.addEventListener('hashchange',apply);window.addEventListener('m4l-academy-session',()=>void connect());window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)void connect();});
+ const refresh=()=>checking=connect();
+ void refresh();window.addEventListener('hashchange',apply);window.addEventListener('m4l-academy-session',()=>void refresh());window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)void refresh();});
  new MutationObserver(apply).observe(document.body,{attributes:true,attributeFilter:['href'],subtree:true});
  // Keep the native Library and PDF reader in the same tab. A noopener PDF tab
  // would lose this account-bound return context and fall back to Academy Home.

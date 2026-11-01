@@ -59,5 +59,5 @@
     new ResizeObserver(()=>{if(!frame)frame=requestAnimationFrame(measure);}).observe(shell.banners);measure();
   }
   void import('/js/m4l-academy-history.js?v=109.1').catch(()=>{ /* Existing page links remain available if navigation cannot load. */ });
-  void import('/academy/website-platform/circles-return.mjs').catch(()=>{ /* Native workspace Home remains available. */ });
+  window.M4L_CIRCLES_RETURN_READY=import('/academy/website-platform/circles-return.mjs').then(()=>window.M4L_CIRCLES_RETURN?.ready?.()).catch(()=>{ /* Native workspace Home remains available. */ });
 })();
