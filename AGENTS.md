@@ -4,6 +4,19 @@
 - Preserve current native Admin-Learn/Admin-Teach inheritance and ordinary learner/teacher scope. Carry the selected view through the existing checked one-use connector; do not create teacher or learner grants or weaken authority checks.
 - Circles owns the isolated Target routing patch; optimisation owns this Source correction and combined release. Keep unfinished UI drafts, academic editor, retention and all deferred recording attachments out of this release. Failed MOU publication and its separate order fix remain held.
 - No production SQL, content/permission changes, timetable publication or Git push. Keep live checks small and use local synthetic fixtures for acceptance.
+# Dedicated lesson editor — locally complete, 1 November 2026
+
+- The preserved one-day recorded-context/date-selection feature is complete locally on `feature/academic-lesson-corrections`. The relevant suite passes 160 checks, including 18 new feature checks; eight isolated browser flows and 18 changed JS/MJS syntax checks pass. See `docs/ACADEMIC-RECORDED-CONTEXT.md` and parent `outputs/academy-lesson-editor-development-handoff-20261101/` for the exact commit, evidence and UI contract.
+- Next release composition needs matching Source API and external split-coordinator feature code. No new schema, dependency update, release stamp or asset cache-reference change was made. General inherited Admin federation costs remain explicitly documented for optimisation.
+- All deployment, push, live-data, recording attachment/publication and MOU repair holds remain. Original session/class/cohort/teacher permission anchors, recurring timetable, upload time and independent recording/companion expiry remain unchanged. Native IDs/upload evidence for the two future academic items still require supported confirmation.
+
+# Academic lesson corrections — deferred to next update, 1 November 2026
+
+- Latest owner instruction: hold recording attachments for the next update. The incomplete local editor changes are preserved here and excluded from V109.2. Do not deploy or attach recordings from this checkout; complete the new feature tests before any later release. V109.2 code deployment is already complete.
+- Earlier implementation request: add past-date selection and one-day subject/teacher corrections for academic recording attachments. Work on `feature/academic-lesson-corrections`; test locally. No deployment, push, hosted SQL, attachment or publication is authorised by this request.
+- Preserve the original session, class/cohort, timetable snapshot and permission anchors. Corrections describe the recorded content only and must never grant teacher access or edit the recurring timetable. Keep retention based on the original successful upload.
+- MOU publication is ON HOLD by the owner's latest instruction. Earlier MOU import approvals below are superseded. Do not execute or retry the MOU package or deploy its separate publication-order fix.
+- Keep live checks small: use disposable local fixtures only for this task.
 
 # V109.2 code deployed — 1 November 2026
 

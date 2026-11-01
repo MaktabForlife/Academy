@@ -6,8 +6,8 @@ import {videoMigration} from '../../tools/academy-session-video-migration.mjs';
 import worker from '../../src/academy-runtime.js';
 const ok=r=>{assert.equal(r.status,200,JSON.stringify(r.body));return r.body;};
 const schema=db=>db.prepare("SELECT type,name,sql FROM sqlite_schema WHERE tbl_name='lesson_media_assets' AND sql IS NOT NULL ORDER BY type,name").all();
-export async function splitVideoFixture(){
- const f=await splitFixture();
+export async function splitVideoFixture(seed){
+ const f=await splitFixture(seed);
  for(const db of Object.values(f.databases)){
   const before=schema(db),rows=db.prepare('SELECT * FROM lesson_media_assets ORDER BY asset_id').all();
   db.exec('BEGIN');db.exec(videoMigration(before));db.exec('COMMIT');
