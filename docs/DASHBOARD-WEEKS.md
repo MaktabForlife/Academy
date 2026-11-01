@@ -1,0 +1,13 @@
+# Protected dashboard week selection
+
+The signed website dashboard bridge accepts optional `date` or `weekStart`, never both. It forwards the selector to the existing dashboard helper; the helper validates a real civil date, normalises it to Sunday and reads the native checked entrance once with `startDate`. No new Worker route, schema, browser actor or joining authority is introduced.
+
+The result has `timetableWeekVersion:1`, `weekStart`, `weekEnd`, `selectedDate` and the existing native `startDate/endDate/timezone`. Timetable rows are clipped to those seven native dates. Existing workspace, class membership, Teacher, publication/lifecycle and date filters remain in the shared native reader. Existing exact native/Studio Join references remain unchanged and are resolved under the real current clock on each click.
+
+Teach rows may carry the native opaque `meeting-N` grouping label. This label is copied only from the trusted native projection and never contains a meeting URL; it grants no joining authority. Learn and public Free summaries retain their previous disclosure boundary. Grouping must still retain programme/day/time/audience boundaries in the separate client.
+
+Target privately caches one normalised week per account, source/epoch/navigation-proof context and checked mode, with known local publication/semantic-permission heads. Default date uses the native timezone, never browser timezone. Old Source current-week requests keep the same body when no selector is supplied; the Target transitional fallback validates those seven dates, rejects unmatched cross-week data and does not cache the old projection.
+
+Current native role changes still invalidate the entire permission proof, even when programme keys and epoch stay identical. They are not replaced by Studio metadata or unchanged programme membership. Tests use the actual native role/status refresh path, deny old Teach data after role loss, then select a valid retained Student context. Source may require a new selected context when the old Teacher context ceases to exist; this does not remove the Student role or change the epoch.
+
+Source tests cover the signed/native Join and workspace boundaries plus the week request and safe grouping contract. Target tests cover warm/empty/negative week reuse, cross-week navigation, known publication and permission changes, no-source policy redecoration with original native assembly age, current clocks/week rollover and bounded unrelated growth. Full receipts and exact commits live in the project parent outputs/academy-dashboard-weeks-20261101. All fixtures are local and disposable; no hosted request, SQL, real publication, rights edit, deployment or push was performed. Root owns paired release composition.

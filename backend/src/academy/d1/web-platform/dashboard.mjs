@@ -2,7 +2,7 @@ import {fail,id,date} from './protocol.mjs';
 import {navigationMappings} from './navigation.mjs';
 import {nativeJoinTarget} from './native-join.mjs';
 import {dashboardStudioSessionId} from './timetable.mjs';
-import {lessonTimes} from '../../entrance.js';
+import {lessonTimes,addDays,sunday} from '../../entrance.js';
 
 export function dashboardModes(state){
  if(!state?.account?.active)throw fail('Your Academy session has ended.',401,'SESSION_ENDED');
@@ -55,9 +55,21 @@ async function studioJoinReference(row,nativeScopes){
  const sessionId=await dashboardStudioSessionId(scope.activity_key,row.mediaSessionKey,row.sourceDate||row.date);
  return sessionId?{studioJoin:{offeringId:scope.offering_id,sessionId}}:{};
 }
+// A civil date selects exactly one native Sunday–Saturday week. The selected
+// day is presentation state, never a class grant or a Join clock override.
+export function dashboardWeekInput(input={}){
+ if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).some(k=>!['mode','date','weekStart'].includes(k))||input.date!==undefined&&input.weekStart!==undefined)throw fail('Choose one dashboard date or week.');
+ const value=input.date??input.weekStart;if(value===undefined)return null;
+ const selectedDate=date(value),weekStart=date(sunday(selectedDate)),weekEnd=date(addDays(weekStart,6));return {selectedDate,weekStart,weekEnd};
+}
+function trustedMeetingGroup(row,mode){
+ return mode==='teach'&&typeof row.meetingGroup==='string'&&/^meeting-[1-9]\d{0,5}$/.test(row.meetingGroup)?{meetingGroup:row.meetingGroup}:{};
+}
 export async function dashboardSummary(state,env,input,read,nativeScopes=[]){
- const availableModes=dashboardModes(state),mode=input.mode||(['admin','teach','learn'].find(m=>availableModes.includes(m)));if(!availableModes.includes(mode))throw fail('This dashboard is outside your current permissions.',403);
- const home=await read('/api/academy/entrance',{},mode),mappings=navigationMappings(env),warnings=[];
+ const requestedWeek=dashboardWeekInput(input),availableModes=dashboardModes(state),mode=input.mode||(['admin','teach','learn'].find(m=>availableModes.includes(m)));if(!availableModes.includes(mode))throw fail('This dashboard is outside your current permissions.',403);
+ const home=await read('/api/academy/entrance',requestedWeek?{startDate:requestedWeek.weekStart}:{},mode),mappings=navigationMappings(env),warnings=[];
+ const weekStart=date(home.startDate),weekEnd=date(home.endDate);if(sunday(weekStart)!==weekStart||addDays(weekStart,6)!==weekEnd||requestedWeek&&requestedWeek.weekStart!==weekStart)throw fail('Academy returned a different timetable week.',503);
+ const inWeek=row=>typeof row.date==='string'&&row.date>=weekStart&&row.date<=weekEnd;
  // Personal Learn/Teach activity summaries intentionally omit synthetic Admin
  // enrolments. Programme links use exact native mappings and the same current
  // destination guard instead of inferring IDs or roles from those summaries.
@@ -71,11 +83,11 @@ export async function dashboardSummary(state,env,input,read,nativeScopes=[]){
  const activities=(home.personalActivities||[]).filter(a=>a.active!==false&&a.lifecycle!=='ARCHIVED'&&a.menuAvailable!==false&&['PROGRAM','COURSE'].includes(a.kind)&&a.roles?.length).slice(0,60).map(a=>({...fields(a,['kind','id','name','roles','substituteOnly','plansRequired']),activityKey:a.kind+':'+a.id,navigationKey:Object.keys(mappings).find(k=>mappings[k].toLowerCase()===a.id.toLowerCase())||null}));
  for(const area of activities){const mapped=nativeScopes.find(s=>s.activity_key.toUpperCase()===area.activityKey.toUpperCase());if(mapped){area.websiteOfferingId=mapped.offering_id;area.websiteKind=mapped.kind;area.accessOwner=mapped.access_owner||'ACADEMY';}}
  const allowed=new Map(activities.map(a=>[a.activityKey.toUpperCase(),a]));
- const personal=(home.personalTimetable||[]).filter(r=>allowed.has((r.kind+':'+r.activityId).toUpperCase()));
+ const personal=(home.personalTimetable||[]).filter(r=>inWeek(r)&&allowed.has((r.kind+':'+r.activityId).toUpperCase()));
  // Public FREE references add no personal roles, class labels or enrolment.
  // Retain future metadata so the existing local clock can open Join at -5min
  // even when this dashboard is reused for twelve hours without a network poll.
- const free=(home.timetable||[]).filter(r=>r.publicJoin===true&&r.status==='SCHEDULED'&&!nativeScopes.some(s=>s.activity_key.toUpperCase()===(r.kind+':'+r.activityId).toUpperCase()&&['STUDIO','FROZEN'].includes(s.access_owner))).map(r=>({...fields(r,['kind','activityId','activityName','date','sourceDate','startTime','endTime','timezone','status','joinKey']),title:r.activityName,...lessonTimes(r)})).filter(r=>Number.isFinite(r.startsAt)&&Number.isFinite(r.endsAt));
+ const free=(home.timetable||[]).filter(r=>inWeek(r)&&r.publicJoin===true&&r.status==='SCHEDULED'&&!nativeScopes.some(s=>s.activity_key.toUpperCase()===(r.kind+':'+r.activityId).toUpperCase()&&['STUDIO','FROZEN'].includes(s.access_owner))).map(r=>({...fields(r,['kind','activityId','activityName','date','sourceDate','startTime','endTime','timezone','status','joinKey']),title:r.activityName,...lessonTimes(r)})).filter(r=>Number.isFinite(r.startsAt)&&Number.isFinite(r.endsAt));
  const publicByKey=new Map(free.map(row=>[row.joinKey,row])),personalKeys=new Set(personal.map(row=>row.joinKey));
  const timetable=[...personal.map(row=>row.preview&&publicByKey.has(row.joinKey)?publicByKey.get(row.joinKey):row),...free.filter(row=>!personalKeys.has(row.joinKey))].slice(0,200);
  const optional=async(name,path,body)=>{try{return await read(path,body,mode);}catch(error){if(error.status===401||error.status===403)throw error;warnings.push(name+' could not be checked.');return null;}};
@@ -87,8 +99,8 @@ export async function dashboardSummary(state,env,input,read,nativeScopes=[]){
   mode==='admin'?optional('Enrolment requests','/api/admin/platform/enrolment/get',{}):null
  ]);
  const dueNotes=[];for(const session of notes?.sessions||[]){const lesson=timetable.find(r=>JSON.stringify([r.kind+':'+r.activityId,r.sourceDate||r.date,r.mediaSessionKey])===session.ref);if(!lesson||Number(lesson.startsAt)<=Date.now())continue;const source=session.sources?.[0];if(!source||!allowed.has(source.activityKey.toUpperCase()))continue;for(const note of session.dueNotes||[])dueNotes.push({...fields(note,['id','title','date']),activityKey:source.activityKey,activityName:source.activityName});}
- return {mode,availableModes,programmeNavigation,nativeJoinVersion:1,studioJoinVersion:1,freeProgrammeJoinVersion:1,adminBadge:availableModes.includes('admin')?(state.account.global_admin?'Global Admin':'Admin'):null,checkedAt:Date.now(),timezone:home.timezone||'Africa/Johannesburg',startDate:home.startDate,endDate:home.endDate,activities,
-  timetable:await Promise.all(timetable.map(async r=>({...fields(r,['kind','activityId','activityName','date','startTime','endTime','startsAt','endsAt','joinAvailableAt','timezone','status','subjectName','moduleName','title']),...nativeJoinReference(r,nativeScopes),...await studioJoinReference(r,nativeScopes)}))),
+ return {mode,availableModes,programmeNavigation,timetableWeekVersion:1,weekStart,weekEnd,selectedDate:requestedWeek?.selectedDate||null,nativeJoinVersion:1,studioJoinVersion:1,freeProgrammeJoinVersion:1,adminBadge:availableModes.includes('admin')?(state.account.global_admin?'Global Admin':'Admin'):null,checkedAt:Date.now(),timezone:home.timezone||'Africa/Johannesburg',startDate:home.startDate,endDate:home.endDate,activities,
+  timetable:await Promise.all(timetable.map(async r=>({...fields(r,['kind','activityId','activityName','date','startTime','endTime','startsAt','endsAt','joinAvailableAt','timezone','status','subjectName','moduleName','title']),...trustedMeetingGroup(r,mode),...nativeJoinReference(r,nativeScopes),...await studioJoinReference(r,nativeScopes)}))),
   calendar:(home.calendarEvents||[]).slice(0,100).map(r=>fields(r,['id','title','name','description','date','startDate','endDate','type'])),
   assessments:assessments?(assessments.assessments||[]).filter(r=>allowed.has(r.activityKey?.toUpperCase())&&r.published).slice(0,200).map(r=>fields(r,['activityKey','title','phaseName','registerId','registerStatus','examDate','assessmentKind','availableFrom','dueAt','timezone','published'])):null,
   dueNotes:notes?dueNotes.slice(0,100):null,messages:messages?{counts:messages.counts,notices:messages.notices.map(r=>fields(r,['id','subject','sender','state','issuedAt','unread','requiresAcknowledgement','acknowledgedAt'])),canSend:Boolean(messages.canSend)}:null,

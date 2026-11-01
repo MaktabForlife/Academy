@@ -71,7 +71,7 @@ export async function bridge(request,env,{login,mint,navigation,dashboard,destin
  }
  if(path==='/internal/website/continue-sign-in'){const session=await sourceSession(db,input.sourceRef);if(input.statusOnly){const result=await pendingAccount(env,db,session.account_id);return result.more?{...result,continuation:session.source_ref,statusOnly:true}:result;}return completeSignIn(env,db,session);}
  if(path==='/internal/website/media-teachers'){if(input.purpose!=='ADMIN_MEDIA')throw fail('Open the native Admin media editor.',403,'ADMIN_WORKSPACE_REQUIRED');if(!mediaTeachers)throw fail('Native media Teacher validation is unavailable.',503);return mediaTeachers(await sourceSession(db,input.sourceRef),input);}
- if(path==='/internal/website/dashboard'){const session=await sourceSession(db,input.sourceRef);return {dashboard:await dashboard(session,{mode:input.mode})};}
+ if(path==='/internal/website/dashboard'){const session=await sourceSession(db,input.sourceRef);return {dashboard:await dashboard(session,{mode:input.mode,...(input.date!==undefined?{date:input.date}:{}),...(input.weekStart!==undefined?{weekStart:input.weekStart}:{})})};}
  if(path==='/internal/website/lesson-join'){
   if(!lessonJoin)throw fail('Native lesson joining is unavailable.',503);
   const session=await sourceSession(db,input.sourceRef),result=await lessonJoin(session,input);
