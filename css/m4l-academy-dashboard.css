@@ -113,9 +113,9 @@ body #ad-contents-drawer :is(a,button):focus-visible{outline:3px solid #865694;o
 #dashboard.ad-admin-dashboard .ad-admin-intro{margin:0 0 20px}
 #dashboard.ad-admin-dashboard .ad-admin-intro h1{font:400 clamp(30px,4vw,46px)/1.15 Georgia,serif;margin:8px 0}
 #dashboard.ad-admin-dashboard .ad-sidebar{display:block;position:static;background:transparent;border:0;padding:0}
-#dashboard.ad-admin-dashboard .ad-sidebar h2,#dashboard .ad-menu-caption{font:700 11px/1.4 Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7d8c7a;margin:0 0 18px}
+#dashboard.ad-admin-dashboard .ad-sidebar h2,#dashboard .ad-menu-caption{font:700 11px/1.4 Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#9b7f8c;margin:0 0 18px}
 #dashboard.ad-admin-dashboard #ad-navigation{display:grid;gap:8px}
-#dashboard.ad-admin-dashboard #ad-navigation :is(a,button){display:flex;align-items:center;justify-content:flex-start;text-align:left;min-height:44px;width:100%;padding:9px 10px;border:0;background:transparent;color:#526856;text-decoration:none;font:500 13px/1.4 Arial,sans-serif}
+#dashboard.ad-admin-dashboard #ad-navigation :is(a,button){display:flex;align-items:center;justify-content:flex-start;text-align:left;min-height:44px;width:100%;padding:9px 10px;border:0;background:transparent;color:#684f60;text-decoration:none;font:500 13px/1.4 Arial,sans-serif}
 #dashboard.ad-admin-dashboard .ad-management-row{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 20px}
 #dashboard.ad-admin-dashboard .ad-management-link{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 12px;border:1px solid #c2cfbc;border-radius:8px;background:#dfe7d9;color:#3f5947;text-decoration:none;font:600 12px/1.4 Arial,sans-serif}
 #dashboard.ad-admin-dashboard .ad-management-link:hover{background:#ccd9c5}
@@ -125,23 +125,23 @@ body #ad-contents-drawer :is(a,button):focus-visible{outline:3px solid #865694;o
 #dashboard.ad-admin-dashboard #ad-circle-date{font-size:12px;flex:1}
 #dashboard .ad-circle-wheel{position:relative;aspect-ratio:1;width:100%;container-type:inline-size}
 #dashboard .ad-circle-wheel>svg{width:100%;height:100%}
-#dashboard .ad-circle-wheel path{fill:#edf0e8;stroke:#faf7f2;stroke-width:3}
-#dashboard .ad-circle-wheel path.has-sessions{fill:#d3dfcc}
+#dashboard .ad-circle-wheel path{fill:#f0eae6;stroke:#faf7f2;stroke-width:3}
+#dashboard .ad-circle-wheel path.has-sessions{fill:#d9c5cf}
 #dashboard .ad-circle-wheel ol{list-style:none;margin:0;padding:0}
 #dashboard .ad-circle-wheel li{position:absolute;left:var(--x);top:var(--y);width:28%;transform:translate(-50%,-50%)}
-#dashboard .ad-circle-wheel li button{display:grid;justify-items:center;gap:5px;width:100%;min-height:44px;border:0;background:transparent;color:#405c49;padding:2px;text-align:center}
+#dashboard .ad-circle-wheel li button{display:grid;justify-items:center;gap:5px;width:100%;min-height:44px;border:0;background:transparent;color:#604858;padding:2px;text-align:center}
 #dashboard .ad-circle-wheel li strong{font:400 clamp(12px,3.5cqw,22px)/1.15 Georgia,serif}
 #dashboard .ad-circle-wheel li :is(span,small){font-size:clamp(8px,2cqw,12px)}
-#dashboard .ad-circle-heart{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:32%;aspect-ratio:1;border-radius:50%;background:#fffaf3;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:12px;color:#52684f;box-shadow:0 0 0 7px #faf7f277}
+#dashboard .ad-circle-heart{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:32%;aspect-ratio:1;border-radius:50%;background:#fffaf3;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:12px;color:#654c5d;box-shadow:0 0 0 7px #faf7f277}
 #dashboard .ad-circle-heart strong{font:400 clamp(18px,5cqw,32px)/1.1 Georgia,serif;margin:8px 0}
 #dashboard .ad-circle-heart :is(small,span){font-size:clamp(8px,1.8cqw,11px)}
-#dashboard .ad-circle-caption{text-align:center;font-size:11px;color:#7b8776}
-#dashboard.ad-admin-dashboard .circles-attention{margin:0;padding:24px;border:1px solid #ddd8cd;border-radius:14px;background:#f0eee6}
+#dashboard .ad-circle-caption{text-align:center;font-size:11px;color:#84727d}
+#dashboard.ad-admin-dashboard .circles-attention{margin:0;padding:24px;border:1px solid #e5d8de;border-radius:14px;background:#f1e9e8}
 #dashboard.ad-admin-dashboard .circles-attention h2{font:400 30px/1.15 Georgia,serif}
 #dashboard.ad-admin-dashboard .circles-attention .ad-assessment-list{grid-template-columns:1fr;max-height:20rem}
 #dashboard.ad-admin-dashboard .ad-admin-support{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:30px}
 #dashboard .ad-circle-many ol{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:8px}
 #dashboard .ad-circle-many li{position:static;width:auto;transform:none}
-#dashboard .ad-circle-many li button{background:#edf1e8;border:1px solid #ccd6c6;border-radius:8px;padding:10px}
-#dashboard .ad-session-detail{padding:16px 0;border-top:1px solid #dedbce}
+#dashboard .ad-circle-many li button{background:#f6efec;border:1px solid #dfd0d6;border-radius:8px;padding:10px}
+#dashboard .ad-session-detail{padding:16px 0;border-top:1px solid #ddcfd6}
 @media(max-width:760px){#dashboard.ad-admin-dashboard .ad-admin-top{grid-template-columns:1fr}#dashboard.ad-admin-dashboard #ad-navigation{grid-template-columns:repeat(3,1fr)}#dashboard.ad-admin-dashboard .ad-admin-support{grid-template-columns:1fr}}

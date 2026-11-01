@@ -5,7 +5,7 @@
 #activity .programme-top .workspace-contents{width:100%;border:0;background:transparent;box-shadow:none;margin:0}
 #activity .programme-top .workspace-tabs{display:grid;grid-template-columns:1fr;gap:7px;padding:10px 0;overflow:visible;border:0;background:transparent}
 #activity .programme-top .workspace-tabs :is(a,button){display:flex;align-items:center;justify-content:flex-start;min-height:44px;white-space:normal;text-align:left;padding:10px 12px;border:1px solid transparent;border-radius:8px;background:transparent;color:#684f60;font:500 13px/1.4 'DM Sans',Arial,sans-serif;text-decoration:none;margin:0;width:100%}
-#activity .programme-top .workspace-tabs :is(a,button):hover,#activity .programme-top .workspace-tabs [aria-current=page],#activity .programme-top .workspace-tabs [aria-pressed=true]{background:#eee5e9;border-color:#ddd0d7}
+#activity .programme-top .workspace-tabs :is(a,button):hover,#activity .programme-top .workspace-tabs [aria-current=page],#activity .programme-top .workspace-tabs [aria-pressed=true]{background:#e1e8da;border-color:#cbd7c2}
 #activity .programme-top #activity-schedule{margin:0;padding:0;border:0;background:transparent;box-shadow:none;overflow:visible}
 #activity[data-programme-layout] #activity-sessions[hidden]{display:none!important}
 #activity .programme-centre .section-title{display:block;margin-bottom:14px}
@@ -13,7 +13,7 @@
 #activity .programme-centre .upcoming-controls{justify-content:flex-start;gap:8px}
 #activity .programme-days{display:flex;gap:5px;overflow:auto;scrollbar-width:thin;padding:2px 2px 12px}
 #activity .programme-days button{flex:0 0 auto;min-height:44px;padding:8px 10px;border:1px solid #ddd0d7;border-radius:7px;font-size:11px;background:#faf7f2;color:#745b6a}
-#activity .programme-days [aria-pressed=true]{background:#654c5d;color:#fff9f2;border-color:#654c5d}
+#activity .programme-days [aria-pressed=true]{background:#526b57;color:#fff9f2;border-color:#526b57}
 #activity .programme-wheel{position:relative;isolation:isolate;width:100%;aspect-ratio:1;border-radius:50%;container-type:inline-size}
 #activity .programme-wheel>svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 #activity .programme-sector{stroke:#faf7f2;stroke-width:3;stroke-linejoin:round;fill:#eee6e3}
@@ -53,11 +53,11 @@
 .programme-note p{margin:0 0 10px;font-size:14px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .programme-note small{font-size:11px;color:#8b7584}
 #activity .programme-notes footer{display:flex;flex-wrap:wrap;gap:10px;flex:none;border-top:1px solid #ddcfd6;padding-top:12px}
-#activity .programme-notes footer button{border:1px solid #cdb9c4;background:transparent;color:#684f60;border-radius:24px;min-height:44px;padding:9px 16px;font-size:13px}
+#activity .programme-notes footer button{border:1px solid #c2cfbc;background:#dfe7d9;color:#3f5947;border-radius:24px;min-height:44px;padding:9px 16px;font-size:13px}
 #activity .programme-teach-panel{display:grid;grid-template-rows:minmax(0,1fr) minmax(0,1fr) minmax(0,1.25fr);gap:14px;min-height:660px;padding:0;border:0;border-radius:0;background:transparent;overflow:visible}
 #activity .programme-teach-panel>[data-teach-tool],#activity .programme-teach-notes{min-height:0;min-width:0;margin:0;padding:16px 18px;border:1px solid #e5d8de;border-radius:12px;background:#f1e9e8;overflow:auto;box-shadow:none}
-#activity .programme-teach-panel [data-teach-tool=attendance]{background:#edf0e9}
-#activity .programme-teach-panel [data-teach-tool=planner]{background:#f1e8df}
+#activity .programme-teach-panel [data-teach-tool=attendance]{background:#f1e9e8}
+#activity .programme-teach-panel [data-teach-tool=planner]{background:#f1e9e8}
 #activity .programme-teach-panel h2{font-size:24px;line-height:1.15;margin:0 0 10px}
 #activity .programme-teach-panel .programme-teach-notes{display:flex;flex-direction:column;gap:8px;overflow:hidden}
 #activity .programme-teach-notes header p{font-size:11px}
