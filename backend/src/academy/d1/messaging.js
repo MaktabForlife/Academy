@@ -1,3 +1,4 @@
+import {retentionInboxSQL,isRetentionNotice,retentionNoticePrefix} from './note-retention-policy.js';
 import {messageInboxSQL,isWeeklyAbsenteeNotice,weeklyAbsentees} from './weekly-absentees.js';
 import {managementError as fail,same} from './management-store.js';
 import {cleanText,validDate} from './assessment-store.js';
@@ -15,7 +16,7 @@ const noticeDTO=n=>({id:n.notice_id,subject:n.subject,body:n.state==='WITHDRAWN'
 
 export function messaging(repository,auth,now=()=>new Date(),{system=false}={}){
  const db=repository.db,p=(sql,...v)=>db.prepare(sql).bind(...v),actor=auth.user.accountid,audiences=messagingAudience(repository,auth,now);
- const stamp=()=>now().toISOString(),inbox='('+messageInboxSQL(auth,repository.features?.weeklyAbsentees)+')',weekly=weeklyAbsentees(repository,auth);
+ const stamp=()=>now().toISOString(),inbox='('+(repository.features?.noteRetention?retentionInboxSQL(messageInboxSQL(auth,repository.features?.weeklyAbsentees),actor,repository.features?.splitDatabases):messageInboxSQL(auth,repository.features?.weeklyAbsentees))+')',weekly=weeklyAbsentees(repository,auth);
  async function ready(){
   try{await p('SELECT draft_id FROM messaging_drafts WHERE 0').all();}catch(e){if(/no such table/.test(e.message))throw fail('Messaging needs its local database upgrade.',503,'MESSAGING_SCHEMA_REQUIRED');throw e;}
  }
@@ -135,6 +136,11 @@ export function messaging(repository,auth,now=()=>new Date(),{system=false}={}){
  async function receipt(action,input){
   return transact(action,input,async()=>{
    if(isWeeklyAbsenteeNotice(input.noticeId))return weekly.receiptPlan(action,input,stamp());
+   if(repository.features?.noteRetention&&isRetentionNotice(input.noticeId)){
+    await recipientNotice(input.noticeId);const item=input.noticeId.slice(retentionNoticePrefix.length),set=action==='open'?'first_opened_at=coalesce(first_opened_at,?),unread=0':action==='unread'?'unread=1':action==='archive'?'archived_at=?':action==='restore'?'archived_at=NULL':null;
+    if(!set)throw fail('This notice does not need acknowledgement.');
+    return {statements:[p("INSERT INTO note_retention_recipients(item_id,account_id) VALUES(?,?) ON CONFLICT DO NOTHING",item,actor),p(`UPDATE note_retention_recipients SET ${set} WHERE item_id=? AND account_id=?`,...(['open','archive'].includes(action)?[stamp()]:[]),item,actor)],result:{noticeId:input.noticeId}};
+   }
    const n=await recipientNotice(input.noticeId);
    if(action==='acknowledge'&&(n.state!=='SENT'||!n.requires_ack))throw fail('This notice does not need acknowledgement.');
    const set=action==='open'?"first_opened_at=coalesce(first_opened_at,?),unread=0":action==='acknowledge'?"first_opened_at=coalesce(first_opened_at,?),unread=0,acknowledged_at=coalesce(acknowledged_at,?)":action==='unread'?'unread=1':action==='archive'?'archived_at=?':'archived_at=NULL';

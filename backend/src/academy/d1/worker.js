@@ -1,4 +1,5 @@
 import {nativeMediaTeachers} from './native-media-teachers.js';
+import {recoverNoteRetention,noteRetentionCron} from './note-retention.js';
 import {cleanupExpiredAcademicCompanions} from './recording-companions.js';
 import {registerMonthlyProgramme} from './web-platform/programme-registration.mjs';
 import {studioAdmin} from './web-platform/studio-admin.mjs';
@@ -411,6 +412,7 @@ async function dispatch(request,env,options={}) {
 }
 return {
   async scheduled(event,env,ctx){
+    if(event.cron===noteRetentionCron){if(env.ACADEMY_NOTE_RETENTION==='1')ctx.waitUntil(recoverNoteRetention(env,new Date(event.scheduledTime)));return;}
     if(event.cron===weeklyAbsenteeCron){ctx.waitUntil(recoverWeeklyAbsentees(env,new Date(event.scheduledTime)));return;}
     // A dedicated minute tick must not multiply cache/Hifz recovery work.
     if(event.cron==='* * * * *'){

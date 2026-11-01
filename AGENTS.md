@@ -38,6 +38,13 @@
 - Preserve the original session, class/cohort, timetable snapshot and permission anchors. Corrections describe the recorded content only and must never grant teacher access or edit the recurring timetable. Keep retention based on the original successful upload.
 - MOU publication is ON HOLD by the owner's latest instruction. Earlier MOU import approvals below are superseded. Do not execute or retry the MOU package or deploy its separate publication-order fix.
 - Keep live checks small: use disposable local fixtures only for this task.
+# Note retention and local student completion — 1 November 2026
+
+- Keep this feature out of the narrow V109.3 navigation release; optimisation reviews it for a later Circles integration.
+- Work on feature/academy-note-retention from deployed V109.2. Implement and verify locally. This request does not authorise deployment, live deletion, hosted migrations or sending real class notices. Earlier release approvals are fulfilled.
+- Default retention: three calendar months from original note creation / PDF upload; Admin may adjust it. Warn the affected class once before PDF deletion, asking them to download a copy. Use a seven-day warning unless the owner changes it. Existing PDFs must receive a full warning period.
+- Scope is Academy only, as clarified by you. Do not change Studio notes, PDFs or dashboards; exclude Studio-owned/frozen offerings from retention.
+- Student note completion is device-local and account-scoped, with no database writes. Preserve current access, other media and shared PDF files still in use.
 
 # V109.2 code deployed — 1 November 2026
 

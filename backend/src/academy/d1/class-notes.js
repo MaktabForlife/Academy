@@ -147,7 +147,7 @@ export function classNotes(repository,auth,now=()=>new Date()){
    const accepted=await range(a,dates[0],dates.at(-1));contexts.push(...accepted.filter(row=>group.some(r=>r.date===row.date&&r.sessionKey===row.sessionKey)));
   }
   const permissions=await rights(contexts),allowed=contexts.filter(row=>permissions.get(row.id)?.canRead),keys=[...new Set(allowed.map(row=>row.activityKey))];
-  const timetableJoined=joined.replace('n.*,v.body,v.due_mode,v.due_date,v.due_context_id,v.due_json,v.reason,v.previous_version_id,v.created_by editor_id,v.created_at edited_at','n.note_id,n.activity_key,n.context_id,n.state,v.due_mode,v.due_date,v.due_context_id,v.due_json');
+  const timetableJoined=joined.replace('n.*,v.body,v.due_mode,v.due_date,v.due_context_id,v.due_json,v.reason,v.previous_version_id,v.created_by editor_id,v.created_at edited_at','n.note_id,n.current_version_id,n.activity_key,n.context_id,n.state,v.due_mode,v.due_date,v.due_context_id,v.due_json');
   const rows=keys.length?(await p(timetableJoined+" WHERE n.activity_key IN(SELECT value FROM json_each(?)) AND n.state='ACTIVE' AND (n.context_id IN(SELECT value FROM json_each(?)) OR v.due_date BETWEEN ? AND ? OR (v.due_mode='NEXT' AND json_extract(v.due_json,'$.target.kind')='COURSE' AND json_extract(v.due_json,'$.target.stableKey') IN(SELECT value FROM json_each(?)))) ORDER BY n.created_at DESC LIMIT 5001",JSON.stringify(keys),JSON.stringify(allowed.map(row=>row.id)),refs.map(r=>r.date).sort()[0],refs.map(r=>r.date).sort().at(-1),JSON.stringify(allowed.filter(row=>row.kind==='COURSE').map(row=>row.stableKey))).all()).results:[];
   if(rows.length>5000)throw fail('Choose a smaller timetable period for Class Notes.',409,'CLASS_NOTE_LIST_LIMIT');
   const sourceIds=[...new Set(rows.map(row=>row.context_id))],stored=sourceIds.length?(await p('SELECT source_json FROM class_note_contexts WHERE context_id IN(SELECT value FROM json_each(?))',JSON.stringify(sourceIds)).all()).results:[];
@@ -156,7 +156,7 @@ export function classNotes(repository,auth,now=()=>new Date()){
   return {today,timezone,sessions:refs.map(ref=>{
    const sources=allowed.filter(row=>row.activityKey.toUpperCase()===ref.activityKey.toUpperCase()&&row.date===ref.date&&row.sessionKey===ref.sessionKey);
    const reminders=dueRows.filter(({due})=>sources.some(source=>same(source.classId,due.target.classId)&&same(source.activityKey,due.target.activityKey)&&source.stableKey===due.target.stableKey&&source.date===due.date));
-   return {ref:JSON.stringify([ref.activityKey,ref.date,ref.sessionKey]),sources:sources.map(source=>({...source,...permissions.get(source.id),noteCount:rows.filter(row=>row.context_id===source.id).length})),noteCount:rows.filter(row=>sources.some(source=>source.id===row.context_id)).length,dueNotes:reminders.map(({row,due})=>({id:row.note_id,author:row.author_name,title:originals.find(source=>source.id===row.context_id)?.title||'Class Note',date:due.date,sourceContextId:row.context_id}))};
+   return {ref:JSON.stringify([ref.activityKey,ref.date,ref.sessionKey]),sources:sources.map(source=>({...source,...permissions.get(source.id),noteCount:rows.filter(row=>row.context_id===source.id).length})),noteCount:rows.filter(row=>sources.some(source=>source.id===row.context_id)).length,dueNotes:reminders.map(({row,due})=>({id:row.note_id,versionId:row.current_version_id,author:row.author_name,title:originals.find(source=>source.id===row.context_id)?.title||'Class Note',date:due.date,sourceContextId:row.context_id}))};
   })};
  }
  function contextInsert(source,timestamp){

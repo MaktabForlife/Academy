@@ -1,4 +1,5 @@
 import {CONTENT_MEDIA_SCHEMA,contentMediaContext,contentNoteKey} from './content-media-context.js';
+import {pdfRetentionWrite} from './note-retention.js';
 import {recurringSessionKey,sessionBinding} from './session-identity.js';
 import {sessionPdfCount} from './session-pdf-policy.js';
 import {publishedSessionFacts} from './published-sessions.js';
@@ -75,9 +76,10 @@ export function lessonNotes(repository,auth,env){
   const filename=cleanText(input.filename,180,'a filename').replace(/[\r\n\x00-\x1f\\/]/g,'_'),name=cleanText(input.name||'',180,'a PDF name',true),versionId='NOTE-'+crypto.randomUUID(),noteId=existing?.note_id||crypto.randomUUID(),containerId=existing?.container_id||session.lessonId||'NTS-'+await payloadHash([a.activity_key,entryKey]);
   const version=(await p('SELECT version FROM academy_write_state WHERE singleton=1').first()).version;
   const count=await sessionPdfCount(repository,{activityKey:a.activity_key,session,exclude:noteId,recurring:attachmentScope==='RECURRING'});if(count>=10)throw fail('This session already has ten PDFs. Replace your existing note or ask Admin to curate it.',409,'MEDIA_PDF_LIMIT');
-  await storeLessonPdf(request,env.LESSON_MEDIA_BUCKET,env.ACADEMY_OBJECT_NAMESPACE,input);
-  const key=lessonPdfReference(env.ACADEMY_OBJECT_NAMESPACE,versionId,input.sha256);
-  const timestamp=new Date().toISOString(),statements=[...(!existing?[p("INSERT INTO lesson_note_entries VALUES(?,?,?,?,?,NULL,'ACTIVE',1,?,?)",noteId,a.activity_key,entryKey,containerId,actor,timestamp,actor)]:[]),p('INSERT INTO lesson_note_versions VALUES(?,?,?,?,?,?,?,?,?,?,?)',versionId,noteId,key,filename,name,input.size,input.sha256,repository.setup.head,JSON.stringify({...session,attachmentScope}),actor,timestamp),p('UPDATE lesson_note_entries SET current_version_id=?,revision=? WHERE note_id=?',versionId,existing?existing.revision+1:1,noteId)];
+  const gc=await pdfRetentionWrite(repository,p,(env.ACADEMY_OBJECT_NAMESPACE||'')+'lesson-pdfs/sha256/'+input.sha256+'.pdf');
+  await storeLessonPdf(request,env.LESSON_MEDIA_BUCKET,env.ACADEMY_OBJECT_NAMESPACE,input,gc.objectKey);
+  const key=gc.alternate?gc.objectKey:lessonPdfReference(env.ACADEMY_OBJECT_NAMESPACE,versionId,input.sha256);
+  const timestamp=new Date().toISOString(),statements=[...gc.before,...(!existing?[p("INSERT INTO lesson_note_entries VALUES(?,?,?,?,?,NULL,'ACTIVE',1,?,?)",noteId,a.activity_key,entryKey,containerId,actor,timestamp,actor)]:[]),p('INSERT INTO lesson_note_versions VALUES(?,?,?,?,?,?,?,?,?,?,?)',versionId,noteId,key,filename,name,input.size,input.sha256,repository.setup.head,JSON.stringify({...session,attachmentScope}),actor,timestamp),p('UPDATE lesson_note_entries SET current_version_id=?,revision=? WHERE note_id=?',versionId,existing?existing.revision+1:1,noteId),...gc.after];
   const result=await commit(a,'post',input,session,version,statements,{noteId,versionId,revision:existing?existing.revision+1:1,ownerId:actor});return result;
  }
  async function withdraw(input){

@@ -1,5 +1,7 @@
 import {contentMediaContext,contentMediaDto,contentBoundSQL,contentMediaOptions,selectedContentMedia,contentMediaGuard} from './content-media-context.js';
 import {lessonContextRead,lessonContextSQL} from './lesson-context-reads.js';
+import {retentionHiddenSQL} from './note-retention-policy.js';
+import {pdfRetentionWrite} from './note-retention.js';
 import {academicCompanions,companionIndexes} from './recording-companions.js';
 import {recordedOptions} from './lesson-recorded-options.js';
 import {recordedLessonContext,recordedTeacherName} from './lesson-recorded-context.js';
@@ -59,7 +61,7 @@ export async function timetableMedia(repository,auth,input){
   FROM json_each(?) r JOIN lesson_media_lessons l ON l.activity_key=json_extract(r.value,'$.activityKey') COLLATE NOCASE AND l.session_key=json_extract(r.value,'$.sessionKey')
   JOIN activities area ON area.activity_key=l.activity_key AND area.active=1 AND area.lifecycle='ACTIVE'
   JOIN lesson_media_links link ON link.lesson_id=l.lesson_id JOIN lesson_media_assets a ON a.asset_id=link.asset_id
-  WHERE l.media_scope='SESSION' AND l.state='PUBLISHED' AND (json_extract(r.value,'$.classId')='' OR l.class_id=json_extract(r.value,'$.classId') COLLATE NOCASE OR EXISTS(SELECT 1 FROM json_each(l.source_lessons_json,'$[0].classIds') WHERE value=json_extract(r.value,'$.classId') COLLATE NOCASE)) AND (json_extract(r.value,'$.staff')=1 OR ${mediaAudienceSQL})
+  WHERE l.media_scope='SESSION' ${repository.features?.noteRetention?'AND '+retentionHiddenSQL('SESSION_PDF','a.asset_id'):''} AND l.state='PUBLISHED' AND (json_extract(r.value,'$.classId')='' OR l.class_id=json_extract(r.value,'$.classId') COLLATE NOCASE OR EXISTS(SELECT 1 FROM json_each(l.source_lessons_json,'$[0].classIds') WHERE value=json_extract(r.value,'$.classId') COLLATE NOCASE)) AND (json_extract(r.value,'$.staff')=1 OR ${mediaAudienceSQL})
   AND EXISTS(SELECT 1 FROM academy_settings WHERE setting_key='LessonMediaEnabled' AND setting_value='1')
   ORDER BY l.lesson_id,a.created_at,a.asset_id`).bind(JSON.stringify([...refs.values()]),...audienceValues).all()).results;
  const lessons=new Map();
@@ -114,7 +116,7 @@ export function lessonMedia(repository,auth,env){
  const assetDTO=a=>({id:a.asset_id,kind:a.kind,filename:a.filename,name:a.display_name||a.filename||(a.kind==='PDF'?'PDF':'Video'),...(a.kind==='MP4'?{byteSize:a.byte_size,...videoExpiry(a,Date.now(),retained(a))}:{})});
  const companions=academicCompanions({db,p,lesson,reader,staff,revision,change,bucket,scopeKey:()=>scopeKey,namespace:env.ACADEMY_OBJECT_NAMESPACE||'',isRetained:retained});
  const video=sessionVideos({p,auth,env,lesson,staff,reader,revision,change,receipt,assets,retained,retentionPrefix:()=>monthlyPolicy?.retain_recordings===1,scopeKey:()=>scopeKey});
- async function assets(id,management=false){return (await p('SELECT a.* FROM lesson_media_links l JOIN lesson_media_assets a USING(asset_id) WHERE l.lesson_id=? ORDER BY a.kind,a.created_at,a.asset_id',id).all()).results.map(a=>({...assetDTO(a),...(management&&a.kind==='YOUTUBE'?{url:'https://youtu.be/'+a.youtube_id}:{})}));}
+ async function assets(id,management=false){return (await p('SELECT a.* FROM lesson_media_links l JOIN lesson_media_assets a USING(asset_id) WHERE l.lesson_id=? '+(repository.features?.noteRetention?'AND '+retentionHiddenSQL('SESSION_PDF','a.asset_id'):'')+' ORDER BY a.kind,a.created_at,a.asset_id',id).all()).results.map(a=>({...assetDTO(a),...(management&&a.kind==='YOUTUBE'?{url:'https://youtu.be/'+a.youtube_id}:{})}));}
  async function list(input,period=false){
   const preview=input.view==='learner'||!isAdminWorkspace(auth)&&!actualRole(auth,scopeKey,'TEACHER'),runId=input.runId||'';
   if(typeof runId!=='string'||runId.length>160)throw fail('Choose a Course offering.');
@@ -127,7 +129,7 @@ export function lessonMedia(repository,auth,env){
   const limit=terms||period?400:30;
   const rows=(await p(`SELECT l.*,c.name class_name,${audienceSQL} learner_allowed,${teacherAudienceSQL} teacher_allowed FROM lesson_media_lessons l LEFT JOIN classes c ON c.activity_key=l.activity_key AND c.class_id=l.class_id WHERE l.activity_key=? AND l.media_scope='SESSION' AND (?='' OR l.class_id=? COLLATE NOCASE OR EXISTS(SELECT 1 FROM json_each(l.source_lessons_json,'$[0].classIds') WHERE value=? COLLATE NOCASE)) AND (?=1 OR ${audienceSQL}) AND (?='' OR l.run_id=?) AND (?='' OR substr(l.lesson_date,1,7)=?) AND (l.lesson_date<? OR (l.lesson_date=? AND l.lesson_id<?)) AND ${preview?"l.state='PUBLISHED'":admin?'1=1':teacher&&!repository.setup?.enabled?"(l.state='PUBLISHED' OR l.teacher_id=? OR EXISTS(SELECT 1 FROM json_each(l.teacher_ids_json) WHERE value=? COLLATE NOCASE))":"l.state='PUBLISHED'"} ${period?' AND l.lesson_date>=? AND l.lesson_date<=?':''}${titleFilter} ORDER BY l.lesson_date DESC,l.lesson_id DESC LIMIT ${limit+1}`,...audienceValues(),actor,scopeKey,...Array(3).fill(viewedClass(auth,scopeKey)||''),Number(admin||readerAdmin||teacher||readerPreview(auth,scopeKey)),...audienceValues(),runId,runId,input.month||'',input.month||'',date,date,id,...(!preview&&!admin&&teacher&&!repository.setup?.enabled?[actor,actor]:[]),...(period?[input.startDate,input.endDate]:[]),...(terms?[JSON.stringify(terms)]:[])).all()).results;
   if(period&&rows.length>400)throw fail('Choose a shorter media period.');
-  const page=rows.slice(0,limit),ids=page.map(r=>r.lesson_id),links=ids.length?(await p('SELECT l.lesson_id,a.asset_id,a.kind,a.filename,a.display_name,a.created_at,a.byte_size,a.object_key FROM lesson_media_links l JOIN lesson_media_assets a USING(asset_id) WHERE l.lesson_id IN(SELECT value FROM json_each(?)) ORDER BY a.created_at,a.asset_id',JSON.stringify(ids)).all()).results:[];
+  const page=rows.slice(0,limit),ids=page.map(r=>r.lesson_id),links=ids.length?(await p('SELECT l.lesson_id,a.asset_id,a.kind,a.filename,a.display_name,a.created_at,a.byte_size,a.object_key FROM lesson_media_links l JOIN lesson_media_assets a USING(asset_id) WHERE l.lesson_id IN(SELECT value FROM json_each(?)) '+(repository.features?.noteRetention?'AND '+retentionHiddenSQL('SESSION_PDF','a.asset_id'):'')+' ORDER BY a.created_at,a.asset_id',JSON.stringify(ids)).all()).results:[];
   const companionIndex=await companionIndexes(db,p,ids);
   return {activityKey:scopeKey,activityName:activity.name,kind:activity.kind,monthlyPolicy:monthlyPolicy?{enabled:Boolean(monthlyPolicy.enabled),retainRecordings:true}:null,availableMonths:[...new Set((auth.state.monthlyMedia||[]).filter(g=>same(g.activity_key,scopeKey)).map(g=>g.lesson_month))].sort().reverse(),canManage:!preview&&(admin||!repository.setup?.enabled&&teacher),canView:canRead(),learnerPreview:preview,lessons:page.filter(row=>(!preview||readerAccess(row))&&(!contentMediaContext(row)||manages(row)||readerAccess(row))).map(row=>({...dto(row),recordingCompanions:companionIndex.get(row.lesson_id)||[],...(preview?{canManage:false,canCorrectContext:false}:{}),assets:links.filter(a=>a.lesson_id===row.lesson_id).map(assetDTO)})),before:!period&&rows.length>limit?JSON.stringify([page.at(-1).lesson_date,page.at(-1).lesson_id]):null};
  }
@@ -362,18 +364,19 @@ export function lessonMedia(repository,auth,env){
   revision(row,input);
   const id=crypto.randomUUID(),storage=bucket();
   try{
-   await storeLessonPdf(request,storage,env.ACADEMY_OBJECT_NAMESPACE,input);
-   const key=lessonPdfReference(env.ACADEMY_OBJECT_NAMESPACE,id,input.sha256);
+   const gc=await pdfRetentionWrite(repository,p,(env.ACADEMY_OBJECT_NAMESPACE||'')+'lesson-pdfs/sha256/'+input.sha256+'.pdf');
+   await storeLessonPdf(request,storage,env.ACADEMY_OBJECT_NAMESPACE,input,gc.objectKey);
+   const key=gc.alternate?gc.objectKey:lessonPdfReference(env.ACADEMY_OBJECT_NAMESPACE,id,input.sha256);
    const result=await change('pdf-upload',input,row,'staff',async current=>{
     revision(current,input);const pdfCount=repository.features?.mediaSeparation&&current.media_scope!=='COURSE'?await sessionPdfCount(repository,{activityKey:scopeKey,session:{...(JSON.parse(current.source_lessons_json||'[]')[0]||{}),lessonId:current.lesson_id,sessionKey:current.session_key}}):(await assets(row.lesson_id)).filter(a=>a.kind==='PDF').length;if(pdfCount>=(current.media_scope==='COURSE'?50:10))throw fail(current.media_scope==='COURSE'?'Use up to 50 Course PDFs.':'Use up to ten PDFs per lesson.');
-    const now=new Date().toISOString();return {statements:[p("INSERT INTO lesson_media_assets(asset_id,activity_key,kind,object_key,filename,byte_size,created_at,display_name) VALUES(?,?,'PDF',?,?,?,?,?)",id,scopeKey,key,filename,input.size,now,displayName),p('INSERT INTO lesson_media_links VALUES(?,?)',row.lesson_id,id),p('UPDATE lesson_media_lessons SET revision=revision+1,updated_at=? WHERE lesson_id=?',now,row.lesson_id)],result:{assetId:id,filename,name:displayName||filename}};
+    const now=new Date().toISOString();return {statements:[...gc.before,p("INSERT INTO lesson_media_assets(asset_id,activity_key,kind,object_key,filename,byte_size,created_at,display_name) VALUES(?,?,'PDF',?,?,?,?,?)",id,scopeKey,key,filename,input.size,now,displayName),p('INSERT INTO lesson_media_links VALUES(?,?)',row.lesson_id,id),p('UPDATE lesson_media_lessons SET revision=revision+1,updated_at=? WHERE lesson_id=?',now,row.lesson_id),...gc.after],result:{assetId:id,filename,name:displayName||filename}};
    });
    return result;
   }catch(e){/* Preserve an immutable upload while its database acknowledgement is uncertain. */throw e;}
  }
  async function download(input){
   const row=await lesson(input.lessonId);if(!manages(row))reader(row);
-  const asset=await p("SELECT a.* FROM lesson_media_links l JOIN lesson_media_assets a USING(asset_id) WHERE l.lesson_id=? AND a.asset_id=? AND a.kind='PDF'",row.lesson_id,String(input.assetId||'')).first();if(!asset)throw fail('PDF not found.',404);
+  const asset=await p("SELECT a.* FROM lesson_media_links l JOIN lesson_media_assets a USING(asset_id) WHERE l.lesson_id=? AND a.asset_id=? AND a.kind='PDF'"+(repository.features?.noteRetention?' AND '+retentionHiddenSQL('SESSION_PDF','a.asset_id'):''),row.lesson_id,String(input.assetId||'')).first();if(!asset)throw fail('PDF not found.',404);
   const object=await bucket().get(lessonPdfObjectKey(asset.object_key));if(!object)throw fail('This PDF is temporarily unavailable.',404);
   return new Response(object.body,{headers:{'Content-Type':'application/pdf','Content-Length':String(asset.byte_size),'Content-Disposition':`inline; filename*=UTF-8''${encodeURIComponent(asset.filename)}`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':'sandbox'}});
  }
