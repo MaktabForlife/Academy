@@ -306,6 +306,7 @@
   }
 
   function clearStoredAccountState(keepToken = false) {
+    sessionStorage.removeItem("m4l_account_view_v1");
     sessionStorage.removeItem(academySessionKey);
     for (const key of [tokenKey, "m4l_account_context", "m4l_account_contexts", "m4l_account_workspace", "maktab_token", "maktab_user_type"]) {
       if (key !== tokenKey || !keepToken) localStorage.removeItem(key);

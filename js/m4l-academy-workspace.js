@@ -32,23 +32,58 @@
   return '';
  }
  const original=window.fetch.bind(window);
+ // This is account/navigation metadata only. Every data read and Admin change
+ // still passes the native server's current session, epoch and permission guards.
+ const copyAccount=value=>JSON.parse(JSON.stringify(value));
+ const accountViewKey='m4l_account_view_v1',accountViewAge=12*60*60*1000;
+ let accountView=null,accountRead=null,accountEpoch=0,accountOwner=session();
+ function clearAccountView(){accountEpoch++;accountView=null;accountRead=null;try{window.sessionStorage?.removeItem(accountViewKey);}catch{}access=null;}
+ function accountExpiry(owner){try{const value=JSON.parse(atob(owner.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));return Number.isFinite(value.exp)?value.exp*1000:0;}catch{return 0;}}
+ async function accountKey(owner){try{return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(owner)))].map(v=>v.toString(16).padStart(2,'0')).join('');}catch{return '';}}
+ async function readAccountSession(owner){
+  if(!owner||owner!==session())throw new DOMException('The Academy account changed.','AbortError');
+  if(accountOwner!==owner){clearAccountView();accountOwner=owner;}
+  if(accountView?.owner===owner&&accountView.until>Date.now())return copyAccount(accountView.data);
+  if(accountRead?.owner===owner)return copyAccount(await accountRead.promise);
+  const ticket=accountEpoch,pending={owner};accountRead=pending;
+  pending.promise=(async()=>{
+   const key=typeof crypto==='undefined'||!crypto.subtle?'':await accountKey(owner),active=()=>owner===session()&&ticket===accountEpoch;
+   if(!active())throw new DOMException('The Academy account changed.','AbortError');
+   if(key)try{const raw=window.sessionStorage?.getItem(accountViewKey),saved=raw&&raw.length<=131072?JSON.parse(raw):null;
+    if(saved?.key===key&&saved.at<=Date.now()&&saved.until>Date.now()&&saved.until<=saved.at+accountViewAge&&saved.until<=accountExpiry(owner)&&saved.data?.success&&Array.isArray(saved.data.contexts)){
+     accountView={owner,until:saved.until,data:saved.data};return saved.data;
+    }
+   }catch{}
+   const api=new URL(window.M4L_CONFIG?.API_BASE||location.origin,location.href);
+   const response=await original(api.origin+'/api/account/session',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json',Authorization:'Bearer '+owner,'X-Academy-Workspace':'LEARN'},body:'{}'}),data=await response.json();
+   if(!active())throw new DOMException('The Academy account changed.','AbortError');
+   if(!response.ok||!data.success||!Array.isArray(data.contexts)){
+    clearAccountView();if(response.status===401)window.dispatchEvent(new Event('m4l-academy-session-ended'));
+    throw Object.assign(Error(data.error||'Sign in to open Academy.'),{status:response.status,code:data.code});
+   }
+   // Never duplicate a returned credential in the device metadata copy.
+   const safe=Object.fromEntries(['success','account','context','contexts','courseManagement','sessionStore','operationalAccessActive'].filter(k=>data[k]!==undefined).map(k=>[k,data[k]]));
+   const at=Date.now(),expires=accountExpiry(owner),until=Math.min(at+accountViewAge,expires||at+60000);
+   accountView={owner,until,data:safe};
+   if(key&&expires>at)try{const raw=JSON.stringify({key,at,until,data:safe});if(raw.length<=131072)window.sessionStorage?.setItem(accountViewKey,raw);}catch{}
+   return safe;
+  })();
+  try{return copyAccount(await pending.promise);}finally{if(accountRead===pending)accountRead=null;}
+ }
  let access=null,accessRequest=null,accessEpoch=0;
- const adminAccess=()=>Boolean(access?.session===session()&&access.admin);
+ const adminAccess=()=>Boolean(access?.session===session()&&access.admin&&accountView?.until>Date.now());
  const accessChanged=()=>window.dispatchEvent(new Event('m4l-academy-access'));
  function leaveAdmin(){location.replace('/academy/#overview');}
  // A page address requests a workspace; it never proves the account is Admin.
  async function readyAccess(){
   if(!adminRealm()||!session())return false;
   const owner=session(),epoch=accessEpoch;
-  if(access?.session===owner){if(!access.admin){leaveAdmin();throw new DOMException('Open your personal Academy workspace.','AbortError');}return true;}
+  if(access?.session===owner&&accountView?.until>Date.now()){if(!access.admin){leaveAdmin();throw new DOMException('Open your personal Academy workspace.','AbortError');}return true;}
   if(accessRequest?.session===owner)return accessRequest.promise;
-  const api=new URL(window.M4L_CONFIG?.API_BASE||location.origin,location.href);
   const pending={session:owner};accessRequest=pending;
   pending.promise=(async()=>{
-   const response=await original(api.origin+'/api/account/session',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json',Authorization:'Bearer '+owner,'X-Academy-Workspace':'LEARN'},body:'{}'}),data=await response.json();
+   const data=await readAccountSession(owner);
    if(owner!==session()||epoch!==accessEpoch)throw new DOMException('The Academy account changed.','AbortError');
-   if(response.status===401)window.dispatchEvent(new Event('m4l-academy-session-ended'));
-   if(!response.ok||!data.success||!Array.isArray(data.contexts))throw Object.assign(Error(data.error||'Sign in to open Admin.'),{status:response.status,code:data.code});
    access={session:owner,admin:data.contexts.some(c=>c.scope==='PLATFORM'&&c.role==='GLOBAL_ADMIN'||['COURSE','GLOBAL'].includes(c.scope)&&['PROGRAM_ADMIN','ADMIN'].includes(c.role))};accessChanged();
    if(!access.admin){leaveAdmin();throw new DOMException('Open your personal Academy workspace.','AbortError');}
    return true;
@@ -75,6 +110,16 @@
   }
   const captured={selected,generation,session:session()};
   const accountRoute=url.pathname.startsWith('/api/account/');
+  // Share empty session reads from the header, login restoration and page tool.
+  // Credential submission, context changes and explicit network reads bypass it.
+  if(url.pathname==='/api/account/session'&&method==='POST'&&((!options?.body&&!(resource instanceof Request))||options?.body==='{}')&&headers.get('Authorization')==='Bearer '+session()&&options?.cache!=='reload'){
+   try{
+    const owner=session(),data=await readAccountSession(owner),ticket=accountEpoch;
+    const check=()=>{if(owner!==session()||ticket!==accountEpoch)throw new DOMException('The Academy account changed.','AbortError');};check();
+    const response=Response.json(data,{headers:{'Cache-Control':'private, no-store'}});
+    return new Proxy(response,{get(target,name){if(['json','text','blob','arrayBuffer','formData'].includes(name))return async(...args)=>{check();const value=await target[name](...args);check();return value;};const value=Reflect.get(target,name,target);return typeof value==='function'?value.bind(target):value;}});
+   }catch(error){if(error.name==='AbortError')throw error;return Response.json({success:false,error:error.message,code:error.code},{status:error.status||503});}
+  }
   headers.set('X-Academy-Workspace',accountRoute?'LEARN':selected);
   if(adminRealm()&&!accountRoute)await readyAccess();
   headers.delete('X-Academy-Class');
@@ -88,6 +133,13 @@
   let response=await original(resource,{...options,headers});
   const check=()=>{if(captured.generation!==generation||captured.selected!==selected||captured.session!==session()||captured.head&&captured.head!==head)throw new DOMException('The Academy workspace or account changed.','AbortError');};
   check();
+  if(response.status===401||response.status===403)clearAccountView();
+  if(response.ok&&method!=='GET'&&method!=='HEAD'){
+   let rightsChange=/^\/api\/account\/(?!session$)/.test(url.pathname)||/\/(?:accounts?|credentials?|roles?|participants?|subscriptions?|surah-grants?)(?:\/|$)/.test(url.pathname);
+   rightsChange||=/\/user-profiles\/(?:save|link|recover)$|\/global\/access\/save$|\/program-monthly-subscriptions\/(?:configure|save|grid-save|surah-save|surah-grants-save)$|\/(?:courses|programs)\/(?:publish|status|save|register-completed|studio-resume)$|\/program-timetable\/(?:publish|status|manage-save|manage-remove|recover)$/.test(url.pathname);
+   if(url.pathname==='/api/admin/platform/studio-access')try{rightsChange=!['read','catalogue','monthly-grid','access-table','mou-playlists','mou-playlist-correction'].includes(JSON.parse(options?.body||'{}').command?.action);}catch{rightsChange=true;}
+   if(rightsChange)clearAccountView();
+  }
   if(adminRealm()&&response.status===403&&response.headers.get('Content-Type')?.includes('application/json')){
    const error=await response.clone().json();check();
    if(error.code==='ADMIN_VIEW_FORBIDDEN'){access={session:session(),admin:false};accessChanged();leaveAdmin();throw new DOMException('Admin access changed.','AbortError');}
@@ -114,8 +166,10 @@
  const homeUrl=()=>adminRealm()?'/academy/admin/#dashboard':'/academy/#dashboard';
  const preferHubAudience=value=>{hubAudience=value==='TEACH'?'TEACH':'LEARN';hubOwner=session();};
  window.M4L_ACADEMY_WORKSPACE={homeUrl,preferHubAudience,current,audience,adminRealm,adminAccess,readyAccess,readerUrl,desired,commit,canonical,studentClass,classView:()=>classView,head:()=>head,readyPublication,publication:value=>{headEpoch++;head=value;headRequest=null;}};
- function resetAccess(){if(hubOwner!==session()){hubAudience='LEARN';hubOwner=session();}generation++;classView=null;head=null;headRequest=null;accessEpoch++;access=null;accessRequest=null;accessChanged();}
+ function resetAccess(){if(accountOwner!==session()){clearAccountView();accountOwner=session();}if(hubOwner!==session()){hubAudience='LEARN';hubOwner=session();}generation++;classView=null;head=null;headRequest=null;accessEpoch++;access=null;accessRequest=null;accessChanged();}
  window.addEventListener('m4l-academy-session',resetAccess);
+ window.addEventListener('m4l-academy-session-ended',clearAccountView);
+ window.addEventListener('m4l-academy-permissions-changed',clearAccountView);
  window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)resetAccess();});
  window.addEventListener('DOMContentLoaded',()=>{if(adminRealm()&&session())void readyAccess().catch(()=>{});});
  // Carry the exact realm through reader tabs and their return links.

@@ -1057,6 +1057,7 @@
   }
 
   function clearCourseDataCaches() {
+    try { sessionStorage.removeItem("m4l_account_view_v1"); } catch {}
     const prefixes = ["m4l_app_cache_", "maktab_timetable_cache_", ACADEMY_CACHE_PREFIX];
     try {
       for (let index = localStorage.length - 1; index >= 0; index -= 1) {

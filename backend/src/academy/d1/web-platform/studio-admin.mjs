@@ -7,10 +7,23 @@ import {id,integer,fail,random,signedHeaders,bodyJSON,websiteServerOrigin} from 
 import {studioAccessCatalogue} from './studio-catalogue.mjs';
 import {gridClassMetadata,validateGridClasses} from './studio-monthly-grid.mjs';
 
+const readAction=action=>['read','monthly-grid','access-table','mou-playlists'].includes(action);
+// Indexed stream heads bound this to the actor and offering. Known changes are
+// still queued/delivered below; this only avoids manufacturing a new proof on
+// every table read. Saves always rebuild current identity and scoped authority.
+async function reusableReadProof(db,proof,mapping){
+ const stream=await accessStream(mapping.offering_id,proof.accountId.toLowerCase());
+ const row=await db.prepare(`SELECT
+  (SELECT event_json FROM website_platform_outbox WHERE stream=? ORDER BY version DESC LIMIT 1) account,
+  (SELECT event_json FROM website_platform_outbox WHERE stream=? ORDER BY version DESC LIMIT 1) access`).bind('account:'+proof.accountId,stream).first();
+ try{const a=JSON.parse(row.account),p=JSON.parse(row.access),cutoff=Date.now()-43200_000;
+  return a.type==='account'&&a.account.epoch===proof.epoch&&a.account.verifiedAt>=cutoff&&p.type==='access'&&!p.blocked&&p.generation===mapping.generation&&p.account.epoch===proof.epoch&&p.verifiedAt>=cutoff;
+ }catch{return false;}
+}
+
 // All actor facts originate in current Core state, never in browser fields.
-async function adminProof(db,auth){
- const now=Date.now(),iso=new Date(now).toISOString(),a=auth.state.account;
- const current=await db.prepare(`SELECT a.*,s.expires_at native_expires_at FROM website_platform_account_state a JOIN account_sessions s ON s.account_id=a.account_id COLLATE NOCASE WHERE s.session_id=? AND a.account_id=? COLLATE NOCASE AND a.active=1 AND a.admitted=1 AND a.epoch=? AND s.credential_epoch=a.epoch AND s.revoked_at IS NULL AND s.expires_at>?`).bind(auth.sid,a.account_id,a.credential_epoch,iso).first();
+async function adminProof(db,auth,current){
+ const now=Date.now();
  if(!current)throw fail('Your Academy session has ended.',401,'SESSION_ENDED');
  let session=await db.prepare('SELECT * FROM website_platform_sessions WHERE session_id=? AND epoch=? AND expires_at>? ORDER BY expires_at DESC LIMIT 1').bind(auth.sid,current.epoch,now).first();
  if(!session){const ref=random();await db.prepare('INSERT INTO website_platform_sessions VALUES(?,?,?,?,?,?,?,?)').bind(ref,current.account_id,auth.sid,current.epoch,JSON.stringify(auth.context),now+7*86400_000,random(),random()).run();session=await sourceSession(db,ref);}
@@ -21,18 +34,19 @@ export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_S
  const db=env.ACADEMY_DB.withSession('first-primary');
  if(input.command?.action==='catalogue')return studioAccessCatalogue(db,auth,input.command);
  const activity=id(input.activityKey),mapping=await db.prepare(`SELECT t.offering_id,t.kind,s.enabled,s.revision generation,COALESCE(ps.timezone,'Africa/Johannesburg') timezone FROM website_platform_timetable_scopes t JOIN website_platform_access_scopes s USING(activity_key) LEFT JOIN program_settings ps ON ps.activity_key=t.activity_key WHERE t.activity_key=? COLLATE NOCASE`).bind(activity).first();if(!mapping)throw fail('This programme has no Studio access migration.',404,'STUDIO_SCOPE_UNMAPPED');
- const allowed=await db.prepare(`SELECT 1 FROM website_platform_account_state a JOIN account_sessions s ON s.account_id=a.account_id COLLATE NOCASE WHERE s.session_id=? AND a.account_id=? COLLATE NOCASE AND a.active=1 AND a.admitted=1 AND a.epoch=? AND s.credential_epoch=a.epoch AND s.revoked_at IS NULL AND s.expires_at>? AND (a.global_admin=1 OR EXISTS(SELECT 1 FROM effective_activity_roles r WHERE r.account_id=a.account_id AND r.activity_key=? COLLATE NOCASE AND r.role='PROGRAM_ADMIN'))`).bind(auth.sid,auth.state.account.account_id,auth.state.account.credential_epoch,new Date().toISOString(),activity).first();
+ const allowed=await db.prepare(`SELECT a.*,s.expires_at native_expires_at FROM website_platform_account_state a JOIN account_sessions s ON s.account_id=a.account_id COLLATE NOCASE WHERE s.session_id=? AND a.account_id=? COLLATE NOCASE AND a.active=1 AND a.admitted=1 AND a.epoch=? AND s.credential_epoch=a.epoch AND s.revoked_at IS NULL AND s.expires_at>? AND (a.global_admin=1 OR EXISTS(SELECT 1 FROM effective_activity_roles r WHERE r.account_id=a.account_id AND r.activity_key=? COLLATE NOCASE AND r.role='PROGRAM_ADMIN'))`).bind(auth.sid,auth.state.account.account_id,auth.state.account.credential_epoch,new Date().toISOString(),activity).first();
  if(!allowed)throw fail('Current Admin authority is required for this programme.',403,'ADMIN_SCOPE_REQUIRED');
  const owner=await db.prepare('SELECT * FROM website_platform_access_ownership WHERE activity_key=? COLLATE NOCASE').bind(activity).first(),command=input.command||{action:'read'};
  if(!owner||owner.state==='ACADEMY'){if(command.action==='read')return {success:true,legacyOnly:true,ownership:{authority:'ACADEMY'}};if(!command.action?.startsWith('handover-'))throw fail('Manage enrolment and access in the current Academy controls until handover.',409,'ACADEMY_AUTHORITY');}
  if(env.ACADEMY_WEB_PLATFORM!=='1'||await db.prepare('SELECT enabled FROM website_platform_control WHERE singleton=1').first('enabled')!==1)throw fail('Studio integration is unavailable. Keep the current authority locked.',503,'STUDIO_UNAVAILABLE');
  if(!mapping.enabled&&!['handover-status','handover-abort','handover-commit'].includes(command.action))throw fail('This migration scope is unavailable.',503,'STUDIO_UNAVAILABLE');
- const proof=await adminProof(db,auth);
+ const proof=await adminProof(db,auth,allowed);
+ const reuse=readAction(command.action)&&await reusableReadProof(db,proof,mapping);
  const send=async command=>{
   if(['handover-begin','handover-page','handover-commit'].includes(command.action)&&!await db.prepare("SELECT 1 FROM website_platform_access_ownership WHERE activity_key=? AND transfer_id=? AND state='FROZEN'").bind(activity,command.transferId).first())throw fail('This handover is no longer frozen. Start a new transfer after cancellation.',409,'HANDOVER_NOT_FROZEN');
-  await enqueueAccount(db,proof.accountId,env);
+  if(!reuse)await enqueueAccount(db,proof.accountId,env);
   // Only this actor and offering; never sweep other participants for an Admin read.
-  if(!owner||owner.state!=='FROZEN'){await queueAccess(db,{onlyScope:activity,onlyAccount:''});await markAccess(db,activity,proof.accountId);await queueAccess(db,{onlyScope:activity,onlyAccount:proof.accountId.toLowerCase()});}
+  if(!owner||owner.state!=='FROZEN'){await queueAccess(db,{onlyScope:activity,onlyAccount:''});if(!reuse)await markAccess(db,activity,proof.accountId);await queueAccess(db,{onlyScope:activity,onlyAccount:proof.accountId.toLowerCase()});}
   const pending=await pendingAccount(env,db,proof.accountId),origin=websiteServerOrigin(env);
   const path='/internal/studio/access',envelope={issuedAt:Date.now(),proof,offeringId:mapping.offering_id,command,deliveries:pending.deliveries,more:pending.more};if(new TextEncoder().encode(JSON.stringify(envelope)).length>250_000){envelope.command={action:'read'};envelope.more=true;}const signed=await signedHeaders(env.ACADEMY_TO_WEBSITE_SECRET,path,envelope);
   const response=await fetcher(origin.origin+path,{method:'POST',headers:signed.headers,body:signed.payload,redirect:'manual',signal:AbortSignal.timeout(8000)}),result=await bodyJSON(response.body,262144);

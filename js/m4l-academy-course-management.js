@@ -177,7 +177,7 @@
     if(account&&state.tab==='participants'){state.peopleSearch=account.displayName;renderEditor();}
   }
   async function open(){
-    const generation=++state.generation,authToken=token();lock('Checking your Academy account…');$('course-access-retry').hidden=true;
+    const generation=++state.generation,authToken=token();lock('Loading Course management…');$('course-access-retry').hidden=true;
     if(!authToken){lock('Sign in with an authorised Academy administrator account, then open Course management.');return;}
     try{
       const session=await api('/api/account/session',{},authToken);if(generation!==state.generation)return;

@@ -123,6 +123,7 @@
       }).catch(() => { /* Browser sign-out still completes if the connection is unavailable. */ });
     }
     sessionStorage.removeItem('m4l_academy_signed_in');
+    sessionStorage.removeItem('m4l_account_view_v1');
     for (const key of ['m4l_account_token', 'm4l_account_context', 'm4l_account_contexts', 'm4l_account_workspace', 'maktab_token', 'maktab_user_type']) localStorage.removeItem(key);
     for (let index = localStorage.length - 1; index >= 0; index--) {
       const key = localStorage.key(index);
