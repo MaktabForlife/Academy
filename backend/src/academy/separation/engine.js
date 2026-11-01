@@ -1,3 +1,5 @@
+import {lessonContextSelection,validateLessonContextCapture} from './lesson-context-read.js';
+import {authorizeRecordedRead} from './recorded-context-read.js';
 import {compilePlan} from './compile.js';
 import {federationContext,rewriteRead} from './federation.js';
 import {verifyActor,verifyActorVersion} from './proof.js';
@@ -102,7 +104,8 @@ export function splitEngine({core,admin,alarm=async()=>{},hook=async()=>{}}){
   const key=readerKey(proof);
   try{
   for(let attempt=0;attempt<3;attempt++){
-   const before=await verifyActorVersion(core,proof,verifiedReaders.get(key)),context=federationContext({core,admin,owner}),data=await context.snapshot(statements.map(s=>s.sql),[],statements.map(s=>s.acceptedScope));
+   const before=await verifyActorVersion(core,proof,verifiedReaders.get(key));authorizeRecordedRead(statements,proof,owner);const lessonRead=lessonContextSelection(statements,proof,owner),context=federationContext({core,admin,owner}),data=await context.snapshot(statements.map(s=>s.sql),[],statements.map(s=>s.acceptedScope),null,statements.map(s=>s.recordedContextScope?{activityKey:s.recordedContextScope,params:s.params}:null),lessonRead);
+   validateLessonContextCapture(data,lessonRead);
    const results=await batch(context.sources[owner],statements.map(s=>rewriteRead(s.sql,s.params,data)));await hook('read-captured');
    const after=await verifyActorVersion(core,proof,before);if(before===after){rememberReader(key,after);return results;}
   }

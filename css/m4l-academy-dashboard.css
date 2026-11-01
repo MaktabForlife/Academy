@@ -101,3 +101,10 @@ body #ad-contents-drawer :is(a,button):focus-visible{outline:3px solid #865694;o
 #dashboard .ad-open-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 
 #dashboard #academy-sessions .timetable-days>.upcoming-day{flex:0 0 calc((100% - .75rem)/2);min-width:0}
+
+/* Student note completion is local to this browser/account. */
+.ad-completed-notes{margin-top:16px;padding-top:12px;border-top:1px solid #e6dbe9}
+.ad-completed-notes summary{cursor:pointer;font:600 14px/1.5 Arial,sans-serif;padding:6px 0}
+.ad-completed-notes ul{list-style:none;padding:0;margin:8px 0 0}
+.ad-completed-notes li{margin:10px 0}
+.ad-completed-notes .ad-actions button{max-width:100%;overflow-wrap:anywhere;text-align:left;cursor:pointer}

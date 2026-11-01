@@ -4,6 +4,7 @@ import {managementError as fail,same} from './management-store.js';
 import {actualState,isAdminWorkspace,viewedClass} from './workspace-access.js';
 import {academyDate,appTimezone,nextDate} from './academy-clock.js';
 import {payloadHash} from '../../programs/timetable-model.js';
+import {classNoteSummaryWindow,classNoteSummaryCandidates} from './class-note-summary.js';
 
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const teacherKey=source=>[...new Set(source.teacherIds.map(id=>id.toUpperCase()))].sort().join('|');
@@ -14,11 +15,11 @@ const sameTrack=(a,b)=>same(a.activityKey,b.activityKey)&&same(a.classId,b.class
 // accepted timetable facts supply context, never a caller's Teacher or class.
 export function classNotes(repository,auth,now=()=>new Date()){
  const db=repository.db,p=(sql,...values)=>db.prepare(sql).bind(...values),actor=auth.user.accountid;
- const areas=new Map(),ranges=new Map(),resolved=new Map(),facts=new Map();let timezone,today;
+ const areas=new Map(),ranges=new Map(),resolved=new Map(),facts=new Map();let timezone,today,readingInstant;
  async function ready(){
   if(!repository.setup?.head)throw fail('Class Notes needs the accepted timetable.',503,'SETUP_PUBLICATION_REQUIRED');
   try{await p('SELECT note_id FROM class_notes WHERE 0').all();}catch(error){if(/no such table/.test(error.message))throw fail('Class Notes is being prepared. Please try again shortly.',503,'CLASS_NOTES_SCHEMA_REQUIRED');throw error;}
-  timezone=await appTimezone(repository);today=academyDate(now(),timezone);
+  timezone=await appTimezone(repository);readingInstant=new Date(now());today=academyDate(readingInstant,timezone);
  }
  async function area(key){
   if(typeof key!=='string'||key.length>200||!/^(PROGRAM|COURSE):[^:]+$/i.test(key))throw fail('Choose a Program or Course.');
@@ -135,6 +136,34 @@ export function classNotes(repository,auth,now=()=>new Date()){
   if(focus&&!page.some(row=>row.note_id===focus)){const focused=await noteRow(focus);if(focused.context_id===source.id)page.unshift(focused);}
   return {source:{...source,...permission,canPost:permission.canPost&&!source.unresolved},notes:await Promise.all(page.map(row=>dto(row,permission))),before:more?{createdAt:last.created_at,id:last.note_id}:null,nextDue:source.unresolved?null:await nextDue(a,source),focusNoteId:focus,today,timezone};
  }
+ async function summaryEligible(a,noteDb){
+  const values=[actor],bind=value=>{values.push(value);return '?';};
+  const role=kind=>`EXISTS(SELECT 1 FROM (${assessmentRolesSQL}) r WHERE r.account_id=me.account_id AND r.activity_key=${bind(a.activity_key)} COLLATE NOCASE AND r.role='${kind}')`;
+  let surface;
+  if(isAdminWorkspace(auth)||auth.adminView)surface=`EXISTS(SELECT 1 FROM global_role_assignments g WHERE g.account_id=me.account_id AND g.active=1 AND g.review_state='CONFIRMED' AND g.role='GLOBAL_ADMIN') OR ${role('PROGRAM_ADMIN')}`;
+  else if(auth.workspace==='TEACH')surface=role('TEACHER');
+  else if(a.kind==='PROGRAM')surface=`${role('STUDENT')} AND EXISTS(SELECT 1 FROM class_memberships m JOIN classes c ON c.activity_key=m.activity_key AND c.class_id=m.class_id WHERE m.account_id=me.account_id AND m.activity_key=${bind(a.activity_key)} COLLATE NOCASE AND m.active=1 AND c.active=1 AND (m.start_date IS NULL OR m.start_date<=${bind(today)}) AND (m.end_date IS NULL OR m.end_date>=${bind(today)}))`;
+  else surface=`(${role('STUDENT')} OR EXISTS(SELECT 1 FROM effective_course_subscriptions s WHERE s.account_id=me.account_id AND s.activity_key=${bind(a.activity_key)} COLLATE NOCASE) OR EXISTS(SELECT 1 FROM course_settings cs WHERE cs.activity_key=${bind(a.activity_key)} COLLATE NOCASE AND cs.legacy_access_model='FREE' AND cs.policy_review_state='CONFIRMED')) AND EXISTS(SELECT 1 FROM attendance_delivery_members m JOIN course_runs cr ON cr.activity_key=m.activity_key AND cr.run_id=m.run_id JOIN course_run_state rs ON rs.activity_key=cr.activity_key AND rs.run_id=cr.run_id WHERE m.activity_key=${bind(a.activity_key)} COLLATE NOCASE AND m.account_id=me.account_id AND m.state='VALID' AND cr.active=1 AND coalesce(rs.stage,'') NOT IN('CANCELLED','ARCHIVED') AND m.join_date<=${bind(today)} AND (m.leave_date IS NULL OR m.leave_date>=${bind(today)}))`;
+  if(!await noteDb.prepare(`SELECT 1 FROM accounts me WHERE me.account_id=? COLLATE NOCASE AND me.active=1 AND (${surface})`).bind(...values).first())throw fail('These Class Notes are outside your current programme access.',403,'CLASS_NOTES_FORBIDDEN');
+ }
+ async function summary(a,input){
+  const noteDb=repository.coreDb||db,np=(sql,...values)=>noteDb.prepare(sql).bind(...values);
+  await summaryEligible(a,noteDb);
+  const window=classNoteSummaryWindow(today,timezone,readingInstant),cursor=repository.noteSummaryCursor;
+  if(!cursor)throw fail('The notes summary is temporarily unavailable.',503);
+  const state=actualState(auth),binding=JSON.stringify({purpose:'CLASS_NOTES_SUMMARY_V1',account:String(state.account.account_id).toUpperCase(),session:auth.sid,epoch:state.account.credential_epoch,activity:a.activity_key.toUpperCase(),workspace:auth.workspaceContext||auth.workspace||'ADMIN',classView:auth.classView?{activityKey:auth.classView.activityKey.toUpperCase(),classId:auth.classView.classId.toUpperCase()}:null,head:repository.setup.head,window:{fromDate:window.fromDate,throughDate:window.throughDate,timezone}});
+  const before=input.before==null?undefined:await cursor.open(input.before,binding),candidates=await classNoteSummaryCandidates(noteDb,a.activity_key,{limit:input.limit,...(before?{before}:{})},window);
+  const ids=[...new Set(candidates.page.map(row=>row.context_id))],stored=ids.length?(await np('SELECT context_id,source_json FROM class_note_contexts WHERE context_id IN(SELECT value FROM json_each(?))',JSON.stringify(ids)).all()).results:[];
+  const sources=await Promise.all(stored.map(row=>live(JSON.parse(row.source_json)))),permissions=await rights(sources),byId=new Map(sources.map(source=>[source.id,source]));
+  const allowed=candidates.page.filter(row=>permissions.get(row.context_id)?.canRead),noteIds=allowed.map(row=>row.note_id);
+  // Bodies and author names are read only after current lesson sharing passes.
+  const rows=noteIds.length?(await np(joined+" WHERE n.note_id IN(SELECT value FROM json_each(?)) AND n.state='ACTIVE'",JSON.stringify(noteIds)).all()).results:[],notes=new Map(rows.map(row=>[row.note_id,row]));
+  return {activityKey:a.activity_key,window,today,timezone,before:candidates.before?await cursor.seal(candidates.before,binding):null,notes:await Promise.all(allowed.filter(row=>notes.has(row.note_id)).map(async candidate=>{
+   const row=notes.get(candidate.note_id),source=byId.get(row.context_id),permission={...permissions.get(row.context_id)};
+   permission.canPost=permission.canPost&&!source.unresolved;
+   return {...await dto(row,permission),source:{...source,...permission}};
+  }))};
+ }
  async function timetable(input){
   if(!Array.isArray(input.sessions)||input.sessions.length>200)throw fail('Choose up to 200 timetable lessons.');
   const refs=input.sessions.filter(r=>r&&typeof r.activityKey==='string'&&validDate(r.date)&&typeof r.sessionKey==='string'&&r.sessionKey.length<=1200);
@@ -147,7 +176,7 @@ export function classNotes(repository,auth,now=()=>new Date()){
    const accepted=await range(a,dates[0],dates.at(-1));contexts.push(...accepted.filter(row=>group.some(r=>r.date===row.date&&r.sessionKey===row.sessionKey)));
   }
   const permissions=await rights(contexts),allowed=contexts.filter(row=>permissions.get(row.id)?.canRead),keys=[...new Set(allowed.map(row=>row.activityKey))];
-  const timetableJoined=joined.replace('n.*,v.body,v.due_mode,v.due_date,v.due_context_id,v.due_json,v.reason,v.previous_version_id,v.created_by editor_id,v.created_at edited_at','n.note_id,n.activity_key,n.context_id,n.state,v.due_mode,v.due_date,v.due_context_id,v.due_json');
+  const timetableJoined=joined.replace('n.*,v.body,v.due_mode,v.due_date,v.due_context_id,v.due_json,v.reason,v.previous_version_id,v.created_by editor_id,v.created_at edited_at','n.note_id,n.current_version_id,n.activity_key,n.context_id,n.state,v.due_mode,v.due_date,v.due_context_id,v.due_json');
   const rows=keys.length?(await p(timetableJoined+" WHERE n.activity_key IN(SELECT value FROM json_each(?)) AND n.state='ACTIVE' AND (n.context_id IN(SELECT value FROM json_each(?)) OR v.due_date BETWEEN ? AND ? OR (v.due_mode='NEXT' AND json_extract(v.due_json,'$.target.kind')='COURSE' AND json_extract(v.due_json,'$.target.stableKey') IN(SELECT value FROM json_each(?)))) ORDER BY n.created_at DESC LIMIT 5001",JSON.stringify(keys),JSON.stringify(allowed.map(row=>row.id)),refs.map(r=>r.date).sort()[0],refs.map(r=>r.date).sort().at(-1),JSON.stringify(allowed.filter(row=>row.kind==='COURSE').map(row=>row.stableKey))).all()).results:[];
   if(rows.length>5000)throw fail('Choose a smaller timetable period for Class Notes.',409,'CLASS_NOTE_LIST_LIMIT');
   const sourceIds=[...new Set(rows.map(row=>row.context_id))],stored=sourceIds.length?(await p('SELECT source_json FROM class_note_contexts WHERE context_id IN(SELECT value FROM json_each(?))',JSON.stringify(sourceIds)).all()).results:[];
@@ -156,7 +185,7 @@ export function classNotes(repository,auth,now=()=>new Date()){
   return {today,timezone,sessions:refs.map(ref=>{
    const sources=allowed.filter(row=>row.activityKey.toUpperCase()===ref.activityKey.toUpperCase()&&row.date===ref.date&&row.sessionKey===ref.sessionKey);
    const reminders=dueRows.filter(({due})=>sources.some(source=>same(source.classId,due.target.classId)&&same(source.activityKey,due.target.activityKey)&&source.stableKey===due.target.stableKey&&source.date===due.date));
-   return {ref:JSON.stringify([ref.activityKey,ref.date,ref.sessionKey]),sources:sources.map(source=>({...source,...permissions.get(source.id),noteCount:rows.filter(row=>row.context_id===source.id).length})),noteCount:rows.filter(row=>sources.some(source=>source.id===row.context_id)).length,dueNotes:reminders.map(({row,due})=>({id:row.note_id,author:row.author_name,title:originals.find(source=>source.id===row.context_id)?.title||'Class Note',date:due.date,sourceContextId:row.context_id}))};
+   return {ref:JSON.stringify([ref.activityKey,ref.date,ref.sessionKey]),sources:sources.map(source=>({...source,...permissions.get(source.id),noteCount:rows.filter(row=>row.context_id===source.id).length})),noteCount:rows.filter(row=>sources.some(source=>source.id===row.context_id)).length,dueNotes:reminders.map(({row,due})=>({id:row.note_id,versionId:row.current_version_id,author:row.author_name,title:originals.find(source=>source.id===row.context_id)?.title||'Class Note',date:due.date,sourceContextId:row.context_id}))};
   })};
  }
  function contextInsert(source,timestamp){
@@ -210,6 +239,7 @@ export function classNotes(repository,auth,now=()=>new Date()){
   await ready();
   if(action==='timetable')return timetable(input);
   const a=await area(input.activityKey);
+  if(action==='summary')return summary(a,input);
   if(['post','revise','withdraw','relink'].includes(action))return mutate(action,input);
   if(action==='sessions'){
    if(!validDate(input.date))throw fail('Choose a lesson date.');const candidates=await range(a,input.date,input.date),permissions=await rights(candidates);

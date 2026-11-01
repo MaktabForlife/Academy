@@ -1,3 +1,5 @@
+import {nativeMediaTeachers} from './native-media-teachers.js';
+import {recoverNoteRetention,noteRetentionCron} from './note-retention.js';
 import {cleanupExpiredAcademicCompanions} from './recording-companions.js';
 import {registerMonthlyProgramme} from './web-platform/programme-registration.mjs';
 import {studioAdmin} from './web-platform/studio-admin.mjs';
@@ -111,6 +113,18 @@ async function dispatch(request,env,options={}) {
   const path=new URL(request.url).pathname;
   if(path.startsWith('/internal/website/')||path.startsWith('/api/website-platform/'))return websitePlatformBridge(request,env,{
     login:async input=>{let captured;await dispatch(new Request(new URL(input.setup?'/api/account/setup-pin':'/api/account/login',request.url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)}),env,{capture:value=>captured=value});return captured;},
+    mediaTeachers:async(session,input)=>{
+      await sourceRepository.ready();
+      if(typeof input.offeringId!=='string'||input.offeringId.length>180)throw rehearsalError('Choose the exact mapped offering.',400);
+      const core=sourceRepository.coreDb,mappingSQL="SELECT m.activity_key,s.enabled,o.state access_owner FROM website_platform_timetable_scopes m JOIN website_platform_access_scopes s USING(activity_key) LEFT JOIN website_platform_access_ownership o USING(activity_key) WHERE m.offering_id=?";
+      const mapping=await core.prepare(mappingSQL).bind(input.offeringId).first();if(!mapping||mapping.enabled!==1||mapping.access_owner==='FROZEN')throw rehearsalError('The mapped offering is unavailable for media attribution.',403,'MEDIA_FORBIDDEN');
+      const state=await sourceRepository.session(session.session_id,session.account_id,session.epoch);if(!state)throw rehearsalError('Your Academy session has ended.',401,'SESSION_ENDED');
+      if(!state.account.global_admin&&!state.roles.some(r=>r.role==='PROGRAM_ADMIN'&&r.activity_key.toUpperCase()===mapping.activity_key.toUpperCase()))throw rehearsalError('This media is outside your current Admin scope.',403,'MEDIA_FORBIDDEN');
+      const auth={state,authority:state,sid:session.session_id,workspace:'ADMIN',workspaceContext:'ADMIN',user:{accountid:session.account_id}};sourceRepository.bindActor(auth);
+      const choices=await nativeMediaTeachers(sourceRepository.authoringRepository().db,mapping.activity_key,input.teacherIds),after=await core.prepare(mappingSQL).bind(input.offeringId).first(),current=await sourceRepository.session(session.session_id,session.account_id,session.epoch);
+      if(!current||!after||after.activity_key!==mapping.activity_key||after.enabled!==1||after.access_owner==='FROZEN'||!current.account.global_admin&&!current.roles.some(r=>r.role==='PROGRAM_ADMIN'&&r.activity_key.toUpperCase()===mapping.activity_key.toUpperCase()))throw rehearsalError('The native session, offering or Admin scope changed.',401,'SESSION_ENDED');
+      return {schema:'NATIVE_MEDIA_TEACHERS_V1',offeringId:input.offeringId,activityKey:mapping.activity_key,...choices,checkedAt:Date.now()};
+    },
     navigation:async(session,key)=>programmeChoice(await sourceRepository.byId(session.account_id),key,env),
     destination:async(session,input)=>dashboardChoice(await sourceRepository.session(session.session_id,session.account_id,session.epoch),input),
     dashboard:async(session,input)=>{
@@ -275,7 +289,7 @@ async function dispatch(request,env,options={}) {
     return {success:true,...await messaging(await readRepository(),auth).run(action,input)};
   }
   if(isAdminWorkspace(auth))repository=repository.authoringRepository();
-  const classNoteAction=path.match(/^\/api\/academy\/class-notes\/(timetable|sessions|get|due|history|post|revise|withdraw|relink)$/)?.[1];
+  const classNoteAction=path.match(/^\/api\/academy\/class-notes\/(summary|timetable|sessions|get|due|history|post|revise|withdraw|relink)$/)?.[1];
   if(classNoteAction)return {success:true,...await classNotes(await readRepository(),auth).run(classNoteAction,input)};
   const nativeAction=path.match(/^\/api\/(?:academy\/attendance|program-attendance)\/(options|get|submit|prepare|recover|report|roster-get|roster-save|substitute-save|substitute-revoke|substitute-reopen)$/)?.[1];
   if(nativeAction&&sourceRepository.features.nativeAttendance)return {success:true,...await nativeAttendance(await readRepository(),auth).run(nativeAction,input)};
@@ -312,8 +326,8 @@ async function dispatch(request,env,options={}) {
   const academicCalendarAction=path.match(/^\/api\/academy\/calendar\/(get|save)$/)?.[1];
   if(academicCalendarAction){const produce=()=>academicCalendar(repository,auth).run(academicCalendarAction,input);return {success:true,...await (academicCalendarAction==='get'?privateSnapshot(repository,auth,{kind:'calendar',input},produce):produce())};}
   if(path==='/api/academy/lesson-media/timetable'){const result=await timetableMedia(repository,auth,input);if(sourceRepository.features.mediaSeparation){const additions=await lessonNotes(await readRepository(),auth,env).timetable(input);for(const row of additions.lessons){const existing=result.lessons.find(r=>r.activityKey===row.activityKey&&r.sessionKey===row.sessionKey);if(existing)existing.assets.push(...row.assets);else result.lessons.push(row);}}return {success:true,...result};}
-  const mediaAction=path.match(/^\/api\/academy\/lesson-media\/(companion|companion-save|companion-publish|list|feed|calendar|sessions|create|historical-create|course-files-create|get|save|watch|download|comments|comment-save|comment-moderate|attachment-remove|attachment-name|video-start|video-complete|video-abort|video-retain)$/)?.[1];
-  if(mediaAction){let result=await lessonMedia(repository,auth,env).run(mediaAction,input);if(sourceRepository.features.mediaSeparation&&['calendar','list','feed','get'].includes(mediaAction)&&!result.notModified){const notes=lessonNotes(await readRepository(),auth,env);if(mediaAction==='get'){if(result.lesson.sessionKey){const entries=await notes.notes([{activityKey:result.lesson.activityKey,sessionKey:result.lesson.sessionKey}]);result.assets.push(...entries.map(notes.asset));result.lesson.canCurateNotes=true;}}else result=await (mediaAction==='calendar'?notes.enrichCalendar(result,input):mediaAction==='feed'?notes.enrichFeed(result,input):notes.enrichList(result,input));}return result instanceof Response?result:{success:true,...result};}
+  const mediaAction=path.match(/^\/api\/academy\/lesson-media\/(binding-options|binding-create|context-options|context-save|companion|companion-editor|companion-save|companion-publish|list|feed|calendar|sessions|create|historical-create|course-files-create|get|save|watch|download|comments|comment-save|comment-moderate|attachment-remove|attachment-name|video-start|video-complete|video-abort|video-retain)$/)?.[1];
+  if(mediaAction){let result=await lessonMedia(repository,auth,env).run(mediaAction,input);if(sourceRepository.features.mediaSeparation&&['calendar','list','feed','get'].includes(mediaAction)&&!result.notModified){const notes=lessonNotes(await readRepository(),auth,env);if(mediaAction==='get'){if(result.lesson.sessionKey||result.lesson.mediaBinding){const entries=await notes.notes([{activityKey:result.lesson.activityKey,sessionKey:result.lesson.mediaBinding?.noteKey||result.lesson.sessionKey}]);result.assets.push(...entries.map(notes.asset));result.lesson.canCurateNotes=true;}}else result=await (mediaAction==='calendar'?notes.enrichCalendar(result,input):mediaAction==='feed'?notes.enrichFeed(result,input):notes.enrichList(result,input));}return result instanceof Response?result:{success:true,...result};}
   if(path==='/api/academy/assessments/progress-list')return {success:true,...await assessmentProgress(repository,auth,input)};
   if(path==='/api/academy/assessments/download')return assessmentFiles(repository,auth,env).download(input);
   if(['/api/academy/assessments/marks-list','/api/academy/assessments/marks-save'].includes(path))return {success:true,...await assessmentManualMarks(repository,auth).run(path.endsWith('marks-list')?'marks-list':'marks-save',input)};
@@ -398,6 +412,7 @@ async function dispatch(request,env,options={}) {
 }
 return {
   async scheduled(event,env,ctx){
+    if(event.cron===noteRetentionCron){if(env.ACADEMY_NOTE_RETENTION==='1')ctx.waitUntil(recoverNoteRetention(env,new Date(event.scheduledTime)));return;}
     if(event.cron===weeklyAbsenteeCron){ctx.waitUntil(recoverWeeklyAbsentees(env,new Date(event.scheduledTime)));return;}
     // A dedicated minute tick must not multiply cache/Hifz recovery work.
     if(event.cron==='* * * * *'){

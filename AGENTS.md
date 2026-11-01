@@ -1,3 +1,10 @@
+# Complete paired release integration — 1 November 2026
+
+- Root-owned local integration branch `feature/academy-complete-1094`, based on verified live Source078bcc8b. This composes the reviewed editor/native media, Academy-only retention and opaque Programme Class Notes summary before final Circles UI/access/playlist composition.
+- The owner conditionally authorised deployment after every applicable comment and all remaining work pass together. Follow parent `../AGENTS.md` and `../../outputs/academy-circles-complete-release-20261101/approval.json`; older release holds below are historical and do not override that current instruction.
+- MOU independent playlists are now authorised for local implementation by Circles: assigned playlist month unlocks the whole playlist; no Academy subject dependency. Preserve current rights, identity/session/epoch, live Join gates and original recording metadata; wait for the final reviewed Target handoff.
+- Root alone deploys the matching Academy API/coordinator/Pages and Studio runtime/assets. No Git push, automatic real recording attachment/publication, guessed dates, hosted SQL scans, DNS changes or dependency upgrades. Keep live checks small. Actual MOU/academic publication remains manual/held.
+- Retention and content media must share exact per-lesson PDF limits, hiding purging/deleted PDFs from counts and readers without discarding legacy or accepted-publication checks. Core0021, Core0022 and Admin0003 are additive local prerequisites; no hosted migration has occurred here.
 # Complete Circles next UI composition — 1 November 2026
 
 - Active local composition is `feature/circles-next-ui-1093`, starting at the verified Source078bcc8b/Targetf4e2f3ed pair. Complete all canonical next-UI register items and the owner's later corrections, preserving the V109.3 mode-scoped routing fix and approved9043design.
@@ -18,6 +25,52 @@
 - Preserve current native Admin-Learn/Admin-Teach inheritance and ordinary learner/teacher scope. Carry the selected view through the existing checked one-use connector; do not create teacher or learner grants or weaken authority checks.
 - Circles owns the isolated Target routing patch; optimisation owns this Source correction and combined release. Keep unfinished UI drafts, academic editor, retention and all deferred recording attachments out of this release. Failed MOU publication and its separate order fix remain held.
 - No production SQL, content/permission changes, timetable publication or Git push. Keep live checks small and use local synthetic fixtures for acceptance.
+# Content media functional handoff — locally verified, 1 November 2026
+
+- Native content selectors/forms, exact media PDF/Teacher-note identity, strict current class/Teacher audiences and signed Studio Teacher/class bridge are complete locally. See `docs/ACADEMY-CONTENT-MEDIA.md` and parent `outputs/academy-content-media-context-20261101/` for test, schema, browser and cost evidence. No new migration or retroactive rewrite.
+- Preserve final root-owned retention predicates when composing both V2 exact-media and legacy PDF count branches. Circles owns final shared UI/integration; Studio owns its reviewed YouTube/package flow. Source original temporary MP4 companion/upload clocks remain unchanged. Generic owner write-plan captures still grow; captured rows are not billed D1 scans.
+- This is a local feature handoff, not full-release approval or a deployment. Preserve the reviewed branches and paired live release; no hosted/media/MOU action occurs here.
+
+# Content-bound Academy media continuation — local only, 1 November 2026
+
+- Direct owner flow supersedes timetable attachment: Programme → native Class → native Subject/Module (or Tafseer Surah) → native Teacher → media; Course → native Teacher → media. No timetable creation/publication is required. Implement on this new feature branch; preserve reviewed `ad1401ee` and `e7bce4b2` branches/receipts.
+- New recorded Teacher IDs are checked attribution, never rights. Preserve current actor/session/epoch, Admin scope, class/date audiences, original upload/expiry, existing session attachments and all live/deployment/media/MOU holds. Do not fabricate native IDs, class/subject mappings or Teacher identity from a source title.
+- Root owns the separate Target four-MOU private review/one-at-a-time attachment feature. Coordinate its Teacher/context contract without duplicating or editing that implementation. Source authoring must preserve Studio/FROZEN ownership locks.
+- Prefer versioned stored context within existing media rows if sufficient; assess schema explicitly. No speculative migration or retroactive rewrite. Bound options/reads, retain stale/retry/atomic authority, and report generic owner-plan costs honestly.
+- Later compose live paired V109.3 Source `078bcc8b` / Studio `f4e2f3ed` and final retention `576e1c0b`; do not replace their changes with this older base. Parent `work/AGENTS.md` paired-version release rule applies. No release/version/dependency changes here.
+
+# Lesson editor read-cost follow-up — locally tested, 1 November 2026
+
+- Local validation passes 165 regressions, including 23 focused checks, and eight native browser flows. See `docs/ACADEMIC-LESSON-CONTEXT-READS.md` and parent `outputs/academy-lesson-editor-read-budget-20261101/` for exact budgets, tests and the final local commit. The unchanged write-plan cost remains an explicit limitation.
+- This separate `feature/academic-lesson-editor-read-budget` checkout follows reviewed editor `ad1401ee`; preserve that original branch and its receipts. Optimise only exact scoped editor read captures, retaining current actor/epoch verification, Core/Admin live-column merge, stale/retry semantics and the guarded owner write plan. No generic planner rewrite or direct-binding bypass.
+- The V109.3 paired separation release is live at Source `078bcc8b` / Studio `f4e2f3ed`. Later compose these changes with it and retention `547345ca`; do not replace the deployed separation code with this older baseline. Academy and Studio require matching-version paired releases under parent `work/AGENTS.md`.
+- No release, live checks, hosted data/schema changes, actual recording attachments, MOU action, push, dependency upgrades or speculative version changes. Use synthetic local fixtures only. Report remaining inherited owner-write-plan costs honestly.
+
+# Dedicated lesson editor — locally complete, 1 November 2026
+
+- The preserved one-day recorded-context/date-selection feature is complete locally on `feature/academic-lesson-corrections`. The relevant suite passes 160 checks, including 18 new feature checks; eight isolated browser flows and 18 changed JS/MJS syntax checks pass. See `docs/ACADEMIC-RECORDED-CONTEXT.md` and parent `outputs/academy-lesson-editor-development-handoff-20261101/` for the exact commit, evidence and UI contract.
+- Next release composition needs matching Source API and external split-coordinator feature code. No new schema, dependency update, release stamp or asset cache-reference change was made. General inherited Admin federation costs remain explicitly documented for optimisation.
+- All deployment, push, live-data, recording attachment/publication and MOU repair holds remain. Original session/class/cohort/teacher permission anchors, recurring timetable, upload time and independent recording/companion expiry remain unchanged. Native IDs/upload evidence for the two future academic items still require supported confirmation.
+
+# Academic lesson corrections — deferred to next update, 1 November 2026
+
+- Latest owner instruction: hold recording attachments for the next update. The incomplete local editor changes are preserved here and excluded from V109.2. Do not deploy or attach recordings from this checkout; complete the new feature tests before any later release. V109.2 code deployment is already complete.
+- Earlier implementation request: add past-date selection and one-day subject/teacher corrections for academic recording attachments. Work on `feature/academic-lesson-corrections`; test locally. No deployment, push, hosted SQL, attachment or publication is authorised by this request.
+- Preserve the original session, class/cohort, timetable snapshot and permission anchors. Corrections describe the recorded content only and must never grant teacher access or edit the recurring timetable. Keep retention based on the original successful upload.
+- MOU publication is ON HOLD by the owner's latest instruction. Earlier MOU import approvals below are superseded. Do not execute or retry the MOU package or deploy its separate publication-order fix.
+- Keep live checks small: use disposable local fixtures only for this task.
+# Official PDF local cost follow-up — 1 November 2026
+
+- Independent review requested a real local workerd official-PDF growth/progress fixture. It now covers four old official PDFs, live Teacher/Course/Studio shared references and 250 unrelated accepted media/publications. Maintenance narrows selected JSON before joins, with live-link/Course rechecks and all holds intact. See parent outputs/note-retention-20261101/official-pdf-growth-summary.json.
+- Shared work/AGENTS.md requires Academy and Studio application releases together; this Academy-only feature stays local for later paired integration with V109.3 and the dedicated editor.
+
+# Note retention and local student completion — 1 November 2026
+
+- Keep this feature out of the narrow V109.3 navigation release; optimisation reviews it for a later Circles integration.
+- Work on feature/academy-note-retention from deployed V109.2. Implement and verify locally. This request does not authorise deployment, live deletion, hosted migrations or sending real class notices. Earlier release approvals are fulfilled.
+- Default retention: three calendar months from original note creation / PDF upload; Admin may adjust it. Warn the affected class once before PDF deletion, asking them to download a copy. Use a seven-day warning unless the owner changes it. Existing PDFs must receive a full warning period.
+- Scope is Academy only, as clarified by you. Do not change Studio notes, PDFs or dashboards; exclude Studio-owned/frozen offerings from retention.
+- Student note completion is device-local and account-scoped, with no database writes. Preserve current access, other media and shared PDF files still in use.
 
 # V109.2 code deployed — 1 November 2026
 

@@ -191,7 +191,7 @@ export async function acceptFeatureChange(repository,auth,input){
    }
   }
   await includeRequiredDefinitions(db,accepted,selected,scopes,touchedRegisters,auth);includeSharedNames({accepted},selected,scopes);const authorityScopes=authorize(auth,scopes,read[2]);
-  validateReferences(accepted,selected);await validateAcceptedSessionPdfs(db,accepted,selected);
+  validateReferences(accepted,selected);await validateAcceptedSessionPdfs(db,accepted,selected,repository.features?.noteRetention);
   const components=[];for(const c of selected.values()){
    const rows=canonicalRows(c.table_name,JSON.parse(c.rows_json)),digest=await payloadHash(rows),previous=accepted.find(v=>key(v)===key(c));
    if(digest!==previous?.digest&&(rows.length||previous))components.push({...c,rows_json:JSON.stringify(rows),row_count:rows.length,digest});

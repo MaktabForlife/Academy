@@ -1,6 +1,12 @@
 // Physical target columns; Core facts are projected into Admin reads, not copied into its master rows.
 export const storeColumns={
  "core":{
+"note_retention_discovery":["kind", "last_created", "last_id", "resume_after", "policy_revision"],
+"note_retention_policy":["singleton", "months", "warning_days", "enabled_at", "revision"],
+"note_retention_items":["item_id", "kind", "ref_id", "activity_key", "class_ids_json", "lesson_date", "label", "created_at", "next_check", "delete_after", "warned_at", "state", "deleted_at"],
+"note_retention_recipients":["item_id", "account_id", "first_opened_at", "unread", "archived_at"],
+"note_retention_objects":["object_key", "state", "updated_at"],
+
  "lesson_recording_companions":["lesson_id", "asset_id", "uploaded_at", "source_revision", "revision", "draft_key", "published_key", "index_json","duration_seconds"],
   "program_surah_grants":["activity_key","account_id","surah_id","active","note","revision","updated_at","updated_by_account_id"],
   "program_surahs":["surah_id","activity_key","name","card_key","completion_date","active","revision","updated_at","updated_by_account_id"],

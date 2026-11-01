@@ -692,3 +692,5 @@ refresh, Program/Course tiles, the existing timetable and calendar. See
 [the implementation notes](docs/ACADEMY-DASHBOARDS-LOCAL.md). Development deployment was authorised on 25 October 2026.
 
 Local feature candidate: [first-publication Studio access setup](docs/COURSE-STUDIO-PUBLICATION.md). Deployment and activation remain with the separate release owner.
+
+Local feature: [Academy note retention and device-local completion](docs/ACADEMY-NOTE-RETENTION.md) defaults to three calendar months with a seven-day PDF warning, Global Admin settings and explicit Studio exclusion. Not deployed.

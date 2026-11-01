@@ -36,7 +36,7 @@ async function completeSignIn(env,db,session){
 }
 export async function sourceSession(db,sourceRef){const row=await db.prepare(`SELECT b.*,a.active,a.admitted,a.global_admin,a.display_name FROM website_platform_sessions b JOIN website_platform_account_state a ON a.account_id=b.account_id COLLATE NOCASE JOIN account_sessions s ON s.session_id=b.session_id AND s.account_id=b.account_id
  WHERE b.source_ref=? AND b.expires_at>? AND a.active=1 AND a.admitted=1 AND a.epoch=b.epoch AND s.credential_epoch=b.epoch AND s.revoked_at IS NULL AND s.expires_at>?`).bind(id(sourceRef),Date.now(),new Date().toISOString()).first();if(!row)throw fail('Sign in to Academy to continue.',401);return row;}
-export async function bridge(request,env,{login,mint,navigation,dashboard,destination}){
+export async function bridge(request,env,{login,mint,navigation,dashboard,destination,mediaTeachers}){
  if(!enabled(env))throw fail('Website integration is not enabled.',503);
  const path=new URL(request.url).pathname,db=dbFor(env);
  if(await db.prepare('SELECT enabled FROM website_platform_control WHERE singleton=1').first('enabled')!==1)throw fail('Website integration is not activated.',503);
@@ -70,6 +70,7 @@ export async function bridge(request,env,{login,mint,navigation,dashboard,destin
   const session=await sourceSession(db,input.sourceRef);if(!input.draining){await enqueueAccount(db,session.account_id,env);await prepareAccountAccess(db,session.account_id,{offeringId:input.offeringId?id(input.offeringId):undefined});}const result=await pendingAccount(env,db,session.account_id);return result.more?{...result,continuation:session.source_ref,statusOnly:true}:result;
  }
  if(path==='/internal/website/continue-sign-in'){const session=await sourceSession(db,input.sourceRef);if(input.statusOnly){const result=await pendingAccount(env,db,session.account_id);return result.more?{...result,continuation:session.source_ref,statusOnly:true}:result;}return completeSignIn(env,db,session);}
+ if(path==='/internal/website/media-teachers'){if(input.purpose!=='ADMIN_MEDIA')throw fail('Open the native Admin media editor.',403,'ADMIN_WORKSPACE_REQUIRED');if(!mediaTeachers)throw fail('Native media Teacher validation is unavailable.',503);return mediaTeachers(await sourceSession(db,input.sourceRef),input);}
  if(path==='/internal/website/dashboard'){const session=await sourceSession(db,input.sourceRef);return {dashboard:await dashboard(session,{mode:input.mode})};}
  if(path==='/internal/website/open-academy'){
   const session=await sourceSession(db,input.sourceRef);if(!safeToken(input.challenge)||!safeToken(input.state))throw fail('Reopen Academy from the website.');let context=null;

@@ -145,9 +145,27 @@
     host.onclick=handleClick;
     host.onfocusin=revealProgramCard;
   }
+  const completionStorageKey=()=>{
+    const id=window.M4L_ACADEMY_LOGIN?.currentId?.();
+    return id?'m4l:note-completion:v1:'+encodeURIComponent(String(id).toUpperCase()):'';
+  };
+  const completionId=note=>JSON.stringify([note.activityKey,note.id,note.versionId||'original']);
+  const canComplete=()=>mode==='learn'&&!boundary()?.adminRealm?.()&&Boolean(completionStorageKey());
+  function completedNotes(){
+    try{const data=JSON.parse(localStorage.getItem(completionStorageKey())||'[]');return new Set(Array.isArray(data)?data.filter(id=>typeof id==='string'):[]);}catch{return new Set();}
+  }
+  function completionButton(note,completed){return canComplete()?`<button type="button" data-ad-complete="${esc(completionId(note))}" aria-pressed="${completed}">${completed?'Mark incomplete':'Mark complete'}</button>`:'';}
   function handleClick(event) {
       if(event.target.closest('[data-ad-contents-toggle]')){openContents();return;}
       const programme=event.target.closest('[data-ad-programme-choice]');if(programme){chooseProgramme(programme.dataset.adProgrammeChoice);return;}
+      const complete=event.target.closest('[data-ad-complete]');
+      if(complete){
+        if(!canComplete()||owner!==context()||!home)return;
+        const id=complete.dataset.adComplete,allowed=notes().some(note=>completionId(note)===id);if(!allowed)return;
+        const completed=completedNotes();if(completed.has(id))completed.delete(id);else completed.add(id);
+        try{localStorage.setItem(completionStorageKey(),JSON.stringify([...completed]));renderAttention();}
+        catch{announce('Your browser could not save completion. Allow local storage to keep this mark.');}return;
+      }
       const note=event.target.closest('[data-ad-note]');
       if(note){markRead(note.dataset.adRead);void window.M4L_CLASS_NOTES?.open({activityKey:note.dataset.adArea,noteId:note.dataset.adNote});}
       const notice=event.target.closest('[data-ad-notice]');
@@ -245,7 +263,7 @@
     if(error)$('ad-assessments').insertAdjacentHTML('beforeend',`<p class="ad-warning" role="status">${esc(error)}</p><button type="button" data-ad-retry>Try again</button>`);
   }
   function tasks() {
-    const list=notes().map(note=>({title:note.title,description:note.activityName+' · '+date(note.date+'T12:00:00Z')+' · '+note.startTime,badge:'Due this lesson',action:noteButton(note)}));
+    const completed=canComplete()?completedNotes():new Set(),list=notes().filter(note=>!completed.has(completionId(note))).map(note=>({title:note.title,description:note.activityName+' · '+date(note.date+'T12:00:00Z')+' · '+note.startTime,badge:'Due this lesson',action:noteButton(note)+completionButton(note,false)}));
     if(mode==='admin'&&enrolments.length)list.unshift({title:'Enrolment requests need review',description:'Requests within your administrative scope',badge:enrolments.length+(enrolments.nextCursor?'+':'')+' requests',action:link('/academy/enrolment/manage/?view=requests','Review requests →')});
     return list;
   }
@@ -254,6 +272,10 @@
     const list=tasks(),noteState=window.M4L_CLASS_NOTES?.snapshot?.(),pending=[...loading].some(name=>!['assessments'].includes(name)),errors=[...failures].filter(([name])=>!['assessments'].includes(name)).map(([,message])=>message);
     $('ad-fya-count').textContent=String(list.length);
     $('ad-attention').innerHTML=list.length?`<ul class="ad-task-list">${list.map(row=>`<li><h3>${esc(row.title)}</h3><p class="ad-muted">${esc(row.description)}</p><div class="ad-task-bottom">${row.badge?`<span class="ad-due">${esc(row.badge)}</span>`:''}${row.action}</div></li>`).join('')}</ul>`:'<p class="ad-empty-line">'+(pending||['idle','loading'].includes(noteState?.status)&&home.personalTimetable?.some(row=>row.mediaSessionKey)?'Checking your outstanding actions…':errors.length||noteState?.status==='error'?'Some actions could not be checked.':'No outstanding actions in the available Academy records.')+'</p>';
+    if(canComplete()){
+      const completed=completedNotes(),done=notes().filter(note=>completed.has(completionId(note)));
+      if(done.length)$('ad-attention').insertAdjacentHTML('beforeend',`<details class="ad-completed-notes"><summary>Completed notes (${done.length})</summary><p class="ad-muted">Saved on this device only. Clearing browser data removes these marks.</p><ul>${done.map(note=>`<li class="ad-actions">${noteButton(note,note.title)} ${completionButton(note,true)}</li>`).join('')}</ul></details>`);
+    }
     if(errors.length||['error','stale'].includes(noteState?.status))$('ad-attention').insertAdjacentHTML('beforeend','<p class="ad-warning" role="status">'+esc([...errors,noteState?.message].filter(Boolean).join(' '))+'</p><button type="button" data-ad-retry>Try again</button>');
   }
   function messages() {
@@ -328,6 +350,6 @@
   window.addEventListener('m4l-messaging-updated',renderMessages);
   window.addEventListener('m4l-academy-session',reset);
   window.addEventListener('m4l-academy-session-ended',reset);
-  window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)reset();});
+  window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)reset();else if(event.key===completionStorageKey())renderAttention();});
   window.M4L_ACADEMY_DASHBOARD={isActiveArea:activeArea,leave:()=>{fetched=0;closeContents(false);closeDialog();},open,reset,landing,homeUrl,refresh,unavailable:message=>announce(message,true)};
 })();

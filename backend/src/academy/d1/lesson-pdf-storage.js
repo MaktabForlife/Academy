@@ -10,10 +10,10 @@ export function lessonPdfObjectKey(reference){
 
 // File bytes are shared; lesson links, note versions and access remain separate.
 // Never delete a shared object on a failed/replayed attachment operation.
-export async function storeLessonPdf(request,storage,namespace,input){
+export async function storeLessonPdf(request,storage,namespace,input,objectKey){
  if(!storage?.head||!storage?.put)throw fail('Private PDF storage is unavailable.',503);
  if(!Number.isSafeInteger(input.size)||input.size<5||input.size>16*1024*1024||!/^[a-f0-9]{64}$/.test(input.sha256||''))throw fail('Choose a PDF up to 16 MB with its checksum.');
- const key=(namespace||'')+'lesson-pdfs/sha256/'+input.sha256+'.pdf',existing=await storage.head(key);
+ const key=objectKey||(namespace||'')+'lesson-pdfs/sha256/'+input.sha256+'.pdf',existing=await storage.head(key);
  await streamPdf(request,storage,key,input,Boolean(existing));
  if(existing&&existing.size!==input.size)throw fail('This PDF is temporarily unavailable.',503);
  return key;

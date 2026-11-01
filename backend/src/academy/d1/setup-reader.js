@@ -29,6 +29,7 @@ function tableProjection(name,head,features={}){
   return `${value}${spec.nocase?.includes(column)?' COLLATE NOCASE':''} AS ${column}`;
  }).join(',');
  const accepted=`SELECT ${columns} FROM main.setup_head_components v JOIN main.setup_components c ON c.component_id=v.component_id JOIN json_each(c.rows_json) r ${hasLive?`JOIN main.${name} live ON ${key}`:''} WHERE v.head_id=${literal(head)} AND v.table_name=${literal(name)}`;
+ if(name==='lesson_media_assets'&&features.noteRetention)return accepted+" AND NOT EXISTS(SELECT 1 FROM main.note_retention_items expiry WHERE expiry.kind='SESSION_PDF' AND expiry.ref_id=json_extract(r.value,'$.asset_id') AND expiry.state IN('PURGING','DELETED'))";
  if(name==='memorisation_activity_settings')return `${accepted} UNION ALL SELECT ${spec.columns.map(c=>c==='learners_per_card'?'20 AS learners_per_card':'live.'+c).join(',')} FROM main.memorisation_activity_settings live WHERE NOT EXISTS(SELECT 1 FROM main.setup_head_components v JOIN main.setup_components c USING(component_id) JOIN json_each(c.rows_json) r WHERE v.head_id=${literal(head)} AND v.table_name='memorisation_activity_settings' AND json_extract(r.value,'$.activity_key')=live.activity_key COLLATE NOCASE)`;
  return name==='academy_settings'?`${accepted} UNION ALL SELECT * FROM main.academy_settings WHERE NOT (${definitionSettingsSQL})`:accepted;
 }
