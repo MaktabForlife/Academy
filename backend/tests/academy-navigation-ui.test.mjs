@@ -124,6 +124,18 @@ for(const root of ['academy','account','programs','users','recorder','activities
     // Loading the full account shell adds redundant API requests during sign-in.
     // Its recovery and redirect behavior is checked by the bridge UI test.
     if(file==='academy/hifz/index.html')continue;
+    // Account-boundary and one-use connector relays have their own protocol UI.
+    // Loading the normal account shell here would duplicate session requests.
+    const relay={
+      'academy/website-studio/session/index.html':'session.mjs',
+      'academy/website-studio/connect/index.html':'connect.mjs',
+      'academy/website-platform/connect/index.html':'connect.mjs',
+      'academy/website-platform/handover/index.html':'handover.mjs'
+    }[file];
+    if(relay){
+      assert.match(html,/\/js\/m4l-config\.js/);assert.match(html,new RegExp('type="module" src="(?:\\./)?'+relay.replace('.','\\.')),file+' must initialise its checked relay');
+      assert.doesNotMatch(html,/m4l-academy-navigation\.js|m4l-academy-mobile\.js/,file+' must not load the ordinary session shell');continue;
+    }
     // The approved annotation experiment is deliberately account-free. Its own
     // navigation returns to Academy/the normal reader without session API calls.
     if(file==='academy/dashboard-design/index.html'){
@@ -141,7 +153,7 @@ for(const root of ['academy','account','programs','users','recorder','activities
     // The course shares account headers while retaining its own lesson navigation.
     if(file==='academy/course-companion/surah-kahf/index.html'){
       for(const asset of ['m4l-config.js','m4l-academy-workspace.js','m4l-academy-read-cache.js'])assert.ok(html.includes('/js/'+asset),file+' must retain '+asset);
-      assert.match(html,/<body class="course-loading kahf-course-portal"/);assert.match(html,/data-dashboard/);assert.match(html,/id="contents-dialog"/);assert.match(html,/portal\.js\?v=/);
+      for(const name of ['course-loading','kahf-course-portal'])assert((html.match(/<body[^>]*class="([^"]*)"/)?.[1]||'').split(/\s+/).includes(name),file+' must retain '+name);assert.match(html,/data-dashboard/);assert.match(html,/id="contents-dialog"/);assert.match(html,/portal\.js\?v=/);
       assert.match(html,/data-academy-admin-context="badge"/);assert.match(html,/data-academy-header-dates="true"/);
       for(const asset of ['m4l-academy-navigation.js','m4l-academy-mobile.js','m4l-academy-page-actions.js','m4l-academy-header-date.js'])assert.ok(html.includes('/js/'+asset),file+' must include '+asset);
       for(const asset of ['m4l-academy-navigation.css','m4l-academy-mobile.css','m4l-academy-shell.css','m4l-academy-page-actions.css'])assert.ok(html.includes('/css/'+asset),file+' must include '+asset);
