@@ -1,3 +1,10 @@
+# Workspace separation correction — 1 November 2026
+
+- Work on `feature/academy-workspace-separation`, based on verified V109.2. The owner confirmed the live Teach programme button opens Admin above Learn instead of Teach, then requested deployment once separation is fixed. This authorises the targeted matching Source/Studio correction after combined local checks; do not release a partial pair.
+- Preserve current native Admin-Learn/Admin-Teach inheritance and ordinary learner/teacher scope. Carry the selected view through the existing checked one-use connector; do not create teacher or learner grants or weaken authority checks.
+- Circles owns the isolated Target routing patch; optimisation owns this Source correction and combined release. Keep unfinished UI drafts, academic editor, retention and all deferred recording attachments out of this release. Failed MOU publication and its separate order fix remain held.
+- No production SQL, content/permission changes, timetable publication or Git push. Keep live checks small and use local synthetic fixtures for acceptance.
+
 # V109.2 code deployed — 1 November 2026
 
 The approved combined release is active at https://maktab4life.org. Academy API8f3c1fa4-57e8-4990-a2b0-5745d90b6235, coordinator0c9fa1eb-217b-4f1a-ab8c-bd5fa35b3367, Academy Pagesfd933f40-de0c-4aad-b893-9ad6e7b383ad and Studio3e354f21-4680-4094-9d13-38add83ff973 are100% active. Runtime commits Sourceffce1e97 / Target506c5a9. Core0020 and Target0009–0010 are applied; the existing MOU binding and all49 original media records were verified unchanged. Source42, coordinator3 and Target17 bindings and43200/43200/60 remain unchanged. DNS/router, Hifz and existing Academy screens remain.

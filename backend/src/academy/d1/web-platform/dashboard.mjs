@@ -14,11 +14,16 @@ export function dashboardChoice(state,input={}){
   const key=id(input.activityKey),activity=state.activities.find(a=>a.activity_key.toUpperCase()===key.toUpperCase()&&a.active&&a.lifecycle==='ACTIVE');
   if(!activity)throw fail('This programme is unavailable.',403);
   const roles=mode==='admin'?['PROGRAM_ADMIN','ADMIN']:mode==='teach'?['TEACHER','SENIOR']:['STUDENT','MEDIA_READER'];
-  context=state.account.global_admin&&mode==='admin'?state.contexts.find(c=>c.role==='GLOBAL_ADMIN'):state.contexts.find(c=>c.scope==='COURSE'&&c.courseId.toUpperCase()===activity.activity_id.toUpperCase()&&roles.includes(c.role));
+  const programmeContext=selectedRoles=>state.contexts.find(c=>c.scope==='COURSE'&&c.courseId.toUpperCase()===activity.activity_id.toUpperCase()&&selectedRoles.includes(c.role));
+  // Global Admin contexts deliberately contain no synthetic per-programme
+  // Teacher/Student records. Use the native Admin audience views for inherited
+  // authority, keeping the selected Teach/Learn suffix through the connector.
+  context=state.account.global_admin?state.contexts.find(c=>c.role==='GLOBAL_ADMIN'):programmeContext(roles)||programmeContext(['PROGRAM_ADMIN','ADMIN']);
   if(!context)throw fail('This programme is outside your selected dashboard.',403);
   if(!['activity','assessment','planning','attendance','surahs-duas','timetable'].includes(tool)||mode!=='teach'&&['planning','attendance','surahs-duas'].includes(tool))throw fail('This tool is unavailable in the selected dashboard.',403);
   const route=mode==='admin'?tool==='assessment'?'#assessment-admin/':'#activity/':'#activity/';
-  return {context,destination:base+route+activity.kind+'/'+encodeURIComponent(activity.activity_id)+(mode==='admin'?'':'/'+mode)+(tool==='activity'||mode==='admin'?'':'/'+tool)};
+  const adminAudience=mode!=='admin'&&['GLOBAL_ADMIN','PROGRAM_ADMIN','ADMIN'].includes(context.role),activityBase=adminAudience?'/academy/admin/':base;
+  return {context,destination:activityBase+route+activity.kind+'/'+encodeURIComponent(activity.activity_id)+(mode==='admin'?'':'/'+mode)+(tool==='activity'||mode==='admin'?'':'/'+tool)};
  }
  const candidates=mode==='admin'?['GLOBAL_ADMIN','PROGRAM_ADMIN','ADMIN']:mode==='teach'?['TEACHER','SENIOR','SUBSTITUTE']:['STUDENT','MEDIA_READER'];
  context=state.contexts.find(c=>candidates.includes(c.role))||state.contexts[0];if(!context)throw fail('Your Academy session has ended.',401);
