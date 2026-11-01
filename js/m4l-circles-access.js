@@ -32,9 +32,9 @@
     const text=document.createElement('p');text.textContent=!row.enabled||row.ownership==='FROZEN'?'Access management is temporarily unavailable for this learning area. Its current permissions are unchanged.':'This programme’s access is managed in its existing Participants page.';note.append(text);
     if(row.enabled&&row.ownership==='ACADEMY'){const link=document.createElement('a');link.href=row.activityKey.startsWith('COURSE:')?'/academy/courses/manage/?course='+encodeURIComponent(row.activityKey.slice(7))+'&tab=participants':'/programs/?program='+encodeURIComponent(row.activityKey.slice(8))+'&tab=participants';link.textContent='Open Participants';note.append(link);}panelHost.append(note);return;
    }
-   if(s.area!=='courses'){
+   if(s.area!=='courses'||row.ownership==='STUDIO'){
     const tabs=document.createElement('nav');tabs.className='access-table-tabs';tabs.setAttribute('aria-label','Access tables');
-    const views=[['matrix','Student matrix'],...(s.area==='tafseer'?[['surahs','Surah table']]:s.area==='mothers'&&row.ownership==='STUDIO'?[['playlists','Playlists']]:[]),...(row.ownership==='STUDIO'?[['additional','Other access']]:[])];
+    const views=s.area==='courses'?[['additional','Participants'],['playlists','Playlists']]:[['matrix','Student matrix'],...(row.ownership==='STUDIO'?[['playlists',s.area==='tafseer'?'Surahs':'Playlists']]:s.area==='tafseer'?[['surahs','Surah table']]:[]),...(row.ownership==='STUDIO'?[['additional','Other access']]:[])];
     const body=document.createElement('section');body.className='access-table-body';panelHost.append(tabs,body);
     async function transport(action,input={}){
      const isStudio=row.ownership==='STUDIO',mapped={'grid':'monthly-grid','grid-save':'monthly-grid-save','surahs':'access-table','surah-save':'access-table-save'};
@@ -47,13 +47,13 @@
      if(!current()||!canLeave())return false;clearEditors();body.replaceChildren();
      for(const button of tabs.querySelectorAll('button'))button.setAttribute('aria-pressed',String(button.dataset.accessView===name));
      if(name==='matrix')await window.M4L_PROGRAM_MONTHLY.mount(body,row.activityKey.slice(8),{transport,label:areas[s.area].title,...(s.area==='mothers'?{description:'Paid months unlock open playlists during that month and completed playlists closed in that month. Existing historical recording rights remain unchanged.'}:{})});
-     else if(name==='playlists')await window.M4L_MOU_PLAYLISTS.mount(body,{transport:command=>transport(command.action,command)});
-     else if(name==='surahs')await window.M4L_PROGRAM_SURAHS.mount(body,row.activityKey.slice(8),{transport});
+     else if(name==='playlists')await (window.M4L_RECORDING_PLAYLISTS||window.M4L_MOU_PLAYLISTS).mount(body,{transport:command=>transport(command.action,command),label:s.area==='tafseer'?'Surah playlists':s.area==='courses'?'Course playlists':'MOU playlists',itemLabel:s.area==='tafseer'?'Surah':'playlist',accessModel:s.area==='courses'?'COURSE':'MONTHLY',...(s.area==='tafseer'?{onLegacy:()=>view('surahs')}:{})});
+     else if(name==='surahs'){if(row.ownership==='STUDIO'){const back=document.createElement('button');back.type='button';back.textContent='Back to Surah playlists';back.onclick=()=>view('playlists');body.append(back);}await window.M4L_PROGRAM_SURAHS.mount(body,row.activityKey.slice(8),{transport});}
      else {const editor=window.M4L_STUDIO_ACCESS.attach(body,row.activityKey);await editor?.loading;}
      return true;
     }
     for(const [name,label]of views){const button=document.createElement('button');button.type='button';button.dataset.accessView=name;button.textContent=label;button.setAttribute('aria-pressed','false');button.onclick=()=>view(name);tabs.append(button);}
-    await view('matrix');return;
+    await view(s.area==='courses'?'additional':'matrix');return;
    }
    const panel=window.M4L_STUDIO_ACCESS.attach(panelHost,row.activityKey);await panel?.loading;if(current())panelHost.dataset.kind=panel?.data?.kind||'';
   }
