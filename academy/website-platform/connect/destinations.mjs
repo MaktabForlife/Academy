@@ -7,6 +7,7 @@ export function academyDestination(value,origin){
  const path=url.pathname,query=url.search,hash=url.hash,activity=/^#activity\/(?:PROGRAM|COURSE)\/[-A-Za-z0-9_:]+(?:\/(?:learn|teach)(?:\/(?:timetable|assessment|planning|attendance|surahs-duas))?)?$/;
  if(['/academy/','/academy/admin/'].includes(path)){
   if(!query&&(activity.test(hash)||path==='/academy/admin/'&&/^#assessment-admin\/(?:PROGRAM|COURSE)\/[-A-Za-z0-9_:]+$/.test(hash)))return url.href;
+  if(path==='/academy/admin/'&&!query&&hash==='#administration/curriculum')return url.href;
   const home=path==='/academy/admin/'?'#administration':/^#timetable\/(learn|teach)$/.test(hash)?hash:null;
   if(home===hash&&['','?circlesTool=messages'].includes(query))return url.href;
   if(!query&&hash===(path==='/academy/admin/'?'#progress-admin':'#progress'))return url.href;
