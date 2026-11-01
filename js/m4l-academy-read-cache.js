@@ -2,13 +2,14 @@
  'use strict';
  const prefix='m4l_read_v1:',memory=new Map(),pending=new Map(),maxAge=30*60*1000,freshFor=60000;
  const token=()=>localStorage.getItem('m4l_account_token')||'';
- let account=token(),epoch=0,privateEpoch=0,publicationPending=null,publicationAt=0;
+ let account=token(),epoch=0,privateEpoch=0,viewEpoch=0,lastDenial=null,publicationPending=null,publicationAt=0;
+ const confirmed=new Map();
  const context=()=>JSON.stringify([window.M4L_ACADEMY_WORKSPACE?.current()||'LEARN',window.M4L_ACADEMY_WORKSPACE?.classView()||null]);
  const head=()=>window.M4L_ACADEMY_WORKSPACE?.head()||null;
  const store=()=>{try{return window.sessionStorage;}catch{return null;}};
  function entries(){const all=new Map(memory);try{const s=store();for(let i=0;i<(s?.length||0);i++){const k=s.key(i);if(k?.startsWith(prefix))all.set(k,s.getItem(k));}}catch{}return all;}
  function remove(key){memory.delete(key);try{store()?.removeItem(key);}catch{}}
- function invalidate({privateOnly=false}={}){privateEpoch++;if(!privateOnly)epoch++;for(const key of pending.keys())if(!privateOnly||JSON.parse(key.slice(prefix.length))[1]!=='PUBLIC')pending.delete(key);publicationAt=0;publicationPending=null;for(const [key,value]of entries())try{if(!privateOnly||!JSON.parse(value).public)remove(key);}catch{remove(key);}}
+ function invalidate({privateOnly=false}={},denial=null){privateEpoch++;if(denial)lastDenial={epoch:privateEpoch,error:denial};else{viewEpoch++;lastDenial=null;confirmed.clear();}if(!privateOnly)epoch++;for(const key of pending.keys())if(!privateOnly||JSON.parse(key.slice(prefix.length))[1]!=='PUBLIC')pending.delete(key);publicationAt=0;publicationPending=null;for(const [key,value]of entries())try{if(!privateOnly||!JSON.parse(value).public)remove(key);}catch{remove(key);}}
  function changed(){if(account!==token()){account=token();invalidate({privateOnly:true});}}
  async function owner(value){try{return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)))].map(n=>n.toString(16).padStart(2,'0')).join('');}catch{return '';}}
  function day(timezone){return new Intl.DateTimeFormat('en-CA',{year:'numeric',month:'2-digit',day:'2-digit',timeZone:timezone||'Africa/Johannesburg'}).format(new Date());}
@@ -25,11 +26,21 @@
  }
  function authoritative(error){return [401,403,404].includes(error.status);}
  async function load({key:query,public:publicData=false,force=false,revalidate=false,fetcher,onUpdate,onError,fallback=null}){
-  changed();const session=token(),realm=context(),ticket=publicData?epoch:privateEpoch,identity=publicData?'PUBLIC':await owner(session);
+  changed();const session=token(),realm=context(),ticket=publicData?epoch:privateEpoch,viewTicket=viewEpoch,identity=publicData?'PUBLIC':await owner(session);
   const active=()=>ticket===(publicData?epoch:privateEpoch)&&(publicData||session===token()&&realm===context());
+  const currentView=()=>publicData?ticket===epoch:viewTicket===viewEpoch&&session===token()&&realm===context();
   if(!active())throw new DOMException('The Academy account or workspace changed.','AbortError');
   if(!publicData&&!identity){await publication(force);const data=await fetcher('');if(!active())throw new DOMException('The Academy account or workspace changed.','AbortError');return data;}
   const key=prefix+JSON.stringify([window.M4L_CONFIG?.API_BASE||location.origin,identity,publicData?'PUBLIC':realm,query]);
+  // A denial must clear every waiting view, including a warm view whose shared
+  // update was superseded by that denial. Account/workspace/save changes still
+  // cancel old callbacks, and a newer confirmed read wins over an old failure.
+  function visibleError(error){
+   if(!currentView())return null;
+   if(!publicData&&!active())return confirmed.get(key)>ticket?null:lastDenial?.epoch===privateEpoch?lastDenial.error:null;
+   if(authoritative(error)){if(publicData)remove(key);else invalidate({privateOnly:true},error);}
+   return error;
+  }
   let entry,raw=memory.get(key);try{raw=store()?.getItem(key)||raw;}catch{}try{entry=JSON.parse(raw||'null');}catch{}
   if(entry&&(!entry.data||!Number.isFinite(entry.at)||!Number.isFinite(entry.checkedAt))){remove(key);entry=null;}
   if(entry&&(Date.now()-entry.at>maxAge||entry.at>Date.now()||!publicData&&head()&&head()!==entry.head||entry.day!==day(entry.data?.timezone))){remove(key);entry=null;}
@@ -45,16 +56,17 @@
     if(result.notModified&&!entry)throw Error('Refresh this Academy view.');
     const data=result.notModified?entry.data:result;
     if(data.success===false)throw Error(data.error||'Academy information is temporarily unavailable.');
+    if(!publicData){confirmed.delete(key);confirmed.set(key,ticket);while(confirmed.size>64)confirmed.delete(confirmed.keys().next().value);}
     if(data.timetableComplete!==false&&!data.warnings?.some(warning=>/timetable.*unavailable/i.test(String(warning))))write(key,{public:publicData,at:Date.now(),checkedAt:Date.now(),day:day(data.timezone),head:publicData?null:head(),data});
     return data;
    })().finally(()=>{if(pending.get(key)===update)pending.delete(key);});
    pending.set(key,update);
   }
   if(cached&&!force){
-   void update.then(data=>{if(active())onUpdate?.(data);},error=>{if(!active())return;if(authoritative(error)){if(publicData)remove(key);else invalidate({privateOnly:true});onError?.(error,false);}else if(error.name!=='AbortError')onError?.(error,true);});
+   void update.then(data=>{if(active())onUpdate?.(data);},error=>{const visible=visibleError(error);if(!visible)return;if(authoritative(visible))onError?.(visible,false);else if(visible.name!=='AbortError')onError?.(visible,true);});
    return {...cached,_cacheChecking:true};
   }
-  try{return await update;}catch(error){if(authoritative(error)){if(publicData)remove(key);else invalidate({privateOnly:true});}if(cached&&active()&&!authoritative(error)&&error.name!=='AbortError')return {...cached,_cacheMessage:'Showing saved information. Couldn’t check for updates.'};throw error;}
+  try{return await update;}catch(error){const visible=visibleError(error)||error;if(cached&&active()&&!authoritative(visible)&&visible.name!=='AbortError')return {...cached,_cacheMessage:'Showing saved information. Couldn’t check for updates.'};throw visible;}
  }
  const headers=revision=>({'X-Academy-Read-Cache':'1',...(revision?{'X-Academy-Read-Revision':revision}:{})});
  const publicUrl=(url,revision)=>url+(url.includes('?')?'&':'?')+'readCache=1'+(revision?'&readRevision='+encodeURIComponent(revision):'');
@@ -109,7 +121,7 @@
  window.addEventListener('m4l-academy-session',clearRefresh);
  window.addEventListener('m4l-academy-session-ended',clearRefresh);
  window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)clearRefresh();});
- window.addEventListener('m4l-academy-session',()=>{if(account!==token()){changed();return;}privateEpoch++;for(const key of pending.keys())if(JSON.parse(key.slice(prefix.length))[1]!=='PUBLIC')pending.delete(key);publicationAt=0;publicationPending=null;});
+ window.addEventListener('m4l-academy-session',()=>{if(account!==token()){changed();return;}privateEpoch++;viewEpoch++;lastDenial=null;confirmed.clear();for(const key of pending.keys())if(JSON.parse(key.slice(prefix.length))[1]!=='PUBLIC')pending.delete(key);publicationAt=0;publicationPending=null;});
  window.addEventListener('m4l-academy-session-ended',()=>invalidate({privateOnly:true}));
  window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)changed();});
 })();
