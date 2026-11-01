@@ -1,3 +1,12 @@
+# Native Academy programme playlists — local only, 1 November 2026
+
+- Current owner replaces session attachment with common programme → playlist → recordings. Work only in this isolated branch from Source d11554c9, preserving deployed V109.4 and tested account-cache changes. Do not edit root workspace.js or the shared generic playlist component.
+- Own the bounded native Source API and the named class/subject/module/Teacher selector wrapper/form, integrating with root M4L_RECORDING_PLAYLISTS transport/onCreate/onEditContext. Root/Circles own generic settings, podcast/table integration and release.
+- Preserve existing/new dated V2 recording audience checks, original class/date/month rights, all IDs/assets/notes/retention and independent upload/companion clocks. Playlist closeDate is editorial; no new current-class shortcut, monthly paywall, rights grant or title/date inference. Attach and Publish remain explicit/manual; no timetable creation/publication.
+- Local feature is complete and tested: 211 combined checks, 14 focused checks and 8 browser groups; measured warm native reads stay scoped at 1,000 unrelated areas. Exact contract, lifecycle hooks and inherited cold-auth/write-plan limits are in `docs/ACADEMY-MEDIA-PLAYLISTS.md`; durable receipts are in parent `outputs/academy-native-playlists-20261101/`. Root still owns composition and paired release.
+- Root reserved Core0023_media_playlists.sql and Admin0004_media_playlists.sql before schema work. Assess whether Core-only operational playlist/membership storage is sufficient and leave Admin4 unused if not required. Do not reuse deployed Core21/22 or Admin3.
+- Reuse twelve-hour normal proof, current account/session/epoch and fresh atomic authority for writes; no idle polling or per-page upstream renewal. No live SQL/data/login/deploy/push/dependency/version changes.
+
 # Complete paired release integration — 1 November 2026
 
 - Root-owned local integration branch `feature/academy-complete-1094`, based on verified live Source078bcc8b. This composes the reviewed editor/native media, Academy-only retention and opaque Programme Class Notes summary before final Circles UI/access/playlist composition.

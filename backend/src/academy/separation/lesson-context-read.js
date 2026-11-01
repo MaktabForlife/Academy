@@ -4,7 +4,8 @@ const invalid=()=>{throw Object.assign(Error('Invalid lesson-context read scope.
 const area=value=>typeof value==='string'&&/^(PROGRAM|COURSE):[^:]{1,192}$/.test(value);
 const lesson=value=>typeof value==='string'&&value.length>0&&value.length<=200;
 const operation=value=>typeof value==='string'&&/^[a-f0-9-]{36}$/i.test(value);
-const specs={teachers:[area],classes:[area],surahs:[area],schema:[],enabled:[],area:[lesson],activity:[area],lesson:[lesson,area],policy:[area],receipt:[area,operation]};
+const ids=value=>{try{const a=JSON.parse(value);return typeof value==='string'&&Array.isArray(a)&&a.length>0&&a.length<=30&&a.every(v=>typeof v==='string'&&v.length>0&&v.length<=100)&&new Set(a).size===a.length;}catch{return false;}};
+const specs={playlistLessons:[area,ids],playlistAssets:[area,ids],playlistAssetsRetained:[area,ids],teachers:[area],classes:[area],surahs:[area],schema:[],enabled:[],area:[lesson],activity:[area],lesson:[lesson,area],policy:[area],receipt:[area,operation]};
 // Internal metadata cannot select arbitrary tables/predicates. Current authority
 // is established by engine.read before this exact-template comparison and again
 // after capture. No recipe changes the guarded write plan or receipt semantics.
@@ -14,12 +15,19 @@ export function lessonContextSelection(statements,proof,owner){
  const statement=statements[0],hint=statement.lessonContextRead,{kind,values}=hint||{},validators=specs[kind];
  if(!hint||typeof hint!=='object'||Array.isArray(hint)||Object.keys(hint).sort().join(',')!=='kind,values'||!Object.hasOwn(specs,kind)||!validators||statement.sql!==lessonContextSQL[kind]||!Array.isArray(values)||!Array.isArray(statement.params)||values.length!==validators.length||statement.params.length!==values.length||values.some((v,i)=>!validators[i](v)||statement.params[i]!==v)||statement.acceptedScope||statement.recordedContextScope)invalid();
  let signature;try{signature=JSON.parse(proof.signature);}catch{invalid();}
- const global=signature?.[0]===true,scopes=signature?.[1]?.filter(r=>r.endsWith('|PROGRAM_ADMIN')).map(r=>r.slice(0,-14))||[],scope=kind==='lesson'?values[1]:['activity','policy','receipt','classes','surahs','teachers'].includes(kind)?values[0]:null;
+ const global=signature?.[0]===true,scopes=signature?.[1]?.filter(r=>r.endsWith('|PROGRAM_ADMIN')).map(r=>r.slice(0,-14))||[],scope=kind==='lesson'?values[1]:['activity','policy','receipt','classes','surahs','teachers','playlistLessons','playlistAssets','playlistAssetsRetained'].includes(kind)?values[0]:null;
  if(!global&&(!scopes.length||scope&&!scopes.includes(scope.toUpperCase())))throw Object.assign(Error('This recording correction is outside your Admin scope.'),{status:403,code:'MEDIA_FORBIDDEN'});
  return {kind,values,scope,global,scopes,classIds:[]};
 }
 export function lessonContextFilter(name,selection){
  const {kind,values,classIds}=selection;
+ if(kind==='playlistLessons'&&name==='lesson_media_lessons')return {where:' WHERE activity_key=? AND lesson_id IN(SELECT value FROM json_each(?)) LIMIT 31',params:values,limit:30};
+ if(['playlistAssets','playlistAssetsRetained'].includes(kind)){
+  if(name==='lesson_media_links')return {where:' WHERE lesson_id IN(SELECT lesson_id FROM lesson_media_lessons WHERE activity_key=? AND lesson_id IN(SELECT value FROM json_each(?))) LIMIT 601',params:values,limit:600};
+  if(name==='lesson_media_assets')return {where:' WHERE activity_key=? AND asset_id IN(SELECT value FROM json_each(?)) LIMIT 1201',params:[values[0],JSON.stringify(selection.assetIds||[])],limit:1200};
+  if(name==='note_retention_items')return {where:" WHERE kind='SESSION_PDF' AND ref_id IN(SELECT value FROM json_each(?)) LIMIT 1201",params:[JSON.stringify(selection.assetIds||[])],limit:1200};
+ }
+
  if(kind==='teachers'&&name==='effective_activity_roles')return {where:" WHERE activity_key=? AND role='TEACHER' LIMIT 201",params:values,limit:200};
  if(kind==='teachers'&&name==='academy_teacher_designations')return {where:' WHERE active=1 LIMIT 201',params:[],limit:200};
  if(kind==='teachers'&&name==='accounts')return {where:` WHERE account_id IN(${recordedTeacherIdsSQL}) AND active=1 LIMIT 201`,params:values,limit:200};

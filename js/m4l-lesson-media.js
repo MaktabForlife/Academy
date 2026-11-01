@@ -98,6 +98,7 @@
  }
 
  async function openBinding(){
+  if(data?.kind==='PROGRAM'){const g=generation;try{if(!window.M4L_ACADEMY_PLAYLISTS)await import('./m4l-academy-playlists.js');if(!active(g))return;const result=await window.M4L_ACADEMY_PLAYLISTS.createRecording({activityKey});if(result&&active(g)){await load({force:true});await edit({id:result.lessonId,title:'Playlist recording'});}}catch(error){if(active(g)){calendarError=error.message;render();}}return;}
   const dg=modal('Add media','<p>Loading native media choices…</p>');if(dg===null)return;
   binding={operationId:crypto.randomUUID(),request:0};await bindingChoices('',dg);
  }
@@ -354,12 +355,12 @@
   if(action==='moderate'){const c=discussion.comments.find(c=>c.id===b.dataset.comment);if(!c)return;if(b.dataset.decision==='DELETE'&&!window.confirm('Remove this comment?'))return;void mutate('comment-moderate',{operationId:crypto.randomUUID(),lessonId:discussion.row.id,commentId:c.id,revision:c.revision,decision:b.dataset.decision});}
   if(action==='retry'&&retry)void retry();
  }
- function reset(){managementDate='';for(const video of host?.querySelectorAll('video')||[])video.pause();recordingView={};clearTimeout(expiryTimer);expiryTimer=null;generation++;calendarRequest++;calendarLoading=false;calendarError='';cacheScope=null;close(true);if(host){host.removeEventListener('click',handleClick);host.removeEventListener('submit',handleSubmit);host.replaceChildren();host.classList.remove('lm-calendar','lm-rails');host.hidden=true;}host=null;session='';data=null;}
+ function reset(){window.M4L_ACADEMY_PLAYLISTS?.cancelRecording?.();managementDate='';for(const video of host?.querySelectorAll('video')||[])video.pause();recordingView={};clearTimeout(expiryTimer);expiryTimer=null;generation++;calendarRequest++;calendarLoading=false;calendarError='';cacheScope=null;close(true);if(host){host.removeEventListener('click',handleClick);host.removeEventListener('submit',handleSubmit);host.replaceChildren();host.classList.remove('lm-calendar','lm-rails');host.hidden=true;}host=null;session='';data=null;}
  window.M4L_LESSON_MEDIA={async manage({hostId,activityKey:key,lessonId}){
   if(!close())return;reset();host=document.getElementById(hostId);if(!host||!token())return;
   activityKey=key;session=token();context=workspace();data={sessions:[],lessons:[]};learnerView=false;runId='';
   await edit({id:lessonId,title:'Lesson media'});
- },canLeave:()=>close(),reset,openAttachment({hostId,lesson,kind}){
+ },canLeave:()=> (window.M4L_ACADEMY_PLAYLISTS?.canLeaveRecording?.()??true)&&close(),reset,openAttachment({hostId,lesson,kind}){
   const target=document.getElementById(hostId);
   if(!target||!token()||!lesson||!['YOUTUBE','MP4','PDF'].includes(kind)||!lesson.assets?.length||!close())return;
   reset();host=target;session=token();context=workspace();activityKey=lesson.activityKey;learnerView=true;data={lessons:[lesson]};

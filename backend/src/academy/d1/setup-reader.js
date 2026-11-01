@@ -14,8 +14,11 @@ export async function acceptedHead(repository,requested=''){
  if(!row)throw fail('Accepted Academy setup is not available. Refresh before continuing.',503,'SETUP_PUBLICATION_REQUIRED');
  return row.head_id;
 }
-function tableProjection(name,head,features={}){
+function tableProjection(name,head,features={},selection=null){
  const spec=setupSchema[name],extract=column=>`json_extract(r.value,'$.${column}')`;
+ // IDs come only from the server-selected membership page. The exact PK IN
+ // bounds live reads without changing the existing NOCASE accepted/live join.
+ const selectedLessons=name==='lesson_media_lessons'&&selection?.lessonIds?.length?selection.lessonIds.map(literal).join(','):'';
  const key=spec.keys.map(c=>`live.${c}=${extract(c)} COLLATE NOCASE`).join(' AND ');
  const hasLive=spec.live?.length||spec.columns.includes('active')||name==='lesson_media_lessons'||name==='lesson_media_links';
  const columns=spec.columns.map(column=>{
@@ -28,12 +31,12 @@ function tableProjection(name,head,features={}){
   else if(name==='course_run_state'&&column.startsWith('draft_'))value='NULL';
   return `${value}${spec.nocase?.includes(column)?' COLLATE NOCASE':''} AS ${column}`;
  }).join(',');
- const accepted=`SELECT ${columns} FROM main.setup_head_components v JOIN main.setup_components c ON c.component_id=v.component_id JOIN json_each(c.rows_json) r ${hasLive?`JOIN main.${name} live ON ${key}`:''} WHERE v.head_id=${literal(head)} AND v.table_name=${literal(name)}`;
+ const accepted=`SELECT ${columns} FROM main.setup_head_components v JOIN main.setup_components c ON c.component_id=v.component_id JOIN json_each(c.rows_json) r ${hasLive?`JOIN main.${name} live ON ${key}${selection?.activityKey&&spec.columns.includes('activity_key')?' AND live.activity_key='+literal(selection.activityKey)+' COLLATE NOCASE':''}${selectedLessons?' AND live.lesson_id IN('+selectedLessons+')':''}`:''} WHERE v.head_id=${literal(head)} AND v.table_name=${literal(name)}${selection?.activityKey&&spec.scope!=="'GLOBAL'"?' AND v.scope_key='+literal(selection.activityKey)+' COLLATE NOCASE':''}${selectedLessons?" AND json_extract(r.value,'$.lesson_id') IN("+selectedLessons+")":''}`;
  if(name==='lesson_media_assets'&&features.noteRetention)return accepted+" AND NOT EXISTS(SELECT 1 FROM main.note_retention_items expiry WHERE expiry.kind='SESSION_PDF' AND expiry.ref_id=json_extract(r.value,'$.asset_id') AND expiry.state IN('PURGING','DELETED'))";
  if(name==='memorisation_activity_settings')return `${accepted} UNION ALL SELECT ${spec.columns.map(c=>c==='learners_per_card'?'20 AS learners_per_card':'live.'+c).join(',')} FROM main.memorisation_activity_settings live WHERE NOT EXISTS(SELECT 1 FROM main.setup_head_components v JOIN main.setup_components c USING(component_id) JOIN json_each(c.rows_json) r WHERE v.head_id=${literal(head)} AND v.table_name='memorisation_activity_settings' AND json_extract(r.value,'$.activity_key')=live.activity_key COLLATE NOCASE)`;
  return name==='academy_settings'?`${accepted} UNION ALL SELECT * FROM main.academy_settings WHERE NOT (${definitionSettingsSQL})`:accepted;
 }
-export function acceptedDatabase(db,head,features={}){
+export function acceptedDatabase(db,head,features={},selection=null){
  const rewrite=sql=>{
   if(!/^\s*(?:SELECT|WITH)\b/i.test(sql))return {sql};
   const names=new Set([...sql.matchAll(/\b(?:FROM|JOIN)\s+(?!main\.)([a-z_][a-z0-9_]*)\b/gi)].map(m=>m[1].toLowerCase()));
@@ -42,7 +45,7 @@ export function acceptedDatabase(db,head,features={}){
   // Keep simple one-table reads eligible for SQLite's normal push-down plan.
   const projected=[...names].filter(n=>setupSchema[n]||privateSetupTables.includes(n));
   const joined=projected.length>1||projected.some(n=>[...sql.matchAll(new RegExp(`\\b(?:FROM|JOIN)\\s+${n}\\b`,'gi'))].length>1);
-  const ctes=projected.map(n=>`${n} AS ${joined?'MATERIALIZED ':''}(${privateSetupTables.includes(n)?`SELECT * FROM main.${n} WHERE 0`:tableProjection(n,head,features)})`);
+  const ctes=projected.map(n=>`${n} AS ${joined?'MATERIALIZED ':''}(${privateSetupTables.includes(n)?`SELECT * FROM main.${n} WHERE 0`:tableProjection(n,head,features,selection)})`);
   if(!ctes.length)return {sql};
   const rewritten=/^\s*WITH\b/i.test(sql)?sql.replace(/^\s*WITH(\s+RECURSIVE)?\s+/i,(_,recursive)=>`WITH${recursive||''} ${ctes.join(',')}, `):`WITH ${ctes.join(',')} ${sql}`;
   // Only generated projections may narrow component capture. An explicit

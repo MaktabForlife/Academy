@@ -89,3 +89,8 @@ button.lm-card-title{cursor:pointer}button.lm-card-title:hover{text-decoration:u
 .lm-teacher-choices{min-width:0;margin:0;border:1px solid #dfcde6;border-radius:12px;padding:12px;max-height:320px;overflow-y:auto}
 .lm-teacher-choices legend{font-weight:700;padding:0 4px}.lm-teacher-choices .lm-check{display:flex;align-items:center;gap:10px;min-height:44px;margin:0;overflow-wrap:anywhere}
 .lm-teacher-choices input[type=checkbox]{width:18px;height:18px;min-width:18px;padding:0;flex:none}.lm-binding-form input[readonly]{white-space:normal}
+
+/* Native programme playlist forms retain the existing palette with sage actions. */
+.native-playlist-dialog .button,.native-playlist-settings>.lm-actions>.button{background:#49645c;border-color:#49645c;color:#fffaf2}
+.native-playlist-dialog .button.secondary,.native-playlist-settings>.lm-actions>.button.secondary{background:#fffdf9;color:#49645c}
+.native-playlist-dialog input[type=checkbox]{accent-color:#49645c}

@@ -1,3 +1,4 @@
+import {mediaPlaylistCursor} from './media-playlist-cursor.js';
 import {calendarFacts,holidaySettings} from './published-facts-cache.js';
 import {surahRightsSQL} from './surah-grants.js';
 import {monthlyRightsSQL} from './monthly-media-policy.js';
@@ -117,6 +118,7 @@ export function academyD1Repository(env) {
       SELECT ?,?,?,?,?,?,?,?,? ${conditional?'WHERE changes()=1':''}`,crypto.randomUUID(),new Date().toISOString(),actor,env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACCOUNT':'D1_REHEARSAL','ACADEMY',action,'USER_ACCOUNT',target,JSON.stringify(fields));
   }
   return {
+    mediaPlaylistSource:{db:compatible,cursor:mediaPlaylistCursor(env.SESSION_SECRET)},
     publishedFactsSource:{db:raw,namespace:configurationNamespace,requests:new Map(),versionSQL:split?'(SELECT version FROM split_read_state WHERE singleton=1)':'(SELECT version FROM academy_write_state WHERE singleton=1)'},
     privateSnapshots,recordingEnv:{ACADEMY_OBJECT_NAMESPACE:env.ACADEMY_OBJECT_NAMESPACE},
     bindActor:auth=>client?.bindActor(auth),

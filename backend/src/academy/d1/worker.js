@@ -1,3 +1,5 @@
+import {recordingPlaylistMetadata} from './media-playlist-store.js';
+import {mediaPlaylists} from './media-playlists.js';
 import {nativeMediaTeachers} from './native-media-teachers.js';
 import {recoverNoteRetention,noteRetentionCron} from './note-retention.js';
 import {cleanupExpiredAcademicCompanions} from './recording-companions.js';
@@ -18,7 +20,7 @@ import {classNotes} from './class-notes.js';
 import {messaging,recoverMessaging} from './messaging.js';
 import {lessonNotes} from './lesson-notes.js';
 import {nativeAttendance} from './native-attendance.js';
-import {setupEnabled,acceptedHead,acceptedRepository} from './setup-reader.js';
+import {setupEnabled,acceptedDatabase,acceptedHead,acceptedRepository} from './setup-reader.js';
 import {courseWebsites} from './course-websites.js';
 import {publicWebsiteCards,publicWebsiteCardImage,uploadWebsiteCardImage} from './website-cards.js';
 import {publicFoundationsLinks} from './surah-websites-access.js';
@@ -328,6 +330,16 @@ async function dispatch(request,env,options={}) {
   if(websiteRead){const source=setupEnabled(env)?await readRepository():repository;const result=await courseWebsites(source,auth,env).run(websiteRead,input);return result instanceof Response?result:{success:true,...result};}
   const personalAction=path.match(/^\/api\/academy\/my-links\/(list|save|export)$/)?.[1];
   if(personalAction)return {success:true,...await personalLinks(sourceRepository,auth,env).run(personalAction,input)};
+  const playlistAction=path.match(/^\/api\/academy\/media-playlists\/(list|get|options|save|publish|attach)$/)?.[1];
+  if(playlistAction){
+   const loadRecordings=async(activityKey,lessonIds,{publicOnly=false}={})=>{
+    const core=sourceRepository.mediaPlaylistSource.db,readerHead=repository.setup?.head||await acceptedHead(sourceRepository),management=isAdminWorkspace(auth)&&!publicOnly,selected=management?repository:{...repository,db:acceptedDatabase(core,readerHead,repository.features,{activityKey,lessonIds}),coreDb:core,setup:{...repository.setup,head:readerHead,reader:true}};
+    const result=await lessonMedia(selected,auth,env,{lessonIds,management,companionDb:core}).run('list',{activityKey,...(publicOnly?{view:'learner'}:{})});
+    if(sourceRepository.features.mediaSeparation){const notesSource={...repository,db:acceptedDatabase(core,readerHead,repository.features,{activityKey}),coreDb:core,setup:{...repository.setup,head:readerHead,reader:true}},notes=lessonNotes(notesSource,auth,env),refs=result.lessons.map(row=>({activityKey,sessionKey:row.mediaBinding?.noteKey||row.sessionKey,date:row.date})),entries=await notes.notes(refs);for(const row of result.lessons)row.assets.push(...entries.filter(n=>n.session_key===(row.mediaBinding?.noteKey||row.sessionKey)).map(notes.asset));}
+    return result;
+   };
+   return {success:true,...await mediaPlaylists(repository,auth,env,{loadRecordings}).run(playlistAction,input)};
+  }
   const noteAction=path.match(/^\/api\/academy\/lesson-media\/note-(options|withdraw)$/)?.[1];
   if(noteAction){if(!sourceRepository.features.mediaSeparation)throw rehearsalError('Own notes are unavailable.',503);const notes=lessonNotes(await readRepository(),auth,env);return {success:true,...await notes[noteAction](input)};}
   if(path==='/api/academy/lesson-media/download'&&sourceRepository.features.mediaSeparation&&String(input.assetId||'').startsWith('NOTE-'))return lessonNotes(await readRepository(),auth,env).download(input);
@@ -350,7 +362,7 @@ async function dispatch(request,env,options={}) {
   if(academicCalendarAction){const produce=()=>academicCalendar(repository,auth).run(academicCalendarAction,input);return {success:true,...await (academicCalendarAction==='get'?privateSnapshot(repository,auth,{kind:'calendar',input},produce):produce())};}
   if(path==='/api/academy/lesson-media/timetable'){const result=await timetableMedia(repository,auth,input);if(sourceRepository.features.mediaSeparation){const additions=await lessonNotes(await readRepository(),auth,env).timetable(input);for(const row of additions.lessons){const existing=result.lessons.find(r=>r.activityKey===row.activityKey&&r.sessionKey===row.sessionKey);if(existing)existing.assets.push(...row.assets);else result.lessons.push(row);}}return {success:true,...result};}
   const mediaAction=path.match(/^\/api\/academy\/lesson-media\/(binding-options|binding-create|context-options|context-save|companion|companion-editor|companion-save|companion-publish|list|feed|calendar|sessions|create|historical-create|course-files-create|get|save|watch|download|comments|comment-save|comment-moderate|attachment-remove|attachment-name|video-start|video-complete|video-abort|video-retain)$/)?.[1];
-  if(mediaAction){let result=await lessonMedia(repository,auth,env).run(mediaAction,input);if(sourceRepository.features.mediaSeparation&&['calendar','list','feed','get'].includes(mediaAction)&&!result.notModified){const notes=lessonNotes(await readRepository(),auth,env);if(mediaAction==='get'){if(result.lesson.sessionKey||result.lesson.mediaBinding){const entries=await notes.notes([{activityKey:result.lesson.activityKey,sessionKey:result.lesson.mediaBinding?.noteKey||result.lesson.sessionKey}]);result.assets.push(...entries.map(notes.asset));result.lesson.canCurateNotes=true;}}else result=await (mediaAction==='calendar'?notes.enrichCalendar(result,input):mediaAction==='feed'?notes.enrichFeed(result,input):notes.enrichList(result,input));}return result instanceof Response?result:{success:true,...result};}
+  if(mediaAction){let result=await lessonMedia(repository,auth,env).run(mediaAction,input);if(sourceRepository.features.mediaSeparation&&['calendar','list','feed','get'].includes(mediaAction)&&!result.notModified){const notes=lessonNotes(await readRepository(),auth,env);if(mediaAction==='get'){if(result.lesson.sessionKey||result.lesson.mediaBinding){const entries=await notes.notes([{activityKey:result.lesson.activityKey,sessionKey:result.lesson.mediaBinding?.noteKey||result.lesson.sessionKey}]);result.assets.push(...entries.map(notes.asset));result.lesson.canCurateNotes=true;}}else result=await (mediaAction==='calendar'?notes.enrichCalendar(result,input):mediaAction==='feed'?notes.enrichFeed(result,input):notes.enrichList(result,input));}if(!(result instanceof Response)){await recordingPlaylistMetadata(sourceRepository,auth,result.lessons||result.lesson?[...(result.lessons||[]),...(result.lesson?[result.lesson]:[])]:[],{publicOnly:input.view==='learner'});}return result instanceof Response?result:{success:true,...result};}
   if(path==='/api/academy/assessments/progress-list')return {success:true,...await assessmentProgress(repository,auth,input)};
   if(path==='/api/academy/assessments/download')return assessmentFiles(repository,auth,env).download(input);
   if(['/api/academy/assessments/marks-list','/api/academy/assessments/marks-save'].includes(path))return {success:true,...await assessmentManualMarks(repository,auth).run(path.endsWith('marks-list')?'marks-list':'marks-save',input)};

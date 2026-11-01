@@ -91,6 +91,11 @@ export function federationContext({core,admin,owner='admin'}){
   let lessonSources=null;
   if(lessonRead){
    if(owner!=='admin'||extra.length||publication||recorded)throw Object.assign(Error('Invalid lesson-context capture.'),{status:400,code:'CONTEXT_SCOPE_INVALID'});
+   if(['playlistAssets','playlistAssetsRetained'].includes(lessonRead.kind)){
+    const [c,a]=await Promise.all([capture('core',['lesson_media_links'],null,null,null,lessonRead),capture('admin',['lesson_media_links'],null,null,null,lessonRead)]);
+    lessonSources={core:c,admin:a};lessonRead.assetIds=[...new Set([...(c.lesson_media_links||[]),...(a.lesson_media_links||[])].map(row=>row.asset_id))];
+    if(lessonRead.assetIds.length>1200)throw Object.assign(Error('Choose fewer recording attachments.'),{status:409,code:'CONTEXT_SCOPE_CHANGED'});
+   }
    if(lessonRead.kind==='lesson'){
     // Capture the selected row once per owner, then use the union of its class
     // keys to retain Core live flags for an unpublished Admin class reference.
@@ -104,7 +109,7 @@ export function federationContext({core,admin,owner='admin'}){
   // A pinned publication needs only the components it references, not every
   // historical head and component in either store. Keep owner merging intact.
   const accepted=publication||extra.includes('setup_components')||extra.includes('setup_head_components')?null:await acceptedSelection(sqls,scopes);
-  const remaining=names=>[...names].filter(n=>!lessonSources||n!=='lesson_media_lessons');
+  const remaining=names=>[...names].filter(n=>!lessonSources||!Object.hasOwn(lessonSources.core,n)&&!Object.hasOwn(lessonSources.admin,n));
   const [coreRows,adminRows]=await Promise.all([capture('core',remaining(cn).filter(n=>!accepted||n!=='setup_head_components'),accepted,publication,recorded,lessonRead),capture('admin',remaining(an),accepted,publication,recorded,lessonRead)]),c={...lessonSources?.core,...coreRows},a={...lessonSources?.admin,...adminRows},data={};
   if(accepted)c.setup_head_components=accepted.rows;
   for(const n of needs){

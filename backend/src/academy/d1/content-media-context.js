@@ -18,13 +18,16 @@ export async function contentMediaOptions(repository,activity,{classId='',actor,
  const result={schema:CONTENT_MEDIA_SCHEMA,activityKey:key,kind:activity.kind,classes:classes.map(c=>({id:c.class_id,name:c.name,academicYear:c.academic_year||''})),classId:selected?.class_id||'',subjects:choices,teachers:teachers.map(t=>({id:t.account_id,name:t.display_name})),teacherRequired:true,timetableRequired:false};
  return {...result,optionsRevision:await payloadHash([result,actor,epoch,owner?.state||'ACADEMY',owner?.generation||0])};
 }
-export async function selectedContentMedia(activity,options,input,actor){
- if(input.optionsRevision!==options.optionsRevision)throw fail('Native media choices changed. Refresh the selectors before creating the draft.',409,'CONTEXT_OPTIONS_CHANGED');
- if(!validDate(input.recordingDate))throw fail('Choose the recording date.');
+export function selectedNativeMediaContext(activity,options,input){
  const klass=activity.kind==='PROGRAM'?options.classes.find(c=>same(c.id,input.classId)):null;if(activity.kind==='PROGRAM'&&!klass)throw fail('Choose a native class for this Programme.');
  const subject=options.subjects.find(s=>s.key===(activity.kind==='COURSE'?'COURSE:'+activity.activity_id:input.subjectKey)),ids=input.teacherIds;
  if(!subject||!Array.isArray(ids)||!ids.length||ids.length>10||new Set(ids.map(id=>String(id).toUpperCase())).size!==ids.length||ids.some(id=>typeof id!=='string'||!options.teachers.some(t=>same(t.id,id))))throw fail('Choose the native subject and registered Teacher account(s).');
- const selected=ids.map(id=>options.teachers.find(t=>same(t.id,id))).sort((a,b)=>a.id.localeCompare(b.id)),id='LM-CONTENT-'+await payloadHash([activity.activity_key,input.operationId]);
+ const selected=ids.map(id=>options.teachers.find(t=>same(t.id,id))).sort((a,b)=>a.id.localeCompare(b.id));return {klass,subject,selected};
+}
+export async function selectedContentMedia(activity,options,input,actor){
+ if(input.optionsRevision!==options.optionsRevision)throw fail('Native media choices changed. Refresh the selectors before creating the draft.',409,'CONTEXT_OPTIONS_CHANGED');
+ if(!validDate(input.recordingDate))throw fail('Choose the recording date.');
+ const {klass,subject,selected}=selectedNativeMediaContext(activity,options,input),id='LM-CONTENT-'+await payloadHash([activity.activity_key,input.operationId]);
  const context={schema:CONTENT_MEDIA_SCHEMA,binding:activity.kind==='PROGRAM'?'PROGRAMME_SUBJECT':'COURSE',activityKey:activity.activity_key,recordingDate:input.recordingDate,date:input.recordingDate,classIds:klass?[klass.id]:[],classNames:klass?[klass.name]:[],title:subject.name,attributionSource:'NATIVE_TEACHER_ACCOUNT',recordedContext:{schema:'RECORDED_LESSON_CONTEXT_V1',subject,teacherIds:selected.map(t=>t.id),teacherName:selected.map(t=>t.name).join(', '),teachers:selected.map(t=>({id:t.id,name:t.name})),reason:'Initial native recorded context',changedBy:actor,changedAt:new Date().toISOString()}};
  return {lesson_id:id,activity_key:activity.activity_key,class_id:klass?.id||null,lesson_date:input.recordingDate,title:cleanText(input.title||subject.name,180,'a media title'),start_time:'',end_time:'',teacher_id:null,teacher_name:'',teacher_ids_json:'[]',source_publication_id:null,source_lessons_json:JSON.stringify([context]),session_key:null,run_id:'',media_scope:'SESSION',isNew:true,contentInput:true};
 }
