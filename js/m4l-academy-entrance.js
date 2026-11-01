@@ -1072,7 +1072,8 @@
       }
     }
     if (lastRouteHash && hash !== lastRouteHash) {
-      if (window.M4L_CLASS_NOTES?.canLeave() === false || window.M4L_ACADEMY_SETTINGS?.canLeave() === false || window.M4L_PROGRAM_ATTENDANCE?.canLeave() === false || window.M4L_ACADEMY_PROGRESS?.canLeave() === false || window.M4L_MEMORISATION_ADMIN?.canLeave() === false || window.M4L_ACADEMY_ASSESSMENTS?.canLeave() === false || window.M4L_LESSON_MEDIA?.canLeave() === false || window.M4L_PLANNING?.canLeave() === false || window.M4L_ANNOUNCEMENTS?.canLeave() === false) { history.replaceState(null,'',lastRouteHash); workspaceFocusId='';renderAcademyMenu();return; }
+      if (window.M4L_CLASS_NOTES?.canLeave() === false || window.M4L_ACADEMY_SETTINGS?.canLeave() === false || window.M4L_PROGRAM_ATTENDANCE?.canLeave() === false || window.M4L_ACADEMY_PROGRESS?.canLeave() === false || window.M4L_MEMORISATION_ADMIN?.canLeave() === false || window.M4L_ACADEMY_ASSESSMENTS?.canLeave() === false || window.M4L_LESSON_MEDIA?.canLeave() === false || window.M4L_PLANNING?.canLeave() === false || window.M4L_ANNOUNCEMENTS?.canLeave() === false || window.M4L_CIRCLES_ACCESS?.canLeave() === false) { history.replaceState(null,'',lastRouteHash); workspaceFocusId='';renderAcademyMenu();return; }
+      window.M4L_CIRCLES_ACCESS?.reset();
       if(!memorisationHash(lastRouteHash)&&memorisationHash(hash)){memorisationReturn={hash:lastRouteHash,top:window.scrollY||0,left:$('activity-sessions').scrollLeft||0};if(dailyCache.owner)try{sessionStorage.setItem(MEMORISATION_RETURN_KEY,JSON.stringify({...memorisationReturn,owner:dailyCache.owner}));}catch{}}
       if(memorisationHash(lastRouteHash)&&hash===memorisationReturn?.hash)restoreMemorisation=memorisationReturn;
       window.M4L_ACADEMY_SETTINGS?.reset();window.M4L_PROGRAM_ATTENDANCE?.reset();
@@ -1142,6 +1143,12 @@
     dockTimetable($('timetable-card-home'));
     const view = $('administration'), global = Boolean(state.home?.signedIn && state.home.globalAdmin), areas = state.home?.signedIn ? adminAreas() : [];
     if (!global && !areas.length) {view.innerHTML='<div class="page-heading"><h1>Admin sign-in</h1></div><p role="status">'+(!state.home&&token()?'Loading your Academy administration…':'Sign in with an authorised Academy admin account to open management tools.')+'</p>';return;}
+    if(location.hash.split('/')[1]==='access'){
+      if(!$('circles-native-access'))view.innerHTML='<div class="page-heading"><div><p class="eyebrow">YOUR ACADEMY · ADMIN</p><h1>Access management</h1><p>Find a learner. Review their access. Keep their learning open.</p></div></div><div id="circles-native-access"></div>';
+      if(window.M4L_CIRCLES_ACCESS)void window.M4L_CIRCLES_ACCESS.open($('circles-native-access'));
+      else $('circles-native-access').textContent='Access management could not load. Refresh this page to try again.';
+      return;
+    }
     const menu=window.M4L_ACADEMY_ADMIN_MENU?.rows(state.home)||[],tabs=menu.filter(row=>!row.action).map(row=>[row.id,row.label]);
     const sections=[...tabs,['programs','Programs'],['courses','Courses'],['enrolments','Enrolments']],requested = location.hash.split('/')[1], key = sections.some(([id]) => id === requested) ? requested : 'users';
     if(requested==='curriculum'){location.replace(menu.find(row=>row.id==='curriculum')?.href||'/academy/admin/');return;}
@@ -1185,6 +1192,7 @@
   window.addEventListener('m4l-class-notes-error',event=>{const el=location.hash.startsWith('#activity/')?$('activity-status'):$('schedule-message');if(el)el.textContent=event.detail+' Refresh to try again.';});
 
   function clearPersonal() {
+    window.M4L_CIRCLES_ACCESS?.reset();
     // Keep the real timetable attached before removing its dashboard or Admin host.
     dockTimetable($('timetable-card-home'));
     window.M4L_ACADEMY_DASHBOARD?.reset();
