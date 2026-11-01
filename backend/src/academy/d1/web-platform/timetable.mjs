@@ -8,6 +8,16 @@ import {sha256} from './protocol.mjs';
 const all=async(db,sql,...args)=>(await db.prepare(sql).bind(...args).all()).results;
 const bounded=(rows,max,label)=>{if(rows.length>max)throw Error(label);return rows;};
 const zoom=value=>{if(!value)return '';const u=new URL(value);if(u.protocol!=='https:'||u.username||u.password||!(u.hostname==='zoom.us'||u.hostname.endsWith('.zoom.us')))throw Error('UNSUPPORTED_ZOOM_HOST');return u.href;};
+export const projectedSessionId=async key=>'ws-'+await sha256(JSON.stringify(key));
+// Reuse the exact native media-session anchor used by the projector. The
+// reference is routing metadata; Target still checks its current paid/live gate.
+export async function dashboardStudioSessionId(activityKey,mediaSessionKey,date){
+ let key;try{key=JSON.parse(mediaSessionKey);}catch{return null;}
+ if(!Array.isArray(key)||key.length!==3||typeof activityKey!=='string')return null;
+ if(key[0]==='PROGRAM'&&activityKey.startsWith('PROGRAM:')&&key[1]===date&&typeof key[2]==='string'&&key[2].length<=2000)return projectedSessionId(['PROGRAM',activityKey,date,key[2]]);
+ if(key[0]==='COURSE'&&activityKey.startsWith('COURSE:')&&key.slice(1).every(v=>typeof v==='string'&&v.length>0&&v.length<=180))return projectedSessionId(['COURSE',activityKey,key[1],key[2]]);
+ return null;
+}
 // Only current and scheduled publications for one explicitly mapped offering.
 // Visitors, rosters, payment registers and historical publication bodies are absent.
 export async function projectTimetable(db,scope,{now=Date.now()}={}){
@@ -25,7 +35,7 @@ export async function projectTimetable(db,scope,{now=Date.now()}={}){
  const classLabels=new Map();
  const append=async(key,title,date,startTime,endTime,timezone,meeting,cancelled=false,classIds=[],teacherIds=[])=>{
   const times=lessonTimes({date,startTime,endTime,timezone});if(!Number.isSafeInteger(times.startsAt)||!Number.isSafeInteger(times.endsAt)||times.endsAt<=times.startsAt)throw Error('INVALID_PUBLISHED_CLOCK');
-  const off=Boolean(cancelled||holidayOnDate(holidays,date));sessions.push({id:'ws-'+await sha256(JSON.stringify(key)),title,startsAt:times.startsAt,endsAt:times.endsAt,timezone,classes:classIds.map(id=>({id,label:classLabels.get(id)||null})),zoomUrl:off?'':zoom(meeting),cancelled:off,classIds,teacherIds});
+  const off=Boolean(cancelled||holidayOnDate(holidays,date));sessions.push({id:await projectedSessionId(key),title,startsAt:times.startsAt,endsAt:times.endsAt,timezone,classes:classIds.map(id=>({id,label:classLabels.get(id)||null})),zoomUrl:off?'':zoom(meeting),cancelled:off,classIds,teacherIds});
   bounded(sessions,200,'TIMETABLE_WINDOW_TOO_LARGE');
  };
  if(activity.kind==='PROGRAM'){

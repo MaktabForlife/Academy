@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {nativeMediaBridgeFixture} from './fixtures/academy-native-media-bridge-fixture.mjs';
 import {signedHeaders} from '../src/academy/d1/web-platform/protocol.mjs';
-import {dashboardSummary} from '../src/academy/d1/web-platform/dashboard.mjs';
+import {dashboardSummary,dashboardChoice} from '../src/academy/d1/web-platform/dashboard.mjs';
+import {academyDestination} from '../../academy/website-platform/connect/destinations.mjs';
+import {dashboardStudioSessionId,projectedSessionId} from '../src/academy/d1/web-platform/timetable.mjs';
 import {bridge} from '../src/academy/d1/web-platform/bridge.mjs';
 import worker from '../src/academy-runtime.js';
 
@@ -46,6 +48,25 @@ test('checked dashboard carries bounded native references and time fields, never
   const held=await dashboardSummary(state,{}, {mode:'learn'},async path=>path==='/api/academy/entrance'?home:{assessments:[]},[{activity_key:'PROGRAM:one',access_owner}]);
   assert(held.timetable.every(row=>!row.nativeJoin),'Studio-owned/frozen rows stay on their original resolver');
  }
+});
+
+test('Studio dashboard references reuse exact projector anchors and never infer a session from titles or clocks',async()=>{
+ const activity={activity_key:'PROGRAM:one',activity_id:'one',kind:'PROGRAM',active:true,lifecycle:'ACTIVE'},state={account:{active:true},activities:[activity],contexts:[{scope:'COURSE',courseId:'one',role:'STUDENT'}]},date='2026-10-09';
+ const row={kind:'PROGRAM',activityId:'one',activityName:'Same title',date,status:'SCHEDULED',startsAt:start,endsAt:start+3600000,mediaSessionKey:JSON.stringify(['PROGRAM',date,'exact-original-anchor']),joinKey:JSON.stringify(['PROGRAM','one','pub',0,date])};
+ const scope={activity_key:'PROGRAM:one',offering_id:'studio-mou',access_owner:'STUDIO'},read=async()=>({personalActivities:[{kind:'PROGRAM',id:'one',name:'Same title',roles:['STUDENT']}],personalTimetable:[row,{...row,status:'CANCELLED'},{...row,preview:true},{...row,mediaSessionKey:'invalid'}]});
+ const value=await dashboardSummary(state,{}, {mode:'learn'},read,[scope]);assert.equal(value.studioJoinVersion,1);assert.deepEqual(value.timetable[0].studioJoin,{offeringId:'studio-mou',sessionId:await projectedSessionId(['PROGRAM','PROGRAM:one',date,'exact-original-anchor'])});assert(!value.timetable[0].nativeJoin);assert(value.timetable.slice(1).every(r=>!r.studioJoin&&!r.nativeJoin));
+ const frozen=await dashboardSummary(state,{}, {mode:'learn'},read,[{...scope,access_owner:'FROZEN'}]);assert(frozen.timetable.every(r=>!r.studioJoin&&!r.nativeJoin));
+ assert.equal(await dashboardStudioSessionId('PROGRAM:one',row.mediaSessionKey,'2026-10-08'),null);
+ assert.equal(await dashboardStudioSessionId('COURSE:one',JSON.stringify(['COURSE','run-one','source-one']),date),await projectedSessionId(['COURSE','COURSE:one','run-one','source-one']));
+ assert.equal(await dashboardStudioSessionId('PROGRAM:one',JSON.stringify(['COURSE','run-one','source-one']),date),null);
+});
+
+test('Manage destinations preserve checked Admin context and the narrow connector route allowlist',()=>{
+ const context={scope:'COURSE',courseId:'one',role:'PROGRAM_ADMIN'},state={account:{active:true},contexts:[context],activities:[{activity_key:'PROGRAM:one',activity_id:'one',kind:'PROGRAM',active:true,lifecycle:'ACTIVE'}]};
+ for(const tool of ['users','assessment']){const value=dashboardChoice(state,{mode:'admin',tool});assert.equal(value.context,context);assert(academyDestination(value.destination,'https://academy.test'));assert.throws(()=>dashboardChoice(state,{mode:'learn',tool}),e=>e.status===403);}
+ const media=dashboardChoice(state,{mode:'admin',tool:'media',activityKey:'PROGRAM:one'});assert.equal(media.destination,'/academy/admin/#administration/media/PROGRAM/one');assert(academyDestination(media.destination,'https://academy.test'));
+ assert.throws(()=>dashboardChoice(state,{mode:'learn',tool:'media',activityKey:'PROGRAM:one'}),e=>e.status===403);assert.throws(()=>dashboardChoice(state,{mode:'admin',tool:'media',activityKey:'PROGRAM:other'}),e=>e.status===403);
+ for(const value of ['/academy/admin/#administration/media/UNKNOWN/one','/academy/admin/?unsafe=1#administration/media/PROGRAM/one','/academy/admin/#administration/media/PROGRAM/one%2Fevil','https://elsewhere.test/academy/admin/#administration/users'])assert.equal(academyDestination(value,'https://academy.test'),null);
 });
 
 test('signed native Join works for Academy-only sessions at the exact five-minute/end boundaries without a projected Studio session',async t=>{

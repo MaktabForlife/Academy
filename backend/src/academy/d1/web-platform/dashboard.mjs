@@ -1,6 +1,7 @@
 import {fail,id,date} from './protocol.mjs';
 import {navigationMappings} from './navigation.mjs';
 import {nativeJoinTarget} from './native-join.mjs';
+import {dashboardStudioSessionId} from './timetable.mjs';
 
 export function dashboardModes(state){
  if(!state?.account?.active)throw fail('Your Academy session has ended.',401,'SESSION_ENDED');
@@ -21,6 +22,7 @@ export function dashboardChoice(state,input={}){
   // authority, keeping the selected Teach/Learn suffix through the connector.
   context=state.account.global_admin?state.contexts.find(c=>c.role==='GLOBAL_ADMIN'):programmeContext(roles)||programmeContext(['PROGRAM_ADMIN','ADMIN']);
   if(!context)throw fail('This programme is outside your selected dashboard.',403);
+  if(tool==='media'&&mode==='admin')return {context,destination:'/academy/admin/#administration/media/'+activity.kind+'/'+encodeURIComponent(activity.activity_id)};
   if(!['activity','assessment','planning','attendance','surahs-duas','timetable'].includes(tool)||mode!=='teach'&&['planning','attendance','surahs-duas'].includes(tool))throw fail('This tool is unavailable in the selected dashboard.',403);
   const route=mode==='admin'?tool==='assessment'?'#assessment-admin/':'#activity/':'#activity/';
   const adminAudience=mode!=='admin'&&['GLOBAL_ADMIN','PROGRAM_ADMIN','ADMIN'].includes(context.role),activityBase=adminAudience?'/academy/admin/':base;
@@ -28,7 +30,7 @@ export function dashboardChoice(state,input={}){
  }
  const candidates=mode==='admin'?['GLOBAL_ADMIN','PROGRAM_ADMIN','ADMIN']:mode==='teach'?['TEACHER','SENIOR','SUBSTITUTE']:['STUDENT','MEDIA_READER'];
  context=state.contexts.find(c=>candidates.includes(c.role))||state.contexts[0];if(!context)throw fail('Your Academy session has ended.',401);
- const destinations={home:base+(mode==='admin'?'#administration':'#timetable/'+mode),messages:base+'?circlesTool=messages'+(mode==='admin'?'#administration':'#timetable/'+mode),library:'/academy/library/?workspace='+mode.toUpperCase(),calendar:'/academy/calendar/?view='+mode,progress:mode==='admin'?base+'#progress-admin':mode==='learn'?base+'#progress':null,enrolments:mode==='admin'?'/academy/enrolment/manage/?view=requests':null,curriculum:mode==='admin'?base+'#administration/curriculum':null,access:mode==='admin'?base+'#administration/access':null,recorder:'/recorder/?academy=1'};
+ const destinations={home:base+(mode==='admin'?'#administration':'#timetable/'+mode),messages:base+'?circlesTool=messages'+(mode==='admin'?'#administration':'#timetable/'+mode),library:'/academy/library/?workspace='+mode.toUpperCase(),calendar:'/academy/calendar/?view='+mode,progress:mode==='admin'?base+'#progress-admin':mode==='learn'?base+'#progress':null,enrolments:mode==='admin'?'/academy/enrolment/manage/?view=requests':null,curriculum:mode==='admin'?base+'#administration/curriculum':null,access:mode==='admin'?base+'#administration/access':null,users:mode==='admin'?base+'#administration/users':null,assessment:mode==='admin'?base+'#assessment-admin':null,recorder:'/recorder/?academy=1'};
  if(!Object.hasOwn(destinations,tool)||!destinations[tool])throw fail('This tool is unavailable in the selected dashboard.',403);
  return {context,destination:destinations[tool]};
 }
@@ -45,6 +47,13 @@ function nativeJoinReference(row,nativeScopes){
  if(row.status!=='SCHEDULED'||row.preview||typeof row.joinKey!=='string'||!row.joinKey||row.joinKey.length>1200||nativeScopes.some(scope=>scope.activity_key.toUpperCase()===(row.kind+':'+row.activityId).toUpperCase()&&['FROZEN','STUDIO'].includes(scope.access_owner)))return {};
  return {nativeJoin:{joinKey:row.joinKey,date:row.sourceDate||row.date}};
 }
+async function studioJoinReference(row,nativeScopes){
+ if(row.status!=='SCHEDULED'||row.preview)return {};
+ const scope=nativeScopes.find(scope=>scope.activity_key.toUpperCase()===(row.kind+':'+row.activityId).toUpperCase());
+ if(scope?.access_owner!=='STUDIO'||!scope.offering_id)return {};
+ const sessionId=await dashboardStudioSessionId(scope.activity_key,row.mediaSessionKey,row.sourceDate||row.date);
+ return sessionId?{studioJoin:{offeringId:scope.offering_id,sessionId}}:{};
+}
 export async function dashboardSummary(state,env,input,read,nativeScopes=[]){
  const availableModes=dashboardModes(state),mode=input.mode||(['admin','teach','learn'].find(m=>availableModes.includes(m)));if(!availableModes.includes(mode))throw fail('This dashboard is outside your current permissions.',403);
  const home=await read('/api/academy/entrance',{},mode),mappings=navigationMappings(env),warnings=[];
@@ -59,7 +68,7 @@ export async function dashboardSummary(state,env,input,read,nativeScopes=[]){
   return [{navigationKey,activityKey:activity.activity_key}];
  });
  const activities=(home.personalActivities||[]).filter(a=>a.active!==false&&a.lifecycle!=='ARCHIVED'&&a.menuAvailable!==false&&['PROGRAM','COURSE'].includes(a.kind)&&a.roles?.length).slice(0,60).map(a=>({...fields(a,['kind','id','name','roles','substituteOnly','plansRequired']),activityKey:a.kind+':'+a.id,navigationKey:Object.keys(mappings).find(k=>mappings[k].toLowerCase()===a.id.toLowerCase())||null}));
- for(const area of activities){const mapped=nativeScopes.find(s=>s.activity_key.toUpperCase()===area.activityKey.toUpperCase());if(mapped){area.websiteOfferingId=mapped.offering_id;area.websiteKind=mapped.kind;}}
+ for(const area of activities){const mapped=nativeScopes.find(s=>s.activity_key.toUpperCase()===area.activityKey.toUpperCase());if(mapped){area.websiteOfferingId=mapped.offering_id;area.websiteKind=mapped.kind;area.accessOwner=mapped.access_owner||'ACADEMY';}}
  const allowed=new Map(activities.map(a=>[a.activityKey.toUpperCase(),a]));
  const timetable=(home.personalTimetable||[]).filter(r=>allowed.has((r.kind+':'+r.activityId).toUpperCase())).slice(0,200);
  const optional=async(name,path,body)=>{try{return await read(path,body,mode);}catch(error){if(error.status===401||error.status===403)throw error;warnings.push(name+' could not be checked.');return null;}};
@@ -71,8 +80,8 @@ export async function dashboardSummary(state,env,input,read,nativeScopes=[]){
   mode==='admin'?optional('Enrolment requests','/api/admin/platform/enrolment/get',{}):null
  ]);
  const dueNotes=[];for(const session of notes?.sessions||[]){const lesson=timetable.find(r=>JSON.stringify([r.kind+':'+r.activityId,r.sourceDate||r.date,r.mediaSessionKey])===session.ref);if(!lesson||Number(lesson.startsAt)<=Date.now())continue;const source=session.sources?.[0];if(!source||!allowed.has(source.activityKey.toUpperCase()))continue;for(const note of session.dueNotes||[])dueNotes.push({...fields(note,['id','title','date']),activityKey:source.activityKey,activityName:source.activityName});}
- return {mode,availableModes,programmeNavigation,nativeJoinVersion:1,adminBadge:availableModes.includes('admin')?(state.account.global_admin?'Global Admin':'Admin'):null,checkedAt:Date.now(),timezone:home.timezone||'Africa/Johannesburg',startDate:home.startDate,endDate:home.endDate,activities,
-  timetable:timetable.map(r=>({...fields(r,['kind','activityId','activityName','date','startTime','endTime','startsAt','endsAt','joinAvailableAt','timezone','status','subjectName','moduleName','title']),...nativeJoinReference(r,nativeScopes)})),
+ return {mode,availableModes,programmeNavigation,nativeJoinVersion:1,studioJoinVersion:1,adminBadge:availableModes.includes('admin')?(state.account.global_admin?'Global Admin':'Admin'):null,checkedAt:Date.now(),timezone:home.timezone||'Africa/Johannesburg',startDate:home.startDate,endDate:home.endDate,activities,
+  timetable:await Promise.all(timetable.map(async r=>({...fields(r,['kind','activityId','activityName','date','startTime','endTime','startsAt','endsAt','joinAvailableAt','timezone','status','subjectName','moduleName','title']),...nativeJoinReference(r,nativeScopes),...await studioJoinReference(r,nativeScopes)}))),
   calendar:(home.calendarEvents||[]).slice(0,100).map(r=>fields(r,['id','title','name','description','date','startDate','endDate','type'])),
   assessments:assessments?(assessments.assessments||[]).filter(r=>allowed.has(r.activityKey?.toUpperCase())&&r.published).slice(0,200).map(r=>fields(r,['activityKey','title','phaseName','registerId','registerStatus','examDate','assessmentKind','availableFrom','dueAt','timezone','published'])):null,
   dueNotes:notes?dueNotes.slice(0,100):null,messages:messages?{counts:messages.counts,notices:messages.notices.map(r=>fields(r,['id','subject','sender','state','issuedAt','unread','requiresAcknowledgement','acknowledgedAt'])),canSend:Boolean(messages.canSend)}:null,
