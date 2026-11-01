@@ -66,6 +66,7 @@ import {managedCourseScopes} from './course-authority.js';
 import {programmeChoice} from './web-platform/navigation.mjs';
 import {dashboardSummary,dashboardChoice,dashboardJoinInput} from './web-platform/dashboard.mjs';
 import {nativeJoinOwnership} from './web-platform/native-join.mjs';
+import {programmePageGroups} from './web-platform/programme-groups.mjs';
 import {authenticatedD1Account,d1Audience as audience,d1ContextEqual as contextEqual} from './session.js';
 import {openLibraryMetadataEndpoint as defaultMetadataEndpoint} from './library-metadata.js';
 
@@ -264,7 +265,7 @@ async function dispatch(request,env,options={}) {
   }
   if(path==='/api/academy/entrance') {
     const auth=request.headers.has('Authorization')?await authenticated(request,env,repository):null;
-    const source=setupEnabled(env)?await readRepository():repository;return conditionalRead(request,source,auth,input,async()=>({success:true,sessionStore:'D1',...websiteEntrance(await d1Entrance(source,auth?.state,auth?.user,input,undefined,{auth}))}));
+    const source=setupEnabled(env)?await readRepository():repository;return conditionalRead(request,source,auth,input,async()=>{const home=websiteEntrance(await d1Entrance(source,auth?.state,auth?.user,input,undefined,{auth}));return {success:true,sessionStore:'D1',...home,programmePageGroups:programmePageGroups(home,env)};});
   }
   if(path==='/api/academy/public-lesson/join')return {success:true,...await d1LessonJoin(setupEnabled(env)?await readRepository():repository,null,input)};
   if(path==='/api/academy/enrolment/submit'){

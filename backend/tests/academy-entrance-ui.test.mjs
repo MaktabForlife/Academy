@@ -267,20 +267,20 @@ await navigate('#overview/teach');assert.match($('academy-role-panel').innerHTML
 await navigate('#workshops');assert.equal($('workshop-pills').innerHTML,'');assert.match($('course-list-message').textContent,/No Courses/);
 hasWorkshops=true;globalAdmin=true;location.hash='#activity/PROGRAM/'+activity.id;await refresh();
 assert.doesNotMatch($('activity-menu').innerHTML,/Admin tools/);assert.match($('activity-menu').innerHTML,/Teach tools/);
-await navigate('#administration');assert.match($('administration').innerHTML,/Manage Academy/);assert.doesNotMatch($('administration').innerHTML,/id="admin-teach"/);assert.match($('administration').innerHTML,/id="admin-timetable-home"/);assert.doesNotMatch($('administration').innerHTML,/data-recorder-link/);assert.equal($('academy-recorder-nav').hidden,false);
-assert.deepEqual(Array.from(window.M4L_ACADEMY_ADMIN_MENU.rows({signedIn:true,globalAdmin:true}),r=>r.label),['Users','Announcements','Attendance','Curriculum','Library','Course websites','Lesson plans','Assessments','App settings','Update timetable']);
+workspace='ADMIN';await navigate('#administration');assert.match($('administration').innerHTML,/Manage Academy/);assert.doesNotMatch($('administration').innerHTML,/id="admin-teach"/);assert.match($('administration').innerHTML,/id="admin-timetable-home"/);assert.doesNotMatch($('administration').innerHTML,/data-recorder-link/);assert.equal($('academy-recorder-nav').hidden,false);
+assert.deepEqual(Array.from(window.M4L_ACADEMY_ADMIN_MENU.rows({signedIn:true,globalAdmin:true}),r=>r.label),['Users','Access','Announcements','Attendance','Curriculum','Library','Course websites','Lesson plans','Assessments','App settings','Update timetable']);
 await navigate('#administration/attendance');assert.match($('administration').innerHTML,/<h1>Manage Attendance<\/h1>/);assert.doesNotMatch($('administration').innerHTML,/\/programs\/attendance\.html/);assert.equal($('academy-tab-admin').attrs.get('aria-pressed'),'true');
 await navigate('#assessment-admin');assert.equal($('academy-tab-admin').attrs.get('aria-pressed'),'true');assert.equal($('academy-tab-learn').attrs.get('aria-pressed'),'false');
 await navigate('#progress-admin');assert.equal($('academy-tab-admin').attrs.get('aria-pressed'),'true');
 await navigate('#administration/curriculum');assert.equal(location.redirect,'/academy/subjects/');
-await navigate('#activity/PROGRAM/'+activity.id);
+workspace='ADMIN';await navigate('#activity/PROGRAM/'+activity.id);
 documentHandlers.get('click')({target:{closest:selector=>selector==='[data-workspace-tool]'?{dataset:{workspaceTool:'academy'}}:null}});assert.match($('workspace-tool-body').innerHTML,/Subjects &amp; Modules/);$('workspace-tool-close').listeners.get('click')();
 await navigate('#workshops');assert.equal($('course-list-scope-wrap').hidden,false);assert.equal($('course-list-title').textContent,'All Courses');
 assert.match($('workshop-pills').innerHTML,/Unpublished &lt;draft&gt;/);assert.doesNotMatch($('workshop-pills').innerHTML,/<draft>/);
 $('course-list-scope').value='MINE';$('course-list-scope').listeners.get('input')();assert.doesNotMatch($('workshop-pills').innerHTML,/Unpublished/);
 
 // The complete permitted timetable and timed joining remain on the homepage.
-roomFixture=true;fixtureNow='2026-10-05T10:55:00Z';globalAdmin=false;programRole='STUDENT';location.hash='#overview';await refresh();
+roomFixture=true;fixtureNow='2026-10-05T10:55:00Z';workspace='LEARN';globalAdmin=false;programRole='STUDENT';location.hash='#overview';await refresh();
 assert.equal(countPills('academy-preview-sessions'),9,'Students see every lesson separately even in the same room');
 assert.equal(($('academy-preview-sessions').innerHTML.match(/class="upcoming-day"/g)||[]).length,7);
 assert.match($('academy-preview-sessions').innerHTML,/aria-label="23:30"/);
@@ -469,5 +469,13 @@ globalAdmin=true;await refresh();assert.match($('activity-switcher').innerHTML,/
 globalAdmin=false;programRole='PROGRAM_ADMIN';await refresh();await navigate('#administration');assert.match($('administration').innerHTML,/Manage Academy/);assert.doesNotMatch($('administration').innerHTML,/id="admin-teach"/);assert.match($('administration').innerHTML,/id="admin-timetable-home"/);assert.doesNotMatch($('administration').innerHTML,/data-recorder-link/);assert.equal($('academy-recorder-nav').hidden,false);assert.doesNotMatch($('administration').innerHTML,/href="\/users\/"|Update public timetable/);
 await navigate('#administration/assessments');assert.equal(location.hash,'#assessment-admin/PROGRAM/'+encodeURIComponent(activity.id));assert.equal($('assessment-admin').classList.contains('active'),true);
 globalAdmin=false;programRole='STUDENT';await refresh();await navigate(programHash+'/attendance');assert.equal($('pa-main').hidden,true,'Students cannot open the staff register');assert.match($('activity-menu').innerHTML,/href="\/recorder\/\?academy=1">Voice Recorder/);
+const mediaOpens=[];
+window.M4L_LESSON_MEDIA={open:options=>mediaOpens.push(options),reset(){},canLeave:()=>true};
+elements.set('admin-media-host',element('admin-media-host'));elements.set('admin-media-activity',element('admin-media-activity'));
+await navigate('#administration/media/PROGRAM/'+activity.id);assert.equal(mediaOpens.length,0,'A student cannot open Admin Media by changing the address');
+globalAdmin=true;workspace='ADMIN_LEARN';await refresh();await navigate('#administration/media/PROGRAM/'+activity.id);assert.equal(mediaOpens.length,0,'Admin Learn must switch into the actual Admin view before editing media');
+workspace='ADMIN';await refresh();await navigate('#administration/media/PROGRAM/'+activity.id);assert.equal(mediaOpens.at(-1).activityKey,'PROGRAM:'+activity.id);assert.equal(mediaOpens.at(-1).learnerView,false);assert.match($('administration').innerHTML,/Manage Media/);assert.match($('administration').innerHTML,/Programme or course/);
+const opened=mediaOpens.length;await navigate('#administration/media/PROGRAM/OUTSIDE-SCOPE');assert.equal(mediaOpens.length,opened,'Unknown native IDs never open a media editor');assert.match($('admin-media-host').textContent,/outside your current Admin scope/);
+globalAdmin=false;workspace='LEARN';programRole='STUDENT';await refresh();
 hasWorkshops=false;programRole='';await refresh();assert.equal($('academy-account-role').textContent,'None');assert.equal($('academy-access-empty').hidden,false);assert.equal($('academy-role-panel').hidden,true);assert.equal($('academy-role-panel').innerHTML,'');for(const key of ['learn','teach','admin'])assert.equal($('academy-tab-'+key).hidden,true);
 console.log('Academy timetable, inline Attendance routing and draft guards, highest pill access, scoped tools, cache, joining, sign-out and personal HifzHelper links passed.');

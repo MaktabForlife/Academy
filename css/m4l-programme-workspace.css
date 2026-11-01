@@ -1,0 +1,66 @@
+#activity[data-programme-layout] .learning-workspace{display:block}
+#activity .programme-top{display:grid;grid-template-columns:140px minmax(0,1fr) minmax(0,1fr);gap:26px;align-items:start;margin:20px 0 32px}
+#activity .programme-top>*{min-width:0}
+#activity .programme-top #activity-menu{position:static;padding:0;margin:0}
+#activity .programme-top .workspace-contents{width:100%;border:0;background:transparent;box-shadow:none;margin:0}
+#activity .programme-top .workspace-tabs{display:grid;grid-template-columns:1fr;gap:7px;padding:10px 0;overflow:visible;border:0;background:transparent}
+#activity .programme-top .workspace-tabs :is(a,button){display:flex;align-items:center;justify-content:flex-start;min-height:44px;white-space:normal;text-align:left;padding:10px 12px;border:1px solid transparent;border-radius:8px;background:transparent;color:#684f60;font:500 13px/1.4 'DM Sans',Arial,sans-serif;text-decoration:none;margin:0;width:100%}
+#activity .programme-top .workspace-tabs :is(a,button):hover,#activity .programme-top .workspace-tabs [aria-current=page],#activity .programme-top .workspace-tabs [aria-pressed=true]{background:#eee5e9;border-color:#ddd0d7}
+#activity .programme-top #activity-schedule{margin:0;padding:0;border:0;background:transparent;box-shadow:none;overflow:visible}
+#activity[data-programme-layout] #activity-sessions[hidden]{display:none!important}
+#activity .programme-centre .section-title{display:block;margin-bottom:14px}
+#activity .programme-centre .section-title h2{font-size:24px;margin-bottom:10px}
+#activity .programme-centre .upcoming-controls{justify-content:flex-start;gap:8px}
+#activity .programme-days{display:flex;gap:5px;overflow:auto;scrollbar-width:thin;padding:2px 2px 12px}
+#activity .programme-days button{flex:0 0 auto;min-height:44px;padding:8px 10px;border:1px solid #ddd0d7;border-radius:7px;font-size:11px;background:#faf7f2;color:#745b6a}
+#activity .programme-days [aria-pressed=true]{background:#654c5d;color:#fff9f2;border-color:#654c5d}
+#activity .programme-wheel{position:relative;isolation:isolate;width:100%;aspect-ratio:1;border-radius:50%;container-type:inline-size}
+#activity .programme-wheel>svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+#activity .programme-sector{stroke:#faf7f2;stroke-width:3;stroke-linejoin:round;fill:#eee6e3}
+#activity .programme-sector.active{fill:#654c5d}
+#activity .programme-sector.later{fill:#d9c5cf}
+#activity .programme-sector.finished{fill:#eeebe3}
+#activity .programme-sector.cancelled{fill:#ddd9d7}
+#activity .programme-sector.unused{fill:#f0eae6}
+#activity .programme-wheel-sessions{list-style:none;padding:0;margin:0}
+#activity .programme-wheel-sessions>.programme-session{position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);width:29%;display:grid;justify-items:center;text-align:center;gap:5px;color:#604858}
+#activity .programme-session.active{color:#fff9ed}
+#activity .programme-session.finished,#activity .programme-session.cancelled{color:#847a7c}
+#activity .programme-session-open{display:grid;gap:5px;justify-items:center;align-content:center;text-align:center;width:100%;min-height:44px;padding:2px;border:0;background:transparent;color:inherit;box-shadow:none;border-radius:5px}
+#activity .programme-session-open strong{font:400 clamp(13px,3.2cqw,21px)/1.15 'Libre Caslon Display',Georgia,serif;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#activity .programme-session-open small{font-size:clamp(8px,1.7cqw,11px);line-height:1.2}
+#activity .programme-session-open time{font:500 clamp(9px,1.9cqw,12px)/1.3 'DM Sans',Arial,sans-serif}
+#activity .programme-join{min-height:32px;padding:5px 11px;border:0;border-radius:22px;background:#fff8ed;color:#634457;font-size:clamp(9px,1.8cqw,12px);box-shadow:none}
+#activity .programme-session .cn-card-actions{margin:0;display:flex;justify-content:center}
+#activity .programme-session .cn-note-button{min-height:30px;min-width:30px;padding:3px;border-radius:7px}
+#activity .programme-note-unavailable{font-size:9px;line-height:1.2}
+#activity .programme-wheel-centre{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:28%;aspect-ratio:1;background:#fffaf3;border-radius:50%;box-shadow:0 0 0 7px #faf7f266;display:grid;align-content:center;justify-items:center;text-align:center;padding:10px;color:#654c5d;z-index:2}
+#activity .programme-wheel-centre small{font-size:clamp(8px,1.8cqw,11px);line-height:1.25}
+#activity .programme-wheel-centre strong{font:400 clamp(20px,6cqw,40px)/1.15 'Libre Caslon Display',Georgia,serif;margin:5px 0}
+#activity .programme-wheel-centre span{font-size:clamp(9px,1.9cqw,12px)}
+#activity .programme-circle-caption{font-size:12px;color:#84727d;text-align:center;margin:16px 0 0;line-height:1.5}
+#activity .programme-session-list{list-style:none;padding:0;margin:18px 0;display:grid;gap:12px}
+#activity .programme-session-list .programme-session{padding:14px;border:1px solid #dfd0d6;border-radius:9px;background:#f6efec;color:#604858}
+#activity .programme-session-list .programme-session.active{background:#654c5d;color:#fff9ed}
+#activity .programme-session-list .programme-session-open strong{font-size:20px}
+#activity .programme-notes{display:flex;flex-direction:column;gap:18px;height:480px;min-height:320px;padding:24px;background:#f1e9e8;border:1px solid #e5d8de;border-radius:12px;overflow:hidden}
+#activity .programme-notes h2{font:400 clamp(26px,2.5vw,34px)/1.15 'Libre Caslon Display',Georgia,serif;margin:6px 0 10px}
+#activity .programme-notes header p{margin:0;color:#8c7583;font-size:12px}
+#activity .programme-note-list{flex:1;min-height:0;overflow:hidden}
+.programme-note{border-top:1px solid #ddcfd6;padding:14px 0;margin:0}
+.programme-note>button{display:block;width:100%;border:0;border-radius:4px;background:transparent;color:#604858;text-align:left;padding:0;min-height:44px;box-shadow:none;font:400 14px/1.5 'DM Sans',Arial,sans-serif}
+.programme-note>button>span{display:block;font-weight:600;margin-bottom:7px}
+.programme-note p{margin:0 0 10px;font-size:14px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.programme-note small{font-size:11px;color:#8b7584}
+#activity .programme-notes footer{display:flex;flex-wrap:wrap;gap:10px;flex:none;border-top:1px solid #ddcfd6;padding-top:12px}
+#activity .programme-notes footer button{border:1px solid #cdb9c4;background:transparent;color:#684f60;border-radius:24px;min-height:44px;padding:9px 16px;font-size:13px}
+.programme-popup{width:min(760px,calc(100vw - 32px));max-height:85vh;overflow:auto;border:1px solid #ddcfd6;border-radius:16px;padding:28px;background:#faf7f2;color:#493b42}
+.programme-popup::backdrop{background:#40323d66;backdrop-filter:blur(4px)}
+.programme-popup>header{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:20px}
+.programme-popup h2{font:400 32px/1.15 'Libre Caslon Display',Georgia,serif;margin:0}
+.programme-popup header button{width:44px;height:44px;flex:none;font-size:26px;border:1px solid #d8cbd1;border-radius:50%;background:transparent;color:#654c5d}
+.programme-popup .programme-note p{display:block;overflow:visible;-webkit-line-clamp:unset}
+.programme-popup [data-programme-earlier]{min-height:44px;padding:10px 18px;border:1px solid #cdb9c4;border-radius:24px;background:transparent;color:#654c5d}
+#activity .programme-top :is(a,button):focus-visible,.programme-popup button:focus-visible{outline:3px solid #9b718a;outline-offset:3px}
+@media(max-width:1000px) and (min-width:761px){#activity .programme-top{grid-template-columns:115px minmax(0,1fr) minmax(0,1fr);gap:18px}#activity .programme-notes{padding:18px}#activity .programme-top .workspace-tabs :is(a,button){padding:9px 7px;font-size:12px}}
+@media(max-width:760px){#activity .programme-top{grid-template-columns:1fr;gap:24px}#activity .programme-top .workspace-tabs{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:7px}#activity .programme-top .workspace-tabs :is(a,button){border-color:#e0d2d9}#activity .programme-centre{width:100%;max-width:620px;justify-self:center}#activity .programme-notes{width:100%;min-height:320px;max-height:520px}#activity .programme-centre .section-title h2{font-size:25px}.programme-popup{padding:20px}.programme-popup h2{font-size:27px}}

@@ -73,7 +73,7 @@
  function formLock(locked){dialog?.querySelectorAll('form input,form textarea,form select,form button').forEach(el=>el.disabled=locked);}
  async function commit(action,input){
   busy=true;const generation=dialogEpoch;formLock(true);message('Saving…');
-  try{await api(action,input);if(generation!==dialogEpoch)return;dirty=false;pending=null;busy=false;batches.clear();lessons.clear();refresh();await load({activityKey:data.source.activityKey,noteId:input.noteId||undefined,...(!input.noteId?{source:data.source}:{})},false,true);message(action==='withdraw'?'Class Note withdrawn.':'Class Note saved.');}
+  try{await api(action,input);if(generation!==dialogEpoch)return;dirty=false;pending=null;busy=false;batches.clear();lessons.clear();refresh();window.dispatchEvent(new CustomEvent('m4l-class-note-saved',{detail:{activityKey:input.activityKey}}));await load({activityKey:data.source.activityKey,noteId:input.noteId||undefined,...(!input.noteId?{source:data.source}:{})},false,true);message(action==='withdraw'?'Class Note withdrawn.':'Class Note saved.');}
   catch(error){if(generation!==dialogEpoch)return;busy=false;
    if(!error.status||error.status>=500){pending={action,input};message('The save could not be confirmed. Your text is kept. Retry this same change.',true);dialog.querySelector('[data-cn-save]')?.removeAttribute('disabled');if(!dialog.querySelector('[data-cn-save]'))body('<button type="button" class="button" data-cn="retry-save">Retry change</button>');}
    else {pending=null;formLock(false);message(error.message,true);if(error.status===409){review=true;const button=dialog.querySelector('[data-cn="review"]');if(button)button.hidden=false;preview(edit?.due);}if(error.status===403||error.status===401)dialog.querySelector('[data-cn-save]')?.setAttribute('disabled','');}
@@ -148,5 +148,5 @@
   }else void openSources(lesson.sources);
  });
  window.addEventListener('beforeunload',event=>{if(dirty||busy){event.preventDefault();event.returnValue='';}});
- window.M4L_CLASS_NOTES={snapshot:()=>scope()===owner?{sessions:[...lessons.values()],status:dashboardStatus,message:dashboardMessage}:{sessions:[],status:'idle'},open:input=>{checkOwner();return load(input);},timetable,buttons,visible:()=>visible,toggle:()=>{visible=!visible;return visible;},canLeave:()=>close(),invalidate,reset};
+ window.M4L_CLASS_NOTES={snapshot:()=>scope()===owner?{sessions:[...lessons.values()],status:dashboardStatus,message:dashboardMessage}:{sessions:[],status:'idle'},open:input=>{checkOwner();return load(input);},summary:input=>{checkOwner();return api('summary',input);},timetable,buttons,visible:()=>visible,toggle:()=>{visible=!visible;return visible;},canLeave:()=>close(),invalidate,reset};
 })();
