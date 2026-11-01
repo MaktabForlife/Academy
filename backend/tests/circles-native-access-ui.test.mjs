@@ -4,6 +4,7 @@ const item=(area,id)=>({area,activityKey:(area==='courses'?'COURSE:':'PROGRAM:')
 function screen(reply){
  const {window,document}=parseHTML('<html><head></head><body><main id="host"></main></body></html>');let owner='account-A',dirty=false;const opened=[],requests=[];
  window.M4L_STUDIO_ACCESS={canLeave:()=>!dirty,reset(){},attach(host,key){opened.push(key);host.textContent='Private '+key;return {data:{kind:key.startsWith('COURSE:')?'COURSE':'TAFSEER'},loading:Promise.resolve()};}};
+ window.M4L_PROGRAM_MONTHLY={canLeave:()=>!dirty,unmount(){},async mount(host,key){opened.push('PROGRAM:'+key);host.textContent='Monthly matrix '+key;}};window.M4L_PROGRAM_SURAHS={canLeave:()=>!dirty,unmount(){},async mount(host,key){host.textContent='Surah table '+key;}};
  const fetcher=async(_url,options)=>{const command=JSON.parse(options.body).command;requests.push(command);return Response.json({success:true,schema:'STUDIO_ACCESS_CATALOGUE_V1',more:false,nextCursor:null,...await reply(command)});};
  vm.runInContext(code,vm.createContext({window,document,localStorage:{getItem:()=>owner},fetch:fetcher,Response}));
  return {window,document,opened,requests,host:document.getElementById('host'),dirty(value){dirty=value;},switch(){owner='account-B';window.dispatchEvent(new window.Event('focus'));}};

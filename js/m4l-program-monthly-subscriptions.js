@@ -3,10 +3,10 @@
  'use strict';
  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const token=()=>localStorage.getItem('m4l_account_token')||'';
- const years=[2024,2025,2026],shortMonths=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+ let years=[2024,2025,2026];const shortMonths=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
  const expanded=new Set(),drafts=new Map(),students=new Map();
  let host=null,program='',owner='',generation=0,request=0,busy=false,mode='participants',data=null,search='',draftRevision=null,pending=null;
- let grantEditor=null;
+ let grantEditor=null,external=null;
  let month='',historyRows=[],historyAfter=null,historicalDirty=false,historyRequest=null,historySequence=0;
  const key=(account,m)=>JSON.stringify([account,m]);
  const monthLabel=value=>new Intl.DateTimeFormat('en-GB',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(value+'-01T12:00:00Z'));
@@ -23,16 +23,17 @@
  function canLeave(allowHistory=false){if(!canBrowse(allowHistory))return false;if(drafts.size){message('Save or discard your month changes before leaving.',true);return false;}return true;}
  async function api(action,input={},media=false){
   const current=owner,stamp=generation;
+  if(external){const result=await external.transport(action,input);if(stamp!==generation||current!==token())throw Error('Your account or programme changed. Reopen this register.');return result;}
   const response=await fetch((window.M4L_CONFIG?.API_BASE||'')+(media?'/api/academy/lesson-media/':'/api/admin/platform/program-monthly-subscriptions/')+action,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+current,'X-Academy-Workspace':'ADMIN'},body:JSON.stringify({activityKey:'PROGRAM:'+program,...input})});
   const result=await response.json();if(stamp!==generation||current!==token())throw Error('Your account or Program changed. Reopen this register.');
   if(!response.ok||!result.success)throw Object.assign(Error(result.error||'Could not complete this change. Your draft is kept.'),{status:response.status,code:result.code});
   return result;
  }
  function shell(){
-  if(host)return;const panel=document.getElementById('pg-people-tool');if(!panel)return;
+  if(host)return;const panel=external?.host||document.getElementById('pg-people-tool');if(!panel)return;
   host=document.createElement('section');host.className='pms';
   host.innerHTML='<div class="pms-tabs" role="tablist" aria-label="Participants sections"><button type="button" role="tab" data-pms-tab="participants" aria-selected="true">Participants</button><button type="button" role="tab" data-pms-tab="monthly" aria-selected="false" hidden>Monthly subscriptions</button></div><div data-pms-panel hidden><h2>Monthly subscriptions</h2><p data-pms-message role="status" aria-live="polite"></p><div data-pms-content></div><div id="pms-media-editor" hidden></div></div>';
-  panel.prepend(host);host.addEventListener('click',click);host.addEventListener('change',change);host.addEventListener('submit',submit);
+  panel.prepend(host);if(external){host.classList.add('pms-access-matrix');host.querySelector('.pms-tabs').hidden=true;host.querySelector('h2').textContent='Student monthly access';}host.addEventListener('click',click);host.addEventListener('change',change);host.addEventListener('submit',submit);
   host.addEventListener('keydown',event=>{
    if(!event.target.matches('[data-pms-tab]')||!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
    const tabs=[...host.querySelectorAll('[data-pms-tab]')].filter(t=>!t.hidden),i=tabs.indexOf(event.target);event.preventDefault();
@@ -44,13 +45,13 @@
  }
  function tabs(){
   const monthly=mode==='monthly';host.querySelector('[data-pms-panel]').hidden=!monthly;
-  const people=document.getElementById('pm-main');if(people)people.hidden=monthly;
+  const people=external?null:document.getElementById('pm-main');if(people)people.hidden=monthly;
   for(const tab of host.querySelectorAll('[data-pms-tab]')){tab.setAttribute('aria-selected',String(tab.dataset.pmsTab===mode));tab.tabIndex=tab.dataset.pmsTab===mode?0:-1;}
  }
  async function select(id){
   shell();if(!host)return;if(program===id&&owner===token())return;
-  reset();program=id;owner=token();const stamp=generation;
-  try{await load();if(stamp!==generation)return;if(data?.available&&new URLSearchParams(location.search).get('participants')==='monthly'){mode='monthly';tabs();}}
+  reset();program=id;owner=token();if(external){mode='monthly';tabs();}const stamp=generation;
+  try{await load();if(stamp!==generation)return;if(data?.available&&(external||new URLSearchParams(location.search).get('participants')==='monthly')){mode='monthly';tabs();}}
   catch(error){if(stamp===generation)message(error.message,true);}
  }
  async function load(more=false){
@@ -78,7 +79,7 @@
    '<p class="pms-grid-help">Click a year to show its months. Use each student’s All checkbox for a whole year, or tick individual months. Save all your changes together. Student names stay on the left as you scroll.</p>'+
    '<div data-pms-grants-slot></div><div data-pms-grid></div><div class="pms-grid-footer"><p data-pms-delta aria-live="polite"></p><p>'+data.students.length+' student(s) shown'+(data.after?' · more available':'')+'</p>'+(data.after?'<button type="button" data-pms-action="more">Load more students</button>':'')+'</div><div data-pms-review></div>'+
    (data.canConfigure&&!data.policy.enabled?'<p><button type="button" data-pms-action="activate">Activate monthly access…</button></p>':'')+
-   '<details class="pms-history"><summary>Earlier lessons and media · including 2024 / 2025</summary><p>Use the original lesson date: it determines the paid month even when media is added later. Tafseer recordings are retained beyond 14 days.</p><form data-pms-history-form><label>Original lesson date<input name="date" type="date" required></label><label>Lesson title<input name="title" maxlength="180" required></label><fieldset><legend>Lesson classes</legend>'+classOptions(data.classes.length===1?[data.classes[0].class_id]:[])+'</fieldset><button type="submit">Add historical lesson</button><button type="reset">Clear entry</button></form><label>Browse lesson media<input type="month" data-pms-history-month value="'+esc(month)+'" required></label><div data-pms-history-list></div></details>';
+   (external?'':'<details class="pms-history"><summary>Earlier lessons and media · including 2024 / 2025</summary><p>Use the original lesson date: it determines the paid month even when media is added later. Tafseer recordings are retained beyond 14 days.</p><form data-pms-history-form><label>Original lesson date<input name="date" type="date" required></label><label>Lesson title<input name="title" maxlength="180" required></label><fieldset><legend>Lesson classes</legend>'+classOptions(data.classes.length===1?[data.classes[0].class_id]:[])+'</fieldset><button type="submit">Add historical lesson</button><button type="reset">Clear entry</button></form><label>Browse lesson media<input type="month" data-pms-history-month value="'+esc(month)+'" required></label><div data-pms-history-list></div></details>');
   renderGrid();renderHistory();controls();
  }
  function renderGrid(focusKey){
@@ -96,7 +97,7 @@
    }).join('');
   }).join('')+(data.surahGrantsAvailable?'<td><button type="button" data-pms-grants="'+esc(row.accountId)+'" aria-label="Additional Surah access for '+esc(row.name)+'">Additional Surah access</button></td>':'')+'</tr>').join('');
   const columns=1+Number(Boolean(data.surahGrantsAvailable))+years.reduce((n,y)=>n+(expanded.has(y)?13:1),0);
-  slot.innerHTML='<div class="pms-grid-wrap" tabindex="0" role="region" aria-label="Tafseer paid months"><table class="pms-grid"><caption class="pms-visually-hidden">Tafseer students and subscribed months, 2024 to 2026</caption><thead><tr><th scope="col" rowspan="2" class="pms-student">Student</th>'+head+(data.surahGrantsAvailable?'<th scope="col" rowspan="2">Surah websites</th>':'')+'</tr><tr>'+monthHeads+'</tr></thead><tbody>'+(rows||'<tr><td colspan="'+columns+'">No matching Tafseer students.</td></tr>')+'</tbody></table></div>';
+  slot.innerHTML='<div class="pms-grid-wrap" tabindex="0" role="region" aria-label="'+esc(external?.label||'Tafseer')+' paid months"><table class="pms-grid"><caption class="pms-visually-hidden">'+esc(external?.label||'Tafseer')+' students and subscribed months, '+years[0]+' to '+years.at(-1)+'</caption><thead><tr><th scope="col" rowspan="2" class="pms-student">Student</th>'+head+(data.surahGrantsAvailable?'<th scope="col" rowspan="2">Surah websites</th>':'')+'</tr><tr>'+monthHeads+'</tr></thead><tbody>'+(rows||'<tr><td colspan="'+columns+'">No matching students on this page.</td></tr>')+'</tbody></table></div>';
   const wrap=slot.querySelector('.pms-grid-wrap');wrap.scrollLeft=left;wrap.scrollTop=top;
   for(const control of slot.querySelectorAll('[data-pms-year-cell]'))control.indeterminate=control.getAttribute('aria-checked')==='mixed';
   if(focusKey){for(const control of slot.querySelectorAll('[data-pms-cell],[data-pms-year-cell]'))if(key(control.dataset.account,control.dataset.month||'YEAR:'+control.dataset.year)===focusKey){control.focus?.({preventScroll:true});break;}}
@@ -207,7 +208,9 @@
   if(host){host.querySelector('[data-pms-content]').replaceChildren();host.querySelector('[data-pms-tab="monthly"]').hidden=true;mode='participants';tabs();}
  }
  async function manageGrants(accountId){if(!canLeave()||window.M4L_PROGRAM_PEOPLE?.canLeave()===false)return;if(!data?.surahGrantsAvailable||!data?.prepared){message('Prepare the Tafseer monthly register before adding Surah access.',true);return;}mode='monthly';tabs();await openGrants(accountId);}
- window.M4L_PROGRAM_MONTHLY={select,manageGrants,canLeave,isOpen:()=>mode==='monthly',dirty:()=>grantDirty()||drafts.size>0||Boolean(pending)||historicalDirty||Boolean(historyRequest)||busy};
+ async function mount(container,id,options){if(!canLeave())return false;unmount();external={...options,host:container};const year=new Date().getFullYear();years=[year-2,year-1,year];await select(id);return true;}
+ function unmount(){reset();years=[2024,2025,2026];if(external){host?.remove();host=null;external=null;}}
+ window.M4L_PROGRAM_MONTHLY={mount,unmount,select,manageGrants,canLeave,isOpen:()=>mode==='monthly',dirty:()=>grantDirty()||drafts.size>0||Boolean(pending)||historicalDirty||Boolean(historyRequest)||busy};
  window.addEventListener('beforeunload',e=>{if(grantDirty()||drafts.size||pending||historicalDirty||historyRequest||busy){e.preventDefault();e.returnValue='';}});
  window.addEventListener('m4l-academy-session',reset);window.addEventListener('m4l-academy-session-ended',reset);window.addEventListener('storage',e=>{if(e.key==='m4l_account_token'||e.key===null)reset();});
 })();

@@ -5,6 +5,7 @@ import {enqueueAccount,pendingAccount,sourceSession} from './bridge.mjs';
 import {markAccess,queueAccess,importAccessPage,accessStream} from './access.mjs';
 import {id,integer,fail,random,signedHeaders,bodyJSON,websiteServerOrigin} from './protocol.mjs';
 import {studioAccessCatalogue} from './studio-catalogue.mjs';
+import {gridClassMetadata,validateGridClasses} from './studio-monthly-grid.mjs';
 
 // All actor facts originate in current Core state, never in browser fields.
 async function adminProof(db,auth){
@@ -55,9 +56,12 @@ export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_S
   const accountId=id(command.accountId),confirmed=await send({action:'read',accountId});if(confirmed.ownership?.authority!=='WEBSITE'||confirmed.ownership.phase!=='COMMITTED'||!confirmed.person)throw fail('This offering has not completed its Studio handover.',409);
   return {success:true,...await saveLiveAllocation(db,env,proof,activity,command,confirmed.person,{fetcher})};
  }
- if(!['read','save','provision','resume'].includes(command.action))throw fail('Unknown Studio access action.');
+ if(!['read','save','provision','resume','monthly-grid','monthly-grid-save','access-table','access-table-save'].includes(command.action))throw fail('Unknown Studio access action.');
+ if(['monthly-grid','monthly-grid-save','access-table','access-table-save'].includes(command.action)&&mapping.kind!=='TAFSEER')throw fail('Short courses use whole-course access, not monthly subscriptions.');
  // Forward only the narrow command. Supplied actor, roles and proof are ignored.
- const result=await send(command);if(command.action==='read'&&command.accountId&&mapping.kind==='TAFSEER'&&owner?.state==='STUDIO')result.liveAllocation=await liveAllocation(db,activity,id(command.accountId));
+ let result=await send(command.action==='monthly-grid-save'?await validateGridClasses(db,activity,command):command);
+ if(command.action==='monthly-grid')result=await gridClassMetadata(db,activity,result);
+ if(command.action==='read'&&command.accountId&&mapping.kind==='TAFSEER'&&owner?.state==='STUDIO')result.liveAllocation=await liveAllocation(db,activity,id(command.accountId));
  return {success:true,...result};
 }
 

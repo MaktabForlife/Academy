@@ -1,20 +1,22 @@
 /* One native Admin access workspace. Catalogue metadata never grants access. */
 (()=>{'use strict';
- const areas={tafseer:{title:'Tafseer and Tadabbur',kind:'MONTHLY LEARNING',help:'Review paid months, original class and additional Surah websites.'},mothers:{title:'Mothers of the Ummah',kind:'MONTHLY LEARNING',help:'Review programme months and subject websites separately from live participation.'},courses:{title:'Courses',kind:'COURSE LEARNING',help:'Review course participation and purchases. Existing purchases remain when participation ends.'}};
+ const areas={tafseer:{title:'Tafseer and Tadabbur',kind:'MONTHLY LEARNING',help:'Review paid months, original class and additional Surah websites.'},mothers:{title:'Mothers of the Ummah',kind:'MONTHLY LEARNING',help:'Review programme months and subject websites separately from live participation.'},courses:{title:'Courses',kind:'COURSE LEARNING',help:'Grant access to the full course. Existing purchases remain when participation ends.'}};
  const token=()=>localStorage.getItem('m4l_account_token')||'';let active=null;
- const markup=`<div class="circles-access-page"><div class="access-layout"><nav class="access-areas" aria-label="Learning areas"><p class="eyebrow">LEARNING AREAS</p><button type="button" data-area="tafseer" aria-pressed="true"><span>Tafseer & Tadabbur</span><small>Monthly and Surah access</small></button><button type="button" data-area="mothers" aria-pressed="false"><span>Mothers of the Ummah</span><small>Monthly programme access</small></button><button type="button" data-area="courses" aria-pressed="false"><span>Courses</span><small>Course purchases and access</small></button><p class="access-guidance">Participation and learning materials are separate. Ending participation keeps acquired materials.</p></nav><section class="access-workspace" aria-labelledby="access-area-title"><header class="area-heading"><div><p class="eyebrow" id="access-area-kind"></p><h2 id="access-area-title"></h2><p id="access-area-help"></p></div><span class="access-category-mark" aria-hidden="true">◇</span></header><label id="access-offering-label" class="access-offering-label">Choose a course<select id="access-offering"></select></label><div class="access-catalogue-pages" hidden><button type="button" data-catalogue-page="previous">Previous courses</button><span data-catalogue-page-label></span><button type="button" data-catalogue-page="next">Next courses</button></div><p id="access-page-status" role="status" aria-live="polite"></p><section id="access-panel" aria-label="Learner access records"></section></section></div></div>`;
+ const markup=`<div class="circles-access-page"><div class="access-layout"><nav class="access-areas" aria-label="Learning areas"><p class="eyebrow">LEARNING AREAS</p><button type="button" data-area="tafseer" aria-pressed="true"><span>Tafseer & Tadabbur</span><small>Student matrix and Surah table</small></button><button type="button" data-area="mothers" aria-pressed="false"><span>Mothers of the Ummah</span><small>Student monthly matrix</small></button><button type="button" data-area="courses" aria-pressed="false"><span>Courses</span><small>Course purchases and access</small></button><p class="access-guidance">Participation and learning materials are separate. Ending participation keeps acquired materials.</p></nav><section class="access-workspace" aria-labelledby="access-area-title"><header class="area-heading"><div><p class="eyebrow" id="access-area-kind"></p><h2 id="access-area-title"></h2><p id="access-area-help"></p></div><span class="access-category-mark" aria-hidden="true">◇</span></header><label id="access-offering-label" class="access-offering-label">Choose a course<select id="access-offering"></select></label><div class="access-catalogue-pages" hidden><button type="button" data-catalogue-page="previous">Previous courses</button><span data-catalogue-page-label></span><button type="button" data-catalogue-page="next">Next courses</button></div><p id="access-page-status" role="status" aria-live="polite"></p><section id="access-panel" aria-label="Learner access records"></section></section></div></div>`;
  function stylesheet(href){if(!document.querySelector('link[href="'+href+'"]')){const link=document.createElement('link');link.rel='stylesheet';link.href=href;document.head.append(link);}}
- function reset(){if(active){active.closed=true;active.generation++;active.host.replaceChildren();active.pages.clear();active=null;}window.M4L_STUDIO_ACCESS?.reset();}
+ const canLeave=()=>window.M4L_STUDIO_ACCESS?.canLeave()!==false&&window.M4L_PROGRAM_MONTHLY?.canLeave()!==false&&window.M4L_PROGRAM_SURAHS?.canLeave()!==false;
+ function clearEditors(){window.M4L_STUDIO_ACCESS?.reset();window.M4L_PROGRAM_MONTHLY?.unmount();window.M4L_PROGRAM_SURAHS?.unmount();}
+ function reset(){if(active){active.closed=true;active.generation++;active.host.replaceChildren();active.pages.clear();active=null;}clearEditors();}
  async function open(host){
   if(!host)return;if(active?.host===host&&!active.closed)return active.ready;
-  if(window.M4L_STUDIO_ACCESS?.canLeave()===false)return false;reset();
-  stylesheet('/css/m4l-circles-access.css');stylesheet('/academy/course-websites/assets/fonts.css');host.innerHTML=markup;
+  if(!canLeave())return false;reset();
+  stylesheet('/css/m4l-program-monthly-subscriptions.css');stylesheet('/css/m4l-circles-access.css');stylesheet('/academy/course-websites/assets/fonts.css');host.innerHTML=markup;
   const s={host,owner:token(),generation:0,closed:false,area:'tafseer',selection:'',busy:false,pages:new Map()};active=s;
   const $=selector=>host.querySelector(selector),status=$('#access-page-status'),panelHost=$('#access-panel'),picker=$('#access-offering'),buttons=[...host.querySelectorAll('button[data-area]')];
   const current=()=>!s.closed&&s===active&&s.owner===token()&&host.isConnected;
   const tell=message=>{status.textContent=message;};
-  const canChange=()=>{if(s.busy){tell('Checking available learning areas…');return false;}if(window.M4L_STUDIO_ACCESS.canLeave())return true;tell('Save or discard the current changes before choosing another learning area or course.');return false;};
-  const locked=message=>{s.closed=true;s.generation++;window.M4L_STUDIO_ACCESS.reset();panelHost.replaceChildren();picker.replaceChildren();s.pages.clear();for(const button of buttons)button.disabled=true;tell(message);};
+  const canChange=()=>{if(s.busy){tell('Checking available learning areas…');return false;}if(canLeave())return true;tell('Save or discard the current changes before choosing another learning area or course.');return false;};
+  const locked=message=>{s.closed=true;s.generation++;clearEditors();panelHost.replaceChildren();picker.replaceChildren();s.pages.clear();for(const button of buttons)button.disabled=true;tell(message);};
   async function catalogue(area,cursor){
    const response=await fetch((window.M4L_CONFIG?.API_BASE||'')+'/api/admin/platform/studio-access',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+s.owner,'X-Academy-Workspace':'ADMIN'},body:JSON.stringify({command:{action:'catalogue',area,cursor,limit:50}})}),data=await response.json();
    if(!current())return null;
@@ -23,12 +25,34 @@
    return data;
   }
   async function showPersonEditor(row){
-   panelHost.replaceChildren();delete panelHost.dataset.kind;panelHost.dataset.area=s.area;
+   clearEditors();panelHost.replaceChildren();delete panelHost.dataset.kind;panelHost.dataset.area=s.area;
    if(!row)return;
-   if(!row.enabled||row.ownership==='ACADEMY'){
+   if(!row.enabled||row.ownership==='FROZEN'||row.ownership==='ACADEMY'&&s.area==='courses'){
     const note=document.createElement('div');note.className='access-availability';
-    const text=document.createElement('p');text.textContent=!row.enabled?'Access management is temporarily unavailable for this learning area. Its current permissions are unchanged.':'This programme’s access is managed in its existing Participants page.';note.append(text);
+    const text=document.createElement('p');text.textContent=!row.enabled||row.ownership==='FROZEN'?'Access management is temporarily unavailable for this learning area. Its current permissions are unchanged.':'This programme’s access is managed in its existing Participants page.';note.append(text);
     if(row.enabled&&row.ownership==='ACADEMY'){const link=document.createElement('a');link.href=row.activityKey.startsWith('COURSE:')?'/academy/courses/manage/?course='+encodeURIComponent(row.activityKey.slice(7))+'&tab=participants':'/programs/?program='+encodeURIComponent(row.activityKey.slice(8))+'&tab=participants';link.textContent='Open Participants';note.append(link);}panelHost.append(note);return;
+   }
+   if(s.area!=='courses'){
+    const tabs=document.createElement('nav');tabs.className='access-table-tabs';tabs.setAttribute('aria-label','Access tables');
+    const views=[['matrix','Student matrix'],...(s.area==='tafseer'?[['surahs','Surah table']]:[]),...(row.ownership==='STUDIO'?[['additional','Other access']]:[])];
+    const body=document.createElement('section');body.className='access-table-body';panelHost.append(tabs,body);
+    async function transport(action,input={}){
+     const isStudio=row.ownership==='STUDIO',mapped={'grid':'monthly-grid','grid-save':'monthly-grid-save','surahs':'access-table','surah-save':'access-table-save'};
+     const path=isStudio?'/api/admin/platform/studio-access':'/api/admin/platform/program-monthly-subscriptions/'+action;
+     const response=await fetch((window.M4L_CONFIG?.API_BASE||'')+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+s.owner,'X-Academy-Workspace':'ADMIN'},body:JSON.stringify({activityKey:row.activityKey,...(isStudio?{command:{...input,action:mapped[action]}}:input)})}),result=await response.json();
+     if(!current())throw Error('Your account changed. Reopen Access management.');
+     if(!response.ok||!result.success)throw Object.assign(Error(result.error||'Access records could not be checked.'),{status:response.status,code:result.code});return result;
+    }
+    async function view(name){
+     if(!current()||!canLeave())return false;clearEditors();body.replaceChildren();
+     for(const button of tabs.querySelectorAll('button'))button.setAttribute('aria-pressed',String(button.dataset.accessView===name));
+     if(name==='matrix')await window.M4L_PROGRAM_MONTHLY.mount(body,row.activityKey.slice(8),{transport,label:areas[s.area].title});
+     else if(name==='surahs')await window.M4L_PROGRAM_SURAHS.mount(body,row.activityKey.slice(8),{transport});
+     else {const editor=window.M4L_STUDIO_ACCESS.attach(body,row.activityKey);await editor?.loading;}
+     return true;
+    }
+    for(const [name,label]of views){const button=document.createElement('button');button.type='button';button.dataset.accessView=name;button.textContent=label;button.setAttribute('aria-pressed','false');button.onclick=()=>view(name);tabs.append(button);}
+    await view('matrix');return;
    }
    const panel=window.M4L_STUDIO_ACCESS.attach(panelHost,row.activityKey);await panel?.loading;if(current())panelHost.dataset.kind=panel?.data?.kind||'';
   }
@@ -56,5 +80,5 @@
  }
  const checkOwner=()=>{if(active&&active.owner!==token())active.locked('Your account changed. Reopen Access management to check the current account.');};
  window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)checkOwner();});window.addEventListener('pageshow',checkOwner);window.addEventListener('focus',checkOwner);document.addEventListener('visibilitychange',checkOwner);
- window.M4L_CIRCLES_ACCESS={open,reset,canLeave:()=>window.M4L_STUDIO_ACCESS?.canLeave()!==false};
+ window.M4L_CIRCLES_ACCESS={open,reset,canLeave};
 })();

@@ -2,7 +2,7 @@
 (() => {
  'use strict';
  const token=()=>localStorage.getItem('m4l_account_token')||'',esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- let host=null,program='',owner='',generation=0,busy=false,data=null,pending=null;
+ let external=null,host=null,program='',owner='',generation=0,busy=false,data=null,pending=null;
  const cards=[['yaseen','Surah Yaseen'],['saffat','Surah As-Saffat'],['ankabut','Surah Al-Ankabut'],['luqman','Surah Luqman'],['muzammil','Surah Al-Muzzammil'],['foundations','Foundations of Tafseer'],['qasas','Surah Al-Qasas'],['sajdah','Surah As-Sajdah']];
  const cardOptions=key=>{const choices=data?.websiteCards?.map(c=>[c.id,c.title])||cards;return [['','Not linked yet'],...choices,...(key&&!choices.some(c=>c[0]===key)?[[key,key]]:[])].map(([id,label])=>'<option value="'+esc(id)+'"'+(id===(key||'')?' selected':'')+'>'+esc(label+(id==='foundations'?' · Open to all':''))+'</option>').join('');};
  const drafts=new Map();
@@ -11,14 +11,15 @@
  function canLeave(){if(dirty()){message('Save or discard the surah table changes before leaving.',true);return false;}return true;}
  async function api(action,input={}){
   const stamp=generation,current=owner;
+  if(external){const result=await external.transport(action,input);if(stamp!==generation||current!==token())throw Error('Your account or programme changed. Reopen the Surah table.');return result;}
   const response=await fetch((window.M4L_CONFIG?.API_BASE||'')+'/api/admin/platform/program-monthly-subscriptions/'+action,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+current,'X-Academy-Workspace':'ADMIN'},body:JSON.stringify({activityKey:'PROGRAM:'+program,...input})}),result=await response.json();
   if(stamp!==generation||current!==token())throw Error('Your account or Program changed. Reopen Lesson media.');
   if(!response.ok||!result.success)throw Object.assign(Error(result.error||'Could not save the surah table. Your edits are kept.'),{status:response.status});
   return result;
  }
  function shell(){
-  host=document.getElementById('program-surahs');if(!host||host.dataset.ready)return;
-  host.dataset.ready='true';host.classList.add('pms');
+  host=external?.host||document.getElementById('program-surahs');if(!host||host.dataset.ready)return;
+  host.dataset.ready='true';host.classList.add('pms');if(external)host.classList.add('pms-access-surahs');
   host.addEventListener('input',edit);host.addEventListener('change',edit);
   host.addEventListener('click',async event=>{
    const link=event.target.closest('[data-surah-editor]');if(link&&(!canLeave()||window.M4L_LESSON_MEDIA?.canLeave?.()===false)){event.preventDefault();return;}
@@ -40,12 +41,14 @@
   host.hidden=!data?.available;if(host.hidden){host.replaceChildren();return;}
   host.innerHTML='<h2>Surah websites</h2><p>Enter the surah name and completion date manually. This table determines website access. Changing a completion date changes which subscription month qualifies. Students with that month checked in Monthly subscriptions keep access to the published website.</p><p data-surah-message role="status" aria-live="polite"></p>'+
    (!data.prepared?'<p>Prepare Tafseer’s register in Participants → Monthly subscriptions before adding surahs.</p>':'<div class="pms-toolbar"><button type="button" data-surah-action="add">Add surah</button><button type="button" data-surah-action="save">Save table changes</button><button type="button" data-surah-action="discard">Discard edits</button><button type="button" data-surah-action="refresh">Refresh table</button></div><div class="pms-surah-scroll"><table class="pms-surah-table"><thead><tr><th scope="col">Surah</th><th scope="col">Website card</th><th scope="col">Completion date</th><th scope="col">Students eligible</th><th scope="col">Website</th></tr></thead><tbody data-surah-rows></tbody></table></div><p data-surah-delta aria-live="polite"></p><div data-surah-retry></div>');
-  renderRows();controls();
+  renderRows();controls();if(external){for(const row of host.querySelectorAll('tr')){for(const index of [1,3,4])if(row.children[index])row.children[index].hidden=true;}}
  }
  function renderRows(){
   const body=host?.querySelector('[data-surah-rows]');if(!body)return;
   const rows=new Map((data?.surahs||[]).map(row=>[row.id,row]));for(const [id,draft]of drafts)rows.set(id,{...rows.get(id),...draft});
   body.innerHTML=[...rows.values()].map(row=>'<tr data-surah-row="'+esc(row.id)+'"'+(drafts.has(row.id)?' class="pms-surah-edited"':'')+'><td><input data-surah-field="name" aria-label="Surah name" maxlength="160" value="'+esc(row.name)+'" placeholder="Enter surah name" required></td><td><select data-surah-field="cardKey" aria-label="Website card for '+esc(row.name||'new surah')+'">'+cardOptions(row.cardKey)+'</select></td><td><input data-surah-field="completionDate" type="date" aria-label="Completion date for '+esc(row.name||'new surah')+'" value="'+esc(row.completionDate)+'" required></td><td>'+(drafts.has(row.id)?'After saving':row.eligibleStudents)+'</td><td>'+(row.revision?'<a class="pb-secondary" data-surah-editor href="'+esc(row.editorUrl)+'">'+(row.hasDraft?'Edit website':'Build website')+'</a>':'<span>Save the row first</span> <button type="button" data-surah-action="remove" data-id="'+esc(row.id)+'">Remove</button>')+'</td></tr>').join('')||'<tr><td colspan="5">No surahs entered yet. Add a surah and its completion date.</td></tr>';
+  if(external)for(const row of body.querySelectorAll('tr')){for(const index of [1,3,4])if(row.children[index])row.children[index].hidden=true;}
+  if(external)for(const [id,draft]of drafts)if(!data.surahs.some(row=>row.id===id)){const button=body.querySelector('[data-surah-action=remove][data-id="'+id+'"]');if(button)body.querySelector('[data-surah-row="'+id+'"] td').append(button);}
   host.querySelector('[data-surah-delta]').textContent=drafts.size?drafts.size+' unsaved surah change(s)':'No unsaved table changes';controls();
  }
  function edit(event){
@@ -76,7 +79,9 @@
  }
  async function select(id){shell();if(!host)return;if(program===id&&owner===token()&&data)return;reset();program=id;owner=token();await load();}
  function reset(){generation++;program='';owner='';data=null;drafts.clear();pending=null;busy=false;if(host){host.hidden=true;host.replaceChildren();}}
- window.M4L_PROGRAM_SURAHS={select,canLeave,dirty,reset};
+ async function mount(container,id,options){if(!canLeave())return false;unmount();const section=document.createElement('section');container.append(section);external={...options,host:section};await select(id);return true;}
+ function unmount(){reset();if(external)host?.remove();external=null;host=null;}
+ window.M4L_PROGRAM_SURAHS={mount,unmount,select,canLeave,dirty,reset};
  window.addEventListener('beforeunload',event=>{if(dirty()){event.preventDefault();event.returnValue='';}});
  window.addEventListener('m4l-academy-session',reset);window.addEventListener('m4l-academy-session-ended',reset);window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)reset();});
 })();
