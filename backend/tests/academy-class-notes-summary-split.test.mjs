@@ -23,7 +23,7 @@ test('split HTTP programme summary reads current Core notes and rejects revoked 
   const global=await f.source.actor('global'),preview=good(await call('summary',{activityKey},'ADMIN_LEARN',global));assert(preview.notes.length);assert(preview.notes.every(n=>!n.canEdit&&!n.source.canPost));
   const selected=good(await call('summary',{activityKey},'ADMIN_LEARN',global,{'X-Academy-Class':encodeURIComponent(JSON.stringify({activityKey,classId:'class-shared'}))}));assert.deepEqual(selected.notes,[]);
   f.databases.core.prepare("UPDATE class_memberships SET active=0 WHERE account_id='account-0002' AND activity_key=?").run(activityKey);
-  assert.deepEqual(good(await call('summary',{activityKey})).notes,[]);
+  assert.equal((await call('summary',{activityKey})).status,403);
   f.databases.core.prepare("UPDATE account_sessions SET revoked_at=? WHERE account_id='account-0002'").run(new Date().toISOString());
   assert.equal((await call('summary',{activityKey})).status,401);
   f.databases.core.prepare('UPDATE account_credentials SET credential_epoch=credential_epoch+1 WHERE account_id=?').run(f.actors.global);

@@ -136,15 +136,29 @@ export function classNotes(repository,auth,now=()=>new Date()){
   if(focus&&!page.some(row=>row.note_id===focus)){const focused=await noteRow(focus);if(focused.context_id===source.id)page.unshift(focused);}
   return {source:{...source,...permission,canPost:permission.canPost&&!source.unresolved},notes:await Promise.all(page.map(row=>dto(row,permission))),before:more?{createdAt:last.created_at,id:last.note_id}:null,nextDue:source.unresolved?null:await nextDue(a,source),focusNoteId:focus,today,timezone};
  }
+ async function summaryEligible(a,noteDb){
+  const values=[actor],bind=value=>{values.push(value);return '?';};
+  const role=kind=>`EXISTS(SELECT 1 FROM (${assessmentRolesSQL}) r WHERE r.account_id=me.account_id AND r.activity_key=${bind(a.activity_key)} COLLATE NOCASE AND r.role='${kind}')`;
+  let surface;
+  if(isAdminWorkspace(auth)||auth.adminView)surface=`EXISTS(SELECT 1 FROM global_role_assignments g WHERE g.account_id=me.account_id AND g.active=1 AND g.review_state='CONFIRMED' AND g.role='GLOBAL_ADMIN') OR ${role('PROGRAM_ADMIN')}`;
+  else if(auth.workspace==='TEACH')surface=role('TEACHER');
+  else if(a.kind==='PROGRAM')surface=`${role('STUDENT')} AND EXISTS(SELECT 1 FROM class_memberships m JOIN classes c ON c.activity_key=m.activity_key AND c.class_id=m.class_id WHERE m.account_id=me.account_id AND m.activity_key=${bind(a.activity_key)} COLLATE NOCASE AND m.active=1 AND c.active=1 AND (m.start_date IS NULL OR m.start_date<=${bind(today)}) AND (m.end_date IS NULL OR m.end_date>=${bind(today)}))`;
+  else surface=`(${role('STUDENT')} OR EXISTS(SELECT 1 FROM effective_course_subscriptions s WHERE s.account_id=me.account_id AND s.activity_key=${bind(a.activity_key)} COLLATE NOCASE) OR EXISTS(SELECT 1 FROM course_settings cs WHERE cs.activity_key=${bind(a.activity_key)} COLLATE NOCASE AND cs.legacy_access_model='FREE' AND cs.policy_review_state='CONFIRMED')) AND EXISTS(SELECT 1 FROM attendance_delivery_members m JOIN course_runs cr ON cr.activity_key=m.activity_key AND cr.run_id=m.run_id JOIN course_run_state rs ON rs.activity_key=cr.activity_key AND rs.run_id=cr.run_id WHERE m.activity_key=${bind(a.activity_key)} COLLATE NOCASE AND m.account_id=me.account_id AND m.state='VALID' AND cr.active=1 AND coalesce(rs.stage,'') NOT IN('CANCELLED','ARCHIVED') AND m.join_date<=${bind(today)} AND (m.leave_date IS NULL OR m.leave_date>=${bind(today)}))`;
+  if(!await noteDb.prepare(`SELECT 1 FROM accounts me WHERE me.account_id=? COLLATE NOCASE AND me.active=1 AND (${surface})`).bind(...values).first())throw fail('These Class Notes are outside your current programme access.',403,'CLASS_NOTES_FORBIDDEN');
+ }
  async function summary(a,input){
   const noteDb=repository.coreDb||db,np=(sql,...values)=>noteDb.prepare(sql).bind(...values);
-  const window=classNoteSummaryWindow(today,timezone,readingInstant),candidates=await classNoteSummaryCandidates(noteDb,a.activity_key,input,window);
+  await summaryEligible(a,noteDb);
+  const window=classNoteSummaryWindow(today,timezone,readingInstant),cursor=repository.noteSummaryCursor;
+  if(!cursor)throw fail('The notes summary is temporarily unavailable.',503);
+  const state=actualState(auth),binding=JSON.stringify({purpose:'CLASS_NOTES_SUMMARY_V1',account:String(state.account.account_id).toUpperCase(),session:auth.sid,epoch:state.account.credential_epoch,activity:a.activity_key.toUpperCase(),workspace:auth.workspaceContext||auth.workspace||'ADMIN',classView:auth.classView?{activityKey:auth.classView.activityKey.toUpperCase(),classId:auth.classView.classId.toUpperCase()}:null,head:repository.setup.head,window:{fromDate:window.fromDate,throughDate:window.throughDate,timezone}});
+  const before=input.before==null?undefined:await cursor.open(input.before,binding),candidates=await classNoteSummaryCandidates(noteDb,a.activity_key,{limit:input.limit,...(before?{before}:{})},window);
   const ids=[...new Set(candidates.page.map(row=>row.context_id))],stored=ids.length?(await np('SELECT context_id,source_json FROM class_note_contexts WHERE context_id IN(SELECT value FROM json_each(?))',JSON.stringify(ids)).all()).results:[];
   const sources=await Promise.all(stored.map(row=>live(JSON.parse(row.source_json)))),permissions=await rights(sources),byId=new Map(sources.map(source=>[source.id,source]));
   const allowed=candidates.page.filter(row=>permissions.get(row.context_id)?.canRead),noteIds=allowed.map(row=>row.note_id);
   // Bodies and author names are read only after current lesson sharing passes.
   const rows=noteIds.length?(await np(joined+" WHERE n.note_id IN(SELECT value FROM json_each(?)) AND n.state='ACTIVE'",JSON.stringify(noteIds)).all()).results:[],notes=new Map(rows.map(row=>[row.note_id,row]));
-  return {activityKey:a.activity_key,window,today,timezone,before:candidates.before,notes:await Promise.all(allowed.filter(row=>notes.has(row.note_id)).map(async candidate=>{
+  return {activityKey:a.activity_key,window,today,timezone,before:candidates.before?await cursor.seal(candidates.before,binding):null,notes:await Promise.all(allowed.filter(row=>notes.has(row.note_id)).map(async candidate=>{
    const row=notes.get(candidate.note_id),source=byId.get(row.context_id),permission={...permissions.get(row.context_id)};
    permission.canPost=permission.canPost&&!source.unresolved;
    return {...await dto(row,permission),source:{...source,...permission}};

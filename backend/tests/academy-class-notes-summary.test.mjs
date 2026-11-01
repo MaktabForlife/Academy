@@ -6,6 +6,7 @@ import {classNotesFixture,seedClassNotes} from './fixtures/academy-class-notes-f
 import {classNoteSummaryWindow,classNoteSummaryCandidates} from '../src/academy/d1/class-note-summary.js';
 import {nativeBinding} from './fixtures/academy-d1-fixture.mjs';
 import runtime from '../src/academy-runtime.js';
+import {classNoteSummaryCursor} from '../src/academy/d1/class-note-summary-cursor.js';
 
 const index=readFileSync(new URL('../migrations/academy-core/0022_class_notes_summary.sql',import.meta.url),'utf8');
 async function use(fn){const f=await classNotesFixture(seedClassNotes);try{f.db.exec(index);await fn(f);assert.deepEqual(f.db.prepare('PRAGMA foreign_key_check').all(),[]);}finally{f.close();}}
@@ -41,15 +42,36 @@ test('summary pages are newest first with stable tied timestamps, a fixed cutoff
 
 test('sparse pages advance past inaccessible classes without exposing their body or lesson context',()=>use(async f=>{
  const global=await f.notes('ADMIN'),student=await f.notes('LEARN','original-student'),hidden=await create(f,global,'class-shared','Private other-class body'),visible=await create(f,student,'class-1','Visible own-class body');
- copyNote(f,hidden,'hidden-newest',new Date(Date.now()-1000).toISOString());copyNote(f,visible,'visible-next',new Date(Date.now()-2000).toISOString());
+ const hiddenAt=new Date(Date.now()-1000).toISOString();copyNote(f,hidden,'hidden-newest',hiddenAt);copyNote(f,visible,'visible-next',new Date(Date.now()-2000).toISOString());
  f.db.prepare("UPDATE class_notes SET state='WITHDRAWN' WHERE note_id IN(?,?)").run(hidden.noteId,visible.noteId);
- const first=await student.run('summary',{activityKey:f.scopes.programA,limit:1});assert.deepEqual(first.notes,[]);assert(first.before);assert(!JSON.stringify(first).includes('Private other-class body'));assert(!JSON.stringify(first).includes(hidden.contextId));
+ const first=await student.run('summary',{activityKey:f.scopes.programA,limit:1});assert.deepEqual(first.notes,[]);assert.equal(typeof first.before,'string');for(const secret of ['Private other-class body',hidden.contextId,'hidden-newest',hiddenAt])assert(!JSON.stringify(first).includes(secret));
+ const cipher=Buffer.from(first.before.split('.')[2],'base64url').toString('utf8');assert(!cipher.includes('hidden-newest'));assert(!cipher.includes(hiddenAt));
  const next=await student.run('summary',{activityKey:f.scopes.programA,limit:1,before:first.before});assert.equal(next.notes.length,1);assert.equal(next.notes[0].body,'Visible own-class body');assert.equal(next.before,null);
- const wrong=await f.notes('ADMIN','adminB');assert.deepEqual((await wrong.run('summary',{activityKey:f.scopes.programA})).notes,[]);
+ const wrong=await f.notes('ADMIN','adminB');await assert.rejects(wrong.run('summary',{activityKey:f.scopes.programA}),e=>e.status===403);
+ await assert.rejects(wrong.run('summary',{activityKey:f.scopes.programA,before:first.before}),e=>e.status===403);
  const preview=await f.notes('ADMIN_LEARN');const reviewed=await preview.run('summary',{activityKey:f.scopes.programA});assert(reviewed.notes.length);assert(reviewed.notes.every(n=>!n.source.canPost&&!n.canEdit&&!n.canWithdraw));
  const teacher=await f.notes('TEACH','original-teacher');assert((await teacher.run('summary',{activityKey:f.scopes.programA})).notes.some(n=>n.id==='visible-next'&&n.source.canPost));
  f.db.prepare("UPDATE class_memberships SET active=0 WHERE account_id='account-0002' AND activity_key=?").run(f.scopes.programA);
- assert.deepEqual((await (await f.notes('LEARN','original-student')).run('summary',{activityKey:f.scopes.programA})).notes,[]);
+ await assert.rejects((await f.notes('LEARN','original-student')).run('summary',{activityKey:f.scopes.programA}),e=>e.status===403);
+}));
+
+test('summary cursors conceal the boundary and reject tampering or another server binding',async()=>{
+ const capability=classNoteSummaryCursor('synthetic-test-server-secret'),boundary={createdAt:'2026-10-01T12:00:00.000Z',id:'private-note-identity'};
+ const context={account:'A',session:'session-A',epoch:1,activity:'PROGRAM:A',workspace:'LEARN',classView:null,head:'head-A',window:{fromDate:'2026-08-01',throughDate:'2026-11-01',timezone:'Africa/Johannesburg'}};
+ const bind=JSON.stringify(context),token=await capability.seal(boundary,bind),again=await capability.seal(boundary,bind);assert.notEqual(token,again);assert.deepEqual(await capability.open(token,bind),boundary);
+ for(const key of ['account','session','epoch','activity','workspace','classView','head','window'])await assert.rejects(capability.open(token,JSON.stringify({...context,[key]:key==='window'?{...context.window,throughDate:'2026-11-02'}:'changed'})),e=>e.code==='CLASS_NOTE_SUMMARY_CURSOR_INVALID');
+ const pieces=token.split('.');pieces[2]=(pieces[2][0]==='A'?'B':'A')+pieces[2].slice(1);
+ for(const bad of [pieces.join('.'),JSON.stringify(boundary),boundary,'',token+'x'])await assert.rejects(capability.open(bad,bind),e=>e.code==='CLASS_NOTE_SUMMARY_CURSOR_INVALID');
+ await assert.rejects(classNoteSummaryCursor('another-synthetic-secret').open(token,bind),e=>e.code==='CLASS_NOTE_SUMMARY_CURSOR_INVALID');
+});
+
+test('real native summary cursors cannot be reused for another account, programme or selected view',()=>use(async f=>{
+ const global=await f.notes('ADMIN'),made=await create(f,global);copyNote(f,made,'second-summary-note',new Date(Date.now()-1000).toISOString());
+ const first=await global.run('summary',{activityKey:f.scopes.programA,limit:1});assert(first.before);
+ const scoped=await f.notes('ADMIN','adminA');await assert.rejects(scoped.run('summary',{activityKey:f.scopes.programA,before:first.before}),e=>e.code==='CLASS_NOTE_SUMMARY_CURSOR_INVALID');
+ await assert.rejects(global.run('summary',{activityKey:f.scopes.programB,before:first.before}),e=>e.code==='CLASS_NOTE_SUMMARY_CURSOR_INVALID');
+ const preview=await f.notes('ADMIN_LEARN');await assert.rejects(preview.run('summary',{activityKey:f.scopes.programA,before:first.before}),e=>e.code==='CLASS_NOTE_SUMMARY_CURSOR_INVALID');
+ const forged=first.before.slice(0,-8)+'AAAAAAAA';await assert.rejects(global.run('summary',{activityKey:f.scopes.programA,before:forged}),e=>e.code==='CLASS_NOTE_SUMMARY_CURSOR_INVALID');
 }));
 
 test('the real HTTP summary route is authenticated, read-only and reports an unapplied index safely',()=>use(async f=>{
