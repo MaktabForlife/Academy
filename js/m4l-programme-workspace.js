@@ -23,7 +23,8 @@
  }
  window.M4L_PROGRAMME_WORKSPACE_MODEL={programmeKeys,displayRows,dayRows,sectorPath};
  const $=id=>document.getElementById(id),addDay=(day,n)=>new Date(Date.parse(day+'T12:00:00Z')+n*86400000).toISOString().slice(0,10);
- let options=null,owner='',generation=0,selectedDay='',top=null,wheel=null,panel=null,popup=null,observer=null,layoutFrame=0,menuAnchor=null,scheduleAnchor=null;
+ let options=null,owner='',generation=0,selectedDay='',top=null,wheel=null,panel=null,notesPanel=null,popup=null,observer=null,layoutFrame=0,menuAnchor=null,scheduleAnchor=null;
+ const toolHomes=new Map();
  const summaries=new Map();
  const currentOwner=()=>JSON.stringify([token(),window.M4L_ACADEMY_WORKSPACE?.current(),window.M4L_ACADEMY_WORKSPACE?.classView(),window.M4L_ACADEMY_WORKSPACE?.head(),options?.keys]);
  const active=(row,mode)=>window.M4L_ACADEMY_WORKSPACE?.current()!=='ADMIN'&&row?.kind==='PROGRAM'&&row.roles?.length&&!row.unavailable&&['learn','teach'].includes(mode);
@@ -31,11 +32,12 @@
  const noteTime=value=>new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',timeZone:options?.home.timezone||'Africa/Johannesburg'}).format(new Date(value));
  function closePopup(){if(popup){popup.close();popup.remove();popup=null;}}
  function reset(){
-  generation++;summaries.clear();owner='';selectedDay='';options=null;closePopup();observer?.disconnect();observer=null;
+  generation++;summaries.clear();owner='';selectedDay='';options=null;closePopup();observer?.disconnect();observer=null;if($('pa-close'))$('pa-close').hidden=false;
   if(layoutFrame)window.cancelAnimationFrame(layoutFrame);layoutFrame=0;
   if(menuAnchor?.parentNode&&$('activity-menu'))menuAnchor.parentNode.insertBefore($('activity-menu'),menuAnchor);
   if(scheduleAnchor?.parentNode&&$('activity-schedule'))scheduleAnchor.parentNode.insertBefore($('activity-schedule'),scheduleAnchor);
-  menuAnchor?.remove();scheduleAnchor?.remove();menuAnchor=null;scheduleAnchor=null;top?.remove();top=null;wheel=null;panel=null;
+  for(const [node,anchor]of toolHomes){if(anchor.parentNode)anchor.before(node);node.classList.remove('programme-teach-tool');node.removeAttribute('data-teach-tool');anchor.remove();}toolHomes.clear();
+  menuAnchor?.remove();scheduleAnchor?.remove();menuAnchor=null;scheduleAnchor=null;top?.remove();top=null;wheel=null;panel=null;notesPanel=null;
   $('activity')?.removeAttribute('data-programme-layout');if($('activity-sessions'))$('activity-sessions').hidden=false;
  }
  function resizeNotes(){
@@ -52,9 +54,18 @@
   if(top)return;
   const menu=$('activity-menu'),schedule=$('activity-schedule'),reading=schedule.parentElement,workspace=menu.parentElement;
   menuAnchor=document.createComment('programme menu home');menu.before(menuAnchor);scheduleAnchor=document.createComment('programme timetable home');schedule.before(scheduleAnchor);
-  top=document.createElement('div');top.className='programme-top';workspace.insertBefore(top,reading);
+  top=document.createElement('div');top.className='programme-top';top.dataset.programmeMode=options.mode;workspace.insertBefore(top,reading);
   const centre=document.createElement('div');centre.className='programme-centre';
   panel=document.createElement('aside');panel.className='programme-notes';panel.setAttribute('aria-labelledby','programme-notes-title');
+  notesPanel=panel;
+  if(options.mode==='teach'){
+   panel.classList.add('programme-teach-panel');panel.removeAttribute('aria-labelledby');panel.setAttribute('aria-label','Attendance, Planner and Notes');
+   for(const [id,tool]of [['pa-main','attendance'],['activity-planning','planner']]){
+    const node=$(id);if(!node)continue;const anchor=document.createComment('Teach '+tool+' home');node.before(anchor);toolHomes.set(node,anchor);
+    node.classList.add('programme-teach-tool');node.dataset.teachTool=tool;panel.append(node);
+   }
+   notesPanel=document.createElement('section');notesPanel.className='programme-teach-notes';notesPanel.setAttribute('aria-labelledby','programme-notes-title');panel.append(notesPanel);
+  }
   top.append(menu,centre,panel);centre.append(schedule);wheel=document.createElement('div');wheel.id='programme-circle-host';schedule.append(wheel);
   $('activity').dataset.programmeLayout='true';$('activity-sessions').hidden=true;
   // Observe the source column only: fitting notes must not observe its own writes.
@@ -63,6 +74,7 @@
  }
  function render(next){
   if(!active(next.row,next.mode)){reset();return;}
+  if(top&&top.dataset.programmeMode!==next.mode)reset();
   options={...next,keys:programmeKeys(next.home,next.row,next.mode)};
   const key=currentOwner();if(key!==owner){generation++;summaries.clear();closePopup();selectedDay='';owner=key;}
   mount();if(!selectedDay||selectedDay<next.startDate||selectedDay>addDay(next.startDate,6)){
@@ -87,14 +99,14 @@
  function noteRows(){return [...summaries.entries()].flatMap(([activityKey,value])=>value.notes.map(note=>({...note,activityKey}))).sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt)||String(b.id).localeCompare(String(a.id)));}
  function noteHTML(note){return `<article class="programme-note"><button type="button" data-programme-note="${esc(note.id)}" data-programme-key="${esc(note.activityKey)}"><span>${esc(note.source?.title||'Class Note')}</span><p dir="auto">${esc(note.body)}</p><small>${esc(note.author||'')} · ${esc(noteTime(note.createdAt))}</small></button></article>`;}
  function renderNotes(){
-  if(!panel||!options)return;
+  if(!notesPanel||!options)return;
   const rows=noteRows(),loading=[...summaries.values()].some(s=>s.loading),error=[...summaries.values()].some(s=>s.error);
-  panel.innerHTML=`<header><p class="eyebrow">YOUR CLASS NOTES</p><h2 id="programme-notes-title">Notes to return to</h2><p>Latest first · Last 3 months</p></header><div class="programme-note-list">${rows.map(noteHTML).join('')||`<p role="status">${loading?'Opening your notes…':error?'Notes could not be checked.':'No current Class Notes.'}</p>`}</div><footer><button type="button" data-programme-more>View more</button>${error?'<button type="button" data-programme-retry>Retry notes</button>':''}</footer>`;
+  notesPanel.innerHTML=`<header>${options.mode==='teach'?'':'<p class="eyebrow">YOUR CLASS NOTES</p>'}<h2 id="programme-notes-title">${options.mode==='teach'?'Notes':'Notes to return to'}</h2><p>Latest first · Last 3 months</p></header><div class="programme-note-list">${rows.map(noteHTML).join('')||`<p role="status">${loading?'Opening your notes…':error?'Notes could not be checked.':'No current Class Notes.'}</p>`}</div><footer><button type="button" data-programme-more>View more</button>${error?'<button type="button" data-programme-retry>Retry notes</button>':''}</footer>`;
   fitNotes();if(popup?.dataset.programmePopup==='notes')renderPopupNotes();
  }
  function fitNotes(){
-  const list=panel?.querySelector('.programme-note-list');if(!list)return;
-  const available=Math.max(0,panel.clientHeight-(panel.querySelector('header')?.offsetHeight||0)-(panel.querySelector('footer')?.offsetHeight||0)-48);
+  const list=notesPanel?.querySelector('.programme-note-list');if(!list)return;
+  const available=Math.max(0,notesPanel.clientHeight-(notesPanel.querySelector('header')?.offsetHeight||0)-(notesPanel.querySelector('footer')?.offsetHeight||0)-(options?.mode==='teach'?32:48));
   let used=0;for(const card of list.querySelectorAll('.programme-note')){card.hidden=false;const height=card.getBoundingClientRect().height+12;card.hidden=used+height>available;if(!card.hidden)used+=height;}
  }
  async function loadNotes(more=false,force=false){
@@ -129,7 +141,7 @@
  }
  function click(event){
   const button=event.target.closest('button');if(!button||!options)return;
-  if(button.dataset.programmeDay){selectedDay=button.dataset.programmeDay;renderCircle();return;}
+  if(button.dataset.programmeDay){if(options.canChangeDay?.()===false)return;selectedDay=button.dataset.programmeDay;renderCircle();options.onDayChange?.(selectedDay);return;}
   if(button.hasAttribute('data-programme-close'))return closePopup();
   if(button.hasAttribute('data-programme-calendar'))return calendar();
   if(button.hasAttribute('data-programme-more')){modal('notes','Programme Class Notes');renderPopupNotes();return;}
@@ -139,5 +151,5 @@
  }
  window.addEventListener('m4l-class-note-saved',event=>{if(options?.keys.includes(event.detail?.activityKey)){generation++;for(const value of summaries.values())value.loading=false;void loadNotes(false,true);}});
  document.addEventListener('click',click);
- window.M4L_PROGRAMME_WORKSPACE={active,keys:programmeKeys,displayRows,render,reset};
+ window.M4L_PROGRAMME_WORKSPACE={active,keys:programmeKeys,displayRows,render,reset,day:()=>selectedDay};
 })();

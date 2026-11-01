@@ -17,7 +17,7 @@ for(const [workspace,mode,roles] of [['LEARN','learn',['STUDENT']],['TEACH','tea
  test('standalone courses stay in website delivery; Admin retains management in '+workspace,async()=>{
   const f=fixture(workspace);f.open(mode,roles);await new Promise(resolve=>setImmediate(resolve));const markup=f.nodes.get('ad-areas').innerHTML;
   assert.doesNotMatch(markup,/ad-kahf-course|course-companion|#activity\/COURSE/);
-  if(mode==='admin')assert.match(f.nodes.get('ad-hub-gateways').innerHTML,/Management/);
+  if(mode==='admin'){assert.match(markup,/ad-management-link/);assert.doesNotMatch(markup,/Admin-Learn|Admin-Teach|ad-hub-programme/);}
   else assert.match(markup,/Your assigned programmes/);
  });
 }
@@ -67,14 +67,13 @@ test('the hub shows all actual programme roles together, independently of its su
  assert.doesNotMatch(markup,/teacher-program\/learn|student-program\/teach|Not assigned|Website course|Management/);
  assert.equal(f.nodes.get('ad-title').textContent,'Your Academy dashboard');
 });
-test('programme administration keeps learner, teacher and management destinations distinct',()=>{
+test('programme administration shows only checked management links instead of programme workspace cards',()=>{
  const f=fixture('ADMIN');f.window.M4L_ACADEMY_LOGIN={contexts:()=>[{scope:'COURSE',courseId:'managed',courseName:'Managed programme',role:'PROGRAM_ADMIN'}]};
  f.window.M4L_ACADEMY_DASHBOARD.open({signedIn:true,globalAdmin:false,personalActivities:[{kind:'PROGRAM',id:'managed',name:'Managed programme',roles:['PROGRAM_ADMIN']}],personalTimetable:[]},{mode:'admin',activityHref:()=>''});
  const markup=f.nodes.get('ad-areas').innerHTML;
- assert.match(markup,/\/academy\/admin\/#activity\/PROGRAM\/managed\/learn/);
- assert.match(markup,/\/academy\/admin\/#activity\/PROGRAM\/managed\/teach/);
- assert.match(markup,/\/programs\/manage.html\?program=managed/);
- assert.equal(f.nodes.get('ad-hub-gateways').hidden,true,'Only Global Admin gets Academy-wide gateways');
+ assert.doesNotMatch(markup,/#activity|programs\/manage|Admin-Learn|Admin-Teach|Managed programme/);
+ assert.match(markup,/#administration\/media/);
+ assert.doesNotMatch(markup,/\/users\//,'Missing checked management metadata does not invent a Users destination');
 });
 
 

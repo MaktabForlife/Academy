@@ -1,0 +1,11 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import vm from 'node:vm';import {createRequire} from 'node:module';
+const {parseHTML}=createRequire(import.meta.url)('linkedom'),source=readFileSync(new URL('../../js/m4l-academy-entrance.js',import.meta.url),'utf8');
+const section=(start,end)=>source.slice(source.indexOf(start),source.indexOf(end,source.indexOf(start)));
+test('Teach programme menu drops Attendance and Planner while retaining the current native assessment below the circle',()=>{
+ const {document}=parseHTML('<html><body><section id="as-panel"></section><a id="as-close"></a><a id="as-admin-close"></a></body></html>'),opened=[],row={kind:'PROGRAM',id:'one',roles:['TEACHER']};let mode='teach';
+ const window={M4L_PROGRAMME_WORKSPACE:{active:()=>true,keys:()=>['PROGRAM:one']},M4L_ACADEMY_WORKSPACE:{current:()=>mode==='teach'?'TEACH':'LEARN',head:()=> 'accepted',readerUrl:()=> '/academy/library/'},M4L_CLASS_NOTES:{visible:()=>false},M4L_CONFIG:{},M4L_ACADEMY_ASSESSMENTS:{open:value=>opened.push(value)}};
+ const context={window,document,location:{hash:'#activity/PROGRAM/one/teach'},state:{home:{signedIn:true}},token:()=> 'synthetic-teacher',classViewKey:()=>'',programmeAssessmentKey:'',$:id=>document.getElementById(id),esc:value=>String(value??''),workspaceContext:()=>({mode,tool:'timetable'}),workspaceHref:(_row,tool)=>'#activity/PROGRAM/one/teach/'+tool,nativeAttendance:()=>true,hifzHelperLink:()=>''};
+ vm.createContext(context);vm.runInContext(section('  function roleTools(row)', '  // Shared Messages')+section('  function syncAssessment(row)', '  function syncAttendance(row)')+'\nthis.tools=roleTools;this.assessment=syncAssessment;',context);
+ const html=context.tools(row);assert(!/>Attendance</.test(html));assert(!/>Planning</.test(html));assert.match(html,/>Timetable</);assert.match(html,/>Notes</);context.assessment(row);assert.equal(document.getElementById('as-panel').hidden,false);assert.equal(opened[0].view,'teacher');assert.equal(opened[0].activityKey,'PROGRAM:one');context.assessment(row);assert.equal(opened.length,1,'Ordinary rerenders reuse the existing assessment reader');
+ mode='learn';context.location.hash='#activity/PROGRAM/one/learn';context.assessment(row);assert.equal(opened.at(-1).view,'learner');
+});

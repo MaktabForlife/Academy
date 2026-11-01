@@ -11,7 +11,7 @@ const home={signedIn:true,timezone:'Africa/Johannesburg',personalActivities:[row
 const lesson=(index=0,extra={})=>({kind:'PROGRAM',activityId:'one',activityName:'Native programme',date:'2026-11-01',status:'SCHEDULED',title:'Lesson '+index,startTime:'10:00',endTime:'11:00',startsAt:1000+index*10000,endsAt:9000+index*10000,joinAvailableAt:1000+index*10000-300000,joinKey:'native-'+index,...extra});
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
 function ui({summary=async()=>({notes:[],before:null})}={}){
- const {window,document}=parseHTML('<html><body><section id="activity"><div class="learning-workspace"><div id="activity-menu"><button data-programme-calendar>Calendar</button><button data-class-notes-toggle>Notes</button></div><div class="learning-reading"><section id="as-panel"></section><section id="activity-schedule"><div id="activity-sessions"></div></section></div></div></section></body></html>');
+ const {window,document}=parseHTML('<html><body><section id="activity"><div class="learning-workspace"><div id="activity-menu"><button data-programme-calendar>Calendar</button><button data-class-notes-toggle>Notes</button></div><div class="learning-reading"><section id="pa-main"><a id="pa-close">Close</a><h2>Attendance</h2><input value="kept register"></section><section id="activity-planning"><h2>Planner</h2><textarea>kept plan</textarea></section><section id="as-panel"></section><section id="activity-schedule"><div id="activity-sessions"></div></section></div></div></section></body></html>');
  let session='account-a',height=450,mode='LEARN',nextFrame=0;const resize=[],handlers=new Map(),calls=[],observed=[],frames=new Map();
  window.requestAnimationFrame=fn=>{frames.set(++nextFrame,fn);return nextFrame;};window.cancelAnimationFrame=id=>frames.delete(id);
  const runFrames=()=>{const work=[...frames.values()];frames.clear();for(const fn of work)fn();};
@@ -85,6 +85,22 @@ test('notes sizing observes only its source column, coalesces resize work and ca
  let writes=0;const style=panel.style;Object.defineProperty(style,'height',{configurable:true,get:()=> '600px',set(){writes++;}});
  f.notifyResize(600);f.runFrames();assert.equal(writes,0,'The same size is not written again');
  f.notifyResize(700);assert.equal(f.frames.size,1);const late=[...f.frames.values()][0];f.reset();assert.equal(f.frames.size,0);late();assert.equal(f.document.querySelector('.programme-top'),null);
+});
+
+test('Teach stacks the existing Attendance and Planner hosts above Notes, keeps their drafts and restores hosts on exit',async()=>{
+ const f=ui(),attendance=f.document.getElementById('pa-main'),planner=f.document.getElementById('activity-planning');f.setMode('TEACH');
+ f.render({mode:'teach',row:{...row,roles:['TEACHER']}});await flush();
+ const panel=f.document.querySelector('.programme-teach-panel');assert(panel);assert.equal(panel.children[0],attendance);assert.equal(panel.children[1],planner);assert.equal(panel.children[2].className,'programme-teach-notes');
+ assert.equal(attendance.querySelector('input').value,'kept register');assert.equal(planner.querySelector('textarea').value,'kept plan');
+ f.render({mode:'teach',row:{...row,roles:['TEACHER']}});await flush();assert.equal(panel.children[0],attendance);assert.equal(panel.children[1],planner);
+ assert.equal(f.document.getElementById('as-panel').parentElement.className,'learning-reading','Assessments remain below the circle');
+ f.document.getElementById('pa-close').hidden=true;f.reset();assert.equal(f.document.getElementById('pa-close').hidden,false);assert.equal(attendance.parentElement.className,'learning-reading');assert.equal(planner.parentElement.className,'learning-reading');assert.equal(planner.querySelector('textarea').value,'kept plan');
+});
+
+test('Teach day selection respects the current register guard and passes the selected date only after approval',async()=>{
+ const f=ui();let allowed=false,selected='';f.setMode('TEACH');f.render({mode:'teach',canChangeDay:()=>allowed,onDayChange:value=>selected=value});await flush();
+ f.click('[data-programme-day="2026-11-02"]');assert.equal(selected,'');assert.equal(f.window.M4L_PROGRAMME_WORKSPACE.day(),'2026-11-01');
+ allowed=true;f.click('[data-programme-day="2026-11-02"]');assert.equal(selected,'2026-11-02');assert.equal(f.window.M4L_PROGRAMME_WORKSPACE.day(),'2026-11-02');
 });
 
 test('a denied grouped programme retains only independently permitted notes',async()=>{

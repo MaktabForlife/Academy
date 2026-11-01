@@ -444,7 +444,7 @@
     if(!state.home?.signedIn||!window.M4L_ACADEMY_DASHBOARD)return;
     if(links)dashboardAdminLinks=links;
     else dashboardAdminLinks=window.M4L_ACADEMY_ADMIN_MENU?.rows(state.home)||dashboardAdminLinks;
-    window.M4L_ACADEMY_DASHBOARD.open({...state.home,personalTimetable:roleRows({...state.home,personalTimetable:state.scheduleTimetable})},{mode,
+    window.M4L_ACADEMY_DASHBOARD.open({...state.home,startDate:state.startDate||state.home.startDate,endDate:state.startDate?addWeekDays(state.startDate,6):state.home.endDate,personalTimetable:roleRows({...state.home,personalTimetable:state.scheduleTimetable})},{mode,
       activityHref:workspaceHref,adminLinks:dashboardAdminLinks,
       hifzHref:row=>{const html=hifzHelperLink(row);return html?html.match(/href="([^"]+)"/)?.[1].replace(/&amp;/g,'&'):'';},
       refreshTimetable:(force=true)=>void loadSchedule(force)});
@@ -539,13 +539,13 @@
 
   function roleTools(row) {
     if (!row.id) return catalogueTools(row);
-    const context = workspaceContext(row), tools = context.mode === 'teach'
+    const context = workspaceContext(row);let tools = context.mode === 'teach'
       ? [['timetable','Timetable','activity-schedule'],['attendance','Attendance',!nativeAttendance()&&row.kind === 'COURSE' ? 'activity-planning' : 'pa-main'],['planning','Planning','activity-planning'],['assessment','Assessment','as-panel'],['lesson-media','Lesson media','activity-lesson-media'],['library','Library','activity-library']]
       : [['timetable','Timetable','activity-schedule'],['assessment','Assessment','as-panel'],['lesson-media','Lesson media','activity-lesson-media'],['library','Library','activity-library']];
     if(row.plansRequired===false){const index=tools.findIndex(t=>t[0]==='planning');if(index>=0)tools.splice(index,1);}
     if(row.substituteOnly)tools.splice(2);
     const programme=window.M4L_PROGRAMME_WORKSPACE?.active(row,context.mode);
-    if(programme){const assessment=tools.findIndex(tool=>tool[0]==='assessment');if(assessment>=0)tools.splice(assessment,1);}
+    if(programme)tools=tools.filter(tool=>!['assessment',...(context.mode==='teach'?['attendance','planning']:[])].includes(tool[0]));
     const recorder = row.kind === 'PROGRAM' && (programme||row.id === window.M4L_CONFIG?.REBOOT_PROGRAM_ID) && !row.unavailable
       ? '<a class="workspace-recorder-pill" data-recorder-link href="/recorder/?academy=1">Voice Recorder</a>' : '';
     const courseWebsite=context.mode==='teach'?window.M4L_COURSE_COMPANION?.href(row,'course-website','teach'):'';
@@ -559,15 +559,18 @@
     const library = $('activity-library'), planning = $('activity-planning'), support = $('activity-support');
     library.hidden = !permitted || context.tool !== 'library';
     library.innerHTML = library.hidden ? '' : '<h2>Library</h2><p class="muted">Open your Academy resources or browse the public collection.</p><div class="workspace-actions"><a class="button" href="/academy/library/">This course</a><a class="button secondary" href="/academy/open-library/">Public library</a></div>';
-    planning.hidden = row.plansRequired===false || !permitted || context.mode !== 'teach' || context.tool !== 'planning';
-    planning.setAttribute('aria-labelledby',context.tool === 'attendance' ? 'activity-tab-attendance' : 'activity-tab-planning');
+    const teachingPanel=permitted&&context.mode==='teach'&&window.M4L_PROGRAMME_WORKSPACE?.active(row,context.mode);
+    planning.hidden = !teachingPanel&&(row.plansRequired===false || !permitted || context.mode !== 'teach' || context.tool !== 'planning');
+    if(teachingPanel){planning.removeAttribute('aria-labelledby');planning.setAttribute('aria-label','Planner');}
+    else planning.setAttribute('aria-labelledby',context.tool === 'attendance' ? 'activity-tab-attendance' : 'activity-tab-planning');
     support.hidden = !permitted||row.substituteOnly;
     const oldTracker = support.querySelector?.('.academy-progress-section'), trackerOpen = oldTracker?.open && oldTracker.dataset.progressActivity === `${row.kind}:${row.id}`;
     if (permitted) support.innerHTML = supportSections(row,context.mode); else support.replaceChildren();
     if (trackerOpen && context.mode === 'teach') support.querySelector('.academy-progress-section').open = true;
     if (!nativeAttendance() && context.tool === 'attendance' && row.kind === 'COURSE' && permitted && context.mode === 'teach') {
       planning.hidden = false;planning.innerHTML = '<h2>Attendance</h2><p class="muted">Course attendance tools are coming soon.</p>';
-    } else if(permitted && row.plansRequired!==false && context.mode==='teach' && context.tool==='planning') window.M4L_PLANNING?.open({hostId:'activity-planning',view:'teacher',activityKey:`${row.kind}:${row.id}`,...(planningSelection?.id===row.id?planningSelection:{})});
+    } else if(teachingPanel&&(row.plansRequired===false||row.substituteOnly))planning.innerHTML='<h2>Planner</h2><p>Lesson planning is not required for this teaching assignment.</p>';
+    else if(permitted && row.plansRequired!==false && context.mode==='teach' && (context.tool==='planning'||teachingPanel)) window.M4L_PLANNING?.open({hostId:'activity-planning',view:'teacher',activityKey:`${row.kind}:${row.id}`,...(planningSelection?.id===row.id?planningSelection:{})});
     else planning.replaceChildren();
     renderAcademyMenu();
   }
@@ -603,12 +606,13 @@
   }
 
   function syncAttendance(row) {
-    dockAttendance(attendanceHome);
-    const open = location.hash.startsWith('#activity/') && workspaceContext(row).tool === 'attendance' && (nativeAttendance()||row.kind === 'PROGRAM') && !row.unavailable && state.home?.signedIn && (state.home.globalAdmin || staffRoles(row.roles || []));
+    const context=workspaceContext(row),teachingPanel=context.mode==='teach'&&window.M4L_PROGRAMME_WORKSPACE?.active(row,context.mode);
+    if(!teachingPanel)dockAttendance(attendanceHome);
+    const open = location.hash.startsWith('#activity/') && (context.tool === 'attendance'||teachingPanel) && (nativeAttendance()||row.kind === 'PROGRAM') && !row.unavailable && state.home?.signedIn && (state.home.globalAdmin || staffRoles(row.roles || []));
     $('pa-main').hidden = !open;
     if (!open) { window.M4L_ACADEMY_SETTINGS?.reset();window.M4L_PROGRAM_ATTENDANCE?.reset(); return; }
-    $('pa-close').href = workspaceHref(row);
-    const parts=location.hash.slice(1).split('/'),target=attendanceTarget(parts,5);
+    $('pa-close').href = workspaceHref(row);$('pa-close').hidden=Boolean(teachingPanel);
+    const parts=location.hash.slice(1).split('/'),target=attendanceTarget(parts,5);if(teachingPanel&&!target.date)target.date=window.M4L_PROGRAMME_WORKSPACE.day();
     window.M4L_PROGRAM_ATTENDANCE?.open({id:row.id,...target,programs:state.home.personalActivities.filter(item=>menuActivity(item)&&(nativeAttendance()||item.kind==='PROGRAM') && (state.home.globalAdmin || staffRoles(item.roles || []))).map(item=>({id:item.id,name:item.name,role:state.home.globalAdmin?'GLOBAL_ADMIN':item.roles.find(role=>['PROGRAM_ADMIN','ADMIN','TEACHER','SENIOR'].includes(role))}))});
   }
   function attendanceTarget(parts,index){
@@ -899,7 +903,7 @@
       const media=timetableAttachments(rows);
       const displayed=window.M4L_PROGRAMME_WORKSPACE.displayRows(rows,state.home.timezone);
       state.information['programme-circle']=displayed.map(row=>({title:row.moduleName||row.subjectName||row.activityName,dailyRollup:true,lessons:[{...row,media:media.get(mediaReference(row))}]}));
-      window.M4L_PROGRAMME_WORKSPACE.render({row:state.activity,home:state.home,rows:displayed,mode:context.mode,startDate:state.startDate,bindJoins:host=>{for(const button of host.querySelectorAll('[data-join]'))joinChoices.set(button,state.information['programme-circle'][Number(button.dataset.join.split(':')[1])]?.lessons[0]);}});
+      window.M4L_PROGRAMME_WORKSPACE.render({row:state.activity,home:state.home,rows:displayed,mode:context.mode,startDate:state.startDate,canChangeDay:()=>window.M4L_PROGRAM_ATTENDANCE?.canLeave()!==false,onDayChange:()=>{if(context.mode==='teach')syncAttendance(state.activity);},bindJoins:host=>{for(const button of host.querySelectorAll('[data-join]'))joinChoices.set(button,state.information['programme-circle'][Number(button.dataset.join.split(':')[1])]?.lessons[0]);}});
     }else window.M4L_PROGRAMME_WORKSPACE?.reset();
     armScheduleClock();
   }
@@ -964,8 +968,8 @@
       const message = row.unavailable ? 'This activity is temporarily unavailable. Please try again.' : !row.roles.length ? 'Sign in with an authorised Academy account to open protected lessons and tools.' : '';
       $('activity-status').textContent = [result._cacheChecking?'Checking for updates…':result._cacheMessage||'',message,...result.warnings.filter(warning => !$('entrance-message').textContent.includes(warning))].filter(Boolean).join(' ');
       $('activity-menu').innerHTML = row.roles.length ? roleTools(row) : '';
-      if(!fresh)syncAttendance(row);
       renderActivityTimetable();
+      if(!fresh)syncAttendance(row);
       if(!fresh){syncMemorisation(row);syncAssessment(row);syncWorkspace(row);revealWorkspaceTab();}
       const mediaContext=workspaceContext(row);
       if(!fresh&&mediaContext.tool === 'lesson-media'&&location.hash.startsWith('#activity/')&&result.signedIn&&!row.unavailable&&row.roles.length)
