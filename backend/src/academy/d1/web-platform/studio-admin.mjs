@@ -20,7 +20,7 @@ async function adminProof(db,auth){
 export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_SERVICE?.fetch.bind(env.WEBSITE_PLATFORM_SERVICE)||fetch}={}){
  const db=env.ACADEMY_DB.withSession('first-primary');
  if(input.command?.action==='catalogue')return studioAccessCatalogue(db,auth,input.command);
- const activity=id(input.activityKey),mapping=await db.prepare('SELECT t.offering_id,t.kind,s.enabled,s.revision generation FROM website_platform_timetable_scopes t JOIN website_platform_access_scopes s USING(activity_key) WHERE t.activity_key=? COLLATE NOCASE').bind(activity).first();if(!mapping)throw fail('This programme has no Studio access migration.',404,'STUDIO_SCOPE_UNMAPPED');
+ const activity=id(input.activityKey),mapping=await db.prepare(`SELECT t.offering_id,t.kind,s.enabled,s.revision generation,COALESCE(ps.timezone,'Africa/Johannesburg') timezone FROM website_platform_timetable_scopes t JOIN website_platform_access_scopes s USING(activity_key) LEFT JOIN program_settings ps ON ps.activity_key=t.activity_key WHERE t.activity_key=? COLLATE NOCASE`).bind(activity).first();if(!mapping)throw fail('This programme has no Studio access migration.',404,'STUDIO_SCOPE_UNMAPPED');
  const allowed=await db.prepare(`SELECT 1 FROM website_platform_account_state a JOIN account_sessions s ON s.account_id=a.account_id COLLATE NOCASE WHERE s.session_id=? AND a.account_id=? COLLATE NOCASE AND a.active=1 AND a.admitted=1 AND a.epoch=? AND s.credential_epoch=a.epoch AND s.revoked_at IS NULL AND s.expires_at>? AND (a.global_admin=1 OR EXISTS(SELECT 1 FROM effective_activity_roles r WHERE r.account_id=a.account_id AND r.activity_key=? COLLATE NOCASE AND r.role='PROGRAM_ADMIN'))`).bind(auth.sid,auth.state.account.account_id,auth.state.account.credential_epoch,new Date().toISOString(),activity).first();
  if(!allowed)throw fail('Current Admin authority is required for this programme.',403,'ADMIN_SCOPE_REQUIRED');
  const owner=await db.prepare('SELECT * FROM website_platform_access_ownership WHERE activity_key=? COLLATE NOCASE').bind(activity).first(),command=input.command||{action:'read'};
@@ -60,7 +60,7 @@ export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_S
  if(['monthly-grid','monthly-grid-save','access-table','access-table-save'].includes(command.action)&&mapping.kind!=='TAFSEER')throw fail('Short courses use whole-course access, not monthly subscriptions.');
  // Forward only the narrow command. Supplied actor, roles and proof are ignored.
  let result=await send(command.action==='monthly-grid-save'?await validateGridClasses(db,activity,command):command);
- if(command.action==='monthly-grid')result=await gridClassMetadata(db,activity,result);
+ if(command.action==='monthly-grid')result=await gridClassMetadata(db,activity,result,{timezone:mapping.timezone});
  if(command.action==='read'&&command.accountId&&mapping.kind==='TAFSEER'&&owner?.state==='STUDIO')result.liveAllocation=await liveAllocation(db,activity,id(command.accountId));
  return {success:true,...result};
 }

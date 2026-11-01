@@ -1,5 +1,6 @@
 import {fail} from './protocol.mjs';
-export async function gridClassMetadata(db,activity,result){
+export function programmeMonth(timezone,now=Date.now()){const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit'}).formatToParts(new Date(now)).map(p=>[p.type,p.value]));return parts.year+'-'+parts.month;}
+export async function gridClassMetadata(db,activity,result,{timezone}){
  const ids=JSON.stringify(result.students.map(r=>r.accountId));
  const [classes,memberships]=(await db.batch([
   db.prepare('SELECT class_id,name,active FROM classes WHERE activity_key=? ORDER BY class_id LIMIT 201').bind(activity),
@@ -15,7 +16,7 @@ export async function gridClassMetadata(db,activity,result){
    return [month,ids.length?ids:classes.length===1?[classes[0].class_id]:[]];
   }));
  }
- return {...result,classes,surahGrantsAvailable:false,currentMonth:new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Johannesburg',year:'numeric',month:'2-digit'}).format(new Date())};
+ return {...result,classes,surahGrantsAvailable:false,currentMonth:programmeMonth(timezone)};
 }
 export async function validateGridClasses(db,activity,command){
  if(!Array.isArray(command.entries)||!command.entries.length||command.entries.length>240)throw fail('Save up to 240 month changes together.');
