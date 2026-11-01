@@ -64,7 +64,8 @@ import {programMonthlySubscriptions} from './program-monthly-subscriptions.js';
 import {d1CourseSubscriptions} from './course-subscriptions.js';
 import {managedCourseScopes} from './course-authority.js';
 import {programmeChoice} from './web-platform/navigation.mjs';
-import {dashboardSummary,dashboardChoice} from './web-platform/dashboard.mjs';
+import {dashboardSummary,dashboardChoice,dashboardJoinInput} from './web-platform/dashboard.mjs';
+import {nativeJoinOwnership} from './web-platform/native-join.mjs';
 import {authenticatedD1Account,d1Audience as audience,d1ContextEqual as contextEqual} from './session.js';
 import {openLibraryMetadataEndpoint as defaultMetadataEndpoint} from './library-metadata.js';
 
@@ -127,10 +128,23 @@ async function dispatch(request,env,options={}) {
     },
     navigation:async(session,key)=>programmeChoice(await sourceRepository.byId(session.account_id),key,env),
     destination:async(session,input)=>dashboardChoice(await sourceRepository.session(session.session_id,session.account_id,session.epoch),input),
+    lessonJoin:async(session,input)=>{
+      const state=await sourceRepository.session(session.session_id,session.account_id,session.epoch);
+      if(!state)throw rehearsalError('Your Academy session has ended.',401,'SESSION_ENDED');
+      const selected=dashboardJoinInput(state,input),context=JSON.parse(session.context_json);
+      await nativeJoinOwnership(sourceRepository.coreDb,session.account_id,selected.target);
+      const token=await createSessionToken({type:'account',aud:audience,sv:3,sid:session.session_id,accountid:session.account_id,epoch:session.epoch,scope:context.scope,courseid:context.courseId,role:context.role},env);
+      const result=await dispatch(new Request(new URL('/api/academy/lesson/join',request.url),{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token,'X-Academy-Workspace':selected.mode.toUpperCase()},body:JSON.stringify({joinKey:selected.joinKey,date:selected.date})}),env);
+      const current=await sourceRepository.session(session.session_id,session.account_id,session.epoch);
+      const permissions=value=>JSON.stringify([value.account.global_admin,value.account.substitute_grants,value.roles,value.contexts,value.subscriptions,value.monthlyMedia]);
+      if(!current||permissions(current)!==permissions(state))throw rehearsalError('Your Academy permissions changed. Refresh the timetable.',409,'ACCESS_REFRESH_REQUIRED');
+      await nativeJoinOwnership(sourceRepository.coreDb,session.account_id,selected.target);
+      return result;
+    },
     dashboard:async(session,input)=>{
       const state=await sourceRepository.session(session.session_id,session.account_id,session.epoch);if(!state)throw rehearsalError('Your Academy session has ended.',401,'SESSION_ENDED');
       const context=JSON.parse(session.context_json),token=await createSessionToken({type:'account',aud:audience,sv:3,sid:session.session_id,accountid:session.account_id,epoch:session.epoch,scope:context.scope,courseid:context.courseId,role:context.role},env);
-      const nativeScopes=(await sourceRepository.db.prepare('SELECT s.activity_key,m.offering_id,m.kind FROM json_each(?) a JOIN website_platform_access_scopes s ON s.activity_key=a.value COLLATE NOCASE JOIN website_platform_timetable_scopes m USING(activity_key) WHERE s.enabled=1').bind(JSON.stringify(state.activities.slice(0,100).map(a=>a.activity_key))).all()).results;
+      const nativeScopes=(await sourceRepository.db.prepare('SELECT s.activity_key,m.offering_id,m.kind,o.state access_owner FROM json_each(?) a JOIN website_platform_access_scopes s ON s.activity_key=a.value COLLATE NOCASE JOIN website_platform_timetable_scopes m USING(activity_key) LEFT JOIN website_platform_access_ownership o INDEXED BY website_platform_ownership_nocase ON o.activity_key=s.activity_key COLLATE NOCASE WHERE s.enabled=1').bind(JSON.stringify(state.activities.slice(0,100).map(a=>a.activity_key))).all()).results;
       return dashboardSummary(state,env,input,(path,body,mode)=>dispatch(new Request(new URL(path,request.url),{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token,'X-Academy-Workspace':mode.toUpperCase()},body:JSON.stringify(body)}),env),nativeScopes);
     },
     mint:(session,selected)=>{const context=selected||JSON.parse(session.context_json);return createSessionToken({type:'account',aud:audience,sv:3,sid:session.session_id,accountid:session.account_id,epoch:session.epoch,scope:context.scope,courseid:context.courseId,role:context.role},env);}
