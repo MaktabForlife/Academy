@@ -76,22 +76,24 @@ test('term breaks merge overlapping terms and unknown years produce no assumed h
 });
 test('teaching hours count overlapping lessons once and exclude cancelled Course sessions',()=>use(async({env,db})=>{
  const admin=await login(env),teacher='account-0003';db.prepare('DELETE FROM published_lesson_teachers WHERE account_id=?').run(teacher);
- // Keep the synthetic total independent of the date when this test is run.
+ // November's first week starts after the fixture's October publication,
+ // including all seven weekdays even after the real month changes. Keep
+ // immutable publications intact; only the test's selected month changes.
  for(const day of [0,1,2,3,4,5,6])for(const [id,start,end] of [['a','09:00','10:00'],['b','09:30','10:30']]){
   const anchor='hours-'+day+id;
   db.prepare("INSERT INTO published_lessons(activity_key,publication_id,lesson_anchor,kind,status,weekday,start_time,end_time,timezone,snapshot_json) VALUES(?,'program-publication-1',?,'LESSON','SCHEDULED',?,?,?,'Africa/Johannesburg','{}')").run(scope,anchor,day,start,end);
   db.prepare("INSERT INTO published_lesson_teachers VALUES(?,'program-publication-1',?,?)").run(scope,anchor,teacher);
  }
- const data=ok(await post(env,base+'get',{teacherId:teacher,year:2026,month:10,includeWorkload:true},admin));
+ const data=ok(await post(env,base+'get',{teacherId:teacher,year:2026,month:11,includeWorkload:true},admin));
  assert.equal(data.teachingWeek.totalMinutes,630);
  const date=data.teachingWeek.startDate;
  db.prepare("INSERT INTO published_lessons(activity_key,publication_id,lesson_anchor,kind,status,lesson_date,start_time,end_time,timezone,snapshot_json) VALUES('COURSE:subject-1','publication-1','published-hours','LESSON','SCHEDULED',?,'13:00','15:00','Africa/Johannesburg',?)").run(date,JSON.stringify({sourcesessionid:'source-hours'}));
  db.prepare("INSERT INTO published_lesson_teachers VALUES('COURSE:subject-1','publication-1','published-hours',?)").run(teacher);
- const withCourse=ok(await post(env,base+'get',{teacherId:teacher,year:2026,month:10,includeWorkload:true},admin));assert.equal(withCourse.teachingWeek.totalMinutes,750);
+ const withCourse=ok(await post(env,base+'get',{teacherId:teacher,year:2026,month:11,includeWorkload:true},admin));assert.equal(withCourse.teachingWeek.totalMinutes,750);
  db.prepare("INSERT INTO lesson_lifecycle VALUES('COURSE:subject-1','hours-cancel','publication-1','source-hours','CANCELLED',NULL,NULL)").run();
- const cancelled=ok(await post(env,base+'get',{teacherId:teacher,year:2026,month:10,includeWorkload:true},admin));assert.equal(cancelled.teachingWeek.totalMinutes,630);
+ const cancelled=ok(await post(env,base+'get',{teacherId:teacher,year:2026,month:11,includeWorkload:true},admin));assert.equal(cancelled.teachingWeek.totalMinutes,630);
  ok(await post(env,av+'save',{revision:0,accountId:teacher,ranges:[unavailable({weekdays:[0,1,2,3,4,5,6],allDay:true})],operationId:crypto.randomUUID()},admin));
- const unavailableData=ok(await post(env,base+'get',{teacherId:teacher,year:2026,month:10,includeWorkload:true},admin));assert.equal(unavailableData.teachingWeek.totalMinutes,630,'The teaching-hours display does not change the published schedule');
+ const unavailableData=ok(await post(env,base+'get',{teacherId:teacher,year:2026,month:11,includeWorkload:true},admin));assert.equal(unavailableData.teachingWeek.totalMinutes,630,'The teaching-hours display does not change the published schedule');
 }));
 
  test('Admin learner and teaching calendars preserve their context; only central Admin manages terms, holidays and other teachers',()=>use(async({env,db})=>{
@@ -126,7 +128,7 @@ test('teaching hours count overlapping lessons once and exclude cancelled Course
  const future=ok(await post(env,base+'get',{year:2027,month:10},admin)).hijriEntries.find(e=>e.id===first.id);
  ok(await save(env,{...first,annual:false},admin,first.revision));
  assert.equal((await save(env,{...future,startDate:'2027-10-09',calendarYear:2027,annualRevision:future.annualRevision},admin,future.revision)).status,409);
- const current=ok(await post(env,base+'get',{year:2026,month:10},admin)).hijriEntries.find(e=>e.id===first.id);ok(await save(env,{...current,annual:true},admin,current.revision));
+ const current=ok(await post(env,base+'get',{year:2026,month:11},admin)).hijriEntries.find(e=>e.id===first.id);ok(await save(env,{...current,annual:true},admin,current.revision));
  const pending=ok(await post(env,base+'get',{year:2028,month:10},admin)).hijriEntries.find(e=>e.id===first.id);ok(await save(env,{...pending,active:false,calendarYear:2028},admin,pending.revision));
  assert.equal(db.prepare('SELECT active FROM academy_calendar_events WHERE event_id=?').get(first.id).active,1);assert.ok(!ok(await post(env,base+'get',{year:2029,month:10},admin)).hijriEntries.some(e=>e.id===first.id));
 }));

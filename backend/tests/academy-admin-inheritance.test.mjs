@@ -15,7 +15,9 @@ async function use(fn){const f=await splitFixture(source=>{source.db.prepare("IN
   const token=await f.source.actor(who),response=await worker.fetch(new Request('http://localhost'+path,{method:'POST',headers:{Authorization:'Bearer '+token,'X-Academy-Workspace':workspace,...(classView?{'X-Academy-Class':encodeURIComponent(JSON.stringify(classView))}:{}),...(!bytes?{'Content-Type':'application/json'}:{})},body:bytes||JSON.stringify(input)}),f.source.env);
   return {status:response.status,body:response.headers.get('Content-Type')?.includes('application/json')?await response.json():await response.arrayBuffer()};
  };
- await fn(f);assert(f.costs.every(c=>c.queries<=50),JSON.stringify(f.costs.filter(c=>c.queries>50)));for(const db of Object.values(f.databases))assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
+ // D1's per-invocation cap counts a batch once; statement/row costs remain separate.
+ // https://developers.cloudflare.com/d1/platform/limits/#batch-limits
+ await fn(f);assert(f.costs.every(c=>Number.isSafeInteger(c.requests)&&c.requests<=50&&c.queries>=c.requests),JSON.stringify(f.costs));for(const db of Object.values(f.databases))assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
  }finally{f.close();}}
 test('Global and scoped Admins inherit teaching dynamically without new assignments or learner memberships',()=>use(async f=>{
  const counts=()=>['role_assignments','class_teacher_assignments','class_memberships'].map(t=>f.databases.core.prepare('SELECT count(*) n FROM '+t).get().n),before=counts();

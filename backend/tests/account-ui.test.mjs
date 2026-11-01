@@ -23,7 +23,7 @@ assert.match(html, /id="user-profiles-link" class="hidden" href="\/users\/"/);
 assert.match(html, /id="course-management-link" class="hidden" href="\/academy\/courses\/manage\/"/);
 assert.match(html, /id="course-scheduling-link" class="hidden" href="\/academy\/courses\/manage\/\?view=scheduling"/);
 assert.match(html, /id="academy-library-management-link" class="hidden" href="\/academy\/library\/manage\/"/);
-assert.match(html, /m4l-23-account\.css\?v=104\.5\.4/);
+assert.match(html,new RegExp('m4l-23-account\\.css\\?v='+JSON.parse(readFileSync(new URL('../../version.json',import.meta.url),'utf8')).version.replaceAll('.','\\.')));
 
 for (const endpoint of [
   "/api/account/check",

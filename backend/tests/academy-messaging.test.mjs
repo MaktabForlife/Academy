@@ -161,7 +161,10 @@ test('Course class sending requires delivery membership plus learning access',()
 test('the dedicated minute tick leaves cache and Hifz recovery on their original cadence',async()=>{
  const work=[],ctx={waitUntil:p=>work.push(p)},env={ACADEMY_MESSAGING:'0'};
  await worker.scheduled({cron:'* * * * *',scheduledTime:Date.now()},env,ctx);assert.equal(work.length,1);await Promise.all(work);
- work.length=0;await worker.scheduled({cron:'*/15 * * * *',scheduledTime:Date.now()},env,ctx);assert.equal(work.length,2);await Promise.all(work);
+ // Quarter-hour recovery includes messaging, cache refresh and the existing
+ // expired academic companion cleanup; the dedicated minute still runs only messaging.
+ work.length=0;await worker.scheduled({cron:'*/15 * * * *',scheduledTime:Date.now()},env,ctx);assert.equal(work.length,3);await Promise.all(work);
+ work.length=0;await worker.scheduled({cron:'7 * * * *',scheduledTime:Date.now()},env,ctx);assert.equal(work.length,0,'Disabled retention must not fall through into unrelated recovery jobs');
 });
 
 test('a Class Note changed after review cannot be silently sent under the old linked version',()=>use(async f=>{
