@@ -1,5 +1,6 @@
-import {fail,id} from './protocol.mjs';
+import {fail,id,date} from './protocol.mjs';
 import {navigationMappings} from './navigation.mjs';
+import {nativeJoinTarget} from './native-join.mjs';
 
 export function dashboardModes(state){
  if(!state?.account?.active)throw fail('Your Academy session has ended.',401,'SESSION_ENDED');
@@ -32,6 +33,18 @@ export function dashboardChoice(state,input={}){
  return {context,destination:destinations[tool]};
 }
 const fields=(value,names)=>Object.fromEntries(names.filter(k=>value[k]!==undefined).map(k=>[k,value[k]]));
+export function dashboardJoinInput(state,input){
+ if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).some(k=>!['sourceRef','issuedAt','mode','joinKey','date'].includes(k))||!['learn','teach','admin'].includes(input.mode)||typeof input.joinKey!=='string'||!input.joinKey||input.joinKey.length>1200)throw fail('Refresh the timetable and select a lesson.');
+ if(!dashboardModes(state).includes(input.mode))throw fail('This dashboard is outside your current permissions.',403);
+ const day=date(input.date);
+ return {mode:input.mode,joinKey:input.joinKey,date:day,target:nativeJoinTarget(input.joinKey,day)};
+}
+function nativeJoinReference(row,nativeScopes){
+ // The reference is not authority. A click always resolves it through the
+ // unchanged native lesson Join handler, using the current native audience.
+ if(row.status!=='SCHEDULED'||row.preview||typeof row.joinKey!=='string'||!row.joinKey||row.joinKey.length>1200||nativeScopes.some(scope=>scope.activity_key.toUpperCase()===(row.kind+':'+row.activityId).toUpperCase()&&['FROZEN','STUDIO'].includes(scope.access_owner)))return {};
+ return {nativeJoin:{joinKey:row.joinKey,date:row.sourceDate||row.date}};
+}
 export async function dashboardSummary(state,env,input,read,nativeScopes=[]){
  const availableModes=dashboardModes(state),mode=input.mode||(['admin','teach','learn'].find(m=>availableModes.includes(m)));if(!availableModes.includes(mode))throw fail('This dashboard is outside your current permissions.',403);
  const home=await read('/api/academy/entrance',{},mode),mappings=navigationMappings(env),warnings=[];
@@ -58,8 +71,8 @@ export async function dashboardSummary(state,env,input,read,nativeScopes=[]){
   mode==='admin'?optional('Enrolment requests','/api/admin/platform/enrolment/get',{}):null
  ]);
  const dueNotes=[];for(const session of notes?.sessions||[]){const lesson=timetable.find(r=>JSON.stringify([r.kind+':'+r.activityId,r.sourceDate||r.date,r.mediaSessionKey])===session.ref);if(!lesson||Number(lesson.startsAt)<=Date.now())continue;const source=session.sources?.[0];if(!source||!allowed.has(source.activityKey.toUpperCase()))continue;for(const note of session.dueNotes||[])dueNotes.push({...fields(note,['id','title','date']),activityKey:source.activityKey,activityName:source.activityName});}
- return {mode,availableModes,programmeNavigation,adminBadge:availableModes.includes('admin')?(state.account.global_admin?'Global Admin':'Admin'):null,checkedAt:Date.now(),timezone:home.timezone||'Africa/Johannesburg',startDate:home.startDate,endDate:home.endDate,activities,
-  timetable:timetable.map(r=>fields(r,['kind','activityId','activityName','date','startTime','endTime','startsAt','endsAt','status','subjectName','moduleName','title'])),
+ return {mode,availableModes,programmeNavigation,nativeJoinVersion:1,adminBadge:availableModes.includes('admin')?(state.account.global_admin?'Global Admin':'Admin'):null,checkedAt:Date.now(),timezone:home.timezone||'Africa/Johannesburg',startDate:home.startDate,endDate:home.endDate,activities,
+  timetable:timetable.map(r=>({...fields(r,['kind','activityId','activityName','date','startTime','endTime','startsAt','endsAt','joinAvailableAt','timezone','status','subjectName','moduleName','title']),...nativeJoinReference(r,nativeScopes)})),
   calendar:(home.calendarEvents||[]).slice(0,100).map(r=>fields(r,['id','title','name','description','date','startDate','endDate','type'])),
   assessments:assessments?(assessments.assessments||[]).filter(r=>allowed.has(r.activityKey?.toUpperCase())&&r.published).slice(0,200).map(r=>fields(r,['activityKey','title','phaseName','registerId','registerStatus','examDate','assessmentKind','availableFrom','dueAt','timezone','published'])):null,
   dueNotes:notes?dueNotes.slice(0,100):null,messages:messages?{counts:messages.counts,notices:messages.notices.map(r=>fields(r,['id','subject','sender','state','issuedAt','unread','requiresAcknowledgement','acknowledgedAt'])),canSend:Boolean(messages.canSend)}:null,
