@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {dashboardChoice} from '../src/academy/d1/web-platform/dashboard.mjs';
+import {dashboardChoice,dashboardSummary} from '../src/academy/d1/web-platform/dashboard.mjs';
 import {programmeChoice} from '../src/academy/d1/web-platform/navigation.mjs';
 import {selectWorkspace,guardWorkspace,readerPreview,actualRole} from '../src/academy/d1/workspace-access.js';
 import {academyDestination} from '../../academy/website-platform/connect/destinations.mjs';
@@ -58,4 +58,16 @@ test('current role removal, activity withdrawal and forged selections fail close
  assert.throws(()=>choose({...s,account:{...s.account,active:false}},'teach'),e=>e.status===401);
  assert.throws(()=>dashboardChoice(s,{mode:'teach',tool:'activity',activityKey:activity.activity_key,role:'GLOBAL_ADMIN'}));
  failure(()=>choose(s,'learn','planning'));failure(()=>choose(s,'learn','attendance'));
+});
+test('programme navigation uses current exact mappings and selected authority without changing personal summaries or read count',async()=>{
+ const global=state(true,[{scope:'PLATFORM',courseId:'',role:'GLOBAL_ADMIN'}]),env={WEBSITE_PLATFORM_NAVIGATION:JSON.stringify({alimiyah:activity.activity_id,reboot:other.activity_id})};
+ for(const mode of ['learn','teach','admin']){
+  const calls=[],read=async(path,input,selected)=>{calls.push({path,input,selected});if(path==='/api/academy/entrance')return {personalActivities:[],personalTimetable:[],calendarEvents:[]};if(path.endsWith('/list'))return {assessments:[]};if(path.endsWith('/get'))return {requests:[]};throw Error('Unexpected read '+path);};
+  const before=structuredClone(global),summary=await dashboardSummary(global,env,{mode},read);
+  assert.deepEqual(summary.programmeNavigation,[{navigationKey:'alimiyah',activityKey:activity.activity_key},{navigationKey:'reboot',activityKey:other.activity_key}]);assert.deepEqual(summary.activities,[]);assert.deepEqual(summary.timetable,[]);assert.equal(calls.length,mode==='admin'?3:2);assert.deepEqual(global,before);
+ }
+ const read=async path=>path==='/api/academy/entrance'?{personalActivities:[],personalTimetable:[]}:{assessments:[]};
+ const teacher=await dashboardSummary(state(false,[ctx('TEACHER')]),env,{mode:'teach'},read);assert.deepEqual(teacher.programmeNavigation,[{navigationKey:'alimiyah',activityKey:activity.activity_key}]);
+ const learner=await dashboardSummary(state(false,[ctx('STUDENT')]),env,{mode:'learn'},read);assert.deepEqual(learner.programmeNavigation,[{navigationKey:'alimiyah',activityKey:activity.activity_key}]);
+ const withdrawn={...global,activities:[{...activity,active:false},{...other,lifecycle:'ARCHIVED'}]};assert.deepEqual((await dashboardSummary(withdrawn,env,{mode:'teach'},read)).programmeNavigation,[]);
 });

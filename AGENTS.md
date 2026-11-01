@@ -1,4 +1,4 @@
-# Workspace separation correction — 1 November 2026
+# V109.3 workspace separation correction — 1 November 2026
 
 - Work on `feature/academy-workspace-separation`, based on verified V109.2. The owner confirmed the live Teach programme button opens Admin above Learn instead of Teach, then requested deployment once separation is fixed. This authorises the targeted matching Source/Studio correction after combined local checks; do not release a partial pair.
 - Preserve current native Admin-Learn/Admin-Teach inheritance and ordinary learner/teacher scope. Carry the selected view through the existing checked one-use connector; do not create teacher or learner grants or weaken authority checks.

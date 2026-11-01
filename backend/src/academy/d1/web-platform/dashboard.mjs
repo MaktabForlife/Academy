@@ -35,6 +35,16 @@ const fields=(value,names)=>Object.fromEntries(names.filter(k=>value[k]!==undefi
 export async function dashboardSummary(state,env,input,read,nativeScopes=[]){
  const availableModes=dashboardModes(state),mode=input.mode||(['admin','teach','learn'].find(m=>availableModes.includes(m)));if(!availableModes.includes(mode))throw fail('This dashboard is outside your current permissions.',403);
  const home=await read('/api/academy/entrance',{},mode),mappings=navigationMappings(env),warnings=[];
+ // Personal Learn/Teach activity summaries intentionally omit synthetic Admin
+ // enrolments. Programme links use exact native mappings and the same current
+ // destination guard instead of inferring IDs or roles from those summaries.
+ const programmeNavigation=['alimiyah','reboot','arabic-intensive'].flatMap(navigationKey=>{
+  const activity=state.activities.find(a=>a.kind==='PROGRAM'&&a.activity_id.toUpperCase()===mappings[navigationKey]?.toUpperCase());
+  if(!activity)return [];
+  try{dashboardChoice(state,{mode,tool:'activity',activityKey:activity.activity_key});}
+  catch(error){if(error.status===403)return [];throw error;}
+  return [{navigationKey,activityKey:activity.activity_key}];
+ });
  const activities=(home.personalActivities||[]).filter(a=>a.active!==false&&a.lifecycle!=='ARCHIVED'&&a.menuAvailable!==false&&['PROGRAM','COURSE'].includes(a.kind)&&a.roles?.length).slice(0,60).map(a=>({...fields(a,['kind','id','name','roles','substituteOnly','plansRequired']),activityKey:a.kind+':'+a.id,navigationKey:Object.keys(mappings).find(k=>mappings[k].toLowerCase()===a.id.toLowerCase())||null}));
  for(const area of activities){const mapped=nativeScopes.find(s=>s.activity_key.toUpperCase()===area.activityKey.toUpperCase());if(mapped){area.websiteOfferingId=mapped.offering_id;area.websiteKind=mapped.kind;}}
  const allowed=new Map(activities.map(a=>[a.activityKey.toUpperCase(),a]));
@@ -48,7 +58,7 @@ export async function dashboardSummary(state,env,input,read,nativeScopes=[]){
   mode==='admin'?optional('Enrolment requests','/api/admin/platform/enrolment/get',{}):null
  ]);
  const dueNotes=[];for(const session of notes?.sessions||[]){const lesson=timetable.find(r=>JSON.stringify([r.kind+':'+r.activityId,r.sourceDate||r.date,r.mediaSessionKey])===session.ref);if(!lesson||Number(lesson.startsAt)<=Date.now())continue;const source=session.sources?.[0];if(!source||!allowed.has(source.activityKey.toUpperCase()))continue;for(const note of session.dueNotes||[])dueNotes.push({...fields(note,['id','title','date']),activityKey:source.activityKey,activityName:source.activityName});}
- return {mode,availableModes,adminBadge:availableModes.includes('admin')?(state.account.global_admin?'Global Admin':'Admin'):null,checkedAt:Date.now(),timezone:home.timezone||'Africa/Johannesburg',startDate:home.startDate,endDate:home.endDate,activities,
+ return {mode,availableModes,programmeNavigation,adminBadge:availableModes.includes('admin')?(state.account.global_admin?'Global Admin':'Admin'):null,checkedAt:Date.now(),timezone:home.timezone||'Africa/Johannesburg',startDate:home.startDate,endDate:home.endDate,activities,
   timetable:timetable.map(r=>fields(r,['kind','activityId','activityName','date','startTime','endTime','startsAt','endsAt','status','subjectName','moduleName','title'])),
   calendar:(home.calendarEvents||[]).slice(0,100).map(r=>fields(r,['id','title','name','description','date','startDate','endDate','type'])),
   assessments:assessments?(assessments.assessments||[]).filter(r=>allowed.has(r.activityKey?.toUpperCase())&&r.published).slice(0,200).map(r=>fields(r,['activityKey','title','phaseName','registerId','registerStatus','examDate','assessmentKind','availableFrom','dueAt','timezone','published'])):null,

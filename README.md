@@ -1,3 +1,5 @@
+V109.3 preparation: preserve the selected Teach/Learn programme view through the checked Academy connector. Uses existing Admin audience authority without adding role grants, database queries or schema changes. Matching Studio routing and combined local acceptance are required before release; unfinished UI/editor/retention and held recordings/MOU remain excluded.
+
 V109.1: Circles dashboard and native workspace UI release. See [release details](docs/RELEASE-1091.md).
 
 # V108.6 — Combined Circles dashboard and Academy access administration
