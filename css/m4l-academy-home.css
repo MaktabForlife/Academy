@@ -4,6 +4,8 @@
 .academy-opening .container>.view{display:none!important}
 .academy-opening:not(.academy-opening-failed) #entrance-status{display:none}
 .academy-opening #academy-login{visibility:hidden}
+.academy-opening-programme:not(.academy-opening-failed) #academy-startup{position:fixed;inset:0;z-index:10000;margin:0;border:0;border-radius:0;display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:100dvh;background:var(--bg,#f8f5ef);font-family:Arial,Helvetica,sans-serif}
+.academy-opening-programme:not(.academy-opening-failed) #academy-startup .academy-startup-cards{width:min(700px,100%)}
 .academy-startup-heading{display:flex;align-items:center;gap:14px}
 .academy-startup-heading h1{font:600 clamp(22px,3vw,32px)/1.25 Arial,sans-serif;margin:0;color:var(--rose-dark)}
 #academy-startup p{color:var(--muted);margin:14px 0 24px}

@@ -929,7 +929,7 @@
       $('activity-schedule').hidden = true;
     }
     try {
-      const result = fresh || (window.M4L_ACADEMY_READ_CACHE?await dailyTimetable({id},refresh,updated=>{if(generation===state.activityGeneration&&state.activity?.id===id)void loadActivity(id,false,updated);},(error,saved)=>{if(generation!==state.activityGeneration)return;if(!saved)clearPersonal();$('activity-status').textContent=saved?'Showing saved timetable. Couldn’t check for updates.':error.message;},cached):cached||await request({id}));
+      const result = fresh || (window.M4L_ACADEMY_READ_CACHE?await dailyTimetable({id},refresh,updated=>{if(generation===state.activityGeneration&&state.activity?.id===id)void loadActivity(id,false,updated);},(error,saved)=>{if(generation!==state.activityGeneration)return;if(!saved){clearPersonal();window.M4L_ACADEMY_STARTUP?.fail();$('entrance-message').textContent=error.message;$('entrance-retry').hidden=false;}$('activity-status').textContent=saved?'Showing saved timetable. Couldn’t check for updates.':error.message;},cached):cached||await request({id}));
       if (generation !== state.activityGeneration) return;
       if (!cached||fresh) rememberPages(result);
       const row = state.activity = result.activity;
@@ -972,6 +972,7 @@
         window.M4L_LESSON_MEDIA.open({hostId:'activity-lesson-media',activityKey:row.kind+':'+row.id,learnerView:mediaContext.mode==='learn'});
       else if(!fresh)window.M4L_LESSON_MEDIA?.reset();
       if(restoreMemorisation){const saved=restoreMemorisation;restoreMemorisation=null;$('activity-sessions').scrollLeft=saved.left;const view=personalDays.get('activity-sessions');if(view){view.automaticLeft=null;view.width=$('activity-sessions').clientWidth;rememberPersonalDay('activity-sessions');}window.requestAnimationFrame?.(()=>window.scrollTo?.(0,saved.top));}
+      window.M4L_ACADEMY_STARTUP?.complete();
     } catch (error) {
       if (generation !== state.activityGeneration) return;
       pageCache.snapshot = null;
@@ -986,6 +987,7 @@
       $('pa-main').hidden = true;
       $('mp-teach-panel').hidden = true;
       window.M4L_ACADEMY_SETTINGS?.reset();window.M4L_PROGRAM_ATTENDANCE?.reset();
+      window.M4L_ACADEMY_STARTUP?.complete();
     }
   }
 
@@ -1142,7 +1144,7 @@
       if (['hifz','hifdh','progress'].includes(requested)) void Promise.resolve(opening).then(()=>{if(location.hash===hash)$('progress').scrollIntoView({block:'start'});});
     }
     if (name === 'workshops') renderWorkshops();
-    if (name === 'activity' && encodedId && state.home) { try { void loadActivity(decodeURIComponent(encodedId)); } catch { $('activity-status').textContent = 'This activity link is invalid.'; } }
+    if (name === 'activity' && encodedId && state.home) { try { void loadActivity(decodeURIComponent(encodedId)); } catch { $('activity-status').textContent = 'This activity link is invalid.'; window.M4L_ACADEMY_STARTUP?.complete(); } }
     if(name==='progress-admin'&&state.home){if(encodedId){try{void loadActivity(decodeURIComponent(encodedId));}catch{$('mp-admin-context').textContent='Invalid learning area.';}}else syncMemorisation({kind:hash.includes('/COURSE')?'COURSE':'',name:hash.includes('/COURSE')?'Courses':'Academy',roles:[],tools:{}});}
     if(name==='assessments'&&state.home){$('as-general-close').href='#workshops';void window.M4L_ACADEMY_ASSESSMENTS?.open({hostId:'as-general-host',view:'activity',kind:hash.includes('/COURSE')?'COURSE':''});}
     if(name==='assessment-admin'&&state.home){if(encodedId){try{void loadActivity(decodeURIComponent(encodedId));}catch{$('as-admin-host').textContent='Invalid learning area.';}}else syncAssessment({kind:hash.includes('/COURSE')?'COURSE':'',name:'Academy',roles:[]});}
@@ -1152,7 +1154,9 @@
     if (name === 'administration') renderAdministration();
     if(dashboardHome)renderDashboard(boundary.current()==='ADMIN'?'admin':boundary.audience().toLowerCase());
     else window.M4L_ACADEMY_DASHBOARD?.leave?.();
-    if (state.home) window.M4L_ACADEMY_STARTUP?.complete();
+    // Programme entry stays neutral through the separate checked activity read.
+    // A restored home snapshot alone is not the requested programme view.
+    if (state.home && name !== 'activity') window.M4L_ACADEMY_STARTUP?.complete();
     renderAcademyMenu();
     if (requested !== 'activity') armScheduleClock();
   }
