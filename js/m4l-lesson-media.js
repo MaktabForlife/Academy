@@ -1,7 +1,16 @@
 (() => {
  'use strict';
- let collectionModule=null,recordingView={},managementDate='',binding=null,companionEditor=null;
+ let readViewMarker=null,mediaHistoryNonce=crypto.randomUUID(),nativeReader=null,collectionModule=null,recordingView={},managementDate='',binding=null,companionEditor=null;
  void import('./m4l-recording-collections.mjs').then(module=>{collectionModule=module;render();});
+ const nativeReaderReady=import('./m4l-native-playlist-view.mjs').then(({nativePlaylistReader,recordingViewMarker})=>{readViewMarker=recordingViewMarker;nativeReader=nativePlaylistReader({request:(action,input)=>api(action,{...input,view:'learner'},{playlist:true}),isCurrent:()=>active(),onChange:()=>render()});});
+ const currentMediaRows=()=>[...new Map([...(data?.lessons||[]),...(nativeReader?.state().selected?.recordings||[])].map(row=>[row.id,row])).values()];
+ function rememberRecordingView(playlistId=nativeReader?.state().selected?.playlist.id||null,replace=false){if(!active())return;const value={...(window.history?.state||{}),m4lRecordingView:{nonce:mediaHistoryNonce,activityKey,view:{...recordingView},playlistId}};window.history?.[replace?'replaceState':'pushState'](value,'');}
+ async function restoreRecordingView(){
+  const saved=readViewMarker?.(window.history?.state?.m4lRecordingView,{nonce:mediaHistoryNonce,activityKey});if(!saved||!active())return;recordingView=saved.view;
+  if(saved.playlistId&&nativeReader?.state().selected?.playlist.id!==saved.playlistId)await nativeReader.open({activityKey,playlistId:saved.playlistId,limit:30});else if(!saved.playlistId)nativeReader?.back();
+  if(!active())return;render();if(recordingView.lesson){const [id,assetId]=JSON.parse(recordingView.lesson);await recordingPage(currentMediaRows().find(row=>row.id===id),{assetId});}
+ }
+ window.addEventListener('popstate',()=>{void restoreRecordingView();});
  const separated=()=>window.M4L_CONFIG?.MEDIA_SEPARATION===true;
  const token=()=>localStorage.getItem('m4l_account_token')||'';
  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -18,7 +27,7 @@
  async function api(action,input,options={}){
   input={activityKey,...input};
   if(learnerView)input={...input,view:'learner'};
-  const current=session,g=generation,response=await fetch(`${window.M4L_CONFIG?.API_BASE||''}/api/academy/lesson-media/${action}${options.upload?'?metadata='+encodeURIComponent(JSON.stringify(input)):''}`,{method:'POST',headers:{Authorization:'Bearer '+current,...(!options.upload?{'Content-Type':'application/json'}:{})},body:options.upload?options.upload:JSON.stringify(input)});
+  const current=session,g=generation,response=await fetch(`${window.M4L_CONFIG?.API_BASE||''}/api/academy/${options.playlist?'media-playlists':'lesson-media'}/${action}${options.upload?'?metadata='+encodeURIComponent(JSON.stringify(input)):''}`,{method:'POST',headers:{Authorization:'Bearer '+current,...(!options.upload?{'Content-Type':'application/json'}:{})},body:options.upload?options.upload:JSON.stringify(input)});
   if(!active(g)||current!==session)throw Error('The Academy account has changed.');
   if(options.blob&&response.ok)return response.blob();
   const result=await response.json();if(!response.ok||!result.success){if(response.status===401)window.dispatchEvent(new Event('m4l-academy-session-ended'));throw Object.assign(Error(result.error||'Lesson media is temporarily unavailable.'),{status:response.status,code:result.code});}return result;
@@ -54,8 +63,10 @@
  function render(){
   if(!host)return;
   if(data?.kind==='PROGRAM'&&collectionModule){
-   clearTimeout(expiryTimer);const now=Date.now(),deadlines=(data.lessons||[]).flatMap(r=>[...(r.assets||[]).map(a=>Date.parse(a.expiresAt)),...(r.recordingCompanions||[]).map(c=>Date.parse(c.companionExpiresAt))]).filter(d=>Number.isFinite(d)&&d>now);if(deadlines.length)expiryTimer=setTimeout(()=>{expiryTimer=null;if(cacheScope)cache()?.invalidate(cacheScope);if(recordingView.lesson){const [id,assetId]=JSON.parse(recordingView.lesson);void recordingPage(data?.lessons.find(r=>r.id===id),{assetId});}else render();},Math.min(2147483647,Math.max(1,Math.min(...deadlines)-now+20)));
-   host.innerHTML=`<div class="lm-heading"><h2>Lesson media</h2><div class="lm-actions">${addMediaButton()}<button type="button" class="button secondary" data-lm="refresh"${calendarLoading?' disabled':''}>Refresh</button></div></div>${calendarError?`<p role="alert">${esc(calendarError)}</p>`:''}${collectionModule.recordingCollectionHTML(data.lessons||[],recordingView)}${data.before?'<button type="button" class="button secondary" data-lm="more">Load earlier recordings</button>':''}${rowsForMaterials().length?'<section><h3>Lesson materials</h3>'+data.sessions.filter(r=>r.media?.canView&&r.media.assets.some(a=>a.kind==='PDF')&&!r.media.assets.some(isVideo)).map(mediaCard).join('')+'</section>':''}${data.canManage?`<details${managementDate?' open':''}><summary>Manage media</summary><div class="lm-media-rail">${rowsForManagement().map(mediaCard).join('')||'<p>No saved media yet. Choose Add media to begin.</p>'}</div></details>`:''}`;
+   const native=nativeReader?.state(),selected=native?.selected,nativeIds=new Set((native?.catalogue?.playlists||[]).map(p=>p.id)),legacy=(data.lessons||[]).filter(row=>!nativeIds.has(row.playlistId)),collection=selected?collectionModule.nativePlaylistContentsHTML(selected,recordingView):collectionModule.recordingCollectionHTML(legacy,recordingView),catalogue=selected||recordingView.group?'':collectionModule.nativePlaylistTableHTML(native?.catalogue);
+   const nativeCollection=selected?collection+(selected.before?'<button type="button" class="button secondary" data-lm="native-recordings-more">Load more recordings</button>':''):catalogue+(legacy.length?(catalogue?'<details class="lm-legacy-recordings"><summary>Other and historical recordings</summary>'+collection+'</details>':collection):'');
+   clearTimeout(expiryTimer);const now=Date.now(),deadlines=currentMediaRows().flatMap(r=>[...(r.assets||[]).map(a=>Date.parse(a.expiresAt)),...(r.recordingCompanions||[]).map(c=>Date.parse(c.companionExpiresAt))]).filter(d=>Number.isFinite(d)&&d>now);if(deadlines.length)expiryTimer=setTimeout(()=>{expiryTimer=null;if(cacheScope)cache()?.invalidate(cacheScope);if(recordingView.lesson){const [id,assetId]=JSON.parse(recordingView.lesson);void recordingPage(currentMediaRows().find(r=>r.id===id),{assetId});}else render();},Math.min(2147483647,Math.max(1,Math.min(...deadlines)-now+20)));
+   host.innerHTML=`<div class="lm-heading"><h2>Lesson media</h2><div class="lm-actions">${addMediaButton()}<button type="button" class="button secondary" data-lm="refresh"${calendarLoading?' disabled':''}>Refresh</button></div></div>${calendarError?`<p role="alert">${esc(calendarError)}</p>`:''}${native?.pending?'<p role="status">Loading playlists…</p>':''}${native?.error?'<p role="alert">'+esc(native.error)+'</p>':''}${nativeCollection}${!selected&&data.before?'<button type="button" class="button secondary" data-lm="more">Load earlier recordings</button>':''}${rowsForMaterials().length?'<section><h3>Lesson materials</h3>'+data.sessions.filter(r=>r.media?.canView&&r.media.assets.some(a=>a.kind==='PDF')&&!r.media.assets.some(isVideo)).map(mediaCard).join('')+'</section>':''}${data.canManage?`<details${managementDate?' open':''}><summary>Manage media</summary><div class="lm-media-rail">${rowsForManagement().map(mediaCard).join('')||'<p>No saved media yet. Choose Add media to begin.</p>'}</div></details>`:''}`;
    return;
   }
   const previous=host.querySelector('.lm-media-rail'),scroll=previous?.scrollLeft||0;
@@ -85,7 +96,7 @@
     else data=result;
    }
    calendarLoading=false;
-   if(scope&&!managementDate)cache()?.write(scope,data,head(),ticket);render();if(recordingView.lesson){const [id,assetId]=JSON.parse(recordingView.lesson);void recordingPage(data?.lessons.find(r=>r.id===id),{assetId});}
+   if(scope&&!managementDate)cache()?.write(scope,data,head(),ticket);render();if(recordingView.lesson){const [id,assetId]=JSON.parse(recordingView.lesson);void recordingPage(currentMediaRows().find(r=>r.id===id),{assetId});}
   }catch(error){if(active(g)&&request===calendarRequest){calendarLoading=false;calendarError=error.message;if([401,403,404].includes(error.status)||['MEDIA_NOT_ENABLED','MEDIA_FORBIDDEN'].includes(error.code)){if(scope)cache()?.invalidate(scope);data=null;}render();}}
  }
  async function start(){
@@ -94,11 +105,11 @@
   cacheScope=owner?{owner,workspace:area,classView,activityKey,runId,learnerView}:null;
   const saved=cacheScope&&cache()?.read(cacheScope,head());
   if(saved){data=saved.data;render();}
-  await load();
+  await load();if(!active(g))return;await nativeReaderReady;if(active(g)&&data?.kind==='PROGRAM')await nativeReader.loadList({activityKey,limit:50});if(active(g))rememberRecordingView(null,true);
  }
 
  async function openBinding(){
-  if(data?.kind==='PROGRAM'){const g=generation;try{if(!window.M4L_ACADEMY_PLAYLISTS)await import('./m4l-academy-playlists.js');if(!active(g))return;const result=await window.M4L_ACADEMY_PLAYLISTS.createRecording({activityKey});if(result&&active(g)){await load({force:true});await edit({id:result.lessonId,title:'Playlist recording'});}}catch(error){if(active(g)){calendarError=error.message;render();}}return;}
+  if(data?.kind==='PROGRAM'){const g=generation;try{if(!window.M4L_ACADEMY_PLAYLISTS)await import('./m4l-academy-playlists.js');if(!active(g))return;const result=await window.M4L_ACADEMY_PLAYLISTS.createRecording({activityKey,playlistId:nativeReader?.state().selected?.playlist.id});if(result&&active(g)){await load({force:true});await edit({id:result.lessonId,title:'Playlist recording'});}}catch(error){if(active(g)){calendarError=error.message;render();}}return;}
   const dg=modal('Add media','<p>Loading native media choices…</p>');if(dg===null)return;
   binding={operationId:crypto.randomUUID(),request:0};await bindingChoices('',dg);
  }
@@ -136,10 +147,10 @@
   dialog.innerHTML=`<div class="lm-modal-head"><h2 id="lm-dialog-title">${esc(title)}</h2><button type="button" class="button secondary small academy-close" data-lm="close" title="Close">Close</button></div><p data-lm-dialog-message class="lm-message" role="status" aria-live="polite"></p><div data-lm-dialog-body>${body}</div>`;
   dialog.addEventListener('cancel',e=>{e.preventDefault();close();});dialog.addEventListener('click',handleClick);dialog.addEventListener('submit',handleSubmit);dialog.addEventListener('input',event=>{const form=event.target.closest('[data-lm-form]');if(form){form.dataset.changed='true';dirty=true;}});document.body.appendChild(dialog);dialog.showModal();return dialogGeneration;
  }
- async function recordingPage(row,{play=false,start=0,assetId}={}){
+ async function recordingPage(row,{play=false,start=0,assetId,remember=false}={}){
   if(!row||!active())return;
   const g=generation,asset=row.assets?.find(a=>isVideo(a)&&(!assetId||a.id===assetId));if(!asset)return;
-  recordingView.lesson=JSON.stringify([row.id,asset.id]);const selectedKey=recordingView.lesson;render();
+  recordingView.lesson=JSON.stringify([row.id,asset.id]);const selectedKey=recordingView.lesson;if(remember)rememberRecordingView();render();
   const body=host.querySelector('[data-lm-recording-companion]'),topicHost=host.querySelector('[data-lm-recording-topics]');if(!body||!topicHost){delete recordingView.lesson;return;}
   try{
    const result=await api('companion',{lessonId:row.id,assetId:asset.id});if(!active(g)||recordingView.lesson!==selectedKey)return;
@@ -150,7 +161,7 @@
   }catch(error){if(active(g)&&recordingView.lesson===selectedKey)body.textContent=error.message;}
   if(!active(g)||recordingView.lesson!==selectedKey)return;
   const mount=host.querySelector('[data-lm-recording-player]');
-  if(!videoExpired(asset))await collectionModule.presentRecordingPlayback(()=>recordingPlayback(row,asset.id,mount,{play,start}),{isCurrent:()=>active(g)&&recordingView.lesson===selectedKey&&mount?.isConnected,report:message=>mount.textContent=message});
+  if(!videoExpired(asset)&&recordingView.tab!=='read')await collectionModule.presentRecordingPlayback(()=>recordingPlayback(row,asset.id,mount,{play,start}),{isCurrent:()=>active(g)&&recordingView.lesson===selectedKey&&mount?.isConnected,report:message=>mount.textContent=message});
  }
  async function recordingPlayback(row,assetId,mount,{play=true,start=0}={}){
   const currentPlayer=mount?.querySelector('video,iframe');
@@ -314,7 +325,7 @@
   }
  }
  function handleClick(event){
-  const b=event.target.closest('[data-lm]');if(!b)return;const action=b.dataset.lm,row=(b.dataset.key?data?.sessions?.find(r=>r.sessionKey===b.dataset.key)?.media:null)||data?.lessons?.find(r=>r.id===b.dataset.id)||data?.sessions?.map(r=>r.media).find(r=>r?.id===b.dataset.id)||(b.dataset.id&&data?.courseFiles?.media?.id===b.dataset.id?data.courseFiles.media:null);
+  const b=event.target.closest('[data-lm]');if(!b)return;const action=b.dataset.lm,row=(b.dataset.key?data?.sessions?.find(r=>r.sessionKey===b.dataset.key)?.media:null)||currentMediaRows().find(r=>r.id===b.dataset.id)||data?.sessions?.map(r=>r.media).find(r=>r?.id===b.dataset.id)||(b.dataset.id&&data?.courseFiles?.media?.id===b.dataset.id?data.courseFiles.media:null);
   if(action==='close'){close();return;}if(separated()&&['discussion','comments-refresh','comment-cancel','reply','comment-edit','moderate'].includes(action))return;if(busy)return;
   if(action==='binding-open'){void openBinding();return;}
   if(action==='binding-refresh'){const form=dialog.querySelector('[data-lm-form=binding-create]');if(!binding||!form)return;const values=new FormData(form);binding.operationId=crypto.randomUUID();void bindingChoices(values.get('classId')||'',dialogGeneration,values);return;}
@@ -327,16 +338,21 @@
   if(action==='context-open'){void openRecordedContext();return;}
   if(action==='context-cancel'){if(contextUnfinished()&&!window.confirm('Discard your unfinished one-day correction?'))return;dialog.querySelector('[data-lm-context]').replaceChildren();syncDirty();modalMessage('');return;}
   if(action==='context-reset'){void saveRecordedContext(b.closest('[data-lm-form=context]'),true);return;}
-  if(action==='recording-group'){recordingView={group:b.dataset.group};render();return;}
-  if(action==='recording-groups'){recordingView={};render();return;}
-  if(action==='recording-list'){delete recordingView.lesson;render();return;}
-  if(action==='recording-lesson'){void recordingPage(data?.lessons.find(r=>r.id===b.dataset.id),{play:true,assetId:b.dataset.asset});return;}
-  if(action==='recording-play'||action==='recording-seek'){const lesson=data?.lessons.find(r=>r.id===b.dataset.id),start=Number(b.dataset.start)||0;if(lesson&&Number.isInteger(start)&&start>=0&&start<=86400)void recordingPlayback(lesson,b.dataset.asset,host.querySelector('[data-lm-recording-player]'),{start}).catch(e=>{const mount=host?.querySelector('[data-lm-recording-player]');if(active()&&mount)mount.textContent=e.message;});return;}
+  if(action==='native-playlist-open'){recordingView={group:JSON.stringify(['playlist',activityKey,b.dataset.id])};rememberRecordingView(b.dataset.id);void nativeReader.open({activityKey,playlistId:b.dataset.id,limit:30});return;}
+  if(action==='native-playlist-more'){void nativeReader.loadList({activityKey,limit:50,before:nativeReader.state().catalogue.before},{more:true});return;}
+  if(action==='native-recordings-more'){const selected=nativeReader.state().selected;void nativeReader.open({activityKey,playlistId:selected.playlist.id,limit:30,before:selected.before},{more:true});return;}
+  if(action==='recording-group'){recordingView={group:b.dataset.group};rememberRecordingView(null);render();return;}
+  if(action==='recording-groups'){recordingView={};nativeReader?.back();rememberRecordingView(null);render();return;}
+  if(action==='recording-list'){delete recordingView.lesson;rememberRecordingView();render();return;}
+  if(action==='recording-tab'){recordingView.tab=b.dataset.tab==='read'?'read':'listen';rememberRecordingView();const detail=host.querySelector('.lm-recording-detail');if(detail){detail.dataset.mode=recordingView.tab;for(const tab of detail.querySelectorAll('[data-lm=recording-tab]'))tab.setAttribute('aria-current',tab.dataset.tab===recordingView.tab?'page':'false');if(recordingView.tab==='listen'&&recordingView.lesson){const [id,assetId]=JSON.parse(recordingView.lesson),row=currentMediaRows().find(row=>row.id===id),mount=host.querySelector('[data-lm-recording-player]');if(row&&!mount?.firstElementChild)void recordingPlayback(row,assetId,mount,{play:false}).catch(error=>{if(active()&&mount?.isConnected)mount.textContent=error.message;});}}else render();return;}
+  if(action==='recording-read'){recordingView.tab='read';void recordingPage(currentMediaRows().find(r=>r.id===b.dataset.id),{assetId:b.dataset.asset,remember:true});return;}
+  if(action==='recording-lesson'){void recordingPage(currentMediaRows().find(r=>r.id===b.dataset.id),{play:true,assetId:b.dataset.asset,remember:true});return;}
+  if(action==='recording-play'||action==='recording-seek'){const lesson=currentMediaRows().find(r=>r.id===b.dataset.id),start=Number(b.dataset.start)||0;if(lesson&&Number.isInteger(start)&&start>=0&&start<=86400)void recordingPlayback(lesson,b.dataset.asset,host.querySelector('[data-lm-recording-player]'),{start}).catch(e=>{const mount=host?.querySelector('[data-lm-recording-player]');if(active()&&mount)mount.textContent=e.message;});return;}
   if(action==='chat-soon'){modal('Chat coming soon','<p>Lesson chat is coming soon.</p>');return;}
   if(action==='rail-previous'||action==='rail-next'){const rail=host.querySelector('.lm-media-rail');rail?.scrollBy({left:(action==='rail-next'?1:-1)*rail.clientWidth,behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'});return;}
   if(action==='more'&&data?.before)void load({more:true});
   if(action==='calendar-session')void selectSession(data?.sessions.find(row=>row.sessionKey===b.dataset.key));
-  if(action==='refresh')void load();
+  if(action==='refresh'){const g=generation,id=nativeReader?.state().selected?.playlist.id;void load({force:true}).then(async()=>{if(!active(g)||data?.kind!=='PROGRAM')return;await nativeReaderReady;await nativeReader.loadList({activityKey,limit:50},{force:true});if(active(g)&&id)await nativeReader.open({activityKey,playlistId:id,limit:30});});}
   if(action==='note-withdraw'&&noteContext&&window.confirm(b.dataset.scope==='RECURRING'?'Withdraw this PDF from every occurrence of this session? Its previous files remain in history.':'Withdraw this PDF note? Its previous file remains in history.')){void(async()=>{try{if(noteContext.media?.canCurateNotes){await mutate('note-withdraw',{operationId:crypto.randomUUID(),noteId:b.dataset.note,revision:Number(b.dataset.revision)});return;}const option=await noteOptions();await mutate('note-withdraw',{operationId:crypto.randomUUID(),noteId:b.dataset.note,revision:Number(b.dataset.revision),sessionKey:option.session.sessionKey,sessionVersion:option.session.sessionVersion,startDate:option.session.date,endDate:option.session.date,runId:option.session.runId});}catch(e){modalMessage(e.message,true);}})();}
   if(action==='course-files'){const row=data?.courseFiles?.media;if(row)void edit(row);else if(data?.courseFiles?.canManage){const dg=modal('Course PDFs','<p>Opening Course PDFs…</p>');if(dg!==null)void mutate('course-files-create',{operationId:crypto.randomUUID()});}}
   if(action==='retain-recording'&&editor){void mutate('video-retain',{lessonId:editor.lesson.id,assetId:b.dataset.asset,revision:editor.lesson.revision,operationId:crypto.randomUUID()});return;}
@@ -355,12 +371,12 @@
   if(action==='moderate'){const c=discussion.comments.find(c=>c.id===b.dataset.comment);if(!c)return;if(b.dataset.decision==='DELETE'&&!window.confirm('Remove this comment?'))return;void mutate('comment-moderate',{operationId:crypto.randomUUID(),lessonId:discussion.row.id,commentId:c.id,revision:c.revision,decision:b.dataset.decision});}
   if(action==='retry'&&retry)void retry();
  }
- function reset(){window.M4L_ACADEMY_PLAYLISTS?.cancelRecording?.();managementDate='';for(const video of host?.querySelectorAll('video')||[])video.pause();recordingView={};clearTimeout(expiryTimer);expiryTimer=null;generation++;calendarRequest++;calendarLoading=false;calendarError='';cacheScope=null;close(true);if(host){host.removeEventListener('click',handleClick);host.removeEventListener('submit',handleSubmit);host.replaceChildren();host.classList.remove('lm-calendar','lm-rails');host.hidden=true;}host=null;session='';data=null;}
+ function reset(){window.M4L_ACADEMY_PLAYLISTS?.cancelRecording?.();mediaHistoryNonce=crypto.randomUUID();nativeReader?.clear();managementDate='';for(const video of host?.querySelectorAll('video')||[])video.pause();recordingView={};clearTimeout(expiryTimer);expiryTimer=null;generation++;calendarRequest++;calendarLoading=false;calendarError='';cacheScope=null;close(true);if(host){host.removeEventListener('click',handleClick);host.removeEventListener('submit',handleSubmit);host.replaceChildren();host.classList.remove('lm-calendar','lm-rails');host.hidden=true;}host=null;session='';data=null;}
  window.M4L_LESSON_MEDIA={async manage({hostId,activityKey:key,lessonId}){
   if(!close())return;reset();host=document.getElementById(hostId);if(!host||!token())return;
   activityKey=key;session=token();context=workspace();data={sessions:[],lessons:[]};learnerView=false;runId='';
   await edit({id:lessonId,title:'Lesson media'});
- },canLeave:()=> (window.M4L_ACADEMY_PLAYLISTS?.canLeaveRecording?.()??true)&&close(),reset,openAttachment({hostId,lesson,kind}){
+ },canLeave:()=>window.M4L_ACADEMY_PLAYLISTS?.canLeaveRecording?.()!==false&&close(),reset,openAttachment({hostId,lesson,kind}){
   const target=document.getElementById(hostId);
   if(!target||!token()||!lesson||!['YOUTUBE','MP4','PDF'].includes(kind)||!lesson.assets?.length||!close())return;
   reset();host=target;session=token();context=workspace();activityKey=lesson.activityKey;learnerView=true;data={lessons:[lesson]};
