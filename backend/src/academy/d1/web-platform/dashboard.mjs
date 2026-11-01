@@ -27,7 +27,7 @@ export function dashboardChoice(state,input={}){
  }
  const candidates=mode==='admin'?['GLOBAL_ADMIN','PROGRAM_ADMIN','ADMIN']:mode==='teach'?['TEACHER','SENIOR','SUBSTITUTE']:['STUDENT','MEDIA_READER'];
  context=state.contexts.find(c=>candidates.includes(c.role))||state.contexts[0];if(!context)throw fail('Your Academy session has ended.',401);
- const destinations={home:base+(mode==='admin'?'#administration':'#timetable/'+mode),messages:base+'?circlesTool=messages'+(mode==='admin'?'#administration':'#timetable/'+mode),library:'/academy/library/?workspace='+mode.toUpperCase(),calendar:'/academy/calendar/?view='+mode,progress:mode==='admin'?base+'#progress-admin':mode==='learn'?base+'#progress':null,enrolments:mode==='admin'?'/academy/enrolment/manage/?view=requests':null,curriculum:mode==='admin'?base+'#administration/curriculum':null,recorder:'/recorder/?academy=1'};
+ const destinations={home:base+(mode==='admin'?'#administration':'#timetable/'+mode),messages:base+'?circlesTool=messages'+(mode==='admin'?'#administration':'#timetable/'+mode),library:'/academy/library/?workspace='+mode.toUpperCase(),calendar:'/academy/calendar/?view='+mode,progress:mode==='admin'?base+'#progress-admin':mode==='learn'?base+'#progress':null,enrolments:mode==='admin'?'/academy/enrolment/manage/?view=requests':null,curriculum:mode==='admin'?base+'#administration/curriculum':null,access:mode==='admin'?base+'#administration/access':null,recorder:'/recorder/?academy=1'};
  if(!Object.hasOwn(destinations,tool)||!destinations[tool])throw fail('This tool is unavailable in the selected dashboard.',403);
  return {context,destination:destinations[tool]};
 }

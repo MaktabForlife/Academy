@@ -5,6 +5,13 @@
 - MOU independent playlists are now authorised for local implementation by Circles: assigned playlist month unlocks the whole playlist; no Academy subject dependency. Preserve current rights, identity/session/epoch, live Join gates and original recording metadata; wait for the final reviewed Target handoff.
 - Root alone deploys the matching Academy API/coordinator/Pages and Studio runtime/assets. No Git push, automatic real recording attachment/publication, guessed dates, hosted SQL scans, DNS changes or dependency upgrades. Keep live checks small. Actual MOU/academic publication remains manual/held.
 - Retention and content media must share exact per-lesson PDF limits, hiding purging/deleted PDFs from counts and readers without discarding legacy or accepted-publication checks. Core0021, Core0022 and Admin0003 are additive local prerequisites; no hosted migration has occurred here.
+# Complete Circles next UI composition — 1 November 2026
+
+- Active local composition is `feature/circles-next-ui-1093`, starting at the verified Source078bcc8b/Targetf4e2f3ed pair. Complete all canonical next-UI register items and the owner's later corrections, preserving the V109.3 mode-scoped routing fix and approved9043design.
+- Circles owns shared UI and the native Source Access catalogue/consumer; migration owns independent review and the bounded three-month ClassNotes summary API. Dedicated Academy editor and Studio media-linking chats own their newer native media/Teacher contracts. Build features supplied the tested editor+retention compositiond8f8b582. Integrate tested handoffs rather than duplicate native work.
+- Root has conditional approval to deploy only when all comments since V109.2 and remaining work are integrated and tested, proposedV109.4. Root owns the final matching-version Academy/Studio release and live activation; no deployment, push, hosted SQL, real media attachment/publication, notice/deletion or permission changes are authorised in this UI checkout.
+- Retain current native accounts/roles, sensitive Admin checks,43200/43200/60, exact Join window, account/epoch/ownership/unsaved guards, bounded reads and original acquired rights/media. Never ship sample bootstrap/catalogues/private author packages or infer authority from UI metadata. Keep held MOU/academic content manual and unpublished until individually authorised.
+
 # Current Access management UI — local only, 1 November 2026
 
 - Owner requested an Access management UI for Tafseer, Mothers of the Ummah and Courses. Work on `feature/circles-access-management-ui` from deployed Source078bcc8b, paired with the disposable Target review helper from deployedf4e2f3ed.
