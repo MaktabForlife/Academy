@@ -46,7 +46,7 @@
     async function view(name){
      if(!current()||!canLeave())return false;clearEditors();body.replaceChildren();
      for(const button of tabs.querySelectorAll('button'))button.setAttribute('aria-pressed',String(button.dataset.accessView===name));
-     if(name==='matrix')await window.M4L_PROGRAM_MONTHLY.mount(body,row.activityKey.slice(8),{transport,label:areas[s.area].title});
+     if(name==='matrix')await window.M4L_PROGRAM_MONTHLY.mount(body,row.activityKey.slice(8),{transport,label:areas[s.area].title,...(s.area==='mothers'?{description:'Paid months unlock open playlists during that month and completed playlists closed in that month. Existing historical recording rights remain unchanged.'}:{})});
      else if(name==='playlists')await window.M4L_MOU_PLAYLISTS.mount(body,{transport:command=>transport(command.action,command)});
      else if(name==='surahs')await window.M4L_PROGRAM_SURAHS.mount(body,row.activityKey.slice(8),{transport});
      else {const editor=window.M4L_STUDIO_ACCESS.attach(body,row.activityKey);await editor?.loading;}
