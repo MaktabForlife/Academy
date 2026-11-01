@@ -23,7 +23,7 @@
  }
  window.M4L_PROGRAMME_WORKSPACE_MODEL={programmeKeys,displayRows,dayRows,sectorPath};
  const $=id=>document.getElementById(id),addDay=(day,n)=>new Date(Date.parse(day+'T12:00:00Z')+n*86400000).toISOString().slice(0,10);
- let options=null,owner='',generation=0,selectedDay='',top=null,wheel=null,panel=null,popup=null,observer=null,menuAnchor=null,scheduleAnchor=null;
+ let options=null,owner='',generation=0,selectedDay='',top=null,wheel=null,panel=null,popup=null,observer=null,layoutFrame=0,menuAnchor=null,scheduleAnchor=null;
  const summaries=new Map();
  const currentOwner=()=>JSON.stringify([token(),window.M4L_ACADEMY_WORKSPACE?.current(),window.M4L_ACADEMY_WORKSPACE?.classView(),window.M4L_ACADEMY_WORKSPACE?.head(),options?.keys]);
  const active=(row,mode)=>window.M4L_ACADEMY_WORKSPACE?.current()!=='ADMIN'&&row?.kind==='PROGRAM'&&row.roles?.length&&!row.unavailable&&['learn','teach'].includes(mode);
@@ -32,10 +32,21 @@
  function closePopup(){if(popup){popup.close();popup.remove();popup=null;}}
  function reset(){
   generation++;summaries.clear();owner='';selectedDay='';options=null;closePopup();observer?.disconnect();observer=null;
+  if(layoutFrame)window.cancelAnimationFrame(layoutFrame);layoutFrame=0;
   if(menuAnchor?.parentNode&&$('activity-menu'))menuAnchor.parentNode.insertBefore($('activity-menu'),menuAnchor);
   if(scheduleAnchor?.parentNode&&$('activity-schedule'))scheduleAnchor.parentNode.insertBefore($('activity-schedule'),scheduleAnchor);
   menuAnchor?.remove();scheduleAnchor?.remove();menuAnchor=null;scheduleAnchor=null;top?.remove();top=null;wheel=null;panel=null;
   $('activity')?.removeAttribute('data-programme-layout');if($('activity-sessions'))$('activity-sessions').hidden=false;
+ }
+ function resizeNotes(){
+  if(!top||layoutFrame)return;
+  const mounted=top,centre=top.querySelector('.programme-centre');
+  layoutFrame=window.requestAnimationFrame(()=>{
+   layoutFrame=0;if(top!==mounted)return;
+   const height=Math.max(320,Math.round(centre.getBoundingClientRect().height))+'px';
+   if(panel.style.height!==height)panel.style.height=height;
+   fitNotes();
+  });
  }
  function mount(){
   if(top)return;
@@ -46,7 +57,9 @@
   panel=document.createElement('aside');panel.className='programme-notes';panel.setAttribute('aria-labelledby','programme-notes-title');
   top.append(menu,centre,panel);centre.append(schedule);wheel=document.createElement('div');wheel.id='programme-circle-host';schedule.append(wheel);
   $('activity').dataset.programmeLayout='true';$('activity-sessions').hidden=true;
-  if(typeof ResizeObserver!=='undefined'){observer=new ResizeObserver(()=>{if(!top)return;panel.style.height=Math.max(320,Math.round(centre.getBoundingClientRect().height))+'px';fitNotes();});observer.observe(centre);observer.observe(panel);}
+  // Observe the source column only: fitting notes must not observe its own writes.
+  if(typeof ResizeObserver!=='undefined'){observer=new ResizeObserver(resizeNotes);observer.observe(centre);}
+  resizeNotes();
  }
  function render(next){
   if(!active(next.row,next.mode)){reset();return;}

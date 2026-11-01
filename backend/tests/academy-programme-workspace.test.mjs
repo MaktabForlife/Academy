@@ -12,17 +12,19 @@ const lesson=(index=0,extra={})=>({kind:'PROGRAM',activityId:'one',activityName:
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
 function ui({summary=async()=>({notes:[],before:null})}={}){
  const {window,document}=parseHTML('<html><body><section id="activity"><div class="learning-workspace"><div id="activity-menu"><button data-programme-calendar>Calendar</button><button data-class-notes-toggle>Notes</button></div><div class="learning-reading"><section id="as-panel"></section><section id="activity-schedule"><div id="activity-sessions"></div></section></div></div></section></body></html>');
- let session='account-a',height=450,mode='LEARN';const resize=[],handlers=new Map(),calls=[];
+ let session='account-a',height=450,mode='LEARN',nextFrame=0;const resize=[],handlers=new Map(),calls=[],observed=[],frames=new Map();
+ window.requestAnimationFrame=fn=>{frames.set(++nextFrame,fn);return nextFrame;};window.cancelAnimationFrame=id=>frames.delete(id);
+ const runFrames=()=>{const work=[...frames.values()];frames.clear();for(const fn of work)fn();};
  window.M4L_ACADEMY_WORKSPACE={current:()=>mode,classView:()=>null,head:()=>null};window.M4L_CLASS_NOTES={visible:()=>true,buttons:()=>'<button data-cn-open="notes">Notes</button>',summary:async input=>{calls.push(input);return summary(input);},open:input=>{window.lastNote=input;}};
  window.HTMLElement.prototype.getBoundingClientRect=function(){return {height:this.classList.contains('programme-centre')?height:this.classList.contains('programme-note')?100:0};};
  Object.defineProperty(window.HTMLElement.prototype,'offsetHeight',{configurable:true,get(){return this.tagName==='HEADER'?90:this.tagName==='FOOTER'?50:0;}});
  Object.defineProperty(window.HTMLElement.prototype,'clientHeight',{configurable:true,get(){return Number.parseFloat(this.style?.height)||height;}});
  window.HTMLElement.prototype.showModal=function(){this.open=true;};window.HTMLElement.prototype.close=function(){this.open=false;};
- class Observer{constructor(fn){resize.push(fn);}observe(){}disconnect(){}}
+ class Observer{constructor(fn){resize.push(fn);}observe(node){observed.push(node.className);}disconnect(){}}
  vm.runInNewContext(script,{window,document,localStorage:{getItem:()=>session},Intl,Date,ResizeObserver:Observer});
  const render=(overrides={})=>window.M4L_PROGRAMME_WORKSPACE.render({row,home,rows:[lesson()],mode:'learn',startDate:'2026-11-01',...overrides});
  const click=selector=>document.querySelector(selector).dispatchEvent(new window.Event('click',{bubbles:true}));
- return {window,document,render,calls,click,handlers,model:window.M4L_PROGRAMME_WORKSPACE_MODEL,reset:()=>window.M4L_PROGRAMME_WORKSPACE.reset(),setHeight(value){height=value;resize.forEach(fn=>fn());},setSession(value){session=value;},setMode(value){mode=value;}};
+ return {window,document,render,calls,click,handlers,observed,frames,runFrames,model:window.M4L_PROGRAMME_WORKSPACE_MODEL,reset:()=>window.M4L_PROGRAMME_WORKSPACE.reset(),notifyResize(value){height=value;resize.forEach(fn=>fn());},setHeight(value){height=value;resize.forEach(fn=>fn());runFrames();},setSession(value){session=value;},setMode(value){mode=value;}};
 }
 
 test('shared Programme groups use exact configured native identities and only current selected-view activity rights',()=>{
@@ -74,6 +76,28 @@ test('notes are latest first, fit available space, open in a popup and page only
 test('pending summaries cannot repaint after account/view reset; Admin never mounts a learner programme layout',async()=>{
  let resolve;const f=ui({summary:()=>new Promise(done=>{resolve=done;})});f.render({home:{...home,personalActivities:[row],programmePageGroups:[]}});f.setSession('account-b');f.reset();resolve({notes:[{id:'private',body:'Old account text',createdAt:'2026-11-01T08:00:00Z'}],before:null});await flush();assert(!f.document.body.textContent.includes('Old account text'));
  f.setMode('ADMIN');f.render();assert.equal(f.document.querySelector('.programme-top'),null);
+});
+
+test('notes sizing observes only its source column, coalesces resize work and cancels it on reset',async()=>{
+ const f=ui();f.render();await flush();assert.deepEqual(f.observed,['programme-centre']);
+ f.notifyResize(600);f.notifyResize(600);f.notifyResize(600);assert.equal(f.frames.size,1);
+ f.runFrames();const panel=f.document.querySelector('.programme-notes');assert.equal(panel.style.height,'600px');assert.equal(f.frames.size,0);
+ let writes=0;const style=panel.style;Object.defineProperty(style,'height',{configurable:true,get:()=> '600px',set(){writes++;}});
+ f.notifyResize(600);f.runFrames();assert.equal(writes,0,'The same size is not written again');
+ f.notifyResize(700);assert.equal(f.frames.size,1);const late=[...f.frames.values()][0];f.reset();assert.equal(f.frames.size,0);late();assert.equal(f.document.querySelector('.programme-top'),null);
+});
+
+test('a denied grouped programme retains only independently permitted notes',async()=>{
+ const f=ui({summary:async input=>{if(input.activityKey==='PROGRAM:two')throw Object.assign(Error('Outside current class'),{status:403});return {notes:[{id:'permitted',body:'Permitted programme note',createdAt:'2026-11-01T08:00:00Z'}],before:null};}});
+ f.render();await flush();assert.equal(f.calls.length,2);assert.equal(f.document.querySelectorAll('.programme-note').length,1);assert.match(f.document.body.textContent,/Permitted programme note/);assert(f.document.querySelector('[data-programme-retry]'));
+});
+
+test('a later summary denial clears previously displayed notes from both sidebar and popup',async()=>{
+ for(const status of [401,403,404]){
+  let denied=false;const f=ui({summary:async()=>{if(denied)throw Object.assign(Error('Current access unavailable'),{status});return {notes:[{id:'earlier',body:'Previously permitted body',createdAt:'2026-11-01T08:00:00Z'}],before:'opaque-history'};}});
+  f.render({home:{...home,personalActivities:[row],programmePageGroups:[]}});await flush();f.click('[data-programme-more]');assert.match(f.document.body.textContent,/Previously permitted body/);
+  denied=true;f.click('[data-programme-earlier]');await flush();assert(!f.document.body.textContent.includes('Previously permitted body'));assert.equal(f.document.querySelectorAll('.programme-note').length,0);assert(f.document.querySelector('[data-programme-retry]'));assert.equal(f.calls.length,2);
+ }
 });
 
 test('programme Calendar is a viewing popup with current authorised events and no editing controls',async()=>{
