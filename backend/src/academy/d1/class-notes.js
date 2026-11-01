@@ -4,6 +4,7 @@ import {managementError as fail,same} from './management-store.js';
 import {actualState,isAdminWorkspace,viewedClass} from './workspace-access.js';
 import {academyDate,appTimezone,nextDate} from './academy-clock.js';
 import {payloadHash} from '../../programs/timetable-model.js';
+import {classNoteSummaryWindow,classNoteSummaryCandidates} from './class-note-summary.js';
 
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const teacherKey=source=>[...new Set(source.teacherIds.map(id=>id.toUpperCase()))].sort().join('|');
@@ -14,11 +15,11 @@ const sameTrack=(a,b)=>same(a.activityKey,b.activityKey)&&same(a.classId,b.class
 // accepted timetable facts supply context, never a caller's Teacher or class.
 export function classNotes(repository,auth,now=()=>new Date()){
  const db=repository.db,p=(sql,...values)=>db.prepare(sql).bind(...values),actor=auth.user.accountid;
- const areas=new Map(),ranges=new Map(),resolved=new Map(),facts=new Map();let timezone,today;
+ const areas=new Map(),ranges=new Map(),resolved=new Map(),facts=new Map();let timezone,today,readingInstant;
  async function ready(){
   if(!repository.setup?.head)throw fail('Class Notes needs the accepted timetable.',503,'SETUP_PUBLICATION_REQUIRED');
   try{await p('SELECT note_id FROM class_notes WHERE 0').all();}catch(error){if(/no such table/.test(error.message))throw fail('Class Notes is being prepared. Please try again shortly.',503,'CLASS_NOTES_SCHEMA_REQUIRED');throw error;}
-  timezone=await appTimezone(repository);today=academyDate(now(),timezone);
+  timezone=await appTimezone(repository);readingInstant=new Date(now());today=academyDate(readingInstant,timezone);
  }
  async function area(key){
   if(typeof key!=='string'||key.length>200||!/^(PROGRAM|COURSE):[^:]+$/i.test(key))throw fail('Choose a Program or Course.');
@@ -135,6 +136,20 @@ export function classNotes(repository,auth,now=()=>new Date()){
   if(focus&&!page.some(row=>row.note_id===focus)){const focused=await noteRow(focus);if(focused.context_id===source.id)page.unshift(focused);}
   return {source:{...source,...permission,canPost:permission.canPost&&!source.unresolved},notes:await Promise.all(page.map(row=>dto(row,permission))),before:more?{createdAt:last.created_at,id:last.note_id}:null,nextDue:source.unresolved?null:await nextDue(a,source),focusNoteId:focus,today,timezone};
  }
+ async function summary(a,input){
+  const noteDb=repository.coreDb||db,np=(sql,...values)=>noteDb.prepare(sql).bind(...values);
+  const window=classNoteSummaryWindow(today,timezone,readingInstant),candidates=await classNoteSummaryCandidates(noteDb,a.activity_key,input,window);
+  const ids=[...new Set(candidates.page.map(row=>row.context_id))],stored=ids.length?(await np('SELECT context_id,source_json FROM class_note_contexts WHERE context_id IN(SELECT value FROM json_each(?))',JSON.stringify(ids)).all()).results:[];
+  const sources=await Promise.all(stored.map(row=>live(JSON.parse(row.source_json)))),permissions=await rights(sources),byId=new Map(sources.map(source=>[source.id,source]));
+  const allowed=candidates.page.filter(row=>permissions.get(row.context_id)?.canRead),noteIds=allowed.map(row=>row.note_id);
+  // Bodies and author names are read only after current lesson sharing passes.
+  const rows=noteIds.length?(await np(joined+" WHERE n.note_id IN(SELECT value FROM json_each(?)) AND n.state='ACTIVE'",JSON.stringify(noteIds)).all()).results:[],notes=new Map(rows.map(row=>[row.note_id,row]));
+  return {activityKey:a.activity_key,window,today,timezone,before:candidates.before,notes:await Promise.all(allowed.filter(row=>notes.has(row.note_id)).map(async candidate=>{
+   const row=notes.get(candidate.note_id),source=byId.get(row.context_id),permission={...permissions.get(row.context_id)};
+   permission.canPost=permission.canPost&&!source.unresolved;
+   return {...await dto(row,permission),source:{...source,...permission}};
+  }))};
+ }
  async function timetable(input){
   if(!Array.isArray(input.sessions)||input.sessions.length>200)throw fail('Choose up to 200 timetable lessons.');
   const refs=input.sessions.filter(r=>r&&typeof r.activityKey==='string'&&validDate(r.date)&&typeof r.sessionKey==='string'&&r.sessionKey.length<=1200);
@@ -210,6 +225,7 @@ export function classNotes(repository,auth,now=()=>new Date()){
   await ready();
   if(action==='timetable')return timetable(input);
   const a=await area(input.activityKey);
+  if(action==='summary')return summary(a,input);
   if(['post','revise','withdraw','relink'].includes(action))return mutate(action,input);
   if(action==='sessions'){
    if(!validDate(input.date))throw fail('Choose a lesson date.');const candidates=await range(a,input.date,input.date),permissions=await rights(candidates);

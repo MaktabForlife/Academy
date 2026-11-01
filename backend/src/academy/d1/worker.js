@@ -289,7 +289,7 @@ async function dispatch(request,env,options={}) {
     return {success:true,...await messaging(await readRepository(),auth).run(action,input)};
   }
   if(isAdminWorkspace(auth))repository=repository.authoringRepository();
-  const classNoteAction=path.match(/^\/api\/academy\/class-notes\/(timetable|sessions|get|due|history|post|revise|withdraw|relink)$/)?.[1];
+  const classNoteAction=path.match(/^\/api\/academy\/class-notes\/(summary|timetable|sessions|get|due|history|post|revise|withdraw|relink)$/)?.[1];
   if(classNoteAction)return {success:true,...await classNotes(await readRepository(),auth).run(classNoteAction,input)};
   const nativeAction=path.match(/^\/api\/(?:academy\/attendance|program-attendance)\/(options|get|submit|prepare|recover|report|roster-get|roster-save|substitute-save|substitute-revoke|substitute-reopen)$/)?.[1];
   if(nativeAction&&sourceRepository.features.nativeAttendance)return {success:true,...await nativeAttendance(await readRepository(),auth).run(nativeAction,input)};
