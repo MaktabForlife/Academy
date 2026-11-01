@@ -1,11 +1,11 @@
 /* One native Admin access workspace. Catalogue metadata never grants access. */
 (()=>{'use strict';
- const areas={tafseer:{title:'Tafseer and Tadabbur',kind:'MONTHLY LEARNING',help:'Review paid months, original class and additional Surah websites.'},mothers:{title:'Mothers of the Ummah',kind:'MONTHLY LEARNING',help:'Review programme months and subject websites separately from live participation.'},courses:{title:'Courses',kind:'COURSE LEARNING',help:'Grant access to the full course. Existing purchases remain when participation ends.'}};
+ const areas={tafseer:{title:'Tafseer and Tadabbur',kind:'MONTHLY LEARNING',help:'Review paid months, original class and additional Surah websites.'},mothers:{title:'Mothers of the Ummah',kind:'MONTHLY LEARNING',help:'Review monthly subscriptions and independent playlists separately from live participation.'},courses:{title:'Courses',kind:'COURSE LEARNING',help:'Grant access to the full course. Existing purchases remain when participation ends.'}};
  const token=()=>localStorage.getItem('m4l_account_token')||'';let active=null;
  const markup=`<div class="circles-access-page"><div class="access-layout"><nav class="access-areas" aria-label="Learning areas"><p class="eyebrow">LEARNING AREAS</p><button type="button" data-area="tafseer" aria-pressed="true"><span>Tafseer & Tadabbur</span><small>Student matrix and Surah table</small></button><button type="button" data-area="mothers" aria-pressed="false"><span>Mothers of the Ummah</span><small>Student monthly matrix</small></button><button type="button" data-area="courses" aria-pressed="false"><span>Courses</span><small>Course purchases and access</small></button><p class="access-guidance">Participation and learning materials are separate. Ending participation keeps acquired materials.</p></nav><section class="access-workspace" aria-labelledby="access-area-title"><header class="area-heading"><div><p class="eyebrow" id="access-area-kind"></p><h2 id="access-area-title"></h2><p id="access-area-help"></p></div><span class="access-category-mark" aria-hidden="true">◇</span></header><label id="access-offering-label" class="access-offering-label">Choose a course<select id="access-offering"></select></label><div class="access-catalogue-pages" hidden><button type="button" data-catalogue-page="previous">Previous courses</button><span data-catalogue-page-label></span><button type="button" data-catalogue-page="next">Next courses</button></div><p id="access-page-status" role="status" aria-live="polite"></p><section id="access-panel" aria-label="Learner access records"></section></section></div></div>`;
  function stylesheet(href){if(!document.querySelector('link[href="'+href+'"]')){const link=document.createElement('link');link.rel='stylesheet';link.href=href;document.head.append(link);}}
- const canLeave=()=>window.M4L_STUDIO_ACCESS?.canLeave()!==false&&window.M4L_PROGRAM_MONTHLY?.canLeave()!==false&&window.M4L_PROGRAM_SURAHS?.canLeave()!==false;
- function clearEditors(){window.M4L_STUDIO_ACCESS?.reset();window.M4L_PROGRAM_MONTHLY?.unmount();window.M4L_PROGRAM_SURAHS?.unmount();}
+ const canLeave=()=>window.M4L_STUDIO_ACCESS?.canLeave()!==false&&window.M4L_PROGRAM_MONTHLY?.canLeave()!==false&&window.M4L_PROGRAM_SURAHS?.canLeave()!==false&&window.M4L_MOU_PLAYLISTS?.canLeave()!==false;
+ function clearEditors(){window.M4L_STUDIO_ACCESS?.reset();window.M4L_PROGRAM_MONTHLY?.unmount();window.M4L_PROGRAM_SURAHS?.unmount();window.M4L_MOU_PLAYLISTS?.unmount();}
  function reset(){if(active){active.closed=true;active.generation++;active.host.replaceChildren();active.pages.clear();active=null;}clearEditors();}
  async function open(host){
   if(!host)return;if(active?.host===host&&!active.closed)return active.ready;
@@ -34,19 +34,20 @@
    }
    if(s.area!=='courses'){
     const tabs=document.createElement('nav');tabs.className='access-table-tabs';tabs.setAttribute('aria-label','Access tables');
-    const views=[['matrix','Student matrix'],...(s.area==='tafseer'?[['surahs','Surah table']]:[]),...(row.ownership==='STUDIO'?[['additional','Other access']]:[])];
+    const views=[['matrix','Student matrix'],...(s.area==='tafseer'?[['surahs','Surah table']]:s.area==='mothers'&&row.ownership==='STUDIO'?[['playlists','Playlists']]:[]),...(row.ownership==='STUDIO'?[['additional','Other access']]:[])];
     const body=document.createElement('section');body.className='access-table-body';panelHost.append(tabs,body);
     async function transport(action,input={}){
      const isStudio=row.ownership==='STUDIO',mapped={'grid':'monthly-grid','grid-save':'monthly-grid-save','surahs':'access-table','surah-save':'access-table-save'};
      const path=isStudio?'/api/admin/platform/studio-access':'/api/admin/platform/program-monthly-subscriptions/'+action;
-     const response=await fetch((window.M4L_CONFIG?.API_BASE||'')+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+s.owner,'X-Academy-Workspace':'ADMIN'},body:JSON.stringify({activityKey:row.activityKey,...(isStudio?{command:{...input,action:mapped[action]}}:input)})}),result=await response.json();
+     const response=await fetch((window.M4L_CONFIG?.API_BASE||'')+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+s.owner,'X-Academy-Workspace':'ADMIN'},body:JSON.stringify({activityKey:row.activityKey,...(isStudio?{command:{...input,action:mapped[action]||action}}:input)})}),result=await response.json();
      if(!current())throw Error('Your account changed. Reopen Access management.');
      if(!response.ok||!result.success)throw Object.assign(Error(result.error||'Access records could not be checked.'),{status:response.status,code:result.code});return result;
     }
     async function view(name){
      if(!current()||!canLeave())return false;clearEditors();body.replaceChildren();
      for(const button of tabs.querySelectorAll('button'))button.setAttribute('aria-pressed',String(button.dataset.accessView===name));
-     if(name==='matrix')await window.M4L_PROGRAM_MONTHLY.mount(body,row.activityKey.slice(8),{transport,label:areas[s.area].title});
+     if(name==='matrix')await window.M4L_PROGRAM_MONTHLY.mount(body,row.activityKey.slice(8),{transport,label:areas[s.area].title,...(s.area==='mothers'?{description:'Paid months unlock open playlists during that month and completed playlists closed in that month. Existing historical recording rights remain unchanged.'}:{})});
+     else if(name==='playlists')await window.M4L_MOU_PLAYLISTS.mount(body,{transport:command=>transport(command.action,command)});
      else if(name==='surahs')await window.M4L_PROGRAM_SURAHS.mount(body,row.activityKey.slice(8),{transport});
      else {const editor=window.M4L_STUDIO_ACCESS.attach(body,row.activityKey);await editor?.loading;}
      return true;

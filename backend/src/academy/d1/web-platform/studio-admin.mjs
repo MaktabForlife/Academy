@@ -56,8 +56,8 @@ export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_S
   const accountId=id(command.accountId),confirmed=await send({action:'read',accountId});if(confirmed.ownership?.authority!=='WEBSITE'||confirmed.ownership.phase!=='COMMITTED'||!confirmed.person)throw fail('This offering has not completed its Studio handover.',409);
   return {success:true,...await saveLiveAllocation(db,env,proof,activity,command,confirmed.person,{fetcher})};
  }
- if(!['read','save','provision','resume','monthly-grid','monthly-grid-save','access-table','access-table-save'].includes(command.action))throw fail('Unknown Studio access action.');
- if(['monthly-grid','monthly-grid-save','access-table','access-table-save'].includes(command.action)&&mapping.kind!=='TAFSEER')throw fail('Short courses use whole-course access, not monthly subscriptions.');
+ if(!['read','save','provision','resume','monthly-grid','monthly-grid-save','access-table','access-table-save','mou-playlists','mou-playlist-correction','mou-playlist-save','mou-playlist-publication','mou-playlist-add'].includes(command.action))throw fail('Unknown Studio access action.');
+ if(['monthly-grid','monthly-grid-save','access-table','access-table-save','mou-playlists','mou-playlist-correction','mou-playlist-save','mou-playlist-publication','mou-playlist-add'].includes(command.action)&&mapping.kind!=='TAFSEER')throw fail('Short courses use whole-course access, not monthly subscriptions.');
  // Forward only the narrow command. Supplied actor, roles and proof are ignored.
  let result=await send(command.action==='monthly-grid-save'?await validateGridClasses(db,activity,command):command);
  if(command.action==='monthly-grid')result=await gridClassMetadata(db,activity,result,{timezone:mapping.timezone});
