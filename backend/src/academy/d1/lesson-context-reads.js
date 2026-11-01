@@ -1,7 +1,11 @@
+import {recordedTeacherIdsSQL} from './lesson-recorded-options.js';
 // Exact read templates for the Admin recorded-context editor only. The marker
 // keeps the reserved recipes distinct from ordinary media reader SQL.
 const query=(kind,sql)=>`/* Academy recorded-context ${kind} V1 */ ${sql}`;
 export const lessonContextSQL={
+ teachers:query('teachers',`SELECT a.account_id,a.display_name FROM (${recordedTeacherIdsSQL}) t JOIN accounts a USING(account_id) WHERE a.active=1 GROUP BY a.account_id ORDER BY a.display_name,a.account_id LIMIT 201`),
+ classes:query('classes','SELECT class_id,name,academic_year FROM classes WHERE activity_key=? AND active=1 ORDER BY name,class_id LIMIT 201'),
+ surahs:query('surahs','SELECT surah_id,name FROM program_surahs WHERE activity_key=? AND active=1 ORDER BY name,surah_id LIMIT 201'),
  schema:query('schema','SELECT l.session_key,l.teacher_ids_json,l.media_scope,a.display_name FROM lesson_media_lessons l,lesson_media_assets a WHERE 0'),
  enabled:query('enabled',"SELECT 1 ok FROM academy_settings WHERE setting_key='LessonMediaEnabled' AND setting_value='1'"),
  area:query('area','SELECT activity_key FROM lesson_media_lessons WHERE lesson_id=?'),

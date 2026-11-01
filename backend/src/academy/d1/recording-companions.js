@@ -1,3 +1,4 @@
+import {contentMediaContext} from './content-media-context.js';
 import {learnerCompanion,recordingRetention,publicationIndex} from '../../../../js/m4l-learner-companion.mjs';
 import {optionalSchema} from './schema-probe.js';
 import {managementError as fail} from './management-store.js';
@@ -13,12 +14,22 @@ export function academicCompanions({db,p,lesson,reader,staff,revision,change,buc
   const retention=recordingRetention(saved.uploaded_at);if(retention.companionExpired)return {companion:null,companionExpired:true};
   return {companion:await parse(bucket(),saved.published_key),...retention};
  }
+ async function editor(input){
+  const row=await lesson(input.lessonId);staff(row);
+  if(!await companionSchema(db))throw fail('Companion storage needs its reviewed upgrade.',503);
+  const asset=await p("SELECT a.* FROM lesson_media_links l JOIN lesson_media_assets a USING(asset_id) WHERE l.lesson_id=? AND a.asset_id=? AND a.kind='MP4'",row.lesson_id,input.assetId).first();
+  if(!asset||isRetained(asset))throw fail('Choose the original temporary academic recording.',409);
+  const saved=await p('SELECT * FROM lesson_recording_companions WHERE lesson_id=? AND asset_id=?',row.lesson_id,asset.asset_id).first(),uploadedAt=saved?.uploaded_at||asset.created_at,retention=recordingRetention(uploadedAt);
+  if(retention.companionExpired)throw fail('This companion has expired.',410);
+  if(saved&&Date.parse(saved.uploaded_at)!==Date.parse(asset.created_at))throw fail('The original upload time changed.',409);
+  return {lessonId:row.lesson_id,assetId:asset.asset_id,revision:row.revision,companionRevision:saved?.revision||0,sourceRevision:saved?.source_revision||'',durationSeconds:saved?.duration_seconds||null,draftKey:saved?.draft_key||'',companion:saved?await parse(bucket(),saved.draft_key):null,hasPublished:Boolean(saved?.published_key),...retention};
+ }
  async function edit(action,input){
   const row=await lesson(input.lessonId);staff(row);
   if(!await companionSchema(db))throw fail('Companion storage needs its reviewed upgrade.',503);
   let staged;const result=await change(action,input,row,'staff',async current=>{
    revision(current,input);
-   if(current.media_scope!=='SESSION'||!current.session_key||!JSON.parse(current.source_lessons_json||'[]').length)throw fail('Confirm the exact native academic session before attaching this companion.',409);
+   if(current.media_scope!=='SESSION'||!contentMediaContext(current)&&(!current.session_key||!JSON.parse(current.source_lessons_json||'[]').length))throw fail('Confirm the exact native media record before attaching this companion.',409);
    const asset=await p("SELECT a.* FROM lesson_media_links l JOIN lesson_media_assets a USING(asset_id) WHERE l.lesson_id=? AND a.asset_id=? AND a.kind='MP4'",current.lesson_id,input.assetId).first();
    if(!asset)throw fail('Choose this session’s original successfully uploaded MP4.',409);
    if(isRetained(asset))throw fail('Use the original temporary academic upload with its fourteen-day recording policy; do not change earlier retained media.',409);
@@ -46,7 +57,7 @@ export function academicCompanions({db,p,lesson,reader,staff,revision,change,buc
   if(action==='companion-save'){staged??=JSON.stringify(learnerCompanion(input.companion,{academic:true}));const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(staged)),sha256=[...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');await bucket().put(result.draftKey,staged,{sha256,httpMetadata:{contentType:'application/json'}});}
   return result;
  }
- return {read,edit};
+ return {read,edit,editor};
 }
 export async function companionIndexes(db,p,ids,now=Date.now()){
  if(!ids.length||!await companionSchema(db))return new Map();

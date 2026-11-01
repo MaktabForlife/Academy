@@ -4,6 +4,20 @@
 - Preserve current native Admin-Learn/Admin-Teach inheritance and ordinary learner/teacher scope. Carry the selected view through the existing checked one-use connector; do not create teacher or learner grants or weaken authority checks.
 - Circles owns the isolated Target routing patch; optimisation owns this Source correction and combined release. Keep unfinished UI drafts, academic editor, retention and all deferred recording attachments out of this release. Failed MOU publication and its separate order fix remain held.
 - No production SQL, content/permission changes, timetable publication or Git push. Keep live checks small and use local synthetic fixtures for acceptance.
+# Content media functional handoff — locally verified, 1 November 2026
+
+- Native content selectors/forms, exact media PDF/Teacher-note identity, strict current class/Teacher audiences and signed Studio Teacher/class bridge are complete locally. See `docs/ACADEMY-CONTENT-MEDIA.md` and parent `outputs/academy-content-media-context-20261101/` for test, schema, browser and cost evidence. No new migration or retroactive rewrite.
+- Preserve final root-owned retention predicates when composing both V2 exact-media and legacy PDF count branches. Circles owns final shared UI/integration; Studio owns its reviewed YouTube/package flow. Source original temporary MP4 companion/upload clocks remain unchanged. Generic owner write-plan captures still grow; captured rows are not billed D1 scans.
+- This is a local feature handoff, not full-release approval or a deployment. Preserve the reviewed branches and paired live release; no hosted/media/MOU action occurs here.
+
+# Content-bound Academy media continuation — local only, 1 November 2026
+
+- Direct owner flow supersedes timetable attachment: Programme → native Class → native Subject/Module (or Tafseer Surah) → native Teacher → media; Course → native Teacher → media. No timetable creation/publication is required. Implement on this new feature branch; preserve reviewed `ad1401ee` and `e7bce4b2` branches/receipts.
+- New recorded Teacher IDs are checked attribution, never rights. Preserve current actor/session/epoch, Admin scope, class/date audiences, original upload/expiry, existing session attachments and all live/deployment/media/MOU holds. Do not fabricate native IDs, class/subject mappings or Teacher identity from a source title.
+- Root owns the separate Target four-MOU private review/one-at-a-time attachment feature. Coordinate its Teacher/context contract without duplicating or editing that implementation. Source authoring must preserve Studio/FROZEN ownership locks.
+- Prefer versioned stored context within existing media rows if sufficient; assess schema explicitly. No speculative migration or retroactive rewrite. Bound options/reads, retain stale/retry/atomic authority, and report generic owner-plan costs honestly.
+- Later compose live paired V109.3 Source `078bcc8b` / Studio `f4e2f3ed` and final retention `576e1c0b`; do not replace their changes with this older base. Parent `work/AGENTS.md` paired-version release rule applies. No release/version/dependency changes here.
+
 # Lesson editor read-cost follow-up — locally tested, 1 November 2026
 
 - Local validation passes 165 regressions, including 23 focused checks, and eight native browser flows. See `docs/ACADEMIC-LESSON-CONTEXT-READS.md` and parent `outputs/academy-lesson-editor-read-budget-20261101/` for exact budgets, tests and the final local commit. The unchanged write-plan cost remains an explicit limitation.
