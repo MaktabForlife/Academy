@@ -131,16 +131,16 @@ test('Class Note changes and submitting a plan invalidate protected read snapsho
 });
 
 
-test('every programme audience returns to the single hub in its native authority realm',()=>{
+test('Home preserves the selected programme audience and native authority realm',()=>{
  const f=fixture(),w=f.window.M4L_ACADEMY_WORKSPACE;
- for(const audience of ['learn','teach']){f.location.hash='#activity/PROGRAM/scope/'+audience;w.commit();assert.equal(w.homeUrl(),'/academy/#dashboard');}
+ for(const audience of ['learn','teach']){f.location.hash='#activity/PROGRAM/scope/'+audience;w.commit();assert.equal(w.homeUrl(),'/academy/#timetable/'+audience);}
  f.location.pathname='/academy/admin/';
- for(const hash of ['#activity/PROGRAM/scope/learn','#activity/PROGRAM/scope/teach','#administration/settings']){f.location.hash=hash;w.commit();assert.equal(w.homeUrl(),'/academy/admin/#dashboard');}
+ for(const hash of ['#activity/PROGRAM/scope/learn','#activity/PROGRAM/scope/teach','#administration/settings']){f.location.hash=hash;w.commit();assert.equal(w.homeUrl(),hash.startsWith('#administration')?'/academy/admin/#dashboard':'/academy/admin/#timetable/'+hash.split('/')[3]);}
 });
 test('a verified teacher summary uses the hub address without creating a second home',async()=>{
  const f=fixture(),w=f.window.M4L_ACADEMY_WORKSPACE;
  w.preferHubAudience('TEACH');f.location.hash='#dashboard';w.commit();
- assert.equal(w.current(),'TEACH');assert.equal(w.homeUrl(),'/academy/#dashboard');
+ assert.equal(w.current(),'TEACH');assert.equal(w.homeUrl(),'/academy/#timetable/teach');
  await f.window.fetch('https://api.invalid/api/academy/entrance');assert.equal(f.calls.at(-1).options.headers.get('X-Academy-Workspace'),'TEACH');
  f.token('next-actor');f.window.dispatchEvent(new Event('m4l-academy-session'));w.commit();
  assert.equal(w.current(),'LEARN','Another account cannot inherit the previous summary audience');

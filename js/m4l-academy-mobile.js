@@ -48,7 +48,7 @@
   if(!['learn','teach','admin'].includes(key)||!availableViews[key]||!canLeave())return false;
   const navigate=()=>{const connected=window.M4L_CIRCLES_RETURN?.modeHref(key);if(connected){location.href=connected;return true;}
    const base=key==='admin'||adminRealm()?'/academy/admin/':'/academy/',hash=key==='admin'?'#administration':'#timetable/'+key;
-   if([base,base+'index.html'].includes(location.pathname))location.hash=hash;else location.href=base+hash;return true;
+   if([base,base+'index.html'].includes(location.pathname))location.hash=hash;else {window.M4L_ACADEMY_HISTORY?.prepare?.(base+hash);location.href=base+hash;}return true;
   };
   if(window.M4L_CIRCLES_RETURN_READY){const owner=token();void Promise.resolve(window.M4L_CIRCLES_RETURN_READY).then(()=>window.M4L_CIRCLES_RETURN?.ready?.()).then(()=>{if(owner===token()&&availableViews[key]&&canLeave())navigate();}).catch(()=>{});return true;}
   return navigate();

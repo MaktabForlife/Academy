@@ -8,7 +8,7 @@ const startup=readFileSync(new URL('../../js/m4l-academy-startup.js',import.meta
 const deferred=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return {promise,resolve,reject};};
 const settle=async()=>{for(let i=0;i<12;i++)await new Promise(r=>setImmediate(r));};
 async function fixture({path='/academy/',mode='learn',cacheFailure=false}={}){
- const html=readFileSync(new URL('../../academy/'+(path.includes('/admin/')?'admin/':'')+'index.html',import.meta.url),'utf8'),{window,document}=parseHTML(html),home=deferred(),activity=deferred(),nextHome=deferred(),storage=new Map([['m4l_account_token','synthetic-current']]),calls=[];
+ const html=readFileSync(new URL('../../academy/'+(path.includes('/admin/')?'admin/':'')+'index.html',import.meta.url),'utf8'),{window,document}=parseHTML(html),home=deferred(),activity=deferred(),otherActivity=deferred(),nextHome=deferred(),storage=new Map([['m4l_account_token','synthetic-current']]),calls=[];
  for(const select of document.querySelectorAll('select'))Object.defineProperty(select,'value',{value:select.value||'',writable:true,configurable:true});
  const location={pathname:path,hash:'#activity/PROGRAM/programme-one/'+mode,search:'',origin:'https://academy.test',replace(value){this.replaced=value;},assign(value){this.assigned=value;}};
  const workspace=path.includes('/admin/')?'ADMIN_'+mode.toUpperCase():mode.toUpperCase();
@@ -17,11 +17,11 @@ async function fixture({path='/academy/',mode='learn',cacheFailure=false}={}){
  window.HTMLElement.prototype.scrollIntoView=function(){};window.HTMLElement.prototype.scrollTo=function(){};window.HTMLElement.prototype.scrollBy=function(){};window.HTMLElement.prototype.close=function(){this.open=false;};
  const row={id:'programme-one',kind:'PROGRAM',name:'Aalimiyah',active:true,lifecycle:'ACTIVE',roles:['STUDENT'],classes:[],curriculum:[],timetable:[],tools:{}};
  const data={success:true,signedIn:true,globalAdmin:false,workspaceAccess:{learn:true,teach:mode==='teach'},profile:{name:'Synthetic learner'},startDate:'2026-11-01',endDate:'2026-11-07',timezone:'Africa/Johannesburg',activities:[row],personalActivities:[row],activityPages:[],personalTimetable:[],timetable:[],calendarEvents:[],warnings:[]};
- const request=async(_url,options={})=>{const body=JSON.parse(options.body||'{}');calls.push(body);if(_url.endsWith('/api/academy/entrance/public-snapshot'))return {ok:true,status:200,json:async()=>({...data,signedIn:false,personalActivities:[]})};const value=await (options.headers?.Authorization==='Bearer another-synthetic-account'?nextHome.promise:body.id?activity.promise:home.promise);return {ok:true,status:200,json:async()=>value};};
+ const request=async(_url,options={})=>{const body=JSON.parse(options.body||'{}');calls.push(body);if(_url.endsWith('/api/academy/entrance/public-snapshot'))return {ok:true,status:200,json:async()=>({...data,signedIn:false,personalActivities:[]})};const value=await (options.headers?.Authorization==='Bearer another-synthetic-account'?nextHome.promise:body.id==='programme-two'?otherActivity.promise:body.id?activity.promise:home.promise);return {ok:true,status:200,json:async()=>value};};
  if(cacheFailure)window.M4L_ACADEMY_READ_CACHE={owner:async()=> 'synthetic-owner',headers:()=>({}),publicUrl:value=>value,invalidate(){},async load(options){try{return await options.fetcher();}catch(error){options.onError?.(error,null);throw error;}}};
  const context=vm.createContext({window,document,location,history:{replaceState(_a,_b,hash){location.hash=hash;}},localStorage:{getItem:key=>storage.get(key)||null},sessionStorage:{getItem:()=>null,setItem(){},removeItem(){}},fetch:request,Event:window.Event,URL,URLSearchParams,Headers,Date,Intl,JSON,Map,Set,WeakMap,TextEncoder,crypto,console,setTimeout:()=>1,clearTimeout(){},matchMedia:()=>({matches:true})});
  vm.runInContext(startup,context);vm.runInContext(entrance,context);window.dispatchEvent(new window.Event('m4l-academy-session'));await settle();
- return {document,window,location,storage,calls,data,row,home,activity,context};
+ return {document,window,location,storage,calls,data,row,home,activity,otherActivity,context};
 }
 test('programme route is guarded in the head before the initially active legacy overview can paint',()=>{
  for(const file of ['academy/index.html','academy/admin/index.html']){
@@ -49,4 +49,10 @@ test('a delayed earlier programme cannot uncover the page after the account chan
 });
 test('the checked connector uses the same neutral learning presentation without replacing its one-use exchange',()=>{
  const html=readFileSync(new URL('../../academy/website-platform/connect/index.html',import.meta.url),'utf8');assert.match(html,/academy-opening academy-opening-programme/);assert.match(html,/Opening your learning/);assert.match(html,/id="status" role="status"/);assert.match(html,/src="connect.mjs\?v=/);
+});
+
+test('in-page Teach programme navigation stays neutral while Arabic Intensive is checked',async()=>{
+ const f=await fixture({mode:'teach'});f.home.resolve(f.data);f.activity.resolve({...f.data,activity:f.row});await settle();assert(!f.document.documentElement.classList.contains('academy-opening'));
+ f.location.hash='#activity/PROGRAM/programme-two/teach';f.window.dispatchEvent(new f.window.Event('hashchange'));await settle();assert(f.document.documentElement.classList.contains('academy-opening-programme'));
+ f.otherActivity.resolve({...f.data,activity:{...f.row,id:'programme-two',name:'Arabic Intensive',roles:['TEACHER']}});await settle();assert(!f.document.documentElement.classList.contains('academy-opening'));assert.equal(f.document.getElementById('activity-title').textContent,'Arabic Intensive');assert.equal(f.location.hash,'#activity/PROGRAM/programme-two/teach');
 });

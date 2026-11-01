@@ -14,14 +14,30 @@
   return rows.map(row=>{if(!Number.isFinite(row.startsAt)||!Number.isFinite(row.endsAt))return {...row};const begins=clock(row.startsAt),ends=clock(row.endsAt);return {...row,sourceDate:row.sourceDate||row.date,date:begins.date,startTime:begins.time,endTime:ends.time,endDate:ends.date};});
  }
  function dayRows(rows,day,now=Date.now()){
-  return rows.map((row,index)=>({...row,infoIndex:index})).filter(row=>row.date===day&&Number.isFinite(row.startsAt)&&Number.isFinite(row.endsAt)&&row.endsAt>row.startsAt).sort((a,b)=>a.startsAt-b.startsAt||a.infoIndex-b.infoIndex).map(row=>({...row,phase:row.status!=='SCHEDULED'?'cancelled':row.endsAt<=now?'finished':row.startsAt<=now?'active':'later',canJoin:row.status==='SCHEDULED'&&Boolean(row.joinKey)&&now>=row.joinAvailableAt&&now<row.endsAt}));
+  return rows.map((row,index)=>({...row,infoIndex:index})).filter(row=>row.date===day&&Number.isFinite(row.startsAt)&&Number.isFinite(row.endsAt)&&row.endsAt>row.startsAt).sort((a,b)=>a.startsAt-b.startsAt||a.infoIndex-b.infoIndex).map(row=>{const members=row.members||[row],joinIndex=members.findIndex(r=>r.status==='SCHEDULED'&&Boolean(r.joinKey)&&now>=r.joinAvailableAt&&now<r.endsAt);return {...row,phase:row.status!=='SCHEDULED'?'cancelled':row.endsAt<=now?'finished':row.startsAt<=now?'active':'later',canJoin:joinIndex>=0,joinIndex};});
+ }
+ function rollupRows(rows,mode){
+  if(mode!=='teach')return rows;
+  const groups=[],rooms=new Map();
+  for(const row of [...rows].sort((a,b)=>a.startsAt-b.startsAt)){
+   // The server supplies request-local room identities without exposing Zoom URLs.
+   const room=row.meetingGroup&&JSON.stringify([row.date,row.kind,row.activityId,row.status,row.meetingGroup]);
+   const previous=room&&rooms.get(room);
+   if(previous&&row.startsAt<=previous.endsAt&&row.endsAt>=previous.startsAt){
+    previous.members.push(row);
+    if(row.endsAt>previous.endsAt){previous.endsAt=row.endsAt;previous.endTime=row.endTime;previous.endDate=row.endDate;}
+    previous.title=[...new Set(previous.members.map(r=>r.moduleName||r.subjectName||r.title||'Lesson'))].join(' · ');
+    previous.moduleName='';previous.subjectName='';
+   }else{const group={...row,members:[row]};groups.push(group);if(room)rooms.set(room,group);}
+  }
+  return groups;
  }
  function sectorPath(index,count){
   const sweep=360/count,start=index*sweep-sweep/2+.7,end=start+sweep-1.4;
   const point=angle=>{const r=(angle-90)*Math.PI/180;return [350+342*Math.cos(r),350+342*Math.sin(r)].map(n=>n.toFixed(3)).join(' ');};
   return `M350 350 L${point(start)} A342 342 0 ${sweep>180?1:0} 1 ${point(end)} Z`;
  }
- window.M4L_PROGRAMME_WORKSPACE_MODEL={programmeKeys,displayRows,dayRows,sectorPath};
+ window.M4L_PROGRAMME_WORKSPACE_MODEL={programmeKeys,displayRows,dayRows,rollupRows,sectorPath};
  const $=id=>document.getElementById(id),addDay=(day,n)=>new Date(Date.parse(day+'T12:00:00Z')+n*86400000).toISOString().slice(0,10);
  let options=null,owner='',generation=0,selectedDay='',top=null,wheel=null,panel=null,notesPanel=null,popup=null,observer=null,layoutFrame=0,menuAnchor=null,scheduleAnchor=null;
  const toolHomes=new Map();
@@ -37,7 +53,7 @@
   if(menuAnchor?.parentNode&&$('activity-menu'))menuAnchor.parentNode.insertBefore($('activity-menu'),menuAnchor);
   if(scheduleAnchor?.parentNode&&$('activity-schedule'))scheduleAnchor.parentNode.insertBefore($('activity-schedule'),scheduleAnchor);
   for(const [node,anchor]of toolHomes){if(anchor.parentNode)anchor.before(node);node.classList.remove('programme-teach-tool');node.removeAttribute('data-teach-tool');anchor.remove();}toolHomes.clear();
-  menuAnchor?.remove();scheduleAnchor?.remove();menuAnchor=null;scheduleAnchor=null;top?.remove();top=null;wheel=null;panel=null;notesPanel=null;
+  menuAnchor?.remove();scheduleAnchor?.remove();menuAnchor=null;scheduleAnchor=null;wheel?.remove();top?.remove();top=null;wheel=null;panel=null;notesPanel=null;
   $('activity')?.removeAttribute('data-programme-layout');if($('activity-sessions'))$('activity-sessions').hidden=false;
  }
  function resizeNotes(){
@@ -89,11 +105,11 @@
   const sectors=Array.from({length:count},(_,index)=>`<path class="programme-sector ${rows[index]?.phase||'unused'}" d="${sectorPath(index,count)}"/>`).join('');
   const lessonHTML=(row,index,graphic=false)=>{
    const angle=index*2*Math.PI/count,title=row.moduleName||row.subjectName||row.title||'Lesson',label=row.phase==='cancelled'?row.status:row.phase==='active'?'In progress':row.phase==='finished'?'Finished':'Upcoming';
-   const notes=window.M4L_CLASS_NOTES?.visible()?window.M4L_CLASS_NOTES.buttons(row,true)||'<span class="programme-note-unavailable" title="Notes are unavailable for this session">Notes unavailable</span>':'';
-   return `<li class="programme-session ${row.phase}"${graphic?` style="--x:${50+32.2*Math.sin(angle)}%;--y:${50-32.2*Math.cos(angle)}%"`:''}><button type="button" class="programme-session-open" data-information="programme-circle:${row.infoIndex}" aria-label="${esc(title+' · '+row.date+' · '+row.startTime+'–'+row.endTime)}"><small>${esc(label)}</small><strong>${esc(title)}</strong><time>${esc(row.startTime)}–${esc(row.endTime)}</time>${!graphic?`<span>${esc(row.activityName)}</span>`:''}</button>${row.canJoin?`<button type="button" class="programme-join" data-join="programme-circle:${row.infoIndex}:0">Join class ↗</button>`:''}${notes}</li>`;
+   const notes=window.M4L_CLASS_NOTES?.visible()?(row.members||[row]).map(member=>window.M4L_CLASS_NOTES.buttons(member,true)||'<span class="programme-note-unavailable" title="Notes are unavailable for this session">Notes unavailable</span>').join(''):'';
+   return `<li class="programme-session ${row.phase}"${graphic?` style="--x:${50+32.2*Math.sin(angle)}%;--y:${50-32.2*Math.cos(angle)}%"`:''}><button type="button" class="programme-session-open" data-information="programme-circle:${row.infoIndex}" aria-label="${esc(title+' · '+row.date+' · '+row.startTime+'–'+row.endTime)}"><small>${esc(label)}</small><strong>${esc(title)}</strong><time>${esc(row.startTime)}–${esc(row.endTime)}</time>${row.members?.length>1?`<span>${row.members.length} sessions ⓘ</span>`:''}${!graphic?`<span>${esc(row.activityName)}</span>`:''}</button>${row.canJoin?`<button type="button" class="programme-join" data-join="programme-circle:${row.infoIndex}:${row.joinIndex}">Join class ↗</button>`:''}${notes}</li>`;
   };
   const caption=live.length?'In progress':upcoming?'Next session':rows.length?'Sessions complete':'No sessions today',centre=live[0]?.startTime||upcoming?.startTime||'A little space';
-  wheel.innerHTML=`<nav class="programme-days" aria-label="Programme timetable days">${Array.from({length:7},(_,i)=>{const day=addDay(options.startDate,i);return `<button type="button" data-programme-day="${day}" aria-pressed="${day===selectedDay}">${esc(dateLabel(day))}</button>`;}).join('')}</nav><div class="programme-wheel${rows.length>8?' programme-wheel-dense':''}"><svg viewBox="0 0 700 700" aria-hidden="true">${sectors}</svg><ol class="programme-wheel-sessions" aria-label="${esc(dateLabel(selectedDay))} sessions">${rows.length<=8?rows.map((r,i)=>lessonHTML(r,i,true)).join(''):''}</ol><div class="programme-wheel-centre"><small>${caption}</small><strong>${esc(centre)}</strong><span>${rows.length} ${rows.length===1?'session':'sessions'}</span></div></div>${rows.length>8?`<ol class="programme-session-list" aria-label="All sessions for ${esc(dateLabel(selectedDay))}">${rows.map((r,i)=>lessonHTML(r,i)).join('')}</ol>`:''}<p class="programme-circle-caption">${esc(dateLabel(selectedDay))} · ${rows.length} ${rows.length===1?'session':'sessions'} · Times follow ${esc(options.home.timezone||'Africa/Johannesburg')}</p>`;
+  wheel.innerHTML=`<nav class="programme-day-controls" aria-label="Browse daily circles"><button type="button" data-programme-step="-1" aria-label="Previous day">←</button><strong>${esc(dateLabel(selectedDay))}</strong><button type="button" data-programme-step="1" aria-label="Next day">→</button><button type="button" data-programme-today>Today</button></nav><nav class="programme-days" aria-label="Programme timetable days">${Array.from({length:7},(_,i)=>{const day=addDay(options.startDate,i);return `<button type="button" data-programme-day="${day}" aria-pressed="${day===selectedDay}">${esc(dateLabel(day))}</button>`;}).join('')}</nav><div class="programme-wheel${rows.length>8?' programme-wheel-dense':''}"><svg viewBox="0 0 700 700" aria-hidden="true">${sectors}</svg><ol class="programme-wheel-sessions" aria-label="${esc(dateLabel(selectedDay))} sessions">${rows.length<=8?rows.map((r,i)=>lessonHTML(r,i,true)).join(''):''}</ol><div class="programme-wheel-centre"><small>${caption}</small><strong>${esc(centre)}</strong><span>${rows.length} ${rows.length===1?'entry':'entries'}</span></div></div>${rows.length>8?`<ol class="programme-session-list" aria-label="All sessions for ${esc(dateLabel(selectedDay))}">${rows.map((r,i)=>lessonHTML(r,i)).join('')}</ol>`:''}<p class="programme-circle-caption">${esc(dateLabel(selectedDay))} · ${rows.reduce((sum,r)=>sum+(r.members?.length||1),0)} sessions · Times follow ${esc(options.home.timezone||'Africa/Johannesburg')}</p>`;
   options.bindJoins?.(wheel);$('activity-menu')?.querySelector('[data-class-notes-toggle]')?.setAttribute('aria-controls','programme-circle-host');
  }
  function noteRows(){return [...summaries.entries()].flatMap(([activityKey,value])=>value.notes.map(note=>({...note,activityKey}))).sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt)||String(b.id).localeCompare(String(a.id)));}
@@ -136,12 +152,20 @@
   popup.querySelector('[data-programme-popup-body]').innerHTML=`<p>Last 3 months · Latest first</p>${noteRows().map(noteHTML).join('')||'<p>No current notes in this page of your history.</p>'}${more?`<button type="button" data-programme-earlier${loading?' disabled':''}>${loading?'Loading…':'Load earlier notes'}</button>`:''}`;
  }
  function calendar(){
-  modal('calendar','Programme calendar');const rows=options.home.calendarEvents||[];
-  popup.querySelector('[data-programme-popup-body]').innerHTML=rows.length?`<ul>${rows.map(row=>`<li><strong>${esc(row.description||row.title||row.name)}</strong><p>${esc(row.startDate||row.date)}${row.endDate&&row.endDate!==row.startDate?' – '+esc(row.endDate):''}</p></li>`).join('')}</ul>`:'<p>No calendar events in the selected timetable week.</p>';
+  modal('calendar','Academy calendar');
+  const frame=document.createElement('iframe');frame.className='academy-calendar-frame';frame.title='Academy calendar';
+  const url='/academy/calendar/?embed=1&view='+options.mode;
+  frame.src=window.M4L_ACADEMY_WORKSPACE?.readerUrl?.(url)||url;
+  popup.querySelector('[data-programme-popup-body]').append(frame);
  }
  function click(event){
   const button=event.target.closest('button');if(!button||!options)return;
-  if(button.dataset.programmeDay){if(options.canChangeDay?.()===false)return;selectedDay=button.dataset.programmeDay;renderCircle();options.onDayChange?.(selectedDay);return;}
+  if(button.dataset.programmeDay||button.dataset.programmeStep||button.hasAttribute('data-programme-today')){
+   if(options.canChangeDay?.()===false)return;
+   selectedDay=button.dataset.programmeDay||(button.dataset.programmeStep?addDay(selectedDay,Number(button.dataset.programmeStep)):new Intl.DateTimeFormat('en-CA',{timeZone:options.home.timezone||'Africa/Johannesburg',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));
+   if(selectedDay<options.startDate||selectedDay>addDay(options.startDate,6)){options.requestDay?.(selectedDay);return;}
+   renderCircle();options.onDayChange?.(selectedDay);return;
+  }
   if(button.hasAttribute('data-programme-close'))return closePopup();
   if(button.hasAttribute('data-programme-calendar'))return calendar();
   if(button.hasAttribute('data-programme-more')){modal('notes','Programme Class Notes');renderPopupNotes();return;}
@@ -151,5 +175,5 @@
  }
  window.addEventListener('m4l-class-note-saved',event=>{if(options?.keys.includes(event.detail?.activityKey)){generation++;for(const value of summaries.values())value.loading=false;void loadNotes(false,true);}});
  document.addEventListener('click',click);
- window.M4L_PROGRAMME_WORKSPACE={active,keys:programmeKeys,displayRows,render,reset,day:()=>selectedDay};
+ window.M4L_PROGRAMME_WORKSPACE={active,keys:programmeKeys,displayRows,rollupRows,render,reset,day:()=>selectedDay};
 })();

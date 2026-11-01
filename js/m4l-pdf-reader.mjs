@@ -67,7 +67,7 @@ function fullScreen(enabled){
  button.setAttribute('aria-label',enabled?'Exit full screen: show Academy headers':'Full screen: hide Academy headers');
 }
 function positionReaderActions(){
- const account=document.querySelector('.academy-banners .academy-account-bar'),fallback=document.querySelector('.pr-header nav');
+ const account=document.querySelector('.academy-banners .academy-header-workspaces')||document.querySelector('.academy-banners .academy-account-bar'),fallback=document.querySelector('.pr-header nav');
  let normal=account?.querySelector('.pr-reader-actions');
  if(account&&!normal){normal=document.createElement('nav');normal.className='pr-reader-actions';normal.setAttribute('aria-label','PDF reader controls');account.append(normal);}
  const host=document.body.classList.contains('pr-fullscreen')?fallback:normal||fallback;

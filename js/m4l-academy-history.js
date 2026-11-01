@@ -20,10 +20,14 @@
     if(marker?.trace===state.trace&&Number.isInteger(marker.index)&&marker.index>=0){state.index=marker.index;state.max=Math.max(state.max,state.index);}
     else if(initial){
       let fromApp=false;try{fromApp=new URL(document.referrer).origin===location.origin;}catch{}
+      // Reader pages use a no-referrer policy. A same-tab native link still
+      // carries a short-lived path-only handoff; never store credential URLs.
+      const pending=saved?.pending;
+      fromApp||=pending?.path===location.pathname&&pending.at<=Date.now()&&Date.now()-pending.at<30000&&pending.index===saved.index;
       if(!saved||!fromApp||history.length<=1)state=fresh();
       else {state.index++;state.max=state.index;}
     }else {state.index++;state.max=state.index;}
-    nativeReplace(marked(history.state),'');save();render();
+    delete state.pending;nativeReplace(marked(history.state),'');save();render();
   }
   // Keep our small position marker when a router replaces its current address.
   history.replaceState=(data,title,url)=>{
@@ -43,6 +47,16 @@
   const accountChanged=()=>{const next=localStorage.getItem('m4l_account_token')||'';if(next!==owner){owner=next;reset();}};
   window.addEventListener('m4l-academy-session',accountChanged);
   window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)accountChanged();});
+  function prepare(value){
+    let url;try{url=new URL(value,location.href);}catch{return;}
+    if(url.origin!==location.origin||url.pathname===location.pathname&&url.search===location.search)return;
+    state.pending={path:url.pathname,at:Date.now(),index:state.index};save();
+  }
+  document.addEventListener('click',event=>{
+    const anchor=event.target.closest?.('a[href]');
+    if(!anchor||event.defaultPrevented||event.button>0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||anchor.hasAttribute('download')||anchor.target&&anchor.target!=='_self')return;
+    prepare(anchor.href);
+  });
   function install(){
     const style=document.createElement('link');style.rel='stylesheet';style.href='/css/m4l-academy-history.css?v=109.4';document.head.append(style);
     bar=document.createElement('nav');bar.id='academy-app-navigation';bar.setAttribute('aria-label','Page navigation');
@@ -52,23 +66,15 @@
     bar.querySelector('[data-app-forward]').addEventListener('click',()=>{if(state.index<state.max)history.forward();});
     document.body.classList.add('academy-has-app-navigation');
     const phone=matchMedia('(max-width:767px)');
-    let tabs,slot;
     function place(){
       const account=document.querySelector('.academy-account-bar');
-      const found=document.querySelector('.academy-role-tabs');
-      if(found&&found!==tabs){tabs=found;slot=document.createComment('Workspace menu position');tabs.before(slot);}
-      const target=phone.matches&&account?account:document.querySelector('.academy-page-actions,.topbar .header-actions')||account||document.body;
+      const target=document.querySelector('.academy-page-actions,.topbar .header-actions')||account||document.body;
       if(bar.parentElement!==target)target.append(bar);
-      if(tabs){
-        if(phone.matches&&account){if(tabs.parentElement!==bar)bar.insertBefore(tabs,bar.querySelector('[data-app-forward]'));}
-        else if(tabs.parentElement===bar&&slot?.parentElement)slot.before(tabs);
-      }
-      bar.classList.toggle('is-workspaces',phone.matches&&!!account&&!!tabs);
       bar.classList.toggle('is-inline',target!==document.body);render();
     }
     place();phone.addEventListener('change',place);
     new MutationObserver(place).observe(document.body,{childList:true,subtree:true});
   }
-  window.M4L_ACADEMY_HISTORY={sync:render};
+  window.M4L_ACADEMY_HISTORY={sync:render,prepare};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 })();

@@ -116,6 +116,24 @@ test('a later summary denial clears previously displayed notes from both sidebar
  }
 });
 
-test('programme Calendar is a viewing popup with current authorised events and no editing controls',async()=>{
- const f=ui();f.render({home:{...home,calendarEvents:[{description:'Native term event',startDate:'2026-11-01',endDate:'2026-11-03'}]}});await flush();f.click('[data-programme-calendar]');const popup=f.document.querySelector('.programme-popup');assert.equal(popup.open,true);assert.match(popup.textContent,/Native term event/);assert.match(popup.textContent,/2026-11-03/);assert.equal(popup.querySelectorAll('input,textarea,a').length,0);
+test('programme Calendar opens the real monthly Academy calendar in the current read-only audience',async()=>{
+ for(const mode of ['learn','teach']){const f=ui();f.setMode(mode.toUpperCase());f.render({mode});await flush();f.click('[data-programme-calendar]');const popup=f.document.querySelector('.programme-popup'),frame=popup.querySelector('iframe');assert.equal(popup.open,true);assert.match(frame.src,new RegExp('/academy/calendar/\\?embed=1&view='+mode));assert.equal(frame.title,'Academy calendar');assert.equal(popup.querySelectorAll('input,textarea').length,0);}
+});
+
+test('Teacher rollup uses only the server room identity, same programme/day and contiguous intervals',()=>{
+ const f=ui(),make=(index,start,end,extra={})=>lesson(index,{startsAt:start,endsAt:end,meetingGroup:'verified-room',...extra});
+ const original=[make(0,1000,2000),make(1,2000,3000),make(2,3100,4000),make(3,4000,4500,{meetingGroup:'other-room'}),make(4,4500,5000,{activityId:'other-programme'}),make(5,5000,5500,{date:'2026-11-02'}),make(6,5500,6000,{meetingGroup:''})];
+ const grouped=f.model.rollupRows(original,'teach');assert.equal(grouped.length,6);assert.deepEqual([...grouped[0].members].map(r=>r.joinKey),['native-0','native-1']);assert.equal(grouped[0].endsAt,3000);assert.equal(original[0].endsAt,2000);assert.equal(f.model.rollupRows(original,'learn'),original);
+});
+test('Teacher rollup selects an actually eligible child Join key at each five-minute boundary',()=>{
+ const f=ui(),rows=f.model.rollupRows([lesson(0,{startsAt:600000,endsAt:1200000,joinAvailableAt:300000,meetingGroup:'room'}),lesson(1,{startsAt:1200000,endsAt:1800000,joinAvailableAt:900000,meetingGroup:'room'})],'teach');
+ assert.equal(f.model.dayRows(rows,'2026-11-01',299999)[0].canJoin,false);assert.equal(f.model.dayRows(rows,'2026-11-01',300000)[0].joinIndex,0);assert.equal(f.model.dayRows(rows,'2026-11-01',1200000)[0].joinIndex,1);assert.equal(f.model.dayRows(rows,'2026-11-01',1800000)[0].canJoin,false);
+});
+test('daily circle Previous and Next request a new week only at its boundary and retain selected day',async()=>{
+ const f=ui(),requested=[];f.render({requestDay:day=>requested.push(day)});await flush();f.click('[data-programme-step="1"]');assert.equal(f.window.M4L_PROGRAMME_WORKSPACE.day(),'2026-11-02');assert.equal(requested.length,0);
+ f.click('[data-programme-day="2026-11-07"]');f.click('[data-programme-step="1"]');assert.deepEqual(requested,['2026-11-08']);f.render({startDate:'2026-11-08',requestDay:day=>requested.push(day)});assert.equal(f.window.M4L_PROGRAMME_WORKSPACE.day(),'2026-11-08');f.click('[data-programme-step="-1"]');assert.deepEqual(requested,['2026-11-08','2026-11-07']);
+});
+
+test('switching Learn and Teach restores the native timetable without retaining a second circle',async()=>{
+ const f=ui();f.render();await flush();f.setMode('TEACH');f.render({mode:'teach'});await flush();assert.equal(f.document.querySelectorAll('#programme-circle-host').length,1);assert.equal(f.document.querySelectorAll('[data-programme-step="-1"]').length,1);f.reset();assert.equal(f.document.querySelectorAll('#programme-circle-host').length,0);assert.equal(f.document.querySelectorAll('#pa-main').length,1);
 });

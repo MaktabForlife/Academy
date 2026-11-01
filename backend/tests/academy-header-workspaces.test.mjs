@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';import {createRequire} from 'node:module';import vm from 'node:vm';
 const {parseHTML}=createRequire(import.meta.url)('linkedom');
-const shellCode=readFileSync(new URL('../../js/m4l-academy-mobile.js',import.meta.url),'utf8'),returnCode=readFileSync(new URL('../../academy/website-platform/circles-return.mjs',import.meta.url),'utf8').replace('export function approvedCirclesReturn','function approvedCirclesReturn');
+const shellCode=readFileSync(new URL('../../js/m4l-academy-mobile.js',import.meta.url),'utf8'),returnCode=readFileSync(new URL('../../academy/website-platform/circles-return.mjs',import.meta.url),'utf8').replace(/export function /g,'function ');
 const settle=async()=>{for(let i=0;i<20;i++)await new Promise(r=>setImmediate(r));};
 function fixture({native=true,signed=true,global=true,teacher=false,verified=true,mode='ADMIN_TEACH'}={}){
  const attr=native?'data-academy-tab':'data-shell-role';

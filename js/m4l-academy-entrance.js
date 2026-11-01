@@ -87,7 +87,7 @@
 
   const scheduleCard=$('academy-schedule');
   function dockTimetable(target){if(target&&scheduleCard.parentElement!==target)target.appendChild(scheduleCard);}
-  function weekButtons(){for(const id of ['schedule-previous','activity-previous'])$(id).disabled=!state.startDate||state.startDate<=currentWeek();for(const id of ['schedule-next','activity-next'])$(id).disabled=!token()&&state.startDate>=addWeekDays(state.home?.availableEndDate||state.home?.endDate||state.startDate,-6);}
+  function weekButtons(){for(const id of ['schedule-previous','activity-previous'])$(id).disabled=!state.startDate||!token()&&state.startDate<=currentWeek();for(const id of ['schedule-next','activity-next'])$(id).disabled=!token()&&state.startDate>=addWeekDays(state.home?.availableEndDate||state.home?.endDate||state.startDate,-6);}
   function roleRows(data){let rows=scheduleRows(data);if(data.signedIn&&window.M4L_ACADEMY_WORKSPACE?.current()!=='ADMIN'&&(location.hash==='#dashboard'||/^#timetable\/(learn|teach)$/.test(location.hash)))rows=rows.filter(row=>row.kind==='PROGRAM');if(data.signedIn&&window.M4L_ACADEMY_DASHBOARD?.isActiveArea){const active=new Set((data.personalActivities||[]).filter(window.M4L_ACADEMY_DASHBOARD.isActiveArea).map(row=>row.kind+':'+row.id));rows=rows.filter(row=>active.has(row.kind+':'+row.activityId));}if(window.M4L_ACADEMY_WORKSPACE?.adminRealm()&&window.M4L_ACADEMY_WORKSPACE?.current()==='ADMIN'&&!data.globalAdmin){const managed=new Set((data.personalActivities||[]).filter(row=>adminRoles(row.roles||[])).map(row=>row.kind+':'+row.id));rows=rows.filter(row=>managed.has(row.kind+':'+row.activityId));}const teach=window.M4L_ACADEMY_WORKSPACE?.audience()==='TEACH'||location.hash==='#timetable/teach';if(!teach||data.globalAdmin)return rows;const areas=new Set((data.personalActivities||[]).filter(r=>staffRoles(r.roles||[])).map(r=>r.kind+':'+r.id));return rows.filter(r=>areas.has(r.kind+':'+r.activityId));}
   function workspaceAreaLinks(mode,current,activities=state.home?.personalActivities||[]){
     const rows=activities.filter(row=>row.kind==='PROGRAM'&&menuActivity(row)&&(state.home?.globalAdmin||mode!=='teach'||staffRoles(row.roles||[])));
@@ -330,7 +330,7 @@
       $('schedule-message').textContent = result._cacheChecking?'Checking for updates…':result._cacheMessage||result.warnings.join(' ');
       state.scheduleTimetable = scheduleRows(result);
       renderSchedule('academy-sessions', roleRows(result));
-      if(location.hash.startsWith('#activity/'))renderActivityTimetable();
+      if(location.hash.startsWith('#activity/')){renderActivityTimetable();if(workspaceContext(state.activity||{roles:[]}).mode==='teach')syncAttendance(state.activity);}
       weekButtons();
       updateDashboard();
       armScheduleClock();
@@ -447,7 +447,7 @@
     window.M4L_ACADEMY_DASHBOARD.open({...state.home,startDate:state.startDate||state.home.startDate,endDate:state.startDate?addWeekDays(state.startDate,6):state.home.endDate,personalTimetable:roleRows({...state.home,personalTimetable:state.scheduleTimetable})},{mode,
       activityHref:workspaceHref,adminLinks:dashboardAdminLinks,
       hifzHref:row=>{const html=hifzHelperLink(row);return html?html.match(/href="([^"]+)"/)?.[1].replace(/&amp;/g,'&'):'';},
-      refreshTimetable:(force=true)=>void loadSchedule(force)});
+      requestDay:day=>{state.startDate=sunday(day);void loadSchedule();},bindJoin:(button,lesson)=>joinChoices.set(button,lesson),refreshTimetable:(force=true)=>void loadSchedule(force)});
     dockTimetable($('ad-timetable-host'));
   }
   function updateDashboard(){
@@ -723,9 +723,9 @@
   }
 
   function summarizeLesson(row) {
-    // Only verified inherited access may combine lessons. Older cached replies
-    // without assignment metadata stay separate until the next fresh snapshot.
-    return row.summarize === true && row.assignedParticipation === '' && !row.preview;
+    // Combine only checked inherited or teaching participation. Room identity
+    // and contiguous times are checked separately; preview rows stay distinct.
+    return !row.preview && (row.summarize === true && row.assignedParticipation === '' || window.M4L_ACADEMY_WORKSPACE?.audience()==='TEACH' && ['teacher','substitute'].includes(row.involvement));
   }
 
   function renderSchedule(id, rows, detailed = false, compact = false, options = {}) {
@@ -842,7 +842,7 @@
       else if (summarizeLesson(row) && row.meetingGroup) {
         const roomKey = JSON.stringify([row.date,row.kind,row.activityId,row.meetingGroup]);
         const previous = roomGroups.get(roomKey);
-        if (previous && (row.kind !== 'PROGRAM' || row.startsAt <= previous.endsAt)) {
+        if (previous && row.startsAt <= previous.endsAt) {
           key = previous.key;
           previous.endsAt = Math.max(previous.endsAt,row.endsAt);
         } else {
@@ -901,9 +901,9 @@
     weekButtons();
     if(programme){
       const media=timetableAttachments(rows);
-      const displayed=window.M4L_PROGRAMME_WORKSPACE.displayRows(rows,state.home.timezone);
-      state.information['programme-circle']=displayed.map(row=>({title:row.moduleName||row.subjectName||row.activityName,dailyRollup:true,lessons:[{...row,media:media.get(mediaReference(row))}]}));
-      window.M4L_PROGRAMME_WORKSPACE.render({row:state.activity,home:state.home,rows:displayed,mode:context.mode,startDate:state.startDate,canChangeDay:()=>window.M4L_PROGRAM_ATTENDANCE?.canLeave()!==false,onDayChange:()=>{if(context.mode==='teach')syncAttendance(state.activity);},bindJoins:host=>{for(const button of host.querySelectorAll('[data-join]'))joinChoices.set(button,state.information['programme-circle'][Number(button.dataset.join.split(':')[1])]?.lessons[0]);}});
+      const displayed=window.M4L_PROGRAMME_WORKSPACE.rollupRows(window.M4L_PROGRAMME_WORKSPACE.displayRows(rows,state.home.timezone),context.mode);
+      state.information['programme-circle']=displayed.map(row=>({title:row.moduleName||row.subjectName||row.activityName,dailyRollup:true,lessons:(row.members||[row]).map(member=>({...member,media:media.get(mediaReference(member))}))}));
+      window.M4L_PROGRAMME_WORKSPACE.render({row:state.activity,home:state.home,rows:displayed,mode:context.mode,startDate:state.startDate,requestDay:day=>{state.startDate=sunday(day);void loadSchedule();},canChangeDay:()=>window.M4L_PROGRAM_ATTENDANCE?.canLeave()!==false,onDayChange:()=>{if(context.mode==='teach')syncAttendance(state.activity);},bindJoins:host=>{for(const button of host.querySelectorAll('[data-join]'))joinChoices.set(button,state.information['programme-circle'][Number(button.dataset.join.split(':')[1])]?.lessons[Number(button.dataset.join.split(':')[2])||0]);}});
     }else window.M4L_PROGRAMME_WORKSPACE?.reset();
     armScheduleClock();
   }
@@ -1066,7 +1066,7 @@
 
   function route() {
     let hash = location.hash || '#overview';
-    if (token() && !state.home && window.M4L_ACADEMY_STARTUP?.entry()) window.M4L_ACADEMY_STARTUP.begin();
+    if (token() && window.M4L_ACADEMY_STARTUP?.entry() && (!state.home || hash.startsWith('#activity/') && hash !== lastRouteHash)) window.M4L_ACADEMY_STARTUP.begin();
     else if (!token() || !window.M4L_ACADEMY_STARTUP?.entry()) window.M4L_ACADEMY_STARTUP?.complete();
     // The visitor timetable lives on Home. Retire its separate legacy screen;
     // the same timetable component still serves signed-in workspaces.
@@ -1074,7 +1074,7 @@
       hash = '#overview';
       history.replaceState(null, '', hash);
     }
-    if(window.M4L_ACADEMY_DASHBOARD&&state.home?.signedIn&&['#overview','#login','#timetable/learn','#timetable/teach'].includes(hash)){
+    if(window.M4L_ACADEMY_DASHBOARD&&state.home?.signedIn&&['#overview','#login'].includes(hash)){
       const next=window.M4L_ACADEMY_DASHBOARD.landing(state.home);
       if(next.startsWith(location.pathname+'#')||next.startsWith('/academy/#')&&location.pathname==='/academy/'){
         history.replaceState(null,'',next);route();
@@ -1133,7 +1133,7 @@
     lastRouteHash = hash;
     const [requested, , encodedId] = location.hash.slice(1).split('/');
     if (requested !== 'activity') { clearTimeout(state.activityTimer); state.activityGeneration++; renderSubscriptions(state.home?.signedIn ? state.home.personalActivities : []); }
-    const dashboardHome=Boolean(window.M4L_ACADEMY_DASHBOARD&&state.home?.signedIn&&hash==='#dashboard');
+    const dashboardHome=Boolean(window.M4L_ACADEMY_DASHBOARD&&state.home?.signedIn&&(hash==='#dashboard'||/^#timetable\/(learn|teach)$/.test(hash)));
     const name = dashboardHome?'dashboard':requested==='website'?'overview':['hifz','hifdh','progress'].includes(requested) ? 'overview' : requested === 'learning' ? 'overview' : titles[requested] ? requested : 'overview';
     document.querySelectorAll('.view').forEach(view => view.classList.toggle('active', view.id === name));
     document.querySelectorAll('[data-nav]').forEach(button => {
@@ -1428,7 +1428,7 @@
   }
   window.addEventListener('resize',queuePersonalDays);
   for (const [id, days] of [['schedule-previous', -7], ['schedule-next', 7], ['activity-previous',-7], ['activity-next',7]]) $(id).addEventListener('click', () => {
-    if (!state.startDate||days<0&&state.startDate<=currentWeek()) return;
+    if (!state.startDate||!token()&&days<0&&state.startDate<=currentWeek()) return;
     state.startDate = new Date(Date.parse(`${state.startDate}T12:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
     void loadSchedule();
   });

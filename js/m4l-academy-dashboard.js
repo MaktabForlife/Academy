@@ -127,27 +127,11 @@
   function mount() {
     const host=$('dashboard');if(!host)return;
     closeContents(false);
-    host.classList.toggle('ad-admin-dashboard',mode==='admin');
-    host.classList.add('circles-dashboard');
-    if(mode==='admin'){mountAdmin(host);host.onclick=handleClick;return;}
-    host.innerHTML=`<div class="ad-layout"><aside class="ad-sidebar" aria-label="Menu"><h2>Menu</h2><nav id="ad-navigation"></nav></aside><div class="ad-main">
-      <header class="ad-intro circles-dashboard-heading"><div class="ad-welcome-copy"><p class="eyebrow">YOUR ACADEMY</p><h1 id="ad-title"></h1><p id="ad-checked"></p></div><div class="ad-home-actions"><button type="button" data-ad-retry>Refresh dashboard</button><button type="button" class="ad-contents-toggle academy-menu-button" data-ad-contents-toggle aria-haspopup="dialog" aria-expanded="false" aria-controls="ad-navigation"><span>Menu</span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button></div></header>
-      <div id="ad-primary-actions" class="ad-actions" hidden></div><p id="ad-status" class="ad-status" role="status" aria-live="polite"></p>
-      <section class="ad-hub-entry" aria-labelledby="ad-continue-title"><header><h2 id="ad-continue-title">Your programmes</h2></header><nav id="ad-hub-gateways" class="ad-hub-gateways" aria-label="Global Admin workspaces"></nav><div id="ad-areas"></div></section>
-      <div class="circles-dashboard-grid">
-        <section class="ad-panel circles-dashboard-panel circles-attention" aria-labelledby="ad-fya-title"><header><h2 id="ad-fya-title">For your attention</h2><span id="ad-fya-count" class="ad-count"></span></header><div id="ad-attention"></div><div class="ad-assessments"><header><h3 id="ad-assessment-title">Upcoming exams (Imtehaan)</h3><span id="ad-assessment-count" class="ad-count"></span></header><div id="ad-assessments" aria-live="polite"></div></div></section>
-        <section class="ad-panel circles-dashboard-panel ad-next" aria-labelledby="ad-next-title"><header><h2 id="ad-next-title">Coming up next</h2></header><div id="ad-next"></div></section>
-        <section class="ad-panel circles-dashboard-panel ad-messages" aria-labelledby="ad-messages-title"><header><h2 id="ad-messages-title">Messages <span id="ad-unread" class="ad-count"></span></h2></header><div id="ad-messages"></div><button type="button" data-ad-inbox>View inbox</button></section>
-        <section class="ad-panel circles-dashboard-panel ad-week" aria-labelledby="ad-week-title"><header><h2 id="ad-week-title">This week</h2></header><div id="ad-timetable-host"></div></section>
-        <section id="ad-calendar-row" class="ad-panel circles-dashboard-panel ad-calendar" aria-labelledby="ad-calendar-title"><header><h2 id="ad-calendar-title">Academy calendar</h2></header><div id="ad-calendar-host"></div></section>
-        <section class="ad-panel circles-dashboard-panel ad-tools"><header><h2>Quick tools</h2></header><nav id="ad-tools" aria-label="Dashboard tools"></nav></section>
-      </div>
-    </div></div>`;
-    host.onclick=handleClick;
-    host.onfocusin=revealProgramCard;
+    host.classList.add('ad-admin-dashboard','circles-dashboard');
+    mountAdmin(host);host.onclick=handleClick;host.onfocusin=revealProgramCard;
   }
   function mountAdmin(host){
-    host.innerHTML=`<header class="ad-admin-intro"><p class="eyebrow">YOUR ACADEMY</p><h1 id="ad-title">Your Academy dashboard</h1><p id="ad-checked"></p></header><p id="ad-status" role="status"></p><div class="ad-admin-top"><aside class="ad-sidebar" aria-label="Menu"><h2>Your Academy</h2><nav id="ad-navigation"></nav></aside><section class="ad-admin-centre" aria-label="Your Academy circle"><div id="ad-areas" class="ad-management-row" aria-label="Management"></div><header class="ad-circle-heading"><p class="eyebrow">YOUR ACADEMY CIRCLE</p><h2>A little space for your day.</h2></header><div class="ad-circle-controls"><button type="button" data-ad-step="-1" aria-label="Previous day">←</button><strong id="ad-circle-date"></strong><button type="button" data-ad-step="1" aria-label="Next day">→</button><button type="button" data-ad-today>Today</button></div><div id="ad-admin-circle"></div></section><aside class="ad-panel circles-attention" aria-labelledby="ad-fya-title"><header><h2 id="ad-fya-title">For your attention</h2><span id="ad-fya-count" class="ad-count"></span></header><div id="ad-attention"></div><div class="ad-assessments"><header><h3 id="ad-assessment-title">Upcoming exams (Imtehaan)</h3><span id="ad-assessment-count" class="ad-count"></span></header><div id="ad-assessments"></div></div></aside></div><div class="ad-admin-support"><section class="ad-panel ad-messages"><header><h2>Messages <span id="ad-unread"></span></h2></header><div id="ad-messages"></div><button type="button" data-ad-inbox>View inbox</button></section><section class="ad-panel ad-week"><h2 id="ad-week-title">This week</h2><div id="ad-timetable-host"></div></section><section id="ad-calendar-row" class="ad-panel"><h2>Academy calendar</h2><div id="ad-calendar-host"><a href="/academy/calendar/?view=admin">Edit calendar →</a></div></section></div><div hidden><button data-ad-contents-toggle><span>Menu</span></button><div id="ad-primary-actions"></div><div id="ad-tools"></div><h2 id="ad-continue-title"></h2><nav id="ad-hub-gateways"></nav><div id="ad-next"></div></div>`;
+    host.innerHTML=`<header class="ad-admin-intro"><p class="eyebrow">YOUR ACADEMY</p><h1 id="ad-title">Your Academy dashboard</h1><p id="ad-checked"></p></header><p id="ad-status" role="status"></p><div class="ad-admin-top"><aside class="ad-sidebar" aria-label="Menu"><h2>Your Academy</h2><nav id="ad-navigation"></nav></aside><section class="ad-admin-centre" aria-label="Your Academy circle"><div id="ad-areas" class="ad-management-row" aria-label="Management"></div><header class="ad-circle-heading"><p class="eyebrow">YOUR ACADEMY CIRCLE</p><h2>A little space for your day.</h2></header><div class="ad-circle-controls"><button type="button" data-ad-step="-1" aria-label="Previous day">←</button><strong id="ad-circle-date"></strong><button type="button" data-ad-step="1" aria-label="Next day">→</button><button type="button" data-ad-today>Today</button></div><div id="ad-admin-circle"></div></section><aside class="ad-panel circles-attention" aria-labelledby="ad-fya-title"><header><h2 id="ad-fya-title">For your attention</h2><span id="ad-fya-count" class="ad-count"></span></header><div id="ad-attention"></div><div class="ad-assessments"><header><h3 id="ad-assessment-title">Upcoming exams (Imtehaan)</h3><span id="ad-assessment-count" class="ad-count"></span></header><div id="ad-assessments"></div></div></aside></div><div class="ad-admin-support"><section class="ad-panel ad-messages"><header><h2>Messages <span id="ad-unread"></span></h2></header><div id="ad-messages"></div><button type="button" data-ad-inbox>View inbox</button></section><section class="ad-panel ad-week"><h2 id="ad-week-title">This week</h2><div id="ad-timetable-host"></div></section><section id="ad-calendar-row" class="ad-panel"><h2>Academy calendar</h2><div id="ad-calendar-host"></div></section></div><div hidden><button data-ad-contents-toggle><span>Menu</span></button><div id="ad-primary-actions"></div><div id="ad-tools"></div><h2 id="ad-continue-title"></h2><nav id="ad-hub-gateways"></nav><div id="ad-next"></div></div>`;
   }
   function adminManagement(){
     const supplied=options.adminLinks||[],spec=[['Users',/^users$/i],['Access',/^access$/i],['Curriculum',/^curriculum$/i],['Intehaan',/^(assessments|imtehaan|intehaan)$/i]];
@@ -156,18 +140,36 @@
     return rows;
   }
   function renderAdminCircle(){
-    if(mode!=='admin'||!home||!$('ad-admin-circle'))return;
+    if(!home||!$('ad-admin-circle'))return;
     const timezone=home.timezone||'Africa/Johannesburg',today=new Intl.DateTimeFormat('en-CA',{year:'numeric',month:'2-digit',day:'2-digit',timeZone:timezone}).format(new Date());
     if(!circleDay||home.startDate&&circleDay<home.startDate||home.endDate&&circleDay>home.endDate)circleDay=(!home.startDate||today>=home.startDate)&&(!home.endDate||today<=home.endDate)?today:home.startDate||today;
-    const allowed=new Set(areas().map(key)),groups=new Map();
-    for(const row of home.personalTimetable||[]){if(row.date!==circleDay||!allowed.has(row.kind+':'+row.activityId))continue;const id=row.kind+':'+row.activityId;if(!groups.has(id))groups.set(id,[]);groups.get(id).push(row);}
-    circleGroups=[...groups.values()].map(rows=>rows.sort((a,b)=>a.startsAt-b.startsAt)).sort((a,b)=>a[0].startsAt-b[0].startsAt);
+    const allowed=new Set(areas().map(key)),groups=new Map(),model=window.M4L_PROGRAMME_WORKSPACE;
+    const displayed=model?.displayRows?model.displayRows(home.personalTimetable||[],timezone):home.personalTimetable||[];
+    const rows=displayed.filter(row=>row.date===circleDay&&allowed.has(row.kind+':'+row.activityId)&&Number.isFinite(row.startsAt)&&Number.isFinite(row.endsAt));
+    if(mode==='admin'){
+      for(const row of rows){const id=row.kind+':'+row.activityId;if(!groups.has(id))groups.set(id,[]);groups.get(id).push(row);}
+      circleGroups=[...groups.values()];
+    }else circleGroups=(mode==='teach'&&model?.rollupRows?model.rollupRows(rows,'teach'):rows).map(row=>row.members||[row]);
+    circleGroups=circleGroups.map(rows=>rows.sort((a,b)=>a.startsAt-b.startsAt)).sort((a,b)=>a[0].startsAt-b[0].startsAt);
     $('ad-circle-date').textContent=new Intl.DateTimeFormat('en-GB',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}).format(new Date(circleDay+'T12:00:00Z'));
     const count=Math.max(6,circleGroups.length),point=angle=>{const r=(angle-90)*Math.PI/180;return [350+342*Math.cos(r),350+342*Math.sin(r)].join(' ');};
     const sectors=Array.from({length:count},(_,i)=>{const start=i*360/count-180/count+.7,end=start+360/count-1.4;return `<path d="M350 350 L${point(start)} A342 342 0 ${360/count>180?1:0} 1 ${point(end)} Z" class="${circleGroups[i]?'has-sessions':''}"/>`;}).join('');
-    const entries=circleGroups.map((rows,i)=>{const first=rows[0],last=rows.reduce((a,b)=>a.endsAt>b.endsAt?a:b),angle=i*2*Math.PI/count;return `<li style="--x:${50+32*Math.sin(angle)}%;--y:${50-32*Math.cos(angle)}%"><button type="button" data-ad-circle-info="${i}" aria-label="${esc(first.activityName)}: ${rows.length} session${rows.length===1?'':'s'}. View all session details"><strong>${esc(first.activityName)}</strong><span>${esc(first.startTime)}–${esc(last.endTime)}</span><small>${rows.length} session${rows.length===1?'':'s'} ⓘ</small></button></li>`;}).join('');
-    $('ad-admin-circle').innerHTML=`<div class="ad-circle-wheel${circleGroups.length>8?' ad-circle-many':''}"><svg viewBox="0 0 700 700" aria-hidden="true">${sectors}</svg><ol>${entries}</ol><div class="ad-circle-heart"><small>${circleDay===today?'TODAY':'YOUR SELECTED DAY'}</small><strong>${circleGroups.length?circleGroups.length+' programmes':'A little space'}</strong><span>${circleGroups.length?'View a programme for every session':'No sessions on this day'}</span></div></div><p class="ad-circle-caption">Times follow ${esc(timezone)}</p>`;
+    const entries=circleGroups.map((rows,i)=>{const first=rows[0],last=rows.reduce((a,b)=>a.endsAt>b.endsAt?a:b),angle=i*2*Math.PI/count,label=mode==='admin'?first.activityName:[...new Set(rows.map(r=>r.moduleName||r.subjectName||r.title||r.activityName))].join(' · ');return `<li style="--x:${50+32*Math.sin(angle)}%;--y:${50-32*Math.cos(angle)}%"><button type="button" data-ad-circle-info="${i}" aria-label="${esc(label)}: ${rows.length} session${rows.length===1?'':'s'}. View all session details"><strong>${esc(label)}</strong><span>${esc(first.startTime)}–${esc(last.endTime)}</span><small>${rows.length} session${rows.length===1?'':'s'} ⓘ</small></button>${joinButton(rows,i)}</li>`;}).join('');
+    $('ad-admin-circle').innerHTML=`<div class="ad-circle-wheel${circleGroups.length>8?' ad-circle-many':''}"><svg viewBox="0 0 700 700" aria-hidden="true">${sectors}</svg><ol>${entries}</ol><div class="ad-circle-heart"><small>${circleDay===today?'TODAY':'YOUR SELECTED DAY'}</small><strong>${circleGroups.length?circleGroups.length+(mode==='admin'?' programmes':' entries'):'A little space'}</strong><span>${circleGroups.length?'Open an entry for every session':'No sessions on this day'}</span></div></div><p class="ad-circle-caption">Times follow ${esc(timezone)}</p>`;
+    bindCircleJoins($('ad-admin-circle'));
   }
+  const canJoin=row=>row.status==='SCHEDULED'&&Boolean(row.joinKey)&&Date.now()>=row.joinAvailableAt&&Date.now()<row.endsAt;
+  function joinButton(rows,group){const index=rows.findIndex(canJoin);return index<0?'':`<button type="button" class="timetable-join" data-join="dashboard:${group}:${index}" data-ad-join-group="${group}" data-ad-join-child="${index}">Join class ↗</button>`;}
+  function bindCircleJoins(host){for(const button of host.querySelectorAll('[data-ad-join-group]')){const row=circleGroups[Number(button.dataset.adJoinGroup)]?.[Number(button.dataset.adJoinChild)];if(row&&canJoin(row))options.bindJoin?.(button,row);}}
+  function selectCircleDay(day){
+    circleDay=day;
+    if(home.startDate&&day<home.startDate||home.endDate&&day>home.endDate){
+      if(options.requestDay){options.requestDay(day);return;}
+      const control=$(day<home.startDate?'schedule-previous':'schedule-next');if(control&&!control.disabled)control.click();return;
+    }
+    renderAdminCircle();
+  }
+
   const completionStorageKey=()=>{
     const id=window.M4L_ACADEMY_LOGIN?.currentId?.();
     return id?'m4l:note-completion:v1:'+encodeURIComponent(String(id).toUpperCase()):'';
@@ -179,9 +181,10 @@
   }
   function completionButton(note,completed){return canComplete()?`<button type="button" data-ad-complete="${esc(completionId(note))}" aria-pressed="${completed}">${completed?'Mark incomplete':'Mark complete'}</button>`:'';}
   function handleClick(event) {
-      const step=event.target.closest('[data-ad-step]');if(step){const next=new Date(Date.parse(circleDay+'T12:00:00Z')+Number(step.dataset.adStep)*86400000).toISOString().slice(0,10);if(home.startDate&&next<home.startDate||home.endDate&&next>home.endDate){const control=$(next<home.startDate?'schedule-previous':'schedule-next');if(!control||control.disabled)return;circleDay=next;control.click();return;}circleDay=next;renderAdminCircle();return;}
-      if(event.target.closest('[data-ad-today]')){circleDay='';renderAdminCircle();return;}
-      const info=event.target.closest('[data-ad-circle-info]');if(info){const rows=circleGroups[Number(info.dataset.adCircleInfo)];if(!rows)return;showDialog(rows[0].activityName,rows.map(row=>'<section class="ad-session-detail"><h3>'+esc(row.moduleName||row.subjectName||row.title||'Session')+'</h3><p>'+esc(row.date+' · '+row.startTime+'–'+row.endTime)+'</p><p>'+esc((row.classNames||[row.className]).filter(Boolean).join(', '))+'</p><p>'+esc((row.teacherNames||[row.teacherName]).filter(Boolean).join(', '))+'</p></section>').join(''));return;}
+      const step=event.target.closest('[data-ad-step]');if(step){selectCircleDay(new Date(Date.parse(circleDay+'T12:00:00Z')+Number(step.dataset.adStep)*86400000).toISOString().slice(0,10));return;}
+      if(event.target.closest('[data-ad-today]')){selectCircleDay(new Intl.DateTimeFormat('en-CA',{year:'numeric',month:'2-digit',day:'2-digit',timeZone:home.timezone||'Africa/Johannesburg'}).format(new Date()));return;}
+      if(event.target.closest('[data-ad-calendar]')){showDialog('Academy calendar','<div data-ad-calendar-body></div>');const frame=document.createElement('iframe');frame.className='academy-calendar-frame';frame.title='Academy calendar';frame.src=boundary().readerUrl('/academy/calendar/?embed=1&view='+mode);dialog.querySelector('[data-ad-calendar-body]').append(frame);return;}
+      const info=event.target.closest('[data-ad-circle-info]');if(info){const group=Number(info.dataset.adCircleInfo),rows=circleGroups[group];if(!rows)return;showDialog(rows[0].activityName,rows.map((row,index)=>'<section class="ad-session-detail"><h3>'+esc(row.moduleName||row.subjectName||row.title||'Session')+'</h3><p>'+esc(row.date+' · '+row.startTime+'–'+row.endTime)+'</p><p>'+esc((row.classNames||[row.className]).filter(Boolean).join(', '))+'</p><p>'+esc((row.teacherNames||[row.teacherName]).filter(Boolean).join(', '))+'</p>'+(canJoin(row)?`<button type="button" class="timetable-join" data-join="dashboard:${group}:${index}" data-ad-join-group="${group}" data-ad-join-child="${index}">Join class ↗</button>`:'')+'</section>').join(''));bindCircleJoins(dialog);return;}
       if(event.target.closest('[data-ad-contents-toggle]')){openContents();return;}
       const programme=event.target.closest('[data-ad-programme-choice]');if(programme){chooseProgramme(programme.dataset.adProgrammeChoice);return;}
       const complete=event.target.closest('[data-ad-complete]');
@@ -226,9 +229,9 @@
     const sidebar=document.querySelector('#dashboard .ad-sidebar'),caption='Menu';
     sidebar.setAttribute('aria-label',caption);sidebar.querySelector('h2').textContent=caption;
     document.querySelector('[data-ad-contents-toggle]>span').textContent=caption;
-    const planning=areas().some(row=>!row.substituteOnly&&row.plansRequired!==false)?'<button type="button" data-ad-choose="planning">Submit plans</button>':'';
+    const planning='';
     const tools=mode==='teach'?planning:mode==='admin'?adminLinks.map(row=>row.action?'<button type="button" data-admin-public-refresh>Update timetable</button>':link(row.href,row.label)).join(''):link('/academy/enrolment/','Enrol now');
-    const shared=tracker()+link('/academy/library/','Library')+link(boundary()?.readerUrl('/recorder/?academy=1')||'/recorder/?academy=1','Voice Recorder');
+    const shared=tracker()+link('/academy/library/','Library')+'<p class="ad-menu-caption">QUICK LINKS</p><button type="button" data-ad-calendar>Calendar</button>'+link(boundary()?.readerUrl('/recorder/?academy=1')||'/recorder/?academy=1','Voice Recorder')+'<button type="button" data-ad-retry>Refresh dashboard</button>';
     const visitWebsite='<a class="ad-visit" href="/academy/#website" data-workspace-exit>Visit website ↗</a>';
     $('ad-navigation').innerHTML=mode==='admin'&&home.globalAdmin?tools+visitWebsite:link(homeUrl(),'Home')+'<button type="button" data-ad-week>Timetable</button>'+'<button type="button" data-ad-inbox>Messages</button>'+tools+shared+visitWebsite;
     $('ad-tools').innerHTML=(mode==='admin'?'':tools)+shared;
@@ -239,20 +242,12 @@
   }
   function renderAreas() {
     if(mode==='admin'){$('ad-areas').innerHTML=adminManagement().map(row=>link(row.href,row.label,'ad-management-link')).join('');return;}
-    const global=globalAdmin(),rows=hubAreas();
-    $('ad-continue-title').textContent=global?'Your workspaces':'Your programmes';
-    $('ad-hub-gateways').hidden=!global;
-    $('ad-hub-gateways').innerHTML=global?'<button type="button" data-ad-programme-choice="admin-learn"><strong>Admin-Learn</strong><span>Choose a programme · Student class view</span></button><button type="button" data-ad-programme-choice="admin-teach"><strong>Admin-Teach</strong><span>Choose a programme · Teaching workspace</span></button><a href="/academy/admin/#administration"><strong>Management</strong><span>People, programmes and Academy tools</span></a>':'';
-    $('ad-areas').hidden=global;
-    $('ad-areas').innerHTML=global?'':rows.length?'<div class="ad-hub-programmes">'+rows.map(row=>{
-      const roles=row.roles||[],admin=roles.some(role=>['PROGRAM_ADMIN','ADMIN'].includes(role));
-      const entries=[];
-      if(roles.includes('STUDENT')){const helper=options.hifzHref?.(row);entries.push(helper?'<a class="ad-hub-programme-link" href="'+esc(helper)+'" target="_blank" rel="noopener noreferrer">Learn ↗</a>':link(programmeHref(row,'learn'),'Learn','ad-hub-programme-link'));}
-      if(roles.some(role=>['TEACHER','SENIOR','SUBSTITUTE'].includes(role)))entries.push(link(programmeHref(row,'teach'),'Teach','ad-hub-programme-link'));
-      if(admin)entries.push(link(programmeHref(row,'admin-learn'),'Admin-Learn','ad-hub-programme-link'),link(programmeHref(row,'admin-teach'),'Admin-Teach','ad-hub-programme-link'),link(programmeHref(row,'admin'),'Admin','ad-hub-programme-link'));
-      return '<article class="ad-hub-programme"><h3>'+esc(row.name)+'</h3><nav aria-label="'+esc(row.name)+' workspaces">'+entries.join('')+'</nav></article>';
-    }).join('')+'</div>':'<p class="ad-empty-line">Your assigned programmes will appear here.</p>';
+    const rows=areas().filter(row=>mode!=='teach'||globalAdmin()||row.roles.some(role=>['TEACHER','SENIOR','SUBSTITUTE','PROGRAM_ADMIN','ADMIN','GLOBAL_ADMIN'].includes(role)));
+    $('ad-hub-gateways').hidden=true;$('ad-hub-gateways').replaceChildren();$('ad-areas').hidden=false;
+    $('ad-areas').setAttribute('aria-label','Your programmes');
+    $('ad-areas').innerHTML=rows.length?rows.map(row=>{const helper=mode==='learn'&&options.hifzHref?.(row);return helper?`<a class="ad-management-link" href="${esc(helper)}" target="_blank" rel="noopener noreferrer">${esc(row.name)} ↗</a>`:link(href(row),row.name,'ad-management-link');}).join(''):'<p class="ad-empty-line">Your assigned programmes will appear here.</p>';
   }
+
   function notes() {
     const snapshot=window.M4L_CLASS_NOTES?.snapshot?.()||{sessions:[],status:'idle'};
     const rows=home.personalTimetable||[],result=new Map();
@@ -322,7 +317,7 @@
   }
   function openInbox() { if(window.M4L_MESSAGING)void window.M4L_MESSAGING.open(); }
   function renderNext() {
-    if(mode==='admin')renderAdminCircle();
+    renderAdminCircle();
     const now=Date.now(),allowed=new Map(areas().map(row=>[key(row).toUpperCase(),row])),next=new Map();
     const rows=(home.personalTimetable||[]).filter(row=>row.status==='SCHEDULED'&&Number.isFinite(Number(row.startsAt))&&Number(row.endsAt)>now&&allowed.has((row.kind+':'+row.activityId).toUpperCase())).sort((a,b)=>a.startsAt-b.startsAt||a.activityName.localeCompare(b.activityName));
     for(const row of rows){
@@ -372,7 +367,7 @@
     renderNavigation();renderAreas();renderQueues();renderMessages();renderNext();
     announce(data._cacheChecking?'Showing saved dashboard. Checking for updates…':data._cacheMessage||data.warnings?.join(' ')||'',Boolean(data._cacheMessage));
     const calendar=$('ad-calendar-host');
-    if(!calendar.firstElementChild){const frame=document.createElement('iframe');frame.className='academy-calendar-frame';frame.title='Academy calendar';frame.loading='lazy';frame.src=boundary().readerUrl('/academy/calendar/?embed=1&view='+mode);calendar.append(frame);}
+    if(mode==='admin'){calendar.innerHTML=link('/academy/calendar/?view=admin','Edit calendar →');}else if(!calendar.firstElementChild){const frame=document.createElement('iframe');frame.className='academy-calendar-frame';frame.title='Academy calendar';frame.loading='lazy';frame.src=boundary().readerUrl('/academy/calendar/?embed=1&view='+mode);calendar.append(frame);}
     void refresh();
     const entry=new URL(location.href);if(entry.searchParams.get('circlesTool')==='messages'&&window.M4L_MESSAGING){entry.searchParams.delete('circlesTool');history.replaceState(null,'',entry);void window.M4L_MESSAGING.open();}
     if(returning){window.M4L_CLASS_NOTES?.invalidate();void window.M4L_ANNOUNCEMENTS?.refreshPublic();options.refreshTimetable?.(false);}

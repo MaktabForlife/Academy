@@ -83,3 +83,9 @@
 #activity .programme-top :is(a,button):focus-visible,.programme-popup button:focus-visible{outline:3px solid #9b718a;outline-offset:3px}
 @media(max-width:1000px) and (min-width:761px){#activity .programme-top{grid-template-columns:115px minmax(0,1fr) minmax(0,1fr);gap:18px}#activity .programme-notes{padding:18px}#activity .programme-top .workspace-tabs :is(a,button){padding:9px 7px;font-size:12px}}
 @media(max-width:760px){#activity .programme-top{grid-template-columns:1fr;gap:24px}#activity .programme-top .workspace-tabs{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:7px}#activity .programme-top .workspace-tabs :is(a,button){border-color:#e0d2d9}#activity .programme-centre{width:100%;max-width:620px;justify-self:center}#activity .programme-notes{width:100%;min-height:320px;max-height:520px}#activity .programme-centre .section-title h2{font-size:25px}.programme-popup{padding:20px}.programme-popup h2{font-size:27px}}
+.programme-day-controls{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;margin:8px 0 14px}
+.programme-day-controls strong{font:500 14px/1.4 'DM Sans',Arial,sans-serif;min-width:108px;text-align:center}
+.programme-day-controls button{min-width:44px;min-height:44px;padding:7px 12px;border:1px solid #c2cfbc;border-radius:20px;background:#dfe7d9;color:#3f5947}
+.programme-popup[data-programme-popup=calendar]{width:min(1100px,calc(100vw - 24px));max-height:94dvh;padding:18px}
+.programme-popup[data-programme-popup=calendar] [data-programme-popup-body]{min-height:0}
+.programme-popup[data-programme-popup=calendar] .academy-calendar-frame{height:min(74dvh,850px)}

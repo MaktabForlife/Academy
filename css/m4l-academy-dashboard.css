@@ -145,3 +145,5 @@ body #ad-contents-drawer :is(a,button):focus-visible{outline:3px solid #865694;o
 #dashboard .ad-circle-many li button{background:#f6efec;border:1px solid #dfd0d6;border-radius:8px;padding:10px}
 #dashboard .ad-session-detail{padding:16px 0;border-top:1px solid #ddcfd6}
 @media(max-width:760px){#dashboard.ad-admin-dashboard .ad-admin-top{grid-template-columns:1fr}#dashboard.ad-admin-dashboard #ad-navigation{grid-template-columns:repeat(3,1fr)}#dashboard.ad-admin-dashboard .ad-admin-support{grid-template-columns:1fr}}
+#dashboard .ad-circle-wheel>ol>li>.timetable-join{position:relative;min-height:32px;padding:5px 10px;border-radius:18px;background:#49674f;color:#fffdf6;font-size:11px;line-height:1.3}
+.ad-dialog [data-ad-calendar-body] .academy-calendar-frame{height:min(74dvh,850px)}

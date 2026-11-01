@@ -17,6 +17,11 @@
   signOut.innerHTML='<span class="page-signout-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 4H4v16h5m5-13 5 5-5 5m-6-5h11"/></svg></span><span class="page-signout-label">Sign out</span>';signOut.setAttribute('aria-label','Sign out');signOut.title='Sign out';actions.append(login,signOut);host.append(actions);
   const profile=banner?.querySelector('.academy-profile');
   if(shell&&profile){const accountRow=document.createElement('div');accountRow.className='academy-header-account';accountRow.append(profile,actions);host.append(accountRow);}
+  if(shell){
+    const tabs=banner?.querySelector('.academy-role-tabs');
+    if(tabs){const workspaces=document.createElement('div');workspaces.className='academy-header-workspaces';workspaces.append(tabs);host.querySelector('.academy-header-account')?.before(workspaces);}
+    if(banner)banner.classList.add('academy-account-controls-moved');
+  }
   void import('/js/m4l-academy-accounts.mjs?v=109.4').then(module=>module.installAccounts({actions,signOut})).catch(()=>{ /* Existing Login and Sign out remain available if the optional chooser cannot load. */ });
   if(!academy){
     const updateLogin=()=>{login.hidden=!signOut.hidden;};updateLogin();

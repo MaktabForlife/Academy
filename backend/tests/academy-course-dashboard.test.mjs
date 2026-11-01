@@ -49,22 +49,12 @@ for(const mode of ['admin','teach','learn'])test('Imtehaan cards include dated e
 });
 
 
-test('the hub shows all actual programme roles together, independently of its summary audience',()=>{
- const f=fixture('TEACH');
- f.window.M4L_ACADEMY_LOGIN={contexts:()=>[
-  {scope:'COURSE',courseId:'student-program',courseName:'Student programme',role:'STUDENT'},
-  {scope:'COURSE',courseId:'teacher-program',courseName:'Teaching programme',role:'TEACHER'},
-  {scope:'COURSE',courseId:'both-program',courseName:'Both roles',role:'STUDENT'},
-  {scope:'COURSE',courseId:'both-program',courseName:'Both roles',role:'TEACHER'},
-  {scope:'GLOBAL',courseId:'website-course',courseName:'Website course',role:'STUDENT'}
- ]};
- f.window.M4L_ACADEMY_DASHBOARD.open({signedIn:true,personalActivities:[{kind:'PROGRAM',id:'teacher-program',name:'Teaching programme',roles:['TEACHER']},{kind:'PROGRAM',id:'unassigned',name:'Not assigned',roles:[]}],personalTimetable:[]},{mode:'teach',activityHref:()=>''});
+test('Teach dashboard programme links follow the checked Teach view without mixing learner-only roles',()=>{
+ const f=fixture('TEACH');f.window.M4L_ACADEMY_LOGIN={contexts:()=>[{scope:'COURSE',courseId:'student-program',role:'STUDENT'}]};
+ f.window.M4L_ACADEMY_DASHBOARD.open({signedIn:true,personalActivities:[{kind:'PROGRAM',id:'teacher-program',name:'Teaching programme',roles:['TEACHER']},{kind:'PROGRAM',id:'student-program',name:'Learner-only programme',roles:['STUDENT']},{kind:'PROGRAM',id:'unassigned',name:'Not assigned',roles:[]}],personalTimetable:[]},{mode:'teach',activityHref:(row,tool,mode)=>'/academy/#activity/PROGRAM/'+row.id+'/'+mode});
  const markup=f.nodes.get('ad-areas').innerHTML;
- assert.match(markup,/\/academy\/#activity\/PROGRAM\/student-program\/learn/);
  assert.match(markup,/\/academy\/#activity\/PROGRAM\/teacher-program\/teach/);
- assert.match(markup,/\/academy\/#activity\/PROGRAM\/both-program\/learn/);
- assert.match(markup,/\/academy\/#activity\/PROGRAM\/both-program\/teach/);
- assert.doesNotMatch(markup,/teacher-program\/learn|student-program\/teach|Not assigned|Website course|Management/);
+ assert.doesNotMatch(markup,/student-program|Not assigned|Admin-Learn|Admin-Teach/);
  assert.equal(f.nodes.get('ad-title').textContent,'Your Academy dashboard');
 });
 test('programme administration shows only checked management links instead of programme workspace cards',()=>{
