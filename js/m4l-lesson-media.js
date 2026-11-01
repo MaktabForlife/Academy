@@ -1,5 +1,7 @@
 (() => {
  'use strict';
+ let collectionModule=null,recordingView={};
+ void import('./m4l-recording-collections.mjs').then(module=>{collectionModule=module;render();});
  const separated=()=>window.M4L_CONFIG?.MEDIA_SEPARATION===true;
  const token=()=>localStorage.getItem('m4l_account_token')||'';
  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -45,8 +47,15 @@
   const row=files.media;
   return `<section class="lm-course-files" aria-labelledby="lm-course-files-title"><div class="lm-heading"><div><h3 id="lm-course-files-title">Course PDFs</h3><p>Resources for the whole Course, available across all sessions.</p></div>${files.canManage?`<button type="button" class="button secondary" data-lm="course-files">Manage Course PDFs</button>`:''}</div>${row&&row.state!=='PUBLISHED'?'<p class="lm-inline-help">Draft · visible to Course administrators only. Publish these PDFs when ready.</p>':''}<div class="lm-actions">${row?.assets.filter(a=>a.kind==='PDF').map(asset=>`<button type="button" class="button secondary" data-lm="pdf" data-id="${esc(row.id)}" data-asset="${esc(asset.id)}">▤ ${esc(assetName(asset))}</button>`).join('')||'<p>No Course PDFs available yet.</p>'}</div></section>`;
  }
+ function rowsForMaterials(){return (data?.sessions||[]).filter(r=>r.media?.canView&&r.media.assets.some(a=>a.kind==='PDF')&&!collectionModule.permittedRecordingGroups([r.media]).length);}
+ function rowsForManagement(){return (data?.sessions||[]).filter(r=>r.canManage||r.media?.canManage||r.canContribute);}
  function render(){
   if(!host)return;
+  if(data?.kind==='PROGRAM'&&collectionModule){
+   clearTimeout(expiryTimer);const now=Date.now(),deadlines=(data.lessons||[]).flatMap(r=>[...(r.assets||[]).map(a=>Date.parse(a.expiresAt)),...(r.recordingCompanions||[]).map(c=>Date.parse(c.companionExpiresAt))]).filter(d=>Number.isFinite(d)&&d>now);if(deadlines.length)expiryTimer=setTimeout(()=>{expiryTimer=null;if(cacheScope)cache()?.invalidate(cacheScope);if(recordingView.lesson){const [id,assetId]=JSON.parse(recordingView.lesson);void recordingPage(data?.lessons.find(r=>r.id===id),{assetId});}else render();},Math.min(2147483647,Math.max(1,Math.min(...deadlines)-now+20)));
+   host.innerHTML=`<div class="lm-heading"><h2>Lesson media</h2><button type="button" class="button secondary" data-lm="refresh"${calendarLoading?' disabled':''}>Refresh</button></div>${calendarError?`<p role="alert">${esc(calendarError)}</p>`:''}${collectionModule.recordingCollectionHTML(data.lessons||[],recordingView)}${data.before?'<button type="button" class="button secondary" data-lm="more">Load earlier recordings</button>':''}${rowsForMaterials().length?'<section><h3>Lesson materials</h3>'+data.sessions.filter(r=>r.media?.canView&&r.media.assets.some(a=>a.kind==='PDF')&&!r.media.assets.some(isVideo)).map(mediaCard).join('')+'</section>':''}${data.canManage?'<details><summary>Manage timetable sessions</summary><div class="lm-media-rail">'+rowsForManagement().map(mediaCard).join('')+'</div></details>':''}`;
+   return;
+  }
   const previous=host.querySelector('.lm-media-rail'),scroll=previous?.scrollLeft||0;
   const anchor=previous&&[...previous.children].find(card=>card.offsetLeft+card.offsetWidth>previous.offsetLeft+scroll),anchorKey=anchor?.dataset.sessionKey,anchorOffset=anchor?anchor.offsetLeft-previous.offsetLeft-scroll:0;
   const focus=host.contains(document.activeElement)?document.activeElement?.dataset.lm:null,rows=(data?.sessions||[]).filter(row=>row.canManage||row.media?.canManage||row.canContribute||!row.media?.assets.some(videoExpired)||row.media.assets.some(asset=>!videoExpired(asset))),railId=host.id+'-rail';
@@ -74,7 +83,7 @@
     else data=result;
    }
    calendarLoading=false;
-   if(scope)cache()?.write(scope,data,head(),ticket);render();
+   if(scope)cache()?.write(scope,data,head(),ticket);render();if(recordingView.lesson){const [id,assetId]=JSON.parse(recordingView.lesson);void recordingPage(data?.lessons.find(r=>r.id===id),{assetId});}
   }catch(error){if(active(g)&&request===calendarRequest){calendarLoading=false;calendarError=error.message;if([401,403,404].includes(error.status)||['MEDIA_NOT_ENABLED','MEDIA_FORBIDDEN'].includes(error.code)){if(scope)cache()?.invalidate(scope);data=null;}render();}}
  }
  async function start(){
@@ -108,6 +117,34 @@
   dialog=document.createElement('dialog');dialog.className='lm-dialog';dialog.setAttribute('aria-labelledby','lm-dialog-title');
   dialog.innerHTML=`<div class="lm-modal-head"><h2 id="lm-dialog-title">${esc(title)}</h2><button type="button" class="button secondary small academy-close" data-lm="close" title="Close">Close</button></div><p data-lm-dialog-message class="lm-message" role="status" aria-live="polite"></p><div data-lm-dialog-body>${body}</div>`;
   dialog.addEventListener('cancel',e=>{e.preventDefault();close();});dialog.addEventListener('click',handleClick);dialog.addEventListener('submit',handleSubmit);dialog.addEventListener('input',event=>{if(event.target.closest('[data-lm-form]'))dirty=true;});document.body.appendChild(dialog);dialog.showModal();return dialogGeneration;
+ }
+ async function recordingPage(row,{play=false,start=0,assetId}={}){
+  if(!row||!active())return;
+  const g=generation,asset=row.assets?.find(a=>isVideo(a)&&(!assetId||a.id===assetId));if(!asset)return;
+  recordingView.lesson=JSON.stringify([row.id,asset.id]);const selectedKey=recordingView.lesson;render();
+  const body=host.querySelector('[data-lm-recording-companion]'),topicHost=host.querySelector('[data-lm-recording-topics]');if(!body||!topicHost){delete recordingView.lesson;return;}
+  try{
+   const result=await api('companion',{lessonId:row.id,assetId:asset.id});if(!active(g)||recordingView.lesson!==selectedKey)return;
+   const c=result.companion;if(c){
+    body.innerHTML=collectionModule.academicCompanionHTML(c,{lessonId:row.id,assetId:asset.id});
+    topicHost.innerHTML=(c.topics||[]).map(t=>`<p><button type="button" class="button secondary" data-lm="recording-seek" data-id="${esc(row.id)}" data-asset="${esc(asset.id)}" data-start="${t.start}">${esc(t.time)} · ${esc(t.title)}</button></p>`).join('');
+   }else topicHost.textContent='A topic guide has not been published for this recording.';
+  }catch(error){if(active(g)&&recordingView.lesson===selectedKey)body.textContent=error.message;}
+  if(!active(g)||recordingView.lesson!==selectedKey)return;
+  const mount=host.querySelector('[data-lm-recording-player]');
+  if(!videoExpired(asset))await collectionModule.presentRecordingPlayback(()=>recordingPlayback(row,asset.id,mount,{play,start}),{isCurrent:()=>active(g)&&recordingView.lesson===selectedKey&&mount?.isConnected,report:message=>mount.textContent=message});
+ }
+ async function recordingPlayback(row,assetId,mount,{play=true,start=0}={}){
+  const currentPlayer=mount?.querySelector('video,iframe');
+  if(currentPlayer){if(currentPlayer.tagName==='VIDEO'){currentPlayer.currentTime=start;if(play)try{await currentPlayer.play();}catch{mount.insertAdjacentHTML('beforeend','<p>Press Play in the recording player to start playback.</p>');}}else{const url=new URL(currentPlayer.src);url.searchParams.set('start',String(start));currentPlayer.src=url.href;}return;}
+  const g=generation,id=recordingView.lesson,result=await api('watch',{lessonId:row.id,assetId});if(!active(g)||id!==recordingView.lesson||!mount?.isConnected)return;
+  if(result.kind==='MP4'){
+   const url=new URL(result.playbackPath,window.M4L_CONFIG?.API_BASE||location.origin),base=new URL(window.M4L_CONFIG?.API_BASE||location.origin);if(url.origin!==base.origin||url.pathname!=='/api/academy/lesson-media/video')throw Error('Recording unavailable.');
+   mount.innerHTML='<video controls playsinline preload="metadata" src="'+esc(url.href)+'"></video>';const video=mount.querySelector('video');video.addEventListener('loadedmetadata',()=>{video.currentTime=Math.min(start,Math.max(0,video.duration-.1));},{once:true});if(play)try{await video.play();}catch{mount.insertAdjacentHTML('beforeend','<p>Press Play in the recording player to start playback.</p>');}
+  }else{
+   if(!/^https:\/\/www\.youtube-nocookie\.com\/embed\/[A-Za-z0-9_-]{11}\?rel=0$/.test(result.embedUrl))throw Error('Recording unavailable.');
+   const url=new URL(result.embedUrl);url.searchParams.set('start',String(start));url.searchParams.set('autoplay',play?'1':'0');mount.innerHTML='<iframe title="'+esc(row.title)+'" src="'+esc(url.href)+'" allow="autoplay; fullscreen" allowfullscreen></iframe><p>Use the player’s Play control if playback does not start.</p>';
+  }
  }
  async function watch(row,asset){
   const name=assetName(row.assets?.find(a=>a.id===asset)||{name:row.title});
@@ -212,6 +249,11 @@
  function handleClick(event){
   const b=event.target.closest('[data-lm]');if(!b)return;const action=b.dataset.lm,row=(b.dataset.key?data?.sessions?.find(r=>r.sessionKey===b.dataset.key)?.media:null)||data?.lessons?.find(r=>r.id===b.dataset.id)||data?.sessions?.map(r=>r.media).find(r=>r?.id===b.dataset.id)||(b.dataset.id&&data?.courseFiles?.media?.id===b.dataset.id?data.courseFiles.media:null);
   if(action==='close'){close();return;}if(separated()&&['discussion','comments-refresh','comment-cancel','reply','comment-edit','moderate'].includes(action))return;if(busy)return;
+  if(action==='recording-group'){recordingView={group:b.dataset.group};render();return;}
+  if(action==='recording-groups'){recordingView={};render();return;}
+  if(action==='recording-list'){delete recordingView.lesson;render();return;}
+  if(action==='recording-lesson'){void recordingPage(data?.lessons.find(r=>r.id===b.dataset.id),{play:true,assetId:b.dataset.asset});return;}
+  if(action==='recording-play'||action==='recording-seek'){const lesson=data?.lessons.find(r=>r.id===b.dataset.id),start=Number(b.dataset.start)||0;if(lesson&&Number.isInteger(start)&&start>=0&&start<=86400)void recordingPlayback(lesson,b.dataset.asset,host.querySelector('[data-lm-recording-player]'),{start}).catch(e=>{const mount=host?.querySelector('[data-lm-recording-player]');if(active()&&mount)mount.textContent=e.message;});return;}
   if(action==='chat-soon'){modal('Chat coming soon','<p>Lesson chat is coming soon.</p>');return;}
   if(action==='rail-previous'||action==='rail-next'){const rail=host.querySelector('.lm-media-rail');rail?.scrollBy({left:(action==='rail-next'?1:-1)*rail.clientWidth,behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'});return;}
   if(action==='more'&&data?.before)void load({more:true});
@@ -235,7 +277,7 @@
   if(action==='moderate'){const c=discussion.comments.find(c=>c.id===b.dataset.comment);if(!c)return;if(b.dataset.decision==='DELETE'&&!window.confirm('Remove this comment?'))return;void mutate('comment-moderate',{operationId:crypto.randomUUID(),lessonId:discussion.row.id,commentId:c.id,revision:c.revision,decision:b.dataset.decision});}
   if(action==='retry'&&retry)void retry();
  }
- function reset(){clearTimeout(expiryTimer);expiryTimer=null;generation++;calendarRequest++;calendarLoading=false;calendarError='';cacheScope=null;close(true);if(host){host.removeEventListener('click',handleClick);host.replaceChildren();host.classList.remove('lm-calendar','lm-rails');host.hidden=true;}host=null;session='';data=null;}
+ function reset(){for(const video of host?.querySelectorAll('video')||[])video.pause();recordingView={};clearTimeout(expiryTimer);expiryTimer=null;generation++;calendarRequest++;calendarLoading=false;calendarError='';cacheScope=null;close(true);if(host){host.removeEventListener('click',handleClick);host.replaceChildren();host.classList.remove('lm-calendar','lm-rails');host.hidden=true;}host=null;session='';data=null;}
  window.M4L_LESSON_MEDIA={async manage({hostId,activityKey:key,lessonId}){
   if(!close())return;reset();host=document.getElementById(hostId);if(!host||!token())return;
   activityKey=key;session=token();context=workspace();data={sessions:[],lessons:[]};learnerView=false;runId='';

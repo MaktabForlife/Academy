@@ -52,7 +52,7 @@ export function sessionVideos({p,auth,env,lesson,staff,reader,revision,change,re
   const filename=cleanText(input.filename,180,'an MP4 filename').replace(/[\r\n\x00-\x1f\\/]/g,'_');
   if(!/\.mp4$/i.test(filename))throw fail('Choose an MP4 video.');
   if((await assets(row.lesson_id)).filter(a=>['MP4','YOUTUBE'].includes(a.kind)&&!a.expired).length>=10)throw fail('Use up to ten videos per session.');
-  const assetId=crypto.randomUUID(),key=(retentionPrefix()?retainedRecordingPrefix(env,scopeKey()):(env.ACADEMY_OBJECT_NAMESPACE||'')+'session-recordings/')+assetId+'.mp4';
+  const assetId=crypto.randomUUID(),key=(retentionPrefix()&&input.retention!=='ACADEMIC_14_DAYS'?retainedRecordingPrefix(env,scopeKey()):(env.ACADEMY_OBJECT_NAMESPACE||'')+'session-recordings/')+assetId+'.mp4';
   const upload=await bucket().createMultipartUpload(key,{httpMetadata:{contentType:'video/mp4',cacheControl:'private, no-store'}});
   const details={lessonId:row.lesson_id,revision:input.revision,operationId:input.operationId,size:input.size,filename,name:cleanText(input.name||'',180,'a video name',true),assetId,key,uploadId:upload.uploadId};
   return {uploadToken:await issue(auth,env,'upload',details),partSize:VIDEO_PART_SIZE,maxSize:VIDEO_MAX_SIZE};

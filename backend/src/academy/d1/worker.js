@@ -1,3 +1,4 @@
+import {cleanupExpiredAcademicCompanions} from './recording-companions.js';
 import {registerMonthlyProgramme} from './web-platform/programme-registration.mjs';
 import {studioAdmin} from './web-platform/studio-admin.mjs';
 import {studioOrigin,studioHandoff} from './website-studio-handoff.js';
@@ -311,7 +312,7 @@ async function dispatch(request,env,options={}) {
   const academicCalendarAction=path.match(/^\/api\/academy\/calendar\/(get|save)$/)?.[1];
   if(academicCalendarAction){const produce=()=>academicCalendar(repository,auth).run(academicCalendarAction,input);return {success:true,...await (academicCalendarAction==='get'?privateSnapshot(repository,auth,{kind:'calendar',input},produce):produce())};}
   if(path==='/api/academy/lesson-media/timetable'){const result=await timetableMedia(repository,auth,input);if(sourceRepository.features.mediaSeparation){const additions=await lessonNotes(await readRepository(),auth,env).timetable(input);for(const row of additions.lessons){const existing=result.lessons.find(r=>r.activityKey===row.activityKey&&r.sessionKey===row.sessionKey);if(existing)existing.assets.push(...row.assets);else result.lessons.push(row);}}return {success:true,...result};}
-  const mediaAction=path.match(/^\/api\/academy\/lesson-media\/(list|feed|calendar|sessions|create|historical-create|course-files-create|get|save|watch|download|comments|comment-save|comment-moderate|attachment-remove|attachment-name|video-start|video-complete|video-abort|video-retain)$/)?.[1];
+  const mediaAction=path.match(/^\/api\/academy\/lesson-media\/(companion|companion-save|companion-publish|list|feed|calendar|sessions|create|historical-create|course-files-create|get|save|watch|download|comments|comment-save|comment-moderate|attachment-remove|attachment-name|video-start|video-complete|video-abort|video-retain)$/)?.[1];
   if(mediaAction){let result=await lessonMedia(repository,auth,env).run(mediaAction,input);if(sourceRepository.features.mediaSeparation&&['calendar','list','feed','get'].includes(mediaAction)&&!result.notModified){const notes=lessonNotes(await readRepository(),auth,env);if(mediaAction==='get'){if(result.lesson.sessionKey){const entries=await notes.notes([{activityKey:result.lesson.activityKey,sessionKey:result.lesson.sessionKey}]);result.assets.push(...entries.map(notes.asset));result.lesson.canCurateNotes=true;}}else result=await (mediaAction==='calendar'?notes.enrichCalendar(result,input):mediaAction==='feed'?notes.enrichFeed(result,input):notes.enrichList(result,input));}return result instanceof Response?result:{success:true,...result};}
   if(path==='/api/academy/assessments/progress-list')return {success:true,...await assessmentProgress(repository,auth,input)};
   if(path==='/api/academy/assessments/download')return assessmentFiles(repository,auth,env).download(input);
@@ -405,6 +406,7 @@ return {
     }
     ctx.waitUntil(recoverMessaging(env,new Date(event.scheduledTime)));
     ctx.waitUntil(recoverCacheRefresh(env,new Date(event.scheduledTime)));
+    ctx.waitUntil(cleanupExpiredAcademicCompanions(env,event.scheduledTime));
     if(hifzSyncEnabled(env))ctx.waitUntil(recoverHifzProfiles(env,{limit:40}));
     if(websitePlatformEnabled(env))ctx.waitUntil(recoverWebsite(env));
   },

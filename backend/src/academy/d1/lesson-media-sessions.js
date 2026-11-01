@@ -30,7 +30,7 @@ export async function mediaSessions(repository,activity,input,actor,admin,{facts
   const historical=await historicalPublications(repository,input.startDate,input.endDate);
   const rows=[...publications,...historical.filter(r=>same(r.activity_key,activity.activity_key))].map(r=>({PublicationID:r.publication_id,VersionNo:r.version_no,SnapshotJSON:r.snapshot_json,PublishedDate:r.published_at}));
   for(let date=input.startDate;date<=input.endDate;date=addDays(date,1))for(const row of scheduledLessons(rows,{id:activity.activity_id},date)){
-   sessions.push({sessionKey:JSON.stringify(['PROGRAM',date,row.anchor]),date,title:row.moduleName||row.subjectName||activity.name,startTime:row.startTime,endTime:row.endTime,classIds:row.classIds,classNames:row.classNames,teacherIds:row.teacherIds,teacherName:row.teacherNames.join(', '),publicationId:row.publicationId,sourceSessionId:row.anchor,runId:''});
+   sessions.push({moduleId:row.moduleId||'',programSubjectId:row.programSubjectId||'',sessionKey:JSON.stringify(['PROGRAM',date,row.anchor]),date,title:row.moduleName||row.subjectName||activity.name,startTime:row.startTime,endTime:row.endTime,classIds:row.classIds,classNames:row.classNames,teacherIds:row.teacherIds,teacherName:row.teacherNames.join(', '),publicationId:row.publicationId,sourceSessionId:row.anchor,runId:''});
   }
  }else{
   if(input.runId!==undefined&&(typeof input.runId!=='string'||input.runId.length>160))throw fail('Choose a Course offering.');
