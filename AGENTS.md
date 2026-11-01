@@ -1,3 +1,11 @@
+# Complete paired release integration — 1 November 2026
+
+- Root-owned local integration branch `feature/academy-complete-1094`, based on verified live Source078bcc8b. This composes the reviewed editor/native media, Academy-only retention and opaque Programme Class Notes summary before final Circles UI/access/playlist composition.
+- The owner conditionally authorised deployment after every applicable comment and all remaining work pass together. Follow parent `../AGENTS.md` and `../../outputs/academy-circles-complete-release-20261101/approval.json`; older release holds below are historical and do not override that current instruction.
+- MOU independent playlists are now authorised for local implementation by Circles: assigned playlist month unlocks the whole playlist; no Academy subject dependency. Preserve current rights, identity/session/epoch, live Join gates and original recording metadata; wait for the final reviewed Target handoff.
+- Root alone deploys the matching Academy API/coordinator/Pages and Studio runtime/assets. No Git push, automatic real recording attachment/publication, guessed dates, hosted SQL scans, DNS changes or dependency upgrades. Keep live checks small. Actual MOU/academic publication remains manual/held.
+- Retention and content media must share exact per-lesson PDF limits, hiding purging/deleted PDFs from counts and readers without discarding legacy or accepted-publication checks. Core0021, Core0022 and Admin0003 are additive local prerequisites; no hosted migration has occurred here.
+
 # V109.3 workspace separation correction — 1 November 2026
 
 - Work on `feature/academy-workspace-separation`, based on verified V109.2. The owner confirmed the live Teach programme button opens Admin above Learn instead of Teach, then requested deployment once separation is fixed. This authorises the targeted matching Source/Studio correction after combined local checks; do not release a partial pair.
