@@ -77,6 +77,8 @@ button.lm-card-title{cursor:pointer}button.lm-card-title:hover{text-decoration:u
 .lm-playlist-table thead th{font:600 11px/1.5 system-ui;letter-spacing:.08em;text-transform:uppercase;color:var(--circle-muted,#796d75);background:#f5eef0}
 .lm-playlist-table tbody th{font:400 23px/1.3 Georgia,serif;min-width:170px}
 .lm-playlist-table td:last-child{white-space:nowrap}.lm-playlist-table td:last-child .button{min-height:44px;margin:0}
+.lm-playlist-table button[data-lm="recording-group"]{background:#526747;border-color:#526747;color:#fffdf5;font-weight:600}
+.lm-playlist-table button[data-lm="recording-group"]:hover{background:#43563a;border-color:#43563a}
 .lm-playlist-table-wrap:focus-visible{outline:2px solid #846271;outline-offset:3px}.lm-playlist-table tbody tr:hover{background:#f8f3ee}
 .lm-visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 @media(max-width:700px){.lm-playlist-table th,.lm-playlist-table td{padding:12px}.lm-playlist-table tbody th{font-size:20px}.lm-playlist-table{min-width:660px}}
