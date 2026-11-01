@@ -29,13 +29,13 @@ Required for a future coordinated release:
 
 1. `backend/migrations/academy-admin/0003_note_retention_indexes.sql` — two metadata indexes only.
 2. `backend/migrations/academy-core/0021_note_retention.sql` — policy/defaults, tombstones, shared notice receipts, object queue, discovery cursors, indexes, split fences/epochs and narrow immutable-delete exceptions. Accepted PDF admission ignores expired pointers.
-3. Deploy the matching split coordinator and Academy API source together with the reviewed Academy dashboard/settings JS/CSS and retained feature flag. Preserve the existing bindings/origins/verification policy. Assign the coordinated release version and update changed asset cache query strings there.
+3. Release Academy and Studio together at the same version under the shared paired-release rule. Include the matching split coordinator, Academy API source, reviewed Academy dashboard/settings JS/CSS and retained feature flag. Preserve the existing bindings/origins/verification policy. Assign the coordinated release version and update changed asset cache query strings there.
 
 `backend/migrations/academy/0046_note_retention.sql` is the disposable monolithic-fixture equivalent; do not replay it against the live split stores. There is no R2 lifecycle rule: a bucket-wide TTL would be unsafe for shared files. Production schema/deployment approval remains separate from this local build.
 
 ## Validation and cost
 
-The focused and related local regression command passes 68 tests, covering calendar boundaries, real split settings/notice paths, seven-day grace, immutable-content deletion, Studio/frozen exclusions, cross-offering and permanent-Course shared PDFs, Library-prefix protection, empty-class grace, upload races, long-history chunk/resume behaviour, permissions and device/account/version completion isolation. The local real-Worker messaging regression passes separately. Desktop/390px Academy-only browser checks use intercepted synthetic responses and verify settings save, completion/undo/reload, no completion request, and no horizontal overflow.
+The focused and related local regression command passes 69 tests, covering calendar boundaries, real split settings/notice paths, seven-day grace, immutable-content deletion, Studio/frozen exclusions, cross-offering and permanent-Course shared PDFs, Library-prefix protection, empty-class grace, upload races, long-history chunk/resume behaviour, permissions and device/account/version completion isolation. The local real-Worker messaging regression passes separately. Desktop/390px Academy-only browser checks use intercepted synthetic responses and verify settings save, completion/undo/reload, no completion request, and no horizontal overflow.
 
 `backend/tools/academy-note-retention-cost.mjs` is a disposable workerd/D1/R2 rehearsal. For a class with 199 learners, one old Class Note and one old PDF:
 
@@ -45,7 +45,19 @@ The focused and related local regression command passes 68 tests, covering calen
 | Delete both notes and collect one PDF | 50 | 150 | 66 |
 | Idle hourly tick | 9 | 14 | 0 |
 
-The warning creates zero per-learner receipt rows; these counts include the local split fence/epoch/index effects. No coordinator RPC was used in this fixture. Retention-only settings do not republish timetables or change the app time zone. The corresponding D1 binding-call counts are 24, 28 and 10. These are local Miniflare D1 metadata measurements, not hosted billing or a production/population-wide load guarantee; the bundled emulator supports 2026-09-28, while deployment compatibility remains unchanged. Official PDF resolution still uses the existing accepted-publication JSON reader after indexed, bounded candidate selection; its publication-envelope costs should be considered separately in independent review.
+The warning creates zero per-learner receipt rows; these counts include the local split fence/epoch/index effects. No coordinator RPC was used in this fixture. Retention-only settings do not republish timetables or change the app time zone. The corresponding D1 binding-call counts are 24, 28 and 10. These are local Miniflare D1 metadata measurements, not hosted billing or a production/population-wide load guarantee; the bundled emulator supports 2026-09-28, while deployment compatibility remains unchanged. The separate official-PDF growth fixture below covers accepted-publication JSON and shared references; the binding-call cap alone does not cap rows examined.
+
+The official-PDF mode (`--official`, optionally `--growth=250`) adds four old official session PDFs: one unique, one shared with a recent Teacher PDF, one shared with permanent Course media and one shared with Studio. Studio-owned and permanent assets are never tracked. The growth variant adds 250 unrelated accepted PDFs/lesson parents/links and 250 accepted timetable publications, verified in the current head. The rehearsal records each tick's D1 metadata, persisted item/cursor/object progress, warning grace and actual local R2 existence. It asserts the 40-call limit, zero recipient fan-out, completion of all four expiries and preservation of all three shared files.
+
+Independent review exposed repeated whole-table JSON joins. Maintenance now filters selected accepted assets and links before live link/lesson checks, reuses the selected discovery projection and rechecks each irreversible purge afresh. The pinned accepted head, case-insensitive live-key checks, tombstones, permanent-Course exclusion and object generation guards remain. Ordinary Academy readers and Studio are unchanged.
+
+| Official-PDF fixture phase | No growth: rows read / written / calls | +250 unrelated media and publications: rows read / written / calls |
+| --- | ---: | ---: |
+| First warning tick | 257 / 61 / 30 | 2,468 / 61 / 30 |
+| First expiry tick | 520 / 98 / 40 | 5,231 / 98 / 40 |
+| Later hourly shared-file deferral | 89 / 9 / 26 | 589 / 9 / 26 |
+
+The previous queries examined 685,031 rows for the growth warning tick and 548,614 for its first expiry tick in a fixture of matching dimensions. Synthetic UUID ordering varies slightly between runs. All four PDFs were warned on the first tick and expired on the first eligible tick after eight days; the unique file was collected then. That expiry tick reached the call budget safely. Three object queues intentionally stay pending because their files remain in use, and four later hourly ticks preserve them. No full queue/backlog drain is claimed. Selected publication JSON and reference checks still grow with accepted media; 40 calls is not a billed-row guarantee. Evidence: `official-pdf-cost-{0,250}.json`, `official-pdf-before-{0,250}.json`, `official-pdf-growth-summary.json`, and `official-growth-regressions.log` in the parent output folder.
 
 Three unrelated tests already fail on the unchanged V109.2 baseline: two Admin-inheritance query-budget assertions, and an older scheduler assertion expecting two recovery promises although the baseline already schedules companion cleanup as a third. They are recorded, not silently fixed or counted as passes. All feature checks are local; no hosted acceptance is claimed.
 

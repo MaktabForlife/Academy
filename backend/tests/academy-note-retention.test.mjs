@@ -94,3 +94,19 @@ test('maintenance has a dedicated hourly trigger and a request-owned D1 budget',
 test('legacy Course PDF notes retain their delivery scope when classIds is empty',async()=>{
  const f=await fixture();try{f.add('PDF_NOTE',new Date(f.time.getTime()-130*day),'e'.repeat(64),f.scopes.courseA,null,{classIds:[],runId:'run-1'});const warned=await f.tick();assert.equal(warned.warned,1);const item=f.db.prepare('SELECT * FROM note_retention_items').get();assert.deepEqual(JSON.parse(item.class_ids_json),['run-1']);await f.tick(8);assert.equal(f.bytes.size,0);}finally{f.close();}
 });
+
+test('selected official PDF reads retain live-link revocation and later permanent-Course protection in split stores',async()=>{
+ const f=await fixture(true);try{
+  const {seedOfficialRetention}=await import('./fixtures/academy-note-retention-official-fixture.mjs'),{acceptFixtureSetup}=await import('./fixtures/academy-accepted-fixture.mjs');
+  const seeded=await seedOfficialRetention(f),revoked=seeded.expired[0],promoted=seeded.expired[1];
+  for(const db of [f.db,f.databases.admin])db.prepare('DELETE FROM lesson_media_links WHERE asset_id=?').run(revoked);
+  await f.tick();assert.equal(f.db.prepare("SELECT count(*) n FROM note_retention_items WHERE state='WARNED'").get().n,3,'stale accepted links cannot restore revoked live links');
+  assert(!f.db.prepare('SELECT 1 FROM note_retention_items WHERE ref_id=?').get(revoked));
+  const lesson=f.databases.admin.prepare('SELECT lesson_id FROM lesson_media_links WHERE asset_id=?').get(promoted).lesson_id;
+  for(const db of [f.db,f.databases.admin])db.prepare("UPDATE lesson_media_lessons SET media_scope='COURSE' WHERE lesson_id=?").run(lesson);
+  await acceptFixtureSetup(f.env,await f.actor('global'),[f.scopes.programA]);
+  for(let i=0;i<3;i++)await f.tick(8+i/24);
+  assert.equal(f.db.prepare('SELECT state FROM note_retention_items WHERE ref_id=?').get(promoted).state,'EXEMPT','purge rechecks current accepted Course promotion after warning');
+  assert(f.bytes.has(seeded.uniqueKey));for(const key of seeded.sharedKeys)assert(f.bytes.has(key));
+ }finally{f.close();}
+});

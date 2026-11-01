@@ -38,6 +38,11 @@
 - Preserve the original session, class/cohort, timetable snapshot and permission anchors. Corrections describe the recorded content only and must never grant teacher access or edit the recurring timetable. Keep retention based on the original successful upload.
 - MOU publication is ON HOLD by the owner's latest instruction. Earlier MOU import approvals below are superseded. Do not execute or retry the MOU package or deploy its separate publication-order fix.
 - Keep live checks small: use disposable local fixtures only for this task.
+# Official PDF local cost follow-up — 1 November 2026
+
+- Independent review requested a real local workerd official-PDF growth/progress fixture. It now covers four old official PDFs, live Teacher/Course/Studio shared references and 250 unrelated accepted media/publications. Maintenance narrows selected JSON before joins, with live-link/Course rechecks and all holds intact. See parent outputs/note-retention-20261101/official-pdf-growth-summary.json.
+- Shared work/AGENTS.md requires Academy and Studio application releases together; this Academy-only feature stays local for later paired integration with V109.3 and the dedicated editor.
+
 # Note retention and local student completion — 1 November 2026
 
 - Keep this feature out of the narrow V109.3 navigation release; optimisation reviews it for a later Circles integration.

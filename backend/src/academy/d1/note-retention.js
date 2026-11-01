@@ -1,6 +1,7 @@
 import {retentionBudget} from './note-retention-budget.js';
 import {academyD1Repository} from './repository.js';
 import {acceptedRepository,acceptedHead} from './setup-reader.js';
+import {setupSchema} from './setup-schema.js';
 import {lessonPdfObjectKey} from './lesson-pdf-storage.js';
 import {optionalSchema} from './schema-probe.js';
 import {noteExpiry} from './note-retention-policy.js';
@@ -21,8 +22,33 @@ export async function pdfRetentionWrite(repository,p,objectKey){
  return {objectKey,alternate,before:[p("INSERT INTO academy_write_guards VALUES(?,coalesce((SELECT updated_at FROM note_retention_objects WHERE object_key=?),'')=? AND NOT EXISTS(SELECT 1 FROM note_retention_objects WHERE object_key=? AND state='DELETING'))",guard,objectKey,alternate?'':row?.updated_at||'',objectKey)],after:[p('DELETE FROM academy_write_guards WHERE guard_id=?',guard)]};
 }
 
+// Filter publication JSON BEFORE live-row checks and joins. The ordinary
+// accepted reader materializes whole media tables for joins; its NOCASE live
+// joins can examine N*N rows. Only this maintenance selection is narrowed.
+// Keep the same pinned head, live link/lesson existence and expiry tombstones.
+async function officialPdfRows(repository,ids){
+ if(!ids.length)return [];
+ let params=[JSON.stringify(ids),JSON.stringify(ids)],assets,links,lessons;
+ if(repository.setup?.reader){
+  const projection=(name,column,selection,live=false)=>{
+   const spec=setupSchema[name],field=c=>`json_extract(r.value,'$.${c}')`;
+   return `SELECT ${spec.columns.map(c=>`${field(c)} AS ${c}`).join(',')} FROM main.setup_head_components h JOIN main.setup_components c USING(component_id) JOIN json_each(c.rows_json) r WHERE h.head_id=? AND h.table_name='${name}' AND ${field(column)} IN(${selection})${live?` AND EXISTS(SELECT 1 FROM main.${name} live WHERE ${spec.keys.map(c=>`live.${c}=${field(c)} COLLATE NOCASE`).join(' AND ')})`:''}${name==='lesson_media_assets'?" AND NOT EXISTS(SELECT 1 FROM main.note_retention_items expiry WHERE expiry.kind='SESSION_PDF' AND expiry.ref_id=json_extract(r.value,'$.asset_id') AND expiry.state IN('PURGING','DELETED'))":''}`;
+  };
+  assets=projection('lesson_media_assets','asset_id','SELECT value FROM json_each(?)');
+  links=projection('lesson_media_links','asset_id','SELECT value FROM json_each(?)',true);
+  lessons=projection('lesson_media_lessons','lesson_id','SELECT lesson_id FROM selected_links',true);
+  params=[repository.setup.head,params[0],repository.setup.head,params[1],repository.setup.head];
+ }else{
+  assets='SELECT * FROM lesson_media_assets WHERE asset_id IN(SELECT value FROM json_each(?))';
+  links='SELECT * FROM lesson_media_links WHERE asset_id IN(SELECT value FROM json_each(?))';
+  lessons='SELECT * FROM lesson_media_lessons WHERE lesson_id IN(SELECT lesson_id FROM selected_links)';
+ }
+ return (await statement(repository.db,`WITH selected_assets AS MATERIALIZED (${assets}),selected_links AS MATERIALIZED (${links}),selected_lessons AS MATERIALIZED (${lessons})
+ SELECT a.*,l.class_id,l.run_id,l.lesson_date,l.source_lessons_json,l.media_scope FROM json_each(?) chosen LEFT JOIN selected_assets a ON a.asset_id=chosen.value LEFT JOIN selected_links x ON x.asset_id=chosen.value LEFT JOIN selected_lessons l ON l.lesson_id=x.lesson_id`,...params,JSON.stringify(ids)).all()).results;
+}
+
 async function discover(repository,db,policy,now,excluded,definitions){
- const p=(sql,...v)=>statement(db,sql,...v),q=(sql,...v)=>statement(repository.db,sql,...v),time=now.toISOString(),saved=[],updates=[];
+ const p=(sql,...v)=>statement(db,sql,...v),time=now.toISOString(),saved=[],updates=[];
  const cutoff=new Date(now.getTime()-Math.max(0,28*policy.months-policy.warning_days)*day).toISOString(),blocked=new Set(excluded.map(k=>k.toUpperCase()));
  const cursors=(await p('SELECT * FROM note_retention_discovery').all()).results;
  for(const kind of ['CLASS_NOTE','PDF_NOTE','SESSION_PDF']){
@@ -43,8 +69,14 @@ async function discover(repository,db,policy,now,excluded,definitions){
    const rows=(await p('SELECT n.note_id,n.activity_key,n.created_at,v.source_json,v.filename,v.display_name FROM lesson_note_entries n JOIN lesson_note_versions v ON v.version_id=n.current_version_id WHERE n.note_id IN(SELECT value FROM json_each(?))',JSON.stringify(ids)).all()).results;
    for(const n of rows){const source=parse(n.source_json)||{};saved.push({kind,ref:n.note_id,area:n.activity_key,created:n.created_at,classes:source.classIds?.length?source.classIds:[source.classId||source.runId].filter(Boolean),date:source.date||'',label:n.display_name||n.filename});}
   }else{
-   const rows=(await q("SELECT a.* FROM lesson_media_assets a WHERE a.asset_id IN(SELECT value FROM json_each(?)) AND EXISTS(SELECT 1 FROM lesson_media_links x JOIN lesson_media_lessons l USING(lesson_id) WHERE x.asset_id=a.asset_id AND l.media_scope='SESSION') AND NOT EXISTS(SELECT 1 FROM lesson_media_links x JOIN lesson_media_lessons l USING(lesson_id) WHERE x.asset_id=a.asset_id AND l.media_scope='COURSE')",JSON.stringify(ids)).all()).results;
-   for(const asset of rows){const lessons=(await q('SELECT l.class_id,l.run_id,l.lesson_date,l.source_lessons_json FROM lesson_media_links x JOIN lesson_media_lessons l USING(lesson_id) WHERE x.asset_id=?',asset.asset_id).all()).results,classes=new Set();for(const l of lessons){if(l.class_id||l.run_id)classes.add(l.class_id||l.run_id);for(const source of parse(l.source_lessons_json)||[])for(const id of source.classIds||[])classes.add(id);}saved.push({kind,ref:asset.asset_id,area:asset.activity_key,created:asset.created_at,classes:[...classes],date:lessons[0]?.lesson_date||'',label:asset.display_name||asset.filename});}
+   const rows=await officialPdfRows(repository,ids),assets=new Map();
+   for(const row of rows){if(!row.asset_id)continue;if(!assets.has(row.asset_id))assets.set(row.asset_id,[]);assets.get(row.asset_id).push(row);}
+   for(const [id,lessons]of assets){
+    if(!lessons.some(l=>l.media_scope==='SESSION')||lessons.some(l=>l.media_scope==='COURSE'))continue;
+    const asset=lessons[0],classes=new Set();
+    for(const l of lessons){if(l.class_id||l.run_id)classes.add(l.class_id||l.run_id);for(const source of parse(l.source_lessons_json)||[])for(const id of source.classIds||[])classes.add(id);}
+    saved.push({kind,ref:id,area:asset.activity_key,created:asset.created_at,classes:[...classes],date:asset.lesson_date||'',label:asset.display_name||asset.filename});
+   }
   }
  }
  if(saved.length||updates.length)await db.batch([...saved.map(n=>p("INSERT INTO note_retention_items(item_id,kind,ref_id,activity_key,class_ids_json,lesson_date,label,created_at,next_check,delete_after) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(kind,ref_id) DO NOTHING",n.kind+':'+n.ref,n.kind,n.ref,n.area,JSON.stringify(n.classes),n.date,n.label,n.created,time,noteExpiry(n.created,policy.months))),...updates]);
@@ -67,15 +99,16 @@ async function warn(repository,db,item,policy,deadline,now){
 }
 
 async function purge(repository,db,item,policy,now,limit=8){
- const p=(sql,...v)=>statement(db,sql,...v),q=(sql,...v)=>statement(repository.db,sql,...v),guard=crypto.randomUUID(),time=now.toISOString();
+ const p=(sql,...v)=>statement(db,sql,...v),guard=crypto.randomUUID(),time=now.toISOString();
  let keys=[],versions=[],more=false;
  if(item.kind==='CLASS_NOTE')versions=(await p('SELECT version_id FROM class_note_versions WHERE note_id=? ORDER BY revision DESC LIMIT ?',item.ref_id,limit+1).all()).results;
  if(item.kind==='PDF_NOTE')versions=(await p('SELECT version_id,object_key FROM lesson_note_versions WHERE note_id=? ORDER BY version_id LIMIT ?',item.ref_id,limit+1).all()).results;
  more=versions.length>limit;versions=versions.slice(0,limit);
  if(item.kind==='PDF_NOTE')keys=versions.map(row=>lessonPdfObjectKey(row.object_key));
  if(item.kind==='SESSION_PDF'){
-  if(await q("SELECT 1 FROM lesson_media_links x JOIN lesson_media_lessons l USING(lesson_id) WHERE x.asset_id=? AND l.media_scope='COURSE'",item.ref_id).first()){await db.batch([p("UPDATE note_retention_items SET state='EXEMPT' WHERE item_id=?",item.item_id),p('DELETE FROM note_retention_recipients WHERE item_id=?',item.item_id)]);return {removed:false,versions:0};}
-  const asset=await q('SELECT object_key FROM lesson_media_assets WHERE asset_id=?',item.ref_id).first();if(asset?.object_key)keys=[lessonPdfObjectKey(asset.object_key)];
+  const rows=await officialPdfRows(repository,[item.ref_id]);
+  if(rows.some(row=>row.media_scope==='COURSE')){await db.batch([p("UPDATE note_retention_items SET state='EXEMPT' WHERE item_id=?",item.item_id),p('DELETE FROM note_retention_recipients WHERE item_id=?',item.item_id)]);return {removed:false,versions:0};}
+  const asset=rows[0];if(asset?.object_key)keys=[lessonPdfObjectKey(asset.object_key)];
  }
  const writes=[p(`INSERT INTO academy_write_guards VALUES(?,EXISTS(SELECT 1 FROM note_retention_policy WHERE revision=?) AND EXISTS(SELECT 1 FROM note_retention_items WHERE item_id=? AND state=? AND delete_after<=?) ${repository.retentionOwnerTable?"AND NOT EXISTS(SELECT 1 FROM website_platform_access_ownership WHERE activity_key=? COLLATE NOCASE AND state IN('FROZEN','STUDIO'))":""})`,guard,policy.revision,item.item_id,item.state,time,...(repository.retentionOwnerTable?[item.activity_key]:[])),p("UPDATE note_retention_items SET state='PURGING',next_check=? WHERE item_id=?",time,item.item_id)];
  if(item.kind==='CLASS_NOTE'){
