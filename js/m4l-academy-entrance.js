@@ -897,8 +897,9 @@
     weekButtons();
     if(programme){
       const media=timetableAttachments(rows);
-      state.information['programme-circle']=rows.map(row=>({title:row.moduleName||row.subjectName||row.activityName,dailyRollup:true,lessons:[{...row,media:media.get(mediaReference(row))}]}));
-      window.M4L_PROGRAMME_WORKSPACE.render({row:state.activity,home:state.home,rows,mode:context.mode,startDate:state.startDate,bindJoins:host=>{for(const button of host.querySelectorAll('[data-join]'))joinChoices.set(button,state.information['programme-circle'][Number(button.dataset.join.split(':')[1])]?.lessons[0]);}});
+      const displayed=window.M4L_PROGRAMME_WORKSPACE.displayRows(rows,state.home.timezone);
+      state.information['programme-circle']=displayed.map(row=>({title:row.moduleName||row.subjectName||row.activityName,dailyRollup:true,lessons:[{...row,media:media.get(mediaReference(row))}]}));
+      window.M4L_PROGRAMME_WORKSPACE.render({row:state.activity,home:state.home,rows:displayed,mode:context.mode,startDate:state.startDate,bindJoins:host=>{for(const button of host.querySelectorAll('[data-join]'))joinChoices.set(button,state.information['programme-circle'][Number(button.dataset.join.split(':')[1])]?.lessons[0]);}});
     }else window.M4L_PROGRAMME_WORKSPACE?.reset();
     armScheduleClock();
   }

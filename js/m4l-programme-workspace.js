@@ -8,6 +8,11 @@
   const group=(home.programmePageGroups||[]).find(keys=>Array.isArray(keys)&&keys.includes(own));
   return group?group.filter(key=>allowed.has(key)):[own];
  }
+ function displayRows(rows,timezone='Africa/Johannesburg'){
+  const formatter=new Intl.DateTimeFormat('en-GB',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+  const clock=instant=>{const parts=Object.fromEntries(formatter.formatToParts(new Date(instant)).map(part=>[part.type,part.value]));return {date:parts.year+'-'+parts.month+'-'+parts.day,time:parts.hour+':'+parts.minute};};
+  return rows.map(row=>{if(!Number.isFinite(row.startsAt)||!Number.isFinite(row.endsAt))return {...row};const begins=clock(row.startsAt),ends=clock(row.endsAt);return {...row,sourceDate:row.sourceDate||row.date,date:begins.date,startTime:begins.time,endTime:ends.time,endDate:ends.date};});
+ }
  function dayRows(rows,day,now=Date.now()){
   return rows.map((row,index)=>({...row,infoIndex:index})).filter(row=>row.date===day&&Number.isFinite(row.startsAt)&&Number.isFinite(row.endsAt)&&row.endsAt>row.startsAt).sort((a,b)=>a.startsAt-b.startsAt||a.infoIndex-b.infoIndex).map(row=>({...row,phase:row.status!=='SCHEDULED'?'cancelled':row.endsAt<=now?'finished':row.startsAt<=now?'active':'later',canJoin:row.status==='SCHEDULED'&&Boolean(row.joinKey)&&now>=row.joinAvailableAt&&now<row.endsAt}));
  }
@@ -16,7 +21,7 @@
   const point=angle=>{const r=(angle-90)*Math.PI/180;return [350+342*Math.cos(r),350+342*Math.sin(r)].map(n=>n.toFixed(3)).join(' ');};
   return `M350 350 L${point(start)} A342 342 0 ${sweep>180?1:0} 1 ${point(end)} Z`;
  }
- window.M4L_PROGRAMME_WORKSPACE_MODEL={programmeKeys,dayRows,sectorPath};
+ window.M4L_PROGRAMME_WORKSPACE_MODEL={programmeKeys,displayRows,dayRows,sectorPath};
  const $=id=>document.getElementById(id),addDay=(day,n)=>new Date(Date.parse(day+'T12:00:00Z')+n*86400000).toISOString().slice(0,10);
  let options=null,owner='',generation=0,selectedDay='',top=null,wheel=null,panel=null,popup=null,observer=null,menuAnchor=null,scheduleAnchor=null;
  const summaries=new Map();
@@ -121,5 +126,5 @@
  }
  window.addEventListener('m4l-class-note-saved',event=>{if(options?.keys.includes(event.detail?.activityKey)){generation++;for(const value of summaries.values())value.loading=false;void loadNotes(false,true);}});
  document.addEventListener('click',click);
- window.M4L_PROGRAMME_WORKSPACE={active,keys:programmeKeys,render,reset};
+ window.M4L_PROGRAMME_WORKSPACE={active,keys:programmeKeys,displayRows,render,reset};
 })();

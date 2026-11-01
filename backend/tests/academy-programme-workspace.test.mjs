@@ -42,6 +42,17 @@ test('circle includes every session in the selected date scope, preserves overla
  assert.equal(f.model.dayRows(rows,'2026-11-02').length,0);
 });
 
+test('programme circle follows the dashboard timezone across midnight while retaining original Join and notes identity',async()=>{
+ const f=ui(),raw=lesson(0,{date:'2026-11-01',startTime:'23:30',endTime:'00:30',startsAt:Date.parse('2026-11-01T21:30:00Z'),endsAt:Date.parse('2026-11-01T22:30:00Z'),joinAvailableAt:Date.parse('2026-11-01T21:25:00Z'),mediaSessionKey:'original-notes',timezone:'Africa/Johannesburg'}),before=JSON.stringify(raw);
+ const rows=f.model.displayRows([raw],'Asia/Riyadh');
+ assert.equal(rows[0].date,'2026-11-02');assert.equal(rows[0].startTime,'00:30');assert.equal(rows[0].endTime,'01:30');assert.equal(rows[0].endDate,'2026-11-02');
+ assert.equal(rows[0].sourceDate,'2026-11-01');assert.equal(rows[0].joinKey,raw.joinKey);assert.equal(rows[0].mediaSessionKey,raw.mediaSessionKey);assert.equal(rows[0].startsAt,raw.startsAt);assert.equal(JSON.stringify(raw),before);
+ assert.equal(f.model.dayRows(rows,'2026-11-01').length,0);assert.equal(f.model.dayRows(rows,'2026-11-02',raw.joinAvailableAt)[0].canJoin,true);
+ const again=f.model.displayRows(rows,'Asia/Riyadh');assert.equal(again[0].sourceDate,'2026-11-01');
+ f.render({home:{...home,timezone:'Asia/Riyadh'},rows,startDate:'2026-11-02'});await flush();f.click('[data-programme-day="2026-11-02"]');
+ assert.match(f.document.querySelector('.programme-session time').textContent,/00:30–01:30/);assert.match(f.document.querySelector('.programme-circle-caption').textContent,/Asia\/Riyadh/);
+});
+
 test('programme layout docks native menu/circle/notes together, handles all slices and restores native hosts on reset',async()=>{
  const f=ui();f.render({rows:Array.from({length:13},(_,i)=>lesson(i))});await flush();
  const top=f.document.querySelector('.programme-top');assert(top);assert.equal(top.children[0].id,'activity-menu');assert(top.children[1].contains(f.document.getElementById('activity-schedule')));assert.equal(top.children[2].className,'programme-notes');
