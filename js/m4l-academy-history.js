@@ -57,7 +57,7 @@
     prepare(anchor.href);
   });
   function install(){
-    const style=document.createElement('link');style.rel='stylesheet';style.href='/css/m4l-academy-history.css?v=109.11';document.head.append(style);
+    const style=document.createElement('link');style.rel='stylesheet';style.href='/css/m4l-academy-history.css?v=109.12';document.head.append(style);
     bar=document.createElement('nav');bar.id='academy-app-navigation';bar.setAttribute('aria-label','Page navigation');
     const icon=path=>'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="'+path+'"/></svg>';
     bar.innerHTML='<button type="button" data-app-back aria-label="Go back" title="Back">'+icon('m14 5-7 7 7 7M7 12h14')+'<span>Back</span></button>';

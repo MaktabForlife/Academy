@@ -1,6 +1,6 @@
 <!-- Native Circles component; not a page. -->
-<link rel="stylesheet" href="/css/m4l-program-management.css?v=109.11">
-<link rel="stylesheet" href="/css/m4l-teacher-availability-dialog.css?v=109.11">
+<link rel="stylesheet" href="/css/m4l-program-management.css?v=109.12">
+<link rel="stylesheet" href="/css/m4l-teacher-availability-dialog.css?v=109.12">
 <main id="pm-main"><div class="pb-heading"><div><p class="pb-eyebrow">﷽ &nbsp; Program administration</p><h1 id="pm-title">Program management</h1><p>Add your teaching data here, then build the timetable.</p></div><a id="pm-timetable" href="/programs/">Open timetable →</a></div>
 <p id="pm-message" class="pb-message" role="status" aria-live="polite">Checking your account…</p>
 <div class="pm-actions"><a id="pm-enrolment-requests" href="/academy/enrolment/manage/?view=requests">View enrolment requests →</a><a href="/programs/">← Program setup</a><a id="pm-library" href="/programs/">Manage Library →</a><button id="pm-reload" class="pb-secondary" data-page-content-refresh>↻ Refresh records</button><button id="pm-recover" class="pb-secondary" hidden>Recover interrupted change</button><button id="pm-prepare" hidden>Prepare management tables</button><button id="pm-library-prepare" hidden>Prepare Library tables</button></div>
@@ -19,4 +19,3 @@
 </section>
 <p class="pb-note">Grant Student and Teacher roles in shared User profiles. Program Management shows enrolled students and their class memberships; assign an optional class teacher in Classes or a teacher to an individual lesson. Archiving keeps records and published timetable history.</p>
 <dialog id="pm-availability-dialog" class="pa-dialog" aria-labelledby="pa-title"><div class="pa-heading"><h2 id="pa-title">Teacher availability</h2><button id="pa-close" type="button" class="pb-secondary">Close</button></div><div id="pa-list"><label class="pa-search">Search teachers<input id="pa-search" type="search" placeholder="Find a teacher…"></label><div class="pa-scroll"><table class="pa-table"><thead><tr><th scope="col">Name</th><th scope="col">Availability</th><th scope="col">Edit</th></tr></thead><tbody id="pa-rows"></tbody></table></div><div id="pa-notices"></div></div><form id="pa-editor" hidden><h3 id="pa-teacher"></h3><p>Availability is managed in the Academic Calendar.</p><div id="pa-days"></div><div class="pa-actions"><button id="pa-save" type="submit">Save availability</button><button id="pa-cancel" type="button" class="pb-secondary">Back to teachers</button></div></form><p id="pa-message" role="status" aria-live="polite"></p></dialog></main>
-
