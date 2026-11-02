@@ -11,6 +11,7 @@ export async function serveAcademySite(request,env,{pages=false,branch=siteBranc
   if(!['GET','HEAD'].includes(request.method))return new Response('Method not allowed',{status:405});
   let path=assetPath(url.pathname),shortDirectory=false;
   if(path&&!path.split('/').at(-1).includes('.')&&(academyCirclesPages.has(path.slice(1)+'/index.html')||academyRetiredPages.has(path.slice(1)+'/index.html'))){path+='/index.html';shortDirectory=true;}
+  if(path?.endsWith('/index.html')&&url.pathname===path.slice(0,-11))shortDirectory=true;
   const alias=academyCirclesAlias(url,path);
   if(alias)return new Response(null,{status:302,headers:{Location:alias,'Cache-Control':'no-store','Referrer-Policy':'no-referrer'}});
   if(shortDirectory){const next=new URL(url);next.pathname+='/';return new Response(null,{status:302,headers:{Location:next.href,'Cache-Control':'no-store','Referrer-Policy':'no-referrer'}});}
@@ -28,6 +29,7 @@ export async function serveAcademySite(request,env,{pages=false,branch=siteBranc
   const response=await env.ASSETS.fetch(new Request(url,request));
   if(document&&response.status===404)return circlesPageUnavailable(request.method);
   const headers=new Headers(response.headers);headers.set('X-Robots-Tag','noindex, nofollow');headers.set('X-Content-Type-Options','nosniff');
+  if(document)headers.set('Cache-Control','no-store');
   if(academyCirclesFragments.has(file)){headers.set('Content-Type','text/plain; charset=utf-8');headers.set('Cache-Control','no-cache');}
   return new Response(request.method==='HEAD'?null:response.body,{status:response.status,headers});
 }

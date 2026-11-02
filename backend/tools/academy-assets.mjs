@@ -5,7 +5,9 @@ import {resolve,join,dirname,extname,posix} from 'node:path';
 import {tmpdir} from 'node:os';
 const roots=['academy','account','programs','users','pdf-viewer','recorder','activities','icons','images'];
 import {academyCirclesPages,academyCirclesFragments,academyRetiredPages} from './academy-circles-routes.mjs';
+const retiredRenderers=new Set(['js/m4l-academy-dashboard.js','js/m4l-academy-catalogue.js','css/m4l-academy-home.css']);
 export function academyPublishableAsset(file){
+ if(retiredRenderers.has(file))throw Error('RETIRED_ACADEMY_RENDERER_DEPENDENCY: '+file);
  if(file.startsWith('academy/dashboard-design/')||academyRetiredPages.has(file))return false;
  if(file.endsWith('.html')&&!academyCirclesPages.has(file))throw Error('UNAPPROVED_ACADEMY_HTML: '+file);
  if(file.endsWith('.fragment')&&!academyCirclesFragments.has(file))throw Error('UNAPPROVED_ACADEMY_FRAGMENT: '+file);

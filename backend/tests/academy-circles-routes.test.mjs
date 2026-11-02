@@ -25,7 +25,7 @@ test('Library and availability aliases retain context without selecting a legacy
  const publicAlias=await serveAcademySite(new Request(origin+'/academy/open-library/?program=one&view=personal'),noDB),publicURL=new URL(publicAlias.headers.get('Location'));assert.equal(publicURL.pathname,'/academy/library/');assert.equal(publicURL.searchParams.get('view'),'public');assert.equal(publicURL.searchParams.get('program'),'one');
 });
 test('slashless tool bookmarks canonicalise before relative resources can resolve against the wrong parent',async()=>{
- for(const path of ['/academy/admin','/academy/library','/academy/course-websites/view']){const r=await serveAcademySite(new Request(origin+path+'?website=exact-id'),noDB);assert.equal(r.status,302);const next=new URL(r.headers.get('Location'));assert.equal(next.pathname,path+'/');assert.equal(next.searchParams.get('website'),'exact-id');}
+ for(const path of ['/academy','/programs','/users','/academy/admin','/academy/library','/academy/course-websites/view']){const r=await serveAcademySite(new Request(origin+path+'?website=exact-id'),noDB);assert.equal(r.status,302);const next=new URL(r.headers.get('Location'));assert.equal(next.pathname,path+'/');assert.equal(next.searchParams.get('website'),'exact-id');}
  const alias=await serveAcademySite(new Request(origin+'/academy/teaching?program=one'),noDB);assert.equal(new URL(alias.headers.get('Location')).pathname,'/academy/calendar/');
  let fetched='';const env={ASSETS:{fetch:async request=>{fetched=new URL(request.url).pathname;return new Response('account');}}};await serveAcademySite(new Request(origin+'/account/exact-personal-link'),env,{pages:true});assert.equal(fetched,'/account/');
 });
@@ -47,6 +47,7 @@ test('the production allowlist retains functional tools and Hifz handoff while r
  for(const file of academyCirclesFragments)assert(academyPublishableAsset(file));
  assert(academyPublishableAsset('academy/hifz/index.html'));assert(academyPublishableAsset('pdf-viewer/web/viewer.html'));
  assert.throws(()=>academyPublishableAsset('academy/preview/index.html'),/UNAPPROVED_ACADEMY_HTML/);assert.throws(()=>academyPublishableAsset('programs/fragments/unregistered.fragment'),/UNAPPROVED_ACADEMY_FRAGMENT/);
+ for(const file of ['js/m4l-academy-dashboard.js','js/m4l-academy-catalogue.js','css/m4l-academy-home.css'])assert.throws(()=>academyPublishableAsset(file),/RETIRED_ACADEMY_RENDERER_DEPENDENCY/);
 });
 test('production gates require the shared native shell and prevent old hidden pages from remaining in the bundle',()=>{
  const shell='<html data-circles-native="true"><head><script src="/js/m4l-circles-native.js"></script></head><body><main id="activity"></main></body></html>';
