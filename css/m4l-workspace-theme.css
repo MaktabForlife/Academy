@@ -393,3 +393,10 @@ body.academy-shell .academy-heading-with-close>.academy-management-close{positio
  body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-header-account>.academy-page-actions{margin:0;justify-content:flex-end;width:100%;max-width:100%;gap:2px}
  body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-page-actions>:is([data-page-home],[data-page-refresh]){width:40px;min-width:40px}
 }
+/* PDF actions have their own compact header row; role pills stay with brand. */
+@media(max-width:800px){
+ body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-header-workspaces:has(.pr-reader-actions){display:contents}
+ body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-header-workspaces:has(.pr-reader-actions)>.academy-role-tabs{grid-column:2;grid-row:1;justify-self:end}
+ body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-header-workspaces>.pr-reader-actions{grid-column:1/-1;grid-row:2;justify-self:center;max-width:100%;margin:0}
+ body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-banners>:is(.sidebar,.academy-connected-sidebar):has(.pr-reader-actions)>.academy-header-account{grid-column:1/-1;grid-row:3}
+}
