@@ -9,6 +9,15 @@ export async function serveAcademySite(request,env,{pages=false,branch=siteBranc
   const url=new URL(request.url);
   if(['/api/feature-preview/health','/api/site/health'].includes(url.pathname))return Response.json({success:true,version:siteVersion,branch,syntheticOnly},{headers:{'Cache-Control':'no-store'}});
   if(!['GET','HEAD'].includes(request.method))return new Response('Method not allowed',{status:405});
+  // The release builder copies only reviewed public scripts/styles/artwork to
+  // this content-addressed namespace. Documents and private APIs never enter it.
+  if(/^\/_assets\/[a-f0-9]{64}\//.test(url.pathname)){
+    if(!/^\/_assets\/[a-f0-9]{64}\/[-A-Za-z0-9_./]+\.(?:js|mjs|css|png|jpe?g|svg|webp|gif|ico|woff2?|ttf|otf|bcmap|pfb|wasm)$/.test(url.pathname)||url.pathname.split('/').some(p=>p.startsWith('.')))return new Response('Not found',{status:404});
+    const result=await env.ASSETS.fetch(request),headers=new Headers(result.headers);
+    if(result.ok&&!headers.get('Content-Type')?.includes('text/html'))headers.set('Cache-Control','public, max-age=31536000, immutable');
+    headers.set('X-Content-Type-Options','nosniff');headers.set('X-Robots-Tag','noindex, nofollow');
+    return new Response(request.method==='HEAD'?null:result.body,{status:result.status,headers});
+  }
   let path=assetPath(url.pathname),shortDirectory=false;
   if(path&&!path.split('/').at(-1).includes('.')&&(academyCirclesPages.has(path.slice(1)+'/index.html')||academyRetiredPages.has(path.slice(1)+'/index.html'))){path+='/index.html';shortDirectory=true;}
   if(path?.endsWith('/index.html')&&url.pathname===path.slice(0,-11))shortDirectory=true;
