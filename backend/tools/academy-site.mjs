@@ -12,8 +12,8 @@ export async function serveAcademySite(request,env,{pages=false,branch=siteBranc
   // The release builder copies only reviewed public scripts/styles/artwork to
   // this content-addressed namespace. Documents and private APIs never enter it.
   if(/^\/_assets\/[a-f0-9]{64}\//.test(url.pathname)){
-    if(!/^\/_assets\/[a-f0-9]{64}\/[-A-Za-z0-9_./]+\.(?:js|mjs|css|png|jpe?g|svg|webp|gif|ico|woff2?|ttf|otf|bcmap|pfb|wasm)$/.test(url.pathname)||url.pathname.split('/').some(p=>p.startsWith('.')))return new Response('Not found',{status:404});
-    const result=await env.ASSETS.fetch(request),headers=new Headers(result.headers);
+    if(!/^\/_assets\/[a-f0-9]{64}\/[-A-Za-z0-9_./]+\.(?:js|mjs|css|png|jpe?g|svg|webp|gif|ico|woff2?|ttf|otf|bcmap|pfb|wasm|json|webmanifest|map|ftl|txt|md|pdf|properties|bin)$/.test(url.pathname)||url.pathname.split('/').some(p=>p.startsWith('.')))return new Response('Not found',{status:404});
+    const result=await env.ASSETS.fetch(request),headers=new Headers(result.headers);if(result.ok&&headers.get('Content-Type')?.includes('text/html'))return new Response('Not found',{status:404});
     if(result.ok&&!headers.get('Content-Type')?.includes('text/html'))headers.set('Cache-Control','public, max-age=31536000, immutable');
     headers.set('X-Content-Type-Options','nosniff');headers.set('X-Robots-Tag','noindex, nofollow');
     return new Response(request.method==='HEAD'?null:result.body,{status:result.status,headers});
