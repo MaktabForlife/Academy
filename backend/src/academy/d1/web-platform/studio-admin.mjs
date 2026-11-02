@@ -48,8 +48,10 @@ export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_S
   // Only this actor and offering; never sweep other participants for an Admin read.
   if(!owner||owner.state!=='FROZEN'){await queueAccess(db,{onlyScope:activity,onlyAccount:''});if(!reuse)await markAccess(db,activity,proof.accountId);await queueAccess(db,{onlyScope:activity,onlyAccount:proof.accountId.toLowerCase()});}
   const pending=await pendingAccount(env,db,proof.accountId),origin=websiteServerOrigin(env);
-  const path='/internal/studio/access',envelope={issuedAt:Date.now(),proof,offeringId:mapping.offering_id,command,deliveries:pending.deliveries,more:pending.more};if(new TextEncoder().encode(JSON.stringify(envelope)).length>250_000){envelope.command={action:'read'};envelope.more=true;}const signed=await signedHeaders(env.ACADEMY_TO_WEBSITE_SECRET,path,envelope);
-  const response=await fetcher(origin.origin+path,{method:'POST',headers:signed.headers,body:signed.payload,redirect:'manual',signal:AbortSignal.timeout(8000)}),result=await bodyJSON(response.body,262144);
+  const coverUpload=command.action==='mou-playlist-cover-upload';
+  if(coverUpload&&(typeof command.data!=='string'||command.data.length>700*1024))throw fail('Resize the decorative artwork before uploading.',413);
+  const path=coverUpload?'/internal/studio/playlist-cover':'/internal/studio/access',envelope={issuedAt:Date.now(),proof,offeringId:mapping.offering_id,command,deliveries:pending.deliveries,more:pending.more};if(coverUpload){while(new TextEncoder().encode(JSON.stringify(envelope)).length>1_000_000&&envelope.deliveries.length){envelope.deliveries.pop();envelope.more=true;}if(new TextEncoder().encode(JSON.stringify(envelope)).length>1_000_000)throw fail('Resize the decorative artwork before uploading.',413);}else if(new TextEncoder().encode(JSON.stringify(envelope)).length>250_000){envelope.command={action:'read'};envelope.more=true;}const signed=await signedHeaders(env.ACADEMY_TO_WEBSITE_SECRET,path,envelope);
+  const response=await fetcher(origin.origin+path,{method:'POST',headers:signed.headers,body:signed.payload,redirect:'manual',signal:AbortSignal.timeout(8000)}),result=await bodyJSON(response.body,command.action==='mou-playlist-cover-preview'?1_000_000:262144);
   const acknowledge=result.acknowledge;if(!Array.isArray(acknowledge)||acknowledge.some(x=>!pending.acknowledge.includes(x)))throw fail('Invalid Studio acknowledgement.',503);
   if(acknowledge.length)await db.prepare('UPDATE website_platform_outbox SET acknowledged=1 WHERE operation_id IN(SELECT value FROM json_each(?))').bind(JSON.stringify(acknowledge)).run();
   if(!response.ok)throw fail(result.error||'Studio could not confirm the change.',response.status,result.code||'STUDIO_UNAVAILABLE');
@@ -70,7 +72,7 @@ export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_S
   const accountId=id(command.accountId),confirmed=await send({action:'read',accountId});if(confirmed.ownership?.authority!=='WEBSITE'||confirmed.ownership.phase!=='COMMITTED'||!confirmed.person)throw fail('This offering has not completed its Studio handover.',409);
   return {success:true,...await saveLiveAllocation(db,env,proof,activity,command,confirmed.person,{fetcher})};
  }
- if(!['read','save','provision','resume','monthly-grid','monthly-grid-save','access-table','access-table-save','mou-playlists','mou-playlist-correction','mou-playlist-save','mou-playlist-publication','mou-playlist-add','mou-playlist-order'].includes(command.action))throw fail('Unknown Studio access action.');
+ if(!['read','save','provision','resume','monthly-grid','monthly-grid-save','access-table','access-table-save','mou-playlists','mou-playlist-correction','mou-playlist-save','mou-playlist-publication','mou-playlist-add','mou-playlist-order','mou-playlist-card-options','mou-playlist-cover-upload','mou-playlist-cover-preview'].includes(command.action))throw fail('Unknown Studio access action.');
  if(['monthly-grid','monthly-grid-save','access-table','access-table-save'].includes(command.action)&&mapping.kind!=='TAFSEER')throw fail('Short courses use whole-course access, not monthly subscriptions.');
  // Forward only the narrow command. Supplied actor, roles and proof are ignored.
  let result=await send(command.action==='monthly-grid-save'?await validateGridClasses(db,activity,command):command);

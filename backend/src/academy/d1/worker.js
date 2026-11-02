@@ -195,6 +195,14 @@ async function dispatch(request,env,options={}) {
     return lessonMedia(repository,auth,env).videoStream(request,input);
   }
   if(request.method!=='POST')throw rehearsalError('Use POST.',405,'METHOD_NOT_ALLOWED');
+  // Only decorative card artwork has a larger bounded browser request. Native
+  // authentication/workspace checks and the generic access parser stay intact.
+  if(path==='/api/admin/platform/studio-access/playlist-cover'){
+    if(request.headers.get('Origin')!==env.WEBSITE_PLATFORM_ACADEMY_ORIGIN)throw rehearsalError('Reopen artwork editing inside Academy Admin.',403,'ORIGIN_REQUIRED');
+    const auth=await authenticated(request,env,repository),input=await boundedBody(request,1_000_000);guardWorkspace(request,auth,input);
+    if(input.command?.action!=='mou-playlist-cover-upload')throw rehearsalError('Use the artwork upload action.',400,'INVALID_ACTION');
+    return studioAdmin(env,auth,input);
+  }
   if(path==='/api/admin/platform/studio-access'){
     if(request.headers.get('Origin')!==env.WEBSITE_PLATFORM_ACADEMY_ORIGIN)throw rehearsalError('Reopen access management inside Academy Admin.',403,'ORIGIN_REQUIRED');
     const auth=await authenticated(request,env,repository),input=await boundedBody(request,131072);guardWorkspace(request,auth,input);
