@@ -22,7 +22,7 @@
     if(tabs){const workspaces=document.createElement('div');workspaces.className='academy-header-workspaces';workspaces.append(tabs);host.querySelector('.academy-header-account')?.before(workspaces);}
     if(banner)banner.classList.add('academy-account-controls-moved');
   }
-  void import('/js/m4l-academy-accounts.mjs?v=109.5').then(module=>module.installAccounts({actions,signOut})).catch(()=>{ /* Existing Login and Sign out remain available if the optional chooser cannot load. */ });
+  void import('/js/m4l-academy-accounts.mjs?v=109.6').then(module=>module.installAccounts({actions,signOut})).catch(()=>{ /* Existing Login and Sign out remain available if the optional chooser cannot load. */ });
   if(!academy){
     const updateLogin=()=>{login.hidden=!signOut.hidden;};updateLogin();
     new MutationObserver(updateLogin).observe(signOut,{attributes:true,attributeFilter:['hidden']});
@@ -63,6 +63,6 @@
     // Defer layout writes outside ResizeObserver delivery, including Safari's PDF header.
     new ResizeObserver(()=>{if(!frame)frame=requestAnimationFrame(measure);}).observe(shell.banners);measure();
   }
-  void import('/js/m4l-academy-history.js?v=109.5').catch(()=>{ /* Existing page links remain available if navigation cannot load. */ });
+  void import('/js/m4l-academy-history.js?v=109.6').catch(()=>{ /* Existing page links remain available if navigation cannot load. */ });
   window.M4L_CIRCLES_RETURN_READY=import('/academy/website-platform/circles-return.mjs').then(()=>window.M4L_CIRCLES_RETURN?.ready?.()).catch(()=>{ /* Native workspace Home remains available. */ });
 })();
