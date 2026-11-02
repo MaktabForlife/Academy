@@ -105,7 +105,7 @@ test('historical editor opens only a real saved revision and never replaces a mi
   const document={id:'saved-document-exact',name:'Selected course',lessons:[],pages:{}};
   f.setResponder(async url=>url.endsWith('/list')?{success:true,websites:[{name:'Selected course',activityKey:'COURSE:Exact-Course',hasDraft:revision>0,existing:true,enabled:true}]}:{success:true,activityKey:'COURSE:Exact-Course',courseId:'Exact-Course',name:'Selected course',revision,document,assets:[]});
   f.context.esc=value=>String(value);f.context.clone=value=>structuredClone(value);f.context.AbortController=AbortController;f.context.editorModule={canLeave:()=>true,openRemote:async()=>{}};
-  const code=read('academy/course-websites/admin.mjs').replace(/^import .*;$/gm,'').replace("await import('./studio.mjs?v=109.1')",'await Promise.resolve(editorModule)');
+  const code=read('academy/course-websites/admin.mjs').replace(/^import .*;$/gm,'').replace(/await import\('\.\/studio\.mjs\?v=[^']+'\)/g,'await Promise.resolve(editorModule)');
   await vm.runInContext('(async()=>{'+code+';window.testOpenHistorical=open;})()',f.context);await settle();
   if(revision)assert(f.document.querySelector('[data-open-website]'));else assert.equal(f.document.querySelector('[data-open-website]'),null);
   await f.window.testOpenHistorical('COURSE:Exact-Course');await settle();
