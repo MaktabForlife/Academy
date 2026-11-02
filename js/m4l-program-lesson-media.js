@@ -16,11 +16,11 @@
    if(pending!==generation||current!==token())return;
    if(!response.ok||!result.success||result.store!=='D1')throw Error(result.error||'Program management is unavailable.');
    if(!result.programs?.some(row=>row.id===program))throw Error('This Program is outside your management access.');
-   $('program-media-message').textContent='';
    const target=$('program-lesson-media');const module=window.M4L_MONTHLY_MEDIA_ENTRY||await import('./m4l-monthly-media-entry.mjs');const {studioMonthlyMedia}=module;
    const historical=container=>{const surahs=$('program-surahs');if(surahs)container.append(surahs);const media=document.createElement('section');media.id='program-historical-media';container.append(media);void window.M4L_PROGRAM_SURAHS?.select(program,{readOnly:true});window.M4L_LESSON_MEDIA.open({hostId:media.id,programId:program,learnerView:true,legacy:true});};
-   if(await studioMonthlyMedia(target,'PROGRAM:'+program,{current:()=>pending===generation&&current===token(),onHistorical:historical}))return;
+   if(await studioMonthlyMedia(target,'PROGRAM:'+program,{current:()=>pending===generation&&current===token(),onHistorical:historical})){if(pending===generation&&current===token())$('program-media-message').textContent='';return;}
    await window.M4L_PROGRAM_SURAHS?.select(program);window.M4L_LESSON_MEDIA.open({hostId:'program-lesson-media',programId:program,legacy:true});
+   if(pending===generation&&current===token())$('program-media-message').textContent='';
   }catch(error){if(pending===generation&&current===token()){$('program-media-message').textContent=error.message;$('program-media-retry').hidden=false;}}
   finally{if(pending===generation)loading=false;}
  }
