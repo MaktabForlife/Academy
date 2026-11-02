@@ -25,7 +25,7 @@ const programAliases=new Map([['/programs/timetable.html','timetable'],['/progra
 const timetableTabs=new Set(['curriculum','classes','public-card','timetable','review']);
 export function academyCirclesAlias(url,path){
  if(url.pathname==='/'||url.pathname==='/index.html')return circlesOrigin+'/';
- if(/^\/(?:admin|student)(?:\/|$)/.test(url.pathname)){
+ if(/^\/(?:admin|student)(?:\/|\.html$|$)/.test(url.pathname)){
   const next=new URL(url.pathname.startsWith('/admin')?'/academy/admin/':'/academy/',url.origin);
   next.search=url.search;return next.href;
  }

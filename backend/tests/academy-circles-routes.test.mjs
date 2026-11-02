@@ -6,7 +6,7 @@ import {academyPublishableAsset,validateCirclesPresentation} from '../tools/acad
 const origin='https://academy.invalid';
 const noDB=new Proxy({},{get:(_target,name)=>{throw Error('Unexpected binding access: '+String(name));}});
 test('public and old workspace entry aliases use fixed destinations with zero binding reads',async()=>{
- for(const [path,target]of [['/?return=https://evil.invalid&token=private','https://maktab4life.org/'],['/index.html','https://maktab4life.org/'],['/admin/','https://academy.invalid/academy/admin/'],['/student/','https://academy.invalid/academy/']]){
+ for(const [path,target]of [['/?return=https://evil.invalid&token=private','https://maktab4life.org/'],['/index.html','https://maktab4life.org/'],['/admin/','https://academy.invalid/academy/admin/'],['/admin.html','https://academy.invalid/academy/admin/'],['/student/','https://academy.invalid/academy/'],['/student.html','https://academy.invalid/academy/']]){
   const r=await serveAcademySite(new Request(origin+path),noDB);assert.equal(r.status,302);assert.equal(r.headers.get('Location'),target);assert.equal(r.headers.get('Cache-Control'),'no-store');
  }
  assert.equal((await serveAcademySite(new Request(origin+'/programs/timetable.html',{method:'POST'}),noDB)).status,405);
