@@ -3,7 +3,7 @@ export const playlistCardGradients=['sage','plum','rose','gold','ocean','sunset'
 export const playlistCardOptions={version:1,styles:['default','colour','gradient','image'],gradients:playlistCardGradients,image:{mimeTypes:['image/png','image/jpeg','image/webp'],maxBytes:5*1024*1024}};
 const plain=value=>value&&typeof value==='object'&&!Array.isArray(value);
 export function playlistCardImage(value){
- if(!plain(value)||Object.keys(value).some(k=>!['assetId','sha256','type','size','alt'].includes(k))||value.assetId!==undefined&&value.assetId!==value.sha256||!/^[a-f0-9]{64}$/.test(value.sha256)||!playlistCardOptions.image.mimeTypes.includes(value.type)||!Number.isSafeInteger(value.size)||value.size<8||value.size>playlistCardOptions.image.maxBytes||typeof value.alt!=='string'||!value.alt.trim()||value.alt.length>240||/[\u0000-\u001f\u007f]/.test(value.alt))throw fail('Choose a valid PNG, JPEG or WebP card image up to 5 MB, with an image description.',400,'PLAYLIST_CARD_INVALID');
+ if(!plain(value)||Object.keys(value).some(k=>!['assetId','sha256','type','size','alt'].includes(k))||value.assetId!==undefined&&value.assetId!==value.sha256||!/^[a-f0-9]{64}$/.test(value.sha256)||!playlistCardOptions.image.mimeTypes.includes(value.type)||!Number.isSafeInteger(value.size)||value.size<8||value.size>playlistCardOptions.image.maxBytes||typeof value.alt!=='string'||value.alt.length>240||/[\u0000-\u001f\u007f]/.test(value.alt))throw fail('Choose a valid PNG, JPEG or WebP card image up to 5 MB.',400,'PLAYLIST_CARD_INVALID');
  return {assetId:value.sha256,sha256:value.sha256,type:value.type,size:value.size,alt:value.alt.trim()};
 }
 export function playlistCard(value){
