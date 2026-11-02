@@ -58,3 +58,13 @@ Parent evidence directory: `outputs/academy-native-playlist-cards-20261102/`.
 - Root/Circles must compose and test the same-screen Edit/Save/Publish and card visuals using these exact routes before the paired release. This backend branch does not claim that UI acceptance is complete.
 
 Preserve V109.5’s generic-playlist-aware recovery, existing Core0023/Studio0013, IDs, order/revision fences, ownership, account/session/epoch, twelve-hour ordinary verification and60s sensitive Admin policy, all original media/notes/retention clocks, bindings and schedules. No hosted data/media, rights or timetable changes are authorised by this local handoff.
+
+## Recording text in the same-screen editor
+
+The current SPLIT_V1 + accepted-setup fixture proves existing `lesson-media/save` with `state:'DRAFT'` changes only the Admin draft title/summary/state. Core’s published content stays in place, while its live revision/time advances for stale-write fencing. Learner feed, native playlist list/count/get and watch retain the old published text and access. Direct `lesson-media/get` is a staff editor API and remains403 in Learn; `media-playlists/get` is the native learner reader.
+
+The explicit Publish operation saves the reviewed Admin draft with `state:'PUBLISHED'`, then accepts its exact returned `acceptedChange`. Preparing that change alone still leaves old reader text visible; acceptance switches to the new text. Original recording/asset IDs, class/date/context and membership position stay unchanged. Save draft returns no acceptedChange and must not be auto-published.
+
+Reuse the canonical editor’s complete payload: current lesson revision, title, summary, commentsClosed and existing named YouTube videos/attachments. A custom text-only caller must preserve those media fields; omitting `videos` means an empty YouTube list in this existing API. Companion save/publish is a separate draft/published flow for the original temporary MP4 companion and is not a universal substitute for recording title/summary editing (YouTube and retained recordings have different existing guards).
+
+Persistent regression: `backend/tests/academy-recording-draft-publication.test.mjs`. Synthetic before/after evidence: parent `outputs/academy-native-playlist-cards-20261102/recording-save-draft-proof.json`; test log `recording-draft-regression.log` (33 checks passed). No production fix or new runtime is needed for this verified current-baseline behavior.
