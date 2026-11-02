@@ -1,4 +1,4 @@
-import {createPagePicker} from '../../js/m4l-pdf-page-picker.mjs?v=109.9';
+import {createPagePicker} from '../../js/m4l-pdf-page-picker.mjs?v=109.10';
 import {PDFViewerApplication as app} from './viewer.mjs?v=107.52';
 if(new URLSearchParams(location.search).get('academy')==='1'){
  document.body.classList.add('academy-pdf');
