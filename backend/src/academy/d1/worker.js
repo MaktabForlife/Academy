@@ -1,3 +1,4 @@
+import {uploadPlaylistCardImage,previewPlaylistCardImage,publicPlaylistCardImage} from './media-playlist-card-images.js';
 import {recordingPlaylistMetadata} from './media-playlist-store.js';
 import {mediaPlaylists} from './media-playlists.js';
 import {nativeMediaTeachers} from './native-media-teachers.js';
@@ -115,6 +116,7 @@ async function dispatch(request,env,options={}) {
   let reader;
   const readRepository=async()=>reader??=acceptedRepository(sourceRepository,await acceptedHead(sourceRepository,request.headers.get('X-Academy-Setup')||''));
   const path=new URL(request.url).pathname;
+  if(path==='/api/academy/media-playlist-card-image'&&['GET','HEAD'].includes(request.method))return publicPlaylistCardImage(request,env);
   if(path.startsWith('/internal/website/')||path.startsWith('/api/website-platform/'))return websitePlatformBridge(request,env,{
     login:async input=>{let captured;await dispatch(new Request(new URL(input.setup?'/api/account/setup-pin':'/api/account/login',request.url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)}),env,{capture:value=>captured=value});return captured;},
     mediaTeachers:async(session,input)=>{
@@ -197,6 +199,13 @@ async function dispatch(request,env,options={}) {
     if(request.headers.get('Origin')!==env.WEBSITE_PLATFORM_ACADEMY_ORIGIN)throw rehearsalError('Reopen access management inside Academy Admin.',403,'ORIGIN_REQUIRED');
     const auth=await authenticated(request,env,repository),input=await boundedBody(request,131072);guardWorkspace(request,auth,input);
     return studioAdmin(env,auth,input);
+  }
+  if(path==='/api/academy/media-playlists/card-upload'||path==='/api/academy/media-playlists/card-preview'){
+    const auth=await authenticated(request,env,repository);let input;
+    if(path.endsWith('/card-upload')){const metadata=new URL(request.url).searchParams.get('metadata')||'';if(metadata.length>8192)throw rehearsalError('Upload details are too large.',413);try{input=JSON.parse(metadata);}catch{throw rehearsalError('Invalid image details.');}}
+    else input=await boundedBody(request,8192);
+    if(!input||typeof input!=='object'||Array.isArray(input))throw rehearsalError('Invalid image details.');guardWorkspace(request,auth,input);
+    return path.endsWith('/card-upload')?{success:true,...await uploadPlaylistCardImage(request,repository,auth,env,input)}:previewPlaylistCardImage(request,repository,auth,env,input);
   }
   if(path==='/api/admin/platform/programs/website-card-image'){
     const auth=await authenticated(request,env,repository),metadata=new URL(request.url).searchParams.get('metadata')||'';
@@ -479,14 +488,14 @@ return {
         return new Response(result.body,{status:result.status,headers:mediaHeaders});}
       return new Response(JSON.stringify(result),{headers});}
     catch(error){if(String(error.message).includes('STUDIO_ACCESS_MANAGED'))error=rehearsalError('Manage this offering through Studio access in Academy Admin. Its old access controls are locked.',409,'STUDIO_ACCESS_MANAGED');const status=Number.isInteger(error.status)?error.status:503;
-      const unavailable=status>=500&&status!==501;
+      const unavailable=status>=500&&status!==501,cardPromotion=error.code==='PLAYLIST_CARD_PROMOTION_PENDING';
       const dailyReadLimit=/exceeded D1.s free tier daily row read limit/i.test(String(error.message));
       const reset=new Date();reset.setUTCHours(24,0,0,0);
       const retryAfterMs=Math.max(1000,reset.getTime()-Date.now());
       if(dailyReadLimit)headers['Retry-After']=String(Math.ceil(retryAfterMs/1000));
       if(status===429)headers['Retry-After']='60';
-      return new Response(JSON.stringify({success:false,error:dailyReadLimit?'Academy access has reached today’s service allowance. Please try again after 00:00 UTC (03:00 Riyadh), or contact an administrator.':unavailable?'Academy information is temporarily unavailable. Please try again.':error.message,
-        code:dailyReadLimit?'ACADEMY_D1_DAILY_READ_LIMIT':unavailable?(['MESSAGING_SCHEMA_REQUIRED','MESSAGING_NOT_ENABLED','ACADEMIC_CALENDAR_SCHEMA_REQUIRED','ACTIVATION_REQUIRED','MANAGEMENT_SCHEMA_REQUIRED','LEARNING_IMPORT_REQUIRED','COURSE_IMPORT_REQUIRED','COURSE_ACCESS_SCHEMA_REQUIRED','COURSE_MANAGEMENT_SCHEMA_REQUIRED','UPLOAD_BRIDGE_REQUIRED','MEMORISATION_SCHEMA_REQUIRED'].includes(error.code)?error.code:'ACADEMY_D1_UNAVAILABLE'):error.code,retryable:unavailable||status===429,...(dailyReadLimit?{retryAfterMs,resetAt:reset.toISOString()}:{}),...(status===429?{retryAfterMs:60000}:{}),
+      return new Response(JSON.stringify({success:false,error:dailyReadLimit?'Academy access has reached today’s service allowance. Please try again after 00:00 UTC (03:00 Riyadh), or contact an administrator.':cardPromotion?'Artwork publication is incomplete. Retry Publish to finish it.':unavailable?'Academy information is temporarily unavailable. Please try again.':error.message,
+        code:dailyReadLimit?'ACADEMY_D1_DAILY_READ_LIMIT':unavailable?(['PLAYLIST_CARD_PROMOTION_PENDING','MESSAGING_SCHEMA_REQUIRED','MESSAGING_NOT_ENABLED','ACADEMIC_CALENDAR_SCHEMA_REQUIRED','ACTIVATION_REQUIRED','MANAGEMENT_SCHEMA_REQUIRED','LEARNING_IMPORT_REQUIRED','COURSE_IMPORT_REQUIRED','COURSE_ACCESS_SCHEMA_REQUIRED','COURSE_MANAGEMENT_SCHEMA_REQUIRED','UPLOAD_BRIDGE_REQUIRED','MEMORISATION_SCHEMA_REQUIRED'].includes(error.code)?error.code:'ACADEMY_D1_UNAVAILABLE'):error.code,retryable:unavailable||status===429,...(dailyReadLimit?{retryAfterMs,resetAt:reset.toISOString()}:{}),...(status===429?{retryAfterMs:60000}:{}),
         ...(status===409&&request.headers.get('X-Academy-Workspace')==='ADMIN'?Object.fromEntries(['currentRecord','rowRevision','entryKey'].filter(k=>error[k]!==undefined).map(k=>[k,error[k]])):{} )}),{status,headers});}
   }
 };

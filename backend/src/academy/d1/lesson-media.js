@@ -83,7 +83,7 @@ export function lessonMedia(repository,auth,env,readOptions={}){
  const playlistBinding=async input=>{
   if(!input.playlistId)return null;const store=mediaPlaylistStore(repository,auth);await store.current(scopeKey,{write:true});const row=await store.playlist(input.playlistId,scopeKey);
   if(input.playlistRevision!==undefined&&input.playlistRevision!==row.revision)throw fail('This playlist changed. Refresh its native recording choices.',409,'PLAYLIST_CHANGED');
-  const context=JSON.parse(row.context_json);if(input.classId!==undefined&&!same(input.classId,context.classId)||input.subjectKey!==undefined&&input.subjectKey!==context.subject.key||input.teacherIds!==undefined&&(!Array.isArray(input.teacherIds)||JSON.stringify(input.teacherIds.map(id=>String(id).toUpperCase()).sort())!==JSON.stringify(context.teacherIds.map(id=>id.toUpperCase()).sort())))throw fail('Use the selected playlist’s exact class, subject and credited Teachers.',409,'PLAYLIST_CONTEXT_MISMATCH');
+  const context=JSON.parse(row.context_json);if(input.classId!==undefined&&!same(input.classId,context.classId)||input.subjectKey!==undefined&&input.subjectKey!==context.subject.key||context.teacherIds.length&&input.teacherIds!==undefined&&(!Array.isArray(input.teacherIds)||JSON.stringify(input.teacherIds.map(id=>String(id).toUpperCase()).sort())!==JSON.stringify(context.teacherIds.map(id=>id.toUpperCase()).sort())))throw fail('Use the selected playlist’s exact class, subject and credited Teachers.',409,'PLAYLIST_CONTEXT_MISMATCH');
   return {row,context,store};
  };
  const bindingOptions=async input=>{
@@ -93,7 +93,7 @@ export function lessonMedia(repository,auth,env,readOptions={}){
  };
  const contentRow=async input=>{
   const playlist=await playlistBinding(input);if(playlist&&(!Number.isInteger(input.playlistRevision)||input.playlistRevision!==playlist.row.revision))throw fail('Refresh the playlist before creating its recording.',409,'PLAYLIST_CHANGED');
-  const selected=playlist?{...input,classId:playlist.context.classId,subjectKey:playlist.context.subject.key,teacherIds:playlist.context.teacherIds}:input,row=await selectedContentMedia(activity,await bindingOptions(input),selected,actor);
+  const selected=playlist?{...input,classId:playlist.context.classId,subjectKey:playlist.context.subject.key,teacherIds:playlist.context.teacherIds.length?playlist.context.teacherIds:input.teacherIds}:input,row=await selectedContentMedia(activity,await bindingOptions(input),selected,actor);
   if(playlist){const sources=JSON.parse(row.source_lessons_json);sources[0].playlistId=playlist.row.playlist_id;row.source_lessons_json=JSON.stringify(sources);row.nativePlaylist=playlist.row;row.nativePlaylistPosition=Number((await playlist.store.p('SELECT coalesce(max(position),0)+1 position FROM academy_media_playlist_recordings WHERE playlist_id=?',playlist.row.playlist_id).first()).position);}
   return row;
  };

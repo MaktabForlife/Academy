@@ -18,10 +18,10 @@ export async function contentMediaOptions(repository,activity,{classId='',actor,
  const result={schema:CONTENT_MEDIA_SCHEMA,activityKey:key,kind:activity.kind,classes:classes.map(c=>({id:c.class_id,name:c.name,academicYear:c.academic_year||''})),classId:selected?.class_id||'',subjects:choices,teachers:teachers.map(t=>({id:t.account_id,name:t.display_name})),teacherRequired:true,timetableRequired:false};
  return {...result,optionsRevision:await payloadHash([result,actor,epoch,owner?.state||'ACADEMY',owner?.generation||0])};
 }
-export function selectedNativeMediaContext(activity,options,input){
+export function selectedNativeMediaContext(activity,options,input,{teacherRequired=true}={}){
  const klass=activity.kind==='PROGRAM'?options.classes.find(c=>same(c.id,input.classId)):null;if(activity.kind==='PROGRAM'&&!klass)throw fail('Choose a native class for this Programme.');
  const subject=options.subjects.find(s=>s.key===(activity.kind==='COURSE'?'COURSE:'+activity.activity_id:input.subjectKey)),ids=input.teacherIds;
- if(!subject||!Array.isArray(ids)||!ids.length||ids.length>10||new Set(ids.map(id=>String(id).toUpperCase())).size!==ids.length||ids.some(id=>typeof id!=='string'||!options.teachers.some(t=>same(t.id,id))))throw fail('Choose the native subject and registered Teacher account(s).');
+ if(!subject||!Array.isArray(ids)||teacherRequired&&!ids.length||ids.length>10||new Set(ids.map(id=>String(id).toUpperCase())).size!==ids.length||ids.some(id=>typeof id!=='string'||!options.teachers.some(t=>same(t.id,id))))throw fail('Choose the native subject and registered Teacher account(s).');
  const selected=ids.map(id=>options.teachers.find(t=>same(t.id,id))).sort((a,b)=>a.id.localeCompare(b.id));return {klass,subject,selected};
 }
 export async function selectedContentMedia(activity,options,input,actor){

@@ -1,3 +1,12 @@
+# Native Academy playlist cards — 2 November 2026
+
+- Own only native Source backend presentation persistence, bounded projections, cover endpoints and optional playlist Teacher/required recording Teacher contract on this isolated branch from verified64dee3c5.
+- Root owns paired release/deployment; Circles owns shared table and native wrapper UI. Do not edit their files, deploy, push or touch hosted data.
+- Keep card metadata in existing context_json/published_json, exact playlist IDs, manual Save/Publish, all acquired rights/dated recording audiences, recording position and revision fences, current local identity/ownership/epoch and 12h/60s checks.
+- Card images are decorative assets separate from protected media; private uploads must not become public before publication. No per-card D1/R2/remote reads in lists. Preserve Tafseer defaults and existing Course legacy cards; Course publication policy belongs to Studio counterpart.
+- Playlist Teacher is optional; individual recordings still require checked actual native Teachers. No invented attribution or rights shortcuts.
+- Local backend complete: 220 combined checks,32 focused checks,9 card tests and11 syntax checks pass; final250-growth workerd evidence retains bounded native read budgets. Contract/endpoints/retry limits are in `docs/ACADEMY-PLAYLIST-CARDS.md`; parent receipts in `outputs/academy-native-playlist-cards-20261102/`. UI and final paired release remain Root/Circles-owned.
+
 # Native Academy programme playlists — local only, 1 November 2026
 
 - Current owner replaces session attachment with common programme → playlist → recordings. Work only in this isolated branch from Source d11554c9, preserving deployed V109.4 and tested account-cache changes. Do not edit root workspace.js or the shared generic playlist component.

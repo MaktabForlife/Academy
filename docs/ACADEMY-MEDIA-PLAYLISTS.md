@@ -1,5 +1,7 @@
 # Native Academy programme playlists
 
+Current optional playlist Teacher/card presentation changes are documented in [ACADEMY-PLAYLIST-CARDS.md](ACADEMY-PLAYLIST-CARDS.md); recording Teacher checks remain mandatory.
+
 Local feature branch `feature/academy-native-playlists`, based on Source `d11554c9c80513d0fdcafe81dfc7df2e384bcc75`. Root owns paired release integration and deployment. This feature does not attach, publish or migrate any hosted recording.
 
 ## Model and invariants

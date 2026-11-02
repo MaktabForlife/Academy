@@ -37,7 +37,7 @@ const adminActions={
  assessments:new Set(['paper-details','register-finish','papers-validate','paper-replacement-preview','register-marking-validate','register-marking-override','register-reports-plan','register-reports-generate','register-reports-release','table-save','register-marks-preview','register-marks-release','schedule-batch','register-create','register-save','register-validate','register-release','session-delete','phase-create','create','save','publish','roster','review-paper','authorise-resubmission','review-mark','release','release-papers','prepare-papers','templates','template-save','report-data','report-save','collection-save','finalise','withdraw-release']),
  progress:new Set(['import','module-save','set-save','cards','card-active','activity-active']),
  planning:new Set(['requirement','requirements']),
- 'media-playlists':new Set(['options','save','publish','attach']),
+ 'media-playlists':new Set(['options','save','publish','attach','card-upload','card-preview']),
  'lesson-media':new Set(['binding-options','binding-create','context-options','context-save','companion-editor','companion-save','companion-publish','course-files-create','historical-create','video-retain']),
  calendar:new Set(['save'])
 };

@@ -4,7 +4,7 @@ import {mediaPlaylistFixture,ok} from '../tests/fixtures/academy-media-playlist-
 const require=createRequire(import.meta.url),{build}=require('esbuild'),{Miniflare,convertV4MiniflareOptions}=require('miniflare'),reports=[];
 for(const growth of [0,Number(process.env.PLAYLIST_COST_GROWTH||1000)]){const f=await mediaPlaylistFixture({growth});let runtime;
 try{
- const made=await f.playlist(),recording=await f.binding();await f.publish(recording.lessonId);await f.attach(made.playlistId,recording.lessonId);await f.publishPlaylist(made.playlistId);const student=await f.source.login('0002');
+ const made=await f.playlist({card:{version:1,style:'gradient',colour:'#49645C',gradient:'sage',image:null}}),recording=await f.binding();await f.publish(recording.lessonId);await f.attach(made.playlistId,recording.lessonId);await f.publishPlaylist(made.playlistId);const student=await f.source.login('0002');
  if(growth){const db=f.databases.core,context=JSON.stringify({schema:'ACADEMY_PLAYLIST_CONTEXT_V1',classId:'unrelated-0',className:'Other class',subject:{key:'MODULE:other',moduleId:'other',name:'Other module'},teacherIds:[f.actors.teacherB],teachers:[{id:f.actors.teacherB,name:'Other Teacher'}]});
   for(let n=0;n<growth;n++){const key='PROGRAM:read-growth-'+n;db.prepare('INSERT INTO academy_media_playlists(playlist_id,activity_key,class_id,name,context_json,revision,enabled,created_at,created_by,updated_at,updated_by) VALUES(?,?,?,?,?,1,0,?,?,?,?)').run(crypto.randomUUID(),key,'unrelated-'+n,'Other playlist '+n,JSON.stringify({...JSON.parse(context),classId:'unrelated-'+n}),'2026-01-01',f.actors.global,'2026-01-01',f.actors.global);}
  }
