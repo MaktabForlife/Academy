@@ -38,7 +38,9 @@
       const heading=headings.find(visible);if(!heading)return;
       for(const link of heading.querySelectorAll(':scope>a'))if(link!==close&&!link.hidden&&/^Close$/i.test(link.textContent.trim()))link.hidden=true;
       document.querySelectorAll('.academy-heading-with-close').forEach(node=>{if(node!==heading)node.classList.remove('academy-heading-with-close');});
-      heading.classList.add('academy-heading-with-close');
+      // This observer watches class changes too. Even re-adding an existing
+      // class emits another mutation and can starve sign-in/fetch callbacks.
+      if(!heading.classList.contains('academy-heading-with-close'))heading.classList.add('academy-heading-with-close');
       if(close.parentElement!==heading)heading.append(close);
     }
     ensureClose();window.addEventListener('hashchange',ensureClose);
