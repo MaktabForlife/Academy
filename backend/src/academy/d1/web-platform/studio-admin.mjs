@@ -6,6 +6,7 @@ import {markAccess,queueAccess,importAccessPage,accessStream} from './access.mjs
 import {id,integer,fail,random,signedHeaders,bodyJSON,websiteServerOrigin} from './protocol.mjs';
 import {studioAccessCatalogue} from './studio-catalogue.mjs';
 import {gridClassMetadata,validateGridClasses} from './studio-monthly-grid.mjs';
+import {courseUserSearch} from './course-user-search.mjs';
 
 const readAction=action=>['read','monthly-grid','access-table','mou-playlists'].includes(action);
 // Indexed stream heads bound this to the actor and offering. Known changes are
@@ -48,6 +49,10 @@ export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_S
   const programme=await db.prepare('SELECT programme_key FROM website_platform_programmes WHERE activity_key=? COLLATE NOCASE').bind(activity).first();
   const origin=new URL(env.WEBSITE_PLATFORM_ORIGIN);if(origin.origin!==env.WEBSITE_PLATFORM_ORIGIN||origin.protocol!=='https:'&&env.ENVIRONMENT!=='local')throw fail('Studio navigation is unavailable.',503);
   return {success:true,monthly:mapping.kind==='TAFSEER',managed:true,kind:mapping.kind,activityKey:activity,offeringId:mapping.offering_id,programmeKey:programme?.programme_key||null,ownership:owner.state,destination:origin.origin+'/studio/?manage=1&offering='+encodeURIComponent(mapping.offering_id)+'&section=media'};
+ }
+ if(command.action==='course-user-search'){
+  if(mapping.kind!=='COURSE'||owner?.state!=='STUDIO'||!allowed.global_admin)throw fail('Current Global Admin authority is required to add existing Course users.',403,'ADMIN_SCOPE_REQUIRED');
+  return courseUserSearch(db,activity,command);
  }
  const proof=await adminProof(db,auth,allowed);
  const reuse=readAction(command.action)&&await reusableReadProof(db,proof,mapping);
