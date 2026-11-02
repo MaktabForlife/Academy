@@ -57,3 +57,12 @@ test('in-page Teach programme navigation stays neutral while Arabic Intensive is
  f.location.hash='#activity/PROGRAM/programme-two/teach';f.window.dispatchEvent(new f.window.Event('hashchange'));await settle();assert(f.document.documentElement.classList.contains('academy-opening-programme'));
  f.otherActivity.resolve({...f.data,activity:{...f.row,id:'programme-two',name:'Arabic Intensive',roles:['TEACHER']}});await settle();assert(!f.document.documentElement.classList.contains('academy-opening'));assert.equal(f.document.getElementById('activity-title').textContent,'Arabic Intensive');assert.equal(f.location.hash,'#activity/PROGRAM/programme-two/teach');
 });
+
+test('native timetable keeps the exact active-area filter after the old dashboard renderer is retired',async()=>{
+ const f=await fixture();f.location.hash='#timetable/learn';
+ const inactive=[{active:false},{active:0},{lifecycle:'ARCHIVED'},{curriculumActive:false},{menuAvailable:false},...['DRAFT','COMPLETE','CANCELLED','ARCHIVED'].map(stage=>({stage}))].map((flags,index)=>({...f.row,id:'inactive-'+index,name:'Inactive area '+index,...flags}));
+ f.data.personalActivities=[f.row,...inactive];f.data.personalTimetable=[f.row,...inactive].map((area,index)=>({kind:'PROGRAM',activityId:area.id,activityName:area.name,title:area.name,date:'2026-11-02',startTime:'10:00',endTime:'11:00',timezone:'Africa/Johannesburg',classNames:['Class A'],teacherNames:['Teacher'],status:'SCHEDULED',startsAt:Date.parse('2026-11-02T08:00:00Z'),endsAt:Date.parse('2026-11-02T09:00:00Z'),joinAvailableAt:Date.parse('2026-11-02T07:55:00Z'),joinKey:'lesson-'+index,assignedParticipation:'student'}));
+ f.home.resolve(f.data);await settle();
+ assert.match(f.document.getElementById('academy-sessions').textContent,/Aalimiyah/);assert.doesNotMatch(f.document.getElementById('academy-sessions').textContent,/Inactive area/);assert.equal(f.window.M4L_ACADEMY_DASHBOARD,undefined);
+ for(const area of inactive)assert.equal(f.window.M4L_CIRCLES_NATIVE.isActiveArea(area),false);assert.equal(f.window.M4L_CIRCLES_NATIVE.isActiveArea(f.row),true);
+});

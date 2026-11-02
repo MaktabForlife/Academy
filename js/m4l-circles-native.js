@@ -8,6 +8,9 @@
   const modes = new Set(['learn', 'teach', 'admin']);
   const publicSections = {about:'academy-story', contact:'contact', prospectus:'prospectus', learning:'programmes', workshops:'my-courses'};
   const id = '[A-Za-z0-9._~%-]+';
+  // Retained from the retired dashboard renderer: timetable eligibility is
+  // a native data rule and must not depend on loading a second dashboard.
+  const isActiveArea = row => row.active!==false&&row.active!==0&&(!row.lifecycle||row.lifecycle==='ACTIVE')&&row.curriculumActive!==false&&row.menuAvailable!==false&&!['DRAFT','COMPLETE','CANCELLED','ARCHIVED'].includes(row.stage);
   const nativeHash = value => value === '#login' || /^#timetable(?:\/(?:learn|teach))?$/.test(value) || /^#(?:progress|hifz|hifdh)$/.test(value) || new RegExp('^#activity/(?:PROGRAM|COURSE)/'+id+'(?:/(?:learn|teach))?(?:/(?:timetable|attendance|surahs-duas|assessment|library|planning|lesson-media)(?:/'+id+')*)?$').test(value) || /^#(?:assessment-admin|progress-admin|assessments)(?:\/(?:PROGRAM|COURSE)(?:\/[A-Za-z0-9._~%-]+)?)?$/.test(value) || /^#administration\/(?:access|media|users|attendance|planning|announcements|assessments|library|programs|courses|enrolments|settings|curriculum)(?:\/(?:PROGRAM|COURSE)\/[A-Za-z0-9._~%-]+(?:\/[A-Za-z0-9._~%-]+)*)?$/.test(value) || value === '#recorder';
   function mode() {
     const workspace = window.M4L_ACADEMY_WORKSPACE;
@@ -78,7 +81,7 @@
     protectedHost = true;
     return false;
   }
-  window.M4L_CIRCLES_NATIVE = Object.freeze({home, courses:()=>new URL('/studio/?view=collections&collection=courses',publicOrigin).href, mode, openHome, canLeave, nativeHash, legacyDestination, recovery, routeEntry});
+  window.M4L_CIRCLES_NATIVE = Object.freeze({home, isActiveArea, courses:()=>new URL('/studio/?view=collections&collection=courses',publicOrigin).href, mode, openHome, canLeave, nativeHash, legacyDestination, recovery, routeEntry});
   document.documentElement.dataset.circlesNative = 'true';
   document.addEventListener('click', event => {
     const link = event.target.closest?.('a[href]');
