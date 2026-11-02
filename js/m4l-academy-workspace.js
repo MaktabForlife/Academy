@@ -73,7 +73,7 @@
  let access=null,accessRequest=null,accessEpoch=0;
  const adminAccess=()=>Boolean(access?.session===session()&&access.admin&&accountView?.until>Date.now());
  const accessChanged=()=>window.dispatchEvent(new Event('m4l-academy-access'));
- function leaveAdmin(){location.replace('/academy/#overview');}
+ function leaveAdmin(){window.M4L_CIRCLES_NATIVE?.recovery('This tool is outside your current Admin access. Open Home to choose a permitted workspace.');}
  // A page address requests a workspace; it never proves the account is Admin.
  async function readyAccess(editor=false){
   if((!adminRealm()&&!editor)||!session())return false;
@@ -172,7 +172,7 @@
   // can populate another account/workspace or create a stale PDF object URL.
   return new Proxy(response,{get(target,name){if(['json','text','blob','arrayBuffer','formData'].includes(name))return async(...args)=>{check();const value=await target[name](...args);check();return value;};const value=Reflect.get(target,name,target);return typeof value==='function'?value.bind(target):value;}});
  };
- const homeUrl=()=>selected==='ADMIN'?'/academy/admin/#dashboard':(adminRealm()?'/academy/admin/':'/academy/')+'#timetable/'+audience().toLowerCase();
+ const homeUrl=()=>window.M4L_CIRCLES_NATIVE?.home({workspace:selected==='ADMIN'?'admin':audience().toLowerCase()})||'https://maktab4life.org/';
  const preferHubAudience=value=>{hubAudience=value==='TEACH'?'TEACH':'LEARN';hubOwner=session();};
  window.M4L_ACADEMY_WORKSPACE={adminFetch,homeUrl,preferHubAudience,current,audience,adminRealm,adminAccess,readyAccess,readerUrl,desired,commit,canonical,studentClass,classView:()=>classView,head:()=>head,readyPublication,publication:value=>{headEpoch++;head=value;headRequest=null;}};
  function resetAccess(){if(accountOwner!==session()){clearAccountView();accountOwner=session();}if(hubOwner!==session()){hubAudience='LEARN';hubOwner=session();}generation++;classView=null;head=null;headRequest=null;accessEpoch++;access=null;accessRequest=null;accessChanged();}
@@ -196,9 +196,9 @@
  }
  document.addEventListener('click',event=>{const link=event.target.closest?.('a[href]');if(!link||link.hasAttribute('data-workspace-exit'))return;const url=new URL(link.href,location.href);if(url.origin!==location.origin)return;
   if((/^\/academy\/(?:calendar|library|open-library|media|pdf-reader|pdf-compare)\//.test(url.pathname)||url.pathname.startsWith('/recorder/'))&&!url.pathname.includes('/manage/'))link.href=readerUrl(url.href);
-  else if(adminRealm()&&adminAccess()&&['/academy/','/academy/index.html'].includes(url.pathname)){url.pathname='/academy/admin/';if(!url.hash||url.hash==='#overview')url.hash='#administration';link.href=url.href;}
+  else if(adminRealm()&&adminAccess()&&['/academy/','/academy/index.html'].includes(url.pathname)){url.pathname='/academy/admin/';if(!url.hash||url.hash==='#overview'){link.href=homeUrl();return;}link.href=url.href;}
  },true);
- if(location.pathname.startsWith('/academy/admin/')&&!location.hash)history.replaceState(null,'','#dashboard');
+ if(location.pathname.startsWith('/academy/admin/')&&!location.hash)window.M4L_CIRCLES_NATIVE?.openHome({workspace:'admin'},true);
   void import('/js/m4l-academy-history.js?v=109.11').catch(()=>{ /* Existing page links remain available if navigation cannot load. */ });
 })();
 

@@ -9,6 +9,7 @@ const script=readFileSync(new URL('../../js/m4l-programme-workspace.js',import.m
 const row={kind:'PROGRAM',id:'one',name:'Native programme',roles:['STUDENT']},arabic={...row,id:'two'},reboot={...row,id:'reboot'};
 const home={signedIn:true,timezone:'Africa/Johannesburg',personalActivities:[row,arabic,reboot],programmePageGroups:[['PROGRAM:one','PROGRAM:two']],calendarEvents:[]};
 const lesson=(index=0,extra={})=>({kind:'PROGRAM',activityId:'one',activityName:'Native programme',date:'2026-11-01',status:'SCHEDULED',title:'Lesson '+index,startTime:'10:00',endTime:'11:00',startsAt:1000+index*10000,endsAt:9000+index*10000,joinAvailableAt:1000+index*10000-300000,joinKey:'native-'+index,...extra});
+class FixtureDate extends Date{constructor(...args){super(...(args.length?args:['2026-11-01T10:00:00Z']));}static now(){return Date.parse('2026-11-01T10:00:00Z');}}
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
 function ui({summary=async()=>({notes:[],before:null})}={}){
  const {window,document}=parseHTML('<html><body><section id="activity"><div class="learning-workspace"><div id="activity-menu"><button data-programme-calendar>Calendar</button><button data-class-notes-toggle>Notes</button></div><div class="learning-reading"><section id="pa-main"><a id="pa-close">Close</a><h2>Attendance</h2><input value="kept register"></section><section id="activity-planning"><h2>Planner</h2><textarea>kept plan</textarea></section><section id="as-panel"></section><section id="activity-schedule"><div id="activity-sessions"></div></section></div></div></section></body></html>');
@@ -21,7 +22,7 @@ function ui({summary=async()=>({notes:[],before:null})}={}){
  Object.defineProperty(window.HTMLElement.prototype,'clientHeight',{configurable:true,get(){return Number.parseFloat(this.style?.height)||height;}});
  window.HTMLElement.prototype.showModal=function(){this.open=true;};window.HTMLElement.prototype.close=function(){this.open=false;};
  class Observer{constructor(fn){resize.push(fn);}observe(node){observed.push(node.className);}disconnect(){}}
- vm.runInNewContext(script,{window,document,localStorage:{getItem:()=>session},Intl,Date,ResizeObserver:Observer});
+ vm.runInNewContext(script,{window,document,localStorage:{getItem:()=>session},Intl,Date:FixtureDate,ResizeObserver:Observer});
  const render=(overrides={})=>window.M4L_PROGRAMME_WORKSPACE.render({row,home,rows:[lesson()],mode:'learn',startDate:'2026-11-01',...overrides});
  const click=selector=>document.querySelector(selector).dispatchEvent(new window.Event('click',{bubbles:true}));
  return {window,document,render,calls,click,handlers,observed,frames,runFrames,model:window.M4L_PROGRAMME_WORKSPACE_MODEL,reset:()=>window.M4L_PROGRAMME_WORKSPACE.reset(),notifyResize(value){height=value;resize.forEach(fn=>fn());},setHeight(value){height=value;resize.forEach(fn=>fn());runFrames();},setSession(value){session=value;},setMode(value){mode=value;}};

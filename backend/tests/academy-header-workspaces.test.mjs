@@ -1,20 +1,21 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';import {createRequire} from 'node:module';import vm from 'node:vm';
 const {parseHTML}=createRequire(import.meta.url)('linkedom');
+const nativeCode=readFileSync(new URL('../../js/m4l-circles-native.js',import.meta.url),'utf8');
 const shellCode=readFileSync(new URL('../../js/m4l-academy-mobile.js',import.meta.url),'utf8'),returnCode=readFileSync(new URL('../../academy/website-platform/circles-return.mjs',import.meta.url),'utf8').replace(/export function /g,'function ');
 const settle=async()=>{for(let i=0;i<20;i++)await new Promise(r=>setImmediate(r));};
 function fixture({native=true,signed=true,global=true,teacher=false,verified=true,mode='ADMIN_TEACH'}={}){
  const attr=native?'data-academy-tab':'data-shell-role';
  const {window,document}=parseHTML('<html><head><title>Programme</title></head><body><div class="app"><aside class="sidebar"><a class="brand" href="/academy/">Academy</a></aside></div><section '+(native?'id="academy-home-card"':'')+'><div class="academy-role-tabs">'+['learn','teach','admin'].map(key=>'<button '+attr+'="'+key+'" hidden>OLD '+key+'</button>').join('')+'<a class="academy-dashboard-home-link">Dashboard</a></div></section></body></html>');
  let current=mode,token='sample-token',clock=Date.now(),returnValue=null;const navigations=[];
- const location={pathname:native?'/academy/admin/':'/academy/library/',hash:native?'#activity/PROGRAM/example/teach':'',origin:'https://academy.test',get href(){return navigations.at(-1)||'https://academy.test'+this.pathname+this.hash;},set href(value){navigations.push(value);}};
+ const location={pathname:native?'/academy/admin/':'/academy/library/',hash:native?'#activity/PROGRAM/example/teach':'',origin:'https://academy.test',get href(){return navigations.at(-1)||'https://academy.test'+this.pathname+this.hash;},set href(value){navigations.push(value);},assign(value){navigations.push(value);},replace(value){navigations.push(value);}};
  window.M4L_ACADEMY_WORKSPACE={current:()=>current,audience:()=>current.replace('ADMIN_',''),adminRealm:()=>current==='ADMIN'||current.startsWith('ADMIN_'),adminAccess:()=>verified,homeUrl:()=>'/academy/#dashboard'};
  const data={signedIn:signed,globalAdmin:global,profile:{name:'Sample user'},workspaceAccess:{learn:true,teach:teacher},workspaceRoles:global?['GLOBAL_ADMIN']:teacher?['TEACHER']:['STUDENT'],personalActivities:[]};
  window.M4L_ACADEMY_SHELL_DATA=data;
  const localStorage={getItem:()=>token},sessionStorage={getItem:()=>returnValue,removeItem(){returnValue=null;}};
  class Clock extends Date{static now(){return clock;}}
  const context=vm.createContext({window,document,location,localStorage,sessionStorage,Date:Clock,URL,URLSearchParams,MutationObserver:class{observe(){}},crypto,TextEncoder,console});
- vm.runInContext(shellCode,context);
+ delete window.M4L_CIRCLES_NATIVE;vm.runInContext(nativeCode,context);vm.runInContext(shellCode,context);
  return {window,document,location,navigations,data,buttons:[...document.querySelectorAll('button')],setMode(value){current=value;window.M4L_ACADEMY_SHELL.update(data);},setToken(value){token=value;},setClock(value){clock=value;},async connect(value){returnValue=JSON.stringify(value);vm.runInContext(returnCode,context);await settle();}};
 }
 
@@ -35,8 +36,8 @@ test('mode navigation keeps unsaved work guards on both connected returns and na
  const f=fixture();f.window.M4L_CIRCLES_RETURN={modeHref:mode=>'https://circles.test/?workspace='+mode};
  for(const key of ['M4L_CIRCLES_ACCESS','M4L_STUDIO_ACCESS','M4L_LESSON_MEDIA']){f.window[key]={canLeave:()=>false};assert.equal(f.window.M4L_ACADEMY_SHELL.openRole('learn'),false);assert.equal(f.navigations.length,0);delete f.window[key];}
  assert.equal(f.window.M4L_ACADEMY_SHELL.openRole('learn'),true);assert.equal(f.navigations.at(-1),'https://circles.test/?workspace=learn');
- delete f.window.M4L_CIRCLES_RETURN;assert.equal(f.window.M4L_ACADEMY_SHELL.openRole('admin'),true);assert.equal(f.location.hash,'#administration');
- const tool=fixture({native:false,global:false,teacher:true,mode:'TEACH'});tool.buttons[1].click();assert.equal(tool.navigations.at(-1),'/academy/#timetable/teach');
+ delete f.window.M4L_CIRCLES_RETURN;assert.equal(f.window.M4L_ACADEMY_SHELL.openRole('admin'),true);assert.equal(f.navigations.at(-1),'https://maktab4life.org/?workspace=admin&dashboard=1');
+ const tool=fixture({native:false,global:false,teacher:true,mode:'TEACH'});tool.buttons[1].click();assert.equal(tool.navigations.at(-1),'https://maktab4life.org/?workspace=teach&dashboard=1');
 });
 
 test('connected selector URLs come only from the checked account-bound return and expire on account/day boundaries',async()=>{

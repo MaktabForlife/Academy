@@ -139,10 +139,10 @@
     avatar.setAttribute("aria-label", "Academy account");
     document.body.classList.remove("academy-signed-in");
     window.M4L_ACADEMY_STARTUP?.complete();
-    libraryNav.href = "/academy/open-library/";
+    libraryNav.href = "/academy/library/?view=public";
     showStatus("");
     setBusy(false);
-    window.location.hash = "overview";
+    window.M4L_CIRCLES_NATIVE?.recovery();
     if (reopen) openLogin();
     window.dispatchEvent(new Event("m4l-academy-session"));
   }
@@ -227,19 +227,11 @@
     document.body.classList.add("academy-signed-in");
     libraryNav.href = "/academy/library/";
     window.M4L_ACADEMY_STARTUP?.begin();
-    // Every verified login starts at the shared hub. Programme audiences are
-    // entered from there, while Admin retains its verified native realm.
-    if (store === "D1" && Array.isArray(result.contexts) &&
-        ["", "#overview", "#login", "#dashboard", "#timetable/learn", "#timetable/teach"].includes(window.location.hash)) {
-      const contexts = result.contexts;
-      const admin = contexts.some(row => row.scope === "PLATFORM" && row.role === "GLOBAL_ADMIN" ||
-        ["COURSE", "GLOBAL"].includes(row.scope) && row.role === "PROGRAM_ADMIN");
-      if (admin && ["/academy/", "/academy/index.html"].includes(window.location.pathname)) {
-        window.location.replace("/academy/admin/#dashboard");
-        return true;
-      }
-      window.history.replaceState(null, "", "#dashboard");
-      window.M4L_ACADEMY_WORKSPACE?.commit();
+    // A direct checked tool login preserves the exact native bookmark. Hub
+    // bookmarks use the sole Circles dashboard, never another native dashboard.
+    if (["", "#overview", "#website", "#login", "#dashboard"].includes(location.hash)) {
+      window.M4L_CIRCLES_NATIVE?.openHome({}, true);
+      return true;
     }
     window.dispatchEvent(new Event("m4l-academy-session"));
   }
@@ -296,7 +288,7 @@
       pinInput.value = "";
       showStatus("");
       if (showSignedIn(result.account || { uniqueid: uniqueId }, result.sessionStore, result)) return;
-      if (!window.location.hash || window.location.hash === "#login") window.location.hash = "overview";
+      if (!window.location.hash || window.location.hash === "#login") window.M4L_CIRCLES_NATIVE?.openHome({},true);
     } catch (error) {
       pinInput.value = "";
       showStatus(error.message || "Sign-in could not be completed. Please try again.");

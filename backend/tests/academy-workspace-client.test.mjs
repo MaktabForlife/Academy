@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const source=readFileSync(new URL('../../js/m4l-academy-workspace.js',import.meta.url),'utf8');
 function fixture(fetcher=async()=>Response.json({audience:'LEARN'}),sessionFetcher=async()=>Response.json({success:true,contexts:[{scope:'PLATFORM',role:'GLOBAL_ADMIN'}]})){
  const location={pathname:'/academy/',hash:'#timetable/learn',search:'',origin:'https://academy.invalid',href:'https://academy.invalid/academy/#timetable/learn',replace(value){this.destination=value;}},calls=[],authCalls=[],handlers=new Map();let token='actor-one';
- const window={fetch:async(url,options)=>{if(String(url).endsWith('/api/account/session')){authCalls.push({url,options});return sessionFetcher(url,options);}calls.push({url,options});return fetcher(url,options);},M4L_CONFIG:{API_BASE:'https://api.invalid'},addEventListener(type,fn){handlers.set(type,fn);},dispatchEvent(event){handlers.get(event.type)?.(event);}};
+ const window={M4L_CIRCLES_NATIVE:{home:({workspace})=>'https://maktab4life.org/?workspace='+workspace+'&dashboard=1',recovery:message=>{location.recovery=message;}},fetch:async(url,options)=>{if(String(url).endsWith('/api/account/session')){authCalls.push({url,options});return sessionFetcher(url,options);}calls.push({url,options});return fetcher(url,options);},M4L_CONFIG:{API_BASE:'https://api.invalid'},addEventListener(type,fn){handlers.set(type,fn);},dispatchEvent(event){handlers.get(event.type)?.(event);}};
  vm.runInNewContext(source,{window,location,localStorage:{getItem:()=>token},document:{addEventListener(){}},URL,URLSearchParams,Request,Response,Headers,DOMException,Event});
  return {window,location,calls,authCalls,handlers,token:value=>{token=value;}};
 }
@@ -100,11 +100,11 @@ test('a student at an Admin address is returned to personal home before any Admi
  let release;const f=fixture(undefined,()=>new Promise(resolve=>{release=()=>resolve(Response.json({success:true,contexts:[{scope:'COURSE',role:'STUDENT',courseId:'scope'}]}));})),w=f.window.M4L_ACADEMY_WORKSPACE;
  f.location.pathname='/academy/admin/';w.commit();assert.equal(w.adminAccess(),false);
  const pending=f.window.fetch('https://api.invalid/api/academy/entrance');assert.equal(f.calls.length,0);assert.equal(w.adminAccess(),false);release();await assert.rejects(pending,{name:'AbortError'});
- assert.equal(f.location.destination,'/academy/#overview');assert.equal(w.adminAccess(),false);assert.equal(f.calls.length,0);assert.equal(f.authCalls[0].options.headers['X-Academy-Workspace'],'LEARN');
+ assert.match(f.location.recovery,/outside your current Admin access/);assert.equal(w.adminAccess(),false);assert.equal(f.calls.length,0);assert.equal(f.authCalls[0].options.headers['X-Academy-Workspace'],'LEARN');
 });
 test('no role grants or an ordinary Teacher cannot activate Admin; signed-out entry stays unverified',async()=>{
  for(const contexts of [[],[{scope:'COURSE',role:'TEACHER',courseId:'scope'}]]){
-  const f=fixture(undefined,async()=>Response.json({success:true,contexts})),w=f.window.M4L_ACADEMY_WORKSPACE;f.location.pathname='/academy/admin/';w.commit();await assert.rejects(w.readyAccess(),{name:'AbortError'});assert.equal(w.adminAccess(),false);assert.equal(f.location.destination,'/academy/#overview');assert.equal(f.calls.length,0);
+  const f=fixture(undefined,async()=>Response.json({success:true,contexts})),w=f.window.M4L_ACADEMY_WORKSPACE;f.location.pathname='/academy/admin/';w.commit();await assert.rejects(w.readyAccess(),{name:'AbortError'});assert.equal(w.adminAccess(),false);assert.match(f.location.recovery,/outside your current Admin access/);assert.equal(f.calls.length,0);
  }
  const f=fixture(),w=f.window.M4L_ACADEMY_WORKSPACE;f.token('');f.location.pathname='/academy/admin/';w.commit();assert.equal(await w.readyAccess(),false);assert.equal(w.adminAccess(),false);assert.equal(f.authCalls.length,0);assert(!new URL(w.readerUrl('/academy/library/')).searchParams.get('workspace').startsWith('ADMIN'));
 });
@@ -121,7 +121,7 @@ test('an old Admin verification cannot restore the banner after switching to a S
 test('account controls use personal verification even from an Admin reader and revoked Admin responses leave the Admin view',async()=>{
  const f=fixture(async()=>Response.json({success:false,code:'ADMIN_VIEW_FORBIDDEN'},{status:403})),w=f.window.M4L_ACADEMY_WORKSPACE;f.location.pathname='/academy/admin/';w.commit();
  await f.window.fetch('https://api.invalid/api/account/session');assert.equal(f.authCalls[0].options.headers.get('X-Academy-Workspace'),'LEARN');assert.equal(f.authCalls[0].options.headers.get('X-Academy-Class'),null);
- await assert.rejects(f.window.fetch('https://api.invalid/api/academy/entrance'),{name:'AbortError'});assert.equal(w.adminAccess(),false);assert.equal(f.location.destination,'/academy/#overview');
+ await assert.rejects(f.window.fetch('https://api.invalid/api/academy/entrance'),{name:'AbortError'});assert.equal(w.adminAccess(),false);assert.match(f.location.recovery,/outside your current Admin access/);
 });
 
 test('Class Note changes and submitting a plan invalidate protected read snapshots',async()=>{
@@ -133,14 +133,14 @@ test('Class Note changes and submitting a plan invalidate protected read snapsho
 
 test('Home preserves the selected programme audience and native authority realm',()=>{
  const f=fixture(),w=f.window.M4L_ACADEMY_WORKSPACE;
- for(const audience of ['learn','teach']){f.location.hash='#activity/PROGRAM/scope/'+audience;w.commit();assert.equal(w.homeUrl(),'/academy/#timetable/'+audience);}
+ for(const audience of ['learn','teach']){f.location.hash='#activity/PROGRAM/scope/'+audience;w.commit();assert.equal(w.homeUrl(),'https://maktab4life.org/?workspace='+audience+'&dashboard=1');}
  f.location.pathname='/academy/admin/';
- for(const hash of ['#activity/PROGRAM/scope/learn','#activity/PROGRAM/scope/teach','#administration/settings']){f.location.hash=hash;w.commit();assert.equal(w.homeUrl(),hash.startsWith('#administration')?'/academy/admin/#dashboard':'/academy/admin/#timetable/'+hash.split('/')[3]);}
+ for(const hash of ['#activity/PROGRAM/scope/learn','#activity/PROGRAM/scope/teach','#administration/settings']){f.location.hash=hash;w.commit();assert.equal(w.homeUrl(),hash.startsWith('#administration')?'https://maktab4life.org/?workspace=admin&dashboard=1':'https://maktab4life.org/?workspace='+hash.split('/')[3]+'&dashboard=1');}
 });
 test('a verified teacher summary uses the hub address without creating a second home',async()=>{
  const f=fixture(),w=f.window.M4L_ACADEMY_WORKSPACE;
  w.preferHubAudience('TEACH');f.location.hash='#dashboard';w.commit();
- assert.equal(w.current(),'TEACH');assert.equal(w.homeUrl(),'/academy/#timetable/teach');
+ assert.equal(w.current(),'TEACH');assert.equal(w.homeUrl(),'https://maktab4life.org/?workspace=teach&dashboard=1');
  await f.window.fetch('https://api.invalid/api/academy/entrance');assert.equal(f.calls.at(-1).options.headers.get('X-Academy-Workspace'),'TEACH');
  f.token('next-actor');f.window.dispatchEvent(new Event('m4l-academy-session'));w.commit();
  assert.equal(w.current(),'LEARN','Another account cannot inherit the previous summary audience');

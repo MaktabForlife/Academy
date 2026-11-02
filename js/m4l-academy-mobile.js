@@ -27,7 +27,9 @@
    item.dataset.quickKind=kind;item.replaceChildren();const icon=document.createElement('span');icon.className='quicklink-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML=quickIcon(kind);const text=document.createElement('span');text.className='quicklink-label';text.textContent=label;item.append(icon,text);
   }
  }
- quick.hidden=!document.getElementById('academy-home-card');
+ // Public quick-link rendering belongs to the sole Circles homepage. Native
+ // tools keep their contextual Menu and the shared header actions.
+ quick.hidden=true;
  const nav=sidebar.querySelector('nav');if(nav){nav.setAttribute('aria-label','Academy quick links');quick.append(nav);quickBlocks(nav);}
  for(const child of [...sidebar.children])if(child!==brand)child.hidden=true;
  if(document.getElementById('academy-home-card')||document.body.classList.contains('pr-body')||document.body.dataset.academyHeaderDates==='true'){const dates=document.createElement('aside');dates.className='academy-date-box';dates.setAttribute('aria-label','Today’s Hijri and Gregorian dates');dates.innerHTML='<div aria-label="Hijri date"><em id="academy-hijri-date" title="Hijri date from Jamiat">Loading Hijri date…</em></div><div aria-label="Gregorian date"><time id="academy-gregorian-date"></time></div>';sidebar.append(dates);}
@@ -47,8 +49,7 @@
  function openRole(key){
   if(!['learn','teach','admin'].includes(key)||!availableViews[key]||!canLeave())return false;
   const navigate=()=>{const connected=window.M4L_CIRCLES_RETURN?.modeHref(key);if(connected){location.href=connected;return true;}
-   const base=key==='admin'||adminRealm()?'/academy/admin/':'/academy/',hash=key==='admin'?'#administration':'#timetable/'+key;
-   if([base,base+'index.html'].includes(location.pathname))location.hash=hash;else {window.M4L_ACADEMY_HISTORY?.prepare?.(base+hash);location.href=base+hash;}return true;
+   return window.M4L_CIRCLES_NATIVE?.openHome({workspace:key})||false;
   };
   if(window.M4L_CIRCLES_RETURN_READY){const owner=token();void Promise.resolve(window.M4L_CIRCLES_RETURN_READY).then(()=>window.M4L_CIRCLES_RETURN?.ready?.()).then(()=>{if(owner===token()&&availableViews[key]&&canLeave())navigate();}).catch(()=>{});return true;}
   return navigate();
@@ -66,7 +67,7 @@
  document.addEventListener('click',event=>{if(event.target.closest?.('[data-workspace-exit],[data-recorder-link]')&&!canLeave())event.preventDefault();});
 
  function update(next){
-  data=next;if(brand.matches?.('a'))brand.href=data?.signedIn?(boundary?.homeUrl?.()||'/academy/#overview'):'/academy/#overview';const signed=Boolean(data?.signedIn),global=Boolean(signed&&data.globalAdmin),roles=signed?[...(data.workspaceRoles||[]),...(data.personalActivities||[]).flatMap(r=>r.roles||[])]:[];
+  data=next;if(brand.matches?.('a'))brand.href=data?.signedIn?(boundary?.homeUrl?.()||'https://maktab4life.org/'):'https://maktab4life.org/';const signed=Boolean(data?.signedIn),global=Boolean(signed&&data.globalAdmin),roles=signed?[...(data.workspaceRoles||[]),...(data.personalActivities||[]).flatMap(r=>r.roles||[])]:[];
   const staff=r=>r.some(x=>['TEACHER','SENIOR','PROGRAM_ADMIN','ADMIN','GLOBAL_ADMIN'].includes(x)),admin=r=>r.some(x=>['PROGRAM_ADMIN','ADMIN','GLOBAL_ADMIN'].includes(x));
   const pendingAdmin=boundary?.adminRealm()&&!adminRealm(),canAdmin=global||data?.workspaceAccess?.admin||admin(roles),available={learn:signed&&!pendingAdmin&&(canAdmin||data?.workspaceAccess?.learn||roles.length>0),teach:signed&&!pendingAdmin&&(canAdmin||data?.workspaceAccess?.teach||roles.includes('TEACHER')),admin:signed&&!pendingAdmin&&canAdmin};
   const section=location.hash.slice(1).split('/'),path=location.pathname,calendarView=path.startsWith('/academy/calendar/')?(window.M4L_ACADEMY_WORKSPACE?.audience().toLowerCase()||new URLSearchParams(location.search).get('view')):null;
@@ -87,6 +88,6 @@
  }
  document.addEventListener('click',event=>{const button=event.target.closest('[data-shell-role]');if(button&&!button.hidden){event.preventDefault();openRole(button.dataset.shellRole);}});
  window.addEventListener('m4l-academy-access',()=>update(data));
- if(brand.matches?.('a')){brand.href=token()?boundary?.homeUrl?.()||'/academy/#overview':'/academy/#overview';brand.setAttribute('data-workspace-exit','');brand.removeAttribute('data-nav');}
+ if(brand.matches?.('a')){brand.href=token()?boundary?.homeUrl?.()||'https://maktab4life.org/':'https://maktab4life.org/';brand.setAttribute('data-workspace-exit','');brand.removeAttribute('data-nav');}
  window.M4L_ACADEMY_SHELL={update,banners,openRole,canLeave,icon:quickIcon};update(data);
 })();

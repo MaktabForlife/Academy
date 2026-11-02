@@ -133,7 +133,7 @@
       window.M4L_ACADEMY_ACCOUNTS?.recordLogin(result.account, 'login-form');
       if (returnToAcademy) {
         sessionStorage.setItem("m4l_academy_signed_in", uniqueId);
-        window.location.assign("/academy/#overview");
+        window.M4L_CIRCLES_NATIVE?.openHome();
       }
     } catch (error) {
       showFormError("login-error", error.message);
@@ -174,7 +174,7 @@
       window.M4L_ACADEMY_ACCOUNTS?.recordLogin(result.account, 'setup-form');
       if (returnToAcademy) {
         sessionStorage.setItem("m4l_academy_signed_in", uniqueId);
-        window.location.assign("/academy/#overview");
+        window.M4L_CIRCLES_NATIVE?.openHome();
       }
     } catch (error) {
       showFormError("setup-error", error.message);

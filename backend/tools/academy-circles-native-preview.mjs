@@ -1,0 +1,116 @@
+// Offline GUI review: actual native screens over disposable synthetic records.
+import {createServer} from 'node:http';
+import {readFileSync,realpathSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import path from 'node:path';
+import {mobileFirstFixture} from './mobile-first-preview/fixture.mjs';
+import {openLibraryFixture} from '../tests/fixtures/academy-d1-open-library-fixture.mjs';
+import worker from '../src/academy-runtime.js';
+import {circlesPublicFile,circlesHomepage,previewLogin,previewWebsiteReturn} from './workspace-ui-preview/circles-home.mjs';
+import {createCirclesTransport,previewApi} from './workspace-ui-preview/circles-transport.mjs';
+
+const root=realpathSync(fileURLToPath(new URL('../../',import.meta.url)));
+const baselineRoot=path.resolve(root,'../Academy-media-dashboard-release-10911');
+const circlesRoot=path.resolve(process.env.WORKSPACE_UI_CIRCLES_ROOT||path.join(root,'../AcademyStudio-ui-1091/local-content/dashboard-style-review/public'));
+const fixture=await mobileFirstFixture();
+// Explicit disposable programme mappings, never inferred from course names.
+fixture.env.WEBSITE_PLATFORM_NAVIGATION=JSON.stringify({alimiyah:fixture.scopes.programA.slice(8),reboot:fixture.scopes.programB.slice(8),mothers:'PRG-656bcece-4310-49c7-87d7-ee06756f66c1'});
+const libraryFixture=await openLibraryFixture();
+for(const key of ['PROGRAM_TIMETABLE_COORDINATOR','ACADEMY_OPEN_LIBRARY_STORAGE_KEY','MEDIA_BUCKET'])fixture.env[key]=libraryFixture.env[key];
+// Match the published synthetic lessons to the preview's teacher account.
+const published=fixture.db.prepare('SELECT * FROM timetable_publications WHERE activity_key=? ORDER BY version_no DESC LIMIT 1').get(fixture.scopes.programA);
+const snapshot=JSON.parse(published.snapshot_json);
+for(const rule of snapshot.rules||[]){rule.teacherId=fixture.actors.teacherA;rule.teacherIds=[fixture.actors.teacherA];rule.teacherName='Synthetic teacherA';rule.teacherNames=['Synthetic teacherA'];}
+const nextPublication={...published,publication_id:'workspace-review-publication',version_no:published.version_no+1,snapshot_json:JSON.stringify(snapshot)},publicationColumns=Object.keys(nextPublication);
+fixture.db.prepare('INSERT INTO timetable_publications('+publicationColumns.join(',')+') VALUES('+publicationColumns.map(()=>'?').join(',')+')').run(...Object.values(nextPublication));
+fixture.db.prepare('UPDATE program_publication_state SET latest_publication_id=? WHERE activity_key=?').run(nextPublication.publication_id,fixture.scopes.programA);
+// This review concerns retained Academy programmes, not standalone Course delivery.
+fixture.db.prepare("UPDATE role_assignments SET active=0 WHERE activity_key IN (SELECT activity_key FROM activities WHERE kind='COURSE') AND account_id IN (?,?)").run(fixture.actors.studentA,fixture.actors.teacherA);
+await fixture.accept(fixture.scopes.programA);
+const notes=await fixture.notes('TEACH','teacherA');
+const {sources}=await notes.run('sessions',{activityKey:fixture.scopes.programA,date:fixture.today});
+const source=sources.find(row=>row.classId==='class-1'&&row.startTime==='10:00');
+if(source){
+ const view=await notes.run('get',{activityKey:fixture.scopes.programA,source});
+ await notes.run('post',fixture.post(view,{body:'Sample class note for reviewing the workspace. Prepare the next section before the following lesson.'}));
+}
+for(let i=1;i<=3;i++){
+ const date=new Date(Date.now()-i*86400000).toISOString().slice(0,10),id='workspace-review-media-'+i;
+ fixture.db.prepare("INSERT INTO lesson_media_lessons(lesson_id,activity_key,class_id,lesson_date,title,start_time,end_time,teacher_id,teacher_name,summary,state,teacher_ids_json,updated_at) VALUES(?,?,'class-1',?,'Shared lesson','10:00','11:00',?,'Synthetic teacherA','Sample recording entry for reviewing the existing media controls.','PUBLISHED',?,?)").run(id,fixture.scopes.programA,date,fixture.actors.teacherA,JSON.stringify([fixture.actors.teacherA]),new Date().toISOString());
+}
+const tokens=Object.fromEntries(await Promise.all(['studentA','teacherA','global'].map(async who=>[who,await fixture.actor(who)])));
+const program=encodeURIComponent(fixture.scopes.programA.slice(8));
+const destinations={studentA:'/academy/#activity/PROGRAM/'+program+'/learn',teacherA:'/academy/#activity/PROGRAM/'+program+'/teach',global:'/programs/?program='+program+'&tab=participants'};
+const mime={'.fragment':'text/plain; charset=utf-8','.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json','.png':'image/png','.svg':'image/svg+xml','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ttf':'font/ttf','.woff':'font/woff','.woff2':'font/woff2','.ico':'image/x-icon','.pdf':'application/pdf'};
+const csp="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src 'self' blob:; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'";
+let origin='';
+const circlesTransport=createCirclesTransport({env:fixture.env,worker,origin:()=>origin});
+const originalFetch=globalThis.fetch;
+globalThis.fetch=(resource,options)=>{
+ const url=new URL(typeof resource==='string'||resource instanceof URL?resource:resource.url);
+ if(url.origin!==origin)throw new Error('External requests are disabled in the offline UI review.');
+ return originalFetch(resource,options);
+};
+const guard=`<style>.workspace-preview-note{display:flex;align-items:center;justify-content:center;gap:18px;position:relative;z-index:1000;min-height:30px;padding:5px 12px;background:#e9ddce;color:#594751;font:11px/1.4 Arial,sans-serif;text-align:center}.workspace-preview-note a{color:inherit;text-underline-offset:3px}.workspace-preview-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:99999;max-width:90%;padding:14px 20px;border-radius:9px;background:#604b59;color:#fff;font:14px/1.5 Arial,sans-serif;box-shadow:0 6px 24px #34252c22}</style><div class="workspace-preview-note"><span>Offline workspace review · Sample records</span><nav aria-label="Sample accounts"><a href="/__signin/studentA">Student account</a> · <a href="/__signin/teacherA">Teacher account</a> · <a href="/__signin/global">Global Admin account</a></nav></div><script>(()=>{if(window.self!==window.top)document.querySelector('.workspace-preview-note')?.remove();const inform=()=>{let t=document.querySelector('.workspace-preview-toast');if(!t){t=document.createElement('div');t.className='workspace-preview-toast';t.setAttribute('role','status');document.body.append(t);}t.textContent='This link is unavailable in the offline review.';clearTimeout(t.timer);t.timer=setTimeout(()=>t.remove(),4000);};const outside=u=>{try{return new URL(u,location.href).origin!==location.origin;}catch{return true;}};for(const type of ['click','auxclick'])document.addEventListener(type,e=>{const a=e.target.closest('a[href]');if(a&&outside(a.href)){e.preventDefault();e.stopImmediatePropagation();inform();}},true);const nativeOpen=window.open;window.open=function(u,...rest){if(u&&outside(u)){inform();return null;}return nativeOpen.call(this,u,...rest);};})();</script>`;
+const server=createServer(async(req,res)=>{
+ try{
+  const allowedHosts=['127.0.0.1:'+server.address().port,'localhost:'+server.address().port];
+  if(!allowedHosts.includes(req.headers.host)||req.headers.origin&&!allowedHosts.some(host=>req.headers.origin==='http://'+host)){res.writeHead(403);res.end('Local review only.');return;}
+  const url=new URL(req.url,origin);
+  // A display preference only: authority always comes from the fixture session.
+  const dashboardView=url.searchParams.get('public')!=='1'&&(url.searchParams.get('previewDashboard')==='1'||/(?:^|;\s*)workspace-preview-view=dashboard(?:;|$)/.test(req.headers.cookie||''));
+  if(url.searchParams.get('previewDashboard')==='1')res.setHeader('Set-Cookie','workspace-preview-view=dashboard; Path=/; SameSite=Strict; HttpOnly');
+  if(url.searchParams.get('public')==='1')res.setHeader('Set-Cookie','workspace-preview-view=public; Path=/; SameSite=Strict; HttpOnly');
+  res.setHeader('Cache-Control','no-store');res.setHeader('X-Robots-Tag','noindex, nofollow');res.setHeader('Content-Security-Policy',csp);res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Content-Type-Options','nosniff');
+  if(url.pathname==='/__preview/native-baseline'){res.setHeader('Set-Cookie','native-ui-baseline='+ (url.searchParams.get('on')==='1'?'1':'0') +'; Path=/; SameSite=Strict; HttpOnly');res.writeHead(302,{Location:'/academy/#activity/PROGRAM/'+program+'/teach'});res.end();return;}
+  if(url.pathname.startsWith('/__preview/transport/')){
+   const chunks=[];for await(const part of req)chunks.push(part);
+   const response=await circlesTransport(url.pathname.slice('/__preview/transport'.length),new Request(origin+url.pathname,{method:req.method,headers:req.headers,...(!['GET','HEAD'].includes(req.method)?{body:Buffer.concat(chunks)}:{})}));
+   if(url.pathname.endsWith('/auth/logout')&&response.ok)res.setHeader('Set-Cookie','workspace-preview-view=public; Path=/; SameSite=Strict; HttpOnly');
+   res.statusCode=response.status;res.setHeader('Content-Type','application/json');res.end(Buffer.from(await response.arrayBuffer()));return;
+  }
+  if(url.pathname==='/__preview/circles-connector.mjs'){res.setHeader('Content-Type','text/javascript');res.end(readFileSync(new URL('./workspace-ui-preview/circles-connector.mjs',import.meta.url)));return;}
+  if(url.pathname==='/__preview/circles-login.js'){
+   res.setHeader('Content-Type','text/javascript; charset=utf-8');res.end(previewLogin);return;
+  }
+  if(['/__preview/home-editor.js','/__preview/home-editor.css','/__preview/homepage-review.js','/__preview/homepage-review.css'].includes(url.pathname)){
+   res.setHeader('Content-Type',mime[path.extname(url.pathname)]);res.end(readFileSync(new URL('./workspace-ui-preview/'+path.basename(url.pathname),import.meta.url)));return;
+  }
+  const circlesFile=circlesPublicFile(circlesRoot,decodeURIComponent(url.pathname));
+  if(circlesFile){
+   const extension=path.extname(circlesFile);
+   let body=readFileSync(circlesFile);
+   if(extension==='.html')body=Buffer.from(circlesHomepage(circlesFile,{dashboard:dashboardView}).replace(/<body([^>]*)>/i,'<body$1>'+guard));
+   if(path.basename(circlesFile)==='api.mjs')body=Buffer.from(previewApi(body.toString()));
+   if(path.basename(circlesFile)==='circles-login.mjs')body=Buffer.from(body.toString().replace("from './shared/circles-sign-in.mjs'","from '/__preview/circles-connector.mjs'"));
+   // Keep this review offline. DM Sans is provided by the existing local font files.
+   if(path.basename(circlesFile)==='style.css')body=Buffer.from(body.toString().replace(/@import url\(['"]https:\/\/fonts\.googleapis\.com\/[^)]+\)\s*;/g,''));
+   res.setHeader('Content-Type',mime[extension]);res.end(body);return;
+  }
+  if(url.pathname==='/js/m4l-config.js'){res.setHeader('Content-Type','text/javascript');res.end('window.M4L_CONFIG={API_BASE:location.origin,ACCEPTED_SETUP:true,NATIVE_ATTENDANCE:true,MEDIA_SEPARATION:true,LEARNING_OPERATIONS:3,IS_DEVELOPMENT:true};');return;}
+  if(url.pathname.startsWith('/__signin/')){
+   const who=url.pathname.split('/').at(-1);if(!tokens[who]){res.writeHead(404);res.end();return;}
+   res.setHeader('Content-Type','text/html; charset=utf-8');res.end('<script>const homepageDrafts=Object.entries(localStorage).filter(([key])=>key==="academy-workspace-homepage-v1"||key.startsWith("academy-workspace-homepage-v1-before-"));localStorage.clear();for(const [key,value] of homepageDrafts)localStorage.setItem(key,value);sessionStorage.clear();localStorage.setItem("m4l_account_token",'+JSON.stringify(tokens[who])+');location.replace('+JSON.stringify(destinations[who])+');</script>');return;
+  }
+  if(['/api/academy/header-date','/api/public/header-date'].includes(url.pathname)){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({success:true,gregorian:new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Johannesburg',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()),hijri:null,hijriUnavailable:true,timezone:'Africa/Johannesburg',source:'https://jamiat.org.za/'}));return;}
+  if(url.pathname.startsWith('/api/')){
+   if(/\/(?:join|program-join|course-join)(?:\/|$)/.test(url.pathname)){res.writeHead(409,{'Content-Type':'application/json'});res.end(JSON.stringify({success:false,error:'Live joining is unavailable in this offline review.',code:'OFFLINE_REVIEW'}));return;}
+   const chunks=[];for await(const part of req)chunks.push(part);
+   const response=await worker.fetch(new Request(origin+url.pathname+url.search,{method:req.method,headers:req.headers,...(!['GET','HEAD'].includes(req.method)?{body:Buffer.concat(chunks)}:{})}),fixture.env);
+   for(const [name,value] of response.headers)if(!['content-security-policy','cache-control','x-robots-tag'].includes(name))res.setHeader(name,value);
+   res.statusCode=response.status;res.end(Buffer.from(await response.arrayBuffer()));return;
+  }
+  if(!/^\/(?:academy|programs|users|account|recorder|activities|css|js|assets|images|img)\//.test(url.pathname)&&!['/version.json','/ummabbadacademy.png','/admin-favicon-32x32.png'].includes(url.pathname)){res.writeHead(404);res.end();return;}
+  const selectedRoot=String(req.headers.cookie||'').includes('native-ui-baseline=1')?baselineRoot:root;
+  let file=path.resolve(selectedRoot,'.'+decodeURIComponent(url.pathname));if(url.pathname.endsWith('/'))file=path.join(file,'index.html');file=realpathSync(file);
+  if(!file.startsWith(selectedRoot+path.sep)||!mime[path.extname(file)]){res.writeHead(404);res.end();return;}
+  let body=readFileSync(file);res.setHeader('Content-Type',mime[path.extname(file)]);
+  if(file.endsWith('.html'))body=Buffer.from(body.toString().replace(/<body([^>]*)>/i,'<body$1>'+guard+'<script>'+previewWebsiteReturn+'</script>'));
+  res.end(body);
+ }catch(error){res.statusCode=error.code==='ENOENT'?404:500;res.end('The local review could not open this item.');console.error(error.message);}
+});
+await new Promise(done=>server.listen(Number(process.env.WORKSPACE_UI_PORT||9241),'127.0.0.1',done));
+origin='http://127.0.0.1:'+server.address().port;fixture.env.ALLOWED_ORIGINS=origin;
+console.log(JSON.stringify({preview:origin,learn:origin+'/__signin/studentA',teach:origin+'/__signin/teacherA',admin:origin+'/__signin/global',syntheticOnly:true,externalRequestsBlocked:true}));
+await new Promise(done=>{process.once('SIGTERM',done);process.once('SIGINT',done);});
+await new Promise(done=>server.close(done));fixture.close();libraryFixture.db.close();libraryFixture.metadata.close();globalThis.fetch=originalFetch;

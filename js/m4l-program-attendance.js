@@ -34,10 +34,10 @@
     const locked=state.busy||Boolean(state.pending),program=state.programs.find(row=>row.id===state.id);
     const admin=['GLOBAL_ADMIN','PROGRAM_ADMIN','ADMIN'].includes(program?.role);
     if(!embedded){
-      $('pa-account').hidden=!state.accountPath;$('pa-account').href=state.accountPath||'/academy/#overview';
+      $('pa-account').hidden=!state.accountPath;$('pa-account').href=state.accountPath||'https://maktab4life.org/';
       $('pa-return').textContent=admin?'Back to Program management':'Back to Program';
       const hifz=state.id===window.M4L_CONFIG?.HIFZ_PROGRAM_ID;
-      $('pa-return').href=state.id?(admin?`/programs/?program=${encodeURIComponent(state.id)}`:hifz?'/academy/#timetable/teach':`/academy/#activity/PROGRAM/${encodeURIComponent(state.id)}`):'/academy/#overview';
+      $('pa-return').href=state.id?(admin?`/programs/?program=${encodeURIComponent(state.id)}`:hifz?'/academy/#timetable/teach':`/academy/#activity/PROGRAM/${encodeURIComponent(state.id)}`):'https://maktab4life.org/';
       if(hifz&&!admin)$('pa-return').textContent='Back to TEACH';
       if(state.id)window.M4L_PROGRAM_MANAGEMENT_NAV?.select(state.id);
       $('pa-programs').innerHTML=state.programs.map(row=>`<button type="button" data-program="${esc(row.id)}" aria-pressed="${row.id===state.id}" ${locked?'disabled':''}>${esc(row.name)}</button>`).join('');

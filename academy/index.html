@@ -1,7 +1,8 @@
 <!doctype html>
-<html lang="en">
+<html data-circles-native="true" lang="en">
 <head>
 <script src="/js/m4l-academy-startup.js?v=109.11"></script>
+<script src="/js/m4l-circles-native.js?v=circles-native-1"></script>
 <script src="/js/m4l-academy-workspace.js?v=109.11"></script><script src="/js/m4l-academy-read-cache.js?v=109.11"></script><script src="/js/m4l-academy-admin-menu.js?v=109.11"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -257,37 +258,30 @@
 <link rel="stylesheet" href="/css/m4l-academy-shell.css?v=109.11">
 <link rel="stylesheet" href="/css/m4l-academy-planning.css?v=109.11">
 <link rel="stylesheet" href="/css/m4l-academy-announcements.css?v=109.11">
-<link rel="stylesheet" href="/css/m4l-academy-home.css?v=109.11">
 <link rel="stylesheet" href="/css/m4l-academy-workspaces.css?v=109.11">
-<link rel="stylesheet" href="/css/m4l-academy-dashboard.css?v=109.11">
 <link rel="stylesheet" href="/css/m4l-messaging.css?v=109.11">
 <link rel="stylesheet" href="/css/m4l-academy-mobile-first.css?v=109.11">
 <link rel="stylesheet" href="/css/m4l-course-companion-dashboard.css?v=109.11">
 <link rel="stylesheet" href="/css/m4l-tafseer-cards.css?v=109.11">
 <link rel="stylesheet" href="/css/m4l-workspace-theme.css?v=109.11">
 <link rel="stylesheet" href="/css/m4l-programme-workspace.css?v=109.11">
+<link rel="stylesheet" href="/css/m4l-circles-native.css?v=circles-native-1">
 </head>
-<body class="circles-workspace-page">
-<a class="skip-link" href="#main">Skip to content</a>
-<div class="app">
-<aside class="sidebar">
-<a class="brand" href="#overview" data-nav="overview" aria-label="Umm Abbad Academy home"><img src="/ummabbadacademy.png?v=106.1" alt=""><span><strong>Umm Abbad<br>Academy</strong><span class="site-version">Website V109.11</span></span></a>
+<body class="circles-workspace-page"><a class="skip-link" href="#main">Skip to content</a><div class="app"><aside class="sidebar">
+<a class="brand" href="https://maktab4life.org/" data-page-home="" data-workspace-exit="" aria-label="Umm Abbad Academy home"><img src="/ummabbadacademy.png?v=106.1" alt=""><span><strong>Umm Abbad<br>Academy</strong><span class="site-version">Website V109.11</span></span></a>
 <div><div class="nav-label">Academy</div><nav class="nav" aria-label="Academy navigation">
-<button type="button" class="active" data-nav="overview">Academy home</button>
-<a class="library-link" id="academy-library-nav" href="/academy/open-library/">Library</a>
+<a class="library-link" data-page-home="" data-workspace-exit="" href="https://maktab4life.org/">Home</a>
+<a class="library-link" id="academy-library-nav" href="/academy/library/?view=public">Library</a>
 <a class="library-link" id="academy-calendar-nav" href="/academy/calendar/" hidden>Academic Calendar</a>
 <a class="library-link" href="/activities/surahs-in-my-heart/">Surahs in my Heart</a>
 <a class="library-link" href="/activities/kaaba-puzzle/">Kaaba puzzle</a>
-<a id="academy-recorder-nav" data-recorder-link href="/recorder/?academy=1" hidden>Voice Recorder</a>
-<button type="button" data-nav="about">About</button>
-<button type="button" data-nav="contact">Contact</button>
+<a id="academy-recorder-nav" data-recorder-link="" href="/recorder/?academy=1" hidden>Voice Recorder</a>
+
+
 </nav></div>
 <div class="sidebar-note"><strong>Learning with purpose</strong>One Academy account for your Programs, Courses and learning resources.</div>
 
-</aside>
-<main id="main">
-<header class="topbar"><div class="breadcrumbs">Umm Abbad Academy / <strong id="current-view">Academy home</strong></div></header>
-<section class="academy-account-bar" id="academy-home-card" aria-label="Academy menu">
+</aside><main id="main"><header class="topbar"><div class="breadcrumbs">Umm Abbad Academy / <strong id="current-view">Your Academy</strong></div></header><section class="academy-account-bar" id="academy-home-card" aria-label="Academy menu">
   <div class="academy-account-row">
     <div class="academy-profile"><span class="academy-welcome">Ahlan wa Sahlan</span><span class="academy-header-name" id="academy-header-name" hidden></span><small id="academy-account-role"></small></div>
     <button class="academy-sign-out" id="academy-login" type="button" aria-haspopup="dialog" aria-controls="academy-login-dialog" aria-expanded="false">Login</button>
@@ -301,172 +295,41 @@
     </div>
   <div class="academy-role-panel" id="academy-role-panel" role="tabpanel" tabindex="0" hidden></div>
   <p class="academy-access-empty" id="academy-access-empty" hidden>No Program or Course access is currently assigned to this account.</p>
-</section>
-<div class="academy-global-strip" hidden><nav class="activity-pills activity-switcher" id="activity-switcher" aria-label="Your subscribed Programs and Courses" hidden></nav></div>
-<div class="container">
-<div class="entrance-status" id="entrance-status" role="status" aria-live="polite"><span id="entrance-message">Loading Academy information…</span><button type="button" class="button secondary small" id="entrance-retry" hidden>Try again</button></div>
-<section id="academy-startup" aria-labelledby="academy-startup-title">
+</section><div class="academy-global-strip" hidden><nav class="activity-pills activity-switcher" id="activity-switcher" aria-label="Your subscribed Programs and Courses" hidden></nav></div><div class="container"><div class="entrance-status" id="entrance-status" role="status" aria-live="polite"><span id="entrance-message">Loading Academy information…</span><button type="button" class="button secondary small" id="entrance-retry" hidden>Try again</button></div><section id="academy-startup" aria-labelledby="academy-startup-title">
   <div class="academy-startup-heading"><span class="academy-startup-spinner" aria-hidden="true"></span><h1 id="academy-startup-title" role="status" aria-live="polite">Opening your learning…</h1></div>
   <p>Your timetable and updates will appear here shortly.</p>
   <div class="academy-startup-cards" aria-hidden="true"><div></div><div></div><div></div></div>
-</section>
-<div id="academy-session-loading" role="status" hidden><span id="academy-session-message">Checking your sign-in…</span> <button class="button secondary" id="academy-session-retry" type="button" hidden>Try again</button></div>
-<section id="overview" class="view active" aria-label="Academy home">
-<section class="academy-intro" aria-labelledby="overview-title">
-          <div class="intro-next">
-            <div class="intro-identity">
-              <div class="intro-greeting" lang="ar" dir="rtl" aria-label="Bismillah">﷽</div>
-              <h1 id="overview-title">ummabbadacademy.com</h1>
-              <p class="intro-mission">Flexible, Qur’an-centred learning making space for work, motherhood, and spiritual growth.</p><a href="https://wa.me/27828478639?text=Assalaamu%20alaikum.%0A%0AI%20would%20like%20to%20enroll%20in%20the%20Academy.%0A%0APlease%20contact%20me." data-academy-join target="_blank" rel="noopener noreferrer" class="button academy-join">Contact Admin</a><details class="academy-join-contact"><summary>Can’t use WhatsApp? Contact Admin</summary><p><a href="tel:+27828478639" data-admin-phone>+27 82 847 8639</a><br><a href="mailto:admin@ummabbadacademy.com">admin@ummabbadacademy.com</a></p></details>
-            </div>
-
-
-          </div>
-          <div class="intro-feature">
-            <section class="card card-pad coming-card academy-news" aria-labelledby="academy-news-title">
-              <h2 id="academy-news-title" class="academy-sr-only">Academy announcements</h2>
-              <div id="academy-announcements" aria-label="Academy announcements" aria-busy="true"><p role="status" aria-live="polite">Loading announcements…</p></div>
-            </section>
-          </div>
-        </section>
-
-
-
-<section class="card card-pad" id="academy-public-timetable" aria-labelledby="public-timetable-title">
-<div class="public-week-heading"><h2 id="public-timetable-title">What’s on this week</h2><p id="public-timetable-range" hidden></p><div class="timetable-heading-arrows"><button type="button" id="public-home-previous" disabled aria-label="Previous week">←</button><button type="button" id="public-home-next" disabled aria-label="Next week">→</button></div></div>
-<div id="academy-public-sessions" class="upcoming-strip" tabindex="0" role="region" aria-label="Public Academy timetable dates" aria-live="polite">Loading public timetable…</div>
-</section>
-<section id="learning" aria-labelledby="learning-title"><div class="page-heading"><h2 id="learning-title">Explore our programs and courses</h2><div class="upcoming-controls" aria-label="Browse Programs and Courses"><button type="button" id="learning-previous" aria-label="Previous Program or Course">←</button><button type="button" id="learning-next" aria-label="Next Program or Course">→</button></div></div><div id="learning-catalogue" class="learning-strip" tabindex="0" role="region" aria-label="Programs and Courses. Swipe or use the arrow buttons to browse."></div></section>
-<section class="tf-section" id="tafseer" aria-labelledby="tafseer-title"><header class="tf-section-heading"><span class="tf-eyebrow">QUR’AN STUDIES</span><h2 id="tafseer-title">Tafseer &amp; Tadabbur</h2><p>Explore a surah, reflect on its guidance, and carry its lessons into your day.</p></header><div id="tafseer-public-cards" data-tafseer-cards="public" class="tf-card-grid"></div></section>
-<section id="academy-public-quicklinks" class="academy-quicklinks" aria-label="Academy quick links"></section>
-<div class="wide-stack">
-<section class="film-section" aria-labelledby="film-title" aria-roledescription="carousel">
-            <div class="film-head"><div><h2 id="film-title">Self paced learning opportunities for you</h2></div><div class="film-actions"><button type="button" id="film-prev" aria-label="Previous course wall page">←</button><span class="film-status" id="film-status" role="status" aria-live="polite"></span><button type="button" id="film-next" aria-label="Next course wall page">→</button><button type="button" class="film-toggle" id="film-toggle" aria-label="Play course strip" aria-pressed="false">Play</button></div></div>
-            <div class="film-pages" role="group" aria-label="Browse Academy catalogue pages"><button type="button" data-film-page="0" aria-pressed="true">1</button><button type="button" data-film-page="1" aria-pressed="false">2</button><button type="button" data-film-page="2" aria-pressed="false">3</button><button type="button" data-film-page="3" aria-pressed="false">4</button></div>
-            <div class="film-window"><div class="film-track" id="film-track" tabindex="0" aria-label="Original Academy course images">
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/IMRATUN-MUMINAH.webp" alt="Original Academy artwork for Imra’tun Mu’minah" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/IBAADAH-AND-MOTHERHOOD-2.webp" alt="Original Academy artwork for Ibaadah and Motherhood" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/LEARNING-TO-LOVE-FOR-THE-PLEASURE-OF-ALLAH.webp" alt="Original Academy artwork for Learning to Love for the Pleasure of Allah" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/HIFZ-CHALLENGES-MEMORIZING-WITH-LOVE.webp" alt="Original Academy artwork for Hifz Challenges: Memorizing with Love" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/Hadith-Qudsi.webp" alt="Original Academy artwork for Hadith Qudsi" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/FILTERING-THE-NOISE.webp" alt="Original Academy artwork for Filtering the Noise" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/DUAA-MY-WEAPON.webp" alt="Original Academy artwork for Duaa: My Weapon" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/Building-Resilience-through-the-Quran.webp" alt="Original Academy artwork for Building Resilience through the Qur’an" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/At-Taajira.webp" alt="Original Academy artwork for At Taajira" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/An-Everyday-Muslimah.webp" alt="Original Academy artwork for An Everyday Muslimah" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/page2/Living-with-Mindfulness.png" alt="Original Academy artwork for Living with Mindfulness" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/page2/Mawaddah-Wah-Rahma.png" alt="Original Academy artwork for Mawaddah Wah Rahma" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/page2/My-Role-as-a-Muslim-Friend.png" alt="Original Academy artwork for My Role as a Muslim Friend" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/page2/My-Salaah-My-Joy.png" alt="Original Academy artwork for My Salaah My Joy" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/page2/Names-of-Allah.png" alt="Original Academy artwork for Names of Allah" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/page2/Navigating-Infertility-with-Iman.png" alt="Original Academy artwork for Navigating the Test of Infertility with Iman" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/page2/Navigating-the-Unseen.png" alt="Original Academy artwork for Navigating the World of the Unseen" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/page2/Nidaaan-Khafiyah.png" alt="Original Academy artwork for Nidaa’an Khafiyah" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/page2/Parenting-for-the-Aakirah.png" alt="Original Academy artwork for Parenting for the Aakirah" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/page2/Prophetic-Guidance.png" alt="Original Academy artwork for Prophetic Guidance on Depression and Anxiety" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/page3/Quraan-Bootcamp-Intermediate.png" alt="Original Academy artwork for Quraan Bootcamp intermediate level" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/page3/Quraan-Bootcamp-Beginner.png" alt="Original Academy artwork for Quraan Bootcamp beginner level" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/page3/Qurratu-Aini-Level-2.png" alt="Original Academy artwork for Qurratu Aini My Salaah My Joy Level 2" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/page3/Qurratu-Aini-My-Salah.png" alt="Original Academy artwork for Qurratu Aini My Salah My Joy" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/page3/Tadabbur-fil-Qiraat.png" alt="Original Academy artwork for Tadabbur fil Qira’at" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/page3/Tajweed-Bootcamp.png" alt="Original Academy artwork for Tajweed Bootcamp" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/page3/Tarteel-and-Tadabbur.png" alt="Original Academy artwork for Tarteel and Tadabbur" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/page3/Tarteel-and-Tadabbur-Surah-Maryam.png" alt="Original Academy artwork for Tarteel and Tadabbur Surah Maryam" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/page3/Teacher-Development-Workshops.png" alt="Original Academy artwork for Teacher Development Workshops" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/page4/Teacher-Training-Public-Speaking.png" alt="Original Academy artwork for Public Speaking for the Muallimah" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/page4/History-of-the-Quran.png" alt="Original Academy artwork for The History of the Qur’an" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/page4/Journey-of-Change-Umrah.png" alt="Original Academy artwork for The Journey of Change Umrah workshop" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/page4/Muallima-Creating-Resources.png" alt="Original Academy artwork for the Muallimah resources workshop" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-              <div class="film-card"><div class="film-art"><img src="/academy/course-images/page4/Wahnan-Ala-Wahnin.png" alt="Original Academy artwork for Wahnan Ala Wahnin" loading="lazy"><span class="film-source">ummabbadacademy.com ↗</span></div></div>
-            </div></div>
-
-            <details class="film-lessons"><summary>Read public lessons on the original Academy site</summary><div class="film-lesson-links">
-              <span>At Taajira: What is the purpose of this course? ↗</span>
-              <span>Sidratul Muntaha ↗</span>
-              <span>The Forms of the People of Jannah ↗</span>
-              <span>The Luckiest of People in Jannah ↗</span>
-              <span>The Dwellings of the People of Jannah ↗</span>
-              <span>The Couches and Carpets of Jannah ↗</span>
-            </div></details>
-          </section>
-</div>
-<section id="progress" class="academy-home-progress" aria-labelledby="hifdh-title"><div class="page-heading"><div><h2 id="hifdh-title">Surahs and Duas</h2></div><a id="hifdh-helper" class="button secondary" target="_blank" rel="noopener noreferrer" hidden>HifzHelper ↗</a><a id="mp-personal-close" class="button secondary academy-close" href="#overview" hidden title="Close">Close</a></div><div id="mp-personal-host"><div id="mp-root"></div></div></section>
-</section>
-            <section class="card card-pad" id="academy-preview" hidden aria-labelledby="preview-title">
-              <div class="upcoming-heading"><div><span class="eyebrow">Academy timetable</span><h2 id="preview-title">Coming up</h2></div><div class="upcoming-controls" aria-label="Browse upcoming dates"><button type="button" id="timetable-refresh" aria-label="Refresh timetable" title="Refresh timetable" hidden data-page-content-refresh>↻</button><button type="button" id="upcoming-previous" aria-label="Previous upcoming date">←</button><button type="button" id="upcoming-next" aria-label="Next upcoming date">→</button></div></div>
-              <div id="academy-preview-sessions" class="upcoming-strip" tabindex="0" role="region" aria-label="Upcoming Academy lessons. Swipe or use the arrow buttons to browse dates." aria-live="polite">Loading Academy timetable…</div>
-              <p id="public-snapshot-note" class="tiny muted" hidden></p>
-              <a class="text-link" id="preview-timetable-link" href="#timetable" hidden>View full timetable →</a>
-            </section>
-<section id="dashboard" class="view academy-dashboard-view" aria-label="Workspace dashboard"></section>
-<section id="timetable" class="view" aria-labelledby="full-timetable-title"><div class="academy-view-actions"><a href="#overview" class="academy-home-icon" aria-label="Academy home" title="Academy home"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h5v-7h4v7h5V9"/></svg></a><a href="#overview" id="timetable-close" class="academy-close-view academy-close" aria-label="Close timetable and return to previous page" title="Close timetable">×</a></div><div class="workspace-banner"><div class="workspace-identity"><p class="workspace-academy eyebrow">Umm Abbad Academy</p><h1 id="full-timetable-title" class="workspace-role-title">LEARN</h1></div><nav id="timetable-areas" class="workspace-areas" aria-label="Your Programs and Courses"></nav></div><div id="workspace-main-actions" class="workspace-enrolment-actions" hidden><span id="learn-enrolment-entry" hidden><a class="button" href="/academy/enrolment/">Enroll now</a></span><a id="workspace-library-link" class="button secondary" href="/academy/library/">Library</a></div><div id="timetable-media-host" hidden></div><a id="teaching-availability-link" href="/academy/teaching/" hidden>Edit availability</a><section id="upcoming-courses" class="card card-pad upcoming-courses" aria-labelledby="upcoming-courses-title" hidden><h2 id="upcoming-courses-title">Upcoming Courses</h2><p class="muted">Prepare for Courses starting after today. Their lessons appear in the relevant timetable week.</p><ul id="upcoming-course-list" class="upcoming-course-list"></ul></section><div id="timetable-card-home"><section class="card card-pad" id="academy-schedule" aria-labelledby="schedule-title"><div class="section-title"><div><h2 id="schedule-title">Academy timetable</h2></div><div class="schedule-controls"><button type="button" id="schedule-refresh" aria-label="Refresh timetable" title="Refresh timetable" hidden data-page-content-refresh>↻</button><button type="button" id="schedule-previous" aria-label="Previous week" title="Previous week">←<span class="learning-week-label">Week</span></button><button type="button" id="schedule-today" class="learning-today" aria-label="Show today’s timetable">Today</button><input type="hidden" id="schedule-date"><button type="button" id="schedule-next" aria-label="Next week" title="Next week">→<span class="learning-week-label">Week</span></button></div></div><p class="tiny muted" id="schedule-range" hidden></p><p id="schedule-message" role="status"></p><ul id="academy-calendar-context" class="academy-calendar-context tiny muted" aria-label="Academic calendar for this week" hidden></ul><div id="academy-sessions" class="upcoming-strip" tabindex="0" role="region" aria-label="Academy timetable dates"></div></section></div></section>
-
-<section id="workshops" class="view" aria-labelledby="workshops-title">
-  <a href="#overview" class="academy-home-icon" aria-label="Academy home" title="Academy home"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h5v-7h4v7h5V9"/></svg></a>
-  <div class="page-heading activity-heading"><div class="activity-identity"><div class="academy-title-row"><h1 id="workshops-title">Courses</h1></div></div></div>
-  <div class="academy-role-tools" id="workshop-tools"></div>
-  <p id="workshops-message" role="status"></p>
-  <section class="card card-pad course-catalogue" aria-labelledby="course-list-title"><div class="section-title"><h2 id="course-list-title">My Courses</h2><div class="course-list-filters"><label class="sr-only" for="course-list-search">Find a Course</label><input type="search" id="course-list-search" placeholder="Find a Course…"><label class="sr-only" for="course-list-stage">Course status</label><select id="course-list-stage"><option value="ALL">All statuses</option><option value="PUBLISHED">Scheduled</option><option value="ACTIVE">Active</option><option value="COMPLETE">Complete</option><option value="ARCHIVED">Archived</option><option value="DRAFT">Draft</option><option value="CANCELLED">Cancelled</option></select><label id="course-list-scope-wrap" hidden><span class="sr-only">Course view</span><select id="course-list-scope"><option value="MINE">My Courses</option><option value="ALL">All Courses</option></select></label><button type="button" id="course-list-retry" hidden>Try again</button></div></div><p id="course-list-message" class="tiny muted" role="status"></p><div id="workshop-pills" class="course-list"></div></section>
-
-</section>
+</section><div id="academy-session-loading" role="status" hidden><span id="academy-session-message">Checking your sign-in…</span> <button class="button secondary" id="academy-session-retry" type="button" hidden>Try again</button></div><section id="progress" class="view academy-home-progress" aria-labelledby="hifdh-title"><div class="page-heading"><div><h2 id="hifdh-title">Surahs and Duas</h2></div><a id="hifdh-helper" class="button secondary" target="_blank" rel="noopener noreferrer" hidden>HifzHelper ↗</a><a id="mp-personal-close" class="button secondary academy-close" href="https://maktab4life.org/" data-page-home="" data-workspace-exit="" hidden title="Close">Close</a></div><div id="mp-personal-host"><div id="mp-root"></div></div></section>
+<section id="timetable" class="view" aria-labelledby="full-timetable-title"><div class="academy-view-actions"><a href="https://maktab4life.org/" data-page-home="" data-workspace-exit="" class="academy-home-icon" aria-label="Academy home" title="Academy home"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7" /><path d="M5 9v12h5v-7h4v7h5V9" /></svg></a><a href="https://maktab4life.org/" data-page-home="" data-workspace-exit="" id="timetable-close" class="academy-close-view academy-close" aria-label="Close timetable and return to previous page" title="Close timetable">×</a></div><div class="workspace-banner"><div class="workspace-identity"><p class="workspace-academy eyebrow">Umm Abbad Academy</p><h1 id="full-timetable-title" class="workspace-role-title">LEARN</h1></div><nav id="timetable-areas" class="workspace-areas" aria-label="Your Programs and Courses"></nav></div><div id="workspace-main-actions" class="workspace-enrolment-actions" hidden><span id="learn-enrolment-entry" hidden><a class="button" href="/academy/enrolment/">Enroll now</a></span><a id="workspace-library-link" class="button secondary" href="/academy/library/">Library</a></div><div id="timetable-media-host" hidden></div><a id="teaching-availability-link" href="/academy/teaching/" hidden>Edit availability</a><section id="upcoming-courses" class="card card-pad upcoming-courses" aria-labelledby="upcoming-courses-title" hidden><h2 id="upcoming-courses-title">Upcoming Courses</h2><p class="muted">Prepare for Courses starting after today. Their lessons appear in the relevant timetable week.</p><ul id="upcoming-course-list" class="upcoming-course-list"></ul></section><div id="timetable-card-home"><section class="card card-pad" id="academy-schedule" aria-labelledby="schedule-title"><div class="section-title"><div><h2 id="schedule-title">Academy timetable</h2></div><div class="schedule-controls"><button type="button" id="schedule-refresh" aria-label="Refresh timetable" title="Refresh timetable" hidden data-page-content-refresh="">↻</button><button type="button" id="schedule-previous" aria-label="Previous week" title="Previous week">←<span class="learning-week-label">Week</span></button><button type="button" id="schedule-today" class="learning-today" aria-label="Show today’s timetable">Today</button><input type="hidden" id="schedule-date"><button type="button" id="schedule-next" aria-label="Next week" title="Next week">→<span class="learning-week-label">Week</span></button></div></div><p class="tiny muted" id="schedule-range" hidden></p><p id="schedule-message" role="status"></p><ul id="academy-calendar-context" class="academy-calendar-context tiny muted" aria-label="Academic calendar for this week" hidden></ul><div id="academy-sessions" class="upcoming-strip" tabindex="0" role="region" aria-label="Academy timetable dates"></div></section></div></section>
 <section id="activity" class="view" aria-labelledby="activity-title">
-  <a href="#overview" id="activity-back-link" class="academy-home-icon" aria-label="Academy home" title="Academy home"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h5v-7h4v7h5V9"/></svg></a>
+  <a href="https://maktab4life.org/" data-page-home="" data-workspace-exit="" id="activity-back-link" class="academy-home-icon" aria-label="Academy home" title="Academy home"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7" /><path d="M5 9v12h5v-7h4v7h5V9" /></svg></a>
   <div class="page-heading activity-heading workspace-banner"><div class="activity-identity"><span class="eyebrow" id="activity-kind"></span><div class="academy-title-row"><h1 id="activity-title"></h1></div><p id="activity-role"></p></div><nav id="activity-areas" class="workspace-areas" aria-label="Your Programs and Courses"></nav></div>
   <label id="activity-student-class-wrap" hidden>View as student · Class <select id="activity-student-class" aria-label="Student class view"></select></label>
   <p id="activity-status" role="status"></p><div class="learning-workspace"><div class="academy-role-tools" id="activity-menu"></div><div class="learning-reading">
   <section id="pa-main" role="region" class="card card-pad academy-attendance" data-embedded="true" hidden aria-labelledby="pa-title">
-    <div class="section-title"><h2 id="pa-title">Attendance</h2><a id="pa-close" class="text-link academy-close" href="#overview" title="Close">Close</a></div>
+    <div class="section-title"><h2 id="pa-title">Attendance</h2><a id="pa-close" class="text-link academy-close" href="https://maktab4life.org/" data-page-home="" data-workspace-exit="" title="Close">Close</a></div>
     <p id="pa-message" class="pb-message" role="status" aria-live="polite"></p>
     <div id="pa-pending" class="pb-refresh-warning" hidden><span>The last submission needs confirmation.</span><button id="pa-retry" type="button">Retry submission</button></div>
     <div id="pa-workspace" hidden>
-      <div class="pa-toolbar"><label>Date <input id="pa-date" type="date" aria-describedby="pa-date-help"></label><button id="pa-refresh" class="pb-secondary" type="button" data-page-content-refresh>Refresh</button><button id="pa-prepare" class="pb-secondary" type="button" hidden>Prepare attendance</button></div>
+      <div class="pa-toolbar"><label>Date <input id="pa-date" type="date" aria-describedby="pa-date-help"></label><button id="pa-refresh" class="pb-secondary" type="button" data-page-content-refresh="">Refresh</button><button id="pa-prepare" class="pb-secondary" type="button" hidden>Prepare attendance</button></div>
       <p id="pa-date-help" class="pa-help">Everyone starts Present; mark Absent or Excused exceptions, then submit each class. All lessons submits that class’s lessons together. Attendance stays Unknown until submitted.</p>
       <p class="pa-help">Dates follow the app time zone. Past first submissions require a reliable dated roster.</p>
       <p id="pa-completion" class="pa-completion"></p><div id="pa-classes" class="pa-classes" role="region" aria-label="Class registers" tabindex="0"></div>
       <section class="pa-summary"><h2>Day summary</h2><p>Day results appear when every scheduled register shown here has been submitted.</p><div id="pa-summary"></div></section>
     </div>
   </section>
-  <section id="mp-teach-panel" class="academy-memorisation-panel" hidden aria-labelledby="mp-teach-title"><div class="section-title"><h2 id="mp-teach-title">Surahs and Duas Tracker · Class progress</h2><a id="mp-teach-close" class="button secondary academy-close" href="#overview" title="Close">Close</a></div><div id="mp-teach-host"></div></section>
-  <section id="as-panel" role="region" aria-labelledby="activity-tab-assessment" hidden class="card card-pad"><div class="section-title"><span></span><a id="as-close" class="button secondary academy-close" href="#overview" title="Close">Close</a></div><div id="as-host"></div></section>
-  <section class="card card-pad academy-personal-schedule" id="activity-schedule" role="region" hidden aria-labelledby="activity-schedule-title"><div class="section-title"><h2 id="activity-schedule-title">Timetable</h2><p id="activity-week-range" class="tiny muted" hidden></p><div class="upcoming-controls"><button type="button" id="activity-refresh" aria-label="Refresh this timetable" title="Refresh timetable" data-page-content-refresh>↻</button><button type="button" id="activity-previous" aria-label="Previous week" title="Previous week">←<span class="learning-week-label">Week</span></button><button type="button" id="activity-today" class="learning-today" aria-label="Show today’s timetable">Today</button><button type="button" id="activity-next" aria-label="Next week" title="Next week">→<span class="learning-week-label">Week</span></button></div></div><div id="activity-sessions" class="upcoming-strip" tabindex="0" role="region" aria-label="This learning area's timetable"></div></section>
+  <section id="mp-teach-panel" class="academy-memorisation-panel" hidden aria-labelledby="mp-teach-title"><div class="section-title"><h2 id="mp-teach-title">Surahs and Duas Tracker · Class progress</h2><a id="mp-teach-close" class="button secondary academy-close" href="https://maktab4life.org/" data-page-home="" data-workspace-exit="" title="Close">Close</a></div><div id="mp-teach-host"></div></section>
+  <section id="as-panel" role="region" aria-labelledby="activity-tab-assessment" hidden class="card card-pad"><div class="section-title"><span></span><a id="as-close" class="button secondary academy-close" href="https://maktab4life.org/" data-page-home="" data-workspace-exit="" title="Close">Close</a></div><div id="as-host"></div></section>
+  <section class="card card-pad academy-personal-schedule" id="activity-schedule" role="region" hidden aria-labelledby="activity-schedule-title"><div class="section-title"><h2 id="activity-schedule-title">Timetable</h2><p id="activity-week-range" class="tiny muted" hidden></p><div class="upcoming-controls"><button type="button" id="activity-refresh" aria-label="Refresh this timetable" title="Refresh timetable" data-page-content-refresh="">↻</button><button type="button" id="activity-previous" aria-label="Previous week" title="Previous week">←<span class="learning-week-label">Week</span></button><button type="button" id="activity-today" class="learning-today" aria-label="Show today’s timetable">Today</button><button type="button" id="activity-next" aria-label="Next week" title="Next week">→<span class="learning-week-label">Week</span></button></div></div><div id="activity-sessions" class="upcoming-strip" tabindex="0" role="region" aria-label="This learning area's timetable"></div></section>
   <section class="card card-pad" id="activity-library" role="region" tabindex="0" hidden aria-labelledby="activity-tab-library"></section>
   <section class="card card-pad" id="activity-planning" role="region" tabindex="0" hidden aria-labelledby="activity-tab-planning"><h2>Planning</h2><p class="muted">Planning tools are coming soon.</p></section>
   <section class="card card-pad" id="activity-lesson-media" hidden aria-label="Lesson media"></section>
   <div class="academy-support" id="activity-support" hidden></div></div></div>
 </section>
 <section id="administration" class="view" aria-label="Academy administration"></section>
-<section id="prospectus" class="view" aria-labelledby="prospectus-title">
-        <div class="page-heading"><div><div class="eyebrow">Umm Abbad Academy</div><h1 id="prospectus-title">2026 prospectus</h1><p>Courses, workshops, and the people behind the Academy, as listed in the supplied 2026 prospectus.</p></div><a class="button secondary" href="./2026-umm-abbad-academy-prospectus.pdf" target="_blank" rel="noopener noreferrer">View full PDF ↗</a></div>
-        <div class="wide-stack">
-          <div class="prospectus-intro"><span class="kicker">About the Academy</span><p>Umm Abbad Academy brings Islamic learning into the daily lives of Muslim women. Its courses are designed to build a deeper connection with the Qur’an while allowing learners to study around work and family responsibilities.</p></div>
-          <div class="split-head"><h2 style="font:400 27px Georgia,serif;margin:0">Full-time courses</h2><span class="tiny muted">Schedules and fees from the 2026 prospectus</span></div>
-          <div class="offer-grid">
-            <article class="card offer-card"><span class="offer-category">Full-time online · Ladies</span><h3>Aalimiya</h3><dl class="offer-meta"><div><dt>Days</dt><dd>Tuesday–Thursday</dd></div><div><dt>Time</dt><dd>07h30–11h30</dd></div><div><dt>Fee</dt><dd>R1,200 per month</dd></div><div><dt>Format</dt><dd>Online</dd></div></dl></article>
-            <article class="card offer-card"><span class="offer-category">Hifz development</span><h3>Ma’had Arwa</h3><dl class="offer-meta"><div><dt>Days</dt><dd>Monday–Thursday</dd></div><div><dt>Time</dt><dd>04h00–06h00</dd></div><div><dt>Fee</dt><dd>R500 per month</dd></div></dl></article>
-            <article class="card offer-card"><span class="offer-category">Spiritual development</span><h3>Mothers of the Ummah</h3><dl class="offer-meta"><div><dt>Days</dt><dd>Monday and Thursday</dd></div><div><dt>Time</dt><dd>09h30–10h30</dd></div><div><dt>Fee</dt><dd>R500 per month</dd></div></dl></article>
-            <article class="card offer-card"><span class="offer-category">Adult Maktab system</span><h3>Reboot Your Maktab</h3><dl class="offer-meta"><div><dt>Days</dt><dd>Monday–Thursday</dd></div><div><dt>Time</dt><dd>05h30–06h30</dd></div><div><dt>Fee</dt><dd>R500 per month</dd></div></dl></article>
-          </div>
-          <div class="split-head"><h2 style="font:400 27px Georgia,serif;margin:0">Part-time courses</h2><span class="tiny muted">Saturday mornings</span></div>
-          <div class="offer-grid">
-            <article class="card offer-card"><span class="offer-category">Qur’an study</span><h3>Tafseer and Tadabbur: Developing My Relationship with the Qur’an</h3><dl class="offer-meta"><div><dt>Day</dt><dd>Saturday</dd></div><div><dt>Time</dt><dd>08h30–09h30</dd></div><div><dt>Listed fee</dt><dd>R200</dd></div></dl><p class="tiny muted" style="margin:0">The prospectus does not specify the fee period.</p></article>
-            <article class="card offer-card"><span class="offer-category">Conversational Arabic</span><h3>Arabic Adventures for Mums and Kids</h3><dl class="offer-meta"><div><dt>Day</dt><dd>Saturday</dd></div><div><dt>Time</dt><dd>10h00–11h00</dd></div><div><dt>Format</dt><dd>Online or in person in Melville</dd></div><div><dt>Fee</dt><dd>Ask the Academy</dd></div></dl></article>
-          </div>
-          <article class="card card-pad"><span class="kicker">Monthly workshops</span><h2 style="margin-top:7px">Learning around your schedule</h2><p class="muted" style="margin:0">The prospectus also lists monthly workshops and describes courses designed for busy women to gain Islamic knowledge as their schedules allow.</p></article>
-          <div class="grid"><article class="card card-pad"><span class="kicker">Founder and lead educator</span><h2 style="margin-top:7px">Muallima Shakirah Hunter</h2><p class="muted" style="margin:0">The prospectus describes Muallima Shakirah as the founder and lead educator of Umm Abbad Academy. She teaches Aalimiya and leads Reboot Your Maktab, with Qur’anic reflection and applied learning central to her approach.</p></article><article class="card card-pad"><span class="kicker">Contact</span><h2 style="margin-top:7px">Speak to the Academy</h2><div class="prospectus-contact"><a href="tel:0828478639">082 847 8639</a><a href="mailto:admin@ummabbadacademy.com">admin@ummabbadacademy.com</a><span>ummabbadacademy.com ↗</span></div><p class="tiny muted" style="margin:15px 0 0">Ask the Academy to confirm current places, dates, and fees.</p></article></div>
-          <details class="card card-pad team-details"><summary>Meet the 2026 team</summary><div class="team-grid"><div><h3>Hifz Muallimaat</h3><ul><li>Muallima Shakirah Hunter</li><li>Muallima Tahirah Rahman</li><li>Muallima Madlin</li><li>Muallima Rim Ar-Rifai</li><li>Muallima Zahra Chothia</li></ul></div><div><h3>Aalimiya Department</h3><ul><li>ML Abdurrahmaan Cader</li><li>Muallima Shakirah Hunter</li><li>Muallima Ayesha Chohan</li><li>Muallima Humayrah Mohamed</li><li>Muallima Rumaysa Mohamed</li><li>Muallima Saaliha Jhakura</li><li>Muallima Madlin</li></ul></div><div><h3>Adult Maktab Department</h3><ul><li>Muallima Aasiya Pelwan</li><li>Muallima Amina Ahmed</li><li>Muallima Shireen Tharmohammed</li><li>Muallima Hajra Naidu</li></ul></div><div><h3>Admin and Online</h3><ul><li>Sister Nabeela Dawjee</li><li>Sister Mumtaz</li><li>Sister Saffiya Vawda</li></ul></div></div></details>
-          <p class="tiny muted" style="margin:0">Prospectus information is a 2026 snapshot. The full supplied PDF is available above for the original wording and design.</p>
-        </div>
-      </section>
-<section id="about" class="view"><div class="page-heading"><div><span class="eyebrow">About the Academy</span><h1>Learning for daily life</h1><p>Umm Abbad Academy brings Islamic learning into the daily lives of Muslim women, with Qur’an-centred study around work and family responsibilities.</p></div></div><article class="card card-pad"><h2>Our Academy</h2><p>Discover Programs, Courses, workshops and learning resources. Sign in with your Academy account to open the activities you are involved in.</p></article></section>
-<section id="contact" class="view"><div class="page-heading"><div><span class="eyebrow">Get in touch</span><h1>Contact the Academy</h1><p>Ask about current places, dates and fees.</p></div></div><article class="card card-pad prospectus-contact"><a href="tel:0828478639">082 847 8639</a><a href="mailto:admin@ummabbadacademy.com">admin@ummabbadacademy.com</a><span>ummabbadacademy.com ↗</span></article></section>
-
-<section id="progress-admin" class="view"><div class="page-heading"><div><span class="eyebrow" id="mp-admin-context" hidden></span><h1>Manage Surahs and Duas</h1></div><a id="mp-admin-close" class="button secondary academy-close" href="#overview" title="Close">Close</a></div><div id="ma-root"></div></section>
+<section id="progress-admin" class="view"><div class="page-heading"><div><span class="eyebrow" id="mp-admin-context" hidden></span><h1>Manage Surahs and Duas</h1></div><a id="mp-admin-close" class="button secondary academy-close" href="https://maktab4life.org/" data-page-home="" data-workspace-exit="" title="Close">Close</a></div><div id="ma-root"></div></section>
 <section id="assessments" class="view"><div class="page-heading"><h1>Assessments</h1><a id="as-general-close" class="button secondary academy-close" href="#workshops" title="Close">Close</a></div><div id="as-general-host"></div></section>
-<section id="assessment-admin" class="view"><div class="page-heading"><h1>Manage Assessments</h1><a id="as-admin-close" class="button secondary academy-close" href="#overview" title="Close">Close</a></div><div id="as-admin-host"></div></section>
-
-<footer class="foot">Umm Abbad Academy</footer>
-</div></main></div>
-<dialog id="academy-login-dialog" class="academy-login-dialog" aria-labelledby="academy-login-title">
+<section id="assessment-admin" class="view"><div class="page-heading"><h1>Manage Assessments</h1><a id="as-admin-close" class="button secondary academy-close" href="https://maktab4life.org/" data-page-home="" data-workspace-exit="" title="Close">Close</a></div><div id="as-admin-host"></div></section><footer class="foot">Umm Abbad Academy</footer></div></main></div><dialog id="academy-login-dialog" class="academy-login-dialog" aria-labelledby="academy-login-title">
             <form class="login-preview" id="login-preview" autocomplete="off" novalidate hidden>
               <div class="academy-login-heading"><h2 id="academy-login-title">One account · Every program</h2><button id="academy-login-close" class="academy-close" type="button" aria-label="Close login">×</button></div>
               <label for="demo-username">Account ID</label>
@@ -478,8 +341,7 @@
             </form>
 </dialog>
 <dialog id="workspace-tool" aria-labelledby="workspace-tool-title"><div class="section-title"><h2 id="workspace-tool-title"></h2><button class="button secondary small academy-close" id="workspace-tool-close" type="button" title="Close">Close</button></div><div id="workspace-tool-body"></div></dialog>
-<dialog id="lesson-information" aria-labelledby="lesson-information-title"><div class="section-title"><h2 id="lesson-information-title">Lesson information</h2><button class="button secondary small academy-close" id="lesson-information-close" type="button" title="Close">Close</button></div><div id="lesson-information-body"></div></dialog>
-<script src="/js/m4l-config.js?v=109.11"></script>
+<dialog id="lesson-information" aria-labelledby="lesson-information-title"><div class="section-title"><h2 id="lesson-information-title">Lesson information</h2><button class="button secondary small academy-close" id="lesson-information-close" type="button" title="Close">Close</button></div><div id="lesson-information-body"></div></dialog><script src="/js/m4l-config.js?v=109.11"></script>
 <script src="/js/m4l-program-attendance.js?v=109.11"></script>
 <script src="/js/m4l-memorisation-upload.js?v=109.11"></script>
 <script src="/js/m4l-academy-progress.js?v=109.11"></script>
@@ -489,12 +351,16 @@
 <script src="/js/m4l-assessment-register.js?v=109.11"></script>
 <script src="/js/m4l-imtihaan-export.js?v=109.11"></script>
 <script src="/js/m4l-academy-assessments.js?v=109.11"></script>
-<script src="/js/m4l-lesson-media-cache.js?v=109.11"></script><script src="/js/m4l-library-cache.js?v=109.11"></script><script src="/js/m4l-lesson-pdf-library.js?v=109.11"></script><script src="/js/m4l-lesson-media.js?v=109.11"></script>
+<script src="/js/m4l-lesson-media-cache.js?v=109.11"></script>
+<script src="/js/m4l-library-cache.js?v=109.11"></script>
+<script src="/js/m4l-lesson-pdf-library.js?v=109.11"></script>
+<script src="/js/m4l-lesson-media.js?v=109.11"></script>
 <script src="/js/m4l-academy-inline-calendar.js?v=109.11"></script>
 <script src="/js/m4l-planning-pdf.js?v=109.11"></script>
 <script src="/js/m4l-academy-planning.js?v=109.11"></script>
 <script src="/js/m4l-announcement-links.js?v=109.11"></script>
-<script src="/js/m4l-academy-join.js?v=109.11"></script><script src="/js/m4l-academy-announcements.js?v=109.11"></script>
+<script src="/js/m4l-academy-join.js?v=109.11"></script>
+<script src="/js/m4l-academy-announcements.js?v=109.11"></script>
 <script src="/js/m4l-academy-settings.js?v=109.11"></script>
 <script src="/js/m4l-class-notes.js?v=109.11"></script>
 <script src="/js/m4l-programme-workspace.js?v=109.11"></script>
@@ -502,11 +368,9 @@
 <script src="/js/m4l-course-companion.js?v=109.11"></script>
 <script src="/js/m4l-tafseer-cards.js?v=109.11"></script>
 <script src="/js/m4l-tafseer-access.js?v=109.11"></script>
-<script src="/js/m4l-academy-dashboard.js?v=109.11"></script>
 <script src="/js/m4l-academy-entrance.js?v=109.11"></script>
-<script src="/js/m4l-academy-catalogue.js?v=109.11"></script>
 <script src="/js/m4l-academy-login.js?v=109.11"></script>
-<script src="/js/m4l-academy-mobile.js?v=109.11"></script><script src="/js/m4l-academy-contents.js?v=109.11"></script>
+<script src="/js/m4l-academy-mobile.js?v=109.11"></script>
+<script src="/js/m4l-academy-contents.js?v=109.11"></script>
 <script src="/js/m4l-academy-header-date.js?v=109.11"></script>
-<script src="/js/m4l-academy-page-actions.js?v=109.11"></script>
-</body></html>
+<script src="/js/m4l-academy-page-actions.js?v=109.11"></script></body></html>

@@ -13,12 +13,14 @@
   const requestedArea=new URLSearchParams(location.search).get('activity')||'',areaMatch=requestedArea.match(/^(PROGRAM|COURSE):(.{1,160})$/);
   const selectedRefs=areaMatch?(areaMatch[1]==='PROGRAM'?['PROGRAM:','REBOOT:']:['GLOBAL:','COURSE:']).map(prefix=>(prefix+areaMatch[2]).toUpperCase()):[];
   function belongsToArea(row){
-    if(!requestedArea)return true;
+    if(publicMode()||!requestedArea)return true;
     if(!selectedRefs.length||![...state.learningAreaRefs].some(ref=>selectedRefs.includes(ref.toUpperCase())))return false;
     return (row.learningAreaRefs||[]).some(ref=>selectedRefs.includes(String(ref).toUpperCase()))||!row.publicBook&&selectedRefs.some(ref=>String(row.id).toUpperCase().startsWith(ref+':'));
   }
 
   const cache = window.M4L_LIBRARY_CACHE;
+  const publicMode=()=>new URLSearchParams(location.search).get('view')==='public'||!localStorage.getItem('m4l_account_token');
+  function libraryTabs(){for(const [id,selected]of [['library-personal-tab',!publicMode()],['library-public-tab',publicMode()]]){const tab=$(id);if(!tab)continue;if(selected)tab.setAttribute('aria-current','page');else tab.removeAttribute('aria-current');}}
   let generation = 0;
   let personalOwner = '';
 
@@ -102,7 +104,7 @@
     const query = $('al-search').value.trim().toLocaleLowerCase();
     const source = $('al-source').value;
     return state.rows.filter(row =>
-      (row.forYou) && belongsToArea(row) &&
+      (publicMode() || row.forYou) && belongsToArea(row) &&
       matchesCategory(row.type) &&
       (source === 'ALL' || `${row.source}:${row.sourceName}` === source) &&
       (!query || [row.name, row.subject, row.module, row.level, ...(row.learningAreas || []), row.sourceName, row.description, row.author]
@@ -124,17 +126,18 @@
     clearMedia();
     $('al-content').hidden = true;
     $('al-manage-books').hidden = true;
-    $('al-status').innerHTML = 'Signed out. <a href="/academy/#overview">Sign in to Academy →</a> You can still <a href="/academy/open-library/">browse public books</a>.';
+    $('al-status').textContent = 'Public library';
+    libraryTabs();
     if ($('al-preview').open) $('al-preview').close();
   }
 
   window.addEventListener('storage', event => {
-    if (event.key === 'm4l_account_token' || event.key === null) { showSignedOut(); if (event.newValue) void start(); }
+    if (event.key === 'm4l_account_token' || event.key === null) { showSignedOut(); void start(); }
   });
   window.addEventListener('pageshow', () => {
-    if (!localStorage.getItem('m4l_account_token')) showSignedOut();
+    if (!localStorage.getItem('m4l_account_token')) {showSignedOut();void start();}
   });
-  window.addEventListener('m4l-academy-session', () => { showSignedOut(); if (localStorage.getItem('m4l_account_token')) void start(); });
+  window.addEventListener('m4l-academy-session', () => { showSignedOut(); void start(); });
 
   function card(row) {
     const cover = state.covers.get(row.id);
@@ -148,7 +151,7 @@
     const partCount = row.volumes?.length ? `${row.volumes.length} volumes` :
       row.mediaFiles?.length > 1 ? `${row.mediaFiles.length} recordings` : '';
     const pdfBook=row.publicBook&&!row.publicLink&&['EBOOK','PRINTABLE'].includes(row.type),tag=pdfBook?'a':'button';
-    const attributes=pdfBook?`href="/academy/pdf-reader/?${row.volumes?.length>1?'book='+encodeURIComponent(row.id):'file='+encodeURIComponent(pdfProxy(row.volumes?.[0]?.pdfUrl||row.pdfUrl))}&amp;library=personal&amp;title=${encodeURIComponent(row.name)}" target="_blank" rel="noopener noreferrer" data-pdf-reader="true"`:'type="button"';
+    const attributes=pdfBook?`href="/academy/pdf-reader/?${row.volumes?.length>1?'book='+encodeURIComponent(row.id):'file='+encodeURIComponent(pdfProxy(row.volumes?.[0]?.pdfUrl||row.pdfUrl))}&amp;library=${publicMode()?'public':'personal'}&amp;title=${encodeURIComponent(row.name)}" target="_blank" rel="noopener noreferrer" data-pdf-reader="true"`:'type="button"';
     return `<${tag} ${attributes} class="al-card" data-resource="${esc(row.id)}" aria-label="${row.locked ? 'Locked: ' : 'Open '}${esc(row.name)} (${esc(typeNames[row.type] || 'Resource')})"><span class="al-art">${art}</span><small>${esc(row.sourceName)}${row.module ? ` · ${esc(row.module)}` : ''}</small><span class="al-card-title"><img src="${esc(icons[row.type] || icons.OTHER)}" alt="" width="18" height="18"><strong>${esc(row.name)}</strong></span>${partCount ? `<span class="al-volume-count">${partCount}</span>` : ''}${row.locked ? '<span class="al-lock">Subscription required</span>' : ''}</${tag}>`;
   }
 
@@ -164,7 +167,7 @@
     }
     $('al-results').innerHTML = groups.size
       ? [...groups].map(([subject, entries]) => `<section class="al-section"><h2>${esc(subject)}</h2><div class="al-subject-books">${entries.map(card).join('')}</div></section>`).join('')
-      : `<p class="al-empty">${state.view === 'you' ? (selectedRefs.length?'No resources are assigned to this course yet.':'No resources are assigned to you yet.') : 'No resources match this selection.'}</p>`;
+      : `<p class="al-empty">${!publicMode() && state.view === 'you' ? (selectedRefs.length?'No resources are assigned to this course yet.':'No resources are assigned to you yet.') : 'No resources match this selection.'}</p>`;
     state.observer?.disconnect();
     if ('IntersectionObserver' in window) {
       state.observer = new IntersectionObserver(entries => {
@@ -189,7 +192,7 @@
   function showArchivePdf(row, volume) {
     const url = volume?.pdfUrl || row.pdfUrl;
     clearMedia();
-    $('al-open').href = '/academy/pdf-reader/?file='+encodeURIComponent(pdfProxy(url))+'&library=personal&title='+encodeURIComponent(row.name+(volume?' · '+(volume.label||'Volume '+volume.number):''));
+    $('al-open').href = '/academy/pdf-reader/?file='+encodeURIComponent(pdfProxy(url))+'&library='+(publicMode()?'public':'personal')+'&title='+encodeURIComponent(row.name+(volume?' · '+(volume.label||'Volume '+volume.number):''));
     $('al-open').textContent = 'Open PDF reader in a new tab ↗';
     $('al-open').hidden = false;
   }
@@ -317,10 +320,19 @@
       apply(data);const snapshot=await cache.publicList(force);if(active())applyArchiveBooks(snapshot);
     }catch(error){if(active())$('al-status').textContent=error.message;}finally{if(active())$('al-refresh').disabled=false;}
   }
-  window.addEventListener('m4l-library-public-updated',event=>{if(localStorage.getItem('m4l_account_token'))applyArchiveBooks(event.detail);});
+  window.addEventListener('m4l-library-public-updated',event=>{if(publicMode()||localStorage.getItem('m4l_account_token'))applyArchiveBooks(event.detail);});
   async function start(force = false) {
     const current = ++generation, session = localStorage.getItem('m4l_account_token');
-    if (!session) return showSignedOut();
+    libraryTabs();
+    if(publicMode()){
+      $('al-refresh').disabled=true;$('al-manage-books').hidden=true;
+      state.rows=[];state.learningAreaRefs.clear();$('al-results').replaceChildren();
+      try{const snapshot=await cache.publicList(force);if(current!==generation||session!==localStorage.getItem('m4l_account_token'))return;
+        $('al-content').hidden=false;$('al-status').textContent=snapshot.message||'';applyArchiveBooks(snapshot);
+      }catch(error){if(current===generation)$('al-status').textContent=error.message;}
+      finally{if(current===generation)$('al-refresh').disabled=false;}
+      return;
+    }
     $('al-refresh').disabled = true;
     if(window.M4L_ACADEMY_READ_CACHE)return startCached(force,current,session);
     const owner = await cache.owner(session);

@@ -224,12 +224,12 @@ export function installAccounts({ actions, signOut }) {
     const text = document.createElement('p'); text.textContent = 'Account changed. Opening its workspace…';
     const openAccount = () => {
       // A hash-only move on /academy/ would retain the previous account's JS state.
-      window.history.replaceState(null, '', '/academy/#overview');
+      window.history.replaceState(null, '', '/academy/#login');
       window.M4L_ACADEMY_WORKSPACE?.commit();
       window.dispatchEvent(new Event('m4l-academy-session'));
       window.location.reload();
     };
-    const link = document.createElement('a'); link.href = '/academy/#overview'; link.textContent = 'Open account';
+    const link = document.createElement('a'); link.href = '/academy/#login'; link.textContent = 'Open account';
     link.addEventListener('click', event => { event.preventDefault(); openAccount(); });
     mask.append(text, link); document.body.append(mask); openAccount();
   }

@@ -26,10 +26,10 @@ window.M4L_PDF_READER={
 document.addEventListener('webviewerloaded',event=>{const source=event.detail?.source,pane=panes.find(item=>item.frame?.contentWindow===source);if(pane){source.addEventListener('keydown',readerKeydown);source.addEventListener('pointerdown',()=>setActive(pane.index),true);source.addEventListener('focusin',()=>setActive(pane.index));source.PDFViewerApplicationOptions.set('annotationEditorMode',-1);}});
 function changed(pane){try{return pane.appFrame?Boolean(pane.appFrame.contentWindow.M4L_PDF_APP?.hasUnsaved()):Boolean(pane.frame.contentWindow.PDFViewerApplication?._annotationStorageModified);}catch{return false;}}
 function libraryReturn(){
- if(query.get('library')==='public')return '/academy/open-library/';
+ if(query.get('library')==='public')return '/academy/library/?view=public';
  if(query.get('library')==='personal')return '/academy/library/';
- try{const referrer=new URL(document.referrer);if(referrer.origin===location.origin&&['/academy/open-library/','/academy/library/'].includes(referrer.pathname))return referrer.pathname;}catch{}
- return academyBookmarks.signedIn()?'/academy/library/':'/academy/open-library/';
+ try{const referrer=new URL(document.referrer);if(referrer.origin===location.origin&&['/academy/library/?view=public','/academy/library/'].includes(referrer.pathname))return referrer.pathname;}catch{}
+ return academyBookmarks.signedIn()?'/academy/library/':'/academy/library/?view=public';
 }
 const readerLabel=document.querySelector('.pr-brand small'),baseReaderLabel=readerLabel.textContent;
 function readerContext(){const workspace=window.M4L_ACADEMY_WORKSPACE;readerLabel.textContent=baseReaderLabel+(workspace.adminRealm()&&workspace.adminAccess()?' · '+workspace.current().replace('_','-'):'');$('pr-close-reader').href=workspace.readerUrl(libraryReturn());}
