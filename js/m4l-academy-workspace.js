@@ -75,17 +75,17 @@
  const accessChanged=()=>window.dispatchEvent(new Event('m4l-academy-access'));
  function leaveAdmin(){location.replace('/academy/#overview');}
  // A page address requests a workspace; it never proves the account is Admin.
- async function readyAccess(){
-  if(!adminRealm()||!session())return false;
+ async function readyAccess(editor=false){
+  if((!adminRealm()&&!editor)||!session())return false;
   const owner=session(),epoch=accessEpoch;
-  if(access?.session===owner&&accountView?.until>Date.now()){if(!access.admin){leaveAdmin();throw new DOMException('Open your personal Academy workspace.','AbortError');}return true;}
+  if(access?.session===owner&&accountView?.until>Date.now()){if(!access.admin){if(editor)throw Object.assign(Error('Admin editing is not available for this account.'),{status:403});leaveAdmin();throw new DOMException('Open your personal Academy workspace.','AbortError');}return true;}
   if(accessRequest?.session===owner)return accessRequest.promise;
   const pending={session:owner};accessRequest=pending;
   pending.promise=(async()=>{
    const data=await readAccountSession(owner);
    if(owner!==session()||epoch!==accessEpoch)throw new DOMException('The Academy account changed.','AbortError');
    access={session:owner,admin:data.contexts.some(c=>c.scope==='PLATFORM'&&c.role==='GLOBAL_ADMIN'||['COURSE','GLOBAL'].includes(c.scope)&&['PROGRAM_ADMIN','ADMIN'].includes(c.role))};accessChanged();
-   if(!access.admin){leaveAdmin();throw new DOMException('Open your personal Academy workspace.','AbortError');}
+   if(!access.admin){if(editor)throw Object.assign(Error('Admin editing is not available for this account.'),{status:403});leaveAdmin();throw new DOMException('Open your personal Academy workspace.','AbortError');}
    return true;
   })().finally(()=>{if(accessRequest===pending)accessRequest=null;});
   return pending.promise;
@@ -95,6 +95,14 @@
   if(force){head=null;headRequest=null;headEpoch++;}const captured={generation,session:session(),headEpoch};
   if(!head){const api=new URL(window.M4L_CONFIG?.API_BASE||location.origin,location.href);headRequest??=original(api.origin+'/api/academy/setup/head',{cache:'no-store'}).then(async response=>{const data=await response.json();if(!response.ok||!data.head)throw Error(data.error||'Accepted Academy setup is unavailable.');return data.head;});try{const value=await headRequest;if(captured.generation!==generation||captured.session!==session()||captured.headEpoch!==headEpoch)throw new DOMException('The Academy account changed.','AbortError');head=value;}catch(error){headRequest=null;throw error;}}
   return head;
+ }
+ const editorRequests=new WeakMap();
+ const editorRoute=path=>/^\/api\/academy\/(?:media-playlists\/(?:list|get|options|save|publish|attach|card-upload|card-preview)|lesson-media\/(?:feed|get|save|binding-options|binding-create|context-options|context-save|companion-editor|companion-save|companion-publish|upload|attachment-name|video-start|video-part|video-complete|video-retain))$/.test(path);
+ async function adminFetch(resource,options={},scope={}){
+  const url=new URL(typeof resource==='string'||resource instanceof URL?resource:resource.url,location.href),api=new URL(window.M4L_CONFIG?.API_BASE||location.origin,location.href);
+  if(url.origin!==api.origin||!editorRoute(url.pathname)||!/^PROGRAM:[-A-Za-z0-9_]+$/.test(scope.activityKey||''))throw Object.assign(Error('Open Admin editing for this exact programme.'),{status:403});
+  const input=url.searchParams.has('metadata')?JSON.parse(url.searchParams.get('metadata')):JSON.parse(options.body||'{}');if(input.activityKey!==scope.activityKey)throw Object.assign(Error('The selected editing programme changed.'),{status:403});
+  const requestOptions={...options};editorRequests.set(requestOptions,scope);try{return await window.fetch(resource,requestOptions);}finally{editorRequests.delete(requestOptions);}
  }
  window.fetch=async(resource,options)=>{
   const url=new URL(typeof resource==='string'||resource instanceof URL?resource:resource.url,location.href);
@@ -108,6 +116,7 @@
    for(const name of ['X-Academy-Workspace','X-Academy-Class','X-Academy-Setup'])headers.delete(name);
    return original(resource,{...options,headers});
   }
+  const editingScope=options&&editorRequests.get(options),requestWorkspace=editingScope?'ADMIN':selected;
   const captured={selected,generation,session:session()};
   const accountRoute=url.pathname.startsWith('/api/account/');
   // Share empty session reads from the header, login restoration and page tool.
@@ -120,12 +129,12 @@
     return new Proxy(response,{get(target,name){if(['json','text','blob','arrayBuffer','formData'].includes(name))return async(...args)=>{check();const value=await target[name](...args);check();return value;};const value=Reflect.get(target,name,target);return typeof value==='function'?value.bind(target):value;}});
    }catch(error){if(error.name==='AbortError')throw error;return Response.json({success:false,error:error.message,code:error.code},{status:error.status||503});}
   }
-  headers.set('X-Academy-Workspace',accountRoute?'LEARN':selected);
-  if(adminRealm()&&!accountRoute)await readyAccess();
+  headers.set('X-Academy-Workspace',accountRoute?'LEARN':requestWorkspace);
+  if((adminRealm()||editingScope)&&!accountRoute)await readyAccess(Boolean(editingScope));
   headers.delete('X-Academy-Class');
-  if(!accountRoute&&selected==='ADMIN_LEARN'&&classView)headers.set('X-Academy-Class',encodeURIComponent(classKey()));
+  if(!accountRoute&&requestWorkspace==='ADMIN_LEARN'&&classView)headers.set('X-Academy-Class',encodeURIComponent(classKey()));
   const publicationEnabled=window.M4L_CONFIG?.ACCEPTED_SETUP===true;
-  if(publicationEnabled&&selected!=='ADMIN'&&!url.pathname.startsWith('/api/account/')&&url.pathname!=='/api/academy/setup/head'){
+  if(publicationEnabled&&requestWorkspace!=='ADMIN'&&!url.pathname.startsWith('/api/account/')&&url.pathname!=='/api/academy/setup/head'){
    await readyPublication();
    if(head){headers.set('X-Academy-Setup',head);captured.head=head;}
   }
@@ -140,11 +149,11 @@
    if(url.pathname==='/api/admin/platform/studio-access')try{rightsChange=!['read','catalogue','monthly-grid','access-table','mou-playlists','mou-playlist-correction'].includes(JSON.parse(options?.body||'{}').command?.action);}catch{rightsChange=true;}
    if(rightsChange)clearAccountView();
   }
-  if(adminRealm()&&response.status===403&&response.headers.get('Content-Type')?.includes('application/json')){
+  if((adminRealm()||editingScope)&&response.status===403&&response.headers.get('Content-Type')?.includes('application/json')){
    const error=await response.clone().json();check();
-   if(error.code==='ADMIN_VIEW_FORBIDDEN'){access={session:session(),admin:false};accessChanged();leaveAdmin();throw new DOMException('Admin access changed.','AbortError');}
+   if(error.code==='ADMIN_VIEW_FORBIDDEN'){access={session:session(),admin:false};accessChanged();if(!editingScope)leaveAdmin();throw new DOMException('Admin access changed.','AbortError');}
   }
-  if(publicationEnabled&&selected==='ADMIN'&&url.pathname!=='/api/academy/changes/accept'&&response.ok&&response.headers.get('Content-Type')?.includes('application/json')){
+  if(publicationEnabled&&requestWorkspace==='ADMIN'&&url.pathname!=='/api/academy/changes/accept'&&response.ok&&response.headers.get('Content-Type')?.includes('application/json')){
    const result=await response.clone().json();check();
    if(result.success&&(result.acceptedChange||result.setupPublication)){
     try{
@@ -165,7 +174,7 @@
  };
  const homeUrl=()=>selected==='ADMIN'?'/academy/admin/#dashboard':(adminRealm()?'/academy/admin/':'/academy/')+'#timetable/'+audience().toLowerCase();
  const preferHubAudience=value=>{hubAudience=value==='TEACH'?'TEACH':'LEARN';hubOwner=session();};
- window.M4L_ACADEMY_WORKSPACE={homeUrl,preferHubAudience,current,audience,adminRealm,adminAccess,readyAccess,readerUrl,desired,commit,canonical,studentClass,classView:()=>classView,head:()=>head,readyPublication,publication:value=>{headEpoch++;head=value;headRequest=null;}};
+ window.M4L_ACADEMY_WORKSPACE={adminFetch,homeUrl,preferHubAudience,current,audience,adminRealm,adminAccess,readyAccess,readerUrl,desired,commit,canonical,studentClass,classView:()=>classView,head:()=>head,readyPublication,publication:value=>{headEpoch++;head=value;headRequest=null;}};
  function resetAccess(){if(accountOwner!==session()){clearAccountView();accountOwner=session();}if(hubOwner!==session()){hubAudience='LEARN';hubOwner=session();}generation++;classView=null;head=null;headRequest=null;accessEpoch++;access=null;accessRequest=null;accessChanged();}
  window.addEventListener('m4l-academy-session',resetAccess);
  window.addEventListener('m4l-academy-session-ended',clearAccountView);

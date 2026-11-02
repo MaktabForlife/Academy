@@ -1,0 +1,15 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {parseHTML} from 'linkedom';import * as cards from '../../js/m4l-playlist-card.mjs';
+const hash='a'.repeat(64),image={assetId:hash,sha256:hash,type:'image/png',size:123,alt:''},row={id:'native-exact-1',name:'Same playlist name',recordings:3,card:{version:1,style:'colour',colour:'#102030',gradient:null,image:null,teacher:null}};
+test('playlist card has one exact identity, same title, optional teacher and bounded safe design metadata',()=>{
+ const html=cards.playlistCardHTML(row,{action:'native-playlist-open'});assert.match(html,/data-id="native-exact-1"/);assert.match(html,/Same playlist name/);assert(!html.includes('playlist-card-teacher'));assert(!html.includes('<img'));
+ const custom=cards.playlistCardHTML({...row,card:{...row.card,style:'image',image:{...image,url:'/api/academy/media-playlist-card-image?sha256='+hash},teacher:'Checked native Teacher'}},{action:'native-playlist-open'});assert.match(custom,/has-picture/);assert.match(custom,/Checked native Teacher/);assert.match(custom,/media-playlist-card-image/);
+ const draft=cards.playlistCardInput({...row.card,style:'image',image:{...image,url:'https://private.invalid/'},teacher:'not input'});assert.equal(draft.image.assetId,hash);assert(!JSON.stringify(draft).includes('url'));assert(!JSON.stringify(draft).includes('teacher'));assert.equal(cards.cardImageURL('https://evil.invalid/art.png'),null);assert.equal(cards.cardImageRef({...image,type:'image/svg+xml'}),null);assert.equal(cards.cardImageRef({...image,assetId:'wrong id'}),null);
+});
+test('default Tafseer decoration remains until explicit custom design, colour uses contrast and gradients are allowlisted',()=>{
+ assert.match(cards.playlistCardHTML({...row,kind:'TAFSEER',card:undefined},{href:'/studio/?website=exact'}),/is-tafseer/);assert(!cards.playlistCardHTML({...row,kind:'TAFSEER'},{href:'/studio/?website=exact'}).includes('is-tafseer'));
+ assert.equal(cards.cardAppearance({...row.card,colour:'#FFFFFF'}).ink,'#202522');assert.equal(cards.playlistCard({...row.card,gradient:'url(https://evil.invalid)',style:'gradient'}).gradient,null);assert.equal(Object.keys(cards.CARD_PRESETS).length,6);
+});
+test('same-form colour and gradient preview updates immediately without any request and follows canonical playlist name',()=>{
+ const {document,window}=parseHTML('<main></main>');let value=structuredClone(row),changes=0;const root=document.querySelector('main');root.innerHTML=cards.cardEditorHTML(value);const editor=cards.bindCardEditor(root.firstElementChild,{getRow:()=>value,onChange:card=>{value={...value,card};changes++;}});
+ const control=root.querySelector('[data-card-field=colour]');control.value='#EEEEEE';control.dispatchEvent(new window.Event('input',{bubbles:true}));assert.equal(value.card.colour,'#EEEEEE');assert.match(root.querySelector('[data-card-preview]').innerHTML,/#EEEEEE/);value.name='Changed through playlist table';editor.preview();assert.match(root.querySelector('[data-card-preview]').textContent,/Changed through playlist table/);assert.equal(changes,1);editor.destroy();
+});

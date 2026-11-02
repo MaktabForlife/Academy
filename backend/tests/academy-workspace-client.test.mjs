@@ -145,3 +145,14 @@ test('a verified teacher summary uses the hub address without creating a second 
  f.token('next-actor');f.window.dispatchEvent(new Event('m4l-academy-session'));w.commit();
  assert.equal(w.current(),'LEARN','Another account cannot inherit the previous summary audience');
 });
+
+test('explicit same-programme editor requests use checked Admin authority without promoting normal Learn navigation',async()=>{
+ const f=fixture(()=>Response.json({success:true})),w=f.window.M4L_ACADEMY_WORKSPACE,scope={activityKey:'PROGRAM:exact'};
+ const response=await w.adminFetch('https://api.invalid/api/academy/media-playlists/options',{method:'POST',body:JSON.stringify(scope)},scope);assert.equal((await response.json()).success,true);assert.equal(f.calls[0].options.headers.get('X-Academy-Workspace'),'ADMIN');assert.equal(w.current(),'LEARN');assert.equal(f.authCalls.length,1);
+ await f.window.fetch('https://api.invalid/api/academy/lesson-media/feed',{method:'POST',body:JSON.stringify(scope)});assert.equal(f.calls.at(-1).options.headers.get('X-Academy-Workspace'),'LEARN');
+ await assert.rejects(w.adminFetch('https://api.invalid/api/academy/participants/save',{method:'POST',body:JSON.stringify(scope)},scope),e=>e.status===403);await assert.rejects(w.adminFetch('https://api.invalid/api/academy/media-playlists/save',{method:'POST',body:'{"activityKey":"PROGRAM:other"}'},scope),e=>e.status===403);
+});
+test('same-screen editor denies a non-Admin and rejects delayed replies after account changes',async()=>{
+ const denied=fixture(undefined,async()=>Response.json({success:true,contexts:[{scope:'COURSE',role:'TEACHER'}]})),scope={activityKey:'PROGRAM:exact'};await assert.rejects(denied.window.M4L_ACADEMY_WORKSPACE.adminFetch('https://api.invalid/api/academy/media-playlists/options',{method:'POST',body:JSON.stringify(scope)},scope),e=>e.status===403);assert.equal(denied.calls.length,0);assert.equal(denied.location.destination,undefined);
+ let resolve;const f=fixture(()=>new Promise(yes=>resolve=yes)),pending=f.window.M4L_ACADEMY_WORKSPACE.adminFetch('https://api.invalid/api/academy/media-playlists/options',{method:'POST',body:JSON.stringify(scope)},scope);for(let i=0;i<4;i++)await new Promise(r=>setImmediate(r));f.token('next-actor');resolve(Response.json({success:true}));await assert.rejects(pending,{name:'AbortError'});assert.equal(f.window.M4L_ACADEMY_WORKSPACE.current(),'LEARN');
+});
