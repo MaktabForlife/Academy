@@ -8,7 +8,7 @@ import {studioAccessCatalogue} from './studio-catalogue.mjs';
 import {gridClassMetadata,validateGridClasses} from './studio-monthly-grid.mjs';
 import {courseUserSearch} from './course-user-search.mjs';
 
-const readAction=action=>['read','monthly-grid','access-table','mou-playlists'].includes(action);
+const readAction=action=>['read','monthly-grid','access-table','mou-playlists','course-playlists','course-playlist-detail','course-playlist-candidates','course-playlist-recording'].includes(action);
 // Indexed stream heads bound this to the actor and offering. Known changes are
 // still queued/delivered below; this only avoids manufacturing a new proof on
 // every table read. Saves always rebuild current identity and scoped authority.
@@ -86,7 +86,7 @@ export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_S
   const accountId=id(command.accountId),confirmed=await send({action:'read',accountId});if(confirmed.ownership?.authority!=='WEBSITE'||confirmed.ownership.phase!=='COMMITTED'||!confirmed.person)throw fail('This offering has not completed its Studio handover.',409);
   return {success:true,...await saveLiveAllocation(db,env,proof,activity,command,confirmed.person,{fetcher})};
  }
- if(!['read','save','provision','resume','monthly-grid','monthly-grid-save','access-table','access-table-save','mou-playlists','mou-playlist-correction','mou-playlist-save','mou-playlist-publication','mou-playlist-add','mou-playlist-order','mou-playlist-card-options','mou-playlist-cover-upload','mou-playlist-cover-preview'].includes(command.action))throw fail('Unknown Studio access action.');
+ if(!['read','save','provision','resume','monthly-grid','monthly-grid-save','access-table','access-table-save','mou-playlists','mou-playlist-correction','mou-playlist-save','mou-playlist-publication','mou-playlist-add','mou-playlist-order','mou-playlist-card-options','mou-playlist-cover-upload','mou-playlist-cover-preview','course-playlists','course-playlist-detail','course-playlist-options','course-playlist-candidates','course-playlist-recording','course-playlist-save','course-playlist-content-save','course-playlist-publish-card','course-playlist-publish-content'].includes(command.action))throw fail('Unknown Studio access action.');
  if(['monthly-grid','monthly-grid-save','access-table','access-table-save'].includes(command.action)&&mapping.kind!=='TAFSEER')throw fail('Short courses use whole-course access, not monthly subscriptions.');
  // Forward only the narrow command. Supplied actor, roles and proof are ignored.
  let result=await send(command.action==='monthly-grid-save'?await validateGridClasses(db,activity,command):command);

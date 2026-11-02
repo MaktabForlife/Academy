@@ -1,6 +1,7 @@
 import {uploadPlaylistCardImage,previewPlaylistCardImage,publicPlaylistCardImage} from './media-playlist-card-images.js';
 import {recordingPlaylistMetadata} from './media-playlist-store.js';
 import {mediaPlaylists} from './media-playlists.js';
+import {nativeCoursePlaylistPlacements} from './native-course-playlist-placements.js';
 import {nativeMediaTeachers} from './native-media-teachers.js';
 import {recoverNoteRetention,noteRetentionCron} from './note-retention.js';
 import {cleanupExpiredAcademicCompanions} from './recording-companions.js';
@@ -121,6 +122,7 @@ async function dispatch(request,env,options={}) {
   if(path==='/api/academy/media-playlist-card-image'&&['GET','HEAD'].includes(request.method))return publicPlaylistCardImage(request,env);
   if(path.startsWith('/internal/website/')||path.startsWith('/api/website-platform/'))return websitePlatformBridge(request,env,{
     login:async input=>{let captured;await dispatch(new Request(new URL(input.setup?'/api/account/setup-pin':'/api/account/login',request.url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)}),env,{capture:value=>captured=value});return captured;},
+    coursePlaylistPlacements:async(session,input)=>{await sourceRepository.ready();return nativeCoursePlaylistPlacements(sourceRepository,session,input);},
     mediaTeachers:async(session,input)=>{
       await sourceRepository.ready();
       if(typeof input.offeringId!=='string'||input.offeringId.length>180)throw rehearsalError('Choose the exact mapped offering.',400);
