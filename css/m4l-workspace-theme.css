@@ -375,3 +375,21 @@ body.academy-shell #dashboard.ad-admin-dashboard .timetable-join:not(:disabled){
 @media(max-width:760px){body.academy-shell #dashboard.ad-admin-dashboard .ad-admin-top>:is(.ad-sidebar,.ad-admin-centre,.circles-attention){grid-column:1;grid-row:auto}}
 body.academy-shell .academy-header-workspaces .pr-reader-actions{display:flex;align-items:center;flex-direction:row;flex:0 0 auto}
 body.pr-body.academy-shell:not(.pr-fullscreen)>.pr-header{display:none}
+
+/* Brand and permitted workspace choices share the first compact header row. */
+@media(max-width:800px){
+ body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-banners>:is(.sidebar,.academy-connected-sidebar){grid-template-columns:minmax(112px,1fr) auto;gap:8px}
+ body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-banners .academy-brand-details{grid-column:1;grid-row:1;width:auto;min-width:0;max-width:100%}
+ body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-brand-details>.academy-date-box{display:none}
+ body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-header-workspaces{grid-column:2;grid-row:1;justify-self:end;flex-wrap:nowrap;gap:3px}
+ body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-header-workspaces .academy-role-tabs{display:flex;flex-wrap:nowrap;gap:0;padding:2px}
+ body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-header-workspaces .academy-role-tabs button{min-width:43px;min-height:40px;padding:6px;font-size:10px}
+ body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-header-account{grid-column:1/-1;grid-row:2;width:100%;justify-content:space-between;flex-wrap:nowrap}
+}
+body.academy-shell .academy-heading-with-close{position:relative;padding-right:48px;min-height:40px}
+body.academy-shell .academy-heading-with-close>.academy-management-close{position:absolute!important;top:0!important;right:0!important;bottom:auto!important;left:auto!important;margin:0!important;align-self:start;transform:none!important}
+@media(max-width:380px){
+ body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-header-account{display:grid;grid-template-columns:minmax(0,1fr);gap:6px}
+ body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-header-account>.academy-page-actions{margin:0;justify-content:flex-end;width:100%;max-width:100%;gap:2px}
+ body.academy-shell.academy-has-app-navigation.academy-mobile-layout .academy-page-actions>:is([data-page-home],[data-page-refresh]){width:40px;min-width:40px}
+}

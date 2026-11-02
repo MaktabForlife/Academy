@@ -33,10 +33,12 @@
     const close=document.createElement('a');close.href='/academy/admin/#dashboard';close.className='academy-management-close academy-close';close.title='Close';close.textContent='Close';close.setAttribute('data-workspace-exit','');close.setAttribute('data-page-home','');close.setAttribute('aria-label','Close and return to dashboard');
     function ensureClose(){
       if(path.startsWith('/academy/admin/')&&(!location.hash||location.hash==='#administration')){close.remove();return;}
-      const headings=[...document.querySelectorAll('.view.active .page-heading,.view.active .workspace-banner,.view.active .workspace-identity,.view.active .activity-identity,main .pgm-heading,main .pb-heading,main .up-titlebar,main .cm-page-heading,main .al-intro,main .cal-heading,main .pt-heading,main .enrolment-heading')];
+      const headings=[...document.querySelectorAll('.view.active .page-heading,.view.active .workspace-banner,.view.active .workspace-identity,.view.active .activity-identity,main .pgm-heading,main .pb-heading,main .up-titlebar,main .cm-page-heading,main .al-intro,main .cal-heading,main .pt-heading,main .enrolment-heading,main .ann-editor-heading')];
       const visible=node=>node.getClientRects().length;
       const heading=headings.find(visible);if(!heading)return;
       for(const link of heading.querySelectorAll(':scope>a'))if(link!==close&&!link.hidden&&/^Close$/i.test(link.textContent.trim()))link.hidden=true;
+      document.querySelectorAll('.academy-heading-with-close').forEach(node=>{if(node!==heading)node.classList.remove('academy-heading-with-close');});
+      heading.classList.add('academy-heading-with-close');
       if(close.parentElement!==heading)heading.append(close);
     }
     ensureClose();window.addEventListener('hashchange',ensureClose);

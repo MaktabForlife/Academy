@@ -12,7 +12,6 @@
   function render(){
     if(!bar)return;
     bar.querySelector('[data-app-back]').disabled=state.index===0;
-    bar.querySelector('[data-app-forward]').disabled=state.index>=state.max;
   }
   function sync(initial=false){
     const saved=load();if(saved?.trace===state.trace)state.max=Math.max(state.max,saved.max);
@@ -61,9 +60,8 @@
     const style=document.createElement('link');style.rel='stylesheet';style.href='/css/m4l-academy-history.css?v=109.8';document.head.append(style);
     bar=document.createElement('nav');bar.id='academy-app-navigation';bar.setAttribute('aria-label','Page navigation');
     const icon=path=>'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="'+path+'"/></svg>';
-    bar.innerHTML='<button type="button" data-app-back aria-label="Go back" title="Back">'+icon('m14 5-7 7 7 7M7 12h14')+'<span>Back</span></button><button type="button" data-app-forward aria-label="Go forward" title="Forward">'+icon('m10 5 7 7-7 7M3 12h14')+'<span>Forward</span></button>';
+    bar.innerHTML='<button type="button" data-app-back aria-label="Go back" title="Back">'+icon('m14 5-7 7 7 7M7 12h14')+'<span>Back</span></button>';
     bar.querySelector('[data-app-back]').addEventListener('click',()=>{if(state.index>0)history.back();});
-    bar.querySelector('[data-app-forward]').addEventListener('click',()=>{if(state.index<state.max)history.forward();});
     document.body.classList.add('academy-has-app-navigation');
     const phone=matchMedia('(max-width:767px)');
     function place(){
