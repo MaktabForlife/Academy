@@ -53,6 +53,8 @@
     try{const result=await api('learning-catalogue/get');state.data=result;state.token=token();
       const key='m4l-learning-catalogue-v2:'+location.host+':'+result.viewerAccountId;
       if(restore&&state.key!==key){state.key=key;try{const kept=JSON.parse(sessionStorage.getItem(key)||'null');if(kept){state.edit=kept.edit;state.pending=kept.pending;state.tab=kept.tab==='modules'?'modules':'subjects';}}catch{sessionStorage.removeItem(key);}}
+      const requestedSection=new URLSearchParams(location.search||'').get('section');
+      if(!state.edit&&!state.pending&&['subjects','modules'].includes(requestedSection))state.tab=requestedSection;
       state.key=key;tell(state.pending?'Your unconfirmed save is kept. Retry the same change.':state.edit?'Your unfinished entry is kept.':'');
     }catch(error){if([401,403].includes(error.status)){state.data=null;state.edit=null;state.pending=null;state.conflict=false;state.key='';}tell(error.message,true);}
     finally{state.busy=false;render();}
@@ -70,7 +72,7 @@
     finally{state.busy=false;render();}
     if(confirmed||state.conflict){await load();if(confirmed&&!$('lc-message').classList.contains('is-error'))tell('Saved.');else if(state.conflict)tell('Records changed elsewhere. Compare the saved record with your entry before continuing.',true);}
   }
-  for(const tab of ['subjects','modules'])$('lc-'+tab).onclick=()=>{if(state.edit||state.pending){tell('Save or discard your current entry first.',true);return;}state.tab=tab;state.search='';$('lc-search').value='';render();};
+  for(const tab of ['subjects','modules'])$('lc-'+tab).onclick=()=>{if(state.edit||state.pending){tell('Save or discard your current entry first.',true);return;}state.tab=tab;state.search='';$('lc-search').value='';const query=new URLSearchParams(location.search||'');if(tab==='modules')query.set('section','modules');else query.delete('section');window.history?.replaceState?.(null,'',location.pathname+(query.size?'?'+query:''));render();};
   $('lc-add').onclick=()=>begin();$('lc-refresh').onclick=()=>void load();$('lc-retry').onclick=()=>void save();
   $('lc-search').oninput=e=>{state.search=e.target.value;render();};$('lc-area').onchange=e=>{state.subject=e.target.value;render();};$('lc-status').onchange=e=>{state.status=e.target.value;render();};
   $('lc-rows').onclick=e=>{const d=e.target.closest('button')?.dataset;if(!d||state.busy||state.pending)return;if(d.edit!==undefined)begin((state.tab==='modules'?state.data.modules:state.data.subjects)[Number(d.edit)]);if(d.save!==undefined)void save();if(d.cancel!==undefined){state.edit=null;state.conflict=false;remember();render();tell('Entry discarded.');}};

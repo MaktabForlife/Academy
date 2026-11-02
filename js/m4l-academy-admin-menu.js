@@ -20,16 +20,32 @@
   if(hash.startsWith('#assessment-admin'))return 'assessments';
   return hash.split('/')[1]||'';
  }
- function curriculumTabs(data){
+ function curriculumRows(data){
   const areas=(data.personalActivities||data.activities||[]).filter(a=>(a.roles||[]).some(r=>['PROGRAM_ADMIN','ADMIN'].includes(r))),global=Boolean(data.globalAdmin);
-  return [...(global?[{href:'/academy/subjects/',label:'Subjects & Modules',selected:location.pathname.startsWith('/academy/subjects/')}]:[]),...(global||areas.some(a=>a.kind==='PROGRAM')?[{href:'/programs/',label:'Programs',selected:location.pathname.startsWith('/programs/')}]:[]),...(global||areas.some(a=>a.kind==='COURSE')?[{href:'/academy/courses/manage/',label:'Courses',selected:location.pathname.startsWith('/academy/courses/manage/')}]:[])].map(row=>`<a href="${esc(row.href)}"${row.selected?' aria-current="page"':''}>${esc(row.label)}</a>`).join('');
+  const subjects=location.pathname.startsWith('/academy/subjects/'),modules=new URLSearchParams(location.search||'').get('section')==='modules';
+  return [...(global?[{id:'subjects',href:'/academy/subjects/',label:'Subjects',selected:subjects&&!modules},{id:'modules',href:'/academy/subjects/?section=modules',label:'Modules',selected:subjects&&modules}]:[]),...(global||areas.some(a=>a.kind==='PROGRAM')?[{id:'programs',href:'/programs/',label:'Programs',selected:location.pathname.startsWith('/programs/')}]:[]),...(global||areas.some(a=>a.kind==='COURSE')?[{id:'courses',href:'/academy/courses/manage/',label:'Courses',selected:location.pathname.startsWith('/academy/courses/manage/')}]:[])];
+ }
+ const curriculumLinks=rows=>rows.map(row=>`<a href="${esc(row.href)}" data-curriculum-area="${row.id}"${row.selected?' aria-current="page"':''}>${esc(row.label)}</a>`).join('');
+ function placeCurriculumTabs(data,visible){
+  const catalogue=document.querySelector('#lc-workspace .lc-tabs'),local=document.querySelector('main > .academy-curriculum-local');
+  if(!visible||active()!=='curriculum'){catalogue?.querySelectorAll('[data-curriculum-area]').forEach(link=>link.remove());local?.remove();return false;}
+  const choices=curriculumRows(data);
+  if(catalogue){
+   // Preserve the native Subjects/Modules buttons and their draft guards.
+   catalogue.querySelectorAll('[data-curriculum-area]').forEach(link=>link.remove());
+   catalogue.insertAdjacentHTML('beforeend',curriculumLinks(choices.filter(row=>['programs','courses'].includes(row.id))));local?.remove();return true;
+  }
+  const heading=document.querySelector('#program-builder > .pb-heading, .cm-main > .cm-page-heading');
+  if(!heading)return false;
+  const nav=local||document.createElement('nav');nav.className='academy-curriculum-local';nav.setAttribute('aria-label','Curriculum sections');nav.innerHTML=curriculumLinks(choices);if(!local)heading.after(nav);return true;
  }
  const dashboard=()=>location.pathname.startsWith('/academy/')&&(!location.hash||['#overview','#dashboard','#administration'].includes(location.hash)||/^#timetable(?:\/(?:learn|teach))?$/.test(location.hash));
  function markup(data,selected=active()){return rows(data).filter(row=>row.id!=='attendance'||!dashboard()).map(row=>row.action?'<button type="button" data-admin-public-refresh data-admin-key="refresh">Update timetable</button>':`<a href="${esc(row.href)}" data-admin-key="${row.id}"${row.id===selected?' aria-current="page"':''}>${row.label}</a>`).join('');}
  function update(data=currentData){
   currentData=data;const visible=window.M4L_ACADEMY_WORKSPACE?.current()==='ADMIN'&&location.hash!=='#dashboard'&&rows(data).length>0;
   if(!host&&visible){host=document.createElement('section');host.className='academy-admin-tools';host.innerHTML='<nav class="academy-admin-links" aria-label="Admin tools"></nav><nav class="academy-admin-links academy-curriculum-tabs" aria-label="Curriculum areas" hidden></nav><p data-admin-refresh-status role="status" aria-live="polite" hidden></p>';document.querySelector('.academy-banners')?.after(host);}
-  if(!host)return;host.hidden=!visible;if(visible){host.querySelector('nav').innerHTML=markup(data);const tabs=host.querySelector('.academy-curriculum-tabs');tabs.hidden=active()!=='curriculum';tabs.innerHTML=tabs.hidden?'':curriculumTabs(data);}
+  const localCurriculum=placeCurriculumTabs(data,visible);
+  if(!host)return;host.hidden=!visible;if(visible){host.querySelector('nav').innerHTML=markup(data);const tabs=host.querySelector('.academy-curriculum-tabs');tabs.hidden=active()!=='curriculum'||localCurriculum;tabs.innerHTML=tabs.hidden?'':curriculumLinks(curriculumRows(data));}
  }
  async function refresh(button){
   if(button.disabled)return;const session=token(),status=host?.querySelector('[data-admin-refresh-status]');button.disabled=true;
@@ -44,7 +60,7 @@
  }
  document.addEventListener('click',event=>{const button=event.target.closest?.('[data-admin-public-refresh]');if(button){event.preventDefault();void refresh(button);}});
  window.addEventListener('hashchange',()=>update());
- window.addEventListener('m4l-academy-session-ended',()=>{currentData=null;if(host)host.hidden=true;});
- window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null){currentData=null;if(host)host.hidden=true;}});
+ window.addEventListener('m4l-academy-session-ended',()=>{currentData=null;if(host)host.hidden=true;placeCurriculumTabs(null,false);});
+ window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null){currentData=null;if(host)host.hidden=true;placeCurriculumTabs(null,false);}});
  window.M4L_ACADEMY_ADMIN_MENU={rows,markup,update};
 })();
