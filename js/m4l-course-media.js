@@ -8,7 +8,7 @@
   const context={token:token(),generation:++generation,host,activityKey};panel?.dispose?.();panel={...context,dispose:null};
   const active=()=>panel?.generation===context.generation&&context.token===token()&&current()&&host.isConnected;
   const send=async command=>{if(!active())throw new DOMException('The account or Course changed.','AbortError');
-   const response=await (window.M4L_ACADEMY_WORKSPACE?.adminFetch?((url,options)=>window.M4L_ACADEMY_WORKSPACE.adminFetch(url,options,{activityKey})):fetch)((window.M4L_CONFIG?.API_BASE||'')+'/api/admin/platform/studio-access',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+context.token,'X-Academy-Workspace':'ADMIN'},body:JSON.stringify({activityKey,command})});
+   const response=await (window.M4L_ACADEMY_WORKSPACE?.adminFetch?((url,options)=>window.M4L_ACADEMY_WORKSPACE.adminFetch(url,options,{activityKey})):fetch)((window.M4L_CONFIG?.API_BASE||'')+'/api/admin/platform/studio-access'+(command.action==='mou-playlist-cover-upload'?'/playlist-cover':''),{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+context.token,'X-Academy-Workspace':'ADMIN'},body:JSON.stringify({activityKey,command})});
    const result=await response.json();if(!active())throw new DOMException('The account or Course changed.','AbortError');if(!response.ok||!result.success)throw Object.assign(Error(result.error||'Course Media is unavailable.'),{status:response.status,code:result.code});return result;
   };
   host.innerHTML='<p role="status">Checking Course Media…</p>';
