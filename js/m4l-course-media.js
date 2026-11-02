@@ -21,7 +21,7 @@
     return send({action,...input});
    };
    panel.dispose=mountCourseMedia(host,{request,cardTools,courseName,websiteOrigin:new URL(location.destination).origin,current:active});
-  }catch(error){if(active()){host.replaceChildren();const message=document.createElement('p');message.setAttribute('role','alert');message.textContent=error.message;host.append(message);}}
+  }catch(error){if(active()){host.replaceChildren();const message=document.createElement('p');message.setAttribute('role','alert');message.textContent=error.message;host.append(message);const retry=document.createElement('button');retry.type='button';retry.className='button secondary';retry.textContent='Try again';retry.onclick=()=>open({hostId,activityKey,courseName,current});host.append(retry);}}
  }
  window.M4L_COURSE_MEDIA={open,reset,canLeave:()=>panel?.dispose?.canLeave?.()!==false};
  for(const event of ['storage','m4l-academy-session','m4l-academy-workspace'])window.addEventListener(event,()=>{if(panel&&(panel.token!==token()||window.M4L_ACADEMY_WORKSPACE?.current?.()!=='ADMIN'))reset();});
