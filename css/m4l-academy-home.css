@@ -4,7 +4,7 @@
 .academy-opening .container>.view{display:none!important}
 .academy-opening:not(.academy-opening-failed) #entrance-status{display:none}
 .academy-opening #academy-login{visibility:hidden}
-.academy-opening-programme:not(.academy-opening-failed) #academy-startup{position:fixed;inset:0;z-index:10000;margin:0;border:0;border-radius:0;display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:100dvh;background:var(--bg,#f8f5ef);font-family:Arial,Helvetica,sans-serif}
+.academy-opening-programme #academy-startup{position:fixed;inset:0;z-index:10000;margin:0;border:0;border-radius:0;display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:100dvh;background:var(--bg,#f8f5ef);font-family:Arial,Helvetica,sans-serif;overflow:auto}
 .academy-opening-programme:not(.academy-opening-failed) #academy-startup .academy-startup-cards{width:min(700px,100%)}
 .academy-startup-heading{display:flex;align-items:center;gap:14px}
 .academy-startup-heading h1{font:600 clamp(22px,3vw,32px)/1.25 Arial,sans-serif;margin:0;color:var(--rose-dark)}
@@ -13,7 +13,10 @@
 .academy-startup-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
 .academy-startup-cards>div{height:150px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(110deg,var(--rose-soft) 20%,var(--paper) 45%,var(--rose-soft) 70%);background-size:250% 100%;animation:academy-startup-glow 1.8s ease-in-out infinite}
 .academy-opening-failed .academy-startup-spinner,.academy-opening-failed .academy-startup-cards{display:none}
-.academy-opening-failed #academy-startup p{display:none}
+.academy-opening-failed #academy-startup>p:not(#academy-startup-error){display:none}
+#academy-startup-error,#academy-startup-retry{display:none}
+.academy-opening-failed #academy-startup-error,.academy-opening-failed #academy-startup-retry{display:block}
+#academy-startup-error{max-width:42rem;text-align:center;overflow-wrap:anywhere}
 #academy-session-loading{margin:12px 0 24px;color:var(--muted)}
 @keyframes academy-startup-spin{to{transform:rotate(360deg)}}
 @keyframes academy-startup-glow{to{background-position:100% 0}}

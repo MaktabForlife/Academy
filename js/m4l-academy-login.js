@@ -197,7 +197,7 @@
         sessionStorage.getItem(academySessionKey) === expectedId) {
         sessionMessage.textContent = "The account service is temporarily unavailable. Your sign-in is saved.";
         sessionRetry.hidden = false;
-        window.M4L_ACADEMY_STARTUP?.fail();
+        window.M4L_ACADEMY_STARTUP?.fail(sessionMessage.textContent);
       } else {
         clearStoredAccountState();
         showSignedOut();

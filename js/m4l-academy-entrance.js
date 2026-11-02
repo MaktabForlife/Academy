@@ -265,7 +265,7 @@
   }
 
   async function loadHome(force = false, fresh = null) {
-    if (!state.home) window.M4L_ACADEMY_STARTUP?.begin();
+    if (!state.home) window.M4L_ACADEMY_STARTUP?.begin({force});
     if(force){clearTimetableMedia();window.M4L_CLASS_NOTES?.invalidate();}
     const generation = ++state.generation;
     $('entrance-message').textContent = 'Loading Academy information…';
@@ -275,7 +275,7 @@
         if(generation!==state.generation)return;
         if(state.startDate&&state.startDate!==state.home?.startDate){state.home=updated;rememberPages(updated);renderAcademyMenu();return;}
         void loadHome(false,updated);
-      },(error,saved)=>{if(generation!==state.generation)return;if(!saved){clearPersonal();window.M4L_ACADEMY_STARTUP?.fail();}const message=saved?'Showing saved Academy information. Couldn’t check for updates.':error.message;$('entrance-message').textContent=message;window.M4L_ACADEMY_DASHBOARD?.unavailable(message);$('entrance-retry').hidden=false;});
+      },(error,saved)=>{if(generation!==state.generation)return;if(!saved){clearPersonal();window.M4L_ACADEMY_STARTUP?.fail(error.message);}const message=saved?'Showing saved Academy information. Couldn’t check for updates.':error.message;$('entrance-message').textContent=message;window.M4L_ACADEMY_DASHBOARD?.unavailable(message);$('entrance-retry').hidden=false;});
       if (generation !== state.generation) return;
       rememberPages(result);
       state.home = result;state.homeDay=academyDay(result.timezone);
@@ -291,7 +291,7 @@
       if(!fresh)route();else if(location.hash.startsWith('#activity/')){const row=result.activityPages?.find(row=>row.id===state.activity?.id);if(row){state.activity=row;renderActivityTimetable();}}
     } catch (error) {
       if (generation !== state.generation) return;
-      window.M4L_ACADEMY_STARTUP?.fail();
+      window.M4L_ACADEMY_STARTUP?.fail(error.message);
       $('entrance-message').textContent = error.message;
       window.M4L_ACADEMY_DASHBOARD?.unavailable(error.message);
       $('entrance-retry').hidden = false;
@@ -933,7 +933,7 @@
       $('activity-schedule').hidden = true;
     }
     try {
-      const result = fresh || (window.M4L_ACADEMY_READ_CACHE?await dailyTimetable({id},refresh,updated=>{if(generation===state.activityGeneration&&state.activity?.id===id)void loadActivity(id,false,updated);},(error,saved)=>{if(generation!==state.activityGeneration)return;if(!saved){clearPersonal();window.M4L_ACADEMY_STARTUP?.fail();$('entrance-message').textContent=error.message;$('entrance-retry').hidden=false;}$('activity-status').textContent=saved?'Showing saved timetable. Couldn’t check for updates.':error.message;},cached):cached||await request({id}));
+      const result = fresh || (window.M4L_ACADEMY_READ_CACHE?await dailyTimetable({id},refresh,updated=>{if(generation===state.activityGeneration&&state.activity?.id===id)void loadActivity(id,false,updated);},(error,saved)=>{if(generation!==state.activityGeneration)return;if(!saved){clearPersonal();window.M4L_ACADEMY_STARTUP?.fail(error.message);$('entrance-message').textContent=error.message;$('entrance-retry').hidden=false;}$('activity-status').textContent=saved?'Showing saved timetable. Couldn’t check for updates.':error.message;},cached):cached||await request({id}));
       if (generation !== state.activityGeneration) return;
       if (!cached||fresh) rememberPages(result);
       const row = state.activity = result.activity;

@@ -3,12 +3,14 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import {webcrypto} from 'node:crypto';
 const html = await readFile(new URL('../../academy/index.html', import.meta.url), 'utf8');
-const script = await readFile(new URL('../../js/m4l-academy-entrance.js', import.meta.url), 'utf8');
+// This fixture's programme is Academy-owned. The separate monthly-media tests
+// exercise Studio ownership; avoid an unconfigured browser import in this VM.
+const script = (await readFile(new URL('../../js/m4l-academy-entrance.js', import.meta.url), 'utf8')).replace("import('./m4l-monthly-media-entry.mjs')", "Promise.resolve({studioMonthlyMedia:async()=>false})");
 const css = await readFile(new URL('../../css/m4l-academy-entrance.css', import.meta.url), 'utf8');
 const elements = new Map(), handlers = new Map(), documentHandlers = new Map(), storage = new Map();
 function element(id = '') {
   const classes = new Set(), listeners = new Map(), attrs = new Map();
-  return { id, listeners, attrs, dataset: {}, textContent: '', innerHTML: '', hidden: false, value: '', open: false,
+  return { id, listeners, attrs, dataset: {}, textContent: '', innerHTML: '', hidden: false, value: '', open: false, isConnected: true,
     classList: { add: name => classes.add(name), remove: name => classes.delete(name), contains: name => classes.has(name),
       toggle(name, force) { if (force ?? !classes.has(name)) classes.add(name); else classes.delete(name); } },
     addEventListener: (type, fn) => listeners.set(type, fn), setAttribute(key,value) {attrs.set(key,String(value));}, removeAttribute(key) {attrs.delete(key);},

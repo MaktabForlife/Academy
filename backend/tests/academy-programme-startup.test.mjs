@@ -27,7 +27,7 @@ test('programme route is guarded in the head before the initially active legacy 
  for(const file of ['academy/index.html','academy/admin/index.html']){
   const html=readFileSync(new URL('../../'+file,import.meta.url),'utf8');assert(html.indexOf('m4l-academy-startup.js')<html.indexOf('<body'));assert.match(html,/<section id="overview" class="view active"/);
  }
- const css=readFileSync(new URL('../../css/m4l-academy-home.css',import.meta.url),'utf8');assert.match(css,/\.academy-opening \.container>\.view\{display:none!important\}/);assert.match(css,/academy-opening-programme:not\(\.academy-opening-failed\) #academy-startup\{position:fixed;inset:0/);
+ const css=readFileSync(new URL('../../css/m4l-academy-home.css',import.meta.url),'utf8');assert.match(css,/\.academy-opening \.container>\.view\{display:none!important\}/);assert.match(css,/academy-opening-programme #academy-startup\{position:fixed;inset:0/);
 });
 test('personal and inherited Admin Learn/Teach programme entry stays neutral until the requested activity finishes',async()=>{
  for(const path of ['/academy/','/academy/admin/'])for(const mode of ['learn','teach']){
