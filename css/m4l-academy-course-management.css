@@ -744,3 +744,12 @@
 
 /* Distinct blocks for Course names, status and delivery details. */
 .cm-unified-workspace .cm-list{gap:14px}.cm-unified-workspace .cm-course{border:1px solid #dfd1e6;border-radius:12px;background:#fff;padding:18px;box-shadow:0 2px 6px #30293608}.cm-unified-workspace .cm-course:hover{border-color:#b694c1;background:#faf6fc}.cm-unified-workspace .cm-course.is-selected{border-color:#805088;background:#f3eaf6;box-shadow:inset 3px 0 #805088}.cm-unified-workspace .cm-course strong{font-size:15px}.cm-unified-workspace .cm-course small{line-height:1.5;overflow-wrap:anywhere}
+.cm-unified-workspace #course-list.cm-list{display:block;min-width:0;max-width:100%;overflow:auto;border:1px solid var(--pb-line);border-radius:8px;background:#fff}
+.cm-course-list{position:relative;width:100%;min-width:620px;border-collapse:collapse;text-align:left;font-size:13px;line-height:1.35}
+.cm-course-list th,.cm-course-list td{padding:9px 12px;border-bottom:1px solid var(--pb-line);vertical-align:middle}
+.cm-course-list thead th{background:#f3efeb;color:var(--pb-muted);font-size:11px;font-weight:700}
+.cm-course-list tbody th{width:43%;min-width:200px;font-weight:600;overflow-wrap:anywhere}
+.cm-course-list tbody tr:last-child>*{border-bottom:0}.cm-course-list .cm-pill{margin:0}.cm-course-list td:nth-child(4),.cm-course-list td:last-child{white-space:nowrap}
+.cm-course-list .cm-course-dates{font-size:12px;min-width:155px;color:var(--pb-muted)}.cm-course-dates time{white-space:nowrap}
+.cm-course-list .cm-course-open{min-height:36px;padding:7px 13px;font-size:12px}.cm-course-list tbody tr:hover{background:#faf7f1}.cm-course-list tr.is-selected{background:#f3efeb;box-shadow:inset 3px 0 var(--plum,#68515c)}
+.cm-visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
