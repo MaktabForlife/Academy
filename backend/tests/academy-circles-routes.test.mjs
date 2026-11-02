@@ -22,6 +22,12 @@ test('Library and availability aliases retain context without selecting a legacy
  for(const [path,next]of [['/programs/library.html','/academy/library/'],['/programs/library-view.html','/academy/library/'],['/programs/media.html','/academy/media/'],['/academy/teaching/','/academy/calendar/']]){
   const r=await serveAcademySite(new Request(origin+path+'?program=one&mode=teach'),noDB),url=new URL(r.headers.get('Location'));assert.equal(url.pathname,next);assert.equal(url.searchParams.get('program'),'one');assert.equal(url.searchParams.get('mode'),'teach');
  }
+ const publicAlias=await serveAcademySite(new Request(origin+'/academy/open-library/?program=one&view=personal'),noDB),publicURL=new URL(publicAlias.headers.get('Location'));assert.equal(publicURL.pathname,'/academy/library/');assert.equal(publicURL.searchParams.get('view'),'public');assert.equal(publicURL.searchParams.get('program'),'one');
+});
+test('slashless tool bookmarks canonicalise before relative resources can resolve against the wrong parent',async()=>{
+ for(const path of ['/academy/admin','/academy/library','/academy/course-websites/view']){const r=await serveAcademySite(new Request(origin+path+'?website=exact-id'),noDB);assert.equal(r.status,302);const next=new URL(r.headers.get('Location'));assert.equal(next.pathname,path+'/');assert.equal(next.searchParams.get('website'),'exact-id');}
+ const alias=await serveAcademySite(new Request(origin+'/academy/teaching?program=one'),noDB);assert.equal(new URL(alias.headers.get('Location')).pathname,'/academy/calendar/');
+ let fetched='';const env={ASSETS:{fetch:async request=>{fetched=new URL(request.url).pathname;return new Response('account');}}};await serveAcademySite(new Request(origin+'/account/exact-personal-link'),env,{pages:true});assert.equal(fetched,'/account/');
 });
 test('retired operator/demo and unknown document routes recover in Circles without fetching any assets or data',async()=>{
  for(const path of ['/academy/pdf-icon-samples/','/academy/website-platform/handover/','/academy/unregistered/','/academy/unregistered.html','/missing']){
@@ -35,7 +41,7 @@ test('only exact declared component fragments are served as text and never as in
  assert.equal(calls,3);assert.equal((await serveAcademySite(new Request(origin+'/programs/fragments/unregistered.fragment'),noDB)).status,404);
 });
 test('the production allowlist retains functional tools and Hifz handoff while rejecting accidental new full pages',()=>{
- assert.equal(academyCirclesPages.size,31);assert.equal(academyRetiredPages.size,9);
+ assert.equal(academyCirclesPages.size,30);assert.equal(academyRetiredPages.size,10);
  for(const file of academyCirclesPages)assert(academyPublishableAsset(file));
  for(const file of academyRetiredPages)assert.equal(academyPublishableAsset(file),false);
  for(const file of academyCirclesFragments)assert(academyPublishableAsset(file));

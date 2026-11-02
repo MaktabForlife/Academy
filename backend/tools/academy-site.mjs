@@ -2,15 +2,18 @@ import {assetPath} from './browser-site/worker.mjs';
 import {publicPdfTarget} from './academy-public-media.mjs';
 import {onRequestGet as catalogue} from '../../functions/academy/open-library/catalogue.js';
 import {onRequestGet as publicPdf} from '../../functions/pdf-file/[encoded].js';
-import {academyCirclesAlias,academyCirclesPages,academyCirclesFragments,circlesPageUnavailable} from './academy-circles-routes.mjs';
+import {academyCirclesAlias,academyCirclesPages,academyCirclesFragments,academyRetiredPages,circlesPageUnavailable} from './academy-circles-routes.mjs';
 export const siteVersion='109.11';
 export const siteBranch='development';
 export async function serveAcademySite(request,env,{pages=false,branch=siteBranch,syntheticOnly=false}={}){
   const url=new URL(request.url);
   if(['/api/feature-preview/health','/api/site/health'].includes(url.pathname))return Response.json({success:true,version:siteVersion,branch,syntheticOnly},{headers:{'Cache-Control':'no-store'}});
   if(!['GET','HEAD'].includes(request.method))return new Response('Method not allowed',{status:405});
-  const path=assetPath(url.pathname),alias=academyCirclesAlias(url,path);
+  let path=assetPath(url.pathname),shortDirectory=false;
+  if(path&&!path.split('/').at(-1).includes('.')&&(academyCirclesPages.has(path.slice(1)+'/index.html')||academyRetiredPages.has(path.slice(1)+'/index.html'))){path+='/index.html';shortDirectory=true;}
+  const alias=academyCirclesAlias(url,path);
   if(alias)return new Response(null,{status:302,headers:{Location:alias,'Cache-Control':'no-store','Referrer-Policy':'no-referrer'}});
+  if(shortDirectory){const next=new URL(url);next.pathname+='/';return new Response(null,{status:302,headers:{Location:next.href,'Cache-Control':'no-store','Referrer-Policy':'no-referrer'}});}
   if(url.pathname==='/academy/open-library/catalogue')return catalogue();
   if(url.pathname.startsWith('/pdf-file/')){
     const encoded=url.pathname.slice('/pdf-file/'.length);

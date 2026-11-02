@@ -6,7 +6,7 @@ export const academyCirclesPages=new Set([
  'academy/course-websites/public/index.html','academy/course-websites/view/index.html',
  'academy/courses/manage/index.html','academy/enrolment/index.html','academy/enrolment/manage/index.html',
  'academy/hifz/index.html','academy/library/index.html','academy/library/manage/index.html',
- 'academy/media/index.html','academy/monthly-media/index.html','academy/open-library/index.html',
+ 'academy/media/index.html','academy/monthly-media/index.html',
  'academy/pdf-compare/index.html','academy/pdf-reader/index.html','academy/pdf-tools/index.html',
  'academy/subjects/index.html','academy/website-platform/connect/index.html',
  'academy/website-studio/connect/index.html','academy/website-studio/session/index.html',
@@ -17,7 +17,7 @@ export const academyCirclesFragments=new Set([
  'programs/fragments/timetable.fragment','programs/fragments/participants.fragment','programs/fragments/lesson-media.fragment'
 ]);
 export const academyRetiredPages=new Set([
- 'academy/pdf-icon-samples/index.html','academy/website-platform/handover/index.html','academy/teaching/index.html',
+ 'academy/pdf-icon-samples/index.html','academy/website-platform/handover/index.html','academy/teaching/index.html','academy/open-library/index.html',
  'programs/timetable.html','programs/manage.html','programs/lesson-media.html',
  'programs/library-view.html','programs/library.html','programs/media.html'
 ]);
@@ -34,6 +34,7 @@ export function academyCirclesAlias(url,path){
   const tab=programAliases.get(path);if(tab!=='timetable'||!timetableTabs.has(next.searchParams.get('tab')))next.searchParams.set('tab',tab);
   return next.href;
  }
+ if(path==='/academy/open-library/index.html'){const next=new URL('/academy/library/',url.origin);next.search=url.search;next.searchParams.set('view','public');return next.href;}
  const fixed=new Map([
   ['/academy/teaching/index.html','/academy/calendar/'],
   ['/programs/library-view.html','/academy/library/'],['/programs/library.html','/academy/library/'],['/programs/media.html','/academy/media/']
