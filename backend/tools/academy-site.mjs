@@ -3,7 +3,7 @@ import {publicPdfTarget} from './academy-public-media.mjs';
 import {onRequestGet as catalogue} from '../../functions/academy/open-library/catalogue.js';
 import {onRequestGet as publicPdf} from '../../functions/pdf-file/[encoded].js';
 import {academyCirclesAlias,academyCirclesPages,academyCirclesFragments,academyRetiredPages,circlesPageUnavailable} from './academy-circles-routes.mjs';
-export const siteVersion='109.12';
+export const siteVersion='109.13';
 export const siteBranch='development';
 export async function serveAcademySite(request,env,{pages=false,branch=siteBranch,syntheticOnly=false}={}){
   const url=new URL(request.url);
