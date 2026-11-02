@@ -20,14 +20,14 @@ async function screen(env,identity='0001',search='',accessOwner=null,studioSetup
  return {element,requests,context,events,settle,enter:(field,value)=>documentEvents.get('input').at(-1)({target:{dataset:{field},value,type:'text'}}),chooseDay:day=>documentEvents.get('change').at(-1)({target:{dataset:{day:String(day)},checked:true,type:'checkbox'}}),chooseRole:(accountId,role,checked)=>documentEvents.get('change').at(-1)({target:{dataset:{person:accountId,role},checked,type:'checkbox'}}),searchPeople:value=>documentEvents.get('input').at(-1)({target:{id:'course-people-search',value,selectionStart:value.length}}),filter:async(key,value)=>{const el=element(key==='search'?'course-search':'course-status-filter');el.value=value;el.listeners[key==='search'?'input':'change']();await settle();},click:async(action,dataset={})=>{documentEvents.get('click')[0]({target:{closest:()=>({dataset:{cmAction:action,...dataset}})},preventDefault(){}});await settle();},changeToken:value=>{token=value;events.get('storage')({key:'m4l_account_token'});}};
 }
 
-test('Save participants persists every changed role even when search hides the users, without changing the published schedule',async()=>{
+test('Save participants persists selected students while preserving staff roles and the published schedule',async()=>{
  const f=await fixture();try{
   const page=await screen(f.env,'0001','?course=subject-1&run=run-1&tab=participants'),before=f.db.prepare('SELECT * FROM timetable_publications').all();
-  let html=page.element('course-editor').innerHTML;assert.match(html,/data-stage="(?:PUBLISHED|ACTIVE)"/);assert.equal((html.match(/data-cm-action="save-participants"/g)||[]).length,2);assert.match(html,/data-cm-action="save-participants"[^>]* disabled/);
-  const changes=[['account-0008','STUDENT'],['account-0009','TEACHER'],['account-0010','PROGRAM_ADMIN']];
+  let html=page.element('course-editor').innerHTML;assert.match(html,/data-stage="(?:PUBLISHED|ACTIVE)"/);assert.equal((html.match(/data-cm-action="save-participants"/g)||[]).length,1);assert.match(html,/data-cm-action="save-participants"[^>]* disabled/);
+  const changes=[['account-0008','STUDENT'],['account-0009','STUDENT'],['account-0010','STUDENT']];
   for(const [accountId,role] of changes)page.chooseRole(accountId,role,true);
   assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),true);page.searchPeople('no users match this filter');
-  html=page.element('course-editor').innerHTML;assert.match(html,/No users match this view/);assert.match(html,/3 users have unsaved changes/);assert.match(html,/data-cm-save-state>Unsaved participant changes/);assert.doesNotMatch(html,/data-cm-action="save-participants"[^>]* disabled/);
+  html=page.element('course-editor').innerHTML;assert.match(html,/No students match this view/);assert.match(html,/3 users have unsaved changes/);assert.match(html,/data-cm-save-state>Unsaved participant changes/);assert.doesNotMatch(html,/data-cm-action="save-participants"[^>]* disabled/);
   const reads=page.requests.filter(p=>p.endsWith('/participants')).length;
   await page.click('save-participants');assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),false);assert.match(page.element('course-message').textContent,/saved for 3 users/);
   assert.equal(page.requests.filter(p=>p.endsWith('/participants-save')).length,3);assert.equal(page.requests.filter(p=>p.endsWith('/participants')).length,reads,'saving does not reread the entire participant directory');
@@ -35,7 +35,7 @@ test('Save participants persists every changed role even when search hides the u
   assert.deepEqual(f.db.prepare('SELECT * FROM timetable_publications').all(),before);
   const reopened=await screen(f.env,'0001','?course=subject-1&run=run-1&tab=participants');html=reopened.element('course-editor').innerHTML;
   for(const [accountId,role] of changes)assert.match(html,new RegExp(`data-person="${accountId}" data-role="${role}" checked`));
-  assert.match(html,/data-person="account-0001" data-role="PROGRAM_ADMIN" checked disabled/,'Global Admin access remains inherited');
+  assert.doesNotMatch(html,/data-role="(?:TEACHER|PROGRAM_ADMIN)"/,'Participants does not offer staff-role edits');assert.equal(f.db.prepare("SELECT count(*) n FROM role_assignments WHERE account_id='account-0001' AND activity_key='COURSE:subject-1' AND role='PROGRAM_ADMIN'").get().n,0,'Global Admin authority is not materialised as a scoped grant');
  }finally{f.db.close();}
 });
 
@@ -43,17 +43,17 @@ test('a lost participant save acknowledgement keeps only unfinished changes and 
  const f=await fixture();try{
   const page=await screen(f.env,'0001','?course=subject-1&run=run-1&tab=participants'),original=page.context.fetch,writes=[];
   page.context.fetch=async(path,options)=>{const result=await original(path,options);if(path.endsWith('/participants-save')){writes.push(JSON.parse(options.body));if(writes.length===2)throw Error('Connection lost');}return result;};
-  page.chooseRole('account-0008','STUDENT',true);page.chooseRole('account-0009','TEACHER',true);page.chooseRole('account-0010','PROGRAM_ADMIN',true);
+  page.chooseRole('account-0008','STUDENT',true);page.chooseRole('account-0009','STUDENT',true);page.chooseRole('account-0010','STUDENT',true);
   await page.click('save-participants');assert.equal(writes.length,2);assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),true);assert.match(page.element('course-message').textContent,/1 of 3 users saved.*Connection lost.*Remaining participant changes are kept/);assert.match(page.element('course-editor').innerHTML,/2 users have unsaved changes/);
   await page.click('save-participants');assert.equal(writes.length,4);assert.equal(writes[1].operationId,writes[2].operationId);assert.equal(writes.filter(w=>w.accountId==='account-0008').length,1);assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),false);assert.match(page.element('course-editor').innerHTML,/All participant changes saved/);
-  assert.equal(f.db.prepare("SELECT count(*) n FROM effective_activity_roles WHERE activity_key='COURSE:subject-1' AND account_id='account-0009' AND role='TEACHER'").get().n,1);
+  assert.equal(f.db.prepare("SELECT count(*) n FROM effective_activity_roles WHERE activity_key='COURSE:subject-1' AND account_id='account-0009' AND role='STUDENT'").get().n,1);
  }finally{f.db.close();}
 });
 
 test('reverting a participant checkbox leaves no unsaved change or save request',async()=>{
  const f=await fixture();try{
   const page=await screen(f.env,'0001','?course=subject-1&run=run-1&tab=participants');
-  page.chooseRole('account-0008','TEACHER',true);assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),true);page.chooseRole('account-0008','TEACHER',false);assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),false);
+  page.chooseRole('account-0008','STUDENT',true);assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),true);page.chooseRole('account-0008','STUDENT',false);assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),false);
   await page.click('save-participants');assert.equal(page.requests.filter(p=>p.endsWith('/participants-save')).length,0);
  }finally{f.db.close();}
 });
@@ -64,7 +64,7 @@ test('Course workspace opens a compact editor, saves name-only drafts and presen
   const page=await screen(f.env);assert.equal(page.element('course-workspace').hidden,false);assert.ok(page.element('course-account-name').textContent);assert.match(page.element('course-list').innerHTML,/Synthetic/);assert.match(page.element('course-editor').innerHTML,/>Select a course<\/h2>/);assert.equal(page.requests.filter(p=>p.endsWith('/courses/list')).length,1);assert.equal(page.requests.filter(p=>p.endsWith('/courses/get')).length,0);
   await page.click('select',{course:'subject-1',run:'run-1'});assert.match(page.element('course-tabs').innerHTML,/Participants/);
   page.context.window.M4LCourses.newCourse();page.enter('name','A new workshop');await page.context.window.M4LCourses.save();assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),false);assert.match(page.element('course-editor').innerHTML,/A new workshop/);
-  await page.context.window.M4LCourses.validate();assert.match(page.element('course-editor').innerHTML,/A few details need attention/);assert.match(page.element('course-editor').innerHTML,/Choose Free or Paid/);assert.ok(!page.element('course-editor').innerHTML.includes('data-cm-action="publish"'));
+  await page.context.window.M4LCourses.validate();assert.match(page.element('course-editor').innerHTML,/A few details need attention/);assert.doesNotMatch(page.element('course-editor').innerHTML,/Choose Free or Paid/,'New drafts default to Paid');assert.match(page.element('course-editor').innerHTML,/data-cm-action="publish"[^>]* disabled/);
   const originalRequest=page.context.fetch;let release;page.context.fetch=async(...args)=>{await new Promise(resolve=>{release=resolve;});return originalRequest(...args);};
   const late=page.context.window.M4LCourses.select('subject-1','run-1');page.changeToken('another-account');release();await assert.rejects(late,/account changed/);assert.equal(page.element('course-workspace').hidden,true);assert.equal(page.element('course-editor').innerHTML,'');assert.equal(page.element('course-list').innerHTML,'');assert.equal(outbound,0);
  }finally{globalThis.fetch=original;f.db.close();}
@@ -108,8 +108,8 @@ test('schedule validation fills sessions, opens review, requires acceptance and 
   const page=await screen(f.env);page.context.window.M4LCourses.newCourse();
   for(const [field,value] of Object.entries({name:'Auto workshop',accessModel:'FREE',startDate:'2026-10-12',endDate:'2026-10-25',startTime:'1200',endTime:'1pm',teacherId:'account-0003',zoomLink:'https://zoom.us/j/12345678901'}))page.enter(field,value);
   page.chooseDay(1);page.chooseDay(3);await page.context.window.M4LCourses.validate();
-  let html=page.element('course-editor').innerHTML;assert.match(html,/cm-workflow/);assert.match(page.element('course-tabs').innerHTML,/Sessions · 4/);assert.match(html,/value="2026-10-12"/);assert.match(html,/value="2026-10-21"/);assert.match(html,/value="12:00"/);assert.match(html,/value="13:00"/);assert.doesNotMatch(html,/type="time"/);assert.ok(!html.includes('Synthetic learner 8'));
-  assert.match(html,/Review &amp; accept sessions|Review & accept sessions/);assert.ok(!html.includes('data-cm-action="publish"'));
+  let html=page.element('course-editor').innerHTML;assert.match(html,/cm-workflow/);assert.doesNotMatch(page.element('course-tabs').innerHTML,/data-tab="sessions"|data-tab="review"/);assert.match(html,/4 scheduled/);assert.match(html,/value="2026-10-12"/);assert.match(html,/value="2026-10-21"/);assert.match(html,/value="12:00"/);assert.match(html,/value="13:00"/);assert.doesNotMatch(html,/type="time"/);assert.ok(!html.includes('Synthetic learner 8'));
+  assert.match(html,/Review &amp; accept sessions|Review & accept sessions/);assert.match(html,/data-cm-action="publish"[^>]* disabled/);
   await page.click('tab',{tab:'review'});assert.match(page.element('course-editor').innerHTML,/Accept reviewed sessions/);await page.click('accept');
   assert.match(page.element('course-editor').innerHTML,/Review accepted/);assert.match(page.element('course-editor').innerHTML,/data-cm-action="publish"/);
   const saved=f.db.prepare("SELECT a.activity_id,m.run_id FROM course_management_drafts m JOIN activities a USING(activity_key) WHERE a.name='Auto workshop'").get();
@@ -129,11 +129,11 @@ test('typed clock entries survive draft reopening and regeneration uses the newl
   assert.equal(JSON.parse(saved.details_json).startTime,'08:30');assert.equal(JSON.parse(saved.details_json).endTime,'09:30');
   await page.context.window.M4LCourses.select(saved.activity_id,saved.run_id);
   assert.match(page.element('course-editor').innerHTML,/value="08:30"/);assert.match(page.element('course-editor').innerHTML,/value="09:30"/);
-  await page.context.window.M4LCourses.validate();assert.match(page.element('course-tabs').innerHTML,/Sessions · 2/);
+  await page.context.window.M4LCourses.validate();assert.match(page.element('course-editor').innerHTML,/2 scheduled/);
   await page.click('tab',{tab:'details'});page.enter('startTime','2100');page.enter('endTime','2130');page.enter('endDate','2026-10-12');
   await page.click('generate');assert.match(page.element('course-dialog').innerHTML,/Replace the draft sessions/);
   page.element('dialog:[data-dialog-confirm]').listeners.click();await page.settle();
-  assert.match(page.element('course-tabs').innerHTML,/Sessions · 1/);assert.match(page.element('course-editor').innerHTML,/value="21:00"/);assert.match(page.element('course-editor').innerHTML,/value="21:30"/);
+  assert.match(page.element('course-editor').innerHTML,/1 scheduled/);assert.match(page.element('course-editor').innerHTML,/value="21:00"/);assert.match(page.element('course-editor').innerHTML,/value="21:30"/);
   const details=JSON.parse(f.db.prepare('SELECT details_json FROM course_management_drafts WHERE run_id=?').get(saved.run_id).details_json);
   assert.equal(details.sessions.length,1);assert.equal(details.sessions[0].date,'2026-10-12');assert.equal(details.sessions[0].startTime,'21:00');assert.equal(details.sessions[0].endTime,'21:30');
   await page.context.window.M4LCourses.select(saved.activity_id,saved.run_id,'sessions');assert.match(page.element('course-editor').innerHTML,/value="21:00"/);

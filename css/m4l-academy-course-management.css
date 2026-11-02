@@ -2,6 +2,22 @@
   max-width:none;
   padding:18px 24px 30px
 }
+.cm-details-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px}
+.cm-details-column{min-width:0;padding:0 0 12px}.cm-details-column h3{margin:0 0 15px;font-size:17px}
+.cm-details-column>.cm-field{display:block;margin:0 0 14px}.cm-details-column .cm-field input,.cm-details-column .cm-field select{width:100%}
+.cm-date-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin:12px 0}
+.cm-details-column .cm-fieldset{padding:0;border:0;margin:0 0 12px}.cm-details-column .cm-days{gap:6px;flex-wrap:wrap}
+.cm-details-section{border-top:1px solid var(--pb-line);padding:20px 0 0;margin-top:18px;scroll-margin-top:20px}
+.cm-actions .cm-primary-status{background:var(--plum,#68515c);border-color:var(--plum,#68515c);color:#fffaf5}
+.cm-inline-link{border:0!important;background:transparent!important;padding:0!important;min-height:0!important;text-decoration:underline;color:inherit!important}
+.cm-course-id{display:block;color:var(--pb-muted);font-size:12px;overflow-wrap:anywhere;margin-top:5px}
+.cm-coming-soon{padding:28px 0}.cm-coming-soon h3{margin-top:0}.cm-coming-soon p{color:var(--pb-muted)}
+.cp-policy{display:flex;align-items:center;gap:20px;flex-wrap:wrap;border:1px solid var(--pb-line);padding:14px 16px;border-radius:8px;background:#f3efeb;margin:0 0 12px}.cp-policy legend{font-weight:700;padding:0 5px}.cp-policy label{display:flex;align-items:center;gap:7px;margin:0}.cp-policy button{margin-left:auto}
+.cp-policy-note{font-size:13px;color:var(--pb-muted);margin:0 0 20px}.cp-toolbar,.cp-footer{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.cp-toolbar h3{font-size:17px;margin:0 auto 0 0}.cp-footer{margin-top:12px;font-size:13px}.cp-footer>span{margin-right:auto}.cp-table-wrap{overflow:auto;border:1px solid var(--pb-line);border-radius:8px}.cp-table{width:100%;border-collapse:collapse;text-align:left}.cp-table th,.cp-table td{padding:9px 14px;border-bottom:1px solid var(--pb-line);font-size:13px}.cp-table th{background:#f4f0ec}.cp-table tr:last-child td{border-bottom:0}.cp-table td:last-child{font-size:11px;color:var(--pb-muted);overflow-wrap:anywhere}.cp-person{display:flex;align-items:center;gap:10px;margin:0;font-size:14px}.cp-person input,.cp-candidate input,.cp-policy input{accent-color:var(--plum,#68515c);width:17px;height:17px;flex-shrink:0}.cm-course-participants [data-cp-status]:empty{display:none}.cm-course-participants [data-cp-status]{font-size:13px;margin:12px 0;line-height:1.5}
+.cp-dialog{width:min(560px,calc(100vw - 32px));max-height:85vh;overflow:auto;padding:24px;border:1px solid var(--pb-line);border-radius:12px;background:var(--pb-bg,#fffdf9);color:var(--pb-ink,#493b43)}.cp-dialog::backdrop{background:#35252e66}.cp-dialog h2{margin:0 0 10px;font-size:26px}.cp-dialog>p{font-size:13px}.cp-search{display:flex;align-items:end;gap:10px}.cp-search label{flex:1;min-width:0;font-size:13px}.cp-search input{display:block;width:100%;margin-top:6px;border:1px solid var(--pb-line);padding:10px;border-radius:6px;font:inherit}.cp-results,#cm-user-results{max-height:340px;overflow:auto;margin:15px 0}.cp-candidate{display:flex;align-items:center;gap:12px;padding:10px 4px;border-bottom:1px solid var(--pb-line)}.cp-candidate small{display:block;font-size:11px;color:var(--pb-muted);margin-top:3px;overflow-wrap:anywhere}.cp-dialog footer{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:20px}.cp-dialog footer>span{margin-right:auto;font-size:13px}.cp-dialog button{min-height:40px;font:inherit;padding:8px 13px;border-radius:7px;border:1px solid var(--pb-line);background:var(--plum,#68515c);color:white;cursor:pointer}.cp-dialog button:disabled{opacity:.5;cursor:default}
+.cm-editor .cp-person input[type=checkbox],.cm-editor .cp-policy input[type=radio],.cp-dialog .cp-candidate input[type=checkbox],#course-dialog .cp-candidate input[type=checkbox]{width:17px!important;min-width:17px;max-width:17px;min-height:17px;height:17px;flex:0 0 17px;padding:0;margin:0;display:inline-block}
+@media(max-width:760px){.cm-details-columns{grid-template-columns:minmax(0,1fr);gap:18px}.cm-date-fields{gap:10px}}
+@media(max-width:520px){.cp-policy{gap:14px}.cp-policy button{margin-left:0}.cp-table th,.cp-table td{padding:9px}.cp-person{font-size:13px;gap:7px}.cp-table td:last-child{max-width:115px}.cp-dialog{padding:18px}.cp-search{align-items:stretch;flex-direction:column}.cp-toolbar h3{flex-basis:100%}}
 .cm-page-heading {
   display:flex;
   align-items:baseline;
