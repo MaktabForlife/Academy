@@ -404,12 +404,17 @@
   const assets=lesson.assets.filter(asset=>kind==='PDF'?asset.kind==='PDF':isVideo(asset)&&!videoExpired(asset));
   if(assets.length===1){void (kind==='PDF'?pdf(lesson,assets[0].id):watch(lesson,assets[0].id));return;}
   modal(lesson.title,`<div class="lm-actions">${assets.map((asset,index)=>`<button type="button" class="button secondary" data-lm="${kind==='PDF'?'pdf':'watch'}" data-id="${esc(lesson.id)}" data-asset="${esc(asset.id)}">${kind==='PDF'?'▤':'▶'} ${esc(assetName(asset))}</button>`).join('')}</div>`);
- },open({hostId,activityKey:key,programId,runId:offering='',learnerView:asLearner=false}){
+ },open({hostId,activityKey:key,programId,runId:offering='',learnerView:asLearner=false,legacy=false}){
   key=key||(programId?'PROGRAM:'+programId:'');
   if(!/^(PROGRAM|COURSE):[^:]+$/.test(key)||!token()){reset();return;}
   const target=document.getElementById(hostId);if(!target||!canLeaveMedia())return;
   if(host===target&&session===token()&&learnerView===asLearner&&activityKey===key&&runId===offering&&context===workspace()){host.hidden=false;void load();return;}
-  reset();activityKey=key;runId=offering;learnerView=asLearner;host=target;session=token();context=workspace();host.hidden=false;host.classList.add('lm-calendar','lm-rails');host.addEventListener('click',handleClick);host.addEventListener('submit',handleSubmit);render();void start();
+  reset();activityKey=key;runId=offering;learnerView=asLearner;host=target;session=token();context=workspace();host.hidden=false;host.classList.add('lm-calendar','lm-rails');host.addEventListener('click',handleClick);host.addEventListener('submit',handleSubmit);
+  const stamp=generation;
+  if(!asLearner&&!legacy&&(window.M4L_ACADEMY_WORKSPACE?.current()||'ADMIN')==='ADMIN'){
+   host.innerHTML='<p role="status">Opening the current media workspace…</p>';
+   void (window.M4L_MONTHLY_MEDIA_ENTRY?Promise.resolve(window.M4L_MONTHLY_MEDIA_ENTRY):import('./m4l-monthly-media-entry.mjs')).then(({studioMonthlyMedia})=>studioMonthlyMedia(target,key,{current:()=>active(stamp),onHistorical:container=>{target.removeEventListener('click',handleClick);target.removeEventListener('submit',handleSubmit);host=null;const legacyHost=document.createElement('section');legacyHost.id=target.id+'-historical';container.append(legacyHost);window.M4L_LESSON_MEDIA.open({hostId:legacyHost.id,activityKey:key,learnerView:true,legacy:true});}})).then(handled=>{if(!handled&&active(stamp)){render();void start();}}).catch(error=>{if(active(stamp)){host.innerHTML='<p role="alert">'+esc(error.message)+'</p><button type="button" class="button secondary" data-lm-owner-retry>Try again</button>';host.querySelector('[data-lm-owner-retry]').onclick=()=>{reset();window.M4L_LESSON_MEDIA.open({hostId,activityKey:key,runId:offering,learnerView:asLearner});};}});
+  }else{render();void start();}
  }};
  document.addEventListener('input',e=>{const form=e.target.closest('[data-lm-form=lesson],.lm-asset-name-form');if(form)form.dataset.changed='true';});
  window.addEventListener('beforeunload',event=>{if(dirty||busy){event.preventDefault();event.returnValue='';}});

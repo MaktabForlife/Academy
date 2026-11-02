@@ -1179,7 +1179,10 @@
       const choices=areas.filter(row=>['PROGRAM','COURSE'].includes(row.kind)&&row.id&&!row.unavailable),chosen=choices.find(row=>row.kind+':'+row.id===selected);
       view.innerHTML='<div class="page-heading"><div><p class="eyebrow">YOUR ACADEMY · ADMIN</p><h1>Manage Media</h1><p>Choose a programme or course to review its lesson media.</p></div></div><label>Programme or course<select id="admin-media-activity"><option value="">Choose a programme or course</option>'+choices.map(row=>`<option value="${esc(row.kind+'/'+encodeURIComponent(row.id))}"${row===chosen?' selected':''}>${esc(row.name)}</option>`).join('')+'</select></label><div id="admin-media-host"></div>';
       $('admin-media-activity')?.addEventListener('change',event=>{if(event.target.value)location.hash='#administration/media/'+event.target.value;});
-      if(chosen)window.M4L_LESSON_MEDIA?.open({hostId:'admin-media-host',activityKey:chosen.kind+':'+chosen.id,learnerView:false});
+      if(chosen){const target=$('admin-media-host'),key=chosen.kind+':'+chosen.id,owner=token();const historical=container=>{const media=document.createElement('section');media.id='admin-historical-media';container.append(media);window.M4L_LESSON_MEDIA?.open({hostId:media.id,activityKey:key,learnerView:true,legacy:true});};
+       if(chosen.kind==='PROGRAM')void import('./m4l-monthly-media-entry.mjs').then(({studioMonthlyMedia})=>studioMonthlyMedia(target,key,{current:()=>owner===token()&&target.isConnected,onHistorical:historical})).then(handled=>{if(!handled&&owner===token()&&target.isConnected)window.M4L_LESSON_MEDIA?.open({hostId:target.id,activityKey:key,learnerView:false});}).catch(error=>{if(owner===token()&&target.isConnected)target.textContent=error.message;});
+       else window.M4L_LESSON_MEDIA?.open({hostId:target.id,activityKey:key,learnerView:false});
+      }
       else if(parts[3])$('admin-media-host').textContent='This programme is outside your current Admin scope.';
       return;
     }

@@ -23,6 +23,7 @@ export function dashboardChoice(state,input={}){
   // authority, keeping the selected Teach/Learn suffix through the connector.
   context=state.account.global_admin?state.contexts.find(c=>c.role==='GLOBAL_ADMIN'):programmeContext(roles)||programmeContext(['PROGRAM_ADMIN','ADMIN']);
   if(!context)throw fail('This programme is outside your selected dashboard.',403);
+  if(tool==='participants'&&mode==='admin'&&activity.kind==='PROGRAM')return {context,destination:'/programs/?program='+encodeURIComponent(activity.activity_id)+'&tab=participants&participants=access'};
   if(tool==='media'&&mode==='admin')return {context,destination:'/academy/admin/#administration/media/'+activity.kind+'/'+encodeURIComponent(activity.activity_id)};
   if(!['activity','assessment','planning','attendance','surahs-duas','timetable'].includes(tool)||mode!=='teach'&&['planning','attendance','surahs-duas'].includes(tool))throw fail('This tool is unavailable in the selected dashboard.',403);
   const route=mode==='admin'?tool==='assessment'?'#assessment-admin/':'#activity/':'#activity/';

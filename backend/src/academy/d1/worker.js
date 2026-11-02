@@ -132,7 +132,16 @@ async function dispatch(request,env,options={}) {
       return {schema:'NATIVE_MEDIA_TEACHERS_V1',offeringId:input.offeringId,activityKey:mapping.activity_key,...choices,checkedAt:Date.now()};
     },
     navigation:async(session,key)=>programmeChoice(await sourceRepository.byId(session.account_id),key,env),
-    destination:async(session,input)=>dashboardChoice(await sourceRepository.session(session.session_id,session.account_id,session.epoch),input),
+    destination:async(session,input)=>{
+      let destination=input;
+      if(input?.tool==='participants'&&input.offeringId){
+       if(Object.keys(input).some(key=>!['mode','tool','offeringId'].includes(key))||input.mode!=='admin'||typeof input.offeringId!=='string'||!/^[-A-Za-z0-9_:]{1,180}$/.test(input.offeringId))throw rehearsalError('Choose the current Participants table.',400);
+       const mapped=await sourceRepository.coreDb.prepare("SELECT t.activity_key FROM website_platform_timetable_scopes t JOIN website_platform_access_scopes s USING(activity_key) JOIN website_platform_access_ownership o USING(activity_key) WHERE t.offering_id=? AND t.kind='TAFSEER' AND s.enabled=1 AND o.state='STUDIO'").bind(input.offeringId).first();
+       if(!mapped)throw rehearsalError('This Participants table is unavailable.',403);
+       destination={mode:'admin',tool:'participants',activityKey:mapped.activity_key};
+      }
+      return dashboardChoice(await sourceRepository.session(session.session_id,session.account_id,session.epoch),destination);
+    },
     lessonJoin:async(session,input)=>{
       const state=await sourceRepository.session(session.session_id,session.account_id,session.epoch);
       if(!state)throw rehearsalError('Your Academy session has ended.',401,'SESSION_ENDED');

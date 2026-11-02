@@ -37,9 +37,18 @@ export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_S
  const allowed=await db.prepare(`SELECT a.*,s.expires_at native_expires_at FROM website_platform_account_state a JOIN account_sessions s ON s.account_id=a.account_id COLLATE NOCASE WHERE s.session_id=? AND a.account_id=? COLLATE NOCASE AND a.active=1 AND a.admitted=1 AND a.epoch=? AND s.credential_epoch=a.epoch AND s.revoked_at IS NULL AND s.expires_at>? AND (a.global_admin=1 OR EXISTS(SELECT 1 FROM effective_activity_roles r WHERE r.account_id=a.account_id AND r.activity_key=? COLLATE NOCASE AND r.role='PROGRAM_ADMIN'))`).bind(auth.sid,auth.state.account.account_id,auth.state.account.credential_epoch,new Date().toISOString(),activity).first();
  if(!allowed)throw fail('Current Admin authority is required for this programme.',403,'ADMIN_SCOPE_REQUIRED');
  const owner=await db.prepare('SELECT * FROM website_platform_access_ownership WHERE activity_key=? COLLATE NOCASE').bind(activity).first(),command=input.command||{action:'read'};
+ if(command.action==='media-location'&&(!owner||owner.state==='ACADEMY'))return {success:true,monthly:false};
  if(!owner||owner.state==='ACADEMY'){if(command.action==='read')return {success:true,legacyOnly:true,ownership:{authority:'ACADEMY'}};if(!command.action?.startsWith('handover-'))throw fail('Manage enrolment and access in the current Academy controls until handover.',409,'ACADEMY_AUTHORITY');}
  if(env.ACADEMY_WEB_PLATFORM!=='1'||await db.prepare('SELECT enabled FROM website_platform_control WHERE singleton=1').first('enabled')!==1)throw fail('Studio integration is unavailable. Keep the current authority locked.',503,'STUDIO_UNAVAILABLE');
  if(!mapping.enabled&&!['handover-status','handover-abort','handover-commit'].includes(command.action))throw fail('This migration scope is unavailable.',503,'STUDIO_UNAVAILABLE');
+ // A bounded location lookup contains no participant, month or eligibility rows.
+ if(command.action==='media-location'){
+  if(owner.state!=='STUDIO')throw fail('This media handover is locked. Reopen Media after it completes.',409,'STUDIO_MEDIA_MANAGED');
+  if(!['TAFSEER','COURSE'].includes(mapping.kind))return {success:true,monthly:false,managed:false};
+  const programme=await db.prepare('SELECT programme_key FROM website_platform_programmes WHERE activity_key=? COLLATE NOCASE').bind(activity).first();
+  const origin=new URL(env.WEBSITE_PLATFORM_ORIGIN);if(origin.origin!==env.WEBSITE_PLATFORM_ORIGIN||origin.protocol!=='https:'&&env.ENVIRONMENT!=='local')throw fail('Studio navigation is unavailable.',503);
+  return {success:true,monthly:mapping.kind==='TAFSEER',managed:true,kind:mapping.kind,activityKey:activity,offeringId:mapping.offering_id,programmeKey:programme?.programme_key||null,ownership:owner.state,destination:origin.origin+'/studio/?manage=1&offering='+encodeURIComponent(mapping.offering_id)+'&section=media'};
+ }
  const proof=await adminProof(db,auth,allowed);
  const reuse=readAction(command.action)&&await reusableReadProof(db,proof,mapping);
  const send=async command=>{

@@ -43,7 +43,7 @@
  }
  async function show(tab,{historyMode='replace'}={}){
   if(window.M4L_STUDIO_ACCESS?.canLeave()===false)return;
-  if(window.M4L_PROGRAM_MONTHLY?.canLeave()===false||window.M4L_PROGRAM_SURAHS?.canLeave()===false)return;
+  if(window.M4L_PROGRAM_MONTHLY?.canLeave()===false||window.M4L_PROGRAM_SURAHS?.canLeave()===false||window.M4L_MOU_PLAYLISTS?.canLeave()===false)return;
   if(!sections.some(([id])=>id===tab)||tab!=='list'&&(!selected||tab!=='details'&&!available))return;
   if(!window.M4L_ENROLMENT_WORKSPACE.canLeave($('pg-enrolment-tool'))){$('pg-tool-message').textContent='Finish or retry the enrolment request change before leaving this tab.';$('pg-tool-message').hidden=false;return;}
   if(current==='media'&&tab!=='media'&&window.M4L_LESSON_MEDIA?.canLeave?.()===false)return;
@@ -58,7 +58,7 @@
  }
  function setSelection(selection){
   if(!selection?.ready)return;
-  if(selected?.id!==selection.program?.id&&(window.M4L_PROGRAM_MONTHLY?.canLeave()===false||window.M4L_PROGRAM_SURAHS?.canLeave()===false))return;
+  if(selected?.id!==selection.program?.id&&(window.M4L_PROGRAM_MONTHLY?.canLeave()===false||window.M4L_PROGRAM_SURAHS?.canLeave()===false||window.M4L_MOU_PLAYLISTS?.canLeave()===false))return;
   const previous=selected?.id;selected=selection.program;available=selection.available;
   if(selected){$('pg-program-name').textContent=selected.name||'New Program';$('pg-program-status').textContent=selected.status+(available?' · Saved':' · Save details before opening other sections');
    if(!selected.revision&&previous!==selected.id)current='details';
