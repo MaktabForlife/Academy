@@ -1,45 +1,8 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
-import vm from 'node:vm';
-
-const read=name=>readFileSync(new URL('../../js/'+name,import.meta.url),'utf8');
-const workspace=read('m4l-academy-workspace.js'),announcements=read('m4l-academy-announcements.js');
-const tick=()=>new Promise(resolve=>setImmediate(resolve));
-function fixture(){
- const handlers=new Map(),calls=[],attributes=new Map(),button={};let token='actor-one';
- const box={innerHTML:'',setAttribute:(name,value)=>attributes.set(name,value),querySelector:()=>button,querySelectorAll:()=>[]};
- const location={pathname:'/academy/',hash:'#overview',search:'',origin:'https://academy.invalid',href:'https://academy.invalid/academy/#overview'};
- const window={M4L_CONFIG:{API_BASE:'https://api.invalid',ACCEPTED_SETUP:true},M4L_ANNOUNCEMENT_LINKS:{render:s=>s},
-  addEventListener(type,fn){const list=handlers.get(type)||[];list.push(fn);handlers.set(type,list);},
-  dispatchEvent(event){for(const fn of handlers.get(event.type)||[])fn(event);},
-  fetch:(url,options)=>new Promise((resolve,reject)=>calls.push({url,options,resolve,reject}))};
- const context={window,location,fetch:(...args)=>window.fetch(...args),localStorage:{getItem:()=>token},document:{readyState:'complete',addEventListener(){},getElementById:()=>box},crypto,URL,URLSearchParams,Request,Response,Headers,DOMException,Event};
- vm.runInNewContext(workspace,context);vm.runInNewContext(announcements,context);
- return {window,location,box,button,attributes,calls,token:value=>{token=value;}};
-}
-test('a slow first announcement load survives session restoration and keeps loading visible',async()=>{
- const f=fixture();assert.match(f.box.innerHTML,/Loading announcements…/);assert.equal(f.attributes.get('aria-busy'),'true');
- assert.equal(f.calls.length,1);assert.equal(f.calls[0].url,'https://api.invalid/api/academy/announcements');
- assert.equal(f.calls[0].options.credentials,'omit');
- f.token('restored-actor');f.window.dispatchEvent(new Event('m4l-academy-session'));
- f.calls[0].resolve(Response.json({success:true,announcements:[{title:'Academy update'}]}));await tick();
- assert.match(f.box.innerHTML,/Open announcement: Academy update/);assert.doesNotMatch(f.box.innerHTML,/could not be loaded|Loading announcements/);assert.equal(f.attributes.get('aria-busy'),'false');
-});
-test('a failed request offers retry, which replaces the error with loading until the response arrives',async()=>{
- const f=fixture();f.calls[0].reject(new TypeError('Network unavailable'));await tick();
- assert.match(f.box.innerHTML,/Announcements could not be loaded/);assert.match(f.box.innerHTML,/Try again/);assert.equal(f.attributes.get('aria-busy'),'false');
- const pending=f.button.onclick();assert.match(f.box.innerHTML,/Loading announcements…/);assert.doesNotMatch(f.box.innerHTML,/could not be loaded|Try again/);assert.equal(f.attributes.get('aria-busy'),'true');
- f.calls[1].resolve(Response.json({success:true,announcements:[]}));await pending;
- assert.match(f.box.innerHTML,/No announcements at the moment/);assert.equal(f.attributes.get('aria-busy'),'false');
-});
-test('an older failed response cannot overwrite a newer successful announcement refresh',async()=>{
- const f=fixture(),pending=f.window.M4L_ANNOUNCEMENTS.refreshPublic();
- f.calls[1].resolve(Response.json({success:true,announcements:[{title:'Latest update'}]}));await pending;
- f.calls[0].reject(new TypeError('Old request failed'));await tick();
- assert.match(f.box.innerHTML,/Open announcement: Latest update/);assert.doesNotMatch(f.box.innerHTML,/could not be loaded/);assert.equal(f.attributes.get('aria-busy'),'false');
-});
-test('invalid announcement data becomes a retryable error rather than a false empty state',async()=>{
- const f=fixture();f.calls[0].resolve(Response.json({success:true}));await tick();
- assert.match(f.box.innerHTML,/Announcements could not be loaded/);assert.match(f.box.innerHTML,/Try again/);assert.equal(f.attributes.get('aria-busy'),'false');
-});
+import test from 'node:test';import assert from 'node:assert/strict';import {createRequire} from 'node:module';import {announcementsEditor} from '../../js/m4l-announcements-editor.mjs';
+const {parseHTML}=createRequire(import.meta.url)('linkedom'),tick=()=>new Promise(r=>setImmediate(r));
+function fixture(request){const {window,document}=parseHTML('<html><head></head><body><div id="editor"></div></body></html>');let owner='one';const host=document.getElementById('editor'),editor=announcementsEditor({request,getOwner:()=>owner,document,base:'https://academy.test'});return {editor,host,window,owner:v=>owner=v,async open(){await editor.open(host);},input(name,value){const field=host.querySelector('[name='+name+']');field.value=value;field.dispatchEvent(new window.Event('input',{bubbles:true}));},submit(){const form=host.querySelector('form');form.reportValidity=()=>true;form.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));}};}
+const list=rows=>({contract:'ANNOUNCEMENTS_EDITOR_V2',announcements:rows,publicGeneration:1});
+test('builder previews entered heading/summary, keeps unsaved work guarded, and clears private DOM on account change',async()=>{const f=fixture(async()=>list([]));await f.open();f.input('title','A private heading');f.input('summary','A clear Admin summary.');assert.match(f.host.querySelector('[data-announcement-preview]').textContent,/A private heading/);assert.match(f.host.querySelector('[data-announcement-preview]').textContent,/A clear Admin summary/);assert.equal(f.editor.canLeave(),false);f.owner('two');f.editor.clear();assert.equal(f.host.textContent,'');assert.equal(f.editor.dirty,false);});
+test('uncertain Save keeps exact operation and payload for one explicit retry; it never silently publishes',async()=>{const calls=[];let saved=null,first=true;const f=fixture(async(action,input)=>{calls.push({action,input:input&&structuredClone(input)});if(action==='drafts')return list(saved?[saved]:[]);assert.equal(action,'draft-save');if(first){first=false;throw Error('Connection interrupted. Retry.');}saved={...input,revision:1,hasDraft:true,imageName:'',imageUrl:'',active:false};return {success:true,announcement:saved};});await f.open();f.input('title','My notice');f.input('summary','Saved privately.');f.submit();await tick();assert(f.host.querySelector('[data-editor-action=retry]'));assert.equal(f.editor.canLeave(),false);f.host.querySelector('[data-editor-action=retry]').click();await tick();const saves=calls.filter(c=>c.action==='draft-save');assert.equal(saves.length,2);assert.deepEqual(saves[0].input,saves[1].input);assert(!calls.some(c=>c.action==='publish'));assert.equal(f.editor.canLeave(),true);assert.match(f.host.textContent,/Draft saved privately/);});
+test('late response for an earlier account cannot restore its private draft DOM or list',async()=>{let release;const f=fixture(()=>new Promise(r=>release=r)),pending=f.editor.open(f.host);f.owner('two');f.editor.clear();release(list([{id:crypto.randomUUID(),title:'Private previous account'}]));await pending;assert.equal(f.host.textContent,'');assert.equal(f.host.querySelector('form'),null);});
+test('local changes are discarded explicitly; display update never accumulates duplicate action handlers',async()=>{const f=fixture(async()=>list([]));await f.open();f.input('title','Unsaved wording');f.host.querySelector('[data-editor-action=discard-local]').click();assert.equal(f.editor.canLeave(),true);assert.equal(f.host.querySelector('[name=title]').value,'');const {announcementDisplay}=await import('../../js/m4l-announcements-view.mjs');const panel=f.host.ownerDocument.createElement('div');f.host.append(panel);let opens=0;for(let n=0;n<3;n++){const view=announcementDisplay(panel,{announcements:[{id:'one',title:'One',summary:'Summary'}],onOpen:()=>opens++});panel.querySelector('[data-announcement-action=open]').click();view.destroy();}assert.equal(opens,3);});

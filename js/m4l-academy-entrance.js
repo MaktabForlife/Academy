@@ -1211,7 +1211,7 @@
       courses:global ? link('/academy/courses/manage/','Manage Courses')+link('/academy/courses/manage/?view=scheduling','Course scheduling') : scoped(courses,manage),
       enrolments:link('/academy/enrolment/manage/?view=requests','Manage Enrolments')
     };
-    view.innerHTML = `<div class="page-heading admin-heading"><h1>${requested?'Manage '+sections.find(([id])=>id===key)[1]:'Manage Academy'}</h1></div>
+    view.innerHTML = requested==='announcements' ? '<div id="admin-announcements"></div>' : `<div class="page-heading admin-heading"><h1>${requested?'Manage '+sections.find(([id])=>id===key)[1]:'Manage Academy'}</h1></div>
       ${!requested?'<div id="admin-timetable-home"></div>':''}
       ${requested?`<section class="card card-pad" id="admin-workspace"><div class="workspace-actions">${panels[key]||'<p class="muted">No assigned areas are available here.</p>'}</div></section>`:''}<div class="academy-support">${supportSections(null,'admin')}</div>`;
     if(requested==='attendance'&&nativeAttendance()){dockAttendance($('admin-attendance-host'));$('pa-main').hidden=false;$('pa-close').href='#administration';const parts=location.hash.slice(1).split('/');let id='';try{id=['PROGRAM','COURSE'].includes(parts[2])?decodeURIComponent(parts[3]||''):'';}catch{}window.M4L_PROGRAM_ATTENDANCE?.open({admin:true,...(id?{id,...attendanceTarget(parts,4)}:{})});}

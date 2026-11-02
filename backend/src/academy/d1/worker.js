@@ -26,7 +26,7 @@ import {courseWebsites} from './course-websites.js';
 import {publicWebsiteCards,publicWebsiteCardImage,uploadWebsiteCardImage} from './website-cards.js';
 import {publicFoundationsLinks} from './surah-websites-access.js';
 import {acceptFeatureChange} from './setup-publication.js';
-import {announcements,publicAnnouncements,announcementImage,announcementPdf,announcementUpload} from './announcements.js';
+import {announcements,publicAnnouncements,announcementImage,announcementPdf,announcementUpload,publicAnnouncementSnapshot,publicAnnouncementAsset} from './announcements.js';
 import {guardWorkspace,actualState,isAdminWorkspace} from './workspace-access.js';
 import {globalSettings} from './global-settings.js';
 import {headerDate} from '../header-date.js';
@@ -111,11 +111,13 @@ async function rateLimit(env,login) {
 async function dispatch(request,env,options={}) {
   if (![env.PIN_SECRET,env.SESSION_SECRET].every(value=>typeof value==='string'&&value.trim()))
     throw rehearsalError('Academy authentication is not configured.');
+  const path=new URL(request.url).pathname;
+  if(path==='/api/academy/announcements/published'&&['GET','HEAD'].includes(request.method))return publicAnnouncementSnapshot(request,env);
+  if(['/api/academy/announcements/image','/api/academy/announcements/pdf'].includes(path)&&['GET','HEAD'].includes(request.method)&&new URL(request.url).searchParams.has('asset'))return publicAnnouncementAsset(request,env,path.endsWith('/pdf')?'pdf':'image');
   let repository=academyD1Repository(env);
   const sourceRepository=repository;
   let reader;
   const readRepository=async()=>reader??=acceptedRepository(sourceRepository,await acceptedHead(sourceRepository,request.headers.get('X-Academy-Setup')||''));
-  const path=new URL(request.url).pathname;
   if(path==='/api/academy/media-playlist-card-image'&&['GET','HEAD'].includes(request.method))return publicPlaylistCardImage(request,env);
   if(path.startsWith('/internal/website/')||path.startsWith('/api/website-platform/'))return websitePlatformBridge(request,env,{
     login:async input=>{let captured;await dispatch(new Request(new URL(input.setup?'/api/account/setup-pin':'/api/account/login',request.url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)}),env,{capture:value=>captured=value});return captured;},
@@ -178,8 +180,8 @@ async function dispatch(request,env,options={}) {
   if(path==='/api/academy/website-card-image'&&['GET','HEAD'].includes(request.method))return publicWebsiteCardImage(request,setupEnabled(env)?await readRepository():repository,env);
   if(path==='/api/academy/announcements'&&request.method==='GET'){const source=setupEnabled(env)?await readRepository():repository;return conditionalRead(request,source,null,{},async()=>({success:true,...await publicAnnouncements(source)}));}
   if(path==='/api/academy/enrolment/catalogue'&&request.method==='GET')return {success:true,...await enrolmentCatalogue(setupEnabled(env)?await readRepository():repository)};
-  if(path==='/api/academy/announcements/image'&&['GET','HEAD'].includes(request.method))return announcementImage(request,setupEnabled(env)?await readRepository():repository,env);
-  if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,setupEnabled(env)?await readRepository():repository,env);
+  if(path==='/api/academy/announcements/image'&&['GET','HEAD'].includes(request.method))return announcementImage(request,new URL(request.url).searchParams.get('draft')==='1'?repository.authoringRepository():setupEnabled(env)?await readRepository():repository,env);
+  if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,new URL(request.url).searchParams.get('draft')==='1'?repository.authoringRepository():setupEnabled(env)?await readRepository():repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(setupEnabled(env)?await readRepository():repository)};
   if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'109.8',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
@@ -241,12 +243,12 @@ async function dispatch(request,env,options={}) {
     guardWorkspace(request,auth,input);
     return {success:true,...await courseWebsites(repository.authoringRepository(),auth,env).upload(request,input)};
   }
-  if(path==='/api/admin/platform/announcements/save'){
+  if(['/api/admin/platform/announcements/save','/api/admin/platform/announcements/draft-save'].includes(path)){
     const auth=await authenticated(request,env,repository);
     guardWorkspace(request,auth);
     repository=repository.authoringRepository();
-    const editor=announcements(repository,auth,env),{input,image,pdf}=await announcementUpload(request);
-    return {success:true,...await editor.run('save',input,image,pdf)};
+    const editor=announcements(repository,auth,env,{acceptPublication:reference=>acceptFeatureChange(repository,auth,reference)}),{input,image,pdf}=await announcementUpload(request);
+    return {success:true,...await editor.run(path.endsWith('/draft-save')?'draft-save':'save',input,image,pdf)};
   }
   if(['/api/academy/lesson-media/upload','/api/academy/lesson-media/note-upload','/api/academy/lesson-media/video-part'].includes(path)) {
     const auth=await authenticated(request,env,repository),metadata=new URL(request.url).searchParams.get('metadata')||'';
@@ -378,8 +380,8 @@ async function dispatch(request,env,options={}) {
   if(enrolmentAction)return {success:true,...await enrolmentManagement(repository,auth).run(enrolmentAction,input)};
   const bookmarkAction=path.match(/^\/api\/academy\/bookmarks\/(list|save|delete)$/)?.[1];
   if(bookmarkAction)return {success:true,...await pdfBookmarks(repository,auth).run(bookmarkAction,input)};
-  const announcementAction=path.match(/^\/api\/admin\/platform\/announcements\/(list|delete)$/)?.[1];
-  if(announcementAction)return {success:true,...await announcements(repository,auth,env).run(announcementAction,input)};
+  const announcementAction=path.match(/^\/api\/admin\/platform\/announcements\/(list|drafts|publish|unpublish|discard|delete|publish-feed)$/)?.[1];
+  if(announcementAction)return {success:true,...await announcements(repository,auth,env,{acceptPublication:reference=>acceptFeatureChange(repository,auth,reference)}).run(announcementAction,input)};
   const planningAction=path.match(/^\/api\/academy\/planning\/(list|get|save|submit|requirement|requirements|comment|policy|deadline|sessions|session-policy)$/)?.[1];
   if(planningAction)return {success:true,...await lessonPlanning(repository,auth).run(planningAction,input)};
   const pdfToolAction=path.match(/^\/api\/admin\/platform\/pdf-tools\/(get|save)$/)?.[1];
@@ -512,7 +514,7 @@ return {
       if(dailyReadLimit)headers['Retry-After']=String(Math.ceil(retryAfterMs/1000));
       if(status===429)headers['Retry-After']='60';
       return new Response(JSON.stringify({success:false,error:dailyReadLimit?'Academy access has reached today’s service allowance. Please try again after 00:00 UTC (03:00 Riyadh), or contact an administrator.':cardPromotion?'Artwork publication is incomplete. Retry Publish to finish it.':unavailable?'Academy information is temporarily unavailable. Please try again.':error.message,
-        code:dailyReadLimit?'ACADEMY_D1_DAILY_READ_LIMIT':unavailable?(['PLAYLIST_CARD_PROMOTION_PENDING','MESSAGING_SCHEMA_REQUIRED','MESSAGING_NOT_ENABLED','ACADEMIC_CALENDAR_SCHEMA_REQUIRED','ACTIVATION_REQUIRED','MANAGEMENT_SCHEMA_REQUIRED','LEARNING_IMPORT_REQUIRED','COURSE_IMPORT_REQUIRED','COURSE_ACCESS_SCHEMA_REQUIRED','COURSE_MANAGEMENT_SCHEMA_REQUIRED','UPLOAD_BRIDGE_REQUIRED','MEMORISATION_SCHEMA_REQUIRED'].includes(error.code)?error.code:'ACADEMY_D1_UNAVAILABLE'):error.code,retryable:unavailable||status===429,...(dailyReadLimit?{retryAfterMs,resetAt:reset.toISOString()}:{}),...(status===429?{retryAfterMs:60000}:{}),
+        code:dailyReadLimit?'ACADEMY_D1_DAILY_READ_LIMIT':unavailable?(['ANNOUNCEMENT_PUBLICATION_PENDING','ANNOUNCEMENTS_NOT_ACTIVATED','PLAYLIST_CARD_PROMOTION_PENDING','MESSAGING_SCHEMA_REQUIRED','MESSAGING_NOT_ENABLED','ACADEMIC_CALENDAR_SCHEMA_REQUIRED','ACTIVATION_REQUIRED','MANAGEMENT_SCHEMA_REQUIRED','LEARNING_IMPORT_REQUIRED','COURSE_IMPORT_REQUIRED','COURSE_ACCESS_SCHEMA_REQUIRED','COURSE_MANAGEMENT_SCHEMA_REQUIRED','UPLOAD_BRIDGE_REQUIRED','MEMORISATION_SCHEMA_REQUIRED'].includes(error.code)?error.code:'ACADEMY_D1_UNAVAILABLE'):error.code,retryable:unavailable||status===429,...(dailyReadLimit?{retryAfterMs,resetAt:reset.toISOString()}:{}),...(status===429?{retryAfterMs:60000}:{}),
         ...(status===409&&request.headers.get('X-Academy-Workspace')==='ADMIN'?Object.fromEntries(['currentRecord','rowRevision','entryKey'].filter(k=>error[k]!==undefined).map(k=>[k,error[k]])):{} )}),{status,headers});}
   }
 };

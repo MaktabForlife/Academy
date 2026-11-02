@@ -1,38 +1,25 @@
 import {managementStore,managementError as fail} from './management-store.js';
 import {authenticatedD1Account} from './session.js';
-
-const imageLimit=5*1024*1024,pdfLimit=10*1024*1024;
-const pdfSetting=id=>'AnnouncementPdf:'+id;
-// Each announcement has at most one PDF. The indexed settings join keeps public
-// reads to one query and updates attachment metadata in the guarded transaction.
-const readSQL="SELECT a.*,p.setting_value AS pdf_json FROM academy_announcements a LEFT JOIN academy_settings p ON p.setting_key='AnnouncementPdf:'||a.announcement_id";
-function attachment(row){try{const p=JSON.parse(row?.pdf_json||'null');return p&&typeof p.key==='string'&&typeof p.name==='string'&&Number.isInteger(p.bytes)?p:null;}catch{return null;}}
-const pdfUrl=id=>'/api/academy/announcements/pdf?id='+encodeURIComponent(id);
-function dto(r){const pdf=attachment(r);return {id:r.announcement_id,title:r.title,message:r.message,active:Boolean(r.active),order:r.display_order,imageUrl:r.image_key?'/api/academy/announcements/image?id='+encodeURIComponent(r.announcement_id)+'&v='+r.revision:'',imageAlt:r.image_alt||r.title,imageName:r.image_name||'',pdfUrl:pdf?pdfUrl(r.announcement_id):'',pdfName:pdf?.name||'',pdfBytes:pdf?.bytes||0,revision:r.revision,updatedAt:r.updated_at};}
+import {finishAnnouncementPublication,queueAnnouncementPublication,publicAnnouncementSnapshot,publicAnnouncementAsset} from './announcements-publication.js';
+export {publicAnnouncementSnapshot,publicAnnouncementAsset};
+const imageLimit=5*1024*1024,pdfLimit=10*1024*1024,pdfSetting=id=>'AnnouncementPdf:'+id,draftSetting=id=>'AnnouncementDraft:'+id,presentationSetting=id=>'AnnouncementPresentation:'+id;
+export const announcementReadSQL="SELECT a.*,p.setting_value AS pdf_json,s.setting_value AS presentation_json FROM academy_announcements a LEFT JOIN academy_settings p ON p.setting_key='AnnouncementPdf:'||a.announcement_id LEFT JOIN academy_settings s ON s.setting_key='AnnouncementPresentation:'||a.announcement_id";
+const readSQL=announcementReadSQL;
+const parse=(value,fallback=null)=>{try{return JSON.parse(value||'null')??fallback;}catch{return fallback;}};
+const attachment=row=>{const p=parse(row?.pdf_json);return p&&typeof p.key==='string'&&typeof p.name==='string'&&Number.isInteger(p.bytes)?p:null;};
+const presentation=row=>parse(row?.presentation_json,{summary:'',enrolmentUrl:''});
+const validId=id=>/^[a-f0-9-]{36}$/i.test(id||'');
+const imageFromRow=row=>row?.image_key?{key:row.image_key,name:row.image_name,type:row.image_type,bytes:row.image_bytes}:null;
+const imageURL=(id,revision,draft=false)=>'/api/academy/announcements/image?id='+encodeURIComponent(id)+'&v='+revision+(draft?'&draft=1':'');
+const pdfURL=(id,draft=false)=>'/api/academy/announcements/pdf?id='+encodeURIComponent(id)+(draft?'&draft=1':'');
 const admin=auth=>{if(!auth?.state.account.global_admin)throw fail('Only Global Admin can manage Academy announcements.',403,'FORBIDDEN');};
-
-export async function publicAnnouncements(repository){
- const rows=(await repository.db.prepare(readSQL+' WHERE a.active=1 AND a.deleted_at IS NULL ORDER BY a.display_order,a.created_at DESC').all()).results;
- return {announcements:rows.map(r=>{const {id,title,message,imageUrl,imageAlt,pdfUrl,pdfName,pdfBytes}=dto(r);return {id,title,message,imageUrl,imageAlt,pdfUrl,pdfName,pdfBytes};})};
-}
-async function readableAnnouncement(request,repository,env){
- const auth=request.headers.has('Authorization')?await authenticatedD1Account(request,env,repository):null;
- const row=await repository.db.prepare(readSQL+' WHERE a.announcement_id=? AND a.deleted_at IS NULL').bind(new URL(request.url).searchParams.get('id')||'').first();
- return row&&(row.active||auth?.state.account.global_admin)?row:null;
-}
-export async function announcementImage(request,repository,env){
- const row=await readableAnnouncement(request,repository,env);
- const object=row?.image_key?await env.LESSON_MEDIA_BUCKET?.get(row.image_key):null;
- if(!object)throw fail('Announcement image not found.',404,'NOT_FOUND');
- return new Response(request.method==='HEAD'?null:object.body,{headers:{'Content-Type':row.image_type,'Content-Length':String(row.image_bytes),'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
-}
-export async function announcementPdf(request,repository,env){
- const pdf=attachment(await readableAnnouncement(request,repository,env));
- const object=pdf?await env.LESSON_MEDIA_BUCKET?.get(pdf.key):null;
- if(!object)throw fail('Announcement PDF not found.',404,'NOT_FOUND');
- const filename=encodeURIComponent(pdf.name).replace(/['()*]/g,c=>'%'+c.charCodeAt(0).toString(16).toUpperCase());
- return new Response(request.method==='HEAD'?null:object.body,{headers:{'Content-Type':'application/pdf','Content-Length':String(pdf.bytes),'Content-Disposition':"inline; filename=\"announcement.pdf\"; filename*=UTF-8''"+filename,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
-}
+export function announcementDTO(row){const pdf=attachment(row),extra=presentation(row);return {id:row.announcement_id,title:row.title,message:row.message,summary:extra.summary||'',enrolmentUrl:extra.enrolmentUrl||'',active:Boolean(row.active),order:row.display_order,imageUrl:row.image_key?imageURL(row.announcement_id,row.revision):'',imageAlt:row.image_alt||row.title,imageName:row.image_name||'',pdfUrl:pdf?pdfURL(row.announcement_id):'',pdfName:pdf?.name||'',pdfBytes:pdf?.bytes||0,revision:row.revision,updatedAt:row.updated_at};}
+const fromRow=row=>row?{id:row.announcement_id,revision:row.revision,title:row.title,message:row.message,...presentation(row),order:row.display_order,imageAlt:row.image_alt||'',image:imageFromRow(row),pdf:attachment(row),updatedAt:row.updated_at}:null;
+function editorDTO(row,draft){const value=draft||fromRow(row);return {...value,image:undefined,pdf:undefined,active:Boolean(row?.active),published:Boolean(row?.active),publishedRevision:row?.revision||0,hasDraft:Boolean(draft),imageUrl:value.image?imageURL(value.id,value.revision,true):'',imageName:value.image?.name||'',pdfUrl:value.pdf?pdfURL(value.id,true):'',pdfName:value.pdf?.name||'',pdfBytes:value.pdf?.bytes||0};}
+export async function publicAnnouncements(repository){const rows=(await repository.db.prepare(readSQL+' WHERE a.active=1 AND a.deleted_at IS NULL ORDER BY a.display_order,a.created_at DESC LIMIT 200').all()).results;return {announcements:rows.map(r=>{const {id,title,message,summary,enrolmentUrl,imageUrl,imageAlt,pdfUrl,pdfName,pdfBytes}=announcementDTO(r);return {id,title,message,summary,enrolmentUrl,imageUrl,imageAlt,pdfUrl,pdfName,pdfBytes};})};}
+async function readableAnnouncement(request,repository,env){const id=new URL(request.url).searchParams.get('id')||'',privatePreview=new URL(request.url).searchParams.get('draft')==='1',auth=request.headers.has('Authorization')?await authenticatedD1Account(request,env,repository):null;if(privatePreview&&!auth?.state.account.global_admin)throw fail('Sign in as Global Admin to preview this draft.',403,'FORBIDDEN');if(privatePreview){const saved=await repository.db.prepare('SELECT setting_value FROM academy_settings WHERE setting_key=?').bind(draftSetting(id)).first(),draft=parse(saved?.setting_value);if(draft?.id===id)return draft;}const row=await repository.db.prepare(readSQL+' WHERE a.announcement_id=? AND a.deleted_at IS NULL').bind(id).first();return row&&(row.active||auth?.state.account.global_admin)?fromRow(row):null;}
+export async function announcementImage(request,repository,env){const value=await readableAnnouncement(request,repository,env),image=value?.image,object=image?await env.LESSON_MEDIA_BUCKET?.get(image.key):null;if(!object)throw fail('Announcement image not found.',404,'NOT_FOUND');return new Response(request.method==='HEAD'?null:object.body,{headers:{'Content-Type':image.type,'Content-Length':String(image.bytes),'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});}
+export async function announcementPdf(request,repository,env){const value=await readableAnnouncement(request,repository,env),pdf=value?.pdf,object=pdf?await env.LESSON_MEDIA_BUCKET?.get(pdf.key):null;if(!object)throw fail('Announcement PDF not found.',404,'NOT_FOUND');const filename=encodeURIComponent(pdf.name).replace(/['()*]/g,c=>'%'+c.charCodeAt(0).toString(16).toUpperCase());return new Response(request.method==='HEAD'?null:object.body,{headers:{'Content-Type':'application/pdf','Content-Length':String(pdf.bytes),'Content-Disposition':"inline; filename=\"announcement.pdf\"; filename*=UTF-8''"+filename,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});}
 async function uploadFile(file,kind){
  if(!file||typeof file.arrayBuffer!=='function')return null;
  const isPdf=kind==='pdf',limit=isPdf?pdfLimit:imageLimit;
@@ -52,52 +39,39 @@ export async function announcementUpload(request){
  if(!input||typeof input!=='object'||Array.isArray(input))throw fail('Invalid announcement details.');
  return {input,image:await uploadFile(form.get('image'),'image'),pdf:await uploadFile(form.get('pdf'),'pdf')};
 }
-export function announcements(repository,auth,env){
- admin(auth);const store=managementStore(repository,auth),p=store.p;
- const load=()=>store.load({announcements:p(readSQL+' WHERE a.deleted_at IS NULL')});
- async function cleanup(key,kind){
-  if(!key)return;
-  try{
-   const linked=await (kind==='pdf'?p(readSQL+" WHERE a.deleted_at IS NULL AND json_extract(p.setting_value,'$.key')=? LIMIT 1",key):p('SELECT 1 FROM academy_announcements WHERE image_key=? AND deleted_at IS NULL',key)).first();
-   if(!linked)await env.LESSON_MEDIA_BUCKET?.delete(key);
-  }catch{console.warn('announcement_attachment_cleanup_pending');}
- }
+function enrolmentURL(value){if(value==='')return '';if(typeof value!=='string'||value.length>2000)throw fail('Enter a valid enrolment link.');let url;try{url=new URL(value);}catch{throw fail('Enter the full HTTPS enrolment link.');}if(url.protocol!=='https:'||url.username||url.password)throw fail('Use an HTTPS enrolment link without sign-in details.');return url.href;}
+export function announcements(repository,auth,env,{acceptPublication}={}){
+ admin(auth);const store=managementStore(repository,auth),p=store.p,actor=auth.user.accountid;
+ const load=()=>store.load({accounts:p('SELECT * FROM accounts WHERE account_id=?',actor),admins:p('SELECT * FROM global_role_assignments WHERE account_id=?',actor),activities:p('SELECT * FROM activities WHERE 0'),roles:p('SELECT * FROM role_assignments WHERE 0'),reviews:p('SELECT * FROM role_import_reviews WHERE 0'),policies:p('SELECT * FROM activity_policy_imports WHERE 0'),programs:p('SELECT * FROM program_settings WHERE 0'),mappings:p('SELECT * FROM role_mapping_decisions WHERE 0'),evidence:p('SELECT * FROM legacy_access_evidence WHERE 0'),announcements:p(readSQL+' WHERE a.deleted_at IS NULL ORDER BY a.display_order,a.created_at DESC LIMIT 201'),drafts:p("SELECT setting_key,setting_value FROM academy_settings WHERE setting_key>='AnnouncementDraft:' AND setting_key<'AnnouncementDraft;' ORDER BY setting_key LIMIT 201"),publicHead:p("SELECT setting_value FROM academy_settings WHERE setting_key='AnnouncementPublicHead'")});
+ const settings=(key,value,at)=>p('INSERT INTO academy_settings(setting_key,setting_value,updated_at,updated_by_account_id) VALUES(?,?,?,?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value,updated_at=excluded.updated_at,updated_by_account_id=excluded.updated_by_account_id',key,JSON.stringify(value),at,actor);
+ const getDraft=(data,id)=>parse(data.drafts.find(r=>r.setting_key===draftSetting(id))?.setting_value);
+ const protectKeys=value=>[value?.image?.key,value?.pdf?.key].filter(Boolean);
+ async function cleanup(id,keys){if(!keys.length)return;try{const [row,draftRow]=await repository.db.batch([p(readSQL+' WHERE a.announcement_id=? AND a.deleted_at IS NULL',id),p('SELECT setting_value FROM academy_settings WHERE setting_key=?',draftSetting(id))]),refs=new Set([...protectKeys(fromRow(row.results[0])),...protectKeys(parse(draftRow.results[0]?.setting_value))]);for(const key of new Set(keys))if(key&&!refs.has(key))await env.LESSON_MEDIA_BUCKET?.delete(key);}catch{console.warn('announcement_attachment_cleanup_pending');}}
  return {async run(action,input={},image=null,pdf=null){
-  if(action==='list'){const d=await load();return {announcements:d.announcements.sort((a,b)=>a.display_order-b.display_order||b.created_at.localeCompare(a.created_at)).map(dto)};}
-  if(!['save','delete'].includes(action))throw fail('Unknown announcement action.',404);
-  const id=String(input.id||'');if(!/^[a-f0-9-]{36}$/i.test(id))throw fail('Invalid announcement identifier.');
-  const clean={id,revision:input.revision,operationId:input.operationId};
-  if(action==='save'){
-   for(const [name,max]of [['title',160],['message',6000],['imageAlt',300]]){if(typeof input[name]!=='string'||input[name].length>max)throw fail('Enter a shorter '+name+'.');clean[name]=input[name].trim();}
-   if(!clean.title)throw fail('Enter an announcement heading.');
-   if(typeof input.active!=='boolean'||!Number.isInteger(input.order)||input.order<0||input.order>9999||typeof input.removeImage!=='boolean'||Object.hasOwn(input,'removePdf')&&typeof input.removePdf!=='boolean')throw fail('Choose an announcement status and order.');
-   Object.assign(clean,{active:input.active,order:input.order,removeImage:input.removeImage,image:image?{hash:image.hash,type:image.type,name:image.name,size:image.size}:null});
-   // Preserve the receipt hash for saves pending in older website versions.
-   if(pdf||Object.hasOwn(input,'removePdf'))Object.assign(clean,{removePdf:input.removePdf===true,pdf:pdf?{hash:pdf.hash,type:pdf.type,name:pdf.name,size:pdf.size}:null});
-  }
-  const prefix=(env.ACADEMY_OBJECT_NAMESPACE||'')+'academy-announcements/'+id+'/'+input.operationId+'/',newKey=image?prefix+image.hash:null,newPdfKey=pdf?prefix+pdf.hash+'.pdf':null;
-  let result;
+  if(action==='list'||action==='drafts'){const data=await load();if(action==='list')return {announcements:data.announcements.map(announcementDTO)};const rows=new Map(data.announcements.map(row=>[row.announcement_id,editorDTO(row,getDraft(data,row.announcement_id))]));for(const saved of data.drafts){const value=parse(saved.setting_value);if(value&&validId(value.id)&&saved.setting_key===draftSetting(value.id)&&!rows.has(value.id))rows.set(value.id,editorDTO(null,value));}const feed=await env.LESSON_MEDIA_BUCKET?.head?.((env.ACADEMY_OBJECT_NAMESPACE||'')+'public/announcements/v2/feed.json');return {contract:'ANNOUNCEMENTS_EDITOR_V2',announcements:[...rows.values()].sort((a,b)=>a.order-b.order||a.title.localeCompare(b.title)),publicGeneration:parse(data.publicHead[0]?.setting_value)?.generation||0,deliveryReady:Boolean(feed)};}
+  if(!['save','draft-save','publish','unpublish','discard','delete','publish-feed'].includes(action))throw fail('Unknown announcement action.',404);
+  const id=String(input.id||'');if(action!=='publish-feed'&&!validId(id))throw fail('Invalid announcement identifier.');const clean={...(action==='publish-feed'?{}:{id}),revision:input.revision,operationId:input.operationId};if(['draft-save','publish','unpublish','discard'].includes(action)){if(!Number.isSafeInteger(input.publishedRevision)||input.publishedRevision<0)throw fail('Refresh this announcement before editing.');clean.publishedRevision=input.publishedRevision;}
+  if(['save','draft-save'].includes(action)){for(const [name,max]of [['title',160],['message',6000],['imageAlt',300]]){if(typeof input[name]!=='string'||input[name].length>max)throw fail('Enter a shorter '+name+'.');clean[name]=input[name].trim();}if(!clean.title)throw fail('Enter an announcement heading.');if(typeof input.active!=='boolean'||!Number.isInteger(input.order)||input.order<0||input.order>9999||typeof input.removeImage!=='boolean'||Object.hasOwn(input,'removePdf')&&typeof input.removePdf!=='boolean')throw fail('Choose an announcement status and order.');Object.assign(clean,{active:input.active,order:input.order,removeImage:input.removeImage,image:image?{hash:image.hash,type:image.type,name:image.name,size:image.size}:null});if(pdf||Object.hasOwn(input,'removePdf'))Object.assign(clean,{removePdf:input.removePdf===true,pdf:pdf?{hash:pdf.hash,type:pdf.type,name:pdf.name,size:pdf.size}:null});if(action==='draft-save'){if(typeof input.summary!=='string'||input.summary.length>500)throw fail('Keep the summary within 500 characters.');clean.summary=input.summary.trim();clean.enrolmentUrl=enrolmentURL(input.enrolmentUrl??'');}}
+  if(action==='delete'&&input.contract==='ANNOUNCEMENTS_EDITOR_V2'){clean.contract=input.contract;clean.publishedRevision=input.publishedRevision;}if(['publish','publish-feed'].includes(action))clean.replaceHomepage=input.replaceHomepage===true;
+  const prefix=(env.ACADEMY_OBJECT_NAMESPACE||'')+'academy-announcements/'+id+'/'+input.operationId+'/',newKey=image?prefix+image.hash:null,newPdfKey=pdf?prefix+pdf.hash+'.pdf':null;let result;
   try{result=await store.change('ANNOUNCEMENTS','ACADEMY',action,clean,async()=>{
-   const d=await load(),row=d.announcements.find(r=>r.announcement_id===id),oldPdf=attachment(row);
-   if(input.revision!==(row?.revision||0)||action==='delete'&&!row)throw fail('This announcement changed elsewhere. Your entry is kept; reload the saved list.',409,'ROW_CHANGED');
-   if(action==='save'&&!row&&d.announcements.length>=200)throw fail('Keep up to 200 current announcements. Delete unused entries before adding more.');
-   const at=new Date().toISOString(),revision=(row?.revision||0)+1,statements=[];let saved,savedPdf=null;
-   if(action==='delete'){
-    statements.push(p('UPDATE academy_announcements SET deleted_at=?,active=0,revision=?,updated_at=?,updated_by=? WHERE announcement_id=?',at,revision,at,auth.user.accountid,id));
-    statements.push(p('DELETE FROM academy_settings WHERE setting_key=?',pdfSetting(id)));
-   }else{
-    const keep=!input.removeImage&&!image,imageKey=newKey||(keep?row?.image_key:null)||null;
-    savedPdf=pdf?{key:newPdfKey,name:pdf.name,bytes:pdf.size}:input.removePdf?null:oldPdf;
-    if(!clean.message&&!imageKey&&!savedPdf)throw fail('Add a message, image or PDF.');
-    if((image||pdf)&&!env.LESSON_MEDIA_BUCKET)throw fail('Attachment storage is unavailable.',503);
-    if(image)await env.LESSON_MEDIA_BUCKET.put(newKey,image.bytes,{httpMetadata:{contentType:image.type}});
-    if(pdf)await env.LESSON_MEDIA_BUCKET.put(newPdfKey,pdf.bytes,{httpMetadata:{contentType:'application/pdf'}});
-    saved={announcement_id:id,title:clean.title,message:clean.message,active:Number(clean.active),display_order:clean.order,image_key:imageKey,image_name:image?.name||(keep?row?.image_name:null)||null,image_type:image?.type||(keep?row?.image_type:null)||null,image_bytes:image?.size||(keep?row?.image_bytes:null)||null,image_alt:clean.imageAlt,revision,created_at:row?.created_at||at,updated_at:at,updated_by:auth.user.accountid,deleted_at:null};
-    const fields=Object.keys(saved);statements.push(p('INSERT INTO academy_announcements('+fields.join(',')+') VALUES('+fields.map(()=>'?').join(',')+') ON CONFLICT(announcement_id) DO UPDATE SET '+fields.filter(k=>k!=='announcement_id').map(k=>k+'=excluded.'+k).join(','),...Object.values(saved)));
-    if(pdf||input.removePdf)statements.push(savedPdf?p('INSERT INTO academy_settings(setting_key,setting_value,updated_at,updated_by_account_id) VALUES(?,?,?,?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value,updated_at=excluded.updated_at,updated_by_account_id=excluded.updated_by_account_id',pdfSetting(id),JSON.stringify(savedPdf),at,auth.user.accountid):p('DELETE FROM academy_settings WHERE setting_key=?',pdfSetting(id)));
-   }
-   return {data:d,statements,result:{saved:true,announcement:saved?dto({...saved,pdf_json:JSON.stringify(savedPdf)}):null,oldImageKey:row?.image_key&&row.image_key!==saved?.image_key?row.image_key:null,oldPdfKey:oldPdf?.key&&oldPdf.key!==savedPdf?.key?oldPdf.key:null},fields:['Announcement']};
-  });}catch(error){await cleanup(newKey,'image');await cleanup(newPdfKey,'pdf');throw error;}
-  await cleanup(result.oldImageKey,'image');await cleanup(result.oldPdfKey,'pdf');const {oldImageKey,oldPdfKey,...visible}=result;return visible;
+   const data=await load(),row=data.announcements.find(r=>r.announcement_id===id),privateDraft=getDraft(data,id),editing=privateDraft||fromRow(row),head=parse(data.publicHead[0]?.setting_value,{generation:0,activeIds:[],retiredIds:[]}),at=new Date().toISOString(),statements=[],oldKeys=[...protectKeys(fromRow(row)),...protectKeys(privateDraft)];let saved=row,savedDraft=privateDraft,publicChanged=false;
+   if((['draft-save','publish','unpublish','discard'].includes(action)||action==='delete'&&clean.contract==='ANNOUNCEMENTS_EDITOR_V2')&&input.publishedRevision!==(row?.revision||0))throw fail('The published announcement changed. Refresh before continuing.',409,'ROW_CHANGED');
+   if(['publish','publish-feed'].includes(action)&&!head.generation&&!clean.replaceHomepage)throw fail('Review the current homepage notices before connecting the new announcements display.',409,'ANNOUNCEMENTS_REVIEW_REQUIRED');
+   if(action==='publish-feed'){if(input.revision!==head.generation)throw fail('The published announcements changed. Refresh before publishing.',409,'ROW_CHANGED');publicChanged=true;}
+   else if(action==='save'){if(privateDraft)throw fail('This announcement has a separate saved draft. Open the new builder before changing it.',409,'ANNOUNCEMENT_DRAFT_PENDING');if(input.revision!==(row?.revision||0))throw fail('This announcement changed elsewhere. Your entry is kept; reload the saved list.',409,'ROW_CHANGED');}
+   else if(input.revision!==(editing?.revision||0)||['publish','unpublish','discard','delete'].includes(action)&&!editing)throw fail('This announcement changed elsewhere. Your entry is kept; reload the saved list.',409,'ROW_CHANGED');
+   const ids=new Set([...data.announcements.map(r=>r.announcement_id),...data.drafts.map(r=>r.setting_key.slice('AnnouncementDraft:'.length))]);if(['save','draft-save'].includes(action)&&!ids.has(id)&&ids.size>=200)throw fail('Keep up to 200 current announcements. Remove unused drafts before adding more.');
+   if(['save','draft-save'].includes(action)){const previous=action==='save'?fromRow(row):editing,imageRef=image?{key:newKey,name:image.name,type:image.type,bytes:image.size,hash:image.hash}:input.removeImage?null:previous?.image||null,pdfRef=pdf?{key:newPdfKey,name:pdf.name,bytes:pdf.size,hash:pdf.hash}:input.removePdf?null:previous?.pdf||null;if(action==='save'&&!clean.message&&!imageRef&&!pdfRef&&!clean.summary)throw fail('Add a summary, image or PDF.');if((image||pdf)&&!env.LESSON_MEDIA_BUCKET)throw fail('Attachment storage is unavailable.',503);if(image)await env.LESSON_MEDIA_BUCKET.put(newKey,image.bytes,{httpMetadata:{contentType:image.type}});if(pdf)await env.LESSON_MEDIA_BUCKET.put(newPdfKey,pdf.bytes,{httpMetadata:{contentType:'application/pdf'}});const value={id,revision:(previous?.revision||0)+1,title:clean.title,message:clean.message,summary:action==='draft-save'?clean.summary:previous?.summary||'',enrolmentUrl:action==='draft-save'?clean.enrolmentUrl:previous?.enrolmentUrl||'',imageAlt:clean.imageAlt,order:clean.order,image:imageRef,pdf:pdfRef,updatedAt:at};if(action==='draft-save'){savedDraft=value;statements.push(settings(draftSetting(id),value,at));}else{saved=canonical(value,row,clean.active,at,actor);writeCanonical(saved,value);publicChanged=Boolean(clean.active||row?.active);}}
+   else if(action==='publish'){if(!editing.summary?.trim()||!editing.image)throw fail('Add an image and a short summary before publishing.',400,'ANNOUNCEMENT_CONTENT_REQUIRED');saved=canonical({...editing,revision:editing.revision+1},row,true,at,actor);writeCanonical(saved,editing);statements.push(p('DELETE FROM academy_settings WHERE setting_key=?',draftSetting(id)));savedDraft=null;publicChanged=true;}
+   else if(action==='unpublish'){if(!row)throw fail('This announcement has not been published.',409);saved={...row,active:0,revision:row.revision+1,updated_at:at,updated_by:actor};statements.push(p('UPDATE academy_announcements SET active=0,revision=?,updated_at=?,updated_by=? WHERE announcement_id=?',saved.revision,at,actor,id));publicChanged=Boolean(row.active);}
+   else if(action==='discard'){statements.push(p('DELETE FROM academy_settings WHERE setting_key=?',draftSetting(id)));savedDraft=null;}
+   else if(action==='delete'){if(privateDraft&&clean.contract!=='ANNOUNCEMENTS_EDITOR_V2')throw fail('This announcement has a separate saved draft. Open the new builder.',409,'ANNOUNCEMENT_DRAFT_PENDING');if(row)statements.push(p('UPDATE academy_announcements SET deleted_at=?,active=0,revision=?,updated_at=?,updated_by=? WHERE announcement_id=?',at,row.revision+1,at,actor,id));for(const key of [pdfSetting(id),draftSetting(id),presentationSetting(id)])statements.push(p('DELETE FROM academy_settings WHERE setting_key=?',key));publicChanged=Boolean(row?.active);saved=null;savedDraft=null;}
+   let publicGeneration;if(publicChanged&&(head.generation>0||['publish','publish-feed'].includes(action))){const publishedRows=data.announcements.filter(r=>r.announcement_id!==id&&r.active);if(saved?.active)publishedRows.push(saved);const queued=await queueAnnouncementPublication(env,head,publishedRows.map(r=>r.announcement_id),input.operationId);publicGeneration=queued.generation;statements.push(settings('AnnouncementPublicHead',queued,at));}
+   return {data,statements,result:{saved:true,...(action==='save'?{announcement:announcementDTO(saved)}:{announcement:saved||savedDraft?editorDTO(saved,savedDraft):null}),...(publicGeneration?{publicGeneration}:{}),cleanupKeys:oldKeys.filter(Boolean)},fields:['Announcement'],authorityScopes:['GLOBAL'],acceptDefinitions:!['draft-save','discard'].includes(action)};
+   function writeCanonical(value,content){const fields=Object.keys(value);statements.push(p('INSERT INTO academy_announcements('+fields.join(',')+') VALUES('+fields.map(()=>'?').join(',')+') ON CONFLICT(announcement_id) DO UPDATE SET '+fields.filter(k=>k!=='announcement_id').map(k=>k+'=excluded.'+k).join(','),...Object.values(value)));statements.push(content.pdf?settings(pdfSetting(id),content.pdf,at):p('DELETE FROM academy_settings WHERE setting_key=?',pdfSetting(id)));const extra={version:1,summary:content.summary||'',enrolmentUrl:content.enrolmentUrl||''};statements.push(settings(presentationSetting(id),extra,at));saved={...value,pdf_json:JSON.stringify(content.pdf),presentation_json:JSON.stringify(extra)};}
+  });}catch(error){await cleanup(id,[newKey,newPdfKey].filter(Boolean));throw error;}
+  await cleanup(id,result.cleanupKeys||[]);if(result.publicGeneration){if(result.acceptedChange&&acceptPublication)await acceptPublication(result.acceptedChange);if(env.LESSON_MEDIA_BUCKET)await finishAnnouncementPublication(repository,env);}const {cleanupKeys,...visible}=result;return visible;
  }};
 }
+function canonical(value,old,active,at,actor){return {announcement_id:value.id,title:value.title,message:value.message,active:Number(active),display_order:value.order,image_key:value.image?.key||null,image_name:value.image?.name||null,image_type:value.image?.type||null,image_bytes:value.image?.bytes||null,image_alt:value.imageAlt,revision:value.revision,created_at:old?.created_at||at,updated_at:at,updated_by:actor,deleted_at:null};}

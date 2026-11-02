@@ -9,7 +9,7 @@ export function liveColumns(table){
  const spec=setupSchema[table];if(!spec)return [];
  return [...new Set([...(spec.live||[]),...(spec.columns.includes('active')?['active']:[]),...(table==='activities'?['activity_id','kind','website_visible']:[]),...(table==='assessments'?['created_at','created_by']:[])])];
 }
-export const settingOwner=key=>definitionSetting(String(key))||String(key).startsWith('AnnouncementPdf:')?'admin':'core';
+export const settingOwner=key=>definitionSetting(String(key))||/^(?:AnnouncementPdf:|AnnouncementDraft:|AnnouncementPresentation:)/.test(String(key))?'admin':'core';
 export function fieldOwner(table,column){
  if(operational.has(table)||coreSetupTables.has(table)||!adminTables.has(table))return 'core';
  return liveColumns(table).includes(column)?'core':'admin';

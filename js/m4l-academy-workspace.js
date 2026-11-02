@@ -112,7 +112,7 @@
   const method=String(options?.method||(resource instanceof Request?resource.method:'GET')).toUpperCase();
   // This anonymous public list selects the current accepted publication on the
   // server. Session restoration must not delay or discard its public response.
-  if(url.pathname==='/api/academy/announcements'&&method==='GET'&&!headers.has('Authorization')){
+  if(['/api/academy/announcements','/api/academy/announcements/published'].includes(url.pathname)&&method==='GET'&&!headers.has('Authorization')){
    for(const name of ['X-Academy-Workspace','X-Academy-Class','X-Academy-Setup'])headers.delete(name);
    return original(resource,{...options,headers});
   }
