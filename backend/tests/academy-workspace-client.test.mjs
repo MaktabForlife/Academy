@@ -174,6 +174,7 @@ test('Course bridge exceptions remain limited to the exact native Studio route, 
   ['https://api.invalid/api/admin/platform/studio-access/anything',{method:'POST',body:JSON.stringify(scope)},scope],
   ['https://api.invalid/api/admin/platform/studio-access',{method:'GET',body:JSON.stringify(scope)},scope],
   ['https://api.invalid/api/admin/platform/studio-access',{method:'POST',body:JSON.stringify({activityKey:'COURSE:other'})},scope],
+  ['https://api.invalid/api/admin/platform/studio-access?metadata='+encodeURIComponent(JSON.stringify(scope)),{method:'POST',body:JSON.stringify({activityKey:'COURSE:other'})},scope],
   ['https://api.invalid/api/admin/platform/studio-access',{method:'POST',body:JSON.stringify(scope)},{activityKey:'GLOBAL:all'}]
  ])await assert.rejects(w.adminFetch(url,options,context),e=>e.status===403);
  assert.equal(f.calls.length,0);assert.equal(f.authCalls.length,0);

@@ -104,7 +104,7 @@
   const url=new URL(typeof resource==='string'||resource instanceof URL?resource:resource.url,location.href),api=new URL(window.M4L_CONFIG?.API_BASE||location.origin,location.href);
   const studio=studioEditorRoute(url.pathname),allowedScope=studio?/^(?:PROGRAM|COURSE):[-A-Za-z0-9_]+$/.test(scope.activityKey||''):/^PROGRAM:[-A-Za-z0-9_]+$/.test(scope.activityKey||'');
   if(url.origin!==api.origin||!(studio||editorRoute(url.pathname))||!allowedScope||studio&&String(options.method||'GET').toUpperCase()!=='POST')throw Object.assign(Error('Open Admin editing for this exact Course or Program.'),{status:403});
-  const input=url.searchParams.has('metadata')?JSON.parse(url.searchParams.get('metadata')):JSON.parse(options.body||'{}');if(input.activityKey!==scope.activityKey)throw Object.assign(Error('The selected editing programme changed.'),{status:403});
+  const input=!studio&&url.searchParams.has('metadata')?JSON.parse(url.searchParams.get('metadata')):JSON.parse(options.body||'{}');if(input.activityKey!==scope.activityKey)throw Object.assign(Error('The selected editing programme changed.'),{status:403});
   const requestOptions={...options};editorRequests.set(requestOptions,scope);try{return await window.fetch(resource,requestOptions);}finally{editorRequests.delete(requestOptions);}
  }
  window.fetch=async(resource,options)=>{
