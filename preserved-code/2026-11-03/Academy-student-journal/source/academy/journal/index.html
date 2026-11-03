@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>My journal · Umm Abbad Academy</title>
+<link rel="icon" href="/academy/course-websites/assets/favicon.svg"><link rel="stylesheet" href="/academy/course-websites/assets/fonts.css"><link rel="stylesheet" href="/css/m4l-academy-navigation.css?v=106.11"><link rel="stylesheet" href="/css/m4l-academy-shell.css?v=107.116"><link rel="stylesheet" href="/css/m4l-academy-mobile.css?v=107.116"><link rel="stylesheet" href="/css/m4l-academy-page-actions.css?v=107.116"><link rel="stylesheet" href="./journal.css?v=journal-r2-local">
+<script src="/js/m4l-academy-workspace.js?v=journal-r2-local"></script></head>
+<body class="journal-page" data-academy-header-dates="true"><main class="journal-main">
+<header class="journal-heading"><div><span class="journal-eyebrow">A SPACE TO RETURN TO</span><h1>My journal</h1><p>Your reflections, across every surah and course. Only you can access your entries.</p></div><button id="journal-new" type="button" disabled>New entry <span aria-hidden="true">＋</span></button></header>
+<p id="journal-message" role="status" aria-live="polite">Opening your journal securely…</p>
+<div id="journal-workspace" hidden>
+<section class="journal-browser" aria-label="Your journal entries"><form id="journal-search" role="search"><label for="journal-query">Search your journal</label><div class="journal-search-row"><input id="journal-query" type="search" maxlength="200" placeholder="Surah, course, or a thought…"><button type="submit">Search</button></div></form><div id="journal-list" class="journal-list"></div><button id="journal-more" type="button" hidden>More entries</button><button id="journal-export" type="button" class="journal-secondary">Download saved journal</button></section>
+<section class="journal-editor" aria-labelledby="journal-editor-title"><div class="journal-editor-heading"><h2 id="journal-editor-title">A little space for your thoughts</h2><span id="journal-save-status" role="status" aria-live="polite"></span></div><p class="journal-hint">Every field is optional. Typing keeps a draft on this device. Select Save to update your journal.</p>
+<form id="journal-form" hidden><div class="journal-fields">
+<label>Course<input name="course" maxlength="240" autocomplete="off" dir="auto" placeholder="Any course, or leave empty"></label>
+<label>Surah<input name="surah" maxlength="240" autocomplete="off" dir="auto" placeholder="Any surah, or leave empty"></label>
+<label>Lesson<input name="lesson" maxlength="400" autocomplete="off" dir="auto"></label>
+<label>Ayah reference<input name="ayah" maxlength="240" autocomplete="off" dir="auto" placeholder="For example, 18:10–15"></label>
+<label>Entry date<input name="entryDate" type="date"></label>
+</div><label class="journal-wide">Reflection question<textarea name="question" maxlength="8000" rows="2" dir="auto" placeholder="What would you like to reflect on?"></textarea></label>
+<label class="journal-wide">My reflection<textarea name="reflection" maxlength="50000" rows="10" dir="auto" placeholder="Give your thoughts a little space…"></textarea></label>
+<div class="journal-editor-actions"><button id="journal-save" type="submit">Save entry</button><button id="journal-copy" type="button" class="journal-secondary" hidden>Save my edits as a new entry</button><button id="journal-reopen" type="button" class="journal-secondary" hidden>Discard device draft</button></div><p id="journal-save-error" role="alert" hidden></p><p id="journal-saved-date" class="journal-hint"></p></form>
+<p id="journal-empty-editor" class="journal-empty">Choose an entry to revisit, or start with a blank page.</p>
+</section></div><button type="button" id="journal-refresh" data-page-content-refresh style="display:none">Refresh journal</button>
+</main>
+<script src="/js/m4l-config.js?v=107.116"></script><script src="/js/m4l-academy-navigation.js?v=journal-r2-local"></script><script src="/js/m4l-academy-mobile.js?v=journal-r2-local"></script><script src="/js/m4l-academy-page-actions.js?v=journal-r2-local"></script><script src="/js/m4l-academy-header-date.js?v=107.116"></script><script type="module" src="./journal.mjs?v=journal-r2-local"></script></body></html>

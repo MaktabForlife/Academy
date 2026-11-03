@@ -1,0 +1,573 @@
+diff --git a/academy/courses/manage/index.html b/academy/courses/manage/index.html
+index f957bcfd..0a4132bd 100644
+--- a/academy/courses/manage/index.html
++++ b/academy/courses/manage/index.html
+@@ -29,7 +29,7 @@
+         <div class="cm-list-toolbar"><strong id="course-count">Courses</strong><button id="course-new" type="button">+ New Course</button></div>
+         <label class="cm-search">Find a Course<input id="course-search" type="search" placeholder="Search by name…" autocomplete="off"></label>
+         <label class="cm-status-filter">Status<select id="course-status-filter"><option value="AVAILABLE" selected>Current courses</option><option value="">All statuses</option><option>DRAFT</option><option>PUBLISHED</option><option>ACTIVE</option><option>COMPLETE</option><option>CANCELLED</option><option>ARCHIVED</option></select></label>
+-        <div id="course-list" class="cm-list"></div>
++        <div id="course-list" class="cm-list" role="region" aria-label="Course list" tabindex="0"></div>
+       </section>
+       <div id="course-editor" class="cm-editor" role="tabpanel"><div class="cm-empty"><h2>Select a course</h2></div></div>
+     </section>
+@@ -39,7 +39,7 @@
+   <script src="/js/m4l-lesson-media-cache.js?v=109.10"></script><script src="/js/m4l-library-cache.js?v=109.10"></script><script src="/js/m4l-lesson-pdf-library.js?v=109.10"></script><script src="/js/m4l-lesson-media.js?v=109.10"></script>
+   <script src="/js/m4l-config.js?v=109.10"></script>
+   <script src="/js/m4l-enrolment-common.js?v=109.10"></script><script src="/js/m4l-enrolment-admin.js?v=109.10"></script><script src="/js/m4l-enrolment-workspace.js?v=109.10"></script>
+-  <script src="/js/m4l-time.js?v=109.10"></script><script src="/js/m4l-studio-access.js?v=eb34f1cdd3"></script><script src="/js/m4l-academy-course-management.js?v=e97079cbff"></script>
++  <script src="/js/m4l-course-participants.js"></script><script src="/js/m4l-time.js?v=109.10"></script><script src="/js/m4l-studio-access.js?v=eb34f1cdd3"></script><script src="/js/m4l-academy-course-management.js?v=e97079cbff"></script>
+   <script src="/js/m4l-academy-navigation.js?v=109.10"></script>
+ <script src="/js/m4l-academy-mobile.js?v=109.10"></script>
+ <script src="/js/m4l-academy-page-actions.js?v=109.10"></script>
+diff --git a/backend/src/academy/d1/web-platform/course-user-search.mjs b/backend/src/academy/d1/web-platform/course-user-search.mjs
+new file mode 100644
+index 00000000..2a1a1482
+--- /dev/null
++++ b/backend/src/academy/d1/web-platform/course-user-search.mjs
+@@ -0,0 +1,17 @@
++import {fail,id} from './protocol.mjs';
++
++// Page native keys before matching names. A search never captures the complete
++// user/role matrix, and never creates or links an account.
++export async function courseUserSearch(db,activity,input){
++ const search=typeof input.search==='string'?input.search.trim():'';
++ if(search.length>80)throw fail('Use a search of up to 80 characters.');
++ const after=input.after?id(input.after):'';
++ const candidates=(await db.prepare('SELECT account_id,display_name,login_link_id,active FROM accounts WHERE account_id>? COLLATE NOCASE ORDER BY account_id COLLATE NOCASE LIMIT 51').bind(after).all()).results;
++ const page=candidates.slice(0,50),keys=JSON.stringify(page.map(a=>a.account_id));
++ const facts=(await db.prepare('SELECT account_id,admitted FROM website_platform_account_state WHERE account_id IN(SELECT value FROM json_each(?))').bind(keys).all()).results;
++ const permitted=new Set(facts.filter(a=>a.admitted).map(a=>a.account_id.toLowerCase())),query=search.toLowerCase();
++ const matches=page.filter(a=>a.active&&permitted.has(a.account_id.toLowerCase())&&(!query||[a.display_name,a.account_id,a.login_link_id].some(v=>String(v||'').toLowerCase().includes(query))));
++ const accounts=matches.slice(0,20).map(a=>({accountId:a.account_id,displayName:a.display_name,uniqueId:a.login_link_id}));
++ const more=matches.length>20||candidates.length>50;
++ return {success:true,schema:'COURSE_USER_SEARCH_V1',activityKey:activity,accounts,more,nextCursor:more?(matches.length>20?accounts.at(-1).accountId:page.at(-1)?.account_id)||null:null};
++}
+diff --git a/backend/src/academy/d1/web-platform/studio-admin.mjs b/backend/src/academy/d1/web-platform/studio-admin.mjs
+index 60e506b5..1ac677ec 100644
+--- a/backend/src/academy/d1/web-platform/studio-admin.mjs
++++ b/backend/src/academy/d1/web-platform/studio-admin.mjs
+@@ -6,6 +6,7 @@ import {markAccess,queueAccess,importAccessPage,accessStream} from './access.mjs
+ import {id,integer,fail,random,signedHeaders,bodyJSON,websiteServerOrigin} from './protocol.mjs';
+ import {studioAccessCatalogue} from './studio-catalogue.mjs';
+ import {gridClassMetadata,validateGridClasses} from './studio-monthly-grid.mjs';
++import {courseUserSearch} from './course-user-search.mjs';
+ 
+ const readAction=action=>['read','monthly-grid','access-table','mou-playlists'].includes(action);
+ // Indexed stream heads bound this to the actor and offering. Known changes are
+@@ -49,6 +50,10 @@ export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_S
+   const origin=new URL(env.WEBSITE_PLATFORM_ORIGIN);if(origin.origin!==env.WEBSITE_PLATFORM_ORIGIN||origin.protocol!=='https:'&&env.ENVIRONMENT!=='local')throw fail('Studio navigation is unavailable.',503);
+   return {success:true,monthly:mapping.kind==='TAFSEER',managed:true,kind:mapping.kind,activityKey:activity,offeringId:mapping.offering_id,programmeKey:programme?.programme_key||null,ownership:owner.state,destination:origin.origin+'/studio/?manage=1&offering='+encodeURIComponent(mapping.offering_id)+'&section=media'};
+  }
++ if(command.action==='course-user-search'){
++  if(mapping.kind!=='COURSE'||owner?.state!=='STUDIO'||!allowed.global_admin)throw fail('Current Global Admin authority is required to add existing Course users.',403,'ADMIN_SCOPE_REQUIRED');
++  return courseUserSearch(db,activity,command);
++ }
+  const proof=await adminProof(db,auth,allowed);
+  const reuse=readAction(command.action)&&await reusableReadProof(db,proof,mapping);
+  const send=async command=>{
+diff --git a/backend/tests/academy-course-management-ui.test.mjs b/backend/tests/academy-course-management-ui.test.mjs
+index cc0388df..0a9c378f 100644
+--- a/backend/tests/academy-course-management-ui.test.mjs
++++ b/backend/tests/academy-course-management-ui.test.mjs
+@@ -20,14 +20,14 @@ async function screen(env,identity='0001',search='',accessOwner=null,studioSetup
+  return {element,requests,context,events,settle,enter:(field,value)=>documentEvents.get('input').at(-1)({target:{dataset:{field},value,type:'text'}}),chooseDay:day=>documentEvents.get('change').at(-1)({target:{dataset:{day:String(day)},checked:true,type:'checkbox'}}),chooseRole:(accountId,role,checked)=>documentEvents.get('change').at(-1)({target:{dataset:{person:accountId,role},checked,type:'checkbox'}}),searchPeople:value=>documentEvents.get('input').at(-1)({target:{id:'course-people-search',value,selectionStart:value.length}}),filter:async(key,value)=>{const el=element(key==='search'?'course-search':'course-status-filter');el.value=value;el.listeners[key==='search'?'input':'change']();await settle();},click:async(action,dataset={})=>{documentEvents.get('click')[0]({target:{closest:()=>({dataset:{cmAction:action,...dataset}})},preventDefault(){}});await settle();},changeToken:value=>{token=value;events.get('storage')({key:'m4l_account_token'});}};
+ }
+ 
+-test('Save participants persists every changed role even when search hides the users, without changing the published schedule',async()=>{
++test('Save participants persists selected students while preserving staff roles and the published schedule',async()=>{
+  const f=await fixture();try{
+   const page=await screen(f.env,'0001','?course=subject-1&run=run-1&tab=participants'),before=f.db.prepare('SELECT * FROM timetable_publications').all();
+-  let html=page.element('course-editor').innerHTML;assert.match(html,/data-stage="(?:PUBLISHED|ACTIVE)"/);assert.equal((html.match(/data-cm-action="save-participants"/g)||[]).length,2);assert.match(html,/data-cm-action="save-participants"[^>]* disabled/);
+-  const changes=[['account-0008','STUDENT'],['account-0009','TEACHER'],['account-0010','PROGRAM_ADMIN']];
++  let html=page.element('course-editor').innerHTML;assert.match(html,/data-stage="(?:PUBLISHED|ACTIVE)"/);assert.equal((html.match(/data-cm-action="save-participants"/g)||[]).length,1);assert.match(html,/data-cm-action="save-participants"[^>]* disabled/);
++  const changes=[['account-0008','STUDENT'],['account-0009','STUDENT'],['account-0010','STUDENT']];
+   for(const [accountId,role] of changes)page.chooseRole(accountId,role,true);
+   assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),true);page.searchPeople('no users match this filter');
+-  html=page.element('course-editor').innerHTML;assert.match(html,/No users match this view/);assert.match(html,/3 users have unsaved changes/);assert.match(html,/data-cm-save-state>Unsaved participant changes/);assert.doesNotMatch(html,/data-cm-action="save-participants"[^>]* disabled/);
++  html=page.element('course-editor').innerHTML;assert.match(html,/No students match this view/);assert.match(html,/3 users have unsaved changes/);assert.match(html,/data-cm-save-state>Unsaved participant changes/);assert.doesNotMatch(html,/data-cm-action="save-participants"[^>]* disabled/);
+   const reads=page.requests.filter(p=>p.endsWith('/participants')).length;
+   await page.click('save-participants');assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),false);assert.match(page.element('course-message').textContent,/saved for 3 users/);
+   assert.equal(page.requests.filter(p=>p.endsWith('/participants-save')).length,3);assert.equal(page.requests.filter(p=>p.endsWith('/participants')).length,reads,'saving does not reread the entire participant directory');
+@@ -35,7 +35,7 @@ test('Save participants persists every changed role even when search hides the u
+   assert.deepEqual(f.db.prepare('SELECT * FROM timetable_publications').all(),before);
+   const reopened=await screen(f.env,'0001','?course=subject-1&run=run-1&tab=participants');html=reopened.element('course-editor').innerHTML;
+   for(const [accountId,role] of changes)assert.match(html,new RegExp(`data-person="${accountId}" data-role="${role}" checked`));
+-  assert.match(html,/data-person="account-0001" data-role="PROGRAM_ADMIN" checked disabled/,'Global Admin access remains inherited');
++  assert.doesNotMatch(html,/data-role="(?:TEACHER|PROGRAM_ADMIN)"/,'Participants does not offer staff-role edits');assert.equal(f.db.prepare("SELECT count(*) n FROM role_assignments WHERE account_id='account-0001' AND activity_key='COURSE:subject-1' AND role='PROGRAM_ADMIN'").get().n,0,'Global Admin authority is not materialised as a scoped grant');
+  }finally{f.db.close();}
+ });
+ 
+@@ -43,17 +43,17 @@ test('a lost participant save acknowledgement keeps only unfinished changes and
+  const f=await fixture();try{
+   const page=await screen(f.env,'0001','?course=subject-1&run=run-1&tab=participants'),original=page.context.fetch,writes=[];
+   page.context.fetch=async(path,options)=>{const result=await original(path,options);if(path.endsWith('/participants-save')){writes.push(JSON.parse(options.body));if(writes.length===2)throw Error('Connection lost');}return result;};
+-  page.chooseRole('account-0008','STUDENT',true);page.chooseRole('account-0009','TEACHER',true);page.chooseRole('account-0010','PROGRAM_ADMIN',true);
++  page.chooseRole('account-0008','STUDENT',true);page.chooseRole('account-0009','STUDENT',true);page.chooseRole('account-0010','STUDENT',true);
+   await page.click('save-participants');assert.equal(writes.length,2);assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),true);assert.match(page.element('course-message').textContent,/1 of 3 users saved.*Connection lost.*Remaining participant changes are kept/);assert.match(page.element('course-editor').innerHTML,/2 users have unsaved changes/);
+   await page.click('save-participants');assert.equal(writes.length,4);assert.equal(writes[1].operationId,writes[2].operationId);assert.equal(writes.filter(w=>w.accountId==='account-0008').length,1);assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),false);assert.match(page.element('course-editor').innerHTML,/All participant changes saved/);
+-  assert.equal(f.db.prepare("SELECT count(*) n FROM effective_activity_roles WHERE activity_key='COURSE:subject-1' AND account_id='account-0009' AND role='TEACHER'").get().n,1);
++  assert.equal(f.db.prepare("SELECT count(*) n FROM effective_activity_roles WHERE activity_key='COURSE:subject-1' AND account_id='account-0009' AND role='STUDENT'").get().n,1);
+  }finally{f.db.close();}
+ });
+ 
+ test('reverting a participant checkbox leaves no unsaved change or save request',async()=>{
+  const f=await fixture();try{
+   const page=await screen(f.env,'0001','?course=subject-1&run=run-1&tab=participants');
+-  page.chooseRole('account-0008','TEACHER',true);assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),true);page.chooseRole('account-0008','TEACHER',false);assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),false);
++  page.chooseRole('account-0008','STUDENT',true);assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),true);page.chooseRole('account-0008','STUDENT',false);assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),false);
+   await page.click('save-participants');assert.equal(page.requests.filter(p=>p.endsWith('/participants-save')).length,0);
+  }finally{f.db.close();}
+ });
+@@ -64,7 +64,7 @@ test('Course workspace opens a compact editor, saves name-only drafts and presen
+   const page=await screen(f.env);assert.equal(page.element('course-workspace').hidden,false);assert.ok(page.element('course-account-name').textContent);assert.match(page.element('course-list').innerHTML,/Synthetic/);assert.match(page.element('course-editor').innerHTML,/>Select a course<\/h2>/);assert.equal(page.requests.filter(p=>p.endsWith('/courses/list')).length,1);assert.equal(page.requests.filter(p=>p.endsWith('/courses/get')).length,0);
+   await page.click('select',{course:'subject-1',run:'run-1'});assert.match(page.element('course-tabs').innerHTML,/Participants/);
+   page.context.window.M4LCourses.newCourse();page.enter('name','A new workshop');await page.context.window.M4LCourses.save();assert.equal(page.context.window.M4LCourses.hasUnsavedChanges(),false);assert.match(page.element('course-editor').innerHTML,/A new workshop/);
+-  await page.context.window.M4LCourses.validate();assert.match(page.element('course-editor').innerHTML,/A few details need attention/);assert.match(page.element('course-editor').innerHTML,/Choose Free or Paid/);assert.ok(!page.element('course-editor').innerHTML.includes('data-cm-action="publish"'));
++  await page.context.window.M4LCourses.validate();assert.match(page.element('course-editor').innerHTML,/A few details need attention/);assert.doesNotMatch(page.element('course-editor').innerHTML,/Choose Free or Paid/,'New drafts default to Paid');assert.match(page.element('course-editor').innerHTML,/data-cm-action="publish"[^>]* disabled/);
+   const originalRequest=page.context.fetch;let release;page.context.fetch=async(...args)=>{await new Promise(resolve=>{release=resolve;});return originalRequest(...args);};
+   const late=page.context.window.M4LCourses.select('subject-1','run-1');page.changeToken('another-account');release();await assert.rejects(late,/account changed/);assert.equal(page.element('course-workspace').hidden,true);assert.equal(page.element('course-editor').innerHTML,'');assert.equal(page.element('course-list').innerHTML,'');assert.equal(outbound,0);
+  }finally{globalThis.fetch=original;f.db.close();}
+@@ -108,8 +108,8 @@ test('schedule validation fills sessions, opens review, requires acceptance and
+   const page=await screen(f.env);page.context.window.M4LCourses.newCourse();
+   for(const [field,value] of Object.entries({name:'Auto workshop',accessModel:'FREE',startDate:'2026-10-12',endDate:'2026-10-25',startTime:'1200',endTime:'1pm',teacherId:'account-0003',zoomLink:'https://zoom.us/j/12345678901'}))page.enter(field,value);
+   page.chooseDay(1);page.chooseDay(3);await page.context.window.M4LCourses.validate();
+-  let html=page.element('course-editor').innerHTML;assert.match(html,/cm-workflow/);assert.match(page.element('course-tabs').innerHTML,/Sessions · 4/);assert.match(html,/value="2026-10-12"/);assert.match(html,/value="2026-10-21"/);assert.match(html,/value="12:00"/);assert.match(html,/value="13:00"/);assert.doesNotMatch(html,/type="time"/);assert.ok(!html.includes('Synthetic learner 8'));
+-  assert.match(html,/Review &amp; accept sessions|Review & accept sessions/);assert.ok(!html.includes('data-cm-action="publish"'));
++  let html=page.element('course-editor').innerHTML;assert.match(html,/cm-workflow/);assert.doesNotMatch(page.element('course-tabs').innerHTML,/data-tab="sessions"|data-tab="review"/);assert.match(html,/4 scheduled/);assert.match(html,/value="2026-10-12"/);assert.match(html,/value="2026-10-21"/);assert.match(html,/value="12:00"/);assert.match(html,/value="13:00"/);assert.doesNotMatch(html,/type="time"/);assert.ok(!html.includes('Synthetic learner 8'));
++  assert.match(html,/Review &amp; accept sessions|Review & accept sessions/);assert.match(html,/data-cm-action="publish"[^>]* disabled/);
+   await page.click('tab',{tab:'review'});assert.match(page.element('course-editor').innerHTML,/Accept reviewed sessions/);await page.click('accept');
+   assert.match(page.element('course-editor').innerHTML,/Review accepted/);assert.match(page.element('course-editor').innerHTML,/data-cm-action="publish"/);
+   const saved=f.db.prepare("SELECT a.activity_id,m.run_id FROM course_management_drafts m JOIN activities a USING(activity_key) WHERE a.name='Auto workshop'").get();
+@@ -129,11 +129,11 @@ test('typed clock entries survive draft reopening and regeneration uses the newl
+   assert.equal(JSON.parse(saved.details_json).startTime,'08:30');assert.equal(JSON.parse(saved.details_json).endTime,'09:30');
+   await page.context.window.M4LCourses.select(saved.activity_id,saved.run_id);
+   assert.match(page.element('course-editor').innerHTML,/value="08:30"/);assert.match(page.element('course-editor').innerHTML,/value="09:30"/);
+-  await page.context.window.M4LCourses.validate();assert.match(page.element('course-tabs').innerHTML,/Sessions · 2/);
++  await page.context.window.M4LCourses.validate();assert.match(page.element('course-editor').innerHTML,/2 scheduled/);
+   await page.click('tab',{tab:'details'});page.enter('startTime','2100');page.enter('endTime','2130');page.enter('endDate','2026-10-12');
+   await page.click('generate');assert.match(page.element('course-dialog').innerHTML,/Replace the draft sessions/);
+   page.element('dialog:[data-dialog-confirm]').listeners.click();await page.settle();
+-  assert.match(page.element('course-tabs').innerHTML,/Sessions · 1/);assert.match(page.element('course-editor').innerHTML,/value="21:00"/);assert.match(page.element('course-editor').innerHTML,/value="21:30"/);
++  assert.match(page.element('course-editor').innerHTML,/1 scheduled/);assert.match(page.element('course-editor').innerHTML,/value="21:00"/);assert.match(page.element('course-editor').innerHTML,/value="21:30"/);
+   const details=JSON.parse(f.db.prepare('SELECT details_json FROM course_management_drafts WHERE run_id=?').get(saved.run_id).details_json);
+   assert.equal(details.sessions.length,1);assert.equal(details.sessions[0].date,'2026-10-12');assert.equal(details.sessions[0].startTime,'21:00');assert.equal(details.sessions[0].endTime,'21:30');
+   await page.context.window.M4LCourses.select(saved.activity_id,saved.run_id,'sessions');assert.match(page.element('course-editor').innerHTML,/value="21:00"/);
+diff --git a/backend/tests/course-participants-rework-ui.test.mjs b/backend/tests/course-participants-rework-ui.test.mjs
+new file mode 100644
+index 00000000..feaea654
+--- /dev/null
++++ b/backend/tests/course-participants-rework-ui.test.mjs
+@@ -0,0 +1,54 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import vm from 'node:vm';
++import {readFileSync} from 'node:fs';
++import {createRequire} from 'node:module';
++const {parseHTML}=createRequire(import.meta.url)('linkedom');
++const code=readFileSync(new URL('../../js/m4l-course-participants.js',import.meta.url),'utf8');
++const settle=async()=>{for(let i=0;i<16;i++)await new Promise(r=>setImmediate(r));};
++function fixture({model='PAID',lose,conflict,delaySearch=false,ownership='WEBSITE'}={}){
++ const {window,document}=parseHTML('<html><body><main id="host"></main></body></html>'),create=document.createElement.bind(document);
++ document.createElement=name=>{const el=create(name);if(name==='dialog'){Object.defineProperty(el,'open',{get(){return this.hasAttribute('open');}});el.showModal=()=>el.setAttribute('open','');el.close=()=>el.removeAttribute('open');}return el;};
++ let token='admin-A',revision=1,release;const people=new Map([['alice',{account_id:'alice',display_name:'Alice',active:1,admitted:1,enrolled:1,live:1,purchased:1,cohort:'original'}],['former',{account_id:'former',display_name:'Former student',active:1,admitted:1,enrolled:0,live:0,purchased:0}]]),core=[{accountId:'alice',displayName:'Alice'},{accountId:'bob',displayName:'Bob'},{accountId:'carol',displayName:'Carol'}],calls=[],receipts=new Map(),jobs=new Map();
++ const result=async(command)=>{
++  if(command.action==='read')return {success:true,revision,ownership:{authority:ownership,phase:ownership==='WEBSITE'?'COMMITTED':'FROZEN'},kind:'COURSE',coursePolicy:{model,revision},canLinkAccount:true,participants:[...people.values()],more:false,...(command.accountId?{person:people.get(command.accountId)}:{})};
++  if(command.action==='course-user-search'){if(delaySearch)await new Promise(r=>release=r);return {success:true,accounts:core.filter(a=>!command.search||a.displayName.toLowerCase().includes(command.search.toLowerCase())),more:false};}
++  if(command.action==='provision'){jobs.set(command.input.operationId,command.input.accountId);return {success:true};}
++  if(command.action==='resume'){const id=jobs.get(command.input.jobId),a=core.find(a=>a.accountId===id);people.set(id,{account_id:id,display_name:a.displayName,enrolled:1,live:0,purchased:0});revision++;return {success:true,accountId:id};}
++  const change=command.change,old=receipts.get(change.operationId);if(old){assert.equal(old,JSON.stringify(command));return {success:true,replayed:true};}
++  assert.equal(command.revision,revision);receipts.set(change.operationId,JSON.stringify(command));
++  if(change.action==='course-policy')model=change.accessModel;
++  else for(const c of change.action==='access-batch'?change.changes:[change])Object.assign(people.get(c.accountId),{enrolled:Number(c.enrolled),live:Number(c.live),purchased:Number(c.purchased),cohort:c.cohort});
++  revision++;if(lose?.(command))throw Error('Lost acknowledgement');return {success:true};
++ };
++ const fetcher=async(url,options)=>{const body=JSON.parse(options.body),command=body.command;calls.push({url,body,headers:options.headers});if(command.action==='read'&&command.accountId&&!people.has(command.accountId))return Response.json({success:false,error:'Link the account first'},{status:404});if(command.action==='save'&&conflict?.(command)){revision++;return Response.json({success:false,error:'The register changed. Refresh before editing.',code:'CHANGE_CONFLICT'},{status:409});}return Response.json(await result(command));};
++ vm.runInContext(code,vm.createContext({window,document,localStorage:{getItem:()=>token},fetch:fetcher,crypto,Response,DOMException,console}));
++ const ui=window.M4L_COURSE_PARTICIPANTS,host=document.getElementById('host');ui.attach(host,'COURSE:one',{selectionKey:1,current:()=>true});
++ const click=selector=>{const el=document.querySelector(selector);assert(el,'Missing '+selector);assert(!el.disabled,'Disabled '+selector);el.click();};
++ const change=(selector,value)=>{const el=document.querySelector(selector);assert(el);el.checked=value;el.dispatchEvent(new window.Event('change',{bubbles:true}));};
++ return {window,document,calls,people,ui,host,click,change,release:()=>release(),switchAccount(){token='admin-B';window.dispatchEvent(new window.Event('pageshow'));}};
++}
++test('Paid Participants shows only students with access and makes no directory or credential request on open',async()=>{
++ const f=fixture();await settle();assert.match(f.host.textContent,/Alice/);assert.doesNotMatch(f.host.textContent,/Former student/);assert(f.document.querySelector('[data-cp-person=alice]').hasAttribute('checked'));assert(f.document.querySelector('[name=cp-policy][value=PAID]').hasAttribute('checked'));assert.equal(f.calls.length,1);assert.equal(f.calls[0].body.command.action,'read');assert.equal(f.calls[0].headers['X-Academy-Workspace'],'ADMIN');
++});
++test('unticking stages access removal and an uncertain save retries exactly without losing original cohort',async()=>{
++ let lost=false;const f=fixture({lose:c=>c.change.action==='access-batch'&&!lost&&(lost=true)});await settle();f.change('[data-cp-person=alice]',false);assert.equal(f.calls.length,1);assert.equal(f.ui.canLeave(),false);f.click('[data-cp=save]');await settle();assert.match(f.host.textContent,/Lost acknowledgement/);assert.equal(f.document.querySelector('[data-cp=save]').textContent,'Retry save');f.click('[data-cp=save]');await settle();const saves=f.calls.filter(c=>c.body.command.action==='save');assert.equal(saves.length,2);assert.deepEqual(saves[0].body,saves[1].body);assert.equal(saves[0].body.command.change.changes[0].cohort,'original');assert.equal(f.people.get('alice').purchased,0);assert(!f.document.querySelector('[data-cp-person=alice]'));assert.equal(f.ui.canLeave(),true);
++});
++test('Free radio uses a guarded exact retry, grants automatic eligibility and preserves purchases',async()=>{
++ let lost=false;const f=fixture({lose:c=>c.change.action==='course-policy'&&!lost&&(lost=true)});await settle();f.change('[name=cp-policy][value=FREE]',true);f.click('[data-cp=policy-save]');await settle();assert.equal(f.document.querySelector('[data-cp=policy-save]').textContent,'Retry save');f.click('[data-cp=policy-save]');await settle();const saves=f.calls.filter(c=>c.body.command.action==='save');assert.deepEqual(saves[0].body,saves[1].body);assert.equal(f.people.get('alice').purchased,1);assert.equal(f.document.querySelectorAll('[data-cp-person]').length,3);assert([...f.document.querySelectorAll('[data-cp-person]')].every(c=>c.hasAttribute('checked')&&c.disabled));assert.equal(f.ui.canLeave(),true);
++});
++test('existing-user search supports multiple selections and resumes the unfinished user without duplicating earlier grants',async()=>{
++ let lost=false;const f=fixture({lose:c=>c.change.accountId==='carol'&&!lost&&(lost=true)});await settle();f.click('[data-cp=add]');await settle();f.document.querySelector('[name=cp-search]').value='';f.click('[data-cp-dialog=search]');await settle();f.change('[data-cp-candidate=bob]',true);f.change('[data-cp-candidate=carol]',true);f.click('[data-cp-dialog=add]');await settle();assert.match(f.document.querySelector('dialog').textContent,/Lost acknowledgement/);assert.equal(f.ui.canLeave(),false);f.click('[data-cp-dialog=add]');await settle();const grants=f.calls.filter(c=>c.body.command.change?.action==='participant');assert.equal(grants.filter(c=>c.body.command.change.accountId==='bob').length,1);const carol=grants.filter(c=>c.body.command.change.accountId==='carol');assert.equal(carol.length,2);assert.deepEqual(carol[0].body,carol[1].body);assert.equal(f.people.get('bob').purchased,1);assert.equal(f.people.get('carol').purchased,1);assert(f.calls.filter(c=>c.body.command.action==='provision').every(c=>c.body.command.input.accountId&&!c.body.command.input.displayName));assert.equal(f.ui.canLeave(),true);
++});
++test('empty user search results are cached and account switching clears the private table and popup',async()=>{
++ const f=fixture();await settle();f.click('[data-cp=add]');await settle();f.document.querySelector('[name=cp-search]').value='nobody';f.click('[data-cp-dialog=search]');await settle();f.click('[data-cp-dialog=search]');await settle();assert.equal(f.calls.filter(c=>c.body.command.action==='course-user-search').length,1);assert.equal(f.calls.find(c=>c.body.command.action==='course-user-search').body.command.search,'nobody');assert.match(f.document.querySelector('.cp-results').textContent,/No matching users/);f.switchAccount();assert.equal(f.host.textContent,'');assert.equal(f.document.querySelector('dialog'),null);assert.equal(f.ui.canLeave(),true);
++});
++test('a confirmed concurrent change releases unfinished additions for fresh review and keeps completed access',async()=>{
++ let conflicted=false;const f=fixture({conflict:c=>c.change.accountId==='carol'&&!conflicted&&(conflicted=true)});await settle();f.click('[data-cp=add]');await settle();f.click('[data-cp-dialog=search]');await settle();f.change('[data-cp-candidate=bob]',true);f.change('[data-cp-candidate=carol]',true);f.click('[data-cp-dialog=add]');await settle();assert.equal(f.people.get('bob').purchased,1);assert.equal(f.people.get('carol').purchased,0);assert.match(f.host.textContent,/Refresh Participants/);assert.equal(f.ui.canLeave(),true);assert(!f.document.querySelector('dialog').open);f.click('[data-cp=refresh]');await settle();f.click('[data-cp=add]');await settle();f.click('[data-cp-dialog=search]');await settle();assert(f.document.querySelector('[data-cp-candidate=bob]').disabled);f.change('[data-cp-candidate=carol]',true);f.click('[data-cp-dialog=add]');await settle();assert.equal(f.people.get('carol').purchased,1);assert.equal(f.calls.filter(c=>c.body.command.change?.accountId==='bob').length,1);assert.equal(f.ui.canLeave(),true);
++});
++test('a late previous-account search cannot show names in the new account',async()=>{
++ const f=fixture({delaySearch:true});await settle();f.click('[data-cp=add]');await settle();f.click('[data-cp-dialog=search]');await settle();f.switchAccount();f.release();await settle();assert.equal(f.host.textContent,'');assert(!f.document.body.textContent.includes('Bob'));
++});
++test('a frozen owner shows no policy or student mutation controls',async()=>{
++ const f=fixture({ownership:'FROZEN'});await settle();assert.match(f.host.textContent,/setup is pending/);assert.equal(f.document.querySelector('[data-cp=save]'),null);assert.equal(f.document.querySelector('[name=cp-policy]'),null);assert.equal(f.calls.length,1);
++});
+diff --git a/css/m4l-academy-course-management.css b/css/m4l-academy-course-management.css
+index 766803b9..1f3037b4 100644
+--- a/css/m4l-academy-course-management.css
++++ b/css/m4l-academy-course-management.css
+@@ -2,6 +2,22 @@
+   max-width:none;
+   padding:18px 24px 30px
+ }
++.cm-details-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px}
++.cm-details-column{min-width:0;padding:0 0 12px}.cm-details-column h3{margin:0 0 15px;font-size:17px}
++.cm-details-column>.cm-field{display:block;margin:0 0 14px}.cm-details-column .cm-field input,.cm-details-column .cm-field select{width:100%}
++.cm-date-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin:12px 0}
++.cm-details-column .cm-fieldset{padding:0;border:0;margin:0 0 12px}.cm-details-column .cm-days{gap:6px;flex-wrap:wrap}
++.cm-details-section{border-top:1px solid var(--pb-line);padding:20px 0 0;margin-top:18px;scroll-margin-top:20px}
++.cm-actions .cm-primary-status{background:var(--plum,#68515c);border-color:var(--plum,#68515c);color:#fffaf5}
++.cm-inline-link{border:0!important;background:transparent!important;padding:0!important;min-height:0!important;text-decoration:underline;color:inherit!important}
++.cm-course-id{display:block;color:var(--pb-muted);font-size:12px;overflow-wrap:anywhere;margin-top:5px}
++.cm-coming-soon{padding:28px 0}.cm-coming-soon h3{margin-top:0}.cm-coming-soon p{color:var(--pb-muted)}
++.cp-policy{display:flex;align-items:center;gap:20px;flex-wrap:wrap;border:1px solid var(--pb-line);padding:14px 16px;border-radius:8px;background:#f3efeb;margin:0 0 12px}.cp-policy legend{font-weight:700;padding:0 5px}.cp-policy label{display:flex;align-items:center;gap:7px;margin:0}.cp-policy button{margin-left:auto}
++.cp-policy-note{font-size:13px;color:var(--pb-muted);margin:0 0 20px}.cp-toolbar,.cp-footer{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.cp-toolbar h3{font-size:17px;margin:0 auto 0 0}.cp-footer{margin-top:12px;font-size:13px}.cp-footer>span{margin-right:auto}.cp-table-wrap{overflow:auto;border:1px solid var(--pb-line);border-radius:8px}.cp-table{width:100%;border-collapse:collapse;text-align:left}.cp-table th,.cp-table td{padding:9px 14px;border-bottom:1px solid var(--pb-line);font-size:13px}.cp-table th{background:#f4f0ec}.cp-table tr:last-child td{border-bottom:0}.cp-table td:last-child{font-size:11px;color:var(--pb-muted);overflow-wrap:anywhere}.cp-person{display:flex;align-items:center;gap:10px;margin:0;font-size:14px}.cp-person input,.cp-candidate input,.cp-policy input{accent-color:var(--plum,#68515c);width:17px;height:17px;flex-shrink:0}.cm-course-participants [data-cp-status]:empty{display:none}.cm-course-participants [data-cp-status]{font-size:13px;margin:12px 0;line-height:1.5}
++.cp-dialog{width:min(560px,calc(100vw - 32px));max-height:85vh;overflow:auto;padding:24px;border:1px solid var(--pb-line);border-radius:12px;background:var(--pb-bg,#fffdf9);color:var(--pb-ink,#493b43)}.cp-dialog::backdrop{background:#35252e66}.cp-dialog h2{margin:0 0 10px;font-size:26px}.cp-dialog>p{font-size:13px}.cp-search{display:flex;align-items:end;gap:10px}.cp-search label{flex:1;min-width:0;font-size:13px}.cp-search input{display:block;width:100%;margin-top:6px;border:1px solid var(--pb-line);padding:10px;border-radius:6px;font:inherit}.cp-results,#cm-user-results{max-height:340px;overflow:auto;margin:15px 0}.cp-candidate{display:flex;align-items:center;gap:12px;padding:10px 4px;border-bottom:1px solid var(--pb-line)}.cp-candidate small{display:block;font-size:11px;color:var(--pb-muted);margin-top:3px;overflow-wrap:anywhere}.cp-dialog footer{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:20px}.cp-dialog footer>span{margin-right:auto;font-size:13px}.cp-dialog button{min-height:40px;font:inherit;padding:8px 13px;border-radius:7px;border:1px solid var(--pb-line);background:var(--plum,#68515c);color:white;cursor:pointer}.cp-dialog button:disabled{opacity:.5;cursor:default}
++.cm-editor .cp-person input[type=checkbox],.cm-editor .cp-policy input[type=radio],.cp-dialog .cp-candidate input[type=checkbox],#course-dialog .cp-candidate input[type=checkbox]{width:17px!important;min-width:17px;max-width:17px;min-height:17px;height:17px;flex:0 0 17px;padding:0;margin:0;display:inline-block}
++@media(max-width:760px){.cm-details-columns{grid-template-columns:minmax(0,1fr);gap:18px}.cm-date-fields{gap:10px}}
++@media(max-width:520px){.cp-policy{gap:14px}.cp-policy button{margin-left:0}.cp-table th,.cp-table td{padding:9px}.cp-person{font-size:13px;gap:7px}.cp-table td:last-child{max-width:115px}.cp-dialog{padding:18px}.cp-search{align-items:stretch;flex-direction:column}.cp-toolbar h3{flex-basis:100%}}
+ .cm-page-heading {
+   display:flex;
+   align-items:baseline;
+@@ -728,3 +744,12 @@
+ 
+ /* Distinct blocks for Course names, status and delivery details. */
+ .cm-unified-workspace .cm-list{gap:14px}.cm-unified-workspace .cm-course{border:1px solid #dfd1e6;border-radius:12px;background:#fff;padding:18px;box-shadow:0 2px 6px #30293608}.cm-unified-workspace .cm-course:hover{border-color:#b694c1;background:#faf6fc}.cm-unified-workspace .cm-course.is-selected{border-color:#805088;background:#f3eaf6;box-shadow:inset 3px 0 #805088}.cm-unified-workspace .cm-course strong{font-size:15px}.cm-unified-workspace .cm-course small{line-height:1.5;overflow-wrap:anywhere}
++.cm-unified-workspace #course-list.cm-list{display:block;min-width:0;max-width:100%;overflow:auto;border:1px solid var(--pb-line);border-radius:8px;background:#fff}
++.cm-course-list{position:relative;width:100%;min-width:620px;border-collapse:collapse;text-align:left;font-size:13px;line-height:1.35}
++.cm-course-list th,.cm-course-list td{padding:9px 12px;border-bottom:1px solid var(--pb-line);vertical-align:middle}
++.cm-course-list thead th{background:#f3efeb;color:var(--pb-muted);font-size:11px;font-weight:700}
++.cm-course-list tbody th{width:43%;min-width:200px;font-weight:600;overflow-wrap:anywhere}
++.cm-course-list tbody tr:last-child>*{border-bottom:0}.cm-course-list .cm-pill{margin:0}.cm-course-list td:nth-child(4),.cm-course-list td:last-child{white-space:nowrap}
++.cm-course-list .cm-course-dates{font-size:12px;min-width:155px;color:var(--pb-muted)}.cm-course-dates time{white-space:nowrap}
++.cm-course-list .cm-course-open{min-height:36px;padding:7px 13px;font-size:12px}.cm-course-list tbody tr:hover{background:#faf7f1}.cm-course-list tr.is-selected{background:#f3efeb;box-shadow:inset 3px 0 var(--plum,#68515c)}
++.cm-visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+diff --git a/css/m4l-playlist-card.css b/css/m4l-playlist-card.css
+index cfecd93b..e82ed0d6 100644
+--- a/css/m4l-playlist-card.css
++++ b/css/m4l-playlist-card.css
+@@ -3,3 +3,9 @@
+ @media(max-width:420px){.playlist-card-grid{grid-template-columns:minmax(0,1fr)}}
+ 
+ .playlist-artwork-card.has-picture .playlist-card-label{padding:14px 18px 42px;gap:7px}.playlist-artwork-card.has-picture .playlist-card-label strong{font-size:clamp(22px,9cqi,30px);line-height:1.12;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
++
++.playlist-editor-dialog{width:min(1100px,calc(100vw - 32px));max-height:90vh;box-sizing:border-box;padding:24px;border:1px solid #d9c9d1;border-radius:14px;background:#faf7f1;color:#44363f;overflow:auto}.playlist-editor-dialog::backdrop{background:#322b3099}.playlist-editor-dialog>header{display:flex;justify-content:space-between;align-items:center;gap:20px}.playlist-editor-dialog h2{font:400 34px/1.2 'Libre Caslon Display',Georgia,serif}.playlist-editor-dialog form{display:grid;gap:16px}.playlist-editor-dialog form>label{display:grid;gap:6px}.playlist-editor-dialog textarea,.playlist-editor-dialog input,.playlist-editor-dialog select{box-sizing:border-box;max-width:100%;min-width:0;padding:12px;background:#fffdf9;border:1px solid #d5c6cd;border-radius:6px;color:inherit}.playlist-editor-dialog input[type=checkbox]{width:18px;height:18px}.playlist-editor-dialog button{min-height:42px;padding:10px 16px;border:1px solid #526747;border-radius:22px;background:#526747;color:#fffaf2;cursor:pointer}.playlist-editor-dialog footer,.playlist-editor-dialog .pms-toolbar{display:flex;gap:10px;flex-wrap:wrap}.playlist-editor-dialog .mou-playlist-scroll{overflow:auto;max-width:100%}.playlist-editor-dialog table{border-collapse:collapse;min-width:700px;width:100%}.playlist-editor-dialog td,.playlist-editor-dialog th{padding:14px;border-bottom:1px solid #d9c9d1;text-align:left}.playlist-editor-dialog td:first-child{min-width:260px}.playlist-editor-dialog [hidden]{display:none!important}.playlist-editor-dialog [role=alert]{color:#943d51}.rs-episode-heading .sp-inline-entry,.rs-series-tools .sp-inline-entry,.rs-series-tools [data-edit-playlist],.rs-episode-heading [data-edit-recording-text],.rs-card-actions [data-edit-recording-text]{font-weight:700!important;background:#526747!important;color:#fffaf2!important;border:1px solid #526747!important;padding:11px 18px!important;border-radius:22px!important;min-height:42px}
++@media(max-width:700px){.playlist-editor-dialog{padding:16px}.playlist-editor-dialog .playlist-card-editor{min-width:260px}}
++
++/* Shared fixed image treatment for Course, Tafseer and MOU playlist cards. */
++.playlist-artwork-card.has-picture{color:#fffaf1}.has-picture .playlist-card-label{background:linear-gradient(0deg,#254e41 0%,#355e50f5 68%,#355e5000 100%);color:#fffaf1;padding:64px 22px 48px}.playlist-artwork-card>.access-badge{position:absolute;right:14px;bottom:14px;z-index:2;display:flex;align-items:center;gap:5px;padding:6px 11px;border:1px solid #d6c8b8;border-radius:20px;background:#fffaf1;color:#596952;font:600 12px/1.3 Arial,sans-serif}.playlist-artwork-card>.access-badge svg{width:14px;height:14px}
+diff --git a/js/m4l-academy-course-management.js b/js/m4l-academy-course-management.js
+index 9d35b5c2..808a6920 100644
+--- a/js/m4l-academy-course-management.js
++++ b/js/m4l-academy-course-management.js
+@@ -10,11 +10,11 @@
+   const copy=value=>JSON.parse(JSON.stringify(value));
+   const selected=()=>state.course?{courseId:state.course.courseId,runId:state.course.runId}:{};
+   const cardDirty=()=>JSON.stringify(state.cardDraft)!==JSON.stringify(state.course?.publicCard??null);
+-  const hasUnsavedChanges=()=>state.dirty||state.personDrafts.size>0||cardDirty();
++  const hasUnsavedChanges=()=>state.dirty||state.personDrafts.size>0||cardDirty()||window.M4L_COURSE_PARTICIPANTS?.canLeave()===false;
+   const editable=()=>state.course?.stage==='DRAFT';
+   const reviewAccepted=()=>Boolean(!state.dirty&&state.review?.valid&&state.course?.acceptedToken===state.review.token);
+   const tell=(message,error=false)=>{$('course-message').textContent=message||'';$('course-message').classList.toggle('is-error',error);};
+-  function lock(message){window.M4L_STUDIO_ACCESS?.reset();window.M4L_LESSON_MEDIA?.reset();window.M4L_ENROLMENT_WORKSPACE?.reset(enrolmentPanel);state.token='';state.session=null;state.course=null;state.draft=null;state.cardDraft=null;state.dirty=false;state.courses=[];state.participants=null;state.personDrafts.clear();state.pending=null;state.review=null;state.media=[];state.calendarWarnings=[];state.busy=false;state.tab='list';state.selection++;$('course-workspace').hidden=true;$('course-editor').replaceChildren();$('course-list').replaceChildren();$('course-dialog').close();$('course-dialog').replaceChildren();$('course-account-name').textContent='';$('course-access-message').textContent=message;tell('');}
++  function lock(message){window.M4L_COURSE_PARTICIPANTS?.reset();window.M4L_STUDIO_ACCESS?.reset();window.M4L_LESSON_MEDIA?.reset();window.M4L_ENROLMENT_WORKSPACE?.reset(enrolmentPanel);state.token='';state.session=null;state.course=null;state.draft=null;state.cardDraft=null;state.dirty=false;state.courses=[];state.participants=null;state.personDrafts.clear();state.pending=null;state.review=null;state.media=[];state.calendarWarnings=[];state.busy=false;state.tab='list';state.selection++;$('course-workspace').hidden=true;$('course-editor').replaceChildren();$('course-list').replaceChildren();$('course-dialog').close();$('course-dialog').replaceChildren();$('course-account-name').textContent='';$('course-access-message').textContent=message;tell('');}
+   async function api(path,input={},authToken=state.token){
+     const generation=state.generation;
+     if(!authToken||authToken!==token()||path!=='/api/account/session'&&!state.session)throw Error('Sign in with an authorised Academy administrator account.');
+@@ -48,14 +48,14 @@
+   function renderList(){
+     const rows=visibleCourses();
+     $('course-count').textContent=`${rows.length} ${rows.length===1?'Course':'Courses'}`;
+-    $('course-list').innerHTML=rows.length?rows.map(c=>`<button class="cm-course${state.course?.courseId===c.courseId&&state.course?.runId===c.runId?' is-selected':''}" type="button" data-cm-action="select" data-course="${esc(c.courseId)}" data-run="${esc(c.runId)}" aria-pressed="${state.course?.courseId===c.courseId&&state.course?.runId===c.runId}"><strong>${esc(c.name)}</strong>${pill(c.stage)}<small>${esc(c.startDate?`${c.startDate}${c.endDate&&c.endDate!==c.startDate?' → '+c.endDate:''}`:'Dates to be set')}${c.accessModel?' · '+(c.accessModel==='FREE'?'Free':'Paid'):''}</small></button>`).join(''):'<p class="cm-hint">No Courses match this view.</p>';
++    $('course-list').innerHTML=rows.length?`<table class="cm-course-list"><caption class="cm-visually-hidden">Courses matching the selected filters</caption><thead><tr><th scope="col">Course</th><th scope="col">Status</th><th scope="col">Dates</th><th scope="col">Access</th><th scope="col"><span class="cm-visually-hidden">Open Course</span></th></tr></thead><tbody>${rows.map(c=>{const selected=state.course?.courseId===c.courseId&&state.course?.runId===c.runId;return `<tr${selected?' class="is-selected"':''}><th scope="row">${esc(c.name)}</th><td>${pill(c.stage)}</td><td class="cm-course-dates">${c.startDate?`<time datetime="${esc(c.startDate)}">${esc(c.startDate)}</time>${c.endDate&&c.endDate!==c.startDate?` <span aria-label="to">–</span> <time datetime="${esc(c.endDate)}">${esc(c.endDate)}</time>`:''}`:'<span class="cm-hint">Dates to be set</span>'}</td><td>${c.accessModel==='FREE'?'Free':c.accessModel==='PAID'?'Paid':'Not set'}</td><td><button class="pb-secondary cm-course-open" type="button" data-cm-action="select" data-course="${esc(c.courseId)}" data-run="${esc(c.runId)}" aria-label="Open ${esc(c.name)}" aria-pressed="${selected}">Open</button></td></tr>`;}).join('')}</tbody></table>`:'<p class="cm-hint">No Courses match this view.</p>';
+   }
+   const options=(items,value,empty='Choose…')=>`<option value="">${esc(empty)}</option>`+items.map(i=>`<option value="${esc(i.value)}"${i.value===value?' selected':''}>${esc(i.label)}</option>`).join('');
+   const teacherOptions=value=>options(state.teachers.map(t=>({value:t.accountId,label:t.name})),value,'Choose a teacher')+(value&&!state.teachers.some(t=>t.accountId===value)?`<option value="${esc(value)}" selected disabled>Previously selected · teacher designation needed</option>`:'');
+   const field=(name,label,type='text',span='',hint='')=>`<label class="cm-field ${span}"><span>${label}</span><input data-field="${name}" type="${type==='time'?'text':type}"${type==='time'?' data-time24 placeholder="HH:mm" autocomplete="off" maxlength="8"':''} value="${esc(state.draft[name])}"${name==='name'?' maxlength="160" required':''}${name==='zoomLink'?' placeholder="https://…"':''}${editable()?'':' disabled'}>${hint?`<small>${hint}</small>`:''}</label>`;
+   function detailsTab(){
+     const d=state.draft,disabled=editable()?'':' disabled';
+-    return `<div class="cm-form-grid">${field('name','Course name <span aria-hidden="true">*</span>','text','cm-span-2')}<label class="cm-field cm-span-2">Subject / Module category<select data-field="categoryKey"${disabled}>${options(state.categories.map(c=>({value:c.key,label:c.type+' · '+c.name+(c.area?' — '+c.area:'')})),d.categoryKey,'No category')}${d.categoryKey&&!state.categories.some(c=>c.key===d.categoryKey)?`<option value="${esc(d.categoryKey)}" selected>Category no longer available</option>`:''}</select><small>For categorisation only. Content and access are set on this Course.${state.capabilities.create?' <a href="/academy/subjects/" target="_blank" rel="noopener">Manage Subjects &amp; Modules ↗</a>':''}</small></label><label class="cm-field">Access<select data-field="accessModel"${state.course?.studioManagedAccess?' disabled':disabled}>${options([{value:'FREE',label:'Free'},{value:'PAID',label:'Paid'}],d.accessModel,'Choose Free or Paid')}</select>${state.course?.studioManagedAccess?'<small>Manage Free or Paid in Participants → Learning access.</small>':''}</label><label class="cm-field">App time zone<input value="${esc(d.timezone)}" readonly></label>${field('startDate','Start date','date')}${field('endDate','End date','date','', 'Use the same date for a one-day Course.')}<hr class="cm-divider"><fieldset class="cm-fieldset"${disabled}><legend>Schedule days</legend><div class="cm-days">${[0,1,2,3,4,5,6].map(n=>`<label><input type="checkbox" data-day="${n}"${d.weekdays.includes(n)?' checked':''}><span>${days[n]}</span></label>`).join('')}</div></fieldset>${field('startTime','Start time','time')}${field('endTime','Finish time','time')}<label class="cm-field cm-span-2">Teacher<select data-field="teacherId"${disabled}>${teacherOptions(d.teacherId)}</select></label>${field('zoomLink','Zoom meeting link','url','cm-span-4')}<p class="cm-hint cm-span-4">${editable()?'Save a draft with only its name. When the schedule is ready, select Validate & generate sessions. Times use 24-hour HH:mm; type 745 or 4pm to convert. Dates, times, teacher and Zoom link are filled in automatically for your review. Changing the schedule asks before replacing edited sessions.':'Published details are protected. Create a revision to edit this schedule.'}</p></div>`;
++    return `<div class="cm-details-columns"><section class="cm-details-column" aria-label="Course details"><h3>Details</h3>${field('name','Course name <span aria-hidden="true">*</span>')}<label class="cm-field">Subject / Module category<select data-field="categoryKey"${disabled}>${options(state.categories.map(c=>({value:c.key,label:c.type+' · '+c.name+(c.area?' — '+c.area:'')})),d.categoryKey,'No category')}${d.categoryKey&&!state.categories.some(c=>c.key===d.categoryKey)?`<option value="${esc(d.categoryKey)}" selected>Category no longer available</option>`:''}</select><small>For categorisation only.</small></label><div class="cm-date-fields">${field('startDate','Start date','date')}${field('endDate','End date','date')}</div><p class="cm-hint">Free or Paid is managed in <button type="button" class="cm-inline-link" data-cm-action="tab" data-tab="participants">Participants</button>.</p></section><section class="cm-details-column" aria-label="Course schedule"><h3>Schedule</h3><fieldset class="cm-fieldset"${disabled}><legend>Schedule days</legend><div class="cm-days">${[0,1,2,3,4,5,6].map(n=>`<label><input type="checkbox" data-day="${n}"${d.weekdays.includes(n)?' checked':''}><span>${days[n]}</span></label>`).join('')}</div></fieldset><div class="cm-date-fields">${field('startTime','Start time','time')}${field('endTime','Finish time','time')}</div><label class="cm-field">Teacher<select data-field="teacherId"${disabled}>${teacherOptions(d.teacherId)}</select></label>${field('zoomLink','Zoom meeting link','url')}<p class="cm-hint">${editable()?'Validate the schedule, review the sessions below, then accept before publishing.':'Published schedules are protected. Create a revision to make changes.'}</p></section></div><section id="cm-sessions" class="cm-details-section" aria-label="Course sessions">${sessionsTab()}</section><section id="cm-review" class="cm-details-section" aria-label="Course review and publication">${reviewTab()}</section>`;
+   }
+   function publicCardPreview(){
+     const card=state.cardDraft||{time:'',title:'',description:''};
+@@ -88,14 +88,19 @@
+     const indicator=$('course-editor').querySelector('[data-cm-save-state]');if(indicator)indicator.textContent=saveState();
+   }
+   function peopleTab(){
+-    if(!state.course.courseId)return '<p class="cm-hint">Save the Course draft before adding participants.</p>';
+-    if(state.participants?.studio)return '<p class="cm-hint">Learning access is managed below. Staff roles remain in Academy User profiles.</p>';
+-    if(!state.participants)return '<p class="cm-hint">Loading users…</p>';
+-    const rows=state.participants.accounts.filter(a=>(!state.peopleSearch||a.displayName.toLowerCase().includes(state.peopleSearch.toLowerCase()))&&(!state.assignedOnly||a.assignment.displayRoles.length));
+-    return `<div class="cm-section-toolbar"><h3>Participants</h3><input class="cm-person-search" id="course-people-search" type="search" placeholder="Find a user…" aria-label="Find a user" value="${esc(state.peopleSearch)}"><label class="cm-toggle"><input id="course-assigned-only" type="checkbox"${state.assignedOnly?' checked':''}>Assigned only</label><button type="button" data-cm-action="add-user" data-cm-mutation>+ Add user</button></div><p class="cm-hint" style="margin-bottom:12px">${state.course.draftAccessHeld?'Draft learner selections are editable. Access starts after publication.':'Student access subscribes the user to this Course.'} Teachers and Program Admins manage this Course only. Global Admins automatically inherit Program Admin access.</p>${state.course.legacySharedAccess?'<p class="cm-inline-note warning">This existing Course has several deliveries sharing the same participants. Changes apply to all its existing deliveries. Repeating creates a separate Course and participant list.</p>':''}${participantActions()}<div class="cm-table-wrap"><table class="cm-table cm-people"><thead><tr><th>User</th><th>Student</th><th>Teacher</th><th>Program Admin</th><th>Changes</th></tr></thead><tbody>${rows.map(a=>{
+-      const roles=state.personDrafts.get(a.accountId)||a.assignment.roles;
+-      return `<tr><td>${esc(a.displayName)}${a.academyAdmin?'<small>Global Admin · inherited access</small>':!a.active?'<small>Inactive account</small>':''}</td>${['STUDENT','TEACHER','PROGRAM_ADMIN'].map(role=>`<td><input type="checkbox" aria-label="${esc(a.displayName)} · ${role==='PROGRAM_ADMIN'?'Program Admin':role==='TEACHER'?'Teacher':'Student'}" data-person="${esc(a.accountId)}" data-role="${role}"${roles.includes(role)||a.assignment.inheritedRoles.includes(role)?' checked':''}${!a.active||a.assignment.inheritedRoles.includes(role)||state.participants.scope.draftStudentEditable&&role!=='STUDENT'&&!roles.includes(role)?' disabled':''}></td>`).join('')}<td><button type="button" class="pb-secondary" data-cm-action="save-person" data-account="${esc(a.accountId)}" data-cm-mutation${state.personDrafts.has(a.accountId)?'':' disabled'}>Save</button></td></tr>`;
+-    }).join('')||'<tr><td colspan="5">No users match this view.</td></tr>'}</tbody></table></div>${participantActions()}<p class="cm-hint" style="margin-top:10px">Published lesson media is available while the Student assignment is retained. Removing Student access removes media access through this Course.</p>`;
++    if(state.participants?.studio)return window.M4L_COURSE_PARTICIPANTS?'':'<p class="cm-hint">Learning access is managed below. Staff roles remain in Academy User profiles.</p>';
++    const model=state.draft.accessModel,policy=`<fieldset class="cp-policy"${editable()?'':' disabled'}><legend>This Course is</legend>${['FREE','PAID'].map(value=>`<label><input type="radio" name="course-policy" data-field="accessModel" value="${value}"${model===value?' checked':''}> ${value==='FREE'?'Free':'Paid'}</label>`).join('')}</fieldset>`;
++    if(!state.course.courseId)return policy+'<p class="cm-hint">Save the Course draft before adding students.</p>';
++    if(!state.participants)return '<p class="cm-hint">Loading students…</p>';
++    const free=model==='FREE',rows=state.participants.accounts.filter(a=>(free&&a.active||a.assignment.roles.includes('STUDENT')||state.personDrafts.has(a.accountId))&&(!state.peopleSearch||a.displayName.toLowerCase().includes(state.peopleSearch.toLowerCase())));
++    return policy+`<div class="cm-section-toolbar"><h3>Students with access</h3><input class="cm-person-search" id="course-people-search" type="search" placeholder="Find a student…" aria-label="Find a student" value="${esc(state.peopleSearch)}"><button type="button" data-cm-action="add-user" data-cm-mutation${free?' disabled':''}>+ Add user</button></div><p class="cm-hint">${free?'Free access is included for eligible signed-in users.':'Untick a student, then save to remove Course access.'}${state.course.draftAccessHeld?' Draft selections take effect after publication.':''}</p>${state.course.legacySharedAccess?'<p class="cm-inline-note warning">Existing deliveries share these participants. Changes apply to those deliveries.</p>':''}${participantActions()}<div class="cm-table-wrap"><table class="cm-table cm-people"><thead><tr><th>Student</th><th>User ID</th></tr></thead><tbody>${rows.map(a=>{const roles=state.personDrafts.get(a.accountId)||a.assignment.roles;return `<tr><td><label class="cp-person"><input type="checkbox" aria-label="${esc(a.displayName)} · Student" data-person="${esc(a.accountId)}" data-role="STUDENT"${free||roles.includes('STUDENT')?' checked':''}${free?' disabled':''}> ${esc(a.displayName)}</label>${!a.active?'<small>Inactive account</small>':''}</td><td>${esc(a.accountId)}</td></tr>`;}).join('')||'<tr><td colspan="2">No students match this view.</td></tr>'}</tbody></table></div>`;
++  }
++  function existingUsersDialog(){
++    const el=$('course-dialog'),chosen=new Set(),available=state.participants.accounts.filter(a=>a.active&&!a.assignment.roles.includes('STUDENT'));
++    el.innerHTML='<h2 id="course-dialog-title">Add users</h2><label class="cm-field">Find a user<input id="cm-user-search" type="search" autocomplete="off" placeholder="Search existing users…"></label><div id="cm-user-results"></div><div class="cm-actions"><span id="cm-user-count">0 selected</span><button type="button" class="pb-secondary" data-users-cancel>Cancel</button><button type="button" data-users-add disabled>Add selected users</button></div>';
++    const draw=()=>{const q=$('cm-user-search').value.trim().toLowerCase();$('cm-user-results').innerHTML=available.filter(a=>!q||[a.displayName,a.accountId].some(v=>v.toLowerCase().includes(q))).map(a=>`<label class="cp-candidate"><input type="checkbox" data-existing-user="${esc(a.accountId)}"${chosen.has(a.accountId)?' checked':''}><span>${esc(a.displayName)}<small>${esc(a.accountId)}</small></span></label>`).join('')||'<p>No matching users.</p>';};
++    $('cm-user-search').oninput=draw;el.querySelector('#cm-user-results').onchange=e=>{const id=e.target.dataset.existingUser;if(!id)return;if(e.target.checked)chosen.add(id);else chosen.delete(id);$('cm-user-count').textContent=chosen.size+' selected';el.querySelector('[data-users-add]').disabled=!chosen.size;};
++    el.querySelector('[data-users-cancel]').onclick=()=>el.close();el.querySelector('[data-users-add]').onclick=()=>{for(const id of chosen){const account=available.find(a=>a.accountId===id);state.personDrafts.set(id,[...new Set([...account.assignment.roles,'STUDENT'])]);}el.close();renderEditor();tell('Selected users added to the table. Save participants to confirm access.');};draw();el.showModal();$('cm-user-search').focus();
+   }
+   function mediaTab(){return state.course?.courseId?'<section id="course-lesson-media" aria-label="Course lesson media"></section>':'<p>Save this Course and its sessions before attaching media.</p>';}
+ 
+@@ -111,7 +116,8 @@
+     const current=state.course.stage!=='DRAFT'?5:state.dirty||!state.course.courseId?0:!state.review?.valid?1:reviewAccepted()?5:3;
+     return `<ol class="cm-workflow" aria-label="Course publication steps">${['Draft','Validate','Generate sessions','Review','Accept','Publish'].map((label,index)=>`<li class="${index<current?'is-done':index===current?'is-current':''}"${index===current?' aria-current="step"':''}><span>${index+1}</span>${label}</li>`).join('')}</ol>`;
+   }
+-  const tabs=[['list','List of courses'],['details','Details'],['sessions','Sessions'],['participants','Participants'],['public-card','Public card'],['review','Review & publish'],['media','Media'],['enrolment','Enrolment requests']];
++  const normalTab=tab=>['sessions','review'].includes(tab)?'details':tab;
++  const tabs=[['list','List of courses'],['details','Details'],['participants','Participants'],['public-card','Public card'],['media','Media'],['enrolment','Enrolment requests · Coming soon']];
+   function renderTabs(){
+     const focused=document.activeElement?.id;
+     $('course-tabs').innerHTML=tabs.map(([tab,label])=>`<button id="cm-tab-${tab}" type="button" role="tab" tabindex="${state.tab===tab?0:-1}" aria-selected="${state.tab===tab}" aria-controls="${tab==='list'?'course-list-panel':'course-editor'}" data-cm-action="tab" data-tab="${tab}"${tab!=='list'&&!state.course||tab==='enrolment'&&!state.course?.courseId?' disabled':''}>${label}${tab==='sessions'&&state.draft?.sessions.length?' · '+state.draft.sessions.length:''}</button>`).join('');
+@@ -134,13 +140,13 @@
+     const c=state.course,d=state.draft,isDraft=editable();
+     const transitions=!c.courseId?[]:c.stage==='PUBLISHED'?[['revise','Create revision'],['complete','Mark complete'],['cancel','Cancel Course']]:c.stage==='DRAFT'?[['cancel','Cancel Course'],['archive','Archive draft']]:c.stage==='COMPLETE'||c.stage==='CANCELLED'?[['archive','Archive Course']]:[];
+     if(['COMPLETE','ARCHIVED'].includes(c.stage)&&state.capabilities.create)transitions.push(['repeat','Repeat as new Course']);
+-    $('course-editor').innerHTML=`<header class="cm-editor-heading"><div><h2>${esc(d.name||'New Course')}</h2><div class="cm-heading-meta">${pill(c.displayStage||c.stage)}<small data-cm-save-state>${saveState()}</small>${c.currentPublication&&isDraft?'<small>Current timetable remains published</small>':''}</div></div><div class="cm-actions">${isDraft?`<button type="button" class="pb-secondary" data-cm-action="save" data-cm-mutation>Save draft</button><button type="button" data-cm-action="validate" data-cm-mutation>${d.sessions.length?'Validate &amp; review':'Validate &amp; generate sessions'}</button>`:''}${transitions.map(([action,label])=>`<button type="button" class="pb-secondary cm-status-action${action==='cancel'?' cm-cancel-action':''}" data-cm-action="${action}" data-cm-mutation>${label}</button>`).join('')}</div></header>${c.studioSetup?`<div class="cm-studio-setup" role="status"><p>${esc(c.studioSetup.message)}</p>${c.studioSetup.pending?'<button type="button" class="pb-secondary" data-cm-action="studio-resume" data-cm-mutation>Resume Studio setup</button>':''}</div>`:''}${workflow()}<div id="cm-panel" class="cm-tab-content">${state.tab==='details'?detailsTab():state.tab==='sessions'?sessionsTab():state.tab==='participants'?peopleTab():state.tab==='public-card'?publicCardTab():state.tab==='media'?mediaTab():state.tab==='enrolment'?'':reviewTab()}</div><footer class="cm-footer"><span>${c.courseId?`Course ID <span class="cm-id">${esc(c.courseId)}</span>`:'New draft'}</span><span>${c.completedAt?'Completed '+esc(c.completedAt.slice(0,10)):state.personDrafts.size?`${state.personDrafts.size} unsaved participant ${state.personDrafts.size===1?'change':'changes'}`:'All times use the Course timezone'}</span></footer>`;
+-    if(state.tab==='participants'&&c.courseId)window.M4L_STUDIO_ACCESS?.attach($('cm-panel'),'COURSE:'+c.courseId);
++    $('course-editor').innerHTML=`<header class="cm-editor-heading"><div><h2>${esc(d.name||'New Course')}</h2>${state.tab==='participants'&&c.courseId?`<small class="cm-course-id">Course ID ${esc(c.courseId)}</small>`:''}<div class="cm-heading-meta">${pill(c.displayStage||c.stage)}<small data-cm-save-state>${saveState()}</small>${c.currentPublication&&isDraft?'<small>Current timetable remains published</small>':''}</div></div><div class="cm-actions">${state.tab==='details'?`<button type="button" class="pb-secondary" data-cm-action="show-review">Review</button><button type="button" data-cm-action="publish" data-cm-mutation${isDraft&&reviewAccepted()?'':' disabled'}>Publish</button>`:''}${isDraft?`<button type="button" class="pb-secondary" data-cm-action="save" data-cm-mutation>Save draft</button><button type="button" data-cm-action="validate" data-cm-mutation>${d.sessions.length?'Validate &amp; review':'Validate &amp; generate sessions'}</button>`:''}${transitions.map(([action,label])=>`<button type="button" class="pb-secondary cm-status-action${['archive','repeat'].includes(action)?' cm-primary-status':''}${action==='cancel'?' cm-cancel-action':''}" data-cm-action="${action}" data-cm-mutation>${label}</button>`).join('')}</div></header>${c.studioSetup?`<div class="cm-studio-setup" role="status"><p>${esc(c.studioSetup.message)}</p>${c.studioSetup.pending?'<button type="button" class="pb-secondary" data-cm-action="studio-resume" data-cm-mutation>Resume Studio setup</button>':''}</div>`:''}${state.tab==='details'?workflow():''}<div id="cm-panel" class="cm-tab-content">${state.tab==='details'?detailsTab():state.tab==='sessions'?sessionsTab():state.tab==='participants'?peopleTab():state.tab==='public-card'?publicCardTab():state.tab==='media'?mediaTab():state.tab==='enrolment'?'<section class="cm-coming-soon"><h3>Enrolment requests</h3><p>Coming soon</p></section>':reviewTab()}</div><footer class="cm-footer"><span>${state.tab==='participants'?'':c.courseId?`Course ID <span class="cm-id">${esc(c.courseId)}</span>`:'New draft'}</span><span>${c.completedAt?'Completed '+esc(c.completedAt.slice(0,10)):state.personDrafts.size?`${state.personDrafts.size} unsaved participant ${state.personDrafts.size===1?'change':'changes'}`:'All times use the Course timezone'}</span></footer>`;
++    if(state.tab==='participants'&&c.courseId)(window.M4L_COURSE_PARTICIPANTS||window.M4L_STUDIO_ACCESS)?.attach($('cm-panel'),'COURSE:'+c.courseId,participantContext());
+     if(state.tab==='media'&&c.courseId)window.M4L_LESSON_MEDIA?.open({hostId:'course-lesson-media',activityKey:'COURSE:'+c.courseId,runId:c.runId});
+-    if(state.tab==='enrolment'){$('cm-panel').append(enrolmentPanel);void window.M4L_ENROLMENT_WORKSPACE.open(enrolmentPanel,'COURSE:'+c.courseId).catch(error=>{if(state.tab==='enrolment')tell(error.message,true);});}
++
+     if(state.busy)busy(true);
+   }
+-  function dirty(){state.dirty=true;state.review=null;state.pending=null;const indicator=$('course-editor').querySelector('.cm-heading-meta small');if(indicator)indicator.textContent='Unsaved changes';}
++  function dirty(){state.dirty=true;state.review=null;state.pending=null;for(const button of document.querySelectorAll('[data-cm-action=publish],[data-cm-action=accept]'))button.disabled=true;const indicator=$('course-editor').querySelector('.cm-heading-meta small');if(indicator)indicator.textContent='Unsaved changes';}
+   async function list(){const result=await api(base+'list');Object.assign(state,{courses:result.courses,categories:result.categories,teachers:result.teachers,timezone:result.timezone,capabilities:result.capabilities});state.filters=currentFilters();$('course-new').hidden=!state.capabilities.create;renderList();}
+   function rememberSelection(){
+     const query=new URLSearchParams(location.search);
+@@ -163,13 +169,14 @@
+     const sequence=++state.selection,generation=state.generation;
+     const result=await api(base+'get',{courseId,runId});
+     if(sequence!==state.selection||generation!==state.generation)return;
+-    Object.assign(state,{course:result.course,draft:copy(result.course.details),cardDraft:copy(result.course.publicCard??null),dirty:false,tab,review:result.validation||null,calendarWarnings:result.calendarWarnings,media:result.media,participants:null});state.personDrafts.clear();rememberSelection();renderList();renderEditor();
++    Object.assign(state,{course:result.course,draft:copy(result.course.details),cardDraft:copy(result.course.publicCard??null),dirty:false,tab:normalTab(tab),review:result.validation||null,calendarWarnings:result.calendarWarnings,media:result.media,participants:null});state.personDrafts.clear();rememberSelection();renderList();renderEditor();
+     if(tab==='participants')await loadParticipants();
+   }
++  function participantContext(){const selection=state.selection,generation=state.generation,activity=state.course?.activityKey;return {selectionKey:selection,current:()=>state.selection===selection&&state.generation===generation&&state.course?.activityKey===activity&&state.tab==='participants'&&state.token===token()};}
+   async function loadParticipants(){
+     if(!state.course?.courseId)return;
+     const sequence=state.selection;
+-    const owner=await window.M4L_STUDIO_ACCESS?.ensure($('cm-panel'),'COURSE:'+state.course.courseId);if(sequence!==state.selection)return;if(owner&&owner!=='ACADEMY'){state.participants={studio:true,accounts:[]};if(state.tab==='participants')renderEditor();return;}
++    const owner=await (window.M4L_COURSE_PARTICIPANTS||window.M4L_STUDIO_ACCESS)?.ensure($('cm-panel'),'COURSE:'+state.course.courseId,participantContext());if(sequence!==state.selection)return;if(owner&&owner!=='ACADEMY'){state.participants={studio:true,accounts:[]};if(state.tab==='participants')renderEditor();return;}
+     const result=await api(base+'participants',selected());
+     if(sequence!==state.selection)return;
+     state.participants=result;if(state.tab==='participants')renderEditor();
+@@ -187,7 +194,7 @@
+       $('course-management-back').textContent=globalAdmin?'← Academy administration':'← My Courses';$('course-management-back').href=globalAdmin?'/academy/admin/#administration':'/academy/#workshops';
+       await list();if(generation!==state.generation)return;
+       const query=new URLSearchParams(location.search),courseId=query.get('course'),runId=query.get('run'),requested=courseId&&state.courses.find(c=>c.courseId===courseId&&(!runId||c.runId===runId));
+-      if(requested)await select(requested.courseId,requested.runId,tabs.some(([tab])=>tab===query.get('tab'))?query.get('tab'):query.get('view')==='scheduling'?'sessions':'details');else renderEditor();
++      if(requested)await select(requested.courseId,requested.runId,tabs.some(([tab])=>tab===normalTab(query.get('tab')))?normalTab(query.get('tab')):'details');else renderEditor();
+     }catch(error){if(generation!==state.generation)return;lock(error.message);$('course-access-retry').hidden=false;}
+   }
+   function beginNew(){
+@@ -199,7 +206,7 @@
+     });
+     $('cm-copy-source').onchange=()=>{const source=state.courses[Number($('cm-copy-source').value)-1];$('cm-copy-options').hidden=!source;$('cm-dialog-name').value=source?source.name.slice(0,153)+' (copy)':'';};
+   }
+-  function newCourse(){state.selection++;state.course={courseId:'',runId:'',stage:'DRAFT',displayStage:'DRAFT',revision:'0'};state.cardDraft=null;state.draft={name:'',categoryKey:'',accessModel:'',timezone:state.timezone,weekdays:[],startDate:'',endDate:'',startTime:'',endTime:'',teacherId:'',zoomLink:'',sessions:[]};state.dirty=false;state.review=null;state.participants=null;state.personDrafts.clear();state.media=[];state.calendarWarnings=[];state.tab='details';rememberSelection();renderList();renderEditor();$('course-editor').querySelector('[data-field="name"]')?.focus();}
++  function newCourse(){state.selection++;state.course={courseId:'',runId:'',stage:'DRAFT',displayStage:'DRAFT',revision:'0'};state.cardDraft=null;state.draft={name:'',categoryKey:'',accessModel:'PAID',timezone:state.timezone,weekdays:[],startDate:'',endDate:'',startTime:'',endTime:'',teacherId:'',zoomLink:'',sessions:[]};state.dirty=false;state.review=null;state.participants=null;state.personDrafts.clear();state.media=[];state.calendarWarnings=[];state.tab='details';rememberSelection();renderList();renderEditor();$('course-editor').querySelector('[data-field="name"]')?.focus();}
+   async function save(){
+     if(!state.draft.name.trim()){state.tab='details';renderEditor();$('course-editor').querySelector('[data-field="name"]')?.focus();throw Error('Enter a Course name to save the draft.');}
+     for(const row of [state.draft,...state.draft.sessions])for(const key of ['startTime','endTime'])row[key]=window.M4L_TIME.parse(row[key])||row[key];
+@@ -214,7 +221,7 @@
+     let result;
+     try{result=await mutate('validate',{...selected(),baseRevision:state.course.revision,regenerate});}
+     catch(error){if(error.code!=='SCHEDULE_CHANGED')throw error;dialog('Regenerate the sessions?','<p>The schedule in Details has changed. Regenerating fills every session from that schedule and replaces individual session edits. Cancel to keep the existing sessions while you review the schedule.</p>','Regenerate sessions',()=>validate(true));return null;}
+-    state.course.revision=result.revision;state.course.validationToken=result.validation.valid?result.validation.token:'';state.course.acceptedToken='';state.draft=copy(result.details);state.dirty=false;state.review=result.validation;state.calendarWarnings=result.validation.warnings.filter(w=>w.code==='HOLIDAY');state.tab=result.validation.valid?'sessions':'review';renderEditor();tell(result.message);return result;
++    state.course.revision=result.revision;state.course.validationToken=result.validation.valid?result.validation.token:'';state.course.acceptedToken='';state.draft=copy(result.details);state.dirty=false;state.review=result.validation;state.calendarWarnings=result.validation.warnings.filter(w=>w.code==='HOLIDAY');state.tab='details';renderEditor();document.getElementById(result.validation.valid?'cm-sessions':'cm-review')?.scrollIntoView?.({block:'start'});tell(result.message);return result;
+   }
+   function dialog(title,body,button,onConfirm){
+     const el=$('course-dialog');el.innerHTML=`<h2 id="course-dialog-title">${esc(title)}</h2>${body}<div class="cm-actions"><button type="button" class="pb-secondary" data-dialog-cancel>Cancel</button><button type="button" data-dialog-confirm>${esc(button)}</button></div>`;
+@@ -248,8 +255,10 @@
+   }
+   async function perform(fn){if(state.busy)return;busy(true);try{await fn();}catch(error){tell(error.message+(error.code==='ROW_CHANGED'?' Refresh and review the saved Course. Your unfinished changes are kept.':''),true);}finally{busy(false);if(state.participants)updateParticipantControls();}}
+   async function action(name,el){
++    if(window.M4L_COURSE_PARTICIPANTS?.canLeave()===false)throw Error('Finish or retry the Participants save before leaving these changes.');
+     if(name==='select'){if(window.M4L_STUDIO_ACCESS?.canLeave()===false)throw Error('Finish the learning-access change before selecting another Course.');const tab=!state.course&&new URLSearchParams(location.search).get('view')==='scheduling'?'sessions':'details';reviewDiscard(()=>select(el.dataset.course,el.dataset.run,tab));return;}
+-    if(name==='tab'){if(window.M4L_STUDIO_ACCESS?.canLeave()===false)throw Error('Finish the learning-access Save before leaving this tab.');if(state.tab==='media'&&window.M4L_LESSON_MEDIA?.canLeave()===false)return;if(!tabs.some(([tab])=>tab===el.dataset.tab)||el.dataset.tab!=='list'&&!state.course||el.dataset.tab==='enrolment'&&!state.course?.courseId)return;if(!window.M4L_ENROLMENT_WORKSPACE.canLeave(enrolmentPanel))throw Error('Finish or retry the enrolment request change before leaving this tab.');state.tab=el.dataset.tab;rememberSelection();renderEditor();if(state.tab==='participants'&&!state.participants)await loadParticipants();return;}
++    if(name==='tab'){if(window.M4L_STUDIO_ACCESS?.canLeave()===false)throw Error('Finish the learning-access Save before leaving this tab.');if(state.tab==='media'&&window.M4L_LESSON_MEDIA?.canLeave()===false)return;const nextTab=normalTab(el.dataset.tab);if(!tabs.some(([tab])=>tab===nextTab)||nextTab!=='list'&&!state.course||nextTab==='enrolment'&&!state.course?.courseId)return;if(!window.M4L_ENROLMENT_WORKSPACE.canLeave(enrolmentPanel))throw Error('Finish or retry the enrolment request change before leaving this tab.');state.tab=nextTab;rememberSelection();renderEditor();if(state.tab==='participants'&&!state.participants)await loadParticipants();if(['sessions','review'].includes(el.dataset.tab))document.getElementById('cm-'+el.dataset.tab)?.scrollIntoView?.({block:'start'});return;}
++    if(name==='show-review'){state.tab='details';renderEditor();$('cm-review')?.scrollIntoView?.({block:'start'});return;}
+     if(name==='save-card'){
+       const result=await mutate('public-card-save',{...selected(),baseCardRevision:state.course.publicCardRevision,publicCard:copy(state.cardDraft)});Object.assign(state.course,{publicCard:result.publicCard,publicCardRevision:result.publicCardRevision});state.cardDraft=copy(result.publicCard);renderEditor();tell(result.message);return;
+     }
+@@ -271,11 +280,7 @@
+     if(name==='remove-session'){state.draft.sessions=state.draft.sessions.filter(s=>s.id!==el.dataset.id);dirty();renderEditor();return;}
+     if(name==='save-person'){await savePerson(el.dataset.account);return;}
+     if(name==='save-participants'){await saveParticipants();return;}
+-    if(name==='add-user'){
+-      dialog('Add a user to this Course','<p>The new account will receive Student access to this Course. Use their existing account if they already have one.</p><label class="cm-field">User name<input id="cm-dialog-name" maxlength="160" autocomplete="off"></label>','Add Student',async input=>{
+-        const result=await mutate('participant-create',{...selected(),displayName:input.name});await loadParticipants();tell(result.message);const el=$('course-dialog');el.innerHTML=`<h2 id="course-dialog-title">User added</h2><p>Give the learner this personal sign-in link. They will set their PIN on first use.</p><label class="cm-field">Personal sign-in link<input readonly value="${esc(location.origin+result.loginPath)}"></label><div class="cm-actions"><button type="button" data-dialog-cancel>Done</button></div>`;el.querySelector('[data-dialog-cancel]').addEventListener('click',()=>el.close());el.showModal();
+-      });return;
+-    }
++    if(name==='add-user'){existingUsersDialog();return;}
+     if(name==='repeat'){
+       dialog('Repeat as a new Course','<p>A separate Course ID and an empty participant list will be created. Set new dates before publishing.</p><label class="cm-field">Course name<input id="cm-dialog-name" maxlength="160" value="'+esc(state.draft.name)+'"></label>'+(state.media.length?'<label class="cm-toggle"><input id="cm-dialog-reuse" type="checkbox">Reuse the existing media records</label>':'<p class="cm-hint">No existing media records to reuse.</p>'),'Create new draft',async input=>{const result=await mutate('repeat',{...selected(),baseRevision:state.course.revision,name:input.name,reuseMedia:input.reuseMedia});await list();await select(result.courseId,result.runId);tell(result.message);});return;
+     }
+diff --git a/js/m4l-access-badge.mjs b/js/m4l-access-badge.mjs
+new file mode 100644
+index 00000000..c59e455b
+--- /dev/null
++++ b/js/m4l-access-badge.mjs
+@@ -0,0 +1,12 @@
++const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
++export const lockedCourseMessage='Access to this course can be purchased from Admin.';
++export function showLockedAccessNotice(doc=document){
++ let dialog=doc.getElementById('course-access-notice');
++ if(!dialog){dialog=doc.createElement('dialog');dialog.id='course-access-notice';dialog.className='course-access-notice';dialog.setAttribute('aria-labelledby','course-access-notice-title');dialog.innerHTML='<h2 id="course-access-notice-title">Course access</h2><p>'+lockedCourseMessage+'</p><button type="button">Close</button>';dialog.querySelector('button').onclick=()=>dialog.close();doc.body.append(dialog);}
++ if(!dialog.open)dialog.showModal();return dialog;
++}
++export function accessBadge(state='required'){
++ const value=state==='free'?'Free':state==='subscribed'?'Open':'Locked';
++ const icon=value==='Free'?'':`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/>${value==='Open'?'<path d="M8 10V6a4 4 0 0 1 7.8-1.2"/>':'<path d="M8 10V6a4 4 0 0 1 8 0v4"/>'}<path d="M12 14v3"/></svg>`;
++ return `<span class="collection-lock access-badge access-${value.toLowerCase()}" aria-label="${esc(value)}">${icon}<span>${value}</span></span>`;
++}
+diff --git a/js/m4l-course-participants.js b/js/m4l-course-participants.js
+new file mode 100644
+index 00000000..3b10b573
+--- /dev/null
++++ b/js/m4l-course-participants.js
+@@ -0,0 +1,82 @@
++/* Course-only Participants. Core supplies people; the registered owner saves access. */
++(() => {
++ 'use strict';
++ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
++ let panel=null;
++ const token=()=>localStorage.getItem('m4l_account_token')||'';
++ const current=p=>panel===p&&p.token===token()&&p.context.current()&&p.root.isConnected;
++ const unsettled=p=>Boolean(p&&(p.busy||p.pending||p.job||p.drafts.size||p.policyDirty||p.selected.size));
++ function reset(){if(panel){panel.dialog?.remove();panel.root.remove();panel.cache.clear();panel.people.clear();panel.selected.clear();}panel=null;}
++ function assert(p){if(!current(p))throw new DOMException('The account or Course changed.','AbortError');}
++ async function api(p,command){
++  assert(p);const response=await fetch((window.M4L_CONFIG?.API_BASE||'')+'/api/admin/platform/studio-access',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+p.token,'X-Academy-Workspace':'ADMIN'},body:JSON.stringify({activityKey:p.activityKey,command})}),value=await response.json();assert(p);
++  if(!response.ok||!value.success)throw Object.assign(Error(value.error||'The access change could not be confirmed.'),{status:response.status,code:value.code});return value;
++ }
++ function tell(p,message){if(current(p)){p.notice=message;p.root.querySelector('[data-cp-status]')?.replaceChildren(document.createTextNode(message));p.dialog?.querySelector('[data-cp-dialog-status]')?.replaceChildren(document.createTextNode(message));}}
++ async function perform(p,fn){if(p.busy)return;p.busy=true;render(p);try{await fn();}catch(error){if(!current(p))return;if([401,403].includes(error.status)){p.people.clear();p.data=null;p.cache.clear();p.dialog?.close();p.root.innerHTML='<p role="alert">Your account or access changed. Reopen Participants.</p>';}else{if(['CHANGE_CONFLICT','RETRY_CONFLICT'].includes(error.code)){p.pending=null;if(p.job){p.job=null;p.selected.clear();p.results=null;p.cache.clear();tell(p,'Course access changed. Refresh Participants, then search again and select any remaining users.');p.dialog?.close();return;}}tell(p,error.message);}}finally{p.busy=false;if(current(p)&&p.data)render(p);}}
++ async function search(p,query='',after=''){
++  const key=JSON.stringify([query,after]);const cached=p.cache.get(key);if(cached&&Date.now()-cached.at<43200000)return cached.value;
++  const result=await api(p,{action:'course-user-search',search:query,after});p.cache.set(key,{at:Date.now(),value:result});return result;
++ }
++ async function load(p,{refresh=false,after=''}={}){
++  const value=await api(p,{action:'read',after,...(!refresh&&p.data?.revision!==undefined&&p.after===after?{known:{revision:p.data.revision,after,accountId:null}}:{})});
++  if(!value.notModified)p.data=value;else p.data={...p.data,...value};p.after=after;p.checkedAt=Date.now();
++  if(value.legacyOnly){p.root.hidden=true;return;}
++  for(const row of p.data.participants||[])p.people.set(row.account_id,row);
++  if(!p.policyDirty||p.pending?.kind==='policy')p.policyModel=p.data.coursePolicy?.model||'PAID';p.error=null;
++  if(p.policyModel==='FREE'&&p.data.canLinkAccount)p.freePage=await search(p,'',after);
++  render(p);
++ }
++ function render(p){
++  if(!current(p)||!p.data)return;const d=p.data;if(d.legacyOnly){p.root.hidden=true;return;}p.root.hidden=false;
++  if(d.blocked||d.ownership?.authority!=='WEBSITE'||d.ownership?.phase!=='COMMITTED'){p.root.innerHTML='<p role="status">Course access setup is pending. Existing access is preserved.</p>';return;}
++  const free=p.policyModel==='FREE',locked=p.busy||Boolean(p.pending||p.job),rows=free&&p.freePage?p.freePage.accounts.map(a=>({account_id:a.accountId,display_name:a.displayName,automatic:true})):[...p.people.values()].filter(a=>a.purchased||p.drafts.has(a.account_id));
++  rows.sort((a,b)=>a.display_name.localeCompare(b.display_name)||a.account_id.localeCompare(b.account_id));
++  p.root.innerHTML=`<fieldset class="cp-policy"${locked?' disabled':''}><legend>This Course is</legend>${['FREE','PAID'].map(model=>`<label><input type="radio" name="cp-policy" value="${model}"${p.policyModel===model?' checked':''}> ${model==='FREE'?'Free':'Paid'}</label>`).join('')}<button type="button" data-cp="policy-save"${(p.policyDirty||p.pending?.kind==='policy')&&!p.busy?'':' disabled'}>${p.pending?.kind==='policy'?'Retry save':'Save Course access'}</button></fieldset><p class="cp-policy-note">${p.policyDirty?'Save the Free or Paid setting to apply it.':free?'Free access is included for eligible signed-in users. Existing purchases are retained.':'Ticked students have Course access. Untick a student, then save to remove their access.'}</p><div class="cp-toolbar"><h3>Students with access</h3><button type="button" data-cp="add"${!d.canLinkAccount||free||locked?' disabled':''}>+ Add user</button><button type="button" class="pb-secondary" data-cp="refresh"${locked?' disabled':''}>Refresh</button></div><p role="status" aria-live="polite" data-cp-status>${esc(p.notice||'')}</p><div class="cp-table-wrap"><table class="cp-table"><thead><tr><th>Student</th><th>User ID</th></tr></thead><tbody>${rows.map(a=>`<tr><td><label class="cp-person"><input type="checkbox" data-cp-person="${esc(a.account_id)}" aria-label="${esc(a.display_name)} · Course access"${free||p.drafts.get(a.account_id)===true||!p.drafts.has(a.account_id)&&a.purchased?' checked':''}${free||locked?' disabled':''}><span>${esc(a.display_name)}</span></label></td><td>${esc(a.account_id)}</td></tr>`).join('')||'<tr><td colspan="2">No students with access on this page.</td></tr>'}</tbody></table></div><div class="cp-footer"><span>${p.drafts.size?`${p.drafts.size} unsaved access ${p.drafts.size===1?'change':'changes'}`:free?'Access is automatic while this Course is Free.':'Access records are up to date.'}</span>${(free?p.freePage?.more:d.more)?`<button type="button" class="pb-secondary" data-cp="more"${locked?' disabled':''}>More users</button>`:''}<button type="button" data-cp="save"${(p.drafts.size||p.pending?.kind==='access')&&!p.busy?'':' disabled'}>${p.pending?.kind==='access'?'Retry save':'Save access changes'}</button></div>${!d.canLinkAccount&&!free?'<p class="cm-hint">A Global Admin can add existing users. Current student access can be reviewed here.</p>':''}`;
++  if(p.dialog?.open){renderDialog(p);if(p.focusSearch&&!p.busy){p.dialog.querySelector('[name=cp-search]')?.focus();p.focusSearch=false;}}
++ }
++ async function savePolicy(p){
++  if(p.drafts.size||p.job)throw Error('Save the student changes before changing Free or Paid.');
++  if(!p.pending)p.pending={kind:'policy',command:{action:'save',revision:p.data.revision,change:{action:'course-policy',operationId:crypto.randomUUID(),accessModel:p.policyModel}}};
++  if(p.pending.kind!=='policy')throw Error('Finish the pending access save first.');
++  await api(p,p.pending.command);p.cache.clear();await load(p,{refresh:true});p.pending=null;p.policyDirty=false;
++  window.dispatchEvent(new window.CustomEvent('m4l-course-policy-saved',{detail:{activityKey:p.activityKey,coursePolicy:p.data.coursePolicy}}));tell(p,'Course access saved.');
++ }
++ async function saveStudents(p){
++  if(p.policyDirty)throw Error('Save the Free or Paid setting first.');
++  if(!p.pending){const entries=[...p.drafts].slice(0,40);if(!entries.length)return;const changes=entries.map(([accountId,on])=>({action:'participant',accountId,enrolled:on,live:on,purchased:on,cohort:p.people.get(accountId)?.cohort||'',reason:on?'Added in Course Participants':'Course access unchecked in Participants'}));p.pending={kind:'access',entries,command:{action:'save',revision:p.data.revision,change:{action:'access-batch',operationId:crypto.randomUUID(),changes}}};}
++  if(p.pending.kind!=='access')throw Error('Finish the pending Course setting save first.');
++  const pending=p.pending;await api(p,pending.command);await load(p,{refresh:true});
++  for(const [id,on]of pending.entries){p.drafts.delete(id);const person=p.people.get(id);if(person)Object.assign(person,{purchased:Number(on),enrolled:Number(on),live:Number(on)});}p.pending=null;tell(p,p.drafts.size?'Saved this group. Save the remaining changes when ready.':'Student access saved.');
++ }
++ function dialog(p){
++  if(p.policyDirty||p.drafts.size||p.pending)throw Error('Save the current access changes first.');
++  if(!p.dialog){const d=document.createElement('dialog');d.className='cp-dialog';d.setAttribute('aria-labelledby','cp-dialog-title');d.addEventListener('cancel',event=>{if(p.busy||p.job)event.preventDefault();else p.selected.clear();});d.addEventListener('click',event=>{const b=event.target.closest('[data-cp-dialog]');if(!b)return;event.preventDefault();const action=b.dataset.cpDialog,searchValue=action==='search'?d.querySelector('[name=cp-search]').value.trim():null;if(action==='cancel'){if(!p.busy&&!p.job){p.selected.clear();d.close();}return;}void perform(p,async()=>{if(action==='search'){p.query=searchValue;p.results=await search(p,p.query);renderDialog(p);}if(action==='more'){p.results=await search(p,p.query,p.results.nextCursor);renderDialog(p);}if(action==='add')await addSelected(p);});});d.addEventListener('submit',e=>{e.preventDefault();d.querySelector('[data-cp-dialog=search]').click();});d.addEventListener('change',e=>{if(!e.target.dataset.cpCandidate||p.busy||p.job)return;const person=p.results.accounts.find(a=>a.accountId===e.target.dataset.cpCandidate);if(e.target.checked)p.selected.set(person.accountId,person);else p.selected.delete(person.accountId);renderDialog(p);});document.body.append(d);p.dialog=d;}
++  p.query='';p.results=null;p.selected.clear();renderDialog(p);p.dialog.showModal();p.focusSearch=true;if(!p.busy)p.dialog.querySelector('[name=cp-search]').focus();
++ }
++ function renderDialog(p){
++  const locked=p.busy||Boolean(p.job);p.dialog.innerHTML=`<h2 id="cp-dialog-title">Add users</h2><p>Find existing users and select everyone to add.</p><form class="cp-search"><label>Find a user<input name="cp-search" type="search" maxlength="80" autocomplete="off" value="${esc(p.query||'')}"${locked?' disabled':''}></label><button data-cp-dialog="search" type="submit"${locked?' disabled':''}>Search</button></form><p role="status" data-cp-dialog-status>${esc(p.notice||'')}</p><div class="cp-results">${p.results?p.results.accounts.map(a=>`<label class="cp-candidate"><input type="checkbox" data-cp-candidate="${esc(a.accountId)}"${p.selected.has(a.accountId)||p.people.get(a.accountId)?.purchased?' checked':''}${locked||p.people.get(a.accountId)?.purchased?' disabled':''}><span>${esc(a.displayName)}<small>${esc(a.uniqueId||a.accountId)}${p.people.get(a.accountId)?.purchased?' · Already has access':''}</small></span></label>`).join('')||'<p>No matching users in this group.</p>':'<p>Search by name or User ID.</p>'}</div>${p.results?.more?`<button type="button" class="pb-secondary" data-cp-dialog="more"${locked?' disabled':''}>Search more users</button>`:''}<footer><span>${p.selected.size} selected</span><button type="button" class="pb-secondary" data-cp-dialog="cancel"${locked?' disabled':''}>Cancel</button><button type="button" data-cp-dialog="add"${(p.selected.size||p.job)&&!p.busy?'':' disabled'}>${p.job?'Retry adding users':'Add selected users'}</button></footer>`;
++ }
++ async function addSelected(p){
++  if(!p.job)p.job={index:0,items:[...p.selected.values()].map(a=>({...a,stage:'inspect',linkOperation:crypto.randomUUID(),grantOperation:crypto.randomUUID()}))};
++  while(p.job.index<p.job.items.length){const item=p.job.items[p.job.index];tell(p,`Adding users · ${p.job.index+1} of ${p.job.items.length}`);
++   if(item.stage==='inspect'){try{item.facts=await api(p,{action:'read',accountId:item.accountId});item.stage='prepare';}catch(e){if(e.status!==404)throw e;item.stage='link';}}
++   if(item.stage==='link'){await api(p,{action:'provision',input:{operationId:item.linkOperation,accountId:item.accountId}});item.stage='resume';}
++   if(item.stage==='resume'){await api(p,{action:'resume',input:{jobId:item.linkOperation}});item.facts=await api(p,{action:'read',accountId:item.accountId});item.stage='prepare';}
++   if(item.stage==='prepare'){const person=item.facts.person;if(!person)throw Error('Reopen the selected user before adding access.');if(person.purchased){p.people.set(person.account_id,person);item.stage='done';}else{item.command={action:'save',revision:item.facts.revision,change:{action:'participant',operationId:item.grantOperation,accountId:item.accountId,enrolled:true,live:true,purchased:true,cohort:person.cohort||'',reason:'Added in Course Participants'}};item.stage='grant';}}
++   if(item.stage==='grant'){await api(p,item.command);p.people.set(item.accountId,{...item.facts.person,enrolled:1,live:1,purchased:1});item.stage='done';}
++   p.job.index++;
++  }
++  const count=p.job.items.length;await load(p,{refresh:true});p.job=null;p.selected.clear();p.dialog.close();tell(p,`Access confirmed for ${count} ${count===1?'user':'users'}.`);
++ }
++ function attach(host,activityKey,context={current:()=>true}){
++  const key=JSON.stringify([token(),activityKey,context.selectionKey]);if(!panel||panel.key!==key){reset();const root=document.createElement('section');root.className='cm-course-participants';panel={key,token:token(),activityKey,context,root,data:null,people:new Map(),drafts:new Map(),selected:new Map(),cache:new Map(),after:'',busy:false,pending:null,job:null,policyDirty:false,notice:''};const p=panel;
++   root.addEventListener('change',e=>{if(p.busy||p.pending||p.job)return;if(e.target.name==='cp-policy'){p.policyModel=e.target.value;p.policyDirty=p.policyModel!==p.data.coursePolicy.model;render(p);}if(e.target.dataset.cpPerson){const id=e.target.dataset.cpPerson,on=e.target.checked;if(on===Boolean(p.people.get(id)?.purchased))p.drafts.delete(id);else p.drafts.set(id,on);render(p);}});
++   root.addEventListener('click',e=>{const b=e.target.closest('[data-cp]');if(!b)return;e.preventDefault();void perform(p,async()=>{const action=b.dataset.cp;if(action==='save')await saveStudents(p);if(action==='policy-save')await savePolicy(p);if(action==='refresh'){if(p.pending||p.job)throw Error('Retry the pending save first.');p.cache.clear();await load(p,{refresh:true});}if(action==='more'){if(unsettled({...p,busy:false}))throw Error('Save the current changes before loading more users.');await load(p,{after:p.policyModel==='FREE'?p.freePage.nextCursor:p.data.next});}if(action==='add')dialog(p);});});
++  }
++  const p=panel;p.context=context;host.append(p.root);if((!p.data||Date.now()-p.checkedAt>=43200000)&&!p.loading){p.root.innerHTML='<p role="status">Loading Course access…</p>';p.loading=load(p).catch(e=>{if(current(p)){p.error=e;p.root.innerHTML='<p role="alert">'+esc(e.message)+'</p><button type="button" data-cp="refresh">Retry</button>';}}).finally(()=>{p.loading=null;});}else render(p);return p;
++ }
++ async function ensure(host,activityKey,context){const p=attach(host,activityKey,context);if(p.loading)await p.loading;return p.error?'UNAVAILABLE':p.data?.legacyOnly?'ACADEMY':p.data?.ownership?.authority||'UNAVAILABLE';}
++ window.M4L_COURSE_PARTICIPANTS={attach,ensure,reset,canLeave:()=>!unsettled(panel)};
++ const changed=()=>{if(panel&&panel.token!==token())reset();};window.addEventListener('storage',changed);window.addEventListener('pageshow',changed);window.addEventListener('m4l-academy-session',changed);window.addEventListener('beforeunload',e=>{if(unsettled(panel)){e.preventDefault();e.returnValue='';}});
++})();
+diff --git a/js/m4l-playlist-card.mjs b/js/m4l-playlist-card.mjs
+index 6791b26d..5eab1757 100644
+--- a/js/m4l-playlist-card.mjs
++++ b/js/m4l-playlist-card.mjs
+@@ -1,3 +1,4 @@
++import {accessBadge} from './m4l-access-badge.mjs';
+ // Display metadata only. Native playlist IDs, publication and access stay authoritative.
+ const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ export const CARD_PRESETS=Object.freeze({sage:{label:'Sage',css:'linear-gradient(135deg,#71846c,#365a4c)'},plum:{label:'Plum',css:'linear-gradient(135deg,#937187,#553c52)'},rose:{label:'Rose',css:'linear-gradient(135deg,#b37c89,#713e58)'},gold:{label:'Gold',css:'linear-gradient(135deg,#ac8b45,#65522d)'},ocean:{label:'Ocean',css:'linear-gradient(135deg,#528b92,#2b556c)'},sunset:{label:'Sunset',css:'linear-gradient(135deg,#bb8866,#784e65)'}});
+@@ -18,14 +19,16 @@ export function playlistCardHTML(row,{href='',action='',websiteId='',kind=row.ki
+  const id=row.id||row.playlistId;if(!/^[-A-Za-z0-9_:]{1,180}$/.test(id||''))return '';
+  const card=playlistCard(row.card),appearance=cardAppearance(card),title=row.name??row.title??'',src=card.style==='image'?(imageURL||cardImageURL(card.image?.url)):null,tafseer=kind==='TAFSEER'&&card.style==='default';
+  const cover=src?`<img class="playlist-card-picture" src="${esc(src)}" alt="" loading="lazy">`:tafseer?(defaultArtwork||'<span class="playlist-card-ornament" aria-hidden="true">◇</span>'):'';
+- const body=`${cover}<span class="playlist-card-label"><strong>${esc(title)}</strong>${card.teacher?'<span class="playlist-card-teacher">'+esc(card.teacher)+'</span>':''}${Number.isSafeInteger(row.recordings)?'<span class="playlist-card-count">'+row.recordings+' '+(row.recordings===1?'recording':'recordings')+'</span>':''}</span>${accessLabel?'<span class="playlist-card-access">'+esc(accessLabel)+'</span>':''}`;
++ const body=`${cover}<span class="playlist-card-label"><strong>${esc(title)}</strong>${card.teacher?'<span class="playlist-card-teacher">'+esc(card.teacher)+'</span>':''}${Number.isSafeInteger(row.recordings)?'<span class="playlist-card-count">'+row.recordings+' '+(row.recordings===1?'recording':'recordings')+'</span>':''}</span>${accessLabel?accessBadge(accessLabel==='Free'?'free':['Open','Reading materials'].includes(accessLabel)?'subscribed':'required'):''}`;
+  const classes='playlist-artwork-card'+(src?' has-picture':'')+(tafseer?' is-tafseer':'')+(defaultArtwork&&tafseer?' has-surah-artwork':'');const style=`--playlist-card-background:${esc(appearance.background)};--playlist-card-ink:${appearance.ink}`;
++ const locked=Boolean(accessLabel&&!['Free','Open','Reading materials'].includes(accessLabel));
++ if(locked&&!preview)return `<button type="button" class="${classes}" style="${style}" data-playlist-id="${esc(id)}" data-course-access-locked aria-label="${esc(title+' · Locked')}">${body}</button>`;
+  if(preview)return `<div class="${classes}" style="${style}" data-playlist-id="${esc(id)}">${body}</div>`;
+  const attrs=`class="${classes}" style="${style}" data-playlist-id="${esc(id)}" aria-label="${esc('Open playlist: '+title)}"`;
+  return href?`<a ${attrs} href="${esc(href)}"${websiteId?' data-circles-website="'+esc(websiteId)+'"':''}>${body}</a>`:`<button type="button" ${attrs} data-lm="${esc(action)}" data-id="${esc(id)}">${body}</button>`;
+ }
+ export function ensurePlaylistCardStyles(document,href){if(document.querySelector('link[data-playlist-card-styles]'))return;const link=document.createElement('link');link.rel='stylesheet';link.href=href;link.dataset.playlistCardStyles='';document.head.append(link);}
+-export function cardEditorHTML(row,{kind='PROGRAM',teacher=false,imageRequired=false}={}){const card=playlistCard(row.card);return `<div class="playlist-card-editor" data-card-kind="${esc(kind)}"><div class="playlist-card-preview" data-card-preview>${playlistCardHTML(row,{kind,preview:true})}</div><div class="playlist-card-fields"><p>The card uses this playlist’s name. Save changes privately, then publish when ready.</p><label>Card background<select data-card-field="style">${[['default','Default design'],['colour','Solid colour'],['gradient','Preset gradient'],['image','Picture with title band']].map(([id,label])=>'<option value="'+id+'"'+(card.style===id?' selected':'')+'>'+label+'</option>').join('')}</select></label><label>Colour<input type="color" data-card-field="colour" value="${card.colour}"></label><label>Gradient / title band<select data-card-field="gradient"><option value="">Use solid colour</option>${Object.entries(CARD_PRESETS).map(([id,preset])=>'<option value="'+id+'"'+(card.gradient===id?' selected':'')+'>'+preset.label+'</option>').join('')}</select></label><label>Picture <span>${imageRequired?'Required for Course publication':'Optional'}</span><input type="file" data-card-image accept="image/png,image/jpeg,image/webp"></label><p class="playlist-card-help">PNG, JPEG or WebP · up to 5 MB. Uploading a picture keeps it private until publication.</p><button type="button" data-card-remove-image${card.image?'':' hidden'}>Remove picture</button>${card.image?'<button type="button" data-card-preview-image>Preview saved picture</button>':''}<p role="status" data-card-status></p></div></div>`;}
++export function cardEditorHTML(row,{kind='PROGRAM',teacher=false,imageRequired=false}={}){const card=playlistCard(row.card);return `<div class="playlist-card-editor" data-card-kind="${esc(kind)}"><div class="playlist-card-preview" data-card-preview>${playlistCardHTML(row,{kind,preview:true})}</div><div class="playlist-card-fields"><p>The standard card design is fixed. Upload a picture and the same title styling will be applied automatically.</p><input type="hidden" data-card-field="style" value="${card.style}"><input type="hidden" data-card-field="gradient" value="${card.gradient||''}"><label>Picture <span>${imageRequired?'Required for Course publication':'Optional'}</span><input type="file" data-card-image accept="image/png,image/jpeg,image/webp"></label><p class="playlist-card-help">PNG, JPEG or WebP · up to 5 MB. Pictures stay private until publication.</p><button type="button" data-card-remove-image${card.image?'':' hidden'}>Remove picture</button>${card.image?'<button type="button" data-card-preview-image>Preview saved picture</button>':''}<p role="status" data-card-status></p></div></div>`;}
+ export async function optimiseCardPicture(file,{maxBytes=512*1024,maxDimension=1400}={}){
+  const bitmap=await createImageBitmap(file);try{if(bitmap.width>12000||bitmap.height>12000||bitmap.width*bitmap.height>40_000_000)throw Error('Choose a smaller picture for the card.');const canvas=document.createElement('canvas'),scale=Math.min(1,maxDimension/Math.max(bitmap.width,bitmap.height));canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));const context=canvas.getContext('2d');if(!context)throw Error('This browser could not prepare the card picture.');context.drawImage(bitmap,0,0,canvas.width,canvas.height);for(const quality of [.86,.72,.58,.44]){const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/webp',quality));if(blob&&blob.size<=maxBytes)return new File([blob],'playlist-card.webp',{type:blob.type});}throw Error('Choose a less detailed picture for this card.');}finally{bitmap.close();}
+ }
+@@ -36,7 +39,7 @@ export function bindCardEditor(host,{getRow,onChange,onUpload,onPreview,isCurren
+  const status=text=>{if(active())host.querySelector('[data-card-status]').textContent=text;};
+  const change=patch=>{const row=getRow(),card={...playlistCard(row.card),...patch};onChange(card);preview();};
+  host.addEventListener('input',event=>{const field=event.target.dataset.cardField;if(!field)return;let value=event.target.value;if(field==='gradient')value=value||null;const patch={[field]:value};if(field==='style'&&['default','colour'].includes(value)){patch.gradient=null;patch.image=null;release();}if(field==='style'&&value==='gradient'&&!getRow().card?.gradient){patch.gradient='sage';host.querySelector('[data-card-field=gradient]').value='sage';}if(field==='gradient'&&getRow().card?.style!=='image'){patch.style=value?'gradient':'colour';host.querySelector('[data-card-field=style]').value=patch.style;}change(patch);});
+- host.addEventListener('change',async event=>{if(!event.target.matches('[data-card-image]'))return;let file=event.target.files?.[0];if(!file)return;const request=++ticket;if(!cardImageTypes.includes(file.type)||file.size<1||file.size>5*1024*1024){status('Choose a PNG, JPEG or WebP picture up to 5 MB.');return;}onBusy(true);status('Uploading private picture…');try{file=await prepareImage(file);if(!active()||request!==ticket)return;const bytes=await file.arrayBuffer(),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),n=>n.toString(16).padStart(2,'0')).join(''),image={assetId:hash,sha256:hash,type:file.type,size:file.size,alt:''};const saved=await onUpload(file,image);if(!active()||request!==ticket)return;if(!cardImageRef(saved))throw Error('The uploaded picture could not be verified.');release();blobURL=URL.createObjectURL(file);change({style:'image',image:saved});host.querySelector('[data-card-field=style]').value='image';host.querySelector('[data-card-remove-image]').hidden=false;status('Picture uploaded privately. Save this playlist, then publish to use it.');}catch(error){if(active()&&request===ticket)status(error.message);}finally{if(active()&&request===ticket)onBusy(false);}});
+- host.addEventListener('click',async event=>{if(event.target.closest('[data-card-remove-image]')){ticket++;release();change({style:'colour',image:null});host.querySelector('[data-card-field=style]').value='colour';event.target.hidden=true;status('Picture removed from this draft. Save to keep the change.');}if(event.target.closest('[data-card-preview-image]')){const request=++ticket;onBusy(true);try{const blob=await onPreview(getRow().card?.image);if(!active()||request!==ticket)return;release();blobURL=URL.createObjectURL(blob);preview();}catch(error){if(active())status(error.message);}finally{if(active()&&request===ticket)onBusy(false);}}});
++ host.addEventListener('change',async event=>{if(!event.target.matches('[data-card-image]'))return;let file=event.target.files?.[0];if(!file)return;const request=++ticket;if(!cardImageTypes.includes(file.type)||file.size<1||file.size>5*1024*1024){status('Choose a PNG, JPEG or WebP picture up to 5 MB.');return;}onBusy(true);status('Uploading private picture…');try{file=await prepareImage(file);if(!active()||request!==ticket)return;const bytes=await file.arrayBuffer(),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),n=>n.toString(16).padStart(2,'0')).join(''),image={assetId:hash,sha256:hash,type:file.type,size:file.size,alt:''};const saved=await onUpload(file,image);if(!active()||request!==ticket)return;if(!cardImageRef(saved))throw Error('The uploaded picture could not be verified.');release();blobURL=URL.createObjectURL(file);change({style:'image',colour:'#45665A',gradient:null,image:saved});host.querySelector('[data-card-field=style]').value='image';host.querySelector('[data-card-remove-image]').hidden=false;status('Picture uploaded privately. Save this playlist, then publish to use it.');}catch(error){if(active()&&request===ticket)status(error.message);}finally{if(active()&&request===ticket)onBusy(false);}});
++ host.addEventListener('click',async event=>{if(event.target.closest('[data-card-remove-image]')){ticket++;release();change({style:'default',colour:'#45665A',gradient:null,image:null});host.querySelector('[data-card-field=style]').value='default';event.target.hidden=true;status('Picture removed from this draft. Save to keep the change.');}if(event.target.closest('[data-card-preview-image]')){const request=++ticket;onBusy(true);try{const blob=await onPreview(getRow().card?.image);if(!active()||request!==ticket)return;release();blobURL=URL.createObjectURL(blob);preview();}catch(error){if(active())status(error.message);}finally{if(active()&&request===ticket)onBusy(false);}}});
+  return {preview,destroy(){closed=true;ticket++;release();}};
+ }

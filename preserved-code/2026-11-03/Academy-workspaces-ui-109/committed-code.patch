@@ -1,0 +1,154 @@
+diff --git a/backend/tests/academy-circles-preview-transport.test.mjs b/backend/tests/academy-circles-preview-transport.test.mjs
+index 9b519280..4bb79efd 100644
+--- a/backend/tests/academy-circles-preview-transport.test.mjs
++++ b/backend/tests/academy-circles-preview-transport.test.mjs
+@@ -13,6 +13,8 @@ test('released Circles renderers receive native scoped sample data without Studi
+  assert.equal((await call('/auth/login',null,{uniqueid:'unused',pin:'0000'})).status,404,'Preview cannot exchange credentials');
+  const mine=await call('/api/circles/navigation','studentA');assert.equal(mine.status,200);assert.deepEqual(mine.body.academia,[{key:'alimiyah',label:'Aalimiyah'}]);assert.deepEqual(mine.body.purchasedCourses,[]);
+  const theirs=await call('/api/circles/navigation','studentB');assert.deepEqual(theirs.body.academia,[{key:'reboot',label:'Reboot Your Maktab'}]);
++ assert.deepEqual(mine.body.adminCourses,[]);assert.deepEqual(theirs.body.adminCourses,[]);
++ const adminNavigation=await call('/api/circles/navigation','global');assert.deepEqual(adminNavigation.body.purchasedCourses,[]);assert.equal(adminNavigation.body.adminCourses[0].accessLabel,'Admin access');
+  const denied=await call('/__preview/continue','studentA',{navigation:'reboot'});assert.equal(denied.status,403);
+  const learn=await call('/__preview/continue','studentA',{navigation:'alimiyah'});assert.match(learn.body.choices[0].href,/\/learn$/);assert.deepEqual(learn.body.choices.map(c=>c.label),['Learn']);
+  const teach=await call('/__preview/continue','teacherA',{navigation:'alimiyah'});assert.deepEqual(teach.body.choices.map(c=>c.label),['Teach']);
+@@ -21,6 +23,8 @@ test('released Circles renderers receive native scoped sample data without Studi
+  assert.equal((await call('/api/circles/dashboard','studentA',{mode:'admin'})).status,403);
+  assert.equal((await call('/__preview/continue','studentA',{dashboard:{mode:'admin',tool:'home'}})).status,403);
+  const management=await call('/__preview/continue','global',{dashboard:{mode:'admin',tool:'home'}});assert.equal(management.body.choices[0].href,'/academy/admin/#administration');
++ const curriculum=await call('/__preview/continue','global',{dashboard:{mode:'admin',tool:'curriculum'}});assert.equal(curriculum.body.choices[0].href,'/academy/admin/#administration/curriculum');
++ assert.equal((await call('/__preview/continue','studentA',{dashboard:{mode:'admin',tool:'curriculum'}})).status,403);
+  assert.equal((await call('/__preview/continue','global',{dashboard:{mode:'admin',tool:'recorder'}})).status,409);
+ });
+ 
+diff --git a/backend/tests/academy-workspace-library-preview.test.mjs b/backend/tests/academy-workspace-library-preview.test.mjs
+new file mode 100644
+index 00000000..ae0687ba
+--- /dev/null
++++ b/backend/tests/academy-workspace-library-preview.test.mjs
+@@ -0,0 +1,23 @@
++import {test} from 'node:test';
++import assert from 'node:assert/strict';
++import {libraryPreviewResponse,sampleLibraryBooks,samplePdfPath} from '../tools/workspace-ui-preview/library.mjs';
++
++test('offline catalogue opens only its synthetic document through the existing reader validation',async()=>{
++ const {publicPdfFile}=await import('../../js/m4l-pdf-bookmarks-model.mjs');
++ const catalogue=libraryPreviewResponse('/academy/open-library/catalogue');
++ assert.deepEqual((await catalogue.json()).books,sampleLibraryBooks);
++ assert.equal(publicPdfFile(samplePdfPath),samplePdfPath);
++ const document=libraryPreviewResponse(samplePdfPath),bytes=Buffer.from(await document.arrayBuffer());
++ assert.equal(document.headers.get('Content-Type'),'application/pdf');
++ assert.match(bytes.toString(),/^%PDF-1.4/);assert.match(bytes.toString(),/Synthetic sample document/);
++ const xref=Number(bytes.toString().match(/startxref\n(\d+)/)[1]);assert.equal(bytes.subarray(xref,xref+4).toString(),'xref');
++ for(const unknown of ['/pdf-file/'+Buffer.from('https://archive.org/download/real-book/book.pdf').toString('base64url'),'/pdf-file/invalid','/academy/open-library/catalogue/private','https://archive.org/download/academy-ui-preview-synthetic/sample-learning-guide.pdf'])assert.equal(libraryPreviewResponse(unknown),null,'Unknown resources never start a proxy or fetch');
++});
++
++test('synthetic document supports bounded range/HEAD reads and rejects writes or invalid ranges',async()=>{
++ const partial=libraryPreviewResponse(samplePdfPath,{range:'bytes=0-7'});
++ assert.equal(partial.status,206);assert.equal(await partial.text(),'%PDF-1.4');assert.match(partial.headers.get('Content-Range'),/^bytes 0-7\/\d+$/);
++ const head=libraryPreviewResponse(samplePdfPath,{method:'HEAD'});assert.equal(await head.text(),'');assert(Number(head.headers.get('Content-Length'))>0);
++ for(const range of ['bytes=99999-','bytes=9-1','bytes=0-1,4-5','invalid'])assert.equal(libraryPreviewResponse(samplePdfPath,{range}).status,416);
++ assert.equal(libraryPreviewResponse(samplePdfPath,{method:'POST'}).status,405);
++});
+diff --git a/backend/tools/academy-workspace-ui-preview.mjs b/backend/tools/academy-workspace-ui-preview.mjs
+index 6858929f..6e40d2d4 100644
+--- a/backend/tools/academy-workspace-ui-preview.mjs
++++ b/backend/tools/academy-workspace-ui-preview.mjs
+@@ -8,6 +8,7 @@ import {openLibraryFixture} from '../tests/fixtures/academy-d1-open-library-fixt
+ import worker from '../src/academy-runtime.js';
+ import {circlesPublicFile,circlesHomepage,previewLogin,previewWebsiteReturn} from './workspace-ui-preview/circles-home.mjs';
+ import {createCirclesTransport,previewApi} from './workspace-ui-preview/circles-transport.mjs';
++import {libraryPreviewResponse} from './workspace-ui-preview/library.mjs';
+ 
+ const root=realpathSync(fileURLToPath(new URL('../../',import.meta.url)));
+ const circlesRoot=path.resolve(process.env.WORKSPACE_UI_CIRCLES_ROOT||path.join(root,'../AcademyStudio-ui-1091/local-content/dashboard-style-review/public'));
+@@ -40,6 +41,7 @@ for(let i=1;i<=3;i++){
+ const tokens=Object.fromEntries(await Promise.all(['studentA','teacherA','global'].map(async who=>[who,await fixture.actor(who)])));
+ const destinations={studentA:'/?previewDashboard=1',teacherA:'/?previewDashboard=1',global:'/?previewDashboard=1'};
+ const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json','.png':'image/png','.svg':'image/svg+xml','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ttf':'font/ttf','.woff':'font/woff','.woff2':'font/woff2','.ico':'image/x-icon','.pdf':'application/pdf'};
++Object.assign(mime,{'.ftl':'text/plain; charset=utf-8','.properties':'text/plain; charset=utf-8','.wasm':'application/wasm','.bcmap':'application/octet-stream','.pfb':'application/octet-stream'});
+ const csp="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src 'self' blob:; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'";
+ let origin='';
+ const circlesTransport=createCirclesTransport({env:fixture.env,worker,origin:()=>origin});
+@@ -60,6 +62,8 @@ const server=createServer(async(req,res)=>{
+   if(url.searchParams.get('previewDashboard')==='1')res.setHeader('Set-Cookie','workspace-preview-view=dashboard; Path=/; SameSite=Strict; HttpOnly');
+   if(url.searchParams.get('public')==='1')res.setHeader('Set-Cookie','workspace-preview-view=public; Path=/; SameSite=Strict; HttpOnly');
+   res.setHeader('Cache-Control','no-store');res.setHeader('X-Robots-Tag','noindex, nofollow');res.setHeader('Content-Security-Policy',csp);res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Content-Type-Options','nosniff');
++  const libraryResponse=libraryPreviewResponse(url.pathname,{method:req.method,range:req.headers.range});
++  if(libraryResponse){res.statusCode=libraryResponse.status;for(const [name,value] of libraryResponse.headers)res.setHeader(name,value);res.end(Buffer.from(await libraryResponse.arrayBuffer()));return;}
+   if(url.pathname.startsWith('/__preview/transport/')){
+    const chunks=[];for await(const part of req)chunks.push(part);
+    const response=await circlesTransport(url.pathname.slice('/__preview/transport'.length),new Request(origin+url.pathname,{method:req.method,headers:req.headers,...(!['GET','HEAD'].includes(req.method)?{body:Buffer.concat(chunks)}:{})}));
+@@ -97,7 +101,7 @@ const server=createServer(async(req,res)=>{
+    for(const [name,value] of response.headers)if(!['content-security-policy','cache-control','x-robots-tag'].includes(name))res.setHeader(name,value);
+    res.statusCode=response.status;res.end(Buffer.from(await response.arrayBuffer()));return;
+   }
+-  if(!/^\/(?:academy|programs|users|css|js|assets|images|img)\//.test(url.pathname)&&!['/version.json','/ummabbadacademy.png','/admin-favicon-32x32.png'].includes(url.pathname)){res.writeHead(404);res.end();return;}
++  if(!/^\/(?:academy|programs|users|css|js|assets|images|img|icons|pdf-viewer)\//.test(url.pathname)&&!['/version.json','/ummabbadacademy.png','/admin-favicon-32x32.png'].includes(url.pathname)){res.writeHead(404);res.end();return;}
+   let file=path.resolve(root,'.'+decodeURIComponent(url.pathname));if(url.pathname.endsWith('/'))file=path.join(file,'index.html');file=realpathSync(file);
+   if(!file.startsWith(root+path.sep)||!mime[path.extname(file)]){res.writeHead(404);res.end();return;}
+   let body=readFileSync(file);res.setHeader('Content-Type',mime[path.extname(file)]);
+diff --git a/backend/tools/workspace-ui-preview/circles-home.mjs b/backend/tools/workspace-ui-preview/circles-home.mjs
+index c9adbc1a..3f95552a 100644
+--- a/backend/tools/workspace-ui-preview/circles-home.mjs
++++ b/backend/tools/workspace-ui-preview/circles-home.mjs
+@@ -15,7 +15,7 @@ const connectedFiles=new Set(['shared/circles-workspaces.css','shared/assets/fon
+  'shared/pin-entry.mjs','shared/account-history.mjs','shared/header-icons.mjs',
+  'shared/header-dates.mjs','shared/remembered-accounts.mjs','shared/model.mjs',
+  'shared/circles-block-navigation.mjs','shared/circles-dashboard-view.mjs',
+- 'shared/circles-course-row.mjs','shared/homepage-free-courses.mjs','shared/circles-sign-in.mjs']);
++ 'shared/circles-course-row.mjs','shared/circles-learn-courses.mjs','shared/homepage-free-courses.mjs','shared/circles-sign-in.mjs']);
+ 
+ export function circlesPublicFile(publicRoot,pathname){
+  const relative=connectedFiles.has(pathname.slice(1))?pathname.slice(1):pathname==='/circles-login.css'?'circles-login.css':
+diff --git a/backend/tools/workspace-ui-preview/circles-transport.mjs b/backend/tools/workspace-ui-preview/circles-transport.mjs
+index 20dd5f0f..b711b7a9 100644
+--- a/backend/tools/workspace-ui-preview/circles-transport.mjs
++++ b/backend/tools/workspace-ui-preview/circles-transport.mjs
+@@ -25,7 +25,7 @@ export function createCirclesTransport({env,worker,origin}){
+     return activity&&(global||state.contexts.some(c=>c.scope==='COURSE'&&c.courseId.toLowerCase()===id.toLowerCase()&&['STUDENT','TEACHER','SENIOR','PROGRAM_ADMIN','ADMIN'].includes(c.role)))?activity:null;
+    };
+    if(path==='/api/me'&&request.method==='GET')return Response.json({accountId:state.account.account_id,displayName:state.account.display_name,globalAdmin:global});
+-   if(path==='/api/circles/navigation'&&request.method==='GET')return Response.json({academia:['alimiyah','reboot','arabic-intensive'].filter(permitted).map(key=>({key,label:{alimiyah:'Aalimiyah',reboot:'Reboot Your Maktab','arabic-intensive':'Arabic Intensive'}[key]})),mothers:Boolean(permitted('mothers')),hifz:permitted('hifz')?'https://hifz.maktab4life.org/':null,tafseer:'/studio/?view=collections&collection=tafseer',shortCourses:[],purchasedCourses:[]});
++   if(path==='/api/circles/navigation'&&request.method==='GET')return Response.json({academia:['alimiyah','reboot','arabic-intensive'].filter(permitted).map(key=>({key,label:{alimiyah:'Aalimiyah',reboot:'Reboot Your Maktab','arabic-intensive':'Arabic Intensive'}[key]})),mothers:Boolean(permitted('mothers')),hifz:permitted('hifz')?'https://hifz.maktab4life.org/':null,tafseer:'/studio/?view=collections&collection=tafseer',shortCourses:[],purchasedCourses:[],adminCourses:global?[{href:'/studio/?website=workspace-review-paid-course',label:'Sample paid course',accessLabel:'Admin access'}]:[]});
+    if(path==='/api/circles/dashboard'&&request.method==='POST'){
+     const input=await request.json();if(Object.keys(input).some(k=>!['mode','refresh'].includes(k)))throw fail('Choose a sample workspace.');
+     return Response.json(await dashboardSummary(state,env,input,(path,body,mode)=>native(request,path,body,mode)));
+diff --git a/backend/tools/workspace-ui-preview/library.mjs b/backend/tools/workspace-ui-preview/library.mjs
+new file mode 100644
+index 00000000..87c57bca
+--- /dev/null
++++ b/backend/tools/workspace-ui-preview/library.mjs
+@@ -0,0 +1,33 @@
++// Local review only. These two resources are synthetic, not Archive content.
++// Use the reader's existing Archive URL validation without fetching that URL.
++const sampleUrl='https://archive.org/download/academy-ui-preview-synthetic/sample-learning-guide.pdf';
++export const samplePdfPath='/pdf-file/'+Buffer.from(sampleUrl).toString('base64url');
++export const sampleLibraryBooks=[
++ {id:'workspace-preview-guide',title:'Sample learning guide',subject:'Offline review',source:'Synthetic sample',details:'Local preview',description:'A sample document for reviewing the Library and reader.',resourceType:'EBOOK',pdfUrl:sampleUrl},
++ {id:'workspace-preview-planner',title:'Sample study planner',subject:'Offline review',source:'Synthetic sample',details:'Local preview',description:'A sample printable for reviewing the Library filters.',resourceType:'PRINTABLE',pdfUrl:sampleUrl}
++];
++
++function samplePdf(){
++ const stream='BT /F1 24 Tf 60 740 Td (Offline Library review) Tj 0 -48 Td /F1 14 Tf (Synthetic sample document.) Tj 0 -26 Td (No Academy teaching material is included.) Tj ET';
++ const objects=['<< /Type /Catalog /Pages 2 0 R >>','<< /Type /Pages /Kids [3 0 R] /Count 1 >>','<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>','<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',`<< /Length ${Buffer.byteLength(stream)} >>\nstream\n${stream}\nendstream`];
++ let pdf='%PDF-1.4\n';const offsets=[0];
++ for(const [i,object] of objects.entries()){offsets.push(Buffer.byteLength(pdf));pdf+=`${i+1} 0 obj\n${object}\nendobj\n`;}
++ const xref=Buffer.byteLength(pdf);pdf+='xref\n0 6\n0000000000 65535 f \n'+offsets.slice(1).map(offset=>String(offset).padStart(10,'0')+' 00000 n \n').join('');
++ return Buffer.from(pdf+`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
++}
++const pdfBytes=samplePdf();
++
++export function libraryPreviewResponse(pathname,{method='GET',range=null}={}){
++ if(pathname!=='/academy/open-library/catalogue'&&pathname!==samplePdfPath)return null;
++ if(!['GET','HEAD'].includes(method))return new Response(null,{status:405,headers:{Allow:'GET, HEAD'}});
++ if(pathname==='/academy/open-library/catalogue')return new Response(method==='HEAD'?null:JSON.stringify({books:sampleLibraryBooks}),{headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
++ const headers={'Content-Type':'application/pdf','Cache-Control':'no-store','Accept-Ranges':'bytes'};
++ let start=0,end=pdfBytes.length-1,status=200;
++ if(range){
++  const match=/^bytes=(\d+)-(\d*)$/.exec(range);
++  if(!match||!Number.isSafeInteger(start=Number(match[1]))||!Number.isSafeInteger(end=match[2]?Number(match[2]):end)||start>end||start>=pdfBytes.length)return new Response(null,{status:416,headers:{...headers,'Content-Range':'bytes */'+pdfBytes.length}});
++  end=Math.min(end,pdfBytes.length-1);status=206;headers['Content-Range']=`bytes ${start}-${end}/${pdfBytes.length}`;
++ }
++ headers['Content-Length']=String(end-start+1);
++ return new Response(method==='HEAD'?null:pdfBytes.subarray(start,end+1),{status,headers});
++}

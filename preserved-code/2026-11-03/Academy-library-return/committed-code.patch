@@ -1,0 +1,90 @@
+diff --git a/academy/website-platform/circles-return.mjs b/academy/website-platform/circles-return.mjs
+index e0d9e403..fed60fe9 100644
+--- a/academy/website-platform/circles-return.mjs
++++ b/academy/website-platform/circles-return.mjs
+@@ -6,6 +6,18 @@ export function approvedCirclesReturn(raw,now=Date.now()){
+   return c;
+  }catch{return null;}
+ }
++// Returning to the exact live opener preserves its DOM, selected mode and
++// scroll position. If it cannot acknowledge, the checked ordinary URL remains.
++export function returnToOpenDashboard({window,context,isCurrent=()=>true,timeoutMs=1000}){
++ const opener=window.opener;if(!opener||opener.closed||!approvedCirclesReturn(JSON.stringify(context))||!isCurrent())return false;
++ const requestId=window.crypto.randomUUID();let done=false;
++ const finish=()=>{if(done)return;done=true;window.clearTimeout(timer);window.removeEventListener('message',receive);};
++ const fallback=()=>{if(done)return;finish();if(isCurrent())window.location.assign(context.returnUrl);};
++ const receive=event=>{if(event.source!==opener||event.origin!==context.websiteOrigin||event.data?.type!=='CIRCLES_DASHBOARD_RETURNED'||event.data.requestId!==requestId||event.data.mode!==context.mode||!isCurrent())return;finish();window.close();if(!window.closed)window.location.assign(context.returnUrl);};
++ window.addEventListener('message',receive);const timer=window.setTimeout(fallback,timeoutMs);
++ try{opener.postMessage({type:'ACADEMY_CIRCLES_RETURN',requestId,mode:context.mode},context.websiteOrigin);}catch{fallback();}
++ return true;
++}
+ if(typeof window!=='undefined'){
+  const originals=new Map();let context=null,matchedToken='',generation=0,checking=Promise.resolve();
+  window.M4L_CIRCLES_RETURN={ready:()=>checking,modeHref(mode){
+@@ -22,5 +34,9 @@ if(typeof window!=='undefined'){
+  new MutationObserver(apply).observe(document.body,{attributes:true,attributeFilter:['href'],subtree:true});
+  // Keep the native Library and PDF reader in the same tab. A noopener PDF tab
+  // would lose this account-bound return context and fall back to Academy Home.
+- document.addEventListener('click',event=>{if(!context)return;const link=event.target.closest('a[href]');if(!link)return;const url=new URL(link.href,location.origin);if(url.origin===location.origin&&url.pathname==='/academy/pdf-reader/'){link.removeAttribute('target');link.removeAttribute('rel');}},true);
++ document.addEventListener('click',event=>{if(!context)return;const link=event.target.closest('a[href]');if(!link)return;const url=new URL(link.href,location.origin);if(url.origin===location.origin&&url.pathname==='/academy/pdf-reader/'){link.removeAttribute('target');link.removeAttribute('rel');}
++  if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||event.defaultPrevented||url.href!==context.returnUrl)return;
++  const selected=context,owner=matchedToken;
++  if(returnToOpenDashboard({window,context:selected,isCurrent:()=>context===selected&&matchedToken===owner&&owner===localStorage.getItem('m4l_account_token')&&Boolean(approvedCirclesReturn(JSON.stringify(selected)))}))event.preventDefault();
++ },true);
+ }
+diff --git a/backend/tests/circles-return-ui.test.mjs b/backend/tests/circles-return-ui.test.mjs
+new file mode 100644
+index 00000000..91344fb1
+--- /dev/null
++++ b/backend/tests/circles-return-ui.test.mjs
+@@ -0,0 +1,24 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import {returnToOpenDashboard} from '../../academy/website-platform/circles-return.mjs';
++
++function fixture(){
++ const sent=[],assigned=[],window=new EventTarget(),opener={closed:false,postMessage:(...value)=>sent.push(value)};
++ Object.assign(window,{opener,crypto:{randomUUID:()=> '12345678-1234-1234-1234-123456789abc'},setTimeout:fn=>(window.expire=fn,1),clearTimeout(){},location:{assign:url=>assigned.push(url)},close(){window.closed=true;}});
++ const context={mode:'learn',returnUrl:'https://website.test/?workspace=learn',websiteOrigin:'https://website.test',owner:'a'.repeat(64),expiresAt:Date.now()+60_000};
++ const message=change=>{const e=new Event('message');Object.assign(e,{source:opener,origin:context.websiteOrigin,data:{type:'CIRCLES_DASHBOARD_RETURNED',requestId:sent[0]?.[0].requestId,mode:'learn'},...change});window.dispatchEvent(e);};
++ return {window,opener,context,sent,assigned,message};
++}
++test('live opener return waits for its exact origin, window, request and mode acknowledgement; no network bootstrap',()=>{
++ const f=fixture();assert.equal(returnToOpenDashboard(f),true);assert.equal(f.sent.length,1);assert.equal(f.sent[0][1],'https://website.test');
++ f.message({origin:'https://outside.test'});f.message({source:{}});f.message({data:{type:'CIRCLES_DASHBOARD_RETURNED',requestId:'wrong',mode:'learn'}});f.message({data:{...f.sent[0][0],type:'CIRCLES_DASHBOARD_RETURNED',mode:'admin'}});assert(!f.window.closed);
++ f.message();assert(f.window.closed);assert.deepEqual(f.assigned,[]);f.window.expire();assert.deepEqual(f.assigned,[]);
++});
++test('missing opener falls back to normal navigation, and unacknowledged or refused return retains the checked URL',()=>{
++ const missing=fixture();missing.window.opener=null;assert.equal(returnToOpenDashboard(missing),false);assert.equal(missing.sent.length,0);
++ const stale=fixture();stale.context.expiresAt=0;assert.equal(returnToOpenDashboard(stale),false);
++ const f=fixture();returnToOpenDashboard(f);f.window.expire();assert.deepEqual(f.assigned,[f.context.returnUrl]);assert(!f.window.closed);
++});
++test('changed native account or return context cannot close the Library or restore the old destination',()=>{
++ const f=fixture();let current=true;returnToOpenDashboard({...f,isCurrent:()=>current});current=false;f.message();f.window.expire();assert(!f.window.closed);assert.deepEqual(f.assigned,[]);
++});
+diff --git a/css/m4l-lesson-media.css b/css/m4l-lesson-media.css
+index 797c2a65..7169d615 100644
+--- a/css/m4l-lesson-media.css
++++ b/css/m4l-lesson-media.css
+@@ -68,6 +68,8 @@ button.lm-card-title{cursor:pointer}button.lm-card-title:hover{text-decoration:u
+ [data-lesson-pdf-library]{display:grid;gap:.6rem;min-width:0}[data-lesson-pdf-library] select{width:100%;max-width:100%;min-width:0}[data-lesson-pdf-library][hidden],[data-lesson-pdf-upload][hidden]{display:none}
+ .lm-subject-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:18px}.lm-subject-grid article,.lm-recording-list article{padding:24px;border:1px solid var(--circle-rule,#ddced7);background:var(--circle-surface,#fffaf5);border-radius:12px}.lm-recording-collections h3{font:400 27px/1.2 Georgia,serif}.lm-recording-list article{margin-block:16px}.lm-recording-list .lm-session-summary,.lm-recording-detail .lm-session-summary{white-space:normal;overflow:visible;display:block;line-height:1.8}.lm-recording-detail [data-lm-recording-player] video,.lm-recording-detail [data-lm-recording-player] iframe{width:100%;aspect-ratio:16/9;border:0;background:#171417}.lm-recording-detail>details{padding:22px 0}.lm-recording-detail summary{cursor:pointer;font:400 24px/1.4 Georgia,serif;min-height:44px}.lm-recording-detail nav{display:flex;gap:10px;flex-wrap:wrap}.lm-recording-detail pre{white-space:pre-wrap;overflow-wrap:anywhere;font:14px/1.8 system-ui}
+ .lm-verified-quotes{padding:20px;background:#f0e4ed;border-radius:10px;margin-block:20px}.lm-verified-quotes blockquote{margin:0;font:400 25px/1.4 Georgia,serif}@media(min-width:850px){.lm-verified-quotes{float:right;width:28%;margin:0 0 24px 30px}}
++.lm-watch-pane,.lm-read-pane{min-width:0}.lm-watch-pane>details{padding:22px 0}.lm-read-pane .lm-session-summary{padding:20px 0}
++@media(min-width:1200px){.lm-watch-read-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:36px;align-items:start}.lm-watch-pane{position:sticky;top:24px}.lm-read-pane{border-left:1px solid var(--circle-rule,#ddced7);padding-left:30px}.lm-read-pane .lm-session-summary{padding-top:0}.lm-read-pane .lm-verified-quotes{float:none;width:auto;margin:20px 0}}
+ 
+ .lm-recording-references article{padding:18px 0;border-bottom:1px solid #ddced7}.lm-recording-references [lang=ar]{font:26px/1.8 Amiri,serif}
+ 
+diff --git a/js/m4l-recording-collections.mjs b/js/m4l-recording-collections.mjs
+index c4a57629..24faaf1e 100644
+--- a/js/m4l-recording-collections.mjs
++++ b/js/m4l-recording-collections.mjs
+@@ -14,7 +14,7 @@ const summary=text=>String(text||'').trim().startsWith('- ')?'<ul>'+String(text)
+ const button=(action,label,id='',extra='')=>`<button type="button" class="button secondary" data-lm="${action}" data-id="${esc(id)}" ${extra}>${label}</button>`;
+ export function recordingCollectionHTML(lessons,state={}){
+  const groups=permittedRecordingGroups(lessons),group=groups.find(g=>g.key===state.group),row=group?.lessons.find(r=>r.recordingKey===state.lesson);
+- if(row){const asset=row.assets.find(a=>a.id===row.recordingAssetId),expired=asset.kind==='MP4'&&(asset.expired||Date.parse(asset.expiresAt)<=Date.now());return `<section class="lm-recording-detail"><nav>${button('recording-list','← Recordings')} ${button('recording-groups','All subject cards')}</nav><p>${esc(row.date)} · ${esc(row.className)} · ${esc(row.teacher)}${row.durationSeconds?' · '+Math.round(row.durationSeconds/60)+' min':''}</p><h2>${esc(row.title)}</h2><div data-lm-recording-player></div>${expired?'<p>Recording expired</p>':button('recording-play','▶ Listen',row.id,`data-asset="${esc(asset.id)}"`)}<details><summary>Follow along by topic</summary><div data-lm-recording-topics></div></details><div class="lm-session-summary">${summary(row.summary)}</div><div data-lm-recording-companion></div>${row.assets.filter(a=>a.kind==='PDF').map(a=>button('pdf',esc(a.name||a.filename||'PDF'),row.id,`data-asset="${esc(a.id)}" data-key="${esc(row.sessionKey)}"`)).join('')}</section>`;}
++ if(row){const asset=row.assets.find(a=>a.id===row.recordingAssetId),expired=asset.kind==='MP4'&&(asset.expired||Date.parse(asset.expiresAt)<=Date.now());return `<section class="lm-recording-detail"><nav>${button('recording-list','← Recordings')} ${button('recording-groups','All subject cards')}</nav><p>${esc(row.date)} · ${esc(row.className)} · ${esc(row.teacher)}${row.durationSeconds?' · '+Math.round(row.durationSeconds/60)+' min':''}</p><h2>${esc(row.title)}</h2><div class="lm-watch-read-layout"><section class="lm-watch-pane" aria-label="Watch and follow by topic"><div data-lm-recording-player></div>${expired?'<p>Recording expired</p>':button('recording-play','▶ Listen',row.id,`data-asset="${esc(asset.id)}"`)}<details><summary>Follow along by topic</summary><div data-lm-recording-topics></div></details></section><section class="lm-read-pane" aria-label="Read along"><div class="lm-session-summary">${summary(row.summary)}</div><div data-lm-recording-companion></div>${row.assets.filter(a=>a.kind==='PDF').map(a=>button('pdf',esc(a.name||a.filename||'PDF'),row.id,`data-asset="${esc(a.id)}" data-key="${esc(row.sessionKey)}"`)).join('')}</section></div></section>`;}
+  if(group)return `<section class="lm-recording-list">${button('recording-groups','← Subject cards')}<h2>${esc(group.title)}</h2><p>${esc(group.className)} · ${esc(group.teacher)}</p>${group.lessons.map(row=>`<article><time>${esc(row.date)}</time><h3>${esc(row.title)}</h3><div class="lm-session-summary">${summary(row.summary)}</div>${row.lessonReference?'<p>'+esc(row.lessonReference)+'</p>':''}${row.durationSeconds?'<p>'+Math.round(row.durationSeconds/60)+' min</p>':''}${button('recording-lesson','▶ Listen',row.id,`data-asset="${esc(row.recordingAssetId)}"`)}</article>`).join('')}</section>`;
+  return `<section class="lm-recording-collections"><h2>Recordings</h2><div class="lm-subject-grid">${groups.map(g=>`<article><h3>${esc(g.title)}</h3><p>${esc(g.className)}</p><p>${esc(g.teacher||'')}</p>${button('recording-group','Open recordings','',`data-group="${esc(g.key)}"`)}</article>`).join('')||'<p>No recordings are available with your current access.</p>'}</div></section>`;
+ }

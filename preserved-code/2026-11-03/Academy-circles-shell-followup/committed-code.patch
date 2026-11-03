@@ -1,0 +1,791 @@
+diff --git a/academy/admin/index.html b/academy/admin/index.html
+index 960f8981..7b20a310 100644
+--- a/academy/admin/index.html
++++ b/academy/admin/index.html
+@@ -265,6 +265,7 @@
+ <link rel="stylesheet" href="/css/m4l-course-companion-dashboard.css?v=109.2">
+ <link rel="stylesheet" href="/css/m4l-tafseer-cards.css?v=109.2">
+ <link rel="stylesheet" href="/css/m4l-workspace-theme.css?v=109.2">
++<link rel="stylesheet" href="/css/m4l-programme-workspace.css?v=109.3">
+ </head>
+ <body class="circles-workspace-page">
+ <a class="skip-link" href="#main">Skip to content</a>
+@@ -495,6 +496,7 @@
+ <script src="/js/m4l-academy-join.js?v=106.89"></script><script src="/js/m4l-academy-announcements.js?v=109.2"></script>
+ <script src="/js/m4l-academy-settings.js?v=107.52"></script>
+ <script src="/js/m4l-class-notes.js?v=109.2"></script>
++<script src="/js/m4l-programme-workspace.js?v=109.3"></script>
+ <script src="/js/m4l-messaging.js?v=109.2"></script>
+ <script src="/js/m4l-course-companion.js?v=109.2"></script>
+ <script src="/js/m4l-tafseer-cards.js?v=109.2"></script>
+diff --git a/academy/index.html b/academy/index.html
+index 57aebd59..c0b79cd1 100644
+--- a/academy/index.html
++++ b/academy/index.html
+@@ -265,6 +265,7 @@
+ <link rel="stylesheet" href="/css/m4l-course-companion-dashboard.css?v=109.2">
+ <link rel="stylesheet" href="/css/m4l-tafseer-cards.css?v=109.2">
+ <link rel="stylesheet" href="/css/m4l-workspace-theme.css?v=109.2">
++<link rel="stylesheet" href="/css/m4l-programme-workspace.css?v=109.3">
+ </head>
+ <body class="circles-workspace-page">
+ <a class="skip-link" href="#main">Skip to content</a>
+@@ -496,6 +497,7 @@
+ <script src="/js/m4l-academy-join.js?v=106.89"></script><script src="/js/m4l-academy-announcements.js?v=109.2"></script>
+ <script src="/js/m4l-academy-settings.js?v=107.52"></script>
+ <script src="/js/m4l-class-notes.js?v=109.2"></script>
++<script src="/js/m4l-programme-workspace.js?v=109.3"></script>
+ <script src="/js/m4l-messaging.js?v=109.2"></script>
+ <script src="/js/m4l-course-companion.js?v=109.2"></script>
+ <script src="/js/m4l-tafseer-cards.js?v=109.2"></script>
+diff --git a/academy/subjects/index.html b/academy/subjects/index.html
+index a3ca10a3..6008b01b 100644
+--- a/academy/subjects/index.html
++++ b/academy/subjects/index.html
+@@ -4,9 +4,9 @@
+ <link rel="stylesheet" href="/css/m4l-academy-page-actions.css?v=109.2">
+ <link rel="stylesheet" href="/css/m4l-academy-shell.css?v=109.2">
+ <link rel="stylesheet" href="/css/m4l-workspace-theme.css?v=109.2">
+-</head>
++<link rel="stylesheet" href="/css/m4l-curriculum-circles.css"></head>
+ <body class="circles-workspace-page user-profiles-sheet curriculum-sheet"><main>
+-  <header class="up-titlebar"><h1>Curriculum management</h1><span class="pb-version">V109.2</span></header>
++  <header class="up-titlebar curriculum-heading"><div><span class="eyebrow">YOUR ACADEMY · ADMIN</span><h1>Curriculum</h1><p class="curriculum-intro">Manage shared Subjects and Modules. Review where they are used before making changes.</p></div></header>
+   <p id="lc-message" class="pb-message" role="status" aria-live="polite">Loading catalogue…</p>
+   <section id="lc-conflict" class="lc-notice" hidden><strong>Review the saved record</strong><div id="lc-comparison"></div><button id="lc-keep">Keep my changes</button><button id="lc-use-saved" class="pb-secondary">Use saved version</button></section>
+   <div id="lc-pending" class="lc-notice" hidden>Your save could not be confirmed. Your entry is kept. <button id="lc-retry">Retry same change</button></div>
+diff --git a/academy/website-platform/connect/destinations.mjs b/academy/website-platform/connect/destinations.mjs
+index fc5cd89f..5bb80cf3 100644
+--- a/academy/website-platform/connect/destinations.mjs
++++ b/academy/website-platform/connect/destinations.mjs
+@@ -7,7 +7,7 @@ export function academyDestination(value,origin){
+  const path=url.pathname,query=url.search,hash=url.hash,activity=/^#activity\/(?:PROGRAM|COURSE)\/[-A-Za-z0-9_:]+(?:\/(?:learn|teach)(?:\/(?:timetable|assessment|planning|attendance|surahs-duas))?)?$/;
+  if(['/academy/','/academy/admin/'].includes(path)){
+   if(!query&&(activity.test(hash)||path==='/academy/admin/'&&/^#assessment-admin\/(?:PROGRAM|COURSE)\/[-A-Za-z0-9_:]+$/.test(hash)))return url.href;
+-  if(path==='/academy/admin/'&&!query&&['#administration/curriculum','#administration/access'].includes(hash))return url.href;
++  if(path==='/academy/admin/'&&!query&&(['#administration/curriculum','#administration/access','#administration/users','#assessment-admin'].includes(hash)||/^#administration\/media\/(?:PROGRAM|COURSE)\/(?:[-A-Za-z0-9_:]|%3A)+$/i.test(hash)))return url.href;
+   const home=path==='/academy/admin/'?'#administration':/^#timetable\/(learn|teach)$/.test(hash)?hash:null;
+   if(home===hash&&['','?circlesTool=messages'].includes(query))return url.href;
+   if(!query&&hash===(path==='/academy/admin/'?'#progress-admin':'#progress'))return url.href;
+diff --git a/backend/src/academy/d1/web-platform/dashboard.mjs b/backend/src/academy/d1/web-platform/dashboard.mjs
+index e61ac76f..aba66591 100644
+--- a/backend/src/academy/d1/web-platform/dashboard.mjs
++++ b/backend/src/academy/d1/web-platform/dashboard.mjs
+@@ -1,6 +1,7 @@
+ import {fail,id,date} from './protocol.mjs';
+ import {navigationMappings} from './navigation.mjs';
+ import {nativeJoinTarget} from './native-join.mjs';
++import {dashboardStudioSessionId} from './timetable.mjs';
+ 
+ export function dashboardModes(state){
+  if(!state?.account?.active)throw fail('Your Academy session has ended.',401,'SESSION_ENDED');
+@@ -21,6 +22,7 @@ export function dashboardChoice(state,input={}){
+   // authority, keeping the selected Teach/Learn suffix through the connector.
+   context=state.account.global_admin?state.contexts.find(c=>c.role==='GLOBAL_ADMIN'):programmeContext(roles)||programmeContext(['PROGRAM_ADMIN','ADMIN']);
+   if(!context)throw fail('This programme is outside your selected dashboard.',403);
++  if(tool==='media'&&mode==='admin')return {context,destination:'/academy/admin/#administration/media/'+activity.kind+'/'+encodeURIComponent(activity.activity_id)};
+   if(!['activity','assessment','planning','attendance','surahs-duas','timetable'].includes(tool)||mode!=='teach'&&['planning','attendance','surahs-duas'].includes(tool))throw fail('This tool is unavailable in the selected dashboard.',403);
+   const route=mode==='admin'?tool==='assessment'?'#assessment-admin/':'#activity/':'#activity/';
+   const adminAudience=mode!=='admin'&&['GLOBAL_ADMIN','PROGRAM_ADMIN','ADMIN'].includes(context.role),activityBase=adminAudience?'/academy/admin/':base;
+@@ -28,7 +30,7 @@ export function dashboardChoice(state,input={}){
+  }
+  const candidates=mode==='admin'?['GLOBAL_ADMIN','PROGRAM_ADMIN','ADMIN']:mode==='teach'?['TEACHER','SENIOR','SUBSTITUTE']:['STUDENT','MEDIA_READER'];
+  context=state.contexts.find(c=>candidates.includes(c.role))||state.contexts[0];if(!context)throw fail('Your Academy session has ended.',401);
+- const destinations={home:base+(mode==='admin'?'#administration':'#timetable/'+mode),messages:base+'?circlesTool=messages'+(mode==='admin'?'#administration':'#timetable/'+mode),library:'/academy/library/?workspace='+mode.toUpperCase(),calendar:'/academy/calendar/?view='+mode,progress:mode==='admin'?base+'#progress-admin':mode==='learn'?base+'#progress':null,enrolments:mode==='admin'?'/academy/enrolment/manage/?view=requests':null,curriculum:mode==='admin'?base+'#administration/curriculum':null,access:mode==='admin'?base+'#administration/access':null,recorder:'/recorder/?academy=1'};
++ const destinations={home:base+(mode==='admin'?'#administration':'#timetable/'+mode),messages:base+'?circlesTool=messages'+(mode==='admin'?'#administration':'#timetable/'+mode),library:'/academy/library/?workspace='+mode.toUpperCase(),calendar:'/academy/calendar/?view='+mode,progress:mode==='admin'?base+'#progress-admin':mode==='learn'?base+'#progress':null,enrolments:mode==='admin'?'/academy/enrolment/manage/?view=requests':null,curriculum:mode==='admin'?base+'#administration/curriculum':null,access:mode==='admin'?base+'#administration/access':null,users:mode==='admin'?base+'#administration/users':null,assessment:mode==='admin'?base+'#assessment-admin':null,recorder:'/recorder/?academy=1'};
+  if(!Object.hasOwn(destinations,tool)||!destinations[tool])throw fail('This tool is unavailable in the selected dashboard.',403);
+  return {context,destination:destinations[tool]};
+ }
+@@ -45,6 +47,13 @@ function nativeJoinReference(row,nativeScopes){
+  if(row.status!=='SCHEDULED'||row.preview||typeof row.joinKey!=='string'||!row.joinKey||row.joinKey.length>1200||nativeScopes.some(scope=>scope.activity_key.toUpperCase()===(row.kind+':'+row.activityId).toUpperCase()&&['FROZEN','STUDIO'].includes(scope.access_owner)))return {};
+  return {nativeJoin:{joinKey:row.joinKey,date:row.sourceDate||row.date}};
+ }
++async function studioJoinReference(row,nativeScopes){
++ if(row.status!=='SCHEDULED'||row.preview)return {};
++ const scope=nativeScopes.find(scope=>scope.activity_key.toUpperCase()===(row.kind+':'+row.activityId).toUpperCase());
++ if(scope?.access_owner!=='STUDIO'||!scope.offering_id)return {};
++ const sessionId=await dashboardStudioSessionId(scope.activity_key,row.mediaSessionKey,row.sourceDate||row.date);
++ return sessionId?{studioJoin:{offeringId:scope.offering_id,sessionId}}:{};
++}
+ export async function dashboardSummary(state,env,input,read,nativeScopes=[]){
+  const availableModes=dashboardModes(state),mode=input.mode||(['admin','teach','learn'].find(m=>availableModes.includes(m)));if(!availableModes.includes(mode))throw fail('This dashboard is outside your current permissions.',403);
+  const home=await read('/api/academy/entrance',{},mode),mappings=navigationMappings(env),warnings=[];
+@@ -59,7 +68,7 @@ export async function dashboardSummary(state,env,input,read,nativeScopes=[]){
+   return [{navigationKey,activityKey:activity.activity_key}];
+  });
+  const activities=(home.personalActivities||[]).filter(a=>a.active!==false&&a.lifecycle!=='ARCHIVED'&&a.menuAvailable!==false&&['PROGRAM','COURSE'].includes(a.kind)&&a.roles?.length).slice(0,60).map(a=>({...fields(a,['kind','id','name','roles','substituteOnly','plansRequired']),activityKey:a.kind+':'+a.id,navigationKey:Object.keys(mappings).find(k=>mappings[k].toLowerCase()===a.id.toLowerCase())||null}));
+- for(const area of activities){const mapped=nativeScopes.find(s=>s.activity_key.toUpperCase()===area.activityKey.toUpperCase());if(mapped){area.websiteOfferingId=mapped.offering_id;area.websiteKind=mapped.kind;}}
++ for(const area of activities){const mapped=nativeScopes.find(s=>s.activity_key.toUpperCase()===area.activityKey.toUpperCase());if(mapped){area.websiteOfferingId=mapped.offering_id;area.websiteKind=mapped.kind;area.accessOwner=mapped.access_owner||'ACADEMY';}}
+  const allowed=new Map(activities.map(a=>[a.activityKey.toUpperCase(),a]));
+  const timetable=(home.personalTimetable||[]).filter(r=>allowed.has((r.kind+':'+r.activityId).toUpperCase())).slice(0,200);
+  const optional=async(name,path,body)=>{try{return await read(path,body,mode);}catch(error){if(error.status===401||error.status===403)throw error;warnings.push(name+' could not be checked.');return null;}};
+@@ -71,8 +80,8 @@ export async function dashboardSummary(state,env,input,read,nativeScopes=[]){
+   mode==='admin'?optional('Enrolment requests','/api/admin/platform/enrolment/get',{}):null
+  ]);
+  const dueNotes=[];for(const session of notes?.sessions||[]){const lesson=timetable.find(r=>JSON.stringify([r.kind+':'+r.activityId,r.sourceDate||r.date,r.mediaSessionKey])===session.ref);if(!lesson||Number(lesson.startsAt)<=Date.now())continue;const source=session.sources?.[0];if(!source||!allowed.has(source.activityKey.toUpperCase()))continue;for(const note of session.dueNotes||[])dueNotes.push({...fields(note,['id','title','date']),activityKey:source.activityKey,activityName:source.activityName});}
+- return {mode,availableModes,programmeNavigation,nativeJoinVersion:1,adminBadge:availableModes.includes('admin')?(state.account.global_admin?'Global Admin':'Admin'):null,checkedAt:Date.now(),timezone:home.timezone||'Africa/Johannesburg',startDate:home.startDate,endDate:home.endDate,activities,
+-  timetable:timetable.map(r=>({...fields(r,['kind','activityId','activityName','date','startTime','endTime','startsAt','endsAt','joinAvailableAt','timezone','status','subjectName','moduleName','title']),...nativeJoinReference(r,nativeScopes)})),
++ return {mode,availableModes,programmeNavigation,nativeJoinVersion:1,studioJoinVersion:1,adminBadge:availableModes.includes('admin')?(state.account.global_admin?'Global Admin':'Admin'):null,checkedAt:Date.now(),timezone:home.timezone||'Africa/Johannesburg',startDate:home.startDate,endDate:home.endDate,activities,
++  timetable:await Promise.all(timetable.map(async r=>({...fields(r,['kind','activityId','activityName','date','startTime','endTime','startsAt','endsAt','joinAvailableAt','timezone','status','subjectName','moduleName','title']),...nativeJoinReference(r,nativeScopes),...await studioJoinReference(r,nativeScopes)}))),
+   calendar:(home.calendarEvents||[]).slice(0,100).map(r=>fields(r,['id','title','name','description','date','startDate','endDate','type'])),
+   assessments:assessments?(assessments.assessments||[]).filter(r=>allowed.has(r.activityKey?.toUpperCase())&&r.published).slice(0,200).map(r=>fields(r,['activityKey','title','phaseName','registerId','registerStatus','examDate','assessmentKind','availableFrom','dueAt','timezone','published'])):null,
+   dueNotes:notes?dueNotes.slice(0,100):null,messages:messages?{counts:messages.counts,notices:messages.notices.map(r=>fields(r,['id','subject','sender','state','issuedAt','unread','requiresAcknowledgement','acknowledgedAt'])),canSend:Boolean(messages.canSend)}:null,
+diff --git a/backend/src/academy/d1/web-platform/programme-groups.mjs b/backend/src/academy/d1/web-platform/programme-groups.mjs
+new file mode 100644
+index 00000000..5ed70334
+--- /dev/null
++++ b/backend/src/academy/d1/web-platform/programme-groups.mjs
+@@ -0,0 +1,10 @@
++import {navigationMappings} from './navigation.mjs';
++
++// Presentation grouping only. Every member already comes from the selected
++// native workspace's authorised personal activity rows; never infer by name.
++export function programmePageGroups(home,env){
++ if(!home.signedIn)return [];
++ const mappings=navigationMappings(env),shared=new Set([mappings.alimiyah,mappings['arabic-intensive']].filter(Boolean).map(id=>id.toUpperCase()));
++ const keys=(home.personalActivities||[]).filter(row=>row.kind==='PROGRAM'&&row.active!==false&&row.lifecycle!=='ARCHIVED'&&row.roles?.length&&shared.has(row.id.toUpperCase())).map(row=>'PROGRAM:'+row.id);
++ return keys.length?[keys]:[];
++}
+diff --git a/backend/src/academy/d1/web-platform/timetable.mjs b/backend/src/academy/d1/web-platform/timetable.mjs
+index 5a7113dc..9d8e80aa 100644
+--- a/backend/src/academy/d1/web-platform/timetable.mjs
++++ b/backend/src/academy/d1/web-platform/timetable.mjs
+@@ -8,6 +8,16 @@ import {sha256} from './protocol.mjs';
+ const all=async(db,sql,...args)=>(await db.prepare(sql).bind(...args).all()).results;
+ const bounded=(rows,max,label)=>{if(rows.length>max)throw Error(label);return rows;};
+ const zoom=value=>{if(!value)return '';const u=new URL(value);if(u.protocol!=='https:'||u.username||u.password||!(u.hostname==='zoom.us'||u.hostname.endsWith('.zoom.us')))throw Error('UNSUPPORTED_ZOOM_HOST');return u.href;};
++export const projectedSessionId=async key=>'ws-'+await sha256(JSON.stringify(key));
++// Reuse the exact native media-session anchor used by the projector. The
++// reference is routing metadata; Target still checks its current paid/live gate.
++export async function dashboardStudioSessionId(activityKey,mediaSessionKey,date){
++ let key;try{key=JSON.parse(mediaSessionKey);}catch{return null;}
++ if(!Array.isArray(key)||key.length!==3||typeof activityKey!=='string')return null;
++ if(key[0]==='PROGRAM'&&activityKey.startsWith('PROGRAM:')&&key[1]===date&&typeof key[2]==='string'&&key[2].length<=2000)return projectedSessionId(['PROGRAM',activityKey,date,key[2]]);
++ if(key[0]==='COURSE'&&activityKey.startsWith('COURSE:')&&key.slice(1).every(v=>typeof v==='string'&&v.length>0&&v.length<=180))return projectedSessionId(['COURSE',activityKey,key[1],key[2]]);
++ return null;
++}
+ // Only current and scheduled publications for one explicitly mapped offering.
+ // Visitors, rosters, payment registers and historical publication bodies are absent.
+ export async function projectTimetable(db,scope,{now=Date.now()}={}){
+@@ -25,7 +35,7 @@ export async function projectTimetable(db,scope,{now=Date.now()}={}){
+  const classLabels=new Map();
+  const append=async(key,title,date,startTime,endTime,timezone,meeting,cancelled=false,classIds=[],teacherIds=[])=>{
+   const times=lessonTimes({date,startTime,endTime,timezone});if(!Number.isSafeInteger(times.startsAt)||!Number.isSafeInteger(times.endsAt)||times.endsAt<=times.startsAt)throw Error('INVALID_PUBLISHED_CLOCK');
+-  const off=Boolean(cancelled||holidayOnDate(holidays,date));sessions.push({id:'ws-'+await sha256(JSON.stringify(key)),title,startsAt:times.startsAt,endsAt:times.endsAt,timezone,classes:classIds.map(id=>({id,label:classLabels.get(id)||null})),zoomUrl:off?'':zoom(meeting),cancelled:off,classIds,teacherIds});
++  const off=Boolean(cancelled||holidayOnDate(holidays,date));sessions.push({id:await projectedSessionId(key),title,startsAt:times.startsAt,endsAt:times.endsAt,timezone,classes:classIds.map(id=>({id,label:classLabels.get(id)||null})),zoomUrl:off?'':zoom(meeting),cancelled:off,classIds,teacherIds});
+   bounded(sessions,200,'TIMETABLE_WINDOW_TOO_LARGE');
+  };
+  if(activity.kind==='PROGRAM'){
+diff --git a/backend/src/academy/d1/worker.js b/backend/src/academy/d1/worker.js
+index 21ccc03b..9e004b44 100644
+--- a/backend/src/academy/d1/worker.js
++++ b/backend/src/academy/d1/worker.js
+@@ -66,6 +66,7 @@ import {managedCourseScopes} from './course-authority.js';
+ import {programmeChoice} from './web-platform/navigation.mjs';
+ import {dashboardSummary,dashboardChoice,dashboardJoinInput} from './web-platform/dashboard.mjs';
+ import {nativeJoinOwnership} from './web-platform/native-join.mjs';
++import {programmePageGroups} from './web-platform/programme-groups.mjs';
+ import {authenticatedD1Account,d1Audience as audience,d1ContextEqual as contextEqual} from './session.js';
+ import {openLibraryMetadataEndpoint as defaultMetadataEndpoint} from './library-metadata.js';
+ 
+@@ -264,7 +265,7 @@ async function dispatch(request,env,options={}) {
+   }
+   if(path==='/api/academy/entrance') {
+     const auth=request.headers.has('Authorization')?await authenticated(request,env,repository):null;
+-    const source=setupEnabled(env)?await readRepository():repository;return conditionalRead(request,source,auth,input,async()=>({success:true,sessionStore:'D1',...websiteEntrance(await d1Entrance(source,auth?.state,auth?.user,input,undefined,{auth}))}));
++    const source=setupEnabled(env)?await readRepository():repository;return conditionalRead(request,source,auth,input,async()=>{const home=websiteEntrance(await d1Entrance(source,auth?.state,auth?.user,input,undefined,{auth}));return {success:true,sessionStore:'D1',...home,programmePageGroups:programmePageGroups(home,env)};});
+   }
+   if(path==='/api/academy/public-lesson/join')return {success:true,...await d1LessonJoin(setupEnabled(env)?await readRepository():repository,null,input)};
+   if(path==='/api/academy/enrolment/submit'){
+diff --git a/backend/tests/academy-circles-native-join.test.mjs b/backend/tests/academy-circles-native-join.test.mjs
+index fb481a72..92df9e89 100644
+--- a/backend/tests/academy-circles-native-join.test.mjs
++++ b/backend/tests/academy-circles-native-join.test.mjs
+@@ -2,7 +2,9 @@ import test from 'node:test';
+ import assert from 'node:assert/strict';
+ import {nativeMediaBridgeFixture} from './fixtures/academy-native-media-bridge-fixture.mjs';
+ import {signedHeaders} from '../src/academy/d1/web-platform/protocol.mjs';
+-import {dashboardSummary} from '../src/academy/d1/web-platform/dashboard.mjs';
++import {dashboardSummary,dashboardChoice} from '../src/academy/d1/web-platform/dashboard.mjs';
++import {academyDestination} from '../../academy/website-platform/connect/destinations.mjs';
++import {dashboardStudioSessionId,projectedSessionId} from '../src/academy/d1/web-platform/timetable.mjs';
+ import {bridge} from '../src/academy/d1/web-platform/bridge.mjs';
+ import worker from '../src/academy-runtime.js';
+ 
+@@ -48,6 +50,25 @@ test('checked dashboard carries bounded native references and time fields, never
+  }
+ });
+ 
++test('Studio dashboard references reuse exact projector anchors and never infer a session from titles or clocks',async()=>{
++ const activity={activity_key:'PROGRAM:one',activity_id:'one',kind:'PROGRAM',active:true,lifecycle:'ACTIVE'},state={account:{active:true},activities:[activity],contexts:[{scope:'COURSE',courseId:'one',role:'STUDENT'}]},date='2026-10-09';
++ const row={kind:'PROGRAM',activityId:'one',activityName:'Same title',date,status:'SCHEDULED',startsAt:start,endsAt:start+3600000,mediaSessionKey:JSON.stringify(['PROGRAM',date,'exact-original-anchor']),joinKey:JSON.stringify(['PROGRAM','one','pub',0,date])};
++ const scope={activity_key:'PROGRAM:one',offering_id:'studio-mou',access_owner:'STUDIO'},read=async()=>({personalActivities:[{kind:'PROGRAM',id:'one',name:'Same title',roles:['STUDENT']}],personalTimetable:[row,{...row,status:'CANCELLED'},{...row,preview:true},{...row,mediaSessionKey:'invalid'}]});
++ const value=await dashboardSummary(state,{}, {mode:'learn'},read,[scope]);assert.equal(value.studioJoinVersion,1);assert.deepEqual(value.timetable[0].studioJoin,{offeringId:'studio-mou',sessionId:await projectedSessionId(['PROGRAM','PROGRAM:one',date,'exact-original-anchor'])});assert(!value.timetable[0].nativeJoin);assert(value.timetable.slice(1).every(r=>!r.studioJoin&&!r.nativeJoin));
++ const frozen=await dashboardSummary(state,{}, {mode:'learn'},read,[{...scope,access_owner:'FROZEN'}]);assert(frozen.timetable.every(r=>!r.studioJoin&&!r.nativeJoin));
++ assert.equal(await dashboardStudioSessionId('PROGRAM:one',row.mediaSessionKey,'2026-10-08'),null);
++ assert.equal(await dashboardStudioSessionId('COURSE:one',JSON.stringify(['COURSE','run-one','source-one']),date),await projectedSessionId(['COURSE','COURSE:one','run-one','source-one']));
++ assert.equal(await dashboardStudioSessionId('PROGRAM:one',JSON.stringify(['COURSE','run-one','source-one']),date),null);
++});
++
++test('Manage destinations preserve checked Admin context and the narrow connector route allowlist',()=>{
++ const context={scope:'COURSE',courseId:'one',role:'PROGRAM_ADMIN'},state={account:{active:true},contexts:[context],activities:[{activity_key:'PROGRAM:one',activity_id:'one',kind:'PROGRAM',active:true,lifecycle:'ACTIVE'}]};
++ for(const tool of ['users','assessment']){const value=dashboardChoice(state,{mode:'admin',tool});assert.equal(value.context,context);assert(academyDestination(value.destination,'https://academy.test'));assert.throws(()=>dashboardChoice(state,{mode:'learn',tool}),e=>e.status===403);}
++ const media=dashboardChoice(state,{mode:'admin',tool:'media',activityKey:'PROGRAM:one'});assert.equal(media.destination,'/academy/admin/#administration/media/PROGRAM/one');assert(academyDestination(media.destination,'https://academy.test'));
++ assert.throws(()=>dashboardChoice(state,{mode:'learn',tool:'media',activityKey:'PROGRAM:one'}),e=>e.status===403);assert.throws(()=>dashboardChoice(state,{mode:'admin',tool:'media',activityKey:'PROGRAM:other'}),e=>e.status===403);
++ for(const value of ['/academy/admin/#administration/media/UNKNOWN/one','/academy/admin/?unsafe=1#administration/media/PROGRAM/one','/academy/admin/#administration/media/PROGRAM/one%2Fevil','https://elsewhere.test/academy/admin/#administration/users'])assert.equal(academyDestination(value,'https://academy.test'),null);
++});
++
+ test('signed native Join works for Academy-only sessions at the exact five-minute/end boundaries without a projected Studio session',async t=>{
+  const f=await fixture(t),core=f.databases.core;
+  core.prepare('DELETE FROM website_platform_access_ownership WHERE activity_key=?').run(f.scope);
+diff --git a/backend/tests/academy-entrance-ui.test.mjs b/backend/tests/academy-entrance-ui.test.mjs
+index 2c2e9769..f1484a03 100644
+--- a/backend/tests/academy-entrance-ui.test.mjs
++++ b/backend/tests/academy-entrance-ui.test.mjs
+@@ -267,20 +267,20 @@ await navigate('#overview/teach');assert.match($('academy-role-panel').innerHTML
+ await navigate('#workshops');assert.equal($('workshop-pills').innerHTML,'');assert.match($('course-list-message').textContent,/No Courses/);
+ hasWorkshops=true;globalAdmin=true;location.hash='#activity/PROGRAM/'+activity.id;await refresh();
+ assert.doesNotMatch($('activity-menu').innerHTML,/Admin tools/);assert.match($('activity-menu').innerHTML,/Teach tools/);
+-await navigate('#administration');assert.match($('administration').innerHTML,/Manage Academy/);assert.doesNotMatch($('administration').innerHTML,/id="admin-teach"/);assert.match($('administration').innerHTML,/id="admin-timetable-home"/);assert.doesNotMatch($('administration').innerHTML,/data-recorder-link/);assert.equal($('academy-recorder-nav').hidden,false);
+-assert.deepEqual(Array.from(window.M4L_ACADEMY_ADMIN_MENU.rows({signedIn:true,globalAdmin:true}),r=>r.label),['Users','Announcements','Attendance','Curriculum','Library','Course websites','Lesson plans','Assessments','App settings','Update timetable']);
++workspace='ADMIN';await navigate('#administration');assert.match($('administration').innerHTML,/Manage Academy/);assert.doesNotMatch($('administration').innerHTML,/id="admin-teach"/);assert.match($('administration').innerHTML,/id="admin-timetable-home"/);assert.doesNotMatch($('administration').innerHTML,/data-recorder-link/);assert.equal($('academy-recorder-nav').hidden,false);
++assert.deepEqual(Array.from(window.M4L_ACADEMY_ADMIN_MENU.rows({signedIn:true,globalAdmin:true}),r=>r.label),['Users','Access','Announcements','Attendance','Curriculum','Library','Course websites','Lesson plans','Assessments','App settings','Update timetable']);
+ await navigate('#administration/attendance');assert.match($('administration').innerHTML,/<h1>Manage Attendance<\/h1>/);assert.doesNotMatch($('administration').innerHTML,/\/programs\/attendance\.html/);assert.equal($('academy-tab-admin').attrs.get('aria-pressed'),'true');
+ await navigate('#assessment-admin');assert.equal($('academy-tab-admin').attrs.get('aria-pressed'),'true');assert.equal($('academy-tab-learn').attrs.get('aria-pressed'),'false');
+ await navigate('#progress-admin');assert.equal($('academy-tab-admin').attrs.get('aria-pressed'),'true');
+ await navigate('#administration/curriculum');assert.equal(location.redirect,'/academy/subjects/');
+-await navigate('#activity/PROGRAM/'+activity.id);
++workspace='ADMIN';await navigate('#activity/PROGRAM/'+activity.id);
+ documentHandlers.get('click')({target:{closest:selector=>selector==='[data-workspace-tool]'?{dataset:{workspaceTool:'academy'}}:null}});assert.match($('workspace-tool-body').innerHTML,/Subjects &amp; Modules/);$('workspace-tool-close').listeners.get('click')();
+ await navigate('#workshops');assert.equal($('course-list-scope-wrap').hidden,false);assert.equal($('course-list-title').textContent,'All Courses');
+ assert.match($('workshop-pills').innerHTML,/Unpublished &lt;draft&gt;/);assert.doesNotMatch($('workshop-pills').innerHTML,/<draft>/);
+ $('course-list-scope').value='MINE';$('course-list-scope').listeners.get('input')();assert.doesNotMatch($('workshop-pills').innerHTML,/Unpublished/);
+ 
+ // The complete permitted timetable and timed joining remain on the homepage.
+-roomFixture=true;fixtureNow='2026-10-05T10:55:00Z';globalAdmin=false;programRole='STUDENT';location.hash='#overview';await refresh();
++roomFixture=true;fixtureNow='2026-10-05T10:55:00Z';workspace='LEARN';globalAdmin=false;programRole='STUDENT';location.hash='#overview';await refresh();
+ assert.equal(countPills('academy-preview-sessions'),9,'Students see every lesson separately even in the same room');
+ assert.equal(($('academy-preview-sessions').innerHTML.match(/class="upcoming-day"/g)||[]).length,7);
+ assert.match($('academy-preview-sessions').innerHTML,/aria-label="23:30"/);
+@@ -469,5 +469,13 @@ globalAdmin=true;await refresh();assert.match($('activity-switcher').innerHTML,/
+ globalAdmin=false;programRole='PROGRAM_ADMIN';await refresh();await navigate('#administration');assert.match($('administration').innerHTML,/Manage Academy/);assert.doesNotMatch($('administration').innerHTML,/id="admin-teach"/);assert.match($('administration').innerHTML,/id="admin-timetable-home"/);assert.doesNotMatch($('administration').innerHTML,/data-recorder-link/);assert.equal($('academy-recorder-nav').hidden,false);assert.doesNotMatch($('administration').innerHTML,/href="\/users\/"|Update public timetable/);
+ await navigate('#administration/assessments');assert.equal(location.hash,'#assessment-admin/PROGRAM/'+encodeURIComponent(activity.id));assert.equal($('assessment-admin').classList.contains('active'),true);
+ globalAdmin=false;programRole='STUDENT';await refresh();await navigate(programHash+'/attendance');assert.equal($('pa-main').hidden,true,'Students cannot open the staff register');assert.match($('activity-menu').innerHTML,/href="\/recorder\/\?academy=1">Voice Recorder/);
++const mediaOpens=[];
++window.M4L_LESSON_MEDIA={open:options=>mediaOpens.push(options),reset(){},canLeave:()=>true};
++elements.set('admin-media-host',element('admin-media-host'));elements.set('admin-media-activity',element('admin-media-activity'));
++await navigate('#administration/media/PROGRAM/'+activity.id);assert.equal(mediaOpens.length,0,'A student cannot open Admin Media by changing the address');
++globalAdmin=true;workspace='ADMIN_LEARN';await refresh();await navigate('#administration/media/PROGRAM/'+activity.id);assert.equal(mediaOpens.length,0,'Admin Learn must switch into the actual Admin view before editing media');
++workspace='ADMIN';await refresh();await navigate('#administration/media/PROGRAM/'+activity.id);assert.equal(mediaOpens.at(-1).activityKey,'PROGRAM:'+activity.id);assert.equal(mediaOpens.at(-1).learnerView,false);assert.match($('administration').innerHTML,/Manage Media/);assert.match($('administration').innerHTML,/Programme or course/);
++const opened=mediaOpens.length;await navigate('#administration/media/PROGRAM/OUTSIDE-SCOPE');assert.equal(mediaOpens.length,opened,'Unknown native IDs never open a media editor');assert.match($('admin-media-host').textContent,/outside your current Admin scope/);
++globalAdmin=false;workspace='LEARN';programRole='STUDENT';await refresh();
+ hasWorkshops=false;programRole='';await refresh();assert.equal($('academy-account-role').textContent,'None');assert.equal($('academy-access-empty').hidden,false);assert.equal($('academy-role-panel').hidden,true);assert.equal($('academy-role-panel').innerHTML,'');for(const key of ['learn','teach','admin'])assert.equal($('academy-tab-'+key).hidden,true);
+ console.log('Academy timetable, inline Attendance routing and draft guards, highest pill access, scoped tools, cache, joining, sign-out and personal HifzHelper links passed.');
+diff --git a/backend/tests/academy-programme-workspace.test.mjs b/backend/tests/academy-programme-workspace.test.mjs
+new file mode 100644
+index 00000000..3115bed0
+--- /dev/null
++++ b/backend/tests/academy-programme-workspace.test.mjs
+@@ -0,0 +1,81 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import {readFileSync} from 'node:fs';
++import {createRequire} from 'node:module';
++import vm from 'node:vm';
++import {programmePageGroups} from '../src/academy/d1/web-platform/programme-groups.mjs';
++const require=createRequire(import.meta.url),{parseHTML}=require('linkedom');
++const script=readFileSync(new URL('../../js/m4l-programme-workspace.js',import.meta.url),'utf8');
++const row={kind:'PROGRAM',id:'one',name:'Native programme',roles:['STUDENT']},arabic={...row,id:'two'},reboot={...row,id:'reboot'};
++const home={signedIn:true,timezone:'Africa/Johannesburg',personalActivities:[row,arabic,reboot],programmePageGroups:[['PROGRAM:one','PROGRAM:two']],calendarEvents:[]};
++const lesson=(index=0,extra={})=>({kind:'PROGRAM',activityId:'one',activityName:'Native programme',date:'2026-11-01',status:'SCHEDULED',title:'Lesson '+index,startTime:'10:00',endTime:'11:00',startsAt:1000+index*10000,endsAt:9000+index*10000,joinAvailableAt:1000+index*10000-300000,joinKey:'native-'+index,...extra});
++const flush=()=>new Promise(resolve=>setImmediate(resolve));
++function ui({summary=async()=>({notes:[],before:null})}={}){
++ const {window,document}=parseHTML('<html><body><section id="activity"><div class="learning-workspace"><div id="activity-menu"><button data-programme-calendar>Calendar</button><button data-class-notes-toggle>Notes</button></div><div class="learning-reading"><section id="as-panel"></section><section id="activity-schedule"><div id="activity-sessions"></div></section></div></div></section></body></html>');
++ let session='account-a',height=450,mode='LEARN';const resize=[],handlers=new Map(),calls=[];
++ window.M4L_ACADEMY_WORKSPACE={current:()=>mode,classView:()=>null,head:()=>null};window.M4L_CLASS_NOTES={visible:()=>true,buttons:()=>'<button data-cn-open="notes">Notes</button>',summary:async input=>{calls.push(input);return summary(input);},open:input=>{window.lastNote=input;}};
++ window.HTMLElement.prototype.getBoundingClientRect=function(){return {height:this.classList.contains('programme-centre')?height:this.classList.contains('programme-note')?100:0};};
++ Object.defineProperty(window.HTMLElement.prototype,'offsetHeight',{configurable:true,get(){return this.tagName==='HEADER'?90:this.tagName==='FOOTER'?50:0;}});
++ Object.defineProperty(window.HTMLElement.prototype,'clientHeight',{configurable:true,get(){return Number.parseFloat(this.style?.height)||height;}});
++ window.HTMLElement.prototype.showModal=function(){this.open=true;};window.HTMLElement.prototype.close=function(){this.open=false;};
++ class Observer{constructor(fn){resize.push(fn);}observe(){}disconnect(){}}
++ vm.runInNewContext(script,{window,document,localStorage:{getItem:()=>session},Intl,Date,ResizeObserver:Observer});
++ const render=(overrides={})=>window.M4L_PROGRAMME_WORKSPACE.render({row,home,rows:[lesson()],mode:'learn',startDate:'2026-11-01',...overrides});
++ const click=selector=>document.querySelector(selector).dispatchEvent(new window.Event('click',{bubbles:true}));
++ return {window,document,render,calls,click,handlers,model:window.M4L_PROGRAMME_WORKSPACE_MODEL,reset:()=>window.M4L_PROGRAMME_WORKSPACE.reset(),setHeight(value){height=value;resize.forEach(fn=>fn());},setSession(value){session=value;},setMode(value){mode=value;}};
++}
++
++test('shared Programme groups use exact configured native identities and only current selected-view activity rights',()=>{
++ const env={WEBSITE_PLATFORM_NAVIGATION:JSON.stringify({alimiyah:'one','arabic-intensive':'two',reboot:'reboot'})};
++ assert.deepEqual(programmePageGroups(home,env),[['PROGRAM:one','PROGRAM:two']]);
++ assert.deepEqual(programmePageGroups({...home,personalActivities:[row,{...arabic,roles:[]},reboot]},env),[['PROGRAM:one']]);
++ assert.deepEqual(programmePageGroups({...home,signedIn:false},env),[]);
++ const f=ui();assert.deepEqual([...f.model.programmeKeys(home,row,'learn')],['PROGRAM:one','PROGRAM:two']);assert.deepEqual([...f.model.programmeKeys(home,row,'teach')],['PROGRAM:one']);assert.deepEqual([...f.model.programmeKeys(home,reboot,'learn')],['PROGRAM:reboot']);
++});
++
++test('circle includes every session in the selected date scope, preserves overlap/cancellation and exact Join presentation boundaries',()=>{
++ const f=ui(),rows=Array.from({length:13},(_,i)=>lesson(i)),before=JSON.stringify(rows);
++ assert.equal(f.model.dayRows(rows,'2026-11-01',0).length,13);assert.equal(JSON.stringify(rows),before);
++ assert.equal(f.model.dayRows([lesson(0)],'2026-11-01',-299001)[0].canJoin,false);assert.equal(f.model.dayRows([lesson(0)],'2026-11-01',-299000)[0].canJoin,true);assert.equal(f.model.dayRows([lesson(0)],'2026-11-01',9000)[0].canJoin,false);
++ assert.equal(f.model.dayRows([lesson(0,{status:'CANCELLED'})],'2026-11-01',1000)[0].canJoin,false);
++ assert.equal(f.model.dayRows([lesson(),lesson(1,{startsAt:1000})],'2026-11-01',1001).filter(row=>row.phase==='active').length,2);
++ assert.equal(f.model.dayRows(rows,'2026-11-02').length,0);
++});
++
++test('programme circle follows the dashboard timezone across midnight while retaining original Join and notes identity',async()=>{
++ const f=ui(),raw=lesson(0,{date:'2026-11-01',startTime:'23:30',endTime:'00:30',startsAt:Date.parse('2026-11-01T21:30:00Z'),endsAt:Date.parse('2026-11-01T22:30:00Z'),joinAvailableAt:Date.parse('2026-11-01T21:25:00Z'),mediaSessionKey:'original-notes',timezone:'Africa/Johannesburg'}),before=JSON.stringify(raw);
++ const rows=f.model.displayRows([raw],'Asia/Riyadh');
++ assert.equal(rows[0].date,'2026-11-02');assert.equal(rows[0].startTime,'00:30');assert.equal(rows[0].endTime,'01:30');assert.equal(rows[0].endDate,'2026-11-02');
++ assert.equal(rows[0].sourceDate,'2026-11-01');assert.equal(rows[0].joinKey,raw.joinKey);assert.equal(rows[0].mediaSessionKey,raw.mediaSessionKey);assert.equal(rows[0].startsAt,raw.startsAt);assert.equal(JSON.stringify(raw),before);
++ assert.equal(f.model.dayRows(rows,'2026-11-01').length,0);assert.equal(f.model.dayRows(rows,'2026-11-02',raw.joinAvailableAt)[0].canJoin,true);
++ const again=f.model.displayRows(rows,'Asia/Riyadh');assert.equal(again[0].sourceDate,'2026-11-01');
++ f.render({home:{...home,timezone:'Asia/Riyadh'},rows,startDate:'2026-11-02'});await flush();f.click('[data-programme-day="2026-11-02"]');
++ assert.match(f.document.querySelector('.programme-session time').textContent,/00:30–01:30/);assert.match(f.document.querySelector('.programme-circle-caption').textContent,/Asia\/Riyadh/);
++});
++
++test('programme layout docks native menu/circle/notes together, handles all slices and restores native hosts on reset',async()=>{
++ const f=ui();f.render({rows:Array.from({length:13},(_,i)=>lesson(i))});await flush();
++ const top=f.document.querySelector('.programme-top');assert(top);assert.equal(top.children[0].id,'activity-menu');assert(top.children[1].contains(f.document.getElementById('activity-schedule')));assert.equal(top.children[2].className,'programme-notes');
++ assert.equal(f.document.querySelectorAll('.programme-session-list .programme-session').length,13);assert.equal(f.document.getElementById('activity-sessions').hidden,true);assert.equal(f.calls.length,2,'One bounded summary per exact programme, never per slice');
++ f.render();await flush();assert.equal(f.calls.length,2,'Ordinary rerenders reuse current notes');
++ f.reset();assert.equal(f.document.querySelector('.programme-top'),null);assert(f.document.querySelector('.learning-reading').contains(f.document.getElementById('activity-schedule')));assert.equal(f.document.getElementById('activity-menu').parentElement.className,'learning-workspace');assert.equal(f.document.getElementById('activity-sessions').hidden,false);
++});
++
++test('notes are latest first, fit available space, open in a popup and page only on deliberate opaque-cursor actions',async()=>{
++ const notes=Array.from({length:8},(_,i)=>({id:'note-'+i,body:i===0?'<script>kept as text</script>':'Full readable note '+i,author:'Teacher',createdAt:'2026-11-01T'+String(8+i).padStart(2,'0')+':00:00Z',source:{title:'Native lesson'}}));
++ const f=ui({summary:async input=>input.before?{notes:[],before:'opaque-next'}:{notes,before:'opaque-first'}});f.render({home:{...home,personalActivities:[row],programmePageGroups:[]}});await flush();f.setHeight(450);
++ const visible=()=>[...f.document.querySelectorAll('.programme-note-list .programme-note')].filter(node=>!node.hidden);
++ assert(visible().length>0&&visible().length<8);assert.match(visible()[0].textContent,/readable note 7/);const short=visible().length;f.setHeight(800);assert(visible().length>short);
++ f.click('[data-programme-more]');assert.equal(f.document.querySelector('.programme-popup').open,true);assert.equal(f.document.querySelectorAll('.programme-popup .programme-note').length,8);assert.equal(f.document.querySelector('.programme-popup script'),null);
++ f.click('[data-programme-earlier]');await flush();assert.equal(f.calls.length,2);assert.equal(f.calls[1].before,'opaque-first');await flush();assert.equal(f.calls.length,2,'An empty sparse page must not automatically exhaust history');
++ f.click('.programme-popup [data-programme-note]');assert.equal(f.window.lastNote.activityKey,'PROGRAM:one');assert.equal(f.window.lastNote.noteId,'note-7');
++});
++
++test('pending summaries cannot repaint after account/view reset; Admin never mounts a learner programme layout',async()=>{
++ let resolve;const f=ui({summary:()=>new Promise(done=>{resolve=done;})});f.render({home:{...home,personalActivities:[row],programmePageGroups:[]}});f.setSession('account-b');f.reset();resolve({notes:[{id:'private',body:'Old account text',createdAt:'2026-11-01T08:00:00Z'}],before:null});await flush();assert(!f.document.body.textContent.includes('Old account text'));
++ f.setMode('ADMIN');f.render();assert.equal(f.document.querySelector('.programme-top'),null);
++});
++
++test('programme Calendar is a viewing popup with current authorised events and no editing controls',async()=>{
++ const f=ui();f.render({home:{...home,calendarEvents:[{description:'Native term event',startDate:'2026-11-01',endDate:'2026-11-03'}]}});await flush();f.click('[data-programme-calendar]');const popup=f.document.querySelector('.programme-popup');assert.equal(popup.open,true);assert.match(popup.textContent,/Native term event/);assert.match(popup.textContent,/2026-11-03/);assert.equal(popup.querySelectorAll('input,textarea,a').length,0);
++});
+diff --git a/css/m4l-curriculum-circles.css b/css/m4l-curriculum-circles.css
+new file mode 100644
+index 00000000..1e37b423
+--- /dev/null
++++ b/css/m4l-curriculum-circles.css
+@@ -0,0 +1,28 @@
++/* Curriculum keeps the native Subject/Module sheet and save/conflict behaviour. */
++body.academy-shell.curriculum-sheet{--curriculum-gap:clamp(14px,2vw,28px)}
++body.academy-shell.curriculum-sheet main{max-width:1500px;margin:0 auto;padding:24px var(--academy-gutter) 36px}
++body.academy-shell.curriculum-sheet .curriculum-heading{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:20px}
++body.academy-shell.curriculum-sheet .curriculum-heading .eyebrow{display:block;margin:0 0 8px;color:#97727d;font:600 10px/1.4 'DM Sans',Arial,sans-serif;letter-spacing:.14em}
++body.academy-shell.curriculum-sheet .curriculum-heading h1{font-size:36px;line-height:1.1;margin:0;color:var(--ink)}
++body.academy-shell.curriculum-sheet .curriculum-intro{margin:8px 0 0;font-size:13px;line-height:1.6;color:var(--muted);max-width:660px}
++body.academy-shell.curriculum-sheet #lc-message:empty{display:none}
++body.academy-shell.curriculum-sheet #lc-workspace{padding:0;border:1px solid var(--line);border-radius:12px;background:var(--paper);box-shadow:none;overflow:hidden}
++body.academy-shell.curriculum-sheet .lc-tabs{display:flex;gap:6px;padding:12px 16px;background:transparent;border-bottom:1px solid var(--line)}
++body.academy-shell.curriculum-sheet .lc-tabs button{min-width:105px;min-height:40px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--rose-dark);font:600 13px/1.4 'DM Sans',Arial,sans-serif}
++body.academy-shell.curriculum-sheet .lc-tabs button[aria-pressed=true]{background:var(--rose);color:var(--paper)}
++body.academy-shell.curriculum-sheet .pb-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:16px}
++body.academy-shell.curriculum-sheet .pb-search{flex:1;max-width:460px;min-width:200px}
++body.academy-shell.curriculum-sheet .pb-search input{width:100%}
++body.academy-shell.curriculum-sheet .pb-toolbar :is(input,select,button){min-height:40px;border-radius:8px;font-size:13px}
++body.academy-shell.curriculum-sheet #lc-count{margin-left:auto;color:var(--muted);white-space:nowrap}
++body.academy-shell.curriculum-sheet .lc-grid{min-width:650px;border-collapse:separate;border-spacing:0;font-size:13px}
++body.academy-shell.curriculum-sheet .lc-grid th{padding:12px 16px;background:var(--rose-soft);color:var(--rose-dark);font-weight:600}
++body.academy-shell.curriculum-sheet .lc-grid td{padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top}
++body.academy-shell.curriculum-sheet .lc-grid td small{font-size:11px;line-height:1.5;margin-top:4px}
++body.academy-shell.curriculum-sheet .lc-grid button{min-height:36px;border-radius:7px;font-size:12px}
++body.academy-shell.curriculum-sheet .lc-grid .lc-edit{background:#eee5e850}
++body.academy-shell.curriculum-sheet .lc-grid input,body.academy-shell.curriculum-sheet .lc-grid select{min-height:40px;border-radius:7px}
++body.academy-shell.curriculum-sheet .lc-scroll{max-height:calc(100dvh - 390px);min-height:190px;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
++body.academy-shell.curriculum-sheet .lc-help{padding:0 16px 14px;color:var(--muted);font-size:12px}
++body.academy-shell.curriculum-sheet .lc-notice{border-radius:9px;padding:14px 16px;line-height:1.7}
++@media(max-width:700px){body.academy-shell.curriculum-sheet main{padding-top:18px}.curriculum-heading{align-items:start!important;gap:12px!important}.curriculum-heading h1{font-size:30px!important}.curriculum-intro{font-size:12px!important}body.academy-shell.curriculum-sheet .pb-search{flex-basis:100%;min-width:0;max-width:none}body.academy-shell.curriculum-sheet #lc-count{order:3;margin-left:0;flex:1 1 100%}body.academy-shell.curriculum-sheet .lc-scroll{max-height:58dvh}body.academy-shell.curriculum-sheet .pb-toolbar>button{flex:1}}
+diff --git a/css/m4l-programme-workspace.css b/css/m4l-programme-workspace.css
+new file mode 100644
+index 00000000..3f05576a
+--- /dev/null
++++ b/css/m4l-programme-workspace.css
+@@ -0,0 +1,66 @@
++#activity[data-programme-layout] .learning-workspace{display:block}
++#activity .programme-top{display:grid;grid-template-columns:140px minmax(0,1fr) minmax(0,1fr);gap:26px;align-items:start;margin:20px 0 32px}
++#activity .programme-top>*{min-width:0}
++#activity .programme-top #activity-menu{position:static;padding:0;margin:0}
++#activity .programme-top .workspace-contents{width:100%;border:0;background:transparent;box-shadow:none;margin:0}
++#activity .programme-top .workspace-tabs{display:grid;grid-template-columns:1fr;gap:7px;padding:10px 0;overflow:visible;border:0;background:transparent}
++#activity .programme-top .workspace-tabs :is(a,button){display:flex;align-items:center;justify-content:flex-start;min-height:44px;white-space:normal;text-align:left;padding:10px 12px;border:1px solid transparent;border-radius:8px;background:transparent;color:#684f60;font:500 13px/1.4 'DM Sans',Arial,sans-serif;text-decoration:none;margin:0;width:100%}
++#activity .programme-top .workspace-tabs :is(a,button):hover,#activity .programme-top .workspace-tabs [aria-current=page],#activity .programme-top .workspace-tabs [aria-pressed=true]{background:#eee5e9;border-color:#ddd0d7}
++#activity .programme-top #activity-schedule{margin:0;padding:0;border:0;background:transparent;box-shadow:none;overflow:visible}
++#activity[data-programme-layout] #activity-sessions[hidden]{display:none!important}
++#activity .programme-centre .section-title{display:block;margin-bottom:14px}
++#activity .programme-centre .section-title h2{font-size:24px;margin-bottom:10px}
++#activity .programme-centre .upcoming-controls{justify-content:flex-start;gap:8px}
++#activity .programme-days{display:flex;gap:5px;overflow:auto;scrollbar-width:thin;padding:2px 2px 12px}
++#activity .programme-days button{flex:0 0 auto;min-height:44px;padding:8px 10px;border:1px solid #ddd0d7;border-radius:7px;font-size:11px;background:#faf7f2;color:#745b6a}
++#activity .programme-days [aria-pressed=true]{background:#654c5d;color:#fff9f2;border-color:#654c5d}
++#activity .programme-wheel{position:relative;isolation:isolate;width:100%;aspect-ratio:1;border-radius:50%;container-type:inline-size}
++#activity .programme-wheel>svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
++#activity .programme-sector{stroke:#faf7f2;stroke-width:3;stroke-linejoin:round;fill:#eee6e3}
++#activity .programme-sector.active{fill:#654c5d}
++#activity .programme-sector.later{fill:#d9c5cf}
++#activity .programme-sector.finished{fill:#eeebe3}
++#activity .programme-sector.cancelled{fill:#ddd9d7}
++#activity .programme-sector.unused{fill:#f0eae6}
++#activity .programme-wheel-sessions{list-style:none;padding:0;margin:0}
++#activity .programme-wheel-sessions>.programme-session{position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);width:29%;display:grid;justify-items:center;text-align:center;gap:5px;color:#604858}
++#activity .programme-session.active{color:#fff9ed}
++#activity .programme-session.finished,#activity .programme-session.cancelled{color:#847a7c}
++#activity .programme-session-open{display:grid;gap:5px;justify-items:center;align-content:center;text-align:center;width:100%;min-height:44px;padding:2px;border:0;background:transparent;color:inherit;box-shadow:none;border-radius:5px}
++#activity .programme-session-open strong{font:400 clamp(13px,3.2cqw,21px)/1.15 'Libre Caslon Display',Georgia,serif;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
++#activity .programme-session-open small{font-size:clamp(8px,1.7cqw,11px);line-height:1.2}
++#activity .programme-session-open time{font:500 clamp(9px,1.9cqw,12px)/1.3 'DM Sans',Arial,sans-serif}
++#activity .programme-join{min-height:32px;padding:5px 11px;border:0;border-radius:22px;background:#fff8ed;color:#634457;font-size:clamp(9px,1.8cqw,12px);box-shadow:none}
++#activity .programme-session .cn-card-actions{margin:0;display:flex;justify-content:center}
++#activity .programme-session .cn-note-button{min-height:30px;min-width:30px;padding:3px;border-radius:7px}
++#activity .programme-note-unavailable{font-size:9px;line-height:1.2}
++#activity .programme-wheel-centre{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:28%;aspect-ratio:1;background:#fffaf3;border-radius:50%;box-shadow:0 0 0 7px #faf7f266;display:grid;align-content:center;justify-items:center;text-align:center;padding:10px;color:#654c5d;z-index:2}
++#activity .programme-wheel-centre small{font-size:clamp(8px,1.8cqw,11px);line-height:1.25}
++#activity .programme-wheel-centre strong{font:400 clamp(20px,6cqw,40px)/1.15 'Libre Caslon Display',Georgia,serif;margin:5px 0}
++#activity .programme-wheel-centre span{font-size:clamp(9px,1.9cqw,12px)}
++#activity .programme-circle-caption{font-size:12px;color:#84727d;text-align:center;margin:16px 0 0;line-height:1.5}
++#activity .programme-session-list{list-style:none;padding:0;margin:18px 0;display:grid;gap:12px}
++#activity .programme-session-list .programme-session{padding:14px;border:1px solid #dfd0d6;border-radius:9px;background:#f6efec;color:#604858}
++#activity .programme-session-list .programme-session.active{background:#654c5d;color:#fff9ed}
++#activity .programme-session-list .programme-session-open strong{font-size:20px}
++#activity .programme-notes{display:flex;flex-direction:column;gap:18px;height:480px;min-height:320px;padding:24px;background:#f1e9e8;border:1px solid #e5d8de;border-radius:12px;overflow:hidden}
++#activity .programme-notes h2{font:400 clamp(26px,2.5vw,34px)/1.15 'Libre Caslon Display',Georgia,serif;margin:6px 0 10px}
++#activity .programme-notes header p{margin:0;color:#8c7583;font-size:12px}
++#activity .programme-note-list{flex:1;min-height:0;overflow:hidden}
++.programme-note{border-top:1px solid #ddcfd6;padding:14px 0;margin:0}
++.programme-note>button{display:block;width:100%;border:0;border-radius:4px;background:transparent;color:#604858;text-align:left;padding:0;min-height:44px;box-shadow:none;font:400 14px/1.5 'DM Sans',Arial,sans-serif}
++.programme-note>button>span{display:block;font-weight:600;margin-bottom:7px}
++.programme-note p{margin:0 0 10px;font-size:14px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
++.programme-note small{font-size:11px;color:#8b7584}
++#activity .programme-notes footer{display:flex;flex-wrap:wrap;gap:10px;flex:none;border-top:1px solid #ddcfd6;padding-top:12px}
++#activity .programme-notes footer button{border:1px solid #cdb9c4;background:transparent;color:#684f60;border-radius:24px;min-height:44px;padding:9px 16px;font-size:13px}
++.programme-popup{width:min(760px,calc(100vw - 32px));max-height:85vh;overflow:auto;border:1px solid #ddcfd6;border-radius:16px;padding:28px;background:#faf7f2;color:#493b42}
++.programme-popup::backdrop{background:#40323d66;backdrop-filter:blur(4px)}
++.programme-popup>header{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:20px}
++.programme-popup h2{font:400 32px/1.15 'Libre Caslon Display',Georgia,serif;margin:0}
++.programme-popup header button{width:44px;height:44px;flex:none;font-size:26px;border:1px solid #d8cbd1;border-radius:50%;background:transparent;color:#654c5d}
++.programme-popup .programme-note p{display:block;overflow:visible;-webkit-line-clamp:unset}
++.programme-popup [data-programme-earlier]{min-height:44px;padding:10px 18px;border:1px solid #cdb9c4;border-radius:24px;background:transparent;color:#654c5d}
++#activity .programme-top :is(a,button):focus-visible,.programme-popup button:focus-visible{outline:3px solid #9b718a;outline-offset:3px}
++@media(max-width:1000px) and (min-width:761px){#activity .programme-top{grid-template-columns:115px minmax(0,1fr) minmax(0,1fr);gap:18px}#activity .programme-notes{padding:18px}#activity .programme-top .workspace-tabs :is(a,button){padding:9px 7px;font-size:12px}}
++@media(max-width:760px){#activity .programme-top{grid-template-columns:1fr;gap:24px}#activity .programme-top .workspace-tabs{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:7px}#activity .programme-top .workspace-tabs :is(a,button){border-color:#e0d2d9}#activity .programme-centre{width:100%;max-width:620px;justify-self:center}#activity .programme-notes{width:100%;min-height:320px;max-height:520px}#activity .programme-centre .section-title h2{font-size:25px}.programme-popup{padding:20px}.programme-popup h2{font-size:27px}}
+diff --git a/js/m4l-academy-assessments.js b/js/m4l-academy-assessments.js
+index e3882a5f..443b9519 100644
+--- a/js/m4l-academy-assessments.js
++++ b/js/m4l-academy-assessments.js
+@@ -35,7 +35,7 @@
+   catch(e){if(e.cancelled||!active(epoch,session))return;if(e.status&&e.status<500&&e.status!==429)state.pending=null;message(e.message,true);state.host.querySelectorAll('[data-as="retry"]').forEach(retry=>retry.hidden=!state.pending);}
+   finally{if(active(epoch,session)){state.busy=false;controls(false);syncScheduleRelease();}}
+  }
+- async function refresh(background=false){state.registerValidation=null;const id=state.detail?.assessment.id;state.list=await api('list',{activityKey:state.registerId?'':state.options.activityKey||'',view:state.options.view,kind:state.registerId?'':state.options.kind||''});if(state.cacheKey&&!state.list.learnerPreview&&!state.list.assessments.some(a=>a.learnerPreview)){try{sessionStorage.setItem(state.cacheKey,JSON.stringify({at:Date.now(),list:state.list}));}catch{}}if(background&&(state.detail||state.dirty||state.busy))return;if(id)state.detail=await api('get',{assessmentId:id});if(state.marks)state.marks=await api('marks-list',{assessmentId:state.marks.assessment.id});await render();}
++ async function refresh(background=false){state.registerValidation=null;const id=state.detail?.assessment.id;state.list=await api('list',{activityKey:state.registerId?'':state.options.activityKey||'',view:state.options.view,kind:state.registerId?'':state.options.kind||''});if(state.options.activityKeys)state.list={...state.list,assessments:state.list.assessments.filter(a=>state.options.activityKeys.includes(a.activityKey))};if(state.cacheKey&&!state.list.learnerPreview&&!state.list.assessments.some(a=>a.learnerPreview)){try{sessionStorage.setItem(state.cacheKey,JSON.stringify({at:Date.now(),list:state.list}));}catch{}}if(background&&(state.detail||state.dirty||state.busy))return;if(id)state.detail=await api('get',{assessmentId:id});if(state.marks)state.marks=await api('marks-list',{assessmentId:state.marks.assessment.id});await render();}
+  function shell(content){
+   const previousTabs=state.host.querySelector('.as-tabs'),scrollLeft=previousTabs?.scrollLeft||0,focused=document.activeElement,focusedTab=focused?.dataset.as==='tab'?focused.dataset.tab:'';
+   state.host.innerHTML=`<div class="as-workspace"><p data-as-message role="status" aria-live="polite"></p>${button('Retry last action','retry','hidden',true)}${content}</div>`;
+diff --git a/js/m4l-academy-contents.js b/js/m4l-academy-contents.js
+index 523ca727..98017248 100644
+--- a/js/m4l-academy-contents.js
++++ b/js/m4l-academy-contents.js
+@@ -31,8 +31,8 @@
+   document.body.classList.toggle('academy-program-contents',isProgram);
+   if(host){
+    if(!slot){slot=document.createComment('Program navigation position');host.before(slot);}
+-   const target=isProgram?document.querySelector('#activity .academy-title-row'):null;
+-   if(target&&host.parentElement!==target)target.append(host);else if(!target&&host.parentElement!==slot.parentElement)slot.before(host);
++   const circle=document.querySelector('#activity[data-programme-layout] .programme-top'),target=circle||(isProgram?document.querySelector('#activity .academy-title-row'):null);
++   if(target&&host.parentElement!==target){if(circle)circle.insertBefore(host,circle.firstChild);else target.append(host);}else if(!target&&host.parentElement!==slot.parentElement)slot.before(host);
+   }
+   for(const menu of menus){
+    const selected=(menu===drawerMenu?nav:menu)?.querySelector('[aria-current=page]'),href=selected?.getAttribute('href')||'';
+@@ -58,6 +58,7 @@
+   const link=event.target.closest('[data-workspace-link]'),noteToggle=event.target.closest('[data-class-notes-toggle]');
+   if(link){const href=link.getAttribute('href');if(href?.startsWith('#'))destination=href;if(drawer)close();if(href===location.hash){if(!wide.matches){menu.open=false;menu?.querySelector('summary')?.focus();}destination='';}}
+   if(noteToggle){if(drawer)close();else if(menu&&!wide.matches){menu.open=false;menu.querySelector('summary').focus();}}
++  if(event.target.closest('[data-programme-calendar]')&&drawer)close(false);
+   if(!wide.matches&&!drawer)for(const contents of document.querySelectorAll('.workspace-contents[open]'))if(!program(contents)&&!contents.contains(event.target))contents.open=false;
+  });
+  document.addEventListener('keydown',event=>{if(event.key!=='Escape'||!active())return;if(drawer){event.preventDefault();close();return;}if(wide.matches)return;const menu=event.target.closest('.workspace-contents[open]');if(menu){event.preventDefault();menu.open=false;menu.querySelector('summary').focus();}});
+diff --git a/js/m4l-academy-entrance.js b/js/m4l-academy-entrance.js
+index 499c33a5..9de2016b 100644
+--- a/js/m4l-academy-entrance.js
++++ b/js/m4l-academy-entrance.js
+@@ -38,6 +38,7 @@
+   const MEMORISATION_RETURN_KEY='m4l_academy_memorisation_return_v2:'+window.M4L_ACADEMY_WORKSPACE.current();
+   const DAILY_CACHE_KEY = 'm4l_academy_daily_timetable_10753';
+   let planningSelection=null;
++  let programmeAssessmentKey='';
+   const academyDay = (timezone, instant = Date.now()) => {
+     const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {timeZone:timezone || 'Africa/Johannesburg',
+       year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(instant)).map(part=>[part.type,part.value]));
+@@ -543,11 +544,13 @@
+       : [['timetable','Timetable','activity-schedule'],['assessment','Assessment','as-panel'],['lesson-media','Lesson media','activity-lesson-media'],['library','Library','activity-library']];
+     if(row.plansRequired===false){const index=tools.findIndex(t=>t[0]==='planning');if(index>=0)tools.splice(index,1);}
+     if(row.substituteOnly)tools.splice(2);
+-    const recorder = row.kind === 'PROGRAM' && row.id === window.M4L_CONFIG?.REBOOT_PROGRAM_ID && !row.unavailable
++    const programme=window.M4L_PROGRAMME_WORKSPACE?.active(row,context.mode);
++    if(programme){const assessment=tools.findIndex(tool=>tool[0]==='assessment');if(assessment>=0)tools.splice(assessment,1);}
++    const recorder = row.kind === 'PROGRAM' && (programme||row.id === window.M4L_CONFIG?.REBOOT_PROGRAM_ID) && !row.unavailable
+       ? '<a class="workspace-recorder-pill" data-recorder-link href="/recorder/?academy=1">Voice Recorder</a>' : '';
+     const courseWebsite=context.mode==='teach'?window.M4L_COURSE_COMPANION?.href(row,'course-website','teach'):'';
+     const websiteLink=courseWebsite?`<a id="activity-course-website" data-workspace-exit href="${esc(courseWebsite)}">Course website ↗</a>`:'';
+-    return `<details class="workspace-contents" data-learning-kind="${esc(row.kind)}"><summary class="academy-menu-button"><span>Menu</span><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></summary><nav class="workspace-tabs" aria-label="${context.mode === 'teach' ? 'Teach' : 'Learn'} tools">${tools.map(([key,label,panel]) => `<a id="activity-tab-${key}" data-workspace-link href="${key==='library'?'/academy/library/':workspaceHref(row,key)}" aria-controls="${panel}"${context.tool===key?' aria-current="page"':''}>${label}</a>${key==='timetable'&&!row.substituteOnly?`<button type="button" class="cn-toggle" data-class-notes-toggle aria-pressed="${Boolean(window.M4L_CLASS_NOTES?.visible())}" aria-controls="activity-sessions">Class Notes</button>`:''}`).join('')}${websiteLink}${recorder}</nav></details>${hifzHelperLink(row,'workspace-helper')}`;
++    return `<details class="workspace-contents"${programme?' open':''} data-learning-kind="${esc(row.kind)}"><summary class="academy-menu-button"><span>Menu</span><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></summary><nav class="workspace-tabs" aria-label="${context.mode === 'teach' ? 'Teach' : 'Learn'} tools">${tools.map(([key,label,panel]) => `<a id="activity-tab-${key}" data-workspace-link href="${key==='library'?(window.M4L_ACADEMY_WORKSPACE.readerUrl?.('/academy/library/')||'/academy/library/'):workspaceHref(row,key)}" aria-controls="${panel}"${context.tool===key?' aria-current="page"':''}>${programme&&key==='lesson-media'?'Media':label}</a>${key==='timetable'&&!row.substituteOnly?`<button type="button" class="cn-toggle" data-class-notes-toggle aria-pressed="${Boolean(window.M4L_CLASS_NOTES?.visible())}" aria-controls="activity-sessions">${programme?'Notes':'Class Notes'}</button>`:''}`).join('')}${programme?'<button type="button" data-programme-calendar>Calendar</button>':''}${websiteLink}${recorder}</nav></details>${hifzHelperLink(row,'workspace-helper')}`;
+   }
+   // Shared Messages, calendar and tracker are available from the dashboard.
+   function supportSections() { return ''; }
+@@ -582,14 +585,21 @@
+   }
+ 
+   function syncAssessment(row){
+-    const embedded=location.hash.startsWith('#activity/') && workspaceContext(row).tool === 'assessment';
++    const context=workspaceContext(row),programme=window.M4L_PROGRAMME_WORKSPACE?.active(row,context.mode);
++    const embedded=location.hash.startsWith('#activity/') && (context.tool === 'assessment'||programme);
+     $('as-panel').hidden=!embedded;
+     if(!embedded&&!location.hash.startsWith('#assessment-admin'))return;
+     const admin=location.hash.startsWith('#assessment-admin');
+     const close=admin?$('as-admin-close'):$('as-close');
+     close.href=admin?'#administration':workspaceHref(row);
++    close.hidden=Boolean(programme&&context.tool!=='assessment');
+     const parts=location.hash.slice(1).split('/');let registerId='';try{registerId=decodeURIComponent(parts[admin?3:parts[4]==='assessment'?5:4]||'');}catch{}
+-    window.M4L_ACADEMY_ASSESSMENTS?.open({hostId:admin?'as-admin-host':'as-host',view:admin?'admin':workspaceContext(row).mode==='learn'?'learner':'teacher',activityKey:row.id?`${row.kind}:${row.id}`:'',kind:row.id?'':row.kind,registerId});
++    const keys=programme?window.M4L_PROGRAMME_WORKSPACE.keys(state.home,row,context.mode):[],options={hostId:admin?'as-admin-host':'as-host',view:admin?'admin':context.mode==='learn'?'learner':'teacher',activityKey:keys.length>1?'':row.id?`${row.kind}:${row.id}`:'',kind:keys.length>1?'PROGRAM':row.id?'':row.kind,...(keys.length>1?{activityKeys:keys}:{}),registerId};
++    const key=JSON.stringify([token(),window.M4L_ACADEMY_WORKSPACE.current(),classViewKey(),window.M4L_ACADEMY_WORKSPACE.head(),options]);
++    if(programme&&programmeAssessmentKey===key)return;
++    programmeAssessmentKey=programme?key:'';
++    if(programme){$('as-panel').removeAttribute('aria-labelledby');$('as-panel').setAttribute('aria-label','Programme assessments');}
++    window.M4L_ACADEMY_ASSESSMENTS?.open(options);
+   }
+ 
+   function syncAttendance(row) {
+@@ -873,15 +883,24 @@
+   }
+ 
+   function activityRows() {
+-    return state.activity && state.home?.signedIn ? state.scheduleTimetable.filter(lesson=>lesson.kind===state.activity.kind && lesson.activityId===state.activity.id) : [];
++    if(!state.activity||!state.home?.signedIn)return [];
++    const mode=workspaceContext(state.activity).mode,keys=window.M4L_PROGRAMME_WORKSPACE?.active(state.activity,mode)?window.M4L_PROGRAMME_WORKSPACE.keys(state.home,state.activity,mode):[state.activity.kind+':'+state.activity.id];
++    return state.scheduleTimetable.filter(lesson=>keys.includes(lesson.kind+':'+lesson.activityId));
+   }
+ 
+   function renderActivityTimetable() {
+-    $('activity-schedule').hidden = workspaceContext(state.activity || {roles:[]}).tool !== 'timetable' || !state.home?.signedIn || !state.activity?.roles.length || state.activity?.unavailable;
++    const context=workspaceContext(state.activity || {roles:[]}),programme=state.home?.signedIn&&window.M4L_PROGRAMME_WORKSPACE?.active(state.activity,context.mode);
++    $('activity-schedule').hidden = (!programme&&context.tool !== 'timetable') || !state.home?.signedIn || !state.activity?.roles.length || state.activity?.unavailable;
+     $('activity-schedule-title').textContent = `${state.activity?.name || ''} timetable`;
+-    renderSchedule('activity-sessions', activityRows());
++    const rows=activityRows();renderSchedule('activity-sessions', rows);
+     $('activity-week-range').textContent=formatDate(state.startDate)+' – '+formatDate(addWeekDays(state.startDate,6));
+     weekButtons();
++    if(programme){
++      const media=timetableAttachments(rows);
++      const displayed=window.M4L_PROGRAMME_WORKSPACE.displayRows(rows,state.home.timezone);
++      state.information['programme-circle']=displayed.map(row=>({title:row.moduleName||row.subjectName||row.activityName,dailyRollup:true,lessons:[{...row,media:media.get(mediaReference(row))}]}));
++      window.M4L_PROGRAMME_WORKSPACE.render({row:state.activity,home:state.home,rows:displayed,mode:context.mode,startDate:state.startDate,bindJoins:host=>{for(const button of host.querySelectorAll('[data-join]'))joinChoices.set(button,state.information['programme-circle'][Number(button.dataset.join.split(':')[1])]?.lessons[0]);}});
++    }else window.M4L_PROGRAMME_WORKSPACE?.reset();
+     armScheduleClock();
+   }
+ 
+@@ -1006,7 +1025,7 @@
+     const view = location.hash.slice(1).split('/')[0];
+     if (view === 'activity' && state.activity) {
+       const rows = activityRows();
+-      armTimetableClock(rows, () => renderSchedule('activity-sessions', rows));
++      armTimetableClock(rows, () => window.M4L_PROGRAMME_WORKSPACE?.active(state.activity,workspaceContext(state.activity).mode)?renderActivityTimetable():renderSchedule('activity-sessions', rows));
+     } else if (view === 'timetable'||location.hash==='#administration') {
+       armTimetableClock(state.scheduleTimetable, () => {
+         renderSchedule('academy-sessions',roleRows({...state.home,personalTimetable:state.scheduleTimetable,timetable:state.scheduleTimetable}));updateDashboard();
+@@ -1081,6 +1100,8 @@
+       window.M4L_ACADEMY_PROGRESS?.reset();
+       window.M4L_MEMORISATION_ADMIN?.reset();
+       window.M4L_ACADEMY_ASSESSMENTS?.reset();
++      programmeAssessmentKey='';
++      if(!hash.startsWith('#activity/'))window.M4L_PROGRAMME_WORKSPACE?.reset();
+       window.M4L_LESSON_MEDIA?.reset();window.M4L_PLANNING?.reset();window.M4L_ANNOUNCEMENTS?.reset();
+       $('as-panel').hidden=true;
+       $('pa-main').hidden = true;
+@@ -1144,6 +1165,16 @@
+     dockTimetable($('timetable-card-home'));
+     const view = $('administration'), global = Boolean(state.home?.signedIn && state.home.globalAdmin), areas = state.home?.signedIn ? adminAreas() : [];
+     if (!global && !areas.length) {view.innerHTML='<div class="page-heading"><h1>Admin sign-in</h1></div><p role="status">'+(!state.home&&token()?'Loading your Academy administration…':'Sign in with an authorised Academy admin account to open management tools.')+'</p>';return;}
++    if(location.hash.split('/')[1]==='media'){
++      if(window.M4L_ACADEMY_WORKSPACE.current()!=='ADMIN'){view.innerHTML='<p role="status">Open Admin to manage lesson media.</p>';return;}
++      const parts=location.hash.split('/');let selected='';try{selected=parts[2]+':'+decodeURIComponent(parts[3]||'');}catch{}
++      const choices=areas.filter(row=>['PROGRAM','COURSE'].includes(row.kind)&&row.id&&!row.unavailable),chosen=choices.find(row=>row.kind+':'+row.id===selected);
++      view.innerHTML='<div class="page-heading"><div><p class="eyebrow">YOUR ACADEMY · ADMIN</p><h1>Manage Media</h1><p>Choose a programme or course to review its lesson media.</p></div></div><label>Programme or course<select id="admin-media-activity"><option value="">Choose a programme or course</option>'+choices.map(row=>`<option value="${esc(row.kind+'/'+encodeURIComponent(row.id))}"${row===chosen?' selected':''}>${esc(row.name)}</option>`).join('')+'</select></label><div id="admin-media-host"></div>';
++      $('admin-media-activity')?.addEventListener('change',event=>{if(event.target.value)location.hash='#administration/media/'+event.target.value;});
++      if(chosen)window.M4L_LESSON_MEDIA?.open({hostId:'admin-media-host',activityKey:chosen.kind+':'+chosen.id,learnerView:false});
++      else if(parts[3])$('admin-media-host').textContent='This programme is outside your current Admin scope.';
++      return;
++    }
+     if(location.hash.split('/')[1]==='access'){
+       if(!$('circles-native-access'))view.innerHTML='<div class="page-heading"><div><p class="eyebrow">YOUR ACADEMY · ADMIN</p><h1>Access management</h1><p>Find a learner. Review their access. Keep their learning open.</p></div></div><div id="circles-native-access"></div>';
+       if(window.M4L_CIRCLES_ACCESS)void window.M4L_CIRCLES_ACCESS.open($('circles-native-access'));
+@@ -1193,6 +1224,7 @@
+   window.addEventListener('m4l-class-notes-error',event=>{const el=location.hash.startsWith('#activity/')?$('activity-status'):$('schedule-message');if(el)el.textContent=event.detail+' Refresh to try again.';});
+ 
+   function clearPersonal() {
++    window.M4L_PROGRAMME_WORKSPACE?.reset();programmeAssessmentKey='';
+     window.M4L_CIRCLES_ACCESS?.reset();
+     // Keep the real timetable attached before removing its dashboard or Admin host.
+     dockTimetable($('timetable-card-home'));
+diff --git a/js/m4l-class-notes.js b/js/m4l-class-notes.js
+index 5e4648b4..1443f99a 100644
+--- a/js/m4l-class-notes.js
++++ b/js/m4l-class-notes.js
+@@ -73,7 +73,7 @@
+  function formLock(locked){dialog?.querySelectorAll('form input,form textarea,form select,form button').forEach(el=>el.disabled=locked);}
+  async function commit(action,input){
+   busy=true;const generation=dialogEpoch;formLock(true);message('Saving…');
+-  try{await api(action,input);if(generation!==dialogEpoch)return;dirty=false;pending=null;busy=false;batches.clear();lessons.clear();refresh();await load({activityKey:data.source.activityKey,noteId:input.noteId||undefined,...(!input.noteId?{source:data.source}:{})},false,true);message(action==='withdraw'?'Class Note withdrawn.':'Class Note saved.');}
++  try{await api(action,input);if(generation!==dialogEpoch)return;dirty=false;pending=null;busy=false;batches.clear();lessons.clear();refresh();window.dispatchEvent(new CustomEvent('m4l-class-note-saved',{detail:{activityKey:input.activityKey}}));await load({activityKey:data.source.activityKey,noteId:input.noteId||undefined,...(!input.noteId?{source:data.source}:{})},false,true);message(action==='withdraw'?'Class Note withdrawn.':'Class Note saved.');}
+   catch(error){if(generation!==dialogEpoch)return;busy=false;
+    if(!error.status||error.status>=500){pending={action,input};message('The save could not be confirmed. Your text is kept. Retry this same change.',true);dialog.querySelector('[data-cn-save]')?.removeAttribute('disabled');if(!dialog.querySelector('[data-cn-save]'))body('<button type="button" class="button" data-cn="retry-save">Retry change</button>');}
+    else {pending=null;formLock(false);message(error.message,true);if(error.status===409){review=true;const button=dialog.querySelector('[data-cn="review"]');if(button)button.hidden=false;preview(edit?.due);}if(error.status===403||error.status===401)dialog.querySelector('[data-cn-save]')?.setAttribute('disabled','');}
+@@ -148,5 +148,5 @@
+   }else void openSources(lesson.sources);
+  });
+  window.addEventListener('beforeunload',event=>{if(dirty||busy){event.preventDefault();event.returnValue='';}});
+- window.M4L_CLASS_NOTES={snapshot:()=>scope()===owner?{sessions:[...lessons.values()],status:dashboardStatus,message:dashboardMessage}:{sessions:[],status:'idle'},open:input=>{checkOwner();return load(input);},timetable,buttons,visible:()=>visible,toggle:()=>{visible=!visible;return visible;},canLeave:()=>close(),invalidate,reset};
++ window.M4L_CLASS_NOTES={snapshot:()=>scope()===owner?{sessions:[...lessons.values()],status:dashboardStatus,message:dashboardMessage}:{sessions:[],status:'idle'},open:input=>{checkOwner();return load(input);},summary:input=>{checkOwner();return api('summary',input);},timetable,buttons,visible:()=>visible,toggle:()=>{visible=!visible;return visible;},canLeave:()=>close(),invalidate,reset};
+ })();
+diff --git a/js/m4l-programme-workspace.js b/js/m4l-programme-workspace.js
+new file mode 100644
+index 00000000..9cfb5d99
+--- /dev/null
++++ b/js/m4l-programme-workspace.js
+@@ -0,0 +1,130 @@
++(() => {
++ 'use strict';
++ const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
++ const token=()=>localStorage.getItem('m4l_account_token')||'';
++ function programmeKeys(home,row,mode){
++  const own=row.kind+':'+row.id,allowed=new Set((home.personalActivities||[]).filter(a=>a.kind==='PROGRAM'&&a.active!==false&&a.lifecycle!=='ARCHIVED'&&a.roles?.length).map(a=>'PROGRAM:'+a.id));
++  if(mode!=='learn')return [own];
++  const group=(home.programmePageGroups||[]).find(keys=>Array.isArray(keys)&&keys.includes(own));
++  return group?group.filter(key=>allowed.has(key)):[own];
++ }
++ function displayRows(rows,timezone='Africa/Johannesburg'){
++  const formatter=new Intl.DateTimeFormat('en-GB',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
++  const clock=instant=>{const parts=Object.fromEntries(formatter.formatToParts(new Date(instant)).map(part=>[part.type,part.value]));return {date:parts.year+'-'+parts.month+'-'+parts.day,time:parts.hour+':'+parts.minute};};
++  return rows.map(row=>{if(!Number.isFinite(row.startsAt)||!Number.isFinite(row.endsAt))return {...row};const begins=clock(row.startsAt),ends=clock(row.endsAt);return {...row,sourceDate:row.sourceDate||row.date,date:begins.date,startTime:begins.time,endTime:ends.time,endDate:ends.date};});
++ }
++ function dayRows(rows,day,now=Date.now()){
++  return rows.map((row,index)=>({...row,infoIndex:index})).filter(row=>row.date===day&&Number.isFinite(row.startsAt)&&Number.isFinite(row.endsAt)&&row.endsAt>row.startsAt).sort((a,b)=>a.startsAt-b.startsAt||a.infoIndex-b.infoIndex).map(row=>({...row,phase:row.status!=='SCHEDULED'?'cancelled':row.endsAt<=now?'finished':row.startsAt<=now?'active':'later',canJoin:row.status==='SCHEDULED'&&Boolean(row.joinKey)&&now>=row.joinAvailableAt&&now<row.endsAt}));
++ }
++ function sectorPath(index,count){
++  const sweep=360/count,start=index*sweep-sweep/2+.7,end=start+sweep-1.4;
++  const point=angle=>{const r=(angle-90)*Math.PI/180;return [350+342*Math.cos(r),350+342*Math.sin(r)].map(n=>n.toFixed(3)).join(' ');};
++  return `M350 350 L${point(start)} A342 342 0 ${sweep>180?1:0} 1 ${point(end)} Z`;
++ }
++ window.M4L_PROGRAMME_WORKSPACE_MODEL={programmeKeys,displayRows,dayRows,sectorPath};
++ const $=id=>document.getElementById(id),addDay=(day,n)=>new Date(Date.parse(day+'T12:00:00Z')+n*86400000).toISOString().slice(0,10);
++ let options=null,owner='',generation=0,selectedDay='',top=null,wheel=null,panel=null,popup=null,observer=null,menuAnchor=null,scheduleAnchor=null;
++ const summaries=new Map();
++ const currentOwner=()=>JSON.stringify([token(),window.M4L_ACADEMY_WORKSPACE?.current(),window.M4L_ACADEMY_WORKSPACE?.classView(),window.M4L_ACADEMY_WORKSPACE?.head(),options?.keys]);
++ const active=(row,mode)=>window.M4L_ACADEMY_WORKSPACE?.current()!=='ADMIN'&&row?.kind==='PROGRAM'&&row.roles?.length&&!row.unavailable&&['learn','teach'].includes(mode);
++ const dateLabel=day=>new Intl.DateTimeFormat('en-GB',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'}).format(new Date(day+'T12:00:00Z'));
++ const noteTime=value=>new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',timeZone:options?.home.timezone||'Africa/Johannesburg'}).format(new Date(value));
++ function closePopup(){if(popup){popup.close();popup.remove();popup=null;}}
++ function reset(){
++  generation++;summaries.clear();owner='';selectedDay='';options=null;closePopup();observer?.disconnect();observer=null;
++  if(menuAnchor?.parentNode&&$('activity-menu'))menuAnchor.parentNode.insertBefore($('activity-menu'),menuAnchor);
++  if(scheduleAnchor?.parentNode&&$('activity-schedule'))scheduleAnchor.parentNode.insertBefore($('activity-schedule'),scheduleAnchor);
++  menuAnchor?.remove();scheduleAnchor?.remove();menuAnchor=null;scheduleAnchor=null;top?.remove();top=null;wheel=null;panel=null;
++  $('activity')?.removeAttribute('data-programme-layout');if($('activity-sessions'))$('activity-sessions').hidden=false;
++ }
++ function mount(){
++  if(top)return;
++  const menu=$('activity-menu'),schedule=$('activity-schedule'),reading=schedule.parentElement,workspace=menu.parentElement;
++  menuAnchor=document.createComment('programme menu home');menu.before(menuAnchor);scheduleAnchor=document.createComment('programme timetable home');schedule.before(scheduleAnchor);
++  top=document.createElement('div');top.className='programme-top';workspace.insertBefore(top,reading);
++  const centre=document.createElement('div');centre.className='programme-centre';
++  panel=document.createElement('aside');panel.className='programme-notes';panel.setAttribute('aria-labelledby','programme-notes-title');
++  top.append(menu,centre,panel);centre.append(schedule);wheel=document.createElement('div');wheel.id='programme-circle-host';schedule.append(wheel);
++  $('activity').dataset.programmeLayout='true';$('activity-sessions').hidden=true;
++  if(typeof ResizeObserver!=='undefined'){observer=new ResizeObserver(()=>{if(!top)return;panel.style.height=Math.max(320,Math.round(centre.getBoundingClientRect().height))+'px';fitNotes();});observer.observe(centre);observer.observe(panel);}
++ }
++ function render(next){
++  if(!active(next.row,next.mode)){reset();return;}
++  options={...next,keys:programmeKeys(next.home,next.row,next.mode)};
++  const key=currentOwner();if(key!==owner){generation++;summaries.clear();closePopup();selectedDay='';owner=key;}
++  mount();if(!selectedDay||selectedDay<next.startDate||selectedDay>addDay(next.startDate,6)){
++   const today=new Intl.DateTimeFormat('en-CA',{timeZone:next.home.timezone||'Africa/Johannesburg',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
++   selectedDay=today>=next.startDate&&today<=addDay(next.startDate,6)?today:next.startDate;
++  }
++  renderCircle();renderNotes();void loadNotes(false);
++ }
++ function renderCircle(){
++  if(!options||!wheel)return;
++  const rows=dayRows(options.rows,selectedDay),count=Math.max(6,rows.length),live=rows.filter(r=>r.phase==='active'),upcoming=rows.find(r=>r.phase==='later');
++  const sectors=Array.from({length:count},(_,index)=>`<path class="programme-sector ${rows[index]?.phase||'unused'}" d="${sectorPath(index,count)}"/>`).join('');
++  const lessonHTML=(row,index,graphic=false)=>{
++   const angle=index*2*Math.PI/count,title=row.moduleName||row.subjectName||row.title||'Lesson',label=row.phase==='cancelled'?row.status:row.phase==='active'?'In progress':row.phase==='finished'?'Finished':'Upcoming';
++   const notes=window.M4L_CLASS_NOTES?.visible()?window.M4L_CLASS_NOTES.buttons(row,true)||'<span class="programme-note-unavailable" title="Notes are unavailable for this session">Notes unavailable</span>':'';
++   return `<li class="programme-session ${row.phase}"${graphic?` style="--x:${50+32.2*Math.sin(angle)}%;--y:${50-32.2*Math.cos(angle)}%"`:''}><button type="button" class="programme-session-open" data-information="programme-circle:${row.infoIndex}" aria-label="${esc(title+' · '+row.date+' · '+row.startTime+'–'+row.endTime)}"><small>${esc(label)}</small><strong>${esc(title)}</strong><time>${esc(row.startTime)}–${esc(row.endTime)}</time>${!graphic?`<span>${esc(row.activityName)}</span>`:''}</button>${row.canJoin?`<button type="button" class="programme-join" data-join="programme-circle:${row.infoIndex}:0">Join class ↗</button>`:''}${notes}</li>`;
++  };
++  const caption=live.length?'In progress':upcoming?'Next session':rows.length?'Sessions complete':'No sessions today',centre=live[0]?.startTime||upcoming?.startTime||'A little space';
++  wheel.innerHTML=`<nav class="programme-days" aria-label="Programme timetable days">${Array.from({length:7},(_,i)=>{const day=addDay(options.startDate,i);return `<button type="button" data-programme-day="${day}" aria-pressed="${day===selectedDay}">${esc(dateLabel(day))}</button>`;}).join('')}</nav><div class="programme-wheel${rows.length>8?' programme-wheel-dense':''}"><svg viewBox="0 0 700 700" aria-hidden="true">${sectors}</svg><ol class="programme-wheel-sessions" aria-label="${esc(dateLabel(selectedDay))} sessions">${rows.length<=8?rows.map((r,i)=>lessonHTML(r,i,true)).join(''):''}</ol><div class="programme-wheel-centre"><small>${caption}</small><strong>${esc(centre)}</strong><span>${rows.length} ${rows.length===1?'session':'sessions'}</span></div></div>${rows.length>8?`<ol class="programme-session-list" aria-label="All sessions for ${esc(dateLabel(selectedDay))}">${rows.map((r,i)=>lessonHTML(r,i)).join('')}</ol>`:''}<p class="programme-circle-caption">${esc(dateLabel(selectedDay))} · ${rows.length} ${rows.length===1?'session':'sessions'} · Times follow ${esc(options.home.timezone||'Africa/Johannesburg')}</p>`;
++  options.bindJoins?.(wheel);$('activity-menu')?.querySelector('[data-class-notes-toggle]')?.setAttribute('aria-controls','programme-circle-host');
++ }
++ function noteRows(){return [...summaries.entries()].flatMap(([activityKey,value])=>value.notes.map(note=>({...note,activityKey}))).sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt)||String(b.id).localeCompare(String(a.id)));}
++ function noteHTML(note){return `<article class="programme-note"><button type="button" data-programme-note="${esc(note.id)}" data-programme-key="${esc(note.activityKey)}"><span>${esc(note.source?.title||'Class Note')}</span><p dir="auto">${esc(note.body)}</p><small>${esc(note.author||'')} · ${esc(noteTime(note.createdAt))}</small></button></article>`;}
++ function renderNotes(){
++  if(!panel||!options)return;
++  const rows=noteRows(),loading=[...summaries.values()].some(s=>s.loading),error=[...summaries.values()].some(s=>s.error);
++  panel.innerHTML=`<header><p class="eyebrow">YOUR CLASS NOTES</p><h2 id="programme-notes-title">Notes to return to</h2><p>Latest first · Last 3 months</p></header><div class="programme-note-list">${rows.map(noteHTML).join('')||`<p role="status">${loading?'Opening your notes…':error?'Notes could not be checked.':'No current Class Notes.'}</p>`}</div><footer><button type="button" data-programme-more>View more</button>${error?'<button type="button" data-programme-retry>Retry notes</button>':''}</footer>`;
++  fitNotes();if(popup?.dataset.programmePopup==='notes')renderPopupNotes();
++ }
++ function fitNotes(){
++  const list=panel?.querySelector('.programme-note-list');if(!list)return;
++  const available=Math.max(0,panel.clientHeight-(panel.querySelector('header')?.offsetHeight||0)-(panel.querySelector('footer')?.offsetHeight||0)-48);
++  let used=0;for(const card of list.querySelectorAll('.programme-note')){card.hidden=false;const height=card.getBoundingClientRect().height+12;card.hidden=used+height>available;if(!card.hidden)used+=height;}
++ }
++ async function loadNotes(more=false,force=false){
++  if(!options||!window.M4L_CLASS_NOTES?.summary)return;
++  const captured=owner,stamp=generation;
++  const work=options.keys.filter(key=>{const saved=summaries.get(key);return !saved?.loading&&(force||!saved?.ready||more&&saved.before);});
++  if(!work.length)return;
++  for(const key of work){const old=summaries.get(key);summaries.set(key,{notes:old?.notes||[],before:old?.before||null,ready:Boolean(old?.ready),loading:true,error:false});}renderNotes();
++  await Promise.all(work.map(async activityKey=>{
++   const old=summaries.get(activityKey);
++   try{
++    const result=await window.M4L_CLASS_NOTES.summary({activityKey,limit:20,...(more&&old.before?{before:old.before}:{})});
++    if(stamp!==generation||captured!==currentOwner())return;
++    const notes=more?[...old.notes,...result.notes]:result.notes;
++    summaries.set(activityKey,{notes:[...new Map(notes.map(note=>[note.id,note])).values()],before:typeof result.before==='string'?result.before:null,ready:true,loading:false,error:false});
++   }catch(error){if(stamp!==generation||captured!==currentOwner())return;summaries.set(activityKey,{notes:[],before:null,ready:true,loading:false,error:true});}
++  }));
++  if(stamp===generation&&captured===currentOwner())renderNotes();
++ }
++ function modal(kind,title){
++  closePopup();popup=document.createElement('dialog');popup.className='programme-popup';popup.dataset.programmePopup=kind;
++  popup.setAttribute('aria-labelledby','programme-popup-title');popup.innerHTML=`<header><h2 id="programme-popup-title">${esc(title)}</h2><button type="button" data-programme-close aria-label="Close">×</button></header><div data-programme-popup-body></div>`;
++  popup.addEventListener('cancel',event=>{event.preventDefault();closePopup();});document.body.append(popup);popup.showModal();
++ }
++ function renderPopupNotes(){
++  if(!popup||!options)return;const more=[...summaries.values()].some(s=>s.before),loading=[...summaries.values()].some(s=>s.loading);
++  popup.querySelector('[data-programme-popup-body]').innerHTML=`<p>Last 3 months · Latest first</p>${noteRows().map(noteHTML).join('')||'<p>No current notes in this page of your history.</p>'}${more?`<button type="button" data-programme-earlier${loading?' disabled':''}>${loading?'Loading…':'Load earlier notes'}</button>`:''}`;
++ }
++ function calendar(){
++  modal('calendar','Programme calendar');const rows=options.home.calendarEvents||[];
++  popup.querySelector('[data-programme-popup-body]').innerHTML=rows.length?`<ul>${rows.map(row=>`<li><strong>${esc(row.description||row.title||row.name)}</strong><p>${esc(row.startDate||row.date)}${row.endDate&&row.endDate!==row.startDate?' – '+esc(row.endDate):''}</p></li>`).join('')}</ul>`:'<p>No calendar events in the selected timetable week.</p>';
++ }
++ function click(event){
++  const button=event.target.closest('button');if(!button||!options)return;
++  if(button.dataset.programmeDay){selectedDay=button.dataset.programmeDay;renderCircle();return;}
++  if(button.hasAttribute('data-programme-close'))return closePopup();
++  if(button.hasAttribute('data-programme-calendar'))return calendar();
++  if(button.hasAttribute('data-programme-more')){modal('notes','Programme Class Notes');renderPopupNotes();return;}
++  if(button.hasAttribute('data-programme-earlier'))return void loadNotes(true);
++  if(button.hasAttribute('data-programme-retry'))return void loadNotes(false,true);
++  if(button.dataset.programmeNote){const input={activityKey:button.dataset.programmeKey,noteId:button.dataset.programmeNote};closePopup();void window.M4L_CLASS_NOTES?.open(input);}
++ }
++ window.addEventListener('m4l-class-note-saved',event=>{if(options?.keys.includes(event.detail?.activityKey)){generation++;for(const value of summaries.values())value.loading=false;void loadNotes(false,true);}});
++ document.addEventListener('click',click);
++ window.M4L_PROGRAMME_WORKSPACE={active,keys:programmeKeys,displayRows,render,reset};
++})();

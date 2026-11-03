@@ -1,0 +1,48 @@
+diff --git a/academy/website-platform/connect/connect.mjs b/academy/website-platform/connect/connect.mjs
+index 4f57c367..dc23caaf 100644
+--- a/academy/website-platform/connect/connect.mjs
++++ b/academy/website-platform/connect/connect.mjs
+@@ -1,3 +1,4 @@
++import {academyEntryDestination} from './entry-destination.mjs';
+ const status=document.getElementById('status');
+ const encode=bytes=>btoa(String.fromCharCode(...new Uint8Array(bytes))).replaceAll('+','-').replaceAll('/','_').replaceAll('=','');
+ try{
+@@ -10,5 +11,5 @@ try{
+  const result=await received,session=await request('/api/website-platform/exchange',{code:result.code,state,verifier});
+  localStorage.setItem('m4l_account_token',session.token);window.dispatchEvent(new Event('m4l-academy-session'));
+  sessionStorage.removeItem('m4l_website_library_return');
+- if(session.library){sessionStorage.setItem('m4l_website_library_return',JSON.stringify({...session.library,websiteOrigin:config.websiteOrigin,expiresAt:Date.now()+8*3600_000}));location.replace('/academy/library/');}else location.replace('/academy/');
++ if(session.library){sessionStorage.setItem('m4l_website_library_return',JSON.stringify({...session.library,websiteOrigin:config.websiteOrigin,expiresAt:Date.now()+8*3600_000}));location.replace('/academy/library/');}else location.replace(academyEntryDestination(result.destination,window.M4L_CONFIG));
+ }catch(error){status.textContent=error.message;}
+diff --git a/academy/website-platform/connect/entry-destination.mjs b/academy/website-platform/connect/entry-destination.mjs
+new file mode 100644
+index 00000000..7e5a86ef
+--- /dev/null
++++ b/academy/website-platform/connect/entry-destination.mjs
+@@ -0,0 +1,9 @@
++// Navigation only. Academy still resolves the signed-in account's programme
++// permissions and its existing per-account HifzHelper link.
++export function academyEntryDestination(destination,config={}){
++ if(destination!=='hifz')return '/academy/';
++ const program=config.HIFZ_PROGRAM_ID;
++ return typeof program==='string'&&/^[-A-Za-z0-9_:]{1,180}$/.test(program)
++  ?'/academy/#activity/PROGRAM/'+encodeURIComponent(program)+'/learn'
++  :'/academy/#hifz';
++}
+diff --git a/backend/tests/website-entry-destination.test.mjs b/backend/tests/website-entry-destination.test.mjs
+new file mode 100644
+index 00000000..503c0477
+--- /dev/null
++++ b/backend/tests/website-entry-destination.test.mjs
+@@ -0,0 +1,11 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import {academyEntryDestination} from '../../academy/website-platform/connect/entry-destination.mjs';
++
++test('the verified website handoff offers only native Academy and Hifz destinations',()=>{
++ assert.equal(academyEntryDestination('academy'),'/academy/');
++ assert.equal(academyEntryDestination('hifz',{HIFZ_PROGRAM_ID:'synthetic-hifz'}),'/academy/#activity/PROGRAM/synthetic-hifz/learn');
++ assert.equal(academyEntryDestination('hifz'),'/academy/#hifz');
++ for(const destination of [undefined,'https://outside.test','//outside.test','/academy/admin/'])assert.equal(academyEntryDestination(destination),'/academy/');
++ for(const HIFZ_PROGRAM_ID of ['../outside','https://outside.test','bad#fragment','x'.repeat(181)])assert.equal(academyEntryDestination('hifz',{HIFZ_PROGRAM_ID}),'/academy/#hifz');
++});

@@ -1,0 +1,512 @@
+diff --git a/academy/courses/manage/index.html b/academy/courses/manage/index.html
+index f39a562a..6151bd3f 100644
+--- a/academy/courses/manage/index.html
++++ b/academy/courses/manage/index.html
+@@ -38,7 +38,7 @@
+   <script src="/js/m4l-lesson-media-cache.js?v=108.7"></script><script src="/js/m4l-library-cache.js?v=108.7"></script><script src="/js/m4l-lesson-pdf-library.js?v=108.7"></script><script src="/js/m4l-lesson-media.js?v=108.7"></script>
+   <script src="/js/m4l-config.js?v=107.52"></script>
+   <script src="/js/m4l-enrolment-common.js?v=106.85"></script><script src="/js/m4l-enrolment-admin.js?v=106.93"></script><script src="/js/m4l-enrolment-workspace.js?v=106.93"></script>
+-  <script src="/js/m4l-time.js?v=106.9"></script><script src="/js/m4l-studio-access.js"></script><script src="/js/m4l-academy-course-management.js?v=c1547a7de20a"></script>
++  <script src="/js/m4l-time.js?v=106.9"></script><script src="/js/m4l-studio-access.js?v=eb34f1cdd3"></script><script src="/js/m4l-academy-course-management.js?v=e97079cbff"></script>
+   <script src="/js/m4l-academy-navigation.js?v=108.7"></script>
+ <script src="/js/m4l-academy-mobile.js?v=108.7"></script>
+ <script src="/js/m4l-academy-page-actions.js?v=108.7"></script>
+diff --git a/backend/migrations/academy-core/0017_monthly_programme_bridge.sql b/backend/migrations/academy-core/0017_monthly_programme_bridge.sql
+new file mode 100644
+index 00000000..1c9da99c
+--- /dev/null
++++ b/backend/migrations/academy-core/0017_monthly_programme_bridge.sql
+@@ -0,0 +1,12 @@
++-- Operational monthly bridge policy only. No native media policy, identity,
++-- role, paid month, grant, media, timetable or live ownership is seeded.
++CREATE TABLE website_platform_programmes(
++ activity_key TEXT PRIMARY KEY COLLATE NOCASE REFERENCES activities(activity_key),
++ programme_key TEXT NOT NULL UNIQUE CHECK(programme_key='mothers'),
++ access_model TEXT NOT NULL CHECK(access_model='MONTHLY'),
++ enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN(0,1))
++);
++CREATE TABLE website_platform_programme_operations(operation_id TEXT PRIMARY KEY,actor_id TEXT NOT NULL,payload_hash TEXT NOT NULL,result_json TEXT NOT NULL,created_at INTEGER NOT NULL);
++CREATE TRIGGER website_programme_policy_update AFTER UPDATE ON website_platform_programmes BEGIN
++ INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT NEW.activity_key,'' WHERE EXISTS(SELECT 1 FROM website_platform_access_scopes WHERE activity_key=NEW.activity_key AND enabled=1) ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL;
++END;
+diff --git a/backend/migrations/academy-core/0019_course_policy_mirror.sql b/backend/migrations/academy-core/0019_course_policy_mirror.sql
+new file mode 100644
+index 00000000..9da9628c
+--- /dev/null
++++ b/backend/migrations/academy-core/0019_course_policy_mirror.sql
+@@ -0,0 +1,9 @@
++-- Trusted target acknowledgement only, not participant entitlement data.
++CREATE TABLE website_platform_course_policy_mirror(activity_key TEXT PRIMARY KEY COLLATE NOCASE REFERENCES activities(activity_key),access_model TEXT NOT NULL CHECK(access_model IN('FREE','PAID')),revision INTEGER NOT NULL CHECK(revision>0));
++CREATE INDEX website_platform_ownership_nocase ON website_platform_access_ownership(activity_key COLLATE NOCASE);
++DROP TRIGGER studio_access_policy_course;
++CREATE TRIGGER studio_access_policy_course BEFORE UPDATE OF legacy_access_model,policy_review_state ON course_settings
++WHEN (OLD.legacy_access_model<>NEW.legacy_access_model OR OLD.policy_review_state<>NEW.policy_review_state)
++AND EXISTS(SELECT 1 FROM website_platform_access_ownership o WHERE o.activity_key=NEW.activity_key AND o.state<>'ACADEMY')
++AND NOT EXISTS(SELECT 1 FROM website_platform_course_policy_mirror m JOIN website_platform_access_ownership o USING(activity_key) WHERE m.activity_key=NEW.activity_key AND o.state='STUDIO' AND m.access_model=NEW.legacy_access_model AND NEW.policy_review_state='CONFIRMED')
++BEGIN SELECT RAISE(ABORT,'STUDIO_ACCESS_MANAGED'); END;
+diff --git a/backend/src/academy/d1/course-management.js b/backend/src/academy/d1/course-management.js
+index 772c1ebb..616e65d3 100644
+--- a/backend/src/academy/d1/course-management.js
++++ b/backend/src/academy/d1/course-management.js
+@@ -1,4 +1,5 @@
+ import {courseStudioEnabled,planCourseStudio,courseStudioStatus,resumeCourseStudio} from './web-platform/course-publication.mjs';
++import {managedCoursePolicies,applyManagedCoursePolicy} from './web-platform/course-policy.mjs';
+ import {moduleCatalogueQueries,academyModuleCategory,resolveModuleCategory} from './module-catalogue.js';
+ import {managementStore,managementError,same,liveRoles,profileDTO,rowChanged} from './management-store.js';
+ import {assignmentDTO,scopeDTO,d1Profiles} from './profiles.js';
+@@ -174,15 +175,16 @@ export function d1CourseManagement(repository,auth,env={}) {
+     if(['list','get','participants','studio-resume'].includes(action)){
+       const data=await load();
+       if(action==='list') {
+-        const courses=[];
++        const courses=[],policies=await managedCoursePolicies(env,data.activities.filter(a=>a.kind==='COURSE'&&hasScope(data,auth,a.activity_key)).map(a=>a.activity_key));
+         for(const a of data.activities.filter(a=>a.kind==='COURSE'&&hasScope(data,auth,a.activity_key))){
+           const runIds=[...new Set([...data.runs.filter(r=>same(r.activity_key,a.activity_key)).map(r=>r.run_id),...data.editor.filter(m=>same(m.activity_key,a.activity_key)).map(m=>m.run_id)])];
+           if(!runIds.length)runIds.push('CMRUN-'+a.activity_id);
+-          for(const runId of runIds){const c=await courseRecord(data,a,runId);courses.push({courseId:c.courseId,runId,name:c.details.name,stage:c.displayStage,accessModel:c.details.accessModel,startDate:c.details.startDate,endDate:c.details.endDate,sessionCount:c.details.sessions.length,legacySharedAccess:c.legacySharedAccess});}
++          for(const runId of runIds){const c=await courseRecord(data,a,runId);applyManagedCoursePolicy(c,policies);courses.push({courseId:c.courseId,runId,name:c.details.name,stage:c.displayStage,accessModel:c.details.accessModel,startDate:c.details.startDate,endDate:c.details.endDate,sessionCount:c.details.sessions.length,legacySharedAccess:c.legacySharedAccess});}
+         }
+         return {courses,capabilities:{create:Boolean(auth.state.account.global_admin),privateMedia:false},timezone:data.settings.find(s=>s.setting_key==='PlatformTimezone')?.setting_value||'Africa/Johannesburg',categories:categories(data),teachers:teacherDirectory(data),store:'D1'};
+       }
+       const course=await selected(data,input);
++      applyManagedCoursePolicy(course,await managedCoursePolicies(env,[course.activityKey]));
+       if(action==='studio-resume'){await resumeCourseStudio(env,{activityKey:course.activityKey});return {studioSetup:await courseStudioStatus(env.ACADEMY_DB.withSession('first-primary'),course.activityKey)};}
+       if(action==='get'){
+         if(courseStudioEnabled(env))course.studioSetup=await courseStudioStatus(env.ACADEMY_DB.withSession('first-primary'),course.activityKey);
+@@ -200,7 +202,7 @@ export function d1CourseManagement(repository,auth,env={}) {
+       if(action==='save'&&!input.courseId){
+         if(!auth.state.account.global_admin)throw managementError('Only a Global Admin can create Courses.',403,'FORBIDDEN');
+         c={courseId:'COURSE-'+crypto.randomUUID(),runId:'CMRUN-'+crypto.randomUUID(),revision:'0',stage:'DRAFT',completedAt:null,repeatedFrom:null};c.activityKey='COURSE:'+c.courseId;
+-      }else{c=await selected(data,input);if(!['participant-create','public-card-save'].includes(action))checkRevision(c,input);}
++      }else{c=await selected(data,input);applyManagedCoursePolicy(c,await managedCoursePolicies(env,[c.activityKey]));if(!['participant-create','public-card-save'].includes(action))checkRevision(c,input);}
+       const creating=!data.activities.some(a=>same(a.activity_key,c.activityKey));
+       function createActivity(name,accessModel,inactiveDraft=false){
+         const now=new Date().toISOString();
+@@ -216,6 +218,7 @@ export function d1CourseManagement(repository,auth,env={}) {
+       }else if(action==='save') {
+         if(c.stage!=='DRAFT')throw managementError('Create a revision before editing a published Course. Repeat a completed or archived Course to run it again.',409);
+         const d=normalize(input.details,data.settings.find(s=>s.setting_key==='PlatformTimezone')?.setting_value||'Africa/Johannesburg');
++        if(c.studioManagedAccess&&d.accessModel!==c.details.accessModel)throw managementError('Change Free or Paid in Participants → Learning access for this Course.',409,'STUDIO_ACCESS_MANAGED');
+         if(d.timezone!==(creating?data.settings.find(s=>s.setting_key==='PlatformTimezone')?.setting_value:c.details.timezone))throw managementError('Time zone is an app setting managed by Global Admin.',403,'APP_TIMEZONE_ONLY');
+         if(creating)createActivity(d.name,d.accessModel);
+         const revision=saveMeta(statements,c,d,'DRAFT');
+@@ -248,7 +251,7 @@ export function d1CourseManagement(repository,auth,env={}) {
+           }else{
+             if(c.acceptedToken!==review.token)throw managementError('Review and accept the current sessions before publishing.',409,'REVIEW_ACCEPTANCE_REQUIRED');
+             const plan=await planCoursePublication(store,data,auth,env,c.courseId,c.runId,d);statements.push(...plan.statements,p('UPDATE activities SET website_visible=1 WHERE activity_key=?',c.activityKey));
+-            if(!c.legacySharedAccess)statements.push(p("UPDATE course_settings SET legacy_access_model=?,policy_review_state='CONFIRMED' WHERE activity_key=?",d.accessModel,c.activityKey));
++            if(!c.legacySharedAccess&&!c.studioManagedAccess)statements.push(p("UPDATE course_settings SET legacy_access_model=?,policy_review_state='CONFIRMED' WHERE activity_key=?",d.accessModel,c.activityKey));
+             for(const teacher of [...new Set(d.sessions.filter(s=>s.status==='SCHEDULED').map(s=>s.teacherId))])statements.push(p("INSERT INTO role_assignments(assignment_id,account_id,activity_key,role,active,review_state,granted_at,granted_by_account_id,revision) SELECT ?,?,?,'TEACHER',1,'CONFIRMED',?,?,1 WHERE NOT EXISTS(SELECT 1 FROM effective_activity_roles WHERE account_id=? AND activity_key=? AND role='TEACHER')",crypto.randomUUID(),teacher,c.activityKey,new Date().toISOString(),auth.user.accountid,teacher,c.activityKey));
+             const studioPlan=await planCourseStudio(store,env,c,input,d);statements.push(...studioPlan.statements);
+             const revision=saveMeta(statements,c,d,'PUBLISHED');result={courseId:c.courseId,runId:c.runId,revision,publication:plan.publication,studioSetupPending:studioPlan.started,message:studioPlan.started?'Course published. Studio access setup is pending; existing rights are preserved.':'Course published to the Academy timetable.'};
+diff --git a/backend/src/academy/d1/repository.js b/backend/src/academy/d1/repository.js
+index 0622686b..30759625 100644
+--- a/backend/src/academy/d1/repository.js
++++ b/backend/src/academy/d1/repository.js
+@@ -54,7 +54,12 @@ export function academyD1Repository(env) {
+   async function subscriptionSource(){
+     return (await schemaNames()).includes('effective_course_subscriptions')?'effective_course_subscriptions':"(SELECT account_id,activity_key FROM legacy_access_evidence WHERE source_role='LEGACY_SUBSCRIPTION' AND source_effective=1)";
+   }
+-  const activityColumns=env.ACADEMY_ACCEPTED_SETUP==='1'?`a.activity_key,a.activity_id,a.kind,COALESCE((SELECT json_extract(r.value,'$.name') FROM setup_head_state h JOIN setup_head_components v ON v.head_id=h.head_id AND v.table_name='activities' JOIN setup_components c USING(component_id) JOIN json_each(c.rows_json) r WHERE h.singleton=1 AND json_extract(r.value,'$.activity_key')=a.activity_key COLLATE NOCASE LIMIT 1),'Learning area') AS name,a.active,a.lifecycle,a.website_visible,a.created_at,a.updated_at,a.revision`:'a.*';
++  // Expand accepted names once per sign-in, rather than scanning the accepted
++  // JSON again for every Course/programme. Operational identity/lifecycle and
++  // all role/payment/session checks still come from the same current Core rows.
++  const acceptedActivities=env.ACADEMY_ACCEPTED_SETUP==='1';
++  const activityNames=acceptedActivities?`WITH accepted_activity_names AS MATERIALIZED (SELECT json_group_object(lower(json_extract(r.value,'$.activity_key')),json_extract(r.value,'$.name')) names FROM setup_head_state h JOIN setup_head_components v ON v.head_id=h.head_id AND v.table_name='activities' JOIN setup_components c USING(component_id) JOIN json_each(c.rows_json) r WHERE h.singleton=1) `:'';
++  const activityColumns=acceptedActivities?`a.activity_key,a.activity_id,a.kind,COALESCE(json_extract(n.names,'$.'||json_quote(lower(a.activity_key))),'Learning area') AS name,a.active,a.lifecycle,a.website_visible,a.created_at,a.updated_at,a.revision`:'a.*';
+   const accountSQL=`SELECT a.*,c.pin_hash,c.pin_setup,c.credential_epoch,
+     ${env.ACADEMY_LEARNING_OPERATIONS==='3'?`(SELECT json_group_array(json_object('id',g.assignment_id,'activityKey',g.activity_key)) FROM attendance_substitutes g JOIN activities area USING(activity_key) WHERE g.account_id=a.account_id AND area.active=1 AND area.lifecycle='ACTIVE' AND g.revoked_at IS NULL AND g.starts_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now') AND max(g.correction_until,coalesce(g.correction_reopen_until,''))>strftime('%Y-%m-%dT%H:%M:%fZ','now')) AS substitute_grants,`:''}
+     EXISTS(SELECT 1 FROM global_role_assignments g WHERE g.account_id=a.account_id AND g.role='GLOBAL_ADMIN' AND g.active=1 AND g.review_state='CONFIRMED') AS global_admin
+@@ -65,7 +70,7 @@ export function academyD1Repository(env) {
+     const target=`(SELECT a.account_id FROM accounts a JOIN account_credentials c USING(account_id) WHERE ${where})`;
+     const results=await db.batch([
+       prepare(`${accountSQL} WHERE ${where}`,...values),
+-      prepare(`SELECT ${activityColumns},cs.legacy_access_model,cs.policy_review_state FROM activities a LEFT JOIN course_settings cs USING(activity_key)
++      prepare(`${activityNames}SELECT ${activityColumns},cs.legacy_access_model,cs.policy_review_state FROM activities a ${acceptedActivities?'CROSS JOIN accepted_activity_names n':''} LEFT JOIN course_settings cs ON cs.activity_key=a.activity_key
+         WHERE a.active=1 AND a.lifecycle='ACTIVE' AND a.kind IN ('PROGRAM','COURSE')`),
+       prepare(`SELECT r.activity_key,r.role FROM effective_activity_roles r JOIN activities a USING(activity_key)
+         WHERE r.account_id=${target} AND a.active=1 AND a.lifecycle='ACTIVE'
+diff --git a/backend/src/academy/d1/web-platform/access.mjs b/backend/src/academy/d1/web-platform/access.mjs
+index 91b440a0..09d1935f 100644
+--- a/backend/src/academy/d1/web-platform/access.mjs
++++ b/backend/src/academy/d1/web-platform/access.mjs
+@@ -18,17 +18,17 @@ export async function importAccessPage(db,{activityKey,limit=25}={}){
+   db.prepare('DELETE FROM website_platform_guards WHERE guard_id=?').bind(guard)
+  ]);return {dataset:phase.dataset,records:page.length,accounts:accounts.length,done:rows.length<=limit,cursor};
+ }
+-async function configuration(db,key){return db.prepare(`SELECT x.*,own.state access_owner,m.offering_id,m.kind,COALESCE(NULLIF(n.published_title,''),a.name) name,a.active,a.lifecycle,a.kind source_kind,COALESCE(n.published_timezone,p.timezone) timezone,c.legacy_access_model,c.policy_review_state,mp.enabled monthly_enabled FROM website_platform_access_scopes x JOIN website_platform_timetable_scopes m USING(activity_key) JOIN activities a USING(activity_key) LEFT JOIN website_platform_new_courses n USING(activity_key) LEFT JOIN website_platform_access_ownership own USING(activity_key) LEFT JOIN program_settings p USING(activity_key) LEFT JOIN course_settings c USING(activity_key) LEFT JOIN program_monthly_media_policies mp USING(activity_key) WHERE x.activity_key=?`).bind(key).first();}
++async function configuration(db,key){return db.prepare(`SELECT x.*,own.state access_owner,m.offering_id,m.kind,COALESCE(NULLIF(n.published_title,''),a.name) name,a.active,a.lifecycle,a.kind source_kind,COALESCE(n.published_timezone,p.timezone) timezone,c.legacy_access_model,c.policy_review_state,mp.enabled monthly_enabled,b.programme_key,b.enabled programme_enabled FROM website_platform_access_scopes x JOIN website_platform_timetable_scopes m USING(activity_key) JOIN activities a USING(activity_key) LEFT JOIN website_platform_new_courses n USING(activity_key) LEFT JOIN website_platform_programmes b USING(activity_key) LEFT JOIN website_platform_access_ownership own USING(activity_key) LEFT JOIN program_settings p USING(activity_key) LEFT JOIN course_settings c USING(activity_key) LEFT JOIN program_monthly_media_policies mp USING(activity_key) WHERE x.activity_key=?`).bind(key).first();}
+ export async function projectAccess(db,key,accountId,{now=Date.now()}={}){
+  const scope=await configuration(db,key);if(!scope)throw Error('ACCESS_SCOPE_MISSING');
+  if(!accountId){const websites=check(await all(db,`SELECT m.website_id,s.completion_date,s.active FROM website_platform_surah_maps m JOIN program_surahs s ON s.surah_id=m.surah_id AND s.activity_key=m.activity_key WHERE m.activity_key=? ORDER BY m.surah_id LIMIT 201`,key),200,'SURAH_MAP_TOO_LARGE');
+   const classes=check(await all(db,'SELECT class_id FROM classes WHERE activity_key=? AND active=1 ORDER BY class_id LIMIT 201',key),200,'CLASS_SCOPE_TOO_LARGE');
+   const liveRun=scope.kind!=='COURSE'||Boolean(await db.prepare('SELECT 1 FROM course_runs r JOIN course_run_state s USING(activity_key,run_id) WHERE r.activity_key=? AND r.active=1 AND s.current_publication_id IS NOT NULL AND (r.end_date IS NULL OR r.end_date>=?) LIMIT 1').bind(key,new Date(now).toISOString().slice(0,10)).first());
+-  const model=scope.kind==='COURSE'?scope.purchase_model==='CONFIRMED_SUBSCRIPTION'&&['PAID','FREE'].includes(scope.legacy_access_model)&&scope.policy_review_state==='CONFIRMED':scope.kind==='TAFSEER'&&scope.monthly_enabled===1;
+-  return {type:'access-scope',offering:{id:scope.offering_id,kind:scope.kind,title:scope.name},generation:scope.revision,...(scope.kind==='COURSE'?{accessModel:scope.legacy_access_model}:{}),enabled:Boolean(scope.enabled&&model),liveEnabled:Boolean(scope.active&&scope.lifecycle==='ACTIVE'&&liveRun),timezone:scope.timezone||'UTC',classes:classes.map(c=>c.class_id),websites};
++  const model=scope.kind==='COURSE'?scope.purchase_model==='CONFIRMED_SUBSCRIPTION'&&['PAID','FREE'].includes(scope.legacy_access_model)&&scope.policy_review_state==='CONFIRMED':scope.kind==='TAFSEER'&&(scope.monthly_enabled===1||scope.programme_key==='mothers'&&scope.programme_enabled===1);
++  return {type:'access-scope',...(scope.programme_key?{programmeKey:scope.programme_key,accessModel:'MONTHLY'}:{}),offering:{id:scope.offering_id,kind:scope.kind,title:scope.name},generation:scope.revision,...(scope.kind==='COURSE'?{accessModel:scope.legacy_access_model}:{}),enabled:Boolean(scope.enabled&&model),liveEnabled:Boolean(scope.active&&scope.lifecycle==='ACTIVE'&&liveRun),timezone:scope.timezone||'UTC',classes:classes.map(c=>c.class_id),websites};
+  }
+  const account=await db.prepare('SELECT * FROM website_platform_account_state WHERE account_id=?').bind(accountId).first();if(!account)throw Error('MASTER_ACCOUNT_MISSING');
+- const roles=await all(db,`SELECT r.role FROM role_assignments r INDEXED BY one_active_scoped_role JOIN accounts a ON a.account_id=r.account_id COLLATE NOCASE WHERE r.account_id=? COLLATE NOCASE AND r.activity_key=? COLLATE NOCASE AND r.active=1 AND r.review_state='CONFIRMED' AND r.grant_source='EXPLICIT' AND a.active=1`,account.account_id,key),names=new Set(roles.map(r=>r.role));
++ const roles=await all(db,`SELECT r.role FROM role_assignments r INDEXED BY one_active_scoped_role JOIN accounts a ON a.account_id=r.account_id COLLATE NOCASE WHERE r.account_id=? COLLATE NOCASE AND r.activity_key=? COLLATE NOCASE AND r.active=1 AND r.review_state='CONFIRMED' AND ${scope.programme_key==='mothers'?"(r.grant_source='EXPLICIT' OR r.grant_source='LEGACY_MAPPED' AND r.legacy_source_role IN('ADMIN','SENIOR'))":"r.grant_source='EXPLICIT'"} AND a.active=1`,account.account_id,key),names=new Set(roles.map(r=>r.role));
+  const subscribed=scope.access_owner!=='STUDIO'&&scope.kind==='COURSE'&&scope.purchase_model==='CONFIRMED_SUBSCRIPTION'&&Boolean(await db.prepare('SELECT 1 FROM course_subscription_decisions WHERE account_id=? AND activity_key=? AND active=1').bind(account.account_id,key).first());
+  const purchased=scope.legacy_access_model==='PAID'&&subscribed;
+  const months=scope.access_owner!=='STUDIO'&&scope.kind==='TAFSEER'?check(await all(db,'SELECT lesson_month,class_ids_json FROM program_monthly_subscriptions WHERE activity_key=? AND account_id=? AND active=1 ORDER BY lesson_month LIMIT 241',key,account.account_id),240,'MONTH_SCOPE_TOO_LARGE'):[];
+@@ -59,9 +59,30 @@ export async function queueAccess(db,{limit=4,onlyScope,onlyAccount,now=Date.now
+   ]);
+  }catch(error){await db.prepare('UPDATE website_platform_access_dirty SET next_attempt=?,last_error=? WHERE activity_key=? AND account_id=? AND revision=?').bind(now+30_000,/^[A-Z_]+$/.test(error.message)?error.message:'ACCESS_RETRY',row.activity_key,row.account_id,row.revision).run();}}
+ }
+-export async function prepareAccountAccess(db,accountId){
+- const scopes=check(await all(db,`SELECT s.activity_key,m.offering_id FROM website_platform_access_scopes s JOIN website_platform_timetable_scopes m USING(activity_key) WHERE s.enabled=1 ORDER BY s.activity_key LIMIT 33`),32,'ACCESS_SCOPE_LIMIT');
+- for(const s of scopes){await db.prepare('INSERT INTO website_platform_access_dirty(activity_key,account_id) VALUES(?,\'\') ON CONFLICT DO NOTHING').bind(s.activity_key).run();await queueAccess(db,{onlyScope:s.activity_key,onlyAccount:''});const metadata=await db.prepare("SELECT revision,exported_revision,last_error FROM website_platform_access_dirty WHERE activity_key=? AND account_id=''").bind(s.activity_key).first();if(!metadata||metadata.revision!==metadata.exported_revision||metadata.last_error)throw Error('ACCESS_SCOPE_PENDING');await markAccess(db,s.activity_key,accountId);await queueAccess(db,{onlyScope:s.activity_key,onlyAccount:accountId.toLowerCase()});const row=await db.prepare('SELECT revision,exported_revision,last_error FROM website_platform_access_dirty WHERE activity_key=? AND account_id=?').bind(s.activity_key,accountId).first();if(!row||row.revision!==row.exported_revision||row.last_error)throw Error('ACCESS_CONFIRMATION_PENDING');}
++export async function prepareAccountAccess(db,accountId,{offeringId}={}){
++ const scopes=check(await all(db,`SELECT s.activity_key,CASE WHEN o.state='STUDIO' THEN 1 ELSE EXISTS(SELECT 1 FROM course_settings c WHERE c.activity_key=s.activity_key AND c.legacy_access_model='FREE' AND c.policy_review_state='CONFIRMED') END shared,
++ d.revision metadata_revision,d.exported_revision metadata_exported,d.last_error metadata_error,
++ p.revision person_revision,p.exported_revision person_exported,p.last_error person_error
++ FROM website_platform_access_scopes s ${offeringId?'JOIN website_platform_timetable_scopes m USING(activity_key)':''}
++ LEFT JOIN website_platform_access_ownership o USING(activity_key)
++ LEFT JOIN website_platform_access_dirty d ON d.activity_key=s.activity_key AND d.account_id=''
++ LEFT JOIN website_platform_access_dirty p ON p.activity_key=s.activity_key AND p.account_id=?
++ WHERE s.enabled=1 ${offeringId?'AND m.offering_id=?':''} ORDER BY s.activity_key LIMIT 33`,accountId.toLowerCase(),...(offeringId?[offeringId]:[])),32,'ACCESS_SCOPE_LIMIT');
++ if(offeringId&&!scopes.length)throw Error('ACCESS_SCOPE_MISSING');
++ for(const s of scopes){
++  if(s.metadata_revision==null||s.metadata_revision!==s.metadata_exported||s.metadata_error){
++   await db.prepare('INSERT INTO website_platform_access_dirty(activity_key,account_id) VALUES(?,\'\') ON CONFLICT DO NOTHING').bind(s.activity_key).run();await queueAccess(db,{onlyScope:s.activity_key,onlyAccount:''});
++   const metadata=await db.prepare("SELECT revision,exported_revision,last_error FROM website_platform_access_dirty WHERE activity_key=? AND account_id=''").bind(s.activity_key).first();if(!metadata||metadata.revision!==metadata.exported_revision||metadata.last_error)throw Error('ACCESS_SCOPE_PENDING');
++  }
++  // Studio rights and default FREE access need no new per-account Source
++  // snapshot at sign-in. Still flush known role/class/master changes; an actual
++  // live/staff action can explicitly refresh this exact offering when needed.
++  const shared=!offeringId&&Boolean(s.shared);
++  const dirty=s.person_revision!=null&&(s.person_revision!==s.person_exported||s.person_error);
++  if(shared&&!dirty)continue;
++  if(!shared)await markAccess(db,s.activity_key,accountId);
++  await queueAccess(db,{onlyScope:s.activity_key,onlyAccount:accountId.toLowerCase()});const row=await db.prepare('SELECT revision,exported_revision,last_error FROM website_platform_access_dirty WHERE activity_key=? AND account_id=?').bind(s.activity_key,accountId.toLowerCase()).first();if(!row||row.revision!==row.exported_revision||row.last_error)throw Error('ACCESS_CONFIRMATION_PENDING');
++ }
+ }
+ export async function pumpAccess(db){
+  const scope=await db.prepare(`SELECT s.activity_key FROM website_platform_access_scopes s WHERE s.enabled=1 AND (NOT EXISTS(SELECT 1 FROM website_platform_access_imports i WHERE i.activity_key=s.activity_key) OR EXISTS(SELECT 1 FROM website_platform_access_imports i WHERE i.activity_key=s.activity_key AND i.done=0)) ORDER BY s.activity_key LIMIT 1`).first();if(scope)await importAccessPage(db,{activityKey:scope.activity_key});await queueAccess(db);
+diff --git a/backend/src/academy/d1/web-platform/bridge.mjs b/backend/src/academy/d1/web-platform/bridge.mjs
+index 1b3100b6..1af30ffa 100644
+--- a/backend/src/academy/d1/web-platform/bridge.mjs
++++ b/backend/src/academy/d1/web-platform/bridge.mjs
+@@ -67,7 +67,7 @@ export async function bridge(request,env,{login,mint,navigation,dashboard,destin
+   if(!Array.isArray(input.operationIds)||input.operationIds.length>40)throw fail('Invalid acknowledgement.');for(const operationId of input.operationIds)id(operationId);await db.prepare('UPDATE website_platform_outbox SET acknowledged=1 WHERE operation_id IN(SELECT value FROM json_each(?))').bind(JSON.stringify(input.operationIds)).run();return {acknowledged:true};
+  }
+  if(path==='/internal/website/status'){
+-  const session=await sourceSession(db,input.sourceRef);if(!input.draining){await enqueueAccount(db,session.account_id,env);await prepareAccountAccess(db,session.account_id);}const result=await pendingAccount(env,db,session.account_id);return result.more?{...result,continuation:session.source_ref,statusOnly:true}:result;
++  const session=await sourceSession(db,input.sourceRef);if(!input.draining){await enqueueAccount(db,session.account_id,env);await prepareAccountAccess(db,session.account_id,{offeringId:input.offeringId?id(input.offeringId):undefined});}const result=await pendingAccount(env,db,session.account_id);return result.more?{...result,continuation:session.source_ref,statusOnly:true}:result;
+  }
+  if(path==='/internal/website/continue-sign-in'){const session=await sourceSession(db,input.sourceRef);if(input.statusOnly){const result=await pendingAccount(env,db,session.account_id);return result.more?{...result,continuation:session.source_ref,statusOnly:true}:result;}return completeSignIn(env,db,session);}
+  if(path==='/internal/website/dashboard'){const session=await sourceSession(db,input.sourceRef);return {dashboard:await dashboard(session,{mode:input.mode})};}
+diff --git a/backend/src/academy/d1/web-platform/course-policy.mjs b/backend/src/academy/d1/web-platform/course-policy.mjs
+new file mode 100644
+index 00000000..e88ac597
+--- /dev/null
++++ b/backend/src/academy/d1/web-platform/course-policy.mjs
+@@ -0,0 +1,31 @@
++import {fail} from './protocol.mjs';
++
++export async function managedCoursePolicies(env,keys){
++ if(env.ACADEMY_WEB_PLATFORM!=='1'||!keys.length)return new Map();
++ const rows=(await env.ACADEMY_DB.withSession('first-primary').prepare("SELECT o.activity_key,m.access_model FROM website_platform_access_ownership o LEFT JOIN website_platform_course_policy_mirror m USING(activity_key) WHERE o.activity_key IN(SELECT value FROM json_each(?)) AND o.state IN('FROZEN','STUDIO')").bind(JSON.stringify(keys)).all()).results;
++ return new Map(rows.map(r=>[r.activity_key.toLowerCase(),r]));
++}
++export function applyManagedCoursePolicy(course,policies){
++ const policy=policies.get(course.activityKey.toLowerCase());if(!policy)return;
++ course.studioManagedAccess=true;if(policy.access_model)course.details={...course.details,accessModel:policy.access_model};
++}
++
++// Only the current native Admin proxy calls this with an authenticated signed
++// Target result. An acknowledgement lost before this step is recovered by the
++// next native read; stale receipts can never roll the mirrored revision back.
++export async function mirrorCoursePolicy(db,auth,activity,offering,policy){
++ if(!policy)return;
++ if(policy.offeringId!==offering||!['FREE','PAID'].includes(policy.model)||!Number.isSafeInteger(policy.revision)||policy.revision<1)throw fail('Invalid trusted Course policy acknowledgement.',503);
++ const previous=await db.prepare('SELECT * FROM website_platform_course_policy_mirror WHERE activity_key=?').bind(activity).first();
++ // Initial registration is already reviewed; an ordinary read must not alter
++ // legacy Academy policy. Only an actual later target policy revision is mirrored.
++ if(!previous&&policy.revision===1)return;
++ if(previous?.revision>policy.revision)return;
++ if(previous?.revision===policy.revision){if(previous.access_model!==policy.model)throw fail('Course policy revision conflicts with its acknowledgement.',409,'COURSE_POLICY_CONFLICT');return;}
++ const p=(sql,...args)=>db.prepare(sql).bind(...args),guard=crypto.randomUUID(),actor=auth.state.account.account_id;
++ try{await db.batch([
++  p(`INSERT INTO website_platform_guards VALUES(?,EXISTS(SELECT 1 FROM website_platform_account_state a JOIN account_sessions s ON s.account_id=a.account_id COLLATE NOCASE WHERE a.account_id=? COLLATE NOCASE AND a.active=1 AND a.admitted=1 AND a.epoch=? AND s.session_id=? AND s.credential_epoch=a.epoch AND s.revoked_at IS NULL AND s.expires_at>? AND (a.global_admin=1 OR EXISTS(SELECT 1 FROM effective_activity_roles r WHERE r.account_id=a.account_id AND r.activity_key=? COLLATE NOCASE AND r.role='PROGRAM_ADMIN'))) AND EXISTS(SELECT 1 FROM website_platform_access_ownership WHERE activity_key=? AND state='STUDIO') AND NOT EXISTS(SELECT 1 FROM website_platform_course_policy_mirror WHERE activity_key=? AND (revision>? OR revision=? AND access_model<>?)))`,guard,actor,auth.state.account.credential_epoch,auth.sid,new Date().toISOString(),activity,activity,activity,policy.revision,policy.revision,policy.model),
++  p('INSERT INTO website_platform_course_policy_mirror VALUES(?,?,?) ON CONFLICT(activity_key) DO UPDATE SET access_model=excluded.access_model,revision=excluded.revision',activity,policy.model,policy.revision),
++  p("UPDATE course_settings SET legacy_access_model=?,policy_review_state='CONFIRMED' WHERE activity_key=? AND (legacy_access_model<>? OR policy_review_state<>'CONFIRMED')",policy.model,activity,policy.model),p('DELETE FROM website_platform_guards WHERE guard_id=?',guard)
++ ]);}catch{throw fail('The Course policy acknowledgement needs a fresh native Admin read.',409,'COURSE_POLICY_CONFIRMATION_PENDING');}
++}
+diff --git a/backend/src/academy/d1/web-platform/programme-registration.mjs b/backend/src/academy/d1/web-platform/programme-registration.mjs
+new file mode 100644
+index 00000000..74f5ea62
+--- /dev/null
++++ b/backend/src/academy/d1/web-platform/programme-registration.mjs
+@@ -0,0 +1,33 @@
++import {navigationMappings} from './navigation.mjs';
++import {fail,sha256} from './protocol.mjs';
++
++// This is an explicit real Global Admin operation, not an automatic timetable
++// publication or an identity guessed from a teaching title/display key.
++export async function registerMonthlyProgramme(env,auth,input){
++ if(env.ACADEMY_WEB_PLATFORM!=='1'||env.ACADEMY_MOU_STUDIO!=='1')throw fail('Monthly programme setup is unavailable.',503,'MOU_STUDIO_DISABLED');
++ if(auth.workspace!=='ADMIN'||!auth.state.account.global_admin)throw fail('Current Global Admin authority is required for programme setup.',403,'PROGRAMME_REGISTRATION_FORBIDDEN');
++ if(input.programmeKey!=='mothers'||input.accessModel!=='MONTHLY'||input.noMediaMigration!==true)throw fail('Confirm the independent MOU monthly policy and no media migration.');
++ if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.operationId||''))throw fail('This change needs its retry identifier.');
++ const nativeId=navigationMappings(env).mothers;if(!nativeId)throw fail('Review the exact native MOU programme mapping before setup.',409,'MOU_MAPPING_REQUIRED');
++ const db=env.ACADEMY_DB.withSession('first-primary'),p=(sql,...args)=>db.prepare(sql).bind(...args),actor=auth.user.accountid,activity='PROGRAM:'+nativeId;
++ const hash=await sha256(JSON.stringify({programmeKey:'mothers',nativeId,accessModel:'MONTHLY',noMediaMigration:true}));
++ const replay=async()=>{const row=await p('SELECT * FROM website_platform_programme_operations WHERE operation_id=?',input.operationId).first();if(!row)return null;if(row.actor_id!==actor||row.payload_hash!==hash)throw fail('This retry belongs to a different setup.',409,'OPERATION_ID_REUSED');return {...JSON.parse(row.result_json),replayed:true};};
++ const old=await replay();if(old)return old;
++ const existing=await p('SELECT activity_key FROM website_platform_programmes WHERE programme_key=?','mothers').first(),mapping=await p('SELECT offering_id,kind FROM website_platform_timetable_scopes WHERE activity_key=?',activity).first();
++ if(existing&&existing.activity_key!==activity||mapping&&(!existing||mapping.offering_id!==nativeId||mapping.kind!=='TAFSEER'))throw fail('This programme already has a different reviewed mapping.',409,'PROGRAMME_MAPPING_CONFLICT');
++ const result={programmeKey:'mothers',offeringId:nativeId,activityKey:activity,accessModel:'MONTHLY',mediaImported:false,authority:'ACADEMY',registered:true,alreadyRegistered:Boolean(existing)},guard=crypto.randomUUID(),now=Date.now();
++ try{await db.batch([
++  p(`INSERT INTO website_platform_guards VALUES(?,EXISTS(SELECT 1 FROM website_platform_account_state a JOIN account_sessions s ON s.account_id=a.account_id COLLATE NOCASE WHERE a.account_id=? COLLATE NOCASE AND a.active=1 AND a.admitted=1 AND a.global_admin=1 AND a.epoch=? AND s.session_id=? AND s.credential_epoch=a.epoch AND s.revoked_at IS NULL AND s.expires_at>?) AND EXISTS(SELECT 1 FROM activities WHERE activity_key=? AND activity_id=? AND kind='PROGRAM') AND (SELECT enabled FROM website_platform_control WHERE singleton=1)=1)`,guard,actor,auth.state.account.credential_epoch,auth.sid,new Date(now).toISOString(),activity,nativeId),
++  ...(!existing?[
++   p("INSERT INTO website_platform_programmes VALUES(?,'mothers','MONTHLY',1)",activity),
++   // TAFSEER is the existing internal monthly gate family. The signed programme
++   // discriminator keeps MOU independent of Tafseer and the Course catalogue.
++   p("INSERT INTO website_platform_timetable_scopes(activity_key,offering_id,kind) VALUES(?,?,'TAFSEER')",activity,nativeId),
++   p('INSERT INTO website_platform_access_scopes(activity_key,enabled) VALUES(?,1)',activity),
++   p("INSERT INTO website_platform_access_ownership VALUES(?,'ACADEMY',NULL,NULL,NULL,'',0,?)",activity,now),
++   p("INSERT INTO website_platform_access_dirty(activity_key,account_id) VALUES(?,'')",activity)
++  ]:[]),
++  p('INSERT INTO website_platform_programme_operations VALUES(?,?,?,?,?)',input.operationId,actor,hash,JSON.stringify(result),now),p('DELETE FROM website_platform_guards WHERE guard_id=?',guard)
++ ]);}catch(error){const saved=await replay();if(saved)return saved;throw fail('Programme setup changed or your current authority ended. Retry safely.',409,'PROGRAMME_REGISTRATION_CONFLICT');}
++ return result;
++}
+diff --git a/backend/src/academy/d1/web-platform/studio-admin.mjs b/backend/src/academy/d1/web-platform/studio-admin.mjs
+index f2e1d6d5..b1c26241 100644
+--- a/backend/src/academy/d1/web-platform/studio-admin.mjs
++++ b/backend/src/academy/d1/web-platform/studio-admin.mjs
+@@ -1,4 +1,5 @@
+ import {courseStudioEnabled} from './course-publication.mjs';
++import {mirrorCoursePolicy} from './course-policy.mjs';
+ import {liveAllocation,saveLiveAllocation} from './studio-live.mjs';
+ import {enqueueAccount,pendingAccount,sourceSession} from './bridge.mjs';
+ import {markAccess,queueAccess,importAccessPage,accessStream} from './access.mjs';
+@@ -36,7 +37,9 @@ export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_S
+   if(acknowledge.length)await db.prepare('UPDATE website_platform_outbox SET acknowledged=1 WHERE operation_id IN(SELECT value FROM json_each(?))').bind(JSON.stringify(acknowledge)).run();
+   if(!response.ok)throw fail(result.error||'Studio could not confirm the change.',response.status,result.code||'STUDIO_UNAVAILABLE');
+   if(env.ENVIRONMENT==='local')result.localReadBudget={targetRowsRead:Number(response.headers.get('X-Local-D1-Rows-Read')),targetQueries:Number(response.headers.get('X-Local-D1-Queries'))};
+-  delete result.acknowledge;if(result.pending)throw fail('Access confirmation is catching up. Retry this same action.',409,'STUDIO_CONFIRMATION_PENDING');return result;
++  delete result.acknowledge;if(result.pending)throw fail('Access confirmation is catching up. Retry this same action.',409,'STUDIO_CONFIRMATION_PENDING');
++  if(mapping.kind==='COURSE'&&owner?.state==='STUDIO')await mirrorCoursePolicy(db,auth,activity,mapping.offering_id,result.coursePolicy);
++  return result;
+  };
+  if(command.action?.startsWith('handover-')&&courseStudioEnabled(env)&&await db.prepare("SELECT 1 FROM website_platform_course_jobs WHERE activity_key=? AND phase<>'COMPLETE'").bind(activity).first())throw fail('This Course has automatic Studio setup. Resume setup from its Course screen.',409,'COURSE_SETUP_AUTOMATIC');
+  if(command.action?.startsWith('handover-')){
+diff --git a/backend/src/academy/d1/web-platform/timetable.mjs b/backend/src/academy/d1/web-platform/timetable.mjs
+index 36f47d02..9e25b0c4 100644
+--- a/backend/src/academy/d1/web-platform/timetable.mjs
++++ b/backend/src/academy/d1/web-platform/timetable.mjs
+@@ -22,9 +22,10 @@ export async function projectTimetable(db,scope,{now=Date.now()}={}){
+  const settings=await all(db,'SELECT * FROM academy_settings WHERE setting_key IN(SELECT value FROM json_each(?))',JSON.stringify([...new Set(calendar.map(annualKey))]));
+  const suppressions=await all(db,'SELECT * FROM academy_calendar_suppressions WHERE calendar_date>=? AND calendar_date<=?',start,end);
+  const holidays=noTeachingCalendarEvents({calendar,suppressions,settings},start,end,activity.activity_key);
++ const classLabels=new Map();
+  const append=async(key,title,date,startTime,endTime,timezone,meeting,cancelled=false,classIds=[],teacherIds=[])=>{
+   const times=lessonTimes({date,startTime,endTime,timezone});if(!Number.isSafeInteger(times.startsAt)||!Number.isSafeInteger(times.endsAt)||times.endsAt<=times.startsAt)throw Error('INVALID_PUBLISHED_CLOCK');
+-  const off=Boolean(cancelled||holidayOnDate(holidays,date));sessions.push({id:'ws-'+await sha256(JSON.stringify(key)),title,startsAt:times.startsAt,endsAt:times.endsAt,zoomUrl:off?'':zoom(meeting),cancelled:off,classIds,teacherIds});
++  const off=Boolean(cancelled||holidayOnDate(holidays,date));sessions.push({id:'ws-'+await sha256(JSON.stringify(key)),title,startsAt:times.startsAt,endsAt:times.endsAt,timezone,classes:classIds.map(id=>({id,label:classLabels.get(id)||null})),zoomUrl:off?'':zoom(meeting),cancelled:off,classIds,teacherIds});
+   bounded(sessions,200,'TIMETABLE_WINDOW_TOO_LARGE');
+  };
+  if(activity.kind==='PROGRAM'){
+@@ -33,7 +34,8 @@ export async function projectTimetable(db,scope,{now=Date.now()}={}){
+   const future=bounded(await all(db,select+' AND p.effective_from>? AND p.effective_from<=? AND p.version_no>? ORDER BY p.effective_from LIMIT 51',activity.activity_key,activity.activity_key,start,end,base[0]?.version_no||0),50,'TOO_MANY_SCHEDULED_PUBLICATIONS');
+   const history=[...base,...future].map(p=>publicationRecord({PublicationID:p.publication_id,VersionNo:p.version_no,SnapshotJSON:p.snapshot_json,Lifecycle:p.lifecycle}, {id:activity.activity_id})).map((p,i)=>({...p,sourceTimezone:[...base,...future][i].timezone}));
+   const classIds=[...new Set(history.flatMap(p=>p.occurrences.flatMap(r=>r.classIds||[])))];
+-  const classes=await all(db,'SELECT class_id,zoom_link FROM classes WHERE activity_key=? AND class_id IN(SELECT value FROM json_each(?))',activity.activity_key,JSON.stringify(classIds));
++  const classes=await all(db,'SELECT class_id,name,zoom_link FROM classes WHERE activity_key=? AND class_id IN(SELECT value FROM json_each(?))',activity.activity_key,JSON.stringify(classIds));
++  for(const c of classes)if(c.name)classLabels.set(c.class_id,c.name);
+   const override=await db.prepare('SELECT setting_value FROM academy_settings WHERE setting_key=?').bind(programZoomKey(activity.activity_key)).first('setting_value');
+   for(let date=start;date<=end;date=addDays(date,1)){
+    const chosen=publicationSchedule(history,date),pub=history.find(p=>p.id===chosen.currentPublicationId);if(!pub)continue;
+diff --git a/backend/src/academy/d1/worker.js b/backend/src/academy/d1/worker.js
+index 828d11b5..14a39fa8 100644
+--- a/backend/src/academy/d1/worker.js
++++ b/backend/src/academy/d1/worker.js
+@@ -1,3 +1,4 @@
++import {registerMonthlyProgramme} from './web-platform/programme-registration.mjs';
+ import {studioAdmin} from './web-platform/studio-admin.mjs';
+ import {studioOrigin,studioHandoff} from './website-studio-handoff.js';
+ import {bridge as websitePlatformBridge,recoverWebsite,enabled as websitePlatformEnabled} from './web-platform/bridge.mjs';
+@@ -349,6 +350,7 @@ async function dispatch(request,env,options={}) {
+   if(path==='/api/admin/platform/learning-catalogue/get')return {success:true,...await d1LearningCatalogue(repository,auth)};
+   if(path==='/api/admin/platform/global/access/save')return {success:true,...await d1CourseSubscriptions(repository,auth).save(input)};
+   if(path==='/api/platform/global/resources/access')return {success:true,...await d1Library(repository,auth,env).run('course-access',input,request)};
++  if(path==='/api/admin/platform/programme-studio/register')return {success:true,...await registerMonthlyProgramme(env,auth,input)};
+   const courseEditorAction=path.match(/^\/api\/admin\/platform\/courses\/(list|get|save|public-card-save|validate|accept|publish|status|repeat|copy|participants|participants-save|participant-create|studio-resume)$/)?.[1];
+   if(courseEditorAction)return {success:true,...await d1CourseManagement(repository,auth,env).run(courseEditorAction,input)};
+   const courseAction=path==='/api/admin/platform/global/get'?'get':path.match(/^\/api\/admin\/platform\/global\/((?:subject|subjects|module|task|resource|resources|drive-root|drive|delivery|policy|run|timetable)(?:\/[a-z-]+){1,2})$/)?.[1];
+@@ -418,7 +420,7 @@ return {
+       const result=await (path==='/api/academy/header-date'?(request.method==='GET'?headerDate(request):Response.json({success:false,error:'Use GET.'},{status:405})):path==='/api/academy/entrance/public-snapshot'?publicTimetable(request,env):path==='/api/academy/profile-labels-version'?profileLabelsVersion(request,env):dispatch(request,env));
+       if(request.method==='POST'&&hifzSyncChangePath(path)&&hifzSyncEnabled(env)&&ctx?.waitUntil&&!(result instanceof Response)&&result.success)
+         ctx.waitUntil(recoverHifzProfiles(env));
+-      if(request.method==='POST'&&websitePlatformEnabled(env)&&ctx?.waitUntil&&!(result instanceof Response)&&result.success&&(/\/user-profiles\/(save|link|recover)$/.test(path)||['/api/account/logout','/api/account/setup-pin'].includes(path)||/^\/api\/admin\/platform\/(?:program-timetable\/(?:publish|status|manage-save|manage-remove|recover)|programs\/save|courses\/(?:publish|status|studio-resume)|calendar\/(?:save|batch-save)|global\/(?:timetable|run)\/)/.test(path)||/program-monthly-subscriptions\/(?:configure|save|grid-save|surah-save|surah-grants-save)$|global\/access\/save$/.test(path)||path==='/api/academy/calendar/save'))ctx.waitUntil(recoverWebsite(env));
++      if(request.method==='POST'&&websitePlatformEnabled(env)&&ctx?.waitUntil&&!(result instanceof Response)&&result.success&&(/\/user-profiles\/(save|link|recover)$/.test(path)||['/api/account/logout','/api/account/setup-pin'].includes(path)||/^\/api\/admin\/platform\/(?:program-timetable\/(?:publish|status|manage-save|manage-remove|recover)|programs\/save|courses\/(?:publish|status|studio-resume)|calendar\/(?:save|batch-save)|global\/(?:timetable|run)\/)/.test(path)||/program-monthly-subscriptions\/(?:configure|save|grid-save|surah-save|surah-grants-save)$|global\/access\/save$/.test(path)||path==='/api/academy/calendar/save'||path==='/api/admin/platform/programme-studio/register'))ctx.waitUntil(recoverWebsite(env));
+       if(result instanceof Response){const mediaHeaders=new Headers(result.headers);for(const name of ['Vary','Access-Control-Allow-Methods','Access-Control-Allow-Headers'])mediaHeaders.set(name,headers[name]);
+         mediaHeaders.set('X-Content-Type-Options','nosniff');
+         mediaHeaders.delete('Access-Control-Allow-Origin');if(headers['Access-Control-Allow-Origin'])mediaHeaders.set('Access-Control-Allow-Origin',headers['Access-Control-Allow-Origin']);
+diff --git a/backend/tests/academy-studio-access-ui.test.mjs b/backend/tests/academy-studio-access-ui.test.mjs
+index bea74b78..5d0fecb0 100644
+--- a/backend/tests/academy-studio-access-ui.test.mjs
++++ b/backend/tests/academy-studio-access-ui.test.mjs
+@@ -8,3 +8,14 @@ test('a delayed previous-account response cannot replace or clear the new Admin
+ 
+ test('an unavailable ownership read never selects the legacy full roster fallback',async()=>{const s=screen(async()=>Response.json({success:false,error:'Access service unavailable'},{status:503}));assert.equal(await s.window.M4L_STUDIO_ACCESS.ensure(s.root,'COURSE:test'),'UNAVAILABLE');assert(s.document.body.textContent.includes('unavailable'));});
+ test('confirmed Academy ownership restores its native controls after a temporary ownership failure',async()=>{let unavailable=true;const s=screen(async()=>unavailable?Response.json({success:false,error:'Unavailable'},{status:503}):Response.json({success:true,legacyOnly:true,ownership:{authority:'ACADEMY'}}));s.root.innerHTML='<p id="native">Native participants</p><p id="hidden" hidden>Native hidden pane</p>';assert.equal(await s.window.M4L_STUDIO_ACCESS.ensure(s.root,'COURSE:test'),'UNAVAILABLE');assert(s.document.getElementById('native').hidden);unavailable=false;assert.equal(await s.window.M4L_STUDIO_ACCESS.ensure(s.root,'COURSE:test'),'ACADEMY');assert(!s.document.getElementById('native').hidden);assert(s.document.getElementById('hidden').hidden);});
++
++test('native Course access control uses the trusted model, preserves exact pending policy retries and clears on account change',async()=>{
++ let model='PAID',revision=1,saves=[];const s=screen(async(_url,opts)=>{const command=JSON.parse(opts.body).command;if(command.action==='read')return Response.json({...view('Scoped learner'),revision,coursePolicy:{offeringId:'test',model,revision}});saves.push(command);model='FREE';revision=2;if(saves.length===1)throw Error('Synthetic lost policy acknowledgement');return Response.json({success:true,saved:true,replayed:true,coursePolicy:{offeringId:'test',model,revision}});});
++ s.window.M4L_STUDIO_ACCESS.attach(s.root,'COURSE:test');await settle();const form=s.document.querySelector('[data-access-policy]'),select=form.querySelector('select');assert(form);select.querySelector('[value="PAID"]').removeAttribute('selected');select.querySelector('[value="FREE"]').setAttribute('selected','');Object.defineProperty(form,'elements',{value:{courseAccessModel:select}});select.dispatchEvent(new s.window.Event('change',{bubbles:true}));assert.equal(s.window.M4L_STUDIO_ACCESS.canLeave(),false);
++ s.document.querySelector('[data-access-action="policy-save"]').click();await settle();assert.equal(saves.length,1);const first=JSON.stringify(saves[0]);assert.equal(saves[0].change.action,'course-policy');assert.equal(saves[0].change.accessModel,'FREE');assert(s.document.body.textContent.includes('Synthetic lost policy acknowledgement'));
++ s.document.querySelector('[data-access-action="policy-save"]').click();await settle();assert.equal(saves.length,2);assert.equal(JSON.stringify(saves[1]),first);assert.equal(s.document.querySelector('[data-access-policy] select').value,'FREE');assert.equal(s.window.M4L_STUDIO_ACCESS.canLeave(),true);
++ s.switch('account-B');assert(!s.document.querySelector('[data-access-policy]'));assert(!s.document.body.textContent.includes('Scoped learner'));
++});
++test('monthly programmes never present the Course FREE/PAID control',async()=>{
++ const s=screen(async()=>Response.json({...view('Monthly member'),kind:'TAFSEER',coursePolicy:null}));s.window.M4L_STUDIO_ACCESS.attach(s.root,'PROGRAM:monthly');await settle();assert(!s.document.querySelector('[data-access-policy]'));
++});
+diff --git a/js/m4l-academy-course-management.js b/js/m4l-academy-course-management.js
+index 49af1aaa..a8201f26 100644
+--- a/js/m4l-academy-course-management.js
++++ b/js/m4l-academy-course-management.js
+@@ -55,7 +55,7 @@
+   const field=(name,label,type='text',span='',hint='')=>`<label class="cm-field ${span}"><span>${label}</span><input data-field="${name}" type="${type==='time'?'text':type}"${type==='time'?' data-time24 placeholder="HH:mm" autocomplete="off" maxlength="8"':''} value="${esc(state.draft[name])}"${name==='name'?' maxlength="160" required':''}${name==='zoomLink'?' placeholder="https://…"':''}${editable()?'':' disabled'}>${hint?`<small>${hint}</small>`:''}</label>`;
+   function detailsTab(){
+     const d=state.draft,disabled=editable()?'':' disabled';
+-    return `<div class="cm-form-grid">${field('name','Course name <span aria-hidden="true">*</span>','text','cm-span-2')}<label class="cm-field cm-span-2">Subject / Module category<select data-field="categoryKey"${disabled}>${options(state.categories.map(c=>({value:c.key,label:c.type+' · '+c.name+(c.area?' — '+c.area:'')})),d.categoryKey,'No category')}${d.categoryKey&&!state.categories.some(c=>c.key===d.categoryKey)?`<option value="${esc(d.categoryKey)}" selected>Category no longer available</option>`:''}</select><small>For categorisation only. Content and access are set on this Course.${state.capabilities.create?' <a href="/academy/subjects/" target="_blank" rel="noopener">Manage Subjects &amp; Modules ↗</a>':''}</small></label><label class="cm-field">Access<select data-field="accessModel"${disabled}>${options([{value:'FREE',label:'Free'},{value:'PAID',label:'Paid'}],d.accessModel,'Choose Free or Paid')}</select></label><label class="cm-field">App time zone<input value="${esc(d.timezone)}" readonly></label>${field('startDate','Start date','date')}${field('endDate','End date','date','', 'Use the same date for a one-day Course.')}<hr class="cm-divider"><fieldset class="cm-fieldset"${disabled}><legend>Schedule days</legend><div class="cm-days">${[0,1,2,3,4,5,6].map(n=>`<label><input type="checkbox" data-day="${n}"${d.weekdays.includes(n)?' checked':''}><span>${days[n]}</span></label>`).join('')}</div></fieldset>${field('startTime','Start time','time')}${field('endTime','Finish time','time')}<label class="cm-field cm-span-2">Teacher<select data-field="teacherId"${disabled}>${teacherOptions(d.teacherId)}</select></label>${field('zoomLink','Zoom meeting link','url','cm-span-4')}<p class="cm-hint cm-span-4">${editable()?'Save a draft with only its name. When the schedule is ready, select Validate & generate sessions. Times use 24-hour HH:mm; type 745 or 4pm to convert. Dates, times, teacher and Zoom link are filled in automatically for your review. Changing the schedule asks before replacing edited sessions.':'Published details are protected. Create a revision to edit this schedule.'}</p></div>`;
++    return `<div class="cm-form-grid">${field('name','Course name <span aria-hidden="true">*</span>','text','cm-span-2')}<label class="cm-field cm-span-2">Subject / Module category<select data-field="categoryKey"${disabled}>${options(state.categories.map(c=>({value:c.key,label:c.type+' · '+c.name+(c.area?' — '+c.area:'')})),d.categoryKey,'No category')}${d.categoryKey&&!state.categories.some(c=>c.key===d.categoryKey)?`<option value="${esc(d.categoryKey)}" selected>Category no longer available</option>`:''}</select><small>For categorisation only. Content and access are set on this Course.${state.capabilities.create?' <a href="/academy/subjects/" target="_blank" rel="noopener">Manage Subjects &amp; Modules ↗</a>':''}</small></label><label class="cm-field">Access<select data-field="accessModel"${state.course?.studioManagedAccess?' disabled':disabled}>${options([{value:'FREE',label:'Free'},{value:'PAID',label:'Paid'}],d.accessModel,'Choose Free or Paid')}</select>${state.course?.studioManagedAccess?'<small>Manage Free or Paid in Participants → Learning access.</small>':''}</label><label class="cm-field">App time zone<input value="${esc(d.timezone)}" readonly></label>${field('startDate','Start date','date')}${field('endDate','End date','date','', 'Use the same date for a one-day Course.')}<hr class="cm-divider"><fieldset class="cm-fieldset"${disabled}><legend>Schedule days</legend><div class="cm-days">${[0,1,2,3,4,5,6].map(n=>`<label><input type="checkbox" data-day="${n}"${d.weekdays.includes(n)?' checked':''}><span>${days[n]}</span></label>`).join('')}</div></fieldset>${field('startTime','Start time','time')}${field('endTime','Finish time','time')}<label class="cm-field cm-span-2">Teacher<select data-field="teacherId"${disabled}>${teacherOptions(d.teacherId)}</select></label>${field('zoomLink','Zoom meeting link','url','cm-span-4')}<p class="cm-hint cm-span-4">${editable()?'Save a draft with only its name. When the schedule is ready, select Validate & generate sessions. Times use 24-hour HH:mm; type 745 or 4pm to convert. Dates, times, teacher and Zoom link are filled in automatically for your review. Changing the schedule asks before replacing edited sessions.':'Published details are protected. Create a revision to edit this schedule.'}</p></div>`;
+   }
+   function publicCardPreview(){
+     const card=state.cardDraft||{time:'',title:'',description:''};
+@@ -310,6 +310,14 @@
+     void open();
+   });
+   function sessionChanged(){if(token()===state.token&&state.session)return;++state.generation;lock('Your Academy account changed. Return to Academy home and open Course management again.');}
++  window.addEventListener('m4l-course-policy-saved',event=>{
++    const {activityKey,coursePolicy}=event.detail||{};
++    if(state.token!==token()||!state.course?.studioManagedAccess||state.course.activityKey!==activityKey||!['FREE','PAID'].includes(coursePolicy?.model))return;
++    if(state.course.details.accessModel===coursePolicy.model&&state.draft?.accessModel===coursePolicy.model)return;
++    state.course.details.accessModel=coursePolicy.model;if(state.draft)state.draft.accessModel=coursePolicy.model;state.review=null;state.course.acceptedToken=null;
++    for(const course of state.courses)if(course.courseId===state.course.courseId)course.accessModel=coursePolicy.model;
++    const control=document.querySelector('[data-field="accessModel"]');if(control)control.value=coursePolicy.model;renderList();
++  });
+   window.addEventListener('resize',revealTab);
+   window.addEventListener('storage',e=>{if(e.key==='m4l_account_token'||e.key===null)sessionChanged();});window.addEventListener('m4l-academy-session',sessionChanged);
+   window.addEventListener('pageshow',e=>{if(e.persisted){sessionChanged();if(state.session&&!hasUnsavedChanges())void open();}});
+diff --git a/js/m4l-program-admin.js b/js/m4l-program-admin.js
+index bc526517..c6a2fb0e 100644
+--- a/js/m4l-program-admin.js
++++ b/js/m4l-program-admin.js
+@@ -3,7 +3,7 @@
+  const $=id=>document.getElementById(id),host=$('program-workspace');if(!$('pg-tabs'))return;
+  const sections=[['list','List of programs'],['details','Details'],['curriculum','Curriculum'],['classes','Classes'],['participants','Participants'],['public-card','Public card'],['timetable','Timetable'],['review','Review & publish'],['media','Lesson media'],['enrolment','Enrolment requests']];
+  const group=tab=>['curriculum','classes','public-card','timetable','review'].includes(tab)?'timetable':tab==='participants'?'people':tab==='media'?'media':'';
+- const definitions={timetable:{page:'/programs/timetable.html',root:'timetable',scripts:['/js/vendor/pdf-lib-1.17.1.min.js','/js/m4l-time.js?v=106.9','/js/m4l-timetable-presentation.js?v=106.82','/js/m4l-timetable-blocks.js?v=106.82','/js/m4l-timetable-sync.js?v=105.3.4.4','/js/m4l-timetable-periods.js?v=107.11','/js/m4l-timetable-planner.js?v=107.11','/js/m4l-tafseer-cards.js?v=108.7','/js/m4l-website-card-table.js?v=108.7','/js/m4l-program-workspace.js?v=108.7','/js/m4l-program-timetable.js?v=107.16']},people:{page:'/programs/manage.html',root:'pm-main',scripts:['/js/m4l-program-overview.js?v=105.3.3.4','/js/m4l-time.js?v=106.9','/js/m4l-teacher-availability-dialog.js?v=106.82','/js/m4l-studio-access.js','/js/m4l-program-management.js?v=108.7']},media:{page:'/programs/lesson-media.html',root:'program-lesson-media-main',scripts:['/js/m4l-lesson-media-cache.js?v=107.69','/js/m4l-library-cache.js?v=108.7','/js/m4l-lesson-pdf-library.js?v=108.7','/js/m4l-lesson-media.js?v=108.7','/js/m4l-program-surahs.js?v=108.7','/js/m4l-program-lesson-media.js?v=108.7']}};
++ const definitions={timetable:{page:'/programs/timetable.html',root:'timetable',scripts:['/js/vendor/pdf-lib-1.17.1.min.js','/js/m4l-time.js?v=106.9','/js/m4l-timetable-presentation.js?v=106.82','/js/m4l-timetable-blocks.js?v=106.82','/js/m4l-timetable-sync.js?v=105.3.4.4','/js/m4l-timetable-periods.js?v=107.11','/js/m4l-timetable-planner.js?v=107.11','/js/m4l-tafseer-cards.js?v=108.7','/js/m4l-website-card-table.js?v=108.7','/js/m4l-program-workspace.js?v=108.7','/js/m4l-program-timetable.js?v=107.16']},people:{page:'/programs/manage.html',root:'pm-main',scripts:['/js/m4l-program-overview.js?v=105.3.3.4','/js/m4l-time.js?v=106.9','/js/m4l-teacher-availability-dialog.js?v=106.82','/js/m4l-studio-access.js?v=eb34f1cdd3','/js/m4l-program-management.js?v=108.7']},media:{page:'/programs/lesson-media.html',root:'program-lesson-media-main',scripts:['/js/m4l-lesson-media-cache.js?v=107.69','/js/m4l-library-cache.js?v=108.7','/js/m4l-lesson-pdf-library.js?v=108.7','/js/m4l-lesson-media.js?v=108.7','/js/m4l-program-surahs.js?v=108.7','/js/m4l-program-lesson-media.js?v=108.7']}};
+  const pending=new Map(),loaded=new Set(),scripts=new Map();let selected=null,available=false,current=new URLSearchParams(location.search).get('tab')||'list',revision='',owner=localStorage.getItem('m4l_account_token')||'',generation=0;
+  if(!sections.some(([id])=>id===current))current='list';
+  $('pg-tabs').innerHTML=sections.map(([id,label])=>`<button type="button" id="pg-tab-${id}" role="tab" data-pg-tab="${id}" aria-controls="${id==='list'?'pg-list':id==='details'?'program-detail':id==='enrolment'?'pg-enrolment-tool':'pg-'+group(id)+'-tool'}" aria-selected="false" tabindex="-1" ${id==='list'?'':'disabled'}>${label}</button>`).join('');
+@@ -36,7 +36,7 @@
+    const panel=$('pg-'+name+'-tool');if(!panel.firstElementChild){const root=document.createElement('section');root.id=source.id;root.className=source.className;root.innerHTML=source.innerHTML;panel.append(root);}
+    for(const aside of doc.body.querySelectorAll(':scope > aside[id]'))if(!$(aside.id))document.body.append(aside.cloneNode(true));
+    if(name==='timetable'){$('pw-card-editor').open=true;$('tt-select-program').hidden=true;}
+-   if(name==='people'){await script('/js/m4l-studio-access.js');const accessOwner=await window.M4L_STUDIO_ACCESS.ensure(panel.firstElementChild,'PROGRAM:'+selected.id);if(version!==generation||account!==localStorage.getItem('m4l_account_token'))return;if(accessOwner&&accessOwner!=='ACADEMY'){loaded.add(name);return;}}
++   if(name==='people'){await script('/js/m4l-studio-access.js?v=eb34f1cdd3');const accessOwner=await window.M4L_STUDIO_ACCESS.ensure(panel.firstElementChild,'PROGRAM:'+selected.id);if(version!==generation||account!==localStorage.getItem('m4l_account_token'))return;if(accessOwner&&accessOwner!=='ACADEMY'){loaded.add(name);return;}}
+    for(const src of definition.scripts){if(version!==generation||account!==localStorage.getItem('m4l_account_token'))return;await script(src);}
+    loaded.add(name);
+   })().finally(()=>pending.delete(name));pending.set(name,promise);await promise;
+diff --git a/js/m4l-studio-access.js b/js/m4l-studio-access.js
+index c2a9dc23..e8be7045 100644
+--- a/js/m4l-studio-access.js
++++ b/js/m4l-studio-access.js
+@@ -4,7 +4,7 @@
+  const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const panels=new Map(),cache=new Map(),pending=new Map();let owner='';
+  function reset(notice=false){for(const p of panels.values()){if(notice&&p.root.parentElement){const note=document.createElement('p');note.className='studio-access-owner-message';note.textContent='Your account changed. Reopen Participants to load the current account’s access.';p.root.before(note);}p.root.remove();}panels.clear();cache.clear();pending.clear();owner='';}
+- function canLeave(){return ![...panels.values()].some(p=>p.dirty||p.liveDirty||p.livePending||p.pending||p.job||p.busy);}
++ function canLeave(){return ![...panels.values()].some(p=>p.dirty||p.policyDirty||p.policyPending||p.liveDirty||p.livePending||p.pending||p.job||p.busy);}
+  async function api(activityKey,command){
+   const token=localStorage.getItem('m4l_account_token');if(!token)throw Error('Sign in to Academy to manage access.');
+   const key=JSON.stringify([token,activityKey,command]);if(pending.has(key))return pending.get(key);
+@@ -14,23 +14,24 @@
+  }
+  function attach(host,activityKey){
+   if(!host||!activityKey)return;const token=localStorage.getItem('m4l_account_token')||'';if(token!==owner){reset();owner=token;}
+-  let p=panels.get(activityKey);if(!p){const root=document.createElement('section');root.className='studio-access';root.setAttribute('aria-label','Learning access');p={root,activityKey,after:'',accountId:null,data:null,dirty:false,busy:false,pending:null};panels.set(activityKey,p);root.addEventListener('click',e=>click(p,e));root.addEventListener('submit',e=>e.preventDefault());root.addEventListener('change',e=>{if(e.target.name==='enrolled'&&!e.target.checked){const live=e.target.form?.elements.live;if(live)live.checked=false;}if(e.target.closest('[data-access-live]'))p.liveDirty=true;else if(e.target.closest('[data-access-person],[data-access-new]'))p.dirty=true;});root.addEventListener('input',e=>{if(e.target.closest('[data-access-live]'))p.liveDirty=true;else if(e.target.closest('[data-access-person],[data-access-new]'))p.dirty=true;});}
+-  for(const note of host.querySelectorAll('.studio-access-owner-message'))note.remove();host.append(p.root);if(!p.data&&!p.busy&&!p.lastReadError)p.loading=load(p);else if(!p.dirty&&!p.liveDirty&&!p.pending&&!p.livePending&&!p.job)render(p);return p;
++  let p=panels.get(activityKey);if(!p){const root=document.createElement('section');root.className='studio-access';root.setAttribute('aria-label','Learning access');p={root,activityKey,after:'',accountId:null,data:null,dirty:false,busy:false,pending:null};panels.set(activityKey,p);root.addEventListener('click',e=>click(p,e));root.addEventListener('submit',e=>e.preventDefault());root.addEventListener('change',e=>{if(e.target.name==='enrolled'&&!e.target.checked){const live=e.target.form?.elements.live;if(live)live.checked=false;}if(e.target.closest('[data-access-policy]'))p.policyDirty=true;else if(e.target.closest('[data-access-live]'))p.liveDirty=true;else if(e.target.closest('[data-access-person],[data-access-new]'))p.dirty=true;});root.addEventListener('input',e=>{if(e.target.closest('[data-access-policy]'))p.policyDirty=true;else if(e.target.closest('[data-access-live]'))p.liveDirty=true;else if(e.target.closest('[data-access-person],[data-access-new]'))p.dirty=true;});}
++  for(const note of host.querySelectorAll('.studio-access-owner-message'))note.remove();host.append(p.root);if(!p.data&&!p.busy&&!p.lastReadError)p.loading=load(p);else if(!p.dirty&&!p.policyDirty&&!p.policyPending&&!p.liveDirty&&!p.pending&&!p.livePending&&!p.job)render(p);return p;
+  }
+  function tell(p,message){p.root.querySelector('[data-access-status]')?.replaceChildren(document.createTextNode(message));}
+  function legacyControls(p,hide){
+   p.hiddenSiblings||=new Map();if(hide){for(const child of p.root.parentElement?.children||[])if(child!==p.root){if(!p.hiddenSiblings.has(child))p.hiddenSiblings.set(child,child.hidden);child.hidden=true;}}
+   else{for(const [child,hidden] of p.hiddenSiblings)child.hidden=hidden;p.hiddenSiblings.clear();}
+  }
+- function deny(p){p.root.replaceChildren(document.createTextNode('Your Academy session or access changed. Reopen Academy Admin to continue.'));p.data=null;p.pending=null;p.livePending=null;p.job=null;p.dirty=false;p.liveDirty=false;cache.clear();}
+- async function perform(p,fn){if(p.busy)return;p.busy=true;for(const node of p.root.querySelectorAll('input,select,button'))if(!node.disabled){node.dataset.accessTemporaryLock='';node.disabled=true;}try{await fn();}catch(error){if([401,403].includes(error.status)){deny(p);}else tell(p,error.message);}finally{p.busy=false;for(const node of p.root.querySelectorAll('[data-access-temporary-lock]')){node.disabled=Boolean((p.pending||p.livePending)&&node.matches('input,select'));delete node.dataset.accessTemporaryLock;}}}
++ function deny(p){p.root.replaceChildren(document.createTextNode('Your Academy session or access changed. Reopen Academy Admin to continue.'));p.data=null;p.pending=null;p.policyPending=null;p.policyDirty=false;p.livePending=null;p.job=null;p.dirty=false;p.liveDirty=false;cache.clear();}
++ async function perform(p,fn){if(p.busy)return;p.busy=true;for(const node of p.root.querySelectorAll('input,select,button'))if(!node.disabled){node.dataset.accessTemporaryLock='';node.disabled=true;}try{await fn();}catch(error){if([401,403].includes(error.status)){deny(p);}else tell(p,error.message);}finally{p.busy=false;for(const node of p.root.querySelectorAll('[data-access-temporary-lock]')){node.disabled=Boolean((p.pending||p.livePending||p.policyPending)&&node.matches('input,select'));delete node.dataset.accessTemporaryLock;}}}
+  async function load(p,{refresh=false}={}){
+   p.busy=true;const loadOwner=owner,selection=JSON.stringify([p.after,p.accountId]),saved=cache.get(p.activityKey+selection);
+   if(!p.data)p.root.innerHTML='<h3>Learning access</h3><p data-access-status role="status">Loading access…</p>';
+   try{const data=await api(p.activityKey,{action:'read',after:p.after,...(p.accountId?{accountId:p.accountId}:{}),...(!refresh&&saved?{known:{revision:saved.revision,after:p.after,accountId:p.accountId}}:{})});
+    if(selection!==JSON.stringify([p.after,p.accountId])||loadOwner!==owner||loadOwner!==localStorage.getItem('m4l_account_token'))return;
+-   p.lastReadError=false;p.data=data.notModified?{...saved,...(data.liveAllocation?{liveAllocation:data.liveAllocation}:{})}:data;if(!data.notModified)cache.set(p.activityKey+selection,data);p.dirty=false;p.liveDirty=false;p.liveWindow=null;render(p);
++   p.lastReadError=false;p.data=data.notModified?{...saved,...(data.coursePolicy?{coursePolicy:data.coursePolicy}:{}),...(data.liveAllocation?{liveAllocation:data.liveAllocation}:{})}:data;if(!data.notModified)cache.set(p.activityKey+selection,data);p.dirty=false;p.policyDirty=false;p.liveDirty=false;p.liveWindow=null;render(p);
+    legacyControls(p,p.data.ownership?.authority==='WEBSITE'||p.data.blocked);
++   if(p.data.coursePolicy&&p.data.ownership?.authority==='WEBSITE'&&panels.get(p.activityKey)===p&&owner===loadOwner)window.dispatchEvent(new window.CustomEvent('m4l-course-policy-saved',{detail:{activityKey:p.activityKey,coursePolicy:p.data.coursePolicy}}));
+   }catch(error){p.lastReadError=true;if([401,403].includes(error.status)){deny(p);return;}if(!p.data||p.data.legacyOnly||p.data.blocked){p.root.hidden=false;p.root.innerHTML='<h3>Learning access</h3><p data-access-status role="status"></p>';legacyControls(p,error.status!==404);}tell(p,error.code==='STUDIO_SCOPE_UNMAPPED'?'This programme continues to use Academy access controls.':error.message);p.unmapped=error.status===404;if(p.unmapped)p.root.hidden=true;}
+   finally{p.busy=false;}
+  }
+@@ -38,6 +39,7 @@
+  function render(p){
+   const d=p.data;if(!d)return;if(d.legacyOnly){p.root.hidden=true;return;}if(d.blocked){p.root.hidden=false;p.root.innerHTML='<h3>Learning access</h3><p data-access-status role="status">The access handover is in progress. Its editing controls are locked until it finishes.</p>';return;}const editable=d.ownership?.authority==='WEBSITE'&&d.ownership?.phase==='COMMITTED',person=d.person;
+   p.root.innerHTML=`<header><h3>Learning access</h3><button type="button" data-access-action="refresh">Refresh records</button><button type="button" data-access-action="reopen">Discard edits and reopen</button></header><p>${editable?'Manage participation and acquired learning materials here.':'Access is currently managed by the existing Academy controls. This view is read only until the offering is handed over.'} Accounts, PINs, suspension, class memberships and timetable details remain in their existing Academy screens.</p><p role="status" aria-live="polite" data-access-status></p>
++  ${d.kind==='COURSE'&&d.coursePolicy?`<form data-access-policy><fieldset${editable?'':' disabled'}><legend>Course access</legend><label>Access <select name="courseAccessModel"><option value="FREE"${d.coursePolicy.model==='FREE'?' selected':''}>Free</option><option value="PAID"${d.coursePolicy.model==='PAID'?' selected':''}>Paid</option></select></label><button type="button" data-access-action="policy-save">Save Course access</button><p>Free courses open to signed-in Academy accounts. Published session times, class rules and account status still apply. Changing to Paid keeps existing purchases.</p></fieldset></form>`:''}
+   <div class="studio-access-tools"><label>Academy account ID <input data-access-find maxlength="180" value="${esc(p.accountId||'')}"></label><button type="button" data-access-action="find">Find account</button><button type="button" data-access-action="first">First page</button>${d.more?'<button type="button" data-access-action="next">Next 25</button>':''}${editable?'<button type="button" data-access-action="new">Add learner</button>':''}</div>
+   <div class="studio-access-scroll"><table><thead><tr><th>User</th><th>Participation</th><th>Purchase</th><th>Staff</th><th></th></tr></thead><tbody>${d.participants.map(a=>`<tr><td>${esc(a.display_name)}<small>${esc(a.account_id)}</small>${!a.active||!a.admitted?'<small>Account blocked in Academy</small>':''}</td><td>${a.enrolled?'Enrolled':'Former / materials only'}</td><td>${a.purchased?'Whole Course retained':'—'}</td><td>${esc(a.role||'—')}</td><td><button type="button" data-access-action="person" data-account="${esc(a.account_id)}">Open</button></td></tr>`).join('')||'<tr><td colspan="5">No participants on this page.</td></tr>'}</tbody></table></div>
+   ${(d.pendingJobs||[]).map(j=>`<p>Pending enrolment: ${esc(j.state)} <button type="button" data-access-action="resume" data-job="${esc(j.operation_id)}">Resume enrolment</button></p>`).join('')}
+@@ -49,11 +51,13 @@
+  }
+  async function click(p,event){
+   const b=event.target.closest('[data-access-action]');if(!b||p.busy)return;const action=b.dataset.accessAction;
+-  if(!['save','month','new','resume','provision','reopen','live-save'].includes(action)&&(p.dirty||p.liveDirty)){tell(p,'Save or reopen the current account before leaving these edits.');return;}
++  if(p.policyDirty&&!['policy-save','reopen'].includes(action)){tell(p,'Save or discard the Course access setting first.');return;}
++  if(!['save','month','new','resume','provision','reopen','live-save','policy-save'].includes(action)&&(p.dirty||p.liveDirty)){tell(p,'Save or reopen the current account before leaving these edits.');return;}
+   await perform(p,async()=>{
+    if(action==='person'||action==='find'){p.accountId=action==='person'?b.dataset.account:p.root.querySelector('[data-access-find]').value.trim();await load(p);}
++   if(action==='policy-save')await savePolicy(p);
+    if(action==='refresh'){await load(p,{refresh:true});}
+-   if(action==='reopen'){if(p.pending||p.livePending)throw Error('Confirm the pending Save by retrying it before discarding edits.');p.dirty=false;p.liveDirty=false;await load(p,{refresh:true});}
++   if(action==='reopen'){if(p.pending||p.livePending||p.policyPending)throw Error('Confirm the pending Save by retrying it before discarding edits.');p.dirty=false;p.liveDirty=false;await load(p,{refresh:true});}
+    if(action==='first'||action==='next'){p.after=action==='next'?p.data.next:'';p.accountId=null;await load(p);}
+    if(action==='month'){
+     const month=p.root.querySelector('[data-new-month]').value,cohort=p.root.querySelector('[data-new-cohort]').value.trim();if(!month)throw Error('Choose the paid month. Leave the original class blank only for website access without recordings.');
+@@ -72,6 +76,12 @@
+   const {classes,windows}=p.data.liveAllocation,w=p.liveWindow;
+   return `<form data-access-live><h4>Live class allocation</h4><p>Academy manages the class and dates. Save learning access before assigning a new learner. This does not grant recordings or paid months.</p><div class="studio-access-scroll"><table><thead><tr><th>Class</th><th>From</th><th>Through</th><th></th></tr></thead><tbody>${windows.map(row=>`<tr><td>${esc(classes.find(c=>c.class_id===row.class_id)?.name||row.class_id)}</td><td>${esc(row.start_date||'Ongoing')}</td><td>${esc(row.end_date||'Ongoing')}</td><td><button type="button" data-access-action="live-edit" data-window="${esc(row.enrollment_id)}">Edit allocation</button></td></tr>`).join('')||'<tr><td colspan="4">No current class allocation.</td></tr>'}</tbody></table></div><label>Class <select name="liveClass"><option value="">Choose a class</option>${classes.map(c=>`<option value="${esc(c.class_id)}"${w?.class_id===c.class_id?' selected':''}>${esc(c.name)}</option>`).join('')}${w&&!classes.some(c=>c.class_id===w.class_id)?`<option value="${esc(w.class_id)}" selected>${esc(w.class_id)} (inactive)</option>`:''}</select></label><label>From (optional) <input type="date" name="liveStart" value="${esc(w?.start_date||'')}"></label><label>Through (optional) <input type="date" name="liveEnd" value="${esc(w?.end_date||'')}"></label><label><input type="checkbox" name="liveActive"${checked(w?w.active:true)}> Active allocation</label><button type="button" data-access-action="live-save">Save class allocation</button></form>`;
+  }
++ async function savePolicy(p){
++  if(p.dirty||p.liveDirty||p.pending||p.livePending)throw Error('Save or discard the current learner or class changes first.');
++  if(!p.policyPending){const model=p.root.querySelector('[data-access-policy]').elements.courseAccessModel.value;if(model===p.data.coursePolicy.model){p.policyDirty=false;tell(p,'No Course access change to save.');return;}p.policyPending={action:'save',revision:p.data.revision,change:{action:'course-policy',operationId:crypto.randomUUID(),accessModel:model}};}
++  try{await api(p.activityKey,p.policyPending);p.policyPending=null;p.policyDirty=false;for(const key of cache.keys())if(key.startsWith(p.activityKey))cache.delete(key);await load(p,{refresh:true});if(panels.get(p.activityKey)!==p||owner!==localStorage.getItem('m4l_account_token'))return;window.dispatchEvent(new window.CustomEvent('m4l-course-policy-saved',{detail:{activityKey:p.activityKey,coursePolicy:p.data.coursePolicy}}));tell(p,'Course access saved. Existing purchases are preserved.');}
++  catch(error){if([400,413].includes(error.status)||['CHANGE_CONFLICT','RETRY_CONFLICT'].includes(error.code))p.policyPending=null;throw error;}
++ }
+  async function saveLive(p){
+   if(p.dirty)throw Error('Save learning access before saving the class allocation.');
+   if(!p.livePending){const form=p.root.querySelector('[data-access-live]');p.livePending={action:'live-allocation',operationId:crypto.randomUUID(),accountId:p.data.person.account_id,classId:form.elements.liveClass.value,start:form.elements.liveStart.value||null,end:form.elements.liveEnd.value||null,active:form.elements.liveActive.checked,...(p.liveWindow?{enrollmentId:p.liveWindow.enrollment_id,base:p.liveWindow}:{})};}
+diff --git a/programs/manage.html b/programs/manage.html
+index 68c38a49..21d6f8d3 100644
+--- a/programs/manage.html
++++ b/programs/manage.html
+@@ -23,7 +23,7 @@
+ <details id="pm-shared" class="pm-shared" hidden><summary>Import subject names from Reboot</summary><p>Select names to add directly to this Program. Existing Academy names and Program links are reused. Reboot’s records stay unchanged.</p><div class="pm-import-actions"><button id="pm-import-preview" type="button" class="pb-secondary">Review Reboot subjects</button><button id="pm-import-save" type="button" disabled>Import and add to this Program</button><button id="pm-catalogue-recover" type="button" class="pb-secondary">Recover subject catalogue</button></div><fieldset id="pm-import-list" aria-label="Reboot subject names"></fieldset></details>
+ </section>
+ <p class="pb-note">Grant Student and Teacher roles in shared User profiles. Program Management shows enrolled students and their class memberships; assign an optional class teacher in Classes or a teacher to an individual lesson. Archiving keeps records and published timetable history.</p>
+-<dialog id="pm-availability-dialog" class="pa-dialog" aria-labelledby="pa-title"><div class="pa-heading"><h2 id="pa-title">Teacher availability</h2><button id="pa-close" type="button" class="pb-secondary">Close</button></div><div id="pa-list"><label class="pa-search">Search teachers<input id="pa-search" type="search" placeholder="Find a teacher…"></label><div class="pa-scroll"><table class="pa-table"><thead><tr><th scope="col">Name</th><th scope="col">Availability</th><th scope="col">Edit</th></tr></thead><tbody id="pa-rows"></tbody></table></div><div id="pa-notices"></div></div><form id="pa-editor" hidden><h3 id="pa-teacher"></h3><p>Availability is managed in the Academic Calendar.</p><div id="pa-days"></div><div class="pa-actions"><button id="pa-save" type="submit">Save availability</button><button id="pa-cancel" type="button" class="pb-secondary">Back to teachers</button></div></form><p id="pa-message" role="status" aria-live="polite"></p></dialog></main><small class="pb-version">V107.120</small><script src="/js/m4l-config.js?v=107.52"></script><script src="/js/m4l-program-overview.js?v=105.3.3.4"></script><script src="/js/m4l-time.js?v=106.9"></script><script src="/js/m4l-teacher-availability-dialog.js?v=106.82"></script><script src="/js/m4l-studio-access.js"></script><script src="/js/m4l-program-management.js?v=107.120"></script><script src="/js/m4l-program-management-navigation.js?v=107.2"></script><script src="/js/m4l-academy-navigation.js?v=107.120"></script>
++<dialog id="pm-availability-dialog" class="pa-dialog" aria-labelledby="pa-title"><div class="pa-heading"><h2 id="pa-title">Teacher availability</h2><button id="pa-close" type="button" class="pb-secondary">Close</button></div><div id="pa-list"><label class="pa-search">Search teachers<input id="pa-search" type="search" placeholder="Find a teacher…"></label><div class="pa-scroll"><table class="pa-table"><thead><tr><th scope="col">Name</th><th scope="col">Availability</th><th scope="col">Edit</th></tr></thead><tbody id="pa-rows"></tbody></table></div><div id="pa-notices"></div></div><form id="pa-editor" hidden><h3 id="pa-teacher"></h3><p>Availability is managed in the Academic Calendar.</p><div id="pa-days"></div><div class="pa-actions"><button id="pa-save" type="submit">Save availability</button><button id="pa-cancel" type="button" class="pb-secondary">Back to teachers</button></div></form><p id="pa-message" role="status" aria-live="polite"></p></dialog></main><small class="pb-version">V107.120</small><script src="/js/m4l-config.js?v=107.52"></script><script src="/js/m4l-program-overview.js?v=105.3.3.4"></script><script src="/js/m4l-time.js?v=106.9"></script><script src="/js/m4l-teacher-availability-dialog.js?v=106.82"></script><script src="/js/m4l-studio-access.js?v=eb34f1cdd3"></script><script src="/js/m4l-program-management.js?v=107.120"></script><script src="/js/m4l-program-management-navigation.js?v=107.2"></script><script src="/js/m4l-academy-navigation.js?v=107.120"></script>
+ <script src="/js/m4l-academy-mobile.js?v=107.120"></script>
+ <script src="/js/m4l-academy-page-actions.js?v=107.120"></script>
+ </body></html>

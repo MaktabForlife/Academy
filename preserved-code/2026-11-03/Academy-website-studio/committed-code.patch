@@ -1,0 +1,396 @@
+diff --git a/backend/migrations/academy-core/0013_website_parallel_access.sql b/backend/migrations/academy-core/0013_website_parallel_access.sql
+new file mode 100644
+index 00000000..71129807
+--- /dev/null
++++ b/backend/migrations/academy-core/0013_website_parallel_access.sql
+@@ -0,0 +1,98 @@
++-- Parallel access projection only. No mappings, people or grants are seeded.
++CREATE TABLE website_platform_access_scopes(activity_key TEXT PRIMARY KEY COLLATE NOCASE REFERENCES website_platform_timetable_scopes(activity_key),enabled INTEGER NOT NULL DEFAULT 0 CHECK(enabled IN(0,1)),purchase_model TEXT NOT NULL DEFAULT 'UNREVIEWED' CHECK(purchase_model IN('UNREVIEWED','CONFIRMED_SUBSCRIPTION')),revision INTEGER NOT NULL DEFAULT 1);
++CREATE TABLE website_platform_surah_maps(activity_key TEXT NOT NULL COLLATE NOCASE REFERENCES website_platform_access_scopes(activity_key),surah_id TEXT NOT NULL REFERENCES program_surahs(surah_id),website_id TEXT NOT NULL UNIQUE,PRIMARY KEY(activity_key,surah_id));
++CREATE TABLE website_platform_access_dirty(activity_key TEXT NOT NULL COLLATE NOCASE,account_id TEXT NOT NULL COLLATE NOCASE,revision INTEGER NOT NULL DEFAULT 1,exported_revision INTEGER NOT NULL DEFAULT 0,generation INTEGER NOT NULL DEFAULT 0,next_attempt INTEGER NOT NULL DEFAULT 0,last_error TEXT,PRIMARY KEY(activity_key,account_id));
++CREATE INDEX website_platform_access_due ON website_platform_access_dirty(next_attempt,activity_key,account_id);
++CREATE TABLE website_platform_access_imports(activity_key TEXT NOT NULL COLLATE NOCASE,dataset TEXT NOT NULL,cursor TEXT NOT NULL DEFAULT '' COLLATE NOCASE,done INTEGER NOT NULL DEFAULT 0,generation INTEGER NOT NULL,PRIMARY KEY(activity_key,dataset));
++CREATE INDEX website_platform_access_import_due ON website_platform_access_imports(done,activity_key,dataset);
++CREATE INDEX website_platform_roles_page ON role_assignments(activity_key,account_id);
++CREATE INDEX website_platform_subscriptions_page ON course_subscription_decisions(activity_key,account_id);
++CREATE INDEX website_platform_months_page ON program_monthly_subscriptions(activity_key,account_id,active,lesson_month);
++CREATE INDEX website_platform_grants_page ON program_surah_grants(activity_key,account_id,active,surah_id);
++CREATE INDEX website_platform_membership_page ON class_memberships(activity_key,account_id,active,enrollment_id);
++CREATE INDEX website_platform_global_page ON global_role_assignments(role,active,review_state,account_id);
++ALTER TABLE website_platform_outbox ADD COLUMN access_scope TEXT;
++ALTER TABLE website_platform_outbox ADD COLUMN access_account TEXT;
++ALTER TABLE website_platform_outbox ADD COLUMN access_revision INTEGER;
++CREATE TRIGGER website_access_role_assignments_insert AFTER INSERT ON role_assignments WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,lower(NEW.account_id) FROM website_platform_access_scopes s WHERE s.activity_key=NEW.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_role_assignments_update AFTER UPDATE ON role_assignments WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,lower(OLD.account_id) FROM website_platform_access_scopes s WHERE s.activity_key=OLD.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL;
++INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,lower(NEW.account_id) FROM website_platform_access_scopes s WHERE s.activity_key=NEW.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_role_assignments_delete AFTER DELETE ON role_assignments WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,lower(OLD.account_id) FROM website_platform_access_scopes s WHERE s.activity_key=OLD.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_course_subscription_decisions_insert AFTER INSERT ON course_subscription_decisions WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,lower(NEW.account_id) FROM website_platform_access_scopes s WHERE s.activity_key=NEW.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_course_subscription_decisions_update AFTER UPDATE ON course_subscription_decisions WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,lower(OLD.account_id) FROM website_platform_access_scopes s WHERE s.activity_key=OLD.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL;
++INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,lower(NEW.account_id) FROM website_platform_access_scopes s WHERE s.activity_key=NEW.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_course_subscription_decisions_delete AFTER DELETE ON course_subscription_decisions WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,lower(OLD.account_id) FROM website_platform_access_scopes s WHERE s.activity_key=OLD.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_program_monthly_subscriptions_insert AFTER INSERT ON program_monthly_subscriptions WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,lower(NEW.account_id) FROM website_platform_access_scopes s WHERE s.activity_key=NEW.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_program_monthly_subscriptions_update AFTER UPDATE ON program_monthly_subscriptions WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,lower(OLD.account_id) FROM website_platform_access_scopes s WHERE s.activity_key=OLD.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL;
++INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,lower(NEW.account_id) FROM website_platform_access_scopes s WHERE s.activity_key=NEW.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_program_monthly_subscriptions_delete AFTER DELETE ON program_monthly_subscriptions WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,lower(OLD.account_id) FROM website_platform_access_scopes s WHERE s.activity_key=OLD.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_program_surah_grants_insert AFTER INSERT ON program_surah_grants WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,lower(NEW.account_id) FROM website_platform_access_scopes s WHERE s.activity_key=NEW.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_program_surah_grants_update AFTER UPDATE ON program_surah_grants WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,lower(OLD.account_id) FROM website_platform_access_scopes s WHERE s.activity_key=OLD.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL;
++INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,lower(NEW.account_id) FROM website_platform_access_scopes s WHERE s.activity_key=NEW.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_program_surah_grants_delete AFTER DELETE ON program_surah_grants WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,lower(OLD.account_id) FROM website_platform_access_scopes s WHERE s.activity_key=OLD.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_class_memberships_insert AFTER INSERT ON class_memberships WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,lower(NEW.account_id) FROM website_platform_access_scopes s WHERE s.activity_key=NEW.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_class_memberships_update AFTER UPDATE ON class_memberships WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,lower(OLD.account_id) FROM website_platform_access_scopes s WHERE s.activity_key=OLD.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL;
++INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,lower(NEW.account_id) FROM website_platform_access_scopes s WHERE s.activity_key=NEW.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_class_memberships_delete AFTER DELETE ON class_memberships WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,lower(OLD.account_id) FROM website_platform_access_scopes s WHERE s.activity_key=OLD.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_activities_insert AFTER INSERT ON activities WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=NEW.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_activities_update AFTER UPDATE ON activities WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=OLD.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL;
++INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=NEW.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_activities_delete AFTER DELETE ON activities WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=OLD.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_classes_insert AFTER INSERT ON classes WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=NEW.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_classes_update AFTER UPDATE ON classes WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=OLD.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL;
++INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=NEW.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_classes_delete AFTER DELETE ON classes WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=OLD.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_course_runs_insert AFTER INSERT ON course_runs WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=NEW.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_course_runs_update AFTER UPDATE ON course_runs WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=OLD.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL;
++INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=NEW.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_course_runs_delete AFTER DELETE ON course_runs WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=OLD.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_course_run_state_insert AFTER INSERT ON course_run_state WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=NEW.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_course_run_state_update AFTER UPDATE ON course_run_state WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=OLD.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL;
++INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=NEW.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_course_run_state_delete AFTER DELETE ON course_run_state WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=OLD.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_program_monthly_media_policies_insert AFTER INSERT ON program_monthly_media_policies WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=NEW.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_program_monthly_media_policies_update AFTER UPDATE ON program_monthly_media_policies WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=OLD.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL;
++INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=NEW.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_program_monthly_media_policies_delete AFTER DELETE ON program_monthly_media_policies WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=OLD.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_program_surahs_insert AFTER INSERT ON program_surahs WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=NEW.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_program_surahs_update AFTER UPDATE ON program_surahs WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=OLD.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL;
++INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=NEW.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_program_surahs_delete AFTER DELETE ON program_surahs WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=OLD.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_website_platform_surah_maps_insert AFTER INSERT ON website_platform_surah_maps WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=NEW.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL;
++INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT g.activity_key,lower(g.account_id) FROM program_surah_grants g JOIN website_platform_access_scopes s USING(activity_key) WHERE g.activity_key=NEW.activity_key AND g.surah_id=NEW.surah_id AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_website_platform_surah_maps_update AFTER UPDATE ON website_platform_surah_maps WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=OLD.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL;
++INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=NEW.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL;
++INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT g.activity_key,lower(g.account_id) FROM program_surah_grants g JOIN website_platform_access_scopes s USING(activity_key) WHERE g.activity_key=OLD.activity_key AND g.surah_id=OLD.surah_id AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL;
++INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT g.activity_key,lower(g.account_id) FROM program_surah_grants g JOIN website_platform_access_scopes s USING(activity_key) WHERE g.activity_key=NEW.activity_key AND g.surah_id=NEW.surah_id AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_website_platform_surah_maps_delete AFTER DELETE ON website_platform_surah_maps WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT s.activity_key,'' FROM website_platform_access_scopes s WHERE s.activity_key=OLD.activity_key AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL;
++INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT g.activity_key,lower(g.account_id) FROM program_surah_grants g JOIN website_platform_access_scopes s USING(activity_key) WHERE g.activity_key=OLD.activity_key AND g.surah_id=OLD.surah_id AND s.enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_global_insert AFTER INSERT ON global_role_assignments WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT activity_key,lower(NEW.account_id) FROM website_platform_access_scopes WHERE enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_global_update AFTER UPDATE ON global_role_assignments WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT activity_key,lower(OLD.account_id) FROM website_platform_access_scopes WHERE enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL;
++INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT activity_key,lower(NEW.account_id) FROM website_platform_access_scopes WHERE enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_global_delete AFTER DELETE ON global_role_assignments WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT activity_key,lower(OLD.account_id) FROM website_platform_access_scopes WHERE enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_scope_change AFTER UPDATE OF enabled,purchase_model ON website_platform_access_scopes BEGIN
++ UPDATE website_platform_access_scopes SET revision=OLD.revision+1 WHERE activity_key=NEW.activity_key;
++ INSERT INTO website_platform_access_dirty(activity_key,account_id) VALUES(NEW.activity_key,'') ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL;
++ DELETE FROM website_platform_access_imports WHERE activity_key=NEW.activity_key;
++ END;
++
++CREATE INDEX website_platform_access_pending ON website_platform_outbox(access_account,acknowledged,stream,version);
++
++CREATE INDEX website_platform_scope_pending ON website_platform_outbox(access_scope,access_account,acknowledged,stream,version);
++CREATE INDEX website_platform_access_enabled ON website_platform_access_scopes(enabled,activity_key);
++
++CREATE INDEX website_platform_live_windows ON class_memberships(activity_key,account_id,active,end_date,enrollment_id);
++
++CREATE TRIGGER website_access_control_activation AFTER UPDATE OF enabled ON website_platform_control WHEN NEW.enabled=1 AND OLD.enabled=0 BEGIN
++ UPDATE website_platform_access_scopes SET revision=revision+1 WHERE enabled=1;
++ INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT activity_key,'' FROM website_platform_access_scopes WHERE enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL;
++ DELETE FROM website_platform_access_imports;
++ END;
++CREATE TRIGGER website_access_program_settings_insert AFTER INSERT ON program_settings WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT activity_key,'' FROM website_platform_access_scopes WHERE activity_key=NEW.activity_key AND enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_program_settings_update AFTER UPDATE ON program_settings WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT activity_key,'' FROM website_platform_access_scopes WHERE activity_key=OLD.activity_key AND enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT activity_key,'' FROM website_platform_access_scopes WHERE activity_key=NEW.activity_key AND enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_program_settings_delete AFTER DELETE ON program_settings WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT activity_key,'' FROM website_platform_access_scopes WHERE activity_key=OLD.activity_key AND enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_course_settings_insert AFTER INSERT ON course_settings WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT activity_key,'' FROM website_platform_access_scopes WHERE activity_key=NEW.activity_key AND enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_course_settings_update AFTER UPDATE ON course_settings WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT activity_key,'' FROM website_platform_access_scopes WHERE activity_key=OLD.activity_key AND enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT activity_key,'' FROM website_platform_access_scopes WHERE activity_key=NEW.activity_key AND enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++CREATE TRIGGER website_access_course_settings_delete AFTER DELETE ON course_settings WHEN (SELECT enabled FROM website_platform_control WHERE singleton=1)=1 BEGIN INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT activity_key,'' FROM website_platform_access_scopes WHERE activity_key=OLD.activity_key AND enabled=1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL; END;
++
++CREATE INDEX website_platform_unscoped_due ON website_platform_outbox(next_attempt,stream,version) WHERE acknowledged=0 AND access_scope IS NULL;
+diff --git a/backend/src/academy/d1/web-platform/access.mjs b/backend/src/academy/d1/web-platform/access.mjs
+new file mode 100644
+index 00000000..96f999b2
+--- /dev/null
++++ b/backend/src/academy/d1/web-platform/access.mjs
+@@ -0,0 +1,67 @@
++import {sha256} from './protocol.mjs';
++const all=async(db,sql,...args)=>(await db.prepare(sql).bind(...args).all()).results;
++const datasets={roles:'role_assignments',subscriptions:'course_subscription_decisions',months:'program_monthly_subscriptions',grants:'program_surah_grants',memberships:'class_memberships'},indexes={roles:'website_platform_roles_page',subscriptions:'website_platform_subscriptions_page',months:'website_platform_months_page',grants:'website_platform_grants_page',memberships:'website_platform_membership_page'};
++export const accessStream=async(scope,account)=>'access:'+await sha256(JSON.stringify([scope,account.toLowerCase()]));
++const check=(rows,max,name)=>{if(rows.length>max)throw Error(name);return rows;};
++export async function importAccessPage(db,{activityKey,limit=25}={}){
++ const scope=await db.prepare('SELECT * FROM website_platform_access_scopes WHERE activity_key=? AND enabled=1').bind(activityKey).first();if(!scope)throw Error('ACCESS_SCOPE_DISABLED');
++ limit=Math.max(1,Math.min(50,Number(limit)||25));
++ for(const dataset of [...Object.keys(datasets),'global'])await db.prepare('INSERT INTO website_platform_access_imports(activity_key,dataset,generation) VALUES(?,?,?) ON CONFLICT DO NOTHING').bind(scope.activity_key,dataset,scope.revision).run();
++ const phase=await db.prepare('SELECT * FROM website_platform_access_imports WHERE activity_key=? AND done=0 ORDER BY dataset LIMIT 1').bind(scope.activity_key).first();if(!phase)return {done:true};
++ const rows=phase.dataset==='global'?await all(db,"SELECT account_id FROM global_role_assignments INDEXED BY website_platform_global_page WHERE role='GLOBAL_ADMIN' AND active=1 AND review_state='CONFIRMED' AND account_id>? ORDER BY account_id LIMIT ?",phase.cursor,limit+1):await all(db,`SELECT account_id FROM ${datasets[phase.dataset]} INDEXED BY ${indexes[phase.dataset]} WHERE activity_key=? AND account_id>? ORDER BY account_id LIMIT ?`,scope.activity_key,phase.cursor,limit+1);
++ const page=rows.slice(0,limit),accounts=[...new Set(page.map(r=>r.account_id.toLowerCase()))],cursor=page.at(-1)?.account_id||phase.cursor,guard=crypto.randomUUID();
++ await db.batch([
++  db.prepare('INSERT INTO website_platform_guards VALUES(?,EXISTS(SELECT 1 FROM website_platform_access_scopes WHERE activity_key=? AND enabled=1 AND revision=?))').bind(guard,scope.activity_key,scope.revision),
++  db.prepare('INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT ?,value FROM json_each(?) WHERE 1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL WHERE website_platform_access_dirty.revision=website_platform_access_dirty.exported_revision AND website_platform_access_dirty.generation<?').bind(scope.activity_key,JSON.stringify(accounts),scope.revision),
++  db.prepare('INSERT INTO website_platform_access_dirty(activity_key,account_id) VALUES(?,\'\') ON CONFLICT DO NOTHING').bind(scope.activity_key),
++  db.prepare('UPDATE website_platform_access_imports SET cursor=?,done=? WHERE activity_key=? AND dataset=? AND generation=? AND cursor=?').bind(cursor,Number(rows.length<=limit),scope.activity_key,phase.dataset,scope.revision,phase.cursor),
++  db.prepare('DELETE FROM website_platform_guards WHERE guard_id=?').bind(guard)
++ ]);return {dataset:phase.dataset,records:page.length,accounts:accounts.length,done:rows.length<=limit,cursor};
++}
++async function configuration(db,key){return db.prepare(`SELECT x.*,m.offering_id,m.kind,a.name,a.active,a.lifecycle,a.kind source_kind,p.timezone,c.legacy_access_model,c.policy_review_state,mp.enabled monthly_enabled FROM website_platform_access_scopes x JOIN website_platform_timetable_scopes m USING(activity_key) JOIN activities a USING(activity_key) LEFT JOIN program_settings p USING(activity_key) LEFT JOIN course_settings c USING(activity_key) LEFT JOIN program_monthly_media_policies mp USING(activity_key) WHERE x.activity_key=?`).bind(key).first();}
++export async function projectAccess(db,key,accountId,{now=Date.now()}={}){
++ const scope=await configuration(db,key);if(!scope)throw Error('ACCESS_SCOPE_MISSING');
++ if(!accountId){const websites=check(await all(db,`SELECT m.website_id,s.completion_date,s.active FROM website_platform_surah_maps m JOIN program_surahs s ON s.surah_id=m.surah_id AND s.activity_key=m.activity_key WHERE m.activity_key=? ORDER BY m.surah_id LIMIT 201`,key),200,'SURAH_MAP_TOO_LARGE');
++  const classes=check(await all(db,'SELECT class_id FROM classes WHERE activity_key=? AND active=1 ORDER BY class_id LIMIT 201',key),200,'CLASS_SCOPE_TOO_LARGE');
++  const liveRun=scope.kind!=='COURSE'||Boolean(await db.prepare('SELECT 1 FROM course_runs r JOIN course_run_state s USING(activity_key,run_id) WHERE r.activity_key=? AND r.active=1 AND s.current_publication_id IS NOT NULL AND (r.end_date IS NULL OR r.end_date>=?) LIMIT 1').bind(key,new Date(now).toISOString().slice(0,10)).first());
++  const model=scope.kind==='COURSE'?scope.purchase_model==='CONFIRMED_SUBSCRIPTION'&&scope.legacy_access_model==='PAID'&&scope.policy_review_state==='CONFIRMED':scope.kind==='TAFSEER'&&scope.monthly_enabled===1;
++  return {type:'access-scope',offering:{id:scope.offering_id,kind:scope.kind,title:scope.name},generation:scope.revision,enabled:Boolean(scope.enabled&&model&&scope.active&&scope.lifecycle==='ACTIVE'),liveEnabled:Boolean(liveRun),timezone:scope.timezone||'UTC',classes:classes.map(c=>c.class_id),websites};
++ }
++ const account=await db.prepare('SELECT * FROM website_platform_account_state WHERE account_id=?').bind(accountId).first();if(!account)throw Error('MASTER_ACCOUNT_MISSING');
++ const roles=await all(db,`SELECT r.role FROM role_assignments r INDEXED BY one_active_scoped_role JOIN accounts a ON a.account_id=r.account_id COLLATE NOCASE WHERE r.account_id=? COLLATE NOCASE AND r.activity_key=? COLLATE NOCASE AND r.active=1 AND r.review_state='CONFIRMED' AND r.grant_source='EXPLICIT' AND a.active=1`,account.account_id,key),names=new Set(roles.map(r=>r.role));
++ const purchased=scope.kind==='COURSE'&&scope.purchase_model==='CONFIRMED_SUBSCRIPTION'&&Boolean(await db.prepare('SELECT 1 FROM course_subscription_decisions WHERE account_id=? AND activity_key=? AND active=1').bind(account.account_id,key).first());
++ const months=scope.kind==='TAFSEER'?check(await all(db,'SELECT lesson_month,class_ids_json FROM program_monthly_subscriptions WHERE activity_key=? AND account_id=? AND active=1 ORDER BY lesson_month LIMIT 241',key,account.account_id),240,'MONTH_SCOPE_TOO_LARGE'):[];
++ const paid=[];for(const row of months){const cohorts=check(JSON.parse(row.class_ids_json),100,'MONTH_AUDIENCE_TOO_LARGE');for(const cohort of cohorts){if(typeof cohort!=='string'||!cohort||cohort.length>180)throw Error('INVALID_HISTORICAL_COHORT');paid.push({month:row.lesson_month,cohort});}}check(paid,512,'MONTH_AUDIENCE_TOO_LARGE');
++ const grants=scope.kind==='TAFSEER'?check(await all(db,`SELECT m.website_id FROM program_surah_grants g JOIN website_platform_surah_maps m ON m.activity_key=g.activity_key AND m.surah_id=g.surah_id JOIN program_surahs s ON s.surah_id=g.surah_id AND s.activity_key=g.activity_key WHERE g.activity_key=? AND g.account_id=? AND g.active=1 AND s.active=1 ORDER BY g.surah_id LIMIT 129`,key,account.account_id),128,'GRANT_SCOPE_TOO_LARGE'):[];
++ const hasAllocation=Boolean(await db.prepare('SELECT 1 FROM class_memberships WHERE activity_key=? AND account_id=? LIMIT 1').bind(key,account.account_id).first());
++ const windows=check(await all(db,`SELECT * FROM (
++ SELECT * FROM (SELECT class_id,start_date,end_date,active FROM class_memberships INDEXED BY website_platform_live_windows WHERE activity_key=? AND account_id=? AND active=1 AND end_date IS NULL LIMIT 101)
++ UNION ALL SELECT * FROM (SELECT class_id,start_date,end_date,active FROM class_memberships INDEXED BY website_platform_live_windows WHERE activity_key=? AND account_id=? AND active=1 AND end_date>=? ORDER BY end_date,enrollment_id LIMIT 101)) LIMIT 101`,key,account.account_id,key,account.account_id,new Date(now-86400_000).toISOString().slice(0,10)),100,'LIVE_SCOPE_TOO_LARGE');
++ return {type:'access',offeringId:scope.offering_id,generation:scope.revision,verifiedAt:now,account:{accountId:account.account_id,displayName:account.display_name,active:Boolean(account.active),admitted:Boolean(account.admitted),epoch:account.epoch,globalAdmin:Boolean(account.global_admin),verifiedAt:now},participation:{enrolled:names.has('STUDENT')||purchased,live:names.has('STUDENT')||purchased,purchased,windows,hasAllocation,course:scope.kind==='COURSE'},websiteMonths:months.map(m=>m.lesson_month),role:names.has('PROGRAM_ADMIN')?'ADMIN':names.has('TEACHER')?'TEACHER':null,months:paid,grants:grants.map(g=>g.website_id)};
++}
++export async function markAccess(db,key,account){await db.prepare('INSERT INTO website_platform_access_dirty(activity_key,account_id) VALUES(?,?) ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL').bind(key,account.toLowerCase()).run();}
++export async function queueAccess(db,{limit=4,onlyScope,onlyAccount,now=Date.now()}={}){
++ const rows=await all(db,'SELECT * FROM website_platform_access_dirty WHERE '+(onlyScope?'activity_key=? AND account_id=? AND next_attempt<=?':'next_attempt<=?')+' ORDER BY '+(onlyScope?'account_id':'next_attempt,activity_key,account_id')+' LIMIT ?',...(onlyScope?[onlyScope,onlyAccount,now]:[now]),Math.max(1,Math.min(8,limit)));
++ for(const row of rows){try{let event,problem=null;
++  try{event=await projectAccess(db,row.activity_key,row.account_id,{now});if(new TextEncoder().encode(JSON.stringify(event)).length>220_000)throw Error('ACCESS_PAYLOAD_TOO_LARGE');}catch(error){
++   if(!/TOO_LARGE|INVALID_HISTORICAL/.test(error.message))throw error;const scope=await configuration(db,row.activity_key);if(!scope)throw error;problem=error.message;
++   if(!row.account_id)event={type:'access-scope',offering:{id:scope.offering_id,kind:scope.kind,title:scope.name},generation:scope.revision,enabled:false,liveEnabled:false,timezone:'UTC',classes:[],websites:[]};
++   else{const a=await db.prepare('SELECT * FROM website_platform_account_state WHERE account_id=?').bind(row.account_id).first();if(!a)throw error;event={type:'access',offeringId:scope.offering_id,generation:scope.revision,verifiedAt:now,blocked:true,account:{accountId:a.account_id,displayName:a.display_name,active:Boolean(a.active),admitted:Boolean(a.admitted),epoch:a.epoch,globalAdmin:Boolean(a.global_admin),verifiedAt:now},participation:{enrolled:false,live:false,purchased:false,windows:[],hasAllocation:true,course:scope.kind==='COURSE'},websiteMonths:[],role:null,months:[],grants:[]};}
++  }
++  const stream=await accessStream(event.offeringId||event.offering.id,row.account_id),guard=crypto.randomUUID();if(new TextEncoder().encode(JSON.stringify(event)).length>220_000)throw Error('ACCESS_PAYLOAD_TOO_LARGE');
++  await db.batch([
++   db.prepare('INSERT INTO website_platform_guards VALUES(?,EXISTS(SELECT 1 FROM website_platform_access_dirty WHERE activity_key=? AND account_id=? AND revision=? AND (SELECT enabled FROM website_platform_control WHERE singleton=1)=1))').bind(guard,row.activity_key,row.account_id,row.revision),
++   db.prepare('INSERT INTO website_platform_streams VALUES(?,1) ON CONFLICT(stream) DO UPDATE SET version=version+1').bind(stream),
++   db.prepare('INSERT INTO website_platform_outbox(operation_id,stream,version,event_json,access_scope,access_account,access_revision) SELECT ?,stream,version,?,?,?,? FROM website_platform_streams WHERE stream=?').bind(crypto.randomUUID(),JSON.stringify(event),row.activity_key,row.account_id,row.revision,stream),
++   db.prepare('UPDATE website_platform_access_dirty SET exported_revision=revision,generation=?,next_attempt=?,last_error=? WHERE activity_key=? AND account_id=?').bind(event.generation,problem?now+30_000:Number.MAX_SAFE_INTEGER,problem,row.activity_key,row.account_id),
++   db.prepare('DELETE FROM website_platform_guards WHERE guard_id=?').bind(guard)
++  ]);
++ }catch(error){await db.prepare('UPDATE website_platform_access_dirty SET next_attempt=?,last_error=? WHERE activity_key=? AND account_id=? AND revision=?').bind(now+30_000,/^[A-Z_]+$/.test(error.message)?error.message:'ACCESS_RETRY',row.activity_key,row.account_id,row.revision).run();}}
++}
++export async function prepareAccountAccess(db,accountId){
++ const scopes=check(await all(db,`SELECT s.activity_key,m.offering_id FROM website_platform_access_scopes s JOIN website_platform_timetable_scopes m USING(activity_key) WHERE s.enabled=1 ORDER BY s.activity_key LIMIT 33`),32,'ACCESS_SCOPE_LIMIT');
++ for(const s of scopes){await db.prepare('INSERT INTO website_platform_access_dirty(activity_key,account_id) VALUES(?,\'\') ON CONFLICT DO NOTHING').bind(s.activity_key).run();await queueAccess(db,{onlyScope:s.activity_key,onlyAccount:''});const metadata=await db.prepare("SELECT revision,exported_revision,last_error FROM website_platform_access_dirty WHERE activity_key=? AND account_id=''").bind(s.activity_key).first();if(!metadata||metadata.revision!==metadata.exported_revision||metadata.last_error)throw Error('ACCESS_SCOPE_PENDING');await markAccess(db,s.activity_key,accountId);await queueAccess(db,{onlyScope:s.activity_key,onlyAccount:accountId.toLowerCase()});const row=await db.prepare('SELECT revision,exported_revision,last_error FROM website_platform_access_dirty WHERE activity_key=? AND account_id=?').bind(s.activity_key,accountId).first();if(!row||row.revision!==row.exported_revision||row.last_error)throw Error('ACCESS_CONFIRMATION_PENDING');}
++}
++export async function pumpAccess(db){
++ const scope=await db.prepare(`SELECT s.activity_key FROM website_platform_access_scopes s WHERE s.enabled=1 AND (NOT EXISTS(SELECT 1 FROM website_platform_access_imports i WHERE i.activity_key=s.activity_key) OR EXISTS(SELECT 1 FROM website_platform_access_imports i WHERE i.activity_key=s.activity_key AND i.done=0)) ORDER BY s.activity_key LIMIT 1`).first();if(scope)await importAccessPage(db,{activityKey:scope.activity_key});await queueAccess(db);
++}
+diff --git a/backend/src/academy/d1/web-platform/bridge.mjs b/backend/src/academy/d1/web-platform/bridge.mjs
+index 1144fac8..b088e62f 100644
+--- a/backend/src/academy/d1/web-platform/bridge.mjs
++++ b/backend/src/academy/d1/web-platform/bridge.mjs
+@@ -1,3 +1,4 @@
++import {prepareAccountAccess,pumpAccess} from './access.mjs';
+ import {queueTimetables} from './timetable.mjs';
+ import {fail,bytes,verify,envelopePurpose,signedHeaders,sha256,random,challenge,bodyJSON,safeToken,id,text,integer,json} from './protocol.mjs';
+ export const enabled=env=>env.ACADEMY_WEB_PLATFORM==='1';
+@@ -12,8 +13,20 @@ export async function enqueueAccount(db,accountId){
+    FROM website_platform_account_state a JOIN website_platform_streams v ON v.stream=? WHERE a.account_id=?`).bind(op,stream,Date.now(),stream,accountId)
+  ]);return op;
+ }
+-async function signedDelivery(env,row){const delivery={issuedAt:Date.now(),operationId:row.operation_id,stream:row.stream,version:row.version,event:JSON.parse(row.event_json)},signed=await signedHeaders(env.ACADEMY_TO_WEBSITE_SECRET,'/internal/academy/events',delivery);return {delivery,signature:signed.headers['X-Maktab-Signature']};}
+-async function pendingAccount(env,db,accountId){const rows=(await db.prepare('SELECT * FROM website_platform_outbox WHERE stream=? AND acknowledged=0 ORDER BY version LIMIT 41').bind('account:'+accountId).all()).results;return {deliveries:await Promise.all(rows.slice(0,40).map(row=>signedDelivery(env,row))),acknowledge:rows.slice(0,40).map(row=>row.operation_id),more:rows.length>40};}
++async function signedDelivery(env,row){
++ const event=JSON.parse(row.event_json);let superseded=false;
++ if(row.access_scope){const db=dbFor(env),dirty=await db.prepare('SELECT revision FROM website_platform_access_dirty WHERE activity_key=? AND account_id=?').bind(row.access_scope,row.access_account).first(),scope=await db.prepare('SELECT revision,enabled FROM website_platform_access_scopes WHERE activity_key=?').bind(row.access_scope).first();superseded=Boolean(!scope||dirty?.revision>row.access_revision||scope.revision!==event.generation||event.type==='access'&&!scope.enabled);if(event.type==='access'){const metadata=await db.prepare("SELECT revision,exported_revision FROM website_platform_access_dirty WHERE activity_key=? AND account_id=''").bind(row.access_scope).first();superseded=superseded||!metadata||metadata.revision!==metadata.exported_revision;const master=await db.prepare('SELECT * FROM website_platform_account_state WHERE account_id=?').bind(event.account.accountId).first();superseded=superseded||!master||!master.active||!master.admitted||master.epoch!==event.account.epoch||Boolean(master.global_admin)!==event.account.globalAdmin;}}
++ const delivery={issuedAt:Date.now(),operationId:row.operation_id,stream:row.stream,version:row.version,event,...(row.access_scope?{superseded}:{})},signed=await signedHeaders(env.ACADEMY_TO_WEBSITE_SECRET,'/internal/academy/events',delivery);return {delivery,signature:signed.headers['X-Maktab-Signature']};
++}
++async function pendingAccount(env,db,accountId){
++ const rows=(await db.prepare(`SELECT * FROM (
++ SELECT * FROM (SELECT * FROM website_platform_outbox INDEXED BY website_platform_account_pending WHERE stream=? AND acknowledged=0 ORDER BY version LIMIT 41)
++ UNION ALL SELECT * FROM (SELECT * FROM website_platform_outbox INDEXED BY website_platform_access_pending WHERE access_account=? AND acknowledged=0 ORDER BY stream,version LIMIT 41)
++ UNION ALL SELECT * FROM (SELECT q.* FROM website_platform_access_scopes s CROSS JOIN website_platform_outbox q INDEXED BY website_platform_scope_pending WHERE s.enabled=1 AND q.access_scope=s.activity_key AND q.access_account='' AND q.acknowledged=0 ORDER BY q.stream,q.version LIMIT 41)
++ ) ORDER BY CASE WHEN access_scope IS NULL THEN 0 WHEN access_account='' THEN 1 ELSE 2 END,stream,version LIMIT 41`).bind('account:'+accountId,accountId.toLowerCase()).all()).results,deliveries=[],acknowledge=[];let size=0;
++ for(const row of rows.slice(0,40)){const item=await signedDelivery(env,row),bytes=new TextEncoder().encode(JSON.stringify(item)).length;if(size+bytes>230_000)break;size+=bytes;deliveries.push(item);acknowledge.push(row.operation_id);}
++ return {deliveries,acknowledge,more:rows.length>deliveries.length};
++}
+ async function completeSignIn(env,db,session){
+  const result=await pendingAccount(env,db,session.account_id);if(result.more)return {...result,continuation:session.source_ref};
+  const code=random(),event={type:'handoff',sourceRef:session.source_ref,accountId:session.account_id,epoch:session.epoch,codeHash:await sha256(code),challenge:session.challenge,state:session.state,expiresAt:Date.now()+60_000};
+@@ -44,13 +57,13 @@ export async function bridge(request,env,{login,mint}){
+   const authority=await db.prepare('SELECT * FROM website_platform_account_state WHERE account_id=?').bind(accountId).first();if(!authority?.active||!authority.admitted)throw fail('Website admission is not currently available.',403);
+   const sourceRef=random(),expires=Date.now()+7*86400_000;
+   await db.prepare('INSERT INTO website_platform_sessions VALUES(?,?,?,?,?,?,?,?)').bind(sourceRef,accountId,captured.sid,state.account.credential_epoch,JSON.stringify(captured.context),expires,input.challenge,input.state).run();
+-  await enqueueAccount(db,accountId);return completeSignIn(env,db,await sourceSession(db,sourceRef));
++  await enqueueAccount(db,accountId);await prepareAccountAccess(db,accountId);return completeSignIn(env,db,await sourceSession(db,sourceRef));
+  }
+  if(path==='/internal/website/ack'){
+   if(!Array.isArray(input.operationIds)||input.operationIds.length>40)throw fail('Invalid acknowledgement.');for(const operationId of input.operationIds)id(operationId);await db.prepare('UPDATE website_platform_outbox SET acknowledged=1 WHERE operation_id IN(SELECT value FROM json_each(?))').bind(JSON.stringify(input.operationIds)).run();return {acknowledged:true};
+  }
+  if(path==='/internal/website/status'){
+-  const session=await sourceSession(db,input.sourceRef);if(!input.draining)await enqueueAccount(db,session.account_id);const result=await pendingAccount(env,db,session.account_id);return result.more?{...result,continuation:session.source_ref,statusOnly:true}:result;
++  const session=await sourceSession(db,input.sourceRef);if(!input.draining){await enqueueAccount(db,session.account_id);await prepareAccountAccess(db,session.account_id);}const result=await pendingAccount(env,db,session.account_id);return result.more?{...result,continuation:session.source_ref,statusOnly:true}:result;
+  }
+  if(path==='/internal/website/continue-sign-in'){const session=await sourceSession(db,input.sourceRef);if(input.statusOnly){const result=await pendingAccount(env,db,session.account_id);return result.more?{...result,continuation:session.source_ref,statusOnly:true}:result;}return completeSignIn(env,db,session);}
+  if(path==='/internal/website/open-academy'){
+@@ -87,8 +100,19 @@ async function identity(db,env,input){
+ export async function recoverWebsite(env,{fetcher=fetch,limit=20}={}){
+  if(!enabled(env))return;const db=dbFor(env),origin=new URL(env.WEBSITE_PLATFORM_ORIGIN);if(origin.protocol!=='https:'||origin.origin!==env.WEBSITE_PLATFORM_ORIGIN)throw fail('Invalid website receiver.',503);
+  if(await db.prepare('SELECT enabled FROM website_platform_control WHERE singleton=1').first('enabled')!==1)return;
++ await pumpAccess(db);
+  await queueTimetables(db,{limit:2});
+- const rows=(await db.prepare(`SELECT q.* FROM (SELECT * FROM website_platform_outbox WHERE acknowledged=0 AND next_attempt<=? ORDER BY next_attempt,stream,version LIMIT ?) q
+-  WHERE NOT EXISTS(SELECT 1 FROM website_platform_outbox older WHERE older.stream=q.stream AND older.acknowledged=0 AND older.version<q.version)`).bind(Date.now(),Math.min(40,limit)).all()).results;
++ const due=Date.now(),bound=Math.max(1,Math.min(40,limit));
++ // Reserve bounded candidates for prerequisites so blocked people cannot hide them.
++ const candidates=(await db.prepare(`SELECT q.* FROM (
++  SELECT * FROM (SELECT * FROM website_platform_outbox INDEXED BY website_platform_unscoped_due WHERE acknowledged=0 AND access_scope IS NULL AND next_attempt<=? ORDER BY next_attempt,stream,version LIMIT 4)
++  UNION ALL SELECT * FROM (SELECT * FROM website_platform_outbox INDEXED BY website_platform_access_pending WHERE access_account='' AND acknowledged=0 AND next_attempt<=? ORDER BY stream,version LIMIT 4)
++  UNION ALL SELECT * FROM (SELECT * FROM website_platform_outbox WHERE acknowledged=0 AND next_attempt<=? ORDER BY next_attempt,stream,version LIMIT ?)
++ ) q
++  WHERE NOT EXISTS(SELECT 1 FROM website_platform_outbox older WHERE older.stream=q.stream AND older.acknowledged=0 AND older.version<q.version)
++  AND (q.access_scope IS NULL OR q.access_account='' OR (
++   NOT EXISTS(SELECT 1 FROM website_platform_outbox metadata INDEXED BY website_platform_scope_pending WHERE metadata.access_scope=q.access_scope AND metadata.access_account='' AND metadata.acknowledged=0)
++   AND NOT EXISTS(SELECT 1 FROM website_platform_outbox master INDEXED BY website_platform_account_pending WHERE master.stream='account:'||json_extract(q.event_json,'$.account.accountId') AND master.acknowledged=0))) ORDER BY CASE WHEN q.access_scope IS NULL THEN 0 WHEN q.access_account='' THEN 1 ELSE 2 END,q.stream,q.version`).bind(due,due,due,bound).all()).results;
++ const rows=[...new Map(candidates.map(row=>[row.operation_id,row])).values()].slice(0,bound);
+  for(const row of rows){try{const item=await signedDelivery(env,row),reply=await fetcher(origin.origin+'/internal/academy/events',{method:'POST',headers:{'Content-Type':'application/json','X-Maktab-Signature':item.signature},body:JSON.stringify(item.delivery),redirect:'manual',signal:AbortSignal.timeout(5000)});const body=await bodyJSON(reply.body,4096);if(!reply.ok||body.version!==row.version)throw Error();await db.prepare('UPDATE website_platform_outbox SET acknowledged=1 WHERE operation_id=?').bind(row.operation_id).run();}catch{await db.prepare('UPDATE website_platform_outbox SET attempts=attempts+1,next_attempt=? WHERE operation_id=?').bind(Date.now()+Math.min(3600_000,5000*2**Math.min(row.attempts,9)),row.operation_id).run();}}
+ }
+diff --git a/backend/src/academy/d1/web-platform/timetable.mjs b/backend/src/academy/d1/web-platform/timetable.mjs
+index 19aaf7ff..bd2455c2 100644
+--- a/backend/src/academy/d1/web-platform/timetable.mjs
++++ b/backend/src/academy/d1/web-platform/timetable.mjs
+@@ -22,9 +22,9 @@ export async function projectTimetable(db,scope,{now=Date.now()}={}){
+  const settings=await all(db,'SELECT * FROM academy_settings WHERE setting_key IN(SELECT value FROM json_each(?))',JSON.stringify([...new Set(calendar.map(annualKey))]));
+  const suppressions=await all(db,'SELECT * FROM academy_calendar_suppressions WHERE calendar_date>=? AND calendar_date<=?',start,end);
+  const holidays=noTeachingCalendarEvents({calendar,suppressions,settings},start,end,activity.activity_key);
+- const append=async(key,title,date,startTime,endTime,timezone,meeting,cancelled=false)=>{
++ const append=async(key,title,date,startTime,endTime,timezone,meeting,cancelled=false,classIds=[],teacherIds=[])=>{
+   const times=lessonTimes({date,startTime,endTime,timezone});if(!Number.isSafeInteger(times.startsAt)||!Number.isSafeInteger(times.endsAt)||times.endsAt<=times.startsAt)throw Error('INVALID_PUBLISHED_CLOCK');
+-  const off=Boolean(cancelled||holidayOnDate(holidays,date));sessions.push({id:'ws-'+await sha256(JSON.stringify(key)),title,startsAt:times.startsAt,endsAt:times.endsAt,zoomUrl:off?'':zoom(meeting),cancelled:off});
++  const off=Boolean(cancelled||holidayOnDate(holidays,date));sessions.push({id:'ws-'+await sha256(JSON.stringify(key)),title,startsAt:times.startsAt,endsAt:times.endsAt,zoomUrl:off?'':zoom(meeting),cancelled:off,classIds,teacherIds});
+   bounded(sessions,200,'TIMETABLE_WINDOW_TOO_LARGE');
+  };
+  if(activity.kind==='PROGRAM'){
+@@ -38,7 +38,7 @@ export async function projectTimetable(db,scope,{now=Date.now()}={}){
+   for(let date=start;date<=end;date=addDays(date,1)){
+    const chosen=publicationSchedule(history,date),pub=history.find(p=>p.id===chosen.currentPublicationId);if(!pub)continue;
+    for(const row of pub.occurrences){if(row.kind==='BREAK'||!(pub.pattern==='WEEKLY'?row.weekday===new Date(date+'T12:00:00Z').getUTCDay():row.date===date))continue;
+-    await append(['PROGRAM',activity.activity_key,date,row.anchor],row.moduleName||row.subjectName||activity.name,date,row.startTime,row.endTime,pub.snapshot.timezone||pub.sourceTimezone,currentProgramZoom(override??undefined,row,pub,classes),row.status==='CANCELLED');
++    await append(['PROGRAM',activity.activity_key,date,row.anchor],row.moduleName||row.subjectName||activity.name,date,row.startTime,row.endTime,pub.snapshot.timezone||pub.sourceTimezone,currentProgramZoom(override??undefined,row,pub,classes),row.status==='CANCELLED',row.classIds||[],row.teacherIds||[row.teacherId].filter(Boolean));
+    }
+   }
+  }else if(activity.kind==='COURSE'){
+@@ -47,7 +47,7 @@ export async function projectTimetable(db,scope,{now=Date.now()}={}){
+   for(const run of runs){const snapshot=JSON.parse(run.snapshot_json),resolved=resolveCurrentPublishedGlobalTimetable({GlobalTimetableRunState:[{RunID:run.run_id,Stage:run.stage,CurrentPublicationID:run.current_publication_id}],GlobalTimetablePublications:[snapshot.publication],PublishedGlobalTimetableSessions:snapshot.sessions,GlobalTimetableSessionLifecycle:lifecycles.map(l=>({SessionLifecycleID:l.lifecycle_id,SessionID:l.source_session_id,PublicationID:l.publication_id,Status:l.status,RescheduledFromSessionID:l.previous_source_session_id||'',RescheduledToSessionID:l.replacement_source_session_id||''}))},run.run_id,{startDate:start,endDate:end});
+    if(!resolved.ok)throw Error('INVALID_CURRENT_COURSE_PUBLICATION');
+    const states=new Map(resolved.lifecycles.map(l=>[l.sessionid.toUpperCase(),l.status]));
+-   for(const s of resolved.sessions)await append(['COURSE',activity.activity_key,run.run_id,s.sourcesessionid],s.sessiondescription||s.modulename||s.runname,s.sessiondate,s.starttime,s.endtime,s.timezone,s.zoomlink,states.get(s.sourcesessionid.toUpperCase())!=='SCHEDULED');
++   for(const s of resolved.sessions)await append(['COURSE',activity.activity_key,run.run_id,s.sourcesessionid],s.sessiondescription||s.modulename||s.runname,s.sessiondate,s.starttime,s.endtime,s.timezone,s.zoomlink,states.get(s.sourcesessionid.toUpperCase())!=='SCHEDULED',[],[s.teacheraccountid].filter(Boolean));
+   }
+  }else throw Error('UNSUPPORTED_SOURCE_KIND');
+  if(new Set(sessions.map(s=>s.id)).size!==sessions.length)throw Error('DUPLICATE_SOURCE_SESSION');
+diff --git a/backend/src/academy/d1/worker.js b/backend/src/academy/d1/worker.js
+index 26f25a0c..669de130 100644
+--- a/backend/src/academy/d1/worker.js
++++ b/backend/src/academy/d1/worker.js
+@@ -402,7 +402,7 @@ return {
+       const result=await (path==='/api/academy/header-date'?(request.method==='GET'?headerDate(request):Response.json({success:false,error:'Use GET.'},{status:405})):path==='/api/academy/entrance/public-snapshot'?publicTimetable(request,env):path==='/api/academy/profile-labels-version'?profileLabelsVersion(request,env):dispatch(request,env));
+       if(request.method==='POST'&&hifzSyncChangePath(path)&&hifzSyncEnabled(env)&&ctx?.waitUntil&&!(result instanceof Response)&&result.success)
+         ctx.waitUntil(recoverHifzProfiles(env));
+-      if(request.method==='POST'&&websitePlatformEnabled(env)&&ctx?.waitUntil&&!(result instanceof Response)&&result.success&&(/\/user-profiles\/(save|link|recover)$/.test(path)||['/api/account/logout','/api/account/setup-pin'].includes(path)||/^\/api\/admin\/platform\/(?:program-timetable\/(?:publish|status|manage-save|manage-remove|recover)|programs\/save|courses\/(?:publish|status)|calendar\/(?:save|batch-save)|global\/(?:timetable|run)\/)/.test(path)||path==='/api/academy/calendar/save'))ctx.waitUntil(recoverWebsite(env));
++      if(request.method==='POST'&&websitePlatformEnabled(env)&&ctx?.waitUntil&&!(result instanceof Response)&&result.success&&(/\/user-profiles\/(save|link|recover)$/.test(path)||['/api/account/logout','/api/account/setup-pin'].includes(path)||/^\/api\/admin\/platform\/(?:program-timetable\/(?:publish|status|manage-save|manage-remove|recover)|programs\/save|courses\/(?:publish|status)|calendar\/(?:save|batch-save)|global\/(?:timetable|run)\/)/.test(path)||/program-monthly-subscriptions\/(?:configure|save|grid-save|surah-save|surah-grants-save)$|global\/access\/save$/.test(path)||path==='/api/academy/calendar/save'))ctx.waitUntil(recoverWebsite(env));
+       if(result instanceof Response){const mediaHeaders=new Headers(result.headers);for(const name of ['Vary','Access-Control-Allow-Methods','Access-Control-Allow-Headers'])mediaHeaders.set(name,headers[name]);
+         mediaHeaders.set('X-Content-Type-Options','nosniff');
+         mediaHeaders.delete('Access-Control-Allow-Origin');if(headers['Access-Control-Allow-Origin'])mediaHeaders.set('Access-Control-Allow-Origin',headers['Access-Control-Allow-Origin']);
+diff --git a/backend/tools/website-media-inventory-local.mjs b/backend/tools/website-media-inventory-local.mjs
+new file mode 100644
+index 00000000..49d4c720
+--- /dev/null
++++ b/backend/tools/website-media-inventory-local.mjs
+@@ -0,0 +1,19 @@
++// Accepts an already available private local SQLite snapshot; never contacts D1.
++import {DatabaseSync} from 'node:sqlite';
++import {mkdir,writeFile} from 'node:fs/promises';
++import {resolve} from 'node:path';
++import {sqliteD1} from './academy-split/sqlite-d1.mjs';
++import {openMediaInventory} from './website-media-inventory.mjs';
++
++const [snapshot,activityKey,destination,...extra]=process.argv.slice(2);
++if(!snapshot||!activityKey||!destination||extra.length)throw Error('Usage: node tools/website-media-inventory-local.mjs PRIVATE_SQLITE ACTIVITY_KEY NEW_PRIVATE_OUTPUT_DIRECTORY');
++const directory=resolve(destination),db=new DatabaseSync(resolve(snapshot),{readOnly:true});
++try{
++ if(!directory.startsWith('/private/tmp/academy-media-'))throw Error('Use a new private /private/tmp/academy-media-… directory.');
++ await mkdir(directory,{mode:0o700});
++ const inventory=await openMediaInventory(sqliteD1(db),{activityKey,objectNamespace:process.env.ACADEMY_OBJECT_NAMESPACE||''});
++ let after='',pageNo=0;
++ do{const page=await inventory.page({after});await writeFile(resolve(directory,'page-'+String(++pageNo).padStart(4,'0')+'.json'),JSON.stringify(page,null,2),{mode:0o600,flag:'wx'});after=page.checkpoint.afterLessonId;if(!page.more)break;}while(true);
++ await writeFile(resolve(directory,'summary.json'),JSON.stringify({inventoryId:inventory.inventoryId,lessons:inventory.totalLessons,pages:pageNo,bytesCopied:false,published:false},null,2),{mode:0o600,flag:'wx'});
++ console.log(JSON.stringify({lessons:inventory.totalLessons,pages:pageNo,bytesCopied:false,published:false}));
++}finally{db.close();}
+diff --git a/backend/tools/website-media-inventory.mjs b/backend/tools/website-media-inventory.mjs
+new file mode 100644
+index 00000000..90d5a726
+--- /dev/null
++++ b/backend/tools/website-media-inventory.mjs
+@@ -0,0 +1,71 @@
++// Operator-only, read-only inventory. No route or scheduled job imports this file.
++import {lessonPdfObjectKey} from '../src/academy/d1/lesson-pdf-storage.js';
++import {sha256} from '../src/academy/d1/web-platform/protocol.mjs';
++
++const tables=['lesson_media_lessons','lesson_media_links','lesson_media_assets'];
++const bounded=(rows,max,label)=>{if(!Array.isArray(rows)||rows.length>max)throw Error('MEDIA_INVENTORY_LIMIT:'+label);return rows;};
++const identifier=value=>{if(typeof value!=='string'||!/^[-A-Za-z0-9_:]{1,180}$/.test(value))throw Error('MEDIA_INVENTORY_ID');return value;};
++const all=async(db,sql,...v)=>(await db.prepare(sql).bind(...v).all()).results;
++const query=`SELECT h.head_id,w.version write_version,s.activity_key,s.revision generation,s.enabled,m.offering_id,m.kind,
++ s.purchase_model,c.legacy_access_model,c.policy_review_state,p.enabled monthly_enabled,a.active,a.lifecycle
++ FROM setup_head_state h CROSS JOIN academy_write_state w
++ JOIN website_platform_access_scopes s ON s.activity_key=?
++ JOIN website_platform_timetable_scopes m USING(activity_key) JOIN activities a USING(activity_key)
++ LEFT JOIN course_settings c USING(activity_key) LEFT JOIN program_monthly_media_policies p USING(activity_key)
++ WHERE h.singleton=1 AND w.singleton=1`;
++const stamp=row=>JSON.stringify(row);
++
++export async function openMediaInventory(db,{activityKey,checkpoint=null,now=Date.now(),objectNamespace=''}={}){
++ identifier(activityKey);
++ if(!Number.isSafeInteger(now)||now<0||typeof objectNamespace!=='string')throw Error('MEDIA_INVENTORY_OPTIONS');
++ const source=await db.prepare(query).bind(activityKey).first();
++ if(!source||!source.enabled||!source.active||source.lifecycle!=='ACTIVE'||
++   !(source.kind==='TAFSEER'&&source.monthly_enabled===1||source.kind==='COURSE'&&source.purchase_model==='CONFIRMED_SUBSCRIPTION'&&source.legacy_access_model==='PAID'&&source.policy_review_state==='CONFIRMED'))throw Error('MEDIA_SCOPE_NOT_REVIEWED');
++ const components=await all(db,`SELECT v.table_name,c.component_id,c.digest,c.row_count,c.rows_json
++  FROM setup_head_components v JOIN setup_components c USING(component_id)
++  WHERE v.head_id=? AND v.table_name IN (?,?,?) AND v.scope_key=? ORDER BY v.table_name`,source.head_id,...tables,source.activity_key);
++ const records=Object.fromEntries(tables.map(t=>[t,[]]));
++ for(const c of components){
++  if(new TextEncoder().encode(c.rows_json).length>1_500_000)throw Error('MEDIA_COMPONENT_TOO_LARGE');
++  const rows=JSON.parse(c.rows_json);bounded(rows,4000,c.table_name);if(rows.length!==c.row_count)throw Error('MEDIA_COMPONENT_COUNT');records[c.table_name]=rows;
++ }
++ const lessons=bounded(records.lesson_media_lessons,1000,'lessons').sort((a,b)=>a.lesson_id<b.lesson_id?-1:a.lesson_id>b.lesson_id?1:0),assets=new Map(),links=new Map(),seen=new Set();
++ for(const row of records.lesson_media_assets){identifier(row.asset_id);if(assets.has(row.asset_id)||row.activity_key?.toLowerCase()!==source.activity_key.toLowerCase())throw Error('MEDIA_COMPONENT_SCOPE');assets.set(row.asset_id,row);}
++ for(const row of lessons){identifier(row.lesson_id);if(seen.has(row.lesson_id)||row.activity_key?.toLowerCase()!==source.activity_key.toLowerCase())throw Error('MEDIA_COMPONENT_SCOPE');seen.add(row.lesson_id);}
++ for(const row of records.lesson_media_links){identifier(row.asset_id);identifier(row.lesson_id);if(!seen.has(row.lesson_id)||!assets.has(row.asset_id))throw Error('MEDIA_COMPONENT_REFERENCE');const list=links.get(row.lesson_id)||[];if(list.includes(row.asset_id))throw Error('MEDIA_COMPONENT_DUPLICATE');list.push(row.asset_id);links.set(row.lesson_id,bounded(list,20,'lesson assets'));}
++ const componentRefs=components.map(({table_name,component_id,digest})=>({table:table_name,id:component_id,digest}));
++ const origin={activityKey:source.activity_key,offeringId:source.offering_id,kind:source.kind,headId:source.head_id,generation:source.generation,writeVersion:source.write_version,components:componentRefs};
++ const inventoryId=await sha256(JSON.stringify(origin));
++ if(checkpoint&&(checkpoint.inventoryId!==inventoryId||typeof checkpoint.afterLessonId!=='string'||checkpoint.afterLessonId&&!seen.has(checkpoint.afterLessonId)))throw Error('MEDIA_CHECKPOINT_CHANGED');
++ const assertCurrent=async()=>{if(stamp(await db.prepare(query).bind(activityKey).first())!==stamp(source))throw Error('MEDIA_SOURCE_CHANGED');};
++ await assertCurrent();
++ return {inventoryId,source:origin,totalLessons:lessons.length,async page({after=checkpoint?.afterLessonId||'',limit=25}={}){
++  if(!Number.isInteger(limit)||limit<1||limit>25||after&&!seen.has(after))throw Error('MEDIA_PAGE_INVALID');
++  await assertCurrent();const selected=lessons.filter(l=>l.lesson_id>after).slice(0,limit),ids=JSON.stringify(selected.map(l=>l.lesson_id));
++  const live=await all(db,'SELECT lesson_id,state FROM lesson_media_lessons WHERE lesson_id IN(SELECT value FROM json_each(?))',ids),states=new Map(live.map(r=>[r.lesson_id,r.state]));
++  const visible=await all(db,'SELECT lesson_id,visible FROM lesson_media_visibility WHERE lesson_id IN(SELECT value FROM json_each(?))',ids),hidden=new Set(visible.filter(r=>!r.visible).map(r=>r.lesson_id));
++  const currentLinks=bounded(await all(db,'SELECT lesson_id,asset_id FROM lesson_media_links WHERE lesson_id IN(SELECT value FROM json_each(?)) LIMIT 501',ids),500,'live links'),linked=new Set(currentLinks.map(r=>JSON.stringify([r.lesson_id,r.asset_id])));
++  const result=selected.map(l=>{
++   // Match Academy monthlyAudienceSQL exactly: saved class plus the first
++   // original session's classIds. Never substitute today's class allocation.
++   const original=JSON.parse(l.source_lessons_json||'[]');if(!Array.isArray(original)||original[0]?.classIds!==undefined&&!Array.isArray(original[0].classIds))throw Error('MEDIA_SESSION_SOURCE_INVALID');
++   const cohorts=[...new Set([l.class_id,...(original[0]?.classIds||[])].filter(Boolean))];bounded(cohorts,100,'cohorts');cohorts.forEach(identifier);
++   const state=!states.has(l.lesson_id)?'MISSING':states.get(l.lesson_id)==='HIDDEN'||hidden.has(l.lesson_id)?'HIDDEN':l.state;
++   return {sourceLessonId:l.lesson_id,sessionKey:l.session_key||null,runId:l.run_id||'',publicationId:l.source_publication_id||null,
++    scope:l.media_scope||'SESSION',date:l.lesson_date,title:l.title,revision:l.revision,state,cohorts,
++    assets:(links.get(l.lesson_id)||[]).sort().map(id=>{
++     const a=assets.get(id),resolved=a.kind==='PDF'?lessonPdfObjectKey(a.object_key):a.object_key;
++     const shared=a.kind==='PDF'?resolved?.match(/\/sha256\/([a-f0-9]{64})\.pdf$/)?.[1]:null;
++     const retained=a.kind==='MP4'&&Boolean(a.object_key?.startsWith(objectNamespace+'retained-program-recordings/'+encodeURIComponent(source.activity_key)+'/'));
++     const expiry=a.kind==='MP4'&&!retained?Date.parse(a.created_at)+14*86400_000:null;
++     return {sourceAssetId:id,kind:a.kind,name:a.display_name||a.filename||'Recording',filename:a.filename||'',byteSize:a.byte_size??null,
++      youtubeId:a.youtube_id||null,sourceObjectKey:a.object_key||null,resolvedObjectKey:resolved||null,expectedSha256:shared||null,
++      linked:linked.has(JSON.stringify([l.lesson_id,id])),createdAt:a.created_at,
++      sourceExpiresAt:expiry===null?null:Number.isFinite(expiry)?new Date(expiry).toISOString():'INVALID',sourceExpired:expiry!==null&&(!Number.isFinite(expiry)||expiry<=now)};
++    })};
++  });
++  await assertCurrent();const last=selected.at(-1)?.lesson_id||after,more=lessons.some(l=>l.lesson_id>last);
++  const page={format:'ACADEMY_MEDIA_INVENTORY_V1',inventoryId,source:origin,lessons:result,more,checkpoint:{inventoryId,afterLessonId:last}};
++  if(new TextEncoder().encode(JSON.stringify(page)).length>240_000)throw Error('MEDIA_PAGE_TOO_LARGE');return page;
++ }};
++}

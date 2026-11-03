@@ -1,0 +1,185 @@
+diff --git a/academy/admin/index.html b/academy/admin/index.html
+index b0272b93..348d362e 100644
+--- a/academy/admin/index.html
++++ b/academy/admin/index.html
+@@ -408,7 +408,7 @@
+ <section id="activity" class="view" aria-labelledby="activity-title">
+   <a href="#overview" id="activity-back-link" class="academy-home-icon" aria-label="Academy home" title="Academy home"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h5v-7h4v7h5V9"/></svg></a>
+   <div class="page-heading activity-heading workspace-banner"><div class="activity-identity"><span class="eyebrow" id="activity-kind"></span><div class="academy-title-row"><h1 id="activity-title"></h1></div><p id="activity-role"></p></div><nav id="activity-areas" class="workspace-areas" aria-label="Your Programs and Courses"></nav></div>
+-  <label id="activity-student-class-wrap" hidden>View as student · Class <select id="activity-student-class" aria-label="Student class view"></select></label>
++  <label id="activity-student-class-wrap" class="academy-class-picker" hidden><span class="academy-class-picker-label">Class</span><span class="academy-class-picker-control"><select id="activity-student-class" aria-label="Choose class"></select><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span></label>
+   <p id="activity-status" role="status"></p><div class="learning-workspace"><div class="academy-role-tools" id="activity-menu"></div><div class="learning-reading">
+   <section id="pa-main" role="region" class="card card-pad academy-attendance" data-embedded="true" hidden aria-labelledby="pa-title">
+     <div class="section-title"><h2 id="pa-title">Attendance</h2><a id="pa-close" class="text-link academy-close" href="#overview" title="Close">Close</a></div>
+diff --git a/academy/index.html b/academy/index.html
+index aa95499a..076d10cb 100644
+--- a/academy/index.html
++++ b/academy/index.html
+@@ -408,7 +408,7 @@
+ <section id="activity" class="view" aria-labelledby="activity-title">
+   <a href="#overview" id="activity-back-link" class="academy-home-icon" aria-label="Academy home" title="Academy home"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h5v-7h4v7h5V9"/></svg></a>
+   <div class="page-heading activity-heading workspace-banner"><div class="activity-identity"><span class="eyebrow" id="activity-kind"></span><div class="academy-title-row"><h1 id="activity-title"></h1></div><p id="activity-role"></p></div><nav id="activity-areas" class="workspace-areas" aria-label="Your Programs and Courses"></nav></div>
+-  <label id="activity-student-class-wrap" hidden>View as student · Class <select id="activity-student-class" aria-label="Student class view"></select></label>
++  <label id="activity-student-class-wrap" class="academy-class-picker" hidden><span class="academy-class-picker-label">Class</span><span class="academy-class-picker-control"><select id="activity-student-class" aria-label="Choose class"></select><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span></label>
+   <p id="activity-status" role="status"></p><div class="learning-workspace"><div class="academy-role-tools" id="activity-menu"></div><div class="learning-reading">
+   <section id="pa-main" role="region" class="card card-pad academy-attendance" data-embedded="true" hidden aria-labelledby="pa-title">
+     <div class="section-title"><h2 id="pa-title">Attendance</h2><a id="pa-close" class="text-link academy-close" href="#overview" title="Close">Close</a></div>
+diff --git a/backend/tools/academy-learning-mobile-first-acceptance.mjs b/backend/tools/academy-learning-mobile-first-acceptance.mjs
+index 57b6622c..ef9fc2a9 100644
+--- a/backend/tools/academy-learning-mobile-first-acceptance.mjs
++++ b/backend/tools/academy-learning-mobile-first-acceptance.mjs
+@@ -65,18 +65,19 @@ if(process.argv.includes('--serve')){
+  const todayRail=async(id,empty=false)=>{
+   const rail=page.locator('#'+id),prefix=id==='activity-sessions'?'activity':'schedule';
+   const current=await rail.locator('.is-today').getAttribute('data-date');assert(current);
+-  for(const width of [320,390,768,1440]){
++  for(const width of [320,390,768,1024,1120,1440,2154]){
+    await page.setViewportSize({width,height:950});await fit('Timetable day cards fit '+width);
+    await page.waitForFunction(id=>{const rail=document.getElementById(id),day=rail.querySelector('.is-today'),r=rail.getBoundingClientRect(),d=day.getBoundingClientRect();return d.left>=r.left-1&&d.right<=r.right+1;},id);
+-   const visible=await rail.evaluate(el=>{const r=el.getBoundingClientRect();return [...el.querySelectorAll('.upcoming-day')].filter(n=>{const d=n.getBoundingClientRect();return d.left>=r.left-1&&d.right<=r.right+1;}).length;});assert(visible>=2,'At least two days fit, including today');if(id==='academy-sessions')assert.equal(visible,2,'My Timetable shows exactly two days');
+-   if(empty){assert.equal(await rail.locator('.is-today .timetable-empty').innerText(),'No lessons today');assert.equal(await rail.locator('.timetable-empty').count(),7);assert(await rail.locator('.timetable-empty').first().evaluate(el=>el.getBoundingClientRect().height>=100));}
++   const visible=await rail.evaluate(el=>{const r=el.getBoundingClientRect();return [...el.querySelectorAll('.upcoming-day')].filter(n=>{const d=n.getBoundingClientRect();return d.left>=r.left-1&&d.right<=r.right+1;}).length;});assert(visible>=2,'At least two days fit, including today');if(id==='academy-sessions'){assert.equal(visible,width>=1024?7:2,'Dashboard My Timetable shows seven desktop days and two phone days');if(width>=1024)assert(await rail.evaluate(el=>el.scrollWidth<=el.clientWidth+1),'The whole desktop week fits without horizontal scrolling');}
++   if(id==='academy-sessions'&&[390,1440].includes(width)){const realm=await page.evaluate(()=>M4L_ACADEMY_WORKSPACE.current());await page.locator('#academy-schedule').screenshot({path:path.join(out,'dashboard-timetable-'+realm+'-'+width+'.png')});}
++   if(empty){assert.equal(await rail.locator('.is-today .timetable-empty>span').first().innerText(),'No lessons today');assert.equal(await rail.locator('.timetable-empty>strong').allTextContents().then(rows=>rows.every(text=>text==='Alhamdulillah')),true);assert.equal(await rail.locator('.timetable-empty>span:last-child').allTextContents().then(rows=>rows.every(text=>text==='May Allah fill your day with barakah.')),true);assert.equal(await rail.locator('.timetable-empty').count(),7);assert(await rail.locator('.timetable-empty').first().evaluate(el=>el.getBoundingClientRect().height>=100));}
+   }
+   await page.setViewportSize({width:390,height:844});await page.waitForFunction(id=>{const rail=document.getElementById(id),day=rail.querySelector('.is-today'),r=rail.getBoundingClientRect(),d=day.getBoundingClientRect();return d.left>=r.left-1&&d.right<=r.right+1;},id);await rail.hover();await page.mouse.wheel(-3000,0);await page.waitForFunction(id=>document.getElementById(id).scrollLeft<2,id);
+   await page.locator('#'+prefix+'-today').click();await page.waitForFunction(id=>document.getElementById(id).scrollLeft>2,id);
+   const start=await rail.locator('.upcoming-day').first().getAttribute('data-date');
+   await page.locator('#'+prefix+'-next').click();await page.waitForFunction(({id,start})=>document.getElementById(id).querySelector('.upcoming-day')?.dataset.date!==start,{id,start});assert.equal(await rail.locator('.is-today').count(),0);
+   await page.locator('#'+prefix+'-today').click();await rail.locator('.is-today').waitFor();assert.equal(await rail.locator('.is-today').getAttribute('data-date'),current);
+-  await screenshot(empty?'empty-days-phone.png':'today-timetable-phone.png');checks.push(empty?'Empty days retain swipeable No lessons cards and Today recovery':'Timetable opens on today with two visible phone days; Today recovers from swiping or weekly arrows');
++  await screenshot(empty?'empty-days-phone.png':'today-timetable-phone.png');checks.push(empty?'Empty days retain blessing cards, two visible phone days and Today recovery':'Timetable opens on today with two phone days and seven dashboard desktop days; Today recovers from swiping or weekly arrows');
+  };
+  const closeControl=async selector=>{
+   const box=await page.locator(selector).evaluate(el=>{const r=el.getBoundingClientRect(),p=el.parentElement.getBoundingClientRect();return {width:r.width,height:r.height,right:r.right,top:r.top,parentRight:p.right,parentTop:p.top,icon:getComputedStyle(el,'::before').maskImage,font:parseFloat(getComputedStyle(el).fontSize)};});
+@@ -121,7 +122,7 @@ if(process.argv.includes('--serve')){
+     const days=await page.locator('#'+id+' .upcoming-day').evaluateAll(days=>days.map(day=>({date:day.dataset.date,titles:[...day.querySelectorAll('.timetable-pill-details .preview-name')].map(n=>n.textContent)})));
+     for(const day of days){const areas=new Map(rows.filter(r=>r.date===day.date).map(r=>[r.kind+':'+r.activityId,r.activityName]));assert.deepEqual([...day.titles].sort(),[...areas.values()].sort(),workspace+' has one card per authorised Program/Course per day');}
+    };
+-   await page.goto(origin+'/academy/admin/#timetable/'+mode);await ready();await page.locator('#academy-sessions .timetable-pill-details').first().waitFor();await check('academy-sessions',data.personalTimetable);
++   await page.goto(origin+'/academy/admin/#timetable/'+mode);await ready();await page.locator('#academy-sessions .timetable-pill-details').first().waitFor();await check('academy-sessions',data.personalTimetable);await todayRail('academy-sessions');
+    await page.goto(origin+'/academy/admin/#activity/PROGRAM/'+f.scopes.programA.slice(8)+'/'+mode+'/timetable');await ready();await page.locator('#activity-sessions .timetable-pill-details').first().waitFor();
+    const rows=data.personalTimetable.filter(r=>r.kind+':'+r.activityId===f.scopes.programA);await check('activity-sessions',rows);
+    const today=page.locator('#activity-sessions .is-today'),lessons=rows.filter(r=>r.date===f.today);assert(lessons.length>1);
+@@ -135,6 +136,24 @@ if(process.argv.includes('--serve')){
+   }
+   await page.setViewportSize({width:390,height:844});await page.goto(origin+'/academy/admin/#timetable/learn');await ready();await page.locator('#ad-title').waitFor();
+  };
++ const classPicker=async()=>{
++  await page.goto(origin+'/academy/admin/#activity/PROGRAM/'+f.scopes.programA.slice(8)+'/learn/timetable');await ready();
++  const picker=page.locator('#activity-student-class'),wrap=page.locator('#activity-student-class-wrap');await picker.waitFor();await page.waitForFunction(()=>document.getElementById('activity-student-class').options.length>=2);
++  const first=await picker.inputValue(),choices=await picker.locator('option').evaluateAll(nodes=>nodes.map(n=>({id:n.value,name:n.textContent})));
++  assert.equal(await wrap.locator('.academy-class-picker-label').innerText(),'Class');assert.doesNotMatch(await wrap.innerText(),/View as student/);assert.equal(await picker.getAttribute('aria-label'),'Choose class');
++  for(const width of [320,390,768,1440]){
++   await page.setViewportSize({width,height:950});await fit('Class selector fits '+width);
++   const layout=await wrap.evaluate(el=>{const r=el.getBoundingClientRect(),parent=el.parentElement.getBoundingClientRect(),select=el.querySelector('select').getBoundingClientRect();return {width:r.width,parentWidth:parent.width,left:r.left,right:r.right,selectLeft:select.left,selectRight:select.right,selectHeight:select.height};});
++   assert(layout.selectHeight>=44&&layout.selectLeft>=layout.left&&layout.selectRight<=layout.right,'Class control stays inside its row with a 44px touch target');if(width<768)assert(layout.width>=layout.parentWidth-1,'Phone class selector spans the reading width');else assert(layout.width<=449,'Desktop class selector stays compact');
++   if([390,1440].includes(width))await wrap.screenshot({path:path.join(out,'class-selector-'+width+'.png')});
++  }
++  const alternate=choices.find(c=>c.id!==first),changed=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/academy/entrance'&&decodeURIComponent(r.request().headers()['x-academy-class']||'').includes(alternate.id));
++  await picker.selectOption(alternate.id);await changed;await page.waitForFunction(id=>M4L_ACADEMY_WORKSPACE.classView()?.classId===id&&document.getElementById('activity-student-class').value===id,alternate.id);assert.equal(await picker.locator('option:checked').innerText(),alternate.name);
++  await picker.selectOption(first);await page.waitForFunction(id=>M4L_ACADEMY_WORKSPACE.classView()?.classId===id&&document.getElementById('activity-student-class').value===id,first);
++  await page.setViewportSize({width:320,height:950});await page.evaluate(()=>document.documentElement.style.fontSize='200%');await fit('Class selector fits enlarged text');await page.evaluate(()=>document.documentElement.style.fontSize='');
++  checks.push('Class selector uses permitted native options, fits the phone/desktop row and carries the chosen class into fresh reader requests');
++  await page.setViewportSize({width:390,height:844});await page.goto(origin+'/academy/admin/#timetable/learn');await ready();await page.locator('#ad-title').waitFor();
++ };
+  const plannerControls=async()=>{
+   const controls=await page.locator('.lp-primary-actions button').evaluateAll(nodes=>nodes.filter(el=>el.getClientRects().length).map(el=>{const r=el.getBoundingClientRect();return {label:el.getAttribute('aria-label')||el.textContent,top:r.top,left:r.left,right:r.right,width:r.width,height:r.height,icon:!!el.querySelector('svg')?.getClientRects().length};}));
+   assert.equal(controls.length,4);assert.equal(new Set(controls.map(c=>Math.round(c.top))).size,1,'Planner actions must share one row: '+JSON.stringify(controls));
+@@ -179,7 +198,7 @@ if(process.argv.includes('--serve')){
+  };
+  const screenshot=async name=>{await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:path.join(out,name),fullPage:false});};
+  try{
+-  await identity('studentA');await page.locator('#ad-title').waitFor();await ready();assert(await page.locator('[data-app-back]').isDisabled());assert(await page.locator('[data-app-forward]').isDisabled());await imtehaanGrid();
++  await identity('studentA');await page.locator('#ad-title').waitFor();await ready();assert(await page.locator('[data-app-back]').isDisabled());assert(await page.locator('[data-app-forward]').isDisabled());await imtehaanGrid();await todayRail('academy-sessions');
+   for(const width of [320,390,768,1024,1440]){
+    await page.setViewportSize({width,height:950});await fit('Learn dashboard fits '+width);await headerControls('Learn '+width);await navigationControls();
+    const layout=await page.locator('.ad-layout').evaluate(el=>getComputedStyle(el).display);
+@@ -244,21 +263,23 @@ if(process.argv.includes('--serve')){
+   await identity('global');await page.locator('#ad-title').waitFor();assert.equal(await page.evaluate(()=>document.body.classList.contains('academy-learning-layout')),false);assert.equal(await page.locator('#ad-title').innerText(),'Dashboard');await page.locator('.academy-admin-identity').waitFor();await navigationControls();await adminHeader('Admin');
+   assert.equal(await page.locator('#ad-description').count(),0);assert.equal(await page.locator('#ad-primary-actions button').count(),0);assert.equal(await page.locator('.ad-sidebar').isVisible(),false);assert.equal(await menuButton().innerText(),'Menu');
+   const adminDestinations=await page.locator('#ad-navigation>a').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('href')));
+-  for(const width of [320,390,768,1440]){
+-   await page.setViewportSize({width,height:950});await fit('Admin dashboard menu and three-card rows fit '+width);
++  for(const width of [320,390,768,1024,1120,1440,2154]){
++   await page.setViewportSize({width,height:950});await fit('Admin dashboard menu and management-card rows fit '+width);
+    const heading=await page.locator('.ad-welcome').evaluate(el=>{const title=el.querySelector('h1').getBoundingClientRect(),menu=el.querySelector('button').getBoundingClientRect();return {left:title.left,right:title.right,top:title.top,menuLeft:menu.left,menuTop:menu.top};});assert(heading.right<=heading.menuLeft,'Menu stays right of Dashboard');assert(Math.abs(heading.top-heading.menuTop)<20);
+-   const columns=await page.locator('#ad-areas .ad-tiles').evaluateAll(nodes=>nodes.map(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length));assert(columns.every(n=>n===3),'Manage Programs/Courses keeps three columns');assert((await page.locator('#ad-areas .ad-tile-role').allTextContents()).every(label=>label==='Admin'),'Only the highest Admin role is shown');assert.equal(await page.locator('#ad-areas .ad-tile-open svg').count(),await page.locator('#ad-areas .ad-tile').count(),'Every Program/Course card has an Open icon');
++   assert.equal(await page.locator('#ad-tools').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length),width>=1024?10:3,'Admin Quick tools uses ten desktop columns and three phone columns');
++   if(width===1440){await page.locator('#ad-areas').screenshot({path:path.join(out,'admin-management-six-columns-desktop.png')});await page.locator('.ad-tools').screenshot({path:path.join(out,'admin-quick-tools-ten-columns-desktop.png')});}
++   const columns=await page.locator('#ad-areas .ad-tiles').evaluateAll(nodes=>nodes.map(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length));assert(columns.every(n=>n===(width>=1024?6:3)),'Manage Programs/Courses uses six desktop columns and retains three phone columns');assert((await page.locator('#ad-areas .ad-tile-role').allTextContents()).every(label=>label==='Admin'),'Only the highest Admin role is shown');assert.equal(await page.locator('#ad-areas .ad-tile-open svg').count(),await page.locator('#ad-areas .ad-tile').count(),'Every Program/Course card has an Open icon');
+    await openDashboardMenu();assert.deepEqual(await page.locator('#ad-navigation>:not([data-workspace-exit])').allTextContents(),['Users','Announcements','Attendance','Curriculum','Library','Lesson plans','Assessments','App settings','Update timetable']);await closeControl('[data-ad-contents-close]');await page.keyboard.press('Escape');await closedDashboardMenu();assert.equal(await menuButton().evaluate(el=>el===document.activeElement),true);
+   }
+   await page.setViewportSize({width:390,height:844});await openDashboardMenu();await page.setViewportSize({width:1440,height:950});assert(await drawer().isVisible(),'Admin keeps its menu at desktop width');await page.locator('[data-ad-contents-close]').click();await closedDashboardMenu();
+   await page.setViewportSize({width:320,height:844});await page.evaluate(()=>document.documentElement.style.fontSize='200%');await fit('Admin Dashboard heading, menu and card grid fit enlarged text');await openDashboardMenu();await fit('Admin menu fits enlarged text');await page.keyboard.press('Escape');await page.evaluate(()=>document.documentElement.style.fontSize='');
+   const shortcuts=await page.locator('#ad-tools>a').evaluateAll(nodes=>nodes.map(el=>({label:el.textContent,href:el.getAttribute('href'),icon:!!el.querySelector('svg'),w:el.getBoundingClientRect().width,h:el.getBoundingClientRect().height})));assert.equal(shortcuts.length,3);assert(shortcuts.every(s=>s.icon&&s.w>=44&&s.h>=44));assert.deepEqual(shortcuts.map(s=>s.label),['Surahs and Duas Tracker','Library','Voice Recorder']);assert(shortcuts.every(s=>s.href));await page.setViewportSize({width:390,height:844});await screenshot('admin-dashboard-phone.png');await page.locator('#ad-areas').screenshot({path:path.join(out,'admin-three-card-grid-phone.png')});await page.locator('.ad-tools').screenshot({path:path.join(out,'admin-quick-icons-phone.png')});
+   await todayRail('academy-sessions');
+-  await openDashboardMenu();await page.locator('#ad-navigation').getByRole('link',{name:'Announcements',exact:true}).click();await closedDashboardMenu();await page.waitForURL(url=>url.hash==='#administration/announcements');await page.locator('[data-page-home]').click();await page.locator('#ad-title').filter({hasText:'Dashboard'}).waitFor();assert.deepEqual(await page.locator('#ad-navigation>a').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('href'))),adminDestinations);checks.push('Admin menu replaces Your workspace at phone and desktop widths, keeps nine tools and Visit website, and dismisses with X or Escape');checks.push('Admin dashboard removes its subtitle and review buttons, shows three-card management rows with one Admin role, and uses small labelled Quick tools icons');
++  await openDashboardMenu();await page.locator('#ad-navigation').getByRole('link',{name:'Announcements',exact:true}).click();await closedDashboardMenu();await page.waitForURL(url=>url.hash==='#administration/announcements');await page.locator('[data-page-home]').click();await page.locator('#ad-title').filter({hasText:'Dashboard'}).waitFor();assert.deepEqual(await page.locator('#ad-navigation>a').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('href'))),adminDestinations);checks.push('Admin menu replaces Your workspace at phone and desktop widths, keeps nine tools and Visit website, and dismisses with X or Escape');checks.push('Admin dashboard removes its subtitle and review buttons, shows six desktop/three phone management columns with one Admin role, and uses small labelled Quick tools icons');
+   await page.goto(origin+'/academy/admin/#activity/PROGRAM/'+f.scopes.programA.slice(8)+'/teach/planning');await page.locator('[data-lp-field=activities]').first().waitFor();await ready();assert.equal(await page.evaluate(()=>M4L_ACADEMY_WORKSPACE.current()),'ADMIN_TEACH');await fit('Admin-Teach shares the reading layout and preserves its authority');await headerControls('Admin-Teach phone');await adminHeader('Admin-Teach');assert.equal(await page.locator('.academy-banners>.academy-workspace-context').count(),0);assert.equal((await page.locator('.academy-profile .academy-admin-badge').innerText()).replace(/\s+/g,' '),'Global Admin ⌄');await closeControl('.academy-management-close');
+   for(const width of [390,1440]){await page.setViewportSize({width,height:950});await page.locator('[data-curriculum-open]').click();await page.locator('#academy-curriculum-menu[open]').waitFor();await closeControl('[data-curriculum-close]');await screenshot('admin-curriculum-'+width+'.png');await page.locator('[data-curriculum-close]').click();await page.locator('#academy-curriculum-menu').waitFor({state:'hidden'});}
+   await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'ADMIN-LEARN',exact:true}).click();await page.waitForURL(url=>url.hash==='#timetable/learn');await page.waitForFunction(()=>M4L_ACADEMY_WORKSPACE.current()==='ADMIN_LEARN');await page.locator('#ad-title').waitFor();await ready();await programRail('Admin-Learn');await openDashboardMenu();assert.doesNotMatch(await page.locator('#ad-navigation').innerText(),/Users|Mark attendance|Submit plans/);await page.keyboard.press('Escape');await closedDashboardMenu();assert.match(await page.locator('.academy-admin-badge').getAttribute('aria-label'),/read only/);await headerControls('Admin-Learn phone');await adminHeader('Admin-Learn');await screenshot('admin-learn-phone.png');await page.evaluate(()=>document.documentElement.style.fontSize='200%');await fit('Admin badge and workspace controls reflow at 200 percent text');await page.evaluate(()=>document.documentElement.style.fontSize='');checks.push('Admin badge replaces its extra banner, identifies read-only Learn and retains Curriculum access; X is top-right on phone and desktop');
+-  await adminNextGrid();await globalReaderCards();
++  await adminNextGrid();await globalReaderCards();await classPicker();
+   await openDashboardMenu();await page.locator('#ad-navigation [data-workspace-exit]').click();await page.waitForURL(url=>url.hash==='#website');assert.equal(await drawer().count(),0);assert.equal(await page.evaluate(()=>document.body.classList.contains('ad-contents-open')),false);
+   await page.goto(origin+'/academy/#website');await page.locator('#overview.active').waitFor();assert.equal(await page.evaluate(()=>document.body.classList.contains('academy-learning-layout')),false);checks.push('Admin management and public website retain their layout; Admin-Teach keeps its realm');
+   assert.deepEqual(errors,[]);const result={passed:true,baseline:'107.84',version:'107.98',feature:'admin-dashboard-menu-cards-icons-and-today-local',engine,branch:'feature/academy-mobile-first',checks,headerMeasurements,errors,requests:calls.length,liveDataChanged:false};writeFileSync(path.join(out,'verification.json'),JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result));
+diff --git a/css/m4l-academy-dashboard.css b/css/m4l-academy-dashboard.css
+index 42bad215..91741814 100644
+--- a/css/m4l-academy-dashboard.css
++++ b/css/m4l-academy-dashboard.css
+@@ -55,7 +55,7 @@ body #ad-contents-drawer :is(a,button):focus-visible{outline:3px solid #865694;o
+ #dashboard.ad-admin-dashboard .timetable-days{gap:.75rem}
+ #dashboard.ad-admin-dashboard .upcoming-day>time{display:flex;align-items:center;flex-wrap:wrap;gap:.25rem;min-height:2.75rem;line-height:1.4}
+ #dashboard.ad-admin-dashboard .timetable-today-label{display:inline-block;padding:.125rem .375rem;border-radius:.375rem;background:#75427f;color:#fff;font:600 .6875rem/1.4 Arial,sans-serif}
+-#dashboard.ad-admin-dashboard .timetable-empty{display:flex;align-items:center;justify-content:center;min-height:9rem;box-sizing:border-box;padding:.75rem;border:1px solid #ded0e4;border-radius:.75rem;background:#fffcff;color:#67566d;font-size:.875rem;line-height:1.5}
++#dashboard.ad-admin-dashboard .timetable-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;min-height:9rem;box-sizing:border-box;padding:.75rem;border:1px solid #ded0e4;border-radius:.75rem;background:#fffcff;color:#67566d;font-size:.875rem;line-height:1.5}
+ #dashboard.ad-admin-dashboard .learning-today{display:inline-flex;align-items:center;justify-content:center;min-width:4rem;min-height:44px;padding:.5rem .75rem}
+ #dashboard.ad-admin-dashboard .learning-week-label{display:block;font-size:.6875rem;line-height:1.2}
+ #dashboard.ad-admin-dashboard #academy-schedule>.section-title{flex-wrap:wrap;gap:.75rem}
+@@ -100,4 +100,13 @@ body #ad-contents-drawer :is(a,button):focus-visible{outline:3px solid #865694;o
+ #dashboard .ad-tile-open svg{flex:none}
+ #dashboard .ad-open-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+ 
++/* Dashboard timetables keep two swipeable days on phones and the whole week on desktop. */
++#dashboard #academy-sessions .timetable-days{gap:.75rem}
+ #dashboard #academy-sessions .timetable-days>.upcoming-day{flex:0 0 calc((100% - .75rem)/2);min-width:0}
++#dashboard #academy-sessions .timetable-empty{overflow-wrap:anywhere}
++@media(min-width:64rem){
++ #dashboard #academy-sessions .timetable-days>.upcoming-day{flex-basis:calc((100% - 4.5rem)/7)}
++ #dashboard #academy-sessions .timetable-pill-details{flex-direction:column;align-items:flex-start;gap:.375rem}
++ #dashboard.ad-admin-dashboard .ad-tiles{grid-template-columns:repeat(6,minmax(0,1fr))}
++ #dashboard.ad-admin-dashboard #ad-tools{grid-template-columns:repeat(10,minmax(0,1fr))}
++}
+diff --git a/css/m4l-academy-shell.css b/css/m4l-academy-shell.css
+index 0d5d8d85..8c009e62 100644
+--- a/css/m4l-academy-shell.css
++++ b/css/m4l-academy-shell.css
+@@ -166,3 +166,13 @@ body.academy-shell .academy-menu-button svg{display:block;flex:none;width:24px;h
+ body.academy-shell .workspace-contents>summary.academy-menu-button::after{content:none}
+ body.academy-shell .workspace-contents:has(>summary.academy-menu-button)::before{content:none;display:none}
+ body.academy-shell .workspace-contents>summary.academy-menu-button::-webkit-details-marker{display:none}
++
++/* Keep the current class readable and let the phone open its native class picker. */
++body.academy-shell #activity-student-class-wrap:not([hidden]){display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.75rem;box-sizing:border-box;width:100%;max-width:100%;margin:0 0 1rem;padding:.25rem .75rem;border:1px solid #ded0e4;border-radius:.75rem;background:#fffcff;color:#62346b}
++body.academy-shell .academy-class-picker-label{font:600 .875rem/1.4 Arial,sans-serif}
++body.academy-shell .academy-class-picker-control{position:relative;display:block;min-width:0}
++body.academy-shell #activity-student-class{display:block;appearance:none;-webkit-appearance:none;width:100%;max-width:100%;min-width:0;min-height:44px;margin:0;padding:.625rem 2rem .625rem .25rem;border:0;border-radius:.375rem;background:transparent;color:#62346b;font:600 1rem/1.5 Arial,sans-serif;text-overflow:ellipsis;cursor:pointer}
++body.academy-shell .academy-class-picker-control>svg{position:absolute;right:0;top:50%;transform:translateY(-50%);pointer-events:none;color:#75427f}
++body.academy-shell #activity-student-class-wrap:focus-within{outline:3px solid #865694;outline-offset:2px}
++body.academy-shell #activity-student-class:focus-visible{outline:none}
++@media(min-width:48rem){body.academy-shell #activity-student-class-wrap:not([hidden]){width:min(100%,28rem)}}
+diff --git a/js/m4l-academy-entrance.js b/js/m4l-academy-entrance.js
+index 40ebd0fc..3b91d17d 100644
+--- a/js/m4l-academy-entrance.js
++++ b/js/m4l-academy-entrance.js
+@@ -861,7 +861,8 @@
+       return `<li class="preview-pill timetable-pill ${nextEntry ? 'next-lesson ' : ''}${participation(entries)}${joinable ? ' join-open' : ''}"><button type="button" class="timetable-pill-details" data-information="${id}:${infoIndex}" aria-label="${esc(label)}${subtitle ? ' · ' + esc(subtitle) : ''}${programTimetable && lessonCount ? ' · ' + lessonCount : ''}, ${esc(first.startTime)}–${esc(last.endTime)}${status ? ', ' + status : ''}. View lesson details">${previewTime(first.startTime)}<span class="timetable-pill-copy"><strong class="preview-name">${esc(label)}</strong>${subtitle ? `<small>${esc(subtitle)}</small>` : ''}${count}${status ? `<small class="timetable-pill-status">${status}</small>` : ''}</span></button>${join}${attachments?`<div class="timetable-media-actions" aria-label="Lesson attachments">${attachments}</div>`:''}${classNotes}</li>`;
+     };
+     const today=clock(now).date,learningRail=['academy-sessions','activity-sessions'].includes(id);
+-    $(id).innerHTML = `<ol class="upcoming-days preview-days timetable-days">${[...days].sort(([a], [b]) => a.localeCompare(b)).map(([date, groups]) => `<li class="upcoming-day${learningRail&&date===today?' is-today':''}" data-date="${esc(date)}"><time datetime="${esc(date)}"${learningRail&&date===today?' aria-current="date"':''}>${esc(formatDate(date))}${learningRail&&date===today?'<span class="timetable-today-label">Today</span>':''}</time><ul class="upcoming-items">${groups.size ? [...groups.values()].map(renderGroup).join('') : '<li class="timetable-empty">'+(learningRail&&date===today?'No lessons today':'No lessons')+'</li>'}</ul></li>`).join('')}</ol>`;
++    const emptyDay=date=>learningRail?'<strong>Alhamdulillah</strong><span>'+(date===today?'No lessons today':'No lessons')+'</span><span>May Allah fill your day with barakah.</span>':'No lessons';
++    $(id).innerHTML = `<ol class="upcoming-days preview-days timetable-days">${[...days].sort(([a], [b]) => a.localeCompare(b)).map(([date, groups]) => `<li class="upcoming-day${learningRail&&date===today?' is-today':''}" data-date="${esc(date)}"><time datetime="${esc(date)}"${learningRail&&date===today?' aria-current="date"':''}>${esc(formatDate(date))}${learningRail&&date===today?'<span class="timetable-today-label">Today</span>':''}</time><ul class="upcoming-items">${groups.size ? [...groups.values()].map(renderGroup).join('') : '<li class="timetable-empty">'+emptyDay(date)+'</li>'}</ul></li>`).join('')}</ol>`;
+     $(id).scrollLeft = scrollLeft;
+     if(learningRail)preparePersonalDays(id,start,today);
+   }

@@ -1,0 +1,120 @@
+/* The established podcast composition, with each course’s existing palette. */
+.student-course .pc-shell{max-width:1060px;margin:auto;padding:0 22px 34px}
+.student-course:has(>.pc-shell){container-type:inline-size}
+.pc-shell .pc-series-header{display:grid;grid-template-columns:170px minmax(0,1fr);gap:36px;align-items:center;padding:42px 0 30px}
+.pc-shell .pc-cover{width:100%;margin:0}
+.pc-shell .pc-cover img{display:block;width:100%;height:auto;max-height:220px;object-fit:contain;border-radius:9px}
+.pc-shell .pc-series-title{font:400 clamp(32px,4vw,49px)/1.14 'Libre Caslon Display',Georgia,serif;letter-spacing:-.8px;color:var(--sp-ink);margin:10px 0}
+.pc-shell .pc-subtitle{font:400 22px/1.5 'Libre Caslon Display',Georgia,serif;margin:14px 0 8px}
+.pc-shell .pc-description{font-size:14px;line-height:1.75;color:var(--sp-muted);margin:8px 0}
+.pc-shell .pc-series-header small{font-size:12px;color:var(--sp-muted)}
+.pc-shell .pc-compact{grid-template-columns:68px minmax(0,1fr);gap:22px;padding:24px 0}
+.pc-shell .pc-compact .pc-cover img{max-height:85px}
+.pc-shell .pc-compact .pc-series-title{font-size:31px;margin:5px 0}
+.pc-shell .pc-compact .pc-subtitle{display:none}
+.pc-shell .pc-tabs{display:flex;gap:30px;overflow-x:auto;white-space:nowrap;border-block:1px solid var(--sp-border);scrollbar-width:thin}
+.pc-shell .pc-tabs a{display:flex;align-items:center;min-height:54px;font-size:13px;border-bottom:2px solid transparent;color:var(--sp-muted)}
+.pc-shell .pc-tabs a[aria-current=page]{color:var(--sp-accent);border-color:var(--sp-accent)}
+.student-course .pc-shell .pc-page{padding:30px 0 20px}
+.pc-shell .pc-list-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin:0 0 20px}
+.pc-shell .pc-list-heading :is(h1,h2){font:400 34px/1.2 'Libre Caslon Display',Georgia,serif;margin:0}
+.pc-shell .pc-list-heading>span{font-size:12px;color:var(--sp-muted)}
+.pc-shell .pc-search{display:block;font-size:12px}
+.pc-shell .pc-search>span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.pc-shell .pc-search input{width:230px;max-width:100%;min-height:44px;padding:11px 14px;border:1px solid var(--sp-border);border-radius:8px;background:#fffdfa;color:var(--sp-ink);font-size:13px}
+.pc-shell .pc-episode-card{padding:28px;background:#fffdfa;border:1px solid var(--sp-border);border-radius:11px;margin:0 0 18px}
+.pc-shell .pc-meta{display:flex;flex-wrap:wrap;gap:18px;font-size:10px;letter-spacing:.09em;color:var(--sp-muted)}
+.pc-shell .pc-episode-card h3{font:400 32px/1.25 'Libre Caslon Display',Georgia,serif;color:var(--sp-accent);margin:14px 0}
+.pc-shell .pc-summary-row{margin:0 0 22px}
+.pc-shell .pc-has-quote{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,.48fr);gap:30px;align-items:center}
+.pc-shell .sp-recorded-summary{font-size:15px;line-height:1.9;white-space:pre-wrap}
+.pc-shell .pc-card-quote{margin:0;padding:18px 20px;text-align:center;font-size:21px;line-height:1.5}
+.pc-shell .pc-card-quote .sp-quote-recording{display:block;text-align:center;font-size:12px;margin:14px 0 0;text-decoration:underline;text-underline-offset:4px}
+.pc-shell .pc-actions{display:flex;align-items:center;flex-wrap:wrap;gap:12px 24px}
+.pc-shell .pc-actions>a:not(.pc-listen){font-size:13px;text-decoration:underline;text-underline-offset:4px;min-height:44px;display:flex;align-items:center}
+.student-course .pc-shell .pc-listen{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:44px;padding:10px 21px;border:1px solid var(--sp-accent);border-radius:999px;background:var(--sp-accent);color:white;font:500 13px/1.5 'DM Sans',sans-serif;text-decoration:none}
+.pc-shell .pc-episode-card>small{display:block;font-size:11px;color:var(--sp-muted);margin-top:16px}
+.pc-shell .sp-video-progress{font-size:13px;background:transparent;border:0;padding:8px 0}
+.pc-shell .pc-reading-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.pc-shell .pc-reading-card{border-radius:9px;min-width:0}
+.pc-shell .pc-reading-card h3{font-size:27px;margin:10px 0}
+.pc-shell .pc-reading-card>span:last-child{font-size:12px}
+.pc-shell .pc-about{max-width:720px}
+.pc-shell .pc-about h1{font:400 39px/1.2 'Libre Caslon Display',Georgia,serif;margin:12px 0 24px}
+.pc-shell .pc-about p{font-size:16px;line-height:1.9;margin:18px 0;white-space:pre-wrap}
+.pc-shell .pc-original{max-width:800px;margin:auto}
+.pc-shell[data-podcast-view=recording] .pc-original{max-width:900px}
+.pc-shell .pc-back{display:flex;align-items:center;font-size:12px;min-height:44px;color:var(--sp-accent)}
+.pc-shell .sp-lesson-article>.sp-page-title{font-size:42px;line-height:1.2;margin:14px 0 20px}
+.pc-shell .sp-video{background:#fffdfa;border:1px solid var(--sp-border);border-radius:12px;padding:24px}
+.pc-shell .sp-video .sp-video-summary{font-size:16px;line-height:1.85}
+.pc-shell .sp-video-actions{gap:16px}
+.pc-shell .sp-video-actions .sp-primary{border-radius:999px}
+.pc-inline-playing .pc-player-slot[style*="height"]+.sp-video-poster{display:none}
+.pc-shell .pc-course-readings{margin-top:38px;padding-top:25px;border-top:1px solid var(--sp-border)}
+.pc-shell .pc-course-readings>h2{font:400 36px/1.2 'Libre Caslon Display',Georgia,serif;margin:8px 0 22px}
+.pc-shell .pc-reading-contents{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 24px;margin:0 0 35px}
+.pc-shell .pc-reading-contents a{display:flex;align-items:center;min-height:44px;font-size:13px;line-height:1.5;padding:9px 0;color:var(--sp-accent);text-decoration:underline;text-underline-offset:4px}
+.pc-shell .pc-embedded-reading{padding:28px 0;margin:0 0 25px;border-bottom:1px solid var(--sp-border);scroll-margin-top:24px}
+.pc-shell .pc-embedded-reading>.sp-page-title{font-size:35px}
+.pc-shell .pc-reading-listen{margin:10px 0 20px}
+.pc-shell .pc-reading-listen .pc-listen{padding:8px 15px;font-size:12px}
+.pc-shell .sp-transcript-summary{margin-top:35px}
+.pc-shell .sp-footer{display:flex;flex-direction:row;justify-content:space-between;gap:15px;border-top:1px solid var(--sp-border);padding-top:24px;font-size:11px}
+.pc-shell a:focus-visible,.pc-shell input:focus-visible{outline:3px solid var(--sp-accent);outline-offset:4px}
+.podcast-reader #reader-refresh-host{position:relative}
+.podcast-reader #reader-refresh-host.has-lesson-player{display:block;padding:0}
+.podcast-reader #reader-refresh-host>#video-dock.pc-player-inline:not([hidden]){position:absolute;right:auto;bottom:auto;max-width:none;max-height:none;overflow:visible;margin:0;padding:16px;box-shadow:none;background:#fffdfa;color:#3b342c;z-index:1}
+.podcast-reader #video-dock.pc-player-inline iframe{max-height:none;width:100%;min-width:0;min-height:0;aspect-ratio:16/9}
+.podcast-reader #video-dock.pc-player-inline h2{font-size:21px}
+.podcast-reader #reader-refresh-host>#video-dock:not([hidden]){position:fixed;bottom:16px;right:16px;top:auto;max-width:360px;max-height:75dvh;overflow:auto;z-index:20;margin:0;background:#fffdfa}
+.podcast-reader:has(#reader-refresh-host>#video-dock:not([hidden]):not(.pc-player-inline)){padding-bottom:310px}
+html.academy-reading-focus .pc-shell{max-width:920px}
+html.academy-reading-focus .pc-shell>.pc-series-header,html.academy-reading-focus .pc-shell>.pc-tabs,html.academy-reading-focus .pc-shell>.sp-footer{display:none}
+@media(max-width:700px){
+ .student-course .pc-shell{padding:0 18px 28px}
+ .pc-shell .pc-series-header{grid-template-columns:92px minmax(0,1fr);gap:20px;padding:28px 0}
+ .pc-shell .pc-series-title{font-size:33px;letter-spacing:-.5px}
+ .pc-shell .pc-subtitle{font-size:19px;margin-top:8px}
+ .pc-shell .pc-description{font-size:13px}
+ .pc-shell .pc-compact{grid-template-columns:58px minmax(0,1fr);gap:16px;padding:18px 0}
+ .pc-shell .pc-compact .pc-series-title{font-size:27px}
+ .pc-shell .pc-tabs{gap:24px}
+ .pc-shell .pc-tabs a{font-size:12px;min-height:49px}
+ .pc-shell .pc-list-heading{align-items:flex-start;gap:16px}
+ .pc-shell .pc-list-heading :is(h1,h2){font-size:30px}
+ .pc-shell .pc-search input{width:160px;font-size:12px;padding:10px}
+ .pc-shell .pc-episode-card{padding:22px 18px}
+ .pc-shell .pc-episode-card h3{font-size:29px}
+ .pc-shell .pc-has-quote{grid-template-columns:minmax(0,1fr);gap:22px}
+ .pc-shell .sp-recorded-summary{font-size:15px;line-height:1.85}
+ .pc-shell .pc-card-quote{font-size:22px;max-width:100%;width:100%;padding:17px}
+ .pc-shell .pc-reading-grid,.pc-shell .pc-reading-contents{grid-template-columns:minmax(0,1fr)}
+ .pc-shell .sp-lesson-article>.sp-page-title{font-size:34px}
+ .pc-shell .pc-embedded-reading>.sp-page-title{font-size:31px}
+ .pc-shell .sp-video{padding:18px 15px}
+ .pc-shell .sp-reading-body{font-size:max(17px,var(--reading-size,18px));line-height:1.9}
+ .pc-shell .sp-reading-section h2{font-size:29px}
+ .pc-shell .sp-ayah{padding:20px 15px}
+ .pc-shell .sp-quote{padding:20px 17px}
+ .pc-shell .sp-footer{flex-direction:column;gap:7px}
+ .podcast-reader #reader-refresh-host>#video-dock:not([hidden]){right:12px;bottom:12px;max-width:calc(100vw - 24px);width:360px}
+}
+@media(max-width:360px){.pc-shell .pc-list-heading{flex-wrap:wrap}.pc-shell .pc-search,.pc-shell .pc-search input{width:100%}.pc-shell .pc-tabs{gap:20px}.pc-shell .pc-series-title{font-size:30px}.pc-shell .pc-series-header{grid-template-columns:75px minmax(0,1fr);gap:16px}.pc-shell .pc-compact{grid-template-columns:48px minmax(0,1fr)}}
+/* The builder's phone preview is narrower than its browser window. */
+@container(max-width:700px){
+ .student-course .pc-shell{padding-inline:18px}
+ .pc-shell .pc-series-header{grid-template-columns:92px minmax(0,1fr);gap:20px;padding:28px 0}
+ .pc-shell .pc-series-title{font-size:33px}
+ .pc-shell .pc-subtitle{font-size:19px}
+ .pc-shell .pc-compact{grid-template-columns:58px minmax(0,1fr);gap:16px;padding:18px 0}
+ .pc-shell .pc-compact .pc-series-title{font-size:27px}
+ .pc-shell .pc-tabs{gap:24px}
+ .pc-shell .pc-has-quote,.pc-shell .pc-reading-grid,.pc-shell .pc-reading-contents{grid-template-columns:minmax(0,1fr)}
+ .pc-shell .pc-card-quote{max-width:100%;width:100%;font-size:22px}
+ .pc-shell .pc-episode-card{padding:22px 18px}
+ .pc-shell .pc-search input{width:150px}
+ .pc-shell .sp-lesson-article>.sp-page-title{font-size:34px}
+ .pc-shell .pc-embedded-reading>.sp-page-title{font-size:31px}
+}
+@container(max-width:360px){.pc-shell .pc-list-heading{flex-wrap:wrap}.pc-shell .pc-search,.pc-shell .pc-search input{width:100%}.pc-shell .pc-series-header{grid-template-columns:75px minmax(0,1fr);gap:16px}.pc-shell .pc-compact{grid-template-columns:48px minmax(0,1fr)}}

@@ -1,0 +1,684 @@
+diff --git a/academy/course-websites/inline-text.mjs b/academy/course-websites/inline-text.mjs
+index b8bd4a63..26d60311 100644
+--- a/academy/course-websites/inline-text.mjs
++++ b/academy/course-websites/inline-text.mjs
+@@ -10,10 +10,11 @@ export function inlineFields(course){
+  course.lessons.forEach((l,i)=>{
+   for(const key of ['title','summary'])add(`lessons.${i}.${key}`,'Lesson '+key);
+   l.sections.forEach((s,j)=>{const prefix=`lessons.${i}.sections.${j}`;add(prefix+'.title','Section heading');
+-   s.blocks.forEach((b,k)=>{const p=prefix+`.blocks.${k}`,keys=({text:['text'],arabic:['arabic'],ayah:['arabic','translation','reference'],quote:['text','arabic','attribution','reference'],words:['leftArabic','leftMeaning','rightArabic','rightMeaning'],reflection:['text'],image:['caption'],note:['text','attribution'],callout:['text']})[b.type]||[];
++   s.blocks.forEach((b,k)=>{const p=prefix+`.blocks.${k}`,keys=({text:['text'],arabic:['arabic'],ayah:['arabic','translation','reference'],quote:['text','arabic','attribution','reference'],words:['leftArabic','leftMeaning','rightArabic','rightMeaning'],reflection:['text'],image:['caption'],note:['text','attribution'],callout:['text'],video:['text','caption']})[b.type]||[];
+     for(const key of keys)add(p+'.'+key,({text:'Lesson text',arabic:'Arabic text',translation:'Translation',reference:'Ayah reference',attribution:'Source or summary heading',caption:'Image caption'})[key]||'Word study');
+-    if(b.type==='list'&&['concept','radial','steps'].includes(b.presentation)){add(p+'.text','Graphic heading');add(p+'.attribution','Graphic subtitle');}
+-    if(b.type==='list')b.items.forEach((_,n)=>add(p+'.items.'+n,'List item '+(n+1)));
++    if(b.type==='video'){add(p+'.text','Recording title');add(p+'.caption','Listening guidance');}
++    if(b.type==='list'&&['concept','radial','steps','quote-cards','alternating'].includes(b.presentation)){add(p+'.text','Graphic heading');add(p+'.attribution','Graphic subtitle');}
++    if(b.type==='list'||b.type==='video')b.items.forEach((_,n)=>add(p+'.items.'+n,'List item '+(n+1)));
+    });
+   });
+  });
+@@ -50,29 +51,32 @@ export function inlineSession({request,active=()=>true}){
+ }
+ 
+ export function decorateInlineText(root,course,ui){
++ for(const topics of root.querySelectorAll('details.sp-video-topics'))topics.open=true;
+  const fields=inlineFields(course),mark=(element,path)=>{if(!element||!fields.has(path))return;element.textContent=path.split('.').reduce((value,key)=>value[key],course);element.dataset.inlinePath=path;element.setAttribute('contenteditable','plaintext-only');element.setAttribute('role','textbox');element.setAttribute('aria-label',fields.get(path));element.setAttribute('aria-multiline','true');element.dataset.inlinePlaceholder=fields.get(path);element.setAttribute('spellcheck',String(element.lang!=='ar'));};
+  const one=(selector,path,host=root)=>mark(host.querySelector(selector),path);
+  one('.sp-course-row strong','name');one('.sp-course-row small','tag');one('.sp-sidebar h2','name');one('.sp-sidebar>.sp-eyebrow','tag');
+  // Editable headings inside journey/lesson buttons need a non-interactive
+  // container so typing and selecting text cannot activate course navigation.
+- for(const button of root.querySelectorAll('.sp-theme,.sp-lesson-card')){const div=root.ownerDocument.createElement('div');div.className=button.className;div.dataset.inlineLessonId=button.dataset.id||'';div.append(...button.childNodes);button.replaceWith(div);}
++ for(const button of root.querySelectorAll('.sp-theme,.sp-lesson-card,.sp-video-chapters a')){const div=root.ownerDocument.createElement('div');div.className=button.className;div.dataset.inlineLessonId=button.dataset.id||'';div.append(...button.childNodes);button.replaceWith(div);}
+  if(ui.route==='home'){
+   one('.sp-hero h1','home.headline');one('.sp-subtitle','home.subtitle');one('.sp-description','home.description');one('.sp-hero-image figcaption','home.caption');one('.sp-page>.sp-section-heading h2','home.journeyTitle');
++  root.querySelectorAll('[data-recording-lesson]').forEach(card=>{const i=course.lessons.findIndex(l=>l.id===card.dataset.recordingLesson);if(i<0)return;one('h3',`lessons.${i}.title`,card);one('.sp-recorded-summary',`lessons.${i}.summary`,card);const l=course.lessons[i];for(let j=0;j<l.sections.length;j++)for(let k=0;k<l.sections[j].blocks.length;k++){const b=l.sections[j].blocks[k];if(b.type==='quote'&&b.videoUrl&&!b.reference){one('blockquote p',`lessons.${i}.sections.${j}.blocks.${k}.text`,card);one('blockquote cite',`lessons.${i}.sections.${j}.blocks.${k}.attribution`,card);return;}}});
+   root.querySelectorAll('.sp-theme').forEach((card,i)=>{one('small',`home.themes.${i}.label`,card);one('h3',`home.themes.${i}.title`,card);one('[lang="ar"]',`home.themes.${i}.arabic`,card);one('p',`home.themes.${i}.description`,card);});
+  }else if(ui.route==='lessons')root.querySelectorAll('.sp-lesson-card').forEach(card=>{const i=course.lessons.findIndex(l=>l.id===card.dataset.inlineLessonId);if(i>=0){one('h3',`lessons.${i}.title`,card);one('p',`lessons.${i}.summary`,card);}});
+  else if(ui.route==='lesson'){
+   const index=course.lessons.findIndex(l=>l.id===ui.lessonId),lesson=course.lessons[index];if(!lesson)return;
+-  const prefix=`lessons.${index}`;one('.sp-lesson-article>.sp-page-title',prefix+'.title');one('.sp-lesson-article>.sp-lead',prefix+'.summary');
+-  root.querySelectorAll('.sp-reading-section').forEach((section,j)=>{const p=prefix+`.sections.${j}`;one('h2',p+'.title',section);
++  const prefix=`lessons.${index}`;one('.sp-lesson-article>.sp-page-title',prefix+'.title');one('.sp-lesson-article>.sp-lead',prefix+'.summary');one('.sp-video-summary',prefix+'.summary');
++  root.querySelectorAll('.sp-reading-section').forEach(section=>{const j=lesson.sections.findIndex(s=>s.id===section.dataset.sectionId);if(j<0)return;const p=prefix+`.sections.${j}`;one('h2,h3',p+'.title',section);
+    const blocks=[...section.children].filter(el=>el.classList.contains('sp-block'));
+    lesson.sections[j].blocks.forEach((block,k)=>{const el=blocks[k];if(!el)return;const path=p+`.blocks.${k}`,text=(selector,key)=>one(selector,path+'.'+key,el);
+     if(block.type==='arabic')mark(el,path+'.arabic');
+     else if(['text','callout'].includes(block.type))text('p','text');
+     else if(block.type==='ayah'){text('.sp-reference','reference');text('.sp-arabic','arabic');text('figcaption','translation');}
+     else if(block.type==='quote'){text('.sp-arabic','arabic');if(block.reference){text('.sp-reference','reference');text('figcaption','text');}else{text('p:not(.sp-arabic)','text');text('cite','attribution');}}
+-    else if(block.type==='list'){if(['concept','radial','steps'].includes(block.presentation)){text('.sp-diagram-centre strong','text');text('.sp-diagram-centre>span','attribution');el.querySelectorAll('.sp-diagram-text').forEach((li,n)=>mark(li,path+'.items.'+n));}else el.querySelectorAll('li').forEach((li,n)=>mark(li,path+'.items.'+n));}
++    else if(block.type==='list'){if(block.presentation==='quote-cards'){text('.sp-quote-intro','text');el.querySelectorAll('.sp-quote-card-content').forEach((item,n)=>mark(item,path+'.items.'+n));}else if(block.presentation==='alternating'){text('.sp-source-timeline-caption','text');el.querySelectorAll('.sp-sequence-text').forEach((item,n)=>mark(item,path+'.items.'+n));}else if(['concept','radial','steps'].includes(block.presentation)){text('.sp-diagram-centre strong','text');text('.sp-diagram-centre>span','attribution');el.querySelectorAll('.sp-diagram-text').forEach((li,n)=>mark(li,path+'.items.'+n));}else el.querySelectorAll('li').forEach((li,n)=>mark(li,path+'.items.'+n));}
+     else if(block.type==='words')el.querySelectorAll(':scope>div').forEach((div,n)=>{one('.sp-arabic',path+'.'+(n?'rightArabic':'leftArabic'),div);one('p:not(.sp-arabic)',path+'.'+(n?'rightMeaning':'leftMeaning'),div);});
+     else if(block.type==='reflection'){text('label','text');el.querySelector('textarea').disabled=true;for(const button of el.querySelectorAll('.sp-reflection-actions button'))button.disabled=true;}
++    else if(block.type==='video'){text('h3','text');text('.sp-video-caption','caption');el.querySelectorAll('.sp-chapter-label').forEach((item,n)=>mark(item,path+'.items.'+n));for(const button of el.querySelectorAll('button'))button.disabled=true;}
+     else if(block.type==='image')text('figcaption','caption');
+     else if(block.type==='note'){text('summary','attribution');text('p','text');}
+    });
+diff --git a/academy/course-websites/model.mjs b/academy/course-websites/model.mjs
+index 6facf045..69882d9c 100644
+--- a/academy/course-websites/model.mjs
++++ b/academy/course-websites/model.mjs
+@@ -1,5 +1,6 @@
++import {youtubeSource,chapter} from './recordings.mjs';
+ export const FORMAT='ACADEMY_COURSE_STUDIO_V1';
+-export const BLOCKS={text:'Lesson text',arabic:'Arabic passage',ayah:'Ayah & translation',quote:'Quotation',list:'List or graphic',words:'Word study',reflection:'Reflection question',image:'Image',note:'Source note',callout:'Key takeaway'};
++export const BLOCKS={text:'Lesson text',arabic:'Arabic passage',ayah:'Ayah & translation',quote:'Quotation',list:'List or graphic',words:'Word study',reflection:'Reflection question',image:'Image',note:'Source note',callout:'Key takeaway',video:'Recorded lesson'};
+ export const THEMES={plum:{name:'Kahf plum',accent:'#694165',soft:'#eee3eb'},olive:{name:'Quiet olive',accent:'#526147',soft:'#e9ede3'},clay:{name:'Warm clay',accent:'#8b514b',soft:'#f1e4df'}};
+ export const PAGES=[['home','Course home'],['lessons','Web lessons'],['sessions','Sessions & recordings'],['materials','Course materials'],['assessments','Assessments'],['appearance','Appearance & menu']];
+ export const uid=()=>crypto.randomUUID();
+@@ -7,7 +8,7 @@ export const clone=value=>structuredClone(value);
+ export const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ export function newBlock(type='text'){
+  if(!Object.hasOwn(BLOCKS,type))throw Error('Choose a supported lesson component.');
+- return {id:uid(),type,aside:false,text:'',arabic:'',translation:'',reference:'',attribution:'',items:[''],...(type==='list'?{presentation:'list',ordered:false}:{}),leftArabic:'',leftMeaning:'',rightArabic:'',rightMeaning:'',assetId:'',alt:'',caption:''};
++ return {id:uid(),type,aside:false,text:'',arabic:'',translation:'',reference:'',attribution:'',items:[''],...(type==='list'?{presentation:'list',ordered:false}:{}),...(type==='video'?{videoUrl:'',durationSeconds:0,topicsOnly:false}:{}),...(type==='quote'?{videoUrl:''}:{}),leftArabic:'',leftMeaning:'',rightArabic:'',rightMeaning:'',assetId:'',alt:'',caption:''};
+ }
+ export function newSection(){return {id:uid(),title:'New section',label:'',blocks:[newBlock()]};}
+ export function newLesson(title='New lesson',group='Your lessons'){return {id:uid(),title,group,summary:'',sections:[newSection()]};}
+@@ -23,19 +24,22 @@ export function exampleBlock(type){
+ }
+ export function move(array,index,direction){const next=index+direction;if(next<0||next>=array.length)return false;[array[index],array[next]]=[array[next],array[index]];return true;}
+ export function duplicateLesson(lesson){const copy=clone(lesson);copy.id=uid();copy.title+=' — copy';for(const section of copy.sections){section.id=uid();for(const block of section.blocks)block.id=uid();}return copy;}
+-export function setPath(root,path,value){const parts=path.split('.');if(parts.some(p=>['__proto__','constructor','prototype'].includes(p)))throw Error('Invalid field.');let target=root;for(const part of parts.slice(0,-1)){if(!Object.hasOwn(target,part))throw Error('Unknown field.');target=target[part];}const key=parts.at(-1);const optional=target.type==='image'&&(key==='tint'&&['none','course'].includes(value)||key==='graphic'&&typeof value==='boolean')||key==='aside'&&target.type==='note'&&typeof value==='boolean'||target.type==='list'&&(key==='presentation'&&['list','concept','radial','steps'].includes(value)||key==='ordered'&&typeof value==='boolean');if(!Object.hasOwn(target,key)&&!optional)throw Error('Unknown field.');target[key]=value;}
++export function setPath(root,path,value){const parts=path.split('.');if(parts.some(p=>['__proto__','constructor','prototype'].includes(p)))throw Error('Invalid field.');let target=root;for(const part of parts.slice(0,-1)){if(!Object.hasOwn(target,part))throw Error('Unknown field.');target=target[part];}const key=parts.at(-1);const optional=target===root&&key==='quotationStyle'&&['default','quiet'].includes(value)||target===root.home&&key==='imageLayout'&&['beside','frame'].includes(value)||target.type==='video'&&key==='topicsOnly'&&typeof value==='boolean'||target.type==='quote'&&key==='videoUrl'&&typeof value==='string'||target===root&&key==='recordingCompanion'&&typeof value==='boolean'||target.type==='image'&&(key==='tint'&&['none','course'].includes(value)||key==='graphic'&&typeof value==='boolean')||key==='aside'&&target.type==='note'&&typeof value==='boolean'||target.type==='list'&&(key==='presentation'&&['list','concept','radial','steps','quote-cards','alternating'].includes(value)||key==='ordered'&&typeof value==='boolean');if(!Object.hasOwn(target,key)&&!optional)throw Error('Unknown field.');target[key]=value;}
+ const text=(value,max=20000)=>typeof value==='string'&&value.length<=max;
+ export function validateCourse(course,{review=false}={}){
+  const errors=[],ids=new Set();let blocks=0;
+  const id=value=>{if(!text(value,80)||!/^[\w-]+$/.test(value)||ids.has(value))throw Error('The draft contains an invalid or repeated identifier.');ids.add(value);};
+  if(!course||course.format!==FORMAT)throw Error('Choose an Academy Course Studio draft.');
+  if(course.editorialLayout!==undefined&&typeof course.editorialLayout!=='boolean')throw Error('Check the reading layout.');
++ if(course.recordingCompanion!==undefined&&typeof course.recordingCompanion!=='boolean')throw Error('Check the recording companion setting.');
++ if(course.quotationStyle!==undefined&&!['default','quiet'].includes(course.quotationStyle))throw Error('Choose the quotation appearance.');
+  if(typeof course.updatedAt!=='string'||!Number.isFinite(Date.parse(course.updatedAt)))throw Error('The draft has an invalid saved date.');
+  if(JSON.stringify(course).length>500000)throw Error('This course is too large for the design editor.');
+  id(course.id);
+  if(!text(course.name,160)||!text(course.tag,40)||!Object.hasOwn(THEMES,course.theme))throw Error('Check the course name and appearance.');
+  if(!course.home||!course.pages||!course.menu||!course.materials||!course.sessionOptions)throw Error('The draft is missing course settings.');
+  for(const [key,limit] of Object.entries({headline:300,subtitle:500,description:4000,imageId:80,imageAlt:500,caption:500,journeyTitle:300}))if(!text(course.home[key],limit))throw Error('Check the course home fields.');
++ if(course.home.imageLayout!==undefined&&!['beside','frame'].includes(course.home.imageLayout))throw Error('Choose the cover heading position.');
+  if(!Array.isArray(course.home.themes)||course.home.themes.length>8)throw Error('Use up to eight journey cards.');
+  for(const theme of course.home.themes){id(theme.id);for(const key of ['label','title','arabic','description','lessonId'])if(!text(theme[key],1000))throw Error('Check the journey cards.');}
+  for(const page of ['sessions','materials','assessments'])if(typeof course.pages[page]!=='boolean')throw Error('Check page visibility.');
+@@ -47,19 +51,33 @@ export function validateCourse(course,{review=false}={}){
+  if(review&&!course.lessons.length)errors.push('Add at least one web lesson.');
+  const lessonIds=new Set();
+  for(const lesson of course.lessons){id(lesson.id);lessonIds.add(lesson.id);for(const key of ['title','group','summary'])if(!text(lesson[key],2000))throw Error('Check the lesson details.');if(review&&!lesson.title.trim())errors.push('Give each lesson a title.');
++  if(lesson.companionReading!==undefined&&typeof lesson.companionReading!=='boolean')throw Error('Check the companion reading setting.');
+   if(!Array.isArray(lesson.sections)||lesson.sections.length>40)throw Error('Use up to forty sections in a lesson.');
+   for(const section of lesson.sections){id(section.id);if(!text(section.title,300)||!text(section.label,100)||!Array.isArray(section.blocks)||section.blocks.length>40)throw Error('Check the lesson sections.');
++   if(section.transcriptSummary!==undefined&&typeof section.transcriptSummary!=='boolean')throw Error('Check the transcript summary label.');
+    for(const block of section.blocks){id(block.id);if(!Object.hasOwn(BLOCKS,block.type))throw Error('The draft uses an unsupported lesson component.');blocks++;
+     for(const key of ['text','arabic','translation','reference','attribution','leftArabic','leftMeaning','rightArabic','rightMeaning','assetId','alt','caption'])if(!text(block[key]))throw Error('Check the lesson component text.');
+     if(!Array.isArray(block.items)||block.items.length>60||block.items.some(item=>!text(item,2000)))throw Error('Check the bullet points.');
+     if(block.tint!==undefined&&(block.type!=='image'||!['none','course'].includes(block.tint)))throw Error('Check the image colour treatment.');
+     if(block.graphic!==undefined&&typeof block.graphic!=='boolean')throw Error('Check the graphic setting.');
+-    if(block.presentation!==undefined&&(block.type!=='list'||!['list','concept','radial','steps'].includes(block.presentation)))throw Error('Choose a list or diagram layout.');
++    if(block.presentation!==undefined&&(block.type!=='list'||!['list','concept','radial','steps','quote-cards','alternating'].includes(block.presentation)))throw Error('Choose a list or diagram layout.');
++    if(block.presentation==='alternating'&&block.items.length>5)throw Error('Use up to five statements in this alternating layout.');
+     if(block.ordered!==undefined&&typeof block.ordered!=='boolean')throw Error('Check list numbering.');
+     if(block.emphasis!==undefined&&(block.type!=='text'||block.emphasis!=='key'))throw Error('Check the passage emphasis.');
+-    if(review&&['concept','radial','steps'].includes(block.presentation)&&(!block.text.trim()||!block.items.length||block.items.some(item=>!item.trim())))errors.push(`Complete the graphic in “${lesson.title}”.`);
++    if(block.type==='quote'&&block.videoUrl!==undefined&&(!text(block.videoUrl,1000)||block.videoUrl.trim()&&!youtubeSource(block.videoUrl)))throw Error('Use a valid recording link for the quotation.');
++    if(block.type==='video'){
++     if(block.topicsOnly!==undefined&&typeof block.topicsOnly!=='boolean')throw Error('Check the topic guide setting.');
++     if(!text(block.videoUrl,1000)||!Number.isInteger(block.durationSeconds)||block.durationSeconds<0||block.durationSeconds>604800)throw Error('Check the recording link and duration.');
++     const source=block.videoUrl.trim()?youtubeSource(block.videoUrl):null;
++     if(block.videoUrl.trim()&&!source)throw Error('Use a valid HTTPS YouTube recording link.');
++     if(source&&block.durationSeconds&&source.start>=block.durationSeconds)throw Error('The recording start must be within its duration.');
++     if(block.items.some(item=>item.trim()&&(!chapter(item)||block.durationSeconds&&chapter(item).start>=block.durationSeconds)))throw Error('Use a timestamp and topic for each recording chapter, within the recording duration.');
++     if(review&&(!source||!block.text.trim()||!block.durationSeconds))errors.push(`Add the recording title, YouTube link and duration in “${lesson.title}”.`);
++    }
++    if(review&&['concept','radial','steps','quote-cards','alternating'].includes(block.presentation)&&(!block.text.trim()||!block.items.length||block.items.some(item=>!item.trim())))errors.push(`Complete the graphic in “${lesson.title}”.`);
+     if(review&&block.type==='image'&&(!block.assetId||!block.alt.trim()))errors.push(`Add an image and description in “${lesson.title}”.`);
+-    if(review&&block.type==='ayah'&&(!block.arabic.trim()||!block.reference.trim()))errors.push(`Check the Arabic and reference in “${lesson.title}”.`);
++    if(review&&block.type==='ayah'&&(!block.arabic.trim()||!block.translation.trim()||!block.reference.trim()))errors.push(`Add the Arabic, author's meaning and reference in “${lesson.title}”.`);
++    if(review&&block.type==='quote'&&block.reference&&(!block.arabic.trim()||!block.text.trim()))errors.push(`Add the Arabic and author's meaning for the verse quotation in “${lesson.title}”.`);
+    }
+   }
+  }
+diff --git a/academy/course-websites/recording-view.mjs b/academy/course-websites/recording-view.mjs
+new file mode 100644
+index 00000000..94175082
+--- /dev/null
++++ b/academy/course-websites/recording-view.mjs
+@@ -0,0 +1,20 @@
++import {esc} from './model.mjs';
++import {youtubeSource,chapter,courseRecordings,timeLabel} from './recordings.mjs';
++function videoPoster(v,title,lessonId=''){return `<a class="sp-video-poster" href="${esc(v.url)}" target="_blank" rel="noopener noreferrer" data-sp="play-video" data-video="${v.id}" data-start="${v.start}"${lessonId?` data-lesson-id="${esc(lessonId)}"`:''} aria-label="Watch ${esc(title)}"><img src="https://i.ytimg.com/vi/${v.id}/hqdefault.jpg" alt="" loading="lazy" referrerpolicy="no-referrer"><span class="sp-video-poster-play" aria-hidden="true">▶</span><span class="sp-video-poster-label">Watch & follow along</span></a>`;}
++export function recordingNavigation(course,lesson){
++ if(!course.recordingCompanion)return '';
++ const recordings=courseRecordings(course),source=lesson.sections.flatMap(s=>s.blocks).filter(b=>b.type==='video'&&!b.topicsOnly).map(b=>youtubeSource(b.videoUrl)).find(Boolean),recording=recordings.find(v=>v.id===source?.id)||(lesson.companionReading&&recordings.length===1?recordings[0]:null);
++ if(!recording)return '';
++ if(lesson.companionReading)return `<button class="sp-back-to-recording" data-sp="lesson" data-id="${esc(recording.lessonId)}">← Recorded lesson</button>`;
++ const notes=course.lessons.filter(l=>l.companionReading).map(l=>{const video=l.sections.flatMap(s=>s.blocks).filter(b=>b.type==='video'&&!b.topicsOnly).map(b=>youtubeSource(b.videoUrl)).find(v=>v?.id===recording.id);return video?{lesson:l,video}:null;}).filter(Boolean);
++ if(!notes.length)return '';
++ return `<section class="sp-reading-section sp-recording-notes" aria-label="Companion notes for this recording"><h2>Read alongside this lesson</h2><p>Return to the author’s teaching and reflections as you listen.</p><nav><ul>${notes.map(({lesson:l,video:v})=>`<li><button data-sp="lesson" data-id="${esc(l.id)}">${esc(l.title)}</button><a href="${esc(v.url)}" target="_blank" rel="noopener noreferrer" data-sp="follow-reading" data-id="${esc(l.id)}" data-video="${v.id}" data-start="${v.start}" aria-label="Watch from ${timeLabel(v.start)} and open ${esc(l.title)}">Watch from ${timeLabel(v.start)} ↗</a></li>`).join('')}</ul></nav></section>`;
++}
++export function quoteRecordingLink(b){const v=youtubeSource(b.videoUrl);return v?`<a class="sp-quote-recording" href="${esc(v.url)}" target="_blank" rel="noopener noreferrer" data-sp="play-video" data-video="${v.id}" data-start="${v.start}">Hear this in the recording ↗</a>`:'';}
++function topicLinks(b,v){return `<ol>${b.items.map((item,i)=>{const c=chapter(item);return c?`<li><a href="https://www.youtube.com/watch?v=${v.id}&amp;t=${c.start}s" target="_blank" rel="noopener noreferrer" data-sp="play-video" data-video="${v.id}" data-start="${c.start}"><span class="sp-chapter-label" data-chapter="${i}">${esc(item)}</span></a></li>`:'';}).join('')}</ol>`;}
++export function videoBlock(b,{summary='',topicsTitle=''}={}){const v=youtubeSource(b.videoUrl);if(!v)return '<aside class="sp-block sp-empty">Choose a YouTube recording in the builder.</aside>';
++ if(b.topicsOnly)return `<details class="sp-block sp-video-topics sp-video-chapters"><summary><h2>${esc(topicsTitle||'Follow the recording by topic')}</h2></summary><nav aria-label="Recording topics">${topicLinks(b,v)}</nav></details>`;
++ return `<figure class="sp-block sp-video" data-video-id="${v.id}"><span class="sp-eyebrow">RECORDED LESSON${b.durationSeconds?' · '+timeLabel(b.durationSeconds):''}</span><h3>${esc(b.text)}</h3>${summary?`<p class="sp-video-summary">${esc(summary)}</p>`:''}${videoPoster(v,b.text)}<p class="sp-video-caption">${esc(b.caption)}</p><div class="sp-video-actions"><a class="sp-primary" href="${esc(v.url)}" target="_blank" rel="noopener noreferrer" data-sp="play-video" data-video="${v.id}" data-start="${v.start}">▶ Watch & follow along</a><a class="sp-full-video" href="https://www.youtube.com/watch?v=${v.id}" target="_blank" rel="noopener noreferrer">Watch the full video ↗</a></div><p class="sp-watch-status" data-video-watch="${v.id}">Watch progress · 0%</p>${b.items.some(x=>x.trim())?`<details class="sp-video-chapters"><summary>Follow the recording by topic</summary>${topicLinks(b,v)}</details>`:''}</figure>`;
++}
++export function videoProgress(course){if(!course.recordingCompanion)return '';return `<div class="sp-progress sp-video-progress"><span class="sp-eyebrow">YOUR WATCHING PROGRESS</span><p><span data-course-watch>0%</span> of recording time watched</p><progress data-course-watch-bar max="100" value="0" aria-label="Recording time watched"></progress><small>Progress follows playback in this companion. You can choose to remember it on this device.</small></div>`;}
++export function featuredVideos(course){if(!course.recordingCompanion)return '';const videos=courseRecordings(course);return `<section class="sp-featured-videos" aria-label="Recorded lessons and summaries"><span class="sp-eyebrow">WATCH · LISTEN · FOLLOW ALONG</span><h2>Carry the lesson into daily life</h2><div class="sp-featured-grid">${videos.map((v,i)=>`<article data-recording-lesson="${esc(v.lessonId)}"><small>LESSON ${String(v.title.match(/^Part (\d+)/)?.[1]||i+1).padStart(2,'0')} · ${timeLabel(v.duration)}</small><h3>${esc(v.title)}</h3>${videoPoster(v,v.title,v.lessonId)}<p class="sp-recorded-summary">${esc(v.summary)}</p>${v.quote?`<blockquote class="sp-block sp-quote sp-recorded-quote"><p>${esc(v.quote.text)}</p>${quoteRecordingLink(v.quote)}</blockquote>`:''}<a class="sp-primary" href="https://www.youtube.com/watch?v=${v.id}" target="_blank" rel="noopener noreferrer" data-sp="play-video" data-video="${v.id}" data-start="0" data-lesson-id="${esc(v.lessonId)}">▶ Watch & follow along</a><button data-sp="lesson" data-id="${esc(v.lessonId)}">Read alongside this lesson →</button><small data-video-watch="${v.id}">Watch progress · 0%</small></article>`).join('')}</div>${videoProgress(course)}</section>`;}
+diff --git a/academy/course-websites/recordings.mjs b/academy/course-websites/recordings.mjs
+new file mode 100644
+index 00000000..22708325
+--- /dev/null
++++ b/academy/course-websites/recordings.mjs
+@@ -0,0 +1,40 @@
++// Content references and device-preview watch accounting; no identity or network.
++export function seconds(value){
++ if(typeof value==='number')return Number.isFinite(value)&&value>=0?value:null;
++ if(typeof value!=='string')return null;
++ if(/^\d+(?:\.\d+)?s?$/.test(value))return Number(value.replace(/s$/,''));
++ if(/^\d{1,3}:\d{2}(?::\d{2})?$/.test(value)){const p=value.split(':').map(Number);if(p.slice(1).some(n=>n>59))return null;return p.reduce((a,n)=>a*60+n,0);}
++ if(/^(?:\d+h)?(?:\d+m)?(?:\d+s)?$/.test(value)&&value){return [...value.matchAll(/(\d+)([hms])/g)].reduce((n,m)=>n+Number(m[1])*({h:3600,m:60,s:1}[m[2]]),0);}
++ return null;
++}
++export function timeLabel(n){n=Math.max(0,Math.floor(Number(n)||0));return (n>=3600?Math.floor(n/3600)+':':'')+String(Math.floor(n/60)%60).padStart(n>=3600?2:1,'0')+':'+String(n%60).padStart(2,'0');}
++export function youtubeSource(value){
++ try{const u=new URL(value);if(u.protocol!=='https:'||u.username||u.password||u.port)return null;
++  const host=u.hostname.toLowerCase();let id='';
++  if(host==='youtu.be')id=u.pathname.slice(1);
++  else if(['www.youtube.com','youtube.com','www.youtube-nocookie.com'].includes(host)){if(u.pathname==='/watch')id=u.searchParams.get('v');else if(/^\/(embed|shorts|live)\//.test(u.pathname))id=u.pathname.split('/')[2];}
++  if(!/^[A-Za-z0-9_-]{11}$/.test(id||''))return null;
++  const start=seconds(u.searchParams.get('t')||u.searchParams.get('start')||'0');if(start===null||start>604800)return null;
++  return {id,start,url:'https://www.youtube.com/watch?v='+id+(start?'&t='+Math.floor(start)+'s':'')};
++ }catch{return null;}
++}
++export function chapter(value){const m=typeof value==='string'&&value.match(/^(\d{1,3}:\d{2}(?::\d{2})?)\s+(.+)$/);if(!m)return null;const start=seconds(m[1]);return start===null?null:{start,title:m[2].trim(),stamp:m[1]};}
++export function courseRecordings(course){const found=new Map();for(const l of course.lessons)for(const s of l.sections)for(const b of s.blocks)if(b.type==='video'){const v=youtubeSource(b.videoUrl);if(v&&!found.has(v.id))found.set(v.id,{...v,title:b.text,summary:l.summary,quote:l.sections.flatMap(s=>s.blocks).find(b=>b.type==='quote'&&b.videoUrl&&!b.reference),duration:b.durationSeconds,blockId:b.id,lessonId:l.id});}return [...found.values()];}
++export function mergeIntervals(ranges,duration){const result=[];for(const item of ranges.filter(r=>Array.isArray(r)&&r.length===2&&r.every(Number.isFinite)&&r[0]>=0&&r[1]>r[0]).map(([a,b])=>[Math.min(a,duration),Math.min(b,duration)]).filter(([a,b])=>b>a).sort((a,b)=>a[0]-b[0])){const last=result.at(-1);if(last&&item[0]<=last[1])last[1]=Math.max(last[1],item[1]);else result.push([...item]);}return result;}
++export function watchedSeconds(record){return (record?.ranges||[]).reduce((n,[a,b])=>n+b-a,0);}
++export function watchLedger(){
++ const records=new Map();let sample=null;
++ return {
++  get(id){return records.get(id)||{ranges:[],lastPosition:0,duration:0};},
++  sample({id,position,duration,playing,clock,rate=1}){
++   if(!/^[A-Za-z0-9_-]{11}$/.test(id)||![position,duration,clock,rate].every(Number.isFinite)||duration<=0||position<0||position>duration+1||rate<=0||typeof playing!=='boolean')return false;
++   const record=records.get(id)||{ranges:[],lastPosition:0,duration};record.duration=duration;record.lastPosition=Math.min(position,duration);
++   if(sample?.id===id&&sample.playing){const elapsed=(clock-sample.clock)/1000,delta=position-sample.position;if(elapsed>0&&elapsed<=12&&delta>0&&delta<=elapsed*Math.max(rate,sample.rate)+1.25){record.ranges=mergeIntervals([...record.ranges,[sample.position,position]],duration);}}
++   records.set(id,record);sample={id,position,playing,clock,rate};return true;
++  },
++  stop(){sample=null;},
++  export(){return Object.fromEntries([...records].map(([id,v])=>[id,{...v,ranges:v.ranges.map(r=>[...r])}]));},
++  restore(value,allowed){sample=null;records.clear();for(const [id,v] of Object.entries(value||{})){const duration=allowed.get(id);if(!duration||!v||!Array.isArray(v.ranges)||!Number.isFinite(v.lastPosition))continue;const ranges=mergeIntervals(v.ranges.slice(0,10000),duration);records.set(id,{duration,lastPosition:Math.min(duration,Math.max(0,v.lastPosition)),ranges});}},
++  progress(videos){let duration=0,watched=0;for(const v of videos){const r=records.get(v.id),d=r?.duration||v.duration;if(d>0){duration+=d;watched+=Math.min(d,watchedSeconds(r));}}return {duration,watched,percent:duration?Math.min(100,Math.floor(watched/duration*100)):0};}
++ };
++}
+diff --git a/academy/course-websites/student.css b/academy/course-websites/student.css
+index 0f04904f..90b7bc3f 100644
+--- a/academy/course-websites/student.css
++++ b/academy/course-websites/student.css
+@@ -17,6 +17,15 @@
+ .student-course .sp-diagram-marker{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:var(--node-accent);color:#fff;font-size:12px;font-weight:700;flex:none}
+ .student-course .sp-diagram-marker:empty{width:9px;height:9px}
+ .student-course .sp-diagram-text{white-space:pre-line;min-width:0}
++.student-course .sp-quote p{white-space:pre-line}
++.student-course .sp-video{border:1px solid #b18c89;border-radius:15px;padding:22px;background:#f5ebe4;box-shadow:0 5px 0 #e9ddd2}
++.student-course .sp-video h3{font:30px/1.25 'Libre Caslon Display',Georgia,serif;margin:8px 0 12px}.student-course .sp-video-caption{font:15px/1.8 'DM Sans',sans-serif;color:#65594f}
++.student-course .sp-video-actions{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:18px 0}.student-course .sp-full-video{font:600 13px/1.7 'DM Sans',sans-serif;text-decoration:underline;text-underline-offset:4px}
++.student-course .sp-watch-status,.student-course .sp-video-progress small{display:block;font:12px/1.8 'DM Sans',sans-serif;color:#68594d}.student-course .sp-video-chapters{margin-top:18px;border-top:1px solid #d7c4b8;padding-top:14px}.student-course .sp-video-chapters summary{font:600 14px/1.7 'DM Sans',sans-serif;cursor:pointer}.student-course .sp-video-chapters ol{list-style:none;padding:8px 0 0;display:grid;gap:5px}.student-course .sp-video-chapters button{width:100%;text-align:left;background:#fffdfa;border-color:#e0d1c5;font-size:13px}.student-course .sp-transcript-summary{padding:23px;border:1px solid #dac8b8;border-radius:14px;background:#faf5ec}.student-course .sp-transcript-summary>h2{margin-top:0}
++.student-course .sp-featured-videos{margin:12px 0 35px}.student-course .sp-featured-videos>h2{font:38px/1.15 'Libre Caslon Display',Georgia,serif;margin:12px 0}.student-course .sp-featured-videos>p{font:15px/1.8 'DM Sans',sans-serif;max-width:650px;margin-bottom:23px}.student-course .sp-featured-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.student-course .sp-featured-grid article{display:flex;flex-direction:column;gap:11px;padding:22px 17px;background:#f2e8de;border:1px solid #d7bca6;border-radius:12px}.student-course .sp-featured-grid h3{font:28px/1.2 'Libre Caslon Display',Georgia,serif;margin:0}.student-course .sp-featured-grid small{font:11px/1.8 'DM Sans',sans-serif;color:#68594d}.student-course .sp-featured-grid button{font-size:13px}.student-course .sp-video-progress{margin:25px 0}
++@container course (max-width:480px){.student-course .sp-featured-grid{grid-template-columns:1fr}.student-course .sp-transcript-summary,.student-course .sp-video{padding:18px}}
++.student-course .sp-video-actions>a.sp-primary,.student-course .sp-featured-grid>a.sp-primary,.student-course .sp-featured-grid article>a.sp-primary{display:inline-flex;justify-content:center;align-items:center;min-height:44px;padding:12px 15px;border-radius:6px;font:600 13px/1.6 'DM Sans',sans-serif;text-align:center}.student-course .sp-quote-recording{display:block;margin-top:12px;font:12px/1.7 'DM Sans',sans-serif;text-decoration:underline;text-underline-offset:4px}
++.student-course .sp-video-chapters a{display:block;min-height:44px;padding:10px 12px;border:1px solid #e0d1c5;border-radius:5px;background:#fffdfa;font:13px/1.7 'DM Sans',sans-serif}.student-course .sp-video-chapters [contenteditable]{font:13px/1.7 'DM Sans',sans-serif}
+ .student-course .sp-diagram-steps{padding:22px 17px}
+ .student-course .sp-diagram-steps .sp-diagram-centre{min-height:0;max-width:none;box-shadow:none;border-radius:10px;padding:15px 10px;margin-bottom:22px;background:var(--sp-soft);border:0}
+ .student-course .sp-diagram-steps .sp-diagram-centre strong{font:25px/1.15 'Libre Caslon Display',Georgia,serif}
+@@ -52,3 +61,89 @@
+ .student-course .sp-complete button{width:auto;max-width:100%;min-height:44px;padding:10px 18px}
+ .student-course .sp-pagination{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start}
+ .student-course .sp-pagination button{flex:0 1 auto;max-width:min(100%,340px);min-height:44px;padding:10px 14px;overflow-wrap:anywhere}
++
++.student-course .sp-featured-grid .sp-recorded-summary{font:16px/1.8 'DM Sans',sans-serif;margin:0}.student-course .sp-featured-grid .sp-recorded-quote{margin:4px 0 10px;padding:18px;background:transparent}.student-course .sp-featured-grid .sp-recorded-quote p{font-size:19px}.student-course .sp-featured-grid article>.sp-primary{margin-top:auto}.student-course .sp-video-topics{margin-top:0;padding-top:0;border-top:0}
++
++.student-course .sp-video-summary{font:16px/1.8 'DM Sans',sans-serif;margin:0 0 14px}
++
++/* Recording pull-quotes keep the listening link close to the centred words. */
++.student-course .sp-quote.sp-recorded-quote{text-align:center;padding:12px 18px;margin-block:12px}
++.student-course .sp-quote.sp-recorded-quote p{margin:0;line-height:1.6}
++.student-course .sp-recorded-quote .sp-quote-recording{display:inline-block;text-align:center;margin:4px 0 0;padding:2px 8px;min-height:24px}
++.student-course .sp-video-topics{border:1px solid #e0d1c5;border-radius:10px;padding:0}
++.student-course .sp-video-topics>summary{padding:12px 15px;min-height:44px;color:var(--sp-accent)}
++.student-course .sp-video-topics>summary h2{display:inline;font:600 16px/1.7 'DM Sans',sans-serif;margin:0;color:inherit}
++.student-course .sp-video-topics[open]>summary{border-bottom:1px solid #e0d1c5}
++.student-course .sp-video-topics ol{margin:0;padding:12px}
++
++.student-course .sp-transcript-summary{display:flow-root}
++.student-course .sp-reading-body{container:lesson-reading / inline-size}
++.student-course .sp-transcript-summary>.sp-carry-quote{float:none;clear:none;width:auto;max-width:100%;margin:20px 0;padding:0;border:0}
++.student-course .sp-carry-quote>.sp-recorded-quote{margin:0}
++
++@container lesson-reading (min-width:600px){
++ .student-course .sp-transcript-summary>.sp-carry-quote{float:right;clear:right;width:40%;max-width:280px;margin:0 0 14px 22px}
++}
++
++/* Optional decorative cover: keep the editable heading inside the original artwork. */
++.student-course .sp-hero.sp-hero-framed{display:block;max-width:760px;margin-inline:auto;text-align:center;container:cover-frame / inline-size}
++.student-course .sp-hero-framed .sp-hero-frame-art{position:relative;width:100%;isolation:isolate}
++.student-course .sp-hero-framed .sp-hero-image img{width:100%;height:auto;object-fit:contain;border-radius:0}
++.student-course .sp-hero-frame-heading{position:absolute;inset:38% 17% 8%;display:flex;align-items:center;justify-content:center}
++.student-course .sp-hero-frame-heading h1{font-size:clamp(30px,7.8cqi,64px);line-height:1.08;max-width:100%;letter-spacing:-.4px;overflow-wrap:normal}
++.student-course .sp-hero-frame-heading h1 em{display:block}
++.student-course .sp-hero-framed .sp-hero-image figcaption{padding:2px 12px 10px;font-size:19px}
++.student-course .sp-hero-framed .sp-subtitle{margin:9px auto 8px;max-width:540px;font-size:15px}
++.student-course .sp-hero-framed .sp-description{margin-inline:auto}
++.student-course .sp-hero-framed .sp-hero-actions{justify-content:center;margin:20px 0 28px}
++
++/* Authored two-by-two quotations: a fine frame, warm paper and quiet rose wash. */
++.student-course .sp-quote-intro{font:400 max(18px,var(--reading-size,18px))/1.75 'DM Sans',sans-serif;color:var(--sp-ink);margin:0 0 30px;max-width:680px}
++.student-course .sp-quote-grid{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:minmax(0,1fr);gap:34px 24px}
++.student-course .sp-quote-card{position:relative;min-width:0;border:1px solid #cba79e;border-radius:3px;padding:26px 22px 28px;background:radial-gradient(ellipse at 46% 60%,#f3dfd787 0,#f7ece64d 48%,#fffdfa 85%);color:#583e3c}
++.student-course .sp-quote-card:before,.student-course .sp-quote-card:after{position:absolute;background:#fffdfa;color:var(--sp-accent);padding:0 7px;font:56px/.75 Georgia,serif;height:27px;pointer-events:none}
++.student-course .sp-quote-card:before{content:'“';top:-10px;left:14px}
++.student-course .sp-quote-card:after{content:'”';bottom:-13px;right:14px}
++.student-course .sp-quote-card header{display:flex;gap:10px;align-items:baseline;margin-bottom:18px}
++.student-course .sp-quote-card-number{font:500 12px/1.5 'DM Sans',sans-serif;color:var(--sp-accent);flex:none}
++.student-course .sp-quote-card h3{font:600 14px/1.5 'DM Sans',sans-serif;text-transform:uppercase;letter-spacing:.045em;color:var(--sp-accent)}
++.student-course .sp-quote-card blockquote{padding:0;margin:0;border:0;background:none;font:italic max(20px,var(--reading-size,18px))/1.65 Georgia,serif}
++.student-course .sp-quote-card-content[contenteditable]{white-space:pre-wrap;font:17px/1.8 'DM Sans',sans-serif}
++@container lesson-reading (min-width:600px){.student-course .sp-quote-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.student-course .sp-quote-card{padding:30px 24px 32px}}
++/* Preserve the original horizontal line: 01/03/05 above, 02/04 below. */
++.student-course .sp-source-timeline-caption{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
++.student-course .sp-source-timeline-caption[contenteditable]{position:static;width:auto;height:auto;clip-path:none;white-space:normal;margin-bottom:20px}
++.student-course .sp-sequence-scroll{max-width:100%;overflow-x:auto;padding:5px 2px 16px;scrollbar-color:#b98c8d #f7efeb;scrollbar-width:thin}
++.student-course .sp-authored-sequence{list-style:none;position:relative;display:grid;grid-template-columns:repeat(10,minmax(0,1fr));grid-template-rows:minmax(240px,auto) 1px minmax(180px,auto);margin:0;padding:0;min-width:700px;color:#a95565}
++.student-course .sp-authored-sequence:before{content:'';grid-column:1/-1;grid-row:2;background:#5a6457;height:1px;align-self:center}
++.student-course .sp-authored-sequence li{position:relative;min-width:0;padding:0 12px 28px;display:flex;flex-direction:column;gap:24px}
++.student-course .sp-authored-sequence li:nth-child(1){grid-column:1/span 3;grid-row:1}
++.student-course .sp-authored-sequence li:nth-child(2){grid-column:2/span 3;grid-row:3;padding-top:29px;padding-bottom:0}
++.student-course .sp-authored-sequence li:nth-child(3){grid-column:4/span 3;grid-row:1}
++.student-course .sp-authored-sequence li:nth-child(4){grid-column:5/span 3;grid-row:3;padding-top:29px;padding-bottom:0}
++.student-course .sp-authored-sequence li:nth-child(5){grid-column:7/span 3;grid-row:1}
++.student-course .sp-authored-sequence li:after{content:'';position:absolute;left:12px;width:1px;height:23px;background:#5a6457;bottom:0}
++.student-course .sp-authored-sequence li:nth-child(even):after{bottom:auto;top:0}
++.student-course .sp-sequence-number{font:400 18px/1.5 'DM Sans',sans-serif}
++.student-course .sp-sequence-text{font:700 max(23px,var(--reading-size,18px))/1.45 'DM Sans',sans-serif;text-transform:uppercase;white-space:pre-line}
++.student-course .sp-reading-section:has(>.sp-source-timeline)>h2{font:400 23px/1.5 'DM Sans',sans-serif;text-transform:uppercase;letter-spacing:.16em;text-align:center;max-width:32ch;margin:24px auto 35px}
++.student-course .sp-source-timeline~.sp-block{font:600 14px/1.6 'DM Sans',sans-serif;text-transform:uppercase;color:#a95565;margin:4px 0}
++.student-course .sp-source-timeline~.sp-block:first-of-type{margin-top:24px}
++
++/* Optional website-owned treatment for scholarly quotations and hadith. */
++.student-course .sp-inner[data-quotation-style=quiet] .sp-quote:not(.sp-recorded-quote){padding:20px 21px;border:1px solid #cdbab4;border-radius:8px;background:#fcf8f4;color:#514750;font:italic max(18px,var(--reading-size,18px))/1.85 Georgia,serif;box-shadow:none}
++.student-course .sp-inner[data-quotation-style=quiet] .sp-quote:not(.sp-recorded-quote) cite{margin-top:12px;color:#75635e;font:400 12px/1.7 'DM Sans',sans-serif}
++@container lesson-reading (max-width:400px){.student-course .sp-inner[data-quotation-style=quiet] .sp-quote:not(.sp-recorded-quote){padding:17px 16px}}
++
++/* Make the recording a visible lesson, with its matching authored notes close by. */
++.student-course a.sp-video-poster{position:relative;display:block;width:100%;aspect-ratio:16/9;overflow:hidden;border-radius:8px;background:#302832;color:#fff;margin:14px 0 17px;isolation:isolate}
++.student-course .sp-video-poster img{display:block;width:100%;height:100%;object-fit:cover;opacity:.8}
++.student-course .sp-video-poster-play{position:absolute;inset:0;display:grid;place-items:center;font-size:38px;text-shadow:0 2px 14px #000}
++.student-course .sp-video-poster-label{position:absolute;inset:auto 0 0;background:linear-gradient(transparent,#201a26dd);padding:24px 14px 12px;font:600 14px/1.5 'DM Sans',sans-serif}
++.student-course .sp-featured-grid .sp-video-poster{margin:0}
++.student-course .sp-recording-notes>p{font-size:16px;margin-bottom:16px}
++.student-course .sp-recording-notes ul{list-style:none;padding:0;margin:0;display:grid;gap:10px}
++.student-course .sp-recording-notes li{padding:13px 0;border-bottom:1px solid var(--sp-border);display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px}
++.student-course .sp-recording-notes button{text-align:left;font-size:16px;line-height:1.6;flex:1 1 260px;border:0;padding:0}
++.student-course .sp-recording-notes a{font:500 13px/1.6 'DM Sans',sans-serif;text-decoration:underline;text-underline-offset:3px;min-height:44px;display:inline-flex;align-items:center}
++.student-course .sp-back-to-recording{white-space:normal;text-align:left}
+diff --git a/academy/course-websites/student.mjs b/academy/course-websites/student.mjs
+index e2d8d58d..712a7589 100644
+--- a/academy/course-websites/student.mjs
++++ b/academy/course-websites/student.mjs
+@@ -1,16 +1,20 @@
+ import {esc,THEMES} from './model.mjs';
++import {videoBlock,featuredVideos,videoProgress,quoteRecordingLink,recordingNavigation} from './recording-view.mjs';
+ const label=(text)=>`<span class="sp-eyebrow">${esc(text)}</span>`;
+ const action=(text,route,extra='')=>`<button data-sp="route" data-route="${esc(route)}" ${extra}>${esc(text)}</button>`;
+ const goLesson=(text,id,extra='')=>`<button data-sp="lesson" data-id="${esc(id)}" ${extra}>${esc(text)}</button>`;
+ export function imageURL(assetMap,id,fallback='/academy/course-websites/assets/lilac-600.webp'){const value=assetMap.get(id)?.url||fallback;return /^(?:blob:|\/academy\/course-websites\/assets\/|assets\/|data:image\/(?:png|jpeg|webp);base64,)/.test(value)?value:fallback;}
+-export function renderBlock(block,ui,assetMap){
++export function renderBlock(block,ui,assetMap,{summary='',topicsTitle=''}={}){
+  const text=esc(block.text),arabic=esc(block.arabic);
+  switch(block.type){
++  case 'video':return videoBlock(block,{summary,topicsTitle});
+   case 'text':return `<div class="sp-block${block.emphasis==='key'?' sp-key-passage':''}"><p>${text}</p></div>`;
+   case 'arabic':return `<div class="sp-block sp-arabic" lang="ar" dir="rtl">${arabic||'…'}</div>`;
+   case 'ayah':return `<figure class="sp-block sp-ayah"><span class="sp-reference">${esc(block.reference)||'AYAH REFERENCE'}</span><p class="sp-arabic" lang="ar" dir="rtl">${arabic||'…'}</p><figcaption>${esc(block.translation)}</figcaption></figure>`;
+-  case 'quote':if(block.reference)return `<figure class="sp-block sp-ayah sp-verse-translation"><span class="sp-reference">${esc(block.reference)}</span>${arabic?`<p class="sp-arabic" lang="ar" dir="rtl">${arabic}</p>`:''}<figcaption>${text}</figcaption></figure>`;return `<blockquote class="sp-block sp-quote">${arabic?`<p class="sp-arabic" lang="ar" dir="rtl">${arabic}</p>`:''}<p>${text}</p>${block.attribution?`<cite>${esc(block.attribution)}</cite>`:''}</blockquote>`;
++  case 'quote':if(block.reference)return `<figure class="sp-block sp-ayah sp-verse-translation"><span class="sp-reference">${esc(block.reference)}</span>${arabic?`<p class="sp-arabic" lang="ar" dir="rtl">${arabic}</p>`:''}<figcaption>${text}</figcaption></figure>`;return `<blockquote class="sp-block sp-quote${quoteRecordingLink(block)?' sp-recorded-quote':''}">${arabic?`<p class="sp-arabic" lang="ar" dir="rtl">${arabic}</p>`:''}<p>${text}</p>${block.attribution&&!quoteRecordingLink(block)?`<cite>${esc(block.attribution)}</cite>`:''}${quoteRecordingLink(block)}</blockquote>`;
+   case 'list':{
++   if(block.presentation==='quote-cards')return `<figure class="sp-block sp-quote-grid-group"><figcaption class="sp-quote-intro">${text}</figcaption><ul class="sp-quote-grid">${block.items.map((item,i)=>{const match=item.match(/^(\d+)\s*·\s*([^:]+):\s*([\s\S]*)$/),number=match?.[1]||String(i+1).padStart(2,'0'),heading=match?.[2]||'',body=match?.[3]||item;return `<li class="sp-quote-card"><div class="sp-quote-card-content"><header><span class="sp-quote-card-number">${esc(number)}</span>${heading?`<h3>${esc(heading)}</h3>`:''}</header><blockquote><p>${esc(body)}</p></blockquote></div></li>`;}).join('')}</ul></figure>`;
++   if(block.presentation==='alternating')return `<figure class="sp-block sp-source-timeline"><figcaption class="sp-source-timeline-caption">${text}</figcaption><div class="sp-sequence-scroll" tabindex="0" role="region" aria-label="Five numbered statements in the original alternating layout"><ol class="sp-authored-sequence">${block.items.map((item,i)=>`<li><span class="sp-sequence-number" aria-hidden="true">${String(i+1).padStart(2,'0')}</span><span class="sp-sequence-text">${esc(item)}</span></li>`).join('')}</ol></div></figure>`;
+    if(['concept','radial','steps'].includes(block.presentation))return `<figure class="sp-block sp-diagram sp-diagram-${block.presentation}">${block.presentation==='radial'?'<svg class="sp-radial-links" viewBox="0 0 600 700" preserveAspectRatio="none" aria-hidden="true"><path d="M300 350L300 63M300 350L504 203M300 350L504 497M300 350L300 637M300 350L96 497M300 350L96 203"/></svg>':''}<figcaption class="sp-diagram-centre"><strong>${text}</strong>${block.attribution?`<span>${esc(block.attribution)}</span>`:''}</figcaption><${block.ordered?'ol':'ul'} class="sp-diagram-nodes">${block.items.map((item,i)=>`<li><span class="sp-diagram-marker" aria-hidden="true">${block.ordered?i+1:''}</span><span class="sp-diagram-text">${esc(item)}</span></li>`).join('')}</${block.ordered?'ol':'ul'}></figure>`;
+    return `<${block.ordered?'ol':'ul'} class="sp-block sp-list">${block.items.map(item=>`<li>${esc(item)}</li>`).join('')}</${block.ordered?'ol':'ul'}>`;
+   }
+@@ -28,15 +32,32 @@ export function renderBlock(block,ui,assetMap){
+ }
+ function home(course,ui,assets){
+  const h=course.home,first=course.lessons[0],words=h.headline.split(' '),accent=words.splice(Math.max(0,words.length-2)).join(' ');
+- return `<div class="sp-hero"><div><h1>${esc(words.join(' '))} <em>${esc(accent)}</em></h1><p class="sp-subtitle">${esc(h.subtitle)}</p><p class="sp-description">${esc(h.description)}</p><div class="sp-hero-actions">${first?goLesson('Begin reading →',first.id,'class="sp-primary"'):action('Explore your lessons →','lessons','class="sp-primary"')}</div></div><figure class="sp-hero-image"><img data-course-image="${esc(h.imageId)}" src="${esc(imageURL(assets,h.imageId))}" alt="${esc(h.imageAlt)}"><figcaption>${esc(h.caption)}</figcaption></figure></div><div class="sp-links">${course.pages.assessments?action('Your assessments & submissions →','assessments'):''}${course.pages.materials?action('Your course materials ↗','materials'):''}</div>${h.themes.length?`<div class="sp-section-heading">${label('THE COURSE JOURNEY')}<h2>${esc(h.journeyTitle)}</h2></div><div class="sp-journey">${h.themes.map((t,i)=>`<button class="sp-theme" data-sp="${t.lessonId?'lesson':'route'}" data-id="${esc(t.lessonId)}" data-route="lessons"><small>${String(i+1).padStart(2,'0')} / ${esc(t.label.toUpperCase())}</small><h3>${esc(t.title)}</h3>${t.arabic?`<span lang="ar" dir="rtl">${esc(t.arabic)}</span>`:''}<p>${esc(t.description)}</p></button>`).join('')}</div>`:''}${first?`<section class="sp-start"><div>${label('YOUR STARTING POINT')}<h2>${esc(first.title)}</h2></div>${goLesson('→',first.id,'aria-label="Begin your first lesson"')}</section>`:''}`;
++ const title=`<h1>${esc(words.join(' '))} <em>${esc(accent)}</em></h1>`,intro=`<p class="sp-subtitle">${esc(h.subtitle)}</p><p class="sp-description">${esc(h.description)}</p>`,actions=`<div class="sp-hero-actions">${course.recordingCompanion?action('Read & reflect','lessons','class="sp-read-reflect"'):""}${first?goLesson(course.recordingCompanion?'Watch & follow along →':'Begin reading →',first.id,'class="sp-primary"'):action('Explore your lessons →','lessons','class="sp-primary"')}</div>`,image=`<img data-course-image="${esc(h.imageId)}" src="${esc(imageURL(assets,h.imageId))}" alt="${esc(h.imageAlt)}">`;
++ const hero=h.imageLayout==='frame'&&h.imageId?`<div class="sp-hero sp-hero-framed"><figure class="sp-hero-image"><div class="sp-hero-frame-art">${image}<div class="sp-hero-frame-heading">${title}</div></div><figcaption>${esc(h.caption)}</figcaption></figure><div class="sp-hero-intro">${intro}${actions}</div></div>`:`<div class="sp-hero"><div>${title}${intro}${actions}</div><figure class="sp-hero-image">${image}<figcaption>${esc(h.caption)}</figcaption></figure></div>`;
++ return `${hero}${featuredVideos(course)}<div class="sp-links">${course.pages.assessments?action('Your assessments & submissions →','assessments'):''}${course.pages.materials?action('Your course materials ↗','materials'):''}</div>${h.themes.length?`<div class="sp-section-heading">${label('THE COURSE JOURNEY')}<h2>${esc(h.journeyTitle)}</h2></div><div class="sp-journey">${h.themes.map((t,i)=>`<button class="sp-theme" data-sp="${t.lessonId?'lesson':'route'}" data-id="${esc(t.lessonId)}" data-route="lessons"><small>${String(i+1).padStart(2,'0')} / ${esc(t.label.toUpperCase())}</small><h3>${esc(t.title)}</h3>${t.arabic?`<span lang="ar" dir="rtl">${esc(t.arabic)}</span>`:''}<p>${esc(t.description)}</p></button>`).join('')}</div>`:''}${first?`<section class="sp-start"><div>${label('YOUR STARTING POINT')}<h2>${esc(first.title)}</h2></div>${goLesson('→',first.id,'aria-label="Begin your first lesson"')}</section>`:''}`;
+ }
+-function library(course,ui){const groups=[...new Set(course.lessons.map(l=>l.group))],done=course.lessons.filter(l=>ui.completed.includes(l.id)).length;return `${label('YOUR LEARNING JOURNEY')}<h1 class="sp-page-title">Read slowly.<br><em>Return often.</em></h1><p class="sp-lead">Explore the lessons at your own pace. Follow them in order, or return to the passage you need.</p><div class="sp-progress">${label('YOUR READING JOURNEY')}<p>${done} of ${course.lessons.length} lessons completed</p><progress max="${Math.max(1,course.lessons.length)}" value="${done}" aria-label="Lessons completed"></progress></div>${groups.map(group=>`<div class="sp-section-heading"><h2>${esc(group)}</h2></div><div class="sp-lessons">${course.lessons.filter(l=>l.group===group).map(l=>`<button class="sp-lesson-card" data-sp="lesson" data-id="${esc(l.id)}">${label('LESSON '+String(course.lessons.indexOf(l)+1).padStart(2,'0'))}<h3>${esc(l.title)}</h3><p>${esc(l.summary)}</p><span>${ui.completed.includes(l.id)?'Completed ✓':'Read lesson →'}</span></button>`).join('')}</div>`).join('')}${course.lessons.length?'':'<div class="sp-empty">Your web lessons will appear here.</div>'}`;}
+-function lesson(course,ui,assets){const index=Math.max(0,course.lessons.findIndex(l=>l.id===ui.lessonId)),l=course.lessons[index];if(!l)return library(course,ui);return `<div class="sp-reading-toolbar"><button data-sp="contents">Menu ☰</button><div><button data-sp="smaller" aria-label="Smaller reading text">A−</button><button data-sp="larger" aria-label="Larger reading text">A+</button></div></div><article class="sp-lesson-article" lang="en-GB" aria-labelledby="sp-lesson-title">${label(`LESSON ${String(index+1).padStart(2,'0')} OF ${course.lessons.length} · ${l.group}`)}<h1 id="sp-lesson-title" class="sp-page-title">${esc(l.title)}</h1>${l.sourceEdition?'':`<p class="sp-lead">${esc(l.summary)}</p>`}<div class="sp-reading-body" style="--reading-size:${ui.readingSize}px">${l.sections.map((s,i)=>`<section class="sp-reading-section">${course.editorialLayout?(s.label?label(s.label):''):`<span class="sp-eyebrow">${String(i+1).padStart(2,'0')}${s.label?' / '+esc(s.label):''}</span>`}<h2>${esc(s.title)}</h2>${s.blocks.map(b=>renderBlock(b,ui,assets)).join('')}</section>`).join('')}</div></article><div class="sp-complete"><button class="sp-primary" data-sp="complete" data-id="${esc(l.id)}" aria-pressed="${ui.completed.includes(l.id)}">${ui.completed.includes(l.id)?'Lesson complete · undo':'Mark this lesson complete'}</button></div><nav class="sp-pagination" aria-label="Lesson navigation">${index?goLesson(course.lessons[index-1].title,course.lessons[index-1].id,'aria-label="Previous lesson"'):action('All lessons','lessons')}${index<course.lessons.length-1?goLesson(course.lessons[index+1].title,course.lessons[index+1].id,'aria-label="Next lesson"'):action('All lessons','lessons')}</nav>`;}
++function library(course,ui){const groups=[...new Set(course.lessons.map(l=>l.group))],done=course.lessons.filter(l=>ui.completed.includes(l.id)).length;return `${label('YOUR LEARNING JOURNEY')}<h1 class="sp-page-title">${course.recordingCompanion?'Listen. Reflect.<br><em>Return often.</em>':'Read slowly.<br><em>Return often.</em>'}</h1><p class="sp-lead">${course.recordingCompanion?'The recordings are your lessons. Open a companion to watch, follow its summary and return to the author’s notes.':'Explore the lessons at your own pace. Follow them in order, or return to the passage you need.'}</p>${course.recordingCompanion?videoProgress(course):`<div class="sp-progress">${label('YOUR READING JOURNEY')}<p>${done} of ${course.lessons.length} lessons completed</p><progress max="${Math.max(1,course.lessons.length)}" value="${done}" aria-label="Lessons completed"></progress></div>`}${groups.map(group=>`<div class="sp-section-heading"><h2>${esc(group)}</h2></div><div class="sp-lessons">${course.lessons.filter(l=>l.group===group).map(l=>`<button class="sp-lesson-card" data-sp="lesson" data-id="${esc(l.id)}">${label(course.recordingCompanion?(l.companionReading?'COMPANION READING':'RECORDED LESSON'):'LESSON '+String(course.lessons.indexOf(l)+1).padStart(2,'0'))}<h3>${esc(l.title)}</h3><p>${esc(l.summary)}</p><span>${course.recordingCompanion?'Open companion →':ui.completed.includes(l.id)?'Completed ✓':'Read lesson →'}</span></button>`).join('')}</div>`).join('')}${course.lessons.length?'':'<div class="sp-empty">Your web lessons will appear here.</div>'}`;}
++
++// Keep the brief overview with its recording and close with the practical
++// summary, including its Words to carry quotation. IDs preserve editor mapping.
++function readingSections(course,lesson,ui,assets){
++ const primary=course.recordingCompanion&&!lesson.companionReading?lesson.sections.flatMap(s=>s.blocks).find(b=>b.type==='video'&&!b.topicsOnly)?.id:null;
++ const summaries=lesson.sections.filter(s=>s.transcriptSummary),closing=summaries.at(-1);
++ const carries=closing?lesson.sections.filter(s=>!s.transcriptSummary&&s.blocks.length===1&&s.blocks[0].type==='quote'&&quoteRecordingLink(s.blocks[0])):[];
++ const section=(s,{nested=false}={})=>{
++  const i=lesson.sections.indexOf(s),heading=nested?'h3':'h2',tag=s.transcriptSummary?'aside':'section';
++  const inset=s===closing?carries.map(c=>section(c,{nested:true})).join(''):'';
++  const body=s.blocks.map((b,index)=>renderBlock(b,ui,assets,{summary:b.id===primary?lesson.summary:'',topicsTitle:s.title})+(index===0?inset:'')).join('')+(!s.blocks.length?inset:'');
++  return `<${tag} class="sp-reading-section${s.transcriptSummary?' sp-transcript-summary':''}${nested?' sp-carry-quote':''}" data-section-id="${esc(s.id)}"${nested?' aria-label="Recording quotation"':''}>${nested?'':course.editorialLayout?(s.label?label(s.label):''):`<span class="sp-eyebrow">${String(i+1).padStart(2,'0')}${s.label?' / '+esc(s.label):''}</span>`}${nested||s.blocks.length===1&&s.blocks[0].type==='video'&&s.blocks[0].topicsOnly?'':`<${heading}>${esc(s.title)}</${heading}>`}${body}</${tag}>`;
++ };
++ return lesson.sections.filter(s=>!s.transcriptSummary&&!carries.includes(s)).map(s=>section(s)).join('')+(!lesson.companionReading?recordingNavigation(course,lesson):'')+summaries.map(s=>section(s)).join('');
++}
++function lesson(course,ui,assets){const index=Math.max(0,course.lessons.findIndex(l=>l.id===ui.lessonId)),l=course.lessons[index];if(!l)return library(course,ui);return `<div class="sp-reading-toolbar"><div>${l.companionReading?recordingNavigation(course,l):''}<button data-sp="contents">Menu ☰</button></div><div><button data-sp="smaller" aria-label="Smaller reading text">A−</button><button data-sp="larger" aria-label="Larger reading text">A+</button></div></div><article class="sp-lesson-article" lang="en-GB" aria-labelledby="sp-lesson-title">${label(course.recordingCompanion?`${l.companionReading?'COMPANION READING':'RECORDED LESSON'} · ${l.group}`:`LESSON ${String(index+1).padStart(2,'0')} OF ${course.lessons.length} · ${l.group}`)}<h1 id="sp-lesson-title" class="sp-page-title">${esc(l.title)}</h1>${l.sourceEdition||course.recordingCompanion&&!l.companionReading&&l.sections.some(s=>s.transcriptSummary)?'':`<p class="sp-lead">${esc(l.summary)}</p>`}<div class="sp-reading-body" style="--reading-size:${ui.readingSize}px">${readingSections(course,l,ui,assets)}</div></article>${course.recordingCompanion?'':`<div class="sp-complete"><button class="sp-primary" data-sp="complete" data-id="${esc(l.id)}" aria-pressed="${ui.completed.includes(l.id)}">${ui.completed.includes(l.id)?'Lesson complete · undo':'Mark this lesson complete'}</button></div>`}<nav class="sp-pagination" aria-label="Lesson navigation">${index?goLesson(course.lessons[index-1].title,course.lessons[index-1].id,'aria-label="Previous lesson"'):action('All lessons','lessons')}${index<course.lessons.length-1?goLesson(course.lessons[index+1].title,course.lessons[index+1].id,'aria-label="Next lesson"'):action('All lessons','lessons')}</nav>`;}
+ function sessions(course,ui){if(ui.sessionsHTML!==undefined)return ui.sessionsHTML;const dates=['Sun, 18 Oct','Sun, 25 Oct','Sun, 1 Nov','Sun, 8 Nov'];return `${label('LEARN TOGETHER')}<h1 class="sp-page-title">Your course<br><em>sessions.</em></h1><p class="sp-lead">Your timetable, recordings and lesson notes, together in one place.</p><div class="sp-session-grid">${dates.map((date,i)=>{const finished=ui.sessionState==='finished'||ui.sessionState==='upcoming'&&i<2||ui.sessionState==='live'&&i<2,live=ui.sessionState==='live'&&i===2;return `<article class="sp-session">${label('SESSION '+String(i+1).padStart(2,'0'))}<h3>${date}</h3><p>${esc(course.name)}</p>${finished?'':'<p>19:00–20:00</p>'}${course.sessionOptions.showTeacher?'<p>Course teacher</p>':''}${live?'<button class="sp-primary" data-sp="example-join">Join session ↗</button>':`<span class="sp-status">${finished?'Session ended':'Joining opens five minutes before the session.'}</span>`}${finished?`<button class="sp-recording" data-sp="example-recording"><span aria-hidden="true">▷</span><span>Session ${i+1}<br>recording</span></button>${course.sessionOptions.showNotes?'<button class="sp-notes" data-sp="example-notes">▤ Lesson notes</button>':''}`:'<span class="sp-status">Materials will appear here when published.</span>'}</article>`;}).join('')}</div><p class="sp-lead" style="margin-top:19px">Session times: Africa/Johannesburg</p>`;}
+ function materials(course,assets,ui){return `${label('KEEP LEARNING')}<h1 class="sp-page-title">Your course<br><em>materials.</em></h1><p class="sp-lead">${esc(course.materials.intro)}</p>${course.materials.files.map(file=>{const asset=assets.get(file.assetId);return `<article class="sp-material"><span class="sp-file-tag">${asset?.type==='application/pdf'?'COURSE PDF':'COURSE RESOURCE'}</span><h2>${esc(file.title||asset?.name||'Course file')}</h2><p>${esc(file.description)}</p>${asset?`<button class="sp-primary" data-sp="download-file" data-id="${esc(asset.id)}">Download ${asset.type==='application/pdf'?'PDF':'file'} ↓</button>`:'<p>Choose a file in Course materials.</p>'}</article>`;}).join('')||(ui.isPreview?'<div class="sp-empty">Upload a PDF and add it to Course materials to preview the download.</div>':'')}${ui.nativeMaterialsHTML||''}<article class="sp-material"><span class="sp-file-tag">YOUR REFLECTIONS</span><h2>Thoughts to keep</h2><p>Download your reflections saved in this browser.</p><button data-sp="download-reflections">Download reflections ↓</button></article>`;}
+ export function renderCourse(course,ui,assets){
+  const route=ui.route==='lesson'?'lessons':ui.route,theme=THEMES[course.theme],menu=[['home','⌂'],['lessons','◫'],...(course.pages.sessions?[['sessions','▦']]:[]),...(course.pages.materials?[['materials','▤']]:[]),...(course.pages.assessments?[['assessments','✓']]:[])];
+  const nav=menu.map(([key,icon])=>action(`${icon}  ${course.menu[key]}`,key,`aria-current="${route===key?'page':'false'}"`)).join('');
+  let content=ui.route==='home'?home(course,ui,assets):ui.route==='lessons'?library(course,ui):ui.route==='lesson'?lesson(course,ui,assets):ui.route==='sessions'?sessions(course,ui):ui.route==='materials'?materials(course,assets,ui):ui.assessmentsHTML!==undefined?ui.assessmentsHTML:`${label('YOUR ASSESSMENTS')}<h1 class="sp-page-title">Pause.<br><em>Put it into practice.</em></h1><p class="sp-lead">Your assignments, submissions and released results.</p><article class="sp-assessment">${label('EXAMPLE ASSIGNMENT')}<h2>A space for reflection</h2><p>Your course assessments will appear here with their existing release and submission controls.</p><button class="sp-primary" data-sp="example-assessment">Open assessment →</button></article>`;
+- return `<div class="sp-inner" style="--sp-accent:${theme.accent};--sp-soft:${theme.soft}">${ui.portal?'':`<header class="sp-header"><div class="sp-brand"><span aria-hidden="true">◫</span><span>Umm Abbad<br>Academy</span></div><div class="sp-header-actions"><button data-sp="route" data-route="home" aria-label="Academy home">⌂</button><button data-sp="refresh" aria-label="Refresh course preview">⟳</button></div></header><div class="sp-account"><span>Ahlan wa Sahlan · Student preview</span><span>Umm Abbad Academy</span></div>`}<div class="sp-course-row"><div><strong>${esc(course.name)}</strong><small>${esc(course.tag)}</small></div><div class="sp-row-actions">${ui.sessionState==='live'&&course.pages.sessions?'<button class="sp-primary" data-sp="example-join">Join now</button>':''}<button data-sp="contents" aria-label="Open course menu">Menu ☰</button></div></div><div class="sp-layout"><aside class="sp-sidebar"><h2>${esc(course.name)}</h2>${label(course.tag)}${ui.sessionState==='live'&&course.pages.sessions?'<button class="sp-primary" data-sp="example-join" style="margin-top:15px">Join now</button>':''}<nav aria-label="Course pages">${nav}</nav><div class="sp-contents-links">${[...new Set(course.lessons.map(l=>l.group))].map(g=>`<strong>${esc(g)}</strong>${course.lessons.filter(l=>l.group===g).map(l=>goLesson(l.title,l.id)).join('')}`).join('')}</div></aside><section class="sp-page${ui.route==='lesson'?' sp-reading-page':''}">${content}<footer class="sp-footer"><span>Umm Abbad Academy</span><span>Your course companion</span></footer></section></div><nav class="sp-mobile-nav" aria-label="Course navigation">${menu.filter(([key])=>key!=='assessments').map(([key,icon])=>`<button data-sp="route" data-route="${key}" aria-current="${route===key?'page':'false'}"><span aria-hidden="true">${icon}</span><small>${esc(course.menu[key])}</small></button>`).join('')}</nav></div>`;
++ return `<div class="sp-inner" data-quotation-style="${esc(course.quotationStyle||'default')}" style="--sp-accent:${theme.accent};--sp-soft:${theme.soft}">${ui.portal?'':`<header class="sp-header"><div class="sp-brand"><span aria-hidden="true">◫</span><span>Umm Abbad<br>Academy</span></div><div class="sp-header-actions"><button data-sp="route" data-route="home" aria-label="Academy home">⌂</button><button data-sp="refresh" aria-label="Refresh course preview">⟳</button></div></header><div class="sp-account"><span>Ahlan wa Sahlan · Student preview</span><span>Umm Abbad Academy</span></div>`}<div class="sp-course-row"><div><strong>${esc(course.name)}</strong><small>${esc(course.tag)}</small></div><div class="sp-row-actions">${ui.sessionState==='live'&&course.pages.sessions?'<button class="sp-primary" data-sp="example-join">Join now</button>':''}<button data-sp="contents" aria-label="Open course menu">Menu ☰</button></div></div><div class="sp-layout"><aside class="sp-sidebar"><h2>${esc(course.name)}</h2>${label(course.tag)}${ui.sessionState==='live'&&course.pages.sessions?'<button class="sp-primary" data-sp="example-join" style="margin-top:15px">Join now</button>':''}<nav aria-label="Course pages">${nav}</nav><div class="sp-contents-links">${[...new Set(course.lessons.map(l=>l.group))].map(g=>`<strong>${esc(g)}</strong>${course.lessons.filter(l=>l.group===g).map(l=>goLesson(l.title,l.id)).join('')}`).join('')}</div></aside><section class="sp-page${ui.route==='lesson'?' sp-reading-page':''}">${content}<footer class="sp-footer"><span>Umm Abbad Academy</span><span>Your course companion</span></footer></section></div><nav class="sp-mobile-nav" aria-label="Course navigation">${menu.filter(([key])=>key!=='assessments').map(([key,icon])=>`<button data-sp="route" data-route="${key}" aria-current="${route===key?'page':'false'}"><span aria-hidden="true">${icon}</span><small>${esc(course.menu[key])}</small></button>`).join('')}</nav></div>`;
+ }
+diff --git a/academy/course-websites/studio.mjs b/academy/course-websites/studio.mjs
+index 0f3304a9..30fceb96 100644
+--- a/academy/course-websites/studio.mjs
++++ b/academy/course-websites/studio.mjs
+@@ -7,7 +7,7 @@ let course=newCourse(),savedDrafts=[],assetMap=new Map(),assetCache=new Map(),pa
+ let ui={isPreview:true,route:'home',lessonId,readingSize:18,completed:[],reflections:{},sessionState:'upcoming'};
+ const editorPages=()=>PAGES.filter(([id])=>!window.COURSE_WEBSITE_ADMIN?.surahId||!['sessions','assessments'].includes(id));
+ const icons={home:'⌂',lessons:'◫',sessions:'▦',materials:'▤',assessments:'✓',appearance:'✳'};
+-const blockIcons={text:'¶',arabic:'ع',ayah:'۞',quote:'“',list:'☷',words:'⇄',reflection:'✎',image:'▧',note:'↳',callout:'✳'};
++const blockIcons={text:'¶',arabic:'ع',ayah:'۞',quote:'“',list:'☷',words:'⇄',reflection:'✎',image:'▧',note:'↳',callout:'✳',video:'▷'};
+ const currentLesson=()=>course.lessons.find(l=>l.id===lessonId)||course.lessons[0];
+ function say(text){$('toast').textContent=text;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,4200);}
+ function status(text){$('save-status').textContent=text;}
+@@ -24,16 +24,18 @@ function check(path,label,hint=''){const value=path.split('.').reduce((v,k)=>v[k
+ function heading(title,description,buttons=''){return `<div class="editor-header"><div><span class="overline">${page==='lessons'?'WEB LESSON EDITOR':'COURSE WEBSITE'}</span><h1>${title}</h1><p>${description}</p></div>${buttons|| (undo?'<button class="subtle" data-action="undo">Undo</button>':'')}</div>`;}
+ function moves(action,attrs,index,length){return `<div class="move-buttons"><button data-action="${action}" ${attrs} data-direction="-1" aria-label="Move up"${index===0?' disabled':''}>↑</button><button data-action="${action}" ${attrs} data-direction="1" aria-label="Move down"${index===length-1?' disabled':''}>↓</button></div>`;}
+ function imagePicker(path,altPath){const id=path.split('.').reduce((v,k)=>v[k],course),asset=assetMap.get(id);return `<div class="image-picker"><img src="${esc(imageURL(assetMap,id))}" alt="${esc(asset?.name||'Course cover')} "><div><p>${esc(asset?.name||'The Surah Al Kahf template image')}<br>Upload a picture exported from Canva.</p><div class="buttons"><button class="subtle" data-action="choose-image" data-path="${path}">Choose image</button><button class="subtle" data-action="upload-image" data-path="${path}">Upload</button></div></div></div>${field(altPath,'Image description',{hint:'Describe the picture for students who use a screen reader.'})}`;}
+-function homeEditor(){return `${heading('Your course home','Set the welcome, cover image and journey cards. The student layout follows the Surah Al Kahf design.')}<div class="fields">${field('name','Course name')}${field('tag','Small label below the course name',{hint:'For example: BOOTCAMP, WORKSHOP or READING COURSE.'})}${field('home.headline','Welcome headline',{area:true,rows:2})}${field('home.subtitle','Course subtitle')}${field('home.description','Introduction',{area:true})}</div><section class="editor-section"><h2>Cover & caption</h2><div class="fields">${imagePicker('home.imageId','home.imageAlt')}${field('home.caption','Image caption')}</div></section><section class="editor-section"><h2>The course journey</h2><div class="fields">${field('home.journeyTitle','Journey heading')}</div>${course.home.themes.map((theme,index)=>`<article class="journey-editor reorder-card" draggable="true" data-drag-kind="theme" data-index="${index}"><div class="card-heading"><strong>${esc(theme.title||'Journey card')}</strong>${moves('move-theme',`data-index="${index}"`,index,course.home.themes.length)}<button class="icon-button" data-action="delete-theme" data-index="${index}" aria-label="Remove journey card">×</button></div><div class="card-fields fields">${field(`home.themes.${index}.label`,'Small label')}${field(`home.themes.${index}.title`,'Card heading')}${field(`home.themes.${index}.arabic`,'Arabic label',{rtl:true})}${field(`home.themes.${index}.description`,'Description')}<label class="field">Open this lesson<select data-path="home.themes.${index}.lessonId"><option value="">All lessons</option>${course.lessons.map(l=>`<option value="${esc(l.id)}"${l.id===theme.lessonId?' selected':''}>${esc(l.title)}</option>`).join('')}</select></label></div></article>`).join('')}<button class="quiet" data-action="add-theme"${course.home.themes.length>=8?' disabled':''}>＋ Add a journey card</button></section>`;}
++function homeEditor(){return `${heading('Your course home','Set the welcome, cover image and journey cards. The student layout follows the Surah Al Kahf design.')}<div class="fields">${field('name','Course name')}${field('tag','Small label below the course name',{hint:'For example: BOOTCAMP, WORKSHOP or READING COURSE.'})}${field('home.headline','Welcome headline',{area:true,rows:2})}${field('home.subtitle','Course subtitle')}${field('home.description','Introduction',{area:true})}</div><section class="editor-section"><h2>Cover & caption</h2><div class="fields">${imagePicker('home.imageId','home.imageAlt')}<label class="field">Cover heading position<select data-path="home.imageLayout"><option value="beside"${course.home.imageLayout!=='frame'?' selected':''}>Beside or above the picture</option><option value="frame"${course.home.imageLayout==='frame'?' selected':''}>Inside a decorative frame</option></select></label>${field('home.caption','Image caption')}</div></section><section class="editor-section"><h2>The course journey</h2><div class="fields">${field('home.journeyTitle','Journey heading')}</div>${course.home.themes.map((theme,index)=>`<article class="journey-editor reorder-card" draggable="true" data-drag-kind="theme" data-index="${index}"><div class="card-heading"><strong>${esc(theme.title||'Journey card')}</strong>${moves('move-theme',`data-index="${index}"`,index,course.home.themes.length)}<button class="icon-button" data-action="delete-theme" data-index="${index}" aria-label="Remove journey card">×</button></div><div class="card-fields fields">${field(`home.themes.${index}.label`,'Small label')}${field(`home.themes.${index}.title`,'Card heading')}${field(`home.themes.${index}.arabic`,'Arabic label',{rtl:true})}${field(`home.themes.${index}.description`,'Description')}<label class="field">Open this lesson<select data-path="home.themes.${index}.lessonId"><option value="">All lessons</option>${course.lessons.map(l=>`<option value="${esc(l.id)}"${l.id===theme.lessonId?' selected':''}>${esc(l.title)}</option>`).join('')}</select></label></div></article>`).join('')}<button class="quiet" data-action="add-theme"${course.home.themes.length>=8?' disabled':''}>＋ Add a journey card</button></section>`;}
+ function checkListNumbering(prefix,block){return `<label class="check-row"><input type="checkbox" data-path="${prefix}.ordered"${block.ordered?' checked':''}><span>Number the items</span></label>`;}
+ function blockEditor(block,li,si,bi){const prefix=`lessons.${li}.sections.${si}.blocks.${bi}`,attrs=`data-section="${si}" data-block="${bi}"`;let fields='';
+  if(['text','quote','reflection','note','callout'].includes(block.type))fields+=field(prefix+'.text',({text:'Lesson text',quote:'Quotation',reflection:'Reflection question',note:'Source or explanatory note',callout:'Key takeaway'})[block.type],{area:true,rows:block.type==='text'?7:3,placeholder:'Type directly here…'});
+  if(['arabic','ayah','quote'].includes(block.type))fields+=field(prefix+'.arabic','Arabic text',{area:true,rtl:true,rows:4,placeholder:'أضف النص العربي هنا'});
+  if(block.type==='ayah')fields+=field(prefix+'.translation','Translation',{area:true})+field(prefix+'.reference','Surah & ayah reference',{placeholder:'For example: Surah Al-Kahf · 18:10'});
+  if(block.type==='quote')fields+=field(prefix+'.attribution','Attribution / source')+field(prefix+'.reference','Qur’an reference (for a verse translation only)',{hint:'Leave this blank for quotations from scholars or hadith.'});
++ if(block.type==='quote')fields+=field(prefix+'.videoUrl','Recording link for this quotation (optional)',{type:'url',hint:'Use a timestamped YouTube link so students can hear the line in context.'});
+  if(block.type==='note')fields+=check(prefix+'.aside','Optional aside')+(block.aside?field(prefix+'.attribution','Aside heading'):'');
+- if(block.type==='list')fields+=`<label class="field">Display as<select data-path="${prefix}.presentation">${[['list','List'],['concept','Connected concept diagram'],['radial','Radial concept diagram'],['steps','Sequence graphic']].map(([value,name])=>`<option value="${value}"${(block.presentation||'list')===value?' selected':''}>${name}</option>`).join('')}</select></label>`+checkListNumbering(prefix,block)+(block.presentation&&block.presentation!=='list'?field(prefix+'.text','Graphic heading')+field(prefix+'.attribution','Graphic subtitle'):'')+field(prefix+'.items',block.presentation&&block.presentation!=='list'?'Graphic items':'List items',{area:true,rows:7,list:true,hint:'One item per line. Each graphic item stays connected to its central idea.'});
++ if(block.type==='list')fields+=`<label class="field">Display as<select data-path="${prefix}.presentation">${[['list','List'],['concept','Connected concept diagram'],['radial','Radial concept diagram'],['steps','Sequence graphic'],['quote-cards','Quotation boxes with headings'],['alternating','Original alternating line layout']].map(([value,name])=>`<option value="${value}"${(block.presentation||'list')===value?' selected':''}>${name}</option>`).join('')}</select></label>`+checkListNumbering(prefix,block)+(block.presentation&&block.presentation!=='list'?field(prefix+'.text','Graphic heading')+field(prefix+'.attribution','Graphic subtitle'):'')+field(prefix+'.items',block.presentation&&block.presentation!=='list'?'Graphic items':'List items',{area:true,rows:7,list:true,hint:block.presentation==='quote-cards'?'One item per line: number · heading: quotation.':block.presentation==='alternating'?'One statement per line, in its original numbered order.':'One item per line. Each graphic item stays connected to its central idea.'});
+  if(block.type==='words')fields+=`<div class="fields two">${field(prefix+'.leftArabic','First word',{rtl:true})}${field(prefix+'.rightArabic','Second word',{rtl:true})}${field(prefix+'.leftMeaning','First meaning')}${field(prefix+'.rightMeaning','Second meaning')}</div>`;
++ if(block.type==='video')fields+=check(prefix+'.topicsOnly','Show only the topic guide','Use this below a lesson summary to keep the full recording card above it.')+field(prefix+'.text','Recording title')+field(prefix+'.videoUrl','YouTube recording link',{type:'url',hint:'Paste the full lesson link. A timestamped link can start a companion reading at the relevant point.'})+field(prefix+'.durationSeconds','Recording duration in seconds',{type:'number'})+field(prefix+'.caption','Listening guidance',{area:true})+field(prefix+'.items','Follow-along topics',{area:true,rows:7,list:true,hint:'One topic per line, starting with its time: 04:55 Tools of iman.'});
+  if(block.type==='image')fields+=imagePicker(prefix+'.assetId',prefix+'.alt')+field(prefix+'.caption','Caption')+`<label class="field">Picture colours<select data-path="${prefix}.tint"><option value="none"${block.tint!=='course'?' selected':''}>Original colours</option><option value="course"${block.tint==='course'?' selected':''}>Blend with course colours</option></select></label><label class="check-row"><input type="checkbox" data-path="${prefix}.graphic"${block.graphic?' checked':''}><span>Allow students to enlarge this graphic</span></label>`;
+  return `<article class="block-editor reorder-card" draggable="true" data-drag-kind="block" data-section="${si}" data-index="${bi}"><div class="block-heading"><span>${esc(blockIcons[block.type])} &nbsp; ${esc(BLOCKS[block.type].toUpperCase())}</span><div class="move-buttons">${moves('move-block',attrs,bi,course.lessons[li].sections[si].blocks.length)}<button data-action="delete-block" ${attrs} aria-label="Remove ${esc(BLOCKS[block.type])}">×</button></div></div><div class="fields">${fields}</div></article>`;
+ }
+@@ -42,7 +44,7 @@ function lessonEditor(){const l=currentLesson();if(!l)return `${heading('Your we
+ }
+ function sessionsEditor(){return `${heading('Sessions & recordings','Keep the combined session cards, live joining, recordings and lesson notes from the Surah Al Kahf course.')}<div class="fields">${check('pages.sessions','Include Sessions in the course menu')}${check('sessionOptions.showTeacher','Show the teacher on each card')}${check('sessionOptions.showNotes','Show published lesson notes beside recordings')}</div><section class="editor-section"><h2>Try the session states</h2><p class="helper">Use the student preview to see the header Join now button during a live lesson, and the smaller cards after a session has finished.</p><div class="theme-picker">${[['upcoming','Upcoming'],['live','Live lesson'],['finished','Finished']].map(([key,name])=>`<button data-action="session-state" data-value="${key}" aria-pressed="${ui.sessionState===key}">${name}</button>`).join('')}</div></section><section class="editor-section"><h2>One place for each session</h2><p class="helper">Dates, times, joining, recordings and notes will use the course’s existing timetable and lesson media. They stay together in a two-column layout on phones.</p></section>`;}
+ function materialsEditor(){const files=course.materials.files;return `${heading('Course materials','Upload Canva PDFs and pictures, arrange your resources, and keep student downloads together here.')}<div class="fields">${check('pages.materials','Include Course materials in the menu')}${field('materials.intro','Materials introduction',{area:true,rows:3})}</div><div class="section-actions"><button class="primary" data-action="upload-material">↑ Upload PDF or picture</button><button class="quiet" data-action="choose-material">Choose an uploaded file</button></div>${files.map((file,index)=>`<article class="journey-editor reorder-card" draggable="true" data-drag-kind="material" data-index="${index}"><div class="card-heading"><strong>${esc(assetMap.get(file.assetId)?.name||file.title||'Course file')}</strong>${moves('move-material',`data-index="${index}"`,index,files.length)}<button class="icon-button" data-action="delete-material" data-index="${index}" aria-label="Remove material from course page">×</button></div><div class="card-fields fields">${field(`materials.files.${index}.title`,'Display title')}${field(`materials.files.${index}.description`,'Description',{area:true,rows:2})}</div></article>`).join('')}<section class="editor-section"><h2>Your uploaded files</h2><p class="helper">Use pictures as a cover or lesson component. PDFs stay downloadable under Course materials. Images: up to 5 MB each. PDFs: up to 16 MB each.</p>${assetLibrary('library')}</section><section class="editor-section"><h2>Reflections download</h2><p class="helper">The template includes a download for the student’s written reflections. Add reflection questions directly inside your lessons.</p></section>`;}
+-function appearanceEditor(){return `${heading('Appearance & menu','Keep the same mobile-first course structure and make it your own.')}<section><h2 style="font-family:var(--serif);font-size:27px;margin-bottom:17px">Course colours</h2><div class="theme-picker">${Object.entries(THEMES).map(([key,value])=>`<button data-action="theme" data-value="${key}" aria-pressed="${course.theme===key}"><span class="theme-swatch" style="background:${value.accent}"></span>${value.name}</button>`).join('')}</div></section><section class="editor-section"><h2>Menu labels</h2>${[['home','Course home'],['lessons','Web lessons'],['sessions','Sessions'],['materials','Materials'],['assessments','Assessments']].map(([key,label])=>`<label class="menu-label"><span>${label}</span><input data-path="menu.${key}" maxlength="40" value="${esc(course.menu[key])}"></label>`).join('')}</section><section class="editor-section"><h2>Included in every template</h2><p class="helper">Academy header · Course contents · Reading progress · Text-size controls · Previous/next lessons · Reflection questions · Combined session cards · Live Join now · Course materials · Assessments.</p></section>`;}
++function appearanceEditor(){return `${heading('Appearance & menu','Keep the same mobile-first course structure and make it your own.')}<div class="fields">${check('recordingCompanion','Use recordings for lesson progress','Companion reading does not mark a recording as watched.')}<label class="field">Scholarly quotation appearance<select data-path="quotationStyle"><option value="default"${course.quotationStyle!=='quiet'?' selected':''}>Pink outline</option><option value="quiet"${course.quotationStyle==='quiet'?' selected':''}>Quiet paper</option></select></label></div><section><h2 style="font-family:var(--serif);font-size:27px;margin-bottom:17px">Course colours</h2><div class="theme-picker">${Object.entries(THEMES).map(([key,value])=>`<button data-action="theme" data-value="${key}" aria-pressed="${course.theme===key}"><span class="theme-swatch" style="background:${value.accent}"></span>${value.name}</button>`).join('')}</div></section><section class="editor-section"><h2>Menu labels</h2>${[['home','Course home'],['lessons','Web lessons'],['sessions','Sessions'],['materials','Materials'],['assessments','Assessments']].map(([key,label])=>`<label class="menu-label"><span>${label}</span><input data-path="menu.${key}" maxlength="40" value="${esc(course.menu[key])}"></label>`).join('')}</section><section class="editor-section"><h2>Included in every template</h2><p class="helper">Academy header · Course contents · Reading progress · Text-size controls · Previous/next lessons · Reflection questions · Combined session cards · Live Join now · Course materials · Assessments.</p></section>`;}
+ function assessmentsEditor(){return `${heading('Assessments','Keep assessments, submissions and released results alongside the course readings.')}<div class="fields">${check('pages.assessments','Include Assessments')}</div><section class="editor-section"><h2>Connected to your course</h2><p class="helper">The course website will use the existing assessment tools and their release, submission and marking controls. Assessment settings are managed with the course.</p><button class="quiet" data-action="preview-assessments">Preview the student page →</button></section>`;}
+ function renderOutline(){
+  $('page-list').innerHTML=editorPages().map(([key,name])=>`<button class="page-link ${page===key?'active':''}" data-action="page" data-page="${key}"${page===key?' aria-current="page"':''}><span class="page-icon" aria-hidden="true">${icons[key]}</span>${name}</button>${key==='lessons'?`<div class="lesson-outline">${course.lessons.map((l,i)=>`<button data-action="select-lesson" data-id="${l.id}" class="${page==='lessons'&&lessonId===l.id?'selected':''}"><span class="lesson-order">${String(i+1).padStart(2,'0')}</span><span>${esc(l.title||'Untitled lesson')}</span></button>`).join('')}<button class="add-lesson-button" data-action="add-lesson">＋ Add a lesson</button></div>`:''}`).join('')+'<button class="page-link" data-action="new-course">← All course websites</button>';
+@@ -74,7 +76,7 @@ export async function importCopy(file){if(!file)return;const epoch=remoteEpoch;c
+ function review(){const errors=validateCourse(course,{review:true}),missing=referencedAssets(course).filter(id=>!assetMap.has(id));if(missing.length)errors.push('Choose the missing images or course files.');dialog('Review your course',`<p class="review-note">Review the saved course draft before publishing it to students.</p><ul class="review-list"><li>✓ ${course.lessons.length} web lesson${course.lessons.length===1?'':'s'} · ${course.lessons.reduce((n,l)=>n+l.sections.length,0)} sections</li><li>✓ ${[...assetMap.values()].filter(a=>a.type.startsWith('image/')).length} images · ${course.materials.files.length} downloadable materials</li><li>✓ Course menu, reading progress, text size and reflection questions</li><li>✓ Combined session cards and live-only header joining</li>${errors.map(error=>`<li class="review-error">${esc(error)}</li>`).join('')}</ul><p class="review-note">Check lesson order, Arabic passages, sources and image descriptions in the student preview. Publishing replaces the student website for this Course. Sessions, recordings and assessments retain their existing permissions.</p><div class="dialog-body-actions"><button class="primary" data-action="publish-course">Publish course website</button><button class="quiet" data-action="review-preview">Student preview →</button><button class="quiet" data-action="withdraw-course">Withdraw website</button><button class="quiet" data-action="export-copy">Save a copy</button></div>`);}
+ function showContents(){dialog('Your course menu',`<div class="contents-picker">${editorPages().filter(([p])=>['home','lessons'].includes(p)||Object.hasOwn(course.pages,p)&&course.pages[p]).map(([p,name])=>`<button class="page-link" data-action="preview-route" data-page="${p}">${name}</button>`).join('')}${[...new Set(course.lessons.map(l=>l.group))].map(group=>`<div class="outline-heading" style="padding-top:20px"><strong>${esc(group)}</strong></div>${course.lessons.filter(l=>l.group===group).map(l=>`<button class="page-link" data-action="contents-lesson" data-id="${l.id}">${esc(l.title)}</button>`).join('')}`).join('')}</div>`);}
+ function setPreviewSize(size){$('preview-stage').dataset.size=size;document.querySelectorAll('.segmented button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.action===size)));document.querySelector('.preview-pane').classList.toggle('is-expanded',size==='wide');}
+-document.addEventListener('input',event=>{const input=event.target;if(input.hasAttribute('data-sp-note')){ui.reflections[input.dataset.spNote]=input.value;studentState();return;}if(!input.dataset.path||input.tagName==='SELECT'||input.type==='checkbox')return;try{setPath(course,input.dataset.path,input.dataset.list?input.value.split('\n'):input.value);changed();}catch(error){say(error.message);}});
++document.addEventListener('input',event=>{const input=event.target;if(input.hasAttribute('data-sp-note')){ui.reflections[input.dataset.spNote]=input.value;studentState();return;}if(!input.dataset.path||input.tagName==='SELECT'||input.type==='checkbox')return;try{setPath(course,input.dataset.path,input.dataset.list?input.value.split('\n'):input.type==='number'?Number(input.value):input.value);changed();}catch(error){say(error.message);}});
+ document.addEventListener('change',event=>{const input=event.target;if(input.dataset.path&&(input.tagName==='SELECT'||input.type==='checkbox')){try{setPath(course,input.dataset.path,input.type==='checkbox'?input.checked:input.value);changed({editor:input.dataset.path.endsWith('.presentation')});}catch(error){say(error.message);}}});
+ document.addEventListener('click',async event=>{
+  const student=event.target.closest('[data-sp]');if(student){event.preventDefault();const action=student.dataset.sp,id=student.dataset.id;if(['copy-reflection','share-reflection'].includes(action)){const epoch=remoteEpoch;await handleReflectionAction({course,id,answers:ui.reflections,action,host:student.closest('.sp-reflection'),active:()=>epoch===remoteEpoch});return;}if(action==='view-graphic'){const block=course.lessons.flatMap(l=>l.sections.flatMap(s=>s.blocks)).find(b=>b.type==='image'&&b.graphic&&b.assetId===id);if(block&&assetMap.get(id))dialog(block.caption||'Course graphic',`<div class="sp-graphic-zoom ${block.tint==='course'?'sp-artwork-tint':''}"><img src="${esc(imageURL(assetMap,id))}" alt="${esc(block.alt)}"></div>`);return;}if(action==='download-file'){try{await window.COURSE_WEBSITE_ADMIN.download(id);}catch(error){say(error.message);}return;}if(action==='route'){ui.route=student.dataset.route;renderPreview({top:true});}else if(action==='lesson'){ui.route='lesson';ui.lessonId=id;renderPreview({top:true});}else if(action==='contents')showContents();else if(action==='refresh')renderPreview();else if(action==='larger'||action==='smaller'){ui.readingSize=Math.max(16,Math.min(24,ui.readingSize+(action==='larger'?1:-1)));studentState();renderPreview();}else if(action==='complete'){ui.completed=ui.completed.includes(id)?ui.completed.filter(x=>x!==id):[...ui.completed,id];studentState();renderPreview();}else if(action==='download-reflections'){const notes=course.lessons.flatMap(l=>l.sections.flatMap(s=>s.blocks.filter(b=>b.type==='reflection'&&ui.reflections[b.id]).map(b=>l.title+'\n'+b.text+'\n'+ui.reflections[b.id])));download(new Blob([[course.name,'My reflections',...notes].join('\n\n')],{type:'text/plain'}),'my-course-reflections.txt');}else if(action.startsWith('example-'))dialog(action==='example-join'?'Join the live lesson':action==='example-recording'?'Session recording':action==='example-notes'?'Lesson notes':'Your assessment',`<p class="review-note">This is the student view of the template. The finished course will open its existing ${action==='example-join'?'live lesson link':action==='example-recording'?'published recording':action==='example-notes'?'published lesson notes':'released assessment'} here, using the student’s current course access.</p><div class="dialog-body-actions"><button class="quiet" data-action="close-dialog">Back to preview</button></div>`);return;}
+diff --git a/tools/pdf-reading-review/builder.mjs b/tools/pdf-reading-review/builder.mjs
+new file mode 100644
+index 00000000..b7683620
+--- /dev/null
++++ b/tools/pdf-reading-review/builder.mjs
+@@ -0,0 +1,21 @@
++import {validateCourse} from '../../academy/course-websites/model.mjs';
++import {localDraft} from './local-draft.mjs';
++const {course,assets,draftUpgrade}=await (await fetch('draft.json')).json(),store=localDraft(course,localStorage,draftUpgrade||{});
++let draft=store.open().document;
++const images=await Promise.all(assets.map(async a=>({...a,blob:await (await fetch(a.url)).blob()})));
++document.querySelector('#selected-course-name').textContent=course.name+' · local author draft';
++window.COURSE_WEBSITE_ADMIN={
++ drafts:async()=>[structuredClone(draft)],
++ save:async c=>{validateCourse(c);draft=store.save(c).document;},
++ assets:async()=>images,
++ revision:()=>store.revision,
++ assetBlob:async id=>{const a=images.find(a=>a.id===id);if(!a)throw Error('Choose an existing artwork.');return a.blob;},
++ upload:async()=>{throw Error('Choose existing artwork during this local review. Uploads require the authorised platform connection.');},
++ download:async()=>{throw Error('Course downloads remain behind the existing Academy permission checks.');},
++ publish:async()=>{throw Error('Deployment and live publication are on hold. Use Save a copy for this local draft.');},
++ withdraw:async()=>{throw Error('Live publication changes are on hold.');},
++ list:async()=>{location.href='index.html';}
++};
++await import('../../academy/course-websites/studio.mjs');
++document.querySelector('#save-status').textContent='Local draft loaded · Save draft stores text on this device only';
++document.addEventListener('click',e=>{if(e.target.closest('[data-action="save-draft"]'))queueMicrotask(()=>{setTimeout(()=>{if(document.querySelector('#save-status').textContent.startsWith('Draft saved'))document.querySelector('#save-status').textContent='Draft saved on this device only · no R2 or Academy upload';},0);});});
+diff --git a/tools/pdf-reading-review/local-draft.mjs b/tools/pdf-reading-review/local-draft.mjs
+new file mode 100644
+index 00000000..e548681a
+--- /dev/null
++++ b/tools/pdf-reading-review/local-draft.mjs
+@@ -0,0 +1,40 @@
++// Local review fixture only. The connected platform owns R2/history/permissions.
++import {validateCourse} from '../../academy/course-websites/model.mjs';
++// Add a reviewed edition without overwriting a person's earlier device edits.
++export function mergeReviewDraft(previous,edited,current){
++ const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
++ if(same(previous,edited))return structuredClone(current);
++ if(Array.isArray(previous)&&Array.isArray(edited)&&Array.isArray(current)&&[...previous,...edited,...current].every(v=>v&&typeof v==='object'&&typeof v.id==='string')){
++  const old=new Map(previous.map(v=>[v.id,v])),next=new Map(current.map(v=>[v.id,v]));
++  const merged=edited.map(v=>next.has(v.id)?mergeReviewDraft(old.get(v.id),v,next.get(v.id)):structuredClone(v));
++  for(let i=0;i<current.length;i++){const item=current[i];if(old.has(item.id)||merged.some(v=>v.id===item.id))continue;const following=current.slice(i+1).map(v=>v.id),at=merged.findIndex(v=>following.includes(v.id));merged.splice(at<0?merged.length:at,0,structuredClone(item));}
++  return merged;
++ }
++ if(edited&&current&&typeof edited==='object'&&typeof current==='object'&&!Array.isArray(edited)&&!Array.isArray(current)){
++  const result=structuredClone(edited);for(const [key,value] of Object.entries(current)){const merged=mergeReviewDraft(previous?.[key],edited[key],value);if(merged!==undefined)result[key]=merged;else delete result[key];}return result;
++ }
++ return structuredClone(edited);
++}
++export function localDraft(original,storage=localStorage,{previousOriginal,baselineVersion}={}){
++ const key='academy-pdf-builder-review:'+original.id;
++ let revision=0;
++ function read(){
++  const raw=storage.getItem(key);if(!raw)return {document:structuredClone(original),revision:0};
++  const value=JSON.parse(raw),record=value.document?value:{document:value,revision:0};
++  if(record.document.id!==original.id||!Number.isSafeInteger(record.revision))throw Error('The local draft does not match this website.');
++  validateCourse(record.document);
++  if(previousOriginal&&baselineVersion&&record.baselineVersion!==baselineVersion){record.document=mergeReviewDraft(previousOriginal,record.document,original);validateCourse(record.document);record.needsReviewMerge=true;}
++  return record;
++ }
++ return {
++  open(){const r=read();revision=r.revision;return structuredClone(r);},
++  save(document){
++   validateCourse(document);
++   if(document.id!==original.id)throw Error('Save belongs to a different website.');
++   if(read().revision!==revision)throw Error('This draft changed in another editor. Your unsaved text is still here. Save a copy before reopening it.');
++   const r={document:structuredClone(document),revision:revision+1,...(baselineVersion?{baselineVersion}:{})};
++   storage.setItem(key,JSON.stringify(r));revision=r.revision;return structuredClone(r);
++  },
++  get revision(){return revision;}
++ };
++}
+diff --git a/tools/pdf-reading-review/quote-highlight-trial.css b/tools/pdf-reading-review/quote-highlight-trial.css
+new file mode 100644
+index 00000000..7e02031f
+--- /dev/null
++++ b/tools/pdf-reading-review/quote-highlight-trial.css
+@@ -0,0 +1,45 @@
++/* Optional local trial: only recording quotations use the supplied visual style. */
++.student-course .sp-quote.sp-recorded-quote{
++ position:relative;
++ isolation:isolate;
++ border:0;
++ border-radius:0;
++ padding:40px 26px 36px;
++ color:#fff6ec;
++ text-align:center;
++ background-color:transparent;
++ background-image:linear-gradient(#cda18e,#cda18e),linear-gradient(#cda18e,#cda18e),linear-gradient(#cda18e,#cda18e),linear-gradient(#cda18e,#cda18e),url('assets/quote-highlight-brush.svg');
++ background-size:calc(100% - 72px) 1.5px,1.5px calc(100% - 32px),calc(100% - 72px) 1.5px,1.5px calc(100% - 72px),100% 100%;
++ background-position:right 16px top 16px,right 16px top 16px,left 16px bottom 16px,left 16px bottom 16px,center;
++ background-repeat:no-repeat;
++ box-shadow:none;
++}
++.student-course .sp-quote.sp-recorded-quote::before,
++.student-course .sp-quote.sp-recorded-quote::after{
++ position:absolute;
++ color:#dcb39f;
++ font:700 48px/.7 Georgia,serif;
++ pointer-events:none;
++}
++.student-course .sp-quote.sp-recorded-quote::before{content:'“';left:22px;top:12px}
++.student-course .sp-quote.sp-recorded-quote::after{content:'”';right:22px;bottom:7px}
++.student-course .sp-quote.sp-recorded-quote p{color:inherit;line-height:1.55;margin:0}
++.student-course .sp-recorded-quote .sp-quote-recording{
++ color:#f1cab5;
++ margin-top:8px;
++ padding:4px;
++ max-width:100%;
++ text-decoration-thickness:1px;
++ text-underline-offset:4px;
++}
++.student-course .sp-recorded-quote .sp-quote-recording:focus-visible{outline:2px solid #ffe6d7;outline-offset:3px}
++@media(max-width:400px){
++ .student-course .sp-quote.sp-recorded-quote{padding:36px 22px 32px}
++ .student-course .sp-quote.sp-recorded-quote::before{left:20px;top:8px}
++ .student-course .sp-quote.sp-recorded-quote::after{right:20px;bottom:5px}
++}
++@media(forced-colors:active){
++ .student-course .sp-quote.sp-recorded-quote{background:none;color:CanvasText;border:1px solid CanvasText}
++ .student-course .sp-quote.sp-recorded-quote::before,.student-course .sp-quote.sp-recorded-quote::after{display:none}
++ .student-course .sp-recorded-quote .sp-quote-recording{color:LinkText}
++}
+diff --git a/tools/pdf-reading-review/reader.mjs b/tools/pdf-reading-review/reader.mjs
+new file mode 100644
+index 00000000..aaaeeabd
+--- /dev/null
++++ b/tools/pdf-reading-review/reader.mjs
+@@ -0,0 +1,54 @@
++import {renderCourse,imageURL} from '../../academy/course-websites/student.mjs';
++import {esc} from '../../academy/course-websites/model.mjs';
++import {handleReflectionAction} from '../../academy/course-websites/reflection-actions.mjs';
++import {decorateInlineText,changeInlineText} from '../../academy/course-websites/inline-text.mjs';
++import {localDraft} from './local-draft.mjs';
++import {companionPlayer} from './video-player.mjs';
++const loaded=await (await fetch('draft.json')).json(),assets=loaded.assets,published=loaded.course,store=localDraft(published,localStorage,loaded.draftUpgrade||{});
++let course=published,editing=false,dirty=false;
++const map=new Map(assets.map(a=>[a.id,a])),root=document.querySelector('#course-reader'),dialog=document.querySelector('dialog');
++const key='academy-pdf-reading-review:'+course.id;
++let saved={};try{saved=JSON.parse(localStorage.getItem(key)||'{}');}catch{}
++const ui={portal:true,isPreview:true,route:'home',lessonId:course.lessons[0].id,readingSize:18,completed:[],reflections:{},sessionsHTML:'<h1 class="sp-page-title">Sessions & recordings</h1><p class="sp-lead">Sessions, recordings and notes are not connected in this local review. They will use the website’s authorised timetable publication and protected Lesson media.</p>',nativeMaterialsHTML:'<p class="sp-lead">Course materials will appear here when the authorised files are connected. No duplicate PDF or recording is included in this review.</p>',assessmentsHTML:''};
++const player=course.recordingCompanion?companionPlayer({course,host:document.querySelector('#reader-refresh-host'),isEditing:()=>editing}):null;
++function draw(){root.innerHTML=renderCourse(course,ui,map);if(editing)decorateInlineText(root,course,ui);document.title=(ui.route==='lesson'?course.lessons.find(l=>l.id===ui.lessonId)?.title+' · ':'')+course.name;window.dispatchEvent(new Event('kahf-view'));player?.update();}
++function route(){const id=decodeURIComponent(location.hash.slice(1));ui.route=course.lessons.some(l=>l.id===id)?'lesson':'home';if(ui.route==='lesson')ui.lessonId=id;draw();scrollTo(0,0);}
++function show(title,body){document.querySelector('#dialog-title').textContent=title;document.querySelector('#dialog-body').innerHTML=body;if(!dialog.open)dialog.showModal();}
++function download(text,name){const u=URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'})),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
++document.querySelector('#close-dialog').onclick=()=>dialog.close();
++document.querySelector('#edit-text').onclick=()=>{
++ player?.pause();
++ if(editing){if(dirty&&!confirm('Leave these unsaved local edits? Use Save draft to keep them first.'))return;course=published;editing=false;dirty=false;document.querySelector('#edit-text').textContent='Edit text';document.querySelector('#save-text').hidden=true;document.querySelector('#student-preview').disabled=false;document.querySelector('#preview-description').textContent='Author preview · original review edition. Notes stay in this tab.';}
++ else{try{course=store.open().document;editing=true;ui.journalPreview=false;ui.journalEnabled=false;document.querySelector('#student-preview').checked=false;document.querySelector('#student-preview').disabled=true;document.querySelector('#edit-text').textContent='Exit draft';document.querySelector('#save-text').hidden=false;document.querySelector('#preview-description').textContent='Private draft · local text editing. Save draft uses the same device draft as the full builder. No live publication.';}catch(error){show('Draft unavailable',`<p>${esc(error.message)}</p>`);return;}}
++ draw();
++};
++document.querySelector('#save-text').onclick=()=>{try{store.save(course);dirty=false;document.querySelector('#preview-description').textContent='Private draft saved on this device · no R2 upload or live publication.';}catch(error){show('Draft not saved',`<p>${esc(error.message)}</p>`);}};
++document.addEventListener('input',e=>{const path=e.target.dataset.inlinePath;if(editing&&path){try{changeInlineText(course,path,e.target.textContent);dirty=true;document.querySelector('#preview-description').textContent='Private draft · unsaved local changes. Select Save draft to keep them on this device.';}catch(error){show('Text not changed',`<p>${esc(error.message)}</p>`);}}});
++window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
++document.querySelector('#student-preview').onchange=e=>{
++ ui.journalPreview=e.target.checked;ui.journalEnabled=e.target.checked;
++ ui.reflections={...ui.reflections,...(e.target.checked?saved:{})};
++ document.querySelector('#preview-description').textContent=e.target.checked?'Student toolbar preview. Save stores notes on this device only. This is not a connected personal journal.':'Author preview. Teaching and recording summaries are local review drafts. Notes stay in this tab; the personal journal is not connected.';draw();
++};
++document.addEventListener('input',e=>{const id=e.target.dataset.spNote;if(id){ui.reflections[id]=e.target.value;const s=e.target.closest('.sp-reflection').querySelector('[data-journal-status]');s.textContent=ui.journalPreview?'Unsaved preview note · select Save to keep it on this device.':'Preview note · stays in this tab.';}});
++document.addEventListener('click',async e=>{
++ const b=e.target.closest('[data-sp]');if(!b)return;const a=b.dataset.sp,id=b.dataset.id;
++ if(editing&&['complete','journal-save','journal-open','download-reflections','copy-reflection','share-reflection'].includes(a))return;
++ if(a==='play-video'||a==='follow-reading'){
++  if(editing){e.preventDefault();return;}
++  const lessonId=a==='follow-reading'?id:b.dataset.lessonId;
++  if(lessonId&&course.lessons.some(l=>l.id===lessonId)){dialog.close();history.pushState(null,'',location.pathname+'#'+encodeURIComponent(lessonId));ui.route='lesson';ui.lessonId=lessonId;draw();scrollTo(0,0);}
++  if(player){e.preventDefault();await player.open(b.dataset.video,Number(b.dataset.start)||0);}return;
++ }
++ if(a==='lesson'){dialog.close();location.hash=id;if(ui.lessonId===id){ui.route='lesson';draw();scrollTo(0,0);}}
++ else if(a==='route'){ui.route=b.dataset.route;history.replaceState(null,'',location.pathname);draw();scrollTo(0,0);}
++ else if(a==='contents')show('Your lessons',course.lessons.map(l=>`<button data-sp="lesson" data-id="${esc(l.id)}">${esc(l.title)}</button>`).join(''));
++ else if(a==='larger'||a==='smaller'){ui.readingSize=Math.max(16,Math.min(24,ui.readingSize+(a==='larger'?1:-1)));draw();}
++ else if(a==='complete'){ui.completed=ui.completed.includes(id)?ui.completed.filter(x=>x!==id):[...ui.completed,id];draw();}
++ else if(a==='view-graphic'){const block=course.lessons.flatMap(l=>l.sections.flatMap(s=>s.blocks)).find(x=>x.assetId===id);show(block?.caption||'Original artwork',`<div class="sp-graphic-zoom ${block?.tint==='course'?'sp-artwork-tint':''}"><img src="${esc(imageURL(map,id))}" alt="${esc(block?.alt)}"></div>`);}
++ else if(a==='copy-reflection'||a==='share-reflection')await handleReflectionAction({course,id,answers:ui.reflections,action:a,host:b.closest('.sp-reflection')});
++ else if(a==='journal-save'&&ui.journalPreview){const next={...saved,[id]:ui.reflections[id]||''};try{localStorage.setItem(key,JSON.stringify(next));saved=next;b.closest('.sp-reflection').querySelector('[data-journal-status]').textContent='Saved on this device only · no personal journal upload.';}catch{b.closest('.sp-reflection').querySelector('[data-journal-status]').textContent='Device storage unavailable. Copy your note to keep it.';}}
++ else if(a==='journal-open'&&ui.journalPreview)show('Device-only journal preview','<p>These notes were explicitly saved in this local review. No account or private journal service is connected.</p>'+Object.entries(saved).map(([id,answer])=>{const l=course.lessons.find(l=>l.sections.some(s=>s.blocks.some(b=>b.id===id)));return `<article class="local-journal"><h3>${esc(l?.title||'Reflection')}</h3><p>${esc(answer)}</p></article>`;}).join(''));
++ else if(a==='download-reflections')download(course.name+'\n\n'+course.lessons.flatMap(l=>l.sections.flatMap(s=>s.blocks.filter(b=>b.type==='reflection'&&ui.reflections[b.id]).map(b=>l.title+'\n'+b.text+'\n'+ui.reflections[b.id]))).join('\n\n'),'my-preview-reflections.txt');
++});
++window.addEventListener('hashchange',route);route();
+diff --git a/tools/pdf-reading-review/video-player.css b/tools/pdf-reading-review/video-player.css
+new file mode 100644
+index 00000000..a6468911
+--- /dev/null
++++ b/tools/pdf-reading-review/video-player.css
+@@ -0,0 +1 @@
++#reader-refresh-host.has-lesson-player{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:20px;padding-right:20px;align-items:start}#video-dock{box-sizing:border-box;position:sticky;top:15px;margin-top:24px;padding:18px;border:1px solid #ccb49c;border-radius:15px;background:#f9f3e9;min-width:0;color:#3b342c;font:13px/1.7 'DM Sans',sans-serif;box-shadow:0 8px 28px #6e53331a}#video-dock header{display:flex;justify-content:space-between;gap:10px;align-items:start;margin-bottom:14px}#video-dock h2{font:25px/1.2 Georgia,serif;margin:6px 0 0}.video-dock-label{font-size:9px;letter-spacing:1.5px;color:#6c5b43}#video-dock .video-dock-close{min-width:44px;min-height:44px;background:none;border:1px solid #d3c1af;border-radius:50%;font-size:23px;color:#6a513f;cursor:pointer}#video-dock iframe{width:100%;min-width:200px;height:auto;min-height:200px;aspect-ratio:16/9;border:0;border-radius:7px;display:block}#video-dock .watch-current-status{font-weight:600;margin:13px 0 8px}.watch-remember{display:flex;align-items:start;gap:8px;font-size:12px}.watch-remember input{margin-top:6px}.watch-storage-status{font-size:11px;color:#786750;line-height:1.7}.video-dock-full{color:#684b37;text-underline-offset:4px;font-size:12px}html.academy-reading-focus #video-dock{margin-top:15px}html.academy-reading-focus #reader-refresh-host.has-lesson-player{grid-template-columns:minmax(0,1fr) 370px}@media(max-width:1050px){#reader-refresh-host.has-lesson-player,html.academy-reading-focus #reader-refresh-host.has-lesson-player{grid-template-columns:1fr;gap:0;padding:0}#video-dock{order:-1;position:relative;top:auto;max-width:560px;width:calc(100% - 30px);margin:16px auto;padding:15px}#video-dock iframe{max-height:310px}}
+diff --git a/tools/pdf-reading-review/video-player.mjs b/tools/pdf-reading-review/video-player.mjs
+new file mode 100644
+index 00000000..67b6aa07
+--- /dev/null
++++ b/tools/pdf-reading-review/video-player.mjs
+@@ -0,0 +1,51 @@
++import {courseRecordings,watchLedger,watchedSeconds,timeLabel} from '../../academy/course-websites/recordings.mjs';
++let apiReady;
++function youtubeAPI(){
++ if(window.YT?.Player)return Promise.resolve();
++ return apiReady||=(new Promise((resolve,reject)=>{
++  const before=window.onYouTubeIframeAPIReady;
++  window.onYouTubeIframeAPIReady=()=>{before?.();resolve();};
++  const script=document.createElement('script');script.src='https://www.youtube.com/iframe_api';script.onerror=()=>reject(Error('The video player could not load. Use Watch the full lesson to open YouTube.'));
++  document.head.append(script);setTimeout(()=>{if(!window.YT?.Player)reject(Error('The video player did not respond. The full lesson link remains available.'));},20000);
++ }));
++}
++export function companionPlayer({course,host,isEditing=()=>false}){
++ const videos=courseRecordings(course),allowed=new Map(videos.map(v=>[v.id,v.duration])),ledger=watchLedger(),key='academy-watch-preview:v1:'+course.id;
++ let remembered=false,player=null,ready=false,active=null,generation=0,lastSave=0,dirty=false;
++ try{const saved=JSON.parse(localStorage.getItem(key)||'null');if(saved?.courseId===course.id&&saved.remembered===true){ledger.restore(saved.records,allowed);remembered=true;}}catch{}
++ const dock=document.createElement('aside');dock.id='video-dock';dock.hidden=true;dock.setAttribute('aria-label','Lesson recording');host.append(dock);
++ const save=()=>{if(!remembered||!dirty)return;try{localStorage.setItem(key,JSON.stringify({format:'ACADEMY_WATCH_PREVIEW_V1',courseId:course.id,remembered:true,records:ledger.export()}));dirty=false;lastSave=Date.now();}catch{const el=dock.querySelector('.watch-storage-status');if(el)el.textContent='Device storage is unavailable. Progress remains in this tab.';}};
++ const update=()=>{
++  const total=ledger.progress(videos);
++  document.querySelectorAll('[data-course-watch]').forEach(el=>el.textContent=total.percent+'%');
++  document.querySelectorAll('[data-course-watch-bar]').forEach(el=>el.value=total.percent);
++  document.querySelectorAll('[data-video-watch]').forEach(el=>{const id=el.dataset.videoWatch,r=ledger.get(id),d=r.duration||allowed.get(id)||0,w=watchedSeconds(r);el.textContent='Watched '+timeLabel(w)+' of '+timeLabel(d)+' · '+(d?Math.min(100,Math.floor(w/d*100)):0)+'%';});
++  const status=dock.querySelector('.watch-current-status');if(status&&active){const r=ledger.get(active.id);status.textContent='Watched '+timeLabel(watchedSeconds(r))+' of '+timeLabel(r.duration||active.duration);}
++ };
++ const sample=()=>{
++  if(!ready||!player||!active||isEditing()){ledger.stop();return;}
++  try{const duration=player.getDuration(),position=player.getCurrentTime(),state=player.getPlayerState();ledger.sample({id:active.id,position,duration,playing:state===1,clock:performance.now(),rate:player.getPlaybackRate()});dirty=true;update();if(Date.now()-lastSave>=5000)save();}catch{ledger.stop();}
++ };
++ const close=()=>{sample();save();generation++;ready=false;player?.destroy?.();player=null;ledger.stop();dock.hidden=true;dock.replaceChildren();host.classList.remove('has-lesson-player');};
++ const open=async(id,start=0)=>{
++  if(isEditing()||!allowed.has(id))return;
++  const video=videos.find(v=>v.id===id),position=start===0&&remembered?ledger.get(id).lastPosition:start;
++  if(player&&ready&&active?.id===id){sample();ledger.stop();player.seekTo(position,true);player.playVideo();dock.hidden=false;return;}
++  close();const token=++generation;active=video;dock.hidden=false;host.classList.add('has-lesson-player');
++  dock.innerHTML='<header><div><span class="video-dock-label">WATCH & FOLLOW ALONG</span><h2></h2></div><button type="button" class="video-dock-close" aria-label="Close video">×</button></header><div id="lesson-youtube-player"></div><p class="watch-current-status" aria-live="off"></p><label class="watch-remember"><input type="checkbox"> Remember watch progress on this device</label><p class="watch-storage-status">Local preview · this is not connected to your student account.</p><a class="video-dock-full" target="_blank" rel="noopener noreferrer">Watch the full lesson on YouTube ↗</a>';
++  dock.querySelector('h2').textContent=video.title;dock.querySelector('.video-dock-close').onclick=close;
++  dock.querySelector('a').href='https://www.youtube.com/watch?v='+id;
++  const check=dock.querySelector('input');check.checked=remembered;check.onchange=()=>{remembered=check.checked;if(remembered){dirty=true;save();}else{try{localStorage.removeItem(key);}catch{}}};
++  update();
++  try{await youtubeAPI();if(token!==generation)return;
++   player=new window.YT.Player('lesson-youtube-player',{width:'100%',height:'220',videoId:id,playerVars:{playsinline:1,rel:0,origin:location.origin,start:Math.floor(position)},events:{
++    onReady:e=>{if(token!==generation){e.target.destroy();return;}ready=true;e.target.playVideo();sample();},
++    onStateChange:()=>{if(token===generation){sample();save();}},onPlaybackRateChange:()=>{if(token===generation)sample();},
++    onError:()=>{if(token!==generation)return;ready=false;ledger.stop();dock.querySelector('.watch-storage-status').textContent='YouTube could not play this recording here. Use the full lesson link below; viewing there cannot update this preview’s progress.';}
++   }});
++  }catch(error){if(token===generation)dock.querySelector('.watch-storage-status').textContent=error.message;}
++ };
++ const tick=setInterval(sample,1000);
++ const unload=()=>{sample();save();};window.addEventListener('pagehide',unload);
++ update();return {open,update,pause(){sample();player?.pauseVideo?.();ledger.stop();save();},destroy(){close();clearInterval(tick);window.removeEventListener('pagehide',unload);}};
++}

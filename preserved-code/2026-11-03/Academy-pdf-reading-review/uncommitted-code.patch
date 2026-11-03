@@ -1,0 +1,187 @@
+diff --git a/academy/course-websites/inline-text.mjs b/academy/course-websites/inline-text.mjs
+index 26d60311..00e91d36 100644
+--- a/academy/course-websites/inline-text.mjs
++++ b/academy/course-websites/inline-text.mjs
+@@ -54,6 +54,7 @@ export function decorateInlineText(root,course,ui){
+  for(const topics of root.querySelectorAll('details.sp-video-topics'))topics.open=true;
+  const fields=inlineFields(course),mark=(element,path)=>{if(!element||!fields.has(path))return;element.textContent=path.split('.').reduce((value,key)=>value[key],course);element.dataset.inlinePath=path;element.setAttribute('contenteditable','plaintext-only');element.setAttribute('role','textbox');element.setAttribute('aria-label',fields.get(path));element.setAttribute('aria-multiline','true');element.dataset.inlinePlaceholder=fields.get(path);element.setAttribute('spellcheck',String(element.lang!=='ar'));};
+  const one=(selector,path,host=root)=>mark(host.querySelector(selector),path);
++ for(const element of root.querySelectorAll('[data-podcast-path]'))mark(element,element.dataset.podcastPath);
+  one('.sp-course-row strong','name');one('.sp-course-row small','tag');one('.sp-sidebar h2','name');one('.sp-sidebar>.sp-eyebrow','tag');
+  // Editable headings inside journey/lesson buttons need a non-interactive
+  // container so typing and selecting text cannot activate course navigation.
+diff --git a/academy/course-websites/student.mjs b/academy/course-websites/student.mjs
+index 712a7589..7ea4c693 100644
+--- a/academy/course-websites/student.mjs
++++ b/academy/course-websites/student.mjs
+@@ -54,7 +54,7 @@ function readingSections(course,lesson,ui,assets){
+ }
+ function lesson(course,ui,assets){const index=Math.max(0,course.lessons.findIndex(l=>l.id===ui.lessonId)),l=course.lessons[index];if(!l)return library(course,ui);return `<div class="sp-reading-toolbar"><div>${l.companionReading?recordingNavigation(course,l):''}<button data-sp="contents">Menu ☰</button></div><div><button data-sp="smaller" aria-label="Smaller reading text">A−</button><button data-sp="larger" aria-label="Larger reading text">A+</button></div></div><article class="sp-lesson-article" lang="en-GB" aria-labelledby="sp-lesson-title">${label(course.recordingCompanion?`${l.companionReading?'COMPANION READING':'RECORDED LESSON'} · ${l.group}`:`LESSON ${String(index+1).padStart(2,'0')} OF ${course.lessons.length} · ${l.group}`)}<h1 id="sp-lesson-title" class="sp-page-title">${esc(l.title)}</h1>${l.sourceEdition||course.recordingCompanion&&!l.companionReading&&l.sections.some(s=>s.transcriptSummary)?'':`<p class="sp-lead">${esc(l.summary)}</p>`}<div class="sp-reading-body" style="--reading-size:${ui.readingSize}px">${readingSections(course,l,ui,assets)}</div></article>${course.recordingCompanion?'':`<div class="sp-complete"><button class="sp-primary" data-sp="complete" data-id="${esc(l.id)}" aria-pressed="${ui.completed.includes(l.id)}">${ui.completed.includes(l.id)?'Lesson complete · undo':'Mark this lesson complete'}</button></div>`}<nav class="sp-pagination" aria-label="Lesson navigation">${index?goLesson(course.lessons[index-1].title,course.lessons[index-1].id,'aria-label="Previous lesson"'):action('All lessons','lessons')}${index<course.lessons.length-1?goLesson(course.lessons[index+1].title,course.lessons[index+1].id,'aria-label="Next lesson"'):action('All lessons','lessons')}</nav>`;}
+ function sessions(course,ui){if(ui.sessionsHTML!==undefined)return ui.sessionsHTML;const dates=['Sun, 18 Oct','Sun, 25 Oct','Sun, 1 Nov','Sun, 8 Nov'];return `${label('LEARN TOGETHER')}<h1 class="sp-page-title">Your course<br><em>sessions.</em></h1><p class="sp-lead">Your timetable, recordings and lesson notes, together in one place.</p><div class="sp-session-grid">${dates.map((date,i)=>{const finished=ui.sessionState==='finished'||ui.sessionState==='upcoming'&&i<2||ui.sessionState==='live'&&i<2,live=ui.sessionState==='live'&&i===2;return `<article class="sp-session">${label('SESSION '+String(i+1).padStart(2,'0'))}<h3>${date}</h3><p>${esc(course.name)}</p>${finished?'':'<p>19:00–20:00</p>'}${course.sessionOptions.showTeacher?'<p>Course teacher</p>':''}${live?'<button class="sp-primary" data-sp="example-join">Join session ↗</button>':`<span class="sp-status">${finished?'Session ended':'Joining opens five minutes before the session.'}</span>`}${finished?`<button class="sp-recording" data-sp="example-recording"><span aria-hidden="true">▷</span><span>Session ${i+1}<br>recording</span></button>${course.sessionOptions.showNotes?'<button class="sp-notes" data-sp="example-notes">▤ Lesson notes</button>':''}`:'<span class="sp-status">Materials will appear here when published.</span>'}</article>`;}).join('')}</div><p class="sp-lead" style="margin-top:19px">Session times: Africa/Johannesburg</p>`;}
+-function materials(course,assets,ui){return `${label('KEEP LEARNING')}<h1 class="sp-page-title">Your course<br><em>materials.</em></h1><p class="sp-lead">${esc(course.materials.intro)}</p>${course.materials.files.map(file=>{const asset=assets.get(file.assetId);return `<article class="sp-material"><span class="sp-file-tag">${asset?.type==='application/pdf'?'COURSE PDF':'COURSE RESOURCE'}</span><h2>${esc(file.title||asset?.name||'Course file')}</h2><p>${esc(file.description)}</p>${asset?`<button class="sp-primary" data-sp="download-file" data-id="${esc(asset.id)}">Download ${asset.type==='application/pdf'?'PDF':'file'} ↓</button>`:'<p>Choose a file in Course materials.</p>'}</article>`;}).join('')||(ui.isPreview?'<div class="sp-empty">Upload a PDF and add it to Course materials to preview the download.</div>':'')}${ui.nativeMaterialsHTML||''}<article class="sp-material"><span class="sp-file-tag">YOUR REFLECTIONS</span><h2>Thoughts to keep</h2><p>Download your reflections saved in this browser.</p><button data-sp="download-reflections">Download reflections ↓</button></article>`;}
++function materials(course,assets,ui){return `${label('KEEP LEARNING')}<h1 class="sp-page-title">Your course<br><em>materials.</em></h1><p class="sp-lead">${esc(course.materials.intro)}</p>${course.materials.files.map(file=>{const asset=assets.get(file.assetId);return `<article class="sp-material"><span class="sp-file-tag">${asset?.type==='application/pdf'?'COURSE PDF':'COURSE RESOURCE'}</span><h2>${esc(file.title||asset?.name||'Course file')}</h2><p>${esc(file.description)}</p>${asset?`<button class="sp-primary" data-sp="download-file" data-id="${esc(asset.id)}">Download ${asset.type==='application/pdf'?'PDF':'file'} ↓</button>`:'<p>Choose a file in Course materials.</p>'}</article>`;}).join('')||(ui.isPreview&&!ui.nativeMaterialsHTML?'<div class="sp-empty">Upload a PDF and add it to Course materials to preview the download.</div>':'')}${ui.nativeMaterialsHTML||''}<article class="sp-material"><span class="sp-file-tag">YOUR REFLECTIONS</span><h2>Thoughts to keep</h2><p>Download your reflections saved in this browser.</p><button data-sp="download-reflections">Download reflections ↓</button></article>`;}
+ export function renderCourse(course,ui,assets){
+  const route=ui.route==='lesson'?'lessons':ui.route,theme=THEMES[course.theme],menu=[['home','⌂'],['lessons','◫'],...(course.pages.sessions?[['sessions','▦']]:[]),...(course.pages.materials?[['materials','▤']]:[]),...(course.pages.assessments?[['assessments','✓']]:[])];
+  const nav=menu.map(([key,icon])=>action(`${icon}  ${course.menu[key]}`,key,`aria-current="${route===key?'page':'false'}"`)).join('');
+diff --git a/academy/course-websites/studio.mjs b/academy/course-websites/studio.mjs
+index 30fceb96..7d0a3a09 100644
+--- a/academy/course-websites/studio.mjs
++++ b/academy/course-websites/studio.mjs
+@@ -50,7 +50,7 @@ function renderOutline(){
+  $('page-list').innerHTML=editorPages().map(([key,name])=>`<button class="page-link ${page===key?'active':''}" data-action="page" data-page="${key}"${page===key?' aria-current="page"':''}><span class="page-icon" aria-hidden="true">${icons[key]}</span>${name}</button>${key==='lessons'?`<div class="lesson-outline">${course.lessons.map((l,i)=>`<button data-action="select-lesson" data-id="${l.id}" class="${page==='lessons'&&lessonId===l.id?'selected':''}"><span class="lesson-order">${String(i+1).padStart(2,'0')}</span><span>${esc(l.title||'Untitled lesson')}</span></button>`).join('')}<button class="add-lesson-button" data-action="add-lesson">＋ Add a lesson</button></div>`:''}`).join('')+'<button class="page-link" data-action="new-course">← All course websites</button>';
+ }
+ function renderEditor(){$('editor-content').innerHTML=page==='home'?homeEditor():page==='lessons'?lessonEditor():page==='sessions'?sessionsEditor():page==='materials'?materialsEditor():page==='appearance'?appearanceEditor():assessmentsEditor();}
+-function renderPreview({top=false}={}){const scroll=$('student-preview').scrollTop;$('student-preview').innerHTML=renderCourse(course,ui,assetMap);$('student-preview').scrollTop=top?0:scroll;}
++function renderPreview({top=false}={}){const scroll=$('student-preview').scrollTop;$('student-preview').innerHTML=renderCourse(course,ui,assetMap);window.COURSE_WEBSITE_ADMIN?.presentPreview?.($('student-preview'),{course,ui,assets:assetMap});$('student-preview').scrollTop=top?0:scroll;}
+ function render(){updateDraftList();renderOutline();renderEditor();renderPreview();}
+ function setPage(next,id){page=next;if(id)lessonId=id;if(page==='lessons'){lessonId=currentLesson()?.id;ui.route=lessonId?'lesson':'lessons';ui.lessonId=lessonId;}else if(page!=='appearance')ui.route=page;renderOutline();renderEditor();renderPreview({top:true});setMobilePane('edit');}
+ function setMobilePane(pane){$('workspace').dataset.mobilePane=pane;document.querySelectorAll('.studio-mobile-nav button').forEach(b=>b.removeAttribute('aria-current'));const name=pane==='pages'?'mobile-pages':pane==='preview'?'mobile-preview':'mobile-edit';document.querySelector(`.studio-mobile-nav [data-action="${name}"]`)?.setAttribute('aria-current','page');}
+diff --git a/tools/pdf-reading-review/builder.mjs b/tools/pdf-reading-review/builder.mjs
+index b7683620..e1a75ee7 100644
+--- a/tools/pdf-reading-review/builder.mjs
++++ b/tools/pdf-reading-review/builder.mjs
+@@ -1,10 +1,12 @@
+ import {validateCourse} from '../../academy/course-websites/model.mjs';
+ import {localDraft} from './local-draft.mjs';
+-const {course,assets,draftUpgrade}=await (await fetch('draft.json')).json(),store=localDraft(course,localStorage,draftUpgrade||{});
++import {presentPodcast} from './podcast.mjs';
++const {course,assets,draftUpgrade,presentation}=await (await fetch('draft.json')).json(),store=localDraft(course,localStorage,draftUpgrade||{});
+ let draft=store.open().document;
+ const images=await Promise.all(assets.map(async a=>({...a,blob:await (await fetch(a.url)).blob()})));
+ document.querySelector('#selected-course-name').textContent=course.name+' · local author draft';
+ window.COURSE_WEBSITE_ADMIN={
++ ...(presentation?.recordingLayout==='podcast'?{presentPreview:(root,context)=>presentPodcast(root,context)}:{}),
+  drafts:async()=>[structuredClone(draft)],
+  save:async c=>{validateCourse(c);draft=store.save(c).document;},
+  assets:async()=>images,
+diff --git a/tools/pdf-reading-review/local-draft.mjs b/tools/pdf-reading-review/local-draft.mjs
+index e548681a..79d681d0 100644
+--- a/tools/pdf-reading-review/local-draft.mjs
++++ b/tools/pdf-reading-review/local-draft.mjs
+@@ -15,7 +15,7 @@ export function mergeReviewDraft(previous,edited,current){
+  }
+  return structuredClone(edited);
+ }
+-export function localDraft(original,storage=localStorage,{previousOriginal,baselineVersion}={}){
++export function localDraft(original,storage=localStorage,{previousOriginal,previousEditions={},baselineVersion}={}){
+  const key='academy-pdf-builder-review:'+original.id;
+  let revision=0;
+  function read(){
+@@ -23,7 +23,7 @@ export function localDraft(original,storage=localStorage,{previousOriginal,basel
+   const value=JSON.parse(raw),record=value.document?value:{document:value,revision:0};
+   if(record.document.id!==original.id||!Number.isSafeInteger(record.revision))throw Error('The local draft does not match this website.');
+   validateCourse(record.document);
+-  if(previousOriginal&&baselineVersion&&record.baselineVersion!==baselineVersion){record.document=mergeReviewDraft(previousOriginal,record.document,original);validateCourse(record.document);record.needsReviewMerge=true;}
++  if(previousOriginal&&baselineVersion&&record.baselineVersion!==baselineVersion){record.document=mergeReviewDraft(previousEditions[record.baselineVersion]||previousOriginal,record.document,original);validateCourse(record.document);record.needsReviewMerge=true;}
+   return record;
+  }
+  return {
+diff --git a/tools/pdf-reading-review/reader.mjs b/tools/pdf-reading-review/reader.mjs
+index aaaeeabd..220719dc 100644
+--- a/tools/pdf-reading-review/reader.mjs
++++ b/tools/pdf-reading-review/reader.mjs
+@@ -4,15 +4,21 @@ import {handleReflectionAction} from '../../academy/course-websites/reflection-a
+ import {decorateInlineText,changeInlineText} from '../../academy/course-websites/inline-text.mjs';
+ import {localDraft} from './local-draft.mjs';
+ import {companionPlayer} from './video-player.mjs';
++import {sourceMaterialsHTML} from './source-materials.mjs';
++import {featuredVideos} from '../../academy/course-websites/recording-view.mjs';
++import {presentPodcast,parsePodcastHash,podcastHash,podcastRecordingList} from './podcast.mjs';
+ const loaded=await (await fetch('draft.json')).json(),assets=loaded.assets,published=loaded.course,store=localDraft(published,localStorage,loaded.draftUpgrade||{});
+-let course=published,editing=false,dirty=false;
++const podcast=loaded.presentation?.recordingLayout==='podcast';
++let course=published,editing=false,dirty=false,recordingSearch='';
+ const map=new Map(assets.map(a=>[a.id,a])),root=document.querySelector('#course-reader'),dialog=document.querySelector('dialog');
+ const key='academy-pdf-reading-review:'+course.id;
+ let saved={};try{saved=JSON.parse(localStorage.getItem(key)||'{}');}catch{}
+ const ui={portal:true,isPreview:true,route:'home',lessonId:course.lessons[0].id,readingSize:18,completed:[],reflections:{},sessionsHTML:'<h1 class="sp-page-title">Sessions & recordings</h1><p class="sp-lead">Sessions, recordings and notes are not connected in this local review. They will use the website’s authorised timetable publication and protected Lesson media.</p>',nativeMaterialsHTML:'<p class="sp-lead">Course materials will appear here when the authorised files are connected. No duplicate PDF or recording is included in this review.</p>',assessmentsHTML:''};
+-const player=course.recordingCompanion?companionPlayer({course,host:document.querySelector('#reader-refresh-host'),isEditing:()=>editing}):null;
+-function draw(){root.innerHTML=renderCourse(course,ui,map);if(editing)decorateInlineText(root,course,ui);document.title=(ui.route==='lesson'?course.lessons.find(l=>l.id===ui.lessonId)?.title+' · ':'')+course.name;window.dispatchEvent(new Event('kahf-view'));player?.update();}
+-function route(){const id=decodeURIComponent(location.hash.slice(1));ui.route=course.lessons.some(l=>l.id===id)?'lesson':'home';if(ui.route==='lesson')ui.lessonId=id;draw();scrollTo(0,0);}
++if(loaded.publicSourceMaterials?.length)ui.nativeMaterialsHTML=sourceMaterialsHTML(loaded.publicSourceMaterials);
++if(course.recordingCompanion)ui.sessionsHTML=featuredVideos(course);
++const player=course.recordingCompanion?companionPlayer({course,host:document.querySelector('#reader-refresh-host'),isEditing:()=>editing,inline:podcast}):null;
++function draw(){player?.prepareView?.();root.innerHTML=renderCourse(course,ui,map);if(podcast)presentPodcast(root,{course,ui,assets:map,search:recordingSearch});if(editing){decorateInlineText(root,course,ui);for(const embedded of root.querySelectorAll('.pc-embedded-reading'))decorateInlineText(embedded,course,{...ui,route:'lesson',lessonId:embedded.dataset.readingId});}document.title=(ui.route==='lesson'?course.lessons.find(l=>l.id===ui.lessonId)?.title+' · ':'')+course.name;window.dispatchEvent(new Event('kahf-view'));player?.update();}
++function route(){if(podcast)Object.assign(ui,parsePodcastHash(location.hash,course));else{const id=decodeURIComponent(location.hash.slice(1));ui.route=course.lessons.some(l=>l.id===id)?'lesson':'home';if(ui.route==='lesson')ui.lessonId=id;}draw();scrollTo(0,0);}
+ function show(title,body){document.querySelector('#dialog-title').textContent=title;document.querySelector('#dialog-body').innerHTML=body;if(!dialog.open)dialog.showModal();}
+ function download(text,name){const u=URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'})),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
+ document.querySelector('#close-dialog').onclick=()=>dialog.close();
+@@ -24,6 +30,7 @@ document.querySelector('#edit-text').onclick=()=>{
+ };
+ document.querySelector('#save-text').onclick=()=>{try{store.save(course);dirty=false;document.querySelector('#preview-description').textContent='Private draft saved on this device · no R2 upload or live publication.';}catch(error){show('Draft not saved',`<p>${esc(error.message)}</p>`);}};
+ document.addEventListener('input',e=>{const path=e.target.dataset.inlinePath;if(editing&&path){try{changeInlineText(course,path,e.target.textContent);dirty=true;document.querySelector('#preview-description').textContent='Private draft · unsaved local changes. Select Save draft to keep them on this device.';}catch(error){show('Text not changed',`<p>${esc(error.message)}</p>`);}}});
++document.addEventListener('input',e=>{if(!e.target.matches('[data-podcast-search]'))return;recordingSearch=e.target.value;root.querySelector('[data-podcast-results]').innerHTML=podcastRecordingList(course,recordingSearch);if(editing)decorateInlineText(root,course,ui);player?.update();});
+ window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
+ document.querySelector('#student-preview').onchange=e=>{
+  ui.journalPreview=e.target.checked;ui.journalEnabled=e.target.checked;
+@@ -33,6 +40,7 @@ document.querySelector('#student-preview').onchange=e=>{
+ document.addEventListener('input',e=>{const id=e.target.dataset.spNote;if(id){ui.reflections[id]=e.target.value;const s=e.target.closest('.sp-reflection').querySelector('[data-journal-status]');s.textContent=ui.journalPreview?'Unsaved preview note · select Save to keep it on this device.':'Preview note · stays in this tab.';}});
+ document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-sp]');if(!b)return;const a=b.dataset.sp,id=b.dataset.id;
++ if(podcast&&['lesson','route','jump-reading'].includes(a))e.preventDefault();
+  if(editing&&['complete','journal-save','journal-open','download-reflections','copy-reflection','share-reflection'].includes(a))return;
+  if(a==='play-video'||a==='follow-reading'){
+   if(editing){e.preventDefault();return;}
+@@ -40,8 +48,9 @@ document.addEventListener('click',async e=>{
+   if(lessonId&&course.lessons.some(l=>l.id===lessonId)){dialog.close();history.pushState(null,'',location.pathname+'#'+encodeURIComponent(lessonId));ui.route='lesson';ui.lessonId=lessonId;draw();scrollTo(0,0);}
+   if(player){e.preventDefault();await player.open(b.dataset.video,Number(b.dataset.start)||0);}return;
+  }
+- if(a==='lesson'){dialog.close();location.hash=id;if(ui.lessonId===id){ui.route='lesson';draw();scrollTo(0,0);}}
+- else if(a==='route'){ui.route=b.dataset.route;history.replaceState(null,'',location.pathname);draw();scrollTo(0,0);}
++ if(a==='jump-reading'){root.querySelectorAll('[data-reading-id]').forEach(el=>{if(el.dataset.readingId===id)el.scrollIntoView({block:'start',behavior:'smooth'});});}
++ else if(a==='lesson'){dialog.close();location.hash=id;if(ui.lessonId===id){ui.route='lesson';draw();scrollTo(0,0);}}
++ else if(a==='route'){ui.route=b.dataset.route;if(podcast)history.pushState(null,'',location.pathname+podcastHash(ui.route));else history.replaceState(null,'',location.pathname);draw();scrollTo(0,0);}
+  else if(a==='contents')show('Your lessons',course.lessons.map(l=>`<button data-sp="lesson" data-id="${esc(l.id)}">${esc(l.title)}</button>`).join(''));
+  else if(a==='larger'||a==='smaller'){ui.readingSize=Math.max(16,Math.min(24,ui.readingSize+(a==='larger'?1:-1)));draw();}
+  else if(a==='complete'){ui.completed=ui.completed.includes(id)?ui.completed.filter(x=>x!==id):[...ui.completed,id];draw();}
+diff --git a/tools/pdf-reading-review/video-player.mjs b/tools/pdf-reading-review/video-player.mjs
+index 67b6aa07..3003374d 100644
+--- a/tools/pdf-reading-review/video-player.mjs
++++ b/tools/pdf-reading-review/video-player.mjs
+@@ -9,13 +9,27 @@ function youtubeAPI(){
+   document.head.append(script);setTimeout(()=>{if(!window.YT?.Player)reject(Error('The video player did not respond. The full lesson link remains available.'));},20000);
+  }));
+ }
+-export function companionPlayer({course,host,isEditing=()=>false}){
++export function companionPlayer({course,host,isEditing=()=>false,inline=false}){
+  const videos=courseRecordings(course),allowed=new Map(videos.map(v=>[v.id,v.duration])),ledger=watchLedger(),key='academy-watch-preview:v1:'+course.id;
+  let remembered=false,player=null,ready=false,active=null,generation=0,lastSave=0,dirty=false;
+  try{const saved=JSON.parse(localStorage.getItem(key)||'null');if(saved?.courseId===course.id&&saved.remembered===true){ledger.restore(saved.records,allowed);remembered=true;}}catch{}
+  const dock=document.createElement('aside');dock.id='video-dock';dock.hidden=true;dock.setAttribute('aria-label','Lesson recording');host.append(dock);
+  const save=()=>{if(!remembered||!dirty)return;try{localStorage.setItem(key,JSON.stringify({format:'ACADEMY_WATCH_PREVIEW_V1',courseId:course.id,remembered:true,records:ledger.export()}));dirty=false;lastSave=Date.now();}catch{const el=dock.querySelector('.watch-storage-status');if(el)el.textContent='Device storage is unavailable. Progress remains in this tab.';}};
++ const place=()=>{
++  if(!inline)return;
++  const slots=[...host.querySelectorAll('[data-podcast-player]')],slot=slots.find(el=>el.dataset.podcastPlayer===active?.id),embedded=Boolean(slot&&!dock.hidden&&slot.getBoundingClientRect&&host.getBoundingClientRect);
++  dock.classList.toggle('pc-player-inline',embedded);host.classList.toggle('pc-inline-playing',embedded);
++  for(const other of slots)if(other!==slot||!embedded)other.style.height='';
++  if(embedded){
++   // Keep the iframe outside the rerendered reading DOM. Reparenting an iframe
++   // can reload its browsing context and lose playback, even with one Player.
++   const rect=slot.getBoundingClientRect(),frame=host.getBoundingClientRect();
++   dock.style.left=(rect.left-frame.left)+'px';dock.style.top=(rect.top-frame.top)+'px';dock.style.width=rect.width+'px';
++   slot.style.height=(dock.getBoundingClientRect().height+16)+'px';
++  }else for(const name of ['left','top','width'])dock.style[name]='';
++ };
+  const update=()=>{
++  place();
+   const total=ledger.progress(videos);
+   document.querySelectorAll('[data-course-watch]').forEach(el=>el.textContent=total.percent+'%');
+   document.querySelectorAll('[data-course-watch-bar]').forEach(el=>el.value=total.percent);
+@@ -26,7 +40,7 @@ export function companionPlayer({course,host,isEditing=()=>false}){
+   if(!ready||!player||!active||isEditing()){ledger.stop();return;}
+   try{const duration=player.getDuration(),position=player.getCurrentTime(),state=player.getPlayerState();ledger.sample({id:active.id,position,duration,playing:state===1,clock:performance.now(),rate:player.getPlaybackRate()});dirty=true;update();if(Date.now()-lastSave>=5000)save();}catch{ledger.stop();}
+  };
+- const close=()=>{sample();save();generation++;ready=false;player?.destroy?.();player=null;ledger.stop();dock.hidden=true;dock.replaceChildren();host.classList.remove('has-lesson-player');};
++ const close=()=>{sample();save();generation++;ready=false;player?.destroy?.();player=null;ledger.stop();dock.hidden=true;dock.replaceChildren();host.classList.remove('has-lesson-player');place();};
+  const open=async(id,start=0)=>{
+   if(isEditing()||!allowed.has(id))return;
+   const video=videos.find(v=>v.id===id),position=start===0&&remembered?ledger.get(id).lastPosition:start;
+@@ -46,6 +60,7 @@ export function companionPlayer({course,host,isEditing=()=>false}){
+   }catch(error){if(token===generation)dock.querySelector('.watch-storage-status').textContent=error.message;}
+  };
+  const tick=setInterval(sample,1000);
++ const observer=inline&&typeof ResizeObserver==='function'?new ResizeObserver(place):null;observer?.observe(dock);if(inline)window.addEventListener('resize',place);
+  const unload=()=>{sample();save();};window.addEventListener('pagehide',unload);
+- update();return {open,update,pause(){sample();player?.pauseVideo?.();ledger.stop();save();},destroy(){close();clearInterval(tick);window.removeEventListener('pagehide',unload);}};
++ update();return {open,update,pause(){sample();player?.pauseVideo?.();ledger.stop();save();},destroy(){close();observer?.disconnect();clearInterval(tick);window.removeEventListener('pagehide',unload);if(inline)window.removeEventListener('resize',place);}};
+ }

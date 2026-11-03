@@ -1,0 +1,390 @@
+diff --git a/backend/migrations/academy-core/0022_class_notes_summary.sql b/backend/migrations/academy-core/0022_class_notes_summary.sql
+new file mode 100644
+index 00000000..26cf62e5
+--- /dev/null
++++ b/backend/migrations/academy-core/0022_class_notes_summary.sql
+@@ -0,0 +1,2 @@
++-- Read-only programme history window. Existing notes and versions are retained.
++CREATE INDEX class_notes_programme_history ON class_notes(activity_key,state,created_at DESC,note_id DESC);
+diff --git a/backend/src/academy/d1/class-note-summary-cursor.js b/backend/src/academy/d1/class-note-summary-cursor.js
+new file mode 100644
+index 00000000..db863581
+--- /dev/null
++++ b/backend/src/academy/d1/class-note-summary-cursor.js
+@@ -0,0 +1,29 @@
++import {managementError as fail} from './management-store.js';
++const encoder=new TextEncoder(),decoder=new TextDecoder();
++const encode=bytes=>btoa(String.fromCharCode(...bytes)).replaceAll('+','-').replaceAll('/','_').replaceAll('=','');
++const decode=value=>Uint8Array.from(atob(value.replaceAll('-','+').replaceAll('_','/')),c=>c.charCodeAt(0));
++const invalid=()=>fail('These notes changed or this page belongs to another view. Refresh the notes before continuing.',400,'CLASS_NOTE_SUMMARY_CURSOR_INVALID');
++
++// A request-owned server capability. Neither the secret nor a decryption key
++// is placed in the DTO, browser, cursor binding or coordinator request.
++export function classNoteSummaryCursor(secret){
++ let key;
++ const encryptionKey=async()=>{
++  if(typeof secret!=='string'||!secret)throw fail('The notes summary is temporarily unavailable.',503);
++  return key??=crypto.subtle.digest('SHA-256',encoder.encode('academy-class-notes-summary-cursor-v1\n'+secret)).then(bytes=>crypto.subtle.importKey('raw',bytes,'AES-GCM',false,['encrypt','decrypt']));
++ };
++ return {
++  async seal(boundary,binding){
++   const iv=crypto.getRandomValues(new Uint8Array(12)),data=encoder.encode(JSON.stringify(boundary));
++   const ciphertext=await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:encoder.encode(binding),tagLength:128},await encryptionKey(),data);
++   return 'v1.'+encode(iv)+'.'+encode(new Uint8Array(ciphertext));
++  },
++  async open(token,binding){
++   if(typeof token!=='string'||token.length>2048||!/^v1\.[A-Za-z0-9_-]{16}\.[A-Za-z0-9_-]{40,2000}$/.test(token))throw invalid();
++   try{
++    const [,iv,ciphertext]=token.split('.'),data=await crypto.subtle.decrypt({name:'AES-GCM',iv:decode(iv),additionalData:encoder.encode(binding),tagLength:128},await encryptionKey(),decode(ciphertext));
++    return JSON.parse(decoder.decode(data));
++   }catch{throw invalid();}
++  }
++ };
++}
+diff --git a/backend/src/academy/d1/class-note-summary.js b/backend/src/academy/d1/class-note-summary.js
+new file mode 100644
+index 00000000..09d023d8
+--- /dev/null
++++ b/backend/src/academy/d1/class-note-summary.js
+@@ -0,0 +1,37 @@
++import {dayStart} from './academy-clock.js';
++import {managementError as fail} from './management-store.js';
++
++// Three calendar months, clamped to the target month's last real day. This is
++// a read window; it does not withdraw, expire or delete a saved Class Note.
++export function classNoteSummaryWindow(today,timezone,instant){
++ const [year,month,day]=today.split('-').map(Number),target=new Date(Date.UTC(year,month-4,1));
++ const last=new Date(Date.UTC(target.getUTCFullYear(),target.getUTCMonth()+1,0)).getUTCDate();
++ target.setUTCDate(Math.min(day,last));
++ const fromDate=target.toISOString().slice(0,10);
++ return {months:3,fromDate,throughDate:today,from:dayStart(fromDate,timezone),through:instant.toISOString(),timezone,basis:'CREATED_AT'};
++}
++
++export function classNoteSummaryPage(input,window){
++ const limit=input.limit===undefined?20:input.limit;
++ if(!Number.isInteger(limit)||limit<1||limit>50)throw fail('Choose up to 50 Class Notes.');
++ const before=input.before;
++ if(before!==undefined&&(!before||Array.isArray(before)||typeof before!=='object'||typeof before.createdAt!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(before.createdAt)||!Number.isFinite(Date.parse(before.createdAt))||new Date(before.createdAt).toISOString()!==before.createdAt||before.createdAt<window.from||before.createdAt>window.through||typeof before.id!=='string'||!before.id||before.id.length>200||/[\u0000-\u001f\u007f]/.test(before.id)))throw fail('Choose a valid Class Notes page.');
++ return {limit,before};
++}
++
++export async function classNoteSummaryCandidates(db,activityKey,input,window){
++ const {limit,before}=classNoteSummaryPage(input,window);
++ try{
++  // Select a bounded, indexed candidate page before resolving current lesson
++  // sharing. Hidden-class notes can leave a sparse page; its cursor advances
++  // over the examined candidates without disclosing text, authors or contexts.
++  const result=await db.prepare(`SELECT note_id,context_id,created_at FROM class_notes INDEXED BY class_notes_programme_history
++   WHERE activity_key=? COLLATE NOCASE AND state='ACTIVE' AND created_at>=? AND created_at<=?${before?' AND (created_at,note_id)<(?,?)':''}
++   ORDER BY created_at DESC,note_id DESC LIMIT ?`).bind(activityKey,window.from,window.through,...(before?[before.createdAt,before.id]:[]),limit+1).all();
++  const rows=result.results,page=rows.slice(0,limit),last=page.at(-1);
++  return {page,before:rows.length>limit?{createdAt:last.created_at,id:last.note_id}:null};
++ }catch(error){
++  if(/no such index.*class_notes_programme_history/i.test(error.message||''))throw fail('The programme notes summary is being prepared. Please try again shortly.',503,'CLASS_NOTE_SUMMARY_SCHEMA_REQUIRED');
++  throw error;
++ }
++}
+diff --git a/backend/src/academy/d1/class-notes.js b/backend/src/academy/d1/class-notes.js
+index bff05dfe..73cd1633 100644
+--- a/backend/src/academy/d1/class-notes.js
++++ b/backend/src/academy/d1/class-notes.js
+@@ -4,6 +4,7 @@ import {managementError as fail,same} from './management-store.js';
+ import {actualState,isAdminWorkspace,viewedClass} from './workspace-access.js';
+ import {academyDate,appTimezone,nextDate} from './academy-clock.js';
+ import {payloadHash} from '../../programs/timetable-model.js';
++import {classNoteSummaryWindow,classNoteSummaryCandidates} from './class-note-summary.js';
+ 
+ const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
+ const teacherKey=source=>[...new Set(source.teacherIds.map(id=>id.toUpperCase()))].sort().join('|');
+@@ -14,11 +15,11 @@ const sameTrack=(a,b)=>same(a.activityKey,b.activityKey)&&same(a.classId,b.class
+ // accepted timetable facts supply context, never a caller's Teacher or class.
+ export function classNotes(repository,auth,now=()=>new Date()){
+  const db=repository.db,p=(sql,...values)=>db.prepare(sql).bind(...values),actor=auth.user.accountid;
+- const areas=new Map(),ranges=new Map(),resolved=new Map(),facts=new Map();let timezone,today;
++ const areas=new Map(),ranges=new Map(),resolved=new Map(),facts=new Map();let timezone,today,readingInstant;
+  async function ready(){
+   if(!repository.setup?.head)throw fail('Class Notes needs the accepted timetable.',503,'SETUP_PUBLICATION_REQUIRED');
+   try{await p('SELECT note_id FROM class_notes WHERE 0').all();}catch(error){if(/no such table/.test(error.message))throw fail('Class Notes is being prepared. Please try again shortly.',503,'CLASS_NOTES_SCHEMA_REQUIRED');throw error;}
+-  timezone=await appTimezone(repository);today=academyDate(now(),timezone);
++  timezone=await appTimezone(repository);readingInstant=new Date(now());today=academyDate(readingInstant,timezone);
+  }
+  async function area(key){
+   if(typeof key!=='string'||key.length>200||!/^(PROGRAM|COURSE):[^:]+$/i.test(key))throw fail('Choose a Program or Course.');
+@@ -135,6 +136,34 @@ export function classNotes(repository,auth,now=()=>new Date()){
+   if(focus&&!page.some(row=>row.note_id===focus)){const focused=await noteRow(focus);if(focused.context_id===source.id)page.unshift(focused);}
+   return {source:{...source,...permission,canPost:permission.canPost&&!source.unresolved},notes:await Promise.all(page.map(row=>dto(row,permission))),before:more?{createdAt:last.created_at,id:last.note_id}:null,nextDue:source.unresolved?null:await nextDue(a,source),focusNoteId:focus,today,timezone};
+  }
++ async function summaryEligible(a,noteDb){
++  const values=[actor],bind=value=>{values.push(value);return '?';};
++  const role=kind=>`EXISTS(SELECT 1 FROM (${assessmentRolesSQL}) r WHERE r.account_id=me.account_id AND r.activity_key=${bind(a.activity_key)} COLLATE NOCASE AND r.role='${kind}')`;
++  let surface;
++  if(isAdminWorkspace(auth)||auth.adminView)surface=`EXISTS(SELECT 1 FROM global_role_assignments g WHERE g.account_id=me.account_id AND g.active=1 AND g.review_state='CONFIRMED' AND g.role='GLOBAL_ADMIN') OR ${role('PROGRAM_ADMIN')}`;
++  else if(auth.workspace==='TEACH')surface=role('TEACHER');
++  else if(a.kind==='PROGRAM')surface=`${role('STUDENT')} AND EXISTS(SELECT 1 FROM class_memberships m JOIN classes c ON c.activity_key=m.activity_key AND c.class_id=m.class_id WHERE m.account_id=me.account_id AND m.activity_key=${bind(a.activity_key)} COLLATE NOCASE AND m.active=1 AND c.active=1 AND (m.start_date IS NULL OR m.start_date<=${bind(today)}) AND (m.end_date IS NULL OR m.end_date>=${bind(today)}))`;
++  else surface=`(${role('STUDENT')} OR EXISTS(SELECT 1 FROM effective_course_subscriptions s WHERE s.account_id=me.account_id AND s.activity_key=${bind(a.activity_key)} COLLATE NOCASE) OR EXISTS(SELECT 1 FROM course_settings cs WHERE cs.activity_key=${bind(a.activity_key)} COLLATE NOCASE AND cs.legacy_access_model='FREE' AND cs.policy_review_state='CONFIRMED')) AND EXISTS(SELECT 1 FROM attendance_delivery_members m JOIN course_runs cr ON cr.activity_key=m.activity_key AND cr.run_id=m.run_id JOIN course_run_state rs ON rs.activity_key=cr.activity_key AND rs.run_id=cr.run_id WHERE m.activity_key=${bind(a.activity_key)} COLLATE NOCASE AND m.account_id=me.account_id AND m.state='VALID' AND cr.active=1 AND coalesce(rs.stage,'') NOT IN('CANCELLED','ARCHIVED') AND m.join_date<=${bind(today)} AND (m.leave_date IS NULL OR m.leave_date>=${bind(today)}))`;
++  if(!await noteDb.prepare(`SELECT 1 FROM accounts me WHERE me.account_id=? COLLATE NOCASE AND me.active=1 AND (${surface})`).bind(...values).first())throw fail('These Class Notes are outside your current programme access.',403,'CLASS_NOTES_FORBIDDEN');
++ }
++ async function summary(a,input){
++  const noteDb=repository.coreDb||db,np=(sql,...values)=>noteDb.prepare(sql).bind(...values);
++  await summaryEligible(a,noteDb);
++  const window=classNoteSummaryWindow(today,timezone,readingInstant),cursor=repository.noteSummaryCursor;
++  if(!cursor)throw fail('The notes summary is temporarily unavailable.',503);
++  const state=actualState(auth),binding=JSON.stringify({purpose:'CLASS_NOTES_SUMMARY_V1',account:String(state.account.account_id).toUpperCase(),session:auth.sid,epoch:state.account.credential_epoch,activity:a.activity_key.toUpperCase(),workspace:auth.workspaceContext||auth.workspace||'ADMIN',classView:auth.classView?{activityKey:auth.classView.activityKey.toUpperCase(),classId:auth.classView.classId.toUpperCase()}:null,head:repository.setup.head,window:{fromDate:window.fromDate,throughDate:window.throughDate,timezone}});
++  const before=input.before==null?undefined:await cursor.open(input.before,binding),candidates=await classNoteSummaryCandidates(noteDb,a.activity_key,{limit:input.limit,...(before?{before}:{})},window);
++  const ids=[...new Set(candidates.page.map(row=>row.context_id))],stored=ids.length?(await np('SELECT context_id,source_json FROM class_note_contexts WHERE context_id IN(SELECT value FROM json_each(?))',JSON.stringify(ids)).all()).results:[];
++  const sources=await Promise.all(stored.map(row=>live(JSON.parse(row.source_json)))),permissions=await rights(sources),byId=new Map(sources.map(source=>[source.id,source]));
++  const allowed=candidates.page.filter(row=>permissions.get(row.context_id)?.canRead),noteIds=allowed.map(row=>row.note_id);
++  // Bodies and author names are read only after current lesson sharing passes.
++  const rows=noteIds.length?(await np(joined+" WHERE n.note_id IN(SELECT value FROM json_each(?)) AND n.state='ACTIVE'",JSON.stringify(noteIds)).all()).results:[],notes=new Map(rows.map(row=>[row.note_id,row]));
++  return {activityKey:a.activity_key,window,today,timezone,before:candidates.before?await cursor.seal(candidates.before,binding):null,notes:await Promise.all(allowed.filter(row=>notes.has(row.note_id)).map(async candidate=>{
++   const row=notes.get(candidate.note_id),source=byId.get(row.context_id),permission={...permissions.get(row.context_id)};
++   permission.canPost=permission.canPost&&!source.unresolved;
++   return {...await dto(row,permission),source:{...source,...permission}};
++  }))};
++ }
+  async function timetable(input){
+   if(!Array.isArray(input.sessions)||input.sessions.length>200)throw fail('Choose up to 200 timetable lessons.');
+   const refs=input.sessions.filter(r=>r&&typeof r.activityKey==='string'&&validDate(r.date)&&typeof r.sessionKey==='string'&&r.sessionKey.length<=1200);
+@@ -210,6 +239,7 @@ export function classNotes(repository,auth,now=()=>new Date()){
+   await ready();
+   if(action==='timetable')return timetable(input);
+   const a=await area(input.activityKey);
++  if(action==='summary')return summary(a,input);
+   if(['post','revise','withdraw','relink'].includes(action))return mutate(action,input);
+   if(action==='sessions'){
+    if(!validDate(input.date))throw fail('Choose a lesson date.');const candidates=await range(a,input.date,input.date),permissions=await rights(candidates);
+diff --git a/backend/src/academy/d1/repository.js b/backend/src/academy/d1/repository.js
+index 30759625..a5a235b6 100644
+--- a/backend/src/academy/d1/repository.js
++++ b/backend/src/academy/d1/repository.js
+@@ -14,6 +14,7 @@ import {CORE_ACTIVATION_CHECKS,newActivityOwnership} from './activation-policy.j
+ import {programAccessJoin,programAccessSQL} from './program-access.js';
+ import {programZoomJoin} from './program-zoom.js';
+ import {publicationTeacherAccountsSQL} from './publication-teachers.js';
++import {classNoteSummaryCursor} from './class-note-summary-cursor.js';
+ 
+ export const rehearsalError = (message, status=503, code='ACADEMY_D1_UNAVAILABLE') => Object.assign(new Error(message), {status,code});
+ const publicAccount = row => ({AccountID:row.account_id,DisplayName:row.display_name,UniqueID:row.login_link_id,Active:Boolean(row.active),PlatformRole:row.global_admin?'GLOBAL_ADMIN':''});
+@@ -120,7 +121,7 @@ export function academyD1Repository(env) {
+     privateSnapshots,recordingEnv:{ACADEMY_OBJECT_NAMESPACE:env.ACADEMY_OBJECT_NAMESPACE},
+     bindActor:auth=>client?.bindActor(auth),
+     authoringRepository(){return client?{...this,db:client.admin}:this;},
+-    db,coreDb:db,adminDb:split?env.ACADEMY_ADMIN_DB.withSession('first-primary'):null,setup:{enabled:env.ACADEMY_ACCEPTED_SETUP==='1'},features:{websiteStudio:env.ACADEMY_WEBSITE_STUDIO==='1',surahGrants:env.ACADEMY_SURAH_GRANTS==='1',weeklyAbsentees:env.ACADEMY_WEEKLY_ABSENTEES==='1',monthlySubscriptions:env.ACADEMY_MONTHLY_SUBSCRIPTIONS==='1',nativeAttendance:env.ACADEMY_LEARNING_OPERATIONS==='3',mediaSeparation:env.ACADEMY_MEDIA_SEPARATION==='1',splitDatabases:split},
++    db,coreDb:db,noteSummaryCursor:classNoteSummaryCursor(env.SESSION_SECRET),adminDb:split?env.ACADEMY_ADMIN_DB.withSession('first-primary'):null,setup:{enabled:env.ACADEMY_ACCEPTED_SETUP==='1'},features:{websiteStudio:env.ACADEMY_WEBSITE_STUDIO==='1',surahGrants:env.ACADEMY_SURAH_GRANTS==='1',weeklyAbsentees:env.ACADEMY_WEEKLY_ABSENTEES==='1',monthlySubscriptions:env.ACADEMY_MONTHLY_SUBSCRIPTIONS==='1',nativeAttendance:env.ACADEMY_LEARNING_OPERATIONS==='3',mediaSeparation:env.ACADEMY_MEDIA_SEPARATION==='1',splitDatabases:split},
+     ownershipForNewActivity:activity=>newActivityOwnership(activity,env),
+     subscriptionSource,
+     publicAccount,
+diff --git a/backend/src/academy/d1/worker.js b/backend/src/academy/d1/worker.js
+index d93519a0..164e466f 100644
+--- a/backend/src/academy/d1/worker.js
++++ b/backend/src/academy/d1/worker.js
+@@ -275,7 +275,7 @@ async function dispatch(request,env,options={}) {
+     return {success:true,...await messaging(await readRepository(),auth).run(action,input)};
+   }
+   if(isAdminWorkspace(auth))repository=repository.authoringRepository();
+-  const classNoteAction=path.match(/^\/api\/academy\/class-notes\/(timetable|sessions|get|due|history|post|revise|withdraw|relink)$/)?.[1];
++  const classNoteAction=path.match(/^\/api\/academy\/class-notes\/(summary|timetable|sessions|get|due|history|post|revise|withdraw|relink)$/)?.[1];
+   if(classNoteAction)return {success:true,...await classNotes(await readRepository(),auth).run(classNoteAction,input)};
+   const nativeAction=path.match(/^\/api\/(?:academy\/attendance|program-attendance)\/(options|get|submit|prepare|recover|report|roster-get|roster-save|substitute-save|substitute-revoke|substitute-reopen)$/)?.[1];
+   if(nativeAction&&sourceRepository.features.nativeAttendance)return {success:true,...await nativeAttendance(await readRepository(),auth).run(nativeAction,input)};
+diff --git a/backend/tests/academy-class-notes-summary-split.test.mjs b/backend/tests/academy-class-notes-summary-split.test.mjs
+new file mode 100644
+index 00000000..44a40fc0
+--- /dev/null
++++ b/backend/tests/academy-class-notes-summary-split.test.mjs
+@@ -0,0 +1,33 @@
++import {readFileSync} from 'node:fs';
++import test from 'node:test';import assert from 'node:assert/strict';
++import {splitFixture} from './fixtures/academy-split-fixture.mjs';
++import {seedClassNotes} from './fixtures/academy-class-notes-fixture.mjs';
++import worker from '../src/academy-runtime.js';
++import {academyDate} from '../src/academy/d1/academy-clock.js';
++
++test('split HTTP programme summary reads current Core notes and rejects revoked account or class authority',async()=>{
++ const f=await splitFixture(seedClassNotes);try{
++  f.databases.core.exec('DROP TABLE class_note_versions; DROP TABLE class_notes; DROP TABLE class_note_contexts;');
++  for(const name of ['0001_class_notes.sql','0022_class_notes_summary.sql'])f.databases.core.exec(readFileSync(new URL('../migrations/academy-core/'+name,import.meta.url),'utf8'));
++  f.databases.core.exec("UPDATE split_deployment_state SET state='READY'");
++  Object.assign(f.source.env,{ACADEMY_DB:f.core,ACADEMY_ADMIN_DB:f.admin,ACADEMY_DB_GENERATION:'SPLIT_V1',ACADEMY_D1_RUN_ID:f.prepared.report.sourceDigest,ACADEMY_SPLIT_COORDINATOR:f.namespace,ACADEMY_ACCEPTED_SETUP:'1',ACADEMY_LEARNING_OPERATIONS:'3'});
++  const token=await f.source.login('0002'),date=academyDate(new Date(),'Africa/Johannesburg'),activityKey=f.scopes.programA;
++  const call=async(action,input,workspace='LEARN',who=token,extra={})=>{const response=await worker.fetch(new Request('https://academy.test/api/academy/class-notes/'+action,{method:'POST',headers:{Authorization:'Bearer '+who,'Content-Type':'application/json','X-Academy-Workspace':workspace,...extra},body:JSON.stringify(input)}),f.source.env);return {status:response.status,body:await response.json()};};
++  const good=result=>{assert.equal(result.status,200,JSON.stringify(result.body));return result.body;};
++  const source=good(await call('sessions',{activityKey,date})).sources.find(s=>s.classId==='class-1'&&s.startTime==='10:00');
++  const view=good(await call('get',{activityKey,source})),made=good(await call('post',{activityKey,source,sourceToken:source.token,body:'Current programme note',due:{mode:'NEXT',token:view.nextDue.token},operationId:crypto.randomUUID()}));
++  const version=f.databases.core.prepare('SELECT version FROM split_read_state').get().version;
++  const result=good(await call('summary',{activityKey,limit:3}));assert.equal(result.notes[0].id,made.noteId);assert.equal(result.notes[0].source.canPost,true);assert.equal(result.window.months,3);
++  assert.equal(f.databases.core.prepare('SELECT version FROM split_read_state').get().version,version,'summary must not write notes or access state');
++  assert(!f.databases.admin.prepare("SELECT 1 FROM sqlite_schema WHERE name='class_notes'").get());
++  const global=await f.source.actor('global'),preview=good(await call('summary',{activityKey},'ADMIN_LEARN',global));assert(preview.notes.length);assert(preview.notes.every(n=>!n.canEdit&&!n.source.canPost));
++  const selected=good(await call('summary',{activityKey},'ADMIN_LEARN',global,{'X-Academy-Class':encodeURIComponent(JSON.stringify({activityKey,classId:'class-shared'}))}));assert.deepEqual(selected.notes,[]);
++  f.databases.core.prepare("UPDATE class_memberships SET active=0 WHERE account_id='account-0002' AND activity_key=?").run(activityKey);
++  assert.equal((await call('summary',{activityKey})).status,403);
++  f.databases.core.prepare("UPDATE account_sessions SET revoked_at=? WHERE account_id='account-0002'").run(new Date().toISOString());
++  assert.equal((await call('summary',{activityKey})).status,401);
++  f.databases.core.prepare('UPDATE account_credentials SET credential_epoch=credential_epoch+1 WHERE account_id=?').run(f.actors.global);
++  assert.equal((await call('summary',{activityKey},'ADMIN_LEARN',global)).status,401);
++  for(const db of Object.values(f.databases))assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
++ }finally{f.close();}
++});
+diff --git a/backend/tests/academy-class-notes-summary.test.mjs b/backend/tests/academy-class-notes-summary.test.mjs
+new file mode 100644
+index 00000000..ee91e14f
+--- /dev/null
++++ b/backend/tests/academy-class-notes-summary.test.mjs
+@@ -0,0 +1,98 @@
++import {test} from 'node:test';
++import assert from 'node:assert/strict';
++import {readFileSync} from 'node:fs';
++import {DatabaseSync} from 'node:sqlite';
++import {classNotesFixture,seedClassNotes} from './fixtures/academy-class-notes-fixture.mjs';
++import {classNoteSummaryWindow,classNoteSummaryCandidates} from '../src/academy/d1/class-note-summary.js';
++import {nativeBinding} from './fixtures/academy-d1-fixture.mjs';
++import runtime from '../src/academy-runtime.js';
++import {classNoteSummaryCursor} from '../src/academy/d1/class-note-summary-cursor.js';
++
++const index=readFileSync(new URL('../migrations/academy-core/0022_class_notes_summary.sql',import.meta.url),'utf8');
++async function use(fn){const f=await classNotesFixture(seedClassNotes);try{f.db.exec(index);await fn(f);assert.deepEqual(f.db.prepare('PRAGMA foreign_key_check').all(),[]);}finally{f.close();}}
++async function create(f,service,classId='class-1',body='Shared lesson note'){
++ const source=(await service.run('sessions',{activityKey:f.scopes.programA,date:f.today})).sources.find(s=>s.classId===classId&&s.startTime==='10:00');assert(source);
++ const view=await service.run('get',{activityKey:source.activityKey,source});return service.run('post',f.post(view,{body}));
++}
++function insert(db,table,row){const keys=Object.keys(row);db.prepare('INSERT INTO '+table+'('+keys.join(',')+') VALUES('+keys.map(()=>'?').join(',')+')').run(...Object.values(row));}
++function copyNote(f,original,id,createdAt){
++ const row=f.db.prepare('SELECT * FROM class_notes WHERE note_id=?').get(original.noteId),version=f.db.prepare('SELECT * FROM class_note_versions WHERE version_id=?').get(row.current_version_id),versionId=id+'-version';
++ insert(f.db,'class_notes',{...row,note_id:id,created_at:createdAt,current_version_id:null,updated_at:createdAt,state:'ACTIVE',withdrawn_at:null});
++ insert(f.db,'class_note_versions',{...version,version_id:versionId,note_id:id,created_at:createdAt});
++ f.db.prepare('UPDATE class_notes SET current_version_id=? WHERE note_id=?').run(versionId,id);
++}
++
++test('programme history uses clamped calendar months and the Academy midnight rather than ninety days',()=>{
++ const timezone='Africa/Johannesburg';
++ for(const [today,expected] of [['2026-11-01','2026-08-01'],['2026-05-31','2026-02-28'],['2024-05-31','2024-02-29'],['2026-01-31','2025-10-31']]){
++  const w=classNoteSummaryWindow(today,timezone,new Date(today+'T12:00:00Z'));assert.equal(w.fromDate,expected);assert.equal(w.months,3);assert.equal(w.basis,'CREATED_AT');assert.equal(new Date(w.from).getUTCHours(),22);
++ }
++});
++
++test('summary pages are newest first with stable tied timestamps, a fixed cutoff and no deletion',()=>use(async f=>{
++ const service=await f.notes('LEARN','original-student'),made=await create(f,service),first=await service.run('summary',{activityKey:f.scopes.programA});
++ const boundary=first.window.from,old=new Date(Date.parse(boundary)-1).toISOString(),tie=new Date(Date.now()-1000).toISOString();
++ copyNote(f,made,'boundary-note',boundary);copyNote(f,made,'outside-history-note',old);copyNote(f,made,'tied-a',tie);copyNote(f,made,'tied-z',tie);
++ const all=await service.run('summary',{activityKey:f.scopes.programA});assert.equal(all.notes.length,4);assert(!all.notes.some(n=>n.id==='outside-history-note'));assert.equal(all.notes.at(-1).id,'boundary-note');assert(all.notes.findIndex(n=>n.id==='tied-z')<all.notes.findIndex(n=>n.id==='tied-a'));
++ const found=[];let before;do{const page=await service.run('summary',{activityKey:f.scopes.programA,limit:1,...(before?{before}:{})});found.push(...page.notes.map(n=>n.id));before=page.before;}while(before);
++ assert.deepEqual(found,all.notes.map(n=>n.id));assert.equal(new Set(found).size,found.length);assert.equal(f.db.prepare('SELECT count(*) n FROM class_notes').get().n,5);
++ assert(all.notes.every(n=>n.source.canRead&&n.source.canPost&&n.canEdit));
++ for(const input of [{limit:0},{limit:51},{before:{createdAt:old,id:'outside-history-note'}},{before:{createdAt:'bad',id:'x'}},{before:{createdAt:tie,id:''}}])await assert.rejects(service.run('summary',{activityKey:f.scopes.programA,...input}),e=>e.status===400);
++}));
++
++test('sparse pages advance past inaccessible classes without exposing their body or lesson context',()=>use(async f=>{
++ const global=await f.notes('ADMIN'),student=await f.notes('LEARN','original-student'),hidden=await create(f,global,'class-shared','Private other-class body'),visible=await create(f,student,'class-1','Visible own-class body');
++ const hiddenAt=new Date(Date.now()-1000).toISOString();copyNote(f,hidden,'hidden-newest',hiddenAt);copyNote(f,visible,'visible-next',new Date(Date.now()-2000).toISOString());
++ f.db.prepare("UPDATE class_notes SET state='WITHDRAWN' WHERE note_id IN(?,?)").run(hidden.noteId,visible.noteId);
++ const first=await student.run('summary',{activityKey:f.scopes.programA,limit:1});assert.deepEqual(first.notes,[]);assert.equal(typeof first.before,'string');for(const secret of ['Private other-class body',hidden.contextId,'hidden-newest',hiddenAt])assert(!JSON.stringify(first).includes(secret));
++ const cipher=Buffer.from(first.before.split('.')[2],'base64url').toString('utf8');assert(!cipher.includes('hidden-newest'));assert(!cipher.includes(hiddenAt));
++ const next=await student.run('summary',{activityKey:f.scopes.programA,limit:1,before:first.before});assert.equal(next.notes.length,1);assert.equal(next.notes[0].body,'Visible own-class body');assert.equal(next.before,null);
++ const wrong=await f.notes('ADMIN','adminB');await assert.rejects(wrong.run('summary',{activityKey:f.scopes.programA}),e=>e.status===403);
++ await assert.rejects(wrong.run('summary',{activityKey:f.scopes.programA,before:first.before}),e=>e.status===403);
++ const preview=await f.notes('ADMIN_LEARN');const reviewed=await preview.run('summary',{activityKey:f.scopes.programA});assert(reviewed.notes.length);assert(reviewed.notes.every(n=>!n.source.canPost&&!n.canEdit&&!n.canWithdraw));
++ const teacher=await f.notes('TEACH','original-teacher');assert((await teacher.run('summary',{activityKey:f.scopes.programA})).notes.some(n=>n.id==='visible-next'&&n.source.canPost));
++ f.db.prepare("UPDATE class_memberships SET active=0 WHERE account_id='account-0002' AND activity_key=?").run(f.scopes.programA);
++ await assert.rejects((await f.notes('LEARN','original-student')).run('summary',{activityKey:f.scopes.programA}),e=>e.status===403);
++}));
++
++test('summary cursors conceal the boundary and reject tampering or another server binding',async()=>{
++ const capability=classNoteSummaryCursor('synthetic-test-server-secret'),boundary={createdAt:'2026-10-01T12:00:00.000Z',id:'private-note-identity'};
++ const context={account:'A',session:'session-A',epoch:1,activity:'PROGRAM:A',workspace:'LEARN',classView:null,head:'head-A',window:{fromDate:'2026-08-01',throughDate:'2026-11-01',timezone:'Africa/Johannesburg'}};
++ const bind=JSON.stringify(context),token=await capability.seal(boundary,bind),again=await capability.seal(boundary,bind);assert.notEqual(token,again);assert.deepEqual(await capability.open(token,bind),boundary);
++ for(const key of ['account','session','epoch','activity','workspace','classView','head','window'])await assert.rejects(capability.open(token,JSON.stringify({...context,[key]:key==='window'?{...context.window,throughDate:'2026-11-02'}:'changed'})),e=>e.code==='CLASS_NOTE_SUMMARY_CURSOR_INVALID');
++ const pieces=token.split('.');pieces[2]=(pieces[2][0]==='A'?'B':'A')+pieces[2].slice(1);
++ for(const bad of [pieces.join('.'),JSON.stringify(boundary),boundary,'',token+'x'])await assert.rejects(capability.open(bad,bind),e=>e.code==='CLASS_NOTE_SUMMARY_CURSOR_INVALID');
++ await assert.rejects(classNoteSummaryCursor('another-synthetic-secret').open(token,bind),e=>e.code==='CLASS_NOTE_SUMMARY_CURSOR_INVALID');
++});
++
++test('real native summary cursors cannot be reused for another account, programme or selected view',()=>use(async f=>{
++ const global=await f.notes('ADMIN'),made=await create(f,global);copyNote(f,made,'second-summary-note',new Date(Date.now()-1000).toISOString());
++ const first=await global.run('summary',{activityKey:f.scopes.programA,limit:1});assert(first.before);
++ const scoped=await f.notes('ADMIN','adminA');await assert.rejects(scoped.run('summary',{activityKey:f.scopes.programA,before:first.before}),e=>e.code==='CLASS_NOTE_SUMMARY_CURSOR_INVALID');
++ await assert.rejects(global.run('summary',{activityKey:f.scopes.programB,before:first.before}),e=>e.code==='CLASS_NOTE_SUMMARY_CURSOR_INVALID');
++ const preview=await f.notes('ADMIN_LEARN');await assert.rejects(preview.run('summary',{activityKey:f.scopes.programA,before:first.before}),e=>e.code==='CLASS_NOTE_SUMMARY_CURSOR_INVALID');
++ const forged=first.before.slice(0,-8)+'AAAAAAAA';await assert.rejects(global.run('summary',{activityKey:f.scopes.programA,before:forged}),e=>e.code==='CLASS_NOTE_SUMMARY_CURSOR_INVALID');
++}));
++
++test('the real HTTP summary route is authenticated, read-only and reports an unapplied index safely',()=>use(async f=>{
++ await create(f,await f.notes('LEARN','original-student'));
++ const token=await f.login('0002'),call=async(auth=token)=>{const response=await runtime.fetch(new Request('https://academy.test/api/academy/class-notes/summary',{method:'POST',headers:{'Content-Type':'application/json',...(auth?{Authorization:'Bearer '+auth}:{}),'X-Academy-Workspace':'LEARN'},body:JSON.stringify({activityKey:f.scopes.programA})}),f.env);return {status:response.status,body:await response.json()};};
++ assert.equal((await call()).status,200);assert.equal((await call('')).status,401);
++ const count=f.db.prepare('SELECT count(*) n FROM class_notes').get().n;
++ f.db.exec('DROP INDEX class_notes_programme_history');
++ await assert.rejects((await f.notes('LEARN','original-student')).run('summary',{activityKey:f.scopes.programA}),e=>e.code==='CLASS_NOTE_SUMMARY_SCHEMA_REQUIRED');
++ const missing=await call();assert.equal(missing.status,503);assert.equal(missing.body.code,'ACADEMY_D1_UNAVAILABLE');assert.equal(missing.body.retryable,true);assert(!JSON.stringify(missing.body).includes('class_notes_programme_history'));assert.equal(f.db.prepare('SELECT count(*) n FROM class_notes').get().n,count);
++}));
++
++test('the indexed candidate query does not visit unrelated or older programme notes',async()=>{
++ const db=new DatabaseSync(':memory:');try{
++  db.exec('CREATE TABLE class_notes(note_id TEXT PRIMARY KEY,activity_key TEXT COLLATE NOCASE,context_id TEXT,created_at TEXT,state TEXT);'+index);
++  const put=db.prepare('INSERT INTO class_notes VALUES(?,?,?,?,?)'),now=new Date('2026-11-01T12:00:00.000Z'),window=classNoteSummaryWindow('2026-11-01','Africa/Johannesburg',now);
++  for(let i=0;i<55;i++)put.run('visible-'+String(i).padStart(3,'0'),'PROGRAM:current','context',new Date(now.getTime()-i*1000).toISOString(),'ACTIVE');
++  const queries=[],binding=nativeBinding(db),capture={prepare(sql){const st=binding.prepare(sql);return {bind(...values){queries.push({sql,values});return st.bind(...values);}};}};
++  const first=await classNoteSummaryCandidates(capture,'PROGRAM:current',{limit:20},window);assert.equal(first.page.length,20);assert(first.before);
++  for(let i=0;i<4000;i++){put.run('old-'+i,'PROGRAM:current','context','2025-01-01T00:00:00.000Z','ACTIVE');put.run('unrelated-'+i,'PROGRAM:other','context',now.toISOString(),'ACTIVE');}
++  const after=await classNoteSummaryCandidates(capture,'PROGRAM:current',{limit:20},window);assert.deepEqual(after,first);
++  const query=queries[0],plan=db.prepare('EXPLAIN QUERY PLAN '+query.sql).all(...query.values).map(r=>r.detail);assert(plan.some(line=>line.includes('class_notes_programme_history')&&line.includes('created_at>?')));assert(!plan.some(line=>line.includes('TEMP B-TREE')));
++ }finally{db.close();}
++});
+diff --git a/backend/tools/academy-class-notes-summary-cost.mjs b/backend/tools/academy-class-notes-summary-cost.mjs
+new file mode 100644
+index 00000000..4c55d1d2
+--- /dev/null
++++ b/backend/tools/academy-class-notes-summary-cost.mjs
+@@ -0,0 +1,52 @@
++// Disposable local workerd + D1 metadata proof. No hosted requests or data.
++import {createRequire} from 'node:module';import {readFile,writeFile} from 'node:fs/promises';
++import assert from 'node:assert/strict';
++import {splitFixture} from '../tests/fixtures/academy-split-fixture.mjs';
++import {seedClassNotes} from '../tests/fixtures/academy-class-notes-fixture.mjs';
++import sourceWorker from '../src/academy-runtime.js';
++import {academyDate} from '../src/academy/d1/academy-clock.js';
++import {importSQL} from './academy-split/artifact.mjs';
++const require=createRequire(import.meta.url),{build}=require('esbuild'),{Miniflare,convertV4MiniflareOptions}=require('miniflare');
++const f=await splitFixture(seedClassNotes);let runtime;
++try{
++ f.databases.core.exec(await readFile(new URL('../migrations/academy-core/0022_class_notes_summary.sql',import.meta.url),'utf8'));
++ f.databases.core.exec("UPDATE split_deployment_state SET state='READY'");
++ Object.assign(f.source.env,{ACADEMY_DB:f.core,ACADEMY_ADMIN_DB:f.admin,ACADEMY_DB_GENERATION:'SPLIT_V1',ACADEMY_D1_RUN_ID:f.prepared.report.sourceDigest,ACADEMY_SPLIT_COORDINATOR:f.namespace,ACADEMY_ACCEPTED_SETUP:'1',ACADEMY_LEARNING_OPERATIONS:'3'});
++ const token=await f.source.login('0002'),activityKey=f.scopes.programA,date=academyDate(new Date(),'Africa/Johannesburg');
++ const input=async(action,value)=>{const response=await sourceWorker.fetch(new Request('https://notes.local/api/academy/class-notes/'+action,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json','X-Academy-Workspace':'LEARN'},body:JSON.stringify(value)}),f.source.env),data=await response.json();assert.equal(response.status,200,JSON.stringify(data));return data;};
++ const source=(await input('sessions',{activityKey,date})).sources.find(s=>s.classId==='class-1'&&s.startTime==='10:00'),view=await input('get',{activityKey,source});
++ await input('post',{activityKey,source,sourceToken:source.token,body:'Local authorised summary',due:{mode:'NEXT',token:view.nextDue.token},operationId:crypto.randomUUID()});
++ await input('post',{activityKey,source,sourceToken:source.token,body:'Second local authorised summary',due:{mode:'NEXT',token:view.nextDue.token},operationId:crypto.randomUUID()});
++ const measurement=String.raw`function measured(binding,stats){const raw=new WeakMap();const record=(r,sql)=>{stats.statements++;stats.rowsRead+=r.meta?.rows_read||0;stats.rowsWritten+=r.meta?.rows_written||0;if((r.meta?.rows_read||0)>100)stats.heavy.push({rowsRead:r.meta.rows_read,sql});return r;};const wrap=(s,sql)=>{const p=new Proxy(s,{get(target,name){if(name==='bind')return(...args)=>wrap(target.bind(...args),sql);if(name==='all'||name==='run')return async()=>record(await target[name](),sql);if(name==='first')return async column=>{const r=record(await target.all(),sql),row=r.results[0]||null;return column?row?.[column]??null:row;};const v=target[name];return typeof v==='function'?v.bind(target):v;}});raw.set(p,{s,sql});return p;};return new Proxy(binding,{get(target,name){if(name==='prepare')return sql=>wrap(target.prepare(sql),sql);if(name==='withSession')return mode=>measured(target.withSession(mode),stats);if(name==='batch')return async statements=>{const r=await target.batch(statements.map(s=>raw.get(s)?.s||s));for(let i=0;i<r.length;i++)record(r[i],raw.get(statements[i])?.sql);return r;};const v=target[name];return typeof v==='function'?v.bind(target):v;}});}`;
++ const apiCode=`import source from ${JSON.stringify(new URL('../src/academy-runtime.js',import.meta.url).pathname)};${measurement}
++ export default{async fetch(request,env,ctx){const stats={statements:0,rowsRead:0,rowsWritten:0,coordinatorReads:0,coordinatorWrites:0,heavy:[]};const wrap={...env,ACADEMY_DB:measured(env.ACADEMY_DB,stats),ACADEMY_ADMIN_DB:measured(env.ACADEMY_ADMIN_DB,stats),ACADEMY_SPLIT_COORDINATOR:{getByName(name){const stub=env.ACADEMY_SPLIT_COORDINATOR.getByName(name);return {read:async(...args)=>{stats.coordinatorReads++;const reply=await stub.read(...args);for(const k of ['statements','rowsRead','rowsWritten'])stats[k]+=reply.localCost[k];stats.heavy.push(...reply.localCost.heavy);delete reply.localCost;return reply;},write:(...args)=>{stats.coordinatorWrites++;return stub.write(...args);}};}}};const response=await source.fetch(request,wrap,ctx);return Response.json({status:response.status,body:await response.json(),stats});}};`;
++ const coordinatorCode=`import{AcademySplitCoordinator as Original}from ${JSON.stringify(new URL('../src/academy-split-coordinator.js',import.meta.url).pathname)};import{splitEngine}from ${JSON.stringify(new URL('../src/academy/separation/engine.js',import.meta.url).pathname)};import{emptyCompatibilityDatabase}from ${JSON.stringify(new URL('../src/academy/separation/compatibility.js',import.meta.url).pathname)};import{emptyShapes}from ${JSON.stringify(new URL('../src/academy/separation/empty-shapes.js',import.meta.url).pathname)};${measurement}
++ export class AcademySplitCoordinator extends Original{constructor(ctx,env){super(ctx,env);this.localEnv=env;}async read(...args){const stats={statements:0,rowsRead:0,rowsWritten:0,heavy:[]},env=this.localEnv,engine=splitEngine({core:emptyCompatibilityDatabase(measured(env.ACADEMY_DB.withSession('first-primary'),stats),emptyShapes,{currentGrants:true}),admin:measured(env.ACADEMY_ADMIN_DB.withSession('first-primary'),stats)});return {...await this.reply(()=>engine.read(...args)),localCost:stats};}}export default{fetch:()=>new Response('Not found',{status:404})};`;
++ const bundle=async contents=>(await build({stdin:{contents,resolveDir:process.cwd()},bundle:true,format:'esm',platform:'browser',write:false,external:['cloudflare:workers']})).outputFiles[0].text;
++ const bindings=Object.fromEntries(Object.entries(f.source.env).filter(([,v])=>typeof v==='string'));
++ const workers=[{name:'notes-summary-cost',modules:true,script:await bundle(apiCode),compatibilityDate:'2026-09-28',compatibilityFlags:['nodejs_compat'],bindings,d1Databases:{ACADEMY_DB:'notes-core',ACADEMY_ADMIN_DB:'notes-admin'},durableObjects:{ACADEMY_SPLIT_COORDINATOR:{className:'AcademySplitCoordinator',scriptName:'coordinator',useSQLite:true}}},{name:'coordinator',modules:true,script:await bundle(coordinatorCode),compatibilityDate:'2026-09-28',compatibilityFlags:['nodejs_compat'],d1Databases:{ACADEMY_DB:'notes-core',ACADEMY_ADMIN_DB:'notes-admin'},durableObjects:{ACADEMY_SPLIT_COORDINATOR:{className:'AcademySplitCoordinator',scriptName:'coordinator',useSQLite:true}}}];
++ runtime=new Miniflare(convertV4MiniflareOptions({workers}));
++ for(const owner of ['core','admin']){
++  const db=f.databases[owner],target=await runtime.getD1Database(owner==='core'?'ACADEMY_DB':'ACADEMY_ADMIN_DB'),objects=db.prepare("SELECT type,sql FROM sqlite_schema WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY rowid").all();
++  const schema={...f.prepared.schemas[owner],tableSQL:objects.filter(o=>o.type==='table').map(o=>o.sql).join(';\n')+';',afterSQL:objects.filter(o=>o.type!=='table').map(o=>o.sql).join(';\n')+';'};
++  const statements=importSQL(db,schema,{statementsOnly:true}).flatMap(sql=>sql===schema.tableSQL?objects.filter(o=>o.type==='table').map(o=>o.sql):sql===schema.afterSQL?objects.filter(o=>o.type!=='table').map(o=>o.sql):[sql]);
++  for(let i=0;i<statements.length;i+=25)await target.batch(statements.slice(i,i+25).map(sql=>target.prepare(sql)));
++ }
++ const call=async before=>{const response=await runtime.dispatchFetch('https://notes.local/api/academy/class-notes/summary',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json','X-Academy-Workspace':'LEARN'},body:JSON.stringify({activityKey,limit:1,...(before?{before}:{})})}),data=await response.json();assert.equal(data.status,200,JSON.stringify(data.body));assert.equal(data.stats.rowsWritten,0);assert.equal(data.stats.coordinatorWrites,0);return data;};
++ const baseline=await call(),warmBaseline=await call(),core=await runtime.getD1Database('ACADEMY_DB'),growth=4000;
++ // All added records are outside the requested window or belong to another programme.
++ const template=await core.prepare('SELECT n.*,v.body,v.due_mode,v.due_date,v.due_json,v.created_by version_author FROM class_notes n JOIN class_note_versions v ON v.version_id=n.current_version_id LIMIT 1').first();
++ const ids=JSON.stringify(Array.from({length:growth},(_,i)=>i));
++ const context={...(await core.prepare('SELECT * FROM class_note_contexts WHERE context_id=?').bind(template.context_id).first()),context_id:'unrelated-context',activity_key:f.scopes.programB};context.source_json=JSON.stringify({...JSON.parse(context.source_json),id:context.context_id,activityKey:context.activity_key});
++ await core.prepare('INSERT INTO class_note_contexts('+Object.keys(context).join(',')+') VALUES('+Object.keys(context).map(()=>'?').join(',')+')').bind(...Object.values(context)).run();
++ for(const [prefix,key,contextId,createdAt] of [['old-',activityKey,template.context_id,'2024-01-01T00:00:00.000Z'],['other-',f.scopes.programB,context.context_id,new Date().toISOString()]]){
++  await core.prepare("INSERT INTO class_notes(note_id,activity_key,context_id,created_by,created_at,current_version_id,state,revision,updated_at,updated_by) SELECT ?||value,?,?,?, ?,NULL,'ACTIVE',1,?,? FROM json_each(?)").bind(prefix,key,contextId,template.created_by,createdAt,createdAt,template.updated_by,ids).run();
++  await core.prepare("INSERT INTO class_note_versions(version_id,note_id,revision,context_id,body,due_mode,due_date,due_json,source_head,reason,created_at,created_by) SELECT ?||value||'-v',?||value,1,?,'Other fixture note','DATE',?,?,?,'',?,? FROM json_each(?)").bind(prefix,prefix,contextId,template.due_date,template.due_json,context.source_head,createdAt,template.version_author,ids).run();
++  await core.prepare('UPDATE class_notes SET current_version_id=note_id||\'-v\' WHERE activity_key=? AND note_id LIKE ?').bind(key,prefix+'%').run();
++ }
++ const grown=await call();assert.deepEqual(grown.body.notes,warmBaseline.body.notes);assert.equal(typeof grown.body.before,'string');assert(grown.stats.rowsRead<=warmBaseline.stats.rowsRead+8);assert.equal(grown.stats.statements,warmBaseline.stats.statements);
++ const next=await call(grown.body.before);assert.equal(next.body.notes.length,1);assert.notEqual(next.body.notes[0].id,grown.body.notes[0].id);assert.equal(next.body.before,null);
++ const receipt={environment:'Disposable local Miniflare/workerd D1 metadata; not hosted billing',productionCalls:0,growth:{olderSameProgramme:growth,unrelatedProgramme:growth},baseline:{notes:baseline.body.notes.length,stats:baseline.stats},warmBaseline:{notes:warmBaseline.body.notes.length,stats:warmBaseline.stats},grown:{notes:grown.body.notes.length,stats:grown.stats},opaqueCursorNext:{notes:next.body.notes.length,stats:next.stats},limitation:'Small fixed accepted timetable; larger current-programme accepted context/rights datasets may have separate inherited federation costs.'};
++ const compact=stage=>({...stage.stats,heavy:stage.stats.heavy.map(h=>({rowsRead:h.rowsRead,sqlPrefix:h.sql.slice(0,80)}))});
++ const destination=process.argv[2]||'/tmp/class-notes-summary-cost.json';await writeFile(destination,JSON.stringify(receipt,null,2)+'\n');console.log(JSON.stringify({destination,baseline:compact(baseline),warmBaseline:compact(warmBaseline),grown:compact(grown),growth:receipt.growth}));
++}finally{await runtime?.dispose();f.close();}

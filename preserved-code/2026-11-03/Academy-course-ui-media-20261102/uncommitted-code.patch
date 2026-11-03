@@ -1,0 +1,164 @@
+diff --git a/academy/courses/manage/index.html b/academy/courses/manage/index.html
+index 316652f8..299a323e 100644
+--- a/academy/courses/manage/index.html
++++ b/academy/courses/manage/index.html
+@@ -40,7 +40,7 @@
+   <script src="/js/m4l-lesson-media-cache.js?v=109.12"></script><script src="/js/m4l-library-cache.js?v=109.12"></script><script src="/js/m4l-lesson-pdf-library.js?v=109.12"></script><script src="/js/m4l-lesson-media.js?v=109.12"></script>
+   <script src="/js/m4l-config.js?v=109.12"></script>
+   <script src="/js/m4l-enrolment-common.js?v=109.12"></script><script src="/js/m4l-enrolment-admin.js?v=109.12"></script><script src="/js/m4l-enrolment-workspace.js?v=109.12"></script>
+-  <script src="/js/m4l-course-participants.js"></script><script src="/js/m4l-time.js?v=109.12"></script><script src="/js/m4l-studio-access.js?v=eb34f1cdd3"></script><script src="/js/m4l-academy-course-management.js?v=e97079cbff"></script>
++  <script src="/js/m4l-course-media.js"></script><script src="/js/m4l-course-participants.js"></script><script src="/js/m4l-time.js?v=109.12"></script><script src="/js/m4l-studio-access.js?v=eb34f1cdd3"></script><script src="/js/m4l-academy-course-management.js?v=e97079cbff"></script>
+   <script src="/js/m4l-academy-navigation.js?v=109.12"></script>
+ <script src="/js/m4l-academy-mobile.js?v=109.12"></script>
+ <script src="/js/m4l-academy-page-actions.js?v=109.12"></script>
+diff --git a/backend/src/academy/d1/web-platform/bridge.mjs b/backend/src/academy/d1/web-platform/bridge.mjs
+index 9f9979b1..d6778d8b 100644
+--- a/backend/src/academy/d1/web-platform/bridge.mjs
++++ b/backend/src/academy/d1/web-platform/bridge.mjs
+@@ -36,7 +36,7 @@ async function completeSignIn(env,db,session){
+ }
+ export async function sourceSession(db,sourceRef){const row=await db.prepare(`SELECT b.*,a.active,a.admitted,a.global_admin,a.display_name FROM website_platform_sessions b JOIN website_platform_account_state a ON a.account_id=b.account_id COLLATE NOCASE JOIN account_sessions s ON s.session_id=b.session_id AND s.account_id=b.account_id
+  WHERE b.source_ref=? AND b.expires_at>? AND a.active=1 AND a.admitted=1 AND a.epoch=b.epoch AND s.credential_epoch=b.epoch AND s.revoked_at IS NULL AND s.expires_at>?`).bind(id(sourceRef),Date.now(),new Date().toISOString()).first();if(!row)throw fail('Sign in to Academy to continue.',401);return row;}
+-export async function bridge(request,env,{login,mint,navigation,dashboard,destination,mediaTeachers,lessonJoin}){
++export async function bridge(request,env,{login,mint,navigation,dashboard,destination,mediaTeachers,coursePlaylistPlacements,lessonJoin}){
+  if(!enabled(env))throw fail('Website integration is not enabled.',503);
+  const path=new URL(request.url).pathname,db=dbFor(env);
+  if(await db.prepare('SELECT enabled FROM website_platform_control WHERE singleton=1').first('enabled')!==1)throw fail('Website integration is not activated.',503);
+@@ -70,6 +70,7 @@ export async function bridge(request,env,{login,mint,navigation,dashboard,destin
+   const session=await sourceSession(db,input.sourceRef);if(!input.draining){await enqueueAccount(db,session.account_id,env);await prepareAccountAccess(db,session.account_id,{offeringId:input.offeringId?id(input.offeringId):undefined});}const result=await pendingAccount(env,db,session.account_id);return result.more?{...result,continuation:session.source_ref,statusOnly:true}:result;
+  }
+  if(path==='/internal/website/continue-sign-in'){const session=await sourceSession(db,input.sourceRef);if(input.statusOnly){const result=await pendingAccount(env,db,session.account_id);return result.more?{...result,continuation:session.source_ref,statusOnly:true}:result;}return completeSignIn(env,db,session);}
++ if(path==='/internal/website/course-playlist-placements'){if(input.purpose!=='ADMIN_MEDIA'||!coursePlaylistPlacements)throw fail('Open current Course Media in Admin.',403,'ADMIN_WORKSPACE_REQUIRED');return coursePlaylistPlacements(await sourceSession(db,input.sourceRef),input);}
+  if(path==='/internal/website/media-teachers'){if(input.purpose!=='ADMIN_MEDIA')throw fail('Open the native Admin media editor.',403,'ADMIN_WORKSPACE_REQUIRED');if(!mediaTeachers)throw fail('Native media Teacher validation is unavailable.',503);return mediaTeachers(await sourceSession(db,input.sourceRef),input);}
+  if(path==='/internal/website/dashboard'){const session=await sourceSession(db,input.sourceRef);return {dashboard:await dashboard(session,{mode:input.mode,...(input.date!==undefined?{date:input.date}:{}),...(input.weekStart!==undefined?{weekStart:input.weekStart}:{})})};}
+  if(path==='/internal/website/lesson-join'){
+diff --git a/backend/src/academy/d1/web-platform/studio-admin.mjs b/backend/src/academy/d1/web-platform/studio-admin.mjs
+index 1ac677ec..29442791 100644
+--- a/backend/src/academy/d1/web-platform/studio-admin.mjs
++++ b/backend/src/academy/d1/web-platform/studio-admin.mjs
+@@ -8,7 +8,7 @@ import {studioAccessCatalogue} from './studio-catalogue.mjs';
+ import {gridClassMetadata,validateGridClasses} from './studio-monthly-grid.mjs';
+ import {courseUserSearch} from './course-user-search.mjs';
+ 
+-const readAction=action=>['read','monthly-grid','access-table','mou-playlists'].includes(action);
++const readAction=action=>['read','monthly-grid','access-table','mou-playlists','course-playlists','course-playlist-detail','course-playlist-candidates','course-playlist-recording'].includes(action);
+ // Indexed stream heads bound this to the actor and offering. Known changes are
+ // still queued/delivered below; this only avoids manufacturing a new proof on
+ // every table read. Saves always rebuild current identity and scoped authority.
+@@ -86,7 +86,7 @@ export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_S
+   const accountId=id(command.accountId),confirmed=await send({action:'read',accountId});if(confirmed.ownership?.authority!=='WEBSITE'||confirmed.ownership.phase!=='COMMITTED'||!confirmed.person)throw fail('This offering has not completed its Studio handover.',409);
+   return {success:true,...await saveLiveAllocation(db,env,proof,activity,command,confirmed.person,{fetcher})};
+  }
+- if(!['read','save','provision','resume','monthly-grid','monthly-grid-save','access-table','access-table-save','mou-playlists','mou-playlist-correction','mou-playlist-save','mou-playlist-publication','mou-playlist-add','mou-playlist-order','mou-playlist-card-options','mou-playlist-cover-upload','mou-playlist-cover-preview'].includes(command.action))throw fail('Unknown Studio access action.');
++ if(!['read','save','provision','resume','monthly-grid','monthly-grid-save','access-table','access-table-save','mou-playlists','mou-playlist-correction','mou-playlist-save','mou-playlist-publication','mou-playlist-add','mou-playlist-order','mou-playlist-card-options','mou-playlist-cover-upload','mou-playlist-cover-preview','course-playlists','course-playlist-detail','course-playlist-options','course-playlist-candidates','course-playlist-recording','course-playlist-save','course-playlist-content-save','course-playlist-publish-card','course-playlist-publish-content'].includes(command.action))throw fail('Unknown Studio access action.');
+  if(['monthly-grid','monthly-grid-save','access-table','access-table-save'].includes(command.action)&&mapping.kind!=='TAFSEER')throw fail('Short courses use whole-course access, not monthly subscriptions.');
+  // Forward only the narrow command. Supplied actor, roles and proof are ignored.
+  let result=await send(command.action==='monthly-grid-save'?await validateGridClasses(db,activity,command):command);
+diff --git a/backend/src/academy/d1/worker.js b/backend/src/academy/d1/worker.js
+index 0bc74c61..ce301c4b 100644
+--- a/backend/src/academy/d1/worker.js
++++ b/backend/src/academy/d1/worker.js
+@@ -1,6 +1,7 @@
+ import {uploadPlaylistCardImage,previewPlaylistCardImage,publicPlaylistCardImage} from './media-playlist-card-images.js';
+ import {recordingPlaylistMetadata} from './media-playlist-store.js';
+ import {mediaPlaylists} from './media-playlists.js';
++import {nativeCoursePlaylistPlacements} from './native-course-playlist-placements.js';
+ import {nativeMediaTeachers} from './native-media-teachers.js';
+ import {recoverNoteRetention,noteRetentionCron} from './note-retention.js';
+ import {cleanupExpiredAcademicCompanions} from './recording-companions.js';
+@@ -121,6 +122,7 @@ async function dispatch(request,env,options={}) {
+   if(path==='/api/academy/media-playlist-card-image'&&['GET','HEAD'].includes(request.method))return publicPlaylistCardImage(request,env);
+   if(path.startsWith('/internal/website/')||path.startsWith('/api/website-platform/'))return websitePlatformBridge(request,env,{
+     login:async input=>{let captured;await dispatch(new Request(new URL(input.setup?'/api/account/setup-pin':'/api/account/login',request.url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)}),env,{capture:value=>captured=value});return captured;},
++    coursePlaylistPlacements:async(session,input)=>{await sourceRepository.ready();return nativeCoursePlaylistPlacements(sourceRepository,session,input);},
+     mediaTeachers:async(session,input)=>{
+       await sourceRepository.ready();
+       if(typeof input.offeringId!=='string'||input.offeringId.length>180)throw rehearsalError('Choose the exact mapped offering.',400);
+diff --git a/js/m4l-academy-course-management.js b/js/m4l-academy-course-management.js
+index 808a6920..1593977b 100644
+--- a/js/m4l-academy-course-management.js
++++ b/js/m4l-academy-course-management.js
+@@ -10,11 +10,11 @@
+   const copy=value=>JSON.parse(JSON.stringify(value));
+   const selected=()=>state.course?{courseId:state.course.courseId,runId:state.course.runId}:{};
+   const cardDirty=()=>JSON.stringify(state.cardDraft)!==JSON.stringify(state.course?.publicCard??null);
+-  const hasUnsavedChanges=()=>state.dirty||state.personDrafts.size>0||cardDirty()||window.M4L_COURSE_PARTICIPANTS?.canLeave()===false;
++  const hasUnsavedChanges=()=>window.M4L_COURSE_MEDIA?.canLeave()===false||state.dirty||state.personDrafts.size>0||cardDirty()||window.M4L_COURSE_PARTICIPANTS?.canLeave()===false;
+   const editable=()=>state.course?.stage==='DRAFT';
+   const reviewAccepted=()=>Boolean(!state.dirty&&state.review?.valid&&state.course?.acceptedToken===state.review.token);
+   const tell=(message,error=false)=>{$('course-message').textContent=message||'';$('course-message').classList.toggle('is-error',error);};
+-  function lock(message){window.M4L_COURSE_PARTICIPANTS?.reset();window.M4L_STUDIO_ACCESS?.reset();window.M4L_LESSON_MEDIA?.reset();window.M4L_ENROLMENT_WORKSPACE?.reset(enrolmentPanel);state.token='';state.session=null;state.course=null;state.draft=null;state.cardDraft=null;state.dirty=false;state.courses=[];state.participants=null;state.personDrafts.clear();state.pending=null;state.review=null;state.media=[];state.calendarWarnings=[];state.busy=false;state.tab='list';state.selection++;$('course-workspace').hidden=true;$('course-editor').replaceChildren();$('course-list').replaceChildren();$('course-dialog').close();$('course-dialog').replaceChildren();$('course-account-name').textContent='';$('course-access-message').textContent=message;tell('');}
++  function lock(message){window.M4L_COURSE_MEDIA?.reset();window.M4L_COURSE_PARTICIPANTS?.reset();window.M4L_STUDIO_ACCESS?.reset();window.M4L_LESSON_MEDIA?.reset();window.M4L_ENROLMENT_WORKSPACE?.reset(enrolmentPanel);state.token='';state.session=null;state.course=null;state.draft=null;state.cardDraft=null;state.dirty=false;state.courses=[];state.participants=null;state.personDrafts.clear();state.pending=null;state.review=null;state.media=[];state.calendarWarnings=[];state.busy=false;state.tab='list';state.selection++;$('course-workspace').hidden=true;$('course-editor').replaceChildren();$('course-list').replaceChildren();$('course-dialog').close();$('course-dialog').replaceChildren();$('course-account-name').textContent='';$('course-access-message').textContent=message;tell('');}
+   async function api(path,input={},authToken=state.token){
+     const generation=state.generation;
+     if(!authToken||authToken!==token()||path!=='/api/account/session'&&!state.session)throw Error('Sign in with an authorised Academy administrator account.');
+@@ -133,7 +133,7 @@
+     else if(active?.offsetLeft+active?.offsetWidth>strip.scrollLeft+strip.clientWidth)strip.scrollLeft=active.offsetLeft+active.offsetWidth-strip.clientWidth;
+   }
+   function renderEditor(){
+-    window.M4L_LESSON_MEDIA?.reset();
++    window.M4L_LESSON_MEDIA?.reset();window.M4L_COURSE_MEDIA?.reset();
+     renderTabs();
+     if(state.course&&state.tab==='list')return;
+     if(!state.course){$('course-editor').innerHTML='<div class="cm-empty"><h2>Select a course</h2></div>';return;}
+@@ -142,7 +142,7 @@
+     if(['COMPLETE','ARCHIVED'].includes(c.stage)&&state.capabilities.create)transitions.push(['repeat','Repeat as new Course']);
+     $('course-editor').innerHTML=`<header class="cm-editor-heading"><div><h2>${esc(d.name||'New Course')}</h2>${state.tab==='participants'&&c.courseId?`<small class="cm-course-id">Course ID ${esc(c.courseId)}</small>`:''}<div class="cm-heading-meta">${pill(c.displayStage||c.stage)}<small data-cm-save-state>${saveState()}</small>${c.currentPublication&&isDraft?'<small>Current timetable remains published</small>':''}</div></div><div class="cm-actions">${state.tab==='details'?`<button type="button" class="pb-secondary" data-cm-action="show-review">Review</button><button type="button" data-cm-action="publish" data-cm-mutation${isDraft&&reviewAccepted()?'':' disabled'}>Publish</button>`:''}${isDraft?`<button type="button" class="pb-secondary" data-cm-action="save" data-cm-mutation>Save draft</button><button type="button" data-cm-action="validate" data-cm-mutation>${d.sessions.length?'Validate &amp; review':'Validate &amp; generate sessions'}</button>`:''}${transitions.map(([action,label])=>`<button type="button" class="pb-secondary cm-status-action${['archive','repeat'].includes(action)?' cm-primary-status':''}${action==='cancel'?' cm-cancel-action':''}" data-cm-action="${action}" data-cm-mutation>${label}</button>`).join('')}</div></header>${c.studioSetup?`<div class="cm-studio-setup" role="status"><p>${esc(c.studioSetup.message)}</p>${c.studioSetup.pending?'<button type="button" class="pb-secondary" data-cm-action="studio-resume" data-cm-mutation>Resume Studio setup</button>':''}</div>`:''}${state.tab==='details'?workflow():''}<div id="cm-panel" class="cm-tab-content">${state.tab==='details'?detailsTab():state.tab==='sessions'?sessionsTab():state.tab==='participants'?peopleTab():state.tab==='public-card'?publicCardTab():state.tab==='media'?mediaTab():state.tab==='enrolment'?'<section class="cm-coming-soon"><h3>Enrolment requests</h3><p>Coming soon</p></section>':reviewTab()}</div><footer class="cm-footer"><span>${state.tab==='participants'?'':c.courseId?`Course ID <span class="cm-id">${esc(c.courseId)}</span>`:'New draft'}</span><span>${c.completedAt?'Completed '+esc(c.completedAt.slice(0,10)):state.personDrafts.size?`${state.personDrafts.size} unsaved participant ${state.personDrafts.size===1?'change':'changes'}`:'All times use the Course timezone'}</span></footer>`;
+     if(state.tab==='participants'&&c.courseId)(window.M4L_COURSE_PARTICIPANTS||window.M4L_STUDIO_ACCESS)?.attach($('cm-panel'),'COURSE:'+c.courseId,participantContext());
+-    if(state.tab==='media'&&c.courseId)window.M4L_LESSON_MEDIA?.open({hostId:'course-lesson-media',activityKey:'COURSE:'+c.courseId,runId:c.runId});
++    if(state.tab==='media'&&c.courseId)window.M4L_COURSE_MEDIA?.open({hostId:'course-lesson-media',activityKey:'COURSE:'+c.courseId,courseName:d.name,current:()=>state.tab==='media'&&state.course?.courseId===c.courseId&&state.token===token()});
+ 
+     if(state.busy)busy(true);
+   }
+@@ -228,7 +228,7 @@
+     el.querySelector('[data-dialog-cancel]').addEventListener('click',()=>el.close());
+     el.querySelector('[data-dialog-confirm]').addEventListener('click',()=>{const input={name:el.querySelector('#cm-dialog-name')?.value||'',reuseMedia:Boolean(el.querySelector('#cm-dialog-reuse')?.checked),source:el.querySelector('#cm-copy-source')?.value||'',copySchedule:Boolean(el.querySelector('#cm-copy-schedule')?.checked),copyEnrollments:Boolean(el.querySelector('#cm-copy-enrolments')?.checked)};el.close();void perform(()=>onConfirm(input));});el.showModal();
+   }
+-  function reviewDiscard(action){if(window.M4L_LESSON_MEDIA?.canLeave()===false)return;window.M4L_LESSON_MEDIA?.reset();if(!hasUnsavedChanges()){void perform(action);return;}dialog('Unsaved changes','<p>Discard your unfinished changes and continue? Saved Course and participant records will be kept.</p>','Discard changes',()=>{state.dirty=false;state.personDrafts.clear();state.cardDraft=copy(state.course?.publicCard??null);return action();});}
++  function reviewDiscard(action){if(window.M4L_COURSE_MEDIA?.canLeave()===false)return;if(window.M4L_LESSON_MEDIA?.canLeave()===false)return;window.M4L_LESSON_MEDIA?.reset();if(!hasUnsavedChanges()){void perform(action);return;}dialog('Unsaved changes','<p>Discard your unfinished changes and continue? Saved Course and participant records will be kept.</p>','Discard changes',()=>{state.dirty=false;state.personDrafts.clear();state.cardDraft=copy(state.course?.publicCard??null);return action();});}
+   async function generate(){
+     if(state.draft.sessions.length)dialog('Replace the draft sessions?','<p>The Course schedule will be validated and sessions generated from its dates, days, times, teacher and Zoom link. Individual session edits will be replaced.</p>','Regenerate sessions',()=>validate(true));
+     else await validate();
+@@ -257,7 +257,7 @@
+   async function action(name,el){
+     if(window.M4L_COURSE_PARTICIPANTS?.canLeave()===false)throw Error('Finish or retry the Participants save before leaving these changes.');
+     if(name==='select'){if(window.M4L_STUDIO_ACCESS?.canLeave()===false)throw Error('Finish the learning-access change before selecting another Course.');const tab=!state.course&&new URLSearchParams(location.search).get('view')==='scheduling'?'sessions':'details';reviewDiscard(()=>select(el.dataset.course,el.dataset.run,tab));return;}
+-    if(name==='tab'){if(window.M4L_STUDIO_ACCESS?.canLeave()===false)throw Error('Finish the learning-access Save before leaving this tab.');if(state.tab==='media'&&window.M4L_LESSON_MEDIA?.canLeave()===false)return;const nextTab=normalTab(el.dataset.tab);if(!tabs.some(([tab])=>tab===nextTab)||nextTab!=='list'&&!state.course||nextTab==='enrolment'&&!state.course?.courseId)return;if(!window.M4L_ENROLMENT_WORKSPACE.canLeave(enrolmentPanel))throw Error('Finish or retry the enrolment request change before leaving this tab.');state.tab=nextTab;rememberSelection();renderEditor();if(state.tab==='participants'&&!state.participants)await loadParticipants();if(['sessions','review'].includes(el.dataset.tab))document.getElementById('cm-'+el.dataset.tab)?.scrollIntoView?.({block:'start'});return;}
++    if(name==='tab'){if(window.M4L_STUDIO_ACCESS?.canLeave()===false)throw Error('Finish the learning-access Save before leaving this tab.');if(state.tab==='media'&&(window.M4L_LESSON_MEDIA?.canLeave()===false||window.M4L_COURSE_MEDIA?.canLeave()===false))return;const nextTab=normalTab(el.dataset.tab);if(!tabs.some(([tab])=>tab===nextTab)||nextTab!=='list'&&!state.course||nextTab==='enrolment'&&!state.course?.courseId)return;if(!window.M4L_ENROLMENT_WORKSPACE.canLeave(enrolmentPanel))throw Error('Finish or retry the enrolment request change before leaving this tab.');state.tab=nextTab;rememberSelection();renderEditor();if(state.tab==='participants'&&!state.participants)await loadParticipants();if(['sessions','review'].includes(el.dataset.tab))document.getElementById('cm-'+el.dataset.tab)?.scrollIntoView?.({block:'start'});return;}
+     if(name==='show-review'){state.tab='details';renderEditor();$('cm-review')?.scrollIntoView?.({block:'start'});return;}
+     if(name==='save-card'){
+       const result=await mutate('public-card-save',{...selected(),baseCardRevision:state.course.publicCardRevision,publicCard:copy(state.cardDraft)});Object.assign(state.course,{publicCard:result.publicCard,publicCardRevision:result.publicCardRevision});state.cardDraft=copy(result.publicCard);renderEditor();tell(result.message);return;
+diff --git a/js/m4l-course-media.js b/js/m4l-course-media.js
+index c920e8a3..e3114a4a 100644
+--- a/js/m4l-course-media.js
++++ b/js/m4l-course-media.js
+@@ -1 +1,28 @@
+-(()=>{'use strict';const q=new URLSearchParams(location.search),id=q.get('course'),runId=q.get('run')||'';if(!id||id.length>160||/[:\s]/.test(id)||runId.length>160){document.getElementById('media-page-message').textContent='Choose a Course from your Academy list.';return;}if(!localStorage.getItem('m4l_account_token')){document.getElementById('media-page-message').textContent='Sign in to your Academy account to open these materials.';return;}window.M4L_LESSON_MEDIA.open({hostId:'media-page-host',activityKey:'COURSE:'+id,runId,learnerView:window.M4L_ACADEMY_WORKSPACE.audience()==='LEARN'});})();
++/* Course Media uses the existing signed Academy → current Studio owner proxy. */
++(()=>{'use strict';
++ let panel=null,generation=0;const token=()=>localStorage.getItem('m4l_account_token')||'';
++ const modules=Promise.all([import('./m4l-course-media-view.mjs'),import('./m4l-playlist-card.mjs')]);
++ function reset(){generation++;panel?.dispose?.();panel=null;}
++ async function open({hostId,activityKey,courseName,current=()=>true}){
++  const host=document.getElementById(hostId);if(!host)return;
++  const context={token:token(),generation:++generation,host,activityKey};panel?.dispose?.();panel={...context,dispose:null};
++  const active=()=>panel?.generation===context.generation&&context.token===token()&&current()&&host.isConnected;
++  const send=async command=>{if(!active())throw new DOMException('The account or Course changed.','AbortError');
++   const response=await (window.M4L_ACADEMY_WORKSPACE?.adminFetch?((url,options)=>window.M4L_ACADEMY_WORKSPACE.adminFetch(url,options,{activityKey})):fetch)((window.M4L_CONFIG?.API_BASE||'')+'/api/admin/platform/studio-access',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+context.token,'X-Academy-Workspace':'ADMIN'},body:JSON.stringify({activityKey,command})});
++   const result=await response.json();if(!active())throw new DOMException('The account or Course changed.','AbortError');if(!response.ok||!result.success)throw Object.assign(Error(result.error||'Course Media is unavailable.'),{status:response.status,code:result.code});return result;
++  };
++  host.innerHTML='<p role="status">Checking Course Media…</p>';
++  try{const location=await send({action:'media-location'});if(!location.managed||location.kind!=='COURSE'||location.ownership!=='STUDIO')throw Error('Course Media is waiting for its existing Studio setup. Resume setup in Details.');
++   const [{mountCourseMedia},cardTools]=await modules;if(!active())return;
++   for(const href of ['/css/m4l-course-media.css','/css/m4l-playlist-card.css'])if(!document.querySelector('link[href="'+href+'"]')){const link=document.createElement('link');link.rel='stylesheet';link.href=href;document.head.append(link);}
++   const request=async(action,input={})=>{
++    if(action==='mou-playlist-cover-upload'){const {file,image,...rest}=input,bytes=new Uint8Array(await file.arrayBuffer());let data='';for(let i=0;i<bytes.length;i+=8192)data+=String.fromCharCode(...bytes.subarray(i,i+8192));return send({action,...rest,operationId:crypto.randomUUID(),sha256:image.sha256,type:file.type,data:btoa(data)});}
++    if(action==='mou-playlist-cover-preview'){const value=await send({action,playlistId:input.playlistId,assetId:input.image.assetId}),bytes=Uint8Array.from(atob(value.data),c=>c.charCodeAt(0));return new Blob([bytes],{type:value.image.type});}
++    return send({action,...input});
++   };
++   panel.dispose=mountCourseMedia(host,{request,cardTools,courseName,websiteOrigin:new URL(location.destination).origin,current:active});
++  }catch(error){if(active()){host.replaceChildren();const message=document.createElement('p');message.setAttribute('role','alert');message.textContent=error.message;host.append(message);}}
++ }
++ window.M4L_COURSE_MEDIA={open,reset,canLeave:()=>panel?.dispose?.canLeave?.()!==false};
++ for(const event of ['storage','m4l-academy-session','m4l-academy-workspace'])window.addEventListener(event,()=>{if(panel&&(panel.token!==token()||window.M4L_ACADEMY_WORKSPACE?.current?.()!=='ADMIN'))reset();});
++})();
