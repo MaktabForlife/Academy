@@ -156,3 +156,61 @@ test('same-screen editor denies a non-Admin and rejects delayed replies after ac
  const denied=fixture(undefined,async()=>Response.json({success:true,contexts:[{scope:'COURSE',role:'TEACHER'}]})),scope={activityKey:'PROGRAM:exact'};await assert.rejects(denied.window.M4L_ACADEMY_WORKSPACE.adminFetch('https://api.invalid/api/academy/media-playlists/options',{method:'POST',body:JSON.stringify(scope)},scope),e=>e.status===403);assert.equal(denied.calls.length,0);assert.equal(denied.location.destination,undefined);
  let resolve;const f=fixture(()=>new Promise(yes=>resolve=yes)),pending=f.window.M4L_ACADEMY_WORKSPACE.adminFetch('https://api.invalid/api/academy/media-playlists/options',{method:'POST',body:JSON.stringify(scope)},scope);for(let i=0;i<4;i++)await new Promise(r=>setImmediate(r));f.token('next-actor');resolve(Response.json({success:true}));await assert.rejects(pending,{name:'AbortError'});assert.equal(f.window.M4L_ACADEMY_WORKSPACE.current(),'LEARN');
 });
+
+test('Course Media signed Studio routes accept exact Course scope and reuse the current read proof',async()=>{
+ const f=fixture(()=>Response.json({success:true})),w=f.window.M4L_ACADEMY_WORKSPACE,scope={activityKey:'COURSE:COURSE-synthetic-123'};
+ for(const action of ['media-location','course-user-search','course-playlists','course-playlist-detail','course-playlist-options','course-playlist-candidates','course-playlist-recording','mou-playlist-card-options','mou-playlist-cover-preview']){
+  const response=await w.adminFetch('https://api.invalid/api/admin/platform/studio-access',{method:'POST',headers:{Authorization:'Bearer actor-one'},body:JSON.stringify({...scope,command:{action}})},scope);assert.equal((await response.json()).success,true);assert.equal(f.calls.at(-1).options.headers.get('X-Academy-Workspace'),'ADMIN');
+ }
+ assert.equal(f.authCalls.length,1,'Read-only Course commands must not discard the reusable account proof');assert.equal(w.current(),'LEARN','Editor transport must not promote ordinary Learn navigation');
+ const response=await w.adminFetch('https://api.invalid/api/admin/platform/studio-access/playlist-cover',{method:'POST',body:JSON.stringify({...scope,command:{action:'mou-playlist-cover-upload'}})},scope);assert.equal((await response.json()).success,true);assert.equal(f.calls.at(-1).options.headers.get('X-Academy-Workspace'),'ADMIN');
+});
+
+test('Course bridge exceptions remain limited to the exact native Studio route, scope and POST body',async()=>{
+ const f=fixture(()=>Response.json({success:true})),w=f.window.M4L_ACADEMY_WORKSPACE,scope={activityKey:'COURSE:exact'};
+ for(const [url,options,context] of [
+  ['https://elsewhere.invalid/api/admin/platform/studio-access',{method:'POST',body:JSON.stringify(scope)},scope],
+  ['https://api.invalid/api/academy/media-playlists/save',{method:'POST',body:JSON.stringify(scope)},scope],
+  ['https://api.invalid/api/admin/platform/studio-access/anything',{method:'POST',body:JSON.stringify(scope)},scope],
+  ['https://api.invalid/api/admin/platform/studio-access',{method:'GET',body:JSON.stringify(scope)},scope],
+  ['https://api.invalid/api/admin/platform/studio-access',{method:'POST',body:JSON.stringify({activityKey:'COURSE:other'})},scope],
+  ['https://api.invalid/api/admin/platform/studio-access',{method:'POST',body:JSON.stringify(scope)},{activityKey:'GLOBAL:all'}]
+ ])await assert.rejects(w.adminFetch(url,options,context),e=>e.status===403);
+ assert.equal(f.calls.length,0);assert.equal(f.authCalls.length,0);
+ const p={activityKey:'PROGRAM:exact'};assert.equal((await (await w.adminFetch('https://api.invalid/api/admin/platform/studio-access',{method:'POST',body:JSON.stringify(p)},p)).json()).success,true);
+});
+
+test('Course Media bridge rejects non-Admin authority and delayed account changes',async()=>{
+ const scope={activityKey:'COURSE:exact'},url='https://api.invalid/api/admin/platform/studio-access',options={method:'POST',body:JSON.stringify({...scope,command:{action:'media-location'}})};
+ const denied=fixture(undefined,async()=>Response.json({success:true,contexts:[{scope:'COURSE',role:'TEACHER'}]}));await assert.rejects(denied.window.M4L_ACADEMY_WORKSPACE.adminFetch(url,options,scope),e=>e.status===403);assert.equal(denied.calls.length,0);
+ let release;const f=fixture(()=>new Promise(resolve=>release=resolve)),pending=f.window.M4L_ACADEMY_WORKSPACE.adminFetch(url,options,scope);for(let i=0;i<4;i++)await new Promise(r=>setImmediate(r));assert.equal(typeof release,'function');f.token('new-account');release(Response.json({success:true}));await assert.rejects(pending,{name:'AbortError'});
+});
+
+test('the real Course Media controller opens through the shared Admin wrapper and uses the dedicated cover route',async()=>{
+ const activityKey='COURSE:COURSE-native-regression',sent=[];
+ const f=fixture((url,options)=>{const input=JSON.parse(options.body);sent.push({url,input,workspace:options.headers.get('X-Academy-Workspace')});return Response.json({success:true,...(input.command.action==='media-location'?{managed:true,kind:'COURSE',ownership:'STUDIO',destination:'https://studio.invalid/studio/?manage=1&offering=native-course'}:{playlists:[]})});});
+ const host={isConnected:true,innerHTML:'',replaceChildren(){this.innerHTML='';},append(){}};let mounted;
+ const document={getElementById:key=>key==='course-media'?host:null,querySelector:()=>null,head:{append(){}},createElement:()=>({setAttribute(){},textContent:''})};
+ const code=readFileSync(new URL('../../js/m4l-course-media.js',import.meta.url),'utf8').replace("const modules=Promise.all([import('./m4l-course-media-view.mjs'),import('./m4l-playlist-card.mjs')]);",'const modules=Promise.resolve(__modules);');
+ vm.runInNewContext(code,{window:f.window,document,localStorage:{getItem:()=> 'actor-one'},URL,DOMException,Blob,Uint8Array,btoa,atob,crypto,__modules:[{mountCourseMedia:(host,options)=>{mounted=options;const dispose=()=>{};dispose.canLeave=()=>true;return dispose;}},{}]});
+ await f.window.M4L_COURSE_MEDIA.open({hostId:'course-media',activityKey,courseName:'Native Course'});assert(mounted,'The actual Course controller must reach its playlist renderer');await mounted.request('course-playlists');
+ assert.equal(sent.length,2);assert(sent.every(r=>r.workspace==='ADMIN'&&r.input.activityKey===activityKey));assert.equal(sent[0].input.command.action,'media-location');assert.equal(sent[1].input.command.action,'course-playlists');assert.equal(f.authCalls.length,1);
+ await mounted.request('mou-playlist-cover-upload',{playlistId:'exact-playlist',revision:3,file:{type:'image/png',arrayBuffer:async()=>new Uint8Array([1,2,3]).buffer},image:{sha256:'a'.repeat(64)}});
+ assert.equal(new URL(sent[2].url).pathname,'/api/admin/platform/studio-access/playlist-cover');assert.equal(sent[2].input.command.action,'mou-playlist-cover-upload');assert.equal(sent[2].input.command.data,'AQID');assert.equal(sent[2].input.activityKey,activityKey);
+});
+
+test('Course Participants keeps its normal Admin transport and sensitive writes invalidate read metadata',async()=>{
+ const f=fixture(()=>Response.json({success:true})),w=f.window.M4L_ACADEMY_WORKSPACE,scope={activityKey:'COURSE:exact'};
+ f.location.pathname='/academy/courses/manage/';f.location.hash='';w.commit();
+ for(const action of ['read','course-user-search'])await f.window.fetch('https://api.invalid/api/admin/platform/studio-access',{method:'POST',body:JSON.stringify({...scope,command:{action}})});
+ assert.equal(f.calls[0].options.headers.get('X-Academy-Workspace'),'ADMIN');assert.equal(f.calls[1].options.headers.get('X-Academy-Workspace'),'ADMIN');
+ const before=f.authCalls.length;
+ await w.adminFetch('https://api.invalid/api/admin/platform/studio-access',{method:'POST',body:JSON.stringify({...scope,command:{action:'course-playlist-save'}})},scope);
+ await w.adminFetch('https://api.invalid/api/admin/platform/studio-access',{method:'POST',body:JSON.stringify({...scope,command:{action:'course-playlists'}})},scope);
+ assert(f.authCalls.length>before,'Sensitive writes retain metadata invalidation; server authority is never cached by this client exception');
+});
+
+test('Course bridge rejects replies after a workspace change while preserving the existing Program editor boundary',async()=>{
+ let release;const f=fixture(()=>new Promise(resolve=>release=resolve)),w=f.window.M4L_ACADEMY_WORKSPACE,scope={activityKey:'COURSE:exact'};
+ const request=w.adminFetch('https://api.invalid/api/admin/platform/studio-access',{method:'POST',body:JSON.stringify({...scope,command:{action:'course-playlists'}})},scope);for(let i=0;i<4;i++)await new Promise(r=>setImmediate(r));f.location.hash='#timetable/teach';w.commit();release(Response.json({success:true}));await assert.rejects(request,{name:'AbortError'});
+});

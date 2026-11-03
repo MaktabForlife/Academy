@@ -98,9 +98,12 @@
  }
  const editorRequests=new WeakMap();
  const editorRoute=path=>/^\/api\/academy\/(?:media-playlists\/(?:list|get|options|save|publish|attach|card-upload|card-preview)|lesson-media\/(?:feed|get|save|binding-options|binding-create|context-options|context-save|companion-editor|companion-save|companion-publish|upload|attachment-name|video-start|video-part|video-complete|video-retain))$/.test(path);
+ const studioEditorRoute=path=>/^\/api\/admin\/platform\/studio-access(?:\/playlist-cover)?$/.test(path);
+ const studioReadActions=new Set(['read','catalogue','monthly-grid','access-table','mou-playlists','mou-playlist-correction','media-location','course-user-search','course-playlists','course-playlist-detail','course-playlist-options','course-playlist-candidates','course-playlist-recording','mou-playlist-card-options','mou-playlist-cover-preview']);
  async function adminFetch(resource,options={},scope={}){
   const url=new URL(typeof resource==='string'||resource instanceof URL?resource:resource.url,location.href),api=new URL(window.M4L_CONFIG?.API_BASE||location.origin,location.href);
-  if(url.origin!==api.origin||!editorRoute(url.pathname)||!/^PROGRAM:[-A-Za-z0-9_]+$/.test(scope.activityKey||''))throw Object.assign(Error('Open Admin editing for this exact programme.'),{status:403});
+  const studio=studioEditorRoute(url.pathname),allowedScope=studio?/^(?:PROGRAM|COURSE):[-A-Za-z0-9_]+$/.test(scope.activityKey||''):/^PROGRAM:[-A-Za-z0-9_]+$/.test(scope.activityKey||'');
+  if(url.origin!==api.origin||!(studio||editorRoute(url.pathname))||!allowedScope||studio&&String(options.method||'GET').toUpperCase()!=='POST')throw Object.assign(Error('Open Admin editing for this exact Course or Program.'),{status:403});
   const input=url.searchParams.has('metadata')?JSON.parse(url.searchParams.get('metadata')):JSON.parse(options.body||'{}');if(input.activityKey!==scope.activityKey)throw Object.assign(Error('The selected editing programme changed.'),{status:403});
   const requestOptions={...options};editorRequests.set(requestOptions,scope);try{return await window.fetch(resource,requestOptions);}finally{editorRequests.delete(requestOptions);}
  }
@@ -146,7 +149,7 @@
   if(response.ok&&method!=='GET'&&method!=='HEAD'){
    let rightsChange=/^\/api\/account\/(?!session$)/.test(url.pathname)||/\/(?:accounts?|credentials?|roles?|participants?|subscriptions?|surah-grants?)(?:\/|$)/.test(url.pathname);
    rightsChange||=/\/user-profiles\/(?:save|link|recover)$|\/global\/access\/save$|\/program-monthly-subscriptions\/(?:configure|save|grid-save|surah-save|surah-grants-save)$|\/(?:courses|programs)\/(?:publish|status|save|register-completed|studio-resume)$|\/program-timetable\/(?:publish|status|manage-save|manage-remove|recover)$/.test(url.pathname);
-   if(url.pathname==='/api/admin/platform/studio-access')try{rightsChange=!['read','catalogue','monthly-grid','access-table','mou-playlists','mou-playlist-correction'].includes(JSON.parse(options?.body||'{}').command?.action);}catch{rightsChange=true;}
+   if(url.pathname==='/api/admin/platform/studio-access')try{rightsChange=!studioReadActions.has(JSON.parse(options?.body||'{}').command?.action);}catch{rightsChange=true;}
    if(rightsChange)clearAccountView();
   }
   if((adminRealm()||editingScope)&&response.status===403&&response.headers.get('Content-Type')?.includes('application/json')){
