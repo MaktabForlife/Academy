@@ -47,7 +47,7 @@ test('the production allowlist retains functional tools and Hifz handoff while r
  for(const file of academyCirclesFragments)assert(academyPublishableAsset(file));
  assert(academyPublishableAsset('academy/hifz/index.html'));assert(academyPublishableAsset('pdf-viewer/web/viewer.html'));
  assert.throws(()=>academyPublishableAsset('academy/preview/index.html'),/UNAPPROVED_ACADEMY_HTML/);assert.throws(()=>academyPublishableAsset('programs/fragments/unregistered.fragment'),/UNAPPROVED_ACADEMY_FRAGMENT/);
- for(const file of ['js/m4l-academy-dashboard.js','js/m4l-academy-catalogue.js','css/m4l-academy-home.css'])assert.throws(()=>academyPublishableAsset(file),/RETIRED_ACADEMY_RENDERER_DEPENDENCY/);
+ for(const file of ['js/m4l-academy-dashboard.js','js/m4l-academy-catalogue.js','css/m4l-academy-home.css','css/m4l-academy-dashboard.css','css/m4l-open-library.css','js/m4l-open-library.js','js/m4l-program-admin-redirect.js','academy/website-platform/handover/handover.mjs'])assert.throws(()=>academyPublishableAsset(file),/RETIRED_ACADEMY_RENDERER_DEPENDENCY/);
 });
 test('production gates require the shared native shell and prevent old hidden pages from remaining in the bundle',()=>{
  const shell='<html data-circles-native="true"><head><script src="/js/m4l-circles-native.js"></script></head><body><main id="activity"></main></body></html>';

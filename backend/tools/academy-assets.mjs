@@ -5,7 +5,7 @@ import {resolve,join,dirname,extname,posix} from 'node:path';
 import {tmpdir} from 'node:os';
 const roots=['academy','account','programs','users','pdf-viewer','recorder','activities','icons','images'];
 import {academyCirclesPages,academyCirclesFragments,academyRetiredPages} from './academy-circles-routes.mjs';
-const retiredRenderers=new Set(['js/m4l-academy-dashboard.js','js/m4l-academy-catalogue.js','css/m4l-academy-home.css']);
+const retiredRenderers=new Set(['js/m4l-academy-dashboard.js','js/m4l-academy-catalogue.js','css/m4l-academy-home.css','css/m4l-academy-dashboard.css','css/m4l-open-library.css','js/m4l-open-library.js','js/m4l-program-admin-redirect.js','academy/website-platform/handover/handover.mjs']);
 export function academyPublishableAsset(file){
  if(retiredRenderers.has(file))throw Error('RETIRED_ACADEMY_RENDERER_DEPENDENCY: '+file);
  if(file.startsWith('academy/dashboard-design/')||academyRetiredPages.has(file))return false;
