@@ -1,6 +1,6 @@
 <!-- Native Circles component; not a page. -->
-<link rel="stylesheet" href="/css/m4l-program-management.css?v=109.13">
-<link rel="stylesheet" href="/css/m4l-teacher-availability-dialog.css?v=109.13">
+<link rel="stylesheet" href="/css/m4l-program-management.css?v=109.14">
+<link rel="stylesheet" href="/css/m4l-teacher-availability-dialog.css?v=109.14">
 <main id="pm-main"><div class="pb-heading"><div><p class="pb-eyebrow">﷽ &nbsp; Program administration</p><h1 id="pm-title">Program management</h1><p>Add your teaching data here, then build the timetable.</p></div><a id="pm-timetable" href="/programs/">Open timetable →</a></div>
 <p id="pm-message" class="pb-message" role="status" aria-live="polite">Checking your account…</p>
 <div class="pm-actions"><a id="pm-enrolment-requests" href="/academy/enrolment/manage/?view=requests">View enrolment requests →</a><a href="/programs/">← Program setup</a><a id="pm-library" href="/programs/">Manage Library →</a><button id="pm-reload" class="pb-secondary" data-page-content-refresh>↻ Refresh records</button><button id="pm-recover" class="pb-secondary" hidden>Recover interrupted change</button><button id="pm-prepare" hidden>Prepare management tables</button><button id="pm-library-prepare" hidden>Prepare Library tables</button></div>

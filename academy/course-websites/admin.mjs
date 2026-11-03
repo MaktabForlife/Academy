@@ -32,7 +32,7 @@ async function list(){
 }
 async function open(activityKey){
  if(opening||studio&&!studio.canLeave())return;opening=true;$('website-editor').inert=true;$('website-list-status').textContent='Opening the course editor…';
- try{const next=await api(base+'get',{activityKey});if(!active())return;if(!Number.isSafeInteger(next.revision)||next.revision<1)throw Error('This course has no saved website in this editor. Open its current website from the course Admin page.');record=next;$('website-import-prepared').hidden=!next.preparedCopyAvailable;$('selected-course-name').textContent=next.name;$('website-list-panel').hidden=true;$('website-editor').hidden=false;if(studio)await studio.openRemote();else studio=await import('./studio.mjs?v=109.13');}
+ try{const next=await api(base+'get',{activityKey});if(!active())return;if(!Number.isSafeInteger(next.revision)||next.revision<1)throw Error('This course has no saved website in this editor. Open its current website from the course Admin page.');record=next;$('website-import-prepared').hidden=!next.preparedCopyAvailable;$('selected-course-name').textContent=next.name;$('website-list-panel').hidden=true;$('website-editor').hidden=false;if(studio)await studio.openRemote();else studio=await import('./studio.mjs?v=109.14');}
  catch(error){if(active()){$('website-editor').hidden=true;$('website-list-panel').hidden=false;$('website-list-status').textContent=error.message;}}
  finally{opening=false;if(active())$('website-editor').inert=false;}
 }
