@@ -1,0 +1,45 @@
+<!doctype html>
+<html data-circles-native="true" lang="en">
+<head>
+<meta name="robots" content="noindex,nofollow">
+<script src="/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/js/m4l-circles-native.js?v=circles-native-1"></script>
+<script src="/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/js/m4l-academy-workspace.js?v=109.14"></script><script src="/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/js/m4l-academy-read-cache.js?v=109.14"></script><script src="/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/js/m4l-academy-admin-menu.js?v=109.14"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Academy Library</title>
+  <link rel="stylesheet" href="/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/css/m4l-academy-library.css?v=109.14">
+  <link rel="stylesheet" href="/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/css/m4l-academy-navigation.css?v=109.14">
+<link rel="stylesheet" href="/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/css/m4l-academy-mobile.css?v=109.14">
+<link rel="stylesheet" href="/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/css/m4l-academy-page-actions.css?v=109.14">
+<link rel="stylesheet" href="/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/css/m4l-academy-shell.css?v=109.14">
+<link rel="stylesheet" href="/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/css/m4l-academy-mobile-first.css?v=109.14">
+<link rel="stylesheet" href="/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/academy/website-platform/library-return.css">
+<link rel="stylesheet" href="/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/css/m4l-workspace-theme.css?v=109.14">
+</head>
+<body class="circles-workspace-page" data-academy-header-dates="true">
+  <header class="al-header"><a href="https://maktab4life.org/" data-page-home data-workspace-exit>← My Academy</a><strong>Academy Library</strong><a id="al-manage-books" href="/academy/library/manage/" hidden>Manage Library</a></header>
+  <main class="al-main">
+    <div class="al-intro"><div class="library-title-row"><h1>Library</h1><button type="button" id="al-refresh" class="library-refresh" aria-label="Refresh Library" title="Refresh Library" data-page-content-refresh>↻</button></div></div>
+
+    <nav class="al-tabs" aria-label="Library view"><a id="library-personal-tab" href="/academy/library/" aria-current="page">For you</a><a id="library-public-tab" href="/academy/library/?view=public">Public library</a><a href="/academy/pdf-reader/?bookmarks=1">Bookmarks</a></nav>
+    <p id="al-status" role="status" aria-live="polite">Checking your Library access…</p>
+    <div id="al-content" hidden>
+      <div class="al-filters"><label>Search<input id="al-search" type="search" placeholder="Title, subject or source"></label><label>Source<select id="al-source"><option value="ALL">All sources</option></select></label></div>
+      <div id="al-categories" class="library-category-pills" role="group" aria-label="Filter by category"><button type="button" data-category="ALL" aria-pressed="true">All</button><button type="button" data-category="PDF" aria-pressed="false">PDF</button><button type="button" data-category="AUDIOVISUAL" aria-pressed="false">AudioVisual</button><button type="button" data-category="OTHER" aria-pressed="false">Other</button></div>
+      <div id="al-results" aria-live="polite"></div>
+    </div>
+  </main>
+  <dialog id="al-preview" aria-labelledby="al-preview-title"><div class="al-preview-head"><div><small id="al-preview-source"></small><h2 id="al-preview-title"></h2></div><button id="al-close" class="academy-close" type="button" aria-label="Close resource">✕</button></div><p id="al-preview-details"></p><div id="al-volume-wrap" class="al-volume" hidden><label id="al-volume-label" for="al-volume">Volume</label><select id="al-volume"></select></div><p id="al-preview-status" role="status" aria-live="polite"></p><div id="al-media"></div><a id="al-open" target="_blank" rel="noopener noreferrer" hidden>Open file in new tab ↗</a></dialog>
+  <script src="/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/js/m4l-config.js?v=109.14"></script>
+  <script src="/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/js/m4l-library-cache.js?v=109.14"></script>
+  <script src="/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/js/m4l-personal-links.js?v=109.14"></script>
+  <script src="/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/js/m4l-academy-library.js?v=109.14"></script>
+  <script src="/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/js/m4l-academy-navigation.js?v=109.14"></script>
+<script src="/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/js/m4l-academy-mobile.js?v=109.14"></script><script src="/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/js/m4l-academy-contents.js?v=109.14"></script>
+<script src="/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/js/m4l-library-menu.js?v=109.14"></script>
+<script src="/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/js/m4l-academy-page-actions.js?v=109.14"></script>
+<script type="module" src="/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/academy/website-platform/library-return.mjs"></script>
+<script src="/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/js/m4l-academy-header-date.js?v=109.14"></script>
+</body>
+</html>

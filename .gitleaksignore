@@ -1,0 +1,14 @@
+# Exact reviewed false positives: ephemeral test keys, SQL and storage identifiers.
+4da62e387ec68333a12e36a35142a8b7d21ecaa9:backend/src/academy/d1/recording-companions.js:generic-api-key:40
+f2174a5f19dc50facb5f81a5ced0f60901be64e4:js/m4l-academy-history.js:generic-api-key:5
+b125cb2e8ed106371d54af168ad10ddc1ec76e39:docs/academy-separation/table-placement.csv:generic-api-key:45
+b125cb2e8ed106371d54af168ad10ddc1ec76e39:docs/academy-separation/table-placement.csv:generic-api-key:53
+e466df4611609228a769280b2291c0cb60c6e04b:backend/tools/academy-migration/mou-media-demo.sql:generic-api-key:17
+8aa7136bd5e17694c876b0cb8d271628a29a8b8b:js/m4l-academy-progress.js:generic-api-key:4
+de217675f81ea6d00dfbc4a42b2ed8b9e0d3d257:backend/tools/academy-d1-load-rehearsal.mjs:private-key:51
+a2ca8acf07221b469efa5f2b18aec64c10cfd711:backend/tests/academy-d1-library.test.mjs:private-key:14
+de217675f81ea6d00dfbc4a42b2ed8b9e0d3d257:backend/tests/academy-d1-course-resources.test.mjs:private-key:12
+32c49975539d393552223c8269dc2f0f81a327f7:backend/tests/program-builder.test.mjs:private-key:32
+32c49975539d393552223c8269dc2f0f81a327f7:backend/tests/program-timetable-api.test.mjs:private-key:42
+e21f6cf24e05d2303d8dcfd7b33e5e0379defe49:backend/tests/v10453-ongoing-derived-window.test.mjs:generic-api-key:7
+100ef80b39e5eb832080f130e909bb7a3764c8db:backend/tests/global-course-derived-scheduling.test.mjs:generic-api-key:7
