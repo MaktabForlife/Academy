@@ -1,0 +1,9 @@
+<!-- Native Circles component; not a page. -->
+<link rel="stylesheet" href="/_assets/08cb44cf19fbb4edcbceb1a7f3cf7f79cb574713ddd7254f8aa62f9d8a6751bc/css/m4l-lesson-media.css?v=109.16">
+<link rel="stylesheet" href="/_assets/08cb44cf19fbb4edcbceb1a7f3cf7f79cb574713ddd7254f8aa62f9d8a6751bc/css/m4l-program-monthly-subscriptions.css?v=109.16">
+<main id="program-lesson-media-main" class="pgm-media"><div class="pb-heading"><h1>Manage Programs</h1></div>
+<p id="program-media-message" class="pb-message" role="status" aria-live="polite">Checking your account…</p>
+<button id="program-media-refresh" class="pb-secondary" type="button" data-page-content-refresh>Refresh lesson media</button><button id="program-media-retry" class="pb-secondary" type="button" hidden>Try again</button>
+<section id="program-surahs" class="pgm-media-card pms" hidden aria-label="Surah website access"></section>
+<section id="program-lesson-media" class="pgm-media-card" aria-label="Lesson media management" hidden></section>
+</main>
