@@ -60,11 +60,12 @@ test('expiry clears the signed-in presentation while preserving the direct bookm
  assert.equal(f.location.hash,'#activity/COURSE/example/learn');assert.equal(f.data.get('m4l_account_token'),undefined);assert.equal(f.document.getElementById('demo-pin').value,'');assert.equal(f.document.getElementById('academy-header-name').hidden,true);assert.equal(f.document.getElementById('circles-native-recovery').hidden,false);assert.equal(f.navigation.length,0);
 });
 test('all three extracted components retain every native tool ID and no executable full page',()=>{
- for(const [source,fragment,root]of [['programs/timetable.html','timetable','timetable'],['programs/manage.html','participants','pm-main'],['programs/lesson-media.html','lesson-media','program-lesson-media-main']]){
-  const {document}=parseHTML(read(source)),{document:component}=parseHTML(read('programs/fragments/'+fragment+'.fragment'));
-  assert.doesNotMatch(read('programs/fragments/'+fragment+'.fragment'),/<(?:!doctype|html|head|body|script)\b/i);
+ const contracts=JSON.parse(read('backend/tests/fixtures/program-component-contract.json'));
+ for(const {fragment,root,requiredIds}of contracts){
+  const markup=read('programs/fragments/'+fragment+'.fragment'),{document:component}=parseHTML(markup);
+  assert.doesNotMatch(markup,/<(?:!doctype|html|head|body|script)\b/i);
   const actual=new Set([...component.querySelectorAll('[id]')].map(node=>node.id));
-  for(const node of document.getElementById(root).querySelectorAll('[id]'))assert(actual.has(node.id),'missing '+node.id);
+  for(const id of requiredIds)assert(actual.has(id),'missing '+id);
   assert(component.getElementById(root));assert(component.querySelector('link[rel=stylesheet]'));
  }
  const controller=read('js/m4l-program-admin.js');assert.doesNotMatch(controller,/page:'\/programs\/(?:timetable|manage|lesson-media)\.html'/);assert.match(controller,/version!==generation\|\|account!==localStorage/);

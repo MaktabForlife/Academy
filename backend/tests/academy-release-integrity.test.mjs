@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,existsSync} from 'node:fs';
 import {academyDependencyGraph,assertAcademySourceBoundary} from '../tools/academy-boundary.mjs';
+import {academyCirclesAlias} from '../tools/academy-circles-routes.mjs';
 const read=path=>readFileSync(new URL(path,import.meta.url),'utf8');
 test('current website, API and package releases agree',()=>{
  const version=JSON.parse(read('../../version.json')).version;
@@ -12,5 +13,6 @@ test('current website, API and package releases agree',()=>{
 test('legacy application and backend clients are absent from Development source',async()=>{
  assert(await assertAcademySourceBoundary());assert(academyDependencyGraph().length>80);
  for(const file of ['../../app.js','../../apps-script/code.gs','../../admin/index.html','../../student/index.html','../src/worker.js','../src/lib/google-sheets.js','../src/lib/google-drive.js','../tools/academy-migration/export.mjs'])assert.equal(existsSync(new URL(file,import.meta.url)),false,file);
- for(const file of ['../../programs/library.html','../../programs/library-view.html'])assert(!read(file).includes('m4l-program-library'));
+ for(const path of ['/programs/library.html','/programs/library-view.html']){const target=new URL(academyCirclesAlias(new URL('https://academy.invalid'+path),path));assert.equal(target.pathname,'/academy/library/');}
+ assert(!read('../../programs/fragments/participants.fragment').includes('m4l-program-library'));
 });

@@ -1,12 +1,11 @@
-import { readdir } from "node:fs/promises";
+import '../../tools/preserve-local-files.mjs';
+import {trackedTestFiles} from "./tracked-tests.mjs";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const testsDir = path.dirname(fileURLToPath(import.meta.url));
-const testFiles = (await readdir(testsDir))
-  .filter(name => name.endsWith(".test.mjs"))
-  .sort((a, b) => a.localeCompare(b));
+const testFiles = trackedTestFiles();
 
 let passed = 0;
 const failed = [];

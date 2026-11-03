@@ -1,5 +1,6 @@
+import '../../tools/preserve-local-files.mjs';
 // Keep every regression file assigned to one group; the all-tests command remains available.
-import {readdirSync} from 'node:fs';
+import {trackedTestFiles} from './tracked-tests.mjs';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
@@ -7,7 +8,7 @@ const directory=path.dirname(fileURLToPath(import.meta.url)),group=process.argv[
 const groupFor=name=>/migration|preflight|d1-main-preparation|d1-transition-recovery/.test(name)?'offline':'academy';
 if(!['academy','offline'].includes(group))throw Error('TEST_GROUP_REQUIRED');
 let count=0;const failed=[];
-for(const file of readdirSync(directory).filter(s=>s.endsWith('.test.mjs')&&groupFor(s)===group).sort()){
+for(const file of trackedTestFiles().filter(s=>groupFor(s)===group)){
   const result=spawnSync(process.execPath,[path.join(directory,file)],{cwd:path.dirname(directory),stdio:'inherit',env:process.env});count++;
   if(result.status!==0)failed.push(file);
 }

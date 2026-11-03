@@ -1,5 +1,5 @@
 // feature-admin has a separate Worker; other Git builds retain Development.
-import {mkdtempSync,readFileSync,writeFileSync,cpSync,rmSync,mkdirSync,existsSync} from 'node:fs';
+import {mkdtempSync,readFileSync,writeFileSync,cpSync,mkdirSync,existsSync} from 'node:fs';
 import {resolve,join,dirname} from 'node:path';
 import {tmpdir} from 'node:os';
 import {fileURLToPath,pathToFileURL} from 'node:url';
@@ -23,7 +23,7 @@ export function buildDevelopmentPages(repo,{branch}={}){
     writeFileSync(join(assets,'_worker.js'),readFileSync(join(bundle,'development-pages-worker.js')));
     mkdirSync(output);cpSync(assets,output,{recursive:true});
     return {directory:output,files:report.fileCount,api:target==='split'?'https://split-db-feature_worker.maktab4life.workers.dev':target==='feature'?'https://feature_worker.maktab4life.workers.dev':'https://devrebootworker.maktab4life.workers.dev',syntheticOnly:false};
-  }finally{rmSync(temporary,{recursive:true,force:true});}
+  }finally{console.log(JSON.stringify({retainedBuildDirectory:temporary,localFilesDeleted:0}));}
 }
 if(process.argv[1]&&pathToFileURL(resolve(process.argv[1])).href===import.meta.url)
   console.log(JSON.stringify(buildDevelopmentPages(resolve(dirname(fileURLToPath(import.meta.url)),'../..'))));

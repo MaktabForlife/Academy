@@ -10,7 +10,7 @@ const program='PRG-11111111-1111-4111-8111-111111111111',activity='PROGRAM:'+pro
 const saved=programmeKey=>({success:true,managed:true,monthly:true,kind:'TAFSEER',programmeKey,offeringId:'native-'+programmeKey,destination:'https://studio.test/studio/?manage=1&offering=native-'+programmeKey+'&section=media'});
 const settle=async()=>{for(let i=0;i<5;i++)await new Promise(r=>setImmediate(r));};
 function fixture(response){
- const {document}=parseHTML(readFileSync(new URL('../../programs/lesson-media.html',import.meta.url),'utf8')),window=new EventTarget();
+ const {document}=parseHTML(readFileSync(new URL('../../programs/fragments/lesson-media.fragment',import.meta.url),'utf8')),window=new EventTarget();
  let token='synthetic-owner',active=true;const calls=[],opened=[],historical=[];
  window.M4L_CONFIG={API_BASE:'https://academy.test'};window.M4L_LESSON_MEDIA={reset(){},open:options=>opened.push(options),canLeave:()=>true};window.M4L_PROGRAM_SURAHS={reset(){},select:()=>historical.push('surahs')};
  const localStorage={getItem:()=>token},fetch=async(url,options)=>{calls.push({url,body:JSON.parse(options.body)});if(url.endsWith('/programs/list'))return {ok:true,json:async()=>({success:true,store:'D1',programs:[{id:program}]})};return response();};
