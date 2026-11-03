@@ -32,3 +32,23 @@ be79881c227ae776bb2674d0a4f6b479b8211404:release/v109.14/public/_assets/e57e5fd6
 be79881c227ae776bb2674d0a4f6b479b8211404:release/v109.14/public/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/js/m4l-academy-progress.js:generic-api-key:5
 be79881c227ae776bb2674d0a4f6b479b8211404:release/v109.14/public/js/m4l-academy-history.js:generic-api-key:5
 be79881c227ae776bb2674d0a4f6b479b8211404:release/v109.14/public/js/m4l-academy-progress.js:generic-api-key:5
+
+# Exact reviewed V109.15 public integrity hashes and unchanged storage identifiers.
+6d61446dc8301e64ebc0b406a934853086e42c5b:release/v109.15/public/_assets/69ca1354b352d496a84aefd3b35c74103f10a80a6280c74cdd4bb18cb903046d/js/m4l-academy-history.js:generic-api-key:5
+6d61446dc8301e64ebc0b406a934853086e42c5b:release/v109.15/manifest.json:generic-api-key:294
+6d61446dc8301e64ebc0b406a934853086e42c5b:release/v109.15/manifest.json:generic-api-key:295
+6d61446dc8301e64ebc0b406a934853086e42c5b:release/v109.15/manifest.json:generic-api-key:354
+6d61446dc8301e64ebc0b406a934853086e42c5b:release/v109.15/manifest.json:generic-api-key:355
+6d61446dc8301e64ebc0b406a934853086e42c5b:release/v109.15/manifest.json:generic-api-key:516
+6d61446dc8301e64ebc0b406a934853086e42c5b:release/v109.15/manifest.json:generic-api-key:517
+6d61446dc8301e64ebc0b406a934853086e42c5b:release/v109.15/manifest.json:generic-api-key:532
+6d61446dc8301e64ebc0b406a934853086e42c5b:release/v109.15/manifest.json:generic-api-key:533
+6d61446dc8301e64ebc0b406a934853086e42c5b:release/v109.15/manifest.json:generic-api-key:654
+6d61446dc8301e64ebc0b406a934853086e42c5b:release/v109.15/manifest.json:generic-api-key:655
+6d61446dc8301e64ebc0b406a934853086e42c5b:release/v109.15/manifest.json:generic-api-key:658
+6d61446dc8301e64ebc0b406a934853086e42c5b:release/v109.15/manifest.json:generic-api-key:659
+6d61446dc8301e64ebc0b406a934853086e42c5b:release/v109.15/manifest.json:generic-api-key:1076
+6d61446dc8301e64ebc0b406a934853086e42c5b:release/v109.15/manifest.json:generic-api-key:1077
+6d61446dc8301e64ebc0b406a934853086e42c5b:release/v109.15/public/_assets/69ca1354b352d496a84aefd3b35c74103f10a80a6280c74cdd4bb18cb903046d/js/m4l-academy-progress.js:generic-api-key:5
+6d61446dc8301e64ebc0b406a934853086e42c5b:release/v109.15/public/js/m4l-academy-history.js:generic-api-key:5
+6d61446dc8301e64ebc0b406a934853086e42c5b:release/v109.15/public/js/m4l-academy-progress.js:generic-api-key:5
