@@ -9,6 +9,11 @@ export function dashboardModes(state){
  const admin=Boolean(state.account.global_admin||state.contexts.some(c=>['GLOBAL_ADMIN','PROGRAM_ADMIN','ADMIN'].includes(c.role)));
  return ['learn',...(state.account.global_admin||state.contexts.some(c=>['TEACHER','SENIOR','SUBSTITUTE'].includes(c.role))?['teach']:[]),...(admin?['admin']:[])];
 }
+// A verified Global Admin's circle is an oversight view in every presentation.
+// Reuse current native Admin authority; never manufacture learner enrolments.
+export function dashboardTimetableAudience(state,mode){
+ return state.account.global_admin===true||state.account.global_admin===1?'admin':mode;
+}
 export function dashboardChoice(state,input={}){
  if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).some(k=>!['mode','tool','activityKey'].includes(k)))throw fail('Choose an Academy dashboard destination.');
  const mode=input.mode||'learn',tool=input.tool||'home',available=dashboardModes(state);if(!available.includes(mode))throw fail('This dashboard is outside your current permissions.',403);
@@ -68,7 +73,7 @@ function trustedMeetingGroup(row,mode){
 }
 export async function dashboardSummary(state,env,input,read,nativeScopes=[]){
  const requestedWeek=dashboardWeekInput(input),availableModes=dashboardModes(state),mode=input.mode||(['admin','teach','learn'].find(m=>availableModes.includes(m)));if(!availableModes.includes(mode))throw fail('This dashboard is outside your current permissions.',403);
- const home=await read('/api/academy/entrance',requestedWeek?{startDate:requestedWeek.weekStart}:{},mode),mappings=navigationMappings(env),warnings=[];
+ const home=await read('/api/academy/entrance',requestedWeek?{startDate:requestedWeek.weekStart}:{},dashboardTimetableAudience(state,mode)),mappings=navigationMappings(env),warnings=[];
  const weekStart=date(home.startDate),weekEnd=date(home.endDate);if(sunday(weekStart)!==weekStart||addDays(weekStart,6)!==weekEnd||requestedWeek&&requestedWeek.weekStart!==weekStart)throw fail('Academy returned a different timetable week.',503);
  const inWeek=row=>typeof row.date==='string'&&row.date>=weekStart&&row.date<=weekEnd;
  // Personal Learn/Teach activity summaries intentionally omit synthetic Admin

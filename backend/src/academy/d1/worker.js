@@ -68,7 +68,7 @@ import {programMonthlySubscriptions} from './program-monthly-subscriptions.js';
 import {d1CourseSubscriptions} from './course-subscriptions.js';
 import {managedCourseScopes} from './course-authority.js';
 import {programmeChoice} from './web-platform/navigation.mjs';
-import {dashboardSummary,dashboardChoice,dashboardJoinInput} from './web-platform/dashboard.mjs';
+import {dashboardSummary,dashboardChoice,dashboardJoinInput,dashboardTimetableAudience} from './web-platform/dashboard.mjs';
 import {nativeJoinOwnership} from './web-platform/native-join.mjs';
 import {programmePageGroups} from './web-platform/programme-groups.mjs';
 import {authenticatedD1Account,d1Audience as audience,d1ContextEqual as contextEqual} from './session.js';
@@ -153,7 +153,7 @@ async function dispatch(request,env,options={}) {
       await nativeJoinOwnership(sourceRepository.coreDb,session.account_id,selected.target);
       const token=await createSessionToken({type:'account',aud:audience,sv:3,sid:session.session_id,accountid:session.account_id,epoch:session.epoch,scope:context.scope,courseid:context.courseId,role:context.role},env);
       const body=JSON.stringify({joinKey:selected.joinKey,date:selected.date});let result;
-      try{result=await dispatch(new Request(new URL('/api/academy/lesson/join',request.url),{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token,'X-Academy-Workspace':selected.mode.toUpperCase()},body}),env);}
+      try{result=await dispatch(new Request(new URL('/api/academy/lesson/join',request.url),{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token,'X-Academy-Workspace':dashboardTimetableAudience(state,selected.mode).toUpperCase()},body}),env);}
       catch(error){
         if(error.status!==403||error.code!=='LESSON_UNAVAILABLE')throw error;
         // A current admitted account may join a public FREE lesson without

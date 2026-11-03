@@ -119,10 +119,10 @@ test('native Teacher/Admin audiences are preserved and current programme cancell
  const teacher=await f.reference(f.teacherToken),global=await f.reference(f.global);
  ok(await f.join({...f.input,sourceRef:teacher,mode:'teach'}));
  ok(await f.join({...f.input,sourceRef:global,mode:'admin'}));
- assert.equal((await f.join({...f.input,sourceRef:global,mode:'learn'})).status,403,'An inherited Learn preview is not a learner identity');
+ for(const mode of ['learn','teach'])ok(await f.join({...f.input,sourceRef:global,mode}));
  const [,activityId,publicationId]=JSON.parse(f.input.joinKey),scope='PROGRAM:'+activityId;
  f.databases.core.prepare("INSERT INTO program_publication_lifecycle VALUES(?,?,'CANCELLED',?)").run(scope,publicationId,new Date().toISOString());
- for(const input of [f.input,{...f.input,sourceRef:teacher,mode:'teach'},{...f.input,sourceRef:global,mode:'admin'}])assert.equal((await f.join(input)).status,403,'Native cancellation is rechecked on the next click');
+ for(const input of [f.input,{...f.input,sourceRef:teacher,mode:'teach'},...['learn','teach','admin'].map(mode=>({...f.input,sourceRef:global,mode}))])assert.equal((await f.join(input)).status,403,'Native cancellation is rechecked on the next click in every Global Admin presentation');
 });
 
 test('Studio or frozen ownership cannot be bypassed with a cached native class reference',async t=>{
