@@ -12,3 +12,23 @@ de217675f81ea6d00dfbc4a42b2ed8b9e0d3d257:backend/tests/academy-d1-course-resourc
 32c49975539d393552223c8269dc2f0f81a327f7:backend/tests/program-timetable-api.test.mjs:private-key:42
 e21f6cf24e05d2303d8dcfd7b33e5e0379defe49:backend/tests/v10453-ongoing-derived-window.test.mjs:generic-api-key:7
 100ef80b39e5eb832080f130e909bb7a3764c8db:backend/tests/global-course-derived-scheduling.test.mjs:generic-api-key:7
+
+# Reviewed frozen-package integrity hashes and unchanged storage identifiers.
+be79881c227ae776bb2674d0a4f6b479b8211404:release/v109.14/manifest.json:generic-api-key:139
+be79881c227ae776bb2674d0a4f6b479b8211404:release/v109.14/manifest.json:generic-api-key:169
+be79881c227ae776bb2674d0a4f6b479b8211404:release/v109.14/manifest.json:generic-api-key:249
+be79881c227ae776bb2674d0a4f6b479b8211404:release/v109.14/manifest.json:generic-api-key:257
+be79881c227ae776bb2674d0a4f6b479b8211404:release/v109.14/manifest.json:generic-api-key:318
+be79881c227ae776bb2674d0a4f6b479b8211404:release/v109.14/manifest.json:generic-api-key:320
+be79881c227ae776bb2674d0a4f6b479b8211404:release/v109.14/manifest.json:generic-api-key:526
+be79881c227ae776bb2674d0a4f6b479b8211404:release/v109.14/manifest.json:generic-api-key:974
+be79881c227ae776bb2674d0a4f6b479b8211404:release/v109.14/manifest.json:generic-api-key:1004
+be79881c227ae776bb2674d0a4f6b479b8211404:release/v109.14/manifest.json:generic-api-key:1086
+be79881c227ae776bb2674d0a4f6b479b8211404:release/v109.14/manifest.json:generic-api-key:1094
+be79881c227ae776bb2674d0a4f6b479b8211404:release/v109.14/manifest.json:generic-api-key:1155
+be79881c227ae776bb2674d0a4f6b479b8211404:release/v109.14/manifest.json:generic-api-key:1157
+be79881c227ae776bb2674d0a4f6b479b8211404:release/v109.14/manifest.json:generic-api-key:1369
+be79881c227ae776bb2674d0a4f6b479b8211404:release/v109.14/public/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/js/m4l-academy-history.js:generic-api-key:5
+be79881c227ae776bb2674d0a4f6b479b8211404:release/v109.14/public/_assets/e57e5fd6fd784f671bb538e42b581ceef8ff7a8585d2508181f1905e8780427d/js/m4l-academy-progress.js:generic-api-key:5
+be79881c227ae776bb2674d0a4f6b479b8211404:release/v109.14/public/js/m4l-academy-history.js:generic-api-key:5
+be79881c227ae776bb2674d0a4f6b479b8211404:release/v109.14/public/js/m4l-academy-progress.js:generic-api-key:5
