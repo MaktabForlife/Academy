@@ -1,0 +1,18 @@
+name: Paired cloud compatibility check
+on:
+  push:
+    branches: [studio_dev, feature/github-cloud-releases]
+  pull_request:
+    branches: [studio_dev]
+  workflow_dispatch:
+# The pinned reusable workflow limits its check job to contents:read.
+# Its Studio-only manual deploy job is always skipped for this repository.
+permissions:
+  contents: write
+jobs:
+  paired:
+    uses: MaktabForlife/AcademyStudio/.github/workflows/paired-release.yml@b6791b706972f10f8aad7bb669332979f8adb454
+    with:
+      source_ref: ${{ github.sha }}
+      studio_ref: studio_dev
+      deploy: false
