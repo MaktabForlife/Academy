@@ -1,38 +1,44 @@
 # Public homepage design review — 4 November 2026
 
-This isolated review explores a single-page public flow with the Academy’s approved tan, bottle green, sage and cream palette. The current homepage, dashboard, login, timetable authority, access rights and publication systems remain unchanged.
+This isolated review uses the Academy’s approved tan, bottle green, sage and cream palette. It does not change the live homepage, dashboard, login, timetable authority, access rights or publication system.
 
-The independent page is `portal/circles/homepage-review.html`, scoped to `.flow-review`. It makes no live API requests.
+The independent page is `portal/circles/homepage-review.html`, scoped to `.flow-review`, without live API requests.
 
-## Review behavior
+## Owner’s latest arrangement
 
-- Retain the central welcome circle and four programme pathways.
-- Put one joined card inside announcements, with six attached, rounded course-name tabs. All six fit within the card: one desktop row, wrapping into a readable grid on smaller screens, without a scrolling tab rail.
-- Add approved palette colour: bottle-green enrolments and selected tab, cream text, soft sage/tan inactive tabs and alternating green/tan day tiles.
-- Keep the shared desktop panel compact (320 px high): timetable on the left; 2027 enrolments on the right. On smaller screens these two panels stack.
-- Describe each course with learning rhythm, delivery format, known day/time and fee facts, enquiry and original flyer links. Write both Mothers of the Ummah and Tafseer and Tadabbur clearly in English on their cards, alongside typed Arabic where relevant.
-- Keep tab controls in place when the panel changes. Support Arrow, Home and End keys with stable keyboard focus.
-- Link the welcome pathways and programme overview to the corresponding tab inside announcements.
-- Keep general Bootcamp and prospectus news below the course card, with readable expanded details.
-- Remove the separate bottom timetable section and its navigation link at the owner’s request.
-- Preserve the public learning and contact flow.
+The announcements banner follows the owner’s supplied mockup:
 
-The data module contains draft copy from the existing 2027 prospectus and owner-supplied Mothers of the Ummah, Tafseer and Tadabbur and Surah Al-Kahf flyers. Unconfirmed days, times and fees are labelled honestly. Admin must confirm draft facts before publication. The Bootcamp end date is calculated from four weekly Sundays beginning 18 October 2026. These draft fields provide no actual session, Join link, subscription or access authority.
+- Left: a complete cream timetable/course card inside a bottle-green frame. All six course tabs belong to this card and fit within its width, with a readable wrapped grid on smaller screens.
+- Right: an independent 2027 enrolments lockup, full-prospectus action and typed WhatsApp/email/website contact strip. This panel does not change when a course tab is selected.
+- The selected course shows its English name, typed Arabic where available, description, known schedule and fee facts. Unknown details remain unconfirmed.
+- Retain the central welcome circle and four pathways, same-page course selection, general Bootcamp/prospectus news, learning and contact flow.
+- Keep the separate bottom timetable removed.
+- Support Arrow, Home and End navigation with stable focus.
 
-The Studio courses link resolves from `AcademyHosting.studioOrigin`. Each programme has its own explicit `flyerUrl`.
+## Prospectus remains on the owner’s Mac
+
+The owner selected the **second** attachment, `2027 prospectus copy.pdf`. Read-only checks confirmed a seven-page, unencrypted PDF, 787,282 bytes, SHA-256 `cd0702e7c5d30eb141076923f713c376cbdca3aab7c89dc178dfa0f2bbc05632`.
+
+Automatic approval review rejected uploading that PDF into this public GitHub repository. No PDF bytes were uploaded, no media record was created and neither supplied PDF was edited.
+
+The downloadable standalone preview links to `../2027%20prospectus%20copy.pdf`, the existing second PDF beside the extracted review folder in Downloads. Under HTTP, the review-only prospectus link is disabled, rather than exposing a local path or pretending a public PDF exists. This local review link must not be copied into production. Final integration must resolve the exact existing full-PDF attachment from Academy Admin Announcements, as the owner requested. Do not substitute the older 2026 PDF or the HTML flyer catalogue.
+
+## Facts and authority
+
+Course copy is draft material from the existing 2027 catalogue and earlier owner-supplied flyers. Admin must confirm all facts before publication. Flyer-derived dates/fees are presentation only: they provide no native session, Join link, subscription or access authority.
+
+The Studio courses link resolves from `AcademyHosting.studioOrigin`. No hosting config or backend server origin is changed.
 
 ## Cloud review only
 
-The review branch overrides its copy of the registered `paired-check.yml` with a manual, read-only design-review job. The default branch workflow is unchanged. Dispatch this workflow only against `review/public-home-flow-20261104`. Exclude the workflow override from any production integration.
+The review branch overrides its copy of `paired-check.yml` with a manual, read-only design job. Default-branch workflows are unchanged. Dispatch only against `review/public-home-flow-20261104`; exclude that workflow override from production integration.
 
-The job installs dependencies on a disposable GitHub runner, checks native portal boundaries, builds the actual Academy Pages assets without deployment and tests the interface against synthetic data using a loopback static server. Checks cover all six course panels, keyboard navigation, same-page links, removal of the bottom timetable, left/right placement, fixed compact height, unclipped panel content for every course at each viewport, zero/one/five general announcements, escaped editable titles and 320–1920 px layouts. It also verifies a self-contained HTML preview with its CSS, fonts and scripts embedded.
+Disposable GitHub runners perform native boundary checks, a Pages build without deployment and browser checks against synthetic data. Checks cover all course panels, stable keyboard focus, independent right enrolments, left-card tab bounds, no overflow at 320–1920 px, enlarged rendering, general news counts/escaping and standalone HTML behaviour. Review artifacts contain images, HTML, instructions and evidence, without the supplied PDFs. No Mac files are written.
 
-Artifacts contain the standalone preview, screenshots and JSON evidence; the complete public package is separate. There are no production secrets, deployment steps, live account calls or content publication. No Mac files are written.
+After separate design/integration approval, connect the UI to the existing Admin builder and published cached snapshots, including cached empty results. Keep editing and publication explicit and avoid per-tab/per-card requests.
 
-## References and integration
+## References
 
-- [Lilian Cannam Kindergarten](https://www.liliancannamkindergarten.org.au/): joined rounded tabs and a shared descriptive panel.
-- [Benchmark Education](https://www.benchmarkeducation.com/): clear headline, supporting copy and visual.
-- Existing Academy 2027 prospectus catalogue and owner-supplied flyers: course names and draft facts.
-
-After design approval, connect this presentation to the current Admin announcement builder and published, cached public snapshots. Keep editing and publication explicit. An empty published snapshot is also cacheable. Never fetch per tab/card or derive live sessions, Join availability or access rights from flyer copy.
+- [Lilian Cannam Kindergarten](https://www.liliancannamkindergarten.org.au/): joined folder-like tabs and shared course panel.
+- [Benchmark Education](https://www.benchmarkeducation.com/): headline, summary and supporting visual.
+- Owner’s 4 November mockup: left course card, right enrolments/prospectus/contact composition.

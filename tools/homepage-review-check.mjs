@@ -25,6 +25,8 @@ try{
  assert.equal(await page.locator('[data-course-fee]').textContent(),'R500 per month');
  assert.equal(await page.locator('#timetables, #programme-panel, a[href="#timetables"]').count(),0);
  checks.push('One joined card with six course tabs in announcements; no separate bottom timetable or dead timetable links.');
+ const enrolmentsBefore=await page.locator('.enrolments-banner').innerHTML();
+ assert.equal(await page.locator('#full-prospectus-link').getAttribute('aria-disabled'),'true');
  const firstTab=await page.locator('#announcement-tab-mothers').elementHandle();
  await page.locator('#announcement-tab-mothers').focus();
  await page.keyboard.press('ArrowRight');
@@ -48,19 +50,14 @@ try{
   assert.equal(await page.locator('#course-announcement-panel').getAttribute('aria-labelledby'),'announcement-tab-'+programme.id);
   assert.equal(await tab.getAttribute('aria-selected'),'true');
   assert.equal(await page.locator('[role=tab][tabindex="0"]').count(),1);
-  assert.equal(await page.locator('#course-announcement-panel a[target="_blank"]').getAttribute('href'),programme.flyerUrl);
   if(!programme.schedule.length)assert.match(await page.locator('[data-course-schedule]').getAttribute('data-schedule-summary'),/confirm the 2027 days and times/);
   if(!programme.fee)assert.match(await page.locator('[data-course-fee]').textContent(),/Confirm current fees/);
-  assert.equal(await page.locator('#enrolment-course-name').textContent(),programme.name);
-  const split=await page.locator('.course-announcement-body').evaluate(node=>{
-   const left=node.querySelector('.announcement-timetable').getBoundingClientRect(),right=node.querySelector('.announcement-enrolment').getBoundingClientRect();
-   return {height:node.getBoundingClientRect().height,left:left.x,right:right.x,sameTop:Math.abs(left.y-right.y)<1};
-  });
-  assert(split.left<split.right&&split.sameTop,'Timetable must sit left of 2027 enrolments on desktop');
-  assert(split.height<=340,'Compact desktop panel must remain below 340px');
+  assert.equal(await page.locator('.enrolments-banner').innerHTML(),enrolmentsBefore,'General 2027 enrolments stays independent of the selected course');
+  assert((await page.locator('.course-announcement-body').boundingBox()).height<=420,'Course card stays compact');
+
 
  }
- checks.push('Compact shared panel: timetable left and 2027 enrolments right, with English course names, description, explicit flyer links and known facts.');
+ checks.push('Independent left course/timetable card with six fitted tabs and typed English/Arabic names; right 2027 enrolments remains unchanged across course selection.');
  await page.locator('.programme-card a[data-programme="mothers"]').click();
  assert.equal(await page.locator('#course-announcement-panel h3').textContent(),'Mothers of the Ummah');
  await page.locator('.pathway-worship').click();
@@ -88,6 +85,12 @@ try{
   await page.evaluate(async()=>{const {review}=await import('/circles/homepage-review.mjs');review.chooseProgramme('mothers');});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'Overflow at '+width);
   assert.equal(await page.locator('#timetables').count(),0);
+  const separation=await page.locator('#announcement-layout').evaluate(node=>{
+   const left=node.querySelector('.timetable-frame').getBoundingClientRect(),right=node.querySelector('.enrolments-banner').getBoundingClientRect();
+   return {sideBySide:right.left>=left.right-1&&Math.abs(right.top-left.top)<1,stacked:right.top>=left.bottom-1};
+  });
+  assert(width>900?separation.sideBySide:separation.stacked,'Course card and general enrolments layout at '+width+'px');
+
   const tabFit=await page.locator('#announcement-feature').evaluate(card=>{
    const bounds=card.getBoundingClientRect(),list=card.querySelector('[role=tablist]'),tabs=[...list.querySelectorAll('[role=tab]')];
    return {fits:tabs.every(tab=>{const r=tab.getBoundingClientRect();return r.left>=bounds.left-1&&r.right<=bounds.right+1&&tab.scrollWidth<=tab.clientWidth+1&&tab.scrollHeight<=tab.clientHeight+1;}),noScroll:list.scrollWidth<=list.clientWidth+1,rows:new Set(tabs.map(tab=>Math.round(tab.getBoundingClientRect().top))).size};
@@ -106,6 +109,7 @@ try{
   if(width===390||width===1440){
    await page.locator('#news').screenshot({path:resolve(out,'announcements-'+width+'.png')});
    await page.locator('#announcement-feature').screenshot({path:resolve(out,'course-tabs-'+width+'.png')});
+   await page.locator('#announcement-layout').screenshot({path:resolve(out,'announcement-layout-'+width+'.png')});
    await page.locator('#home').screenshot({path:resolve(out,'circle-'+width+'.png')});
   }
  }
@@ -122,10 +126,12 @@ try{
   }),'Tabs must fit the card at '+zoom+'x rendering');
  }
  await page.evaluate(()=>{document.documentElement.style.removeProperty('zoom');});
- const colours=await page.locator('.announcement-enrolment').evaluate(node=>({background:getComputedStyle(node).backgroundColor,foreground:getComputedStyle(node).color,selected:getComputedStyle(document.querySelector('[role=tab][aria-selected=true]')).backgroundColor}));
- assert.notEqual(colours.background,colours.foreground);
- assert.equal(colours.background,colours.selected,'Selected course and enrolments share the bottle-green accent');
- checks.push('All six tabs fit the card without horizontal scrolling, including larger rendering; bottle-green selection/enrolments with sage and tan accents.');
+ assert.equal(await page.locator('#announcement-feature .enrolments-banner').count(),0);
+ assert.match(await page.locator('.enrolments-lockup').textContent(),/2027/);
+ assert.match(await page.locator('.enrolments-contact-strip').textContent(),/\+27 82 847 8639/);
+ assert.equal(await page.locator('#full-prospectus-link').getAttribute('href'),null,'HTTP-only review never exposes the local PDF');
+ checks.push('All six tabs stay within the separate green-framed card, including larger rendering; enrolments heading, full-prospectus action and typed contact strip match the owner mockup.');
+
 
  // Self-contained copy for review: CSS, fonts and scripts stay in the artifact.
  let html=await readFile(resolve(directory,'circles/homepage-review.html'),'utf8');html=html.replace('<script src="/hosting-config.js"></script>','<script>'+await readFile(resolve(directory,'hosting-config.js'),'utf8')+'</script>');
@@ -135,7 +141,8 @@ try{
  const inline=data.replace(/^export /gm,'')+'\n'+script.replace(/^import .*?;\n/,'').replace(/^export /gm,'');
  html=html.replace('<script type="module" src="/circles/homepage-review.mjs"></script>','<script type="module">'+inline.replace(/<\/script/gi,'<\\/script')+'</script>');
  await writeFile(resolve(out,'homepage-review-standalone.html'),html);
- const standalone=await browser.newPage();await standalone.route('**/*',route=>route.request().url().startsWith('file:')||route.request().url().startsWith('data:')?route.continue():route.abort());await standalone.goto(pathToFileURL(resolve(out,'homepage-review-standalone.html')).href);await standalone.locator('#course-announcement-panel h3').waitFor();await standalone.locator('#announcement-tab-tafseer').click();assert.match(await standalone.locator('[data-course-schedule]').getAttribute('data-schedule-summary'),/Saturday · 08:30–09:30 SAST/);assert.equal(await standalone.locator('[data-course-fee]').textContent(),'R300 per month');assert.equal(await standalone.locator('#timetables').count(),0);await standalone.close();checks.push('Downloadable standalone HTML works without its source folder or network calls.');
- await writeFile(resolve(out,'review.json'),JSON.stringify({passed:true,commit:process.env.GITHUB_SHA,checks,errors,liveRequests:0,macWrites:0,programmeFacts:'Drafts from existing 2027 catalogue and owner-supplied flyers; missing values remain unconfirmed.'},null,2)+'\n');
+ await writeFile(resolve(out,'OPEN-PREVIEW.txt'),'Open homepage-review-standalone.html. Keep the extracted preview folder in Downloads, next to the original 2027 prospectus copy.pdf. View the full prospectus opens that existing local PDF. The PDF is not included or uploaded. Design review only; not deployed.\n');
+ const standalone=await browser.newPage();await standalone.route('**/*',route=>route.request().url().startsWith('file:')||route.request().url().startsWith('data:')?route.continue():route.abort());await standalone.goto(pathToFileURL(resolve(out,'homepage-review-standalone.html')).href);await standalone.locator('#course-announcement-panel h3').waitFor();await standalone.locator('#announcement-tab-tafseer').click();assert.match(await standalone.locator('[data-course-schedule]').getAttribute('data-schedule-summary'),/Saturday · 08:30–09:30 SAST/);assert.equal(await standalone.locator('[data-course-fee]').textContent(),'R300 per month');assert.equal(await standalone.locator('#timetables').count(),0);assert.equal(await standalone.locator('#full-prospectus-link').getAttribute('aria-disabled'),null);assert.equal(await standalone.locator('#full-prospectus-link').getAttribute('href'),'../2027%20prospectus%20copy.pdf');assert.equal(decodeURIComponent(new URL(await standalone.locator('#full-prospectus-link').getAttribute('href'),standalone.url()).pathname).split('/').at(-1),'2027 prospectus copy.pdf');await standalone.close();checks.push('Standalone HTML keeps fonts/scripts offline and links only to the second PDF already on the owner Mac; no PDF contents uploaded.');
+ await writeFile(resolve(out,'review.json'),JSON.stringify({passed:true,commit:process.env.GITHUB_SHA,checks,errors,liveRequests:0,macWrites:0,pdfUploaded:false,prospectus:'Second owner-supplied PDF remains local; final integration must reuse the existing Admin announcement attachment.',programmeFacts:'Drafts from existing 2027 catalogue and owner-supplied flyers; missing values remain unconfirmed.'},null,2)+'\n');
  console.log(JSON.stringify({passed:true,checks:checks.length,output:out}));
 }finally{await browser.close();await new Promise(done=>server.close(done));}

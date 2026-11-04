@@ -13,100 +13,105 @@
 @media(max-width:420px){.flow-review .brand-mark{display:none}.flow-review .flow-header{gap:15px}.flow-review .flow-header .button{padding:9px 17px;min-height:42px}.flow-review .programme-grid{grid-template-columns:1fr}.flow-review .home-circle{padding:33px;gap:20px}.flow-review .home-circle h1{font-size:36px}.flow-review .home-circle .circle-tagline{font-size:22px}.flow-review .home-circle p{font-size:11px}.flow-review .pathway strong{font-size:23px}.flow-review .pathway strong[lang=ar]{font-size:23px}.flow-review .announcement-copy h3{font-size:36px}.flow-review .course-facts dl{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:no-preference){.flow-review{scroll-behavior:smooth}}
 
-/* Compact announcements: timetable left, 2027 enrolments right. */
-.flow-review .news-section{padding:32px 38px}
-.flow-review .news-section .section-heading{margin-bottom:22px}
+/* Owner mockup: independent course card left, enrolments/prospectus right. */
+.flow-review .news-section{padding:32px 32px;background:color-mix(in srgb,var(--flow-tan) 70%,var(--flow-cream));border-radius:24px}
+.flow-review .news-section .section-heading{margin-bottom:24px}
 .flow-review .news-section h2{font-size:40px}
+.flow-review .news-section .section-heading .eyebrow{color:var(--flow-ink)}
 .flow-review .news-section .section-heading>p{font-size:12px}
 .flow-review .pathway-course-names{display:flex;flex-direction:column;gap:4px}
 .flow-review .pathway-course-names b{font-weight:500}
+.flow-review .announcement-layout{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(0,1fr);gap:32px;align-items:stretch}
+.flow-review .timetable-frame{min-width:0;max-width:100%;background:var(--flow-green);padding:20px;border-radius:18px}
 .flow-review .course-announcement-card{width:100%;max-width:100%;min-width:0}
-.flow-review .course-announcement-tabs{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));align-items:stretch;gap:0;width:100%;max-width:100%;padding-top:2px}
-.flow-review .course-announcement-tabs button{width:100%;max-width:100%;min-width:0;min-height:64px;padding:12px 10px;border:1px solid var(--flow-line);border-radius:22px 22px 0 0;background:color-mix(in srgb,var(--flow-sage) 24%,var(--flow-cream));color:var(--flow-ink);font:400 20px/1.15 'Libre Caslon Display',Georgia,serif;text-align:center;letter-spacing:-.015em;white-space:normal;overflow-wrap:anywhere}
-.flow-review .course-announcement-tabs button:nth-child(3n+1){background:color-mix(in srgb,var(--flow-tan) 20%,var(--flow-cream))}
-.flow-review .course-announcement-tabs button:nth-child(3n+2){background:color-mix(in srgb,var(--flow-green) 20%,var(--flow-cream))}
-.flow-review .course-announcement-tabs button[aria-selected=true]{background:var(--flow-green);color:var(--flow-cream);border-color:var(--flow-green)}
+.flow-review .course-announcement-tabs{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));align-items:stretch;gap:0;width:100%;max-width:100%}
+.flow-review .course-announcement-tabs button{width:100%;max-width:100%;min-width:0;min-height:70px;padding:11px 7px;border:1px solid color-mix(in srgb,var(--flow-sage) 45%,var(--flow-cream));border-radius:22px 22px 0 0;background:var(--flow-cream);color:var(--flow-ink);font:400 17px/1.15 'Libre Caslon Display',Georgia,serif;text-align:center;letter-spacing:-.01em;white-space:normal;overflow-wrap:anywhere}
+.flow-review .course-announcement-tabs button[aria-selected=true]{background:color-mix(in srgb,var(--flow-sage) 65%,var(--flow-cream));border-bottom-color:color-mix(in srgb,var(--flow-sage) 65%,var(--flow-cream))}
 .flow-review .course-announcement-tabs button:focus-visible{outline:3px solid var(--flow-tan);outline-offset:-5px}
-.flow-review .course-announcement-panel{border:1px solid var(--flow-line);border-top:0;border-radius:0 0 22px 22px;background:var(--flow-cream);overflow:hidden}
-.flow-review .course-announcement-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);height:320px}
-.flow-review .announcement-timetable,.flow-review .announcement-enrolment{padding:24px 28px;min-width:0;display:flex;flex-direction:column;align-items:start}
-.flow-review .announcement-enrolment{background:var(--flow-green);color:var(--flow-cream);border-left:1px solid var(--flow-green)}
-.flow-review .announcement-enrolment .eyebrow,.flow-review .announcement-enrolment .enrolment-fee{color:var(--flow-cream)}
-.flow-review .announcement-enrolment .enrolment-arabic{color:var(--palette-gold,#d7ca9b)}
-.flow-review .announcement-enrolment .button{background:var(--flow-cream);color:var(--flow-green);border-color:var(--flow-cream)}
-.flow-review .announcement-enrolment .text-link{text-decoration:underline;text-underline-offset:4px}
-.flow-review .announcement-enrolment :focus-visible{outline-color:var(--flow-cream)}
-.flow-review .course-announcement-body .eyebrow{font-size:9px;margin:0 0 11px}
-.flow-review .announcement-timetable h3{font-size:32px;margin:0 0 9px}
-.flow-review .timetable-rhythm{font-size:11px;line-height:1.6;margin:0 0 18px}
-.flow-review [data-course-schedule]{width:100%}
+.flow-review .course-announcement-panel{border:1px solid color-mix(in srgb,var(--flow-sage) 45%,var(--flow-cream));border-top:0;border-radius:0 0 22px 22px;background:var(--flow-cream);overflow:hidden}
+.flow-review .course-announcement-body{display:block;height:400px}
+.flow-review .announcement-timetable{padding:22px 24px;min-width:0;height:100%;display:flex;flex-direction:column;align-items:start}
+.flow-review .timetable-title-row{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;margin-bottom:12px}
+.flow-review .announcement-timetable h3{font-size:29px;margin:0}
+.flow-review .course-arabic{font:26px/1.5 Amiri,serif;color:var(--flow-green);white-space:nowrap;flex:none}
+.flow-review .timetable-description{font-size:11px;line-height:1.7;margin:0 0 10px}
+.flow-review .timetable-rhythm{font-size:10px;line-height:1.6;margin:0 0 14px;color:var(--flow-green)}
+.flow-review [data-course-schedule]{width:100%;padding-top:12px;border-top:1px dashed var(--flow-sage)}
 .flow-review .course-week{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .flow-review .course-week[data-days="1"]{grid-template-columns:minmax(0,220px)}
-.flow-review .course-day{display:flex;flex-direction:column;gap:8px;padding:13px 10px;border:1px solid var(--flow-line);border-radius:10px;background:color-mix(in srgb,var(--flow-green) 13%,var(--flow-cream))}
-.flow-review .course-day:nth-child(even){background:color-mix(in srgb,var(--flow-tan) 16%,var(--flow-cream))}
+.flow-review .course-day{display:flex;flex-direction:column;gap:8px;padding:12px 10px;border:1px solid var(--flow-line);border-radius:10px;background:color-mix(in srgb,var(--flow-green) 10%,var(--flow-cream))}
+.flow-review .course-day:nth-child(even){background:color-mix(in srgb,var(--flow-tan) 12%,var(--flow-cream))}
 .flow-review .course-day strong{font:400 19px/1.1 'Libre Caslon Display',Georgia,serif}
 .flow-review .course-day span{font-size:11px;line-height:1.5;font-variant-numeric:tabular-nums}
-.flow-review .announcement-timetable .schedule-pending{font-size:12px;margin:0;padding:13px 16px;border:1px dashed var(--flow-line);border-radius:10px;background:color-mix(in srgb,var(--flow-tan) 5%,var(--flow-cream));max-width:100%}
-.flow-review .timetable-tagline{font:italic 16px/1.4 Georgia,serif;color:var(--flow-tan);margin:auto 0 0;padding-top:14px}
-.flow-review .enrolment-title-row{display:flex;justify-content:space-between;align-items:center;gap:20px;width:100%;margin-bottom:13px}
-.flow-review .enrolment-title-row h4{font:400 29px/1.1 'Libre Caslon Display',Georgia,serif;letter-spacing:-.015em;margin:0}
-.flow-review .enrolment-arabic{font:27px/1.5 Amiri,serif;color:var(--flow-tan);white-space:nowrap;flex:none}
-.flow-review .enrolment-description{font-size:12px;line-height:1.8;margin:0 0 12px}
-.flow-review .enrolment-fee{font-size:12px;font-weight:600;color:var(--flow-green);margin:0 0 16px}
-.flow-review .course-announcement-actions{display:flex;align-items:center;flex-wrap:wrap;gap:15px;margin-top:auto}
-.flow-review .course-announcement-actions .button{min-height:38px;padding:9px 17px;font-size:11px}
-.flow-review .course-announcement-actions .text-link{font-size:11px}
-.flow-review .news-briefs{margin-top:20px;gap:24px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
-.flow-review .news-brief{padding-top:16px}
-.flow-review .news-brief .eyebrow{font-size:9px;margin-bottom:7px}
+.flow-review .announcement-timetable .schedule-pending{font-size:12px;line-height:1.7;margin:0;padding:12px 14px;border-radius:10px;background:color-mix(in srgb,var(--flow-green) 8%,var(--flow-cream));max-width:100%}
+.flow-review .timetable-footer{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:10px 18px;width:100%;margin-top:auto;padding-top:14px}
+.flow-review .timetable-tagline{font:italic 15px/1.4 Georgia,serif;color:var(--flow-tan);margin:0}
+.flow-review .course-fee{font-size:11px;line-height:1.6;font-weight:600;color:var(--flow-green);margin:0}
+.flow-review .enrolments-banner{display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:25px;min-width:0;padding-top:4px;color:var(--flow-ink)}
+.flow-review .enrolments-lockup{text-align:center;width:100%;padding-top:6px}
+.flow-review .enrolments-year{display:block;font:800 clamp(84px,9vw,122px)/.95 'DM Sans',Arial,sans-serif;letter-spacing:-.08em;padding-right:.08em;color:transparent;-webkit-text-stroke:1.5px var(--flow-ink)}
+.flow-review .enrolments-lockup h3{font:italic 400 clamp(44px,5.2vw,68px)/1.1 Georgia,serif;letter-spacing:-.05em;color:var(--flow-green);margin:4px 0 0}
+.flow-review .full-prospectus-link{display:flex;flex-direction:column;align-items:center;text-align:center;font:400 18px/1.35 'DM Sans',Arial,sans-serif;letter-spacing:.06em;text-transform:uppercase;padding:10px 12px}
+.flow-review .full-prospectus-link strong{font:inherit}
+.flow-review .full-prospectus-link>span{font-size:26px;line-height:1.1;margin-top:8px}
+.flow-review .full-prospectus-link[href]:hover{text-decoration:underline;text-underline-offset:6px}
+.flow-review .full-prospectus-link[aria-disabled=true]{cursor:default}
+.flow-review .enrolments-contact-strip{width:100%;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding:17px 16px;border:9px solid color-mix(in srgb,var(--flow-tan) 18%,var(--flow-cream));border-radius:10px;background:var(--flow-ink);color:var(--flow-cream)}
+.flow-review .enrolments-contact-strip small{display:block;font-size:8px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px}
+.flow-review .enrolments-contact-strip strong{display:block;font:400 21px/1.15 'Libre Caslon Display',Georgia,serif;white-space:nowrap}
+.flow-review .enrolments-contact-strip>div{display:flex;flex-direction:column;gap:5px;font-size:10px}
+.flow-review .enrolments-contact-strip a:hover{text-decoration:underline;text-underline-offset:3px}
+.flow-review .news-briefs{margin-top:24px;gap:24px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.flow-review .news-brief{padding-top:16px;border-color:color-mix(in srgb,var(--flow-ink) 25%,transparent)}
+.flow-review .news-brief .eyebrow{font-size:9px;margin-bottom:7px;color:var(--flow-ink)}
 .flow-review .news-brief h3{font-size:23px;margin-bottom:9px}
 .flow-review .news-brief p{font-size:11px;line-height:1.7;margin-bottom:10px}
-.flow-review .news-details{margin-top:10px;padding-top:9px;font-size:11px}
+.flow-review .news-details{margin-top:10px;padding-top:9px;border-color:color-mix(in srgb,var(--flow-ink) 25%,transparent);font-size:11px}
 @media(max-width:1100px){
-.flow-review .news-section{padding:30px 25px}
-.flow-review .course-announcement-tabs button{font-size:18px;padding:12px 8px}
-.flow-review .announcement-timetable,.flow-review .announcement-enrolment{padding:22px}
-.flow-review .announcement-timetable h3{font-size:29px}
-.flow-review .enrolment-title-row{gap:12px}
-.flow-review .enrolment-title-row h4{font-size:25px}
-.flow-review .enrolment-arabic{font-size:23px}
-.flow-review .course-day{padding:12px 8px}
+.flow-review .news-section{padding:28px 25px}
+.flow-review .announcement-layout{gap:24px;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)}
+.flow-review .timetable-frame{padding:16px}
+.flow-review .course-announcement-tabs button{font-size:16px;padding:10px 5px;min-height:70px}
+.flow-review .announcement-timetable{padding:20px}
+.flow-review .announcement-timetable h3{font-size:27px}
+.flow-review .course-arabic{font-size:23px}
+.flow-review .course-day{padding:10px 8px}
 .flow-review .course-day strong{font-size:17px}
 .flow-review .course-day span{font-size:10px}
+.flow-review .enrolments-year{font-size:96px}
+.flow-review .enrolments-lockup h3{font-size:51px}
 }
 @media(max-width:900px){
-.flow-review .course-announcement-body{height:350px}
-.flow-review .enrolment-title-row{align-items:start;flex-direction:column;gap:5px;margin-bottom:10px}
-.flow-review .enrolment-arabic{align-self:flex-end}
-.flow-review .course-week{grid-template-columns:repeat(2,minmax(0,1fr))}
-.flow-review .course-day{padding:10px}
-.flow-review .course-day strong{font-size:18px}
-.flow-review .course-day span{font-size:11px}
+.flow-review .announcement-layout{grid-template-columns:1fr}
+.flow-review .enrolments-banner{min-height:310px;padding-top:15px;gap:22px}
+.flow-review .enrolments-contact-strip{max-width:620px}
+.flow-review .course-announcement-body{height:400px}
+.flow-review .enrolments-year{font-size:105px}
+.flow-review .enrolments-lockup h3{font-size:56px}
 }
 @media(max-width:700px){
 .flow-review .news-section{padding:28px 20px}
 .flow-review .news-section h2{font-size:35px}
+.flow-review .timetable-frame{padding:12px}
 .flow-review .course-announcement-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}
-.flow-review .course-announcement-tabs button{min-height:62px;font-size:20px;padding:12px 8px;border-radius:16px 16px 0 0}
-.flow-review .course-announcement-body{grid-template-columns:1fr;height:auto}
-.flow-review .announcement-timetable,.flow-review .announcement-enrolment{padding:22px}
-.flow-review .announcement-enrolment{border-left:0;border-top:1px solid var(--flow-line)}
-.flow-review .announcement-timetable h3{font-size:29px}
+.flow-review .course-announcement-tabs button{min-height:60px;font-size:19px;padding:10px 7px;border-radius:16px 16px 0 0}
+.flow-review .course-announcement-body{height:auto}
+.flow-review .announcement-timetable{padding:20px}
+.flow-review .announcement-timetable h3{font-size:28px}
+.flow-review .timetable-title-row{flex-direction:column;align-items:start;gap:6px}
+.flow-review .course-arabic{align-self:flex-end;font-size:24px}
+.flow-review .timetable-description{font-size:12px}
 .flow-review .timetable-rhythm{margin-bottom:14px}
-.flow-review .timetable-tagline{font-size:15px;padding-top:16px}
 .flow-review .course-week{grid-template-columns:repeat(2,minmax(0,1fr))}
-.flow-review .enrolment-title-row{flex-direction:row;align-items:center;gap:12px}
-.flow-review .enrolment-title-row h4{font-size:26px}
-.flow-review .enrolment-arabic{font-size:23px}
-.flow-review .enrolment-description{font-size:12px}
-.flow-review .course-announcement-actions{gap:12px}
+.flow-review .course-day{padding:11px}
+.flow-review .course-day strong{font-size:19px}
+.flow-review .course-day span{font-size:11px}
+.flow-review .timetable-footer{align-items:start;flex-direction:column;padding-top:18px}
+.flow-review .enrolments-banner{min-height:370px}
 .flow-review .news-briefs{grid-template-columns:1fr}
 }
-@media(max-width:380px){
-.flow-review .enrolment-title-row{align-items:start;flex-direction:column;gap:4px}
-.flow-review .enrolment-arabic{align-self:flex-end}
-.flow-review .course-announcement-actions{align-items:start;flex-direction:column}
+@media(max-width:420px){
+.flow-review .course-announcement-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}
+.flow-review .course-announcement-tabs button{font-size:19px;min-height:58px}
+.flow-review .enrolments-contact-strip{flex-direction:column;align-items:start;gap:15px}
 }
-
-@media(max-width:420px){.flow-review .course-announcement-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.flow-review .course-announcement-tabs button{font-size:19px;min-height:58px}}
-.flow-review .course-announcement-tabs button[aria-selected=true]:focus-visible{outline-color:var(--flow-cream)}

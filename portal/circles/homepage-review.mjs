@@ -8,13 +8,15 @@ export function scheduleSummary(programme){
 }
 export function mountReview(document,{programmesList=programmes,newsList=announcements}={}){
  const $=id=>document.getElementById(id);let selectedProgramme='mothers',news=[...newsList];
+ const fullProspectus=$('full-prospectus-link');
+ if(document.defaultView?.location?.protocol!=='file:'){fullProspectus.removeAttribute('href');fullProspectus.setAttribute('aria-disabled','true');}
  const studioOrigin=document.defaultView?.AcademyHosting?.studioOrigin;
  if(studioOrigin){const link=document.querySelector('[data-review-studio-courses]');if(link)link.href=new URL('/studio/?view=collections&collection=courses',studioOrigin).href;}
  function coursePanel(programme){
   const rows=programme.schedule||[];
   const days=rows.length?'<div class="course-week" data-days="'+rows.length+'">'+rows.map(row=>'<div class="course-day"><strong>'+esc(row.day)+'</strong><span>'+(row.start?esc(row.start+'–'+row.end):'Time to be confirmed')+'</span></div>').join('')+'</div>':'<p class="schedule-pending">Please confirm the 2027 days and times with the Academy.</p>';
-  const arabic=programme.arabic?'<span class="enrolment-arabic" lang="ar" dir="rtl">'+esc(programme.arabic)+'</span>':'';
-  return '<article class="course-announcement-body"><section class="announcement-timetable" aria-labelledby="timetable-course-name"><p class="eyebrow">Timetable · All times SAST</p><h3 id="timetable-course-name">'+esc(programme.name)+'</h3><p class="timetable-rhythm">'+esc(programme.duration)+' · '+esc(programme.format)+'</p><div data-course-schedule data-schedule-summary="'+esc(scheduleSummary(programme))+'">'+days+'</div><p class="timetable-tagline">'+esc(programme.tag)+'</p></section><section class="announcement-enrolment" aria-labelledby="enrolment-course-name"><p class="eyebrow">2027 enrolments</p><div class="enrolment-title-row"><h4 id="enrolment-course-name">'+esc(programme.name)+'</h4>'+arabic+'</div><p class="enrolment-description">'+esc(programme.description)+'</p><p class="enrolment-fee" data-course-fee>'+esc(programme.fee||'Confirm current fees with the Academy')+'</p><div class="course-announcement-actions"><a class="button" href="#contact">Enquire about 2027 ↓</a><a class="text-link" href="'+esc(programme.flyerUrl)+'" target="_blank" rel="noopener noreferrer">View programme flyer ↗</a></div></section></article>';
+  const arabic=programme.arabic?'<span class="course-arabic" lang="ar" dir="rtl">'+esc(programme.arabic)+'</span>':'';
+  return '<article class="course-announcement-body"><section class="announcement-timetable" aria-labelledby="timetable-course-name"><div class="timetable-title-row"><h3 id="timetable-course-name">'+esc(programme.name)+'</h3>'+arabic+'</div><p class="timetable-description">'+esc(programme.description)+'</p><p class="timetable-rhythm">'+esc(programme.duration)+' · '+esc(programme.format)+' · All times SAST</p><div data-course-schedule data-schedule-summary="'+esc(scheduleSummary(programme))+'">'+days+'</div><div class="timetable-footer"><p class="timetable-tagline">'+esc(programme.tag)+'</p><p class="course-fee" data-course-fee>'+esc(programme.fee||'Confirm current fees with the Academy')+'</p></div></section></article>';
  }
  function revealTab(tab){
   const list=$('course-announcement-tabs'),r=tab.getBoundingClientRect(),frame=list.getBoundingClientRect();
