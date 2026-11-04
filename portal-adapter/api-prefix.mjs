@@ -43,6 +43,7 @@ async function portalFetch(path,init){
  else if(url.pathname==='/api/circles/navigation')payload={kind:'navigation',input:{}};
  else if(url.pathname==='/api/circles/access')payload={kind:'access',input:{websiteIds:url.searchParams.getAll('website')}};
  else throw Error('This action belongs in Studio. Open its current workspace.');
+ if(!token)return jsonResponse({error:'Sign in to Academy to continue.',code:'SIGN_IN_REQUIRED'},401);
  const response=await nativeFetch(endpoint,payload,token,init.headers);
  if(nativeToken()!==token)throw new DOMException('Your account changed.','AbortError');
  if(!project||!response.ok)return response;
