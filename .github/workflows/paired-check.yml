@@ -12,8 +12,6 @@ jobs:
     timeout-minutes: 25
     env:
       WRANGLER_SEND_METRICS: "false"
-      REVIEW_BROWSER_MODULES: ${{ runner.temp }}/academy-ui-browser
-      PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/academy-ui-browsers
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -23,6 +21,7 @@ jobs:
         run: npm ci --prefix backend --no-audit --no-fund
       - name: Check public modules and existing native portal boundaries
         run: |
+          node --check tools/homepage-review-check.mjs
           node --check portal/circles/homepage-review.mjs
           node --check portal/circles/homepage-review-data.mjs
           node --check portal/circles-home-entry.mjs
@@ -32,10 +31,16 @@ jobs:
       - name: Build actual Academy Pages assets without deployment
         run: node backend/tools/academy-pages-build.mjs
       - name: Install isolated browser checker on the runner
+        env:
+          REVIEW_BROWSER_MODULES: ${{ runner.temp }}/academy-ui-browser
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/academy-ui-browsers
         run: |
           npm install --prefix "$REVIEW_BROWSER_MODULES" --no-save --package-lock=false --no-audit --no-fund playwright@1.56.1
           node "$REVIEW_BROWSER_MODULES/node_modules/playwright/cli.js" install --with-deps chromium
       - name: Review interaction, accessibility and responsive layout with synthetic data
+        env:
+          REVIEW_BROWSER_MODULES: ${{ runner.temp }}/academy-ui-browser
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/academy-ui-browsers
         run: node tools/homepage-review-check.mjs
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
