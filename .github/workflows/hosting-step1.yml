@@ -1,0 +1,69 @@
+name: Prepare and test Academy homepage migration
+on:
+  workflow_dispatch:
+    inputs:
+      studio_ref:
+        description: Exact reviewed Studio commit to transfer public homepage source from
+        required: true
+        type: string
+      prepare_portal:
+        description: Commit transferred homepage source after checks (no deployment)
+        type: boolean
+        default: true
+permissions:
+  contents: write
+concurrency:
+  group: academy-homepage-source
+  cancel-in-progress: false
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: MaktabForlife/AcademyStudio
+          ref: ${{ inputs.studio_ref }}
+          path: .portal-studio-source
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - run: npm ci --prefix backend --no-audit --no-fund
+      - name: Transfer pinned public homepage source on GitHub
+        env:
+          PORTAL_STUDIO_SOURCE: .portal-studio-source
+          PORTAL_STUDIO_SHA: ${{ inputs.studio_ref }}
+        run: node tools/import-academy-portal.mjs
+      - name: Check hosting, native authority and public relay
+        run: |
+          node --test backend/tests/portal-hosting.test.mjs
+          node --check portal/api.mjs
+          node --check portal/shared/circles-sign-in.mjs
+          node --check portal/studio-authorize.mjs
+          node --check portal/studio-enter.mjs
+          git diff --check
+      - name: Build Academy website from its transferred source
+        env:
+          WRANGLER_SEND_METRICS: "false"
+        run: node backend/tools/academy-pages-build.mjs
+      - name: Preserve tested source in GitHub
+        if: inputs.prepare_portal
+        env:
+          STUDIO_REF: ${{ inputs.studio_ref }}
+        run: |
+          test "$GITHUB_REF_NAME" = studio_dev
+          test "$(git ls-remote origin refs/heads/studio_dev | cut -f1)" = "$GITHUB_SHA"
+          git add -- portal
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m '[CF-Pages-Skip] [skip ci] Transfer tested Academy homepage source from reviewed Studio'
+          git push origin HEAD:refs/heads/studio_dev
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: academy-homepage-check-${{ github.run_id }}
+          path: |
+            portal/provenance.json
+          retention-days: 30

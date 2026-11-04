@@ -1,3 +1,4 @@
+import {copyPortalAssets} from './portal-assets.mjs';
 // feature-admin has a separate Worker; other Git builds retain Development.
 import {mkdtempSync,readFileSync,writeFileSync,cpSync,mkdirSync,existsSync} from 'node:fs';
 import {resolve,join,dirname} from 'node:path';
@@ -15,6 +16,7 @@ export function buildDevelopmentPages(repo,{branch}={}){
   try{
     const target=pagesTarget(branch);
     const assets=join(temporary,'assets'),report=buildAcademyAssets({repo,directory:assets,target});
+    copyPortalAssets(repo,assets);
     const bundle=join(temporary,'bundle'),config=join(temporary,'wrangler.json'),entry=join(temporary,'development-pages-worker.mjs');
     writeFileSync(entry,`import {serveAcademySite} from ${JSON.stringify(join(repo,'backend/tools/academy-site.mjs'))};\nexport default {fetch:(request,env)=>serveAcademySite(request,env,${JSON.stringify({pages:true,branch,syntheticOnly:false})})};\n`);
     writeFileSync(config,JSON.stringify({name:'academy-pages-build',main:entry,compatibility_date:'2026-10-14'}));

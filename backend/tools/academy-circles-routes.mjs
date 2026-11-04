@@ -1,5 +1,6 @@
+import {hosting} from '../src/academy/hosting.mjs';
 // Static presentation routes only. These never supply identity or permissions.
-export const circlesOrigin='https://maktab4life.org';
+export const circlesOrigin=hosting().academyPortalOrigin;
 export const academyCirclesPages=new Set([
  'academy/index.html','academy/admin/index.html','academy/calendar/index.html',
  'academy/course-companion/surah-kahf/index.html','academy/course-websites/index.html',
@@ -43,6 +44,6 @@ export function academyCirclesAlias(url,path){
  return null;
 }
 export function circlesPageUnavailable(method='GET'){
- const html='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Page unavailable · Umm Abbad Academy</title><style>body{margin:0;background:#faf7f2;color:#554653;font:1rem system-ui,sans-serif}main{max-width:42rem;margin:12vh auto;padding:2rem}h1{font:2.3rem Georgia,serif}a{display:inline-block;padding:.8rem 1.2rem;border:1px solid #bdacb8;border-radius:1rem;color:inherit}</style></head><body><main><p>Umm Abbad Academy</p><h1>This page is no longer available</h1><p>Open your dashboard to continue with your current account.</p><a href="https://maktab4life.org/">Open Academy</a></main></body></html>';
+ const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Page unavailable · Umm Abbad Academy</title><style>body{margin:0;background:#faf7f2;color:#554653;font:1rem system-ui,sans-serif}main{max-width:42rem;margin:12vh auto;padding:2rem}h1{font:2.3rem Georgia,serif}a{display:inline-block;padding:.8rem 1.2rem;border:1px solid #bdacb8;border-radius:1rem;color:inherit}</style></head><body><main><p>Umm Abbad Academy</p><h1>This page is no longer available</h1><p>Open your dashboard to continue with your current account.</p><a href="${circlesOrigin}/">Open Academy</a></main></body></html>`;
  return new Response(method==='HEAD'?null:html,{status:404,headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Robots-Tag':'noindex, nofollow','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'"}});
 }

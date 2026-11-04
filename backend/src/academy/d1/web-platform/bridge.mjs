@@ -29,7 +29,7 @@ export async function pendingAccount(env,db,accountId){
  for(const row of rows.slice(0,40)){const item=await signedDelivery(env,row),bytes=new TextEncoder().encode(JSON.stringify(item)).length;if(size+bytes>230_000)break;size+=bytes;deliveries.push(item);acknowledge.push(row.operation_id);}
  return {deliveries,acknowledge,more:rows.length>deliveries.length};
 }
-async function completeSignIn(env,db,session){
+export async function completeSignIn(env,db,session){
  const result=await pendingAccount(env,db,session.account_id);if(result.more)return {...result,continuation:session.source_ref};
  const code=random(),event={type:'handoff',sourceRef:session.source_ref,accountId:session.account_id,epoch:session.epoch,codeHash:await sha256(code),challenge:session.challenge,state:session.state,expiresAt:Date.now()+60_000};
  const delivery={issuedAt:Date.now(),operationId:crypto.randomUUID(),stream:'handoff:'+event.codeHash,version:1,event},signed=await signedHeaders(env.ACADEMY_TO_WEBSITE_SECRET,'/internal/academy/events',delivery);result.deliveries.push({delivery,signature:signed.headers['X-Maktab-Signature']});return {...result,code};

@@ -1,3 +1,4 @@
+import {servePortal} from './portal-site.mjs';
 import {assetPath} from './browser-site/worker.mjs';
 import {publicPdfTarget} from './academy-public-media.mjs';
 import {onRequestGet as catalogue} from '../../functions/academy/open-library/catalogue.js';
@@ -9,6 +10,7 @@ export async function serveAcademySite(request,env,{pages=false,branch=siteBranc
   const url=new URL(request.url);
   if(['/api/feature-preview/health','/api/site/health'].includes(url.pathname))return Response.json({success:true,version:siteVersion,branch,syntheticOnly},{headers:{'Cache-Control':'no-store'}});
   if(!['GET','HEAD'].includes(request.method))return new Response('Method not allowed',{status:405});
+  const portal=await servePortal(request,env);if(portal)return portal;
   // The release builder copies only reviewed public scripts/styles/artwork to
   // this content-addressed namespace. Documents and private APIs never enter it.
   if(/^\/_assets\/[a-f0-9]{64}\//.test(url.pathname)){

@@ -1,0 +1,102 @@
+// Native Academy homepage adapter. Cached display data never grants access.
+import {hosting} from '../hosting.mjs';
+import {bodyJSON,fail,id,random,signedHeaders,websiteServerOrigin,sha256} from './web-platform/protocol.mjs';
+import {enqueueAccount,pendingAccount,completeSignIn,sourceSession} from './web-platform/bridge.mjs';
+import {prepareAccountAccess} from './web-platform/access.mjs';
+import {programmeChoice} from './web-platform/navigation.mjs';
+import {dashboardChoice,dashboardSummary,dashboardJoinInput,dashboardTimetableAudience} from './web-platform/dashboard.mjs';
+import {nativeJoinOwnership} from './web-platform/native-join.mjs';
+import {verifySessionToken} from '../../lib/auth-primitives.js';
+const only=(value,keys)=>{if(!value||Array.isArray(value)||typeof value!=='object'||Object.keys(value).some(k=>!keys.includes(k)))throw fail('Choose a valid Academy action.');return value;};
+const permissionKey=state=>JSON.stringify([state.account.account_id,state.account.credential_epoch,state.account.global_admin,state.roles,state.contexts,state.subscriptions,state.monthlyMedia]);
+export function portalConfiguration(){const h=hosting();return {academyOrigin:h.academyPortalOrigin,studioOrigin:h.studioOrigin,hifzOrigin:h.hifzOrigin,authorityMode:'ACADEMY',nativePortal:true};}
+async function sendDeliveries(env,db,result,fetcher){
+ for(const item of result.deliveries||[]){
+  const response=await fetcher(websiteServerOrigin(env).origin+'/internal/academy/events',{method:'POST',headers:{'Content-Type':'application/json','X-Maktab-Signature':item.signature},body:JSON.stringify(item.delivery),redirect:'manual',signal:AbortSignal.timeout(8000)});
+  if(!response.ok){await response.body?.cancel();throw fail('Your account is still being connected. Please retry.',503,'ACCOUNT_DELIVERY_PENDING');}await response.body?.cancel();
+ }
+ if(result.acknowledge?.length)await db.prepare('UPDATE website_platform_outbox SET acknowledged=1 WHERE operation_id IN(SELECT value FROM json_each(?))').bind(JSON.stringify(result.acknowledge)).run();
+}
+export async function synchronizePortalAccount(env,db,accountId,fetcher=fetch){
+ await enqueueAccount(db,accountId,env);await prepareAccountAccess(db,accountId);
+ for(let page=0;page<4;page++){const result=await pendingAccount(env,db,accountId);await sendDeliveries(env,db,result,fetcher);if(!result.more)return;}
+ throw fail('Older account changes are still being connected. Please retry.',503,'ACCOUNT_DELIVERY_PENDING');
+}
+export async function portalStudioSummary(env,auth,{action='bootstrap',websiteIds,offeringId,sessionId}={},fetcher=fetch){
+ const value={issuedAt:Date.now(),accountId:auth.state.account.account_id,epoch:auth.state.account.credential_epoch,globalAdmin:Boolean(auth.state.account.global_admin),sessionId:auth.sid,action,...(websiteIds?{websiteIds}:{}),...(offeringId?{offeringId,lessonSessionId:sessionId}:{})};
+ const path=action==='join'?'/internal/studio/hub-join':'/internal/studio/hub-summary',signed=await signedHeaders(env.ACADEMY_TO_WEBSITE_SECRET,path,value);
+ const response=await fetcher(websiteServerOrigin(env).origin+path,{method:'POST',headers:signed.headers,body:signed.payload,redirect:'manual',signal:AbortSignal.timeout(8000)}),result=await bodyJSON(response.body,262144);
+ if(!response.ok)throw fail(result.error||'Studio access could not be checked.',response.status>=500?503:response.status,result.code||'STUDIO_UNAVAILABLE');
+ return result;
+}
+export async function nativePortal(request,env,{repository,authenticate,read,mint,login,fetcher=fetch}){
+ const path=new URL(request.url).pathname,config=portalConfiguration();
+ if(path==='/api/academy/hub/config'&&request.method==='GET')return config;
+ if(request.method!=='POST')throw fail('Use a POST request.',405);
+ const origin=request.headers.get('Origin'),allowed=new Set([hosting().academyPortalOrigin,...hosting().academyLegacyOrigins]);
+ if(!allowed.has(origin))throw fail('Reopen this action from Academy.',403,'ORIGIN_REQUIRED');
+ const input=await bodyJSON(request.body,8192);
+ if(path==='/api/academy/hub/login'){
+  only(input,['uniqueid','pin','setup','pinConfirmation']);
+  const result=await login(input),header='Bearer '+result.token;
+  const auth=await authenticate(new Request(request.url,{headers:{Authorization:header}}));
+  try{await admitted(repository,auth);await synchronizePortalAccount(env,repository.coreDb,auth.state.account.account_id,fetcher);}catch(error){await repository.revoke(auth.sid,auth.state.account.account_id);throw error;}
+  return result;
+ }
+ const auth=await authenticate(request),state=auth.authority||auth.state;
+ await admitted(repository,auth);
+ const before=permissionKey(state),current=async()=>{
+  const latest=await authenticate(request);await admitted(repository,latest);
+  if(latest.sid!==auth.sid||permissionKey(latest.authority||latest.state)!==before)throw fail('Your Academy account or permissions changed. Reopen this page.',409,'ACCESS_REFRESH_REQUIRED');
+ };
+ const studio=async options=>{const result=await portalStudioSummary(env,auth,options,fetcher);await current();return result;};
+ const nativeScopes=async()=>(await repository.coreDb.prepare('SELECT s.activity_key,m.offering_id,m.kind,o.state access_owner FROM json_each(?) a JOIN website_platform_access_scopes s ON s.activity_key=a.value COLLATE NOCASE JOIN website_platform_timetable_scopes m USING(activity_key) LEFT JOIN website_platform_access_ownership o INDEXED BY website_platform_ownership_nocase ON o.activity_key=s.activity_key COLLATE NOCASE WHERE s.enabled=1').bind(JSON.stringify(state.activities.slice(0,100).map(a=>a.activity_key))).all()).results;
+ const dashboard=async value=>{
+  only(value,['mode','refresh','date','weekStart']);
+  const produce=async()=>dashboardSummary(state,env,value,(p,b,m)=>read(p,b,m,request),await nativeScopes());
+  // Existing native readers keep their publication/permission-aware snapshots.
+  // Do not cache the combined message/note/enrolment result under a timetable-only revision.
+  const data=await produce();
+  await current();return {...data,checkedAt:Date.now(),serverTime:Date.now()};
+ };
+ if(path==='/api/academy/hub/refresh'){only(input,[]);await synchronizePortalAccount(env,repository.coreDb,state.account.account_id,fetcher);await current();return {verifiedAt:Date.now()};}
+ if(path==='/api/academy/hub/studio-join'){only(input,['offeringId','sessionId']);return studio({action:'join',offeringId:id(input.offeringId),sessionId:id(input.sessionId)});}
+ if(path==='/api/academy/hub/read'){
+  only(input,['kind','input']);const value=input.input||{};
+  if(input.kind==='navigation'){only(value,[]);return (await studio({action:'navigation'})).navigation;}
+  if(input.kind==='access'){only(value,['websiteIds']);return (await studio({action:'access',websiteIds:value.websiteIds})).rights;}
+  if(input.kind==='dashboard')return dashboard(value);
+  if(input.kind!=='bootstrap')throw fail('Choose a valid Academy view.');
+  only(value,['mode','preferredMode','preferredAccount']);
+  const mode=value.mode||value.preferredAccount===state.account.account_id&&value.preferredMode||undefined;
+  const claims=await verifySessionToken((request.headers.get('Authorization')||'').slice(7),env);
+  const account={accountId:state.account.account_id,displayName:state.account.display_name,globalAdmin:Boolean(state.account.global_admin),cacheSession:await sha256(auth.sid),verifiedAt:Math.min(Date.now(),claims.iat*1000),sessionExpiresAt:claims.exp*1000};
+  const parts=await Promise.allSettled([studio({action:'bootstrap'}),dashboard(mode?{mode}:{})]),errors={};
+  for(const [i,key]of ['navigation','dashboard'].entries())if(parts[i].status==='rejected'){const e=parts[i].reason;if(e.status===401||e.code==='ACCESS_REFRESH_REQUIRED')throw e;errors[key]={status:e.status||503,code:e.code||'UNAVAILABLE'};}
+  await current();return {configuration:config,account,navigation:parts[0].status==='fulfilled'?parts[0].value.navigation:null,dashboard:parts[1].status==='fulfilled'?parts[1].value:null,errors};
+ }
+ if(path==='/api/academy/hub/open'){
+  only(input,['navigation','dashboard']);if(Boolean(input.navigation)===Boolean(input.dashboard))throw fail('Choose one destination.');
+  const choice=input.dashboard?dashboardChoice(state,input.dashboard):programmeChoice(state,input.navigation,env);
+  await current();return {token:await mint(auth,choice.context||auth.context),destination:choice.destination,circles:{mode:input.dashboard?.mode||'learn',returnUrl:config.academyOrigin+'/'}};
+ }
+ if(path==='/api/academy/hub/join'){
+  const selected=dashboardJoinInput(state,input);await nativeJoinOwnership(repository.coreDb,state.account.account_id,selected.target);
+  let result;try{result=await read('/api/academy/lesson/join',{joinKey:selected.joinKey,date:selected.date},dashboardTimetableAudience(state,selected.mode),request);}
+  catch(error){if(error.status!==403||error.code!=='LESSON_UNAVAILABLE')throw error;result=await read('/api/academy/public-lesson/join',{joinKey:selected.joinKey,date:selected.date},'learn',request);}
+  await current();await nativeJoinOwnership(repository.coreDb,state.account.account_id,selected.target);return result;
+ }
+ if(path==='/api/academy/hub/studio-start'){
+  only(input,['challenge','state']);if(![input.challenge,input.state].every(v=>/^[A-Za-z0-9_-]{43}$/.test(v||'')))throw fail('Reopen Studio from Academy.');
+  const db=repository.coreDb,sourceRef=random();
+  await db.prepare('INSERT INTO website_platform_sessions VALUES(?,?,?,?,?,?,?,?)').bind(sourceRef,state.account.account_id,auth.sid,state.account.credential_epoch,JSON.stringify(auth.context),Date.now()+7*86400_000,input.challenge,input.state).run();
+  await synchronizePortalAccount(env,db,state.account.account_id,fetcher);
+  await current();const result=await completeSignIn(env,db,await sourceSession(db,sourceRef));if(result.more)throw fail('Your account connection is still being prepared.',503);
+  await sendDeliveries(env,db,result,fetcher);await current();return {code:result.code};
+ }
+ throw fail('This Academy action is unavailable.',404);
+}
+async function admitted(repository,auth){
+ const row=await repository.coreDb.prepare('SELECT active,admitted,epoch,global_admin FROM website_platform_account_state WHERE account_id=?').bind(auth.state.account.account_id).first();
+ if(!row?.active||!row.admitted||row.epoch!==auth.state.account.credential_epoch||Boolean(row.global_admin)!==Boolean(auth.state.account.global_admin))throw fail('Your Academy account is unavailable or changed.',401,'SESSION_ENDED');
+}
