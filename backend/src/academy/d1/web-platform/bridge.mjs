@@ -50,7 +50,7 @@ export async function bridge(request,env,{login,mint,navigation,dashboard,destin
   const session=await sourceSession(db,code.source_ref),guard=crypto.randomUUID();
   await db.batch([db.prepare('INSERT INTO website_platform_guards VALUES(?,EXISTS(SELECT 1 FROM website_platform_return_codes WHERE code_hash=? AND used=0 AND expires_at>?))').bind(guard,hash,Date.now()),db.prepare('UPDATE website_platform_return_codes SET used=1 WHERE code_hash=?').bind(hash),db.prepare('DELETE FROM website_platform_guards WHERE guard_id=?').bind(guard)]);
   const target=code.return_context?JSON.parse(code.return_context):null,choice=target?.navigation?await navigation(session,target.navigation):target?.dashboard?await destination(session,target.dashboard):null;
-  const mode=target?.dashboard?.mode||'learn',circles={mode,returnUrl:hosting().academyPortalOrigin+'/?workspace='+mode};
+  const mode=target?.dashboard?.mode||'learn',circles={mode,returnUrl:(target?.entry==='portal'?hosting().academyPortalOrigin:env.WEBSITE_PLATFORM_ORIGIN)+'/?workspace='+mode};
   return {token:await mint(session,choice?.context),websiteOrigin:env.WEBSITE_PLATFORM_ORIGIN,circles,...(choice?{destination:choice.destination}:target?{library:target}:{})};
  }
  if(request.method!=='POST')throw fail('Use a POST request.',405);
