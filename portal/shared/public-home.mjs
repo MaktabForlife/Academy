@@ -2,6 +2,7 @@
 // explicitly reviewed first publication; an empty publication stays empty.
 import {announcementDisplay,openAnnouncement} from './announcements-view.mjs';
 import {announcementFeed} from './announcement-feed.mjs';
+import {programmeProspectus} from './programme-prospectus.mjs';
 import {accessBadge} from './access-badge.mjs';
 import {approvedCourseCover} from './approved-course-artwork.mjs';
 export function publicHome(document){
@@ -11,7 +12,10 @@ export function publicHome(document){
   const stylesheet='/shared/announcements-view.css';if(!document.querySelector('link[href="'+stylesheet+'"]')){const link=document.createElement('link');link.rel='stylesheet';link.href=stylesheet;document.head.append(link);}
   const panel=document.createElement('div');panel.className='announcement-public-panel';panel.setAttribute('aria-live','polite');panel.innerHTML='<p role="status">Loading announcements…</p>';reel.before(panel);reel.hidden=true;
   const oldControls=[...section.querySelectorAll('.reel-controls')];oldControls.forEach(node=>node.hidden=true);
-  let mounted=null;const show=value=>{if(!section.isConnected)return;section.hidden=!value.announcements.length;section.classList.add('announcements-v2');if(mounted)mounted.update(value.announcements);else mounted=announcementDisplay(panel,{announcements:value.announcements,onOpen:(row,opener)=>openAnnouncement(document,row,{opener})});};
+  const brochureStyles='/shared/programme-prospectus.css';if(!document.querySelector('link[href="'+brochureStyles+'"]')){const link=document.createElement('link');link.rel='stylesheet';link.href=brochureStyles;document.head.append(link);}
+  const brochureHost=document.createElement('div');panel.before(brochureHost);
+  const brochure=programmeProspectus(brochureHost,{programmes:view.AcademyProspectus2027||[],assetBase:document.baseURI||view.location.href,onOpen:(row,opener)=>openAnnouncement(document,row,{opener})});
+  let mounted=null;const show=value=>{if(!section.isConnected)return;section.hidden=!value.announcements.length;section.classList.add('announcements-v2');const prospectus=brochure.update(value.announcements),remaining=prospectus?value.announcements.filter(row=>row.id!==prospectus.id):value.announcements;panel.hidden=!remaining.length;if(mounted)mounted.update(remaining);else mounted=announcementDisplay(panel,{announcements:remaining,onOpen:(row,opener)=>openAnnouncement(document,row,{opener})});};
   const load=async()=>{try{show(await feed.load());}catch(error){if(!section.isConnected)return;if(feed.saved){show(feed.saved);return;}if(error.code==='ANNOUNCEMENTS_NOT_ACTIVATED'){panel.remove();reel.hidden=false;oldControls.forEach(node=>node.hidden=false);legacyAnnouncements(section,reel);return;}panel.innerHTML='<p role="status">Announcements could not be loaded.</p><button type="button">Try again</button>';panel.querySelector('button').onclick=load;}};void load();
  }
  function legacyAnnouncements(section,reel){
