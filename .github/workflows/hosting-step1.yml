@@ -40,7 +40,7 @@ jobs:
         run: node tools/import-academy-portal.mjs
       - name: Check hosting, native authority and public relay
         run: |
-          node --test backend/tests/portal-hosting.test.mjs
+          node --test backend/tests/portal-hosting.test.mjs backend/tests/academy-circles-native.test.mjs backend/tests/academy-circles-native-join.test.mjs backend/tests/academy-circles-free-join.test.mjs backend/tests/academy-hifz-handoff.test.mjs backend/tests/academy-hifz-bridge-ui.test.mjs
           node --check portal/api.mjs
           node --check portal/shared/circles-sign-in.mjs
           node --check portal/studio-authorize.mjs
@@ -58,8 +58,10 @@ jobs:
           test "$GITHUB_REF_NAME" = studio_dev
           test "$(git ls-remote origin refs/heads/studio_dev | cut -f1)" = "$GITHUB_SHA"
           git add -- portal
-          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m '[CF-Pages-Skip] [skip ci] Transfer tested Academy homepage source from reviewed Studio'
-          git push origin HEAD:refs/heads/studio_dev
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m '[CF-Pages-Skip] [skip ci] Transfer tested Academy homepage source from reviewed Studio'
+            git push origin HEAD:refs/heads/studio_dev
+          fi
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

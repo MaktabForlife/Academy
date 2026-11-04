@@ -13,5 +13,5 @@ export function hosting(value=configured){
 export function hostingEnvironment(env){
  const h=hosting(),origins=new Set((env.ALLOWED_ORIGINS||'').split(',').filter(Boolean));origins.add(h.academyPortalOrigin);
  for(const origin of h.academyLegacyOrigins)origins.add(origin);
- return {...env,ALLOWED_ORIGINS:[...origins].join(',')};
+ return {...env,ALLOWED_ORIGINS:[...origins].join(','),WEBSITE_PLATFORM_ORIGIN:h.studioOrigin,WEBSITE_PLATFORM_SERVER_ORIGIN:h.studioBackendOrigin};
 }

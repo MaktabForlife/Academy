@@ -8,7 +8,7 @@ export async function servePortal(request,env,{fetcher=fetch}={}){
  if(['/','/index.html'].includes(p))return asset('/index.html');
  if(p==='/hosting-config.js')return new Response(request.method==='HEAD'?null:'globalThis.AcademyHosting=Object.freeze('+JSON.stringify(h)+');',{headers:{...jsonHeaders,'Content-Type':'text/javascript; charset=utf-8'}});
  if(p==='/academy/studio-authorize/'||p==='/academy/studio-authorize')return asset('/studio-authorize.html');
- if(/^\/(?:studio(?:\/|$)|circles\/(?:free-learning\.html|academy\/))/.test(p))return asset('/studio-enter.html');
+ if(p==='/studio'||p.startsWith('/studio/')||p==='/circles/free-learning.html'||['/circles/academy/mothers/surah-al-baqarah/','/circles/academy/mothers/surah-al-baqarah/index.html'].includes(p))return asset('/studio-enter.html');
  if(p.startsWith('/portal/')&&['studio-authorize.mjs','studio-enter.mjs'].includes(p.slice(8)))return asset(p);
  if(/^\/circles\/(?:prospectus[^/]*|memorisation[^/]*)\.html$/.test(p))return new Response(null,{status:302,headers:{Location:h.studioOrigin+p+url.search,'Cache-Control':'no-store'}});
  if(paths.has(p)&&!p.endsWith('.html')&&!p.endsWith('provenance.json')&&!p.endsWith('assets.json'))return asset(p);
@@ -22,6 +22,6 @@ export async function servePortal(request,env,{fetcher=fetch}={}){
  headers.set('X-Maktab-Front-Door',new URL(h.studioOrigin).host);
  // This relay only serves explicitly public snapshots/artwork. No credentials,
  // database binding, dynamic upstream, method replay or private cache is used.
- try{const response=await fetcher(new Request(upstream,{method:request.method,headers,redirect:'manual',signal:AbortSignal.timeout(8000)}));return new Response(request.method==='HEAD'?null:response.body,{status:response.status,headers:response.headers});}
+ try{const response=await fetcher(new Request(upstream,{method:request.method,headers,redirect:'manual',signal:AbortSignal.timeout(p==='/api/public/header-date'?20000:8000)}));return new Response(request.method==='HEAD'?null:response.body,{status:response.status,headers:response.headers});}
  catch{return new Response('This information is temporarily unavailable.',{status:503,headers:jsonHeaders});}
 }

@@ -20,9 +20,10 @@ const awaitPrefix=await readFile(resolve(root,'portal-adapter/api-prefix.mjs'),'
 const patch=async(path,fn)=>{const file=resolve(root,'portal',path),c=await readFile(file,'utf8');await writeFile(file,fn(c));};
 await patch('index.html',c=>c.replace('<head>','<head><script src="/hosting-config.js"></script>'));
 await patch('api.mjs',c=>{assert(c.includes('await fetch(path,{method,credentials:'));return (awaitPrefix)+'\n'+c.replace('await fetch(path,{method,credentials:','await portalFetch(path,{method,credentials:');});
+await patch('shared/canonical-circles.mjs',c=>c.replace("export const canonicalAcademyOrigin='https://academy-maktab4life.pages.dev';",'export const canonicalAcademyOrigin=globalThis.location.origin;'));
 await copyFile(resolve(root,'portal-adapter/circles-sign-in.mjs'),resolve(root,'portal/shared/circles-sign-in.mjs'));
 for(const name of ['studio-authorize.mjs','studio-authorize.html','studio-enter.mjs','studio-enter.html'])await copyFile(resolve(root,'portal-adapter',name),resolve(root,'portal',name));
-async function index(dir){for(const entry of await readdir(dir,{withFileTypes:true})){const file=resolve(dir,entry.name);if(entry.isDirectory())await index(file);else{const name=relative(resolve(root,'portal'),file);manifest[name]=createHash('sha256').update(await readFile(file)).digest('hex');}}}
+async function index(dir){for(const entry of await readdir(dir,{withFileTypes:true})){const file=resolve(dir,entry.name);if(entry.isDirectory())await index(file);else{const name=relative(resolve(root,'portal'),file);if(['assets.json','provenance.json'].includes(name))continue;manifest[name]=createHash('sha256').update(await readFile(file)).digest('hex');}}}
 await index(resolve(root,'portal'));
 await writeFile(resolve(root,'portal/assets.json'),JSON.stringify(Object.keys(manifest).sort(),null,2)+'\n');
 await writeFile(resolve(root,'portal/provenance.json'),JSON.stringify({upstream:'MaktabForlife/AcademyStudio',commit:sha,transferredSourceFiles:count,owner:'MaktabForlife/Academy',privateMediaCopied:false,manifest},null,2)+'\n');

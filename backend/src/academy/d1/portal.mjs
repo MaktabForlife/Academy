@@ -23,13 +23,14 @@ export async function synchronizePortalAccount(env,db,accountId,fetcher=fetch){
  throw fail('Older account changes are still being connected. Please retry.',503,'ACCOUNT_DELIVERY_PENDING');
 }
 export async function portalStudioSummary(env,auth,{action='bootstrap',websiteIds,offeringId,sessionId}={},fetcher=fetch){
- const value={issuedAt:Date.now(),accountId:auth.state.account.account_id,epoch:auth.state.account.credential_epoch,globalAdmin:Boolean(auth.state.account.global_admin),sessionId:auth.sid,action,...(websiteIds?{websiteIds}:{}),...(offeringId?{offeringId,lessonSessionId:sessionId}:{})};
+ const state=auth.authority||auth.state;
+ const value={issuedAt:Date.now(),accountId:state.account.account_id,epoch:state.account.credential_epoch,globalAdmin:Boolean(state.account.global_admin),sessionId:auth.sid,...(action==='join'?{}:{action}),...(websiteIds?{websiteIds}:{}),...(offeringId?{offeringId,lessonSessionId:sessionId}:{})};
  const path=action==='join'?'/internal/studio/hub-join':'/internal/studio/hub-summary',signed=await signedHeaders(env.ACADEMY_TO_WEBSITE_SECRET,path,value);
  const response=await fetcher(websiteServerOrigin(env).origin+path,{method:'POST',headers:signed.headers,body:signed.payload,redirect:'manual',signal:AbortSignal.timeout(8000)}),result=await bodyJSON(response.body,262144);
  if(!response.ok)throw fail(result.error||'Studio access could not be checked.',response.status>=500?503:response.status,result.code||'STUDIO_UNAVAILABLE');
  return result;
 }
-export async function nativePortal(request,env,{repository,authenticate,read,mint,login,fetcher=fetch}){
+export async function nativePortal(request,env,{repository,authenticate,read,mint,login,fetcher=env.WEBSITE_PLATFORM_SERVICE?.fetch.bind(env.WEBSITE_PLATFORM_SERVICE)||fetch}){
  const path=new URL(request.url).pathname,config=portalConfiguration();
  if(path==='/api/academy/hub/config'&&request.method==='GET')return config;
  if(request.method!=='POST')throw fail('Use a POST request.',405);
@@ -94,16 +95,24 @@ export async function nativePortal(request,env,{repository,authenticate,read,min
   await current();return {code};
  }
  if(path==='/api/academy/hub/studio-start'){
-  only(input,['challenge','state']);if(![input.challenge,input.state].every(v=>/^[A-Za-z0-9_-]{43}$/.test(v||'')))throw fail('Reopen Studio from Academy.');
-  const db=repository.coreDb,sourceRef=random();
-  await db.prepare('INSERT INTO website_platform_sessions VALUES(?,?,?,?,?,?,?,?)').bind(sourceRef,state.account.account_id,auth.sid,state.account.credential_epoch,JSON.stringify(auth.context),Date.now()+7*86400_000,input.challenge,input.state).run();
-  await synchronizePortalAccount(env,db,state.account.account_id,fetcher);
-  await current();const result=await completeSignIn(env,db,await sourceSession(db,sourceRef));if(result.more)throw fail('Your account connection is still being prepared.',503);
-  await sendDeliveries(env,db,result,fetcher);await current();return {code:result.code};
+  only(input,['challenge','state','sourceRef']);if(![input.challenge,input.state].every(v=>/^[A-Za-z0-9_-]{43}$/.test(v||'')))throw fail('Reopen Studio from Academy.');
+  const db=repository.coreDb;let session=null;
+  if(input.sourceRef&&/^[A-Za-z0-9_-]{43}$/.test(input.sourceRef))try{const candidate=await sourceSession(db,input.sourceRef);if(candidate.session_id===auth.sid&&candidate.account_id===state.account.account_id&&candidate.epoch===state.account.credential_epoch)session=candidate;}catch{/* A stale hint is never authority. */}
+  if(!session){const sourceRef=random();await db.prepare('INSERT INTO website_platform_sessions VALUES(?,?,?,?,?,?,?,?)').bind(sourceRef,state.account.account_id,auth.sid,state.account.credential_epoch,JSON.stringify(auth.context),Date.now()+7*86400_000,input.challenge,input.state).run();session=await sourceSession(db,sourceRef);}
+  // Normal return visits need no new identity/access outbox. Refresh once only
+  // if the destination reports stale master proof, using existing native gates.
+  try{await portalStudioSummary(env,auth,{action:'navigation'},fetcher);}catch(error){
+   if(!['ACCESS_REFRESH_REQUIRED','STATUS_EXPIRED','SIGN_IN_REQUIRED'].includes(error.code))throw error;
+   await synchronizePortalAccount(env,db,state.account.account_id,fetcher);
+   await portalStudioSummary(env,auth,{action:'navigation'},fetcher);
+  }
+  await current();const result=await completeSignIn(env,db,{...session,challenge:input.challenge,state:input.state});if(result.more)throw fail('Your account connection is still being prepared.',503);
+  await sendDeliveries(env,db,result,fetcher);await current();return {code:result.code,sourceRef:session.source_ref};
  }
  throw fail('This Academy action is unavailable.',404);
 }
 async function admitted(repository,auth){
- const row=await repository.coreDb.prepare('SELECT active,admitted,epoch,global_admin FROM website_platform_account_state WHERE account_id=?').bind(auth.state.account.account_id).first();
- if(!row?.active||!row.admitted||row.epoch!==auth.state.account.credential_epoch||Boolean(row.global_admin)!==Boolean(auth.state.account.global_admin))throw fail('Your Academy account is unavailable or changed.',401,'SESSION_ENDED');
+ const state=auth.authority||auth.state;
+ const row=await repository.coreDb.prepare('SELECT active,admitted,epoch,global_admin FROM website_platform_account_state WHERE account_id=?').bind(state.account.account_id).first();
+ if(!row?.active||!row.admitted||row.epoch!==state.account.credential_epoch||Boolean(row.global_admin)!==Boolean(state.account.global_admin))throw fail('Your Academy account is unavailable or changed.',401,'SESSION_ENDED');
 }

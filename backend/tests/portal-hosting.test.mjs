@@ -37,3 +37,10 @@ test('homepage and Studio entry are served from Academy source without database 
  await servePortal(new Request('https://new.example/studio/?website=test'),env);
  assert.deepEqual(paths,['/index.html','/studio-enter.html']);
 });
+
+test('Global Admin display proof uses native authority rather than Learn projection',async()=>{
+ const env={ACADEMY_TO_WEBSITE_SECRET:'synthetic-test-only-connection-key-0000000000000000',WEBSITE_PLATFORM_SERVER_ORIGIN:'https://backend.example.org'};
+ const native={account_id:'admin',credential_epoch:2,global_admin:true};
+ const auth={sid:'native-admin-session',state:{account:{...native,global_admin:false}},authority:{account:native}};
+ await portalStudioSummary(env,auth,{action:'navigation'},async(_url,init)=>{assert.equal(JSON.parse(init.body).globalAdmin,true);return Response.json({navigation:{}});});
+});
