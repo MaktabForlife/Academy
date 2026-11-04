@@ -55,6 +55,11 @@ try{
     const card=host.querySelector('.course-announcement-card'),r=card.getBoundingClientRect(),list=host.querySelector('[role=tablist]'),body=host.querySelector('.announcement-timetable');
     return {tabs:list.scrollWidth<=list.clientWidth+1&&[...list.children].every(tab=>{const t=tab.getBoundingClientRect();return t.left>=r.left-1&&t.right<=r.right+1&&tab.scrollWidth<=tab.clientWidth+1&&tab.scrollHeight<=tab.clientHeight+1;}),content:body.scrollWidth<=body.clientWidth+1&&body.scrollHeight<=body.clientHeight+1,page:document.documentElement.scrollWidth<=innerWidth};
    });
+   if(!fit.tabs||!fit.content||!fit.page){
+    const diagnostic=await page.locator('.announcement-timetable').evaluate(body=>({bounds:body.getBoundingClientRect().toJSON(),client:[body.clientWidth,body.clientHeight],scroll:[body.scrollWidth,body.scrollHeight],children:[...body.querySelectorAll('*')].filter(node=>{const r=node.getBoundingClientRect(),b=body.getBoundingClientRect();return r.right>b.right+1||r.bottom>b.bottom+1||node.scrollWidth>node.clientWidth+1||node.scrollHeight>node.clientHeight+1;}).map(node=>({tag:node.tagName,class:node.className,text:node.textContent.slice(0,90),bounds:node.getBoundingClientRect().toJSON(),client:[node.clientWidth,node.clientHeight],scroll:[node.scrollWidth,node.scrollHeight]}))}));
+    console.log('BROCHURE_LAYOUT_DIAGNOSTIC '+JSON.stringify({width,id,fit,diagnostic}));
+    await page.locator('.academy-prospectus-announcement').screenshot({path:resolve(out,'native-homepage-failure.png')});
+   }
    assert(fit.tabs&&fit.content&&fit.page,'Clipped native brochure at '+width+'px for '+id+': '+JSON.stringify(fit));
   }
   await page.locator('[data-prospectus-course=mothers]').click();

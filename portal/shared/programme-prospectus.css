@@ -110,3 +110,15 @@
 .academy-prospectus-announcement .enrolments-audience{margin:0;padding:0;max-width:100%;font:500 11px/1.6 "DM Sans",Arial,sans-serif;text-align:center;border:0;background:transparent;color:var(--flow-ink);text-decoration:underline;text-underline-offset:4px}
 .academy-prospectus-announcement :focus-visible{outline:3px solid var(--flow-cream);outline-offset:4px}
 .academy-prospectus-announcement .enrolments-audience:focus-visible,.academy-prospectus-announcement .full-prospectus-link:focus-visible{outline-color:var(--flow-ink)}
+
+/* Narrow cards must grow with the brochure copy instead of clipping it. */
+.academy-prospectus-announcement .course-day{min-width:0}
+.academy-prospectus-announcement .course-arabic{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+@media(max-width:700px){
+.academy-prospectus-announcement .announcement-timetable{height:auto}
+}
+@media(max-width:420px){
+.academy-prospectus-announcement .course-week{grid-template-columns:minmax(0,1fr)}
+.academy-prospectus-announcement .course-day{flex-direction:row;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.academy-prospectus-announcement .course-day strong{font-size:18px}
+}
