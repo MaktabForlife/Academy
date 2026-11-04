@@ -53,3 +53,13 @@ test('Studio-owned Learn links use exact offering mapping and checked published 
  summary.rights.websites[0].needsRefresh=true;assert.equal(portalDashboardLinks(data,summary).activities[0].destinationHref,undefined);
  assert.equal(portalDashboardLinks({...data,mode:'teach'},summary).activities[1].destinationHref,'/academy/#activity/other');
 });
+
+test('private display validator is scoped to current session and never caches a partial bootstrap',async()=>{
+ const {portalReadReply}=await import('../src/academy/d1/portal.mjs');
+ const auth={sid:'a',state:{account:{account_id:'person',credential_epoch:1,global_admin:false},roles:[],subscriptions:[],monthlyMedia:[]}};
+ const first=await portalReadReply(new Request('https://api.example/api/academy/hub/read'),{account:{accountId:'person'},checkedAt:1,serverTime:1},auth),tag=first.headers.get('ETag');
+ const request=new Request('https://api.example/api/academy/hub/read',{headers:{'If-None-Match':tag}});
+ assert.equal((await portalReadReply(request,{account:{accountId:'person'},checkedAt:2,serverTime:2},auth)).status,304);
+ assert.equal((await portalReadReply(request,{account:{accountId:'person'},checkedAt:2,serverTime:2},{...auth,sid:'b'})).status,200);
+ assert.equal((await portalReadReply(request,{account:{accountId:'person'},errors:{dashboard:{status:503}}},auth)).headers.has('ETag'),false);
+});

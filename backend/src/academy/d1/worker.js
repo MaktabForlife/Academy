@@ -1,4 +1,4 @@
-import {nativePortal} from './portal.mjs';
+import {nativePortal,portalReadReply} from './portal.mjs';
 import {hostingEnvironment} from '../hosting.mjs';
 import {uploadPlaylistCardImage,previewPlaylistCardImage,publicPlaylistCardImage} from './media-playlist-card-images.js';
 import {recordingPlaylistMetadata} from './media-playlist-store.js';
@@ -122,13 +122,13 @@ async function dispatch(request,env,options={}) {
   let reader;
   const readRepository=async()=>reader??=acceptedRepository(sourceRepository,await acceptedHead(sourceRepository,request.headers.get('X-Academy-Setup')||''));
   if(path==='/api/academy/media-playlist-card-image'&&['GET','HEAD'].includes(request.method))return publicPlaylistCardImage(request,env);
-  if(path.startsWith('/api/academy/hub/')){await sourceRepository.ready();return nativePortal(request,env,{
+  if(path.startsWith('/api/academy/hub/')){await sourceRepository.ready();let portalAuth;const value=await nativePortal(request,env,{
     repository:sourceRepository,
-    authenticate:r=>authenticated(r,env,sourceRepository),
+    authenticate:async r=>{portalAuth=await authenticated(r,env,sourceRepository);return portalAuth;},
     read:(p,body,mode,r)=>dispatch(new Request(new URL(p,r.url),{method:'POST',headers:{'Content-Type':'application/json',Authorization:r.headers.get('Authorization')||'',...(mode?{'X-Academy-Workspace':mode.toUpperCase()}:{})},body:JSON.stringify(body)}),env),
     mint:(auth,context)=>createSessionToken({type:'account',aud:audience,sv:3,sid:auth.sid,accountid:auth.state.account.account_id,epoch:auth.state.account.credential_epoch,scope:context.scope,courseid:context.courseId,role:context.role},env),
     login:input=>dispatch(new Request(new URL(input.setup?'/api/account/setup-pin':'/api/account/login',request.url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)}),env)
-  });}
+  });return path==='/api/academy/hub/read'?portalReadReply(request,value,portalAuth):value;}
   if(path.startsWith('/internal/website/')||path.startsWith('/api/website-platform/'))return websitePlatformBridge(request,env,{
     login:async input=>{let captured;await dispatch(new Request(new URL(input.setup?'/api/account/setup-pin':'/api/account/login',request.url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)}),env,{capture:value=>captured=value});return captured;},
     coursePlaylistPlacements:async(session,input)=>{await sourceRepository.ready();return nativeCoursePlaylistPlacements(sourceRepository,session,input);},
@@ -504,7 +504,7 @@ return {
     const origin=request.headers.get('Origin');
     const allowed=(env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
     const headers={'Content-Type':'application/json','Cache-Control':'private, no-store','Vary':'Origin',
-      'Access-Control-Allow-Methods':'POST, GET, HEAD, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization, Range, X-Academy-Workspace, X-Academy-Class, X-Academy-Setup, X-Library-Upload-Ticket, X-Library-Upload-Offset, X-Academy-Read-Cache, X-Academy-Read-Revision'};
+      'Access-Control-Allow-Methods':'POST, GET, HEAD, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization, Range, X-Academy-Workspace, X-Academy-Class, X-Academy-Setup, X-Library-Upload-Ticket, X-Library-Upload-Offset, X-Academy-Read-Cache, X-Academy-Read-Revision, If-None-Match'};
     if(origin&&allowed.includes(origin))headers['Access-Control-Allow-Origin']=origin;
     if(origin&&!allowed.includes(origin))return new Response(JSON.stringify({success:false,error:'Origin is not allowed.'}),{status:403,headers});
     if(request.method==='OPTIONS')return new Response(null,{status:204,headers});

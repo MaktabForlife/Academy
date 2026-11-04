@@ -49,10 +49,11 @@ export async function portalStudioSummary(env,auth,{action='bootstrap',websiteId
 export async function nativePortal(request,env,{repository,authenticate,read,mint,login,fetcher=env.WEBSITE_PLATFORM_SERVICE?.fetch.bind(env.WEBSITE_PLATFORM_SERVICE)||fetch}){
  const path=new URL(request.url).pathname,config=portalConfiguration();
  if(path==='/api/academy/hub/config'&&request.method==='GET')return config;
- if(request.method!=='POST')throw fail('Use a POST request.',405);
+ const conditionalGET=request.method==='GET'&&path==='/api/academy/hub/read';
+ if(request.method!=='POST'&&!conditionalGET)throw fail('Use a POST request.',405);
  const origin=request.headers.get('Origin'),allowed=new Set([hosting().academyPortalOrigin,...hosting().academyLegacyOrigins]);
  if(!allowed.has(origin))throw fail('Reopen this action from Academy.',403,'ORIGIN_REQUIRED');
- const input=await bodyJSON(request.body,8192);
+ let input;if(conditionalGET){const raw=new URL(request.url).searchParams.get('request');if(!raw||raw.length>8192)throw fail('Choose a bounded Academy view.');try{input=JSON.parse(raw);}catch{throw fail('Invalid Academy request.');}if(!input||Array.isArray(input)||typeof input!=='object')throw fail('Invalid Academy request.');}else input=await bodyJSON(request.body,8192);
  if(path==='/api/academy/hub/login'){
   only(input,['uniqueid','pin','setup','pinConfirmation']);
   const result=await login(input),header='Bearer '+result.token;
@@ -71,10 +72,10 @@ export async function nativePortal(request,env,{repository,authenticate,read,min
  const dashboard=async value=>{
   only(value,['mode','refresh','date','weekStart']);
   const produce=async()=>dashboardSummary(state,env,value,(p,b,m)=>read(p,b,m,request),await nativeScopes());
-  // Existing native readers keep their publication/permission-aware snapshots.
-  // Do not cache the combined message/note/enrolment result under a timetable-only revision.
+  // Preserve the existing native snapshot readers. A combined cache needs a
+  // proven Core/Admin revision vector covering notes, messages and enrolment.
   const data=await produce();
-  await current();return {...data,checkedAt:Date.now(),serverTime:Date.now()};
+  await current();return {...data,serverTime:Date.now()};
  };
  if(path==='/api/academy/hub/refresh'){only(input,[]);await synchronizePortalAccount(env,repository.coreDb,state.account.account_id,fetcher);await current();return {verifiedAt:Date.now()};}
  if(path==='/api/academy/hub/studio-join'){only(input,['offeringId','sessionId']);return studio({action:'join',offeringId:id(input.offeringId),sessionId:id(input.sessionId)});}
@@ -95,7 +96,7 @@ export async function nativePortal(request,env,{repository,authenticate,read,min
  if(path==='/api/academy/hub/open'){
   only(input,['navigation','dashboard']);if(Boolean(input.navigation)===Boolean(input.dashboard))throw fail('Choose one destination.');
   const choice=input.dashboard?dashboardChoice(state,input.dashboard):programmeChoice(state,input.navigation,env);
-  await current();return {token:await mint(auth,choice.context||auth.context),destination:choice.destination,circles:{mode:input.dashboard?.mode||'learn',returnUrl:config.academyOrigin+'/'}};
+  await current();return {token:await mint(auth,choice.context||auth.context),destination:choice.destination,circles:{mode:input.dashboard?.mode||'learn',returnUrl:config.academyOrigin+'/?workspace='+(input.dashboard?.mode||'learn')}};
  }
  if(path==='/api/academy/hub/join'){
   const selected=dashboardJoinInput(state,input);await nativeJoinOwnership(repository.coreDb,state.account.account_id,selected.target);
@@ -131,4 +132,14 @@ async function admitted(repository,auth){
  const state=auth.authority||auth.state;
  const row=await repository.coreDb.prepare('SELECT active,admitted,epoch,global_admin FROM website_platform_account_state WHERE account_id=?').bind(state.account.account_id).first();
  if(!row?.active||!row.admitted||row.epoch!==state.account.credential_epoch||Boolean(row.global_admin)!==Boolean(state.account.global_admin))throw fail('Your Academy account is unavailable or changed.',401,'SESSION_ENDED');
+}
+
+export async function portalReadReply(request,data,auth){
+ const headers={'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Access-Control-Expose-Headers':'ETag, X-Maktab-Server-Time','X-Maktab-Server-Time':String(Date.now())};
+ if(Object.keys(data.errors||{}).length)return Response.json(data,{headers});
+ const state=auth.authority||auth.state,stable=JSON.stringify(data,(key,value)=>['serverTime','checkedAt'].includes(key)?undefined:value);
+ const tag='"pv1-'+await sha256(JSON.stringify(['ACADEMY_PORTAL_V1',auth.sid,state.account.account_id,state.account.credential_epoch,state.account.global_admin,state.roles,state.subscriptions,state.monthlyMedia,stable]))+'"';
+ headers.ETag=tag;
+ if(request.method==='GET'&&request.headers.get('If-None-Match')===tag)return new Response(null,{status:304,headers});
+ return Response.json(data,{headers});
 }

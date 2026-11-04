@@ -175,7 +175,7 @@
   // can populate another account/workspace or create a stale PDF object URL.
   return new Proxy(response,{get(target,name){if(['json','text','blob','arrayBuffer','formData'].includes(name))return async(...args)=>{check();const value=await target[name](...args);check();return value;};const value=Reflect.get(target,name,target);return typeof value==='function'?value.bind(target):value;}});
  };
- const homeUrl=()=>window.M4L_CIRCLES_NATIVE?.home({workspace:selected==='ADMIN'?'admin':audience().toLowerCase()})||'https://maktab4life.org/';
+ const homeUrl=()=>window.M4L_CIRCLES_NATIVE?.home({workspace:selected==='ADMIN'?'admin':audience().toLowerCase()})||(window.M4L_CONFIG?.PORTAL_ORIGIN||location.origin)+'/';
  const preferHubAudience=value=>{hubAudience=value==='TEACH'?'TEACH':'LEARN';hubOwner=session();};
  window.M4L_ACADEMY_WORKSPACE={adminFetch,homeUrl,preferHubAudience,current,audience,adminRealm,adminAccess,readyAccess,readerUrl,desired,commit,canonical,studentClass,classView:()=>classView,head:()=>head,readyPublication,publication:value=>{headEpoch++;head=value;headRequest=null;}};
  function resetAccess(){if(accountOwner!==session()){clearAccountView();accountOwner=session();}if(hubOwner!==session()){hubAudience='LEARN';hubOwner=session();}generation++;classView=null;head=null;headRequest=null;accessEpoch++;access=null;accessRequest=null;accessChanged();}

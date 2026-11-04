@@ -3,7 +3,7 @@
   'use strict';
   if (window.M4L_CIRCLES_NATIVE) return;
   const local = ['localhost', '127.0.0.1'].includes(location.hostname);
-  const publicOrigin = local ? location.origin : 'https://maktab4life.org';
+  const publicOrigin = local ? location.origin : window.M4L_CONFIG?.PORTAL_ORIGIN || location.origin;
   const toolHosts = new Set(['/academy/', '/academy/index.html', '/academy/admin/', '/academy/admin/index.html']);
   const modes = new Set(['learn', 'teach', 'admin']);
   const publicSections = {about:'academy-story', contact:'contact', prospectus:'prospectus', learning:'programmes', workshops:'my-courses'};
