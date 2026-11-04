@@ -28,3 +28,5 @@ The job installs dependencies on GitHub, checks the native portal boundaries, bu
 - Existing Academy2027prospectus catalogue and owner-supplied flyers: course names and draft content.
 
 After design approval, integrate the presentation with the current Admin announcement builder and published public programme facts. Keep all real editing, review and publication explicit.
+
+The prototype resolves its Studio courses link from AcademyHosting.studioOrigin and keeps a separate flyerUrl on each programme. Announcement controls retain keyboard focus after redraw; browser checks cover repeated Enter activation and Space on a choice control.

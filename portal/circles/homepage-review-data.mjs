@@ -12,7 +12,8 @@ export const programmes=[
     "schedule": [],
     "fee": null,
     "source": "2027 prospectus catalogue",
-    "flyer": "Photo-from-Nabeela-Dawjee-14.jpg"
+    "flyer": "Photo-from-Nabeela-Dawjee-14.jpg",
+    "flyerUrl": "https://ummabbadacademy.com/wp-content/uploads/2026/10/Photo-from-Nabeela-Dawjee-14.jpg"
   },
   {
     "id": "reboot",
@@ -26,7 +27,8 @@ export const programmes=[
     "schedule": [],
     "fee": null,
     "source": "2027 prospectus catalogue",
-    "flyer": "Photo-from-Nabeela-Dawjee-12-768x960.jpg"
+    "flyer": "Photo-from-Nabeela-Dawjee-12-768x960.jpg",
+    "flyerUrl": "https://ummabbadacademy.com/wp-content/uploads/2026/10/Photo-from-Nabeela-Dawjee-12-768x960.jpg"
   },
   {
     "id": "arabic-intensive",
@@ -40,7 +42,8 @@ export const programmes=[
     "schedule": [],
     "fee": null,
     "source": "2027 prospectus catalogue",
-    "flyer": "Photo-from-Nabeela-Dawjee-15.jpg"
+    "flyer": "Photo-from-Nabeela-Dawjee-15.jpg",
+    "flyerUrl": "https://ummabbadacademy.com/wp-content/uploads/2026/10/Photo-from-Nabeela-Dawjee-15.jpg"
   },
   {
     "id": "mothers",
@@ -77,7 +80,8 @@ export const programmes=[
     "source": "Mothers of the Ummah flyer supplied by the owner",
     "sourceDate": "2026-11-03",
     "flyer": "Photo-from-Nabeela-Dawjee-5.jpg",
-    "note": "Timetable and fees transcribed from the supplied flyer; confirm before publication."
+    "note": "Timetable and fees transcribed from the supplied flyer; confirm before publication.",
+    "flyerUrl": "https://ummabbadacademy.com/wp-content/uploads/2026/10/Photo-from-Nabeela-Dawjee-5.jpg"
   },
   {
     "id": "tafseer",
@@ -99,7 +103,8 @@ export const programmes=[
     "source": "Tafseer and Tadabbur flyer supplied by the owner",
     "sourceDate": "2026-10-30",
     "flyer": "Photo-from-Nabeela-Dawjee-7-819x1024.jpg",
-    "note": "Timetable and fees transcribed from the supplied flyer; confirm before publication."
+    "note": "Timetable and fees transcribed from the supplied flyer; confirm before publication.",
+    "flyerUrl": "https://ummabbadacademy.com/wp-content/uploads/2026/10/Photo-from-Nabeela-Dawjee-7-819x1024.jpg"
   },
   {
     "id": "arabic-adventures",
@@ -119,7 +124,8 @@ export const programmes=[
     ],
     "fee": null,
     "source": "2027 prospectus catalogue",
-    "flyer": "Photo-from-Nabeela-Dawjee-10-768x960.jpg"
+    "flyer": "Photo-from-Nabeela-Dawjee-10-768x960.jpg",
+    "flyerUrl": "https://ummabbadacademy.com/wp-content/uploads/2026/10/Photo-from-Nabeela-Dawjee-10-768x960.jpg"
   }
 ];
 export const announcements=[
