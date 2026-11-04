@@ -1,36 +1,36 @@
 # Public homepage design review — 4 November 2026
 
-This isolated review explores a single-page public flow with the Academy's existing tan, bottle green, sage and cream palette. The current homepage, dashboard, login, timetable authority, access rights and publication systems are unchanged.
+This isolated review explores a single-page public flow with the Academy’s approved tan, bottle green, sage and cream palette. The current homepage, dashboard, login, timetable authority, access rights and publication systems remain unchanged.
 
-The review page is `portal/circles/homepage-review.html`. Its presentation is scoped to `.flow-review`. No live API is called.
+The independent page is `portal/circles/homepage-review.html`, scoped to `.flow-review`. It makes no live API requests.
 
 ## Review behavior
 
-- Keep the central welcome circle and four programme pathways.
-- Present announcements as readable headlines, summaries, key facts and a supporting visual. Show full details inline and navigate between announcements.
-- Present all six programmes from the existing 2027 prospectus.
-- Select a programme to see its learning rhythm, day/time panels, delivery format, fees and contact link.
-- Use same-page links from announcements and programme cards to the appropriate timetable.
+- Retain the central welcome circle and four programme pathways.
+- Put one joined card inside announcements, with six attached, rounded course-name tabs.
+- Describe each course in the shared panel, with learning rhythm, delivery format, known day/time and fee facts, enquiry and original flyer links.
+- Keep tab controls in place when the panel changes. Support Arrow, Home and End keys with stable keyboard focus.
+- Link the welcome pathways and programme overview to the corresponding tab inside announcements.
+- Keep general Bootcamp and prospectus news below the course card, with readable expanded details.
+- Remove the separate bottom timetable section and its navigation link at the owner’s request.
 - Preserve the public learning and contact flow.
 
-The data module contains draft copy extracted from the supplied Mothers of the Ummah, Tafseer and Tadabbur and Surah Al-Kahf flyers. Other course days, times and fees are left unconfirmed. MOU and Tafseer facts must be checked by Admin before publication. The Bootcamp end date is calculated from four weekly Sundays beginning18October2026. None of these draft fields supplies an actual session, Join link, subscription or authority.
+The data module contains draft copy from the existing 2027 prospectus and owner-supplied Mothers of the Ummah, Tafseer and Tadabbur and Surah Al-Kahf flyers. Unconfirmed days, times and fees are labelled honestly. Admin must confirm draft facts before publication. The Bootcamp end date is calculated from four weekly Sundays beginning 18 October 2026. These draft fields provide no actual session, Join link, subscription or access authority.
+
+The Studio courses link resolves from `AcademyHosting.studioOrigin`. Each programme has its own explicit `flyerUrl`.
 
 ## Cloud review only
 
-The review branch replaces its copy of the already-registered `paired-check.yml` with a manual read-only design-review job. It does not change the canonical workflow or run the migration importer. Dispatch that workflow only against this exact review branch.
+The review branch overrides its copy of the registered `paired-check.yml` with a manual, read-only design-review job. The default branch workflow is unchanged. Dispatch this workflow only against `review/public-home-flow-20261104`. Exclude the workflow override from any production integration.
 
-The job installs dependencies on GitHub, checks the native portal boundaries, builds actual Academy Pages assets with Wrangler dry-run, and exercises programme tabs, keyboard navigation, announcement counts, escaped titles and320–1920px layouts using a loopback static server. It uploads the built assets, standalone review HTML, screenshots and JSON evidence. It has no production secrets, deployment step, live account calls or content publication. No Mac files are written.
+The job installs dependencies on a disposable GitHub runner, checks native portal boundaries, builds the actual Academy Pages assets without deployment and tests the interface against synthetic data using a loopback static server. Checks cover all six course panels, keyboard navigation, same-page links, removal of the bottom timetable, zero/one/five general announcements, escaped editable titles and 320–1920 px layouts. It also verifies a self-contained HTML preview with its CSS, fonts and scripts embedded.
 
-## References
+Artifacts contain the standalone preview, screenshots and JSON evidence; the complete public package is separate. There are no production secrets, deployment steps, live account calls or content publication. No Mac files are written.
 
-- [Lilian Cannam Kindergarten](https://www.liliancannamkindergarten.org.au/): programme selector and session timetable grouping.
-- [Benchmark Education](https://www.benchmarkeducation.com/): clear headline, supporting copy, visual and single action.
-- Existing Academy2027prospectus catalogue and owner-supplied flyers: course names and draft content.
+## References and integration
 
-After design approval, integrate the presentation with the current Admin announcement builder and published public programme facts. Keep all real editing, review and publication explicit.
+- [Lilian Cannam Kindergarten](https://www.liliancannamkindergarten.org.au/): joined rounded tabs and a shared descriptive panel.
+- [Benchmark Education](https://www.benchmarkeducation.com/): clear headline, supporting copy and visual.
+- Existing Academy 2027 prospectus catalogue and owner-supplied flyers: course names and draft facts.
 
-The prototype resolves its Studio courses link from AcademyHosting.studioOrigin and keeps a separate flyerUrl on each programme. Announcement controls retain keyboard focus after redraw; browser checks cover repeated Enter activation and Space on a choice control.
-
-## Owner refinement: course tabs inside announcements
-
-The announcements section now contains one connected card with six course-name tabs, using the reference's rounded, attached-tab silhouette. Each panel describes its course and shows the known rhythm, format, day/time and fee facts with enquiry/flyer links. The separate timetable at the bottom has been removed at the owner's request. Existing circle/overview links select the corresponding course tab in announcements. General Bootcamp/prospectus news remains below. Course-tab controls retain their DOM nodes and keyboard focus when the panel changes.
+After design approval, connect this presentation to the current Admin announcement builder and published, cached public snapshots. Keep editing and publication explicit. An empty published snapshot is also cacheable. Never fetch per tab/card or derive live sessions, Join availability or access rights from flyer copy.
