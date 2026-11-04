@@ -1,12 +1,12 @@
 {
   "upstream": "MaktabForlife/AcademyStudio",
-  "commit": "df9da680d20e1fed2d709ac194eb59a4ac4c6c68",
+  "commit": "dea1b7719440351ad224496f3ad549264225150a",
   "transferredSourceFiles": 179,
   "owner": "MaktabForlife/Academy",
   "privateMediaCopied": false,
   "manifest": {
     "academy-logo.png": "0652c6b20733b2260895df6ee7805702679cb96c854834c3cac400ca2ee49a9f",
-    "api.mjs": "515ef6cddedb5d9969c0809289034bfde30e64b0467d4ade0ac8dcdb6673c160",
+    "api.mjs": "8ad8ded426bfa8fab5e0fc2396d7c50b03d77e42ba5bc62abffb0817892709fb",
     "circles/academy-branches.css": "c5c95e334ab61a6d23d49df69f86150d8d2ed998f85483e6aff1ffa1307f3b85",
     "circles/academy-brand.css": "09684d5f0e68a99e2e3f478220fb2e2a800766249d193c5604f0a819b7eeace2",
     "circles/app.js": "e680387a1bc675f475d3ebe9a1c5207eb45a135cae32c4c7d20fa7165f39b8d4",
@@ -98,7 +98,7 @@
     "shared/author-recording-website.mjs": "13ea7edef2752c546f5955c91c809403aaf0abdddb95b67e48e8703699dbe2fc",
     "shared/builder-shell.css": "c68a8769ea4e85d7ee62798783739329138809e770a54fe346ea73316b35831a",
     "shared/calendar-month.mjs": "78c3e3aa75880ba99f71c99ce1a27430f43e843147331cf1550f9963d5b99328",
-    "shared/canonical-circles.mjs": "fc646b03bba289d5841f4a50bc9b41275dbcfd31ac707476d3b77cafce17ebd4",
+    "shared/canonical-circles.mjs": "ef594d2ccc167affc3cfbcf3a15f8c0a4812ef3c8a9aeaffd3e740580d4c7ce6",
     "shared/circle-days.mjs": "80879d331187f45388377d342a5809b30117f7fa2c4c4a93bbdf20e3b923221d",
     "shared/circles-block-navigation.mjs": "4bc104b666ab2d1b949d741a10756899f16fcc45c24cb7e9b886d74cf771c5e6",
     "shared/circles-catalogue.css": "66f2cd7027bcf37828bca39af76c1e5e9573c630cb3a2b6efdce4ef2871bf41a",
@@ -185,8 +185,8 @@
     "shared/website-edit-session.mjs": "0fecc7564fc80a1a025af9f80bfbf9749e4f59abaeda7bfd7c4b3f0191e18eaf",
     "shared/weekly-timetable.mjs": "b5fc4ae19ea705eba41d40dadc3e35a0841c6318225707bb6e0f1120083f35c3",
     "studio-authorize.html": "2d488a26a1123f0feefcbf4ec4428bf5f902e2e4457a20b0a9dd196f20a28a9b",
-    "studio-authorize.mjs": "6af910442cfa152eb78450e5ce6d9a6cdddae027961c2ed7adb6b8890d6ce288",
+    "studio-authorize.mjs": "da802c4ba9d29ae5431f6f7ed088c4760107e298304227bb9e2e2f0886e58639",
     "studio-enter.html": "767f0aaad5a612d56d7e9f31d13669c2f4173b5ccc87d778996112c1a4835647",
-    "studio-enter.mjs": "3a825796d8cfdb33423e0383f098e925fcada8c2618d801461e471aac879b6c5"
+    "studio-enter.mjs": "11d7925b381b120cfd95a002a872ccc61c73ad0cc376a759a0995d4f0953edd6"
   }
 }

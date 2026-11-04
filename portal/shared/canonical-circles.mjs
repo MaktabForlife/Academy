@@ -1,5 +1,5 @@
 // Presentation compatibility only. Requested views are never account authority.
-export const canonicalAcademyOrigin='https://academy-maktab4life.pages.dev';
+export const canonicalAcademyOrigin=globalThis.location.origin;
 const homePaths=new Set(['/','/index.html','/circles','/circles/','/circles/index.html']);
 const oldViews=new Set(['website','academy','dashboard','collection','mothers']);
 const nativeSections=new Set(['timetable','activity','assessments','assessment','progress','planning','notes']);
