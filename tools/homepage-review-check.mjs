@@ -1,0 +1,44 @@
+// Run on a disposable GitHub runner only. Never contacts live Academy services.
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import {resolve,extname,dirname} from 'node:path';
+import {pathToFileURL} from 'node:url';
+import {createServer} from 'node:http';
+import assert from 'node:assert/strict';
+import {programmes,announcements} from '../portal/circles/homepage-review-data.mjs';
+if(!process.env.GITHUB_ACTIONS)throw Error('This review runs only on GitHub; do not generate output on the owner’s Mac.');
+const root=resolve(import.meta.dirname,'..'),directory=resolve(root,'.academy-pages'),out=resolve(process.env.RUNNER_TEMP,'homepage-review-evidence');
+await mkdir(out,{recursive:true});
+const mime={'.html':'text/html','.mjs':'text/javascript','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.ttf':'font/ttf','.woff2':'font/woff2','.png':'image/png','.jpg':'image/jpeg'};
+const server=createServer(async(req,res)=>{try{const pathname=new URL(req.url,'http://local.invalid').pathname,file=resolve(directory,'.'+pathname);if(!file.startsWith(directory+'/'))throw Error('Outside public assets');const data=await readFile(file);res.writeHead(200,{'Content-Type':mime[extname(file)]||'application/octet-stream','Cache-Control':'no-store'});res.end(data);}catch{res.writeHead(404);res.end('Not found');}});
+await new Promise(done=>server.listen(0,'127.0.0.1',done));const base='http://127.0.0.1:'+server.address().port;
+const {chromium}=await import(pathToFileURL(resolve(process.env.REVIEW_BROWSER_MODULES,'node_modules/playwright/index.mjs')).href);
+const browser=await chromium.launch({headless:true}),page=await browser.newPage({viewport:{width:1440,height:1100},reducedMotion:'reduce'}),errors=[],requests=[],checks=[];
+page.on('pageerror',e=>errors.push(e.message));
+await page.route('**/*',route=>{const url=new URL(route.request().url());requests.push(url.href);if(url.origin===base||url.protocol==='data:')return route.continue();return route.abort();});
+try{
+ await page.goto(base+'/circles/homepage-review.html');await page.locator('#programme-panel h3').waitFor();await page.evaluate(()=>document.fonts.ready);
+ assert.equal(await page.locator('#programme-panel h3').textContent(),'Mothers of the Ummah');assert.equal(await page.locator('.day-card').count(),4);
+ await page.locator('#tab-mothers').focus();await page.keyboard.press('ArrowRight');assert.equal(await page.locator('[role=tab][aria-selected=true]').getAttribute('id'),'tab-tafseer');assert.equal(await page.locator('.day-card time').textContent(),'08:30–09:30');
+ await page.locator('#tab-aalimiyah').click();assert.match(await page.locator('.schedule-pending').textContent(),/confirm its days and times/);assert.equal(await page.locator('.day-card time').count(),0);
+ for(const programme of programmes){await page.locator('#tab-'+programme.id).click();assert.equal(await page.locator('#programme-panel h3').textContent(),programme.name);assert.equal(await page.locator('#programme-panel').getAttribute('aria-labelledby'),'tab-'+programme.id);}
+ await page.locator('.programme-card a[data-programme="mothers"]').click();assert.equal(await page.locator('#programme-panel h3').textContent(),'Mothers of the Ummah');checks.push('Six programmes, keyboard tab changes, same-page timetable navigation and honest missing-fact states.');
+ await page.locator('[data-news-step="1"]').click();assert.equal(await page.locator('.announcement-copy h3').textContent(),announcements[1].headline);await page.locator('a[href="#announcement-detail"]').click();assert(await page.locator('#announcement-detail').evaluate(n=>n.open));
+ await page.locator('[data-news-step="-1"]').click();assert.equal(await page.locator('.announcement-copy h3').textContent(),announcements[0].headline);checks.push('Announcement navigation, full readable details and wraparound.');
+ await page.evaluate(async()=>{const {review}=await import('/circles/homepage-review.mjs');review.setAnnouncements([]);});assert.equal(await page.locator('.announcement-spotlight').count(),0);
+ await page.evaluate(async()=>{const {review}=await import('/circles/homepage-review.mjs'),{announcements}=await import('/circles/homepage-review-data.mjs');review.setAnnouncements([announcements[0]]);});assert.equal(await page.locator('#announcement-controls button').count(),0);
+ await page.evaluate(async()=>{const {review}=await import('/circles/homepage-review.mjs'),{announcements}=await import('/circles/homepage-review-data.mjs');review.setAnnouncements(Array.from({length:5},(_,i)=>({...announcements[i%announcements.length],id:'extra-'+i})));});assert.equal(await page.locator('[data-news-choice]').count(),10);
+ await page.evaluate(async()=>{const {review}=await import('/circles/homepage-review.mjs'),{announcements}=await import('/circles/homepage-review-data.mjs');review.setAnnouncements([{...announcements[0],headline:'<img src=x onerror=alert(1)>'}]);});assert.equal(await page.locator('.announcement-copy h3 img').count(),0);
+ await page.evaluate(async()=>{const {review}=await import('/circles/homepage-review.mjs'),{announcements}=await import('/circles/homepage-review-data.mjs');review.setAnnouncements(announcements);review.chooseProgramme('mothers');});checks.push('Empty, single and five-announcement layouts; escaped editable titles.');
+ for(const width of [320,390,768,1024,1440,1920]){await page.setViewportSize({width,height:1100});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'Overflow at '+width);checks.push('No horizontal page overflow at '+width+'px.');if(width===390||width===1440){await page.locator('#news').screenshot({path:resolve(out,'announcements-'+width+'.png')});await page.locator('#timetables').screenshot({path:resolve(out,'timetables-'+width+'.png')});await page.locator('#home').screenshot({path:resolve(out,'circle-'+width+'.png')});}}
+ assert.deepEqual(errors,[]);assert(!requests.some(url=>new URL(url).pathname.startsWith('/api/')));checks.push('No live account/API/database requests or browser errors.');
+ // Self-contained copy for review: CSS, fonts and scripts stay in the artifact.
+ let html=await readFile(resolve(directory,'circles/homepage-review.html'),'utf8');
+ const styles=[...html.matchAll(/<link rel="stylesheet" href="([^"]+)">/g)];
+ for(const [tag,href]of styles){let css=await readFile(resolve(directory,'.'+href),'utf8');for(const match of [...css.matchAll(/url\((['"]?)([^)'"]+)\1\)/g)]){if(match[2].startsWith('data:'))continue;const asset=match[2].startsWith('/')?resolve(directory,'.'+match[2]):resolve(dirname(resolve(directory,'.'+href)),match[2]);try{const bytes=await readFile(asset),type=mime[extname(asset)]||'application/octet-stream';css=css.replace(match[0],'url("data:'+type+';base64,'+bytes.toString('base64')+'")');}catch{}}html=html.replace(tag,'<style>'+css+'</style>');}
+ const data=await readFile(resolve(directory,'circles/homepage-review-data.mjs'),'utf8'),script=await readFile(resolve(directory,'circles/homepage-review.mjs'),'utf8');
+ const inline=data.replace(/^export /gm,'')+'\n'+script.replace(/^import .*?;\n/,'').replace(/^export /gm,'');
+ html=html.replace('<script type="module" src="/circles/homepage-review.mjs"></script>','<script type="module">'+inline.replace(/<\/script/gi,'<\\/script')+'</script>');
+ await writeFile(resolve(out,'homepage-review-standalone.html'),html);
+ await writeFile(resolve(out,'review.json'),JSON.stringify({passed:true,commit:process.env.GITHUB_SHA,checks,errors,liveRequests:0,macWrites:0,programmeFacts:'Drafts from existing 2027 catalogue and owner-supplied flyers; missing values remain unconfirmed.'},null,2)+'\n');
+ console.log(JSON.stringify({passed:true,checks:checks.length,output:out}));
+}finally{await browser.close();await new Promise(done=>server.close(done));}
