@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html data-circles-native="true" lang="en">
+<head>
+<meta name="robots" content="noindex,nofollow">
+<script src="/_assets/62091c271f2c96c6b90d1a42268fede038c374c3d10884ab6fe8bfc283f176b8/js/m4l-circles-native.js?v=circles-native-1"></script>
+<script src="/_assets/62091c271f2c96c6b90d1a42268fede038c374c3d10884ab6fe8bfc283f176b8/js/m4l-academy-workspace.js?v=109.18"></script><script src="/_assets/62091c271f2c96c6b90d1a42268fede038c374c3d10884ab6fe8bfc283f176b8/js/m4l-academy-read-cache.js?v=109.18"></script><script src="/_assets/62091c271f2c96c6b90d1a42268fede038c374c3d10884ab6fe8bfc283f176b8/js/m4l-academy-admin-menu.js?v=109.18"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Voice Recorder · Umm Abbad Academy</title>
+  <link rel="stylesheet" href="/_assets/62091c271f2c96c6b90d1a42268fede038c374c3d10884ab6fe8bfc283f176b8/recorder/recorder.css?v=107.52" />
+<link rel="stylesheet" href="/_assets/62091c271f2c96c6b90d1a42268fede038c374c3d10884ab6fe8bfc283f176b8/css/m4l-academy-navigation.css?v=109.18">
+<link rel="stylesheet" href="/_assets/62091c271f2c96c6b90d1a42268fede038c374c3d10884ab6fe8bfc283f176b8/css/m4l-academy-mobile.css?v=109.18">
+<link rel="stylesheet" href="/_assets/62091c271f2c96c6b90d1a42268fede038c374c3d10884ab6fe8bfc283f176b8/css/m4l-academy-page-actions.css?v=109.18">
+<link rel="stylesheet" href="/_assets/62091c271f2c96c6b90d1a42268fede038c374c3d10884ab6fe8bfc283f176b8/css/m4l-academy-shell.css?v=109.18">
+<link rel="stylesheet" href="/_assets/62091c271f2c96c6b90d1a42268fede038c374c3d10884ab6fe8bfc283f176b8/css/m4l-academy-mobile-first.css?v=109.18">
+<link rel="stylesheet" href="/_assets/62091c271f2c96c6b90d1a42268fede038c374c3d10884ab6fe8bfc283f176b8/css/m4l-workspace-theme.css?v=109.18">
+</head>
+<body class="circles-workspace-page">
+  <main class="recorder-shell" aria-label="Voice Recorder">
+    <header class="recorder-header" hidden>
+      <div class="recorder-header-text">
+        <p class="eyebrow">MAKTABHELPER RECORDER</p>
+        <h2 id="recorder-context-title">Select a page to start recording</h2>
+      </div>
+      <button id="page-pill" class="page-action-pill hidden" type="button" aria-label="Select a page">
+        <img src="/_assets/62091c271f2c96c6b90d1a42268fede038c374c3d10884ab6fe8bfc283f176b8/recorder/back.svg?v=96.4" alt="" aria-hidden="true" />
+        <span>Select a page</span>
+      </button>
+      <div id="status-pill" class="visually-hidden" aria-live="polite">Ready</div>
+    </header>
+
+    <section id="page-select-screen" class="recorder-screen active" aria-label="Select a page">
+      <div class="image-selector-card">
+        <button id="image-selector-btn" class="image-selector-btn" type="button" aria-haspopup="dialog" aria-controls="image-picker-sheet">
+          <span class="image-selector-kicker">Image Selector</span>
+          <span id="image-selector-current" class="image-selector-current">Loading images...</span>
+          <span class="image-selector-chevron" aria-hidden="true">⌄</span>
+        </button>
+        <input id="page-upload" class="visually-hidden" type="file" accept="image/*" multiple />
+      </div>
+
+      <div id="page-empty-state" class="empty-state">
+        <p>No pages loaded yet.</p>
+        <p class="muted">Choose an image set, or select your own image.</p>
+      </div>
+
+      <div id="page-grid" class="page-grid" aria-label="Available reader pages"></div>
+    </section>
+
+    <section id="record-screen" class="recorder-screen record-screen" aria-labelledby="recorder-context-title">
+      <p id="selected-page-label" class="visually-hidden">Selected page</p>
+
+      <div class="reader-frame">
+        <canvas id="reader-canvas" aria-label="Selected reader page"></canvas>
+      </div>
+
+      <div class="record-controls" aria-label="Recording controls">
+        <div class="control-row">
+          <button id="record-btn" class="record-icon-action" type="button" aria-label="Start recording">
+            <img id="record-control-icon" class="record-control-icon" src="/_assets/62091c271f2c96c6b90d1a42268fede038c374c3d10884ab6fe8bfc283f176b8/recorder/mic.svg" alt="" aria-hidden="true" />
+            <span id="record-action-label" class="record-action-label">MICROPHONE PERMISSION</span>
+          </button>
+          <button id="stop-btn" class="record-icon-action hidden" type="button" aria-label="Stop recording">
+            <img class="record-control-icon" src="/_assets/62091c271f2c96c6b90d1a42268fede038c374c3d10884ab6fe8bfc283f176b8/recorder/stoprecord.svg" alt="" aria-hidden="true" />
+            <span class="record-action-meta">RECORDING : Time remaining <output id="countdown-timer" aria-live="polite">02:00</output></span>
+          </button>
+        </div>
+        <p id="record-helper" class="record-helper">Tap the microphone icon to allow access.</p>
+      </div>
+    </section>
+
+    <section id="preview-screen" class="recorder-screen preview-screen" aria-labelledby="recorder-context-title">
+      <p id="recording-meta" class="visually-hidden">Review before sharing.</p>
+
+      <video id="preview-video" class="preview-video" controls playsinline></video>
+
+      <div class="preview-actions" aria-label="Recording actions">
+        <button id="rerecord-btn" class="preview-icon-action" type="button">
+          <img src="/_assets/62091c271f2c96c6b90d1a42268fede038c374c3d10884ab6fe8bfc283f176b8/recorder/cancelredo.svg" alt="" aria-hidden="true" />
+          <span>Redo</span>
+        </button>
+        <button id="share-btn" class="preview-icon-action" type="button">
+          <img src="/_assets/62091c271f2c96c6b90d1a42268fede038c374c3d10884ab6fe8bfc283f176b8/recorder/share.svg" alt="" aria-hidden="true" />
+          <span>Share</span>
+        </button>
+        <a id="download-link" class="preview-icon-action download-link" href="#" download>
+          <img src="/_assets/62091c271f2c96c6b90d1a42268fede038c374c3d10884ab6fe8bfc283f176b8/recorder/download.svg" alt="" aria-hidden="true" />
+          <span>Download</span>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <div id="image-picker-sheet" class="picker-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="image-picker-title">
+    <button id="image-picker-backdrop" class="picker-backdrop" type="button" aria-label="Close image selector"></button>
+    <div class="picker-panel">
+      <div class="picker-handle" aria-hidden="true"></div>
+      <div class="picker-header-row">
+        <h2 id="image-picker-title">Image Selector</h2>
+        <button id="image-picker-close" class="picker-close-btn" type="button" aria-label="Close image selector">×</button>
+      </div>
+      <div id="image-picker-options" class="picker-options" role="listbox" aria-label="Image sets"></div>
+    </div>
+  </div>
+
+  <script src="/_assets/62091c271f2c96c6b90d1a42268fede038c374c3d10884ab6fe8bfc283f176b8/js/m4l-recorder.js?v=109.16a"></script>
+  <script src="/_assets/62091c271f2c96c6b90d1a42268fede038c374c3d10884ab6fe8bfc283f176b8/recorder/recorder.js?v=107.52"></script>
+<script src="/_assets/62091c271f2c96c6b90d1a42268fede038c374c3d10884ab6fe8bfc283f176b8/js/m4l-config.js?v=109.18"></script>
+<script src="/_assets/62091c271f2c96c6b90d1a42268fede038c374c3d10884ab6fe8bfc283f176b8/js/m4l-academy-navigation.js?v=109.18"></script>
+<script src="/_assets/62091c271f2c96c6b90d1a42268fede038c374c3d10884ab6fe8bfc283f176b8/js/m4l-academy-mobile.js?v=109.18"></script><script src="/_assets/62091c271f2c96c6b90d1a42268fede038c374c3d10884ab6fe8bfc283f176b8/js/m4l-academy-contents.js?v=109.18"></script>
+<script src="/_assets/62091c271f2c96c6b90d1a42268fede038c374c3d10884ab6fe8bfc283f176b8/js/m4l-academy-page-actions.js?v=109.18"></script>
+</body>
+</html>
