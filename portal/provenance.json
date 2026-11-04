@@ -1,6 +1,6 @@
 {
   "upstream": "MaktabForlife/AcademyStudio",
-  "commit": "9daf14989a503b77b35e781b0dd0f6e85c2d9671",
+  "commit": "46ecd7e2828cf4d5cb739fb87e2e7987fc882160",
   "transferredSourceFiles": 179,
   "owner": "MaktabForlife/Academy",
   "privateMediaCopied": false,
@@ -65,7 +65,7 @@
     "circles/prospectus.css": "136b187e7487a00f2d71a8ea09711a0c83dd6f8857a5cea9c65fd75b5f2960df",
     "circles/public-circle-hero.css": "f8e65d4c13d826308389ec944f7cbfceebf396822df7cdf7ff3ba8d09da52406",
     "circles/style.css": "43673198f63e9905f06ea8d1cd452c052ea28e4c9f0a6babb25f8d519d1d503b",
-    "circles-dashboard.mjs": "49befd28532b58d8629f8e028ee5b37cb585c50981b04d361097d0af4a03113f",
+    "circles-dashboard.mjs": "0965ce410e992042be4e23ab5ebb105af89fdb432177b29ffd28e1567ae02ce3",
     "circles-entry.js": "8a15668ff47d13d0ebd5935c8ee5ec0ed13b92cea53c592b18aa6db70ece6ca1",
     "circles-home-entry.mjs": "842da7681805b22338608692814ead5a25fcfbc7fabf5553c0864f5d0368afa9",
     "circles-login.css": "36732171dbbea3f8950ca0ea4dd091332957cbcee2da3cabf05a5199a027978e",
