@@ -7,7 +7,8 @@ The independent page is `portal/circles/homepage-review.html`, scoped to `.flow-
 ## Review behavior
 
 - Retain the central welcome circle and four programme pathways.
-- Put one joined card inside announcements, with six attached, rounded course-name tabs.
+- Put one joined card inside announcements, with six attached, rounded course-name tabs. All six fit within the card: one desktop row, wrapping into a readable grid on smaller screens, without a scrolling tab rail.
+- Add approved palette colour: bottle-green enrolments and selected tab, cream text, soft sage/tan inactive tabs and alternating green/tan day tiles.
 - Keep the shared desktop panel compact (320 px high): timetable on the left; 2027 enrolments on the right. On smaller screens these two panels stack.
 - Describe each course with learning rhythm, delivery format, known day/time and fee facts, enquiry and original flyer links. Write both Mothers of the Ummah and Tafseer and Tadabbur clearly in English on their cards, alongside typed Arabic where relevant.
 - Keep tab controls in place when the panel changes. Support Arrow, Home and End keys with stable keyboard focus.

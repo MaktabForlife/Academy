@@ -88,6 +88,13 @@ try{
   await page.evaluate(async()=>{const {review}=await import('/circles/homepage-review.mjs');review.chooseProgramme('mothers');});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'Overflow at '+width);
   assert.equal(await page.locator('#timetables').count(),0);
+  const tabFit=await page.locator('#announcement-feature').evaluate(card=>{
+   const bounds=card.getBoundingClientRect(),list=card.querySelector('[role=tablist]'),tabs=[...list.querySelectorAll('[role=tab]')];
+   return {fits:tabs.every(tab=>{const r=tab.getBoundingClientRect();return r.left>=bounds.left-1&&r.right<=bounds.right+1&&tab.scrollWidth<=tab.clientWidth+1&&tab.scrollHeight<=tab.clientHeight+1;}),noScroll:list.scrollWidth<=list.clientWidth+1,rows:new Set(tabs.map(tab=>Math.round(tab.getBoundingClientRect().top))).size};
+  });
+  assert(tabFit.fits&&tabFit.noScroll,'All six complete tab labels must fit over the card at '+width+'px');
+  if(width>700)assert.equal(tabFit.rows,1,'Desktop tabs must remain in one row');
+
   for(const programme of programmes){
    await page.evaluate(async(id)=>{const {review}=await import('/circles/homepage-review.mjs');review.chooseProgramme(id);},programme.id);
    const overflow=await page.locator('.course-announcement-body').evaluate(node=>[...node.children].some(child=>child.scrollHeight>child.clientHeight+1||child.scrollWidth>child.clientWidth+1));
@@ -105,6 +112,21 @@ try{
  assert.deepEqual(errors,[]);
  assert(!requests.some(url=>new URL(url).pathname.startsWith('/api/')));
  checks.push('No live account/API/database requests or browser errors.');
+ // Larger page rendering must not push a course tab outside its card.
+ await page.setViewportSize({width:1440,height:1100});
+ for(const zoom of [1.25,1.5,2]){
+  await page.evaluate(value=>{document.documentElement.style.zoom=String(value);},zoom);
+  assert(await page.locator('#announcement-feature').evaluate(card=>{
+   const r=card.getBoundingClientRect(),list=card.querySelector('[role=tablist]');
+   return list.scrollWidth<=list.clientWidth+1&&[...list.querySelectorAll('[role=tab]')].every(tab=>{const t=tab.getBoundingClientRect();return t.left>=r.left-1&&t.right<=r.right+1&&tab.scrollWidth<=tab.clientWidth+1;});
+  }),'Tabs must fit the card at '+zoom+'x rendering');
+ }
+ await page.evaluate(()=>{document.documentElement.style.removeProperty('zoom');});
+ const colours=await page.locator('.announcement-enrolment').evaluate(node=>({background:getComputedStyle(node).backgroundColor,foreground:getComputedStyle(node).color,selected:getComputedStyle(document.querySelector('[role=tab][aria-selected=true]')).backgroundColor}));
+ assert.notEqual(colours.background,colours.foreground);
+ assert.equal(colours.background,colours.selected,'Selected course and enrolments share the bottle-green accent');
+ checks.push('All six tabs fit the card without horizontal scrolling, including larger rendering; bottle-green selection/enrolments with sage and tan accents.');
+
  // Self-contained copy for review: CSS, fonts and scripts stay in the artifact.
  let html=await readFile(resolve(directory,'circles/homepage-review.html'),'utf8');html=html.replace('<script src="/hosting-config.js"></script>','<script>'+await readFile(resolve(directory,'hosting-config.js'),'utf8')+'</script>');
  const styles=[...html.matchAll(/<link rel="stylesheet" href="([^"]+)">/g)];
