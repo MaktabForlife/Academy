@@ -1,0 +1,103 @@
+.lm-heading,.lm-actions,.lm-modal-head,.lm-comment-tools{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.lm-heading{justify-content:space-between;margin-bottom:1rem}.lm-heading h2{margin:0}.lm-heading p{margin:.3rem 0 0;color:#65596b;font-size:.9rem}.lm-state{font-size:.75rem;font-weight:700;color:#74437f}.lm-message{margin:.4rem 0;min-height:1.4em;color:#5f466c}.lm-message[role=alert]{color:#a82c3c}
+.lm-dialog{border:1px solid #d7c3df;border-radius:1.2rem;width:min(850px,calc(100vw - 2rem));padding:1.3rem;max-height:90dvh;overflow:auto;box-sizing:border-box;color:#302735}.lm-dialog::backdrop{background:#27162e99}.lm-modal-head{justify-content:space-between;align-items:flex-start;margin-bottom:1rem}.lm-modal-head h2{margin:0;font-size:1.5rem;overflow-wrap:anywhere}.lm-player{aspect-ratio:16/9;width:100%;border:0;background:#201827;border-radius:.7rem}.lm-pdf{display:block;margin-top:.75rem;height:65dvh;width:100%;border:0}.lm-form{display:grid;gap:.9rem}.lm-form label{display:grid;gap:.3rem;font-weight:600}.lm-form input,.lm-form textarea,.lm-form select{box-sizing:border-box;width:100%;font:inherit;border:1px solid #cdbbd5;border-radius:.5rem;padding:.65rem;background:#fff;color:inherit}.lm-form textarea{min-height:5rem;resize:vertical}.lm-form .lm-check{display:flex;align-items:center;gap:.5rem}.lm-check input{width:auto}.lm-inline-help{font-size:.85rem;color:#6c6172}.lm-comment{border-bottom:1px solid #eadfeb;padding:.9rem 0}.lm-comment header{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;font-size:.85rem}.lm-comment p{white-space:pre-wrap;overflow-wrap:anywhere;margin:.5rem 0}.lm-comment-tools button{font:inherit;font-size:.8rem}.lm-comment-reply{margin-left:1.2rem;border-left:3px solid #ddcce4;padding-left:.8rem}.lm-badge{font-size:.75rem;border-radius:1rem;padding:.2rem .5rem;background:#eee3f4;color:#673776}.lm-badge.pending{background:#fff0cd;color:#79551a}.lm-discussion-form{margin-top:1rem}.lm-files{list-style:none;margin:0;padding:0}.lm-files li{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.5rem 0;border-bottom:1px solid #eadfeb}.lm-editor-section{border-top:1px solid #eadfeb;margin-top:1rem;padding-top:1rem}
+@media(max-width:500px){.lm-dialog{padding:1rem}.lm-modal-head h2{font-size:1.2rem}.lm-heading{align-items:flex-start}.lm-heading h2{font-size:1.35rem}}
+
+.lm-form select{min-width:0;max-width:100%}.lm-dialog .button{min-height:42px;cursor:pointer;border:1px solid #70477c;border-radius:.65rem;padding:.6rem 1rem;background:#70477c;color:#fff;font:600 14px Arial,sans-serif}.lm-dialog .button.secondary{background:#fff;color:#70477c}.lm-dialog .lm-actions{margin-top:.5rem}.lm-form [type=file]{max-width:100%}@media(max-width:600px){.lm-files li{flex-wrap:wrap}.lm-files span{overflow-wrap:anywhere;min-width:0}}
+
+/* Date-scoped media controls are shared by management, LEARN and TEACH. */
+.lm-calendar{min-width:0}
+.lm-calendar .button{min-height:42px;cursor:pointer;border:1px solid #70477c;border-radius:.65rem;padding:.6rem .9rem;background:#70477c;color:#fff;font:600 14px Arial,sans-serif}
+.lm-calendar .button.secondary{background:#fff;color:#70477c}
+.lm-calendar .button:disabled{opacity:.5;cursor:default}
+.lm-session-summary{white-space:pre-wrap;overflow-wrap:anywhere}
+.lm-earlier{margin-top:8px}.lm-calendar [hidden]{display:none}
+
+.lm-course-files{margin:16px 0 24px;padding:16px;border:1px solid #dfcde6;border-radius:14px;background:#faf6fc}
+.lm-course-files h3{margin:0 0 6px}.lm-course-files .lm-heading{margin-bottom:12px}
+.lm-course-files .lm-actions>.button{white-space:normal;overflow-wrap:anywhere;text-align:left}
+.lm-asset-names{display:grid;gap:4px;margin-top:6px;font-size:12px;line-height:1.4}
+.lm-asset-names>span{overflow-wrap:anywhere}
+.lm-video-entry{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr) auto;align-items:end;gap:10px;margin:0 0 12px;padding:12px;border:1px solid #dfcde6;border-radius:12px;min-width:0}
+.lm-video-entry label{min-width:0}.lm-video-entry input{width:100%;min-width:0;box-sizing:border-box}
+.lm-video-editor h3{margin:0}.lm-video-editor>p{margin:6px 0 12px}
+.lm-asset-name-form{width:100%}.lm-files .lm-asset-name-form{margin:0}
+.lm-files .lm-asset-name-form input{width:100%;box-sizing:border-box}
+@media(max-width:650px){.lm-video-entry{grid-template-columns:minmax(0,1fr)}.lm-course-files{padding:12px}.lm-course-files .lm-heading{align-items:stretch}}
+
+/* Course and Program media share one horizontal rail of equal-sized cards. */
+.lm-rail-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px}
+.lm-rail-heading .lm-calendar-help{margin:0}.lm-rail-controls{display:flex;gap:6px;flex:none}
+.lm-media-rail{display:grid;grid-auto-flow:column;grid-auto-columns:min(284px,calc(100% - 24px));grid-template-rows:380px;gap:12px;max-width:100%;min-width:0;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scrollbar-color:#b594c2 transparent;padding:4px 3px 12px}
+.lm-media-rail:empty{display:none}
+.lm-calendar .lm-media-card{box-sizing:border-box;width:100%;font:14px/1.4 Arial,sans-serif;display:flex;flex-direction:column;gap:0;height:380px;min-height:0;margin:0;padding:0;border:1px solid #d6c2de;border-radius:12px;overflow:hidden;scroll-snap-align:start;background:#fff;color:#46304d;cursor:default}
+.lm-calendar .lm-media-card.has-media{background:#faf6fc;border-color:#ad85ba}
+.lm-media-card .lm-card-heading{display:flex;flex-direction:column;flex:none;height:164px;gap:7px;margin:0;padding:12px;border-bottom:1px solid #e6dbe9;box-sizing:border-box}
+.lm-card-date{font-size:13px;font-weight:700;color:#70477c}
+.lm-card-name,.lm-card-teacher{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.lm-card-name{align-items:flex-start;flex:1;min-height:0}.lm-card-name h3{min-width:0;flex:1;margin:0;font-size:16px;line-height:1.35}
+.lm-card-title{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;width:100%;max-height:2.7em;margin:0;padding:0;border:0;background:transparent;color:inherit;text-align:left;white-space:normal;font:700 16px/1.35 Arial,sans-serif;overflow-wrap:anywhere}
+button.lm-card-title{cursor:pointer}button.lm-card-title:hover{text-decoration:underline}
+.lm-card-title:focus-visible,.lm-card-chat:focus-visible,.lm-card-file:focus-visible{outline:2px solid #805088;outline-offset:2px}
+.lm-card-teacher{font-size:13px;min-height:36px}.lm-card-teacher>span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;min-width:0}
+.lm-card-chat{display:grid;place-items:center;flex:none;width:36px;height:36px;min-width:36px;min-height:36px;border:1px solid #d6c2de;border-radius:9px;background:#fff;color:#70477c;cursor:pointer;padding:7px}
+.lm-card-chat svg,.lm-card-file svg{width:22px;height:22px;flex:none;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.lm-card-chat.is-coming-soon{color:#8b7892;background:#faf7fc}
+.lm-card-session,.lm-card-meta{margin:0;font-size:12px;line-height:1.35;color:#6c5b74;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lm-card-files{display:flex;flex-direction:column;gap:6px;flex:1;min-height:0;overflow-y:auto;overscroll-behavior-y:contain;padding:10px 12px}
+.lm-card-file{display:flex;align-items:center;gap:8px;flex:none;min-height:44px;width:100%;padding:7px 8px;border:1px solid #e0d0e6;border-radius:8px;background:#fff;color:#58305f;text-align:left;font:500 13px/1.4 Arial,sans-serif;cursor:pointer}
+.lm-card-file>span{min-width:0;overflow-wrap:anywhere}.lm-card-file:hover{background:#f1e8f5}
+.lm-card-empty{margin:0;padding:8px 0;font-size:13px;color:#786c7d}
+.lm-card-footer{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex:none;min-height:56px;padding:6px 12px;border-top:1px solid #e6dbe9}
+.lm-calendar .lm-card-footer .button{min-height:42px;padding:7px 10px;font-size:12px}
+@media(max-width:600px){.lm-rail-heading{align-items:flex-start}.lm-rail-heading .lm-calendar-help{font-size:12px}.lm-card-chat{min-width:44px;width:44px;height:44px}.lm-card-teacher{min-height:44px}.lm-media-card .lm-card-heading{height:172px}.lm-card-title{font-size:15px}.lm-calendar .lm-card-footer .button{min-height:44px}}
+
+/* One compact editor for videos and PDFs, with explicit Save and Close actions. */
+.lm-editor-dialog .lm-modal-head{display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px 18px;margin-bottom:16px}
+.lm-editor-title{flex:1 1 220px;min-width:0}.lm-editor-title p{margin:5px 0 0;color:#6c6172;font-size:13px}.lm-editor-date{font-size:13px;line-height:42px;white-space:nowrap}
+.lm-editor-actions{display:flex;flex:none;gap:8px;margin-left:auto}.lm-editor-actions .button{min-height:44px}
+.lm-save-confirmation{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.lm-attachments h3{margin:4px 0 12px}.lm-attachment-list{display:grid;gap:10px}.lm-attachment-list:empty{display:none}.lm-attachment-list+.lm-attachment-list:not(:empty){margin-top:10px}
+.lm-attachment-entry{display:grid;grid-template-columns:24px minmax(0,1fr) minmax(0,1.5fr) 44px;align-items:end;gap:10px;padding:12px;border:1px solid #dfcde6;border-radius:12px;min-width:0}
+.lm-attachment-entry label{min-width:0;font-size:13px}.lm-attachment-icon{align-self:center;color:#70477c}.lm-attachment-icon svg{display:block;width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.lm-attachment-entry .lm-remove{width:44px;height:44px;min-height:44px;padding:0;font-size:23px}.lm-file-source{display:grid;align-self:center;gap:6px;min-width:0;font-size:13px;overflow-wrap:anywhere}.lm-file-source>span:first-child{font-weight:600}
+.lm-upload-card{margin-top:16px;padding:16px;border:1px solid #dfcde6;border-radius:12px;background:#faf6fc}.lm-form[hidden]{display:none}
+@media(max-width:600px){.lm-editor-dialog .lm-modal-head{gap:8px}.lm-editor-title{flex-basis:calc(100% - 164px)}.lm-editor-date{order:3;flex-basis:100%;line-height:1.4}.lm-editor-actions{gap:6px}.lm-editor-actions .button{padding:8px 12px}.lm-attachment-entry{grid-template-columns:24px minmax(0,1fr) 44px;gap:10px}.lm-attachment-entry label{grid-column:2}.lm-attachment-entry .lm-file-source{grid-column:2}.lm-attachment-entry .lm-remove{grid-column:3;grid-row:1/3}.lm-attachment-icon{grid-column:1;grid-row:1/3}}
+
+.lm-player-tools{display:flex;justify-content:flex-end;margin-top:10px}.lm-player-tools label{display:flex;align-items:center;gap:8px;font-size:14px}.lm-player-tools select{font:inherit;padding:6px;border:1px solid #cdbbd5;border-radius:6px}.lm-upload-card progress{width:100%;height:16px}.lm-card-file:disabled{opacity:.55;cursor:default}
+[data-lesson-pdf-library]{display:grid;gap:.6rem;min-width:0}[data-lesson-pdf-library] select{width:100%;max-width:100%;min-width:0}[data-lesson-pdf-library][hidden],[data-lesson-pdf-upload][hidden]{display:none}
+.lm-subject-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:18px}.lm-subject-grid article,.lm-recording-list article{padding:24px;border:1px solid var(--circle-rule,#ddced7);background:var(--circle-surface,#fffaf5);border-radius:12px}.lm-recording-collections h3{font:400 27px/1.2 Georgia,serif}.lm-recording-list article{margin-block:16px}.lm-recording-list .lm-session-summary,.lm-recording-detail .lm-session-summary{white-space:normal;overflow:visible;display:block;line-height:1.8}.lm-recording-detail [data-lm-recording-player] video,.lm-recording-detail [data-lm-recording-player] iframe{width:100%;aspect-ratio:16/9;border:0;background:#171417}.lm-recording-detail>details{padding:22px 0}.lm-recording-detail summary{cursor:pointer;font:400 24px/1.4 Georgia,serif;min-height:44px}.lm-recording-detail nav{display:flex;gap:10px;flex-wrap:wrap}.lm-recording-detail pre{white-space:pre-wrap;overflow-wrap:anywhere;font:14px/1.8 system-ui}
+.lm-verified-quotes{padding:20px;background:#f0e4ed;border-radius:10px;margin-block:20px}.lm-verified-quotes blockquote{margin:0;font:400 25px/1.4 Georgia,serif}@media(min-width:850px){.lm-verified-quotes{float:right;width:28%;margin:0 0 24px 30px}}
+.lm-watch-pane,.lm-read-pane{min-width:0}.lm-watch-pane>details{padding:22px 0}.lm-read-pane .lm-session-summary{padding:20px 0}
+@media(min-width:1200px){.lm-watch-read-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:36px;align-items:start}.lm-watch-pane{position:sticky;top:24px}.lm-read-pane{border-left:1px solid var(--circle-rule,#ddced7);padding-left:30px}.lm-read-pane .lm-session-summary{padding-top:0}.lm-read-pane .lm-verified-quotes{float:none;width:auto;margin:20px 0}}
+
+.lm-recording-references article{padding:18px 0;border-bottom:1px solid #ddced7}.lm-recording-references [lang=ar]{font:26px/1.8 Amiri,serif}
+.lm-playlist-table-wrap{min-width:0;max-width:100%;overflow-x:auto;border:1px solid var(--circle-rule,#ddced7);border-radius:12px;background:var(--circle-surface,#fffaf5)}
+.lm-playlist-table{width:100%;border-collapse:collapse;text-align:left;font-size:14px}
+.lm-playlist-table caption{text-align:left;padding:16px 20px;color:var(--circle-muted,#796d75);font-size:13px;line-height:1.5}
+.lm-playlist-table th,.lm-playlist-table td{padding:14px 20px;border-top:1px solid var(--circle-rule,#ddced7);vertical-align:middle}
+.lm-playlist-table thead th{font:600 11px/1.5 system-ui;letter-spacing:.08em;text-transform:uppercase;color:var(--circle-muted,#796d75);background:#f5eef0}
+.lm-playlist-table tbody th{font:400 23px/1.3 Georgia,serif;min-width:170px}
+.lm-playlist-table td:last-child{white-space:nowrap}.lm-playlist-table td:last-child .button{min-height:44px;margin:0}
+.lm-playlist-table button[data-lm="recording-group"]{background:#526747;border-color:#526747;color:#fffdf5;font-weight:600}
+.lm-playlist-table button[data-lm="recording-group"]:hover{background:#43563a;border-color:#43563a}
+.lm-playlist-table-wrap:focus-visible{outline:2px solid #846271;outline-offset:3px}.lm-playlist-table tbody tr:hover{background:#f8f3ee}
+.lm-visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+@media(max-width:700px){.lm-playlist-table th,.lm-playlist-table td{padding:12px}.lm-playlist-table tbody th{font-size:20px}.lm-playlist-table{min-width:660px}}
+
+.lm-companion-application{white-space:pre-wrap}
+
+/* Native Teacher choices keep readable labels and full touch targets. */
+.lm-teacher-choices{min-width:0;margin:0;border:1px solid #dfcde6;border-radius:12px;padding:12px;max-height:320px;overflow-y:auto}
+.lm-teacher-choices legend{font-weight:700;padding:0 4px}.lm-teacher-choices .lm-check{display:flex;align-items:center;gap:10px;min-height:44px;margin:0;overflow-wrap:anywhere}
+.lm-teacher-choices input[type=checkbox]{width:18px;height:18px;min-width:18px;padding:0;flex:none}.lm-binding-form input[readonly]{white-space:normal}
+
+/* Native programme playlist forms retain the existing palette with sage actions. */
+.native-playlist-dialog .button,.native-playlist-settings>.lm-actions>.button{background:#49645c;border-color:#49645c;color:#fffaf2}
+.native-playlist-dialog .button.secondary,.native-playlist-settings>.lm-actions>.button.secondary{background:#fffdf9;color:#49645c}
+.native-playlist-dialog input[type=checkbox]{accent-color:#49645c}
+.lm-playlist-table button[data-lm=native-playlist-open]{background:#526747;border-color:#526747;color:#fffdf5;font-weight:600}.lm-podcast-tabs{display:flex;gap:16px;border-bottom:1px solid #ddced7;margin:18px 0}.lm-podcast-tabs .button{border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;padding:12px 2px;color:#796d75}.lm-podcast-tabs [aria-current=page]{border-bottom-color:#67515f;color:#67515f}.lm-podcast-header-actions{display:flex;flex-wrap:wrap;align-items:start;gap:16px}.lm-podcast-header-actions>details{padding:10px 0}.lm-podcast-header-actions summary,.lm-podcast-about summary{font-size:15px;cursor:pointer}.lm-podcast-row blockquote{font:italic 24px/1.5 Georgia,serif;text-align:right;color:#7c5e71;margin:0;padding-left:28px;border-left:1px solid #ddced7}.lm-recording-detail[data-mode=read] .lm-watch-pane{display:none}.lm-recording-detail[data-mode=read] .lm-watch-read-layout{display:block}.lm-legacy-recordings{margin-top:24px}.lm-legacy-recordings>summary{cursor:pointer;padding:14px 0}
+@media(min-width:1200px){.lm-podcast-row.has-quote{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:32px;align-items:center}}
+
+/* Programme settings use the same native table, with bounded scrolling. */
+.native-playlist-settings .mou-playlist-scroll{overflow:auto;max-width:100%;border:1px solid #ddced7;border-radius:8px}.native-playlist-settings table{border-collapse:collapse;width:100%;min-width:700px}.native-playlist-settings th,.native-playlist-settings td{padding:14px;text-align:left;border-bottom:1px solid #ddced7}.native-playlist-settings th{color:#67515f;background:#f3edee}.native-playlist-settings input{box-sizing:border-box;width:100%;min-width:140px;padding:10px;border:1px solid #ddced7;border-radius:6px}.native-playlist-settings button{cursor:pointer;min-height:40px;border:1px solid #526747;border-radius:22px;padding:9px 14px;margin:4px;background:#526747;color:#fffaf2}.native-playlist-settings .pms-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.native-playlist-settings [data-playlist-review]:not(:empty){padding:16px;background:#f3edee;border:1px solid #ddced7;border-radius:8px}.native-playlist-settings [role=alert]{color:#943d51}
