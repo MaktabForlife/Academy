@@ -71,7 +71,8 @@ export async function nativePortal(request,env,{repository,authenticate,read,min
  const nativeScopes=async()=>(await repository.coreDb.prepare('SELECT s.activity_key,m.offering_id,m.kind,o.state access_owner FROM json_each(?) a JOIN website_platform_access_scopes s ON s.activity_key=a.value COLLATE NOCASE JOIN website_platform_timetable_scopes m USING(activity_key) LEFT JOIN website_platform_access_ownership o INDEXED BY website_platform_ownership_nocase ON o.activity_key=s.activity_key COLLATE NOCASE WHERE s.enabled=1').bind(JSON.stringify(state.activities.slice(0,100).map(a=>a.activity_key))).all()).results;
  const dashboard=async value=>{
   only(value,['mode','refresh','date','weekStart']);
-  const produce=async()=>dashboardSummary(state,env,value,(p,b,m)=>read(p,b,m,request),await nativeScopes());
+  const {refresh,...selection}=value;if(refresh!==undefined&&typeof refresh!=='boolean')throw fail('Choose a valid refresh action.');
+  const produce=async()=>dashboardSummary(state,env,selection,(p,b,m)=>read(p,b,m,request),await nativeScopes());
   // Preserve the existing native snapshot readers. A combined cache needs a
   // proven Core/Admin revision vector covering notes, messages and enrolment.
   const data=await produce();
