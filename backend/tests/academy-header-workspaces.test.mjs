@@ -11,7 +11,7 @@ function fixture({native=true,signed=true,global=true,teacher=false,verified=tru
  const location={pathname:native?'/academy/admin/':'/academy/library/',hash:native?'#activity/PROGRAM/example/teach':'',origin:'https://academy.test',get href(){return navigations.at(-1)||'https://academy.test'+this.pathname+this.hash;},set href(value){navigations.push(value);},assign(value){navigations.push(value);},replace(value){navigations.push(value);}};
  window.M4L_ACADEMY_WORKSPACE={current:()=>current,audience:()=>current.replace('ADMIN_',''),adminRealm:()=>current==='ADMIN'||current.startsWith('ADMIN_'),adminAccess:()=>verified,homeUrl:()=>'/academy/#dashboard'};
  const data={signedIn:signed,globalAdmin:global,profile:{name:'Sample user'},workspaceAccess:{learn:true,teach:teacher},workspaceRoles:global?['GLOBAL_ADMIN']:teacher?['TEACHER']:['STUDENT'],personalActivities:[]};
- window.M4L_ACADEMY_SHELL_DATA=data;
+ window.M4L_ACADEMY_SHELL_DATA=data;window.M4L_CONFIG={PORTAL_ORIGIN:'https://portal.academy.test'};
  const localStorage={getItem:()=>token},sessionStorage={getItem:()=>returnValue,removeItem(){returnValue=null;}};
  class Clock extends Date{static now(){return clock;}}
  const context=vm.createContext({window,document,location,localStorage,sessionStorage,Date:Clock,URL,URLSearchParams,MutationObserver:class{observe(){}},crypto,TextEncoder,console});
@@ -36,8 +36,8 @@ test('mode navigation keeps unsaved work guards on both connected returns and na
  const f=fixture();f.window.M4L_CIRCLES_RETURN={modeHref:mode=>'https://circles.test/?workspace='+mode};
  for(const key of ['M4L_CIRCLES_ACCESS','M4L_STUDIO_ACCESS','M4L_LESSON_MEDIA']){f.window[key]={canLeave:()=>false};assert.equal(f.window.M4L_ACADEMY_SHELL.openRole('learn'),false);assert.equal(f.navigations.length,0);delete f.window[key];}
  assert.equal(f.window.M4L_ACADEMY_SHELL.openRole('learn'),true);assert.equal(f.navigations.at(-1),'https://circles.test/?workspace=learn');
- delete f.window.M4L_CIRCLES_RETURN;assert.equal(f.window.M4L_ACADEMY_SHELL.openRole('admin'),true);assert.equal(f.navigations.at(-1),'https://maktab4life.org/?workspace=admin&dashboard=1');
- const tool=fixture({native:false,global:false,teacher:true,mode:'TEACH'});tool.buttons[1].click();assert.equal(tool.navigations.at(-1),'https://maktab4life.org/?workspace=teach&dashboard=1');
+ delete f.window.M4L_CIRCLES_RETURN;assert.equal(f.window.M4L_ACADEMY_SHELL.openRole('admin'),true);assert.equal(f.navigations.at(-1),'https://portal.academy.test/?workspace=admin&dashboard=1');
+ const tool=fixture({native:false,global:false,teacher:true,mode:'TEACH'});tool.buttons[1].click();assert.equal(tool.navigations.at(-1),'https://portal.academy.test/?workspace=teach&dashboard=1');
 });
 
 test('connected selector URLs come only from the checked account-bound return and expire on account/day boundaries',async()=>{
