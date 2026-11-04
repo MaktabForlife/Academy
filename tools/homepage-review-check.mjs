@@ -21,7 +21,7 @@ try{
  await page.evaluate(()=>document.fonts.ready);
  assert.equal(await page.locator('#news [role=tab]').count(),6);
  assert.equal(await page.locator('#course-announcement-panel h3').textContent(),'Mothers of the Ummah');
- assert.match(await page.locator('[data-course-schedule]').textContent(),/Monday–Thursday · 09:30–10:30 SAST/);
+ assert.match(await page.locator('[data-course-schedule]').getAttribute('data-schedule-summary'),/Monday–Thursday · 09:30–10:30 SAST/);
  assert.equal(await page.locator('[data-course-fee]').textContent(),'R500 per month');
  assert.equal(await page.locator('#timetables, #programme-panel, a[href="#timetables"]').count(),0);
  checks.push('One joined card with six course tabs in announcements; no separate bottom timetable or dead timetable links.');
@@ -30,7 +30,7 @@ try{
  await page.keyboard.press('ArrowRight');
  assert.equal(await page.locator('[role=tab][aria-selected=true]').getAttribute('id'),'announcement-tab-tafseer');
  assert.equal(await page.evaluate(()=>document.activeElement.id),'announcement-tab-tafseer');
- assert.match(await page.locator('[data-course-schedule]').textContent(),/Saturday · 08:30–09:30 SAST/);
+ assert.match(await page.locator('[data-course-schedule]').getAttribute('data-schedule-summary'),/Saturday · 08:30–09:30 SAST/);
  assert.equal(await page.locator('[data-course-fee]').textContent(),'R300 per month');
  await page.keyboard.press('ArrowLeft');
  assert(await firstTab.evaluate(node=>node===document.activeElement));
@@ -49,16 +49,26 @@ try{
   assert.equal(await tab.getAttribute('aria-selected'),'true');
   assert.equal(await page.locator('[role=tab][tabindex="0"]').count(),1);
   assert.equal(await page.locator('#course-announcement-panel a[target="_blank"]').getAttribute('href'),programme.flyerUrl);
-  if(!programme.schedule.length)assert.match(await page.locator('[data-course-schedule]').textContent(),/confirm the 2027 days and times/);
+  if(!programme.schedule.length)assert.match(await page.locator('[data-course-schedule]').getAttribute('data-schedule-summary'),/confirm the 2027 days and times/);
   if(!programme.fee)assert.match(await page.locator('[data-course-fee]').textContent(),/Confirm current fees/);
+  assert.equal(await page.locator('#enrolment-course-name').textContent(),programme.name);
+  const split=await page.locator('.course-announcement-body').evaluate(node=>{
+   const left=node.querySelector('.announcement-timetable').getBoundingClientRect(),right=node.querySelector('.announcement-enrolment').getBoundingClientRect();
+   return {height:node.getBoundingClientRect().height,left:left.x,right:right.x,sameTop:Math.abs(left.y-right.y)<1};
+  });
+  assert(split.left<split.right&&split.sameTop,'Timetable must sit left of 2027 enrolments on desktop');
+  assert(split.height<=340,'Compact desktop panel must remain below 340px');
+
  }
- checks.push('All course descriptions, explicit flyer links, known schedules and honest unconfirmed information render correctly.');
+ checks.push('Compact shared panel: timetable left and 2027 enrolments right, with English course names, description, explicit flyer links and known facts.');
  await page.locator('.programme-card a[data-programme="mothers"]').click();
  assert.equal(await page.locator('#course-announcement-panel h3').textContent(),'Mothers of the Ummah');
  await page.locator('.pathway-worship').click();
  assert.equal(await page.locator('#course-announcement-panel h3').textContent(),'Tafseer and Tadabbur');
  checks.push('Programme overview and welcome links select the matching course inside announcements.');
  assert.equal(await page.locator('#news-briefs .news-brief').count(),2);
+ assert.match(await page.locator('.pathway-course-names').textContent(),/Tafseer and Tadabbur/);
+ assert.match(await page.locator('.pathway-course-names').textContent(),/Mothers of the Ummah/);
  await page.locator('#news-briefs details summary').first().click();
  assert(await page.locator('#news-briefs details').first().evaluate(node=>node.open));
  await page.evaluate(async()=>{const {review}=await import('/circles/homepage-review.mjs');review.setAnnouncements([]);});
@@ -78,6 +88,13 @@ try{
   await page.evaluate(async()=>{const {review}=await import('/circles/homepage-review.mjs');review.chooseProgramme('mothers');});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'Overflow at '+width);
   assert.equal(await page.locator('#timetables').count(),0);
+  for(const programme of programmes){
+   await page.evaluate(async(id)=>{const {review}=await import('/circles/homepage-review.mjs');review.chooseProgramme(id);},programme.id);
+   const overflow=await page.locator('.course-announcement-body').evaluate(node=>[...node.children].some(child=>child.scrollHeight>child.clientHeight+1||child.scrollWidth>child.clientWidth+1));
+   assert.equal(overflow,false,'Course panel content overflow at '+width+'px for '+programme.id);
+  }
+  await page.evaluate(async()=>{const {review}=await import('/circles/homepage-review.mjs');review.chooseProgramme('mothers');});
+
   checks.push('No horizontal page overflow at '+width+'px.');
   if(width===390||width===1440){
    await page.locator('#news').screenshot({path:resolve(out,'announcements-'+width+'.png')});
@@ -96,7 +113,7 @@ try{
  const inline=data.replace(/^export /gm,'')+'\n'+script.replace(/^import .*?;\n/,'').replace(/^export /gm,'');
  html=html.replace('<script type="module" src="/circles/homepage-review.mjs"></script>','<script type="module">'+inline.replace(/<\/script/gi,'<\\/script')+'</script>');
  await writeFile(resolve(out,'homepage-review-standalone.html'),html);
- const standalone=await browser.newPage();await standalone.route('**/*',route=>route.request().url().startsWith('file:')||route.request().url().startsWith('data:')?route.continue():route.abort());await standalone.goto(pathToFileURL(resolve(out,'homepage-review-standalone.html')).href);await standalone.locator('#course-announcement-panel h3').waitFor();await standalone.locator('#announcement-tab-tafseer').click();assert.match(await standalone.locator('[data-course-schedule]').textContent(),/Saturday · 08:30–09:30 SAST/);assert.equal(await standalone.locator('[data-course-fee]').textContent(),'R300 per month');assert.equal(await standalone.locator('#timetables').count(),0);await standalone.close();checks.push('Downloadable standalone HTML works without its source folder or network calls.');
+ const standalone=await browser.newPage();await standalone.route('**/*',route=>route.request().url().startsWith('file:')||route.request().url().startsWith('data:')?route.continue():route.abort());await standalone.goto(pathToFileURL(resolve(out,'homepage-review-standalone.html')).href);await standalone.locator('#course-announcement-panel h3').waitFor();await standalone.locator('#announcement-tab-tafseer').click();assert.match(await standalone.locator('[data-course-schedule]').getAttribute('data-schedule-summary'),/Saturday · 08:30–09:30 SAST/);assert.equal(await standalone.locator('[data-course-fee]').textContent(),'R300 per month');assert.equal(await standalone.locator('#timetables').count(),0);await standalone.close();checks.push('Downloadable standalone HTML works without its source folder or network calls.');
  await writeFile(resolve(out,'review.json'),JSON.stringify({passed:true,commit:process.env.GITHUB_SHA,checks,errors,liveRequests:0,macWrites:0,programmeFacts:'Drafts from existing 2027 catalogue and owner-supplied flyers; missing values remain unconfirmed.'},null,2)+'\n');
  console.log(JSON.stringify({passed:true,checks:checks.length,output:out}));
 }finally{await browser.close();await new Promise(done=>server.close(done));}
