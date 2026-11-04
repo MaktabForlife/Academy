@@ -3,10 +3,11 @@
 const hosting=Object.freeze(globalThis.AcademyHosting);
 const nativeToken=()=>localStorage.getItem('m4l_account_token')||'';
 const jsonResponse=(value,status=200)=>Response.json(value,{status});
-async function nativeFetch(path,body,token=nativeToken()){
+async function nativeFetch(path,body,token=nativeToken(),conditions={}){
  const url=new URL(path,hosting.academyApiOrigin);
  if(url.origin!==hosting.academyApiOrigin||!url.pathname.startsWith('/api/'))throw Error('Invalid Academy connection.');
- return fetch(url.href,{method:'POST',credentials:'omit',cache:'no-store',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(body)});
+ const read=path==='/api/academy/hub/read';if(read)url.searchParams.set('request',JSON.stringify(body));
+ return fetch(url.href,{method:read?'GET':'POST',credentials:'omit',cache:'no-store',headers:{...(read?{}:{'Content-Type':'application/json'}),...(token?{Authorization:'Bearer '+token}:{}),...(conditions['If-None-Match']?{'If-None-Match':conditions['If-None-Match']}:{})},...(read?{}:{body:JSON.stringify(body)})});
 }
 async function portalFetch(path,init){
  if(path==='/api/config')return jsonResponse({academyOrigin:location.origin,studioOrigin:hosting.studioOrigin,hifzOrigin:hosting.hifzOrigin,nativePortal:true,authorityMode:'ACADEMY'});
@@ -42,7 +43,8 @@ async function portalFetch(path,init){
  else if(url.pathname==='/api/circles/navigation')payload={kind:'navigation',input:{}};
  else if(url.pathname==='/api/circles/access')payload={kind:'access',input:{websiteIds:url.searchParams.getAll('website')}};
  else throw Error('This action belongs in Studio. Open its current workspace.');
- const response=await nativeFetch(endpoint,payload,token);
+ if(!token){clearPrivateReads();return jsonResponse({error:'Sign in to Academy to continue.',code:'SIGN_IN_REQUIRED'},401);}
+ const response=await nativeFetch(endpoint,payload,token,init.headers);
  if(nativeToken()!==token)throw new DOMException('Your account changed.','AbortError');
  if(!project||!response.ok)return response;
  return jsonResponse(project(await response.json()));

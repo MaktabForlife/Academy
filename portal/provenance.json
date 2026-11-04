@@ -1,12 +1,12 @@
 {
   "upstream": "MaktabForlife/AcademyStudio",
-  "commit": "dea1b7719440351ad224496f3ad549264225150a",
+  "commit": "9daf14989a503b77b35e781b0dd0f6e85c2d9671",
   "transferredSourceFiles": 179,
   "owner": "MaktabForlife/Academy",
   "privateMediaCopied": false,
   "manifest": {
     "academy-logo.png": "0652c6b20733b2260895df6ee7805702679cb96c854834c3cac400ca2ee49a9f",
-    "api.mjs": "8ad8ded426bfa8fab5e0fc2396d7c50b03d77e42ba5bc62abffb0817892709fb",
+    "api.mjs": "3f5b6cd900b74a9604ed6d91de46b2824dc0147e833ca76c004ec226216d8052",
     "circles/academy-branches.css": "c5c95e334ab61a6d23d49df69f86150d8d2ed998f85483e6aff1ffa1307f3b85",
     "circles/academy-brand.css": "09684d5f0e68a99e2e3f478220fb2e2a800766249d193c5604f0a819b7eeace2",
     "circles/app.js": "e680387a1bc675f475d3ebe9a1c5207eb45a135cae32c4c7d20fa7165f39b8d4",
@@ -107,7 +107,7 @@
     "shared/circles-dashboard-view.mjs": "5e9c8cd9197ee98799b88d3484dc4cf0eea7f622edd3708e214e5bff756c94b1",
     "shared/circles-learn-courses.mjs": "8f8fc1de0e8d63b56f73354f478d9c9478aa806115fb6da6e166af0a999f519d",
     "shared/circles-routes.mjs": "5f110aea22514f27e5efd85717eb52f4022406ca746fd3c92c213745a2c822a1",
-    "shared/circles-sign-in.mjs": "274420f28ed8064623fe63daa14903a0807898f03f25a105425676e4e4587175",
+    "shared/circles-sign-in.mjs": "b51ca92b16483c82cc478b5721f81ff64cf5b9cbe8633794a215ce4733175c06",
     "shared/circles-tafseer-row.mjs": "56aaa1b7e740538b3d67f80397e8baa74d86e22a6064e7a8d0aa8bd0c25feb1f",
     "shared/circles-theme.css": "6c11da8204de76e09729c39454a0a91f6fd87c6effde8b212e3a50c11069d13c",
     "shared/circles-workspaces.css": "ade2e9dd80c8975de5aeb1142b7127b05b666472110e6143df1745ac2394a860",
