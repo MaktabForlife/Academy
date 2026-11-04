@@ -30,3 +30,7 @@ The job installs dependencies on GitHub, checks the native portal boundaries, bu
 After design approval, integrate the presentation with the current Admin announcement builder and published public programme facts. Keep all real editing, review and publication explicit.
 
 The prototype resolves its Studio courses link from AcademyHosting.studioOrigin and keeps a separate flyerUrl on each programme. Announcement controls retain keyboard focus after redraw; browser checks cover repeated Enter activation and Space on a choice control.
+
+## Owner refinement: course tabs inside announcements
+
+The announcements section now contains one connected card with six course-name tabs, using the reference's rounded, attached-tab silhouette. Each panel describes its course and shows the known rhythm, format, day/time and fee facts with enquiry/flyer links. The separate timetable at the bottom has been removed at the owner's request. Existing circle/overview links select the corresponding course tab in announcements. General Bootcamp/prospectus news remains below. Course-tab controls retain their DOM nodes and keyboard focus when the panel changes.

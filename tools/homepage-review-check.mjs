@@ -16,25 +16,78 @@ const browser=await chromium.launch({headless:true}),page=await browser.newPage(
 page.on('pageerror',e=>errors.push(e.message));
 await page.route('**/*',route=>{const url=new URL(route.request().url());requests.push(url.href);if(url.origin===base||url.protocol==='data:')return route.continue();return route.abort();});
 try{
- await page.goto(base+'/circles/homepage-review.html');await page.locator('#programme-panel h3').waitFor();await page.evaluate(()=>document.fonts.ready);
- assert.equal(await page.locator('#programme-panel h3').textContent(),'Mothers of the Ummah');assert.equal(await page.locator('.day-card').count(),4);
- await page.locator('#tab-mothers').focus();await page.keyboard.press('ArrowRight');assert.equal(await page.locator('[role=tab][aria-selected=true]').getAttribute('id'),'tab-tafseer');assert.equal(await page.locator('.day-card time').textContent(),'08:30–09:30');
- await page.locator('#tab-aalimiyah').click();assert.match(await page.locator('.schedule-pending').textContent(),/confirm its days and times/);assert.equal(await page.locator('.day-card time').count(),0);
- for(const programme of programmes){await page.locator('#tab-'+programme.id).click();assert.equal(await page.locator('#programme-panel h3').textContent(),programme.name);assert.equal(await page.locator('#programme-panel').getAttribute('aria-labelledby'),'tab-'+programme.id);}
- await page.locator('.programme-card a[data-programme="mothers"]').click();assert.equal(await page.locator('#programme-panel h3').textContent(),'Mothers of the Ummah');checks.push('Six programmes, keyboard tab changes, same-page timetable navigation and honest missing-fact states.');
- await page.locator('[data-news-step="1"]').focus();await page.keyboard.press('Enter');assert.equal(await page.locator('.announcement-copy h3').textContent(),announcements[1].headline);assert.equal(await page.evaluate(()=>document.activeElement.dataset.newsStep),'1');
- await page.keyboard.press('Enter');assert.equal(await page.locator('.announcement-copy h3').textContent(),announcements[2].headline);assert.equal(await page.evaluate(()=>document.activeElement.dataset.newsStep),'1');
- await page.locator('[data-news-step="-1"]').focus();await page.keyboard.press('Enter');assert.equal(await page.locator('.announcement-copy h3').textContent(),announcements[1].headline);assert.equal(await page.evaluate(()=>document.activeElement.dataset.newsStep),'-1');
- await page.locator('#announcement-controls [data-news-choice="0"]').focus();await page.keyboard.press('Space');assert.equal(await page.locator('.announcement-copy h3').textContent(),announcements[0].headline);assert.equal(await page.evaluate(()=>document.activeElement.dataset.newsChoice),'0');checks.push('Announcement Previous, Next and choice controls retain keyboard focus after redraw.');
- await page.locator('[data-news-step="1"]').click();assert.equal(await page.locator('.announcement-copy h3').textContent(),announcements[1].headline);await page.locator('a[href="#announcement-detail"]').click();assert(await page.locator('#announcement-detail').evaluate(n=>n.open));
- await page.locator('[data-news-step="-1"]').click();assert.equal(await page.locator('.announcement-copy h3').textContent(),announcements[0].headline);checks.push('Announcement navigation, full readable details and wraparound.');
- await page.evaluate(async()=>{const {review}=await import('/circles/homepage-review.mjs');review.setAnnouncements([]);});assert.equal(await page.locator('.announcement-spotlight').count(),0);
- await page.evaluate(async()=>{const {review}=await import('/circles/homepage-review.mjs'),{announcements}=await import('/circles/homepage-review-data.mjs');review.setAnnouncements([announcements[0]]);});assert.equal(await page.locator('#announcement-controls button').count(),0);
- await page.evaluate(async()=>{const {review}=await import('/circles/homepage-review.mjs'),{announcements}=await import('/circles/homepage-review-data.mjs');review.setAnnouncements(Array.from({length:5},(_,i)=>({...announcements[i%announcements.length],id:'extra-'+i})));});assert.equal(await page.locator('[data-news-choice]').count(),10);
- await page.evaluate(async()=>{const {review}=await import('/circles/homepage-review.mjs'),{announcements}=await import('/circles/homepage-review-data.mjs');review.setAnnouncements([{...announcements[0],headline:'<img src=x onerror=alert(1)>'}]);});assert.equal(await page.locator('.announcement-copy h3 img').count(),0);
- await page.evaluate(async()=>{const {review}=await import('/circles/homepage-review.mjs'),{announcements}=await import('/circles/homepage-review-data.mjs');review.setAnnouncements(announcements);review.chooseProgramme('mothers');});checks.push('Empty, single and five-announcement layouts; escaped editable titles.');
- for(const width of [320,390,768,1024,1440,1920]){await page.setViewportSize({width,height:1100});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'Overflow at '+width);checks.push('No horizontal page overflow at '+width+'px.');if(width===390||width===1440){await page.locator('#news').screenshot({path:resolve(out,'announcements-'+width+'.png')});await page.locator('#timetables').screenshot({path:resolve(out,'timetables-'+width+'.png')});await page.locator('#home').screenshot({path:resolve(out,'circle-'+width+'.png')});}}
- assert.deepEqual(errors,[]);assert(!requests.some(url=>new URL(url).pathname.startsWith('/api/')));checks.push('No live account/API/database requests or browser errors.');
+ await page.goto(base+'/circles/homepage-review.html');
+ await page.locator('#course-announcement-panel h3').waitFor();
+ await page.evaluate(()=>document.fonts.ready);
+ assert.equal(await page.locator('#news [role=tab]').count(),6);
+ assert.equal(await page.locator('#course-announcement-panel h3').textContent(),'Mothers of the Ummah');
+ assert.match(await page.locator('[data-course-schedule]').textContent(),/Monday–Thursday · 09:30–10:30 SAST/);
+ assert.equal(await page.locator('[data-course-fee]').textContent(),'R500 per month');
+ assert.equal(await page.locator('#timetables, #programme-panel, a[href="#timetables"]').count(),0);
+ checks.push('One joined card with six course tabs in announcements; no separate bottom timetable or dead timetable links.');
+ const firstTab=await page.locator('#announcement-tab-mothers').elementHandle();
+ await page.locator('#announcement-tab-mothers').focus();
+ await page.keyboard.press('ArrowRight');
+ assert.equal(await page.locator('[role=tab][aria-selected=true]').getAttribute('id'),'announcement-tab-tafseer');
+ assert.equal(await page.evaluate(()=>document.activeElement.id),'announcement-tab-tafseer');
+ assert.match(await page.locator('[data-course-schedule]').textContent(),/Saturday · 08:30–09:30 SAST/);
+ assert.equal(await page.locator('[data-course-fee]').textContent(),'R300 per month');
+ await page.keyboard.press('ArrowLeft');
+ assert(await firstTab.evaluate(node=>node===document.activeElement));
+ await page.keyboard.press('Home');
+ assert.equal(await page.evaluate(()=>document.activeElement.id),'announcement-tab-aalimiyah');
+ await page.keyboard.press('End');
+ assert.equal(await page.evaluate(()=>document.activeElement.id),'announcement-tab-arabic-adventures');
+ await page.keyboard.press('ArrowRight');
+ assert.equal(await page.evaluate(()=>document.activeElement.id),'announcement-tab-aalimiyah');
+ checks.push('Arrow, Home and End keys activate tabs, wrap around and retain stable keyboard focus.');
+ for(const programme of programmes){
+  const tab=page.locator('#announcement-tab-'+programme.id);
+  await tab.click();
+  assert.equal(await page.locator('#course-announcement-panel h3').textContent(),programme.name);
+  assert.equal(await page.locator('#course-announcement-panel').getAttribute('aria-labelledby'),'announcement-tab-'+programme.id);
+  assert.equal(await tab.getAttribute('aria-selected'),'true');
+  assert.equal(await page.locator('[role=tab][tabindex="0"]').count(),1);
+  assert.equal(await page.locator('#course-announcement-panel a[target="_blank"]').getAttribute('href'),programme.flyerUrl);
+  if(!programme.schedule.length)assert.match(await page.locator('[data-course-schedule]').textContent(),/confirm the 2027 days and times/);
+  if(!programme.fee)assert.match(await page.locator('[data-course-fee]').textContent(),/Confirm current fees/);
+ }
+ checks.push('All course descriptions, explicit flyer links, known schedules and honest unconfirmed information render correctly.');
+ await page.locator('.programme-card a[data-programme="mothers"]').click();
+ assert.equal(await page.locator('#course-announcement-panel h3').textContent(),'Mothers of the Ummah');
+ await page.locator('.pathway-worship').click();
+ assert.equal(await page.locator('#course-announcement-panel h3').textContent(),'Tafseer and Tadabbur');
+ checks.push('Programme overview and welcome links select the matching course inside announcements.');
+ assert.equal(await page.locator('#news-briefs .news-brief').count(),2);
+ await page.locator('#news-briefs details summary').first().click();
+ assert(await page.locator('#news-briefs details').first().evaluate(node=>node.open));
+ await page.evaluate(async()=>{const {review}=await import('/circles/homepage-review.mjs');review.setAnnouncements([]);});
+ assert.equal(await page.locator('#news-briefs .news-brief').count(),0);
+ assert.equal(await page.locator('#news [role=tab]').count(),6);
+ await page.evaluate(async()=>{const {review}=await import('/circles/homepage-review.mjs'),{announcements}=await import('/circles/homepage-review-data.mjs');review.setAnnouncements([announcements[1]]);});
+ assert.equal(await page.locator('#news-briefs .news-brief').count(),1);
+ await page.evaluate(async()=>{const {review}=await import('/circles/homepage-review.mjs'),{announcements}=await import('/circles/homepage-review-data.mjs');review.setAnnouncements(Array.from({length:5},(_,i)=>({...announcements[i%announcements.length],id:'extra-'+i})));});
+ assert.equal(await page.locator('#news-briefs .news-brief').count(),5);
+ await page.evaluate(async()=>{const {review}=await import('/circles/homepage-review.mjs'),{announcements}=await import('/circles/homepage-review-data.mjs');review.setAnnouncements([{...announcements[1],title:'<img src=x onerror=alert(1)>'}]);});
+ assert.equal(await page.locator('#news-briefs h3 img').count(),0);
+ assert.match(await page.locator('#news-briefs h3').textContent(),/<img/);
+ await page.evaluate(async()=>{const {review}=await import('/circles/homepage-review.mjs'),{announcements}=await import('/circles/homepage-review-data.mjs');review.setAnnouncements(announcements);review.chooseProgramme('mothers');});
+ checks.push('General news supports zero, one and five items, readable expanded details and safely escaped editable titles.');
+ for(const width of [320,390,768,1024,1440,1920]){
+  await page.setViewportSize({width,height:1100});
+  await page.evaluate(async()=>{const {review}=await import('/circles/homepage-review.mjs');review.chooseProgramme('mothers');});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'Overflow at '+width);
+  assert.equal(await page.locator('#timetables').count(),0);
+  checks.push('No horizontal page overflow at '+width+'px.');
+  if(width===390||width===1440){
+   await page.locator('#news').screenshot({path:resolve(out,'announcements-'+width+'.png')});
+   await page.locator('#announcement-feature').screenshot({path:resolve(out,'course-tabs-'+width+'.png')});
+   await page.locator('#home').screenshot({path:resolve(out,'circle-'+width+'.png')});
+  }
+ }
+ assert.deepEqual(errors,[]);
+ assert(!requests.some(url=>new URL(url).pathname.startsWith('/api/')));
+ checks.push('No live account/API/database requests or browser errors.');
  // Self-contained copy for review: CSS, fonts and scripts stay in the artifact.
  let html=await readFile(resolve(directory,'circles/homepage-review.html'),'utf8');html=html.replace('<script src="/hosting-config.js"></script>','<script>'+await readFile(resolve(directory,'hosting-config.js'),'utf8')+'</script>');
  const styles=[...html.matchAll(/<link rel="stylesheet" href="([^"]+)">/g)];
@@ -43,7 +96,7 @@ try{
  const inline=data.replace(/^export /gm,'')+'\n'+script.replace(/^import .*?;\n/,'').replace(/^export /gm,'');
  html=html.replace('<script type="module" src="/circles/homepage-review.mjs"></script>','<script type="module">'+inline.replace(/<\/script/gi,'<\\/script')+'</script>');
  await writeFile(resolve(out,'homepage-review-standalone.html'),html);
- const standalone=await browser.newPage();await standalone.route('**/*',route=>route.request().url().startsWith('file:')||route.request().url().startsWith('data:')?route.continue():route.abort());await standalone.goto(pathToFileURL(resolve(out,'homepage-review-standalone.html')).href);await standalone.locator('#programme-panel h3').waitFor();await standalone.locator('#tab-tafseer').click();assert.equal(await standalone.locator('.day-card time').textContent(),'08:30–09:30');await standalone.locator('[data-news-step="1"]').click();assert.equal(await standalone.locator('.announcement-copy h3').textContent(),announcements[1].headline);await standalone.close();checks.push('Downloadable standalone HTML works without its source folder or network calls.');
+ const standalone=await browser.newPage();await standalone.route('**/*',route=>route.request().url().startsWith('file:')||route.request().url().startsWith('data:')?route.continue():route.abort());await standalone.goto(pathToFileURL(resolve(out,'homepage-review-standalone.html')).href);await standalone.locator('#course-announcement-panel h3').waitFor();await standalone.locator('#announcement-tab-tafseer').click();assert.match(await standalone.locator('[data-course-schedule]').textContent(),/Saturday · 08:30–09:30 SAST/);assert.equal(await standalone.locator('[data-course-fee]').textContent(),'R300 per month');assert.equal(await standalone.locator('#timetables').count(),0);await standalone.close();checks.push('Downloadable standalone HTML works without its source folder or network calls.');
  await writeFile(resolve(out,'review.json'),JSON.stringify({passed:true,commit:process.env.GITHUB_SHA,checks,errors,liveRequests:0,macWrites:0,programmeFacts:'Drafts from existing 2027 catalogue and owner-supplied flyers; missing values remain unconfirmed.'},null,2)+'\n');
  console.log(JSON.stringify({passed:true,checks:checks.length,output:out}));
 }finally{await browser.close();await new Promise(done=>server.close(done));}

@@ -184,7 +184,7 @@ export const announcements=[
     "tone": "sage",
     "arabic": "أهلاً وسهلاً",
     "visual": "Begin where you are.",
-    "body": "The 2027 prospectus introduces six programmes. Explore each timetable panel below and contact the Academy to confirm days, times, fees and admission details.",
+    "body": "The 2027 prospectus introduces six programmes. Explore the course tabs above and contact the Academy to confirm days, times, fees and admission details.",
     "source": "2027 prospectus catalogue",
     "dateLabel": "2027 prospectus"
   }
