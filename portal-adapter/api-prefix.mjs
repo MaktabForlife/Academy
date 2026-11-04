@@ -30,6 +30,7 @@ async function portalFetch(path,init){
   return response;
  }
  if(path==='/auth/access'||path==='/auth/refresh'){endpoint='/api/academy/hub/refresh';payload={};}
+ else if(path==='/auth/academy'){endpoint='/api/academy/hub/legacy-open';payload=body;}
  else if(path==='/auth/native-open'){endpoint='/api/academy/hub/open';payload=body;}
  else if(path==='/api/circles/lesson-join'){endpoint='/api/academy/hub/join';payload=body;}
  else if(/^\/api\/offerings\/[-A-Za-z0-9_:]+\/join$/.test(url.pathname)){endpoint='/api/academy/hub/studio-join';payload={offeringId:decodeURIComponent(url.pathname.split('/')[3]),sessionId:body.sessionId};}

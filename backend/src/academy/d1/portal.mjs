@@ -86,6 +86,13 @@ export async function nativePortal(request,env,{repository,authenticate,read,min
   catch(error){if(error.status!==403||error.code!=='LESSON_UNAVAILABLE')throw error;result=await read('/api/academy/public-lesson/join',{joinKey:selected.joinKey,date:selected.date},'learn',request);}
   await current();await nativeJoinOwnership(repository.coreDb,state.account.account_id,selected.target);return result;
  }
+ if(path==='/api/academy/hub/legacy-open'){
+  only(input,['navigation','challenge','state']);if(input.navigation!=='hifz'||![input.challenge,input.state].every(v=>/^[A-Za-z0-9_-]{43}$/.test(v||'')))throw fail('Reopen Hifz from your dashboard.');
+  programmeChoice(state,'hifz',env);await current();const db=repository.coreDb,sourceRef=random(),code=random();
+  await db.prepare('INSERT INTO website_platform_sessions VALUES(?,?,?,?,?,?,?,?)').bind(sourceRef,state.account.account_id,auth.sid,state.account.credential_epoch,JSON.stringify(auth.context),Date.now()+7*86400_000,input.challenge,input.state).run();
+  await db.prepare('INSERT INTO website_platform_return_codes(code_hash,source_ref,challenge,state,expires_at,used,return_context) VALUES(?,?,?,?,?,0,?)').bind(await sha256(code),sourceRef,input.challenge,input.state,Date.now()+60000,JSON.stringify({navigation:'hifz'})).run();
+  await current();return {code};
+ }
  if(path==='/api/academy/hub/studio-start'){
   only(input,['challenge','state']);if(![input.challenge,input.state].every(v=>/^[A-Za-z0-9_-]{43}$/.test(v||'')))throw fail('Reopen Studio from Academy.');
   const db=repository.coreDb,sourceRef=random();

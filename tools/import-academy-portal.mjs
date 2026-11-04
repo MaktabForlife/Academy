@@ -8,7 +8,7 @@ assert.equal(process.env.GITHUB_ACTIONS,'true');
 const root=process.cwd(),source=resolve(process.env.PORTAL_STUDIO_SOURCE),sha=process.env.PORTAL_STUDIO_SHA;
 assert(/^[a-f0-9]{40}$/.test(sha));assert.equal(execFileSync('git',['rev-parse','HEAD'],{cwd:source,encoding:'utf8'}).trim(),sha);
 const top=new Set(['index.html','api.mjs','circles-home-entry.mjs','circles-entry.js','circles-login.mjs','circles-login.css','circles-dashboard.mjs','academy-logo.png']);
-const allowed=p=>top.has(p)||p.startsWith('shared/')&&!/\.(pdf|json)$/i.test(p)||p.startsWith('circles/assets/')||/^circles\/[^/]+\.(?:js|mjs|css)$/.test(p)&&!/(?:podcast|source|free-learning-view|mothers-subject)/.test(p);
+const allowed=p=>top.has(p)||p.startsWith('shared/')&&!/\.(pdf|json)$/i.test(p)||p.startsWith('circles/assets/')&&/\.(?:png|jpe?g|webp|svg|gif|ico|woff2?|ttf)$/i.test(p)||/^circles\/[^/]+\.(?:js|mjs|css)$/.test(p)&&!/(?:podcast|source|free-learning-view|mothers-subject)/.test(p);
 const manifest={};let count=0;
 async function walk(dir){for(const entry of await readdir(dir,{withFileTypes:true})){
  assert(!entry.isSymbolicLink());const from=resolve(dir,entry.name);if(entry.isDirectory()){await walk(from);continue;}

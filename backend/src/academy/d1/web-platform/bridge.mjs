@@ -1,3 +1,4 @@
+import {hosting} from '../../hosting.mjs';
 import {resumeCourseStudio} from './course-publication.mjs';
 import {navigationMappings,navigationSQL} from './navigation.mjs';
 import {prepareAccountAccess,pumpAccess} from './access.mjs';
@@ -40,16 +41,16 @@ export async function bridge(request,env,{login,mint,navigation,dashboard,destin
  if(!enabled(env))throw fail('Website integration is not enabled.',503);
  const path=new URL(request.url).pathname,db=dbFor(env);
  if(await db.prepare('SELECT enabled FROM website_platform_control WHERE singleton=1').first('enabled')!==1)throw fail('Website integration is not activated.',503);
- if(path==='/api/website-platform/config'&&request.method==='GET')return {enabled:true,websiteOrigin:env.WEBSITE_PLATFORM_ORIGIN};
+ if(path==='/api/website-platform/config'&&request.method==='GET')return {enabled:true,websiteOrigin:env.WEBSITE_PLATFORM_ORIGIN,portalOrigin:hosting().academyPortalOrigin};
  if(path==='/api/website-platform/exchange'){
-  if(request.method!=='POST'||request.headers.get('Origin')!==env.WEBSITE_PLATFORM_ACADEMY_ORIGIN)throw fail('Reopen Academy from the website.',403);
+  if(request.method!=='POST'||![env.WEBSITE_PLATFORM_ACADEMY_ORIGIN,hosting().academyPortalOrigin,...hosting().academyLegacyOrigins].includes(request.headers.get('Origin')))throw fail('Reopen Academy from the website.',403);
   const input=await bodyJSON(request.body,4096);if(!safeToken(input.code)||!safeToken(input.verifier)||!safeToken(input.state))throw fail('Invalid Academy handoff.',401);
   const hash=await sha256(input.code),code=await db.prepare('SELECT * FROM website_platform_return_codes WHERE code_hash=?').bind(hash).first();
   if(!code||code.used||code.state!==input.state||code.challenge!==await challenge(input.verifier)||code.expires_at<=Date.now())throw fail('Academy handoff expired or was used.',401);
   const session=await sourceSession(db,code.source_ref),guard=crypto.randomUUID();
   await db.batch([db.prepare('INSERT INTO website_platform_guards VALUES(?,EXISTS(SELECT 1 FROM website_platform_return_codes WHERE code_hash=? AND used=0 AND expires_at>?))').bind(guard,hash,Date.now()),db.prepare('UPDATE website_platform_return_codes SET used=1 WHERE code_hash=?').bind(hash),db.prepare('DELETE FROM website_platform_guards WHERE guard_id=?').bind(guard)]);
   const target=code.return_context?JSON.parse(code.return_context):null,choice=target?.navigation?await navigation(session,target.navigation):target?.dashboard?await destination(session,target.dashboard):null;
-  const mode=target?.dashboard?.mode||'learn',circles={mode,returnUrl:env.WEBSITE_PLATFORM_ORIGIN+'/?workspace='+mode};
+  const mode=target?.dashboard?.mode||'learn',circles={mode,returnUrl:hosting().academyPortalOrigin+'/?workspace='+mode};
   return {token:await mint(session,choice?.context),websiteOrigin:env.WEBSITE_PLATFORM_ORIGIN,circles,...(choice?{destination:choice.destination}:target?{library:target}:{})};
  }
  if(request.method!=='POST')throw fail('Use a POST request.',405);

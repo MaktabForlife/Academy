@@ -10,6 +10,7 @@ export async function servePortal(request,env,{fetcher=fetch}={}){
  if(p==='/academy/studio-authorize/'||p==='/academy/studio-authorize')return asset('/studio-authorize.html');
  if(/^\/(?:studio(?:\/|$)|circles\/(?:free-learning\.html|academy\/))/.test(p))return asset('/studio-enter.html');
  if(p.startsWith('/portal/')&&['studio-authorize.mjs','studio-enter.mjs'].includes(p.slice(8)))return asset(p);
+ if(/^\/circles\/(?:prospectus[^/]*|memorisation[^/]*)\.html$/.test(p))return new Response(null,{status:302,headers:{Location:h.studioOrigin+p+url.search,'Cache-Control':'no-store'}});
  if(paths.has(p)&&!p.endsWith('.html')&&!p.endsWith('provenance.json')&&!p.endsWith('assets.json'))return asset(p);
  let upstream;
  if(p==='/api/public/header-date')upstream=new URL('/api/academy/header-date',h.academyApiOrigin);
