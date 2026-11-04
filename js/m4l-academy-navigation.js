@@ -9,7 +9,7 @@
   const side = document.createElement('aside');
   side.className = 'academy-connected-sidebar';
   side.setAttribute('aria-label', 'Academy');
-  side.innerHTML = `<a class="academy-connected-brand" href="https://maktab4life.org/" data-page-home data-workspace-exit><img src="/ummabbadacademy.png" alt=""><span><strong>Umm Abbad<br>Academy</strong><span class="site-version">Website V109.16</span></span></a>
+  side.innerHTML = `<a class="academy-connected-brand" href="https://maktab4life.org/" data-page-home data-workspace-exit><img src="/ummabbadacademy.png" alt=""><span><strong>Umm Abbad<br>Academy</strong><span class="site-version">Website V109.17</span></span></a>
     <nav aria-label="Academy navigation"><a href="https://maktab4life.org/" data-page-home data-workspace-exit>Academy home</a><a href="/activities/surahs-in-my-heart/">Surahs in my Heart</a><a href="/activities/kaaba-puzzle/">Kaaba puzzle</a><a id="ac-recorder" data-recorder-link href="/recorder/?academy=1" hidden>Voice Recorder</a><a id="ac-library" href="/academy/library/?view=public">Library</a><a id="ac-calendar" href="/academy/calendar/" hidden>Academic Calendar</a></nav>
     <div class="academy-connected-footer"><button id="ac-signout" type="button" hidden>Sign out</button></div>`;
   const strip = document.createElement('nav');
