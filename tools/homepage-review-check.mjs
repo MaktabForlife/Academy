@@ -43,6 +43,7 @@ try{
  const inline=data.replace(/^export /gm,'')+'\n'+script.replace(/^import .*?;\n/,'').replace(/^export /gm,'');
  html=html.replace('<script type="module" src="/circles/homepage-review.mjs"></script>','<script type="module">'+inline.replace(/<\/script/gi,'<\\/script')+'</script>');
  await writeFile(resolve(out,'homepage-review-standalone.html'),html);
+ const standalone=await browser.newPage();await standalone.route('**/*',route=>route.request().url().startsWith('file:')||route.request().url().startsWith('data:')?route.continue():route.abort());await standalone.goto(pathToFileURL(resolve(out,'homepage-review-standalone.html')).href);await standalone.locator('#programme-panel h3').waitFor();await standalone.locator('#tab-tafseer').click();assert.equal(await standalone.locator('.day-card time').textContent(),'08:30–09:30');await standalone.locator('[data-news-step="1"]').click();assert.equal(await standalone.locator('.announcement-copy h3').textContent(),announcements[1].headline);await standalone.close();checks.push('Downloadable standalone HTML works without its source folder or network calls.');
  await writeFile(resolve(out,'review.json'),JSON.stringify({passed:true,commit:process.env.GITHUB_SHA,checks,errors,liveRequests:0,macWrites:0,programmeFacts:'Drafts from existing 2027 catalogue and owner-supplied flyers; missing values remain unconfirmed.'},null,2)+'\n');
  console.log(JSON.stringify({passed:true,checks:checks.length,output:out}));
 }finally{await browser.close();await new Promise(done=>server.close(done));}

@@ -46,7 +46,12 @@ jobs:
         if: always()
         with:
           name: homepage-design-review-${{ github.run_id }}
-          path: |
-            .academy-pages/
-            ${{ runner.temp }}/homepage-review-evidence/
+          path: ${{ runner.temp }}/homepage-review-evidence/
           retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: success()
+        with:
+          name: academy-public-review-package-${{ github.run_id }}
+          path: .academy-pages/
+          include-hidden-files: true
+          retention-days: 7
