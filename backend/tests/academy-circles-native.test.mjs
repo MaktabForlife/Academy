@@ -19,7 +19,7 @@ function fixture(path='/academy/',hash='#activity/PROGRAM/example/learn',{signed
  window.HTMLElement.prototype.showModal=function(){this.open=true;};window.HTMLElement.prototype.close=function(){this.open=false;};window.HTMLElement.prototype.focus=function(){};
  const mode=hash.includes('/teach')?'TEACH':path.includes('/admin/')?'ADMIN':'LEARN';
  window.M4L_ACADEMY_WORKSPACE={current:()=>mode,audience:()=>mode==='ADMIN'?'LEARN':mode,adminRealm:()=>mode==='ADMIN',preferHubAudience(){},commit(){}};
- window.M4L_CONFIG={API_BASE:'https://api.test'};
+ window.M4L_CONFIG={API_BASE:'https://api.test',PORTAL_ORIGIN:'https://portal.academy.test'};
  let respond=async(url,options)=>({success:true,token:'synthetic-new',sessionStore:'D1',account:{uniqueid:'TEST',displayName:'Test account',pinsetup:true},contexts:[{scope:'COURSE',role:'STUDENT',courseId:'example'}]});
  const context=vm.createContext({window,document,location,history,localStorage,sessionStorage,DOMParser:window.DOMParser,Event:window.Event,DOMException,URL,URLSearchParams,Headers,Response,TextEncoder,crypto,btoa,atob,Date,Intl,JSON,Map,Set,WeakMap,console,setTimeout,clearTimeout,fetch:async(url,options={})=>{calls.push({url,options});const result=await respond(url,options);return {ok:result.success!==false,status:result.status||200,json:async()=>result,text:async()=>result.body||JSON.stringify(result)};}});
  vm.runInContext(read('js/m4l-circles-native.js'),context);
@@ -27,7 +27,7 @@ function fixture(path='/academy/',hash='#activity/PROGRAM/example/learn',{signed
 }
 
 test('old public and dashboard bookmarks enter only canonical Circles; route helper makes zero requests',()=>{
- for(const [hash,expected]of [['#overview','https://maktab4life.org/?workspace=learn&dashboard=1'],['#dashboard','https://maktab4life.org/?workspace=learn&dashboard=1'],['#about','https://maktab4life.org/?public=1#academy-story'],['#contact','https://maktab4life.org/?public=1#contact'],['#prospectus','https://maktab4life.org/prospectus-2027.html'],['#workshops','https://maktab4life.org/studio/?view=collections&collection=courses']]){
+ for(const [hash,expected]of [['#overview','https://portal.academy.test/?workspace=learn&dashboard=1'],['#dashboard','https://portal.academy.test/?workspace=learn&dashboard=1'],['#about','https://portal.academy.test/?public=1#academy-story'],['#contact','https://portal.academy.test/?public=1#contact'],['#prospectus','https://portal.academy.test/prospectus-2027.html'],['#workshops','https://portal.academy.test/studio/?view=collections&collection=courses']]){
   const f=fixture('/academy/',hash);assert.equal(f.window.M4L_CIRCLES_NATIVE.routeEntry(),true);assert.equal(f.navigation.at(-1),expected);assert.equal(f.calls.length,0);
  }
 });
