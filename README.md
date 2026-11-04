@@ -1,3 +1,7 @@
+## V109.18 — paired Studio repository housekeeping
+
+Rebuild and release Academy with the reviewed Studio source cleanup. Public content and behaviour remain unchanged apart from release metadata. Preserve permissions, twelve-hour verification, fresh sensitive Admin authority and manual media attachment/publication. Build, test and deploy from GitHub only; no Mac files or Hifz changes.
+
 V109.12 consolidates Academy and Studio into the current Circles interface, retires old public/prototype screens and design selectors, and preserves checked native tools, historical content and manual publication. Hifz is unchanged.
 
 V109.11 restores the checked Tafseer/MOU Studio media entry and removes transient dashboard fallback controls and premature empty-course notices. Academy and Studio release together. No database, permissions, real media, Course redesign or Hifz changes.

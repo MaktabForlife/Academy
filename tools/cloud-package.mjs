@@ -23,6 +23,25 @@ const m=JSON.parse(await readFile('release/v'+version+'/manifest.json'));assert.
 const actual={},assets=resolve('release/v'+version+'/public');
 async function walk(dir){for(const e of await readdir(dir,{withFileTypes:true})){assert(!e.isSymbolicLink());const f=resolve(dir,e.name);if(e.isDirectory())await walk(f);else actual[relative(assets,f)]=sha(await readFile(f));}}
 await walk(assets);assert.deepEqual(Object.fromEntries(Object.entries(actual).sort()),Object.fromEntries(Object.entries(m.manifest).sort()));
+if(!dryRun&&process.env.RELEASE_METADATA_ONLY==='true'){
+ const prior=JSON.parse(await readFile('release/v'+baseline+'/manifest.json','utf8'));
+ const previous=resolve('release/v'+baseline+'/public');
+ const names=Object.keys(m.manifest).filter(p=>!p.startsWith('_assets/')).sort();
+ assert.deepEqual(names,Object.keys(prior.manifest).filter(p=>!p.startsWith('_assets/')).sort(),'Metadata-only release changed the public file list.');
+ const normalize=text=>text.replace(/\/_assets\/[a-f0-9]{64}\//g,'/').replaceAll(version,'RELEASE').replaceAll(baseline,'RELEASE').replaceAll('109.16','RELEASE');
+ const {transform}=await import(resolve(root,'backend/node_modules/esbuild/lib/main.js'));
+ let checked=0;
+ for(const name of names){
+  const [a,b]=await Promise.all([readFile(resolve(assets,name)),readFile(resolve(previous,name))]);
+  if(/\.(?:html|fragment|js|mjs|css|json|txt|md|ftl|properties|webmanifest|map)$/.test(name)){
+   let x=normalize(a.toString()),y=normalize(b.toString());
+   if(name==='_worker.js'){const o={minify:true,keepNames:true,legalComments:'none',target:'es2022'};[x,y]=await Promise.all([transform(x,o).then(v=>v.code),transform(y,o).then(v=>v.code)]);}
+   assert.equal(x,y,'Metadata-only release changed public content: '+name);
+  }else assert(a.equals(b),'Metadata-only release changed binary asset: '+name);
+  checked++;
+ }
+ console.log(JSON.stringify({metadataOnly:true,baseline,version,publicFilesVerified:checked,unchangedBehavior:true}));
+}
 if(dryRun){const rebuilt={...m.manifest},prior={...expected.manifest};let normalizedWorkerBundle=false;if(!studio&&rebuilt['_worker.js']!==prior['_worker.js']){const {transform}=await import(resolve(root,'backend/node_modules/esbuild/lib/main.js'));const options={minify:true,keepNames:true,legalComments:'none',target:'es2022'};const [a,b]=await Promise.all([readFile(resolve(assets,'_worker.js'),'utf8'),readFile(resolve(out,'retained-public-package/public/_worker.js'),'utf8')]);assert.equal((await transform(a,options)).code,(await transform(b,options)).code,'Worker code changed beyond generated path comments');delete rebuilt['_worker.js'];delete prior['_worker.js'];normalizedWorkerBundle=true;}assert.deepEqual(rebuilt,prior,'Cloud rebuild changed a public asset');await writeFile(resolve(out,'package-check.json'),JSON.stringify({passed:true,repository:repo,version,files:Object.keys(actual).length,exactPublicBytes:!normalizedWorkerBundle,normalizedWorkerBundle,cloudBuild:true,macWrites:0,cloudflareRequests:0,gitPush:false},null,2)+'\n');console.log('Cloud package verified: public bytes and Worker executable code match');process.exit(0);}
 const names=['release/current.json','release/v'+version,...(studio?['wrangler.github-'+version.replaceAll('.','')+'.jsonc']:[])];
 git('add','--',...names);

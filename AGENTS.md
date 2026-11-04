@@ -1,3 +1,7 @@
+# Paired cleanup deployment authorised — 4 November 2026
+
+The owner explicitly approved deploying the tested repository cleanup to Academy and Studio together from GitHub. Prepare and test V109.18, preserving reviewed current content, permissions, 43200/43200/60, all bindings, schedules and the compatible V109.17 rollback. Keep live checks small. No Mac writes/deletions, Hifz, hosted SQL/schema/data/rights/DNS changes, hosting migration or actual media attachment/publication. Work directly on studio_dev with linear commits; this approval supersedes historical holds only for this reviewed cleanup release.
+
 # Paired V109.16 release authorised — 3 November 2026
 
 The owner explicitly approved deploying the tested Academy and Studio updates together. This supersedes earlier live deployment holds for reviewed Source c53a8ea0/Studio4078090. Root owns the matching release. Freeze and verify canonical GitHub source/public packages before activation. Preserve every local file, original bytes, branch and worktree. Keep hosted checks small; do not attach/publish media, change rights/schema/DNS or touch Hifz. Preserve43200/43200/60,43/3/17bindings, four Source schedules and the compatible V109.15 recovery pair. Evidence: parent outputs/academy-paired-release-10916-20261103/.

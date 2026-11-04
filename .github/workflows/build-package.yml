@@ -13,6 +13,10 @@ on:
         description: Previous verified package version
         default: "109.17"
         type: string
+      metadata_only:
+        description: Require unchanged public content apart from release metadata
+        default: false
+        type: boolean
       dry_run:
         description: Compare rebuilt current package without pushing
         default: true
@@ -50,6 +54,7 @@ jobs:
           VERSION: ${{ inputs.version }}
           BASELINE: ${{ inputs.baseline_version }}
           DRY_RUN: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run }}
+          RELEASE_METADATA_ONLY: ${{ inputs.metadata_only }}
           GITLEAKS_BIN: ${{ runner.temp }}/scanner/gitleaks
           WRANGLER_SEND_METRICS: "false"
         run: node tools/cloud-package.mjs "$VERSION" "$BASELINE" "$DRY_RUN"
