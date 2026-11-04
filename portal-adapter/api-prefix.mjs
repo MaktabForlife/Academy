@@ -20,6 +20,7 @@ async function portalFetch(path,init){
   if(!result.token||nativeToken()!==token){if(result.token)await nativeFetch('/api/account/logout',{},result.token).catch(()=>{});throw new DOMException('Your account changed.','AbortError');}
   // Revoke the previous account only after the replacement is fully checked.
   if(token&&token!==result.token)await nativeFetch('/api/account/logout',{},token).catch(()=>{});
+  if(nativeToken()!==token){await nativeFetch('/api/account/logout',{},result.token).catch(()=>{});throw new DOMException('Your account changed.','AbortError');}
   sessionStorage.removeItem('academy-studio-link-v1');
   localStorage.setItem('m4l_account_token',result.token);
   sessionStorage.setItem('m4l_academy_signed_in',result.account.uniqueid);

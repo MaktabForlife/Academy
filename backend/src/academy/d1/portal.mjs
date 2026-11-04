@@ -8,6 +8,22 @@ import {dashboardChoice,dashboardSummary,dashboardJoinInput,dashboardTimetableAu
 import {nativeJoinOwnership} from './web-platform/native-join.mjs';
 import {verifySessionToken} from '../../lib/auth-primitives.js';
 const only=(value,keys)=>{if(!value||Array.isArray(value)||typeof value!=='object'||Object.keys(value).some(k=>!keys.includes(k)))throw fail('Choose a valid Academy action.');return value;};
+export function portalDashboardLinks(value,summary){
+ const data=structuredClone(value);if(data.mode!=='learn')return data;
+ const websites=summary?.websites||[],allowed=new Set((summary?.rights?.websites||[]).filter(w=>w.canOpen&&!w.needsRefresh).map(w=>w.websiteId));
+ if(!Array.isArray(websites)||websites.length>100)throw fail('Studio dashboard links need review.',503);
+ for(const area of data.activities||[]){
+  if(area.accessOwner!=='STUDIO')continue;
+  if(area.navigationKey==='mothers')area.destinationHref='/studio/?classroom=mothers';
+  else if(area.websiteKind==='TAFSEER')area.destinationHref='/studio/?view=collections&collection=tafseer';
+  else if(area.websiteKind==='COURSE'){
+   delete area.destinationHref;
+   const matches=websites.filter(w=>w.offeringId===area.websiteOfferingId&&w.kind==='COURSE'&&allowed.has(w.websiteId));
+   if(matches.length===1)area.destinationHref='/studio/?website='+encodeURIComponent(id(matches[0].websiteId));
+  }
+ }
+ return data;
+}
 const permissionKey=state=>JSON.stringify([state.account.account_id,state.account.credential_epoch,state.account.global_admin,state.roles,state.contexts,state.subscriptions,state.monthlyMedia]);
 export function portalConfiguration(){const h=hosting();return {academyOrigin:h.academyPortalOrigin,studioOrigin:h.studioOrigin,hifzOrigin:h.hifzOrigin,authorityMode:'ACADEMY',nativePortal:true};}
 async function sendDeliveries(env,db,result,fetcher){
@@ -66,7 +82,7 @@ export async function nativePortal(request,env,{repository,authenticate,read,min
   only(input,['kind','input']);const value=input.input||{};
   if(input.kind==='navigation'){only(value,[]);return (await studio({action:'navigation'})).navigation;}
   if(input.kind==='access'){only(value,['websiteIds']);return (await studio({action:'access',websiteIds:value.websiteIds})).rights;}
-  if(input.kind==='dashboard')return dashboard(value);
+  if(input.kind==='dashboard'){const [data,summary]=await Promise.all([dashboard(value),studio({action:'bootstrap'})]);return portalDashboardLinks(data,summary);}
   if(input.kind!=='bootstrap')throw fail('Choose a valid Academy view.');
   only(value,['mode','preferredMode','preferredAccount']);
   const mode=value.mode||value.preferredAccount===state.account.account_id&&value.preferredMode||undefined;
@@ -74,7 +90,7 @@ export async function nativePortal(request,env,{repository,authenticate,read,min
   const account={accountId:state.account.account_id,displayName:state.account.display_name,globalAdmin:Boolean(state.account.global_admin),cacheSession:await sha256(auth.sid),verifiedAt:Math.min(Date.now(),claims.iat*1000),sessionExpiresAt:claims.exp*1000};
   const parts=await Promise.allSettled([studio({action:'bootstrap'}),dashboard(mode?{mode}:{})]),errors={};
   for(const [i,key]of ['navigation','dashboard'].entries())if(parts[i].status==='rejected'){const e=parts[i].reason;if(e.status===401||e.code==='ACCESS_REFRESH_REQUIRED')throw e;errors[key]={status:e.status||503,code:e.code||'UNAVAILABLE'};}
-  await current();return {configuration:config,account,navigation:parts[0].status==='fulfilled'?parts[0].value.navigation:null,dashboard:parts[1].status==='fulfilled'?parts[1].value:null,errors};
+  await current();return {configuration:config,account,navigation:parts[0].status==='fulfilled'?parts[0].value.navigation:null,dashboard:parts[1].status==='fulfilled'?portalDashboardLinks(parts[1].value,parts[0].status==='fulfilled'?parts[0].value:null):null,errors};
  }
  if(path==='/api/academy/hub/open'){
   only(input,['navigation','dashboard']);if(Boolean(input.navigation)===Boolean(input.dashboard))throw fail('Choose one destination.');

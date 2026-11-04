@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {hosting,exactOrigin} from '../src/academy/hosting.mjs';
-import {nativePortal,portalStudioSummary} from '../src/academy/d1/portal.mjs';
+import {nativePortal,portalStudioSummary,portalDashboardLinks} from '../src/academy/d1/portal.mjs';
 import {servePortal} from '../tools/portal-site.mjs';
 import {verify,envelopePurpose} from '../src/academy/d1/web-platform/protocol.mjs';
 test('hosting changes are reviewed configuration, never request-header trust',()=>{
@@ -43,4 +43,13 @@ test('Global Admin display proof uses native authority rather than Learn project
  const native={account_id:'admin',credential_epoch:2,global_admin:true};
  const auth={sid:'native-admin-session',state:{account:{...native,global_admin:false}},authority:{account:native}};
  await portalStudioSummary(env,auth,{action:'navigation'},async(_url,init)=>{assert.equal(JSON.parse(init.body).globalAdmin,true);return Response.json({navigation:{}});});
+});
+
+test('Studio-owned Learn links use exact offering mapping and checked published rights',()=>{
+ const data={mode:'learn',activities:[{accessOwner:'STUDIO',websiteKind:'COURSE',websiteOfferingId:'exact-offer',name:'Same title'},{accessOwner:'ACADEMY',activityKey:'PROGRAM:other',destinationHref:'/academy/#activity/other'}]};
+ const summary={websites:[{offeringId:'other',websiteId:'wrong',kind:'COURSE'},{offeringId:'exact-offer',websiteId:'right',kind:'COURSE'}],rights:{websites:[{websiteId:'right',canOpen:true,needsRefresh:false}]}};
+ assert.equal(portalDashboardLinks(data,summary).activities[0].destinationHref,'/studio/?website=right');
+ assert.equal(data.activities[0].destinationHref,undefined);
+ summary.rights.websites[0].needsRefresh=true;assert.equal(portalDashboardLinks(data,summary).activities[0].destinationHref,undefined);
+ assert.equal(portalDashboardLinks({...data,mode:'teach'},summary).activities[1].destinationHref,'/academy/#activity/other');
 });
