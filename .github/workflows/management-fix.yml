@@ -38,9 +38,9 @@ jobs:
           cp work/Academy/backend/tests/academy-management-origin-regression.test.mjs work/Baseline/backend/tests/
           cp work/Academy/backend/tests/academy-release-labels.test.mjs work/Baseline/backend/tests/
           set +e
-          node --test --test-name-pattern='management endpoints accept configured portal' work/Baseline/backend/tests/academy-management-origin-regression.test.mjs > "$RUNNER_TEMP/management-evidence/baseline-origin.log" 2>&1
+          node --test --test-reporter=tap --test-name-pattern='management endpoints accept configured portal' work/Baseline/backend/tests/academy-management-origin-regression.test.mjs > "$RUNNER_TEMP/management-evidence/baseline-origin.log" 2>&1
           origin_status=$?
-          node --test --test-name-pattern='all navigation and management labels render' work/Baseline/backend/tests/academy-release-labels.test.mjs > "$RUNNER_TEMP/management-evidence/baseline-label.log" 2>&1
+          node --test --test-reporter=tap --test-name-pattern='all navigation and management labels render' work/Baseline/backend/tests/academy-release-labels.test.mjs > "$RUNNER_TEMP/management-evidence/baseline-label.log" 2>&1
           label_status=$?
           set -e
           test "$origin_status" -ne 0
@@ -60,7 +60,7 @@ jobs:
           node --check backend/tools/hosting-client.mjs
           node --check backend/src/academy/hosting.mjs
           node --check backend/src/academy/d1/worker.js
-          node --test --test-concurrency=1 backend/tests/academy-management-origin-regression.test.mjs backend/tests/academy-release-labels.test.mjs backend/tests/portal-hosting.test.mjs backend/tests/academy-native-media-bridge.test.mjs backend/tests/academy-workspace-client.test.mjs backend/tests/academy-workspace-destination.test.mjs backend/tests/academy-header-workspaces.test.mjs backend/tests/academy-navigation-ui.test.mjs backend/tests/academy-navigation-history.test.mjs backend/tests/academy-course-management-ui.test.mjs backend/tests/monthly-media-entry-ui.test.mjs backend/tests/program-lesson-media-ui.test.mjs backend/tests/academy-studio-access-ui.test.mjs 2>&1 | tee "$RUNNER_TEMP/management-evidence/fixed-tests.log"
+          node --test --test-reporter=tap --test-concurrency=1 backend/tests/academy-management-origin-regression.test.mjs backend/tests/academy-release-labels.test.mjs backend/tests/portal-hosting.test.mjs backend/tests/academy-native-media-bridge.test.mjs backend/tests/academy-workspace-client.test.mjs backend/tests/academy-workspace-destination.test.mjs backend/tests/academy-header-workspaces.test.mjs backend/tests/academy-navigation-ui.test.mjs backend/tests/academy-navigation-history.test.mjs backend/tests/academy-course-management-ui.test.mjs backend/tests/monthly-media-entry-ui.test.mjs backend/tests/program-lesson-media-ui.test.mjs backend/tests/academy-studio-access-ui.test.mjs 2>&1 | tee "$RUNNER_TEMP/management-evidence/fixed-tests.log"
           git diff --check
           git diff --exit-code
       - name: Build the actual Pages artifact without release or deployment
@@ -104,17 +104,17 @@ jobs:
       - name: Existing Studio media, identity and hosting groups
         working-directory: work/AcademyStudio
         run: |
-          node --test --test-concurrency=1 tests/source-package.test.mjs tests/private-playlist-reference.test.mjs tests/private-playlist-reference-ui.test.mjs tests/private-playlist-reference-monthly-proxy.test.mjs tests/monthly-media-review-ui.test.mjs tests/course-playlist-workflow.test.mjs tests/monthly-media-collection.test.mjs tests/dashboard-load.test.mjs tests/circles-dashboard-consumer.test.mjs 2>&1 | tee "$RUNNER_TEMP/management-paired-evidence/media.log"
-          node --test --test-concurrency=1 tests/deployment-origin-config.test.mjs tests/website-routing.test.mjs tests/website-launch.test.mjs tests/academy-origins.test.mjs tests/native-hub-bridge.test.mjs tests/academy-connect.test.mjs tests/native-portal-paired.test.mjs tests/native-portal-browser.test.mjs 2>&1 | tee "$RUNNER_TEMP/management-paired-evidence/portal-paired.log"
+          node --test --test-reporter=tap --test-concurrency=1 tests/source-package.test.mjs tests/private-playlist-reference.test.mjs tests/private-playlist-reference-ui.test.mjs tests/private-playlist-reference-monthly-proxy.test.mjs tests/monthly-media-review-ui.test.mjs tests/course-playlist-workflow.test.mjs tests/monthly-media-collection.test.mjs tests/dashboard-load.test.mjs tests/circles-dashboard-consumer.test.mjs 2>&1 | tee "$RUNNER_TEMP/management-paired-evidence/media.log"
+          node --test --test-reporter=tap --test-concurrency=1 tests/deployment-origin-config.test.mjs tests/website-routing.test.mjs tests/website-launch.test.mjs tests/academy-origins.test.mjs tests/native-hub-bridge.test.mjs tests/academy-connect.test.mjs tests/native-portal-paired.test.mjs tests/native-portal-browser.test.mjs 2>&1 | tee "$RUNNER_TEMP/management-paired-evidence/portal-paired.log"
           node tools/prepare-studio-saas.mjs
-          node --test --test-concurrency=1 tests/studio-saas.test.mjs 2>&1 | tee "$RUNNER_TEMP/management-paired-evidence/hosting.log"
+          node --test --test-reporter=tap --test-concurrency=1 tests/studio-saas.test.mjs 2>&1 | tee "$RUNNER_TEMP/management-paired-evidence/hosting.log"
           git diff --exit-code
       - name: Existing Academy identity, Hifz bridge and homepage groups
         working-directory: work/Academy
         run: |
-          node --test backend/tests/academy-workspace-client.test.mjs backend/tests/academy-workspace-destination.test.mjs backend/tests/academy-header-workspaces.test.mjs 2>&1 | tee "$RUNNER_TEMP/management-paired-evidence/academy-ui.log"
-          node --test backend/tests/portal-hosting.test.mjs backend/tests/academy-circles-native.test.mjs backend/tests/academy-circles-native-join.test.mjs backend/tests/academy-circles-free-join.test.mjs backend/tests/academy-hifz-handoff.test.mjs backend/tests/academy-hifz-bridge-ui.test.mjs 2>&1 | tee "$RUNNER_TEMP/management-paired-evidence/portal-source.log"
-          node --test backend/tests/academy-programme-prospectus.test.mjs backend/tests/academy-announcements-client.test.mjs backend/tests/academy-announcements-split.test.mjs backend/tests/academy-announcements-v2.test.mjs 2>&1 | tee "$RUNNER_TEMP/management-paired-evidence/homepage.log"
+          node --test --test-reporter=tap backend/tests/academy-workspace-client.test.mjs backend/tests/academy-workspace-destination.test.mjs backend/tests/academy-header-workspaces.test.mjs 2>&1 | tee "$RUNNER_TEMP/management-paired-evidence/academy-ui.log"
+          node --test --test-reporter=tap backend/tests/portal-hosting.test.mjs backend/tests/academy-circles-native.test.mjs backend/tests/academy-circles-native-join.test.mjs backend/tests/academy-circles-free-join.test.mjs backend/tests/academy-hifz-handoff.test.mjs backend/tests/academy-hifz-bridge-ui.test.mjs 2>&1 | tee "$RUNNER_TEMP/management-paired-evidence/portal-source.log"
+          node --test --test-reporter=tap backend/tests/academy-programme-prospectus.test.mjs backend/tests/academy-announcements-client.test.mjs backend/tests/academy-announcements-split.test.mjs backend/tests/academy-announcements-v2.test.mjs 2>&1 | tee "$RUNNER_TEMP/management-paired-evidence/homepage.log"
           git diff --exit-code
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
