@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {assertFeatureTargets,checkFeatureTargets} from '../tools/feature-target-guard.mjs';
-import {hosting,academyManagementOriginAllowed} from '../src/academy/hosting.mjs';
+import {hosting,exactOrigin,academyManagementOriginAllowed} from '../src/academy/hosting.mjs';
 import {academyClientConfiguration} from '../tools/hosting-client.mjs';
 import {servePortal} from '../tools/portal-site.mjs';
 const root=new URL('../../',import.meta.url),read=path=>JSON.parse(readFileSync(new URL(path,root),'utf8'));
@@ -30,6 +30,8 @@ test('Feature target guard rejects live, indirect, scheduled, inherited and unre
  for(const change of changes){const a=inputs();change(a);assert.throws(()=>assertFeatureTargets(...a));}
 });
 test('Feature browser configuration uses only the exact preview host and Feature API',()=>{
+ assert.equal(exactOrigin('https://feature_worker.maktab4life.workers.dev'),'https://feature_worker.maktab4life.workers.dev');
+ assert.throws(()=>exactOrigin('https://unreviewed_host.example'));
  assert.equal(hosting().environment,'feature','Run after the explicit Feature overlay');
  for(const origin of ['https://feature-preview.academy-maktab4life.pages.dev','https://untrusted.invalid']){
   const location=new URL(origin),window={location};vm.runInNewContext(academyClientConfiguration(),{window,location});

@@ -1,7 +1,7 @@
 import configured from '../../../config/hosting.json' with {type:'json'};
 export function exactOrigin(value){
  let url;try{url=new URL(value);}catch{throw Error('A hosting origin is missing or invalid.');}
- if(url.protocol!=='https:'||url.origin!==value||url.username||url.password||!/^[a-z0-9.-]+$/i.test(url.hostname))throw Error('Use an exact HTTPS hosting origin.');
+ if(url.protocol!=='https:'||url.origin!==value||url.username||url.password||(!/^[a-z0-9.-]+$/i.test(url.hostname)&&url.hostname!=='feature_worker.maktab4life.workers.dev'))throw Error('Use an exact HTTPS hosting origin.');
  return url.origin;
 }
 export function hosting(value=configured){
