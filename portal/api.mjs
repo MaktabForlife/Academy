@@ -7,7 +7,7 @@ async function nativeFetch(path,body,token=nativeToken(),conditions={}){
  const url=new URL(path,hosting.academyApiOrigin);
  if(url.origin!==hosting.academyApiOrigin||!url.pathname.startsWith('/api/'))throw Error('Invalid Academy connection.');
  const read=path==='/api/academy/hub/read';if(read)url.searchParams.set('request',JSON.stringify(body));
- return fetch(url.href,{method:read?'GET':'POST',credentials:'omit',cache:'no-store',headers:{...(read?{}:{'Content-Type':'application/json'}),...(token?{Authorization:'Bearer '+token}:{}),...(conditions['If-None-Match']?{'If-None-Match':conditions['If-None-Match']}:{})},...(read?{}:{body:JSON.stringify(body)})});
+ return fetch(url.href,{method:read?'GET':'POST',credentials:window.M4L_V110?'same-origin':'omit',cache:'no-store',headers:{...(read?{}:{'Content-Type':'application/json'}),...(token?{Authorization:'Bearer '+token}:{}),...(conditions['If-None-Match']?{'If-None-Match':conditions['If-None-Match']}:{})},...(read?{}:{body:JSON.stringify(body)})});
 }
 async function portalFetch(path,init){
  if(path==='/api/config')return jsonResponse({academyOrigin:location.origin,studioOrigin:hosting.studioOrigin,hifzOrigin:hosting.hifzOrigin,nativePortal:true,authorityMode:'ACADEMY'});
@@ -15,6 +15,7 @@ async function portalFetch(path,init){
  let body=init.body?JSON.parse(init.body):{},endpoint='/api/academy/hub/read',payload,project=null;
  const url=new URL(path,location.origin),query=Object.fromEntries(url.searchParams),token=nativeToken();
  if(path==='/auth/native-login'){
+  const privacyIntent=window.M4L_V110?await window.M4L_V110.beginMasterSignIn():null;
   const response=await nativeFetch('/api/academy/hub/login',body,token);
   if(!response.ok)return response;
   const result=await response.json();
@@ -22,6 +23,7 @@ async function portalFetch(path,init){
   // Revoke the previous account only after the replacement is fully checked.
   if(token&&token!==result.token)await nativeFetch('/api/account/logout',{},token).catch(()=>{});
   if(nativeToken()!==token){await nativeFetch('/api/account/logout',{},result.token).catch(()=>{});throw new DOMException('Your account changed.','AbortError');}
+  if(privacyIntent)await window.M4L_V110.completeMasterSignIn(privacyIntent,result.browserContext);
   sessionStorage.removeItem('academy-studio-link-v1');
   localStorage.setItem('m4l_account_token',result.token);
   sessionStorage.setItem('m4l_academy_signed_in',result.account.uniqueid);
@@ -65,7 +67,7 @@ window.addEventListener('website-account-changed',event=>{
 export const identity={account:null,generation:0};
 let observedCoursePolicyEpoch=null;
 const channel=typeof BroadcastChannel==='function'?new BroadcastChannel('maktab-web-account'):null;
-export function changed(account){clearPrivateReads();identity.account=account;identity.generation++;resetRenewals();channel?.postMessage({accountId:account?.accountId||null});window.dispatchEvent(new CustomEvent('website-account-changed',{detail:account}));}
+export function changed(account){if(account&&window.M4L_V110)void window.M4L_V110.reveal(account.accountId).catch(()=>{});clearPrivateReads();identity.account=account;identity.generation++;resetRenewals();channel?.postMessage({accountId:account?.accountId||null});window.dispatchEvent(new CustomEvent('website-account-changed',{detail:account}));}
 channel?.addEventListener('message',event=>{if(event.data?.type==='reads-invalidated'){clearPrivateReads();window.dispatchEvent(new Event('website-display-invalidated'));return;}clearPrivateReads();identity.account=null;identity.generation++;resetRenewals();window.dispatchEvent(new CustomEvent('website-session-ended',{detail:{externalAccountChange:true}}));});
 let refreshing=null,renewalTail=Promise.resolve();const accessRefreshes=new Map(),readFlights=new Map();
 function resetRenewals(){refreshing=null;renewalTail=Promise.resolve();accessRefreshes.clear();readFlights.clear();observedCoursePolicyEpoch=null;}
@@ -75,7 +77,7 @@ window.addEventListener('website-course-policy-changed',()=>{readFlights.clear()
 // reveal the saved reply. Neither credentials nor private drafts are stored.
 const readStorageKey='m4l-private-display-v1',readLimit=2_000_000;
 let readOwner='',readEntries=new Map(),readRevision=0;
-const readStorage=()=>{try{return globalThis.sessionStorage;}catch{return null;}};
+const readStorage=()=>{if(window.M4L_V110)return null;try{return globalThis.sessionStorage;}catch{return null;}};
 const ownerOf=account=>account?.cacheSession&&account.accountId?JSON.stringify([account.accountId,account.cacheSession]):null;
 const readOwnerKey=()=>ownerOf(identity.account);
 function clearPrivateReads(){readOwner='';readEntries.clear();readRevision++;try{readStorage()?.removeItem(readStorageKey);}catch{}}
@@ -99,7 +101,7 @@ function rememberPrivateRead(key,etag,value,bootstrap=false){
  while(encoded.length>readLimit&&readEntries.size){readEntries.delete(readEntries.keys().next().value);encoded=JSON.stringify({owner:readOwner,entries:[...readEntries.values()]});}
  try{readStorage()?.setItem(readStorageKey,encoded);}catch{/* Storage disabled/full: retain bounded current-page memory. */}
 }
-const privateRead=path=>/^\/api\/websites\/[-A-Za-z0-9_:]+(?:\?(?:edition=published))?$/.test(path)||/^\/api\/offerings\/[-A-Za-z0-9_:]+\/media(?:\?|$)/.test(path)||/^\/api\/circles\/(?:dashboard|(?:reader-)?bootstrap|classrooms\/mothers)(?:\?|$)/.test(path);
+const privateRead=path=>!window.M4L_V110&&(/^\/api\/websites\/[-A-Za-z0-9_:]+(?:\?(?:edition=published))?$/.test(path)||/^\/api\/offerings\/[-A-Za-z0-9_:]+\/media(?:\?|$)/.test(path)||/^\/api\/circles\/(?:dashboard|(?:reader-)?bootstrap|classrooms\/mothers)(?:\?|$)/.test(path));
 function renew(fn){const generation=identity.generation,run=renewalTail.then(()=>{if(generation!==identity.generation)throw new DOMException('Your account changed.','AbortError');return fn();});renewalTail=run.catch(()=>{});return run;}
 function renewAccess(offeringId){const key=identity.generation+':'+(offeringId||'');if(!accessRefreshes.has(key)){const run=renew(()=>api('/auth/access',{body:{offeringId},refreshed:true})).finally(()=>{if(accessRefreshes.get(key)===run)accessRefreshes.delete(key);});accessRefreshes.set(key,run);}return accessRefreshes.get(key);}
 function renewStatus(){if(!refreshing){const run=renew(()=>api('/auth/refresh',{body:{},refreshed:true})).finally(()=>{if(refreshing===run)refreshing=null;});refreshing=run;}return refreshing;}
@@ -121,6 +123,7 @@ export function api(path,options={}){
  return pending.then(value=>blob?value:JSON.parse(JSON.stringify(value)));
 }
 async function request(path,{body,method=body===undefined?'GET':'POST',headers={},blob=false,refreshed=false,accessRefreshed=false,statusRefreshed=false,optionalSession=false}={}){
+ if(window.M4L_V110&&!['/api/config','/auth/login','/auth/exchange','/auth/logout','/auth/native-login'].includes(path.split('?')[0])&&!await window.M4L_V110.ready())throw new DOMException('Current Academy sign-in is required.','AbortError');
  const generation=identity.generation,revision=readRevision,bootstrap=['/api/circles/bootstrap','/api/circles/reader-bootstrap'].includes(path.split('?')[0]),key=JSON.stringify([path,Object.entries(headers).sort()]),eligible=method==='GET'&&!blob&&privateRead(path)&&!/[?&]refresh=1(?:&|$)/.test(path),saved=eligible?savedPrivateRead(key,bootstrap):null;
  const response=await portalFetch(path,{method,credentials:'same-origin',cache:'no-store',headers:{...(body!==undefined&&!(body instanceof Blob)?{'Content-Type':'application/json'}:{}),...headers,...(saved?{'If-None-Match':saved.etag}:{})},...(body===undefined?{}:{body:body instanceof Blob?body:JSON.stringify(body)})});
  if(generation!==identity.generation)throw new DOMException('Your account changed.','AbortError');
@@ -140,3 +143,6 @@ export async function mutate(path,body){const key=path+JSON.stringify(body);if(!
 window.addEventListener('website-session-ended',()=>pending.clear());
 window.addEventListener('website-account-changed',()=>pending.clear());
 export function downloadJSON(value,filename){const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+
+// Feature privacy clears native identity/request generations and all reader hooks.
+window.addEventListener('uaa-v110-private-cleared',()=>{clearPrivateReads();identity.account=null;identity.generation++;resetRenewals();window.dispatchEvent(new CustomEvent('website-session-ended',{detail:{v110Cleared:true}}));});
