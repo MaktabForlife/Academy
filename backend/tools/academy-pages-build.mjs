@@ -1,3 +1,4 @@
+import {hosting} from '../src/academy/hosting.mjs';
 import {copyPortalAssets} from './portal-assets.mjs';
 // feature-admin has a separate Worker; other Git builds retain Development.
 import {mkdtempSync,readFileSync,writeFileSync,cpSync,mkdirSync,existsSync} from 'node:fs';
@@ -7,7 +8,7 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 import {execFileSync} from 'node:child_process';
 import {buildAcademyAssets} from './academy-assets.mjs';
 
-export const pagesTarget=branch=>branch==='feature-split-db'?'split':branch==='feature-admin'?'feature':'development';
+export const pagesTarget=branch=>branch==='feature-split-db'?'split':['feature-admin','feature-preview'].includes(branch)?'feature':'development';
 export function buildDevelopmentPages(repo,{branch}={}){
   repo=resolve(repo);const output=join(repo,'.academy-pages');
   branch=branch||process.env.CF_PAGES_BRANCH||execFileSync('git',['branch','--show-current'],{cwd:repo,encoding:'utf8'}).trim();
@@ -15,6 +16,7 @@ export function buildDevelopmentPages(repo,{branch}={}){
   const temporary=mkdtempSync(join(tmpdir(),'academy-development-pages-'));
   try{
     const target=pagesTarget(branch);
+    if(target==='feature'&&hosting().environment!=='feature')throw Error('FEATURE_HOSTING_VARIANT_REQUIRED');
     const assets=join(temporary,'assets'),report=buildAcademyAssets({repo,directory:assets,target});
     copyPortalAssets(repo,assets);
     const bundle=join(temporary,'bundle'),config=join(temporary,'wrangler.json'),entry=join(temporary,'development-pages-worker.mjs');

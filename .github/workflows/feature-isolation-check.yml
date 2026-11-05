@@ -28,11 +28,21 @@ jobs:
         with:
           node-version: "24.18.0"
       - run: npm ci --prefix backend --no-audit --no-fund
+      - name: Existing management fix and release labels
+        run: |
+          mkdir -p "$RUNNER_TEMP/feature-evidence"
+          node --test --test-reporter=tap --test-concurrency=1 backend/tests/academy-management-origin-regression.test.mjs backend/tests/academy-release-labels.test.mjs backend/tests/portal-hosting.test.mjs 2>&1 | tee "$RUNNER_TEMP/feature-evidence/management.log"
       - name: Reconstruct current schema using synthetic references only
         run: |
           node backend/tools/feature-schema-proof.mjs "$RUNNER_TEMP/feature-schema" 2>&1 | tee "$RUNNER_TEMP/feature-schema.log"
           git diff --check
           git diff --exit-code
+      - name: Select the reviewed Feature build variant and test isolation
+        run: |
+          node backend/tools/feature-hosting-overlay.mjs "$RUNNER_TEMP/feature-evidence"
+          node --test --test-reporter=tap backend/tests/feature-isolation.test.mjs backend/tests/academy-management-origin-regression.test.mjs 2>&1 | tee "$RUNNER_TEMP/feature-evidence/isolation.log"
+          CF_PAGES_BRANCH=feature-preview node backend/tools/academy-pages-build.mjs 2>&1 | tee "$RUNNER_TEMP/feature-evidence/pages-build.log"
+          test "$(git diff --name-only)" = "config/hosting.json"
       - name: Validate Feature Worker configurations without Cloudflare access
         working-directory: backend
         run: |
@@ -46,4 +56,5 @@ jobs:
           path: |
             ${{ runner.temp }}/feature-schema/
             ${{ runner.temp }}/feature-schema.log
+            ${{ runner.temp }}/feature-evidence/
           retention-days: 30

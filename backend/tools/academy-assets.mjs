@@ -36,7 +36,7 @@ export function buildAcademyAssets({repo,directory,isolated=true,target='develop
     const source=join(repo,file);if(!existsSync(source))throw Error('MISSING_ACADEMY_ASSET: '+file);
     const info=lstatSync(source);if(!info.isFile()||realpathSync(source)!==source||info.size>25*1024*1024)throw Error('INVALID_PUBLIC_ASSET');
     const config=target==='split'?'js/m4l-split-academy-config.js':target==='feature'?'js/m4l-feature-academy-config.js':'js/m4l-development-academy-config.js';
-    let bytes=file==='js/m4l-config.js'&&target==='development'?Buffer.from(academyClientConfiguration()):readFileSync(file==='js/m4l-config.js'?join(repo,config):source);
+    let bytes=file==='js/m4l-config.js'&&['development','feature'].includes(target)?Buffer.from(academyClientConfiguration()):readFileSync(file==='js/m4l-config.js'?join(repo,config):source);
     if(file.endsWith('.html')||file.endsWith('.fragment'))validateCirclesPresentation(file,bytes.toString());
     if(file.endsWith('.html')&&isolated)bytes=Buffer.from(bytes.toString().replace(/<head>/i,'<head>\n<meta name="robots" content="noindex,nofollow">'));
     const destination=join(directory,file);mkdirSync(dirname(destination),{recursive:true});writeFileSync(destination,bytes,{mode:0o600});written.set(file,bytes.length);

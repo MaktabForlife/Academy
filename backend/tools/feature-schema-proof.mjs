@@ -15,7 +15,7 @@ export async function proveFeatureSchemas(output){
  try{
   for(const [owner,db]of Object.entries(f.databases)){
    const before=db.prepare("SELECT type,name,sql FROM sqlite_schema WHERE tbl_name='lesson_media_assets' AND sql IS NOT NULL ORDER BY type,name").all();
-   db.exec(videoMigration(before));
+   db.exec('BEGIN');db.exec(videoMigration(before));db.exec('COMMIT');
    const directory=new URL('../migrations/academy-'+owner+'/',import.meta.url),migrations=[];
    for(const name of readdirSync(directory).filter(n=>/^\d{4}_.+\.sql$/.test(n)).sort()){
     const sql=readFileSync(new URL(name,directory),'utf8');

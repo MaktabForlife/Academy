@@ -8,6 +8,7 @@ export function hosting(value=configured){
  if(value?.schema!==1||!Array.isArray(value.academyLegacyOrigins)||value.academyLegacyOrigins.length>8)throw Error('Review hosting configuration.');
  const out={};for(const key of ['academyPortalOrigin','academyApiOrigin','studioOrigin','studioBackendOrigin','hifzOrigin'])out[key]=exactOrigin(value[key]);
  out.academyLegacyOrigins=value.academyLegacyOrigins.map(exactOrigin);
+ if(value.environment!==undefined){if(!['development','feature'].includes(value.environment))throw Error('Review hosting environment.');out.environment=value.environment;}
  return Object.freeze(out);
 }
 // Management trusts only the same exact reviewed origins as the generated client.
