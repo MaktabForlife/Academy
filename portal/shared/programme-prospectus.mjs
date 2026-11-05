@@ -1,17 +1,13 @@
 // Public brochure presentation only. Never a native timetable, Join or access source.
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const homepageProspectus=Object.freeze({announcementId:'927e3eed-43b9-4fa2-a993-d640f9c69a51',year:2027});
-export function publishedProspectus(rows,{announcementId=homepageProspectus.announcementId,assetBase}={}){
+// Rows must come from the checked public feed. PDF attachment is not required.
+export function publishedProspectus(rows,{announcementId=homepageProspectus.announcementId}={}){
  const row=Array.isArray(rows)?rows.find(value=>value.id===announcementId):null;
- if(!row?.pdfUrl)return null;
- try{
-  const base=new URL(assetBase),url=new URL(row.pdfUrl,base);
-  const local=['localhost','127.0.0.1','[::1]'].includes(base.hostname);
-  if(url.origin!==base.origin||url.protocol!=='https:'&&!(local&&url.protocol==='http:')||url.username||url.password||url.hash||url.pathname!=='/api/public/academy-announcements/pdf'||url.searchParams.get('id')!==row.id||!/^[a-f0-9]{64}$/.test(url.searchParams.get('asset')||''))return null;
-  return {...row,pdfUrl:url.href};
- }catch{return null;}
+ // The owner deferred PDF work. Do not expose a PDF through this panel or its dialog.
+ return row?{...row,pdfUrl:'',pdfName:''}:null;
 }
-export function programmeProspectus(host,{programmes=[],announcementId=homepageProspectus.announcementId,year=homepageProspectus.year,assetBase=host.ownerDocument.baseURI,onOpen=()=>{}}={}){
+export function programmeProspectus(host,{programmes=[],announcementId=homepageProspectus.announcementId,year=homepageProspectus.year,onOpen=()=>{}}={}){
  const document=host.ownerDocument,items=programmes.filter(row=>/^[a-z0-9-]{1,60}$/.test(row.id||'')&&row.marketing?.year===year).slice(0,12);
  const prefix='prospectus-'+crypto.randomUUID();let selected=items.find(row=>row.id==='mothers')?.id||items[0]?.id,active=null,mounted=false;
  host.classList.add('academy-prospectus-announcement');host.hidden=true;
@@ -27,16 +23,18 @@ export function programmeProspectus(host,{programmes=[],announcementId=homepageP
   if(focus)tab(id)?.focus();return true;
  }
  function mount(){
-  host.innerHTML='<div class="news-section"><div class="announcement-layout"><div class="timetable-frame"><div class="course-announcement-card"><div class="course-announcement-tabs" role="tablist" aria-label="'+year+' course timetables">'+items.map(row=>'<button type="button" id="'+prefix+'-'+esc(row.id)+'" role="tab" aria-controls="'+prefix+'-panel" aria-selected="false" tabindex="-1" data-prospectus-course="'+esc(row.id)+'">'+esc(row.marketing.name||row.name)+'</button>').join('')+'</div><div id="'+prefix+'-panel" class="course-announcement-panel" role="tabpanel" data-prospectus-panel></div></div></div><aside class="enrolments-banner" aria-labelledby="'+prefix+'-enrolments"><div class="enrolments-lockup"><span class="enrolments-year">'+year+'</span><h3 id="'+prefix+'-enrolments">enrolments</h3></div><button type="button" class="enrolments-audience" data-prospectus-details></button><a class="full-prospectus-link" data-full-prospectus target="_blank" rel="noopener noreferrer">View the full<br><strong>prospectus</strong><span aria-hidden="true">↗</span></a><div class="enrolments-contact-strip"><a href="https://wa.me/27828478639" target="_blank" rel="noopener noreferrer"><small>Register via WhatsApp</small><strong>+27 82 847 8639</strong></a><div><a href="mailto:admin@ummabbadacademy.com">admin@ummabbadacademy.com</a><a href="https://ummabbadacademy.com" target="_blank" rel="noopener noreferrer">www.ummabbadacademy.com</a></div></div></aside></div></div>';
+  host.innerHTML='<div class="news-section"><div class="announcement-layout"><div class="timetable-frame"><div class="course-announcement-card"><div class="course-announcement-tabs" role="tablist" aria-label="'+year+' course timetables">'+items.map(row=>'<button type="button" id="'+prefix+'-'+esc(row.id)+'" role="tab" aria-controls="'+prefix+'-panel" aria-selected="false" tabindex="-1" data-prospectus-course="'+esc(row.id)+'">'+esc(row.marketing.name||row.name)+'</button>').join('')+'</div><div id="'+prefix+'-panel" class="course-announcement-panel" role="tabpanel" data-prospectus-panel></div></div></div><aside class="enrolments-banner" aria-labelledby="'+prefix+'-enrolments"><div class="enrolments-lockup"><span class="enrolments-year">'+year+'</span><h3 id="'+prefix+'-enrolments">enrolments</h3></div><button type="button" class="enrolments-audience" data-prospectus-details hidden></button><div class="enrolments-contact-strip"><a href="https://wa.me/27828478639" target="_blank" rel="noopener noreferrer"><small>Register via WhatsApp</small><strong>+27 82 847 8639</strong></a><div><a href="mailto:admin@ummabbadacademy.com">admin@ummabbadacademy.com</a><a href="https://ummabbadacademy.com" target="_blank" rel="noopener noreferrer">www.ummabbadacademy.com</a></div></div></aside></div></div>';
   mounted=true;choose(selected);
  }
  function update(rows){
-  const row=publishedProspectus(rows,{announcementId,assetBase});
+  const row=publishedProspectus(rows,{announcementId});
   if(!row||!items.length){active=null;mounted=false;host.hidden=true;host.replaceChildren();return null;}
   active=row;if(!mounted)mount();
   host.hidden=false;
-  const details=host.querySelector('[data-prospectus-details]');details.textContent=row.title;details.setAttribute('aria-label','Read announcement: '+row.title);
-  const link=host.querySelector('[data-full-prospectus]');link.href=row.pdfUrl;link.setAttribute('aria-label','View the full '+year+' prospectus PDF');link.title=row.pdfName||year+' prospectus';
+  const details=host.querySelector('[data-prospectus-details]');
+  details.hidden=!row;details.textContent=row?.title||'';
+  if(row)details.setAttribute('aria-label','Read announcement: '+row.title);
+  else details.removeAttribute('aria-label');
   return row;
  }
  const click=event=>{

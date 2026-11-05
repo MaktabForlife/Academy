@@ -10,7 +10,7 @@ await mkdir(out,{recursive:true});
 const {chromium}=await import(pathToFileURL(resolve(process.env.REVIEW_BROWSER_MODULES,'node_modules/playwright/index.mjs')).href);
 const browser=await chromium.launch({headless:true}),base='https://academy.invalid',errors=[],unexpectedApi=[],checks=[];
 const mime={'.html':'text/html','.mjs':'text/javascript','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.ttf':'font/ttf','.woff2':'font/woff2','.png':'image/png','.jpg':'image/jpeg'};
-const row={id:homepageProspectus.announcementId,title:'2027 Enrolments are open for current students',summary:'',message:'A new year of learning. Speak to the Academy.',imageUrl:'',imageAlt:'',pdfUrl:base+'/api/public/academy-announcements/pdf?id='+homepageProspectus.announcementId+'&asset='+'a'.repeat(64),pdfName:'Test prospectus.pdf',enrolmentUrl:''};
+const row={id:homepageProspectus.announcementId,title:'2027 Enrolments are open for current students',summary:'',message:'A new year of learning. Speak to the Academy.',imageUrl:'',imageAlt:'',pdfUrl:'',pdfName:'',enrolmentUrl:''};
 const bootcamp={id:'00000000-0000-4000-8000-000000000002',title:'Surah Al-Kahf Bootcamp',summary:'A published course notice.',message:'Public announcement details.',imageUrl:'',imageAlt:'',pdfUrl:'',pdfName:'',enrolmentUrl:''};
 const indexHTML=await readFile(resolve(assets,'index.html'),'utf8');
 const htmlBase=new URL(indexHTML.match(/<base href="([^"]+)"/)?.[1]||'/',base);
@@ -24,7 +24,7 @@ async function pageFor(mode='published'){
   if(url.pathname==='/__native-homepage-test.html')return route.fulfill({status:200,contentType:'text/html',body:fixture});
   if(url.pathname==='/api/public/academy-announcements'){
    collections++;if(mode==='legacy')return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({success:false,error:'Not activated.',code:'ANNOUNCEMENTS_NOT_ACTIVATED'})});
-   return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({schema:'ACADEMY_ANNOUNCEMENTS_PUBLIC_V2',success:true,generation:1,announcements:mode==='empty'?[]:[row,bootcamp]})});
+   return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({schema:'ACADEMY_ANNOUNCEMENTS_PUBLIC_V2',success:true,generation:1,announcements:mode==='empty'?[]:mode==='withdrawn'?[bootcamp]:[mode==='with-pdf'?{...row,pdfUrl:base+'/api/public/academy-announcements/pdf?id='+row.id+'&asset='+'a'.repeat(64),pdfName:'Deferred.pdf'}:row,bootcamp]})});
   }
   if(url.pathname.startsWith('/api/')){unexpectedApi.push(url.pathname);return route.abort();}
   try{const path=resolve(assets,'.'+url.pathname);if(!path.startsWith(assets+'/'))throw Error('Invalid asset');return route.fulfill({status:200,contentType:mime[extname(path)]||'application/octet-stream',body:await readFile(path)});}catch{return route.fulfill({status:404,body:'Not found'});}
@@ -36,7 +36,7 @@ try{
  await page.locator('.academy-prospectus-announcement [role=tab]').first().waitFor();
  await page.evaluate(()=>document.fonts.ready);
  assert.equal(await page.locator('[data-prospectus-course]').count(),6);
- assert.equal(await page.locator('[data-full-prospectus]').getAttribute('href'),row.pdfUrl);
+ assert.equal(await page.locator('[data-full-prospectus]').count(),0);
  assert.equal(await page.locator('.announcement-public-panel .announcement-feature h3').textContent(),bootcamp.title);
  const right=await page.locator('.enrolments-banner').innerHTML();
  await page.locator('[data-prospectus-course=mothers]').focus();await page.keyboard.press('ArrowRight');
@@ -73,11 +73,21 @@ try{
  assert.match(await page.getByRole('dialog').textContent(),/A new year of learning/);
  await page.keyboard.press('Escape');
  const empty=await pageFor('empty');await empty.page.waitForFunction(()=>document.getElementById('academy-news').hidden);
+ assert.equal(await empty.page.locator('.academy-prospectus-announcement').isVisible(),false);
+ assert.equal(await empty.page.locator('[data-prospectus-details]').count(),0);
  assert.equal(await empty.page.locator('[data-full-prospectus]').count(),0);await empty.page.close();
  const legacy=await pageFor('legacy');await legacy.page.locator('.announcements-master-detail').waitFor();
  assert.equal(await legacy.page.locator('.academy-prospectus-announcement').isVisible(),false);await legacy.page.close();
- checks.push('One collection per page; authoritative empty publications stay empty; unactivated publication keeps the existing legacy fallback.');
+ const withdrawn=await pageFor('withdrawn');await withdrawn.page.locator('.announcement-feature h3').waitFor();
+ assert.equal(await withdrawn.page.locator('.academy-prospectus-announcement').isVisible(),false);
+ assert.equal(await withdrawn.page.locator('[data-prospectus-details]').count(),0);
+ assert.equal(await withdrawn.page.locator('.announcement-public-panel').innerText(),await page.locator('.announcement-public-panel').innerText());await withdrawn.page.close();
+ const attached=await pageFor('with-pdf');await attached.page.locator('[data-prospectus-details]').waitFor();
+ assert.equal(await attached.page.locator('[data-full-prospectus]').count(),0);
+ await attached.page.locator('[data-prospectus-details]').click();await attached.page.getByRole('dialog').waitFor();
+ assert.equal(await attached.page.getByRole('dialog').locator('a[href*="/pdf"]').count(),0);await attached.page.close();
+ checks.push('PDF-free published panel is visible; empty/legacy/withdrawn feeds remain authoritative; Bootcamp remains; no PDF links even when attached; one cached collection.');
  assert.deepEqual(errors,[]);assert.deepEqual(unexpectedApi,[]);
- await writeFile(resolve(out,'native-homepage-check.json'),JSON.stringify({passed:true,commit:process.env.GITHUB_SHA,checks,errors,hostedReads:0,unexpectedApi,macWrites:0,pdfBytesUploaded:0,prospectusIdentity:'Authority-supplied URL contract tested synthetically. Actual second-PDF identity/manual publication remains a separate release precondition.'},null,2)+'\n');
+ await writeFile(resolve(out,'native-homepage-check.json'),JSON.stringify({passed:true,commit:process.env.GITHUB_SHA,checks,errors,hostedReads:0,unexpectedApi,macWrites:0,pdfBytesUploaded:0,publication:'PDF dependency removed, public-notice authority retained. No hosted content changes in tests.'},null,2)+'\n');
  console.log(JSON.stringify({passed:true,checks:checks.length,hostedReads:0}));
 }finally{await browser.close();}
