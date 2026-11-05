@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<!-- M4L V105.1 - Compact Program setup workspace. -->
+<html data-circles-native="true" lang="en">
+<head>
+<meta name="robots" content="noindex,nofollow">
+<script src="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/js/m4l-circles-native.js?v=circles-native-1"></script>
+<script src="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/js/m4l-academy-workspace.js?v=109.18"></script><script src="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/js/m4l-academy-read-cache.js?v=109.18"></script><script src="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/js/m4l-academy-admin-menu.js?v=109.18"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="theme-color" content="#72477b" />
+  <title>Manage Programs · Umm Abbad Academy</title>
+  <link rel="icon" href="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/admin-favicon-32x32.png" />
+  <link rel="stylesheet" href="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/css/m4l-program-monthly-subscriptions.css?v=109.18">
+  <link rel="stylesheet" href="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/css/m4l-program-builder.css?v=109.18" />
+<link rel="stylesheet" href="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/css/m4l-academy-navigation.css?v=109.18">
+<link rel="stylesheet" href="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/css/m4l-program-admin.css?v=109.18"><link rel="stylesheet" href="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/css/m4l-enrolment.css?v=109.18"><link rel="stylesheet" href="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/css/m4l-academy-mobile.css?v=109.18">
+<link rel="stylesheet" href="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/css/m4l-academy-page-actions.css?v=109.18">
+<link rel="stylesheet" href="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/css/m4l-academy-shell.css?v=109.18">
+<link rel="stylesheet" href="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/css/m4l-program-zoom-help.css?v=109.18">
+<link rel="stylesheet" href="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/css/m4l-workspace-theme.css?v=109.18">
+</head>
+<body class="circles-workspace-page pg-admin">
+<a id="academy-link" href="https://maktab4life.org/" data-page-home data-workspace-exit hidden>Academy home</a>
+  <main id="program-builder" data-unified-programs>
+    <div class="pb-heading"><div><h1>Manage Programs</h1><p id="program-intro" hidden></p></div></div>
+    <p id="program-message" class="pb-message" role="status" aria-live="polite">Opening Programs…</p>
+    <div id="program-refresh-warning" class="pb-refresh-warning" role="alert" hidden>
+      <span>You have unsaved changes. Keep editing or discard them to load the latest Programs.</span>
+      <button id="program-keep-editing" type="button" class="pb-secondary">Keep editing</button>
+      <button id="program-discard-refresh" type="button">Discard and refresh</button>
+    </div>
+    <button id="program-retry" type="button" class="pb-secondary" hidden>Try again</button>
+    <section id="program-workspace" class="pg-workspace" aria-label="Program management" hidden>
+      <div id="pg-tabs" class="pg-tabs" role="tablist" aria-label="Program sections"></div>
+      <section id="pg-list" class="pg-list-panel" role="tabpanel" aria-labelledby="pg-tab-list">
+        <div class="pg-list-toolbar"><strong id="program-count">Programs</strong><button id="program-add" type="button">+ New Program</button></div>
+        <div class="pb-toolbar"><label class="pb-search"><span>Find a Program</span><input id="program-search" type="search" placeholder="Search by name…"></label><label class="pb-filter"><span>Status</span><select id="program-filter"><option value="AVAILABLE" selected>Current programs</option><option value="">All statuses</option><option value="DRAFT">Draft</option><option value="ACTIVE">Active</option><option value="ARCHIVED">Archived</option></select></label><button id="program-refresh" type="button" class="pb-secondary" data-page-content-refresh>Refresh Programs</button></div>
+        <div id="program-rows" class="pg-program-list"></div>
+      </section>
+      <div id="pg-context" class="pg-context" hidden><h2 id="pg-program-name"></h2><small id="pg-program-status"></small></div>
+      <section id="program-detail" class="pg-details" role="tabpanel" aria-labelledby="pg-tab-details" hidden></section>
+      <p id="pg-empty" class="pg-empty">Select a Program</p>
+      <p id="pg-tool-message" class="pb-message" role="status" aria-live="polite" hidden></p><button id="pg-tool-retry" type="button" class="pb-secondary" hidden>Try again</button>
+      <section id="pg-timetable-tool" class="pg-tool" role="tabpanel" hidden></section>
+      <section id="pg-people-tool" class="pg-tool" role="tabpanel" aria-labelledby="pg-tab-participants" hidden></section>
+      <section id="pg-enrolment-tool" class="pg-tool enrolment-embedded" role="tabpanel" aria-labelledby="pg-tab-enrolment" hidden></section>
+      <section id="pg-media-tool" class="pg-tool" role="tabpanel" aria-labelledby="pg-tab-media" hidden></section>
+      <div hidden><span id="program-access-label"></span><span id="program-zoom-label"></span><span id="program-store-label"></span><span id="program-access-note"></span><span id="program-setup-note"></span></div>
+    </section>
+    <dialog id="program-new-dialog" class="pg-new-dialog" aria-labelledby="program-new-title">
+      <h2 id="program-new-title">New Program</h2><p>Start blank, or copy an existing Program into a separate editable draft.</p>
+      <label>Start from<select id="program-copy-source"><option value="">Blank Program</option></select></label>
+      <div id="program-copy-options" hidden><label>New Program name<input id="program-copy-name" maxlength="160"></label><label><input id="program-copy-schedule" type="checkbox" checked>Copy timetable and teacher selections</label><label><input id="program-copy-enrolments" type="checkbox" checked>Copy learner enrolments and class memberships</label><p>The curriculum, classes and public card are copied into an editable draft. Copied learners gain access after activation or publication. Attendance, progress and enrolment requests stay with the original. Choose a new effective date when publishing.</p></div>
+      <p id="program-copy-message" role="status"></p><div class="pg-detail-actions"><button id="program-copy-cancel" type="button" class="pb-secondary">Cancel</button><button id="program-copy-confirm" type="button">Continue</button></div>
+    </dialog>
+  </main>
+<aside id="zoom-link-help" class="zoom-help-popover" popover aria-labelledby="zoom-link-help-title">
+  <div class="zoom-help-top"><h2 id="zoom-link-help-title">Zoom links</h2><button type="button" class="zoom-help-close" popovertarget="zoom-link-help" popovertargetaction="hide" aria-label="Close Zoom link help" autofocus>×</button></div>
+  <p>Republishing is not required when you change a Program or class Zoom link.</p>
+  <p>Links are checked in this order when someone clicks <strong>Join</strong>:</p>
+  <ol><li>Program Zoom link.</li><li>Lesson Zoom link.</li><li>Class Zoom link.</li></ol>
+  <p class="zoom-help-footnote">Publish the timetable after changing a lesson link.</p>
+</aside><small class="pb-version">V109.16</small>
+  <script src="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/js/m4l-config.js?v=109.18"></script>
+  <script src="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/js/m4l-enrolment-common.js?v=109.18"></script><script src="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/js/m4l-enrolment-admin.js?v=109.18"></script><script src="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/js/m4l-enrolment-workspace.js?v=109.18"></script>
+  <script src="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/js/m4l-program-monthly-subscriptions.js?v=109.18"></script>
+  <script src="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/js/m4l-program-admin.js?v=109.18"></script>
+  <script src="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/js/m4l-program-builder.js?v=109.18"></script>
+
+<script src="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/js/m4l-academy-navigation.js?v=109.18"></script>
+<script src="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/js/m4l-academy-mobile.js?v=109.18"></script>
+<script src="/_assets/caa3d51451deeb3c63878a9425dae68e642a0db2b5579439e9ba26219ca3c91e/js/m4l-academy-page-actions.js?v=109.18"></script>
+</body>
+</html>
