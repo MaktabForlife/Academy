@@ -4,14 +4,7 @@ import {execFileSync} from 'node:child_process';
 import {readFileSync,writeFileSync,mkdirSync,lstatSync,realpathSync,existsSync} from 'node:fs';
 import {resolve,join,dirname,extname,posix} from 'node:path';
 import {tmpdir} from 'node:os';
-// Exact public V110 runtime files; never recursively publish auth sources.
-const jwtV110PublicAssets=[
- 'auth/v110/browser-display-state.mjs','auth/v110/browser-control-relay.mjs',
- 'auth/v110/browser-control-client.mjs','auth/v110/browser-app-privacy.mjs',
- 'auth/v110/browser-entry.mjs','auth/v110/browser-bootstrap.js',
- 'auth/v110/browser-config.js','auth/v110/browser-control.html'
-];
-const jwtV110Relay='auth/v110/browser-control.html';
+import {jwtV110PublicAssets,jwtV110Relay} from './jwt-v110-public-assets.mjs';
 const roots=['academy','account','programs','users','pdf-viewer','recorder','activities','icons','images'];
 import {academyCirclesPages,academyCirclesFragments,academyRetiredPages} from './academy-circles-routes.mjs';
 const retiredRenderers=new Set(['js/m4l-academy-dashboard.js','js/m4l-academy-catalogue.js','css/m4l-academy-home.css','css/m4l-academy-dashboard.css','css/m4l-open-library.css','js/m4l-open-library.js','js/m4l-program-admin-redirect.js','academy/website-platform/handover/handover.mjs']);

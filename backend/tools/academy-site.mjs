@@ -1,3 +1,4 @@
+import {jwtV110PublicAssets} from './jwt-v110-public-assets.mjs';
 import {servePortal} from './portal-site.mjs';
 import {assetPath} from './browser-site/worker.mjs';
 import {publicPdfTarget} from './academy-public-media.mjs';
@@ -10,6 +11,15 @@ export async function serveAcademySite(request,env,{pages=false,branch=siteBranc
   const url=new URL(request.url);
   if(['/api/feature-preview/health','/api/site/health'].includes(url.pathname))return Response.json({success:true,version:siteVersion,branch,syntheticOnly},{headers:{'Cache-Control':'no-store'}});
   if(!['GET','HEAD'].includes(request.method))return new Response('Method not allowed',{status:405});
+  // Public coordination files are static, never auth endpoints. Keep the list
+  // exact and do not pass root cookies or caller credentials to the asset origin.
+  if(jwtV110PublicAssets.includes(url.pathname.slice(1))){
+    const response=await env.ASSETS.fetch(new Request(url,{method:request.method,redirect:'manual'}));
+    const headers=new Headers(response.headers);
+    headers.set('Cache-Control','no-store');headers.set('X-Content-Type-Options','nosniff');
+    headers.set('X-Robots-Tag','noindex, nofollow');headers.set('Referrer-Policy','no-referrer');
+    return new Response(request.method==='HEAD'?null:response.body,{status:response.status,headers});
+  }
   const portal=await servePortal(request,env);if(portal)return portal;
   // The release builder copies only reviewed public scripts/styles/artwork to
   // this content-addressed namespace. Documents and private APIs never enter it.
