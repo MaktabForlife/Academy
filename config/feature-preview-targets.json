@@ -7,7 +7,7 @@
   "portalOrigin": "https://feature-preview.academy-maktab4life.pages.dev",
   "apiOrigin": "https://feature_worker.maktab4life.workers.dev",
   "worker": "feature_worker",
-  "coordinator": "academy_feature_split_coordinator",
+  "coordinator": "academy-feature-split-coordinator",
   "databases": [
     {
       "binding": "ACADEMY_DB",

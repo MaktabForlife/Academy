@@ -7,7 +7,7 @@ This preparation branch includes the reviewed V109.25 management/version-label f
 
 - Academy account: c9a3e355b3d7a795880b1d36a1dbe123 (hajira.naidu@gmail.com).
 - Ready branch and Pages preview: feature-preview, https://feature-preview.academy-maktab4life.pages.dev.
-- API: feature_worker; private coordinator: academy_feature_split_coordinator.
+- API: feature_worker; private coordinator: academy-feature-split-coordinator.
 - New Core: 0eaf6d46-bbaa-46e3-8287-b6113ef8f2a8.
 - New Admin: 18ad0efb-cd34-42a4-b510-7051f0303200.
 - Private media buckets: maktab-lesson-media-private-feature, maktab-assessments-private-feature, maktab-feature-media-private.
@@ -29,12 +29,12 @@ The Feature build explicitly selects config/hosting.feature.json as config/hosti
 3. Prepare a private synthetic seed using new Feature-only secrets. Never clone live people or reuse public fixture credentials. Verify native PIN format, scoped Admin, session revocation, authority and media operations before activation.
 4. Verify old Feature metadata and migration history; install new private coordinator and new Feature-owned timetable namespace. Remove old Feature-only HIFZ_PROFILE_SYNC_SECRET explicitly; omission does not remove retained secrets.
 5. Bind the new stores and private buckets with an explicit variable/secret allowlist, verify PAUSED metadata, then activate only this reviewed Feature instance.
-6. Enable a serial test-before-deploy workflow on feature-preview after storing the reviewed initialization receipt. Routine deployment must contain no SQL, seed/reset, secret rotation or Development promotion.
+6. Enable the prepared serial test-before-deploy workflow on feature-preview after storing the reviewed initialization receipt. Routine deployment must contain no SQL, seed/reset, secret rotation or Development promotion.
 
 ## Dedicated deployment credential
 
 The attempted transfer of an existing production credential was rejected by automatic approval review. It was not committed or executed and must not be retried indirectly.
 
-Create a new credential only after specific owner confirmation of its account, permissions and destination: GitHub MaktabForlife/Academy environment feature, permitted deployment branch feature-preview. Prefer a Worker-specific permission scope if the account supports it. Otherwise Workers Scripts Write and Pages Write are account-wide capabilities; the pipeline target guard restricts its intended use but does not reduce the token's Cloudflare privileges. Read-only account/D1/R2 metadata permissions are for exact target verification. Do not grant D1 Write/Delete, DNS Write or API-token administration to routine deployment. Initial new-store schema/seed work stays separately scoped and reviewed.
+Create a new credential only after specific owner confirmation of its account, permissions and destination: GitHub MaktabForlife/Academy environment feature, permitted deployment branch feature-preview. The reviewed but unsubmitted 30-day token uses Individual Workers Editor only for feature_worker and academy-feature-split-coordinator, plus account-wide Pages Write. No direct D1/R2, DNS or token-management permission is requested. Pages access can affect other projects in the account; the workflow pins the existing Pages project and feature-preview branch and checks that it remains a preview. Owner approval of creation and GitHub storage is pending. Initial new-store schema/seed work stays separately scoped and reviewed.
 
-No automatic deployment is enabled by this preparation alone.
+The automatic job is implemented but disabled: the initialisation receipt is PENDING and FEATURE_DEPLOYMENT_ENABLED is unset. It will require both the reviewed VERIFIED receipt and the enable switch. It checks installed bindings/namespaces/keys/limits, no schedules/public coordinator URL, exact ready-branch head, and Pages preview status before deployment; it verifies the installed metadata, exact Pages commit marker and native version afterward. A partial failure attempts to leave only Feature PAUSED and records whether that was verified. It never rolls back the production Pages project, performs SQL, rotates secrets, or promotes Development. Hosted behavior and recovery are still unverified until initial setup is complete.

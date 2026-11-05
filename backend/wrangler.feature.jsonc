@@ -52,7 +52,7 @@
       {
         "name": "ACADEMY_SPLIT_COORDINATOR",
         "class_name": "AcademySplitCoordinator",
-        "script_name": "academy_feature_split_coordinator"
+        "script_name": "academy-feature-split-coordinator"
       }
     ]
   },
