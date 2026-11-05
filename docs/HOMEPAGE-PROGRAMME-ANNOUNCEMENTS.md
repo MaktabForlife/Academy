@@ -11,3 +11,5 @@ The six source-managed programme schedules/fees/Arabic labels remain unchanged p
 The same cached public collection is reused, with no new per-tab/card/API/database/permission reads. GitHub-only tests cover PDF-free published display, attached-but-unlinked PDF, empty/legacy/withdrawn authority, Bootcamp, six tabs/widths320–1920, keyboard control and collection reuse. No Mac writes/deletions.
 
 Root owns independent review and pairedV109.22 release, preserving current Studiohosting/23bindings/workerassets and isolated JWTV110.
+
+V109.23 delivery correction: the native publication emits content-addressed image/PDF paths under /api/academy/announcements/. The homepage explicitly validates that configured source prefix and maps accepted same-origin attachment URLs to /api/public/academy-announcements/ before display/cache. Already-mapped saved URLs are valid on reload. Unreviewed origins, paths and malformed asset hashes remain rejected. The public relay stays credential-free, and its JSON is not rewritten or fetched again. Native-attachment relay/DOM and real-browser fixtures cover both notices; no publication retry is part of this code correction.

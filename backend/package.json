@@ -1,6 +1,6 @@
 {
   "name": "maktab-academy-development",
-  "version": "109.22",
+  "version": "109.23",
   "type": "module",
   "scripts": {
     "test": "node tests/run-all.mjs",
