@@ -16,3 +16,44 @@ jobs:
       source_ref: ${{ github.sha }}
       studio_ref: studio_dev
       deploy: false
+
+  homepage:
+    needs: paired
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    timeout-minutes: 25
+    env:
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - run: npm ci --prefix backend --no-audit --no-fund
+      - name: Native homepage contract
+        run: |
+          node --check portal/shared/programme-prospectus.mjs
+          node --check portal/circles/prospectus-2027.js
+          node --check tools/homepage-native-check.mjs
+          node --test backend/tests/academy-programme-prospectus.test.mjs backend/tests/academy-announcements-client.test.mjs backend/tests/academy-announcements-split.test.mjs backend/tests/academy-announcements-v2.test.mjs
+          git diff --check
+          node backend/tools/academy-pages-build.mjs
+      - name: Install isolated browser
+        env:
+          REVIEW_BROWSER_MODULES: ${{ runner.temp }}/academy-homepage-browser
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/academy-homepage-browsers
+        run: |
+          npm install --prefix "$REVIEW_BROWSER_MODULES" --no-save --package-lock=false --no-audit --no-fund playwright@1.56.1
+          node "$REVIEW_BROWSER_MODULES/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Native homepage browser verification
+        env:
+          REVIEW_BROWSER_MODULES: ${{ runner.temp }}/academy-homepage-browser
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/academy-homepage-browsers
+        run: node tools/homepage-native-check.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: native-homepage-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/homepage-native-evidence/
+          retention-days: 14

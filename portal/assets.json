@@ -154,6 +154,8 @@
   "shared/playlist-metadata-editor.mjs",
   "shared/playlist-settings.js",
   "shared/portal.css",
+  "shared/programme-prospectus.css",
+  "shared/programme-prospectus.mjs",
   "shared/programme-shell.css",
   "shared/programme-shell.mjs",
   "shared/public-home.css",
