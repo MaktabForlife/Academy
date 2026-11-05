@@ -6,6 +6,10 @@ function modeError(env){
   return null;
 }
 export default {
-  async fetch(request,env,ctx){return modeError(env)||academy.fetch(request,env,ctx);},
+  async fetch(request,env,ctx){
+   const stopped=modeError(env);
+   if(stopped&&new URL(request.url).pathname==='/auth/v110/context'){const headers=new Headers(stopped.headers);headers.set('Cache-Control','private, no-store');headers.set('X-Content-Type-Options','nosniff');return new Response(stopped.body,{status:stopped.status,headers});}
+   return stopped||academy.fetch(request,env,ctx);
+  },
   async scheduled(event,env,ctx){if(!modeError(env))return academy.scheduled(event,env,ctx);}
 };
