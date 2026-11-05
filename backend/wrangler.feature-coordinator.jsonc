@@ -1,0 +1,48 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "academy_feature_split_coordinator",
+  "account_id": "c9a3e355b3d7a795880b1d36a1dbe123",
+  "main": "src/academy-split-coordinator.js",
+  "compatibility_date": "2026-10-23",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "workers_dev": false,
+  "preview_urls": false,
+  "keep_vars": false,
+  "d1_databases": [
+    {
+      "binding": "ACADEMY_DB",
+      "database_name": "feature-academy-core",
+      "database_id": "0eaf6d46-bbaa-46e3-8287-b6113ef8f2a8"
+    },
+    {
+      "binding": "ACADEMY_ADMIN_DB",
+      "database_name": "feature-academy-admin",
+      "database_id": "18ad0efb-cd34-42a4-b510-7051f0303200"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "ACADEMY_SPLIT_COORDINATOR",
+        "class_name": "AcademySplitCoordinator"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "feature-isolated-v1",
+      "new_sqlite_classes": [
+        "AcademySplitCoordinator"
+      ]
+    }
+  ],
+  "triggers": {
+    "crons": []
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}

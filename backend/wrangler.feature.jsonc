@@ -2,41 +2,41 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "feature_worker",
   "account_id": "c9a3e355b3d7a795880b1d36a1dbe123",
-  "main": "src/academy-split-runtime.js",
+  "main": "src/academy-development-runtime.js",
   "compatibility_date": "2026-10-23",
   "workers_dev": true,
-  "preview_urls": true,
-  "keep_vars": true,
+  "preview_urls": false,
+  "keep_vars": false,
   "d1_databases": [
     {
       "binding": "ACADEMY_DB",
-      "database_name": "dev-academy-core",
-      "database_id": "1c8aece3-dc1d-40d1-8a82-01ab4f63336f"
+      "database_name": "feature-academy-core",
+      "database_id": "0eaf6d46-bbaa-46e3-8287-b6113ef8f2a8"
     },
     {
       "binding": "ACADEMY_ADMIN_DB",
-      "database_name": "dev-academy-admin",
-      "database_id": "fe85dac1-b1f0-4079-9127-2e36089aa385"
+      "database_name": "feature-academy-admin",
+      "database_id": "18ad0efb-cd34-42a4-b510-7051f0303200"
     }
   ],
   "r2_buckets": [
     {
       "binding": "LESSON_MEDIA_BUCKET",
-      "bucket_name": "maktab-lesson-media-private-development"
+      "bucket_name": "maktab-lesson-media-private-feature"
     },
     {
       "binding": "ASSESSMENT_BUCKET",
-      "bucket_name": "maktab-assessments-private-development"
+      "bucket_name": "maktab-assessments-private-feature"
     },
     {
       "binding": "MEDIA_BUCKET",
-      "bucket_name": "maktab4lifemedia"
+      "bucket_name": "maktab-feature-media-private"
     }
   ],
   "ratelimits": [
     {
       "name": "AUTH_LOGIN_RATE_LIMITER",
-      "namespace_id": "100101",
+      "namespace_id": "100111",
       "simple": {
         "limit": 5,
         "period": 60
@@ -47,13 +47,12 @@
     "bindings": [
       {
         "name": "PROGRAM_TIMETABLE_COORDINATOR",
-        "class_name": "ProgramTimetableCoordinator",
-        "script_name": "devrebootworker"
+        "class_name": "ProgramTimetableCoordinator"
       },
       {
         "name": "ACADEMY_SPLIT_COORDINATOR",
         "class_name": "AcademySplitCoordinator",
-        "script_name": "academy_split_coordinator"
+        "script_name": "academy_feature_split_coordinator"
       }
     ]
   },
@@ -65,31 +64,46 @@
     "head_sampling_rate": 1
   },
   "vars": {
-    "ACADEMY_D1_MODE": "ACTIVE",
-    "ACADEMY_D1_RUN_ID": "3ed73804e35f1d0c8b1bacd0a10e3b868644a38bbc30e11aa063a89716e6ac12",
+    "ACADEMY_D1_MODE": "PAUSED",
     "ACADEMY_LIBRARY_MODE": "PUBLIC_ONLY",
-    "ALLOWED_ORIGINS": "https://feature-admin.academy-maktab4life.pages.dev",
-    "ENVIRONMENT": "development",
-    "HIFZ_DEVELOPMENT_HANDOFF_URL": "",
-    "HIFZ_HANDOFF_ENABLED": "0",
-    "HIFZ_PROFILE_SYNC_TARGET": "production",
-    "HIFZ_PROFILE_SYNC_URL": "",
-    "ACADEMY_DEPLOYMENT_KIND": "SPLIT_PREVIEW",
+    "ENVIRONMENT": "feature",
+    "ALLOWED_ORIGINS": "https://feature-preview.academy-maktab4life.pages.dev",
+    "API_ORIGIN": "https://feature_worker.maktab4life.workers.dev",
+    "ACADEMY_OBJECT_NAMESPACE": "feature-isolated-v1/",
+    "ACADEMY_D1_RUN_ID": "FEATURE_NOT_INITIALISED",
+    "ACADEMY_DB_GENERATION": "SPLIT_V1",
+    "ACADEMY_DEPLOYMENT_KIND": "ISOLATED_PREVIEW",
     "ACADEMY_ACCEPTED_SETUP": "1",
     "ACADEMY_LEARNING_OPERATIONS": "3",
     "ACADEMY_MEDIA_SEPARATION": "1",
-    "ACADEMY_DB_GENERATION": "SPLIT_V1"
+    "ACADEMY_NOTE_RETENTION": "1",
+    "ACADEMY_MESSAGING": "1",
+    "ACADEMY_WEEKLY_ABSENTEES": "1",
+    "ACADEMY_MONTHLY_SUBSCRIPTIONS": "1",
+    "ACADEMY_SURAH_GRANTS": "1",
+    "ACADEMY_WEB_PLATFORM": "0",
+    "ACADEMY_WEBSITE_STUDIO": "0",
+    "HIFZ_HANDOFF_ENABLED": "0",
+    "HIFZ_PROFILE_SYNC_URL": "",
+    "HIFZ_DEVELOPMENT_HANDOFF_URL": ""
   },
   "secrets": {
     "required": [
       "PIN_SECRET",
       "SESSION_SECRET",
       "SHARED_PIN_SECRET",
-      "HIFZ_PROFILE_SYNC_SECRET",
       "ACADEMY_OPEN_LIBRARY_STORAGE_KEY"
     ]
   },
   "compatibility_flags": [
     "nodejs_compat"
+  ],
+  "migrations": [
+    {
+      "tag": "feature-isolated-v1",
+      "new_sqlite_classes": [
+        "ProgramTimetableCoordinator"
+      ]
+    }
   ]
 }

@@ -1,0 +1,49 @@
+name: Isolated Feature preparation
+on:
+  create:
+  push:
+    branches: [feature-preview]
+  workflow_dispatch:
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+concurrency:
+  group: feature-isolation-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  schema:
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/feature-preview' || startsWith(github.ref, 'refs/heads/validation/feature-isolation-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - run: npm ci --prefix backend --no-audit --no-fund
+      - name: Reconstruct current schema using synthetic references only
+        run: |
+          node backend/tools/feature-schema-proof.mjs "$RUNNER_TEMP/feature-schema" 2>&1 | tee "$RUNNER_TEMP/feature-schema.log"
+          git diff --check
+          git diff --exit-code
+      - name: Validate Feature Worker configurations without Cloudflare access
+        working-directory: backend
+        run: |
+          npx --no-install wrangler deploy --dry-run --config wrangler.feature-coordinator.jsonc --outdir "$RUNNER_TEMP/feature-coordinator-bundle"
+          npx --no-install wrangler deploy --dry-run --config wrangler.feature.jsonc --outdir "$RUNNER_TEMP/feature-worker-bundle"
+          npx --no-install wrangler types "$RUNNER_TEMP/feature-worker-env.d.ts" --config wrangler.feature.jsonc
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: feature-schema-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/feature-schema/
+            ${{ runner.temp }}/feature-schema.log
+          retention-days: 30

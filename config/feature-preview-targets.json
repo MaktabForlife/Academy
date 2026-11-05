@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "accountId": "c9a3e355b3d7a795880b1d36a1dbe123",
+  "readyBranch": "feature-preview",
+  "pagesProject": "academy-maktab4life",
+  "pagesBranch": "feature-preview",
+  "portalOrigin": "https://feature-preview.academy-maktab4life.pages.dev",
+  "apiOrigin": "https://feature_worker.maktab4life.workers.dev",
+  "worker": "feature_worker",
+  "coordinator": "academy_feature_split_coordinator",
+  "databases": [
+    {
+      "binding": "ACADEMY_DB",
+      "name": "feature-academy-core",
+      "id": "0eaf6d46-bbaa-46e3-8287-b6113ef8f2a8"
+    },
+    {
+      "binding": "ACADEMY_ADMIN_DB",
+      "name": "feature-academy-admin",
+      "id": "18ad0efb-cd34-42a4-b510-7051f0303200"
+    }
+  ],
+  "buckets": [
+    {
+      "binding": "LESSON_MEDIA_BUCKET",
+      "bucket_name": "maktab-lesson-media-private-feature"
+    },
+    {
+      "binding": "ASSESSMENT_BUCKET",
+      "bucket_name": "maktab-assessments-private-feature"
+    },
+    {
+      "binding": "MEDIA_BUCKET",
+      "bucket_name": "maktab-feature-media-private"
+    }
+  ],
+  "objectNamespace": "feature-isolated-v1/",
+  "initialMode": "PAUSED",
+  "removeFeatureSecrets": [
+    "HIFZ_PROFILE_SYNC_SECRET"
+  ],
+  "firstSetupGate": "Reviewed schema and synthetic credential seed; exact installed metadata; first Worker migration-tag check; no live resource bindings.",
+  "automaticDeploymentGate": "Only readyBranch after initial isolated setup receipt; no DDL, seeding or secret rotation in routine deployment."
+}
