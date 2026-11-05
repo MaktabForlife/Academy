@@ -12,6 +12,8 @@ const browser=await chromium.launch({headless:true}),base='https://academy.inval
 const mime={'.html':'text/html','.mjs':'text/javascript','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.ttf':'font/ttf','.woff2':'font/woff2','.png':'image/png','.jpg':'image/jpeg'};
 const row={id:homepageProspectus.announcementId,title:'2027 Enrolments are open for current students',summary:'',message:'A new year of learning. Speak to the Academy.',imageUrl:'',imageAlt:'',pdfUrl:'',pdfName:'',enrolmentUrl:''};
 const bootcamp={id:'00000000-0000-4000-8000-000000000002',title:'Surah Al-Kahf Bootcamp',summary:'A published course notice.',message:'Public announcement details.',imageUrl:'',imageAlt:'',pdfUrl:'',pdfName:'',enrolmentUrl:''};
+row.imageUrl='/api/academy/announcements/image?id='+row.id+'&asset='+'b'.repeat(64);
+bootcamp.imageUrl='/api/academy/announcements/image?id='+bootcamp.id+'&asset='+'c'.repeat(64);
 const indexHTML=await readFile(resolve(assets,'index.html'),'utf8');
 const htmlBase=new URL(indexHTML.match(/<base href="([^"]+)"/)?.[1]||'/',base);
 const styles=[...indexHTML.matchAll(/<link rel="stylesheet" href="([^"]+)"/g)].map(match=>{const url=new URL(match[1],htmlBase);return '<link rel="stylesheet" href="'+url.pathname+url.search+'">';}).join('');
@@ -24,8 +26,9 @@ async function pageFor(mode='published'){
   if(url.pathname==='/__native-homepage-test.html')return route.fulfill({status:200,contentType:'text/html',body:fixture});
   if(url.pathname==='/api/public/academy-announcements'){
    collections++;if(mode==='legacy')return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({success:false,error:'Not activated.',code:'ANNOUNCEMENTS_NOT_ACTIVATED'})});
-   return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({schema:'ACADEMY_ANNOUNCEMENTS_PUBLIC_V2',success:true,generation:1,announcements:mode==='empty'?[]:mode==='withdrawn'?[bootcamp]:[mode==='with-pdf'?{...row,pdfUrl:base+'/api/public/academy-announcements/pdf?id='+row.id+'&asset='+'a'.repeat(64),pdfName:'Deferred.pdf'}:row,bootcamp]})});
+   return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({schema:'ACADEMY_ANNOUNCEMENTS_PUBLIC_V2',success:true,generation:1,announcements:mode==='empty'?[]:mode==='withdrawn'?[bootcamp]:[mode==='with-pdf'?{...row,pdfUrl:base+'/api/academy/announcements/pdf?id='+row.id+'&asset='+'a'.repeat(64),pdfName:'Deferred.pdf'}:row,bootcamp]})});
   }
+  if(url.pathname==='/api/public/academy-announcements/image')return route.fulfill({status:200,contentType:'image/png',body:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64')});
   if(url.pathname.startsWith('/api/')){unexpectedApi.push(url.pathname);return route.abort();}
   try{const path=resolve(assets,'.'+url.pathname);if(!path.startsWith(assets+'/'))throw Error('Invalid asset');return route.fulfill({status:200,contentType:mime[extname(path)]||'application/octet-stream',body:await readFile(path)});}catch{return route.fulfill({status:404,body:'Not found'});}
  });

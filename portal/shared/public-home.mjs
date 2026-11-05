@@ -6,7 +6,7 @@ import {programmeProspectus} from './programme-prospectus.mjs';
 import {accessBadge} from './access-badge.mjs';
 import {approvedCourseCover} from './approved-course-artwork.mjs';
 export function publicHome(document){
- const prepared=new WeakSet(),preparedTrackers=new WeakSet(),view=document.defaultView,feed=announcementFeed({url:new URL('/api/public/academy-announcements',document.baseURI||view.location?.href||'https://local.invalid/').href,assetBase:document.baseURI||view.location?.href||'https://local.invalid/',assetPath:'/api/public/academy-announcements/',fetcher:(...args)=>view.fetch(...args),storage:view.sessionStorage});
+ const prepared=new WeakSet(),preparedTrackers=new WeakSet(),view=document.defaultView,feed=announcementFeed({url:new URL('/api/public/academy-announcements',document.baseURI||view.location?.href||'https://local.invalid/').href,assetBase:document.baseURI||view.location?.href||'https://local.invalid/',assetPath:'/api/public/academy-announcements/',sourceAssetPath:'/api/academy/announcements/',fetcher:(...args)=>view.fetch(...args),storage:view.sessionStorage});
  function mountAnnouncements(section,reel){
   prepared.add(section);
   const stylesheet='/shared/announcements-view.css';if(!document.querySelector('link[href="'+stylesheet+'"]')){const link=document.createElement('link');link.rel='stylesheet';link.href=stylesheet;document.head.append(link);}
