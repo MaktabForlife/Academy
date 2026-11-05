@@ -32,6 +32,12 @@
 
   // Reuse the identity from the existing login/session response; no extra lookup.
   window.M4L_ACADEMY_LOGIN = Object.freeze({
+    openPublicSignIn: () => {
+      if (!window.M4L_V110) return;
+      try { clearStoredAccountState(); } catch (_) { /* The workspace remains masked. */ }
+      showSignedOut();
+      showLoginForm();
+    },
     currentId: () => activeToken && activeToken === localStorage.getItem(tokenKey) ? activeLoginId : "",
     contexts: () => activeToken && activeToken === localStorage.getItem(tokenKey) ? verifiedContexts?.map(row => ({...row})) ?? null : []
   });
@@ -94,6 +100,11 @@
 
   function openLogin() {
     if (localStorage.getItem(tokenKey) || loginDialog.open) return;
+    showLoginForm();
+  }
+
+  function showLoginForm() {
+    if (loginDialog.open) return;
     loginRequested = true;
     form.hidden = false;
     loginDialog.showModal();
