@@ -90,7 +90,8 @@ try{
  const legacy=await pageFor('legacy');await legacy.page.locator('.announcements-master-detail').waitFor();
  assert.equal(await legacy.page.locator('.academy-prospectus-announcement').isVisible(),false);
  assert.equal(await legacy.page.locator('#academy-news-reel').evaluate(node=>node.hidden),false);
- assert.equal(await legacy.page.locator('#academy-news .reel-controls').evaluate(node=>node.hidden),false);await legacy.page.close();
+ assert.equal(await legacy.page.locator('#academy-news .reel-controls').count(),0,'Legacy collage replaces the original navigation controls');
+ assert.equal(await legacy.page.locator('.announcement-summary-list').isVisible(),true);await legacy.page.close();
  const withdrawn=await pageFor('withdrawn');await withdrawn.page.locator('.announcement-feature h3').waitFor();
  assert.equal(await withdrawn.page.locator('.academy-prospectus-announcement').isVisible(),false);
  assert.equal(await withdrawn.page.locator('[data-prospectus-details]').count(),0);
