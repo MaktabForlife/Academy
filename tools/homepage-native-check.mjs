@@ -17,7 +17,7 @@ bootcamp.imageUrl='/api/academy/announcements/image?id='+bootcamp.id+'&asset='+'
 const indexHTML=await readFile(resolve(assets,'index.html'),'utf8');
 const htmlBase=new URL(indexHTML.match(/<base href="([^"]+)"/)?.[1]||'/',base);
 const styles=[...indexHTML.matchAll(/<link rel="stylesheet" href="([^"]+)"/g)].map(match=>{const url=new URL(match[1],htmlBase);return '<link rel="stylesheet" href="'+url.pathname+url.search+'">';}).join('');
-const fixture='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+styles+'</head><body class="circle"><div class="academy-public wrap"><section id="academy-news" class="academy-news section rule"><div class="section-head"><div><span class="eyebrow">News &amp; announcements</span><h2>What’s happening.</h2></div></div><div id="academy-news-reel"><article class="academy-news-card" data-announcement="legacy"><h3>Legacy notice</h3><p>Old presentation.</p></article></div></section></div><script src="/circles/prospectus-2027.js"></script><script type="module">import {publicHome} from "/shared/public-home.mjs";window.fixtureRefresh=publicHome(document);window.fixtureRefresh();</script></body></html>';
+const fixture='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+styles+'</head><body class="circle"><div class="academy-public wrap"><section id="academy-news" class="academy-news section rule"><div class="section-head"><div><span class="eyebrow">News &amp; announcements</span><h2>What’s happening.</h2></div></div><div class="academy-news-grid" id="academy-news-reel" data-reel tabindex="0" role="region" aria-label="Announcements"><article class="academy-news-card" data-announcement="legacy"><h3>Legacy notice</h3><p>Old presentation.</p></article></div><div class="reel-controls" role="group" aria-label="Announcements navigation"><button class="reel-arrow" data-action="reel-step" data-id="academy-news-reel|-1">Previous announcements</button><span class="reel-position" data-reel-position="academy-news-reel"></span><button class="reel-arrow" data-action="reel-step" data-id="academy-news-reel|1">Next announcements</button></div></section></div><script src="/circles/prospectus-2027.js"></script><script type="module">import {publicHome} from "/shared/public-home.mjs";window.fixtureRefresh=publicHome(document);window.fixtureRefresh();</script></body></html>';
 async function pageFor(mode='published'){
  const page=await browser.newPage({viewport:{width:1440,height:1100},reducedMotion:'reduce'});let collections=0;
  page.on('pageerror',error=>errors.push(error.message));
@@ -38,6 +38,11 @@ try{
  const f=await pageFor(),page=f.page;
  await page.locator('.academy-prospectus-announcement [role=tab]').first().waitFor();
  await page.evaluate(()=>document.fonts.ready);
+ for(const selector of ['#academy-news-reel','#academy-news .reel-controls']){
+  const hidden=await page.locator(selector).evaluate(node=>({hidden:node.hidden,display:getComputedStyle(node).display,boxes:node.getClientRects().length}));
+  assert.deepEqual(hidden,{hidden:true,display:'none',boxes:0},selector+' must not occupy layout after publication');
+ }
+ assert.equal(await page.locator('#academy-news').innerText().then(text=>text.includes('Old presentation.')),false);
  assert.equal(await page.locator('[data-prospectus-course]').count(),6);
  assert.equal(await page.locator('[data-full-prospectus]').count(),0);
  assert.equal(await page.locator('.announcement-public-panel .announcement-feature h3').textContent(),bootcamp.title);
@@ -47,6 +52,7 @@ try{
  assert.equal(await page.evaluate(()=>document.activeElement.dataset.prospectusCourse),'tafseer');
  await page.keyboard.press('Home');assert.equal(await page.evaluate(()=>document.activeElement.dataset.prospectusCourse),'aalimiyah');
  await page.keyboard.press('End');assert.equal(await page.evaluate(()=>document.activeElement.dataset.prospectusCourse),'arabic-adventures');
+ checks.push('Hidden native legacy reel and controls have no layout box; empty publication hides the entire section.');
  checks.push('Native public-home controller renders the exact published prospectus, preserves Bootcamp and supports stable keyboard navigation.');
  const ids=await page.locator('[data-prospectus-course]').evaluateAll(nodes=>nodes.map(node=>node.dataset.prospectusCourse));
  for(const width of [320,390,768,1024,1440,1920]){
@@ -76,11 +82,15 @@ try{
  assert.match(await page.getByRole('dialog').textContent(),/A new year of learning/);
  await page.keyboard.press('Escape');
  const empty=await pageFor('empty');await empty.page.waitForFunction(()=>document.getElementById('academy-news').hidden);
+ assert.equal(await empty.page.locator('#academy-news').evaluate(node=>getComputedStyle(node).display),'none');
+ assert.equal(await empty.page.locator('#academy-news').evaluate(node=>node.getClientRects().length),0);
  assert.equal(await empty.page.locator('.academy-prospectus-announcement').isVisible(),false);
  assert.equal(await empty.page.locator('[data-prospectus-details]').count(),0);
  assert.equal(await empty.page.locator('[data-full-prospectus]').count(),0);await empty.page.close();
  const legacy=await pageFor('legacy');await legacy.page.locator('.announcements-master-detail').waitFor();
- assert.equal(await legacy.page.locator('.academy-prospectus-announcement').isVisible(),false);await legacy.page.close();
+ assert.equal(await legacy.page.locator('.academy-prospectus-announcement').isVisible(),false);
+ assert.equal(await legacy.page.locator('#academy-news-reel').evaluate(node=>node.hidden),false);
+ assert.equal(await legacy.page.locator('#academy-news .reel-controls').evaluate(node=>node.hidden),false);await legacy.page.close();
  const withdrawn=await pageFor('withdrawn');await withdrawn.page.locator('.announcement-feature h3').waitFor();
  assert.equal(await withdrawn.page.locator('.academy-prospectus-announcement').isVisible(),false);
  assert.equal(await withdrawn.page.locator('[data-prospectus-details]').count(),0);
