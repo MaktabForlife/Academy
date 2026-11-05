@@ -504,7 +504,7 @@ return {
     env=hostingEnvironment(env);
     const origin=request.headers.get('Origin');
     const allowed=(env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
-    const headers={'Content-Type':'application/json','Cache-Control':'private, no-store','Vary':'Origin',
+    const headers={'Content-Type':'application/json','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Vary':'Origin',
       'Access-Control-Allow-Methods':'POST, GET, HEAD, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization, Range, X-Academy-Workspace, X-Academy-Class, X-Academy-Setup, X-Library-Upload-Ticket, X-Library-Upload-Offset, X-Academy-Read-Cache, X-Academy-Read-Revision, If-None-Match'};
     if(origin&&allowed.includes(origin))headers['Access-Control-Allow-Origin']=origin;
     if(origin&&!allowed.includes(origin))return new Response(JSON.stringify({success:false,error:'Origin is not allowed.'}),{status:403,headers});
