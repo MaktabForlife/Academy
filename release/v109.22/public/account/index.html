@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<!-- M4L V105.4 - Program curriculum and Library management. -->
+<html data-circles-native="true" lang="en">
+<head>
+<meta name="robots" content="noindex,nofollow">
+<script src="/_assets/f08c069008dc046ddf28ed1d251fc598d35cb13cd30344c2c9e1d4b0eacb1439/js/m4l-circles-native.js?v=circles-native-1"></script>
+<script src="/_assets/f08c069008dc046ddf28ed1d251fc598d35cb13cd30344c2c9e1d4b0eacb1439/js/m4l-academy-workspace.js?v=109.18"></script><script src="/_assets/f08c069008dc046ddf28ed1d251fc598d35cb13cd30344c2c9e1d4b0eacb1439/js/m4l-academy-read-cache.js?v=109.18"></script><script src="/_assets/f08c069008dc046ddf28ed1d251fc598d35cb13cd30344c2c9e1d4b0eacb1439/js/m4l-academy-admin-menu.js?v=109.18"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#8b4f91" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Your Academy account</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/_assets/f08c069008dc046ddf28ed1d251fc598d35cb13cd30344c2c9e1d4b0eacb1439/admin-favicon-32x32.png" />
+  <link rel="stylesheet" href="/_assets/f08c069008dc046ddf28ed1d251fc598d35cb13cd30344c2c9e1d4b0eacb1439/css/m4l-23-account.css?v=109.18" />
+<link rel="stylesheet" href="/_assets/f08c069008dc046ddf28ed1d251fc598d35cb13cd30344c2c9e1d4b0eacb1439/css/m4l-academy-page-actions.css?v=109.18">
+<link rel="stylesheet" href="/_assets/f08c069008dc046ddf28ed1d251fc598d35cb13cd30344c2c9e1d4b0eacb1439/css/m4l-academy-navigation.css?v=109.18"><link rel="stylesheet" href="/_assets/f08c069008dc046ddf28ed1d251fc598d35cb13cd30344c2c9e1d4b0eacb1439/css/m4l-academy-mobile.css?v=109.18">
+<link rel="stylesheet" href="/_assets/f08c069008dc046ddf28ed1d251fc598d35cb13cd30344c2c9e1d4b0eacb1439/css/m4l-academy-shell.css?v=109.18">
+<link rel="stylesheet" href="/_assets/f08c069008dc046ddf28ed1d251fc598d35cb13cd30344c2c9e1d4b0eacb1439/css/m4l-workspace-theme.css?v=109.18">
+</head>
+<body class="circles-workspace-page">
+  <main class="account-shell">
+    <section class="account-brand" aria-labelledby="account-brand-title">
+      <p class="account-bismillah" aria-label="Bismillah">﷽</p>
+      <img src="/_assets/f08c069008dc046ddf28ed1d251fc598d35cb13cd30344c2c9e1d4b0eacb1439/ummabbadacademy.png" alt="Umm Abbad Academy" class="account-logo" />
+      <p class="account-eyebrow">One account · every Program</p>
+      <h1 id="account-brand-title">Your Academy account</h1>
+      <p class="account-brand-copy">
+        Use your personal account link and one PIN. Your authorised Program and role
+        access stays attached to this account.
+      </p>
+      <div class="account-security-note">
+        <span class="account-security-icon" aria-hidden="true">✓</span>
+        <span>Each switch is checked centrally and receives a new scoped session.</span>
+      </div>
+    </section>
+
+    <section class="account-panel" aria-labelledby="account-panel-title">
+      <div class="account-panel-topline">
+        <span class="account-version">V107.120</span>
+        <button id="logout-button" class="account-text-button hidden" type="button">Log out</button>
+      </div>
+
+      <div id="loading-view" class="account-view">
+        <div class="account-loader" aria-hidden="true"></div>
+        <h2 id="account-panel-title">Checking your account link</h2>
+        <p>Please wait a moment.</p>
+      </div>
+
+      <div id="invalid-view" class="account-view hidden" role="alert">
+        <span class="account-status-mark account-status-mark--error" aria-hidden="true">!</span>
+        <h2>Account link unavailable</h2>
+        <p id="invalid-message">This account link could not be verified.</p>
+      </div>
+
+      <form id="login-form" class="account-view hidden" novalidate>
+        <p class="account-kicker">Welcome back</p>
+        <h2 id="login-title">Enter your PIN</h2>
+        <p id="login-name" class="account-subtitle"></p>
+        <label class="account-field-label" for="login-pin">4-digit PIN</label>
+        <div class="account-pin-field">
+          <input id="login-pin" name="pin" type="password" inputmode="numeric"
+            pattern="[0-9]{4}" maxlength="4" autocomplete="current-password"
+            aria-describedby="login-error" required />
+          <button class="account-pin-toggle" type="button" data-toggle-pin="login-pin"
+            aria-label="Show PIN">Show</button>
+        </div>
+        <p id="login-error" class="account-error" aria-live="polite"></p>
+        <button class="account-primary-button" type="submit">Continue</button>
+      </form>
+
+      <form id="setup-form" class="account-view hidden" novalidate>
+        <p class="account-kicker">First sign-in</p>
+        <h2>Create your account PIN</h2>
+        <p id="setup-name" class="account-subtitle"></p>
+        <label class="account-field-label" for="setup-pin">Create a 4-digit PIN</label>
+        <div class="account-pin-field">
+          <input id="setup-pin" name="pin" type="password" inputmode="numeric"
+            pattern="[0-9]{4}" maxlength="4" autocomplete="new-password" required />
+          <button class="account-pin-toggle" type="button" data-toggle-pin="setup-pin"
+            aria-label="Show PIN">Show</button>
+        </div>
+        <label class="account-field-label" for="setup-pin-confirmation">Confirm the PIN</label>
+        <div class="account-pin-field">
+          <input id="setup-pin-confirmation" name="pinConfirmation" type="password"
+            inputmode="numeric" pattern="[0-9]{4}" maxlength="4"
+            autocomplete="new-password" required />
+          <button class="account-pin-toggle" type="button" data-toggle-pin="setup-pin-confirmation"
+            aria-label="Show confirmation PIN">Show</button>
+        </div>
+        <p id="setup-error" class="account-error" aria-live="polite"></p>
+        <button class="account-primary-button" type="submit">Create PIN and continue</button>
+      </form>
+
+      <div id="context-view" class="account-view account-context-view hidden">
+        <header class="academy-home-heading">
+          <div>
+            <p class="account-kicker">﷽ &nbsp; Academy Home</p>
+            <h2 id="academy-home-title">Timetable</h2>
+            <p class="academy-home-welcome">Welcome, <strong id="context-account-name">Account</strong></p>
+          </div>
+          <button id="academy-refresh" class="academy-icon-button academy-home-refresh" type="button" aria-label="Refresh timetable" title="Refresh timetable">↻</button>
+        </header>
+
+        <section id="academy-timetable-card" class="academy-timetable-card" aria-label="Timetable">
+          <p id="academy-timetable-message" class="academy-timetable-message" role="status" aria-live="polite"></p>
+          <div id="academy-week-context" class="academy-week-context hidden" aria-label="Academic calendar context"></div>
+          <div id="academy-timetable" class="academy-timetable" aria-live="polite" aria-label="Swipe between timetable days">
+            <div class="academy-loading-card">Loading your timetable…</div>
+          </div>
+          <div class="academy-legend" aria-label="Timetable key">
+            <span><i class="academy-legend-dot academy-legend-dot--relevant"></i>Your classes</span>
+            <span><i class="academy-legend-dot academy-legend-dot--academy"></i>Academy activity</span>
+          </div>
+        </section>
+
+        <section class="academy-workspace-card" aria-labelledby="academy-workspace-title">
+          <div class="academy-workspace-heading">
+            <div>
+              <p class="account-field-label" id="academy-workspace-title">Programs & access</p>
+              <strong id="current-course">M4L Platform</strong>
+              <span id="current-scope" class="account-scope-label">Platform</span>
+            </div>
+            <span id="current-role" class="account-role-badge">GLOBAL ADMIN</span>
+          </div>
+
+          <button id="open-workspace-button" class="account-primary-button account-open-workspace hidden" type="button">
+            Open selected workspace
+          </button>
+
+          <div class="account-switch-heading">
+            <div>
+              <h3>Switch program or role</h3>
+              <p>No additional PIN is required.</p>
+            </div>
+          </div>
+          <p><a id="user-profiles-link" class="hidden" href="/users/">User profiles →</a></p>
+          <p><a id="program-builder-link" class="hidden" href="/programs/">Manage Programs →</a></p>
+          <p><a id="course-management-link" class="hidden" href="/academy/courses/manage/">Course management →</a></p>
+          <p><a id="course-scheduling-link" class="hidden" href="/academy/courses/manage/?view=scheduling">Course scheduling →</a></p>
+          <p><a id="academy-library-management-link" class="hidden" href="/academy/library/manage/">Manage Library →</a></p>
+          <p><a id="academy-library-link" href="/academy/library/">Open Academy Library →</a></p>
+          <div id="program-library-links" class="hidden" aria-label="Program links"></div>
+          <div id="context-list" class="account-context-list" aria-live="polite"></div>
+          <p id="context-error" class="account-error" aria-live="polite"></p>
+        </section>
+      </div>
+
+      <p id="service-message" class="account-service-message" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <script src="/_assets/f08c069008dc046ddf28ed1d251fc598d35cb13cd30344c2c9e1d4b0eacb1439/js/m4l-config.js?v=109.18"></script>
+  <script src="/_assets/f08c069008dc046ddf28ed1d251fc598d35cb13cd30344c2c9e1d4b0eacb1439/js/m4l-account.js?v=109.18"></script>
+<script src="/_assets/f08c069008dc046ddf28ed1d251fc598d35cb13cd30344c2c9e1d4b0eacb1439/js/m4l-academy-navigation.js?v=109.18"></script><script src="/_assets/f08c069008dc046ddf28ed1d251fc598d35cb13cd30344c2c9e1d4b0eacb1439/js/m4l-academy-mobile.js?v=109.18"></script>
+<script src="/_assets/f08c069008dc046ddf28ed1d251fc598d35cb13cd30344c2c9e1d4b0eacb1439/js/m4l-academy-page-actions.js?v=109.18"></script>
+</body>
+</html>

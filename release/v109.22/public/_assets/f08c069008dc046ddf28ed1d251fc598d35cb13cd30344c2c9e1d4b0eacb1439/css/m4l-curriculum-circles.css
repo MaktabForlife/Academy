@@ -1,0 +1,28 @@
+/* Curriculum keeps the native Subject/Module sheet and save/conflict behaviour. */
+body.academy-shell.curriculum-sheet{--curriculum-gap:clamp(14px,2vw,28px)}
+body.academy-shell.curriculum-sheet main{max-width:1500px;margin:0 auto;padding:24px var(--academy-gutter) 36px}
+body.academy-shell.curriculum-sheet .curriculum-heading{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:20px}
+body.academy-shell.curriculum-sheet .curriculum-heading .eyebrow{display:block;margin:0 0 8px;color:#97727d;font:600 10px/1.4 'DM Sans',Arial,sans-serif;letter-spacing:.14em}
+body.academy-shell.curriculum-sheet .curriculum-heading h1{font-size:36px;line-height:1.1;margin:0;color:var(--ink)}
+body.academy-shell.curriculum-sheet .curriculum-intro{margin:8px 0 0;font-size:13px;line-height:1.6;color:var(--muted);max-width:660px}
+body.academy-shell.curriculum-sheet #lc-message:empty{display:none}
+body.academy-shell.curriculum-sheet #lc-workspace{padding:0;border:1px solid var(--line);border-radius:12px;background:var(--paper);box-shadow:none;overflow:hidden}
+body.academy-shell.curriculum-sheet .lc-tabs{display:flex;gap:6px;padding:12px 16px;background:transparent;border-bottom:1px solid var(--line)}
+body.academy-shell.curriculum-sheet .lc-tabs button{min-width:105px;min-height:40px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--rose-dark);font:600 13px/1.4 'DM Sans',Arial,sans-serif}
+body.academy-shell.curriculum-sheet .lc-tabs button[aria-pressed=true]{background:var(--rose);color:var(--paper)}
+body.academy-shell.curriculum-sheet .pb-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:16px}
+body.academy-shell.curriculum-sheet .pb-search{flex:1;max-width:460px;min-width:200px}
+body.academy-shell.curriculum-sheet .pb-search input{width:100%}
+body.academy-shell.curriculum-sheet .pb-toolbar :is(input,select,button){min-height:40px;border-radius:8px;font-size:13px}
+body.academy-shell.curriculum-sheet #lc-count{margin-left:auto;color:var(--muted);white-space:nowrap}
+body.academy-shell.curriculum-sheet .lc-grid{min-width:650px;border-collapse:separate;border-spacing:0;font-size:13px}
+body.academy-shell.curriculum-sheet .lc-grid th{padding:12px 16px;background:var(--rose-soft);color:var(--rose-dark);font-weight:600}
+body.academy-shell.curriculum-sheet .lc-grid td{padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top}
+body.academy-shell.curriculum-sheet .lc-grid td small{font-size:11px;line-height:1.5;margin-top:4px}
+body.academy-shell.curriculum-sheet .lc-grid button{min-height:36px;border-radius:7px;font-size:12px}
+body.academy-shell.curriculum-sheet .lc-grid .lc-edit{background:#eee5e850}
+body.academy-shell.curriculum-sheet .lc-grid input,body.academy-shell.curriculum-sheet .lc-grid select{min-height:40px;border-radius:7px}
+body.academy-shell.curriculum-sheet .lc-scroll{max-height:calc(100dvh - 390px);min-height:190px;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
+body.academy-shell.curriculum-sheet .lc-help{padding:0 16px 14px;color:var(--muted);font-size:12px}
+body.academy-shell.curriculum-sheet .lc-notice{border-radius:9px;padding:14px 16px;line-height:1.7}
+@media(max-width:700px){body.academy-shell.curriculum-sheet main{padding-top:18px}.curriculum-heading{align-items:start!important;gap:12px!important}.curriculum-heading h1{font-size:30px!important}.curriculum-intro{font-size:12px!important}body.academy-shell.curriculum-sheet .pb-search{flex-basis:100%;min-width:0;max-width:none}body.academy-shell.curriculum-sheet #lc-count{order:3;margin-left:0;flex:1 1 100%}body.academy-shell.curriculum-sheet .lc-scroll{max-height:58dvh}body.academy-shell.curriculum-sheet .pb-toolbar>button{flex:1}}

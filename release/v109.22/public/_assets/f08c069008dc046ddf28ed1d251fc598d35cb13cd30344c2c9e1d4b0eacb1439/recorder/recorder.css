@@ -1,0 +1,545 @@
+:root {
+  --primary: #A8B992;
+  --primary-rgb: 168, 185, 146;
+  --surface-app: #fdfffa;
+  --surface-card: #ffffff;
+  --surface-soft: #F0F4EC;
+  --surface-chip: #F4EEF6;
+  --surface-track: #DBBCDF;
+  --text: #3B472A;
+  --text-strong: #222B17;
+  --text-muted: #5E6D49;
+  --text-subtle: #7A8965;
+  --danger: #c01832;
+  --danger-bg: #fff0f1;
+  --shadow: rgba(0, 0, 0, 0.14);
+  --radius-lg: 24px;
+  --radius-md: 18px;
+  --radius-sm: 12px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+  background: var(--surface-app);
+  color: var(--text);
+}
+
+body {
+  overflow-x: hidden;
+}
+
+body.picker-open {
+  overflow: hidden;
+}
+
+button,
+input,
+a {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.recorder-shell {
+  width: min(100%, 760px);
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 10px 14px calc(14px + var(--safe-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recorder-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.12);
+}
+
+.recorder-header-text {
+  min-width: 0;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: var(--text-subtle);
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 0;
+  font-size: clamp(1.12rem, 4.3vw, 1.55rem);
+  line-height: 1.12;
+  color: var(--text-strong);
+}
+
+h2 {
+  margin-bottom: 4px;
+  font-size: clamp(1.1rem, 4vw, 1.45rem);
+  color: var(--text-strong);
+}
+
+.page-action-pill {
+  flex: 0 0 auto;
+  min-width: 72px;
+  min-height: 42px;
+  border: 0;
+  border-radius: 12px;
+  padding: 2px 4px;
+  background: transparent;
+  color: var(--text-strong);
+  display: inline-grid;
+  justify-items: center;
+  align-content: center;
+  gap: 1px;
+  font-weight: 650;
+  font-size: 0.62rem;
+  line-height: 1.05;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.page-action-pill img {
+  width: 22px;
+  height: 22px;
+  display: block;
+  object-fit: contain;
+}
+
+.recorder-screen {
+  display: none;
+  min-height: 0;
+}
+
+.recorder-screen.active {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.screen-hint {
+  margin-bottom: 0;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+}
+
+.image-selector-card,
+.empty-state,
+.reader-frame {
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+  box-shadow: 0 10px 28px var(--shadow);
+}
+
+.image-selector-card {
+  padding: 10px;
+}
+
+.image-selector-btn {
+  width: 100%;
+  min-height: 62px;
+  border: 0;
+  border-radius: 999px;
+  padding: 9px 18px;
+  background: var(--surface-chip);
+  color: var(--text-strong);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "kicker chevron"
+    "current chevron";
+  gap: 2px 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.image-selector-kicker {
+  grid-area: kicker;
+  color: var(--text-subtle);
+  font-size: 0.76rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.image-selector-current {
+  grid-area: current;
+  font-size: clamp(1.02rem, 4.1vw, 1.25rem);
+  font-weight: 850;
+  line-height: 1.15;
+}
+
+.image-selector-chevron {
+  grid-area: chevron;
+  align-self: center;
+  color: var(--text-muted);
+  font-size: 1.55rem;
+  line-height: 1;
+}
+
+.empty-state {
+  padding: 18px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.empty-state.hidden,
+.hidden {
+  display: none !important;
+}
+
+.muted {
+  color: var(--text-subtle);
+  font-size: 0.9rem;
+}
+
+.page-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.page-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  border-radius: var(--radius-md);
+  padding: 10px;
+  background: var(--surface-card);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.1);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.page-card:focus-visible,
+.page-action-pill:focus-visible,
+.preview-icon-action:focus-visible,
+.icon-text-btn:focus-visible,
+.image-selector-btn:focus-visible,
+.record-icon-action:focus-visible,
+.picker-option:focus-visible,
+.picker-close-btn:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--primary) 75%, black 10%);
+  outline-offset: 3px;
+}
+
+.page-thumb-wrap {
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  display: grid;
+  place-items: center;
+}
+
+.page-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.page-title {
+  font-weight: 750;
+  color: var(--text-strong);
+}
+
+.page-subtitle {
+  color: var(--text-subtle);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.reader-frame {
+  min-height: 0;
+  padding: 8px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--surface-soft) 80%, var(--surface-card));
+}
+
+#reader-canvas {
+  width: 100%;
+  max-height: min(68dvh, 720px);
+  object-fit: contain;
+  display: block;
+  border-radius: var(--radius-md);
+  background: #fff;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+.record-controls {
+  padding: 0 0 4px;
+  display: grid;
+  gap: 2px;
+  text-align: center;
+  background: transparent;
+  box-shadow: none;
+}
+
+.control-row {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+}
+
+.record-icon-action {
+  min-height: 104px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  padding: 2px 12px 4px;
+  background: transparent;
+  color: var(--text-strong);
+  display: inline-grid;
+  justify-items: center;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+}
+
+.record-control-icon {
+  width: 86px;
+  height: 86px;
+  object-fit: contain;
+  display: block;
+}
+
+.record-action-label {
+  color: var(--text-strong);
+  max-width: 150px;
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  line-height: 1.05;
+  text-align: center;
+}
+
+.record-action-meta {
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  font-weight: 450;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+#countdown-timer {
+  color: var(--text-strong);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.record-helper {
+  min-height: 1em;
+  margin: 0;
+  color: var(--text-subtle);
+  font-size: 0.78rem;
+}
+
+.preview-video {
+  width: 100%;
+  max-height: 70dvh;
+  border-radius: var(--radius-lg);
+  background: #000;
+  box-shadow: 0 10px 28px var(--shadow);
+}
+
+.preview-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 2px 0 0;
+}
+
+.preview-icon-action {
+  min-height: 58px;
+  border: 0;
+  border-radius: 18px;
+  padding: 8px 6px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  text-decoration: none;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 3px;
+  font-weight: 760;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.preview-icon-action img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  display: block;
+}
+
+.picker-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  align-items: end;
+}
+
+.picker-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(0, 0, 0, 0.34);
+}
+
+.picker-panel {
+  position: relative;
+  width: min(100%, 760px);
+  max-height: min(78dvh, 620px);
+  margin: 0 auto;
+  border-radius: 28px 28px 0 0;
+  padding: 10px 14px calc(18px + var(--safe-bottom));
+  background: var(--surface-card);
+  box-shadow: 0 -14px 34px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.picker-handle {
+  width: 48px;
+  height: 5px;
+  border-radius: 999px;
+  margin: 0 auto 4px;
+  background: color-mix(in srgb, var(--text-subtle) 28%, transparent);
+}
+
+.picker-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.picker-header-row h2 {
+  margin-bottom: 0;
+}
+
+.picker-close-btn {
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-chip);
+  color: var(--text-strong);
+  font-size: 1.55rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.picker-options {
+  display: grid;
+  gap: 8px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 2px 0 6px;
+}
+
+.picker-option {
+  width: 100%;
+  border: 0;
+  border-radius: 18px;
+  padding: 14px 16px;
+  background: var(--surface-soft);
+  color: var(--text-strong);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.picker-option.is-selected {
+  background: var(--primary);
+}
+
+.picker-option-title {
+  font-weight: 850;
+}
+
+.picker-option-meta {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.picker-option-check {
+  color: var(--text-strong);
+  font-weight: 900;
+}
+
+@media (min-width: 640px) {
+  .page-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .record-control-icon {
+    width: 94px;
+    height: 94px;
+  }
+
+  .preview-icon-action {
+    min-height: 66px;
+  }
+}
+
+/* Academy already provides its shared page header above the image selector. */
+.recorder-header[hidden] {
+  display: none;
+}
+
+/* Admin readers keep their workspace description and use Home for personal choices. */
+body[data-academy-workspace^="ADMIN"] .academy-account-bar .academy-role-tabs {
+  display: none;
+}
