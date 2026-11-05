@@ -10,6 +10,11 @@ export function hosting(value=configured){
  out.academyLegacyOrigins=value.academyLegacyOrigins.map(exactOrigin);
  return Object.freeze(out);
 }
+// Management trusts only the same exact reviewed origins as the generated client.
+export function academyManagementOriginAllowed(origin,value=configured){
+ const h=hosting(value);
+ return typeof origin==='string'&&[h.academyPortalOrigin,...h.academyLegacyOrigins].includes(origin);
+}
 export function hostingEnvironment(env){
  const h=hosting(),origins=new Set((env.ALLOWED_ORIGINS||'').split(',').filter(Boolean));origins.add(h.academyPortalOrigin);
  for(const origin of h.academyLegacyOrigins)origins.add(origin);

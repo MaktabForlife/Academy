@@ -1,0 +1,124 @@
+name: Management labels and trusted media origins
+on:
+  create:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: management-fix-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  regression:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/heads/validation/management-fix-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          path: work/Academy
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 7873664525a3e58a613056f5a7c061c1ac17162f
+          path: work/Baseline
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - name: Install exact test dependencies on GitHub only
+        run: |
+          npm ci --prefix work/Academy/backend --no-audit --no-fund
+          npm ci --prefix work/Baseline/backend --no-audit --no-fund
+      - name: Reproduce both faults against the frozen V109.24 source
+        run: |
+          mkdir -p "$RUNNER_TEMP/management-evidence"
+          cp work/Academy/backend/tests/academy-management-origin-regression.test.mjs work/Baseline/backend/tests/
+          cp work/Academy/backend/tests/academy-release-labels.test.mjs work/Baseline/backend/tests/
+          set +e
+          node --test --test-name-pattern='management endpoints accept configured portal' work/Baseline/backend/tests/academy-management-origin-regression.test.mjs > "$RUNNER_TEMP/management-evidence/baseline-origin.log" 2>&1
+          origin_status=$?
+          node --test --test-name-pattern='all navigation and management labels render' work/Baseline/backend/tests/academy-release-labels.test.mjs > "$RUNNER_TEMP/management-evidence/baseline-label.log" 2>&1
+          label_status=$?
+          set -e
+          test "$origin_status" -ne 0
+          test "$label_status" -ne 0
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';import assert from 'node:assert/strict';
+          const root=process.env.RUNNER_TEMP+'/management-evidence/';
+          const origin=readFileSync(root+'baseline-origin.log','utf8'),label=readFileSync(root+'baseline-label.log','utf8');
+          assert.match(origin,/ORIGIN_REQUIRED/);assert.match(origin,/expected: 200/);assert.match(origin,/actual: 403/);assert.match(origin,/# fail 1/);
+          assert.match(label,/Website V109\.17/);assert.match(label,/Website V109\.24/);assert.match(label,/# fail 1/);
+          console.log('Confirmed both frozen-baseline failures; they are expected reproductions, not passing baseline checks.');
+          NODE
+      - name: Test the fixes and current native authority and media controls
+        working-directory: work/Academy
+        run: |
+          node --check js/m4l-academy-navigation.js
+          node --check backend/tools/hosting-client.mjs
+          node --check backend/src/academy/hosting.mjs
+          node --check backend/src/academy/d1/worker.js
+          node --test --test-concurrency=1 backend/tests/academy-management-origin-regression.test.mjs backend/tests/academy-release-labels.test.mjs backend/tests/portal-hosting.test.mjs backend/tests/academy-native-media-bridge.test.mjs backend/tests/academy-workspace-client.test.mjs backend/tests/academy-workspace-destination.test.mjs backend/tests/academy-header-workspaces.test.mjs backend/tests/academy-navigation-ui.test.mjs backend/tests/academy-navigation-history.test.mjs backend/tests/academy-course-management-ui.test.mjs backend/tests/monthly-media-entry-ui.test.mjs backend/tests/program-lesson-media-ui.test.mjs backend/tests/academy-studio-access-ui.test.mjs 2>&1 | tee "$RUNNER_TEMP/management-evidence/fixed-tests.log"
+          git diff --check
+          git diff --exit-code
+      - name: Build the actual Pages artifact without release or deployment
+        working-directory: work/Academy
+        run: |
+          node backend/tools/academy-pages-build.mjs 2>&1 | tee "$RUNNER_TEMP/management-evidence/pages-build.log"
+          git diff --exit-code
+          node --input-type=module -e "import {writeFileSync} from 'node:fs';writeFileSync(process.env.RUNNER_TEMP+'/management-evidence/source.json',JSON.stringify({commit:process.env.GITHUB_SHA,baseline:'7873664525a3e58a613056f5a7c061c1ac17162f',synthetic:true,hostedRequests:0,liveDBChanges:0,deployed:false})+'\n');"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: management-fix-${{ github.run_id }}
+          path: ${{ runner.temp }}/management-evidence/
+          retention-days: 30
+  paired:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/heads/validation/management-fix-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          path: work/Academy
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: MaktabForlife/AcademyStudio
+          ref: 4874ecf7d6b0efa61174e6a5f2f5c8bc1bff6773
+          path: work/AcademyStudio
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - name: Install pinned paired dependencies
+        run: |
+          npm ci --prefix work/Academy/backend --no-audit --no-fund
+          npm ci --prefix work/AcademyStudio --no-audit --no-fund
+          mkdir -p "$RUNNER_TEMP/management-paired-evidence"
+      - name: Existing Studio media, identity and hosting groups
+        working-directory: work/AcademyStudio
+        run: |
+          node --test --test-concurrency=1 tests/source-package.test.mjs tests/private-playlist-reference.test.mjs tests/private-playlist-reference-ui.test.mjs tests/private-playlist-reference-monthly-proxy.test.mjs tests/monthly-media-review-ui.test.mjs tests/course-playlist-workflow.test.mjs tests/monthly-media-collection.test.mjs tests/dashboard-load.test.mjs tests/circles-dashboard-consumer.test.mjs 2>&1 | tee "$RUNNER_TEMP/management-paired-evidence/media.log"
+          node --test --test-concurrency=1 tests/deployment-origin-config.test.mjs tests/website-routing.test.mjs tests/website-launch.test.mjs tests/academy-origins.test.mjs tests/native-hub-bridge.test.mjs tests/academy-connect.test.mjs tests/native-portal-paired.test.mjs tests/native-portal-browser.test.mjs 2>&1 | tee "$RUNNER_TEMP/management-paired-evidence/portal-paired.log"
+          node tools/prepare-studio-saas.mjs
+          node --test --test-concurrency=1 tests/studio-saas.test.mjs 2>&1 | tee "$RUNNER_TEMP/management-paired-evidence/hosting.log"
+          git diff --exit-code
+      - name: Existing Academy identity, Hifz bridge and homepage groups
+        working-directory: work/Academy
+        run: |
+          node --test backend/tests/academy-workspace-client.test.mjs backend/tests/academy-workspace-destination.test.mjs backend/tests/academy-header-workspaces.test.mjs 2>&1 | tee "$RUNNER_TEMP/management-paired-evidence/academy-ui.log"
+          node --test backend/tests/portal-hosting.test.mjs backend/tests/academy-circles-native.test.mjs backend/tests/academy-circles-native-join.test.mjs backend/tests/academy-circles-free-join.test.mjs backend/tests/academy-hifz-handoff.test.mjs backend/tests/academy-hifz-bridge-ui.test.mjs 2>&1 | tee "$RUNNER_TEMP/management-paired-evidence/portal-source.log"
+          node --test backend/tests/academy-programme-prospectus.test.mjs backend/tests/academy-announcements-client.test.mjs backend/tests/academy-announcements-split.test.mjs backend/tests/academy-announcements-v2.test.mjs 2>&1 | tee "$RUNNER_TEMP/management-paired-evidence/homepage.log"
+          git diff --exit-code
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: management-paired-${{ github.run_id }}
+          path: ${{ runner.temp }}/management-paired-evidence/
+          retention-days: 30
