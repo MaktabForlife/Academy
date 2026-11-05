@@ -18,7 +18,7 @@ The API config stays PAUSED with FEATURE_NOT_INITIALISED until initial schema, s
 
 ## Build and schema evidence
 
-The GitHub-only schema proof reconstructs current schemas from the pinned synthetic split fixture, applies the existing attachment conversion and ordered Core/Admin migration inputs, exports only schema, and checks independent empty-database import, exact object parity, references, integrity, and zero data rows. It exports no accounts, credentials, sessions, fixture seed or live snapshots. This is a new-store schema proposal, not an installed migration ledger.
+The GitHub-only schema proof reconstructs current schemas from the pinned synthetic split fixture, omits the explicitly named source-era table-family DDL from a new empty base, then applies the existing attachment conversion and every ordered Core/Admin migration exactly once, exports only schema, and checks independent empty-database import, exact object parity, references, integrity, and zero data rows. It exports no accounts, credentials, sessions, fixture seed or live snapshots. This is a new-store schema proposal, not an installed migration ledger.
 
 The Feature build explicitly selects config/hosting.feature.json as config/hosting.json on the disposable runner. Its manifest records both hashes and the exact source commit. Management trust and generated clients use this same reviewed variant. Existing Development hosting.json is unchanged in Git. Studio/Hifz integration is unavailable until separately isolated equivalents exist; Feature cannot silently use live services.
 
