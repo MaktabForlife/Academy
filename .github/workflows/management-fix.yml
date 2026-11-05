@@ -92,7 +92,7 @@ jobs:
         run: |
           node backend/tools/academy-pages-build.mjs 2>&1 | tee "$RUNNER_TEMP/management-evidence/pages-build.log"
           git diff --exit-code
-          node --input-type=module -e "import {writeFileSync} from 'node:fs';writeFileSync(process.env.RUNNER_TEMP+'/management-evidence/source.json',JSON.stringify({commit:process.env.GITHUB_SHA,baseline:'7873664525a3e58a613056f5a7c061c1ac17162f',synthetic:true,hostedRequests:0,liveDBChanges:0,deployed:false})+'\n');"
+          node --input-type=module -e "import {writeFileSync} from 'node:fs';writeFileSync(process.env.RUNNER_TEMP+'/management-evidence/source.json',JSON.stringify({commit:process.env.GITHUB_SHA,baseline:'7873664525a3e58a613056f5a7c061c1ac17162f',studioFixture:'e443db75b81549dc1896aaaa0878c501d74d5ae1',studioBaseline:'4874ecf7d6b0efa61174e6a5f2f5c8bc1bff6773',synthetic:true,hostedRequests:0,liveDBChanges:0,deployed:false})+'\n');"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
@@ -115,7 +115,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: MaktabForlife/AcademyStudio
-          ref: 4874ecf7d6b0efa61174e6a5f2f5c8bc1bff6773
+          ref: e443db75b81549dc1896aaaa0878c501d74d5ae1
           path: work/AcademyStudio
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
