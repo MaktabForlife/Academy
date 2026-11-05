@@ -4,6 +4,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+defaults:
+  run:
+    shell: bash
 concurrency:
   group: management-fix-${{ github.ref }}
   cancel-in-progress: false
@@ -53,6 +56,27 @@ jobs:
           assert.match(label,/Website V109\.17/);assert.match(label,/Website V109\.24/);assert.match(label,/# fail 1/);
           console.log('Confirmed both frozen-baseline failures; they are expected reproductions, not passing baseline checks.');
           NODE
+      - name: Record the unchanged historical navigation assertion
+        run: |
+          set +e
+          node --test --test-reporter=tap work/Baseline/backend/tests/academy-navigation-ui.test.mjs > "$RUNNER_TEMP/management-evidence/legacy-navigation-baseline.log" 2>&1
+          baseline_status=$?
+          node --test --test-reporter=tap work/Academy/backend/tests/academy-navigation-ui.test.mjs > "$RUNNER_TEMP/management-evidence/legacy-navigation-candidate.log" 2>&1
+          candidate_status=$?
+          set -e
+          test "$baseline_status" -ne 0
+          test "$candidate_status" -ne 0
+          node --input-type=module <<'NODE'
+          import {readFileSync,writeFileSync} from 'node:fs';import assert from 'node:assert/strict';
+          const root=process.env.RUNNER_TEMP+'/management-evidence/';
+          for(const file of ['legacy-navigation-baseline.log','legacy-navigation-candidate.log']){
+            const log=readFileSync(root+file,'utf8');
+            assert(log.includes("'/academy/library/?view=public'"));
+            assert(log.includes("'/academy/open-library/'"));
+            assert.match(log,/ERR_ASSERTION/);assert.match(log,/# fail 1/);
+          }
+          writeFileSync(root+'known-legacy-navigation.json',JSON.stringify({test:'academy-navigation-ui.test.mjs',baseline:'7873664525a3e58a613056f5a7c061c1ac17162f',candidate:process.env.GITHUB_SHA,unchangedHistoricalFailure:true,actual:'/academy/library/?view=public',expected:'/academy/open-library/',productNavigationChanged:false})+'\n');
+          NODE
       - name: Test the fixes and current native authority and media controls
         working-directory: work/Academy
         run: |
@@ -60,7 +84,7 @@ jobs:
           node --check backend/tools/hosting-client.mjs
           node --check backend/src/academy/hosting.mjs
           node --check backend/src/academy/d1/worker.js
-          node --test --test-reporter=tap --test-concurrency=1 backend/tests/academy-management-origin-regression.test.mjs backend/tests/academy-release-labels.test.mjs backend/tests/portal-hosting.test.mjs backend/tests/academy-native-media-bridge.test.mjs backend/tests/academy-workspace-client.test.mjs backend/tests/academy-workspace-destination.test.mjs backend/tests/academy-header-workspaces.test.mjs backend/tests/academy-navigation-ui.test.mjs backend/tests/academy-navigation-history.test.mjs backend/tests/academy-course-management-ui.test.mjs backend/tests/monthly-media-entry-ui.test.mjs backend/tests/program-lesson-media-ui.test.mjs backend/tests/academy-studio-access-ui.test.mjs 2>&1 | tee "$RUNNER_TEMP/management-evidence/fixed-tests.log"
+          node --test --test-reporter=tap --test-concurrency=1 backend/tests/academy-management-origin-regression.test.mjs backend/tests/academy-release-labels.test.mjs backend/tests/portal-hosting.test.mjs backend/tests/academy-native-media-bridge.test.mjs backend/tests/academy-workspace-client.test.mjs backend/tests/academy-workspace-destination.test.mjs backend/tests/academy-header-workspaces.test.mjs backend/tests/academy-navigation-history.test.mjs backend/tests/academy-course-management-ui.test.mjs backend/tests/monthly-media-entry-ui.test.mjs backend/tests/program-lesson-media-ui.test.mjs backend/tests/academy-studio-access-ui.test.mjs 2>&1 | tee "$RUNNER_TEMP/management-evidence/fixed-tests.log"
           git diff --check
           git diff --exit-code
       - name: Build the actual Pages artifact without release or deployment

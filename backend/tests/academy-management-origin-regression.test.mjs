@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import worker from '../src/academy-runtime.js';
 import {hosting} from '../src/academy/hosting.mjs';
 import {nativeMediaBridgeFixture} from './fixtures/academy-native-media-bridge-fixture.mjs';
@@ -9,6 +10,7 @@ const trusted=[h.academyPortalOrigin,...h.academyLegacyOrigins];
 async function fixture(){
  const f=await nativeMediaBridgeFixture();
  const db=f.databases.core;
+ db.exec(readFileSync(new URL('../migrations/academy-core/0017_monthly_programme_bridge.sql',import.meta.url),'utf8'));
  db.prepare("UPDATE website_platform_timetable_scopes SET kind='TAFSEER' WHERE activity_key=?").run(f.scope);
  for(const [scope,offering] of [[f.scopes.courseA,'synthetic-course'],[f.scopes.programB,'synthetic-other']]){
   db.prepare("INSERT INTO website_platform_timetable_scopes(activity_key,offering_id,kind) VALUES(?,?,'COURSE')").run(scope,offering);
