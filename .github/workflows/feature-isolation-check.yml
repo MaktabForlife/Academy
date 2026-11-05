@@ -37,6 +37,22 @@ jobs:
           node backend/tools/feature-schema-proof.mjs "$RUNNER_TEMP/feature-schema" 2>&1 | tee "$RUNNER_TEMP/feature-schema.log"
           git diff --check
           git diff --exit-code
+      - name: Import exact generated schemas into disposable local D1
+        working-directory: backend
+        run: |
+          npx --no-install wrangler d1 execute ACADEMY_DB --local --config wrangler.feature.jsonc --persist-to "$RUNNER_TEMP/feature-d1" --file "$RUNNER_TEMP/feature-schema/core-schema.sql" --json > "$RUNNER_TEMP/feature-evidence/core-local-import.json"
+          npx --no-install wrangler d1 execute ACADEMY_ADMIN_DB --local --config wrangler.feature.jsonc --persist-to "$RUNNER_TEMP/feature-d1" --file "$RUNNER_TEMP/feature-schema/admin-schema.sql" --json > "$RUNNER_TEMP/feature-evidence/admin-local-import.json"
+          for binding in ACADEMY_DB ACADEMY_ADMIN_DB; do
+            npx --no-install wrangler d1 execute "$binding" --local --config wrangler.feature.jsonc --persist-to "$RUNNER_TEMP/feature-d1" --command "PRAGMA foreign_key_check; PRAGMA quick_check;" --json > "$RUNNER_TEMP/feature-evidence/$binding-local-check.json"
+          done
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';import assert from 'node:assert/strict';
+          for(const binding of ['ACADEMY_DB','ACADEMY_ADMIN_DB']){
+            const result=JSON.parse(readFileSync(process.env.RUNNER_TEMP+'/feature-evidence/'+binding+'-local-check.json','utf8'));
+            assert.equal(result.length,2);assert.deepEqual(result[0].results,[]);assert.deepEqual(result[1].results,[{quick_check:'ok'}]);
+          }
+          console.log('Both exact schema files import into disposable local D1; references and integrity pass.');
+          NODE
       - name: Select the reviewed Feature build variant and test isolation
         run: |
           node backend/tools/feature-hosting-overlay.mjs "$RUNNER_TEMP/feature-evidence"
