@@ -1,3 +1,7 @@
+# V109.25 management bug-fix release — authorised 5 November 2026
+
+The owner explicitly requested deploying the tested admin media-management and version-label fixes. This code-only paired Academy/Studio release preserves the existing databases, schema, rights, IDs, ownership, sync, hosting settings, bindings and 43200/43200/60 checks. Keep Hifz and JWT activation separate. All builds/tests/package work runs on GitHub; no Mac file writes or deletion. Retain V109.24 for rollback. Real media attachment and content publication remain manual. The prior deployment hold is lifted; the separate DB-change hold remains controlling.
+
 # Circles homepage paired release authorised — 5 November 2026
 
 The owner requested deployment of the tested Circles update. Prepare and deploy V109.21 as a matching Academy/Studio release from canonical GitHub studio_dev with linear commits and no merges/force pushes. Preserve the separately deployed Studio hosting wrapper, bindings and settings; leave JWT V110 isolated and Hifz unchanged. Build/test/package only on GitHub runners. No Mac source/media writes or deletions, hosted SQL/schema/rights/DNS changes, real media attachment or content publication. The new prospectus panel stays gated by the checked published snapshot; its separate manual publication is not part of this code release. Preserve current 43200/43200/60, identity/session/epoch, scoped Admin, acquired rights and small live checks.
