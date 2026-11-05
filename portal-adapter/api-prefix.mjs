@@ -7,7 +7,7 @@ async function nativeFetch(path,body,token=nativeToken(),conditions={}){
  const url=new URL(path,hosting.academyApiOrigin);
  if(url.origin!==hosting.academyApiOrigin||!url.pathname.startsWith('/api/'))throw Error('Invalid Academy connection.');
  const read=path==='/api/academy/hub/read';if(read)url.searchParams.set('request',JSON.stringify(body));
- return fetch(url.href,{method:read?'GET':'POST',credentials:'omit',cache:'no-store',headers:{...(read?{}:{'Content-Type':'application/json'}),...(token?{Authorization:'Bearer '+token}:{}),...(conditions['If-None-Match']?{'If-None-Match':conditions['If-None-Match']}:{})},...(read?{}:{body:JSON.stringify(body)})});
+ return fetch(url.href,{method:read?'GET':'POST',credentials:window.M4L_V110?'same-origin':'omit',cache:'no-store',headers:{...(read?{}:{'Content-Type':'application/json'}),...(token?{Authorization:'Bearer '+token}:{}),...(conditions['If-None-Match']?{'If-None-Match':conditions['If-None-Match']}:{})},...(read?{}:{body:JSON.stringify(body)})});
 }
 async function portalFetch(path,init){
  if(path==='/api/config')return jsonResponse({academyOrigin:location.origin,studioOrigin:hosting.studioOrigin,hifzOrigin:hosting.hifzOrigin,nativePortal:true,authorityMode:'ACADEMY'});
@@ -15,6 +15,7 @@ async function portalFetch(path,init){
  let body=init.body?JSON.parse(init.body):{},endpoint='/api/academy/hub/read',payload,project=null;
  const url=new URL(path,location.origin),query=Object.fromEntries(url.searchParams),token=nativeToken();
  if(path==='/auth/native-login'){
+  const privacyIntent=window.M4L_V110?await window.M4L_V110.beginMasterSignIn():null;
   const response=await nativeFetch('/api/academy/hub/login',body,token);
   if(!response.ok)return response;
   const result=await response.json();
@@ -22,6 +23,7 @@ async function portalFetch(path,init){
   // Revoke the previous account only after the replacement is fully checked.
   if(token&&token!==result.token)await nativeFetch('/api/account/logout',{},token).catch(()=>{});
   if(nativeToken()!==token){await nativeFetch('/api/account/logout',{},result.token).catch(()=>{});throw new DOMException('Your account changed.','AbortError');}
+  if(privacyIntent)await window.M4L_V110.completeMasterSignIn(privacyIntent,result.browserContext);
   sessionStorage.removeItem('academy-studio-link-v1');
   localStorage.setItem('m4l_account_token',result.token);
   sessionStorage.setItem('m4l_academy_signed_in',result.account.uniqueid);

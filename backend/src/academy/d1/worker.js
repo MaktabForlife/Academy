@@ -79,7 +79,7 @@ import {openLibraryMetadataEndpoint as defaultMetadataEndpoint} from './library-
 export function createAcademyWorker({d1Library,d1LibraryStream,d1LibraryAreaRefs}=publicLibrary,{openLibraryMetadataEndpoint=defaultMetadataEndpoint,d1CourseCalendar=defaultCourseCalendar}={}){
 const authenticated=async(request,env,repository)=>{const auth=await authenticatedD1Account(request,env,repository);repository.bindActor?.(auth);return auth;};
 const publicAccount=state=>({displayName:state.account.display_name,uniqueid:state.account.login_link_id});
-const sessionResponse=(state,context,token)=>({account:publicAccount(state),context,contexts:state.contexts,courseManagement:state.account.global_admin||managedCourseScopes(state).length>0,sessionStore:'D1',operationalAccessActive:['COURSE','GLOBAL','SUBSTITUTE','OWN_LIBRARY'].includes(context.scope),...(token?{token}:{})});
+const sessionResponse=(state,context,token)=>({account:{...publicAccount(state),accountId:state.account.account_id},context,contexts:state.contexts,courseManagement:state.account.global_admin||managedCourseScopes(state).length>0,sessionStore:'D1',operationalAccessActive:['COURSE','GLOBAL','SUBSTITUTE','OWN_LIBRARY'].includes(context.scope),...(token?{token}:{})});
 const requireActive=state=>{if(!state)throw rehearsalError('Invalid account link',404,'ACCOUNT_NOT_FOUND');if(!state.account.active)throw rehearsalError('Account disabled',403,'ACCOUNT_DISABLED');};
 
 async function boundedBody(request,limit=4096) {

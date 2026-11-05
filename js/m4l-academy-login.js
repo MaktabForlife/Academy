@@ -57,6 +57,7 @@
     pinToggle.setAttribute("aria-label", `${showing ? "Hide" : "Show"} PIN`);
   });
   signOutButton.addEventListener("click", () => {
+    void window.M4L_V110?.clearAll("logout").catch(()=>{});
     const token = activeToken;
     const revokeSession = sessionStore === "D1";
     clearStoredAccountState();
@@ -208,6 +209,7 @@
   }
 
   function showSignedIn(account, store = "", result = {}) {
+    if(window.M4L_V110)void window.M4L_V110.reveal(account.accountId).catch(()=>{});
     activeToken = localStorage.getItem(tokenKey) || "";
     sessionStore = store;
     const uniqueId = String(account.uniqueid || "").trim();
@@ -328,6 +330,7 @@
   }
 
   async function api(path, payload, token = "") {
+    const privacyIntent=window.M4L_V110&&path==="/api/account/login"?await window.M4L_V110.beginMasterSignIn():null;
     const response = await fetch(`${apiBase}${path}`, {
       method: "POST",
       ...(path === "/api/account/logout" ? { keepalive: true } : {}),
@@ -348,6 +351,7 @@
       error.status = response.status;
       throw error;
     }
+    if(privacyIntent)await window.M4L_V110.completeMasterSignIn(privacyIntent,result.browserContext);
     return result;
   }
 
