@@ -92,7 +92,8 @@ test('an authoritative empty publication stays empty despite source brochure dat
 test('unactivated publication preserves existing legacy notices until explicit publication',async()=>{
  const f=homeFixture(()=>[],{legacy:true});await tick();await tick();
  assert.equal(f.document.querySelector('.academy-prospectus-announcement').hidden,true);
- assert.match(f.document.querySelector('.announcement-summary-list').textContent,/Old flyer/);
+ assert.equal(f.document.querySelector('.announcement-summary-list strong').textContent,'Old');
+ assert.equal(f.document.querySelector('.academy-news-card h3').textContent,'Old flyer');
  assert.equal(f.document.querySelector('[data-prospectus-details]'),null);
  assert.equal(f.document.querySelector('[data-full-prospectus]'),null);assert.equal(f.requests(),1);
 });

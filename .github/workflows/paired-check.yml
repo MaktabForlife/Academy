@@ -14,7 +14,7 @@ jobs:
     uses: MaktabForlife/AcademyStudio/.github/workflows/paired-release.yml@b6791b706972f10f8aad7bb669332979f8adb454
     with:
       source_ref: ${{ github.sha }}
-      studio_ref: studio_dev
+      studio_ref: 606f8d65605c8c4b4bc85a56d5292d35b092fb8c
       deploy: false
 
   homepage:
