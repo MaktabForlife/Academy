@@ -34,5 +34,8 @@
   "devDependencies": {
     "linkedom": "^0.18.14",
     "wrangler": "^4.36.0"
+  },
+  "dependencies": {
+    "jose": "6.2.15"
   }
 }
