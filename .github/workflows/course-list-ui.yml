@@ -94,6 +94,7 @@ jobs:
     timeout-minutes: 10
     env:
       WRANGLER_SEND_METRICS: 'false'
+      ACADEMY_SOURCE: ${{ github.workspace }}/Academy
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
