@@ -33,6 +33,9 @@ jobs:
             node --check backend/tools/feature-deploy.mjs
             node --test --test-reporter=tap backend/tests/feature-deployment-gates.test.mjs > "$RUNNER_TEMP/approved-routing-evidence/feature-gates.log" 2>&1
           fi
+          if test -f tests/approved-deployment-retry.test.mjs; then
+            node --test --test-reporter=tap tests/approved-deployment-retry.test.mjs > "$RUNNER_TEMP/approved-routing-evidence/retries.log" 2>&1
+          fi
           git diff --check
       - name: Check workflow syntax on the disposable runner
         run: |
