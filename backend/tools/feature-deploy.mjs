@@ -5,6 +5,7 @@ import {execFileSync} from 'node:child_process';
 import {resolve,join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {checkFeatureTargets} from './feature-target-guard.mjs';
+import {loadFeatureApproval,freshApproval,githubClient} from '../../tools/approved-deployment.mjs';
 const root=resolve(new URL('../..',import.meta.url).pathname);
 const read=path=>JSON.parse(readFileSync(resolve(root,path),'utf8'));
 const liveNamespaces=new Set(['b722f4cf54a04d6fb2a5a299e12722e2','aa75328c13ee4f42b406ccf5ebbe851a']);
@@ -39,6 +40,7 @@ export function assertRemoteSettings(settings,config,receipt,isCoordinator=false
 async function main(){
  assert.equal(process.env.GITHUB_ACTIONS,'true');assert.equal(process.env.GITHUB_REPOSITORY,'MaktabForlife/Academy');assert.equal(process.env.GITHUB_REF,'refs/heads/feature-preview');
  assert.match(process.env.GITHUB_SHA||'',/^[a-f0-9]{40}$/);
+ const approved=await loadFeatureApproval(),githubApi=githubClient(process.env.GITHUB_TOKEN);
  checkFeatureTargets(root);const receipt=assertInitialised(read('config/feature-initialisation-receipt.json'));
  const token=process.env.CLOUDFLARE_API_TOKEN;assert(token,'Feature deployment credential is missing');
  let explicitControlPlaneReads=0;
@@ -50,6 +52,7 @@ async function main(){
   const data=await response.json();assert.equal(data.success,true);return data.result;
  };
  const head=async()=>{
+  await freshApproval(approved,githubApi);
   const response=await fetch('https://api.github.com/repos/MaktabForlife/Academy/git/ref/heads/feature-preview',{headers:{Authorization:'Bearer '+process.env.GITHUB_TOKEN,Accept:'application/vnd.github+json'},signal:AbortSignal.timeout(20000)});
   assert(response.ok);assert.equal((await response.json()).object.sha,process.env.GITHUB_SHA,'A newer ready commit exists');
  };
@@ -71,7 +74,7 @@ async function main(){
   const path=join(temp,name+'.json');writeFileSync(path,JSON.stringify(next));return path;
  };
  const wpath=configPath(worker,'worker'),cpath=configPath(coordinator,'coordinator');
- const evidence={commit:process.env.GITHUB_SHA,account,worker:worker.name,coordinator:coordinator.name,pagesBranch:'feature-preview',databaseWritesByTool:0,secretChanges:0,stage:'preflight',success:false};
+ const evidence={commit:process.env.GITHUB_SHA,account,worker:worker.name,coordinator:coordinator.name,pagesBranch:'feature-preview',databaseWritesByTool:0,secretChanges:0,stage:'preflight',success:false,pageMarkerRequests:0,healthRequests:0};
  const save=()=>{if(process.env.FEATURE_EVIDENCE){mkdirSync(process.env.FEATURE_EVIDENCE,{recursive:true});writeFileSync(join(process.env.FEATURE_EVIDENCE,'deployment.json'),JSON.stringify(evidence,null,2)+'\n');}};
  let changed=false;
  try{
@@ -83,12 +86,12 @@ async function main(){
   evidence.stage='pages';save();
   let verified=false;
   for(let attempt=0;attempt<4;attempt++){
-   const response=await fetch('https://feature-preview.academy-maktab4life.pages.dev/feature-build.json?commit='+process.env.GITHUB_SHA,{cache:'no-store',signal:AbortSignal.timeout(15000)});
+   evidence.pageMarkerRequests++;const response=await fetch('https://feature-preview.academy-maktab4life.pages.dev/feature-build.json?commit='+process.env.GITHUB_SHA,{cache:'no-store',signal:AbortSignal.timeout(15000)});
    if(response.ok){const marker=await response.json();if(marker.commit===process.env.GITHUB_SHA&&marker.branch==='feature-preview'){verified=true;break;}}
    if(attempt<3)await new Promise(done=>setTimeout(done,[1000,2000,4000][attempt]));
   }
   assert(verified,'Feature Pages commit marker did not match');
-  const health=await fetch('https://feature_worker.maktab4life.workers.dev/api/health',{cache:'no-store',signal:AbortSignal.timeout(15000)});assert.equal(health.status,200);
+  evidence.healthRequests++;const health=await fetch('https://feature_worker.maktab4life.workers.dev/api/health',{cache:'no-store',signal:AbortSignal.timeout(15000)});assert.equal(health.status,200);
   const body=await health.json();assert.equal(body.success,true);assert.equal(String(body.version),String(read('version.json').version));
   await settings(worker,false);await settings(coordinator,true);await head();
   for(const [field,name]of [['workerVersion',worker.name],['coordinatorVersion',coordinator.name]]){const r=await api('/workers/scripts/'+name+'/deployments'),d=(r.deployments||r)[0];assert.equal(d?.versions?.length,1);evidence[field]=d.versions[0].version_id;}
@@ -101,7 +104,7 @@ async function main(){
     const paused={...worker,vars:{...worker.vars,ACADEMY_D1_MODE:'PAUSED'}};
     command(['deploy','--config',configPath(paused,'paused')],'pause-recovery');
     assertRemoteSettings(await api('/workers/scripts/'+worker.name+'/settings'),paused,receipt,false);
-    const response=await fetch('https://feature_worker.maktab4life.workers.dev/api/health',{signal:AbortSignal.timeout(15000)});assert.equal(response.status,503);evidence.recovery='FEATURE_PAUSED';
+    evidence.healthRequests++;const response=await fetch('https://feature_worker.maktab4life.workers.dev/api/health',{signal:AbortSignal.timeout(15000)});assert.equal(response.status,503);evidence.recovery='FEATURE_PAUSED';
    }catch{evidence.recovery='PAUSE_NOT_VERIFIED';}
   }
   save();console.error(JSON.stringify(evidence));throw Error('Feature deployment failed; '+(evidence.recovery||'no deployment started'));
