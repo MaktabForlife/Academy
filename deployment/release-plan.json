@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "request": "daily-validation-cleanup-academy-20261106",
-  "kind": "configuration",
-  "target": "none",
+  "request": "ui-bugs-20261106a-course-list",
+  "kind": "component",
+  "target": "production",
   "contains_jwt": false,
   "database_changes": false
 }

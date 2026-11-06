@@ -38,17 +38,21 @@
     const result=await api(base+action,state.pending.input);state.pending=null;return result;
   }
   const disabledBeforeBusy=new WeakMap();
-  function busy(value){state.busy=value;for(const node of document.querySelectorAll('[data-cm-mutation],#course-new,#course-refresh,#course-editor input,#course-editor select,#course-editor textarea')){if(value){if(!disabledBeforeBusy.has(node))disabledBeforeBusy.set(node,node.disabled);node.disabled=true;}else if(disabledBeforeBusy.has(node)){node.disabled=disabledBeforeBusy.get(node);disabledBeforeBusy.delete(node);}}}
+  function busy(value){state.busy=value;for(const node of document.querySelectorAll('[data-cm-mutation],.cm-list-settings input,#course-new,#course-refresh,#course-editor input,#course-editor select,#course-editor textarea')){if(value){if(!disabledBeforeBusy.has(node))disabledBeforeBusy.set(node,node.disabled);node.disabled=true;}else if(disabledBeforeBusy.has(node)){node.disabled=disabledBeforeBusy.get(node);disabledBeforeBusy.delete(node);}}}
   function pill(stage){return `<span class="cm-pill" data-stage="${esc(stage)}">${esc(labels[stage]||stage)}</span>`;}
   const currentFilters=()=>({search:$('course-search').value,status:$('course-status-filter').value});
+  const courseGroup=c=>({ACTIVE:0,PUBLISHED:0,DRAFT:1,COMPLETE:2,CANCELLED:3,ARCHIVED:4}[c.stage]??5);
+  const accessGroup=c=>c.accessModel==='PAID'?0:c.accessModel==='FREE'?1:2;
+  const groupName=c=>(['Current / active','Draft','Completed','Cancelled','Archived','Other'][courseGroup(c)])+' · '+(c.accessModel==='PAID'?'Paid':c.accessModel==='FREE'?'Free':'Access not set');
   function visibleCourses(filters=currentFilters()){
     const search=filters.search.trim().toLowerCase(),status=filters.status;
-    return state.courses.filter(c=>(!search||c.name.toLowerCase().includes(search))&&(!status||(status==='AVAILABLE'?!['ARCHIVED','CANCELLED'].includes(c.stage):c.stage===status))).sort((a,b)=>a.name.localeCompare(b.name)||b.startDate.localeCompare(a.startDate));
+    return state.courses.filter(c=>(!search||c.name.toLowerCase().includes(search))&&(!status||(status==='AVAILABLE'?!['ARCHIVED','CANCELLED'].includes(c.stage):c.stage===status))).sort((a,b)=>courseGroup(a)-courseGroup(b)||accessGroup(a)-accessGroup(b)||(b.startDate||'').localeCompare(a.startDate||'')||a.name.localeCompare(b.name)||a.courseId.localeCompare(b.courseId)||a.runId.localeCompare(b.runId));
   }
   function renderList(){
-    const rows=visibleCourses();
+    const rows=visibleCourses(),groups=new Map();
+    for(const c of rows){const key=groupName(c);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(c);}
     $('course-count').textContent=`${rows.length} ${rows.length===1?'Course':'Courses'}`;
-    $('course-list').innerHTML=rows.length?`<table class="cm-course-list"><caption class="cm-visually-hidden">Courses matching the selected filters</caption><thead><tr><th scope="col">Course</th><th scope="col">Status</th><th scope="col">Dates</th><th scope="col">Access</th><th scope="col"><span class="cm-visually-hidden">Open Course</span></th></tr></thead><tbody>${rows.map(c=>{const selected=state.course?.courseId===c.courseId&&state.course?.runId===c.runId;return `<tr${selected?' class="is-selected"':''}><th scope="row">${esc(c.name)}</th><td>${pill(c.stage)}</td><td class="cm-course-dates">${c.startDate?`<time datetime="${esc(c.startDate)}">${esc(c.startDate)}</time>${c.endDate&&c.endDate!==c.startDate?` <span aria-label="to">–</span> <time datetime="${esc(c.endDate)}">${esc(c.endDate)}</time>`:''}`:'<span class="cm-hint">Dates to be set</span>'}</td><td>${c.accessModel==='FREE'?'Free':c.accessModel==='PAID'?'Paid':'Not set'}</td><td><button class="pb-secondary cm-course-open" type="button" data-cm-action="select" data-course="${esc(c.courseId)}" data-run="${esc(c.runId)}" aria-label="Open ${esc(c.name)}" aria-pressed="${selected}">Open</button></td></tr>`;}).join('')}</tbody></table>`:'<p class="cm-hint">No Courses match this view.</p>';
+    $('course-list').innerHTML=rows.length?`<table class="cm-course-list"><caption class="cm-visually-hidden">Courses grouped by status and saved access, newest start date first</caption><thead><tr><th scope="col">Course</th><th scope="col">Status</th><th scope="col">Start date</th><th scope="col">Course settings</th><th scope="col"><span class="cm-visually-hidden">Open Course</span></th></tr></thead>${[...groups].map(([name,items])=>`<tbody><tr class="cm-course-group"><th scope="rowgroup" colspan="5">${esc(name)}</th></tr>${items.map(c=>{const selected=state.course?.courseId===c.courseId&&state.course?.runId===c.runId,attrs=` data-course="${esc(c.courseId)}" data-run="${esc(c.runId)}"`;return `<tr${selected?' class="is-selected"':''}><th scope="row">${esc(c.name)}</th><td>${pill(c.stage)}</td><td class="cm-course-dates">${c.startDate?`<time datetime="${esc(c.startDate)}">${esc(c.startDate)}</time>`:'<span class="cm-hint">Not set</span>'}</td><td class="cm-list-settings"><fieldset><legend class="cm-visually-hidden">${esc(c.name)} settings</legend>${['FREE','PAID'].map(model=>`<label><input type="checkbox" data-cm-action="list-policy" data-model="${model}"${attrs}${c.accessModel===model?' checked':''} aria-label="${esc(c.name)} · ${model==='FREE'?'Free':'Paid'}"> ${model==='FREE'?'Free':'Paid'}</label>`).join('')}<label><input type="checkbox" data-cm-action="list-archive"${attrs}${c.stage==='ARCHIVED'?' checked disabled':''} aria-label="${esc(c.name)} · Archive"> Archive</label></fieldset></td><td><button class="pb-secondary cm-course-open" type="button" data-cm-action="select"${attrs} aria-label="Open ${esc(c.name)}" aria-pressed="${selected}">Open</button></td></tr>`;}).join('')}</tbody>`).join('')}</table>`:'<p class="cm-hint">No Courses match this view.</p>';
   }
   const options=(items,value,empty='Choose…')=>`<option value="">${esc(empty)}</option>`+items.map(i=>`<option value="${esc(i.value)}"${i.value===value?' selected':''}>${esc(i.label)}</option>`).join('');
   const teacherOptions=value=>options(state.teachers.map(t=>({value:t.accountId,label:t.name})),value,'Choose a teacher')+(value&&!state.teachers.some(t=>t.accountId===value)?`<option value="${esc(value)}" selected disabled>Previously selected · teacher designation needed</option>`:'');
@@ -254,8 +258,51 @@
     const result=await mutate('status',{...selected(),baseRevision:state.course.revision,stage}),selection=selected(),tab=stage==='DRAFT'?'details':state.tab;await list();await select(selection.courseId,selection.runId,tab);tell(result.message);
   }
   async function perform(fn){if(state.busy)return;busy(true);try{await fn();}catch(error){tell(error.message+(error.code==='ROW_CHANGED'?' Refresh and review the saved Course. Your unfinished changes are kept.':''),true);}finally{busy(false);if(state.participants)updateParticipantControls();}}
+  async function listSetting(name,el){
+    const courseId=el.dataset.course,runId=el.dataset.run,model=el.dataset.model;
+    if(!state.courses.some(c=>c.courseId===courseId&&c.runId===runId))throw Error('Refresh the Course list before changing its settings.');
+    if(window.M4L_STUDIO_ACCESS?.canLeave()===false)throw Error('Finish the learning-access change before selecting another Course.');
+    await select(courseId,runId,'list');
+    if(state.course?.courseId!==courseId||state.course?.runId!==runId||state.token!==token())return;
+    if(name==='list-archive'){if(!['DRAFT','COMPLETE','CANCELLED'].includes(state.course.stage))throw Error('Archive is not available for this Course stage. Use its existing lifecycle controls.');await action('archive',el);return;}
+    if(!['FREE','PAID'].includes(model))throw Error('Choose Free or Paid.');
+    if(state.course.details.accessModel===model){tell('This Course is already '+(model==='FREE'?'Free.':'Paid.'));return;}
+    if(state.course.studioManagedAccess){
+      if(!window.M4L_STUDIO_ACCESS?.editCoursePolicy)throw Error('Reopen Course management to load the current access controls.');
+      const modal=$('course-dialog'),host=document.createElement('section');host.className='cm-list-policy-editor';
+      modal.innerHTML='<h2 id="course-dialog-title">Change Course access</h2><p>The owning access service checks this change. Existing purchases are retained.</p><div class="cm-actions"><button type="button" class="pb-secondary" data-list-policy-cancel>Cancel</button><button type="button" data-list-policy-save disabled>Save Course access</button></div>';
+      modal.querySelector('.cm-actions').before(host);modal.showModal();
+      let editor;
+      const cancel=()=>{if(editor&&!editor.canLeave()){tell('Retry the pending access change before leaving this Course.',true);return false;}editor?.discard();modal.close();return true;};
+      modal.querySelector('[data-list-policy-cancel]').onclick=cancel;
+      modal.oncancel=event=>{if(!cancel())event.preventDefault();};
+      try{editor=await window.M4L_STUDIO_ACCESS.editCoursePolicy(host,'COURSE:'+courseId,model,{current:()=>state.token===token()&&state.course?.courseId===courseId&&state.course?.runId===runId&&modal.open});}
+      catch(error){modal.close();if([401,403].includes(error.status))lock(error.message);throw error;}
+      if(!modal.open){editor.discard();return;}
+      const confirm=modal.querySelector('[data-list-policy-save]');confirm.disabled=false;
+      confirm.onclick=()=>void perform(async()=>{
+        confirm.disabled=true;
+        try{
+          const policy=await editor.save();
+          if(state.token!==token()||state.course?.courseId!==courseId||state.course?.runId!==runId)return;
+          editor.discard();modal.close();await list();await select(courseId,runId,'list');tell('Course access saved as '+(policy.model==='FREE'?'Free.':'Paid.')+' Existing purchases are retained.');
+        }catch(error){
+          if([401,403].includes(error.status))lock(error.message);
+          else if(['CHANGE_CONFLICT','ROW_CHANGED','RETRY_CONFLICT'].includes(error.code)){await list();await select(courseId,runId,'list');}
+          throw error;
+        }finally{if(modal.open)confirm.disabled=false;}
+      });
+      return;
+    }
+    if(!editable())throw Error('This Academy-owned Course needs an editable draft before changing Free or Paid. Open its existing Course controls.');
+    dialog('Change draft access?',`<p>Save this Course draft as ${model==='FREE'?'Free':'Paid'}? Published timetable details, participants and media are retained. Draft settings take effect through the existing publication workflow.</p>`,'Save draft',async()=>{
+      if(state.token!==token()||state.course?.courseId!==courseId||state.course?.runId!==runId)return;
+      state.draft.accessModel=model;dirty();const result=await save();tell(result.message);
+    });
+  }
   async function action(name,el){
     if(window.M4L_COURSE_PARTICIPANTS?.canLeave()===false)throw Error('Finish or retry the Participants save before leaving these changes.');
+    if(['list-policy','list-archive'].includes(name)){if(state.pending)throw Error('Finish or retry the pending Course save before changing its settings.');if(window.M4L_STUDIO_ACCESS?.canLeave()===false)throw Error('Finish the learning-access change first.');reviewDiscard(()=>listSetting(name,el));return;}
     if(name==='select'){if(window.M4L_STUDIO_ACCESS?.canLeave()===false)throw Error('Finish the learning-access change before selecting another Course.');const tab=!state.course&&new URLSearchParams(location.search).get('view')==='scheduling'?'sessions':'details';reviewDiscard(()=>select(el.dataset.course,el.dataset.run,tab));return;}
     if(name==='tab'){if(window.M4L_STUDIO_ACCESS?.canLeave()===false)throw Error('Finish the learning-access Save before leaving this tab.');if(state.tab==='media'&&(window.M4L_LESSON_MEDIA?.canLeave()===false||window.M4L_COURSE_MEDIA?.canLeave()===false))return;const nextTab=normalTab(el.dataset.tab);if(!tabs.some(([tab])=>tab===nextTab)||nextTab!=='list'&&!state.course||nextTab==='enrolment'&&!state.course?.courseId)return;if(!window.M4L_ENROLMENT_WORKSPACE.canLeave(enrolmentPanel))throw Error('Finish or retry the enrolment request change before leaving this tab.');state.tab=nextTab;rememberSelection();renderEditor();if(state.tab==='participants'&&!state.participants)await loadParticipants();if(['sessions','review'].includes(el.dataset.tab))document.getElementById('cm-'+el.dataset.tab)?.scrollIntoView?.({block:'start'});return;}
     if(name==='show-review'){state.tab='details';renderEditor();$('cm-review')?.scrollIntoView?.({block:'start'});return;}
@@ -309,7 +356,7 @@
     $('course-new').addEventListener('click',()=>reviewDiscard(beginNew));
     $('course-refresh').addEventListener('click',()=>reviewDiscard(async()=>{const current=selected(),tab=state.tab;await list();if(current.courseId&&visibleCourses().some(c=>c.courseId===current.courseId&&c.runId===current.runId))await select(current.courseId,current.runId,tab);else clearSelection();tell('Courses refreshed.');}));
     $('course-search').addEventListener('input',filterCourses);$('course-status-filter').addEventListener('change',filterCourses);
-    document.addEventListener('click',event=>{const el=event.target.closest?.('[data-cm-action]');if(!el)return;event.preventDefault();if(state.busy)return;if(el.dataset.cmAction==='select'){void action('select',el);return;}void perform(()=>action(el.dataset.cmAction,el));});
+    document.addEventListener('click',event=>{const el=event.target.closest?.('[data-cm-action]');if(!el)return;event.preventDefault();if(state.busy)return;if(['select','list-policy','list-archive'].includes(el.dataset.cmAction)){void action(el.dataset.cmAction,el).catch(error=>tell(error.message,true));return;}void perform(()=>action(el.dataset.cmAction,el));});
     document.addEventListener('input',event=>{if(event.target.id==='course-people-search'){state.peopleSearch=event.target.value;const start=event.target.selectionStart;renderEditor();const search=$('course-people-search');search.focus();search.setSelectionRange(start,start);return;}if(event.target.type!=='checkbox'&&event.target.tagName!=='SELECT')input(event);});
     document.addEventListener('change',event=>{if(event.target.id==='course-assigned-only'){state.assignedOnly=event.target.checked;renderEditor();return;}if(event.target.type==='checkbox'||event.target.tagName==='SELECT'||event.target.hasAttribute?.('data-time24'))input(event);});
     void open();
