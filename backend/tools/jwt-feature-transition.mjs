@@ -36,12 +36,12 @@ export function renderCandidateConfigs(baseWorker,baseCoordinator,baseline,r,{re
  assert.deepEqual(baseWorker.d1_databases,baseCoordinator.d1_databases);
  assert.deepEqual(baseWorker.d1_databases.map(d=>d.database_id),protectedIds.slice(0,2));
  assert.equal(baseWorker.name,'feature_worker');assert.equal(baseCoordinator.name,'academy-feature-split-coordinator');
- const worker=structuredClone(baseWorker),coordinator=structuredClone(baseCoordinator);
+ const worker=structuredClone(baseWorker),coordinator=structuredClone(baseCoordinator),enabled=mode==='ACTIVE'?'1':'0';
  const fresh=r.databaseIds.map((database_id,i)=>({binding:i?'JWT_V110_ADMIN_DB':'JWT_V110_CORE_DB',database_name:names[i],database_id}));
  worker.d1_databases.push(...fresh);coordinator.d1_databases.push(...fresh);
  const storageVars={ENVIRONMENT:'feature',ACADEMY_DEPLOYMENT_KIND:'ISOLATED_PREVIEW',JWT_V110_STORAGE_PROFILE:'FRESH_PAIR_V1',JWT_V110_NATIVE_RUN_ID:r.sourceDigest,JWT_V110_OBJECT_NAMESPACE:r.objectNamespace};
  worker.main='src/academy-feature-jwt-runtime.js';
- worker.vars={...worker.vars,ACADEMY_D1_MODE:mode,ACADEMY_D1_RUN_ID:baseline.sourceDigest,...storageVars,JWT_V110_MASTER:'1',JWT_V110_REFRESH:'1',JWT_V110_BROWSER:'1',JWT_V110_NATIVE_COOKIE:'1',JWT_V110_COOKIE_MODE:'HOST_ONLY_PREVIEW',JWT_V110_REQUEST_ORIGIN:origin,JWT_V110_RELEASE_ID:releaseId,JWT_V110_SIGNING_KID:r.publicKid,JWT_V110_PUBLIC_KEYS_JSON:JSON.stringify(r.publicKeys)};
+ worker.vars={...worker.vars,ACADEMY_D1_MODE:mode,ACADEMY_D1_RUN_ID:baseline.sourceDigest,...storageVars,JWT_V110_MASTER:enabled,JWT_V110_REFRESH:enabled,JWT_V110_BROWSER:enabled,JWT_V110_NATIVE_COOKIE:enabled,JWT_V110_COOKIE_MODE:'HOST_ONLY_PREVIEW',JWT_V110_REQUEST_ORIGIN:origin,JWT_V110_RELEASE_ID:releaseId,JWT_V110_SIGNING_KID:r.publicKid,JWT_V110_PUBLIC_KEYS_JSON:JSON.stringify(r.publicKeys)};
  coordinator.vars={...(coordinator.vars||{}),ACADEMY_D1_RUN_ID:baseline.sourceDigest,...storageVars};
  worker.secrets.required.push('JWT_V110_PRIVATE_KEY_JSON','JWT_V110_CSRF_SECRET');
  worker.ratelimits.push({name:'JWT_V110_RATE_LIMITER',namespace_id:'100112',simple:{limit:10,period:60}});

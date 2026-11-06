@@ -32,7 +32,7 @@ test('only a complete fresh exact-name/schema/run/namespace receipt produces a c
  assert.deepEqual({w,c},before);assert.deepEqual(candidate.worker.d1_databases.slice(0,2),w.d1_databases);
  assert.deepEqual(candidate.coordinator.d1_databases.slice(0,2),c.d1_databases);
  assert.equal(candidate.worker.d1_databases.length,4);assert.equal(candidate.worker.vars.ACADEMY_D1_RUN_ID,baseline.sourceDigest);
- assert.equal(candidate.worker.vars.JWT_V110_NATIVE_RUN_ID,r.sourceDigest);assert.equal(candidate.worker.vars.ACADEMY_D1_MODE,'PAUSED');
+ assert.equal(candidate.worker.vars.JWT_V110_NATIVE_RUN_ID,r.sourceDigest);assert.equal(candidate.worker.vars.ACADEMY_D1_MODE,'PAUSED');for(const k of ['JWT_V110_MASTER','JWT_V110_REFRESH','JWT_V110_BROWSER','JWT_V110_NATIVE_COOKIE'])assert.equal(candidate.worker.vars[k],'0');const active=renderCandidateConfigs(w,c,baseline,r,{...options,mode:'ACTIVE'});for(const k of ['JWT_V110_MASTER','JWT_V110_REFRESH','JWT_V110_BROWSER','JWT_V110_NATIVE_COOKIE'])assert.equal(active.worker.vars[k],'1');
  assert.equal(candidate.worker.assets.not_found_handling,'none');assert.equal(candidate.worker.assets.run_worker_first.length,9);
  assert.deepEqual(candidate.worker.r2_buckets,w.r2_buckets);assert.deepEqual(candidate.worker.triggers,w.triggers);
 });
