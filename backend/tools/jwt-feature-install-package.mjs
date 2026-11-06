@@ -58,6 +58,20 @@ export function compileInstallPackage({baseWorker,baseCoordinator,baseline,schem
   budgets:{explicitCloudflareGets:40,recoveryExtraGets:16,wranglerInternalRequests:'separate-unmeasured',setupHTTPRequests:5,seedProjection:{statements:97,roundTrips:12,rowsRead:5857,rowsWritten:202},applicationSmoke:'separate-eight-requests'}};
  return {worker,coordinator,sources,publicManifest,baseWorker:structuredClone(baseWorker),baseCoordinator:structuredClone(baseCoordinator)};
 }
+export function bindPublicSigningKey(p,key){
+ assert.deepEqual(Object.keys(key).sort(),['crv','kid','kty','x','y']);
+ assert.equal(key.kty,'EC');assert.equal(key.crv,'P-256');
+ assert.match(key.kid,/^[A-Za-z0-9._-]{1,64}$/);
+ for(const k of ['x','y'])assert.match(key[k],/^[A-Za-z0-9_-]{43}$/);
+ const selected=Object.freeze({...key});
+ if(p.publicManifest.publicSigningKey)assert.deepEqual(p.publicManifest.publicSigningKey,selected,'PUBLIC_SIGNER_REBINDING');
+ p.publicManifest.publicSigningKey=selected;
+ // Persist only the public association before sealed private ingress. Temporary
+ // routes remain disabled and do not import the signing/refresh engine.
+ p.worker.vars.JWT_V110_SIGNING_KID=selected.kid;
+ p.worker.vars.JWT_V110_PUBLIC_KEYS_JSON=JSON.stringify([selected]);
+ return p;
+}
 export function completeInstallPackage(p,baseline,schemaReceipt,contract,{timetableNamespaceId,splitNamespaceId,publicKid,publicKeys,verifiedAt}){
  const receipt={schema:2,state:'VERIFIED',planId:schemaReceipt.planId,accountId:account,databaseNames:[...names],databaseIds:[...schemaReceipt.databaseIds],
   schemaHashes:{...schemaReceipt.ddlHashes},sourceDigest:contract.sourceDigest,objectNamespace:contract.objectNamespace,synthetic:{accounts:4,courses:2,productionData:false},

@@ -7,7 +7,7 @@ import {createHash} from 'node:crypto';
 import {githubClient} from '../../tools/approved-deployment.mjs';
 import {setupApproval} from '../../tools/approved-feature-setup.mjs';
 import {setupContract} from './jwt-feature-setup-contract.mjs';
-import {compileInstallPackage,assertSchemaReceipt} from './jwt-feature-install-package.mjs';
+import {compileInstallPackage,assertSchemaReceipt,bindPublicSigningKey} from './jwt-feature-install-package.mjs';
 import {createInstallOps} from './jwt-feature-install-transport.mjs';
 import {createPrivateCapsule} from './jwt-feature-install-secrets.mjs';
 import {setupClient} from './jwt-feature-setup-client.mjs';
@@ -54,6 +54,8 @@ async function main(){
  // Generation/ingress occur only after independent source/effects approval.
  const capsule=await createPrivateCapsule(process.env.FEATURE_TEST_ADMIN_PIN,{kid:'jwt-feature-v110-20261106a-'+owner,setupClientFactory:setupClient});
  try{
+  bindPublicSigningKey(p,capsule.publicKey);
+  writeFileSync(resolve(publicOut,'public-package.json'),JSON.stringify(p.publicManifest,null,2)+'\n');
   const ops=createInstallOps({root,directory,evidenceDirectory:publicOut,p,baseline,expectedVersions:read('config/jwt-feature-native-version-baseline.json'),schemaReceipt,contract,token:process.env.CLOUDFLARE_API_TOKEN,candidateGuard:sourceGuard});
   const result=await installFreshFeature({ops,packageInfo:p,privateCapsule:capsule});
   console.log(JSON.stringify({state:result.state,cleanupVerified:result.cleanupVerified,activated:false,source,receipt:'verified-paused-receipt.json'}));

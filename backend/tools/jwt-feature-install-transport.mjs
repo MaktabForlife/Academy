@@ -116,7 +116,7 @@ export function createInstallOps({root,directory,evidenceDirectory,p,baseline,ex
   },
   async verifyRecovery(){await owned();assert(!temporarySecrets.some(n=>secretNames.has(n)));await this.probe('recovery-paused');await owned();},
   save(evidence){
-   writeFileSync(resolve(publicOut,'installation.json'),JSON.stringify({...evidence,...report,setupRequests:report.setupExecuteAttempts+report.setupStatusAttempts,setupRequestsAreFetchAttempts:true},null,2)+'\n');
+   writeFileSync(resolve(publicOut,'installation.json'),JSON.stringify({...evidence,...report,lastAcknowledgedVersions:{...expected},observedFreshNamespaces:{...namespaces},publicSigningKey:p.publicManifest.publicSigningKey||null,setupRequests:report.setupExecuteAttempts+report.setupStatusAttempts,setupRequestsAreFetchAttempts:true},null,2)+'\n');
   }
  };
 }

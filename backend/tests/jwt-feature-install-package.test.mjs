@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync,mkdtempSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {createHash,webcrypto} from 'node:crypto';
-import {compileInstallPackage,completeInstallPackage,assertNoTemporarySurface,assertSchemaReceipt} from '../tools/jwt-feature-install-package.mjs';
+import {compileInstallPackage,completeInstallPackage,assertNoTemporarySurface,assertSchemaReceipt,bindPublicSigningKey} from '../tools/jwt-feature-install-package.mjs';
 import {setupContract} from '../tools/jwt-feature-setup-contract.mjs';
 import {createPrivateCapsule} from '../tools/jwt-feature-install-secrets.mjs';
 import {setupClient} from '../tools/jwt-feature-setup-client.mjs';
@@ -129,12 +129,26 @@ test('concrete transport performs seven guarded writes, forty metadata reads, fi
  };
  const dir=mkdtempSync(resolve(process.env.RUNNER_TEMP,'jwt-install-mock-'));
  const capsule=await createPrivateCapsule('2468',{kid:publicKey.kid,setupClientFactory:options=>setupClient({...options,fetcher})});
+ bindPublicSigningKey(p,capsule.publicKey);
  const ops=createInstallOps({root:process.cwd(),directory:dir,p,baseline,expectedVersions:initial,schemaReceipt:receipt,contract,token:'uninstalled-mock-token',candidateGuard:async()=>{},fetcher,runWrangler:async(args,{name,config:c})=>{physicalWrites++;configs.set(name,structuredClone(c));bump(name);}});
  const result=await installFreshFeature({ops,packageInfo:p,privateCapsule:capsule});
  const proof=JSON.parse(readFileSync(resolve(dir,'public/installation.json'),'utf8'));
  assert.equal(result.state,'PAUSED_VERIFIED');assert.equal(physicalWrites,7);assert.equal(proof.explicitCloudflareGets,40);
+ assert.deepEqual(proof.publicSigningKey,capsule.publicKey);assert.deepEqual(proof.lastAcknowledgedVersions,versions);assert.deepEqual(proof.observedFreshNamespaces,{timetable:'c'.repeat(32),split:'d'.repeat(32)});
  assert.equal(execute,1);assert.equal(status,1);assert.equal(proof.setupExecuteAttempts+proof.setupStatusAttempts+proof.httpProbes,5);
  assert.deepEqual([...activeSecrets].sort(),[...nativeSecrets,'JWT_V110_PRIVATE_KEY_JSON','JWT_V110_CSRF_SECRET'].sort());
  const saved=JSON.stringify(proof)+readFileSync(resolve(dir,'public/verified-paused-receipt.json'),'utf8');assert(!saved.includes('NEVER_PUBLIC')&&!saved.includes('2468')&&!saved.includes('"d":'));
  assert(seen.every(x=>x.host==='api.cloudflare.com'||x.host==='feature_worker.maktab4life.workers.dev'));
+});
+
+test('only strict public JWK association is persisted before private ingress; secret-shaped and replacement keys denied',()=>{
+ const {p}=packageFixture();bindPublicSigningKey(p,publicKey);
+ assert.deepEqual(JSON.parse(p.worker.vars.JWT_V110_PUBLIC_KEYS_JSON),[publicKey]);
+ assert.equal(p.worker.vars.JWT_V110_SIGNING_KID,publicKey.kid);
+ assert.deepEqual(p.publicManifest.publicSigningKey,publicKey);
+ bindPublicSigningKey(p,{...publicKey});
+ assert.throws(()=>bindPublicSigningKey(p,{...publicKey,kid:'other'}),/REBINDING/);
+ assert.throws(()=>bindPublicSigningKey(p,{...publicKey,d:'forbidden-private'}));
+ assert.throws(()=>bindPublicSigningKey(p,{...publicKey,x:'short'}));
+ for(const k of ['JWT_V110_MASTER','JWT_V110_REFRESH','JWT_V110_BROWSER','JWT_V110_NATIVE_COOKIE'])assert.equal(p.worker.vars[k],'0');
 });

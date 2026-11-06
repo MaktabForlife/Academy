@@ -6,7 +6,7 @@ import {mkdirSync,writeFileSync,readFileSync} from 'node:fs';
 import {randomBytes} from 'node:crypto';
 import {build} from 'esbuild';
 import {packageFixture,bw,bc,baseline} from './fixtures/jwt-feature-install-fixture.mjs';
-import {completeInstallPackage,assertNoTemporarySurface} from '../tools/jwt-feature-install-package.mjs';
+import {completeInstallPackage,assertNoTemporarySurface,bindPublicSigningKey} from '../tools/jwt-feature-install-package.mjs';
 import {createPrivateCapsule} from '../tools/jwt-feature-install-secrets.mjs';
 import {setupClient} from '../tools/jwt-feature-setup-client.mjs';
 import {verifyAcademyPin} from '../src/lib/academy-pin.js';
@@ -25,6 +25,7 @@ test('actual temporary native constructors seed only fresh local pair; final PAU
  assert(!fw.inputs.some(x=>x.endsWith('academy/jwt-feature-setup.mjs'))&&!fc.inputs.some(x=>x.endsWith('academy/jwt-feature-setup.mjs')));
  let mf;const sealed={},shared=randomBytes(64).toString('base64url');
  const capsule=await createPrivateCapsule('2468',{kid:'jwt-feature-v110-20261106a-local-bundle',setupClientFactory:opts=>setupClient({...opts,fetcher:(url,options)=>mf.dispatchFetch(url,options)})});
+ bindPublicSigningKey(p,capsule.publicKey);
  await capsule.ingress(async values=>{for(const [name,s]of Object.entries(values))sealed[name]=s.text;});
  const databases={ACADEMY_DB:'held-core',ACADEMY_ADMIN_DB:'held-admin',JWT_V110_CORE_DB:'fresh-core',JWT_V110_ADMIN_DB:'fresh-admin'};
  const native={PIN_SECRET:'uninstalled-native-pin',SESSION_SECRET:'uninstalled-native-session',SHARED_PIN_SECRET:shared,ACADEMY_OPEN_LIBRARY_STORAGE_KEY:'uninstalled-native-library'};
