@@ -35,18 +35,23 @@ async function native(url,options={}){
 const context=await browser.newContext({viewport:{width:2048,height:1100},reducedMotion:'reduce',serviceWorkers:'block'});
 const page=await context.newPage();
 page.on('pageerror',e=>errors.push(e.message));
-let holdBootstrap=null,heldBootstrap=null;
+let holdBootstrap=null,heldBootstrap=null,failBootstrap=false,holdRefinement=null,heldRefinement=null;
+const baselineApp=await readFile(resolve(process.env.HOME_LOGIN_BASELINE_ROOT,'portal/circles/app.js'),'utf8');
+let useBaselineApp=false;
 await page.route('**/*',async route=>{
  const req=route.request(),url=new URL(req.url());
  if(url.origin===h.academyApiOrigin&&url.pathname.startsWith('/api/')||url.origin===base&&url.pathname.startsWith('/api/')){
   let kind='';try{kind=JSON.parse(url.searchParams.get('request')||req.postData()||'{}').kind||'';}catch{}
   requests.push({path:url.pathname,kind});
   if(kind==='bootstrap'&&holdBootstrap){heldBootstrap?.();await holdBootstrap;}
+  if(kind==='bootstrap'&&failBootstrap)return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({code:'SYNTHETIC_BOOTSTRAP_FAILURE',error:'Synthetic check unavailable.'})});
   const response=await native(url.href,{method:req.method(),headers:req.headers(),...(req.postData()?{body:req.postDataBuffer()}:{})});
   return route.fulfill({status:response.status,headers:Object.fromEntries(response.headers),body:Buffer.from(await response.arrayBuffer())});
  }
  if(url.origin!==base){blocked.push(url.origin);return route.abort();}
- let name=url.pathname;if(name==='/')name='/index.html';
+ if(url.pathname==='/circles-login.mjs'&&holdRefinement){heldRefinement?.();await holdRefinement;}
+ if(url.pathname==='/circles/app.js'&&useBaselineApp)return route.fulfill({status:200,contentType:'text/javascript',body:baselineApp});
+ let name=url.pathname;if(name.endsWith('/'))name+='index.html';
  try{const file=resolve(assets,'.'+decodeURIComponent(name));assert(file.startsWith(assets+'/'));return route.fulfill({status:200,contentType:mime[extname(file)]||'application/octet-stream',body:await readFile(file)});}
  catch{return route.fulfill({status:404,body:'Not found'});}
 });
@@ -62,6 +67,19 @@ await page.addInitScript(()=>{
  };requestAnimationFrame(sample);
 });
 try{
+ // Freeze the real sequential public-render/refinement boundary in both source versions.
+ for(const baseline of [true,false]){
+  useBaselineApp=baseline;let release,arrived;holdRefinement=new Promise(done=>release=done);const reached=new Promise(done=>arrived=done);heldRefinement=arrived;
+  const navigation=page.goto(base+'/?login=1',{waitUntil:'commit'});await navigation;await reached;
+  await page.locator('[data-home-area=mothers]').waitFor({state:'attached'});
+  const raw=await page.locator('[data-home-area=mothers]').evaluate(el=>({hidden:el.hidden,visible:Boolean(el.getClientRects().length),width:el.getBoundingClientRect().width,hubWidth:document.querySelector('#animated-hub').getBoundingClientRect().width,text:el.textContent.includes('Classrooms to nurture')}));
+  records.push({case:'unrefined-public-render',source:baseline?'frozen-fb739eed':'candidate',...raw});
+  assert.equal(raw.text,true);assert.equal(raw.visible,baseline);
+  if(baseline)assert(raw.width>=raw.hubWidth-1,'Frozen screenshot-shaped full-width card must reproduce');
+  await page.screenshot({path:resolve(out,baseline?'baseline-raw-mothers.png':'candidate-raw-mothers.png'),fullPage:true});
+  release();holdRefinement=null;await page.locator('#circles-sign-in[open]').waitFor();
+ }
+ useBaselineApp=false;
  await page.goto(base+'/?login=1',{waitUntil:'domcontentloaded'});
  await page.locator('#circles-sign-in[open]').waitFor();
  await page.locator('#circles-sign-in-form input[name=uniqueid]').fill(featureSyntheticAccounts[0].login);
@@ -76,13 +94,26 @@ try{
   await page.setViewportSize({width,height:1100});
   await page.waitForTimeout(60);
   const layout=await page.evaluate(()=>{
-   const hub=document.querySelector('#animated-hub'),frame=hub.closest('.circle-hub-frame'),title=hub.querySelector('h1'),r=title.getBoundingClientRect();
-   const overlaps=[...hub.querySelectorAll('.hub-panel')].filter(el=>el.getClientRects().length).filter(el=>{const b=el.getBoundingClientRect();return Math.min(r.right,b.right)>Math.max(r.left,b.left)+2&&Math.min(r.bottom,b.bottom)>Math.max(r.top,b.top)+2;}).map(el=>el.dataset.homeArea);
-   return {scrollWidth:document.documentElement.scrollWidth,clientWidth:document.documentElement.clientWidth,hubWidth:hub.getBoundingClientRect().width,frameWidth:frame.getBoundingClientRect().width,overlaps,display:getComputedStyle(hub).display};
+   const dashboard=document.querySelector('#circles-dashboard'),b=dashboard.getBoundingClientRect(),hub=document.querySelector('#animated-hub');
+   return {scrollWidth:document.documentElement.scrollWidth,clientWidth:document.documentElement.clientWidth,dashboardWidth:b.width,dashboardHeight:b.height,publicHeroVisible:Boolean(hub.getClientRects().length)};
   });records.push({case:'signed-in-admin-layout',width,...layout});
-  assert.equal(layout.display,'grid');assert(layout.scrollWidth<=layout.clientWidth+1,'Horizontal overflow at '+width);assert(layout.hubWidth<=layout.frameWidth+1,'Hero escapes frame at '+width);assert.deepEqual(layout.overlaps,[],'Cards cover central text at '+width);
+  assert(layout.dashboardWidth>0&&layout.dashboardHeight>0,'Checked Admin dashboard must actually be visible');
+  assert(layout.scrollWidth<=layout.clientWidth+1,'Horizontal overflow at '+width);assert.equal(layout.publicHeroVisible,false,'Admin must hide the public composition');
  }
  await page.setViewportSize({width:2048,height:1100});
+ // Actual packaged native launcher and Home consumer, with the real synthetic native open handler.
+ const pagesBefore=context.pages().length;
+ await page.locator('[data-circles-academy-action]').filter({hasText:'Curriculum'}).click();
+ await page.waitForURL(base+'/academy/admin/#administration/curriculum');
+ await page.waitForFunction(()=>Boolean(window.M4L_CIRCLES_RETURN));await page.evaluate(()=>window.M4L_CIRCLES_RETURN.ready());
+ assert.equal(context.pages().length,pagesBefore);assert.equal(page.isClosed(),false);
+ const home=page.locator('[aria-label="Return to your Circles dashboard"]').first();
+ assert.equal(await home.getAttribute('href'),base+'/?workspace=admin');
+ await page.screenshot({path:resolve(out,'same-tab-curriculum.png'),fullPage:true});
+ await home.click();await page.waitForURL(base+'/?workspace=admin');
+ await page.waitForFunction(()=>document.body.dataset.circlesDashboardMode==='admin'&&document.querySelector('#circles-dashboard')?.getClientRects().length);
+ assert.equal(context.pages().length,pagesBefore);assert.equal(page.isClosed(),false);
+ records.push({case:'packaged-native-curriculum-home-roundtrip',sameTab:true,extraPages:0,returnedMode:'admin'});
  let release;holdBootstrap=new Promise(done=>release=done);let reached;const reachedPromise=new Promise(done=>reached=done);heldBootstrap=reached;
  const navigation=page.goto(base+'/?workspace=admin',{waitUntil:'domcontentloaded'});await navigation;await reachedPromise;
  assert.equal(await page.locator('#experience').isVisible(),false,'Dashboard request must hide unfinished public composition');
@@ -94,6 +125,12 @@ try{
  assert.equal(await page.locator('#circles-dashboard').isVisible(),true);
  await page.screenshot({path:resolve(out,'checked-admin-entry.png'),fullPage:true});
  records.push({case:'checked-admin-entry',rawFrames:await page.evaluate(()=>window.__homeLayoutFrames)});
+ failBootstrap=true;await page.goto(base+'/?workspace=admin',{waitUntil:'domcontentloaded'});
+ await page.waitForFunction(()=>document.documentElement.getAttribute('data-circles-home-state')==='error');
+ assert.equal(await page.locator('#experience').isVisible(),false);
+ assert.equal(await page.locator('#circles-dashboard-entry button').isVisible(),true);
+ await page.screenshot({path:resolve(out,'failed-admin-entry.png'),fullPage:true});
+ records.push({case:'failed-admin-bootstrap',homeHidden:true,retryVisible:true});failBootstrap=false;
  assert.deepEqual(errors,[],'Page errors');assert.equal(remoteAttempts,0);
 }finally{
  await page.screenshot({path:resolve(out,'final-state.png'),fullPage:true}).catch(()=>{});

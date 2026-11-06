@@ -3,13 +3,18 @@
 export function approvedCirclesReturn(raw,now=Date.now()){
  try{const c=JSON.parse(raw),url=new URL(c.returnUrl),origin=new URL(c.websiteOrigin);
   if(origin.origin!==c.websiteOrigin||!['https:','http:'].includes(origin.protocol)||origin.protocol==='http:'&&!['localhost','127.0.0.1'].includes(origin.hostname)||url.origin!==origin.origin||url.username||url.password||url.pathname!=='/'||url.hash||!['learn','teach','admin'].includes(c.mode)||url.search!=='?workspace='+c.mode||!Number.isSafeInteger(c.expiresAt)||c.expiresAt<=now||c.expiresAt>now+12*3600_000||!/^[a-f0-9]{64}$/.test(c.owner))return null;
+  if(c.sameTab!==undefined&&typeof c.sameTab!=='boolean'||c.sameTab===true&&c.mode!=='admin')return null;
   return c;
  }catch{return null;}
 }
 // Returning to the exact live opener preserves its DOM, selected mode and
 // scroll position. If it cannot acknowledge, the checked ordinary URL remains.
 export function returnToOpenDashboard({window,context,isCurrent=()=>true,timeoutMs=1000}){
- const opener=window.opener;if(!opener||opener.closed||!approvedCirclesReturn(JSON.stringify(context))||!isCurrent())return false;
+ // An in-place Curriculum visit must use its checked ordinary Home link,
+ // even if this tab originally had an opener. Never close the current tab.
+ const checked=approvedCirclesReturn(JSON.stringify(context));
+ if(!checked||!isCurrent()||checked.sameTab===true)return false;
+ const opener=window.opener;if(!opener||opener.closed)return false;
  const requestId=window.crypto.randomUUID();let done=false;
  const finish=()=>{if(done)return;done=true;window.clearTimeout(timer);window.removeEventListener('message',receive);};
  const fallback=()=>{if(done)return;finish();if(isCurrent())window.location.assign(context.returnUrl);};

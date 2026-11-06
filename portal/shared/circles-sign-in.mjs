@@ -11,20 +11,23 @@ export async function signInFromCircles(request,credentials,{current=()=>true,on
 export function openAcademyFromCircles({request,navigation,dashboard,window=globalThis.window,onError=()=>{},onReturn}){
  if(navigation==='hifz')return openLegacyAcademyFromCircles({academyOrigin:globalThis.AcademyHosting.academyLegacyOrigins[0],request,navigation,window,onError});
  const initialToken=window.localStorage.getItem('m4l_account_token');
- const child=window.open('about:blank','_blank');if(!child){onError('Allow the Academy window to open, then try again.');return null;}
+ const sameTab=dashboard?.mode==='admin'&&dashboard?.tool==='curriculum';
+ const child=sameTab?window:window.open('about:blank','_blank');if(!child){onError('Allow the Academy window to open, then try again.');return null;}
  let closed=false,returning=null;
  const stopReturn=()=>{if(returning)window.removeEventListener('message',returning);returning=null;};
  request('/auth/native-open',{body:{...(navigation?{navigation}:{}),...(dashboard?{dashboard}:{})}}).then(async result=>{
   if(closed||child.closed)return;
+  if(!result||typeof result.token!=='string'||!result.token||typeof result.destination!=='string')throw Error('Invalid Academy handoff.');
   const destination=new URL(result.destination,window.location.origin);
   if(destination.origin!==window.location.origin||!/^\/(?:academy|account|programs|users|recorder|activities)(?:\/|$)/.test(destination.pathname))throw Error('Invalid Academy destination.');
   const owner=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(result.token))),x=>x.toString(16).padStart(2,'0')).join('');
   if(closed||child.closed||window.localStorage.getItem('m4l_account_token')!==initialToken)throw new DOMException('Your account changed.','AbortError');
+  if(sameTab&&(!result.circles||result.circles.mode!=='admin'||new URL(result.circles.returnUrl).href!==new URL('/?workspace=admin',window.location.origin).href))throw Error('Your Admin return address could not be checked.');
   if(result.circles&&['learn','teach','admin'].includes(result.circles.mode)){
-   const context={...result.circles,websiteOrigin:new URL(result.circles.returnUrl).origin,owner,expiresAt:Date.now()+12*3600_000};
+   const context={...result.circles,websiteOrigin:new URL(result.circles.returnUrl).origin,owner,expiresAt:Date.now()+12*3600_000,...(sameTab?{sameTab:true}:{})};
    if(context.websiteOrigin!==window.location.origin)throw Error('Invalid dashboard return address.');
    child.sessionStorage.setItem('m4l_circles_return',JSON.stringify(context));
-   if(typeof onReturn==='function'){
+   if(!sameTab&&typeof onReturn==='function'){
     returning=event=>{
      const value=event.data;if(closed||event.source!==child||event.origin!==window.location.origin||value?.type!=='ACADEMY_CIRCLES_RETURN'||value.mode!==context.mode||typeof value.requestId!=='string'||!/^[a-f0-9-]{36}$/.test(value.requestId))return;
      if(onReturn(value.mode)!==true)return;child.postMessage({type:'CIRCLES_DASHBOARD_RETURNED',requestId:value.requestId,mode:value.mode},window.location.origin);stopReturn();
@@ -34,7 +37,7 @@ export function openAcademyFromCircles({request,navigation,dashboard,window=glob
   // Native issuance rechecks the exact target context on the same live session.
   window.localStorage.setItem('m4l_account_token',result.token);
   child.location.replace(destination.href);
- }).catch(error=>{stopReturn();try{child.close();}catch{}onError(error.message);});
+ }).catch(error=>{stopReturn();if(!sameTab)try{child.close();}catch{}onError(error.message);});
  return {child,close(){closed=true;stopReturn();}};
 }
 function openLegacyAcademyFromCircles({academyOrigin,request,navigation,dashboard,window=globalThis.window,onError=()=>{},onReturn}){
