@@ -1,11 +1,9 @@
 {
   "schema": 1,
-  "academyPortalOrigin": "https://ummabbadacademy.app",
-  "academyLegacyOrigins": [
-    "https://academy-maktab4life.pages.dev"
-  ],
-  "academyApiOrigin": "https://devrebootworker.maktab4life.workers.dev",
-  "studioOrigin": "https://maktab4life.org",
-  "studioBackendOrigin": "https://academy-studio-parallel.naidu-hajira.workers.dev",
-  "hifzOrigin": "https://hifz.maktab4life.org"
+  "academyPortalOrigin": "https://academy-ui-development.pages.dev",
+  "academyLegacyOrigins": [],
+  "academyApiOrigin": "https://academy-ui-development.maktab4life.workers.dev",
+  "studioOrigin": "https://studio-ui-development.naidu-hajira.workers.dev",
+  "studioBackendOrigin": "https://studio-ui-development.naidu-hajira.workers.dev",
+  "hifzOrigin": "https://hifz-unavailable.invalid"
 }
