@@ -41,8 +41,10 @@ async function main(){
  assert.match(process.env.GITHUB_SHA||'',/^[a-f0-9]{40}$/);
  checkFeatureTargets(root);const receipt=assertInitialised(read('config/feature-initialisation-receipt.json'));
  const token=process.env.CLOUDFLARE_API_TOKEN;assert(token,'Feature deployment credential is missing');
+ let explicitControlPlaneReads=0;
  const account=receipt.accountId,base='https://api.cloudflare.com/client/v4/accounts/'+account;
  const api=async path=>{
+  explicitControlPlaneReads++;
   const response=await fetch(base+path,{headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(20000)});
   if(!response.ok)throw Error('Feature metadata read failed: '+response.status);
   const data=await response.json();assert.equal(data.success,true);return data.result;
@@ -74,10 +76,10 @@ async function main(){
  let changed=false;
  try{
   await head();changed=true;command(['deploy','--config',cpath],'coordinator');await settings(coordinator,true);
-  evidence.stage='coordinator';save();command(['deploy','--config',wpath],'worker');await settings(worker,false);
+  evidence.stage='coordinator';save();await head();command(['deploy','--config',wpath],'worker');await settings(worker,false);
   evidence.stage='worker';save();
   assert.equal((await api('/pages/projects/academy-maktab4life')).production_branch,page.production_branch,'Pages production branch changed');
-  command(['pages','deploy',join(root,'.academy-pages'),'--project-name','academy-maktab4life','--branch','feature-preview','--commit-hash',process.env.GITHUB_SHA,'--commit-dirty=true'],'pages');
+  await head();command(['pages','deploy',join(root,'.academy-pages'),'--project-name','academy-maktab4life','--branch','feature-preview','--commit-hash',process.env.GITHUB_SHA,'--commit-dirty=true'],'pages');
   evidence.stage='pages';save();
   let verified=false;
   for(let attempt=0;attempt<4;attempt++){
@@ -88,7 +90,9 @@ async function main(){
   assert(verified,'Feature Pages commit marker did not match');
   const health=await fetch('https://feature_worker.maktab4life.workers.dev/api/health',{cache:'no-store',signal:AbortSignal.timeout(15000)});assert.equal(health.status,200);
   const body=await health.json();assert.equal(body.success,true);assert.equal(String(body.version),String(read('version.json').version));
-  await settings(worker,false);await settings(coordinator,true);evidence.success=true;evidence.stage='verified';save();
+  await settings(worker,false);await settings(coordinator,true);await head();
+  for(const [field,name]of [['workerVersion',worker.name],['coordinatorVersion',coordinator.name]]){const r=await api('/workers/scripts/'+name+'/deployments'),d=(r.deployments||r)[0];assert.equal(d?.versions?.length,1);evidence[field]=d.versions[0].version_id;}
+  evidence.explicitControlPlaneReads=explicitControlPlaneReads;evidence.success=true;evidence.stage='verified';save();
   console.log(JSON.stringify(evidence));
  }catch(error){
   evidence.failureStage=evidence.stage;

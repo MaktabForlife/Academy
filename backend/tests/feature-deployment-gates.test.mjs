@@ -12,7 +12,7 @@ function fixture(coordinator=false){
  return {r,c,s:{bindings,compatibility_date:c.compatibility_date,compatibility_flags:c.compatibility_flags,tail_consumers:[]}};
 }
 test('Routine deployment stays closed for pending, wrong-account, wrong-store, old-schema and live namespace receipts',()=>{
- assert.throws(()=>assertInitialised(read('config/feature-initialisation-receipt.json')));
+ assert.throws(()=>assertInitialised({...read('config/feature-initialisation-receipt.json'),state:'PENDING'}));
  assertInitialised(receipt());
  for(const change of [r=>r.accountId='wrong',r=>r.databaseIds[0]='1c8aece3-dc1d-40d1-8a82-01ab4f63336f',r=>r.schemaHashes.core='b'.repeat(64),r=>r.sourceDigest=null,r=>r.timetableNamespaceId='aa75328c13ee4f42b406ccf5ebbe851a',r=>r.splitNamespaceId=r.timetableNamespaceId,r=>r.nativeProofRun=null,r=>r.verifiedAt=null]){
   const r=receipt();change(r);assert.throws(()=>assertInitialised(r));
