@@ -38,3 +38,15 @@ for(const [label,change,request,status] of [
 test('public contract rejects protected/reused IDs and credential-literal template',()=>{
  for(const change of [x=>x.databaseIds[0]=x.forbiddenIds[0],x=>x.databaseIds[1]=x.databaseIds[0],x=>x.statements.core[0]+='v3$pbkdf2-sha256$']){const x=structuredClone(c);change(x);assert.throws(()=>createJWTFeatureSetupAPI(x));}
 });
+
+test('authenticated status receipt is allowlisted and cannot leak an extra private RPC field',async()=>{
+ const x=fixture(),sentinel='test-private-field-never-export';
+ x.env.JWT_V110_SPLIT_COORDINATOR={getByName(){x.count.rpc++;return {setupStatus:async()=>({state:'VERIFIED',source:c.source,manifestHash:c.manifestHash,sourceDigest:c.sourceDigest,pinHash:sentinel,secret:sentinel})};}};
+ const r=await api.fetch(x.request({method:'GET',path:'/internal/feature-jwt-setup/status'}),x.env);
+ assert.equal(r.status,200);const body=await r.text();assert.equal(body.includes(sentinel),false);assert.equal(body.includes('pinHash'),false);
+ assert.deepEqual(x.count,{pin:0,rpc:1,db:0});assert.equal(r.headers.get('set-cookie'),null);
+});
+test('status cannot relabel an old immutable claim as a different source',async()=>{
+ const x=fixture();x.env.JWT_V110_SPLIT_COORDINATOR={getByName(){return {setupStatus:async()=>({state:'VERIFIED',source:'f'.repeat(40),manifestHash:c.manifestHash,sourceDigest:c.sourceDigest})};}};
+ const r=await api.fetch(x.request({method:'GET',path:'/internal/feature-jwt-setup/status'}),x.env);assert.equal(r.status,503);assert.equal((await r.json()).code,'FEATURE_SETUP_UNAVAILABLE');
+});
