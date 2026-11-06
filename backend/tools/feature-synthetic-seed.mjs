@@ -9,6 +9,7 @@ import {initialiseAcceptedSetup} from '../src/academy/d1/setup-publication.js';
 import {emptyCompatibilityDatabase} from '../src/academy/separation/compatibility.js';
 import {emptyShapes} from '../src/academy/separation/empty-shapes.js';
 import {sqliteD1} from './academy-split/sqlite-d1.mjs';
+import {settingOwner} from '../src/academy/separation/ownership.js';
 export const featureSyntheticAccounts=Object.freeze([
  {id:'feature-synthetic-global',login:'feature-test-admin',name:'Feature synthetic Global Admin',global:true},
  {id:'feature-synthetic-admin-a',login:'feature-test-scoped-admin',name:'Feature synthetic scoped Admin',role:'PROGRAM_ADMIN',scope:'COURSE:FEATURE-SYNTHETIC-A'},
@@ -49,9 +50,9 @@ export async function prepareFeatureSeed({pin,secrets,at=new Date().toISOString(
    insert('core','course_settings',{activity_key:key,legacy_access_model:'PAID',policy_review_state:'CONFIRMED'});
   }
   for(const a of featureSyntheticAccounts.filter(a=>a.role))insert('core','role_assignments',{assignment_id:a.id+'-role',account_id:a.id,activity_key:a.scope,role:a.role,active:1,review_state:'CONFIRMED'});
-  for(const [key,value]of [['PlatformTimezone','Africa/Johannesburg'],['ProgramWorkspace','1'],['PersonalMemorisationCards','0']]){
+  for(const [key,value]of [['PlatformTimezone','Africa/Johannesburg'],['ProgramWorkspace','1'],['PersonalMemorisationCards','0'],['LessonMediaEnabled','1']]){
    const row={setting_key:key,setting_value:value,updated_at:at,updated_by_account_id:featureSyntheticAccounts[0].id};
-   insert('core','academy_settings',row);insert('admin','academy_settings',row);
+   insert('core','academy_settings',row);if(settingOwner(key)==='admin')insert('admin','academy_settings',row);
   }
   const binding=sqliteD1(databases.core),recorded={...binding,async batch(statements){
    const result=await binding.batch(statements);

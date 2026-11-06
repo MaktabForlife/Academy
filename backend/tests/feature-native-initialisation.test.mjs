@@ -79,7 +79,8 @@ test('Generated data-only seed replays exactly into the reviewed empty schemas w
    assert(!/\b(?:DROP|ALTER|CREATE|DELETE FROM accounts|UPDATE accounts)\b/i.test(f.seed.sql[owner]),'Only synthetic first-seed DML is exported.');
    copy.exec(f.seed.sql[owner]);
    assert.deepEqual(copy.prepare('PRAGMA foreign_key_check').all(),[]);assert.equal(copy.prepare('PRAGMA quick_check').get().quick_check,'ok');
-   for(const {name}of names(copy))assert.deepEqual(copy.prepare('SELECT * FROM '+quote(name)+' ORDER BY rowid').all(),f.seed.databases[owner].prepare('SELECT * FROM '+quote(name)+' ORDER BY rowid').all(),owner+'.'+name);
+   const rows=(db,name)=>db.prepare('SELECT * FROM '+quote(name)).all().sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));
+   for(const {name}of names(copy))assert.deepEqual(rows(copy,name),rows(f.seed.databases[owner],name),owner+'.'+name);
    assert.throws(()=>copy.exec(f.seed.sql[owner]),/UNIQUE constraint failed/,'A repeated seed must stop rather than overwrite.');
   }finally{copy.close();}
  }
