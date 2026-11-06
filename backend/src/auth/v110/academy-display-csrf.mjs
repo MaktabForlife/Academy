@@ -12,3 +12,5 @@ export async function academyDisplayCSRF(env,s){
 }
 
 export const academyDisplaySession=(c,lastForegroundRefreshS,serverTimeS)=>({app:'academy',accountId:c.sub,sessionId:c.sid,parentId:c.psid,browserId:c.bsid,browserGeneration:c.bv,credentialEpoch:c.ce,securityVersion:c.pv,unlockGeneration:c.ue,originalSignedAtMs:c.s_iat*1000,originalExpiresAtMs:c.s_exp*1000,lastForegroundRefreshMs:lastForegroundRefreshS*1000,serverNowMs:serverTimeS*1000});
+
+export const academyClaimsCSRF=(env,c)=>academyDisplayCSRF(env,{sessionId:c.sid,accountId:c.sub,parentId:c.psid,browserId:c.bsid,browserGeneration:c.bv,credentialEpoch:c.ce,unlockGeneration:c.ue,originalSignedAtMs:c.s_iat*1000,originalExpiresAtMs:c.s_exp*1000});

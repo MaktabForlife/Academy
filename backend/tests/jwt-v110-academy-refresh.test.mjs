@@ -1,3 +1,4 @@
+import {portalNativeReadRequest} from '../src/academy/d1/portal.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
@@ -297,6 +298,11 @@ test('Cookie display context carries same-family CSRF and own renewal returns cu
  const refreshed=await f.call('/auth/v110/refresh',auth);assert.equal(refreshed.status,200,refreshed.data.code);assert.equal(refreshed.data.refreshed,true);assert.equal(refreshed.data.browserContext.sessionId,f.sid);assert.equal(refreshed.data.browserContext.lastForegroundRefreshMs,f.row().last_fg_refresh_s*1000);assert.equal(refreshed.data.browserContext.originalExpiresAtMs,f.at*1000+604800000);assert(refreshed.data.accessExpiresAtMs>Date.now());assert(refreshed.data.accessExpiresAtMs<=Date.now()+900000);
 }));
 
+test('The safe hub GET cannot manufacture an internal mutation or accept unbranded browser facts',async()=>{
+ const env={JWT_V110_NATIVE_COOKIE:'1'},request=new Request('https://ummabbadacademy.app/api/academy/hub/read',{headers:{'Sec-Fetch-Site':'same-origin'}});
+ await assert.rejects(portalNativeReadRequest('/api/account/logout',{},'learn',request,{},env),e=>e.status===403);
+ await assert.rejects(portalNativeReadRequest('/api/academy/entrance',{},'learn',request,{cookieClaims:{sid:'forged'}},env),e=>e.status===401);
+});
 test.after(()=>{
  assert.equal(remoteAttempts,0);const report={commit:process.env.GITHUB_SHA,synthetic:true,kind:'NATIVE_ACADEMY_PREPARED_REFRESH_SQLITE',records,remoteFetchAttempts:remoteAttempts,masterIssuerProved:false,foregroundHumanActivityProved:false,hostedRequests:0,hostedDBChanges:0,metrics:'No D1 row-cost claim from node:sqlite; workerd/full-flow measurement remains required.'};
  if(process.env.JWT_V110_EVIDENCE){mkdirSync(process.env.JWT_V110_EVIDENCE,{recursive:true});writeFileSync(process.env.JWT_V110_EVIDENCE+'/native-academy-refresh.json',JSON.stringify(report,null,2)+'\n');}

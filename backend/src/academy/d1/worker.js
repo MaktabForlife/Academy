@@ -2,7 +2,7 @@ import {cookieSessionKey} from '../../auth/v110/academy-cookie-auth.mjs';
 import {handleAcademyPIN} from '../../auth/v110/academy-pin-http.mjs';
 import {handleAcademyRefresh} from '../../auth/v110/academy-refresh-http.mjs';
 import {readAcademyDisplayContext} from '../../auth/v110/academy-display-context.mjs';
-import {nativePortal,portalReadReply} from './portal.mjs';
+import {nativePortal,portalReadReply,portalNativeReadRequest} from './portal.mjs';
 import {hostingEnvironment,academyManagementOriginAllowed} from '../hosting.mjs';
 import {uploadPlaylistCardImage,previewPlaylistCardImage,publicPlaylistCardImage} from './media-playlist-card-images.js';
 import {recordingPlaylistMetadata} from './media-playlist-store.js';
@@ -130,7 +130,7 @@ async function dispatch(request,env,options={}) {
   if(path.startsWith('/api/academy/hub/')){await sourceRepository.ready();let portalAuth;const value=await nativePortal(request,env,{
     repository:sourceRepository,
     authenticate:async r=>{portalAuth=await authenticated(r,env,sourceRepository);return portalAuth;},
-    read:(p,body,mode,r)=>dispatch(new Request(new URL(p,r.url),{method:'POST',headers:{'Content-Type':'application/json',...Object.fromEntries(['Authorization','Cookie','Origin','Sec-Fetch-Site','X-UAA-CSRF'].map(k=>[k,r.headers.get(k)]).filter(([,v])=>v!==null)),...(mode?{'X-Academy-Workspace':mode.toUpperCase()}:{})},body:JSON.stringify(body)}),env),
+    read:async(p,body,mode,r,auth)=>dispatch(await portalNativeReadRequest(p,body,mode,r,auth,env),env),
     mint:(auth,context)=>auth.cookieClaims?cookieSessionKey(auth.cookieClaims,context):createSessionToken({type:'account',aud:audience,sv:3,sid:auth.sid,accountid:auth.state.account.account_id,epoch:auth.state.account.credential_epoch,scope:context.scope,courseid:context.courseId,role:context.role},env),
     login:input=>dispatch(new Request(new URL(input.setup?'/api/account/setup-pin':'/api/account/login',request.url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)}),env)
   });return path==='/api/academy/hub/read'?portalReadReply(request,value,portalAuth):value;}

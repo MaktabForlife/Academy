@@ -1,3 +1,5 @@
+import {trustedCookieFacts} from '../../auth/v110/academy-cookie-auth.mjs';
+import {academyClaimsCSRF} from '../../auth/v110/academy-display-csrf.mjs';
 import {academyCookieOptions} from '../../auth/v110/academy-cookie-engine.mjs';
 // Native Academy homepage adapter. Cached display data never grants access.
 import {hosting} from '../hosting.mjs';
@@ -27,6 +29,23 @@ export function portalDashboardLinks(value,summary){
 }
 const permissionKey=state=>JSON.stringify([state.account.account_id,state.account.credential_epoch,state.account.global_admin,state.roles,state.contexts,state.subscriptions,state.monthlyMedia]);
 export function portalConfiguration(env={}){const h=hosting(),profile=env.JWT_V110_NATIVE_COOKIE==='1'?academyCookieOptions(env):null;return {academyOrigin:profile?.academyCookieMode==='HOST_ONLY_PREVIEW'?profile.academyPreviewOrigin:h.academyPortalOrigin,studioOrigin:h.studioOrigin,hifzOrigin:h.hifzOrigin,authorityMode:'ACADEMY',nativePortal:true};}
+
+const readOnlyNativePaths=new Set(['/api/academy/entrance','/api/academy/assessments/list','/api/academy/class-notes/timetable','/api/academy/messaging/summary','/api/admin/platform/enrolment/get']);
+export async function portalNativeReadRequest(path,body,mode,request,auth,env){
+ const headers=new Headers({'Content-Type':'application/json'});
+ for(const name of ['Authorization','Cookie','Origin','Sec-Fetch-Site','X-UAA-CSRF'])if(request.headers.has(name))headers.set(name,request.headers.get(name));
+ if(mode)headers.set('X-Academy-Workspace',mode.toUpperCase());
+ if(env.JWT_V110_NATIVE_COOKIE==='1'&&request.method==='GET'){
+  const origin=portalConfiguration(env).academyOrigin,actual=request.headers.get('Origin'),facts=trustedCookieFacts(auth);
+  if(!readOnlyNativePaths.has(path)||request.headers.get('Sec-Fetch-Site')!=='same-origin'||new URL(request.url).origin!==origin||actual!==null&&actual!==origin)throw fail('Choose a native read action.',403,'ORIGIN_REQUIRED');
+  if(!facts)throw fail('Your Academy session has ended.',401,'SESSION_ENDED');
+  // This is an internal dispatch from an already authenticated safe GET, not
+  // a new browser request or a general CSRF bypass. Mutations are excluded.
+  headers.set('Origin',origin);headers.set('X-UAA-CSRF',await academyClaimsCSRF(env,facts));
+ }
+ return new Request(new URL(path,request.url),{method:'POST',headers,body:JSON.stringify(body)});
+}
+
 async function sendDeliveries(env,db,result,fetcher){
  for(const item of result.deliveries||[]){
   const response=await fetcher(websiteServerOrigin(env).origin+'/internal/academy/events',{method:'POST',headers:{'Content-Type':'application/json','X-Maktab-Signature':item.signature},body:JSON.stringify(item.delivery),redirect:'manual',signal:AbortSignal.timeout(8000)});
@@ -75,7 +94,7 @@ export async function nativePortal(request,env,{repository,authenticate,read,min
  const dashboard=async value=>{
   only(value,['mode','refresh','date','weekStart']);
   const {refresh,...selection}=value;if(refresh!==undefined&&typeof refresh!=='boolean')throw fail('Choose a valid refresh action.');
-  const produce=async()=>dashboardSummary(state,env,selection,(p,b,m)=>read(p,b,m,request),await nativeScopes());
+  const produce=async()=>dashboardSummary(state,env,selection,(p,b,m)=>read(p,b,m,request,auth),await nativeScopes());
   // Preserve the existing native snapshot readers. A combined cache needs a
   // proven Core/Admin revision vector covering notes, messages and enrolment.
   const data=await produce();
@@ -104,8 +123,8 @@ export async function nativePortal(request,env,{repository,authenticate,read,min
  }
  if(path==='/api/academy/hub/join'){
   const selected=dashboardJoinInput(state,input);await nativeJoinOwnership(repository.coreDb,state.account.account_id,selected.target);
-  let result;try{result=await read('/api/academy/lesson/join',{joinKey:selected.joinKey,date:selected.date},dashboardTimetableAudience(state,selected.mode),request);}
-  catch(error){if(error.status!==403||error.code!=='LESSON_UNAVAILABLE')throw error;result=await read('/api/academy/public-lesson/join',{joinKey:selected.joinKey,date:selected.date},'learn',request);}
+  let result;try{result=await read('/api/academy/lesson/join',{joinKey:selected.joinKey,date:selected.date},dashboardTimetableAudience(state,selected.mode),request,auth);}
+  catch(error){if(error.status!==403||error.code!=='LESSON_UNAVAILABLE')throw error;result=await read('/api/academy/public-lesson/join',{joinKey:selected.joinKey,date:selected.date},'learn',request,auth);}
   await current();await nativeJoinOwnership(repository.coreDb,state.account.account_id,selected.target);return result;
  }
  if(path==='/api/academy/hub/legacy-open'){
