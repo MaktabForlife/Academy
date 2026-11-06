@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "request": "ui-bugs-20261106a-home-content",
-  "kind": "component",
-  "target": "production",
+  "request": "development-component-routing-20261106",
+  "kind": "configuration",
+  "target": "none",
   "contains_jwt": false,
   "database_changes": false
 }
