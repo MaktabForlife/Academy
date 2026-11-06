@@ -1,6 +1,6 @@
 // Routine deployment only. No SQL, seed, secret upload or resource creation.
 import assert from 'node:assert/strict';
-import {readFileSync,writeFileSync,mkdtempSync,mkdirSync} from 'node:fs';
+import {readFileSync,writeFileSync,mkdtempSync,mkdirSync,existsSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {resolve,join} from 'node:path';
 import {tmpdir} from 'node:os';
@@ -38,6 +38,7 @@ export function assertRemoteSettings(settings,config,receipt,isCoordinator=false
  return true;
 }
 async function main(){
+ if(existsSync(resolve(root,'config/jwt-feature-release.json')))throw Error('JWT_FEATURE_PREPARATION_ONLY_NO_NATIVE_DEPLOY_FALLBACK');
  assert.equal(process.env.GITHUB_ACTIONS,'true');assert.equal(process.env.GITHUB_REPOSITORY,'MaktabForlife/Academy');assert.equal(process.env.GITHUB_REF,'refs/heads/feature-preview');
  assert.match(process.env.GITHUB_SHA||'',/^[a-f0-9]{40}$/);
  const approved=await loadFeatureApproval(),githubApi=githubClient(process.env.GITHUB_TOKEN);

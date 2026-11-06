@@ -1,6 +1,6 @@
 {
   "name": "maktab-academy-development",
-  "version": "109.25",
+  "version": "110.36",
   "type": "module",
   "scripts": {
     "test": "node tests/run-all.mjs",
@@ -34,5 +34,8 @@
   "devDependencies": {
     "linkedom": "^0.18.14",
     "wrangler": "^4.36.0"
+  },
+  "dependencies": {
+    "jose": "6.2.15"
   }
 }

@@ -1,4 +1,4 @@
-## V109.25 — media management and version labels
+## V110.36 — isolated Academy JWT Feature preparation
 
 The tested code-only fix accepts the exact configured Academy origins and renders current packaged version labels. Existing permissions, databases, hosting and manual media publication are preserved. See [release notes](docs/RELEASE-V109.25.md).
 

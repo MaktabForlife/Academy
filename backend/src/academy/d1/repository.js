@@ -1,3 +1,4 @@
+import {jwtSessionPredicate,requestCookieClaims,bindCookieState} from '../../auth/v110/academy-cookie-auth.mjs';
 import {mediaPlaylistCursor} from './media-playlist-cursor.js';
 import {calendarFacts,holidaySettings} from './published-facts-cache.js';
 import {surahRightsSQL} from './surah-grants.js';
@@ -30,6 +31,7 @@ export function academyD1Repository(env) {
     throw rehearsalError('Academy activation configuration is incomplete.',503,'ACTIVATION_REQUIRED');
   const split=env.ACADEMY_DB_GENERATION==='SPLIT_V1';
   if(split&&!env.ACADEMY_ADMIN_DB)throw rehearsalError('The Admin database binding is required.',503,'SPLIT_BINDING_REQUIRED');
+  const boundCookie=requestCookieClaims(env);
   const raw=env.ACADEMY_DB.withSession('first-primary'),compatible=split?emptyCompatibilityDatabase(raw,emptyShapes,{currentGrants:true}):raw;
   const adminRaw=split?env.ACADEMY_ADMIN_DB.withSession('first-primary'):null;
   const client=split?splitClient(env,compatible,adminRaw):null,db=client?.core||compatible;
@@ -199,23 +201,32 @@ export function academyD1Repository(env) {
       if(result[1].results?.length!==1||result[1].results[0].session_id!==sid)throw rehearsalError('Account changed. Please sign in again.',401,'SESSION_ENDED');
       return {sid,expires,context};
     },
-    async session(sid,accountId,epoch,now=new Date()) {
-      const where=`a.account_id=? AND a.active=1 AND c.pin_setup=1 AND length(trim(c.pin_hash))>0 AND c.credential_epoch=?
-        AND EXISTS(SELECT 1 FROM account_sessions s WHERE s.session_id=? AND s.account_id=a.account_id AND s.credential_epoch=c.credential_epoch
-          AND s.revoked_at IS NULL AND s.expires_at>?)`,values=[accountId,epoch,sid,now.toISOString()],load=()=>stateFor(where,values);
-      if(!split||!env.LESSON_MEDIA_BUCKET)return load();
-      const started=Date.now(),gate=async()=>{
+    async session(sid,accountId,epoch,now=new Date(),options={}) {
+      const started=Date.now(),instant=()=>now.getTime()+Date.now()-started,jwtClaims=options.jwtClaims||boundCookie;
+      const bind=state=>{if(state&&jwtClaims)bindCookieState(state,jwtClaims);return state;};
+      if(boundCookie&&jwtClaims&&['sub','sid','psid','bsid','bv','ce','pv','ue','iat','exp','s_iat','s_exp'].some(k=>boundCookie[k]!==jwtClaims[k]))throw rehearsalError('Your Academy session has ended.',401,'SESSION_ENDED');
+      const parameters=()=>{
+        const at=instant(),jwt=jwtClaims?jwtSessionPredicate(jwtClaims,at):{sql:'',values:[]};
+        if(jwtClaims&&(jwtClaims.sid!==sid||jwtClaims.sub!==accountId||jwtClaims.ce!==epoch))throw rehearsalError('Your Academy session has ended.',401,'SESSION_ENDED');
+        return {where:`a.account_id=? AND a.active=1 AND c.pin_setup=1 AND length(trim(c.pin_hash))>0 AND c.credential_epoch=?
+          AND EXISTS(SELECT 1 FROM account_sessions s WHERE s.session_id=? AND s.account_id=a.account_id AND s.credential_epoch=c.credential_epoch
+            AND s.revoked_at IS NULL AND s.expires_at>?)`+jwt.sql,values:[accountId,epoch,sid,new Date(at).toISOString(),...jwt.values]};
+      };
+      const load=()=>{const {where,values}=parameters();return stateFor(where,values);};
+      if(!split||!env.LESSON_MEDIA_BUCKET)return bind(await load());
+      const gate=async()=>{
+        const {where,values}=parameters();
         const current=(await raw.prepare(`WITH current_actor AS (${accountSQL} WHERE ${where}) SELECT a.*,
           (SELECT head_id FROM setup_head_state WHERE singleton=1) cache_head,
           (SELECT version FROM split_read_state WHERE singleton=1) cache_core,
           (SELECT setting_value FROM academy_settings WHERE setting_key='${snapshotSchemaKey}') cache_schema,
           (SELECT json_group_array(json_object('key',setting_key,'value',setting_value)) FROM (SELECT setting_key,setting_value FROM academy_settings WHERE setting_key IN(SELECT value FROM json_each(?)) ORDER BY setting_key)) cache_revisions
-          FROM current_actor a`).bind(accountId,epoch,sid,new Date(now.getTime()+Date.now()-started).toISOString(),JSON.stringify(snapshotKeys('permissions',accountId))).all()).results[0];
+          FROM current_actor a`).bind(...values,JSON.stringify(snapshotKeys('permissions',accountId))).all()).results[0];
         if(!current)return null;
         const {cache_head,cache_core,cache_schema,cache_revisions,...account}=current;
         return {enabled:cache_schema==='1',core:cache_core,account,revision:JSON.stringify([cache_head,cache_revisions,account.global_admin,account.credential_epoch,account.substitute_grants||'[]',env.ACADEMY_MEDIA_SEPARATION])};
       };
-      return permissionState({bucket:env.LESSON_MEDIA_BUCKET,namespace:[env.ENVIRONMENT,env.ACADEMY_D1_RUN_ID,env.ACADEMY_MONTHLY_SUBSCRIPTIONS==='1'?'MONTHLY_V1':'DEFAULT',env.ACADEMY_SURAH_GRANTS==='1'?'SURAH_GRANTS_V1':'NO_SURAH_GRANTS'],accountId,gate,load,now:now.getTime()});
+      return bind(await permissionState({bucket:env.LESSON_MEDIA_BUCKET,namespace:[env.ENVIRONMENT,env.ACADEMY_D1_RUN_ID,env.ACADEMY_MONTHLY_SUBSCRIPTIONS==='1'?'MONTHLY_V1':'DEFAULT',env.ACADEMY_SURAH_GRANTS==='1'?'SURAH_GRANTS_V1':'NO_SURAH_GRANTS'],accountId,gate,load,now:now.getTime()}));
     },
     async revoke(sid,accountId){await prepare('UPDATE account_sessions SET revoked_at=? WHERE session_id=? AND account_id=?',new Date().toISOString(),sid,accountId).run();},
     async setCredential(state,newHash,action,actor=state.account.account_id) {

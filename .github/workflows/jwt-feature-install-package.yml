@@ -1,0 +1,37 @@
+name: JWT Feature installer package proof
+on:
+  create:
+  workflow_dispatch:
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+jobs:
+  package:
+    if: startsWith(github.ref, 'refs/heads/validation/jwt-feature-install-package-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - run: npm ci --prefix backend --no-audit --no-fund
+      - name: Installer contract, transport, secrets, interruption and cleanup guards with local mocks
+        run: |
+          mkdir -p "$RUNNER_TEMP/jwt-install-package-evidence"
+          node --test --test-reporter=tap backend/tests/jwt-feature-install-package.test.mjs 2>&1 | tee "$RUNNER_TEMP/jwt-install-package-evidence/package.log"
+      - name: Existing native split interruption recovery semantics on the combined source
+        run: node --test --test-reporter=tap backend/tests/academy-split-engine.test.mjs 2>&1 | tee "$RUNNER_TEMP/jwt-install-package-evidence/native-recovery.log"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: jwt-feature-install-package-${{ github.run_id }}
+          path: ${{ runner.temp }}/jwt-install-package-evidence/
+          if-no-files-found: error
+          retention-days: 30

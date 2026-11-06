@@ -1,4 +1,10 @@
-import {nativePortal,portalReadReply} from './portal.mjs';
+import {handleAcademyLogout} from '../../auth/v110/academy-logout-http.mjs';
+import {actorProof,verifyActor} from '../separation/proof.js';
+import {cookieSessionKey,bindAcademyCookieRequest} from '../../auth/v110/academy-cookie-auth.mjs';
+import {handleAcademyPIN} from '../../auth/v110/academy-pin-http.mjs';
+import {handleAcademyRefresh} from '../../auth/v110/academy-refresh-http.mjs';
+import {readAcademyDisplayContext} from '../../auth/v110/academy-display-context.mjs';
+import {nativePortal,portalReadReply,portalNativeReadRequest} from './portal.mjs';
 import {hostingEnvironment,academyManagementOriginAllowed} from '../hosting.mjs';
 import {uploadPlaylistCardImage,previewPlaylistCardImage,publicPlaylistCardImage} from './media-playlist-card-images.js';
 import {recordingPlaylistMetadata} from './media-playlist-store.js';
@@ -115,8 +121,12 @@ async function dispatch(request,env,options={}) {
   if (![env.PIN_SECRET,env.SESSION_SECRET].every(value=>typeof value==='string'&&value.trim()))
     throw rehearsalError('Academy authentication is not configured.');
   const path=new URL(request.url).pathname;
+  if(env.JWT_V110_NATIVE_COOKIE==='1'&&['/api/account/login','/api/account/setup-pin'].includes(path)&&options.nativePINForJWT!==true)throw rehearsalError('Use the current Academy cookie sign-in.',409,'COOKIE_SIGN_IN_REQUIRED');
   if(path==='/api/academy/announcements/published'&&['GET','HEAD'].includes(request.method))return publicAnnouncementSnapshot(request,env);
   if(['/api/academy/announcements/image','/api/academy/announcements/pdf'].includes(path)&&['GET','HEAD'].includes(request.method)&&new URL(request.url).searchParams.has('asset'))return publicAnnouncementAsset(request,env,path.endsWith('/pdf')?'pdf':'image');
+  // Playback tickets remain narrowly scoped, but cannot outlive the current
+  // browser's own cookie identity or own-app lock/cancellation state.
+  if(env.JWT_V110_NATIVE_COOKIE==='1'&&['GET','HEAD'].includes(request.method)&&['/api/academy/d1/library/file','/api/academy/lesson-media/video'].includes(path))env=await bindAcademyCookieRequest(request,env);
   let repository=academyD1Repository(env);
   const sourceRepository=repository;
   let reader;
@@ -125,8 +135,8 @@ async function dispatch(request,env,options={}) {
   if(path.startsWith('/api/academy/hub/')){await sourceRepository.ready();let portalAuth;const value=await nativePortal(request,env,{
     repository:sourceRepository,
     authenticate:async r=>{portalAuth=await authenticated(r,env,sourceRepository);return portalAuth;},
-    read:(p,body,mode,r)=>dispatch(new Request(new URL(p,r.url),{method:'POST',headers:{'Content-Type':'application/json',Authorization:r.headers.get('Authorization')||'',...(mode?{'X-Academy-Workspace':mode.toUpperCase()}:{})},body:JSON.stringify(body)}),env),
-    mint:(auth,context)=>createSessionToken({type:'account',aud:audience,sv:3,sid:auth.sid,accountid:auth.state.account.account_id,epoch:auth.state.account.credential_epoch,scope:context.scope,courseid:context.courseId,role:context.role},env),
+    read:async(p,body,mode,r,auth)=>dispatch(await portalNativeReadRequest(p,body,mode,r,auth,env),env),
+    mint:(auth,context)=>auth.cookieClaims?cookieSessionKey(auth.cookieClaims,context):createSessionToken({type:'account',aud:audience,sv:3,sid:auth.sid,accountid:auth.state.account.account_id,epoch:auth.state.account.credential_epoch,scope:context.scope,courseid:context.courseId,role:context.role},env),
     login:input=>dispatch(new Request(new URL(input.setup?'/api/account/setup-pin':'/api/account/login',request.url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)}),env)
   });return path==='/api/academy/hub/read'?portalReadReply(request,value,portalAuth):value;}
   if(path.startsWith('/internal/website/')||path.startsWith('/api/website-platform/'))return websitePlatformBridge(request,env,{
@@ -214,7 +224,12 @@ async function dispatch(request,env,options={}) {
     const {auth,input}=await authenticateVideo(request,env,repository);repository.bindActor?.(auth);
     if(isAdminWorkspace(auth))repository=repository.authoringRepository();
     else if(setupEnabled(env))repository=await readRepository();
-    return lessonMedia(repository,auth,env).videoStream(request,input);
+    const response=await lessonMedia(repository,auth,env).videoStream(request,input);
+    // R2 may await network I/O after the initial native access check. Recheck
+    // the verified JWT/native actor before handing any body to the browser.
+    if(env.JWT_V110_NATIVE_COOKIE==='1')try{await verifyActor(sourceRepository.mediaPlaylistSource.db,actorProof(auth));}
+    catch(error){try{await response.body?.cancel();}catch{}throw error;}
+    return response;
   }
   if(request.method!=='POST')throw rehearsalError('Use POST.',405,'METHOD_NOT_ALLOWED');
   // Only decorative card artwork has a larger bounded browser request. Native
@@ -465,11 +480,12 @@ async function dispatch(request,env,options={}) {
     const result=profileAction?await d1Profiles(repository,auth).run(profileAction,input):registryAction?await d1Programs(repository,auth,env).registry(registryAction,input):learningView?await d1Learning(repository,auth).timetable('manage-get',input):await d1Programs(repository,auth,env).management(managementAction,input);
     return {success:true,...result};
   }
-  if(path==='/api/account/session')return {success:true,...sessionResponse(actualState(auth),auth.context)};
+  if(path==='/api/account/session')return {success:true,...sessionResponse(actualState(auth),auth.context),...(auth.cookieClaims?{account:{...publicAccount(actualState(auth)),accountId:auth.cookieClaims.sub},cookieSession:true,sessionKey:cookieSessionKey(auth.cookieClaims,auth.context),accessExpiresAtMs:auth.cookieClaims.exp*1000}:{})};
   if(path==='/api/account/logout') {await repository.revoke(auth.sid,auth.state.account.account_id);return {success:true};}
   if(path==='/api/account/switch-context') {
     const context=actualState(auth).contexts.find(c=>contextEqual(c,{scope:String(input.scope || 'COURSE').toUpperCase(),courseId:String(input.courseId || ''),role:String(input.role || '').toUpperCase()}));
     if(!context)throw rehearsalError('Requested course or role is not authorised',403,'FORBIDDEN_CONTEXT');
+    if(auth.cookieClaims)return {success:true,...sessionResponse(actualState(auth),context),account:{...publicAccount(actualState(auth)),accountId:auth.cookieClaims.sub},cookieSession:true,sessionKey:cookieSessionKey(auth.cookieClaims,context),accessExpiresAtMs:auth.cookieClaims.exp*1000};
     const result=await issueSession(env,repository,actualState(auth),context);
     await repository.revoke(auth.sid,auth.state.account.account_id);
     return result;
@@ -509,7 +525,19 @@ return {
     if(origin&&!allowed.includes(origin))return new Response(JSON.stringify({success:false,error:'Origin is not allowed.'}),{status:403,headers});
     if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
     try{const path=new URL(request.url).pathname;
-      const result=await (path==='/api/academy/header-date'?(request.method==='GET'?headerDate(request):Response.json({success:false,error:'Use GET.'},{status:405})):path==='/api/academy/entrance/public-snapshot'?publicTimetable(request,env):path==='/api/academy/profile-labels-version'?profileLabelsVersion(request,env):dispatch(request,env));
+      if(env.JWT_V110_NATIVE_COOKIE==='1'&&['GET','HEAD'].includes(request.method)&&path.startsWith('/api/public/academy-announcements')){
+        const target=path==='/api/public/academy-announcements'?'/api/academy/announcements/published':/^\/api\/public\/academy-announcements\/(?:image|pdf)$/.test(path)?'/api/academy/announcements/'+path.split('/').at(-1):null;
+        if(target){const url=new URL(request.url);url.pathname=target;const safe=new Headers();for(const name of ['Accept','Range','If-None-Match','If-Modified-Since'])if(request.headers.has(name))safe.set(name,request.headers.get(name));return await dispatch(new Request(url,{method:request.method,headers:safe}),env);}
+      }
+      if(['/auth/v110/login','/auth/v110/setup-pin'].includes(path))return handleAcademyPIN(request,env,{performNativeLogin:async(input,{setup})=>{
+        let native;const publicResult=await dispatch(new Request(new URL(setup?'/api/account/setup-pin':'/api/account/login',request.url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)}),env,{capture:value=>{native=value;},nativePINForJWT:true});
+        if(!native||publicResult instanceof Response)throw rehearsalError('Native PIN verification did not finish.',503);
+        return {native,publicResult};
+      }});
+      if(['/auth/v110/logout','/auth/v110/logout-csrf'].includes(path))return handleAcademyLogout(request,env);
+      if(['/auth/v110/csrf','/auth/v110/refresh'].includes(path))return handleAcademyRefresh(request,env);
+      if(path==='/auth/v110/context')return readAcademyDisplayContext(request,env);
+      const result=await (['/api/academy/header-date','/api/public/header-date'].includes(path)?(request.method==='GET'?headerDate(request):Response.json({success:false,error:'Use GET.'},{status:405})):path==='/api/academy/entrance/public-snapshot'?publicTimetable(request,env):path==='/api/academy/profile-labels-version'?profileLabelsVersion(request,env):dispatch(request,env));
       if(request.method==='POST'&&hifzSyncChangePath(path)&&hifzSyncEnabled(env)&&ctx?.waitUntil&&!(result instanceof Response)&&result.success)
         ctx.waitUntil(recoverHifzProfiles(env));
       if(request.method==='POST'&&websitePlatformEnabled(env)&&ctx?.waitUntil&&!(result instanceof Response)&&result.success&&(/\/user-profiles\/(save|link|recover)$/.test(path)||['/api/account/logout','/api/account/setup-pin'].includes(path)||/^\/api\/admin\/platform\/(?:program-timetable\/(?:publish|status|manage-save|manage-remove|recover)|programs\/save|courses\/(?:publish|status|studio-resume|register-completed)|calendar\/(?:save|batch-save)|global\/(?:timetable|run)\/)/.test(path)||/program-monthly-subscriptions\/(?:configure|save|grid-save|surah-save|surah-grants-save)$|global\/access\/save$/.test(path)||path==='/api/academy/calendar/save'||path==='/api/admin/platform/programme-studio/register'))ctx.waitUntil(recoverWebsite(env));

@@ -199,6 +199,7 @@
       clearCourseDataCaches();
     }
     renderContextView();
+    if(window.M4L_V110)await window.M4L_V110.reveal(result.account?.accountId);
     if (!options.redirectingToAcademy) {
       void loadAvailableProgramLibraries();
       if(!/^PRG-[0-9a-f-]{36}$/i.test(String(state.context?.courseId||'')))await loadAcademyTimetable({ resetWeek: true });
@@ -999,6 +1000,7 @@
   }
 
   async function api(path, payload, token = "") {
+    const privacyIntent=window.M4L_V110&&["/api/account/login","/api/account/setup-pin"].includes(path)?await window.M4L_V110.beginMasterSignIn():null;
     const response = await fetch(`${API_BASE}${path}`, {
       method: "POST",
       ...(path === "/api/account/logout" ? { keepalive: true } : {}),
@@ -1018,10 +1020,12 @@
       if (response.status === 401 && token) clearStoredSession();
       throw new Error(result.error || "The account request could not be completed.");
     }
+    if(privacyIntent)await window.M4L_V110.completeMasterSignIn(privacyIntent,result.browserContext);
     return result;
   }
 
   async function logout() {
+    const clearing=window.M4L_V110?.clearAll("logout").catch(()=>{});
     const token = state.token;
     const revokeSession = state.sessionStore === "D1";
     clearStoredSession();
@@ -1030,7 +1034,7 @@
     } catch (_) {
       // The local sign-in is cleared even if the server cannot be reached.
     } finally {
-      window.location.reload();
+      await clearing;window.location.reload();
     }
   }
 

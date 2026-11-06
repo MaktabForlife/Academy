@@ -1,10 +1,11 @@
+import {jwtV110PublicAssets} from './jwt-v110-public-assets.mjs';
 import {servePortal} from './portal-site.mjs';
 import {assetPath} from './browser-site/worker.mjs';
 import {publicPdfTarget} from './academy-public-media.mjs';
 import {onRequestGet as catalogue} from '../../functions/academy/open-library/catalogue.js';
 import {onRequestGet as publicPdf} from '../../functions/pdf-file/[encoded].js';
 import {academyCirclesAlias,academyCirclesPages,academyCirclesFragments,academyRetiredPages,circlesPageUnavailable} from './academy-circles-routes.mjs';
-export const siteVersion='109.25';
+export const siteVersion='110.36';
 export const siteBranch='development';
 export async function serveAcademySite(request,env,{pages=false,branch=siteBranch,syntheticOnly=false}={}){
   const url=new URL(request.url);
@@ -16,6 +17,15 @@ export async function serveAcademySite(request,env,{pages=false,branch=siteBranc
     const assetURL=new URL(url);assetURL.search='';
     const response=await env.ASSETS.fetch(new Request(assetURL,{method:'GET'}));
     const headers=new Headers(response.headers);headers.set('Cache-Control','no-store');headers.set('X-Content-Type-Options','nosniff');
+    return new Response(request.method==='HEAD'?null:response.body,{status:response.status,headers});
+  }
+  // Public coordination files are static, never auth endpoints. Keep the list
+  // exact and do not pass root cookies or caller credentials to the asset origin.
+  if(jwtV110PublicAssets.includes(url.pathname.slice(1))){
+    const response=await env.ASSETS.fetch(new Request(url,{method:request.method,redirect:'manual'}));
+    const headers=new Headers(response.headers);
+    headers.set('Cache-Control','no-store');headers.set('X-Content-Type-Options','nosniff');
+    headers.set('X-Robots-Tag','noindex, nofollow');headers.set('Referrer-Policy','no-referrer');
     return new Response(request.method==='HEAD'?null:response.body,{status:response.status,headers});
   }
   const portal=await servePortal(request,env);if(portal)return portal;

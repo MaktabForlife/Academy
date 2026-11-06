@@ -32,6 +32,12 @@
 
   // Reuse the identity from the existing login/session response; no extra lookup.
   window.M4L_ACADEMY_LOGIN = Object.freeze({
+    openPublicSignIn: () => {
+      if (!window.M4L_V110) return;
+      try { clearStoredAccountState(); } catch (_) { /* The workspace remains masked. */ }
+      showSignedOut();
+      showLoginForm();
+    },
     currentId: () => activeToken && activeToken === localStorage.getItem(tokenKey) ? activeLoginId : "",
     contexts: () => activeToken && activeToken === localStorage.getItem(tokenKey) ? verifiedContexts?.map(row => ({...row})) ?? null : []
   });
@@ -49,6 +55,13 @@
   window.addEventListener("hashchange", () => { if (window.location.hash === "#login") openLogin(); });
   pinInput.addEventListener("input", () => {
     pinInput.value = pinInput.value.replace(/\D/g, "").slice(0, 4);
+    // The feature PIN flow submits once when the fourth digit arrives. Native
+    // ID validation and the existing busy/rate-limit path remain authoritative.
+    if (window.M4L_V110 && pinInput.value.length === 4 &&
+        /^[A-Za-z0-9._~-]{1,128}$/.test(String(linkInput.value || "").trim()) &&
+        !form.hidden && loginDialog.open && !pinInput.disabled && !form.querySelector('button[type="submit"]').disabled) {
+      form.requestSubmit();
+    }
   });
   pinToggle.addEventListener("click", () => {
     const showing = pinInput.type === "password";
@@ -57,6 +70,7 @@
     pinToggle.setAttribute("aria-label", `${showing ? "Hide" : "Show"} PIN`);
   });
   signOutButton.addEventListener("click", () => {
+    void window.M4L_V110?.clearAll("logout").catch(()=>{});
     const token = activeToken;
     const revokeSession = sessionStore === "D1";
     clearStoredAccountState();
@@ -93,6 +107,11 @@
 
   function openLogin() {
     if (localStorage.getItem(tokenKey) || loginDialog.open) return;
+    showLoginForm();
+  }
+
+  function showLoginForm() {
+    if (loginDialog.open) return;
     loginRequested = true;
     form.hidden = false;
     loginDialog.showModal();
@@ -208,6 +227,7 @@
   }
 
   function showSignedIn(account, store = "", result = {}) {
+    if(window.M4L_V110)void window.M4L_V110.reveal(account.accountId).catch(()=>{});
     activeToken = localStorage.getItem(tokenKey) || "";
     sessionStore = store;
     const uniqueId = String(account.uniqueid || "").trim();
@@ -328,6 +348,7 @@
   }
 
   async function api(path, payload, token = "") {
+    const privacyIntent=window.M4L_V110&&path==="/api/account/login"?await window.M4L_V110.beginMasterSignIn():null;
     const response = await fetch(`${apiBase}${path}`, {
       method: "POST",
       ...(path === "/api/account/logout" ? { keepalive: true } : {}),
@@ -348,6 +369,7 @@
       error.status = response.status;
       throw error;
     }
+    if(privacyIntent)await window.M4L_V110.completeMasterSignIn(privacyIntent,result.browserContext);
     return result;
   }
 
