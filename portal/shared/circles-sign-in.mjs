@@ -10,32 +10,25 @@ export async function signInFromCircles(request,credentials,{current=()=>true,on
 }
 export function openAcademyFromCircles({request,navigation,dashboard,window=globalThis.window,onError=()=>{},onReturn}){
  if(navigation==='hifz')return openLegacyAcademyFromCircles({academyOrigin:globalThis.AcademyHosting.academyLegacyOrigins[0],request,navigation,window,onError});
- const initialToken=window.localStorage.getItem('m4l_account_token');
- const child=window.open('about:blank','_blank');if(!child){onError('Allow the Academy window to open, then try again.');return null;}
- let closed=false,returning=null;
- const stopReturn=()=>{if(returning)window.removeEventListener('message',returning);returning=null;};
+ const initialToken=window.localStorage.getItem('m4l_account_token'),requestedMode=dashboard?.mode||'learn',child=window;
+ let closed=false;
  request('/auth/native-open',{body:{...(navigation?{navigation}:{}),...(dashboard?{dashboard}:{})}}).then(async result=>{
   if(closed||child.closed)return;
+  if(!result||typeof result.token!=='string'||!result.token||typeof result.destination!=='string')throw Error('Invalid Academy handoff.');
   const destination=new URL(result.destination,window.location.origin);
   if(destination.origin!==window.location.origin||!/^\/(?:academy|account|programs|users|recorder|activities)(?:\/|$)/.test(destination.pathname))throw Error('Invalid Academy destination.');
   const owner=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(result.token))),x=>x.toString(16).padStart(2,'0')).join('');
   if(closed||child.closed||window.localStorage.getItem('m4l_account_token')!==initialToken)throw new DOMException('Your account changed.','AbortError');
-  if(result.circles&&['learn','teach','admin'].includes(result.circles.mode)){
-   const context={...result.circles,websiteOrigin:new URL(result.circles.returnUrl).origin,owner,expiresAt:Date.now()+12*3600_000};
-   if(context.websiteOrigin!==window.location.origin)throw Error('Invalid dashboard return address.');
-   child.sessionStorage.setItem('m4l_circles_return',JSON.stringify(context));
-   if(typeof onReturn==='function'){
-    returning=event=>{
-     const value=event.data;if(closed||event.source!==child||event.origin!==window.location.origin||value?.type!=='ACADEMY_CIRCLES_RETURN'||value.mode!==context.mode||typeof value.requestId!=='string'||!/^[a-f0-9-]{36}$/.test(value.requestId))return;
-     if(onReturn(value.mode)!==true)return;child.postMessage({type:'CIRCLES_DASHBOARD_RETURNED',requestId:value.requestId,mode:value.mode},window.location.origin);stopReturn();
-    };window.addEventListener('message',returning);
-   }
-  }
-  // Native issuance rechecks the exact target context on the same live session.
+  if(!['learn','teach','admin'].includes(requestedMode)||result.circles?.mode!==requestedMode||new URL(result.circles.returnUrl).href!==new URL('/?workspace='+requestedMode,window.location.origin).href)throw Error('Your dashboard return address could not be checked.');
+  const context={...result.circles,websiteOrigin:window.location.origin,owner,expiresAt:Date.now()+12*3600_000,sameTab:true};
+  // Install only non-authorising return hints before replacing the credential.
+  // A previous website Library opener context must not override this Home.
+  child.sessionStorage.setItem('m4l_circles_return',JSON.stringify(context));
+  child.sessionStorage.removeItem('m4l_website_library_return');
   window.localStorage.setItem('m4l_account_token',result.token);
   child.location.replace(destination.href);
- }).catch(error=>{stopReturn();try{child.close();}catch{}onError(error.message);});
- return {child,close(){closed=true;stopReturn();}};
+ }).catch(error=>onError(error.message));
+ return {child,close(){closed=true;}};
 }
 function openLegacyAcademyFromCircles({academyOrigin,request,navigation,dashboard,window=globalThis.window,onError=()=>{},onReturn}){
  const origin=new URL(academyOrigin);if(origin.origin!==academyOrigin||!['https:','http:'].includes(origin.protocol))throw Error('Academy sign-in is unavailable.');
