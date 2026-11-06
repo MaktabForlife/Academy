@@ -10,7 +10,7 @@ import {prepareFeatureSeed,featureSyntheticAccounts} from '../tools/feature-synt
 import {hosting} from '../src/academy/hosting.mjs';
 const secrets=Object.fromEntries(['PIN_SECRET','SESSION_SECRET','SHARED_PIN_SECRET','ACADEMY_OPEN_LIBRARY_STORAGE_KEY'].map(k=>[k,'local-budget-only-not-a-hosted-credential-'+k]));
 const pin='2468',h=hosting(),quote=s=>'"'+s.replaceAll('"','""')+'"';
-test('Five-request native Feature smoke flow measures actual local D1 metadata across both owners and private RPC',async()=>{
+test('Six-request native Feature smoke flow measures actual local D1 metadata across both owners and private RPC',async()=>{
  const seed=await prepareFeatureSeed({pin,secrets}),config=JSON.parse(readFileSync(new URL('../wrangler.feature.jsonc',import.meta.url),'utf8'));let runtime;
  try{
   const bundles=await Promise.all(['feature-local-budget-api.mjs','feature-local-budget-coordinator.mjs'].map(name=>build({entryPoints:[new URL(name,import.meta.url).pathname],bundle:true,format:'esm',platform:'browser',write:false,external:['cloudflare:workers']})));
@@ -21,25 +21,28 @@ test('Five-request native Feature smoke flow measures actual local D1 metadata a
   ]}));
   for(const owner of ['core','admin']){
    const db=seed.databases[owner],target=await runtime.getD1Database(owner==='core'?'ACADEMY_DB':'ACADEMY_ADMIN_DB','api'),objects=db.prepare("SELECT type,name,sql FROM sqlite_schema WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY rowid").all();
-   const statements=objects.filter(o=>o.type==='table').map(o=>target.prepare(o.sql));
-   for(const {name}of objects.filter(o=>o.type==='table'))for(const row of db.prepare('SELECT * FROM '+quote(name)).all()){const columns=Object.keys(row);statements.push(target.prepare('INSERT INTO '+quote(name)+'('+columns.map(quote).join(',')+') VALUES('+columns.map(()=>'?').join(',')+')').bind(...Object.values(row)));}
-   statements.push(...objects.filter(o=>o.type!=='table').map(o=>target.prepare(o.sql)));
+   const statements=objects.map(o=>target.prepare(o.sql));
    for(let i=0;i<statements.length;i+=30)await target.batch(statements.slice(i,i+30));
+   const seedStatements=seed.sql[owner].trim().split('\n');assert.equal(seedStatements.length,seed.report.targets[owner].statements);
+   await target.batch(seedStatements.map(sql=>target.prepare(sql)));
+
   }
   const calls=[];
-  async function request(path,{body,token,expected=200}={}){
-   const r=await runtime.dispatchFetch(h.academyApiOrigin+path,{method:body?'POST':'GET',headers:{Origin:h.academyPortalOrigin,'Content-Type':'application/json','X-Academy-Workspace':'ADMIN',...(token?{Authorization:'Bearer '+token}:{})},...(body?{body:JSON.stringify(body)}:{})});
-   const value=await r.json();assert.equal(r.status,expected,JSON.stringify({code:value.code,path,status:r.status}));
+  async function request(path,{body,token,method=body?'POST':'GET',expected=200}={}){
+   const r=await runtime.dispatchFetch(h.academyApiOrigin+path,{method,headers:{Origin:h.academyPortalOrigin,'Content-Type':'application/json','X-Academy-Workspace':'ADMIN',...(token?{Authorization:'Bearer '+token}:{})},...(body?{body:JSON.stringify(body)}:{})});
+   const value=r.status===204?null:await r.json();assert.equal(r.status,expected,JSON.stringify({code:value?.code,path,status:r.status}));
+   assert.equal(r.headers.get('Access-Control-Allow-Origin'),h.academyPortalOrigin);
    const metrics=JSON.parse(r.headers.get('x-feature-local-budget'));assert.equal(metrics.remoteCalls,0);calls.push({path,status:r.status,metrics});return value;
   }
+  await request('/api/account/login',{method:'OPTIONS',expected:204});
   await request('/api/health');
   const login=await request('/api/account/login',{body:{uniqueid:featureSyntheticAccounts[0].login,pin}});assert.equal(login.account.uniqueid,featureSyntheticAccounts[0].login);
   const token=login.token;assert.equal(typeof token,'string');
   await request('/api/account/session',{body:{},token});
   await request('/api/account/logout',{body:{},token});
   await request('/api/account/session',{body:{},token,expected:401});
-  assert.equal(calls.length,5);
-  const totals={workerRequests:5,privateCoordinatorCalls:0,d1RoundTrips:0,d1Statements:0,d1RowsRead:0,d1RowsWritten:0,r2Operations:0,remoteCalls:0};
+  assert.equal(calls.length,6);
+  const totals={workerRequests:6,privateCoordinatorCalls:0,d1RoundTrips:0,d1Statements:0,d1RowsRead:0,d1RowsWritten:0,r2Operations:0,remoteCalls:0};
   for(const {metrics:m}of calls){totals.privateCoordinatorCalls+=m.coordinatorCalls;for(const v of Object.values(m.d1)){totals.d1RoundTrips+=v.roundTrips;totals.d1Statements+=v.statements;totals.d1RowsRead+=v.rowsRead;totals.d1RowsWritten+=v.rowsWritten;}totals.r2Operations+=Object.values(m.r2).reduce((a,b)=>a+b,0);totals.remoteCalls+=m.remoteCalls;}
   assert(totals.d1RowsRead>0);assert(totals.d1RowsWritten>0);assert(totals.privateCoordinatorCalls>0,'Actual requested-resource authority reads must cross private native RPC');
   const report={runtime:{miniflare:JSON.parse(readFileSync(resolve(process.env.FEATURE_MF_ROOT,'node_modules/miniflare/package.json'),'utf8')).version,workerd:JSON.parse(readFileSync(resolve(process.env.FEATURE_MF_ROOT,'node_modules/workerd/package.json'),'utf8')).version},schema:1,kind:'LOCAL_FEATURE_SMOKE_BUDGET',commit:process.env.GITHUB_SHA,compatibilityDate,compatibilityFlags,syntheticAccounts:4,syntheticCourses:2,hostedDatabaseReads:0,hostedWorkerCalls:0,telemetry:'Actual local D1 meta.rows_read/rows_written including native triggers/indexes; instrumentation calls all() to retain metadata for first() reads. Not a hosted billing guarantee or whole-app budget.',calls,totals};
