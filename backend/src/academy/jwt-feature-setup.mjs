@@ -102,11 +102,13 @@ export function withJWTFeatureSetup(Base,input){
     for(const owner of ['core','admin']){
      const objects=(await db[owner].prepare("SELECT type,name,tbl_name,sql FROM sqlite_schema WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' AND name<>'_cf_METADATA' ORDER BY type,name").all()).results.map(r=>[r.type,r.name,r.tbl_name,r.sql]);
      if(await sha(JSON.stringify(objects))!==c.objectHashes[owner])fail();
-     for(let offset=0;offset<c.tables[owner].length;offset+=25){
-      const names=c.tables[owner].slice(offset,offset+25);
-      const counts=(await db[owner].prepare(names.map(name=>"SELECT '"+name+"' name,count(*) n FROM \""+name+"\"").join(' UNION ALL ')).all()).results;
-      if(counts.length!==names.length||counts.some(r=>r.n!==0))fail();
+     const queries=[];
+     for(let offset=0;offset<c.tables[owner].length;offset+=5){
+      const names=c.tables[owner].slice(offset,offset+5);
+      queries.push(db[owner].prepare(names.map(name=>"SELECT '"+name+"' name,count(*) n FROM \""+name+"\"").join(' UNION ALL ')));
      }
+     const counts=(await db[owner].batch(queries)).flatMap(result=>result.results);
+     if(counts.length!==c.tables[owner].length||counts.some(r=>r.n!==0))fail();
     }
     // Staged owner transactions: Core then Admin. No cross-D1 atomicity.
     const core=c.statements.core.map(sql=>sql.includes(marker)?db.core.prepare(sql.replace("'"+marker+"'",'?')).bind(value.pinHash):db.core.prepare(sql));

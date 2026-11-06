@@ -3,14 +3,14 @@ import {AcademySplitCoordinator,JWTFeatureAcademySplitCoordinator as NativeFresh
 import {createJWTFeatureSetupAPI,withJWTFeatureSetup} from '../src/academy/jwt-feature-setup.mjs';
 const cfg=__SETUP_CONTRACT__;
 function counted(db,counters,owner,fault){
- return {withSession(value){const s=db.withSession(value);return {
-  prepare(sql){counters.prepares++;return s.prepare(sql);},
-  async batch(statements){counters.batches[owner]++;if(fault===owner)throw Error('TEST_FAULT');return s.batch(statements);}
+ return {withSession(value){const s=db.withSession(value),reads=new WeakSet();return {
+  prepare(sql){counters.prepares++;const statement=s.prepare(sql);if(sql.startsWith('SELECT'))reads.add(statement);return statement;},
+  async batch(statements){if(statements.every(x=>reads.has(x)))counters.readBatches[owner]++;else {counters.batches[owner]++;if(fault===owner)throw Error('TEST_FAULT');}return s.batch(statements);}
  };}};
 }
 const Setup=withJWTFeatureSetup(NativeFresh,cfg);
 export class JWTFeatureAcademySplitCoordinator extends Setup{
- constructor(ctx,env){const metrics={prepares:0,batches:{core:0,admin:0}};
+ constructor(ctx,env){const metrics={prepares:0,batches:{core:0,admin:0},readBatches:{core:0,admin:0}};
   const wrapped={...env,JWT_V110_CORE_DB:counted(env.JWT_V110_CORE_DB,metrics,'core',env.TEST_FAULT),JWT_V110_ADMIN_DB:counted(env.JWT_V110_ADMIN_DB,metrics,'admin',env.TEST_FAULT)};
   super(ctx,wrapped);this.testMetrics=metrics;
  }
