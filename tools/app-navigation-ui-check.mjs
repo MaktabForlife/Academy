@@ -9,7 +9,7 @@ import {emptyCompatibilityDatabase} from '../backend/src/academy/separation/comp
 import {emptyShapes} from '../backend/src/academy/separation/empty-shapes.js';
 import {splitEngine} from '../backend/src/academy/separation/engine.js';
 assert.equal(process.env.GITHUB_ACTIONS,'true','Run only on disposable GitHub');
-const fixtureRoot=resolve(process.env.HOME_LOGIN_FIXTURE_ROOT);
+const fixtureRoot=resolve('fixture-source');
 const {prepareFeatureSeed,featureSyntheticAccounts}=await import(pathToFileURL(resolve(fixtureRoot,'backend/tools/feature-synthetic-seed.mjs')).href);
 const {sqliteD1}=await import(pathToFileURL(resolve(fixtureRoot,'backend/tools/academy-split/sqlite-d1.mjs')).href);
 const {chromium,webkit}=await import(pathToFileURL(resolve(process.env.REVIEW_BROWSER_MODULES,'node_modules/playwright/index.mjs')).href);
@@ -62,7 +62,7 @@ try{
  for(const label of ['Users','Curriculum','Library']){
   const tool=page.locator('#circles-dashboard [data-circles-academy-action]').filter({hasText:label}).first();await tool.click();
   await page.waitForURL(url=>url.origin===base&&url.pathname!=='/');
-  await page.waitForFunction(()=>Boolean(window.M4L_CIRCLES_RETURN));await page.evaluate(()=>window.M4L_CIRCLES_RETURN.ready());
+  await page.waitForFunction(async()=>{const helper=window.M4L_CIRCLES_RETURN;if(!helper)return false;await helper.ready();return helper===window.M4L_CIRCLES_RETURN&&Boolean(helper.modeHref('admin'));});
   assert.equal(context.pages().length,count,'Native '+label+' cannot open another tab');assert.equal(page.isClosed(),false);
   const home=page.locator('[aria-label="Return to your Circles dashboard"]').first();assert.equal(await home.getAttribute('href'),base+'/?workspace=admin');
   if(label==='Library'){
