@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "request": "ui-bugs-20261106b-native-navigation",
+  "request": "ui-bugs-20261106c-native-navigation-development",
   "kind": "component",
-  "target": "production",
+  "target": "development",
   "contains_jwt": false,
   "database_changes": false
 }
