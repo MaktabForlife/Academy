@@ -20,6 +20,6 @@ test('Actual local Static Assets router keeps public assets separate from exact 
   const marker=await f.runtime.dispatchFetch(origin+'/__jwt_feature_release');assert.equal(marker.status,200);assert.equal((await marker.json()).featureOnly,true);
   const metrics=JSON.parse(marker.headers.get('x-feature-local-budget'));assert(Object.values(metrics.d1).every(v=>v.statements===0));assert.equal(metrics.coordinatorCalls,0);assert.equal(metrics.remoteCalls,0);
   const mutation=await f.runtime.dispatchFetch(origin+'/auth/v110/browser-entry.mjs',{method:'POST'});assert.equal(mutation.status,405);await mutation.body?.cancel();
-  mkdirSync(evidence,{recursive:true});writeFileSync(join(evidence,'static-assets-routing.json'),JSON.stringify({schema:1,commit:process.env.GITHUB_SHA,actualLocalAssetsRouter:true,actualASSETSBinding:true,records,anonymousContextStatus:401,markerZeroD1:true,staticMutationStatus:405,hostedRequests:0,limits:'Local Miniflare routing proof; no hosted TLS/DNS/cache or billing claim.'},null,2)+'\n');
+  mkdirSync(evidence,{recursive:true});writeFileSync(join(evidence,'static-assets-routing.json'),JSON.stringify({schema:1,commit:process.env.GITHUB_SHA,actualLocalAssetsRouter:true,actualASSETSBinding:true,records,anonymousContextStatus:401,markerZeroD1:true,fixtureDirectOldSentinelQueries:2,staticMutationStatus:405,hostedRequests:0,limits:'Local Miniflare routing proof; no hosted TLS/DNS/cache or billing claim.'},null,2)+'\n');
  }finally{await f.close();}
 });

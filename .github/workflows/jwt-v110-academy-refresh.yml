@@ -23,6 +23,9 @@ jobs:
       - run: npm ci --prefix backend --no-audit --no-fund
       - name: Check scoped native source syntax
         run: |
+          node --check backend/src/academy-feature-jwt-objects.js
+          node --check backend/src/academy/jwt-feature-storage.mjs
+          node --check backend/src/academy-split-coordinator.js
           node --check backend/src/academy-feature-jwt-runtime.js
           node --check backend/src/auth/v110/academy-logout-http.mjs
           node --check portal/api.mjs
@@ -81,7 +84,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$JWT_V110_EVIDENCE"
-          node --test --test-reporter=tap --test-concurrency=1 backend/tests/jwt-v110-academy-workerd.test.mjs backend/tests/jwt-v110-academy-private-range.test.mjs 2>&1 | tee "$JWT_V110_EVIDENCE/workerd.log"
+          node --test --test-reporter=tap --test-concurrency=1 backend/tests/jwt-v110-academy-workerd.test.mjs backend/tests/jwt-v110-academy-private-range.test.mjs backend/tests/jwt-v110-academy-refresh-rate.test.mjs 2>&1 | tee "$JWT_V110_EVIDENCE/workerd.log"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

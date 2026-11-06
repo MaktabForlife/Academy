@@ -5,7 +5,7 @@ import {mkdirSync,writeFileSync} from 'node:fs';
 import {createAcademyWorkerdFixture} from './jwt-v110-workerd-fixture.mjs';
 const origin='https://feature_worker.maktab4life.workers.dev';
 test('Actual workerd learner playback uses private R2 Range and rejects cookie-free replay',async()=>{
- const f=await createAcademyWorkerdFixture(),core=await f.runtime.getD1Database('ACADEMY_DB','api'),admin=await f.runtime.getD1Database('ACADEMY_ADMIN_DB','api'),bucket=await f.runtime.getR2Bucket('LESSON_MEDIA_BUCKET','api');
+ const f=await createAcademyWorkerdFixture(),core=await f.runtime.getD1Database('JWT_V110_CORE_DB','api'),admin=await f.runtime.getD1Database('JWT_V110_ADMIN_DB','api'),bucket=await f.runtime.getR2Bucket('LESSON_MEDIA_BUCKET','api');
  const calls=[];let cookie='',csrf='',selector='';
  try{
   const scope='COURSE:FEATURE-SYNTHETIC-A',lesson='jwt-range-lesson',asset='jwt-range-asset',key='synthetic-jwt-range.mp4',bytes=new TextEncoder().encode('0123456789abcdef');
@@ -42,6 +42,6 @@ test('Actual workerd learner playback uses private R2 Range and rejects cookie-f
   const stale=await request(path,{method:'GET',headers:{Range:'bytes=2-5'}});assert.equal(stale.status,401);await stale.body?.cancel();assert.equal((await core.prepare('SELECT revoked_at FROM account_sessions WHERE session_id=?').bind(sid).first()).revoked_at,null);
   const totals={workerRequests:calls.length,privateCoordinatorCalls:0,d1Statements:0,d1RoundTrips:0,d1RowsRead:0,d1RowsWritten:0,r2Operations:0};
   for(const c of calls){const m=c.metrics;totals.privateCoordinatorCalls+=m.coordinatorCalls;for(const d of Object.values(m.d1)){totals.d1Statements+=d.statements;totals.d1RoundTrips+=d.roundTrips;totals.d1RowsRead+=d.rowsRead;totals.d1RowsWritten+=d.rowsWritten;}totals.r2Operations+=Object.values(m.r2).reduce((a,b)=>a+b,0);}
-  if(process.env.JWT_V110_EVIDENCE){mkdirSync(process.env.JWT_V110_EVIDENCE,{recursive:true});writeFileSync(process.env.JWT_V110_EVIDENCE+'/workerd-private-range.json',JSON.stringify({schema:1,commit:process.env.GITHUB_SHA,actualLocalR2:true,actualNativeLearner:true,calls,totals,directFixtureOperationsExcluded:true,hostedRequests:0,limits:'Synthetic disposable R2 bytes and direct fixture SQL; not hosted storage, wall-clock expiry or complete streaming lifecycle proof.'},null,2)+'\n');}
+  if(process.env.JWT_V110_EVIDENCE){mkdirSync(process.env.JWT_V110_EVIDENCE,{recursive:true});writeFileSync(process.env.JWT_V110_EVIDENCE+'/workerd-private-range.json',JSON.stringify({schema:1,commit:process.env.GITHUB_SHA,actualLocalR2:true,actualNativeLearner:true,calls,totals,directFixtureOperationsExcluded:true,fixtureDirectOldSentinelQueries:2,hostedRequests:0,limits:'Synthetic disposable R2 bytes and direct fixture SQL; not hosted storage, wall-clock expiry or complete streaming lifecycle proof.'},null,2)+'\n');}
  }finally{await f.close();}
 });

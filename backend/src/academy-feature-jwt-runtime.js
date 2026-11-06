@@ -1,3 +1,5 @@
+import {jwtFeatureApiEnv} from './academy/jwt-feature-storage.mjs';
+export {JWTFeatureProgramTimetableCoordinator} from './academy-feature-jwt-objects.js';
 // Isolated Academy-only JWT pilot entry. Deployment guards own target/bindings.
 // Public static assets are asset-first; the exact service routes run this Worker.
 import academy from './academy-development-runtime.js';
@@ -16,7 +18,7 @@ export default {
    const state=env.ACADEMY_D1_MODE==='ACTIVE'?'ACTIVE':'PAUSED';
    return new Response(request.method==='HEAD'?null:JSON.stringify({featureOnly:true,sourceCommit:env.JWT_V110_RELEASE_ID||'unrecorded',state}),{status:200,headers:{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
   }
-  if(url.pathname.startsWith('/api/')||/^\/auth\/v110\/(?:login|setup-pin|context|csrf|refresh|logout|logout-csrf)$/.test(url.pathname))return academy.fetch(request,env,ctx);
+  if(url.pathname.startsWith('/api/')||/^\/auth\/v110\/(?:login|setup-pin|context|csrf|refresh|logout|logout-csrf)$/.test(url.pathname)){let selected;try{selected=jwtFeatureApiEnv(env);}catch{return unavailable();}return academy.fetch(request,selected,ctx);}
   if(!env.ASSETS?.fetch)return unavailable();
   if(!['GET','HEAD'].includes(request.method))return new Response(null,{status:405,headers:{Allow:'GET, HEAD','Cache-Control':'no-store'}});
   return env.ASSETS.fetch(request);
