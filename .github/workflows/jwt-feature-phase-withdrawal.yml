@@ -1,0 +1,36 @@
+name: JWT setup phase withdrawal fences
+on:
+  push:
+    branches: [validation/jwt-feature-install-package-20261106]
+    paths: [backend/tests/jwt-feature-phase-withdrawal.test.mjs, .github/workflows/jwt-feature-phase-withdrawal.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+jobs:
+  withdrawal:
+    if: github.ref == 'refs/heads/validation/jwt-feature-install-package-20261106'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - name: Three in-memory late-phase approval and ownership negatives; no hosted calls
+        run: |
+          mkdir -p "$RUNNER_TEMP/jwt-phase-withdrawal-evidence"
+          node --test --test-reporter=tap backend/tests/jwt-feature-phase-withdrawal.test.mjs 2>&1 | tee "$RUNNER_TEMP/jwt-phase-withdrawal-evidence/withdrawal.log"
+          git diff --check
+          git diff --exit-code
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: jwt-phase-withdrawal-${{ github.run_id }}
+          path: ${{ runner.temp }}/jwt-phase-withdrawal-evidence/
+          if-no-files-found: error
+          retention-days: 30
