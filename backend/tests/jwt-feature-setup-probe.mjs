@@ -3,14 +3,21 @@ import {AcademySplitCoordinator,JWTFeatureAcademySplitCoordinator as NativeFresh
 import {createJWTFeatureSetupAPI,withJWTFeatureSetup} from '../src/academy/jwt-feature-setup.mjs';
 const cfg=__SETUP_CONTRACT__;
 function counted(db,counters,owner,fault){
- return {withSession(value){const s=db.withSession(value),reads=new WeakSet();return {
-  prepare(sql){counters.prepares++;const statement=s.prepare(sql);if(sql.startsWith('SELECT'))reads.add(statement);return statement;},
-  async batch(statements){if(statements.every(x=>reads.has(x)))counters.readBatches[owner]++;else {counters.batches[owner]++;if(fault===owner)throw Error('TEST_FAULT');}return s.batch(statements);}
- };}};
+ return {withSession(value){const s=db.withSession(value),m=counters.d1[owner];
+  const measure=result=>{m.read+=result.meta?.rows_read||0;m.written+=result.meta?.rows_written||0;};
+  const wrap=(raw,read)=>({raw,read,bind(...args){return wrap(raw.bind(...args),read);},async all(){m.roundTrips++;m.statements++;const result=await raw.all();measure(result);return result;}});
+  return {
+   prepare(sql){counters.prepares++;return wrap(s.prepare(sql),sql.startsWith('SELECT'));},
+   async batch(statements){
+    if(statements.every(x=>x.read))counters.readBatches[owner]++;else {counters.batches[owner]++;if(fault===owner)throw Error('TEST_FAULT');}
+    m.roundTrips++;m.statements+=statements.length;const result=await s.batch(statements.map(x=>x.raw));for(const row of result)measure(row);return result;
+   }
+  };
+ }};
 }
 const Setup=withJWTFeatureSetup(NativeFresh,cfg);
 export class JWTFeatureAcademySplitCoordinator extends Setup{
- constructor(ctx,env){const metrics={prepares:0,batches:{core:0,admin:0},readBatches:{core:0,admin:0}};
+ constructor(ctx,env){const metrics={prepares:0,batches:{core:0,admin:0},readBatches:{core:0,admin:0},d1:{core:{roundTrips:0,statements:0,read:0,written:0},admin:{roundTrips:0,statements:0,read:0,written:0}}};
   const wrapped={...env,JWT_V110_CORE_DB:counted(env.JWT_V110_CORE_DB,metrics,'core',env.TEST_FAULT),JWT_V110_ADMIN_DB:counted(env.JWT_V110_ADMIN_DB,metrics,'admin',env.TEST_FAULT)};
   super(ctx,wrapped);this.testMetrics=metrics;
  }

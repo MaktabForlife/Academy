@@ -47,7 +47,7 @@ test('actual workerd authenticated concurrent setup commits once; status and los
   for(const row of rows)assert.equal((await verifyAcademyPin('2468',row.pin_hash,{SHARED_PIN_SECRET:f.shared})).valid,true,'Native PIN verification must succeed');
   const result=await f.call('status');assert.equal(result.status,200);const receipt=await result.json();assert.equal(receipt.state,'VERIFIED');assert.deepEqual(receipt.databaseIds,c.databaseIds);
   assert.equal((await f.call()).status,409);const after=await f.snapshot();assert.deepEqual(after.metrics,snap.metrics);assert.deepEqual(Object.keys(after.publicClaim).sort(),['databaseIds','finishedAt','manifestHash','nonceDigest','phase','planId','source','sourceDigest','startedAt','state']);
-  receipts.push({case:'concurrent-success-status-replay',state:receipt.state,frontSetupRequests:10,privateSetupRequests:10,sqlBatches:snap.metrics.batches,prepares:snap.metrics.prepares,hostedCalls:0,oldLocalVerifierSelects:2});
+  receipts.push({case:'concurrent-success-status-replay',state:receipt.state,frontSetupRequests:10,privateSetupRequests:10,sqlBatches:snap.metrics.batches,readBatches:snap.metrics.readBatches,d1:snap.metrics.d1,prepares:snap.metrics.prepares,hostedCalls:0,oldLocalVerifierSelects:2,additionalLocalVerifierSelects:3});
  }finally{await f.close();}
 });
 test('actual staged Admin failure keeps committed Core, leaves UNKNOWN and never retries SQL',async()=>{
@@ -56,7 +56,7 @@ test('actual staged Admin failure keeps committed Core, leaves UNKNOWN and never
   const a=await f.snapshot();assert.deepEqual(a.metrics.batches,{core:1,admin:1});
   assert.equal((await f.db.core.prepare('SELECT count(*) n FROM accounts').first()).n,4);assert.equal((await f.db.admin.prepare('SELECT count(*) n FROM identity_refs').first()).n,0);
   assert.equal((await f.call()).status,409);assert.equal((await (await f.call('status')).json()).state,'UNKNOWN');assert.deepEqual((await f.snapshot()).metrics,a.metrics);
-  receipts.push({case:'staged-admin-failure',state:'UNKNOWN',sqlBatches:a.metrics.batches,coreAccounts:4,adminAccounts:0,automaticRetry:false});
+  receipts.push({case:'staged-admin-failure',state:'UNKNOWN',sqlBatches:a.metrics.batches,d1:a.metrics.d1,coreAccounts:4,adminAccounts:0,automaticRetry:false});
  }finally{await f.close();}
 });
 test('actual DO eviction turns persisted PREPARING into UNKNOWN; expired execute cannot reset claim; authenticated status remains read-only',async()=>{
@@ -65,7 +65,7 @@ test('actual DO eviction turns persisted PREPARING into UNKNOWN; expired execute
   assert.equal(typeof f.mf.unsafeEvictDurableObject,'function');
   await f.mf.unsafeEvictDurableObject('setup','JWTFeatureAcademySplitCoordinator',{name:setupName});
   const r=await f.call('status');assert.equal(r.status,200);const state=await r.json();assert.equal(state.state,'UNKNOWN');assert.equal(state.phase,'interrupted');
-  assert.equal((await f.call()).status,403);const a=await f.snapshot();assert.deepEqual(a.metrics,{prepares:0,batches:{core:0,admin:0},readBatches:{core:0,admin:0}});assert.equal(a.credentialPresent,false);
+  assert.equal((await f.call()).status,403);const a=await f.snapshot();assert.deepEqual(a.metrics,{prepares:0,batches:{core:0,admin:0},readBatches:{core:0,admin:0},d1:{core:{roundTrips:0,statements:0,read:0,written:0},admin:{roundTrips:0,statements:0,read:0,written:0}}});assert.equal(a.credentialPresent,false);
   receipts.push({case:'real-eviction-expired-window',state:'UNKNOWN',sqlBatches:a.metrics.batches,expiryResetsClaim:false});
  }finally{await f.close();}
 });
