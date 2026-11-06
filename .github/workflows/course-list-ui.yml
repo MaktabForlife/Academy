@@ -74,7 +74,11 @@ jobs:
           node-version: '24.18.0'
       - run: npm ci --prefix backend --no-audit --no-fund
       - run: npm ci --prefix fixture-source/backend --no-audit --no-fund
-      - run: node backend/tools/academy-pages-build.mjs
+      - name: Build the exact checked source inside the browser container
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$PWD"
+          node backend/tools/academy-pages-build.mjs
       - name: Install isolated browser
         env:
           REVIEW_BROWSER_MODULES: ${{ runner.temp }}/course-list-browser

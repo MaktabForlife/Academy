@@ -9,7 +9,7 @@ import {emptyCompatibilityDatabase} from '../backend/src/academy/separation/comp
 import {emptyShapes} from '../backend/src/academy/separation/empty-shapes.js';
 import {splitEngine} from '../backend/src/academy/separation/engine.js';
 assert.equal(process.env.GITHUB_ACTIONS,'true','Run only on disposable GitHub');
-const fixtureRoot=resolve(process.env.HOME_LOGIN_FIXTURE_ROOT);
+const fixtureRoot=resolve('fixture-source');
 const {prepareFeatureSeed,featureSyntheticAccounts}=await import(pathToFileURL(resolve(fixtureRoot,'backend/tools/feature-synthetic-seed.mjs')).href);
 const {sqliteD1}=await import(pathToFileURL(resolve(fixtureRoot,'backend/tools/academy-split/sqlite-d1.mjs')).href);
 const {chromium,webkit}=await import(pathToFileURL(resolve(process.env.REVIEW_BROWSER_MODULES,'node_modules/playwright/index.mjs')).href);
