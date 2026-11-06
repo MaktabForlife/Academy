@@ -127,3 +127,32 @@ test('A late own-refresh response after cancellation cannot restore transport me
  assert.equal((await f.adapter.fetch(origin+'/api/account/logout',{method:'POST',body:'{}'})).status,200);release();
  await assert.rejects(query,e=>e.name==='AbortError');assert.equal(f.accepted.length,0);assert.equal(f.calls.filter(c=>c.path==='/api/academy/lesson-media/list').length,0);
 });
+
+test('A delayed cancellation nonce cannot overwrite a newer sign-in or dispatch cancellation for it',async()=>{
+ let release,entered;const gate=new Promise(resolve=>release=resolve),waiting=new Promise(resolve=>entered=resolve);let cancelled=0,renewed=0;
+ const f=transport({respond:async r=>{
+  const path=new URL(r.url).pathname;
+  if(path==='/auth/v110/logout-csrf'){entered();await gate;return Response.json({csrf:'A'.repeat(43)});}
+  if(path==='/auth/v110/login')return Response.json({cookieSession:true,sessionKey:'uaa-session:session-b:0',csrf:'B'.repeat(43),accessExpiresAtMs:Date.now()-1,browserContext:{...session(),accountId:'synthetic-b',sessionId:'session-b'}});
+  if(path==='/auth/v110/logout'){cancelled++;return Response.json({success:true,cancelled:true});}
+  if(path==='/auth/v110/refresh'){renewed++;assert.equal(r.headers.get('X-UAA-CSRF'),'B'.repeat(43));return Response.json({refreshed:true,accessExpiresAtMs:Date.now()+900000});}
+  assert.equal(r.headers.get('X-UAA-CSRF'),'B'.repeat(43));return Response.json({success:true});
+ }});
+ const old=f.adapter.fetch(origin+'/api/account/logout',{method:'POST',body:'{}'});await waiting;
+ await f.adapter.fetch(origin+'/api/account/login',{method:'POST',body:'{}'});release();await assert.rejects(old,e=>e.name==='AbortError');
+ await f.adapter.fetch(origin+'/api/account/session',{method:'POST',body:'{}'});assert.equal(cancelled,0);assert.equal(renewed,1);
+});
+test('A delayed cancellation acknowledgement cannot clear a newer sign-in expiry or CSRF metadata',async()=>{
+ let release,entered;const gate=new Promise(resolve=>release=resolve),waiting=new Promise(resolve=>entered=resolve);let login=0,renewed=0;
+ const f=transport({respond:async r=>{
+  const path=new URL(r.url).pathname;
+  if(path==='/auth/v110/login'){login++;return Response.json({cookieSession:true,sessionKey:'uaa-session:session-'+login+':0',csrf:(login===1?'A':'B').repeat(43),accessExpiresAtMs:Date.now()-1,browserContext:session()});}
+  if(path==='/auth/v110/logout'){entered();await gate;return Response.json({success:true,cancelled:true});}
+  if(path==='/auth/v110/refresh'){renewed++;assert.equal(r.headers.get('X-UAA-CSRF'),'B'.repeat(43));return Response.json({refreshed:true,accessExpiresAtMs:Date.now()+900000});}
+  assert.equal(r.headers.get('X-UAA-CSRF'),'B'.repeat(43));return Response.json({success:true});
+ }});
+ await f.adapter.fetch(origin+'/api/account/login',{method:'POST',body:'{}'});
+ const old=f.adapter.fetch(origin+'/api/account/logout',{method:'POST',body:'{}'});await waiting;
+ await f.adapter.fetch(origin+'/api/account/login',{method:'POST',body:'{}'});release();await assert.rejects(old,e=>e.name==='AbortError');
+ await f.adapter.fetch(origin+'/api/account/session',{method:'POST',body:'{}'});assert.equal(renewed,1);
+});

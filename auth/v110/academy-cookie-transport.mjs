@@ -58,15 +58,18 @@ export function installAcademyCookieTransport({win,doc,config,nativeFetch,clock=
    signIn=['/api/account/login','/api/account/setup-pin'].includes(path),context=path==='/auth/v110/context',logout=path==='/api/account/logout'&&method==='POST';
   const event=options.uaaUserAction,foreground=Boolean(!publicPath&&!logout&&path.startsWith('/api/')&&!['/api/account/session','/api/account/switch-context','/api/academy/hub/refresh'].includes(path)&&typeof win.Event==='function'&&event instanceof win.Event&&event.isTrusted===true&&['click','submit','keydown','pointerup'].includes(event.type)&&doc.visibilityState==='visible'&&win.navigator.userActivation?.isActive===true);
   if(logout){
-   generation++;pending=null;
+   const mine=++generation;pending=null;
    // Cancellation uses its own fingerprint-bound endpoint. It never waits for
    // or starts access renewal, including when renewal is already failing.
+   const body=await pinBody(request);if(mine!==generation)throw new DOMException('The browser sign-in changed.','AbortError');
    if(!csrf){
     const nonceResponse=await nativeFetch(origin+'/auth/v110/logout-csrf',credentials);
-    if(!nonceResponse.ok)throw new DOMException('Academy sign-out is not confirmed.','AbortError');observe(await nonceResponse.json());if(!csrf)throw Error('CSRF_UNAVAILABLE');
+    if(!nonceResponse.ok)throw new DOMException('Academy sign-out is not confirmed.','AbortError');observe(await nonceResponse.json(),mine);if(!csrf)throw Error('CSRF_UNAVAILABLE');
    }
+   if(mine!==generation)throw new DOMException('The browser sign-in changed.','AbortError');
    url.pathname='/auth/v110/logout';const headers=new Headers(request.headers);if(csrf)headers.set('X-UAA-CSRF',csrf);
-   const response=await nativeFetch(new Request(url,{method:'POST',headers,body:await pinBody(request),signal:request.signal,credentials:'same-origin',cache:'no-store',redirect:'error'}),credentials);
+   const response=await nativeFetch(new Request(url,{method:'POST',headers,body,signal:request.signal,credentials:'same-origin',cache:'no-store',redirect:'error'}),credentials);
+   if(mine!==generation)throw new DOMException('The browser sign-in changed.','AbortError');
    if(response.ok){csrf='';expires=0;}return response;
   }
   if(signIn){const mine=++generation;pending=null;url.pathname=path.endsWith('/setup-pin')?'/auth/v110/setup-pin':'/auth/v110/login';request=new Request(url,{method:request.method,headers:request.headers,body:await pinBody(request),signal:request.signal,keepalive:request.keepalive,credentials:'same-origin',cache:'no-store',redirect:'error'});return mapped(await nativeFetch(request,credentials),url.pathname,mine);}
