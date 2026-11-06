@@ -264,6 +264,10 @@ test('Actual hub bootstrap and open retain cookie binding through nested native 
  const pin=await call('/auth/v110/login',{uniqueid:featureSyntheticAccounts[0].login,pin:'2468'});assert.equal(pin.status,200,pin.data.code);
  const auth={headers:{Cookie:pin.response.headers.getSetCookie().map(c=>c.split(';')[0]).join('; '),Authorization:'Bearer '+pin.data.sessionKey,'X-UAA-CSRF':pin.data.csrf}};
  const bootstrap=await call('/api/academy/hub/read',{kind:'bootstrap',input:{mode:'learn'}},auth);assert.equal(bootstrap.status,200,bootstrap.data.code);assert.equal(bootstrap.data.account.accountId,f.id);assert(bootstrap.data.dashboard,'Native nested dashboard reads must succeed');assert.equal(bootstrap.data.configuration.academyOrigin,host);assert(!bootstrap.data.errors?.dashboard);
+ const readURL=new URL(host+'/api/academy/hub/read');readURL.searchParams.set('request',JSON.stringify({kind:'bootstrap',input:{mode:'learn'}}));
+ const get=site=>worker.fetch(new Request(readURL,{headers:{Cookie:auth.headers.Cookie,Authorization:auth.headers.Authorization,...(site?{'Sec-Fetch-Site':site}:{})}}),f.env);
+ const same=await get('same-origin');assert.equal(same.status,200,'Real same-origin GET omits Origin');const own=await same.json();assert.equal(own.account.accountId,f.id);assert(own.dashboard);
+ for(const site of ['cross-site','same-site',null])assert.equal((await get(site)).status,403,'Absent Origin requires the exact same-origin browser metadata');
  const opened=await call('/api/academy/hub/open',{dashboard:{mode:'learn',tool:'home'}},auth);assert.equal(opened.status,200,opened.data.code);assert.equal(opened.data.cookieSession,true);assert(!Object.hasOwn(opened.data,'token'));assert(opened.data.sessionKey.startsWith('uaa-context:'));
  const session=await call('/api/account/session',{}, {headers:{...auth.headers,Authorization:'Bearer '+opened.data.sessionKey}});assert.equal(session.status,200,session.data.code);
 }));

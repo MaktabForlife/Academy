@@ -53,7 +53,8 @@ export async function nativePortal(request,env,{repository,authenticate,read,min
  const conditionalGET=request.method==='GET'&&path==='/api/academy/hub/read';
  if(request.method!=='POST'&&!conditionalGET)throw fail('Use a POST request.',405);
  const origin=request.headers.get('Origin'),allowed=new Set([config.academyOrigin,...hosting().academyLegacyOrigins]);
- if(!allowed.has(origin))throw fail('Reopen this action from Academy.',403,'ORIGIN_REQUIRED');
+ const ownRead=conditionalGET&&env.JWT_V110_NATIVE_COOKIE==='1'&&origin===null&&request.headers.get('Sec-Fetch-Site')==='same-origin'&&new URL(request.url).origin===config.academyOrigin;
+ if(!allowed.has(origin)&&!ownRead)throw fail('Reopen this action from Academy.',403,'ORIGIN_REQUIRED');
  let input;if(conditionalGET){const raw=new URL(request.url).searchParams.get('request');if(!raw||raw.length>8192)throw fail('Choose a bounded Academy view.');try{input=JSON.parse(raw);}catch{throw fail('Invalid Academy request.');}if(!input||Array.isArray(input)||typeof input!=='object')throw fail('Invalid Academy request.');}else input=await bodyJSON(request.body,8192);
  if(path==='/api/academy/hub/login'){
   if(env.JWT_V110_NATIVE_COOKIE==='1')throw fail('Use the cookie sign-in endpoint.',409,'COOKIE_LOGIN_REQUIRED');

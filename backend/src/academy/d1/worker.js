@@ -515,6 +515,10 @@ return {
     if(origin&&!allowed.includes(origin))return new Response(JSON.stringify({success:false,error:'Origin is not allowed.'}),{status:403,headers});
     if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
     try{const path=new URL(request.url).pathname;
+      if(env.JWT_V110_NATIVE_COOKIE==='1'&&['GET','HEAD'].includes(request.method)&&path.startsWith('/api/public/academy-announcements')){
+        const target=path==='/api/public/academy-announcements'?'/api/academy/announcements/published':/^\/api\/public\/academy-announcements\/(?:image|pdf)$/.test(path)?'/api/academy/announcements/'+path.split('/').at(-1):null;
+        if(target){const url=new URL(request.url);url.pathname=target;const safe=new Headers();for(const name of ['Accept','Range','If-None-Match','If-Modified-Since'])if(request.headers.has(name))safe.set(name,request.headers.get(name));return dispatch(new Request(url,{method:request.method,headers:safe}),env);}
+      }
       if(['/auth/v110/login','/auth/v110/setup-pin'].includes(path))return handleAcademyPIN(request,env,{performNativeLogin:async(input,{setup})=>{
         let native;const publicResult=await dispatch(new Request(new URL(setup?'/api/account/setup-pin':'/api/account/login',request.url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)}),env,{capture:value=>{native=value;},nativePINForJWT:true});
         if(!native||publicResult instanceof Response)throw rehearsalError('Native PIN verification did not finish.',503);
@@ -522,7 +526,7 @@ return {
       }});
       if(['/auth/v110/csrf','/auth/v110/refresh'].includes(path))return handleAcademyRefresh(request,env);
       if(path==='/auth/v110/context')return readAcademyDisplayContext(request,env);
-      const result=await (path==='/api/academy/header-date'?(request.method==='GET'?headerDate(request):Response.json({success:false,error:'Use GET.'},{status:405})):path==='/api/academy/entrance/public-snapshot'?publicTimetable(request,env):path==='/api/academy/profile-labels-version'?profileLabelsVersion(request,env):dispatch(request,env));
+      const result=await (['/api/academy/header-date','/api/public/header-date'].includes(path)?(request.method==='GET'?headerDate(request):Response.json({success:false,error:'Use GET.'},{status:405})):path==='/api/academy/entrance/public-snapshot'?publicTimetable(request,env):path==='/api/academy/profile-labels-version'?profileLabelsVersion(request,env):dispatch(request,env));
       if(request.method==='POST'&&hifzSyncChangePath(path)&&hifzSyncEnabled(env)&&ctx?.waitUntil&&!(result instanceof Response)&&result.success)
         ctx.waitUntil(recoverHifzProfiles(env));
       if(request.method==='POST'&&websitePlatformEnabled(env)&&ctx?.waitUntil&&!(result instanceof Response)&&result.success&&(/\/user-profiles\/(save|link|recover)$/.test(path)||['/api/account/logout','/api/account/setup-pin'].includes(path)||/^\/api\/admin\/platform\/(?:program-timetable\/(?:publish|status|manage-save|manage-remove|recover)|programs\/save|courses\/(?:publish|status|studio-resume|register-completed)|calendar\/(?:save|batch-save)|global\/(?:timetable|run)\/)/.test(path)||/program-monthly-subscriptions\/(?:configure|save|grid-save|surah-save|surah-grants-save)$|global\/access\/save$/.test(path)||path==='/api/academy/calendar/save'||path==='/api/admin/platform/programme-studio/register'))ctx.waitUntil(recoverWebsite(env));
