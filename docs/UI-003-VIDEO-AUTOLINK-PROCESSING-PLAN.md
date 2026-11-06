@@ -1,62 +1,78 @@
-# UI-003 — Reviewable manual video-processing contract (proposal, not installed)
+# UI-003 — Manual video processing: concrete source and activation contract
 
-Owner scope: Course Media gets a real Process video workflow: attach the exact source/destination, obtain a timestamped transcript, explicitly authorise each AI run, review/edit an isolated private candidate, and publish through the existing native controls. New comments remain deferred. Development is the owner's next release target; no production activation or DB clearance follows from this proposal.
+Proposal and source status only. Owner scope is Course Media → exact recording/destination → timestamped transcript → separate authorisation for each AI run → private review/edit → native draft acceptance → separate explicit publication. Development is the next release target. This document does not authorise live schema, provider, resource, credentials, production or hosting changes. New comments remain deferred until VIDEO AUTOLINK is complete.
 
-## Current native integration points
+## Current owner and source boundaries
 
-Pinned Studio 3c420f35c30297cfcc41cfab24f030e51bb7831e:
-- src/media-attribution.mjs mediaAdmin/mediaGate and attachMedia establish current scoped Admin, exact owning offering, Source/COMMITTED readiness, asset owner, immutable attribution and actual attachment. Current video attachment formats are video/youtube and video/mp4. A Zoom share URL is not an existing playable attachment or a reviewed downloadable object.
-- mediaCompanionSave derives RECORDED_MEDIA_SOURCE_V1 from the actual asset id, YouTube id and object hash. Do not accept a caller-supplied source hash as authority.
-- src/recording-companions.mjs companionChanges retains the full owning Store.mutate guard and an extra expectedSQL/statement hook. Use the existing native save/publication semantics. The existing function puts its R2 object after the DB commit; a new candidate pointer must instead refer to an already-prepared immutable object. No cross-D1/R2 transaction claim.
-- src/database.mjs Store.guard binds the current legacy local session, account/epoch, fresh Admin, owner/generation/readiness and committed handover. Processing must not bypass these or implement a fictitious cross-Core/Admin batch.
-- Academy Course Media proxy currently allows a bounded explicit command list and signed proof; processing requires reviewed new narrow commands on that existing proxy, not generic arbitrary forwarding.
-- Learner companion responses remain allowlisted. Transcript, source evidence, quote candidates and provider/job metadata must never appear there.
+Canonical source re-pinned: Academy38e66a57f0e094089718dd9dce6ff632f6247d68 and Studio1fd6d1af577fd2adf81a054d67860c3fa4d66f21. Preserve later canonical changes and the independent UI component work when composing a reviewable release; these source branches are not promotion trees.
 
-## Proposed source-only implementation
+The native Studio owning DB, current local session/epoch, fresh scoped Admin, Source readiness/generation/master fences, COMMITTED handover, exact attachment/asset/website/playlist/Teacher and current companion/attribution revisions remain authoritative. Caller ids select a requested resource; they never confer rights or choose retention. Academy retains its own Core/Admin/coordinator authority and immutable links/copies/sync. No cross-D1/R2 atomicity is claimed.
 
-The initial implementation remains disabled until exact storage/provider/config effects are separately reviewed. No existing table is altered, backfilled, relinked, copied or deleted. Proposed new tables live in the SAME owning Studio DB as its native guard/receipt transaction; placing them in a second auth DB would not provide owning-write atomicity.
+Completed independently reviewable backend source f1b5f0c9bfbc9296eac8819eea83a237526f0745/run42219278654 passed68 scoped executions, not68 distinct end-to-end tests. Subsequent mounted-but-default-disabled Studio transport55ae76f904d019a7ca82d15e698eda5128ac6259/run42221886283 passed77 scoped executions; its nine transport executions include four nested denials. Academy transportbc99bd9c22f0af4e7ba01b2e73f6c5ef88f71b51/run42222261245 passed nine scoped executions; the trusted Studio response is mocked there, not a paired end-to-end claim. ZIP hashes and exact scope are in the central UI log/evidence handoff. UI integration and later affected checks must be assessed at their own exact heads, not inferred from these earlier runs.
 
-1. video_processing_sources: generated source id; offering/attachment/asset ids; native-derived source revision; exact native attribution/destination snapshot; original first-successful-ingestion time; trusted retention class and fixed video/companion deadlines; revision; created actor/time. No raw transcript/provider credential is stored in this row. Native ids and rights are not rewritten.
-2. video_processing_jobs: generated job/authorisation id; exact source/native revision; current base companion/attribution revision; authorising actor/time; explicit per-run budget/model config version; deterministic workflow id; durable phase/revision; lease/fencing value; provider outcome/usage and safe request id; candidate private key/hash; fixed original expiry. A unique active-source slot prevents concurrent duplicate paid processing. One operation id recovers one authorisation; it does not silently authorise another provider call.
-3. video_processing_candidates: job/source ids; private immutable candidate object key/hash; review revision/state; accepted native companion revision if any; original expiry. Candidate edits are separate from the current Admin draft and published companion.
-A job row's dispatch-pending phase is the owning transactional outbox for deterministic workflow creation. No routine auth checkpoints or material grant fanout.
+No live provider request, hosted Worker/D1/R2 read/write, install, secret, model selection, deployment or Mac file write occurred in these tests.
 
-Commands: prepare/read source, upload/read transcript, authorise, retry same dispatch, status, read/save candidate, accept candidate, explicitly cancel. Every private metadata/object/read/write has the exact current owning Admin/Source/identity guards. Status is truthful: waiting for transcript/configuration, authorised/dispatch pending, running, private review, provider outcome unknown, failed, expired or cancelled. No simulated processing timer.
+## Actual default-disabled integration
 
-Native source attachment must finish before AI authorisation. Existing YouTube/MP4 attachment operations are reused. Authorised Admin-provided VTT/SRT is a valid timestamped transcript source; unsupported/missing/private provider captions stay waiting. Manual Zoom links need a reviewed authorised resolver or Admin-provided downloadable MP4/transcript before claiming actual ingestion. Automatic Zoom ingestion is outside the locked manual scope. No production recordings/transcripts are exported to GitHub/Drive or a provider by tests.
+VIDEO_AUTOLINK_HTTP_ENABLED gates the new source/private HTTP entries and UI capability. VIDEO_AUTOLINK_ENABLED separately gates private transcript/job/model processing. No default model, provider key, token budget, whole-video limit, private retention or Workflow binding is assumed.
 
-Authorisation uses Store.mutate plus exact source/base-revision predicates and a row/operation receipt in the same owning DB. Workflow creation happens after that commit with one deterministic id; creation response loss is retried with that same id. It never creates a new paid authorisation.
+Academy's existing studio-access JSON limit remains131072 bytes; its artwork path remains decorative artwork only. Studio's existing internal access route remains262144 bytes. Do not raise either generic parser or tunnel private processing through artwork.
 
-The proposed Cloudflare Workflow stores only job ids and private object references in durable step outputs. No transcript, provider key or full model response in step history/logs. Before a paid request, the job CAS moves AUTHORISED to PROVIDER_IN_FLIGHT under its exact authorisation/fence. Paid step retries are disabled. On a crash/unknown response, an already-in-flight job becomes outcome-unknown and cannot issue another paid request automatically. A new run requires the Admin to explicitly authorise a possible second charge. Deterministic workflow ids or an idempotency header alone are not evidence the provider executes only once.
+New dedicated Academy POST routes:
+- /api/admin/platform/studio-processing: explicit allowlisted JSON commands, maximum1MiB browser body; no caller actor/role/proof or arbitrary forwarding.
+- /api/admin/platform/studio-processing/recording-part: raw application/octet-stream POST, maximum5MiB per part; exact activity/asset/part selector, current native bearer/workspace/portal-Origin checks. Server hashes/encodes the bounded part; the browser bearer is never forwarded to Studio.
 
-Text generation uses a configured Responses endpoint/model and strict structured output, no tools or arbitrary fetches. The model cannot select native ids, destinations, grants, R2 paths, retention or publication. Transcript and quoted source are untrusted input. Server validation bounds schema, strings, durations, timestamp order and allowed learner fields; Admin review remains required for factual accuracy, Arabic/references/quotations and assignment evidence. No inference of verified quotation status from model prose.
+Both call the dedicated HMAC path /internal/studio/video-processing, bound to exact method/path/raw JSON, maximum8MiB signed envelope and1MiB response. Commands other than a recording part are limited to768KiB; transcript text is limited to512KiB. Source deliveries may be shortened to the bounded envelope with more=true, but the original command is preserved and not executed until deliveries finish. An explicit retry keeps the same command/operation/part; nothing silently becomes a read or new paid run. Current proof remains55/60 seconds, not globally extended.
 
-A prepared output is written to a private immutable R2 key BEFORE a guarded metadata pointer CAS. Stale/lost CAS leaves no accepted candidate and no publication change; bounded cleanup handles orphan private objects. Accepting a candidate rechecks the exact native source and original base companion/attribution revision. If the Admin edited the current draft meanwhile, return a conflict and preserve it. Acceptance saves only an allowlisted native draft. Publication is a separate existing explicit native action. Reprocessing never replaces saved edits/publication automatically.
+Native Studio uses POST /api/admin/:offering/processing after its existing platform, exact Origin, host/session/current actor and scoped Admin gates. Both trusted entries call narrow source/processing handlers. Unknown fields/actions are denied; caught private errors use static allowlisted bodies, no-store and nosniff. No browser bearer, new PKCE target, root marker, signed URL, cookie/host change or recursive backend/auth publication is introduced.
 
-## Retention
+Source commands reuse native checked Teacher/playlist choices, retained MP4 multipart upload, YouTube object creation, exact private attachment, media detail and explicit native publication. No fabricated companion is needed to attach a source. The source-only form omits processed/supporting-file fields; optional readings remain in the current Content tools. Recording parts follow the existing five-MiB client sequence. VIDEO_UPLOAD_MAX_BYTES is an explicit profile bound on new-route part offsets/UI selection, not a newly proved global ceiling on all pre-existing native upload paths. Native unfinished multipart/orphan policy and unknown R2 outcomes still require exact activation review; no legacy upload cleanup or guessed first-success clock is installed.
 
-Destination/programme decides policy, not provider alone. Temporary academic video: 14 days; companion/transcript/private candidates and every recoverable version: one clamped calendar month TOTAL from the original first successful ingestion. Exact read-time expiry plus bounded key cleanup; retries, reprocessing and republication never reset the origin. Permanent Studio YouTube remains permanent under its existing policy. Do not adopt that policy for temporary material because it uses a YouTube URL. Academy's separate academic writer/retention authority stays separate; no installation or mutation of its Core/Admin stores is part of a Studio job plan.
+## Proposed owning schema: FOUR new tables, fixture only
 
-## Concrete configuration/effects needing review before installation
+All four are proposed only in tests/fixtures/video-autolink-proposed.sql; no numbered/live migration exists. They must reside in the same isolated owning Studio DB as its native guard/audit/receipt transaction.
 
-- A reviewed owning Studio Feature store/schema installation for the three proposed additive tables and indexes; current existing DBs remain protected. A fresh isolated owner-local Studio environment may be needed for actual Feature testing; do not silently reuse active production/development storage.
-- One StudioVideoProcessing Workflow binding/class with deterministic instances, default off.
-- A private R2 prefix in the correctly isolated existing Feature CONTENT binding, guarded API access only; no public asset route, public transcript or server permission cache.
-- One private provider credential in the owning private environment, an exact approved model/config version and per-run budget limits. No key in browser, source, artifacts or Drive. No current provider key/model access or USD/month budget is assumed.
-- Bounded expiry cleanup dispatch/ownership must be reviewed; no new Schedule/DO/resource is installed by a source-only PR.
-- Zoom/caption acquisition is a concrete unresolved adapter gate, not permission to scrape private resources or automatically export recordings.
+1. video_processing_sources: server UUID; native offering/attachment/asset/revision; private transcript key/hash/format/duration; fixed private expiry; native retention class. No raw transcript in D1.
+2. video_processing_jobs: source UUID; derived attachment/source revision; original actor session reference/epoch; authorisation/deadline/config quote; native material/base revisions; guarded QUEUED/RUNNING/CANDIDATE/terminal state; attempt/request hash; safe usage/receipt. Immutable grant fields and a unique partial active attachment/source slot prevent overlapping queued/running work. Only already-expired active slots close in a new explicitly authorised transaction. Same-operation replay keeps the original job/deadline.
+3. video_processing_candidates: unique job/attempt; private immutable key/hash/expiry; prepared native acceptance key/hash/op and cleanup state.
+4. video_processing_committed_objects: minimal key/hash/native attachment/time receipt. No actor/session/transcript/model/provider data; no foreign-key hold on native rows. This receipt follows retained native content lifetime so private-job expiry cannot delete accepted native content.
 
-Rollback: stop new authorisations/default off; preserve monotonic job/source/expiry/receipt metadata, existing native attachments/drafts/publication, ids/rights and current sync. Do not drop job tables or shorten/reset floors to make rollback green. Cancel/drain instances; deny expired reads; delete only verified private processing objects under bounded retention. Any existing published companion remains under native publication/retention rules.
+New internal foreign keys do not hold native attachments/offering/identity rows. Exact indexed private-history pages read at most26 rows before filtering expired items; explicit pagination remains bounded even when many old rows await cleanup. Private history lets a current scoped Admin reopen a candidate after closing the form; it is not stored in browser storage.
 
-## Offline tests and later small verification proposal
+## Paid-call and recovery contract
 
-All broad/growth/concurrency suites run in disposable GitHub with synthetic local DB/R2/provider mocks and zero hosted Worker/D1/provider calls. Required negatives: wrong account/offering/asset/destination, stale Source/generation/fresh-Admin/handovers, duplicate authorisation/concurrency, dispatch ACK loss, provider success followed by lost HTTP/worker crash, source change, mid-run Admin edits/revocation, partial/invalid/hostile transcript, invalid model schema/timestamps, private evidence/quote exclusion, exact expiry/clamped calendar boundaries, cleanup of candidates/versions/orphans, unchanged current publication and separate explicit publish.
+The immutable source/material and original actor/ref/epoch/config/deadline are checked before preparation, claim and candidate commit. A fresh valid Admin proof receipt may change its timestamp/version without extending the original paid grant or discarding unchanged material. The full CURRENT native DB tuple is still fenced atomically; validating an old video can never bind a newly changed PDF/association snapshot.
 
-A real activation check is a separate exact reviewed plan: one entirely synthetic transcript/job, at most one provider generation request under a configured token bound, a small enumerated Admin API sequence, zero real/personal recordings and measured actual provider/D1/Worker/R2 usage. No request is made until its credential, exact storage/config plan and budget are cleared. This is a proposed bound, not an executed receipt or server billing hard cap.
+All fallible request/schema/limit construction precedes the paid claim. Only a successful ACK of the exact owning QUEUED→RUNNING guard/update/audit batch grants this invocation one fetch. Do not use a replayable generic operation receipt to reconstruct that grant. Provider/SDK/HTTP and Workflow step retries are off. A lost claim ACK, resumed RUNNING step or unknown provider result does not automatically spend again. Another run needs separate explicit authorisation and may incur another charge. Deterministic Workflow ids alone are not once-only billing proof.
 
-Official implementation references already read:
-- https://developers.cloudflare.com/workers/best-practices/workers-best-practices/
-- https://developers.cloudflare.com/workflows/build/rules-of-workflows/
-- https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses
-- https://developers.openai.com/api/docs/models/gpt-6.1-sol
-Model docs do not prove this account has access, nor do they make a text model an audio/video transcriber.
+The configured Responses request uses store:false, strict structured output, no tools/arbitrary provider URLs and bounded input/output/time. Transcript/quotation instructions are untrusted data, not authority. Provider output cannot choose ids, roles, destinations, R2 paths, retention, publication or verification flags.
+
+The unmounted Workflow class stores jobId-only params and safe state/id/code outputs, with step retries.limit0, bounded runtime and configured success/error history retention. The dispatcher remains tested with a fake Workflow in local suites until exact real runtime/resource verification. No transcript/candidate/key/provider exception is returned to durable history.
+
+## Private review, publication and cleanup
+
+Private candidate output is written under a unique owned immutable key before its pointer CAS. Explicit acceptance rechecks current native source and original base companion/attribution; stale edits conflict and cannot overwrite another Admin draft. The reviewed allowlisted native object is prepared before the pointer transaction. Acceptance changes only the native draft plus minimal committed receipt; previous publication remains. Publish is a separate current native operation.
+
+References/Arabic/meanings, suggested lesson/book matches and audio quotation candidates remain private and unverified by default. An Admin must select/review them and provide the corresponding explicit confirmations. Model text does not prove audio verification, assigned homework or factual correctness. No raw transcript/private evidence/provider metadata is copied into learner content.
+
+Cleanup is separately disabled, bounded to new indexed metadata/new private prefixes with explicit continuation. It closes expired unaccepted work before deleting prepared keys. Minimal committed receipts preserve accepted retained native content even after private job expiry or subsequent draft replacement. No legacy prefix deletion, native FK hold, whole-catalogue scan or claim that all existing native history is bounded.
+
+## Native ingestion/retention and supported inputs
+
+Native Studio uploader MP4 and YouTube recordings are retained under current owning policy; provider/MIME alone does not select this policy. Native uploads.created_at is initiation, and multipart etag is not a whole-file source hash or first-success ingestion certificate. Unknown original successful ingestion remains null; no guessed date, backfill or new academic TTL is imposed.
+
+Academy's separate temporary academic recording policy remains14 days video and one clamped calendar month TOTAL companion/transcript from its original successful ingestion; retries/reprocess/publication never reset it. Its current Core/Admin/coordinator writers stay separate. This Studio source plan neither migrates Academy academic content nor authorises its storage/data changes.
+
+Manually supplied VTT/SRT is supported; exact timestamps are validated without claiming transcript/audio completeness. Existing YouTube/MP4 are the real playable native inputs. A Zoom share link needs an authorised downloadable MP4 and available transcript; no private caption scraping, new Zoom OAuth scope or automatic Zoom ingestion is inferred. Any additional acquisition adapter is a separate concrete gate, not a fake success timer.
+
+## Concrete activation/release gates
+
+Before activating, Deployment needs an exact isolated Development Studio storage/profile/owning schema/R2/Workflow/credential plan, current host/native-browser/Source integration evidence, precise install/config effects, independent review and small enumerated verification budget. Current existing DBs, production and real prepared lessons remain protected.
+
+Required private configuration: an account-approved provider key stored only in the owning private environment, exact accessible model/profile, input/output/time bounds, upload profile, private review TTL and Workflow retention. Historical US$15–20 estimates are not verified price, model selection or a current spend cap. No credentials/hashes/real personal media/transcript belong in public source, artifacts or Drive.
+
+Broad concurrency/growth/privacy/browser suites stay in disposable GitHub/local DB/R2 with mocked provider and zero hosted calls. A later real check must be separately reviewed: one entirely synthetic transcript/job, at most one configured generation request, a small enumerated Admin API sequence and measured actual Worker/D1/R2/provider usage. No inferred savings or billed CPU claim.
+
+Rollback: disable new authorisations/HTTP capability, cancel/drain owned instances and preserve original job/source/expiry/operation floors, native drafts/publication/ids/rights/sync. Do not drop tables/reset metadata to make rollback pass. Deny expired private reads and clean only verified new private objects within the reviewed policy. Existing published content stays under native rules.
+
+Official references already read: Cloudflare Workers best practices; Workflows rules; OpenAI Responses strict structured outputs/model docs. Documentation does not establish account model access or text-model audio/video transcription.
