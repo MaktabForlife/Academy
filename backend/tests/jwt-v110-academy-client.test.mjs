@@ -49,7 +49,7 @@ test('Anonymous context does not add a speculative CSRF or refresh request',asyn
  assert.equal((await f.adapter.fetch(origin+'/auth/v110/context')).status,401);assert.equal(f.calls.length,1);
 });
 test('Native PIN rewrite retains HttpOnly transport and returns only a nonsecret UI selector',async()=>{
- const f=transport({respond:r=>{assert.equal(new URL(r.url).pathname,'/auth/v110/login');return Response.json({success:true,cookieSession:true,sessionKey:'uaa-session:session-a:0',csrf:'A'.repeat(43),accessExpiresAtMs:Date.now()+900000,browserContext:session()});}});
+ const f=transport({respond:async r=>{assert.deepEqual(await r.json(),{uniqueid:'synthetic-a',pin:'2468'});assert.equal(new URL(r.url).pathname,'/auth/v110/login');return Response.json({success:true,cookieSession:true,sessionKey:'uaa-session:session-a:0',csrf:'A'.repeat(43),accessExpiresAtMs:Date.now()+900000,browserContext:session()});}});
  const r=await f.adapter.fetch(origin+'/api/account/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uniqueid:'synthetic-a',pin:'2468'})}),body=await r.json();
  assert.equal(body.token,'uaa-session:session-a:0');assert.equal(body.browserContext.session.accountId,'synthetic-a');assert.equal(f.calls[0].credentials,'same-origin');
 });
@@ -64,4 +64,10 @@ test('Concurrent required own queries share one renewal and use own CSRF without
  await f.adapter.fetch(origin+'/api/account/login',{method:'POST',body:'{}'});
  await Promise.all(['/api/account/session','/api/academy/lesson-media/list'].map(path=>f.adapter.fetch(origin+path,{method:'POST',body:'{}'})));
  assert.equal(renewals,1);assert.equal(f.accepted.length,1);assert.equal(f.calls.length,4);
+});
+
+test('Native PIN rewrite rejects oversized bodies before network dispatch',async()=>{
+ const f=transport();
+ await assert.rejects(f.adapter.fetch(origin+'/api/account/login',{method:'POST',body:'x'.repeat(4097)}),/INVALID_PIN_BODY/);
+ assert.equal(f.calls.length,0);
 });

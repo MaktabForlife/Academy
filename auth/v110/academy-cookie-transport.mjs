@@ -28,6 +28,13 @@ export function installAcademyCookieTransport({win,doc,config,nativeFetch,clock=
   })().finally(()=>{if(pending===task)pending=null;});pending=task;}
   return pending;
  }
+ async function pinBody(request){
+  if(['GET','HEAD'].includes(request.method))return undefined;
+  const reader=request.body?.getReader(),chunks=[];let length=0;
+  try{if(reader)for(;;){const part=await reader.read();if(part.done)break;length+=part.value.byteLength;if(length>4096){await reader.cancel();throw Error('INVALID_PIN_BODY');}chunks.push(part.value);}}
+  finally{reader?.releaseLock();}
+  const bytes=new Uint8Array(length);let at=0;for(const chunk of chunks){bytes.set(chunk,at);at+=chunk.byteLength;}return bytes;
+ }
  const metadata=new Set(['/auth/v110/login','/auth/v110/setup-pin','/api/account/session','/api/account/switch-context','/api/academy/hub/open','/auth/v110/context']);
  async function mapped(response,path){
   if(!metadata.has(path)||!response.ok)return response;
@@ -44,7 +51,7 @@ export function installAcademyCookieTransport({win,doc,config,nativeFetch,clock=
   let request=new Request(typeof input==='string'||input instanceof URL?new URL(String(input),win.location.href):input,options),url=new URL(request.url);
   if(url.origin!==origin)return nativeFetch(input,options);
   const path=url.pathname,publicPath=['/api/account/check','/api/academy/setup/head'].includes(path),signIn=['/api/account/login','/api/account/setup-pin'].includes(path),context=path==='/auth/v110/context';
-  if(signIn){url.pathname=path.endsWith('/setup-pin')?'/auth/v110/setup-pin':'/auth/v110/login';request=new Request(url,request);return mapped(await nativeFetch(request,credentials),url.pathname);}
+  if(signIn){url.pathname=path.endsWith('/setup-pin')?'/auth/v110/setup-pin':'/auth/v110/login';request=new Request(url,{method:request.method,headers:request.headers,body:await pinBody(request),signal:request.signal,keepalive:request.keepalive,credentials:'same-origin',cache:'no-store',redirect:'error'});return mapped(await nativeFetch(request,credentials),url.pathname);}
   if(!publicPath&&path.startsWith('/api/')&&expires&&Date.now()>=expires)await renew();
   if(!publicPath&&path.startsWith('/api/')&&!['GET','HEAD'].includes(request.method)){
    if(!csrf)await nonce();const headers=new Headers(request.headers);headers.set('X-UAA-CSRF',csrf);request=new Request(request,{headers});
