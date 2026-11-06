@@ -22,9 +22,9 @@ const withFamily=(fn,{age=0}={})=>async()=>{
  const seed=await prepareFeatureSeed({pin:'2468',secrets});const native=seed.databases.core;
  try{
   native.exec(readFileSync(new URL('./fixtures/jwt-v110-auth-only.sql',import.meta.url),'utf8'));
-  let beforeBatch=null,stageHook=null,lastFailure='';const rawCore=sqliteD1(native),observedCore={...rawCore,withSession(){return observedCore;},async batch(statements){await beforeBatch?.(statements);try{return await rawCore.batch(statements);}catch(error){lastFailure=String(error.message).replace(/[A-Za-z0-9_-]{24,}/g,'[redacted]').replace(/\b\d{4}\b/g,'[digits]');throw error;}}};
+  let beforeBatch=null,stageHook=null,lastFailure='',rpcUnavailable=false;const rawCore=sqliteD1(native),observedCore={...rawCore,withSession(){return observedCore;},async batch(statements){await beforeBatch?.(statements);try{return await rawCore.batch(statements);}catch(error){lastFailure=String(error.message).replace(/[A-Za-z0-9_-]{24,}/g,'[redacted]').replace(/\b\d{4}\b/g,'[digits]');throw error;}}};
   const core=emptyCompatibilityDatabase(observedCore,emptyShapes,{currentGrants:true}),admin=sqliteD1(seed.databases.admin),engine=splitEngine({core,admin,hook:async(...args)=>stageHook?.(...args)});
-  const ns={getByName(){return Object.fromEntries(['read','write'].map(m=>[m,async(...args)=>({result:await engine[m](...JSON.parse(JSON.stringify(args)))})]));}};
+  const ns={getByName(){return Object.fromEntries(['read','write'].map(m=>[m,async(...args)=>{if(rpcUnavailable)throw Error('Controlled local coordinator outage');return {result:await engine[m](...JSON.parse(JSON.stringify(args)))};}]));}};
   const keys=await generateKeyPair('ES256',{extractable:true}),publicJWK={...await exportJWK(keys.publicKey),kid:'synthetic-a'},privateJWK={...await exportJWK(keys.privateKey),kid:'synthetic-a'};
   const cfg=JSON.parse(readFileSync(new URL('../wrangler.feature.jsonc',import.meta.url),'utf8'));
   const env={...cfg.vars,...secrets,ACADEMY_D1_MODE:'ACTIVE',ACADEMY_D1_RUN_ID:seed.report.sourceDigest,ACADEMY_DB:observedCore,ACADEMY_ADMIN_DB:admin,ACADEMY_SPLIT_COORDINATOR:ns,AUTH_LOGIN_RATE_LIMITER:{limit:async()=>({success:true})},JWT_V110_MASTER:'1',JWT_V110_REFRESH:'1',JWT_V110_BROWSER:'1',JWT_V110_REQUEST_ORIGIN:appOrigin,JWT_V110_PUBLIC_KEYS_JSON:JSON.stringify([publicJWK]),JWT_V110_PRIVATE_KEY_JSON:JSON.stringify(privateJWK),JWT_V110_SIGNING_KID:'synthetic-a',JWT_V110_CSRF_SECRET:randomRefresh(),JWT_V110_RATE_LIMITER:{limit:async()=>({success:true})},ALLOWED_ORIGINS:appOrigin+','+h.academyPortalOrigin};
@@ -42,7 +42,7 @@ const withFamily=(fn,{age=0}={})=>async()=>{
    const data=await response.json();return {status:response.status,data,response};
   }
   const csrf=async()=>{const r=await call('/auth/v110/csrf');assert.equal(r.status,200,'Own CSRF prerequisite failed: '+r.data.code);return r.data.csrf;};
-  await fn({seed,native,env,raw,fp,sid,id,ce,at,browser,config,row,call,csrf,lastFailure:()=>lastFailure,engine,setBeforeBatch:fn=>beforeBatch=fn,setStageHook:fn=>stageHook=fn});
+  await fn({seed,native,env,raw,fp,sid,id,ce,at,browser,config,row,call,csrf,lastFailure:()=>lastFailure,engine,setRPCUnavailable:value=>rpcUnavailable=value,setBeforeBatch:fn=>beforeBatch=fn,setStageHook:fn=>stageHook=fn});
  }finally{seed.close();globalThis.fetch=originalFetch;}
 };
 test('Real native Academy PIN session refreshes into full-rights JWT cookies without exposing credentials',withFamily(async f=>{
@@ -278,11 +278,11 @@ test('Interrupted actual owner write rechecks the persisted JWT tuple during rec
  const extra={...auth.extra,'X-Academy-Workspace':'ADMIN'};
  const current=await f.call(base+'get',{...auth,extra,body:{courseId}});assert.equal(current.status,200,current.data.code);
  const card=()=>JSON.stringify(f.seed.databases.admin.prepare("SELECT * FROM academy_settings WHERE setting_key LIKE 'AcademyCoursePublicCard:%' ORDER BY setting_key").all()),before=card(),audit=f.native.prepare('SELECT count(*) n FROM audit_events').get().n,adminAudit=f.seed.databases.admin.prepare('SELECT count(*) n FROM audit_events').get().n,operationId=crypto.randomUUID();
- let interrupted=false;f.setStageHook(stage=>{if(stage==='admin-applied'&&!interrupted){interrupted=true;throw Error('Controlled local interruption');}});
+ let interrupted=false;f.setStageHook(stage=>{if(stage==='admin-applied'&&!interrupted){interrupted=true;f.setRPCUnavailable(true);throw Error('Controlled local interruption');}});
  const pending=await f.call(base+'public-card-save',{...auth,extra,body:{operationId,courseId,baseCardRevision:current.data.course.publicCardRevision,publicCard:{time:'10:00',title:'Interrupted synthetic card',description:'Must reverse after persisted proof is cancelled'}}});
  assert(interrupted);assert.equal(pending.status,503);assert.notEqual(card(),before,'The Admin stage must genuinely have been applied');
  const command=f.native.prepare("SELECT proof_json FROM split_commands WHERE phase='PENDING'").get();assert(command);const proof=JSON.parse(command.proof_json);assert.equal(proof.jwt.sid,f.sid);assert.equal(proof.jwt.sub,f.id);assert(!Object.hasOwn(proof.jwt,'token'));assert(!Object.hasOwn(proof.jwt,'refresh_fp'));
- f.native.prepare('UPDATE jwt_v110_accounts SET permission_version=permission_version+1 WHERE account_id=?').run(f.id);f.setStageHook(null);await f.engine.recover();
+ f.native.prepare('UPDATE jwt_v110_accounts SET permission_version=permission_version+1 WHERE account_id=?').run(f.id);f.setStageHook(null);f.setRPCUnavailable(false);await f.engine.recover();
  assert.equal(card(),before);assert.equal(f.native.prepare('SELECT count(*) n FROM audit_events').get().n,audit);assert.equal(f.seed.databases.admin.prepare('SELECT count(*) n FROM audit_events').get().n,adminAudit);assert.equal(f.native.prepare('SELECT count(*) n FROM operation_receipts WHERE operation_id=?').get(operationId).n,0);assert.equal(f.native.prepare('SELECT count(*) n FROM split_write_fence').get().n,0);assert.equal(f.native.prepare('SELECT revoked_at FROM account_sessions WHERE session_id=?').get(f.sid).revoked_at,null);
 }));
 
