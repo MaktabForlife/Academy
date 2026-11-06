@@ -18,7 +18,7 @@ const login=await source('/api/account/login',{uniqueid:'separation-studentA',pi
 await mkdir(out,{recursive:true});
 const browserName=process.env.REVIEW_BROWSER||'chromium';assert(['chromium','webkit'].includes(browserName));const browser=await({chromium,webkit}[browserName]).launch({headless:true});
 const originalFetch=globalThis.fetch;let nodeRemoteAttempts=0;globalThis.fetch=async()=>{nodeRemoteAttempts++;throw Error('Unexpected remote call');};
-const errors=[],records=[],calls=[],blocked=[];
+const errors=[],records=[],calls=[],blocked=[],diagnostics=[];
 const mime={'.html':'text/html','.mjs':'text/javascript','.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.svg':'image/svg+xml','.woff2':'font/woff2','.ttf':'font/ttf'};
 async function fileResponse(root,path){
  const file=resolve(root,'.'+decodeURIComponent(path.endsWith('/')?path+'index.html':path));if(!file.startsWith(root+'/'))return new Response('Not found',{status:404});
@@ -35,6 +35,7 @@ async function contextFor(candidate){
    calls.push({candidate,app:'academy',path:url.pathname,method:request.method()});
    const target=new URL(url.pathname+url.search,'https://academy.test');
    const response=await f.runtime.dispatchFetch(target.href,{method:request.method(),headers,...(request.postData()?{body:request.postDataBuffer()}:{})});
+   if(!response.ok){let body;try{body=await response.clone().json();}catch{}diagnostics.push({app:url.origin===studio?'studio':'academy',path:url.pathname,status:response.status,code:body?.code,error:body?.error});}
    return route.fulfill(await payload(response));
   }
   if(url.origin===studio&&(url.pathname.startsWith('/api/')||url.pathname.startsWith('/auth/'))){
@@ -74,6 +75,9 @@ try{
  await child.screenshot({path:resolve(out,'candidate-original-reader.png'),fullPage:true});await after.close();
  assert.deepEqual(errors,[]);assert.equal(nodeRemoteAttempts,0);
 }finally{
- await writeFile(resolve(out,'report.json'),JSON.stringify({commit:process.env.GITHUB_SHA,studioSource:'3c420f35c30297cfcc41cfab24f030e51bb7831e',browser:browserName,records,pageErrors:errors,blockedOrigins:[...new Set(blocked)],nodeRemoteAttempts,hostedApplicationCalls:0,hostedD1Calls:0,syntheticPairedWorkers:true,fixtureLinkContainer:true,actualFullCourseMediaPageProved:false},null,2));
+ for(const [ci,context]of browser.contexts().entries())for(const [pi,page]of context.pages().entries()){
+  try{diagnostics.push({context:ci,page:pi,url:new URL(page.url()).origin+new URL(page.url()).pathname,status:await page.locator('[role=status]').allTextContents(),connectRetry:await page.locator('#academy-connect-retry:not([hidden])').count()});await page.screenshot({path:resolve(out,'failure-context-'+ci+'-'+pi+'.png'),fullPage:true});}catch{}
+ }
+ await writeFile(resolve(out,'report.json'),JSON.stringify({commit:process.env.GITHUB_SHA,studioSource:'3c420f35c30297cfcc41cfab24f030e51bb7831e',browser:browserName,records,calls,diagnostics,pageErrors:errors,blockedOrigins:[...new Set(blocked)],nodeRemoteAttempts,hostedApplicationCalls:0,hostedD1Calls:0,syntheticPairedWorkers:true,fixtureLinkContainer:true,actualFullCourseMediaPageProved:false},null,2));
  await browser.close();globalThis.fetch=originalFetch;await f.close();
 }
