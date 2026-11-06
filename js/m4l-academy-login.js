@@ -36,7 +36,6 @@
       if (!window.M4L_V110) return;
       try { clearStoredAccountState(); } catch (_) { /* The workspace remains masked. */ }
       showSignedOut();
-      setBusy(false);
       showLoginForm();
     },
     currentId: () => activeToken && activeToken === localStorage.getItem(tokenKey) ? activeLoginId : "",
