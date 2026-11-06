@@ -27,13 +27,15 @@ jobs:
           WRANGLER_SEND_METRICS: "false"
         run: |
           mkdir -p "$RUNNER_TEMP/jwt-ddl-budget-evidence"
-          node --test --test-reporter=tap backend/tests/jwt-feature-ddl-budget.test.mjs 2>&1 | tee "$RUNNER_TEMP/jwt-ddl-budget-evidence/ddl.log"
+          node --test --test-reporter=tap backend/tests/jwt-feature-ddl-budget.test.mjs backend/tests/jwt-feature-provider-schema.test.mjs backend/tests/jwt-feature-setup-auth.test.mjs backend/tests/jwt-feature-setup-workerd.test.mjs 2>&1 | tee "$RUNNER_TEMP/jwt-ddl-budget-evidence/ddl.log"
           git diff --check
           git diff --exit-code
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: jwt-ddl-budget-${{ github.run_id }}
-          path: ${{ runner.temp }}/jwt-ddl-budget-evidence/
+          path: |
+            ${{ runner.temp }}/jwt-ddl-budget-evidence/
+            ${{ runner.temp }}/jwt-private-setup-evidence/
           if-no-files-found: error
           retention-days: 30

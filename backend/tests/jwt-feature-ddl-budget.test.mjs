@@ -1,3 +1,4 @@
+import {jwtFeatureEmptyObjectPrecountSQL,jwtFeatureObjectDefinitionsSQL} from '../src/academy/jwt-feature-schema.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {createRequire} from 'node:module';
@@ -24,12 +25,12 @@ test('complete empty native DDL and fixed validation are measured independently 
    const add=r=>{m.read+=r.meta?.rows_read||0;m.written+=r.meta?.rows_written||0;};
    async function all(query){m.roundTrips++;m.statements++;const r=await db.prepare(query).all();add(r);return r.results;}
    async function batch(queries){m.roundTrips++;m.statements+=queries.length;const r=await db.batch(queries.map(s=>db.prepare(s)));r.forEach(add);return r;}
-   assert.equal((await all("SELECT count(*) n FROM sqlite_schema WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' AND name<>'_cf_METADATA'"))[0].n,0);
+   assert.equal((await all(jwtFeatureEmptyObjectPrecountSQL))[0].n,0);
    const before=structuredClone(m);await batch(sql[owner]);const ddlCost=Object.fromEntries(Object.keys(m).map(k=>[k,m[k]-before[k]]));
    const verifierSQL=ddlVerifierSQL(c.tables[owner]),verified=await all(verifierSQL);
    assert.equal(verified.length,1);assert.deepEqual(verified[0],{user_objects:owner==='core'?1372:83,user_tables:c.tables[owner].length,user_rows:0,foreign_key_errors:0,quick_rows:1,quick_check:'ok'});
    const uiProjection=structuredClone(m);
-   const objects=await all("SELECT type,name,tbl_name,sql FROM sqlite_schema WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' AND name<>'_cf_METADATA' ORDER BY type,name");
+   const objects=await all(jwtFeatureObjectDefinitionsSQL);
    const objectHash=digest(JSON.stringify(objects.map(r=>[r.type,r.name,r.tbl_name,r.sql])));assert.equal(objectHash,c.objectHashes[owner]);
    report.owners[owner]={objects:objects.length,verifierSQL,uiDeliveryProjection:uiProjection,additionalLocalObjectHashSelects:1,tables:c.tables[owner].length,initialUserObjects:0,allUserRows:0,objectHash,foreignKeyErrors:0,quickCheck:'ok',ddlCost,completeCost:m};
   }
