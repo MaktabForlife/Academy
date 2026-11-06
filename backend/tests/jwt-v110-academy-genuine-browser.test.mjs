@@ -22,7 +22,7 @@ const origin='https://feature_worker.maktab4life.workers.dev';
 const mime=path=>({'.js':'text/javascript','.mjs':'text/javascript','.json':'application/json','.html':'text/html','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.fragment':'text/plain','.ico':'image/x-icon'}[extname(path)]||'application/octet-stream');
 test('Genuine Chrome native PIN installs HttpOnly Feature cookies and uses the actual own Worker',async t=>{
  const evidence=process.env.JWT_V110_EVIDENCE,build=JSON.parse(readFileSync(join(evidence,'public-build.json'),'utf8')),allowed=new Set(build.files),fixture=await createAcademyWorkerdFixture(),directory=await mkdtemp(join(tmpdir(),'jwt-feature-chrome-'));
- let browser,cdp,tab,server,startupErrors='',startupDone=false;const api=[],staticRequests=[],missingAssets=[],networkFailures=[],blockedExternal=[];let outside=0,options=0,blockedPublicFonts=0,blockedLegacyImages=0;
+ let browser,cdp,tab,server,startupErrors='',startupDone=false;const api=[],staticRequests=[],missingAssets=[],networkFailures=[],blockedExternal=[];let outside=0,options=0,blockedPublicFonts=0,blockedLegacyImages=0,forceRefreshFailure=false;
  t.after(async()=>{
   if(!startupDone)try{await writeFile(join(evidence,'chrome-startup.json'),JSON.stringify({exitCode:browser?.exitCode,signalCode:browser?.signalCode,errors:startupErrors.slice(0,3000)})+'\n');}catch{}
   if(cdp&&tab){try{
@@ -38,9 +38,9 @@ test('Genuine Chrome native PIN installs HttpOnly Feature cookies and uses the a
  async function serve(req,res){
   const url=new URL(req.url,origin);
   if(req.method==='OPTIONS')options++;
-  if(url.pathname.startsWith('/api/')||/^\/auth\/v110\/(?:login|setup-pin|context|csrf|refresh)$/.test(url.pathname)){
+  if(url.pathname.startsWith('/api/')||/^\/auth\/v110\/(?:login|setup-pin|context|csrf|refresh|logout|logout-csrf)$/.test(url.pathname)){
    const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>1000000)throw Error('Bounded local browser request');chunks.push(chunk);}
-   const response=await fixture.runtime.dispatchFetch(url.href,{method:req.method,headers:req.headers,...(!['GET','HEAD'].includes(req.method)?{body:Buffer.concat(chunks)}:{})});
+   const response=await fixture.runtime.dispatchFetch(url.href,{method:req.method,headers:{...req.headers,...(forceRefreshFailure?{'X-Feature-Test-Refresh-Deny':'1'}:{})},...(!['GET','HEAD'].includes(req.method)?{body:Buffer.concat(chunks)}:{})});
    const metrics=JSON.parse(response.headers.get('x-feature-local-budget'));api.push({path:url.pathname,method:req.method,status:response.status,metrics,...(url.pathname==='/auth/v110/refresh'?{foreground:JSON.parse(Buffer.concat(chunks).toString()).foreground}: {})});
    const headers=Object.fromEntries([...response.headers].filter(([k])=>k!=='set-cookie'&&k!=='content-length'));headers['set-cookie']=response.headers.getSetCookie();
    res.writeHead(response.status,headers);res.end(Buffer.from(await response.arrayBuffer()));return;
@@ -63,6 +63,10 @@ test('Genuine Chrome native PIN installs HttpOnly Feature cookies and uses the a
  await cdp.call('Page.addScriptToEvaluateOnNewDocument',{source:'window.__ciControl=[];window.addEventListener("message",e=>{const m=e.data;if(m?.type?.startsWith("UAA_CONTROL"))window.__ciControl.push({type:m.type,ok:m.ok,code:m.code,active:m.state?.active});});'},sessionId);
  await cdp.call('Target.activateTarget',{targetId});await cdp.call('Page.navigate',{url:origin+'/academy/#login'},sessionId);
  await until(()=>cdp.evaluate(tab,'Boolean(document.querySelector("[data-uaa-open-sign-in]"))&&Boolean(window.M4L_ACADEMY_LOGIN)'),'Public Feature sign-in action missing',20000);
+ const anonymousStart=api.length;
+ const anonymousPublic=await cdp.evaluate(tab,'Promise.all(["/api/public/header-date","/api/public/academy-announcements"].map(async p=>{const r=await fetch(p);return{path:p,status:r.status};}))');
+ assert(anonymousPublic.every(r=>[200,503].includes(r.status)),'Anonymous public reads must reach their native controlled responses');
+ assert(!api.slice(anonymousStart).some(r=>['/auth/v110/csrf','/auth/v110/refresh','/auth/v110/logout-csrf'].includes(r.path)));
  await cdp.evaluate(tab,'document.querySelector("[data-uaa-open-sign-in]").click()');
  await until(()=>cdp.evaluate(tab,'Boolean(window.M4L_ACADEMY_LOGIN)&&document.getElementById("academy-login-dialog")?.open'),'Native public PIN dialog did not open',20000);
  await cdp.evaluate(tab,'document.getElementById("demo-username").focus()');
@@ -79,16 +83,31 @@ test('Genuine Chrome native PIN installs HttpOnly Feature cookies and uses the a
  const inspected=await fixture.runtime.getD1Database('ACADEMY_DB','api');
  const foregroundBefore=await inspected.prepare("SELECT last_fg_refresh_s,original_expires_at_s FROM jwt_v110_families WHERE account_id='feature-synthetic-learner-a' AND revoked=0").first();
  await sleep(1100);
- // Advance ONLY the renderer's expiry clock; issuer/SQL clocks stay real.
- // A trusted Chrome click must trigger this app's own required renewal.
- await cdp.evaluate(tab,'(()=>{window.__ciRealDateNow=Date.now;Date.now=()=>window.__ciRealDateNow()+901000;const b=document.createElement("button");b.id="jwt-ci-foreground";b.textContent="Synthetic foreground query";b.style.cssText="position:fixed;top:10px;left:10px;z-index:2147483647";b.onclick=async()=>{const r=await fetch("/api/academy/lesson-media/list",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+localStorage.getItem("m4l_account_token"),"X-Academy-Workspace":"LEARN"},body:JSON.stringify({activityKey:"COURSE:FEATURE-SYNTHETIC-A"})});await r.json();window.__ciForegroundStatus=r.status;Date.now=window.__ciRealDateNow;};document.body.append(b);})()');
- const point=await cdp.evaluate(tab,'(()=>{const r=document.getElementById("jwt-ci-foreground").getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};})()');
+ // Advance only the renderer expiry clock; the issuer and SQL clocks remain real.
+ // Use the actual Dashboard refresh control and its explicitly carried trusted event.
+ await cdp.evaluate(tab,'window.__ciRealDateNow=Date.now;Date.now=()=>window.__ciRealDateNow()+901000;');
+ await until(()=>cdp.evaluate(tab,'Boolean(document.querySelector("[data-circles-dashboard-refresh]"))'),'Native Dashboard refresh control missing',15000);
+ const point=await cdp.evaluate(tab,'(()=>{const b=document.querySelector("[data-circles-dashboard-refresh]");b.scrollIntoView({block:"center"});const r=b.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};})()');
  await cdp.call('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,...point},sessionId);
  await cdp.call('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,...point},sessionId);
- await until(()=>cdp.evaluate(tab,'window.__ciForegroundStatus===200'),'Actual foreground-triggered own renewal/query did not finish',20000);
+ await until(()=>api.some(r=>r.path==='/auth/v110/refresh'&&r.status===200&&r.foreground===true),'Actual protected Dashboard action did not renew foreground',20000);
+ await until(()=>api.some(r=>r.path==='/api/academy/hub/read'&&r.status===200),'Actual Dashboard read did not finish',15000);
+ await cdp.evaluate(tab,'Date.now=window.__ciRealDateNow;');
  const foregroundAfter=await inspected.prepare("SELECT last_fg_refresh_s,original_expires_at_s FROM jwt_v110_families WHERE account_id='feature-synthetic-learner-a' AND revoked=0").first();
  assert(foregroundAfter.last_fg_refresh_s>foregroundBefore.last_fg_refresh_s);assert.equal(foregroundAfter.original_expires_at_s,foregroundBefore.original_expires_at_s);assert(api.some(r=>r.path==='/auth/v110/refresh'&&r.status===200&&r.foreground===true));
  assert(await cdp.evaluate(tab,'document.documentElement.dataset.uaaV110State==="ready"'),'Ordinary same-session renewal must retain the checked private view');
+ const unrelatedBefore=await inspected.prepare("SELECT last_fg_refresh_s FROM jwt_v110_families WHERE account_id='feature-synthetic-learner-a' AND revoked=0").first();
+ const unrelatedStart=api.length;
+ await cdp.evaluate(tab,'(()=>{Date.now=()=>window.__ciRealDateNow()+901000;const b=document.createElement("button");b.id="jwt-ci-unrelated";b.textContent="Synthetic public action";b.style.cssText="position:fixed;top:10px;left:10px;z-index:2147483647";b.onclick=async()=>{window.__ciUnrelatedActive=navigator.userActivation.isActive;for(const p of ["/api/public/header-date","/api/public/academy-announcements"]){const r=await fetch(p);await r.json();}const r=await fetch("/api/academy/lesson-media/list",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+localStorage.getItem("m4l_account_token"),"X-Academy-Workspace":"LEARN"},body:JSON.stringify({activityKey:"COURSE:FEATURE-SYNTHETIC-A"})});await r.json();window.__ciUnrelatedStatus=r.status;Date.now=window.__ciRealDateNow;};document.body.append(b);})()');
+ const unrelatedPoint=await cdp.evaluate(tab,'(()=>{const r=document.getElementById("jwt-ci-unrelated").getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};})()');
+ await cdp.call('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,...unrelatedPoint},sessionId);
+ await cdp.call('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,...unrelatedPoint},sessionId);
+ await until(()=>cdp.evaluate(tab,'window.__ciUnrelatedStatus===200&&window.__ciUnrelatedActive===true'),'Unrelated active gesture/public and automatic protected reads did not finish',20000);
+ const unrelatedCalls=api.slice(unrelatedStart),firstRefresh=unrelatedCalls.findIndex(r=>r.path==='/auth/v110/refresh');
+ assert(firstRefresh>=2,'Public reads must not trigger an access replacement');
+ assert(unrelatedCalls.slice(0,firstRefresh).every(r=>r.path.startsWith('/api/public/')));
+ assert(unrelatedCalls.filter(r=>r.path==='/auth/v110/refresh').every(r=>r.foreground===false));
+ const unrelatedAfter=await inspected.prepare("SELECT last_fg_refresh_s FROM jwt_v110_families WHERE account_id='feature-synthetic-learner-a' AND revoked=0").first();assert.equal(unrelatedAfter.last_fg_refresh_s,unrelatedBefore.last_fg_refresh_s);
  await sleep(6000); // Let Chrome's transient user activation expire.
  await cdp.evaluate(tab,'window.__ciRealDateNow=Date.now;Date.now=()=>window.__ciRealDateNow()+901000;');
  const backgroundBefore=await inspected.prepare("SELECT last_fg_refresh_s FROM jwt_v110_families WHERE account_id='feature-synthetic-learner-a' AND revoked=0").first();
@@ -98,13 +117,21 @@ test('Genuine Chrome native PIN installs HttpOnly Feature cookies and uses the a
  assert.equal(backgroundAfter.last_fg_refresh_s,backgroundBefore.last_fg_refresh_s);assert(api.some(r=>r.path==='/auth/v110/refresh'&&r.status===200&&r.foreground===false));
  await cdp.call('Page.reload',{},sessionId);
  await until(()=>cdp.evaluate(tab,'(async()=>document.documentElement.dataset.uaaV110State==="ready"&&(location.pathname==="/"?(await import("/api.mjs")).identity.account?.accountId==="feature-synthetic-learner-a":document.getElementById("academy-header-name")?.textContent==="Feature synthetic learner"))()'),'Cookie session did not restore',25000);
+ forceRefreshFailure=true;
+ await cdp.evaluate(tab,'window.__ciRealDateNow=Date.now;Date.now=()=>window.__ciRealDateNow()+901000;');
+ const rateStart=api.length;
+ await cdp.evaluate(tab,'fetch("/api/academy/lesson-media/list",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+localStorage.getItem("m4l_account_token"),"X-Academy-Workspace":"LEARN"},body:JSON.stringify({activityKey:"COURSE:FEATURE-SYNTHETIC-A"})}).then(()=>{window.__ciRateRejected=false;},()=>{window.__ciRateRejected=true;})');
+ await until(()=>cdp.evaluate(tab,'window.__ciRateRejected===true'),'Controlled renewal rejection did not occur',15000);
+ assert(api.slice(rateStart).some(r=>r.path==='/auth/v110/refresh'&&r.status===429));
+ const logoutStart=api.length;
  await cdp.evaluate(tab,'(document.querySelector("[data-circles-sign-out]")||document.getElementById("academy-sign-out")).click()');
- await until(()=>api.some(r=>r.path==='/api/account/logout'&&r.status===200),'Actual logout was not acknowledged',15000);
+ await until(()=>api.some(r=>r.path==='/auth/v110/logout'&&r.status===200),'Own-family cancellation did not finish',15000);
  await until(()=>cdp.evaluate(tab,'document.documentElement.classList.contains("uaa-v110-masked")'),'Private display did not clear after logout');
+ assert(!api.slice(logoutStart).some(r=>r.path==='/auth/v110/refresh'),'Explicit cancellation must not wait for replacement');
  const ended=await fixture.runtime.getD1Database('ACADEMY_DB','api');const active=await ended.prepare("SELECT count(*) n FROM account_sessions WHERE account_id='feature-synthetic-learner-a' AND revoked_at IS NULL").first();assert.equal(active.n,0);
  assert.equal(options,0);assert.equal(outside,0);assert(api.every(r=>r.metrics&&r.metrics.remoteCalls===0),'Every dispatched API must retain actual local telemetry');
  const totals={workerRequests:api.length,privateCoordinatorCalls:0,d1Statements:0,d1RoundTrips:0,d1RowsRead:0,d1RowsWritten:0,r2Operations:0};
  for(const r of api){totals.privateCoordinatorCalls+=r.metrics.coordinatorCalls;for(const v of Object.values(r.metrics.d1)){totals.d1Statements+=v.statements;totals.d1RoundTrips+=v.roundTrips;totals.d1RowsRead+=v.rowsRead;totals.d1RowsWritten+=v.rowsWritten;}totals.r2Operations+=Object.values(r.metrics.r2).reduce((a,b)=>a+b,0);}
- const report={schema:1,commit:process.env.GITHUB_SHA,kind:'GENUINE_CHROME_LOCAL_NATIVE_COOKIE_PILOT',version,origin,certificate:'Disposable self-signed certificate; Chrome trust errors ignored ONLY in this local fixture. Hosted TLS/DNS/cutover is not proved.',checks:{realNativePIN:true,fourthDigitSingleSubmit:true,browserInstalledHostOnlyHttpOnlyCookies:true,cookieHiddenFromJavaScript:true,nativeOwnAndOtherCourse:true,genuineForegroundOwnRefresh:true,backgroundReplacementDoesNotAdvanceClock:true,renewalClock:'Renderer expiry clock advanced; server/SQL clocks unchanged',reloadRestore:true,logoutAcknowledged:true,preflightRequests:options,outsideRequests:outside,blockedPublicFontRequests:blockedPublicFonts,blockedPublicLegacyImageRequests:blockedLegacyImages},publicDateSource:'Local unavailable-response stub; no request to the public calendar site',unavailablePublicServices:api.filter(r=>r.status===503&&r.path.startsWith('/api/public/')).map(r=>({path:r.path,status:r.status})),verificationD1Statements:5,blockedExternal,staticRequests:staticRequests.length,api,totals,hostedWorkerCalls:0,hostedDBChanges:0,limits:'Academy native workspace pilot only. No child admission, token-expiry wall-clock, visible freeze/first resumed paint, media Range or hosted proof.'};
+ const report={schema:1,commit:process.env.GITHUB_SHA,kind:'GENUINE_CHROME_LOCAL_NATIVE_COOKIE_PILOT',version,origin,certificate:'Disposable self-signed certificate; Chrome trust errors ignored ONLY in this local fixture. Hosted TLS/DNS/cutover is not proved.',checks:{realNativePIN:true,fourthDigitSingleSubmit:true,browserInstalledHostOnlyHttpOnlyCookies:true,cookieHiddenFromJavaScript:true,nativeOwnAndOtherCourse:true,genuineForegroundOwnRefresh:true,backgroundReplacementDoesNotAdvanceClock:true,renewalClock:'Renderer expiry clock advanced; server/SQL clocks unchanged',reloadRestore:true,anonymousPublicReadsWithoutAuth:true,unrelatedActiveGestureDoesNotAdvanceClock:true,cancellationAfterFailedRenewal:true,serverCancellationObserved:true,browserReceiptOfCancellationIndependentlyProved:false,preflightRequests:options,outsideRequests:outside,blockedPublicFontRequests:blockedPublicFonts,blockedPublicLegacyImageRequests:blockedLegacyImages},publicDateSource:'Local unavailable-response stub; no request to the public calendar site',unavailablePublicServices:api.filter(r=>r.status===503&&r.path.startsWith('/api/public/')).map(r=>({path:r.path,status:r.status})),verificationD1Statements:7,blockedExternal,staticRequests:staticRequests.length,api,totals,hostedWorkerCalls:0,hostedDBChanges:0,limits:'Academy native workspace pilot only. No child admission, token-expiry wall-clock, visible freeze/first resumed paint, media Range or hosted proof.'};
  await mkdir(evidence,{recursive:true});await writeFile(join(evidence,'genuine-browser.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify({checks:report.checks,totals,hostedWorkerCalls:0}));
 });

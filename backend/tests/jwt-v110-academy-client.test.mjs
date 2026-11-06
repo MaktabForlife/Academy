@@ -38,11 +38,12 @@ test('Late own-renewal metadata cannot revive an elapsed local privacy deadline'
 });
 function transport({hint='',ready=false,foreground=false,respond}={}){
  const calls=[],accepted=[],values=new Map([['m4l_account_token',hint]]);
- const win={location:{origin,href:origin+'/academy/'},localStorage:{getItem:k=>values.get(k)||null},navigator:{userActivation:{isActive:foreground}},M4L_V110:{acceptOwnRefresh:async(...args)=>{accepted.push(args);return true;}}};
+ class TrustedFixtureEvent{constructor(type='click'){this.type=type;this.isTrusted=true;}}
+ const win={Event:TrustedFixtureEvent,location:{origin,href:origin+'/academy/'},localStorage:{getItem:k=>values.get(k)||null},navigator:{userActivation:{isActive:foreground}},M4L_V110:{acceptOwnRefresh:async(...args)=>{accepted.push(args);return true;}}};
  const doc={visibilityState:'visible',documentElement:{dataset:{uaaV110State:ready?'ready':'masked'}}};
  const nativeFetch=async(input,options={})=>{const r=new Request(input,options);calls.push({path:new URL(r.url).pathname,method:r.method,credentials:r.credentials,csrf:r.headers.get('X-UAA-CSRF')});return respond?respond(r):Response.json({});};
  const adapter=installAcademyCookieTransport({win,doc,config:{enabled:true,nativeCookie:true,app:'academy',origins:{academy:origin},apiOrigins:[origin]},nativeFetch,clock:()=>1000});
- return {adapter,calls,accepted};
+ return {adapter,calls,accepted,userAction:()=>new TrustedFixtureEvent()};
 }
 test('Anonymous context does not add a speculative CSRF or refresh request',async()=>{
  const f=transport({respond:()=>Response.json({code:'V110_SESSION_REQUIRED'},{status:401})});
@@ -62,7 +63,7 @@ test('Concurrent required own queries share one renewal and use own CSRF without
   assert.equal(r.headers.get('X-UAA-CSRF'),'A'.repeat(43));return Response.json({success:true});
  }});
  await f.adapter.fetch(origin+'/api/account/login',{method:'POST',body:'{}'});
- await Promise.all(['/api/account/session','/api/academy/lesson-media/list'].map(path=>f.adapter.fetch(origin+path,{method:'POST',body:'{}'})));
+ await Promise.all(['/api/account/session','/api/academy/lesson-media/list'].map(path=>f.adapter.fetch(origin+path,{method:'POST',body:'{}',uaaUserAction:f.userAction()})));
  assert.equal(renewals,1);assert.equal(f.accepted.length,1);assert.equal(f.calls.length,4);
 });
 
@@ -70,4 +71,45 @@ test('Native PIN rewrite rejects oversized bodies before network dispatch',async
  const f=transport();
  await assert.rejects(f.adapter.fetch(origin+'/api/account/login',{method:'POST',body:'x'.repeat(4097)}),/INVALID_PIN_BODY/);
  assert.equal(f.calls.length,0);
+});
+
+test('Exact public GET/HEAD reads bypass renewal and CSRF even with expired metadata and unrelated activation',async()=>{
+ const f=transport({hint:'uaa-session:session-a:0',ready:false,foreground:true,respond:async r=>{
+  if(new URL(r.url).pathname==='/auth/v110/login')return Response.json({cookieSession:true,sessionKey:'uaa-session:session-a:0',csrf:'A'.repeat(43),accessExpiresAtMs:Date.now()-1,browserContext:session()});
+  assert(!new URL(r.url).pathname.startsWith('/auth/'));assert.equal(r.headers.get('X-UAA-CSRF'),null);return Response.json({controlled:true},{status:503});
+ }});
+ await f.adapter.fetch(origin+'/api/account/login',{method:'POST',body:'{}'});
+ for(const path of ['/api/public/header-date','/api/public/academy-announcements','/api/public/academy-announcements/image','/api/public/academy-announcements/pdf','/api/academy/header-date'])for(const method of ['GET','HEAD'])assert.equal((await f.adapter.fetch(origin+path,{method,uaaUserAction:f.userAction()})).status,503);
+ assert.equal(f.calls.length,11);assert.equal(f.accepted.length,0);
+});
+test('Unrelated activation does not qualify an automatic protected renewal',async()=>{
+ let foreground;
+ const f=transport({foreground:true,respond:async r=>{
+  const path=new URL(r.url).pathname;
+  if(path==='/auth/v110/login')return Response.json({cookieSession:true,sessionKey:'uaa-session:session-a:0',csrf:'A'.repeat(43),accessExpiresAtMs:Date.now()-1,browserContext:session()});
+  if(path==='/auth/v110/refresh'){foreground=(await r.json()).foreground;return Response.json({refreshed:true,accessExpiresAtMs:Date.now()+900000});}
+  return Response.json({success:true});
+ }});
+ await f.adapter.fetch(origin+'/api/account/login',{method:'POST',body:'{}'});
+ await f.adapter.fetch(origin+'/api/academy/lesson-media/list',{method:'POST',body:'{}'});
+ assert.equal(foreground,false);
+});
+test('Explicit cancellation dispatches without awaiting failed access renewal',async()=>{
+ let cancelled=0,renewed=0;
+ const f=transport({ready:true,foreground:true,respond:async r=>{
+  const path=new URL(r.url).pathname;
+  if(path==='/auth/v110/login')return Response.json({cookieSession:true,sessionKey:'uaa-session:session-a:0',csrf:'A'.repeat(43),accessExpiresAtMs:Date.now()-1,browserContext:session()});
+  if(path==='/auth/v110/refresh'){renewed++;return Response.json({code:'RATE_LIMITED'},{status:429});}
+  if(path==='/auth/v110/logout'){cancelled++;assert.equal(r.headers.get('X-UAA-CSRF'),'A'.repeat(43));return Response.json({success:true,cancelled:true});}
+  throw Error('Unexpected request');
+ }});
+ await f.adapter.fetch(origin+'/api/account/login',{method:'POST',body:'{}'});
+ await assert.rejects(f.adapter.fetch(origin+'/api/academy/lesson-media/list',{method:'POST',body:'{}'}),e=>e.name==='AbortError');
+ const response=await f.adapter.fetch(origin+'/api/account/logout',{method:'POST',body:'{}'});
+ assert.equal(response.status,200);assert.equal(cancelled,1);assert.equal(renewed,1);
+});
+test('Cancellation can acquire only its own CSRF proof after a fresh document, without renewal',async()=>{
+ const f=transport({respond:r=>{const path=new URL(r.url).pathname;if(path==='/auth/v110/logout-csrf')return Response.json({csrf:'A'.repeat(43)});assert.equal(path,'/auth/v110/logout');return Response.json({success:true,cancelled:true});}});
+ assert.equal((await f.adapter.fetch(origin+'/api/account/logout',{method:'POST',body:'{}'})).status,200);
+ assert.deepEqual(f.calls.map(c=>c.path),['/auth/v110/logout-csrf','/auth/v110/logout']);
 });

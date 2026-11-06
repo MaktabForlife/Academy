@@ -3,11 +3,11 @@
 const hosting=Object.freeze(globalThis.AcademyHosting);
 const nativeToken=()=>localStorage.getItem('m4l_account_token')||'';
 const jsonResponse=(value,status=200)=>Response.json(value,{status});
-async function nativeFetch(path,body,token=nativeToken(),conditions={}){
+async function nativeFetch(path,body,token=nativeToken(),conditions={},uaaUserAction){
  const url=new URL(path,hosting.academyApiOrigin);
  if(url.origin!==hosting.academyApiOrigin||!url.pathname.startsWith('/api/'))throw Error('Invalid Academy connection.');
  const read=path==='/api/academy/hub/read';if(read)url.searchParams.set('request',JSON.stringify(body));
- return fetch(url.href,{method:read?'GET':'POST',credentials:window.M4L_V110?'same-origin':'omit',cache:'no-store',headers:{...(read?{}:{'Content-Type':'application/json'}),...(token?{Authorization:'Bearer '+token}:{}),...(conditions['If-None-Match']?{'If-None-Match':conditions['If-None-Match']}:{})},...(read?{}:{body:JSON.stringify(body)})});
+ return fetch(url.href,{uaaUserAction,method:read?'GET':'POST',credentials:window.M4L_V110?'same-origin':'omit',cache:'no-store',headers:{...(read?{}:{'Content-Type':'application/json'}),...(token?{Authorization:'Bearer '+token}:{}),...(conditions['If-None-Match']?{'If-None-Match':conditions['If-None-Match']}:{})},...(read?{}:{body:JSON.stringify(body)})});
 }
 async function portalFetch(path,init){
  if(path==='/api/config')return jsonResponse({academyOrigin:location.origin,studioOrigin:hosting.studioOrigin,hifzOrigin:hosting.hifzOrigin,nativePortal:true,authorityMode:'ACADEMY'});
@@ -46,7 +46,7 @@ async function portalFetch(path,init){
  else if(url.pathname==='/api/circles/access')payload={kind:'access',input:{websiteIds:url.searchParams.getAll('website')}};
  else throw Error('This action belongs in Studio. Open its current workspace.');
  if(!token){clearPrivateReads();return jsonResponse({error:'Sign in to Academy to continue.',code:'SIGN_IN_REQUIRED'},401);}
- const response=await nativeFetch(endpoint,payload,token,init.headers);
+ const response=await nativeFetch(endpoint,payload,token,init.headers,init.uaaUserAction);
  if(nativeToken()!==token)throw new DOMException('Your account changed.','AbortError');
  if(!project||!response.ok)return response;
  return jsonResponse(project(await response.json()));
@@ -122,10 +122,10 @@ export function api(path,options={}){
  // Callers edit their own view models. Do not share mutable JSON between them.
  return pending.then(value=>blob?value:JSON.parse(JSON.stringify(value)));
 }
-async function request(path,{body,method=body===undefined?'GET':'POST',headers={},blob=false,refreshed=false,accessRefreshed=false,statusRefreshed=false,optionalSession=false}={}){
+async function request(path,{uaaUserAction,body,method=body===undefined?'GET':'POST',headers={},blob=false,refreshed=false,accessRefreshed=false,statusRefreshed=false,optionalSession=false}={}){
  if(window.M4L_V110&&!['/api/config','/auth/login','/auth/exchange','/auth/logout','/auth/native-login'].includes(path.split('?')[0])&&!await window.M4L_V110.ready())throw new DOMException('Current Academy sign-in is required.','AbortError');
  const generation=identity.generation,revision=readRevision,bootstrap=['/api/circles/bootstrap','/api/circles/reader-bootstrap'].includes(path.split('?')[0]),key=JSON.stringify([path,Object.entries(headers).sort()]),eligible=method==='GET'&&!blob&&privateRead(path)&&!/[?&]refresh=1(?:&|$)/.test(path),saved=eligible?savedPrivateRead(key,bootstrap):null;
- const response=await portalFetch(path,{method,credentials:'same-origin',cache:'no-store',headers:{...(body!==undefined&&!(body instanceof Blob)?{'Content-Type':'application/json'}:{}),...headers,...(saved?{'If-None-Match':saved.etag}:{})},...(body===undefined?{}:{body:body instanceof Blob?body:JSON.stringify(body)})});
+ const response=await portalFetch(path,{uaaUserAction,method,credentials:'same-origin',cache:'no-store',headers:{...(body!==undefined&&!(body instanceof Blob)?{'Content-Type':'application/json'}:{}),...headers,...(saved?{'If-None-Match':saved.etag}:{})},...(body===undefined?{}:{body:body instanceof Blob?body:JSON.stringify(body)})});
  if(generation!==identity.generation)throw new DOMException('Your account changed.','AbortError');
  if(response.status===304){if(!saved||readRevision!==revision||readOwner!==(bootstrap?ownerOf(saved.value.account):readOwnerKey()))throw new DOMException('This saved view changed. Reopen it.','AbortError');const value=JSON.parse(JSON.stringify(saved.value)),serverTime=Number(response.headers.get('X-Maktab-Server-Time'));if(Number.isFinite(serverTime)&&serverTime>0){if(Object.hasOwn(value,'serverTime'))value.serverTime=serverTime;if(bootstrap&&value.dashboard)value.dashboard.serverTime=serverTime;const classroom=path==='/api/circles/classrooms/mothers'?value:bootstrap?value.classroom:null;if(classroom?.timetable){classroom.timetable.serverTime=serverTime;for(const session of classroom.timetable.sessions||[])session.canJoin=Boolean(session.eligibleToJoin&&serverTime>=session.joinOpensAt&&serverTime<session.endsAt&&serverTime<session.eligibilityExpiresAt);}}return value;}
  const result=blob&&response.ok?await response.blob():await response.json();if(generation!==identity.generation)throw new DOMException('Your account changed.','AbortError');

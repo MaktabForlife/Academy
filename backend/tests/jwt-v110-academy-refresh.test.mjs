@@ -362,6 +362,43 @@ test('Cancellation during the asynchronous private R2 read releases no media bod
  assert.equal(f.native.prepare('SELECT revoked_at FROM account_sessions WHERE session_id=?').get(sid).revoked_at,null);
 }));
 
+
+test('Own-family cancellation is independent of access signing, renewal rate and ninety-minute unlock',async t=>{
+ for(const mode of ['expired-access','idle-lock','lost-replacement','retry','transaction-failure'])await t.test(mode,withFamily(async f=>{
+  const auth=await nativeCookieLogin(f),sid=auth.pin.data.browserContext.sessionId;
+  let cookie=auth.cookie,proof=auth.pin.data.csrf;
+  if(mode==='expired-access'){cookie=cookie.replace(/__Secure-uaa_a=[^;]+;?\s*/,'');}
+  if(mode==='idle-lock')f.native.prepare('UPDATE jwt_v110_families SET last_fg_refresh_s=? WHERE family_id=?').run(now()-5401,sid);
+  if(mode==='lost-replacement'){const raw=cookie.match(/__Host-uaa_r=([^;]+)/)[1],r=await f.call('/auth/v110/refresh',{cookie:'__Host-uaa_r='+raw,proof});assert.equal(r.status,200,r.data.code);}
+  delete f.env.JWT_V110_PRIVATE_KEY_JSON;f.env.JWT_V110_RATE_LIMITER={limit:async()=>({success:false})};
+  const before=f.native.prepare("SELECT count(*) n FROM jwt_v110_security_audit WHERE event_type='NATIVE_LOGOUT'").get().n;
+  if(mode==='transaction-failure')f.native.exec("CREATE TRIGGER synthetic_reject_logout BEFORE INSERT ON jwt_v110_security_audit WHEN NEW.event_type='NATIVE_LOGOUT' BEGIN SELECT RAISE(ABORT,'CONTROLLED_LOGOUT_AUDIT_FAILURE'); END;");
+  const cancel=()=>f.call('/auth/v110/logout',{cookie,proof});
+  const result=await cancel();
+  if(mode==='transaction-failure'){
+   assert.equal(result.status,503);assert.equal(result.response.headers.getSetCookie().length,0);assert.equal(f.native.prepare('SELECT revoked_at FROM account_sessions WHERE session_id=?').get(sid).revoked_at,null);assert.equal(f.native.prepare('SELECT count(*) n FROM jwt_v110_parent_tombstones WHERE parent_session_id=?').get(sid).n,0);return;
+  }
+  assert.equal(result.status,200,result.data.code);assert.deepEqual(result.data,{success:true,cancelled:true});assert(result.response.headers.getSetCookie().every(c=>c.includes('Max-Age=0')));
+  assert(f.native.prepare('SELECT revoked_at FROM account_sessions WHERE session_id=?').get(sid).revoked_at);assert.equal(f.native.prepare('SELECT revoked FROM jwt_v110_families WHERE family_id=?').get(sid).revoked,1);assert.equal(f.native.prepare('SELECT count(*) n FROM jwt_v110_parent_tombstones WHERE parent_session_id=?').get(sid).n,1);
+  assert.equal(f.native.prepare("SELECT count(*) n FROM jwt_v110_security_audit WHERE event_type='NATIVE_LOGOUT'").get().n,before+1);
+  if(mode==='retry'){assert.equal((await cancel()).status,200);assert.equal(f.native.prepare("SELECT count(*) n FROM jwt_v110_security_audit WHERE event_type='NATIVE_LOGOUT'").get().n,before+1);}
+  assert.equal((await f.call('/api/account/session',{...auth})).status,401);
+ },{age:6000}));
+});
+test('Cancellation proof is available after lock but foreign origins, forged proof and body-selected accounts cannot cancel',withFamily(async f=>{
+ const auth=await nativeCookieLogin(f),sid=auth.pin.data.browserContext.sessionId;f.native.prepare('UPDATE jwt_v110_families SET last_fg_refresh_s=? WHERE family_id=?').run(now()-5401,sid);
+ const proof=await f.call('/auth/v110/logout-csrf',{method:'GET',cookie:auth.cookie});assert.equal(proof.status,200);assert(typeof proof.data.csrf==='string');
+ for(const options of [{site:'cross-site',proof:proof.data.csrf},{origin:'https://untrusted.invalid',proof:proof.data.csrf},{proof:randomRefresh()},{proof:proof.data.csrf,body:{accountId:featureSyntheticAccounts[2].id}}]){
+  const r=await f.call('/auth/v110/logout',{cookie:auth.cookie,...options});assert([400,403].includes(r.status));assert.equal(r.response.headers.getSetCookie().length,0);assert.equal(f.native.prepare('SELECT revoked_at FROM account_sessions WHERE session_id=?').get(sid).revoked_at,null);
+ }
+ const missing=await f.call('/auth/v110/logout',{cookie:'',proof:proof.data.csrf});assert.equal(missing.status,401);
+},{age:6000}));
+test('A cancellation loses a race to changed immutable proof floors without a false acknowledgement',withFamily(async f=>{
+ const auth=await nativeCookieLogin(f),sid=auth.pin.data.browserContext.sessionId;let raced=false;
+ f.setBeforeBatch(statements=>{if(!raced&&statements.some(s=>/INSERT INTO jwt_v110_parent_tombstones/.test(s.sql))){raced=true;f.native.prepare('UPDATE jwt_v110_families SET unlock_generation=unlock_generation+1 WHERE family_id=?').run(sid);}});
+ const r=await f.call('/auth/v110/logout',{cookie:auth.cookie,proof:auth.pin.data.csrf});assert(raced);assert.equal(r.status,409);assert.equal(r.response.headers.getSetCookie().length,0);assert.equal(f.native.prepare('SELECT revoked_at FROM account_sessions WHERE session_id=?').get(sid).revoked_at,null);
+}));
+
 test.after(()=>{
  assert.equal(remoteAttempts,0);const report={commit:process.env.GITHUB_SHA,synthetic:true,kind:'NATIVE_ACADEMY_PREPARED_REFRESH_SQLITE',records,remoteFetchAttempts:remoteAttempts,masterIssuerProved:false,foregroundHumanActivityProved:false,hostedRequests:0,hostedDBChanges:0,metrics:'No D1 row-cost claim from node:sqlite; workerd/full-flow measurement remains required.'};
  if(process.env.JWT_V110_EVIDENCE){mkdirSync(process.env.JWT_V110_EVIDENCE,{recursive:true});writeFileSync(process.env.JWT_V110_EVIDENCE+'/native-academy-refresh.json',JSON.stringify(report,null,2)+'\n');}

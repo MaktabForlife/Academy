@@ -11,7 +11,7 @@ export default{async fetch(request,env){
  const metrics={...freshMetrics(),localD1Errors:[]},tasks=[],context={waitUntil(p){tasks.push(p);}};
  const original=globalThis.fetch;globalThis.fetch=async input=>{const url=new URL(typeof input==='string'?input:input.url);if(url.origin==='https://jamiat.org.za'&&url.pathname==='/'){metrics.stubbedPublicDateCalls=(metrics.stubbedPublicDateCalls||0)+1;return new Response('Disposable public-date source unavailable',{status:503});}metrics.remoteCalls++;throw Error('External fetch forbidden in local JWT runtime proof');};
  try{
-  const measured=measuredEnv({...env,ACADEMY_DB:observeErrors(env.ACADEMY_DB,metrics),ACADEMY_ADMIN_DB:observeErrors(env.ACADEMY_ADMIN_DB,metrics)},metrics);measured.JWT_V110_RATE_LIMITER={limit:async()=>{metrics.rateChecks++;return {success:true};}};
+  const measured=measuredEnv({...env,ACADEMY_DB:observeErrors(env.ACADEMY_DB,metrics),ACADEMY_ADMIN_DB:observeErrors(env.ACADEMY_ADMIN_DB,metrics)},metrics);measured.JWT_V110_RATE_LIMITER={limit:async()=>{metrics.rateChecks++;return {success:request.headers.get('X-Feature-Test-Refresh-Deny')!=='1'||new URL(request.url).pathname!=='/auth/v110/refresh'};}};
   const result=await api.fetch(request,measured,context);await Promise.all(tasks);
   const headers=new Headers(result.headers);headers.set('x-feature-local-budget',JSON.stringify(metrics));return new Response(result.body,{status:result.status,headers});
  }finally{globalThis.fetch=original;}

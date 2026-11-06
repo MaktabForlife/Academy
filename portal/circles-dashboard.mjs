@@ -46,16 +46,16 @@ export function circlesDashboard({onUpdate,openAcademy,show=()=>true,onWorkspace
   if(dialogOwner&&(dialogOwner.owner!==accountKey()||dialogOwner.data!==data||dialogOwner.mode!==mode||!current()))closeDialog();
   writeStatus();syncJoinButtons();armClock();
  }
- function request(selected,force,generation,accountId,date){
+ function request(selected,force,generation,accountId,date,uaaUserAction){
   const key=JSON.stringify([accountId,generation,selected||'default',force,circleWeekStart(date)]);if(requests.has(key))return requests.get(key);
   const query=new URLSearchParams({...(selected?{mode:selected}:{}),date,...(force?{refresh:'1'}:{})});
-  const loading=api('/api/circles/dashboard?'+query).finally(()=>{if(requests.get(key)===loading)requests.delete(key);});requests.set(key,loading);return loading;
+  const loading=api('/api/circles/dashboard?'+query,{uaaUserAction}).finally(()=>{if(requests.get(key)===loading)requests.delete(key);});requests.set(key,loading);return loading;
  }
- async function load(selected=mode,force=false,date=localDay(Date.now(),data?.timezone||'Africa/Johannesburg'),checked=null,checkedError=null){
+ async function load(selected=mode,force=false,date=localDay(Date.now(),data?.timezone||'Africa/Johannesburg'),checked=null,checkedError=null,uaaUserAction){
   if(!identity.account)return;if(date==null||date==='')date=localDay(Date.now(),data?.timezone||'Africa/Johannesburg');const owner=accountKey();if(cacheOwner!==owner){cache.clear();requests.clear();cacheOwner=owner;}
   const key=JSON.stringify([selected||'default',circleWeekStart(date)]),saved=!force&&cache.get(key),age=saved?Date.now()-Number(saved.checkedAt):NaN,warm=Number.isFinite(age)&&age>=0&&age<43200000;
   resetActions();const currentTicket=++ticket,generation=identity.generation;mode=selected;pending=!warm;error='';status='';if(!warm)refresh();
-  try{if(checkedError)throw checkedError;const value=checked||warm&&saved||await request(selected,force,generation,identity.account.accountId,date);if(currentTicket!==ticket||generation!==identity.generation||owner!==accountKey())return;data=value;selectedDate=selectedCircleDay(value,date,Date.now()).date;dataOwner=owner;available=value.availableModes;mode=value.mode;cache.set(JSON.stringify([mode,circleWeekStart(date)]),value);cache.set(key,value);}
+  try{if(checkedError)throw checkedError;const value=checked||warm&&saved||await request(selected,force,generation,identity.account.accountId,date,uaaUserAction);if(currentTicket!==ticket||generation!==identity.generation||owner!==accountKey())return;data=value;selectedDate=selectedCircleDay(value,date,Date.now()).date;dataOwner=owner;available=value.availableModes;mode=value.mode;cache.set(JSON.stringify([mode,circleWeekStart(date)]),value);cache.set(key,value);}
   catch(e){if(currentTicket!==ticket||generation!==identity.generation||owner!==accountKey())return;data=null;dataOwner='';error=e.message;if([401,403,409].includes(e.status)){cache.clear();requests.clear();}}
   finally{if(currentTicket===ticket&&generation===identity.generation&&owner===accountKey()){pending=false;onUpdate();}}
  }
@@ -87,7 +87,7 @@ export function circlesDashboard({onUpdate,openAcademy,show=()=>true,onWorkspace
   const control=event.target.closest('button,a');if(!control)return;
   const handled=()=>{event.preventDefault();event.stopImmediatePropagation();};
   if(control.hasAttribute('data-circle-dialog-close')){handled();closeDialog();return;}
-  if(control.hasAttribute('data-circles-dashboard-refresh')){handled();void load(mode,true,selectedDate||localDay(Date.now(),data?.timezone||'Africa/Johannesburg'));return;}
+  if(control.hasAttribute('data-circles-dashboard-refresh')){handled();void load(mode,true,selectedDate||localDay(Date.now(),data?.timezone||'Africa/Johannesburg'),null,null,event);return;}
   if(control.hasAttribute('data-circles-dashboard-home')){handled();openAcademy(null,{mode:mode||'learn',tool:'home'});return;}
   if(!current())return;
   if(control.dataset.calendarMonth){handled();calendar(control.dataset.calendarMonth==='today'?calendarMonth(Date.now(),data.timezone):offsetCalendarMonth(viewedMonth,control.dataset.calendarMonth==='previous'?-1:1));return;}

@@ -1,3 +1,4 @@
+import {handleAcademyLogout} from '../../auth/v110/academy-logout-http.mjs';
 import {actorProof,verifyActor} from '../separation/proof.js';
 import {cookieSessionKey,bindAcademyCookieRequest} from '../../auth/v110/academy-cookie-auth.mjs';
 import {handleAcademyPIN} from '../../auth/v110/academy-pin-http.mjs';
@@ -533,6 +534,7 @@ return {
         if(!native||publicResult instanceof Response)throw rehearsalError('Native PIN verification did not finish.',503);
         return {native,publicResult};
       }});
+      if(['/auth/v110/logout','/auth/v110/logout-csrf'].includes(path))return handleAcademyLogout(request,env);
       if(['/auth/v110/csrf','/auth/v110/refresh'].includes(path))return handleAcademyRefresh(request,env);
       if(path==='/auth/v110/context')return readAcademyDisplayContext(request,env);
       const result=await (['/api/academy/header-date','/api/public/header-date'].includes(path)?(request.method==='GET'?headerDate(request):Response.json({success:false,error:'Use GET.'},{status:405})):path==='/api/academy/entrance/public-snapshot'?publicTimetable(request,env):path==='/api/academy/profile-labels-version'?profileLabelsVersion(request,env):dispatch(request,env));
