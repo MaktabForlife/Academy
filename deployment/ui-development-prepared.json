@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "state": "SOURCE_AND_BUNDLE_PREPARED_NOT_DEPLOYABLE",
+  "repository": "MaktabForlife/Academy",
+  "logicalTarget": "development",
+  "candidateVersion": "109.27",
+  "base": "1b4dd450a4a59093ae85d891f0277eb480418c30",
+  "inputs": [
+    {
+      "name": "UI-002 PR6",
+      "base": "38e66a57f0e094089718dd9dce6ff632f6247d68",
+      "head": "779dc5659eddc2044a4e4e81044f78b8902ee421"
+    },
+    {
+      "name": "BUG-002 PR7",
+      "base": "38e66a57f0e094089718dd9dce6ff632f6247d68",
+      "head": "6b9237843a6f7fb25d9113c108c15543de912b7b"
+    },
+    {
+      "name": "UI-001 PR8",
+      "base": "38e66a57f0e094089718dd9dce6ff632f6247d68",
+      "head": "667bb12a9135aa6a1b5df60a8696d384ae5bdf93"
+    },
+    {
+      "name": "UI-003 PR12",
+      "base": "1b4dd450a4a59093ae85d891f0277eb480418c30",
+      "head": "8624eede5a7757898992c01e73d6b09dfed1f4b5"
+    }
+  ],
+  "hostedCalls": 0,
+  "hostedDatabaseCalls": 0,
+  "providerCalls": 0,
+  "resourceMutations": 0,
+  "deployable": false,
+  "resolvedConflicts": [
+    "js/m4l-course-media-view.mjs",
+    "js/m4l-course-media.js"
+  ],
+  "resolution": "UI003 exact processing source plus reviewed PR7 original-reader routing",
+  "composedSource": "7c5dd98ab92d09926c2006e66a8f941a55468c15",
+  "bundle": {
+    "files": 2054,
+    "prefix": "/_assets/1b868c5997d1cb861528bfd1e4f3b71afa0804340f634ef9eccb85e80de1e074/",
+    "manifestSHA256": "2fbe61cbb77f697a30effcc82fad72887385b5babe9059e426e9c0c42c5ba713"
+  }
+}
