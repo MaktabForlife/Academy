@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "accountId": "c9a3e355b3d7a795880b1d36a1dbe123",
+  "workerVersion": "c3f010fd-fcd8-4bd4-9fae-396d3633b96d",
+  "coordinatorVersion": "128f12bf-4bca-4d28-86c2-31ecac734094",
+  "workerMigrationTag": null,
+  "coordinatorMigrationTag": null,
+  "readOnlyEvidenceRun": 42142941087,
+  "oldLiveNamespaces": [
+    "b722f4cf54a04d6fb2a5a299e12722e2",
+    "aa75328c13ee4f42b406ccf5ebbe851a"
+  ],
+  "firstInstallOnly": true
+}

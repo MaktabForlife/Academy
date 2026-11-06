@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "state": "SEEDED_VERIFIED",
+  "accountId": "c9a3e355b3d7a795880b1d36a1dbe123",
+  "databaseIds": [
+    "0eaf6d46-bbaa-46e3-8287-b6113ef8f2a8",
+    "18ad0efb-cd34-42a4-b510-7051f0303200"
+  ],
+  "schemaHashes": {
+    "core": "d7eb88199269195a20b44dad26b1663792e493631fa26690bc915af416772464",
+    "admin": "0cebae64a69e62a235b3828eb39d1001e3d23b992ffeb391920239096018a830"
+  },
+  "sourceCommit": "ab58a10f19b905c68b696190474ea4eeecf3bef7",
+  "nativeProofRun": 42142702284,
+  "seedPreparationRun": 42142941087,
+  "sourceDigest": "0c7d80b7bce6dffb3891896389f05c98a57972951daf288db053ac68af378212",
+  "acceptedHead": "5614d44d-de5b-4edd-bf3b-7f68d400ce52",
+  "syntheticAccounts": 4,
+  "syntheticCourses": 2,
+  "coreSeedStatements": 35,
+  "adminSeedStatements": 8,
+  "foreignKeyErrors": {
+    "core": 0,
+    "admin": 0
+  },
+  "quickCheck": {
+    "core": "ok",
+    "admin": "ok"
+  },
+  "seededOnly": true,
+  "featureActivated": false,
+  "hostedSyntheticTests": 0,
+  "existingDatabaseEffects": 0,
+  "verificationRowsRead": {
+    "coreSummary": 25,
+    "adminSummary": 8,
+    "coreForeignKey": 160,
+    "adminForeignKey": 44,
+    "coreQuickCheck": 1775,
+    "adminQuickCheck": 213
+  }
+}
