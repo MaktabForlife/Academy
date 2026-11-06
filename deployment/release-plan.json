@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "request": "automatic-routing-academy-20261106",
+  "kind": "configuration",
+  "target": "none",
+  "contains_jwt": false,
+  "database_changes": false,
+  "feature_base_sha": "bbf9b109fd703b801bbb6ab19e6f3e0bbd355ced",
+  "feature_sha": "59a7bd3b79f4c659ad8c6475d19883020d2c4d6e"
+}
