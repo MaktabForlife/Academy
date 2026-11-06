@@ -20,6 +20,7 @@ const shapes={
  'video-processing-quote':['action','sourceId'],
  'video-processing-authorise':['action','operationId','sourceId','quoteHash','authorise'],
  'video-processing-status':['action','jobId'],
+ 'video-processing-history':['action','attachmentId','after'],
  'video-processing-candidate':['action','jobId'],
  'video-processing-accept':['action','operationId','jobId','candidateHash','revision','reviewed','companion','confirmLessonReference','confirmAssignedHomework','confirmReferences','confirmAudioQuotations'],
  'video-processing-cancel':['action','operationId','jobId','cancel']

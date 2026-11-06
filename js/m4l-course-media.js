@@ -20,7 +20,15 @@
     if(action==='mou-playlist-cover-preview'){const value=await send({action,playlistId:input.playlistId,assetId:input.image.assetId}),bytes=Uint8Array.from(atob(value.data),c=>c.charCodeAt(0));return new Blob([bytes],{type:value.image.type});}
     return send({action,...input});
    };
-   panel.dispose=mountCourseMedia(host,{request,cardTools,courseName,websiteOrigin:new URL(location.destination).origin,current:active});
+   const processingRequest=async(action,input={})=>{
+    if(!active())throw new DOMException('The account or Course changed.','AbortError');
+    const part=action==='video-source-upload-part',{file,...fields}=input;
+    if(part&&(!(file instanceof Blob)||file.size>5*1024*1024))throw Error('Choose a valid recording part.');
+    const path='/api/admin/platform/studio-processing'+(part?'/recording-part?'+new URLSearchParams({activityKey,assetId:fields.assetId,partNumber:fields.partNumber}):'');
+    const response=await (window.M4L_ACADEMY_WORKSPACE?.adminFetch?((url,options)=>window.M4L_ACADEMY_WORKSPACE.adminFetch(url,options,{activityKey})):fetch)((window.M4L_CONFIG?.API_BASE||'')+path,{method:'POST',headers:{'Content-Type':part?'application/octet-stream':'application/json',Authorization:'Bearer '+context.token,'X-Academy-Workspace':'ADMIN'},body:part?file:JSON.stringify({activityKey,command:{action,...fields}})});
+    const result=await response.json();if(!active())throw new DOMException('The account or Course changed.','AbortError');if(!response.ok||!result.success)throw Object.assign(Error(result.error||'Video processing is unavailable.'),{status:response.status,code:result.code});return result;
+   };
+   panel.dispose=mountCourseMedia(host,{request,processingRequest,offeringId:location.offeringId,processingStyleHref:'/css/m4l-media-attachment.css',cardTools,courseName,websiteOrigin:new URL(location.destination).origin,current:active});
   }catch(error){if(active()){host.replaceChildren();const message=document.createElement('p');message.setAttribute('role','alert');message.textContent=error.message;host.append(message);const retry=document.createElement('button');retry.type='button';retry.className='button secondary';retry.textContent='Try again';retry.onclick=()=>open({hostId,activityKey,courseName,current});host.append(retry);}}
  }
  window.M4L_COURSE_MEDIA={open,reset,canLeave:()=>panel?.dispose?.canLeave?.()!==false};
