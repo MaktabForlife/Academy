@@ -1,3 +1,4 @@
+import {handleAcademyPIN} from '../../auth/v110/academy-pin-http.mjs';
 import {handleAcademyRefresh} from '../../auth/v110/academy-refresh-http.mjs';
 import {readDisplayContext} from '../../auth/v110/server-context.mjs';
 import {nativePortal,portalReadReply} from './portal.mjs';
@@ -511,6 +512,11 @@ return {
     if(origin&&!allowed.includes(origin))return new Response(JSON.stringify({success:false,error:'Origin is not allowed.'}),{status:403,headers});
     if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
     try{const path=new URL(request.url).pathname;
+      if(['/auth/v110/login','/auth/v110/setup-pin'].includes(path))return handleAcademyPIN(request,env,{performNativeLogin:async(input,{setup})=>{
+        let native;const publicResult=await dispatch(new Request(new URL(setup?'/api/account/setup-pin':'/api/account/login',request.url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)}),env,{capture:value=>{native=value;}});
+        if(!native||publicResult instanceof Response)throw rehearsalError('Native PIN verification did not finish.',503);
+        return {native,publicResult};
+      }});
       if(['/auth/v110/csrf','/auth/v110/refresh'].includes(path))return handleAcademyRefresh(request,env);
       if(path==='/auth/v110/context')return readDisplayContext(request,env,{app:'academy'});
       const result=await (path==='/api/academy/header-date'?(request.method==='GET'?headerDate(request):Response.json({success:false,error:'Use GET.'},{status:405})):path==='/api/academy/entrance/public-snapshot'?publicTimetable(request,env):path==='/api/academy/profile-labels-version'?profileLabelsVersion(request,env):dispatch(request,env));

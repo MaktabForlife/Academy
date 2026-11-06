@@ -5,7 +5,7 @@ CREATE TABLE jwt_v110_accounts (
  permission_version INTEGER NOT NULL, active INTEGER NOT NULL DEFAULT 1
 );
 CREATE TABLE jwt_v110_browser_heads (
- browser_id TEXT PRIMARY KEY, generation INTEGER NOT NULL
+ browser_id TEXT PRIMARY KEY, generation INTEGER NOT NULL, last_operation_id TEXT NOT NULL DEFAULT ''
 );
 CREATE TABLE jwt_v110_parent_tombstones (
  parent_session_id TEXT PRIMARY KEY, expires_at_s INTEGER NOT NULL

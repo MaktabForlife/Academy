@@ -7,3 +7,5 @@ All JWT activation flags remain off. No hosted configuration/schema/database/dep
 V110.2 adds default-disabled Academy prepared own refresh and a scoped synthetic native-PIN prerequisite suite. Issuer, first family, qualifying foreground, cookies/resource cutover and hosted activation remain pending.
 
 V110.3 corrects the new workflow's test-pipeline failure propagation and copies already-verified native database rows to ordinary objects at the strict rights-codec boundary. Run42157619929 had8passing/8failing test executions despite a green job and is not acceptance evidence. No hosted change.
+
+V110.4 fences native website admission from before state loading through commit, and stages a default-disabled native PIN-to-JWT issuer/PIN unlock. No root marker is selected or installed. First family staging and prepared rotation are separate same-Core transactions; an unpublished failure disables staged records. Browser cookie/native-resource/host/cancellation integration remains pending. No hosted effects.

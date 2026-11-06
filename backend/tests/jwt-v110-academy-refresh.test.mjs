@@ -17,7 +17,7 @@ import {hosting} from '../src/academy/hosting.mjs';
 const h=hosting(),appOrigin=h.academyApiOrigin,now=()=>Math.floor(Date.now()/1000);
 const secrets=Object.fromEntries(['PIN_SECRET','SESSION_SECRET','SHARED_PIN_SECRET','ACADEMY_OPEN_LIBRARY_STORAGE_KEY'].map(k=>[k,crypto.randomUUID()+crypto.randomUUID()]));
 const records=[];let remoteAttempts=0;
-const withFamily=fn=>async()=>{
+const withFamily=(fn,{age=0}={})=>async()=>{
  const originalFetch=globalThis.fetch;globalThis.fetch=async()=>{remoteAttempts++;throw Error('Unexpected remote call');};
  const seed=await prepareFeatureSeed({pin:'2468',secrets});const native=seed.databases.core;
  try{
@@ -26,12 +26,13 @@ const withFamily=fn=>async()=>{
   const ns={getByName(){return Object.fromEntries(['read','write'].map(m=>[m,async(...args)=>({result:await engine[m](...args)})]));}};
   const keys=await generateKeyPair('ES256',{extractable:true}),publicJWK={...await exportJWK(keys.publicKey),kid:'synthetic-a'},privateJWK={...await exportJWK(keys.privateKey),kid:'synthetic-a'};
   const cfg=JSON.parse(readFileSync(new URL('../wrangler.feature.jsonc',import.meta.url),'utf8'));
-  const env={...cfg.vars,...secrets,ACADEMY_D1_MODE:'ACTIVE',ACADEMY_D1_RUN_ID:seed.report.sourceDigest,ACADEMY_DB:sqliteD1(native),ACADEMY_ADMIN_DB:admin,ACADEMY_SPLIT_COORDINATOR:ns,AUTH_LOGIN_RATE_LIMITER:{limit:async()=>({success:true})},JWT_V110_REFRESH:'1',JWT_V110_BROWSER:'1',JWT_V110_REQUEST_ORIGIN:appOrigin,JWT_V110_PUBLIC_KEYS_JSON:JSON.stringify([publicJWK]),JWT_V110_PRIVATE_KEY_JSON:JSON.stringify(privateJWK),JWT_V110_SIGNING_KID:'synthetic-a',JWT_V110_CSRF_SECRET:randomRefresh(),JWT_V110_RATE_LIMITER:{limit:async()=>({success:true})},ALLOWED_ORIGINS:appOrigin+','+h.academyPortalOrigin};
+  const env={...cfg.vars,...secrets,ACADEMY_D1_MODE:'ACTIVE',ACADEMY_D1_RUN_ID:seed.report.sourceDigest,ACADEMY_DB:sqliteD1(native),ACADEMY_ADMIN_DB:admin,ACADEMY_SPLIT_COORDINATOR:ns,AUTH_LOGIN_RATE_LIMITER:{limit:async()=>({success:true})},JWT_V110_MASTER:'1',JWT_V110_REFRESH:'1',JWT_V110_BROWSER:'1',JWT_V110_REQUEST_ORIGIN:appOrigin,JWT_V110_PUBLIC_KEYS_JSON:JSON.stringify([publicJWK]),JWT_V110_PRIVATE_KEY_JSON:JSON.stringify(privateJWK),JWT_V110_SIGNING_KID:'synthetic-a',JWT_V110_CSRF_SECRET:randomRefresh(),JWT_V110_RATE_LIMITER:{limit:async()=>({success:true})},ALLOWED_ORIGINS:appOrigin+','+h.academyPortalOrigin};
   const loginResponse=await worker.fetch(new Request(appOrigin+'/api/account/login',{method:'POST',headers:{Origin:h.academyPortalOrigin,'Content-Type':'application/json'},body:JSON.stringify({uniqueid:featureSyntheticAccounts[0].login,pin:'2468'})}),env);
   assert.equal(loginResponse.status,200,'Native PIN prerequisite failed');const login=await loginResponse.json(),nativeClaims=await verifySessionToken(login.token,env),sid=nativeClaims.sid,id=nativeClaims.accountid,ce=nativeClaims.epoch;
-  const raw=randomRefresh(),fp=await fingerprint('academy',raw),at=now(),browser=crypto.randomUUID();
+  const raw=randomRefresh(),fp=await fingerprint('academy',raw),at=now()-age,browser=crypto.randomUUID();
+  if(age)native.prepare('UPDATE account_sessions SET created_at=?,expires_at=? WHERE session_id=?').run(new Date(at*1000).toISOString(),new Date((at+604800)*1000).toISOString(),sid);
   native.prepare('INSERT INTO jwt_v110_accounts VALUES(?,?,?,1)').run(id,ce,1);
-  native.prepare('INSERT INTO jwt_v110_browser_heads VALUES(?,1)').run(browser);
+  native.prepare('INSERT INTO jwt_v110_browser_heads(browser_id,generation) VALUES(?,1)').run(browser);
   native.prepare('INSERT INTO jwt_v110_families(family_id,account_id,parent_session_id,browser_id,browser_generation,credential_epoch,permission_version,refresh_fp,original_signed_in_at_s,original_expires_at_s,last_fg_refresh_s,rotated_at_s) VALUES(?,?,?,?,1,?,1,?,?,?,?,?)').run(sid,id,sid,browser,ce,fp,at,at+604800,at,at);
   const config={app:'academy',issuer:'https://ummabbadacademy.app',academyCookieDomain:'ummabbadacademy.app',publicKeys:[publicJWK],signingKey:keys.privateKey,signingKid:'synthetic-a'};
   const row=()=>native.prepare('SELECT * FROM jwt_v110_families WHERE family_id=?').get(sid);
@@ -110,6 +111,69 @@ test('Prepared token expiry elapsing before commit cannot consume the refresh se
  let calls=0;const service=await createAccountBoundAcademyRefresh({binding:f.env.ACADEMY_DB,repository:academyD1Repository(f.env),...f.config,clock:()=>f.at+(calls++===0?0:901)});
  await assert.rejects(service.refreshAndIssue(f.raw),e=>e.code==='PREPARATION_EXPIRED');assert(f.row().refresh_fp===f.fp,'Old refresh must remain current');assert.equal(f.row().refresh_generation,0);
 }));
+
+test('Real native PIN creates the first JWT family and returns cookies, not a legacy bearer',withFamily(async f=>{
+ f.native.exec('DELETE FROM jwt_v110_families; DELETE FROM jwt_v110_browser_heads; DELETE FROM jwt_v110_accounts;');
+ f.native.prepare('UPDATE account_sessions SET revoked_at=?').run(new Date().toISOString());
+ const r=await f.call('/auth/v110/login',{cookie:'',body:{uniqueid:featureSyntheticAccounts[0].login,pin:'2468'}});
+ assert.equal(r.status,200,r.data.code);assert.equal(r.data.success,true);assert.equal(r.data.cookieSession,true);assert(!Object.hasOwn(r.data,'token'));assert.equal(r.response.headers.getSetCookie().length,2);
+ const access=r.response.headers.getSetCookie().find(c=>c.startsWith('__Secure-uaa_a=')).split(';')[0];
+ const verified=await (await createNativeCookieEngine(f.config)).verify(access.split('=')[1],now());assert.equal(verified.claims.sub,f.id);assert.equal(verified.rights.globalAdmin,true);
+ assert.equal(r.data.browserContext.sessionId,verified.claims.sid);assert.equal(r.data.browserContext.parentId,verified.claims.sid);assert.equal(r.data.sessionKey,'uaa-session:'+verified.claims.sid+':0');
+ const row=f.native.prepare('SELECT * FROM jwt_v110_families').get(),session=f.native.prepare('SELECT * FROM account_sessions WHERE session_id=?').get(row.family_id);
+ assert.equal(row.original_signed_in_at_s,Math.floor(Date.parse(session.created_at)/1000));assert.equal(row.original_expires_at_s,Math.floor(Date.parse(session.expires_at)/1000));assert.equal(row.refresh_generation,1);assert.equal(row.revoked,0);
+ const cookie=r.response.headers.getSetCookie().find(c=>c.startsWith('__Host-uaa_r=')).split(';')[0];
+ const repeat=await f.call('/auth/v110/refresh',{cookie,proof:r.data.csrf});assert.equal(repeat.status,200,repeat.data.code);
+}));
+test('Wrong PIN, native limiter denial and bad signer cannot create a JWT session',withFamily(async f=>{
+ const nativeCount=()=>f.native.prepare('SELECT count(*) n FROM account_sessions').get().n;
+ const before=nativeCount();let r=await f.call('/auth/v110/login',{body:{uniqueid:featureSyntheticAccounts[0].login,pin:'1111'}});assert.equal(r.status,401);assert.equal(nativeCount(),before);assert.equal(f.row().refresh_generation,0);
+ f.env.AUTH_LOGIN_RATE_LIMITER={limit:async()=>({success:false})};r=await f.call('/auth/v110/login',{body:{uniqueid:featureSyntheticAccounts[0].login,pin:'2468'}});assert.equal(r.status,429);assert.equal(nativeCount(),before);
+ f.env.AUTH_LOGIN_RATE_LIMITER={limit:async()=>({success:true})};f.env.JWT_V110_SIGNING_KID='not-pinned';r=await f.call('/auth/v110/login',{body:{uniqueid:featureSyntheticAccounts[0].login,pin:'2468'}});assert.equal(r.status,503);assert.equal(nativeCount(),before);assert.equal(r.response.headers.getSetCookie().length,0);
+}));
+test('A native PIN unlock after ninety minutes keeps the old parent and seven-day deadline',withFamily(async f=>{
+ assert.equal((await f.call('/auth/v110/csrf')).status,401);const previous=f.row();
+ const r=await f.call('/auth/v110/login',{body:{uniqueid:featureSyntheticAccounts[0].login,pin:'2468'}});
+ assert.equal(r.status,200,r.data.code);assert.equal(r.data.browserContext.sessionId,f.sid);assert.equal(r.data.browserContext.unlockGeneration,1);
+ assert.equal(f.row().original_signed_in_at_s,previous.original_signed_in_at_s);assert.equal(f.row().original_expires_at_s,previous.original_expires_at_s);assert.equal(f.row().parent_session_id,f.sid);assert.equal(f.row().browser_generation,1);assert(f.row().last_fg_refresh_s>=now()-1);assert.equal(f.row().unlock_generation,1);
+ const active=f.native.prepare('SELECT count(*) n FROM account_sessions WHERE account_id=? AND revoked_at IS NULL').get(f.id).n;assert.equal(active,1);
+},{age:7200}));
+test('Switching with a different verified native PIN revokes the prior local parent atomically',withFamily(async f=>{
+ const r=await f.call('/auth/v110/login',{body:{uniqueid:featureSyntheticAccounts[2].login,pin:'2468'}});
+ assert.equal(r.status,200,r.data.code);assert.equal(r.data.browserContext.accountId,featureSyntheticAccounts[2].id);assert.notEqual(r.data.browserContext.sessionId,f.sid);assert.equal(r.data.browserContext.browserId,f.browser);assert.equal(r.data.browserContext.browserGeneration,2);
+ assert.equal(f.row().revoked,1);assert(f.native.prepare('SELECT revoked_at FROM account_sessions WHERE session_id=?').get(f.sid).revoked_at);
+ assert(f.native.prepare('SELECT 1 FROM jwt_v110_parent_tombstones WHERE parent_session_id=?').get(f.sid));
+ assert.equal(f.native.prepare('SELECT count(*) n FROM accounts').get().n,4);
+}));
+test('Failed prepared client response cannot rotate an existing refresh family',withFamily(async f=>{
+ const service=await createAccountBoundAcademyRefresh({binding:f.env.ACADEMY_DB,repository:academyD1Repository(f.env),...f.config,prepareClient:async()=>{throw Error('Controlled preparation failure');}});
+ await assert.rejects(service.refreshAndIssue(f.raw),/Controlled preparation failure/);assert(f.row().refresh_fp===f.fp,'Old refresh must remain current');assert.equal(f.row().refresh_generation,0);
+}));
+test('Native PIN rejects cross-origin, cross-site, unknown and oversized input before session creation',withFamily(async f=>{
+ const count=f.native.prepare('SELECT count(*) n FROM account_sessions').get().n;
+ for(const options of [{origin:'https://untrusted.invalid'},{site:'cross-site'},{body:{uniqueid:featureSyntheticAccounts[0].login,pin:'2468',identityConfirmed:true}},{body:'x'.repeat(5000)}]){
+  const r=await f.call('/auth/v110/login',options);assert([400,403].includes(r.status));assert.equal(r.response.headers.getSetCookie().length,0);
+ }
+ assert.equal(f.native.prepare('SELECT count(*) n FROM account_sessions').get().n,count);assert.equal(f.row().refresh_generation,0);
+}));
+
+
+test('Native website admission removed between state load and verification cannot enter a committed token',withFamily(async f=>{
+ f.env.ACADEMY_WEB_PLATFORM='1';f.native.prepare("UPDATE global_role_assignments SET active=0 WHERE account_id=?").run(f.id);f.native.prepare("INSERT INTO website_platform_admissions(account_id,active) VALUES(?,1) ON CONFLICT(account_id) DO UPDATE SET active=1").run(f.id);
+ const repo=academyD1Repository(f.env),load=repo.session.bind(repo);let removed=false,observed=false;
+ repo.session=async(...args)=>{const state=await load(...args);if(!removed){assert(state.contexts.some(c=>c.scope==='WEBSITE'));observed=true;removed=true;f.native.prepare("UPDATE website_platform_admissions SET active=0 WHERE account_id=?").run(f.id);}return state;};
+ const service=await createAccountBoundAcademyRefresh({binding:f.env.ACADEMY_DB,repository:repo,...f.config});
+ const result=await service.refreshAndIssue(f.raw);assert.equal(result.kind,'rotated');assert(observed);assert.equal(f.row().refresh_generation,1);
+ const v=await (await createNativeCookieEngine(f.config)).verify(result.setCookies[0].split(';')[0].split('=')[1],now());assert.equal(v.rights.websiteAdmitted,false);
+}));
+test('A stale cached WEBSITE context never substitutes for current native admission',withFamily(async f=>{
+ f.env.ACADEMY_WEB_PLATFORM='1';f.native.prepare("UPDATE global_role_assignments SET active=0 WHERE account_id=?").run(f.id);f.native.prepare("INSERT INTO website_platform_admissions(account_id,active) VALUES(?,1) ON CONFLICT(account_id) DO UPDATE SET active=1").run(f.id);
+ const repo=academyD1Repository(f.env),stale=await repo.session(f.sid,f.id,f.ce);assert(stale.contexts.some(c=>c.scope==='WEBSITE'));
+ f.native.prepare("UPDATE website_platform_admissions SET active=0 WHERE account_id=?").run(f.id);repo.session=async()=>stale;
+ const service=await createAccountBoundAcademyRefresh({binding:f.env.ACADEMY_DB,repository:repo,...f.config});const result=await service.refreshAndIssue(f.raw);assert.equal(result.kind,'rotated');
+ const v=await (await createNativeCookieEngine(f.config)).verify(result.setCookies[0].split(';')[0].split('=')[1],now());assert.equal(v.rights.websiteAdmitted,false);
+}));
+
 test.after(()=>{
  assert.equal(remoteAttempts,0);const report={commit:process.env.GITHUB_SHA,synthetic:true,kind:'NATIVE_ACADEMY_PREPARED_REFRESH_SQLITE',records,remoteFetchAttempts:remoteAttempts,masterIssuerProved:false,foregroundHumanActivityProved:false,hostedRequests:0,hostedDBChanges:0,metrics:'No D1 row-cost claim from node:sqlite; workerd/full-flow measurement remains required.'};
  if(process.env.JWT_V110_EVIDENCE){mkdirSync(process.env.JWT_V110_EVIDENCE,{recursive:true});writeFileSync(process.env.JWT_V110_EVIDENCE+'/native-academy-refresh.json',JSON.stringify(report,null,2)+'\n');}

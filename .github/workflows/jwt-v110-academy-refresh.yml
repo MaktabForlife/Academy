@@ -23,6 +23,8 @@ jobs:
       - run: npm ci --prefix backend --no-audit --no-fund
       - name: Check scoped native source syntax
         run: |
+          node --check backend/src/auth/v110/academy-master-issuer.mjs
+          node --check backend/src/auth/v110/academy-pin-http.mjs
           node --check backend/src/auth/v110/academy-refresh.mjs
           node --check backend/src/auth/v110/academy-refresh-http.mjs
           node --check backend/src/academy/d1/worker.js
