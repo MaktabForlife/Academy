@@ -15,7 +15,7 @@ export function validateSetupPlan(p){
  assert.deepEqual(p.databaseNames,['jwt-feature-core-20261106a','jwt-feature-admin-20261106a']);
  assert.match(p.schemaReceiptSHA256,/^[a-f0-9]{64}$/);
  assert.equal(p.appSource,'e8e26af7e5c6275656faa5c24985098e377439d0');
- assert.equal(p.setupPrimitive,'a5655de546ea0854ae1cae23b9462964efa71db1');
+ assert.equal(p.setupPrimitive,'254661e642e19aea618cdae1ddada831cbd7d1e3');
  assert.equal(p.ordinaryReleaseDatabaseChanges,false);
  assert.deepEqual(p.setupDatabaseEffects,{scope:'NEW_PAIR_ONLY',coreSeedStatements:35,adminSeedStatements:8,syntheticAccounts:4,syntheticCourses:2,productionData:false,existingStoreChanges:false,retrySeed:false});
  assert.deepEqual(p.temporarySecrets,['JWT_FEATURE_SETUP_PIN','JWT_FEATURE_SETUP_AUTH']);

@@ -3,6 +3,7 @@
 // before activation. Existing classes/contexts are composed outside this module.
 import {createAcademyPinHash} from '../lib/academy-pin.js';
 import {jwtFeatureDatabaseEnv} from './jwt-feature-storage.mjs';
+import {jwtFeatureObjectDefinitionsSQL} from './jwt-feature-schema.mjs';
 const ownOrigin='https://feature_worker.maktab4life.workers.dev',account='c9a3e355b3d7a795880b1d36a1dbe123';
 const protectedIds=['0eaf6d46-bbaa-46e3-8287-b6113ef8f2a8','18ad0efb-cd34-42a4-b510-7051f0303200','1c8aece3-dc1d-40d1-8a82-01ab4f63336f','fe85dac1-b1f0-4079-9127-2e36089aa385','c261eb73-7145-4f73-940c-5816db287612'];
 const marker='__PRIVATE_FEATURE_PIN_HASH__',hashPattern=/^v3\$pbkdf2-sha256\$100000\$[-_A-Za-z0-9]{22}\$[0-9a-f]{64}$/;
@@ -109,7 +110,7 @@ export function withJWTFeatureSetup(Base,input){
     const selected=jwtFeatureDatabaseEnv(this.#setupEnv),db={core:selected.ACADEMY_DB.withSession('first-primary'),admin:selected.ACADEMY_ADMIN_DB.withSession('first-primary')};
     for(const owner of ['core','admin']){
      executionWindow(this.#setupEnv);
-     const objects=(await db[owner].prepare("SELECT type,name,tbl_name,sql FROM sqlite_schema WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' AND name<>'_cf_METADATA' ORDER BY type,name").all()).results.map(r=>[r.type,r.name,r.tbl_name,r.sql]);
+     const objects=(await db[owner].prepare(jwtFeatureObjectDefinitionsSQL).all()).results.map(r=>[r.type,r.name,r.tbl_name,r.sql]);
      if(await sha(JSON.stringify(objects))!==c.objectHashes[owner])fail();
      const queries=[];
      for(let offset=0;offset<c.tables[owner].length;offset+=5){

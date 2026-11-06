@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 const blockedNamespaces=new Set(['b722f4cf54a04d6fb2a5a299e12722e2','aa75328c13ee4f42b406ccf5ebbe851a']);
 export function sanitiseSettings(s){
- return {compatibility_date:s.compatibility_date,compatibility_flags:s.compatibility_flags,
+ return {observabilityEnabled:s.observability?.enabled??s.observabilityEnabled??false,compatibility_date:s.compatibility_date,compatibility_flags:s.compatibility_flags,
   bindings:(s.bindings||[]).map(b=>{
    if(b.type==='secret_text')return {name:b.name,type:b.type};
    if(b.type==='plain_text')return {name:b.name,type:b.type,text:b.text};
@@ -46,7 +46,7 @@ export function assertRemoteProfile(settings,config,baseline,namespaces,{secretN
   assert(!seen.has(b.name),'DUPLICATE_BINDING');seen.add(b.name);const e=expected.get(b.name);assert(e,'UNKNOWN_BINDING');
   for(const [k,v]of Object.entries(e))assert.deepEqual(b[k],v,'BINDING_MISMATCH');
  }
- assert.equal(s.compatibility_date,config.compatibility_date);assert.deepEqual(s.compatibility_flags,config.compatibility_flags);assert.equal(s.tailConsumerCount,0);
+ assert.equal(s.compatibility_date,config.compatibility_date);assert.deepEqual(s.compatibility_flags,config.compatibility_flags);assert.equal(s.tailConsumerCount,0);assert.equal(s.observabilityEnabled,Boolean(config.observability?.enabled),'OBSERVABILITY_MISMATCH');
  if(config.assets){
   assert(s.assets?.config,'ASSETS_CONFIG_MISSING');
   assert.deepEqual(s.assets.config.run_worker_first,config.assets.run_worker_first);

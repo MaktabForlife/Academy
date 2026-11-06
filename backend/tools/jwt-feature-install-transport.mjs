@@ -53,7 +53,7 @@ export function createInstallOps({root,directory,evidenceDirectory,p,baseline,ex
  const owned=async()=>{
   for(const name of names)assert.equal(await getVersion(name),expected[name],'VERSION_NOT_OWNED');
  };
- const paused=(c)=>({...structuredClone(c),main:'src/__jwt_feature_unavailable.js',assets:c.assets?{...c.assets,run_worker_first:true}:undefined,vars:{...c.vars,ACADEMY_D1_MODE:'PAUSED',JWT_V110_MASTER:'0',JWT_V110_REFRESH:'0',JWT_V110_BROWSER:'0',JWT_V110_NATIVE_COOKIE:'0',JWT_FEATURE_INSTALL_SOURCE:p.publicManifest.source,JWT_FEATURE_INSTALL_OWNER:p.publicManifest.owner}});
+ const paused=(c)=>({...structuredClone(c),main:'src/__jwt_feature_unavailable.js',observability:{enabled:false},assets:c.assets?{...c.assets,run_worker_first:true}:undefined,vars:{...c.vars,ACADEMY_D1_MODE:'PAUSED',JWT_V110_MASTER:'0',JWT_V110_REFRESH:'0',JWT_V110_BROWSER:'0',JWT_V110_NATIVE_COOKIE:'0',JWT_FEATURE_INSTALL_SOURCE:p.publicManifest.source,JWT_FEATURE_INSTALL_OWNER:p.publicManifest.owner}});
  return {
   candidateGuard,ownedGuard:owned,
   async preflight(){
@@ -116,7 +116,7 @@ export function createInstallOps({root,directory,evidenceDirectory,p,baseline,ex
   },
   async verifyRecovery(){await owned();assert(!temporarySecrets.some(n=>secretNames.has(n)));await this.probe('recovery-paused');await owned();},
   save(evidence){
-   writeFileSync(resolve(publicOut,'installation.json'),JSON.stringify({...evidence,...report},null,2)+'\n');
+   writeFileSync(resolve(publicOut,'installation.json'),JSON.stringify({...evidence,...report,setupRequests:report.setupExecuteAttempts+report.setupStatusAttempts,setupRequestsAreFetchAttempts:true},null,2)+'\n');
   }
  };
 }

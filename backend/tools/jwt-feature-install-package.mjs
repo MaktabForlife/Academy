@@ -31,7 +31,7 @@ export function compileInstallPackage({baseWorker,baseCoordinator,baseline,schem
  const worker=structuredClone(baseWorker),coordinator=structuredClone(baseCoordinator);
  const fresh=schemaReceipt.databaseIds.map((database_id,i)=>({binding:i?'JWT_V110_ADMIN_DB':'JWT_V110_CORE_DB',database_name:names[i],database_id}));
  for(const c of [worker,coordinator]){
-  c.d1_databases.push(...fresh);
+  c.d1_databases.push(...fresh);c.observability={enabled:false};
   c.vars={...(c.vars||{}),ENVIRONMENT:'feature',ACADEMY_DEPLOYMENT_KIND:'ISOLATED_PREVIEW',ACADEMY_D1_MODE:'PAUSED',ACADEMY_D1_RUN_ID:baseline.sourceDigest,
    JWT_V110_STORAGE_PROFILE:'FRESH_PAIR_V1',JWT_V110_NATIVE_RUN_ID:contract.sourceDigest,JWT_V110_OBJECT_NAMESPACE:contract.objectNamespace,
    JWT_FEATURE_SETUP_MODE:'BOOTSTRAP_ONLY',JWT_FEATURE_SETUP_SOURCE:source,JWT_FEATURE_SETUP_MANIFEST:contract.manifestHash,

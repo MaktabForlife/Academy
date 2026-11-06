@@ -1,4 +1,5 @@
 // Produces only a public compile-time contract; never provisions or calls Cloudflare.
+import {jwtFeatureObjectDefinitionsSQL,jwtFeatureUserTablesSQL} from '../src/academy/jwt-feature-schema.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
@@ -14,8 +15,8 @@ export function setupContract({source,databaseIds}){
   const db=new DatabaseSync(':memory:');try{
    db.exec(inputs[owner].toString());
    sql[owner]=db.prepare("SELECT sql FROM sqlite_schema WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY rowid").all().map(x=>x.sql);
-   c.tables[owner]=db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name<>'_cf_METADATA' ORDER BY name").all().map(x=>x.name);
-   const objects=db.prepare("SELECT type,name,tbl_name,sql FROM sqlite_schema WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' AND name<>'_cf_METADATA' ORDER BY type,name").all().map(r=>[r.type,r.name,r.tbl_name,r.sql]);
+   c.tables[owner]=db.prepare(jwtFeatureUserTablesSQL).all().map(x=>x.name);
+   const objects=db.prepare(jwtFeatureObjectDefinitionsSQL).all().map(r=>[r.type,r.name,r.tbl_name,r.sql]);
    c.objectHashes[owner]=sha(JSON.stringify(objects));c.templateHashes[owner]=sha(template[owner]);
    c.statements[owner]=template[owner].trimEnd().split('\n');
   }finally{db.close();}

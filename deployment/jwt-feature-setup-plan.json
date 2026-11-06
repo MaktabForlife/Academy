@@ -17,7 +17,7 @@
   ],
   "schemaReceiptSHA256": null,
   "appSource": "e8e26af7e5c6275656faa5c24985098e377439d0",
-  "setupPrimitive": "a5655de546ea0854ae1cae23b9462964efa71db1",
+  "setupPrimitive": "254661e642e19aea618cdae1ddada831cbd7d1e3",
   "ordinaryReleaseDatabaseChanges": false,
   "setupDatabaseEffects": {
     "scope": "NEW_PAIR_ONLY",

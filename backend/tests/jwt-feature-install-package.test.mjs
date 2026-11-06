@@ -105,7 +105,7 @@ test('concrete transport performs seven guarded writes, forty metadata reads, fi
   for(const b of c.ratelimits||[])bindings.push({name:b.name,type:'ratelimit',namespace_id:b.namespace_id,simple:b.simple});
   for(const b of c.durable_objects?.bindings||[]){const ns=b.class_name==='ProgramTimetableCoordinator'?baseline.timetableNamespaceId:b.class_name==='AcademySplitCoordinator'?baseline.splitNamespaceId:b.class_name==='JWTFeatureProgramTimetableCoordinator'?'c'.repeat(32):'d'.repeat(32);bindings.push({name:b.name,type:'durable_object_namespace',namespace_id:ns,class_name:b.class_name,script_name:b.script_name||c.name});}
   if(c.assets)bindings.push({name:c.assets.binding,type:'assets'});
-  return {bindings,compatibility_date:c.compatibility_date,compatibility_flags:c.compatibility_flags,tail_consumers:[],...(c.assets?{assets:{jwt:'NEVER_PUBLIC_ASSET_TOKEN',config:{run_worker_first:c.assets.run_worker_first,not_found_handling:'none',html_handling:'auto-trailing-slash',base_path:'/'}}}:{})};
+  return {bindings,compatibility_date:c.compatibility_date,compatibility_flags:c.compatibility_flags,tail_consumers:[],observability:{enabled:Boolean(c.observability?.enabled)},...(c.assets?{assets:{jwt:'NEVER_PUBLIC_ASSET_TOKEN',config:{run_worker_first:c.assets.run_worker_first,not_found_handling:'none',html_handling:'auto-trailing-slash',base_path:'/'}}}:{})};
  };
  const fetcher=async(url,options={})=>{
   const u=new URL(url);seen.push({host:u.host,path:u.pathname,method:options.method||'GET'});
