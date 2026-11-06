@@ -41,7 +41,7 @@ async function main(){
  const files=[];
  function walk(dir){for(const e of readdirSync(dir,{withFileTypes:true})){const path=join(dir,e.name),stat=lstatSync(path);assert(!stat.isSymbolicLink(),'ASSET_SYMLINK');if(e.isDirectory())walk(path);else{assert(stat.isFile());files.push(relative(assetRoot,path));}}}
  walk(assetRoot);
- for(const p of files)assert(!/(?:^|\/)(?:backend|config|\.git|\.github|node_modules|\.env)(?:\/|$)|\.sql$|private.?key/i.test(p),'NONPUBLIC_ASSET');
+ for(const p of files)assert(!/(?:^|\/)(?:backend|config|\.git|\.github|node_modules|\.env(?:\.[^/]*)?|\.dev\.vars)(?:\/|$)|\.sql$|private.?key/i.test(p),'NONPUBLIC_ASSET');
  const assets=new Map(files.map(path=>[path,hash(readFileSync(resolve(assetRoot,path)))])),hostingHash=hash(readFileSync(resolve(root,'config/hosting.json')));
  const sourceGuard=async()=>{
   await approved.fresh();assert.equal(git('rev-parse','HEAD'),source);

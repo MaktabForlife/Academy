@@ -7,7 +7,7 @@ export async function createPrivateCapsule(pin,{kid,setupClientFactory}){
  const pair=await webcrypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);
  let jwk=await webcrypto.subtle.exportKey('jwk',pair.privateKey),auth=randomBytes(32),csrf=randomBytes(32).toString('base64url'),pinValue=pin,dead=false;
  const pub=await webcrypto.subtle.exportKey('jwk',pair.publicKey);
- const publicKey={kty:'EC',crv:'P-256',kid,x:pub.x,y:pub.y};
+ const publicKey=Object.freeze({kty:'EC',crv:'P-256',kid,x:pub.x,y:pub.y});
  const capsule={publicKey,destroy(){dead=true;if(auth)auth.fill(0);auth=null;jwk=null;csrf=null;pinValue=null;}};
  Object.defineProperties(capsule,{
   ingress:{value:async patch=>{

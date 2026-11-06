@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,mkdtempSync} from 'node:fs';
 import {resolve} from 'node:path';
-import {createHash} from 'node:crypto';
+import {createHash,webcrypto} from 'node:crypto';
 import {compileInstallPackage,completeInstallPackage,assertNoTemporarySurface,assertSchemaReceipt} from '../tools/jwt-feature-install-package.mjs';
 import {setupContract} from '../tools/jwt-feature-setup-contract.mjs';
 import {createPrivateCapsule} from '../tools/jwt-feature-install-secrets.mjs';
@@ -31,7 +31,9 @@ test('completed PAUSED config removes setup HTTP/RPC entry and temporary vars/se
 });
 test('private capsule exposes only public key metadata, ingress changes only four NEW names, destroy stops reuse',async()=>{
  const capsule=await createPrivateCapsule('2468',{kid:publicKey.kid,setupClientFactory:()=>({run:async()=>({state:'uninstalled'})})});
- let keys;await capsule.ingress(async secrets=>{keys=Object.keys(secrets).sort();assert(Object.values(secrets).every(x=>x.type==='secret_text'&&x.text.length>0));});
+ let keys;await capsule.ingress(async secrets=>{keys=Object.keys(secrets).sort();assert(Object.values(secrets).every(x=>x.type==='secret_text'&&x.text.length>0));
+  const priv=await webcrypto.subtle.importKey('jwk',JSON.parse(secrets.JWT_V110_PRIVATE_KEY_JSON.text),{name:'ECDSA',namedCurve:'P-256'},false,['sign']),pub=await webcrypto.subtle.importKey('jwk',capsule.publicKey,{name:'ECDSA',namedCurve:'P-256'},false,['verify']),data=new TextEncoder().encode('local-public-key-association');
+  const signature=await webcrypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},priv,data);assert(await webcrypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},pub,signature,data),'KEY_ASSOCIATION');});
  assert.deepEqual(keys,['JWT_FEATURE_SETUP_AUTH','JWT_FEATURE_SETUP_PIN','JWT_V110_CSRF_SECRET','JWT_V110_PRIVATE_KEY_JSON']);
  const text=JSON.stringify(capsule);assert(!text.includes('2468')&&!text.includes('"d":')&&!text.includes('AUTH')&&!text.includes('PRIVATE_KEY'));
  capsule.destroy();await assert.rejects(capsule.ingress(async()=>{}),/CLOSED/);

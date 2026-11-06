@@ -25,7 +25,7 @@ jobs:
       - name: Installer contract, transport, secrets, interruption and cleanup guards with local mocks
         run: |
           mkdir -p "$RUNNER_TEMP/jwt-install-package-evidence"
-          node --test --test-reporter=tap backend/tests/jwt-feature-install-package.test.mjs 2>&1 | tee "$RUNNER_TEMP/jwt-install-package-evidence/package.log"
+          node --test --test-reporter=tap --test-concurrency=1 backend/tests/jwt-feature-install-package.test.mjs tests/approved-feature-setup.test.mjs 2>&1 | tee "$RUNNER_TEMP/jwt-install-package-evidence/package.log"
       - name: Install pinned disposable local Worker runtime
         run: npm install --prefix "$RUNNER_TEMP/jwt-install-runtime" --no-audit --no-fund --save-exact miniflare@5.20261103.0-beta
       - name: Actual temporary/final Worker graphs and namespace constructors
@@ -34,6 +34,8 @@ jobs:
         run: node --test --test-reporter=tap backend/tests/jwt-feature-install-workerd.test.mjs 2>&1 | tee "$RUNNER_TEMP/jwt-install-package-evidence/workerd.log"
       - name: Existing native split interruption recovery semantics on the combined source
         run: node --test --test-reporter=tap backend/tests/academy-split-engine.test.mjs 2>&1 | tee "$RUNNER_TEMP/jwt-install-package-evidence/native-recovery.log"
+      - name: Five actual Wrangler bundles and exact fresh profiles without Cloudflare access
+        run: node backend/tools/jwt-feature-install-dry-proof.mjs 2>&1 | tee "$RUNNER_TEMP/jwt-install-package-evidence/dry-bundles.log"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

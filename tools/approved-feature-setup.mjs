@@ -2,6 +2,7 @@
 // Never creates databases, executes DDL, seeds, installs secrets or calls Cloudflare.
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
+import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {resolveApproval,freshApproval,githubClient,assertFeatureComparison} from './approved-deployment.mjs';
 const repo='MaktabForlife/Academy',hash=x=>createHash('sha256').update(x).digest('hex');
@@ -31,7 +32,10 @@ export async function setupApproval({api,mergeSha,prNumber,featureSha,requirePro
  const raw=Buffer.from(file.content,'base64').toString('utf8'),plan=validateSetupPlan(JSON.parse(raw)),planHash=hash(raw);
  const receipt=await api('/repos/'+repo+'/contents/config/jwt-feature-schema-receipt.json?ref='+featureSha);
  assert(receipt.encoding==='base64'&&receipt.size<16384);
- assert.equal(hash(Buffer.from(receipt.content,'base64')),plan.schemaReceiptSHA256,'SCHEMA_RECEIPT_NOT_BOUND');
+ const receiptBytes=Buffer.from(receipt.content,'base64');assert.equal(hash(receiptBytes),plan.schemaReceiptSHA256,'SCHEMA_RECEIPT_NOT_BOUND');
+ const schemaReceipt=JSON.parse(receiptBytes.toString('utf8'));
+ assert.equal(schemaReceipt.state,'LOADED_COUNTS_CHECKED_FULL_PRIVATE_ATTESTATION_PENDING');assert.equal(schemaReceipt.accountId,plan.accountId);assert.deepEqual(schemaReceipt.databaseIds,plan.databaseIds);assert.deepEqual(schemaReceipt.databaseNames,plan.databaseNames);
+ assert.deepEqual(schemaReceipt.checks,{coreRows:0,adminRows:0,coreObjects:1372,adminObjects:83,coreTables:172,adminTables:55,coreForeignKeys:0,adminForeignKeys:0,coreQuick:'ok',adminQuick:'ok',fullSchemaAttestation:'PENDING_PRIVATE_SETUP'});
  const comment=await api('/repos/'+repo+'/issues/comments/'+proof.commentId),lines=comment.body.split(/\r?\n/).map(x=>x.trim());
  for(const line of ['feature-setup-source: '+featureSha,'feature-setup-effects-sha256: '+planHash,'setup-database-effects: new-pair-only'])assert.equal(lines.filter(x=>x===line).length,1,'EXPLICIT_SETUP_APPROVAL_REQUIRED');
  for(const prefix of ['feature-setup-source:','feature-setup-effects-sha256:','setup-database-effects:'])assert.equal(lines.filter(x=>x.startsWith(prefix)).length,1,'AMBIGUOUS_SETUP_APPROVAL');
@@ -53,8 +57,9 @@ export async function promoteSetupSource({api,mergeSha,prNumber,featureSha}){
 }
 async function main(){
  assert.equal(process.env.GITHUB_ACTIONS,'true');assert.equal(process.env.GITHUB_REPOSITORY,repo);assert.equal(process.env.GITHUB_REF,'refs/heads/studio_dev');
+ const selected=JSON.parse(readFileSync('deployment/release-plan.json','utf8'));
+ if(!(selected.request==='jwt-feature-fresh-setup-20261106a'&&selected.kind==='component'&&selected.target==='feature'&&selected.feature_sha)){console.log(JSON.stringify({setupSourcePreparation:'NOT_SELECTED',cloudflareCalls:0,hostedDatabaseCalls:0}));return;}
  const api=githubClient(process.env.GITHUB_TOKEN),mergeSha=process.env.GITHUB_SHA,proof=await resolveApproval({repo,mergeSha,api});
- if(!(proof.plan.request==='jwt-feature-fresh-setup-20261106a'&&proof.plan.kind==='component'&&proof.plan.target==='feature'&&proof.plan.feature_sha)){console.log(JSON.stringify({setupSourcePreparation:'NOT_SELECTED',cloudflareCalls:0,hostedDatabaseCalls:0}));return;}
  const out=await promoteSetupSource({api,mergeSha,prNumber:proof.pr,featureSha:proof.plan.feature_sha});console.log(JSON.stringify(out));
 }
 if(process.argv[1]&&resolve(process.argv[1])===new URL(import.meta.url).pathname)await main();

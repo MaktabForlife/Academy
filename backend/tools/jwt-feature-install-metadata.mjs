@@ -50,7 +50,7 @@ export function assertRemoteProfile(settings,config,baseline,namespaces,{secretN
  if(config.assets){
   assert(s.assets?.config,'ASSETS_CONFIG_MISSING');
   assert.deepEqual(s.assets.config.run_worker_first,config.assets.run_worker_first);
-  assert.equal(s.assets.config.not_found_handling,'none');
+  assert(['none',undefined].includes(s.assets.config.not_found_handling),'SPA_FORBIDDEN');
   assert(['/',undefined].includes(s.assets.config.base_path));
   assert(['auto-trailing-slash',undefined].includes(s.assets.config.html_handling));
  }else assert(!s.assets,'ASSETS_FORBIDDEN_DURING_SETUP');
