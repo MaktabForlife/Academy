@@ -192,7 +192,6 @@ jobs:
     timeout-minutes: 15
     env:
       WRANGLER_SEND_METRICS: "false"
-      FEATURE_BUDGET_EVIDENCE: ${{ runner.temp }}/feature-local-budget
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -202,8 +201,10 @@ jobs:
         with:
           node-version: "24.18.0"
       - run: npm ci --prefix backend --no-audit --no-fund
-      - run: node backend/tools/feature-hosting-overlay.mjs
+      - run: node backend/tools/feature-hosting-overlay.mjs "${{ runner.temp }}/feature-local-budget"
       - name: Measure only disposable native runtime
+        env:
+          FEATURE_BUDGET_EVIDENCE: ${{ runner.temp }}/feature-local-budget
         run: |
           set -o pipefail
           mkdir -p "$FEATURE_BUDGET_EVIDENCE"
