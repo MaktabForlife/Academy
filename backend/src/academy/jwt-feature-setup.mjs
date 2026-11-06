@@ -1,6 +1,7 @@
 // Source-only temporary setup primitive. Never imported by the final app entry.
 // The caller must compile a reviewed public contract and remove this surface
 // before activation. Existing classes/contexts are composed outside this module.
+import {assertSchemaPhase,schemaVerification,schemaClaimSlot,withSchemaPhase} from './jwt-feature-schema-phase.mjs';
 import {createAcademyPinHash} from '../lib/academy-pin.js';
 import {jwtFeatureDatabaseEnv} from './jwt-feature-storage.mjs';
 import {jwtFeatureObjectDefinitionsSQL} from './jwt-feature-schema.mjs';
@@ -24,6 +25,7 @@ function contract(input){
  }
  if(c.statements.core.filter(sql=>sql.includes(marker)).some(sql=>!/^[ ]*INSERT INTO "account_credentials"/.test(sql)||sql.split(marker).length!==2||!sql.includes("'"+marker+"'")))fail();
  if(c.statements.core.join('\n').split(marker).length-1!==4||c.statements.admin.join('\n').includes(marker)||!c.objectNamespace.startsWith('jwt-feature-v110/')||!c.objectNamespace.endsWith('/'))fail();
+ assertSchemaPhase(c);
  return Object.freeze(c);
 }
 function profile(env,c,{main=false}={}){
@@ -38,14 +40,15 @@ const packet=(c,method,path,issued,expiry,stamp,nonce)=>JSON.stringify(['jwt-fea
 export function createJWTFeatureSetupAPI(input){
  const c=contract(input);
  return {async fetch(request,env){
-  const url=new URL(request.url),action=url.pathname==='/internal/feature-jwt-setup/execute'?'execute':url.pathname==='/internal/feature-jwt-setup/status'?'status':null;
+  const url=new URL(request.url),action=url.pathname==='/internal/feature-jwt-setup/execute'?'execute':url.pathname==='/internal/feature-jwt-setup/status'?'status':c.ddl&&url.pathname==='/internal/feature-jwt-setup/schema-execute'?'schema-execute':c.ddl&&url.pathname==='/internal/feature-jwt-setup/schema-status'?'schema-status':null;
+  const schemaAction=action?.startsWith('schema-'),executeAction=action==='execute'||action==='schema-execute',statusAction=action==='status'||action==='schema-status';
   if(!action)return reply({code:'FEATURE_SETUP_PAUSED'},503);
-  if(request.method!==(action==='execute'?'POST':'GET'))return reply({code:'METHOD_NOT_ALLOWED'},405);
+  if(request.method!==(executeAction?'POST':'GET'))return reply({code:'METHOD_NOT_ALLOWED'},405);
   let authenticated=false;
   try{
    profile(env,c,{main:true});if(url.origin!==ownOrigin||url.search)fail();
    const now=Math.floor(Date.now()/1000),issued=Number(env.JWT_FEATURE_SETUP_ISSUED_AT),expiry=Number(env.JWT_FEATURE_SETUP_EXPIRES_AT),stampText=request.headers.get('X-JWT-Setup-Time'),nonce=request.headers.get('X-JWT-Setup-Nonce'),source=request.headers.get('X-JWT-Setup-Source'),manifest=request.headers.get('X-JWT-Setup-Manifest');
-   if(!Number.isSafeInteger(issued)||!Number.isSafeInteger(expiry)||issued>now+30||action==='execute'&&expiry<=now||expiry-issued<1||expiry-issued>900||!/^\d{10}$/.test(stampText||'')||Math.abs(Number(stampText)-now)>30||source!==c.source||manifest!==c.manifestHash)fail();
+   if(!Number.isSafeInteger(issued)||!Number.isSafeInteger(expiry)||issued>now+30||executeAction&&expiry<=now||expiry-issued<1||expiry-issued>900||!/^\d{10}$/.test(stampText||'')||Math.abs(Number(stampText)-now)>30||source!==c.source||manifest!==c.manifestHash)fail();
    const secret=bytes(env.JWT_FEATURE_SETUP_AUTH),proof=bytes(request.headers.get('X-JWT-Setup-Proof'));bytes(nonce);
    const key=await crypto.subtle.importKey('raw',secret,{name:'HMAC',hash:'SHA-256'},false,['verify']);
    if(!await crypto.subtle.verify('HMAC',key,proof,new TextEncoder().encode(packet(c,request.method,url.pathname,issued,expiry,Number(stampText),nonce))))fail();
@@ -54,17 +57,19 @@ export function createJWTFeatureSetupAPI(input){
    if(request.body){const reader=request.body.getReader();try{const part=await reader.read();if(!part.done){await reader.cancel();fail();}}finally{reader.releaseLock();}}
    authenticated=true;
    if(!env.JWT_V110_SPLIT_COORDINATOR?.getByName)fail();
-   if(action==='execute'){
+   if(executeAction){
     executionWindow(env);
-    for(const owner of ['core','admin'])if(await sha(c.statements[owner].join('\n')+'\n')!==c.templateHashes[owner])fail();
-    executionWindow(env);
-    jwtFeatureDatabaseEnv(env);
-    if(typeof env.SHARED_PIN_SECRET!=='string'||env.SHARED_PIN_SECRET.length<32||!/^\d{4}$/.test(env.JWT_FEATURE_SETUP_PIN||''))fail();
+    const statements=schemaAction?c.ddl.statements:c.statements,hashes=schemaAction?c.ddl.statementHashes:c.templateHashes;
+    for(const owner of ['core','admin'])if(await sha(statements[owner].join('\n')+'\n')!==hashes[owner])fail();
+    executionWindow(env);jwtFeatureDatabaseEnv(env);
+    if(!schemaAction&&(typeof env.SHARED_PIN_SECRET!=='string'||env.SHARED_PIN_SECRET.length<32||!/^\d{4}$/.test(env.JWT_FEATURE_SETUP_PIN||'')))fail();
    }
    const stub=env.JWT_V110_SPLIT_COORDINATOR.getByName('jwt-feature-bootstrap:'+c.planId+':'+c.sourceDigest);
    const binding={source:c.source,manifestHash:c.manifestHash};
    let result;
-   if(action==='status')result=await stub.setupStatus(binding);
+   if(action==='schema-status')result=await stub.setupSchemaStatus(binding);
+   else if(action==='schema-execute'){const nonceDigest=await sha(nonce);executionWindow(env);result=await stub.setupSchemaExecute({...binding,nonceDigest});}
+   else if(action==='status')result=await stub.setupStatus(binding);
    else{
     const pinHash=await createAcademyPinHash(env.JWT_FEATURE_SETUP_PIN,env);if(!hashPattern.test(pinHash))fail();
     const nonceDigest=await sha(nonce);executionWindow(env);
@@ -73,22 +78,23 @@ export function createJWTFeatureSetupAPI(input){
    // Only the controller's explicitly public receipt escapes the private RPC.
    if(!result||!['UNCLAIMED','PREPARING','VERIFIED','UNKNOWN'].includes(result.state)||result.source!==c.source||result.manifestHash!==c.manifestHash)fail();
    const safe={schema:1,state:result.state,source:c.source,manifestHash:c.manifestHash,planId:c.planId,databaseIds:c.databaseIds};
+   if(schemaAction)safe.stage='SCHEMA_ONLY';
    if(Number.isSafeInteger(result.startedAt))safe.startedAt=result.startedAt;
    if(Number.isSafeInteger(result.finishedAt))safe.finishedAt=result.finishedAt;
    if(['claimed','interrupted','complete','staged-outcome'].includes(result.phase))safe.phase=result.phase;
    if(result.alreadyClaimed===true)safe.alreadyClaimed=true;
    if(result.state==='VERIFIED'){
     if(result.sourceDigest!==c.sourceDigest)fail();
-    safe.sourceDigest=c.sourceDigest;safe.verification={accounts:4,credentials:4,courses:2,sessions:0,families:0,foreignKeyErrors:0,quickCheck:'ok'};
+    safe.sourceDigest=c.sourceDigest;safe.verification=schemaAction?schemaVerification(c):{accounts:4,credentials:4,courses:2,sessions:0,families:0,foreignKeyErrors:0,quickCheck:'ok'};
    }
-   return reply(safe,action==='status'||result.state==='VERIFIED'&&!result.alreadyClaimed?200:409);
+   return reply(safe,statusAction||result.state==='VERIFIED'&&!result.alreadyClaimed?200:409);
   }catch{return reply({code:authenticated?'FEATURE_SETUP_UNAVAILABLE':'FEATURE_SETUP_AUTH_REQUIRED'},authenticated?503:403);}
  },scheduled(){}};
 }
 export function withJWTFeatureSetup(Base,input){
  const c=contract(input),slot='jwt-feature-bootstrap-v1';
  const publicState=state=>({schema:1,state:state?.state||'UNCLAIMED',source:state?.source||c.source,manifestHash:state?.manifestHash||c.manifestHash,planId:state?.planId||c.planId,...(state?{startedAt:state.startedAt,finishedAt:state.finishedAt||null,phase:state.phase}:{}),...(state?.state==='VERIFIED'?{verification:{accounts:4,credentials:4,courses:2,sessions:0,families:0,foreignKeyErrors:0,quickCheck:'ok'},sourceDigest:state.sourceDigest}: {})});
- return class JWTFeatureSetup extends Base{
+ const SeedSetup=class JWTFeatureSetup extends Base{
   #setupEnv;
   constructor(ctx,env){super(ctx,env);this.#setupEnv=env;ctx.blockConcurrencyWhile(async()=>{
    const old=await ctx.storage.get(slot);if(old?.state==='PREPARING')await ctx.storage.put(slot,{...old,state:'UNKNOWN',phase:'interrupted',finishedAt:Math.floor(Date.now()/1000)});
@@ -102,6 +108,7 @@ export function withJWTFeatureSetup(Base,input){
     if(Object.keys(value).sort().join(',')!=='manifestHash,nonceDigest,pinHash,source'||!/^[a-f0-9]{64}$/.test(value.nonceDigest)||!hashPattern.test(value.pinHash))fail();
     const claim=await this.ctx.storage.transaction(async storage=>{
      const existing=await storage.get(slot);if(existing)return {existing};
+     if(c.ddl){const schema=await storage.get(schemaClaimSlot);if(schema?.state!=='VERIFIED'||schema.source!==c.source||schema.manifestHash!==c.manifestHash)fail();}
      executionWindow(this.#setupEnv);
      const state={state:'PREPARING',source:c.source,manifestHash:c.manifestHash,nonceDigest:value.nonceDigest,planId:c.planId,sourceDigest:c.sourceDigest,databaseIds:c.databaseIds,startedAt:Math.floor(Date.now()/1000),phase:'claimed'};
      await storage.put(slot,state);return {state};
@@ -142,4 +149,5 @@ export function withJWTFeatureSetup(Base,input){
    }
   }
  };
+ return c.ddl?withSchemaPhase(SeedSetup,c,{window:executionWindow,sha}):SeedSetup;
 }
