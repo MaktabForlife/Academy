@@ -12,7 +12,7 @@ assert.equal(process.env.GITHUB_ACTIONS,'true','Run only on disposable GitHub');
 const fixtureRoot=resolve(process.env.HOME_LOGIN_FIXTURE_ROOT);
 const {prepareFeatureSeed,featureSyntheticAccounts}=await import(pathToFileURL(resolve(fixtureRoot,'backend/tools/feature-synthetic-seed.mjs')).href);
 const {sqliteD1}=await import(pathToFileURL(resolve(fixtureRoot,'backend/tools/academy-split/sqlite-d1.mjs')).href);
-const {chromium}=await import(pathToFileURL(resolve(process.env.REVIEW_BROWSER_MODULES,'node_modules/playwright/index.mjs')).href);
+const {chromium,webkit}=await import(pathToFileURL(resolve(process.env.REVIEW_BROWSER_MODULES,'node_modules/playwright/index.mjs')).href);
 const assets=resolve('.academy-pages'),out=resolve(process.env.RUNNER_TEMP,'home-login-evidence');
 await mkdir(out,{recursive:true});
 const h=hosting(),base=h.academyPortalOrigin,errors=[],records=[],requests=[],blocked=[],nativeDenials=[],serviceCalls=[];
@@ -25,7 +25,8 @@ const studioFixture={async fetch(url,init){const request=new Request(url,init),u
 const env={...cfg.vars,...secrets,ACADEMY_TO_WEBSITE_SECRET:bridgeSecret,WEBSITE_PLATFORM_SERVICE:studioFixture,ACADEMY_D1_MODE:'ACTIVE',ACADEMY_D1_RUN_ID:seed.report.sourceDigest,ACADEMY_DB:sqliteD1(seed.databases.core),ACADEMY_ADMIN_DB:admin,ACADEMY_SPLIT_COORDINATOR:{getByName(){return {read:async(...args)=>({result:await engine.read(...args)}),write:async(...args)=>({result:await engine.write(...args)})};}},AUTH_LOGIN_RATE_LIMITER:{limit:async()=>({success:true})},ALLOWED_ORIGINS:base};
 const originalFetch=globalThis.fetch;let remoteAttempts=0;
 globalThis.fetch=async()=>{remoteAttempts++;throw Error('Unexpected server remote call');};
-const browser=await chromium.launch({headless:true});
+const browserName=process.env.HOME_LOGIN_BROWSER||'chromium';assert(['chromium','webkit'].includes(browserName));
+const browser=await ({chromium,webkit}[browserName]).launch({headless:true});
 const mime={'.html':'text/html','.css':'text/css','.js':'text/javascript','.mjs':'text/javascript','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml','.woff2':'font/woff2','.ttf':'font/ttf'};
 async function native(url,options={}){
  const response=await worker.fetch(new Request(url,options),env,{waitUntil(){throw Error('Unexpected background work');}});
@@ -74,7 +75,7 @@ try{
   await page.locator('[data-home-area=mothers]').waitFor({state:'attached'});
   const raw=await page.locator('[data-home-area=mothers]').evaluate(el=>({hidden:el.hidden,visible:Boolean(el.getClientRects().length),width:el.getBoundingClientRect().width,hubWidth:document.querySelector('#animated-hub').getBoundingClientRect().width,text:el.textContent.includes('Classrooms to nurture')}));
   records.push({case:'unrefined-public-render',source:baseline?'frozen-fb739eed':'candidate',...raw});
-  assert.equal(raw.text,true);assert.equal(raw.visible,baseline);
+  assert.equal(raw.text,baseline);assert.equal(raw.visible,baseline);
   if(baseline)assert(raw.width>=raw.hubWidth-1,'Frozen screenshot-shaped full-width card must reproduce');
   await page.screenshot({path:resolve(out,baseline?'baseline-raw-mothers.png':'candidate-raw-mothers.png'),fullPage:true});
   release();holdRefinement=null;await page.locator('#circles-sign-in[open]').waitFor();
@@ -89,7 +90,8 @@ try{
  await page.screenshot({path:resolve(out,'after-login-2048.png'),fullPage:true});
  const after=await page.evaluate(()=>({url:location.pathname+location.search,admin:document.body.dataset.circlesDashboardMode,rawFrames:window.__homeLayoutFrames,heroClass:document.querySelector('#learning-circles').className}));
  records.push({case:'real-native-pin-admin-transition',...after});
- assert.equal(after.admin,'admin');assert(after.heroClass.includes('circles-button-dashboard'));
+ assert.equal(after.admin,'admin');assert(after.heroClass.includes('circles-button-dashboard'));assert.deepEqual(after.rawFrames,[],'Deleted promotional card must never paint in candidate');
+ assert.equal(await page.locator('[data-home-area=mothers] img').count(),0);assert.equal(await page.locator('[data-home-area=mothers]').textContent().then(x=>x.includes('Classrooms to nurture')),false);
  for(const width of [320,390,768,1024,1440,2048]){
   await page.setViewportSize({width,height:1100});
   await page.waitForTimeout(60);
@@ -125,6 +127,7 @@ try{
  assert.equal(await page.locator('#circles-dashboard').isVisible(),true);
  await page.screenshot({path:resolve(out,'checked-admin-entry.png'),fullPage:true});
  records.push({case:'checked-admin-entry',rawFrames:await page.evaluate(()=>window.__homeLayoutFrames)});
+ assert.deepEqual(await page.evaluate(()=>window.__homeLayoutFrames),[]);assert.equal(await page.locator('[data-home-area=mothers] img').count(),0);
  failBootstrap=true;await page.goto(base+'/?workspace=admin',{waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>document.documentElement.getAttribute('data-circles-home-state')==='error');
  assert.equal(await page.locator('#experience').isVisible(),false);
@@ -134,6 +137,6 @@ try{
  assert.deepEqual(errors,[],'Page errors');assert.equal(remoteAttempts,0);
 }finally{
  await page.screenshot({path:resolve(out,'final-state.png'),fullPage:true}).catch(()=>{});
- await writeFile(resolve(out,'report.json'),JSON.stringify({commit:process.env.GITHUB_SHA,records,pageErrors:errors,nativeDenials,syntheticStudioFixtureCalls:serviceCalls,studioAuthorizationParityProved:false,requestCounts:requests.reduce((a,r)=>({...a,[r.path+':'+r.kind]:(a[r.path+':'+r.kind]||0)+1}),{}),blockedExternalOrigins:[...new Set(blocked)],remoteAttempts,hostedRequests:0,hostedDBReads:0,syntheticNativeSQLiteOnly:true},null,2));
+ await writeFile(resolve(out,'report.json'),JSON.stringify({commit:process.env.GITHUB_SHA,browserEngine:browserName,records,pageErrors:errors,nativeDenials,syntheticStudioFixtureCalls:serviceCalls,studioAuthorizationParityProved:false,requestCounts:requests.reduce((a,r)=>({...a,[r.path+':'+r.kind]:(a[r.path+':'+r.kind]||0)+1}),{}),blockedExternalOrigins:[...new Set(blocked)],remoteAttempts,hostedRequests:0,hostedDBReads:0,syntheticNativeSQLiteOnly:true},null,2));
  await browser.close();seed.close();globalThis.fetch=originalFetch;
 }
