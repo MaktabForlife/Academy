@@ -19,3 +19,7 @@ test('reserved metadata does not change either complete native fingerprint or ap
  const c=setupContract({source:process.env.GITHUB_SHA,databaseIds:['11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222']}).contract;
  for(const owner of ['core','admin']){const db=new DatabaseSync(':memory:');try{db.exec(input[owner].toString());db.exec(providerDDL);const objects=db.prepare(jwtFeatureObjectDefinitionsSQL).all().map(r=>[r.type,r.name,r.tbl_name,r.sql]);assert.equal(createHash('sha256').update(JSON.stringify(objects)).digest('hex'),c.objectHashes[owner]);assert.deepEqual(db.prepare(jwtFeatureUserTablesSQL).all().map(r=>r.name),c.tables[owner]);db.exec('CREATE TABLE _cf_unreviewed(value TEXT)');const changed=db.prepare(jwtFeatureObjectDefinitionsSQL).all().map(r=>[r.type,r.name,r.tbl_name,r.sql]);assert.notEqual(createHash('sha256').update(JSON.stringify(changed)).digest('hex'),c.objectHashes[owner]);}finally{db.close();}}
 });
+
+test('a user object merely beginning sqlite remains visible; only literal sqlite_ is reserved',()=>{
+ const db=new DatabaseSync(':memory:');try{db.exec(providerDDL+';CREATE TABLE sqliteApplicationData(value TEXT)');assert.equal(db.prepare(jwtFeatureEmptyObjectPrecountSQL).get().n,1);assert.equal(db.prepare(jwtFeatureObjectDefinitionsSQL).all()[0].name,'sqliteApplicationData');assert.equal(db.prepare(jwtFeatureUserTablesSQL).all()[0].name,'sqliteApplicationData');}finally{db.close();}
+});
