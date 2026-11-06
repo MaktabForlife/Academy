@@ -25,8 +25,38 @@ for(const [p,v]of current)if(!p.startsWith('release/'))assert(['100644','100755'
 const archive=resolve(evidence,'source.tmp.tar'),fd=openSync(archive,'w');
 try{execFileSync('git',['archive','HEAD','--',...tops],{cwd:root,stdio:['ignore',fd,'pipe']});}finally{closeSync(fd);}
 execFileSync('tar',['-xf',archive,'-C',out]);rmSync(archive);
-const report={schema:1,kind:'UNAPPROVED_SOURCE_COMPOSITION',preparationCommit:head,appSource:appSHA,canonical,ancestor,featureBase:'6bef65664473fa40c9074413a9c052eb9c22b454',applied:[],kept:[],conflicts:[],canonicalControls:[],hostedCalls:0,publishable:false};
+const report={schema:1,kind:'UNAPPROVED_SOURCE_COMPOSITION',preparationCommit:head,appSource:appSHA,canonical,ancestor,featureBase:'6bef65664473fa40c9074413a9c052eb9c22b454',applied:[],kept:[],resolutions:[],conflicts:[],canonicalControls:[],hostedCalls:0,publishable:false};
 const applyPath=p=>/^(?:auth\/|academy\/|account\/|js\/|portal\/|portal-adapter\/|backend\/src\/|backend\/tests\/|docs\/JWT-)/.test(p)||['version.json','backend/package.json','backend/package-lock.json','docs/RELEASE-V110.md'].includes(p)||/^\.github\/workflows\/jwt-/.test(p)||/^backend\/tools\/(?:academy-assets|academy-pages-build|academy-site|hosting-client|portal-site|jwt-v110-[a-z-]+)\.mjs$/.test(p);
+const exactResolutions={
+  "backend/src/academy/d1/worker.js": [
+    [
+      "import {nativePortal,portalReadReply} from './portal.mjs';\n",
+      "import {handleAcademyLogout} from '../../auth/v110/academy-logout-http.mjs';\nimport {actorProof,verifyActor} from '../separation/proof.js';\nimport {cookieSessionKey,bindAcademyCookieRequest} from '../../auth/v110/academy-cookie-auth.mjs';\nimport {handleAcademyPIN} from '../../auth/v110/academy-pin-http.mjs';\nimport {handleAcademyRefresh} from '../../auth/v110/academy-refresh-http.mjs';\nimport {readAcademyDisplayContext} from '../../auth/v110/academy-display-context.mjs';\nimport {nativePortal,portalReadReply,portalNativeReadRequest} from './portal.mjs';\n"
+    ]
+  ],
+  "backend/tools/academy-site.mjs": [
+    [
+      "export const siteVersion='109.25';\n",
+      "export const siteVersion='110.36';\n"
+    ],
+    [
+      "",
+      "  // Public coordination files are static, never auth endpoints. Keep the list\n  // exact and do not pass root cookies or caller credentials to the asset origin.\n  if(jwtV110PublicAssets.includes(url.pathname.slice(1))){\n    const response=await env.ASSETS.fetch(new Request(url,{method:request.method,redirect:'manual'}));\n    const headers=new Headers(response.headers);\n    headers.set('Cache-Control','no-store');headers.set('X-Content-Type-Options','nosniff');\n    headers.set('X-Robots-Tag','noindex, nofollow');headers.set('Referrer-Policy','no-referrer');\n    return new Response(request.method==='HEAD'?null:response.body,{status:response.status,headers});\n  }\n"
+    ]
+  ]
+};
+function resolveReviewedHunks(path,data){
+ const allowed=exactResolutions[path];if(!allowed)return null;
+ assert.equal(appSHA,'e8e26af7e5c6275656faa5c24985098e377439d0');
+ let count=0;
+ const text=data.toString().replace(/^<<<<<<<[^\n]*\n([\s\S]*?)^=======\n([\s\S]*?)^>>>>>>>[^\n]*\n/gm,(whole,ours,theirs)=>{
+  const match=allowed.find(([a,b])=>a===ours&&b===theirs);assert(match,'Unreviewed conflict hunk '+path);count++;return theirs;
+ });
+ assert.equal(count,allowed.length,'Unexpected reviewed hunk count '+path);
+ assert(!/^(?:<<<<<<<|=======|>>>>>>>)/m.test(text));
+ report.resolutions.push({path,kind:'exact-reviewed-text-hunks',count});
+ return Buffer.from(text);
+}
 function mergeJSON(a,b,c,path=''){
  if(JSON.stringify(a)===JSON.stringify(b))return c;if(JSON.stringify(c)===JSON.stringify(b)||JSON.stringify(a)===JSON.stringify(c))return a;
  if(path==='version'||path==='packages..version')return c;
@@ -42,14 +72,18 @@ for(const p of [...new Set([...old.keys(),...incoming.keys()])].sort()){
  let result=c;
  if(a&&c&&a.equals(c)||c&&b&&c.equals(b)){report.kept.push(p);continue;}
  if(a&&(!b||!a.equals(b))){
-  if(!b||!c){report.conflicts.push({path:p,kind:'add/delete-conflict'});continue;}
+  if(!b||!c){
+   if(p==='backend/tests/feature-local-budget-coordinator.mjs'&&a&&c&&!b&&entry.sha==='ad005db9a15e4c1ad39cde0364ffe12232dc76bf'&&nextEntry.sha==='0f69f5c06901ccdf624feb6d7e3c26fda0096fce')report.resolutions.push({path:p,kind:'exact-reviewed-addition-retains-old-budget-class'});
+   else{report.conflicts.push({path:p,kind:'add/delete-conflict'});continue;}
+  }
   try{
-   if(['version.json','js/version.json','backend/package.json','backend/package-lock.json'].includes(p))result=Buffer.from(JSON.stringify(mergeJSON(JSON.parse(a),JSON.parse(b),JSON.parse(c)),null,2)+'\n');
+   if(!b)result=c;
+   else if(['version.json','js/version.json','backend/package.json','backend/package-lock.json'].includes(p))result=Buffer.from(JSON.stringify(mergeJSON(JSON.parse(a),JSON.parse(b),JSON.parse(c)),null,2)+'\n');
    else{
     const names=['ours','base','app'].map(x=>resolve(evidence,x+'.tmp'));[a,b,c].forEach((v,i)=>writeFileSync(names[i],v));
     const merged=spawnSync('git',['merge-file','-p',...names],{encoding:null,maxBuffer:8*1024*1024});
-    if(merged.status!==0){writeFileSync(resolve(evidence,'conflict-'+report.conflicts.length+'.txt'),merged.stdout);report.conflicts.push({path:p,kind:'text-conflict'});continue;}
-    result=merged.stdout;
+    if(merged.status!==0){const fixed=resolveReviewedHunks(p,merged.stdout);if(!fixed){writeFileSync(resolve(evidence,'conflict-'+report.conflicts.length+'.txt'),merged.stdout);report.conflicts.push({path:p,kind:'text-conflict'});continue;}result=fixed;}
+    else result=merged.stdout;
    }
   }catch(error){report.conflicts.push({path:p,kind:error.message});continue;}
  }
