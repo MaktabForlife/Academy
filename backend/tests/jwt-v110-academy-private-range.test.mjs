@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdirSync,writeFileSync} from 'node:fs';
@@ -15,6 +16,18 @@ test('Actual workerd learner playback uses private R2 Range and rejects cookie-f
    await owner.prepare("INSERT INTO lesson_media_assets(asset_id,activity_key,kind,object_key,filename,byte_size,created_at) VALUES(?,?,'MP4',?,'fixture.mp4',?,?)").bind(asset,scope,key,bytes.byteLength,new Date().toISOString()).run();
    await owner.prepare('INSERT INTO lesson_media_links(lesson_id,asset_id) VALUES(?,?)').bind(lesson,asset).run();
   }
+  // Build a NEW immutable accepted-head fixture. Merely writing an Admin
+  // draft is deliberately invisible to the learner. This is fixture setup,
+  // not a claim that an authenticated publication API was exercised.
+  const parent=(await core.prepare('SELECT head_id FROM setup_head_state WHERE singleton=1').first()).head_id,batch=crypto.randomUUID(),head=crypto.randomUUID(),at=new Date().toISOString(),digest=v=>createHash('sha256').update(v).digest('hex'),manifest=JSON.stringify({fixtureOnly:true,scope});
+  const statements=[core.prepare('INSERT INTO setup_batches VALUES(?,?,?,?,?,?,?,?,?)').bind(batch,'feature-synthetic-global',JSON.stringify([scope]),0,parent,digest(manifest),manifest,at,head),core.prepare('INSERT INTO setup_heads VALUES(?,?,?,?,?)').bind(head,parent,batch,at,'feature-synthetic-global')];
+  for(const table of ['lesson_media_lessons','lesson_media_assets','lesson_media_links']){
+   const rows=(await admin.prepare('SELECT * FROM '+table).all()).results,json=JSON.stringify(rows),component=crypto.randomUUID();
+   statements.push(core.prepare('INSERT INTO setup_components VALUES(?,?,?,?,?,?,?)').bind(component,batch,table,scope,json,rows.length,digest(json)));
+   statements.push(core.prepare('INSERT INTO setup_head_components VALUES(?,?,?,?)').bind(head,table,scope,component));
+  }
+  statements.push(core.prepare('INSERT INTO setup_head_components SELECT ?,table_name,scope_key,component_id FROM setup_head_components WHERE head_id=? AND NOT(table_name IN(?,?,?) AND scope_key=?)').bind(head,parent,'lesson_media_lessons','lesson_media_assets','lesson_media_links',scope));
+  statements.push(core.prepare('UPDATE setup_head_state SET head_id=? WHERE singleton=1 AND head_id=?').bind(head,parent));await core.batch(statements);
   await bucket.put(key,bytes,{httpMetadata:{contentType:'video/mp4'}});
   async function request(path,{body,method='POST',credential=true,headers={}}={}){
    const r=await f.runtime.dispatchFetch(new URL(path,origin),{method,headers:{Origin:origin,'Sec-Fetch-Site':'same-origin','Content-Type':'application/json','X-Academy-Workspace':'LEARN',...(credential?{Cookie:cookie,'X-UAA-CSRF':csrf,...(selector?{Authorization:'Bearer '+selector}:{})}:{}),...headers},...(method==='POST'?{body:JSON.stringify(body||{})}:{})});
