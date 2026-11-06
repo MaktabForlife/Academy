@@ -45,6 +45,11 @@ jobs:
       matrix:
         browser: [chromium, webkit]
     runs-on: ubuntu-24.04
+    # Official matching browser+OS image; avoids repeated slow apt mirror setup.
+    # https://playwright.dev/docs/docker
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble@sha256:f1e7e01021efd65dd1a2c56064be399f3e4de00fd021ac561325f2bfbb2b837a
+      options: --init --ipc=host
     timeout-minutes: 15
     env:
       WRANGLER_SEND_METRICS: 'false'
@@ -73,15 +78,15 @@ jobs:
       - name: Install isolated browser
         env:
           REVIEW_BROWSER_MODULES: ${{ runner.temp }}/course-list-browser
-          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/course-list-browsers
+          PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
         run: |
           set -euo pipefail
           npm install --prefix "$REVIEW_BROWSER_MODULES" --no-save --package-lock=false --no-audit --no-fund playwright@1.56.1
-          node "$REVIEW_BROWSER_MODULES/node_modules/playwright/cli.js" install --with-deps ${{ matrix.browser }}
+          node "$REVIEW_BROWSER_MODULES/node_modules/playwright/cli.js" install ${{ matrix.browser }}
       - name: Exercise packaged Course list and native settings
         env:
           REVIEW_BROWSER_MODULES: ${{ runner.temp }}/course-list-browser
-          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/course-list-browsers
+          PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
           HOME_LOGIN_FIXTURE_ROOT: ${{ github.workspace }}/fixture-source
           HOME_LOGIN_BROWSER: ${{ matrix.browser }}
         run: |
