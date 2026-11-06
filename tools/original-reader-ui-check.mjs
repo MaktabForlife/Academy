@@ -7,7 +7,14 @@ import {hosting} from '../backend/src/academy/hosting.mjs';
 import {serveAcademySite} from '../backend/tools/academy-site.mjs';
 assert.equal(process.env.GITHUB_ACTIONS,'true');
 const studioRoot=resolve('studio-source'),assets=resolve('.academy-pages'),out=resolve(process.env.RUNNER_TEMP,'original-reader-evidence');
-const {fixture}=await import(pathToFileURL(studioRoot+'/tests/fixture.mjs'));
+// The generic paired fixture defaults the portal to Studio itself. The real
+// connector correctly rejects that. Select the explicit reviewed synthetic
+// portal binding in a disposable copy; application source and guards are exact.
+const fixturePath=studioRoot+'/tests/fixture.mjs',fixtureText=await readFile(fixturePath,'utf8'),fixtureMarker="const env={PLATFORM_ENABLED:'1',";
+assert.equal(fixtureText.split(fixtureMarker).length,2);
+const configuredFixture=fixtureText.replace(fixtureMarker,"const env={ACADEMY_PORTAL_ORIGIN:"+JSON.stringify(hosting().academyPortalOrigin)+",PLATFORM_ENABLED:'1',");
+await writeFile(studioRoot+'/tests/ui-original-reader-fixture.mjs',configuredFixture);
+const {fixture}=await import(pathToFileURL(studioRoot+'/tests/ui-original-reader-fixture.mjs'));
 const {accessFixture,signIn}=await import(pathToFileURL(studioRoot+'/tests/access-fixture.mjs'));
 const {chromium,webkit}=await import(pathToFileURL(resolve(process.env.REVIEW_BROWSER_MODULES,'node_modules/playwright/index.mjs')));
 const h=hosting(),portal=h.academyPortalOrigin,studio=h.studioOrigin,website='site-course';
@@ -78,6 +85,6 @@ try{
  for(const [ci,context]of browser.contexts().entries())for(const [pi,page]of context.pages().entries()){
   try{diagnostics.push({context:ci,page:pi,url:new URL(page.url()).origin+new URL(page.url()).pathname,status:await page.locator('[role=status]').allTextContents(),connectRetry:await page.locator('#academy-connect-retry:not([hidden])').count()});await page.screenshot({path:resolve(out,'failure-context-'+ci+'-'+pi+'.png'),fullPage:true});}catch{}
  }
- await writeFile(resolve(out,'report.json'),JSON.stringify({commit:process.env.GITHUB_SHA,studioSource:'3c420f35c30297cfcc41cfab24f030e51bb7831e',browser:browserName,records,calls,diagnostics,pageErrors:errors,blockedOrigins:[...new Set(blocked)],nodeRemoteAttempts,hostedApplicationCalls:0,hostedD1Calls:0,syntheticPairedWorkers:true,fixtureLinkContainer:true,actualFullCourseMediaPageProved:false},null,2));
+ await writeFile(resolve(out,'report.json'),JSON.stringify({commit:process.env.GITHUB_SHA,studioSource:'3c420f35c30297cfcc41cfab24f030e51bb7831e',browser:browserName,records,calls,diagnostics,pageErrors:errors,blockedOrigins:[...new Set(blocked)],nodeRemoteAttempts,hostedApplicationCalls:0,hostedD1Calls:0,syntheticPairedWorkers:true,explicitSyntheticPortalBinding:true,applicationWorkerSourceUnchanged:true,fixtureLinkContainer:true,actualFullCourseMediaPageProved:false},null,2));
  await browser.close();globalThis.fetch=originalFetch;await f.close();
 }
