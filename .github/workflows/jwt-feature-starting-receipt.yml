@@ -1,0 +1,54 @@
+name: JWT reviewed starting receipt preparation
+on:
+  push:
+    branches: [validation/jwt-feature-install-package-20261106]
+    paths: [config/jwt-feature-starting-receipt.json, deployment/jwt-feature-setup-plan.json, .github/workflows/jwt-feature-starting-receipt.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+jobs:
+  starting-receipt:
+    if: github.ref == 'refs/heads/validation/jwt-feature-install-package-20261106'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - name: Validate exact public starting receipt, effects hash and compiled fixed new-only package; no hosted calls
+        run: |
+          mkdir -p "$RUNNER_TEMP/jwt-starting-receipt-evidence"
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {readFileSync,writeFileSync} from 'node:fs';
+          import {createHash} from 'node:crypto';
+          import {assertSchemaReceipt,compileInstallPackage} from './backend/tools/jwt-feature-install-package.mjs';
+          import {setupContract} from './backend/tools/jwt-feature-setup-contract.mjs';
+          import {validateSetupPlan} from './tools/approved-feature-setup.mjs';
+          const read=p=>JSON.parse(readFileSync(p,'utf8')),hash=x=>createHash('sha256').update(x).digest('hex');
+          const starting=assertSchemaReceipt(read('config/jwt-feature-starting-receipt.json')),plan=validateSetupPlan(read('deployment/jwt-feature-setup-plan.json'));
+          assert.equal(hash(readFileSync('config/jwt-feature-starting-receipt.json')),plan.startingReceiptSHA256);
+          const {contract}=setupContract({source:process.env.GITHUB_SHA,databaseIds:starting.databaseIds,structuredDDL:true});
+          assert.equal(contract.ddl.initialObjectHashes.core,starting.startingFootprints.core.orderedDefinitionHash);
+          assert.equal(contract.ddl.initialObjectHashes.admin,starting.startingFootprints.admin.expectedOrderedDefinitionHash);
+          const now=Math.floor(Date.now()/1000),p=compileInstallPackage({baseWorker:read('backend/wrangler.feature.jsonc'),baseCoordinator:read('backend/wrangler.feature-coordinator.jsonc'),baseline:read('config/feature-initialisation-receipt.json'),schemaReceipt:starting,contract,source:process.env.GITHUB_SHA,owner:'1-1',issued:now,expires:now+900});
+          assert.equal(p.publicManifest.plannedEffects.existingDatabaseChanges,false);assert.equal(plan.activationIncluded,false);
+          const out={source:process.env.GITHUB_SHA,startingReceiptSHA256:plan.startingReceiptSHA256,effectsSHA256:hash(readFileSync('deployment/jwt-feature-setup-plan.json')),state:'SOURCE_READY_FOR_INDEPENDENT_REVIEW_ONLY',actualCoreSubmissionsRecorded:7,adminObserved:'NOT_OPENED',compiledDDLCounts:{core:contract.ddl.statements.core.length,admin:contract.ddl.statements.admin.length},publicPackageValidated:true,independentApprovalRequired:true,hostedCalls:0,installed:false,activated:false};
+          writeFileSync(process.env.RUNNER_TEMP+'/jwt-starting-receipt-evidence/receipt-proof.json',JSON.stringify(out,null,2)+'\n');
+          console.log(JSON.stringify(out));
+          NODE
+          git diff --check
+          git diff --exit-code
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: jwt-starting-receipt-${{ github.run_id }}
+          path: ${{ runner.temp }}/jwt-starting-receipt-evidence/
+          if-no-files-found: error
+          retention-days: 30

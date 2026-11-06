@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "purpose": "FRESH_FEATURE_SETUP_20261106a",
-  "state": "STOPPED_PARTIAL_SCHEMA",
+  "state": "STARTING_FOOTPRINT_READY_FOR_REVIEW",
   "accountId": "c9a3e355b3d7a795880b1d36a1dbe123",
   "scripts": [
     "feature_worker",
@@ -43,5 +43,5 @@
   "nativeSecretsChanged": [],
   "finalMode": "PAUSED",
   "activationIncluded": false,
-  "startingReceiptSHA256": null
+  "startingReceiptSHA256": "1de0d162e72660d3116b4aed7f06fff674ac3151b81c15df6c2e65a9e07ff1bc"
 }
