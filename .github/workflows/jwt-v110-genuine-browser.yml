@@ -20,6 +20,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "24.18.0"
+      - run: node --check backend/tests/jwt-v110-academy-genuine-browser.test.mjs
       - run: npm ci --prefix backend --no-audit --no-fund
       - name: Install pinned disposable local runtime
         run: npm install --prefix "$RUNNER_TEMP/jwt-runtime" --no-audit --no-fund --no-save --package-lock=false miniflare@5.20261103.0-beta workerd@1.20261103.1
