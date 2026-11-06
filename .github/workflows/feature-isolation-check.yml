@@ -4,6 +4,15 @@ on:
   push:
     branches: [feature-preview]
   workflow_dispatch:
+    inputs:
+      prepare_first_setup:
+        description: Prepare the approved synthetic seed and read-only Feature metadata
+        type: boolean
+        default: false
+      seed_recipient_public_key:
+        description: Public RSA encryption key; private key remains in root RAM
+        type: string
+        default: ''
 permissions:
   contents: read
 defaults:
@@ -57,7 +66,7 @@ jobs:
         run: |
           node backend/tools/feature-hosting-overlay.mjs "$RUNNER_TEMP/feature-evidence"
           node --test --test-reporter=tap backend/tests/feature-isolation.test.mjs backend/tests/feature-deployment-gates.test.mjs backend/tests/academy-management-origin-regression.test.mjs 2>&1 | tee "$RUNNER_TEMP/feature-evidence/isolation.log"
-          node --test --test-reporter=tap --test-concurrency=1 backend/tests/feature-native-initialisation.test.mjs 2>&1 | tee "$RUNNER_TEMP/feature-evidence/native-initialisation.log"
+          node --test --test-reporter=tap --test-concurrency=1 backend/tests/feature-native-initialisation.test.mjs backend/tests/feature-first-preflight.test.mjs backend/tests/feature-seed-encrypt.test.mjs 2>&1 | tee "$RUNNER_TEMP/feature-evidence/native-initialisation.log"
           CF_PAGES_BRANCH=feature-preview node backend/tools/academy-pages-build.mjs 2>&1 | tee "$RUNNER_TEMP/feature-evidence/pages-build.log"
           test "$(git diff --name-only)" = "config/hosting.json"
       - name: Validate Feature Worker configurations without Cloudflare access
@@ -110,3 +119,46 @@ jobs:
           name: feature-deployment-${{ github.run_id }}
           path: ${{ runner.temp }}/feature-deploy-evidence/
           retention-days: 30
+
+  first-setup-evidence:
+    needs: schema
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature-preview' && inputs.prepare_first_setup
+    environment: feature
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - run: npm ci --prefix backend --no-audit --no-fund
+      - name: Prepare approved synthetic-only seed in the disposable runner
+        env:
+          FEATURE_TEST_ADMIN_PIN: ${{ secrets.FEATURE_TEST_ADMIN_PIN }}
+          PIN_SECRET: ${{ secrets.PIN_SECRET }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          SHARED_PIN_SECRET: ${{ secrets.SHARED_PIN_SECRET }}
+          ACADEMY_OPEN_LIBRARY_STORAGE_KEY: ${{ secrets.ACADEMY_OPEN_LIBRARY_STORAGE_KEY }}
+        run: node backend/tools/feature-synthetic-seed.mjs "$RUNNER_TEMP/feature-first-private"
+      - name: Encrypt seed for the in-memory recipient; remove runner plaintext
+        env:
+          FEATURE_SEED_RECIPIENT_PUBLIC_KEY: ${{ inputs.seed_recipient_public_key }}
+        run: node backend/tools/feature-seed-encrypt.mjs "$RUNNER_TEMP/feature-first-private" "$RUNNER_TEMP/feature-first-encrypted"
+      - name: Read approved Feature control-plane metadata only
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_FEATURE_DEPLOY_TOKEN }}
+        run: node backend/tools/feature-first-preflight.mjs "$RUNNER_TEMP/feature-first-metadata"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: feature-first-metadata-${{ github.run_id }}
+          path: ${{ runner.temp }}/feature-first-metadata/
+          retention-days: 7
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: feature-first-encrypted-seed-${{ github.run_id }}
+          path: ${{ runner.temp }}/feature-first-encrypted/
+          retention-days: 1
