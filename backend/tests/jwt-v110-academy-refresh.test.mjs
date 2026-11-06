@@ -400,6 +400,13 @@ test('A cancellation loses a race to changed immutable proof floors without a fa
  const r=await f.call('/auth/v110/logout',{cookie:auth.cookie,proof:auth.pin.data.csrf});assert(raced);assert.equal(r.status,409);assert.equal(r.response.headers.getSetCookie().length,0);assert.equal(f.native.prepare('SELECT revoked_at FROM account_sessions WHERE session_id=?').get(sid).revoked_at,null);
 }));
 
+
+test('A native refresh prepared before logout cannot commit or deliver replacement cookies afterwards',withFamily(async f=>{
+ const auth=await nativeCookieLogin(f);let cancelled=false;
+ f.setBeforeBatch(async statements=>{if(!cancelled&&statements.some(s=>/^UPDATE jwt_v110_families AS f SET previous_fp/.test(s.sql))){cancelled=true;const ended=await f.call('/auth/v110/logout',{cookie:auth.cookie,proof:auth.pin.data.csrf});assert.equal(ended.status,200);}});
+ const result=await f.call('/auth/v110/refresh',{cookie:auth.cookie,proof:auth.pin.data.csrf});assert(cancelled);assert.notEqual(result.status,200);assert.equal(result.response.headers.getSetCookie().length,0);
+ assert.equal(f.native.prepare('SELECT revoked FROM jwt_v110_families WHERE family_id=?').get(auth.pin.data.browserContext.sessionId).revoked,1);
+}));
 test.after(()=>{
  assert.equal(remoteAttempts,0);const report={commit:process.env.GITHUB_SHA,synthetic:true,kind:'NATIVE_ACADEMY_PREPARED_REFRESH_SQLITE',records,remoteFetchAttempts:remoteAttempts,masterIssuerProved:false,foregroundHumanActivityProved:false,hostedRequests:0,hostedDBChanges:0,metrics:'No D1 row-cost claim from node:sqlite; workerd/full-flow measurement remains required.'};
  if(process.env.JWT_V110_EVIDENCE){mkdirSync(process.env.JWT_V110_EVIDENCE,{recursive:true});writeFileSync(process.env.JWT_V110_EVIDENCE+'/native-academy-refresh.json',JSON.stringify(report,null,2)+'\n');}

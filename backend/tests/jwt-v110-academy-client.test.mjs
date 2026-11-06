@@ -113,3 +113,17 @@ test('Cancellation can acquire only its own CSRF proof after a fresh document, w
  assert.equal((await f.adapter.fetch(origin+'/api/account/logout',{method:'POST',body:'{}'})).status,200);
  assert.deepEqual(f.calls.map(c=>c.path),['/auth/v110/logout-csrf','/auth/v110/logout']);
 });
+
+test('A late own-refresh response after cancellation cannot restore transport metadata or the private clock',async()=>{
+ let release,started;const inFlight=new Promise(resolve=>started=resolve),gate=new Promise(resolve=>release=resolve);
+ const f=transport({ready:true,respond:async r=>{
+  const path=new URL(r.url).pathname;
+  if(path==='/auth/v110/login')return Response.json({cookieSession:true,sessionKey:'uaa-session:session-a:0',csrf:'A'.repeat(43),accessExpiresAtMs:Date.now()-1,browserContext:session()});
+  if(path==='/auth/v110/refresh'){started();await gate;return Response.json({refreshed:true,accessExpiresAtMs:Date.now()+900000,browserContext:session()});}
+  if(path==='/auth/v110/logout')return Response.json({success:true,cancelled:true});throw Error('Unexpected late dispatch');
+ }});
+ await f.adapter.fetch(origin+'/api/account/login',{method:'POST',body:'{}'});
+ const query=f.adapter.fetch(origin+'/api/academy/lesson-media/list',{method:'POST',body:'{}'});await inFlight;
+ assert.equal((await f.adapter.fetch(origin+'/api/account/logout',{method:'POST',body:'{}'})).status,200);release();
+ await assert.rejects(query,e=>e.name==='AbortError');assert.equal(f.accepted.length,0);assert.equal(f.calls.filter(c=>c.path==='/api/academy/lesson-media/list').length,0);
+});

@@ -81,7 +81,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$JWT_V110_EVIDENCE"
-          node --test --test-reporter=tap --test-concurrency=1 backend/tests/jwt-v110-academy-workerd.test.mjs 2>&1 | tee "$JWT_V110_EVIDENCE/workerd.log"
+          node --test --test-reporter=tap --test-concurrency=1 backend/tests/jwt-v110-academy-workerd.test.mjs backend/tests/jwt-v110-academy-private-range.test.mjs 2>&1 | tee "$JWT_V110_EVIDENCE/workerd.log"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

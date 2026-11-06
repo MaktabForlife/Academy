@@ -50,6 +50,7 @@ export function installAcademyCookieTransport({win,doc,config,nativeFetch,clock=
   return response;
  }
  return Object.freeze({async fetch(input,options={}){
+  const requestGeneration=generation;
   let request=new Request(typeof input==='string'||input instanceof URL?new URL(String(input),win.location.href):input,options),url=new URL(request.url);
   if(url.origin!==origin)return nativeFetch(input,options);
   const path=url.pathname,method=request.method,publicRead=['GET','HEAD'].includes(method)&&['/api/public/header-date','/api/public/academy-announcements','/api/public/academy-announcements/image','/api/public/academy-announcements/pdf','/api/academy/header-date'].includes(path),
@@ -71,10 +72,10 @@ export function installAcademyCookieTransport({win,doc,config,nativeFetch,clock=
   if(signIn){const mine=++generation;pending=null;url.pathname=path.endsWith('/setup-pin')?'/auth/v110/setup-pin':'/auth/v110/login';request=new Request(url,{method:request.method,headers:request.headers,body:await pinBody(request),signal:request.signal,keepalive:request.keepalive,credentials:'same-origin',cache:'no-store',redirect:'error'});return mapped(await nativeFetch(request,credentials),url.pathname,mine);}
   if(!publicPath&&path.startsWith('/api/')&&expires&&Date.now()>=expires)await renew(foreground);
   if(!publicPath&&path.startsWith('/api/')&&!['GET','HEAD'].includes(request.method)){
-   if(!csrf)await nonce();const headers=new Headers(request.headers);headers.set('X-UAA-CSRF',csrf);request=new Request(request,{headers});
+   if(!csrf)await nonce(requestGeneration);const headers=new Headers(request.headers);headers.set('X-UAA-CSRF',csrf);request=new Request(request,{headers});
   }
   let response=await nativeFetch(request,credentials);
-  if(context&&response.status===401&&hinted()){await renew();response=await nativeFetch(request,credentials);}
-  return mapped(response,path);
+  if(context&&response.status===401&&hinted()){if(requestGeneration!==generation)throw new DOMException('The browser sign-in changed.','AbortError');await renew();response=await nativeFetch(request,credentials);}
+  return mapped(response,path,requestGeneration);
  }});
 }
