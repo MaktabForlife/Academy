@@ -1,3 +1,4 @@
+import {processingBrowserPath,processingPartPath,processingJSONBytes,videoProcessingEnabled,checkedProcessingInput,processingPartInput} from './web-platform/video-processing.mjs';
 import {nativePortal,portalReadReply} from './portal.mjs';
 import {hostingEnvironment,academyManagementOriginAllowed} from '../hosting.mjs';
 import {uploadPlaylistCardImage,previewPlaylistCardImage,publicPlaylistCardImage} from './media-playlist-card-images.js';
@@ -115,6 +116,7 @@ async function dispatch(request,env,options={}) {
   if (![env.PIN_SECRET,env.SESSION_SECRET].every(value=>typeof value==='string'&&value.trim()))
     throw rehearsalError('Academy authentication is not configured.');
   const path=new URL(request.url).pathname;
+  if((path===processingBrowserPath||path===processingPartPath)&&!videoProcessingEnabled(env))throw rehearsalError('Video processing is not enabled.',404,'PROCESSOR_DISABLED');
   if(path==='/api/academy/announcements/published'&&['GET','HEAD'].includes(request.method))return publicAnnouncementSnapshot(request,env);
   if(['/api/academy/announcements/image','/api/academy/announcements/pdf'].includes(path)&&['GET','HEAD'].includes(request.method)&&new URL(request.url).searchParams.has('asset'))return publicAnnouncementAsset(request,env,path.endsWith('/pdf')?'pdf':'image');
   let repository=academyD1Repository(env);
@@ -219,6 +221,13 @@ async function dispatch(request,env,options={}) {
   if(request.method!=='POST')throw rehearsalError('Use POST.',405,'METHOD_NOT_ALLOWED');
   // Only decorative card artwork has a larger bounded browser request. Native
   // authentication/workspace checks and the generic access parser stay intact.
+  if(path===processingBrowserPath||path===processingPartPath){
+    if(!videoProcessingEnabled(env))throw rehearsalError('Video processing is not enabled.',404,'PROCESSOR_DISABLED');
+    if(!academyManagementOriginAllowed(request.headers.get('Origin')))throw rehearsalError('Reopen video processing inside Academy Admin.',403,'ORIGIN_REQUIRED');
+    const auth=await authenticated(request,env,repository);guardWorkspace(request,auth,{});
+    const input=path===processingPartPath?await processingPartInput(request):checkedProcessingInput(await boundedBody(request,processingJSONBytes));
+    return studioAdmin(env,auth,input,{processingOnly:true});
+  }
   if(path==='/api/admin/platform/studio-access/playlist-cover'){
     if(!academyManagementOriginAllowed(request.headers.get('Origin')))throw rehearsalError('Reopen artwork editing inside Academy Admin.',403,'ORIGIN_REQUIRED');
     const auth=await authenticated(request,env,repository),input=await boundedBody(request,1_000_000);guardWorkspace(request,auth,input);
