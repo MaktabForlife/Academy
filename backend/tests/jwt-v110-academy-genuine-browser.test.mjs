@@ -26,7 +26,7 @@ test('Genuine Chrome native PIN installs HttpOnly Feature cookies and uses the a
  t.after(async()=>{
   if(!startupDone)try{await writeFile(join(evidence,'chrome-startup.json'),JSON.stringify({exitCode:browser?.exitCode,signalCode:browser?.signalCode,errors:startupErrors.slice(0,3000)})+'\n');}catch{}
   if(cdp&&tab){try{
-   const page=await cdp.evaluate(tab,'({state:document.documentElement.dataset.uaaV110State,dialogOpen:document.getElementById("academy-login-dialog")?.open,pinLength:document.getElementById("demo-pin")?.value?.length,status:document.getElementById("login-status")?.textContent?.slice(0,200),path:location.pathname,headerPresent:Boolean(document.getElementById("academy-header-name")&&!document.getElementById("academy-header-name").hidden),privateFacade:Boolean(window.M4L_V110),control:window.__ciControl,frames:document.querySelectorAll("iframe[data-uaa-control]").length,selectorPresent:/^uaa-(session|context):/.test(localStorage.getItem("m4l_account_token")||"")})');
+   const page=await cdp.evaluate(tab,'({state:document.documentElement.dataset.uaaV110State,dialogOpen:document.getElementById("academy-login-dialog")?.open,pinLength:document.getElementById("demo-pin")?.value?.length,status:document.getElementById("login-status")?.textContent?.slice(0,200),path:location.pathname,headerPresent:Boolean(document.getElementById("academy-header-name")&&!document.getElementById("academy-header-name").hidden),privateFacade:Boolean(window.M4L_V110),control:window.__ciControl,frames:document.querySelectorAll("iframe[data-uaa-control]").length,nativeAction:window.__ciNativeAction,nativeTrace:window.__ciNativeTrace,focused:document.hasFocus(),selectorPresent:/^uaa-(session|context):/.test(localStorage.getItem("m4l_account_token")||"")})');
    const stored=await cdp.call('Storage.getCookies');
    await writeFile(join(evidence,'safe-browser-state.json'),JSON.stringify({page,api,missingAssets,networkFailures,blockedExternal,outside,blockedPublicFonts,blockedLegacyImages,options,cookies:stored.cookies.filter(c=>c.name.includes('uaa')).map(c=>({name:c.name,domain:c.domain,httpOnly:c.httpOnly,secure:c.secure,sameSite:c.sameSite})),exceptions:cdp.events.map(e=>({text:e.text,url:e.url,line:e.line}))},null,2)+'\n');
   }catch{}}
@@ -81,6 +81,9 @@ test('Genuine Chrome native PIN installs HttpOnly Feature cookies and uses the a
  const read=activity=>cdp.evaluate(tab,'(async()=>{const r=await fetch("/api/academy/lesson-media/list",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+localStorage.getItem("m4l_account_token"),"X-Academy-Workspace":"LEARN"},body:JSON.stringify({activityKey:'+JSON.stringify(activity)+'})});await r.json();return r.status;})()');
  assert.equal(await read('COURSE:FEATURE-SYNTHETIC-A'),200);assert.equal(await read('COURSE:FEATURE-SYNTHETIC-B'),403);
  const inspected=await fixture.runtime.getD1Database('JWT_V110_CORE_DB','api');
+ await cdp.call('Target.activateTarget',{targetId:tab.id});
+ await cdp.call('Page.bringToFront',{},sessionId);
+ await until(()=>cdp.evaluate(tab,'document.documentElement.dataset.uaaV110State==="ready"'),'Native page must be current before protected input',15000);
  const foregroundCallStart=api.length;
  const foregroundBefore=await inspected.prepare("SELECT last_fg_refresh_s,original_expires_at_s FROM jwt_v110_families WHERE account_id='feature-synthetic-learner-a' AND revoked=0").first();
  await sleep(1100);
@@ -88,9 +91,14 @@ test('Genuine Chrome native PIN installs HttpOnly Feature cookies and uses the a
  // Use the actual Dashboard refresh control and its explicitly carried trusted event.
  await cdp.evaluate(tab,'window.__ciRealDateNow=Date.now;Date.now=()=>window.__ciRealDateNow()+901000;');
  await until(()=>cdp.evaluate(tab,'Boolean(document.querySelector("[data-circles-dashboard-refresh]"))&&!document.querySelector("[data-circles-dashboard-refresh]").disabled'),'Native Dashboard refresh control missing or disabled',15000);
- assert(await cdp.evaluate(tab,'(()=>{const b=document.querySelector("[data-circles-dashboard-refresh]");b.addEventListener("click",e=>{window.__ciNativeAction={trusted:e.isTrusted,active:navigator.userActivation.isActive};},{capture:true,once:true});b.focus({preventScroll:true});return document.activeElement===b;})()'),'The native Dashboard control must own keyboard focus');
- await cdp.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,nativeVirtualKeyCode:13},sessionId);
- await cdp.call('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,nativeVirtualKeyCode:13},sessionId);
+ await cdp.evaluate(tab,'(()=>{window.__ciNativeTrace=[];for(const type of ["pointerdown","mousedown","mouseup","click","keydown"]){window.addEventListener(type,e=>{const native=Boolean(e.target?.closest?.("[data-circles-dashboard-refresh]"));if(native){window.__ciNativeTrace.push({type:e.type,trusted:e.isTrusted,active:navigator.userActivation.isActive});if(e.type==="click")window.__ciNativeAction={trusted:e.isTrusted,active:navigator.userActivation.isActive};}},{capture:true});}const b=[...document.querySelectorAll("[data-circles-dashboard-refresh]")].find(el=>el.getClientRects().length&&!el.disabled);if(!b)throw Error("No visible native action");b.scrollIntoView({behavior:"instant",block:"center",inline:"center"});})()');
+ await cdp.evaluate(tab,'new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+ const point=await cdp.evaluate(tab,'(()=>{const b=[...document.querySelectorAll("[data-circles-dashboard-refresh]")].find(el=>el.getClientRects().length&&!el.disabled);const r=b.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;return{x,y,hit:document.elementFromPoint(x,y)?.closest("[data-circles-dashboard-refresh]")===b};})()');
+ assert(point.hit,'Native control must be the actual pointer hit target');
+ const coordinates={x:point.x,y:point.y};
+ await cdp.call('Input.dispatchMouseEvent',{type:'mouseMoved',...coordinates},sessionId);
+ await cdp.call('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,...coordinates},sessionId);
+ await cdp.call('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,...coordinates},sessionId);
  await until(()=>cdp.evaluate(tab,'window.__ciNativeAction?.trusted===true&&window.__ciNativeAction?.active===true'),'Trusted native Dashboard activation was not delivered',10000);
  await until(()=>api.some(r=>r.path==='/auth/v110/refresh'&&r.status===200&&r.foreground===true),'Actual protected Dashboard action did not renew foreground',20000);
  await until(()=>api.slice(foregroundCallStart).some(r=>r.path==='/api/academy/hub/read'&&r.status===200),'Current protected Dashboard read did not finish',15000);
