@@ -21,9 +21,6 @@ for(const path of report.files.filter(p=>p.endsWith('.html'))){
   writeFileSync(target,html.replace('<script src="/auth/v110/browser-bootstrap.js"></script>','<script src="/auth/v110/academy-cookie-loader.js"></script><script src="/auth/v110/browser-bootstrap.js"></script>'));
  }
 }
-// The isolated pilot enters the native workspace; no second root login surface.
-writeFileSync(join(directory,'index.html'),'<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=/academy/"><title>Academy JWT Feature</title></head><body><a href="/academy/">Open Academy JWT Feature</a></body></html>');
-if(!report.files.includes('index.html'))report.files.push('index.html');
 if(report.files.some(p=>p.startsWith('backend/')||p.endsWith('_worker.js')||p.includes('private-key')))throw Error('NONPUBLIC_FEATURE_ASSET');
 const result={schema:1,commit:process.env.GITHUB_SHA,directory,origin,files:report.files,sourceHostingSHA256:createHash('sha256').update(source).digest('hex'),hostedChanges:0};
 const evidence=process.env.JWT_V110_EVIDENCE;if(!evidence)throw Error('Evidence destination required');

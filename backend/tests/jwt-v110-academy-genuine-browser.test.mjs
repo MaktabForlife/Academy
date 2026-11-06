@@ -25,7 +25,7 @@ test('Genuine Chrome native PIN installs HttpOnly Feature cookies and uses the a
  let browser,cdp,tab,server;const api=[],staticRequests=[],missingAssets=[],networkFailures=[];let outside=0,options=0;
  t.after(async()=>{
   if(cdp&&tab){try{
-   const page=await cdp.evaluate(tab,'({state:document.documentElement.dataset.uaaV110State,dialogOpen:document.getElementById("academy-login-dialog")?.open,pinLength:document.getElementById("demo-pin")?.value?.length,status:document.getElementById("login-status")?.textContent?.slice(0,200),headerPresent:!document.getElementById("academy-header-name")?.hidden,privateFacade:Boolean(window.M4L_V110),control:window.__ciControl,frames:document.querySelectorAll("iframe[data-uaa-control]").length,selectorPresent:/^uaa-(session|context):/.test(localStorage.getItem("m4l_account_token")||"")})');
+   const page=await cdp.evaluate(tab,'({state:document.documentElement.dataset.uaaV110State,dialogOpen:document.getElementById("academy-login-dialog")?.open,pinLength:document.getElementById("demo-pin")?.value?.length,status:document.getElementById("login-status")?.textContent?.slice(0,200),path:location.pathname,headerPresent:!document.getElementById("academy-header-name")?.hidden,privateFacade:Boolean(window.M4L_V110),control:window.__ciControl,frames:document.querySelectorAll("iframe[data-uaa-control]").length,selectorPresent:/^uaa-(session|context):/.test(localStorage.getItem("m4l_account_token")||"")})');
    const stored=await cdp.call('Storage.getCookies');
    await writeFile(join(evidence,'safe-browser-state.json'),JSON.stringify({page,api,missingAssets,networkFailures,outside,options,cookies:stored.cookies.filter(c=>c.name.includes('uaa')).map(c=>({name:c.name,domain:c.domain,httpOnly:c.httpOnly,secure:c.secure,sameSite:c.sameSite})),exceptions:cdp.events.map(e=>({text:e.text,url:e.url,line:e.line}))},null,2)+'\n');
   }catch{}}
@@ -55,7 +55,7 @@ test('Genuine Chrome native PIN installs HttpOnly Feature cookies and uses the a
  browser=spawn(executable,['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-background-networking','--disable-component-update','--disable-sync','--no-first-run','--no-default-browser-check','--no-proxy-server','--ignore-certificate-errors','--host-resolver-rules=MAP feature_worker.maktab4life.workers.dev 127.0.0.1','--remote-debugging-port=0','--user-data-dir='+directory,'about:blank'],{stdio:'ignore'});
  const portFile=await until(async()=>{try{return await readFile(join(directory,'DevToolsActivePort'),'utf8');}catch{return null;}},'Chrome did not start');
  const [port,path]=portFile.trim().split('\n');cdp=await CDP.open('ws://127.0.0.1:'+port+path);
- cdp.onEvent=m=>{if(m.method==='Network.loadingFailed')networkFailures.push({error:m.params.errorText,type:m.params.type});if(m.method==='Fetch.requestPaused'){const url=new URL(m.params.request.url);const good=url.origin===origin;if(!good)outside++;void cdp.call(good?'Fetch.continueRequest':'Fetch.failRequest',good?{requestId:m.params.requestId}:{requestId:m.params.requestId,errorReason:'BlockedByClient'},m.sessionId);}};
+ cdp.onEvent=m=>{if(m.method==='Network.loadingFailed')networkFailures.push({error:m.params.errorText,type:m.params.type});if(m.method==='Fetch.requestPaused'){const url=new URL(m.params.request.url);const good=url.origin===origin;if(!good)outside++;void cdp.call(good?'Fetch.continueRequest':'Fetch.failRequest',good?{requestId:m.params.requestId}:{requestId:m.params.requestId,errorReason:'BlockedByClient'},m.sessionId).catch(()=>{});}};
  const {targetId}=await cdp.call('Target.createTarget',{url:'about:blank'}),{sessionId}=await cdp.call('Target.attachToTarget',{targetId,flatten:true});tab={id:targetId,session:sessionId};
  for(const name of ['Page.enable','Runtime.enable','Network.enable','Fetch.enable'])await cdp.call(name,name==='Fetch.enable'?{patterns:[{urlPattern:'*'}]}:{},sessionId);
  await cdp.call('Page.addScriptToEvaluateOnNewDocument',{source:'window.__ciControl=[];window.addEventListener("message",e=>{const m=e.data;if(m?.type?.startsWith("UAA_CONTROL"))window.__ciControl.push({type:m.type,ok:m.ok,code:m.code,active:m.state?.active});});'},sessionId);
@@ -67,7 +67,7 @@ test('Genuine Chrome native PIN installs HttpOnly Feature cookies and uses the a
  await cdp.call('Input.insertText',{text:'feature-test-learner'},sessionId);
  await cdp.evaluate(tab,'document.getElementById("demo-pin").focus()');
  await cdp.call('Input.insertText',{text:'2468'},sessionId);
- await until(()=>cdp.evaluate(tab,'document.documentElement.dataset.uaaV110State==="ready"&&document.getElementById("academy-header-name")?.textContent==="Feature synthetic learner"'),'Actual native PIN/cookie sign-in did not reveal current account',25000);
+ await until(()=>cdp.evaluate(tab,'(async()=>document.documentElement.dataset.uaaV110State==="ready"&&(location.pathname==="/"?(await import("/api.mjs")).identity.account?.accountId==="feature-synthetic-learner-a":document.getElementById("academy-header-name")?.textContent==="Feature synthetic learner"))()'),'Actual native PIN/cookie sign-in did not reveal current account',25000);
  assert.equal(api.filter(r=>r.path==='/auth/v110/login'&&r.status===200).length,1,'Fourth digit should submit once');
  const cookieState=await cdp.call('Storage.getCookies');const cookies=cookieState.cookies.filter(c=>c.name==='__Secure-uaa_a'||c.name==='__Host-uaa_r');assert.equal(cookies.length,2);assert(cookies.every(c=>c.secure&&c.httpOnly&&c.domain==='feature_worker.maktab4life.workers.dev'&&c.sameSite==='Lax'));
  assert(await cdp.evaluate(tab,'!document.cookie.includes("uaa_")'),'HttpOnly credentials must be hidden from document.cookie');
@@ -88,8 +88,8 @@ test('Genuine Chrome native PIN installs HttpOnly Feature cookies and uses the a
  assert(foregroundAfter.last_fg_refresh_s>foregroundBefore.last_fg_refresh_s);assert.equal(foregroundAfter.original_expires_at_s,foregroundBefore.original_expires_at_s);assert(api.some(r=>r.path==='/auth/v110/refresh'&&r.status===200&&r.foreground===true));
  assert(await cdp.evaluate(tab,'document.documentElement.dataset.uaaV110State==="ready"'),'Ordinary same-session renewal must retain the checked private view');
  await cdp.call('Page.reload',{},sessionId);
- await until(()=>cdp.evaluate(tab,'document.documentElement.dataset.uaaV110State==="ready"&&document.getElementById("academy-header-name")?.textContent==="Feature synthetic learner"'),'Cookie session did not restore',25000);
- await cdp.evaluate(tab,'document.getElementById("academy-sign-out").click()');
+ await until(()=>cdp.evaluate(tab,'(async()=>document.documentElement.dataset.uaaV110State==="ready"&&(location.pathname==="/"?(await import("/api.mjs")).identity.account?.accountId==="feature-synthetic-learner-a":document.getElementById("academy-header-name")?.textContent==="Feature synthetic learner"))()'),'Cookie session did not restore',25000);
+ await cdp.evaluate(tab,'(document.querySelector("[data-circles-sign-out]")||document.getElementById("academy-sign-out")).click()');
  await until(()=>api.some(r=>r.path==='/api/account/logout'&&r.status===200),'Actual logout was not acknowledged',15000);
  await until(()=>cdp.evaluate(tab,'document.documentElement.classList.contains("uaa-v110-masked")'),'Private display did not clear after logout');
  const ended=await fixture.runtime.getD1Database('ACADEMY_DB','api');const active=await ended.prepare("SELECT count(*) n FROM account_sessions WHERE account_id='feature-synthetic-learner-a' AND revoked_at IS NULL").first();assert.equal(active.n,0);
