@@ -56,6 +56,7 @@ export function createJWTFeatureSetupAPI(input){
    if(action==='execute'){
     executionWindow(env);
     for(const owner of ['core','admin'])if(await sha(c.statements[owner].join('\n')+'\n')!==c.templateHashes[owner])fail();
+    executionWindow(env);
     jwtFeatureDatabaseEnv(env);
     if(typeof env.SHARED_PIN_SECRET!=='string'||env.SHARED_PIN_SECRET.length<32||!/^\d{4}$/.test(env.JWT_FEATURE_SETUP_PIN||''))fail();
    }
@@ -64,8 +65,9 @@ export function createJWTFeatureSetupAPI(input){
    let result;
    if(action==='status')result=await stub.setupStatus(binding);
    else{
-    const pinHash=await createAcademyPinHash(env.JWT_FEATURE_SETUP_PIN,env);if(!hashPattern.test(pinHash))fail();executionWindow(env);
-    result=await stub.setupExecute({...binding,nonceDigest:await sha(nonce),pinHash});
+    const pinHash=await createAcademyPinHash(env.JWT_FEATURE_SETUP_PIN,env);if(!hashPattern.test(pinHash))fail();
+    const nonceDigest=await sha(nonce);executionWindow(env);
+    result=await stub.setupExecute({...binding,nonceDigest,pinHash});
    }
    // Only the controller's explicitly public receipt escapes the private RPC.
    if(!result||!['UNCLAIMED','PREPARING','VERIFIED','UNKNOWN'].includes(result.state)||result.source!==c.source||result.manifestHash!==c.manifestHash)fail();
