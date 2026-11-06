@@ -15,18 +15,25 @@ class CDP{
  static async open(url){const ws=new WebSocket(url);await new Promise((resolve,reject)=>{ws.addEventListener('open',resolve,{once:true});ws.addEventListener('error',()=>reject(Error('CDP connection failed')),{once:true});});return new CDP(ws);}
  call(method,params={},sessionId){const id=++this.next;return new Promise((resolve,reject)=>{const timer=setTimeout(()=>{this.pending.delete(id);reject(Error(method+' timed out'));},10000);this.pending.set(id,{resolve,reject,timer,method});this.ws.send(JSON.stringify({id,method,params,...(sessionId?{sessionId}:{})}));});}
  async evaluate(tab,expression){const r=await this.call('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true},tab.session);if(r.exceptionDetails)throw Error('Synthetic browser evaluation failed');return r.result.value;}
- async openTab(url){const {targetId}=await this.call('Target.createTarget',{url:'about:blank'}),{sessionId}=await this.call('Target.attachToTarget',{targetId,flatten:true}),tab={id:targetId,session:sessionId};await this.call('Page.enable',{},sessionId);await this.call('Runtime.enable',{},sessionId);await this.call('Target.activateTarget',{targetId});await this.call('Page.navigate',{url},sessionId);await until(()=>this.evaluate(tab,'document.readyState==="complete"&&location.href!=="about:blank"'), 'Synthetic app did not load.');return tab;}
+ async openTab(url){const {targetId}=await this.call('Target.createTarget',{url:'about:blank'}),{sessionId}=await this.call('Target.attachToTarget',{targetId,flatten:true});tab={id:targetId,session:sessionId};await this.call('Page.enable',{},sessionId);await this.call('Runtime.enable',{},sessionId);await this.call('Target.activateTarget',{targetId});await this.call('Page.navigate',{url},sessionId);await until(()=>this.evaluate(tab,'document.readyState==="complete"&&location.href!=="about:blank"'), 'Synthetic app did not load.');return tab;}
 }
 
 const origin='https://feature_worker.maktab4life.workers.dev';
 const mime=path=>({'.js':'text/javascript','.mjs':'text/javascript','.json':'application/json','.html':'text/html','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.fragment':'text/plain','.ico':'image/x-icon'}[extname(path)]||'application/octet-stream');
 test('Genuine Chrome native PIN installs HttpOnly Feature cookies and uses the actual own Worker',async t=>{
  const evidence=process.env.JWT_V110_EVIDENCE,build=JSON.parse(readFileSync(join(evidence,'public-build.json'),'utf8')),allowed=new Set(build.files),fixture=await createAcademyWorkerdFixture(),directory=await mkdtemp(join(tmpdir(),'jwt-feature-chrome-'));
- let browser,cdp;const api=[],staticRequests=[];let outside=0,options=0;
- t.after(async()=>{try{await cdp?.call('Browser.close');}catch{}cdp?.ws.close();browser?.kill('SIGKILL');await new Promise(resolve=>server.close(resolve));await fixture.close();});
+ let browser,cdp,tab,server;const api=[],staticRequests=[],missingAssets=[];let outside=0,options=0;
+ t.after(async()=>{
+  if(cdp&&tab){try{
+   const page=await cdp.evaluate(tab,'({state:document.documentElement.dataset.uaaV110State,dialogOpen:document.getElementById("academy-login-dialog")?.open,pinLength:document.getElementById("demo-pin")?.value?.length,status:document.getElementById("login-status")?.textContent?.slice(0,200),headerPresent:!document.getElementById("academy-header-name")?.hidden,privateFacade:Boolean(window.M4L_V110),control:window.__ciControl,frames:document.querySelectorAll("iframe[data-uaa-control]").length,selectorPresent:/^uaa-(session|context):/.test(localStorage.getItem("m4l_account_token")||"")})');
+   const stored=await cdp.call('Storage.getCookies');
+   await writeFile(join(evidence,'safe-browser-state.json'),JSON.stringify({page,api,missingAssets,outside,options,cookies:stored.cookies.filter(c=>c.name.includes('uaa')).map(c=>({name:c.name,domain:c.domain,httpOnly:c.httpOnly,secure:c.secure,sameSite:c.sameSite})),exceptions:cdp.events.map(e=>({text:e.text,url:e.url,line:e.line}))},null,2)+'\n');
+  }catch{}}
+  try{await cdp?.call('Browser.close');}catch{}cdp?.ws.close();browser?.kill('SIGKILL');if(server)await new Promise(resolve=>server.close(resolve));await fixture.close();
+ });
  const key=join(directory,'local-TLS.key'),cert=join(directory,'local-TLS.crt');
  execFileSync('openssl',['req','-x509','-newkey','rsa:2048','-nodes','-keyout',key,'-out',cert,'-days','1','-subj','/CN=feature_worker.maktab4life.workers.dev','-addext','subjectAltName=DNS:feature_worker.maktab4life.workers.dev'],{stdio:'ignore'});
- const server=https.createServer({key:readFileSync(key),cert:readFileSync(cert)},(req,res)=>{void serve(req,res).catch(()=>{if(!res.headersSent)res.writeHead(500,{'Content-Type':'text/plain'});res.end('Local browser fixture failed');});});
+ server=https.createServer({key:readFileSync(key),cert:readFileSync(cert)},(req,res)=>{void serve(req,res).catch(()=>{if(!res.headersSent)res.writeHead(500,{'Content-Type':'text/plain'});res.end('Local browser fixture failed');});});
  async function serve(req,res){
   const url=new URL(req.url,origin);
   if(req.method==='OPTIONS')options++;
@@ -38,7 +45,7 @@ test('Genuine Chrome native PIN installs HttpOnly Feature cookies and uses the a
    res.writeHead(response.status,headers);res.end(Buffer.from(await response.arrayBuffer()));return;
   }
   let file=decodeURIComponent(url.pathname).slice(1);if(!file||file.endsWith('/'))file+='index.html';
-  if(!allowed.has(file)||file.split('/').some(p=>p==='..')){res.writeHead(404);res.end('Not found');return;}
+  if(!allowed.has(file)||file.split('/').some(p=>p==='..')){missingAssets.push(url.pathname);res.writeHead(404);res.end('Not found');return;}
   staticRequests.push({path:url.pathname,method:req.method});
   res.writeHead(200,{'Content-Type':mime(file),'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(await readFile(join(build.directory,file)));
  }
@@ -51,6 +58,7 @@ test('Genuine Chrome native PIN installs HttpOnly Feature cookies and uses the a
  cdp.onEvent=m=>{if(m.method==='Fetch.requestPaused'){const url=new URL(m.params.request.url);const good=url.origin===origin;if(!good)outside++;void cdp.call(good?'Fetch.continueRequest':'Fetch.failRequest',good?{requestId:m.params.requestId}:{requestId:m.params.requestId,errorReason:'BlockedByClient'},m.sessionId);}};
  const {targetId}=await cdp.call('Target.createTarget',{url:'about:blank'}),{sessionId}=await cdp.call('Target.attachToTarget',{targetId,flatten:true}),tab={id:targetId,session:sessionId};
  for(const name of ['Page.enable','Runtime.enable','Network.enable','Fetch.enable'])await cdp.call(name,name==='Fetch.enable'?{patterns:[{urlPattern:'*'}]}:{},sessionId);
+ await cdp.call('Page.addScriptToEvaluateOnNewDocument',{source:'window.__ciControl=[];window.addEventListener("message",e=>{const m=e.data;if(m?.type?.startsWith("UAA_CONTROL"))window.__ciControl.push({type:m.type,ok:m.ok,code:m.code,active:m.state?.active});});'},sessionId);
  await cdp.call('Target.activateTarget',{targetId});await cdp.call('Page.navigate',{url:origin+'/academy/#login'},sessionId);
  await until(()=>cdp.evaluate(tab,'Boolean(document.querySelector("[data-uaa-open-sign-in]"))&&Boolean(window.M4L_ACADEMY_LOGIN)'),'Public Feature sign-in action missing',20000);
  await cdp.evaluate(tab,'document.querySelector("[data-uaa-open-sign-in]").click()');

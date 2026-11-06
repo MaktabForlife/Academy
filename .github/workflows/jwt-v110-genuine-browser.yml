@@ -1,0 +1,44 @@
+name: JWT V110 genuine native browser review
+on:
+  create:
+  workflow_dispatch:
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+jobs:
+  genuine-browser:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/heads/validation/jwt-v110-genuine-browser-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - run: npm ci --prefix backend --no-audit --no-fund
+      - name: Install pinned disposable local runtime
+        run: npm install --prefix "$RUNNER_TEMP/jwt-runtime" --no-audit --no-fund --no-save --package-lock=false miniflare@5.20261103.0-beta workerd@1.20261103.1
+      - name: Build explicit same-origin public Feature pilot
+        env:
+          JWT_V110_EVIDENCE: ${{ runner.temp }}/jwt-genuine-browser
+        run: node backend/tools/jwt-v110-feature-public-build.mjs
+      - name: Permit the disposable runner to serve exact HTTPS port
+        run: sudo sysctl -w net.ipv4.ip_unprivileged_port_start=0
+      - name: Genuine Chrome and actual native cookie Worker
+        env:
+          FEATURE_MF_ROOT: ${{ runner.temp }}/jwt-runtime
+          JWT_V110_EVIDENCE: ${{ runner.temp }}/jwt-genuine-browser
+        run: |
+          set -euo pipefail
+          node --test --test-reporter=tap --test-concurrency=1 backend/tests/jwt-v110-academy-genuine-browser.test.mjs 2>&1 | tee "$JWT_V110_EVIDENCE/browser.log"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: jwt-v110-genuine-browser-${{ github.run_id }}
+          path: ${{ runner.temp }}/jwt-genuine-browser/
+          retention-days: 30
