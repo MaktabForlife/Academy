@@ -23,8 +23,8 @@ const cfg=JSON.parse(await readFile('backend/wrangler.feature.jsonc','utf8'));
 const bridgeSecret=crypto.randomUUID()+crypto.randomUUID();
 const studioFixture={async fetch(url,init){const request=new Request(url,init),u=new URL(request.url);assert.equal(u.origin,h.studioBackendOrigin);assert.equal(request.method,'POST');assert(request.headers.get('X-Maktab-Signature'));serviceCalls.push(u.pathname);if(u.pathname==='/internal/academy/events')return Response.json({success:true});if(u.pathname==='/internal/studio/hub-summary')return Response.json({navigation:{academia:[],mothers:true,hifz:null,tafseer:'/studio/?view=collections&collection=tafseer'},websites:[],rights:{websites:[]}});throw Error('Unexpected synthetic Studio operation');}};
 const env={...cfg.vars,...secrets,ACADEMY_TO_WEBSITE_SECRET:bridgeSecret,WEBSITE_PLATFORM_SERVICE:studioFixture,ACADEMY_D1_MODE:'ACTIVE',ACADEMY_D1_RUN_ID:seed.report.sourceDigest,ACADEMY_DB:sqliteD1(seed.databases.core),ACADEMY_ADMIN_DB:admin,ACADEMY_SPLIT_COORDINATOR:{getByName(){return {read:async(...args)=>({result:await engine.read(...args)}),write:async(...args)=>({result:await engine.write(...args)})};}},AUTH_LOGIN_RATE_LIMITER:{limit:async()=>({success:true})},ALLOWED_ORIGINS:base};
-const originalFetch=globalThis.fetch;let remoteAttempts=0;
-globalThis.fetch=async()=>{remoteAttempts++;throw Error('Unexpected server remote call');};
+const originalFetch=globalThis.fetch;let remoteAttempts=0,syntheticHeaderDateCalls=0;
+globalThis.fetch=async input=>{const url=new URL(typeof input==='string'?input:input.url);if(url.href==='https://jamiat.org.za/'){syntheticHeaderDateCalls++;return new Response('<html><body>Synthetic date unavailable</body></html>',{headers:{'Content-Type':'text/html'}});}remoteAttempts++;throw Error('Unexpected server remote call');};
 const browserName=process.env.HOME_LOGIN_BROWSER||'chromium';assert(['chromium','webkit'].includes(browserName));
 const browser=await ({chromium,webkit}[browserName]).launch({headless:true});
 const mime={'.html':'text/html','.css':'text/css','.js':'text/javascript','.mjs':'text/javascript','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml','.woff2':'font/woff2','.ttf':'font/ttf'};
@@ -137,6 +137,6 @@ try{
  assert.deepEqual(errors,[],'Page errors');assert.equal(remoteAttempts,0);
 }finally{
  await page.screenshot({path:resolve(out,'final-state.png'),fullPage:true}).catch(()=>{});
- await writeFile(resolve(out,'report.json'),JSON.stringify({commit:process.env.GITHUB_SHA,browserEngine:browserName,records,pageErrors:errors,nativeDenials,syntheticStudioFixtureCalls:serviceCalls,studioAuthorizationParityProved:false,requestCounts:requests.reduce((a,r)=>({...a,[r.path+':'+r.kind]:(a[r.path+':'+r.kind]||0)+1}),{}),blockedExternalOrigins:[...new Set(blocked)],remoteAttempts,hostedRequests:0,hostedDBReads:0,syntheticNativeSQLiteOnly:true},null,2));
+ await writeFile(resolve(out,'report.json'),JSON.stringify({commit:process.env.GITHUB_SHA,browserEngine:browserName,records,pageErrors:errors,nativeDenials,syntheticStudioFixtureCalls:serviceCalls,studioAuthorizationParityProved:false,requestCounts:requests.reduce((a,r)=>({...a,[r.path+':'+r.kind]:(a[r.path+':'+r.kind]||0)+1}),{}),blockedExternalOrigins:[...new Set(blocked)],remoteAttempts,syntheticHeaderDateCalls,hostedRequests:0,hostedDBReads:0,syntheticNativeSQLiteOnly:true},null,2));
  await browser.close();seed.close();globalThis.fetch=originalFetch;
 }
