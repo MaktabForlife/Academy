@@ -233,7 +233,7 @@ test('Core-only actual bookmark save rechecks JWT cancellation at its final tran
  const yes=await save(1);assert.equal(yes.status,200,yes.data.code);assert.equal(ownerWrites,0,'This actual protected route must use the ordinary Core-only transaction');
  const before=f.native.prepare('SELECT count(*) n FROM academy_pdf_bookmarks').get().n,audit=f.native.prepare('SELECT count(*) n FROM audit_events').get().n;
  let raced=false;f.setBeforeBatch(statements=>{
-  if(!raced&&statements.some(s=>/INSERT\\s+INTO\\s+["`]?academy_pdf_bookmarks/i.test(s.sql))){raced=true;f.native.prepare('UPDATE jwt_v110_families SET unlock_generation=unlock_generation+1 WHERE family_id=?').run(f.sid);}
+  if(!raced&&statements.some(s=>/INSERT\s+INTO\s+["`]?academy_pdf_bookmarks/i.test(s.sql))){raced=true;f.native.prepare('UPDATE jwt_v110_families SET unlock_generation=unlock_generation+1 WHERE family_id=?').run(f.sid);}
  });
  const no=await save(2);assert(raced,'The mutation must occur after authentication before the Core transaction');assert.notEqual(no.status,200);assert.equal(ownerWrites,0);assert.equal(f.native.prepare('SELECT count(*) n FROM academy_pdf_bookmarks').get().n,before);assert.equal(f.native.prepare('SELECT count(*) n FROM audit_events').get().n,audit);assert.equal(f.native.prepare('SELECT revoked_at FROM account_sessions WHERE session_id=?').get(f.sid).revoked_at,null);
 }));
