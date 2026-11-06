@@ -6,6 +6,7 @@ import {academyCookieOptions,createAcademyCookieEngine} from './academy-cookie-e
 const issuer='https://ummabbadacademy.app';
 const cookieVerified=Symbol('native verified cookie');
 const cookieState=Symbol('native cookie state');
+const cookieRequest=Symbol('native cookie request');
 const fail=(code,status=401)=>{throw Object.assign(new AuthContractError(code),{status});};
 export function cookieSessionKey(claims,context){
  if(!context)return 'uaa-session:'+claims.sid+':'+claims.ue;
@@ -59,10 +60,20 @@ export async function verifiedAcademyCookie(request,env,now=Math.floor(Date.now(
 
 export function bindCookieState(state,claims){
  if(claims?.[cookieVerified]!==true)fail('SESSION_ENDED');
+ const existing=state[cookieState];
+ if(existing){if(['sub','sid','psid','bsid','bv','ce','pv','ue','iat','exp','s_iat','s_exp'].some(k=>existing[k]!==claims[k]))fail('SESSION_ENDED');return;}
  Object.defineProperty(state,cookieState,{value:claims});
 }
 export function trustedCookieFacts(auth){
  const c=auth.cookieClaims||auth.authority?.[cookieState]||auth.state?.[cookieState];
  if(c?.[cookieVerified]!==true)return null;
  return Object.fromEntries(['sub','sid','psid','bsid','bv','ce','pv','ue','iat','exp','s_iat','s_exp'].map(k=>[k,c[k]]));
+}
+
+export async function bindAcademyCookieRequest(request,env){
+ const checked=await verifiedAcademyCookie(request,env),bound={...env};
+ Object.defineProperty(bound,cookieRequest,{value:checked.claims});return bound;
+}
+export function requestCookieClaims(env){
+ const c=env[cookieRequest];return c?.[cookieVerified]===true?c:null;
 }

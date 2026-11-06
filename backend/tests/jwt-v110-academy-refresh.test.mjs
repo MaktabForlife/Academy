@@ -2,14 +2,14 @@ import {portalNativeReadRequest} from '../src/academy/d1/portal.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
-import {generateKeyPair,exportJWK} from 'jose';
+import {SignJWT,decodeJwt,generateKeyPair,exportJWK} from 'jose';
 import worker from '../src/academy-runtime.js';
 import {prepareFeatureSeed,featureSyntheticAccounts} from '../tools/feature-synthetic-seed.mjs';
 import {sqliteD1} from '../tools/academy-split/sqlite-d1.mjs';
 import {emptyCompatibilityDatabase} from '../src/academy/separation/compatibility.js';
 import {emptyShapes} from '../src/academy/separation/empty-shapes.js';
 import {splitEngine} from '../src/academy/separation/engine.js';
-import {verifySessionToken} from '../src/lib/auth-primitives.js';
+import {createSessionToken,verifySessionToken} from '../src/lib/auth-primitives.js';
 import {academyD1Repository} from '../src/academy/d1/repository.js';
 import {createAccountBoundAcademyRefresh} from '../src/auth/v110/academy-refresh.mjs';
 import {createNativeCookieEngine} from '../src/auth/v110/native-rights.mjs';
@@ -308,6 +308,58 @@ test('Public announcement aliases return controlled errors without echoing priva
  f.env.JWT_V110_NATIVE_COOKIE='1';
  const r=await f.call('/api/public/academy-announcements',{method:'GET',cookie:'',origin:appOrigin});
  assert([200,503].includes(r.status),'Unpublished public snapshots must not escape as an unhandled500');assert.equal(r.response.headers.getSetCookie().length,0);assert(!JSON.stringify(r.data).includes(f.raw));
+}));
+
+
+async function privateVideo(f,auth,{ticketAccount=f.id,ticketSession=auth.pin.data.browserContext.sessionId}={}){
+ const scope='COURSE:FEATURE-SYNTHETIC-A',id='jwt-synthetic-video',asset='jwt-synthetic-mp4',key='synthetic-private.mp4',bytes=new TextEncoder().encode('0123456789abcdef');
+ const insert=(db,table,row)=>{const names=new Set(db.prepare('PRAGMA table_info('+table+')').all().map(c=>c.name)),columns=Object.keys(row).filter(k=>names.has(k));db.prepare('INSERT INTO '+table+'('+columns.join(',')+') VALUES('+columns.map(()=>'?').join(',')+')').run(...columns.map(k=>row[k]));};
+ for(const db of [f.native,f.seed.databases.admin]){
+  insert(db,'lesson_media_lessons',{lesson_id:id,activity_key:scope,class_id:null,lesson_date:'2026-11-06',title:'Synthetic recording',start_time:'10:00',end_time:'11:00',teacher_name:'Synthetic',state:'PUBLISHED',updated_at:new Date().toISOString(),revision:1,media_scope:'COURSE'});
+  insert(db,'lesson_media_assets',{asset_id:asset,activity_key:scope,kind:'MP4',object_key:key,filename:'fixture.mp4',byte_size:bytes.byteLength,created_at:new Date().toISOString()});
+  insert(db,'lesson_media_links',{lesson_id:id,asset_id:asset});
+ }
+ let gets=0,heads=0,cancelled=false,onGet;
+ f.env.LESSON_MEDIA_BUCKET={
+  createMultipartUpload(){throw Error('Unexpected upload');},resumeMultipartUpload(){throw Error('Unexpected upload');},
+  async head(k){if(k!==key)return null;heads++;return {size:bytes.byteLength};},
+  async get(k,options){if(k!==key)return null;gets++;await onGet?.();const b=options?.range?bytes.slice(options.range.offset,options.range.offset+options.range.length):bytes;
+   return {body:new ReadableStream({start(c){c.enqueue(b);},cancel(){cancelled=true;}}),size:b.byteLength};}
+ };
+ const ticket=await createSessionToken({aud:'academy-session-recording',purpose:'playback',until:Date.now()+7200000,accountid:ticketAccount,sid:ticketSession,epoch:f.ce,scope:'PLATFORM',courseid:'',role:'GLOBAL_ADMIN',workspace:'ADMIN',lessonId:id,assetId:asset},f.env);
+ const request=async({cookie=auth.cookie,range='bytes=2-5',method='GET'}={})=>worker.fetch(new Request(appOrigin+'/api/academy/lesson-media/video?ticket='+encodeURIComponent(ticket),{method,headers:{Origin:appOrigin,'Sec-Fetch-Site':'same-origin',...(cookie?{Cookie:cookie}:{}),...(range?{Range:range}:{})}}),f.env);
+ return {request,counts:()=>({gets,heads,cancelled}),setOnGet:fn=>onGet=fn};
+}
+test('A native playback Range requires the current own cookie and keeps private streaming semantics',withFamily(async f=>{
+ const auth=await nativeCookieLogin(f),media=await privateVideo(f,auth);
+ const no=await media.request({cookie:''});assert.equal(no.status,401);assert.equal(media.counts().gets,0);
+ const yes=await media.request();assert.equal(yes.status,206);assert.equal(yes.headers.get('Content-Range'),'bytes 2-5/16');assert.equal(yes.headers.get('Cache-Control'),'private, no-store');
+ const reader=yes.body.getReader(),part=await reader.read();assert.equal(new TextDecoder().decode(part.value),'2345');await reader.cancel();
+ const head=await media.request({method:'HEAD'});assert.equal(head.status,206);assert.equal(media.counts().gets,1);
+ const invalid=await media.request({range:'bytes=99-100'});assert.equal(invalid.status,416);assert.equal(media.counts().gets,1);
+ records.push({case:'actual-private-video-range',rangeStatus:206,headStatus:206,invalidRangeStatus:416,missingCookieStatus:401,bodyStreamed:true,finalActorRecheck:true,storage:'Synthetic in-memory R2 boundary; actual R2 binding and hosted delivery remain separate.'});
+}));
+test('A playback ticket cannot override a different current browser account',withFamily(async f=>{
+ const auth=await nativeCookieLogin(f),media=await privateVideo(f,auth,{ticketAccount:featureSyntheticAccounts[2].id});
+ const no=await media.request();assert.equal(no.status,401);assert.equal(media.counts().gets,0);
+}));
+test('Playback denies changed JWT floors with the native session still active',async t=>{
+ for(const state of ['unlock','permission','browser','parent','expiry','idle'])await t.test(state,withFamily(async f=>{
+  const auth=await nativeCookieLogin(f),sid=auth.pin.data.browserContext.sessionId,media=await privateVideo(f,auth);
+  if(state==='unlock')f.native.prepare('UPDATE jwt_v110_families SET unlock_generation=unlock_generation+1 WHERE family_id=?').run(sid);
+  if(state==='permission')f.native.prepare('UPDATE jwt_v110_accounts SET permission_version=permission_version+1 WHERE account_id=?').run(f.id);
+  if(state==='browser')f.native.prepare('UPDATE jwt_v110_browser_heads SET generation=generation+1 WHERE browser_id=?').run(auth.pin.data.browserContext.browserId);
+  if(state==='parent')f.native.prepare('INSERT INTO jwt_v110_parent_tombstones VALUES(?,?)').run(auth.pin.data.browserContext.parentId,f.at+604800);
+  if(state==='expiry'){const raw=auth.cookie.match(/(?:^|; )__Secure-uaa_a=([^;]+)/)[1],claims=decodeJwt(raw);claims.iat=now()-901;claims.exp=now()-1;const expired=await new SignJWT(claims).setProtectedHeader({alg:'ES256',typ:'JWT',kid:f.config.signingKid}).sign(f.config.signingKey);auth.cookie=auth.cookie.replace('__Secure-uaa_a='+raw,'__Secure-uaa_a='+expired);}
+  if(state==='idle')f.native.prepare('UPDATE jwt_v110_families SET last_fg_refresh_s=? WHERE family_id=?').run(now()-5401,sid);
+  const no=await media.request();assert.equal(no.status,401,state);assert.equal(media.counts().gets,0);assert.equal(f.native.prepare('SELECT revoked_at FROM account_sessions WHERE session_id=?').get(sid).revoked_at,null);
+ },{age:6000}));
+});
+test('Cancellation during the asynchronous private R2 read releases no media body',withFamily(async f=>{
+ const auth=await nativeCookieLogin(f),sid=auth.pin.data.browserContext.sessionId,media=await privateVideo(f,auth);
+ media.setOnGet(()=>f.native.prepare('UPDATE jwt_v110_families SET unlock_generation=unlock_generation+1 WHERE family_id=?').run(sid));
+ const no=await media.request();assert.equal(no.status,401);assert.equal(media.counts().gets,1);assert.equal(media.counts().cancelled,true);
+ assert.equal(f.native.prepare('SELECT revoked_at FROM account_sessions WHERE session_id=?').get(sid).revoked_at,null);
 }));
 
 test.after(()=>{

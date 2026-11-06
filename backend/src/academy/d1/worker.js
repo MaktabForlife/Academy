@@ -1,4 +1,5 @@
-import {cookieSessionKey} from '../../auth/v110/academy-cookie-auth.mjs';
+import {actorProof,verifyActor} from '../separation/proof.js';
+import {cookieSessionKey,bindAcademyCookieRequest} from '../../auth/v110/academy-cookie-auth.mjs';
 import {handleAcademyPIN} from '../../auth/v110/academy-pin-http.mjs';
 import {handleAcademyRefresh} from '../../auth/v110/academy-refresh-http.mjs';
 import {readAcademyDisplayContext} from '../../auth/v110/academy-display-context.mjs';
@@ -122,6 +123,9 @@ async function dispatch(request,env,options={}) {
   if(env.JWT_V110_NATIVE_COOKIE==='1'&&['/api/account/login','/api/account/setup-pin'].includes(path)&&options.nativePINForJWT!==true)throw rehearsalError('Use the current Academy cookie sign-in.',409,'COOKIE_SIGN_IN_REQUIRED');
   if(path==='/api/academy/announcements/published'&&['GET','HEAD'].includes(request.method))return publicAnnouncementSnapshot(request,env);
   if(['/api/academy/announcements/image','/api/academy/announcements/pdf'].includes(path)&&['GET','HEAD'].includes(request.method)&&new URL(request.url).searchParams.has('asset'))return publicAnnouncementAsset(request,env,path.endsWith('/pdf')?'pdf':'image');
+  // Playback tickets remain narrowly scoped, but cannot outlive the current
+  // browser's own cookie identity or own-app lock/cancellation state.
+  if(env.JWT_V110_NATIVE_COOKIE==='1'&&['GET','HEAD'].includes(request.method)&&['/api/academy/d1/library/file','/api/academy/lesson-media/video'].includes(path))env=await bindAcademyCookieRequest(request,env);
   let repository=academyD1Repository(env);
   const sourceRepository=repository;
   let reader;
@@ -219,7 +223,12 @@ async function dispatch(request,env,options={}) {
     const {auth,input}=await authenticateVideo(request,env,repository);repository.bindActor?.(auth);
     if(isAdminWorkspace(auth))repository=repository.authoringRepository();
     else if(setupEnabled(env))repository=await readRepository();
-    return lessonMedia(repository,auth,env).videoStream(request,input);
+    const response=await lessonMedia(repository,auth,env).videoStream(request,input);
+    // R2 may await network I/O after the initial native access check. Recheck
+    // the verified JWT/native actor before handing any body to the browser.
+    if(env.JWT_V110_NATIVE_COOKIE==='1')try{await verifyActor(sourceRepository.mediaPlaylistSource.db,actorProof(auth));}
+    catch(error){try{await response.body?.cancel();}catch{}throw error;}
+    return response;
   }
   if(request.method!=='POST')throw rehearsalError('Use POST.',405,'METHOD_NOT_ALLOWED');
   // Only decorative card artwork has a larger bounded browser request. Native
