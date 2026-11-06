@@ -270,7 +270,7 @@
     if(state.course.studioManagedAccess){
       if(!window.M4L_STUDIO_ACCESS?.editCoursePolicy)throw Error('Reopen Course management to load the current access controls.');
       const modal=$('course-dialog'),host=document.createElement('section');host.className='cm-list-policy-editor';
-      modal.innerHTML='<h2 id="course-dialog-title">Change Course access</h2><p>The owning access service checks this change. Existing purchases are retained.</p><p role="alert" data-list-policy-status></p><div class="cm-actions"><button type="button" class="pb-secondary" data-list-policy-cancel>Cancel</button><button type="button" data-list-policy-save disabled>Save Course access</button></div>';
+      modal.innerHTML='<h2 id="course-dialog-title">Change Course access</h2><p>Confirm this Course access setting. Existing purchases are retained.</p><p role="alert" data-list-policy-status></p><div class="cm-actions"><button type="button" class="pb-secondary" data-list-policy-cancel>Cancel</button><button type="button" data-list-policy-save disabled>Save Course access</button></div>';
       modal.querySelector('.cm-actions').before(host);modal.showModal();
       let editor;
       const cancel=()=>{if(editor&&!editor.canLeave()){modal.querySelector('[data-list-policy-status]').textContent='Retry the pending access change before leaving this Course.';return false;}editor?.discard();modal.close();return true;};
