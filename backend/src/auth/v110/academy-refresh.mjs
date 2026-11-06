@@ -1,7 +1,8 @@
 // Academy own refresh: full native rights prepared before a same-Core CAS.
 // Does not issue a first session, change grants, unlock a PIN or call a child.
 import {AuthContractError,IDLE_SECONDS} from './claims.mjs';
-import {createNativeCookieEngine,projectAcademyRights} from './native-rights.mjs';
+import {projectAcademyRights} from './native-rights.mjs';
+import {createAcademyCookieEngine} from './academy-cookie-engine.mjs';
 import {fingerprint,randomRefresh} from './store.mjs';
 import {actorProof,verifyActor} from '../../academy/separation/proof.js';
 const fail=code=>{throw new AuthContractError(code);};
@@ -23,7 +24,7 @@ export async function createAccountBoundAcademyRefresh({binding,repository,clock
  if(config.app!=='academy'||!binding?.withSession||!repository?.session||!repository.mediaPlaylistSource?.db||typeof clock!=='function'||authorizeRotation!==undefined&&typeof authorizeRotation!=='function')fail('INVALID_CONFIG');
  if(prepareClient!==undefined&&typeof prepareClient!=='function')fail('INVALID_CONFIG');
  if(pinAuthority!==undefined&&(!pinAuthority||typeof pinAuthority.accountId!=='string'||!uint(pinAuthority.credentialEpoch)))fail('INVALID_CONFIG');
- const engine=await createNativeCookieEngine(config),db=repository.mediaPlaylistSource.db;
+ const engine=await createAcademyCookieEngine(config),db=repository.mediaPlaylistSource.db;
  return Object.freeze({async refreshAndIssue(raw,options={}){
   if(!options||Object.keys(options).some(k=>k!=='foreground')||options.foreground!==undefined&&typeof options.foreground!=='boolean')fail('INVALID_REFRESH_MODE');
   const fp=await fingerprint('academy',raw);let selected;

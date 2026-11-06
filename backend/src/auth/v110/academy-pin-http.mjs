@@ -2,7 +2,7 @@
 // PIN setup/verification and native permission/context selection.
 import {base64url,importJWK} from 'jose';
 import {AuthContractError} from './claims.mjs';
-import {createNativeCookieEngine} from './native-rights.mjs';
+import {academyCookieOptions,createAcademyCookieEngine} from './academy-cookie-engine.mjs';
 import {academyD1Repository} from '../../academy/d1/repository.js';
 import {issueAcademySessionFromNativePIN} from './academy-master-issuer.mjs';
 const issuer='https://ummabbadacademy.app',fail=code=>{throw new AuthContractError(code);};
@@ -28,19 +28,19 @@ export async function handleAcademyPIN(request,env,{performNativeLogin,clock=()=
   if(!privateJWK||privateJWK.kty!=='EC'||privateJWK.crv!=='P-256'||!privateJWK.d||privateJWK.kid!==env.JWT_V110_SIGNING_KID||!pub||pub.x!==privateJWK.x||pub.y!==privateJWK.y)fail('SIGN_IN_UNAVAILABLE');
   const secret=env.JWT_V110_CSRF_SECRET;if(typeof secret!=='string'||!/^[-A-Za-z0-9_]{43}$/.test(secret))fail('SIGN_IN_UNAVAILABLE');
   const bytes=base64url.decode(secret);if(bytes.byteLength!==32||base64url.encode(bytes)!==secret)fail('SIGN_IN_UNAVAILABLE');
-  const config={app:'academy',issuer,academyCookieDomain:'ummabbadacademy.app',publicKeys:publics,signingKey:await importJWK(privateJWK,'ES256'),signingKid:env.JWT_V110_SIGNING_KID};
-  await createNativeCookieEngine(config); // Configuration failures precede PIN effects.
+  const config={app:'academy',issuer,...academyCookieOptions(env),academyCookieDomain:'ummabbadacademy.app',publicKeys:publics,signingKey:await importJWK(privateJWK,'ES256'),signingKid:env.JWT_V110_SIGNING_KID};
+  await createAcademyCookieEngine(config); // Configuration failures precede PIN effects.
   const input=await bounded(request),repository=academyD1Repository(env);
   // The callback invokes the real native dispatch and captures only its
   // server-side checked state/context/session. Its legacy token stays in RAM.
   const csrfKey=await crypto.subtle.importKey('raw',bytes,{name:'HMAC',hash:'SHA-256'},false,['sign']);
   const {native,publicResult}=await performNativeLogin(input,{setup});
-  config.prepareClient=async({claims:c})=>{
+  config.prepareClient=async({claims:c,state})=>{
    const packet=['uaa-csrf-v1','academy',issuer,c.sid,c.sub,c.psid,c.bsid,c.bv,c.ce,c.ue,c.s_iat,c.s_exp];
    const csrf=base64url.encode(new Uint8Array(await crypto.subtle.sign('HMAC',csrfKey,new TextEncoder().encode(JSON.stringify(packet)))));
    return ({claims:c,cookies,committedAt,lastForegroundRefreshS})=>{
     const browserContext={app:'academy',accountId:c.sub,sessionId:c.sid,parentId:c.psid,browserId:c.bsid,browserGeneration:c.bv,credentialEpoch:c.ce,securityVersion:c.pv,unlockGeneration:c.ue,originalSignedAtMs:c.s_iat*1000,originalExpiresAtMs:c.s_exp*1000,lastForegroundRefreshMs:lastForegroundRefreshS*1000,serverNowMs:committedAt*1000};
-    const body={success:true,account:publicResult.account,context:publicResult.context,contexts:publicResult.contexts,courseManagement:publicResult.courseManagement,sessionStore:'D1',operationalAccessActive:publicResult.operationalAccessActive,cookieSession:true,sessionKey:'uaa-session:'+c.sid+':'+c.ue,accessExpiresAtMs:c.exp*1000,csrf,browserContext};
+    const body={success:true,account:{...publicResult.account,accountId:c.sub},context:publicResult.context,contexts:publicResult.contexts,courseManagement:publicResult.courseManagement,sessionStore:'D1',operationalAccessActive:publicResult.operationalAccessActive,cookieSession:true,sessionKey:'uaa-session:'+c.sid+':'+c.ue,accessExpiresAtMs:c.exp*1000,csrf,browserContext};
     const response=reply(body);for(const value of cookies)response.headers.append('Set-Cookie',value);return response;
    };
   };

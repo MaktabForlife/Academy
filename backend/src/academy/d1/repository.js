@@ -1,3 +1,4 @@
+import {jwtSessionPredicate} from '../../auth/v110/academy-cookie-auth.mjs';
 import {mediaPlaylistCursor} from './media-playlist-cursor.js';
 import {calendarFacts,holidaySettings} from './published-facts-cache.js';
 import {surahRightsSQL} from './surah-grants.js';
@@ -199,18 +200,25 @@ export function academyD1Repository(env) {
       if(result[1].results?.length!==1||result[1].results[0].session_id!==sid)throw rehearsalError('Account changed. Please sign in again.',401,'SESSION_ENDED');
       return {sid,expires,context};
     },
-    async session(sid,accountId,epoch,now=new Date()) {
-      const where=`a.account_id=? AND a.active=1 AND c.pin_setup=1 AND length(trim(c.pin_hash))>0 AND c.credential_epoch=?
-        AND EXISTS(SELECT 1 FROM account_sessions s WHERE s.session_id=? AND s.account_id=a.account_id AND s.credential_epoch=c.credential_epoch
-          AND s.revoked_at IS NULL AND s.expires_at>?)`,values=[accountId,epoch,sid,now.toISOString()],load=()=>stateFor(where,values);
+    async session(sid,accountId,epoch,now=new Date(),options={}) {
+      const started=Date.now(),instant=()=>now.getTime()+Date.now()-started;
+      const parameters=()=>{
+        const at=instant(),jwt=options.jwtClaims?jwtSessionPredicate(options.jwtClaims,at):{sql:'',values:[]};
+        if(options.jwtClaims&&(options.jwtClaims.sid!==sid||options.jwtClaims.sub!==accountId||options.jwtClaims.ce!==epoch))throw rehearsalError('Your Academy session has ended.',401,'SESSION_ENDED');
+        return {where:`a.account_id=? AND a.active=1 AND c.pin_setup=1 AND length(trim(c.pin_hash))>0 AND c.credential_epoch=?
+          AND EXISTS(SELECT 1 FROM account_sessions s WHERE s.session_id=? AND s.account_id=a.account_id AND s.credential_epoch=c.credential_epoch
+            AND s.revoked_at IS NULL AND s.expires_at>?)`+jwt.sql,values:[accountId,epoch,sid,new Date(at).toISOString(),...jwt.values]};
+      };
+      const load=()=>{const {where,values}=parameters();return stateFor(where,values);};
       if(!split||!env.LESSON_MEDIA_BUCKET)return load();
-      const started=Date.now(),gate=async()=>{
+      const gate=async()=>{
+        const {where,values}=parameters();
         const current=(await raw.prepare(`WITH current_actor AS (${accountSQL} WHERE ${where}) SELECT a.*,
           (SELECT head_id FROM setup_head_state WHERE singleton=1) cache_head,
           (SELECT version FROM split_read_state WHERE singleton=1) cache_core,
           (SELECT setting_value FROM academy_settings WHERE setting_key='${snapshotSchemaKey}') cache_schema,
           (SELECT json_group_array(json_object('key',setting_key,'value',setting_value)) FROM (SELECT setting_key,setting_value FROM academy_settings WHERE setting_key IN(SELECT value FROM json_each(?)) ORDER BY setting_key)) cache_revisions
-          FROM current_actor a`).bind(accountId,epoch,sid,new Date(now.getTime()+Date.now()-started).toISOString(),JSON.stringify(snapshotKeys('permissions',accountId))).all()).results[0];
+          FROM current_actor a`).bind(...values,JSON.stringify(snapshotKeys('permissions',accountId))).all()).results[0];
         if(!current)return null;
         const {cache_head,cache_core,cache_schema,cache_revisions,...account}=current;
         return {enabled:cache_schema==='1',core:cache_core,account,revision:JSON.stringify([cache_head,cache_revisions,account.global_admin,account.credential_epoch,account.substitute_grants||'[]',env.ACADEMY_MEDIA_SEPARATION])};

@@ -1,3 +1,4 @@
+import {academyCookieOptions} from './academy-cookie-engine.mjs';
 // Native Academy refresh transport, opt-in only. No child request, grant
 // export, family admission, PIN/unlock or native resource cutover is performed.
 import {base64url,importJWK} from 'jose';
@@ -53,7 +54,7 @@ export async function handleAcademyRefresh(request,env,{clock=()=>Math.floor(Dat
   const rateKey=base64url.encode(new Uint8Array(await crypto.subtle.sign('HMAC',csrfKey,new TextEncoder().encode('uaa-refresh-rate-v1\0'+ip))));
   if((await env.JWT_V110_RATE_LIMITER.limit({key:'v110-academy-'+rateKey})).success!==true)return reply({code:'RATE_LIMITED'},429,{'Retry-After':'60'});
   const raw=parseUniqueCookie(request.headers.get('Cookie')||'',cookieNames.academy.refresh);
-  const config={app:'academy',issuer,academyCookieDomain:'ummabbadacademy.app',publicKeys,signingKey:await importJWK(privateJWK,'ES256'),signingKid:env.JWT_V110_SIGNING_KID};
+  const config={app:'academy',issuer,...academyCookieOptions(env),academyCookieDomain:'ummabbadacademy.app',publicKeys,signingKey:await importJWK(privateJWK,'ES256'),signingKid:env.JWT_V110_SIGNING_KID};
   let proof;
   const refresh=await createAccountBoundAcademyRefresh({binding:env.ACADEMY_DB,repository:academyD1Repository(env),clock,...config,authorizeRotation:async({family,now})=>{
    currentClock(family,now);

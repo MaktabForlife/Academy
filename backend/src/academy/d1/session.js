@@ -1,3 +1,4 @@
+import {verifiedAcademyCookie} from '../../auth/v110/academy-cookie-auth.mjs';
 import {verifySessionToken} from '../../lib/auth-primitives.js';
 import {rehearsalError} from './repository.js';
 import {selectWorkspace} from './workspace-access.js';
@@ -12,6 +13,14 @@ export const findD1Context=(state,target)=>state?.contexts.find(c=>d1ContextEqua
 // Shared by the HTTP entrypoint and the Open Library coordinator. Every call
 // checks current D1 state; a signed token alone never confers current authority.
 export async function authenticatedD1Account(request,env,repository) {
+  if(env.JWT_V110_NATIVE_COOKIE==='1'){
+    const checked=await verifiedAcademyCookie(request,env),c=checked.claims;
+    const state=await repository.session(c.sid,c.sub,c.ce,new Date(),{jwtClaims:c});
+    const context=checked.selected?findD1Context(state,checked.selected):state?.contexts[0];
+    if(!state||!context)throw rehearsalError('Your Academy session has ended.',401,'SESSION_ENDED');
+    const auth=selectWorkspace(request,{state,sid:c.sid,context,user:{type:'account',accountid:state.account.account_id,uniqueid:state.account.login_link_id,username:state.account.display_name,role:state.account.global_admin?'GLOBAL_ADMIN':context.role,scope:context.scope,courseid:context.courseId}});
+    Object.defineProperty(auth,'cookieClaims',{value:c,enumerable:false});return auth;
+  }
   const header=request.headers.get('Authorization')||'';
   if(!header.startsWith('Bearer ')||header.length>4096)throw rehearsalError('Your Academy session has ended.',401,'SESSION_ENDED');
   const token=await verifySessionToken(header.slice(7),env);

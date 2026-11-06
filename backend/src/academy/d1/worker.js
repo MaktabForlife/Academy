@@ -1,3 +1,4 @@
+import {cookieSessionKey} from '../../auth/v110/academy-cookie-auth.mjs';
 import {handleAcademyPIN} from '../../auth/v110/academy-pin-http.mjs';
 import {handleAcademyRefresh} from '../../auth/v110/academy-refresh-http.mjs';
 import {readDisplayContext} from '../../auth/v110/server-context.mjs';
@@ -118,6 +119,7 @@ async function dispatch(request,env,options={}) {
   if (![env.PIN_SECRET,env.SESSION_SECRET].every(value=>typeof value==='string'&&value.trim()))
     throw rehearsalError('Academy authentication is not configured.');
   const path=new URL(request.url).pathname;
+  if(env.JWT_V110_NATIVE_COOKIE==='1'&&['/api/account/login','/api/account/setup-pin'].includes(path)&&options.nativePINForJWT!==true)throw rehearsalError('Use the current Academy cookie sign-in.',409,'COOKIE_SIGN_IN_REQUIRED');
   if(path==='/api/academy/announcements/published'&&['GET','HEAD'].includes(request.method))return publicAnnouncementSnapshot(request,env);
   if(['/api/academy/announcements/image','/api/academy/announcements/pdf'].includes(path)&&['GET','HEAD'].includes(request.method)&&new URL(request.url).searchParams.has('asset'))return publicAnnouncementAsset(request,env,path.endsWith('/pdf')?'pdf':'image');
   let repository=academyD1Repository(env);
@@ -468,11 +470,12 @@ async function dispatch(request,env,options={}) {
     const result=profileAction?await d1Profiles(repository,auth).run(profileAction,input):registryAction?await d1Programs(repository,auth,env).registry(registryAction,input):learningView?await d1Learning(repository,auth).timetable('manage-get',input):await d1Programs(repository,auth,env).management(managementAction,input);
     return {success:true,...result};
   }
-  if(path==='/api/account/session')return {success:true,...sessionResponse(actualState(auth),auth.context)};
+  if(path==='/api/account/session')return {success:true,...sessionResponse(actualState(auth),auth.context),...(auth.cookieClaims?{account:{...publicAccount(actualState(auth)),accountId:auth.cookieClaims.sub},cookieSession:true,sessionKey:cookieSessionKey(auth.cookieClaims,auth.context),accessExpiresAtMs:auth.cookieClaims.exp*1000}:{})};
   if(path==='/api/account/logout') {await repository.revoke(auth.sid,auth.state.account.account_id);return {success:true};}
   if(path==='/api/account/switch-context') {
     const context=actualState(auth).contexts.find(c=>contextEqual(c,{scope:String(input.scope || 'COURSE').toUpperCase(),courseId:String(input.courseId || ''),role:String(input.role || '').toUpperCase()}));
     if(!context)throw rehearsalError('Requested course or role is not authorised',403,'FORBIDDEN_CONTEXT');
+    if(auth.cookieClaims)return {success:true,...sessionResponse(actualState(auth),context),account:{...publicAccount(actualState(auth)),accountId:auth.cookieClaims.sub},cookieSession:true,sessionKey:cookieSessionKey(auth.cookieClaims,context),accessExpiresAtMs:auth.cookieClaims.exp*1000};
     const result=await issueSession(env,repository,actualState(auth),context);
     await repository.revoke(auth.sid,auth.state.account.account_id);
     return result;
@@ -513,7 +516,7 @@ return {
     if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
     try{const path=new URL(request.url).pathname;
       if(['/auth/v110/login','/auth/v110/setup-pin'].includes(path))return handleAcademyPIN(request,env,{performNativeLogin:async(input,{setup})=>{
-        let native;const publicResult=await dispatch(new Request(new URL(setup?'/api/account/setup-pin':'/api/account/login',request.url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)}),env,{capture:value=>{native=value;}});
+        let native;const publicResult=await dispatch(new Request(new URL(setup?'/api/account/setup-pin':'/api/account/login',request.url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)}),env,{capture:value=>{native=value;},nativePINForJWT:true});
         if(!native||publicResult instanceof Response)throw rehearsalError('Native PIN verification did not finish.',503);
         return {native,publicResult};
       }});

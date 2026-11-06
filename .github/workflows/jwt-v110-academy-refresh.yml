@@ -25,6 +25,10 @@ jobs:
         run: |
           node --check backend/src/auth/v110/academy-master-issuer.mjs
           node --check backend/src/auth/v110/academy-pin-http.mjs
+          node --check backend/src/auth/v110/academy-cookie-engine.mjs
+          node --check backend/src/auth/v110/academy-cookie-auth.mjs
+          node --check backend/src/academy/d1/repository.js
+          node --check backend/src/academy/d1/session.js
           node --check backend/src/auth/v110/academy-refresh.mjs
           node --check backend/src/auth/v110/academy-refresh-http.mjs
           node --check backend/src/academy/d1/worker.js

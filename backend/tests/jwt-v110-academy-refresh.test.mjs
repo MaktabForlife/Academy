@@ -175,9 +175,39 @@ test('A stale cached WEBSITE context never substitutes for current native admiss
 }));
 
 
-test('Prepared client response survives the CAS privately and an async response factory cannot rotate',withFamily(async f=>{
+test('Prepared client response survives the CAS privately without entering public JSON',withFamily(async f=>{
  const service=await createAccountBoundAcademyRefresh({binding:f.env.ACADEMY_DB,repository:academyD1Repository(f.env),...f.config,prepareClient:async()=>()=>Response.json({ready:true})});
  const result=await service.refreshAndIssue(f.raw);assert.equal(result.kind,'rotated');assert(result.clientResponse instanceof Response);assert.deepEqual(await result.clientResponse.json(),{ready:true});assert.equal(Object.keys(result).includes('clientResponse'),false);
+}));
+
+
+test('Cookie-backed native session and material reads preserve the existing owner scope',withFamily(async f=>{
+ f.env.JWT_V110_NATIVE_COOKIE='1';
+ const pin=await f.call('/auth/v110/login',{body:{uniqueid:featureSyntheticAccounts[2].login,pin:'2468'}});assert.equal(pin.status,200,pin.data.code);
+ const cookie=pin.response.headers.getSetCookie().map(c=>c.split(';')[0]).join('; '),proof=pin.data.csrf,extra={Authorization:'Bearer '+pin.data.sessionKey,'X-UAA-CSRF':proof};
+ const me=await f.call('/api/account/session',{cookie,extra});assert.equal(me.status,200,me.data.code);assert.equal(me.data.account.accountId,featureSyntheticAccounts[2].id);assert.equal(me.data.cookieSession,true);assert.equal(me.data.context.role,'STUDENT');
+ const yes=await f.call('/api/academy/lesson-media/list',{cookie,extra:{...extra,'X-Academy-Workspace':'LEARN'},body:{activityKey:'COURSE:FEATURE-SYNTHETIC-A'}});assert.equal(yes.status,200,yes.data.code);
+ const no=await f.call('/api/academy/lesson-media/list',{cookie,extra:{...extra,'X-Academy-Workspace':'LEARN'},body:{activityKey:'COURSE:FEATURE-SYNTHETIC-B'}});assert.equal(no.status,403);
+ const noCSRF=await f.call('/api/account/session',{cookie,extra:{Authorization:extra.Authorization}});assert.equal(noCSRF.status,401);
+ const noCookie=await f.call('/api/account/session',{cookie:'',extra});assert.equal(noCookie.status,401);
+ const oldNative=await f.call('/api/account/login',{cookie,body:{uniqueid:featureSyntheticAccounts[2].login,pin:'2468'}});assert.equal(oldNative.status,409);
+}));
+test('Forging a context selector cannot grant an unassigned role',withFamily(async f=>{
+ f.env.JWT_V110_NATIVE_COOKIE='1';const pin=await f.call('/auth/v110/login',{body:{uniqueid:featureSyntheticAccounts[2].login,pin:'2468'}});assert.equal(pin.status,200,pin.data.code);
+ const cookie=pin.response.headers.getSetCookie().map(c=>c.split(';')[0]).join('; '),c=pin.data.browserContext;
+ const value={sid:c.sessionId,ue:c.unlockGeneration,scope:'PLATFORM',courseId:'',role:'GLOBAL_ADMIN'};
+ const encoded=Buffer.from(JSON.stringify(value)).toString('base64url');
+ const r=await f.call('/api/account/session',{cookie,extra:{Authorization:'Bearer uaa-context:'+encoded,'X-UAA-CSRF':pin.data.csrf}});assert.equal(r.status,401);
+}));
+test('The explicit isolated Feature cookie profile is host-only and cannot be enabled for another environment',withFamily(async f=>{
+ const host='https://feature_worker.maktab4life.workers.dev';f.env.JWT_V110_REQUEST_ORIGIN=host;f.env.JWT_V110_COOKIE_MODE='HOST_ONLY_PREVIEW';f.env.ALLOWED_ORIGINS=host;
+ const call=async()=>worker.fetch(new Request(host+'/auth/v110/login',{method:'POST',headers:{Origin:host,'Sec-Fetch-Site':'same-origin','Content-Type':'application/json'},body:JSON.stringify({uniqueid:featureSyntheticAccounts[0].login,pin:'2468'})}),f.env);
+ const r=await call();assert.equal(r.status,200,'Explicit Feature cookie profile must work');assert(r.headers.getSetCookie().every(c=>!c.includes('Domain=')));assert(r.headers.getSetCookie().every(c=>c.includes('Secure')&&c.includes('HttpOnly')&&c.includes('SameSite=Lax')));
+ f.env.ENVIRONMENT='production';const blocked=await call();assert.equal(blocked.status,503);assert.equal(blocked.headers.getSetCookie().length,0);
+}));
+test('An asynchronous final response factory fails before consuming the current refresh',withFamily(async f=>{
+ const service=await createAccountBoundAcademyRefresh({binding:f.env.ACADEMY_DB,repository:academyD1Repository(f.env),...f.config,prepareClient:async()=>async()=>Response.json({ready:true})});
+ await assert.rejects(service.refreshAndIssue(f.raw),e=>e.code==='INVALID_PREPARATION');assert(f.row().refresh_fp===f.fp,'Old refresh must remain current');assert.equal(f.row().refresh_generation,0);
 }));
 
 test.after(()=>{
