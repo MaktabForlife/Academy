@@ -51,3 +51,32 @@ jobs:
           name: jwt-v110-academy-refresh-${{ github.run_id }}
           path: ${{ runner.temp }}/jwt-v110-academy/
           retention-days: 30
+  workerd-flow:
+    needs: native-refresh
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - run: npm ci --prefix backend --no-audit --no-fund
+      - name: Install pinned disposable local runtime
+        run: npm install --prefix "$RUNNER_TEMP/jwt-runtime" --no-audit --no-fund --no-save --package-lock=false miniflare@5.20261103.0-beta workerd@1.20261103.1
+      - name: Actual Feature entry with measured local D1 and coordinator
+        env:
+          FEATURE_MF_ROOT: ${{ runner.temp }}/jwt-runtime
+          JWT_V110_EVIDENCE: ${{ runner.temp }}/jwt-workerd-evidence
+        run: |
+          set -euo pipefail
+          mkdir -p "$JWT_V110_EVIDENCE"
+          node --test --test-reporter=tap --test-concurrency=1 backend/tests/jwt-v110-academy-workerd.test.mjs 2>&1 | tee "$JWT_V110_EVIDENCE/workerd.log"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: jwt-v110-academy-workerd-${{ github.run_id }}
+          path: ${{ runner.temp }}/jwt-workerd-evidence/
+          retention-days: 30

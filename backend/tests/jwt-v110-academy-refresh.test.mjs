@@ -226,15 +226,16 @@ test('Native cookie configuration failures remain 503; client CSRF failures rema
  }
  const bad=await f.call('/api/account/session',{...auth,extra:{...auth.extra,'X-UAA-CSRF':randomRefresh()}});assert.equal(bad.status,403);
 }));
-test('Core-only actual availability save rechecks JWT cancellation at its final transaction',withFamily(async f=>{
- const auth=await nativeCookieLogin(f),path='/api/academy/teacher-availability/save';
- const save=revision=>f.call(path,{...auth,extra:{...auth.extra,'X-Academy-Workspace':'ADMIN'},body:{operationId:crypto.randomUUID(),accountId:f.id,revision,ranges:[]}});
- const yes=await save(0);assert.equal(yes.status,200,yes.data.code);
- const before=f.native.prepare('SELECT revision FROM teacher_availability WHERE account_id=?').get(f.id).revision,audit=f.native.prepare('SELECT count(*) n FROM audit_events').get().n;
+test('Core-only actual bookmark save rechecks JWT cancellation at its final transaction',withFamily(async f=>{
+ const auth=await nativeCookieLogin(f),path='/api/academy/bookmarks/save',file='/pdf-file/'+Buffer.from('https://archive.org/download/synthetic/fixture.pdf').toString('base64url');
+ const save=page=>f.call(path,{...auth,extra:{...auth.extra,'X-Academy-Workspace':'ADMIN'},body:{bookmark:{file,title:'Synthetic fixture',page,pageLabel:String(page)}}});
+ let ownerWrites=0;f.setStageHook(stage=>{if(stage==='admin-applied')ownerWrites++;});
+ const yes=await save(1);assert.equal(yes.status,200,yes.data.code);assert.equal(ownerWrites,0,'This actual protected route must use the ordinary Core-only transaction');
+ const before=f.native.prepare('SELECT count(*) n FROM academy_pdf_bookmarks').get().n,audit=f.native.prepare('SELECT count(*) n FROM audit_events').get().n;
  let raced=false;f.setBeforeBatch(statements=>{
-  if(!raced&&statements.some(s=>/INSERT INTO teacher_availability VALUES/.test(s.sql))){raced=true;f.native.prepare('UPDATE jwt_v110_families SET unlock_generation=unlock_generation+1 WHERE family_id=?').run(f.sid);}
+  if(!raced&&statements.some(s=>/INSERT\\s+INTO\\s+["`]?academy_pdf_bookmarks/i.test(s.sql))){raced=true;f.native.prepare('UPDATE jwt_v110_families SET unlock_generation=unlock_generation+1 WHERE family_id=?').run(f.sid);}
  });
- const no=await save(before);assert(raced,'The mutation must occur after authentication before the Core transaction');assert.notEqual(no.status,200);assert.equal(f.native.prepare('SELECT revision FROM teacher_availability WHERE account_id=?').get(f.id).revision,before);assert.equal(f.native.prepare('SELECT count(*) n FROM audit_events').get().n,audit);assert.equal(f.native.prepare('SELECT revoked_at FROM account_sessions WHERE session_id=?').get(f.sid).revoked_at,null);
+ const no=await save(2);assert(raced,'The mutation must occur after authentication before the Core transaction');assert.notEqual(no.status,200);assert.equal(ownerWrites,0);assert.equal(f.native.prepare('SELECT count(*) n FROM academy_pdf_bookmarks').get().n,before);assert.equal(f.native.prepare('SELECT count(*) n FROM audit_events').get().n,audit);assert.equal(f.native.prepare('SELECT revoked_at FROM account_sessions WHERE session_id=?').get(f.sid).revoked_at,null);
 }));
 test('Actual Course card owner save rolls back Admin if the JWT is superseded after Admin staging',withFamily(async f=>{
  const auth=await nativeCookieLogin(f),base='/api/admin/platform/courses/',courseId='FEATURE-SYNTHETIC-A';
