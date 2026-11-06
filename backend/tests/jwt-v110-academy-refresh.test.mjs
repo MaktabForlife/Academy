@@ -294,7 +294,7 @@ test('Interrupted actual owner write rechecks the persisted JWT tuple during rec
 
 test('Cookie display context carries same-family CSRF and own renewal returns current public clock metadata',withFamily(async f=>{
  const auth=await nativeCookieLogin(f);
- const context=await f.call('/auth/v110/context',{...auth,method:'GET'});assert.equal(context.status,200,context.data.code);assert.equal(context.data.csrf,auth.pin.data.csrf);assert.equal(context.data.accessExpiresAtMs,auth.pin.data.accessExpiresAtMs);assert.equal(context.data.session.accountId,f.id);
+ const context=await f.call('/auth/v110/context',{...auth,method:'GET'});assert.equal(context.status,200,context.data.code);assert(context.data.csrf===auth.pin.data.csrf,'Current same-family CSRF must match without logging its value');assert.equal(context.data.accessExpiresAtMs,auth.pin.data.accessExpiresAtMs);assert.equal(context.data.session.accountId,f.id);
  const refreshed=await f.call('/auth/v110/refresh',auth);assert.equal(refreshed.status,200,refreshed.data.code);assert.equal(refreshed.data.refreshed,true);assert.equal(refreshed.data.browserContext.sessionId,f.sid);assert.equal(refreshed.data.browserContext.lastForegroundRefreshMs,f.row().last_fg_refresh_s*1000);assert.equal(refreshed.data.browserContext.originalExpiresAtMs,f.at*1000+604800000);assert(refreshed.data.accessExpiresAtMs>Date.now());assert(refreshed.data.accessExpiresAtMs<=Date.now()+900000);
 }));
 
@@ -303,6 +303,13 @@ test('The safe hub GET cannot manufacture an internal mutation or accept unbrand
  await assert.rejects(portalNativeReadRequest('/api/account/logout',{},'learn',request,{},env),e=>e.status===403);
  await assert.rejects(portalNativeReadRequest('/api/academy/entrance',{},'learn',request,{cookieClaims:{sid:'forged'}},env),e=>e.status===401);
 });
+
+test('Public announcement aliases return controlled errors without echoing private headers',withFamily(async f=>{
+ f.env.JWT_V110_NATIVE_COOKIE='1';
+ const r=await f.call('/api/public/academy-announcements',{method:'GET',cookie:'',origin:appOrigin});
+ assert([200,503].includes(r.status),'Unpublished public snapshots must not escape as an unhandled500');assert.equal(r.response.headers.getSetCookie().length,0);assert(!JSON.stringify(r.data).includes(f.raw));
+}));
+
 test.after(()=>{
  assert.equal(remoteAttempts,0);const report={commit:process.env.GITHUB_SHA,synthetic:true,kind:'NATIVE_ACADEMY_PREPARED_REFRESH_SQLITE',records,remoteFetchAttempts:remoteAttempts,masterIssuerProved:false,foregroundHumanActivityProved:false,hostedRequests:0,hostedDBChanges:0,metrics:'No D1 row-cost claim from node:sqlite; workerd/full-flow measurement remains required.'};
  if(process.env.JWT_V110_EVIDENCE){mkdirSync(process.env.JWT_V110_EVIDENCE,{recursive:true});writeFileSync(process.env.JWT_V110_EVIDENCE+'/native-academy-refresh.json',JSON.stringify(report,null,2)+'\n');}

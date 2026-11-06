@@ -517,7 +517,7 @@ return {
     try{const path=new URL(request.url).pathname;
       if(env.JWT_V110_NATIVE_COOKIE==='1'&&['GET','HEAD'].includes(request.method)&&path.startsWith('/api/public/academy-announcements')){
         const target=path==='/api/public/academy-announcements'?'/api/academy/announcements/published':/^\/api\/public\/academy-announcements\/(?:image|pdf)$/.test(path)?'/api/academy/announcements/'+path.split('/').at(-1):null;
-        if(target){const url=new URL(request.url);url.pathname=target;const safe=new Headers();for(const name of ['Accept','Range','If-None-Match','If-Modified-Since'])if(request.headers.has(name))safe.set(name,request.headers.get(name));return dispatch(new Request(url,{method:request.method,headers:safe}),env);}
+        if(target){const url=new URL(request.url);url.pathname=target;const safe=new Headers();for(const name of ['Accept','Range','If-None-Match','If-Modified-Since'])if(request.headers.has(name))safe.set(name,request.headers.get(name));return await dispatch(new Request(url,{method:request.method,headers:safe}),env);}
       }
       if(['/auth/v110/login','/auth/v110/setup-pin'].includes(path))return handleAcademyPIN(request,env,{performNativeLogin:async(input,{setup})=>{
         let native;const publicResult=await dispatch(new Request(new URL(setup?'/api/account/setup-pin':'/api/account/login',request.url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)}),env,{capture:value=>{native=value;},nativePINForJWT:true});
