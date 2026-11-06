@@ -21,7 +21,7 @@ class CDP{
 const origin='https://feature_worker.maktab4life.workers.dev';
 const mime=path=>({'.js':'text/javascript','.mjs':'text/javascript','.json':'application/json','.html':'text/html','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.fragment':'text/plain','.ico':'image/x-icon'}[extname(path)]||'application/octet-stream');
 test('Genuine Chrome native PIN installs HttpOnly Feature cookies and uses the actual own Worker',async t=>{
- const evidence=process.env.JWT_V110_EVIDENCE,build=JSON.parse(readFileSync(join(evidence,'public-build.json'),'utf8')),allowed=new Set(build.files),fixture=await createAcademyWorkerdFixture(),directory=await mkdtemp(join(tmpdir(),'jwt-feature-chrome-'));
+ const evidence=process.env.JWT_V110_EVIDENCE,build=JSON.parse(readFileSync(join(evidence,'public-build.json'),'utf8')),allowed=new Set(build.files),fixture=await createAcademyWorkerdFixture({assetsDirectory:build.directory}),directory=await mkdtemp(join(tmpdir(),'jwt-feature-chrome-'));
  let browser,cdp,tab,server,startupErrors='',startupDone=false;const api=[],staticRequests=[],missingAssets=[],networkFailures=[],blockedExternal=[];let outside=0,options=0,blockedPublicFonts=0,blockedLegacyImages=0,forceRefreshFailure=false;
  t.after(async()=>{
   if(!startupDone)try{await writeFile(join(evidence,'chrome-startup.json'),JSON.stringify({exitCode:browser?.exitCode,signalCode:browser?.signalCode,errors:startupErrors.slice(0,3000)})+'\n');}catch{}
@@ -45,10 +45,10 @@ test('Genuine Chrome native PIN installs HttpOnly Feature cookies and uses the a
    const headers=Object.fromEntries([...response.headers].filter(([k])=>k!=='set-cookie'&&k!=='content-length'));headers['set-cookie']=response.headers.getSetCookie();
    res.writeHead(response.status,headers);res.end(Buffer.from(await response.arrayBuffer()));return;
   }
-  let file=decodeURIComponent(url.pathname).slice(1);if(!file||file.endsWith('/'))file+='index.html';
-  if(!allowed.has(file)||file.split('/').some(p=>p==='..')){missingAssets.push(url.pathname);res.writeHead(404);res.end('Not found');return;}
-  staticRequests.push({path:url.pathname,method:req.method});
-  res.writeHead(200,{'Content-Type':mime(file),'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(await readFile(join(build.directory,file)));
+  const response=await fixture.runtime.dispatchFetch(url.href,{method:req.method,headers:req.headers});
+  if(response.status===404)missingAssets.push(url.pathname);
+  staticRequests.push({path:url.pathname,method:req.method,status:response.status,workerInvoked:response.headers.has('x-feature-local-budget')});
+  res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));
  }
  await new Promise(resolve=>server.listen(443,'127.0.0.1',resolve));
  const executable=['/usr/bin/google-chrome','/usr/bin/chromium','/usr/bin/chromium-browser'].find(existsSync);assert(executable,'Runner Chrome required');
@@ -81,6 +81,7 @@ test('Genuine Chrome native PIN installs HttpOnly Feature cookies and uses the a
  const read=activity=>cdp.evaluate(tab,'(async()=>{const r=await fetch("/api/academy/lesson-media/list",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+localStorage.getItem("m4l_account_token"),"X-Academy-Workspace":"LEARN"},body:JSON.stringify({activityKey:'+JSON.stringify(activity)+'})});await r.json();return r.status;})()');
  assert.equal(await read('COURSE:FEATURE-SYNTHETIC-A'),200);assert.equal(await read('COURSE:FEATURE-SYNTHETIC-B'),403);
  const inspected=await fixture.runtime.getD1Database('ACADEMY_DB','api');
+ const foregroundCallStart=api.length;
  const foregroundBefore=await inspected.prepare("SELECT last_fg_refresh_s,original_expires_at_s FROM jwt_v110_families WHERE account_id='feature-synthetic-learner-a' AND revoked=0").first();
  await sleep(1100);
  // Advance only the renderer expiry clock; the issuer and SQL clocks remain real.
@@ -91,7 +92,7 @@ test('Genuine Chrome native PIN installs HttpOnly Feature cookies and uses the a
  await cdp.call('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,...point},sessionId);
  await cdp.call('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,...point},sessionId);
  await until(()=>api.some(r=>r.path==='/auth/v110/refresh'&&r.status===200&&r.foreground===true),'Actual protected Dashboard action did not renew foreground',20000);
- await until(()=>api.some(r=>r.path==='/api/academy/hub/read'&&r.status===200),'Actual Dashboard read did not finish',15000);
+ await until(()=>api.slice(foregroundCallStart).some(r=>r.path==='/api/academy/hub/read'&&r.status===200),'Current protected Dashboard read did not finish',15000);
  await cdp.evaluate(tab,'Date.now=window.__ciRealDateNow;');
  const foregroundAfter=await inspected.prepare("SELECT last_fg_refresh_s,original_expires_at_s FROM jwt_v110_families WHERE account_id='feature-synthetic-learner-a' AND revoked=0").first();
  assert(foregroundAfter.last_fg_refresh_s>foregroundBefore.last_fg_refresh_s);assert.equal(foregroundAfter.original_expires_at_s,foregroundBefore.original_expires_at_s);assert(api.some(r=>r.path==='/auth/v110/refresh'&&r.status===200&&r.foreground===true));
@@ -132,6 +133,6 @@ test('Genuine Chrome native PIN installs HttpOnly Feature cookies and uses the a
  assert.equal(options,0);assert.equal(outside,0);assert(api.every(r=>r.metrics&&r.metrics.remoteCalls===0),'Every dispatched API must retain actual local telemetry');
  const totals={workerRequests:api.length,privateCoordinatorCalls:0,d1Statements:0,d1RoundTrips:0,d1RowsRead:0,d1RowsWritten:0,r2Operations:0};
  for(const r of api){totals.privateCoordinatorCalls+=r.metrics.coordinatorCalls;for(const v of Object.values(r.metrics.d1)){totals.d1Statements+=v.statements;totals.d1RoundTrips+=v.roundTrips;totals.d1RowsRead+=v.rowsRead;totals.d1RowsWritten+=v.rowsWritten;}totals.r2Operations+=Object.values(r.metrics.r2).reduce((a,b)=>a+b,0);}
- const report={schema:1,commit:process.env.GITHUB_SHA,kind:'GENUINE_CHROME_LOCAL_NATIVE_COOKIE_PILOT',version,origin,certificate:'Disposable self-signed certificate; Chrome trust errors ignored ONLY in this local fixture. Hosted TLS/DNS/cutover is not proved.',checks:{realNativePIN:true,fourthDigitSingleSubmit:true,browserInstalledHostOnlyHttpOnlyCookies:true,cookieHiddenFromJavaScript:true,nativeOwnAndOtherCourse:true,genuineForegroundOwnRefresh:true,backgroundReplacementDoesNotAdvanceClock:true,renewalClock:'Renderer expiry clock advanced; server/SQL clocks unchanged',reloadRestore:true,anonymousPublicReadsWithoutAuth:true,unrelatedActiveGestureDoesNotAdvanceClock:true,cancellationAfterFailedRenewal:true,serverCancellationObserved:true,browserReceiptOfCancellationIndependentlyProved:false,preflightRequests:options,outsideRequests:outside,blockedPublicFontRequests:blockedPublicFonts,blockedPublicLegacyImageRequests:blockedLegacyImages},publicDateSource:'Local unavailable-response stub; no request to the public calendar site',unavailablePublicServices:api.filter(r=>r.status===503&&r.path.startsWith('/api/public/')).map(r=>({path:r.path,status:r.status})),verificationD1Statements:7,blockedExternal,staticRequests:staticRequests.length,api,totals,hostedWorkerCalls:0,hostedDBChanges:0,limits:'Academy native workspace pilot only. No child admission, token-expiry wall-clock, visible freeze/first resumed paint, media Range or hosted proof.'};
+ const report={schema:1,commit:process.env.GITHUB_SHA,kind:'GENUINE_CHROME_LOCAL_NATIVE_COOKIE_PILOT',version,origin,certificate:'Disposable self-signed certificate; Chrome trust errors ignored ONLY in this local fixture. Hosted TLS/DNS/cutover is not proved.',checks:{realNativePIN:true,fourthDigitSingleSubmit:true,browserInstalledHostOnlyHttpOnlyCookies:true,cookieHiddenFromJavaScript:true,nativeOwnAndOtherCourse:true,genuineForegroundOwnRefresh:true,backgroundReplacementDoesNotAdvanceClock:true,renewalClock:'Renderer expiry clock advanced; server/SQL clocks unchanged',reloadRestore:true,anonymousPublicReadsWithoutAuth:true,unrelatedActiveGestureDoesNotAdvanceClock:true,cancellationAfterFailedRenewal:true,serverCancellationObserved:true,browserReceiptOfCancellationIndependentlyProved:false,preflightRequests:options,outsideRequests:outside,blockedPublicFontRequests:blockedPublicFonts,blockedPublicLegacyImageRequests:blockedLegacyImages},publicDateSource:'Local unavailable-response stub; no request to the public calendar site',unavailablePublicServices:api.filter(r=>r.status===503&&r.path.startsWith('/api/public/')).map(r=>({path:r.path,status:r.status})),verificationD1Statements:7,blockedExternal,staticRequests:staticRequests.length,staticWorkerInvocations:staticRequests.filter(r=>r.workerInvoked).length,staticAssetDelivery:'Actual local Miniflare Static Assets router and ASSETS binding; Node only terminates local test TLS.',api,totals,hostedWorkerCalls:0,hostedDBChanges:0,limits:'Academy native workspace pilot only. No child admission, token-expiry wall-clock, visible freeze/first resumed paint, media Range or hosted proof.'};
  await mkdir(evidence,{recursive:true});await writeFile(join(evidence,'genuine-browser.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify({checks:report.checks,totals,hostedWorkerCalls:0}));
 });

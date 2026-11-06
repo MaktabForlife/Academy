@@ -106,7 +106,11 @@ export async function nativePortal(request,env,{repository,authenticate,read,min
   only(input,['kind','input']);const value=input.input||{};
   if(input.kind==='navigation'){only(value,[]);return (await studio({action:'navigation'})).navigation;}
   if(input.kind==='access'){only(value,['websiteIds']);return (await studio({action:'access',websiteIds:value.websiteIds})).rights;}
-  if(input.kind==='dashboard'){const [data,summary]=await Promise.all([dashboard(value),studio({action:'bootstrap'})]);return portalDashboardLinks(data,summary);}
+  if(input.kind==='dashboard'){
+   const isolatedOwnApp=env.JWT_V110_NATIVE_COOKIE==='1'&&academyCookieOptions(env).academyCookieMode==='HOST_ONLY_PREVIEW';
+   if(isolatedOwnApp){const data=await dashboard(value);if(!(data.activities||[]).some(area=>area.accessOwner==='STUDIO'))return portalDashboardLinks(data,null);return portalDashboardLinks(data,await studio({action:'bootstrap'}));}
+   const [data,summary]=await Promise.all([dashboard(value),studio({action:'bootstrap'})]);return portalDashboardLinks(data,summary);
+  }
   if(input.kind!=='bootstrap')throw fail('Choose a valid Academy view.');
   only(value,['mode','preferredMode','preferredAccount']);
   const mode=value.mode||value.preferredAccount===state.account.account_id&&value.preferredMode||undefined;

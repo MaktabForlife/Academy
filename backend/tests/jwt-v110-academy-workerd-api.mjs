@@ -1,4 +1,4 @@
-import api from '../src/academy-development-runtime.js';
+import api from '../src/academy-feature-jwt-runtime.js';
 export {ProgramTimetableCoordinator} from '../src/academy-development-runtime.js';
 import {freshMetrics,measuredEnv} from './feature-local-budget-metrics.mjs';
 // A failed local statement reports only a redacted disposable-fixture error.

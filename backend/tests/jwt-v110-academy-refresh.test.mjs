@@ -269,6 +269,7 @@ test('Actual hub bootstrap and open retain cookie binding through nested native 
  const get=site=>worker.fetch(new Request(readURL,{headers:{Cookie:auth.headers.Cookie,Authorization:auth.headers.Authorization,...(site?{'Sec-Fetch-Site':site}:{})}}),f.env);
  const same=await get('same-origin');assert.equal(same.status,200,'Real same-origin GET omits Origin');const own=await same.json();assert.equal(own.account.accountId,f.id);assert(own.dashboard);
  for(const site of ['cross-site','same-site',null])assert.equal((await get(site)).status,403,'Absent Origin requires the exact same-origin browser metadata');
+ const directURL=new URL(host+'/api/academy/hub/read');directURL.searchParams.set('request',JSON.stringify({kind:'dashboard',input:{mode:'learn',refresh:true}}));const direct=await worker.fetch(new Request(directURL,{headers:{Cookie:auth.headers.Cookie,Authorization:auth.headers.Authorization,'Sec-Fetch-Site':'same-origin'}}),f.env);assert.equal(direct.status,200,'Own-app Dashboard refresh must not depend on unavailable Studio');assert.equal((await direct.json()).mode,'learn');
  const opened=await call('/api/academy/hub/open',{dashboard:{mode:'learn',tool:'home'}},auth);assert.equal(opened.status,200,opened.data.code);assert.equal(opened.data.cookieSession,true);assert(!Object.hasOwn(opened.data,'token'));assert(opened.data.sessionKey.startsWith('uaa-context:'));
  const session=await call('/api/account/session',{}, {headers:{...auth.headers,Authorization:'Bearer '+opened.data.sessionKey}});assert.equal(session.status,200,session.data.code);
 }));

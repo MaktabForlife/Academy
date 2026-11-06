@@ -9,7 +9,7 @@ import {randomRefresh} from '../src/auth/v110/store.mjs';
 const runtimeRequire=createRequire(resolve(process.env.FEATURE_MF_ROOT,'package.json'));
 const {Miniflare,convertV4MiniflareOptions}=runtimeRequire('miniflare');
 const origin='https://feature_worker.maktab4life.workers.dev',secrets=Object.fromEntries(['PIN_SECRET','SESSION_SECRET','SHARED_PIN_SECRET','ACADEMY_OPEN_LIBRARY_STORAGE_KEY'].map(k=>[k,crypto.randomUUID()+crypto.randomUUID()]));
-export async function createAcademyWorkerdFixture(){
+export async function createAcademyWorkerdFixture({assetsDirectory}={}){
  const seed=await prepareFeatureSeed({pin:'2468',secrets}),config=JSON.parse(readFileSync(new URL('../wrangler.feature.jsonc',import.meta.url),'utf8'));let runtime;
  try{
   seed.databases.core.exec(readFileSync(new URL('./fixtures/jwt-v110-auth-only.sql',import.meta.url),'utf8'));
@@ -18,7 +18,7 @@ export async function createAcademyWorkerdFixture(){
   const d1Databases={ACADEMY_DB:'jwt-core',ACADEMY_ADMIN_DB:'jwt-admin'},durableObjects={ACADEMY_SPLIT_COORDINATOR:{className:'AcademySplitCoordinator',scriptName:'coordinator',useSQLite:true}};
   const compatibilityDate=config.compatibility_date,compatibilityFlags=config.compatibility_flags;
   runtime=new Miniflare(convertV4MiniflareOptions({workers:[
-   {name:'api',modules:true,script:bundles[0].outputFiles[0].text,compatibilityDate,compatibilityFlags,bindings:{...config.vars,...secrets,ACADEMY_D1_MODE:'ACTIVE',ACADEMY_D1_RUN_ID:seed.report.sourceDigest,ALLOWED_ORIGINS:origin,JWT_V110_MASTER:'1',JWT_V110_BROWSER:'1',JWT_V110_REFRESH:'1',JWT_V110_NATIVE_COOKIE:'1',JWT_V110_COOKIE_MODE:'HOST_ONLY_PREVIEW',JWT_V110_REQUEST_ORIGIN:origin,JWT_V110_PUBLIC_KEYS_JSON:JSON.stringify([publicJWK]),JWT_V110_PRIVATE_KEY_JSON:JSON.stringify(privateJWK),JWT_V110_SIGNING_KID:'local-mf-a',JWT_V110_CSRF_SECRET:randomRefresh()},d1Databases,durableObjects:{...durableObjects,PROGRAM_TIMETABLE_COORDINATOR:{className:'ProgramTimetableCoordinator',useSQLite:true}},r2Buckets:{MEDIA_BUCKET:'jwt-public',LESSON_MEDIA_BUCKET:'jwt-private',ASSESSMENT_BUCKET:'jwt-assessments'}},
+   {name:'api',modules:true,script:bundles[0].outputFiles[0].text,compatibilityDate,compatibilityFlags,...(assetsDirectory?{assets:{directory:assetsDirectory,binding:'ASSETS',routerConfig:{has_user_worker:true},assetConfig:{html_handling:'auto-trailing-slash',not_found_handling:'none'},run_worker_first:['/api/*','/__jwt_feature_release',...['login','setup-pin','context','csrf','refresh','logout','logout-csrf'].map(p=>'/auth/v110/'+p)]}}:{}),bindings:{...config.vars,...secrets,ACADEMY_D1_MODE:'ACTIVE',ACADEMY_D1_RUN_ID:seed.report.sourceDigest,ALLOWED_ORIGINS:origin,JWT_V110_MASTER:'1',JWT_V110_BROWSER:'1',JWT_V110_REFRESH:'1',JWT_V110_NATIVE_COOKIE:'1',JWT_V110_COOKIE_MODE:'HOST_ONLY_PREVIEW',JWT_V110_REQUEST_ORIGIN:origin,JWT_V110_PUBLIC_KEYS_JSON:JSON.stringify([publicJWK]),JWT_V110_PRIVATE_KEY_JSON:JSON.stringify(privateJWK),JWT_V110_SIGNING_KID:'local-mf-a',JWT_V110_CSRF_SECRET:randomRefresh()},d1Databases,durableObjects:{...durableObjects,PROGRAM_TIMETABLE_COORDINATOR:{className:'ProgramTimetableCoordinator',useSQLite:true}},r2Buckets:{MEDIA_BUCKET:'jwt-public',LESSON_MEDIA_BUCKET:'jwt-private',ASSESSMENT_BUCKET:'jwt-assessments'}},
    {name:'coordinator',modules:true,script:bundles[1].outputFiles[0].text,compatibilityDate,compatibilityFlags,d1Databases,durableObjects}
   ]}));
   for(const owner of ['core','admin']){
