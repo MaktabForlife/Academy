@@ -3,7 +3,7 @@ export {ProgramTimetableCoordinator} from '../src/academy-development-runtime.js
 import {freshMetrics,measuredEnv} from './feature-local-budget-metrics.mjs';
 // A failed local statement reports only a redacted disposable-fixture error.
 function observeErrors(db,metrics){
- const native=new WeakMap(),record=error=>{metrics.localD1Errors.push(String(error.message).replace(/[A-Za-z0-9_-]{24,}/g,'[redacted]').replace(/\\b\\d{4}\\b/g,'[digits]').slice(0,1000));throw error;};
+ const native=new WeakMap(),record=error=>{metrics.localD1Errors.push(String(error.message).replace(/[A-Za-z0-9_-]{24,}/g,'[redacted]').replace(/\b\d{4}\b/g,'[digits]').slice(0,1000));throw error;};
  const wrap=st=>{const out={bind(...v){return wrap(st.bind(...v));},all:()=>st.all().catch(record),run:()=>st.run().catch(record)};native.set(out,st);return out;};
  return {withSession:(...v)=>observeErrors(db.withSession(...v),metrics),prepare:sql=>wrap(db.prepare(sql)),batch:statements=>db.batch(statements.map(s=>native.get(s))).catch(record)};
 }

@@ -1,3 +1,4 @@
+import {academyDisplaySession} from './academy-display-csrf.mjs';
 import {academyCookieOptions} from './academy-cookie-engine.mjs';
 // Native Academy refresh transport, opt-in only. No child request, grant
 // export, family admission, PIN/unlock or native resource cutover is performed.
@@ -56,7 +57,10 @@ export async function handleAcademyRefresh(request,env,{clock=()=>Math.floor(Dat
   const raw=parseUniqueCookie(request.headers.get('Cookie')||'',cookieNames.academy.refresh);
   const config={app:'academy',issuer,...academyCookieOptions(env),academyCookieDomain:'ummabbadacademy.app',publicKeys,signingKey:await importJWK(privateJWK,'ES256'),signingKid:env.JWT_V110_SIGNING_KID};
   let proof;
-  const refresh=await createAccountBoundAcademyRefresh({binding:env.ACADEMY_DB,repository:academyD1Repository(env),clock,...config,authorizeRotation:async({family,now})=>{
+  const refresh=await createAccountBoundAcademyRefresh({binding:env.ACADEMY_DB,repository:academyD1Repository(env),clock,...config,prepareClient:async()=>({claims,cookies,committedAt,lastForegroundRefreshS})=>{
+   const response=reply({refreshed:true,...(env.JWT_V110_NATIVE_COOKIE==='1'?{accessExpiresAtMs:claims.exp*1000,browserContext:academyDisplaySession(claims,lastForegroundRefreshS,committedAt)}:{})});
+   for(const value of cookies)response.headers.append('Set-Cookie',value);return response;
+  },authorizeRotation:async({family,now})=>{
    currentClock(family,now);
    if(!await crypto.subtle.verify('HMAC',csrfKey,proof,csrfData(family)))deny('CSRF_REQUIRED');
   }});
@@ -73,9 +77,8 @@ export async function handleAcademyRefresh(request,env,{clock=()=>Math.floor(Dat
   if(result.kind!=='rotated')return reply({code:result.kind==='in_progress'?'REFRESH_IN_PROGRESS':result.kind==='readmit_required'?'READMISSION_REQUIRED':'RETRY_REFRESH'},409,{'Retry-After':'1'});
   // Public JSON is allowlisted. Internal prepared cookies/claims never leak
   // through serialization, logs, metrics or the response body.
-  const response=reply({refreshed:true});
-  for(const value of result.setCookies)response.headers.append('Set-Cookie',value);
-  return response;
+  if(!(result.clientResponse instanceof Response))deny('INVALID_PREPARATION');
+  return result.clientResponse;
  }catch(error){
   const code=error instanceof AuthContractError?error.code:'REFRESH_UNAVAILABLE';
   if(code==='CSRF_REQUIRED')return reply({code},403);

@@ -1,7 +1,7 @@
 import {cookieSessionKey} from '../../auth/v110/academy-cookie-auth.mjs';
 import {handleAcademyPIN} from '../../auth/v110/academy-pin-http.mjs';
 import {handleAcademyRefresh} from '../../auth/v110/academy-refresh-http.mjs';
-import {readDisplayContext} from '../../auth/v110/server-context.mjs';
+import {readAcademyDisplayContext} from '../../auth/v110/academy-display-context.mjs';
 import {nativePortal,portalReadReply} from './portal.mjs';
 import {hostingEnvironment,academyManagementOriginAllowed} from '../hosting.mjs';
 import {uploadPlaylistCardImage,previewPlaylistCardImage,publicPlaylistCardImage} from './media-playlist-card-images.js';
@@ -521,7 +521,7 @@ return {
         return {native,publicResult};
       }});
       if(['/auth/v110/csrf','/auth/v110/refresh'].includes(path))return handleAcademyRefresh(request,env);
-      if(path==='/auth/v110/context')return readDisplayContext(request,env,{app:'academy'});
+      if(path==='/auth/v110/context')return readAcademyDisplayContext(request,env);
       const result=await (path==='/api/academy/header-date'?(request.method==='GET'?headerDate(request):Response.json({success:false,error:'Use GET.'},{status:405})):path==='/api/academy/entrance/public-snapshot'?publicTimetable(request,env):path==='/api/academy/profile-labels-version'?profileLabelsVersion(request,env):dispatch(request,env));
       if(request.method==='POST'&&hifzSyncChangePath(path)&&hifzSyncEnabled(env)&&ctx?.waitUntil&&!(result instanceof Response)&&result.success)
         ctx.waitUntil(recoverHifzProfiles(env));

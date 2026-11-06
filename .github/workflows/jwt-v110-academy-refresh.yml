@@ -38,13 +38,17 @@ jobs:
           node --check backend/src/auth/v110/academy-refresh-http.mjs
           node --check backend/src/academy/d1/worker.js
           node --check backend/src/academy-runtime.js
+          node --check auth/v110/academy-cookie-transport.mjs
+          node --check backend/src/auth/v110/academy-display-context.mjs
+          node --check backend/src/auth/v110/academy-display-csrf.mjs
+          node --check backend/tests/jwt-v110-academy-genuine-browser.test.mjs
       - name: Exercise real native PIN prerequisite and prepared own refresh
         env:
           JWT_V110_EVIDENCE: ${{ runner.temp }}/jwt-v110-academy
         run: |
           set -euo pipefail
           mkdir -p "$JWT_V110_EVIDENCE"
-          node --test --test-reporter=tap --test-concurrency=1 backend/tests/jwt-v110-academy-refresh.test.mjs backend/tests/feature-native-initialisation.test.mjs 2>&1 | tee "$JWT_V110_EVIDENCE/tests.log"
+          node --test --test-reporter=tap --test-concurrency=1 backend/tests/jwt-v110-academy-refresh.test.mjs backend/tests/feature-native-initialisation.test.mjs backend/tests/jwt-v110-academy-client.test.mjs 2>&1 | tee "$JWT_V110_EVIDENCE/tests.log"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
@@ -79,4 +83,38 @@ jobs:
         with:
           name: jwt-v110-academy-workerd-${{ github.run_id }}
           path: ${{ runner.temp }}/jwt-workerd-evidence/
+          retention-days: 30
+  genuine-browser:
+    needs: workerd-flow
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - run: npm ci --prefix backend --no-audit --no-fund
+      - name: Install pinned disposable local runtime
+        run: npm install --prefix "$RUNNER_TEMP/jwt-runtime" --no-audit --no-fund --no-save --package-lock=false miniflare@5.20261103.0-beta workerd@1.20261103.1
+      - name: Build explicit same-origin public Feature pilot
+        env:
+          JWT_V110_EVIDENCE: ${{ runner.temp }}/jwt-genuine-browser
+        run: node backend/tools/jwt-v110-feature-public-build.mjs
+      - name: Permit the disposable runner to serve exact HTTPS port
+        run: sudo sysctl -w net.ipv4.ip_unprivileged_port_start=0
+      - name: Genuine Chrome and actual native cookie Worker
+        env:
+          FEATURE_MF_ROOT: ${{ runner.temp }}/jwt-runtime
+          JWT_V110_EVIDENCE: ${{ runner.temp }}/jwt-genuine-browser
+        run: |
+          set -euo pipefail
+          node --test --test-reporter=tap --test-concurrency=1 backend/tests/jwt-v110-academy-genuine-browser.test.mjs 2>&1 | tee "$JWT_V110_EVIDENCE/browser.log"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: jwt-v110-genuine-browser-${{ github.run_id }}
+          path: ${{ runner.temp }}/jwt-genuine-browser/
           retention-days: 30

@@ -286,6 +286,13 @@ test('Interrupted actual owner write rechecks the persisted JWT tuple during rec
  assert.equal(card(),before);assert.equal(f.native.prepare('SELECT count(*) n FROM audit_events').get().n,audit);assert.equal(f.seed.databases.admin.prepare('SELECT count(*) n FROM audit_events').get().n,adminAudit);assert.equal(f.native.prepare('SELECT count(*) n FROM operation_receipts WHERE operation_id=?').get(operationId).n,0);assert.equal(f.native.prepare('SELECT count(*) n FROM split_write_fence').get().n,0);assert.equal(f.native.prepare('SELECT revoked_at FROM account_sessions WHERE session_id=?').get(f.sid).revoked_at,null);
 }));
 
+
+test('Cookie display context carries same-family CSRF and own renewal returns current public clock metadata',withFamily(async f=>{
+ const auth=await nativeCookieLogin(f);
+ const context=await f.call('/auth/v110/context',{...auth,method:'GET'});assert.equal(context.status,200,context.data.code);assert.equal(context.data.csrf,auth.pin.data.csrf);assert.equal(context.data.session.accountId,f.id);
+ const refreshed=await f.call('/auth/v110/refresh',auth);assert.equal(refreshed.status,200,refreshed.data.code);assert.equal(refreshed.data.refreshed,true);assert.equal(refreshed.data.browserContext.sessionId,f.sid);assert.equal(refreshed.data.browserContext.lastForegroundRefreshMs,f.row().last_fg_refresh_s*1000);assert.equal(refreshed.data.browserContext.originalExpiresAtMs,f.at*1000+604800000);assert(refreshed.data.accessExpiresAtMs>Date.now());assert(refreshed.data.accessExpiresAtMs<=Date.now()+900000);
+}));
+
 test.after(()=>{
  assert.equal(remoteAttempts,0);const report={commit:process.env.GITHUB_SHA,synthetic:true,kind:'NATIVE_ACADEMY_PREPARED_REFRESH_SQLITE',records,remoteFetchAttempts:remoteAttempts,masterIssuerProved:false,foregroundHumanActivityProved:false,hostedRequests:0,hostedDBChanges:0,metrics:'No D1 row-cost claim from node:sqlite; workerd/full-flow measurement remains required.'};
  if(process.env.JWT_V110_EVIDENCE){mkdirSync(process.env.JWT_V110_EVIDENCE,{recursive:true});writeFileSync(process.env.JWT_V110_EVIDENCE+'/native-academy-refresh.json',JSON.stringify(report,null,2)+'\n');}
