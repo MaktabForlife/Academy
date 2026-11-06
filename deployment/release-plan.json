@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "request": "ui-bugs-20261106a-home-content",
+  "request": "ui-bugs-20261106b-course-list",
   "kind": "component",
   "target": "production",
   "contains_jwt": false,
