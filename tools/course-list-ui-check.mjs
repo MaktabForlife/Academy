@@ -69,7 +69,8 @@ try{
  await page.goto(base+'/academy/courses/manage/',{waitUntil:'domcontentloaded'});await page.locator('#course-workspace:not([hidden])').waitFor();await page.locator('#course-list .cm-course-list').waitFor();
  await page.locator('#course-status-filter').selectOption('DRAFT');
  const names=await page.locator('#course-list .cm-course-open').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('aria-label').replace(/^Open /,'')));
- assert.deepEqual(names,['Latest A','Latest B','Older Z','Free course']);
+ assert.deepEqual(names,['Latest A','Latest B','Older Z','Feature synthetic Course A','Feature synthetic Course B','Free course']);
+ records.push({case:'native-list-group-order',names,seededExistingCoursesRetained:true});
  const initialSettingsWrites=requests.filter(r=>r.path.endsWith('/courses/save')||r.path.endsWith('/courses/status')).length;
  await page.locator('#course-search').fill('Latest');await page.locator('#course-search').fill('');await page.locator('#course-status-filter').selectOption('');
  assert.equal(requests.filter(r=>r.path.endsWith('/courses/save')||r.path.endsWith('/courses/status')).length,initialSettingsWrites,'View changes cannot write settings');
