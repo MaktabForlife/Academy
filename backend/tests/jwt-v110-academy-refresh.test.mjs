@@ -188,7 +188,7 @@ test('Cookie-backed native session and material reads preserve the existing owne
  const me=await f.call('/api/account/session',{cookie,extra});assert.equal(me.status,200,me.data.code);assert.equal(me.data.account.accountId,featureSyntheticAccounts[2].id);assert.equal(me.data.cookieSession,true);assert.equal(me.data.context.role,'STUDENT');
  const yes=await f.call('/api/academy/lesson-media/list',{cookie,extra:{...extra,'X-Academy-Workspace':'LEARN'},body:{activityKey:'COURSE:FEATURE-SYNTHETIC-A'}});assert.equal(yes.status,200,yes.data.code);
  const no=await f.call('/api/academy/lesson-media/list',{cookie,extra:{...extra,'X-Academy-Workspace':'LEARN'},body:{activityKey:'COURSE:FEATURE-SYNTHETIC-B'}});assert.equal(no.status,403);
- const noCSRF=await f.call('/api/account/session',{cookie,extra:{Authorization:extra.Authorization}});assert.equal(noCSRF.status,401);
+ const noCSRF=await f.call('/api/account/session',{cookie,extra:{Authorization:extra.Authorization}});assert.equal(noCSRF.status,403);
  const noCookie=await f.call('/api/account/session',{cookie:'',extra});assert.equal(noCookie.status,401);
  const oldNative=await f.call('/api/account/login',{cookie,body:{uniqueid:featureSyntheticAccounts[2].login,pin:'2468'}});assert.equal(oldNative.status,409);
 }));
