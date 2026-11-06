@@ -10,12 +10,12 @@ import {featureSmoke,workerOrigin,portalOrigin} from './feature-bounded-smoke.mj
 const root=resolve(new URL('../..',import.meta.url).pathname),read=p=>JSON.parse(readFileSync(resolve(root,p),'utf8'));
 async function main(){
  assert.equal(process.env.GITHUB_ACTIONS,'true');assert.equal(process.env.GITHUB_REPOSITORY,'MaktabForlife/Academy');assert.equal(process.env.GITHUB_REF,'refs/heads/feature-preview');
- assert.equal(process.env.FEATURE_INITIALISE_ACTION,'activate-bounded');assert.equal(process.env.FEATURE_HOSTED_BUDGET_APPROVED,'six-worker-two-pages');
+ assert.equal(process.env.FEATURE_INITIALISE_ACTION,'activate-bounded');assert.equal(process.env.FEATURE_HOSTED_BUDGET_PROFILE,'six-worker-two-pages');
  checkFeatureTargets(root);assert.equal(read('config/feature-initialisation-receipt.json').state,'PENDING');
  const pausedReceipt=read('config/feature-paused-installation-receipt.json'),seed=read('config/feature-seed-installation-receipt.json'),budget=read('config/feature-smoke-budget.json');
  assert.equal(pausedReceipt.state,'ISOLATED_PAUSED');assert.equal(seed.state,'SEEDED_VERIFIED');assert.equal(pausedReceipt.sourceDigest,seed.sourceDigest);
  assert.equal(budget.workerRequestLimit,6);assert.equal(budget.pagesRequestLimit,2);assert.equal(budget.localEvidence.hostedDatabaseReads,0);assert.equal(budget.localEvidence.hostedWorkerCalls,0);
- assert(Number.isSafeInteger(budget.projectedRowsReadCeiling)&&budget.projectedRowsReadCeiling>=budget.localEvidence.totals.d1RowsRead);
+ assert(Number.isSafeInteger(budget.projectedRowsReadAllowance)&&budget.projectedRowsReadAllowance>=budget.localEvidence.totals.d1RowsRead);
  const account='c9a3e355b3d7a795880b1d36a1dbe123',base='https://api.cloudflare.com/client/v4/accounts/'+account;
  assert.equal(pausedReceipt.accountId,account);const apiToken=process.env.CLOUDFLARE_API_TOKEN;assert(apiToken);
  let controlPlaneReads=0,pagesRequests=0,changed=false,sessionOpen=false;
@@ -29,7 +29,7 @@ async function main(){
  const temp=mkdtempSync(join(tmpdir(),'feature-initial-activation-')),wrangler=join(root,'backend/node_modules/wrangler/bin/wrangler.js');
  const configFor=(config,label)=>{const p=join(temp,label+'.json'),out={...config,main:resolve(root,'backend',config.main)};delete out.migrations;delete out.$schema;writeFileSync(p,JSON.stringify(out));return p;};
  const command=(args,label)=>{try{execFileSync(process.execPath,[wrangler,...args],{cwd:root,stdio:'pipe',env:{...process.env,WRANGLER_SEND_METRICS:'false',WRANGLER_LOG_PATH:join(temp,label+'.log')}});}catch{throw Error('Feature '+label+' failed; no raw credential-bearing diagnostic is retained');}};
- const evidence={schema:1,commit:process.env.GITHUB_SHA,accountId:account,state:'PREFLIGHT',success:false,hostedSyntheticSuites:0,hostedDatabaseScans:0,projectedSmokeRowsRead:budget.localEvidence.totals.d1RowsRead,projectedRowsReadCeiling:budget.projectedRowsReadCeiling,hostedRowsReadMeasured:false,secretChanges:0,databaseWritesByDeploymentTool:0};
+ const evidence={schema:1,commit:process.env.GITHUB_SHA,accountId:account,state:'PREFLIGHT',success:false,hostedSyntheticSuites:0,hostedDatabaseScans:0,projectedSmokeRowsRead:budget.localEvidence.totals.d1RowsRead,projectedRowsReadAllowance:budget.projectedRowsReadAllowance,hostedRowsReadMeasured:false,secretChanges:0,databaseWritesByDeploymentTool:0};
  const save=()=>{assert(process.env.FEATURE_EVIDENCE);mkdirSync(process.env.FEATURE_EVIDENCE,{recursive:true});writeFileSync(join(process.env.FEATURE_EVIDENCE,'initial-activation.json'),JSON.stringify({...evidence,pagesRequests,explicitControlPlaneReads:controlPlaneReads,sessionOpen},null,2)+'\n');};
  try{
   await head();await settings(worker);await settings(coordinator,true);

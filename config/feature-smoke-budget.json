@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "workerRequestLimit": 6,
+  "pagesRequestLimit": 2,
+  "automaticRetries": 0,
+  "projectedRowsReadAllowance": 1000,
+  "hostedRowsReadMeasured": false,
+  "scope": "One necessary bounded verification of the owner's already-approved isolated Feature deployment; all synthetic suites remain local. Request caps are enforced. D1 rows are projected from the matched native local flow, not a database-server hard limit.",
+  "localEvidence": {
+    "run": 42150352133,
+    "artifact": 13471697996,
+    "artifactSha256": "5fb9c00f89c0a8bd60b3178edcf556c3c30a454f214b938246c57966ea9c17ab",
+    "commit": "b3a80256e0ec0c5f921e7861d084a0be202ea003",
+    "compatibilityDate": "2026-10-23",
+    "runtime": {
+      "miniflare": "5.20261103.0-beta",
+      "workerd": "1.20261103.1"
+    },
+    "hostedDatabaseReads": 0,
+    "hostedWorkerCalls": 0,
+    "totals": {
+      "workerRequests": 6,
+      "privateCoordinatorCalls": 0,
+      "d1RoundTrips": 26,
+      "d1Statements": 43,
+      "d1RowsRead": 241,
+      "d1RowsWritten": 14,
+      "r2Operations": 0,
+      "remoteCalls": 0
+    }
+  }
+}
