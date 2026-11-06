@@ -4,7 +4,7 @@ Not a promotion tree. No resource, binding, credential or hosted SQL operation i
 
 ## Exact empty bootstrap inputs
 
-Base Feature: 6bef65664473fa40c9074413a9c052eb9c22b454. Academy canonical used for composition: 50c32f6f550b52512453461074ad6e12af384fe3; Studio3c420f35c30297cfcc41cfab24f030e51bb7831e. Re-pin before a real PR.
+Base Feature: 6bef65664473fa40c9074413a9c052eb9c22b454. Academy canonical used for composition: 38e66a57f0e094089718dd9dce6ff632f6247d68; Studio1fd6d1af577fd2adf81a054d67860c3fa4d66f21. Re-pin before a real PR.
 
 Native Core377179B SHA256d7eb88199269195a20b44dad26b1663792e493631fa26690bc915af416772464 and Admin25863B SHA2560cebae64a69e62a235b3828eb39d1001e3d23b992ffeb391920239096018a830 are existing reviewed UTF8 snapshots, byte unchanged.
 Auth2541B SHA256f9e8948fc4459cb85b6609da0cac488d2e9bec8d438b1c3ecd43e16062aeed0d is exact fixture27097b292f13a2c4b1b10ce64c25900fd01f329a, unchanged through app e8e26af7.
@@ -72,3 +72,5 @@ The GitHub-only composition tool starts with the exact prepared Feature child, a
 Composition performance correction: initial42194329142 timed out while materialising each historical Git blob in a separate process. The corrected tool archives active source once and preserves historical release blobs by metadata in the final Git base; only changed source is materialised/reported. No promotion tree was published from the cancelled run. Current canonical50c32f6 includes separately accepted BUG-001; its exact portal/circles/app.js is retained in composition without claiming other UI items complete. Template equality failures now emit category-only errors, no SQL diff. The transport-injected HTTP helper does not infer hosted execution or fabricate zero unobserved D1/RPC/R2 counters; local caller labels its own execution and missing metrics are null.
 
 Combined-source run42201374165 passed84 native/client/initialisation executions and3 real local Worker cases, then stopped because the source-only archive lacked a Git index required by the actual public asset builder's git ls-files inventory. It is not a green combined-source run. The correction initialises/indexes only that disposable composed source tree BEFORE dependencies/build; it does not alter public asset filtering or native assertions, and writes no remote Git history. Fixed eight-request composition proof remains pending that corrected run.
+
+Corrected combined-source746513fa/run42201745449 completed successfully: exact native/application source and local Worker/assets/requested-resource checks passed. Freshly accepted canonical38e66a57 adds only reviewed Development-component controls; the final preparation now re-pins that canonical and also executes the actual composed approval/routing suite. No hosted activation, SQL, secret operation, remote app probe or final promotion commit follows automatically from source-check success. Independently completed private SETUP handler/installer/effects review remains required.
