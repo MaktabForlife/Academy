@@ -14,7 +14,6 @@ const shapes={
  'video-source-upload-start':['action','operationId','assetId','filename'],
  'video-source-upload-part':['action','assetId','partNumber','data','sha256'],
  'video-source-upload-complete':['action','operationId','assetId','parts'],
- 'video-source-publication':['action','operationId','attachmentId','revision','draftContext','sourceRevision','companionKey','companionRevision','confirm'],
  'video-processing-capabilities':['action'],
  'video-processing-source':['action','operationId','attachmentId','format','durationSeconds','transcript'],
  'video-processing-quote':['action','sourceId'],

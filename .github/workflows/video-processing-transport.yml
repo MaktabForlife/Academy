@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: MaktabForlife/AcademyStudio
-          ref: 1bfb3a6a38b49a5a34e0244209cfc2f9730331cd
+          ref: 0cccf37f388af775c52542c87b054249d3a34498
           path: .test-video-studio
           persist-credentials: false
       - name: Native Academy authentication and bounded signed transport; no hosted calls
