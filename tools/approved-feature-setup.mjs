@@ -24,7 +24,7 @@ export function validateSetupPlan(p){
 }
 export async function setupApproval({api,mergeSha,prNumber,featureSha,requirePromoted=true}){
  const proof=await resolveApproval({repo,mergeSha,api});
- assert.equal(proof.pr,Number(prNumber));assert.equal(proof.plan.kind,'component');assert.equal(proof.plan.target,'feature');assert.equal(proof.plan.contains_jwt,true);
+ assert.equal(proof.plan.request,'jwt-feature-fresh-setup-20261106a');assert.equal(proof.pr,Number(prNumber));assert.equal(proof.plan.kind,'component');assert.equal(proof.plan.target,'feature');assert.equal(proof.plan.contains_jwt,true);
  assert.equal(proof.plan.feature_sha,featureSha);assert(proof.plan.feature_base_sha);
  const file=await api('/repos/'+repo+'/contents/deployment/jwt-feature-setup-plan.json?ref='+featureSha);
  assert(file.encoding==='base64'&&file.size<32768);
@@ -54,7 +54,7 @@ export async function promoteSetupSource({api,mergeSha,prNumber,featureSha}){
 async function main(){
  assert.equal(process.env.GITHUB_ACTIONS,'true');assert.equal(process.env.GITHUB_REPOSITORY,repo);assert.equal(process.env.GITHUB_REF,'refs/heads/studio_dev');
  const api=githubClient(process.env.GITHUB_TOKEN),mergeSha=process.env.GITHUB_SHA,proof=await resolveApproval({repo,mergeSha,api});
- if(!(proof.plan.kind==='component'&&proof.plan.target==='feature'&&proof.plan.feature_sha)){console.log(JSON.stringify({setupSourcePreparation:'NOT_SELECTED',cloudflareCalls:0,hostedDatabaseCalls:0}));return;}
+ if(!(proof.plan.request==='jwt-feature-fresh-setup-20261106a'&&proof.plan.kind==='component'&&proof.plan.target==='feature'&&proof.plan.feature_sha)){console.log(JSON.stringify({setupSourcePreparation:'NOT_SELECTED',cloudflareCalls:0,hostedDatabaseCalls:0}));return;}
  const out=await promoteSetupSource({api,mergeSha,prNumber:proof.pr,featureSha:proof.plan.feature_sha});console.log(JSON.stringify(out));
 }
 if(process.argv[1]&&resolve(process.argv[1])===new URL(import.meta.url).pathname)await main();

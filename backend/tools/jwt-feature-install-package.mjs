@@ -11,7 +11,7 @@ const uuid=x=>typeof x==='string'&&/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}
 const sha=x=>typeof x==='string'&&/^[a-f0-9]{40}$/.test(x);
 export function assertSchemaReceipt(r){
  assert.deepEqual(Object.keys(r).sort(),['accountId','checks','databaseIds','databaseNames','planId','reviewedDDLCommit','schema','ddlHashes','state','verifiedAt'].sort());
- assert.equal(r.schema,1);assert.equal(r.state,'SCHEMA_LOADED_COUNTS_CHECKED');assert.equal(r.accountId,account);assert.equal(r.planId,'JWT_FEATURE_FRESH_'+batch);
+ assert.equal(r.schema,1);assert.equal(r.state,'LOADED_COUNTS_CHECKED_FULL_PRIVATE_ATTESTATION_PENDING');assert.equal(r.accountId,account);assert.equal(r.planId,'JWT_FEATURE_FRESH_'+batch);
  assert.deepEqual(r.databaseNames,names);assert.equal(r.databaseIds.length,2);assert(r.databaseIds.every(uuid));assert.equal(new Set(r.databaseIds).size,2);
  for(const id of r.databaseIds)assert(!protectedIds.includes(id),'PROTECTED_DATABASE');
  assert.deepEqual(r.ddlHashes,{core:schemaHashes.core,admin:schemaHashes.admin,auth:schemaHashes.auth});
@@ -54,7 +54,7 @@ export function compileInstallPackage({baseWorker,baseCoordinator,baseline,schem
  for(const value of Object.values(sources))assert(!value.includes('/__test/')&&!value.includes('TEST_FAULT'),'TEST_PROBE_FORBIDDEN');
  const publicManifest={schema:1,state:'PREPARATION_ONLY',source,owner,contractHash:contract.manifestHash,schemaReceiptHash:hash(JSON.stringify(schemaReceipt)),databaseIds:schemaReceipt.databaseIds,issued,expires,
   sourceHashes:Object.fromEntries(Object.entries(sources).map(([p,v])=>[p,hash(v)])),setupMode:'PAUSED_NO_ASSETS',
-  plannedEffects:{workerUploads:3,coordinatorUploads:2,secretBulkPatches:2,seedExecuteRequests:1,statusRequests:1,ordinaryPausedProbes:3,sqlReplay:false,existingDatabaseChanges:false},
+  plannedEffects:{freshSqliteNamespaces:2,existingNamespacesRetained:2,newScripts:0,namespaceDeleteOrRename:0,workerUploads:3,coordinatorUploads:2,secretBulkPatches:2,seedExecuteRequests:1,statusRequests:1,ordinaryPausedProbes:3,sqlReplay:false,existingDatabaseChanges:false},
   budgets:{explicitCloudflareGets:40,recoveryExtraGets:16,wranglerInternalRequests:'separate-unmeasured',setupHTTPRequests:5,seedProjection:{statements:97,roundTrips:12,rowsRead:5857,rowsWritten:202},applicationSmoke:'separate-eight-requests'}};
  return {worker,coordinator,sources,publicManifest,baseWorker:structuredClone(baseWorker),baseCoordinator:structuredClone(baseCoordinator)};
 }
