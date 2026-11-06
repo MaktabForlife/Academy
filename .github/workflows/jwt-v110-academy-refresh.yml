@@ -1,0 +1,38 @@
+name: JWT V110 native Academy refresh review
+on:
+  create:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-refresh:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/heads/validation/jwt-v110-academy-refresh-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - run: npm ci --prefix backend --no-audit --no-fund
+      - name: Check scoped native source syntax
+        run: |
+          node --check backend/src/auth/v110/academy-refresh.mjs
+          node --check backend/src/auth/v110/academy-refresh-http.mjs
+          node --check backend/src/academy/d1/worker.js
+          node --check backend/src/academy-runtime.js
+      - name: Exercise real native PIN prerequisite and prepared own refresh
+        env:
+          JWT_V110_EVIDENCE: ${{ runner.temp }}/jwt-v110-academy
+        run: |
+          mkdir -p "$JWT_V110_EVIDENCE"
+          node --test --test-reporter=tap --test-concurrency=1 backend/tests/jwt-v110-academy-refresh.test.mjs 2>&1 | tee "$JWT_V110_EVIDENCE/tests.log"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: jwt-v110-academy-refresh-${{ github.run_id }}
+          path: ${{ runner.temp }}/jwt-v110-academy/
+          retention-days: 30

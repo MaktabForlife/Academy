@@ -1,3 +1,7 @@
+# V110.2 isolated Feature JWT source
+
+The JWT integration branch composes the verified Feature isolation baseline with accepted browser/child refresh code. Academy prepared own-refresh is under test and default disabled; it is not full JWT activation. See [scope](docs/JWT-V110-ACADEMY-REFRESH.md). Production and existing databases are unchanged.
+
 ## V109.25 — media management and version labels
 
 The tested code-only fix accepts the exact configured Academy origins and renders current packaged version labels. Existing permissions, databases, hosting and manual media publication are preserved. See [release notes](docs/RELEASE-V109.25.md).

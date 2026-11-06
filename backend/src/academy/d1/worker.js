@@ -1,3 +1,4 @@
+import {handleAcademyRefresh} from '../../auth/v110/academy-refresh-http.mjs';
 import {readDisplayContext} from '../../auth/v110/server-context.mjs';
 import {nativePortal,portalReadReply} from './portal.mjs';
 import {hostingEnvironment,academyManagementOriginAllowed} from '../hosting.mjs';
@@ -510,6 +511,7 @@ return {
     if(origin&&!allowed.includes(origin))return new Response(JSON.stringify({success:false,error:'Origin is not allowed.'}),{status:403,headers});
     if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
     try{const path=new URL(request.url).pathname;
+      if(['/auth/v110/csrf','/auth/v110/refresh'].includes(path))return handleAcademyRefresh(request,env);
       if(path==='/auth/v110/context')return readDisplayContext(request,env,{app:'academy'});
       const result=await (path==='/api/academy/header-date'?(request.method==='GET'?headerDate(request):Response.json({success:false,error:'Use GET.'},{status:405})):path==='/api/academy/entrance/public-snapshot'?publicTimetable(request,env):path==='/api/academy/profile-labels-version'?profileLabelsVersion(request,env):dispatch(request,env));
       if(request.method==='POST'&&hifzSyncChangePath(path)&&hifzSyncEnabled(env)&&ctx?.waitUntil&&!(result instanceof Response)&&result.success)
