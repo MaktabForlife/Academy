@@ -3,7 +3,7 @@ import test from 'node:test';
 import {createRequire} from 'node:module';
 import {resolve} from 'node:path';
 import {mkdirSync,writeFileSync} from 'node:fs';
-import {createHmac,randomBytes} from 'node:crypto';
+import {createHmac,createHash,randomBytes} from 'node:crypto';
 import {build} from 'esbuild';
 import {setupContract} from '../tools/jwt-feature-setup-contract.mjs';
 import {verifyAcademyPin} from '../src/lib/academy-pin.js';
@@ -36,7 +36,11 @@ async function fixture({fault='',expired=false,schemas=true}={}){
 }
 test('actual workerd authenticated concurrent setup commits once; status and lost-ACK replay do not write',async()=>{
  const f=await fixture();try{
-  const responses=await Promise.all(Array.from({length:8},()=>f.call()));const statuses=responses.map(r=>r.status);assert.equal(statuses.filter(x=>x===200).length,1);assert.equal(statuses.filter(x=>x===409).length,7);
+  for(const owner of ['core','admin']){
+   const objects=(await f.db[owner].prepare("SELECT type,name,tbl_name,sql FROM sqlite_schema WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' AND name<>'_cf_METADATA' ORDER BY type,name").all()).results.map(r=>[r.type,r.name,r.tbl_name,r.sql]);
+   const actual=createHash('sha256').update(JSON.stringify(objects)).digest('hex');assert.equal(actual,c.objectHashes[owner],owner+' exact public schema hash');
+  }
+  const responses=await Promise.all(Array.from({length:8},()=>f.call()));const statuses=responses.map(r=>r.status);console.log('SETUP_PUBLIC_DIAGNOSTIC',JSON.stringify({statuses,snapshot:await f.snapshot()}));assert.equal(statuses.filter(x=>x===200).length,1);assert.equal(statuses.filter(x=>x===409).length,7);
   for(const r of responses){assert.equal(r.headers.get('set-cookie'),null);const text=await r.text();assert.equal(text.includes('pbkdf2'),false);assert.equal(text.includes(f.shared),false);}
   const snap=await f.snapshot();assert.equal(snap.publicClaim.state,'VERIFIED');assert.equal(snap.credentialPresent,false);assert.deepEqual(snap.metrics.batches,{core:1,admin:1});
   const rows=(await f.db.core.prepare('SELECT pin_hash FROM account_credentials').all()).results;assert.equal(rows.length,4);
@@ -49,7 +53,7 @@ test('actual workerd authenticated concurrent setup commits once; status and los
 test('actual staged Admin failure keeps committed Core, leaves UNKNOWN and never retries SQL',async()=>{
  const f=await fixture({fault:'admin'});try{
   const r=await f.call();assert.equal(r.status,409);assert.equal((await r.json()).state,'UNKNOWN');
-  const a=await f.snapshot();assert.deepEqual(a.metrics.batches,{core:1,admin:1});
+  const a=await f.snapshot();console.log('STAGED_PUBLIC_DIAGNOSTIC',JSON.stringify(a));assert.deepEqual(a.metrics.batches,{core:1,admin:1});
   assert.equal((await f.db.core.prepare('SELECT count(*) n FROM accounts').first()).n,4);assert.equal((await f.db.admin.prepare('SELECT count(*) n FROM identity_refs').first()).n,0);
   assert.equal((await f.call()).status,409);assert.equal((await (await f.call('status')).json()).state,'UNKNOWN');assert.deepEqual((await f.snapshot()).metrics,a.metrics);
   receipts.push({case:'staged-admin-failure',state:'UNKNOWN',sqlBatches:a.metrics.batches,coreAccounts:4,adminAccounts:0,automaticRetry:false});
