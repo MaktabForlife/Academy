@@ -38,6 +38,8 @@ test('actual workerd authenticated concurrent setup commits once; status and los
  const f=await fixture();try{
   for(const owner of ['core','admin']){
    const objects=(await f.db[owner].prepare("SELECT type,name,tbl_name,sql FROM sqlite_schema WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' AND name<>'_cf_METADATA' ORDER BY type,name").all()).results.map(r=>[r.type,r.name,r.tbl_name,r.sql]);
+   const counts=(await f.db[owner].prepare(c.tables[owner].map(name=>"SELECT '"+name+"' name,count(*) n FROM "+JSON.stringify(name)).join(' UNION ALL ')).all()).results;
+   console.log('EMPTY_SCHEMA_COUNTS',JSON.stringify({owner,tables:c.tables[owner].length,rows:counts.length,nonempty:counts.filter(r=>r.n!==0)}));
    const actual=createHash('sha256').update(JSON.stringify(objects)).digest('hex');assert.equal(actual,c.objectHashes[owner],owner+' exact public schema hash');
   }
   const responses=await Promise.all(Array.from({length:8},()=>f.call()));const statuses=responses.map(r=>r.status);console.log('SETUP_PUBLIC_DIAGNOSTIC',JSON.stringify({statuses,snapshot:await f.snapshot()}));assert.equal(statuses.filter(x=>x===200).length,1);assert.equal(statuses.filter(x=>x===409).length,7);
