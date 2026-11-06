@@ -10,7 +10,7 @@ defaults:
     shell: bash
 jobs:
   browser:
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/heads/validation/home-login-layout-') || startsWith(github.ref, 'refs/heads/feature/home-promotional-card-')
+    name: Public content (${{ matrix.browser }})
     strategy:
       fail-fast: false
       matrix:
