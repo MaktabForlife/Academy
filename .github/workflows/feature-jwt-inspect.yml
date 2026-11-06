@@ -1,0 +1,110 @@
+name: Approved four-GET JWT Feature inspection
+on:
+  push:
+    branches: [studio_dev, validation/jwt-feature-readonly-inspection-20261106]
+  pull_request:
+    branches: [studio_dev]
+  workflow_dispatch:
+    inputs:
+      approval_pr:
+        type: string
+        required: true
+      approval_merge_sha:
+        type: string
+        required: true
+permissions:
+  contents: read
+  statuses: read
+  pull-requests: read
+  actions: read
+defaults:
+  run:
+    shell: bash
+concurrency:
+  group: feature-isolation-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  check:
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - run: |
+          set -euo pipefail
+          node --check backend/tools/jwt-feature-inspect.mjs
+          node --test --test-reporter=tap backend/tests/jwt-feature-inspect.test.mjs | tee inspection-tests.tap
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: jwt-inspection-source-check-${{ github.run_id }}
+          path: inspection-tests.tap
+          retention-days: 30
+  prepare:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/studio_dev'
+    permissions:
+      contents: write
+      statuses: read
+      pull-requests: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - name: Exact approved inspection source only; no Cloudflare
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node backend/tools/jwt-feature-inspect.mjs promote
+  validate:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature-preview'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - name: Exact single-attempt read-only approval before private environment
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPROVAL_PR: ${{ inputs.approval_pr }}
+          APPROVAL_MERGE_SHA: ${{ inputs.approval_merge_sha }}
+        run: node backend/tools/jwt-feature-inspect.mjs validate
+  inspect:
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature-preview'
+    environment: feature
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - name: Exactly four allowlisted metadata GETs; no D1, Worker HTTP or mutations
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPROVAL_PR: ${{ inputs.approval_pr }}
+          APPROVAL_MERGE_SHA: ${{ inputs.approval_merge_sha }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_FEATURE_DEPLOY_TOKEN }}
+        run: node backend/tools/jwt-feature-inspect.mjs inspect
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: jwt-feature-readonly-metadata-${{ github.run_id }}
+          path: ${{ runner.temp }}/jwt-inspect-evidence/*.json
+          if-no-files-found: warn
+          retention-days: 30
