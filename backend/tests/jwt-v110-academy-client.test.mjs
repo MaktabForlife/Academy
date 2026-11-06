@@ -63,7 +63,7 @@ test('Concurrent required own queries share one renewal and use own CSRF without
   assert.equal(r.headers.get('X-UAA-CSRF'),'A'.repeat(43));return Response.json({success:true});
  }});
  await f.adapter.fetch(origin+'/api/account/login',{method:'POST',body:'{}'});
- await Promise.all(['/api/account/session','/api/academy/lesson-media/list'].map(path=>f.adapter.fetch(origin+path,{method:'POST',body:'{}',uaaUserAction:f.userAction()})));
+ await Promise.all(['/api/academy/lesson-media/list','/api/account/session'].map(path=>f.adapter.fetch(origin+path,{method:'POST',body:'{}',uaaUserAction:f.userAction()})));
  assert.equal(renewals,1);assert.equal(f.accepted.length,1);assert.equal(f.calls.length,4);
 });
 
