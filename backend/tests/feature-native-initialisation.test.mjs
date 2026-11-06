@@ -13,7 +13,7 @@ import {hosting} from '../src/academy/hosting.mjs';
 const secrets=Object.fromEntries(['PIN_SECRET','SESSION_SECRET','SHARED_PIN_SECRET','ACADEMY_OPEN_LIBRARY_STORAGE_KEY'].map(k=>[k,'disposable-feature-native-test-'+k+'-not-a-hosted-credential']));
 const pin='2468',h=hosting();
 const withSeed=fn=>async()=>{
- const seed=await prepareFeatureSeed({pin,secrets,at:'2026-11-06T00:00:00.000Z'});
+ const seedStarted=Date.now(),seed=await prepareFeatureSeed({pin,secrets,at:'2026-11-06T00:00:00.000Z'}),seedFinished=Date.now();
  const core=emptyCompatibilityDatabase(sqliteD1(seed.databases.core),emptyShapes,{currentGrants:true}),admin=sqliteD1(seed.databases.admin);
  const engine=splitEngine({core,admin}),namespace={getByName(){return Object.fromEntries(['read','write'].map(m=>[m,async(...args)=>({result:await engine[m](...args)})]));}};
  const config=JSON.parse(readFileSync(new URL('../wrangler.feature.jsonc',import.meta.url),'utf8'));
@@ -23,7 +23,7 @@ const withSeed=fn=>async()=>{
   return {status:response.status,body:await response.json(),headers:response.headers};
  };
  const login=async(index=0,value=pin)=>call('/api/account/login',{uniqueid:featureSyntheticAccounts[index].login,pin:value});
- try{await fn({seed,env,call,login});}finally{seed.close();}
+ try{await fn({seed,env,call,login,seedStarted,seedFinished});}finally{seed.close();}
 };
 test('Feature admission requires the isolated split environment and keeps other native environments unchanged',()=>{
  let reads=0;const db={withSession(){reads++;throw Error('Unexpected database access');}};
@@ -69,7 +69,7 @@ test('Current native credential epoch and account state deny an earlier Feature 
  f.seed.databases.core.prepare('UPDATE accounts SET active=0 WHERE account_id=?').run(id);
  assert.equal((await f.call('/api/account/session',{},next)).status,401);
 }));
-test('Generated data-only seed replays exactly into the reviewed empty schemas with references intact',withSeed(async f=>{
+test('Generated seed replays identical logical data; native trigger clocks stay within each execution',withSeed(async f=>{
  const names=db=>db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all();
  const quote=s=>'"'+s.replaceAll('"','""')+'"';
  for(const owner of ['core','admin']){
@@ -77,10 +77,16 @@ test('Generated data-only seed replays exactly into the reviewed empty schemas w
   try{
    copy.exec(readFileSync(new URL('../feature-preview-bootstrap/'+owner+'-schema.sql',import.meta.url),'utf8'));
    assert(!/\b(?:DROP|ALTER|CREATE|DELETE FROM accounts|UPDATE accounts)\b/i.test(f.seed.sql[owner]),'Only synthetic first-seed DML is exported.');
-   copy.exec(f.seed.sql[owner]);
+   const replayStarted=Date.now();copy.exec(f.seed.sql[owner]);const replayFinished=Date.now();
    assert.deepEqual(copy.prepare('PRAGMA foreign_key_check').all(),[]);assert.equal(copy.prepare('PRAGMA quick_check').get().quick_check,'ok');
-   const rows=(db,name)=>db.prepare('SELECT * FROM '+quote(name)).all().sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));
-   for(const {name}of names(copy))assert.deepEqual(rows(copy,name),rows(f.seed.databases[owner],name),owner+'.'+name);
+   const rows=(db,name,start,end)=>db.prepare('SELECT * FROM '+quote(name)).all().map(row=>{
+    if(name==='academy_settings'&&row.setting_key.startsWith('AcademySnapshot:')){
+     const time=Date.parse(row.updated_at);assert(Number.isFinite(time)&&time>=start&&time<=end,'Native snapshot trigger time must lie inside its own execution');
+     return {...row,updated_at:'DATABASE_TRIGGER_EXECUTION_TIME'};
+    }
+    return row;
+   }).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));
+   for(const {name}of names(copy))assert.deepEqual(rows(copy,name,replayStarted,replayFinished),rows(f.seed.databases[owner],name,f.seedStarted,f.seedFinished),owner+'.'+name);
    assert.throws(()=>copy.exec(f.seed.sql[owner]),/UNIQUE constraint failed/,'A repeated seed must stop rather than overwrite.');
   }finally{copy.close();}
  }
