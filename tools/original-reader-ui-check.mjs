@@ -6,6 +6,7 @@ import {pathToFileURL} from 'node:url';
 import {hosting} from '../backend/src/academy/hosting.mjs';
 import {serveAcademySite} from '../backend/tools/academy-site.mjs';
 assert.equal(process.env.GITHUB_ACTIONS,'true');
+process.env.ACADEMY_SOURCE=resolve('.');
 const studioRoot=resolve('studio-source'),assets=resolve('.academy-pages'),out=resolve(process.env.RUNNER_TEMP,'original-reader-evidence');
 // The generic paired fixture defaults the portal to Studio itself. The real
 // connector correctly rejects that. Select the explicit reviewed synthetic

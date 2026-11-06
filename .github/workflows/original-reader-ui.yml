@@ -93,7 +93,11 @@ jobs:
       - run: npm ci --prefix backend --no-audit --no-fund
       - run: npm ci --prefix Academy/backend --no-audit --no-fund
       - run: npm ci --prefix studio-source --no-audit --no-fund
-      - run: node backend/tools/academy-pages-build.mjs
+      - name: Build the exact checked source inside the browser container
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$PWD"
+          node backend/tools/academy-pages-build.mjs
       - name: Install isolated browser
         env:
           REVIEW_BROWSER_MODULES: ${{ runner.temp }}/original-reader-browser
