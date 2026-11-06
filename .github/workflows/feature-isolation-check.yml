@@ -57,6 +57,7 @@ jobs:
         run: |
           node backend/tools/feature-hosting-overlay.mjs "$RUNNER_TEMP/feature-evidence"
           node --test --test-reporter=tap backend/tests/feature-isolation.test.mjs backend/tests/feature-deployment-gates.test.mjs backend/tests/academy-management-origin-regression.test.mjs 2>&1 | tee "$RUNNER_TEMP/feature-evidence/isolation.log"
+          node --test --test-reporter=tap --test-concurrency=1 backend/tests/feature-native-initialisation.test.mjs 2>&1 | tee "$RUNNER_TEMP/feature-evidence/native-initialisation.log"
           CF_PAGES_BRANCH=feature-preview node backend/tools/academy-pages-build.mjs 2>&1 | tee "$RUNNER_TEMP/feature-evidence/pages-build.log"
           test "$(git diff --name-only)" = "config/hosting.json"
       - name: Validate Feature Worker configurations without Cloudflare access
