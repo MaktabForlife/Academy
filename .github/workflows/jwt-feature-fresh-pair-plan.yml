@@ -50,6 +50,25 @@ jobs:
           JWT_APP_SOURCE_SHA: e8e26af7e5c6275656faa5c24985098e377439d0
           JWT_CANONICAL_SHA: 50c32f6f550b52512453461074ad6e12af384fe3
         run: node tools/compose-jwt-feature-source.mjs
+      - name: Verify the composed native application and requested-resource flow locally
+        env:
+          FEATURE_MF_ROOT: ${{ runner.temp }}/jwt-fresh-runtime
+          JWT_V110_EVIDENCE: ${{ runner.temp }}/jwt-fresh-pair-evidence/composed-app
+        run: |
+          cd "$RUNNER_TEMP/jwt-composed-source"
+          npm ci --prefix backend --no-audit --no-fund
+          mkdir -p "$JWT_V110_EVIDENCE"
+          node --test --test-reporter=tap --test-concurrency=1 backend/tests/jwt-v110-academy-refresh.test.mjs backend/tests/feature-native-initialisation.test.mjs backend/tests/jwt-v110-academy-client.test.mjs 2>&1 | tee "$JWT_V110_EVIDENCE/native.log"
+          node --test --test-reporter=tap --test-concurrency=1 backend/tests/jwt-v110-academy-workerd.test.mjs backend/tests/jwt-v110-academy-private-range.test.mjs backend/tests/jwt-v110-academy-refresh-rate.test.mjs 2>&1 | tee "$JWT_V110_EVIDENCE/workerd.log"
+          node backend/tools/jwt-v110-feature-public-build.mjs 2>&1 | tee "$JWT_V110_EVIDENCE/public-build.log"
+          node --test --test-reporter=tap backend/tests/jwt-v110-assets-routing.test.mjs 2>&1 | tee "$JWT_V110_EVIDENCE/assets.log"
+      - name: Run the fixed eight-request client against the composed entry and fresh local pair
+        env:
+          FEATURE_MF_ROOT: ${{ runner.temp }}/jwt-fresh-runtime
+          JWT_APP_SOURCE_ROOT: ${{ runner.temp }}/jwt-composed-source
+          JWT_APP_SOURCE_SHA: e8e26af7e5c6275656faa5c24985098e377439d0
+          JWT_FEATURE_SMOKE_EVIDENCE: ${{ runner.temp }}/jwt-fresh-pair-evidence/composed-app
+        run: node --test --test-reporter=tap backend/tests/jwt-feature-eight-request.test.mjs 2>&1 | tee "$RUNNER_TEMP/jwt-fresh-pair-evidence/composed-app/eight-request.log"
       - name: Source syntax and untouched native configuration
         run: |
           node --check backend/src/academy/jwt-feature-storage.mjs
