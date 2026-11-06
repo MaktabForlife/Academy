@@ -38,7 +38,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
   browser:
-    needs: local-native
+    needs: [local-native, studio-policy]
     name: Course page (${{ matrix.browser }})
     strategy:
       fail-fast: false
@@ -86,5 +86,35 @@ jobs:
         with:
           name: course-list-${{ matrix.browser }}-${{ github.run_id }}
           path: ${{ runner.temp }}/course-list-evidence/
+          if-no-files-found: error
+          retention-days: 14
+  studio-policy:
+    name: Pinned Studio native policy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: MaktabForlife/AcademyStudio
+          ref: 3c420f35c30297cfcc41cfab24f030e51bb7831e
+          path: studio-source
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.18.0'
+      - run: npm ci --prefix studio-source --no-audit --no-fund
+      - name: Actual current owning policy and retained rights
+        working-directory: studio-source
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/course-list-policy-evidence"
+          node --test --test-reporter=tap tests/course-policy.test.mjs 2>&1 | tee "$RUNNER_TEMP/course-list-policy-evidence/studio-policy.log"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: course-list-studio-policy-${{ github.run_id }}
+          path: ${{ runner.temp }}/course-list-policy-evidence/
           if-no-files-found: error
           retention-days: 14

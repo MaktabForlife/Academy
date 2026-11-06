@@ -36,17 +36,33 @@ async function native(url,options={}){
 const context=await browser.newContext({viewport:{width:2048,height:1100},reducedMotion:'reduce',serviceWorkers:'block'});
 const page=await context.newPage();
 page.on('pageerror',e=>errors.push(e.message));
+let modernCourse=null,modernModel='PAID',modernRevision=1,modernReads=0,modernSaves=[],loseModernAck=true;
 
-await page.route('**/*',async route=>{
+await context.route('**/*',async route=>{
  const req=route.request(),url=new URL(req.url());
  if(url.origin===h.academyApiOrigin&&url.pathname.startsWith('/api/')||url.origin===base&&url.pathname.startsWith('/api/')){
   let kind='';try{kind=JSON.parse(url.searchParams.get('request')||req.postData()||'{}').kind||'';}catch{}
   requests.push({path:url.pathname,kind});
+  if(url.pathname==='/api/admin/platform/studio-access'&&modernCourse){
+   const input=JSON.parse(req.postData()||'{}'),command=input.command;assert.equal(input.activityKey,'COURSE:'+modernCourse.courseId);assert.equal(req.headers()['x-academy-workspace'],'ADMIN');assert(req.headers().authorization);
+   if(command.action==='read'){modernReads++;return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,revision:modernRevision,ownership:{authority:'WEBSITE',phase:'COMMITTED'},kind:'COURSE',pendingJobs:[],canChangeStaff:false,canLinkAccount:false,participants:[],more:false,websites:[],person:null,coursePolicy:{offeringId:modernCourse.courseId,model:modernModel,revision:modernRevision}})});}
+   assert.equal(command.action,'save');assert.equal(command.change.action,'course-policy');assert.equal(command.change.accessModel,'FREE');modernSaves.push(command);modernModel='FREE';modernRevision=2;
+   if(loseModernAck){loseModernAck=false;return route.abort('failed');}
+   return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({success:true,saved:true,replayed:true})});
+  }
 
   // These visual regressions request full native responses. WebKit's route
   // interception cannot deliver a 304; HTTP conditional-cache parity is outside this test.
   const headers={...req.headers()};delete headers['if-none-match'];
   const response=await native(url.href,{method:req.method(),headers,...(req.postData()?{body:req.postDataBuffer()}:{})});
+  if(modernCourse&&response.ok&&['/api/admin/platform/courses/list','/api/admin/platform/courses/get'].includes(url.pathname)){
+   // Frontend/owner transport fixture only. Actual owning policy semantics run
+   // separately in the pinned Studio native policy suite, never on hosted data.
+   const data=await response.json();
+   if(data.course?.courseId===modernCourse.courseId){data.course.studioManagedAccess=true;data.course.details.accessModel=modernModel;}
+   for(const course of data.courses||[])if(course.courseId===modernCourse.courseId)course.accessModel=modernModel;
+   return route.fulfill({status:response.status,contentType:'application/json',body:JSON.stringify(data)});
+  }
   return route.fulfill({status:response.status,headers:Object.fromEntries(response.headers),body:Buffer.from(await response.arrayBuffer())});
  }
  if(url.origin!==base){blocked.push(url.origin);return route.abort();}
@@ -97,6 +113,21 @@ try{
  records.push({case:'actual-list-archive',confirmationRequired:true,stage:'ARCHIVED',showAllRetainsRow:true});
  await page.goto(base+'/academy/courses/manage/',{waitUntil:'domcontentloaded'});await page.locator('#course-list .cm-course-list').waitFor();assert.equal(await page.locator('#course-status-filter').inputValue(),'AVAILABLE');assert.equal(await page.locator('#course-list .cm-course-open[data-course="'+row.courseId+'"]').count(),0);
  await page.locator('#course-search').fill('No synthetic match');assert.match(await page.locator('#course-list').textContent(),/No Courses match/);records.push({case:'default-hidden-and-empty-view',archivedHidden:true});
+ await page.locator('#course-search').fill('');
+ const modernSaved=await request('save',{operationId:crypto.randomUUID(),details:{name:'Studio policy transport fixture',accessModel:'PAID',startDate:'2026-10-05',endDate:'2026-10-31',timezone:'Africa/Johannesburg',categoryKey:'',weekdays:[],sessions:[],startTime:'',endTime:'',teacherId:'',zoomLink:''}});
+ modernCourse={courseId:modernSaved.courseId,runId:modernSaved.runId};
+ await page.goto(base+'/academy/courses/manage/',{waitUntil:'domcontentloaded'});await page.locator('#course-list .cm-course-list').waitFor();
+ const modernChoice=model=>page.locator('[data-cm-action="list-policy"][data-model="'+model+'"][data-course="'+modernCourse.courseId+'"][data-run="'+modernCourse.runId+'"]');
+ const legacyWrites=requests.filter(r=>r.path.endsWith('/courses/save')).length;
+ await modernChoice('FREE').click();await page.locator('[data-list-policy-save]:not([disabled])').waitFor();assert.equal(modernSaves.length,0);
+ await page.locator('[data-list-policy-cancel]').click();assert.equal(modernModel,'PAID');assert.equal(await modernChoice('PAID').isChecked(),true);
+ await modernChoice('FREE').click();await page.locator('[data-list-policy-save]:not([disabled])').click();
+ await page.waitForFunction(()=>Boolean(document.querySelector('[data-list-policy-status]')?.textContent));assert.equal(await page.locator('#course-dialog').isVisible(),true);assert.equal(modernSaves.length,1);
+ await page.locator('[data-list-policy-cancel]').click();assert.equal(await page.locator('#course-dialog').isVisible(),true);assert.match(await page.locator('[data-list-policy-status]').textContent(),/Retry the pending/);
+ await page.locator('[data-list-policy-save]:not([disabled])').click();await page.locator('#course-dialog').waitFor({state:'hidden'});await page.waitForFunction(()=>!document.querySelector('#course-refresh').disabled);
+ assert.equal(modernSaves.length,2);assert.deepEqual(modernSaves[1],modernSaves[0]);assert.equal(await modernChoice('FREE').isChecked(),true);assert.equal(await modernChoice('PAID').isChecked(),false);
+ assert.equal(requests.filter(r=>r.path.endsWith('/courses/save')).length,legacyWrites,'Studio-owned settings never use legacy Course-save writer');
+ records.push({case:'studio-policy-full-modal-transport',cancelBeforeSave:true,lostAckErrorVisible:true,pendingCancelBlocked:true,identicalRetry:true,savedModel:modernModel,ownerReads:modernReads,actualStudioAuthorizationProved:false});
  assert.deepEqual(errors,[]);assert.equal(remoteAttempts,0);
 }finally{
  await page.screenshot({path:resolve(out,'final-state.png'),fullPage:true}).catch(()=>{});
