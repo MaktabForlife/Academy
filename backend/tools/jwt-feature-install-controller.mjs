@@ -21,16 +21,21 @@ export async function installFreshFeature({ops,packageInfo,privateCapsule}){
   await ops.probe('ordinary-paused');evidence.probeRequests++;
   // Native secret names/values are never included or rotated.
   await write('PRIVATE_NEW_SECRETS',()=>privateCapsule.ingress(ops.patchSecrets));
+  await ops.candidateGuard();await ops.ownedGuard();
+  const schema=await ops.schema(privateCapsule);assert.equal(schema.receipt.state,'VERIFIED');assert.equal(schema.receipt.stage,'SCHEMA_ONLY');
+  evidence.schemaRequests=schema.executeRequests+schema.statusRequests;evidence.schemaVerification=schema.receipt.verification;evidence.state='SCHEMA_VERIFIED';await safeSave();
+  await ops.candidateGuard();await ops.ownedGuard();
   const setup=await ops.setup(privateCapsule);
   evidence.setupRequests=setup.executeRequests+setup.statusRequests;
   assert.equal(setup.receipt.state,'VERIFIED','SETUP_NOT_VERIFIED');
   evidence.state='SEED_VERIFIED';
-  await ops.prepareFinal(setup.receipt,privateCapsule.publicKey);
+  await ops.prepareFinal(schema.receipt,setup.receipt,privateCapsule.publicKey);
   await write('FINAL_COORDINATOR',()=>ops.deploy(coordinator,'FINAL_PAUSED'));
   await write('FINAL_WORKER_PAUSED',()=>ops.deploy(worker,'FINAL_PAUSED'));
   await write('REMOVE_TEMPORARY_SECRETS',()=>ops.patchSecrets(Object.fromEntries(temporarySecrets.map(n=>[n,null]))));
   await ops.probe('final-paused');evidence.probeRequests++;
   await ops.probe('setup-http-removed');evidence.probeRequests++;
+  await ops.probe('schema-http-removed');evidence.probeRequests++;
   await ops.verifyFinal();
   evidence.state='PAUSED_VERIFIED';evidence.cleanupVerified=true;await safeSave();
   return evidence;

@@ -57,7 +57,7 @@ jobs:
         with:
           node-version: "24.18.0"
       - run: npm ci --prefix backend --no-audit --no-fund
-      - name: Fresh-only private setup then final PAUSED removal; never activate or run DDL
+      - name: Separately approved fixed NEW-only structured schema and private seed; final PAUSED removal
         env:
           GITHUB_TOKEN: ${{ github.token }}
           APPROVAL_PR: ${{ inputs.approval_pr }}

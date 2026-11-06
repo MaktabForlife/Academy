@@ -9,7 +9,7 @@ import {completeInstallPackage,assertNoTemporarySurface,temporarySecrets,finalSe
 export function createInstallOps({root,directory,evidenceDirectory,p,baseline,expectedVersions,schemaReceipt,contract,token,candidateGuard,fetcher=fetch,runWrangler}){
  assert.equal(process.env.GITHUB_ACTIONS,'true');
  const names=['feature_worker','academy-feature-split-coordinator'],expected={...expectedVersions},states=new Map(),namespaces={};
- const config=new Map(),secretNames=new Set(p.baseWorker.secrets.required),oldSecrets=[...secretNames],report={explicitCloudflareGets:0,secretBulkPatches:0,wranglerAttempts:0,httpProbes:0,recoveryHTTPProbes:0,setupExecuteAttempts:0,setupStatusAttempts:0};
+ const config=new Map(),secretNames=new Set(p.baseWorker.secrets.required),oldSecrets=[...secretNames],report={explicitCloudflareGets:0,secretBulkPatches:0,wranglerAttempts:0,httpProbes:0,recoveryHTTPProbes:0,schemaExecuteAttempts:0,schemaStatusAttempts:0,setupExecuteAttempts:0,setupStatusAttempts:0};
  const tokenValue=token;let final=null,lastLabel=null;
  assert(tokenValue,'FEATURE_TOKEN_REQUIRED');assert.deepEqual(Object.keys(expected).sort(),[...names].sort());
  const nativeWorker=structuredClone(p.baseWorker);nativeWorker.vars={...nativeWorker.vars,ACADEMY_D1_MODE:'ACTIVE',ACADEMY_D1_RUN_ID:baseline.sourceDigest};
@@ -18,7 +18,7 @@ export function createInstallOps({root,directory,evidenceDirectory,p,baseline,ex
  for(const [path,value]of Object.entries(p.sources)){const target=resolve(root,path);assert(target.startsWith(resolve(root)+'/backend/src/'));mkdirSync(dirname(target),{recursive:true});writeFileSync(target,value);}
  const cf=async(path,{method='GET',secrets}={})=>{
   assert(/^\/workers\/scripts\/(?:feature_worker|academy-feature-split-coordinator)\/(?:settings|deployments|subdomain|schedules|secrets-bulk)$/.test(path),'CF_SCOPE');
-  if(method==='GET'){report.explicitCloudflareGets++;assert(report.explicitCloudflareGets<=56,'CF_READ_BUDGET');}
+  if(method==='GET'){report.explicitCloudflareGets++;assert(report.explicitCloudflareGets<=60,'CF_READ_BUDGET');}
   else{assert(method==='PATCH'&&path==='/workers/scripts/feature_worker/secrets-bulk','CF_WRITE_SCOPE');assert(secrets&&Object.keys(secrets).every(x=>[...temporarySecrets,...finalSecrets].includes(x)),'NATIVE_SECRET_CHANGE_FORBIDDEN');}
   let response;try{response=await fetcher('https://api.cloudflare.com/client/v4/accounts/'+account+path,{method,redirect:'error',cache:'no-store',signal:AbortSignal.timeout(20000),headers:{Authorization:'Bearer '+tokenValue,...(secrets?{'Content-Type':'application/json'}:{})},...(secrets?{body:JSON.stringify({secrets})}:{})});}catch{throw Error('CF_TRANSPORT_UNKNOWN');}
   if(!response.ok)throw Error('CF_'+method+'_STATUS_'+response.status);
@@ -80,16 +80,19 @@ export function createInstallOps({root,directory,evidenceDirectory,p,baseline,ex
    assert(lastLabel);const id=await verify(lastLabel.name,config.get(lastLabel.name),{discover:true});
    expected[lastLabel.name]=id;lastLabel=null;
   },
-  async setup(capsule){return capsule.setup({contract,issued:p.publicManifest.issued,expires:p.publicManifest.expires,onRequest:action=>{const k=action==='execute'?'setupExecuteAttempts':'setupStatusAttempts';report[k]++;assert(report[k]<=1,'SETUP_HTTP_BUDGET');}});},
-  async prepareFinal(receipt,publicKey){
+  async schema(capsule){return capsule.setup({contract,issued:p.publicManifest.issued,expires:p.publicManifest.expires,phase:'schema',onRequest:(phase,action)=>{assert.equal(phase,'schema');const k=action==='execute'?'schemaExecuteAttempts':'schemaStatusAttempts';report[k]++;assert(report[k]<=1,'SCHEMA_HTTP_BUDGET');}});},
+  async setup(capsule){return capsule.setup({contract,issued:p.publicManifest.issued,expires:p.publicManifest.expires,phase:'seed',onRequest:(phase,action)=>{assert.equal(phase,'seed');const k=action==='execute'?'setupExecuteAttempts':'setupStatusAttempts';report[k]++;assert(report[k]<=1,'SETUP_HTTP_BUDGET');}});},
+  async prepareFinal(schema,receipt,publicKey){
+   assert.equal(schema.state,'VERIFIED');assert.equal(schema.stage,'SCHEMA_ONLY');assert.equal(schema.source,contract.source);assert.equal(schema.manifestHash,contract.manifestHash);
    assert.equal(receipt.state,'VERIFIED');assert.equal(receipt.sourceDigest,contract.sourceDigest);
    assert(namespaces.timetable&&namespaces.split);
    final=completeInstallPackage(p,baseline,schemaReceipt,contract,{timetableNamespaceId:namespaces.timetable,splitNamespaceId:namespaces.split,publicKid:publicKey.kid,publicKeys:[publicKey],verifiedAt:new Date().toISOString()});
+   final.receipt.structuredSchemaVerified=true;final.receipt.schemaVerification=structuredClone(schema.verification);
    assertNoTemporarySurface(final);
   },
   async probe(kind){
-   const path=kind==='ordinary-paused'?'/academy/':kind==='final-paused'?'/__jwt_feature_release':'/internal/feature-jwt-setup/status',expectedCode=kind==='ordinary-paused'?'FEATURE_SETUP_PAUSED':kind==='recovery-paused'?'FEATURE_PAUSED':'FEATURE_JWT_UNAVAILABLE';
-   if(kind==='recovery-paused'){report.recoveryHTTPProbes++;assert(report.recoveryHTTPProbes<=1,'RECOVERY_PROBE_BUDGET');}else{report.httpProbes++;assert(report.httpProbes<=3,'PROBE_BUDGET');}
+   const path=kind==='ordinary-paused'?'/academy/':kind==='final-paused'?'/__jwt_feature_release':kind==='schema-http-removed'?'/internal/feature-jwt-setup/schema-status':'/internal/feature-jwt-setup/status',expectedCode=kind==='ordinary-paused'?'FEATURE_SETUP_PAUSED':kind==='recovery-paused'?'FEATURE_PAUSED':'FEATURE_JWT_UNAVAILABLE';
+   if(kind==='recovery-paused'){report.recoveryHTTPProbes++;assert(report.recoveryHTTPProbes<=1,'RECOVERY_PROBE_BUDGET');}else{report.httpProbes++;assert(report.httpProbes<=4,'PROBE_BUDGET');}
    let response;try{response=await fetcher(origin+path,{method:'GET',redirect:'error',credentials:'omit',cache:'no-store',signal:AbortSignal.timeout(15000)});}catch{throw Error('PAUSED_PROBE_UNKNOWN');}
    assert.equal(response.status,503,'PAUSED_PROBE_STATUS');assert(!response.headers.get('set-cookie'),'PAUSED_COOKIE');
    assert(response.headers.get('cache-control')?.includes('no-store'),'PAUSED_CACHE');
@@ -116,7 +119,7 @@ export function createInstallOps({root,directory,evidenceDirectory,p,baseline,ex
   },
   async verifyRecovery(){await owned();assert(!temporarySecrets.some(n=>secretNames.has(n)));await this.probe('recovery-paused');await owned();},
   save(evidence){
-   writeFileSync(resolve(publicOut,'installation.json'),JSON.stringify({...evidence,...report,lastAcknowledgedVersions:{...expected},observedFreshNamespaces:{...namespaces},publicSigningKey:p.publicManifest.publicSigningKey||null,setupRequests:report.setupExecuteAttempts+report.setupStatusAttempts,setupRequestsAreFetchAttempts:true},null,2)+'\n');
+   writeFileSync(resolve(publicOut,'installation.json'),JSON.stringify({...evidence,...report,lastAcknowledgedVersions:{...expected},observedFreshNamespaces:{...namespaces},publicSigningKey:p.publicManifest.publicSigningKey||null,setupRequests:report.setupExecuteAttempts+report.setupStatusAttempts,schemaRequests:report.schemaExecuteAttempts+report.schemaStatusAttempts,setupRequestsAreFetchAttempts:true},null,2)+'\n');
   }
  };
 }

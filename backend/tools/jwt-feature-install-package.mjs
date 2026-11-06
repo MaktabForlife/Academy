@@ -10,17 +10,21 @@ const hash=x=>createHash('sha256').update(x).digest('hex');
 const uuid=x=>typeof x==='string'&&/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(x);
 const sha=x=>typeof x==='string'&&/^[a-f0-9]{40}$/.test(x);
 export function assertSchemaReceipt(r){
- assert.deepEqual(Object.keys(r).sort(),['accountId','checks','databaseIds','databaseNames','planId','reviewedDDLCommit','schema','ddlHashes','state','verifiedAt'].sort());
- assert.equal(r.schema,1);assert.equal(r.state,'LOADED_COUNTS_CHECKED_FULL_PRIVATE_ATTESTATION_PENDING');assert.equal(r.accountId,account);assert.equal(r.planId,'JWT_FEATURE_FRESH_'+batch);
- assert.deepEqual(r.databaseNames,names);assert.equal(r.databaseIds.length,2);assert(r.databaseIds.every(uuid));assert.equal(new Set(r.databaseIds).size,2);
+ assert.deepEqual(Object.keys(r).sort(),['accountId','databaseIds','databaseNames','ddlHashes','observed','planId','reviewedAt','reviewedSchemaPrimitive','schema','startingFootprints','state'].sort());
+ assert.equal(r.schema,1);assert.equal(r.state,'STARTING_FOOTPRINT_REVIEWED_PRIVATE_ATTESTATION_PENDING');assert.equal(r.accountId,account);assert.equal(r.planId,'JWT_FEATURE_FRESH_'+batch);
+ assert.deepEqual(r.databaseNames,names);assert.deepEqual(r.databaseIds,['cdbe97bc-f3d9-400e-8806-ed9a0d143d26','ed77f2a7-4439-4841-8691-2b41063d8960']);
  for(const id of r.databaseIds)assert(!protectedIds.includes(id),'PROTECTED_DATABASE');
  assert.deepEqual(r.ddlHashes,{core:schemaHashes.core,admin:schemaHashes.admin,auth:schemaHashes.auth});
- assert.deepEqual(r.checks,{coreRows:0,adminRows:0,coreObjects:1372,adminObjects:83,coreTables:172,adminTables:55,coreForeignKeys:0,adminForeignKeys:0,coreQuick:'ok',adminQuick:'ok',fullSchemaAttestation:'PENDING_PRIVATE_SETUP'});
- assert(sha(r.reviewedDDLCommit));assert(Number.isFinite(Date.parse(r.verifiedAt)));return r;
+ assert.deepEqual(r.startingFootprints,{
+  core:{observedObjects:1,orderedDefinitionHash:'746047e55a185d77723c183c1652a18afafa0ea6a9ced7a623c652fe404c90bc',firstDefinitionHash:'ba6adc0dad88252e65296438061de7e8d62e238bcfd1aa882817f5e4a536f739',userRows:'NOT_QUERIED'},
+  admin:{observed:'NOT_OPENED',expectedObjects:0,expectedOrderedDefinitionHash:'4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945'}
+ });
+ assert.deepEqual(r.observed,{coreEditorSQLSubmissions:7,adminEditorOpened:false,failedBatchUsage:'UNMEASURED'});
+ assert.equal(r.reviewedSchemaPrimitive,'4ca61b81d57b8b9419a1fa2a4072d6272f28e9ba');assert(Number.isFinite(Date.parse(r.reviewedAt)));return r;
 }
 export function compileInstallPackage({baseWorker,baseCoordinator,baseline,schemaReceipt,contract,source,owner,issued,expires}){
  assertFeatureTargets(baseWorker,baseCoordinator,{schema:1,environment:'feature',academyPortalOrigin:'https://feature-preview.academy-maktab4life.pages.dev',academyLegacyOrigins:[],academyApiOrigin:origin,studioOrigin:'https://studio-unavailable.invalid',studioBackendOrigin:'https://studio-unavailable.invalid',hifzOrigin:'https://hifz-unavailable.invalid'});
- assertSchemaReceipt(schemaReceipt);assert(sha(source));assert.equal(contract.source,source);
+ assertSchemaReceipt(schemaReceipt);assert.equal(contract.ddl?.schema,1,'STRUCTURED_DDL_REQUIRED');assert(sha(source));assert.equal(contract.source,source);
  assert.equal(contract.accountId,account);assert.deepEqual(contract.databaseIds,schemaReceipt.databaseIds);
  assert.equal(contract.planId,schemaReceipt.planId);assert.match(contract.manifestHash,/^[a-f0-9]{64}$/);
  assert.match(owner,/^[1-9][0-9]{0,19}-[1-9][0-9]{0,4}$/);
@@ -54,8 +58,8 @@ export function compileInstallPackage({baseWorker,baseCoordinator,baseline,schem
  for(const value of Object.values(sources))assert(!value.includes('/__test/')&&!value.includes('TEST_FAULT'),'TEST_PROBE_FORBIDDEN');
  const publicManifest={schema:1,state:'PREPARATION_ONLY',source,owner,contractHash:contract.manifestHash,schemaReceiptHash:hash(JSON.stringify(schemaReceipt)),databaseIds:schemaReceipt.databaseIds,issued,expires,
   sourceHashes:Object.fromEntries(Object.entries(sources).map(([p,v])=>[p,hash(v)])),setupMode:'PAUSED_NO_ASSETS',
-  plannedEffects:{freshSqliteNamespaces:2,existingNamespacesRetained:2,newScripts:0,namespaceDeleteOrRename:0,workerUploads:3,coordinatorUploads:2,secretBulkPatches:2,seedExecuteRequests:1,statusRequests:1,ordinaryPausedProbes:3,sqlReplay:false,existingDatabaseChanges:false},
-  budgets:{explicitCloudflareGets:40,recoveryExtraGets:16,wranglerInternalRequests:'separate-unmeasured',setupHTTPRequests:5,seedProjection:{statements:97,roundTrips:12,rowsRead:5857,rowsWritten:202},applicationSmoke:'separate-eight-requests'}};
+  plannedEffects:{freshSqliteNamespaces:2,existingNamespacesRetained:2,newScripts:0,namespaceDeleteOrRename:0,workerUploads:3,coordinatorUploads:2,secretBulkPatches:2,schemaExecuteRequests:1,schemaStatusRequests:1,seedExecuteRequests:1,statusRequests:1,ordinaryPausedProbes:4,sqlReplay:false,existingDatabaseChanges:false},
+  budgets:{explicitCloudflareGets:44,recoveryExtraGets:16,wranglerInternalRequests:'separate-unmeasured',setupHTTPRequests:8,schemaProjection:{statements:1509,roundTrips:13,rowsRead:6066,rowsWritten:1957},schemaPlanning:{rowsRead:12000,rowsWritten:5000,notServerHardCap:true},seedProjection:{statements:97,roundTrips:12,rowsRead:5857,rowsWritten:202},applicationSmoke:'separate-eight-requests'}};
  return {worker,coordinator,sources,publicManifest,baseWorker:structuredClone(baseWorker),baseCoordinator:structuredClone(baseCoordinator)};
 }
 export function bindPublicSigningKey(p,key){

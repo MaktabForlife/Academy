@@ -8,9 +8,8 @@ const hash=x=>createHash('sha256').update(x).digest('hex'),repo='MaktabForlife/A
 const head='a'.repeat(40),merge='b'.repeat(40),feature='c'.repeat(40),base='d'.repeat(40),tree='e'.repeat(40);
 function fixture(){
  const calls=[],plan=JSON.parse(readFileSync(new URL('../deployment/jwt-feature-setup-plan.json',import.meta.url),'utf8'));
- const receipt={state:'LOADED_COUNTS_CHECKED_FULL_PRIVATE_ATTESTATION_PENDING',accountId:plan.accountId,databaseIds:plan.databaseIds,databaseNames:plan.databaseNames,
-  checks:{coreRows:0,adminRows:0,coreObjects:1372,adminObjects:83,coreTables:172,adminTables:55,coreForeignKeys:0,adminForeignKeys:0,coreQuick:'ok',adminQuick:'ok',fullSchemaAttestation:'PENDING_PRIVATE_SETUP'}};
- const receiptRaw=JSON.stringify(receipt);plan.state='SCHEMA_LOADED_READY_FOR_REVIEW';plan.schemaReceiptSHA256=hash(receiptRaw);
+ const receipt={state:'STARTING_FOOTPRINT_REVIEWED_PRIVATE_ATTESTATION_PENDING',accountId:plan.accountId,databaseIds:plan.databaseIds,databaseNames:plan.databaseNames,reviewedSchemaPrimitive:plan.setupPrimitive,startingFootprints:{"core":{"observedObjects":1,"orderedDefinitionHash":"746047e55a185d77723c183c1652a18afafa0ea6a9ced7a623c652fe404c90bc","firstDefinitionHash":"ba6adc0dad88252e65296438061de7e8d62e238bcfd1aa882817f5e4a536f739","userRows":"NOT_QUERIED"},"admin":{"observed":"NOT_OPENED","expectedObjects":0,"expectedOrderedDefinitionHash":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"}},observed:{coreEditorSQLSubmissions:7,adminEditorOpened:false,failedBatchUsage:'UNMEASURED'}};
+ const receiptRaw=JSON.stringify(receipt);plan.state='STARTING_FOOTPRINT_READY_FOR_REVIEW';plan.startingReceiptSHA256=hash(receiptRaw);
  const raw=JSON.stringify(plan),release={schema:1,request:'jwt-feature-fresh-setup-20261106a',kind:'component',target:'feature',contains_jwt:true,database_changes:false,feature_sha:feature,feature_base_sha:base};
  const pr={number:9,state:'closed',merged:true,changed_files:1,merged_at:'2026-11-06T01:00:00Z',merge_commit_sha:merge,base:{ref:'studio_dev',repo:{full_name:repo}},head:{sha:head},merged_by:{login:'MaktabForlife'},html_url:'https://github.com/'+repo+'/pull/9'};
  const comment={id:42,user:{login:'MaktabForlife'},created_at:'2026-11-06T00:59:00Z',body:'Optimisation approval\nhead: '+head+'\ntarget: feature\ndb-changes: none\nfeature-setup-source: '+feature+'\nfeature-setup-effects-sha256: '+hash(raw)+'\nsetup-database-effects: new-pair-only'};
@@ -30,7 +29,7 @@ function fixture(){
   if(p.endsWith('/git/commits/'+head))return {sha:head,tree:{sha:tree}};
   if(p.includes('/contents/deployment/release-plan.json'))return encoded(JSON.stringify(state.release));
   if(p.includes('/contents/deployment/jwt-feature-setup-plan.json'))return encoded(state.raw);
-  if(p.includes('/contents/config/jwt-feature-schema-receipt.json'))return encoded(state.receiptRaw);
+  if(p.includes('/contents/config/jwt-feature-starting-receipt.json'))return encoded(state.receiptRaw);
   if(p.endsWith('/issues/comments/42'))return state.comment;
   if(p.includes('/compare/'))return {status:'ahead',behind_by:state.behind,files:[{filename:'backend/src/academy/jwt-feature-setup.mjs'}]};
   throw Error('unexpected fixture API');

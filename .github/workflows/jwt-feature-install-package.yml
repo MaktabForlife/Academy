@@ -31,7 +31,10 @@ jobs:
       - name: Actual temporary/final Worker graphs and namespace constructors
         env:
           FEATURE_MF_ROOT: ${{ runner.temp }}/jwt-install-runtime
-        run: node --test --test-reporter=tap backend/tests/jwt-feature-install-workerd.test.mjs 2>&1 | tee "$RUNNER_TEMP/jwt-install-package-evidence/workerd.log"
+        run: |
+          node --test --test-reporter=tap backend/tests/jwt-feature-schema-phase.test.mjs 2>&1 | tee "$RUNNER_TEMP/jwt-install-package-evidence/schema-phase.log"
+          cp "$RUNNER_TEMP/jwt-schema-phase-evidence/schema-phase-proof.json" "$RUNNER_TEMP/jwt-install-package-evidence/schema-phase-proof.json"
+          node --test --test-reporter=tap backend/tests/jwt-feature-install-workerd.test.mjs 2>&1 | tee "$RUNNER_TEMP/jwt-install-package-evidence/workerd.log"
       - name: Existing native split interruption recovery semantics on the combined source
         run: node --test --test-reporter=tap backend/tests/academy-split-engine.test.mjs 2>&1 | tee "$RUNNER_TEMP/jwt-install-package-evidence/native-recovery.log"
       - name: Five actual Wrangler bundles and exact fresh profiles without Cloudflare access

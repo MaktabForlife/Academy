@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "purpose": "FRESH_FEATURE_SETUP_20261106a",
-  "state": "CREATED_UNINITIALISED",
+  "state": "STOPPED_PARTIAL_SCHEMA",
   "accountId": "c9a3e355b3d7a795880b1d36a1dbe123",
   "scripts": [
     "feature_worker",
@@ -15,9 +15,8 @@
     "cdbe97bc-f3d9-400e-8806-ed9a0d143d26",
     "ed77f2a7-4439-4841-8691-2b41063d8960"
   ],
-  "schemaReceiptSHA256": null,
   "appSource": "e8e26af7e5c6275656faa5c24985098e377439d0",
-  "setupPrimitive": "254661e642e19aea618cdae1ddada831cbd7d1e3",
+  "setupPrimitive": "4ca61b81d57b8b9419a1fa2a4072d6272f28e9ba",
   "ordinaryReleaseDatabaseChanges": false,
   "setupDatabaseEffects": {
     "scope": "NEW_PAIR_ONLY",
@@ -27,7 +26,11 @@
     "syntheticCourses": 2,
     "productionData": false,
     "existingStoreChanges": false,
-    "retrySeed": false
+    "retrySeed": false,
+    "structuredDDL": true,
+    "coreCreateStatements": 1371,
+    "adminCreateStatements": 83,
+    "schemaReplay": false
   },
   "temporarySecrets": [
     "JWT_FEATURE_SETUP_PIN",
@@ -39,5 +42,6 @@
   ],
   "nativeSecretsChanged": [],
   "finalMode": "PAUSED",
-  "activationIncluded": false
+  "activationIncluded": false,
+  "startingReceiptSHA256": null
 }

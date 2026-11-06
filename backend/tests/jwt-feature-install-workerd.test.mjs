@@ -40,15 +40,18 @@ test('actual temporary native constructors seed only fresh local pair; final PAU
  function options(wScript,cScript,wvars,cvars,secrets,probe=false){
   const workers=[{...common,name:'feature_worker',script:wScript,bindings:{...wvars,...native,...secrets},ratelimits:Object.fromEntries(finalRates.map(x=>[x.name,{namespace_id:x.namespace_id,simple:x.simple}])),r2Buckets:{MEDIA_BUCKET:'fresh-public',LESSON_MEDIA_BUCKET:'fresh-lessons',ASSESSMENT_BUCKET:'fresh-assessments'},d1Databases:databases,durableObjects:mainDO},
    {...common,name:'academy-feature-split-coordinator',script:cScript,bindings:cvars,d1Databases:databases,durableObjects:privateDO}];
-  if(probe)workers.push({...common,name:'local-test-only-rpc-verifier',script:"export default {async fetch(request,env){try{await env.PROBE.getByName("+JSON.stringify('jwt-feature-bootstrap:'+contract.planId+':'+contract.sourceDigest)+").setupStatus({source:"+JSON.stringify(contract.source)+",manifestHash:"+JSON.stringify(contract.manifestHash)+"});return new Response(null,{status:500});}catch{return new Response(null,{status:410});}}};",durableObjects:{PROBE:{className:'JWTFeatureAcademySplitCoordinator',scriptName:'academy-feature-split-coordinator',useSQLite:true}}});
+  if(probe)workers.push({...common,name:'local-test-only-rpc-verifier',script:"export default {async fetch(request,env){const stub=env.PROBE.getByName("+JSON.stringify('jwt-feature-bootstrap:'+contract.planId+':'+contract.sourceDigest)+");for(const method of ['setupStatus','setupExecute','setupSchemaStatus','setupSchemaExecute']){try{await stub[method]({source:"+JSON.stringify(contract.source)+",manifestHash:"+JSON.stringify(contract.manifestHash)+"});return new Response(null,{status:500});}catch{}}return new Response(null,{status:410});}};",durableObjects:{PROBE:{className:'JWTFeatureAcademySplitCoordinator',scriptName:'academy-feature-split-coordinator',useSQLite:true}}});
+
   return convertV4MiniflareOptions({workers});
  }
  mf=new Miniflare(options(sw.script,sc.script,p.worker.vars,p.coordinator.vars,sealed));
  try{
-  const {sql}=await import('../tools/jwt-feature-setup-contract.mjs').then(m=>m.setupContract({source:process.env.GITHUB_SHA,databaseIds:receipt.databaseIds}));
+  const {sql}=await import('../tools/jwt-feature-setup-contract.mjs').then(m=>m.setupContract({source:process.env.GITHUB_SHA,databaseIds:receipt.databaseIds,structuredDDL:true}));
   const db={core:await mf.getD1Database('JWT_V110_CORE_DB','feature_worker'),admin:await mf.getD1Database('JWT_V110_ADMIN_DB','feature_worker')};
-  for(const owner of ['core','admin'])for(let n=0;n<sql[owner].length;n+=30)await db[owner].batch(sql[owner].slice(n,n+30).map(x=>db[owner].prepare(x)));
+  await db.core.batch([db.core.prepare(sql.core[0])]); // Exact observed one-table starting state, LOCAL fixture only.
   const denied=await mf.dispatchFetch(origin+'/academy/');assert.equal(denied.status,503);assert.deepEqual(await denied.json(),{code:'FEATURE_SETUP_PAUSED'});
+  const schema=await capsule.setup({contract,issued:p.publicManifest.issued,expires:p.publicManifest.expires,phase:'schema'});
+  assert.equal(schema.receipt.state,'VERIFIED');assert.equal(schema.receipt.stage,'SCHEMA_ONLY');
   const setup=await capsule.setup({contract,issued:p.publicManifest.issued,expires:p.publicManifest.expires});
   assert.equal(setup.receipt.state,'VERIFIED');assert.equal(setup.executeRequests,1);assert.equal(setup.statusRequests,1);
   const credentials=(await db.core.prepare('SELECT pin_hash FROM account_credentials ORDER BY account_id').all()).results;assert.equal(credentials.length,4);
@@ -56,7 +59,7 @@ test('actual temporary native constructors seed only fresh local pair; final PAU
   const final=completeInstallPackage(p,baseline,receipt,contract,{timetableNamespaceId:'c'.repeat(32),splitNamespaceId:'d'.repeat(32),publicKid:capsule.publicKey.kid,publicKeys:[capsule.publicKey],verifiedAt:new Date().toISOString()});assertNoTemporarySurface(final);
   const finalSealed=Object.fromEntries(Object.entries(sealed).filter(([k])=>!k.startsWith('JWT_FEATURE_SETUP_')));
   await mf.setOptions(options(fw.script,fc.script,final.worker.vars,final.coordinator.vars,finalSealed,true));
-  for(const path of ['/__jwt_feature_release','/internal/feature-jwt-setup/status','/auth/v110/login']){
+  for(const path of ['/__jwt_feature_release','/internal/feature-jwt-setup/status','/internal/feature-jwt-setup/schema-status','/internal/feature-jwt-setup/execute','/internal/feature-jwt-setup/schema-execute','/auth/v110/login']){
    const response=await mf.dispatchFetch(origin+path);assert.equal(response.status,503);assert.equal(response.headers.get('set-cookie'),null);assert(response.headers.get('cache-control')?.includes('no-store'));assert.deepEqual(await response.json(),{code:'FEATURE_JWT_UNAVAILABLE'});
   }
   const verifier=await mf.getWorker('local-test-only-rpc-verifier');assert.equal((await verifier.fetch('https://local-verifier.invalid/')).status,410,'OLD_SETUP_RPC_STILL_AVAILABLE');
@@ -68,6 +71,6 @@ test('actual temporary native constructors seed only fresh local pair; final PAU
   assert.deepEqual(smoke.calls.map(x=>x.status),[200,200,200,200,403,200,200,401]);
   assert.equal(smoke.metricsObserved,false);assert.equal(smoke.totals.rowsRead,null);
   const out=resolve(process.env.RUNNER_TEMP,'jwt-install-package-evidence');mkdirSync(out,{recursive:true});
-  writeFileSync(resolve(out,'workerd-package.json'),JSON.stringify({source:process.env.GITHUB_SHA,scope:'LOCAL_ONLY_ACTUAL_PRODUCTION_CONSTRUCTORS',selectedCompatibilityDate:'2026-10-23',nodeVersion:process.version,miniflareVersion:require('miniflare/package.json').version,installedSignerEightRequestStatuses:smoke.calls.map(x=>x.status),eightRequestMetricsObserved:false,setupRequests:2,seedVerified:true,nativeCredentialVerifications:4,finalPausedDenials:3,setupRPCRemoved:true,finalProductionGraphsExcludeSetupAndTests:true,heldLocalSentinelSelects:2,additionalLocalCredentialSelects:1,fixtureDDLExcluded:true,hostedCalls:0},null,2)+'\n');
+  writeFileSync(resolve(out,'workerd-package.json'),JSON.stringify({source:process.env.GITHUB_SHA,scope:'LOCAL_ONLY_ACTUAL_PRODUCTION_CONSTRUCTORS',selectedCompatibilityDate:'2026-10-23',nodeVersion:process.version,miniflareVersion:require('miniflare/package.json').version,installedSignerEightRequestStatuses:smoke.calls.map(x=>x.status),eightRequestMetricsObserved:false,schemaRequests:2,structuredSchemaVerified:true,setupRequests:2,seedVerified:true,nativeCredentialVerifications:4,finalPausedDenials:6,setupRPCMethodsRemoved:4,setupRPCRemoved:true,finalProductionGraphsExcludeSetupAndTests:true,heldLocalSentinelSelects:2,additionalLocalCredentialSelects:1,fixtureDDLExcluded:true,hostedCalls:0},null,2)+'\n');
  }finally{capsule.destroy();for(const k of Object.keys(sealed))sealed[k]='';await mf.dispose();}
 });

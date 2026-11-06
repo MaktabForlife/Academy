@@ -1,4 +1,4 @@
-// One-time separately approved setup. No database creation or DDL capability.
+// One-time separately approved NEW-only structured schema + private seed setup.
 import assert from 'node:assert/strict';
 import {readFileSync,writeFileSync,mkdirSync,cpSync,readdirSync,lstatSync} from 'node:fs';
 import {resolve,join,relative} from 'node:path';
@@ -21,15 +21,15 @@ async function main(){
  assert.match(source,/^[a-f0-9]{40}$/);
  const api=githubClient(process.env.GITHUB_TOKEN);
  const approved=await setupApproval({api,mergeSha:process.env.APPROVAL_MERGE_SHA,prNumber:process.env.APPROVAL_PR,featureSha:source});
- const schemaReceipt=assertSchemaReceipt(read('config/jwt-feature-schema-receipt.json'));
- assert.equal(hash(readFileSync(resolve(root,'config/jwt-feature-schema-receipt.json'))),approved.plan.schemaReceiptSHA256);
+ const schemaReceipt=assertSchemaReceipt(read('config/jwt-feature-starting-receipt.json'));
+ assert.equal(hash(readFileSync(resolve(root,'config/jwt-feature-starting-receipt.json'))),approved.plan.startingReceiptSHA256);
  assert.deepEqual(schemaReceipt.databaseIds,approved.plan.databaseIds);
  const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8'}).trim();
  assert.equal(git('rev-parse','HEAD'),source);
  assert.equal(git('status','--porcelain','--untracked-files=no'),'','SOURCE_NOT_CLEAN');
  assert(Number(String(read('version.json').version).split('.')[0])>=110,'FIRST_JWT_MUST_BE_V110');
  const baseline=read('config/feature-initialisation-receipt.json'),baseWorker=read('backend/wrangler.feature.jsonc'),baseCoordinator=read('backend/wrangler.feature-coordinator.jsonc');
- const {contract}=setupContract({source,databaseIds:schemaReceipt.databaseIds});
+ const {contract}=setupContract({source,databaseIds:schemaReceipt.databaseIds,structuredDDL:true});
  const now=Math.floor(Date.now()/1000),owner=process.env.GITHUB_RUN_ID+'-'+process.env.GITHUB_RUN_ATTEMPT;
  const p=compileInstallPackage({baseWorker,baseCoordinator,baseline,schemaReceipt,contract,source,owner,issued:now,expires:now+900});
  const directory=resolve(process.env.RUNNER_TEMP,'jwt-install-private'),publicOut=resolve(process.env.RUNNER_TEMP,'jwt-install-evidence');

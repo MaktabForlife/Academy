@@ -1,0 +1,43 @@
+name: JWT fixed structured DDL phase
+on:
+  create:
+  workflow_dispatch:
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+jobs:
+  schema-phase:
+    if: github.ref == 'refs/heads/validation/jwt-feature-structured-ddl-20261106'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - run: npm ci --prefix backend --no-audit --no-fund
+      - run: npm install --prefix "$RUNNER_TEMP/jwt-schema-runtime" --no-audit --no-fund --save-exact miniflare@5.20261103.0-beta
+      - name: Affected setup and structured-schema claims, no hosted services
+        env:
+          FEATURE_MF_ROOT: ${{ runner.temp }}/jwt-schema-runtime
+          WRANGLER_SEND_METRICS: "false"
+        run: |
+          mkdir -p "$RUNNER_TEMP/jwt-schema-phase-evidence"
+          node --test --test-reporter=tap backend/tests/jwt-feature-setup-auth.test.mjs backend/tests/jwt-feature-setup-workerd.test.mjs backend/tests/jwt-feature-schema-phase.test.mjs backend/tests/jwt-feature-provider-schema.test.mjs 2>&1 | tee "$RUNNER_TEMP/jwt-schema-phase-evidence/schema.log"
+          node --check backend/src/academy/jwt-feature-schema-phase.mjs
+          node --check backend/src/academy/jwt-feature-setup.mjs
+          git diff --check
+          git diff --exit-code
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: jwt-structured-schema-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/jwt-schema-phase-evidence/
+            ${{ runner.temp }}/jwt-private-setup-evidence/
+          if-no-files-found: error
+          retention-days: 30

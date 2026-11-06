@@ -22,7 +22,7 @@ test('exact new-ID temporary package has no assets, no test probes, old bindings
  for(const code of Object.values(p.sources))assert(!code.includes('TEST_FAULT')&&!code.includes('/__test/'));
  assert(p.sources['backend/src/__jwt_feature_setup_coordinator.js'].includes('extends withJWTFeatureSetup(NativeFresh,c)'));
 });
-for(const [name,change]of [['oldID',r=>r.databaseIds=[...baseline.databaseIds]],['sameID',r=>r.databaseIds=[ids[0],ids[0]]],['notVerified',r=>r.state='CREATED_UNINITIALISED'],['notEmpty',r=>r.checks.coreRows=1],['extraCredential',r=>r.pin='uninstalled'],['wrongSchema',r=>r.ddlHashes.core='0'.repeat(64)]]){
+for(const [name,change]of [['oldID',r=>r.databaseIds=[...baseline.databaseIds]],['sameID',r=>r.databaseIds=[ids[0],ids[0]]],['notVerified',r=>r.state='CREATED_UNINITIALISED'],['notEmpty',r=>r.startingFootprints.core.userRows=0],['extraCredential',r=>r.pin='uninstalled'],['wrongSchema',r=>r.ddlHashes.core='0'.repeat(64)]]){
  test('reject schema receipt '+name,()=>{const r=schemaFixture();change(r);assert.throws(()=>assertSchemaReceipt(r));});
 }
 test('completed PAUSED config removes setup HTTP/RPC entry and temporary vars/secrets, retains both old namespaces',()=>{
@@ -39,8 +39,8 @@ test('private capsule exposes only public key metadata, ingress changes only fou
  const text=JSON.stringify(capsule);assert(!text.includes('2468')&&!text.includes('"d":')&&!text.includes('AUTH')&&!text.includes('PRIVATE_KEY'));
  capsule.destroy();await assert.rejects(capsule.ingress(async()=>{}),/CLOSED/);
 });
-function response(c,state='VERIFIED'){
- return Response.json({schema:1,state,source:c.source,manifestHash:c.manifestHash,planId:c.planId,databaseIds:c.databaseIds,...(state==='VERIFIED'?{sourceDigest:c.sourceDigest,verification:{accounts:4,credentials:4,courses:2,sessions:0,families:0,foreignKeyErrors:0,quickCheck:'ok'}}:{})},{headers:{'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});
+function response(c,state='VERIFIED',phase='seed'){
+ return Response.json({schema:1,state,source:c.source,manifestHash:c.manifestHash,planId:c.planId,databaseIds:c.databaseIds,...(phase==='schema'?{stage:'SCHEMA_ONLY'}:{}),...(state==='VERIFIED'?{sourceDigest:c.sourceDigest,verification:phase==='schema'?{core:{objects:1372,tables:172,userRows:0,foreignKeyErrors:0,quickCheck:'ok',fingerprint:c.objectHashes.core},admin:{objects:83,tables:55,userRows:0,foreignKeyErrors:0,quickCheck:'ok',fingerprint:c.objectHashes.admin}}:{accounts:4,credentials:4,courses:2,sessions:0,families:0,foreignKeyErrors:0,quickCheck:'ok'}}:{})},{headers:{'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});
 }
 test('lost execute response performs one status read and never retries execute',async()=>{
  const {contract:c,p}=packageFixture(),calls=[];
@@ -59,7 +59,7 @@ function fakeOps(failAt,withdraw=false){
  const ops={candidateGuard:async()=>{events.push('approval');if(withdraw&&writes>0)throw Error('withdrawn');},ownedGuard:async()=>{events.push('owned');if(current!=='owned')throw Error('foreign');},
   preflight:async()=>{},deploy:async(name,stage)=>{writes++;events.push(stage+':'+name);if(failAt===stage){current='foreign';throw Error('unknown');}},
   patchSecrets:async s=>{writes++;events.push(Object.values(s).every(x=>x===null)?'remove':'secrets');},
-  adoptExpected:async()=>{},probe:async()=>{},setup:async()=>({receipt:{state:'VERIFIED'},executeRequests:1,statusRequests:1}),
+  adoptExpected:async()=>{},probe:async()=>{},schema:async()=>{events.push('schema');return {receipt:{state:'VERIFIED',stage:'SCHEMA_ONLY'},executeRequests:1,statusRequests:1};},setup:async()=>({receipt:{state:'VERIFIED'},executeRequests:1,statusRequests:1}),
   prepareFinal:async()=>{},verifyFinal:async()=>{},pauseRecovery:async()=>{events.push('owned-pause');},verifyRecovery:async()=>{},save:e=>saved.push(e)};
  return {ops,events,saved,get writes(){return writes;}};
 }
@@ -92,10 +92,10 @@ test('metadata refuses old/fresh namespace collision and setup assets',()=>{
  assert.throws(()=>assertRemoteProfile(s,{...p.worker,d1_databases:[],vars:{},secrets:{required:[]},durable_objects:{bindings:[]},r2_buckets:[],ratelimits:[]},baseline,{}),/ASSETS_FORBIDDEN/);
 });
 
-test('concrete transport performs seven guarded writes, forty metadata reads, five Worker attempts and exact secret cleanup using LOCAL mocks only',async()=>{
+test('concrete transport performs seven guarded writes, forty-four metadata reads, eight Worker attempts and exact secret cleanup using LOCAL mocks only',async()=>{
  const {p,receipt,contract}=packageFixture(),configs=new Map(),versions={},nativeSecrets=new Set(bw.secrets.required),activeSecrets=new Set(nativeSecrets),seen=[];
  const initial={'feature_worker':'ca8e1212-ce22-45a8-8949-771cb88d6be6','academy-feature-split-coordinator':'03c17ebf-8eeb-4bd1-ac99-7deb9b1f28b8'};
- configs.set('feature_worker',{...structuredClone(bw),vars:{...bw.vars,ACADEMY_D1_MODE:'ACTIVE',ACADEMY_D1_RUN_ID:baseline.sourceDigest}});configs.set('academy-feature-split-coordinator',structuredClone(bc));Object.assign(versions,initial);let sequence=10,physicalWrites=0,execute=0,status=0;
+ configs.set('feature_worker',{...structuredClone(bw),vars:{...bw.vars,ACADEMY_D1_MODE:'ACTIVE',ACADEMY_D1_RUN_ID:baseline.sourceDigest}});configs.set('academy-feature-split-coordinator',structuredClone(bc));Object.assign(versions,initial);let sequence=10,physicalWrites=0,execute=0,status=0,schemaExecute=0,schemaStatus=0;
  const bump=name=>versions[name]='00000000-0000-4000-8000-'+String(++sequence).padStart(12,'0');
  const remote=c=>{
   const bindings=[];
@@ -124,6 +124,8 @@ test('concrete transport performs seven guarded writes, forty metadata reads, fi
    return Response.json({success:true,result});
   }
   assert.equal(u.origin,'https://feature_worker.maktab4life.workers.dev');
+  if(u.pathname.endsWith('/schema-execute')){schemaExecute++;return response(contract,'VERIFIED','schema');}
+  if(u.pathname.endsWith('/schema-status')&&configs.get('feature_worker').main.includes('__jwt_feature_setup')){schemaStatus++;return response(contract,'VERIFIED','schema');}
   if(u.pathname.endsWith('/execute')){execute++;return response(contract);}
   if(u.pathname==='/internal/feature-jwt-setup/status'&&configs.get('feature_worker').main.includes('__jwt_feature_setup')){status++;return response(contract);}
   return Response.json({code:configs.get('feature_worker').main.includes('__jwt_feature_setup')?'FEATURE_SETUP_PAUSED':'FEATURE_JWT_UNAVAILABLE'},{status:503,headers:{'Cache-Control':'private, no-store'}});
@@ -134,9 +136,9 @@ test('concrete transport performs seven guarded writes, forty metadata reads, fi
  const ops=createInstallOps({root:process.cwd(),directory:dir,p,baseline,expectedVersions:initial,schemaReceipt:receipt,contract,token:'uninstalled-mock-token',candidateGuard:async()=>{},fetcher,runWrangler:async(args,{name,config:c})=>{physicalWrites++;configs.set(name,structuredClone(c));bump(name);}});
  const result=await installFreshFeature({ops,packageInfo:p,privateCapsule:capsule});
  const proof=JSON.parse(readFileSync(resolve(dir,'public/installation.json'),'utf8'));
- assert.equal(result.state,'PAUSED_VERIFIED');assert.equal(physicalWrites,7);assert.equal(proof.explicitCloudflareGets,40);
+ assert.equal(result.state,'PAUSED_VERIFIED');assert.equal(physicalWrites,7);assert.equal(proof.explicitCloudflareGets,44);
  assert.deepEqual(proof.publicSigningKey,capsule.publicKey);assert.deepEqual(proof.lastAcknowledgedVersions,versions);assert.deepEqual(proof.observedFreshNamespaces,{timetable:'c'.repeat(32),split:'d'.repeat(32)});
- assert.equal(execute,1);assert.equal(status,1);assert.equal(proof.setupExecuteAttempts+proof.setupStatusAttempts+proof.httpProbes,5);
+ assert.equal(execute,1);assert.equal(status,1);assert.equal(proof.setupExecuteAttempts+proof.setupStatusAttempts+proof.schemaRequests+proof.httpProbes,8);assert.equal(schemaExecute,1);assert.equal(schemaStatus,1);
  assert.deepEqual([...activeSecrets].sort(),[...nativeSecrets,'JWT_V110_PRIVATE_KEY_JSON','JWT_V110_CSRF_SECRET'].sort());
  const saved=JSON.stringify(proof)+readFileSync(resolve(dir,'public/verified-paused-receipt.json'),'utf8');assert(!saved.includes('NEVER_PUBLIC')&&!saved.includes('2468')&&!saved.includes('"d":'));
  assert(seen.every(x=>x.host==='api.cloudflare.com'||x.host==='feature_worker.maktab4life.workers.dev'));
@@ -152,4 +154,18 @@ test('only strict public JWK association is persisted before private ingress; se
  assert.throws(()=>bindPublicSigningKey(p,{...publicKey,d:'forbidden-private'}));
  assert.throws(()=>bindPublicSigningKey(p,{...publicKey,x:'short'}));
  for(const k of ['JWT_V110_MASTER','JWT_V110_REFRESH','JWT_V110_BROWSER','JWT_V110_NATIVE_COOKIE'])assert.equal(p.worker.vars[k],'0');
+});
+
+test('schema failure cannot reach the independent private seed or final config',async()=>{
+ const f=fakeOps(),p=packageFixture().p;let seeded=false;
+ f.ops.schema=async()=>({receipt:{state:'UNKNOWN',stage:'SCHEMA_ONLY'},executeRequests:1,statusRequests:1});
+ f.ops.setup=async()=>{seeded=true;assert.fail('Seed after unknown schema');};
+ await assert.rejects(installFreshFeature({ops:f.ops,packageInfo:p,privateCapsule:{publicKey,destroy(){},ingress:async fn=>fn({unit:{}})}}));
+ assert.equal(seeded,false);assert(f.events.includes('owned-pause'));assert(!f.events.includes('FINAL_PAUSED:feature_worker'));
+});
+test('schema client checks exact SCHEMA_ONLY fingerprint and never replays a lost execute',async()=>{
+ const {contract,p}=packageFixture();let n=0;
+ const client=setupClient({contract,phase:'schema',issued:p.publicManifest.issued,expires:p.publicManifest.expires,authKey:Buffer.alloc(32,5),fetcher:async(url)=>{n++;assert(url.includes('/schema-'));if(n===1)throw Error('unknown');return response(contract,'VERIFIED','schema');}});
+ const result=await client.run();assert.equal(n,2);assert.equal(result.receipt.stage,'SCHEMA_ONLY');assert.equal(result.receipt.verification.core.fingerprint,contract.objectHashes.core);
+ await assert.rejects(client.request('execute'),/NO_RETRY/);
 });

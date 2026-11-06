@@ -2,7 +2,8 @@
 import assert from 'node:assert/strict';
 import {assertFreshReceipt,renderCandidateConfigs,account,origin} from './jwt-feature-transition.mjs';
 export function releaseProfiles({baseWorker,baseCoordinator,nativeReceipt,installation,installed,source,coordinatorSourceDigest}){
- assertFreshReceipt(installation,nativeReceipt);
+ assertFreshReceipt(installation,nativeReceipt);assert.equal(installation.structuredSchemaVerified,true);
+ assert.deepEqual(installation.schemaVerification,{core:{objects:1372,tables:172,userRows:0,foreignKeyErrors:0,quickCheck:'ok',fingerprint:'2a7347a40d7f2480638a11712f807ac81c2f9ac14f33289acfec1cfa78e5ea1d'},admin:{objects:83,tables:55,userRows:0,foreignKeyErrors:0,quickCheck:'ok',fingerprint:'37ac776cf72d9c57e866698f8b0bc385d60868492b7e1b2306e50dd594ad5a5a'}});
  assert.equal(installation.installedMode,'PAUSED');assert.equal(installation.temporarySecretsRemoved,true);assert.equal(installation.temporarySurfaceRemoved,true);
  assert.match(installation.installOwner,/^[1-9][0-9]{0,19}-[1-9][0-9]{0,4}$/);
  assert.deepEqual(Object.keys(installed).sort(),['coordinatorSourceDigest','coordinatorVersion','mode','releaseId','schema','workerVersion']);
