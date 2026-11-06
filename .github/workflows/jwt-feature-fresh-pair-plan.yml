@@ -32,6 +32,18 @@ jobs:
         env:
           FEATURE_MF_ROOT: ${{ runner.temp }}/jwt-fresh-runtime
         run: node --test --test-reporter=tap backend/tests/jwt-feature-do-context.test.mjs 2>&1 | tee "$RUNNER_TEMP/jwt-fresh-pair-evidence/do-context.log"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 498d0a3dbd25d4c66e2d1938e8305381fcc30187
+          path: app-source
+          persist-credentials: false
+      - run: npm ci --prefix app-source/backend --no-audit --no-fund
+      - name: Fixed eight-request local HTTP projection without browser crawl
+        env:
+          FEATURE_MF_ROOT: ${{ runner.temp }}/jwt-fresh-runtime
+          JWT_APP_SOURCE_ROOT: ${{ github.workspace }}/app-source
+          JWT_APP_SOURCE_SHA: 498d0a3dbd25d4c66e2d1938e8305381fcc30187
+        run: node --test --test-reporter=tap backend/tests/jwt-feature-eight-request.test.mjs 2>&1 | tee "$RUNNER_TEMP/jwt-fresh-pair-evidence/eight-request.log"
       - name: Source syntax and untouched native configuration
         run: |
           node --check backend/src/academy/jwt-feature-storage.mjs

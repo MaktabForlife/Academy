@@ -46,3 +46,7 @@ All tests here run disposable GitHub,0hostedD1/Worker calls; no credentials. One
 Known incomplete items: secure private seed channel; exact final app/entry mapper integration; complete native pending-recovery and retained-rights proof; actual fresh identities/receipt; key installation, new namespace stage and transition deploy integration. No source has been accepted for hosted promotion by this preparation. The owner newFeatureDB instruction was independently read in JWT turn01a1ae52, with later Feature-deploy/production-unchanged instructions aec4/aede; current exact effects/no-existing-DB/protected-PR policy still controls.
 
 Cloudflare primary references checked: https://developers.cloudflare.com/durable-objects/api/alarms/ , https://developers.cloudflare.com/durable-objects/reference/durable-objects-migrations/ , https://developers.cloudflare.com/workers/static-assets/binding/ .
+
+## Fixed eight-request projection
+
+The helper implements the agreed learner PIN/context/session/own-material200/other-material403/backgroundfalse-refresh/logout/replayed-prelogout-cookie401 flow, no HTTP retries/clock changes/extra verifier SQL. It returns only route/status/numeric metrics, not bodies/keys/PIN/CSRF/cookies. It is first run against pinned parent498d's two-binding disposable fixture; this is baseline preparation, NOT four-binding composition proof or hosted execution. Exact measured row cost determines whether the provisional read cap fits; do not weaken the flow or claim billing. Public static/TLS checks are separate and not added silently.
