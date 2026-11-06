@@ -73,7 +73,8 @@ export function bindPublicSigningKey(p,key){
  return p;
 }
 export function completeInstallPackage(p,baseline,schemaReceipt,contract,{timetableNamespaceId,splitNamespaceId,publicKid,publicKeys,verifiedAt}){
- const receipt={schema:2,state:'VERIFIED',planId:schemaReceipt.planId,accountId:account,databaseNames:[...names],databaseIds:[...schemaReceipt.databaseIds],
+ assert.match(p.publicManifest.coordinatorSourceDigest,/^[a-f0-9]{64}$/,'COORDINATOR_SOURCE_DIGEST');
+ const receipt={schema:2,state:'VERIFIED',coordinatorSourceDigest:p.publicManifest.coordinatorSourceDigest,planId:schemaReceipt.planId,accountId:account,databaseNames:[...names],databaseIds:[...schemaReceipt.databaseIds],
   schemaHashes:{...schemaReceipt.ddlHashes},sourceDigest:contract.sourceDigest,objectNamespace:contract.objectNamespace,synthetic:{accounts:4,courses:2,productionData:false},
   checks:{coreForeignKeys:0,adminForeignKeys:0,coreQuick:'ok',adminQuick:'ok',initialSessions:0,initialFamilies:0},
   timetableNamespaceId,splitNamespaceId,publicKid,publicKeys,reviewedSetupCommit:p.publicManifest.source,verifiedAt};

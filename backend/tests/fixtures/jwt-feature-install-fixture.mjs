@@ -11,5 +11,6 @@ export const schemaFixture=()=>({schema:1,state:'LOADED_COUNTS_CHECKED_FULL_PRIV
 export function packageFixture(){
  const source=process.env.GITHUB_SHA,{contract}=setupContract({source,databaseIds:ids}),receipt=schemaFixture(),issued=Math.floor(Date.now()/1000);
  const p=compileInstallPackage({baseWorker:bw,baseCoordinator:bc,baseline,schemaReceipt:receipt,contract,source,owner:'12345-1',issued,expires:issued+900});
+ p.publicManifest.coordinatorSourceDigest='e'.repeat(64); // Illustrative LOCAL provenance only.
  return {p,contract,receipt};
 }

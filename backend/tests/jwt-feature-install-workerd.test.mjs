@@ -9,6 +9,7 @@ import {packageFixture,bw,bc,baseline} from './fixtures/jwt-feature-install-fixt
 import {completeInstallPackage,assertNoTemporarySurface,bindPublicSigningKey} from '../tools/jwt-feature-install-package.mjs';
 import {createPrivateCapsule} from '../tools/jwt-feature-install-secrets.mjs';
 import {setupClient} from '../tools/jwt-feature-setup-client.mjs';
+import {coordinatorSourceDigest} from '../tools/jwt-feature-code-digest.mjs';
 import {renderCandidateConfigs} from '../tools/jwt-feature-transition.mjs';
 import {runEightRequestSmoke} from '../tools/jwt-feature-eight-request-smoke.mjs';
 import {verifyAcademyPin} from '../src/lib/academy-pin.js';
@@ -21,7 +22,7 @@ async function bundle(path){
  return {script:out.outputFiles[0].text,inputs:Object.keys(out.metafile.inputs)};
 }
 test('actual temporary native constructors seed only fresh local pair; final PAUSED bundle removes setup HTTP/RPC with no secret/probe imports',async()=>{
- const {p,contract,receipt}=packageFixture();for(const [path,data]of Object.entries(p.sources)){mkdirSync(resolve(root,path,'..'),{recursive:true});writeFileSync(resolve(root,path),data);}
+ const {p,contract,receipt}=packageFixture();p.publicManifest.coordinatorSourceDigest=await coordinatorSourceDigest(root);for(const [path,data]of Object.entries(p.sources)){mkdirSync(resolve(root,path,'..'),{recursive:true});writeFileSync(resolve(root,path),data);}
  const sw=await bundle('backend/src/__jwt_feature_setup_worker.js'),sc=await bundle('backend/src/__jwt_feature_setup_coordinator.js'),fw=await bundle('backend/src/academy-feature-jwt-runtime.js'),fc=await bundle('backend/src/academy-split-coordinator.js');
  assert(sw.inputs.some(x=>x.endsWith('academy/jwt-feature-setup.mjs')));assert(sc.inputs.some(x=>x.endsWith('academy/jwt-feature-setup.mjs')));
  assert(!fw.inputs.some(x=>x.endsWith('academy/jwt-feature-setup.mjs'))&&!fc.inputs.some(x=>x.endsWith('academy/jwt-feature-setup.mjs')));

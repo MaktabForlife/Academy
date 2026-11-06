@@ -5,6 +5,7 @@ import {resolve,join,relative} from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {loadFeatureApproval,freshApproval,githubClient} from '../../tools/approved-deployment.mjs';
+import {coordinatorSourceDigest} from './jwt-feature-code-digest.mjs';
 import {releaseProfiles,releaseFreshFeature} from './jwt-feature-release-controller.mjs';
 import {createFeatureReleaseOps} from './jwt-feature-release-transport.mjs';
 const hash=x=>createHash('sha256').update(x).digest('hex');
@@ -16,7 +17,7 @@ export async function deployJWTFeature(){
  const proof=await loadFeatureApproval(),api=githubClient(process.env.GITHUB_TOKEN);assert.equal(proof.plan.contains_jwt,true);
  const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8'}).trim();assert.equal(git('rev-parse','HEAD'),source);assert.equal(git('status','--porcelain','--untracked-files=no'),'');
  const installation=read(marker.setupReceipt),installed=read(marker.baseline),nativeReceipt=read('config/feature-initialisation-receipt.json');
- const profiles=releaseProfiles({baseWorker:read('backend/wrangler.feature.jsonc'),baseCoordinator:read('backend/wrangler.feature-coordinator.jsonc'),nativeReceipt,installation,installed,source});
+ const profiles=releaseProfiles({baseWorker:read('backend/wrangler.feature.jsonc'),baseCoordinator:read('backend/wrangler.feature-coordinator.jsonc'),nativeReceipt,installation,installed,source,coordinatorSourceDigest:await coordinatorSourceDigest(root)});
  const directory=resolve(process.env.RUNNER_TEMP,'jwt-release-private'),evidenceDirectory=resolve(process.env.RUNNER_TEMP,'jwt-release-evidence');mkdirSync(directory,{recursive:true,mode:0o700});
  execFileSync(process.execPath,[resolve(root,'backend/tools/jwt-v110-feature-public-build.mjs')],{cwd:root,stdio:'pipe',env:{...process.env,JWT_V110_EVIDENCE:directory}});
  const pub=JSON.parse(readFileSync(resolve(directory,'public-build.json'),'utf8'));assert.equal(pub.origin,profiles.origin);

@@ -57,7 +57,7 @@ export function createFeatureReleaseOps({root,directory,evidenceDirectory,profil
  };
  const owned=async()=>{for(const name of names)assert.equal(await version(name),versions[name],'VERSION_NOT_OWNED');};
  return {
-  fresh,owned,
+  fresh,owned,targets:profiles.coordinatorChanged?['academy-feature-split-coordinator','feature_worker']:['feature_worker'],
   async preflight(){await fresh();for(const n of names){assert.equal(await verify(n,config[n]),versions[n],'INSTALLED_BASELINE_CHANGED');await address(n);}},
   async deploy(name){const c=name===names[0]?profiles.active.worker:profiles.active.coordinator;await command(name,c,'release-'+name);config[name]=c;pending=name;},
   async adopt(name){assert.equal(pending,name);versions[name]=await verify(name,config[name]);pending=null;},
@@ -86,9 +86,9 @@ export function createFeatureReleaseOps({root,directory,evidenceDirectory,profil
    assert.deepEqual(JSON.parse((await bounded(r)).toString()),{code:'FEATURE_JWT_UNAVAILABLE'});await owned();
   },
   save(evidence){
-   const out={...evidence,source,origin,...report,lastAcknowledgedVersions:{...versions},lastObservedVersions:{...observed},mode:evidence.activated?'ACTIVE':evidence.recovery==='OWNED_FEATURE_PAUSED'?'PAUSED':'NOT_VERIFIED',hostedD1Rows:'unmeasured',localEightRequestProjection:{statements:111,roundTrips:76,rowsRead:831,rowsWritten:36},projectionIsNotHostedBilling:true};
+   const out={...evidence,source,origin,...report,coordinatorUploaded:profiles.coordinatorChanged,coordinatorSourceDigest:profiles.coordinatorSourceDigest,lastAcknowledgedVersions:{...versions},lastObservedVersions:{...observed},mode:evidence.activated?'ACTIVE':evidence.recovery==='OWNED_FEATURE_PAUSED'?'PAUSED':'NOT_VERIFIED',hostedD1Rows:'unmeasured',localEightRequestProjection:{statements:111,roundTrips:76,rowsRead:831,rowsWritten:36},projectionIsNotHostedBilling:true};
    writeFileSync(resolve(evidenceDirectory,'deployment.json'),JSON.stringify(out,null,2)+'\n');
-   if(evidence.activated)writeFileSync(resolve(evidenceDirectory,'next-installed-baseline.json'),JSON.stringify({schema:1,mode:'ACTIVE',releaseId:source,workerVersion:versions[names[0]],coordinatorVersion:versions[names[1]]},null,2)+'\n');
+   if(evidence.activated)writeFileSync(resolve(evidenceDirectory,'next-installed-baseline.json'),JSON.stringify({schema:1,mode:'ACTIVE',releaseId:source,coordinatorSourceDigest:profiles.coordinatorSourceDigest,workerVersion:versions[names[0]],coordinatorVersion:versions[names[1]]},null,2)+'\n');
   }
  };
 }

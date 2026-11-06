@@ -32,6 +32,7 @@ test('completed PAUSED config removes setup HTTP/RPC entry and temporary vars/se
 test('private capsule exposes only public key metadata, ingress changes only four NEW names, destroy stops reuse',async()=>{
  const capsule=await createPrivateCapsule('2468',{kid:publicKey.kid,setupClientFactory:()=>({run:async()=>({state:'uninstalled'})})});
  let keys;await capsule.ingress(async secrets=>{keys=Object.keys(secrets).sort();assert(Object.values(secrets).every(x=>x.type==='secret_text'&&x.text.length>0));
+  assert.equal(JSON.parse(secrets.JWT_V110_PRIVATE_KEY_JSON.text).kid,capsule.publicKey.kid,'PRIVATE_PUBLIC_KID_ASSOCIATION');
   const priv=await webcrypto.subtle.importKey('jwk',JSON.parse(secrets.JWT_V110_PRIVATE_KEY_JSON.text),{name:'ECDSA',namedCurve:'P-256'},false,['sign']),pub=await webcrypto.subtle.importKey('jwk',capsule.publicKey,{name:'ECDSA',namedCurve:'P-256'},false,['verify']),data=new TextEncoder().encode('local-public-key-association');
   const signature=await webcrypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},priv,data);assert(await webcrypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},pub,signature,data),'KEY_ASSOCIATION');});
  assert.deepEqual(keys,['JWT_FEATURE_SETUP_AUTH','JWT_FEATURE_SETUP_PIN','JWT_V110_CSRF_SECRET','JWT_V110_PRIVATE_KEY_JSON']);

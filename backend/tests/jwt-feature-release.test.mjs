@@ -9,13 +9,13 @@ import {completeInstallPackage} from '../tools/jwt-feature-install-package.mjs';
 import {packageFixture,bw,bc,baseline} from './fixtures/jwt-feature-install-fixture.mjs';
 assert.equal(process.env.GITHUB_ACTIONS,'true');
 const hash=x=>createHash('sha256').update(x).digest('hex');
-function fixture(){
+function fixture({coordinatorChanged=false}={}){
  const {p,receipt,contract}=packageFixture(),publicKey={kty:'EC',crv:'P-256',kid:'jwt-feature-v110-20261106a-release-only',x:'A'.repeat(43),y:'B'.repeat(43)};
  const paused=completeInstallPackage(p,baseline,receipt,contract,{timetableNamespaceId:'c'.repeat(32),splitNamespaceId:'d'.repeat(32),publicKid:publicKey.kid,publicKeys:[publicKey],verifiedAt:new Date().toISOString()});
  const workerVersion='00000000-0000-4000-8000-000000000001',coordinatorVersion='00000000-0000-4000-8000-000000000002';
  const installation={...paused.receipt,installedVersions:{feature_worker:workerVersion,'academy-feature-split-coordinator':coordinatorVersion},installOwner:p.publicManifest.owner,installedMode:'PAUSED',temporarySecretsRemoved:true,temporarySurfaceRemoved:true};
- const installed={schema:1,mode:'PAUSED',releaseId:installation.reviewedSetupCommit,workerVersion,coordinatorVersion},source='b'.repeat(40);
- const profiles=releaseProfiles({baseWorker:bw,baseCoordinator:bc,nativeReceipt:baseline,installation,installed,source});
+ const installed={schema:1,coordinatorSourceDigest:installation.coordinatorSourceDigest,mode:'PAUSED',releaseId:installation.reviewedSetupCommit,workerVersion,coordinatorVersion},source='b'.repeat(40);
+ const profiles=releaseProfiles({baseWorker:bw,baseCoordinator:bc,nativeReceipt:baseline,installation,installed,source,coordinatorSourceDigest:coordinatorChanged?'f'.repeat(64):installation.coordinatorSourceDigest});
  return {profiles,installation,installed,source};
 }
 test('routine profile removes migrations, preserves exact new/old store and namespace bindings, and requires cleaned setup',()=>{
@@ -26,7 +26,7 @@ test('routine profile removes migrations, preserves exact new/old store and name
 });
 function fake({where,foreign=false,withdraw=false}={}){
  let writes=0;const events=[],evidence=[];
- const ops={fresh:async()=>{events.push('approval');if(withdraw&&writes)throw Error('withdrawn');},owned:async()=>{events.push('owned');if(foreign&&writes)throw Error('foreign');},preflight:async()=>{events.push('preflight');if(where==='preflight')throw Error('stop');},
+ const ops={targets:['academy-feature-split-coordinator','feature_worker'],fresh:async()=>{events.push('approval');if(withdraw&&writes)throw Error('withdrawn');},owned:async()=>{events.push('owned');if(foreign&&writes)throw Error('foreign');},preflight:async()=>{events.push('preflight');if(where==='preflight')throw Error('stop');},
  deploy:async n=>{writes++;events.push(n);if(where===n)throw Error('unknown');},adopt:async()=>{},publicProof:async()=>{if(where==='public')throw Error('bad static');},smoke:async()=>({totals:{apiRequests:8,rowsRead:null},metricsObserved:false}),verifyFinal:async()=>{},pause:async()=>{events.push('pause');},verifyPaused:async()=>{events.push('paused-verified');},save:x=>evidence.push(x)};
  return {ops,events,evidence,get writes(){return writes;}};
 }
@@ -39,7 +39,7 @@ test('approval withdrawal after coordinator update permits only owned pause',asy
 test('unknown upload outcome cannot overwrite a changed version',async()=>{const f=fake({where:'feature_worker',foreign:true});await assert.rejects(releaseFreshFeature(f));assert(!f.events.includes('pause'));assert.equal(f.evidence.at(-1).recovery,'NOT_VERIFIED_NO_BLIND_OVERWRITE');});
 test('failed public verification pauses owned JWT source instead of native rollback',async()=>{const f=fake({where:'public'});await assert.rejects(releaseFreshFeature(f));assert(f.events.includes('paused-verified'));assert.equal(f.evidence.at(-1).activated,false);});
 test('actual release transport LOCAL mock: two uploads,24 explicit metadata GETs,3 public+8 auth attempts; no SQL/secret/Pages API',async()=>{
- const f=fixture(),configs={feature_worker:f.profiles.before.worker,'academy-feature-split-coordinator':f.profiles.before.coordinator},versions={feature_worker:f.installed.workerVersion,'academy-feature-split-coordinator':f.installed.coordinatorVersion};
+ const f=fixture({coordinatorChanged:true}),configs={feature_worker:f.profiles.before.worker,'academy-feature-split-coordinator':f.profiles.before.coordinator},versions={feature_worker:f.installed.workerVersion,'academy-feature-split-coordinator':f.installed.coordinatorVersion};
  const publicBodies={'/academy/':'<html><body>only synthetic public shell</body></html>','/auth/v110/browser-config.js':'window.M4L_V110_CONFIG=Object.freeze({enabled:true});'};
  const assets=new Map(Object.entries(publicBodies).map(([k,v])=>[k,hash(v)]));let sequence=10,requests=0,writes=0,approvalChecks=0;
  function metadata(c){
@@ -94,4 +94,12 @@ test('JWT Feature approval selects only the new routine workflow; configuration 
  assert.equal(featureReleaseWorkflow({kind:'configuration',target:'none',contains_jwt:false}),'feature-isolation-check.yml');
  assert.throws(()=>featureReleaseWorkflow({kind:'release',target:'production',contains_jwt:true}));
  assert.throws(()=>featureReleaseWorkflow({kind:'release',target:'feature',contains_jwt:false}));
+});
+
+test('byte-identical coordinator source graph needs no unrelated coordinator upload',async()=>{
+ const f=fixture();assert.equal(f.profiles.coordinatorChanged,false);
+ const changing=fixture({coordinatorChanged:true});assert.equal(changing.profiles.coordinatorChanged,true);
+ let targets;const observed=[];
+ const ops={targets:['feature_worker'],preflight:async()=>{},fresh:async()=>{},owned:async()=>{},deploy:async name=>observed.push(name),adopt:async()=>{},publicProof:async()=>{},smoke:async()=>({}),verifyFinal:async()=>{},save:()=>{}};
+ await releaseFreshFeature({ops});assert.deepEqual(observed,['feature_worker']);
 });
