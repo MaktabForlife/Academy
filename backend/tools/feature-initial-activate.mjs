@@ -44,7 +44,7 @@ async function main(){
   assert.equal((await api('/pages/projects/academy-maktab4life')).production_branch,'development');
   await head();changed=true;command(['deploy','--config',configFor(active,'active')],'active-worker');await settings(active);
   evidence.state='ACTIVE_BOUNDED_CHECK';save();
-  evidence.smoke=await featureSmoke({request:fetch,pin:process.env.FEATURE_TEST_ADMIN_PIN,onSession:value=>{sessionOpen=value;}});
+  evidence.smoke=await featureSmoke({request:fetch,pin:process.env.FEATURE_TEST_ADMIN_PIN,expectedVersion:read('version.json').version,onSession:value=>{sessionOpen=value;}});
   await settings(active);await settings(coordinator,true);await head();
   evidence.workerVersion=await version(worker.name);evidence.coordinatorVersion=await version(coordinator.name);evidence.state='VERIFIED';evidence.success=true;save();
   const initialisation={...read('config/feature-initialisation-receipt.json'),state:'VERIFIED',sourceDigest:seed.sourceDigest,timetableNamespaceId:receipt.timetableNamespaceId,splitNamespaceId:receipt.splitNamespaceId,nativeProofRun:seed.nativeProofRun,verifiedAt:new Date().toISOString(),initialVerificationRun:Number(process.env.GITHUB_RUN_ID),initialVerificationCommit:process.env.GITHUB_SHA};
