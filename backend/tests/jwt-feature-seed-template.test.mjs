@@ -18,7 +18,7 @@ test('public synthetic template is invariant under distinct uninstalled PINs/sec
  const a=await prepare('2468',secrets('a')),b=await prepare('1357',secrets('b'));
  try{
   const x=credentialFreeSeedTemplate(a),y=credentialFreeSeedTemplate(b);
-  assert.equal(x.core,y.core,'Noncredential Core must not depend on test credentials');assert.equal(x.admin,y.admin);assert.deepEqual(x.publicReport,y.publicReport);
+  assert(x.core===y.core,'PUBLIC_TEMPLATE_CORE_DIFFERENCE');assert(x.admin===y.admin,'PUBLIC_TEMPLATE_ADMIN_DIFFERENCE');assert(JSON.stringify(x.publicReport)===JSON.stringify(y.publicReport),'PUBLIC_TEMPLATE_REPORT_DIFFERENCE');
   assert.equal(x.credentialPlaceholders,4);assert.equal(x.executableAsSeed,false);
   const out=resolve(process.env.RUNNER_TEMP,'jwt-fresh-pair-evidence');mkdirSync(out,{recursive:true});
   writeFileSync(resolve(out,'core-credential-FREE-template.sql'),x.core);

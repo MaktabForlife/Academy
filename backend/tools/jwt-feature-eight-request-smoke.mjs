@@ -49,7 +49,7 @@ export async function runEightRequestSmoke({dispatch,uniqueid,pin,expectedAccoun
   await step('persisted-cancellation','/api/account/session','POST',{},401,{replayCookie:replay});
   if(calls.length!==8)safe('REQUEST_COUNT');
   const totals={apiRequests:8,roundTrips:0,statements:0,rowsRead:0,rowsWritten:0,privateRpc:0,r2:0,remote:0,rateChecks:0};
-  for(const c of calls)if(c.metrics)for(const k of Object.keys(c.metrics))totals[k]+=c.metrics[k];
-  return Object.freeze({schema:1,kind:'FIXED_EIGHT_HTTP_SMOKE',origin,calls,totals,replayedNonemptyPreLogoutCookie:true,backgroundFlag:false,clockChanged:false,httpRetries:0,hostedExecuted:false,metricsObserved:requireMetrics,withinProvisional1000ReadPlanningCeiling:requireMetrics?totals.rowsRead<=1000:null,scope:'No browser/static crawl or foreground claim. Values/cookies/CSRF/PIN remain internal; only fixed route/status/numeric telemetry is returned.'});
+  const allObserved=calls.every(c=>c.metrics!==null);for(const c of calls)if(c.metrics)for(const k of Object.keys(c.metrics))totals[k]+=c.metrics[k];if(!allObserved)for(const k of Object.keys(totals))if(k!=='apiRequests')totals[k]=null;
+  return Object.freeze({schema:1,kind:'FIXED_EIGHT_HTTP_SMOKE',origin,calls,totals,replayedNonemptyPreLogoutCookie:true,backgroundFlag:false,clockChanged:false,httpRetries:0,metricsObserved:allObserved,withinProvisional1000ReadPlanningCeiling:allObserved?totals.rowsRead<=1000:null,scope:'No browser/static crawl or foreground claim. Values/cookies/CSRF/PIN remain internal; only fixed route/status/numeric telemetry is returned.'});
  }finally{jar.clear();proof='';selector='';replay='';pin='';}
 }

@@ -48,7 +48,7 @@ jobs:
         env:
           JWT_APP_SOURCE_ROOT: ${{ github.workspace }}/app-source
           JWT_APP_SOURCE_SHA: e8e26af7e5c6275656faa5c24985098e377439d0
-          JWT_CANONICAL_SHA: fb739eed1cf5b4f2b2490088b5802ddfd1d5d710
+          JWT_CANONICAL_SHA: 50c32f6f550b52512453461074ad6e12af384fe3
         run: node tools/compose-jwt-feature-source.mjs
       - name: Source syntax and untouched native configuration
         run: |
