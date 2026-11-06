@@ -23,3 +23,5 @@ V110.9 corrects the unexercised Core-only race fixture to use the actual native 
 V110.10 fixes an overescaped whitespace expression in the synthetic race hook. Run42167825284 failed39/40 because the hook did not fire; the dependent workerd job correctly stayed skipped. No runtime or hosted change.
 
 V110.11 adds a narrow native cookie logout regression and redacted local D1 failure classification to diagnose the workerd logout503. V110.10 native40/40 passed, but its dependent workerd run42168048291 failed at logout and is not full-flow acceptance evidence. No hosted change.
+
+V110.12 balances the unchanged JWT SQL conjunction to reduce expression depth in nested native guards. Run42168471689 native41/41 passed but workerd logout failed with D1 expression depth100; this is a proposed runtime correction until proved. The local workerd scenario now includes actual Global Admin Core-only bookmark and private owner-coordinator Course card writes before the scoped learner sequence: exactly13 explicit local requests, no hosted use.
