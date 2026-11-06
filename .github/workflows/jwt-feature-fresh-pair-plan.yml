@@ -91,6 +91,7 @@ jobs:
           name: jwt-fresh-pair-plan-${{ github.run_id }}
           path: ${{ runner.temp }}/jwt-fresh-pair-evidence/
           if-no-files-found: error
+          include-hidden-files: true
           retention-days: 30
   inventory:
     if: github.ref == 'refs/heads/validation/jwt-feature-fresh-pair-20261106' && inputs.inventory_only
@@ -134,4 +135,5 @@ jobs:
           name: jwt-fresh-pair-inventory-${{ github.run_id }}
           path: ${{ runner.temp }}/jwt-fresh-pair-evidence/
           if-no-files-found: error
+          include-hidden-files: true
           retention-days: 30
