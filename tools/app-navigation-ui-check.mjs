@@ -70,7 +70,7 @@ try{
    assert(anchors.every(a=>a.target!=='_blank'),'Internal PDF reader cannot open another tab');
   }
   await page.screenshot({path:resolve(out,'native-'+label.toLowerCase()+'.png'),fullPage:true});
-  const destination=await page.evaluate(()=>location.pathname+location.search+location.hash);
+  const at=new URL(page.url());const destination=at.pathname+at.search+at.hash;assert.equal(at.origin,base);assert.notEqual(at.pathname,'/');
   await home.click();await page.waitForURL(base+'/?workspace=admin');
   await page.waitForFunction(()=>document.body.dataset.circlesDashboardMode==='admin'&&document.querySelector('#circles-dashboard')?.getClientRects().length);
   assert.equal(context.pages().length,count);assert.equal(page.isClosed(),false);assert.equal(opener.isClosed(),false);
