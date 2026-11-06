@@ -15,18 +15,21 @@ const {sqliteD1}=await import(pathToFileURL(resolve(fixtureRoot,'backend/tools/a
 const {chromium}=await import(pathToFileURL(resolve(process.env.REVIEW_BROWSER_MODULES,'node_modules/playwright/index.mjs')).href);
 const assets=resolve('.academy-pages'),out=resolve(process.env.RUNNER_TEMP,'home-login-evidence');
 await mkdir(out,{recursive:true});
-const h=hosting(),base=h.academyPortalOrigin,errors=[],records=[],requests=[],blocked=[];
+const h=hosting(),base=h.academyPortalOrigin,errors=[],records=[],requests=[],blocked=[],nativeDenials=[],serviceCalls=[];
 const secrets=Object.fromEntries(['PIN_SECRET','SESSION_SECRET','SHARED_PIN_SECRET','ACADEMY_OPEN_LIBRARY_STORAGE_KEY'].map(k=>[k,crypto.randomUUID()+crypto.randomUUID()]));
 const seed=await prepareFeatureSeed({pin:'2468',secrets});
 const core=emptyCompatibilityDatabase(sqliteD1(seed.databases.core),emptyShapes,{currentGrants:true}),admin=sqliteD1(seed.databases.admin),engine=splitEngine({core,admin});
 const cfg=JSON.parse(await readFile('backend/wrangler.feature.jsonc','utf8'));
-const env={...cfg.vars,...secrets,ACADEMY_D1_MODE:'ACTIVE',ACADEMY_D1_RUN_ID:seed.report.sourceDigest,ACADEMY_DB:sqliteD1(seed.databases.core),ACADEMY_ADMIN_DB:admin,ACADEMY_SPLIT_COORDINATOR:{getByName(){return {read:async(...args)=>({result:await engine.read(...args)}),write:async(...args)=>({result:await engine.write(...args)})};}},AUTH_LOGIN_RATE_LIMITER:{limit:async()=>({success:true})},ALLOWED_ORIGINS:base};
+const bridgeSecret=crypto.randomUUID()+crypto.randomUUID();
+const studioFixture={async fetch(url,init){const request=new Request(url,init),u=new URL(request.url);assert.equal(u.origin,h.studioBackendOrigin);assert.equal(request.method,'POST');assert(request.headers.get('X-Maktab-Signature'));serviceCalls.push(u.pathname);if(u.pathname==='/internal/academy/events')return Response.json({success:true});if(u.pathname==='/internal/studio/hub-summary')return Response.json({navigation:{academia:[],mothers:true,hifz:null,tafseer:'/studio/?view=collections&collection=tafseer'},websites:[],rights:{websites:[]}});throw Error('Unexpected synthetic Studio operation');}};
+const env={...cfg.vars,...secrets,ACADEMY_TO_WEBSITE_SECRET:bridgeSecret,WEBSITE_PLATFORM_SERVICE:studioFixture,ACADEMY_D1_MODE:'ACTIVE',ACADEMY_D1_RUN_ID:seed.report.sourceDigest,ACADEMY_DB:sqliteD1(seed.databases.core),ACADEMY_ADMIN_DB:admin,ACADEMY_SPLIT_COORDINATOR:{getByName(){return {read:async(...args)=>({result:await engine.read(...args)}),write:async(...args)=>({result:await engine.write(...args)})};}},AUTH_LOGIN_RATE_LIMITER:{limit:async()=>({success:true})},ALLOWED_ORIGINS:base};
 const originalFetch=globalThis.fetch;let remoteAttempts=0;
 globalThis.fetch=async()=>{remoteAttempts++;throw Error('Unexpected server remote call');};
 const browser=await chromium.launch({headless:true});
 const mime={'.html':'text/html','.css':'text/css','.js':'text/javascript','.mjs':'text/javascript','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml','.woff2':'font/woff2','.ttf':'font/ttf'};
 async function native(url,options={}){
  const response=await worker.fetch(new Request(url,options),env,{waitUntil(){throw Error('Unexpected background work');}});
+ if(!response.ok){let value;try{value=await response.clone().json();}catch{}nativeDenials.push({path:new URL(url).pathname,status:response.status,code:value?.code||null});}
  return response;
 }
 const context=await browser.newContext({viewport:{width:2048,height:1100},reducedMotion:'reduce',serviceWorkers:'block'});
@@ -94,6 +97,6 @@ try{
  assert.deepEqual(errors,[],'Page errors');assert.equal(remoteAttempts,0);
 }finally{
  await page.screenshot({path:resolve(out,'final-state.png'),fullPage:true}).catch(()=>{});
- await writeFile(resolve(out,'report.json'),JSON.stringify({commit:process.env.GITHUB_SHA,records,pageErrors:errors,requestCounts:requests.reduce((a,r)=>({...a,[r.path+':'+r.kind]:(a[r.path+':'+r.kind]||0)+1}),{}),blockedExternalOrigins:[...new Set(blocked)],remoteAttempts,hostedRequests:0,hostedDBReads:0,syntheticNativeSQLiteOnly:true},null,2));
+ await writeFile(resolve(out,'report.json'),JSON.stringify({commit:process.env.GITHUB_SHA,records,pageErrors:errors,nativeDenials,syntheticStudioFixtureCalls:serviceCalls,studioAuthorizationParityProved:false,requestCounts:requests.reduce((a,r)=>({...a,[r.path+':'+r.kind]:(a[r.path+':'+r.kind]||0)+1}),{}),blockedExternalOrigins:[...new Set(blocked)],remoteAttempts,hostedRequests:0,hostedDBReads:0,syntheticNativeSQLiteOnly:true},null,2));
  await browser.close();seed.close();globalThis.fetch=originalFetch;
 }

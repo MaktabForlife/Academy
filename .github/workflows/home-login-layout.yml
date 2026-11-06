@@ -1,6 +1,5 @@
 name: Home login layout reproduction
 on:
-  create:
   push:
     branches: [feature/home-login-layout-20261106]
   workflow_dispatch:
