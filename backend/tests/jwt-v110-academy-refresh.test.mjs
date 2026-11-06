@@ -123,7 +123,7 @@ test('Real native PIN creates the first JWT family and returns cookies, not a le
  const row=f.native.prepare('SELECT * FROM jwt_v110_families').get(),session=f.native.prepare('SELECT * FROM account_sessions WHERE session_id=?').get(row.family_id);
  assert.equal(row.original_signed_in_at_s,Math.floor(Date.parse(session.created_at)/1000));assert.equal(row.original_expires_at_s,Math.floor(Date.parse(session.expires_at)/1000));assert.equal(row.refresh_generation,1);assert.equal(row.revoked,0);
  const cookie=r.response.headers.getSetCookie().find(c=>c.startsWith('__Host-uaa_r=')).split(';')[0];
- const repeat=await f.call('/auth/v110/refresh',{cookie,proof:r.data.csrf});assert.equal(repeat.status,200,repeat.data.code);
+ const repeat=await f.call('/auth/v110/refresh',{cookie,proof:r.data.csrf});assert.equal(repeat.status,200,repeat.data.code);records.push({case:'native-pin-to-first-jwt',nativePinToJWTInSQLite:true,hostDeliveryProved:false});
 }));
 test('Wrong PIN, native limiter denial and bad signer cannot create a JWT session',withFamily(async f=>{
  const nativeCount=()=>f.native.prepare('SELECT count(*) n FROM account_sessions').get().n;
@@ -172,6 +172,12 @@ test('A stale cached WEBSITE context never substitutes for current native admiss
  f.native.prepare("UPDATE website_platform_admissions SET active=0 WHERE account_id=?").run(f.id);repo.session=async()=>stale;
  const service=await createAccountBoundAcademyRefresh({binding:f.env.ACADEMY_DB,repository:repo,...f.config});const result=await service.refreshAndIssue(f.raw);assert.equal(result.kind,'rotated');
  const v=await (await createNativeCookieEngine(f.config)).verify(result.setCookies[0].split(';')[0].split('=')[1],now());assert.equal(v.rights.websiteAdmitted,false);
+}));
+
+
+test('Prepared client response survives the CAS privately and an async response factory cannot rotate',withFamily(async f=>{
+ const service=await createAccountBoundAcademyRefresh({binding:f.env.ACADEMY_DB,repository:academyD1Repository(f.env),...f.config,prepareClient:async()=>()=>Response.json({ready:true})});
+ const result=await service.refreshAndIssue(f.raw);assert.equal(result.kind,'rotated');assert(result.clientResponse instanceof Response);assert.deepEqual(await result.clientResponse.json(),{ready:true});assert.equal(Object.keys(result).includes('clientResponse'),false);
 }));
 
 test.after(()=>{

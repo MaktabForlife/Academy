@@ -33,8 +33,8 @@ export async function handleAcademyPIN(request,env,{performNativeLogin,clock=()=
   const input=await bounded(request),repository=academyD1Repository(env);
   // The callback invokes the real native dispatch and captures only its
   // server-side checked state/context/session. Its legacy token stays in RAM.
-  const {native,publicResult}=await performNativeLogin(input,{setup});
   const csrfKey=await crypto.subtle.importKey('raw',bytes,{name:'HMAC',hash:'SHA-256'},false,['sign']);
+  const {native,publicResult}=await performNativeLogin(input,{setup});
   config.prepareClient=async({claims:c})=>{
    const packet=['uaa-csrf-v1','academy',issuer,c.sid,c.sub,c.psid,c.bsid,c.bv,c.ce,c.ue,c.s_iat,c.s_exp];
    const csrf=base64url.encode(new Uint8Array(await crypto.subtle.sign('HMAC',csrfKey,new TextEncoder().encode(JSON.stringify(packet)))));

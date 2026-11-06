@@ -9,3 +9,5 @@ V110.2 adds default-disabled Academy prepared own refresh and a scoped synthetic
 V110.3 corrects the new workflow's test-pipeline failure propagation and copies already-verified native database rows to ordinary objects at the strict rights-codec boundary. Run42157619929 had8passing/8failing test executions despite a green job and is not acceptance evidence. No hosted change.
 
 V110.4 fences native website admission from before state loading through commit, and stages a default-disabled native PIN-to-JWT issuer/PIN unlock. No root marker is selected or installed. First family staging and prepared rotation are separate same-Core transactions; an unpublished failure disables staged records. Browser cookie/native-resource/host/cancellation integration remains pending. No hosted effects.
+
+V110.5 binds website admission explicitly inside CAS because this native table has no split-read version trigger. It also preserves the prepared private HTTP response through the return envelope, guarded before rotation. Run42159796083 correctly failed20pass/4fail; no deployment occurred. The focused races and PIN transition suite are rerun for these changes.
