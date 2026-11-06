@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {build} from 'esbuild';
-import {Miniflare,convertV4MiniflareOptions} from 'miniflare';
+import {resolve} from 'node:path';
+const runtimeRequire=createRequire(resolve(process.env.FEATURE_MF_ROOT,'package.json'));
+const {Miniflare,convertV4MiniflareOptions}=runtimeRequire('miniflare');
 import {prepareFeatureSeed,featureSyntheticAccounts} from '../tools/feature-synthetic-seed.mjs';
 import {hosting} from '../src/academy/hosting.mjs';
 const secrets=Object.fromEntries(['PIN_SECRET','SESSION_SECRET','SHARED_PIN_SECRET','ACADEMY_OPEN_LIBRARY_STORAGE_KEY'].map(k=>[k,'local-budget-only-not-a-hosted-credential-'+k]));
@@ -40,7 +42,7 @@ test('Five-request native Feature smoke flow measures actual local D1 metadata a
   const totals={workerRequests:5,privateCoordinatorCalls:0,d1RoundTrips:0,d1Statements:0,d1RowsRead:0,d1RowsWritten:0,r2Operations:0,remoteCalls:0};
   for(const {metrics:m}of calls){totals.privateCoordinatorCalls+=m.coordinatorCalls;for(const v of Object.values(m.d1)){totals.d1RoundTrips+=v.roundTrips;totals.d1Statements+=v.statements;totals.d1RowsRead+=v.rowsRead;totals.d1RowsWritten+=v.rowsWritten;}totals.r2Operations+=Object.values(m.r2).reduce((a,b)=>a+b,0);totals.remoteCalls+=m.remoteCalls;}
   assert(totals.d1RowsRead>0);assert(totals.d1RowsWritten>0);assert(totals.privateCoordinatorCalls>0,'Actual requested-resource authority reads must cross private native RPC');
-  const report={schema:1,kind:'LOCAL_FEATURE_SMOKE_BUDGET',commit:process.env.GITHUB_SHA,compatibilityDate,compatibilityFlags,syntheticAccounts:4,syntheticCourses:2,hostedDatabaseReads:0,hostedWorkerCalls:0,telemetry:'Actual local D1 meta.rows_read/rows_written including native triggers/indexes; instrumentation calls all() to retain metadata for first() reads. Not a hosted billing guarantee or whole-app budget.',calls,totals};
+  const report={runtime:{miniflare:JSON.parse(readFileSync(resolve(process.env.FEATURE_MF_ROOT,'node_modules/miniflare/package.json'),'utf8')).version,workerd:JSON.parse(readFileSync(resolve(process.env.FEATURE_MF_ROOT,'node_modules/workerd/package.json'),'utf8')).version},schema:1,kind:'LOCAL_FEATURE_SMOKE_BUDGET',commit:process.env.GITHUB_SHA,compatibilityDate,compatibilityFlags,syntheticAccounts:4,syntheticCourses:2,hostedDatabaseReads:0,hostedWorkerCalls:0,telemetry:'Actual local D1 meta.rows_read/rows_written including native triggers/indexes; instrumentation calls all() to retain metadata for first() reads. Not a hosted billing guarantee or whole-app budget.',calls,totals};
   if(process.env.FEATURE_BUDGET_EVIDENCE){mkdirSync(process.env.FEATURE_BUDGET_EVIDENCE,{recursive:true});writeFileSync(process.env.FEATURE_BUDGET_EVIDENCE+'/local-smoke-budget.json',JSON.stringify(report,null,2)+'\n');}
   console.log(JSON.stringify({totals,hostedDatabaseReads:0,hostedWorkerCalls:0}));
  }finally{await runtime?.dispose();seed.close();}
