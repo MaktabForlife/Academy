@@ -37,3 +37,54 @@ jobs:
           path: ${{ runner.temp }}/course-list-evidence/
           if-no-files-found: error
           retention-days: 14
+  browser:
+    needs: local-native
+    name: Course page (${{ matrix.browser }})
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: MaktabForlife/Academy
+          ref: bbf9b109fd703b801bbb6ab19e6f3e0bbd355ced
+          path: fixture-source
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.18.0'
+      - run: npm ci --prefix backend --no-audit --no-fund
+      - run: npm ci --prefix fixture-source/backend --no-audit --no-fund
+      - run: node backend/tools/academy-pages-build.mjs
+      - name: Install isolated browser
+        env:
+          REVIEW_BROWSER_MODULES: ${{ runner.temp }}/course-list-browser
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/course-list-browsers
+        run: |
+          set -euo pipefail
+          npm install --prefix "$REVIEW_BROWSER_MODULES" --no-save --package-lock=false --no-audit --no-fund playwright@1.56.1
+          node "$REVIEW_BROWSER_MODULES/node_modules/playwright/cli.js" install --with-deps ${{ matrix.browser }}
+      - name: Exercise packaged Course list and native settings
+        env:
+          REVIEW_BROWSER_MODULES: ${{ runner.temp }}/course-list-browser
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/course-list-browsers
+          HOME_LOGIN_FIXTURE_ROOT: ${{ github.workspace }}/fixture-source
+          HOME_LOGIN_BROWSER: ${{ matrix.browser }}
+        run: |
+          set -euo pipefail
+          node tools/course-list-ui-check.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: course-list-${{ matrix.browser }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/course-list-evidence/
+          if-no-files-found: error
+          retention-days: 14
