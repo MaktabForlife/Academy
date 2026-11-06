@@ -94,7 +94,8 @@ try{
  const after=await page.evaluate(()=>({url:location.pathname+location.search,admin:document.body.dataset.circlesDashboardMode,rawFrames:window.__homeLayoutFrames,heroClass:document.querySelector('#learning-circles').className}));
  records.push({case:'real-native-pin-admin-transition',...after});
  assert.equal(after.admin,'admin');assert(after.heroClass.includes('circles-button-dashboard'));assert.deepEqual(after.rawFrames,[],'Deleted promotional card must never paint in candidate');
- assert.equal(await page.locator('[data-home-area=mothers] img').count(),0);assert.equal(await page.locator('[data-home-area=mothers]').textContent().then(x=>x.includes('Classrooms to nurture')),false);
+ assert.equal(await page.locator('[data-home-area=mothers] img').count(),0);
+ assert.equal(await page.locator('[data-home-area=mothers] a[href="/studio/?classroom=mothers"]').count(),1,'Checked Mothers navigation must remain available in the prepared signed-in view');assert.equal(await page.locator('[data-home-area=mothers]').textContent().then(x=>x.includes('Classrooms to nurture')),false);
  for(const width of [320,390,768,1024,1440,2048]){
   await page.setViewportSize({width,height:1100});
   await page.waitForTimeout(60);
