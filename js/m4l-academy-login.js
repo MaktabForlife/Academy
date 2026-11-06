@@ -36,6 +36,7 @@
       if (!window.M4L_V110) return;
       try { clearStoredAccountState(); } catch (_) { /* The workspace remains masked. */ }
       showSignedOut();
+      setBusy(false);
       showLoginForm();
     },
     currentId: () => activeToken && activeToken === localStorage.getItem(tokenKey) ? activeLoginId : "",
@@ -59,7 +60,7 @@
     // ID validation and the existing busy/rate-limit path remain authoritative.
     if (window.M4L_V110 && pinInput.value.length === 4 &&
         /^[A-Za-z0-9._~-]{1,128}$/.test(String(linkInput.value || "").trim()) &&
-        !pinInput.disabled && !form.querySelector('button[type="submit"]').disabled) {
+        !form.hidden && loginDialog.open && !pinInput.disabled && !form.querySelector('button[type="submit"]').disabled) {
       form.requestSubmit();
     }
   });
