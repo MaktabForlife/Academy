@@ -33,8 +33,9 @@ async function verifiedCookie(request,env,now){
   if(request.headers.get('Origin')!==expected)fail('ORIGIN_NOT_ALLOWED',403);
   const raw=env.JWT_V110_CSRF_SECRET,proof=request.headers.get('X-UAA-CSRF');
   if(typeof raw!=='string'||!/^[-A-Za-z0-9_]{43}$/.test(raw))fail('AUTH_CONFIG_UNAVAILABLE',503);
+  const secret=base64url.decode(raw);if(secret.byteLength!==32||base64url.encode(secret)!==raw)fail('AUTH_CONFIG_UNAVAILABLE',503);
   if(typeof proof!=='string'||!/^[-A-Za-z0-9_]{43}$/.test(proof))fail('CSRF_REQUIRED',403);
-  const secret=base64url.decode(raw),mac=base64url.decode(proof);if(secret.byteLength!==32||base64url.encode(secret)!==raw)fail('AUTH_CONFIG_UNAVAILABLE',503);
+  const mac=base64url.decode(proof);
   if(mac.byteLength!==32||base64url.encode(mac)!==proof)fail('CSRF_REQUIRED',403);
   const key=await crypto.subtle.importKey('raw',secret,{name:'HMAC',hash:'SHA-256'},false,['verify']);
   const c=claims,packet=['uaa-csrf-v1','academy',issuer,c.sid,c.sub,c.psid,c.bsid,c.bv,c.ce,c.ue,c.s_iat,c.s_exp];

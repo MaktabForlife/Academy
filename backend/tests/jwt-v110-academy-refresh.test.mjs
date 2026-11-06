@@ -24,7 +24,7 @@ const withFamily=(fn,{age=0}={})=>async()=>{
   native.exec(readFileSync(new URL('./fixtures/jwt-v110-auth-only.sql',import.meta.url),'utf8'));
   let beforeBatch=null,stageHook=null,lastFailure='';const rawCore=sqliteD1(native),observedCore={...rawCore,withSession(){return observedCore;},async batch(statements){await beforeBatch?.(statements);try{return await rawCore.batch(statements);}catch(error){lastFailure=String(error.message).replace(/[A-Za-z0-9_-]{24,}/g,'[redacted]').replace(/\b\d{4}\b/g,'[digits]');throw error;}}};
   const core=emptyCompatibilityDatabase(observedCore,emptyShapes,{currentGrants:true}),admin=sqliteD1(seed.databases.admin),engine=splitEngine({core,admin,hook:async(...args)=>stageHook?.(...args)});
-  const ns={getByName(){return Object.fromEntries(['read','write'].map(m=>[m,async(...args)=>({result:await engine[m](...args)})]));}};
+  const ns={getByName(){return Object.fromEntries(['read','write'].map(m=>[m,async(...args)=>({result:await engine[m](...JSON.parse(JSON.stringify(args)))})]));}};
   const keys=await generateKeyPair('ES256',{extractable:true}),publicJWK={...await exportJWK(keys.publicKey),kid:'synthetic-a'},privateJWK={...await exportJWK(keys.privateKey),kid:'synthetic-a'};
   const cfg=JSON.parse(readFileSync(new URL('../wrangler.feature.jsonc',import.meta.url),'utf8'));
   const env={...cfg.vars,...secrets,ACADEMY_D1_MODE:'ACTIVE',ACADEMY_D1_RUN_ID:seed.report.sourceDigest,ACADEMY_DB:observedCore,ACADEMY_ADMIN_DB:admin,ACADEMY_SPLIT_COORDINATOR:ns,AUTH_LOGIN_RATE_LIMITER:{limit:async()=>({success:true})},JWT_V110_MASTER:'1',JWT_V110_REFRESH:'1',JWT_V110_BROWSER:'1',JWT_V110_REQUEST_ORIGIN:appOrigin,JWT_V110_PUBLIC_KEYS_JSON:JSON.stringify([publicJWK]),JWT_V110_PRIVATE_KEY_JSON:JSON.stringify(privateJWK),JWT_V110_SIGNING_KID:'synthetic-a',JWT_V110_CSRF_SECRET:randomRefresh(),JWT_V110_RATE_LIMITER:{limit:async()=>({success:true})},ALLOWED_ORIGINS:appOrigin+','+h.academyPortalOrigin};
@@ -224,6 +224,9 @@ test('Native cookie configuration failures remain 503; client CSRF failures rema
   const old=f.env[key],before=f.row().refresh_generation;f.env[key]=value;
   const r=await f.call('/api/account/session',auth);assert.equal(r.status,503,key);assert.equal(r.response.headers.getSetCookie().length,0);assert.equal(f.row().refresh_generation,before);f.env[key]=old;
  }
+ const savedSecret=f.env.JWT_V110_CSRF_SECRET;f.env.JWT_V110_CSRF_SECRET='A'.repeat(42)+'B';
+ for(const clientProof of [undefined,'bad']){const extra={...auth.extra};if(clientProof===undefined)delete extra['X-UAA-CSRF'];else extra['X-UAA-CSRF']=clientProof;const broken=await f.call('/api/account/session',{...auth,extra});assert.equal(broken.status,503,'Noncanonical server configuration must precede client CSRF rejection');}
+ f.env.JWT_V110_CSRF_SECRET=savedSecret;
  const bad=await f.call('/api/account/session',{...auth,extra:{...auth.extra,'X-UAA-CSRF':randomRefresh()}});assert.equal(bad.status,403);
 }));
 test('Core-only actual bookmark save rechecks JWT cancellation at its final transaction',withFamily(async f=>{
@@ -267,6 +270,20 @@ test('Actual hub bootstrap and open retain cookie binding through nested native 
 
 test('Actual native cookie logout ends the native session',withFamily(async f=>{
  const auth=await nativeCookieLogin(f);const r=await f.call('/api/account/logout',auth);assert.equal(r.status,200,'Native logout '+f.lastFailure());assert.equal((await f.call('/api/account/session',auth)).status,401);
+}));
+
+
+test('Interrupted actual owner write rechecks the persisted JWT tuple during recovery',withFamily(async f=>{
+ const auth=await nativeCookieLogin(f),courseId='FEATURE-SYNTHETIC-A',base='/api/admin/platform/courses/';
+ const extra={...auth.extra,'X-Academy-Workspace':'ADMIN'};
+ const current=await f.call(base+'get',{...auth,extra,body:{courseId}});assert.equal(current.status,200,current.data.code);
+ const card=()=>JSON.stringify(f.seed.databases.admin.prepare("SELECT * FROM academy_settings WHERE setting_key LIKE 'AcademyCoursePublicCard:%' ORDER BY setting_key").all()),before=card(),audit=f.native.prepare('SELECT count(*) n FROM audit_events').get().n,adminAudit=f.seed.databases.admin.prepare('SELECT count(*) n FROM audit_events').get().n,operationId=crypto.randomUUID();
+ let interrupted=false;f.setStageHook(stage=>{if(stage==='admin-applied'&&!interrupted){interrupted=true;throw Error('Controlled local interruption');}});
+ const pending=await f.call(base+'public-card-save',{...auth,extra,body:{operationId,courseId,baseCardRevision:current.data.course.publicCardRevision,publicCard:{time:'10:00',title:'Interrupted synthetic card',description:'Must reverse after persisted proof is cancelled'}}});
+ assert(interrupted);assert.equal(pending.status,503);assert.notEqual(card(),before,'The Admin stage must genuinely have been applied');
+ const command=f.native.prepare("SELECT proof_json FROM split_commands WHERE phase='PENDING'").get();assert(command);const proof=JSON.parse(command.proof_json);assert.equal(proof.jwt.sid,f.sid);assert.equal(proof.jwt.sub,f.id);assert(!Object.hasOwn(proof.jwt,'token'));assert(!Object.hasOwn(proof.jwt,'refresh_fp'));
+ f.native.prepare('UPDATE jwt_v110_accounts SET permission_version=permission_version+1 WHERE account_id=?').run(f.id);f.setStageHook(null);await f.engine.recover();
+ assert.equal(card(),before);assert.equal(f.native.prepare('SELECT count(*) n FROM audit_events').get().n,audit);assert.equal(f.seed.databases.admin.prepare('SELECT count(*) n FROM audit_events').get().n,adminAudit);assert.equal(f.native.prepare('SELECT count(*) n FROM operation_receipts WHERE operation_id=?').get(operationId).n,0);assert.equal(f.native.prepare('SELECT count(*) n FROM split_write_fence').get().n,0);assert.equal(f.native.prepare('SELECT revoked_at FROM account_sessions WHERE session_id=?').get(f.sid).revoked_at,null);
 }));
 
 test.after(()=>{
