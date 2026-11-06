@@ -55,6 +55,13 @@
   window.addEventListener("hashchange", () => { if (window.location.hash === "#login") openLogin(); });
   pinInput.addEventListener("input", () => {
     pinInput.value = pinInput.value.replace(/\D/g, "").slice(0, 4);
+    // The feature PIN flow submits once when the fourth digit arrives. Native
+    // ID validation and the existing busy/rate-limit path remain authoritative.
+    if (window.M4L_V110 && pinInput.value.length === 4 &&
+        /^[A-Za-z0-9._~-]{1,128}$/.test(String(linkInput.value || "").trim()) &&
+        !pinInput.disabled && !form.querySelector('button[type="submit"]').disabled) {
+      form.requestSubmit();
+    }
   });
   pinToggle.addEventListener("click", () => {
     const showing = pinInput.type === "password";
