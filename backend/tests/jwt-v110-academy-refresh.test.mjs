@@ -294,7 +294,7 @@ test('Interrupted actual owner write rechecks the persisted JWT tuple during rec
 
 test('Cookie display context carries same-family CSRF and own renewal returns current public clock metadata',withFamily(async f=>{
  const auth=await nativeCookieLogin(f);
- const context=await f.call('/auth/v110/context',{...auth,method:'GET'});assert.equal(context.status,200,context.data.code);assert.equal(context.data.csrf,auth.pin.data.csrf);assert.equal(context.data.session.accountId,f.id);
+ const context=await f.call('/auth/v110/context',{...auth,method:'GET'});assert.equal(context.status,200,context.data.code);assert.equal(context.data.csrf,auth.pin.data.csrf);assert.equal(context.data.accessExpiresAtMs,auth.pin.data.accessExpiresAtMs);assert.equal(context.data.session.accountId,f.id);
  const refreshed=await f.call('/auth/v110/refresh',auth);assert.equal(refreshed.status,200,refreshed.data.code);assert.equal(refreshed.data.refreshed,true);assert.equal(refreshed.data.browserContext.sessionId,f.sid);assert.equal(refreshed.data.browserContext.lastForegroundRefreshMs,f.row().last_fg_refresh_s*1000);assert.equal(refreshed.data.browserContext.originalExpiresAtMs,f.at*1000+604800000);assert(refreshed.data.accessExpiresAtMs>Date.now());assert(refreshed.data.accessExpiresAtMs<=Date.now()+900000);
 }));
 
