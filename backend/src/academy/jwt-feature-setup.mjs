@@ -29,6 +29,10 @@ function profile(env,c,{main=false}={}){
  if(env.ENVIRONMENT!=='feature'||env.ACADEMY_DEPLOYMENT_KIND!=='ISOLATED_PREVIEW'||env.JWT_FEATURE_SETUP_MODE!=='BOOTSTRAP_ONLY'||env.ACADEMY_D1_MODE!=='PAUSED'||env.JWT_FEATURE_SETUP_SOURCE!==c.source||env.JWT_FEATURE_SETUP_MANIFEST!==c.manifestHash||env.JWT_V110_NATIVE_RUN_ID!==c.sourceDigest||env.JWT_V110_OBJECT_NAMESPACE!==c.objectNamespace)fail();
  if(main&&fields.some(k=>env[k]!=='0'))fail();
 }
+function executionWindow(env){
+ const now=Math.floor(Date.now()/1000),issued=Number(env.JWT_FEATURE_SETUP_ISSUED_AT),expiry=Number(env.JWT_FEATURE_SETUP_EXPIRES_AT);
+ if(!Number.isSafeInteger(issued)||!Number.isSafeInteger(expiry)||issued>now+30||expiry<=now||expiry-issued<1||expiry-issued>900)fail();
+}
 const packet=(c,method,path,issued,expiry,stamp,nonce)=>JSON.stringify(['jwt-feature-private-setup-v1',c.planId,c.source,c.manifestHash,account,method,path,issued,expiry,stamp,nonce]);
 export function createJWTFeatureSetupAPI(input){
  const c=contract(input);
@@ -50,6 +54,7 @@ export function createJWTFeatureSetupAPI(input){
    authenticated=true;
    if(!env.JWT_V110_SPLIT_COORDINATOR?.getByName)fail();
    if(action==='execute'){
+    executionWindow(env);
     for(const owner of ['core','admin'])if(await sha(c.statements[owner].join('\n')+'\n')!==c.templateHashes[owner])fail();
     jwtFeatureDatabaseEnv(env);
     if(typeof env.SHARED_PIN_SECRET!=='string'||env.SHARED_PIN_SECRET.length<32||!/^\d{4}$/.test(env.JWT_FEATURE_SETUP_PIN||''))fail();
@@ -59,7 +64,7 @@ export function createJWTFeatureSetupAPI(input){
    let result;
    if(action==='status')result=await stub.setupStatus(binding);
    else{
-    const pinHash=await createAcademyPinHash(env.JWT_FEATURE_SETUP_PIN,env);if(!hashPattern.test(pinHash))fail();
+    const pinHash=await createAcademyPinHash(env.JWT_FEATURE_SETUP_PIN,env);if(!hashPattern.test(pinHash))fail();executionWindow(env);
     result=await stub.setupExecute({...binding,nonceDigest:await sha(nonce),pinHash});
    }
    // Only the controller's explicitly public receipt escapes the private RPC.
@@ -94,12 +99,14 @@ export function withJWTFeatureSetup(Base,input){
     if(Object.keys(value).sort().join(',')!=='manifestHash,nonceDigest,pinHash,source'||!/^[a-f0-9]{64}$/.test(value.nonceDigest)||!hashPattern.test(value.pinHash))fail();
     const claim=await this.ctx.storage.transaction(async storage=>{
      const existing=await storage.get(slot);if(existing)return {existing};
+     executionWindow(this.#setupEnv);
      const state={state:'PREPARING',source:c.source,manifestHash:c.manifestHash,nonceDigest:value.nonceDigest,planId:c.planId,sourceDigest:c.sourceDigest,databaseIds:c.databaseIds,startedAt:Math.floor(Date.now()/1000),phase:'claimed'};
      await storage.put(slot,state);return {state};
     });
-    if(claim.existing)return {...publicState(claim.existing),alreadyClaimed:true};owns=true;
+    if(claim.existing)return {...publicState(claim.existing),alreadyClaimed:true};owns=true;executionWindow(this.#setupEnv);
     const selected=jwtFeatureDatabaseEnv(this.#setupEnv),db={core:selected.ACADEMY_DB.withSession('first-primary'),admin:selected.ACADEMY_ADMIN_DB.withSession('first-primary')};
     for(const owner of ['core','admin']){
+     executionWindow(this.#setupEnv);
      const objects=(await db[owner].prepare("SELECT type,name,tbl_name,sql FROM sqlite_schema WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' AND name<>'_cf_METADATA' ORDER BY type,name").all()).results.map(r=>[r.type,r.name,r.tbl_name,r.sql]);
      if(await sha(JSON.stringify(objects))!==c.objectHashes[owner])fail();
      const queries=[];
@@ -107,20 +114,22 @@ export function withJWTFeatureSetup(Base,input){
       const names=c.tables[owner].slice(offset,offset+5);
       queries.push(db[owner].prepare(names.map(name=>"SELECT '"+name+"' name,count(*) n FROM \""+name+"\"").join(' UNION ALL ')));
      }
+     executionWindow(this.#setupEnv);
      const counts=(await db[owner].batch(queries)).flatMap(result=>result.results);
      if(counts.length!==c.tables[owner].length||counts.some(r=>r.n!==0))fail();
     }
     // Staged owner transactions: Core then Admin. No cross-D1 atomicity.
     const core=c.statements.core.map(sql=>sql.includes(marker)?db.core.prepare(sql.replace("'"+marker+"'",'?')).bind(value.pinHash):db.core.prepare(sql));
-    await db.core.batch(core);
-    await db.admin.batch(c.statements.admin.map(sql=>db.admin.prepare(sql)));
+    executionWindow(this.#setupEnv);await db.core.batch(core);
+    executionWindow(this.#setupEnv);await db.admin.batch(c.statements.admin.map(sql=>db.admin.prepare(sql)));
     for(const owner of ['core','admin']){
+     executionWindow(this.#setupEnv);
      if((await db[owner].prepare('PRAGMA foreign_key_check').all()).results.length)fail();
-     const quick=(await db[owner].prepare('PRAGMA quick_check').all()).results;if(quick.length!==1||Object.values(quick[0])[0]!=='ok')fail();
+     executionWindow(this.#setupEnv);const quick=(await db[owner].prepare('PRAGMA quick_check').all()).results;if(quick.length!==1||Object.values(quick[0])[0]!=='ok')fail();
     }
-    const rows=(await db.core.prepare('SELECT account_id,pin_hash,pin_setup,credential_epoch FROM account_credentials ORDER BY account_id').all()).results;
+    executionWindow(this.#setupEnv);const rows=(await db.core.prepare('SELECT account_id,pin_hash,pin_setup,credential_epoch FROM account_credentials ORDER BY account_id').all()).results;
     if(rows.length!==4||rows.some(r=>r.pin_hash!==value.pinHash||r.pin_setup!==1||r.credential_epoch!==1))fail();
-    const state=(await db.core.prepare("SELECT (SELECT count(*) FROM accounts) accounts,(SELECT count(*) FROM activities WHERE kind='COURSE') courses,(SELECT count(*) FROM account_sessions) sessions,(SELECT count(*) FROM jwt_v110_families) families,source_digest FROM split_deployment_state WHERE singleton=1 AND state='READY'").all()).results[0];
+    executionWindow(this.#setupEnv);const state=(await db.core.prepare("SELECT (SELECT count(*) FROM accounts) accounts,(SELECT count(*) FROM activities WHERE kind='COURSE') courses,(SELECT count(*) FROM account_sessions) sessions,(SELECT count(*) FROM jwt_v110_families) families,source_digest FROM split_deployment_state WHERE singleton=1 AND state='READY'").all()).results[0];
     if(!state||state.accounts!==4||state.courses!==2||state.sessions!==0||state.families!==0||state.source_digest!==c.sourceDigest)fail();
     await this.ctx.storage.transaction(async storage=>{const old=await storage.get(slot);if(old?.state!=='PREPARING'||old.nonceDigest!==value.nonceDigest)fail();await storage.put(slot,{...old,state:'VERIFIED',phase:'complete',finishedAt:Math.floor(Date.now()/1000)});});
     return publicState(await this.ctx.storage.get(slot));

@@ -22,6 +22,28 @@ export class JWTFeatureAcademySplitCoordinator extends Setup{
   super(ctx,wrapped);this.testMetrics=metrics;
  }
  async testSnapshot(){const state=await this.ctx.storage.get('jwt-feature-bootstrap-v1');return {metrics:this.testMetrics,publicClaim:state,credentialPresent:JSON.stringify(state||{}).includes('pbkdf2')};}
+ async testExpiredClaim(){return this.setupExecute({source:cfg.source,manifestHash:cfg.manifestHash,nonceDigest:'a'.repeat(64),pinHash:'v3$pbkdf2-sha256$100000await this.ctx.storage.put('jwt-feature-bootstrap-v1',{state:'PREPARING',source:cfg.source,manifestHash:cfg.manifestHash,planId:cfg.planId,sourceDigest:cfg.sourceDigest,nonceDigest:'a'.repeat(64),databaseIds:cfg.databaseIds,startedAt:Math.floor(Date.now()/1000),phase:'claimed'});}
+}
+export {AcademySplitCoordinator};
+const api=createJWTFeatureSetupAPI(cfg);
+export default {async fetch(request,env){
+ const p=new URL(request.url).pathname,stub=()=>env.JWT_V110_SPLIT_COORDINATOR.getByName('jwt-feature-bootstrap:'+cfg.planId+':'+cfg.sourceDigest);
+ if(p==='/__test/snapshot')return Response.json(await stub().testSnapshot());
+ if(p==='/__test/expired-claim')return Response.json(await stub().testExpiredClaim());
+ if(p==='/__test/prime'){await stub().testPrime();return new Response(null,{status:204});}
+ return api.fetch(request,env);
+}};
++'A'.repeat(22)+'await this.ctx.storage.put('jwt-feature-bootstrap-v1',{state:'PREPARING',source:cfg.source,manifestHash:cfg.manifestHash,planId:cfg.planId,sourceDigest:cfg.sourceDigest,nonceDigest:'a'.repeat(64),databaseIds:cfg.databaseIds,startedAt:Math.floor(Date.now()/1000),phase:'claimed'});}
+}
+export {AcademySplitCoordinator};
+const api=createJWTFeatureSetupAPI(cfg);
+export default {async fetch(request,env){
+ const p=new URL(request.url).pathname,stub=()=>env.JWT_V110_SPLIT_COORDINATOR.getByName('jwt-feature-bootstrap:'+cfg.planId+':'+cfg.sourceDigest);
+ if(p==='/__test/snapshot')return Response.json(await stub().testSnapshot());
+ if(p==='/__test/prime'){await stub().testPrime();return new Response(null,{status:204});}
+ return api.fetch(request,env);
+}};
++'a'.repeat(64)});}
  async testPrime(){await this.ctx.storage.put('jwt-feature-bootstrap-v1',{state:'PREPARING',source:cfg.source,manifestHash:cfg.manifestHash,planId:cfg.planId,sourceDigest:cfg.sourceDigest,nonceDigest:'a'.repeat(64),databaseIds:cfg.databaseIds,startedAt:Math.floor(Date.now()/1000),phase:'claimed'});}
 }
 export {AcademySplitCoordinator};

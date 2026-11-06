@@ -13,7 +13,7 @@ function fixture(){
  function request({path='/internal/feature-jwt-setup/execute',method='POST',host=origin,headers={},body}={}){
   const stamp=Math.floor(Date.now()/1000),nonce=randomBytes(32).toString('base64url');
   const packet=JSON.stringify(['jwt-feature-private-setup-v1',c.planId,c.source,c.manifestHash,c.accountId,method,path,Number(env.JWT_FEATURE_SETUP_ISSUED_AT),Number(env.JWT_FEATURE_SETUP_EXPIRES_AT),stamp,nonce]);
-  return new Request(host+path,{method,headers:{'X-JWT-Setup-Time':String(stamp),'X-JWT-Setup-Nonce':nonce,'X-JWT-Setup-Source':c.source,'X-JWT-Setup-Manifest':c.manifestHash,'X-JWT-Setup-Proof':createHmac('sha256',key).update(packet).digest('base64url'),...headers},...(body===undefined?{}:{body})});
+  return new Request(host+path,{method,headers:{'X-JWT-Setup-Time':String(stamp),'X-JWT-Setup-Nonce':nonce,'X-JWT-Setup-Source':c.source,'X-JWT-Setup-Manifest':c.manifestHash,'X-JWT-Setup-Proof':createHmac('sha256',key).update(packet).digest('base64url'),...headers},...(body===undefined?{}:{body,duplex:'half'})});
  }
  return {env,count,request};
 }
@@ -49,4 +49,13 @@ test('authenticated status receipt is allowlisted and cannot leak an extra priva
 test('status cannot relabel an old immutable claim as a different source',async()=>{
  const x=fixture();x.env.JWT_V110_SPLIT_COORDINATOR={getByName(){return {setupStatus:async()=>({state:'VERIFIED',source:'f'.repeat(40),manifestHash:c.manifestHash,sourceDigest:c.sourceDigest})};}};
  const r=await api.fetch(x.request({method:'GET',path:'/internal/feature-jwt-setup/status'}),x.env);assert.equal(r.status,503);assert.equal((await r.json()).code,'FEATURE_SETUP_UNAVAILABLE');
+});
+
+test('signed body EOF delayed past expiry is rejected before PIN, namespace or D1 access',async()=>{
+ const realNow=Date.now;let clock=realNow();Date.now=()=>clock;
+ try{
+  const x=fixture();x.env.JWT_FEATURE_SETUP_EXPIRES_AT=String(Math.floor(clock/1000)+1);
+  const body=new ReadableStream({pull(controller){clock+=2000;controller.close();}});
+  const r=await api.fetch(x.request({body}),x.env);assert.equal(r.status,503);assert.deepEqual(x.count,{pin:0,rpc:0,db:0});
+ }finally{Date.now=realNow;}
 });

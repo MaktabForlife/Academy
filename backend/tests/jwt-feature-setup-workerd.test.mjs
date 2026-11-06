@@ -76,6 +76,15 @@ test('actual nonempty fresh store is rejected before seed batches, without old f
   receipts.push({case:'nonempty-store',state:'UNKNOWN',sqlBatches:snap.metrics.batches});
  }finally{await f.close();}
 });
+test('expired owning DO execution cannot create an unclaimed capability or start any D1 work',async()=>{
+ const f=await fixture({expired:true,schemas:false});try{
+  const r=await f.mf.dispatchFetch(origin+'/__test/expired-claim');assert.equal(r.status,200);assert.equal((await r.json()).state,'UNCLAIMED');
+  const snap=await f.snapshot();assert.equal(snap.publicClaim,undefined);assert.deepEqual(snap.metrics,{prepares:0,batches:{core:0,admin:0},readBatches:{core:0,admin:0},d1:{core:{roundTrips:0,statements:0,read:0,written:0},admin:{roundTrips:0,statements:0,read:0,written:0}}});
+  assert.equal((await (await f.call('status')).json()).state,'UNCLAIMED');
+  receipts.push({case:'owning-expired-unclaimed',state:'UNCLAIMED',newClaim:false,sqlBatches:snap.metrics.batches});
+ }finally{await f.close();}
+});
+
 test('public setup evidence explicitly excludes hosted installation and final cleanup proof',()=>{
  const dir=resolve(process.env.RUNNER_TEMP,'jwt-private-setup-evidence');mkdirSync(dir,{recursive:true});
  writeFileSync(resolve(dir,'setup-proof.json'),JSON.stringify({schema:1,source:process.env.GITHUB_SHA,scope:'Disposable local workerd setup source only',contractManifest:c.manifestHash,testDatabaseIds:c.databaseIds,contractObjectHashes:c.objectHashes,templateHashes:c.templateHashes,results:receipts,hostedCalls:0,productionChanges:0,installerImplemented:false,finalHostedRemovalVerified:false,oldRecoveryQuiescenceClaim:false},null,2)+'\n');
