@@ -55,7 +55,7 @@ test('signed body EOF delayed past expiry is rejected before PIN, namespace or D
  const realNow=Date.now;let clock=realNow();Date.now=()=>clock;
  try{
   const x=fixture();x.env.JWT_FEATURE_SETUP_EXPIRES_AT=String(Math.floor(clock/1000)+1);
-  const body=new ReadableStream({pull(controller){clock+=2000;controller.close();}});
+  const body=new ReadableStream({pull(controller){clock+=2000;controller.close();}},{highWaterMark:0});
   const r=await api.fetch(x.request({body}),x.env);assert.equal(r.status,503);assert.deepEqual(x.count,{pin:0,rpc:0,db:0});
  }finally{Date.now=realNow;}
 });
