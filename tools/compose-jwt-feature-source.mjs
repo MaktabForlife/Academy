@@ -94,6 +94,10 @@ const control=p=>/^\.github\/(?!workflows\/jwt-)/.test(p)||/^tools\/(?:approved-
 for(const [p,v]of canon)if(control(p)){const data=blob(root,canonical,p);if(final.get(p)?.sha!==v.sha){write(p,data);final.set(p,{...v,data});report.canonicalControls.push(p);}}
 const feature=tree(root,'6bef65664473fa40c9074413a9c052eb9c22b454'),bug='portal/circles/app.js';
 if(canon.get(bug)?.sha!==feature.get(bug)?.sha){assert.equal(final.get(bug)?.sha,feature.get(bug)?.sha,'Canonical accepted app delta needs explicit conflict review');const v=canon.get(bug),data=blob(root,canonical,bug);write(bug,data);final.set(bug,{...v,data});report.canonicalControls.push(bug);}
+const readmeSource=blob(root,canonical,'README.md').toString(),releaseVersion=JSON.parse(blob(app,appSHA,'version.json')).version;
+assert.match(readmeSource,/^## V\d+(?:\.\d+)?[^\n]*\n/);
+const readme=Buffer.from(readmeSource.replace(/^## V[^\n]*\n/,'## V'+releaseVersion+' — isolated Academy JWT Feature preparation\n'));
+write('README.md',readme);final.set('README.md',{mode:canon.get('README.md').mode,sha:oid(readme),data:readme});report.canonicalControls.push('README.md');report.resolutions.push({path:'README.md',kind:'canonical-content-only-first-release-heading-updated',version:releaseVersion});
 write('config/jwt-feature-release.json',Buffer.from(JSON.stringify({schema:1,state:'PREPARATION_ONLY',profile:'FRESH_PAIR_V1',appSource:appSHA,setupReceipt:null,activationAllowed:false},null,2)+'\n'));final.set('config/jwt-feature-release.json',{mode:'100644',data:readFileSync(target('config/jwt-feature-release.json'))});
 const deployPath='backend/tools/feature-deploy.mjs';let deploy=readFileSync(target(deployPath),'utf8');
 deploy=deploy.replace("readFileSync,writeFileSync,mkdtempSync,mkdirSync","readFileSync,writeFileSync,mkdtempSync,mkdirSync,existsSync");

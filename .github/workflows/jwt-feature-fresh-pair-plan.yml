@@ -2,6 +2,11 @@ name: JWT fresh Feature storage plan
 on:
   create:
   workflow_dispatch:
+    inputs:
+      inventory_only:
+        description: Verify source inventory and documentation only, reuse prior runtime evidence
+        type: boolean
+        default: false
 permissions:
   contents: read
 defaults:
@@ -9,7 +14,7 @@ defaults:
     shell: bash
 jobs:
   plan:
-    if: github.ref == 'refs/heads/validation/jwt-feature-fresh-pair-20261106'
+    if: github.ref == 'refs/heads/validation/jwt-feature-fresh-pair-20261106' && !inputs.inventory_only
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -84,6 +89,49 @@ jobs:
         if: always()
         with:
           name: jwt-fresh-pair-plan-${{ github.run_id }}
+          path: ${{ runner.temp }}/jwt-fresh-pair-evidence/
+          if-no-files-found: error
+          retention-days: 30
+  inventory:
+    if: github.ref == 'refs/heads/validation/jwt-feature-fresh-pair-20261106' && inputs.inventory_only
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: e8e26af7e5c6275656faa5c24985098e377439d0
+          path: app-source
+          persist-credentials: false
+      - name: Verify complete source inventory and canonical README heading
+        env:
+          JWT_APP_SOURCE_ROOT: ${{ github.workspace }}/app-source
+          JWT_APP_SOURCE_SHA: e8e26af7e5c6275656faa5c24985098e377439d0
+          JWT_CANONICAL_SHA: 38e66a57f0e094089718dd9dce6ff632f6247d68
+        run: |
+          node tools/compose-jwt-feature-source.mjs
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {readFileSync} from 'node:fs';
+          import {execFileSync} from 'node:child_process';
+          const dir=process.env.RUNNER_TEMP+'/jwt-composed-source/',actual=readFileSync(dir+'README.md','utf8');
+          const canonical=execFileSync('git',['show',process.env.JWT_CANONICAL_SHA+':README.md'],{encoding:'utf8'});
+          assert.equal(actual.slice(actual.indexOf('\n')),canonical.slice(canonical.indexOf('\n')));
+          assert.equal(actual.split('\n')[0],'## V'+JSON.parse(readFileSync(dir+'version.json','utf8')).version+' — isolated Academy JWT Feature preparation');
+          assert.equal(JSON.parse(readFileSync(dir+'config/jwt-feature-release.json','utf8')).activationAllowed,false);
+          console.log('Source inventory and exact canonical README body verified; no runtime suite rerun or hosted calls.');
+          NODE
+          git diff --check
+          git diff --exit-code
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: jwt-fresh-pair-inventory-${{ github.run_id }}
           path: ${{ runner.temp }}/jwt-fresh-pair-evidence/
           if-no-files-found: error
           retention-days: 30
