@@ -14,7 +14,7 @@ const physicalIds=['cdbe97bc-f3d9-400e-8806-ed9a0d143d26','ed77f2a7-4439-4841-86
 const read=p=>readFileSync(new URL(p,import.meta.url),'utf8'),input=bootstrapInputs(read('../feature-preview-bootstrap/core-schema.sql'),read('../feature-preview-bootstrap/admin-schema.sql'),read('./fixtures/jwt-v110-fresh-pair-auth.sql')),first=coreRemainder(input.core.toString()).firstStatements[0];
 const bundle=await build({entryPoints:[new URL('./jwt-feature-schema-phase-probe.mjs',import.meta.url).pathname],bundle:true,format:'esm',platform:'browser',write:false,external:['cloudflare:workers'],define:{__SETUP_CONTRACT__:JSON.stringify(c)}});
 const origin='https://feature_worker.maktab4life.workers.dev',objectName='jwt-feature-bootstrap:'+c.planId+':'+c.sourceDigest,results=[];
-async function fixture({fault='',expired=false,initial='expected',foreign=false}={}){
+async function fixture({fault='',expired=false,initial='expected',initialAdmin='empty',foreign=false}={}){
  const key=randomBytes(32),now=Math.floor(Date.now()/1000),issued=now-(expired?600:0),expiry=now+(expired?-1:600);
  const env={ENVIRONMENT:foreign?'production':'feature',ACADEMY_DEPLOYMENT_KIND:'ISOLATED_PREVIEW',ACADEMY_D1_MODE:'PAUSED',JWT_FEATURE_SETUP_MODE:'BOOTSTRAP_ONLY',JWT_FEATURE_SETUP_SOURCE:c.source,JWT_FEATURE_SETUP_MANIFEST:c.manifestHash,JWT_FEATURE_SETUP_ISSUED_AT:String(issued),JWT_FEATURE_SETUP_EXPIRES_AT:String(expiry),JWT_FEATURE_SETUP_AUTH:key.toString('base64url'),JWT_FEATURE_SETUP_PIN:'2468',SHARED_PIN_SECRET:randomBytes(64).toString('base64url'),JWT_V110_MASTER:'0',JWT_V110_REFRESH:'0',JWT_V110_BROWSER:'0',JWT_V110_NATIVE_COOKIE:'0',JWT_V110_STORAGE_PROFILE:'FRESH_PAIR_V1',ACADEMY_D1_RUN_ID:'0'.repeat(64),JWT_V110_NATIVE_RUN_ID:c.sourceDigest,JWT_V110_OBJECT_NAMESPACE:c.objectNamespace,TEST_FAULT:fault};
  const mf=new Miniflare(convertV4MiniflareOptions({unsafeInspectDurableObjects:true,workers:[{name:'schema',modules:true,script:bundle.outputFiles[0].text,compatibilityDate:'2026-10-23',compatibilityFlags:['nodejs_compat'],bindings:env,d1Databases:{ACADEMY_DB:'held-core',ACADEMY_ADMIN_DB:'held-admin',JWT_V110_CORE_DB:'new-core',JWT_V110_ADMIN_DB:'new-admin'},durableObjects:{JWT_V110_SPLIT_COORDINATOR:{className:'JWTFeatureAcademySplitCoordinator',useSQLite:true},ACADEMY_SPLIT_COORDINATOR:{className:'AcademySplitCoordinator',useSQLite:true}}}]}));
@@ -22,6 +22,7 @@ async function fixture({fault='',expired=false,initial='expected',foreign=false}
   const db={core:await mf.getD1Database('JWT_V110_CORE_DB','schema'),admin:await mf.getD1Database('JWT_V110_ADMIN_DB','schema')};
   await db.core.prepare(initial==='changed'?first.replace('title TEXT','title INTEGER'):first).run();
   if(initial==='extra')await db.core.prepare('CREATE TABLE unexpected_app_object(value TEXT)').run();
+  if(initialAdmin==='extra')await db.admin.prepare('CREATE TABLE unexpected_admin_object(value TEXT)').run();
   async function call(action='schema-execute',{body,wrongPurpose=false}={}){
    const path='/internal/feature-jwt-setup/'+action,method=action.endsWith('status')?'GET':'POST',stamp=Math.floor(Date.now()/1000),nonce=randomBytes(32).toString('base64url');
    const packet=JSON.stringify(['jwt-feature-private-setup-v1',c.planId,c.source,c.manifestHash,c.accountId,method,wrongPurpose?'/internal/feature-jwt-setup/execute':path,issued,expiry,stamp,nonce]);
@@ -55,6 +56,12 @@ for(const initial of ['changed','extra'])test('full starting fingerprint refuses
   const r=await f.call();assert.equal(r.status,409);assert.equal((await r.json()).state,'UNKNOWN');const s=await f.snapshot();assert.deepEqual(s.metrics.batches,{core:0,admin:0});
   assert.equal((await f.call()).status,409);assert.equal((await f.call('schema-status')).status,200);assert.deepEqual((await f.snapshot()).metrics,s.metrics);
   results.push({case:'starting-footprint-'+initial,state:'UNKNOWN',ddlBatches:s.metrics.batches,noRetry:true});
+ }finally{await f.close();}
+});
+test('unexpected initial Admin footprint refuses before any Core or Admin DDL',async()=>{
+ const f=await fixture({initialAdmin:'extra'});try{
+  const r=await f.call();assert.equal(r.status,409);assert.equal((await r.json()).state,'UNKNOWN');const s=await f.snapshot();assert.deepEqual(s.metrics.batches,{core:0,admin:0});
+  assert.equal((await f.call()).status,409);assert.deepEqual((await f.snapshot()).metrics,s.metrics);results.push({case:'initial-admin-footprint-extra',state:'UNKNOWN',ddlBatches:s.metrics.batches,noCoreWrite:true});
  }finally{await f.close();}
 });
 test('Admin DDL failure after verified Core remains UNKNOWN and cannot seed or replay',async()=>{
