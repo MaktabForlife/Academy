@@ -18,7 +18,7 @@ export function coreRemainder(full){
   const row=existing[0];assert.equal(row.type,'table');assert.equal(row.name,'academy_announcements');assert.equal(row.tbl_name,row.name);
   assert.equal(Buffer.byteLength(row.sql),449);assert.equal(sha(row.sql),'ba6adc0dad88252e65296438061de7e8d62e238bcfd1aa882817f5e4a536f739');
   assert.deepEqual(row,expected[0]);b.exec(remainder);assert.deepEqual(b.prepare(jwtFeatureObjectDefinitionsSQL.replace(' ORDER BY type,name',' ORDER BY rowid')).all(),expected);
-  assert(expected.every(x=>/^CREATE (TABLE|INDEX|VIEW|TRIGGER)\b/i.test(x.sql)));
+  assert(expected.every(x=>/^CREATE(?: UNIQUE)? (TABLE|INDEX|VIEW|TRIGGER)\b/i.test(x.sql)));
   return {first,remainder,firstDefinition:row,orderedDefinitions:expected,firstStatements:[expected[0].sql],remainingStatements:expected.slice(1).map(x=>x.sql),hashes:{full:sha(full),first:sha(first),firstDefinition:sha(row.sql),remainder:sha(remainder)}};
  }finally{a.close();b.close();}
 }
