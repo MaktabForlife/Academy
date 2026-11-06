@@ -1,3 +1,7 @@
+## V109.25 — media management and version labels
+
+The tested code-only fix accepts the exact configured Academy origins and renders current packaged version labels. Existing permissions, databases, hosting and manual media publication are preserved. See [release notes](docs/RELEASE-V109.25.md).
+
 ## V109.18 — paired Studio repository housekeeping
 
 Rebuild and release Academy with the reviewed Studio source cleanup. Public content and behaviour remain unchanged apart from release metadata. Preserve permissions, twelve-hour verification, fresh sensitive Admin authority and manual media attachment/publication. Build, test and deploy from GitHub only; no Mac files or Hifz changes.

@@ -4,6 +4,7 @@ const paths=new Set(files.map(p=>'/'+p));
 const jsonHeaders={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'};
 export async function servePortal(request,env,{fetcher=fetch}={}){
  const url=new URL(request.url),h=hosting(),p=url.pathname;
+ if(h.environment==='feature'&&(p==='/studio'||p.startsWith('/studio/')||p==='/academy/studio-authorize'||p.startsWith('/academy/studio-authorize/')||p==='/api/public/home'||p==='/api/public/circles'||p.startsWith('/api/public/circles/')||p==='/circles/free-learning.html'||/^\/circles\/(?:prospectus[^/]*|memorisation[^/]*)\.html$/.test(p)))return Response.json({success:false,error:'This service is not available in Feature.'},{status:503,headers:jsonHeaders});
  const asset=async(path)=>{const next=new URL(request.url);next.pathname=path;next.search='';const response=await env.ASSETS.fetch(new Request(next,{method:request.method,headers:request.headers}));const headers=new Headers(response.headers);headers.set('X-Content-Type-Options','nosniff');if(path.endsWith('.html'))headers.set('Cache-Control','no-store');return new Response(request.method==='HEAD'?null:response.body,{status:response.status,headers});};
  if(['/','/index.html'].includes(p))return asset('/index.html');
  if(p==='/hosting-config.js')return new Response(request.method==='HEAD'?null:'globalThis.AcademyHosting=Object.freeze('+JSON.stringify(h)+');',{headers:{...jsonHeaders,'Content-Type':'text/javascript; charset=utf-8'}});

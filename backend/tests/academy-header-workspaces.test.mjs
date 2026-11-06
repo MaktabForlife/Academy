@@ -16,7 +16,7 @@ function fixture({native=true,signed=true,global=true,teacher=false,verified=tru
  class Clock extends Date{static now(){return clock;}}
  const context=vm.createContext({window,document,location,localStorage,sessionStorage,Date:Clock,URL,URLSearchParams,MutationObserver:class{observe(){}},crypto,TextEncoder,console});
  delete window.M4L_CIRCLES_NATIVE;vm.runInContext(nativeCode,context);vm.runInContext(shellCode,context);
- return {window,document,location,navigations,data,buttons:[...document.querySelectorAll('button')],setMode(value){current=value;window.M4L_ACADEMY_SHELL.update(data);},setToken(value){token=value;},setClock(value){clock=value;},async connect(value){returnValue=JSON.stringify(value);vm.runInContext(returnCode,context);await settle();}};
+ return {window,document,location,navigations,data,buttons:[...document.querySelectorAll('button')],setMode(value){current=value;window.M4L_ACADEMY_SHELL.update(data);},setToken(value){token=value;},setClock(value){clock=value;},async connect(value){returnValue=JSON.stringify(value);vm.runInContext(returnCode,context);await window.M4L_CIRCLES_RETURN.ready();await settle();}};
 }
 
 test('native programme and standalone tool headers have one plain Learn/Teach/Admin row with current view highlighted',()=>{

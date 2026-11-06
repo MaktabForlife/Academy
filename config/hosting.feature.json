@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "environment": "feature",
+  "academyPortalOrigin": "https://feature-preview.academy-maktab4life.pages.dev",
+  "academyLegacyOrigins": [],
+  "academyApiOrigin": "https://feature_worker.maktab4life.workers.dev",
+  "studioOrigin": "https://studio-unavailable.invalid",
+  "studioBackendOrigin": "https://studio-unavailable.invalid",
+  "hifzOrigin": "https://hifz-unavailable.invalid"
+}

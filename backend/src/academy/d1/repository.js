@@ -23,7 +23,8 @@ const publicAccount = row => ({AccountID:row.account_id,DisplayName:row.display_
 // One primary-anchored session per HTTP request. Never cache account permissions,
 // credentials or database handles in module-level request state.
 export function academyD1Repository(env) {
-  if (!['local','development'].includes(env.ENVIRONMENT) || !['REHEARSAL','ACTIVE'].includes(env.ACADEMY_D1_MODE) || !env.ACADEMY_DB)
+  const isolatedFeature=env.ENVIRONMENT==='feature'&&env.ACADEMY_DEPLOYMENT_KIND==='ISOLATED_PREVIEW'&&env.ACADEMY_DB_GENERATION==='SPLIT_V1';
+  if ((!['local','development'].includes(env.ENVIRONMENT)&&!isolatedFeature) || !['REHEARSAL','ACTIVE'].includes(env.ACADEMY_D1_MODE) || !env.ACADEMY_DB)
     throw rehearsalError('Academy database rehearsal is not enabled.');
   if(env.ACADEMY_D1_MODE==='ACTIVE'&&(!String(env.ACADEMY_D1_RUN_ID||'').trim()||env.ACADEMY_LIBRARY_MODE!=='PUBLIC_ONLY'))
     throw rehearsalError('Academy activation configuration is incomplete.',503,'ACTIVATION_REQUIRED');

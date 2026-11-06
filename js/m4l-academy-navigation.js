@@ -4,12 +4,14 @@
   // The standalone recorder remains unchanged outside its Academy entry point.
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+  const configuredVersion=window.M4L_CONFIG?.RELEASE_VERSION;
+  const releaseVersion=typeof configuredVersion==='string'&&/^\d+\.\d+$/.test(configuredVersion)?configuredVersion:'';
   const roles = (values = []) => values.includes('GLOBAL_ADMIN') ? 'Global Admin' : values.some(role=>['PROGRAM_ADMIN','ADMIN'].includes(role)) ? 'Program Admin' : values.some(role=>['TEACHER','SENIOR'].includes(role)) ? 'Teacher' : values.includes('STUDENT') ? 'Student' : '';
   const token = () => localStorage.getItem('m4l_account_token') || '';
   const side = document.createElement('aside');
   side.className = 'academy-connected-sidebar';
   side.setAttribute('aria-label', 'Academy');
-  side.innerHTML = `<a class="academy-connected-brand" href="https://maktab4life.org/" data-page-home data-workspace-exit><img src="/ummabbadacademy.png" alt=""><span><strong>Umm Abbad<br>Academy</strong><span class="site-version">Website V109.17</span></span></a>
+  side.innerHTML = `<a class="academy-connected-brand" href="https://maktab4life.org/" data-page-home data-workspace-exit><img src="/ummabbadacademy.png" alt=""><span><strong>Umm Abbad<br>Academy</strong><span class="site-version">${releaseVersion?'Website V'+esc(releaseVersion):''}</span></span></a>
     <nav aria-label="Academy navigation"><a href="https://maktab4life.org/" data-page-home data-workspace-exit>Academy home</a><a href="/activities/surahs-in-my-heart/">Surahs in my Heart</a><a href="/activities/kaaba-puzzle/">Kaaba puzzle</a><a id="ac-recorder" data-recorder-link href="/recorder/?academy=1" hidden>Voice Recorder</a><a id="ac-library" href="/academy/library/?view=public">Library</a><a id="ac-calendar" href="/academy/calendar/" hidden>Academic Calendar</a></nav>
     <div class="academy-connected-footer"><button id="ac-signout" type="button" hidden>Sign out</button></div>`;
   const strip = document.createElement('nav');
@@ -18,6 +20,9 @@
   strip.hidden = true;
   document.body.classList.add('academy-connected');
   document.body.prepend(side, strip);
+  for(const label of document.querySelectorAll?.('.site-version,.pb-version')||[]){
+    label.textContent=releaseVersion?(label.classList.contains('site-version')?'Website V':'V')+releaseVersion:'';
+  }
   const $ = id => document.getElementById(id);
   let currentProgram = new URLSearchParams(location.search).get('program');
   const isLibrary = location.pathname.includes('/library/') || location.pathname.startsWith('/academy/library/?view=public');

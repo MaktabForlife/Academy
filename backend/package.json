@@ -1,6 +1,6 @@
 {
   "name": "maktab-academy-development",
-  "version": "109.24",
+  "version": "110.1",
   "type": "module",
   "scripts": {
     "test": "node tests/run-all.mjs",
@@ -29,7 +29,7 @@
     "test:offline": "node tests/run-group.mjs offline",
     "check:academy-boundary": "node tools/academy-boundary.mjs",
     "test:pdf-bookmarks:browser": "node tools/academy-pdf-bookmarks-acceptance.mjs",
-    "deploy:feature": "wrangler deploy --config wrangler.feature.jsonc --keep-vars"
+    "deploy:feature": "node tools/feature-deploy.mjs"
   },
   "devDependencies": {
     "linkedom": "^0.18.14",

@@ -5,12 +5,20 @@ import {publicPdfTarget} from './academy-public-media.mjs';
 import {onRequestGet as catalogue} from '../../functions/academy/open-library/catalogue.js';
 import {onRequestGet as publicPdf} from '../../functions/pdf-file/[encoded].js';
 import {academyCirclesAlias,academyCirclesPages,academyCirclesFragments,academyRetiredPages,circlesPageUnavailable} from './academy-circles-routes.mjs';
-export const siteVersion='109.24';
+export const siteVersion='110.1';
 export const siteBranch='development';
 export async function serveAcademySite(request,env,{pages=false,branch=siteBranch,syntheticOnly=false}={}){
   const url=new URL(request.url);
   if(['/api/feature-preview/health','/api/site/health'].includes(url.pathname))return Response.json({success:true,version:siteVersion,branch,syntheticOnly},{headers:{'Cache-Control':'no-store'}});
   if(!['GET','HEAD'].includes(request.method))return new Response('Method not allowed',{status:405});
+  // Exact public build receipt for the isolated preview only. Neighbouring
+  // root JSON and non-Feature builds retain the existing asset allowlist.
+  if(pages&&branch==='feature-preview'&&url.pathname==='/feature-build.json'){
+    const assetURL=new URL(url);assetURL.search='';
+    const response=await env.ASSETS.fetch(new Request(assetURL,{method:'GET'}));
+    const headers=new Headers(response.headers);headers.set('Cache-Control','no-store');headers.set('X-Content-Type-Options','nosniff');
+    return new Response(request.method==='HEAD'?null:response.body,{status:response.status,headers});
+  }
   // Public coordination files are static, never auth endpoints. Keep the list
   // exact and do not pass root cookies or caller credentials to the asset origin.
   if(jwtV110PublicAssets.includes(url.pathname.slice(1))){

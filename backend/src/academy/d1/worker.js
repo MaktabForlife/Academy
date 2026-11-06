@@ -1,6 +1,6 @@
 import {readDisplayContext} from '../../auth/v110/server-context.mjs';
 import {nativePortal,portalReadReply} from './portal.mjs';
-import {hostingEnvironment} from '../hosting.mjs';
+import {hostingEnvironment,academyManagementOriginAllowed} from '../hosting.mjs';
 import {uploadPlaylistCardImage,previewPlaylistCardImage,publicPlaylistCardImage} from './media-playlist-card-images.js';
 import {recordingPlaylistMetadata} from './media-playlist-store.js';
 import {mediaPlaylists} from './media-playlists.js';
@@ -80,7 +80,7 @@ import {openLibraryMetadataEndpoint as defaultMetadataEndpoint} from './library-
 export function createAcademyWorker({d1Library,d1LibraryStream,d1LibraryAreaRefs}=publicLibrary,{openLibraryMetadataEndpoint=defaultMetadataEndpoint,d1CourseCalendar=defaultCourseCalendar}={}){
 const authenticated=async(request,env,repository)=>{const auth=await authenticatedD1Account(request,env,repository);repository.bindActor?.(auth);return auth;};
 const publicAccount=state=>({displayName:state.account.display_name,uniqueid:state.account.login_link_id});
-const sessionResponse=(state,context,token)=>({account:{...publicAccount(state),accountId:state.account.account_id},context,contexts:state.contexts,courseManagement:state.account.global_admin||managedCourseScopes(state).length>0,sessionStore:'D1',operationalAccessActive:['COURSE','GLOBAL','SUBSTITUTE','OWN_LIBRARY'].includes(context.scope),...(token?{token}:{})});
+const sessionResponse=(state,context,token)=>({account:publicAccount(state),context,contexts:state.contexts,courseManagement:state.account.global_admin||managedCourseScopes(state).length>0,sessionStore:'D1',operationalAccessActive:['COURSE','GLOBAL','SUBSTITUTE','OWN_LIBRARY'].includes(context.scope),...(token?{token}:{})});
 const requireActive=state=>{if(!state)throw rehearsalError('Invalid account link',404,'ACCOUNT_NOT_FOUND');if(!state.account.active)throw rehearsalError('Account disabled',403,'ACCOUNT_DISABLED');};
 
 async function boundedBody(request,limit=4096) {
@@ -196,7 +196,7 @@ async function dispatch(request,env,options={}) {
   if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,new URL(request.url).searchParams.get('draft')==='1'?repository.authoringRepository():setupEnabled(env)?await readRepository():repository,env);
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(setupEnabled(env)?await readRepository():repository)};
-  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'109.24',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
+  if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'109.25',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(setupEnabled(env)?await readRepository():repository)};
@@ -221,13 +221,13 @@ async function dispatch(request,env,options={}) {
   // Only decorative card artwork has a larger bounded browser request. Native
   // authentication/workspace checks and the generic access parser stay intact.
   if(path==='/api/admin/platform/studio-access/playlist-cover'){
-    if(request.headers.get('Origin')!==env.WEBSITE_PLATFORM_ACADEMY_ORIGIN)throw rehearsalError('Reopen artwork editing inside Academy Admin.',403,'ORIGIN_REQUIRED');
+    if(!academyManagementOriginAllowed(request.headers.get('Origin')))throw rehearsalError('Reopen artwork editing inside Academy Admin.',403,'ORIGIN_REQUIRED');
     const auth=await authenticated(request,env,repository),input=await boundedBody(request,1_000_000);guardWorkspace(request,auth,input);
     if(input.command?.action!=='mou-playlist-cover-upload')throw rehearsalError('Use the artwork upload action.',400,'INVALID_ACTION');
     return studioAdmin(env,auth,input);
   }
   if(path==='/api/admin/platform/studio-access'){
-    if(request.headers.get('Origin')!==env.WEBSITE_PLATFORM_ACADEMY_ORIGIN)throw rehearsalError('Reopen access management inside Academy Admin.',403,'ORIGIN_REQUIRED');
+    if(!academyManagementOriginAllowed(request.headers.get('Origin')))throw rehearsalError('Reopen access management inside Academy Admin.',403,'ORIGIN_REQUIRED');
     const auth=await authenticated(request,env,repository),input=await boundedBody(request,131072);guardWorkspace(request,auth,input);
     return studioAdmin(env,auth,input);
   }
@@ -504,7 +504,7 @@ return {
     env=hostingEnvironment(env);
     const origin=request.headers.get('Origin');
     const allowed=(env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
-    const headers={'Content-Type':'application/json','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Vary':'Origin',
+    const headers={'Content-Type':'application/json','Cache-Control':'private, no-store','Vary':'Origin',
       'Access-Control-Allow-Methods':'POST, GET, HEAD, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization, Range, X-Academy-Workspace, X-Academy-Class, X-Academy-Setup, X-Library-Upload-Ticket, X-Library-Upload-Offset, X-Academy-Read-Cache, X-Academy-Read-Revision, If-None-Match'};
     if(origin&&allowed.includes(origin))headers['Access-Control-Allow-Origin']=origin;
     if(origin&&!allowed.includes(origin))return new Response(JSON.stringify({success:false,error:'Origin is not allowed.'}),{status:403,headers});
