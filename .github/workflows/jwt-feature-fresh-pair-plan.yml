@@ -1,0 +1,49 @@
+name: JWT fresh Feature storage plan
+on:
+  create:
+  workflow_dispatch:
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+jobs:
+  plan:
+    if: github.ref == 'refs/heads/validation/jwt-feature-fresh-pair-20261106'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - run: npm ci --prefix backend --no-audit --no-fund
+      - name: Exact empty schemas and transition negatives, no network/credentials
+        run: |
+          mkdir -p "$RUNNER_TEMP/jwt-fresh-pair-evidence"
+          node --test --test-reporter=tap backend/tests/jwt-feature-transition.test.mjs 2>&1 | tee "$RUNNER_TEMP/jwt-fresh-pair-evidence/transition.log"
+      - name: Install pinned local Worker runtime
+        run: npm install --prefix "$RUNNER_TEMP/jwt-fresh-runtime" --no-audit --no-fund --save-exact miniflare@5.20261103.0-beta
+      - name: Real local DO alarm binding context and paused API
+        env:
+          FEATURE_MF_ROOT: ${{ runner.temp }}/jwt-fresh-runtime
+        run: node --test --test-reporter=tap backend/tests/jwt-feature-do-context.test.mjs 2>&1 | tee "$RUNNER_TEMP/jwt-fresh-pair-evidence/do-context.log"
+      - name: Source syntax and untouched native configuration
+        run: |
+          node --check backend/src/academy/jwt-feature-storage.mjs
+          node --check backend/src/academy-feature-jwt-objects.js
+          node --check backend/src/academy-split-coordinator.js
+          node backend/tools/feature-target-guard.mjs .
+          git diff --check
+          git diff --exit-code
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: jwt-fresh-pair-plan-${{ github.run_id }}
+          path: ${{ runner.temp }}/jwt-fresh-pair-evidence/
+          if-no-files-found: error
+          retention-days: 30

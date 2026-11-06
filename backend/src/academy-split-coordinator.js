@@ -11,3 +11,9 @@ export class AcademySplitCoordinator extends DurableObject {
 }
 // SQL is reachable only through the authenticated API's private DO binding.
 export default {fetch:()=>new Response('Not found',{status:404})};
+
+ // Separate namespace; old class/export continues to use original bindings.
+import {jwtFeatureDatabaseEnv} from './academy/jwt-feature-storage.mjs';
+export class JWTFeatureAcademySplitCoordinator extends AcademySplitCoordinator {
+ constructor(ctx,env){super(ctx,jwtFeatureDatabaseEnv(env));}
+}
