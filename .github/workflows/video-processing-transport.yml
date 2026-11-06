@@ -21,6 +21,12 @@ jobs:
           node-version: '24.18.0'
       - run: npm ci --ignore-scripts
         working-directory: backend
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: MaktabForlife/AcademyStudio
+          ref: 1bfb3a6a38b49a5a34e0244209cfc2f9730331cd
+          path: .test-video-studio
+          persist-credentials: false
       - name: Native Academy authentication and bounded signed transport; no hosted calls
         working-directory: backend
         run: |
@@ -29,7 +35,13 @@ jobs:
           node --check src/academy/d1/web-platform/video-processing.mjs
           node --check src/academy/d1/web-platform/studio-admin.mjs
           node --check src/academy/d1/worker.js
-          node --test --test-reporter=tap tests/academy-video-processing-transport.test.mjs 2>&1 | tee "$RUNNER_TEMP/video-academy-transport/tests.log"
+          node --check ../js/m4l-course-media.js
+          node --check ../js/m4l-course-media-view.mjs
+          node --check ../js/m4l-video-processing.mjs
+          node --check ../js/m4l-media-admin-panel.mjs
+          node --check ../js/m4l-media-workflow.mjs
+          export VIDEO_STUDIO_SOURCE="$GITHUB_WORKSPACE/.test-video-studio"
+          node --test --test-reporter=tap tests/academy-video-processing-transport.test.mjs tests/academy-video-processing-package.test.mjs 2>&1 | tee "$RUNNER_TEMP/video-academy-transport/tests.log"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
