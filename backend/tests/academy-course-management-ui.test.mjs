@@ -11,7 +11,7 @@ async function fixture(){const f=await courseFixture();f.env.ACADEMY_LIBRARY_MOD
 async function screen(env,identity='0001',search='',accessOwner=null,studioSetup=null) {
  const login=await worker.fetch(new WorkspaceRequest('http://localhost/api/account/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uniqueid:'login-'+identity,pin:'1234'})}),env);let token=(await login.json()).token;
  const elements=new Map(),events=new Map(),documentEvents=new Map(),requests=[];
- const element=id=>{if(!elements.has(id))elements.set(id,{hidden:true,textContent:'',innerHTML:'',value:'',disabled:false,listeners:{},showModal(){this.open=true;},classList:{toggle(){},add(){},remove(){}},replaceChildren(){this.innerHTML='';},close(){this.open=false;},focus(){},setSelectionRange(){},querySelector:selector=>id==='course-dialog'?element('dialog:'+selector):null,querySelectorAll:()=>[],addEventListener(type,fn){this.listeners[type]=fn;},setAttribute(){}});return elements.get(id);};
+ const element=id=>{if(!elements.has(id))elements.set(id,{hidden:true,textContent:'',innerHTML:'',value:id==='course-status-filter'?'AVAILABLE':'',disabled:false,listeners:{},showModal(){this.open=true;},classList:{toggle(){},add(){},remove(){}},replaceChildren(){this.innerHTML='';},close(){this.open=false;},focus(){},setSelectionRange(){},querySelector:selector=>id==='course-dialog'?element('dialog:'+selector):null,querySelectorAll:()=>[],addEventListener(type,fn){this.listeners[type]=fn;},setAttribute(){}});return elements.get(id);};
  const context={console,URLSearchParams,crypto,Date,Map,Set,WeakMap,location:{search,origin:'http://localhost'},localStorage:{getItem:()=>token},document:{createElement:tag=>element('created:'+tag),getElementById:element,querySelectorAll:()=>[],querySelector:()=>null,addEventListener:(type,fn)=>documentEvents.set(type,[...(documentEvents.get(type)||[]),fn])},window:{M4L_ENROLMENT_WORKSPACE:{reset(){},canLeave:()=>true,open:async()=>{}},M4L_CONFIG:{API_BASE:''},addEventListener:(type,fn)=>events.set(type,fn)},fetch:async(path,options)=>{requests.push(path);if(studioSetup&&path.endsWith('/studio-resume')){studioSetup={pending:false,state:'STUDIO',message:'Studio manages enrolment and material access.'};return Response.json({success:true,studioSetup});}const response=await worker.fetch(new WorkspaceRequest('http://localhost'+path,options),env);if(studioSetup&&path.endsWith('/get')){const body=await response.json();if(body.course)body.course.studioSetup=studioSetup;return Response.json(body,{status:response.status});}return response;}};
  if(accessOwner)context.window.M4L_STUDIO_ACCESS={attach(){},reset(){},canLeave:()=>true,ensure:async()=>accessOwner};
  context.window.history={replaceState:(_state,_title,url)=>{context.location.search=url.startsWith('?')?url:'';}};
@@ -176,4 +176,71 @@ test('Course setup status is passive until an authorized Resume click',async()=>
   assert.match(page.element('course-editor').innerHTML,/Resume Studio setup/);assert.equal(page.requests.filter(p=>p.endsWith('/studio-resume')).length,0);
   await page.click('studio-resume');assert.equal(page.requests.filter(p=>p.endsWith('/studio-resume')).length,1);assert.doesNotMatch(page.element('course-editor').innerHTML,/Resume Studio setup/);assert.match(page.element('course-editor').innerHTML,/Studio manages enrolment/);
  }finally{f.db.close();}
+});
+
+async function listDraft(page,f,name,model='PAID',startDate='2026-10-01'){
+ page.context.window.M4LCourses.newCourse();
+ for(const [field,value]of Object.entries({name,accessModel:model,startDate,endDate:'2026-10-31'}))page.enter(field,value);
+ await page.context.window.M4LCourses.save();
+ const row=f.db.prepare('SELECT a.activity_id,m.run_id FROM course_management_drafts m JOIN activities a USING(activity_key) WHERE a.name=?').get(name);
+ await page.click('tab',{tab:'list'});return {course:row.activity_id,run:row.run_id};
+}
+test('Course list groups without duplicate runs and orders start dates before names, keeping saved end dates outside the table',async()=>{
+ const f=await fixture();try{
+  const p=await screen(f.env);await listDraft(p,f,'Older Z','PAID','2026-09-01');await listDraft(p,f,'Latest B','PAID','2026-10-20');await listDraft(p,f,'Latest A','PAID','2026-10-20');await listDraft(p,f,'Free course','FREE','2026-10-25');
+  await p.filter('status','DRAFT');const html=p.element('course-list').innerHTML;
+  assert.match(html,/Draft · Paid/);assert.match(html,/Draft · Free/);assert(html.indexOf('Latest A')<html.indexOf('Latest B'));assert(html.indexOf('Latest B')<html.indexOf('Older Z'));
+  assert.equal((html.match(/class="pb-secondary cm-course-open"/g)||[]).length,4);assert.match(html,/>Start date</);assert.doesNotMatch(html,/2026-10-31/);
+  const writes=p.requests.filter(x=>/\/(save|status)$/.test(x)).length;
+  await p.filter('search','Latest');await p.filter('status','');await p.filter('search','');
+  assert.equal(p.requests.filter(x=>/\/(save|status)$/.test(x)).length,writes,'render, grouping and filters do not write');
+ }finally{f.db.close();}
+});
+test('list Free/Paid confirmation uses the actual native draft CAS, preserves end date and presents saved mutually exclusive values',async()=>{
+ const f=await fixture();try{
+  const p=await screen(f.env),row=await listDraft(p,f,'List policy draft');
+  const before=f.db.prepare('SELECT details_json FROM course_management_drafts WHERE run_id=?').get(row.run).details_json,writes=p.requests.filter(x=>x.endsWith('/save')).length;
+  await p.click('list-policy',{...row,model:'FREE'});assert.match(p.element('course-dialog').innerHTML,/Change draft access/);assert.equal(p.requests.filter(x=>x.endsWith('/save')).length,writes);
+  p.element('dialog:[data-dialog-confirm]').listeners.click();await p.settle();
+  const details=JSON.parse(f.db.prepare('SELECT details_json FROM course_management_drafts WHERE run_id=?').get(row.run).details_json);
+  assert.equal(details.accessModel,'FREE');assert.equal(details.endDate,JSON.parse(before).endDate);
+  const html=p.element('course-list').innerHTML,free=new RegExp('data-model="FREE" data-course="'+row.course+'" data-run="'+row.run+'" checked'),paid=new RegExp('data-model="PAID" data-course="'+row.course+'" data-run="'+row.run+'" checked');
+  assert.match(html,free);assert.doesNotMatch(html,paid);assert.equal(p.context.window.M4LCourses.hasUnsavedChanges(),false);
+ }finally{f.db.close();}
+});
+test('list policy stale revision keeps the native saved model and surfaces the actual conflict without optimistic success',async()=>{
+ const f=await fixture();try{
+  const p=await screen(f.env),row=await listDraft(p,f,'Conflict draft');await p.click('list-policy',{...row,model:'FREE'});
+  const auth=p.context.localStorage.getItem('m4l_account_token'),post=async(action,input)=>worker.fetch(new WorkspaceRequest('http://localhost/api/admin/platform/courses/'+action,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+auth},body:JSON.stringify(input)}),f.env);
+  const checked=await post('get',{courseId:row.course,runId:row.run}),course=(await checked.json()).course;
+  assert.equal((await post('save',{courseId:row.course,runId:row.run,baseRevision:course.revision,operationId:crypto.randomUUID(),details:{...course.details,name:'Changed elsewhere'}})).status,200);
+  p.element('dialog:[data-dialog-confirm]').listeners.click();await p.settle();
+  const saved=JSON.parse(f.db.prepare('SELECT details_json FROM course_management_drafts WHERE run_id=?').get(row.run).details_json);
+  assert.equal(saved.accessModel,'PAID');assert.equal(saved.name,'Changed elsewhere');assert.match(p.element('course-message').textContent,/Refresh|changed|review/i);assert.equal(p.context.window.M4LCourses.hasUnsavedChanges(),true);
+ }finally{f.db.close();}
+});
+test('list policy denial clears private controls and a delayed previous-account read cannot issue a write',async()=>{
+ const f=await fixture();try{
+  const p=await screen(f.env),row=await listDraft(p,f,'Denied draft');await p.click('list-policy',{...row,model:'FREE'});
+  const original=p.context.fetch;p.context.fetch=async(path,options)=>path.endsWith('/save')?Response.json({success:false,error:'Synthetic current Admin denied',code:'FORBIDDEN'},{status:403}):original(path,options);
+  p.element('dialog:[data-dialog-confirm]').listeners.click();await p.settle();assert.equal(p.element('course-workspace').hidden,true);assert.equal(p.element('course-list').innerHTML,'');assert.match(p.element('course-message').textContent,/denied/);
+  const q=await screen(f.env),later=await listDraft(q,f,'Late draft');let release;const fetch=q.context.fetch;q.context.fetch=async(path,options)=>{if(path.endsWith('/get'))await new Promise(done=>release=done);return fetch(path,options);};
+  await q.click('list-policy',{...later,model:'FREE'});q.changeToken('another-account');release();await q.settle();
+  assert.equal(q.element('course-workspace').hidden,true);assert.equal(q.element('course-list').innerHTML,'');assert.equal(JSON.parse(f.db.prepare('SELECT details_json FROM course_management_drafts WHERE run_id=?').get(later.run).details_json).accessModel,'PAID');
+ }finally{f.db.close();}
+});
+test('list archive requires confirmation, retains participants/media and stays hidden by default until Show all',async()=>{
+ const f=await fixture();try{
+  const p=await screen(f.env),row=await listDraft(p,f,'Archive from list');
+  const rights=f.db.prepare('SELECT * FROM role_assignments').all(),media=f.db.prepare('SELECT * FROM course_resources').all();
+  await p.click('list-archive',row);assert.match(p.element('course-dialog').innerHTML,/Archive this Course/);assert.match(p.element('course-dialog').innerHTML,/participants and media/);
+  p.element('dialog:[data-dialog-cancel]').listeners.click();assert.equal(f.db.prepare('SELECT stage FROM course_management_drafts WHERE run_id=?').get(row.run).stage,'DRAFT');
+  await p.click('list-archive',row);p.element('dialog:[data-dialog-confirm]').listeners.click();await p.settle();
+  assert.equal(f.db.prepare('SELECT stage FROM course_management_drafts WHERE run_id=?').get(row.run).stage,'ARCHIVED');assert.deepEqual(f.db.prepare('SELECT * FROM role_assignments').all(),rights);assert.deepEqual(f.db.prepare('SELECT * FROM course_resources').all(),media);
+  assert(!p.element('course-list').innerHTML.includes('Archive from list'));const writes=p.requests.filter(x=>x.endsWith('/status')).length;await p.filter('status','');assert.match(p.element('course-list').innerHTML,/Archive from list/);assert.match(p.element('course-list').innerHTML,/data-cm-action="list-archive"[^>]+checked disabled/);assert.equal(p.requests.filter(x=>x.endsWith('/status')).length,writes);
+  await p.click('list-archive',{course:'subject-1',run:'run-1'});assert.match(p.element('course-message').textContent,/not available/);assert.equal(p.requests.filter(x=>x.endsWith('/status')).length,writes);
+ }finally{f.db.close();}
+});
+test('list settings respect unsaved edits before selecting another Course',async()=>{
+ const f=await fixture();try{const p=await screen(f.env),row=await listDraft(p,f,'Guarded draft');p.context.window.M4LCourses.newCourse();p.enter('name','Keep unfinished');await p.click('tab',{tab:'list'});const before=p.requests.length;await p.click('list-policy',{...row,model:'FREE'});assert.match(p.element('course-dialog').innerHTML,/Unsaved changes/);assert.equal(p.requests.length,before);p.element('dialog:[data-dialog-cancel]').listeners.click();await p.click('tab',{tab:'details'});assert.match(p.element('course-editor').innerHTML,/Keep unfinished/);}finally{f.db.close();}
 });

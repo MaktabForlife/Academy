@@ -19,3 +19,31 @@ test('native Course access control uses the trusted model, preserves exact pendi
 test('monthly programmes never present the Course FREE/PAID control',async()=>{
  const s=screen(async()=>Response.json({...view('Monthly member'),kind:'TAFSEER',coursePolicy:null}));s.window.M4L_STUDIO_ACCESS.attach(s.root,'PROGRAM:monthly');await settle();assert(!s.document.querySelector('[data-access-policy]'));
 });
+
+const bindPolicyForm=s=>{const form=s.document.querySelector('[data-access-policy]');if(form)Object.defineProperty(form,'elements',{configurable:true,value:{courseAccessModel:form.querySelector('select')}});};
+test('Course-list policy editor reuses the existing owning save and confirms the current saved model, with no write on open',async()=>{
+ let model='PAID',revision=7;const commands=[];
+ const s=screen(async(_url,options)=>{assert.equal(options.headers['X-Academy-Workspace'],'ADMIN');const {activityKey,command}=JSON.parse(options.body);assert.equal(activityKey,'COURSE:list');commands.push(command);if(command.action==='read')return Response.json({...view('Existing purchaser'),revision,coursePolicy:{offeringId:'list',model,revision}});assert.equal(command.action,'save');assert.equal(command.revision,7);assert.equal(command.change.action,'course-policy');assert.equal(command.change.accessModel,'FREE');assert.match(command.change.operationId,/^[a-f0-9-]{36}$/);model='FREE';revision++;return Response.json({success:true,saved:true});});
+ const editor=await s.window.M4L_STUDIO_ACCESS.editCoursePolicy(s.root,'COURSE:list','FREE');assert.deepEqual(commands.map(c=>c.action),['read']);assert.equal(s.document.querySelector('[data-access-policy] select').value,'FREE');bindPolicyForm(s);
+ const saved=await editor.save();assert.equal(saved.model,'FREE');assert.equal(saved.revision,8);assert.deepEqual(commands.map(c=>c.action),['read','save','read']);assert.equal(editor.canLeave(),true);editor.discard();assert.equal(s.root.querySelector('.studio-access'),null);
+});
+test('Course-list unknown save acknowledgement retains exactly one retry command and prevents abandoning it',async()=>{
+ let model='PAID',revision=3;const saves=[];
+ const s=screen(async(_url,options)=>{const command=JSON.parse(options.body).command;if(command.action==='read')return Response.json({...view('Retained purchaser'),revision,coursePolicy:{offeringId:'list',model,revision}});saves.push(command);model='FREE';revision=4;if(saves.length===1)throw Error('Synthetic lost acknowledgement');return Response.json({success:true,saved:true,replayed:true});});
+ const editor=await s.window.M4L_STUDIO_ACCESS.editCoursePolicy(s.root,'COURSE:list','FREE');bindPolicyForm(s);await assert.rejects(editor.save(),/lost acknowledgement/);assert.equal(editor.canLeave(),false);assert.throws(()=>editor.discard(),/Retry/);const first=JSON.stringify(saves[0]);await editor.save();assert.equal(JSON.stringify(saves[1]),first);assert.equal(editor.canLeave(),true);editor.discard();
+});
+test('Course-list policy conflict reloads checked saved values and returns the native error',async()=>{
+ let revision=2,writes=0;const s=screen(async(_url,options)=>{const command=JSON.parse(options.body).command;if(command.action==='read')return Response.json({...view('Purchaser'),revision,coursePolicy:{offeringId:'list',model:'PAID',revision}});writes++;revision++;return Response.json({success:false,error:'Native revision changed',code:'CHANGE_CONFLICT'},{status:409});});
+ const editor=await s.window.M4L_STUDIO_ACCESS.editCoursePolicy(s.root,'COURSE:list','FREE');bindPolicyForm(s);await assert.rejects(editor.save(),e=>e.code==='CHANGE_CONFLICT'&&/revision/.test(e.message));assert.equal(writes,1);assert.equal(s.document.querySelector('[data-access-policy] select').value,'PAID');assert.equal(editor.canLeave(),true);editor.discard();
+});
+test('Course-list policy keeps frozen/source ownership, denied reads and stale selection out of its writer',async t=>{
+ for(const kind of ['source','frozen','denied','unavailable'])await t.test(kind,async()=>{
+  let writes=0;const s=screen(async(_url,options)=>{const command=JSON.parse(options.body).command;if(command.action!=='read'){writes++;throw Error('No write allowed');}if(kind==='denied')return Response.json({success:false,error:'Current Admin denied',code:'FORBIDDEN'},{status:403});if(kind==='unavailable')return Response.json({success:false,error:'Current owner unavailable'},{status:503});return Response.json({...view('Purchaser'),ownership:{authority:kind==='source'?'ACADEMY':'WEBSITE',phase:kind==='frozen'?'FROZEN':'COMMITTED'},coursePolicy:{offeringId:'list',model:'PAID',revision:1}});});
+  await assert.rejects(s.window.M4L_STUDIO_ACCESS.editCoursePolicy(s.root,'COURSE:list','FREE'));assert.equal(writes,0);
+ });
+ let selected=true,writes=0;const s=screen(async(_url,options)=>{const command=JSON.parse(options.body).command;if(command.action!=='read')writes++;return Response.json({...view('Private learner'),coursePolicy:{offeringId:'list',model:'PAID',revision:1}});});const editor=await s.window.M4L_STUDIO_ACCESS.editCoursePolicy(s.root,'COURSE:list','FREE',{current:()=>selected});selected=false;await assert.rejects(editor.save(),/selected Course changed/);assert.equal(writes,0);editor.discard();
+});
+test('a late Course-list ownership read after account switch cannot expose its policy or save',async()=>{
+ let release,writes=0;const s=screen((_url,options)=>{const command=JSON.parse(options.body).command;if(command.action!=='read')writes++;return new Promise(done=>release=()=>done(Response.json({...view('Private old learner'),coursePolicy:{offeringId:'list',model:'PAID',revision:1}})));});
+ const pending=s.window.M4L_STUDIO_ACCESS.editCoursePolicy(s.root,'COURSE:list','FREE');s.switch('account-B');release();await assert.rejects(pending,/account|selected Course changed/);assert.equal(writes,0);assert(!s.document.body.textContent.includes('Private old learner'));assert(!s.document.querySelector('[data-access-policy]'));
+});
