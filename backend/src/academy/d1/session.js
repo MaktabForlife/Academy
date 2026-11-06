@@ -1,4 +1,4 @@
-import {verifiedAcademyCookie} from '../../auth/v110/academy-cookie-auth.mjs';
+import {verifiedAcademyCookie,bindCookieState} from '../../auth/v110/academy-cookie-auth.mjs';
 import {verifySessionToken} from '../../lib/auth-primitives.js';
 import {rehearsalError} from './repository.js';
 import {selectWorkspace} from './workspace-access.js';
@@ -18,6 +18,7 @@ export async function authenticatedD1Account(request,env,repository) {
     const state=await repository.session(c.sid,c.sub,c.ce,new Date(),{jwtClaims:c});
     const context=checked.selected?findD1Context(state,checked.selected):state?.contexts[0];
     if(!state||!context)throw rehearsalError('Your Academy session has ended.',401,'SESSION_ENDED');
+    bindCookieState(state,c);
     const auth=selectWorkspace(request,{state,sid:c.sid,context,user:{type:'account',accountid:state.account.account_id,uniqueid:state.account.login_link_id,username:state.account.display_name,role:state.account.global_admin?'GLOBAL_ADMIN':context.role,scope:context.scope,courseid:context.courseId}});
     Object.defineProperty(auth,'cookieClaims',{value:c,enumerable:false});return auth;
   }

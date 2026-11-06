@@ -1,3 +1,4 @@
+import {jwtActorPredicate} from './jwt-actor-guard.mjs';
 import {federatedDatabase,federationContext,rewriteRead} from './federation.js';
 import {adminTables,fieldOwner} from './ownership.js';
 import {parseMutation,targetTable} from './sql-plan.js';
@@ -20,9 +21,10 @@ export function splitClient(env,core,admin){
   // Core-only work retains its ordinary D1 transaction. Core triggers reject
   // it while an owner commit is pending; no permission change can slip past it.
   const version=await core.prepare('SELECT version FROM split_read_state WHERE singleton=1').first(),context=federationContext({core,admin,owner:'core'}),data=await context.snapshot(statements.map(s=>s.sql)),id=crypto.randomUUID();
-  const result=await core.batch([core.prepare('INSERT INTO academy_write_guards VALUES(?,EXISTS(SELECT 1 FROM split_read_state WHERE singleton=1 AND version=?))').bind(id,version.version),...statements.map(s=>{const r=rewriteRead(s.sql,s.params,data);return core.prepare(r.sql).bind(...r.params);}),core.prepare('DELETE FROM academy_write_guards WHERE guard_id=?').bind(id)]);return result.slice(1,-1);
+  const jwt=jwtActorPredicate(proof),native=jwt.sql?" AND EXISTS(SELECT 1 FROM accounts a JOIN account_credentials c USING(account_id) JOIN account_sessions s USING(account_id) WHERE a.account_id=? AND a.active=1 AND s.session_id=? AND s.revoked_at IS NULL AND c.credential_epoch=? AND s.credential_epoch=c.credential_epoch AND c.pin_setup=1 AND length(trim(c.pin_hash))>0 AND s.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')"+jwt.sql+")":'';
+  const result=await core.batch([core.prepare('INSERT INTO academy_write_guards VALUES(?,EXISTS(SELECT 1 FROM split_read_state WHERE singleton=1 AND version=?'+native+'))').bind(id,version.version,...(jwt.sql?[proof.accountId,proof.sid,proof.epoch,...jwt.values]:[])),...statements.map(s=>{const r=rewriteRead(s.sql,s.params,data);return core.prepare(r.sql).bind(...r.params);}),core.prepare('DELETE FROM academy_write_guards WHERE guard_id=?').bind(id)]);return result.slice(1,-1);
  }
  const read=(statements,owner)=>rpc('read',statements,proof,owner);
  const db=owner=>federatedDatabase({core,admin,owner,mutate,read});
- return {core:db('core'),admin:db('admin'),bindActor(auth){proof=actorProof(auth);}};
+ return {core:db('core'),admin:db('admin'),bindActor(auth){const next=actorProof(auth);if(proof?.jwt&&!next.jwt)throw Object.assign(Error('App binding was lost.'),{status:401,code:'SESSION_ENDED'});proof=next;}};
 }

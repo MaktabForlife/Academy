@@ -130,8 +130,8 @@ async function dispatch(request,env,options={}) {
   if(path.startsWith('/api/academy/hub/')){await sourceRepository.ready();let portalAuth;const value=await nativePortal(request,env,{
     repository:sourceRepository,
     authenticate:async r=>{portalAuth=await authenticated(r,env,sourceRepository);return portalAuth;},
-    read:(p,body,mode,r)=>dispatch(new Request(new URL(p,r.url),{method:'POST',headers:{'Content-Type':'application/json',Authorization:r.headers.get('Authorization')||'',...(mode?{'X-Academy-Workspace':mode.toUpperCase()}:{})},body:JSON.stringify(body)}),env),
-    mint:(auth,context)=>createSessionToken({type:'account',aud:audience,sv:3,sid:auth.sid,accountid:auth.state.account.account_id,epoch:auth.state.account.credential_epoch,scope:context.scope,courseid:context.courseId,role:context.role},env),
+    read:(p,body,mode,r)=>dispatch(new Request(new URL(p,r.url),{method:'POST',headers:{'Content-Type':'application/json',...Object.fromEntries(['Authorization','Cookie','Origin','Sec-Fetch-Site','X-UAA-CSRF'].map(k=>[k,r.headers.get(k)]).filter(([,v])=>v!==null)),...(mode?{'X-Academy-Workspace':mode.toUpperCase()}:{})},body:JSON.stringify(body)}),env),
+    mint:(auth,context)=>auth.cookieClaims?cookieSessionKey(auth.cookieClaims,context):createSessionToken({type:'account',aud:audience,sv:3,sid:auth.sid,accountid:auth.state.account.account_id,epoch:auth.state.account.credential_epoch,scope:context.scope,courseid:context.courseId,role:context.role},env),
     login:input=>dispatch(new Request(new URL(input.setup?'/api/account/setup-pin':'/api/account/login',request.url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)}),env)
   });return path==='/api/academy/hub/read'?portalReadReply(request,value,portalAuth):value;}
   if(path.startsWith('/internal/website/')||path.startsWith('/api/website-platform/'))return websitePlatformBridge(request,env,{

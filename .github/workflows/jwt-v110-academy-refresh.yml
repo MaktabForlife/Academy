@@ -29,6 +29,11 @@ jobs:
           node --check backend/src/auth/v110/academy-cookie-auth.mjs
           node --check backend/src/academy/d1/repository.js
           node --check backend/src/academy/d1/session.js
+          node --check backend/src/academy/d1/portal.mjs
+          node --check backend/src/academy/separation/jwt-actor-guard.mjs
+          node --check backend/src/academy/separation/client.js
+          node --check backend/src/academy/separation/proof.js
+          node --check backend/src/academy/separation/engine.js
           node --check backend/src/auth/v110/academy-refresh.mjs
           node --check backend/src/auth/v110/academy-refresh-http.mjs
           node --check backend/src/academy/d1/worker.js
@@ -39,7 +44,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$JWT_V110_EVIDENCE"
-          node --test --test-reporter=tap --test-concurrency=1 backend/tests/jwt-v110-academy-refresh.test.mjs 2>&1 | tee "$JWT_V110_EVIDENCE/tests.log"
+          node --test --test-reporter=tap --test-concurrency=1 backend/tests/jwt-v110-academy-refresh.test.mjs backend/tests/feature-native-initialisation.test.mjs 2>&1 | tee "$JWT_V110_EVIDENCE/tests.log"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

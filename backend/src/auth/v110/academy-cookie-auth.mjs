@@ -4,6 +4,8 @@ import {AuthContractError,cookieNames,parseUniqueCookie} from './claims.mjs';
 import {base64url} from 'jose';
 import {academyCookieOptions,createAcademyCookieEngine} from './academy-cookie-engine.mjs';
 const issuer='https://ummabbadacademy.app';
+const cookieVerified=Symbol('native verified cookie');
+const cookieState=Symbol('native cookie state');
 const fail=(code,status=401)=>{throw Object.assign(new AuthContractError(code),{status});};
 export function cookieSessionKey(claims,context){
  if(!context)return 'uaa-session:'+claims.sid+':'+claims.ue;
@@ -21,20 +23,24 @@ export function cookieContextSelector(header,claims){
  return {scope:p.scope,courseId:p.courseId,role:p.role};
 }
 async function verifiedCookie(request,env,now){
- const expected=env.JWT_V110_REQUEST_ORIGIN||issuer;let configured;try{configured=new URL(expected);}catch{fail('SESSION_ENDED');}
- if(configured.origin!==expected||configured.protocol!=='https:'||new URL(request.url).origin!==expected||request.headers.get('Sec-Fetch-Site')!=='same-origin'||request.headers.get('Origin')&&request.headers.get('Origin')!==expected)fail('ORIGIN_NOT_ALLOWED',403);
- let publicKeys;try{publicKeys=JSON.parse(env.JWT_V110_PUBLIC_KEYS_JSON);}catch{fail('SESSION_ENDED');}
+ const expected=env.JWT_V110_REQUEST_ORIGIN||issuer;let configured;try{configured=new URL(expected);}catch{fail('AUTH_CONFIG_UNAVAILABLE',503);}
+ if(configured.origin!==expected||configured.protocol!=='https:')fail('AUTH_CONFIG_UNAVAILABLE',503);
+ if(new URL(request.url).origin!==expected||request.headers.get('Sec-Fetch-Site')!=='same-origin'||request.headers.get('Origin')&&request.headers.get('Origin')!==expected)fail('ORIGIN_NOT_ALLOWED',403);
+ let publicKeys;try{publicKeys=JSON.parse(env.JWT_V110_PUBLIC_KEYS_JSON);}catch{fail('AUTH_CONFIG_UNAVAILABLE',503);}
  const engine=await createAcademyCookieEngine({app:'academy',issuer,academyCookieDomain:'ummabbadacademy.app',publicKeys,...academyCookieOptions(env)});
  const token=parseUniqueCookie(request.headers.get('Cookie')||'',cookieNames.academy.access),verified=await engine.verify(token,now),claims=verified.claims;
  if(!['GET','HEAD'].includes(request.method)){
   if(request.headers.get('Origin')!==expected)fail('ORIGIN_NOT_ALLOWED',403);
   const raw=env.JWT_V110_CSRF_SECRET,proof=request.headers.get('X-UAA-CSRF');
-  if(typeof raw!=='string'||!/^[-A-Za-z0-9_]{43}$/.test(raw)||typeof proof!=='string'||!/^[-A-Za-z0-9_]{43}$/.test(proof))fail('CSRF_REQUIRED',403);
-  const secret=base64url.decode(raw),mac=base64url.decode(proof);if(secret.byteLength!==32||base64url.encode(secret)!==raw||mac.byteLength!==32||base64url.encode(mac)!==proof)fail('CSRF_REQUIRED',403);
+  if(typeof raw!=='string'||!/^[-A-Za-z0-9_]{43}$/.test(raw))fail('AUTH_CONFIG_UNAVAILABLE',503);
+  if(typeof proof!=='string'||!/^[-A-Za-z0-9_]{43}$/.test(proof))fail('CSRF_REQUIRED',403);
+  const secret=base64url.decode(raw),mac=base64url.decode(proof);if(secret.byteLength!==32||base64url.encode(secret)!==raw)fail('AUTH_CONFIG_UNAVAILABLE',503);
+  if(mac.byteLength!==32||base64url.encode(mac)!==proof)fail('CSRF_REQUIRED',403);
   const key=await crypto.subtle.importKey('raw',secret,{name:'HMAC',hash:'SHA-256'},false,['verify']);
   const c=claims,packet=['uaa-csrf-v1','academy',issuer,c.sid,c.sub,c.psid,c.bsid,c.bv,c.ce,c.ue,c.s_iat,c.s_exp];
   if(!await crypto.subtle.verify('HMAC',key,mac,new TextEncoder().encode(JSON.stringify(packet))))fail('CSRF_REQUIRED',403);
  }
+ Object.defineProperty(claims,cookieVerified,{value:true});
  return {claims,selected:cookieContextSelector(request.headers.get('Authorization')||'',claims)};
 }
 // Added to the EXISTING primary native session gate, rather than a second
@@ -48,4 +54,14 @@ export function jwtSessionPredicate(c,nowMs){
 
 export async function verifiedAcademyCookie(request,env,now=Math.floor(Date.now()/1000)){
  try{return await verifiedCookie(request,env,now);}catch(error){if(error instanceof AuthContractError){error.status??=['INVALID_CONFIG','INVALID_KEY_REGISTRY','INVALID_COOKIE_CONFIG'].includes(error.code)?503:401;throw error;}throw Object.assign(Error('Cookie authentication is temporarily unavailable.'),{status:503,code:'AUTH_UNAVAILABLE'});}
+}
+
+export function bindCookieState(state,claims){
+ if(claims?.[cookieVerified]!==true)fail('SESSION_ENDED');
+ Object.defineProperty(state,cookieState,{value:claims});
+}
+export function trustedCookieFacts(auth){
+ const c=auth.cookieClaims||auth.authority?.[cookieState]||auth.state?.[cookieState];
+ if(c?.[cookieVerified]!==true)return null;
+ return Object.fromEntries(['sub','sid','psid','bsid','bv','ce','pv','ue','iat','exp','s_iat','s_exp'].map(k=>[k,c[k]]));
 }

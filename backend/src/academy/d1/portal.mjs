@@ -1,3 +1,4 @@
+import {academyCookieOptions} from '../../auth/v110/academy-cookie-engine.mjs';
 // Native Academy homepage adapter. Cached display data never grants access.
 import {hosting} from '../hosting.mjs';
 import {bodyJSON,fail,id,random,signedHeaders,websiteServerOrigin,sha256} from './web-platform/protocol.mjs';
@@ -25,7 +26,7 @@ export function portalDashboardLinks(value,summary){
  return data;
 }
 const permissionKey=state=>JSON.stringify([state.account.account_id,state.account.credential_epoch,state.account.global_admin,state.roles,state.contexts,state.subscriptions,state.monthlyMedia]);
-export function portalConfiguration(){const h=hosting();return {academyOrigin:h.academyPortalOrigin,studioOrigin:h.studioOrigin,hifzOrigin:h.hifzOrigin,authorityMode:'ACADEMY',nativePortal:true};}
+export function portalConfiguration(env={}){const h=hosting(),profile=env.JWT_V110_NATIVE_COOKIE==='1'?academyCookieOptions(env):null;return {academyOrigin:profile?.academyCookieMode==='HOST_ONLY_PREVIEW'?profile.academyPreviewOrigin:h.academyPortalOrigin,studioOrigin:h.studioOrigin,hifzOrigin:h.hifzOrigin,authorityMode:'ACADEMY',nativePortal:true};}
 async function sendDeliveries(env,db,result,fetcher){
  for(const item of result.deliveries||[]){
   const response=await fetcher(websiteServerOrigin(env).origin+'/internal/academy/events',{method:'POST',headers:{'Content-Type':'application/json','X-Maktab-Signature':item.signature},body:JSON.stringify(item.delivery),redirect:'manual',signal:AbortSignal.timeout(8000)});
@@ -47,14 +48,15 @@ export async function portalStudioSummary(env,auth,{action='bootstrap',websiteId
  return result;
 }
 export async function nativePortal(request,env,{repository,authenticate,read,mint,login,fetcher=env.WEBSITE_PLATFORM_SERVICE?.fetch.bind(env.WEBSITE_PLATFORM_SERVICE)||fetch}){
- const path=new URL(request.url).pathname,config=portalConfiguration();
+ const path=new URL(request.url).pathname,config=portalConfiguration(env);
  if(path==='/api/academy/hub/config'&&request.method==='GET')return config;
  const conditionalGET=request.method==='GET'&&path==='/api/academy/hub/read';
  if(request.method!=='POST'&&!conditionalGET)throw fail('Use a POST request.',405);
- const origin=request.headers.get('Origin'),allowed=new Set([hosting().academyPortalOrigin,...hosting().academyLegacyOrigins]);
+ const origin=request.headers.get('Origin'),allowed=new Set([config.academyOrigin,...hosting().academyLegacyOrigins]);
  if(!allowed.has(origin))throw fail('Reopen this action from Academy.',403,'ORIGIN_REQUIRED');
  let input;if(conditionalGET){const raw=new URL(request.url).searchParams.get('request');if(!raw||raw.length>8192)throw fail('Choose a bounded Academy view.');try{input=JSON.parse(raw);}catch{throw fail('Invalid Academy request.');}if(!input||Array.isArray(input)||typeof input!=='object')throw fail('Invalid Academy request.');}else input=await bodyJSON(request.body,8192);
  if(path==='/api/academy/hub/login'){
+  if(env.JWT_V110_NATIVE_COOKIE==='1')throw fail('Use the cookie sign-in endpoint.',409,'COOKIE_LOGIN_REQUIRED');
   only(input,['uniqueid','pin','setup','pinConfirmation']);
   const result=await login(input),header='Bearer '+result.token;
   const auth=await authenticate(new Request(request.url,{headers:{Authorization:header}}));
@@ -88,7 +90,7 @@ export async function nativePortal(request,env,{repository,authenticate,read,min
   if(input.kind!=='bootstrap')throw fail('Choose a valid Academy view.');
   only(value,['mode','preferredMode','preferredAccount']);
   const mode=value.mode||value.preferredAccount===state.account.account_id&&value.preferredMode||undefined;
-  const claims=await verifySessionToken((request.headers.get('Authorization')||'').slice(7),env);
+  const claims=auth.cookieClaims||await verifySessionToken((request.headers.get('Authorization')||'').slice(7),env);
   const account={accountId:state.account.account_id,displayName:state.account.display_name,globalAdmin:Boolean(state.account.global_admin),cacheSession:await sha256(auth.sid),verifiedAt:Math.min(Date.now(),claims.iat*1000),sessionExpiresAt:claims.exp*1000};
   const parts=await Promise.allSettled([studio({action:'bootstrap'}),dashboard(mode?{mode}:{})]),errors={};
   for(const [i,key]of ['navigation','dashboard'].entries())if(parts[i].status==='rejected'){const e=parts[i].reason;if(e.status===401||e.code==='ACCESS_REFRESH_REQUIRED')throw e;errors[key]={status:e.status||503,code:e.code||'UNAVAILABLE'};}
@@ -97,7 +99,7 @@ export async function nativePortal(request,env,{repository,authenticate,read,min
  if(path==='/api/academy/hub/open'){
   only(input,['navigation','dashboard']);if(Boolean(input.navigation)===Boolean(input.dashboard))throw fail('Choose one destination.');
   const choice=input.dashboard?dashboardChoice(state,input.dashboard):programmeChoice(state,input.navigation,env);
-  await current();return {token:await mint(auth,choice.context||auth.context),destination:choice.destination,circles:{mode:input.dashboard?.mode||'learn',returnUrl:config.academyOrigin+'/?workspace='+(input.dashboard?.mode||'learn')}};
+  await current();return {...(auth.cookieClaims?{cookieSession:true,sessionKey:await mint(auth,choice.context||auth.context)}:{token:await mint(auth,choice.context||auth.context)}),destination:choice.destination,circles:{mode:input.dashboard?.mode||'learn',returnUrl:config.academyOrigin+'/?workspace='+(input.dashboard?.mode||'learn')}};
  }
  if(path==='/api/academy/hub/join'){
   const selected=dashboardJoinInput(state,input);await nativeJoinOwnership(repository.coreDb,state.account.account_id,selected.target);

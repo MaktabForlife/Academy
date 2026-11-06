@@ -1,3 +1,4 @@
+import {jwtActorPredicate} from './jwt-actor-guard.mjs';
 import {lessonContextSelection,validateLessonContextCapture} from './lesson-context-read.js';
 import {authorizeRecordedRead} from './recorded-context-read.js';
 import {compilePlan} from './compile.js';
@@ -47,8 +48,9 @@ export function splitEngine({core,admin,alarm=async()=>{},hook=async()=>{}}){
  async function commit(id,plan,proof){
   // Admission checked current scoped authority under the Core fence. No Core
   // permission writer can pass it; the atomic guard below checks expiry again.
+  const jwt=jwtActorPredicate(proof);
   const results=await batch(core,[item('PRAGMA defer_foreign_keys=ON'),guard(id,'PENDING'),
-   item("INSERT INTO split_transaction_guards VALUES('actor',EXISTS(SELECT 1 FROM account_sessions s JOIN accounts a USING(account_id) JOIN account_credentials c USING(account_id) WHERE s.session_id=? AND a.account_id=? AND a.active=1 AND s.revoked_at IS NULL AND c.credential_epoch=? AND s.credential_epoch=c.credential_epoch AND c.pin_setup=1 AND length(trim(c.pin_hash))>0 AND s.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now'))) ON CONFLICT(guard_id) DO UPDATE SET accepted=excluded.accepted",proof.sid,proof.accountId,proof.epoch),
+   item("INSERT INTO split_transaction_guards VALUES('actor',EXISTS(SELECT 1 FROM account_sessions s JOIN accounts a USING(account_id) JOIN account_credentials c USING(account_id) WHERE s.session_id=? AND a.account_id=? AND a.active=1 AND s.revoked_at IS NULL AND c.credential_epoch=? AND s.credential_epoch=c.credential_epoch AND c.pin_setup=1 AND length(trim(c.pin_hash))>0 AND s.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')"+jwt.sql+")) ON CONFLICT(guard_id) DO UPDATE SET accepted=excluded.accepted",proof.sid,proof.accountId,proof.epoch,...jwt.values),
    item('UPDATE split_write_fence SET allow_write=1 WHERE command_id=?',id),...plan.core,
    // Invalidate source snapshots even when a successful save changed only
    // Admin-owned definitions and produced no mirrored Core field changes.

@@ -22,11 +22,12 @@ const withFamily=(fn,{age=0}={})=>async()=>{
  const seed=await prepareFeatureSeed({pin:'2468',secrets});const native=seed.databases.core;
  try{
   native.exec(readFileSync(new URL('./fixtures/jwt-v110-auth-only.sql',import.meta.url),'utf8'));
-  const core=emptyCompatibilityDatabase(sqliteD1(native),emptyShapes,{currentGrants:true}),admin=sqliteD1(seed.databases.admin),engine=splitEngine({core,admin});
+  let beforeBatch=null,stageHook=null;const rawCore=sqliteD1(native),observedCore={...rawCore,withSession(){return observedCore;},async batch(statements){await beforeBatch?.(statements);return rawCore.batch(statements);}};
+  const core=emptyCompatibilityDatabase(observedCore,emptyShapes,{currentGrants:true}),admin=sqliteD1(seed.databases.admin),engine=splitEngine({core,admin,hook:async(...args)=>stageHook?.(...args)});
   const ns={getByName(){return Object.fromEntries(['read','write'].map(m=>[m,async(...args)=>({result:await engine[m](...args)})]));}};
   const keys=await generateKeyPair('ES256',{extractable:true}),publicJWK={...await exportJWK(keys.publicKey),kid:'synthetic-a'},privateJWK={...await exportJWK(keys.privateKey),kid:'synthetic-a'};
   const cfg=JSON.parse(readFileSync(new URL('../wrangler.feature.jsonc',import.meta.url),'utf8'));
-  const env={...cfg.vars,...secrets,ACADEMY_D1_MODE:'ACTIVE',ACADEMY_D1_RUN_ID:seed.report.sourceDigest,ACADEMY_DB:sqliteD1(native),ACADEMY_ADMIN_DB:admin,ACADEMY_SPLIT_COORDINATOR:ns,AUTH_LOGIN_RATE_LIMITER:{limit:async()=>({success:true})},JWT_V110_MASTER:'1',JWT_V110_REFRESH:'1',JWT_V110_BROWSER:'1',JWT_V110_REQUEST_ORIGIN:appOrigin,JWT_V110_PUBLIC_KEYS_JSON:JSON.stringify([publicJWK]),JWT_V110_PRIVATE_KEY_JSON:JSON.stringify(privateJWK),JWT_V110_SIGNING_KID:'synthetic-a',JWT_V110_CSRF_SECRET:randomRefresh(),JWT_V110_RATE_LIMITER:{limit:async()=>({success:true})},ALLOWED_ORIGINS:appOrigin+','+h.academyPortalOrigin};
+  const env={...cfg.vars,...secrets,ACADEMY_D1_MODE:'ACTIVE',ACADEMY_D1_RUN_ID:seed.report.sourceDigest,ACADEMY_DB:observedCore,ACADEMY_ADMIN_DB:admin,ACADEMY_SPLIT_COORDINATOR:ns,AUTH_LOGIN_RATE_LIMITER:{limit:async()=>({success:true})},JWT_V110_MASTER:'1',JWT_V110_REFRESH:'1',JWT_V110_BROWSER:'1',JWT_V110_REQUEST_ORIGIN:appOrigin,JWT_V110_PUBLIC_KEYS_JSON:JSON.stringify([publicJWK]),JWT_V110_PRIVATE_KEY_JSON:JSON.stringify(privateJWK),JWT_V110_SIGNING_KID:'synthetic-a',JWT_V110_CSRF_SECRET:randomRefresh(),JWT_V110_RATE_LIMITER:{limit:async()=>({success:true})},ALLOWED_ORIGINS:appOrigin+','+h.academyPortalOrigin};
   const loginResponse=await worker.fetch(new Request(appOrigin+'/api/account/login',{method:'POST',headers:{Origin:h.academyPortalOrigin,'Content-Type':'application/json'},body:JSON.stringify({uniqueid:featureSyntheticAccounts[0].login,pin:'2468'})}),env);
   assert.equal(loginResponse.status,200,'Native PIN prerequisite failed');const login=await loginResponse.json(),nativeClaims=await verifySessionToken(login.token,env),sid=nativeClaims.sid,id=nativeClaims.accountid,ce=nativeClaims.epoch;
   const raw=randomRefresh(),fp=await fingerprint('academy',raw),at=now()-age,browser=crypto.randomUUID();
@@ -41,7 +42,7 @@ const withFamily=(fn,{age=0}={})=>async()=>{
    const data=await response.json();return {status:response.status,data,response};
   }
   const csrf=async()=>{const r=await call('/auth/v110/csrf');assert.equal(r.status,200,'Own CSRF prerequisite failed: '+r.data.code);return r.data.csrf;};
-  await fn({seed,native,env,raw,fp,sid,id,ce,at,browser,config,row,call,csrf});
+  await fn({seed,native,env,raw,fp,sid,id,ce,at,browser,config,row,call,csrf,setBeforeBatch:fn=>beforeBatch=fn,setStageHook:fn=>stageHook=fn});
  }finally{seed.close();globalThis.fetch=originalFetch;}
 };
 test('Real native Academy PIN session refreshes into full-rights JWT cookies without exposing credentials',withFamily(async f=>{
@@ -208,6 +209,59 @@ test('The explicit isolated Feature cookie profile is host-only and cannot be en
 test('An asynchronous final response factory fails before consuming the current refresh',withFamily(async f=>{
  const service=await createAccountBoundAcademyRefresh({binding:f.env.ACADEMY_DB,repository:academyD1Repository(f.env),...f.config,prepareClient:async()=>async()=>Response.json({ready:true})});
  await assert.rejects(service.refreshAndIssue(f.raw),e=>e.code==='INVALID_PREPARATION');assert(f.row().refresh_fp===f.fp,'Old refresh must remain current');assert.equal(f.row().refresh_generation,0);
+}));
+
+
+async function nativeCookieLogin(f,index=0){
+ f.env.JWT_V110_NATIVE_COOKIE='1';
+ const pin=await f.call('/auth/v110/login',{body:{uniqueid:featureSyntheticAccounts[index].login,pin:'2468'}});
+ assert.equal(pin.status,200,pin.data.code);
+ return {cookie:pin.response.headers.getSetCookie().map(c=>c.split(';')[0]).join('; '),extra:{Authorization:'Bearer '+pin.data.sessionKey,'X-UAA-CSRF':pin.data.csrf},pin};
+}
+test('Native cookie configuration failures remain 503; client CSRF failures remain 403',withFamily(async f=>{
+ const auth=await nativeCookieLogin(f);
+ for(const [key,value] of [['JWT_V110_PUBLIC_KEYS_JSON','{'],['JWT_V110_PUBLIC_KEYS_JSON','[]'],['JWT_V110_REQUEST_ORIGIN','not an origin'],['JWT_V110_CSRF_SECRET','bad']]){
+  const old=f.env[key],before=f.row().refresh_generation;f.env[key]=value;
+  const r=await f.call('/api/account/session',auth);assert.equal(r.status,503,key);assert.equal(r.response.headers.getSetCookie().length,0);assert.equal(f.row().refresh_generation,before);f.env[key]=old;
+ }
+ const bad=await f.call('/api/account/session',{...auth,extra:{...auth.extra,'X-UAA-CSRF':randomRefresh()}});assert.equal(bad.status,403);
+}));
+test('Core-only actual availability save rechecks JWT cancellation at its final transaction',withFamily(async f=>{
+ const auth=await nativeCookieLogin(f),path='/api/academy/teacher-availability/save';
+ const save=revision=>f.call(path,{...auth,extra:{...auth.extra,'X-Academy-Workspace':'ADMIN'},body:{operationId:crypto.randomUUID(),accountId:f.id,revision,ranges:[]}});
+ const yes=await save(0);assert.equal(yes.status,200,yes.data.code);
+ const before=f.native.prepare('SELECT revision FROM teacher_availability WHERE account_id=?').get(f.id).revision,audit=f.native.prepare('SELECT count(*) n FROM audit_events').get().n;
+ let raced=false;f.setBeforeBatch(statements=>{
+  if(!raced&&statements.some(s=>/INSERT INTO teacher_availability VALUES/.test(s.sql))){raced=true;f.native.prepare('UPDATE jwt_v110_families SET unlock_generation=unlock_generation+1 WHERE family_id=?').run(f.sid);}
+ });
+ const no=await save(before);assert(raced,'The mutation must occur after authentication before the Core transaction');assert.notEqual(no.status,200);assert.equal(f.native.prepare('SELECT revision FROM teacher_availability WHERE account_id=?').get(f.id).revision,before);assert.equal(f.native.prepare('SELECT count(*) n FROM audit_events').get().n,audit);assert.equal(f.native.prepare('SELECT revoked_at FROM account_sessions WHERE session_id=?').get(f.sid).revoked_at,null);
+}));
+test('Actual Course card owner save rolls back Admin if the JWT is superseded after Admin staging',withFamily(async f=>{
+ const auth=await nativeCookieLogin(f),base='/api/admin/platform/courses/',courseId='FEATURE-SYNTHETIC-A';
+ const get=()=>f.call(base+'get',{...auth,extra:{...auth.extra,'X-Academy-Workspace':'ADMIN'},body:{courseId}});
+ const first=await get();assert.equal(first.status,200,first.data.code);
+ const save=(revision,title)=>f.call(base+'public-card-save',{...auth,extra:{...auth.extra,'X-Academy-Workspace':'ADMIN'},body:{operationId:crypto.randomUUID(),courseId,baseCardRevision:revision,publicCard:{time:'10:00',title,description:'Synthetic review fixture'}}});
+ let applied=0;f.setStageHook(stage=>{if(stage==='admin-applied')applied++;});
+ const yes=await save(first.data.course.publicCardRevision,'Accepted synthetic card');assert.equal(yes.status,200,yes.data.code);assert(applied>0,'Positive request must use actual Core/Admin coordination');
+ const current=await get();assert.equal(current.status,200,current.data.code);
+ const snapshot=()=>JSON.stringify(f.seed.databases.admin.prepare("SELECT * FROM academy_settings WHERE setting_key LIKE 'AcademyCoursePublicCard:%' ORDER BY setting_key").all()),before=snapshot(),auditCore=f.native.prepare('SELECT count(*) n FROM audit_events').get().n,auditAdmin=f.seed.databases.admin.prepare('SELECT count(*) n FROM audit_events').get().n;
+ let raced=false;f.setStageHook(stage=>{if(stage==='admin-applied'&&!raced){raced=true;f.native.prepare('INSERT INTO jwt_v110_parent_tombstones VALUES(?,?)').run(f.sid,f.at+604800);}});
+ const no=await save(current.data.course.publicCardRevision,'Must be rolled back');assert(raced,'The cancellation must occur after actual Admin staging');assert.notEqual(no.status,200);assert.equal(snapshot(),before);assert.equal(f.native.prepare('SELECT count(*) n FROM audit_events').get().n,auditCore);assert.equal(f.seed.databases.admin.prepare('SELECT count(*) n FROM audit_events').get().n,auditAdmin);assert.equal(f.native.prepare('SELECT revoked_at FROM account_sessions WHERE session_id=?').get(f.sid).revoked_at,null);assert.equal(f.native.prepare('SELECT count(*) n FROM split_write_fence').get().n,0);
+}));
+test('Actual hub bootstrap and open retain cookie binding through nested native reads',withFamily(async f=>{
+ const host='https://feature_worker.maktab4life.workers.dev';f.env.JWT_V110_COOKIE_MODE='HOST_ONLY_PREVIEW';f.env.JWT_V110_REQUEST_ORIGIN=host;f.env.ALLOWED_ORIGINS=host;f.env.ACADEMY_WEB_PLATFORM='1';f.env.WEBSITE_PLATFORM_SERVICE={fetch:async()=>Response.json({error:'Synthetic unavailable Studio',code:'STUDIO_UNAVAILABLE'},{status:503})};
+ // No outbound Studio service is configured in this isolated synthetic fixture.
+ // Bootstrap must retain its native dashboard and report the unavailable navigation.
+ const call=async(path,body,auth={})=>{
+  const r=await worker.fetch(new Request(host+path,{method:'POST',headers:{Origin:host,'Sec-Fetch-Site':'same-origin','Content-Type':'application/json',...(auth.headers||{})},body:JSON.stringify(body)}),f.env);
+  return {response:r,status:r.status,data:await r.json()};
+ };
+ f.env.JWT_V110_NATIVE_COOKIE='1';
+ const pin=await call('/auth/v110/login',{uniqueid:featureSyntheticAccounts[0].login,pin:'2468'});assert.equal(pin.status,200,pin.data.code);
+ const auth={headers:{Cookie:pin.response.headers.getSetCookie().map(c=>c.split(';')[0]).join('; '),Authorization:'Bearer '+pin.data.sessionKey,'X-UAA-CSRF':pin.data.csrf}};
+ const bootstrap=await call('/api/academy/hub/read',{kind:'bootstrap',input:{mode:'learn'}},auth);assert.equal(bootstrap.status,200,bootstrap.data.code);assert.equal(bootstrap.data.account.accountId,f.id);assert(bootstrap.data.dashboard,'Native nested dashboard reads must succeed');assert.equal(bootstrap.data.configuration.academyOrigin,host);assert(!bootstrap.data.errors?.dashboard);
+ const opened=await call('/api/academy/hub/open',{dashboard:{mode:'learn',tool:'home'}},auth);assert.equal(opened.status,200,opened.data.code);assert.equal(opened.data.cookieSession,true);assert(!Object.hasOwn(opened.data,'token'));assert(opened.data.sessionKey.startsWith('uaa-context:'));
+ const session=await call('/api/account/session',{}, {headers:{...auth.headers,Authorization:'Bearer '+opened.data.sessionKey}});assert.equal(session.status,200,session.data.code);
 }));
 
 test.after(()=>{
