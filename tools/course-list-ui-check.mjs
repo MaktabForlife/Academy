@@ -34,6 +34,13 @@ async function native(url,options={}){
  return response;
 }
 const context=await browser.newContext({viewport:{width:2048,height:1100},reducedMotion:'reduce',serviceWorkers:'block'});
+const resizeDiagnostics=[];
+await context.exposeBinding('__reviewResizeDiagnostic',(_source,value)=>resizeDiagnostics.push({...value,phase}));
+await context.addInitScript(()=>{
+ const recent=[];const Native=window.ResizeObserver;
+ if(Native)window.ResizeObserver=class extends Native{constructor(callback){const created=(new Error()).stack;super((entries,observer)=>{recent.push({created,targets:entries.map(entry=>({id:entry.target.id,classes:entry.target.className,width:entry.contentRect.width,height:entry.contentRect.height}))});if(recent.length>6)recent.shift();callback(entries,observer);});}};
+ window.addEventListener('error',event=>{if(event.message==='ResizeObserver loop completed with undelivered notifications.')void window.__reviewResizeDiagnostic({url:location.pathname+location.search,width:innerWidth,height:innerHeight,recent:[...recent],bannerHeight:document.documentElement.style.getPropertyValue('--academy-banner-height')});});
+});
 const page=await context.newPage();
 let phase='unchanged-native-login';
 const loginNotifications=[];
@@ -45,6 +52,7 @@ page.on('pageerror',error=>{
  if(phase==='unchanged-native-login'&&error.message==='ResizeObserver loop completed with undelivered notifications.')loginNotifications.push(entry);
  else errors.push(entry);
 });
+let frozenBaseline=false;
 let modernCourse=null,modernModel='PAID',modernRevision=1,modernReads=0,modernSaves=[],loseModernAck=true;
 
 await context.route('**/*',async route=>{
@@ -76,6 +84,8 @@ await context.route('**/*',async route=>{
  }
  if(url.origin!==base){blocked.push(url.origin);return route.abort();}
  let name=url.pathname;if(name.endsWith('/'))name+='index.html';
+ const sourceName=name.replace(/^\/_assets\/[a-f0-9]{64}\//,'/');
+ if(frozenBaseline&&['/academy/courses/manage/index.html','/js/m4l-academy-course-management.js','/js/m4l-studio-access.js','/css/m4l-academy-course-management.css'].includes(sourceName))return route.fulfill({status:200,contentType:mime[extname(sourceName)]||'application/octet-stream',body:await readFile(resolve('baseline-source','.'+sourceName))});
  try{const file=resolve(assets,'.'+decodeURIComponent(name));assert(file.startsWith(assets+'/'));return route.fulfill({status:200,contentType:mime[extname(file)]||'application/octet-stream',body:await readFile(file)});}
  catch{return route.fulfill({status:404,body:'Not found'});}
 });
@@ -104,6 +114,7 @@ try{
  const dateText=await page.locator('.cm-course-dates').allTextContents();assert(dateText.every(x=>!x.includes('2026-10-31')));
  const keys=await page.locator('#course-list .cm-course-open').evaluateAll(nodes=>nodes.map(n=>n.dataset.course+':'+n.dataset.run));assert.equal(new Set(keys).size,keys.length);
  for(const width of [390,768,1440,2048]){
+  phase='course-layout-'+width;
   await page.setViewportSize({width,height:1100});await page.waitForTimeout(50);
   const box=await page.locator('#course-list-panel').boundingBox();assert(box&&box.width>0&&box.width<=1061);
   const geometry=await page.evaluate(()=>({client:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth,listClient:document.querySelector('#course-list').clientWidth,listScroll:document.querySelector('#course-list').scrollWidth}));
@@ -111,11 +122,13 @@ try{
   records.push({case:'course-list-layout',width,panelWidth:box.width,...geometry});
   if(width===390||width===2048)await page.screenshot({path:resolve(out,'course-list-'+width+'.png'),fullPage:true});
  }
+ phase='course-native-policy';
  const row=created.find(c=>c.name==='Latest A'),choice=model=>page.locator('[data-cm-action="list-policy"][data-model="'+model+'"][data-course="'+row.courseId+'"][data-run="'+row.runId+'"]');
  await choice('FREE').click();await page.locator('#course-dialog[open]').waitFor();assert.match(await page.locator('#course-dialog').textContent(),/Save this Course draft as Free/);await page.locator('[data-dialog-confirm]').click();
  await page.waitForFunction(({id,run})=>document.querySelector('[data-cm-action="list-policy"][data-model="FREE"][data-course="'+id+'"][data-run="'+run+'"]')?.checked,{id:row.courseId,run:row.runId});
  assert.equal(await choice('PAID').isChecked(),false);const checked=(await request('get',{courseId:row.courseId,runId:row.runId})).course;assert.equal(checked.details.accessModel,'FREE');assert.equal(checked.details.endDate,'2026-10-31');records.push({case:'actual-list-policy-save',savedModel:'FREE',endDateRetained:true});
  await page.waitForFunction(()=>!document.querySelector('#course-refresh').disabled);
+ phase='course-native-archive';
  const archive=()=>page.locator('[data-cm-action="list-archive"][data-course="'+row.courseId+'"][data-run="'+row.runId+'"]');
  await archive().click();await page.locator('#course-dialog[open]').waitFor();await page.locator('[data-dialog-cancel]').click();assert.equal((await request('get',{courseId:row.courseId,runId:row.runId})).course.stage,'DRAFT');
  await archive().click();await page.locator('[data-dialog-confirm]').click();await page.waitForFunction(id=>!document.querySelector('#course-list .cm-course-open[data-course="'+id+'"]'),row.courseId);
@@ -124,6 +137,7 @@ try{
  await page.goto(base+'/academy/courses/manage/',{waitUntil:'domcontentloaded'});await page.locator('#course-list .cm-course-list').waitFor();assert.equal(await page.locator('#course-status-filter').inputValue(),'AVAILABLE');assert.equal(await page.locator('#course-list .cm-course-open[data-course="'+row.courseId+'"]').count(),0);
  await page.locator('#course-search').fill('No synthetic match');assert.match(await page.locator('#course-list').textContent(),/No Courses match/);records.push({case:'default-hidden-and-empty-view',archivedHidden:true});
  await page.locator('#course-search').fill('');
+ phase='course-studio-policy';
  const modernSaved=await request('save',{operationId:crypto.randomUUID(),details:{name:'Studio policy transport fixture',accessModel:'PAID',startDate:'2026-10-05',endDate:'2026-10-31',timezone:'Africa/Johannesburg',categoryKey:'',weekdays:[],sessions:[],startTime:'',endTime:'',teacherId:'',zoomLink:''}});
  modernCourse={courseId:modernSaved.courseId,runId:modernSaved.runId};
  await page.goto(base+'/academy/courses/manage/',{waitUntil:'domcontentloaded'});await page.locator('#course-list .cm-course-list').waitFor();
@@ -139,9 +153,16 @@ try{
  assert.equal(modernSaves.length,2);assert.deepEqual(modernSaves[1],modernSaves[0]);assert.equal(await modernChoice('FREE').isChecked(),true);assert.equal(await modernChoice('PAID').isChecked(),false);
  assert.equal(requests.filter(r=>r.path.endsWith('/courses/save')).length,legacyWrites,'Studio-owned settings never use legacy Course-save writer');
  records.push({case:'studio-policy-full-modal-transport',cancelBeforeSave:true,lostAckErrorVisible:true,pendingCancelBlocked:true,identicalRetry:true,savedModel:modernModel,ownerReads:modernReads,actualStudioAuthorizationProved:false});
- assert.deepEqual(errors,[]);assert.equal(remoteAttempts,0);
+ const writesBeforeBaseline=requests.filter(r=>r.path.endsWith('/courses/save')||r.path.endsWith('/courses/status')).length;
+ frozenBaseline=true;phase='frozen-baseline-course';
+ await page.goto(base+'/academy/courses/manage/?review=frozen',{waitUntil:'domcontentloaded'});await page.locator('#course-list .cm-course-list').waitFor();
+ assert.equal(await page.locator('[data-cm-action="list-policy"]').count(),0,'Frozen baseline must not contain candidate controls');
+ for(let repeat=0;repeat<3;repeat++)for(const width of [390,768,1440,2048]){await page.setViewportSize({width,height:1100});await page.waitForTimeout(70);}
+ assert.equal(requests.filter(r=>r.path.endsWith('/courses/save')||r.path.endsWith('/courses/status')).length,writesBeforeBaseline);
+ records.push({case:'frozen-baseline-resize-diagnostic',repeatedWidths:12,candidateControls:0,settingsWrites:0});
+ assert.deepEqual(errors.filter(error=>error.phase!=='frozen-baseline-course'),[]);assert.equal(remoteAttempts,0);
 }finally{
  await page.screenshot({path:resolve(out,'final-state.png'),fullPage:true}).catch(()=>{});
- await writeFile(resolve(out,'report.json'),JSON.stringify({commit:process.env.GITHUB_SHA,browserEngine:browserName,records,pageErrors:errors,unchangedLoginNotifications:loginNotifications,nativeDenials,syntheticStudioFixtureCalls:serviceCalls,studioAuthorizationParityProved:false,requestCounts:requests.reduce((a,r)=>({...a,[r.path+':'+r.kind]:(a[r.path+':'+r.kind]||0)+1}),{}),blockedExternalOrigins:[...new Set(blocked)],remoteAttempts,syntheticHeaderDateCalls,hostedRequests:0,hostedDBReads:0,syntheticNativeSQLiteOnly:true},null,2));
+ await writeFile(resolve(out,'report.json'),JSON.stringify({commit:process.env.GITHUB_SHA,browserEngine:browserName,records,pageErrors:errors,unchangedLoginNotifications:loginNotifications,resizeDiagnostics,nativeDenials,syntheticStudioFixtureCalls:serviceCalls,studioAuthorizationParityProved:false,requestCounts:requests.reduce((a,r)=>({...a,[r.path+':'+r.kind]:(a[r.path+':'+r.kind]||0)+1}),{}),blockedExternalOrigins:[...new Set(blocked)],remoteAttempts,syntheticHeaderDateCalls,hostedRequests:0,hostedDBReads:0,syntheticNativeSQLiteOnly:true},null,2));
  await browser.close();seed.close();globalThis.fetch=originalFetch;
 }

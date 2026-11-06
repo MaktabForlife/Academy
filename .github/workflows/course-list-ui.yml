@@ -58,6 +58,12 @@ jobs:
           ref: bbf9b109fd703b801bbb6ab19e6f3e0bbd355ced
           path: fixture-source
           persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: MaktabForlife/Academy
+          ref: 50c32f6f550b52512453461074ad6e12af384fe3
+          path: baseline-source
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24.18.0'
