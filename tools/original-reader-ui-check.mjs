@@ -38,7 +38,7 @@ async function contextFor(candidate){
  await context.addInitScript(({portal,token})=>{if(location.origin===portal)localStorage.setItem('m4l_account_token',token);},{portal,token:signed.token});
  context.on('page',page=>page.on('pageerror',e=>errors.push({candidate,message:e.message})));
  await context.route('**/*',async route=>{
-  const request=route.request(),url=new URL(request.url()),headers={...request.headers()};delete headers['if-none-match'];
+  const request=route.request(),url=new URL(request.url()),headers={...await request.allHeaders()};delete headers['if-none-match'];
   if(url.origin===h.academyApiOrigin&&url.pathname.startsWith('/api/')){
    calls.push({candidate,app:'academy',path:url.pathname,method:request.method()});
    const target=new URL(url.pathname+url.search,'https://academy.test');
@@ -47,7 +47,7 @@ async function contextFor(candidate){
    return route.fulfill(await payload(response));
   }
   if(url.origin===studio&&(url.pathname.startsWith('/api/')||url.pathname.startsWith('/auth/'))){
-   calls.push({candidate,app:'studio',path:url.pathname,method:request.method(),hasCookie:Boolean(request.headers().cookie)});
+   calls.push({candidate,app:'studio',path:url.pathname,method:request.method(),hasCookie:Boolean(headers.cookie)});
    const response=await f.runtime.dispatchFetch(url.href,{method:request.method(),headers,...(request.postData()?{body:request.postDataBuffer()}:{})});
    let safe;try{const body=await response.clone().json();safe={signedIn:body.signedIn,code:body.code,error:body.error,hasWebsite:Boolean(body.website),hasAccount:Boolean(body.account),websiteError:body.errors?.website};}catch{}
    const set=response.headers.get('Set-Cookie');
