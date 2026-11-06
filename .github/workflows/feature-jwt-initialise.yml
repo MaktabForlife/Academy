@@ -1,0 +1,78 @@
+name: One-time approved fresh JWT Feature setup
+on:
+  workflow_dispatch:
+    inputs:
+      approval_pr:
+        type: string
+        required: true
+        description: Merged explicitly approved fresh-only setup component PR
+      approval_merge_sha:
+        type: string
+        required: true
+        description: Exact current approved canonical merge
+permissions:
+  contents: read
+  statuses: read
+  pull-requests: read
+defaults:
+  run:
+    shell: bash
+concurrency:
+  group: feature-isolation-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  validate:
+    if: github.ref == 'refs/heads/feature-preview'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - name: Verify separate exact source/effects approval before private environment access
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPROVAL_PR: ${{ inputs.approval_pr }}
+          APPROVAL_MERGE_SHA: ${{ inputs.approval_merge_sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import {setupApproval} from './tools/approved-feature-setup.mjs';
+          import {githubClient} from './tools/approved-deployment.mjs';
+          await setupApproval({api:githubClient(process.env.GITHUB_TOKEN),mergeSha:process.env.APPROVAL_MERGE_SHA,prNumber:process.env.APPROVAL_PR,featureSha:process.env.GITHUB_SHA});
+          NODE
+  initialise:
+    needs: validate
+    if: github.ref == 'refs/heads/feature-preview'
+    environment: feature
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - run: npm ci --prefix backend --no-audit --no-fund
+      - name: Separately approved fixed NEW-only structured schema and private seed; final PAUSED removal
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPROVAL_PR: ${{ inputs.approval_pr }}
+          APPROVAL_MERGE_SHA: ${{ inputs.approval_merge_sha }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_FEATURE_DEPLOY_TOKEN }}
+          FEATURE_TEST_ADMIN_PIN: ${{ secrets.FEATURE_TEST_ADMIN_PIN }}
+          WRANGLER_SEND_METRICS: "false"
+        run: node backend/tools/jwt-feature-install.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: jwt-feature-setup-receipt-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/jwt-install-evidence/installation.json
+            ${{ runner.temp }}/jwt-install-evidence/verified-paused-receipt.json
+            ${{ runner.temp }}/jwt-install-evidence/public-package.json
+          if-no-files-found: warn
+          retention-days: 30
