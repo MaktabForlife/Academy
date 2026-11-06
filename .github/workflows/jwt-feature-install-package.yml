@@ -25,7 +25,7 @@ jobs:
       - name: Installer contract, transport, secrets, interruption and cleanup guards with local mocks
         run: |
           mkdir -p "$RUNNER_TEMP/jwt-install-package-evidence"
-          node --test --test-reporter=tap --test-concurrency=1 backend/tests/jwt-feature-install-package.test.mjs tests/approved-feature-setup.test.mjs 2>&1 | tee "$RUNNER_TEMP/jwt-install-package-evidence/package.log"
+          node --test --test-reporter=tap --test-concurrency=1 backend/tests/jwt-feature-install-package.test.mjs backend/tests/jwt-feature-release.test.mjs tests/approved-feature-setup.test.mjs tests/approved-deployment.test.mjs 2>&1 | tee "$RUNNER_TEMP/jwt-install-package-evidence/package.log"
       - name: Install pinned disposable local Worker runtime
         run: npm install --prefix "$RUNNER_TEMP/jwt-install-runtime" --no-audit --no-fund --save-exact miniflare@5.20261103.0-beta
       - name: Actual temporary/final Worker graphs and namespace constructors

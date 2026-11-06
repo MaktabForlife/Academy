@@ -9,6 +9,8 @@ import {packageFixture,bw,bc,baseline} from './fixtures/jwt-feature-install-fixt
 import {completeInstallPackage,assertNoTemporarySurface,bindPublicSigningKey} from '../tools/jwt-feature-install-package.mjs';
 import {createPrivateCapsule} from '../tools/jwt-feature-install-secrets.mjs';
 import {setupClient} from '../tools/jwt-feature-setup-client.mjs';
+import {renderCandidateConfigs} from '../tools/jwt-feature-transition.mjs';
+import {runEightRequestSmoke} from '../tools/jwt-feature-eight-request-smoke.mjs';
 import {verifyAcademyPin} from '../src/lib/academy-pin.js';
 assert.equal(process.env.GITHUB_ACTIONS,'true');
 const require=createRequire(resolve(process.env.FEATURE_MF_ROOT,'package.json')),{Miniflare,convertV4MiniflareOptions}=require('miniflare');
@@ -32,9 +34,10 @@ test('actual temporary native constructors seed only fresh local pair; final PAU
  const privateDO={ACADEMY_SPLIT_COORDINATOR:{className:'AcademySplitCoordinator',useSQLite:true},JWT_V110_SPLIT_COORDINATOR:{className:'JWTFeatureAcademySplitCoordinator',useSQLite:true}};
  const mainDO={...privateDO,PROGRAM_TIMETABLE_COORDINATOR:{className:'ProgramTimetableCoordinator',useSQLite:true},JWT_V110_TIMETABLE_COORDINATOR:{className:'JWTFeatureProgramTimetableCoordinator',useSQLite:true}};
  for(const k of ['ACADEMY_SPLIT_COORDINATOR','JWT_V110_SPLIT_COORDINATOR'])mainDO[k]={...mainDO[k],scriptName:'academy-feature-split-coordinator'};
+ const finalRates=[...(p.baseWorker.ratelimits||[]),{name:'JWT_V110_RATE_LIMITER',namespace_id:'100112',simple:{limit:10,period:60}}];
  const common={modules:true,compatibilityDate:'2026-10-23',compatibilityFlags:['nodejs_compat']};
  function options(wScript,cScript,wvars,cvars,secrets,probe=false){
-  const workers=[{...common,name:'feature_worker',script:wScript,bindings:{...wvars,...native,...secrets},d1Databases:databases,durableObjects:mainDO},
+  const workers=[{...common,name:'feature_worker',script:wScript,bindings:{...wvars,...native,...secrets},ratelimits:Object.fromEntries(finalRates.map(x=>[x.name,{namespace_id:x.namespace_id,simple:x.simple}])),r2Buckets:{MEDIA_BUCKET:'fresh-public',LESSON_MEDIA_BUCKET:'fresh-lessons',ASSESSMENT_BUCKET:'fresh-assessments'},d1Databases:databases,durableObjects:mainDO},
    {...common,name:'academy-feature-split-coordinator',script:cScript,bindings:cvars,d1Databases:databases,durableObjects:privateDO}];
   if(probe)workers.push({...common,name:'local-test-only-rpc-verifier',script:"export default {async fetch(request,env){try{await env.PROBE.getByName("+JSON.stringify('jwt-feature-bootstrap:'+contract.planId+':'+contract.sourceDigest)+").setupStatus({source:"+JSON.stringify(contract.source)+",manifestHash:"+JSON.stringify(contract.manifestHash)+"});return new Response(null,{status:500});}catch{return new Response(null,{status:410});}}};",durableObjects:{PROBE:{className:'JWTFeatureAcademySplitCoordinator',scriptName:'academy-feature-split-coordinator',useSQLite:true}}});
   return convertV4MiniflareOptions({workers});
@@ -57,7 +60,13 @@ test('actual temporary native constructors seed only fresh local pair; final PAU
   }
   const verifier=await mf.getWorker('local-test-only-rpc-verifier');assert.equal((await verifier.fetch('https://local-verifier.invalid/')).status,410,'OLD_SETUP_RPC_STILL_AVAILABLE');
   for(const name of ['ACADEMY_DB','ACADEMY_ADMIN_DB']){const held=await mf.getD1Database(name,'feature_worker'),r=await held.prepare("SELECT count(*) n FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%' AND name<>'_cf_METADATA'").first();assert.equal(r.n,0,'HELD_LOCAL_SENTINEL_CHANGED');}
+  const active=renderCandidateConfigs(p.baseWorker,p.baseCoordinator,baseline,final.receipt,{releaseId:process.env.GITHUB_SHA,mode:'ACTIVE'});
+  for(const c of [active.worker,active.coordinator])c.vars={...c.vars,JWT_FEATURE_INSTALL_SOURCE:p.publicManifest.source,JWT_FEATURE_INSTALL_OWNER:p.publicManifest.owner};
+  await mf.setOptions(options(fw.script,fc.script,active.worker.vars,active.coordinator.vars,finalSealed));
+  const smoke=await runEightRequestSmoke({dispatch:(url,options)=>mf.dispatchFetch(url,options),uniqueid:'feature-test-learner',pin:'2468',expectedAccount:'feature-synthetic-learner-a',requireMetrics:false});
+  assert.deepEqual(smoke.calls.map(x=>x.status),[200,200,200,200,403,200,200,401]);
+  assert.equal(smoke.metricsObserved,false);assert.equal(smoke.totals.rowsRead,null);
   const out=resolve(process.env.RUNNER_TEMP,'jwt-install-package-evidence');mkdirSync(out,{recursive:true});
-  writeFileSync(resolve(out,'workerd-package.json'),JSON.stringify({source:process.env.GITHUB_SHA,scope:'LOCAL_ONLY_ACTUAL_PRODUCTION_CONSTRUCTORS',setupRequests:2,seedVerified:true,nativeCredentialVerifications:4,finalPausedDenials:3,setupRPCRemoved:true,finalProductionGraphsExcludeSetupAndTests:true,heldLocalSentinelSelects:2,additionalLocalCredentialSelects:1,fixtureDDLExcluded:true,hostedCalls:0},null,2)+'\n');
+  writeFileSync(resolve(out,'workerd-package.json'),JSON.stringify({source:process.env.GITHUB_SHA,scope:'LOCAL_ONLY_ACTUAL_PRODUCTION_CONSTRUCTORS',selectedCompatibilityDate:'2026-10-23',nodeVersion:process.version,miniflareVersion:require('miniflare/package.json').version,installedSignerEightRequestStatuses:smoke.calls.map(x=>x.status),eightRequestMetricsObserved:false,setupRequests:2,seedVerified:true,nativeCredentialVerifications:4,finalPausedDenials:3,setupRPCRemoved:true,finalProductionGraphsExcludeSetupAndTests:true,heldLocalSentinelSelects:2,additionalLocalCredentialSelects:1,fixtureDDLExcluded:true,hostedCalls:0},null,2)+'\n');
  }finally{capsule.destroy();for(const k of Object.keys(sealed))sealed[k]='';await mf.dispose();}
 });

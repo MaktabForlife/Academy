@@ -159,6 +159,14 @@ export function assertProductionSource({root,baseline,plan}){
  }
  return true;
 }
+export function featureReleaseWorkflow(plan){
+ if(plan.kind==='release'&&plan.target==='feature'){
+  assert.equal(plan.contains_jwt,true,'Feature release must declare JWT');
+  return 'feature-jwt-release.yml';
+ }
+ assert.equal(plan.kind,'configuration');assert.equal(plan.contains_jwt,false);
+ return 'feature-isolation-check.yml';
+}
 async function promoteFeature(proof,api){
  assert.equal(proof.repo,ACADEMY);const plan=proof.plan;assert(plan.feature_sha&&plan.feature_base_sha);
  const ref='/repos/'+ACADEMY+'/git/refs/heads/feature-preview';
@@ -168,11 +176,11 @@ async function promoteFeature(proof,api){
  assertFeatureComparison(comparison,plan);
  await freshApproval(proof,api);
  if(current!==plan.feature_sha)await api(ref,{method:'PATCH',body:{sha:plan.feature_sha,force:false}});
- const dispatchName='Approved Feature '+proof.mergeSha;
- const prior=await api('/repos/'+ACADEMY+'/actions/workflows/feature-isolation-check.yml/runs?branch=feature-preview&event=workflow_dispatch&per_page=30');
+ const dispatchName='Approved Feature '+proof.mergeSha,workflow=featureReleaseWorkflow(plan);
+ const prior=await api('/repos/'+ACADEMY+'/actions/workflows/'+workflow+'/runs?branch=feature-preview&event=workflow_dispatch&per_page=30');
  if(prior.workflow_runs.some(r=>r.head_sha===plan.feature_sha&&r.display_title===dispatchName&&(['queued','in_progress','waiting','pending'].includes(r.status)||r.conclusion==='success')))return {promotion:'ALREADY_DISPATCHED',featureSha:plan.feature_sha};
  await freshApproval(proof,api);
- await api('/repos/'+ACADEMY+'/actions/workflows/feature-isolation-check.yml/dispatches',{method:'POST',body:{ref:'feature-preview',inputs:{approval_pr:String(proof.pr),approval_merge_sha:proof.mergeSha,check_only:plan.kind==='configuration'?'true':'false'}}});
+ await api('/repos/'+ACADEMY+'/actions/workflows/'+workflow+'/dispatches',{method:'POST',body:{ref:'feature-preview',inputs:{approval_pr:String(proof.pr),approval_merge_sha:proof.mergeSha,check_only:plan.kind==='configuration'?'true':'false'}}});
  return {promotion:'DISPATCHED',featureSha:plan.feature_sha,checkOnly:plan.kind==='configuration'};
 }
 export async function loadProductionApproval(){
