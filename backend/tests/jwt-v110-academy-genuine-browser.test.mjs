@@ -22,8 +22,9 @@ const origin='https://feature_worker.maktab4life.workers.dev';
 const mime=path=>({'.js':'text/javascript','.mjs':'text/javascript','.json':'application/json','.html':'text/html','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.fragment':'text/plain','.ico':'image/x-icon'}[extname(path)]||'application/octet-stream');
 test('Genuine Chrome native PIN installs HttpOnly Feature cookies and uses the actual own Worker',async t=>{
  const evidence=process.env.JWT_V110_EVIDENCE,build=JSON.parse(readFileSync(join(evidence,'public-build.json'),'utf8')),allowed=new Set(build.files),fixture=await createAcademyWorkerdFixture(),directory=await mkdtemp(join(tmpdir(),'jwt-feature-chrome-'));
- let browser,cdp,tab,server;const api=[],staticRequests=[],missingAssets=[],networkFailures=[];let outside=0,options=0;
+ let browser,cdp,tab,server,startupErrors='',startupDone=false;const api=[],staticRequests=[],missingAssets=[],networkFailures=[];let outside=0,options=0;
  t.after(async()=>{
+  if(!startupDone)try{await writeFile(join(evidence,'chrome-startup.json'),JSON.stringify({exitCode:browser?.exitCode,signalCode:browser?.signalCode,errors:startupErrors.slice(0,3000)})+'\n');}catch{}
   if(cdp&&tab){try{
    const page=await cdp.evaluate(tab,'({state:document.documentElement.dataset.uaaV110State,dialogOpen:document.getElementById("academy-login-dialog")?.open,pinLength:document.getElementById("demo-pin")?.value?.length,status:document.getElementById("login-status")?.textContent?.slice(0,200),path:location.pathname,headerPresent:!document.getElementById("academy-header-name")?.hidden,privateFacade:Boolean(window.M4L_V110),control:window.__ciControl,frames:document.querySelectorAll("iframe[data-uaa-control]").length,selectorPresent:/^uaa-(session|context):/.test(localStorage.getItem("m4l_account_token")||"")})');
    const stored=await cdp.call('Storage.getCookies');
@@ -51,9 +52,10 @@ test('Genuine Chrome native PIN installs HttpOnly Feature cookies and uses the a
  }
  await new Promise(resolve=>server.listen(443,'127.0.0.1',resolve));
  const executable=['/usr/bin/google-chrome','/usr/bin/chromium','/usr/bin/chromium-browser'].find(existsSync);assert(executable,'Runner Chrome required');
- const version=execFileSync(executable,['--version'],{encoding:'utf8'}).trim();
- browser=spawn(executable,['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-background-networking','--disable-component-update','--disable-sync','--no-first-run','--no-default-browser-check','--no-proxy-server','--ignore-certificate-errors','--host-resolver-rules=MAP feature_worker.maktab4life.workers.dev 127.0.0.1','--remote-debugging-port=0','--user-data-dir='+directory,'about:blank'],{stdio:'ignore'});
- const portFile=await until(async()=>{try{return await readFile(join(directory,'DevToolsActivePort'),'utf8');}catch{return null;}},'Chrome did not start');
+ const version=execFileSync(executable,['--version'],{encoding:'utf8'}).trim(),profile=join(directory,'profile');await mkdir(profile);
+ browser=spawn(executable,['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--renderer-process-limit=2','--num-raster-threads=1','--disable-background-networking','--disable-component-update','--disable-sync','--no-first-run','--no-default-browser-check','--no-proxy-server','--ignore-certificate-errors','--host-resolver-rules=MAP feature_worker.maktab4life.workers.dev 127.0.0.1','--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'],{stdio:['ignore','ignore','pipe']});
+ browser.stderr.on('data',chunk=>{if(!startupDone&&startupErrors.length<3000)startupErrors+=String(chunk);});
+ const portFile=await until(async()=>{try{return await readFile(join(profile,'DevToolsActivePort'),'utf8');}catch{return null;}},'Chrome did not start',30000);startupDone=true;
  const [port,path]=portFile.trim().split('\n');cdp=await CDP.open('ws://127.0.0.1:'+port+path);
  cdp.onEvent=m=>{if(m.method==='Network.loadingFailed')networkFailures.push({error:m.params.errorText,type:m.params.type});if(m.method==='Fetch.requestPaused'){const url=new URL(m.params.request.url);const good=url.origin===origin;if(!good)outside++;void cdp.call(good?'Fetch.continueRequest':'Fetch.failRequest',good?{requestId:m.params.requestId}:{requestId:m.params.requestId,errorReason:'BlockedByClient'},m.sessionId).catch(()=>{});}};
  const {targetId}=await cdp.call('Target.createTarget',{url:'about:blank'}),{sessionId}=await cdp.call('Target.attachToTarget',{targetId,flatten:true});tab={id:targetId,session:sessionId};
