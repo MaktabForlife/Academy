@@ -38,9 +38,14 @@ test('actual workerd authenticated concurrent setup commits once; status and los
  const f=await fixture();try{
   for(const owner of ['core','admin']){
    const objects=(await f.db[owner].prepare("SELECT type,name,tbl_name,sql FROM sqlite_schema WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' AND name<>'_cf_METADATA' ORDER BY type,name").all()).results.map(r=>[r.type,r.name,r.tbl_name,r.sql]);
+   for(let offset=0;offset<c.tables[owner].length;offset+=25){
+    const names=c.tables[owner].slice(offset,offset+25);
+    const counts=(await f.db[owner].prepare(names.map(name=>"SELECT '"+name+"' name,count(*) n FROM "+JSON.stringify(name)).join(' UNION ALL ')).all()).results;
+    assert.equal(counts.every(r=>r.n===0),true,owner+' public empty tables');
+   }
    const actual=createHash('sha256').update(JSON.stringify(objects)).digest('hex');assert.equal(actual,c.objectHashes[owner],owner+' exact public schema hash');
   }
-  const responses=await Promise.all(Array.from({length:8},()=>f.call()));const statuses=responses.map(r=>r.status);assert.equal(statuses.filter(x=>x===200).length,1);assert.equal(statuses.filter(x=>x===409).length,7);
+  const responses=await Promise.all(Array.from({length:8},()=>f.call()));const statuses=responses.map(r=>r.status);console.log('PUBLIC_SETUP_METRICS',JSON.stringify({statuses,snapshot:await f.snapshot()}));assert.equal(statuses.filter(x=>x===200).length,1);assert.equal(statuses.filter(x=>x===409).length,7);
   for(const r of responses){assert.equal(r.headers.get('set-cookie'),null);const text=await r.text();assert.equal(text.includes('pbkdf2'),false);assert.equal(text.includes(f.shared),false);}
   const snap=await f.snapshot();assert.equal(snap.publicClaim.state,'VERIFIED');assert.equal(snap.credentialPresent,false);assert.deepEqual(snap.metrics.batches,{core:1,admin:1});
   const rows=(await f.db.core.prepare('SELECT pin_hash FROM account_credentials').all()).results;assert.equal(rows.length,4);
