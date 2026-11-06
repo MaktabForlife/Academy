@@ -4,6 +4,7 @@ import {createRequire} from 'node:module';
 import {resolve} from 'node:path';
 import {mkdirSync,writeFileSync,readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
+import {ddlVerifierSQL} from '../tools/jwt-feature-ddl-verifier.mjs';
 import {setupContract} from '../tools/jwt-feature-setup-contract.mjs';
 import {bootstrapInputs,schemaHashes} from '../tools/jwt-feature-transition.mjs';
 assert.equal(process.env.GITHUB_ACTIONS,'true','Disposable GitHub only');
@@ -25,12 +26,12 @@ test('complete empty native DDL and fixed validation are measured independently 
    async function batch(queries){m.roundTrips++;m.statements+=queries.length;const r=await db.batch(queries.map(s=>db.prepare(s)));r.forEach(add);return r;}
    assert.equal((await all("SELECT count(*) n FROM sqlite_schema WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' AND name<>'_cf_METADATA'"))[0].n,0);
    const before=structuredClone(m);await batch(sql[owner]);const ddlCost=Object.fromEntries(Object.keys(m).map(k=>[k,m[k]-before[k]]));
+   const verifierSQL=ddlVerifierSQL(c.tables[owner]),verified=await all(verifierSQL);
+   assert.equal(verified.length,1);assert.deepEqual(verified[0],{user_objects:owner==='core'?1372:83,user_tables:c.tables[owner].length,user_rows:0,foreign_key_errors:0,quick_rows:1,quick_check:'ok'});
+   const uiProjection=structuredClone(m);
    const objects=await all("SELECT type,name,tbl_name,sql FROM sqlite_schema WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' AND name<>'_cf_METADATA' ORDER BY type,name");
-   const objectHash=digest(JSON.stringify(objects.map(r=>[r.type,r.name,r.tbl_name,r.sql])));assert.equal(objectHash,c.objectHashes[owner]);assert.equal(objects.length,owner==='core'?1372:83);
-   const queries=[];for(let i=0;i<c.tables[owner].length;i+=5)queries.push(c.tables[owner].slice(i,i+5).map(name=>"SELECT '"+name+"' name,count(*) n FROM "+JSON.stringify(name)).join(' UNION ALL '));
-   const counts=(await batch(queries)).flatMap(r=>r.results);assert.equal(counts.length,c.tables[owner].length);assert.equal(counts.every(r=>r.n===0),true);
-   assert.equal((await all('PRAGMA foreign_key_check')).length,0);const quick=await all('PRAGMA quick_check');assert.equal(quick.length,1);assert.equal(Object.values(quick[0])[0],'ok');
-   report.owners[owner]={objects:objects.length,tables:c.tables[owner].length,initialUserObjects:0,allUserRows:0,objectHash,foreignKeyErrors:0,quickCheck:'ok',ddlCost,completeCost:m};
+   const objectHash=digest(JSON.stringify(objects.map(r=>[r.type,r.name,r.tbl_name,r.sql])));assert.equal(objectHash,c.objectHashes[owner]);
+   report.owners[owner]={objects:objects.length,verifierSQL,uiDeliveryProjection:uiProjection,additionalLocalObjectHashSelects:1,tables:c.tables[owner].length,initialUserObjects:0,allUserRows:0,objectHash,foreignKeyErrors:0,quickCheck:'ok',ddlCost,completeCost:m};
   }
   const dir=resolve(process.env.RUNNER_TEMP,'jwt-ddl-budget-evidence');mkdirSync(dir,{recursive:true});writeFileSync(resolve(dir,'ddl-budget.json'),JSON.stringify(report,null,2)+'\n');
  }finally{await mf.dispose();}
