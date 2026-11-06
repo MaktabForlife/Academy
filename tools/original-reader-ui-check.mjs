@@ -47,8 +47,11 @@ async function contextFor(candidate){
    return route.fulfill(await payload(response));
   }
   if(url.origin===studio&&(url.pathname.startsWith('/api/')||url.pathname.startsWith('/auth/'))){
-   calls.push({candidate,app:'studio',path:url.pathname,method:request.method()});
+   calls.push({candidate,app:'studio',path:url.pathname,method:request.method(),hasCookie:Boolean(request.headers().cookie)});
    const response=await f.runtime.dispatchFetch(url.href,{method:request.method(),headers,...(request.postData()?{body:request.postDataBuffer()}:{})});
+   let safe;try{const body=await response.clone().json();safe={signedIn:body.signedIn,code:body.code,error:body.error,hasWebsite:Boolean(body.website),hasAccount:Boolean(body.account),websiteError:body.errors?.website};}catch{}
+   const set=response.headers.get('Set-Cookie');
+   diagnostics.push({candidate,app:'studio',path:url.pathname,status:response.status,...safe,...(set?{setCookieName:set.split('=')[0],setCookieFlags:set.split(';').slice(1).map(x=>x.trim())}:{})});
    return route.fulfill(await payload(response));
   }
   if(url.origin===portal&&url.pathname==='/__review/original-reader'){
@@ -75,16 +78,16 @@ try{
  const link=page.getByRole('link',{name:'Read original website'});assert.equal(await link.getAttribute('href'),portal+'/studio/?website='+website);assert.equal(await link.getAttribute('target'),'_blank');assert((await link.getAttribute('rel')).includes('noopener'));
  const start=calls.length,next=after.waitForEvent('page');await link.click();const child=await next;
  await child.locator('#course-reader:not([hidden])').waitFor({timeout:25000});assert.match(await child.locator('#course-reader').textContent(),/Synthetic whole Course/);
- assert.equal(new URL(child.url()).href,studio+'/studio/?website='+website);assert.equal(await child.locator('#sign-in-dialog').isVisible(),false);assert.equal(await child.evaluate(()=>window.opener===null),true);assert.equal(after.pages().length,2);
+ assert.equal(new URL(child.url()).origin+new URL(child.url()).pathname+new URL(child.url()).search,studio+'/studio/?website='+website);assert.equal(new URL(child.url()).hash,'#view=home');assert.equal(await child.locator('#sign-in-dialog').isVisible(),false);assert.equal(await child.evaluate(()=>window.opener===null),true);assert.equal(after.pages().length,2);
  assert.equal(page.url(),portal+'/__review/original-reader');
  const flow=calls.slice(start);assert.equal(flow.filter(x=>x.app==='academy'&&x.path==='/api/academy/hub/studio-start').length,1);assert.equal(flow.filter(x=>x.app==='studio'&&x.path==='/auth/exchange').length,1);assert.equal(flow.filter(x=>x.path==='/auth/login'||x.path==='/api/account/login').length,0);
- assert(!new URL(child.url()).hash);assert(!(await child.evaluate(()=>sessionStorage.getItem('m4l_studio_native_connect_v1'))));
+ assert(!/[#&](?:code|state|verifier)=/.test(new URL(child.url()).hash));assert(!(await child.evaluate(()=>sessionStorage.getItem('m4l_studio_native_connect_v1'))));
  records.push({case:'candidate-existing-native-pkce',exactSelectedWebsite:true,readerVisibleWithoutExtraOpen:true,noSecondPin:true,newTabException:true,noopener:true,previousPageRetained:true,sourceIssuances:1,exchanges:1,flow});
  await child.screenshot({path:resolve(out,'candidate-original-reader.png'),fullPage:true});await after.close();
  assert.deepEqual(errors,[]);assert.equal(nodeRemoteAttempts,0);
 }finally{
  for(const [ci,context]of browser.contexts().entries())for(const [pi,page]of context.pages().entries()){
-  try{diagnostics.push({context:ci,page:pi,url:new URL(page.url()).origin+new URL(page.url()).pathname,status:await page.locator('[role=status]').allTextContents(),connectRetry:await page.locator('#academy-connect-retry:not([hidden])').count()});await page.screenshot({path:resolve(out,'failure-context-'+ci+'-'+pi+'.png'),fullPage:true});}catch{}
+  try{diagnostics.push({cookies:(await context.cookies()).map(c=>({name:c.name,domain:c.domain,path:c.path,secure:c.secure,httpOnly:c.httpOnly,sameSite:c.sameSite})),context:ci,page:pi,url:new URL(page.url()).origin+new URL(page.url()).pathname,status:await page.locator('[role=status]').allTextContents(),connectRetry:await page.locator('#academy-connect-retry:not([hidden])').count()});await page.screenshot({path:resolve(out,'failure-context-'+ci+'-'+pi+'.png'),fullPage:true});}catch{}
  }
  await writeFile(resolve(out,'report.json'),JSON.stringify({commit:process.env.GITHUB_SHA,studioSource:'3c420f35c30297cfcc41cfab24f030e51bb7831e',browser:browserName,records,calls,diagnostics,pageErrors:errors,blockedOrigins:[...new Set(blocked)],nodeRemoteAttempts,hostedApplicationCalls:0,hostedD1Calls:0,syntheticPairedWorkers:true,explicitSyntheticPortalBinding:true,applicationWorkerSourceUnchanged:true,fixtureLinkContainer:true,actualFullCourseMediaPageProved:false},null,2));
  await browser.close();globalThis.fetch=originalFetch;await f.close();
