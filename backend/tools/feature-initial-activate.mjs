@@ -39,6 +39,9 @@ async function main(){
   const pageFetch=async path=>{assert(pagesRequests<2);pagesRequests++;return fetch(portalOrigin+path,{redirect:'error',cache:'no-store',signal:AbortSignal.timeout(15000)});};
   await head();command(['pages','deploy',join(root,'.academy-pages'),'--project-name','academy-maktab4life','--branch','feature-preview','--commit-hash',process.env.GITHUB_SHA,'--commit-dirty=true'],'pages-preview');
   evidence.state='PAGES_PREVIEW';save();
+  // Pages can report upload success before its branch alias reaches the edge.
+  // Settle once without polling; the same two-request limit remains intact.
+  await new Promise(done=>setTimeout(done,15000));
   const marker=await pageFetch('/feature-build.json?commit='+process.env.GITHUB_SHA);evidence.pageMarkerStatus=marker.status;save();assert.equal(marker.status,200,'Feature build marker route failed');const m=await marker.json();evidence.observedMarker={commit:typeof m.commit==='string'&&/^[a-f0-9]{40}$/.test(m.commit)?m.commit:'INVALID',branch:m.branch==='feature-preview'?'feature-preview':'INVALID'};save();assert.equal(m.commit,process.env.GITHUB_SHA);assert.equal(m.branch,'feature-preview');
   const html=await pageFetch('/academy/');assert.equal(html.status,200);assert((await html.text()).includes('login-preview'));
   assert.equal((await api('/pages/projects/academy-maktab4life')).production_branch,'development');
