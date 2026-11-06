@@ -38,7 +38,9 @@ export async function createAccountBoundAcademyRefresh({binding,repository,clock
    let nativeVersion;try{nativeVersion=await verifyActor(db,proof);}catch{fail('SESSION_ENDED');}
    if(!uint(nativeVersion))fail('REFRESH_UNAVAILABLE');
    if(authorizeRotation)await authorizeRotation({family:r,now});
-   const rights=projectAcademyRights(state,{websiteAdmitted:state.contexts.some(c=>c.scope==='WEBSITE')});
+   // Native adapters may return null-prototype database rows. Copy only the
+   // already server-verified authority rows into the strict codec boundary.
+   const rights=projectAcademyRights({...state,account:{global_admin:state.account.global_admin,substitute_grants:state.account.substitute_grants},roles:state.roles.map(r=>({...r})),subscriptions:state.subscriptions.map(r=>({...r})),monthlyMedia:state.monthlyMedia.map(r=>({...r})),surahGrants:state.surahGrants.map(r=>({...r}))},{websiteAdmitted:state.contexts.some(c=>c.scope==='WEBSITE')});
    const issued=await engine.issue(claims(r),rights,now);
    const committedAt=clock();checkClock(r,committedAt);
    if(committedAt<now||issued.claims.exp<=committedAt)fail('PREPARATION_EXPIRED');

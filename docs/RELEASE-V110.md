@@ -5,3 +5,5 @@ Source composition starts from the independently verified isolated Feature basel
 All JWT activation flags remain off. No hosted configuration/schema/database/deployment change occurs in this source composition. Master issuance, local native API authentication, real foreground/PIN/cancellation/host/storage integration and measured rollback remain release gates. Development and production are unchanged. Test execution is restricted to disposable GitHub runners; credential-free reports belong in the approved Drive folder.
 
 V110.2 adds default-disabled Academy prepared own refresh and a scoped synthetic native-PIN prerequisite suite. Issuer, first family, qualifying foreground, cookies/resource cutover and hosted activation remain pending.
+
+V110.3 corrects the new workflow's test-pipeline failure propagation and copies already-verified native database rows to ordinary objects at the strict rights-codec boundary. Run42157619929 had8passing/8failing test executions despite a green job and is not acceptance evidence. No hosted change.
