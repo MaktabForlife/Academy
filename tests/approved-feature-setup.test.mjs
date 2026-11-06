@@ -7,7 +7,7 @@ import {activeRuntime} from '../tools/approved-deployment.mjs';
 const hash=x=>createHash('sha256').update(x).digest('hex'),repo='MaktabForlife/Academy';
 const head='a'.repeat(40),merge='b'.repeat(40),feature='c'.repeat(40),base='d'.repeat(40),tree='e'.repeat(40);
 function fixture(){
- const calls=[],plan=JSON.parse(readFileSync(new URL('../deployment/jwt-feature-setup-plan.json',import.meta.url),'utf8'));
+ const calls=[],plan=JSON.parse(readFileSync(new URL('./fixtures/jwt-feature-setup-plan.json',import.meta.url),'utf8'));
  const receipt={state:'STARTING_FOOTPRINT_REVIEWED_PRIVATE_ATTESTATION_PENDING',accountId:plan.accountId,databaseIds:plan.databaseIds,databaseNames:plan.databaseNames,reviewedSchemaPrimitive:plan.setupPrimitive,startingFootprints:{"core":{"observedObjects":1,"orderedDefinitionHash":"746047e55a185d77723c183c1652a18afafa0ea6a9ced7a623c652fe404c90bc","firstDefinitionHash":"ba6adc0dad88252e65296438061de7e8d62e238bcfd1aa882817f5e4a536f739","userRows":"NOT_QUERIED"},"admin":{"observed":"NOT_OPENED","expectedObjects":0,"expectedOrderedDefinitionHash":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"}},observed:{coreEditorSQLSubmissions:7,adminEditorOpened:false,failedBatchUsage:'UNMEASURED'}};
  const receiptRaw=JSON.stringify(receipt);plan.state='STARTING_FOOTPRINT_READY_FOR_REVIEW';plan.startingReceiptSHA256=hash(receiptRaw);
  const raw=JSON.stringify(plan),release={schema:1,request:'jwt-feature-fresh-setup-20261106a',kind:'component',target:'feature',contains_jwt:true,database_changes:false,feature_sha:feature,feature_base_sha:base};
