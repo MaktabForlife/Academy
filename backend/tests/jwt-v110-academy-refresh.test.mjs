@@ -22,7 +22,7 @@ const withFamily=(fn,{age=0}={})=>async()=>{
  const seed=await prepareFeatureSeed({pin:'2468',secrets});const native=seed.databases.core;
  try{
   native.exec(readFileSync(new URL('./fixtures/jwt-v110-auth-only.sql',import.meta.url),'utf8'));
-  let beforeBatch=null,stageHook=null;const rawCore=sqliteD1(native),observedCore={...rawCore,withSession(){return observedCore;},async batch(statements){await beforeBatch?.(statements);return rawCore.batch(statements);}};
+  let beforeBatch=null,stageHook=null,lastFailure='';const rawCore=sqliteD1(native),observedCore={...rawCore,withSession(){return observedCore;},async batch(statements){await beforeBatch?.(statements);try{return await rawCore.batch(statements);}catch(error){lastFailure=String(error.message).replace(/[A-Za-z0-9_-]{24,}/g,'[redacted]').replace(/\b\d{4}\b/g,'[digits]');throw error;}}};
   const core=emptyCompatibilityDatabase(observedCore,emptyShapes,{currentGrants:true}),admin=sqliteD1(seed.databases.admin),engine=splitEngine({core,admin,hook:async(...args)=>stageHook?.(...args)});
   const ns={getByName(){return Object.fromEntries(['read','write'].map(m=>[m,async(...args)=>({result:await engine[m](...args)})]));}};
   const keys=await generateKeyPair('ES256',{extractable:true}),publicJWK={...await exportJWK(keys.publicKey),kid:'synthetic-a'},privateJWK={...await exportJWK(keys.privateKey),kid:'synthetic-a'};
@@ -42,7 +42,7 @@ const withFamily=(fn,{age=0}={})=>async()=>{
    const data=await response.json();return {status:response.status,data,response};
   }
   const csrf=async()=>{const r=await call('/auth/v110/csrf');assert.equal(r.status,200,'Own CSRF prerequisite failed: '+r.data.code);return r.data.csrf;};
-  await fn({seed,native,env,raw,fp,sid,id,ce,at,browser,config,row,call,csrf,setBeforeBatch:fn=>beforeBatch=fn,setStageHook:fn=>stageHook=fn});
+  await fn({seed,native,env,raw,fp,sid,id,ce,at,browser,config,row,call,csrf,lastFailure:()=>lastFailure,engine,setBeforeBatch:fn=>beforeBatch=fn,setStageHook:fn=>stageHook=fn});
  }finally{seed.close();globalThis.fetch=originalFetch;}
 };
 test('Real native Academy PIN session refreshes into full-rights JWT cookies without exposing credentials',withFamily(async f=>{
@@ -263,6 +263,10 @@ test('Actual hub bootstrap and open retain cookie binding through nested native 
  const bootstrap=await call('/api/academy/hub/read',{kind:'bootstrap',input:{mode:'learn'}},auth);assert.equal(bootstrap.status,200,bootstrap.data.code);assert.equal(bootstrap.data.account.accountId,f.id);assert(bootstrap.data.dashboard,'Native nested dashboard reads must succeed');assert.equal(bootstrap.data.configuration.academyOrigin,host);assert(!bootstrap.data.errors?.dashboard);
  const opened=await call('/api/academy/hub/open',{dashboard:{mode:'learn',tool:'home'}},auth);assert.equal(opened.status,200,opened.data.code);assert.equal(opened.data.cookieSession,true);assert(!Object.hasOwn(opened.data,'token'));assert(opened.data.sessionKey.startsWith('uaa-context:'));
  const session=await call('/api/account/session',{}, {headers:{...auth.headers,Authorization:'Bearer '+opened.data.sessionKey}});assert.equal(session.status,200,session.data.code);
+}));
+
+test('Actual native cookie logout ends the native session',withFamily(async f=>{
+ const auth=await nativeCookieLogin(f);const r=await f.call('/api/account/logout',auth);assert.equal(r.status,200,'Native logout '+f.lastFailure());assert.equal((await f.call('/api/account/session',auth)).status,401);
 }));
 
 test.after(()=>{

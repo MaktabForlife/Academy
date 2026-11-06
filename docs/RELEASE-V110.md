@@ -21,3 +21,5 @@ V110.8 retains server configuration failures as 503, carries the cookie identity
 V110.9 corrects the unexercised Core-only race fixture to use the actual native bookmark save, asserting no owner-plan hook, positive ordinary transaction and cancellation immediately before its guarded batch. Run42167561718 failed39/40 and is not acceptance evidence. The added workerd test uses the actual Feature entry, exact local native schemas plus proposed JWT tables, actual private coordinator and measured D1 meta. It dispatches exactly eight synthetic own-app requests; no hosted calls or billing/cost-savings claim.
 
 V110.10 fixes an overescaped whitespace expression in the synthetic race hook. Run42167825284 failed39/40 because the hook did not fire; the dependent workerd job correctly stayed skipped. No runtime or hosted change.
+
+V110.11 adds a narrow native cookie logout regression and redacted local D1 failure classification to diagnose the workerd logout503. V110.10 native40/40 passed, but its dependent workerd run42168048291 failed at logout and is not full-flow acceptance evidence. No hosted change.

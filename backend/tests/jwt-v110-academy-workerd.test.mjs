@@ -30,7 +30,7 @@ test('Actual Feature entry in workerd uses native PIN, cookie identity, current 
   const calls=[],jar=new Map();let proof,handle;
   async function request(path,{body={},method='POST',expected=200,credential=true}={}){
    const r=await runtime.dispatchFetch(origin+path,{method,headers:{Origin:origin,'Sec-Fetch-Site':'same-origin','Content-Type':'application/json',...(credential?{Cookie:[...jar].map(([k,v])=>k+'='+v).join('; '),...(proof?{'X-UAA-CSRF':proof}:{}),...(handle?{Authorization:'Bearer '+handle}:{})}:{}),'X-Academy-Workspace':'LEARN'},...(method==='POST'?{body:JSON.stringify(body)}:{})});
-   const value=await r.json();assert.equal(r.status,expected,path+' '+value.code);
+   const value=await r.json(),observed=JSON.parse(r.headers.get('x-feature-local-budget'));assert.equal(r.status,expected,path+' '+value.code+' '+JSON.stringify(observed.localD1Errors));
    const cookies=r.headers.getSetCookie();for(const c of cookies){assert(!c.includes('Domain='),'Only host-only Feature cookies');const pair=c.split(';')[0],i=pair.indexOf('=');jar.set(pair.slice(0,i),pair.slice(i+1));}
    const metrics=JSON.parse(r.headers.get('x-feature-local-budget'));assert.equal(metrics.remoteCalls,0);calls.push({path,status:r.status,metrics});return value;
   }
