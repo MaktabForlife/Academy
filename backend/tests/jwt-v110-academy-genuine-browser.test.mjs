@@ -87,10 +87,11 @@ test('Genuine Chrome native PIN installs HttpOnly Feature cookies and uses the a
  // Advance only the renderer expiry clock; the issuer and SQL clocks remain real.
  // Use the actual Dashboard refresh control and its explicitly carried trusted event.
  await cdp.evaluate(tab,'window.__ciRealDateNow=Date.now;Date.now=()=>window.__ciRealDateNow()+901000;');
- await until(()=>cdp.evaluate(tab,'Boolean(document.querySelector("[data-circles-dashboard-refresh]"))'),'Native Dashboard refresh control missing',15000);
- const point=await cdp.evaluate(tab,'(()=>{const b=document.querySelector("[data-circles-dashboard-refresh]");b.scrollIntoView({block:"center"});const r=b.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};})()');
- await cdp.call('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,...point},sessionId);
- await cdp.call('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,...point},sessionId);
+ await until(()=>cdp.evaluate(tab,'Boolean(document.querySelector("[data-circles-dashboard-refresh]"))&&!document.querySelector("[data-circles-dashboard-refresh]").disabled'),'Native Dashboard refresh control missing or disabled',15000);
+ assert(await cdp.evaluate(tab,'(()=>{const b=document.querySelector("[data-circles-dashboard-refresh]");b.addEventListener("click",e=>{window.__ciNativeAction={trusted:e.isTrusted,active:navigator.userActivation.isActive};},{capture:true,once:true});b.focus({preventScroll:true});return document.activeElement===b;})()'),'The native Dashboard control must own keyboard focus');
+ await cdp.call('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,nativeVirtualKeyCode:13},sessionId);
+ await cdp.call('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,nativeVirtualKeyCode:13},sessionId);
+ await until(()=>cdp.evaluate(tab,'window.__ciNativeAction?.trusted===true&&window.__ciNativeAction?.active===true'),'Trusted native Dashboard activation was not delivered',10000);
  await until(()=>api.some(r=>r.path==='/auth/v110/refresh'&&r.status===200&&r.foreground===true),'Actual protected Dashboard action did not renew foreground',20000);
  await until(()=>api.slice(foregroundCallStart).some(r=>r.path==='/api/academy/hub/read'&&r.status===200),'Current protected Dashboard read did not finish',15000);
  await cdp.evaluate(tab,'Date.now=window.__ciRealDateNow;');
