@@ -76,6 +76,7 @@ jobs:
           node --test --test-reporter=tap backend/tests/feature-isolation.test.mjs backend/tests/feature-deployment-gates.test.mjs backend/tests/academy-management-origin-regression.test.mjs 2>&1 | tee "$RUNNER_TEMP/feature-evidence/isolation.log"
           node --test --test-reporter=tap --test-concurrency=1 backend/tests/feature-native-initialisation.test.mjs backend/tests/feature-first-preflight.test.mjs backend/tests/feature-seed-encrypt.test.mjs backend/tests/feature-initialise-paused.test.mjs 2>&1 | tee "$RUNNER_TEMP/feature-evidence/native-initialisation.log"
           CF_PAGES_BRANCH=feature-preview node backend/tools/academy-pages-build.mjs 2>&1 | tee "$RUNNER_TEMP/feature-evidence/pages-build.log"
+          node --test --test-reporter=tap backend/tests/feature-pages-marker.test.mjs 2>&1 | tee "$RUNNER_TEMP/feature-evidence/pages-marker.log"
           test "$(git diff --name-only)" = "config/hosting.json"
       - name: Validate Feature Worker configurations without Cloudflare access
         working-directory: backend
@@ -244,7 +245,7 @@ jobs:
           node backend/tools/feature-hosting-overlay.mjs "${{ runner.temp }}/feature-initial-activation"
           CF_PAGES_BRANCH=feature-preview node backend/tools/academy-pages-build.mjs
           test "$(git diff --name-only)" = "config/hosting.json"
-          node --test --test-reporter=tap backend/tests/feature-bounded-smoke.test.mjs
+          node --test --test-reporter=tap backend/tests/feature-bounded-smoke.test.mjs backend/tests/feature-pages-marker.test.mjs
       - name: Activate only isolated Feature and perform the fixed-budget check
         env:
           FEATURE_INITIALISE_ACTION: activate-bounded

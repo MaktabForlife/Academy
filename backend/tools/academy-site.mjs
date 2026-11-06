@@ -10,6 +10,14 @@ export async function serveAcademySite(request,env,{pages=false,branch=siteBranc
   const url=new URL(request.url);
   if(['/api/feature-preview/health','/api/site/health'].includes(url.pathname))return Response.json({success:true,version:siteVersion,branch,syntheticOnly},{headers:{'Cache-Control':'no-store'}});
   if(!['GET','HEAD'].includes(request.method))return new Response('Method not allowed',{status:405});
+  // Exact public build receipt for the isolated preview only. Neighbouring
+  // root JSON and non-Feature builds retain the existing asset allowlist.
+  if(pages&&branch==='feature-preview'&&url.pathname==='/feature-build.json'){
+    const assetURL=new URL(url);assetURL.search='';
+    const response=await env.ASSETS.fetch(new Request(assetURL,{method:'GET'}));
+    const headers=new Headers(response.headers);headers.set('Cache-Control','no-store');headers.set('X-Content-Type-Options','nosniff');
+    return new Response(request.method==='HEAD'?null:response.body,{status:response.status,headers});
+  }
   const portal=await servePortal(request,env);if(portal)return portal;
   // The release builder copies only reviewed public scripts/styles/artwork to
   // this content-addressed namespace. Documents and private APIs never enter it.
