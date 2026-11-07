@@ -135,6 +135,8 @@
   const field=p.root.querySelector('[data-access-policy] select');
   if(!field)throw Error('Reopen the current Course access controls.');
   for(const option of field.querySelectorAll('option'))option.toggleAttribute('selected',option.value===model);p.policyDirty=model!==p.data.coursePolicy.model;
+  // The list already chose the model: this dialog confirms that fixed choice.
+  field.disabled=true;
   return {
    canLeave:()=>!p.busy&&!p.policyPending,
    discard(){if(p.busy||p.policyPending)throw Error('Retry the pending Course access change first.');if(panels.get(activityKey)===p){p.root.remove();panels.delete(activityKey);}},
@@ -150,7 +152,7 @@
     }catch(error){
      if(['CHANGE_CONFLICT','ROW_CHANGED','RETRY_CONFLICT'].includes(error.code)&&live())await load(p,{refresh:true});
      throw error;
-    }finally{p.busy=false;}
+    }finally{p.busy=false;if(live()){const checkedField=p.root.querySelector('[data-access-policy] select');if(checkedField)checkedField.disabled=true;}}
    }
   };
  }
