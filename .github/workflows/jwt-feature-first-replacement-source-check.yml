@@ -31,11 +31,26 @@ jobs:
           node --check backend/tools/jwt-feature-first-replacement-build.mjs
           node --test --test-reporter=tap backend/tests/jwt-feature-first-replacement-inputs.test.mjs | tee first-replacement-inputs.tap
           node backend/tools/jwt-feature-first-replacement-build.mjs
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: c660e3813908127561ad454ab503f9f66fa6d700
+          path: .original-public-source
+          persist-credentials: false
+      - name: Reproduce only the pinned historical public builder for byte comparison
+        env:
+          FIRST_REPLACEMENT_OUTPUT: ${{ runner.temp }}/first-replacement-public
+          ORIGINAL_PUBLIC_EVIDENCE: ${{ runner.temp }}/original-public-evidence
+        run: |
+          set -euo pipefail
+          test "$(git -C .original-public-source rev-parse HEAD)" = c660e3813908127561ad454ab503f9f66fa6d700
+          mkdir "$ORIGINAL_PUBLIC_EVIDENCE"
+          GITHUB_SHA=c660e3813908127561ad454ab503f9f66fa6d700 JWT_V110_EVIDENCE="$ORIGINAL_PUBLIC_EVIDENCE" node .original-public-source/backend/tools/jwt-v110-feature-public-build.mjs
+          node backend/tools/jwt-feature-first-replacement-assets.mjs compare
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: jwt-feature-first-replacement-source-${{ github.run_id }}
           path: |
             first-replacement-inputs.tap
-            ${{ runner.temp }}/first-replacement-public/first-replacement-inputs.json
+            ${{ runner.temp }}/first-replacement-public/
           retention-days: 30
