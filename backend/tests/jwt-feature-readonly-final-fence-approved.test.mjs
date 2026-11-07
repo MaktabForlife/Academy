@@ -225,3 +225,29 @@ test('private workflow gates precede secret step; source jobs never receive priv
  assert(i>0&&j>i);assert(s.slice(i,j).includes('Recheck protected gate before credential'));
  assert(!s.slice(0,i).includes('secrets.'));assert(!s.includes('curl '));assert(!s.includes('wrangler'));assert(s.includes('if: always()'));assert(!s.includes('secrets.FEATURE_TEST_ADMIN_PIN'));
 });
+
+test('concrete writer failure produces explicit persistence-unknown evidence and zero actual requests',async()=>{
+ const f=fixture(),root=temp(),n=network();let injected=false;
+ try{
+  const outside=join(root,'unrelated.txt');writeFileSync(outside,canary);
+  const localGuard=async()=>{
+   await f.localGuard();
+   if(f.guardCalls===5&&!injected){
+    const dir=boundDirectory(root,f.context),file=join(dir,'final-fence-verification.json');rmSync(file);symlinkSync(outside,file);injected=true;
+   }
+  };
+  await assert.rejects(executeApprovedFinalFence({api:f.api,mergeSha:merge,prNumber:73,context:f.context,localGuard,getToken:f.getToken,runnerTemp:root,fetcher:n.fetcher}));
+  assert.equal(injected,true);assert.equal(n.calls.length,0);
+  const out=publishReceipt({context:f.context,runnerTemp:root});assert.equal(out.state,'PERSISTENCE_FAILED_ACCOUNTING_UNKNOWN');assert.equal(out.receiptOrigin,'IN_MEMORY_NOT_PERSISTED');
+  assert.equal(out.accounting.providerFetchInvocations,0);assert.equal(out.accounting.reservedProviderAttempts,1);assert.equal(out.accounting.allowanceReusable,false);assert(!JSON.stringify(out).includes('UNINSTALLED_CANARY_'));
+ }finally{rmSync(root,{recursive:true,force:true});}
+});
+test('withdrawal at the wrapper final boundary cannot export a complete-looking core receipt as success',async()=>{
+ const baseline=await completed(),last=baseline.f.guardCalls;rmSync(baseline.root,{recursive:true,force:true});
+ const f=fixture({withdrawOnGuard:last}),root=temp(),n=network();
+ try{
+  await assert.rejects(executeApprovedFinalFence({api:f.api,mergeSha:merge,prNumber:73,context:f.context,localGuard:f.localGuard,getToken:f.getToken,runnerTemp:root,fetcher:n.fetcher}));
+  assert.equal(n.calls.length,7);
+  const out=publishReceipt({context:f.context,runnerTemp:root});assert.equal(out.state,'UNKNOWN_MISSING_INVALID_OR_UNFINISHED');assert.equal(out.accounting.providerFetchInvocations,null);assert.equal(out.accounting.workerFetchInvocations,null);assert.equal(out.accounting.allowanceReusable,false);
+ }finally{rmSync(root,{recursive:true,force:true});}
+});
