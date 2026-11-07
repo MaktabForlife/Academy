@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "state": "OFFLINE_INPUT_MANIFEST_NOT_EXECUTION_AUTHORITY",
+  "recipeSource": "7aab627563d22fa669b9c2cede6404ceb9b712e9",
+  "origin": "https://feature_worker.maktab4life.workers.dev",
+  "sourceBlobs": {
+    "backend/wrangler.feature.jsonc": "61da7dabe48e4cf7bb63d6111b8c8465d06399a2",
+    "backend/wrangler.feature-coordinator.jsonc": "b80be0974a7ab248bcdeeaf0ead8423ef340868c",
+    "deployment/jwt-feature-finalisation-proposal.json": "de6c0157ee5ea6495d73301d527a34c4d855026e",
+    "deployment/jwt-feature-readonly-final-fence.json": "c5b2bcc784e4d387b4684bb6cab998989cfda318"
+  },
+  "completeConfigsSHA256": "10ed00a21c2847744e782cb8d69913335fdeedd9460cc1e9832fb1ebc9b3a001",
+  "worker": {
+    "artifactSHA256": "e53919bcf209064540913e7d249efea306067c9a8fdc6109bed1d3403672a90b",
+    "provenance": {
+      "schema": 1,
+      "target": "feature_worker",
+      "compiler": "esbuild@0.28.1",
+      "entry": "backend/src/academy-feature-jwt-runtime.js",
+      "inputSHA256": "7eee6650d7841b0b579affbe488e150c07b76fb3118447ba0f640fc58af1f42f",
+      "codeSHA256": "2ef9bfb14803e5623a40080c832f0fcddddfe83095361c18e4234cca27b00565",
+      "assetsSHA256": "50cca0afba78ba20ab5ea30c7070e96c36742c82fb9d0ae99a63607c423abd64",
+      "logicalConfigSHA256": "ff2d09d87f3a6735e7214cee8fd23c422d69830e3020aa8d9be52b803632db2c"
+    }
+  },
+  "coordinatorSourceDigest": "8bdc622649bd20ceb3bc531b1161c7f42495105211a51f9e3dc2b8415f216465",
+  "publicAssets": {
+    "count": 1057,
+    "totalBytes": 116996993,
+    "inventorySHA256": "6ade67e8aa41bc28b26aa809c51bce59eefc5374b0fbcd8a20ac0a6a1e0706e1",
+    "responseSHA256": {
+      "/academy/": "e14a014df255118d41673da480c336849da8ccadea0759e84dc1d1198b88bad1",
+      "/auth/v110/browser-config.js": "44a76efc26c273632ba37de9209a8ae4d6a891034b2491bfbfac24a39393697e"
+    }
+  },
+  "referenceKind": "INTERRUPTED_PAUSED_REFERENCE",
+  "referenceOwned": false,
+  "hostedCalls": 0,
+  "credentialReads": 0
+}

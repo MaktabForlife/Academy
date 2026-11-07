@@ -1,4 +1,4 @@
-name: JWT Feature first replacement source preparation
+name: JWT Feature first replacement source controls
 on:
   push:
     branches: [validation/jwt-feature-first-replacement-20261107]
@@ -10,6 +10,8 @@ defaults:
 concurrency:
   group: jwt-first-replacement-source-${{ github.ref }}
   cancel-in-progress: false
+env:
+  FIRST_REPLACEMENT_PLAN_SHA256: c37bdb5d0570a03e68d23f933f82fe07913d44a9b91fc80b56c5e6c7eaa2b9e5
 jobs:
   check:
     runs-on: ubuntu-24.04
@@ -21,36 +23,16 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "24.18.0"
-      - run: npm ci --prefix backend
-      - name: Full offline config/artifact preparation only; no credentials or hosted calls
-        env:
-          FIRST_REPLACEMENT_OUTPUT: ${{ runner.temp }}/first-replacement-public
+      - run: npm ci --prefix backend --no-audit --no-fund
+      - name: Affected gates/private-wrapper mocks only; reuse exact accepted asset/app/ACK archives
         run: |
           set -euo pipefail
-          node --check backend/tools/jwt-feature-first-replacement-inputs.mjs
-          node --check backend/tools/jwt-feature-first-replacement-build.mjs
-          node --test --test-reporter=tap backend/tests/jwt-feature-first-replacement-inputs.test.mjs | tee first-replacement-inputs.tap
-          node backend/tools/jwt-feature-first-replacement-build.mjs
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          ref: c660e3813908127561ad454ab503f9f66fa6d700
-          path: .original-public-source
-          persist-credentials: false
-      - name: Reproduce only the pinned historical public builder for byte comparison
-        env:
-          FIRST_REPLACEMENT_OUTPUT: ${{ runner.temp }}/first-replacement-public
-          ORIGINAL_PUBLIC_EVIDENCE: ${{ runner.temp }}/original-public-evidence
-        run: |
-          set -euo pipefail
-          test "$(git -C .original-public-source rev-parse HEAD)" = c660e3813908127561ad454ab503f9f66fa6d700
-          mkdir "$ORIGINAL_PUBLIC_EVIDENCE"
-          GITHUB_SHA=c660e3813908127561ad454ab503f9f66fa6d700 JWT_V110_EVIDENCE="$ORIGINAL_PUBLIC_EVIDENCE" node .original-public-source/backend/tools/jwt-v110-feature-public-build.mjs
-          node backend/tools/jwt-feature-first-replacement-assets.mjs compare
+          node --check backend/tools/jwt-feature-first-replacement-approved.mjs
+          node --check backend/tools/jwt-feature-first-replacement-execute.mjs
+          node --test --test-reporter=tap backend/tests/jwt-feature-first-replacement-approved.test.mjs backend/tests/jwt-feature-first-replacement-execute.test.mjs | tee first-replacement-control.tap
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: jwt-feature-first-replacement-source-${{ github.run_id }}
-          path: |
-            first-replacement-inputs.tap
-            ${{ runner.temp }}/first-replacement-public/
+          name: jwt-feature-first-replacement-control-${{ github.run_id }}
+          path: first-replacement-control.tap
           retention-days: 30

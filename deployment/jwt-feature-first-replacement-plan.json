@@ -1,0 +1,180 @@
+{
+  "schema": 1,
+  "state": "SOURCE_ONLY_NOT_EXECUTION_OR_ASSET_PUBLICATION_AUTHORITY",
+  "request": "jwt-feature-paused-first-replacement-20261107a",
+  "repository": "MaktabForlife/Academy",
+  "actor": "MaktabForlife",
+  "version": "110.38",
+  "canonicalAtPreparation": "41b60512974b966c61f28e9bb79b40cfa0ca0fae",
+  "featureBase": "a34715f37939051d87356f870ca09ca92f8eb543",
+  "acceptedCarrySource": "2cda9df19536a890370db155e4afedd3838e33bf",
+  "frozenBlobs": {
+    "backend/tools/jwt-feature-upload-artifact.mjs": "43efe632de54ebbbb13b73b2060ec938b052b851",
+    "backend/tools/jwt-feature-resume-contract.mjs": "7724a83a335622f6b0896c0c23e6176ccea27e59",
+    "backend/tools/jwt-feature-release-transport.mjs": "5d85a619c897155c51fcc75e139de3c95cda0784",
+    "backend/tools/jwt-feature-release-controller.mjs": "2d8bd43e7fe27472c4256ede808737e291efa454",
+    "backend/tools/jwt-feature-deploy.mjs": "1b717a1a20fcb6a3136611d51cefb1429cc7d768",
+    "backend/tools/jwt-feature-upload-ack.mjs": "f5260debe58acc5fe7bebf0941eac3783c74e4af",
+    "backend/tests/jwt-feature-upload-ack.test.mjs": "6af3800f06bd5d60fd74e33ff5491a894add1e01",
+    "backend/tests/jwt-feature-release.test.mjs": "e84e20fb87ab7a68a325f0f2501c77c8d493ecdc",
+    ".github/workflows/jwt-feature-resume-source-check.yml": "ddc5dbbc88d199df984ea23a240737cc5da3ec3b",
+    "docs/JWT-FEATURE-INTERRUPTED-RESUME-SOURCE.md": "8d4da9d2571ef5e6f798e5ea16004aa42f69a5f0"
+  },
+  "canonicalControls": {
+    ".github/workflows/feature-jwt-finalise.yml": "cae6d627e13ddbfd32ad1dc34b995b403613e780",
+    ".github/workflows/feature-jwt-main-postpatch-inspect.yml": "76d7b27f965228f39101ea2e78a6151323ed122f",
+    ".github/workflows/feature-jwt-readonly-final-fence.yml": "cdecff7d88288c0f83dba9c27faa5cb3227155de",
+    "deployment/release-plan.json": "fe25b25e9bf08fedad33357cf2de0887cde2b764"
+  },
+  "sourcePaths": [
+    ".github/workflows/feature-jwt-finalise.yml",
+    ".github/workflows/feature-jwt-main-postpatch-inspect.yml",
+    ".github/workflows/feature-jwt-paused-first-replacement.yml",
+    ".github/workflows/feature-jwt-readonly-final-fence.yml",
+    ".github/workflows/jwt-feature-first-replacement-source-check.yml",
+    ".github/workflows/jwt-feature-resume-source-check.yml",
+    "backend/tests/jwt-feature-first-replacement-approved.test.mjs",
+    "backend/tests/jwt-feature-first-replacement-execute.test.mjs",
+    "backend/tests/jwt-feature-first-replacement-inputs.test.mjs",
+    "backend/tests/jwt-feature-release.test.mjs",
+    "backend/tests/jwt-feature-upload-ack.test.mjs",
+    "backend/tools/jwt-feature-deploy.mjs",
+    "backend/tools/jwt-feature-first-replacement-approved.mjs",
+    "backend/tools/jwt-feature-first-replacement-assets.mjs",
+    "backend/tools/jwt-feature-first-replacement-build.mjs",
+    "backend/tools/jwt-feature-first-replacement-execute.mjs",
+    "backend/tools/jwt-feature-first-replacement-inputs.mjs",
+    "backend/tools/jwt-feature-release-controller.mjs",
+    "backend/tools/jwt-feature-release-transport.mjs",
+    "backend/tools/jwt-feature-resume-contract.mjs",
+    "backend/tools/jwt-feature-upload-ack.mjs",
+    "backend/tools/jwt-feature-upload-artifact.mjs",
+    "deployment/JWT-FEATURE-FIRST-REPLACEMENT.md",
+    "deployment/jwt-feature-first-replacement-composition.json",
+    "deployment/jwt-feature-first-replacement-configs.json",
+    "deployment/jwt-feature-first-replacement-input-manifest.json",
+    "deployment/jwt-feature-first-replacement-plan.json",
+    "deployment/jwt-feature-first-replacement-policy.json",
+    "deployment/release-plan.json",
+    "docs/JWT-FEATURE-INTERRUPTED-RESUME-SOURCE.md"
+  ],
+  "workflow": ".github/workflows/feature-jwt-paused-first-replacement.yml",
+  "publicReference": {
+    "contract": "deployment/jwt-feature-readonly-final-fence.json",
+    "blob": "c5b2bcc784e4d387b4684bb6cab998989cfda318",
+    "kind": "INTERRUPTED_PUBLIC_REFERENCE_NOT_OWNED",
+    "privateFinalFenceReview": "ROOT_HELD_NO_PAYLOAD_EXPORTED_SOURCE_REVIEW_AT_REGISTRATION_REQUIRED"
+  },
+  "inputManifest": "deployment/jwt-feature-first-replacement-input-manifest.json",
+  "policy": "deployment/jwt-feature-first-replacement-policy.json",
+  "budgets": {
+    "explicitMetadataGETs": 26,
+    "cliProcessAttempts": 1,
+    "credentialFreePausedGETs": 1,
+    "publicSuccessGETs": 0,
+    "authenticatedRequests": 0,
+    "recoveryWrites": 0,
+    "wrapperRetries": 0,
+    "oldAllowanceReusable": false,
+    "wranglerInternalRequestsAndRetries": "SEPARATE_UNMEASURED_NOT_ZERO_OR_BOUNDED_BY_26",
+    "scope": "THIS_EXECUTOR_WRAPPER_ONLY_NOT_WHOLE_ACCOUNT_OR_CLI_INTERNAL_TRAFFIC"
+  },
+  "effects": {
+    "targetOrder": [
+      "feature_worker"
+    ],
+    "coordinatorUploads": 0,
+    "codeAndConfiguration": "EXACT_EXISTING_MAIN_FULL_PAUSED_PROFILE_REASSERTION",
+    "assets": {
+      "operation": "EXPLICIT_FROZEN_PUBLIC_BUNDLE_ASSOCIATION",
+      "files": 1057,
+      "totalFileBytes": 116996993,
+      "inventorySHA256": "6ade67e8aa41bc28b26aa809c51bce59eefc5374b0fbcd8a20ac0a6a1e0706e1",
+      "remoteBytesAlreadyPresent": "UNATTESTED_MAY_DEDUP_OR_REUPLOAD",
+      "keepAssetsRecipe": "NOT_SELECTED_NO_UNSUPPORTED_CLI_OVERRIDE",
+      "alternativePreservationAdapter": "NOT_SELECTED_BY_OWNER_EXISTING_WRANGLER_METHOD_REQUIRED",
+      "publicationPermission": "REQUIRED_FOR_THIS_EXACT_FROZEN_BUNDLE_NOT_YET_GRANTED"
+    },
+    "secrets": {
+      "readValues": false,
+      "writeValues": false,
+      "rotate": false,
+      "preserveExistingNames": true
+    },
+    "databaseSQL": 0,
+    "schemaSeedSetupReplay": false,
+    "namespaceCreation": 0,
+    "productionChanges": false,
+    "jwtActivation": false,
+    "automaticRecovery": false
+  },
+  "prerequisites": {
+    "fourAuthFlags": "0",
+    "mode": "PAUSED",
+    "namespaceClasses": "EXISTING_PUBLIC_REVIEWED_BINDINGS_MUST_MATCH_PREFLIGHT_NO_MIGRATION",
+    "privateKey": "NO_RETRIEVAL_OR_COMPATIBILITY_PROOF_PAUSED_ONLY",
+    "routing": "SOURCE_CONFIG_REASSERTION_NOT_HOSTED_READBACK_OR_ATOMIC_PROOF",
+    "existingStores": "NO_EXECUTOR_SQL_OR_DATA_COPY_NO_BINDING_CHANGE",
+    "classSourceFacts": {
+      "nativeMainClass": "ProgramTimetableCoordinator",
+      "nativeClassBlob": "472660a34256e1e6bd0a6201f3d9312f291c38d7",
+      "constructor": "UNCHANGED_IDEMPOTENT_DO_LOCAL_TABLE_ENSURE_IF_INSTANTIATED_NO_EXECUTOR_RPC",
+      "mainScheduledHandler": "NO_OP",
+      "coordinatorCodeUpdated": false,
+      "platformInstanceLifecycleAndUnrelatedTraffic": "NOT_AN_EXECUTOR_ZERO_USAGE_OR_DRAIN_PROOF"
+    }
+  },
+  "window": {
+    "state": "NOT_REGISTERED_NOT_GRANTED",
+    "lease": "jwt-feature-paused-first-replacement-20261107a",
+    "maxMinutes": 30,
+    "maxAttemptsAcrossAllHeads": 1,
+    "requiresFreshProtectedApproval": true,
+    "requiresIndependentPreparedSourceReview": true,
+    "requiresRecordedPostPreparationStatus": true,
+    "requiresExclusiveWriterAttestation": true,
+    "spentOrUnknownNeverReusable": true,
+    "requiresSpecificOwnerCodeBundleAndBudgetApproval": true
+  },
+  "receipt": {
+    "artifactPrefix": "jwt-first-replacement-private-",
+    "filename": "paused-first-replacement.json",
+    "rawCLIOrCredentialsExported": false,
+    "successRequiresControllerReturnAndSuccessfulExecutorStep": true,
+    "failedPartialMissingPersistedFiles": "UNKNOWN_NO_RETRY_NO_ADOPTION_CLEARANCE",
+    "activeContinuation": "SEPARATE_UNIMPLEMENTED_NO_LEGACY_VERIFIED_DTO",
+    "destination": "SAME_RUN_BOUND_GITHUB_ACTIONS_ARTIFACT_ONLY_NO_AUTOMATIC_DRIVE_OR_OTHER_THREAD_EXPORT",
+    "unknownOutcomesSpendAttemptAndAllocation": true
+  },
+  "executor": {
+    "role": "DEPLOYMENT_ONLY",
+    "thread": "01a1aee5-b176-7133-911c-4b84fee24f7b",
+    "githubPrincipal": "MaktabForlife",
+    "distinctChatIdentityProvenByGitHub": false
+  },
+  "inputManifestFileSHA256": "707206288716794216394b9cd5d723254e49294c9df54806261494657a17285c",
+  "policyFileSHA256": "17eb2d1d04ee0dc48e12e4bce8204630ccaed54f43217486f84c504b75b66e14",
+  "policyCanonicalSHA256": "dac52958af70828d261c4cf50fbf9acbf909b8cddd250b7be7a1fe11d257b9a5",
+  "frozenAssetProducerBlobs": {
+    "backend/tools/jwt-feature-first-replacement-inputs.mjs": "13718de00aeb437ecdc709c3206f70a8ada0793e",
+    "backend/tools/jwt-feature-first-replacement-build.mjs": "3c9b11372a119575bbc5472d10e01477168d6902",
+    "backend/tools/jwt-feature-first-replacement-assets.mjs": "be74ea5593ec8e8d0c6d1282aa7999045a438dc6",
+    "deployment/jwt-feature-first-replacement-configs.json": "ccefaf7d83caba20c0b66e8e3fac3e2ef869cabd"
+  },
+  "assetReviewEvidence": {
+    "source": "1660e622e46c1f2bc0e1280252f5c454b4d990a2",
+    "tree": "86b42c106a254bfbaeeec42f433f8af9659bbdaa",
+    "run": 42378415023,
+    "artifact": 13576482979,
+    "zipSHA256": "e1ecea65e3a3560b9b6b6f158f8137ba334b86894429d48f31319725a1c4a69a",
+    "inventoryFileSHA256": "0602b3f787e4fc5fce22cafacc5d206a0d0f1f08c11e50189d8584b0abcec6c9",
+    "sourceMapFileSHA256": "f2836fad5efe987c16eeebf2d322565ddec6f0a3cc985699b41eb20a7cf6b86b",
+    "sourceMappedFiles": 1022,
+    "generatedFiles": 35,
+    "generatedBytes": 341460,
+    "compiledWorkerBytes": 2330237,
+    "originalOfflineSource": "c660e3813908127561ad454ab503f9f66fa6d700",
+    "offlineAssetBytesIdentical": true,
+    "currentHostedAssetBytesVerified": false
+  }
+}

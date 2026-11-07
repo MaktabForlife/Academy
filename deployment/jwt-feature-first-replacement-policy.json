@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "kind": "REVIEWED_EXISTING_FEATURE_SCRIPT_REPLACEMENT",
+  "sourceBinding": "EXACT_APPROVED_FEATURE_TREE",
+  "mode": "PAUSED_RESUME",
+  "oldAllowanceReusable": false,
+  "referenceVersions": {
+    "feature_worker": "4c955445-ff00-4713-8b35-2a177a752328",
+    "academy-feature-split-coordinator": "4704b2cc-c111-4e5b-9f8b-887bd38db650"
+  },
+  "firstWrites": {
+    "feature_worker": "e53919bcf209064540913e7d249efea306067c9a8fdc6109bed1d3403672a90b"
+  },
+  "recovery": null,
+  "budgets": {
+    "metadataGETs": 26,
+    "uploads": 1,
+    "publicGETs": 0,
+    "smokeRequests": 0,
+    "pausedGETs": 1
+  }
+}
