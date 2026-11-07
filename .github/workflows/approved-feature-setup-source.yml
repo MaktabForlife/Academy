@@ -1,0 +1,29 @@
+name: Approved fresh JWT Feature source preparation
+on:
+  push:
+    branches: [studio_dev]
+permissions:
+  contents: write
+  statuses: read
+  pull-requests: read
+defaults:
+  run:
+    shell: bash
+concurrency:
+  group: approved-feature-source-${{ github.repository }}
+  cancel-in-progress: false
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - name: Source-only fast-forward after exact explicit setup approval
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node tools/approved-feature-setup.mjs

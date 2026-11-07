@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "purpose": "FRESH_FEATURE_SETUP_20261106a",
+  "state": "STOPPED_PARTIAL_SCHEMA",
+  "accountId": "c9a3e355b3d7a795880b1d36a1dbe123",
+  "scripts": [
+    "feature_worker",
+    "academy-feature-split-coordinator"
+  ],
+  "databaseNames": [
+    "jwt-feature-core-20261106a",
+    "jwt-feature-admin-20261106a"
+  ],
+  "databaseIds": [
+    "cdbe97bc-f3d9-400e-8806-ed9a0d143d26",
+    "ed77f2a7-4439-4841-8691-2b41063d8960"
+  ],
+  "appSource": "e8e26af7e5c6275656faa5c24985098e377439d0",
+  "setupPrimitive": "4ca61b81d57b8b9419a1fa2a4072d6272f28e9ba",
+  "ordinaryReleaseDatabaseChanges": false,
+  "setupDatabaseEffects": {
+    "scope": "NEW_PAIR_ONLY",
+    "coreSeedStatements": 35,
+    "adminSeedStatements": 8,
+    "syntheticAccounts": 4,
+    "syntheticCourses": 2,
+    "productionData": false,
+    "existingStoreChanges": false,
+    "retrySeed": false,
+    "structuredDDL": true,
+    "coreCreateStatements": 1371,
+    "adminCreateStatements": 83,
+    "schemaReplay": false
+  },
+  "temporarySecrets": [
+    "JWT_FEATURE_SETUP_PIN",
+    "JWT_FEATURE_SETUP_AUTH"
+  ],
+  "newFeatureSecrets": [
+    "JWT_V110_PRIVATE_KEY_JSON",
+    "JWT_V110_CSRF_SECRET"
+  ],
+  "nativeSecretsChanged": [],
+  "finalMode": "PAUSED",
+  "activationIncluded": false,
+  "startingReceiptSHA256": null
+}
