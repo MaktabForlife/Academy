@@ -1,0 +1,40 @@
+name: JWT Feature resume and upload ACK source checks
+on:
+  push:
+    branches: [validation/jwt-feature-resume-ack-20261107]
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+concurrency:
+  group: jwt-feature-resume-source-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - name: Pinned dependencies, without credentials
+        run: npm ci --prefix backend
+      - name: Actual caller mocks, ACK parser and local compilation only
+        run: |
+          set -euo pipefail
+          node --check backend/tools/jwt-feature-deploy.mjs
+          node --check backend/tools/jwt-feature-release-controller.mjs
+          node --check backend/tools/jwt-feature-release-transport.mjs
+          node --check backend/tools/jwt-feature-resume-contract.mjs
+          node --check backend/tools/jwt-feature-upload-artifact.mjs
+          node --test --test-reporter=tap backend/tests/jwt-feature-release.test.mjs backend/tests/jwt-feature-upload-ack.test.mjs | tee jwt-resume-tests.tap
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: jwt-feature-resume-source-${{ github.run_id }}
+          path: jwt-resume-tests.tap
+          retention-days: 30

@@ -30,26 +30,33 @@ export function releaseProfiles({baseWorker,baseCoordinator,nativeReceipt,instal
  };
  return {before:render(installed.releaseId,installed.mode),active:render(source,'ACTIVE'),paused:render(source,'PAUSED'),origin,coordinatorSourceDigest,coordinatorChanged:coordinatorSourceDigest!==installed.coordinatorSourceDigest};
 }
-export async function releaseFreshFeature({ops}){
+function persist(ops,evidence){
+ const result=ops.save(structuredClone(evidence));
+ assert(!(result&&typeof result.then==='function'),'SYNCHRONOUS_EVIDENCE_REQUIRED');
+}
+async function run({ops,pausedOnly}){
  const evidence={schema:1,state:'NOT_STARTED',activated:false,recovery:null};let touched=false;
- const save=()=>ops.save({...evidence});
  try{
-  await ops.preflight();evidence.state='PREFLIGHT_VERIFIED';save();
+  await ops.preflight();evidence.state='PREFLIGHT_VERIFIED';persist(ops,evidence);
   for(const name of ops.targets){
-   await ops.fresh();await ops.owned();
-   touched=true;evidence.state=name==='feature_worker'?'ACTIVATING':'COORDINATOR_UPDATE';save();
-   await ops.deploy(name);await ops.adopt(name);
+   await ops.fresh();await ops.fence();
+   evidence.state=pausedOnly?'PAUSED_CODE_REPLACEMENT':name==='feature_worker'?'ACTIVATING':'COORDINATOR_UPDATE';persist(ops,evidence);
+   touched=true;await ops.deploy(name);await ops.adopt(name);
   }
-  await ops.publicProof();
-  evidence.smoke=await ops.smoke();
+  if(pausedOnly)await ops.verifyPaused();
+  else{await ops.publicProof();evidence.smoke=await ops.smoke();}
   await ops.verifyFinal();await ops.fresh();
-  evidence.state='FEATURE_VERIFIED';evidence.activated=true;save();return evidence;
+  evidence.state=pausedOnly?'PAUSED_CODE_RESUME_VERIFIED':'FEATURE_VERIFIED';evidence.activated=!pausedOnly;persist(ops,evidence);return evidence;
  }catch{
   evidence.activated=false;evidence.state='STOPPED';
   if(touched){
-   try{await ops.owned();await ops.pause();await ops.verifyPaused();evidence.recovery='OWNED_FEATURE_PAUSED';}
-   catch{evidence.recovery='NOT_VERIFIED_NO_BLIND_OVERWRITE';}
+   if(ops.canRecover()){
+    try{await ops.recoveryFresh();await ops.fence();await ops.pause();await ops.verifyPaused();evidence.recovery='OWNED_FEATURE_PAUSED';}
+    catch{evidence.recovery='NOT_VERIFIED_NO_BLIND_OVERWRITE';}
+   }else evidence.recovery='NOT_VERIFIED_NO_BLIND_OVERWRITE';
   }
-  save();throw Error('JWT_FEATURE_RELEASE_STOPPED_'+(evidence.recovery||'BEFORE_WRITE'));
+  persist(ops,evidence);throw Error('JWT_FEATURE_RELEASE_STOPPED_'+(evidence.recovery||'BEFORE_WRITE'));
  }
 }
+export const releaseFreshFeature=options=>run({...options,pausedOnly:false});
+export const resumeInterruptedFeature=options=>run({...options,pausedOnly:true});
