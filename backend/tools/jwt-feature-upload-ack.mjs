@@ -3,7 +3,7 @@
 // Source-only primitive: an ACK is CLI provenance, not deployed-code/ownership/activation clearance.
 // Only the pinned CLI's successful, bounded, per-invocation NDJSON is an ACK.
 import assert from 'node:assert/strict';
-import {constants,openSync,closeSync,fstatSync,lstatSync,realpathSync,readFileSync} from 'node:fs';
+import {constants,openSync,closeSync,fstatSync,lstatSync,realpathSync,readSync} from 'node:fs';
 import {resolve} from 'node:path';
 export const pinnedWranglerVersion='4.136.3';
 const names=['feature_worker','academy-feature-split-coordinator'];
@@ -31,7 +31,9 @@ export function validateUploadAck(text,expected){
   keys(deployed,['type','version','worker_name','worker_tag','version_id','worker_name_overridden','timestamp'],['targets','wrangler_environment','bundle_size']);
   assert.equal(session.type,'wrangler-session');assert.equal(session.version,1);
   assert.equal(session.wrangler_version,pinnedWranglerVersion);
+  assert(Array.isArray(expected.args)&&expected.args.length===3&&expected.args[0]==='deploy'&&expected.args[1]==='--config'&&typeof expected.args[2]==='string'&&expected.args[2].startsWith('/')&&expected.args[2].length<=2048);
   assert.deepEqual(session.command_line_args,expected.args);
+  assert(typeof expected.beforeVersion==='string'&&uuid.test(expected.beforeVersion));
   assert(typeof session.log_file_path==='string'&&session.log_file_path.length<=2048);
   assert.equal(deployed.type,'deploy');assert.equal(deployed.version,1);
   assert(names.includes(expected.name));assert.equal(deployed.worker_name,expected.name);
@@ -54,7 +56,10 @@ export function readUploadAck(file,expected){
   const link=lstatSync(file.path);assert(!link.isSymbolicLink()&&link.isFile()&&link.nlink===1);
   fd=openSync(file.path,constants.O_RDONLY|constants.O_NOFOLLOW);
   const s=fstatSync(fd);assert.equal(s.dev,file.dev);assert.equal(s.ino,file.ino);assert(s.isFile()&&s.nlink===1&&s.size>0&&s.size<=65536);
-  const text=new TextDecoder('utf-8',{fatal:true}).decode(readFileSync(fd)),after=fstatSync(fd);assert.equal(after.size,s.size);assert.equal(after.ino,s.ino);assert.equal(after.mtimeMs,s.mtimeMs);assert.equal(after.ctimeMs,s.ctimeMs);
+  const bytes=Buffer.alloc(65537);let size=0;
+  while(size<bytes.length){const count=readSync(fd,bytes,size,bytes.length-size,null);if(count===0)break;size+=count;}
+  assert(size<=65536&&size===s.size);
+  const text=new TextDecoder('utf-8',{fatal:true}).decode(bytes.subarray(0,size)),after=fstatSync(fd);assert.equal(after.size,s.size);assert.equal(after.ino,s.ino);assert.equal(after.mtimeMs,s.mtimeMs);assert.equal(after.ctimeMs,s.ctimeMs);
   const linkAfter=lstatSync(file.path);assert(!linkAfter.isSymbolicLink()&&linkAfter.nlink===1);assert.equal(linkAfter.ino,s.ino);assert.equal(linkAfter.dev,s.dev);
   return validateUploadAck(text,expected);
  }catch{throw Error('UPLOAD_ACK_INVALID_OR_UNKNOWN');}

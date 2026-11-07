@@ -48,7 +48,7 @@ test('reject truncated/malformed/oversized output with fixed error only',()=>{
 });
 test('reject invalid expected source/config/time inputs without raw echo',()=>{
  const {entries,expected}=fixture();
- for(const patch of [{source:'CANARY'},{configSHA256:'CANARY'},{startedAt:NaN},{finishedAt:now-1},{name:'production_worker'}])denied(entries,{...expected,...patch});
+ for(const patch of [{source:'CANARY'},{configSHA256:'CANARY'},{startedAt:NaN},{finishedAt:now-1},{name:'production_worker'},{beforeVersion:undefined},{beforeVersion:'CANARY'},{args:[]},{args:['versions','deploy','/RUNNER_ONLY/release.json']}])denied(entries,{...expected,...patch});
 });
 const directory=()=>mkdtempSync(resolve(process.env.RUNNER_TEMP,'jwt-ack-policy-'));
 test('actual exclusive runner file is read bounded and cannot be reused',()=>{
