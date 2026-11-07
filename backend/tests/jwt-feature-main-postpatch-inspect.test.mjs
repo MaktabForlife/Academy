@@ -53,7 +53,7 @@ function fixture(change={}){
   throw Error('Unexpected mock GitHub path');
  };
  const localGuard=async()=>{guardCalls++;if(change.guardFailure||(change.withdrawOnGuard&&guardCalls===change.withdrawOnGuard))throw Error('LOCAL_GUARD_WITHDRAWN');};
- const getToken=()=>{tokenReads++;return 'PRIVATE_UNINSTALLED_TOKEN';};
+ const getToken=()=>{tokenReads++;return 'UNINSTALLED_CANARY_UNINSTALLED_TOKEN';};
  const proof={mergeSha:merge,headSha:head,pr:73,approvalStatusId:654,commentHash:createHash('sha256').update(body).digest('hex')};
  return {api,calls,p,context:context(),localGuard,getToken,proof,comment,get tokenReads(){return tokenReads;},get guardCalls(){return guardCalls;}};
 }
@@ -104,7 +104,7 @@ function settings(){
  for(const b of c.d1_databases)bs.push({name:b.binding,type:'d1',database_id:b.database_id});
  for(const b of c.r2_buckets)bs.push({name:b.binding,type:'r2_bucket',bucket_name:b.bucket_name});
  for(const [name,text]of Object.entries(c.vars))bs.push({name,type:'plain_text',text});
- for(const name of c.secrets.required)bs.push({name,type:'secret_text',text:'PRIVATE_SECRET_VALUE_MUST_NOT_LEAK'});
+ for(const name of c.secrets.required)bs.push({name,type:'secret_text',text:'UNINSTALLED_CANARY_SECRET_VALUE_MUST_NOT_LEAK'});
  for(const b of c.ratelimits)bs.push({name:b.name,type:'ratelimit',namespace_id:b.namespace_id,simple:b.simple});
  for(const b of c.durable_objects.bindings){
   const ns=b.class_name==='ProgramTimetableCoordinator'?'7d99a5300b8d4f948c4fb85ce23b344e':b.class_name==='AcademySplitCoordinator'?'21e47da10960439ea4c2bb1ce5736718':b.class_name==='JWTFeatureProgramTimetableCoordinator'?'ab05473998dc4e93b792464f9e78e0e9':'de95f15f19a54a9e9ba34e6e75f51847';
@@ -120,92 +120,92 @@ function mock(options={}){
   const u=new URL(url);calls.push({url,method:o.method});
   assert.equal(o.method,'GET');assert.equal(o.redirect,'error');assert.equal(o.cache,'no-store');
   assert.equal(u.origin,'https://api.cloudflare.com');assert.equal(u.pathname,'/client/v4/accounts/'+diagnosticPlan.accountId+'/workers/scripts/feature_worker/'+(calls.length===1?'deployments':'settings'));
-  assert.equal(o.headers.Authorization,'Bearer PRIVATE_UNINSTALLED_TOKEN');
+  assert.equal(o.headers.Authorization,'Bearer UNINSTALLED_CANARY_UNINSTALLED_TOKEN');
   if(options.fetch)return options.fetch(calls.length);
   const raw=calls.length===1?deploy():settings();if(calls.length===2&&options.change)options.change(raw);
   return Response.json({success:true,result:raw});
  };
- const fresh=async()=>{guards++;if(options.withdrawAt===guards)throw Error('PRIVATE_GUARD_DETAIL');};
+ const fresh=async()=>{guards++;if(options.withdrawAt===guards)throw Error('UNINSTALLED_CANARY_GUARD_DETAIL');};
  return {calls,saved,fetcher,fresh,save:e=>saved.push(e)};
 }
 test('current binding-only comparison agrees with strict verifier; no optional routing or cleanup proof',()=>{
  const s=settings(),{worker,baseline}=expectedPausedMetadataProfiles();
  assertRemoteProfile(s,worker,baseline,{split:'de95f15f19a54a9e9ba34e6e75f51847',timetable:'ab05473998dc4e93b792464f9e78e0e9'});
  const d=comparePostPatchSettings(s);assert.equal(d.expectedMetadataMatches,true);assert.equal(d.mismatchCount,0);assert.equal(d.assetConfigurationReturned,false);assert.equal(d.assetRoutingVerified,false);
- assert(!JSON.stringify(d).includes('PRIVATE_'));assert(!JSON.stringify(d).includes('jwt-feature-v110/'));
+ assert(!JSON.stringify(d).includes('UNINSTALLED_CANARY_'));assert(!JSON.stringify(d).includes('jwt-feature-v110/'));
 });
 test('two fixed MAIN reads preserve54→56/reserve4 and never adopt unknown version or complete cleanup',async()=>{
- const m=mock(),r=await inspectMainPostPatch({token:'PRIVATE_UNINSTALLED_TOKEN',fresh:m.fresh,fetcher:m.fetcher,save:m.save});
+ const m=mock(),r=await inspectMainPostPatch({token:'UNINSTALLED_CANARY_UNINSTALLED_TOKEN',fresh:m.fresh,fetcher:m.fetcher,save:m.save});
  assert.equal(m.calls.length,2);assert.equal(r.explicitGetAttempts,2);assert.equal(r.cumulativeExplicitGetAttempts,56);assert.equal(r.originalHardGetLimit,60);assert.equal(r.reservedOriginalGets,4);
  assert.equal(r.hostedWrites+r.workerHTTP+r.sqlRequests+r.codeContentReads+r.secretValueReads,0);
  assert.equal(r.cleanupVerified,false);assert.equal(r.activated,false);assert.equal(r.ownedVersionAdopted,false);
  assert.equal(r.observations[0].deployment.relationToPrePatchReference,'DIFFERENT_FROM_PREPATCH_REFERENCE');
  assert.equal(r.observations[1].settings.expectedMetadataMatches,true);assert.equal(r.historicalFailureCause,'UNKNOWN_NO_RAW_POST_SETTINGS_SAVED');
- assert(!JSON.stringify(m.saved).includes('PRIVATE_'));assertSafeDiagnosticReceipt(r);
+ assert(!JSON.stringify(m.saved).includes('UNINSTALLED_CANARY_'));assertSafeDiagnosticReceipt(r);
 });
 for(const [name,mutate,field]of [
- ['temporary secret still present',s=>s.bindings.push({name:'JWT_FEATURE_SETUP_AUTH',type:'secret_text',text:'PRIVATE_TEMP_KEY'}),'JWT_FEATURE_SETUP_AUTH.presence'],
- ['source marker differs',s=>s.bindings.find(b=>b.name==='JWT_FEATURE_INSTALL_SOURCE').text='PRIVATE_MARKER','JWT_FEATURE_INSTALL_SOURCE.text'],
- ['owner marker differs',s=>s.bindings.find(b=>b.name==='JWT_FEATURE_INSTALL_OWNER').text='PRIVATE_OWNER','JWT_FEATURE_INSTALL_OWNER.text'],
- ['native secret has wrong type',s=>{const b=s.bindings.find(b=>b.name==='PIN_SECRET');b.type='plain_text';b.text='PRIVATE_PIN_2468';},'PIN_SECRET.type'],
- ['public signer differs',s=>s.bindings.find(b=>b.name==='JWT_V110_PUBLIC_KEYS_JSON').text='PRIVATE_KEY_DATA','JWT_V110_PUBLIC_KEYS_JSON.text'],
- ['DB ID differs',s=>s.bindings.find(b=>b.name==='JWT_V110_CORE_DB').database_id='PRIVATE_DB_IDENTIFIER','JWT_V110_CORE_DB.id'],
- ['D1 aliases conflict',s=>s.bindings.find(b=>b.name==='JWT_V110_CORE_DB').id='PRIVATE_ALIAS','JWT_V110_CORE_DB.id'],
+ ['temporary secret still present',s=>s.bindings.push({name:'JWT_FEATURE_SETUP_AUTH',type:'secret_text',text:'UNINSTALLED_CANARY_TEMP_KEY'}),'JWT_FEATURE_SETUP_AUTH.presence'],
+ ['source marker differs',s=>s.bindings.find(b=>b.name==='JWT_FEATURE_INSTALL_SOURCE').text='UNINSTALLED_CANARY_MARKER','JWT_FEATURE_INSTALL_SOURCE.text'],
+ ['owner marker differs',s=>s.bindings.find(b=>b.name==='JWT_FEATURE_INSTALL_OWNER').text='UNINSTALLED_CANARY_OWNER','JWT_FEATURE_INSTALL_OWNER.text'],
+ ['native secret has wrong type',s=>{const b=s.bindings.find(b=>b.name==='PIN_SECRET');b.type='plain_text';b.text='UNINSTALLED_CANARY_PIN_2468';},'PIN_SECRET.type'],
+ ['public signer differs',s=>s.bindings.find(b=>b.name==='JWT_V110_PUBLIC_KEYS_JSON').text='UNINSTALLED_CANARY_KEY_DATA','JWT_V110_PUBLIC_KEYS_JSON.text'],
+ ['DB ID differs',s=>s.bindings.find(b=>b.name==='JWT_V110_CORE_DB').database_id='UNINSTALLED_CANARY_DB_IDENTIFIER','JWT_V110_CORE_DB.id'],
+ ['D1 aliases conflict',s=>s.bindings.find(b=>b.name==='JWT_V110_CORE_DB').id='UNINSTALLED_CANARY_ALIAS','JWT_V110_CORE_DB.id'],
  ['duplicate binding',s=>s.bindings.push({...s.bindings.find(b=>b.name==='ASSETS')}),'ASSETS.presence'],
  ['missing ASSETS',s=>s.bindings=s.bindings.filter(b=>b.name!=='ASSETS'),'ASSETS.presence'],
- ['optional asset route differs',s=>s.assets={jwt:'PRIVATE_ASSET_JWT',config:{run_worker_first:false}},'assets.config.run_worker_first']
+ ['optional asset route differs',s=>s.assets={jwt:'UNINSTALLED_CANARY_ASSET_JWT',config:{run_worker_first:false}},'assets.config.run_worker_first']
 ])test('captures bounded field/type label without raw values: '+name,async()=>{
- const m=mock({change:mutate}),r=await inspectMainPostPatch({token:'PRIVATE_UNINSTALLED_TOKEN',fresh:m.fresh,fetcher:m.fetcher,save:m.save});
+ const m=mock({change:mutate}),r=await inspectMainPostPatch({token:'UNINSTALLED_CANARY_UNINSTALLED_TOKEN',fresh:m.fresh,fetcher:m.fetcher,save:m.save});
  assert.equal(r.state,'READ_ONLY_MAIN_OBSERVATIONS_CAPTURED_NO_RECOVERY_AUTHORITY');assert.equal(r.observations[1].settings.expectedMetadataMatches,false);
- assert(r.observations[1].settings.labels.some(l=>l.field===field));assert(!JSON.stringify(r).includes('PRIVATE_'));assert.equal(r.ownedVersionAdopted,false);
+ assert(r.observations[1].settings.labels.some(l=>l.field===field));assert(!JSON.stringify(r).includes('UNINSTALLED_CANARY_'));assert.equal(r.ownedVersionAdopted,false);
 });
 test('many unknown binding names/shapes retain capped safe labels and no attacker strings',async()=>{
- const m=mock({change:s=>s.bindings=Array.from({length:140},(_,i)=>({name:'PRIVATE_NAME_'+i,type:'PRIVATE_TYPE',text:'PRIVATE_VALUE'}))});
- const r=await inspectMainPostPatch({token:'PRIVATE_UNINSTALLED_TOKEN',fresh:m.fresh,fetcher:m.fetcher,save:m.save}),s=r.observations[1].settings;
- assert.equal(s.labels.length,64);assert.equal(s.labelsTruncated,true);assert.equal(s.knownBindings.length,0);assert(!JSON.stringify(r).includes('PRIVATE_'));
+ const m=mock({change:s=>s.bindings=Array.from({length:140},(_,i)=>({name:'UNINSTALLED_CANARY_NAME_'+i,type:'UNINSTALLED_CANARY_TYPE',text:'UNINSTALLED_CANARY_VALUE'}))});
+ const r=await inspectMainPostPatch({token:'UNINSTALLED_CANARY_UNINSTALLED_TOKEN',fresh:m.fresh,fetcher:m.fetcher,save:m.save}),s=r.observations[1].settings;
+ assert.equal(s.labels.length,64);assert.equal(s.labelsTruncated,true);assert.equal(s.knownBindings.length,0);assert(!JSON.stringify(r).includes('UNINSTALLED_CANARY_'));
 });
 for(const [name,response,outcome]of [
- ['HTTP failure',()=>Response.json({success:false,errors:[{code:10000,message:'PRIVATE_PROVIDER_MESSAGE'}]},{status:403}),'HTTP_FAILURE'],
- ['provider failure',()=>Response.json({success:false,errors:[{code:10021,message:'PRIVATE_PROVIDER_MESSAGE'}]}),'PROVIDER_FAILURE'],
- ['invalid JSON',()=>new Response('PRIVATE_BAD_JSON',{status:200}),'BODY_FAILURE'],
- ['missing result',()=>Response.json({success:true,private:'PRIVATE_BODY'}),'RESULT_SHAPE_FAILURE']
+ ['HTTP failure',()=>Response.json({success:false,errors:[{code:10000,message:'UNINSTALLED_CANARY_PROVIDER_MESSAGE'}]},{status:403}),'HTTP_FAILURE'],
+ ['provider failure',()=>Response.json({success:false,errors:[{code:10021,message:'UNINSTALLED_CANARY_PROVIDER_MESSAGE'}]}),'PROVIDER_FAILURE'],
+ ['invalid JSON',()=>new Response('UNINSTALLED_CANARY_BAD_JSON',{status:200}),'BODY_FAILURE'],
+ ['missing result',()=>Response.json({success:true,private:'UNINSTALLED_CANARY_BODY'}),'RESULT_SHAPE_FAILURE']
 ])test('settings '+name+' preserves version/attempts and never dumps or retries',async()=>{
  const m=mock({fetch:n=>n===1?Response.json({success:true,result:deploy()}):response()});let got;
- await assert.rejects(inspectMainPostPatch({token:'PRIVATE_UNINSTALLED_TOKEN',fresh:m.fresh,fetcher:m.fetcher,save:m.save}),e=>{got=e.evidence;return true;});
+ await assert.rejects(inspectMainPostPatch({token:'UNINSTALLED_CANARY_UNINSTALLED_TOKEN',fresh:m.fresh,fetcher:m.fetcher,save:m.save}),e=>{got=e.evidence;return true;});
  assert.equal(got.explicitGetAttempts,2);assert.equal(got.cumulativeExplicitGetAttempts,56);assert.equal(got.observations[0].outcome,'CAPTURED');assert.equal(got.observations[1].outcome,outcome);
- assert.equal(got.state,'READ_ONLY_MAIN_DIAGNOSTIC_STOPPED');assert.equal(m.calls.length,2);assert(!JSON.stringify(m.saved).includes('PRIVATE_'));
+ assert.equal(got.state,'READ_ONLY_MAIN_DIAGNOSTIC_STOPPED');assert.equal(m.calls.length,2);assert(!JSON.stringify(m.saved).includes('UNINSTALLED_CANARY_'));
 });
 test('first transport failure saves one attempted GET and stops without settings retry',async()=>{
- const m=mock({fetch:()=>{throw Error('PRIVATE_NETWORK_DETAIL');}});let e;
- await assert.rejects(inspectMainPostPatch({token:'PRIVATE_UNINSTALLED_TOKEN',fresh:m.fresh,fetcher:m.fetcher,save:m.save}),x=>{e=x.evidence;return true;});
- assert.equal(m.calls.length,1);assert.equal(e.cumulativeExplicitGetAttempts,55);assert.equal(e.observations[0].outcome,'TRANSPORT_FAILURE');assert(!JSON.stringify(e).includes('PRIVATE_'));
+ const m=mock({fetch:()=>{throw Error('UNINSTALLED_CANARY_NETWORK_DETAIL');}});let e;
+ await assert.rejects(inspectMainPostPatch({token:'UNINSTALLED_CANARY_UNINSTALLED_TOKEN',fresh:m.fresh,fetcher:m.fetcher,save:m.save}),x=>{e=x.evidence;return true;});
+ assert.equal(m.calls.length,1);assert.equal(e.cumulativeExplicitGetAttempts,55);assert.equal(e.observations[0].outcome,'TRANSPORT_FAILURE');assert(!JSON.stringify(e).includes('UNINSTALLED_CANARY_'));
 });
 test('fresh withdrawal between fixed reads saves only first observation and no second attempt',async()=>{
  const m=mock({withdrawAt:2});let e;
- await assert.rejects(inspectMainPostPatch({token:'PRIVATE_UNINSTALLED_TOKEN',fresh:m.fresh,fetcher:m.fetcher,save:m.save}),x=>{e=x.evidence;return true;});
+ await assert.rejects(inspectMainPostPatch({token:'UNINSTALLED_CANARY_UNINSTALLED_TOKEN',fresh:m.fresh,fetcher:m.fetcher,save:m.save}),x=>{e=x.evidence;return true;});
  assert.equal(m.calls.length,1);assert.equal(e.explicitGetAttempts,1);assert.equal(e.observations.length,1);assert.equal(e.hostedWrites,0);
 });
 test('malformed settings shape produces safe labels instead of losing the observation',async()=>{
- const m=mock({fetch:n=>Response.json({success:true,result:n===1?deploy():['PRIVATE_UNEXPECTED_RESULT']})});
- const r=await inspectMainPostPatch({token:'PRIVATE_UNINSTALLED_TOKEN',fresh:m.fresh,fetcher:m.fetcher,save:m.save});
- assert.equal(r.observations[1].settings.labels[0].category,'SETTINGS_SHAPE');assert(!JSON.stringify(r).includes('PRIVATE_'));
+ const m=mock({fetch:n=>Response.json({success:true,result:n===1?deploy():['UNINSTALLED_CANARY_UNEXPECTED_RESULT']})});
+ const r=await inspectMainPostPatch({token:'UNINSTALLED_CANARY_UNINSTALLED_TOKEN',fresh:m.fresh,fetcher:m.fetcher,save:m.save});
+ assert.equal(r.observations[1].settings.labels[0].category,'SETTINGS_SHAPE');assert(!JSON.stringify(r).includes('UNINSTALLED_CANARY_'));
 });
 test('deployment observation retains no unrecognised version/comment strings and never adopts',()=>{
- const d=deploymentObservation({deployments:[{versions:[{version_id:'PRIVATE_VERSION',percentage:100,comment:'PRIVATE_COMMENT'}]}]});
- assert.equal(d.currentVersion,null);assert.equal(d.versions[0].versionId,null);assert.equal(d.ownedVersionAdopted,false);assert(!JSON.stringify(d).includes('PRIVATE_'));
+ const d=deploymentObservation({deployments:[{versions:[{version_id:'UNINSTALLED_CANARY_VERSION',percentage:100,comment:'UNINSTALLED_CANARY_COMMENT'}]}]});
+ assert.equal(d.currentVersion,null);assert.equal(d.versions[0].versionId,null);assert.equal(d.ownedVersionAdopted,false);assert(!JSON.stringify(d).includes('UNINSTALLED_CANARY_'));
 });
 test('receipt validator rejects unknown payloads, unsafe label names and counterfeit cleanup proof',async()=>{
- const m=mock(),r=await inspectMainPostPatch({token:'PRIVATE_UNINSTALLED_TOKEN',fresh:m.fresh,fetcher:m.fetcher,save:m.save});
- assert.throws(()=>assertSafeDiagnosticReceipt({...r,rawSettings:'PRIVATE_VALUE'}));
+ const m=mock(),r=await inspectMainPostPatch({token:'UNINSTALLED_CANARY_UNINSTALLED_TOKEN',fresh:m.fresh,fetcher:m.fetcher,save:m.save});
+ assert.throws(()=>assertSafeDiagnosticReceipt({...r,rawSettings:'UNINSTALLED_CANARY_VALUE'}));
  assert.throws(()=>assertSafeDiagnosticReceipt({...r,cleanupVerified:true}));
- const c=structuredClone(r);c.observations[1].settings.labels=[{field:'PRIVATE_DYNAMIC_FIELD',category:'FIELD_MISMATCH',expectedType:'string',observedType:'string'}];c.observations[1].settings.mismatchCount=1;c.observations[1].settings.expectedMetadataMatches=false;
+ const c=structuredClone(r);c.observations[1].settings.labels=[{field:'UNINSTALLED_CANARY_DYNAMIC_FIELD',category:'FIELD_MISMATCH',expectedType:'string',observedType:'string'}];c.observations[1].settings.mismatchCount=1;c.observations[1].settings.expectedMetadataMatches=false;
  assert.throws(()=>assertSafeDiagnosticReceipt(c));
 });
 test('fully protected LOCAL diagnostic waits for all approval gates and saves only safe2-read receipt',async()=>{
  const f=fixture(),m=mock(),saved=[];
  const r=await executeApprovedDiagnostic({api:f.api,mergeSha:merge,prNumber:73,context:f.context,localGuard:f.localGuard,getToken:f.getToken,fetcher:m.fetcher,save:e=>saved.push(e)});
  assert.equal(f.tokenReads,1);assert.equal(m.calls.length,2);assert.equal(r.cumulativeExplicitGetAttempts,56);assert.equal(r.cleanupVerified,false);assert.equal(r.ownedVersionAdopted,false);
- assert.equal(r.execution.effectsSHA256,executionEffectsHash);assert(!JSON.stringify(saved).includes('PRIVATE_'));
+ assert.equal(r.execution.effectsSHA256,executionEffectsHash);assert(!JSON.stringify(saved).includes('UNINSTALLED_CANARY_'));
 });
 test('diagnostic workflow has one token step behind both public/private validation and no PIN/mutation job',()=>{
  const s=readFileSync(new URL('../../.github/workflows/feature-jwt-main-postpatch-inspect.yml',import.meta.url),'utf8');
