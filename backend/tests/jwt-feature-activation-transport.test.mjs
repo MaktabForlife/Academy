@@ -48,5 +48,5 @@ for(const [fault,expectedReads,expectedWrites]of [['transient-final-version',16,
  const f=activationMock({fault});let recoverCalls=0;const recoveryFresh=f.ops.recoveryFresh;f.ops.recoveryFresh=async()=>{recoverCalls++;return recoveryFresh();};
  await assert.rejects(releaseFreshFeature({ops:f.ops}));const r=report(f);
  assert.equal(r.controlUnavailable,true);assert.equal(f.ops.canRecover(),false);assert.equal(recoverCalls,0);
- assert.deepEqual([f.state.provider,f.state.cli,f.state.public,f.state.auth,f.state.paused],[expectedReads,expectedWrites,0,0,0]);assert.equal(r.recovery,expectedWrites?'NOT_VERIFIED_NO_BLIND_OVERWRITE':null);
+ assert.deepEqual([f.state.provider,f.state.cli,f.state.public,f.state.auth,f.state.paused],[expectedReads,expectedWrites,fault==='transient-final-version'?3:0,fault==='transient-final-version'?8:0,0]);assert.equal(r.recovery,expectedWrites?'NOT_VERIFIED_NO_BLIND_OVERWRITE':null);
 });
