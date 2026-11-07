@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "request": "jwt-feature-owned-finalisation-20261107a",
+  "request": "jwt-feature-main-postpatch-inspection-20261107a",
   "kind": "component",
   "target": "feature",
   "contains_jwt": true,
   "database_changes": false,
   "version": "110.36",
-  "feature_sha": "6b21ad29a7818be0846d2cd5d404350925e361f1",
-  "feature_base_sha": "a017f2f30324162e2946b8a32d494fdc10a5d27e"
+  "feature_sha": "e682301619ec20d65f5530948bb664529c1440dc",
+  "feature_base_sha": "6b21ad29a7818be0846d2cd5d404350925e361f1"
 }
