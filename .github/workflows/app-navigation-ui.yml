@@ -1,0 +1,99 @@
+name: Native app same-tab regression
+on:
+  push:
+    branches: [feature/app-same-tab-20261106c]
+  workflow_dispatch:
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+jobs:
+  local-native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.18.0'
+      - run: npm ci --prefix backend --no-audit --no-fund
+      - name: Native transport, Home and current native guards
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/app-navigation-evidence"
+          node --check portal/shared/circles-sign-in.mjs
+          node --check portal-adapter/circles-sign-in.mjs
+          node --check js/m4l-academy-library.js
+          node --test --test-reporter=tap backend/tests/circles-app-same-tab.test.mjs backend/tests/circles-return-ui.test.mjs backend/tests/academy-circles-native.test.mjs 2>&1 | tee "$RUNNER_TEMP/app-navigation-evidence/tests.log"
+          node backend/tests/academy-library-public-ui.test.mjs 2>&1 | tee "$RUNNER_TEMP/app-navigation-evidence/library.log"
+      - run: node backend/tools/academy-pages-build.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: app-navigation-native-${{ github.run_id }}
+          path: ${{ runner.temp }}/app-navigation-evidence/
+          if-no-files-found: error
+          retention-days: 14
+  browser:
+    needs: local-native
+    name: Native app navigation (${{ matrix.browser }})
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble@sha256:f1e7e01021efd65dd1a2c56064be399f3e4de00fd021ac561325f2bfbb2b837a
+      options: --init --ipc=host
+    timeout-minutes: 15
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: MaktabForlife/Academy
+          ref: bbf9b109fd703b801bbb6ab19e6f3e0bbd355ced
+          path: fixture-source
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.18.0'
+      - run: npm ci --prefix backend --no-audit --no-fund
+      - run: npm ci --prefix fixture-source/backend --no-audit --no-fund
+      - name: Build exact source in the disposable browser workspace
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$PWD"
+          node backend/tools/academy-pages-build.mjs
+      - name: Install isolated browser
+        env:
+          REVIEW_BROWSER_MODULES: ${{ runner.temp }}/app-navigation-browser
+          PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+        run: |
+          set -euo pipefail
+          npm install --prefix "$REVIEW_BROWSER_MODULES" --no-save --package-lock=false --no-audit --no-fund playwright@1.56.1
+          node "$REVIEW_BROWSER_MODULES/node_modules/playwright/cli.js" install ${{ matrix.browser }}
+      - name: Exercise native tools and same-tab Home
+        env:
+          REVIEW_BROWSER_MODULES: ${{ runner.temp }}/app-navigation-browser
+          PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+          HOME_LOGIN_FIXTURE_ROOT: ${{ github.workspace }}/fixture-source
+          HOME_LOGIN_BROWSER: ${{ matrix.browser }}
+        run: |
+          set -euo pipefail
+          node tools/app-navigation-ui-check.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: app-navigation-${{ matrix.browser }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/app-navigation-evidence/
+          if-no-files-found: error
+          retention-days: 14

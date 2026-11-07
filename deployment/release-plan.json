@@ -1,11 +1,8 @@
 {
   "schema": 1,
-  "request": "jwt-feature-owned-finalisation-20261107a",
+  "request": "ui-bugs-20261106d-native-navigation-development",
   "kind": "component",
-  "target": "feature",
-  "contains_jwt": true,
-  "database_changes": false,
-  "version": "110.36",
-  "feature_sha": "6b21ad29a7818be0846d2cd5d404350925e361f1",
-  "feature_base_sha": "a017f2f30324162e2946b8a32d494fdc10a5d27e"
+  "target": "development",
+  "contains_jwt": false,
+  "database_changes": false
 }
