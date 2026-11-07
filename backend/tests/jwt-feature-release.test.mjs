@@ -38,29 +38,30 @@ test('preflight failure has no write or pause',async()=>{const f=fake({where:'pr
 test('approval withdrawal after coordinator update permits only owned pause',async()=>{const f=fake({withdraw:true});await assert.rejects(releaseFreshFeature(f));assert.equal(f.writes,1);assert(f.events.includes('paused-verified'));assert.equal(f.evidence.at(-1).recovery,'OWNED_FEATURE_PAUSED');});
 test('unknown upload outcome cannot overwrite a changed version',async()=>{const f=fake({where:'feature_worker',foreign:true});await assert.rejects(releaseFreshFeature(f));assert(!f.events.includes('pause'));assert.equal(f.evidence.at(-1).recovery,'NOT_VERIFIED_NO_BLIND_OVERWRITE');});
 test('failed public verification pauses owned JWT source instead of native rollback',async()=>{const f=fake({where:'public'});await assert.rejects(releaseFreshFeature(f));assert(f.events.includes('paused-verified'));assert.equal(f.evidence.at(-1).activated,false);});
+function releaseSettings(c,{assetConfig=true,modernD1=false}={}){
+ const bindings=[];for(const b of c.d1_databases)bindings.push({name:b.binding,type:'d1',[modernD1?'database_id':'id']:b.database_id});
+ for(const b of c.r2_buckets||[])bindings.push({name:b.binding,type:'r2_bucket',bucket_name:b.bucket_name});
+ for(const [name,text]of Object.entries(c.vars))bindings.push({name,type:'plain_text',text});
+ for(const name of c.secrets?.required||[])bindings.push({name,type:'secret_text',text:'MUST_NOT_BE_REPORTED'});
+ for(const b of c.ratelimits||[])bindings.push({name:b.name,type:'ratelimit',namespace_id:b.namespace_id,simple:b.simple});
+ for(const b of c.durable_objects.bindings){
+  const ids={ProgramTimetableCoordinator:baseline.timetableNamespaceId,AcademySplitCoordinator:baseline.splitNamespaceId,JWTFeatureProgramTimetableCoordinator:'c'.repeat(32),JWTFeatureAcademySplitCoordinator:'d'.repeat(32)};
+  bindings.push({name:b.name,type:'durable_object_namespace',class_name:b.class_name,namespace_id:ids[b.class_name],script_name:b.script_name||c.name});
+ }
+ if(c.assets)bindings.push({name:'ASSETS',type:'assets'});
+ return {bindings,compatibility_date:c.compatibility_date,compatibility_flags:c.compatibility_flags,tail_consumers:[],observability:c.observability,...(assetConfig&&c.assets?{assets:{config:{run_worker_first:c.assets.run_worker_first,not_found_handling:'none',html_handling:'auto-trailing-slash',base_path:'/'}}}:{})};
+}
 test('actual release transport LOCAL mock: two uploads,24 explicit metadata GETs,3 public+8 auth attempts; no SQL/secret/Pages API',async()=>{
  const f=fixture({coordinatorChanged:true}),configs={feature_worker:f.profiles.before.worker,'academy-feature-split-coordinator':f.profiles.before.coordinator},versions={feature_worker:f.installed.workerVersion,'academy-feature-split-coordinator':f.installed.coordinatorVersion};
  const publicBodies={'/academy/':'<html><body>only synthetic public shell</body></html>','/auth/v110/browser-config.js':'window.M4L_V110_CONFIG=Object.freeze({enabled:true});'};
  const assets=new Map(Object.entries(publicBodies).map(([k,v])=>[k,hash(v)]));let sequence=10,requests=0,writes=0,approvalChecks=0;
- function metadata(c){
-  const bindings=[];for(const b of c.d1_databases)bindings.push({name:b.binding,type:'d1',id:b.database_id});
-  for(const b of c.r2_buckets||[])bindings.push({name:b.binding,type:'r2_bucket',bucket_name:b.bucket_name});
-  for(const [name,text]of Object.entries(c.vars))bindings.push({name,type:'plain_text',text});
-  for(const name of c.secrets?.required||[])bindings.push({name,type:'secret_text',text:'MUST_NOT_BE_REPORTED'});
-  for(const b of c.ratelimits||[])bindings.push({name:b.name,type:'ratelimit',namespace_id:b.namespace_id,simple:b.simple});
-  for(const b of c.durable_objects.bindings){
-   const ids={ProgramTimetableCoordinator:baseline.timetableNamespaceId,AcademySplitCoordinator:baseline.splitNamespaceId,JWTFeatureProgramTimetableCoordinator:'c'.repeat(32),JWTFeatureAcademySplitCoordinator:'d'.repeat(32)};
-   bindings.push({name:b.name,type:'durable_object_namespace',class_name:b.class_name,namespace_id:ids[b.class_name],script_name:b.script_name||c.name});
-  }
-  if(c.assets)bindings.push({name:'ASSETS',type:'assets'});
-  return {bindings,compatibility_date:c.compatibility_date,compatibility_flags:c.compatibility_flags,tail_consumers:[],observability:c.observability,...(c.assets?{assets:{config:{run_worker_first:c.assets.run_worker_first,not_found_handling:'none',html_handling:'auto-trailing-slash',base_path:'/'}}}:{})};
- }
+
  const headers={'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'},subject='feature-synthetic-learner-a';
  const fetcher=async(url,options={})=>{
   const u=new URL(url);
   if(u.hostname==='api.cloudflare.com'){
    assert.equal(options.method,undefined);const [name,kind]=u.pathname.split('/').slice(7,9);assert(configs[name]);let result;
-   if(kind==='settings')result=metadata(configs[name]);else if(kind==='deployments')result={deployments:[{versions:[{version_id:versions[name],percentage:100}]}]};else if(kind==='subdomain')result={enabled:name==='feature_worker',previews_enabled:false};else if(kind==='schedules')result=[];else assert.fail('FORBIDDEN_CONTROL_API');
+   if(kind==='settings')result=releaseSettings(configs[name]);else if(kind==='deployments')result={deployments:[{versions:[{version_id:versions[name],percentage:100}]}]};else if(kind==='subdomain')result={enabled:name==='feature_worker',previews_enabled:false};else if(kind==='schedules')result=[];else assert.fail('FORBIDDEN_CONTROL_API');
    return Response.json({success:true,result});
   }
   assert.equal(u.origin,f.profiles.origin);
@@ -102,4 +103,40 @@ test('byte-identical coordinator source graph needs no unrelated coordinator upl
  let targets;const observed=[];
  const ops={targets:['feature_worker'],preflight:async()=>{},fresh:async()=>{},owned:async()=>{},deploy:async name=>observed.push(name),adopt:async()=>{},publicProof:async()=>{},smoke:async()=>({}),verifyFinal:async()=>{},save:()=>{}};
  await releaseFreshFeature({ops});assert.deepEqual(observed,['feature_worker']);
+});
+
+ 
+// Regression for the actual production transport's metadata caller. These are
+// injected HTTP mocks and hypothetical LOCAL installation records, not live
+// cleanup/activation authority or proof of deployed asset routing/code.
+for(const missingBinding of [false,true])test('actual release caller binding-only settings: '+(missingBinding?'missing ASSETS still denied':'documented omission + modern D1 IDs accepted'),async()=>{
+ const f=fixture(),configs={feature_worker:f.profiles.before.worker,'academy-feature-split-coordinator':f.profiles.before.coordinator};
+ const versions={feature_worker:f.installed.workerVersion,'academy-feature-split-coordinator':f.installed.coordinatorVersion},calls=[];
+ let omittedAssetReplies=0;
+ const fetcher=async(url,options={})=>{
+  const u=new URL(url);assert.equal(u.origin,'https://api.cloudflare.com');assert.equal(options.method,undefined);
+  assert.equal(options.redirect,'error');assert.equal(options.cache,'no-store');
+  assert.equal(options.headers.Authorization,'Bearer uninstalled-shape-regression-token');
+  const [name,kind]=u.pathname.split('/').slice(7,9);assert(Object.hasOwn(configs,name));calls.push({name,kind});
+  let result;
+  if(kind==='settings'){
+   result=releaseSettings(configs[name],{assetConfig:false,modernD1:true});
+   assert.equal(Object.hasOwn(result,'assets'),false);
+   for(const b of result.bindings)if(b.type==='d1'){assert(Object.hasOwn(b,'database_id'));assert.equal(Object.hasOwn(b,'id'),false);}
+   if(configs[name].assets){omittedAssetReplies++;if(missingBinding)result.bindings=result.bindings.filter(b=>b.type!=='assets');}
+  }else if(kind==='deployments')result={deployments:[{versions:[{version_id:versions[name],percentage:100}]}]};
+  else if(kind==='subdomain')result={enabled:name==='feature_worker',previews_enabled:false};
+  else if(kind==='schedules')result=[];
+  else assert.fail('Only metadata GETs permitted in this local regression');
+  return Response.json({success:true,result});
+ };
+ const dir=mkdtempSync(resolve(process.env.RUNNER_TEMP,'jwt-release-shape-regression-'));
+ const ops=createFeatureReleaseOps({root:process.cwd(),directory:dir,evidenceDirectory:resolve(dir,'public'),profiles:f.profiles,nativeReceipt:baseline,installation:f.installation,installed:f.installed,source:f.source,fresh:async()=>{},token:'uninstalled-shape-regression-token',pin:undefined,assets:new Map(),fetcher,runWrangler:async()=>assert.fail('No mock upload is permitted')});
+ if(missingBinding){
+  await assert.rejects(ops.preflight());assert.equal(calls.length,1);
+ }else{
+  await ops.preflight();await ops.verifyFinal();assert.equal(calls.length,16);
+  assert.equal(omittedAssetReplies,2);
+ }
+ assert(calls.every(c=>['settings','deployments','subdomain','schedules'].includes(c.kind)));
 });
