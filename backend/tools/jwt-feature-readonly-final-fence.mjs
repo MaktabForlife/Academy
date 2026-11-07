@@ -1,7 +1,8 @@
 // SOURCE ONLY: no CLI, default fetch, private environment or execution workflow.
 // Import is inert. A later exact protected wiring/effects review is still required.
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
+import {isAbsolute,resolve} from 'node:path';
 import {createHash} from 'node:crypto';
 import {expectedPausedMetadataProfiles} from './jwt-feature-finalise.mjs';
 import {assertRemoteProfile,currentVersion} from './jwt-feature-install-metadata.mjs';
@@ -56,27 +57,75 @@ export function assertFinalFenceReceipt(r){
  for(const k of ['cleanupVerified','activated','mainOwnedVersionAdopted','codeContentVerified','keyMaterialVerified','assetRoutingVerified','metadataObservationsAtomic','deploymentVersionBindsSettings','currentMainSettingsReread','futureWriteClearance'])assert.equal(r[k],false);
  for(const k of ['countsAreFetchAttempts','coordinatorVersionSampleAfterProbes'])assert.equal(r[k],true);
  for(const k of ['checksPassed','mainObservationValidated','mainTemporaryNamesAbsentInAcceptedObservation','coordinatorMetadataMatched','mainPreprobeVersionMatched','mainFinalVersionMatched','coordinatorFinalVersionMatched'])assert.equal(typeof r[k],'boolean');
+ assert.equal(r.mainTemporaryNamesAbsentInAcceptedObservation,r.mainObservationValidated);
  assert.equal(r.historicalFailureCause,'UNKNOWN_NO_RAW_POST_SETTINGS_SAVED');assert.equal(r.hostedD1Usage,'UNMEASURED_EXPECTED_ZERO_FROM_REVIEWED_PAUSED_SOURCE');
+ const successStatus=n=>Number.isInteger(n)&&n>=200&&n<=299;
+ const validStatus=n=>n===null||Number.isInteger(n)&&n>=100&&n<=599;
+ const beforeBody=new Set(['PENDING','TRANSPORT_FAILURE']);
+ const providerOutcomes=new Set(['PENDING','CAPTURED','TRANSPORT_FAILURE','HTTP_FAILURE','BODY_FAILURE','PROVIDER_FAILURE','RESULT_SHAPE_FAILURE','VERSION_MISMATCH','METADATA_MISMATCH']);
  assert(Array.isArray(r.providerObservations)&&r.providerObservations.length===r.explicitCloudflareGetAttempts);
  for(let i=0;i<r.providerObservations.length;i++){
-  const o=r.providerObservations[i];exact(o,['script','endpoint','attempt','outcome','httpStatus','providerCodes','versionId','versionMatches','profileMatches']);
-  assert.equal(o.script,p.fixedProviderSequence[i].script);assert.equal(o.endpoint,p.fixedProviderSequence[i].endpoint);assert.equal(o.attempt,i+1);
-  assert(outcomes.has(o.outcome));assert(o.httpStatus===null||Number.isInteger(o.httpStatus)&&o.httpStatus>=100&&o.httpStatus<=599);
+  const o=r.providerObservations[i],step=p.fixedProviderSequence[i];
+  exact(o,['script','endpoint','attempt','outcome','httpStatus','providerCodes','versionId','versionMatches','profileMatches']);
+  assert.equal(o.script,step.script);assert.equal(o.endpoint,step.endpoint);assert.equal(o.attempt,i+1);
+  assert(providerOutcomes.has(o.outcome));assert(validStatus(o.httpStatus));
   assert(Array.isArray(o.providerCodes)&&o.providerCodes.length<=8&&o.providerCodes.every(x=>Number.isSafeInteger(x)&&x>=0&&x<=2147483647));
   assert(o.versionId===null||uuid.test(o.versionId));for(const k of ['versionMatches','profileMatches'])assert(o[k]===null||typeof o[k]==='boolean');
+  if(beforeBody.has(o.outcome)){assert.equal(o.httpStatus,null);assert.deepEqual(o.providerCodes,[]);}
+  else if(o.outcome==='HTTP_FAILURE')assert(!successStatus(o.httpStatus));
+  else assert(successStatus(o.httpStatus));
+  if(step.endpoint==='deployments'){
+   assert.equal(o.profileMatches,null);
+   const expected=step.script===main?p.acceptedMainObservation.referenceVersion:p.lastReviewedCoordinatorVersion;
+   if(o.outcome==='CAPTURED'){assert.equal(o.versionId,expected);assert.equal(o.versionMatches,true);}
+   else if(o.outcome==='VERSION_MISMATCH'){assert(o.versionId!==null&&o.versionId!==expected);assert.equal(o.versionMatches,false);}
+   else{assert.notEqual(o.outcome,'METADATA_MISMATCH');assert.equal(o.versionId,null);assert.equal(o.versionMatches,null);}
+  }else{
+   assert.equal(o.versionId,null);assert.equal(o.versionMatches,null);assert.notEqual(o.outcome,'VERSION_MISMATCH');
+   if(o.outcome==='CAPTURED')assert.equal(o.profileMatches,true);
+   else if(o.outcome==='METADATA_MISMATCH')assert.equal(o.profileMatches,false);
+   else assert.equal(o.profileMatches,null);
+  }
+  if(i<r.providerObservations.length-1)assert.equal(o.outcome,'CAPTURED');
  }
  assert(Array.isArray(r.pausedObservations)&&r.pausedObservations.length===r.pausedProbeAttempts);
  for(let i=0;i<r.pausedObservations.length;i++){
   const o=r.pausedObservations[i];exact(o,['path','attempt','outcome','httpStatus','responseMatches']);
-  assert.equal(o.path,p.pausedProbePaths[i]);assert.equal(o.attempt,i+1);assert(outcomes.has(o.outcome));
-  assert(o.httpStatus===null||Number.isInteger(o.httpStatus)&&o.httpStatus>=100&&o.httpStatus<=599);assert.equal(typeof o.responseMatches,'boolean');
+  assert.equal(o.path,p.pausedProbePaths[i]);assert.equal(o.attempt,i+1);
+  assert(['PENDING','CAPTURED','TRANSPORT_FAILURE','PAUSED_RESPONSE_MISMATCH'].includes(o.outcome));
+  assert(validStatus(o.httpStatus));assert.equal(typeof o.responseMatches,'boolean');
+  if(o.outcome==='CAPTURED'){assert.equal(o.httpStatus,503);assert.equal(o.responseMatches,true);}
+  else{assert.equal(o.responseMatches,false);if(beforeBody.has(o.outcome))assert.equal(o.httpStatus,null);}
+  if(i<r.pausedObservations.length-1)assert.equal(o.outcome,'CAPTURED');
+ }
+ const captured=i=>r.providerObservations[i]?.outcome==='CAPTURED';
+ assert.equal(r.mainPreprobeVersionMatched,captured(0));
+ assert.equal(r.coordinatorMetadataMatched,captured(1));
+ assert.equal(r.mainFinalVersionMatched,captured(2));
+ assert.equal(r.coordinatorFinalVersionMatched,captured(3));
+ if(r.providerObservations.length||r.pausedObservations.length)assert.equal(r.mainObservationValidated,true);
+ if(r.pausedObservations.length)assert(captured(0)&&captured(1));
+ if(r.providerObservations.length>=3){
+  assert.equal(r.pausedObservations.length,3);assert(r.pausedObservations.every(x=>x.outcome==='CAPTURED'));
  }
  if(r.state==='FINAL_FENCE_CAPTURED_NO_OWNERSHIP_OR_ACTIVATION_CLEARANCE'){
-  assert(r.checksPassed&&r.explicitCloudflareGetAttempts===4&&r.pausedProbeAttempts===3);
-  for(const k of ['mainObservationValidated','mainTemporaryNamesAbsentInAcceptedObservation','coordinatorMetadataMatched','mainPreprobeVersionMatched','mainFinalVersionMatched','coordinatorFinalVersionMatched'])assert.equal(r[k],true);
-  assert([...r.providerObservations,...r.pausedObservations].every(x=>x.outcome==='CAPTURED'));
+  assert(r.checksPassed&&r.explicitCloudflareGetAttempts===4&&r.pausedProbeAttempts===3&&r.mainObservationValidated);
+  assert(r.providerObservations.every(x=>x.outcome==='CAPTURED'));assert(r.pausedObservations.every(x=>x.outcome==='CAPTURED'));
  }else assert.equal(r.checksPassed,false);
  return r;
+}
+// Concrete proposed writer for a later reviewed runner-temp binding. Synchronous
+// bounded local receipt write only; no CLI/private environment or live transport.
+export function createSyncFinalFenceReceiptWriter(directory){
+ assert(typeof directory==='string'&&isAbsolute(directory),'ABSOLUTE_RECEIPT_DIRECTORY_REQUIRED');
+ const file=resolve(directory,'final-fence-verification.json');
+ return receipt=>{
+  const bytes=JSON.stringify(assertFinalFenceReceipt(receipt),null,2)+'\n';
+  assert(Buffer.byteLength(bytes)<=65536,'RECEIPT_SIZE');
+  mkdirSync(directory,{recursive:true,mode:0o700});
+  writeFileSync(file,bytes,{mode:0o600});
+  // Deliberately returns undefined. Never accepts/returns a Promise.
+ };
 }
 async function boundedJSON(response,max){
  assert(response.body);const reader=response.body.getReader(),chunks=[];let bytes=0;
@@ -88,9 +137,24 @@ const status=response=>Number.isInteger(response.status)&&response.status>=100&&
 export async function verifyReadOnlyFinalFence({fresh,fetcher,getToken,save}){
  // No default transport/token/save: source/mock tests cannot select a live API.
  assert.equal(typeof fresh,'function');assert.equal(typeof fetcher,'function');assert.equal(typeof getToken,'function');assert.equal(typeof save,'function');
- const e=initialReceipt(),persist=()=>save(structuredClone(assertFinalFenceReceipt(e)));
- persist();
+ const e=initialReceipt();let persistenceFailed=false;
+ const persist=()=>{
+  if(persistenceFailed)throw Error('SYNCHRONOUS_RECEIPT_PERSISTENCE_FAILED');
+  try{
+   // A reviewed bounded synchronous writer avoids a new asynchronous interval
+   // between the fresh guard, recorded attempt and actual fetch.
+   assert.notEqual(Object.prototype.toString.call(save),'[object AsyncFunction]');
+   const result=save(structuredClone(assertFinalFenceReceipt(e)));
+   if(result!==undefined){
+    // Reject async wrappers too; consume their rejection without waiting,
+    // fetching, or pretending that the receipt completed synchronously.
+    if(result&&typeof result.then==='function')Promise.resolve(result).catch(()=>{});
+    throw Error('SYNCHRONOUS_RECEIPT_WRITER_REQUIRED');
+   }
+  }catch{persistenceFailed=true;throw Error('SYNCHRONOUS_RECEIPT_PERSISTENCE_FAILED');}
+ };
  try{
+  persist();
   acceptedMainObservation();e.mainObservationValidated=true;e.mainTemporaryNamesAbsentInAcceptedObservation=true;persist();await fresh();
   const token=getToken();assert(typeof token==='string'&&token.length);
   async function provider(index){
@@ -142,8 +206,10 @@ export async function verifyReadOnlyFinalFence({fresh,fetcher,getToken,save}){
   e.state='FINAL_FENCE_CAPTURED_NO_OWNERSHIP_OR_ACTIVATION_CLEARANCE';e.checksPassed=true;persist();
   return structuredClone(e);
  }catch{
-  e.state='FINAL_FENCE_STOPPED_NO_RETRY';e.checksPassed=false;persist();
-  throw Object.assign(Error('FINAL_FENCE_STOPPED_SEE_STRICT_RECEIPT'),{receipt:structuredClone(e)});
+  e.state='FINAL_FENCE_STOPPED_NO_RETRY';e.checksPassed=false;
+  // A failed writer is never retried. Return no successful result or later call.
+  if(!persistenceFailed)try{persist();}catch{}
+  throw Object.assign(Error(persistenceFailed?'FINAL_FENCE_STOPPED_RECEIPT_PERSISTENCE_FAILED':'FINAL_FENCE_STOPPED_SEE_STRICT_RECEIPT'),{receipt:structuredClone(e)});
  }
 }
 function pinnedNamespaces(){return {split:'de95f15f19a54a9e9ba34e6e75f51847',timetable:'ab05473998dc4e93b792464f9e78e0e9'};}

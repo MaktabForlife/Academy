@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync,mkdtempSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {createHash} from 'node:crypto';
-import {finalFencePlan as p,acceptedMainObservation,verifyReadOnlyFinalFence,assertFinalFenceReceipt} from '../tools/jwt-feature-readonly-final-fence.mjs';
+import {finalFencePlan as p,acceptedMainObservation,verifyReadOnlyFinalFence,assertFinalFenceReceipt,createSyncFinalFenceReceiptWriter} from '../tools/jwt-feature-readonly-final-fence.mjs';
 import {expectedPausedMetadataProfiles} from '../tools/jwt-feature-finalise.mjs';
 const canary='UNINSTALLED_CANARY_MUST_NOT_APPEAR',token='UNINSTALLED_CANARY_TOKEN_NOT_A_CREDENTIAL';
 globalThis.fetch=()=>{throw Error('UNEXPECTED_LIVE_TRANSPORT');};
@@ -147,4 +149,111 @@ test('proposal workflow has source checks only and no execution/private/credenti
 
 test('changed saved MAIN evidence fails its immutable hash before any facts can be accepted',()=>{
  assert.throws(()=>acceptedMainObservation(Buffer.from('{}')),/ACCEPTED_RECEIPT_CHANGED/);
+});
+
+test('terminal receipt rejects contradictory captured identity, match, status and summary facts',async()=>{
+ const m=fixture(),r=await verifyReadOnlyFinalFence(m);
+ const changes=[
+  x=>x.providerObservations[0].versionId='00000000-0000-4000-8000-000000000999',
+  x=>x.providerObservations[2].versionId='00000000-0000-4000-8000-000000000999',
+  x=>x.providerObservations[3].versionId='00000000-0000-4000-8000-000000000999',
+  x=>x.providerObservations[0].versionMatches=false,
+  x=>x.providerObservations[0].versionMatches=null,
+  x=>x.providerObservations[0].profileMatches=true,
+  x=>x.providerObservations[1].profileMatches=false,
+  x=>x.providerObservations[1].profileMatches=null,
+  x=>x.providerObservations[1].versionMatches=true,
+  x=>x.providerObservations[0].httpStatus=403,
+  x=>x.providerObservations[1].httpStatus=null,
+  x=>x.pausedObservations[0].httpStatus=200,
+  x=>x.pausedObservations[0].responseMatches=false,
+  x=>x.mainPreprobeVersionMatched=false,
+  x=>x.coordinatorMetadataMatched=false,
+  x=>x.mainFinalVersionMatched=false,
+  x=>x.coordinatorFinalVersionMatched=false,
+  x=>{x.providerObservations[0].outcome='HTTP_FAILURE';x.providerObservations[0].httpStatus=503;}
+ ];
+ for(const change of changes){const x=structuredClone(r);change(x);assert.throws(()=>assertFinalFenceReceipt(x));}
+});
+test('partial receipt semantics agree with actual completed/pending steps, not independent booleans',async()=>{
+ const m=fixture();await verifyReadOnlyFinalFence(m);
+ const pending=m.saved.find(x=>x.providerObservations.length===1&&x.providerObservations[0].outcome==='PENDING');
+ const first=m.saved.find(x=>x.providerObservations.length===1&&x.providerObservations[0].outcome==='CAPTURED');
+ const coord=m.saved.find(x=>x.coordinatorMetadataMatched&&x.pausedProbeAttempts===0);
+ const probe=m.saved.find(x=>x.pausedProbeAttempts===1&&x.pausedObservations[0].outcome==='PENDING');
+ assert(pending&&first&&coord&&probe);
+ for(const [r,change]of [
+  [pending,x=>x.mainPreprobeVersionMatched=true],
+  [pending,x=>x.providerObservations[0].httpStatus=200],
+  [pending,x=>x.providerObservations[0].versionId=p.acceptedMainObservation.referenceVersion],
+  [first,x=>x.providerObservations[0].versionId='00000000-0000-4000-8000-000000000999'],
+  [first,x=>x.providerObservations[0].versionMatches=null],
+  [first,x=>x.mainPreprobeVersionMatched=false],
+  [coord,x=>x.providerObservations[1].profileMatches=false],
+  [coord,x=>x.coordinatorMetadataMatched=false],
+  [probe,x=>x.pausedObservations[0].responseMatches=true],
+  [probe,x=>x.pausedObservations[0].httpStatus=503]
+ ]){const x=structuredClone(r);change(x);assert.throws(()=>assertFinalFenceReceipt(x));}
+});
+test('partial failed outcomes cannot disguise a matched version or successful HTTP response',async()=>{
+ const a=fixture({mutate:({kind,index,raw})=>{if(kind==='provider'&&index===0)raw.deployments[0].versions[0].version_id='00000000-0000-4000-8000-000000000999';}});
+ const r=await stopped(a);
+ for(const change of [x=>x.providerObservations[0].versionId=p.acceptedMainObservation.referenceVersion,x=>x.providerObservations[0].versionMatches=true,x=>x.mainPreprobeVersionMatched=true]){
+  const x=structuredClone(r);change(x);assert.throws(()=>assertFinalFenceReceipt(x));
+ }
+ const b=fixture({response:({kind,index})=>kind==='provider'&&index===0?Response.json({success:false},{status:403}):null}),s=await stopped(b);
+ const x=structuredClone(s);x.providerObservations[0].httpStatus=200;assert.throws(()=>assertFinalFenceReceipt(x));
+});
+function persistenceError(error){
+ assert.equal(error.message,'FINAL_FENCE_STOPPED_RECEIPT_PERSISTENCE_FAILED');
+ assert.equal(error.receipt.state,'FINAL_FENCE_STOPPED_NO_RETRY');assert.equal(error.receipt.checksPassed,false);
+ assertFinalFenceReceipt(error.receipt);assert(!JSON.stringify({message:error.message,receipt:error.receipt}).includes('UNINSTALLED_CANARY_'));return true;
+}
+test('native async writer is rejected before invocation, token access or fetch',async()=>{
+ const m=fixture();let saves=0;
+ await assert.rejects(verifyReadOnlyFinalFence({...m,save:async()=>{saves++;throw Error(canary);}}),persistenceError);
+ assert.equal(saves,0);assert.equal(m.counters().tokenReads,0);assert.equal(m.calls.length,0);
+});
+test('ordinary wrapper returning a delayed Promise cannot advance past initial persistence',async()=>{
+ const m=fixture();let release,saves=0;const pending=new Promise(resolve=>{release=resolve;});
+ await assert.rejects(verifyReadOnlyFinalFence({...m,save:()=>{saves++;return pending;}}),persistenceError);
+ assert.equal(saves,1);assert.equal(m.counters().tokenReads,0);assert.equal(m.calls.length,0);
+ release();await pending;await Promise.resolve();assert.equal(m.calls.length,0);
+});
+test('rejected Promise writer is consumed and stops without token access, retries or unhandled rejection',async()=>{
+ const m=fixture();let saves=0;
+ await assert.rejects(verifyReadOnlyFinalFence({...m,save:()=>{saves++;return Promise.reject(Error(canary));}}),persistenceError);
+ await Promise.resolve();assert.equal(saves,1);assert.equal(m.counters().tokenReads,0);assert.equal(m.calls.length,0);
+});
+test('persistence rejection at the armed first attempt prevents the actual fetch and is not retried',async()=>{
+ const m=fixture();let saves=0;
+ await assert.rejects(verifyReadOnlyFinalFence({...m,save:r=>{saves++;if(saves===3)return Promise.reject(Error(canary));m.save(r);}}),error=>{
+  persistenceError(error);assert.equal(error.receipt.explicitCloudflareGetAttempts,1);return true;
+ });
+ assert.equal(saves,3);assert.equal(m.calls.length,0);assert.equal(m.counters().tokenReads,1);
+});
+test('delayed post-response save cannot permit a later request or checksPassed result',async()=>{
+ const m=fixture();let saves=0,release;const pending=new Promise(resolve=>{release=resolve;});
+ await assert.rejects(verifyReadOnlyFinalFence({...m,save:r=>{saves++;if(saves===4)return pending;m.save(r);}}),persistenceError);
+ assert.equal(saves,4);assert.equal(m.calls.length,1);
+ release();await pending;await Promise.resolve();assert.equal(m.calls.length,1);
+});
+test('synchronous writer throw after one response stops and never retries a failed writer',async()=>{
+ const m=fixture();let saves=0;
+ await assert.rejects(verifyReadOnlyFinalFence({...m,save:r=>{saves++;if(saves===4)throw Error(canary);m.save(r);}}),persistenceError);
+ assert.equal(saves,4);assert.equal(m.calls.length,1);
+});
+test('concrete bounded synchronous file writer completes before token access and every mocked fetch',async()=>{
+ const directory=mkdtempSync(join(tmpdir(),'jwt-final-fence-')),file=join(directory,'final-fence-verification.json');
+ try{
+  const writer=createSyncFinalFenceReceiptWriter(directory),m=fixture();
+  const read=()=>assertFinalFenceReceipt(JSON.parse(readFileSync(file,'utf8')));
+  const r=await verifyReadOnlyFinalFence({...m,
+   save:x=>{m.save(x);assert.equal(writer(x),undefined);},
+   getToken:()=>{assert.equal(read().mainObservationValidated,true);return m.getToken();},
+   fetcher:(url,options)=>{const saved=read();assert.equal(saved.checksPassed,false);assert.equal(saved.state,'NOT_STARTED');return m.fetcher(url,options);}
+  });
+  assert.deepEqual(read(),r);assert.equal(m.calls.length,7);
+  assert.throws(()=>createSyncFinalFenceReceiptWriter('relative/path'),/ABSOLUTE_RECEIPT_DIRECTORY_REQUIRED/);
+ }finally{rmSync(directory,{recursive:true,force:true});}
 });
