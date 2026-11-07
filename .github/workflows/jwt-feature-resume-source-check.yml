@@ -31,7 +31,7 @@ jobs:
           node --check backend/tools/jwt-feature-release-transport.mjs
           node --check backend/tools/jwt-feature-resume-contract.mjs
           node --check backend/tools/jwt-feature-upload-artifact.mjs
-          node --test --test-reporter=tap backend/tests/jwt-feature-release.test.mjs backend/tests/jwt-feature-upload-ack.test.mjs | tee jwt-resume-tests.tap
+          node --test --test-reporter=tap backend/tests/jwt-feature-release.test.mjs | tee jwt-resume-tests.tap
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

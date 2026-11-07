@@ -30,25 +30,46 @@ export function releaseProfiles({baseWorker,baseCoordinator,nativeReceipt,instal
  };
  return {before:render(installed.releaseId,installed.mode),active:render(source,'ACTIVE'),paused:render(source,'PAUSED'),origin,coordinatorSourceDigest,coordinatorChanged:coordinatorSourceDigest!==installed.coordinatorSourceDigest};
 }
-function persist(ops,evidence){
- const result=ops.save(structuredClone(evidence));
- assert(!(result&&typeof result.then==='function'),'SYNCHRONOUS_EVIDENCE_REQUIRED');
-}
+const persistenceError=()=>Error('JWT_FEATURE_RELEASE_STOPPED_EVIDENCE_UNKNOWN_NO_FURTHER_EFFECTS');
 async function run({ops,pausedOnly}){
- const evidence={schema:1,state:'NOT_STARTED',activated:false,recovery:null};let touched=false;
+ const evidence={schema:1,state:'NOT_STARTED',activated:false,recovery:null};let touched=false,persistenceFailed=false;
+ const failPersistence=()=>{persistenceFailed=true;throw persistenceError();};
+ const checkWriter=()=>{
+  if(persistenceFailed)throw persistenceError();
+  try{
+   assert.equal(typeof ops.save,'function');
+   assert.notEqual(Object.prototype.toString.call(ops.save),'[object AsyncFunction]','SYNCHRONOUS_UNDEFINED_WRITER_REQUIRED');
+  }catch{failPersistence();}
+ };
+ const persist=()=>{
+  checkWriter();
+  try{
+   const result=ops.save(structuredClone(evidence));
+   if(result!==undefined){
+    // A returned asynchronous result is already nonconforming. Consume a
+    // possible rejection without awaiting it or running any further ops.
+    if(result&&typeof result.then==='function')Promise.resolve(result).catch(()=>{});
+    failPersistence();
+   }
+  }catch{failPersistence();}
+ };
  try{
+  checkWriter(); // Known async writers fail before even read-only preflight.
   assert.equal(ops.mode,pausedOnly?'PAUSED_RESUME':'ACTIVE','CONTROLLER_MODE_MISMATCH');
-  await ops.preflight();evidence.state='PREFLIGHT_VERIFIED';persist(ops,evidence);
+  await ops.preflight();evidence.state='PREFLIGHT_VERIFIED';persist();
   for(const name of ops.targets){
    await ops.fresh();await ops.fence();
-   evidence.state=pausedOnly?'PAUSED_CODE_REPLACEMENT':name==='feature_worker'?'ACTIVATING':'COORDINATOR_UPDATE';persist(ops,evidence);
+   evidence.state=pausedOnly?'PAUSED_CODE_REPLACEMENT':name==='feature_worker'?'ACTIVATING':'COORDINATOR_UPDATE';persist();
    touched=true;await ops.deploy(name);await ops.adopt(name);
   }
   if(pausedOnly)await ops.verifyPaused();
   else{await ops.publicProof();evidence.smoke=await ops.smoke();}
   await ops.verifyFinal();await ops.fresh();
-  evidence.state=pausedOnly?'PAUSED_CODE_RESUME_VERIFIED':'FEATURE_VERIFIED';evidence.activated=!pausedOnly;persist(ops,evidence);return evidence;
+  evidence.state=pausedOnly?'PAUSED_CODE_RESUME_VERIFIED':'FEATURE_VERIFIED';evidence.activated=!pausedOnly;persist();return evidence;
  }catch{
+  // Missing/partial/nonconforming receipts are UNKNOWN, never ordinary errors
+  // that can authorise recovery or a second invocation of the failed writer.
+  if(persistenceFailed)throw persistenceError();
   evidence.activated=false;evidence.state='STOPPED';
   if(touched){
    if(ops.canRecover()){
@@ -56,7 +77,7 @@ async function run({ops,pausedOnly}){
     catch{evidence.recovery='NOT_VERIFIED_NO_BLIND_OVERWRITE';}
    }else evidence.recovery='NOT_VERIFIED_NO_BLIND_OVERWRITE';
   }
-  persist(ops,evidence);throw Error('JWT_FEATURE_RELEASE_STOPPED_'+(evidence.recovery||'BEFORE_WRITE'));
+  persist();throw Error('JWT_FEATURE_RELEASE_STOPPED_'+(evidence.recovery||'BEFORE_WRITE'));
  }
 }
 export const releaseFreshFeature=options=>run({...options,pausedOnly:false});

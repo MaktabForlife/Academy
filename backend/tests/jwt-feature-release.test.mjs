@@ -42,7 +42,7 @@ test('routine profile removes migrations, preserves exact new/old store and name
 function fake({where,foreign=false,withdraw=false}={}){
  let writes=0;const events=[],evidence=[];
  const ops={mode:'ACTIVE',targets:['academy-feature-split-coordinator','feature_worker'],fresh:async()=>{events.push('approval');if(withdraw&&writes)throw Error('withdrawn');},fence:async()=>{events.push('fence');if(foreign&&writes)throw Error('foreign');},recoveryFresh:async()=>{},canRecover:()=>writes>=2&&where!=='feature_worker'&&!foreign,preflight:async()=>{events.push('preflight');if(where==='preflight')throw Error('stop');},
- deploy:async n=>{writes++;events.push(n);if(where===n)throw Error('unknown');},adopt:async()=>{},publicProof:async()=>{if(where==='public')throw Error('bad static');},smoke:async()=>({totals:{apiRequests:8,rowsRead:null},metricsObserved:false}),verifyFinal:async()=>{},pause:async()=>{events.push('pause');},verifyPaused:async()=>{events.push('paused-verified');},save:x=>evidence.push(x)};
+ deploy:async n=>{writes++;events.push(n);if(where===n)throw Error('unknown');},adopt:async()=>{},publicProof:async()=>{if(where==='public')throw Error('bad static');},smoke:async()=>({totals:{apiRequests:8,rowsRead:null},metricsObserved:false}),verifyFinal:async()=>{},pause:async()=>{events.push('pause');},verifyPaused:async()=>{events.push('paused-verified');},save:x=>{evidence.push(x);}};
  return {ops,events,evidence,get writes(){return writes;}};
 }
 test('approval and both owned versions fence each update; coordinator precedes Worker; only completed proof activates',async()=>{
@@ -102,7 +102,7 @@ test('actual release transport LOCAL mock: two ACK-bound uploads,28 explicit met
  const policy=localPolicy(f,artifacts);
  const ops=createFeatureReleaseOps({root:process.cwd(),directory:dir,evidenceDirectory:resolve(dir,'public'),profiles:f.profiles,nativeReceipt:baseline,installation:f.installation,installed:f.installed,source:f.source,fresh:async()=>{approvalChecks++;},token:'uninstalled-local-token',pin:'2468',assets,artifacts,...policy,fetcher,runWrangler:async(args,ctx)=>{const {name,config}=ctx;writes++;assert.equal(config.migrations,undefined);configs[name]=config;versions[name]='00000000-0000-4000-8000-'+String(++sequence).padStart(12,'0');emitACK(args,ctx,versions[name]);}});
  await releaseFreshFeature({ops});
- const report=JSON.parse(readFileSync(resolve(dir,'public/deployment.json'),'utf8'));assert.equal(writes,2);assert.equal(requests,8);assert.equal(report.explicitCloudflareGets,28);assert.equal(report.publicHTTPAttempts,3);assert.equal(report.smokeHTTPAttempts,8);assert.equal(approvalChecks,6);assert.equal(report.smoke.metricsObserved,false);assert.equal(report.smoke.totals.rowsRead,null);
+ const report=JSON.parse(readFileSync(resolve(dir,'public/deployment.json'),'utf8'));assert.equal(writes,2);assert.equal(requests,8);assert.equal(report.explicitCloudflareGets,28);assert.equal(report.publicHTTPAttempts,3);assert.equal(report.smokeHTTPAttempts,8);assert.equal(approvalChecks,26);assert.equal(report.smoke.metricsObserved,false);assert.equal(report.smoke.totals.rowsRead,null);
  const text=JSON.stringify(report);for(const bad of ['2468','MUST_NOT_BE_REPORTED','UNINSTALLED_LOCAL_ACCESS','UNINSTALLED_LOCAL_REFRESH','uaa-session:local-synthetic'])assert(!text.includes(bad));
 });
 
@@ -172,32 +172,59 @@ function guarded({failure,paused=false,coordinator=false,noPolicy=false,metadata
  const policy=localPolicy(f,artifacts,paused?'PAUSED_RESUME':'ACTIVE');policy.writePolicy.budgets.metadataGETs=metadataBudget;policy.writePolicySHA256=digest(canonical(policy.writePolicy));
  const configs={feature_worker:f.profiles.before.worker,'academy-feature-split-coordinator':f.profiles.before.coordinator},versions={...policy.writePolicy.referenceVersions};
  const dir=mkdtempSync(resolve(process.env.RUNNER_TEMP,'jwt-guarded-local-'));
- let writes=0,sequence=20,gets=0;
- const fresh=async()=>{if(failure==='withdrawal'&&writes)throw Error('APPROVAL_WITHDRAWN');};
- const fetcher=async(url)=>{
+ let writes=0,sequence=20,gets=0,publicRequests=0,authRequests=0,approved=true;
+ const invalidateArtifact=()=>{artifacts.feature_worker.assertFrozen=()=>{throw Error('CHANGED_COMPILED_OR_PUBLIC_INPUT');};};
+ const fresh=async()=>{
+  if(failure==='withdrawal'&&writes)approved=false;
+  if(failure==='artifact-last-approval'&&gets===12&&!writes)invalidateArtifact();
+  if(!approved)throw Error('APPROVAL_WITHDRAWN');
+ };
+ const publicBodies={'/academy/':'<html>LOCAL SHELL</html>','/auth/v110/browser-config.js':'// LOCAL CONFIG'};
+ const publicAssets=new Map(Object.entries(publicBodies).map(([p,b])=>[p,hash(b)]));
+ const fetcher=async(url,options={})=>{
   const u=new URL(url);
   if(u.hostname==='api.cloudflare.com'){
    gets++;const [n,k]=u.pathname.split('/').slice(7,9);let result;
+   if(gets===12){
+    if(failure==='withdraw-final-fence')approved=false;
+    if(failure==='artifact-final-fence')invalidateArtifact();
+    if(failure==='config-final-fence'){const p=resolve(dir,'release-feature_worker.json');chmodSync(p,0o600);writeFileSync(p,'{}');}
+   }
+   if(writes&&n==='feature_worker'&&((failure==='withdraw-adoption-settings'&&k==='settings')||(failure==='withdraw-adoption-deployments'&&k==='deployments')))approved=false;
    if(k==='settings')result=releaseSettings(configs[n],{assetConfig:false,modernD1:true});
    else if(k==='deployments')result={deployments:[{versions:[{version_id:versions[n],percentage:100}]}]};
    else if(k==='subdomain')result={enabled:n==='feature_worker',previews_enabled:false};
    else if(k==='schedules')result=[];else assert.fail('FORBIDDEN_API');
    return Response.json({success:true,result});
   }
-  assert.equal(u.origin,f.profiles.origin);assert.equal(u.pathname,'/__jwt_feature_release');
-  return Response.json({code:'FEATURE_JWT_UNAVAILABLE'},{status:503,headers:{'Cache-Control':'private, no-store'}});
+  assert.equal(u.origin,f.profiles.origin);
+  const headers={'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'};
+  if(u.pathname==='/__jwt_feature_release'||Object.hasOwn(publicBodies,u.pathname)){
+   publicRequests++;
+   if(failure==='withdraw-public-proof')approved=false;
+   if(['withdraw-public-proof','withdraw-smoke'].includes(failure)){
+    if(u.pathname==='/__jwt_feature_release')return Response.json({featureOnly:true,sourceCommit:f.source,state:'ACTIVE'},{headers});
+    return new Response(publicBodies[u.pathname],{headers});
+   }
+   return Response.json({code:'FEATURE_JWT_UNAVAILABLE'},{status:503,headers});
+  }
+  authRequests++;assert.equal(failure,'withdraw-smoke');assert.equal(authRequests,1);assert.equal(u.pathname,'/auth/v110/login');assert.equal(options.method,'POST');
+  approved=false;const hs=new Headers(headers);
+  for(const [k,v]of [['__Secure-uaa_a','UNINSTALLED_LOCAL_ACCESS'],['__Host-uaa_r','UNINSTALLED_LOCAL_REFRESH']])hs.append('Set-Cookie',k+'='+v+'; Path=/; Secure; HttpOnly; SameSite=Strict');
+  return Response.json({account:{accountId:'feature-synthetic-learner-a'},csrf:'A'.repeat(43),sessionKey:'uaa-session:local-synthetic'},{headers:hs});
  };
- const ops=createFeatureReleaseOps({root,directory:dir,evidenceDirectory:resolve(dir,'public'),profiles:f.profiles,nativeReceipt:baseline,installation:f.installation,installed:f.installed,source:f.source,fresh,token:'UNINSTALLED_MOCK_ONLY',assets:new Map(),artifacts,...(noPolicy?{}:policy),fetcher,runWrangler:async(args,ctx)=>{
+ const ops=createFeatureReleaseOps({root,directory:dir,evidenceDirectory:resolve(dir,'public'),profiles:f.profiles,nativeReceipt:baseline,installation:f.installation,installed:f.installed,source:f.source,fresh,token:'UNINSTALLED_MOCK_ONLY',pin:'2468',assets:publicAssets,artifacts,...(noPolicy?{}:policy),fetcher,runWrangler:async(args,ctx)=>{
   writes++;assert.equal(ctx.rendered.no_bundle,true);assert(ctx.rendered.main.startsWith('/LOCAL_ONLY/'));
   configs[ctx.name]=ctx.config;const id='00000000-0000-4000-8000-'+String(++sequence).padStart(12,'0');versions[ctx.name]=id;
   if(failure==='noack'||(failure==='lost-recovery-ack'&&writes===2))return;
   emitACK(args,failure==='wrong-target'?{...ctx,name:'academy-feature-split-coordinator'}:ctx,id);
+  if(failure==='withdraw-cli')approved=false;
   if(failure==='throw-after-ack')throw Error('SYNTHETIC_PROCESS_ERROR_WITH_PRIVATE_TEXT');
   if(failure==='artifact-after-start')artifacts[ctx.name].assertFrozen=()=>{throw Error('CHANGED_COMPILED_INPUT');};
   if(failure==='config-after-start'){chmodSync(args[2],0o600);writeFileSync(args[2],'{}');}
   if(failure==='foreign')versions[ctx.name]='ffffffff-ffff-4fff-8fff-ffffffffffff';
  }});
- return {f,ops,versions,artifacts,policy,dir,get writes(){return writes;},get gets(){return gets;},report:()=>JSON.parse(readFileSync(resolve(dir,'public/deployment.json'),'utf8'))};
+ return {f,ops,versions,artifacts,policy,dir,get writes(){return writes;},get gets(){return gets;},get publicRequests(){return publicRequests;},get authRequests(){return authRequests;},report:()=>JSON.parse(readFileSync(resolve(dir,'public/deployment.json'),'utf8'))};
 }
 test('truthful interrupted reference cannot satisfy the completed installation constructor',()=>{
  const h=guarded({paused:true});
@@ -292,4 +319,78 @@ test('recovery upload is denied before writing when its full verification cannot
 for(const paused of [false,true])test('actual transport rejects the opposite controller mode before metadata or upload: '+paused,async()=>{
  const h=guarded({paused});await assert.rejects((paused?releaseFreshFeature:resumeInterruptedFeature)({ops:h.ops}));
  assert.equal(h.writes,0);assert.equal(h.gets,0);assert.equal(h.report().activated,false);
+});
+
+
+// Review correction: effects must use a current gate after the final async fence.
+for(const failure of ['withdraw-final-fence','artifact-final-fence','artifact-last-approval','config-final-fence'])test('final asynchronous effect boundary denies '+failure+' before any CLI attempt',async()=>{
+ const h=guarded({failure,paused:true});await assert.rejects(resumeInterruptedFeature({ops:h.ops}));
+ const r=h.report();assert.equal(h.gets,12);assert.equal(h.writes,0);assert.equal(r.wranglerAttempts,0);
+ assert.deepEqual(r.lastAcknowledgedUploads,{});assert.deepEqual(r.ownedVersions,{});assert.equal(r.activated,false);assert.equal(h.authRequests,0);
+});
+for(const failure of ['withdraw-cli','withdraw-adoption-settings','withdraw-adoption-deployments'])test('withdrawal denies adoption and subsequent authenticated effects: '+failure,async()=>{
+ const h=guarded({failure});await assert.rejects(releaseFreshFeature({ops:h.ops}));
+ const r=h.report();assert.equal(h.writes,1);assert.equal(r.wranglerAttempts,1);
+ assert.equal(r.lastAcknowledgedUploads.feature_worker.kind,'PINNED_CLI_DEPLOY_ACK');
+ assert.deepEqual(r.ownedVersions,{});assert.equal(r.activated,false);assert.equal(h.publicRequests,0);assert.equal(h.authRequests,0);
+ assert.equal(r.recovery,'NOT_VERIFIED_NO_BLIND_OVERWRITE');
+});
+test('withdrawal while public proof returns prevents further public or authenticated effects',async()=>{
+ const h=guarded({failure:'withdraw-public-proof'});await assert.rejects(releaseFreshFeature({ops:h.ops}));
+ assert.equal(h.writes,1);assert.equal(h.publicRequests,1);assert.equal(h.authRequests,0);assert.equal(h.report().activated,false);
+});
+test('withdrawal during an allowed auth response prevents every subsequent smoke request or mutation',async()=>{
+ const h=guarded({failure:'withdraw-smoke'});await assert.rejects(releaseFreshFeature({ops:h.ops}));
+ const r=h.report();assert.equal(h.writes,1);assert.equal(h.publicRequests,3);assert.equal(h.authRequests,1);
+ assert.equal(r.smokeHTTPAttempts,1);assert.equal(r.activated,false);assert.equal(r.recovery,'NOT_VERIFIED_NO_BLIND_OVERWRITE');
+});
+
+
+const evidenceUnknown=e=>e.message==='JWT_FEATURE_RELEASE_STOPPED_EVIDENCE_UNKNOWN_NO_FURTHER_EFFECTS';
+for(const kind of ['throw','value','rejected','delayed'])test('later '+kind+' persistence failure latches once with no recovery or further ops',async()=>{
+ const f=fake(),events=f.events,unhandled=[];let calls=0,failingCalls=0,rejectPending;
+ const originalSave=f.ops.save,listen=e=>unhandled.push(e);
+ const delayed=kind==='delayed'?new Promise((_,reject)=>{rejectPending=reject;}):null;
+ const record=name=>{const original=f.ops[name];f.ops[name]=async(...args)=>{events.push('op:'+name);return original(...args);};};
+ for(const name of ['fresh','fence','deploy','adopt','publicProof','smoke','verifyFinal','recoveryFresh','pause','verifyPaused'])record(name);
+ const canRecover=f.ops.canRecover;f.ops.canRecover=()=>{events.push('op:canRecover');return canRecover();};
+ f.ops.save=e=>{
+  calls++;events.push('writer:'+e.state);
+  if(e.state!=='FEATURE_VERIFIED'){originalSave(e);return;}
+  failingCalls++;
+  if(kind==='throw')throw Error('SYNTHETIC_PRIVATE_WRITER_FAILURE');
+  if(kind==='value')return 1;
+  if(kind==='rejected')return Promise.reject(Error('SYNTHETIC_PRIVATE_REJECTION'));
+  return delayed;
+ };
+ process.on('unhandledRejection',listen);
+ try{
+  await assert.rejects(releaseFreshFeature({ops:f.ops}),evidenceUnknown);
+  assert.equal(f.writes,2);assert.equal(calls,4);assert.equal(failingCalls,1);
+  assert.equal(events.at(-1),'writer:FEATURE_VERIFIED');assert(!events.includes('op:canRecover'));assert(!events.includes('pause'));
+  if(rejectPending)rejectPending(Error('SYNTHETIC_DELAYED_REJECTION'));
+  await new Promise(setImmediate);await new Promise(setImmediate);
+  assert.deepEqual(unhandled,[]);assert.equal(calls,4);assert.equal(events.at(-1),'writer:FEATURE_VERIFIED');
+ }finally{process.off('unhandledRejection',listen);}
+});
+test('a known async writer is not invoked and triggers no preflight or upload',async()=>{
+ const f=fake();let calls=0;f.ops.save=async()=>{calls++;throw Error('MUST_NOT_RUN');};
+ await assert.rejects(releaseFreshFeature({ops:f.ops}),evidenceUnknown);
+ assert.equal(calls,0);assert.equal(f.writes,0);assert.deepEqual(f.events,[]);
+});
+test('failure while saving an ordinary stop does not reinvoke that writer or enter recovery',async()=>{
+ const f=fake({where:'preflight'});let calls=0;
+ f.ops.save=()=>{calls++;throw Error('SYNTHETIC_STOP_WRITER_FAILURE');};
+ await assert.rejects(releaseFreshFeature({ops:f.ops}),evidenceUnknown);
+ assert.equal(calls,1);assert.equal(f.writes,0);assert(!f.events.includes('pause'));
+});
+test('actual transport partial success receipt remains unknown after its writer throws; no pause follows',async()=>{
+ const h=guarded();const save=h.ops.save;let failures=0;
+ h.ops.publicProof=async()=>{};h.ops.smoke=async()=>({localStub:true});
+ h.ops.save=e=>{save(e);if(e.state==='FEATURE_VERIFIED'){failures++;throw Error('SYNTHETIC_POST_WRITE_FAILURE');}};
+ await assert.rejects(releaseFreshFeature({ops:h.ops}),evidenceUnknown);
+ assert.equal(failures,1);assert.equal(h.writes,1);assert.equal(h.gets,22);
+ // The receipt may be partially/fully written, but the failed controller return
+ // and failed execution remain controlling: its apparent success is not clearance.
+ assert.equal(h.report().state,'FEATURE_VERIFIED');assert.equal(h.report().wranglerAttempts,1);
 });

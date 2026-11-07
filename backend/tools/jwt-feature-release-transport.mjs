@@ -65,11 +65,14 @@ export function createFeatureReleaseOps({root,directory,evidenceDirectory,profil
   const configText=canonical(rendered),configSHA256=hash(configText),path=resolve(directory,label+'.json');
   writeFileSync(path,configText,{flag:'wx',mode:0o400});
   const ackFile=prepareUploadAck(directory,label),args=['deploy','--config',path],beforeVersion=expected()[name];
-  // The last approval/artifact/version fence precedes a single CLI attempt.
-  await (recovery?recoveryFresh():fresh());artifact.assertFrozen();await fence();
-  assert.equal(hash(readFileSync(path)),configSHA256);
+  const gate=recovery?recoveryFresh:fresh;
+  const assertInputs=()=>{artifact.assertFrozen();assert.equal(hash(readFileSync(path)),configSHA256,'CLI_INPUT_CHANGED');};
+  await gate();await fence();
+  // No provider await follows this current gate and synchronous local checks.
+  // This narrows the effect boundary; it is not provider/approval CAS.
+  await gate();requirePolicy();assertInputs();
   assert(report.wranglerAttempts<caps.uploads,'UPLOAD_BUDGET');report.wranglerAttempts++;
-  delete ownedVersions[name];pending={name,artifactSHA256:artifact.artifactSHA256,config:c,ack:null};writeUnknown=true;
+  delete ownedVersions[name];pending={name,artifactSHA256:artifact.artifactSHA256,config:c,ack:null,gate,assertInputs};writeUnknown=true;
   const env={...process.env,CLOUDFLARE_API_TOKEN:token,CLOUDFLARE_ACCOUNT_ID:account,WRANGLER_SEND_METRICS:'false',WRANGLER_LOG_PATH:resolve(directory,label+'.private-cli.log'),WRANGLER_OUTPUT_FILE_PATH:ackFile.path};
   delete env.WRANGLER_OUTPUT_FILE_DIRECTORY;
   for(const k of ['FEATURE_TEST_ADMIN_PIN','GITHUB_TOKEN','GH_TOKEN','GH_HOST'])delete env[k];
@@ -77,7 +80,7 @@ export function createFeatureReleaseOps({root,directory,evidenceDirectory,profil
   try{
    if(runWrangler)await runWrangler(args,{name,config:c,label,env,rendered});
    else execFileSync(process.execPath,[resolve(root,'backend/node_modules/wrangler/bin/wrangler.js'),...args],{cwd:root,env,stdio:'pipe',timeout:120000,maxBuffer:1048576});
-   artifact.assertFrozen();assert.equal(hash(readFileSync(path)),configSHA256,'CLI_INPUT_CHANGED_DURING_UPLOAD');
+   assertInputs();
    const ack=readUploadAck(ackFile,{name,args,beforeVersion,source,configSHA256,startedAt,finishedAt:Date.now()});
    acknowledged[name]={...ack,artifactSHA256:artifact.artifactSHA256};
    pending.ack=ack;config[name]=c;
@@ -85,11 +88,15 @@ export function createFeatureReleaseOps({root,directory,evidenceDirectory,profil
  };
  const adopt=async name=>{
   assert.equal(pending?.name,name);assert(pending.ack,'UPLOAD_ACK_REQUIRED');
-  assert.equal(pending.artifactSHA256,acknowledged[name]?.artifactSHA256);
-  const id=await verify(name,pending.config);assert.equal(id,pending.ack.versionId,'OBSERVED_VERSION_NOT_UPLOAD_ACK');
-  // Metadata equality alone never creates ownership.
+  const upload=pending;
+  assert.equal(upload.artifactSHA256,acknowledged[name]?.artifactSHA256);
+  await upload.gate();
+  const id=await verify(name,upload.config);assert.equal(id,upload.ack.versionId,'OBSERVED_VERSION_NOT_UPLOAD_ACK');
+  await upload.gate();assert.equal(pending,upload);upload.assertInputs();
+  // A completed ACK remains historical provenance if current adoption is denied.
   ownedVersions[name]=id;pending=null;writeUnknown=false;
  };
+ const requireOwnedMain=()=>assert(ownedVersions[names[0]]&&!pending&&!writeUnknown,'CURRENT_ADOPTED_MAIN_REQUIRED');
  const get=async(path,counter,cap)=>{
   assert(report[counter]<cap);report[counter]++;
   let response;try{response=await fetcher(origin+path,{redirect:'error',cache:'no-store',credentials:'omit',signal:AbortSignal.timeout(15000)});}catch{throw Error('PUBLIC_RESPONSE_UNKNOWN');}
@@ -102,25 +109,28 @@ export function createFeatureReleaseOps({root,directory,evidenceDirectory,profil
   adopt,
   canRecover(){return !writeUnknown&&!pending&&!!ownedVersions[names[0]]&&!!writePolicy?.recovery;},
   async publicProof(){
-   assert(!interrupted);
+   assert(!interrupted);await fresh();requireOwnedMain();
    const marker=await get('/__jwt_feature_release','publicHTTPAttempts',caps.publicGETs);assert.equal(marker.status,200);assert(marker.headers.get('cache-control')?.includes('no-store'));assert.deepEqual(JSON.parse((await bounded(marker)).toString()),{featureOnly:true,sourceCommit:source,state:'ACTIVE'});
    for(const path of ['/academy/','/auth/v110/browser-config.js']){
+    await fresh();requireOwnedMain();
     const response=await get(path,'publicHTTPAttempts',caps.publicGETs);assert.equal(response.status,200);
     assert.equal(hash(await bounded(response)),assets.get(path),'INSTALLED_PUBLIC_ASSET_CHANGED');
    }
+   await fresh();requireOwnedMain();
   },
   async smoke(){
-   assert(!interrupted);assert.equal(caps.smokeRequests,8);
+   assert(!interrupted);assert.equal(caps.smokeRequests,8);await fresh();requireOwnedMain();
    let secretPin=pin;pin=null;
-   try{return await runEightRequestSmoke({uniqueid:'feature-test-learner',pin:secretPin,expectedAccount:'feature-synthetic-learner-a',requireMetrics:false,dispatch:async(url,options)=>{
-    assert.equal(new URL(url).origin,origin);assert(report.smokeHTTPAttempts<caps.smokeRequests,'SMOKE_BUDGET');report.smokeHTTPAttempts++;return fetcher(url,options);
-   }});}finally{secretPin='';}
+   try{const result=await runEightRequestSmoke({uniqueid:'feature-test-learner',pin:secretPin,expectedAccount:'feature-synthetic-learner-a',requireMetrics:false,dispatch:async(url,options)=>{
+    assert.equal(new URL(url).origin,origin);await fresh();requireOwnedMain();assert(report.smokeHTTPAttempts<caps.smokeRequests,'SMOKE_BUDGET');report.smokeHTTPAttempts++;return fetcher(url,options);
+   }});await fresh();requireOwnedMain();return result;}finally{secretPin='';}
   },
   async verifyFinal(){for(const n of names){assert.equal(await verify(n,config[n]),expected()[n],'FINAL_VERSION_CHANGED');await address(n);}},
   async pause(){assert(this.canRecover(),'NO_OWNED_RECOVERY');assert(report.explicitCloudflareGets+8<=caps.metadataGETs&&report.pauseHTTPAttempts<caps.pausedGETs,'RECOVERY_VERIFICATION_BUDGET');await command(names[0],profiles.paused.worker,'owned-jwt-paused',{recovery:true});await adopt(names[0]);},
   async verifyPaused(){
-   await fence();const r=await get('/__jwt_feature_release','pauseHTTPAttempts',caps.pausedGETs);assert.equal(r.status,503);assert(r.headers.get('cache-control')?.includes('no-store'));
-   assert.deepEqual(JSON.parse((await bounded(r)).toString()),{code:'FEATURE_JWT_UNAVAILABLE'});await fence();
+   const gate=interrupted?fresh:recoveryFresh;
+   await fence();await gate();requireOwnedMain();const r=await get('/__jwt_feature_release','pauseHTTPAttempts',caps.pausedGETs);assert.equal(r.status,503);assert(r.headers.get('cache-control')?.includes('no-store'));
+   assert.deepEqual(JSON.parse((await bounded(r)).toString()),{code:'FEATURE_JWT_UNAVAILABLE'});await fence();await gate();requireOwnedMain();
   },
   save(evidence){
    const out={...evidence,source,origin,...report,interruptedReference:interrupted,installationVerified:!interrupted,referenceVersions:{...references},lastAcknowledgedUploads:structuredClone(acknowledged),ownedVersions:{...ownedVersions},lastObservedVersions:{...observed},writeOutcomeUnknown:writeUnknown,mode:evidence.activated?'ACTIVE':evidence.state==='PAUSED_CODE_RESUME_VERIFIED'||evidence.recovery==='OWNED_FEATURE_PAUSED'?'PAUSED':'NOT_VERIFIED',remoteCodeAttested:false,privateKeyAttested:false,metadataAtomic:false,hostedD1Rows:'unmeasured',localEightRequestProjection:{statements:111,roundTrips:76,rowsRead:831,rowsWritten:36},projectionIsNotHostedBilling:true};

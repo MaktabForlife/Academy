@@ -33,3 +33,19 @@ Focused GitHub checks exercise the actual controller/transport with injected pro
 A source pass is not cleanup, schema/seed, remote-code, private-key, host/cookie, atomic-routing, full JWT-resource/lifecycle or activation clearance. PAUSED_CODE_RESUME_VERIFIED is scoped to a future owned paused code replacement; it produces no completed installation baseline. Actual executable inputs, upload permission, fresh budget and hosted proof still require a concrete Root-reviewed plan.
 
 The supported output mechanism is documented in [Wrangler output](https://developers.cloudflare.com/workers/wrangler/system-environment-variables/#example-output-file); the parser remains pinned to the reviewed4.136.3 tagged schema.
+
+
+## Effect-boundary correction under review
+
+The source review of6f08 found a real gap despite its passing63 cases: an approval or compiled/public input change during the final asynchronous two-version fence could still precede a CLI write. Adoption also lacked a current gate around its metadata sampling. Those cases were not covered by the original suite.
+
+The correction keeps the preliminary approval check, samples the final version fence, then rechecks the applicable approval and all synchronous policy/compiled/public/config inputs immediately before reserving/starting the CLI. No provider await follows that last gate/local check. Adoption gates before and after metadata sampling, with local input checks before assigning ownership; a valid completed ACK remains historical provenance if adoption is denied. Active public proof and every auth-smoke dispatch additionally require current approval and adopted MAIN, and completion is rechecked. Withdrawal during an already dispatched operation cannot undo it; no later effect or activation is authorised. This is not atomic approval/provider CAS or a claim of instantaneous withdrawal.
+
+The correction runs only the focused controller/transport suite and new effect-boundary cases. The unchanged accepted ACK helper/test blobs and prior parser archive remain the parser basis; no application/browser/crypto or30-case parser rerun is requested. Cloudflare/D1/Worker budgets and no-retry limits are unchanged. Freshness checks add separate GitHub approval reads, not Worker or database calls. No new hosted action or allowance follows.
+
+
+## Persistence-failure correction under review
+
+Root additionally found that the old ordinary-error catch could recover after a final receipt save failed and then invoke the failed writer again. The corrected controller requires a synchronous undefined writer result, rejects a known async writer before preflight, and latches any throw or nonconforming result. A returned promise rejection is consumed without awaiting it. Once latched, no recovery, further ops call or writer reinvocation is permitted.
+
+A nonconforming writer's already-started work cannot be cancelled by this controller. Missing, partial or apparently successful files from a failed persistence boundary remain UNKNOWN; neither their contents nor the earlier upload ACK establish release clearance. A successful controller return and successful reviewed execution remain required. This proposal has no exception allowing recovery after evidence failure. Focused tests cover failure at the final save after MAIN adoption, undefined-result violations, immediate/delayed rejections, a known async writer, a failed ordinary-stop save and an actual-transport partial-success receipt. No new hosted effects or budget are involved.
