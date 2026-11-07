@@ -36,6 +36,7 @@ export function parsePausedReplacement(bytes,binding=basisBinding){
   inheritedAttestations:{installationVerified:false,cleanupVerified:false,legacyInstallationVerified:false,privateKeyVerified:false,remoteCodeReadbackVerified:false,assetRoutingReadbackVerified:false,metadataAtomic:false},
   schemaSeedProvenance:'HISTORICAL_INSTALL_STOPPED_SOURCE_CONTROL_FLOW_ONLY_NOT_NEW_DB_READBACK'};
 }
+const approvedProfiles=JSON.parse(readFileSync(new URL('../../deployment/jwt-feature-activation-profiles.json',import.meta.url),'utf8'));
 export function activationConfigurations(source){
  assert.match(source,/^[a-f0-9]{40}$/);
  const {configs}=firstReplacementInputs(),active=structuredClone(configs),paused=structuredClone(configs);
@@ -47,6 +48,8 @@ export function activationConfigurations(source){
   assert.deepEqual(c.worker.durable_objects,configs.worker.durable_objects);
   assert.deepEqual(c.coordinator,configs.coordinator,'COORDINATOR_WRITE_NOT_SELECTED');
  }
+ const normal=x=>{const c=structuredClone(x);if(c.worker.vars.JWT_V110_RELEASE_ID===source)c.worker.vars.JWT_V110_RELEASE_ID='$APPROVED_EXECUTION_SOURCE';return c;};
+ assert.deepEqual({before:configs,active:normal(active),paused:normal(paused)},approvedProfiles,'FULL_ACTIVATION_PROFILES_CHANGED');
  return {before:configs,active,paused};
 }
 export function activationProfiles({bytes,binding=basisBinding,source,coordinatorSourceDigest}){

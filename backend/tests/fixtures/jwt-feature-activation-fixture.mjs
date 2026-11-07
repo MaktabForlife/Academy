@@ -25,8 +25,8 @@ import {canonical} from '../../tools/jwt-feature-upload-artifact.mjs';
 import {activationProfiles,activationPolicy} from '../../tools/jwt-feature-activation-baseline.mjs';
 import {createFeatureReleaseOps} from '../../tools/jwt-feature-release-transport.mjs';
 import {firstReplacementInputs as publicInputs} from '../../tools/jwt-feature-first-replacement-inputs.mjs';
-export function activationMock({fault}={}){
- const f=pausedFixture(),source='c'.repeat(40),profiles=activationProfiles({...f,source,coordinatorSourceDigest:'8bdc622649bd20ceb3bc531b1161c7f42495105211a51f9e3dc2b8415f216465'});
+export function activationMock({fault,source='c'.repeat(40)}={}){
+ const f=pausedFixture(),profiles=activationProfiles({...f,source,coordinatorSourceDigest:'8bdc622649bd20ceb3bc531b1161c7f42495105211a51f9e3dc2b8415f216465'});
  const main='feature_worker',coord='academy-feature-split-coordinator',directory=mkdtempSync(resolve(process.env.RUNNER_TEMP,'activation-mock-')),evidenceDirectory=resolve(directory,'evidence');
  const state={provider:0,cli:0,public:0,auth:0,paused:0,fresh:0,saves:0,authority:true,sessionCreated:false,loggedOut:false};
  const configs={[main]:profiles.before.worker,[coord]:profiles.before.coordinator},versions={...profiles.pausedBasis.referenceVersions};

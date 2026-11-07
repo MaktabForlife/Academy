@@ -32,3 +32,10 @@ test('full ACTIVE and recovery PAUSED profiles change only intended mode/flags/r
  const policy=activationPolicy(p,artifacts);assert.deepEqual(Object.keys(policy.firstWrites),['feature_worker']);assert.equal(policy.recovery.target,'feature_worker');
  assert.deepEqual(policy.budgets,{metadataGETs:24,uploads:2,publicGETs:3,smokeRequests:8,pausedGETs:1});
 });
+
+test('expired prior window and advanced canonical do not renew authority or invalidate immutable historical PAUSED ownership',()=>{
+ const f=pausedFixture(r=>{r.identity.window.expires='2020-01-01T00:00:00.000Z';});
+ const p=activationProfiles({...f,source:'e'.repeat(40),coordinatorSourceDigest:coordDigest});
+ assert.equal(p.pausedBasis.receiptRun,f.binding.run);assert.equal(p.before.worker.vars.JWT_V110_RELEASE_ID,parsePausedReplacement(f.bytes,f.binding).before.worker.vars.JWT_V110_RELEASE_ID);
+ assert.notEqual(p.before.worker.vars.JWT_V110_RELEASE_ID,f.binding.source);assert.equal(p.active.worker.vars.JWT_V110_RELEASE_ID,'e'.repeat(40));assert.equal(p.pausedBasis.inheritedAttestations.legacyInstallationVerified,false);
+});

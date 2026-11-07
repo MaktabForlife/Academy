@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "state": "OFFLINE_ACTIVATION_INPUTS_NOT_AUTHORITY",
+  "recipeSource": "3413df09cf9dc92e883c944414f9fdb087e2d6b5",
+  "active": {
+    "artifactSHA256": "51e324c48a72688bb116f52da2f36915532c6ac4f76c8e4e2db31902c9e3cab3",
+    "provenance": {
+      "schema": 1,
+      "target": "feature_worker",
+      "compiler": "esbuild@0.28.1",
+      "entry": "backend/src/academy-feature-jwt-runtime.js",
+      "inputSHA256": "7eee6650d7841b0b579affbe488e150c07b76fb3118447ba0f640fc58af1f42f",
+      "codeSHA256": "2ef9bfb14803e5623a40080c832f0fcddddfe83095361c18e4234cca27b00565",
+      "assetsSHA256": "50cca0afba78ba20ab5ea30c7070e96c36742c82fb9d0ae99a63607c423abd64",
+      "logicalConfigSHA256": "837abffdbcf305b1b7193657096bdf0746af7082d5b83a89f8bd00224a7a095f"
+    }
+  },
+  "paused": {
+    "artifactSHA256": "3c8abddd9463c3d86f211e4858e6d53e707fcc21d1b5ac74aded4eda8ac74501",
+    "provenance": {
+      "schema": 1,
+      "target": "feature_worker",
+      "compiler": "esbuild@0.28.1",
+      "entry": "backend/src/academy-feature-jwt-runtime.js",
+      "inputSHA256": "7eee6650d7841b0b579affbe488e150c07b76fb3118447ba0f640fc58af1f42f",
+      "codeSHA256": "2ef9bfb14803e5623a40080c832f0fcddddfe83095361c18e4234cca27b00565",
+      "assetsSHA256": "50cca0afba78ba20ab5ea30c7070e96c36742c82fb9d0ae99a63607c423abd64",
+      "logicalConfigSHA256": "4555abde8a271eb738e6dccdb90bdeca4286b8d8be4b223c9e1b01d1b0f18b4f"
+    }
+  },
+  "assets": {
+    "artifact": 13576482979,
+    "zipSHA256": "e1ecea65e3a3560b9b6b6f158f8137ba334b86894429d48f31319725a1c4a69a",
+    "inventorySHA256": "6ade67e8aa41bc28b26aa809c51bce59eefc5374b0fbcd8a20ac0a6a1e0706e1",
+    "mappingSHA256": "98654179cbf740c8878411f3f183421eb1e732d9c6ad5d791d55504b8328d25a",
+    "files": 1057,
+    "bytes": 116996993,
+    "responseSHA256": {
+      "/academy/": "e14a014df255118d41673da480c336849da8ccadea0759e84dc1d1198b88bad1",
+      "/auth/v110/browser-config.js": "44a76efc26c273632ba37de9209a8ae4d6a891034b2491bfbfac24a39393697e"
+    }
+  },
+  "assetDelta": {
+    "added": [],
+    "removed": [],
+    "changed": [],
+    "inventorySHA256": "6ade67e8aa41bc28b26aa809c51bce59eefc5374b0fbcd8a20ac0a6a1e0706e1",
+    "files": 1057,
+    "bytes": 116996993
+  },
+  "coordinatorSourceDigest": "8bdc622649bd20ceb3bc531b1161c7f42495105211a51f9e3dc2b8415f216465",
+  "hostedCalls": 0,
+  "privateReceiptRead": false,
+  "hostingVariantSHA256": "38ebc33530c42c78d964072f034186beea02232de4345b2051fd14ea89338a36"
+}

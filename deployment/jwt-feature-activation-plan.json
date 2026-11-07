@@ -1,0 +1,129 @@
+{
+  "schema": 1,
+  "state": "SOURCE_ONLY_NO_ACTIVATION_AUTHORITY",
+  "request": "jwt-feature-activation-20261107a",
+  "repository": "MaktabForlife/Academy",
+  "actor": "MaktabForlife",
+  "version": "110.39",
+  "canonicalAtPreparation": "bd2d8a269d173d57eac9fb5826c71b68f4fa6cd6",
+  "studioAtPreparation": "9a8c117e9279a2b67e62eb044be4da989db4a096",
+  "featureBase": "fb3585edff11787b3243b2f75a0f6dd5f0d72c1e",
+  "acceptedInputRecipe": "3413df09cf9dc92e883c944414f9fdb087e2d6b5",
+  "workflow": ".github/workflows/feature-jwt-activation.yml",
+  "sourcePaths": [
+    ".github/workflows/feature-jwt-activation.yml",
+    ".github/workflows/jwt-feature-activation-source-check.yml",
+    "backend/tests/fixtures/jwt-feature-activation-approval-fixture.mjs",
+    "backend/tests/fixtures/jwt-feature-activation-fixture.mjs",
+    "backend/tests/jwt-feature-activation-approved.test.mjs",
+    "backend/tests/jwt-feature-activation-baseline.test.mjs",
+    "backend/tests/jwt-feature-activation-execute.test.mjs",
+    "backend/tests/jwt-feature-activation-github.test.mjs",
+    "backend/tests/jwt-feature-activation-transport.test.mjs",
+    "backend/tools/jwt-feature-activation-approved.mjs",
+    "backend/tools/jwt-feature-activation-baseline.mjs",
+    "backend/tools/jwt-feature-activation-build.mjs",
+    "backend/tools/jwt-feature-activation-execute.mjs",
+    "backend/tools/jwt-feature-activation-github.mjs",
+    "backend/tools/jwt-feature-release-transport.mjs",
+    "deployment/JWT-FEATURE-ACTIVATION.md",
+    "deployment/jwt-feature-activation-basis.json",
+    "deployment/jwt-feature-activation-input-manifest.json",
+    "deployment/jwt-feature-activation-plan.json",
+    "deployment/jwt-feature-activation-profiles.json"
+  ],
+  "baseline": {
+    "schema": 1,
+    "kind": "ROOT_ACCEPTED_PAUSED_REPLACEMENT_BASIS_NOT_LEGACY_INSTALL",
+    "run": 42388834840,
+    "artifact": 13580891878,
+    "zipSHA256": "051704371aa5dabb6f14f0fa2db8835126c50bbfb53f706c355d8e46b0194fe5",
+    "fileSHA256": "621fbfa00eecccbfa3a00c6a9189ce8d0ffa79c38d1327525748ef43f6103424",
+    "source": "fb3585edff11787b3243b2f75a0f6dd5f0d72c1e",
+    "canonicalMerge": "bd2d8a269d173d57eac9fb5826c71b68f4fa6cd6",
+    "planSHA256": "c37bdb5d0570a03e68d23f933f82fe07913d44a9b91fc80b56c5e6c7eaa2b9e5",
+    "policySHA256": "dac52958af70828d261c4cf50fbf9acbf909b8cddd250b7be7a1fe11d257b9a5",
+    "artifactSHA256": "e53919bcf209064540913e7d249efea306067c9a8fdc6109bed1d3403672a90b",
+    "opaqueVersionValues": "ONLY_IN_EXISTING_AUTHORISED_ARTIFACT_OR_PRIVATE_EXECUTOR_CONTEXT",
+    "notAuthority": true
+  },
+  "inputManifestSHA256": "88217b74abea68fbd00365ddc7e3e14485cb902b06c0230c1d9bf44457f57686",
+  "profilesFile": "deployment/jwt-feature-activation-profiles.json",
+  "policyTemplate": {
+    "schema": 1,
+    "kind": "REVIEWED_EXISTING_FEATURE_SCRIPT_REPLACEMENT",
+    "sourceBinding": "EXACT_APPROVED_FEATURE_TREE",
+    "mode": "ACTIVE",
+    "oldAllowanceReusable": false,
+    "referenceVersions": "FIXED_PRIOR_PAUSED_RECEIPT_ONLY",
+    "firstWrites": {
+      "feature_worker": "51e324c48a72688bb116f52da2f36915532c6ac4f76c8e4e2db31902c9e3cab3"
+    },
+    "recovery": {
+      "target": "feature_worker",
+      "artifactSHA256": "3c8abddd9463c3d86f211e4858e6d53e707fcc21d1b5ac74aded4eda8ac74501"
+    },
+    "budgets": {
+      "metadataGETs": 24,
+      "uploads": 2,
+      "publicGETs": 3,
+      "smokeRequests": 8,
+      "pausedGETs": 1
+    }
+  },
+  "budgets": {
+    "metadataGETs": 24,
+    "cliProcessAttempts": 2,
+    "publicGETs": 3,
+    "authenticatedRequests": 8,
+    "pausedGETs": 1,
+    "wrapperRetries": 0,
+    "githubPrivateRESTCeiling": 680,
+    "githubWholeThreeProcessRESTCeiling": 724,
+    "signedArtifactObjectGETs": 2,
+    "githubAdmissionMargin": 20,
+    "oldAllowanceReusable": false,
+    "cliInternals": "SEPARATE_UNMEASURED",
+    "hostedD1Rows": "UNMEASURED_LOCAL_PROJECTION_NOT_CAP"
+  },
+  "effects": {
+    "mainOnly": true,
+    "activeFlags": 4,
+    "coordinatorUploads": 0,
+    "fullAssetFiles": 1057,
+    "fullAssetBytesPerCLI": 116996993,
+    "syntheticAuthAndCacheWrites": true,
+    "privateCoordinatorRPCAndR2Possible": true,
+    "sqlByExecutor": 0,
+    "schemaSeedSetupCleanup": false,
+    "keyOrSecretOperations": false,
+    "productionChanges": false,
+    "existingDBChanges": false,
+    "partialSyntheticRecordsMayRemain": true
+  },
+  "window": {
+    "state": "NOT_REGISTERED_NOT_GRANTED",
+    "lease": "jwt-feature-activation-20261107a",
+    "maxMinutes": 30,
+    "maxAttemptsAcrossAllHeads": 1,
+    "ownerSpecificCodeBundleSmokeRecoveryBudgetSecretUseApprovalRequired": true
+  },
+  "executor": {
+    "role": "DEPLOYMENT_ONLY",
+    "thread": "01a1aee5-b176-7133-911c-4b84fee24f7b",
+    "githubPrincipal": "MaktabForlife",
+    "distinctChatIdentityProvenByGitHub": false
+  },
+  "receipt": {
+    "filename": "activation.json",
+    "artifactPrefix": "jwt-activation-private-",
+    "destination": "SAME_RUN_GITHUB_ONLY_NO_EXPORT_AUTHORITY",
+    "failureRuntime": "UNKNOWN_NULL_NOT_FALSE_PAUSED",
+    "ownedRecovery": "FAILED_ACTIVATION_CAPTURED_PAUSED_ONLY",
+    "rawLogsOrCredentialsExported": false
+  },
+  "canonicalPaths": [
+    ".github/workflows/feature-jwt-activation.yml",
+    "deployment/release-plan.json"
+  ]
+}

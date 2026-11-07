@@ -1,0 +1,177 @@
+name: Protected JWT Feature activation
+on:
+  push:
+    branches: [studio_dev]
+  pull_request:
+    branches: [studio_dev]
+  workflow_dispatch:
+    inputs:
+      approval_pr:
+        type: string
+        required: true
+      approval_merge_sha:
+        type: string
+        required: true
+      source_preparation_run_id:
+        type: string
+        required: true
+      window_comment_id:
+        type: string
+        required: true
+      window_status_id:
+        type: string
+        required: true
+permissions:
+  contents: read
+  actions: read
+  statuses: read
+  pull-requests: read
+defaults:
+  run:
+    shell: bash
+env:
+  ACTIVATION_PLAN_SHA256: 98f0ef7dcad5c67a954982f9c9a45df376c2d25268058df0c802b60e1732ee6b
+concurrency:
+  group: ${{ github.event_name == 'workflow_dispatch' && format('feature-isolation-{0}', github.ref) || format('jwt-activation-public-{0}-{1}', github.workflow, github.ref) }}
+  cancel-in-progress: false
+jobs:
+  check:
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      selected: ${{ steps.select.outputs.selected }}
+      feature_source: ${{ steps.select.outputs.feature_source }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - id: select
+        name: Read the public component selector; no promotion or credential
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync,appendFileSync} from 'node:fs';import assert from 'node:assert/strict';
+          const p=JSON.parse(readFileSync('deployment/release-plan.json','utf8'));
+          const selected=p.request==='jwt-feature-activation-20261107a';
+          if(selected){assert.equal(p.kind,'component');assert.equal(p.target,'feature');assert.equal(p.contains_jwt,true);assert.equal(p.database_changes,false);assert(/^[a-f0-9]{40}$/.test(p.feature_sha));}
+          appendFileSync(process.env.GITHUB_OUTPUT,'selected='+selected+'\n'+(selected?'feature_source='+p.feature_sha+'\n':''));
+          NODE
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        if: steps.select.outputs.selected == 'true'
+        with:
+          ref: ${{ steps.select.outputs.feature_source }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        if: steps.select.outputs.selected == 'true'
+        with:
+          node-version: "24.18.0"
+      - if: steps.select.outputs.selected == 'true'
+        run: npm ci --prefix backend --no-audit --no-fund
+      - if: steps.select.outputs.selected == 'true'
+        name: Focused controls only; accepted asset/app/parser evidence is reused
+        run: |
+          set -euo pipefail
+          node --check backend/tools/jwt-feature-activation-approved.mjs
+          node --check backend/tools/jwt-feature-activation-execute.mjs
+          node --test --test-reporter=tap backend/tests/jwt-feature-activation-approved.test.mjs backend/tests/jwt-feature-activation-execute.test.mjs | tee activation-control.tap
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always() && steps.select.outputs.selected == 'true'
+        with:
+          name: jwt-activation-control-${{ github.run_id }}
+          path: activation-control.tap
+          retention-days: 30
+  prepare:
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/studio_dev' && needs.check.outputs.selected == 'true'
+    permissions:
+      contents: write
+      actions: read
+      statuses: read
+      pull-requests: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ needs.check.outputs.feature_source }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - name: Exact protected public source preparation only; never dispatch
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPROVAL_MERGE_SHA: ${{ github.sha }}
+          SOURCE_CANDIDATE: ${{ needs.check.outputs.feature_source }}
+          SOURCE_PREPARATION_OUTPUT: ${{ runner.temp }}/source-prepared.json
+        run: node backend/tools/jwt-feature-activation-approved.mjs promote
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: jwt-activation-public-${{ github.run_id }}
+          path: ${{ runner.temp }}/source-prepared.json
+          if-no-files-found: error
+          retention-days: 30
+  validate:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature-preview'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - name: Exact source/approval/preparation/new-window/all-head attempt gate before private environment
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPROVAL_PR: ${{ inputs.approval_pr }}
+          APPROVAL_MERGE_SHA: ${{ inputs.approval_merge_sha }}
+          SOURCE_PREPARATION_RUN_ID: ${{ inputs.source_preparation_run_id }}
+          WINDOW_COMMENT_ID: ${{ inputs.window_comment_id }}
+          WINDOW_STATUS_ID: ${{ inputs.window_status_id }}
+        run: node backend/tools/jwt-feature-activation-approved.mjs validate
+  execute:
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature-preview'
+    environment: feature
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      APPROVAL_PR: ${{ inputs.approval_pr }}
+      APPROVAL_MERGE_SHA: ${{ inputs.approval_merge_sha }}
+      SOURCE_PREPARATION_RUN_ID: ${{ inputs.source_preparation_run_id }}
+      WINDOW_COMMENT_ID: ${{ inputs.window_comment_id }}
+      WINDOW_STATUS_ID: ${{ inputs.window_status_id }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - name: Recheck current protected registration before credential attachment
+        run: node backend/tools/jwt-feature-activation-approved.mjs validate
+      - run: npm ci --prefix backend --no-audit --no-fund
+      - id: operation
+        name: Sole Deployment MAIN activation and eight fixed requests; conditional owned pause only
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_FEATURE_DEPLOY_TOKEN }}
+          FEATURE_TEST_ADMIN_PIN: ${{ secrets.FEATURE_TEST_ADMIN_PIN }}
+        run: node backend/tools/jwt-feature-activation-execute.mjs execute
+      - name: Publish only a run-bound redacted receipt; failed/partial remains UNKNOWN
+        if: always()
+        env:
+          EXECUTOR_OUTCOME: ${{ steps.operation.outcome }}
+        run: node backend/tools/jwt-feature-activation-execute.mjs publish
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: jwt-activation-private-${{ github.run_id }}
+          path: ${{ runner.temp }}/jwt-activation-artifact-${{ github.run_id }}-1/activation.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Activation is successful only after complete ACTIVE receipt; owned recovery remains a failed activation
+        if: always()
+        run: node backend/tools/jwt-feature-activation-execute.mjs assess
