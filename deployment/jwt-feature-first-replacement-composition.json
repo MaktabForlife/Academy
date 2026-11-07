@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "state": "SOURCE_ONLY_NO_PROMOTION_OR_EXECUTION_AUTHORITY",
+  "featureBase": "a34715f37939051d87356f870ca09ca92f8eb543",
+  "acceptedCarrySource": "2cda9df19536a890370db155e4afedd3838e33bf",
+  "canonicalAtPreparation": "41b60512974b966c61f28e9bb79b40cfa0ca0fae",
+  "canonicalControls": {
+    ".github/workflows/feature-jwt-finalise.yml": "cae6d627e13ddbfd32ad1dc34b995b403613e780",
+    ".github/workflows/feature-jwt-main-postpatch-inspect.yml": "76d7b27f965228f39101ea2e78a6151323ed122f",
+    ".github/workflows/feature-jwt-readonly-final-fence.yml": "cdecff7d88288c0f83dba9c27faa5cb3227155de",
+    "deployment/release-plan.json": "fe25b25e9bf08fedad33357cf2de0887cde2b764"
+  },
+  "retainV110BuilderPaths": [
+    "backend/tools/academy-assets.mjs",
+    "backend/tools/academy-pages-build.mjs",
+    "backend/tools/academy-site.mjs",
+    "backend/tools/hosting-client.mjs",
+    "backend/tools/portal-site.mjs"
+  ],
+  "referenceSource": "Existing public frozen reference contracts; no new private operational receipt exported",
+  "completeInstallationManufactured": false,
+  "activated": false
+}

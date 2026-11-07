@@ -1,8 +1,11 @@
 {
   "schema": 1,
-  "request": "jwt-feature-deployment-controls-20261106",
-  "kind": "configuration",
-  "target": "none",
-  "contains_jwt": false,
-  "database_changes": false
+  "request": "jwt-feature-readonly-final-fence-execution-20261107a",
+  "kind": "component",
+  "target": "feature",
+  "contains_jwt": true,
+  "database_changes": false,
+  "version": "110.37",
+  "feature_sha": "a34715f37939051d87356f870ca09ca92f8eb543",
+  "feature_base_sha": "e682301619ec20d65f5530948bb664529c1440dc"
 }
