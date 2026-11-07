@@ -26,10 +26,14 @@ export function acceptedAssets({root,directory,archive}){
   mkdirSync(dirname(path),{recursive:true});writeFileSync(path,b,{flag:'wx',mode:0o400});
  }
  assert.equal(bytes,acceptedPublic.bytes);assert.equal(realpathSync(assetRoot),assetRoot);
- return {assetRoot,rows:data.rows,publicHashes:new Map([['/academy/',digest(readFileSync(resolve(assetRoot,'academy/index.html')))],['/auth/v110/browser-config.js',digest(readFileSync(resolve(assetRoot,'auth/v110/browser-config.js')))]]),delta:{added:[],removed:[],changed:[],inventorySHA256:acceptedPublic.inventorySHA256,files:acceptedPublic.files,bytes}};
+ return {assetRoot,rows:data.rows,hostingVariantSHA256:m.hostingVariantSHA256,publicHashes:new Map([['/academy/',digest(readFileSync(resolve(assetRoot,'academy/index.html')))],['/auth/v110/browser-config.js',digest(readFileSync(resolve(assetRoot,'auth/v110/browser-config.js')))]]),delta:{added:[],removed:[],changed:[],inventorySHA256:acceptedPublic.inventorySHA256,files:acceptedPublic.files,bytes}};
 }
 export async function compileActivation({root=process.cwd(),directory,source,archive}){
  assert.equal(process.env.GITHUB_ACTIONS,'true');const configs=activationConfigurations(source),pub=acceptedAssets({root,directory,archive});
+ const hostingPath=resolve(root,'config/hosting.json'),originalHosting=readFileSync(hostingPath),restore=()=>writeFileSync(hostingPath,originalHosting);
+ const variant={schema:1,environment:'feature',academyPortalOrigin:'https://feature_worker.maktab4life.workers.dev',academyLegacyOrigins:[],academyApiOrigin:'https://feature_worker.maktab4life.workers.dev',studioOrigin:'https://studio-unavailable.invalid',studioBackendOrigin:'https://studio-unavailable.invalid',hifzOrigin:'https://hifz-unavailable.invalid'};
+ const variantBytes=Buffer.from(JSON.stringify(variant,null,2)+'\n');assert.equal(digest(variantBytes),pub.hostingVariantSHA256,'ACCEPTED_HOSTING_VARIANT_CHANGED');writeFileSync(hostingPath,variantBytes);
+ try{
  const active=await freezeUploadArtifact({root,directory,source,config:configs.active.worker,assetRoot:pub.assetRoot});
  const paused=await freezeUploadArtifact({root,directory,source,config:configs.paused.worker,assetRoot:pub.assetRoot});
  for(const a of [active,paused]){
@@ -37,10 +41,11 @@ export async function compileActivation({root=process.cwd(),directory,source,arc
   assert.equal(a.provenance.codeSHA256,'2ef9bfb14803e5623a40080c832f0fcddddfe83095361c18e4234cca27b00565');
   assert.equal(a.provenance.assetsSHA256,'50cca0afba78ba20ab5ea30c7070e96c36742c82fb9d0ae99a63607c423abd64');
  }
- const manifest={schema:1,state:'OFFLINE_ACTIVATION_INPUTS_NOT_AUTHORITY',recipeSource:source,active:{artifactSHA256:active.artifactSHA256,provenance:active.provenance},paused:{artifactSHA256:paused.artifactSHA256,provenance:paused.provenance},assets:{...acceptedPublic,responseSHA256:Object.fromEntries(pub.publicHashes)},assetDelta:pub.delta,coordinatorSourceDigest:'8bdc622649bd20ceb3bc531b1161c7f42495105211a51f9e3dc2b8415f216465',hostedCalls:0,privateReceiptRead:false};
- return {manifest,configs,artifacts:{feature_worker:active,pausedWorker:paused},assets:pub.publicHashes,assetRoot:pub.assetRoot};
+ const manifest={schema:1,state:'OFFLINE_ACTIVATION_INPUTS_NOT_AUTHORITY',recipeSource:source,active:{artifactSHA256:active.artifactSHA256,provenance:active.provenance},paused:{artifactSHA256:paused.artifactSHA256,provenance:paused.provenance},assets:{...acceptedPublic,responseSHA256:Object.fromEntries(pub.publicHashes)},assetDelta:pub.delta,coordinatorSourceDigest:'8bdc622649bd20ceb3bc531b1161c7f42495105211a51f9e3dc2b8415f216465',hostedCalls:0,privateReceiptRead:false,hostingVariantSHA256:pub.hostingVariantSHA256};
+ return {manifest,configs,artifacts:{feature_worker:active,pausedWorker:paused},assets:pub.publicHashes,assetRoot:pub.assetRoot,hostingSHA256:pub.hostingVariantSHA256,restore};
+ }catch(error){restore();throw error;}
 }
 if(process.argv[2]==='build'){
- try{const directory=process.env.ACTIVATION_OUTPUT;assert(directory);mkdirSync(directory,{recursive:false});const out=await compileActivation({directory,source:process.env.GITHUB_SHA,archive:readFileSync(process.env.ACCEPTED_PUBLIC_ARCHIVE)});writeFileSync(resolve(directory,'activation-inputs.json'),JSON.stringify(out.manifest,null,2)+'\n');}
+ try{const directory=process.env.ACTIVATION_OUTPUT;assert(directory);mkdirSync(directory,{recursive:false});const out=await compileActivation({directory,source:process.env.GITHUB_SHA,archive:readFileSync(process.env.ACCEPTED_PUBLIC_ARCHIVE)});writeFileSync(resolve(directory,'activation-inputs.json'),JSON.stringify(out.manifest,null,2)+'\n');out.restore();}
  catch(error){console.error('ACTIVATION_OFFLINE_INPUT_BUILD_STOPPED',error.name,error.message);process.exitCode=1;}
 }
