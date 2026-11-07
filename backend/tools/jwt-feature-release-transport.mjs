@@ -13,6 +13,7 @@ import {assertWritePolicy} from './jwt-feature-resume-contract.mjs';
 const hash=x=>createHash('sha256').update(x).digest('hex');
 export function createFeatureReleaseOps({root,directory,evidenceDirectory,profiles,nativeReceipt,installation,installed,source,fresh,recoveryFresh=fresh,token,pin,assets,artifacts={},writePolicy,writePolicySHA256,fetcher=fetch,runWrangler}){
  assert.equal(process.env.GITHUB_ACTIONS,'true');assert(token);assert.equal(typeof fresh,'function');
+ profiles=structuredClone(profiles);
  const interrupted=profiles.mode==='PAUSED_RESUME';
  const references=Object.freeze(interrupted?{...profiles.reference.referenceVersions}:{feature_worker:installed.workerVersion,'academy-feature-split-coordinator':installed.coordinatorVersion});
  const acknowledged={},ownedVersions={},observed={};let pending=null,writeUnknown=false;
@@ -76,6 +77,7 @@ export function createFeatureReleaseOps({root,directory,evidenceDirectory,profil
   try{
    if(runWrangler)await runWrangler(args,{name,config:c,label,env,rendered});
    else execFileSync(process.execPath,[resolve(root,'backend/node_modules/wrangler/bin/wrangler.js'),...args],{cwd:root,env,stdio:'pipe',timeout:120000,maxBuffer:1048576});
+   artifact.assertFrozen();assert.equal(hash(readFileSync(path)),configSHA256,'CLI_INPUT_CHANGED_DURING_UPLOAD');
    const ack=readUploadAck(ackFile,{name,args,beforeVersion,source,configSHA256,startedAt,finishedAt:Date.now()});
    acknowledged[name]={...ack,artifactSHA256:artifact.artifactSHA256};
    pending.ack=ack;config[name]=c;
@@ -115,7 +117,7 @@ export function createFeatureReleaseOps({root,directory,evidenceDirectory,profil
    }});}finally{secretPin='';}
   },
   async verifyFinal(){for(const n of names){assert.equal(await verify(n,config[n]),expected()[n],'FINAL_VERSION_CHANGED');await address(n);}},
-  async pause(){assert(this.canRecover(),'NO_OWNED_RECOVERY');await command(names[0],profiles.paused.worker,'owned-jwt-paused',{recovery:true});await adopt(names[0]);},
+  async pause(){assert(this.canRecover(),'NO_OWNED_RECOVERY');assert(report.explicitCloudflareGets+8<=caps.metadataGETs&&report.pauseHTTPAttempts<caps.pausedGETs,'RECOVERY_VERIFICATION_BUDGET');await command(names[0],profiles.paused.worker,'owned-jwt-paused',{recovery:true});await adopt(names[0]);},
   async verifyPaused(){
    await fence();const r=await get('/__jwt_feature_release','pauseHTTPAttempts',caps.pausedGETs);assert.equal(r.status,503);assert(r.headers.get('cache-control')?.includes('no-store'));
    assert.deepEqual(JSON.parse((await bounded(r)).toString()),{code:'FEATURE_JWT_UNAVAILABLE'});await fence();

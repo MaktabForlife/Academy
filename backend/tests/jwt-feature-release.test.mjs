@@ -160,7 +160,7 @@ for(const missingBinding of [false,true])test('actual release caller binding-onl
 
 
 // All following provider/CLI values are synthetic. No live receipt is embedded.
-function guarded({failure,paused=false,coordinator=false,noPolicy=false,root=process.cwd()}={}){
+function guarded({failure,paused=false,coordinator=false,noPolicy=false,metadataBudget=36,root=process.cwd()}={}){
  const f=fixture({coordinatorChanged:coordinator});
  if(paused){
   const reference={schema:1,state:'INTERRUPTED_PAUSED_REFERENCE',referenceVersions:{feature_worker:f.installed.workerVersion,'academy-feature-split-coordinator':f.installed.coordinatorVersion},namespaces:{timetable:f.installation.timetableNamespaceId,split:f.installation.splitNamespaceId},claims:{installationVerified:false,referenceVersionsOwned:false,schemaAndSeedAttestedHere:false,compiledCodeAttested:false,privateKeyAttested:false,routingAtomicityAttested:false}};
@@ -169,7 +169,7 @@ function guarded({failure,paused=false,coordinator=false,noPolicy=false,root=pro
  const selected=paused?f.profiles.paused:f.profiles.active;
  const artifacts={feature_worker:localArtifact(f,selected.worker,'selected-worker'),'academy-feature-split-coordinator':localArtifact(f,selected.coordinator,'selected-coordinator'),pausedWorker:localArtifact(f,f.profiles.paused.worker,'paused-recovery')};
  if(paused)artifacts.pausedWorker=artifacts.feature_worker;
- const policy=localPolicy(f,artifacts,paused?'PAUSED_RESUME':'ACTIVE');
+ const policy=localPolicy(f,artifacts,paused?'PAUSED_RESUME':'ACTIVE');policy.writePolicy.budgets.metadataGETs=metadataBudget;policy.writePolicySHA256=digest(canonical(policy.writePolicy));
  const configs={feature_worker:f.profiles.before.worker,'academy-feature-split-coordinator':f.profiles.before.coordinator},versions={...policy.writePolicy.referenceVersions};
  const dir=mkdtempSync(resolve(process.env.RUNNER_TEMP,'jwt-guarded-local-'));
  let writes=0,sequence=20,gets=0;
@@ -193,6 +193,8 @@ function guarded({failure,paused=false,coordinator=false,noPolicy=false,root=pro
   if(failure==='noack'||(failure==='lost-recovery-ack'&&writes===2))return;
   emitACK(args,failure==='wrong-target'?{...ctx,name:'academy-feature-split-coordinator'}:ctx,id);
   if(failure==='throw-after-ack')throw Error('SYNTHETIC_PROCESS_ERROR_WITH_PRIVATE_TEXT');
+  if(failure==='artifact-after-start')artifacts[ctx.name].assertFrozen=()=>{throw Error('CHANGED_COMPILED_INPUT');};
+  if(failure==='config-after-start'){chmodSync(args[2],0o600);writeFileSync(args[2],'{}');}
   if(failure==='foreign')versions[ctx.name]='ffffffff-ffff-4fff-8fff-ffffffffffff';
  }});
  return {f,ops,versions,artifacts,policy,dir,get writes(){return writes;},get gets(){return gets;},report:()=>JSON.parse(readFileSync(resolve(dir,'public/deployment.json'),'utf8'))};
@@ -214,7 +216,7 @@ test('PAUSED resume produces owned upload evidence without a clean-install DTO o
  assert.equal(existsSync(resolve(h.dir,'public/next-installed-baseline.json')),false);
  assert(!JSON.stringify(r).includes(h.dir));assert.equal(r.remoteCodeAttested,false);assert.equal(r.privateKeyAttested,false);
 });
-for(const failure of ['noack','throw-after-ack','wrong-target','foreign'])test('actual transport denies '+failure+' without adopting observed UUID or overwriting',async()=>{
+for(const failure of ['noack','throw-after-ack','wrong-target','foreign','artifact-after-start','config-after-start'])test('actual transport denies '+failure+' without adopting observed UUID or overwriting',async()=>{
  const h=guarded({failure,paused:true});await assert.rejects(resumeInterruptedFeature({ops:h.ops}));
  const r=h.report();assert.equal(h.writes,1);assert.deepEqual(r.ownedVersions,{});
  assert.equal(r.writeOutcomeUnknown,true);assert.equal(r.recovery,'NOT_VERIFIED_NO_BLIND_OVERWRITE');
@@ -279,4 +281,10 @@ test('the checked-in preparation marker blocks the actual deploy entry before ap
  const {deployJWTFeature}=await import('../tools/jwt-feature-deploy.mjs');
  const old=process.env.GITHUB_REF;process.env.GITHUB_REF='refs/heads/feature-preview';
  try{await assert.rejects(deployJWTFeature(),/NO_EXECUTABLE_MARKER/);}finally{process.env.GITHUB_REF=old;}
+});
+
+test('recovery upload is denied before writing when its full verification cannot fit the proposed remaining budget',async()=>{
+ const h=guarded({metadataBudget:20});await assert.rejects(releaseFreshFeature({ops:h.ops}));
+ const r=h.report();assert.equal(h.writes,1);assert.equal(r.recovery,'NOT_VERIFIED_NO_BLIND_OVERWRITE');
+ assert.equal(r.explicitCloudflareGets,16);assert.equal(r.pauseHTTPAttempts,0);
 });
