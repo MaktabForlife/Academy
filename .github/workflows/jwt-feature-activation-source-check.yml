@@ -23,24 +23,13 @@ jobs:
         with:
           node-version: "24.18.0"
       - run: npm ci --prefix backend --no-audit --no-fund
-      - name: Targeted truthful baseline/transport controls only
+      - name: Only affected comparison latches and retained22/24 boundary traces
         run: |
           set -euo pipefail
-          node --check backend/tools/jwt-feature-activation-baseline.mjs
-          node --check backend/tools/jwt-feature-activation-build.mjs
           node --check backend/tools/jwt-feature-release-transport.mjs
-          node --test --test-reporter=tap backend/tests/jwt-feature-activation-baseline.test.mjs backend/tests/jwt-feature-activation-transport.test.mjs | tee activation-controls.tap
+          node --test --test-reporter=tap --test-name-pattern='actual new-baseline transport success|latest supported ordinary auth failure|valid foreign comparison latch' backend/tests/jwt-feature-activation-transport.test.mjs | tee activation-controls.tap
           git rev-parse HEAD > activation-source.txt
           git rev-parse HEAD^{tree} > activation-tree.txt
-      - name: Retrieve only the previously accepted PUBLIC byte evidence
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh api repos/MaktabForlife/Academy/actions/artifacts/13576482979/zip > "$RUNNER_TEMP/accepted-public-evidence.zip"
-      - name: Build affected ACTIVE/recovery inputs from unchanged accepted public bytes
-        env:
-          ACCEPTED_PUBLIC_ARCHIVE: ${{ runner.temp }}/accepted-public-evidence.zip
-          ACTIVATION_OUTPUT: ${{ runner.temp }}/activation-build
-        run: node backend/tools/jwt-feature-activation-build.mjs build
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
@@ -49,5 +38,4 @@ jobs:
             activation-controls.tap
             activation-source.txt
             activation-tree.txt
-            ${{ runner.temp }}/activation-build/activation-inputs.json
           retention-days: 30

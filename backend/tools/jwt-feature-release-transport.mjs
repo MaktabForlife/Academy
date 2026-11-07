@@ -88,7 +88,7 @@ export function createFeatureReleaseOps({root,directory,evidenceDirectory,profil
    pending.ack=ack;config[name]=c;
   }catch{throw Error('UPLOAD_ACK_UNKNOWN');}
  };
- const adopt=async name=>{
+ const adopt=async name=>guardControl(async()=>{
   assert.equal(pending?.name,name);assert(pending.ack,'UPLOAD_ACK_REQUIRED');
   const upload=pending;
   assert.equal(upload.artifactSHA256,acknowledged[name]?.artifactSHA256);
@@ -97,7 +97,7 @@ export function createFeatureReleaseOps({root,directory,evidenceDirectory,profil
   await upload.gate();assert.equal(pending,upload);upload.assertInputs();
   // A completed ACK remains historical provenance if current adoption is denied.
   ownedVersions[name]=id;pending=null;writeUnknown=false;
- };
+ });
  const requireOwnedMain=()=>assert(ownedVersions[names[0]]&&!pending&&!writeUnknown,'CURRENT_ADOPTED_MAIN_REQUIRED');
  const get=async(path,counter,cap)=>{
   assert(report[counter]<cap);report[counter]++;
@@ -106,7 +106,7 @@ export function createFeatureReleaseOps({root,directory,evidenceDirectory,profil
  };
  return {
   mode:interrupted?'PAUSED_RESUME':'ACTIVE',fresh,recoveryFresh,fence,owned:fence,targets:profiles.coordinatorChanged?['academy-feature-split-coordinator','feature_worker']:['feature_worker'],
-  async preflight(){await fresh();for(const n of names){assert.equal(await verify(n,config[n]),references[n],'REFERENCE_CHANGED');await address(n);}},
+  async preflight(){return guardControl(async()=>{await fresh();for(const n of names){assert.equal(await verify(n,config[n]),references[n],'REFERENCE_CHANGED');await address(n);}});},
   async deploy(name){const p=interrupted?profiles.paused:profiles.active;await command(name,name===names[0]?p.worker:p.coordinator,'release-'+name);},
   adopt,
   canRecover(){return !controlUnavailable&&!writeUnknown&&!pending&&!!ownedVersions[names[0]]&&!!writePolicy?.recovery;},
@@ -127,7 +127,7 @@ export function createFeatureReleaseOps({root,directory,evidenceDirectory,profil
     assert.equal(new URL(url).origin,origin);await fresh();requireOwnedMain();assert(report.smokeHTTPAttempts<caps.smokeRequests,'SMOKE_BUDGET');report.smokeHTTPAttempts++;return fetcher(url,options);
    }});await fresh();requireOwnedMain();return result;}finally{secretPin='';}
   },
-  async verifyFinal(){for(const n of names){assert.equal(await verify(n,config[n]),expected()[n],'FINAL_VERSION_CHANGED');await address(n);}},
+  async verifyFinal(){return guardControl(async()=>{for(const n of names){assert.equal(await verify(n,config[n]),expected()[n],'FINAL_VERSION_CHANGED');await address(n);}});},
   async pause(){assert(this.canRecover(),'NO_OWNED_RECOVERY');assert(report.explicitCloudflareGets+8<=caps.metadataGETs&&report.pauseHTTPAttempts<caps.pausedGETs,'RECOVERY_VERIFICATION_BUDGET');await command(names[0],profiles.paused.worker,'owned-jwt-paused',{recovery:true});await adopt(names[0]);},
   async verifyPaused(){
    const gate=interrupted?fresh:recoveryFresh;

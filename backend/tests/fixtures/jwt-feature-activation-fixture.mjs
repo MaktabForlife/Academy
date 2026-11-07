@@ -55,6 +55,7 @@ export function activationMock({fault}={}){
    if(fault==='known-binding'&&state.provider===15&&kind==='settings')result.bindings[0].database_id='00000000-0000-4000-8000-000000000999';
    if(fault==='known-subdomain'&&state.provider===17&&kind==='subdomain')result.previews_enabled=true;
    if(fault==='known-schedule'&&state.provider===18&&kind==='schedules')result=[{cron:'* * * * *'}];
+   if(((fault==='transient-final-version'&&state.provider===16)||(fault==='transient-preflight-version'&&state.provider===2)||(fault==='transient-adoption-version'&&state.provider===14))&&kind==='deployments')result={deployments:[{versions:[{version_id:'00000000-0000-4000-8000-000000000999',percentage:100}]}]};
    if(fault==='late-final'&&state.provider===22)return Response.json({success:false},{status:500});
    return Response.json({success:true,result});
   }
