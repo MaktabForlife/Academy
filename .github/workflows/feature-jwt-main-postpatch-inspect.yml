@@ -1,0 +1,127 @@
+name: Protected MAIN post-PATCH read-only inspection
+on:
+  push:
+    branches: [studio_dev, validation/jwt-feature-main-postpatch-inspection-20261107]
+  pull_request:
+    branches: [studio_dev]
+  workflow_dispatch:
+    inputs:
+      approval_pr:
+        type: string
+        required: true
+      approval_merge_sha:
+        type: string
+        required: true
+permissions:
+  contents: read
+  actions: read
+  statuses: read
+  pull-requests: read
+defaults:
+  run:
+    shell: bash
+concurrency:
+  group: feature-isolation-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  check:
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - name: Focused local approval, lease, dispatch and redaction proof only
+        run: |
+          set -euo pipefail
+          node --check backend/tools/jwt-feature-main-postpatch-inspect.mjs
+          node --check backend/tools/jwt-feature-main-postpatch-approved.mjs
+          node --test --test-reporter=tap backend/tests/jwt-feature-main-postpatch-inspect.test.mjs | tee diagnostic-tests.tap
+          node --input-type=module -e "import {executionEffectsHash} from './backend/tools/jwt-feature-main-postpatch-approved.mjs'; console.log(JSON.stringify({effectsSHA256:executionEffectsHash,hostedCalls:0}))" > diagnostic-effects.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: jwt-main-postpatch-source-${{ github.run_id }}
+          path: |
+            diagnostic-tests.tap
+            diagnostic-effects.json
+          retention-days: 30
+  prepare:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/studio_dev'
+    permissions:
+      contents: write
+      statuses: read
+      pull-requests: read
+      actions: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - name: Exact approved public source fast-forward only; never dispatch inspection
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node backend/tools/jwt-feature-main-postpatch-approved.mjs promote
+  validate:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature-preview'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - name: Public exact approval/source/effects/one-attempt/lease gate before private environment
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPROVAL_PR: ${{ inputs.approval_pr }}
+          APPROVAL_MERGE_SHA: ${{ inputs.approval_merge_sha }}
+        run: node backend/tools/jwt-feature-main-postpatch-approved.mjs validate
+  inspect:
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature-preview'
+    environment: feature
+    permissions:
+      contents: read
+      actions: read
+      statuses: read
+      pull-requests: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - name: Recheck protected gate after entering Feature; no Cloudflare credential yet
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPROVAL_PR: ${{ inputs.approval_pr }}
+          APPROVAL_MERGE_SHA: ${{ inputs.approval_merge_sha }}
+        run: node backend/tools/jwt-feature-main-postpatch-approved.mjs validate
+      - name: At most two fixed MAIN metadata GETs only; no Worker HTTP, writes or retry
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPROVAL_PR: ${{ inputs.approval_pr }}
+          APPROVAL_MERGE_SHA: ${{ inputs.approval_merge_sha }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_FEATURE_DEPLOY_TOKEN }}
+        run: node backend/tools/jwt-feature-main-postpatch-approved.mjs execute
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: jwt-main-postpatch-metadata-${{ github.run_id }}
+          path: ${{ runner.temp }}/jwt-main-postpatch-evidence/main-postpatch-metadata.json
+          if-no-files-found: warn
+          retention-days: 30

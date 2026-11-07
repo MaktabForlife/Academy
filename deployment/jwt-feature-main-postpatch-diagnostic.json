@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "state": "SOURCE_PREPARATION_ONLY_NO_EXECUTION_AUTHORITY",
+  "request": "jwt-feature-main-postpatch-inspection-20261107a",
+  "sourceBase": "6b21ad29a7818be0846d2cd5d404350925e361f1",
+  "accountId": "c9a3e355b3d7a795880b1d36a1dbe123",
+  "script": "feature_worker",
+  "originalInstallSource": "c660e3813908127561ad454ab503f9f66fa6d700",
+  "originalInstallOwner": "42233937167-1",
+  "prePatchVersionReference": "5701fba2-80f2-40d6-adff-a86fa4f613bc",
+  "failedCleanup": {
+    "run": 42342137914,
+    "artifact": 13562670537,
+    "zipSHA256": "f2edaacf595235f0eb91e30a9de155409bfef5b4f2b479481659b8ced5af0345",
+    "secretPatchAcknowledged": true,
+    "cleanupVerified": false,
+    "observedAfterPatch": null
+  },
+  "fixedGetPaths": [
+    "/workers/scripts/feature_worker/deployments",
+    "/workers/scripts/feature_worker/settings"
+  ],
+  "budget": {
+    "priorExplicitGets": 54,
+    "maxAdditionalExplicitGets": 2,
+    "maximumCumulativeExplicitGets": 56,
+    "originalHardLimit": 60,
+    "reservedOriginalGets": 4,
+    "retries": 0,
+    "workerProbes": 0,
+    "mutations": 0
+  },
+  "effects": {
+    "readOnly": true,
+    "scriptTargets": 1,
+    "coordinatorRequests": 0,
+    "secretValueReads": 0,
+    "codeContentReads": 0,
+    "sqlOrDataRequests": 0,
+    "workerHTTP": 0,
+    "wranglerCalls": 0,
+    "resourceWrites": 0,
+    "secretWrites": 0,
+    "credentialGeneration": 0,
+    "activation": false
+  },
+  "output": {
+    "maxBindings": 128,
+    "maxMismatchLabels": 64,
+    "maxProviderCodes": 8,
+    "maxResponseBytes": 1048576,
+    "noPlaintextValues": true,
+    "noRawAssertionDiffs": true,
+    "noRawProviderMessages": true,
+    "noCodeOrSecretBodies": true,
+    "noVersionAdoption": true,
+    "notCleanupOrActivationReceipt": true
+  },
+  "limits": {
+    "historicalFailureCause": "UNKNOWN_NO_RAW_POST_SETTINGS_SAVED",
+    "observationsAtomic": false,
+    "deploymentVersionDoesNotBindSettings": true,
+    "assetRoutingVerified": false,
+    "codeContentVerified": false,
+    "unknownStateIsNotOwned": true,
+    "requiresFreshProtectedApprovalAndExclusiveLease": true
+  }
+}
