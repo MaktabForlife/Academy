@@ -24,6 +24,10 @@ jobs:
         with:
           node-version: "24.18.0"
       - run: npm ci --prefix backend --no-audit --no-fund
+      - name: Save exact checked-out source and tree on the disposable runner
+        run: |
+          git rev-parse HEAD > first-replacement-checked-source.txt
+          git rev-parse HEAD^{tree} > first-replacement-checked-tree.txt
       - name: Affected gates/private-wrapper mocks only; reuse exact accepted asset/app/ACK archives
         run: |
           set -euo pipefail
@@ -34,5 +38,8 @@ jobs:
         if: always()
         with:
           name: jwt-feature-first-replacement-control-${{ github.run_id }}
-          path: first-replacement-control.tap
+          path: |
+            first-replacement-control.tap
+            first-replacement-checked-source.txt
+            first-replacement-checked-tree.txt
           retention-days: 30

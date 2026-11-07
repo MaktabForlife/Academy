@@ -32,7 +32,7 @@ defaults:
 env:
   FIRST_REPLACEMENT_PLAN_SHA256: c37bdb5d0570a03e68d23f933f82fe07913d44a9b91fc80b56c5e6c7eaa2b9e5
 concurrency:
-  group: feature-isolation-${{ github.ref }}
+  group: ${{ github.event_name == 'workflow_dispatch' && format('feature-isolation-{0}', github.ref) || format('jwt-first-replacement-public-{0}-{1}', github.workflow, github.ref) }}
   cancel-in-progress: false
 jobs:
   check:

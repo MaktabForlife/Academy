@@ -100,3 +100,35 @@ test('registration IDs reject path/query injection before the first GitHub reque
  const f=fixture(),args=f.approvalArgs();args.registrationComment='../secrets?x=1';
  await assert.rejects(firstReplacementApproval(args));assert.deepEqual(f.calls,[]);
 });
+
+test('public workflow scheduling is separated while private isolation and all accepted job controls stay byte-identical',()=>{
+ const workflow=readFileSync(new URL('../../.github/workflows/feature-jwt-paused-first-replacement.yml',import.meta.url),'utf8');
+ const group="${{ github.event_name == 'workflow_dispatch' && format('feature-isolation-{0}', github.ref) || format('jwt-first-replacement-public-{0}-{1}', github.workflow, github.ref) }}",line='  group: '+group;
+ assert.equal(workflow.split(line).length,2,'Exactly one reviewed concurrency expression');
+ const restored=workflow.replace(line,"  group: feature-isolation-${{ github.ref }}");
+ const bytes=Buffer.from(restored);
+ assert.equal(createHash('sha1').update(Buffer.concat([Buffer.from('blob '+bytes.length+String.fromCharCode(0)),bytes])).digest('hex'),'2b52a34cf4e9e4714c36ccc9d6d99987d97f93e1','Only the group expression may differ from accepted b9 workflow');
+ assert(workflow.includes('  cancel-in-progress: false\n'));
+ // Evaluate the exact approved expression, not an alternate workflow model.
+ const evaluate=new Function('github','format','return ('+group.slice(3,-2)+');');
+ const format=(pattern,...args)=>pattern.replace(/\{([0-9]+)\}/g,(_,i)=>String(args[Number(i)]));
+ const own='Protected PAUSED JWT Feature first replacement',legacy=['Approved four-GET JWT Feature inspection','Protected MAIN post-PATCH read-only inspection','Protected owned JWT Feature cleanup','Protected read-only JWT Feature final fences'];
+ const events=[['push','refs/heads/studio_dev'],['pull_request','refs/pull/17/merge']];
+ for(const [event_name,ref]of events){
+  const selected=evaluate({event_name,ref,workflow:own},format);
+  assert.equal(selected,'jwt-first-replacement-public-'+own+'-'+ref);
+  assert.notEqual(selected,'feature-isolation-'+ref);
+  for(const workflow of legacy)assert.notEqual(selected,evaluate({event_name,ref,workflow},format));
+  assert.notEqual(selected,evaluate({event_name,ref:ref+'-other',workflow:own},format));
+ }
+ for(const ref of ['refs/heads/feature-preview','refs/heads/studio_dev']){
+  for(const workflow of [own,...legacy]){
+   assert.equal(evaluate({event_name:'workflow_dispatch',ref,workflow},format),'feature-isolation-'+ref,'Private dispatch retains the exact shared group');
+  }
+ }
+ assert(workflow.includes("  prepare:\n    needs: check\n    if: github.event_name == 'push' && github.ref == 'refs/heads/studio_dev' && needs.check.outputs.selected == 'true'"));
+ const publicJobs=workflow.slice(0,workflow.indexOf('  validate:\n'));
+ for(const forbidden of ['environment: feature','CLOUDFLARE_API_TOKEN','CF_FEATURE_DEPLOY_TOKEN','/dispatches'])assert(!publicJobs.includes(forbidden),'No private privilege or dispatch in public check/preparation');
+ assert(workflow.includes("  validate:\n    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature-preview'"));
+ assert(workflow.includes("  execute:\n    needs: validate\n    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature-preview'\n    environment: feature"));
+});
