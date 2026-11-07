@@ -29,6 +29,7 @@ jobs:
           node --check backend/tools/jwt-feature-activation-approved.mjs
           node --check backend/tools/jwt-feature-activation-execute.mjs
           node --test --test-reporter=tap backend/tests/jwt-feature-activation-approved.test.mjs backend/tests/jwt-feature-activation-github.test.mjs backend/tests/jwt-feature-activation-execute.test.mjs | tee activation-controls.tap
+          node --test --test-reporter=tap --test-name-pattern='expired prior window|full ACTIVE' backend/tests/jwt-feature-activation-baseline.test.mjs | tee activation-profiles.tap
           git rev-parse HEAD > activation-source.txt
           git rev-parse HEAD^{tree} > activation-tree.txt
       - name: Verify the new archive reader against only the already public accepted asset artifact
@@ -50,6 +51,7 @@ jobs:
           name: jwt-activation-source-${{ github.run_id }}
           path: |
             activation-controls.tap
+            activation-profiles.tap
             activation-source.txt
             activation-tree.txt
             activation-request-traces.json

@@ -30,7 +30,7 @@ defaults:
   run:
     shell: bash
 env:
-  ACTIVATION_PLAN_SHA256: 98f0ef7dcad5c67a954982f9c9a45df376c2d25268058df0c802b60e1732ee6b
+  ACTIVATION_PLAN_SHA256: e57a777b07cc1913b989cf025bb926d00f2bca462b1422380d522d599994bb37
 concurrency:
   group: ${{ github.event_name == 'workflow_dispatch' && format('feature-isolation-{0}', github.ref) || format('jwt-activation-public-{0}-{1}', github.workflow, github.ref) }}
   cancel-in-progress: false

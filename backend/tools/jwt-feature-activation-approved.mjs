@@ -9,7 +9,7 @@ const hash=b=>createHash('sha256').update(b).digest('hex');
 import {activationGitHub} from './jwt-feature-activation-github.mjs';
 const path='deployment/jwt-feature-activation-plan.json';
 const bytes=readFileSync(new URL('../../'+path,import.meta.url));
-export const planSHA256='98f0ef7dcad5c67a954982f9c9a45df376c2d25268058df0c802b60e1732ee6b';
+export const planSHA256='e57a777b07cc1913b989cf025bb926d00f2bca462b1422380d522d599994bb37';
 assert.equal(hash(bytes),planSHA256,'ACTIVATION_PLAN_CHANGED');
 const freeze=x=>{for(const v of Object.values(x))if(v&&typeof v==='object')freeze(v);return Object.freeze(x);};
 export const plan=freeze(JSON.parse(bytes));

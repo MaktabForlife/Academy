@@ -96,10 +96,14 @@
     "privateCoordinatorRPCAndR2Possible": true,
     "sqlByExecutor": 0,
     "schemaSeedSetupCleanup": false,
-    "keyOrSecretOperations": false,
     "productionChanges": false,
-    "existingDBChanges": false,
-    "partialSyntheticRecordsMayRemain": true
+    "partialSyntheticRecordsMayRemain": true,
+    "preexistingNativeOrProductionDBChanges": false,
+    "keyOrSecretResourceOperations": false,
+    "allowedSyntheticStoresOnly": [
+      "cdbe97bc-f3d9-400e-8806-ed9a0d143d26",
+      "ed77f2a7-4439-4841-8691-2b41063d8960"
+    ]
   },
   "window": {
     "state": "NOT_REGISTERED_NOT_GRANTED",
