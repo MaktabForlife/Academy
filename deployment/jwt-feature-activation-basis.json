@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "kind": "ROOT_ACCEPTED_PAUSED_REPLACEMENT_BASIS_NOT_LEGACY_INSTALL",
+  "run": 42388834840,
+  "artifact": 13580891878,
+  "zipSHA256": "051704371aa5dabb6f14f0fa2db8835126c50bbfb53f706c355d8e46b0194fe5",
+  "fileSHA256": "621fbfa00eecccbfa3a00c6a9189ce8d0ffa79c38d1327525748ef43f6103424",
+  "source": "fb3585edff11787b3243b2f75a0f6dd5f0d72c1e",
+  "canonicalMerge": "bd2d8a269d173d57eac9fb5826c71b68f4fa6cd6",
+  "planSHA256": "c37bdb5d0570a03e68d23f933f82fe07913d44a9b91fc80b56c5e6c7eaa2b9e5",
+  "policySHA256": "dac52958af70828d261c4cf50fbf9acbf909b8cddd250b7be7a1fe11d257b9a5",
+  "artifactSHA256": "e53919bcf209064540913e7d249efea306067c9a8fdc6109bed1d3403672a90b",
+  "opaqueVersionValues": "ONLY_IN_EXISTING_AUTHORISED_ARTIFACT_OR_PRIVATE_EXECUTOR_CONTEXT",
+  "notAuthority": true
+}

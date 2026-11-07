@@ -14,11 +14,12 @@ const hash=x=>createHash('sha256').update(x).digest('hex');
 export function createFeatureReleaseOps({root,directory,evidenceDirectory,profiles,nativeReceipt,installation,installed,source,fresh,recoveryFresh=fresh,token,pin,assets,artifacts={},writePolicy,writePolicySHA256,fetcher=fetch,runWrangler}){
  assert.equal(process.env.GITHUB_ACTIONS,'true');assert(token);assert.equal(typeof fresh,'function');
  profiles=structuredClone(profiles);
- const interrupted=profiles.mode==='PAUSED_RESUME';
- const references=Object.freeze(interrupted?{...profiles.reference.referenceVersions}:{feature_worker:installed.workerVersion,'academy-feature-split-coordinator':installed.coordinatorVersion});
+ const interrupted=profiles.mode==='PAUSED_RESUME',pausedBasis=profiles.pausedBasis;
+ if(pausedBasis){assert.equal(pausedBasis.kind,'PAUSED_REPLACEMENT_RECEIPT');assert.equal(profiles.coordinatorChanged,false);assert.equal(pausedBasis.coordinatorReferenceOnly,true);assert(Object.values(pausedBasis.inheritedAttestations).every(v=>v===false));}
+ const references=Object.freeze(pausedBasis?{...pausedBasis.referenceVersions}:interrupted?{...profiles.reference.referenceVersions}:{feature_worker:installed.workerVersion,'academy-feature-split-coordinator':installed.coordinatorVersion});
  const acknowledged={},ownedVersions={},observed={};let pending=null,writeUnknown=false;
  const config={feature_worker:profiles.before.worker,'academy-feature-split-coordinator':profiles.before.coordinator};
- const namespaces=interrupted?profiles.reference.namespaces:{timetable:installation.timetableNamespaceId,split:installation.splitNamespaceId};
+ const namespaces=pausedBasis?pausedBasis.namespaces:interrupted?profiles.reference.namespaces:{timetable:installation.timetableNamespaceId,split:installation.splitNamespaceId};
  // Defaults are available to read-only injected regressions; the actual writer
  // additionally requires a hash-bound, approved-tree policy before any attempt.
  const caps=writePolicy?structuredClone(writePolicy.budgets):{metadataGETs:36,uploads:0,publicGETs:0,smokeRequests:0,pausedGETs:0};
@@ -133,9 +134,9 @@ export function createFeatureReleaseOps({root,directory,evidenceDirectory,profil
    assert.deepEqual(JSON.parse((await bounded(r)).toString()),{code:'FEATURE_JWT_UNAVAILABLE'});await fence();await gate();requireOwnedMain();
   },
   save(evidence){
-   const out={...evidence,source,origin,...report,interruptedReference:interrupted,installationVerified:!interrupted,referenceVersions:{...references},lastAcknowledgedUploads:structuredClone(acknowledged),ownedVersions:{...ownedVersions},lastObservedVersions:{...observed},writeOutcomeUnknown:writeUnknown,mode:evidence.activated?'ACTIVE':evidence.state==='PAUSED_CODE_RESUME_VERIFIED'||evidence.recovery==='OWNED_FEATURE_PAUSED'?'PAUSED':'NOT_VERIFIED',remoteCodeAttested:false,privateKeyAttested:false,metadataAtomic:false,hostedD1Rows:'unmeasured',localEightRequestProjection:{statements:111,roundTrips:76,rowsRead:831,rowsWritten:36},projectionIsNotHostedBilling:true};
+   const out={...evidence,source,origin,...report,interruptedReference:interrupted,installationVerified:!interrupted&&!pausedBasis,...(pausedBasis?{baselineKind:pausedBasis.kind,baselineOwnedVersions:pausedBasis.baselineOwnedVersions,coordinatorReferenceOnly:true,inheritedAttestations:pausedBasis.inheritedAttestations,schemaSeedProvenance:pausedBasis.schemaSeedProvenance}:{}),referenceVersions:{...references},lastAcknowledgedUploads:structuredClone(acknowledged),ownedVersions:{...ownedVersions},lastObservedVersions:{...observed},writeOutcomeUnknown:writeUnknown,mode:evidence.activated?'ACTIVE':evidence.state==='PAUSED_CODE_RESUME_VERIFIED'||evidence.recovery==='OWNED_FEATURE_PAUSED'?'PAUSED':'NOT_VERIFIED',remoteCodeAttested:false,privateKeyAttested:false,metadataAtomic:false,hostedD1Rows:'unmeasured',localEightRequestProjection:{statements:111,roundTrips:76,rowsRead:831,rowsWritten:36},projectionIsNotHostedBilling:true};
    writeFileSync(resolve(evidenceDirectory,'deployment.json'),JSON.stringify(out,null,2)+'\n');
-   if(evidence.activated&&!interrupted)writeFileSync(resolve(evidenceDirectory,'next-installed-baseline.json'),JSON.stringify({schema:1,mode:'ACTIVE',releaseId:source,coordinatorSourceDigest:profiles.coordinatorSourceDigest,workerVersion:ownedVersions[names[0]],coordinatorVersion:ownedVersions[names[1]]||references[names[1]]},null,2)+'\n');
+   if(evidence.activated&&!interrupted&&!pausedBasis)writeFileSync(resolve(evidenceDirectory,'next-installed-baseline.json'),JSON.stringify({schema:1,mode:'ACTIVE',releaseId:source,coordinatorSourceDigest:profiles.coordinatorSourceDigest,workerVersion:ownedVersions[names[0]],coordinatorVersion:ownedVersions[names[1]]||references[names[1]]},null,2)+'\n');
   }
  };
 }
