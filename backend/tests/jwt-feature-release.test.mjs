@@ -118,7 +118,7 @@ test('byte-identical coordinator source graph needs no unrelated coordinator upl
  const f=fixture();assert.equal(f.profiles.coordinatorChanged,false);
  const changing=fixture({coordinatorChanged:true});assert.equal(changing.profiles.coordinatorChanged,true);
  let targets;const observed=[];
- const ops={targets:['feature_worker'],preflight:async()=>{},fresh:async()=>{},fence:async()=>{},canRecover:()=>false,deploy:async name=>observed.push(name),adopt:async()=>{},publicProof:async()=>{},smoke:async()=>({}),verifyFinal:async()=>{},save:()=>{}};
+ const ops={mode:'ACTIVE',targets:['feature_worker'],preflight:async()=>{},fresh:async()=>{},fence:async()=>{},canRecover:()=>false,deploy:async name=>observed.push(name),adopt:async()=>{},publicProof:async()=>{},smoke:async()=>({}),verifyFinal:async()=>{},save:()=>{}};
  await releaseFreshFeature({ops});assert.deepEqual(observed,['feature_worker']);
 });
 
