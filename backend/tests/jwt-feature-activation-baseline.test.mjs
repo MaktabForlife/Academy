@@ -30,5 +30,5 @@ test('full ACTIVE and recovery PAUSED profiles change only intended mode/flags/r
  }
  const f=pausedFixture(),p=activationProfiles({...f,source,coordinatorSourceDigest:coordDigest}),artifacts={feature_worker:{artifactSHA256:digest('ACTIVE')},pausedWorker:{artifactSHA256:digest('PAUSED')}};
  const policy=activationPolicy(p,artifacts);assert.deepEqual(Object.keys(policy.firstWrites),['feature_worker']);assert.equal(policy.recovery.target,'feature_worker');
- assert.deepEqual(policy.budgets,{metadataGETs:32,uploads:2,publicGETs:3,smokeRequests:8,pausedGETs:1});
+ assert.deepEqual(policy.budgets,{metadataGETs:24,uploads:2,publicGETs:3,smokeRequests:8,pausedGETs:1});
 });

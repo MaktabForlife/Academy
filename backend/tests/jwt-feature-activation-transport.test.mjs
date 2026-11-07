@@ -13,16 +13,19 @@ test('actual new-baseline transport success: MAIN only22metadata/1CLI/3public/8a
  assert(!existsSync(resolve(f.evidenceDirectory,'next-installed-baseline.json')));assert.deepEqual(Object.keys(r.ownedVersions),['feature_worker']);
  assert(f.state.loggedOut);for(const v of ['2468','SYNTHETIC_ACCESS','SYNTHETIC_REFRESH','uaa-session:SYNTHETIC','SECRET_MUST_NOT_ESCAPE'])assert(!JSON.stringify(r).includes(v));
 });
-for(const fault of ['public-1','public-2','public-3',...Array.from({length:8},(_,i)=>'auth-'+(i+1))])test('ordinary '+fault+' failure permits one supported owned PAUSED recovery, no extra auth/cleanup',async()=>{
+for(const fault of Array.from({length:8},(_,i)=>'auth-'+(i+1)))test('ordinary '+fault+' failure permits one supported owned PAUSED recovery, no extra auth/cleanup',async()=>{
  const f=activationMock({fault});await assert.rejects(releaseFreshFeature({ops:f.ops}));const r=report(f);
- assert.equal(r.recovery,'OWNED_FEATURE_PAUSED');assert.equal(r.mode,'PAUSED');assert.equal(f.state.cli,2);assert.equal(f.state.paused,1);assert(f.state.provider<=32);assert(f.state.auth<=8);
+ assert.equal(r.recovery,'OWNED_FEATURE_PAUSED');assert.equal(r.mode,'PAUSED');assert.equal(f.state.cli,2);assert.equal(f.state.paused,1);assert(f.state.provider<=24);assert(f.state.auth<=8);
  if(fault.startsWith('auth-'))assert.equal(f.state.auth,Number(fault.slice(5)));
  if(fault==='auth-4'){assert(f.state.sessionCreated);assert.equal(f.state.loggedOut,false);}
  assert.equal(r.installationVerified,false);assert(!existsSync(resolve(f.evidenceDirectory,'next-installed-baseline.json')));
 });
-test('latest ordinary final failure exactly consumes32metadata/2CLI/3public/8auth/1paused, no reusable old ceiling',async()=>{
- const f=activationMock({fault:'late-final'});await assert.rejects(releaseFreshFeature({ops:f.ops}));const r=report(f);
- assert.deepEqual([f.state.provider,f.state.cli,f.state.public,f.state.auth,f.state.paused],[32,2,3,8,1]);assert.equal(r.recovery,'OWNED_FEATURE_PAUSED');assert.equal(r.activated,false);
+test('latest supported ordinary auth failure uses24metadata/2CLI/3public/8auth/1paused',async()=>{
+ const f=activationMock({fault:'auth-8'});await assert.rejects(releaseFreshFeature({ops:f.ops}));
+ assert.deepEqual([f.state.provider,f.state.cli,f.state.public,f.state.auth,f.state.paused],[24,2,3,8,1]);assert.equal(report(f).recovery,'OWNED_FEATURE_PAUSED');
+});
+for(const fault of ['public-1','public-2','public-3','late-final','known-binding','known-subdomain','known-schedule'])test('known/unavailable control '+fault+' latches and never permits PAUSED overwrite',async()=>{
+ const f=activationMock({fault});await assert.rejects(releaseFreshFeature({ops:f.ops}));assert.equal(f.state.cli,1);assert.equal(f.state.paused,0);assert.equal(report(f).controlUnavailable,true);
 });
 for(const fault of ['withdraw-before-cli','foreign-before-cli'])test(fault+' cannot use historical MAIN ownership to authorise a write/recovery',async()=>{
  const f=activationMock({fault});await assert.rejects(releaseFreshFeature({ops:f.ops}));assert.equal(f.state.cli,0);assert.equal(f.state.public,0);assert.equal(f.state.auth,0);assert.equal(f.state.paused,0);

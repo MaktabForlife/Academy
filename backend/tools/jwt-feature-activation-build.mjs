@@ -42,5 +42,5 @@ export async function compileActivation({root=process.cwd(),directory,source,arc
 }
 if(process.argv[2]==='build'){
  try{const directory=process.env.ACTIVATION_OUTPUT;assert(directory);mkdirSync(directory,{recursive:false});const out=await compileActivation({directory,source:process.env.GITHUB_SHA,archive:readFileSync(process.env.ACCEPTED_PUBLIC_ARCHIVE)});writeFileSync(resolve(directory,'activation-inputs.json'),JSON.stringify(out.manifest,null,2)+'\n');}
- catch{console.error('ACTIVATION_OFFLINE_INPUT_BUILD_STOPPED');process.exitCode=1;}
+ catch(error){console.error('ACTIVATION_OFFLINE_INPUT_BUILD_STOPPED',error.name,error.message);process.exitCode=1;}
 }

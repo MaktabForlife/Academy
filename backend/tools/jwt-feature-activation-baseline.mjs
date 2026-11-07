@@ -5,7 +5,7 @@ import {firstReplacementInputs} from './jwt-feature-first-replacement-inputs.mjs
 import {assertIdentityShape} from './jwt-feature-first-replacement-approved.mjs';
 import {canonical,digest,assertHostConfig} from './jwt-feature-upload-artifact.mjs';
 export const activationFlags=['JWT_V110_MASTER','JWT_V110_REFRESH','JWT_V110_BROWSER','JWT_V110_NATIVE_COOKIE'];
-export const activationBudgets=Object.freeze({metadataGETs:32,uploads:2,publicGETs:3,smokeRequests:8,pausedGETs:1});
+export const activationBudgets=Object.freeze({metadataGETs:24,uploads:2,publicGETs:3,smokeRequests:8,pausedGETs:1});
 export const basisBinding=Object.freeze(JSON.parse(readFileSync(new URL('../../deployment/jwt-feature-activation-basis.json',import.meta.url),'utf8')));
 const main='feature_worker',coord='academy-feature-split-coordinator',hex=/^[a-f0-9]{64}$/,uuid=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
 const keys=(v,k)=>assert.deepEqual(Object.keys(v).sort(),[...k].sort());

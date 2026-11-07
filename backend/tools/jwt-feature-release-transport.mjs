@@ -17,7 +17,7 @@ export function createFeatureReleaseOps({root,directory,evidenceDirectory,profil
  const interrupted=profiles.mode==='PAUSED_RESUME',pausedBasis=profiles.pausedBasis;
  if(pausedBasis){assert.equal(pausedBasis.kind,'PAUSED_REPLACEMENT_RECEIPT');assert.equal(profiles.coordinatorChanged,false);assert.equal(pausedBasis.coordinatorReferenceOnly,true);assert(Object.values(pausedBasis.inheritedAttestations).every(v=>v===false));}
  const references=Object.freeze(pausedBasis?{...pausedBasis.referenceVersions}:interrupted?{...profiles.reference.referenceVersions}:{feature_worker:installed.workerVersion,'academy-feature-split-coordinator':installed.coordinatorVersion});
- const acknowledged={},ownedVersions={},observed={};let pending=null,writeUnknown=false;
+ const acknowledged={},ownedVersions={},observed={};let pending=null,writeUnknown=false,controlUnavailable=false;
  const config={feature_worker:profiles.before.worker,'academy-feature-split-coordinator':profiles.before.coordinator};
  const namespaces=pausedBasis?pausedBasis.namespaces:interrupted?profiles.reference.namespaces:{timetable:installation.timetableNamespaceId,split:installation.splitNamespaceId};
  // Defaults are available to read-only injected regressions; the actual writer
@@ -37,24 +37,25 @@ export function createFeatureReleaseOps({root,directory,evidenceDirectory,profil
   try{if(reader)for(;;){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>limit){await reader.cancel();throw Error('BODY_BUDGET');}parts.push(Buffer.from(value));}return Buffer.concat(parts);}
   finally{reader?.releaseLock();}
  };
- const cf=async(name,kind)=>{
+ const guardControl=async action=>{try{return await action();}catch(error){if(pausedBasis)controlUnavailable=true;throw error;}};
+ const cf=async(name,kind)=>guardControl(async()=>{
   assert(names.includes(name)&&['settings','deployments','subdomain','schedules'].includes(kind));
   assert(report.explicitCloudflareGets<caps.metadataGETs,'METADATA_READ_BUDGET');report.explicitCloudflareGets++;
   let response;try{response=await fetcher('https://api.cloudflare.com/client/v4/accounts/'+account+'/workers/scripts/'+name+'/'+kind,{headers:{Authorization:'Bearer '+token},cache:'no-store',redirect:'error',signal:AbortSignal.timeout(20000)});}catch{throw Error('CF_READ_UNKNOWN');}
   assert(response.ok,'CF_READ_STATUS');const value=JSON.parse((await bounded(response,1048576)).toString());assert.equal(value.success,true);
   return kind==='settings'?sanitiseSettings(value.result):value.result;
- };
+ });
  const version=async name=>currentVersion(await cf(name,'deployments'));
- const verify=async(name,c)=>{
+ const verify=async(name,c)=>guardControl(async()=>{
   assertRemoteProfile(await cf(name,'settings'),c,nativeReceipt,namespaces,{secretNames:name===names[0]?c.secrets.required:[],discover:false});
   const id=await version(name);observed[name]=id;return id;
- };
- const address=async name=>{
+ });
+ const address=async name=>guardControl(async()=>{
   const url=await cf(name,'subdomain');assert.equal(url.enabled,name===names[0]);assert.equal(url.previews_enabled,false);
   const s=await cf(name,'schedules');assert.deepEqual(Array.isArray(s)?s:s.schedules,[]);
- };
+ });
  const expected=()=>Object.fromEntries(names.map(n=>[n,ownedVersions[n]||references[n]]));
- const fence=async()=>{for(const name of names){const id=await version(name);observed[name]=id;assert.equal(id,expected()[name],'VERSION_DRIFT');}};
+ const fence=async()=>guardControl(async()=>{for(const name of names){const id=await version(name);observed[name]=id;assert.equal(id,expected()[name],'VERSION_DRIFT');}});
  const command=async(name,c,label,{recovery=false}={})=>{
   const p=requirePolicy(),artifact=recovery?artifacts.pausedWorker:artifacts[name];
   assert(artifact);assert.equal(artifact.source,source);
@@ -108,8 +109,8 @@ export function createFeatureReleaseOps({root,directory,evidenceDirectory,profil
   async preflight(){await fresh();for(const n of names){assert.equal(await verify(n,config[n]),references[n],'REFERENCE_CHANGED');await address(n);}},
   async deploy(name){const p=interrupted?profiles.paused:profiles.active;await command(name,name===names[0]?p.worker:p.coordinator,'release-'+name);},
   adopt,
-  canRecover(){return !writeUnknown&&!pending&&!!ownedVersions[names[0]]&&!!writePolicy?.recovery;},
-  async publicProof(){
+  canRecover(){return !controlUnavailable&&!writeUnknown&&!pending&&!!ownedVersions[names[0]]&&!!writePolicy?.recovery;},
+  async publicProof(){return guardControl(async()=>{
    assert(!interrupted);await fresh();requireOwnedMain();
    const marker=await get('/__jwt_feature_release','publicHTTPAttempts',caps.publicGETs);assert.equal(marker.status,200);assert(marker.headers.get('cache-control')?.includes('no-store'));assert.deepEqual(JSON.parse((await bounded(marker)).toString()),{featureOnly:true,sourceCommit:source,state:'ACTIVE'});
    for(const path of ['/academy/','/auth/v110/browser-config.js']){
@@ -118,7 +119,7 @@ export function createFeatureReleaseOps({root,directory,evidenceDirectory,profil
     assert.equal(hash(await bounded(response)),assets.get(path),'INSTALLED_PUBLIC_ASSET_CHANGED');
    }
    await fresh();requireOwnedMain();
-  },
+  });},
   async smoke(){
    assert(!interrupted);assert.equal(caps.smokeRequests,8);await fresh();requireOwnedMain();
    let secretPin=pin;pin=null;
@@ -134,7 +135,7 @@ export function createFeatureReleaseOps({root,directory,evidenceDirectory,profil
    assert.deepEqual(JSON.parse((await bounded(r)).toString()),{code:'FEATURE_JWT_UNAVAILABLE'});await fence();await gate();requireOwnedMain();
   },
   save(evidence){
-   const out={...evidence,source,origin,...report,interruptedReference:interrupted,installationVerified:!interrupted&&!pausedBasis,...(pausedBasis?{baselineKind:pausedBasis.kind,baselineOwnedVersions:pausedBasis.baselineOwnedVersions,coordinatorReferenceOnly:true,inheritedAttestations:pausedBasis.inheritedAttestations,schemaSeedProvenance:pausedBasis.schemaSeedProvenance}:{}),referenceVersions:{...references},lastAcknowledgedUploads:structuredClone(acknowledged),ownedVersions:{...ownedVersions},lastObservedVersions:{...observed},writeOutcomeUnknown:writeUnknown,mode:evidence.activated?'ACTIVE':evidence.state==='PAUSED_CODE_RESUME_VERIFIED'||evidence.recovery==='OWNED_FEATURE_PAUSED'?'PAUSED':'NOT_VERIFIED',remoteCodeAttested:false,privateKeyAttested:false,metadataAtomic:false,hostedD1Rows:'unmeasured',localEightRequestProjection:{statements:111,roundTrips:76,rowsRead:831,rowsWritten:36},projectionIsNotHostedBilling:true};
+   const out={...evidence,source,origin,...report,interruptedReference:interrupted,installationVerified:!interrupted&&!pausedBasis,...(pausedBasis?{baselineKind:pausedBasis.kind,controlUnavailable,baselineOwnedVersions:pausedBasis.baselineOwnedVersions,coordinatorReferenceOnly:true,inheritedAttestations:pausedBasis.inheritedAttestations,schemaSeedProvenance:pausedBasis.schemaSeedProvenance}:{}),referenceVersions:{...references},lastAcknowledgedUploads:structuredClone(acknowledged),ownedVersions:{...ownedVersions},lastObservedVersions:{...observed},writeOutcomeUnknown:writeUnknown,mode:evidence.activated?'ACTIVE':evidence.state==='PAUSED_CODE_RESUME_VERIFIED'||evidence.recovery==='OWNED_FEATURE_PAUSED'?'PAUSED':'NOT_VERIFIED',remoteCodeAttested:false,privateKeyAttested:false,metadataAtomic:false,hostedD1Rows:'unmeasured',localEightRequestProjection:{statements:111,roundTrips:76,rowsRead:831,rowsWritten:36},projectionIsNotHostedBilling:true};
    writeFileSync(resolve(evidenceDirectory,'deployment.json'),JSON.stringify(out,null,2)+'\n');
    if(evidence.activated&&!interrupted&&!pausedBasis)writeFileSync(resolve(evidenceDirectory,'next-installed-baseline.json'),JSON.stringify({schema:1,mode:'ACTIVE',releaseId:source,coordinatorSourceDigest:profiles.coordinatorSourceDigest,workerVersion:ownedVersions[names[0]],coordinatorVersion:ownedVersions[names[1]]||references[names[1]]},null,2)+'\n');
   }

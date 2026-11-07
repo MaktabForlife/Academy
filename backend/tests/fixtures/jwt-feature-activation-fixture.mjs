@@ -52,6 +52,9 @@ export function activationMock({fault}={}){
    if(fault==='foreign-before-cli'&&state.provider===11)versions[main]='00000000-0000-4000-8000-000000000999';
    if(kind==='settings')result=settings(configs[name]);else if(kind==='deployments')result={deployments:[{versions:[{version_id:versions[name],percentage:100}]}]};else if(kind==='subdomain')result={enabled:name===main,previews_enabled:false};else if(kind==='schedules')result=[];else assert.fail('FORBIDDEN_PROVIDER');
    if(fault==='withdraw-before-cli'&&state.provider===12)state.authority=false;
+   if(fault==='known-binding'&&state.provider===15&&kind==='settings')result.bindings[0].database_id='00000000-0000-4000-8000-000000000999';
+   if(fault==='known-subdomain'&&state.provider===17&&kind==='subdomain')result.previews_enabled=true;
+   if(fault==='known-schedule'&&state.provider===18&&kind==='schedules')result=[{cron:'* * * * *'}];
    if(fault==='late-final'&&state.provider===22)return Response.json({success:false},{status:500});
    return Response.json({success:true,result});
   }
@@ -62,11 +65,10 @@ export function activationMock({fault}={}){
    if(fault==='public-'+state.public)return Response.json({},{status:500,headers});
    if(fault==='withdraw-after-adopt'){state.authority=false;return Response.json({},{status:500,headers});}
    if(fault==='foreign-after-adopt'){versions[main]='00000000-0000-4000-8000-000000000999';return Response.json({},{status:500,headers});}
-   if(fault==='recovery-ack-loss')return Response.json({},{status:500,headers});
    return u.pathname==='/__jwt_feature_release'?Response.json({featureOnly:true,sourceCommit:source,state:'ACTIVE'},{headers}):new Response(publicBodies[u.pathname],{headers});
   }
   state.auth++;const hs=new Headers(headers);let body={},status=200;
-  if(fault==='auth-'+state.auth)return Response.json({},{status:500,headers});
+  if(fault==='auth-'+state.auth||(fault==='recovery-ack-loss'&&state.auth===1))return Response.json({},{status:500,headers});
   if(state.auth===1){
    assert.equal(JSON.parse(options.body).pin,'2468');state.sessionCreated=true;
    body={account:{accountId:'feature-synthetic-learner-a'},csrf:'A'.repeat(43),sessionKey:'uaa-session:SYNTHETIC'};
