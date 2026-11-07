@@ -14,8 +14,7 @@ const states=new Set(['NOT_STARTED','FINAL_FENCE_STOPPED_NO_RETRY','FINAL_FENCE_
 const outcomes=new Set(['PENDING','CAPTURED','TRANSPORT_FAILURE','HTTP_FAILURE','BODY_FAILURE','PROVIDER_FAILURE','RESULT_SHAPE_FAILURE','VERSION_MISMATCH','METADATA_MISMATCH','PAUSED_RESPONSE_MISMATCH']);
 const uuid=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
 const exact=(o,keys)=>assert.deepEqual(Object.keys(o).sort(),[...keys].sort(),'RECEIPT_SHAPE');
-export function acceptedMainObservation(){
- const bytes=readFileSync(new URL('../../deployment/jwt-feature-accepted-main-observation.json',import.meta.url));
+export function acceptedMainObservation(bytes=readFileSync(new URL('../../deployment/jwt-feature-accepted-main-observation.json',import.meta.url))){
  assert.equal(sha256(bytes),p.acceptedMainObservation.receiptSHA256,'ACCEPTED_RECEIPT_CHANGED');
  const r=JSON.parse(bytes),{execution,...base}=r;assertSafeDiagnosticReceipt(base);
  assert.equal(base.state,'READ_ONLY_MAIN_OBSERVATIONS_CAPTURED_NO_RECOVERY_AUTHORITY');
@@ -41,7 +40,7 @@ function initialReceipt(){
  countsAreFetchAttempts:true,hostedWrites:0,secretWrites:0,sqlRequests:0,codeUploads:0,r2Operations:0,keyGeneration:0,
  cleanupVerified:false,activated:false,mainOwnedVersionAdopted:false,codeContentVerified:false,keyMaterialVerified:false,assetRoutingVerified:false,
  metadataObservationsAtomic:false,deploymentVersionBindsSettings:false,currentMainSettingsReread:false,
- coordinatorVersionSampleAfterProbes:true,mainTemporaryNamesAbsentInAcceptedObservation:true,
+ coordinatorVersionSampleAfterProbes:true,mainObservationValidated:false,mainTemporaryNamesAbsentInAcceptedObservation:false,
  coordinatorMetadataMatched:false,mainPreprobeVersionMatched:false,mainFinalVersionMatched:false,coordinatorFinalVersionMatched:false,
  historicalFailureCause:'UNKNOWN_NO_RAW_POST_SETTINGS_SAVED',hostedD1Usage:'UNMEASURED_EXPECTED_ZERO_FROM_REVIEWED_PAUSED_SOURCE',
  futureWriteClearance:false};
@@ -55,8 +54,8 @@ export function assertFinalFenceReceipt(r){
  assert.equal(r.cumulativeInstallerAndCleanupHTTPAttempts,5+r.pausedProbeAttempts);assert.equal(r.originalInstallerAndCleanupHTTPBudget,8);
  for(const k of ['hostedWrites','secretWrites','sqlRequests','codeUploads','r2Operations','keyGeneration'])assert.equal(r[k],0);
  for(const k of ['cleanupVerified','activated','mainOwnedVersionAdopted','codeContentVerified','keyMaterialVerified','assetRoutingVerified','metadataObservationsAtomic','deploymentVersionBindsSettings','currentMainSettingsReread','futureWriteClearance'])assert.equal(r[k],false);
- for(const k of ['countsAreFetchAttempts','coordinatorVersionSampleAfterProbes','mainTemporaryNamesAbsentInAcceptedObservation'])assert.equal(r[k],true);
- for(const k of ['checksPassed','coordinatorMetadataMatched','mainPreprobeVersionMatched','mainFinalVersionMatched','coordinatorFinalVersionMatched'])assert.equal(typeof r[k],'boolean');
+ for(const k of ['countsAreFetchAttempts','coordinatorVersionSampleAfterProbes'])assert.equal(r[k],true);
+ for(const k of ['checksPassed','mainObservationValidated','mainTemporaryNamesAbsentInAcceptedObservation','coordinatorMetadataMatched','mainPreprobeVersionMatched','mainFinalVersionMatched','coordinatorFinalVersionMatched'])assert.equal(typeof r[k],'boolean');
  assert.equal(r.historicalFailureCause,'UNKNOWN_NO_RAW_POST_SETTINGS_SAVED');assert.equal(r.hostedD1Usage,'UNMEASURED_EXPECTED_ZERO_FROM_REVIEWED_PAUSED_SOURCE');
  assert(Array.isArray(r.providerObservations)&&r.providerObservations.length===r.explicitCloudflareGetAttempts);
  for(let i=0;i<r.providerObservations.length;i++){
@@ -74,7 +73,7 @@ export function assertFinalFenceReceipt(r){
  }
  if(r.state==='FINAL_FENCE_CAPTURED_NO_OWNERSHIP_OR_ACTIVATION_CLEARANCE'){
   assert(r.checksPassed&&r.explicitCloudflareGetAttempts===4&&r.pausedProbeAttempts===3);
-  for(const k of ['coordinatorMetadataMatched','mainPreprobeVersionMatched','mainFinalVersionMatched','coordinatorFinalVersionMatched'])assert.equal(r[k],true);
+  for(const k of ['mainObservationValidated','mainTemporaryNamesAbsentInAcceptedObservation','coordinatorMetadataMatched','mainPreprobeVersionMatched','mainFinalVersionMatched','coordinatorFinalVersionMatched'])assert.equal(r[k],true);
   assert([...r.providerObservations,...r.pausedObservations].every(x=>x.outcome==='CAPTURED'));
  }else assert.equal(r.checksPassed,false);
  return r;
@@ -92,7 +91,7 @@ export async function verifyReadOnlyFinalFence({fresh,fetcher,getToken,save}){
  const e=initialReceipt(),persist=()=>save(structuredClone(assertFinalFenceReceipt(e)));
  persist();
  try{
-  acceptedMainObservation();await fresh();
+  acceptedMainObservation();e.mainObservationValidated=true;e.mainTemporaryNamesAbsentInAcceptedObservation=true;persist();await fresh();
   const token=getToken();assert(typeof token==='string'&&token.length);
   async function provider(index){
    await fresh();const step=p.fixedProviderSequence[index];assert.equal(e.explicitCloudflareGetAttempts,index);

@@ -58,6 +58,7 @@ test('four fixed provider reads plus three unused PAUSED probes preserve origina
  assert.equal(r.state,'FINAL_FENCE_CAPTURED_NO_OWNERSHIP_OR_ACTIVATION_CLEARANCE');assert.equal(r.checksPassed,true);
  assert.equal(r.explicitCloudflareGetAttempts,4);assert.equal(r.cumulativeExplicitGetAttempts,60);
  assert.equal(r.pausedProbeAttempts,3);assert.equal(r.cumulativeInstallerAndCleanupHTTPAttempts,8);
+ assert.equal(m.saved[0].mainObservationValidated,false);assert.equal(m.saved[0].mainTemporaryNamesAbsentInAcceptedObservation,false);assert.equal(r.mainObservationValidated,true);
  assert.equal(m.calls.length,7);assert.deepEqual(m.counters(),{guards:9,tokenReads:1,provider:4,probe:3});
  assert.deepEqual(m.calls.map(x=>new URL(x.url).pathname.split('/').slice(-2).join('/')),['feature_worker/deployments','academy-feature-split-coordinator/settings','/__jwt_feature_release','feature-jwt-setup/status','feature-jwt-setup/schema-status','feature_worker/deployments','academy-feature-split-coordinator/deployments']);
  for(const k of ['hostedWrites','secretWrites','sqlRequests','codeUploads','r2Operations','keyGeneration'])assert.equal(r[k],0);
@@ -142,4 +143,8 @@ test('proposal workflow has source checks only and no execution/private/credenti
  assert(s.includes('validation/jwt-feature-readonly-final-fence-20261107'));assert(s.includes('contents: read'));
  for(const forbidden of ['workflow_dispatch','environment:','secrets.','CLOUDFLARE_API_TOKEN','wrangler','git push','promote',' execute'])assert(!s.includes(forbidden));
  assert.equal(p.budget.priorExplicitGets,56);assert.equal(p.budget.maxCumulativeExplicitGets,60);assert.equal(p.budget.maxCumulativeInstallerAndCleanupHTTPAttempts,8);assert.equal(p.effects.hostedWrites,0);assert.equal(p.limits.executionWorkflowProvided,false);
+});
+
+test('changed saved MAIN evidence fails its immutable hash before any facts can be accepted',()=>{
+ assert.throws(()=>acceptedMainObservation(Buffer.from('{}')),/ACCEPTED_RECEIPT_CHANGED/);
 });
