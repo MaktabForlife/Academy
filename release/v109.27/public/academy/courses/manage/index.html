@@ -1,0 +1,49 @@
+<!doctype html>
+<html data-circles-native="true" lang="en">
+<head>
+<meta name="robots" content="noindex,nofollow">
+<script src="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/js/m4l-circles-native.js?v=circles-native-1"></script>
+<script src="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/js/m4l-academy-workspace.js?v=109.18"></script><script src="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/js/m4l-academy-read-cache.js?v=109.18"></script><script src="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/js/m4l-academy-admin-menu.js?v=109.18"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Manage Courses · Umm Abbad Academy</title>
+  <link rel="icon" href="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/admin-favicon-32x32.png">
+  <link rel="stylesheet" href="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/css/m4l-program-builder.css?v=109.18">
+  <link rel="stylesheet" href="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/css/m4l-academy-navigation.css?v=109.18">
+  <link rel="stylesheet" href="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/css/m4l-academy-course-management.css?v=109.18"><link rel="stylesheet" href="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/css/m4l-enrolment.css?v=109.18">
+<link rel="stylesheet" href="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/css/m4l-academy-mobile.css?v=109.18">
+<link rel="stylesheet" href="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/css/m4l-academy-page-actions.css?v=109.18">
+<link rel="stylesheet" href="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/css/m4l-academy-shell.css?v=109.18">
+  <link rel="stylesheet" href="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/css/m4l-lesson-media.css?v=109.18">
+<link rel="stylesheet" href="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/css/m4l-workspace-theme.css?v=109.18">
+</head>
+<body class="circles-workspace-page">
+  <header class="pb-header"><a class="pb-brand" href="https://maktab4life.org/" data-page-home data-workspace-exit><img src="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/ummabbadacademy.png" alt="">Umm Abbad Academy</a><span id="course-account-name"></span><span class="pb-version" aria-label="Release version"></span></header>
+  <main class="cm-main">
+    <div class="cm-page-heading"><a id="course-management-back" href="/academy/admin/#administration" hidden>← Academy administration</a><h1>Manage Courses</h1></div>
+    <p id="course-access-message" class="pb-message" role="status" aria-live="polite">Loading Course management…</p>
+    <button id="course-access-retry" class="pb-secondary" type="button" hidden>Try again</button>
+    <button id="course-refresh" type="button" class="pb-secondary cm-refresh" data-page-content-refresh>Refresh Courses</button>
+    <section id="course-workspace" class="cm-workspace cm-unified-workspace" aria-label="Course management" hidden>
+      <div id="course-tabs" class="cm-tabs" role="tablist" aria-label="Course sections"></div>
+      <section id="course-list-panel" class="cm-sidebar" role="tabpanel" aria-labelledby="cm-tab-list" aria-label="List of courses">
+        <div class="cm-list-toolbar"><strong id="course-count">Courses</strong><button id="course-new" type="button">+ New Course</button></div>
+        <label class="cm-search">Find a Course<input id="course-search" type="search" placeholder="Search by name…" autocomplete="off"></label>
+        <label class="cm-status-filter">Status<select id="course-status-filter"><option value="AVAILABLE" selected>Current courses</option><option value="">Show all (including archived/cancelled)</option><option>DRAFT</option><option>PUBLISHED</option><option>ACTIVE</option><option>COMPLETE</option><option>CANCELLED</option><option>ARCHIVED</option></select></label>
+        <div id="course-list" class="cm-list" role="region" aria-label="Course list" tabindex="0"></div>
+      </section>
+      <div id="course-editor" class="cm-editor" role="tabpanel"><div class="cm-empty"><h2>Select a course</h2></div></div>
+    </section>
+    <p id="course-message" class="cm-message" role="status" aria-live="polite"></p>
+    <dialog id="course-dialog" class="cm-dialog" aria-labelledby="course-dialog-title"></dialog>
+  </main>
+  <script src="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/js/m4l-lesson-media-cache.js?v=109.18"></script><script src="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/js/m4l-library-cache.js?v=109.18"></script><script src="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/js/m4l-lesson-pdf-library.js?v=109.18"></script><script src="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/js/m4l-lesson-media.js?v=109.18"></script>
+  <script src="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/js/m4l-config.js?v=109.18"></script>
+  <script src="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/js/m4l-enrolment-common.js?v=109.18"></script><script src="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/js/m4l-enrolment-admin.js?v=109.18"></script><script src="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/js/m4l-enrolment-workspace.js?v=109.18"></script>
+  <script src="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/js/m4l-course-media.js"></script><script src="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/js/m4l-course-participants.js"></script><script src="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/js/m4l-time.js?v=109.18"></script><script src="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/js/m4l-studio-access.js?v=eb34f1cdd3"></script><script src="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/js/m4l-academy-course-management.js?v=e97079cbff"></script>
+  <script src="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/js/m4l-academy-navigation.js?v=109.18"></script>
+<script src="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/js/m4l-academy-mobile.js?v=109.18"></script>
+<script src="/_assets/28cee212cf1054da8c95449b2499717c519cf2c0a7201aea2c5e69305bcb9777/js/m4l-academy-page-actions.js?v=109.18"></script>
+</body>
+</html>
