@@ -1,0 +1,177 @@
+name: Protected read-only JWT Feature final fences
+on:
+  push:
+    branches: [studio_dev, validation/jwt-feature-final-fence-control-20261107]
+  pull_request:
+    branches: [studio_dev]
+  workflow_dispatch:
+    inputs:
+      approval_pr:
+        type: string
+        required: true
+      approval_merge_sha:
+        type: string
+        required: true
+permissions:
+  contents: read
+  actions: read
+  statuses: read
+  pull-requests: read
+defaults:
+  run:
+    shell: bash
+concurrency:
+  group: feature-isolation-${{ github.ref }}
+  cancel-in-progress: false
+# Canonical is a PUBLIC loader only. The unchanged selected Feature workflow owns private execution.
+jobs:
+  check:
+    outputs:
+      selected: ${{ steps.selection.outputs.selected }}
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: canonical
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - id: selection
+        name: Verify the explicit component plan without changing canonical settings
+        working-directory: canonical
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {readFileSync,appendFileSync} from 'node:fs';
+          import {validatePlan} from './tools/approved-deployment.mjs';
+          const p=JSON.parse(readFileSync('deployment/release-plan.json','utf8'));
+          const selected=p.request==='jwt-feature-readonly-final-fence-execution-20261107a';
+          if(selected){
+           validatePlan(p,'MaktabForlife/Academy',['deployment/release-plan.json']);
+           assert.equal(p.kind,'component');assert.equal(p.target,'feature');assert.equal(p.contains_jwt,true);assert.equal(p.database_changes,false);assert.equal(p.version,'110.37');
+           assert.equal(p.feature_sha,'a34715f37939051d87356f870ca09ca92f8eb543');assert.equal(p.feature_base_sha,'e682301619ec20d65f5530948bb664529c1440dc');
+          }
+          appendFileSync(process.env.GITHUB_OUTPUT,'selected='+selected+'\n');
+          console.log(JSON.stringify({selected,cloudflareCalls:0,hostedDatabaseCalls:0}));
+          NODE
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        if: steps.selection.outputs.selected == 'true'
+        with:
+          ref: a34715f37939051d87356f870ca09ca92f8eb543
+          path: prepared
+          persist-credentials: false
+      - name: Check the immutable Feature wrapper in its own reviewed dependency tree
+        if: steps.selection.outputs.selected == 'true'
+        working-directory: prepared
+        run: |
+          set -euo pipefail
+          node --check backend/tools/jwt-feature-readonly-final-fence.mjs
+          node --check backend/tools/jwt-feature-readonly-final-fence-approved.mjs
+          node --test --test-reporter=tap backend/tests/jwt-feature-readonly-final-fence-approved.test.mjs | tee "$RUNNER_TEMP/wrapper-tests.tap"
+      - name: Current-head public package proof against the literal prepared source
+        if: steps.selection.outputs.selected == 'true'
+        working-directory: canonical
+        run: |
+          set -euo pipefail
+          cat >"$RUNNER_TEMP/final-fence-public-package.test.mjs" <<'NODE'
+          import test from 'node:test';
+          import assert from 'node:assert/strict';
+          import {readFileSync,writeFileSync} from 'node:fs';
+          import {resolve} from 'node:path';
+          import {pathToFileURL} from 'node:url';
+          import {execFileSync} from 'node:child_process';
+          import {createHash} from 'node:crypto';
+          const prepared='a34715f37939051d87356f870ca09ca92f8eb543',frozen='6525c8f7b6613d10c0626420d743c357616b479c';
+          const wfPath='.github/workflows/feature-jwt-readonly-final-fence.yml';
+          const {validatePlan}=await import(pathToFileURL(resolve('tools/approved-deployment.mjs')).href);
+          const w=await import(pathToFileURL(resolve('../prepared/backend/tools/jwt-feature-readonly-final-fence-approved.mjs')).href);
+          const bytes=readFileSync('deployment/release-plan.json'),plan=JSON.parse(bytes);
+          function check(p){
+           assert.deepEqual(Object.keys(p).sort(),['schema','request','kind','target','contains_jwt','database_changes','version','feature_sha','feature_base_sha'].sort());
+           validatePlan(p,'MaktabForlife/Academy',['deployment/release-plan.json',wfPath]);
+           assert.equal(p.request,'jwt-feature-readonly-final-fence-execution-20261107a');assert.equal(p.kind,'component');assert.equal(p.target,'feature');
+           assert.equal(p.contains_jwt,true);assert.equal(p.database_changes,false);assert.equal(p.version,'110.37');
+           assert.equal(p.feature_sha,prepared);assert.equal(p.feature_base_sha,'e682301619ec20d65f5530948bb664529c1440dc');
+           const proof={plan:p,pr:123};w.assertScope(proof,{body:w.scopeLines(prepared).join('\n')},{source:prepared,prNumber:123});
+          }
+          test('exact canonical plan binds only the selected Feature component and rejects caller additions/target/budget drift',()=>{
+           check(plan);
+           for(const mutate of [p=>p.target='production',p=>p.database_changes=true,p=>p.feature_sha='f'.repeat(40),p=>p.feature_base_sha='f'.repeat(40),p=>p.caller_url='https://unrelated.invalid',p=>p.version='109.25']){
+            const p=structuredClone(plan);mutate(p);assert.throws(()=>check(p));
+           }
+           const body=w.scopeLines(prepared).join('\n');
+           assert.throws(()=>w.assertScope({plan,pr:123},{body:body.replace('provider-gets: 4','provider-gets: 5')},{source:prepared,prNumber:123}));
+          });
+          test('separate literal prepared checkout preserves frozen source and both reviewed effects digests',()=>{
+           const git=(...args)=>execFileSync('git',args,{cwd:'../prepared',encoding:'utf8'}).trim();
+           assert.equal(git('rev-parse','HEAD'),prepared);
+           for(const [path,blob]of Object.entries(w.executionPlan.frozenBlobs))assert.equal(git('rev-parse','HEAD:'+path),blob);
+           assert.equal(w.executionPlan.frozenControllerSource,frozen);
+           assert.equal(w.executionPlanSHA256,'8ba480b08e99922c14a8c16b1606aec11228b2fb3acaec174ca81a95f0b850be');
+           assert.equal(w.executionPlan.effectsSHA256,'c74b94aa997ad0f9786afe647c34510b3abdeef2050177c7828a6a132dacb1c7');
+           assert.equal(w.executionPlan.workflow,wfPath);
+          });
+          test('canonical loader registers exact dispatch identity but contains public check/source-preparation jobs only',()=>{
+           const wf=readFileSync(wfPath,'utf8'),privateWf=readFileSync('../prepared/'+wfPath,'utf8');
+           const header=wf.slice(0,wf.indexOf('jobs:\n')),privateHeader=privateWf.slice(0,privateWf.indexOf('jobs:\n'));
+           for(const s of ['workflow_dispatch:','approval_pr:','approval_merge_sha:']){assert(header.includes(s));assert(privateHeader.includes(s));}
+           assert(!/^\s+environment\s*:/m.test(wf));assert(!wf.includes('secrets.'+'CF_FEATURE_DEPLOY_TOKEN'));
+           const jobs=wf.slice(wf.indexOf('jobs:\n')).match(/^  [a-z_]+:/gm).map(x=>x.trim());assert.deepEqual(jobs,['check:','prepare:']);
+           const prep=wf.slice(wf.search(/^  prepare:$/m));
+           assert(prep.includes('working-directory: canonical'));assert(prep.includes('node ../prepared/backend/tools/jwt-feature-readonly-final-fence-approved.mjs promote'));
+           assert(!prep.includes(' '+'execute'));assert(!prep.includes('dispatches'));
+           assert.equal((wf.match(new RegExp('ref: '+prepared,'g'))||[]).length,2);
+           assert(privateWf.includes('environment: feature'));assert(privateWf.includes('needs: validate'));
+          });
+          const actual=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
+          assert.equal(actual,process.env.GITHUB_SHA);
+          writeFileSync(resolve(process.env.RUNNER_TEMP,'selected-source.json'),JSON.stringify({
+           canonicalPackageHead:actual,selectedFeatureSource:prepared,frozenController:frozen,
+           effectsSHA256:w.executionPlan.effectsSHA256,executionPlanSHA256:w.executionPlanSHA256,
+           releasePlanSHA256:createHash('sha256').update(bytes).digest('hex'),scopeLines:w.scopeLines(prepared),
+           canonicalLoaderOnly:true,privateDispatch:false,cloudflareCalls:0,hostedDatabaseCalls:0
+          },null,2)+'\n');
+          NODE
+          node --test --test-reporter=tap "$RUNNER_TEMP/final-fence-public-package.test.mjs" | tee "$RUNNER_TEMP/package-tests.tap"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always() && steps.selection.outputs.selected == 'true'
+        with:
+          name: jwt-final-fence-component-package-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/wrapper-tests.tap
+            ${{ runner.temp }}/package-tests.tap
+            ${{ runner.temp }}/selected-source.json
+          if-no-files-found: warn
+          retention-days: 30
+  prepare:
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/studio_dev' && needs.check.outputs.selected == 'true'
+    permissions:
+      contents: write
+      actions: read
+      statuses: read
+      pull-requests: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: canonical
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: a34715f37939051d87356f870ca09ca92f8eb543
+          path: prepared
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - name: Exact protected source fast-forward only, never dispatch or hosted inspection
+        working-directory: canonical
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node ../prepared/backend/tools/jwt-feature-readonly-final-fence-approved.mjs promote
