@@ -1,21 +1,16 @@
-name: JWT Feature finalisation source-only checks
+name: JWT upload ACK primitive source tests only
 on:
-  push:
-    branches: [validation/jwt-feature-finalisation-20261107]
-  pull_request:
-    branches: [studio_dev]
+  workflow_dispatch:
 permissions:
   contents: read
 defaults:
   run:
     shell: bash
-concurrency:
-  group: jwt-finalisation-source-${{ github.ref }}
-  cancel-in-progress: false
 jobs:
   check:
+    if: github.ref == 'refs/heads/validation/jwt-upload-ack-primitive-20261107'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -23,15 +18,15 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "24.18.0"
-      - name: Local Node mocks/schema fixtures only; no credentials or hosted requests
+      - name: Standalone parser and exclusive runner-file checks; no Wrangler install or execution
         run: |
           set -euo pipefail
-          node --check backend/tools/jwt-feature-install-metadata.mjs
-          node --check backend/tools/jwt-feature-finalise.mjs
-          node --test --test-reporter=tap backend/tests/jwt-feature-finalise.test.mjs backend/tests/jwt-feature-install-package.test.mjs | tee finalisation-tests.tap
+          node --check backend/tools/jwt-feature-upload-ack.mjs
+          node --test --test-reporter=tap backend/tests/jwt-feature-upload-ack.test.mjs | tee "$RUNNER_TEMP/ack-tests.tap"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: jwt-finalisation-source-check-${{ github.run_id }}
-          path: finalisation-tests.tap
+          name: jwt-upload-ack-source-${{ github.run_id }}
+          path: ${{ runner.temp }}/ack-tests.tap
+          if-no-files-found: warn
           retention-days: 30
