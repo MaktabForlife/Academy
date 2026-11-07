@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "state": "SOURCE_ONLY_NOT_PROMOTION_OR_EXECUTION_AUTHORITY",
+  "request": "jwt-feature-readonly-final-fence-execution-20261107a",
+  "repository": "MaktabForlife/Academy",
+  "actor": "MaktabForlife",
+  "canonicalAtPreparation": "eb9a8abde5e639d30388a5300d9ec2845af9dbe4",
+  "featureBase": "e682301619ec20d65f5530948bb664529c1440dc",
+  "frozenControllerSource": "6525c8f7b6613d10c0626420d743c357616b479c",
+  "frozenBlobs": {
+    ".github/workflows/jwt-feature-readonly-final-fence-source.yml": "057cfca5d3b996f64b1f3d6bf1cd2e0c1dcc0793",
+    "backend/tests/jwt-feature-readonly-final-fence.test.mjs": "8df10bd72ca4eb22fb1188e314f424bc99f9cacc",
+    "backend/tools/jwt-feature-readonly-final-fence.mjs": "35d8a46ebe6c9f0c2c3ee8dd8271acc2e48dede4",
+    "deployment/JWT-FEATURE-READONLY-FINAL-FENCE.md": "8400dbf6af58e0784a60c23facefdd471b3a9254",
+    "deployment/jwt-feature-accepted-main-observation.json": "66952d7c791090bc384a76277286efed572af5d1",
+    "deployment/jwt-feature-readonly-final-fence.json": "c5b2bcc784e4d387b4684bb6cab998989cfda318"
+  },
+  "effectsSHA256": "c74b94aa997ad0f9786afe647c34510b3abdeef2050177c7828a6a132dacb1c7",
+  "workflow": ".github/workflows/feature-jwt-readonly-final-fence.yml",
+  "version": "110.37",
+  "allowance": {
+    "priorExplicitGets": 56,
+    "maximumNewProviderGetAttempts": 4,
+    "originalProviderGetCap": 60,
+    "priorInstallerAndCleanupHTTPAttempts": 5,
+    "maximumNewPausedGetAttempts": 3,
+    "originalInstallerAndCleanupHTTPCap": 8,
+    "retries": 0,
+    "hostedWrites": 0
+  },
+  "spentPR14": {
+    "workflow": "feature-jwt-main-postpatch-inspect.yml",
+    "run": 42358703100,
+    "attempt": 1,
+    "source": "e682301619ec20d65f5530948bb664529c1440dc",
+    "state": "SPENT_NO_REPLAY"
+  },
+  "lease": "jwt-feature-readonly-final-fence-execution-20261107a",
+  "execution": {
+    "maxAttemptsAcrossAllHeads": 1,
+    "publicPreparationDoesNotDispatch": true,
+    "independentSourcePreparedGateRequired": true,
+    "checkBeforePrivateEnvironment": true,
+    "freshBeforeCredential": true,
+    "freshBeforeEveryActualFetch": true,
+    "freshFinalBoundary": true,
+    "writer": "createSyncFinalFenceReceiptWriter",
+    "receiptFilename": "final-fence-verification.json",
+    "exclusiveRunDirectory": true,
+    "callerSuppliedPaths": false,
+    "callerSuppliedURLs": false
+  },
+  "limits": {
+    "production": false,
+    "existingStores": false,
+    "cleanupVerified": false,
+    "mainOwnedVersionAdopted": false,
+    "codeContentVerified": false,
+    "keyMaterialVerified": false,
+    "assetRoutingVerified": false,
+    "atomicMetadata": false,
+    "activated": false,
+    "futureWriteClearance": false,
+    "unknownAccountingNeverReusable": true
+  }
+}
