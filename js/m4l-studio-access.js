@@ -30,10 +30,10 @@
   if(!p.data)p.root.innerHTML='<h3>Learning access</h3><p data-access-status role="status">Loading access…</p>';
   try{const data=await api(p.activityKey,{action:'read',after:p.after,...(p.accountId?{accountId:p.accountId}:{}),...(!refresh&&saved?{known:{revision:saved.revision,after:p.after,accountId:p.accountId}}:{})});
    if(selection!==JSON.stringify([p.after,p.accountId])||loadOwner!==owner||loadOwner!==localStorage.getItem('m4l_account_token'))return;
-   p.lastReadError=false;p.data=data.notModified?{...saved,...(data.coursePolicy?{coursePolicy:data.coursePolicy}:{}),...(data.liveAllocation?{liveAllocation:data.liveAllocation}:{})}:data;if(!data.notModified)cache.set(p.activityKey+selection,data);p.dirty=false;p.policyDirty=false;p.liveDirty=false;p.liveWindow=null;render(p);if(p.data.kind==='TAFSEER'&&new URLSearchParams(location.search).get('participants')==='access'&&!p.openedTables){p.openedTables=true;void Promise.resolve().then(()=>click(p,{target:p.root.querySelector('[data-access-action=tables]')}));}
+   p.lastReadError=false;p.lastError=null;p.data=data.notModified?{...saved,...(data.coursePolicy?{coursePolicy:data.coursePolicy}:{}),...(data.liveAllocation?{liveAllocation:data.liveAllocation}:{})}:data;if(!data.notModified)cache.set(p.activityKey+selection,data);p.dirty=false;p.policyDirty=false;p.liveDirty=false;p.liveWindow=null;render(p);if(p.data.kind==='TAFSEER'&&new URLSearchParams(location.search).get('participants')==='access'&&!p.openedTables){p.openedTables=true;void Promise.resolve().then(()=>click(p,{target:p.root.querySelector('[data-access-action=tables]')}));}
    legacyControls(p,p.data.ownership?.authority==='WEBSITE'||p.data.blocked);
    if(p.data.coursePolicy&&p.data.ownership?.authority==='WEBSITE'&&panels.get(p.activityKey)===p&&owner===loadOwner)window.dispatchEvent(new window.CustomEvent('m4l-course-policy-saved',{detail:{activityKey:p.activityKey,coursePolicy:p.data.coursePolicy}}));
-  }catch(error){p.lastReadError=true;if([401,403].includes(error.status)){deny(p);return;}if(!p.data||p.data.legacyOnly||p.data.blocked){p.root.hidden=false;p.root.innerHTML='<h3>Learning access</h3><p data-access-status role="status"></p>';legacyControls(p,error.status!==404);}tell(p,error.code==='STUDIO_SCOPE_UNMAPPED'?'This programme continues to use Academy access controls.':error.message);p.unmapped=error.status===404;if(p.unmapped)p.root.hidden=true;}
+  }catch(error){p.lastReadError=true;p.lastError=error;if([401,403].includes(error.status)){deny(p);return;}if(!p.data||p.data.legacyOnly||p.data.blocked){p.root.hidden=false;p.root.innerHTML='<h3>Learning access</h3><p data-access-status role="status"></p>';legacyControls(p,error.status!==404);}tell(p,error.code==='STUDIO_SCOPE_UNMAPPED'?'This programme continues to use Academy access controls.':error.message);p.unmapped=error.status===404;if(p.unmapped)p.root.hidden=true;}
   finally{p.busy=false;}
  }
  const checked=value=>value?' checked':'';
@@ -121,7 +121,42 @@
   catch(error){if(!p.root.querySelector('[data-access-action="resume"]'))p.root.insertAdjacentHTML('beforeend','<button type="button" data-access-action="resume">Retry pending enrolment</button>');throw error;}
  }
  async function ensure(host,activityKey){const hadData=Boolean(panels.get(activityKey)?.data),hadError=Boolean(panels.get(activityKey)?.lastReadError),p=attach(host,activityKey);if(p?.loading)await p.loading;if(hadError||hadData&&p?.data?.legacyOnly)await load(p,{refresh:true});if(p?.lastReadError)return p.unmapped?'ACADEMY':'UNAVAILABLE';return p?.data?.ownership?.authority||(p?.unmapped?'ACADEMY':'UNAVAILABLE');}
- window.M4L_STUDIO_ACCESS={attach,ensure,reset,canLeave};
+ // A Course-list setting uses this same checked policy editor and save path.
+ // No list render or ownership hint can authorise a write.
+ async function editCoursePolicy(host,activityKey,model,{current=()=>true}={}){
+  if(!['FREE','PAID'].includes(model)||!current()||!canLeave())throw Error('Finish current edits before changing Course access.');
+  const actor=tokenForTables(),hadData=Boolean(panels.get(activityKey)?.data),p=attach(host,activityKey);
+  if(p?.loading)await p.loading;
+  if(hadData)await load(p,{refresh:true});
+  const live=()=>current()&&actor===owner&&actor===tokenForTables()&&panels.get(activityKey)===p;
+  if(!live())throw Error('Your account or selected Course changed.');
+  if(p.lastReadError)throw p.lastError||Error('The current Course access could not be checked.');
+  if(p.data?.kind!=='COURSE'||p.data.ownership?.authority!=='WEBSITE'||p.data.ownership?.phase!=='COMMITTED'||!p.data.coursePolicy)throw Error('This Course access is not currently editable in Studio. Keep using its checked owning controls.');
+  const field=p.root.querySelector('[data-access-policy] select');
+  if(!field)throw Error('Reopen the current Course access controls.');
+  for(const option of field.querySelectorAll('option'))option.toggleAttribute('selected',option.value===model);p.policyDirty=model!==p.data.coursePolicy.model;
+  // The list already chose the model: this dialog confirms that fixed choice.
+  field.disabled=true;
+  return {
+   canLeave:()=>!p.busy&&!p.policyPending,
+   discard(){if(p.busy||p.policyPending)throw Error('Retry the pending Course access change first.');if(panels.get(activityKey)===p){p.root.remove();panels.delete(activityKey);}},
+   async save(){
+    if(!live()||p.busy)throw Error('Your account or selected Course changed.');
+    p.busy=true;
+    try{
+     await savePolicy(p);
+     if(!live())throw Error('Your account or selected Course changed.');
+     if(p.lastReadError)throw p.lastError||Error('The saved Course access needs a fresh checked read.');
+     if(p.data?.coursePolicy?.model!==model)throw Error('The saved Course access could not be confirmed. Reopen its current records.');
+     return p.data.coursePolicy;
+    }catch(error){
+     if(['CHANGE_CONFLICT','ROW_CHANGED','RETRY_CONFLICT'].includes(error.code)&&live())await load(p,{refresh:true});
+     throw error;
+    }finally{p.busy=false;if(live()){const checkedField=p.root.querySelector('[data-access-policy] select');if(checkedField)checkedField.disabled=true;}}
+   }
+  };
+ }
+ window.M4L_STUDIO_ACCESS={attach,ensure,reset,canLeave,editCoursePolicy};
  window.addEventListener('storage',e=>{if(e.key==='m4l_account_token')reset(true);});
  const checkOwner=()=>{if(owner!==localStorage.getItem('m4l_account_token')&&panels.size)reset(true);};window.addEventListener('pageshow',checkOwner);window.addEventListener('focus',checkOwner);document.addEventListener('visibilitychange',checkOwner);
  window.addEventListener('beforeunload',e=>{if(!canLeave()){e.preventDefault();e.returnValue='';}});

@@ -1,0 +1,277 @@
+{
+  "schema": 1,
+  "repository": "MaktabForlife/Academy",
+  "canonical": "d36a52f59a1bed45c56d4e7d98400273905fecef",
+  "canonicals": {
+    "MaktabForlife/Academy": "d36a52f59a1bed45c56d4e7d98400273905fecef",
+    "MaktabForlife/AcademyStudio": "9a8c117e9279a2b67e62eb044be4da989db4a096"
+  },
+  "components": [
+    {
+      "pr": 6,
+      "head": "10daaea36e0972650c5c0bf719a4a41c940c4e22"
+    },
+    {
+      "pr": 7,
+      "head": "74c1ab74d548dd0b0a5ae14e3042ead7e6c3b09d"
+    },
+    {
+      "pr": 8,
+      "head": "667bb12a9135aa6a1b5df60a8696d384ae5bdf93"
+    },
+    {
+      "pr": 12,
+      "head": "8624eede5a7757898992c01e73d6b09dfed1f4b5"
+    }
+  ],
+  "pathInputs": {
+    "academy/courses/manage/index.html": [
+      {
+        "pr": 6,
+        "head": "10daaea36e0972650c5c0bf719a4a41c940c4e22",
+        "blob": "effedbc2c0ddb695ac8a42c7e1ed8ff7dfdc41bf"
+      }
+    ],
+    "backend/tests/academy-course-management-ui.test.mjs": [
+      {
+        "pr": 6,
+        "head": "10daaea36e0972650c5c0bf719a4a41c940c4e22",
+        "blob": "32386c6e4b3c2ea71b0fcf232f32e1198d53640f"
+      }
+    ],
+    "backend/tests/academy-studio-access-ui.test.mjs": [
+      {
+        "pr": 6,
+        "head": "10daaea36e0972650c5c0bf719a4a41c940c4e22",
+        "blob": "40d1c6c2399fc1484a43e78eb431486689704925"
+      }
+    ],
+    "css/m4l-academy-course-management.css": [
+      {
+        "pr": 6,
+        "head": "10daaea36e0972650c5c0bf719a4a41c940c4e22",
+        "blob": "22a01da31f07c67abf64995844a7cba8708baf2a"
+      }
+    ],
+    "js/m4l-academy-course-management.js": [
+      {
+        "pr": 6,
+        "head": "10daaea36e0972650c5c0bf719a4a41c940c4e22",
+        "blob": "5af0b3cec5a07d0f06685bc1610da43e2fedda08"
+      }
+    ],
+    "js/m4l-academy-page-actions.js": [
+      {
+        "pr": 6,
+        "head": "10daaea36e0972650c5c0bf719a4a41c940c4e22",
+        "blob": "36b63da3298512420a2a655377a5c3533c2adee9"
+      },
+      {
+        "pr": 8,
+        "head": "667bb12a9135aa6a1b5df60a8696d384ae5bdf93",
+        "blob": "36b63da3298512420a2a655377a5c3533c2adee9"
+      }
+    ],
+    "js/m4l-studio-access.js": [
+      {
+        "pr": 6,
+        "head": "10daaea36e0972650c5c0bf719a4a41c940c4e22",
+        "blob": "7585e860abc8c132a88517f04b8ef69977166aa1"
+      }
+    ],
+    "tools/course-list-ui-check.mjs": [
+      {
+        "pr": 6,
+        "head": "10daaea36e0972650c5c0bf719a4a41c940c4e22",
+        "blob": "110fd2ae0b95f40cc35c200923cd493ae6c813bd"
+      }
+    ],
+    "backend/tests/academy-workspace-client.test.mjs": [
+      {
+        "pr": 7,
+        "head": "74c1ab74d548dd0b0a5ae14e3042ead7e6c3b09d",
+        "blob": "0c5285b71883e8d7b71aa25073170b1464d2d921"
+      }
+    ],
+    "backend/tests/course-reader-entry.test.mjs": [
+      {
+        "pr": 7,
+        "head": "74c1ab74d548dd0b0a5ae14e3042ead7e6c3b09d",
+        "blob": "c26b8d31376c390eb64db5db56b964a60c2a579a"
+      }
+    ],
+    "js/m4l-course-media-view.mjs": [
+      {
+        "pr": 7,
+        "head": "74c1ab74d548dd0b0a5ae14e3042ead7e6c3b09d",
+        "blob": "d903f694204c532bc25f28d2e1ed7906aa8de2d2"
+      },
+      {
+        "pr": 12,
+        "head": "8624eede5a7757898992c01e73d6b09dfed1f4b5",
+        "blob": "0c94d0d52cbeaaf92c2180a7e81257635245727a"
+      },
+      {
+        "acceptedComposition": "c4033deb417d3465ffdd8cf4e37597f410cb2160",
+        "blob": "3e3a408bc64f67b7376ce23ff915067dc02db233"
+      }
+    ],
+    "js/m4l-course-media.js": [
+      {
+        "pr": 7,
+        "head": "74c1ab74d548dd0b0a5ae14e3042ead7e6c3b09d",
+        "blob": "bd23ba2a9cf25337834c3edcb869ab4c5cdb3483"
+      },
+      {
+        "pr": 12,
+        "head": "8624eede5a7757898992c01e73d6b09dfed1f4b5",
+        "blob": "a355ee66e67886df6780945e685314cfda96b98c"
+      },
+      {
+        "acceptedComposition": "c4033deb417d3465ffdd8cf4e37597f410cb2160",
+        "blob": "19331598d006b612c4b5df32275491a6b06f0205"
+      }
+    ],
+    "js/m4l-existing-media-view.mjs": [
+      {
+        "pr": 7,
+        "head": "74c1ab74d548dd0b0a5ae14e3042ead7e6c3b09d",
+        "blob": "f2cfc4e9a04d9e20d85556991a803bb808a66935"
+      }
+    ],
+    "tools/original-reader-ui-check.mjs": [
+      {
+        "pr": 7,
+        "head": "74c1ab74d548dd0b0a5ae14e3042ead7e6c3b09d",
+        "blob": "b0d545b579a0cb4b5d4e31f90e17bcd4198c0ad3"
+      }
+    ],
+    "academy/library/index.html": [
+      {
+        "pr": 8,
+        "head": "667bb12a9135aa6a1b5df60a8696d384ae5bdf93",
+        "blob": "cae66531676d40e75119e8e148d17e0263ffeaa2"
+      }
+    ],
+    "academy/website-platform/circles-return.mjs": [
+      {
+        "pr": 8,
+        "head": "667bb12a9135aa6a1b5df60a8696d384ae5bdf93",
+        "blob": "68bfce35caf8f8d87c1ba6250c93d03574708bfd"
+      }
+    ],
+    "backend/tests/circles-app-same-tab.test.mjs": [
+      {
+        "pr": 8,
+        "head": "667bb12a9135aa6a1b5df60a8696d384ae5bdf93",
+        "blob": "1e14aedd6d7c1c1ae2224fc93e4dbf952fd68532"
+      }
+    ],
+    "js/m4l-academy-library.js": [
+      {
+        "pr": 8,
+        "head": "667bb12a9135aa6a1b5df60a8696d384ae5bdf93",
+        "blob": "fe61e633e7e89c6d3f7e8f824eda3cb3472cc112"
+      }
+    ],
+    "portal-adapter/circles-sign-in.mjs": [
+      {
+        "pr": 8,
+        "head": "667bb12a9135aa6a1b5df60a8696d384ae5bdf93",
+        "blob": "dc78a325991ca4142e81f2dbb2668763fb17b65a"
+      }
+    ],
+    "portal/shared/circles-sign-in.mjs": [
+      {
+        "pr": 8,
+        "head": "667bb12a9135aa6a1b5df60a8696d384ae5bdf93",
+        "blob": "dc78a325991ca4142e81f2dbb2668763fb17b65a"
+      }
+    ],
+    "tools/app-navigation-ui-check.mjs": [
+      {
+        "pr": 8,
+        "head": "667bb12a9135aa6a1b5df60a8696d384ae5bdf93",
+        "blob": "8c19527111fbef01a22fd716bfa32a67d83dd52d"
+      }
+    ],
+    "backend/src/academy/d1/web-platform/studio-admin.mjs": [
+      {
+        "pr": 12,
+        "head": "8624eede5a7757898992c01e73d6b09dfed1f4b5",
+        "blob": "fc360d716986cc64c76480b1a89566f3fbf712ec"
+      }
+    ],
+    "backend/src/academy/d1/web-platform/video-processing.mjs": [
+      {
+        "pr": 12,
+        "head": "8624eede5a7757898992c01e73d6b09dfed1f4b5",
+        "blob": "dea911933cd6ac394617182ee90d1962e70be336"
+      }
+    ],
+    "backend/src/academy/d1/worker.js": [
+      {
+        "pr": 12,
+        "head": "8624eede5a7757898992c01e73d6b09dfed1f4b5",
+        "blob": "ad122c3ebfdeda7f56ca30a4897321a5d35c5b2b"
+      }
+    ],
+    "backend/tests/academy-video-processing-package.test.mjs": [
+      {
+        "pr": 12,
+        "head": "8624eede5a7757898992c01e73d6b09dfed1f4b5",
+        "blob": "2bed77bfe2ecc04f533343a98c8ad8f72e2e5cd5"
+      }
+    ],
+    "backend/tests/academy-video-processing-transport.test.mjs": [
+      {
+        "pr": 12,
+        "head": "8624eede5a7757898992c01e73d6b09dfed1f4b5",
+        "blob": "7587dc1de109016445034318ce629a4a5e07c2fa"
+      }
+    ],
+    "css/m4l-media-attachment.css": [
+      {
+        "pr": 12,
+        "head": "8624eede5a7757898992c01e73d6b09dfed1f4b5",
+        "blob": "d7e98f8fbad9cecc987121ba5209cd10267558a9"
+      }
+    ],
+    "js/m4l-media-admin-panel.mjs": [
+      {
+        "pr": 12,
+        "head": "8624eede5a7757898992c01e73d6b09dfed1f4b5",
+        "blob": "aacf4c05739260b13e44d9cb9bc33ca356db504e"
+      }
+    ],
+    "js/m4l-media-workflow.mjs": [
+      {
+        "pr": 12,
+        "head": "8624eede5a7757898992c01e73d6b09dfed1f4b5",
+        "blob": "78fb696d58d77bcd55a092c42f9bbf48d3f2d664"
+      }
+    ],
+    "js/m4l-ui-escape.mjs": [
+      {
+        "pr": 12,
+        "head": "8624eede5a7757898992c01e73d6b09dfed1f4b5",
+        "blob": "7acf5de7de6c06ac6227172e77978535fcb969d8"
+      }
+    ],
+    "js/m4l-video-processing.mjs": [
+      {
+        "pr": 12,
+        "head": "8624eede5a7757898992c01e73d6b09dfed1f4b5",
+        "blob": "50c809b3afc4a9403663335af9f2c5bcafab8816"
+      }
+    ]
+  },
+  "preservedControls": [
+    "tools/approved-deployment.mjs",
+    ".github/workflows/paired-check.yml",
+    "config/hosting.json"
+  ],
+  "hostedOperations": 0,
+  "existingStoresChanged": false,
+  "deployable": false
+}
