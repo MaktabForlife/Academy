@@ -6,6 +6,6 @@
   "contains_jwt": true,
   "database_changes": false,
   "version": "110.38",
-  "feature_sha": "b9e0bc7b46544098d2db25d56b9b08b5c5907174",
+  "feature_sha": "fb3585edff11787b3243b2f75a0f6dd5f0d72c1e",
   "feature_base_sha": "a34715f37939051d87356f870ca09ca92f8eb543"
 }
