@@ -134,7 +134,8 @@ export async function activationApproval({api,mergeSha,prNumber,context,localGua
  const window=await fresh();return {proof,window,fresh};
 }
 export async function preparePublicSource({api,mergeSha,expectedCandidate,localGuard,resolveProof=resolveApproval}){
- const proof=await resolveProof({repo,mergeSha,api});assertScope(proof,await api('/repos/'+repo+'/issues/comments/'+proof.commentId));
+ const canonicalFiles=[];const proofAPI=async(path,options)=>{const value=await api(path,options);if(/\/pulls\/[0-9]+\/files\?/.test(path))canonicalFiles.push(...value.map(x=>x.filename));return value;};
+ const proof=await resolveProof({repo,mergeSha,api:proofAPI});if(resolveProof===resolveApproval)assert.deepEqual(canonicalFiles.sort(),[workflowPath,'deployment/release-plan.json'].sort(),'EXACT_CANONICAL_CONTROL_FILES_REQUIRED');assertScope(proof,await api('/repos/'+repo+'/issues/comments/'+proof.commentId));
  assert.equal(proof.plan.feature_sha,expectedCandidate);await localGuard();await assertPreparedSource(api,proof.plan);
  const history=await api('/repos/'+repo+'/actions/workflows/'+workflowPath.split('/').at(-1)+'/runs?event=workflow_dispatch&per_page=100');
  assert.equal(history.total_count,0);assert.deepEqual(history.workflow_runs,[],'NEW_WINDOW_ALREADY_ATTEMPTED');

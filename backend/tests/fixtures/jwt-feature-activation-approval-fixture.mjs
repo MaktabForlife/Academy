@@ -17,7 +17,7 @@ export function fixture({publicMode=false}={}){
  f.api=async(path,options={})=>{
   f.calls.push(path);
   if(options.method){assert.equal(options.method,'PATCH');assert.equal(path,'/repos/MaktabForlife/Academy/git/refs/heads/feature-preview');assert.deepEqual(options.body,{sha:source,force:false});f.writes.push(path);f.featureHead=source;return {};}
-  if(path.includes('/commits/'+merge+'/pulls'))return [{state:'closed',merge_commit_sha:merge,base:{ref:'studio_dev'}}];
+  if(path.includes('/commits/'+merge+'/pulls'))return [{number:101,state:'closed',merge_commit_sha:merge,base:{ref:'studio_dev'}}];
   if(path.endsWith('/pulls/101'))return {number:101,state:'closed',merged:true,merged_at:new Date(now-5000).toISOString(),merged_by:{login:'MaktabForlife'},merge_commit_sha:merge,base:{ref:'studio_dev',repo:{full_name:context.repository}},head:{sha:head},html_url:'https://github.com/MaktabForlife/Academy/pull/101',changed_files:2};
   if(path.includes('/pulls/101/files'))return [{filename:'deployment/release-plan.json'},{filename:workflowPath}];
   if(path.endsWith('/git/commits/'+merge))return {sha:merge,tree:{sha:'f'.repeat(40)}};
