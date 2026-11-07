@@ -154,7 +154,7 @@ export function publishActivation({context:c,runnerTemp,executorOutcome}){
  }
  const dir=resolve(runnerTemp,'jwt-activation-artifact-'+c.runId+'-1');mkdirSync(dir,{recursive:false,mode:0o700});privateJSONFile(dir,'activation.json',{value:out,exclusive:true});return out;
 }
-async function main(){
+async function activationCLI(){
  assert.equal(process.env.GITHUB_ACTIONS,'true');assert.equal(process.env.ACTIVATION_PLAN_SHA256,planSHA256);const c=cliContext(),mode=process.argv[2];
  if(mode==='publish'){let outcome=process.env.EXECUTOR_OUTCOME;try{await localSourceGuard(c.source)();}catch{outcome='failure';}const out=publishActivation({context:c,runnerTemp:process.env.RUNNER_TEMP,executorOutcome:outcome});console.log(JSON.stringify({state:out.state,runtimeState:out.runtimeState,activationAccepted:out.activationAccepted}));return;}
  if(mode==='assess'){const dir=resolve(process.env.RUNNER_TEMP,'jwt-activation-artifact-'+c.runId+'-1'),r=privateJSONFile(dir,'activation.json');assert.equal(r.activationAccepted,true,'ACTIVATION_NOT_ACCEPTED_SEE_AUTHORISED_RECEIPT');return;}
@@ -162,4 +162,4 @@ async function main(){
  await executeActivation({client,context:c,runnerTemp:process.env.RUNNER_TEMP,mergeSha:process.env.APPROVAL_MERGE_SHA,prNumber:process.env.APPROVAL_PR,registrationComment:process.env.WINDOW_COMMENT_ID,registrationStatus:process.env.WINDOW_STATUS_ID,preparedRunId:process.env.SOURCE_PREPARATION_RUN_ID,
   getSecrets:()=>{const out={token:process.env.CLOUDFLARE_API_TOKEN,pin:process.env.FEATURE_TEST_ADMIN_PIN};delete process.env.CLOUDFLARE_API_TOKEN;delete process.env.FEATURE_TEST_ADMIN_PIN;return out;}});
 }
-if(process.argv[1]&&resolve(process.argv[1])===new URL(import.meta.url).pathname){try{await main();}catch{console.error('JWT_FEATURE_ACTIVATION_NOT_ACCEPTED_RUNTIME_UNKNOWN_UNLESS_COMPLETE_OWNED_RECOVERY_RECEIPT');process.exitCode=1;}}
+if(process.argv[1]&&resolve(process.argv[1])===new URL(import.meta.url).pathname){try{await activationCLI();}catch{console.error('JWT_FEATURE_ACTIVATION_NOT_ACCEPTED_RUNTIME_UNKNOWN_UNLESS_COMPLETE_OWNED_RECOVERY_RECEIPT');process.exitCode=1;}}
