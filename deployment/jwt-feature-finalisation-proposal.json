@@ -1,0 +1,93 @@
+{
+  "schema": 1,
+  "state": "SOURCE_ONLY_NOT_EXECUTION_AUTHORITY",
+  "request": "jwt-feature-owned-finalisation-20261107a",
+  "sourceBase": "a017f2f30324162e2946b8a32d494fdc10a5d27e",
+  "canonicalAtPreparation": "b99142d3ba4291f49258b55feea17583c9b3b3d1",
+  "account": "c9a3e355b3d7a795880b1d36a1dbe123",
+  "originalSource": "c660e3813908127561ad454ab503f9f66fa6d700",
+  "originalOwner": "42233937167-1",
+  "diagnostic": {
+    "run": 42330165427,
+    "artifact": 13557097809,
+    "sha256": "b77f86ee9790c99c0b5cb498f76a1a66d5f17f41bb0d3cb7f4c02f25d366990c"
+  },
+  "originalInstallation": {
+    "run": 42233937167,
+    "artifact": 13510608672,
+    "sha256": "016a451ebf42005b77167b99abd8909a58dde828db8f896e6cd728d445efd802",
+    "state": "INSTALL_STOPPED",
+    "schemaAndSeed": "HISTORICAL_SOURCE_CONTROL_FLOW_PROOF_ONLY_NOT_NEW_DB_READBACK"
+  },
+  "observedVersions": {
+    "feature_worker": "5701fba2-80f2-40d6-adff-a86fa4f613bc",
+    "academy-feature-split-coordinator": "4704b2cc-c111-4e5b-9f8b-887bd38db650"
+  },
+  "freshNamespaces": {
+    "split": "de95f15f19a54a9e9ba34e6e75f51847",
+    "timetable": "ab05473998dc4e93b792464f9e78e0e9"
+  },
+  "nativeRun": "888155b84c77aae8c72f8ec2f21a0cdff9833476e81d1fbbd10a37cf004665ae",
+  "nativeBaselineRun": "0c7d80b7bce6dffb3891896389f05c98a57972951daf288db053ac68af378212",
+  "databaseIds": [
+    "cdbe97bc-f3d9-400e-8806-ed9a0d143d26",
+    "ed77f2a7-4439-4841-8691-2b41063d8960"
+  ],
+  "publicSigningKey": {
+    "kty": "EC",
+    "crv": "P-256",
+    "kid": "jwt-feature-v110-20261106a-42233937167-1",
+    "x": "1YTMuQdql6hAYaagwHdRRI020C_0uzP9RwZPVY4uIFs",
+    "y": "MpbTL86wuepw6gCCI7dM774_zXsbg3pus2qGnsgah7g"
+  },
+  "effects": {
+    "workerCodeUploads": 0,
+    "coordinatorUploads": 0,
+    "configPatches": 0,
+    "namespaceChanges": 0,
+    "secretPatchAttempts": 1,
+    "secretDeletionNames": [
+      "JWT_FEATURE_SETUP_PIN",
+      "JWT_FEATURE_SETUP_AUTH"
+    ],
+    "preserveOtherSecrets": true,
+    "schemaSeedAndDataOperations": 0,
+    "r2Operations": 0,
+    "credentialGeneration": 0,
+    "activation": false,
+    "automaticFailureRecoveryWrites": 0
+  },
+  "budget": {
+    "priorExplicitGets": 40,
+    "maxAdditionalExplicitGets": 18,
+    "maximumCombinedExplicitGets": 58,
+    "originalHardLimit": 60,
+    "maxPatchAttempts": 1,
+    "maxPausedProbeAttempts": 3,
+    "retries": 0,
+    "hostedD1CallsExpected": 0,
+    "workerProbePaths": [
+      "/__jwt_feature_release",
+      "/internal/feature-jwt-setup/status",
+      "/internal/feature-jwt-setup/schema-status"
+    ],
+    "countsAreFetchAttempts": true,
+    "notBillingOrServerHardCap": true,
+    "priorInstallerWorkerProbes": 1,
+    "priorSchemaSeedHTTPAttempts": 4,
+    "maximumCombinedInstallerAndCleanupHTTPAttempts": 8,
+    "originalInstallerHTTPBudget": 8,
+    "priorSecretBulkPatches": 1,
+    "maximumCombinedSecretBulkPatches": 2
+  },
+  "limits": {
+    "deployedCodeContentVerified": false,
+    "assetRoutingReadbackVerified": false,
+    "metadataObservationsAtomic": false,
+    "serverCASProvided": false,
+    "requiresFreshRootApprovalAndExclusiveLease": true,
+    "liveEntryAndPrivateEnvironmentWorkflow": "NOT_PROVIDED_IN_SOURCE_ONLY_CANDIDATE",
+    "notActivationReceipt": true,
+    "probeD1AndR2Cost": "EXPECTED_ZERO_FROM_REVIEWED_PAUSED_SOURCE_NOT_MEASURED_HOSTED_BILLING"
+  }
+}

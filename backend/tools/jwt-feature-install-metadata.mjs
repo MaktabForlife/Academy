@@ -6,7 +6,10 @@ export function sanitiseSettings(s){
   bindings:(s.bindings||[]).map(b=>{
    if(b.type==='secret_text')return {name:b.name,type:b.type};
    if(b.type==='plain_text')return {name:b.name,type:b.type,text:b.text};
-   if(b.type==='d1')return {name:b.name,type:b.type,id:b.id};
+   if(b.type==='d1'){
+    if(b.database_id!==undefined&&b.id!==undefined)assert.equal(b.database_id,b.id,'D1_ID_CONFLICT');
+    return {name:b.name,type:b.type,id:b.database_id??b.id};
+   }
    if(b.type==='r2_bucket')return {name:b.name,type:b.type,bucket_name:b.bucket_name};
    if(b.type==='durable_object_namespace')return {name:b.name,type:b.type,class_name:b.class_name,namespace_id:b.namespace_id,...(b.script_name?{script_name:b.script_name}:{})};
    if(b.type==='ratelimit')return {name:b.name,type:b.type,namespace_id:b.namespace_id,simple:b.simple};
@@ -48,11 +51,15 @@ export function assertRemoteProfile(settings,config,baseline,namespaces,{secretN
  }
  assert.equal(s.compatibility_date,config.compatibility_date);assert.deepEqual(s.compatibility_flags,config.compatibility_flags);assert.equal(s.tailConsumerCount,0);assert.equal(s.observabilityEnabled,Boolean(config.observability?.enabled),'OBSERVABILITY_MISMATCH');
  if(config.assets){
-  assert(s.assets?.config,'ASSETS_CONFIG_MISSING');
+  // GET /settings documents the ASSETS binding, not assets.config. Preserve
+  // exact binding checks above. Validate optional config if returned; absence
+  // proves neither deployed routing nor code identity.
+  if(s.assets?.config){
   assert.deepEqual(s.assets.config.run_worker_first,config.assets.run_worker_first);
   assert(['none',undefined].includes(s.assets.config.not_found_handling),'SPA_FORBIDDEN');
   assert(['/',undefined].includes(s.assets.config.base_path));
   assert(['auto-trailing-slash',undefined].includes(s.assets.config.html_handling));
+  }
  }else assert(!s.assets,'ASSETS_FORBIDDEN_DURING_SETUP');
  return s;
 }
