@@ -37,6 +37,7 @@ function persist(ops,evidence){
 async function run({ops,pausedOnly}){
  const evidence={schema:1,state:'NOT_STARTED',activated:false,recovery:null};let touched=false;
  try{
+  assert.equal(ops.mode,pausedOnly?'PAUSED_RESUME':'ACTIVE','CONTROLLER_MODE_MISMATCH');
   await ops.preflight();evidence.state='PREFLIGHT_VERIFIED';persist(ops,evidence);
   for(const name of ops.targets){
    await ops.fresh();await ops.fence();

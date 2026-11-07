@@ -96,7 +96,7 @@ export function createFeatureReleaseOps({root,directory,evidenceDirectory,profil
   assert(!response.headers.get('set-cookie'),'PUBLIC_COOKIE');return response;
  };
  return {
-  fresh,recoveryFresh,fence,owned:fence,targets:profiles.coordinatorChanged?['academy-feature-split-coordinator','feature_worker']:['feature_worker'],
+  mode:interrupted?'PAUSED_RESUME':'ACTIVE',fresh,recoveryFresh,fence,owned:fence,targets:profiles.coordinatorChanged?['academy-feature-split-coordinator','feature_worker']:['feature_worker'],
   async preflight(){await fresh();for(const n of names){assert.equal(await verify(n,config[n]),references[n],'REFERENCE_CHANGED');await address(n);}},
   async deploy(name){const p=interrupted?profiles.paused:profiles.active;await command(name,name===names[0]?p.worker:p.coordinator,'release-'+name);},
   adopt,

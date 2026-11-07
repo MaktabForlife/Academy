@@ -41,7 +41,7 @@ test('routine profile removes migrations, preserves exact new/old store and name
 });
 function fake({where,foreign=false,withdraw=false}={}){
  let writes=0;const events=[],evidence=[];
- const ops={targets:['academy-feature-split-coordinator','feature_worker'],fresh:async()=>{events.push('approval');if(withdraw&&writes)throw Error('withdrawn');},fence:async()=>{events.push('fence');if(foreign&&writes)throw Error('foreign');},recoveryFresh:async()=>{},canRecover:()=>writes>=2&&where!=='feature_worker'&&!foreign,preflight:async()=>{events.push('preflight');if(where==='preflight')throw Error('stop');},
+ const ops={mode:'ACTIVE',targets:['academy-feature-split-coordinator','feature_worker'],fresh:async()=>{events.push('approval');if(withdraw&&writes)throw Error('withdrawn');},fence:async()=>{events.push('fence');if(foreign&&writes)throw Error('foreign');},recoveryFresh:async()=>{},canRecover:()=>writes>=2&&where!=='feature_worker'&&!foreign,preflight:async()=>{events.push('preflight');if(where==='preflight')throw Error('stop');},
  deploy:async n=>{writes++;events.push(n);if(where===n)throw Error('unknown');},adopt:async()=>{},publicProof:async()=>{if(where==='public')throw Error('bad static');},smoke:async()=>({totals:{apiRequests:8,rowsRead:null},metricsObserved:false}),verifyFinal:async()=>{},pause:async()=>{events.push('pause');},verifyPaused:async()=>{events.push('paused-verified');},save:x=>evidence.push(x)};
  return {ops,events,evidence,get writes(){return writes;}};
 }
@@ -287,4 +287,9 @@ test('recovery upload is denied before writing when its full verification cannot
  const h=guarded({metadataBudget:20});await assert.rejects(releaseFreshFeature({ops:h.ops}));
  const r=h.report();assert.equal(h.writes,1);assert.equal(r.recovery,'NOT_VERIFIED_NO_BLIND_OVERWRITE');
  assert.equal(r.explicitCloudflareGets,16);assert.equal(r.pauseHTTPAttempts,0);
+});
+
+for(const paused of [false,true])test('actual transport rejects the opposite controller mode before metadata or upload: '+paused,async()=>{
+ const h=guarded({paused});await assert.rejects((paused?releaseFreshFeature:resumeInterruptedFeature)({ops:h.ops}));
+ assert.equal(h.writes,0);assert.equal(h.gets,0);assert.equal(h.report().activated,false);
 });
