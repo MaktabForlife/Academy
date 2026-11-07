@@ -65,7 +65,12 @@
     let frame=0;
     const measure=()=>{frame=0;const height=shell.banners.offsetHeight+'px',style=document.documentElement.style;if(style.getPropertyValue('--academy-banner-height')!==height)style.setProperty('--academy-banner-height',height);};
     // Defer layout writes outside ResizeObserver delivery, including Safari's PDF header.
-    new ResizeObserver(()=>{if(!frame)frame=requestAnimationFrame(measure);}).observe(shell.banners);measure();
+    // Establish the initial banner variable before registering its observer.
+    // Starting observation while that first layout write is pending can leave
+    // WebKit with an undelivered initial resize when a modal opens immediately.
+    measure();
+    const observer=new ResizeObserver(()=>{if(!frame)frame=requestAnimationFrame(measure);});
+    requestAnimationFrame(()=>observer.observe(shell.banners));
   }
   void import('/js/m4l-academy-history.js?v=109.17').catch(()=>{ /* Existing page links remain available if navigation cannot load. */ });
   window.M4L_CIRCLES_RETURN_READY=import('/academy/website-platform/circles-return.mjs').then(()=>window.M4L_CIRCLES_RETURN?.ready?.()).catch(()=>{ /* Native workspace Home remains available. */ });
