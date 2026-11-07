@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "request": "jwt-feature-readonly-inspection-20261106a",
+  "request": "jwt-feature-owned-finalisation-20261107a",
   "kind": "component",
   "target": "feature",
   "contains_jwt": true,
   "database_changes": false,
   "version": "110.36",
-  "feature_sha": "a017f2f30324162e2946b8a32d494fdc10a5d27e",
-  "feature_base_sha": "c660e3813908127561ad454ab503f9f66fa6d700"
+  "feature_sha": "6b21ad29a7818be0846d2cd5d404350925e361f1",
+  "feature_base_sha": "a017f2f30324162e2946b8a32d494fdc10a5d27e"
 }
