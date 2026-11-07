@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {academyReaderOrigin} from '../../js/m4l-course-media-view.mjs';
 const source=readFileSync(new URL('../../js/m4l-academy-workspace.js',import.meta.url),'utf8');
 function fixture(fetcher=async()=>Response.json({audience:'LEARN'}),sessionFetcher=async()=>Response.json({success:true,contexts:[{scope:'PLATFORM',role:'GLOBAL_ADMIN'}]})){
  const location={pathname:'/academy/',hash:'#timetable/learn',search:'',origin:'https://academy.invalid',href:'https://academy.invalid/academy/#timetable/learn',replace(value){this.destination=value;}},calls=[],authCalls=[],handlers=new Map();let token='actor-one';
@@ -190,11 +191,12 @@ test('Course Media bridge rejects non-Admin authority and delayed account change
 test('the real Course Media controller opens through the shared Admin wrapper and uses the dedicated cover route',async()=>{
  const activityKey='COURSE:COURSE-native-regression',sent=[];
  const f=fixture((url,options)=>{const input=JSON.parse(options.body);sent.push({url,input,workspace:options.headers.get('X-Academy-Workspace')});return Response.json({success:true,...(input.command.action==='media-location'?{managed:true,kind:'COURSE',ownership:'STUDIO',destination:'https://studio.invalid/studio/?manage=1&offering=native-course'}:{playlists:[]})});});
+ f.window.location=f.location;Object.assign(f.window.M4L_CONFIG,{PORTAL_ORIGIN:f.location.origin,STUDIO_ORIGIN:'https://studio.invalid'});
  const host={isConnected:true,innerHTML:'',replaceChildren(){this.innerHTML='';},append(){}};let mounted;
  const document={getElementById:key=>key==='course-media'?host:null,querySelector:()=>null,head:{append(){}},createElement:()=>({setAttribute(){},textContent:''})};
  const code=readFileSync(new URL('../../js/m4l-course-media.js',import.meta.url),'utf8').replace("const modules=Promise.all([import('./m4l-course-media-view.mjs'),import('./m4l-playlist-card.mjs')]);",'const modules=Promise.resolve(__modules);');
- vm.runInNewContext(code,{window:f.window,document,localStorage:{getItem:()=> 'actor-one'},URL,DOMException,Blob,Uint8Array,btoa,atob,crypto,__modules:[{mountCourseMedia:(host,options)=>{mounted=options;const dispose=()=>{};dispose.canLeave=()=>true;return dispose;}},{}]});
- await f.window.M4L_COURSE_MEDIA.open({hostId:'course-media',activityKey,courseName:'Native Course'});assert(mounted,'The actual Course controller must reach its playlist renderer');await mounted.request('course-playlists');
+ vm.runInNewContext(code,{window:f.window,document,localStorage:{getItem:()=> 'actor-one'},URL,DOMException,Blob,Uint8Array,btoa,atob,crypto,__modules:[{academyReaderOrigin,mountCourseMedia:(host,options)=>{mounted=options;const dispose=()=>{};dispose.canLeave=()=>true;return dispose;}},{}]});
+ await f.window.M4L_COURSE_MEDIA.open({hostId:'course-media',activityKey,courseName:'Native Course'});assert(mounted,'The actual Course controller must reach its playlist renderer');assert.equal(mounted.websiteOrigin,'https://studio.invalid');assert.equal(mounted.readerOrigin,f.location.origin,'The real helper preserves the exact Academy reader entry');await mounted.request('course-playlists');
  assert.equal(sent.length,2);assert(sent.every(r=>r.workspace==='ADMIN'&&r.input.activityKey===activityKey));assert.equal(sent[0].input.command.action,'media-location');assert.equal(sent[1].input.command.action,'course-playlists');assert.equal(f.authCalls.length,1);
  await mounted.request('mou-playlist-cover-upload',{playlistId:'exact-playlist',revision:3,file:{type:'image/png',arrayBuffer:async()=>new Uint8Array([1,2,3]).buffer},image:{sha256:'a'.repeat(64)}});
  assert.equal(new URL(sent[2].url).pathname,'/api/admin/platform/studio-access/playlist-cover');assert.equal(sent[2].input.command.action,'mou-playlist-cover-upload');assert.equal(sent[2].input.command.data,'AQID');assert.equal(sent[2].input.activityKey,activityKey);
