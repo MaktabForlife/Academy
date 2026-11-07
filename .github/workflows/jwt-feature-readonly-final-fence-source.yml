@@ -1,0 +1,34 @@
+name: JWT Feature final-fence source proof only
+on:
+  push:
+    branches: [validation/jwt-feature-readonly-final-fence-20261107]
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+jobs:
+  focused:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.18.0"
+      - name: Focused injected-transport budget, fence and receipt checks
+        run: |
+          set -euo pipefail
+          node --check backend/tools/jwt-feature-readonly-final-fence.mjs
+          node --test --test-reporter=tap backend/tests/jwt-feature-readonly-final-fence.test.mjs | tee final-fence-tests.tap
+          node --input-type=module -e "import {readFileSync} from 'node:fs'; import {createHash} from 'node:crypto'; const b=readFileSync('deployment/jwt-feature-readonly-final-fence.json'); console.log(JSON.stringify({sourceOnly:true,effectsSHA256:createHash('sha256').update(b).digest('hex'),hostedCalls:0}));" > final-fence-source.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: jwt-feature-final-fence-source-${{ github.run_id }}
+          path: |
+            final-fence-tests.tap
+            final-fence-source.json
+          retention-days: 30

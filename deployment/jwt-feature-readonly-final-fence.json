@@ -1,0 +1,100 @@
+{
+  "schema": 1,
+  "state": "SOURCE_ONLY_NO_EXECUTION_AUTHORITY",
+  "request": "jwt-feature-readonly-final-fence-20261107a",
+  "sourceBase": "e682301619ec20d65f5530948bb664529c1440dc",
+  "canonicalAtPreparation": "eb9a8abde5e639d30388a5300d9ec2845af9dbe4",
+  "accountId": "c9a3e355b3d7a795880b1d36a1dbe123",
+  "originalSource": "c660e3813908127561ad454ab503f9f66fa6d700",
+  "originalOwner": "42233937167-1",
+  "acceptedMainObservation": {
+    "run": 42358703100,
+    "artifact": 13569310152,
+    "zipSHA256": "4e90969bf24641e523b2ea2c66c9aa31d4ad22de9e091fdae445a4e8300dba60",
+    "receiptSHA256": "da4ce33565a9001405f6256e854e28afc63b0f5a6d2b689259db6277393dad13",
+    "referenceVersion": "4c955445-ff00-4713-8b35-2a177a752328",
+    "ownedVersion": false
+  },
+  "lastReviewedCoordinatorVersion": "4704b2cc-c111-4e5b-9f8b-887bd38db650",
+  "failedCleanup": {
+    "run": 42342137914,
+    "artifact": 13562670537,
+    "zipSHA256": "f2edaacf595235f0eb91e30a9de155409bfef5b4f2b479481659b8ced5af0345",
+    "pausedProbeAttempts": 0,
+    "cumulativeInstallerAndCleanupHTTPAttempts": 5,
+    "cumulativeExplicitGetAttempts": 54,
+    "cleanupVerified": false
+  },
+  "fixedProviderSequence": [
+    {
+      "script": "feature_worker",
+      "endpoint": "deployments",
+      "purpose": "MAIN_REFERENCE_PREPROBE_NO_ADOPTION"
+    },
+    {
+      "script": "academy-feature-split-coordinator",
+      "endpoint": "settings",
+      "purpose": "COORDINATOR_EXACT_METADATA"
+    },
+    {
+      "script": "feature_worker",
+      "endpoint": "deployments",
+      "purpose": "MAIN_FINAL_REFERENCE_FENCE_NO_ADOPTION"
+    },
+    {
+      "script": "academy-feature-split-coordinator",
+      "endpoint": "deployments",
+      "purpose": "COORDINATOR_FINAL_VERSION_FENCE"
+    }
+  ],
+  "probeOrigin": "https://feature_worker.maktab4life.workers.dev",
+  "pausedProbePaths": [
+    "/__jwt_feature_release",
+    "/internal/feature-jwt-setup/status",
+    "/internal/feature-jwt-setup/schema-status"
+  ],
+  "proposedSequence": "MAIN_VERSION,COORDINATOR_SETTINGS,THREE_PAUSED_RESPONSES,MAIN_FINAL_VERSION,COORDINATOR_FINAL_VERSION",
+  "budget": {
+    "priorExplicitGets": 56,
+    "maxAdditionalExplicitGets": 4,
+    "originalHardGetLimit": 60,
+    "maxCumulativeExplicitGets": 60,
+    "priorInstallerAndCleanupHTTPAttempts": 5,
+    "priorInstallerProbeAttempts": 1,
+    "priorSchemaSeedHTTPAttempts": 4,
+    "priorCleanupProbeAttempts": 0,
+    "maxPausedProbeAttempts": 3,
+    "originalInstallerAndCleanupHTTPBudget": 8,
+    "maxCumulativeInstallerAndCleanupHTTPAttempts": 8,
+    "retries": 0,
+    "countsAreFetchAttempts": true
+  },
+  "effects": {
+    "providerGetAttempts": 4,
+    "credentialFreeWorkerGetAttempts": 3,
+    "hostedWrites": 0,
+    "secretWrites": 0,
+    "configPatches": 0,
+    "codeUploads": 0,
+    "sqlRequests": 0,
+    "r2Operations": 0,
+    "keyGeneration": 0,
+    "activation": false
+  },
+  "limits": {
+    "executionWorkflowProvided": false,
+    "requiresFreshProtectedApprovalAndExclusiveLease": true,
+    "currentMainSettingsReusedNotReread": true,
+    "coordinatorVersionSampleAfterProbes": true,
+    "metadataObservationsAtomic": false,
+    "deploymentVersionBindsSettings": false,
+    "codeContentVerified": false,
+    "assetRoutingVerified": false,
+    "keyMaterialVerified": false,
+    "mainOwnedVersionAdopted": false,
+    "cleanupVerified": false,
+    "hostedD1Usage": "UNMEASURED_EXPECTED_ZERO_FROM_REVIEWED_PAUSED_SOURCE",
+    "historicalFailureCause": "UNKNOWN_NO_RAW_POST_SETTINGS_SAVED",
+    "futureWrites": "BLOCKED_PENDING_CONCRETE_OWNERSHIP_AND_EFFECTS_REVIEW"
+  }
+}

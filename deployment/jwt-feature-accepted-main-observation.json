@@ -1,0 +1,342 @@
+{
+  "schema": 1,
+  "state": "READ_ONLY_MAIN_OBSERVATIONS_CAPTURED_NO_RECOVERY_AUTHORITY",
+  "observations": [
+    {
+      "endpoint": "deployments",
+      "attempt": 1,
+      "outcome": "CAPTURED",
+      "httpStatus": 200,
+      "providerCodes": [],
+      "deployment": {
+        "versionsReported": 1,
+        "versions": [
+          {
+            "versionId": "4c955445-ff00-4713-8b35-2a177a752328",
+            "percentage": 100
+          }
+        ],
+        "currentVersion": "4c955445-ff00-4713-8b35-2a177a752328",
+        "relationToPrePatchReference": "DIFFERENT_FROM_PREPATCH_REFERENCE",
+        "ownedVersionAdopted": false
+      },
+      "settings": null
+    },
+    {
+      "endpoint": "settings",
+      "attempt": 2,
+      "outcome": "CAPTURED",
+      "httpStatus": 200,
+      "providerCodes": [],
+      "deployment": null,
+      "settings": {
+        "settingsType": "object",
+        "bindingsReported": 56,
+        "knownBindings": [
+          {
+            "name": "ACADEMY_ACCEPTED_SETUP",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "ACADEMY_ADMIN_DB",
+            "bindingType": "d1"
+          },
+          {
+            "name": "ACADEMY_D1_MODE",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "ACADEMY_D1_RUN_ID",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "ACADEMY_DB",
+            "bindingType": "d1"
+          },
+          {
+            "name": "ACADEMY_DB_GENERATION",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "ACADEMY_DEPLOYMENT_KIND",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "ACADEMY_LEARNING_OPERATIONS",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "ACADEMY_LIBRARY_MODE",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "ACADEMY_MEDIA_SEPARATION",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "ACADEMY_MESSAGING",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "ACADEMY_MONTHLY_SUBSCRIPTIONS",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "ACADEMY_NOTE_RETENTION",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "ACADEMY_OBJECT_NAMESPACE",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "ACADEMY_OPEN_LIBRARY_STORAGE_KEY",
+            "bindingType": "secret_text"
+          },
+          {
+            "name": "ACADEMY_SPLIT_COORDINATOR",
+            "bindingType": "durable_object_namespace"
+          },
+          {
+            "name": "ACADEMY_SURAH_GRANTS",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "ACADEMY_WEB_PLATFORM",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "ACADEMY_WEBSITE_STUDIO",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "ACADEMY_WEEKLY_ABSENTEES",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "ALLOWED_ORIGINS",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "API_ORIGIN",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "ASSESSMENT_BUCKET",
+            "bindingType": "r2_bucket"
+          },
+          {
+            "name": "ASSETS",
+            "bindingType": "assets"
+          },
+          {
+            "name": "AUTH_LOGIN_RATE_LIMITER",
+            "bindingType": "ratelimit"
+          },
+          {
+            "name": "ENVIRONMENT",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "HIFZ_DEVELOPMENT_HANDOFF_URL",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "HIFZ_HANDOFF_ENABLED",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "HIFZ_PROFILE_SYNC_URL",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "JWT_FEATURE_INSTALL_OWNER",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "JWT_FEATURE_INSTALL_SOURCE",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "JWT_V110_ADMIN_DB",
+            "bindingType": "d1"
+          },
+          {
+            "name": "JWT_V110_BROWSER",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "JWT_V110_COOKIE_MODE",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "JWT_V110_CORE_DB",
+            "bindingType": "d1"
+          },
+          {
+            "name": "JWT_V110_CSRF_SECRET",
+            "bindingType": "secret_text"
+          },
+          {
+            "name": "JWT_V110_MASTER",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "JWT_V110_NATIVE_COOKIE",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "JWT_V110_NATIVE_RUN_ID",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "JWT_V110_OBJECT_NAMESPACE",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "JWT_V110_PRIVATE_KEY_JSON",
+            "bindingType": "secret_text"
+          },
+          {
+            "name": "JWT_V110_PUBLIC_KEYS_JSON",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "JWT_V110_RATE_LIMITER",
+            "bindingType": "ratelimit"
+          },
+          {
+            "name": "JWT_V110_REFRESH",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "JWT_V110_RELEASE_ID",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "JWT_V110_REQUEST_ORIGIN",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "JWT_V110_SIGNING_KID",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "JWT_V110_SPLIT_COORDINATOR",
+            "bindingType": "durable_object_namespace"
+          },
+          {
+            "name": "JWT_V110_STORAGE_PROFILE",
+            "bindingType": "plain_text"
+          },
+          {
+            "name": "JWT_V110_TIMETABLE_COORDINATOR",
+            "bindingType": "durable_object_namespace"
+          },
+          {
+            "name": "LESSON_MEDIA_BUCKET",
+            "bindingType": "r2_bucket"
+          },
+          {
+            "name": "MEDIA_BUCKET",
+            "bindingType": "r2_bucket"
+          },
+          {
+            "name": "PIN_SECRET",
+            "bindingType": "secret_text"
+          },
+          {
+            "name": "PROGRAM_TIMETABLE_COORDINATOR",
+            "bindingType": "durable_object_namespace"
+          },
+          {
+            "name": "SESSION_SECRET",
+            "bindingType": "secret_text"
+          },
+          {
+            "name": "SHARED_PIN_SECRET",
+            "bindingType": "secret_text"
+          }
+        ],
+        "secretPresence": [
+          {
+            "name": "PIN_SECRET",
+            "present": true,
+            "hasSecretType": true
+          },
+          {
+            "name": "SESSION_SECRET",
+            "present": true,
+            "hasSecretType": true
+          },
+          {
+            "name": "SHARED_PIN_SECRET",
+            "present": true,
+            "hasSecretType": true
+          },
+          {
+            "name": "ACADEMY_OPEN_LIBRARY_STORAGE_KEY",
+            "present": true,
+            "hasSecretType": true
+          },
+          {
+            "name": "JWT_V110_PRIVATE_KEY_JSON",
+            "present": true,
+            "hasSecretType": true
+          },
+          {
+            "name": "JWT_V110_CSRF_SECRET",
+            "present": true,
+            "hasSecretType": true
+          },
+          {
+            "name": "JWT_FEATURE_SETUP_PIN",
+            "present": false,
+            "hasSecretType": false
+          },
+          {
+            "name": "JWT_FEATURE_SETUP_AUTH",
+            "present": false,
+            "hasSecretType": false
+          }
+        ],
+        "originalSourceMatches": true,
+        "originalOwnerMatches": true,
+        "assetConfigurationReturned": false,
+        "assetRoutingVerified": false,
+        "expectedMetadataMatches": true,
+        "mismatchCount": 0,
+        "labelsTruncated": false,
+        "labels": []
+      }
+    }
+  ],
+  "explicitGetAttempts": 2,
+  "priorExplicitGets": 54,
+  "cumulativeExplicitGetAttempts": 56,
+  "originalHardGetLimit": 60,
+  "reservedOriginalGets": 4,
+  "countsAreFetchAttempts": true,
+  "hostedWrites": 0,
+  "workerHTTP": 0,
+  "sqlRequests": 0,
+  "codeContentReads": 0,
+  "secretValueReads": 0,
+  "activated": false,
+  "cleanupVerified": false,
+  "ownedVersionAdopted": false,
+  "observationsAtomic": false,
+  "deploymentVersionBindsSettings": false,
+  "historicalFailureCause": "UNKNOWN_NO_RAW_POST_SETTINGS_SAVED",
+  "execution": {
+    "source": "e682301619ec20d65f5530948bb664529c1440dc",
+    "request": "jwt-feature-main-postpatch-inspection-20261107a",
+    "effectsSHA256": "6b96a689281d6115301e435674fc5d1f2847068917a887ba8017558d70e74650",
+    "approvalPR": 14,
+    "approvalMerge": "eb9a8abde5e639d30388a5300d9ec2845af9dbe4",
+    "approvalHead": "3620fa88aeb5b252ac5f1ad16ec5c7c209fa2580",
+    "approvalStatusId": 58316325684,
+    "approvalCommentSHA256": "9460e052fd968e5d911d3248bfe2b831390af60a5aad6963e7b16bf203b6b732",
+    "sharedConcurrencyGroup": "feature-isolation-refs/heads/feature-preview"
+  }
+}
