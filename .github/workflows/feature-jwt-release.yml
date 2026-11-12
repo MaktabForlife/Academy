@@ -1,13 +1,25 @@
 name: Approved JWT Feature release
-run-name: Approved Feature ${{ inputs.approval_merge_sha }}
+run-name: Feature ${{ inputs.credential_preflight && 'credential preflight' || inputs.approval_merge_sha }}
 on:
   workflow_dispatch:
     inputs:
+      credential_preflight:
+        description: GET-only check of existing Feature credentials and resources
+        default: false
+        type: boolean
+      expected_sha:
+        description: Exact selected preflight source commit
+        required: false
+        type: string
+      expected_token_id:
+        description: Reviewed token metadata identifier; never logged
+        required: false
+        type: string
       approval_pr:
-        required: true
+        required: false
         type: string
       approval_merge_sha:
-        required: true
+        required: false
         type: string
       check_only:
         default: false
@@ -24,7 +36,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   validate:
-    if: github.ref == 'refs/heads/feature-preview'
+    if: github.ref == 'refs/heads/feature-preview' && !inputs.credential_preflight
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -45,7 +57,7 @@ jobs:
           node --test --test-reporter=tap backend/tests/jwt-feature-release.test.mjs
   deploy:
     needs: validate
-    if: github.ref == 'refs/heads/feature-preview' && !inputs.check_only && vars.FEATURE_DEPLOYMENT_ENABLED == 'true'
+    if: github.ref == 'refs/heads/feature-preview' && !inputs.credential_preflight && !inputs.check_only && vars.FEATURE_DEPLOYMENT_ENABLED == 'true'
     environment: feature
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -74,4 +86,29 @@ jobs:
             ${{ runner.temp }}/jwt-release-evidence/deployment.json
             ${{ runner.temp }}/jwt-release-evidence/next-installed-baseline.json
           if-no-files-found: warn
+          retention-days: 30
+
+  credential-preflight:
+    if: github.ref == 'refs/heads/feature-preview' && inputs.credential_preflight && vars.FEATURE_DEPLOYMENT_ENABLED == 'true'
+    environment: feature
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.22.1'
+      - name: GET-only existing Feature credential and resource metadata
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_FEATURE_DEPLOY_TOKEN }}
+          WRANGLER_SEND_METRICS: 'false'
+        run: node tools/academy-existing-feature/credential-preflight-v1.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: academy-feature-credential-preflight-${{ github.run_id }}
+          path: ${{ runner.temp }}/academy-feature-credential-preflight/sanitized.json
+          if-no-files-found: error
           retention-days: 30
