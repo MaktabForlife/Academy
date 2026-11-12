@@ -1,0 +1,31 @@
+{
+  "schema": "ACADEMY_FEATURE_FRONTEND_API_BASE_NARROW_FIX_V1",
+  "status": "ROOT_SOURCE_DIFF_REVIEWED_NOT_BROWSER_ACCEPTANCE",
+  "old": {
+    "path": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-config-existing-feature-v1.js",
+    "bytes": 1483,
+    "sha256": "7858cd87518ebb1ede1ad74a8584ffe2e61bcb9f97a292f0761d131139610ec6"
+  },
+  "new": {
+    "path": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/source-checks/academy-feature-frontend-origin-fix-20261112-r1/m4l-config-existing-feature-v2.js",
+    "bytes": 1506,
+    "sha256": "d39f6007166909c43b480d739afd4a4ee620a7ff31628aa59af9017fbf0965e6"
+  },
+  "exactSingleReplacement": {
+    "from": "\"API_BASE\":\"/\"",
+    "to": "\"API_BASE\":\"https://maktabhelper.app\""
+  },
+  "frontendSelection": {
+    "path": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/source-checks/academy-feature-frontend-origin-fix-20261112-r1/FRONTEND-SELECTION-r2.json",
+    "bytes": 58458,
+    "sha256": "c35eedc381706e4117f10da4558017ccf5a6622c1f35c6bf0f7ea0c8b31fba48"
+  },
+  "publicManifest": {
+    "path": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/source-checks/academy-feature-frontend-origin-fix-20261112-r1/PUBLIC-ASSET-MANIFEST-r2.json",
+    "bytes": 17660,
+    "sha256": "d25b304042a26c6424d7114e3fccaf1fe0d4b309b5bb606050ffd7245c699d46"
+  },
+  "commonBackendUnchangedSHA256": "7dee1dab81cf13f4b9fba5f1d919d200ddd5326534168dac4e5dcae31242f8bc",
+  "privateDataOrNativeAuthorityChanges": false,
+  "allOriginalsPreserved": true
+}

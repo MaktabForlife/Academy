@@ -1,0 +1,6 @@
+import {managementError as fail} from './management-store.js';
+const encoder=new TextEncoder(),decoder=new TextDecoder(),encode=v=>btoa(String.fromCharCode(...v)).replaceAll('+','-').replaceAll('/','_').replaceAll('=',''),decode=v=>Uint8Array.from(atob(v.replaceAll('-','+').replaceAll('_','/')),c=>c.charCodeAt(0));
+export function mediaPlaylistCursor(secret){
+ let key;const cryptoKey=()=>key??=crypto.subtle.digest('SHA-256',encoder.encode('academy-media-playlists-v1\n'+secret)).then(v=>crypto.subtle.importKey('raw',v,'AES-GCM',false,['encrypt','decrypt']));
+ return {async seal(value,binding){const iv=crypto.getRandomValues(new Uint8Array(12)),bytes=await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:encoder.encode(binding)},await cryptoKey(),encoder.encode(JSON.stringify(value)));return 'p1.'+encode(iv)+'.'+encode(new Uint8Array(bytes));},async open(token,binding){try{if(typeof token!=='string'||token.length>2048||!/^p1\.[A-Za-z0-9_-]{16}\.[A-Za-z0-9_-]{32,2000}$/.test(token))throw Error();const [,iv,data]=token.split('.');return JSON.parse(decoder.decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:decode(iv),additionalData:encoder.encode(binding)},await cryptoKey(),decode(data))));}catch{throw fail('This playlist page belongs to another view or changed. Refresh before continuing.',400,'MEDIA_PLAYLIST_CURSOR_INVALID');}}};
+}

@@ -3,6 +3,27 @@ run-name: Feature ${{ inputs.credential_preflight && 'credential preflight' || i
 on:
   workflow_dispatch:
     inputs:
+      modern_stage:
+        description: Explicit existing-Feature stage; none preserves legacy behavior
+        type: choice
+        default: none
+        options: [none, upload, activate]
+      package_manifest_sha256:
+        description: Exact reviewed immutable candidate manifest SHA256
+        required: false
+        type: string
+      upload_run_id:
+        description: Prior successful modern upload run; activate only
+        required: false
+        type: string
+      upload_receipt_sha256:
+        description: Exact staged.json SHA256; activate only
+        required: false
+        type: string
+      journal_receipt_sha256:
+        description: Exact Root actual-schema gate SHA256; activate only
+        required: false
+        type: string
       credential_preflight:
         description: GET-only check of existing Feature credentials and resources
         default: false
@@ -36,7 +57,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   validate:
-    if: github.ref == 'refs/heads/feature-preview' && !inputs.credential_preflight
+    if: github.ref == 'refs/heads/feature-preview' && !inputs.credential_preflight && (!inputs.modern_stage || inputs.modern_stage == 'none')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -57,7 +78,7 @@ jobs:
           node --test --test-reporter=tap backend/tests/jwt-feature-release.test.mjs
   deploy:
     needs: validate
-    if: github.ref == 'refs/heads/feature-preview' && !inputs.credential_preflight && !inputs.check_only && vars.FEATURE_DEPLOYMENT_ENABLED == 'true'
+    if: github.ref == 'refs/heads/feature-preview' && !inputs.credential_preflight && !inputs.check_only && vars.FEATURE_DEPLOYMENT_ENABLED == 'true' && (!inputs.modern_stage || inputs.modern_stage == 'none')
     environment: feature
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -89,7 +110,7 @@ jobs:
           retention-days: 30
 
   credential-preflight:
-    if: github.ref == 'refs/heads/feature-preview' && inputs.credential_preflight && vars.FEATURE_DEPLOYMENT_ENABLED == 'true'
+    if: github.ref == 'refs/heads/feature-preview' && inputs.credential_preflight && vars.FEATURE_DEPLOYMENT_ENABLED == 'true' && (!inputs.modern_stage || inputs.modern_stage == 'none')
     environment: feature
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -110,5 +131,53 @@ jobs:
         with:
           name: academy-feature-credential-preflight-${{ github.run_id }}
           path: ${{ runner.temp }}/academy-feature-credential-preflight/sanitized.json
+          if-no-files-found: error
+          retention-days: 30
+
+  modern-release:
+    if: github.ref == 'refs/heads/feature-preview' && (inputs.modern_stage == 'upload' || inputs.modern_stage == 'activate') && !inputs.credential_preflight && vars.FEATURE_DEPLOYMENT_ENABLED == 'true'
+    environment: feature
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.22.1'
+      - name: Install pinned deployment tools without lifecycle scripts
+        run: npm ci --prefix backend --ignore-scripts --no-audit --no-fund
+      - name: Fetch only the selected prior staged receipt
+        if: inputs.modern_stage == 'activate'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: academy-feature-stage-upload-${{ inputs.upload_run_id }}
+          path: ${{ runner.temp }}/academy-feature-staged-input
+          run-id: ${{ inputs.upload_run_id }}
+          github-token: ${{ github.token }}
+      - name: Run exact modern stage with protected Feature credential
+        id: release
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_FEATURE_DEPLOY_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+          FEATURE_DEPLOYMENT_ENABLED: ${{ vars.FEATURE_DEPLOYMENT_ENABLED }}
+          WRANGLER_SEND_METRICS: 'false'
+        run: node tools/academy-existing-feature/release-runner-v1.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: academy-feature-release-status-${{ github.run_id }}
+          path: ${{ runner.temp }}/academy-feature-release-evidence/sanitized.json
+          if-no-files-found: warn
+          retention-days: 30
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: inputs.modern_stage == 'upload' && success()
+        with:
+          name: academy-feature-stage-upload-${{ github.run_id }}
+          path: ${{ runner.temp }}/academy-feature-release-evidence/staged.json
           if-no-files-found: error
           retention-days: 30

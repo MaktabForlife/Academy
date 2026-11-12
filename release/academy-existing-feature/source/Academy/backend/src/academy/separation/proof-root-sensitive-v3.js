@@ -1,0 +1,59 @@
+import {nativeRootSensitivePolicyRequired} from '../../auth/v110/root-sensitive-request-v1.mjs';
+import {rootSensitiveActorBinding} from '../../auth/v110/root-sensitive-action.mjs';
+import {trustedCookieFacts} from '../../auth/v110/academy-cookie-auth.mjs';
+import {jwtActorPredicate} from './jwt-actor-guard-root-sensitive-v3.mjs';
+import {surahRightsSQL} from '../d1/surah-grants.js';
+import {monthlyRightsSQL} from '../d1/monthly-media-policy.js';
+import {actualState,isAdminWorkspace} from '../d1/workspace-access.js';
+const upper=v=>String(v??'').toUpperCase();
+export function permissionSignature({globalAdmin,roles=[],subscriptions=[],grants=[],monthlyMedia,surahGrants}){
+ return JSON.stringify([Boolean(globalAdmin),[...new Set(roles.map(r=>upper(r.activity_key)+'|'+r.role))].sort(),[...new Set(subscriptions.map(r=>upper(r.activity_key)))].sort(),grants.map(r=>upper(r.id)+'|'+upper(r.activityKey)).sort(),...(monthlyMedia!==undefined?[monthlyMedia.map(r=>[upper(r.activity_key),r.lesson_month,r.revision,r.class_ids_json].join('|')).sort()]:[]),...(surahGrants!==undefined?[surahGrants.map(r=>[upper(r.activity_key),r.surah_id,r.revision].join('|')).sort()]:[])]);
+}
+export function actorProof(auth){
+ const state=actualState(auth),jwt=trustedCookieFacts(auth),rootSensitive=rootSensitiveActorBinding(auth);return {...(jwt?{jwt,rootSensitiveRequired:nativeRootSensitivePolicyRequired(auth)}:{}),...(rootSensitive?{rootSensitive}:{}),accountId:auth.user.accountid,sid:auth.sid,epoch:state.account.credential_epoch,monthlyMedia:state.monthlyMediaEnabled===true,surahGrants:state.surahGrantsEnabled===true,signature:permissionSignature({globalAdmin:state.account.global_admin,roles:state.roles,subscriptions:state.subscriptions,grants:JSON.parse(state.account.substitute_grants||'[]'),...(state.monthlyMediaEnabled?{monthlyMedia:state.monthlyMedia}:{} ),...(state.surahGrantsEnabled?{surahGrants:state.surahGrants}:{} )})};
+}
+const roles=`SELECT r.activity_key,r.role FROM effective_activity_roles r JOIN activities x USING(activity_key) WHERE r.account_id=a.account_id AND x.active=1 AND x.lifecycle='ACTIVE'
+ UNION SELECT e.activity_key,m.target_role FROM legacy_access_evidence e JOIN activities x USING(activity_key) JOIN role_import_reviews v ON v.account_id=e.account_id AND v.activity_key=e.activity_key AND v.source_value=e.source_role JOIN role_mapping_decisions m ON m.source_role=e.source_role WHERE e.account_id=a.account_id AND e.source_role IN('ADMIN','SENIOR') AND e.source_effective=1 AND v.status='REQUIRED' AND x.active=1 AND x.lifecycle='ACTIVE'`;
+const sql=`SELECT (SELECT version FROM split_read_state WHERE singleton=1) version,
+ EXISTS(SELECT 1 FROM global_role_assignments g WHERE g.account_id=a.account_id AND g.active=1 AND g.role='GLOBAL_ADMIN' AND g.review_state='CONFIRMED') global_admin,
+ (SELECT json_group_array(json_object('activity_key',activity_key,'role',role)) FROM (${roles})) roles_json,
+ (SELECT json_group_array(json_object('activity_key',activity_key)) FROM effective_course_subscriptions WHERE account_id=a.account_id) subscriptions_json,
+ (SELECT json_group_array(json_object('id',g.assignment_id,'activityKey',g.activity_key)) FROM attendance_substitutes g JOIN activities x USING(activity_key) WHERE g.account_id=a.account_id AND x.active=1 AND x.lifecycle='ACTIVE' AND g.revoked_at IS NULL AND g.starts_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now') AND max(g.correction_until,coalesce(g.correction_reopen_until,''))>strftime('%Y-%m-%dT%H:%M:%fZ','now')) grants_json
+ FROM accounts a JOIN account_credentials c USING(account_id) JOIN account_sessions s USING(account_id)
+ WHERE a.account_id=?1 AND a.active=1 AND c.credential_epoch=?3 AND c.pin_setup=1 AND length(trim(c.pin_hash))>0
+ AND s.session_id=?2 AND s.revoked_at IS NULL AND s.credential_epoch=c.credential_epoch AND s.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')`;
+export async function verifyActor(core,proof,{commit=false}={}){
+ if(commit){
+  // Only pre-effect admission can translate a fresh-PIN requirement. Never
+  // run this translation on a failed/ambiguous business commit or target ACK.
+  const predicate=await jwtActorPredicate(proof,{commit:true});
+  if(!proof?.rootSensitiveRequired&&proof?.rootSensitive===undefined)return verifyActor(core,proof);
+  await verifyActor(core,proof);
+  const allowed=await core.prepare('SELECT 1 ok FROM accounts a WHERE a.account_id=?'+predicate.sql).bind(proof.accountId,...predicate.values).first();
+  const version=await verifyActor(core,proof);
+  if(!allowed)throw Object.assign(Error('Confirm your current PIN before saving.'),{status:409,code:'ROOT_PIN_CONFIRMATION_REQUIRED'});
+  return version;
+ }
+ if(!proof||typeof proof.accountId!=='string'||typeof proof.sid!=='string'||!Number.isInteger(proof.epoch)||typeof proof.signature!=='string')throw Object.assign(Error('Sign in again before saving.'),{status:401,code:'SESSION_ENDED'});
+ const jwt=await jwtActorPredicate(proof);
+ let authoritySQL=proof.monthlyMedia?sql.replace(' grants_json\n',` grants_json, (SELECT json_group_array(json_object('activity_key',activity_key,'lesson_month',lesson_month,'revision',revision,'class_ids_json',class_ids_json)) FROM (${monthlyRightsSQL('a.account_id')})) monthly_json\n`):sql;
+ if(proof.surahGrants)authoritySQL=authoritySQL.replace(' grants_json',` grants_json, (SELECT json_group_array(json_object('activity_key',activity_key,'surah_id',surah_id,'revision',revision)) FROM (${surahRightsSQL('a.account_id')})) surah_json`);
+ const row=await core.prepare(authoritySQL+jwt.sql).bind(proof.accountId,proof.sid,proof.epoch,...jwt.values).first();if(!row||permissionSignature({globalAdmin:row.global_admin,roles:JSON.parse(row.roles_json),subscriptions:JSON.parse(row.subscriptions_json),grants:JSON.parse(row.grants_json),...(proof.monthlyMedia?{monthlyMedia:JSON.parse(row.monthly_json)}:{}),...(proof.surahGrants?{surahGrants:JSON.parse(row.surah_json)}:{})})!==proof.signature)throw Object.assign(Error('Your session or permissions changed. Refresh before continuing.'),{status:401,code:'SESSION_ENDED'});return row.version;
+}
+// Only reuse a verification performed by trusted server code for this exact
+// actor proof (request/read batch or engine-private cache). Never accept a
+// caller-supplied version as verification. Every Core
+// table mutation increments split_read_state, so a changed epoch requires the
+// full authority comparison. Expiry and timed substitute grants are checked
+// even when no database write occurred in the meantime.
+export async function verifyActorVersion(core,proof,verifiedVersion){
+ if(!Number.isInteger(verifiedVersion))return verifyActor(core,proof);
+ const jwt=await jwtActorPredicate(proof);
+ const row=await core.prepare(`SELECT v.version,
+  (SELECT json_group_array(json_object('id',g.assignment_id,'activityKey',g.activity_key)) FROM attendance_substitutes g JOIN activities x USING(activity_key) WHERE g.account_id=a.account_id AND x.active=1 AND x.lifecycle='ACTIVE' AND g.revoked_at IS NULL AND g.starts_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now') AND max(g.correction_until,coalesce(g.correction_reopen_until,''))>strftime('%Y-%m-%dT%H:%M:%fZ','now')) grants_json
+  FROM split_read_state v JOIN accounts a ON a.account_id=?1 JOIN account_credentials c USING(account_id) JOIN account_sessions s USING(account_id)
+  WHERE v.singleton=1 AND v.version=?4 AND a.active=1 AND c.credential_epoch=?3 AND c.pin_setup=1 AND length(trim(c.pin_hash))>0
+  AND s.session_id=?2 AND s.revoked_at IS NULL AND s.credential_epoch=c.credential_epoch AND s.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')`+jwt.sql).bind(proof.accountId,proof.sid,proof.epoch,verifiedVersion,...jwt.values).first();
+ if(row&&permissionSignature({grants:JSON.parse(row.grants_json)})===JSON.stringify([false,[],[],JSON.parse(proof.signature)[3]]))return row.version;
+ return verifyActor(core,proof);
+}

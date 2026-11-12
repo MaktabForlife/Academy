@@ -1,0 +1,2 @@
+.studio-heading>div:first-child{min-width:0}.studio-heading .heading-actions{flex:1}#selected-course-name{overflow-wrap:anywhere}
+@media(max-width:900px){.studio-heading{display:block}.studio-heading .heading-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));max-width:none;margin-top:14px;gap:8px}.studio-heading .heading-actions button{min-width:0;font-size:12px;min-height:42px}.studio-heading .heading-actions [data-action=new-course]{display:block}#selected-course-name{font-size:27px}.pb-header{padding:14px 17px}}

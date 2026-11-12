@@ -1,0 +1,89 @@
+import {sha256} from './protocol.mjs';
+const all=async(db,sql,...args)=>(await db.prepare(sql).bind(...args).all()).results;
+const datasets={roles:'role_assignments',subscriptions:'course_subscription_decisions',months:'program_monthly_subscriptions',grants:'program_surah_grants',memberships:'class_memberships'},indexes={roles:'website_platform_roles_page',subscriptions:'website_platform_subscriptions_page',months:'website_platform_months_page',grants:'website_platform_grants_page',memberships:'website_platform_membership_page'};
+export const accessStream=async(scope,account)=>'access:'+await sha256(JSON.stringify([scope,account.toLowerCase()]));
+const check=(rows,max,name)=>{if(rows.length>max)throw Error(name);return rows;};
+export async function importAccessPage(db,{activityKey,limit=25}={}){
+ const scope=await db.prepare('SELECT * FROM website_platform_access_scopes WHERE activity_key=? AND enabled=1').bind(activityKey).first();if(!scope)throw Error('ACCESS_SCOPE_DISABLED');
+ limit=Math.max(1,Math.min(50,Number(limit)||25));
+ for(const dataset of [...Object.keys(datasets),'global'])await db.prepare('INSERT INTO website_platform_access_imports(activity_key,dataset,generation) VALUES(?,?,?) ON CONFLICT DO NOTHING').bind(scope.activity_key,dataset,scope.revision).run();
+ const phase=await db.prepare('SELECT * FROM website_platform_access_imports WHERE activity_key=? AND done=0 ORDER BY dataset LIMIT 1').bind(scope.activity_key).first();if(!phase)return {done:true};
+ const rows=phase.dataset==='global'?await all(db,"SELECT account_id FROM global_role_assignments INDEXED BY website_platform_global_page WHERE role='GLOBAL_ADMIN' AND active=1 AND review_state='CONFIRMED' AND account_id>? ORDER BY account_id LIMIT ?",phase.cursor,limit+1):await all(db,`SELECT account_id FROM ${datasets[phase.dataset]} INDEXED BY ${indexes[phase.dataset]} WHERE activity_key=? AND account_id>? ORDER BY account_id LIMIT ?`,scope.activity_key,phase.cursor,limit+1);
+ const page=rows.slice(0,limit),accounts=[...new Set(page.map(r=>r.account_id.toLowerCase()))],cursor=page.at(-1)?.account_id||phase.cursor,guard=crypto.randomUUID();
+ await db.batch([
+  db.prepare('INSERT INTO website_platform_guards VALUES(?,EXISTS(SELECT 1 FROM website_platform_access_scopes WHERE activity_key=? AND enabled=1 AND revision=?))').bind(guard,scope.activity_key,scope.revision),
+  db.prepare('INSERT INTO website_platform_access_dirty(activity_key,account_id) SELECT ?,value FROM json_each(?) WHERE 1 ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL WHERE website_platform_access_dirty.revision=website_platform_access_dirty.exported_revision AND website_platform_access_dirty.generation<?').bind(scope.activity_key,JSON.stringify(accounts),scope.revision),
+  db.prepare('INSERT INTO website_platform_access_dirty(activity_key,account_id) VALUES(?,\'\') ON CONFLICT DO NOTHING').bind(scope.activity_key),
+  db.prepare('UPDATE website_platform_access_imports SET cursor=?,done=? WHERE activity_key=? AND dataset=? AND generation=? AND cursor=?').bind(cursor,Number(rows.length<=limit),scope.activity_key,phase.dataset,scope.revision,phase.cursor),
+  db.prepare('DELETE FROM website_platform_guards WHERE guard_id=?').bind(guard)
+ ]);return {dataset:phase.dataset,records:page.length,accounts:accounts.length,done:rows.length<=limit,cursor};
+}
+async function configuration(db,key){return db.prepare(`SELECT x.*,own.state access_owner,m.offering_id,m.kind,COALESCE(h.title,NULLIF(n.published_title,''),a.name) name,a.active,a.lifecycle,a.kind source_kind,COALESCE(h.timezone,n.published_timezone,p.timezone) timezone,c.legacy_access_model,c.policy_review_state,mp.enabled monthly_enabled,b.programme_key,b.enabled programme_enabled,h.registration_id completed_registration,h.website_id completed_website,h.package_sha256 completed_package FROM website_platform_access_scopes x JOIN website_platform_timetable_scopes m USING(activity_key) JOIN activities a USING(activity_key) LEFT JOIN website_platform_new_courses n USING(activity_key) LEFT JOIN website_platform_programmes b USING(activity_key) LEFT JOIN website_platform_completed_courses h USING(activity_key) LEFT JOIN website_platform_access_ownership own USING(activity_key) LEFT JOIN program_settings p USING(activity_key) LEFT JOIN course_settings c USING(activity_key) LEFT JOIN program_monthly_media_policies mp USING(activity_key) WHERE x.activity_key=?`).bind(key).first();}
+export async function projectAccess(db,key,accountId,{now=Date.now()}={}){
+ const scope=await configuration(db,key);if(!scope)throw Error('ACCESS_SCOPE_MISSING');
+ if(!accountId){const websites=check(await all(db,`SELECT m.website_id,s.completion_date,s.active FROM website_platform_surah_maps m JOIN program_surahs s ON s.surah_id=m.surah_id AND s.activity_key=m.activity_key WHERE m.activity_key=? ORDER BY m.surah_id LIMIT 201`,key),200,'SURAH_MAP_TOO_LARGE');
+  const classes=check(await all(db,'SELECT class_id FROM classes WHERE activity_key=? AND active=1 ORDER BY class_id LIMIT 201',key),200,'CLASS_SCOPE_TOO_LARGE');
+  const liveRun=!scope.completed_registration&&(scope.kind!=='COURSE'||Boolean(await db.prepare('SELECT 1 FROM course_runs r JOIN course_run_state s USING(activity_key,run_id) WHERE r.activity_key=? AND r.active=1 AND s.current_publication_id IS NOT NULL AND (r.end_date IS NULL OR r.end_date>=?) LIMIT 1').bind(key,new Date(now).toISOString().slice(0,10)).first()));
+  const model=scope.kind==='COURSE'?scope.purchase_model==='CONFIRMED_SUBSCRIPTION'&&['PAID','FREE'].includes(scope.legacy_access_model)&&scope.policy_review_state==='CONFIRMED':scope.kind==='TAFSEER'&&(scope.monthly_enabled===1||scope.programme_key==='mothers'&&scope.programme_enabled===1);
+  return {type:'access-scope',...(scope.completed_registration?{completedCourse:{registrationId:scope.completed_registration,websiteId:scope.completed_website,packageSha256:scope.completed_package}}:{}),...(scope.programme_key?{programmeKey:scope.programme_key,accessModel:'MONTHLY'}:{}),offering:{id:scope.offering_id,kind:scope.kind,title:scope.name},generation:scope.revision,...(scope.kind==='COURSE'?{accessModel:scope.legacy_access_model}:{}),enabled:Boolean(scope.enabled&&model),liveEnabled:Boolean(scope.active&&scope.lifecycle==='ACTIVE'&&liveRun),timezone:scope.timezone||'UTC',classes:classes.map(c=>c.class_id),websites};
+ }
+ const account=await db.prepare('SELECT * FROM website_platform_account_state WHERE account_id=?').bind(accountId).first();if(!account)throw Error('MASTER_ACCOUNT_MISSING');
+ const roles=await all(db,`SELECT r.role FROM role_assignments r INDEXED BY one_active_scoped_role JOIN accounts a ON a.account_id=r.account_id COLLATE NOCASE WHERE r.account_id=? COLLATE NOCASE AND r.activity_key=? COLLATE NOCASE AND r.active=1 AND r.review_state='CONFIRMED' AND ${scope.programme_key==='mothers'?"(r.grant_source='EXPLICIT' OR r.grant_source='LEGACY_MAPPED' AND r.legacy_source_role IN('ADMIN','SENIOR'))":"r.grant_source='EXPLICIT'"} AND a.active=1`,account.account_id,key),names=new Set(roles.map(r=>r.role));
+ const subscribed=scope.access_owner!=='STUDIO'&&scope.kind==='COURSE'&&scope.purchase_model==='CONFIRMED_SUBSCRIPTION'&&Boolean(await db.prepare('SELECT 1 FROM course_subscription_decisions WHERE account_id=? AND activity_key=? AND active=1').bind(account.account_id,key).first());
+ const purchased=scope.legacy_access_model==='PAID'&&subscribed;
+ const months=scope.access_owner!=='STUDIO'&&scope.kind==='TAFSEER'?check(await all(db,'SELECT lesson_month,class_ids_json FROM program_monthly_subscriptions WHERE activity_key=? AND account_id=? AND active=1 ORDER BY lesson_month LIMIT 241',key,account.account_id),240,'MONTH_SCOPE_TOO_LARGE'):[];
+ const paid=[];for(const row of months){const cohorts=check(JSON.parse(row.class_ids_json),100,'MONTH_AUDIENCE_TOO_LARGE');for(const cohort of cohorts){if(typeof cohort!=='string'||!cohort||cohort.length>180)throw Error('INVALID_HISTORICAL_COHORT');paid.push({month:row.lesson_month,cohort});}}check(paid,512,'MONTH_AUDIENCE_TOO_LARGE');
+ const grants=scope.access_owner!=='STUDIO'&&scope.kind==='TAFSEER'?check(await all(db,`SELECT m.website_id FROM program_surah_grants g JOIN website_platform_surah_maps m ON m.activity_key=g.activity_key AND m.surah_id=g.surah_id JOIN program_surahs s ON s.surah_id=g.surah_id AND s.activity_key=g.activity_key WHERE g.activity_key=? AND g.account_id=? AND g.active=1 AND s.active=1 ORDER BY g.surah_id LIMIT 129`,key,account.account_id),128,'GRANT_SCOPE_TOO_LARGE'):[];
+ const hasAllocation=Boolean(await db.prepare('SELECT 1 FROM class_memberships WHERE activity_key=? AND account_id=? LIMIT 1').bind(key,account.account_id).first());
+ const windows=check(await all(db,`SELECT * FROM (
+ SELECT * FROM (SELECT class_id,start_date,end_date,active FROM class_memberships INDEXED BY website_platform_live_windows WHERE activity_key=? AND account_id=? AND active=1 AND end_date IS NULL LIMIT 101)
+ UNION ALL SELECT * FROM (SELECT class_id,start_date,end_date,active FROM class_memberships INDEXED BY website_platform_live_windows WHERE activity_key=? AND account_id=? AND active=1 AND end_date>=? ORDER BY end_date,enrollment_id LIMIT 101)) LIMIT 101`,key,account.account_id,key,account.account_id,new Date(now-86400_000).toISOString().slice(0,10)),100,'LIVE_SCOPE_TOO_LARGE');
+ return {type:'access',offeringId:scope.offering_id,generation:scope.revision,verifiedAt:now,account:{accountId:account.account_id,displayName:account.display_name,active:Boolean(account.active),admitted:Boolean(account.admitted),epoch:account.epoch,globalAdmin:Boolean(account.global_admin),verifiedAt:now},participation:{enrolled:names.has('STUDENT')||subscribed,live:names.has('STUDENT')||subscribed,purchased,windows,hasAllocation,course:scope.kind==='COURSE'},websiteMonths:months.map(m=>m.lesson_month),role:names.has('PROGRAM_ADMIN')?'ADMIN':names.has('TEACHER')?'TEACHER':null,months:paid,grants:grants.map(g=>g.website_id)};
+}
+export async function markAccess(db,key,account){await db.prepare('INSERT INTO website_platform_access_dirty(activity_key,account_id) VALUES(?,?) ON CONFLICT(activity_key,account_id) DO UPDATE SET revision=revision+1,next_attempt=0,last_error=NULL').bind(key,account.toLowerCase()).run();}
+export async function queueAccess(db,{limit=4,onlyScope,onlyAccount,now=Date.now()}={}){
+ const rows=await all(db,'SELECT * FROM website_platform_access_dirty WHERE '+(onlyScope?'activity_key=? AND account_id=? AND next_attempt<=?':'next_attempt<=?')+' ORDER BY '+(onlyScope?'account_id':'next_attempt,activity_key,account_id')+' LIMIT ?',...(onlyScope?[onlyScope,onlyAccount,now]:[now]),Math.max(1,Math.min(8,limit)));
+ for(const row of rows){try{let event,problem=null;
+  try{event=await projectAccess(db,row.activity_key,row.account_id,{now});if(new TextEncoder().encode(JSON.stringify(event)).length>220_000)throw Error('ACCESS_PAYLOAD_TOO_LARGE');}catch(error){
+   if(!/TOO_LARGE|INVALID_HISTORICAL/.test(error.message))throw error;const scope=await configuration(db,row.activity_key);if(!scope)throw error;problem=error.message;
+   if(!row.account_id)event={type:'access-scope',offering:{id:scope.offering_id,kind:scope.kind,title:scope.name},generation:scope.revision,enabled:false,liveEnabled:false,timezone:'UTC',classes:[],websites:[]};
+   else{const a=await db.prepare('SELECT * FROM website_platform_account_state WHERE account_id=?').bind(row.account_id).first();if(!a)throw error;event={type:'access',offeringId:scope.offering_id,generation:scope.revision,verifiedAt:now,blocked:true,account:{accountId:a.account_id,displayName:a.display_name,active:Boolean(a.active),admitted:Boolean(a.admitted),epoch:a.epoch,globalAdmin:Boolean(a.global_admin),verifiedAt:now},participation:{enrolled:false,live:false,purchased:false,windows:[],hasAllocation:true,course:scope.kind==='COURSE'},websiteMonths:[],role:null,months:[],grants:[]};}
+  }
+  const stream=await accessStream(event.offeringId||event.offering.id,row.account_id),guard=crypto.randomUUID();if(new TextEncoder().encode(JSON.stringify(event)).length>220_000)throw Error('ACCESS_PAYLOAD_TOO_LARGE');
+  await db.batch([
+   db.prepare('INSERT INTO website_platform_guards VALUES(?,EXISTS(SELECT 1 FROM website_platform_access_dirty WHERE activity_key=? AND account_id=? AND revision=? AND (SELECT enabled FROM website_platform_control WHERE singleton=1)=1))').bind(guard,row.activity_key,row.account_id,row.revision),
+   db.prepare('INSERT INTO website_platform_streams VALUES(?,1) ON CONFLICT(stream) DO UPDATE SET version=version+1').bind(stream),
+   db.prepare('INSERT INTO website_platform_outbox(operation_id,stream,version,event_json,access_scope,access_account,access_revision) SELECT ?,stream,version,?,?,?,? FROM website_platform_streams WHERE stream=?').bind(crypto.randomUUID(),JSON.stringify(event),row.activity_key,row.account_id,row.revision,stream),
+   db.prepare('UPDATE website_platform_access_dirty SET exported_revision=revision,generation=?,next_attempt=?,last_error=? WHERE activity_key=? AND account_id=?').bind(event.generation,problem?now+30_000:Number.MAX_SAFE_INTEGER,problem,row.activity_key,row.account_id),
+   db.prepare('DELETE FROM website_platform_guards WHERE guard_id=?').bind(guard)
+  ]);
+ }catch(error){await db.prepare('UPDATE website_platform_access_dirty SET next_attempt=?,last_error=? WHERE activity_key=? AND account_id=? AND revision=?').bind(now+30_000,/^[A-Z_]+$/.test(error.message)?error.message:'ACCESS_RETRY',row.activity_key,row.account_id,row.revision).run();}}
+}
+export async function prepareAccountAccess(db,accountId,{offeringId}={}){
+ const scopes=check(await all(db,`SELECT s.activity_key,CASE WHEN o.state='STUDIO' THEN 1 ELSE EXISTS(SELECT 1 FROM course_settings c WHERE c.activity_key=s.activity_key AND c.legacy_access_model='FREE' AND c.policy_review_state='CONFIRMED') END shared,
+ d.revision metadata_revision,d.exported_revision metadata_exported,d.last_error metadata_error,
+ p.revision person_revision,p.exported_revision person_exported,p.last_error person_error
+ FROM website_platform_access_scopes s ${offeringId?'JOIN website_platform_timetable_scopes m USING(activity_key)':''}
+ LEFT JOIN website_platform_access_ownership o USING(activity_key)
+ LEFT JOIN website_platform_access_dirty d ON d.activity_key=s.activity_key AND d.account_id=''
+ LEFT JOIN website_platform_access_dirty p ON p.activity_key=s.activity_key AND p.account_id=?
+ WHERE s.enabled=1 ${offeringId?'AND m.offering_id=?':''} ORDER BY s.activity_key LIMIT 33`,accountId.toLowerCase(),...(offeringId?[offeringId]:[])),32,'ACCESS_SCOPE_LIMIT');
+ if(offeringId&&!scopes.length)throw Error('ACCESS_SCOPE_MISSING');
+ for(const s of scopes){
+  if(s.metadata_revision==null||s.metadata_revision!==s.metadata_exported||s.metadata_error){
+   await db.prepare('INSERT INTO website_platform_access_dirty(activity_key,account_id) VALUES(?,\'\') ON CONFLICT DO NOTHING').bind(s.activity_key).run();await queueAccess(db,{onlyScope:s.activity_key,onlyAccount:''});
+   const metadata=await db.prepare("SELECT revision,exported_revision,last_error FROM website_platform_access_dirty WHERE activity_key=? AND account_id=''").bind(s.activity_key).first();if(!metadata||metadata.revision!==metadata.exported_revision||metadata.last_error)throw Error('ACCESS_SCOPE_PENDING');
+  }
+  // Studio rights and default FREE access need no new per-account Source
+  // snapshot at sign-in. Still flush known role/class/master changes; an actual
+  // live/staff action can explicitly refresh this exact offering when needed.
+  const shared=!offeringId&&Boolean(s.shared);
+  const dirty=s.person_revision!=null&&(s.person_revision!==s.person_exported||s.person_error);
+  if(shared&&!dirty)continue;
+  if(!shared)await markAccess(db,s.activity_key,accountId);
+  await queueAccess(db,{onlyScope:s.activity_key,onlyAccount:accountId.toLowerCase()});const row=await db.prepare('SELECT revision,exported_revision,last_error FROM website_platform_access_dirty WHERE activity_key=? AND account_id=?').bind(s.activity_key,accountId.toLowerCase()).first();if(!row||row.revision!==row.exported_revision||row.last_error)throw Error('ACCESS_CONFIRMATION_PENDING');
+ }
+}
+export async function pumpAccess(db){
+ const scope=await db.prepare(`SELECT s.activity_key FROM website_platform_access_scopes s WHERE s.enabled=1 AND (NOT EXISTS(SELECT 1 FROM website_platform_access_imports i WHERE i.activity_key=s.activity_key) OR EXISTS(SELECT 1 FROM website_platform_access_imports i WHERE i.activity_key=s.activity_key AND i.done=0)) ORDER BY s.activity_key LIMIT 1`).first();if(scope)await importAccessPage(db,{activityKey:scope.activity_key});await queueAccess(db);
+}

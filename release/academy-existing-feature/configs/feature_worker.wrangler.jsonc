@@ -1,0 +1,153 @@
+{
+  "account_id": "c9a3e355b3d7a795880b1d36a1dbe123",
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "../public",
+    "html_handling": "none",
+    "not_found_handling": "none",
+    "run_worker_first": [
+      "/",
+      "/academy",
+      "/academy/",
+      "/academy/admin",
+      "/academy/admin/",
+      "/api/*",
+      "/internal/*",
+      "/auth/v110/login",
+      "/auth/v110/setup-pin",
+      "/auth/v110/context",
+      "/auth/v110/csrf",
+      "/auth/v110/refresh",
+      "/auth/v110/logout-csrf",
+      "/auth/v110/logout"
+    ]
+  },
+  "base_dir": "../runtime/api",
+  "compatibility_date": "2026-10-23",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "d1_databases": [
+    {
+      "binding": "JWT_V110_CORE_DB",
+      "database_id": "cdbe97bc-f3d9-400e-8806-ed9a0d143d26",
+      "database_name": "jwt-feature-core-20261106a"
+    },
+    {
+      "binding": "JWT_V110_ADMIN_DB",
+      "database_id": "ed77f2a7-4439-4841-8691-2b41063d8960",
+      "database_name": "jwt-feature-admin-20261106a"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "class_name": "JWTFeatureAcademySplitCoordinator",
+        "name": "JWT_V110_SPLIT_COORDINATOR",
+        "script_name": "academy-feature-split-coordinator"
+      },
+      {
+        "class_name": "JWTFeatureProgramTimetableCoordinator",
+        "name": "JWT_V110_TIMETABLE_COORDINATOR"
+      }
+    ]
+  },
+  "find_additional_modules": true,
+  "keep_vars": true,
+  "main": "../runtime/api/api-main.mjs",
+  "migrations": [
+    {
+      "tag": "jwt-feature-fresh-20261106a"
+    }
+  ],
+  "name": "feature_worker",
+  "no_bundle": true,
+  "preserve_file_names": true,
+  "preview_urls": false,
+  "r2_buckets": [
+    {
+      "binding": "ASSESSMENT_BUCKET",
+      "bucket_name": "maktab-assessments-private-feature"
+    },
+    {
+      "binding": "LESSON_MEDIA_BUCKET",
+      "bucket_name": "maktab-lesson-media-private-feature"
+    },
+    {
+      "binding": "MEDIA_BUCKET",
+      "bucket_name": "maktab-feature-media-private"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "AUTH_LOGIN_RATE_LIMITER",
+      "namespace_id": "100111",
+      "simple": {
+        "limit": 5,
+        "period": 60
+      }
+    },
+    {
+      "name": "JWT_V110_RATE_LIMITER",
+      "namespace_id": "100112",
+      "simple": {
+        "limit": 10,
+        "period": 60
+      }
+    }
+  ],
+  "routes": [
+    {
+      "custom_domain": true,
+      "pattern": "maktabhelper.app"
+    }
+  ],
+  "rules": [
+    {
+      "fallthrough": true,
+      "globs": [
+        "academy-existing-feature-common.mjs"
+      ],
+      "type": "ESModule"
+    }
+  ],
+  "triggers": {
+    "crons": []
+  },
+  "vars": {
+    "ACADEMY_ACCEPTED_SETUP": "1",
+    "ACADEMY_D1_MODE": "ACTIVE",
+    "ACADEMY_DB_GENERATION": "SPLIT_V1",
+    "ACADEMY_DEPLOYMENT_KIND": "ISOLATED_PREVIEW",
+    "ACADEMY_LIBRARY_MODE": "PUBLIC_ONLY",
+    "ACADEMY_WEBSITE_STUDIO": "0",
+    "ACADEMY_WEB_PLATFORM": "0",
+    "AI_ENABLED": "0",
+    "ALLOWED_ORIGINS": "https://maktabhelper.app",
+    "API_ORIGIN": "https://maktabhelper.app",
+    "ENVIRONMENT": "feature",
+    "HIFZ_HANDOFF_ENABLED": "0",
+    "JWT_V110_BROWSER": "1",
+    "JWT_V110_CHILD_NATIVE_AUTH": "0",
+    "JWT_V110_COOKIE_MODE": "SHARED_PARENT_ACCESS_HOST_ONLY_REFRESH_V1",
+    "JWT_V110_MASTER": "1",
+    "JWT_V110_NATIVE_COOKIE": "1",
+    "JWT_V110_PORTABLE_ACTIVATION": "ROOT_COORDINATED_ACCEPTED_PROFILE",
+    "JWT_V110_PORTABLE_AI": "OFF",
+    "JWT_V110_PORTABLE_APP": "academy",
+    "JWT_V110_PORTABLE_PROFILE_SHA256": "ace803d91780e16352bc2d07dd6aadd30ed7bd4c4a7ae08848d68108eb9c9d85",
+    "JWT_V110_PORTABLE_PROVIDERS": "OFF",
+    "JWT_V110_PORTABLE_SCHEDULES": "OFF",
+    "JWT_V110_PORTABLE_TRANSCRIPTION": "OFF",
+    "JWT_V110_PROMOTION_ACTIVATION_ALLOWED": "0",
+    "JWT_V110_REFRESH": "1",
+    "JWT_V110_REQUEST_ORIGIN": "https://maktabhelper.app",
+    "JWT_V110_ROOT_ONLY_CHILD_DELIVERY": "OFF",
+    "JWT_V110_ROOT_SENSITIVE_POLICY": "RESOURCE_PIN_V1",
+    "JWT_V110_STORAGE_PROFILE": "ACADEMY_ONLY_EXISTING_PAIR_V1",
+    "LOCAL_VIDEO_MANUAL_SOURCE_ENABLED": "0",
+    "TRANSCRIPTION_ENABLED": "0",
+    "VIDEO_AUTOLINK_HTTP_ENABLED": "0"
+  },
+  "workers_dev": true
+}

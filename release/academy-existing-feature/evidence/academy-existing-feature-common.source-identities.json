@@ -1,0 +1,2437 @@
+{
+  "schema": "ACTUAL_ACADEMY_PORTABLE_INPUT_IDENTITIES_V1",
+  "inputs": [
+    {
+      "identity": "academy-dependency:dist/webapi/index.js",
+      "bytes": 2376,
+      "sha256": "f198638529597ab18dc3d2799f362106121f90cf0b0c43e75c3dffa5cc6b8590",
+      "resolveDir": "dist/webapi",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/jwe/compact/decrypt.js",
+      "bytes": 217,
+      "sha256": "c08202f5114caee270bcaa0ed3e119acb241f88d51c6d65a34a1fd6a3353cd2a",
+      "resolveDir": "dist/webapi/jwe/compact",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/jwe/compact/encrypt.js",
+      "bytes": 978,
+      "sha256": "8db8eb9fa34a0187c0ff26e04c37024af421f2f265255d60a01c0edf416f2f85",
+      "resolveDir": "dist/webapi/jwe/compact",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/jwe/flattened/decrypt.js",
+      "bytes": 659,
+      "sha256": "4964d31fafb143a8f15cf4820214b268706dbbd569bdedaa9b24a11520f6c6b2",
+      "resolveDir": "dist/webapi/jwe/flattened",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/jwe/flattened/encrypt.js",
+      "bytes": 1369,
+      "sha256": "e1fe288a34aae4938dbdd13b86e33e54fef9ff3f3c55a2354ab9d7b5665d1e92",
+      "resolveDir": "dist/webapi/jwe/flattened",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/jwe/general/decrypt.js",
+      "bytes": 1811,
+      "sha256": "3a721fc3958f36c3bed7764a032238b35f9172bf95d40a7e28a4cea4d7ccd511",
+      "resolveDir": "dist/webapi/jwe/general",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/jwe/general/encrypt.js",
+      "bytes": 4412,
+      "sha256": "539cecb9802acbc298b9f8cfe1f558d9f11a8674cbbd95b4ec662cbf94613414",
+      "resolveDir": "dist/webapi/jwe/general",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/jwk/embedded.js",
+      "bytes": 1134,
+      "sha256": "449f2b08f47d006a4b937201692b7a830c9e9ac785e82073c1f6f9792642f91d",
+      "resolveDir": "dist/webapi/jwk",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/jwk/thumbprint.js",
+      "bytes": 2739,
+      "sha256": "c63aa916d733cee3a3c21932cd0b207e3623214c4bfe3e5a6662ed9ea6ec4b78",
+      "resolveDir": "dist/webapi/jwk",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/jwks/local.js",
+      "bytes": 2855,
+      "sha256": "539d24547c9131739064b17c21b20d299428238127ea5c9d741ac1f6e724a64d",
+      "resolveDir": "dist/webapi/jwks",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/jwks/remote.js",
+      "bytes": 4392,
+      "sha256": "b49b44e5929b6236a938eb67d4380f033787fee7086f57e0140976b0e7cac149",
+      "resolveDir": "dist/webapi/jwks",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/jws/compact/sign.js",
+      "bytes": 702,
+      "sha256": "09450f2b3763b531d28bec9796d2f3ff0064c7b07dde15f7d1e1e7693e2ec12a",
+      "resolveDir": "dist/webapi/jws/compact",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/jws/compact/verify.js",
+      "bytes": 243,
+      "sha256": "6d1109739b895858c7006d02ef91f8b13ce5ae8c91996d1f1c0b57c1ab33c398",
+      "resolveDir": "dist/webapi/jws/compact",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/jws/flattened/sign.js",
+      "bytes": 757,
+      "sha256": "01cb90bcf39d8aa9bcf6d3efd36f5b80c112e547ef5448d7512b7aafa72bb6dd",
+      "resolveDir": "dist/webapi/jws/flattened",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/jws/flattened/verify.js",
+      "bytes": 538,
+      "sha256": "ff23003a7b0a4d8a7add2cd8b13b72393b863f6f251ddd814f08d69b35be3b2e",
+      "resolveDir": "dist/webapi/jws/flattened",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/jws/general/sign.js",
+      "bytes": 1943,
+      "sha256": "11a7de8f3359584c0c283cdedb14fb841461675b37d1ed1de810c9efc3469561",
+      "resolveDir": "dist/webapi/jws/general",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/jws/general/verify.js",
+      "bytes": 2022,
+      "sha256": "9bd57db71138b871a78fd31d81732282154d91db78e318503a03c6b8ebe8c0d5",
+      "resolveDir": "dist/webapi/jws/general",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/jwt/decrypt.js",
+      "bytes": 841,
+      "sha256": "233bb797f9239582ada83fac5723c818dfa0f24e9a864680759df5f2bb5b260c",
+      "resolveDir": "dist/webapi/jwt",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/jwt/encrypt.js",
+      "bytes": 1863,
+      "sha256": "7c5872544078cc618b8699b5518541fcd0058ee798f52955d58c58ca3de9d1eb",
+      "resolveDir": "dist/webapi/jwt",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/jwt/sign.js",
+      "bytes": 739,
+      "sha256": "31a499b2b08c4143c1747fa101936fa58ed21da6b147056ce2fce5870cb460ca",
+      "resolveDir": "dist/webapi/jwt",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/jwt/unsecured.js",
+      "bytes": 1646,
+      "sha256": "33695f71e704e945d5897a227c01d5d8f45210722650c03bf111b24ba86b6e16",
+      "resolveDir": "dist/webapi/jwt",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/jwt/verify.js",
+      "bytes": 534,
+      "sha256": "e015a18744717762a1f138d0f0a88a40d3b660bc46f76ddf8309b32987175bef",
+      "resolveDir": "dist/webapi/jwt",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/key/export.js",
+      "bytes": 1120,
+      "sha256": "634aee75fbdabbffb73d439ae63305ad043a268354ecf53426b827ba3f81cfb7",
+      "resolveDir": "dist/webapi/key",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/key/generate_key_pair.js",
+      "bytes": 1645,
+      "sha256": "97e4e5b66af75700da10fc5807471636b633d7c72c65a7fe50980c4a3a2c6c74",
+      "resolveDir": "dist/webapi/key",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/key/generate_secret.js",
+      "bytes": 1313,
+      "sha256": "eadcae7108774b03a6a9b5bb2ed22f25496dcda2e491c2fd3f8e71781f1bc260",
+      "resolveDir": "dist/webapi/key",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/key/import.js",
+      "bytes": 2279,
+      "sha256": "ab2f57a9db99e8d48451a8d0a8adf75379381f65b0e3e28ba6c02aa5bb3ee5fa",
+      "resolveDir": "dist/webapi/key",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/lib/asn1.js",
+      "bytes": 5872,
+      "sha256": "b67f65067322baf007226faf96ddba521d19558d4ec946a8d0e3399740e754ca",
+      "resolveDir": "dist/webapi/lib",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/lib/buffer_utils.js",
+      "bytes": 2751,
+      "sha256": "3bfbd2a1323e8456ad87fb0479831e69a0d957b9208fb8de76d82ac56cdf42fc",
+      "resolveDir": "dist/webapi/lib",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/lib/content_encryption.js",
+      "bytes": 4308,
+      "sha256": "542c666b0d9fa8f8efd3e03fe5f71c7abf74ee11e8db35a517de51353e7e317e",
+      "resolveDir": "dist/webapi/lib",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/lib/deflate.js",
+      "bytes": 1644,
+      "sha256": "d7da65e5db6a9f236d3a77d2d413e3c105f5e5fd5f4c91c7ce50b575ffa0a245",
+      "resolveDir": "dist/webapi/lib",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/lib/jwe_algorithms.js",
+      "bytes": 3326,
+      "sha256": "d41562ff2ccc3599f7189384653fbcd1ff68babd475fe99e31eccb61706abd47",
+      "resolveDir": "dist/webapi/lib",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/lib/jwe_decrypt.js",
+      "bytes": 9047,
+      "sha256": "1cc343e273867870c29edf0d0bb81b96f573e705cb0441459110ebab6c30a185",
+      "resolveDir": "dist/webapi/lib",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/lib/jwe_encrypt.js",
+      "bytes": 5967,
+      "sha256": "e9eb264823e89f9f5fa9a112331606644a35f0e27411363e6b852c8c48023573",
+      "resolveDir": "dist/webapi/lib",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/lib/jws_algorithms.js",
+      "bytes": 1762,
+      "sha256": "51fda5def135c451b291193518157c842555c2c37a8f20c598e5cc27436ba544",
+      "resolveDir": "dist/webapi/lib",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/lib/jws_sign.js",
+      "bytes": 2904,
+      "sha256": "d4daec77131ba4abacd0207377bc5de7007025028004ce5879d90162337795c0",
+      "resolveDir": "dist/webapi/lib",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/lib/jws_verify.js",
+      "bytes": 5685,
+      "sha256": "8b2e83cce30134f660a1ea96cbaba78f1877477f331ff6d71518e930a2e35842",
+      "resolveDir": "dist/webapi/lib",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/lib/jwt_claims_set.js",
+      "bytes": 7613,
+      "sha256": "c0c893b68c426d585f3b955b3873c715e5e15f46d62d9a67d82a5d19c12eefec",
+      "resolveDir": "dist/webapi/lib",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/lib/key_algorithm.js",
+      "bytes": 517,
+      "sha256": "4ef0b80292076659b054313f70eeef81cd7df01e2ec9988c24552206bc42cc07",
+      "resolveDir": "dist/webapi/lib",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/lib/key_descriptor.js",
+      "bytes": 167,
+      "sha256": "80ae05a1fc41271a29dbd5ab717255a1255ee0ac43b6820853d2f338d9e74b46",
+      "resolveDir": "dist/webapi/lib",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/lib/key_management.js",
+      "bytes": 11071,
+      "sha256": "6604927b14ab576d12e9353f81df95b08aa483df368a16447e6a226ef991f343",
+      "resolveDir": "dist/webapi/lib",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/lib/key.js",
+      "bytes": 7856,
+      "sha256": "03337646421f0df228c14817a802186dcdff853ef445cd585da191eef1d86813",
+      "resolveDir": "dist/webapi/lib",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/lib/validate.js",
+      "bytes": 4777,
+      "sha256": "2bfc6cf900868bd5e53582d1ffc979959d4f73a0f0e15a91109b86d393572003",
+      "resolveDir": "dist/webapi/lib",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/util/base64url.js",
+      "bytes": 490,
+      "sha256": "9c9c168e24c5be2db20956262065b94556de959e5dcc62430e31a0f57f821691",
+      "resolveDir": "dist/webapi/util",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/util/decode_jwt.js",
+      "bytes": 1145,
+      "sha256": "c1698d7e962f9e1c182e98241e02bce8d0b186fa5e1e3f12a80ecb9681e7125d",
+      "resolveDir": "dist/webapi/util",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/util/decode_protected_header.js",
+      "bytes": 771,
+      "sha256": "7f17b35289f4837b646edd06096edb15d1ef6ac56d300aff63a6f40a934764f5",
+      "resolveDir": "dist/webapi/util",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-dependency:dist/webapi/util/errors.js",
+      "bytes": 3305,
+      "sha256": "9bb7503fd84d5387677f1b917969cdf7c20482c3d86e92e64972bc83938b95f8",
+      "resolveDir": "dist/webapi/util",
+      "kind": "academy-dependency",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:academy/course-websites/model.mjs",
+      "bytes": 12056,
+      "sha256": "ac8c2f1a2ec8b1d0cf3cd8263040f0e04caa8318f01a74bfaf0f68036d480741",
+      "resolveDir": "academy/course-websites",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/source-overlays/existing-feature-external/accepted-feature-studio-admin-r2.source.mjs",
+      "bytes": 22083,
+      "sha256": "0a47440d3e2ecc12e1cee019204c63d3c245f8953bb00717dfa82773248de44a",
+      "resolveDir": "backend/src/academy/d1/web-platform",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/source-overlays/existing-feature-external/accepted-feature-video-processing-r1.source.mjs",
+      "bytes": 4673,
+      "sha256": "dacb7c247406f726619df7bed9377ffd19c8cc8ec5fafe590f31e9dea746f6b7",
+      "resolveDir": "backend/src/academy/d1/web-platform",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy-existing-feature-entry-v5.mjs",
+      "bytes": 5944,
+      "sha256": "e564dcd11fcc8e82b7af4ea9cf8267114436a500962873842957b9e5dc8924a5",
+      "resolveDir": "backend/src",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy-existing-feature-runtime-v1.mjs",
+      "bytes": 480,
+      "sha256": "f5853b861119a684c77270c416d26bfb436671803172a6c908b3200c7913194e",
+      "resolveDir": "backend/src",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy-runtime.js",
+      "bytes": 1509,
+      "sha256": "37b35d69d9c06baec52b5f04774d66d0c732a051bcd9accfcc163bb836a9ae84",
+      "resolveDir": "backend/src",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy-split-coordinator-root-only-v1.mjs",
+      "bytes": 4117,
+      "sha256": "29e5cdad4fa2bbe1be93134fb0f7a8cf1d2612917d9a0dde484ca743d2c04b53",
+      "resolveDir": "backend/src",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy-split-coordinator-root-sensitive-v1.js",
+      "bytes": 1867,
+      "sha256": "25ae2a6d2516dae47d5f0d835f7b47c05fc549184488c0279ac1afc610755c05",
+      "resolveDir": "backend/src",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/availability-ranges.js",
+      "bytes": 4596,
+      "sha256": "3c44ab7bf3467925453e74cbfb0c3528b49ddffa8df4a7e6907e8b00f83c53a1",
+      "resolveDir": "backend/src/academy",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/calendar-dates.js",
+      "bytes": 859,
+      "sha256": "c17e2b6cd060c8f521b46f7be40024cb92136f1cf6e5bf97636f9fc5599f1ee9",
+      "resolveDir": "backend/src/academy",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/course-books/course-companion.js",
+      "bytes": 1098,
+      "sha256": "9044c4eb022fba9bed75135545403f05ceb8e50fb034a004d41da935ce04fc96",
+      "resolveDir": "backend/src/academy/course-books",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/course-books/surah-kahf.js",
+      "bytes": 52372,
+      "sha256": "ff645c458391c229e70d76b19e39aab6dde7545d3ec135961ef341bff811ba73",
+      "resolveDir": "backend/src/academy/course-books",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/course-books/tafseer-prepared.js",
+      "bytes": 1304,
+      "sha256": "edbba9591cb536ccfe212fda94b809dda83bc995ea974195f0ec7a5415ba4a86",
+      "resolveDir": "backend/src/academy/course-books",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/course-books/website-template.js",
+      "bytes": 5286,
+      "sha256": "32ce495cfac1035309de793396abe284c0805c9da942c17e530d188722622bb9",
+      "resolveDir": "backend/src/academy/course-books",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/academic-calendar.js",
+      "bytes": 18398,
+      "sha256": "d28559a569b87ae907158dcf0deac1c14d3b4b566aa693513a954e1467669006",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/academy-clock.js",
+      "bytes": 1867,
+      "sha256": "e694cf1028c8a2ea76740c01a99e2c1572d220e1844a08e10035abbfb3c42b30",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/account-timetable.js",
+      "bytes": 2074,
+      "sha256": "b22e5b7e3ee2b7de1f57ffc15a32fceafc49b4891f8ba2c1b1f740b05b74adf5",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/activation-policy.js",
+      "bytes": 823,
+      "sha256": "88bf6c6c79ba1656ce051e399813b5c12455bf544bb46b263ac6643cd809b78a",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/announcements-publication.js",
+      "bytes": 11561,
+      "sha256": "e6e4cee474aa76e562b0a86904b16d8b05302e9a54c7732b5f35a605a747fcb2",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/announcements.js",
+      "bytes": 20499,
+      "sha256": "e8e9a7a9e56d00354330129e51d3fab4fced84afad7e6454263d0588223292a9",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/assessment-batch.js",
+      "bytes": 3425,
+      "sha256": "be8153aeba175991d360d06d9e1d71cfb579f419da928a3927f77ed59385515b",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/assessment-files.js",
+      "bytes": 21139,
+      "sha256": "93633f5db7d4324cd9a996e24c48b6034c48fe3cb023d2627c32092cb92e9fba",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/assessment-group.js",
+      "bytes": 4291,
+      "sha256": "a1fac96f4d921a56398371132def66a76b7603c7f3ddb3712384f6c52b49080e",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/assessment-imtihaan-workflow.js",
+      "bytes": 20646,
+      "sha256": "9e2a81a4482edd5de9388e9b57a122075de825fa915539da8b544ffd01d42bdf",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/assessment-manual-marks-root-sensitive-v1.js",
+      "bytes": 6686,
+      "sha256": "16970e0e351cbcba5cbb41c8ab3a04507e35b82e59e1341a37bd69cf1b94a4e5",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/assessment-marking-state.js",
+      "bytes": 1121,
+      "sha256": "cc2e9b601f4a858fec2e5c481f19b9f0890ccded65cd964463502246cae2df75",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/assessment-paper-replacement.js",
+      "bytes": 713,
+      "sha256": "cff561f204662a92dc568c6fa153d75dc44f7cbea70656cabd29d4ce562078e7",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/assessment-progress.js",
+      "bytes": 1748,
+      "sha256": "91e7f8e2890d959e5c6dc79cc7f3f38e66b637246b56a3992e5939bc03c0c852",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/assessment-register.js",
+      "bytes": 14419,
+      "sha256": "8622176fa540ebac880d328d996345b2be03b93f62108381742cf78402594755",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/assessment-report-source.js",
+      "bytes": 460,
+      "sha256": "b53d61c1a7cd4bc13d3af16d38b7cb353acfcb67f0a68818ccb5aa0954fe8e13",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/assessment-reports.js",
+      "bytes": 10869,
+      "sha256": "d9cdebb7303dfa0e99f98d65e934618a3269063f540e3064ff4db50d62362afb",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/assessment-results.js",
+      "bytes": 1459,
+      "sha256": "b99e6ce44e4bafc092cc4c85de32f8f5a9558d6f3e565f2c89a79a3cf2199b9f",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/assessment-store.js",
+      "bytes": 19516,
+      "sha256": "b92653bf96df9eb6bed13d928fcedebae1c9cb664bb0ef7db346cb7fc866393e",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/assessment-table.js",
+      "bytes": 6849,
+      "sha256": "2ff248d33576696482cd9edba607a2bf89c98b747d3ef2d693c37a6f8826fdee",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/assessment-timing.js",
+      "bytes": 3637,
+      "sha256": "0ad4230f3c03ca6d311d2030d9544002199212b11730cba0a7c24c7061a0f830",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/assessment-validation.js",
+      "bytes": 5426,
+      "sha256": "36b82f41b73d6a86eb9c5154bb9ef86e94bca407237c6f1e432cebae7fe6509e",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/assessments.js",
+      "bytes": 66411,
+      "sha256": "12516819e9426286b6806e6c38ea72a4f238b52498d26fd1762c793f33cf20ac",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/attendance-admin.js",
+      "bytes": 10231,
+      "sha256": "5c8bead9bb9fcbc00c6334989b0596038dc337503912b230f95c4f01729bf457",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/attendance-store.js",
+      "bytes": 7232,
+      "sha256": "d2afc648d55fd6deb8d89b0df9c9d5c9355fcd0507d8daf036d53f51a1e5d4cd",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/cache-refresh.js",
+      "bytes": 6675,
+      "sha256": "34ba53cc48064bd1ac216d6060c679f4798042d564b4b88a67ccef299ae9ab61",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/calendar-annual.js",
+      "bytes": 1452,
+      "sha256": "5dc323227ffb6f41b35a4e6d75a16433b18a54c03493726bf9a90c47d5780bf7",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/calendar-holidays.js",
+      "bytes": 627,
+      "sha256": "6909d4428e99f77bf18f80f6bb2edf1bcab4a2905ea48dd5e0442aa405f7771f",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/change-scopes.js",
+      "bytes": 2512,
+      "sha256": "4311b7cd4ddbdc2d0f171ff3d3784aab67da0a44253e900907601abea1e9b28d",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/class-note-summary-cursor.js",
+      "bytes": 1880,
+      "sha256": "96492b21aeeff0fee180132acade80835ed2790efa85b379012c02228917f79c",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/class-note-summary.js",
+      "bytes": 2725,
+      "sha256": "795a8a951c1db695943d0c1fca8f72bc0062855e2c764ed37e6ddb9e5cb62d21",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/class-notes-root-sensitive-v1.js",
+      "bytes": 32942,
+      "sha256": "093e22585d627966f69fd4340632342d8a3d3a326bc717a133e12a8ca182fa2a",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/class-notes.js",
+      "bytes": 32651,
+      "sha256": "cb7d506c167e38f3f66a7a3c806ff1938c69e5c6a61df55a0d8852c5e264c6e3",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/content-media-context.js",
+      "bytes": 8293,
+      "sha256": "f78c7feffbf98c2022180e5347b12493b335886f96e23d374bcae20615c0a527",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/course-authority.js",
+      "bytes": 1095,
+      "sha256": "a95c4d261c4c3832fb7b68b31913ae257f1e2b4fda732d6323208bd78c9a3b35",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/course-calendar.js",
+      "bytes": 34574,
+      "sha256": "67cbe160804a3592b731e04b83670b807ab0b82e94c184020ed4797d06f7b9e6",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/course-catalogue.js",
+      "bytes": 5327,
+      "sha256": "fa13f2678d3d32154858a4195434b424d2dc86f591355819909d55eae3799b81",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/course-management.js",
+      "bytes": 40323,
+      "sha256": "be1de84566e2c6d7bad65fad958c5cf883deba2c31146ab043dbb009083d8b59",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/course-reader-sessions.js",
+      "bytes": 1877,
+      "sha256": "92a2b86caa16b56035a292a93011e37c8be9ef26f4496d70b3c08f8df4c0b186",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/course-subscriptions.js",
+      "bytes": 4033,
+      "sha256": "9fea31eb822deb2f93ac384eb57ab9ef01eac06eea2528af5702748d194d8e13",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/course-websites.js",
+      "bytes": 20076,
+      "sha256": "e11976f7be936e4132e144dc1204d4fdacf5bd9164ffa63a2d64c10b645ec71a",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/curriculum-removal.js",
+      "bytes": 5024,
+      "sha256": "433ba1345a5dcfc7850fae24f9a7aa002ca801bc9895d23fab092d725f1a08e7",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/enrolment.js",
+      "bytes": 19657,
+      "sha256": "8496f6df5414baf8d79ee35a9afec6695035dab205d50dc5f4144ef823dd0ce7",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/entrance.js",
+      "bytes": 18357,
+      "sha256": "b5d1193e785068b600e66b5455f14979f96c0d9edbacb7580bca4f3508a3d524",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/feature-change.js",
+      "bytes": 6387,
+      "sha256": "c6b514c29133b1013eb7a3ae3e47c2d3c4194109fe66003fd3b126f25ee6a2e7",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/global-settings.js",
+      "bytes": 2918,
+      "sha256": "005c52939a2a6d08a83a287aa53a9ccbe1a068aedfe524908af8fa7999b6c230",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/hifz-handoff.js",
+      "bytes": 3942,
+      "sha256": "16ed9af8495892f1eb03e1a8edecd7e79c5ce0d86cdf79c19222cbc6e8b31d45",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/hifz-profile-sync.js",
+      "bytes": 4467,
+      "sha256": "4b12d0b69658f93ac67e341b58385cbab3be3fc3298dad79bb55e47b6da7c3fb",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/historical-timetable.js",
+      "bytes": 1185,
+      "sha256": "62440eb34a5ccc28e9346c16c43658adb55024529605429353136271647bfd19",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/insert-records.js",
+      "bytes": 463,
+      "sha256": "ef7c033d6f05b5a570220d8cd1ecf2bb4049ae943c2bf07bb1900bbe0788b649",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/json-row.js",
+      "bytes": 520,
+      "sha256": "d936c4ef997cbf60eb4fa1dd61673525e342fd127233a228825611fc19c72a64",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/learning-catalogue.js",
+      "bytes": 6803,
+      "sha256": "dbd57dd88d5d4735b4a3d0a70a80386c1767ef8a8edb49fac0ba58d510864bfb",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/learning-state.js",
+      "bytes": 864,
+      "sha256": "0d10735c58aeb60414a4f27192f87649b3e569618a5f5020e1e6ed6dad34220a",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/learning.js",
+      "bytes": 23896,
+      "sha256": "8e2c9a07359b812aa2862f452965fec879ffa53eaa4bda12e2f8e93055032526",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/lesson-context-reads.js",
+      "bytes": 3029,
+      "sha256": "342bbde56b1884c7c62dd7e78324c377786f32084ba3a9c5eff38c233e633c12",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/lesson-join.js",
+      "bytes": 1536,
+      "sha256": "e831de2836f4c9984d056b9b4ecd11a4c0098651f2966093ab5e6062b4c90688",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/lesson-media-sessions.js",
+      "bytes": 6544,
+      "sha256": "9ba69967f309c266575a25337adedc74374a4e59d6b91347637e1265334f6cdd",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/lesson-media.js",
+      "bytes": 64668,
+      "sha256": "d22f1035885597486b67d10d2e093b78746936ad4620c46ecb6451e9e0a01657",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/lesson-notes.js",
+      "bytes": 37923,
+      "sha256": "c078c2e082bb16ff1cdba69b7e482397d7066522478d0e8ec67239eb5c776c24",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/lesson-pdf-storage.js",
+      "bytes": 3581,
+      "sha256": "8c18794584bea00d69daf3a5e99f709dcb533ad2cfe2b4718ae9df1b689f069e",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/lesson-planning.js",
+      "bytes": 20496,
+      "sha256": "e71e531e9ce043ff5613015955611f834753e3e778c56660beaa4490d0de0b0b",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/lesson-recorded-context.js",
+      "bytes": 463,
+      "sha256": "9c5cd51bc104e97f0f7e1c1fbf297d48c9d2f946d1a7c3036721245d17621421",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/lesson-recorded-options.js",
+      "bytes": 2127,
+      "sha256": "613822007c430c7c66e82a03e419db571d6df5f61528c2651a8607b5a544e78c",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/library-boundary.js",
+      "bytes": 1594,
+      "sha256": "226e565fa9eefb1ed0b8b4c35e255052460712e835c20346ca1472701c37bea7",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/library-metadata.js",
+      "bytes": 7204,
+      "sha256": "c324bb547015aaefb7218086a3271c075a549e8585f0a2a08bbfc8347309302b",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/library-storage-key.js",
+      "bytes": 342,
+      "sha256": "4ff415e89fa1b4876e610f1d22b604a0e87c5a31fb13cccaf10d480f96e022e2",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/library-storage.js",
+      "bytes": 3960,
+      "sha256": "a167f8bd352c4953615b5ab53a015b9630d0f3aa222c4ae3784f19865917f71a",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/library-taxonomy.js",
+      "bytes": 391,
+      "sha256": "c8e7839e8640b6432bef22e28cb276430b095f233122c669857d4e8ace72abb3",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/management-store.js",
+      "bytes": 13919,
+      "sha256": "b319b960e1faf942c72aca61d4b886085f0eb4c21908bba78b36eefdbe12cf38",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/media-playlist-card-images.js",
+      "bytes": 5277,
+      "sha256": "e24f6f19aa5de770a44491e7340371065e07a027c4f53067ba9687037446dcf6",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/media-playlist-card.js",
+      "bytes": 2394,
+      "sha256": "8aa06c680233cf56d7f1da67dfd3b211e0fdcb5a16031334bb27f2517ad29398",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/media-playlist-cursor.js",
+      "bytes": 1360,
+      "sha256": "a9271dc3e39fbb5b59082003281aa3ecbbcf8bcc68cbd5c149ae876cf1f3b68f",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/media-playlist-permissions.js",
+      "bytes": 2718,
+      "sha256": "c80949aa92a49159fe1b8da105615c3127c3b3f3f1926e3000a6e5da2523664d",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/media-playlist-store.js",
+      "bytes": 11260,
+      "sha256": "acbae0f0e06445faaed607ddac05ea469491faf7ae681dfd1ed438016b7b67fd",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/media-playlists.js",
+      "bytes": 18022,
+      "sha256": "b9d48e22f6846975f662ab7917d2e195b2e262710c8a200796a1583a53e16bea",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/memorisation.js",
+      "bytes": 37169,
+      "sha256": "9a436a42061baf7b15abcb3256be8661e031478592765da9f7be07501f7ba3c9",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/messaging-audience.js",
+      "bytes": 11277,
+      "sha256": "e0e6f4894809832b9da1055c345b6c5cebd7506b3c2e2db082679d9d8f1ac469",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/messaging.js",
+      "bytes": 30915,
+      "sha256": "45cad02131a7bd5305e0ce4c615cc054c3e8f99de710a3556c79deda82cf8889",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/module-catalogue.js",
+      "bytes": 955,
+      "sha256": "f9d1927c1e2c4c7b3f909d010ec985619e883c9c72ffa97295372bdfdd2d8b46",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/monthly-media-policy.js",
+      "bytes": 1599,
+      "sha256": "465d58e0a8ee9a762c1a48700f3f487862e6a0a47a68c06e94ddc952c5f93a35",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/native-attendance.js",
+      "bytes": 20372,
+      "sha256": "7527446712abec791c599bc14e211971c0dbb5bd4bd49ea30b50375736360e93",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/native-course-playlist-placements.js",
+      "bytes": 6096,
+      "sha256": "96bec6490cbb560ea890e9e08d65fa43b93f5e67e4bda4ceef4df828ca61085c",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/native-media-teachers.js",
+      "bytes": 1414,
+      "sha256": "ce418bf898bf8f045018afe5085716d61ace01674cb47e7ede4ac7a8233d8ec6",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/note-retention-budget.js",
+      "bytes": 1486,
+      "sha256": "5e8fd71f7fca85e7d82149a277d4c723a8aefc1e0c9e25dc25f00ac6ba2c6d88",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/note-retention-policy.js",
+      "bytes": 4240,
+      "sha256": "64a7dbaba6d218615915aedf1a525dde38b2139b10a0e8d21f907d1f669ea225",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/note-retention.js",
+      "bytes": 20829,
+      "sha256": "4be03050c991405bd88a37783ab175d85d1ac53e1f47262a019f78e5df5d05e4",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/open-library-taxonomy.js",
+      "bytes": 1730,
+      "sha256": "85de1dc639cc9335c1c7a22d40ee340c6063a56f42728980c31826a3ea34cf8b",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/pdf-bookmarks.js",
+      "bytes": 3299,
+      "sha256": "7c7ee12404a2d7beb86155aee31670d75a01126e8e63a04e7e4a06fcc9244a43",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/pdf-tools.js",
+      "bytes": 2183,
+      "sha256": "9c7b6253648d4bcd09507fa52b97a49f037e4c12a93dff28e6b94d7cb275def3",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/permission-state.js",
+      "bytes": 3385,
+      "sha256": "13233dffb8cfbb2b7bd0d4d415811d9930eeb702d69fb145e01089b131447742",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/personal-links.js",
+      "bytes": 5788,
+      "sha256": "a60bd63492dc549af1eaa44836eac750f1d028f7a5d6e5139520ece05f788e8e",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/plan-requirements.js",
+      "bytes": 699,
+      "sha256": "35510226646656b4d474ec8a951b3a8bf204727634f54f05fdff45c4773a20ad",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/private-snapshot.js",
+      "bytes": 2877,
+      "sha256": "fe8950cc01b9aae3545d9f2d2a62e7258714e48e921424e0a7a2869e3047ca51",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/profiles.js",
+      "bytes": 24434,
+      "sha256": "06464033cc9120247d560ea384a7be0df8bf20206a77734850a4abfdf8b77fbd",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/program-access.js",
+      "bytes": 878,
+      "sha256": "41576a12e264c8b9f3f3dac45d2ff65c57e890597735b6de944b50ea4335343b",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/program-copy.js",
+      "bytes": 7864,
+      "sha256": "70be62a26d487406fc249bff9542b5f71968a209fd61c4837381c4962dde9bc1",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/program-monthly-subscriptions.js",
+      "bytes": 30695,
+      "sha256": "45e64b75617cfdd43c134a8b4aa3b0fccd8cdd797c9f62828da7f60995a4d60c",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/program-workspace.js",
+      "bytes": 5845,
+      "sha256": "ba9c19fa522d4d041cc4d175dbc31ea99866652740328147840d016195afa726",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/program-zoom.js",
+      "bytes": 1804,
+      "sha256": "cb223d349cdbd3c30e8169947e4a81ed0a1d9e75055b77a66219905c21c961d4",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/programs.js",
+      "bytes": 27216,
+      "sha256": "9a2c311f236d6ae72b6da8aea103ed47459d47fbcd2faaca8396c16a81d64a81",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/public-card.js",
+      "bytes": 812,
+      "sha256": "6cf87a50fbba6ea7e3e6b6c6b555b370349823b86a166e8dbd7da0a38f75b597",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/public-timetable.js",
+      "bytes": 10879,
+      "sha256": "3aaeafa36012fb6dfd2799c9d05099d7a4b425cc31a398c2427c64a0c055161c",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/publication-teachers.js",
+      "bytes": 1373,
+      "sha256": "e145fceebe772c47d12d05642868b81584a039635cbbd2d3d7bea6a5bcdbe7fd",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/published-assessments.js",
+      "bytes": 5508,
+      "sha256": "0b4d06183d20df34faa8797f57403bde9af83a577dc4f793496165f14b0bf525",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/published-facts-cache.js",
+      "bytes": 5783,
+      "sha256": "b4816778c72b9e02d6b5d2c26742bfeabd61ae3c387832ae1cf4e6890735a60c",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/published-sessions.js",
+      "bytes": 5321,
+      "sha256": "2d4bea480b009a6a29912485bddfaf2e86c8706b08a393fbabfab5aaea45bbdf",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/published-settings.js",
+      "bytes": 1439,
+      "sha256": "defa5573351c131ac00a3092e54ea8e729ab4a14bcee22ec521155609ae5c233",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/read-cache.js",
+      "bytes": 1501,
+      "sha256": "06ba00fdc1492aadc9cddd7347a18388baaa5aff6048d9dc9d0ef010ce41eb93",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/recording-companions.js",
+      "bytes": 9137,
+      "sha256": "c947e5c01a4c5393e6d0c69b47f9d022df7dd4c0a9755069dcce307ce4c83c3c",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/recording-groups.js",
+      "bytes": 1426,
+      "sha256": "ea5e2214993a51f3b555d795ec35f2830dca7744d340ba3bf3ecf88b6c6003a4",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/recovery-storage.js",
+      "bytes": 608,
+      "sha256": "e20475568b8a5144dc036a50403c2c58dbd6f18221bc4b4509c556037e537fb1",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/refresh-state.js",
+      "bytes": 2594,
+      "sha256": "f730132228c3538e00c2feb134ddfaa9cca9d5216e216066901c64810318b8f4",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/repository-root-sensitive-portable-v1.js",
+      "bytes": 30549,
+      "sha256": "b064b31ff8961c3308c0f1f2e65e3fdced0b86b602a32a58a8611060f760e834",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/schema-probe.js",
+      "bytes": 368,
+      "sha256": "73d01c0f84cafa9494f8a8c66b26e6267d868a8f938589b57d16aae469b3ede6",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/session-identity.js",
+      "bytes": 1747,
+      "sha256": "2b88961fcb3751ce5a683ee78a328b32ffa2f39b48b9b72c649f5e9e61ba15c2",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/session-pdf-policy.js",
+      "bytes": 5364,
+      "sha256": "a2ae0bcf8ffb17c8b4f436114e55255c4846f009c105095e0375dd1991fe1ef2",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/session-root-sensitive-v1.js",
+      "bytes": 3403,
+      "sha256": "f00af19fb9008baf9f5915fc261f6a1bc1d251b9fe00e14869e6eedac9e3cebb",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/session-video.js",
+      "bytes": 12988,
+      "sha256": "60d0e0de92ff70df360f8352833abc766be1f9962cfc9acdca18b3be07627850",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/session.js",
+      "bytes": 2977,
+      "sha256": "dd86d57e7201d22559c6c25d3b97806e2223aa8e3f0dcf611afcfa06eba6fb58",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/setup-publication.js",
+      "bytes": 27236,
+      "sha256": "40b1848aae3735d79617882142c302f510b76f92110a3e787ded85effc6641d2",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/setup-reader.js",
+      "bytes": 7501,
+      "sha256": "62d90f8bac632e8de99bd9484930822c096d17bfc524988875cf964c21c4acb6",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/setup-schema.js",
+      "bytes": 28506,
+      "sha256": "c2f43e264f767e0475a04471aa8ddebf0a5a09cdcde5eaf23b9b312830f14186",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/subjects.js",
+      "bytes": 3516,
+      "sha256": "334431f151ec018bc64347a4718f94921f5f510cfc18340d181f07483c3d0323",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/substitute-timetable.js",
+      "bytes": 4951,
+      "sha256": "65399dae9111ac0dde01245235f9ef0d083aebde53fb91828715c63f290667d6",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/surah-grants.js",
+      "bytes": 552,
+      "sha256": "7ca6efd0979c6118c04a65f29053f9fd980693c4054c27029db21b563b1bf01e",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/surah-recording-titles.js",
+      "bytes": 1152,
+      "sha256": "4ab0065aec12e13208a2aa96cd6173828e4415a1143c7780bcebdf54306ed1d0",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/surah-websites-access.js",
+      "bytes": 5220,
+      "sha256": "0d94ab8bc1fb6ec0956815de1a936668cfc8a94802d4b5e35e7e3219203d3c62",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/teacher-availability.js",
+      "bytes": 8621,
+      "sha256": "5de7817790b2a5e17fb8d5fb0ab1cbf6aa042d6087ff0b6182f6b7e250575f60",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/teachers.js",
+      "bytes": 1043,
+      "sha256": "fcdaa342de993b751f3050b3a73e89002e87d28ac7353249979798602f835c55",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/web-platform/access.mjs",
+      "bytes": 16720,
+      "sha256": "b82ffb9ddb6e8fe1a67f54c682f4607bccc420b086b15aa35ddb01adaba2fa29",
+      "resolveDir": "backend/src/academy/d1/web-platform",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/web-platform/bridge.mjs",
+      "bytes": 21916,
+      "sha256": "f47273f1f04b067c932c6248668a97ebec8a71be4b6b3640dbe7d869768c8408",
+      "resolveDir": "backend/src/academy/d1/web-platform",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/web-platform/completed-course.mjs",
+      "bytes": 3233,
+      "sha256": "b930ca9e9fe0e36205437fc020f0c4874b8e81b1d40628cfa2d800409a20b5e0",
+      "resolveDir": "backend/src/academy/d1/web-platform",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/web-platform/course-policy.mjs",
+      "bytes": 3635,
+      "sha256": "7f93ad69fe2f76df13f45ddd82fb1c6a2be1c83fcf6473a636c6f27c9ccb14f8",
+      "resolveDir": "backend/src/academy/d1/web-platform",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/web-platform/course-publication.mjs",
+      "bytes": 11038,
+      "sha256": "0ab6e456a866a0342246703ec3293654d68a60d43c4af4701a7ca8672a6327d0",
+      "resolveDir": "backend/src/academy/d1/web-platform",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/web-platform/course-user-search.mjs",
+      "bytes": 1574,
+      "sha256": "c9504e6d01f1306f29c97b2d06e0ca33339f4d165ec923b17885791b9b89d506",
+      "resolveDir": "backend/src/academy/d1/web-platform",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/web-platform/dashboard.mjs",
+      "bytes": 13979,
+      "sha256": "4dff5987a914c39b19d8bb8ee2bdbf7def4964869242d7e926630f98b5eb585b",
+      "resolveDir": "backend/src/academy/d1/web-platform",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/web-platform/native-join.mjs",
+      "bytes": 1525,
+      "sha256": "943b7ff2699197e8dc2fa9aeff4845ed5361c64d8eb8117a9fa94441b45945b7",
+      "resolveDir": "backend/src/academy/d1/web-platform",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/web-platform/navigation.mjs",
+      "bytes": 2721,
+      "sha256": "2326787db5e7bba5b4ad5c0808058f477435494350bdbd0650e27c0627d06e5e",
+      "resolveDir": "backend/src/academy/d1/web-platform",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/web-platform/programme-groups.mjs",
+      "bytes": 672,
+      "sha256": "762d6b79da4295b680fb5789c45f3c0c23fac3e828c2c40c9f05feca97797eab",
+      "resolveDir": "backend/src/academy/d1/web-platform",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/web-platform/programme-registration.mjs",
+      "bytes": 4302,
+      "sha256": "0801f454312909ed66597c61a0eac7b3fcf654299c5cce4af74099b38cc28e6f",
+      "resolveDir": "backend/src/academy/d1/web-platform",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/web-platform/protocol.mjs",
+      "bytes": 5679,
+      "sha256": "1722caecd79aefc2503454666f8ed345b81479c1719faeafcb485e7728512bd9",
+      "resolveDir": "backend/src/academy/d1/web-platform",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/web-platform/studio-catalogue.mjs",
+      "bytes": 4432,
+      "sha256": "a82fe6316eeacc7e765e18f08b0c5b558a5d889832927414a59c489fb533adbe",
+      "resolveDir": "backend/src/academy/d1/web-platform",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/web-platform/studio-live.mjs",
+      "bytes": 5964,
+      "sha256": "6e9693e3b49c220816fee87df1b6cc8cb2f1ed63313bc158485f05d50c4f984d",
+      "resolveDir": "backend/src/academy/d1/web-platform",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/web-platform/studio-monthly-grid.mjs",
+      "bytes": 2742,
+      "sha256": "64b544b27380f80840c6ab390f51a17614e536856f798a7105ae4554073870a9",
+      "resolveDir": "backend/src/academy/d1/web-platform",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/web-platform/timetable.mjs",
+      "bytes": 11446,
+      "sha256": "b1104b9ae6125de47637a53b7fa6d131b7022ed28882a04f44da4c5662d81988",
+      "resolveDir": "backend/src/academy/d1/web-platform",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/website-access.js",
+      "bytes": 3385,
+      "sha256": "ca6149965b591e33f2529d3c5bf9e3c8f61d0a011f7ff4f4a9cd124e3eee1122",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/website-cards.js",
+      "bytes": 6499,
+      "sha256": "b65df8a7905e62a1e4b8d7963bdb5af158c35e6641f6135444132906da47a580",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/website-studio-content.js",
+      "bytes": 2200,
+      "sha256": "cd55e5abb61d0a297f28ccfa4c645034c7755a826b9ea01fc48b5ece7e1facb2",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/website-studio-handoff.js",
+      "bytes": 2190,
+      "sha256": "193c175cacb9c55d20367905d13d272f4fa57ac77628c7c7d39a11465a0f6391",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/weekly-absentees.js",
+      "bytes": 9302,
+      "sha256": "80c3a5fc7650cd8137450472c8b03faba681f5e50db31be3b8acb77b8697f77d",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/worker-native-https-v1.js",
+      "bytes": 67504,
+      "sha256": "6eca43f3d328462b25b063e6845020e2aede340f26cd84a456bdc5274c0557d5",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/d1/workspace-access.js",
+      "bytes": 8891,
+      "sha256": "1688117f0e445144092194a1ed9d61af8bd282dcc75803c08b3c4e4b66cd7855",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/entrance.js",
+      "bytes": 21530,
+      "sha256": "21ca17fc3bd6c0244468d54b529d0851bc0984012ec9d0ff059d03b243df1071",
+      "resolveDir": "backend/src/academy",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/existing-feature-env-v1.mjs",
+      "bytes": 2198,
+      "sha256": "66f33cdc6bd714a15c2064e94ad8b2a401b902499d32c48628640f09f4f77475",
+      "resolveDir": "backend/src/academy",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/header-date.js",
+      "bytes": 2143,
+      "sha256": "451eaa4a0a97b308a9dec226ed9a01f6daa64c64314d107fa9f0c4f59b20b174",
+      "resolveDir": "backend/src/academy",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/hosting-root-only-v1.mjs",
+      "bytes": 1035,
+      "sha256": "94d7af6c14ec84fabc05d7c434088dd4003046ec50e58d5e15c27f99f225d316",
+      "resolveDir": "backend/src/academy",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/root-only-request-body-v1.mjs",
+      "bytes": 2649,
+      "sha256": "06d03a1cbfa0ea5bab1912c9834e819965a9bd49ac03ca49a92ca911dd65c943",
+      "resolveDir": "backend/src/academy",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/separation/client-native-https-v2.js",
+      "bytes": 4888,
+      "sha256": "e59b2f757382a66b9afc3694e94e9da537362b3efa61f75bd5c16badd72021c2",
+      "resolveDir": "backend/src/academy/separation",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/separation/columns.js",
+      "bytes": 23989,
+      "sha256": "5769b2abd3d270d0d97122bad7c33ed96fd1777f9efe5eac80608d7b6e9f8004",
+      "resolveDir": "backend/src/academy/separation",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/separation/compact.js",
+      "bytes": 2002,
+      "sha256": "e8943f390ea61fe446216b572707d45b65e78dfaf287d72e58171eb8ec112853",
+      "resolveDir": "backend/src/academy/separation",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/separation/compatibility.js",
+      "bytes": 2207,
+      "sha256": "4eec5d3165cd2de8e602368e5ce344b22dd2b38e86f0bfb065719cbad781ffe0",
+      "resolveDir": "backend/src/academy/separation",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/separation/compile.js",
+      "bytes": 7211,
+      "sha256": "ee1025171af6ac71d57fa136a5d662259d2fc98b8f42f9e4bde1a7983f2beb45",
+      "resolveDir": "backend/src/academy/separation",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/separation/empty-shapes.js",
+      "bytes": 4242,
+      "sha256": "26494fc89922c8f16d03713e20ac381c8cc6abc96a2f4d5b79fea99d12994af7",
+      "resolveDir": "backend/src/academy/separation",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/separation/engine-root-sensitive-v3.js",
+      "bytes": 10309,
+      "sha256": "b2b8b0c633c7bfef3c812dfa48306893906e546b1e0a686c337abffed95940b2",
+      "resolveDir": "backend/src/academy/separation",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/separation/federation.js",
+      "bytes": 17177,
+      "sha256": "b0e6ca415656d7e40f5ff9bf0a5ffb67de7f9f5809140e03c9b114298e6812b3",
+      "resolveDir": "backend/src/academy/separation",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/separation/jwt-actor-guard-root-sensitive-v4.mjs",
+      "bytes": 3994,
+      "sha256": "204c594ac9086c1cc0fdf55d90b465773ecc7c55acc96ea3a0fd7fac1d80b515",
+      "resolveDir": "backend/src/academy/separation",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/separation/jwt-actor-guard.mjs",
+      "bytes": 2207,
+      "sha256": "636f5a012f5bc9c8af37353823528ea9ab21f27dc21b6d442684d9ee60fec39f",
+      "resolveDir": "backend/src/academy/separation",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/separation/layout.js",
+      "bytes": 70581,
+      "sha256": "db89e62712c6b812ab1a6e0e93fc45474d6ac1eab986e6ea1cf851364e9c0b10",
+      "resolveDir": "backend/src/academy/separation",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/separation/lesson-context-read.js",
+      "bytes": 6018,
+      "sha256": "de94637b65e71cc410d21e23cd9f8bda359926d7f8132d021c247497e71073df",
+      "resolveDir": "backend/src/academy/separation",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/separation/materialize.js",
+      "bytes": 8774,
+      "sha256": "478db446eec4f7051346ef2f9f41af88ace78f08fd0bb54b861273ea87792bc4",
+      "resolveDir": "backend/src/academy/separation",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/separation/ownership.js",
+      "bytes": 1536,
+      "sha256": "e5b6db9aa9b046ed6d5b0f822dca4f67d395ea305ba7b6acd5f99a6c569f7222",
+      "resolveDir": "backend/src/academy/separation",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/separation/proof-root-sensitive-v3.js",
+      "bytes": 7868,
+      "sha256": "b93bb9334c12c8095e036ce8997c4cf701501877cedae9f00304636791d8efc8",
+      "resolveDir": "backend/src/academy/separation",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/separation/proof.js",
+      "bytes": 6753,
+      "sha256": "66d0a809af6eb8ce7d5d16e67336ab0c2ce6904194f5968fa0c8b2146fbde423",
+      "resolveDir": "backend/src/academy/separation",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/separation/recorded-context-read.js",
+      "bytes": 2336,
+      "sha256": "98e35208523512884e4f5a40f15b44540b0e596f711d9e25a3f71c4b25c6fcdc",
+      "resolveDir": "backend/src/academy/separation",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/separation/snapshot-revisions.js",
+      "bytes": 4723,
+      "sha256": "2cfd94e7b709a0e1bd05178951169ee44f37707c395441f1c1a4e08126467eb9",
+      "resolveDir": "backend/src/academy/separation",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/separation/sql-command.js",
+      "bytes": 1028,
+      "sha256": "b2a9f2b910683026b59231b9d0b0df03a47e53377eba6ac480d89e986f7048a2",
+      "resolveDir": "backend/src/academy/separation",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/academy/separation/sql-plan.js",
+      "bytes": 5940,
+      "sha256": "0997f15aafcd553e5ed8703a5bb93a7b1c4d3d3f028ff97391e3f1297e0baea3",
+      "resolveDir": "backend/src/academy/separation",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/academy-cookie-auth-portable-v2.mjs",
+      "bytes": 7218,
+      "sha256": "aecba3afd633cc5b48063d2c07e77392a853279cde317f20a103e6151d602206",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/academy-cookie-engine-portable-v1.mjs",
+      "bytes": 2859,
+      "sha256": "bc6277c62a6aed3e8224a4273137704d8d39469fa3df7c63af4752c3ff48c717",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/academy-cookie-engine.mjs",
+      "bytes": 2130,
+      "sha256": "b9538337a193986ee1e2fff8b4a46849e8c97f742ed9071574c6454e0bfa6c42",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/academy-display-context.mjs",
+      "bytes": 638,
+      "sha256": "1b9cc01649b148054e544b89a7d96fdf492c56b025475f77fbd82db81255cecd",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/academy-display-csrf-portable-v1.mjs",
+      "bytes": 1781,
+      "sha256": "5f2892c721f5e9f1e61da2d11550ac65ae8d304ebaa0be2b037c1b6f4e5ecc7a",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/academy-existing-feature-profile-v1.mjs",
+      "bytes": 7130,
+      "sha256": "9a82de3aeb139bfdb36f22479cf4066e3aec34a120679e4dc6baaf5b4473c74d",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/academy-existing-feature-selection-v1.json",
+      "bytes": 1405,
+      "sha256": "c6e5ffe2d2fa21e97892ca31b30fe835852385ddd3c70e49d40b50cf66759e22",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/academy-logout-http-portable-v3.mjs",
+      "bytes": 6448,
+      "sha256": "06b28560283f3adbe2eb396a228d932c9decf6b25fbe994b6fefea9b30dcef10",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/academy-master-issuer-portable-v3.mjs",
+      "bytes": 10102,
+      "sha256": "b2cb42100c0d6b371d71579251efda8839f5335b3f799dc1cb76b3632d6ca282",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/academy-pin-http-portable-v1.mjs",
+      "bytes": 5974,
+      "sha256": "2091d34cf200c8e87731d48333b89a5f47a1ad65ba4bccf58ef3cc6957d392c7",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/academy-refresh-http-portable-v2.mjs",
+      "bytes": 8447,
+      "sha256": "b6050482621d8e31fac5c5b034933cb0fd3f5e8d0aca8e9915222349057a01fe",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/academy-refresh-portable-v2.mjs",
+      "bytes": 11728,
+      "sha256": "8837bc45302d9d34132e679b574d7cb1035667be1c0c51f7da29911e0bf6dca6",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/claims.mjs",
+      "bytes": 7352,
+      "sha256": "5a6c1892b5075aae4da5923fb710d04e1c728ca540f3b28f625f766e91a21f2f",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/compact-studio.mjs",
+      "bytes": 8321,
+      "sha256": "f804e6cd1410a8a222a289637bc274f6835f05deeb242017f8856998b35df582",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/local-integration-profile.mjs",
+      "bytes": 1251,
+      "sha256": "33e80aa5c223b877a7e6e90a299039566b7c719e1ee51bd4ddeab50dc1cd514a",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/master-account-capture.mjs",
+      "bytes": 3859,
+      "sha256": "a8c57d789d71ed398f59719701bb74a8c56d88696a7db15b8bdb35e7c3d038fd",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/master-capture-hold-root-only-v1.mjs",
+      "bytes": 2693,
+      "sha256": "9ae2c5a15496c6c0e8e79d66304f394245aec6c61ce4a1e22770184f905db88f",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/master-lifecycle-capture.mjs",
+      "bytes": 3852,
+      "sha256": "2fd836b5ef6685b8025c0d0a10e0ec0ccb15fb4d6b782b8cd5d25621e57ef71c",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/master-native-session-capture.mjs",
+      "bytes": 3379,
+      "sha256": "202fd34681fb447e03f2c269903f04ecd63f46713bc0076a83fa7ec4568cb0b2",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/master-outbox-layout.mjs",
+      "bytes": 1412,
+      "sha256": "ab63fa0c52970f8bed4dbf0403a268e79f7fea4b116a117c0df35e5bd0f33ae6",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/native-account-effects.mjs",
+      "bytes": 2472,
+      "sha256": "cadc0838a37ca0f0c68dc3e99ee4309fb05c569c243a9b76f17538648db7f829",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/native-credential-effects.mjs",
+      "bytes": 2125,
+      "sha256": "893bcf10dea27d0d37d6e4d442e2aae247343c3af2766c69f5cb41050258ef81",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/native-pin-proof.mjs",
+      "bytes": 1934,
+      "sha256": "9ad91d3fc9c18e9d7dd8426b56a69bda392f4b195de635ad4dcb84a8cf3bdbce",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/native-rights.mjs",
+      "bytes": 9532,
+      "sha256": "5c379b22d9e30aa39588de7140b94d4fffee19565419db4fdd3009e118a3932b",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/native-root-pin-proof.mjs",
+      "bytes": 2139,
+      "sha256": "37382638827ad0f594c329a4f76a536971a7136c60c5644097f688fb617a55d4",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/native-security-prearm-v1.mjs",
+      "bytes": 1279,
+      "sha256": "8a77a524651f756acf0c418a504e701af7e6a50950da52441d245f0101d2427d",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/portable-master-outbox-profile-v2.mjs",
+      "bytes": 558,
+      "sha256": "97a5a918984fde8b9501d63f8cb821382b04b1dd23acd0d8e9245fac9c2fddd0",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/root-browser-json-portable-v1.mjs",
+      "bytes": 2597,
+      "sha256": "7ad4596c71fb5868070faefa34c8e85ccaf59807f1fa2d03eb0a7404981248fd",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/root-pin-evidence-plan-v4.mjs",
+      "bytes": 8228,
+      "sha256": "57e9415ed2528830ba912a179e475a2ae5a25c0004bf244d843abbe77cc036ff",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/root-sensitive-action.mjs",
+      "bytes": 1040,
+      "sha256": "ce9d39c83cf21980a6c0f4db82b1d3c27afd796ddcd9663e97879377c89d092e",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/root-sensitive-request-portable-v1.mjs",
+      "bytes": 3210,
+      "sha256": "789346026cb9f266c790cd02c57ddb9972d4fe4e0aaa417dd387f217700c37b6",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/server-context-portable-v1.mjs",
+      "bytes": 5680,
+      "sha256": "eec6a7e96850023d3367591bb93235ef31f879d990b35174bf595f12aa221fc1",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/auth/v110/store.mjs",
+      "bytes": 7275,
+      "sha256": "b27c1bfca4c23e729a3f17d38537c3223670cfc111dfb9522aebab3973e292be",
+      "resolveDir": "backend/src/auth/v110",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/domain/platform-academy-calendar.js",
+      "bytes": 23462,
+      "sha256": "b35dc2941459c1e00a38fd364bb19a0a5c81a9d9eeac2a3220775c84e4c44b30",
+      "resolveDir": "backend/src/domain",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/domain/platform-global-delivery.js",
+      "bytes": 44105,
+      "sha256": "b346daa5044ade681c1dda3144be4733d5e1fdcc90fdf0c812a8be9047a971c2",
+      "resolveDir": "backend/src/domain",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/domain/platform-global-management.js",
+      "bytes": 43543,
+      "sha256": "d06cb1c24d3222d498e4d9c7bf4b9cbf8b264f68350906924d38e5051e3d3a20",
+      "resolveDir": "backend/src/domain",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/domain/platform-global-timetable.js",
+      "bytes": 84516,
+      "sha256": "2e54736d3c31ec718d098189f360e0bf89249a15832a10ff74083ab81b05a4ed",
+      "resolveDir": "backend/src/domain",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/lib/academy-calendar.js",
+      "bytes": 14943,
+      "sha256": "2b4ff57c5db84805506ac78537bc4389b938be3b67d8b1c7f4c8b321b5889589",
+      "resolveDir": "backend/src/lib",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/lib/academy-pin.js",
+      "bytes": 1017,
+      "sha256": "36893d47ef667f8414cff2c2b48a8e6e6c20d0c35788a5b13da682b919326aaf",
+      "resolveDir": "backend/src/lib",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/lib/academy-timetable-model.js",
+      "bytes": 12705,
+      "sha256": "c827844ac510d4480a732ce0468a088ba1433147f518e71f48ebb831c6e8dda0",
+      "resolveDir": "backend/src/lib",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/lib/auth-primitives.js",
+      "bytes": 8578,
+      "sha256": "96a1313d23769453625cce87c9cbb348a2b4215b905c2bf155d6e7229c16b17d",
+      "resolveDir": "backend/src/lib",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/lib/drive-references.js",
+      "bytes": 1951,
+      "sha256": "291b4ee990443cfd0ea3acd9d888c4b5e3b8aff5f6fbd9515e81e5e145cc027b",
+      "resolveDir": "backend/src/lib",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/lib/global-course-scheduling.js",
+      "bytes": 9421,
+      "sha256": "6e1ccdb6477fffa1afac5dc05958a87894499be4e8d96f83a06525c815816fa1",
+      "resolveDir": "backend/src/lib",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/lib/global-subject-delivery.js",
+      "bytes": 9079,
+      "sha256": "1c6f05def968e54d082f1eda9db1870ed8edb49bd00391455b826eab7abd4c75",
+      "resolveDir": "backend/src/lib",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/lib/global-timetable-lifecycle.js",
+      "bytes": 3272,
+      "sha256": "1abf5b9e398e4acb4ef3c085d2624c9148d336b6bdaaef9d00b2e59abd011162",
+      "resolveDir": "backend/src/lib",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/lib/global-timetable.js",
+      "bytes": 19421,
+      "sha256": "d29324d4ec0441b8fa8b46b3e6b05bcce2ca42bd2e4ed06e3cd3670b97e28ba8",
+      "resolveDir": "backend/src/lib",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/lib/http.js",
+      "bytes": 1008,
+      "sha256": "350c3c0476ba5a78513a52d7c4e4b9dd34b89f3c88d40828f3146f38fa32e6f2",
+      "resolveDir": "backend/src/lib",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/lib/open-library-metadata.js",
+      "bytes": 4157,
+      "sha256": "df46386b2728b7f05eb92f8b37a813cba880173a1385e22d57218e0a8c41e9f7",
+      "resolveDir": "backend/src/lib",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/lib/open-library-taxonomy-model.js",
+      "bytes": 4896,
+      "sha256": "2bc870e0730d954bf68eff77724497890aeae28b15c990f4f9e0e22d52b9935e",
+      "resolveDir": "backend/src/lib",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/lib/platform-schema.js",
+      "bytes": 17547,
+      "sha256": "35bc189f22613622707ea4c257b5d40c072fe223e7ab7d3d6a187e1026959a59",
+      "resolveDir": "backend/src/lib",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/lib/shared-pin-credential.js",
+      "bytes": 2100,
+      "sha256": "84f0e234a2719a4f16be094763ed09ab1eb1b240aca07b4dfc56ad2da5c95f57",
+      "resolveDir": "backend/src/lib",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/profiles/model.js",
+      "bytes": 4481,
+      "sha256": "7ffbd368a1430b02f6bbf1cec7543f6db1c22056a3987d83f5b2d17c938de964",
+      "resolveDir": "backend/src/profiles",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/programs/attendance-model.js",
+      "bytes": 6973,
+      "sha256": "f3776f52de7d0dbb7c7fee5071807ce3fd80433469f72ce90baa185f6df924fb",
+      "resolveDir": "backend/src/programs",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/programs/attendance-service.js",
+      "bytes": 8418,
+      "sha256": "f895527012e00d33cddc2f3e9356c924d9a86f4087a74b400e7bf68fb4e3f90c",
+      "resolveDir": "backend/src/programs",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/programs/error-model.js",
+      "bytes": 1672,
+      "sha256": "b157538bc9202e830baa18cf4d65773804e12cd4f6bbfb54b2df8e88f5d5954f",
+      "resolveDir": "backend/src/programs",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/programs/management-model.js",
+      "bytes": 24316,
+      "sha256": "600e3be342bd9600ffabefb0fd8a641b2fdccb23fa52037975b3f1df72e72755",
+      "resolveDir": "backend/src/programs",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/programs/model.js",
+      "bytes": 3654,
+      "sha256": "5fdc3f6680ec632c5c51ea696603b40200d299c666ec9eb815ad6d5516c6a1aa",
+      "resolveDir": "backend/src/programs",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/programs/subject-model.js",
+      "bytes": 637,
+      "sha256": "949af2295da45f2c43481ac1866f3cc7ec9824757fdb24f4926a95867b764508",
+      "resolveDir": "backend/src/programs",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/programs/timetable-model.js",
+      "bytes": 15298,
+      "sha256": "e33f11df822dcc6d583f0152f1646aaab88167f96b8f324f04f72fa351b3507c",
+      "resolveDir": "backend/src/programs",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/programs/timetable-service.js",
+      "bytes": 16282,
+      "sha256": "5a92f7a71ac8b1605a12f440c8b6b48d4204baf028ef269d241f12d26cbe1d73",
+      "resolveDir": "backend/src/programs",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/programs/weekly-timetable.js",
+      "bytes": 22098,
+      "sha256": "24ebc28814972edbbcace68f7db2ed9b0b6187d437acae2651aef1eadb5d3858",
+      "resolveDir": "backend/src/programs",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/src/programs/zoom-links.js",
+      "bytes": 1210,
+      "sha256": "14bdd874eaa21e15f761b9f9a6d5eeb1749b63bb7fd3e0c632d178bfcc550897",
+      "resolveDir": "backend/src/programs",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:backend/tools/native-website-hifz-policy-composition-20261111-r1/native-feature-portal-classic-denied-r1.mjs",
+      "bytes": 18218,
+      "sha256": "2c36f3153cd6180cf17ae8976bba3907ddac0076a18c998dae20a8a0ef34549a",
+      "resolveDir": "backend/src/academy/d1",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:js/m4l-learner-companion.mjs",
+      "bytes": 3100,
+      "sha256": "f7b0b4fb82ce0d6e095d95682607167268a5ca3a63f1ef056aae606f71f4df6b",
+      "resolveDir": "js",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:js/m4l-pdf-bookmarks-model.mjs",
+      "bytes": 1524,
+      "sha256": "17fc81be6a1e70a5e460b22201a4d19d76023cb39200cad600e386d05d0932f3",
+      "resolveDir": "js",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:js/m4l-pdf-tools-model.mjs",
+      "bytes": 1146,
+      "sha256": "8330468c9e7058deb7411930a38b9cbbd9735f2413bcd30b15a666c9550f5e2f",
+      "resolveDir": "js",
+      "kind": "academy-product",
+      "loadCount": 1
+    },
+    {
+      "identity": "academy-product:website-studio/src/protocol.mjs",
+      "bytes": 2429,
+      "sha256": "655f45ffd5b359e109dc8280881133cf8aa6373bf8aa984d0edf703e96bcf042",
+      "resolveDir": "website-studio/src",
+      "kind": "academy-product",
+      "loadCount": 1
+    }
+  ]
+}

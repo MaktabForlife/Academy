@@ -1,0 +1,462 @@
+{
+  "AI": "OFF",
+  "activationAllowed": false,
+  "aliasesRelativeToAcademyRoot": {
+    "backend/src/academy/d1/portal-local-test-v1.mjs": {
+      "bytes": 18218,
+      "resolveDir": "backend/src/academy/d1",
+      "sha256": "2c36f3153cd6180cf17ae8976bba3907ddac0076a18c998dae20a8a0ef34549a",
+      "sourcePath": "backend/src/academy/d1/portal-classic-denied-native-v1.mjs",
+      "status": "SELECTED_APPROVED_PUBLIC_APPLICATION_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/academy/d1/repository-root-sensitive-v1.js": {
+      "bytes": 30549,
+      "resolveDir": "backend/src/academy/d1",
+      "sha256": "b064b31ff8961c3308c0f1f2e65e3fdced0b86b602a32a58a8611060f760e834",
+      "sourcePath": "backend/src/academy/d1/repository-root-sensitive-portable-v1.js",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/academy/d1/repository.js": {
+      "bytes": 30549,
+      "resolveDir": "backend/src/academy/d1",
+      "sha256": "b064b31ff8961c3308c0f1f2e65e3fdced0b86b602a32a58a8611060f760e834",
+      "sourcePath": "backend/src/academy/d1/repository-root-sensitive-portable-v1.js",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/academy/d1/web-platform/studio-admin.mjs": {
+      "bytes": 22083,
+      "resolveDir": "backend/src/academy/d1/web-platform",
+      "sha256": "0a47440d3e2ecc12e1cee019204c63d3c245f8953bb00717dfa82773248de44a",
+      "sourcePath": "backend/src/academy/d1/web-platform/studio-admin-feature-accepted-r2.mjs",
+      "status": "SELECTED_APPROVED_PUBLIC_APPLICATION_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/academy/d1/web-platform/video-processing.mjs": {
+      "bytes": 4673,
+      "resolveDir": "backend/src/academy/d1/web-platform",
+      "sha256": "dacb7c247406f726619df7bed9377ffd19c8cc8ec5fafe590f31e9dea746f6b7",
+      "sourcePath": "backend/src/academy/d1/web-platform/video-processing-feature-accepted-r1.mjs",
+      "status": "SELECTED_APPROVED_PUBLIC_APPLICATION_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/academy/d1/worker-root-sensitive-v2.js": {
+      "bytes": 67504,
+      "resolveDir": "backend/src/academy/d1",
+      "sha256": "6eca43f3d328462b25b063e6845020e2aede340f26cd84a456bdc5274c0557d5",
+      "sourcePath": "backend/src/academy/d1/worker-native-https-v1.js",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/academy/d1/worker.js": {
+      "bytes": 67504,
+      "resolveDir": "backend/src/academy/d1",
+      "sha256": "6eca43f3d328462b25b063e6845020e2aede340f26cd84a456bdc5274c0557d5",
+      "sourcePath": "backend/src/academy/d1/worker-native-https-v1.js",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/academy/separation/client-root-sensitive-v3.js": {
+      "bytes": 4888,
+      "resolveDir": "backend/src/academy/separation",
+      "sha256": "e59b2f757382a66b9afc3694e94e9da537362b3efa61f75bd5c16badd72021c2",
+      "sourcePath": "backend/src/academy/separation/client-native-https-v2.js",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/academy/separation/jwt-actor-guard-root-sensitive-v3.mjs": {
+      "bytes": 3994,
+      "resolveDir": "backend/src/academy/separation",
+      "sha256": "204c594ac9086c1cc0fdf55d90b465773ecc7c55acc96ea3a0fd7fac1d80b515",
+      "sourcePath": "backend/src/academy/separation/jwt-actor-guard-root-sensitive-v4.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/academy-cookie-auth-portable-v1.mjs": {
+      "bytes": 7218,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "aecba3afd633cc5b48063d2c07e77392a853279cde317f20a103e6151d602206",
+      "sourcePath": "backend/src/auth/v110/academy-cookie-auth-portable-v2.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/academy-cookie-auth.mjs": {
+      "bytes": 7218,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "aecba3afd633cc5b48063d2c07e77392a853279cde317f20a103e6151d602206",
+      "sourcePath": "backend/src/auth/v110/academy-cookie-auth-portable-v2.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/academy-display-csrf.mjs": {
+      "bytes": 1781,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "5f2892c721f5e9f1e61da2d11550ac65ae8d304ebaa0be2b037c1b6f4e5ecc7a",
+      "sourcePath": "backend/src/auth/v110/academy-display-csrf-portable-v1.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/academy-logout-http-portable-v1.mjs": {
+      "bytes": 6918,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "71efa9aef10eadb1db926829d58c292d35a7f77e5e8f7d3b79124d785d712228",
+      "sourcePath": "backend/src/auth/v110/academy-logout-http-portable-v2.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/academy-logout-http.mjs": {
+      "bytes": 6918,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "71efa9aef10eadb1db926829d58c292d35a7f77e5e8f7d3b79124d785d712228",
+      "sourcePath": "backend/src/auth/v110/academy-logout-http-portable-v2.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/academy-master-issuer-portable-v2.mjs": {
+      "bytes": 10102,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "b2cb42100c0d6b371d71579251efda8839f5335b3f799dc1cb76b3632d6ca282",
+      "sourcePath": "backend/src/auth/v110/academy-master-issuer-portable-v3.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/academy-master-issuer-v3.mjs": {
+      "bytes": 10102,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "b2cb42100c0d6b371d71579251efda8839f5335b3f799dc1cb76b3632d6ca282",
+      "sourcePath": "backend/src/auth/v110/academy-master-issuer-portable-v3.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/academy-pin-http-v2.mjs": {
+      "bytes": 5974,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "2091d34cf200c8e87731d48333b89a5f47a1ad65ba4bccf58ef3cc6957d392c7",
+      "sourcePath": "backend/src/auth/v110/academy-pin-http-portable-v1.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/academy-pin-http-v3.mjs": {
+      "bytes": 5974,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "2091d34cf200c8e87731d48333b89a5f47a1ad65ba4bccf58ef3cc6957d392c7",
+      "sourcePath": "backend/src/auth/v110/academy-pin-http-portable-v1.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/academy-pin-http.mjs": {
+      "bytes": 5974,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "2091d34cf200c8e87731d48333b89a5f47a1ad65ba4bccf58ef3cc6957d392c7",
+      "sourcePath": "backend/src/auth/v110/academy-pin-http-portable-v1.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/academy-refresh-http.mjs": {
+      "bytes": 8944,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "391111f7c092148bd6556f830d1a3a17f3984ef5b2b11e36993fccc389ab5a6c",
+      "sourcePath": "backend/src/auth/v110/academy-refresh-http-portable-v1.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/academy-refresh-v3.mjs": {
+      "bytes": 11728,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "8837bc45302d9d34132e679b574d7cb1035667be1c0c51f7da29911e0bf6dca6",
+      "sourcePath": "backend/src/auth/v110/academy-refresh-portable-v2.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/child-pin-service-rpc.mjs": {
+      "bytes": 1661,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "26afea872640ef4397c7e08df49d0628bf0f8a9131f2e6fdb398268480d3e569",
+      "sourcePath": "backend/src/auth/v110/child-pin-service-https-v1.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/child-pin-unlock-contract.mjs": {
+      "bytes": 7636,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "abd308dc403f3bfe682fb2f15e7df9225ff0c2a78df55766186dddbbacbe802c",
+      "sourcePath": "backend/src/auth/v110/child-pin-unlock-contract-portable-v2.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/local-master-outbox-profile.mjs": {
+      "bytes": 558,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "97a5a918984fde8b9501d63f8cb821382b04b1dd23acd0d8e9245fac9c2fddd0",
+      "sourcePath": "backend/src/auth/v110/portable-master-outbox-profile-v2.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/native-current-account-status-contract-v3.mjs": {
+      "bytes": 4607,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "ad5cf6eb5c994a2b4462e334dac6536ea1d36dcf2f0d1446dcf87ccea5c5a1fd",
+      "sourcePath": "backend/src/auth/v110/native-current-account-status-contract-portable-v1.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/native-current-reader-account-status-contract-v1.mjs": {
+      "bytes": 3622,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "fd0b70ccd8b44dc5ace840be636e90b74839acafe6efe323fa0fa4f1f015ddb2",
+      "sourcePath": "backend/src/auth/v110/native-current-reader-account-status-contract-portable-v1.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/native-https-sender-v1.mjs": {
+      "bytes": 4129,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "a89fb452cdf4cff80e8b728bc042a52e5f4375b817af498c7b1b27aa6b18384d",
+      "sourcePath": "backend/src/auth/v110/native-https-sender-v3.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/native-https-sender-v2.mjs": {
+      "bytes": 4129,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "a89fb452cdf4cff80e8b728bc042a52e5f4375b817af498c7b1b27aa6b18384d",
+      "sourcePath": "backend/src/auth/v110/native-https-sender-v3.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/native-reader-library-contract-v1.mjs": {
+      "bytes": 2557,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "10a25599b6beb7086faf07bef8e5f5f6abcad12ea3898cd6e76716acfb4dc0c9",
+      "sourcePath": "backend/src/auth/v110/native-reader-library-contract-v1.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/portable-master-outbox-profile-v1.mjs": {
+      "bytes": 558,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "97a5a918984fde8b9501d63f8cb821382b04b1dd23acd0d8e9245fac9c2fddd0",
+      "sourcePath": "backend/src/auth/v110/portable-master-outbox-profile-v2.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/portable-native-profile-v1.mjs": {
+      "bytes": 5292,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "df72caaddd94a69e2ff7161a90be30d9df50ca10de4ac18c59e2e8ebffb9dd38",
+      "sourcePath": "backend/src/auth/v110/portable-native-profile-v5.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/portable-native-profile-v2.mjs": {
+      "bytes": 5292,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "df72caaddd94a69e2ff7161a90be30d9df50ca10de4ac18c59e2e8ebffb9dd38",
+      "sourcePath": "backend/src/auth/v110/portable-native-profile-v5.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/portable-native-profile-v3.mjs": {
+      "bytes": 5292,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "df72caaddd94a69e2ff7161a90be30d9df50ca10de4ac18c59e2e8ebffb9dd38",
+      "sourcePath": "backend/src/auth/v110/portable-native-profile-v5.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/portable-native-profile-v4.mjs": {
+      "bytes": 5292,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "df72caaddd94a69e2ff7161a90be30d9df50ca10de4ac18c59e2e8ebffb9dd38",
+      "sourcePath": "backend/src/auth/v110/portable-native-profile-v5.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/root-child-pin-csrf.mjs": {
+      "bytes": 2192,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "0e9f58720af06766c7efa750af52653d6f0aaee56b5cad84826733377fdfe4b8",
+      "sourcePath": "backend/src/auth/v110/root-child-pin-csrf-https-v1.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/root-child-pin-http-v2.mjs": {
+      "bytes": 5511,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "896b6325ccfc6995905b188ff365617a4db5a8a2e86e24aa2721ec6a715318ae",
+      "sourcePath": "backend/src/auth/v110/root-child-pin-http-https-v1.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/root-child-pin-http.mjs": {
+      "bytes": 5511,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "896b6325ccfc6995905b188ff365617a4db5a8a2e86e24aa2721ec6a715318ae",
+      "sourcePath": "backend/src/auth/v110/root-child-pin-http-https-v1.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/root-child-pin-producer.mjs": {
+      "bytes": 15807,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "398083afe39a13a888bea21c50f00e83c154d279eac8bd1465fe5174e0404ee0",
+      "sourcePath": "backend/src/auth/v110/root-child-pin-producer-https-v1.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/root-current-native-studio-reader-account-status-v3.mjs": {
+      "bytes": 14221,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "81d1e2dd85fe6611a52da52260f411d154ab3c68fe65a240561f62b1ecb9c18a",
+      "sourcePath": "backend/src/auth/v110/root-studio-reader-account-status-https-v1.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/root-current-native-studio-reader-account-status-v4.mjs": {
+      "bytes": 14221,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "81d1e2dd85fe6611a52da52260f411d154ab3c68fe65a240561f62b1ecb9c18a",
+      "sourcePath": "backend/src/auth/v110/root-studio-reader-account-status-https-v1.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/root-native-child-admission.mjs": {
+      "bytes": 8565,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "962208f668b3ab53774aa129bd7d4edc111695480efeb848758edb50c93f822c",
+      "sourcePath": "backend/src/auth/v110/root-native-child-admission-current-account-status-v4.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/root-native-studio-reader-admission-current-status-v3.mjs": {
+      "bytes": 9504,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "2665602a115b8f92e431d387c64260903b16a7c38f958304d47591554ab6a416",
+      "sourcePath": "backend/src/auth/v110/root-studio-reader-admission-https-v1.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/root-native-studio-reader-admission-current-status-v4.mjs": {
+      "bytes": 9504,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "2665602a115b8f92e431d387c64260903b16a7c38f958304d47591554ab6a416",
+      "sourcePath": "backend/src/auth/v110/root-studio-reader-admission-https-v1.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/root-native-studio-reader-library-v4.mjs": {
+      "bytes": 9580,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "bdd434aeb9df4f244af13326c8d09fdc2b70e64fb972de65f275680aade7597f",
+      "sourcePath": "backend/src/auth/v110/root-native-studio-reader-library-v5.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/root-native-studio-reader-library-v5.mjs": {
+      "bytes": 9580,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "bdd434aeb9df4f244af13326c8d09fdc2b70e64fb972de65f275680aade7597f",
+      "sourcePath": "backend/src/auth/v110/root-native-studio-reader-library-v5.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/root-native-studio-reader-selection-v1.mjs": {
+      "bytes": 7222,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "41e26798de4824ccf751a6561bf3a810ebafd3ab640fbaa555e1fc5dfe317969",
+      "sourcePath": "backend/src/auth/v110/root-native-studio-reader-selection-v2.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/root-native-studio-reader-selection-v2.mjs": {
+      "bytes": 7222,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "41e26798de4824ccf751a6561bf3a810ebafd3ab640fbaa555e1fc5dfe317969",
+      "sourcePath": "backend/src/auth/v110/root-native-studio-reader-selection-v2.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/root-native-studio-reader-status-authority-v3.mjs": {
+      "bytes": 8187,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "dcc6d6a11718bee8b02a0895dd7c08a4e552c840c8e2b1c288c5491da2982d85",
+      "sourcePath": "backend/src/auth/v110/root-studio-reader-source-https-v1.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/root-native-studio-reader-status-authority-v4.mjs": {
+      "bytes": 8187,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "dcc6d6a11718bee8b02a0895dd7c08a4e552c840c8e2b1c288c5491da2982d85",
+      "sourcePath": "backend/src/auth/v110/root-studio-reader-source-https-v1.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/root-pin-evidence-plan-v3.mjs": {
+      "bytes": 8228,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "57e9415ed2528830ba912a179e475a2ae5a25c0004bf244d843abbe77cc036ff",
+      "sourcePath": "backend/src/auth/v110/root-pin-evidence-plan-v4.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/root-sensitive-request-v1.mjs": {
+      "bytes": 3210,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "789346026cb9f266c790cd02c57ddb9972d4fe4e0aaa417dd387f217700c37b6",
+      "sourcePath": "backend/src/auth/v110/root-sensitive-request-portable-v1.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/server-context.mjs": {
+      "bytes": 5680,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "eec6a7e96850023d3367591bb93235ef31f879d990b35174bf595f12aa221fc1",
+      "sourcePath": "backend/src/auth/v110/server-context-portable-v1.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/studio-reader-admission-ack-v2.mjs": {
+      "bytes": 2145,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "ab6426bbcfebf9e0a6b4c7bebf2691b6d21ef993f02f46e68020ce31c56852d8",
+      "sourcePath": "backend/src/auth/v110/studio-reader-admission-ack-v2.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "backend/src/auth/v110/studio-reader-admission-contract-v1.mjs": {
+      "bytes": 2775,
+      "resolveDir": "backend/src/auth/v110",
+      "sha256": "935814089cab48100401b835fea97d24cdc33058f0089175f52dd7fc4a47b2e0",
+      "sourcePath": "backend/src/auth/v110/studio-reader-admission-contract-portable-v1.mjs",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    },
+    "config/hosting.json": {
+      "bytes": 341,
+      "resolveDir": "config",
+      "sha256": "bc8c68782a52632cf4a28f8482b9f71fd47584c900d30726cc09af0585631b5c",
+      "sourcePath": "config/hosting.native-https-local.json",
+      "status": "SELECTED_SOURCE_REFERENCE_ONLY"
+    }
+  },
+  "apiEntry": "backend/src/academy-portable-native-entry-v7.mjs",
+  "compileAllowed": false,
+  "coordinatorSource": "backend/src/academy-split-coordinator-native-https-v3.mjs",
+  "materializedApprovedPublicDependencies": [
+    {
+      "byteIdentical": true,
+      "bytes": 18218,
+      "candidatePath": "Academy/backend/src/academy/d1/portal-classic-denied-native-v1.mjs",
+      "canonicalPath": "backend/src/academy/d1/portal-local-test-v1.mjs",
+      "resolveDir": "backend/src/academy/d1",
+      "sha256": "2c36f3153cd6180cf17ae8976bba3907ddac0076a18c998dae20a8a0ef34549a",
+      "sourcePrePostStable": true,
+      "sourceReference": "roles/jwt/Academy/backend/tools/native-website-hifz-policy-composition-20261111-r1/native-feature-portal-classic-denied-r1.mjs"
+    },
+    {
+      "byteIdentical": true,
+      "bytes": 22083,
+      "candidatePath": "Academy/backend/src/academy/d1/web-platform/studio-admin-feature-accepted-r2.mjs",
+      "canonicalPath": "backend/src/academy/d1/web-platform/studio-admin.mjs",
+      "resolveDir": "backend/src/academy/d1/web-platform",
+      "sha256": "0a47440d3e2ecc12e1cee019204c63d3c245f8953bb00717dfa82773248de44a",
+      "sourcePrePostStable": true,
+      "sourceReference": "local/v110-integrated/accepted-feature-studio-admin-r2.source.mjs"
+    },
+    {
+      "byteIdentical": true,
+      "bytes": 4673,
+      "candidatePath": "Academy/backend/src/academy/d1/web-platform/video-processing-feature-accepted-r1.mjs",
+      "canonicalPath": "backend/src/academy/d1/web-platform/video-processing.mjs",
+      "resolveDir": "backend/src/academy/d1/web-platform",
+      "sha256": "dacb7c247406f726619df7bed9377ffd19c8cc8ec5fafe590f31e9dea746f6b7",
+      "sourcePrePostStable": true,
+      "sourceReference": "local/v110-integrated/accepted-feature-video-processing-r1.source.mjs"
+    }
+  ],
+  "publicSourceOnly": true,
+  "requiredExports": [
+    "default",
+    "AcademySplitCoordinator",
+    "ProgramTimetableCoordinator"
+  ],
+  "runtimeAllowed": false,
+  "schema": "V110_RELATIVE_SOURCE_ALIAS_REVIEW_CANDIDATE_V2",
+  "singletonRequirement": {
+    "canonical": "backend/src/auth/v110/root-sensitive-request-v1.mjs",
+    "expectedActualLegacyGuardInputs": 0,
+    "expectedActualNewGuardInputs": 1,
+    "selected": "backend/src/auth/v110/root-sensitive-request-portable-v1.mjs",
+    "sharedContext": "ONE native contexts WeakMap across session/actor-proof/class-notes/manual-marks",
+    "verifiedByCompiler": false
+  },
+  "sourceMapSHA256": "ab47a9ec49713171aa2fed5890c26cc8e1402f1fd623d8117ae7cf21dc357b1b",
+  "status": "UNBOUND_NONDEPLOYABLE_REVIEW_ONLY",
+  "supersedesAliasSelectionOnly": {
+    "intendedBuildConfiguration": false,
+    "intendedUpload": false,
+    "path": "config/v110-build-aliases.review.json",
+    "preservedPhysicalFile": true,
+    "sha256": "62f97b8b4fb3183e09253f06d3eff3970546bfac0ead874a77bfd846c8ea337e"
+  },
+  "unboundRequiredSourceConnections": [],
+  "unselectedDrafts": [
+    {
+      "intendedBuild": false,
+      "intendedUpload": false,
+      "path": "backend/src/academy/d1/teacher-availability-root-sensitive-v1.js",
+      "preservedPhysicalFile": true,
+      "reason": "Requires absent ROOT_SENSITIVE_AVAILABILITY_CONTEXT_VERSION export; separate composition unresolved.",
+      "selectedByThisMap": false
+    }
+  ]
+}

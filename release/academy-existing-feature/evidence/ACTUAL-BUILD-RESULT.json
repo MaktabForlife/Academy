@@ -1,0 +1,50 @@
+{
+  "schema": "ACTUAL_ACADEMY_EXISTING_FEATURE_SOURCE_BUILD_V1",
+  "status": "PASS",
+  "buildInvocations": 1,
+  "sourceManifestSHA256": "0ea17123b276a3b7a9af8c9443ceb051b4310da9028d45bb9f3acb53e4441ce6",
+  "aliasMapSHA256": "588be69e953666f257d8e8916bf8e4be5e2363f3cbb09457f383950d4ac777dc",
+  "artifact": {
+    "file": "academy-existing-feature-common.mjs",
+    "bytes": 2488101,
+    "sha256": "7dee1dab81cf13f4b9fba5f1d919d200ddd5326534168dac4e5dcae31242f8bc"
+  },
+  "apiArtifactSHA256": "7dee1dab81cf13f4b9fba5f1d919d200ddd5326534168dac4e5dcae31242f8bc",
+  "coordinatorArtifactSHA256": "7dee1dab81cf13f4b9fba5f1d919d200ddd5326534168dac4e5dcae31242f8bc",
+  "expectedExports": [
+    "AcademySplitCoordinator",
+    "JWTFeatureAcademySplitCoordinator",
+    "JWTFeatureProgramTimetableCoordinator",
+    "ProgramTimetableCoordinator",
+    "WebsiteStudioAcademy",
+    "default"
+  ],
+  "actualExports": [
+    "AcademySplitCoordinator",
+    "JWTFeatureAcademySplitCoordinator",
+    "JWTFeatureProgramTimetableCoordinator",
+    "ProgramTimetableCoordinator",
+    "WebsiteStudioAcademy",
+    "default"
+  ],
+  "actualExternals": [
+    "cloudflare:workers"
+  ],
+  "selectedGuardInputs": 1,
+  "legacyGuardInputs": 0,
+  "sensitiveConsumerInputs": 4,
+  "sensitiveImporterEdges": {
+    "backend/src/academy/separation/proof-root-sensitive-v3.js": "backend/src/auth/v110/root-sensitive-request-portable-v1.mjs",
+    "backend/src/academy/d1/class-notes-root-sensitive-v1.js": "backend/src/auth/v110/root-sensitive-request-portable-v1.mjs",
+    "backend/src/academy/d1/assessment-manual-marks-root-sensitive-v1.js": "backend/src/auth/v110/root-sensitive-request-portable-v1.mjs",
+    "backend/src/academy/d1/session-root-sensitive-v1.js": "backend/src/auth/v110/root-sensitive-request-portable-v1.mjs"
+  },
+  "allObservedSourceInputsStable": true,
+  "declaredCompilerInputsStable": true,
+  "compilerStopRequested": true,
+  "compilerOwnedGroupClosure": "FUTURE_CALLER_MUST_PROVE",
+  "applicationOrDependencyOutputExecuted": false,
+  "SDKNativeHTTPPrivateFixtureAccess": false,
+  "availabilityDraftLoaded": false,
+  "AI": "OFF"
+}

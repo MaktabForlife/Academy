@@ -1,0 +1,1574 @@
+{
+  "APIBase": "https://maktabhelper.app",
+  "APIBaseRationale": "Fixed same approved origin without trailing slash supports native direct concatenation and new URL(relative, base). Home paths remain root-relative; authority/privacy/bootstrap otherwise unchanged.",
+  "HTMLProductionHomeReplacements": 11,
+  "assets": [
+    {
+      "allowedSearches": [
+        "",
+        "?signin=1"
+      ],
+      "bytes": 59604,
+      "destination": "academy/index.html",
+      "mime": "text/html; charset=utf-8",
+      "referencedBy": [],
+      "sha256": "7c52d45272c6b9d80ca1c750354f5116aa9cac666f745e044e1780fa5fe5dd7e",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/academy/index-existing-feature-v1.html",
+      "urlPath": "/academy/"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 385840,
+      "destination": "academy/course-websites/assets/amiri-regular.ttf",
+      "mime": "font/ttf",
+      "referencedBy": [
+        "/css/m4l-tafseer-cards.css"
+      ],
+      "sha256": "7f19c4a5dc77b0ef435b430d750759170def15d6e3801006e0704dadc7f220e3",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/academy/course-websites/assets/amiri-regular.ttf",
+      "urlPath": "/academy/course-websites/assets/amiri-regular.ttf"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 48280,
+      "destination": "academy/course-websites/assets/course-font-1.ttf",
+      "mime": "font/ttf",
+      "referencedBy": [
+        "/academy/course-websites/assets/fonts.css"
+      ],
+      "sha256": "b0ae3e89a7d3ef2b1838bb4b1ceb0b17cc3435af061eee809d76aa623ff116e9",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/academy/course-websites/assets/course-font-1.ttf",
+      "urlPath": "/academy/course-websites/assets/course-font-1.ttf"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 48308,
+      "destination": "academy/course-websites/assets/course-font-2.ttf",
+      "mime": "font/ttf",
+      "referencedBy": [
+        "/academy/course-websites/assets/fonts.css"
+      ],
+      "sha256": "376427b5322148d8de1e03f263bcca4935a2d60ba71d9f94f4947ab664c711ae",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/academy/course-websites/assets/course-font-2.ttf",
+      "urlPath": "/academy/course-websites/assets/course-font-2.ttf"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 48280,
+      "destination": "academy/course-websites/assets/course-font-3.ttf",
+      "mime": "font/ttf",
+      "referencedBy": [
+        "/academy/course-websites/assets/fonts.css"
+      ],
+      "sha256": "b79a2ea7a38f33fd96a282fadb9ce97626bb0724a44d21075859f0e50239993a",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/academy/course-websites/assets/course-font-3.ttf",
+      "urlPath": "/academy/course-websites/assets/course-font-3.ttf"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 48200,
+      "destination": "academy/course-websites/assets/course-font-4.ttf",
+      "mime": "font/ttf",
+      "referencedBy": [
+        "/academy/course-websites/assets/fonts.css"
+      ],
+      "sha256": "2a8e7f713ee79fbccdef3cef5c787aff47580299f7da60144961e7db2ec08211",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/academy/course-websites/assets/course-font-4.ttf",
+      "urlPath": "/academy/course-websites/assets/course-font-4.ttf"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 91588,
+      "destination": "academy/course-websites/assets/course-font-5.ttf",
+      "mime": "font/ttf",
+      "referencedBy": [
+        "/academy/course-websites/assets/fonts.css"
+      ],
+      "sha256": "199b2a7deefd8d7d9bae05d34902c4c6486bd11b8e5d1a22c0cea8862943a5a1",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/academy/course-websites/assets/course-font-5.ttf",
+      "urlPath": "/academy/course-websites/assets/course-font-5.ttf"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 788,
+      "destination": "academy/course-websites/assets/fonts.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/css/m4l-workspace-theme.css"
+      ],
+      "sha256": "a21f9775e4f1c6ac9999ec0aaacaf760b738e28739909b0d23c38d39449421b2",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/academy/course-websites/assets/fonts.css",
+      "urlPath": "/academy/course-websites/assets/fonts.css"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 250880,
+      "destination": "academy/fonts/NotoSansArabic-Regular.ttf",
+      "mime": "font/ttf",
+      "referencedBy": [
+        "/css/m4l-academy-assessments.css"
+      ],
+      "sha256": "d6efa4c9fac8ecefd2de19676acc3a396ba7aee99ba7a2d513950246841b6725",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/academy/fonts/NotoSansArabic-Regular.ttf",
+      "urlPath": "/academy/fonts/NotoSansArabic-Regular.ttf"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 106677,
+      "destination": "academy/learning-images/tafseer-cards/kahf.jpg",
+      "mime": "image/jpeg",
+      "referencedBy": [
+        "/css/m4l-course-companion-dashboard.css"
+      ],
+      "sha256": "e809b965c3f85c344d940530f051c3ce16045f5062acd5870e57710a4ae04dd1",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/academy/learning-images/tafseer-cards/kahf.jpg",
+      "urlPath": "/academy/learning-images/tafseer-cards/kahf.jpg"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 5172,
+      "destination": "academy/website-platform/circles-return.mjs",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/js/m4l-academy-page-actions.js"
+      ],
+      "sha256": "3503560be98d6d8b44cebf76f0717298bac13d1ffbda54860756b05e92b365d1",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/academy/website-platform/circles-return.mjs",
+      "urlPath": "/academy/website-platform/circles-return.mjs"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 984,
+      "destination": "auth/v110/academy-cookie-loader-native-https-v2.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "1f714bc7af17829f101c555a4b534c04f5d76d3082c83a1ae05dca54db8a8a8a",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/auth/v110/academy-cookie-loader-native-https-v2.js",
+      "urlPath": "/auth/v110/academy-cookie-loader-native-https-v2.js"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 11003,
+      "destination": "auth/v110/academy-cookie-transport-native-https-v2.mjs",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/auth/v110/academy-cookie-loader-native-https-v2.js"
+      ],
+      "sha256": "bc603f2c72576282fb0bda65063de84c16f70a5a8dd565a908b21d23f47bcb43",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/auth/v110/academy-cookie-transport-native-https-v2.mjs",
+      "urlPath": "/auth/v110/academy-cookie-transport-native-https-v2.mjs"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 10677,
+      "destination": "auth/v110/browser-app-privacy-root-only-v1.mjs",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/auth/v110/browser-entry-root-only-v1.mjs"
+      ],
+      "sha256": "d930b3a9caf65fa94b0ff548d7b1b1f9e6fcf65158c66b258e3305cc3bc0b5d2",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/auth/v110/browser-app-privacy-root-only-v1.mjs",
+      "urlPath": "/auth/v110/browser-app-privacy-root-only-v1.mjs"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 876,
+      "destination": "auth/v110/browser-config-root-only-v1.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/",
+        "/auth/v110/browser-control.html"
+      ],
+      "sha256": "1c6afaf0b8f56b130fb8638543ab1da8529623f8af6f6ae09745ca44ea95b08f",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/auth/v110/browser-config-existing-feature-v1.js",
+      "urlPath": "/auth/v110/browser-config-root-only-v1.js"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 4776,
+      "destination": "auth/v110/browser-control-client-root-only-v1.mjs",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/auth/v110/browser-app-privacy-root-only-v1.mjs"
+      ],
+      "sha256": "a370781e57317fe1e5864488cdf9ebb537edd512820477272997fed0b05d568b",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/auth/v110/browser-control-client-root-only-v1.mjs",
+      "urlPath": "/auth/v110/browser-control-client-root-only-v1.mjs"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 7127,
+      "destination": "auth/v110/browser-control-relay-root-only-v1.mjs",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/auth/v110/browser-app-privacy-root-only-v1.mjs",
+        "/auth/v110/browser-control-client-root-only-v1.mjs",
+        "/auth/v110/browser-entry-root-only-v1.mjs"
+      ],
+      "sha256": "ef230634fdb3a6f0909c4b013885cf8bda255459a3709311540e7da0d4a78bd3",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/auth/v110/browser-control-relay-root-only-v1.mjs",
+      "urlPath": "/auth/v110/browser-control-relay-root-only-v1.mjs"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 346,
+      "destination": "auth/v110/browser-control.html",
+      "mime": "text/html; charset=utf-8",
+      "referencedBy": [],
+      "sha256": "8367f2032af2b74eb37455706fff5f0f876baeedbe314747eaceb038bca17945",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/auth/v110/browser-control-root-only-v1.html",
+      "urlPath": "/auth/v110/browser-control.html"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 10702,
+      "destination": "auth/v110/browser-display-state.mjs",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/auth/v110/browser-app-privacy-root-only-v1.mjs"
+      ],
+      "sha256": "b275f38452d76774a17ab01db62142a7042fd8d465492016aa21d230ccc186f4",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/auth/v110/browser-display-state.mjs",
+      "urlPath": "/auth/v110/browser-display-state.mjs"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 8091,
+      "destination": "auth/v110/browser-entry-root-only-v1.mjs",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/js/jwt-browser-control-relay-root-only-v1.mjs",
+        "/js/jwt-root-browser-bootstrap-root-only-v1.js"
+      ],
+      "sha256": "6df3631c9fea4bb83ef2b16b0f6bdac31d55c016b5e303bbb1059ecc106ee122",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/auth/v110/browser-entry-root-only-v1.mjs",
+      "urlPath": "/auth/v110/browser-entry-root-only-v1.mjs"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 2690,
+      "destination": "auth/v110/local-prepaint-root-only-v1.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "3a2186d9624e7d4a03b647e77356a8a808f434b446875db93ad0b47a95247b2f",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/auth/v110/local-prepaint-root-only-v1.js",
+      "urlPath": "/auth/v110/local-prepaint-root-only-v1.js"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 3553,
+      "destination": "css/m4l-academy-accounts.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/js/m4l-academy-accounts.mjs"
+      ],
+      "sha256": "829f89002abcacc42edfb2a88514a7c4fd154736772fdfedff3b61754a50ccef",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/css/m4l-academy-accounts.css",
+      "urlPath": "/css/m4l-academy-accounts.css"
+    },
+    {
+      "allowedSearches": [
+        "",
+        "?v=109.18"
+      ],
+      "bytes": 7092,
+      "destination": "css/m4l-academy-announcements.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/academy/",
+        "/js/m4l-academy-announcements.js"
+      ],
+      "sha256": "61dc37e0ff858d25cccf992e8a1b9cb4cd002cb8ace67044638a60ae1bee1217",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/css/m4l-academy-announcements.css",
+      "urlPath": "/css/m4l-academy-announcements.css"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 20733,
+      "destination": "css/m4l-academy-assessments.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "2443e37d7b059ee30d643e18283f1a456b78f65be94455e80874b61bf6174cc1",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/css/m4l-academy-assessments.css",
+      "urlPath": "/css/m4l-academy-assessments.css"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 31443,
+      "destination": "css/m4l-academy-entrance.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "ae66837b8c6bda0dea81947563786ae7be884846c20665bd35cae2a49ecadc18",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/css/m4l-academy-entrance.css",
+      "urlPath": "/css/m4l-academy-entrance.css"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 8976,
+      "destination": "css/m4l-academy-history.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/js/m4l-academy-history.js"
+      ],
+      "sha256": "e7ac1940e956feccd63c39008f50c6237d6957f5f16c38eb6bd7514051ab95b8",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/css/m4l-academy-history.css",
+      "urlPath": "/css/m4l-academy-history.css"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 19952,
+      "destination": "css/m4l-academy-mobile-first.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "ffc9f3ac053443988a1cb0a325be01cef2ef57319c16412242e85e81c7ac4976",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/css/m4l-academy-mobile-first.css",
+      "urlPath": "/css/m4l-academy-mobile-first.css"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 16705,
+      "destination": "css/m4l-academy-mobile.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "9e00988ab2fe5d33ce2f3ae4c12bb6959f533cfa7ceee47f00fb66e90cb35507",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/css/m4l-academy-mobile.css",
+      "urlPath": "/css/m4l-academy-mobile.css"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 6617,
+      "destination": "css/m4l-academy-page-actions.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "97380614bcde011cd774e902f3cf8a6424748a0137cd4bee9c0b521fda16457f",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/css/m4l-academy-page-actions.css",
+      "urlPath": "/css/m4l-academy-page-actions.css"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 7030,
+      "destination": "css/m4l-academy-planning.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "a9d8d130312afbb6e94d740a92e098bc7f85de506d1ab219f81d9ddb4c121621",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/css/m4l-academy-planning.css",
+      "urlPath": "/css/m4l-academy-planning.css"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 8978,
+      "destination": "css/m4l-academy-progress.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "dbe49b1844a753c1b69f8a3892e9a504af139e54e442ac121dcd0b135f6c56b1",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/css/m4l-academy-progress.css",
+      "urlPath": "/css/m4l-academy-progress.css"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 17779,
+      "destination": "css/m4l-academy-shell.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "177f1a70953a44f9a887f056d95e43d1547aeaa1d28286f8f7f579fd4a95bb9d",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/css/m4l-academy-shell.css",
+      "urlPath": "/css/m4l-academy-shell.css"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 9532,
+      "destination": "css/m4l-academy-workspaces.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "7e8962d449fd7ba95b4b0aa4336d055a44ead657512b5f7ec257fda58bfe4091",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/css/m4l-academy-workspaces.css",
+      "urlPath": "/css/m4l-academy-workspaces.css"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 9226,
+      "destination": "css/m4l-announcements-view.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/js/m4l-academy-announcements.js"
+      ],
+      "sha256": "b5f76f0568600715cf32f3752ac386331882ad704d242176ebb80e6b17910909",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/css/m4l-announcements-view.css",
+      "urlPath": "/css/m4l-announcements-view.css"
+    },
+    {
+      "allowedSearches": [
+        "?v=circles-native-1"
+      ],
+      "bytes": 2580,
+      "destination": "css/m4l-circles-native.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "5b21a17401f8970f9e79126bb9952820a1ce0562abc36b793f6c2e766d0704ce",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/css/m4l-circles-native.css",
+      "urlPath": "/css/m4l-circles-native.css"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 2891,
+      "destination": "css/m4l-class-notes.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "95413a9b3eb6138750c7f1f2ace551e849ff83a64f6c4f740e850956fc4cd9d7",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/css/m4l-class-notes.css",
+      "urlPath": "/css/m4l-class-notes.css"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 1837,
+      "destination": "css/m4l-course-companion-dashboard.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "92917491e93362bae89c7ab84cb67dd0620c11dd965b2688c655bfaef8d47497",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/css/m4l-course-companion-dashboard.css",
+      "urlPath": "/css/m4l-course-companion-dashboard.css"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 17643,
+      "destination": "css/m4l-lesson-media.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "97a72076e149d15d3c9d4945aace95bc73ea6832a05975001b2b2733b7d2af4b",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/css/m4l-lesson-media.css",
+      "urlPath": "/css/m4l-lesson-media.css"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 10606,
+      "destination": "css/m4l-memorisation-admin.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "0f1916da7368fe71000eecdfcf30232f8d40e13b8da1e279d147329b51ee3030",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/css/m4l-memorisation-admin.css",
+      "urlPath": "/css/m4l-memorisation-admin.css"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 8409,
+      "destination": "css/m4l-messaging.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "82a7cc097f8d3c11937c1bcc256ad26e03a333ea482ef5a21925175edbd0b35b",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/css/m4l-messaging.css",
+      "urlPath": "/css/m4l-messaging.css"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 6705,
+      "destination": "css/m4l-playlist-card.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/js/m4l-academy-playlists.js",
+        "/js/m4l-recording-collections.mjs"
+      ],
+      "sha256": "48a8a2ca326e58eaf2e64048627d766d71051989267e9f85fb71d91346d0003b",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/css/m4l-playlist-card.css",
+      "urlPath": "/css/m4l-playlist-card.css"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 3993,
+      "destination": "css/m4l-program-attendance.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "78f4433ec5ca2ce07bdf87b2e35abb35b083da1089d8569bf8ca01d7fa28e5f0",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/css/m4l-program-attendance.css",
+      "urlPath": "/css/m4l-program-attendance.css"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 10920,
+      "destination": "css/m4l-programme-workspace.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "89ac0218a25200ac4494ce48023022cdf78c9192ba205b475b8949f8b6826f25",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/css/m4l-programme-workspace.css",
+      "urlPath": "/css/m4l-programme-workspace.css"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 4955,
+      "destination": "css/m4l-tafseer-cards.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "32545fc808fddb28bedd54b10fe9ac5bcde8e67155f1565c3f6c4bf30421f995",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/css/m4l-tafseer-cards.css",
+      "urlPath": "/css/m4l-tafseer-cards.css"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 47236,
+      "destination": "css/m4l-workspace-theme.css",
+      "mime": "text/css; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "fc30f0b3418e29389be47ab2674e509ea489d0cf110a42f35b194dbd1669674c",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/css/m4l-workspace-theme.css",
+      "urlPath": "/css/m4l-workspace-theme.css"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 259,
+      "destination": "js/jwt-browser-control-relay-root-only-v1.mjs",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/auth/v110/browser-control.html"
+      ],
+      "sha256": "6e60fff067b78de753100d98fef648fc1e80812fce88ad71711c6dba0c682a70",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/jwt-browser-control-relay-root-only-v1.mjs",
+      "urlPath": "/js/jwt-browser-control-relay-root-only-v1.mjs"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 4566,
+      "destination": "js/jwt-root-browser-bootstrap-root-only-v1.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "4b11f5afb286f15dedd0fa887d73b5bfe35eb52f56e0f1f4d767d6af64b0fbb1",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/jwt-root-browser-bootstrap-root-only-v1.js",
+      "urlPath": "/js/jwt-root-browser-bootstrap-root-only-v1.js"
+    },
+    {
+      "allowedSearches": [
+        "",
+        "?v=109.17"
+      ],
+      "bytes": 18131,
+      "destination": "js/m4l-academy-accounts.mjs",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/js/m4l-academy-page-actions.js"
+      ],
+      "sha256": "73b9ee2e0b6d13c77dab0aaed5f82f34d4e2b143fa2f39b2a9cebfdd7508f38d",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-academy-accounts.mjs",
+      "urlPath": "/js/m4l-academy-accounts.mjs"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 7978,
+      "destination": "js/m4l-academy-admin-menu.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "93cf1e4b7c652bbdf666dc99fc4fc6c00eae29c10181d7d2fe0defa0be377e79",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-academy-admin-menu.js",
+      "urlPath": "/js/m4l-academy-admin-menu.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 5584,
+      "destination": "js/m4l-academy-announcements.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "9e77bff34e79ed58e2631bb46c6483a286d70729186b5f32edc703ba028c5855",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-academy-announcements.js",
+      "urlPath": "/js/m4l-academy-announcements.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 90970,
+      "destination": "js/m4l-academy-assessments.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "914812f8efa70428b7e2d818948f6174fadff0397f2257189f8e665922af4149",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-academy-assessments.js",
+      "urlPath": "/js/m4l-academy-assessments.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 6641,
+      "destination": "js/m4l-academy-contents.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "5d3ea9819c8137c2e46d1572d9d4e91d671c5f4490beb93ba49bc243fc52c252",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-academy-contents.js",
+      "urlPath": "/js/m4l-academy-contents.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 108564,
+      "destination": "js/m4l-academy-entrance.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "416e6dfc48f8fd6c8824492fce38a81243213cda63dcd184351e4139c871cb29",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-academy-entrance.js",
+      "urlPath": "/js/m4l-academy-entrance.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 2815,
+      "destination": "js/m4l-academy-header-date.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "9a0f7b2c16fa66b240359f206f39993b3656a7dfefa6e6ccbe4acfefd8a84e98",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-academy-header-date.js",
+      "urlPath": "/js/m4l-academy-header-date.js"
+    },
+    {
+      "allowedSearches": [
+        "",
+        "?v=109.17"
+      ],
+      "bytes": 5299,
+      "destination": "js/m4l-academy-history.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/js/m4l-academy-page-actions.js",
+        "/js/m4l-academy-workspace.js"
+      ],
+      "sha256": "a4d40b253bd3753b367b2ebd57725ce7f8869b56de77532a8c38bd7a073b94cd",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-academy-history.js",
+      "urlPath": "/js/m4l-academy-history.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 1294,
+      "destination": "js/m4l-academy-inline-calendar.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "e95c241375de73774092b9271dc19fffc6a93d45d08670aa1f7e806e29a22956",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-academy-inline-calendar.js",
+      "urlPath": "/js/m4l-academy-inline-calendar.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 1042,
+      "destination": "js/m4l-academy-join.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "fa7dec485347d2486eecb4ecc70adad24bd5e66615d9e92bc433721f25559a14",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-academy-join.js",
+      "urlPath": "/js/m4l-academy-join.js"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 22045,
+      "destination": "js/m4l-academy-login-root-pin-v1.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "bdda730cf97770d10d91019d2bff03d4aa409b2c9b6bfdd48cdb5d82d0cb5cf3",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-academy-login-root-pin-v1.js",
+      "urlPath": "/js/m4l-academy-login-root-pin-v1.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 11336,
+      "destination": "js/m4l-academy-mobile.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "01c64a8bc9add1e59c894649bbbb9f543da1989e34687992e02edf952d8fa455",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-academy-mobile.js",
+      "urlPath": "/js/m4l-academy-mobile.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 8417,
+      "destination": "js/m4l-academy-page-actions.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "d935ead93d174ee3e80dea4a239c6a13f5d8599d3e38e58a341afc148e7484ff",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-academy-page-actions.js",
+      "urlPath": "/js/m4l-academy-page-actions.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 24016,
+      "destination": "js/m4l-academy-planning.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "204efc479e4d4ec512a0f109a4d80bf999a128e2b4f25fa5ae6291227a10e83b",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-academy-planning.js",
+      "urlPath": "/js/m4l-academy-planning.js"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 20339,
+      "destination": "js/m4l-academy-playlists.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/js/m4l-lesson-media.js"
+      ],
+      "sha256": "61ece88584a79af0d655d75c9c6c17f22bac5096db2b1368218f05d03f5ff321",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-academy-playlists.js",
+      "urlPath": "/js/m4l-academy-playlists.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 22322,
+      "destination": "js/m4l-academy-progress.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "695ca34b715e45247f14ba0a507c3b739c299b2324946a0bf8eb4a6cd48df3e3",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-academy-progress.js",
+      "urlPath": "/js/m4l-academy-progress.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 11432,
+      "destination": "js/m4l-academy-read-cache.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "479fe5b36244671cee5ac5fed80ac4988e0ec6f5e5b2645cd4bf7e52bfadf356",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-academy-read-cache.js",
+      "urlPath": "/js/m4l-academy-read-cache.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 3425,
+      "destination": "js/m4l-academy-settings.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "2598ab338b50367fd9accad76058c5354c8a3e94ab5c7e49a95d0f6edae3ea72",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-academy-settings.js",
+      "urlPath": "/js/m4l-academy-settings.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 3979,
+      "destination": "js/m4l-academy-startup.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "bed9c440a2d9ca445bf7c53dd8abbca77925bb2befc54d818a770e19f1f4f1b9",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-academy-startup.js",
+      "urlPath": "/js/m4l-academy-startup.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 21515,
+      "destination": "js/m4l-academy-workspace.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "c718cbed950af2c5c5d2df0eadc9ed29bb095d5e4d63dd668bf2ab81d2053f01",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-academy-workspace.js",
+      "urlPath": "/js/m4l-academy-workspace.js"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 1382,
+      "destination": "js/m4l-access-badge.mjs",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/js/m4l-playlist-card.mjs"
+      ],
+      "sha256": "501c8bd07039927acdd4fb10cccf36da17aea05fb1459af1690a37359be67758",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-access-badge.mjs",
+      "urlPath": "/js/m4l-access-badge.mjs"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 3053,
+      "destination": "js/m4l-announcement-feed.mjs",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/js/m4l-academy-announcements.js"
+      ],
+      "sha256": "796bfa69b9dc3757af9c95863bd426e31f3572e523802d7aeabb62f59c735b70",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-announcement-feed.mjs",
+      "urlPath": "/js/m4l-announcement-feed.mjs"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 2270,
+      "destination": "js/m4l-announcement-links.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "e6b45b99947a3906bc1f5ff82e40186e1e1cf80c5b1a7493168b4aeb0d79809d",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-announcement-links.js",
+      "urlPath": "/js/m4l-announcement-links.js"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 15289,
+      "destination": "js/m4l-announcements-editor.mjs",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/js/m4l-academy-announcements.js"
+      ],
+      "sha256": "a9cb89c4952d41609a20fce60fe9cd5e650275f7f935eed86dd1fb6eb97153b9",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-announcements-editor.mjs",
+      "urlPath": "/js/m4l-announcements-editor.mjs"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 6836,
+      "destination": "js/m4l-announcements-view.mjs",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/js/m4l-academy-announcements.js",
+        "/js/m4l-announcements-editor.mjs"
+      ],
+      "sha256": "07e81b5ffbbf6aea1d3974d011155891620e0dccd425b9ace127492f0cdccaae",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-announcements-view.mjs",
+      "urlPath": "/js/m4l-announcements-view.mjs"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 7071,
+      "destination": "js/m4l-assessment-register.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "a640df022abfe18e64f394b262ff1b10d01c78d55fd707bcc58c2ddf4a47922d",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-assessment-register.js",
+      "urlPath": "/js/m4l-assessment-register.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 22701,
+      "destination": "js/m4l-assessment-reports.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "8c53562a0daac1035b29732c47b27eda34a01e2225b2281556a53c90ec38360a",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-assessment-reports.js",
+      "urlPath": "/js/m4l-assessment-reports.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=circles-native-1"
+      ],
+      "bytes": 8442,
+      "destination": "js/m4l-circles-native.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "ab27adb7ed1f8cf21ed6aa65d1921a490be4232c1696763398c80325db30fa87",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-circles-native-existing-feature-v1.js",
+      "urlPath": "/js/m4l-circles-native.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 22426,
+      "destination": "js/m4l-class-notes.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "000264dfa564f554a0b735742aace6188773556e4a84bf038dfa456c17643118",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-class-notes.js",
+      "urlPath": "/js/m4l-class-notes.js"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 1506,
+      "destination": "js/m4l-config-root-only-v1.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "d39f6007166909c43b480d739afd4a4ee620a7ff31628aa59af9017fbf0965e6",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/source-checks/academy-feature-frontend-origin-fix-20261112-r1/m4l-config-existing-feature-v2.js",
+      "urlPath": "/js/m4l-config-root-only-v1.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 1648,
+      "destination": "js/m4l-course-companion.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "110f324dd3ad18f7298f3f031c531a033c6b73e0af858b4114a3f2d87260d76c",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-course-companion.js",
+      "urlPath": "/js/m4l-course-companion.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 7085,
+      "destination": "js/m4l-imtihaan-export.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "1a4bb1b428f737ab585fba3fc9624b7d1db15b5b1f16cefb3b9c37e9794f9be1",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-imtihaan-export.js",
+      "urlPath": "/js/m4l-imtihaan-export.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 3250,
+      "destination": "js/m4l-lesson-media-cache.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "2e9b69e4dc1dd8132e55590b06d2108a3a00b818e5defd7b7029c6d908af5e41",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-lesson-media-cache.js",
+      "urlPath": "/js/m4l-lesson-media-cache.js"
+    },
+    {
+      "allowedSearches": [
+        "",
+        "?v=109.18"
+      ],
+      "bytes": 81081,
+      "destination": "js/m4l-lesson-media.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/",
+        "/js/m4l-academy-playlists.js"
+      ],
+      "sha256": "8e9a7aa3b534e2c1b243d7c0ee9a11624a2002e99c6c6fda5a363675858de4ee",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-lesson-media.js",
+      "urlPath": "/js/m4l-lesson-media.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 8389,
+      "destination": "js/m4l-lesson-pdf-library.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "5fd7dca7aaa0b664ce7ba13d98fccebe5b41ce88b7a5b5ba19e40de785b0b8a5",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-lesson-pdf-library.js",
+      "urlPath": "/js/m4l-lesson-pdf-library.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 5316,
+      "destination": "js/m4l-library-cache.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "5fd6095944857f483de9a7c100d95c9db5d61c505db039ad6cb22082e150ce77",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-library-cache.js",
+      "urlPath": "/js/m4l-library-cache.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 22293,
+      "destination": "js/m4l-memorisation-admin.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "57c32a0f94517a03c211794359600b41b52a29499adc7591d307e546bb35c388",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-memorisation-admin.js",
+      "urlPath": "/js/m4l-memorisation-admin.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 7345,
+      "destination": "js/m4l-memorisation-upload.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "a4094865b5f0731abf22acbcf5f91d92a8bd35168b2aab0fabfbd5fea24f1db7",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-memorisation-upload.js",
+      "urlPath": "/js/m4l-memorisation-upload.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 34903,
+      "destination": "js/m4l-messaging.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "9cda71daa729593090ec454740249182f5812c7c9cfd3cbf6aed4b749b9baf8b",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-messaging.js",
+      "urlPath": "/js/m4l-messaging.js"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 2368,
+      "destination": "js/m4l-monthly-media-entry.mjs",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/js/m4l-academy-entrance.js",
+        "/js/m4l-lesson-media.js"
+      ],
+      "sha256": "a8b4f5951e9206f747ba9a8eb78b7c73967770fcdaa30193ec531197c40b7d57",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-monthly-media-entry.mjs",
+      "urlPath": "/js/m4l-monthly-media-entry.mjs"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 16827,
+      "destination": "js/m4l-mou-playlists.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/js/m4l-lesson-media.js"
+      ],
+      "sha256": "fabf5bb013e4a9c5b64fe07cc21bb13cf3d7fe9071a3314e917d2bcdabce74fb",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-mou-playlists.js",
+      "urlPath": "/js/m4l-mou-playlists.js"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 3222,
+      "destination": "js/m4l-native-playlist-view.mjs",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/js/m4l-lesson-media.js"
+      ],
+      "sha256": "5c535d66aeb57a05e33f71ec3a00f74e44751e83cfcea22ea6226eb032acb5df",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-native-playlist-view.mjs",
+      "urlPath": "/js/m4l-native-playlist-view.mjs"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 9637,
+      "destination": "js/m4l-planning-pdf.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "c1133009c11a5917dacf2d84b1371ea7774f2d1fd2283c58b095a69a275d6696",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-planning-pdf.js",
+      "urlPath": "/js/m4l-planning-pdf.js"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 11032,
+      "destination": "js/m4l-playlist-card.mjs",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/js/m4l-academy-playlists.js",
+        "/js/m4l-recording-collections.mjs"
+      ],
+      "sha256": "cc37f04ae90354dd7069a27a72897a74f55c9084ee1ab456a115d5bebe0af9e4",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-playlist-card.mjs",
+      "urlPath": "/js/m4l-playlist-card.mjs"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 23414,
+      "destination": "js/m4l-program-attendance.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "f680ac71c392ea62c69df9e1e2251e651f531766e531be0ffba6e4c74c2c90ae",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-program-attendance.js",
+      "urlPath": "/js/m4l-program-attendance.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 18302,
+      "destination": "js/m4l-programme-workspace.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "40b038bd90282e5f973a8096f8dd6ab1412bc4c9c18a0fa3a8be822992a29d11",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-programme-workspace.js",
+      "urlPath": "/js/m4l-programme-workspace.js"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 11620,
+      "destination": "js/m4l-recording-collections.mjs",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/js/m4l-lesson-media.js"
+      ],
+      "sha256": "31fa93da02db94d52fe8dc66c3395cb575b11bf2983214724499514a7cf57c1c",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-recording-collections.mjs",
+      "urlPath": "/js/m4l-recording-collections.mjs"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 3163,
+      "destination": "js/m4l-tafseer-access.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "83d47d7b846055b127c748cdf54ac2b7bda5b59e889666111627ab558b7b2728",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-tafseer-access.js",
+      "urlPath": "/js/m4l-tafseer-access.js"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 10195,
+      "destination": "js/m4l-tafseer-cards.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "de20f464d2c5bfe73b33b04ca26edde3d2cb229be42430f577be2830877b8b99",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-tafseer-cards.js",
+      "urlPath": "/js/m4l-tafseer-cards.js"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 2598,
+      "destination": "js/m4l-website-studio.mjs",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/js/m4l-academy-workspace.js"
+      ],
+      "sha256": "c5e200f493dde48ebe77db42dc4e0178e913a2c049324a3d60bf9b7f3f1fe9fe",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/m4l-website-studio.mjs",
+      "urlPath": "/js/m4l-website-studio.mjs"
+    },
+    {
+      "allowedSearches": [
+        "?v=109.18"
+      ],
+      "bytes": 525059,
+      "destination": "js/vendor/pdf-lib-1.17.1.min.js",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/academy/"
+      ],
+      "sha256": "278627f3a5e3efa95e77ab565f10831d3cdb9cbb617ef8388d6ff4bf962d4887",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/vendor/pdf-lib-1.17.1.min.js",
+      "urlPath": "/js/vendor/pdf-lib-1.17.1.min.js"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 430304,
+      "destination": "js/vendor/pdfjs/pdf.min.mjs",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/js/m4l-assessment-reports.js"
+      ],
+      "sha256": "2221020ea508479dcc1221f36f2731656339230097c69ba1f78802832c0ad685",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/vendor/pdfjs/pdf.min.mjs",
+      "urlPath": "/js/vendor/pdfjs/pdf.min.mjs"
+    },
+    {
+      "allowedSearches": [
+        ""
+      ],
+      "bytes": 1244253,
+      "destination": "js/vendor/pdfjs/pdf.worker.min.mjs",
+      "mime": "text/javascript; charset=utf-8",
+      "referencedBy": [
+        "/js/m4l-assessment-reports.js"
+      ],
+      "sha256": "51a2fd1ea47f1a9b0814e65e0c336c739c54957795ee774e8f93cb81e8028dd1",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/js/vendor/pdfjs/pdf.worker.min.mjs",
+      "urlPath": "/js/vendor/pdfjs/pdf.worker.min.mjs"
+    },
+    {
+      "allowedSearches": [
+        "?v=105.4.3.10",
+        "?v=106.1"
+      ],
+      "bytes": 274186,
+      "destination": "ummabbadacademy.png",
+      "mime": "image/png",
+      "referencedBy": [
+        "/academy/",
+        "/css/m4l-academy-entrance.css"
+      ],
+      "sha256": "0652c6b20733b2260895df6ee7805702679cb96c854834c3cac400ca2ee49a9f",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/ummabbadacademy.png",
+      "urlPath": "/ummabbadacademy.png"
+    },
+    {
+      "allowedSearches": [
+        "",
+        "?signin=1"
+      ],
+      "bytes": 512,
+      "destination": "index.html",
+      "mime": "text/html; charset=utf-8",
+      "referencedBy": [],
+      "sha256": "e0c409111a363b76a09f3b0c30ac91266591e1c7c4a3a285b6704c189cccf001",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/academy/entry-existing-feature-v1.html",
+      "urlPath": "/"
+    },
+    {
+      "allowedSearches": [
+        "",
+        "?signin=1"
+      ],
+      "bytes": 512,
+      "destination": "index.html",
+      "mime": "text/html; charset=utf-8",
+      "referencedBy": [],
+      "sha256": "e0c409111a363b76a09f3b0c30ac91266591e1c7c4a3a285b6704c189cccf001",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/academy/entry-existing-feature-v1.html",
+      "urlPath": "/index.html"
+    },
+    {
+      "allowedSearches": [
+        "",
+        "?signin=1"
+      ],
+      "bytes": 59604,
+      "destination": "academy/index.html",
+      "mime": "text/html; charset=utf-8",
+      "referencedBy": [],
+      "sha256": "7c52d45272c6b9d80ca1c750354f5116aa9cac666f745e044e1780fa5fe5dd7e",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/academy/index-existing-feature-v1.html",
+      "urlPath": "/academy/index.html"
+    },
+    {
+      "allowedSearches": [
+        "",
+        "?signin=1"
+      ],
+      "bytes": 59604,
+      "destination": "academy/admin/index.html",
+      "mime": "text/html; charset=utf-8",
+      "referencedBy": [],
+      "sha256": "7c52d45272c6b9d80ca1c750354f5116aa9cac666f745e044e1780fa5fe5dd7e",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/academy/index-existing-feature-v1.html",
+      "urlPath": "/academy/admin/"
+    },
+    {
+      "allowedSearches": [
+        "",
+        "?signin=1"
+      ],
+      "bytes": 59604,
+      "destination": "academy/admin/index.html",
+      "mime": "text/html; charset=utf-8",
+      "referencedBy": [],
+      "sha256": "7c52d45272c6b9d80ca1c750354f5116aa9cac666f745e044e1780fa5fe5dd7e",
+      "sourcePath": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/academy/index-existing-feature-v1.html",
+      "urlPath": "/academy/admin/index.html"
+    }
+  ],
+  "assetsOptions": {
+    "html_handling": "none",
+    "not_found_handling": "none",
+    "run_worker_first": [
+      "/",
+      "/academy",
+      "/academy/",
+      "/academy/admin",
+      "/academy/admin/",
+      "/api/*",
+      "/internal/*",
+      "/auth/v110/login",
+      "/auth/v110/setup-pin",
+      "/auth/v110/context",
+      "/auth/v110/csrf",
+      "/auth/v110/refresh",
+      "/auth/v110/logout-csrf",
+      "/auth/v110/logout"
+    ]
+  },
+  "buildOrBrowserRun": false,
+  "excluded": [
+    "backend",
+    "config",
+    ".git",
+    ".github",
+    "node_modules",
+    "databases",
+    "fixtures",
+    "private receipts",
+    "keys",
+    "source package"
+  ],
+  "fullApplicationOrPDFMediaReadiness": false,
+  "headers": {
+    "Cache-Control": "private, no-store",
+    "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "Pragma": "no-cache",
+    "Referrer-Policy": "no-referrer",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN"
+  },
+  "homeRouter": "Native Academy timetable paths, not root dashboard; canLeave and authority unchanged.",
+  "literalDynamicUnresolved": [
+    {
+      "from": "/js/vendor/pdfjs/pdf.min.mjs",
+      "literal": "${t}"
+    }
+  ],
+  "nativeRootOnlyPrivacyTransportUnchanged": true,
+  "origin": "https://maktabhelper.app",
+  "predecessor": {
+    "bytes": 58093,
+    "path": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/backend/tools/academy-existing-feature-source-20261112-r1/FRONTEND-SELECTION-r1.json",
+    "sha256": "5c8f53262a79db0a76ae3842ee4699015a010efe9dbacc7154357722f212b2cd"
+  },
+  "profileCommitment": "ace803d91780e16352bc2d07dd6aadd30ed7bd4c4a7ae08848d68108eb9c9d85",
+  "programmeSelectors": "UNBOUND_NO_FABRICATED_PERSON_OR_COURSE_IDS",
+  "publicHeadersDestination": "_headers",
+  "publicHeadersSource": {
+    "bytes": 561,
+    "path": "/home/maktab/workspaces/v110-academy-local-20261108-_t_snrja/roles/jwt/Academy/academy/headers-existing-feature-v1.txt",
+    "sha256": "c5e5c2ee1d2eacd34e82fc8bbcb81feda858f2594c99af8b4693b7d23cddd0bd"
+  },
+  "schema": "ACADEMY_EXISTING_FEATURE_FRONTEND_SELECTION_V2",
+  "selectedProtectedHTML": [
+    "/academy/",
+    "/academy/index.html",
+    "/academy/admin/",
+    "/academy/admin/index.html"
+  ],
+  "status": "ROOT_NARROW_API_BASE_FIX_SELECTED_NOT_BROWSER_ACCEPTANCE"
+}

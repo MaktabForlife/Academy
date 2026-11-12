@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "state": "ISOLATED_PAUSED",
+  "commit": "a020a212e876cc561b2b84f8fe58fb63f22d745a",
+  "accountId": "c9a3e355b3d7a795880b1d36a1dbe123",
+  "worker": "feature_worker",
+  "coordinator": "academy-feature-split-coordinator",
+  "databaseIds": [
+    "0eaf6d46-bbaa-46e3-8287-b6113ef8f2a8",
+    "18ad0efb-cd34-42a4-b510-7051f0303200"
+  ],
+  "sourceDigest": "0c7d80b7bce6dffb3891896389f05c98a57972951daf288db053ac68af378212",
+  "nativeProofRun": 42142702284,
+  "hostedWorkerCalls": 0,
+  "hostedD1Queries": 0,
+  "pagesDeployments": 0,
+  "secretValuesLogged": false,
+  "stage": "verified",
+  "splitNamespaceId": "21e47da10960439ea4c2bb1ce5736718",
+  "timetableNamespaceId": "7d99a5300b8d4f948c4fb85ce23b344e",
+  "workerVersion": "6ffa8a79-d39d-4c12-a244-49d5239a1eb2",
+  "coordinatorVersion": "782fdb0c-b289-4815-8299-e39eaf5fce60",
+  "requiredSecretNames": [
+    "PIN_SECRET",
+    "SESSION_SECRET",
+    "SHARED_PIN_SECRET",
+    "ACADEMY_OPEN_LIBRARY_STORAGE_KEY"
+  ],
+  "removedFeatureSecret": "HIFZ_PROFILE_SYNC_SECRET",
+  "featureActivated": false,
+  "automaticDeploymentEnabled": false,
+  "explicitControlPlaneReads": 14
+}

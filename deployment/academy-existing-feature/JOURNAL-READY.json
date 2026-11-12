@@ -1,0 +1,119 @@
+{
+  "actualSchemaReadback": {
+    "AI": "OFF",
+    "APIRequests": 3,
+    "DDLStatementsConfirmed": 10,
+    "DDLStatementsSubmitted": 10,
+    "allTenAbsentBefore": true,
+    "applicationRequests": 0,
+    "batchResponseConfirmed": true,
+    "mutationRequestsAttempted": 1,
+    "newTablesInitiallyEmptyByConstruction": true,
+    "objects": [
+      {
+        "absentBefore": true,
+        "exactWhitespaceNormalizedDefinition": true,
+        "name": "jwt_v110_master_streams",
+        "presentAfter": true,
+        "type": "table",
+        "typeMatches": true
+      },
+      {
+        "absentBefore": true,
+        "exactWhitespaceNormalizedDefinition": true,
+        "name": "jwt_v110_master_outbox",
+        "presentAfter": true,
+        "type": "table",
+        "typeMatches": true
+      },
+      {
+        "absentBefore": true,
+        "exactWhitespaceNormalizedDefinition": true,
+        "name": "jwt_v110_master_pending",
+        "presentAfter": true,
+        "type": "index",
+        "typeMatches": true
+      },
+      {
+        "absentBefore": true,
+        "exactWhitespaceNormalizedDefinition": true,
+        "name": "jwt_v110_master_facts_immutable",
+        "presentAfter": true,
+        "type": "trigger",
+        "typeMatches": true
+      },
+      {
+        "absentBefore": true,
+        "exactWhitespaceNormalizedDefinition": true,
+        "name": "jwt_v110_master_wire_immutable",
+        "presentAfter": true,
+        "type": "trigger",
+        "typeMatches": true
+      },
+      {
+        "absentBefore": true,
+        "exactWhitespaceNormalizedDefinition": true,
+        "name": "jwt_v110_master_lifecycle_streams",
+        "presentAfter": true,
+        "type": "table",
+        "typeMatches": true
+      },
+      {
+        "absentBefore": true,
+        "exactWhitespaceNormalizedDefinition": true,
+        "name": "jwt_v110_master_lifecycle_outbox",
+        "presentAfter": true,
+        "type": "table",
+        "typeMatches": true
+      },
+      {
+        "absentBefore": true,
+        "exactWhitespaceNormalizedDefinition": true,
+        "name": "jwt_v110_master_lifecycle_pending",
+        "presentAfter": true,
+        "type": "index",
+        "typeMatches": true
+      },
+      {
+        "absentBefore": true,
+        "exactWhitespaceNormalizedDefinition": true,
+        "name": "jwt_v110_master_lifecycle_facts_immutable",
+        "presentAfter": true,
+        "type": "trigger",
+        "typeMatches": true
+      },
+      {
+        "absentBefore": true,
+        "exactWhitespaceNormalizedDefinition": true,
+        "name": "jwt_v110_master_lifecycle_wire_immutable",
+        "presentAfter": true,
+        "type": "trigger",
+        "typeMatches": true
+      }
+    ],
+    "readbackAllTenExact": true,
+    "schema": "ACADEMY_FEATURE_ACTUAL_TEN_JOURNAL_OBJECTS_V1",
+    "seedOrDMLStatements": 0,
+    "status": "PASS_TEN_APPROVED_OBJECTS_CREATED_AND_READ_BACK",
+    "tableOrApplicationRowsQueried": false
+  },
+  "humanApprovalVerified": true,
+  "nativeStatePreserved": true,
+  "noResetOrReseed": true,
+  "recordedAtUTC": "2026-11-12T11:38:57.903246+00:00",
+  "rootReview": {
+    "privateChatIdentifiersRemoved": true,
+    "reviewedExactTenOnly": true,
+    "selectedSQLSHA256": "c9d28d1ed752ba4a2c6718a1b1298e339be3ec727ef23c61e2f1ec6d5bdd4a66",
+    "sourceActualGateSHA256": "579ee123790168608574bed9d9b8d38deedc617039dd721baf2dc3f2e3390d1b",
+    "status": "PASS"
+  },
+  "rootReviewBeforePublicationRequired": false,
+  "schema": "ACADEMY_FEATURE_ROOT_JOURNAL_GATE_V1",
+  "sqlSHA256": "c9d28d1ed752ba4a2c6718a1b1298e339be3ec727ef23c61e2f1ec6d5bdd4a66",
+  "status": "PASS",
+  "target": {
+    "accountId": "c9a3e355b3d7a795880b1d36a1dbe123",
+    "coreId": "cdbe97bc-f3d9-400e-8806-ed9a0d143d26"
+  }
+}

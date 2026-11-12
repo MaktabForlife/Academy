@@ -1,0 +1,52 @@
+{
+  "audiences": {
+    "academy": "urn:ummabbadacademy:academy:api"
+  },
+  "capabilities": {
+    "admission": false,
+    "capture": true,
+    "childDelivery": false,
+    "cookie": true,
+    "coordinator": true,
+    "http": true,
+    "master": true,
+    "pin": false,
+    "prearm": true,
+    "reader": false,
+    "refresh": true,
+    "retry": false,
+    "rootBridge": false,
+    "rpc": false,
+    "timetable": false
+  },
+  "childDelivery": "OFF_UNCONFIGURED",
+  "classes": {
+    "split": "JWTFeatureAcademySplitCoordinator",
+    "timetable": "JWTFeatureProgramTimetableCoordinator"
+  },
+  "issuers": {
+    "academy": "https://maktabhelper.app"
+  },
+  "origins": {
+    "academy": "https://maktabhelper.app"
+  },
+  "profileCommitment": "ace803d91780e16352bc2d07dd6aadd30ed7bd4c4a7ae08848d68108eb9c9d85",
+  "rootCookieDomain": "maktabhelper.app",
+  "rootCookieMode": "APPROVED_SHARED_PARENT",
+  "rootDatabaseIds": {
+    "admin": "ed77f2a7-4439-4841-8691-2b41063d8960",
+    "core": "cdbe97bc-f3d9-400e-8806-ed9a0d143d26"
+  },
+  "runtimeReadiness": "NOT_ATTESTED_BY_CONFIGURATION",
+  "schema": "ACADEMY_EXISTING_FEATURE_PROFILE_V1",
+  "scope": "ACADEMY_ONLY",
+  "sessionPolicy": {
+    "accessSeconds": 900,
+    "originalAbsoluteSeconds": 604800,
+    "qualifyingOwnForegroundIdleSeconds": 5400
+  },
+  "workerNames": {
+    "academy": "feature_worker",
+    "coordinator": "academy-feature-split-coordinator"
+  }
+}

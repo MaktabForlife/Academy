@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "state": "INITIAL_FEATURE_VERIFIED",
+  "source": "903afcc6f72cddb31191cc0cb87fb22299a10646",
+  "run": 42152484606,
+  "artifact": 13473102488,
+  "artifactSha256": "640c3383bef974280ceb891ea203e1066f0a98777d87380c3e832fc2658c3f53",
+  "workerVersion": "4dda6592-5fb0-4a25-8d34-adf9db225519",
+  "coordinatorVersion": "782fdb0c-b289-4815-8299-e39eaf5fce60",
+  "initialVerification": {
+    "apiRequests": 6,
+    "pagesRequests": 2,
+    "testSessionEnded": true,
+    "rowsReadProjection": 241,
+    "hostedRowsReadMeasured": false
+  },
+  "earlierPreviewMarkerRequests": 4,
+  "existingDatabasesChanged": false,
+  "JWTActivated": false,
+  "automaticPipelineVerification": "PENDING"
+}

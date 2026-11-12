@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "state": "STARTING_FOOTPRINT_REVIEWED_PRIVATE_ATTESTATION_PENDING",
+  "accountId": "c9a3e355b3d7a795880b1d36a1dbe123",
+  "planId": "JWT_FEATURE_FRESH_20261106a",
+  "databaseNames": [
+    "jwt-feature-core-20261106a",
+    "jwt-feature-admin-20261106a"
+  ],
+  "databaseIds": [
+    "cdbe97bc-f3d9-400e-8806-ed9a0d143d26",
+    "ed77f2a7-4439-4841-8691-2b41063d8960"
+  ],
+  "ddlHashes": {
+    "core": "1b2d6c85ee3fd797a7fab9bb297d7b700b30542a4fba1428996da21236afa9ce",
+    "admin": "0cebae64a69e62a235b3828eb39d1001e3d23b992ffeb391920239096018a830",
+    "auth": "f9e8948fc4459cb85b6609da0cac488d2e9bec8d438b1c3ecd43e16062aeed0d"
+  },
+  "startingFootprints": {
+    "core": {
+      "observedObjects": 1,
+      "orderedDefinitionHash": "746047e55a185d77723c183c1652a18afafa0ea6a9ced7a623c652fe404c90bc",
+      "firstDefinitionHash": "ba6adc0dad88252e65296438061de7e8d62e238bcfd1aa882817f5e4a536f739",
+      "userRows": "NOT_QUERIED"
+    },
+    "admin": {
+      "observed": "NOT_OPENED",
+      "expectedObjects": 0,
+      "expectedOrderedDefinitionHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  "observed": {
+    "coreEditorSQLSubmissions": 7,
+    "adminEditorOpened": false,
+    "failedBatchUsage": "UNMEASURED"
+  },
+  "reviewedSchemaPrimitive": "4ca61b81d57b8b9419a1fa2a4072d6272f28e9ba",
+  "reviewedAt": "2026-11-06T12:57:18Z"
+}

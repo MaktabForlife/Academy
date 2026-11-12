@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "environment": "feature",
+  "academyPortalOrigin": "https://maktabhelper.app",
+  "academyLegacyOrigins": [],
+  "academyApiOrigin": "https://maktabhelper.app",
+  "studioOrigin": "https://studio.maktabhelper.app",
+  "studioBackendOrigin": "https://studio.maktabhelper.app",
+  "hifzOrigin": "https://hifz.maktabhelper.app"
+}

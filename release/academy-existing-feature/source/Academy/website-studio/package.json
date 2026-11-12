@@ -1,0 +1,1 @@
+{"name":"academy-website-studio","private":true,"type":"module","version":"0.0.0-local","scripts":{"build":"node tools/build.mjs","dev":"node ../backend/node_modules/wrangler/bin/wrangler.js dev --local --config wrangler.jsonc"}}

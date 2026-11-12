@@ -1,0 +1,477 @@
+(function () {
+  "use strict";
+
+  const apiBase = String(window.M4L_CONFIG?.API_BASE || "").replace(/\/$/, "");
+  const tokenKey = "m4l_account_token";
+  const academySessionKey = "m4l_academy_signed_in";
+  const form = document.getElementById("login-preview");
+  const linkInput = document.getElementById("demo-username");
+  const pinInput = document.getElementById("demo-pin");
+  const pinToggle = document.getElementById("demo-pin-toggle");
+  const status = document.getElementById("login-status");
+  const sessionLoading = document.getElementById("academy-session-loading");
+  const sessionMessage = document.getElementById("academy-session-message");
+  const sessionRetry = document.getElementById("academy-session-retry");
+  const homeCard = document.getElementById("academy-home-card");
+  const headerName = document.getElementById("academy-header-name");
+  const signOutButton = document.getElementById("academy-sign-out");
+  const loginButton = document.getElementById("academy-login");
+  const loginDialog = document.getElementById("academy-login-dialog");
+  const loginClose = document.getElementById("academy-login-close");
+  const libraryNav = document.getElementById("academy-library-nav");
+  const avatar = document.getElementById("academy-avatar");
+  let activeToken = "";
+  let activeLoginId = "";
+  let verifiedContexts = null;
+  let sessionStore = "";
+  let sessionGeneration = 0;
+  let restoringSession = null;
+  let loginRequested = window.location.hash === "#login";
+
+  if (!form || !linkInput || !pinInput || !apiBase) return;
+
+  const nativeCookie=()=>window.M4L_V110&&window.M4L_V110_CONFIG?.enabled===true&&
+    window.M4L_V110_CONFIG.nativeCookie===true&&window.M4L_V110_CONFIG.app==="academy"&&
+    location.origin===window.M4L_V110_CONFIG.origins?.academy;
+  let settingPin=false,confirmation=null,confirmationLabel=null,pinConfirmationMode=null;
+  if(nativeCookie()){
+    confirmationLabel=document.createElement("label");
+    confirmationLabel.hidden=true;confirmationLabel.style.display="none";
+    confirmationLabel.textContent="Confirm your new 4-digit PIN";
+    confirmation=document.createElement("input");
+    Object.assign(confirmation,{id:"demo-pin-confirmation",type:"password",inputMode:"numeric",maxLength:4,autocomplete:"off"});
+    confirmation.pattern="[0-9]{4}";confirmationLabel.append(confirmation);
+    form.querySelector('button[type="submit"]').before(confirmationLabel);
+    confirmation.addEventListener("input",()=>{
+      confirmation.value=confirmation.value.replace(/\D/g,"").slice(0,4);
+      if(settingPin&&confirmation.value.length===4&&pinInput.value.length===4&&!pinInput.disabled)form.requestSubmit();
+    });
+  }
+  function pinSetup(enabled){
+    settingPin=Boolean(enabled&&nativeCookie());
+    if(confirmation){confirmation.value="";confirmation.required=settingPin;confirmationLabel.hidden=!settingPin;confirmationLabel.style.display=settingPin?"":"none";}
+    pinInput.value="";
+  }
+
+  // Reuse the identity from the existing login/session response; no extra lookup.
+  window.M4L_ACADEMY_LOGIN = Object.freeze({
+    openPublicSignIn: () => {
+      if (!window.M4L_V110) return;
+      try { clearStoredAccountState(); } catch (_) { /* The workspace remains masked. */ }
+      showSignedOut();
+      showLoginForm();
+    },
+    // UI selector only. Server native PIN verification and actual cookie authority
+    // decide the account/unlock; this method grants no mutation continuation.
+    confirmCurrentPIN: async event => {
+      if(!nativeCookie()||!(event instanceof Event)||event.isTrusted!==true||
+          !navigator.userActivation?.isActive||document.visibilityState!=="visible"||loginDialog.open)return false;
+      const id=activeLoginId,token=activeToken,generation=sessionGeneration;
+      if(!id||!token||token!==localStorage.getItem(tokenKey))throw Error("Check your current Academy sign-in.");
+      const stamp=await window.M4L_V110.capture();
+      await window.M4L_V110.current(stamp);
+      if(generation!==sessionGeneration||id!==activeLoginId||token!==activeToken||
+          token!==localStorage.getItem(tokenKey)||document.visibilityState!=="visible")throw Error("Your Academy sign-in changed.");
+      if(window.M4L_CIRCLES_NATIVE?.canLeave?.()===false)return false;
+      // canLeave may ask the native unsaved-page question. Recheck after it.
+      await window.M4L_V110.current(stamp);
+      if(generation!==sessionGeneration||token!==localStorage.getItem(tokenKey)||document.visibilityState!=="visible")throw Error("Your Academy sign-in changed.");
+      pinSetup(false);
+      showLoginForm({confirmation:Object.freeze({id,token,accountId:stamp.accountId})});
+      showStatus("Confirm your current PIN. This page will reload; reopen the item before saving again.");
+      pinInput.focus();
+      return true;
+    },
+    currentId: () => activeToken && activeToken === localStorage.getItem(tokenKey) ? activeLoginId : "",
+    contexts: () => activeToken && activeToken === localStorage.getItem(tokenKey) ? verifiedContexts?.map(row => ({...row})) ?? null : []
+  });
+
+  form.addEventListener("submit", signIn);
+  loginButton.addEventListener("click", openLogin);
+  loginClose.addEventListener("click", () => closeLogin(true));
+  loginDialog.addEventListener("cancel", event => { event.preventDefault(); closeLogin(true); });
+  loginDialog.addEventListener("close", () => {
+    if (loginDialog.open) return;
+    form.hidden = true;
+    loginButton.setAttribute("aria-expanded", "false");
+    document.body.classList.remove("academy-login-open");
+  });
+  window.addEventListener("hashchange", () => { if (window.location.hash === "#login") openLogin(); });
+  pinInput.addEventListener("input", () => {
+    pinInput.value = pinInput.value.replace(/\D/g, "").slice(0, 4);
+    // The feature PIN flow submits once when the fourth digit arrives. Native
+    // ID validation and the existing busy/rate-limit path remain authoritative.
+    if (window.M4L_V110 && pinInput.value.length === 4 &&
+        /^[A-Za-z0-9._~-]{1,128}$/.test(String(linkInput.value || "").trim()) &&
+        !form.hidden && loginDialog.open && !pinInput.disabled && !form.querySelector('button[type="submit"]').disabled) {
+      if(settingPin)confirmation.focus();else form.requestSubmit();
+    }
+  });
+  pinToggle.addEventListener("click", () => {
+    const showing = pinInput.type === "password";
+    pinInput.type = showing ? "text" : "password";
+    pinToggle.textContent = showing ? "Hide" : "Show";
+    pinToggle.setAttribute("aria-label", `${showing ? "Hide" : "Show"} PIN`);
+  });
+  signOutButton.addEventListener("click", () => {
+    void window.M4L_V110?.clearAll("logout").catch(()=>{});
+    const token = activeToken;
+    const revokeSession = sessionStore === "D1";
+    clearStoredAccountState();
+    loginRequested = false;
+    showSignedOut();
+    const generation = sessionGeneration;
+    if (revokeSession && token) {
+      void api("/api/account/logout", {}, token).catch(() => {
+        if (generation === sessionGeneration) {
+          sessionLoading.hidden = false;
+          sessionMessage.textContent = "Signed out on this device. The server session could not be ended.";
+        }
+      });
+    }
+  });
+  sessionRetry.addEventListener("click", () => { void restoreAcademySession(); });
+  window.addEventListener("storage", event => {
+    if (event.key === tokenKey) {
+      sessionStorage.removeItem(academySessionKey);
+      showSignedOut();
+      if (localStorage.getItem(tokenKey)) void restoreAcademySession();
+    }
+  });
+  window.addEventListener("m4l-academy-session-ended", () => {
+    clearStoredAccountState();
+    showSignedOut();
+  });
+  window.addEventListener("pageshow", event => {
+    if (activeToken && localStorage.getItem(tokenKey) !== activeToken) showSignedOut();
+    if (event.persisted && localStorage.getItem(tokenKey)) void restoreAcademySession();
+  });
+  // An explicit JWT Switch user visit starts with an empty native UI. The
+  // existing cookie remains server authority until the next verified PIN
+  // atomically replaces its family; no legacy token logout is sent.
+  const privacy = window.M4L_V110_CONFIG;
+  if (window.M4L_V110 && privacy?.enabled === true && privacy.nativeCookie === true &&
+      privacy.app === "academy" && location.origin === privacy.origins?.academy &&
+      ["switch","signin"].some(key=>new URLSearchParams(location.search).get(key)==="1")) {
+    clearStoredAccountState();
+    loginRequested = true;
+  }
+  void restoreAcademySession();
+  if (loginRequested && !localStorage.getItem(tokenKey)) openLogin();
+
+  function openLogin() {
+    if (localStorage.getItem(tokenKey) || loginDialog.open) return;
+    showLoginForm();
+  }
+
+  function showLoginForm({confirmation:pinMode=null}={}) {
+    if (loginDialog.open) return;
+    pinConfirmationMode=pinMode;
+    linkInput.readOnly=Boolean(pinMode);
+    // Deep links and native hash navigation must expose the same public PIN
+    // surface as the privacy gate button, before a modal makes the page inert.
+    const privacy = window.M4L_V110_CONFIG;
+    if (window.M4L_V110 && privacy?.enabled === true && privacy.app === "academy" &&
+        window.location.origin === privacy.origins?.academy && loginDialog.contains(form)) {
+      linkInput.value = pinMode?.id || "";
+      pinInput.value = "";
+      loginDialog.setAttribute("data-uaa-public-auth", "");
+    }
+    loginRequested = true;
+    form.hidden = false;
+    loginDialog.showModal();
+    loginButton.setAttribute("aria-expanded", "true");
+    document.body.classList.add("academy-login-open");
+    linkInput.focus();
+  }
+
+  function closeLogin(restoreFocus = false) {
+    pinConfirmationMode=null;linkInput.readOnly=false;
+    loginRequested = false;
+    if (loginDialog.open) loginDialog.close();
+    form.hidden = true;
+    pinSetup(false);
+    pinInput.type = "password";
+    pinToggle.textContent = "Show";
+    pinToggle.setAttribute("aria-label", "Show PIN");
+    loginButton.setAttribute("aria-expanded", "false");
+    document.body.classList.remove("academy-login-open");
+    showStatus("");
+    if (restoreFocus) loginButton.focus({ preventScroll: true });
+  }
+
+  function showSignedOut() {
+    sessionGeneration++;
+    activeToken = "";
+    activeLoginId = "";
+    verifiedContexts = null;
+    sessionStore = "";
+    homeCard.hidden = false;
+    signOutButton.hidden = true;
+    loginButton.hidden = false;
+    sessionLoading.hidden = true;
+    sessionRetry.hidden = true;
+    const reopen = loginRequested;
+    closeLogin();
+    linkInput.value = "";
+    pinInput.value = "";
+    pinInput.type = "password";
+    pinToggle.textContent = "Show";
+    pinToggle.setAttribute("aria-label", "Show PIN");
+    headerName.textContent = "";
+    headerName.hidden = true;
+    avatar.textContent = "A";
+    avatar.setAttribute("aria-label", "Academy account");
+    document.body.classList.remove("academy-signed-in");
+    window.M4L_ACADEMY_STARTUP?.complete();
+    libraryNav.href = "/academy/library/?view=public";
+    showStatus("");
+    setBusy(false);
+    window.M4L_CIRCLES_NATIVE?.recovery();
+    if (reopen) openLogin();
+    window.dispatchEvent(new Event("m4l-academy-session"));
+  }
+
+  function restoreAcademySession() {
+    const token = localStorage.getItem(tokenKey);
+    if (restoringSession?.token === token) return restoringSession.promise;
+    const pending = { token };
+    restoringSession = pending;
+    pending.promise = restoreSession().finally(() => {
+      if (restoringSession === pending) restoringSession = null;
+    });
+    return pending.promise;
+  }
+
+  async function restoreSession() {
+    const expectedId = sessionStorage.getItem(academySessionKey);
+    const token = localStorage.getItem(tokenKey);
+    if (!token) {
+      if (!token) sessionStorage.removeItem(academySessionKey);
+      return;
+    }
+    const generation = ++sessionGeneration;
+    loginButton.hidden = true;
+    form.hidden = true;
+    sessionLoading.hidden = false;
+    window.M4L_ACADEMY_STARTUP?.begin();
+    sessionMessage.textContent = "Checking your sign-in…";
+    sessionRetry.hidden = true;
+    setBusy(true);
+    try {
+      const result = await api("/api/account/session", {}, token);
+      if (generation !== sessionGeneration || localStorage.getItem(tokenKey) !== token) return;
+      const account = result.account;
+      if (!account?.uniqueid) {
+        throw Object.assign(new Error("The signed-in account has changed."), { status: 401 });
+      }
+      if (expectedId && String(account.uniqueid).trim().toUpperCase() !== expectedId.toUpperCase()) {
+        // A loading/restored tab may retain the previous account's local ID hint.
+        // The current token has just been verified by the server; keep it and
+        // discard the old private state instead of signing every tab out.
+        clearStoredAccountState(true);
+        window.M4L_ACADEMY_READ_CACHE?.invalidate({ privateOnly: true });
+      }
+      sessionStorage.setItem(academySessionKey, account.uniqueid);
+      showSignedIn(account, result.sessionStore, result);
+    } catch (error) {
+      if (generation !== sessionGeneration || localStorage.getItem(tokenKey) !== token) return;
+      if (error?.name === 'AbortError') return; // A superseded workspace request cannot end the current sign-in.
+      if (isTemporaryServiceError(error) &&
+        localStorage.getItem(tokenKey) === token &&
+        sessionStorage.getItem(academySessionKey) === expectedId) {
+        sessionMessage.textContent = "The account service is temporarily unavailable. Your sign-in is saved.";
+        sessionRetry.hidden = false;
+        window.M4L_ACADEMY_STARTUP?.fail(sessionMessage.textContent);
+      } else {
+        clearStoredAccountState();
+        showSignedOut();
+      }
+    } finally {
+      if (generation === sessionGeneration) setBusy(false);
+    }
+  }
+
+  function showSignedIn(account, store = "", result = {}) {
+    if(window.M4L_V110)void window.M4L_V110.reveal(account.accountId).catch(()=>{});
+    activeToken = localStorage.getItem(tokenKey) || "";
+    sessionStore = store;
+    const uniqueId = String(account.uniqueid || "").trim();
+    activeLoginId = uniqueId;
+    verifiedContexts = Array.isArray(result.contexts) ? result.contexts.map(row => ({...row})) : null;
+    window.M4L_ACADEMY_WORKSPACE?.preferHubAudience?.(verifiedContexts?.some(row => ["TEACHER", "SENIOR", "SUBSTITUTE"].includes(row.role)) ? "TEACH" : "LEARN");
+    const name = String(account.displayName || "Academy member").trim();
+    headerName.textContent = name;
+    headerName.hidden = false;
+    avatar.textContent = name.charAt(0).toUpperCase();
+    avatar.setAttribute("aria-label", `Signed in as ${name}`);
+    closeLogin();
+    loginButton.hidden = true;
+    sessionLoading.hidden = true;
+    homeCard.hidden = false;
+    signOutButton.hidden = false;
+    document.body.classList.add("academy-signed-in");
+    libraryNav.href = "/academy/library/";
+    window.M4L_ACADEMY_STARTUP?.begin();
+    // A direct checked tool login preserves the exact native bookmark. Hub
+    // bookmarks use the sole Circles dashboard, never another native dashboard.
+    if (["", "#overview", "#website", "#login", "#dashboard"].includes(location.hash)) {
+      window.M4L_CIRCLES_NATIVE?.openHome({}, true);
+      return true;
+    }
+    window.dispatchEvent(new Event("m4l-academy-session"));
+  }
+
+  async function signIn(event) {
+    event.preventDefault();
+    const uniqueId = String(linkInput.value || "").trim(),pinMode=pinConfirmationMode;
+    if(pinMode&&(!nativeCookie()||uniqueId!==pinMode.id||activeToken!==pinMode.token||
+        localStorage.getItem(tokenKey)!==pinMode.token)){
+      showStatus("Your Academy sign-in changed. Close this form and check your sign-in.");return;
+    }
+    if (!/^[A-Za-z0-9._~-]{1,128}$/.test(uniqueId)) {
+      showStatus("Enter your account ID.");
+      linkInput.focus();
+      return;
+    }
+
+    const generation = ++sessionGeneration;
+    setBusy(true);
+    try {
+      const pin = pinInput.value;
+      if (pin && !/^\d{4}$/.test(pin)) {
+        showStatus("Enter your complete 4-digit PIN.");
+        pinInput.focus();
+        return;
+      }
+      if (!pin) {
+        if(pinMode){showStatus("Enter your complete 4-digit PIN.");pinInput.focus();return;}
+        showStatus("Checking your account…");
+        const check = await api("/api/account/check", { uniqueid: uniqueId });
+        const accountId = check.account?.uniqueid || uniqueId;
+        if (check.account?.pinsetup !== true) {
+          if(nativeCookie()){pinSetup(true);showStatus("Choose a new 4-digit PIN, then confirm it.");pinInput.focus();return;}
+          clearStoredAccountState();
+          window.location.assign(`/account/${encodeURIComponent(accountId)}?academy=1`);
+          return;
+        }
+        showStatus("Enter your complete 4-digit PIN.");
+        pinInput.focus();
+        return;
+      }
+      showStatus("Signing you in…");
+      let result;
+      try {
+        if(settingPin&&pin!==confirmation.value){showStatus("The confirmation PIN does not match.");confirmation.focus();return;}
+        result = await api(settingPin?"/api/account/setup-pin":"/api/account/login",
+          {uniqueid:uniqueId,pin,...(settingPin?{pinConfirmation:confirmation.value}:{})});
+      } catch (error) {
+        if(!pinMode&&nativeCookie()&&error.code==="PIN_NOT_SET"){
+          pinSetup(true);
+          showStatus("Choose a new 4-digit PIN, then confirm it.");
+          pinInput.focus();
+          return;
+        }
+        if (!pinMode && error.status === 403 && error.message === "Account PIN not set up yet") {
+          clearStoredAccountState();
+          window.location.assign(`/account/${encodeURIComponent(uniqueId)}?academy=1`);
+          return;
+        }
+        throw error;
+      }
+      if (generation !== sessionGeneration) return;
+      if(pinMode){
+        // Actual native login+cookie adapter has completed genuine PIN unlock
+        // and broker establishment. Never reveal the old generation or replay
+        // its pending command, scope, target, revision or captured request.
+        if(pinConfirmationMode!==pinMode||result.cookieSession!==true||
+            result.account?.accountId!==pinMode.accountId||result.account?.uniqueid!==pinMode.id||
+            typeof result.token!=="string"||!result.token.startsWith("uaa-session:"))
+          throw Error("The current Academy sign-in could not be confirmed.");
+        clearStoredAccountState();
+        localStorage.setItem(tokenKey,result.token);
+        sessionStorage.setItem(academySessionKey,result.account.uniqueid);
+        pinInput.value="";if(confirmation)confirmation.value="";
+        pinConfirmationMode=null;
+        document.documentElement.classList.add("uaa-v110-masked");
+        window.location.reload();
+        return;
+      }
+      if (!result.token) throw new Error("Sign-in did not return an account session.");
+      clearStoredAccountState();
+      localStorage.setItem(tokenKey, result.token);
+      sessionStorage.setItem(academySessionKey, result.account?.uniqueid || uniqueId);
+      window.M4L_ACADEMY_ACCOUNTS?.recordLogin(result.account);
+      pinInput.value = "";
+      showStatus("");
+      if (showSignedIn(result.account || { uniqueid: uniqueId }, result.sessionStore, result)) return;
+      if (!window.location.hash || window.location.hash === "#login") window.M4L_CIRCLES_NATIVE?.openHome({},true);
+    } catch (error) {
+      pinInput.value = "";if(confirmation)confirmation.value="";
+      showStatus(error.message || "Sign-in could not be completed. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function clearStoredAccountState(keepToken = false) {
+    sessionStorage.removeItem("m4l_account_view_v1");
+    sessionStorage.removeItem(academySessionKey);
+    for (const key of [tokenKey, "m4l_account_context", "m4l_account_contexts", "m4l_account_workspace", "maktab_token", "maktab_user_type"]) {
+      if (key !== tokenKey || !keepToken) localStorage.removeItem(key);
+    }
+    for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+      const key = localStorage.key(index);
+      if (key?.startsWith("m4l_library_v1:") && key.includes(":personal:")) localStorage.removeItem(key);
+      if (key && ["m4l_app_cache_", "maktab_timetable_cache_", "m4l_academy_timetable_"].some(prefix => key.startsWith(prefix))) {
+        localStorage.removeItem(key);
+      }
+    }
+    for (let index = sessionStorage.length - 1; index >= 0; index -= 1) {
+      const key = sessionStorage.key(index);
+      if (key?.startsWith("m4l_admin_progress_dashboard_") || key?.startsWith("m4l_academy_daily_timetable_")) sessionStorage.removeItem(key);
+    }
+  }
+
+  function showStatus(message) {
+    status.textContent = message;
+    status.hidden = !message;
+  }
+
+  function setBusy(busy) {
+    form.querySelector('button[type="submit"]').disabled = busy;
+    linkInput.disabled = busy;
+    pinInput.disabled = busy;
+  }
+
+  async function api(path, payload, token = "") {
+    const privacyIntent=window.M4L_V110&&["/api/account/login","/api/account/setup-pin"].includes(path)?await window.M4L_V110.beginMasterSignIn():null;
+    const response = await fetch(`${apiBase}${path}`, {
+      method: "POST",
+      ...(path === "/api/account/logout" ? { keepalive: true } : {}),
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify(payload)
+    });
+    let result;
+    try {
+      result = await response.json();
+    } catch (_) {
+      throw new Error("The account service returned an unreadable response.");
+    }
+    if (!response.ok || !result.success) {
+      const error = new Error(result.error || "The account request could not be completed.");
+      error.status = response.status;
+      error.code = result.code;
+      throw error;
+    }
+    if(privacyIntent)await window.M4L_V110.completeMasterSignIn(privacyIntent,result.browserContext);
+    return result;
+  }
+
+  function isTemporaryServiceError(error) {
+    return !error?.status || error.status >= 500;
+  }
+})();
