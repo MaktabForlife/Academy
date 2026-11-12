@@ -133,6 +133,27 @@ async function metadataPreflight(){
  nativeBaseline=opaque[0];report.privateNativeSelectionEqualAndShapeValid=true;
 }
 async function cli(role,command,version){
+ const diagnostic={role:role.role,operation:command,exitCode:null,signal:null,durationMs:null,stdoutBytes:0,stderrBytes:0,recognizedVendorErrorCodes:[],staticSignals:{unknownStrictArgument:false,unknownOutdirArgument:false,unknownKeepVarsArgument:false,unknownNoBundleArgument:false,moduleResolutionError:false,missingToolBinary:false,pendingDurableObjectMigration:false,strictRemoteChangeRefusal:false,authenticationOrPermissionError:false,configurationError:false}};
+ report.CLIOutcomes??=[];report.CLIOutcomes.push(diagnostic);
+ const cliStarted=performance.now();let scanTail='';
+ function inspectCLI(chunk,stream){
+  diagnostic[stream+'Bytes']+=chunk.length;
+  const text=(scanTail+chunk.toString('utf8')).replace(/\x1b\[[0-9;]*m/g,'');scanTail=text.slice(-1024);
+  const tests={
+   unknownStrictArgument:/Unknown argument[^\n]*strict/i,
+   unknownOutdirArgument:/Unknown argument[^\n]*outdir/i,
+   unknownKeepVarsArgument:/Unknown argument[^\n]*keep-vars/i,
+   unknownNoBundleArgument:/Unknown argument[^\n]*no-bundle/i,
+   moduleResolutionError:/Could not resolve|Cannot find module|module not found/i,
+   missingToolBinary:/esbuild.*(?:not found|missing|could not)|workerd.*(?:not found|missing|could not)/i,
+   pendingDurableObjectMigration:/pending Durable Object migration/i,
+   strictRemoteChangeRefusal:/strict[^\n]{0,160}(?:remote|conflict|overwrite)|(?:remote|conflict|overwrite)[^\n]{0,160}strict/i,
+   authenticationOrPermissionError:/Authentication error|not authenticated|not authorized|Unauthorized|Forbidden|does not have permission/i,
+   configurationError:/processing.*configuration|invalid.*configuration|configuration.*(?:invalid|error)/i
+  };
+  for(const [name,pattern] of Object.entries(tests))diagnostic.staticSignals[name] ||= pattern.test(text);
+  for(const match of text.matchAll(/\[code:\s*([0-9]{4,7})\]/g))if(!diagnostic.recognizedVendorErrorCodes.includes(match[1])&&diagnostic.recognizedVendorErrorCodes.length<8)diagnostic.recognizedVendorErrorCodes.push(match[1]);
+ }
  const machine=join(raw,role.role+'-'+command+'.ndjson'),outdir=join(raw,role.role+'-'+command+'-out');
  const args=[join(repo,'backend/node_modules/wrangler/bin/wrangler.js'),'versions',command];
  if(command==='upload')args.push('--config',role.configPath,'--name',role.name,'--no-bundle','--keep-vars','--strict','--outdir',outdir,'--tag','af-'+manifestSHA.slice(0,16),'--message','Academy Feature package '+manifestSHA+' source '+process.env.GITHUB_SHA+' role '+role.role);
@@ -146,10 +167,10 @@ async function cli(role,command,version){
   const stop=code=>{problem??=code;if(!exited&&!closed){child.kill('SIGTERM');killTimer??=setTimeout(()=>{if(!exited&&!closed)child.kill('SIGKILL');},5000);}};
   try{child=spawn(process.execPath,args,{cwd:raw,env,stdio:['ignore','pipe','pipe'],shell:false});}catch{return reject(Object.assign(Error(),{publicCode:'CLI_SPAWN'}));}
   const deadline=setTimeout(()=>stop('CLI_TIMEOUT_UNCONFIRMED_NO_RETRY'),150000);
-  for(const stream of [child.stdout,child.stderr])stream.on('data',chunk=>{bytesSeen+=chunk.length;if(bytesSeen>524288)stop('CLI_OUTPUT_CAP_UNCONFIRMED_NO_RETRY');});
+  for(const [stream,label] of [[child.stdout,'stdout'],[child.stderr,'stderr']])stream.on('data',chunk=>{inspectCLI(chunk,label);bytesSeen+=chunk.length;if(bytesSeen>524288)stop('CLI_OUTPUT_CAP_UNCONFIRMED_NO_RETRY');});
   child.once('error',()=>{clearTimeout(deadline);clearTimeout(killTimer);clearTimeout(closeTimer);reject(Object.assign(Error(),{publicCode:'CLI_SPAWN'}));});
-  child.once('exit',()=>{exited=true;clearTimeout(deadline);clearTimeout(killTimer);closeTimer=setTimeout(()=>{if(!closed){child.stdout.destroy();child.stderr.destroy();reject(Object.assign(Error(),{publicCode:'CLI_PIPE_CLOSE_UNCONFIRMED_NO_RETRY'}));}},5000);});
-  child.once('close',(code,signal)=>{closed=true;clearTimeout(deadline);clearTimeout(killTimer);clearTimeout(closeTimer);if(problem||code!==0||signal)reject(Object.assign(Error(),{publicCode:problem||'CLI_FAILED_UNCONFIRMED_NO_RETRY'}));else resolvePromise();});
+  child.once('exit',(code,signal)=>{diagnostic.exitCode=code;diagnostic.signal=signal;exited=true;clearTimeout(deadline);clearTimeout(killTimer);closeTimer=setTimeout(()=>{if(!closed){child.stdout.destroy();child.stderr.destroy();reject(Object.assign(Error(),{publicCode:'CLI_PIPE_CLOSE_UNCONFIRMED_NO_RETRY'}));}},5000);});
+  child.once('close',(code,signal)=>{diagnostic.exitCode=code;diagnostic.signal=signal;diagnostic.durationMs=Math.round(performance.now()-cliStarted);diagnostic.recognizedVendorErrorCodes.sort();scanTail='';closed=true;clearTimeout(deadline);clearTimeout(killTimer);clearTimeout(closeTimer);if(problem||code!==0||signal)reject(Object.assign(Error(),{publicCode:problem||'CLI_FAILED_UNCONFIRMED_NO_RETRY'}));else resolvePromise();});
  });
  if(command==='upload'){
   const data=(await bytes(machine,262144)).toString().trim().split('\n').filter(Boolean).map(line=>JSON.parse(line));
