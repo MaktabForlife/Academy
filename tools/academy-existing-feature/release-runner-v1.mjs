@@ -3,7 +3,8 @@ import {readFile,writeFile,mkdir,readdir,lstat,realpath} from 'node:fs/promises'
 import {resolve,join,dirname,relative,isAbsolute} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
-import {spawn} from 'node:child_process';
+import {createRequire} from 'node:module';
+import {extname} from 'node:path';
 const ACCOUNT='c9a3e355b3d7a795880b1d36a1dbe123';
 const CORE='cdbe97bc-f3d9-400e-8806-ed9a0d143d26',ADMIN='ed77f2a7-4439-4841-8691-2b41063d8960';
 const SPLIT='de95f15f19a54a9e9ba34e6e75f51847',TIME='ab05473998dc4e93b792464f9e78e0e9';
@@ -23,7 +24,7 @@ const OBJECTS=[
  ['jwt_v110_master_lifecycle_pending','index'],['jwt_v110_master_lifecycle_facts_immutable','trigger'],
  ['jwt_v110_master_lifecycle_wire_immutable','trigger']
 ];
-const report={schema:'ACADEMY_FEATURE_RELEASE_SAFE_RESULT_V1',status:'FAIL',AI:'OFF',childDelivery:'OFF',SQLRequests:0,applicationRequests:0,wrapperMetadataGETRequests:0,githubGETRequests:0,CLIInvocations:0,stagedVersions:[],activationAttempts:[],secretValuesOrFingerprintsReported:false,wrapperAutomaticRetry:false,pinnedToolUploadRetryPolicy:{maxAttemptsIncludingFirst:3,maxRetryAfterSeconds:60,actualAttempts:'NOT_OBSERVED'},pinnedToolActivationPOSTRetrySource:'PLAIN_FETCHRESULT_NO_RETRY_WRAPPER'};
+const report={schema:'ACADEMY_FEATURE_RELEASE_SAFE_RESULT_V1',status:'FAIL',AI:'OFF',childDelivery:'OFF',SQLRequests:0,applicationRequests:0,wrapperMetadataGETRequests:0,githubGETRequests:0,CLIInvocations:0,stagedVersions:[],activationAttempts:[],secretValuesOrFingerprintsReported:false,wrapperAutomaticRetry:false,uploadTransport:'OFFICIAL_REST_MULTIPART',activationTransport:'OFFICIAL_REST_EXPLICIT_VERSION',POSTRequests:0,POSTOutcomes:[],automaticPOSTRetry:false,requestBudgets:{metadataGET:12,versionPOST:2,assetSessionPOST:1,assetFilePOST:103,deploymentPOST:2}};
 const fail=code=>{throw Object.assign(Error(code),{publicCode:code});};
 const check=(ok,code)=>{if(!ok)fail(code);};
 const digest=b=>createHash('sha256').update(b).digest('hex');
@@ -50,10 +51,10 @@ async function boundedJSONResponse(response,limit){
  try{return JSON.parse(Buffer.concat(chunks).toString());}catch{fail('METADATA_JSON');}
 }
 async function cfGet(role,suffix){
- check(ROLES.some(x=>x.name===role.name)&&/^(settings|deployments|versions\/[a-f0-9-]{36})$/.test(suffix),'CF_PATH');
- check(++report.wrapperMetadataGETRequests<=10,'METADATA_BUDGET');
+ check(ROLES.includes(role)&&(/^(settings|deployments|versions\/[a-f0-9-]{36})$/.test(suffix)||suffix==='versions?page=1&per_page=100'),'CF_PATH');
+ check(++report.wrapperMetadataGETRequests<=12,'METADATA_BUDGET');
  let response;try{response=await fetch('https://api.cloudflare.com/client/v4/accounts/'+ACCOUNT+'/workers/scripts/'+role.name+'/'+suffix,{method:'GET',headers:{Authorization:'Bearer '+process.env.CLOUDFLARE_API_TOKEN},redirect:'error',signal:AbortSignal.timeout(20000)});}catch{fail('METADATA_NETWORK');}
- const d=await boundedJSONResponse(response,2097152);check(d.success===true,'METADATA_RESPONSE');return d.result;
+ const d=await boundedJSONResponse(response,2097152);check(d.success===true,'METADATA_RESPONSE');if(suffix==='versions?page=1&per_page=100')return {items:d.result?.items,resultInfo:d.result_info};return d.result;
 }
 async function githubRun(id){
  check(/^[1-9][0-9]{0,19}$/.test(id)&&process.env.GITHUB_TOKEN,'UPLOAD_RUN_CONTEXT');
@@ -61,12 +62,38 @@ async function githubRun(id){
  let response;try{response=await fetch('https://api.github.com/repos/MaktabForlife/Academy/actions/runs/'+id,{headers:{Authorization:'Bearer '+process.env.GITHUB_TOKEN,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2026-03-10'},redirect:'error',signal:AbortSignal.timeout(20000)});}catch{fail('UPLOAD_RUN_NETWORK');}
  return boundedJSONResponse(response,1048576);
 }
+function d1Id(binding){
+ check(binding&&binding.type==='d1','D1_BINDING_TYPE');
+ if(binding.id!==undefined&&binding.database_id!==undefined)check(binding.id===binding.database_id,'D1_ID_ALIAS_CONFLICT');
+ return binding.database_id??binding.id;
+}
+function secretNamesAndTypes(bindings){
+ const selected=bindings.filter(b=>b.type==='secret_text'||b.type==='secret_key').map(b=>({name:b.name,type:b.type}));
+ check(selected.every(b=>typeof b.name==='string'&&b.name.length>0)&&new Set(selected.map(b=>b.name)).size===selected.length,'SECRET_BINDING_SHAPE');
+ return selected.sort((a,b)=>a.name.localeCompare(b.name)||a.type.localeCompare(b.type));
+}
+async function latestUploaded(role,expected){
+ check(UUID.test(expected),'LATEST_EXPECTED_ID');
+ const d=await cfGet(role,'versions?page=1&per_page=100'),items=d.items,info=d.resultInfo;
+ check(Array.isArray(items)&&items.length>0&&items.length<100,'LATEST_LIST_COMPLETE_REQUIRED');
+ check(items.every(v=>UUID.test(v.id||'')&&Number.isSafeInteger(v.number)&&v.number>0&&Number.isFinite(Date.parse(v.metadata?.created_on||''))),'LATEST_LIST_SHAPE');
+ check(new Set(items.map(v=>v.id)).size===items.length&&new Set(items.map(v=>v.number)).size===items.length,'LATEST_LIST_DUPLICATE');
+ // One requested page of 100; a short page is complete under the documented pagination contract.
+ // If the response supplies pagination metadata, require it to confirm that same complete page.
+ if(info!==undefined){
+  check(info&&info.page===1&&info.per_page===100&&info.count===items.length&&info.total_count===items.length,'LATEST_PAGINATION_UNCONFIRMED');
+  if(info.total_pages!==undefined)check(info.total_pages===1,'LATEST_PAGINATION_UNCONFIRMED');
+ }
+ const latest=items.reduce((a,b)=>a.number>b.number?a:b),newestTime=Math.max(...items.map(v=>Date.parse(v.metadata.created_on)));
+ check(Date.parse(latest.metadata.created_on)===newestTime&&latest.id===expected,'LATEST_UPLOADED_VERSION_DRIFT');
+ report.latestUploadedVersionGuards??=[];report.latestUploadedVersionGuards.push({role:role.role,stage,expectedId:expected,latestId:latest.id,completeFirstPageCount:items.length,requestedPageSize:100,paginationMetadataConfirmed:info!==undefined,sequentialNumberAndCreatedTimeAgree:true});
+}
 function bindingChecks(bindings,role){
  check(Array.isArray(bindings),'BINDING_SHAPE');const find=n=>bindings.find(x=>x.name===n);
  check(!['ACADEMY_DB','ACADEMY_ADMIN_DB','ACADEMY_SPLIT_COORDINATOR','PROGRAM_TIMETABLE_COORDINATOR'].some(n=>find(n)),'NO_ORDINARY_BINDINGS');
  const dos=bindings.filter(x=>x.type==='durable_object_namespace');check(dos.length===(role.role==='api'?2:1),'DO_BINDING_COUNT');
  const d1=bindings.filter(x=>x.type==='d1');
- check(d1.length===2&&find('JWT_V110_CORE_DB')?.id===CORE&&find('JWT_V110_ADMIN_DB')?.id===ADMIN,'JWT_PAIR');
+ check(d1.length===2&&d1Id(find('JWT_V110_CORE_DB'))===CORE&&d1Id(find('JWT_V110_ADMIN_DB'))===ADMIN,'JWT_PAIR');
  const split=find('JWT_V110_SPLIT_COORDINATOR');
  check(split?.type==='durable_object_namespace'&&split.class_name==='JWTFeatureAcademySplitCoordinator'&&split.namespace_id===SPLIT,'SPLIT_NAMESPACE');
  if(role.role==='api'){
@@ -124,64 +151,141 @@ async function packageChecks(){
  const lock=await json(join(repo,'backend/package-lock.json'),10485760);
  check(lock.packages?.['node_modules/wrangler']?.version==='4.136.3'&&lock.packages?.['node_modules/esbuild']?.version==='0.28.1','LOCK_TOOL_PIN');
  check((await json(join(repo,'backend/node_modules/wrangler/package.json'))).version==='4.136.3','INSTALLED_TOOL_PIN');
+ check(lock.packages?.['node_modules/blake3-wasm']?.version==='2.1.5'&&(await json(join(repo,'backend/node_modules/blake3-wasm/package.json'))).version==='2.1.5','ASSET_HASH_DEPENDENCY_PIN');
  report.packageFilesVerified=1850;report.packagePhysicalFilesVerified=1851;report.publicAssetsVerified=104;report.commonSHA256=COMMON;report.packageManifestSHA256=manifestSHA;
 }
 async function metadataPreflight(){
  const opaque=[];
- for(const role of ROLES){const settings=await cfGet(role,'settings');opaque.push(bindingChecks(settings.bindings,role));await active(role,role.baseline);const v=await cfGet(role,'versions/'+role.baseline);lifecycle(v,role);}
+ for(const role of ROLES){const settings=await cfGet(role,'settings');opaque.push(bindingChecks(settings.bindings,role));role.privateSecretBindings=secretNamesAndTypes(settings.bindings);await active(role,role.baseline);const v=await cfGet(role,'versions/'+role.baseline);lifecycle(v,role);}
  check(opaque[0].run===opaque[1].run&&opaque[0].namespace===opaque[1].namespace,'OPAQUE_PAIR_DIFFERENCE');
  nativeBaseline=opaque[0];report.privateNativeSelectionEqualAndShapeValid=true;
 }
-async function cli(role,command,version){
- const diagnostic={role:role.role,operation:command,exitCode:null,signal:null,durationMs:null,stdoutBytes:0,stderrBytes:0,recognizedVendorErrorCodes:[],staticSignals:{unknownStrictArgument:false,unknownOutdirArgument:false,unknownKeepVarsArgument:false,unknownNoBundleArgument:false,moduleResolutionError:false,missingToolBinary:false,pendingDurableObjectMigration:false,strictRemoteChangeRefusal:false,authenticationOrPermissionError:false,configurationError:false}};
- report.CLIOutcomes??=[];report.CLIOutcomes.push(diagnostic);
- const cliStarted=performance.now();let scanTail='';
- function inspectCLI(chunk,stream){
-  diagnostic[stream+'Bytes']+=chunk.length;
-  const text=(scanTail+chunk.toString('utf8')).replace(/\x1b\[[0-9;]*m/g,'');scanTail=text.slice(-1024);
-  const tests={
-   unknownStrictArgument:/Unknown argument[^\n]*strict/i,
-   unknownOutdirArgument:/Unknown argument[^\n]*outdir/i,
-   unknownKeepVarsArgument:/Unknown argument[^\n]*keep-vars/i,
-   unknownNoBundleArgument:/Unknown argument[^\n]*no-bundle/i,
-   moduleResolutionError:/Could not resolve|Cannot find module|module not found/i,
-   missingToolBinary:/esbuild.*(?:not found|missing|could not)|workerd.*(?:not found|missing|could not)/i,
-   pendingDurableObjectMigration:/pending Durable Object migration/i,
-   strictRemoteChangeRefusal:/strict[^\n]{0,160}(?:remote|conflict|overwrite)|(?:remote|conflict|overwrite)[^\n]{0,160}strict/i,
-   authenticationOrPermissionError:/Authentication error|not authenticated|not authorized|Unauthorized|Forbidden|does not have permission/i,
-   configurationError:/processing.*configuration|invalid.*configuration|configuration.*(?:invalid|error)/i
-  };
-  for(const [name,pattern] of Object.entries(tests))diagnostic.staticSignals[name] ||= pattern.test(text);
-  for(const match of text.matchAll(/\[code:\s*([0-9]{4,7})\]/g))if(!diagnostic.recognizedVendorErrorCodes.includes(match[1])&&diagnostic.recognizedVendorErrorCodes.length<8)diagnostic.recognizedVendorErrorCodes.push(match[1]);
+// Fixed-account/version API only. No route/domain/settings/schedule/resource-creation endpoints.
+const postCounts={versions:0,assetsSession:0,assetsBulk:0,assetsSingle:0,deployment:0};
+function jwtShape(value){return typeof value==='string'&&value.length>16&&value.length<=16384&&/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(value);}
+async function post(role,operation,body,assetToken=null,assetHash=null){
+ check(ROLES.includes(role),'POST_ROLE');
+ let suffix,headers={Authorization:'Bearer '+process.env.CLOUDFLARE_API_TOKEN};
+ if(operation==='versions'){
+  check(stage==='upload'&&++postCounts.versions<=2,'VERSION_POST_BUDGET');
+  suffix='/workers/scripts/'+role.name+'/versions?bindings_inherit=strict';
+ }else if(operation==='assetsSession'){
+  check(stage==='upload'&&role.role==='api'&&++postCounts.assetsSession===1,'ASSET_SESSION_BUDGET');
+  suffix='/workers/scripts/feature_worker/assets-upload-session';headers['Content-Type']='application/json';
+ }else if(operation==='assetsBulk'||operation==='assetsSingle'){
+  check(stage==='upload'&&role.role==='api'&&jwtShape(assetToken),'ASSET_POST_CONTEXT');
+  postCounts[operation]++;check(postCounts.assetsBulk+postCounts.assetsSingle<=103,'ASSET_POST_BUDGET');
+  headers={Authorization:'Bearer '+assetToken};
+  if(operation==='assetsBulk')suffix='/workers/assets/upload?base64=true';
+  else {check(/^[a-f0-9]{32}$/.test(assetHash||'')&&body instanceof Blob,'ASSET_HASH');suffix='/workers/assets/upload/'+assetHash;headers['Content-Type']=body.type;}
+ }else{
+  check(operation==='deployment'&&stage==='activate'&&++postCounts.deployment<=2,'DEPLOYMENT_POST_BUDGET');
+  suffix='/workers/scripts/'+role.name+'/deployments';headers['Content-Type']='application/json';
  }
- const machine=join(raw,role.role+'-'+command+'.ndjson'),outdir=join(raw,role.role+'-'+command+'-out');
- const args=[join(repo,'backend/node_modules/wrangler/bin/wrangler.js'),'versions',command];
- if(command==='upload')args.push('--config',role.configPath,'--name',role.name,'--no-bundle','--keep-vars','--strict','--outdir',outdir,'--tag','af-'+manifestSHA.slice(0,16),'--message','Academy Feature package '+manifestSHA+' source '+process.env.GITHUB_SHA+' role '+role.role);
- else{check(command==='deploy'&&UUID.test(version),'ACTIVATION_VERSION');args.push(version+'@100%','--config',role.configPath,'--name',role.name,'--yes','--message','Root-gated Academy Feature '+manifestSHA);}
- const env={};
- for(const k of ['PATH','HOME','USERPROFILE','SYSTEMROOT','TMPDIR','TEMP','TMP','RUNNER_TEMP','SSL_CERT_FILE','NODE_EXTRA_CA_CERTS','HTTP_PROXY','HTTPS_PROXY','NO_PROXY'])if(process.env[k])env[k]=process.env[k];
- Object.assign(env,{CLOUDFLARE_API_TOKEN:process.env.CLOUDFLARE_API_TOKEN,CLOUDFLARE_ACCOUNT_ID:ACCOUNT,CI:'true',NO_COLOR:'1',WRANGLER_SEND_METRICS:'false',WRANGLER_WRITE_LOGS:'false',WRANGLER_OUTPUT_FILE_PATH:machine});
- report.CLIInvocations++;check(report.CLIInvocations<=2,'CLI_BUDGET');
- await new Promise((resolvePromise,reject)=>{
-  let child,exited=false,closed=false,bytesSeen=0,problem=null,killTimer,closeTimer;
-  const stop=code=>{problem??=code;if(!exited&&!closed){child.kill('SIGTERM');killTimer??=setTimeout(()=>{if(!exited&&!closed)child.kill('SIGKILL');},5000);}};
-  try{child=spawn(process.execPath,args,{cwd:raw,env,stdio:['ignore','pipe','pipe'],shell:false});}catch{return reject(Object.assign(Error(),{publicCode:'CLI_SPAWN'}));}
-  const deadline=setTimeout(()=>stop('CLI_TIMEOUT_UNCONFIRMED_NO_RETRY'),150000);
-  for(const [stream,label] of [[child.stdout,'stdout'],[child.stderr,'stderr']])stream.on('data',chunk=>{inspectCLI(chunk,label);bytesSeen+=chunk.length;if(bytesSeen>524288)stop('CLI_OUTPUT_CAP_UNCONFIRMED_NO_RETRY');});
-  child.once('error',()=>{clearTimeout(deadline);clearTimeout(killTimer);clearTimeout(closeTimer);reject(Object.assign(Error(),{publicCode:'CLI_SPAWN'}));});
-  child.once('exit',(code,signal)=>{diagnostic.exitCode=code;diagnostic.signal=signal;exited=true;clearTimeout(deadline);clearTimeout(killTimer);closeTimer=setTimeout(()=>{if(!closed){child.stdout.destroy();child.stderr.destroy();reject(Object.assign(Error(),{publicCode:'CLI_PIPE_CLOSE_UNCONFIRMED_NO_RETRY'}));}},5000);});
-  child.once('close',(code,signal)=>{diagnostic.exitCode=code;diagnostic.signal=signal;diagnostic.durationMs=Math.round(performance.now()-cliStarted);diagnostic.recognizedVendorErrorCodes.sort();scanTail='';closed=true;clearTimeout(deadline);clearTimeout(killTimer);clearTimeout(closeTimer);if(problem||code!==0||signal)reject(Object.assign(Error(),{publicCode:problem||'CLI_FAILED_UNCONFIRMED_NO_RETRY'}));else resolvePromise();});
- });
- if(command==='upload'){
-  const data=(await bytes(machine,262144)).toString().trim().split('\n').filter(Boolean).map(line=>JSON.parse(line));
-  const records=data.filter(x=>x.type==='version-upload'&&x.worker_name===role.name);
-  check(records.length===1&&UUID.test(records[0].version_id),'UPLOAD_ID_UNCONFIRMED_NO_RETRY');return records[0].version_id;
+ const outcome={role:role.role,operation,HTTPStatus:null,apiSuccess:null,errorCodes:[],confirmed:false};
+ report.POSTOutcomes.push(outcome);report.POSTRequests++;
+ let response;
+ try{response=await fetch('https://api.cloudflare.com/client/v4/accounts/'+ACCOUNT+suffix,{method:'POST',headers,body,redirect:'error',signal:AbortSignal.timeout(60000)});}
+ catch{fail('POST_NETWORK_UNCONFIRMED_NO_RETRY');}
+ outcome.HTTPStatus=response.status;
+ let d;
+ try{
+  check(response.body,'POST_EMPTY_BODY_UNCONFIRMED_NO_RETRY');
+  const reader=response.body.getReader();let size=0;const chunks=[];
+  for(;;){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>2097152){await reader.cancel();fail('POST_SIZE_UNCONFIRMED_NO_RETRY');}chunks.push(value);}
+  try{d=JSON.parse(Buffer.concat(chunks).toString());}catch{fail('POST_JSON_UNCONFIRMED_NO_RETRY');}
+ }catch(e){if(e.publicCode)throw e;fail('POST_READ_UNCONFIRMED_NO_RETRY');}
+ outcome.apiSuccess=d?.success===true;
+ outcome.errorCodes=Array.isArray(d?.errors)?[...new Set(d.errors.map(x=>x?.code).filter(x=>Number.isInteger(x)&&x>=1000&&x<=9999999))].slice(0,8):[];
+ check(response.ok&&d?.success===true&&d.result&&typeof d.result==='object','POST_API_FAILURE_NO_RETRY');
+ outcome.confirmed=true;return d.result;
+}
+function uploadBindings(role){
+ const c=role.configData,bindings=Object.entries(c.vars).map(([name,text])=>({name,type:'plain_text',text}));
+ for(const d of c.d1_databases)bindings.push({name:d.binding,type:'d1',database_id:d.database_id});
+ for(const d of c.durable_objects.bindings){
+  const namespace_id=d.name==='JWT_V110_SPLIT_COORDINATOR'?SPLIT:d.name==='JWT_V110_TIMETABLE_COORDINATOR'?TIME:null;
+  check(namespace_id,'UNREVIEWED_DO_BINDING');
+  bindings.push({name:d.name,type:'durable_object_namespace',class_name:d.class_name,namespace_id,...d.script_name?{script_name:d.script_name}:{}});
  }
+ for(const r of c.r2_buckets||[])bindings.push({name:r.binding,type:'r2_bucket',bucket_name:r.bucket_name});
+ for(const r of c.ratelimits||[])bindings.push({name:r.name,type:'ratelimit',namespace_id:r.namespace_id,simple:r.simple});
+ for(const name of ['JWT_V110_NATIVE_RUN_ID','JWT_V110_OBJECT_NAMESPACE'])bindings.push({name,type:'inherit'});
+ if(role.role==='api')bindings.push({name:'ASSETS',type:'assets'});
+ check(new Set(bindings.map(x=>x.name)).size===bindings.length,'DUPLICATE_UPLOAD_BINDINGS');
+ return bindings;
+}
+const assetTypes={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.jpg':'image/jpeg','.png':'image/png','.ttf':'font/ttf'};
+async function assets(role){
+ check(role.role==='api','ASSET_ROLE');
+ const root=join(pkg,'public'),paths=await walk(root);
+ check(paths.length===104&&paths.includes('_headers')&&!paths.includes('_redirects')&&!paths.includes('.assetsignore'),'RESERVED_ASSET_SCOPE');
+ const require=createRequire(join(repo,'backend/package.json')),blake=require('blake3-wasm');
+ const manifest={},lookup=new Map();
+ for(const path of paths){
+  if(path==='_headers')continue;
+  const ext=extname(path);check(Object.hasOwn(assetTypes,ext),'UNREVIEWED_ASSET_EXTENSION');
+  const b=await bytes(await confined(root,path),26214400),hash=blake.hash(b.toString('base64')+ext.slice(1)).toString('hex').slice(0,32);
+  check(/^[a-f0-9]{32}$/.test(hash),'ASSET_HASH_SHAPE');
+  manifest['/'+path]={hash,size:b.length};
+  const previous=lookup.get(hash);check(!previous||previous.bytes.equals(b),'ASSET_HASH_COLLISION');
+  lookup.set(hash,{bytes:b,type:assetTypes[ext]});
+ }
+ check(Object.keys(manifest).length===103,'ASSET_MANIFEST_COUNT');
+ report.assetManifestFileCount=103;report.assetMetadataFileCount=1;
+ let session=await post(role,'assetsSession',JSON.stringify({manifest}));
+ check(jwtShape(session.jwt)&&Array.isArray(session.buckets)&&session.buckets.length<=103,'ASSET_SESSION_SHAPE');
+ const hashes=session.buckets.flat();
+ check(hashes.length<=103&&new Set(hashes).size===hashes.length&&hashes.every(h=>typeof h==='string'&&lookup.has(h)),'ASSET_SESSION_REQUEST_SCOPE');
+ check(session.buckets.every(b=>Array.isArray(b)&&b.length>0&&b.length<=103),'ASSET_BUCKET_SHAPE');
+ let single=false;
+ try{single=JSON.parse(Buffer.from(session.jwt.split('.')[1],'base64url').toString()).wrangler_single_asset_uploads===true;}catch{fail('ASSET_SESSION_MODE');}
+ report.assetUploadMode=single?'PINNED_SINGLE_ASSET_RAW':'DOCUMENTED_BUCKET_BASE64';
+ report.assetUploadRequestedFiles=hashes.length;report.assetFilesUploaded=0;
+ const token=session.jwt;let completion=hashes.length===0?token:null;
+ const buckets=single?hashes.map(h=>[h]):session.buckets;
+ for(const bucket of buckets){
+  let result;
+  if(single){
+   const h=bucket[0],f=lookup.get(h);result=await post(role,'assetsSingle',new Blob([f.bytes],{type:f.type}),token,h);
+  }else{
+   const form=new FormData();
+   for(const h of bucket){const f=lookup.get(h);form.set(h,new File([f.bytes.toString('base64')],h,{type:f.type}),h);}
+   result=await post(role,'assetsBulk',form,token);
+  }
+  report.assetFilesUploaded+=bucket.length;
+  if(result.jwt!==undefined){check(jwtShape(result.jwt),'ASSET_COMPLETION_SHAPE');completion=result.jwt;}
+ }
+ check(jwtShape(completion),'ASSET_COMPLETION_REQUIRED');
+ const headers=(await bytes(await confined(root,'_headers'),65536)).toString();
+ return {jwt:completion,config:{html_handling:role.configData.assets.html_handling,not_found_handling:role.configData.assets.not_found_handling,run_worker_first:role.configData.assets.run_worker_first,_headers:headers}};
+}
+async function upload(role){
+ const metadata={main_module:role.main,compatibility_date:role.configData.compatibility_date,compatibility_flags:role.configData.compatibility_flags,bindings:uploadBindings(role),keep_bindings:['plain_text','json','secret_text','secret_key'],annotations:{'workers/tag':'af-'+manifestSHA.slice(0,16),'workers/message':'Academy Feature package '+manifestSHA+' source '+process.env.GITHUB_SHA+' role '+role.role}};
+ if(role.role==='api')metadata.assets=await assets(role);
+ check(!Object.hasOwn(metadata,'exports')&&!Object.hasOwn(metadata,'migrations')&&!Object.hasOwn(metadata,'routes'),'NO_LIFECYCLE_OR_ROUTE_METADATA');
+ const form=new FormData();form.set('metadata',JSON.stringify(metadata));
+ for(const name of [role.main,'academy-existing-feature-common.mjs']){
+  const b=await bytes(join(pkg,'runtime',role.role,name));form.set(name,new File([b],name,{type:'application/javascript+module'}),name);
+ }
+ await latestUploaded(role,role.baseline);
+ const result=await post(role,'versions',form);
+ check(UUID.test(result.id||''),'UPLOAD_ID_UNCONFIRMED_NO_RETRY');
+ return result.id;
+}
+async function deploy(role,id){
+ check(UUID.test(id),'DEPLOYMENT_VERSION');
+ const body={strategy:'percentage',versions:[{version_id:id,percentage:100}],annotations:{'workers/message':'Root-gated Academy Feature '+manifestSHA}};
+ await latestUploaded(role,id);
+ const result=await post(role,'deployment',JSON.stringify(body));
+ check(UUID.test(result.id||''),'DEPLOYMENT_ID_UNCONFIRMED_NO_RETRY');
 }
 async function checkedUploadedVersion(role,id,sourceSHA){
  const v=await cfGet(role,'versions/'+id);check(v.id===id,'UPLOADED_VERSION_ID');lifecycle(v,role);
  check(v.annotations?.['workers/tag']==='af-'+manifestSHA.slice(0,16)&&v.annotations?.['workers/message']==='Academy Feature package '+manifestSHA+' source '+sourceSHA+' role '+role.role,'UPLOADED_SOURCE_ANNOTATION');
  const opaque=bindingChecks(v.resources?.bindings,role);
+ check(Array.isArray(role.privateSecretBindings)&&JSON.stringify(secretNamesAndTypes(v.resources.bindings))===JSON.stringify(role.privateSecretBindings),'UPLOADED_SECRET_BINDING_NAMES_OR_TYPES_CHANGED');
+ report.secretBindingNamesAndTypesPreserved=true;
  check(nativeBaseline&&opaque.run===nativeBaseline.run&&opaque.namespace===nativeBaseline.namespace,'OPAQUE_NATIVE_VALUES_CHANGED');
  for(const [name,value] of Object.entries(role.configData.vars))check(v.resources.bindings.find(x=>x.name===name)?.text===value,'UPLOADED_PUBLIC_CONFIGURATION');
  return opaque;
@@ -222,7 +326,7 @@ async function main(){
  await metadataPreflight();
  if(stage==='upload'){
   const opaque=[];
-  for(const role of ROLES){const id=await cli(role,'upload');report.stagedVersions.push({name:role.name,id});opaque.push(await checkedUploadedVersion(role,id,process.env.GITHUB_SHA));}
+  for(const role of ROLES){const id=await upload(role);report.stagedVersions.push({name:role.name,id});opaque.push(await checkedUploadedVersion(role,id,process.env.GITHUB_SHA));}
   check(opaque[0].run===opaque[1].run&&opaque[0].namespace===opaque[1].namespace,'UPLOADED_OPAQUE_PAIR_DIFFERENCE');
   for(const role of ROLES)await active(role,role.baseline);
   await packageChecks();
@@ -233,7 +337,7 @@ async function main(){
   const opaque=[];for(const role of ROLES){const v=staged.versions.find(x=>x.name===role.name);opaque.push(await checkedUploadedVersion(role,v.id,staged.sourceSHA));}
   check(opaque[0].run===opaque[1].run&&opaque[0].namespace===opaque[1].namespace,'STAGED_OPAQUE_PAIR_DIFFERENCE');
   await packageChecks();
-  for(const role of ROLES){const id=staged.versions.find(v=>v.name===role.name).id;report.activationAttempts.push({name:role.name,id});await cli(role,'deploy',id);await active(role,id);}
+  for(const role of ROLES){const id=staged.versions.find(v=>v.name===role.name).id;report.activationAttempts.push({name:role.name,id});await deploy(role,id);await active(role,id);}
   report.status='PASS_TWO_REVIEWED_VERSIONS_ACTIVE';report.nativeLoginRefreshLogoutAcceptance='NOT_RUN';
  }
 }
