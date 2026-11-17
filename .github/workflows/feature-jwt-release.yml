@@ -7,7 +7,7 @@ on:
         description: Explicit existing-Feature stage; none preserves legacy behavior
         type: choice
         default: none
-        options: [none, upload, activate, diagnose, routing-build, browser]
+        options: [none, upload, activate, diagnose, routing-build, browser, pin-reset]
       browser_activation_source_sha:
         description: Exact source SHA of the successful activation run; browser only
         required: false
@@ -311,5 +311,73 @@ jobs:
         with:
           name: academy-feature-browser-status-${{ github.run_id }}
           path: ${{ runner.temp }}/academy-feature-browser-evidence/sanitized.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  native-feature-pin-reset:
+    if: github.repository == 'MaktabForlife/Academy' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature-preview' && inputs.modern_stage == 'pin-reset' && !inputs.credential_preflight && !inputs.check_only && vars.FEATURE_DEPLOYMENT_ENABLED == 'true' && inputs.expected_sha == github.sha
+    environment: feature
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.22.1'
+
+      - name: Validate explicitly authorized native reset inputs
+        env:
+          FEATURE_DEPLOYMENT_ENABLED: ${{ vars.FEATURE_DEPLOYMENT_ENABLED }}
+        run: |
+          node --check tools/academy-feature-pin-reset/gate-v1.mjs
+          node --check tools/academy-feature-pin-reset/reset-v1.mjs
+          node tools/academy-feature-pin-reset/gate-v1.mjs inputs
+
+      - name: Download only the selected activation status receipt
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: academy-feature-release-status-${{ inputs.upload_run_id }}
+          path: ${{ runner.temp }}/academy-feature-pin-reset-activation
+          run-id: ${{ inputs.upload_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Verify activation receipt, successful run and single source parent
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          FEATURE_DEPLOYMENT_ENABLED: ${{ vars.FEATURE_DEPLOYMENT_ENABLED }}
+        run: node tools/academy-feature-pin-reset/gate-v1.mjs verify
+
+      - name: Install isolated locked browser tools without lifecycle scripts
+        run: |
+          mkdir -m 700 "$RUNNER_TEMP/academy-feature-browser-tools"
+          cp tools/academy-feature-browser/package.json tools/academy-feature-browser/package-lock.json "$RUNNER_TEMP/academy-feature-browser-tools/"
+          npm ci --prefix "$RUNNER_TEMP/academy-feature-browser-tools" --ignore-scripts --no-audit --no-fund
+
+      - name: Install only the pinned Chromium headless shell
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/academy-feature-browser-binaries
+        run: node "$RUNNER_TEMP/academy-feature-browser-tools/node_modules/playwright/cli.js" install chromium --only-shell
+
+      - name: Reset three existing Feature PINs through native User Profiles
+        env:
+          FEATURE_TEST_ADMIN_PIN: ${{ secrets.FEATURE_TEST_ADMIN_PIN }}
+          FEATURE_DEPLOYMENT_ENABLED: ${{ vars.FEATURE_DEPLOYMENT_ENABLED }}
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/academy-feature-browser-binaries
+        run: node tools/academy-feature-pin-reset/reset-v1.mjs
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: academy-feature-pin-reset-status-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/academy-feature-pin-reset-evidence/sanitized.json
+            ${{ runner.temp }}/academy-feature-pin-reset-evidence/msi-encrypted.json
           if-no-files-found: warn
           retention-days: 30
