@@ -29176,7 +29176,8 @@ var academy_existing_feature_entry_v5_default = {
         stage = "native";
         return dynamic(await academy_existing_feature_runtime_v1_default.fetch(bounded3, env, ctx));
       }
-      if (url.pathname.startsWith("/auth/v110/") && !/\.(?:m?js|css)$/.test(url.pathname)) return reply5("Not found", 404);
+      const browserControlPage = url.pathname === "/auth/v110/browser-control.html" && !url.search;
+      if (url.pathname.startsWith("/auth/v110/") && !browserControlPage && !/\.(?:m?js|css)$/.test(url.pathname)) return reply5("Not found", 404);
       if (!["GET", "HEAD"].includes(request.method)) return reply5("Use GET or HEAD.", 405, { Allow: "GET, HEAD" });
       stage = "assets";
       if (typeof env.ASSETS?.fetch !== "function") throw Error("FEATURE_ASSETS_UNAVAILABLE");

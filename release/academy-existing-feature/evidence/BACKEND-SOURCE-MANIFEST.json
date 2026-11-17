@@ -1239,9 +1239,9 @@
       "sha256": "6b580f27fafe85aa41c58f219430c98f9b2dfb4dda46d9695d0cb6b803098c16"
     },
     {
-      "bytes": 5944,
+      "bytes": 6057,
       "path": "Academy/backend/src/academy-existing-feature-entry-v5.mjs",
-      "sha256": "e564dcd11fcc8e82b7af4ea9cf8267114436a500962873842957b9e5dc8924a5"
+      "sha256": "864c1d88c169b497a4dd124cc868da7a74c6316bb3acf6bae7028bbf69ca3d6e"
     },
     {
       "bytes": 480,
@@ -8650,7 +8650,12 @@
     }
   ],
   "oldSourcesPreserved": true,
-  "predecessorManifestSHA256": "fcdfad163e4034fc9e12426c541119c382cf84798ff53563e8134b2c8c418e6d",
+  "predecessorManifestSHA256": "0ea17123b276a3b7a9af8c9443ceb051b4310da9028d45bb9f3acb53e4441ce6",
   "publicSourceOnly": true,
+  "routingFix": {
+    "afterEntrySHA256": "864c1d88c169b497a4dd124cc868da7a74c6316bb3acf6bae7028bbf69ca3d6e",
+    "beforeEntrySHA256": "e564dcd11fcc8e82b7af4ea9cf8267114436a500962873842957b9e5dc8924a5",
+    "scope": "EXACT_ACADEMY_CONTROL_HTML_ROUTE"
+  },
   "schema": "V110_ACADEMY_PUBLIC_SOURCE_MANIFEST_V3"
 }

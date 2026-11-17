@@ -7383,7 +7383,7 @@
       "format": "esm"
     },
     "academy-product:backend/src/academy-existing-feature-entry-v5.mjs": {
-      "bytes": 5944,
+      "bytes": 6057,
       "imports": [
         {
           "path": "cloudflare:workers",
@@ -7425,7 +7425,7 @@
     }
   },
   "outputs": {
-    "../../academy-existing-feature-build-output-20261112-r2/academy-existing-feature-common.mjs": {
+    "../../../../../../_temp/academy-routing-build/common/academy-existing-feature-common.mjs": {
       "imports": [
         {
           "path": "cloudflare:workers",
@@ -7796,7 +7796,7 @@
           "bytesInOutput": 24645
         },
         "academy-product:backend/src/academy-existing-feature-entry-v5.mjs": {
-          "bytesInOutput": 5178
+          "bytesInOutput": 5301
         },
         "academy-product:backend/src/academy/d1/web-platform/protocol.mjs": {
           "bytesInOutput": 4445
@@ -8366,7 +8366,7 @@
           "bytesInOutput": 3050
         }
       },
-      "bytes": 2488101
+      "bytes": 2488224
     }
   }
 }

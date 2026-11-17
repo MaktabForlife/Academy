@@ -8,14 +8,14 @@ import {extname} from 'node:path';
 const ACCOUNT='c9a3e355b3d7a795880b1d36a1dbe123';
 const CORE='cdbe97bc-f3d9-400e-8806-ed9a0d143d26',ADMIN='ed77f2a7-4439-4841-8691-2b41063d8960';
 const SPLIT='de95f15f19a54a9e9ba34e6e75f51847',TIME='ab05473998dc4e93b792464f9e78e0e9';
-const COMMON='7dee1dab81cf13f4b9fba5f1d919d200ddd5326534168dac4e5dcae31242f8bc';
-const PACKAGE_PIN='547622ada94067ea058c2158fcd0378f86c1b85701d2e01af95275f238364d97';
+const COMMON='0229b34114e9a4c0b130d44b5f5570cb7de09b53424a32f12856f5ba2706e3d4';
+const PACKAGE_PIN='055eee5ec812cb034ab3d618276749b7cecccf9ec5e19caf9a03d770fa4bc91f';
 const SQL_PIN='c9d28d1ed752ba4a2c6718a1b1298e339be3ec727ef23c61e2f1ec6d5bdd4a66';
 const TAG='jwt-feature-fresh-20261106a',UUID=/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 const HEX64=/^[a-f0-9]{64}$/,HEX40=/^[a-f0-9]{40}$/;
 const ROLES=[
- {role:'coordinator',name:'academy-feature-split-coordinator',baseline:'98dc0bd2-7ded-4ff0-81f4-59721b9228f4',config:'configs/academy-feature-split-coordinator.wrangler.jsonc',configSHA:'90a2e61b6c4e32e22c7f1b672d8d9bcb1fe75e51a1bf562bd062f99e17c42d70',main:'coordinator-main.mjs',mainSHA:'4d72e96e084beef4cbfac9182002ff24ed09ada2c0bdbcf0d7f63f4d9a17f592',names:['AcademySplitCoordinator','JWTFeatureAcademySplitCoordinator']},
- {role:'api',name:'feature_worker',baseline:'ac9ad2c6-1c5b-4016-81dd-da710a731305',config:'configs/feature_worker.wrangler.jsonc',configSHA:'8d0151328720ba5807c1d8f17d7f8198693b19d8f9566bffdad9fa03bd341d44',main:'api-main.mjs',mainSHA:'be8148e6f5db943a20c67eba5be24b3d13ec66c9d1b1e1c1587a767c001b8171',names:['JWTFeatureProgramTimetableCoordinator','ProgramTimetableCoordinator','WebsiteStudioAcademy']}
+ {role:'coordinator',name:'academy-feature-split-coordinator',baseline:'59d8f54e-1749-4d98-995e-5ac8d36f8c6e',config:'configs/academy-feature-split-coordinator.wrangler.jsonc',configSHA:'90a2e61b6c4e32e22c7f1b672d8d9bcb1fe75e51a1bf562bd062f99e17c42d70',main:'coordinator-main.mjs',mainSHA:'4d72e96e084beef4cbfac9182002ff24ed09ada2c0bdbcf0d7f63f4d9a17f592',names:['AcademySplitCoordinator','JWTFeatureAcademySplitCoordinator']},
+ {role:'api',name:'feature_worker',baseline:'b213c9ae-b76b-4ce4-a187-9ebaf3722351',config:'configs/feature_worker.wrangler.jsonc',configSHA:'8d0151328720ba5807c1d8f17d7f8198693b19d8f9566bffdad9fa03bd341d44',main:'api-main.mjs',mainSHA:'be8148e6f5db943a20c67eba5be24b3d13ec66c9d1b1e1c1587a767c001b8171',names:['JWTFeatureProgramTimetableCoordinator','ProgramTimetableCoordinator','WebsiteStudioAcademy']}
 ];
 const OBJECTS=[
  ['jwt_v110_master_streams','table'],['jwt_v110_master_outbox','table'],['jwt_v110_master_pending','index'],

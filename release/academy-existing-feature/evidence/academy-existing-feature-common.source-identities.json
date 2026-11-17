@@ -395,8 +395,8 @@
     },
     {
       "identity": "academy-product:backend/src/academy-existing-feature-entry-v5.mjs",
-      "bytes": 5944,
-      "sha256": "e564dcd11fcc8e82b7af4ea9cf8267114436a500962873842957b9e5dc8924a5",
+      "bytes": 6057,
+      "sha256": "864c1d88c169b497a4dd124cc868da7a74c6316bb3acf6bae7028bbf69ca3d6e",
       "resolveDir": "backend/src",
       "kind": "academy-product",
       "loadCount": 1
