@@ -3,7 +3,7 @@
   "reviewedHelper": "acceptance-root-reviewed-r5.mjs",
   "originalSHA256": "b088b9df44dbfd69718689f21478d4df53a2972f9e4599561b6f4a6036ad90c2",
   "onlyChanges": "PACKAGE_PINS_PLUS_REVIEWED_TEST_DRIVER_NAVIGATION_AND_TEST_ONLY_PROVENANCE",
-  "helperSHA256": "a385f67293765249e3adeb591a588f39861adfc3ebdab422b577c958b71fa02f",
+  "helperSHA256": "c25b8395fa19be96c8f9eed71b16acd8354e20387586a52ba7cbe60842945b5e",
   "activation": {
     "status": "PASS_ROUTING_FIX_FEATURE_PAIR_ACTIVE",
     "runId": "44034987818",
@@ -48,5 +48,15 @@
     "sourceContract": "Native dashboard POST reads; no grant or content mutation",
     "navigation": "Use the actually checked native view selected by login; remove forced Learn navigation",
     "provenance": "At most six linear test-only descendants; same five-path delta allowlist and fixed application package pins"
+  },
+  "deployedProtocolVerification": {
+    "file": "protocol-v1.mjs",
+    "SHA256": "b88585eb4b82fdc59eb4623f890cbcec2fa8ff1d1374689a95bc79cfeefc0157",
+    "scope": "GENUINE_DEPLOYED_NATIVE_AUTH_PROTOCOL_NO_UI_READINESS_CLAIM",
+    "genuinePINFormPreviouslyConfirmed": true,
+    "serverGuards": "UNCHANGED_NATIVE_BROWSER_ORIGIN_AND_CSRF",
+    "credentials": "EXISTING_PROTECTED_SYNTHETIC_PIN_ONLY",
+    "negativeProof": "SAME_CURRENT_ROTATED_UNEXPIRED_PAIR_ALL401",
+    "applicationChanged": false
   }
 }

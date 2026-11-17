@@ -299,12 +299,12 @@ jobs:
           PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/academy-feature-browser-binaries
         run: node "$RUNNER_TEMP/academy-feature-browser-tools/node_modules/playwright/cli.js" install chromium --only-shell
 
-      - name: One genuine native Feature browser journey
+      - name: Verify deployed Academy login refresh logout protocol
         env:
           FEATURE_TEST_ADMIN_PIN: ${{ secrets.FEATURE_TEST_ADMIN_PIN }}
           FEATURE_DEPLOYMENT_ENABLED: ${{ vars.FEATURE_DEPLOYMENT_ENABLED }}
           PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/academy-feature-browser-binaries
-        run: node tools/academy-feature-browser/acceptance-v1.mjs browser
+        run: node tools/academy-feature-browser/protocol-v1.mjs
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()

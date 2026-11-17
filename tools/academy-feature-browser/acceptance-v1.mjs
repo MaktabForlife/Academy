@@ -110,7 +110,7 @@ async function verify(){
  check(commit.sha===process.env.GITHUB_SHA&&commit.parents?.length===1,'ONE_LINEAR_PARENT_REQUIRED');
  if(commit.parents[0].sha!==receipt.sourceSHA){
   const comparison=await github('compare/'+receipt.sourceSHA+'...'+process.env.GITHUB_SHA);
-  const allowed=new Set(['.github/workflows/feature-jwt-release.yml','tools/academy-feature-browser/acceptance-v1.mjs','tools/academy-feature-browser/package.json','tools/academy-feature-browser/package-lock.json','tools/academy-feature-browser/SOURCE-REVIEW.json']);
+  const allowed=new Set(['.github/workflows/feature-jwt-release.yml','tools/academy-feature-browser/acceptance-v1.mjs','tools/academy-feature-browser/package.json','tools/academy-feature-browser/package-lock.json','tools/academy-feature-browser/SOURCE-REVIEW.json','tools/academy-feature-browser/protocol-v1.mjs']);
   check(comparison.status==='ahead'&&comparison.behind_by===0&&comparison.ahead_by>=1&&comparison.ahead_by<=6&&comparison.base_commit?.sha===receipt.sourceSHA&&comparison.merge_base_commit?.sha===receipt.sourceSHA,'ACTIVATED_SOURCE_ANCESTRY');
   check(comparison.commits?.length===comparison.ahead_by&&comparison.files?.length>0&&comparison.files.length<=allowed.size&&comparison.files.every(f=>allowed.has(f.filename)&&['added','modified'].includes(f.status)&&!f.previous_filename),'TEST_ONLY_SOURCE_DELTA');
   let parent=receipt.sourceSHA;
