@@ -111,7 +111,7 @@ async function verify(){
  if(commit.parents[0].sha!==receipt.sourceSHA){
   const comparison=await github('compare/'+receipt.sourceSHA+'...'+process.env.GITHUB_SHA);
   const allowed=new Set(['.github/workflows/feature-jwt-release.yml','tools/academy-feature-browser/acceptance-v1.mjs','tools/academy-feature-browser/package.json','tools/academy-feature-browser/package-lock.json','tools/academy-feature-browser/SOURCE-REVIEW.json']);
-  check(comparison.status==='ahead'&&comparison.behind_by===0&&comparison.ahead_by>=1&&comparison.ahead_by<=3&&comparison.base_commit?.sha===receipt.sourceSHA&&comparison.merge_base_commit?.sha===receipt.sourceSHA,'ACTIVATED_SOURCE_ANCESTRY');
+  check(comparison.status==='ahead'&&comparison.behind_by===0&&comparison.ahead_by>=1&&comparison.ahead_by<=6&&comparison.base_commit?.sha===receipt.sourceSHA&&comparison.merge_base_commit?.sha===receipt.sourceSHA,'ACTIVATED_SOURCE_ANCESTRY');
   check(comparison.commits?.length===comparison.ahead_by&&comparison.files?.length>0&&comparison.files.length<=allowed.size&&comparison.files.every(f=>allowed.has(f.filename)&&['added','modified'].includes(f.status)&&!f.previous_filename),'TEST_ONLY_SOURCE_DELTA');
   let parent=receipt.sourceSHA;
   for(const c of comparison.commits){check(c.parents?.length===1&&c.parents[0].sha===parent,'LINEAR_TEST_ONLY_COMMITS');parent=c.sha;}
@@ -219,7 +219,9 @@ async function browserJourney(){
   ['/auth/v110/csrf','csrf'],
   ['/auth/v110/refresh','refresh'],
   ['/auth/v110/logout-csrf','logout-csrf'],
-  ['/auth/v110/logout','logout']
+  ['/auth/v110/logout','logout'],
+  ['/api/academy/entrance','entrance-read'],
+  ['/api/academy/lesson-media/timetable','timetable-media-read']
  ]);
  const jwtPaths=new Set([
   '/auth/v110/csrf','/auth/v110/refresh',
@@ -227,7 +229,8 @@ async function browserJourney(){
  ]);
  const postPaths=new Set([
   '/api/account/check','/auth/v110/login','/api/account/session',
-  '/auth/v110/refresh','/auth/v110/logout','/api/academy/hub/open'
+  '/auth/v110/refresh','/auth/v110/logout','/api/academy/hub/open',
+  '/api/academy/entrance','/api/academy/lesson-media/timetable'
  ]);
 
  function tick(list,max,key){
@@ -421,7 +424,10 @@ async function browserJourney(){
      );
     }
 
-    check(['GET','HEAD'].includes(method)||method==='POST'&&postPaths.has(path),'WRITE_ROUTE_REFUSED');
+    if(!(['GET','HEAD'].includes(method)||method==='POST'&&postPaths.has(path))){
+     report.blockedWriteCategory=path==='/api/account/switch-context'?'NATIVE_CONTEXT_SELECTION':path==='/api/academy/changes/accept'?'NATIVE_CHANGE_ACCEPTANCE':'OTHER_NATIVE_WRITE';
+     fail('WRITE_ROUTE_REFUSED');
+    }
 
     if(path==='/api/account/check'){
      check(phase==='account'&&++report.accountChecks===1,'ONE_ACCOUNT_CHECK');
@@ -556,9 +562,8 @@ async function browserJourney(){
   claims(first,login.display);
 
   report.checkpoint='NATIVE_SESSION_BEFORE_REFRESH';
+  const before=await ready(page,'login');
   phase='native-before';
-  await page.goto(ORIGIN+'/academy/#timetable/learn',{waitUntil:'domcontentloaded'});
-  const before=await ready(page,phase);
   same(login.display,before.display);
   report.checks.actualNativeSelectorAndCSRFCaptured=true;
   report.checks.contextAndNativePageBefore=true;

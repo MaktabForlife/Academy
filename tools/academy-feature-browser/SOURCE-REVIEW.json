@@ -3,7 +3,7 @@
   "reviewedHelper": "acceptance-root-reviewed-r5.mjs",
   "originalSHA256": "b088b9df44dbfd69718689f21478d4df53a2972f9e4599561b6f4a6036ad90c2",
   "onlyChanges": "PACKAGE_PINS_PLUS_REVIEWED_TEST_DRIVER_NAVIGATION_AND_TEST_ONLY_PROVENANCE",
-  "helperSHA256": "b9217f7a2bd7e7ca3c8c76a2f1c3b672804397d86276f296c29bbd3339488f8f",
+  "helperSHA256": "a385f67293765249e3adeb591a588f39861adfc3ebdab422b577c958b71fa02f",
   "activation": {
     "status": "PASS_ROUTING_FIX_FEATURE_PAIR_ACTIVE",
     "runId": "44034987818",
@@ -39,5 +39,14 @@
     "activationSourceSHA": "75ec66aa3cf367471be0364fcf1068361786da07",
     "AI": "OFF"
   },
-  "DOMReadinessCorrection": "Optional document body/root reads during expected navigation; signed-out proof still requires an actual document body; fixed diagnostic booleans only"
+  "DOMReadinessCorrection": "Optional document body/root reads during expected navigation; signed-out proof still requires an actual document body; fixed diagnostic booleans only",
+  "nativeReadCorrection": {
+    "readOnlyPOSTs": [
+      "/api/academy/entrance",
+      "/api/academy/lesson-media/timetable"
+    ],
+    "sourceContract": "Native dashboard POST reads; no grant or content mutation",
+    "navigation": "Use the actually checked native view selected by login; remove forced Learn navigation",
+    "provenance": "At most six linear test-only descendants; same five-path delta allowlist and fixed application package pins"
+  }
 }
