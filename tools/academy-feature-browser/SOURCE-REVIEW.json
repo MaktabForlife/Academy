@@ -2,8 +2,8 @@
   "schema": "ACADEMY_ROUTING_BROWSER_BINDING_V1",
   "reviewedHelper": "acceptance-root-reviewed-r5.mjs",
   "originalSHA256": "b088b9df44dbfd69718689f21478d4df53a2972f9e4599561b6f4a6036ad90c2",
-  "onlyChanges": "BIND_NEW_REVIEWED_PACKAGE_AND_COMMON_HASHES",
-  "helperSHA256": "4656f5e9978836010ec29c808ff4beed93b3e084955d467a3d96202eba466097",
+  "onlyChanges": "PACKAGE_PINS_PLUS_REVIEWED_TEST_DRIVER_NAVIGATION_AND_TEST_ONLY_PROVENANCE",
+  "helperSHA256": "d858d9bd9e3caf04aadb3e4046f1757ef340b14a784fa21a876bb52fd5df8310",
   "activation": {
     "status": "PASS_ROUTING_FIX_FEATURE_PAIR_ACTIVE",
     "runId": "44034987818",
@@ -25,5 +25,18 @@
     "nativeLoginRefreshLogoutAcceptance": "NOT_RUN"
   },
   "AI": "OFF",
-  "privateArtifactPolicy": "SANITIZED_JSON_ONLY"
+  "privateArtifactPolicy": "SANITIZED_JSON_ONLY",
+  "navigationCorrection": {
+    "status": "SOURCE_ONLY_BROWSER_NAVIGATION_CORRECTION",
+    "helperSHA256": "d858d9bd9e3caf04aadb3e4046f1757ef340b14a784fa21a876bb52fd5df8310",
+    "applicationPackageChanged": false,
+    "changes": [
+      "Allow only bounded same-origin native document transitions during DOM waits",
+      "All HTTP status, cookie, identity, current-credential and rate checks unchanged",
+      "At most three linear test-only descendants of activated source, verified by GitHub comparison",
+      "Fixed failure categories and checkpoints; no raw errors or private values"
+    ],
+    "activationSourceSHA": "75ec66aa3cf367471be0364fcf1068361786da07",
+    "AI": "OFF"
+  }
 }

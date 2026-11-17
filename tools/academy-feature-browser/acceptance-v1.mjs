@@ -71,7 +71,7 @@ async function selectedReceipt(){
 }
 
 async function github(path){
- check(process.env.GITHUB_TOKEN&&++report.githubGETRequests<=2,'GITHUB_CONTEXT');
+ check(process.env.GITHUB_TOKEN&&++report.githubGETRequests<=3,'GITHUB_CONTEXT');
  let r;
  try{
   r=await fetch('https://api.github.com/repos/MaktabForlife/Academy/'+path,{
@@ -107,7 +107,17 @@ async function verify(){
  const run=await github('actions/runs/'+receipt.runId);
  check(run.workflow_id===409340312&&run.event==='workflow_dispatch'&&run.head_branch==='feature-preview'&&run.head_sha===receipt.sourceSHA&&run.status==='completed'&&run.conclusion==='success','ACTIVATION_RUN_ATTESTATION');
  const commit=await github('commits/'+process.env.GITHUB_SHA);
- check(commit.sha===process.env.GITHUB_SHA&&commit.parents?.length===1&&commit.parents[0].sha===receipt.sourceSHA,'ONE_ADDITIVE_PARENT_REQUIRED');
+ check(commit.sha===process.env.GITHUB_SHA&&commit.parents?.length===1,'ONE_LINEAR_PARENT_REQUIRED');
+ if(commit.parents[0].sha!==receipt.sourceSHA){
+  const comparison=await github('compare/'+receipt.sourceSHA+'...'+process.env.GITHUB_SHA);
+  const allowed=new Set(['.github/workflows/feature-jwt-release.yml','tools/academy-feature-browser/acceptance-v1.mjs','tools/academy-feature-browser/package.json','tools/academy-feature-browser/package-lock.json','tools/academy-feature-browser/SOURCE-REVIEW.json']);
+  check(comparison.status==='ahead'&&comparison.behind_by===0&&comparison.ahead_by>=1&&comparison.ahead_by<=3&&comparison.base_commit?.sha===receipt.sourceSHA&&comparison.merge_base_commit?.sha===receipt.sourceSHA,'ACTIVATED_SOURCE_ANCESTRY');
+  check(comparison.commits?.length===comparison.ahead_by&&comparison.files?.length>0&&comparison.files.length<=allowed.size&&comparison.files.every(f=>allowed.has(f.filename)&&['added','modified'].includes(f.status)&&!f.previous_filename),'TEST_ONLY_SOURCE_DELTA');
+  let parent=receipt.sourceSHA;
+  for(const c of comparison.commits){check(c.parents?.length===1&&c.parents[0].sha===parent,'LINEAR_TEST_ONLY_COMMITS');parent=c.sha;}
+  check(parent===process.env.GITHUB_SHA,'TEST_ONLY_HEAD');
+  report.testOnlyDescendantCommits=comparison.ahead_by;
+ }
  await directory(privateDir);
  await writeFile(join(privateDir,'gate.json'),JSON.stringify({
   schema:'ACADEMY_FEATURE_BROWSER_GATE_V1',
@@ -195,6 +205,7 @@ async function browserJourney(){
  const {chromium}=req('playwright');
  let browser,phase='public',fatal=null,login=null,csrf='',logout=null,refresh=null,specimen=null;
  const native={},contexts=[],jobs=new Set();
+ let activePage=null;
  const requestMeta=new WeakMap(),loginTimes=[],jwtTimes=[];
  const maxRolling={login:0,csrfRefresh:0};
  report.maxRequestsInRolling60Seconds=maxRolling;
@@ -245,7 +256,15 @@ async function browserJourney(){
   const end=Date.now()+ms;
   while(Date.now()<end){
    guard();
-   if(await test())return;
+   try{if(await test())return;}
+   catch(e){
+    const changed=typeof e?.message==='string'&&(/Execution context was destroyed|Cannot find context with specified id/.test(e.message));
+    const url=activePage?new URL(activePage.url()):null;
+    const expected=changed&&['login','native-before','native-after','signed-out'].includes(phase)&&url?.origin===ORIGIN&&['/academy/','/academy/admin/'].includes(url.pathname);
+    if(!expected)throw e;
+    report.expectedNavigationSettlements=(report.expectedNavigationSettlements||0)+1;
+    check(report.expectedNavigationSettlements<=12,'UNSTABLE_NATIVE_NAVIGATION');
+   }
    await delay(50);
   }
   guard();
@@ -490,6 +509,7 @@ async function browserJourney(){
   report.playwrightVersion='1.58.2';
 
   const ctx=await make('main'),page=await ctx.newPage();
+  activePage=page;
   page.setDefaultTimeout(15000);
   await page.goto(ORIGIN+'/',{waitUntil:'domcontentloaded'});
   guard();
@@ -518,9 +538,12 @@ async function browserJourney(){
   await pace();
 
   phase='login';
+  report.checkpoint='PIN_FORM_INPUT';
   await pinField.pressSequentially(pin,{delay:70});
+  report.checkpoint='LOGIN_RESPONSE';
   await wait(()=>Boolean(login),'LOGIN_NOT_OBSERVED');
   pin='';
+  report.checkpoint='LOGIN_UI_SETTLEMENT';
 
   await wait(async()=>
    await page.evaluate(()=>document.body.classList.contains('academy-signed-in')&&document.documentElement.dataset.uaaV110State==='ready')&&
@@ -528,9 +551,11 @@ async function browserJourney(){
    'LOGIN_NATIVE_UI_NOT_READY'
   );
 
+  report.checkpoint='LOGIN_COOKIE_PAIR';
   const first=await pair(ctx);
   claims(first,login.display);
 
+  report.checkpoint='NATIVE_SESSION_BEFORE_REFRESH';
   phase='native-before';
   await page.goto(ORIGIN+'/academy/#timetable/learn',{waitUntil:'domcontentloaded'});
   const before=await ready(page,phase);
@@ -539,6 +564,7 @@ async function browserJourney(){
   report.checks.contextAndNativePageBefore=true;
 
   await pace();
+  report.checkpoint='REFRESH_ROTATION';
   phase='refresh';
   check(opaque(before.csrf),'ACTUAL_NATIVE_CSRF');
   check(await raw(page,'/auth/v110/refresh','POST',{
@@ -548,6 +574,7 @@ async function browserJourney(){
   await wait(()=>Boolean(refresh),'REFRESH_NOT_OBSERVED');
   same(before.display,refresh);
 
+  report.checkpoint='NATIVE_SESSION_AFTER_REFRESH';
   phase='native-after';
   await page.reload({waitUntil:'domcontentloaded'});
   const after=await ready(page,phase);
@@ -564,6 +591,7 @@ async function browserJourney(){
 
   await pace();
   check(currentExpiry>Date.now()/1000+15,'CURRENT_PAIR_EXPIRED_BEFORE_LOGOUT');
+  report.checkpoint='NATIVE_SIGN_OUT';
   phase='logout';
   await page.locator('#academy-sign-out').click();
   await wait(()=>logout===true,'NATIVE_LOGOUT_NOT_OBSERVED');
@@ -684,7 +712,10 @@ try{
  report.status='FAIL';
  report.errorCategory=/^[A-Z][A-Z0-9_]{0,95}$/.test(e?.safeCode||'')
   ?e.safeCode
-  :'INTERNAL_STOP_NO_RETRY';
+  :e?.name==='TimeoutError'?'BROWSER_DRIVER_TIMEOUT'
+   :typeof e?.message==='string'&&/Execution context was destroyed|Cannot find context with specified id/.test(e.message)?'BROWSER_NAVIGATION_CONTEXT_CHANGED'
+   :typeof e?.message==='string'&&/Target page, context or browser has been closed/.test(e.message)?'BROWSER_TARGET_CLOSED'
+   :'INTERNAL_STOP_NO_RETRY';
  process.exitCode=1;
 }
 
