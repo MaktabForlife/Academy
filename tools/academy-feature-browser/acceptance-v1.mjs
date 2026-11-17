@@ -468,8 +468,8 @@ async function browserJourney(){
    native[key]?.display&&
    native[key]?.session&&
    await page.evaluate(()=>
-    document.body.classList.contains('academy-signed-in')&&
-    document.documentElement.dataset.uaaV110State==='ready'
+    document.body?.classList.contains('academy-signed-in')&&
+    document.documentElement?.dataset?.uaaV110State==='ready'
    )&&
    await page.locator('#academy-sign-out').isVisible()
   ),'NATIVE_PAGE_NOT_CHECKED');
@@ -546,7 +546,7 @@ async function browserJourney(){
   report.checkpoint='LOGIN_UI_SETTLEMENT';
 
   await wait(async()=>
-   await page.evaluate(()=>document.body.classList.contains('academy-signed-in')&&document.documentElement.dataset.uaaV110State==='ready')&&
+   await page.evaluate(()=>document.body?.classList.contains('academy-signed-in')&&document.documentElement?.dataset?.uaaV110State==='ready')&&
    await page.locator('#academy-sign-out').isVisible(),
    'LOGIN_NATIVE_UI_NOT_READY'
   );
@@ -601,7 +601,7 @@ async function browserJourney(){
   await page.reload({waitUntil:'domcontentloaded'});
   await wait(async()=>
    await page.evaluate(()=>
-    !document.body.classList.contains('academy-signed-in')&&
+    document.body!==null&&!document.body?.classList.contains('academy-signed-in')&&
     !localStorage.getItem('m4l_account_token')
    )&&
    !await page.locator('#academy-sign-out').isVisible(),
@@ -710,6 +710,13 @@ try{
  }
 }catch(e){
  report.status='FAIL';
+ report.driverErrorFlags={
+  timeout:e?.name==='TimeoutError',
+  navigationContext:typeof e?.message==='string'&&/Execution context was destroyed|Cannot find context with specified id/.test(e.message),
+  missingDOM:typeof e?.message==='string'&&/Cannot read properties of null|Cannot read properties of undefined/.test(e.message),
+  detachedFrame:typeof e?.message==='string'&&/Frame was detached|frame has been detached/.test(e.message),
+  javascriptTypeError:typeof e?.message==='string'&&/TypeError:/.test(e.message)
+ };
  report.errorCategory=/^[A-Z][A-Z0-9_]{0,95}$/.test(e?.safeCode||'')
   ?e.safeCode
   :e?.name==='TimeoutError'?'BROWSER_DRIVER_TIMEOUT'

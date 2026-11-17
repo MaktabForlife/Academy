@@ -3,7 +3,7 @@
   "reviewedHelper": "acceptance-root-reviewed-r5.mjs",
   "originalSHA256": "b088b9df44dbfd69718689f21478d4df53a2972f9e4599561b6f4a6036ad90c2",
   "onlyChanges": "PACKAGE_PINS_PLUS_REVIEWED_TEST_DRIVER_NAVIGATION_AND_TEST_ONLY_PROVENANCE",
-  "helperSHA256": "d858d9bd9e3caf04aadb3e4046f1757ef340b14a784fa21a876bb52fd5df8310",
+  "helperSHA256": "b9217f7a2bd7e7ca3c8c76a2f1c3b672804397d86276f296c29bbd3339488f8f",
   "activation": {
     "status": "PASS_ROUTING_FIX_FEATURE_PAIR_ACTIVE",
     "runId": "44034987818",
@@ -38,5 +38,6 @@
     ],
     "activationSourceSHA": "75ec66aa3cf367471be0364fcf1068361786da07",
     "AI": "OFF"
-  }
+  },
+  "DOMReadinessCorrection": "Optional document body/root reads during expected navigation; signed-out proof still requires an actual document body; fixed diagnostic booleans only"
 }
