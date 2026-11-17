@@ -1,0 +1,29 @@
+{
+  "schema": "ACADEMY_ROUTING_BROWSER_BINDING_V1",
+  "reviewedHelper": "acceptance-root-reviewed-r5.mjs",
+  "originalSHA256": "b088b9df44dbfd69718689f21478d4df53a2972f9e4599561b6f4a6036ad90c2",
+  "onlyChanges": "BIND_NEW_REVIEWED_PACKAGE_AND_COMMON_HASHES",
+  "helperSHA256": "4656f5e9978836010ec29c808ff4beed93b3e084955d467a3d96202eba466097",
+  "activation": {
+    "status": "PASS_ROUTING_FIX_FEATURE_PAIR_ACTIVE",
+    "runId": "44034987818",
+    "sourceSHA": "75ec66aa3cf367471be0364fcf1068361786da07",
+    "receiptSHA256": "5cc2ba91fdafe7b7e4bfc93f4562c06c182983c627d812b5c7e4d9d367b4a07d",
+    "versions": [
+      {
+        "name": "academy-feature-split-coordinator",
+        "id": "ff7a1ea4-d187-48ff-b865-ac776d69b6c5"
+      },
+      {
+        "name": "feature_worker",
+        "id": "91e88a73-0d04-4394-953b-3a3a6f0737f1"
+      }
+    ],
+    "manifestSHA256": "055eee5ec812cb034ab3d618276749b7cecccf9ec5e19caf9a03d770fa4bc91f",
+    "commonSHA256": "0229b34114e9a4c0b130d44b5f5570cb7de09b53424a32f12856f5ba2706e3d4",
+    "AI": "OFF",
+    "nativeLoginRefreshLogoutAcceptance": "NOT_RUN"
+  },
+  "AI": "OFF",
+  "privateArtifactPolicy": "SANITIZED_JSON_ONLY"
+}
