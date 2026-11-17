@@ -84,7 +84,8 @@ async function main(){
  report.stage='unit-regression';
  report.beforeTests=await unit(repo,join(tools,'entry-before.mjs'),true);
  report.fixedTests=await unit(repo,join(base,ENTRY),false);
- const esbuild=join(repo,'backend/node_modules/esbuild'),platform=join(repo,'backend/node_modules/@esbuild/linux-x64'),jose=join(repo,'backend/node_modules/jose');
+ report.stage='locked-tooling';
+ const esbuild=join(repo,'backend/node_modules/esbuild'),platform=join(repo,'backend/node_modules/@esbuild/linux-x64'),jose=join(repo,'tools/academy-routing-release/compiler/node_modules/jose');
  check((await json(join(esbuild,'package.json'))).version==='0.28.1'&&(await json(join(jose,'package.json'))).version==='6.2.15','LOCKED_COMPILER_DEPENDENCIES');
  const publicInputPins=[];
  for(const [role,path]of [

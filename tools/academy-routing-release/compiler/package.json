@@ -1,0 +1,8 @@
+{
+  "name": "academy-routing-compiler-dependencies",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "jose": "6.2.15"
+  }
+}
