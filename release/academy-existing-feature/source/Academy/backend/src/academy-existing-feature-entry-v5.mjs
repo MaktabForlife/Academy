@@ -58,8 +58,9 @@ export default {
     const bounded=authMethod||url.pathname.startsWith('/api/account/')?await bufferRootOnlyPOST(request):request;
     stage='native';return dynamic(await native.fetch(bounded,env,ctx));
    }
-   // /auth/v110 browser JS/CSS are assets, never auth API handlers or an SPA login fallback.
-   if(url.pathname.startsWith('/auth/v110/')&&!/\.(?:m?js|css)$/.test(url.pathname))return reply('Not found',404);
+   // Browser JS/CSS and the exact control page use assets, never an auth API or SPA fallback.
+   const browserControlPage=url.pathname==='/auth/v110/browser-control.html'&&!url.search;
+   if(url.pathname.startsWith('/auth/v110/')&&!browserControlPage&&!/\.(?:m?js|css)$/.test(url.pathname))return reply('Not found',404);
    if(!['GET','HEAD'].includes(request.method))return reply('Use GET or HEAD.',405,{Allow:'GET, HEAD'});
    stage='assets';if(typeof env.ASSETS?.fetch!=='function')throw Error('FEATURE_ASSETS_UNAVAILABLE');
    // Public app build only; credentials and CSRF never go to the static binding.

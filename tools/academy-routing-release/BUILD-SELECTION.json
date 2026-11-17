@@ -1,0 +1,12 @@
+{
+  "schema": "ACADEMY_ROUTING_CI_BUILD_SELECTION_V1",
+  "scope": "EXISTING_ACADEMY_FEATURE_ONLY",
+  "baseFeatureSHA": "436e98cbe428200e1edbba6662fc232f3cf7a638",
+  "oldCommonSHA256": "7dee1dab81cf13f4b9fba5f1d919d200ddd5326534168dac4e5dcae31242f8bc",
+  "newEntrySHA256": "864c1d88c169b497a4dd124cc868da7a74c6316bb3acf6bae7028bbf69ca3d6e",
+  "sourceManifestSHA256": "2961264bfbb5db7bcc41d4ca1930bbe344df36818f5929e0b2da82bf729b1cce",
+  "buildLocation": "GITHUB_ACTIONS_ONLY",
+  "CFOrApplicationCredentialAttachedToBuild": false,
+  "newResourcesOrSchemaChanges": false,
+  "AI": "OFF"
+}
