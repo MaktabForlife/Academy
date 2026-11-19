@@ -1,0 +1,3038 @@
+{
+  "schema": 2,
+  "app": "academy",
+  "sourceCommit": "15d1a1e5d96e831af8946a59eb70f9ce97023cfe",
+  "rules": {
+    "academy_calendar_events": {
+      "columns": [
+        "active"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.schedule-lifecycle"
+      ]
+    },
+    "academy_media_playlist_recordings": {
+      "columns": [
+        "activity_key",
+        "lesson_id",
+        "playlist_id"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.resource-audience"
+      ]
+    },
+    "academy_media_playlist_state": {
+      "columns": [
+        "activity_key",
+        "revision"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.resource-audience"
+      ]
+    },
+    "academy_media_playlists": {
+      "columns": [
+        "activity_key",
+        "class_id",
+        "enabled",
+        "playlist_id",
+        "published_revision",
+        "revision"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.resource-audience"
+      ]
+    },
+    "academy_teacher_designations": {
+      "columns": [
+        "account_id",
+        "active"
+      ],
+      "accountColumn": "account_id",
+      "scope": "ACCOUNT",
+      "required": false,
+      "dependencies": [
+        "A.identity"
+      ]
+    },
+    "account_credentials": {
+      "columns": [
+        "account_id",
+        "credential_epoch",
+        "pin_hash",
+        "pin_setup"
+      ],
+      "accountColumn": "account_id",
+      "scope": "ACCOUNT",
+      "required": true,
+      "dependencies": [
+        "A.identity"
+      ]
+    },
+    "account_sessions": {
+      "columns": [
+        "account_id",
+        "credential_epoch",
+        "expires_at",
+        "revoked_at",
+        "session_id"
+      ],
+      "accountColumn": "account_id",
+      "scope": "ACCOUNT",
+      "required": true,
+      "dependencies": [
+        "A.identity"
+      ]
+    },
+    "accounts": {
+      "columns": [
+        "account_id",
+        "active",
+        "login_link_id"
+      ],
+      "accountColumn": "account_id",
+      "scope": "ACCOUNT",
+      "required": true,
+      "dependencies": [
+        "A.identity"
+      ]
+    },
+    "activities": {
+      "columns": [
+        "active",
+        "activity_id",
+        "kind",
+        "lifecycle",
+        "revision",
+        "website_visible"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.setup-publication"
+      ]
+    },
+    "activity_policy_imports": {
+      "columns": [
+        "activity_key",
+        "run_id"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.course-access"
+      ]
+    },
+    "assessment_collection": {
+      "columns": [
+        "assessment_id",
+        "revision"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.object-audiences"
+      ]
+    },
+    "assessment_files": {
+      "columns": [
+        "activity_key",
+        "assessment_id",
+        "kind"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.object-audiences"
+      ]
+    },
+    "assessment_recipients": {
+      "columns": [
+        "account_id",
+        "assessment_id",
+        "revision"
+      ],
+      "accountColumn": "account_id",
+      "scope": "ACCOUNT",
+      "required": false,
+      "dependencies": [
+        "A.object-audiences"
+      ]
+    },
+    "assessment_registers": {
+      "columns": [
+        "revision",
+        "status"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.object-audiences"
+      ]
+    },
+    "assessment_reports": {
+      "columns": [
+        "account_id",
+        "activity_key",
+        "class_id"
+      ],
+      "accountColumn": "account_id",
+      "scope": "ACCOUNT",
+      "required": false,
+      "dependencies": [
+        "A.object-audiences"
+      ]
+    },
+    "assessment_submissions": {
+      "columns": [
+        "account_id",
+        "assessment_id"
+      ],
+      "accountColumn": "account_id",
+      "scope": "ACCOUNT",
+      "required": false,
+      "dependencies": [
+        "A.object-audiences"
+      ]
+    },
+    "assessments": {
+      "columns": [
+        "deleted_at",
+        "examiner_id",
+        "revision",
+        "schedule_published"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.object-audiences"
+      ]
+    },
+    "attendance_delivery_members": {
+      "columns": [
+        "account_id",
+        "activity_key",
+        "revision",
+        "run_id",
+        "state"
+      ],
+      "accountColumn": "account_id",
+      "scope": "ACCOUNT",
+      "required": false,
+      "dependencies": [
+        "A.object-audiences"
+      ]
+    },
+    "attendance_delivery_rosters": {
+      "columns": [
+        "activity_key",
+        "revision",
+        "run_id"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.object-audiences"
+      ]
+    },
+    "attendance_substitutes": {
+      "columns": [
+        "account_id",
+        "activity_key",
+        "assignment_id",
+        "attendance_date",
+        "correction_reopen_until",
+        "correction_until",
+        "first_until",
+        "revoked_at",
+        "stable_key",
+        "starts_at"
+      ],
+      "accountColumn": "account_id",
+      "scope": "ACCOUNT",
+      "required": false,
+      "dependencies": [
+        "A.membership-timed"
+      ]
+    },
+    "class_memberships": {
+      "columns": [
+        "account_id",
+        "active",
+        "activity_key",
+        "class_id",
+        "end_date",
+        "start_date"
+      ],
+      "accountColumn": "account_id",
+      "scope": "ACCOUNT",
+      "required": false,
+      "dependencies": [
+        "A.membership-timed"
+      ]
+    },
+    "class_note_contexts": {
+      "columns": [
+        "activity_key",
+        "class_id",
+        "lesson_date",
+        "source_head"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.object-audiences"
+      ]
+    },
+    "class_note_versions": {
+      "columns": [
+        "revision",
+        "source_head"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.object-audiences"
+      ]
+    },
+    "class_notes": {
+      "columns": [
+        "activity_key",
+        "revision",
+        "state"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.object-audiences"
+      ]
+    },
+    "class_teacher_assignments": {
+      "columns": [
+        "account_id",
+        "activity_key",
+        "class_id"
+      ],
+      "accountColumn": "account_id",
+      "scope": "ACCOUNT",
+      "required": false,
+      "dependencies": [
+        "A.membership-timed"
+      ]
+    },
+    "classes": {
+      "columns": [
+        "active"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.membership-timed"
+      ]
+    },
+    "course_resources": {
+      "columns": [
+        "active"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.resource-audience"
+      ]
+    },
+    "course_run_access": {
+      "columns": [
+        "access_model",
+        "activity_key",
+        "run_id"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.course-access"
+      ]
+    },
+    "course_run_state": {
+      "columns": [
+        "activity_key",
+        "current_publication_id",
+        "run_id",
+        "stage"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.course-access"
+      ]
+    },
+    "course_runs": {
+      "columns": [
+        "active"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.course-access"
+      ]
+    },
+    "course_session_state": {
+      "columns": [
+        "active",
+        "activity_key",
+        "run_id",
+        "session_id"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.course-access"
+      ]
+    },
+    "course_settings": {
+      "columns": [
+        "activity_key",
+        "kind",
+        "legacy_access_model",
+        "policy_review_state"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.course-access"
+      ]
+    },
+    "course_subscription_decisions": {
+      "columns": [
+        "account_id",
+        "active",
+        "activity_key"
+      ],
+      "accountColumn": "account_id",
+      "scope": "ACCOUNT",
+      "required": false,
+      "dependencies": [
+        "A.course-access"
+      ]
+    },
+    "course_website_documents": {
+      "columns": [
+        "enabled"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.resource-audience"
+      ]
+    },
+    "global_role_assignments": {
+      "columns": [
+        "account_id",
+        "active",
+        "review_state",
+        "role"
+      ],
+      "accountColumn": "account_id",
+      "scope": "ACCOUNT",
+      "required": true,
+      "dependencies": [
+        "A.identity"
+      ]
+    },
+    "legacy_access_evidence": {
+      "columns": [
+        "account_id",
+        "activity_key",
+        "run_id",
+        "source_effective",
+        "source_role"
+      ],
+      "accountColumn": "account_id",
+      "scope": "ACCOUNT",
+      "required": false,
+      "dependencies": [
+        "A.roles"
+      ]
+    },
+    "lesson_lifecycle": {
+      "columns": [
+        "activity_key",
+        "publication_id",
+        "status"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.schedule-lifecycle"
+      ]
+    },
+    "lesson_media_lessons": {
+      "columns": [
+        "revision",
+        "state"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.resource-audience"
+      ]
+    },
+    "lesson_media_visibility": {
+      "columns": [
+        "lesson_id",
+        "visible"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.resource-audience"
+      ]
+    },
+    "lesson_note_entries": {
+      "columns": [
+        "activity_key",
+        "revision",
+        "state"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.object-audiences"
+      ]
+    },
+    "lesson_note_versions": {
+      "columns": [
+        "source_head"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.object-audiences"
+      ]
+    },
+    "library_access_policies": {
+      "columns": [
+        "state"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.resource-audience"
+      ]
+    },
+    "memorisation_account_settings": {
+      "columns": [
+        "account_id",
+        "active",
+        "revision"
+      ],
+      "accountColumn": "account_id",
+      "scope": "ACCOUNT",
+      "required": false,
+      "dependencies": [
+        "A.setup-publication"
+      ]
+    },
+    "memorisation_activity_settings": {
+      "columns": [
+        "active",
+        "revision"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.setup-publication"
+      ]
+    },
+    "messaging_notices": {
+      "columns": [
+        "audience_json",
+        "source_head",
+        "state"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.object-audiences"
+      ]
+    },
+    "messaging_recipients": {
+      "columns": [
+        "account_id"
+      ],
+      "accountColumn": "account_id",
+      "scope": "ACCOUNT",
+      "required": false,
+      "dependencies": [
+        "A.object-audiences"
+      ]
+    },
+    "modules": {
+      "columns": [
+        "active"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.setup-publication"
+      ]
+    },
+    "note_retention_items": {
+      "columns": [
+        "activity_key",
+        "deleted_at",
+        "kind",
+        "lesson_date",
+        "state"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.resource-audience"
+      ]
+    },
+    "note_retention_objects": {
+      "columns": [
+        "state"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.resource-audience"
+      ]
+    },
+    "note_retention_policy": {
+      "columns": [
+        "enabled_at",
+        "revision"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.resource-audience"
+      ]
+    },
+    "program_historical_extensions": {
+      "columns": [
+        "activity_key",
+        "end_date",
+        "publication_id",
+        "start_date"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.schedule-lifecycle"
+      ]
+    },
+    "program_library_destinations": {
+      "columns": [
+        "activity_key"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.resource-audience"
+      ]
+    },
+    "program_library_roots": {
+      "columns": [
+        "activity_key"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.resource-audience"
+      ]
+    },
+    "program_monthly_media_policies": {
+      "columns": [
+        "activity_key",
+        "enabled",
+        "retain_recordings"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.month-surah"
+      ]
+    },
+    "program_monthly_subscriptions": {
+      "columns": [
+        "account_id",
+        "active",
+        "activity_key",
+        "class_ids_json",
+        "lesson_month"
+      ],
+      "accountColumn": "account_id",
+      "scope": "ACCOUNT",
+      "required": false,
+      "dependencies": [
+        "A.month-surah"
+      ]
+    },
+    "program_publication_lifecycle": {
+      "columns": [
+        "activity_key",
+        "publication_id",
+        "status"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.schedule-lifecycle"
+      ]
+    },
+    "program_publication_state": {
+      "columns": [
+        "activity_key",
+        "latest_publication_id"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.schedule-lifecycle"
+      ]
+    },
+    "program_resources": {
+      "columns": [
+        "active"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.resource-audience"
+      ]
+    },
+    "program_subjects": {
+      "columns": [
+        "active"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.setup-publication"
+      ]
+    },
+    "program_surah_grants": {
+      "columns": [
+        "account_id",
+        "active",
+        "activity_key",
+        "surah_id"
+      ],
+      "accountColumn": "account_id",
+      "scope": "ACCOUNT",
+      "required": false,
+      "dependencies": [
+        "A.month-surah"
+      ]
+    },
+    "program_surah_website_documents": {
+      "columns": [
+        "enabled"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.resource-audience"
+      ]
+    },
+    "program_surahs": {
+      "columns": [
+        "active",
+        "activity_key",
+        "completion_date",
+        "revision",
+        "surah_id"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.month-surah"
+      ]
+    },
+    "published_lesson_classes": {
+      "columns": [
+        "activity_key",
+        "class_id",
+        "publication_id"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.schedule-lifecycle"
+      ]
+    },
+    "published_lesson_teachers": {
+      "columns": [
+        "account_id",
+        "activity_key",
+        "publication_id"
+      ],
+      "accountColumn": "account_id",
+      "scope": "ACCOUNT",
+      "required": false,
+      "dependencies": [
+        "A.schedule-lifecycle"
+      ]
+    },
+    "published_lessons": {
+      "columns": [
+        "activity_key",
+        "kind",
+        "lesson_date",
+        "publication_id",
+        "snapshot_json",
+        "status",
+        "timezone"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.schedule-lifecycle"
+      ]
+    },
+    "role_assignments": {
+      "columns": [
+        "account_id",
+        "active",
+        "activity_key",
+        "grant_source",
+        "legacy_source_role",
+        "review_state",
+        "role"
+      ],
+      "accountColumn": "account_id",
+      "scope": "ACCOUNT",
+      "required": true,
+      "dependencies": [
+        "A.roles"
+      ]
+    },
+    "role_import_reviews": {
+      "columns": [
+        "account_id",
+        "activity_key",
+        "source_value",
+        "status"
+      ],
+      "accountColumn": "account_id",
+      "scope": "ACCOUNT",
+      "required": false,
+      "dependencies": [
+        "A.roles"
+      ]
+    },
+    "role_mapping_decisions": {
+      "columns": [
+        "source_role",
+        "target_role"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.roles"
+      ]
+    },
+    "setup_head_state": {
+      "columns": [
+        "head_id",
+        "singleton"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": true,
+      "dependencies": [
+        "A.setup-publication"
+      ]
+    },
+    "subject_catalog": {
+      "columns": [
+        "active"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.setup-publication"
+      ]
+    },
+    "tasks": {
+      "columns": [
+        "active"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.setup-publication"
+      ]
+    },
+    "timetable_publications": {
+      "columns": [
+        "activity_key",
+        "publication_id",
+        "published_at",
+        "scope_key",
+        "snapshot_json",
+        "timezone"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.schedule-lifecycle"
+      ]
+    },
+    "website_platform_access_cancellations": {
+      "columns": [
+        "activity_key"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.website-ownership"
+      ]
+    },
+    "website_platform_access_ownership": {
+      "columns": [
+        "activity_key",
+        "generation",
+        "source_version",
+        "state"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.website-ownership"
+      ]
+    },
+    "website_platform_access_scopes": {
+      "columns": [
+        "activity_key",
+        "enabled",
+        "revision"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.website-ownership"
+      ]
+    },
+    "website_platform_admissions": {
+      "columns": [
+        "account_id",
+        "active"
+      ],
+      "accountColumn": "account_id",
+      "scope": "ACCOUNT",
+      "required": false,
+      "dependencies": [
+        "A.website-ownership"
+      ]
+    },
+    "website_platform_completed_courses": {
+      "columns": [
+        "activity_key",
+        "timezone",
+        "website_id"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.website-ownership"
+      ]
+    },
+    "website_platform_control": {
+      "columns": [
+        "enabled"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.website-ownership"
+      ]
+    },
+    "website_platform_course_policy_mirror": {
+      "columns": [
+        "access_model",
+        "activity_key",
+        "revision"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.website-ownership"
+      ]
+    },
+    "website_platform_programmes": {
+      "columns": [
+        "access_model",
+        "activity_key",
+        "enabled"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.website-ownership"
+      ]
+    },
+    "website_platform_surah_maps": {
+      "columns": [
+        "activity_key",
+        "surah_id",
+        "website_id"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.website-ownership"
+      ]
+    },
+    "website_platform_timetable_scopes": {
+      "columns": [
+        "activity_key",
+        "kind",
+        "offering_id",
+        "revision"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.website-ownership"
+      ]
+    },
+    "weekly_absentee_recipients": {
+      "columns": [
+        "account_id"
+      ],
+      "accountColumn": "account_id",
+      "scope": "ACCOUNT",
+      "required": false,
+      "dependencies": [
+        "A.object-audiences"
+      ]
+    },
+    "academy_settings": {
+      "columns": [
+        "setting_key",
+        "setting_value"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": true,
+      "dependencies": [
+        "A.setup-publication"
+      ],
+      "settingFilter": [
+        "PersonalMemorisationCards",
+        "ProgramWorkspace",
+        "ProgramAccess:%"
+      ]
+    }
+  },
+  "schemaColumns": {
+    "program_surah_website_documents": [
+      "activity_key",
+      "document_json",
+      "enabled",
+      "revision",
+      "schema_version",
+      "source_kind",
+      "surah_id",
+      "updated_at",
+      "updated_by"
+    ],
+    "program_surah_website_assets": [
+      "activity_key",
+      "asset_id",
+      "byte_size",
+      "created_at",
+      "created_by",
+      "filename",
+      "mime_type",
+      "object_key",
+      "sha256",
+      "surah_id"
+    ],
+    "course_website_documents": [
+      "activity_key",
+      "document_json",
+      "enabled",
+      "revision",
+      "schema_version",
+      "source_kind",
+      "updated_at",
+      "updated_by"
+    ],
+    "course_website_assets": [
+      "activity_key",
+      "asset_id",
+      "byte_size",
+      "created_at",
+      "created_by",
+      "filename",
+      "mime_type",
+      "object_key",
+      "sha256"
+    ],
+    "website_platform_new_courses": [
+      "activity_key",
+      "created_operation",
+      "published_timezone",
+      "published_title"
+    ],
+    "website_platform_course_jobs": [
+      "access_model",
+      "activity_key",
+      "attempts",
+      "created_at",
+      "last_error",
+      "next_attempt",
+      "offering_id",
+      "phase",
+      "publication_id",
+      "registration_id",
+      "run_id"
+    ],
+    "lesson_recording_companions": [
+      "asset_id",
+      "draft_key",
+      "duration_seconds",
+      "index_json",
+      "lesson_id",
+      "published_key",
+      "revision",
+      "source_revision",
+      "uploaded_at"
+    ],
+    "program_monthly_media_policies": [
+      "activity_key",
+      "enabled",
+      "retain_recordings",
+      "revision",
+      "updated_at",
+      "updated_by_account_id"
+    ],
+    "program_monthly_subscriptions": [
+      "account_id",
+      "active",
+      "activity_key",
+      "class_ids_json",
+      "lesson_month",
+      "note",
+      "payment_date",
+      "payment_reference",
+      "revision",
+      "updated_at",
+      "updated_by_account_id"
+    ],
+    "website_platform_timetable_scopes": [
+      "activity_key",
+      "attempts",
+      "exported_revision",
+      "kind",
+      "last_error",
+      "next_attempt",
+      "offering_id",
+      "revision"
+    ],
+    "website_platform_return_codes": [
+      "challenge",
+      "code_hash",
+      "expires_at",
+      "return_context",
+      "source_ref",
+      "state",
+      "used"
+    ],
+    "note_retention_policy": [
+      "enabled_at",
+      "months",
+      "revision",
+      "singleton",
+      "warning_days"
+    ],
+    "note_retention_items": [
+      "activity_key",
+      "class_ids_json",
+      "created_at",
+      "delete_after",
+      "deleted_at",
+      "item_id",
+      "kind",
+      "label",
+      "lesson_date",
+      "next_check",
+      "ref_id",
+      "state",
+      "warned_at"
+    ],
+    "note_retention_recipients": [
+      "account_id",
+      "archived_at",
+      "first_opened_at",
+      "item_id",
+      "unread"
+    ],
+    "note_retention_objects": [
+      "object_key",
+      "state",
+      "updated_at"
+    ],
+    "note_retention_discovery": [
+      "kind",
+      "last_created",
+      "last_id",
+      "policy_revision",
+      "resume_after"
+    ],
+    "website_platform_access_scopes": [
+      "activity_key",
+      "enabled",
+      "purchase_model",
+      "revision"
+    ],
+    "website_platform_surah_maps": [
+      "activity_key",
+      "surah_id",
+      "website_id"
+    ],
+    "website_platform_access_dirty": [
+      "account_id",
+      "activity_key",
+      "exported_revision",
+      "generation",
+      "last_error",
+      "next_attempt",
+      "revision"
+    ],
+    "website_platform_access_imports": [
+      "activity_key",
+      "cursor",
+      "dataset",
+      "done",
+      "generation"
+    ],
+    "website_platform_outbox": [
+      "access_account",
+      "access_revision",
+      "access_scope",
+      "acknowledged",
+      "attempts",
+      "event_json",
+      "next_attempt",
+      "operation_id",
+      "stream",
+      "version"
+    ],
+    "program_surah_grants": [
+      "account_id",
+      "active",
+      "activity_key",
+      "note",
+      "revision",
+      "surah_id",
+      "updated_at",
+      "updated_by_account_id"
+    ],
+    "website_studio_state": [
+      "activity_key",
+      "draft_bytes",
+      "draft_key",
+      "draft_sha256",
+      "enabled",
+      "migrated_at",
+      "published_key",
+      "published_revision",
+      "published_sha256",
+      "revision",
+      "source_kind",
+      "surah_id",
+      "updated_at",
+      "updated_by",
+      "website_id"
+    ],
+    "website_studio_assets": [
+      "asset_id",
+      "byte_size",
+      "created_at",
+      "created_by",
+      "filename",
+      "lesson_id",
+      "mime_type",
+      "native_asset_id",
+      "object_key",
+      "sha256",
+      "source",
+      "website_id"
+    ],
+    "website_studio_operations": [
+      "actor_account_id",
+      "completed_at",
+      "operation_id",
+      "payload_sha256",
+      "result_json",
+      "website_id"
+    ],
+    "website_platform_access_ownership": [
+      "activity_key",
+      "checked",
+      "cursor",
+      "generation",
+      "source_version",
+      "state",
+      "transfer_id",
+      "updated_at"
+    ],
+    "website_platform_access_cancellations": [
+      "activity_key",
+      "cancelled_at",
+      "transfer_id"
+    ],
+    "website_platform_live_operations": [
+      "actor_id",
+      "created_at",
+      "operation_id",
+      "payload_hash",
+      "result_json"
+    ],
+    "website_platform_completed_courses": [
+      "activity_key",
+      "package_sha256",
+      "registered_at",
+      "registration_id",
+      "timezone",
+      "title",
+      "website_id"
+    ],
+    "academy_media_playlist_state": [
+      "activity_key",
+      "revision"
+    ],
+    "academy_media_playlists": [
+      "activity_key",
+      "class_id",
+      "close_date",
+      "context_json",
+      "created_at",
+      "created_by",
+      "enabled",
+      "name",
+      "playlist_id",
+      "published_json",
+      "published_revision",
+      "revision",
+      "updated_at",
+      "updated_by"
+    ],
+    "academy_media_playlist_recordings": [
+      "activity_key",
+      "attached_at",
+      "attached_by",
+      "confirmation_kind",
+      "confirmed_context_json",
+      "lesson_id",
+      "playlist_id",
+      "position"
+    ],
+    "website_platform_admissions": [
+      "account_id",
+      "active"
+    ],
+    "website_platform_streams": [
+      "stream",
+      "version"
+    ],
+    "website_platform_sessions": [
+      "account_id",
+      "challenge",
+      "context_json",
+      "epoch",
+      "expires_at",
+      "session_id",
+      "source_ref",
+      "state"
+    ],
+    "website_platform_provisioning": [
+      "account_id",
+      "actor_id",
+      "event_json",
+      "operation_id",
+      "payload_hash"
+    ],
+    "website_platform_guards": [
+      "accepted",
+      "guard_id"
+    ],
+    "website_platform_control": [
+      "enabled",
+      "singleton"
+    ],
+    "class_note_contexts": [
+      "activity_key",
+      "class_id",
+      "context_id",
+      "created_at",
+      "lesson_date",
+      "source_head",
+      "source_json",
+      "stable_key"
+    ],
+    "class_notes": [
+      "activity_key",
+      "context_id",
+      "created_at",
+      "created_by",
+      "current_version_id",
+      "note_id",
+      "revision",
+      "state",
+      "updated_at",
+      "updated_by",
+      "withdrawn_at"
+    ],
+    "class_note_versions": [
+      "body",
+      "context_id",
+      "created_at",
+      "created_by",
+      "due_context_id",
+      "due_date",
+      "due_json",
+      "due_mode",
+      "note_id",
+      "previous_version_id",
+      "reason",
+      "revision",
+      "source_head",
+      "version_id"
+    ],
+    "website_platform_programmes": [
+      "access_model",
+      "activity_key",
+      "enabled",
+      "programme_key"
+    ],
+    "website_platform_programme_operations": [
+      "actor_id",
+      "created_at",
+      "operation_id",
+      "payload_hash",
+      "result_json"
+    ],
+    "messaging_drafts": [
+      "actor_id",
+      "attempts",
+      "body",
+      "created_at",
+      "draft_id",
+      "last_error",
+      "link_json",
+      "next_attempt_at",
+      "notice_id",
+      "previous_notice_id",
+      "requires_ack",
+      "revision",
+      "schedule_at",
+      "schedule_local",
+      "state",
+      "subject",
+      "targets_json",
+      "timezone",
+      "updated_at",
+      "workspace"
+    ],
+    "messaging_reviews": [
+      "actor_id",
+      "created_at",
+      "digest",
+      "draft_id",
+      "draft_revision",
+      "expires_at",
+      "recipient_digest",
+      "review_id",
+      "source_head"
+    ],
+    "messaging_notices": [
+      "actor_id",
+      "audience_json",
+      "body",
+      "created_at",
+      "draft_id",
+      "issued_at",
+      "link_json",
+      "notice_id",
+      "previous_notice_id",
+      "recipient_count",
+      "recipients_json",
+      "requires_ack",
+      "scheduled_for",
+      "sender_name",
+      "source_head",
+      "state",
+      "subject",
+      "targets_json",
+      "withdrawal_reason",
+      "withdrawn_at",
+      "withdrawn_by",
+      "workspace"
+    ],
+    "messaging_recipients": [
+      "account_id",
+      "acknowledged_at",
+      "archived_at",
+      "delivered_at",
+      "display_name",
+      "first_opened_at",
+      "notice_id",
+      "unread"
+    ],
+    "messaging_jobs": [
+      "attempts",
+      "last_error",
+      "next_attempt_at",
+      "notice_id",
+      "position",
+      "state"
+    ],
+    "messaging_events": [
+      "action",
+      "actor_id",
+      "details_json",
+      "draft_id",
+      "event_id",
+      "notice_id",
+      "occurred_at"
+    ],
+    "messaging_operations": [
+      "actor_id",
+      "created_at",
+      "operation_id",
+      "request_hash",
+      "result_json"
+    ],
+    "website_platform_course_policy_mirror": [
+      "access_model",
+      "activity_key",
+      "revision"
+    ],
+    "weekly_absentee_reports": [
+      "created_at",
+      "week_end",
+      "week_start"
+    ],
+    "weekly_absentee_rows": [
+      "account_id",
+      "activity_key",
+      "attendance_date",
+      "display_name",
+      "lesson_json",
+      "series_id",
+      "week_start"
+    ],
+    "weekly_absentee_recipients": [
+      "account_id",
+      "archived_at",
+      "first_opened_at",
+      "unread",
+      "week_start"
+    ],
+    "program_surahs": [
+      "active",
+      "activity_key",
+      "card_key",
+      "completion_date",
+      "name",
+      "revision",
+      "surah_id",
+      "updated_at",
+      "updated_by_account_id"
+    ],
+    "account_contact_details": [
+      "account_id",
+      "updated_at",
+      "updated_by_account_id",
+      "whatsapp_number"
+    ],
+    "assessment_submissions": [
+      "account_id",
+      "assessment_id",
+      "collection_revision",
+      "confirmed_at",
+      "confirmed_by",
+      "deadline_used",
+      "file_id",
+      "is_late",
+      "submission_id",
+      "submission_number",
+      "submitted_at"
+    ],
+    "assessments": [
+      "activity_key",
+      "allowance_minutes",
+      "assessment_id",
+      "assessment_kind",
+      "available_from",
+      "class_id",
+      "created_at",
+      "created_by",
+      "deleted_at",
+      "deleted_by",
+      "due_at",
+      "duration_minutes",
+      "exam_cutoff",
+      "exam_date",
+      "examiner_id",
+      "maximum_mark",
+      "paper_comment",
+      "paper_file_id",
+      "paper_released_at",
+      "paper_state",
+      "phase_id",
+      "ready_for_assessment_at",
+      "ready_for_assessment_by",
+      "register_id",
+      "revision",
+      "schedule_published",
+      "subject",
+      "subject_descriptor",
+      "timezone",
+      "timing_mode",
+      "title",
+      "updated_at"
+    ],
+    "setup_batches": [
+      "accepted_head",
+      "actor_account_id",
+      "batch_id",
+      "created_at",
+      "digest",
+      "expected_head",
+      "manifest_json",
+      "scope_keys_json",
+      "source_version"
+    ],
+    "setup_components": [
+      "batch_id",
+      "component_id",
+      "digest",
+      "row_count",
+      "rows_json",
+      "scope_key",
+      "table_name"
+    ],
+    "setup_heads": [
+      "accepted_at",
+      "accepted_by",
+      "batch_id",
+      "head_id",
+      "parent_head"
+    ],
+    "setup_head_components": [
+      "component_id",
+      "head_id",
+      "scope_key",
+      "table_name"
+    ],
+    "setup_head_state": [
+      "head_id",
+      "singleton"
+    ],
+    "academy_enrolment_requests_10689": [
+      "account_id",
+      "created_at",
+      "display_name",
+      "paid",
+      "payload_sha256",
+      "request_id",
+      "revision",
+      "submission_key",
+      "updated_at",
+      "whatsapp_number"
+    ],
+    "academy_enrolment_request_items_10689": [
+      "activity_key",
+      "activity_name",
+      "cost_text",
+      "enrolment_year",
+      "entry_id",
+      "request_id"
+    ],
+    "academy_announcements": [
+      "active",
+      "announcement_id",
+      "created_at",
+      "deleted_at",
+      "display_order",
+      "image_alt",
+      "image_bytes",
+      "image_key",
+      "image_name",
+      "image_type",
+      "message",
+      "revision",
+      "title",
+      "updated_at",
+      "updated_by"
+    ],
+    "lesson_plan_requirements": [
+      "activity_key",
+      "plans_required"
+    ],
+    "lesson_note_entries": [
+      "activity_key",
+      "container_id",
+      "created_at",
+      "created_by",
+      "current_version_id",
+      "note_id",
+      "owner_id",
+      "revision",
+      "session_key",
+      "state"
+    ],
+    "lesson_note_versions": [
+      "byte_size",
+      "display_name",
+      "filename",
+      "note_id",
+      "object_key",
+      "sha256",
+      "source_head",
+      "source_json",
+      "uploaded_at",
+      "uploaded_by",
+      "version_id"
+    ],
+    "lesson_media_visibility": [
+      "lesson_id",
+      "updated_at",
+      "updated_by",
+      "visible"
+    ],
+    "lesson_media_lessons": [
+      "activity_key",
+      "class_id",
+      "comments_closed",
+      "end_time",
+      "lesson_date",
+      "lesson_id",
+      "media_scope",
+      "revision",
+      "run_id",
+      "session_key",
+      "source_lessons_json",
+      "source_publication_id",
+      "start_time",
+      "state",
+      "summary",
+      "teacher_id",
+      "teacher_ids_json",
+      "teacher_name",
+      "title",
+      "updated_at"
+    ],
+    "lesson_media_assets": [
+      "activity_key",
+      "asset_id",
+      "byte_size",
+      "created_at",
+      "display_name",
+      "filename",
+      "kind",
+      "object_key",
+      "youtube_id"
+    ],
+    "lesson_media_links": [
+      "asset_id",
+      "lesson_id"
+    ],
+    "lesson_media_comments": [
+      "account_id",
+      "body",
+      "comment_id",
+      "created_at",
+      "lesson_id",
+      "parent_id",
+      "pinned",
+      "revision",
+      "staff",
+      "state",
+      "updated_at"
+    ],
+    "program_historical_extensions": [
+      "activity_key",
+      "created_at",
+      "end_date",
+      "extension_id",
+      "publication_id",
+      "reason",
+      "start_date"
+    ],
+    "lesson_media_lessons_next": [
+      "activity_key",
+      "class_id",
+      "comments_closed",
+      "end_time",
+      "lesson_date",
+      "lesson_id",
+      "revision",
+      "run_id",
+      "session_key",
+      "source_lessons_json",
+      "source_publication_id",
+      "start_time",
+      "state",
+      "summary",
+      "teacher_id",
+      "teacher_ids_json",
+      "teacher_name",
+      "title",
+      "updated_at"
+    ],
+    "academy_write_state": [
+      "singleton",
+      "version"
+    ],
+    "academy_write_guards": [
+      "accepted",
+      "guard_id"
+    ],
+    "role_mapping_decisions": [
+      "approved_at",
+      "decision_source",
+      "source_role",
+      "target_role"
+    ],
+    "teacher_availability": [
+      "account_id",
+      "ranges_json",
+      "revision",
+      "updated_at"
+    ],
+    "teacher_availability_changes": [
+      "account_id",
+      "change_id",
+      "changed_at",
+      "previous_json",
+      "ranges_json"
+    ],
+    "teacher_availability_notices": [
+      "account_id",
+      "change_id"
+    ],
+    "program_timetable_records": [
+      "activity_key",
+      "draft_json",
+      "publication_id",
+      "source_id",
+      "status",
+      "timetable_id",
+      "updated_at",
+      "validation_hash"
+    ],
+    "program_publication_lifecycle": [
+      "activity_key",
+      "changed_at",
+      "publication_id",
+      "status"
+    ],
+    "program_settings": [
+      "activity_key",
+      "duration_years",
+      "kind",
+      "public_card_json",
+      "revision",
+      "timezone"
+    ],
+    "academy_import_schema": [
+      "migration_name",
+      "migration_sha256"
+    ],
+    "account_sessions": [
+      "account_id",
+      "created_at",
+      "credential_epoch",
+      "expires_at",
+      "revoked_at",
+      "session_id"
+    ],
+    "legacy_access_evidence": [
+      "account_id",
+      "activity_key",
+      "evidence_id",
+      "run_id",
+      "source_effective",
+      "source_locator",
+      "source_review_state",
+      "source_role"
+    ],
+    "program_legacy_teachers": [
+      "account_id",
+      "activity_key",
+      "run_id"
+    ],
+    "activity_policy_imports": [
+      "activity_key",
+      "run_id",
+      "source_access_model",
+      "source_description",
+      "source_review_state",
+      "source_stage"
+    ],
+    "subject_catalog": [
+      "active",
+      "name",
+      "source_namespace",
+      "subject_id",
+      "subject_key"
+    ],
+    "program_subjects": [
+      "active",
+      "activity_key",
+      "program_subject_id",
+      "subject_key"
+    ],
+    "program_levels": [
+      "active",
+      "activity_key",
+      "level_id",
+      "name",
+      "program_subject_id",
+      "sort_order"
+    ],
+    "modules": [
+      "active",
+      "activity_key",
+      "level_id",
+      "module_id",
+      "name",
+      "program_subject_id",
+      "sort_order"
+    ],
+    "tasks": [
+      "active",
+      "activity_key",
+      "module_id",
+      "name",
+      "program_subject_id",
+      "sort_order",
+      "task_id"
+    ],
+    "classes": [
+      "academic_year",
+      "active",
+      "activity_key",
+      "class_id",
+      "name",
+      "zoom_link"
+    ],
+    "class_memberships": [
+      "account_id",
+      "active",
+      "activity_key",
+      "class_id",
+      "end_date",
+      "enrollment_id",
+      "start_date"
+    ],
+    "class_teacher_assignments": [
+      "account_id",
+      "activity_key",
+      "class_id",
+      "responsibility"
+    ],
+    "class_module_progress": [
+      "activity_key",
+      "class_id",
+      "module_id",
+      "progress_id",
+      "status"
+    ],
+    "program_resources": [
+      "active",
+      "activity_key",
+      "description",
+      "drive_file_id",
+      "level_id",
+      "metadata_json",
+      "module_id",
+      "name",
+      "program_subject_id",
+      "resource_id",
+      "resource_type",
+      "task_id"
+    ],
+    "program_library_roots": [
+      "activity_key",
+      "folder_id",
+      "name"
+    ],
+    "management_revisions": [
+      "activity_key",
+      "modified_at",
+      "modified_by_source_id",
+      "source_revision",
+      "source_sequence",
+      "source_snapshot_sha256"
+    ],
+    "course_runs": [
+      "active",
+      "activity_key",
+      "end_date",
+      "name",
+      "run_id",
+      "schedule_definition",
+      "schedule_mode",
+      "start_date",
+      "timezone"
+    ],
+    "course_resources": [
+      "active",
+      "activity_key",
+      "description",
+      "module_id",
+      "name",
+      "resource_format",
+      "resource_id",
+      "resource_link",
+      "resource_type",
+      "task_id"
+    ],
+    "assessment_files": [
+      "activity_key",
+      "assessment_id",
+      "byte_size",
+      "file_id",
+      "filename",
+      "kind",
+      "mime_type",
+      "object_key",
+      "operation_id",
+      "owner_id",
+      "uploaded_at",
+      "uploaded_by"
+    ],
+    "assessment_recipients": [
+      "account_id",
+      "assessment_id",
+      "display_name",
+      "first_accessed_at",
+      "latest_mark_id",
+      "latest_submission_id",
+      "released_feedback_id",
+      "released_mark_id",
+      "released_script_id",
+      "resubmit_authorised",
+      "revision"
+    ],
+    "assessment_markings": [
+      "account_id",
+      "assessment_id",
+      "created_at",
+      "examiner_id",
+      "feedback",
+      "mark",
+      "mark_id",
+      "moderated_at",
+      "moderation_comment",
+      "moderator_id",
+      "script_file_id",
+      "state",
+      "submission_id"
+    ],
+    "assessment_events": [
+      "account_id",
+      "action",
+      "activity_key",
+      "actor_id",
+      "assessment_id",
+      "details_json",
+      "event_id",
+      "occurred_at"
+    ],
+    "assessment_report_templates": [
+      "activity_key",
+      "file_id",
+      "layout_json",
+      "name",
+      "revision",
+      "template_id",
+      "updated_at",
+      "updated_by"
+    ],
+    "assessment_reports": [
+      "account_id",
+      "activity_key",
+      "class_id",
+      "created_at",
+      "created_by",
+      "file_id",
+      "report_id",
+      "source_json"
+    ],
+    "academy_module_catalogue": [
+      "active",
+      "module_id",
+      "name",
+      "name_key",
+      "revision",
+      "subject_key"
+    ],
+    "academy_module_usage": [
+      "academy_module_id",
+      "activity_key",
+      "module_id"
+    ],
+    "memorisation_account_settings": [
+      "account_id",
+      "active",
+      "revision",
+      "updated_at",
+      "updated_by"
+    ],
+    "memorisation_module_activities": [
+      "activity_key",
+      "module_id"
+    ],
+    "memorisation_activity_settings": [
+      "active",
+      "activity_key",
+      "learners_per_card",
+      "revision",
+      "updated_at",
+      "updated_by"
+    ],
+    "academy_enrolment_catalogue": [
+      "active",
+      "activity_key",
+      "cost_text",
+      "created_at",
+      "display_order",
+      "enrolment_year",
+      "entry_id",
+      "revision",
+      "updated_at",
+      "updated_by_account_id"
+    ],
+    "academy_enrolment_requests": [
+      "account_id",
+      "created_at",
+      "display_name",
+      "paid",
+      "payload_sha256",
+      "request_id",
+      "revision",
+      "submission_key",
+      "updated_at",
+      "whatsapp_number"
+    ],
+    "academy_enrolment_request_items": [
+      "activity_key",
+      "activity_name",
+      "cost_text",
+      "enrolment_year",
+      "entry_id",
+      "request_id"
+    ],
+    "timetable_drafts": [
+      "activity_key",
+      "draft_json",
+      "modified_at",
+      "scope_key",
+      "source_draft_sha256",
+      "source_revision",
+      "source_sequence"
+    ],
+    "course_draft_sessions": [
+      "activity_key",
+      "description",
+      "end_time",
+      "module_id",
+      "occurrence_date",
+      "run_id",
+      "schedule_rule_key",
+      "session_date",
+      "session_id",
+      "session_kind",
+      "start_time",
+      "teacher_account_id",
+      "zoom_link"
+    ],
+    "timetable_publications": [
+      "activity_key",
+      "conversion",
+      "effective_from",
+      "effective_until",
+      "pattern",
+      "publication_id",
+      "published_at",
+      "published_by_source_id",
+      "scope_key",
+      "snapshot_json",
+      "source_snapshot_sha256",
+      "timezone",
+      "version_no"
+    ],
+    "published_lessons": [
+      "activity_key",
+      "end_time",
+      "kind",
+      "lesson_anchor",
+      "lesson_date",
+      "module_id",
+      "publication_id",
+      "snapshot_json",
+      "source_rule_id",
+      "start_time",
+      "status",
+      "timezone",
+      "title",
+      "weekday",
+      "zoom_link"
+    ],
+    "published_lesson_classes": [
+      "activity_key",
+      "class_id",
+      "lesson_anchor",
+      "publication_id"
+    ],
+    "published_lesson_teachers": [
+      "account_id",
+      "activity_key",
+      "lesson_anchor",
+      "publication_id"
+    ],
+    "lesson_lifecycle": [
+      "activity_key",
+      "lifecycle_id",
+      "previous_source_session_id",
+      "publication_id",
+      "replacement_source_session_id",
+      "source_session_id",
+      "status"
+    ],
+    "course_run_state": [
+      "activity_key",
+      "current_publication_id",
+      "draft_publish_end_date",
+      "draft_publish_start_date",
+      "run_id",
+      "stage"
+    ],
+    "memorisation_catalogue_state": [
+      "revision",
+      "singleton"
+    ],
+    "memorisation_modules": [
+      "level",
+      "module_id",
+      "sort_order",
+      "subject"
+    ],
+    "memorisation_tasks": [
+      "module_id",
+      "name",
+      "sort_order",
+      "task_id"
+    ],
+    "learner_task_progress": [
+      "account_id",
+      "complete",
+      "completed_at",
+      "confirmed",
+      "confirmed_at",
+      "confirmed_by",
+      "revision",
+      "task_id",
+      "updated_at"
+    ],
+    "assessment_phases": [
+      "activity_key",
+      "created_at",
+      "created_by",
+      "name",
+      "name_normalised",
+      "phase_id"
+    ],
+    "learner_task_progress_independent": [
+      "account_id",
+      "complete",
+      "completed_at",
+      "confirmed",
+      "confirmed_at",
+      "confirmed_by",
+      "revision",
+      "task_id",
+      "updated_at"
+    ],
+    "accounts": [
+      "account_id",
+      "active",
+      "created_at",
+      "created_by_source_id",
+      "display_name",
+      "last_login_at",
+      "login_link_id",
+      "modified_by_source_id",
+      "revision",
+      "updated_at"
+    ],
+    "account_credentials": [
+      "account_id",
+      "credential_epoch",
+      "pin_hash",
+      "pin_setup",
+      "updated_at"
+    ],
+    "global_role_assignments": [
+      "account_id",
+      "active",
+      "assignment_id",
+      "granted_at",
+      "granted_by_account_id",
+      "review_state",
+      "role"
+    ],
+    "academy_admissions": [
+      "account_id",
+      "admitted_at",
+      "admitted_by_account_id",
+      "review_state",
+      "revision",
+      "status"
+    ],
+    "activities": [
+      "active",
+      "activity_id",
+      "activity_key",
+      "created_at",
+      "kind",
+      "lifecycle",
+      "name",
+      "revision",
+      "updated_at",
+      "website_visible"
+    ],
+    "activity_source_bindings": [
+      "activity_key",
+      "provider",
+      "schema_version",
+      "source_ref"
+    ],
+    "course_settings": [
+      "activity_key",
+      "kind",
+      "legacy_access_model",
+      "policy_review_state"
+    ],
+    "role_assignments": [
+      "account_id",
+      "active",
+      "activity_key",
+      "assignment_id",
+      "grant_source",
+      "granted_at",
+      "granted_by_account_id",
+      "legacy_source_role",
+      "review_state",
+      "revision",
+      "role"
+    ],
+    "role_import_reviews": [
+      "account_id",
+      "activity_key",
+      "note",
+      "proposed_role",
+      "review_id",
+      "reviewed_at",
+      "reviewed_by_account_id",
+      "source_locator",
+      "source_value",
+      "status"
+    ],
+    "legacy_identity_links": [
+      "account_id",
+      "activity_key",
+      "kind",
+      "link_id",
+      "local_record_id",
+      "profile_type"
+    ],
+    "academy_settings": [
+      "setting_key",
+      "setting_value",
+      "updated_at",
+      "updated_by_account_id"
+    ],
+    "audit_events": [
+      "action",
+      "actor_account_id",
+      "actor_name_snapshot",
+      "actor_source_id",
+      "authority",
+      "changed_fields_json",
+      "event_id",
+      "occurred_at",
+      "record_id",
+      "record_kind",
+      "scope_key"
+    ],
+    "operation_receipts": [
+      "actor_account_id",
+      "completed_at",
+      "dataset_key",
+      "operation_id",
+      "payload_sha256",
+      "result_json",
+      "scope_key"
+    ],
+    "migration_runs": [
+      "code_commit",
+      "environment",
+      "finished_at",
+      "run_id",
+      "source_snapshot_sha256",
+      "started_at",
+      "state"
+    ],
+    "source_record_map": [
+      "run_id",
+      "source_id",
+      "source_record_sha256",
+      "source_row_number",
+      "source_store_key",
+      "source_table",
+      "target_key",
+      "target_table"
+    ],
+    "migration_checks": [
+      "actual_count",
+      "check_name",
+      "checked_at",
+      "dataset_key",
+      "expected_count",
+      "findings_count",
+      "run_id",
+      "scope_key",
+      "status"
+    ],
+    "data_ownership": [
+      "authoritative_store",
+      "dataset_key",
+      "phase",
+      "revision",
+      "scope_key",
+      "switched_at",
+      "verified_run_id"
+    ],
+    "lesson_plan_policies": [
+      "activity_key",
+      "course_lead_days",
+      "revision",
+      "updated_at",
+      "updated_by",
+      "weekly_day",
+      "weekly_time"
+    ],
+    "lesson_plan_preferences": [
+      "activity_key",
+      "period",
+      "run_id",
+      "teacher_id"
+    ],
+    "lesson_plans": [
+      "activity_key",
+      "created_at",
+      "draft_json",
+      "last_submitted_at",
+      "period",
+      "plan_id",
+      "revision",
+      "run_id",
+      "submitted_at",
+      "submitted_due_at",
+      "submitted_json",
+      "submitted_revision",
+      "teacher_id",
+      "updated_at",
+      "week_start"
+    ],
+    "lesson_plan_revisions": [
+      "action",
+      "actor_id",
+      "content_json",
+      "created_at",
+      "plan_id",
+      "revision"
+    ],
+    "lesson_plan_comments": [
+      "actor_id",
+      "body",
+      "comment_id",
+      "created_at",
+      "plan_id",
+      "submitted_revision"
+    ],
+    "lesson_plan_deadlines": [
+      "activity_key",
+      "due_at",
+      "period",
+      "reason",
+      "revision",
+      "run_id",
+      "teacher_id",
+      "updated_at",
+      "updated_by",
+      "week_start"
+    ],
+    "academy_teacher_designations": [
+      "account_id",
+      "active",
+      "revision",
+      "updated_at",
+      "updated_by_account_id"
+    ],
+    "course_management_drafts": [
+      "accepted_sha256",
+      "activity_key",
+      "completed_at",
+      "details_json",
+      "repeated_from_activity_key",
+      "revision",
+      "run_id",
+      "schedule_sha256",
+      "stage",
+      "updated_at",
+      "updated_by_account_id",
+      "validation_sha256"
+    ],
+    "hifz_profile_sync": [
+      "account_id",
+      "attempts",
+      "delivered_revision",
+      "last_error_code",
+      "next_attempt_at",
+      "pin_reset_version",
+      "revision",
+      "updated_at"
+    ],
+    "memorisation_sets": [
+      "active",
+      "level",
+      "name",
+      "name_key",
+      "revision",
+      "set_id",
+      "sort_order",
+      "subject"
+    ],
+    "memorisation_set_activities": [
+      "activity_key",
+      "set_id"
+    ],
+    "memorisation_tasks_separated": [
+      "module_id",
+      "name",
+      "sort_order",
+      "task_id"
+    ],
+    "learner_task_progress_separated": [
+      "account_id",
+      "complete",
+      "completed_at",
+      "confirmed",
+      "confirmed_at",
+      "confirmed_by",
+      "revision",
+      "task_id",
+      "updated_at"
+    ],
+    "lesson_media_assets_next": [
+      "activity_key",
+      "asset_id",
+      "byte_size",
+      "created_at",
+      "display_name",
+      "filename",
+      "kind",
+      "object_key",
+      "youtube_id"
+    ],
+    "assessments_next": [
+      "activity_key",
+      "allowance_minutes",
+      "assessment_id",
+      "assessment_kind",
+      "available_from",
+      "class_id",
+      "created_at",
+      "created_by",
+      "deleted_at",
+      "deleted_by",
+      "due_at",
+      "duration_minutes",
+      "exam_cutoff",
+      "exam_date",
+      "examiner_id",
+      "maximum_mark",
+      "paper_comment",
+      "paper_file_id",
+      "paper_released_at",
+      "paper_state",
+      "phase_id",
+      "ready_for_assessment_at",
+      "ready_for_assessment_by",
+      "register_id",
+      "revision",
+      "schedule_published",
+      "subject",
+      "subject_descriptor",
+      "timezone",
+      "timing_mode",
+      "title",
+      "updated_at"
+    ],
+    "assessment_collection": [
+      "assessment_id",
+      "closed_at",
+      "effective_due_at",
+      "revision",
+      "updated_at",
+      "updated_by"
+    ],
+    "assessment_attempts": [
+      "account_id",
+      "allowance_minutes",
+      "assessment_id",
+      "deadline_at",
+      "definition_revision",
+      "duration_minutes",
+      "first_accessed_at",
+      "timezone",
+      "timing_mode"
+    ],
+    "assessment_file_integrity": [
+      "file_id",
+      "sha256"
+    ],
+    "assessment_paper_review": [
+      "assessment_id",
+      "definition_revision",
+      "file_id",
+      "reviewed_at",
+      "reviewed_by",
+      "sha256"
+    ],
+    "assessment_report_evidence": [
+      "background_file_id",
+      "layout_json",
+      "report_id",
+      "reviewed_at",
+      "reviewed_by",
+      "sha256",
+      "source_json",
+      "template_id",
+      "template_revision"
+    ],
+    "assessment_script_sources": [
+      "file_id",
+      "maximum_mark",
+      "paper_file_id",
+      "submission_id"
+    ],
+    "course_subscription_decisions": [
+      "account_id",
+      "active",
+      "activity_key",
+      "revision",
+      "updated_at",
+      "updated_by_account_id"
+    ],
+    "course_workflow_imports": [
+      "base_run_id",
+      "imported_at",
+      "singleton",
+      "source_sha256",
+      "summary_json"
+    ],
+    "course_run_access": [
+      "access_model",
+      "activity_key",
+      "run_id"
+    ],
+    "course_session_state": [
+      "active",
+      "activity_key",
+      "run_id",
+      "session_id"
+    ],
+    "course_draft_lifecycle": [
+      "activity_key",
+      "lifecycle_id",
+      "previous_session_id",
+      "replacement_session_id",
+      "run_id",
+      "session_id",
+      "status"
+    ],
+    "academy_calendar_events": [
+      "active",
+      "alternate_date",
+      "calendar_kind",
+      "description",
+      "end_date",
+      "event_id",
+      "event_type",
+      "revision",
+      "scope_key",
+      "start_date",
+      "teaching_impact"
+    ],
+    "academy_calendar_suppressions": [
+      "calendar_date"
+    ],
+    "academy_pdf_bookmarks": [
+      "account_id",
+      "bookmark_key",
+      "created_at",
+      "file",
+      "page_label",
+      "page_number",
+      "title",
+      "updated_at"
+    ],
+    "attendance_generation": [
+      "generation",
+      "singleton",
+      "started_at"
+    ],
+    "attendance_days": [
+      "activity_key",
+      "attendance_date",
+      "created_at",
+      "day_id",
+      "setup_head",
+      "timezone"
+    ],
+    "attendance_roster_versions": [
+      "activity_key",
+      "created_at",
+      "member_count",
+      "roster_hash",
+      "roster_id"
+    ],
+    "attendance_roster_members": [
+      "account_id",
+      "display_name",
+      "roster_id"
+    ],
+    "attendance_series": [
+      "day_id",
+      "latest_version_id",
+      "series_id",
+      "stable_key"
+    ],
+    "attendance_series_aliases": [
+      "activity_key",
+      "attendance_date",
+      "class_id",
+      "lesson_anchor",
+      "publication_id",
+      "series_id"
+    ],
+    "attendance_day_contexts": [
+      "class_id",
+      "context_id",
+      "day_id",
+      "lesson_json",
+      "required",
+      "roster_id",
+      "run_id",
+      "series_id"
+    ],
+    "attendance_register_versions": [
+      "absence_count",
+      "generation",
+      "operation_id",
+      "previous_version_id",
+      "roster_id",
+      "series_id",
+      "submitted_at",
+      "submitted_by",
+      "version_id"
+    ],
+    "attendance_absences": [
+      "account_id",
+      "roster_id",
+      "version_id"
+    ],
+    "attendance_substitutes": [
+      "account_id",
+      "activity_key",
+      "assignment_id",
+      "attendance_date",
+      "correction_reopen_until",
+      "correction_until",
+      "created_at",
+      "created_by",
+      "first_until",
+      "revision",
+      "revoked_at",
+      "stable_key",
+      "starts_at"
+    ],
+    "attendance_delivery_rosters": [
+      "activity_key",
+      "reviewed_at",
+      "reviewed_by",
+      "revision",
+      "run_id"
+    ],
+    "attendance_delivery_members": [
+      "account_id",
+      "activity_key",
+      "created_at",
+      "created_by",
+      "interval_id",
+      "join_date",
+      "leave_date",
+      "revision",
+      "run_id",
+      "state"
+    ],
+    "program_publication_state": [
+      "activity_key",
+      "latest_publication_id"
+    ],
+    "learning_imports": [
+      "base_run_id",
+      "imported_at",
+      "singleton",
+      "source_sha256",
+      "summary_json"
+    ],
+    "library_access_policies": [
+      "entitlement_source",
+      "resource_key",
+      "state",
+      "subscription_scope"
+    ],
+    "library_exclusions": [
+      "resource_key"
+    ],
+    "program_library_destinations": [
+      "activity_key",
+      "folder_id"
+    ],
+    "attendance_registers": [
+      "activity_key",
+      "attendance_date",
+      "learner_count",
+      "lesson_anchor",
+      "lesson_json",
+      "operation_id",
+      "publication_id",
+      "register_id",
+      "sequence",
+      "source_actor_id",
+      "submitted_at",
+      "submitted_by_account_id"
+    ],
+    "attendance_marks": [
+      "account_id",
+      "activity_key",
+      "display_name",
+      "register_id",
+      "status"
+    ],
+    "assessment_registers": [
+      "class_activity_key",
+      "class_id",
+      "class_mode",
+      "created_at",
+      "created_by",
+      "legacy_phase_id",
+      "name",
+      "register_id",
+      "revision",
+      "status",
+      "updated_at"
+    ],
+    "assessment_register_areas": [
+      "activity_key",
+      "register_id"
+    ],
+    "assessment_register_import": [
+      "activity_key",
+      "class_id",
+      "created_at",
+      "created_by",
+      "name",
+      "register_id",
+      "status",
+      "updated_at"
+    ],
+    "staging_runs": [
+      "envelope_json",
+      "imported_at",
+      "snapshot_sha256",
+      "state"
+    ],
+    "staging_books": [
+      "book_index",
+      "metadata_json",
+      "snapshot_sha256"
+    ],
+    "staging_tabs": [
+      "book_index",
+      "metadata_json",
+      "row_count",
+      "snapshot_sha256",
+      "tab_index"
+    ],
+    "staging_rows": [
+      "book_index",
+      "cells_json",
+      "cells_sha256",
+      "row_number",
+      "snapshot_sha256",
+      "tab_index"
+    ],
+    "staging_accounts": [
+      "account_key",
+      "book_index",
+      "login_key",
+      "row_number",
+      "snapshot_sha256",
+      "tab_index"
+    ],
+    "staging_checks": [
+      "check_name",
+      "checked_count",
+      "snapshot_sha256"
+    ],
+    "staging_schema": [
+      "version"
+    ],
+    "actor_refs": [
+      "account_id"
+    ],
+    "d1_migrations": [
+      "applied_at",
+      "id",
+      "name"
+    ],
+    "file_refs": [
+      "file_id"
+    ],
+    "identity_refs": [
+      "account_id"
+    ],
+    "split_command_parts": [
+      "command_id",
+      "part_index",
+      "payload"
+    ],
+    "split_commands": [
+      "command_id",
+      "created_at",
+      "error_code",
+      "payload_hash",
+      "phase",
+      "proof_json"
+    ],
+    "split_deployment_state": [
+      "generation",
+      "prepared_at",
+      "selection_digest",
+      "singleton",
+      "source_digest",
+      "state"
+    ],
+    "split_read_state": [
+      "singleton",
+      "version"
+    ],
+    "split_transaction_guards": [
+      "accepted",
+      "guard_id"
+    ],
+    "split_write_fence": [
+      "allow_write",
+      "command_id",
+      "singleton"
+    ]
+  },
+  "acceptedSetup": "Core setup_head_state is the accepted Admin definition dependency; unaccepted Admin/private draft writes have no active capture.",
+  "unknownAuthority": "New fields cannot enter the allowlisted rights serializer without registry/trigger update. Installer rejects missing declared fields/required tables; no blind IF EXISTS skip.",
+  "provenance": "Derived from selected native source ownership and milestone 1 dependency registry; no user records.",
+  "parser": "Balanced CREATE column extraction plus ALTER ADD/RENAME; static selected-source inventory. Actual installed-schema comparison is mandatory before later application.",
+  "reviewCorrections": "Reader-derived explicit live-deny, FK/audience and legacy mapping exceptions override keyword/physical-owner heuristics. Registry must be reviewed against actual readers whenever source changes."
+}

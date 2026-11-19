@@ -1,0 +1,433 @@
+{
+  "schema": 1,
+  "release": "V111-milestone2-foundation",
+  "deploymentApproval": "PENDING",
+  "apps": [
+    {
+      "app": "Academy",
+      "base": "15d1a1e5d96e831af8946a59eb70f9ce97023cfe",
+      "files": [
+        {
+          "path": ".github/workflows/v111-foundation-check.yml",
+          "sha256": "246ab7a6a7093877c08211b27d9e3e56c91d10c84236ffb310e8915378031f26"
+        },
+        {
+          "path": "config/v111-auth.json",
+          "sha256": "8d151c29bab632789d51077299be14473454db37bd5adbab28fd180c587f6450"
+        },
+        {
+          "path": "security/v2/README.txt",
+          "sha256": "87580fd2d10ff383419a62db210981d52174eec905ecd312e14c2522cd5d026a"
+        },
+        {
+          "path": "security/v2/browser-security.mjs",
+          "sha256": "ac4f8fb6892cba52adae4ec66c9794987ee701cd3acfe2e9c769e86909efe281"
+        },
+        {
+          "path": "security/v2/cache.mjs",
+          "sha256": "3b426631bbb07a6656fc81286d3e0918f95d6af4e17d226b12a26c36f9ae5ef3"
+        },
+        {
+          "path": "security/v2/capture-receipt.mjs",
+          "sha256": "ccb8a5a15a588843927e425d759634e572cff7635c8d5f48ae2f5275c205a824"
+        },
+        {
+          "path": "security/v2/capture.mjs",
+          "sha256": "d24ec0a7d477595c7991949a1132c8236850f22e0901c24bf5b4e7063e7b3519"
+        },
+        {
+          "path": "security/v2/ceremonies.mjs",
+          "sha256": "c67d4ee09a812255971324a5cdd5170ca03589750ed6242deff7185a5dabab36"
+        },
+        {
+          "path": "security/v2/codec.mjs",
+          "sha256": "cc8654f2f01230c461bfca39b5dad6d0392f479fe04c76b5e1b67a633c443d9f"
+        },
+        {
+          "path": "security/v2/control-publication.mjs",
+          "sha256": "b3aa6627897cc21b9702b6f490352ef0a46dc69df38a0134fa3ae81c759bb2bd"
+        },
+        {
+          "path": "security/v2/control-shapes.mjs",
+          "sha256": "f769504435ea4ccbdf3565701ccc668fd5d5ed022474b89896d86a2fad88606d"
+        },
+        {
+          "path": "security/v2/events.mjs",
+          "sha256": "8556836a7310ddca862b2b6413dac3622737b7705220fa4938044a134fdd8c0c"
+        },
+        {
+          "path": "security/v2/fallback.mjs",
+          "sha256": "268033ae1b57c35d762ac2591dc39f5a4b28fd568bd2256f2e9aaaf56480b11f"
+        },
+        {
+          "path": "security/v2/floors.mjs",
+          "sha256": "08f824452bd00758a9d21485470db6c1954b7c7bbbd91e603c4fe69e4fd83d83"
+        },
+        {
+          "path": "security/v2/instrumentation.mjs",
+          "sha256": "fecc4934c5820bde33680a0dc87f563829906a5ba1d02b6a35c0f2e4e28a2684"
+        },
+        {
+          "path": "security/v2/issuance-floors.mjs",
+          "sha256": "3692efc4fe8c0788b1ced5b3d639058d89df78a1d6e8146d34755c465566a994"
+        },
+        {
+          "path": "security/v2/native-adapter.mjs",
+          "sha256": "02089cfe9b8e6610ed7c40d618c5df60896be70e15c3eaf7155ee5c439a989c3"
+        },
+        {
+          "path": "security/v2/native-authority.json",
+          "sha256": "2cddca7bad402c9d0ab26d8f4343b0a147c6fc82ab2a4344e969799a8026a200"
+        },
+        {
+          "path": "security/v2/outbox.mjs",
+          "sha256": "bffa23db1e7724b199f3b598040e807f0f55fb1fb8c44d97ac83cdfeeacedeaa"
+        },
+        {
+          "path": "security/v2/policy-coverage.mjs",
+          "sha256": "a77b8b8c84176042b5005bdbc8641ecaa96b55071f68eab2674cbd5d6388857f"
+        },
+        {
+          "path": "security/v2/policy.mjs",
+          "sha256": "4b283344a85dbcbab0a8ed25efcb40e08c56ac227fbbd0fca35895a52a364dca"
+        },
+        {
+          "path": "security/v2/publication.mjs",
+          "sha256": "97d278b372d68381749f323c45c7badd7b67d6b8fdb23dbaac7061f37ac81c68"
+        },
+        {
+          "path": "security/v2/recovery.mjs",
+          "sha256": "0e2744596e2fff0029a31eb5a9efcf6072fbf03ba86bc96b28605b40eb885d58"
+        },
+        {
+          "path": "security/v2/schema-bundle.mjs",
+          "sha256": "b9908a00a942d311dd88552f244897d26aaf88109e7a1338240666e7f1004cee"
+        },
+        {
+          "path": "security/v2/schema.mjs",
+          "sha256": "aa03a68fef250e6d90d31af94768ad33868c39d4200bcf796a33a1bd1c1271bf"
+        },
+        {
+          "path": "security/v2/snapshot.mjs",
+          "sha256": "157bdf5616521c390100596d76e5740756ca4e71ae05bab6e6bc61c0b8a22693"
+        },
+        {
+          "path": "security/v2/store.mjs",
+          "sha256": "6811bd96b0ae49cd14772fb92dc4471e3efa9b172f4a67fcaa2db0f11c96d4f3"
+        },
+        {
+          "path": "security/v2/test/all.test.mjs",
+          "sha256": "2921d8344fdea2995d7385cb8d61ee7e6b05e2804919f6b76394cc59c01ceabc"
+        },
+        {
+          "path": "security/v2/test/browser-recovery.test.mjs",
+          "sha256": "a5a23b8a80d978b04f7f34cf5861d237c111fb00f8d69579323a217777094167"
+        },
+        {
+          "path": "security/v2/test/cache.test.mjs",
+          "sha256": "58e4ccb70b37ce50d58f7de1f3781e2e656e31aeaf6495123e5e6a9367be2cdf"
+        },
+        {
+          "path": "security/v2/test/capture.test.mjs",
+          "sha256": "e42227dc78378347f87a35b92989f314196eebce33591138c991784f48179b78"
+        },
+        {
+          "path": "security/v2/test/ceremonies.test.mjs",
+          "sha256": "973632522cf88c1322be576c2874f0592a435aaf5795227e557616523f2f0b78"
+        },
+        {
+          "path": "security/v2/test/control-publication.test.mjs",
+          "sha256": "38b3e2f601582d2a824ca2a9bcfcf52bdfc3b782c6c0f074d79e93c8888a68ee"
+        },
+        {
+          "path": "security/v2/test/events.test.mjs",
+          "sha256": "91ffdb0b57fc57f8c9a82e15abf1fd13778b4f7e5d42d911cbe64defa6cda25a"
+        },
+        {
+          "path": "security/v2/test/floors.test.mjs",
+          "sha256": "b2cd8825a5f51d6119293991a340066f9482e266c373ae9014e723f1350a3ee2"
+        },
+        {
+          "path": "security/v2/test/helpers.mjs",
+          "sha256": "3e99be18625905ed4267fef6ac9b2b23256e16b4531d9997f6f4a914cd6a1c8f"
+        },
+        {
+          "path": "security/v2/test/instrumentation.test.mjs",
+          "sha256": "e8fcfef3575d882bfd3e83ce57d1359dbb482da99f1a5248b34ab222be70434f"
+        },
+        {
+          "path": "security/v2/test/issuance-floors.test.mjs",
+          "sha256": "31069c12d1207368e7671674af3f2da20c50ae055c90739d8cea90c9830c7f5f"
+        },
+        {
+          "path": "security/v2/test/limits-retry.test.mjs",
+          "sha256": "a97da57d3b29ebad0ff9b57c01854b38db8f15d873458ad395f35c3faf0f8923"
+        },
+        {
+          "path": "security/v2/test/native-adapters.test.mjs",
+          "sha256": "7c4e2f288ed85cbae7f49337f4b7c307ddf56d304459373193a715328c25b6b2"
+        },
+        {
+          "path": "security/v2/test/native-coordinator.test.mjs",
+          "sha256": "33ba3b5d5fc4f0f37b543286c6c96d0e7bdf357fbf03e4acdea48cb50b484a6a"
+        },
+        {
+          "path": "security/v2/test/native-effects.test.mjs",
+          "sha256": "56055fe23a97c8b34f154a355e356529d988202e9be25d210cbad84948acc428"
+        },
+        {
+          "path": "security/v2/test/native-renewal.test.mjs",
+          "sha256": "cafb43444861962a8223a47317905da3005e43d198218f4ee93d0b11ca7e653a"
+        },
+        {
+          "path": "security/v2/test/policy-coverage.test.mjs",
+          "sha256": "3951d6a70564ccff9e4b3b298c675c1cc325d4898bf109ceff64f917f778941e"
+        },
+        {
+          "path": "security/v2/test/policy.test.mjs",
+          "sha256": "e86a9210f8a64724b598a92a7acc980df12bdc93f3de8d9f8252c00fe077444d"
+        },
+        {
+          "path": "security/v2/test/snapshot.test.mjs",
+          "sha256": "17f6b32eb5234b1b2d046aa08a6de5c500499979605b3edf40df2844169b1ca8"
+        },
+        {
+          "path": "security/v2/test/store.test.mjs",
+          "sha256": "83cc4ea4dd1feb0413af9454f7a9200754402cf8aaa8638b42c9ae721575d420"
+        },
+        {
+          "path": "security/v2/test/tokens.test.mjs",
+          "sha256": "4500904b48eb6db9cfbc55210cde16dac95c8f516a6d73afe772f95c43d9a783"
+        },
+        {
+          "path": "security/v2/tokens.mjs",
+          "sha256": "983362c6efba117d065b7ad10588d25a1f2c026885d78c76a7824e163c5e5829"
+        },
+        {
+          "path": "tools/v111-foundation-preflight.mjs",
+          "sha256": "08c4100cb1b45cab8dc28ccbd474d470b088e255e49f0fc579d605bad8cc87b0"
+        }
+      ]
+    },
+    {
+      "app": "AcademyStudio",
+      "base": "9a8c117e9279a2b67e62eb044be4da989db4a096",
+      "files": [
+        {
+          "path": "config/v111-auth.json",
+          "sha256": "f4873f16fbb6466da800092648a52bdbc812386abadb9f038d2adbb99fd29b32"
+        },
+        {
+          "path": "security/v2/browser-security.mjs",
+          "sha256": "ac4f8fb6892cba52adae4ec66c9794987ee701cd3acfe2e9c769e86909efe281"
+        },
+        {
+          "path": "security/v2/cache.mjs",
+          "sha256": "3b426631bbb07a6656fc81286d3e0918f95d6af4e17d226b12a26c36f9ae5ef3"
+        },
+        {
+          "path": "security/v2/capture-receipt.mjs",
+          "sha256": "ccb8a5a15a588843927e425d759634e572cff7635c8d5f48ae2f5275c205a824"
+        },
+        {
+          "path": "security/v2/capture.mjs",
+          "sha256": "d24ec0a7d477595c7991949a1132c8236850f22e0901c24bf5b4e7063e7b3519"
+        },
+        {
+          "path": "security/v2/ceremonies.mjs",
+          "sha256": "c67d4ee09a812255971324a5cdd5170ca03589750ed6242deff7185a5dabab36"
+        },
+        {
+          "path": "security/v2/codec.mjs",
+          "sha256": "cc8654f2f01230c461bfca39b5dad6d0392f479fe04c76b5e1b67a633c443d9f"
+        },
+        {
+          "path": "security/v2/control-publication.mjs",
+          "sha256": "b3aa6627897cc21b9702b6f490352ef0a46dc69df38a0134fa3ae81c759bb2bd"
+        },
+        {
+          "path": "security/v2/control-shapes.mjs",
+          "sha256": "f769504435ea4ccbdf3565701ccc668fd5d5ed022474b89896d86a2fad88606d"
+        },
+        {
+          "path": "security/v2/events.mjs",
+          "sha256": "8556836a7310ddca862b2b6413dac3622737b7705220fa4938044a134fdd8c0c"
+        },
+        {
+          "path": "security/v2/fallback.mjs",
+          "sha256": "268033ae1b57c35d762ac2591dc39f5a4b28fd568bd2256f2e9aaaf56480b11f"
+        },
+        {
+          "path": "security/v2/floors.mjs",
+          "sha256": "08f824452bd00758a9d21485470db6c1954b7c7bbbd91e603c4fe69e4fd83d83"
+        },
+        {
+          "path": "security/v2/instrumentation.mjs",
+          "sha256": "fecc4934c5820bde33680a0dc87f563829906a5ba1d02b6a35c0f2e4e28a2684"
+        },
+        {
+          "path": "security/v2/issuance-floors.mjs",
+          "sha256": "3692efc4fe8c0788b1ced5b3d639058d89df78a1d6e8146d34755c465566a994"
+        },
+        {
+          "path": "security/v2/native-adapter.mjs",
+          "sha256": "ce88fca4c662ce314815f3cd2626519cb8d2b3b69a89e8b2129b570895854efb"
+        },
+        {
+          "path": "security/v2/native-authority.json",
+          "sha256": "d292be9b848d2fa1b1a1d177f84dfa7bc8d77a063e3a833407ffb2f22ad750b8"
+        },
+        {
+          "path": "security/v2/outbox.mjs",
+          "sha256": "bffa23db1e7724b199f3b598040e807f0f55fb1fb8c44d97ac83cdfeeacedeaa"
+        },
+        {
+          "path": "security/v2/policy-coverage.mjs",
+          "sha256": "a77b8b8c84176042b5005bdbc8641ecaa96b55071f68eab2674cbd5d6388857f"
+        },
+        {
+          "path": "security/v2/policy.mjs",
+          "sha256": "4b283344a85dbcbab0a8ed25efcb40e08c56ac227fbbd0fca35895a52a364dca"
+        },
+        {
+          "path": "security/v2/publication.mjs",
+          "sha256": "97d278b372d68381749f323c45c7badd7b67d6b8fdb23dbaac7061f37ac81c68"
+        },
+        {
+          "path": "security/v2/recovery.mjs",
+          "sha256": "0e2744596e2fff0029a31eb5a9efcf6072fbf03ba86bc96b28605b40eb885d58"
+        },
+        {
+          "path": "security/v2/schema-bundle.mjs",
+          "sha256": "b9908a00a942d311dd88552f244897d26aaf88109e7a1338240666e7f1004cee"
+        },
+        {
+          "path": "security/v2/schema.mjs",
+          "sha256": "aa03a68fef250e6d90d31af94768ad33868c39d4200bcf796a33a1bd1c1271bf"
+        },
+        {
+          "path": "security/v2/snapshot.mjs",
+          "sha256": "157bdf5616521c390100596d76e5740756ca4e71ae05bab6e6bc61c0b8a22693"
+        },
+        {
+          "path": "security/v2/store.mjs",
+          "sha256": "6811bd96b0ae49cd14772fb92dc4471e3efa9b172f4a67fcaa2db0f11c96d4f3"
+        },
+        {
+          "path": "security/v2/tokens.mjs",
+          "sha256": "983362c6efba117d065b7ad10588d25a1f2c026885d78c76a7824e163c5e5829"
+        }
+      ]
+    },
+    {
+      "app": "Hifz",
+      "base": "ba0ea53f23b933b0c175c87fe41788df74afbb2f",
+      "files": [
+        {
+          "path": "config/v111-auth.json",
+          "sha256": "caedad6c87f59cabe767dde0e4470f98be8a458f9ed3d1834a9cdb40ee130993"
+        },
+        {
+          "path": "security/v2/browser-security.mjs",
+          "sha256": "ac4f8fb6892cba52adae4ec66c9794987ee701cd3acfe2e9c769e86909efe281"
+        },
+        {
+          "path": "security/v2/cache.mjs",
+          "sha256": "3b426631bbb07a6656fc81286d3e0918f95d6af4e17d226b12a26c36f9ae5ef3"
+        },
+        {
+          "path": "security/v2/capture-receipt.mjs",
+          "sha256": "ccb8a5a15a588843927e425d759634e572cff7635c8d5f48ae2f5275c205a824"
+        },
+        {
+          "path": "security/v2/capture.mjs",
+          "sha256": "d24ec0a7d477595c7991949a1132c8236850f22e0901c24bf5b4e7063e7b3519"
+        },
+        {
+          "path": "security/v2/ceremonies.mjs",
+          "sha256": "c67d4ee09a812255971324a5cdd5170ca03589750ed6242deff7185a5dabab36"
+        },
+        {
+          "path": "security/v2/codec.mjs",
+          "sha256": "cc8654f2f01230c461bfca39b5dad6d0392f479fe04c76b5e1b67a633c443d9f"
+        },
+        {
+          "path": "security/v2/control-publication.mjs",
+          "sha256": "b3aa6627897cc21b9702b6f490352ef0a46dc69df38a0134fa3ae81c759bb2bd"
+        },
+        {
+          "path": "security/v2/control-shapes.mjs",
+          "sha256": "f769504435ea4ccbdf3565701ccc668fd5d5ed022474b89896d86a2fad88606d"
+        },
+        {
+          "path": "security/v2/events.mjs",
+          "sha256": "8556836a7310ddca862b2b6413dac3622737b7705220fa4938044a134fdd8c0c"
+        },
+        {
+          "path": "security/v2/fallback.mjs",
+          "sha256": "268033ae1b57c35d762ac2591dc39f5a4b28fd568bd2256f2e9aaaf56480b11f"
+        },
+        {
+          "path": "security/v2/floors.mjs",
+          "sha256": "08f824452bd00758a9d21485470db6c1954b7c7bbbd91e603c4fe69e4fd83d83"
+        },
+        {
+          "path": "security/v2/instrumentation.mjs",
+          "sha256": "fecc4934c5820bde33680a0dc87f563829906a5ba1d02b6a35c0f2e4e28a2684"
+        },
+        {
+          "path": "security/v2/issuance-floors.mjs",
+          "sha256": "3692efc4fe8c0788b1ced5b3d639058d89df78a1d6e8146d34755c465566a994"
+        },
+        {
+          "path": "security/v2/native-adapter.mjs",
+          "sha256": "c6d772d9354fedc62cbc4e1e08f375730fdba5b0bcb67bc952014d72d53e3121"
+        },
+        {
+          "path": "security/v2/native-authority.json",
+          "sha256": "53bc789636caba2bc4a0146d1d2eb548711bbd80b38e37ab106420287e0b709c"
+        },
+        {
+          "path": "security/v2/outbox.mjs",
+          "sha256": "bffa23db1e7724b199f3b598040e807f0f55fb1fb8c44d97ac83cdfeeacedeaa"
+        },
+        {
+          "path": "security/v2/policy-coverage.mjs",
+          "sha256": "a77b8b8c84176042b5005bdbc8641ecaa96b55071f68eab2674cbd5d6388857f"
+        },
+        {
+          "path": "security/v2/policy.mjs",
+          "sha256": "4b283344a85dbcbab0a8ed25efcb40e08c56ac227fbbd0fca35895a52a364dca"
+        },
+        {
+          "path": "security/v2/publication.mjs",
+          "sha256": "97d278b372d68381749f323c45c7badd7b67d6b8fdb23dbaac7061f37ac81c68"
+        },
+        {
+          "path": "security/v2/recovery.mjs",
+          "sha256": "0e2744596e2fff0029a31eb5a9efcf6072fbf03ba86bc96b28605b40eb885d58"
+        },
+        {
+          "path": "security/v2/schema-bundle.mjs",
+          "sha256": "b9908a00a942d311dd88552f244897d26aaf88109e7a1338240666e7f1004cee"
+        },
+        {
+          "path": "security/v2/schema.mjs",
+          "sha256": "aa03a68fef250e6d90d31af94768ad33868c39d4200bcf796a33a1bd1c1271bf"
+        },
+        {
+          "path": "security/v2/snapshot.mjs",
+          "sha256": "157bdf5616521c390100596d76e5740756ca4e71ae05bab6e6bc61c0b8a22693"
+        },
+        {
+          "path": "security/v2/store.mjs",
+          "sha256": "6811bd96b0ae49cd14772fb92dc4471e3efa9b172f4a67fcaa2db0f11c96d4f3"
+        },
+        {
+          "path": "security/v2/tokens.mjs",
+          "sha256": "983362c6efba117d065b7ad10588d25a1f2c026885d78c76a7824e163c5e5829"
+        }
+      ]
+    }
+  ]
+}

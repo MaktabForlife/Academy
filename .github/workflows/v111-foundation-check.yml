@@ -1,0 +1,92 @@
+name: V111 foundation source-only checks
+on:
+  workflow_dispatch:
+    inputs:
+      studio_ref:
+        description: Reviewed AcademyStudio candidate commit SHA (40 lowercase hex)
+        required: true
+        type: string
+      hifz_ref:
+        description: Reviewed Hifz candidate commit SHA (40 lowercase hex)
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: v111-foundation-source-only-${{ github.run_id }}
+  cancel-in-progress: false
+defaults:
+  run:
+    shell: bash
+jobs:
+  source-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    env:
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - name: Read the selected Academy candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          path: Academy
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require exact paired source commits
+        env:
+          STUDIO_REF: ${{ inputs.studio_ref }}
+          HIFZ_REF: ${{ inputs.hifz_ref }}
+        run: |
+          [[ "$STUDIO_REF" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$HIFZ_REF" =~ ^[0-9a-f]{40}$ ]]
+          test -f Academy/security/v2/source-manifest.json
+      - name: Read the selected Studio candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: MaktabForlife/AcademyStudio
+          ref: ${{ inputs.studio_ref }}
+          path: AcademyStudio
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Read the selected Hifz candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: MaktabForlife/Hifz
+          ref: ${{ inputs.hifz_ref }}
+          path: Hifz
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Use the locally validated Node line
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.22.1"
+      - name: Verify source/configuration and synthetic backend tests
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/v111-foundation"
+          node Academy/tools/v111-foundation-preflight.mjs \
+            --workspace-root "$GITHUB_WORKSPACE" \
+            --source-manifest "$GITHUB_WORKSPACE/Academy/security/v2/source-manifest.json" \
+            --run-tests \
+            --output "$RUNNER_TEMP/v111-foundation/preflight.json" \
+            2>&1 | tee "$RUNNER_TEMP/v111-foundation/console.txt"
+      - name: Check that tests did not change tracked source
+        run: |
+          git -C Academy diff --check
+          git -C AcademyStudio diff --check
+          git -C Hifz diff --check
+          git -C Academy diff --exit-code
+          git -C AcademyStudio diff --exit-code
+          git -C Hifz diff --exit-code
+      - name: Retain source-only evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: v111-foundation-source-only-${{ github.run_id }}
+          path: ${{ runner.temp }}/v111-foundation/
+          if-no-files-found: warn
+          retention-days: 30
+# No deployment, provider account, environment credential, push or release dispatch.
+# This workflow is manual-only; it does not disable historical workflows elsewhere.
