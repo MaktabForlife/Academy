@@ -1,0 +1,3550 @@
+{
+  "schema": 1,
+  "profile": "V111_SOURCE_ONLY_R6_PLUS_REVIEWED_HOSTING",
+  "status": "FROZEN_SOURCE_REVIEW",
+  "r6PolicySHA256": "b0efeaabf36d0f29c333002585d0fb7cd554c3f1ac9e408da2e986cce8b07e05",
+  "hosting": {
+    "status": "FROZEN_REVIEWED_SOURCE_ONLY",
+    "reviewId": "m4-source17-plus-source-ci-20261120-r1",
+    "changes": [
+      {
+        "app": "Academy",
+        "path": ".github/workflows/v111-source-check.yml",
+        "beforeSHA256": null,
+        "sha256": "17ffab1f32bf2071798f06d1b1b64e6e84d4cf57c81f50d562f0f81a13d6a197",
+        "bytes": 5511,
+        "purpose": "RELEASE_CONTROL"
+      },
+      {
+        "app": "Academy",
+        "path": "backend/src/academy-development-runtime.js",
+        "beforeSHA256": "6dd515aec1b62e0bc0a6430483b08ff68c854ab88186bbbb4d2615e84b7c5b57",
+        "sha256": "6f4d06eeff60286726a6406c5ce4087f859f820d0243004270b83e81135de332",
+        "bytes": 3756,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Academy",
+        "path": "backend/src/academy-split-coordinator.js",
+        "beforeSHA256": "8e7a3159ba2f6b0f24c8c52c967a36d5052c56e05923c8841146f7e1f4f639a8",
+        "sha256": "4011c816b792eb2c38a8c5a0434bdbe67bdc264364885aa17eefa6b2577d34c1",
+        "bytes": 1618,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Academy",
+        "path": "backend/src/academy/d1/library-storage.js",
+        "beforeSHA256": "f5ccb3d0b71e19eb36983eb8eaf70e15033e52f56c2306c79776defddd3d4241",
+        "sha256": "e8c4bcb4de0c5ff748211656e59bbaec246ccb9e859ceab08cd385b4cbcd0def",
+        "bytes": 5436,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Academy",
+        "path": "backend/tests/academy-v111-assets.test.mjs",
+        "beforeSHA256": "f7bf7caea260eec9e6d5c4d6bb4df82fe82fdef88ed765ca33196793c1838ecd",
+        "sha256": "2b1a3f36faff5ee4f155350b4f1fd679f598bf494cc56c9d937af8746ec346b2",
+        "bytes": 3325,
+        "purpose": "HOSTING_TEST"
+      },
+      {
+        "app": "Academy",
+        "path": "backend/tests/academy-v111-html.test.mjs",
+        "beforeSHA256": "50e644b28d0fa6e37e92ccc498b48ebee2389d110379e1c237ff273728c062ee",
+        "sha256": "9b70a77c0b22bcb377aca50e7fafa4517a29a72518b83b7ae4ad94d84fd2f247",
+        "bytes": 2739,
+        "purpose": "HOSTING_TEST"
+      },
+      {
+        "app": "Academy",
+        "path": "backend/tools/academy-site.mjs",
+        "beforeSHA256": "573647bc860520af22774a0f0ff9921c18dddb927d857fcb4f111ee817077e4a",
+        "sha256": "de75ab528e1ea332d1dbeaa7322a1d50ad8a41f6b63be969d4632c4dbce2c368",
+        "bytes": 5526,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Academy",
+        "path": "deployment/release-plan.json",
+        "beforeSHA256": "3c2d2b37488984cd734874b132a436555d17a118b47940b72eb61dd5b064122c",
+        "sha256": "568b1872aacc82854d32e4681ba97e3319bc7ecc1cafbcc7a2f776ef444eabe4",
+        "bytes": 173,
+        "purpose": "RELEASE_CONTROL"
+      },
+      {
+        "app": "Academy",
+        "path": "security/v2/academy-outbox-scheduler.mjs",
+        "beforeSHA256": null,
+        "sha256": "81427407c967507b7a11ceaf1d7dfc25bf4ab1393ab0204125e8f0cd51ee6f54",
+        "bytes": 7042,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Academy",
+        "path": "security/v2/cutover-state.mjs",
+        "beforeSHA256": null,
+        "sha256": "228fb99e4117736bae7e2aab722dbb6e3ffc56a7039217255ae547c7e4420aca",
+        "bytes": 794,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Academy",
+        "path": "security/v2/native-schema.mjs",
+        "beforeSHA256": "d79cf0704c85fdfbdb3f6a33d41e7c8e0654774406acb699f2f85d30ead3ba63",
+        "sha256": "2bff8ef648bc9427602e51d13e03b83af28c279d36e3dc3043dd141008873326",
+        "bytes": 1958,
+        "purpose": "CONFIGURATION"
+      },
+      {
+        "app": "Academy",
+        "path": "security/v2/tests/http-native-fixture.mjs",
+        "beforeSHA256": "f68dab36e9bbbedf0b1fcfec528df2049485b17fb647dd0ea6b61136cc47874f",
+        "sha256": "0feb1dbc9a9f6eda63c18b86c0e87e278013539d127781ffd899aa65d3749320",
+        "bytes": 18423,
+        "purpose": "HOSTING_TEST"
+      },
+      {
+        "app": "Academy",
+        "path": "tools/v111-r6-inputs.json",
+        "beforeSHA256": null,
+        "sha256": "b0efeaabf36d0f29c333002585d0fb7cd554c3f1ac9e408da2e986cce8b07e05",
+        "bytes": 153293,
+        "purpose": "RELEASE_CONTROL"
+      },
+      {
+        "app": "Academy",
+        "path": "tools/v111-source-ci.mjs",
+        "beforeSHA256": null,
+        "sha256": "26aebc25a574a690785f9a7b3e028203c4ba6ca587bc6a227be3ebcc23ea3c9f",
+        "bytes": 17065,
+        "purpose": "RELEASE_CONTROL"
+      },
+      {
+        "app": "Academy",
+        "path": "tools/v111-source-ci.test.mjs",
+        "beforeSHA256": null,
+        "sha256": "5a38674142f3346693c3b3f93bbca542fe127dc044bd05877e0ff06675a8bc89",
+        "bytes": 9490,
+        "purpose": "RELEASE_CONTROL"
+      },
+      {
+        "app": "AcademyStudio",
+        "path": "deployment/release-plan.json",
+        "beforeSHA256": "eaa335f73b5521d902e925b0c452b26a91c7fee5bb3d9131f91fef79d852389b",
+        "sha256": "568b1872aacc82854d32e4681ba97e3319bc7ecc1cafbcc7a2f776ef444eabe4",
+        "bytes": 173,
+        "purpose": "RELEASE_CONTROL"
+      },
+      {
+        "app": "AcademyStudio",
+        "path": "hosting/saas/worker.mjs",
+        "beforeSHA256": "a473a26eb8b3c98b5b723b4db0eccdcfd7f5d6372af0313229029105b9ad5186",
+        "sha256": "929406945ca793be56dbf4e03d8f7920fba56d1962bfc9d34cf59043343559d0",
+        "bytes": 3298,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "AcademyStudio",
+        "path": "security/v2/child-security-tick.mjs",
+        "beforeSHA256": null,
+        "sha256": "ff7547e5fd9c479cfa937d4df69259cd6be41aa252424d8e830a3bf67ff54831",
+        "bytes": 1448,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "AcademyStudio",
+        "path": "security/v2/cutover-state.mjs",
+        "beforeSHA256": null,
+        "sha256": "228fb99e4117736bae7e2aab722dbb6e3ffc56a7039217255ae547c7e4420aca",
+        "bytes": 794,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "AcademyStudio",
+        "path": "tests/v111-native-context.test.mjs",
+        "beforeSHA256": "ce04f3094bab8e05d5292e5bca48039503b31f11f27a672152011d309de94edf",
+        "sha256": "9baaf6f6dbfd686a4a85a4a103a897277cabc9576af5c764f9002ffcb7b97da3",
+        "bytes": 18687,
+        "purpose": "HOSTING_TEST"
+      },
+      {
+        "app": "Hifz",
+        "path": "security/v2/child-security-tick.mjs",
+        "beforeSHA256": null,
+        "sha256": "ff7547e5fd9c479cfa937d4df69259cd6be41aa252424d8e830a3bf67ff54831",
+        "bytes": 1448,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Hifz",
+        "path": "security/v2/cutover-state.mjs",
+        "beforeSHA256": null,
+        "sha256": "228fb99e4117736bae7e2aab722dbb6e3ffc56a7039217255ae547c7e4420aca",
+        "bytes": 794,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Hifz",
+        "path": "worker/src/index.js",
+        "beforeSHA256": "e3d4300daeef5ccf29729ab568da6de35bf4e49fe521187b370c653cc468b573",
+        "sha256": "a5f680b5c689d5781a361b3de91c03e85b07c300d91aa9275b6a72beeefdc75c",
+        "bytes": 16918,
+        "purpose": "HOSTING_WRAPPER"
+      }
+    ]
+  },
+  "apps": [
+    {
+      "app": "Academy",
+      "repository": "MaktabForlife/Academy",
+      "base": "15d1a1e5d96e831af8946a59eb70f9ce97023cfe",
+      "files": [
+        {
+          "path": ".github/workflows/v111-foundation-check.yml",
+          "sha256": "246ab7a6a7093877c08211b27d9e3e56c91d10c84236ffb310e8915378031f26",
+          "bytes": 3403
+        },
+        {
+          "path": ".github/workflows/v111-source-check.yml",
+          "sha256": "17ffab1f32bf2071798f06d1b1b64e6e84d4cf57c81f50d562f0f81a13d6a197",
+          "bytes": 5511
+        },
+        {
+          "path": "academy/course-websites/admin.mjs",
+          "sha256": "e5411b4f3c9394826a5bda59b0cd773158628f221c55a08bc5305bf613b79dd7",
+          "bytes": 18085
+        },
+        {
+          "path": "academy/course-websites/reader.mjs",
+          "sha256": "798a956a50b70f7189c0d15682926844d1bf9a1380cdbfb4195fd04e4c9f6f6d",
+          "bytes": 28268
+        },
+        {
+          "path": "academy/course-websites/studio.mjs",
+          "sha256": "c72b698d70c86c4f622300c1629f8099e9e0c30be072909307c553714962f656",
+          "bytes": 45551
+        },
+        {
+          "path": "academy/monthly-media/index.html",
+          "sha256": "cbc44f44ac7d489773e02c21acdc92d6628aa2f36a6fb0d4ddea64451b118a79",
+          "bytes": 2566
+        },
+        {
+          "path": "academy/website-platform/connect/connect.mjs",
+          "sha256": "d523572a6fe5fe606bd1865c69765b91406ce5d568d8571fdae0726ea61c37ca",
+          "bytes": 3381
+        },
+        {
+          "path": "academy/website-studio/connect/connect.mjs",
+          "sha256": "5d64192cd0f657bd60eff40a9301c3fafcc2d544c719ed9cdd35613ee32148f6",
+          "bytes": 1441
+        },
+        {
+          "path": "academy/website-studio/session/session.mjs",
+          "sha256": "5b16d6be380daf3af16de629123ee210d67b7bdcb6653d4f8e94d690c14ee4d0",
+          "bytes": 1222
+        },
+        {
+          "path": "backend/src/academy-development-runtime.js",
+          "sha256": "6f4d06eeff60286726a6406c5ce4087f859f820d0243004270b83e81135de332",
+          "bytes": 3756
+        },
+        {
+          "path": "backend/src/academy-split-coordinator.js",
+          "sha256": "4011c816b792eb2c38a8c5a0434bdbe67bdc264364885aa17eefa6b2577d34c1",
+          "bytes": 1618
+        },
+        {
+          "path": "backend/src/academy/d1/academic-calendar.js",
+          "sha256": "c296d7eac31547f4a9a5387a37f2526121c55fb2612d3a6614704db60f99fcef",
+          "bytes": 18916
+        },
+        {
+          "path": "backend/src/academy/d1/announcements.js",
+          "sha256": "7f7671044f4b0a16855c9489822d9e5c5dd3a08af92844dae1061db73a6d99ef",
+          "bytes": 20618
+        },
+        {
+          "path": "backend/src/academy/d1/assessment-identities.js",
+          "sha256": "bf15267d64d0bf7b100b51c9c1092bc93cac00423e6a06e982685cca6c8d6c4d",
+          "bytes": 1967
+        },
+        {
+          "path": "backend/src/academy/d1/assessment-register.js",
+          "sha256": "262b2aceb9de2ed8988eb7f4de9ed20828ff76458ec911013a861f680b5dcde8",
+          "bytes": 14517
+        },
+        {
+          "path": "backend/src/academy/d1/assessment-reports.js",
+          "sha256": "49f1b4f71bc5140b259f179df06de9da2a47e28b56cd5e840408c4eac10c1822",
+          "bytes": 11583
+        },
+        {
+          "path": "backend/src/academy/d1/assessment-store.js",
+          "sha256": "a8050ef715fdb235ac7df9270b776e803a377e6ef81206d2880eecfedb1f562e",
+          "bytes": 20008
+        },
+        {
+          "path": "backend/src/academy/d1/assessments.js",
+          "sha256": "a5466e9d2e66c92a54bebf23efd910e1c0cd27145a2db915eb6ecd8be92aeb3f",
+          "bytes": 66749
+        },
+        {
+          "path": "backend/src/academy/d1/calendar-change-authority.js",
+          "sha256": "f52837c4ae851fdd87ace88343aa196d36b605acd12747194c0323a0147d2a41",
+          "bytes": 1438
+        },
+        {
+          "path": "backend/src/academy/d1/course-management.js",
+          "sha256": "420b58af7f9f5bf5f1580a9f805fe465d849e1efd19cd54f9510f1e4b52a5292",
+          "bytes": 40485
+        },
+        {
+          "path": "backend/src/academy/d1/enrolment.js",
+          "sha256": "029b03cc020702793b16361837bbc5fd37ddbc0bfcf656d71c9e8ae141e3d141",
+          "bytes": 20460
+        },
+        {
+          "path": "backend/src/academy/d1/global-settings.js",
+          "sha256": "95b898916ee1ccfaf7cb1e71ef4887eb66563e78ffbaa318dc307103c1e184ea",
+          "bytes": 2942
+        },
+        {
+          "path": "backend/src/academy/d1/hifz-profile-sync-v2.js",
+          "sha256": "2c19071b4b988e8775802ccc2d8ef99b992e51b9b8e17ced27b2591ffdd07505",
+          "bytes": 6611
+        },
+        {
+          "path": "backend/src/academy/d1/hifz-profile-sync.js",
+          "sha256": "077de53f11efa1b92a7a2a47d645c26e3a387edd6be3c2c8ed118b92228d8548",
+          "bytes": 4761
+        },
+        {
+          "path": "backend/src/academy/d1/lesson-media.js",
+          "sha256": "fc6f0154062f49d64acedd497db10fd7b13e142a615e5953c7a2ceec8689dc09",
+          "bytes": 65482
+        },
+        {
+          "path": "backend/src/academy/d1/lesson-planning.js",
+          "sha256": "9f3c262cf79af4eb91238dd519da2eb6870be162ada1776a82aa8f39f1452589",
+          "bytes": 20855
+        },
+        {
+          "path": "backend/src/academy/d1/library-metadata.js",
+          "sha256": "3f3e788137cc233aaf5083fccf769a786a02005ca6ac7081f88cdfc95c386572",
+          "bytes": 8413
+        },
+        {
+          "path": "backend/src/academy/d1/library-storage.js",
+          "sha256": "e8c4bcb4de0c5ff748211656e59bbaec246ccb9e859ceab08cd385b4cbcd0def",
+          "bytes": 5436
+        },
+        {
+          "path": "backend/src/academy/d1/library-taxonomy.js",
+          "sha256": "37835ddd509ff8e45b3d1b958ce8fed2d5308e484df4b6f231918900341e9c4f",
+          "bytes": 418
+        },
+        {
+          "path": "backend/src/academy/d1/management-store.js",
+          "sha256": "f592b5c7eea4c8221d093daed11c653bbb3a8d0b7d3d7c5c03d4b5120f0234b6",
+          "bytes": 13953
+        },
+        {
+          "path": "backend/src/academy/d1/media-playlist-store.js",
+          "sha256": "d6539c6d729dccdf7bda218f8dcc2a840ab014f3c318e01cedd709433eb19aef",
+          "bytes": 13859
+        },
+        {
+          "path": "backend/src/academy/d1/memorisation.js",
+          "sha256": "bb31ae5cf0f3e8c982318d37e30c110b17db067e52ab1009b0a38d417b67e9c0",
+          "bytes": 43349
+        },
+        {
+          "path": "backend/src/academy/d1/native-course-playlist-placements.js",
+          "sha256": "73092d078dab36ccef3fdb1435985f4f65c190bb389b3b8d51d2768eb59aff99",
+          "bytes": 6374
+        },
+        {
+          "path": "backend/src/academy/d1/open-library-taxonomy.js",
+          "sha256": "782dad4f79758f0f62b568d0b0d2064cec8fa2fc0b28449dc181b60747c14591",
+          "bytes": 1797
+        },
+        {
+          "path": "backend/src/academy/d1/pdf-bookmarks.js",
+          "sha256": "2363e10e8b0d5e57d5447afd5fb99a8a32dc3d9016b376e4516a74fff97b6ee6",
+          "bytes": 7483
+        },
+        {
+          "path": "backend/src/academy/d1/pdf-tools.js",
+          "sha256": "5bd033e268eebab154761b17a0019c9cb6d49db3d257b224663d880368ed2374",
+          "bytes": 2207
+        },
+        {
+          "path": "backend/src/academy/d1/personal-links.js",
+          "sha256": "34a529453a1061de827b1518fa901c9ed7d15a477d94bfb9882ffd7a97050c27",
+          "bytes": 7230
+        },
+        {
+          "path": "backend/src/academy/d1/portal.mjs",
+          "sha256": "8c7b6d0eaf08be617cd253284a577a254022edea1508b21d4f897aa8211f2fc1",
+          "bytes": 16531
+        },
+        {
+          "path": "backend/src/academy/d1/profiles.js",
+          "sha256": "728e0147647815f442c1c671ef59393aa931343c1e6ddc91ec580b7d6da2f647",
+          "bytes": 23736
+        },
+        {
+          "path": "backend/src/academy/d1/public-timetable.js",
+          "sha256": "1ef380ecf51bb34ab7997b68b77a6f7e41c0e795cd52d11e7822172f43a5a116",
+          "bytes": 12030
+        },
+        {
+          "path": "backend/src/academy/d1/repository.js",
+          "sha256": "8bce9417b4f2c91a58a46aae357dae63bfdc5f91726fac64b7f803bb4aba24e5",
+          "bytes": 29210
+        },
+        {
+          "path": "backend/src/academy/d1/session-video.js",
+          "sha256": "c635aae3f131bd321d5ebc5bfd05d441649b9bd456db078aafb5d51a378c1e94",
+          "bytes": 15547
+        },
+        {
+          "path": "backend/src/academy/d1/session.js",
+          "sha256": "c3e9382c76db2984d3c39dda9ed1201ba573e549ac6e2dd1f1b266ce1e34ee07",
+          "bytes": 2856
+        },
+        {
+          "path": "backend/src/academy/d1/setup-publication.js",
+          "sha256": "2bb8e02eace361590d5edc4b9c49e558f025b3d125a21f82e8fe089aca3707fe",
+          "bytes": 28244
+        },
+        {
+          "path": "backend/src/academy/d1/substitute-timetable.js",
+          "sha256": "ed384a828dbdde4f6e5c8a8cd9a58426220d56a74c9ceb8cb13782ecc44290bd",
+          "bytes": 5234
+        },
+        {
+          "path": "backend/src/academy/d1/teacher-availability.js",
+          "sha256": "ceeda2a329c4e339ca0dd76b464e72d5da505a1e0b2de1d6b5ed5b6ef4b85a68",
+          "bytes": 8842
+        },
+        {
+          "path": "backend/src/academy/d1/web-platform/bridge.mjs",
+          "sha256": "9cc357e12b5fbea550b4b35bd62d70295820c40cba31813b3a65e4411392b401",
+          "bytes": 22251
+        },
+        {
+          "path": "backend/src/academy/d1/web-platform/course-policy.mjs",
+          "sha256": "f5f8fea611d658b5379df2e7a2bc20641fd5100dd9779c2b90a74590c6e46c12",
+          "bytes": 4429
+        },
+        {
+          "path": "backend/src/academy/d1/web-platform/course-publication.mjs",
+          "sha256": "c42b2e3c315ff3937415521be8826d47a6235a60f1f33edc6b78b5d93fbb39da",
+          "bytes": 11553
+        },
+        {
+          "path": "backend/src/academy/d1/web-platform/studio-admin.mjs",
+          "sha256": "1c026f94bb1304eb193aad1fa3c6422f118c254508d6174fc2e7e4771a92465b",
+          "bytes": 23016
+        },
+        {
+          "path": "backend/src/academy/d1/web-platform/studio-catalogue.mjs",
+          "sha256": "897cd647cc58967d5ecd443e69347a3813dec1c0122819dd22f2269613709bcc",
+          "bytes": 4920
+        },
+        {
+          "path": "backend/src/academy/d1/web-platform/studio-live.mjs",
+          "sha256": "217e32978d38942e4c9e8360d6553f76a89cd8012382766dc4db7d1b0c7c0465",
+          "bytes": 8384
+        },
+        {
+          "path": "backend/src/academy/d1/worker.js",
+          "sha256": "f1ef36317d9846181cd2bafc5a6208aa0572f2b79d67064d090808c2269659d1",
+          "bytes": 61905
+        },
+        {
+          "path": "backend/src/academy/d1/workspace-access.js",
+          "sha256": "4a224ef76855848af306b5007c381be406a58e5d7fbf63b3b74732cd286e04af",
+          "bytes": 8917
+        },
+        {
+          "path": "backend/src/academy/separation/client.js",
+          "sha256": "16128ad6234fef3bc066e510e49d4920cd530125de0fd0fed2caeda3a76ef145",
+          "bytes": 3073
+        },
+        {
+          "path": "backend/src/academy/separation/engine.js",
+          "sha256": "c22dbedb5929eed1ac333891b7324fcee89a747c25c41c259355071f7e836e21",
+          "bytes": 11588
+        },
+        {
+          "path": "backend/src/academy/separation/permission-signature.js",
+          "sha256": "ef3bc61a9a598513ff21daf1401c9aebf802abd3a1a70c03416bcbda24e3883e",
+          "bytes": 656
+        },
+        {
+          "path": "backend/src/academy/separation/proof.js",
+          "sha256": "ba7312c93f5e0c34d81529bf1cecceb36781c357e0ddfa90a659c676da188a82",
+          "bytes": 8641
+        },
+        {
+          "path": "backend/src/academy/v111/coordinator-proof.mjs",
+          "sha256": "f70cf9c8400c7802e413675d5be9ab5444c49e660888d73c79bf5a076518549f",
+          "bytes": 8831
+        },
+        {
+          "path": "backend/src/academy/v111/course-publication-source.mjs",
+          "sha256": "ec368284b1b8165c0f66b5b8414a72dfa1208b58bcb70ce741cc37e34a33a274",
+          "bytes": 15347
+        },
+        {
+          "path": "backend/src/academy/v111/html.mjs",
+          "sha256": "057bda07592ee7811bfebbe5a5d01109050b42efb0262504e22c52199fc346cc",
+          "bytes": 1577
+        },
+        {
+          "path": "backend/src/academy/v111/library-metadata-v2.mjs",
+          "sha256": "a10d2faff99327f16b324e13793bf30cb234ef90b38162bb20a5970502262db0",
+          "bytes": 14926
+        },
+        {
+          "path": "backend/src/academy/v111/media-metadata.mjs",
+          "sha256": "0fbc69e760ad272d57602ef5bba04b3add46e2a4d4958aa266f0ec63586d4789",
+          "bytes": 1357
+        },
+        {
+          "path": "backend/src/academy/v111/native-business-dispatch.mjs",
+          "sha256": "1b55bfe428085538aae4ccfb7dc09d2d332513896ff23c2d7f0f93ba0617b645",
+          "bytes": 11218
+        },
+        {
+          "path": "backend/src/academy/v111/native-business.mjs",
+          "sha256": "bf2c0247935feba9cf7e5f9ca25c82cfcb3427a5f83f25b1bf5eefc1a1b90d1d",
+          "bytes": 7763
+        },
+        {
+          "path": "backend/src/academy/v111/native-context.js",
+          "sha256": "8b32d600225d853897167e1864aebbb7e20926dd0b8f1a606559c3a3e1753e81",
+          "bytes": 2816
+        },
+        {
+          "path": "backend/src/academy/v111/native-http.mjs",
+          "sha256": "d4be2d1e1fca8afc571e3afa22afbd8a4a4ab9fa59bf0990d422ef459ab763df",
+          "bytes": 3495
+        },
+        {
+          "path": "backend/src/academy/v111/native-identity.mjs",
+          "sha256": "f2d1ac340f1a51d74a4343dd4a9b2b81d3bc24710e846ab8b7ca97393a315ce3",
+          "bytes": 5482
+        },
+        {
+          "path": "backend/src/academy/v111/native-operation-status.mjs",
+          "sha256": "d540de3b66ebe58f137e64f6f6cc7aba329c45a7a68d0ebf87df633f14b902ec",
+          "bytes": 9959
+        },
+        {
+          "path": "backend/src/academy/v111/native-pin-reset.mjs",
+          "sha256": "7c5fe2c62f5545a6782e4e2f4d226d8a5ddd7187c09327d4a6accbab52d6b055",
+          "bytes": 1954
+        },
+        {
+          "path": "backend/src/academy/v111/native-session-sql.mjs",
+          "sha256": "0887d5b8b217cc706f9f8c3d4d4231a8ac14e1bf1af8a25c2523d1e4e3d50458",
+          "bytes": 4816
+        },
+        {
+          "path": "backend/src/academy/v111/portal-return-proof.mjs",
+          "sha256": "3a17282da2999a29c8b2099546e97b7421bfea2975e04a3d62134b73e51a4dab",
+          "bytes": 4997
+        },
+        {
+          "path": "backend/src/academy/v111/portal-return.mjs",
+          "sha256": "8162ffb3f3918531aeabafbf6dcfacef172dea0f83b70050ed1c6dfaa18c4a1e",
+          "bytes": 1304
+        },
+        {
+          "path": "backend/src/academy/v111/studio-access-operation-status.mjs",
+          "sha256": "42e4bf6725674ffd804c15d7184b0f17f3b2b752437f9f3ffa41e4314b86ef44",
+          "bytes": 1648
+        },
+        {
+          "path": "backend/src/academy/v111/studio-authority-preparation.mjs",
+          "sha256": "bb52ac2729108abc135a94e9629ff63781069d5dbcacf915864f2170f39f920e",
+          "bytes": 6110
+        },
+        {
+          "path": "backend/src/academy/v111/studio-authority-protocol.mjs",
+          "sha256": "85539be36733c2e9ff8b20c625aff282d6d3313f231ceb48f348e0045d198f78",
+          "bytes": 6581
+        },
+        {
+          "path": "backend/src/academy/v111/studio-authority-scheduled.mjs",
+          "sha256": "fb5c2e6caa6bb937edf23ed69d53fb8c7813c79c09a597c1686383be0b05db6f",
+          "bytes": 1770
+        },
+        {
+          "path": "backend/src/academy/v111/studio-authority-source.mjs",
+          "sha256": "e2b1c37b4b93b2e52b8ee30213daa1f718035cab77fd61fc3ce8bb01c8d17c69",
+          "bytes": 28536
+        },
+        {
+          "path": "backend/src/academy/v111/studio-business-authority.mjs",
+          "sha256": "5274c5e31418ec3bfe91f31cabf57899c0386c1c8243457db85e2a060e7bb744",
+          "bytes": 5734
+        },
+        {
+          "path": "backend/src/academy/v111/studio-business-delivery.mjs",
+          "sha256": "177713b6294aec18e65118efe845cc78a905b71cb354361d267db8be91524eee",
+          "bytes": 4564
+        },
+        {
+          "path": "backend/src/academy/v111/studio-portal.mjs",
+          "sha256": "7ece216462071768286a0f4eb67612bb0e44b0628f82c465f59c978cafee4807",
+          "bytes": 10609
+        },
+        {
+          "path": "backend/tests/academy-assessments-recovery-ui.test.mjs",
+          "sha256": "30d85ad95a6dd524c5152dec21b491f3216e415cc146498abab268af40181e77",
+          "bytes": 5366
+        },
+        {
+          "path": "backend/tests/academy-d1-academic-calendar.test.mjs",
+          "sha256": "d065219ded2511c2d51d7ce58d8a349bfdcd6177f6c0f0fa0602c52ebfa55061",
+          "bytes": 19583
+        },
+        {
+          "path": "backend/tests/academy-v111-account-client.test.mjs",
+          "sha256": "2f4e0b12aa8bac9f0d65bf9d39c02c9ce5db38bbbd4ee20c840cb3ed2b0fc388",
+          "bytes": 5340
+        },
+        {
+          "path": "backend/tests/academy-v111-account-pin.test.mjs",
+          "sha256": "a20a30e2a883a8c36c42a84e221043678e9e99dae5c253092a601c6589b44d67",
+          "bytes": 5848
+        },
+        {
+          "path": "backend/tests/academy-v111-admin-forms.test.mjs",
+          "sha256": "0bad46b2d67b768fd324237e67b63bcc82c20c330bfaada142b6ce76b94a0082",
+          "bytes": 9638
+        },
+        {
+          "path": "backend/tests/academy-v111-assessment-identities.test.mjs",
+          "sha256": "e82923db78147f188ee2b13f65c15900a4cc4ef60c9fdb7d0d7405e4ebe5536c",
+          "bytes": 3828
+        },
+        {
+          "path": "backend/tests/academy-v111-assessment-template.test.mjs",
+          "sha256": "ba38615339c955cc96d0f48886bd8d2530f40db812746b7addfd973811df40a1",
+          "bytes": 4913
+        },
+        {
+          "path": "backend/tests/academy-v111-assets.test.mjs",
+          "sha256": "2b1a3f36faff5ee4f155350b4f1fd679f598bf494cc56c9d937af8746ec346b2",
+          "bytes": 3325
+        },
+        {
+          "path": "backend/tests/academy-v111-bookmarks.test.mjs",
+          "sha256": "6b6aa1768da498b16991453202f0e6fbf852c6214fed6b4c8d982add6600b882",
+          "bytes": 3252
+        },
+        {
+          "path": "backend/tests/academy-v111-business-delivery.test.mjs",
+          "sha256": "191297f757e2e498ada3591134cc34e97b56d8054dde65bb2c9b94d846058eaa",
+          "bytes": 4814
+        },
+        {
+          "path": "backend/tests/academy-v111-business-dispatch.test.mjs",
+          "sha256": "c4755f10db2ad33fa3fa90b1fce7344f5c57cba899c90bf2fc6c083f09670921",
+          "bytes": 6249
+        },
+        {
+          "path": "backend/tests/academy-v111-calendar.test.mjs",
+          "sha256": "74dae760da62fe408e8d5539d8b2ddaceca34f97ba8a7f7cbd5ca4f2e651d577",
+          "bytes": 5025
+        },
+        {
+          "path": "backend/tests/academy-v111-catalogue.test.mjs",
+          "sha256": "c0416b76a8a2583ee59bd62dc306f745546c1c452dea4c4dfcfd41f239edd5ff",
+          "bytes": 5279
+        },
+        {
+          "path": "backend/tests/academy-v111-coordinator-proof.test.mjs",
+          "sha256": "12f2d200152955ba22391113eb2053f0e2742d986de70da85e2c46dee29bf1da",
+          "bytes": 6405
+        },
+        {
+          "path": "backend/tests/academy-v111-course-management.test.mjs",
+          "sha256": "6feb5415d0f8285407aefe17e22d20287bc9531a8d9260a7cceb3ee49b819c6f",
+          "bytes": 3655
+        },
+        {
+          "path": "backend/tests/academy-v111-course-policy.test.mjs",
+          "sha256": "79f44f7ef8950d937f678f693826e94e18121a574ff3aaf08eb5e3c240458c5f",
+          "bytes": 3567
+        },
+        {
+          "path": "backend/tests/academy-v111-course-publication.test.mjs",
+          "sha256": "e86d4f4627bb9791dc7444ae34a62e82cc80d9d2bc928fa2d33f1d4f51d6336a",
+          "bytes": 13572
+        },
+        {
+          "path": "backend/tests/academy-v111-enrolment-client.test.mjs",
+          "sha256": "775a4116d78936419d125908f0e19dcaaffa39ae43ce314e116f16c99cae62a6",
+          "bytes": 1933
+        },
+        {
+          "path": "backend/tests/academy-v111-enrolment.test.mjs",
+          "sha256": "e63c370551a90a55a47cc204f9df16eb7e86d686971aa51b93fdbc6a5bb23543",
+          "bytes": 5292
+        },
+        {
+          "path": "backend/tests/academy-v111-html.test.mjs",
+          "sha256": "9b70a77c0b22bcb377aca50e7fafa4517a29a72518b83b7ae4ad94d84fd2f247",
+          "bytes": 2739
+        },
+        {
+          "path": "backend/tests/academy-v111-library-chooser.test.mjs",
+          "sha256": "fb7511b6ced9421e385e910867647456cc857d85026f019c8e469c65cc509a6b",
+          "bytes": 5468
+        },
+        {
+          "path": "backend/tests/academy-v111-library-metadata.test.mjs",
+          "sha256": "b8b9815c362fae328ed1ca0ddae7cc02bc2b87b0c00177121a437caf1a33004d",
+          "bytes": 12072
+        },
+        {
+          "path": "backend/tests/academy-v111-media-metadata.test.mjs",
+          "sha256": "0db1d0fd7ea4f09a380d1a8ae72502d7e308062fa5be6838a1cf7f1062cb58e3",
+          "bytes": 7808
+        },
+        {
+          "path": "backend/tests/academy-v111-media-rekey.test.mjs",
+          "sha256": "d1de63b591f2607c63af72302e0108f6ee4c31e1e42ab4f8a8e82c82d1d62c43",
+          "bytes": 2900
+        },
+        {
+          "path": "backend/tests/academy-v111-memorisation-publication.test.mjs",
+          "sha256": "a05c164df74fc64ef97f7c0462e2051107ff0ec49e47d0c28d9e47d9e247c2db",
+          "bytes": 10316
+        },
+        {
+          "path": "backend/tests/academy-v111-memorisation-role-fk.test.mjs",
+          "sha256": "e2f9336ea5ad0a429aad2e48dbaeafc2b66db2f1f88a64f39184497331eb64e0",
+          "bytes": 1925
+        },
+        {
+          "path": "backend/tests/academy-v111-memorisation.test.mjs",
+          "sha256": "d647125c3f95db74029d7eb84c219a3fbd7dae9930ee48897ecc0a7747d51387",
+          "bytes": 17649
+        },
+        {
+          "path": "backend/tests/academy-v111-monthly-owner-fallback.test.mjs",
+          "sha256": "101c758fa28a361d22add725c294d4b40b8151a6ac45bd67ab5bf5796fa90e79",
+          "bytes": 2137
+        },
+        {
+          "path": "backend/tests/academy-v111-native-business.test.mjs",
+          "sha256": "9d6842232401f0fc34e93cc302254a9c8d0072a739359d75095a516bbfbdf1c3",
+          "bytes": 4839
+        },
+        {
+          "path": "backend/tests/academy-v111-native-http.test.mjs",
+          "sha256": "a7d2af930294ce90f1273268e2f8a2c476829ef5a2f0274a0c30310ae10b3222",
+          "bytes": 4122
+        },
+        {
+          "path": "backend/tests/academy-v111-native-media.test.mjs",
+          "sha256": "49b0fc5cd34885089432dc8c61cc3cde966cf58d68b97e8230d6dd0bbe8d578c",
+          "bytes": 5065
+        },
+        {
+          "path": "backend/tests/academy-v111-native-resources.test.mjs",
+          "sha256": "5133ae0a51c8b2f4fdcca0c49d116575164dd9bb6cab4ec53125c7b7a84d5e7c",
+          "bytes": 11915
+        },
+        {
+          "path": "backend/tests/academy-v111-native-video.test.mjs",
+          "sha256": "bc8c5f93b73934e86e7c5e4c6d4e1dc890b67da8bf8571da470c4eab793e2043",
+          "bytes": 7587
+        },
+        {
+          "path": "backend/tests/academy-v111-note-resources.test.mjs",
+          "sha256": "7e1fbac01a34311faff53a8333a2c91c83c1a439294b52ffa31b2fb03b022305",
+          "bytes": 2432
+        },
+        {
+          "path": "backend/tests/academy-v111-note-status.test.mjs",
+          "sha256": "ee33e1f33d261d3711a5afc24480b06793ff7698c2a41866e323862c50126d75",
+          "bytes": 5579
+        },
+        {
+          "path": "backend/tests/academy-v111-operation-status.test.mjs",
+          "sha256": "422d7a48e328243dd3b951f28e75e47a01ecdbda8e1f151f135c2c062f9407d2",
+          "bytes": 6240
+        },
+        {
+          "path": "backend/tests/academy-v111-paid-grid-resources.test.mjs",
+          "sha256": "75a239fa1394a4436e9ea0c1240a0b8aea7fba89b47d2d109aaec962f726f891",
+          "bytes": 7125
+        },
+        {
+          "path": "backend/tests/academy-v111-paid-month-reader.test.mjs",
+          "sha256": "2daf8ac91977168f158794abe65b2ca1688409067500f14a001cef668ca5894e",
+          "bytes": 1924
+        },
+        {
+          "path": "backend/tests/academy-v111-permission-snapshot.test.mjs",
+          "sha256": "73fb938cf5f277bb015bb9023eaa4504d7e4d10874827e51818fda94d02f4c47",
+          "bytes": 4114
+        },
+        {
+          "path": "backend/tests/academy-v111-personal-links.test.mjs",
+          "sha256": "42538ec53a0a92ee979e53fbcc2327e84c497ee3fb100714bb81e98b565bd69e",
+          "bytes": 4432
+        },
+        {
+          "path": "backend/tests/academy-v111-planning-client.test.mjs",
+          "sha256": "c47c391514032bd285713a2f8e52b07337b04e8353f75c3ae12b8a1ac722e4cd",
+          "bytes": 19937
+        },
+        {
+          "path": "backend/tests/academy-v111-planning-comparison.test.mjs",
+          "sha256": "417a91c3b39f9fd13fd2f911f86f88c3939346c5f879a7b1a65e8f9021cfeab9",
+          "bytes": 2601
+        },
+        {
+          "path": "backend/tests/academy-v111-planning-owner-guard.test.mjs",
+          "sha256": "d67a72b5f6e9e73dbc642fab646e7e90a3da9a7aad128f4f3717fff0fc341c9b",
+          "bytes": 12700
+        },
+        {
+          "path": "backend/tests/academy-v111-planning.test.mjs",
+          "sha256": "57bfc75069ce44d5056d4e9c80dfb81313b931d73c28e0a0594648d124d769b3",
+          "bytes": 9406
+        },
+        {
+          "path": "backend/tests/academy-v111-portal-policy.test.mjs",
+          "sha256": "fec492c717705073a61af81105c5cf98fef653867d6ae82bef9aa1d6aedf5a6d",
+          "bytes": 11213
+        },
+        {
+          "path": "backend/tests/academy-v111-portal.test.mjs",
+          "sha256": "4e3182ae6cc38d700a5aa2c3ad1e163e556a7b29c712a624e578607473eca1ac",
+          "bytes": 14140
+        },
+        {
+          "path": "backend/tests/academy-v111-program-calendar-annual.test.mjs",
+          "sha256": "d39f3e09691074a8375a76cdf1819f609331522f54919cb367a066270cce8a85",
+          "bytes": 7066
+        },
+        {
+          "path": "backend/tests/academy-v111-program-wrapper-ui.test.mjs",
+          "sha256": "f97bfdb389207cc38f88ced248a4282e36f26d110baf13ab4f98dbb8b1ccfa70",
+          "bytes": 5204
+        },
+        {
+          "path": "backend/tests/academy-v111-programme-workspace-ui.test.mjs",
+          "sha256": "b099edae06f9e2c13575d70b689834226d35b4e5eeba9a1335a15f0befbaeb06",
+          "bytes": 5159
+        },
+        {
+          "path": "backend/tests/academy-v111-public-pdf.test.mjs",
+          "sha256": "c41d2f0503aab52e928b14cb83df4bdeba0d903bdbb1f90d2f71701270c59a7b",
+          "bytes": 2072
+        },
+        {
+          "path": "backend/tests/academy-v111-public-refresh.test.mjs",
+          "sha256": "31dbad8c75059973b4e2053ddee29da8f4471e4c3ef4b861881f16a1bb55a0bc",
+          "bytes": 3004
+        },
+        {
+          "path": "backend/tests/academy-v111-read-cache-lifecycle.test.mjs",
+          "sha256": "460a77c67cefdb2aa0a720cc9cab884420e550b1a158f03c8fcbc05e22b7a8a6",
+          "bytes": 3423
+        },
+        {
+          "path": "backend/tests/academy-v111-reader.test.mjs",
+          "sha256": "59aa6093db7b59ff87f6d201de1442758a37057a41d3c2f776539551ab428c3b",
+          "bytes": 5366
+        },
+        {
+          "path": "backend/tests/academy-v111-retained-ceremonies.test.mjs",
+          "sha256": "9466e6af0dc5db841a1f0b7fa15c1c6f6791efe225ef12b5d440461b9ab6a3d7",
+          "bytes": 4397
+        },
+        {
+          "path": "backend/tests/academy-v111-schema2-business.test.mjs",
+          "sha256": "ed00e6136eff96b01d59e022cc2a350da05f6009cc321222bb8c7582d083675a",
+          "bytes": 8433
+        },
+        {
+          "path": "backend/tests/academy-v111-session-sql.test.mjs",
+          "sha256": "3a171ab42be1933c9314cbe525b2cf08605cacc83289c3b959c907051af663f9",
+          "bytes": 3498
+        },
+        {
+          "path": "backend/tests/academy-v111-source-authority.test.mjs",
+          "sha256": "19fd327d598e32c184d2ff69167b4e6dea35afb7abe48db5395c716fcc3570c7",
+          "bytes": 23988
+        },
+        {
+          "path": "backend/tests/academy-v111-source-concurrency.test.mjs",
+          "sha256": "e06dddbecf031203afdc0f2378399e213064dc1d7ebdc12aa694af402f97633e",
+          "bytes": 2397
+        },
+        {
+          "path": "backend/tests/academy-v111-studio-access.test.mjs",
+          "sha256": "35432bd85caa8f2c647bcd666eaa88ce4848795672ebf9223a9433dba3744ed9",
+          "bytes": 15196
+        },
+        {
+          "path": "backend/tests/academy-v111-untimed-split.test.mjs",
+          "sha256": "7d9e5af1bb372b5b4b06f1be90ecf397832f4217cbabd2a3926f9bb3828dee33",
+          "bytes": 2016
+        },
+        {
+          "path": "backend/tests/academy-v111-users.test.mjs",
+          "sha256": "89e4d4f7e5ce01b083b9cd3b4fd0ae5413be551c20636de5d1052ba556110603",
+          "bytes": 4579
+        },
+        {
+          "path": "backend/tests/academy-v111-workspace-lifecycle.test.mjs",
+          "sha256": "4f6d4db7d87ea76d75cd67b9fe4a162de7079f091cb7569dc041b49b01347a47",
+          "bytes": 2638
+        },
+        {
+          "path": "backend/tests/calendar-change-authority.test.mjs",
+          "sha256": "1e0a210f77bc076ab896f07d113ec835d06482554cbd8704c9c64f74ad7de184",
+          "bytes": 1661
+        },
+        {
+          "path": "backend/tests/fixtures/academy-v111-admin-form-fixture.mjs",
+          "sha256": "fa2c88f5cb10737b523d4b9345aad820a4e9f513ca554ea8fa9d76caffd81c29",
+          "bytes": 1440
+        },
+        {
+          "path": "backend/tests/fixtures/academy-v111-journey-fixture.mjs",
+          "sha256": "5a8074f7db882fcadeb4f3bfda1f80cc8a15544e2551b7a3d8409380e74fa9e0",
+          "bytes": 3392
+        },
+        {
+          "path": "backend/tests/fixtures/academy-v111-library-fixture.mjs",
+          "sha256": "57fa7ea59142d7ec4909694dbce25f629a9ab032f501e4883e769b2a3a9f54cb",
+          "bytes": 2355
+        },
+        {
+          "path": "backend/tests/fixtures/academy-v111-media-fixture.mjs",
+          "sha256": "318d9d7afc58c9d362edebc9702e727cab701bb24affa39e6c62edd483ad4c71",
+          "bytes": 3584
+        },
+        {
+          "path": "backend/tests/fixtures/academy-v111-memorisation-fixture.mjs",
+          "sha256": "09045d47e0462e019f88a94baf5dba60a566ce95bc561deabfafe46a32185ab5",
+          "bytes": 4579
+        },
+        {
+          "path": "backend/tests/fixtures/academy-v111-native-fixture.mjs",
+          "sha256": "1af49f926bcd7cb529e399eb7de6dd57f397363941f5db73987919998c4a96c5",
+          "bytes": 6937
+        },
+        {
+          "path": "backend/tests/fixtures/academy-v111-paid-month-fixture.mjs",
+          "sha256": "35341ad7cf04e74a8dd7be572c643baff4c6d28566c5662b8bcd0803eee100ec",
+          "bytes": 1221
+        },
+        {
+          "path": "backend/tests/fixtures/academy-v111-planning-fixture.mjs",
+          "sha256": "75674bd945cdd2ed4f0e2ced89a54cb3e4a2b912ab7f1979f49ae801cf0cac41",
+          "bytes": 4596
+        },
+        {
+          "path": "backend/tests/fixtures/academy-v111-studio-access-fixture.mjs",
+          "sha256": "f81455446b22a132d716cbb6d1d861580147f15d6a6c50dd000d66bbaecaad47",
+          "bytes": 4505
+        },
+        {
+          "path": "backend/tests/pdf-private-drive-proxy.test.mjs",
+          "sha256": "9a329a4beea1129540443a4de576eae2831c6ce8f1ecab9cda451a40590ffe0a",
+          "bytes": 4104
+        },
+        {
+          "path": "backend/tests/review-v111-course-participants-frames.test.mjs",
+          "sha256": "d79e60a891d9f505d03a9e341df0fea499d42adc8d71c196c0f8c19d0a8ae85d",
+          "bytes": 3412
+        },
+        {
+          "path": "backend/tests/review-v111-course-read-classifier.test.mjs",
+          "sha256": "8998a685d6fbb19809deaa19f7c755cb41939f0bd3a44642a9209d4325d0e579",
+          "bytes": 1003
+        },
+        {
+          "path": "backend/tests/review-v111-draft-role-aliases.test.mjs",
+          "sha256": "2ce8ebe704d1ce1cb7ecf1e1709161c0f8f4dbef8a4bb2969c75b819e2fb8e55",
+          "bytes": 4334
+        },
+        {
+          "path": "backend/tests/review-v111-personal-link-fragment.test.mjs",
+          "sha256": "fd4f0f4b2928480438b8d852c2a83e44570f6403ab3cc345bf187c53055374d3",
+          "bytes": 1429
+        },
+        {
+          "path": "backend/tests/review-v111-root-resource-alias.test.mjs",
+          "sha256": "3ab813c97548bda73547dd84ae50bedb3e8e0ad8bf7f675d736dd2ceec2cd250",
+          "bytes": 1362
+        },
+        {
+          "path": "backend/tests/review-v111-teacher-parent-summary-prerequisite.test.mjs",
+          "sha256": "6c9f180933cc1453d8d1d07326a0ef2fa706228927f8f3076a760a872a37594b",
+          "bytes": 1102
+        },
+        {
+          "path": "backend/tools/academy-assets.mjs",
+          "sha256": "1aa1b9041d95f49c9abbe1415d742af531eb27d96b0b788c428b43ad9d49f02a",
+          "bytes": 6045
+        },
+        {
+          "path": "backend/tools/academy-site.mjs",
+          "sha256": "de75ab528e1ea332d1dbeaa7322a1d50ad8a41f6b63be969d4632c4dbce2c368",
+          "bytes": 5526
+        },
+        {
+          "path": "backend/tools/academy-split/prepare.mjs",
+          "sha256": "a1f569214b6dd74cb6e089d858a14ef0cb2bb07a5a65ebad6928bcf88bd31618",
+          "bytes": 9485
+        },
+        {
+          "path": "config/v111-auth.json",
+          "sha256": "6cd11aed57bfe8498429152613c3497670168441baab9e71e8eae77efaa40296",
+          "bytes": 489
+        },
+        {
+          "path": "deployment/release-plan.json",
+          "sha256": "568b1872aacc82854d32e4681ba97e3319bc7ecc1cafbcc7a2f776ef444eabe4",
+          "bytes": 173
+        },
+        {
+          "path": "functions/package.json",
+          "sha256": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+          "bytes": 33
+        },
+        {
+          "path": "functions/pdf-file/[encoded].js",
+          "sha256": "68a98c84d1da0624c755dfac66c1c5112b2b060c7eb8d65fc6019b9b6f19e604",
+          "bytes": 5562
+        },
+        {
+          "path": "js/m4l-academic-calendar.js",
+          "sha256": "91dfc036417c9655f2c3c432faa8442b63908bba78933b50a148e8abab03ce04",
+          "bytes": 42524
+        },
+        {
+          "path": "js/m4l-academy-admin-menu.js",
+          "sha256": "245d111f1f2ed8fa13df558e87aed2df18cf4fc7f78a574bee2e7f275b51afa4",
+          "bytes": 9201
+        },
+        {
+          "path": "js/m4l-academy-announcements.js",
+          "sha256": "2360100ca71cf74415017b61ef545a1c402d6856b249408dff4b700affc616dd",
+          "bytes": 6205
+        },
+        {
+          "path": "js/m4l-academy-assessments.js",
+          "sha256": "7d272f8c5406a79c3a1056d639ed05fa69c001a6639933bbcdcc72dc1d49f330",
+          "bytes": 94900
+        },
+        {
+          "path": "js/m4l-academy-course-management.js",
+          "sha256": "763f979aa9c888caaeb3fe4534c0c5b55441382d5ea8ef2383621530928217e2",
+          "bytes": 61706
+        },
+        {
+          "path": "js/m4l-academy-entrance.js",
+          "sha256": "afe229b76af942571ed6db8caaa7ce3e4123f6757be17e6ff0cb7e4ea8dc1dbb",
+          "bytes": 111370
+        },
+        {
+          "path": "js/m4l-academy-history.js",
+          "sha256": "5a9a0ed4a74d45106599363026b97f117004c5a4165fafa925c254668f26b4cb",
+          "bytes": 5510
+        },
+        {
+          "path": "js/m4l-academy-join.js",
+          "sha256": "d7416b3cd424979a67f447498d29ce0d906121116c167b530f9acd445c9eea7e",
+          "bytes": 1079
+        },
+        {
+          "path": "js/m4l-academy-library.js",
+          "sha256": "aa9d558739b81f88cb85cb6e33a4429b7440e80cf80394275b06b48188a01fc3",
+          "bytes": 27117
+        },
+        {
+          "path": "js/m4l-academy-login.js",
+          "sha256": "746672c8b74faa9145cdb48e1cc57dfd9a9b80e60355f3bf56fd97e91daf83af",
+          "bytes": 18853
+        },
+        {
+          "path": "js/m4l-academy-navigation.js",
+          "sha256": "11272d7aab7c7eceb9a263bcfed825613218080f24af573beebd31d4b7f9f840",
+          "bytes": 13551
+        },
+        {
+          "path": "js/m4l-academy-planning.js",
+          "sha256": "6674301622f8fe99d12995a3f3023d45b4c4590c57b8b70153f0e7598e9aeabd",
+          "bytes": 35286
+        },
+        {
+          "path": "js/m4l-academy-playlists.js",
+          "sha256": "1201ee7c58d238a59c3f3cda70280094f4f0425c6b9cf144dd18047c91eeda5b",
+          "bytes": 29921
+        },
+        {
+          "path": "js/m4l-academy-progress.js",
+          "sha256": "62de7c7b91a74a02aea5e561033ef68f00bb4a0481121fcb140d0e0127a2fb35",
+          "bytes": 31668
+        },
+        {
+          "path": "js/m4l-academy-read-cache.js",
+          "sha256": "6e9fb3d92caaee45fedbfe6c81216e9611de927bd9e593ff7d2c7901162bfc3c",
+          "bytes": 15267
+        },
+        {
+          "path": "js/m4l-academy-settings.js",
+          "sha256": "b71fbff20fcab54f9e70b436a57c3c22b75b30dde59ca39b925fb477bc443d81",
+          "bytes": 8714
+        },
+        {
+          "path": "js/m4l-academy-startup.js",
+          "sha256": "2ae92bb03c298aae529ec0ac8613bf37ff7e09f3bd5ae5437b62f6c3481bb0fa",
+          "bytes": 4435
+        },
+        {
+          "path": "js/m4l-academy-workspace.js",
+          "sha256": "63afd7cb9eb4a631939fa07c6b7e0a8072e648085b7e9b15771b2d40cf365529",
+          "bytes": 27749
+        },
+        {
+          "path": "js/m4l-account.js",
+          "sha256": "d626225d4b900d10a3e84732e84baf6b16e17824e2b9999ed4788a24cbb2b529",
+          "bytes": 52112
+        },
+        {
+          "path": "js/m4l-announcements-editor.mjs",
+          "sha256": "eff3cdbdeea41cc3fc86f05974fb8e75e5e6a531df61fa946680f2e33e480086",
+          "bytes": 20897
+        },
+        {
+          "path": "js/m4l-assessment-register.js",
+          "sha256": "9b95cb1bd8715493e45ff305ca54ed19e873dac43db12c431d4549033b2db4ee",
+          "bytes": 7237
+        },
+        {
+          "path": "js/m4l-assessment-reports.js",
+          "sha256": "941781363025a3e2a6b01e3b3297deacc089602444804de2b6abef213f82e4e7",
+          "bytes": 24868
+        },
+        {
+          "path": "js/m4l-circles-access.js",
+          "sha256": "7d3e342b3a273768cad7dbed951aea0a044471cb3108f2af03966114d84bf33d",
+          "bytes": 19820
+        },
+        {
+          "path": "js/m4l-circles-native.js",
+          "sha256": "87da4e79bd4174959ee5585707ed88890cf5bbb0fbf2d87a5bcb7128ca33b397",
+          "bytes": 9394
+        },
+        {
+          "path": "js/m4l-class-notes.js",
+          "sha256": "30fe5444981b67f906f16c01de3c11d4a48c669d8d7acb643b802c4c4e81eda5",
+          "bytes": 30725
+        },
+        {
+          "path": "js/m4l-course-media-view.mjs",
+          "sha256": "3c04382c67ebf7f6e33340e3fc5208247220065a67adee5594044521b0dc20bf",
+          "bytes": 36829
+        },
+        {
+          "path": "js/m4l-course-media.js",
+          "sha256": "3e095313fb0edd3946746d55ccfbf3e72d60fdf056528fc31aa2218b78a694ee",
+          "bytes": 4591
+        },
+        {
+          "path": "js/m4l-course-participants.js",
+          "sha256": "6112024f49c78459aa32225ad650da99faf02e8c418294f45639c218f5703121",
+          "bytes": 22469
+        },
+        {
+          "path": "js/m4l-course-reading.js",
+          "sha256": "84cc583d37e613e3a5a286e4ef6573385fcfea1d5171bf0c7e173bbe6c15720c",
+          "bytes": 3692
+        },
+        {
+          "path": "js/m4l-enrolment-admin.js",
+          "sha256": "33555546aec3febe5fdc8f7728784b708f1b3bfbf2e6703182c3b16fed05d2af",
+          "bytes": 25530
+        },
+        {
+          "path": "js/m4l-enrolment-common.js",
+          "sha256": "334677b02a5562d47ff905e4987a4ef9b7dc41fd305963c3f1151015f6f4c8e6",
+          "bytes": 3298
+        },
+        {
+          "path": "js/m4l-enrolment-workspace.js",
+          "sha256": "05c916e41247eaf6a4a9282dd8257ad7d64cfb8cf991510b0d8779735afa1246",
+          "bytes": 1488
+        },
+        {
+          "path": "js/m4l-enrolment.js",
+          "sha256": "00f0f849beff700a69a01d740e15b9385d1d372801a697777ab68f4005295da2",
+          "bytes": 8763
+        },
+        {
+          "path": "js/m4l-existing-media-view.mjs",
+          "sha256": "e58d132cf86d1c7a4e94504c048d9e16024f7a9695432ace43abee7261b002b8",
+          "bytes": 3700
+        },
+        {
+          "path": "js/m4l-hifz-handoff.js",
+          "sha256": "b89b01fc15ee80e6dacdd1f277ad6d1030d22d878dc01109ff3c0aa76f957df4",
+          "bytes": 2507
+        },
+        {
+          "path": "js/m4l-learning-catalogue.js",
+          "sha256": "8ca91c84d7da06ca666625eff828873bc25f53d97d0fee55471c702687d1555a",
+          "bytes": 20779
+        },
+        {
+          "path": "js/m4l-lesson-media-cache.js",
+          "sha256": "5ae6a1018a6f08ff1be1d7ed27df552b72ba4a004c2746cfbcdfd51283f4ffac",
+          "bytes": 5013
+        },
+        {
+          "path": "js/m4l-lesson-media.js",
+          "sha256": "395f387e305b73c1414a3d3e2dd543255b82b5f8bd8bdca99e2bc26aab5fca0e",
+          "bytes": 101606
+        },
+        {
+          "path": "js/m4l-lesson-pdf-library.js",
+          "sha256": "0efcfb877a9bab30c8961a23b5e42be024c32f30d94c59d68f56204d347c9e08",
+          "bytes": 11215
+        },
+        {
+          "path": "js/m4l-library-cache.js",
+          "sha256": "33588e8ebf059d4e97be9954ace5028768196718f7372fd7b94db2f18bd1cf0d",
+          "bytes": 7726
+        },
+        {
+          "path": "js/m4l-library-menu.js",
+          "sha256": "22c7f76371f61c2557244ea9d7e5fbb3289df5a66556fc754d67ca3c95c07c0a",
+          "bytes": 1691
+        },
+        {
+          "path": "js/m4l-library-titles.js",
+          "sha256": "ed65e9a5cf2d24514f70fd524a304deea450ec3135f6c512ba20b42d37671349",
+          "bytes": 1252
+        },
+        {
+          "path": "js/m4l-memorisation-admin.js",
+          "sha256": "db175a50a25c389bde627a5da93d02e5c930cf29a66be35374ae6f5e66b282ec",
+          "bytes": 30468
+        },
+        {
+          "path": "js/m4l-monthly-media-entry.mjs",
+          "sha256": "be07a89e00ccab9b948ccf0aef31b8a155c2327b14fb2d53d9982adcd600e41c",
+          "bytes": 6392
+        },
+        {
+          "path": "js/m4l-monthly-media.js",
+          "sha256": "2ba1a60d2a897d24faf287bd7c03da6feb5565e8c8c3ab4d64d36bcf6d1e1e21",
+          "bytes": 5638
+        },
+        {
+          "path": "js/m4l-mou-playlists.js",
+          "sha256": "a802758a5c381586c9bcda0e86df55e27637d5cd0135f7ae0fe5c80126919979",
+          "bytes": 16978
+        },
+        {
+          "path": "js/m4l-native-admin-init.mjs",
+          "sha256": "d38f5bcbcb588e044b63539286c6b5f0b6f63f4f1e548d8bf7109af55f554079",
+          "bytes": 1071
+        },
+        {
+          "path": "js/m4l-native-playlist-view.mjs",
+          "sha256": "9fb00bfea0f807e57918c37198468806777de560c22c7b7134484228c51b3e49",
+          "bytes": 4475
+        },
+        {
+          "path": "js/m4l-open-library-manage.js",
+          "sha256": "9f8093f6926bab0939f7fb103394cac2d484fa35aa547d669aacebf70345b07f",
+          "bytes": 29554
+        },
+        {
+          "path": "js/m4l-pdf-annotation-recovery.mjs",
+          "sha256": "3a36628aeb06844c98d05e2740321d11f102cebd855b135ce649f55e7be6b6a9",
+          "bytes": 4209
+        },
+        {
+          "path": "js/m4l-pdf-bookmarks.mjs",
+          "sha256": "97884e5124afd37c191bc1bed638abf3d7adf621138d9b78c646068f7f67abc6",
+          "bytes": 7500
+        },
+        {
+          "path": "js/m4l-pdf-compare.mjs",
+          "sha256": "0e2d71f6549f043a8d84248caf4e86519f9d612d80fe04278af143054dfa7bc8",
+          "bytes": 37263
+        },
+        {
+          "path": "js/m4l-pdf-reader.mjs",
+          "sha256": "a625c4b5d0e8a51a474eac0e27fc702f2d1cae0b69e0299baba4759ae4da9df3",
+          "bytes": 44774
+        },
+        {
+          "path": "js/m4l-pdf-tools-admin.mjs",
+          "sha256": "afd3c655d95214ba395b51627ba219d9077262f1f0028f44fe03d4753595f88d",
+          "bytes": 10541
+        },
+        {
+          "path": "js/m4l-personal-links-v2.mjs",
+          "sha256": "3f901d5681886543208813ee0bb662f19e38632bc18e7845b4622d8cfab7715a",
+          "bytes": 8333
+        },
+        {
+          "path": "js/m4l-personal-links.js",
+          "sha256": "8ad8cc4fa9a40f6a7d9c1b738bd80c86388072ada79178bfbc02ddff6a3bf114",
+          "bytes": 6113
+        },
+        {
+          "path": "js/m4l-planning-pdf.js",
+          "sha256": "ffb866c1f976eacbcb33ea6189550c66daa411e214a4b996657263f258375390",
+          "bytes": 10571
+        },
+        {
+          "path": "js/m4l-program-admin.js",
+          "sha256": "778e0c1a7b5517de9697cb71e0a72327fc70df8136d83096d54c9aef326efe8f",
+          "bytes": 10978
+        },
+        {
+          "path": "js/m4l-program-attendance.js",
+          "sha256": "adb0186b8f8af34edab434329e376a33a3cddb5735858eb22cd535ff155f6763",
+          "bytes": 33878
+        },
+        {
+          "path": "js/m4l-program-builder.js",
+          "sha256": "034f1a419f14c5a8a76fe729ea426ef5a21023d15ed89544800bb9c02ea30ab9",
+          "bytes": 32890
+        },
+        {
+          "path": "js/m4l-program-lesson-media.js",
+          "sha256": "e132c52162a3cadaba37dadcbf6fe308785c9cc01116a212fea1a5ecfe458d44",
+          "bytes": 7135
+        },
+        {
+          "path": "js/m4l-program-management.js",
+          "sha256": "c418dc7aa58e55a29f52fe1fb2014afb0f2bb3e219462c22fbb5d2414c3d90ef",
+          "bytes": 68422
+        },
+        {
+          "path": "js/m4l-program-monthly-subscriptions.js",
+          "sha256": "b164d4d7520837c50c27a50c0d99e61c728fa2d52d9f960f205718b321a064fa",
+          "bytes": 42607
+        },
+        {
+          "path": "js/m4l-program-surahs.js",
+          "sha256": "883a46042ba511f8404dff54e354d886fea9dbddfaca6ee0cdc0878d385c2ba2",
+          "bytes": 15364
+        },
+        {
+          "path": "js/m4l-program-timetable.js",
+          "sha256": "a9cc042a4c169ae5dd4a2881f86a8caf191030a1b529bf37efefdd3fa9c4748c",
+          "bytes": 49932
+        },
+        {
+          "path": "js/m4l-program-workspace.js",
+          "sha256": "703433617a0c9f4a9f5ca99e750ef43305883357aa79e79f08bfd8619eec304d",
+          "bytes": 20799
+        },
+        {
+          "path": "js/m4l-programme-workspace.js",
+          "sha256": "e6885dab04711af88200a88a658e3c9b9e15c3f6705c49a4bae2d13f35163e4c",
+          "bytes": 21231
+        },
+        {
+          "path": "js/m4l-public-timetable-refresh.mjs",
+          "sha256": "f1865ec83a263ebf2c446a22c051572da83bb6d44740f86b5cef60a89d7a3d88",
+          "bytes": 994
+        },
+        {
+          "path": "js/m4l-studio-access-v2.mjs",
+          "sha256": "575cc9df1426aa895bc4f3fe35ee37cc877e0beff8c67dec5ae9654ab101275c",
+          "bytes": 22668
+        },
+        {
+          "path": "js/m4l-studio-access.js",
+          "sha256": "347930335fa30f8e40f5fbd76e51014a5acbe88d38506e61e0358c6b0b2fe405",
+          "bytes": 27191
+        },
+        {
+          "path": "js/m4l-studio-playlist-access.mjs",
+          "sha256": "5ab2a535df7cff1df8ef6b259dcd9eff0ad6a6f04a53dd9aef6c615cd638ff03",
+          "bytes": 7427
+        },
+        {
+          "path": "js/m4l-tafseer-access.js",
+          "sha256": "c7085a92ffde6a0286439f1a4277d4fe74635f3f8676e8e6698071bfd10cb1af",
+          "bytes": 4232
+        },
+        {
+          "path": "js/m4l-teacher-availability-dialog.js",
+          "sha256": "1dabb1ad4ff2ddd28e263a03bbc557dd7d5e331968a28b6b3a8b4d0f0fafeebc",
+          "bytes": 10591
+        },
+        {
+          "path": "js/m4l-user-profiles.js",
+          "sha256": "78f20e7ff937e5f678ab9de192f4214234a47283b96676913a22f96e69203faf",
+          "bytes": 52986
+        },
+        {
+          "path": "js/m4l-v111-assessment-reports.mjs",
+          "sha256": "a2ee4dc78fff9540875faf4c0c37ff177ef03d4fd4bbf3d797cb2e72f523fef3",
+          "bytes": 3829
+        },
+        {
+          "path": "js/m4l-v111-assessments.mjs",
+          "sha256": "a53950e7bbc41d8edc7159291f1e99be9ffe19f05384e533b1cb1b3f5f824ab4",
+          "bytes": 14475
+        },
+        {
+          "path": "js/m4l-v111-editor.mjs",
+          "sha256": "44318ed2aae249a99282bef5592c466250fe28041cb977150fedd61d1f58f68b",
+          "bytes": 32996
+        },
+        {
+          "path": "js/m4l-v111-monthly-media.mjs",
+          "sha256": "5b4dc924419e6cd828cb59a21b4f4f7fa7caad3c2932bc8265f62596bdf6e3f7",
+          "bytes": 7423
+        },
+        {
+          "path": "js/m4l-v111-report-plan.mjs",
+          "sha256": "1ed2ce4110825f8aeb38cdc5e43ef26d213db8062fdbbd0dc2c3e75e1973c961",
+          "bytes": 1953
+        },
+        {
+          "path": "js/m4l-v111-session.js",
+          "sha256": "e65bac40294167d16351bbaa413df45934ec04bafb9b56f67f40d10f893049d7",
+          "bytes": 2298
+        },
+        {
+          "path": "js/m4l-v111-session.mjs",
+          "sha256": "a394fce63909af4b511f8acba3129994cefad11cc49d5b9e305b213dee071661",
+          "bytes": 16984
+        },
+        {
+          "path": "js/m4l-website-card-table.js",
+          "sha256": "9f337c831f58d83e1e34966f652bbf3de5d5f5c5e1bf2ca0e3dce6c837ddb8a8",
+          "bytes": 9812
+        },
+        {
+          "path": "js/m4l-website-studio.mjs",
+          "sha256": "922dd908c9b66eec27b8e8057036802897adc355f7d8bf66c0d9d8ffcc9e2174",
+          "bytes": 2814
+        },
+        {
+          "path": "portal-adapter/api-client.mjs",
+          "sha256": "be3a8051e7f4e5295d654ff77a4f66586e0d6680b882a39c8dc96d8b60101c76",
+          "bytes": 11682
+        },
+        {
+          "path": "portal-adapter/api-prefix.mjs",
+          "sha256": "bb1e58290d6c0316d22386204015a6821f5fa48c12893fcc4e0658bfa3d45585",
+          "bytes": 8028
+        },
+        {
+          "path": "portal-adapter/circles-dashboard.mjs",
+          "sha256": "7b49cf722987924e27e0c65f0dc494069cb888f203ac62695a7cc945fb6f04c9",
+          "bytes": 16803
+        },
+        {
+          "path": "portal-adapter/circles-login.mjs",
+          "sha256": "8e6e8e8297abdada582c16eae6e2ea7a268837d3fa2ef2d21ffbbebdbc122313",
+          "bytes": 22841
+        },
+        {
+          "path": "portal-adapter/circles-sign-in.mjs",
+          "sha256": "dea26eafaa731468c7f91e718b73c14741bdda3fc3a4125648180f67f28daa4b",
+          "bytes": 6666
+        },
+        {
+          "path": "portal-adapter/dashboard-tafseer-data.mjs",
+          "sha256": "5235ab053acf785f94f977b5014961434828d1e22f2bf7d91748dbc1a788a5c1",
+          "bytes": 4038
+        },
+        {
+          "path": "portal-adapter/studio-authorize.mjs",
+          "sha256": "a9398e44f92e2a852bbe96125cf710339a6d365ecedf522e5fc43e82025097bd",
+          "bytes": 2128
+        },
+        {
+          "path": "portal-adapter/studio-enter.mjs",
+          "sha256": "2e44d91144edca968e1d9e420f7e6b41ff258ea0c574aa3833213bcb5c30b21f",
+          "bytes": 843
+        },
+        {
+          "path": "portal/api.mjs",
+          "sha256": "96a200b4cc132ddf0cf21548fce7a18d284908c4eb1bbcec0498118890169407",
+          "bytes": 19711
+        },
+        {
+          "path": "portal/circles-dashboard.mjs",
+          "sha256": "7b49cf722987924e27e0c65f0dc494069cb888f203ac62695a7cc945fb6f04c9",
+          "bytes": 16803
+        },
+        {
+          "path": "portal/circles-login.mjs",
+          "sha256": "8e6e8e8297abdada582c16eae6e2ea7a268837d3fa2ef2d21ffbbebdbc122313",
+          "bytes": 22841
+        },
+        {
+          "path": "portal/shared/circles-sign-in.mjs",
+          "sha256": "dea26eafaa731468c7f91e718b73c14741bdda3fc3a4125648180f67f28daa4b",
+          "bytes": 6666
+        },
+        {
+          "path": "portal/shared/dashboard-tafseer-data.mjs",
+          "sha256": "5235ab053acf785f94f977b5014961434828d1e22f2bf7d91748dbc1a788a5c1",
+          "bytes": 4038
+        },
+        {
+          "path": "portal/studio-authorize.mjs",
+          "sha256": "a9398e44f92e2a852bbe96125cf710339a6d365ecedf522e5fc43e82025097bd",
+          "bytes": 2128
+        },
+        {
+          "path": "portal/studio-enter.mjs",
+          "sha256": "2e44d91144edca968e1d9e420f7e6b41ff258ea0c574aa3833213bcb5c30b21f",
+          "bytes": 843
+        },
+        {
+          "path": "security/v2/README.txt",
+          "sha256": "87580fd2d10ff383419a62db210981d52174eec905ecd312e14c2522cd5d026a",
+          "bytes": 10963
+        },
+        {
+          "path": "security/v2/academy-admin-form-resources.mjs",
+          "sha256": "e970b91dab3268118daab5139bfa8695f340f67ec4bb63c6a042836461fb37f8",
+          "bytes": 2465
+        },
+        {
+          "path": "security/v2/academy-assessment-template-resources.mjs",
+          "sha256": "d88f836d3724c35b33c93ec7867f65155f075879c511f7adb7ad338ced281f02",
+          "bytes": 2716
+        },
+        {
+          "path": "security/v2/academy-calendar-resources.mjs",
+          "sha256": "b6974c3084dd71e1220a123e4e3031fba1b5c6d40263fbd4fe001916b9b8ea94",
+          "bytes": 4232
+        },
+        {
+          "path": "security/v2/academy-catalogue-resources.mjs",
+          "sha256": "3b08b4019e72520ca3d482da6c6707631bb6da35cb7b33a6c61e534d42b84ef9",
+          "bytes": 1676
+        },
+        {
+          "path": "security/v2/academy-course-management-resources.mjs",
+          "sha256": "dfe209317e0120e40e4eac05c333d830ea7abf5976186f6f590f2daddd8f070f",
+          "bytes": 2499
+        },
+        {
+          "path": "security/v2/academy-enrolment-resources.mjs",
+          "sha256": "3a5a6b661c4c6f3cd872c5bdafe437e4b12ba1dbb33edee06806542a0595d0b1",
+          "bytes": 2619
+        },
+        {
+          "path": "security/v2/academy-library-resources.mjs",
+          "sha256": "3d3e323f16df72cec717dc1a7f8e0432faae126fdfbfd0caa0e36b253e1d7c44",
+          "bytes": 1535
+        },
+        {
+          "path": "security/v2/academy-memorisation-resources.mjs",
+          "sha256": "3ea2fbf6f89dce53cb92c17ef40b9b6bee09555de88ee7a2041d25d9491d334a",
+          "bytes": 4725
+        },
+        {
+          "path": "security/v2/academy-native-draft-read.mjs",
+          "sha256": "aa94d1ba8a32ad4f1b6ee6ea27eb1c062b2b99620d504285168f94ee8db3ec33",
+          "bytes": 5130
+        },
+        {
+          "path": "security/v2/academy-native-resources.mjs",
+          "sha256": "ede6f0652a73f281ff6e21d2405963f7137a9b99e367147dd7699c9f8cd80a44",
+          "bytes": 34632
+        },
+        {
+          "path": "security/v2/academy-outbox-scheduler.mjs",
+          "sha256": "81427407c967507b7a11ceaf1d7dfc25bf4ab1393ab0204125e8f0cd51ee6f54",
+          "bytes": 7042
+        },
+        {
+          "path": "security/v2/academy-paid-grid-resources.mjs",
+          "sha256": "95b35d12de706e94faf7bc52d85ebb1ff819a3ab2f53e46d5014aed374d2962e",
+          "bytes": 5600
+        },
+        {
+          "path": "security/v2/academy-personal-links-resources.mjs",
+          "sha256": "c88ab723af70a8c4eee7de89aa5554d566b35a1860c9407374d338449285de77",
+          "bytes": 1007
+        },
+        {
+          "path": "security/v2/academy-planning-resources.mjs",
+          "sha256": "a7c82b2cbc9b8de74787f02838888806704de91d2794a16cdc514b8c84ee7837",
+          "bytes": 6098
+        },
+        {
+          "path": "security/v2/academy-reader-resources.mjs",
+          "sha256": "8f1fe7f505ffbbed508b3f96c2b7701a50b62918a7807fdd8763fe3a36ebc2e6",
+          "bytes": 1772
+        },
+        {
+          "path": "security/v2/academy-studio-access-resources.mjs",
+          "sha256": "7ca3c09ff8d832433749055d0bdb09e4c4fda62f9a8388e3f670830f457ad536",
+          "bytes": 7124
+        },
+        {
+          "path": "security/v2/academy-users-resources.mjs",
+          "sha256": "e536153348c125f2e817feea29f9df2c982c3dcd59cdca2716364c26d182c827",
+          "bytes": 1128
+        },
+        {
+          "path": "security/v2/browser-assets.mjs",
+          "sha256": "80ee8c8a53a134e35d7122a12b8866130ade167831ea33f7284f087307a1e5d3",
+          "bytes": 59339
+        },
+        {
+          "path": "security/v2/browser-drafts.mjs",
+          "sha256": "5dc1b837635438fea9fd299f5e5f03965e8f2bdee2b61a9aed3594b499e9cdbc",
+          "bytes": 18008
+        },
+        {
+          "path": "security/v2/browser-security.mjs",
+          "sha256": "ac4f8fb6892cba52adae4ec66c9794987ee701cd3acfe2e9c769e86909efe281",
+          "bytes": 2406
+        },
+        {
+          "path": "security/v2/browser-session.mjs",
+          "sha256": "0d100564b51c83607450c250f0b9ae79249c163e1d9628a5a661c7c4360aadb0",
+          "bytes": 40646
+        },
+        {
+          "path": "security/v2/cache.mjs",
+          "sha256": "723597d14be97b384c9c16858a238d4917800501bbec78dd485df1a3df55614f",
+          "bytes": 14584
+        },
+        {
+          "path": "security/v2/capture-receipt.mjs",
+          "sha256": "be04d135a5c3d956636105adef57ecf577c9b8d2ebd1cc7b5e15a9c2ae50573b",
+          "bytes": 2649
+        },
+        {
+          "path": "security/v2/capture.mjs",
+          "sha256": "c11f9fefb034dc51a1f94fe18ec704421433fb978c33eaee55cfed415bd6bb3b",
+          "bytes": 14409
+        },
+        {
+          "path": "security/v2/ceremonies.mjs",
+          "sha256": "075c7e3d1b7bcd802a1d358786972093b46653e99f825ae9399c1023b4fcf21a",
+          "bytes": 44437
+        },
+        {
+          "path": "security/v2/codec.mjs",
+          "sha256": "cc8654f2f01230c461bfca39b5dad6d0392f479fe04c76b5e1b67a633c443d9f",
+          "bytes": 6561
+        },
+        {
+          "path": "security/v2/control-publication.mjs",
+          "sha256": "b3aa6627897cc21b9702b6f490352ef0a46dc69df38a0134fa3ae81c759bb2bd",
+          "bytes": 22380
+        },
+        {
+          "path": "security/v2/control-shapes.mjs",
+          "sha256": "f769504435ea4ccbdf3565701ccc668fd5d5ed022474b89896d86a2fad88606d",
+          "bytes": 2517
+        },
+        {
+          "path": "security/v2/cutover-state.mjs",
+          "sha256": "228fb99e4117736bae7e2aab722dbb6e3ffc56a7039217255ae547c7e4420aca",
+          "bytes": 794
+        },
+        {
+          "path": "security/v2/events.mjs",
+          "sha256": "8556836a7310ddca862b2b6413dac3622737b7705220fa4938044a134fdd8c0c",
+          "bytes": 11153
+        },
+        {
+          "path": "security/v2/fallback.mjs",
+          "sha256": "268033ae1b57c35d762ac2591dc39f5a4b28fd568bd2256f2e9aaaf56480b11f",
+          "bytes": 4830
+        },
+        {
+          "path": "security/v2/floors.mjs",
+          "sha256": "08f824452bd00758a9d21485470db6c1954b7c7bbbd91e603c4fe69e4fd83d83",
+          "bytes": 1582
+        },
+        {
+          "path": "security/v2/http-auth.mjs",
+          "sha256": "81556cfc823aac87a7aad984e78b62ab331ce7ba12cf41e2d6a7db737d8c45d1",
+          "bytes": 10543
+        },
+        {
+          "path": "security/v2/http-context.mjs",
+          "sha256": "507fdb3e86c7187a878db2b11013677a034bb5e9e3dcbf0539680898b60b72ef",
+          "bytes": 8673
+        },
+        {
+          "path": "security/v2/http-drafts.mjs",
+          "sha256": "7075572efe07b4c3e02e9cc5844c434b0480f3e1f1a7368ce991226feeaca501",
+          "bytes": 9073
+        },
+        {
+          "path": "security/v2/http-families.mjs",
+          "sha256": "1456d59f5c8d76bd7caca897f4a66921e7885d2c1117c1ede42f876998f4bd7d",
+          "bytes": 11636
+        },
+        {
+          "path": "security/v2/http-journeys.mjs",
+          "sha256": "0c816011a39111bd2604f21becf7542a548765e7f3262fedbe7b6a48f243551b",
+          "bytes": 10840
+        },
+        {
+          "path": "security/v2/http-pin.mjs",
+          "sha256": "b22127b48edfb170282964ccd91ec103c0fd1464e9f2cca0f819b557fa9d0503",
+          "bytes": 16027
+        },
+        {
+          "path": "security/v2/http-service.mjs",
+          "sha256": "ead35cbb1f12fc50349a55712c56f912ec966fb4b83925648693b0058c3269a3",
+          "bytes": 7778
+        },
+        {
+          "path": "security/v2/http-shells.mjs",
+          "sha256": "8d2e3db3da2a2ab56994bfa25297c6784d2814c342a302b04994603b23c8ab58",
+          "bytes": 9067
+        },
+        {
+          "path": "security/v2/http-transactions.mjs",
+          "sha256": "38ab7c2af12e2b8526a135f492a9ac47bebbcea31d81bcc1db860602763f5822",
+          "bytes": 3262
+        },
+        {
+          "path": "security/v2/instrumentation.mjs",
+          "sha256": "fecc4934c5820bde33680a0dc87f563829906a5ba1d02b6a35c0f2e4e28a2684",
+          "bytes": 14053
+        },
+        {
+          "path": "security/v2/issuance-floors.mjs",
+          "sha256": "2d1516eeb0ba57e162f3f26fbcef3088a4a05e7d567d212c079b57b7eb08daa9",
+          "bytes": 16692
+        },
+        {
+          "path": "security/v2/native-adapter.mjs",
+          "sha256": "89c9ce830cb8a2e406e1df63337ba605806317fb38fd2859f5e9eee899374880",
+          "bytes": 15211
+        },
+        {
+          "path": "security/v2/native-authority.json",
+          "sha256": "4dd202e42edd32b8e8d704ca5c33db7c25c5a2cdc349aa7d4b23b41e8af599a0",
+          "bytes": 69100
+        },
+        {
+          "path": "security/v2/native-domain.mjs",
+          "sha256": "a16fa1d5abaf5ac0e7494225919134e68bb392ca2bfda49250ee617878f8c43f",
+          "bytes": 5275
+        },
+        {
+          "path": "security/v2/native-runtime.mjs",
+          "sha256": "eb965eda1efbfeb96ee5fb2e90bc76489d395f26547d31019b4cc2c5e8ac41ac",
+          "bytes": 2772
+        },
+        {
+          "path": "security/v2/native-schema.mjs",
+          "sha256": "2bff8ef648bc9427602e51d13e03b83af28c279d36e3dc3043dd141008873326",
+          "bytes": 1958
+        },
+        {
+          "path": "security/v2/outbox.mjs",
+          "sha256": "bffa23db1e7724b199f3b598040e807f0f55fb1fb8c44d97ac83cdfeeacedeaa",
+          "bytes": 7983
+        },
+        {
+          "path": "security/v2/policy-coverage.mjs",
+          "sha256": "858e16e6e8917b4189af1ba9225f90621ae9bb39b59edeced931152e248d55e0",
+          "bytes": 8219
+        },
+        {
+          "path": "security/v2/policy.mjs",
+          "sha256": "4b283344a85dbcbab0a8ed25efcb40e08c56ac227fbbd0fca35895a52a364dca",
+          "bytes": 20075
+        },
+        {
+          "path": "security/v2/portal-business.mjs",
+          "sha256": "60c37a688fc44d6ad81347ab90e2010d37fbcfdb83e1ad36e04b2719916ce9f2",
+          "bytes": 8934
+        },
+        {
+          "path": "security/v2/portal-capability.mjs",
+          "sha256": "725c8528ed24f398d5d2305c030768580e2018186b3bda7299e72af8aed878d3",
+          "bytes": 2571
+        },
+        {
+          "path": "security/v2/primary-write-guard.mjs",
+          "sha256": "e3445718a25c6a9b6d739973b3b89063bde50c9185879461976a840a2bc85d8e",
+          "bytes": 1805
+        },
+        {
+          "path": "security/v2/profile-service.mjs",
+          "sha256": "aec35d8233a40766b2c3566bc330376abd09b19ddc80a9f844214b90c0bb080b",
+          "bytes": 8710
+        },
+        {
+          "path": "security/v2/profile-source-triggers.mjs",
+          "sha256": "1a00d70322493a42b1d1c8cd87d4729944f25646e3165317590ab5d9c65653a7",
+          "bytes": 2118
+        },
+        {
+          "path": "security/v2/publication.mjs",
+          "sha256": "a222e72e9fd2ba021f6057d90b08531104bd1a59e7d50c8a42964f908575af61",
+          "bytes": 11035
+        },
+        {
+          "path": "security/v2/recovery.mjs",
+          "sha256": "0e2744596e2fff0029a31eb5a9efcf6072fbf03ba86bc96b28605b40eb885d58",
+          "bytes": 3977
+        },
+        {
+          "path": "security/v2/return-routes.mjs",
+          "sha256": "92f86e79b92f1e8ec5dc55d3f4f122d860319945cc921df20a808759cd042f3f",
+          "bytes": 618
+        },
+        {
+          "path": "security/v2/rights-memo.mjs",
+          "sha256": "52e9d661fcc73a170cad4e42c5fbf5672c08d0a027fa05b18d148cedeebf3007",
+          "bytes": 1305
+        },
+        {
+          "path": "security/v2/runtime-config.mjs",
+          "sha256": "e613dd2f398770d8af9df0660d8197491721493a95c736e51476c8d7ae08841f",
+          "bytes": 10164
+        },
+        {
+          "path": "security/v2/runtime-fallback.mjs",
+          "sha256": "0746545e2321077dc37289ed645b63d6dca989e8dc1bd9e3014977505cf9d851",
+          "bytes": 3728
+        },
+        {
+          "path": "security/v2/runtime-pending.mjs",
+          "sha256": "e3571414d4d0e58184e298ff4e9735b1a5d6b0046abe2af2b963d4c9eadeea79",
+          "bytes": 7116
+        },
+        {
+          "path": "security/v2/runtime-service.mjs",
+          "sha256": "ee953ed304dd6566893738d14c8d8866b2bea405e38c9da9ce070d75d698a6b3",
+          "bytes": 41037
+        },
+        {
+          "path": "security/v2/runtime.mjs",
+          "sha256": "27ddf2c6c262e9dd7724ee7637355e88d8ed8203a0ff96e7037b2cd4bbb0eac7",
+          "bytes": 17449
+        },
+        {
+          "path": "security/v2/schema-bundle.mjs",
+          "sha256": "71f71b0bdb935218cff25b560aa0f2906d71599d62d69be7b04b039f1c858205",
+          "bytes": 1119
+        },
+        {
+          "path": "security/v2/schema.mjs",
+          "sha256": "aa03a68fef250e6d90d31af94768ad33868c39d4200bcf796a33a1bd1c1271bf",
+          "bytes": 10180
+        },
+        {
+          "path": "security/v2/sender-floors.mjs",
+          "sha256": "159f5076f94bdb34672eaae7bc4002cb690aa0e020fb9e6bcafc664840e6896b",
+          "bytes": 6262
+        },
+        {
+          "path": "security/v2/snapshot.mjs",
+          "sha256": "55128250a7773cd0d5c8a289f38822a1d140861466b6fbc9685440b8a3822bb6",
+          "bytes": 44980
+        },
+        {
+          "path": "security/v2/source-manifest.json",
+          "sha256": "4706d242fb8bd244ddb33877994098ec4a668746071a77302a0add767a2a89aa",
+          "bytes": 16626
+        },
+        {
+          "path": "security/v2/store.mjs",
+          "sha256": "ba3b5167b329a5037ab697e0bfa065166805f5eb624ad0e313cea86dd8afccab",
+          "bytes": 18814
+        },
+        {
+          "path": "security/v2/stream-deadline.mjs",
+          "sha256": "d31e40895fae9f8be4a6aa843ea436e405c0483139af6d5e9b5ace598f733b4c",
+          "bytes": 2303
+        },
+        {
+          "path": "security/v2/test/academy-native-resources.test.mjs",
+          "sha256": "9593fd6047510f64aad747841783276db74f6f44022b507ad2ab102d5343a8ed",
+          "bytes": 3677
+        },
+        {
+          "path": "security/v2/test/all.test.mjs",
+          "sha256": "2921d8344fdea2995d7385cb8d61ee7e6b05e2804919f6b76394cc59c01ceabc",
+          "bytes": 630
+        },
+        {
+          "path": "security/v2/test/browser-recovery.test.mjs",
+          "sha256": "a5a23b8a80d978b04f7f34cf5861d237c111fb00f8d69579323a217777094167",
+          "bytes": 10979
+        },
+        {
+          "path": "security/v2/test/cache.test.mjs",
+          "sha256": "58e4ccb70b37ce50d58f7de1f3781e2e656e31aeaf6495123e5e6a9367be2cdf",
+          "bytes": 11072
+        },
+        {
+          "path": "security/v2/test/capture-canonical.test.mjs",
+          "sha256": "fbf45173a6eec00c7b880db891ff4156f76c8f5260b1cc9e52832f78d1e0031f",
+          "bytes": 11789
+        },
+        {
+          "path": "security/v2/test/capture.test.mjs",
+          "sha256": "e78da452abc3f834e770b7e4e7be0884f42f28a725ab5a588663fa21e2575766",
+          "bytes": 6686
+        },
+        {
+          "path": "security/v2/test/ceremonies.test.mjs",
+          "sha256": "2a8016eec966369d9c2a44dab00209361f2c80e1984e281f9bdf5c2dbbc97cdb",
+          "bytes": 29244
+        },
+        {
+          "path": "security/v2/test/control-publication.test.mjs",
+          "sha256": "38b3e2f601582d2a824ca2a9bcfcf52bdfc3b782c6c0f074d79e93c8888a68ee",
+          "bytes": 23907
+        },
+        {
+          "path": "security/v2/test/events.test.mjs",
+          "sha256": "b0ea011fc9457500e3261c7dbb01233d1a031222fbc8ba86bb9fc63fa54f9c6b",
+          "bytes": 7647
+        },
+        {
+          "path": "security/v2/test/floors.test.mjs",
+          "sha256": "b2cd8825a5f51d6119293991a340066f9482e266c373ae9014e723f1350a3ee2",
+          "bytes": 1228
+        },
+        {
+          "path": "security/v2/test/helpers.mjs",
+          "sha256": "e105eadc9c626607188af9b3da22ac8a5dea5cf5406b4947c777cd4d7d80d57f",
+          "bytes": 5946
+        },
+        {
+          "path": "security/v2/test/http-service.test.mjs",
+          "sha256": "24ae865ba5d32982ff0bf38b4e2e53793690b2b7b40763a16bb87593b3766dd1",
+          "bytes": 4925
+        },
+        {
+          "path": "security/v2/test/instrumentation.test.mjs",
+          "sha256": "eeca93a53382004e7c791ea92dcd2a2e38fbccdc1b16cb698041cbca1dc33819",
+          "bytes": 14779
+        },
+        {
+          "path": "security/v2/test/issuance-floors.test.mjs",
+          "sha256": "efca58a321864d3fdaa2def49e7eec2f41bd0c83ab51cde3a25a872b8e452d65",
+          "bytes": 17580
+        },
+        {
+          "path": "security/v2/test/limits-retry.test.mjs",
+          "sha256": "77172afa5e828866d4edeb21e8e4772097c9f344984467ace2c43acedd624f7c",
+          "bytes": 11740
+        },
+        {
+          "path": "security/v2/test/native-adapters.test.mjs",
+          "sha256": "7c4e2f288ed85cbae7f49337f4b7c307ddf56d304459373193a715328c25b6b2",
+          "bytes": 21203
+        },
+        {
+          "path": "security/v2/test/native-coordinator.test.mjs",
+          "sha256": "33ba3b5d5fc4f0f37b543286c6c96d0e7bdf357fbf03e4acdea48cb50b484a6a",
+          "bytes": 9146
+        },
+        {
+          "path": "security/v2/test/native-effects.test.mjs",
+          "sha256": "56055fe23a97c8b34f154a355e356529d988202e9be25d210cbad84948acc428",
+          "bytes": 7086
+        },
+        {
+          "path": "security/v2/test/native-renewal.test.mjs",
+          "sha256": "9517a94f61331b3f400b684d67f2fc78d7eb505303925201770f5212f06a4378",
+          "bytes": 3298
+        },
+        {
+          "path": "security/v2/test/policy-coverage.test.mjs",
+          "sha256": "88e9636f8e0fd26395af5bd2da3ba4b882029cac8ee7581483482d4cb7f4a115",
+          "bytes": 11469
+        },
+        {
+          "path": "security/v2/test/policy.test.mjs",
+          "sha256": "e86a9210f8a64724b598a92a7acc980df12bdc93f3de8d9f8252c00fe077444d",
+          "bytes": 11707
+        },
+        {
+          "path": "security/v2/test/profile-service.test.mjs",
+          "sha256": "c913917f3e0f8545f138828a2c519ebbf5bb823008a8543fd3272a4da5493e8d",
+          "bytes": 3009
+        },
+        {
+          "path": "security/v2/test/profile-source.test.mjs",
+          "sha256": "6ff8f03f023446e1590bd7b0a085b7640a47912269b5bc5da8bd9d1d175a6bfc",
+          "bytes": 14832
+        },
+        {
+          "path": "security/v2/test/runtime-service.test.mjs",
+          "sha256": "f6ed0f3a9589795d84deb4a56aef82dc6b76164e486d58e8e61e1b7dc44781e6",
+          "bytes": 9092
+        },
+        {
+          "path": "security/v2/test/sender-floors.test.mjs",
+          "sha256": "ba67cb32f36e6ecf4b3afb8bd0f75e032e17b3cf16eda27b05d4e98e3675c440",
+          "bytes": 6390
+        },
+        {
+          "path": "security/v2/test/snapshot-scope.test.mjs",
+          "sha256": "afad7cc1b65449a8de63a2dcee305f54aed85da47cc989c77a0ab5c81f7a602c",
+          "bytes": 11685
+        },
+        {
+          "path": "security/v2/test/snapshot.test.mjs",
+          "sha256": "ae68112edb93ca2434df9d1d1f2d248493a181560ae7cecf9436ed27e6f4ba3a",
+          "bytes": 29045
+        },
+        {
+          "path": "security/v2/test/store.test.mjs",
+          "sha256": "d24bce3611007f8c43d4624337e1a9af819b8f98caff3ff2d1b9fef10b1eb191",
+          "bytes": 9003
+        },
+        {
+          "path": "security/v2/test/tokens.test.mjs",
+          "sha256": "4500904b48eb6db9cfbc55210cde16dac95c8f516a6d73afe772f95c43d9a783",
+          "bytes": 6813
+        },
+        {
+          "path": "security/v2/tests/academy-admin-forms-browser-runner.mjs",
+          "sha256": "2a7a7dca8340472588c392ba435a560c3461e2c40aadb17be1b353b079e7435c",
+          "bytes": 11149
+        },
+        {
+          "path": "security/v2/tests/academy-assessment-answer-browser-runner.mjs",
+          "sha256": "af4d0bc05fe3ce8b76725e9f31dd6880e3ddce6638382599dff4229a2b53687a",
+          "bytes": 16790
+        },
+        {
+          "path": "security/v2/tests/academy-assessment-marks-browser-runner.mjs",
+          "sha256": "0f9cf0dab788659ddd93df078e8a74ed3b1e288cf9aa15186d9ccd3d34765184",
+          "bytes": 13646
+        },
+        {
+          "path": "security/v2/tests/academy-assessment-paper-browser-runner.mjs",
+          "sha256": "3bced5932358b4a88d7405bc09339f6cc803758cfaa281c3ea32a0b7f3f01194",
+          "bytes": 13648
+        },
+        {
+          "path": "security/v2/tests/academy-assessment-reports-browser-runner.mjs",
+          "sha256": "0e338947a7c5bd2addf42f32bfa213e38846ef1e25eb85a9460baa9ae1015cc2",
+          "bytes": 16780
+        },
+        {
+          "path": "security/v2/tests/academy-assessments-browser-runner.mjs",
+          "sha256": "3baae092f1dd156d01228f6035055cdd40f4b71419f8643e2fd544aaa3f110d2",
+          "bytes": 16150
+        },
+        {
+          "path": "security/v2/tests/academy-attendance-browser-runner.mjs",
+          "sha256": "9cfbc760889f0fc29c53966a0400a1680f3b4c0ad755db929560feb04acdc1ef",
+          "bytes": 12005
+        },
+        {
+          "path": "security/v2/tests/academy-availability-acceptance-runner.mjs",
+          "sha256": "80ed467ba5d94cc4cfe2d9fdad9604d5dccaa806480dfddb11d8751a517907ed",
+          "bytes": 12062
+        },
+        {
+          "path": "security/v2/tests/academy-browser-runner.mjs",
+          "sha256": "36a93b8bfa7697ea1a2b7681a29fc62eefd90d1bb47f4643974f849602513cb6",
+          "bytes": 7648
+        },
+        {
+          "path": "security/v2/tests/academy-calendar-acceptance-runner.mjs",
+          "sha256": "04d82ee859ccbd717bc370d1d0078b5f204e3d4973ba46bfc391b0584891fba4",
+          "bytes": 10825
+        },
+        {
+          "path": "security/v2/tests/academy-calendar-browser-runner.mjs",
+          "sha256": "3b73033354645064931e092a2168166855417bbb9e54f0088c4ed7d7dbbcff26",
+          "bytes": 12325
+        },
+        {
+          "path": "security/v2/tests/academy-catalogue-browser-runner.mjs",
+          "sha256": "e6f8a150e35d4f92667854e508392ac7f753c02bdb7198d2880957df0a1dc1a7",
+          "bytes": 9730
+        },
+        {
+          "path": "security/v2/tests/academy-central-browser-runner.mjs",
+          "sha256": "fb7370ef2afac8b1489124659c909634393d15401b1b785a0ee79b6f98171b0f",
+          "bytes": 11966
+        },
+        {
+          "path": "security/v2/tests/academy-classnotes-browser-runner.mjs",
+          "sha256": "e11801280adfb18d6ce67167de4705348b961990eaf95bc046f960977da04736",
+          "bytes": 11606
+        },
+        {
+          "path": "security/v2/tests/academy-client.test.mjs",
+          "sha256": "429d4fab251e63e522f04ef223b5f118c027678407c810ae5be7d1fe89c3e51e",
+          "bytes": 21467
+        },
+        {
+          "path": "security/v2/tests/academy-course-browser-runner.mjs",
+          "sha256": "716e2c5e060696d31040729dc9dec463dc90376465b8537c37227b556dfcbaa1",
+          "bytes": 13283
+        },
+        {
+          "path": "security/v2/tests/academy-course-management-browser-runner.mjs",
+          "sha256": "d35102b2cf8886a396576d35dbf010fa2c4e6be1b58a800da64cfe5c79e95c93",
+          "bytes": 11153
+        },
+        {
+          "path": "security/v2/tests/academy-course-participants-browser-runner.mjs",
+          "sha256": "c9a04ed554705ea97e0b290ad603916a9963a8111795613da07dd3b2d1584d43",
+          "bytes": 10112
+        },
+        {
+          "path": "security/v2/tests/academy-course-participants-multiadd-browser-runner.mjs",
+          "sha256": "3a11ac49efde0b5d3108e7038aa2c9ca8087ff133573f59710f128f5293ca312",
+          "bytes": 11147
+        },
+        {
+          "path": "security/v2/tests/academy-editor-browser-runner.mjs",
+          "sha256": "456fe8cd3291f85ff10c55714544f7c65b88d81d7fb297b9fab97e81c3cfc0bd",
+          "bytes": 12162
+        },
+        {
+          "path": "security/v2/tests/academy-editor-recovery.test.mjs",
+          "sha256": "e6d4eaf26b9c91a3c7fe5a37961080e15c8d729a98b236b10c00f5406e84c0ad",
+          "bytes": 32124
+        },
+        {
+          "path": "security/v2/tests/academy-enrolment-browser-runner.mjs",
+          "sha256": "5a10bcedbf8bbd911330a1f99c8bb6c03d44cebcc719f6751d9e6535562c1cf4",
+          "bytes": 11913
+        },
+        {
+          "path": "security/v2/tests/academy-enrolment-learner-browser-runner.mjs",
+          "sha256": "2a52043ad5f4f093161045c106a0ee377ed855d31aae6abf013aa50058d17c0f",
+          "bytes": 9688
+        },
+        {
+          "path": "security/v2/tests/academy-entry-browser-runner.mjs",
+          "sha256": "524b026cd4ee4c6d4078c98883bf3531f5ca6564339e5b6a678c26801acf4c17",
+          "bytes": 7991
+        },
+        {
+          "path": "security/v2/tests/academy-historical-browser-runner.mjs",
+          "sha256": "7a79f743cefdb8eb0b1d05e4141240cebefde349f5bb50128e50d292f51107b8",
+          "bytes": 11447
+        },
+        {
+          "path": "security/v2/tests/academy-library-browser-runner.mjs",
+          "sha256": "d98aa92255e07e3be9b83011d1381eeacb1c9dba173f7934973af9f83a6c59fb",
+          "bytes": 9964
+        },
+        {
+          "path": "security/v2/tests/academy-memorisation-admin-browser-runner.mjs",
+          "sha256": "2c6361402ce1638dfcd70ca892d097f241d7a53f81192bae5d40a6f5744f13b6",
+          "bytes": 11718
+        },
+        {
+          "path": "security/v2/tests/academy-memorisation-admin-parent-browser-runner.mjs",
+          "sha256": "0a6dad5817a3efad2c5e66f3c00f6ae0409b9281e6b3ce377b3be1b5af4907a1",
+          "bytes": 12608
+        },
+        {
+          "path": "security/v2/tests/academy-monthly-browser-runner.mjs",
+          "sha256": "f901aac0542267dd7e56e524871f7ad20c8eb8491e11bc7a8b80a93b0907207b",
+          "bytes": 11311
+        },
+        {
+          "path": "security/v2/tests/academy-monthly-owner-browser-runner.mjs",
+          "sha256": "1ae264899b7f83416a50f2042e9424ec2a5a6af77cc6f6b4a34c2b874dc31485",
+          "bytes": 6491
+        },
+        {
+          "path": "security/v2/tests/academy-native-playlist-lifecycle.test.mjs",
+          "sha256": "6c1a1756aaf179075913ba1f97e0a9268391a9f46fd4dd4eb8152d1c0a231748",
+          "bytes": 2092
+        },
+        {
+          "path": "security/v2/tests/academy-native-read-cache.test.mjs",
+          "sha256": "dbbe3c78dbacf3db7573c24ac01e9ec959f3cebc84a5790965537f735ab9425c",
+          "bytes": 9735
+        },
+        {
+          "path": "security/v2/tests/academy-native-recovery.test.mjs",
+          "sha256": "b6a2f40f22e1ac443b974f0aa33c5c70a5551c95cc4f326b512f79877b25a870",
+          "bytes": 6776
+        },
+        {
+          "path": "security/v2/tests/academy-navigation.test.mjs",
+          "sha256": "5e2e2cb2281891330569c6c74ab26941e3d72aa6c3a9908df0bc4db52643e78a",
+          "bytes": 3629
+        },
+        {
+          "path": "security/v2/tests/academy-paid-month-browser-runner.mjs",
+          "sha256": "dd03249c01dd47d1e1fe29f6049f307b87f5b5ce33bf39a43a98b256ddd4c1a3",
+          "bytes": 10893
+        },
+        {
+          "path": "security/v2/tests/academy-participant-browser-runner.mjs",
+          "sha256": "38e56352f40f6da3025ec75b05875780de7ceaadd73bf392f72751a40a12f136",
+          "bytes": 10208
+        },
+        {
+          "path": "security/v2/tests/academy-personal-links-browser-runner.mjs",
+          "sha256": "3d3229596aaf4ac0da754cab23c9fb2a8709941f83b0716d5c97f572536fe3ea",
+          "bytes": 11313
+        },
+        {
+          "path": "security/v2/tests/academy-personal-links-held-ack-browser-runner.mjs",
+          "sha256": "ed3f46f79a06da1c30d1886f7a4ba2b78afe88b057f8f73bd47f2eadd31cd2fb",
+          "bytes": 12057
+        },
+        {
+          "path": "security/v2/tests/academy-planning-browser-runner.mjs",
+          "sha256": "75f47def4c9bca2f9099fb210c69924be9b86d62a12e012247afa61977d7f4bc",
+          "bytes": 12904
+        },
+        {
+          "path": "security/v2/tests/academy-planning-own-course-browser-runner.mjs",
+          "sha256": "541f8471c8e23e7aadffa7debcb6c9a45ee02d5450b1626d34ce9ba9bc8f3f70",
+          "bytes": 16068
+        },
+        {
+          "path": "security/v2/tests/academy-planning-requirements-current-browser-runner.mjs",
+          "sha256": "fc4051a2e2cc68ec199a2f7699f2bf218d4acea0780210af9fb19cf2da9012cf",
+          "bytes": 13358
+        },
+        {
+          "path": "security/v2/tests/academy-player-browser-runner.mjs",
+          "sha256": "d7561a2449718a13e4b6b3da2002ae8a7f79e554ecebfc963f56c65676ae3004",
+          "bytes": 11067
+        },
+        {
+          "path": "security/v2/tests/academy-program-browser-runner.mjs",
+          "sha256": "b10a098ba78e6546bd45c18fe1f3ea30a7193221da253328420020fd138d31e2",
+          "bytes": 9683
+        },
+        {
+          "path": "security/v2/tests/academy-program-media-browser-runner.mjs",
+          "sha256": "a55d52323a2391255a0574c507cab1f35b6ca13fcdd8ab4a358fd97f65ef2285",
+          "bytes": 15058
+        },
+        {
+          "path": "security/v2/tests/academy-program-setup-browser-runner.mjs",
+          "sha256": "41f7c1831c4f3e5d8e25f70c76714978ffc924c421cd48a867e455c1df3baaa7",
+          "bytes": 10093
+        },
+        {
+          "path": "security/v2/tests/academy-program-wrappers-browser-runner.mjs",
+          "sha256": "1d83bda1ec5adbfce1f225b65ff288aa6f60ac8e9df61f8cc8515e7eb8083ac3",
+          "bytes": 12986
+        },
+        {
+          "path": "security/v2/tests/academy-progress-browser-runner.mjs",
+          "sha256": "a99a1825bb71131850355dbdc74e5ad9e7631012c71760f4d0d29e1291d942d8",
+          "bytes": 9525
+        },
+        {
+          "path": "security/v2/tests/academy-progress-parent-browser-runner.mjs",
+          "sha256": "4d2d63ebcb9fd0f8f31055b79d38f0038e2c66e8aab41c3733653ab2a3c4514e",
+          "bytes": 9989
+        },
+        {
+          "path": "security/v2/tests/academy-progress-teacher-browser-runner.mjs",
+          "sha256": "0f6427525dac29c7b6bad977b768ceb3eaca3210336609903e7f0ee2a6552351",
+          "bytes": 9388
+        },
+        {
+          "path": "security/v2/tests/academy-progress-teacher-parent-browser-runner.mjs",
+          "sha256": "898c736d873ea0fcec278a4161583814f8c3c7d75e1368ecfb020161f7484d51",
+          "bytes": 9723
+        },
+        {
+          "path": "security/v2/tests/academy-progress-visitor-browser-runner.mjs",
+          "sha256": "96c7911e3fe2d93e5b7b855f4b7256a10c877cca1f8b1dd2e9cf95bd8c914e2c",
+          "bytes": 7268
+        },
+        {
+          "path": "security/v2/tests/academy-public-refresh-browser-runner.mjs",
+          "sha256": "6d207084e942461274c472b6b293385cda5e4b0a4bddd0a43de81e64c344ff1e",
+          "bytes": 7861
+        },
+        {
+          "path": "security/v2/tests/academy-reader-browser-runner.mjs",
+          "sha256": "4bd316f6a1fb66a37f2341964b34ccd4327a15c4b084dd87c54833acdf74cf1a",
+          "bytes": 12088
+        },
+        {
+          "path": "security/v2/tests/academy-reader-editor-browser-runner.mjs",
+          "sha256": "dbda0e649ca071aec1f61de6db0508b4ff4218a2b53194048bd6fc6cd51ee796",
+          "bytes": 12212
+        },
+        {
+          "path": "security/v2/tests/academy-source-surahs-browser-runner.mjs",
+          "sha256": "bfecf59ac62813e97bbfb84bd615780a1d0f563cca11974b0bdc75b8d0f9f6da",
+          "bytes": 10028
+        },
+        {
+          "path": "security/v2/tests/academy-studio-access-browser-runner.mjs",
+          "sha256": "b77a85ddf24e1c8f9d7d055b04b916300a711f4a5d1ab66cb8a8fa1f1168868e",
+          "bytes": 11860
+        },
+        {
+          "path": "security/v2/tests/academy-studio-tables-browser-runner.mjs",
+          "sha256": "6aa7e085147be633d9a4bcbbaa5d85b43c018fbde63e13d5fb25191fba06135a",
+          "bytes": 10420
+        },
+        {
+          "path": "security/v2/tests/academy-surah-reader-browser-runner.mjs",
+          "sha256": "e270a6bc92e38ad6b604b8eb20f99bf79e00c535ac7170d3eeef91953f4df0b1",
+          "bytes": 13666
+        },
+        {
+          "path": "security/v2/tests/academy-teacher-note-browser-runner.mjs",
+          "sha256": "810455bea7ad5b4c40c6fe4ac8c726bf004487ee44a68d1b2792c5849da25add",
+          "bytes": 9668
+        },
+        {
+          "path": "security/v2/tests/academy-timetable-browser-runner.mjs",
+          "sha256": "f15df932f32426feb232c66fba27dc2e8bd877617d5899d3d02eaebd519eaaa5",
+          "bytes": 10438
+        },
+        {
+          "path": "security/v2/tests/academy-users-browser-runner.mjs",
+          "sha256": "66e8e8e76d8ac454f18f43d227f7e443c46f3397fafeff3353e8c63450be56cb",
+          "bytes": 11338
+        },
+        {
+          "path": "security/v2/tests/academy-users-reload-browser-runner.mjs",
+          "sha256": "6faaaee41c1347171c18679c6f3006160d681578d238863d03df25073516bbed",
+          "bytes": 11507
+        },
+        {
+          "path": "security/v2/tests/assessment-browser-state.test.mjs",
+          "sha256": "0ec4c0da8a819ea260346cfdc6b3cc6e8314790961c3ec8258d6bfb905cfbaae",
+          "bytes": 6967
+        },
+        {
+          "path": "security/v2/tests/attendance-dto-inspect.mjs",
+          "sha256": "d0b838b63ac257a0945c795bf48af5e18e17a5573fddcddb8299590d19bc34c2",
+          "bytes": 483
+        },
+        {
+          "path": "security/v2/tests/browser-drafts.test.mjs",
+          "sha256": "281004aa6c4b91020d185bb3b74cb5952e5b31a3100b4930a9e5dc5e0339493e",
+          "bytes": 18622
+        },
+        {
+          "path": "security/v2/tests/browser-session.test.mjs",
+          "sha256": "7d01aef2b136b177ce6d2712e3bdc60ed803f4753ac0a7135a8d2916600206c2",
+          "bytes": 51238
+        },
+        {
+          "path": "security/v2/tests/hifz-native-browser-runner.mjs",
+          "sha256": "a2094390794ae984613116536626b571b6b4aef3acfaee000a25efc5d0d647cd",
+          "bytes": 9382
+        },
+        {
+          "path": "security/v2/tests/hifz-view-lifecycle.test.mjs",
+          "sha256": "d5b1e28cfdfcc38f964f1da149000962d3de570680002736c13e60dc6085492a",
+          "bytes": 3477
+        },
+        {
+          "path": "security/v2/tests/http-browser-runner.mjs",
+          "sha256": "881bd88ff6751e6f1585331a85abf2bd90be74b471c2a329400555910fb6af93",
+          "bytes": 9108
+        },
+        {
+          "path": "security/v2/tests/http-drafts.test.mjs",
+          "sha256": "21c91116ad3cefb819aa7de2137a61e8727d8e5c8622aa9d1d54e9d6a6996b6e",
+          "bytes": 13390
+        },
+        {
+          "path": "security/v2/tests/http-native-fixture.mjs",
+          "sha256": "0feb1dbc9a9f6eda63c18b86c0e87e278013539d127781ffd899aa65d3749320",
+          "bytes": 18423
+        },
+        {
+          "path": "security/v2/tests/http-native-integration.test.mjs",
+          "sha256": "9245620b67cab9cede1c20ddee51f2d00a723c71ac57b138de4ef9fd1e564d6e",
+          "bytes": 28977
+        },
+        {
+          "path": "security/v2/tests/http-publication-pending.test.mjs",
+          "sha256": "da084a2008a2604f78ff71449854e4a5d215e849791856800a38f634d29b5a7e",
+          "bytes": 7168
+        },
+        {
+          "path": "security/v2/tests/library-public-origin.test.mjs",
+          "sha256": "97189cbe5bd10132b8410a63acaae04520107ef70a62889fd472459a2ecb52e1",
+          "bytes": 2597
+        },
+        {
+          "path": "security/v2/tests/native-admin-init.test.mjs",
+          "sha256": "65a85093226f0bda48d5786096e100d8d5cd9b1ac854165388090eba0bf1939b",
+          "bytes": 1980
+        },
+        {
+          "path": "security/v2/tests/native-playlist-reader-lifecycle.test.mjs",
+          "sha256": "84cf60a38a23352e39bc2b66d9c9cc645f14cb8ea45a08499c8887677659d1e4",
+          "bytes": 1258
+        },
+        {
+          "path": "security/v2/tests/native-staged-acceptance.test.mjs",
+          "sha256": "4936686d7f1dc1fcabbb7b49060cbed9b376b1c975c538838c1b504f8cab9015",
+          "bytes": 8851
+        },
+        {
+          "path": "security/v2/tests/native-switch-scope.test.mjs",
+          "sha256": "ee278734fd650686587ff32a4d6023e16b11771e73b0f0fd7f3a948b50a1d0a0",
+          "bytes": 4433
+        },
+        {
+          "path": "security/v2/tests/packaged-academy-browser-runner.mjs",
+          "sha256": "18aaf2a5cd7bccf1874fb11328b8f312b467e4960aca77ff966711389790097b",
+          "bytes": 10925
+        },
+        {
+          "path": "security/v2/tests/packaged-hifz-browser-runner.mjs",
+          "sha256": "94831d211d3826aa88b77fc91752c24809ca80dba8361530fa5a66abaabd7995",
+          "bytes": 9657
+        },
+        {
+          "path": "security/v2/tests/packaged-static-fixture.mjs",
+          "sha256": "b281f539c4c55e09516c320ec5635e994350dde72dc537dba474958bdb48a55b",
+          "bytes": 2379
+        },
+        {
+          "path": "security/v2/tests/packaged-studio-browser-runner.mjs",
+          "sha256": "f39e5434d6147eba42cb22b6531ec9aa4f1f0c613514709002f93a8b8d158397",
+          "bytes": 14777
+        },
+        {
+          "path": "security/v2/tests/paid-media-budget.test.mjs",
+          "sha256": "b310ccb557ff2542e7a7d56d73f7a9d6a1bffb1766790821e28c87d1e5cc6ddd",
+          "bytes": 4703
+        },
+        {
+          "path": "security/v2/tests/policy-selector-coverage.test.mjs",
+          "sha256": "304f14a382f321f21b5c0bcb6ff3807273aed0ae16958662b3248a34be94d0df",
+          "bytes": 4295
+        },
+        {
+          "path": "security/v2/tests/primary-read-session.test.mjs",
+          "sha256": "27f00a64c9b043287347feb39744b63cb6f3db7d78beaa1bd550b9cee6a12353",
+          "bytes": 1832
+        },
+        {
+          "path": "security/v2/tests/public-timetable-refresh.test.mjs",
+          "sha256": "61dd89d1b2d69830763a7b468f24908140f7d58c650798e110def4161d32b767",
+          "bytes": 1631
+        },
+        {
+          "path": "security/v2/tests/publication-growth.test.mjs",
+          "sha256": "aee11c17339f91eaaaf4d82c5038d2b4d763e80a3beca9fc9540f066128b41c6",
+          "bytes": 2756
+        },
+        {
+          "path": "security/v2/tests/received-rights-read.test.mjs",
+          "sha256": "1aac036557d0e5f92ce91af175c89a3263cacd208dbd21c257c5aaad161fa76c",
+          "bytes": 6095
+        },
+        {
+          "path": "security/v2/tests/report-plan.test.mjs",
+          "sha256": "dd257441abfe9c1ec45f64b720d81b8d04cc545c7c6982695207e3ee0f945a00",
+          "bytes": 3256
+        },
+        {
+          "path": "security/v2/tests/resource-budget.test.mjs",
+          "sha256": "88fed61f058dda85294ab58c1a88022855fdac4d82bf27b5ae3e832e190e8634",
+          "bytes": 3997
+        },
+        {
+          "path": "security/v2/tests/rights-memo.test.mjs",
+          "sha256": "9ab5fb3b63e3c59e22903f639251f6b98c3b7ab6af92a88198584b40ebdc75d6",
+          "bytes": 1203
+        },
+        {
+          "path": "security/v2/tests/runtime-config.test.mjs",
+          "sha256": "79b810a4f71cff022afdfbf46859c8f11a1c04694b37e2f10745348ecfabe6c8",
+          "bytes": 7019
+        },
+        {
+          "path": "security/v2/tests/stream-deadline.test.mjs",
+          "sha256": "a1a3480d6876f24c592786a5936457b15142c4b8e40e89425baaeb00be47f4a7",
+          "bytes": 3555
+        },
+        {
+          "path": "security/v2/tests/studio-editor-browser-runner.mjs",
+          "sha256": "8eea30220137bc2af17e094468e2beead5036b997ff7eec3b61c8a74369f0ed6",
+          "bytes": 13914
+        },
+        {
+          "path": "security/v2/tests/studio-editor-recovery.test.mjs",
+          "sha256": "ad38f3782d7961c86abc35904196175cd175f2de0686014a2f578728602f8b20",
+          "bytes": 12953
+        },
+        {
+          "path": "security/v2/tests/studio-idle-pin-browser-runner.mjs",
+          "sha256": "8e7b7ed691612dfb4be055e916bf1344e15b3f36989bb3946aa0656d4c2e3b22",
+          "bytes": 17100
+        },
+        {
+          "path": "security/v2/tests/two-browser-native-logout-runner.mjs",
+          "sha256": "99e0d1e8387af787a7c5a207fb7af98311fc57cf31a7805bc5bf0dac96687e23",
+          "bytes": 13324
+        },
+        {
+          "path": "security/v2/tests/two-browser-native-switch-ui-runner.mjs",
+          "sha256": "9e04af8150eb717a0e82324455c9c9c044f63d5713fac7004fe0ec1fc0e3487c",
+          "bytes": 15730
+        },
+        {
+          "path": "security/v2/tokens.mjs",
+          "sha256": "03a1dc67444bd2f9273fde841f427ff881a30539dc3d38225c87ce7454782cd4",
+          "bytes": 8072
+        },
+        {
+          "path": "tools/import-academy-portal.mjs",
+          "sha256": "eb0e0aea503c901e41807c563c8dfdb8addf69a2c7c19b291cb35552156dd069",
+          "bytes": 3537
+        },
+        {
+          "path": "tools/v111-foundation-preflight.mjs",
+          "sha256": "08c4100cb1b45cab8dc28ccbd474d470b088e255e49f0fc579d605bad8cc87b0",
+          "bytes": 19699
+        },
+        {
+          "path": "tools/v111-r6-inputs.json",
+          "sha256": "b0efeaabf36d0f29c333002585d0fb7cd554c3f1ac9e408da2e986cce8b07e05",
+          "bytes": 153293
+        },
+        {
+          "path": "tools/v111-source-ci.mjs",
+          "sha256": "26aebc25a574a690785f9a7b3e028203c4ba6ca587bc6a227be3ebcc23ea3c9f",
+          "bytes": 17065
+        },
+        {
+          "path": "tools/v111-source-ci.test.mjs",
+          "sha256": "5a38674142f3346693c3b3f93bbca542fe127dc044bd05877e0ff06675a8bc89",
+          "bytes": 9490
+        },
+        {
+          "path": "tools/version-public-assets.mjs",
+          "sha256": "9deedb60ef9ff329a7c2ad6cf5faf80d80da5246e246be59fe053c748c7d36ec",
+          "bytes": 3143
+        }
+      ]
+    },
+    {
+      "app": "AcademyStudio",
+      "repository": "MaktabForlife/AcademyStudio",
+      "base": "9a8c117e9279a2b67e62eb044be4da989db4a096",
+      "files": [
+        {
+          "path": "config/v111-auth.json",
+          "sha256": "5b716b29d068e415c59a1fef6062a47c5406430cd7006c09e4a134b2162f7e58",
+          "bytes": 536
+        },
+        {
+          "path": "deployment/release-plan.json",
+          "sha256": "568b1872aacc82854d32e4681ba97e3319bc7ecc1cafbcc7a2f776ef444eabe4",
+          "bytes": 173
+        },
+        {
+          "path": "hosting/saas/worker.mjs",
+          "sha256": "929406945ca793be56dbf4e03d8f7920fba56d1962bfc9d34cf59043343559d0",
+          "bytes": 3298
+        },
+        {
+          "path": "public/academy-connect.mjs",
+          "sha256": "4f8d8731b80f132231b0f87f67caae8c1a650bfdd8d00d5e41352575e46291b9",
+          "bytes": 6108
+        },
+        {
+          "path": "public/api.mjs",
+          "sha256": "dcad1a7760dcf28020d57aa2b18692bfaef3d8345b620872823ac77eab365346",
+          "bytes": 16384
+        },
+        {
+          "path": "public/app.mjs",
+          "sha256": "22b63049818c82d5d04a3266c67fa841d9775bb78a52f5fa8261fc7cf81cdbd9",
+          "bytes": 48438
+        },
+        {
+          "path": "public/builder/admin.mjs",
+          "sha256": "bb89af06e04ef63c5072b2d95919a5d6032379d18f88277d7d13038733842c98",
+          "bytes": 22420
+        },
+        {
+          "path": "public/circles-dashboard.mjs",
+          "sha256": "bb36e52c650e155f6c7645e8c4900551d01712deeb7d83821039e7c52be9360f",
+          "bytes": 16635
+        },
+        {
+          "path": "public/circles-login.mjs",
+          "sha256": "e2cca5705ac189c06abfcfe709535f23069986c11a5db5ef719bbf02ea2cd2cc",
+          "bytes": 23313
+        },
+        {
+          "path": "public/shared/studio.mjs",
+          "sha256": "707bd3b4035b9577e87eab94f035464fe10fd4382731fbad9ac83d3a73ec1ce8",
+          "bytes": 46668
+        },
+        {
+          "path": "public/v111-private-ui.mjs",
+          "sha256": "951102b33d5005c633277859398408108236e1a6753dee824b1681c84cf5db6d",
+          "bytes": 1716
+        },
+        {
+          "path": "public/v111-session.mjs",
+          "sha256": "bec6b28eaefe1a428757654c67ab950b182759e606c74fd04c2beab0efa07f38",
+          "bytes": 7974
+        },
+        {
+          "path": "public/v111/browser-drafts.mjs",
+          "sha256": "5dc1b837635438fea9fd299f5e5f03965e8f2bdee2b61a9aed3594b499e9cdbc",
+          "bytes": 18008
+        },
+        {
+          "path": "public/v111/browser-session.mjs",
+          "sha256": "0d100564b51c83607450c250f0b9ae79249c163e1d9628a5a661c7c4360aadb0",
+          "bytes": 40646
+        },
+        {
+          "path": "security/v2/browser-assets.mjs",
+          "sha256": "80ee8c8a53a134e35d7122a12b8866130ade167831ea33f7284f087307a1e5d3",
+          "bytes": 59339
+        },
+        {
+          "path": "security/v2/browser-drafts.mjs",
+          "sha256": "5dc1b837635438fea9fd299f5e5f03965e8f2bdee2b61a9aed3594b499e9cdbc",
+          "bytes": 18008
+        },
+        {
+          "path": "security/v2/browser-security.mjs",
+          "sha256": "ac4f8fb6892cba52adae4ec66c9794987ee701cd3acfe2e9c769e86909efe281",
+          "bytes": 2406
+        },
+        {
+          "path": "security/v2/browser-session.mjs",
+          "sha256": "0d100564b51c83607450c250f0b9ae79249c163e1d9628a5a661c7c4360aadb0",
+          "bytes": 40646
+        },
+        {
+          "path": "security/v2/cache.mjs",
+          "sha256": "723597d14be97b384c9c16858a238d4917800501bbec78dd485df1a3df55614f",
+          "bytes": 14584
+        },
+        {
+          "path": "security/v2/capture-receipt.mjs",
+          "sha256": "be04d135a5c3d956636105adef57ecf577c9b8d2ebd1cc7b5e15a9c2ae50573b",
+          "bytes": 2649
+        },
+        {
+          "path": "security/v2/capture.mjs",
+          "sha256": "c11f9fefb034dc51a1f94fe18ec704421433fb978c33eaee55cfed415bd6bb3b",
+          "bytes": 14409
+        },
+        {
+          "path": "security/v2/ceremonies.mjs",
+          "sha256": "075c7e3d1b7bcd802a1d358786972093b46653e99f825ae9399c1023b4fcf21a",
+          "bytes": 44437
+        },
+        {
+          "path": "security/v2/child-security-tick.mjs",
+          "sha256": "ff7547e5fd9c479cfa937d4df69259cd6be41aa252424d8e830a3bf67ff54831",
+          "bytes": 1448
+        },
+        {
+          "path": "security/v2/codec.mjs",
+          "sha256": "cc8654f2f01230c461bfca39b5dad6d0392f479fe04c76b5e1b67a633c443d9f",
+          "bytes": 6561
+        },
+        {
+          "path": "security/v2/control-publication.mjs",
+          "sha256": "b3aa6627897cc21b9702b6f490352ef0a46dc69df38a0134fa3ae81c759bb2bd",
+          "bytes": 22380
+        },
+        {
+          "path": "security/v2/control-shapes.mjs",
+          "sha256": "f769504435ea4ccbdf3565701ccc668fd5d5ed022474b89896d86a2fad88606d",
+          "bytes": 2517
+        },
+        {
+          "path": "security/v2/cutover-state.mjs",
+          "sha256": "228fb99e4117736bae7e2aab722dbb6e3ffc56a7039217255ae547c7e4420aca",
+          "bytes": 794
+        },
+        {
+          "path": "security/v2/events.mjs",
+          "sha256": "8556836a7310ddca862b2b6413dac3622737b7705220fa4938044a134fdd8c0c",
+          "bytes": 11153
+        },
+        {
+          "path": "security/v2/fallback.mjs",
+          "sha256": "268033ae1b57c35d762ac2591dc39f5a4b28fd568bd2256f2e9aaaf56480b11f",
+          "bytes": 4830
+        },
+        {
+          "path": "security/v2/floors.mjs",
+          "sha256": "08f824452bd00758a9d21485470db6c1954b7c7bbbd91e603c4fe69e4fd83d83",
+          "bytes": 1582
+        },
+        {
+          "path": "security/v2/http-auth.mjs",
+          "sha256": "81556cfc823aac87a7aad984e78b62ab331ce7ba12cf41e2d6a7db737d8c45d1",
+          "bytes": 10543
+        },
+        {
+          "path": "security/v2/http-context.mjs",
+          "sha256": "507fdb3e86c7187a878db2b11013677a034bb5e9e3dcbf0539680898b60b72ef",
+          "bytes": 8673
+        },
+        {
+          "path": "security/v2/http-drafts.mjs",
+          "sha256": "7075572efe07b4c3e02e9cc5844c434b0480f3e1f1a7368ce991226feeaca501",
+          "bytes": 9073
+        },
+        {
+          "path": "security/v2/http-families.mjs",
+          "sha256": "1456d59f5c8d76bd7caca897f4a66921e7885d2c1117c1ede42f876998f4bd7d",
+          "bytes": 11636
+        },
+        {
+          "path": "security/v2/http-journeys.mjs",
+          "sha256": "0c816011a39111bd2604f21becf7542a548765e7f3262fedbe7b6a48f243551b",
+          "bytes": 10840
+        },
+        {
+          "path": "security/v2/http-pin.mjs",
+          "sha256": "b22127b48edfb170282964ccd91ec103c0fd1464e9f2cca0f819b557fa9d0503",
+          "bytes": 16027
+        },
+        {
+          "path": "security/v2/http-service.mjs",
+          "sha256": "ead35cbb1f12fc50349a55712c56f912ec966fb4b83925648693b0058c3269a3",
+          "bytes": 7778
+        },
+        {
+          "path": "security/v2/http-shells.mjs",
+          "sha256": "8d2e3db3da2a2ab56994bfa25297c6784d2814c342a302b04994603b23c8ab58",
+          "bytes": 9067
+        },
+        {
+          "path": "security/v2/http-transactions.mjs",
+          "sha256": "38ab7c2af12e2b8526a135f492a9ac47bebbcea31d81bcc1db860602763f5822",
+          "bytes": 3262
+        },
+        {
+          "path": "security/v2/instrumentation.mjs",
+          "sha256": "fecc4934c5820bde33680a0dc87f563829906a5ba1d02b6a35c0f2e4e28a2684",
+          "bytes": 14053
+        },
+        {
+          "path": "security/v2/issuance-floors.mjs",
+          "sha256": "2d1516eeb0ba57e162f3f26fbcef3088a4a05e7d567d212c079b57b7eb08daa9",
+          "bytes": 16692
+        },
+        {
+          "path": "security/v2/native-adapter.mjs",
+          "sha256": "cc5531daedea7468c6f25640e28e2b5d92a3de68b065241eaa40c74909ab6a35",
+          "bytes": 14610
+        },
+        {
+          "path": "security/v2/native-authority.json",
+          "sha256": "1500ab1b4feed40f8d24709e1e344ff8d529ccb6102e71442a31225b71b5384e",
+          "bytes": 24431
+        },
+        {
+          "path": "security/v2/native-domain.mjs",
+          "sha256": "a16fa1d5abaf5ac0e7494225919134e68bb392ca2bfda49250ee617878f8c43f",
+          "bytes": 5275
+        },
+        {
+          "path": "security/v2/native-runtime.mjs",
+          "sha256": "57529122d454af36d3ee9a767f2db39b8de11cab39fbc41c726abef64071ec78",
+          "bytes": 8085
+        },
+        {
+          "path": "security/v2/native-schema.mjs",
+          "sha256": "d9c919327b0e4a766ed2bc6896c4e52458c8f8c7c78aaf51ec6a174fa4914684",
+          "bytes": 475
+        },
+        {
+          "path": "security/v2/outbox.mjs",
+          "sha256": "bffa23db1e7724b199f3b598040e807f0f55fb1fb8c44d97ac83cdfeeacedeaa",
+          "bytes": 7983
+        },
+        {
+          "path": "security/v2/policy-coverage.mjs",
+          "sha256": "858e16e6e8917b4189af1ba9225f90621ae9bb39b59edeced931152e248d55e0",
+          "bytes": 8219
+        },
+        {
+          "path": "security/v2/policy.mjs",
+          "sha256": "4b283344a85dbcbab0a8ed25efcb40e08c56ac227fbbd0fca35895a52a364dca",
+          "bytes": 20075
+        },
+        {
+          "path": "security/v2/portal-business.mjs",
+          "sha256": "60c37a688fc44d6ad81347ab90e2010d37fbcfdb83e1ad36e04b2719916ce9f2",
+          "bytes": 8934
+        },
+        {
+          "path": "security/v2/portal-capability.mjs",
+          "sha256": "725c8528ed24f398d5d2305c030768580e2018186b3bda7299e72af8aed878d3",
+          "bytes": 2571
+        },
+        {
+          "path": "security/v2/primary-write-guard.mjs",
+          "sha256": "e3445718a25c6a9b6d739973b3b89063bde50c9185879461976a840a2bc85d8e",
+          "bytes": 1805
+        },
+        {
+          "path": "security/v2/profile-service.mjs",
+          "sha256": "aec35d8233a40766b2c3566bc330376abd09b19ddc80a9f844214b90c0bb080b",
+          "bytes": 8710
+        },
+        {
+          "path": "security/v2/profile-source-triggers.mjs",
+          "sha256": "1a00d70322493a42b1d1c8cd87d4729944f25646e3165317590ab5d9c65653a7",
+          "bytes": 2118
+        },
+        {
+          "path": "security/v2/publication.mjs",
+          "sha256": "a222e72e9fd2ba021f6057d90b08531104bd1a59e7d50c8a42964f908575af61",
+          "bytes": 11035
+        },
+        {
+          "path": "security/v2/recovery.mjs",
+          "sha256": "0e2744596e2fff0029a31eb5a9efcf6072fbf03ba86bc96b28605b40eb885d58",
+          "bytes": 3977
+        },
+        {
+          "path": "security/v2/return-routes.mjs",
+          "sha256": "92f86e79b92f1e8ec5dc55d3f4f122d860319945cc921df20a808759cd042f3f",
+          "bytes": 618
+        },
+        {
+          "path": "security/v2/rights-memo.mjs",
+          "sha256": "52e9d661fcc73a170cad4e42c5fbf5672c08d0a027fa05b18d148cedeebf3007",
+          "bytes": 1305
+        },
+        {
+          "path": "security/v2/runtime-config.mjs",
+          "sha256": "e613dd2f398770d8af9df0660d8197491721493a95c736e51476c8d7ae08841f",
+          "bytes": 10164
+        },
+        {
+          "path": "security/v2/runtime-fallback.mjs",
+          "sha256": "0746545e2321077dc37289ed645b63d6dca989e8dc1bd9e3014977505cf9d851",
+          "bytes": 3728
+        },
+        {
+          "path": "security/v2/runtime-pending.mjs",
+          "sha256": "e3571414d4d0e58184e298ff4e9735b1a5d6b0046abe2af2b963d4c9eadeea79",
+          "bytes": 7116
+        },
+        {
+          "path": "security/v2/runtime-service.mjs",
+          "sha256": "ee953ed304dd6566893738d14c8d8866b2bea405e38c9da9ce070d75d698a6b3",
+          "bytes": 41037
+        },
+        {
+          "path": "security/v2/runtime.mjs",
+          "sha256": "27ddf2c6c262e9dd7724ee7637355e88d8ed8203a0ff96e7037b2cd4bbb0eac7",
+          "bytes": 17449
+        },
+        {
+          "path": "security/v2/schema-bundle.mjs",
+          "sha256": "71f71b0bdb935218cff25b560aa0f2906d71599d62d69be7b04b039f1c858205",
+          "bytes": 1119
+        },
+        {
+          "path": "security/v2/schema.mjs",
+          "sha256": "aa03a68fef250e6d90d31af94768ad33868c39d4200bcf796a33a1bd1c1271bf",
+          "bytes": 10180
+        },
+        {
+          "path": "security/v2/sender-floors.mjs",
+          "sha256": "159f5076f94bdb34672eaae7bc4002cb690aa0e020fb9e6bcafc664840e6896b",
+          "bytes": 6262
+        },
+        {
+          "path": "security/v2/snapshot.mjs",
+          "sha256": "55128250a7773cd0d5c8a289f38822a1d140861466b6fbc9685440b8a3822bb6",
+          "bytes": 44980
+        },
+        {
+          "path": "security/v2/store.mjs",
+          "sha256": "ba3b5167b329a5037ab697e0bfa065166805f5eb624ad0e313cea86dd8afccab",
+          "bytes": 18814
+        },
+        {
+          "path": "security/v2/stream-deadline.mjs",
+          "sha256": "d31e40895fae9f8be4a6aa843ea436e405c0483139af6d5e9b5ace598f733b4c",
+          "bytes": 2303
+        },
+        {
+          "path": "security/v2/tokens.mjs",
+          "sha256": "03a1dc67444bd2f9273fde841f427ff881a30539dc3d38225c87ce7454782cd4",
+          "bytes": 8072
+        },
+        {
+          "path": "src/academy-client.mjs",
+          "sha256": "c439ec403fbdcddf317306025e39d93b710b2c36e6c781dcebe077e9a99b5071",
+          "bytes": 2564
+        },
+        {
+          "path": "src/access.mjs",
+          "sha256": "886dd24719c1efecc28170fbb6af6c4b4250d085598baabaeee73599bb6ed831",
+          "bytes": 20136
+        },
+        {
+          "path": "src/circles-native-join.mjs",
+          "sha256": "8e91b013bea1b007eddf720cd4195d30ac7d6f20bfb8b93a6d3b30f3f7654521",
+          "bytes": 2181
+        },
+        {
+          "path": "src/circles.mjs",
+          "sha256": "7a5f04c7a9a161391b712b2b95148b13e7fdc0bd9af913fe7890eb0e5ccbbcd0",
+          "bytes": 9707
+        },
+        {
+          "path": "src/content.mjs",
+          "sha256": "a2d04e8164ceb47cd9a3f22af79da52d3ac81ad116ab01edfe16852c673bb8f2",
+          "bytes": 11497
+        },
+        {
+          "path": "src/course-playlist-workflow.mjs",
+          "sha256": "53fb66ba9ac7fb0bb84ae003c3ce8ea0918fd1ea75d171d6fbe69bf5b765bcb7",
+          "bytes": 21968
+        },
+        {
+          "path": "src/course-publication.mjs",
+          "sha256": "68c606d36e029090987d579a769e9cba935bf852f81b531103fdcece574ea82d",
+          "bytes": 5356
+        },
+        {
+          "path": "src/dashboard.mjs",
+          "sha256": "840a0c355a874e7a1e4e5e4e5a86439ca51bea1e36fe874ccd5d0213cd818fbd",
+          "bytes": 11178
+        },
+        {
+          "path": "src/database.mjs",
+          "sha256": "0e16391c3da9726fe852ff268fcfab777832d8dcfbc3dd20f73f3026080a8a41",
+          "bytes": 10418
+        },
+        {
+          "path": "src/deployment-origins.mjs",
+          "sha256": "79732eec7b34558e0d0bc3dfa84ff5d21fe455563aae9c143a340ce7cdda0965",
+          "bytes": 2242
+        },
+        {
+          "path": "src/enrolment.mjs",
+          "sha256": "23c77b56f2184e9b06424a83fad75f15d7393d992ef4e3ab5e6fe0244178844e",
+          "bytes": 7165
+        },
+        {
+          "path": "src/hub-bridge.mjs",
+          "sha256": "2257ebcbaebb2c39b7b6e3119f669ce8cbd3b4a979cec7473dae5c801dcdd1c3",
+          "bytes": 4194
+        },
+        {
+          "path": "src/integration.mjs",
+          "sha256": "ee932296c237507236f4aad8d968f935dce34504373833d924c7eeaa27a24875",
+          "bytes": 14954
+        },
+        {
+          "path": "src/launch-worker.mjs",
+          "sha256": "408ff6e362c17f34100976d12b980f7df6ebab079a4c869c47ae649550c72e47",
+          "bytes": 3391
+        },
+        {
+          "path": "src/media-attribution.mjs",
+          "sha256": "f3b6318caf413502ee9ed9f0205000f34de25b9bff2ee673023cdf9742b95f36",
+          "bytes": 26309
+        },
+        {
+          "path": "src/media.mjs",
+          "sha256": "62246a3a5c183caa250125ea3df3bc845a61a41d5bc6cb3c20ecbe2fc24c5c91",
+          "bytes": 4101
+        },
+        {
+          "path": "src/mou-classroom.mjs",
+          "sha256": "b35fbc50a4ed1f6e0452c5b8bc96dd22839fe24c11b77203a55b746ccb98fbf6",
+          "bytes": 10530
+        },
+        {
+          "path": "src/mou-playlists.mjs",
+          "sha256": "394da897b76d3129f089d6041a9cee734cfc2fd0987da0996a358550c7d87244",
+          "bytes": 33059
+        },
+        {
+          "path": "src/navigation.mjs",
+          "sha256": "f6aeeb00712452fac501d994436fdd9530e9b9124f8f5b3856b771e4ade03c6c",
+          "bytes": 4514
+        },
+        {
+          "path": "src/parallel-worker.mjs",
+          "sha256": "cc304fc4ab6277f279f9c4b2adf6514be592162e6ab5ef13b64f8963db791e8b",
+          "bytes": 2456
+        },
+        {
+          "path": "src/playlist-catalogue.mjs",
+          "sha256": "fdef3332f81babfc5fe12d21d0a6e31ff38abf1a971535608cdf001f31a65f13",
+          "bytes": 4557
+        },
+        {
+          "path": "src/programme-policy.mjs",
+          "sha256": "358a00a6fe031806cf203173002d6315b9690a51e172f3e6f54afd875e0dd31c",
+          "bytes": 1267
+        },
+        {
+          "path": "src/read-cache.mjs",
+          "sha256": "1467765e24c3af54464b81673c75248e48eb6cb179bbf94d63ba1113221774c9",
+          "bytes": 2945
+        },
+        {
+          "path": "src/recorded-support.mjs",
+          "sha256": "8fa1d4aa794078dcdf2c94452c494e6a0cfaf08d6174d4be8604e37e5aa490a0",
+          "bytes": 12466
+        },
+        {
+          "path": "src/studio-access-completion.mjs",
+          "sha256": "57d4f8341cb93df723fc4a21dc82eb3deb3459634ad1d4816081dcc903da3655",
+          "bytes": 3137
+        },
+        {
+          "path": "src/studio-access.mjs",
+          "sha256": "f964b271e23e1a1f38209b57f3beec6ed0fa74f1f20dc12d55b792823f830907",
+          "bytes": 20307
+        },
+        {
+          "path": "src/v111-authority.mjs",
+          "sha256": "05430b500b7166fa4ebd0fb25dc156a77d7a95644d27310afb9509aebcea5e13",
+          "bytes": 2073
+        },
+        {
+          "path": "src/v111-business-authority.mjs",
+          "sha256": "5274c5e31418ec3bfe91f31cabf57899c0386c1c8243457db85e2a060e7bb744",
+          "bytes": 5734
+        },
+        {
+          "path": "src/v111-course-publication.mjs",
+          "sha256": "8162a815cbd92dcb710f95e0ada37e85e8a224866ab11251156a9c6a48cb999a",
+          "bytes": 9062
+        },
+        {
+          "path": "src/v111-hub-bridge.mjs",
+          "sha256": "2ba00ba3897a5d9f7540ccb6482518836be033c8518fce31be0e30d56f1ada4d",
+          "bytes": 9999
+        },
+        {
+          "path": "src/v111-mode.mjs",
+          "sha256": "317cdac58ade3fce2f5d2c3d25f545c6873eeecd08bea6c78bdafdc4a1b1e2c3",
+          "bytes": 193
+        },
+        {
+          "path": "src/v111-native-context.mjs",
+          "sha256": "293a675afaa53423fd1a1b5e81bfc08c8490590be8e6b04293e7385d8692879a",
+          "bytes": 5615
+        },
+        {
+          "path": "src/v111-portal-capability.mjs",
+          "sha256": "301c537067bd560f965350e29db54481b4c2d02aec8599f38149bd71cd9c94ac",
+          "bytes": 98
+        },
+        {
+          "path": "src/v111-portal-fence.mjs",
+          "sha256": "4c6d326c664dbce982cb541c9fb214a27824fba27161a927b445276432e0c69a",
+          "bytes": 3454
+        },
+        {
+          "path": "src/v111-source-authority-protocol.mjs",
+          "sha256": "fd377034acfeccafaf6bc3fece87ca24f65a65fb5cf63ffa21decf4d3c1484ce",
+          "bytes": 6572
+        },
+        {
+          "path": "src/v111-source-authority.mjs",
+          "sha256": "a46fd425333aadab7a9fcc93210ab0de6075a9bd749572b7125404405ebeb6e1",
+          "bytes": 37243
+        },
+        {
+          "path": "src/v111-source-business-events.mjs",
+          "sha256": "7056a147362349553422515f32e5bbcaaa5b6ac7ecff9ef7409b9b404b30046c",
+          "bytes": 3066
+        },
+        {
+          "path": "src/v111-worker.mjs",
+          "sha256": "33bedfcf728806c28dc7379478805034be4da97658ba968ab6735d06480a0c81",
+          "bytes": 3501
+        },
+        {
+          "path": "src/worker.mjs",
+          "sha256": "e1c7ae21ee695bcf4c563ebecf807f3fbbbf752bef1b31ca6340f4835e886a97",
+          "bytes": 39882
+        },
+        {
+          "path": "tests/v111-business-authority.test.mjs",
+          "sha256": "d4f0f28d90f629cc07af7f747402456469f2127942c277e6292257809e5b9cd8",
+          "bytes": 3926
+        },
+        {
+          "path": "tests/v111-client-state.test.mjs",
+          "sha256": "c2e3e38ed6392c296e6987455843c56fa452a48cb16c8229b255bc68f2cfdd48",
+          "bytes": 5153
+        },
+        {
+          "path": "tests/v111-entry-return.test.mjs",
+          "sha256": "0edc3e38799b6ba69bdbe0330216bb6ae32ddfcebfe8be135e8e7006152f5851",
+          "bytes": 1977
+        },
+        {
+          "path": "tests/v111-native-context.test.mjs",
+          "sha256": "9baaf6f6dbfd686a4a85a4a103a897277cabc9576af5c764f9002ffcb7b97da3",
+          "bytes": 18687
+        },
+        {
+          "path": "tests/v111-native-memory.mjs",
+          "sha256": "19b8d1d2c05477e5d8e7891a41fc0381b7fe56a941036e235c4f27b8cbd609ae",
+          "bytes": 5460
+        },
+        {
+          "path": "tests/v111-private-ui.test.mjs",
+          "sha256": "ec96f33b0fe88e3dfef094956f8cabb8c00c9ce3e634109db3c35f094892d0db",
+          "bytes": 2530
+        },
+        {
+          "path": "tools/circles-cleanup-browser.mjs",
+          "sha256": "113df58b9c7be60d5a11056454b141219b5c92bfad525800952e79bfc06941c5",
+          "bytes": 10872
+        },
+        {
+          "path": "tools/version-public-assets.mjs",
+          "sha256": "9deedb60ef9ff329a7c2ad6cf5faf80d80da5246e246be59fe053c748c7d36ec",
+          "bytes": 3143
+        }
+      ]
+    },
+    {
+      "app": "Hifz",
+      "repository": "MaktabForlife/Hifz",
+      "base": "ba0ea53f23b933b0c175c87fe41788df74afbb2f",
+      "files": [
+        {
+          "path": "V111-M3-HIFZ.md",
+          "sha256": "e2822c07066e623700a527a36defe3f385489bc265bba9707b77097b2c5d99a2",
+          "bytes": 4493
+        },
+        {
+          "path": "config/v111-auth.json",
+          "sha256": "f6b9d471502b1dc4ebaa158cfefd4b82968ba86acc900481ea65d5570ce932af",
+          "bytes": 530
+        },
+        {
+          "path": "index.html",
+          "sha256": "f94ef4329f65cca248d83c588ac472466d543b9aa887c886e31eaecd567adc24",
+          "bytes": 88909
+        },
+        {
+          "path": "js/api.js",
+          "sha256": "d27ba9fef91132ff51001a3227d6d6b1e036d928965b34cacba72ba47dab67b2",
+          "bytes": 23712
+        },
+        {
+          "path": "js/app.js",
+          "sha256": "7d3573d5badcb75fa650f27a10b80e8bb734546eb27436b50a47ba62cdffefbc",
+          "bytes": 17903
+        },
+        {
+          "path": "js/auth.js",
+          "sha256": "8e3207b6840da7d030d769914e980b3d426debc13102036f5b9cc9e8b80ad3b6",
+          "bytes": 36869
+        },
+        {
+          "path": "js/logContext.js",
+          "sha256": "e4481cbd86e00f16a80921a1931fed749536bc1f9222d34fce97f275d40e0e94",
+          "bytes": 12388
+        },
+        {
+          "path": "js/v111-client.mjs",
+          "sha256": "9d915a214f851974c25389e2e41edfedb671b5be50f06b4ef0874a163f638707",
+          "bytes": 7750
+        },
+        {
+          "path": "js/v111-session.js",
+          "sha256": "3181618c6b0574db258091581e5a489982519890eff520cb5cb6d33e8e89adcc",
+          "bytes": 13891
+        },
+        {
+          "path": "js/v111/browser-drafts.mjs",
+          "sha256": "5dc1b837635438fea9fd299f5e5f03965e8f2bdee2b61a9aed3594b499e9cdbc",
+          "bytes": 18008
+        },
+        {
+          "path": "js/v111/browser-session.mjs",
+          "sha256": "0d100564b51c83607450c250f0b9ae79249c163e1d9628a5a661c7c4360aadb0",
+          "bytes": 40646
+        },
+        {
+          "path": "security/v2/browser-assets.mjs",
+          "sha256": "80ee8c8a53a134e35d7122a12b8866130ade167831ea33f7284f087307a1e5d3",
+          "bytes": 59339
+        },
+        {
+          "path": "security/v2/browser-drafts.mjs",
+          "sha256": "5dc1b837635438fea9fd299f5e5f03965e8f2bdee2b61a9aed3594b499e9cdbc",
+          "bytes": 18008
+        },
+        {
+          "path": "security/v2/browser-security.mjs",
+          "sha256": "ac4f8fb6892cba52adae4ec66c9794987ee701cd3acfe2e9c769e86909efe281",
+          "bytes": 2406
+        },
+        {
+          "path": "security/v2/browser-session.mjs",
+          "sha256": "0d100564b51c83607450c250f0b9ae79249c163e1d9628a5a661c7c4360aadb0",
+          "bytes": 40646
+        },
+        {
+          "path": "security/v2/cache.mjs",
+          "sha256": "723597d14be97b384c9c16858a238d4917800501bbec78dd485df1a3df55614f",
+          "bytes": 14584
+        },
+        {
+          "path": "security/v2/capture-receipt.mjs",
+          "sha256": "be04d135a5c3d956636105adef57ecf577c9b8d2ebd1cc7b5e15a9c2ae50573b",
+          "bytes": 2649
+        },
+        {
+          "path": "security/v2/capture.mjs",
+          "sha256": "c11f9fefb034dc51a1f94fe18ec704421433fb978c33eaee55cfed415bd6bb3b",
+          "bytes": 14409
+        },
+        {
+          "path": "security/v2/ceremonies.mjs",
+          "sha256": "075c7e3d1b7bcd802a1d358786972093b46653e99f825ae9399c1023b4fcf21a",
+          "bytes": 44437
+        },
+        {
+          "path": "security/v2/child-security-tick.mjs",
+          "sha256": "ff7547e5fd9c479cfa937d4df69259cd6be41aa252424d8e830a3bf67ff54831",
+          "bytes": 1448
+        },
+        {
+          "path": "security/v2/codec.mjs",
+          "sha256": "cc8654f2f01230c461bfca39b5dad6d0392f479fe04c76b5e1b67a633c443d9f",
+          "bytes": 6561
+        },
+        {
+          "path": "security/v2/control-publication.mjs",
+          "sha256": "b3aa6627897cc21b9702b6f490352ef0a46dc69df38a0134fa3ae81c759bb2bd",
+          "bytes": 22380
+        },
+        {
+          "path": "security/v2/control-shapes.mjs",
+          "sha256": "f769504435ea4ccbdf3565701ccc668fd5d5ed022474b89896d86a2fad88606d",
+          "bytes": 2517
+        },
+        {
+          "path": "security/v2/cutover-state.mjs",
+          "sha256": "228fb99e4117736bae7e2aab722dbb6e3ffc56a7039217255ae547c7e4420aca",
+          "bytes": 794
+        },
+        {
+          "path": "security/v2/events.mjs",
+          "sha256": "8556836a7310ddca862b2b6413dac3622737b7705220fa4938044a134fdd8c0c",
+          "bytes": 11153
+        },
+        {
+          "path": "security/v2/fallback.mjs",
+          "sha256": "268033ae1b57c35d762ac2591dc39f5a4b28fd568bd2256f2e9aaaf56480b11f",
+          "bytes": 4830
+        },
+        {
+          "path": "security/v2/floors.mjs",
+          "sha256": "08f824452bd00758a9d21485470db6c1954b7c7bbbd91e603c4fe69e4fd83d83",
+          "bytes": 1582
+        },
+        {
+          "path": "security/v2/http-auth.mjs",
+          "sha256": "81556cfc823aac87a7aad984e78b62ab331ce7ba12cf41e2d6a7db737d8c45d1",
+          "bytes": 10543
+        },
+        {
+          "path": "security/v2/http-context.mjs",
+          "sha256": "507fdb3e86c7187a878db2b11013677a034bb5e9e3dcbf0539680898b60b72ef",
+          "bytes": 8673
+        },
+        {
+          "path": "security/v2/http-drafts.mjs",
+          "sha256": "7075572efe07b4c3e02e9cc5844c434b0480f3e1f1a7368ce991226feeaca501",
+          "bytes": 9073
+        },
+        {
+          "path": "security/v2/http-families.mjs",
+          "sha256": "1456d59f5c8d76bd7caca897f4a66921e7885d2c1117c1ede42f876998f4bd7d",
+          "bytes": 11636
+        },
+        {
+          "path": "security/v2/http-journeys.mjs",
+          "sha256": "0c816011a39111bd2604f21becf7542a548765e7f3262fedbe7b6a48f243551b",
+          "bytes": 10840
+        },
+        {
+          "path": "security/v2/http-pin.mjs",
+          "sha256": "b22127b48edfb170282964ccd91ec103c0fd1464e9f2cca0f819b557fa9d0503",
+          "bytes": 16027
+        },
+        {
+          "path": "security/v2/http-service.mjs",
+          "sha256": "ead35cbb1f12fc50349a55712c56f912ec966fb4b83925648693b0058c3269a3",
+          "bytes": 7778
+        },
+        {
+          "path": "security/v2/http-shells.mjs",
+          "sha256": "8d2e3db3da2a2ab56994bfa25297c6784d2814c342a302b04994603b23c8ab58",
+          "bytes": 9067
+        },
+        {
+          "path": "security/v2/http-transactions.mjs",
+          "sha256": "38ab7c2af12e2b8526a135f492a9ac47bebbcea31d81bcc1db860602763f5822",
+          "bytes": 3262
+        },
+        {
+          "path": "security/v2/instrumentation.mjs",
+          "sha256": "fecc4934c5820bde33680a0dc87f563829906a5ba1d02b6a35c0f2e4e28a2684",
+          "bytes": 14053
+        },
+        {
+          "path": "security/v2/issuance-floors.mjs",
+          "sha256": "2d1516eeb0ba57e162f3f26fbcef3088a4a05e7d567d212c079b57b7eb08daa9",
+          "bytes": 16692
+        },
+        {
+          "path": "security/v2/native-adapter.mjs",
+          "sha256": "c6d772d9354fedc62cbc4e1e08f375730fdba5b0bcb67bc952014d72d53e3121",
+          "bytes": 6070
+        },
+        {
+          "path": "security/v2/native-authority.json",
+          "sha256": "6aee66079d8450acd53612246b701dfe8b9c6519817c9f284fbf1f933b875d03",
+          "bytes": 10558
+        },
+        {
+          "path": "security/v2/native-domain.mjs",
+          "sha256": "a16fa1d5abaf5ac0e7494225919134e68bb392ca2bfda49250ee617878f8c43f",
+          "bytes": 5275
+        },
+        {
+          "path": "security/v2/native-profile-intake.mjs",
+          "sha256": "8ac02c0d21f4c1fea255d12d9ee5ec62fe160c9884403890635a582dc5f7b68d",
+          "bytes": 9228
+        },
+        {
+          "path": "security/v2/native-runtime.mjs",
+          "sha256": "e00a8ad6c3ee666b80e620d951a54ca659a29817002f8a74283cf54a62b9820e",
+          "bytes": 5323
+        },
+        {
+          "path": "security/v2/native-schema.mjs",
+          "sha256": "75afa488731b9ed36e67af0b5f5adbb5b47b54dbf6b7104b098ce5156277fe5b",
+          "bytes": 732
+        },
+        {
+          "path": "security/v2/outbox.mjs",
+          "sha256": "bffa23db1e7724b199f3b598040e807f0f55fb1fb8c44d97ac83cdfeeacedeaa",
+          "bytes": 7983
+        },
+        {
+          "path": "security/v2/policy-coverage.mjs",
+          "sha256": "858e16e6e8917b4189af1ba9225f90621ae9bb39b59edeced931152e248d55e0",
+          "bytes": 8219
+        },
+        {
+          "path": "security/v2/policy.mjs",
+          "sha256": "4b283344a85dbcbab0a8ed25efcb40e08c56ac227fbbd0fca35895a52a364dca",
+          "bytes": 20075
+        },
+        {
+          "path": "security/v2/portal-business.mjs",
+          "sha256": "60c37a688fc44d6ad81347ab90e2010d37fbcfdb83e1ad36e04b2719916ce9f2",
+          "bytes": 8934
+        },
+        {
+          "path": "security/v2/portal-capability.mjs",
+          "sha256": "725c8528ed24f398d5d2305c030768580e2018186b3bda7299e72af8aed878d3",
+          "bytes": 2571
+        },
+        {
+          "path": "security/v2/primary-write-guard.mjs",
+          "sha256": "e3445718a25c6a9b6d739973b3b89063bde50c9185879461976a840a2bc85d8e",
+          "bytes": 1805
+        },
+        {
+          "path": "security/v2/profile-service.mjs",
+          "sha256": "aec35d8233a40766b2c3566bc330376abd09b19ddc80a9f844214b90c0bb080b",
+          "bytes": 8710
+        },
+        {
+          "path": "security/v2/profile-source-triggers.mjs",
+          "sha256": "1a00d70322493a42b1d1c8cd87d4729944f25646e3165317590ab5d9c65653a7",
+          "bytes": 2118
+        },
+        {
+          "path": "security/v2/publication.mjs",
+          "sha256": "a222e72e9fd2ba021f6057d90b08531104bd1a59e7d50c8a42964f908575af61",
+          "bytes": 11035
+        },
+        {
+          "path": "security/v2/recovery.mjs",
+          "sha256": "0e2744596e2fff0029a31eb5a9efcf6072fbf03ba86bc96b28605b40eb885d58",
+          "bytes": 3977
+        },
+        {
+          "path": "security/v2/return-routes.mjs",
+          "sha256": "92f86e79b92f1e8ec5dc55d3f4f122d860319945cc921df20a808759cd042f3f",
+          "bytes": 618
+        },
+        {
+          "path": "security/v2/rights-memo.mjs",
+          "sha256": "52e9d661fcc73a170cad4e42c5fbf5672c08d0a027fa05b18d148cedeebf3007",
+          "bytes": 1305
+        },
+        {
+          "path": "security/v2/runtime-config.mjs",
+          "sha256": "e613dd2f398770d8af9df0660d8197491721493a95c736e51476c8d7ae08841f",
+          "bytes": 10164
+        },
+        {
+          "path": "security/v2/runtime-fallback.mjs",
+          "sha256": "0746545e2321077dc37289ed645b63d6dca989e8dc1bd9e3014977505cf9d851",
+          "bytes": 3728
+        },
+        {
+          "path": "security/v2/runtime-pending.mjs",
+          "sha256": "e3571414d4d0e58184e298ff4e9735b1a5d6b0046abe2af2b963d4c9eadeea79",
+          "bytes": 7116
+        },
+        {
+          "path": "security/v2/runtime-service.mjs",
+          "sha256": "ee953ed304dd6566893738d14c8d8866b2bea405e38c9da9ce070d75d698a6b3",
+          "bytes": 41037
+        },
+        {
+          "path": "security/v2/runtime.mjs",
+          "sha256": "27ddf2c6c262e9dd7724ee7637355e88d8ed8203a0ff96e7037b2cd4bbb0eac7",
+          "bytes": 17449
+        },
+        {
+          "path": "security/v2/schema-bundle.mjs",
+          "sha256": "71f71b0bdb935218cff25b560aa0f2906d71599d62d69be7b04b039f1c858205",
+          "bytes": 1119
+        },
+        {
+          "path": "security/v2/schema.mjs",
+          "sha256": "aa03a68fef250e6d90d31af94768ad33868c39d4200bcf796a33a1bd1c1271bf",
+          "bytes": 10180
+        },
+        {
+          "path": "security/v2/sender-floors.mjs",
+          "sha256": "159f5076f94bdb34672eaae7bc4002cb690aa0e020fb9e6bcafc664840e6896b",
+          "bytes": 6262
+        },
+        {
+          "path": "security/v2/snapshot.mjs",
+          "sha256": "55128250a7773cd0d5c8a289f38822a1d140861466b6fbc9685440b8a3822bb6",
+          "bytes": 44980
+        },
+        {
+          "path": "security/v2/store.mjs",
+          "sha256": "ba3b5167b329a5037ab697e0bfa065166805f5eb624ad0e313cea86dd8afccab",
+          "bytes": 18814
+        },
+        {
+          "path": "security/v2/stream-deadline.mjs",
+          "sha256": "d31e40895fae9f8be4a6aa843ea436e405c0483139af6d5e9b5ace598f733b4c",
+          "bytes": 2303
+        },
+        {
+          "path": "security/v2/tokens.mjs",
+          "sha256": "03a1dc67444bd2f9273fde841f427ff881a30539dc3d38225c87ce7454782cd4",
+          "bytes": 8072
+        },
+        {
+          "path": "tests/v111-static-prefix.test.mjs",
+          "sha256": "07e047f2a9e33a77f2e2ab8b5124a4d4e6d432e210fefa81af92f27defddf5ed",
+          "bytes": 3380
+        },
+        {
+          "path": "tests/verify_v111_client.mjs",
+          "sha256": "3afa49f2fe116b19b86a25e513b498b41d987cc50e32a0b0bf066a5ce1fc5da5",
+          "bytes": 6291
+        },
+        {
+          "path": "tests/verify_v111_native.mjs",
+          "sha256": "06ec8056e6e18bdd566eae93c5ea8a3f0537fcc6f381532f72bb8b8129347d61",
+          "bytes": 10275
+        },
+        {
+          "path": "tests/verify_v111_sdk.mjs",
+          "sha256": "8824c2660ccd02c4834432e84bd09db70624e0bbe8d348bd0d14a3d852c23a72",
+          "bytes": 5738
+        },
+        {
+          "path": "worker/src/hifz-v2.js",
+          "sha256": "94ce93ecb2ed047f5000c8db0ef7813b270fb75ecb00a3bade39e859c8bb9c70",
+          "bytes": 7458
+        },
+        {
+          "path": "worker/src/index.js",
+          "sha256": "a5f680b5c689d5781a361b3de91c03e85b07c300d91aa9275b6a72beeefdc75c",
+          "bytes": 16918
+        },
+        {
+          "path": "worker/src/v111-guarded-db.js",
+          "sha256": "5f0e03a809f6866a844c02e50ed4f0aa472185e4001088d4bba9fb495d867b48",
+          "bytes": 2375
+        },
+        {
+          "path": "worker/src/v111-public-assets.js",
+          "sha256": "3b305a112a1f63b38aec65c00ae83a86ca74c239299a788bcb23439f941de9da",
+          "bytes": 1932
+        }
+      ]
+    }
+  ],
+  "additionalTests": [
+    {
+      "path": "Academy/tools/v111-source-ci.test.mjs",
+      "sha256": "5a38674142f3346693c3b3f93bbca542fe127dc044bd05877e0ff06675a8bc89"
+    }
+  ]
+}

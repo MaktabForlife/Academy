@@ -8,4 +8,10 @@ CREATE TABLE IF NOT EXISTS jwt_v2_profile_deliveries(operation_id TEXT PRIMARY K
 CREATE TRIGGER IF NOT EXISTS jwt_v2_profile_delivery_immutable BEFORE UPDATE ON jwt_v2_profile_deliveries WHEN OLD.operation_id<>NEW.operation_id OR OLD.scope<>NEW.scope OR OLD.owner_epoch<>NEW.owner_epoch OR OLD.dependency_revision<>NEW.dependency_revision OR OLD.profile_revision<>NEW.profile_revision OR OLD.packet_json<>NEW.packet_json OR OLD.packet_digest<>NEW.packet_digest OR (OLD.receipt_json IS NOT NULL AND NEW.receipt_json IS NOT OLD.receipt_json) BEGIN SELECT RAISE(ABORT,'jwt_v2_immutable_profile_delivery'); END;
 `;
 
-export const nativeSchemaSQL=[baseNativeSchemaSQL,studioAuthoritySourceSchemaSQL,studioPortalSourceSchemaSQL,coursePublicationSourceSchemaSQL,libraryMetadataSchemaSQL].join('\n');
+const scheduledNativeOutboxIndex = `-- Optional additive Academy-only native schema proposal. Not applied to hosted or existing DBs.
+CREATE INDEX IF NOT EXISTS jwt_v2_native_outbox_due
+ON jwt_v2_native_outbox(target_app,next_attempt_at,change_id)
+WHERE state='PENDING' AND event_json IS NULL;
+`;
+
+export const nativeSchemaSQL=[baseNativeSchemaSQL,studioAuthoritySourceSchemaSQL,studioPortalSourceSchemaSQL,coursePublicationSourceSchemaSQL,libraryMetadataSchemaSQL,scheduledNativeOutboxIndex].join('\n');
