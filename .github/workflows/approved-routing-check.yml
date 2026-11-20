@@ -1,59 +1,137 @@
-name: Approved deployment routing checks
+name: V111 exact-source checks only
 on:
-  create:
-  push:
-    branches: ['validation/approved-deployment-*']
-  pull_request:
-    branches: [studio_dev]
   workflow_dispatch:
+    inputs:
+      academy_ref:
+        description: Exact independently reviewed Academy commit SHA
+        required: true
+        type: string
+      studio_ref:
+        description: Exact independently reviewed AcademyStudio commit SHA
+        required: true
+        type: string
+      hifz_ref:
+        description: Exact independently reviewed Hifz commit SHA
+        required: true
+        type: string
+      source_manifest_sha256:
+        description: SHA256 of the reviewed Academy deployment/v111-source-manifest.json
+        required: true
+        type: string
 permissions:
   contents: read
 concurrency:
-  group: approved-routing-check-${{ github.ref }}
-  cancel-in-progress: true
+  group: v111-source-${{ inputs.academy_ref }}-${{ inputs.studio_ref }}-${{ inputs.hifz_ref }}
+  cancel-in-progress: false
+defaults:
+  run:
+    shell: bash
 jobs:
-  routing:
-    if: github.event_name != 'create' || startsWith(github.ref_name, 'validation/approved-deployment-')
+  source-only:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      WRANGLER_SEND_METRICS: "false"
+      GIT_OPTIONAL_LOCKS: "0"
+      GIT_NO_LAZY_FETCH: "1"
+      GIT_TERMINAL_PROMPT: "0"
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Require explicit exact source triple and reviewed manifest digest
+        env:
+          ACADEMY_REF: ${{ inputs.academy_ref }}
+          STUDIO_REF: ${{ inputs.studio_ref }}
+          HIFZ_REF: ${{ inputs.hifz_ref }}
+          MANIFEST_SHA256: ${{ inputs.source_manifest_sha256 }}
+          CONTROL_REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "$ACADEMY_REF" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$STUDIO_REF" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$HIFZ_REF" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$MANIFEST_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$CONTROL_REF" == "studio_dev" || "$CONTROL_REF" == codex/v111-* ]]
+      - name: Read the reviewed controller version
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
+          ref: ${{ github.sha }}
+          path: Controller
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+          submodules: false
+          lfs: false
+      - name: Read exact Academy source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          node-version: "24.18.0"
-      - name: Test approval, merged tree, routing and no-DB guards using synthetic GitHub responses
+          repository: MaktabForlife/Academy
+          ref: ${{ inputs.academy_ref }}
+          path: Academy
+          fetch-depth: 0
+          persist-credentials: false
+          submodules: false
+          lfs: false
+      - name: Read exact Studio source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: MaktabForlife/AcademyStudio
+          ref: ${{ inputs.studio_ref }}
+          path: AcademyStudio
+          fetch-depth: 0
+          persist-credentials: false
+          submodules: false
+          lfs: false
+      - name: Read exact Hifz source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: MaktabForlife/Hifz
+          ref: ${{ inputs.hifz_ref }}
+          path: Hifz
+          fetch-depth: 0
+          persist-credentials: false
+          submodules: false
+          lfs: false
+      - name: Use the verified Node line
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.22.1"
+      - name: Install exact locked test and bundle dependencies without package scripts
         run: |
-          mkdir -p "$RUNNER_TEMP/approved-routing-evidence"
-          node --check tools/approved-deployment.mjs
-          node --test --test-reporter=tap tests/approved-deployment.test.mjs > "$RUNNER_TEMP/approved-routing-evidence/tests.log" 2>&1
-          if test -f tests/approved-deployment-retry.test.mjs; then
-            node --test --test-reporter=tap tests/approved-deployment-retry.test.mjs > "$RUNNER_TEMP/approved-routing-evidence/retries.log" 2>&1
-          fi
-          if test -f tests/approved-feature-routing.test.mjs; then
-            node --test --test-reporter=tap tests/approved-feature-routing.test.mjs > "$RUNNER_TEMP/approved-routing-evidence/feature-routing.log" 2>&1
-          fi
-          if test -f tests/approved-feature-setup.test.mjs; then
-            node --test --test-reporter=tap tests/approved-feature-setup.test.mjs > "$RUNNER_TEMP/approved-routing-evidence/feature-setup.log" 2>&1
-          fi
-          git diff --check
-      - name: Check workflow syntax on the disposable runner
+          set -euo pipefail
+          npm ci --prefix Academy/backend --ignore-scripts --no-audit --no-fund
+          npm ci --prefix AcademyStudio --ignore-scripts --no-audit --no-fund
+      - name: Install the existing pinned credential scanner
+        env:
+          SCANNER_DIGEST: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
         run: |
-          mkdir -p "$RUNNER_TEMP/approved-routing-lint"
-          npm install --prefix "$RUNNER_TEMP/approved-routing-lint" --no-save --package-lock=false --ignore-scripts --no-audit --no-fund yaml@2.8.2
-          NODE_PATH="$RUNNER_TEMP/approved-routing-lint/node_modules" node --input-type=commonjs <<'NODE'
-          const fs=require('node:fs'),yaml=require('yaml');
-          for(const name of fs.readdirSync('.github/workflows').filter(n=>n.endsWith('.yml'))){
-            const parsed=yaml.parse(fs.readFileSync('.github/workflows/'+name,'utf8'),{uniqueKeys:true});
-            if(!parsed.on||!parsed.jobs)throw Error('Invalid workflow '+name);
-          }
-          NODE
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/v111-scanner"
+          curl --fail --location --silent --show-error https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz -o "$RUNNER_TEMP/v111-scanner/package.tgz"
+          printf '%s  %s\n' "$SCANNER_DIGEST" "$RUNNER_TEMP/v111-scanner/package.tgz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/v111-scanner/package.tgz" -C "$RUNNER_TEMP/v111-scanner" gitleaks
+      - name: Validate exact source, new reachable history, native checks and five selected Worker entries
+        env:
+          ACADEMY_REF: ${{ inputs.academy_ref }}
+          STUDIO_REF: ${{ inputs.studio_ref }}
+          HIFZ_REF: ${{ inputs.hifz_ref }}
+          MANIFEST_SHA256: ${{ inputs.source_manifest_sha256 }}
+        run: |
+          set -euo pipefail
+          node Controller/tools/v111-source-ci.mjs \
+            --workspace "$GITHUB_WORKSPACE" \
+            --academy-ref "$ACADEMY_REF" \
+            --studio-ref "$STUDIO_REF" \
+            --hifz-ref "$HIFZ_REF" \
+            --manifest-sha256 "$MANIFEST_SHA256" \
+            --scanner "$RUNNER_TEMP/v111-scanner/gitleaks" \
+            --output "$RUNNER_TEMP/v111-source-only/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+      - name: Retain bounded source-only evidence
         if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: approved-routing-${{ github.run_id }}
-          path: ${{ runner.temp }}/approved-routing-evidence/
-          if-no-files-found: error
+          name: v111-source-only-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/v111-source-only/
+          if-no-files-found: warn
           retention-days: 30
+# No push/PR/schedule/workflow_run triggers, provider environment, credential import,
+# approval/status writer, legacy Feature/release workflow or deployment command.
