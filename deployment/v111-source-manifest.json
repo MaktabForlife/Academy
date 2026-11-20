@@ -5,7 +5,7 @@
   "r6PolicySHA256": "b0efeaabf36d0f29c333002585d0fb7cd554c3f1ac9e408da2e986cce8b07e05",
   "hosting": {
     "status": "FROZEN_REVIEWED_SOURCE_ONLY",
-    "reviewId": "m4-source17-plus-source-ci-20261120-r1",
+    "reviewId": "m4-source17-plus-source-ci-library-vm-20261120-r2",
     "changes": [
       {
         "app": "Academy",
@@ -190,6 +190,14 @@
         "sha256": "a5f680b5c689d5781a361b3de91c03e85b07c300d91aa9275b6a72beeefdc75c",
         "bytes": 16918,
         "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Academy",
+        "path": "backend/tests/fixtures/academy-v111-library-fixture.mjs",
+        "beforeSHA256": "57fa7ea59142d7ec4909694dbce25f629a9ab032f501e4883e769b2a3a9f54cb",
+        "sha256": "46719574e3829f875b4ed2a7a7f481655975a7d3bc0c462b2cccb1b4e9408306",
+        "bytes": 2495,
+        "purpose": "HOSTING_TEST"
       }
     ]
   },
@@ -931,8 +939,8 @@
         },
         {
           "path": "backend/tests/fixtures/academy-v111-library-fixture.mjs",
-          "sha256": "57fa7ea59142d7ec4909694dbce25f629a9ab032f501e4883e769b2a3a9f54cb",
-          "bytes": 2355
+          "sha256": "46719574e3829f875b4ed2a7a7f481655975a7d3bc0c462b2cccb1b4e9408306",
+          "bytes": 2495
         },
         {
           "path": "backend/tests/fixtures/academy-v111-media-fixture.mjs",
