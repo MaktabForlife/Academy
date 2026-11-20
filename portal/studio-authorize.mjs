@@ -1,6 +1,7 @@
+const selectedV2=globalThis.document?.querySelector?.('meta[name=\"uaa-auth-version\"]')?.content==='2';
 const config=globalThis.AcademyHosting,params=new URL(location.href).searchParams;
 const status=document.querySelector('[role=status]');
-async function start(){
+async function start(){if(selectedV2){status.textContent='Open Studio using the current sign-in flow.';const button=document.querySelector('button');button.textContent='Open Studio';button.hidden=false;return;}
  const state=params.get('state'),challenge=params.get('challenge');
  if(![state,challenge].every(v=>/^[A-Za-z0-9_-]{43}$/.test(v||'')))throw Error('Reopen Studio from your dashboard.');
  const token=localStorage.getItem('m4l_account_token');
@@ -12,4 +13,4 @@ async function start(){
  const next=new URL('/academy-connect.html',config.studioOrigin);next.hash=new URLSearchParams({code:result.code,state});location.replace(next.href);
 }
 start().catch(error=>{status.textContent=error.message;document.querySelector('button').hidden=false;});
-document.querySelector('button').onclick=()=>location.reload();
+document.querySelector('button').onclick=()=>{if(selectedV2)void window.M4L_ACADEMY_AUTH.navigate('https://worshipuponbaseera.ummabbadacademy.app/').catch(error=>{status.textContent=error.message;});else location.reload();};

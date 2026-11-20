@@ -8,9 +8,9 @@ import {esc} from './shared/model.mjs';
 
 export function circlesDashboard({onUpdate,openAcademy,show=()=>true,onWorkspace=()=>{},getNavigation=()=>null}){
  let data=null,available=[],mode=null,pending=false,error='',ticket=0,cacheOwner='',dataOwner='',clock=null,dialog=null,dialogOwner=null,status='';
- const cache=new Map(),requests=new Map(),headers=new WeakMap();let renderedHost,renderedHTML,selectedDate='',viewedMonth='';
+ const cache=new Map(),requests=new Map(),headers=new WeakMap();let renderedHost,renderedHTML,privateRootDispose=null,selectedDate='',viewedMonth='';
  const accountKey=()=>JSON.stringify([identity.account?.accountId,identity.generation]);
- const current=()=>Boolean(identity.account&&data&&dataOwner===accountKey()&&!pending&&data.mode===mode&&show());
+ const current=()=>Boolean(identity.account&&data&&dataOwner===accountKey()&&!pending&&data.mode===mode&&show()&&(!window.M4L_ACADEMY_AUTH?.selected||window.M4L_ACADEMY_AUTH.isCurrentResult(data)));
  const grouped=()=>identity.account?.globalAdmin===true;
  const rows=()=>current()?(data.timetable||[]):[];
  const displayRows=()=>mode==='teach'?teachingScheduleRows(rows(),{timezone:data.timezone}):rows();
@@ -37,14 +37,14 @@ export function circlesDashboard({onUpdate,openAcademy,show=()=>true,onWorkspace
    if(!signed){nav.innerHTML=record.html;nav.setAttribute('aria-label','Website navigation');continue;}
    nav.setAttribute('aria-label','Your workspaces');nav.innerHTML=(identity.account.globalAdmin?['learn','teach','admin']:available.length?available:['learn']).map(key=>`<button type="button" data-circles-workspace="${key}" aria-pressed="${key===mode}"${pending?' disabled':''}>${key==='learn'?'Learn':key==='teach'?'Teach':'Admin'}</button>`).join('');
   }
-  let host=document.getElementById('circles-dashboard');if(!visible){resetActions();host?.remove();renderedHost=null;renderedHTML=null;return;}if(!hero)return;
-  if(!host){host=document.createElement('section');host.id='circles-dashboard';host.className='circles-dashboard';host.setAttribute('aria-label','Your Academy dashboard');}
+  let host=document.getElementById('circles-dashboard');if(!visible){resetActions();privateRootDispose?.();privateRootDispose=null;host?.remove();renderedHost=null;renderedHTML=null;return;}if(!hero)return;
+  if(!host){host=document.createElement('section');host.id='circles-dashboard';host.className='circles-dashboard';host.setAttribute('aria-label','Your Academy dashboard');if(window.M4L_ACADEMY_AUTH?.selected)privateRootDispose=window.M4L_ACADEMY_AUTH.registerPrivateRoot(host);}
   if(hero.nextElementSibling!==host)hero.after(host);
   let content=host.querySelector('[data-circles-dashboard-content]');if(!content){content=document.createElement('div');content.dataset.circlesDashboardContent='';host.append(content);}
   const html=current()?dashboardHTML(data,{globalAdmin:identity.account?.globalAdmin===true,navigation:selectedNavigation(),now:Date.now(),selectedDate}):pending?'<div class="circles-dashboard-panel" role="status" aria-live="polite"><p>Opening your dashboard…</p></div>':`<div class="circles-dashboard-panel"><h2>Your Academy dashboard</h2><p role="status">Your dashboard could not be loaded.</p>${error?'<p>Open Academy or try again to check your dashboard.</p>':''}<button type="button" data-circles-dashboard-refresh>Try again</button><button type="button" data-circles-dashboard-home>Open Academy</button></div>`;
   if(renderedHost!==content||renderedHTML!==html){renderedHost=content;renderedHTML=html;content.innerHTML=html;}
   if(dialogOwner&&(dialogOwner.owner!==accountKey()||dialogOwner.data!==data||dialogOwner.mode!==mode||!current()))closeDialog();
-  writeStatus();syncJoinButtons();armClock();
+  writeStatus();syncJoinButtons();armClock();if(current()&&window.M4L_ACADEMY_AUTH?.selected)window.M4L_ACADEMY_AUTH.revealResult(data,{root:host});
  }
  function request(selected,force,generation,accountId,date){
   const key=JSON.stringify([accountId,generation,selected||'default',force,circleWeekStart(date)]);if(requests.has(key))return requests.get(key);
@@ -53,7 +53,7 @@ export function circlesDashboard({onUpdate,openAcademy,show=()=>true,onWorkspace
  }
  async function load(selected=mode,force=false,date=localDay(Date.now(),data?.timezone||'Africa/Johannesburg'),checked=null,checkedError=null){
   if(!identity.account)return;if(date==null||date==='')date=localDay(Date.now(),data?.timezone||'Africa/Johannesburg');const owner=accountKey();if(cacheOwner!==owner){cache.clear();requests.clear();cacheOwner=owner;}
-  const key=JSON.stringify([selected||'default',circleWeekStart(date)]),saved=!force&&cache.get(key),age=saved?Date.now()-Number(saved.checkedAt):NaN,warm=Number.isFinite(age)&&age>=0&&age<43200000;
+  const key=JSON.stringify([selected||'default',circleWeekStart(date)]),saved=!force&&cache.get(key),age=saved?Date.now()-Number(saved.checkedAt):NaN,warm=Number.isFinite(age)&&age>=0&&age<43200000&&(!window.M4L_ACADEMY_AUTH?.selected||window.M4L_ACADEMY_AUTH.isCurrentResult(saved));
   resetActions();const currentTicket=++ticket,generation=identity.generation;mode=selected;pending=!warm;error='';status='';if(!warm)refresh();
   try{if(checkedError)throw checkedError;const value=checked||warm&&saved||await request(selected,force,generation,identity.account.accountId,date);if(currentTicket!==ticket||generation!==identity.generation||owner!==accountKey())return;data=value;selectedDate=selectedCircleDay(value,date,Date.now()).date;dataOwner=owner;available=value.availableModes;mode=value.mode;cache.set(JSON.stringify([mode,circleWeekStart(date)]),value);cache.set(key,value);}
   catch(e){if(currentTicket!==ticket||generation!==identity.generation||owner!==accountKey())return;data=null;dataOwner='';error=e.message;if([401,403,409].includes(e.status)){cache.clear();requests.clear();}}

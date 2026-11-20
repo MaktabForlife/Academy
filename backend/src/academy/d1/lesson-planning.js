@@ -9,7 +9,9 @@ import {administers,actualState,actualRole,isAdminWorkspace} from './workspace-a
 const dateOK=s=>typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s)&&Number.isFinite(Date.parse(s+'T12:00:00Z'))&&addDays(s,0)===s;
 export const planningMonday=s=>addDays(s,-((new Date(s+'T12:00:00Z').getUTCDay()+6)%7));
 const text=(s,max,label,required=false)=>{if(typeof s!=='string'||s.length>max||required&&!s.trim())throw fail('Enter '+label+'.');return s.trim();};
-const identity=r=>[r.activityKey,r.runId,r.teacherId,r.period,r.weekStart].join('|');
+// SQLite NOCASE folds ASCII A-Z only. Unicode characters remain distinct;
+// preserve stored identifiers and exact period/week without a Unicode fold.
+const samePlanKey=(a,b)=>['activityKey','runId','teacherId'].every(k=>typeof a[k]==='string'&&typeof b[k]==='string'&&a[k].replace(/[A-Z]/g,c=>String.fromCharCode(c.charCodeAt(0)+32))===b[k].replace(/[A-Z]/g,c=>String.fromCharCode(c.charCodeAt(0)+32)))&&a.period===b.period&&a.weekStart===b.weekStart;
 const fromRow=r=>({activityKey:r.activity_key,runId:r.run_id,teacherId:r.teacher_id,period:r.period,weekStart:r.week_start});
 function normalizeContent(input,submitted){
  if(!input||typeof input!=='object'||!Array.isArray(input.lessons)||input.lessons.length>60)throw fail('Use up to 60 lesson sections.');
@@ -60,7 +62,7 @@ export function lessonPlanning(repository,auth,now=()=>new Date()){
   let weekStart='';if(period==='WEEKLY'){if(!dateOK(input.weekStart))throw fail('Choose a valid teaching week.');weekStart=planningMonday(input.weekStart);}
   return {activityKey:a.activity_key,runId:run?.run_id||'',teacherId:account.account_id,period,weekStart};
  }
- function find(d,key){return d.plans.find(r=>identity(fromRow(r))===identity(key));}
+ function find(d,key){return d.plans.find(r=>samePlanKey(fromRow(r),key));}
  function summary(d,key){
   const r=find(d,key),a=d.activities.find(a=>same(a.activity_key,key.activityKey)),u=d.accounts.find(u=>same(u.account_id,key.teacherId)),run=d.runs.find(r=>same(r.activity_key,key.activityKey)&&same(r.run_id,key.runId));
   return {...key,canSubmit:run?runOpen(d,run):Boolean(a.active&&a.lifecycle==='ACTIVE'),planId:r?.plan_id||'',revision:r?.revision||0,activityName:a.name,kind:a.kind,teacherName:u?.display_name||'Teacher',runName:run?.name||'',submittedAt:r?.submitted_at||'',lastSubmittedAt:r?.last_submitted_at||'',submittedRevision:r?.submitted_revision||0,hasDraft:same(key.teacherId,actor)&&Boolean(r),draftChanged:same(key.teacherId,actor)&&Boolean(r?.submitted_json&&r.draft_json!==r.submitted_json)};

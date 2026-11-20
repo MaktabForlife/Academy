@@ -2,7 +2,13 @@
 (() => {
  'use strict';
  const limit=16*1024*1024,states=new WeakMap(),esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- const current=(form,state)=>form.isConnected&&states.get(form)===state;
+ const v2=()=>window.M4L_ACADEMY_AUTH?.selected===true,forms=new Set(),fields=['app','sub','sid','psid','bsid','bv','ce','ae','le','sv','ue'];let nativeClient=null,contextEpoch=0;
+ const proof=()=>{const a=window.M4L_ACADEMY_AUTH,state=a?.getState?.();return {context:a?.getContext?.(),viewVersion:state?.viewVersion,epoch:contextEpoch};};
+ const proven=value=>{if(!v2())return true;const state=window.M4L_ACADEMY_AUTH.getState(),context=window.M4L_ACADEMY_AUTH.getContext(),now=nativeClient?.getServerNowMs?.();return Boolean(value&&value.epoch===contextEpoch&&value.context&&fields.every(k=>value.context[k]===context?.[k])&&value.viewVersion===state?.viewVersion&&!state.suspended&&!state.validationRequired&&state.state==='UNLOCKED'&&state.authorityReady!==false&&state.replacementRequired!==true&&Number.isFinite(now)&&now<Math.min(state.originalExpiresAtMs,state.idleUntilMs,state.validationDeadlineMs));};
+ const current=(form,state)=>form.isConnected&&states.get(form)===state&&(!v2()||proven(state.proof));
+ function abortAll(){if(!v2())return;contextEpoch++;for(const form of forms){const state=states.get(form);state?.download?.controller.abort();if(state){state.download=null;state.proof=null;state.loaded=false;}if(!form.isConnected)forms.delete(form);}}
+ for(const name of ['academy-v2-mask','academy-v2-context','m4l-academy-session-ended','pagehide'])window.addEventListener(name,event=>{if(name!=='academy-v2-mask'||event.detail?.masked!==false){if(name!=='academy-v2-context'||[...forms].some(form=>!proven(states.get(form)?.proof)))abortAll();}});
+ document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')abortAll();});
  function controls(label='PDF file'){
   return `<label>PDF source<select name="pdfSource" data-lesson-pdf-source><option value="UPLOAD">Upload a PDF</option><option value="LIBRARY">Public Library</option></select></label><div data-lesson-pdf-upload><label>${esc(label)} <span class="lm-inline-help">Up to 16 MB</span><input type="file" name="file" accept="application/pdf,.pdf" required></label></div><section data-lesson-pdf-library hidden><label>Search Public Library<input type="search" name="librarySearch" placeholder="Find a PDF or volume…" data-lesson-library-search></label><label>Library PDF<select name="libraryPdf" data-lesson-library-choice><option value="">Choose a PDF…</option></select></label><p data-lesson-library-status class="lm-inline-help" role="status" aria-live="polite"></p><button type="button" class="button secondary small" data-lesson-library-reload>Reload Public Library</button></section>`;
  }
@@ -26,7 +32,8 @@
   select.disabled=state.loading;form.querySelector('[data-lesson-library-reload]').disabled=state.loading;
  }
  async function load(form,force=false){
-  let state=states.get(form);if(!state){state={rows:[],loading:false,download:null};states.set(form,state);}if(state.loading)return;
+  if(v2()){nativeClient=await window.M4L_ACADEMY_AUTH.ready;if(!proven(proof()))return;}
+  let state=states.get(form);if(!state){state={rows:[],loading:false,download:null};states.set(form,state);}forms.add(form);if(v2()){if(!proven(state.proof)){state.download?.controller.abort();state.download=null;state.loaded=false;}state.proof=proof();}if(state.loading)return;
   if(state.loaded&&!force){render(form,state);return;}state.loading=true;render(form,state);
   try{const snapshot=await window.M4L_LIBRARY_CACHE.publicList(force);if(!current(form,state))return;state.download?.controller.abort();state.download=null;form.querySelector('[name=libraryPdf]').value='';state.rows=choices(snapshot);state.message=snapshot.message||'';state.loaded=true;}
   catch{if(current(form,state))state.message='Public Library could not load. Select Reload Public Library to try again.';}
@@ -37,26 +44,27 @@
   if(library)void load(form);else{const state=states.get(form);state?.download?.controller.abort();if(state)state.download=null;}
  }
  async function file(form,valid=()=>true){
+  const entryEpoch=contextEpoch;if(v2()){nativeClient=await window.M4L_ACADEMY_AUTH.ready;await nativeClient.ensureFresh();if(entryEpoch!==contextEpoch||!proven(proof())||!valid())throw new DOMException('Check the current lesson before choosing a PDF.','AbortError');}
   if(form.querySelector('[name=pdfSource]')?.value!=='LIBRARY')return form.querySelector('[name=file]')?.files[0];
-  const state=states.get(form),row=state?.rows.find(r=>r.id===form.querySelector('[name=libraryPdf]').value);if(!row)throw Error('Choose a PDF from Public Library.');
-  if(state.download?.url===row.url)return state.download.promise;
-  state.download?.controller.abort();const controller=new AbortController(),download={url:row.url,controller};
+  const state=states.get(form);if(v2()&&(!state||!current(form,state)))throw new DOMException('Check the current lesson and choose its Library PDF again.','AbortError');const row=state?.rows.find(r=>r.id===form.querySelector('[name=libraryPdf]').value);if(!row)throw Error('Choose a PDF from Public Library.');
+  if(state.download?.url===row.url){const value=await state.download.promise;if(!current(form,state)||!valid()||form.querySelector('[name=libraryPdf]').value!==row.id||form.querySelector('[name=pdfSource]').value!=='LIBRARY')throw new DOMException('The lesson changed.','AbortError');return value;}
+  state.download?.controller.abort();const controller=new AbortController(),download={url:row.url,controller};const selected=()=>current(form,state)&&valid()&&form.querySelector('[name=libraryPdf]').value===row.id&&form.querySelector('[name=pdfSource]').value==='LIBRARY';
   download.promise=(async()=>{
    const timer=setTimeout(()=>controller.abort(),45000),button=form.querySelector('button[type=submit]');if(button)button.disabled=true;
    try{
     const bytes=new TextEncoder().encode(row.url),encoded=btoa(String.fromCharCode(...bytes)).replaceAll('+','-').replaceAll('/','_').replaceAll('=','');
-    const response=await fetch('/pdf-file/'+encoded,{credentials:'omit',redirect:'error',signal:controller.signal});if(!response.ok)throw Error('This Library PDF could not be loaded. Try again.');
+    const response=await fetch('/pdf-file/'+encoded,{credentials:'omit',redirect:'error',signal:controller.signal});if(!selected())throw new DOMException('The lesson changed.','AbortError');if(!response.ok)throw Error('This Library PDF could not be loaded. Try again.');
     if(Number(response.headers.get('Content-Length'))>limit){await response.body?.cancel();throw Error('This Library PDF exceeds the 16 MB attachment limit.');}
     if(!response.body)throw Error('The selected Library item did not return a PDF.');
-    const reader=response.body.getReader(),chunks=[];let size=0;const selected=()=>current(form,state)&&valid()&&form.querySelector('[name=libraryPdf]').value===row.id&&form.querySelector('[name=pdfSource]').value==='LIBRARY';
-    try{while(true){if(!selected())throw new DOMException('The lesson changed.','AbortError');const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>limit)throw Error('This Library PDF exceeds the 16 MB attachment limit.');chunks.push(value);}}
+    const reader=response.body.getReader(),chunks=[];let size=0;
+    try{while(true){if(!selected())throw new DOMException('The lesson changed.','AbortError');const {value,done}=await reader.read();if(!selected())throw new DOMException('The lesson changed.','AbortError');if(done)break;size+=value.byteLength;if(size>limit)throw Error('This Library PDF exceeds the 16 MB attachment limit.');chunks.push(value);}}
     catch(error){await reader.cancel().catch(()=>{});throw error;}finally{reader.releaseLock();}
-    const blob=new Blob(chunks,{type:'application/pdf'});if(new TextDecoder().decode(await blob.slice(0,5).arrayBuffer())!=='%PDF-')throw Error('The selected Library item did not return a PDF.');
+    const blob=new Blob(chunks,{type:'application/pdf'});const signature=await blob.slice(0,5).arrayBuffer();if(!selected())throw new DOMException('The lesson changed.','AbortError');if(new TextDecoder().decode(signature)!=='%PDF-')throw Error('The selected Library item did not return a PDF.');
     if(!selected())throw new DOMException('The lesson changed.','AbortError');
     const name=form.querySelector('[name=name]');if(name&&!name.value.trim())name.value=row.label.slice(0,180);
     return new File([blob],row.label.replace(/[\x00-\x1f\\/:*?"<>|]/g,'_').slice(0,150)+'.pdf',{type:'application/pdf'});
    }finally{clearTimeout(timer);if(form.isConnected&&button)button.disabled=false;}
-  })().catch(error=>{if(state.download===download)state.download=null;throw error;});state.download=download;return download.promise;
+  })().catch(error=>{if(state.download===download)state.download=null;throw error;});state.download=download;const value=await download.promise;if(!selected())throw new DOMException('The lesson changed.','AbortError');return value;
  }
  function cancel(root){for(const node of root?.querySelectorAll('[data-lesson-pdf-source]')||[])states.get(node.closest('form'))?.download?.controller.abort();}
  document.addEventListener('reset',event=>{const form=event.target;if(!form.matches?.('form')||!form.querySelector('[data-lesson-pdf-source]'))return;const state=states.get(form);state?.download?.controller.abort();if(state)state.download=null;queueMicrotask(()=>{if(form.isConnected)source(form);});});

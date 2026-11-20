@@ -51,6 +51,8 @@
  });
  const reset=()=>setFocus(false,{restoreFocus:false,preservePlace:false});
  window.addEventListener('m4l-academy-session-ended',reset);
+ window.addEventListener('academy-v2-mask',event=>{if(event.detail?.masked)reset();});
+ window.addEventListener('academy-v2-context',reset);
  window.addEventListener('m4l-academy-session',reset);
  window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)reset();});
  window.addEventListener('kahf-view',sync);

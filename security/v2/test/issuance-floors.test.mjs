@@ -46,8 +46,8 @@ async function applyForeign(f,{revision=5,wrongDigest=false}={}){
  return {native,options,plan};
 }
 
-test('scoped dependency IDs use the same scope hash as the captured vector, with ASCII SQL upper semantics',async()=>{
- assert.equal(dependencyScope(null),'GLOBAL');assert.equal(dependencyScope('süß-test'),'ACCOUNT:Süß-TEST');
+test('scoped dependency IDs use the same scope hash as the captured vector, with byte-preserving canonical account scope',async()=>{
+ assert.equal(dependencyScope(null),'GLOBAL');assert.equal(dependencyScope('süß-test'),'ACCOUNT:süß-test');
  const guards=[['studio:native:staff',dependencyScope('synthetic-account'),'own-epoch',7]];
  assert.equal((await vectorFromGuards(guards))[0][0],await scopedVectorId(guards[0][0],guards[0][1]));
  assert.notEqual(await scopedVectorId(guards[0][0],'GLOBAL'),await scopedVectorId(guards[0][0],guards[0][1]));

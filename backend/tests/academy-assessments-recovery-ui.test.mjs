@@ -13,7 +13,7 @@ function fixture(fetcher,{view='teacher'}={}){
  window.HTMLElement.prototype.showModal=function(){this.open=true;};window.HTMLElement.prototype.close=function(){this.open=false;};
  window.M4L_CONFIG={NATIVE_ATTENDANCE:true};window.M4L_ACADEMY_WORKSPACE={current:()=>workspace,audience:()=>workspace,classView:()=>null};
  const store={getItem:key=>saved.get(key)||null,setItem:(key,value)=>saved.set(key,value),removeItem:key=>saved.delete(key)};
- const context=vm.createContext({window,document,localStorage:{getItem:()=>token},sessionStorage:store,fetch:async(url,options)=>{const input=JSON.parse(options.body);calls.push({url,input});return fetcher(calls.length,input,url);},crypto,TextEncoder,Date,Intl,URL,Map,Set,console});
+ const context=vm.createContext({window,document,location:new URL('https://legacy.synthetic.test/'),localStorage:{getItem:()=>token},sessionStorage:store,fetch:async(url,options)=>{const input=JSON.parse(options.body);calls.push({url,input});return fetcher(calls.length,input,url);},crypto,TextEncoder,Date,Intl,URL,Map,Set,console});
  vm.runInContext(script,context);
  const open=()=>window.M4L_ACADEMY_ASSESSMENTS.open({hostId:'host',view,activityKey:row.activityKey});
  return {window,document,calls,open,setToken(value){token=value;},setWorkspace(value){workspace=value;},async click(selector){await document.querySelector('#host').onclick({target:document.querySelector(selector)});}};

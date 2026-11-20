@@ -1,3 +1,6 @@
+import {nativeOperationStatus} from '../v111/native-operation-status.mjs';
+import {mediaUploadMetadata} from '../v111/media-metadata.mjs';
+import {nativeAuthContext,nativeRequestContext,inheritNativeRequest} from '../v111/native-context.js';
 import {nativePortal,portalReadReply} from './portal.mjs';
 import {hostingEnvironment,academyManagementOriginAllowed} from '../hosting.mjs';
 import {uploadPlaylistCardImage,previewPlaylistCardImage,publicPlaylistCardImage} from './media-playlist-card-images.js';
@@ -65,7 +68,7 @@ import {d1CourseCalendar as defaultCourseCalendar} from './course-calendar.js';
 import {academicCalendar} from './academic-calendar.js';
 import {d1CourseManagement} from './course-management.js';
 import {d1CourseCatalogue} from './course-catalogue.js';
-import {enrolmentCatalogue,enrolmentProfile,submitEnrolment,enrolmentManagement} from './enrolment.js';
+import {enrolmentCatalogue,enrolmentProfile,submitEnrolment,enrolmentSubmissionStatus,enrolmentManagement} from './enrolment.js';
 import {programMonthlySubscriptions} from './program-monthly-subscriptions.js';
 import {d1CourseSubscriptions} from './course-subscriptions.js';
 import {managedCourseScopes} from './course-authority.js';
@@ -76,7 +79,7 @@ import {programmePageGroups} from './web-platform/programme-groups.mjs';
 import {authenticatedD1Account,d1Audience as audience,d1ContextEqual as contextEqual} from './session.js';
 import {openLibraryMetadataEndpoint as defaultMetadataEndpoint} from './library-metadata.js';
 
-export function createAcademyWorker({d1Library,d1LibraryStream,d1LibraryAreaRefs}=publicLibrary,{openLibraryMetadataEndpoint=defaultMetadataEndpoint,d1CourseCalendar=defaultCourseCalendar}={}){
+export function createAcademyWorker({d1Library,d1LibraryStream,d1LibraryAreaRefs}=publicLibrary,{openLibraryMetadataEndpoint=defaultMetadataEndpoint,d1CourseCalendar=defaultCourseCalendar,onError=null}={}){
 const authenticated=async(request,env,repository)=>{const auth=await authenticatedD1Account(request,env,repository);repository.bindActor?.(auth);return auth;};
 const publicAccount=state=>({displayName:state.account.display_name,uniqueid:state.account.login_link_id});
 const sessionResponse=(state,context,token)=>({account:publicAccount(state),context,contexts:state.contexts,courseManagement:state.account.global_admin||managedCourseScopes(state).length>0,sessionStore:'D1',operationalAccessActive:['COURSE','GLOBAL','SUBSTITUTE','OWN_LIBRARY'].includes(context.scope),...(token?{token}:{})});
@@ -92,6 +95,7 @@ async function boundedBody(request,limit=4096) {
   return body;
 }
 async function issueSession(env,repository,state,context,capture) {
+  if(env.UAA_V2_ENABLED==='1')throw rehearsalError('Use the V2 session ceremony.',410,'V1_AUTH_RETIRED');
   if(!context)throw rehearsalError('No authorised Academy context is available.',403,'NO_CONTEXT');
   const session=await repository.createSession(state,context);
   if(repository.privateSnapshots){
@@ -112,7 +116,7 @@ async function rateLimit(env,login) {
   if(!result.success)throw rehearsalError('Too many sign-in attempts. Please wait one minute.',429,'LOGIN_RATE_LIMITED');
 }
 async function dispatch(request,env,options={}) {
-  if (![env.PIN_SECRET,env.SESSION_SECRET].every(value=>typeof value==='string'&&value.trim()))
+  if (env.UAA_V2_ENABLED!=='1'&&![env.PIN_SECRET,env.SESSION_SECRET].every(value=>typeof value==='string'&&value.trim()))
     throw rehearsalError('Academy authentication is not configured.');
   const path=new URL(request.url).pathname;
   if(path==='/api/academy/announcements/published'&&['GET','HEAD'].includes(request.method))return publicAnnouncementSnapshot(request,env);
@@ -125,7 +129,7 @@ async function dispatch(request,env,options={}) {
   if(path.startsWith('/api/academy/hub/')){await sourceRepository.ready();let portalAuth;const value=await nativePortal(request,env,{
     repository:sourceRepository,
     authenticate:async r=>{portalAuth=await authenticated(r,env,sourceRepository);return portalAuth;},
-    read:(p,body,mode,r)=>dispatch(new Request(new URL(p,r.url),{method:'POST',headers:{'Content-Type':'application/json',Authorization:r.headers.get('Authorization')||'',...(mode?{'X-Academy-Workspace':mode.toUpperCase()}:{})},body:JSON.stringify(body)}),env),
+    read:(p,body,mode,r)=>dispatch(inheritNativeRequest(r,new Request(new URL(p,r.url),{method:'POST',headers:{'Content-Type':'application/json',...(r.headers.has('Authorization')?{Authorization:r.headers.get('Authorization')}:{}),...(mode?{'X-Academy-Workspace':mode.toUpperCase()}:{})},body:JSON.stringify(body)})),env),
     mint:(auth,context)=>createSessionToken({type:'account',aud:audience,sv:3,sid:auth.sid,accountid:auth.state.account.account_id,epoch:auth.state.account.credential_epoch,scope:context.scope,courseid:context.courseId,role:context.role},env),
     login:input=>dispatch(new Request(new URL(input.setup?'/api/account/setup-pin':'/api/account/login',request.url),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)}),env)
   });return path==='/api/academy/hub/read'?portalReadReply(request,value,portalAuth):value;}
@@ -191,15 +195,17 @@ async function dispatch(request,env,options={}) {
   if(path==='/api/academy/website-card-image'&&['GET','HEAD'].includes(request.method))return publicWebsiteCardImage(request,setupEnabled(env)?await readRepository():repository,env);
   if(path==='/api/academy/announcements'&&request.method==='GET'){const source=setupEnabled(env)?await readRepository():repository;return conditionalRead(request,source,null,{},async()=>({success:true,...await publicAnnouncements(source)}));}
   if(path==='/api/academy/enrolment/catalogue'&&request.method==='GET')return {success:true,...await enrolmentCatalogue(setupEnabled(env)?await readRepository():repository)};
-  if(path==='/api/academy/announcements/image'&&['GET','HEAD'].includes(request.method))return announcementImage(request,new URL(request.url).searchParams.get('draft')==='1'?repository.authoringRepository():setupEnabled(env)?await readRepository():repository,env);
-  if(path==='/api/academy/announcements/pdf'&&['GET','HEAD'].includes(request.method))return announcementPdf(request,new URL(request.url).searchParams.get('draft')==='1'?repository.authoringRepository():setupEnabled(env)?await readRepository():repository,env);
+  if(['/api/academy/announcements/image','/api/academy/announcements/pdf'].includes(path)&&['GET','HEAD'].includes(request.method)){
+    const privateDraft=new URL(request.url).searchParams.get('draft')==='1';if(privateDraft&&env.UAA_V2_ENABLED==='1')await authenticated(request,env,repository);
+    const source=privateDraft?repository.authoringRepository():setupEnabled(env)?await readRepository():repository;return path.endsWith('/pdf')?announcementPdf(request,source,env):announcementImage(request,source,env);
+  }
   const publicLibraryOnly=env.ACADEMY_LIBRARY_MODE==='PUBLIC_ONLY';
   if(path==='/api/academy/pdf-tools/defaults'&&request.method==='GET')return {success:true,...await publicPdfTools(setupEnabled(env)?await readRepository():repository)};
   if(['/','/api/health'].includes(path)&&request.method==='GET')return {success:true,service:'maktab-academy',version:'109.25',...(sourceRepository.features.splitDatabases?{databaseGeneration:'SPLIT_V1'}:{}),
     store:env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACTIVE':'D1_REHEARSAL',cutoverReady:env.ACADEMY_D1_MODE==='ACTIVE',
     libraryMode:publicLibraryOnly?'PUBLIC_ONLY':'COMPATIBILITY',mediaSubscriptionsAvailable:false};
   if(path==='/api/academy/progress/preview'&&request.method==='GET')return {success:true,...await d1MemorisationPreview(setupEnabled(env)?await readRepository():repository)};
-  const openLibraryAction=path.match(/^\/api\/academy\/open-library\/metadata\/(public|cover|list|save|options)$/)?.[1];
+  const openLibraryAction=path.match(/^\/api\/academy\/open-library\/metadata\/(public|cover|list|save|options|get)$/)?.[1];
   if(openLibraryAction)return openLibraryMetadataEndpoint(openLibraryAction)(request,env);
   // Account/attendance screens reuse this authenticated Program selector. It
   // returns only assigned Program names/roles, never media or file access.
@@ -232,7 +238,7 @@ async function dispatch(request,env,options={}) {
   }
   if(path==='/api/academy/media-playlists/card-upload'||path==='/api/academy/media-playlists/card-preview'){
     const auth=await authenticated(request,env,repository);let input;
-    if(path.endsWith('/card-upload')){const metadata=new URL(request.url).searchParams.get('metadata')||'';if(metadata.length>8192)throw rehearsalError('Upload details are too large.',413);try{input=JSON.parse(metadata);}catch{throw rehearsalError('Invalid image details.');}}
+    if(path.endsWith('/card-upload')){if(env.UAA_V2_ENABLED==='1')input=mediaUploadMetadata(request,{v2:true});else{const metadata=new URL(request.url).searchParams.get('metadata')||'';if(metadata.length>8192)throw rehearsalError('Upload details are too large.',413);try{input=JSON.parse(metadata);}catch{throw rehearsalError('Invalid image details.');}}}
     else input=await boundedBody(request,8192);
     if(!input||typeof input!=='object'||Array.isArray(input))throw rehearsalError('Invalid image details.');guardWorkspace(request,auth,input);
     return path.endsWith('/card-upload')?{success:true,...await uploadPlaylistCardImage(request,repository,auth,env,input)}:previewPlaylistCardImage(request,repository,auth,env,input);
@@ -262,16 +268,16 @@ async function dispatch(request,env,options={}) {
     return {success:true,...await editor.run(path.endsWith('/draft-save')?'draft-save':'save',input,image,pdf)};
   }
   if(['/api/academy/lesson-media/upload','/api/academy/lesson-media/note-upload','/api/academy/lesson-media/video-part'].includes(path)) {
-    const auth=await authenticated(request,env,repository),metadata=new URL(request.url).searchParams.get('metadata')||'';
-    if(metadata.length>8192)throw rehearsalError('Upload details are too large.',413);
-    let input;try{input=JSON.parse(metadata);}catch{throw rehearsalError('Invalid upload details.',400);}
-    if(!input||typeof input!=='object'||Array.isArray(input))throw rehearsalError('Invalid upload details.',400);
-    guardWorkspace(request,auth,input);
+    const auth=await authenticated(request,env,repository);const input=env.UAA_V2_ENABLED==='1'?mediaUploadMetadata(request,{v2:true}):null;const metadata=env.UAA_V2_ENABLED==='1'?null:new URL(request.url).searchParams.get('metadata')||'';
+    if(metadata!==null&&metadata.length>8192)throw rehearsalError('Upload details are too large.',413);
+    let legacyInput;if(metadata!==null)try{legacyInput=JSON.parse(metadata);}catch{throw rehearsalError('Invalid upload details.',400);}const selectedInput=input||legacyInput;
+    if(!selectedInput||typeof selectedInput!=='object'||Array.isArray(selectedInput))throw rehearsalError('Invalid upload details.',400);
+    guardWorkspace(request,auth,selectedInput);
     if(isAdminWorkspace(auth))repository=repository.authoringRepository();
     if(setupEnabled(env)&&!isAdminWorkspace(auth))repository=await readRepository();
-    if(path.endsWith('/video-part'))return {success:true,...await lessonMedia(repository,auth,env).videoPart(request,input)};
-    if(path.endsWith('/note-upload')){if(!sourceRepository.features.mediaSeparation)throw rehearsalError('Own notes are unavailable.',503);return {success:true,...await lessonNotes(await readRepository(),auth,env).upload(request,input)};}
-    return {success:true,...await lessonMedia(repository,auth,env).upload(request,input)};
+    if(path.endsWith('/video-part'))return {success:true,...await lessonMedia(repository,auth,env).videoPart(request,selectedInput)};
+    if(path.endsWith('/note-upload')){if(!sourceRepository.features.mediaSeparation)throw rehearsalError('Own notes are unavailable.',503);return {success:true,...await lessonNotes(await readRepository(),auth,env).upload(request,selectedInput)};}
+    return {success:true,...await lessonMedia(repository,auth,env).upload(request,selectedInput)};
   }
   if(path==='/api/academy/assessments/upload') {
     const auth=await authenticated(request,env,repository),metadata=new URL(request.url).searchParams.get('metadata')||'';
@@ -313,7 +319,7 @@ async function dispatch(request,env,options={}) {
     return issueSession(env,repository,state,state.contexts[0],options.capture);
   }
   if(path==='/api/academy/entrance') {
-    const auth=request.headers.has('Authorization')?await authenticated(request,env,repository):null;
+    const auth=nativeRequestContext(request)||request.headers.has('Authorization')?await authenticated(request,env,repository):null;
     const source=setupEnabled(env)?await readRepository():repository;return conditionalRead(request,source,auth,input,async()=>{const home=websiteEntrance(await d1Entrance(source,auth?.state,auth?.user,input,undefined,{auth}));return {success:true,sessionStore:'D1',...home,programmePageGroups:programmePageGroups(home,env)};});
   }
   if(path==='/api/academy/public-lesson/join')return {success:true,...await d1LessonJoin(setupEnabled(env)?await readRepository():repository,null,input)};
@@ -358,6 +364,10 @@ async function dispatch(request,env,options={}) {
   const nativeAction=path.match(/^\/api\/(?:academy\/attendance|program-attendance)\/(options|get|submit|prepare|recover|report|roster-get|roster-save|substitute-save|substitute-revoke|substitute-reopen)$/)?.[1];
   if(nativeAction&&sourceRepository.features.nativeAttendance)return {success:true,...await nativeAttendance(await readRepository(),auth).run(nativeAction,input)};
   if(path.startsWith('/api/admin/platform/setup/'))throw rehearsalError('This separate publication workflow has been retired. Save or Publish from the relevant editor.',404,'NOT_FOUND');
+  if(path==='/api/academy/changes/status'){
+    if(request.method!=='POST'||env.UAA_V2_ENABLED!=='1')throw rehearsalError('Unknown action.',404,'NOT_FOUND');
+    return {success:true,...await nativeOperationStatus(repository,request,input)};
+  }
   if(path==='/api/academy/changes/accept'){
     if(request.method!=='POST'||!setupEnabled(env))throw rehearsalError('This saved change is not available.',404);
     return {success:true,...await acceptFeatureChange({...repository,onAssessmentPublication:head=>warmPublishedAssessments(acceptedRepository(sourceRepository,head),auth)},auth,input)};
@@ -386,6 +396,7 @@ async function dispatch(request,env,options={}) {
   if(settingsAction)return {success:true,...await globalSettings(repository,auth).run(settingsAction,input)};
   if(path==='/api/academy/website-studio/handoff')return studioHandoff(request,env,sourceRepository,auth,input);
   if(path==='/api/academy/hifz/sign-in')return issueHifzHandoff(env,auth,input);
+  if(path==='/api/academy/enrolment/status')return {success:true,...await enrolmentSubmissionStatus(repository,auth,input)};
   if(path==='/api/academy/enrolment/profile')return {success:true,...await enrolmentProfile(repository,auth)};
   const enrolmentAction=path.match(/^\/api\/admin\/platform\/enrolment\/(get|catalogue-save|request-save|request-delete|accounts|register|settings-save)$/)?.[1];
   if(enrolmentAction)return {success:true,...await enrolmentManagement(repository,auth).run(enrolmentAction,input)};
@@ -400,8 +411,8 @@ async function dispatch(request,env,options={}) {
   const academicCalendarAction=path.match(/^\/api\/academy\/calendar\/(get|save)$/)?.[1];
   if(academicCalendarAction){const produce=()=>academicCalendar(repository,auth).run(academicCalendarAction,input);return {success:true,...await (academicCalendarAction==='get'?privateSnapshot(repository,auth,{kind:'calendar',input},produce):produce())};}
   if(path==='/api/academy/lesson-media/timetable'){const result=await timetableMedia(repository,auth,input);if(sourceRepository.features.mediaSeparation){const additions=await lessonNotes(await readRepository(),auth,env).timetable(input);for(const row of additions.lessons){const existing=result.lessons.find(r=>r.activityKey===row.activityKey&&r.sessionKey===row.sessionKey);if(existing)existing.assets.push(...row.assets);else result.lessons.push(row);}}return {success:true,...result};}
-  const mediaAction=path.match(/^\/api\/academy\/lesson-media\/(binding-options|binding-create|context-options|context-save|companion|companion-editor|companion-save|companion-publish|list|feed|calendar|sessions|create|historical-create|course-files-create|get|save|watch|download|comments|comment-save|comment-moderate|attachment-remove|attachment-name|video-start|video-complete|video-abort|video-retain)$/)?.[1];
-  if(mediaAction){let result=await lessonMedia(repository,auth,env).run(mediaAction,input);if(sourceRepository.features.mediaSeparation&&['calendar','list','feed','get'].includes(mediaAction)&&!result.notModified){const notes=lessonNotes(await readRepository(),auth,env);if(mediaAction==='get'){if(result.lesson.sessionKey||result.lesson.mediaBinding){const entries=await notes.notes([{activityKey:result.lesson.activityKey,sessionKey:result.lesson.mediaBinding?.noteKey||result.lesson.sessionKey}]);result.assets.push(...entries.map(notes.asset));result.lesson.canCurateNotes=true;}}else result=await (mediaAction==='calendar'?notes.enrichCalendar(result,input):mediaAction==='feed'?notes.enrichFeed(result,input):notes.enrichList(result,input));}if(!(result instanceof Response)){await recordingPlaylistMetadata(sourceRepository,auth,result.lessons||result.lesson?[...(result.lessons||[]),...(result.lesson?[result.lesson]:[])]:[],{publicOnly:input.view==='learner'});}return result instanceof Response?result:{success:true,...result};}
+  const mediaAction=path.match(/^\/api\/academy\/lesson-media\/(binding-options|binding-create|context-options|context-save|companion|companion-editor|companion-save|companion-publish|list|feed|calendar|sessions|create|historical-create|course-files-create|reader-get|get|save|watch|download|comments|comment-save|comment-moderate|attachment-remove|attachment-name|video-start|video-complete|video-abort|video-retain)$/)?.[1];
+  if(mediaAction){if(mediaAction==='reader-get'&&env.UAA_V2_ENABLED!=='1')throw rehearsalError('Unknown action.',404,'NOT_FOUND');let result=await lessonMedia(repository,auth,env).run(mediaAction,input);if(sourceRepository.features.mediaSeparation&&['calendar','list','feed','get','reader-get'].includes(mediaAction)&&!result.notModified){const notes=lessonNotes(await readRepository(),auth,env);if(mediaAction==='get'||mediaAction==='reader-get'){if(result.lesson.sessionKey||result.lesson.mediaBinding){const entries=await notes.notes([{activityKey:result.lesson.activityKey,sessionKey:result.lesson.mediaBinding?.noteKey||result.lesson.sessionKey,date:result.lesson.date}]);result.assets.push(...entries.map(notes.asset));if(mediaAction==='get')result.lesson.canCurateNotes=true;}}else result=await (mediaAction==='calendar'?notes.enrichCalendar(result,input):mediaAction==='feed'?notes.enrichFeed(result,input):notes.enrichList(result,input));}if(!(result instanceof Response)){await recordingPlaylistMetadata(sourceRepository,auth,result.lessons||result.lesson?[...(result.lessons||[]),...(result.lesson?[result.lesson]:[])]:[],{publicOnly:input.view==='learner'});}return result instanceof Response?result:{success:true,...result};}
   if(path==='/api/academy/assessments/progress-list')return {success:true,...await assessmentProgress(repository,auth,input)};
   if(path==='/api/academy/assessments/download')return assessmentFiles(repository,auth,env).download(input);
   if(['/api/academy/assessments/marks-list','/api/academy/assessments/marks-save'].includes(path))return {success:true,...await assessmentManualMarks(repository,auth).run(path.endsWith('marks-list')?'marks-list':'marks-save',input)};
@@ -421,10 +432,10 @@ async function dispatch(request,env,options={}) {
   if(path==='/api/academy/courses/catalogue')return conditionalRead(request,repository,auth,input,async()=>({success:true,...await d1CourseCatalogue(repository,auth)}));
   if(publicLibraryOnly&&path==='/api/academy/library/catalogue')return conditionalRead(request,repository,auth,input,async()=>({success:true,resources:[],
     warnings:['Private Academy media will appear when Module subscriptions are available.'],learningAreaRefs:d1LibraryAreaRefs(auth.state),
-    libraryMode:'PUBLIC_ONLY',mediaSubscriptionsAvailable:false,store:'D1'}));
+    libraryMode:'PUBLIC_ONLY',mediaSubscriptionsAvailable:false,canManage:Boolean(actualState(auth).account.global_admin),store:'D1'}));
   const availabilityAction=path.match(/^\/api\/academy\/teacher-availability\/(get|save)$/)?.[1];
   if(availabilityAction)return {success:true,...await teacherAvailability(repository,auth,availabilityAction,input)};
-  const progressAction=path.match(/^\/api\/academy\/progress\/(get|grid|mark|confirm|import|module-save|set-save|cards|card-active|activity-active)$/)?.[1];
+  const progressAction=path.match(/^\/api\/academy\/progress\/(get|grid|mark|confirm|import|module-save|set-save|cards|card-get|card-active|activity-active)$/)?.[1];
   if(progressAction)return {success:true,...await d1Memorisation(repository,auth).run(progressAction,input)};
   if(path==='/api/academy/timetable')return conditionalRead(request,repository,auth,input,async()=>({success:true,...await d1AccountTimetable(repository,auth,input)}));
   if(path==='/api/account/personal-workspace'||path==='/api/account/substitute-workspace'){const expected=path.endsWith('/personal-workspace')?'OWN_LIBRARY':'SUBSTITUTE';if(auth.context.scope!==expected)throw rehearsalError('Choose your authorised personal context.',403,'FORBIDDEN_CONTEXT');return {success:true,sessionStore:'D1',workspace:{portalType:'academy',path:expected==='OWN_LIBRARY'?'/academy/library/?view=my-links':'/academy/#timetable/teach'}};}
@@ -453,7 +464,7 @@ async function dispatch(request,env,options={}) {
   }
   const libraryAction=path.match(/^\/api\/(admin\/platform\/program-library|program-library|academy\/library)\/(available|manage|save|recover|prepare-library|folder-set|browse|access|cover|covers|catalogue|upload-start)$/);
   if(libraryAction){const produce=async()=>({success:true,...await d1Library(repository,auth,env).run(libraryAction[2],input,request,{admin:libraryAction[1].startsWith('admin/'),academy:libraryAction[1]==='academy/library'})});return path==='/api/academy/library/catalogue'?conditionalRead(request,repository,auth,input,produce):produce();}
-  const profileAction=path.match(/^\/api\/admin\/platform\/user-profiles\/(get|link|save|recover)$/)?.[1];
+  const profileAction=path.match(/^\/api\/admin\/platform\/user-profiles\/(get|link|save|recover|options)$/)?.[1];
   const registryAction=path.match(/^\/api\/admin\/platform\/programs\/(list|create|copy|save|readiness|prepare)$/)?.[1];
   const managementAction=path.match(/^\/api\/admin\/platform\/program-timetable\/(manage-get|manage-save|manage-remove|recover)$/)?.[1];
   if(publicLibraryOnly&&managementAction==='manage-save'&&['resources','library-root'].includes(input.kind))
@@ -470,6 +481,7 @@ async function dispatch(request,env,options={}) {
   if(path==='/api/account/switch-context') {
     const context=actualState(auth).contexts.find(c=>contextEqual(c,{scope:String(input.scope || 'COURSE').toUpperCase(),courseId:String(input.courseId || ''),role:String(input.role || '').toUpperCase()}));
     if(!context)throw rehearsalError('Requested course or role is not authorised',403,'FORBIDDEN_CONTEXT');
+    if(nativeAuthContext(auth))return {success:true,...sessionResponse(actualState(auth),context),authVersion:2};
     const result=await issueSession(env,repository,actualState(auth),context);
     await repository.revoke(auth.sid,auth.state.account.account_id);
     return result;
@@ -518,7 +530,7 @@ return {
         mediaHeaders.delete('Access-Control-Allow-Origin');if(headers['Access-Control-Allow-Origin'])mediaHeaders.set('Access-Control-Allow-Origin',headers['Access-Control-Allow-Origin']);
         return new Response(result.body,{status:result.status,headers:mediaHeaders});}
       return new Response(JSON.stringify(result),{headers});}
-    catch(error){if(String(error.message).includes('STUDIO_ACCESS_MANAGED'))error=rehearsalError('Manage this offering through Studio access in Academy Admin. Its old access controls are locked.',409,'STUDIO_ACCESS_MANAGED');const status=Number.isInteger(error.status)?error.status:503;
+    catch(error){if(typeof onError==='function')onError(error);if(String(error.message).includes('STUDIO_ACCESS_MANAGED'))error=rehearsalError('Manage this offering through Studio access in Academy Admin. Its old access controls are locked.',409,'STUDIO_ACCESS_MANAGED');const status=Number.isInteger(error.status)?error.status:503;
       const unavailable=status>=500&&status!==501,cardPromotion=error.code==='PLAYLIST_CARD_PROMOTION_PENDING';
       const dailyReadLimit=/exceeded D1.s free tier daily row read limit/i.test(String(error.message));
       const reset=new Date();reset.setUTCHours(24,0,0,0);

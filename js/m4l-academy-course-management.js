@@ -3,7 +3,28 @@
   'use strict';
   const $=id=>document.getElementById(id),esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const enrolmentPanel=document.createElement('section');enrolmentPanel.className='enrolment-embedded';
-  const token=()=>localStorage.getItem('m4l_account_token')||'',base='/api/admin/platform/courses/';
+  const v2=()=>document.querySelector?.('meta[name="uaa-auth-version"]')?.content==='2'&&document.querySelector?.('meta[name="uaa-app"]')?.content==='academy';
+  let nativeClient=null,nativeForm=null,nativeResourceKey='',nativeInitialising=true,nativeOwner=null,nativeCheckpoint=Promise.resolve(),nativeParentProof=null;
+  const token=()=>v2()?nativeClient?.ownerKey()||'':localStorage.getItem('m4l_account_token')||'',base='/api/admin/platform/courses/';
+  const nativeRoots=()=>[$('course-workspace'),$('course-dialog')].filter(Boolean);
+  async function nativeReady(){if(nativeClient)return nativeClient;nativeClient=await window.M4L_ACADEMY_AUTH.ready;for(const root of nativeRoots())nativeClient.registerPrivateRoot(root);await nativeClient.ensureFresh();return nativeClient;}
+  const nativeResource=()=>({type:'academy-course-management',courseId:state.course?.courseId||null,runId:state.course?.courseId?state.course.runId:null});
+  const nativeVersion=()=>/^\d+$/.test(state.course?.revision||'0')?Number(state.course?.revision||0):state.course.revision;
+  const nativeDocument=()=>({draft:state.draft?copy(state.draft):null,cardDraft:copy(state.cardDraft),tab:state.tab});
+  async function readNativeCourse(){const c=await nativeReady();await c.ensureFresh();await c.prepareBusiness({activeWork:false});return api(base+(state.course?.courseId?'get':'list'),selected());}
+  function applyNativeCourse(value){state.pending=null;if(value.course){Object.assign(state,{course:value.course,draft:copy(value.course.details),cardDraft:copy(value.course.publicCard??null),dirty:false,review:value.validation||null,calendarWarnings:value.calendarWarnings,media:value.media,participants:null});state.personDrafts.clear();renderList();renderEditor();}else {Object.assign(state,{courses:value.courses,categories:value.categories,teachers:value.teachers,timezone:value.timezone,capabilities:value.capabilities});clearSelection();renderList();}}
+  async function courseRecovery(value=null,{restore=true}={}){
+    const c=await nativeReady(),resource=nativeResource(),key=JSON.stringify(resource);
+    if(nativeResourceKey!==key){nativeForm?.dispose();nativeForm=null;nativeResourceKey=key;}
+    if(!nativeForm){const {createAcademyNativeForm}=await import('/js/m4l-v111-editor.mjs');nativeForm=await createAcademyNativeForm({client:c,resource,roots:nativeRoots(),host:document.body,doc:document,
+      capture:nativeDocument,baseVersion:nativeVersion,isDirty:()=>Boolean(state.dirty||cardDirty()||state.pending),
+      readCurrent:readNativeCourse,applyCurrent:applyNativeCourse,
+      applyRetained:doc=>{if(doc?.draft){if(!state.course)state.course={courseId:'',runId:'',stage:'DRAFT',displayStage:'DRAFT',revision:'0'};state.draft=copy(doc.draft);state.cardDraft=copy(doc.cardDraft??null);state.dirty=true;state.review=null;state.tab=normalTab(doc.tab);renderEditor();}},
+      status:text=>tell(text,true)});}
+    if(value)await nativeForm.open(value,{restore});return nativeForm;
+  }
+  function checkpointNative(){if(!v2()||!state.course||!nativeForm)return;nativeCheckpoint=nativeCheckpoint.then(()=>nativeForm?.checkpoint()).catch(error=>tell(error.message,true));}
+
   const state={token:'',session:null,generation:0,selection:0,courses:[],categories:[],teachers:[],timezone:'Africa/Johannesburg',capabilities:{},course:null,draft:null,cardDraft:null,dirty:false,tab:'list',busy:false,review:null,calendarWarnings:[],media:[],participants:null,personDrafts:new Map(),peopleSearch:'',assignedOnly:false,pending:null,filters:{search:'',status:''}};
   const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const labels={DRAFT:'Draft',PUBLISHED:'Published',ACTIVE:'Active',COMPLETE:'Complete',CANCELLED:'Cancelled',ARCHIVED:'Archived'};
@@ -17,6 +38,7 @@
   function lock(message){window.M4L_COURSE_MEDIA?.reset();window.M4L_COURSE_PARTICIPANTS?.reset();window.M4L_STUDIO_ACCESS?.reset();window.M4L_LESSON_MEDIA?.reset();window.M4L_ENROLMENT_WORKSPACE?.reset(enrolmentPanel);state.token='';state.session=null;state.course=null;state.draft=null;state.cardDraft=null;state.dirty=false;state.courses=[];state.participants=null;state.personDrafts.clear();state.pending=null;state.review=null;state.media=[];state.calendarWarnings=[];state.busy=false;state.tab='list';state.selection++;$('course-workspace').hidden=true;$('course-editor').replaceChildren();$('course-list').replaceChildren();$('course-dialog').close();$('course-dialog').replaceChildren();$('course-account-name').textContent='';$('course-access-message').textContent=message;tell('');}
   async function api(path,input={},authToken=state.token){
     const generation=state.generation;
+    if(v2()){const c=await nativeReady(),owner=c.ownerKey();await c.ensureFresh();if(generation!==state.generation||owner!==c.ownerKey())throw Error('Your Academy account changed.');const value=await c.request(path,input,{headers:{'X-Academy-Workspace':'ADMIN'}});if(generation!==state.generation||owner!==c.ownerKey()||!c.isCurrentResult(value))throw Error('The Course view changed. Read current records again.');return value;}
     if(!authToken||authToken!==token()||path!=='/api/account/session'&&!state.session)throw Error('Sign in with an authorised Academy administrator account.');
     if(path==='/api/account/session'&&window.M4L_ACADEMY_NAVIGATION?.session){
       const result=await window.M4L_ACADEMY_NAVIGATION.session(authToken);
@@ -33,6 +55,14 @@
     void window.M4L_REFRESH_AFTER_SAVE?.(result,authToken);return result;
   }
   async function mutate(action,input){
+    if(v2()){
+      if(state.pending)throw Error('Review the previous Course change before saving another change.');
+      const generation=state.generation,selection=state.selection,c=await nativeReady();await c.ensureFresh();await c.prepareSensitive({activeWork:true});const recovery=await courseRecovery();await nativeCheckpoint;
+      if(generation!==state.generation||selection!==state.selection)throw Error('The selected Course changed.');
+      const operationId=crypto.randomUUID();let attempt;state.pending={nativeUnknown:false,operationId};
+      try{attempt=await recovery.beforeMutation({operationId,action},{sensitive:true});let result=await api(base+action,{...input,operationId});result=await recovery.completeNativeMutation(attempt,result,{operationId});state.pending=null;await recovery.saved();return result;}
+      catch(error){if(attempt){state.pending={nativeUnknown:true,operationId};await recovery.unknown(attempt);state.pending=null;}else state.pending=null;throw error;}
+    }
     const key=JSON.stringify({action,input});
     if(state.pending?.key!==key)state.pending={key,input:{...input,operationId:crypto.randomUUID()}};
     const result=await api(base+action,state.pending.input);state.pending=null;return result;
@@ -146,7 +176,7 @@
 
     if(state.busy)busy(true);
   }
-  function dirty(){state.dirty=true;state.review=null;state.pending=null;for(const button of document.querySelectorAll('[data-cm-action=publish],[data-cm-action=accept]'))button.disabled=true;const indicator=$('course-editor').querySelector('.cm-heading-meta small');if(indicator)indicator.textContent='Unsaved changes';}
+  function dirty(){state.dirty=true;state.review=null;if(!v2())state.pending=null;checkpointNative();for(const button of document.querySelectorAll('[data-cm-action=publish],[data-cm-action=accept]'))button.disabled=true;const indicator=$('course-editor').querySelector('.cm-heading-meta small');if(indicator)indicator.textContent='Unsaved changes';}
   async function list(){const result=await api(base+'list');Object.assign(state,{courses:result.courses,categories:result.categories,teachers:result.teachers,timezone:result.timezone,capabilities:result.capabilities});state.filters=currentFilters();$('course-new').hidden=!state.capabilities.create;renderList();}
   function rememberSelection(){
     const query=new URLSearchParams(location.search);
@@ -167,12 +197,12 @@
   }
   async function select(courseId,runId,tab='details'){
     const sequence=++state.selection,generation=state.generation;
-    const result=await api(base+'get',{courseId,runId});
+    const result=await api(base+'get',{courseId,runId});if(v2())nativeParentProof=result;
     if(sequence!==state.selection||generation!==state.generation)return;
     Object.assign(state,{course:result.course,draft:copy(result.course.details),cardDraft:copy(result.course.publicCard??null),dirty:false,tab:normalTab(tab),review:result.validation||null,calendarWarnings:result.calendarWarnings,media:result.media,participants:null});state.personDrafts.clear();rememberSelection();renderList();renderEditor();
-    if(tab==='participants')await loadParticipants();
+    if(v2())await courseRecovery(result);if(tab==='participants')await loadParticipants();
   }
-  function participantContext(){const selection=state.selection,generation=state.generation,activity=state.course?.activityKey;return {selectionKey:selection,current:()=>state.selection===selection&&state.generation===generation&&state.course?.activityKey===activity&&state.tab==='participants'&&state.token===token()};}
+  function participantContext(){const selection=state.selection,generation=state.generation,activity=state.course?.activityKey;const current=()=>state.selection===selection&&state.generation===generation&&state.course?.activityKey===activity&&state.tab==='participants'&&state.token===token();return {selectionKey:selection,current,proveCurrent:async()=>{if(!v2())return;if(!current())throw Error('The selected Course changed.');if(!nativeClient.isCurrentResult(nativeParentProof)){const value=await api(base+'get',selected());if(!current()||!nativeClient.isCurrentResult(value))throw Error('The selected Course changed.');nativeParentProof=value;}nativeClient.revealResult(nativeParentProof,{roots:[$('course-workspace')]});}};}
   async function loadParticipants(){
     if(!state.course?.courseId)return;
     const sequence=state.selection;
@@ -184,7 +214,7 @@
     if(account&&state.tab==='participants'){state.peopleSearch=account.displayName;renderEditor();}
   }
   async function open(){
-    const generation=++state.generation,authToken=token();lock('Loading Course management…');$('course-access-retry').hidden=true;
+    const generation=++state.generation;lock('Loading Course management…');if(v2())await nativeReady();const authToken=token();$('course-access-retry').hidden=true;
     if(!authToken){lock('Sign in with an authorised Academy administrator account, then open Course management.');return;}
     try{
       const session=await api('/api/account/session',{},authToken);if(generation!==state.generation)return;
@@ -194,7 +224,7 @@
       $('course-management-back').textContent=globalAdmin?'← Academy administration':'← My Courses';$('course-management-back').href=globalAdmin?'/academy/admin/#administration':'/academy/#workshops';
       await list();if(generation!==state.generation)return;
       const query=new URLSearchParams(location.search),courseId=query.get('course'),runId=query.get('run'),requested=courseId&&state.courses.find(c=>c.courseId===courseId&&(!runId||c.runId===runId));
-      if(requested)await select(requested.courseId,requested.runId,tabs.some(([tab])=>tab===normalTab(query.get('tab')))?normalTab(query.get('tab')):'details');else renderEditor();
+      if(requested)await select(requested.courseId,requested.runId,tabs.some(([tab])=>tab===normalTab(query.get('tab')))?normalTab(query.get('tab')):'details');else {renderEditor();if(v2()){const checked=await api(base+'list');nativeClient.revealResult(checked,{roots:nativeRoots()});}}
     }catch(error){if(generation!==state.generation)return;lock(error.message);$('course-access-retry').hidden=false;}
   }
   function beginNew(){
@@ -206,7 +236,7 @@
     });
     $('cm-copy-source').onchange=()=>{const source=state.courses[Number($('cm-copy-source').value)-1];$('cm-copy-options').hidden=!source;$('cm-dialog-name').value=source?source.name.slice(0,153)+' (copy)':'';};
   }
-  function newCourse(){state.selection++;state.course={courseId:'',runId:'',stage:'DRAFT',displayStage:'DRAFT',revision:'0'};state.cardDraft=null;state.draft={name:'',categoryKey:'',accessModel:'PAID',timezone:state.timezone,weekdays:[],startDate:'',endDate:'',startTime:'',endTime:'',teacherId:'',zoomLink:'',sessions:[]};state.dirty=false;state.review=null;state.participants=null;state.personDrafts.clear();state.media=[];state.calendarWarnings=[];state.tab='details';rememberSelection();renderList();renderEditor();$('course-editor').querySelector('[data-field="name"]')?.focus();}
+  function newCourse(){state.selection++;state.course={courseId:'',runId:'',stage:'DRAFT',displayStage:'DRAFT',revision:'0'};state.cardDraft=null;state.draft={name:'',categoryKey:'',accessModel:'PAID',timezone:state.timezone,weekdays:[],startDate:'',endDate:'',startTime:'',endTime:'',teacherId:'',zoomLink:'',sessions:[]};state.dirty=false;state.review=null;state.participants=null;state.personDrafts.clear();state.media=[];state.calendarWarnings=[];state.tab='details';rememberSelection();renderList();renderEditor();$('course-editor').querySelector('[data-field="name"]')?.focus();if(v2()){for(const root of nativeRoots()){root.inert=true;root.style.visibility='hidden';}void readNativeCourse().then(value=>courseRecovery(value)).then(()=>$('course-editor').querySelector('[data-field="name"]')?.focus()).catch(error=>tell(error.message,true));}}
   async function save(){
     if(!state.draft.name.trim()){state.tab='details';renderEditor();$('course-editor').querySelector('[data-field="name"]')?.focus();throw Error('Enter a Course name to save the draft.');}
     for(const row of [state.draft,...state.draft.sessions])for(const key of ['startTime','endTime'])row[key]=window.M4L_TIME.parse(row[key])||row[key];
@@ -292,7 +322,7 @@
   }
   function input(event){
     const el=event.target;
-    if(el.dataset.cardField){state.cardDraft={time:'',title:'',description:'',...state.cardDraft,[el.dataset.cardField]:el.value};state.pending=null;publicCardControls();return;}
+    if(el.dataset.cardField){state.cardDraft={time:'',title:'',description:'',...state.cardDraft,[el.dataset.cardField]:el.value};if(!v2())state.pending=null;publicCardControls();checkpointNative();return;}
     if(el.dataset.field&&editable()){state.draft[el.dataset.field]=el.value;dirty();}
     if(el.dataset.day!==undefined&&editable()){const day=Number(el.dataset.day);state.draft.weekdays=state.draft.weekdays.filter(d=>d!==day);if(el.checked)state.draft.weekdays.push(day);dirty();}
     if(el.dataset.session&&editable()){const row=state.draft.sessions.find(s=>s.id===el.dataset.session);if(row){row[el.dataset.sessionField]=el.value;dirty();}}
@@ -312,7 +342,7 @@
     document.addEventListener('click',event=>{const el=event.target.closest?.('[data-cm-action]');if(!el)return;event.preventDefault();if(state.busy)return;if(el.dataset.cmAction==='select'){void action('select',el);return;}void perform(()=>action(el.dataset.cmAction,el));});
     document.addEventListener('input',event=>{if(event.target.id==='course-people-search'){state.peopleSearch=event.target.value;const start=event.target.selectionStart;renderEditor();const search=$('course-people-search');search.focus();search.setSelectionRange(start,start);return;}if(event.target.type!=='checkbox'&&event.target.tagName!=='SELECT')input(event);});
     document.addEventListener('change',event=>{if(event.target.id==='course-assigned-only'){state.assignedOnly=event.target.checked;renderEditor();return;}if(event.target.type==='checkbox'||event.target.tagName==='SELECT'||event.target.hasAttribute?.('data-time24'))input(event);});
-    void open();
+    void open().finally(()=>{nativeOwner=nativeClient?.ownerKey()||null;nativeInitialising=false;});
   });
   function sessionChanged(){if(token()===state.token&&state.session)return;++state.generation;lock('Your Academy account changed. Return to Academy home and open Course management again.');}
   window.addEventListener('m4l-course-policy-saved',event=>{
@@ -324,6 +354,11 @@
     const control=document.querySelector('[data-field="accessModel"]');if(control)control.value=coursePolicy.model;renderList();
   });
   window.addEventListener('resize',revealTab);
+  if(v2()){
+    window.addEventListener('academy-v2-context',()=>{if(nativeInitialising)return;const owner=nativeClient?.ownerKey();if(owner!==nativeOwner){nativeForm?.dispose();nativeForm=null;nativeResourceKey='';nativeOwner=owner;++state.generation;lock('Your Academy account changed. Read current Course management again.');}});
+    window.addEventListener('academy-v2-mask',event=>{if(event.detail?.masked&&$('course-dialog').open)$('course-dialog').close();});
+    window.addEventListener('academy-v2-revalidate',()=>{if(state.busy)return;void (nativeForm?nativeForm.revalidate():open()).catch(error=>tell(error.message,true));});
+  }
   window.addEventListener('storage',e=>{if(e.key==='m4l_account_token'||e.key===null)sessionChanged();});window.addEventListener('m4l-academy-session',sessionChanged);
   window.addEventListener('pageshow',e=>{if(e.persisted){sessionChanged();if(state.session&&!hasUnsavedChanges())void open();}});
   window.addEventListener('beforeunload',e=>{if(hasUnsavedChanges()){e.preventDefault();e.returnValue='';}});

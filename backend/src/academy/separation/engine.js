@@ -1,3 +1,5 @@
+import {v2NativeSessionStatement} from '../v111/native-session-sql.mjs';
+import {verifyCoordinatorProof,verifiedCoordinatorContext,coordinatorPrimaryCondition} from '../v111/coordinator-proof.mjs';
 import {lessonContextSelection,validateLessonContextCapture} from './lesson-context-read.js';
 import {authorizeRecordedRead} from './recorded-context-read.js';
 import {compilePlan} from './compile.js';
@@ -15,7 +17,7 @@ const phase=(db,id)=>db.prepare('SELECT * FROM split_commands WHERE command_id=?
 const semantic=e=>/academy_management_stale|constraint|split_transaction_state|lesson_media_pdf_limit|foreign key|unique/i.test(e.message)||e.status>=400&&e.status<500;
 // One instance coordinates the two stores of one Academy generation. Ordinary
 // Core reads/writes stay on D1; its triggers fence them only during this commit.
-export function splitEngine({core,admin,alarm=async()=>{},hook=async()=>{}}){
+export function splitEngine({core,admin,alarm=async()=>{},hook=async()=>{},v2Env=null,clock=()=>Math.floor(Date.now()/1000)}){
  let tail=Promise.resolve();
  // Engine-private hints, never caller-supplied versions or cached acceptance.
  // Every reuse still checks the live Core version, session and timed grants.
@@ -44,11 +46,17 @@ export function splitEngine({core,admin,alarm=async()=>{},hook=async()=>{}}){
   }else if(a?.phase!=='DONE')throw fail('The Admin commit needs recovery.');
   await clean(id,'DONE');
  }
+ function actorCommitGuard(proof){
+  if(verifiedCoordinatorContext(proof)){const g=coordinatorPrimaryCondition(proof,{now:verifiedCoordinatorContext(proof).clock()});return item("INSERT INTO split_transaction_guards VALUES('actor',EXISTS("+g.sql+")) ON CONFLICT(guard_id) DO UPDATE SET accepted=excluded.accepted",...g.args);}
+  if(v2Env?.UAA_V2_ENABLED==='1')throw fail('A current V2 coordinator proof is required.','COORDINATOR_PROOF_REQUIRED',401);
+  return item("INSERT INTO split_transaction_guards VALUES('actor',EXISTS(SELECT 1 FROM account_sessions s JOIN accounts a USING(account_id) JOIN account_credentials c USING(account_id) WHERE s.session_id=? AND a.account_id=? AND a.active=1 AND s.revoked_at IS NULL AND c.credential_epoch=? AND s.credential_epoch=c.credential_epoch AND c.pin_setup=1 AND length(trim(c.pin_hash))>0 AND s.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now'))) ON CONFLICT(guard_id) DO UPDATE SET accepted=excluded.accepted",proof.sid,proof.accountId,proof.epoch);
+ }
+ async function receiveProof(proof,command,input){return v2Env?.UAA_V2_ENABLED==='1'?verifyCoordinatorProof(proof,{env:v2Env,command,input,clock}):proof;}
  async function commit(id,plan,proof){
   // Admission checked current scoped authority under the Core fence. No Core
   // permission writer can pass it; the atomic guard below checks expiry again.
   const results=await batch(core,[item('PRAGMA defer_foreign_keys=ON'),guard(id,'PENDING'),
-   item("INSERT INTO split_transaction_guards VALUES('actor',EXISTS(SELECT 1 FROM account_sessions s JOIN accounts a USING(account_id) JOIN account_credentials c USING(account_id) WHERE s.session_id=? AND a.account_id=? AND a.active=1 AND s.revoked_at IS NULL AND c.credential_epoch=? AND s.credential_epoch=c.credential_epoch AND c.pin_setup=1 AND length(trim(c.pin_hash))>0 AND s.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now'))) ON CONFLICT(guard_id) DO UPDATE SET accepted=excluded.accepted",proof.sid,proof.accountId,proof.epoch),
+   actorCommitGuard(proof),
    item('UPDATE split_write_fence SET allow_write=1 WHERE command_id=?',id),...plan.core,
    // Invalidate source snapshots even when a successful save changed only
    // Admin-owned definitions and produced no mirrored Core field changes.
@@ -69,17 +77,17 @@ export function splitEngine({core,admin,alarm=async()=>{},hook=async()=>{}}){
   const a=await phase(admin,id);
   if(a.phase==='APPLIED'&&c.phase==='PENDING'){
    const plan=await load(core,id);if(!plan)throw fail('Recovery evidence is missing.');
-   try{return await commit(id,plan,JSON.parse(c.proof_json));}catch(e){const current=await phase(core,id);if(current.phase==='COMMITTED')return finish(id);if(semantic(e))return abort(id);throw e;}
+   try{const stored=JSON.parse(c.proof_json),proof=v2Env?.UAA_V2_ENABLED==='1'?await verifyCoordinatorProof(stored,{env:v2Env,command:'write',inputDigest:plan.v2InputDigest,clock}):stored;await verifyActor(core,proof);return await commit(id,plan,proof);}catch(e){const current=await phase(core,id);if(current.phase==='COMMITTED')return finish(id);if(semantic(e))return abort(id);throw e;}
   }
   if(a.phase==='ABORTED')return clean(id,'ABORTED');
   throw fail('The interrupted save is still being recovered.');
  }
  async function write(statements,proof){return exclusive(async()=>{
-  await recover();const id=crypto.randomUUID(),hash=await payloadHash(statements),now=new Date().toISOString();
-  await alarm();await batch(core,[item("INSERT INTO split_commands(command_id,phase,payload_hash,proof_json,created_at) VALUES(?,'PREPARING',?,?,?)",id,hash,JSON.stringify(proof),now),item('INSERT INTO split_write_fence VALUES(1,?,0)',id)]);
+  await recover();proof=await receiveProof(proof,'write',{statements,owner:null});const id=crypto.randomUUID(),hash=await payloadHash(statements),now=new Date().toISOString();
+  await alarm();await batch(core,[item("INSERT INTO split_commands(command_id,phase,payload_hash,proof_json,created_at) VALUES(?,'PREPARING',?,?,?)",id,hash,JSON.stringify(verifiedCoordinatorContext(proof)?proof.envelope:proof),now),item('INSERT INTO split_write_fence VALUES(1,?,0)',id)]);
   let plan;
   try{
-   await hook('admitted',id);await verifyActor(core,proof);plan=await compilePlan(core,admin,statements);
+   await hook('admitted',id);await verifyActor(core,proof);const nativeStatements=verifiedCoordinatorContext(proof)?statements.map(s=>v2NativeSessionStatement(s,proof)):statements;plan=await compilePlan(core,admin,nativeStatements);if(verifiedCoordinatorContext(proof))plan.v2InputDigest=proof.envelope.body.inputDigest;
    await batch(core,plan.preflight);
    await batch(core,[guard(id,'PREPARING'),...save(id,plan),item("UPDATE split_commands SET phase='PENDING' WHERE command_id=?",id),clear(id)]);
    await hook('planned',id);
@@ -100,7 +108,7 @@ export function splitEngine({core,admin,alarm=async()=>{},hook=async()=>{}}){
   }
  });}
  async function read(statements,proof,owner='admin'){return exclusive(async()=>{
-  await recover();if(!proof)throw fail('Sign in before opening Admin.','SESSION_ENDED',401);
+  await recover();proof=await receiveProof(proof,'read',{statements,owner});if(!proof)throw fail('Sign in before opening Admin.','SESSION_ENDED',401);
   const key=readerKey(proof);
   try{
   for(let attempt=0;attempt<3;attempt++){

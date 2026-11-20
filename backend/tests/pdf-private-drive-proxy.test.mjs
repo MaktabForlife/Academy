@@ -15,12 +15,12 @@ function encodeUrl(value) {
     .replace(/=+$/g, "");
 }
 
-async function callProxy(targetUrl, { range = "" } = {}) {
+async function callProxy(targetUrl, { range = "", env = {} } = {}) {
   const encoded = encodeUrl(targetUrl);
   const headers = new Headers();
   if (range) headers.set("Range", range);
   const request = new Request(`https://developmentmaktab4life.pages.dev/pdf-file/${encoded}`, { headers });
-  return onRequestGet({ request, params: { encoded } });
+  return onRequestGet({ request, params: { encoded }, env });
 }
 
 const originalFetch = globalThis.fetch;
@@ -90,6 +90,13 @@ try {
   }
   assert.equal(fetchCalls.length, 0);
 
+  fetchCalls = [];
+  for (const target of [devUrl, prodUrl]) {
+    const retired = await callProxy(target, { env: { UAA_V2_ENABLED: '1' } });
+    assert.equal(retired.status, 410, 'Selected V111 never forwards a legacy private bearer URL');
+    assert.match(retired.headers.get('Cache-Control'), /no-store/);
+  }
+  assert.equal(fetchCalls.length, 0, 'No legacy runtime was contacted');
   console.log("pdf-private-drive-proxy.test.mjs: PASS");
 } finally {
   globalThis.fetch = originalFetch;

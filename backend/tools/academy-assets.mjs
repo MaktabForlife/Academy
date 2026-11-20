@@ -2,7 +2,7 @@ import {academyClientConfiguration} from './hosting-client.mjs';
 // Academy publish allowlist. Offline tooling and legacy applications never enter this artifact.
 import {execFileSync} from 'node:child_process';
 import {readFileSync,writeFileSync,mkdirSync,lstatSync,realpathSync,existsSync} from 'node:fs';
-import {resolve,join,dirname,extname,posix} from 'node:path';
+import {resolve,join,dirname,extname,posix,relative,isAbsolute} from 'node:path';
 import {tmpdir} from 'node:os';
 const roots=['academy','account','programs','users','pdf-viewer','recorder','activities','icons','images'];
 import {academyCirclesPages,academyCirclesFragments,academyRetiredPages} from './academy-circles-routes.mjs';
@@ -25,10 +25,14 @@ export function validateCirclesPresentation(file,text){
 export function buildAcademyAssets({repo,directory,isolated=true,target='development'}){
   repo=realpathSync(repo);directory=resolve(directory);
   if(!['development','feature','split'].includes(target))throw Error('ACADEMY_ASSET_TARGET_REQUIRED');
-  if(directory===repo||!['/private/tmp/',resolve(tmpdir())+'/'].some(root=>directory.startsWith(root)))throw Error('PRIVATE_BUILD_DIRECTORY_REQUIRED');
+  const insideTemporary=base=>{const part=relative(resolve(base),directory);return part!==''&&!part.startsWith('..')&&!isAbsolute(part);};
+  if(directory===repo||!(process.platform==='win32'?[tmpdir()]:[tmpdir(),'/private/tmp']).some(insideTemporary))throw Error('PRIVATE_BUILD_DIRECTORY_REQUIRED');
   mkdirSync(directory,{recursive:true,mode:0o700});
   const tracked=execFileSync('git',['ls-files','-z','--',...roots],{cwd:repo,encoding:'utf8'}).split('\0').filter(file=>file&&existsSync(join(repo,file))&&!file.split('/').some(p=>p.startsWith('.'))&&academyPublishableAsset(file));
-  const pending=[...tracked,'version.json','js/version.json','ummabbadacademy.png','academy.png','logo.png','favicon.ico','js/vendor/pdf-lib-LICENSE.md','js/vendor/pdfjs/LICENSE'],written=new Map();
+  // These two entry files are injected by the selected V111 HTML wrapper,
+  // rather than referenced by a source HTML tag. Include them additively;
+  // the script itself stays inert unless the selected V2 meta gate is present.
+  const pending=[...tracked,'js/m4l-v111-session.js','js/m4l-v111-session.mjs','version.json','js/version.json','ummabbadacademy.png','academy.png','logo.png','favicon.ico','js/vendor/pdf-lib-LICENSE.md','js/vendor/pdfjs/LICENSE'],written=new Map();
   while(pending.length){
     const file=pending.shift();if(written.has(file))continue;
     if(!academyPublishableAsset(file))continue;

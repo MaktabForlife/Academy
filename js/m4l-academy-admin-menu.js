@@ -47,7 +47,18 @@
   const localCurriculum=placeCurriculumTabs(data,visible);
   if(!host)return;host.hidden=!visible;if(visible){host.querySelector('nav').innerHTML=markup(data);const tabs=host.querySelector('.academy-curriculum-tabs');tabs.hidden=active()!=='curriculum'||localCurriculum;tabs.innerHTML=tabs.hidden?'':curriculumLinks(curriculumRows(data));}
  }
+ async function refreshV2(button){
+  if(button.disabled||job)return;const status=host?.querySelector('[data-admin-refresh-status]'),pending={v2:true};job=pending;button.disabled=true;
+  if(status){status.hidden=false;status.textContent='Refreshing the public timetable…';}
+  let owner='';try{const client=await window.M4L_ACADEMY_AUTH.ready;owner=client.ownerKey();const{refreshNativePublicTimetable}=await import('/js/m4l-public-timetable-refresh.mjs');
+   await refreshNativePublicTimetable(client,{isCurrent:expected=>window.M4L_ACADEMY_WORKSPACE?.current()==='ADMIN'&&(!owner||owner===expected)});
+   window.M4L_ACADEMY_READ_CACHE?.invalidate();window.dispatchEvent(new Event('m4l-academy-public-timetable-updated'));window.dispatchEvent(new Event('academy-v2-revalidate'));
+   if(status)status.textContent='Public timetable refreshed. Visitors will see the update within one minute.';
+  }catch(error){if(status)status.textContent='The refresh result could not be confirmed. Check the public timetable before choosing Update timetable again.';}
+  finally{if(job===pending)job=null;button.disabled=false;}
+ }
  async function refresh(button){
+  if(window.M4L_ACADEMY_AUTH?.selected)return refreshV2(button);
   if(button.disabled)return;const session=token(),status=host?.querySelector('[data-admin-refresh-status]');button.disabled=true;
   if(status){status.hidden=false;status.textContent='Refreshing the public timetable…';}
   try{
@@ -61,6 +72,6 @@
  document.addEventListener('click',event=>{const button=event.target.closest?.('[data-admin-public-refresh]');if(button){event.preventDefault();void refresh(button);}});
  window.addEventListener('hashchange',()=>update());
  window.addEventListener('m4l-academy-session-ended',()=>{currentData=null;if(host)host.hidden=true;placeCurriculumTabs(null,false);});
- window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null){currentData=null;if(host)host.hidden=true;placeCurriculumTabs(null,false);}});
+ window.addEventListener('storage',event=>{if(window.M4L_ACADEMY_AUTH?.selected)return;if(event.key==='m4l_account_token'||event.key===null){currentData=null;if(host)host.hidden=true;placeCurriculumTabs(null,false);}});
  window.M4L_ACADEMY_ADMIN_MENU={rows,markup,update};
 })();

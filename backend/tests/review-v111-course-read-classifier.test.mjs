@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
+const source=readFileSync(new URL('../../js/m4l-v111-session.mjs',import.meta.url),'utf8'),line=source.split('\n').find(l=>l.startsWith('const nativeRead=')),read=Function('URL','academyOrigin','return ('+line.slice('const nativeRead='.length,-1)+')')(URL,'https://ummabbadacademy.app'),path='/api/admin/platform/studio-access';
+test('closed Course user search is eligible for the SDK read-only auth renewal path',()=>assert.equal(read(path,{command:{action:'course-user-search',search:'Synthetic'}}),true));
+test('Course access Save, provision and resume cannot use the SDK read-only retry path',()=>{for(const action of ['save','provision','resume','course-policy','access-batch'])assert.equal(read(path,{command:{action}}),false,action);});
+test('unknown Studio commands remain outside the SDK read-only retry classifier',()=>assert.equal(read(path,{command:{action:'unregistered'}}),false));

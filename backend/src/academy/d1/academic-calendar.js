@@ -1,3 +1,4 @@
+import {nativeAuthContext} from '../v111/native-context.js';
 import {calendarFacts} from './published-facts-cache.js';
 import {noTeachingCalendarEvents,holidayOnDate} from './calendar-holidays.js';
 import {annualFlag,annualKey,annualRevision,hijriYearRows} from './calendar-annual.js';
@@ -72,7 +73,9 @@ export function academicCalendar(repository,auth) {
   const data=await load(),entry=input.entry;
   if(!entry||typeof entry!=='object'||Array.isArray(entry))throw managementError('Enter calendar details.');
   const existing=entry.id?data.calendar.find(r=>same(r.event_id,entry.id)):null,generated=/^SA-PUBLIC-HOLIDAY-(\d{4}-\d{2}-\d{2})$/.exec(entry.id||'');
-  if(entry.id&&!existing&&!generated)throw managementError('This calendar entry is unavailable.',404);
+  const creating=Boolean(nativeAuthContext(auth)&&entry.creating===true&&/^ACEVT-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(entry.id||''));
+  if(nativeAuthContext(auth)&&entry.creating!==undefined&&(!creating||existing||input.revision!==0))throw managementError('Choose a new calendar entry and review its current revision.',409,'ROW_CHANGED');
+  if(entry.id&&!existing&&!generated&&!creating)throw managementError('This calendar entry is unavailable.',404);
   const scopeKey=existing?.scope_key||entry.scopeKey||'ACADEMY';
   if(scopeKey!=='ACADEMY'&&!data.activities.some(a=>same(a.activity_key,scopeKey)&&activeProgram(a)))throw managementError('Choose an active Program calendar.');
   if(!canManage(data,auth,scopeKey)||entry.scopeKey&&entry.scopeKey!==scopeKey)throw managementError('You may manage only calendar entries within your authorised scope.',403,'FORBIDDEN');
@@ -84,7 +87,7 @@ export function academicCalendar(repository,auth) {
   if(existing&&entry.annualRevision!==undefined&&entry.annualRevision!==annualRevision(data.settings,existing))throw managementError('This annual label changed. Refresh before saving your entry.',409,'ROW_CHANGED');
   const annual=entry.annual??(existing?annualFlag(data.settings,existing):false),year=Number(entry.calendarYear),pendingYear=existing&&kind==='ISLAMIC_DAY'&&!startDate&&Number.isInteger(year)&&year!==Number(existing.start_date.slice(0,4));
   const annualStatement=(row,enabled)=>p('INSERT INTO academy_settings(setting_key,setting_value,updated_at,updated_by_account_id) VALUES(?,?,?,?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value,updated_at=excluded.updated_at,updated_by_account_id=excluded.updated_by_account_id',annualKey(row),enabled?'1':'0',new Date().toISOString(),auth.user.accountid);
-  if(pendingYear&&!active)return {data,statements:[annualStatement(existing,false)],result:{event:null,removed:true},fields:['AnnualLabel'],authorityScopes:[scopeKey]};
+  if(pendingYear&&!active)return {data,statements:[annualStatement(existing,false)],result:{event:null,removed:true},fields:['AnnualLabel'],authorityScopes:[scopeKey],acceptScopes:['GLOBAL']};
   if(!description||description.length>400||!validDate(startDate)||!validDate(endDate)||endDate<startDate)throw managementError('Enter a description and valid calendar dates in order.');
   if(annual&&kind==='ACADEMY_HOLIDAY'&&Date.parse(endDate)-Date.parse(startDate)>=366*86400000)throw managementError('An annual holiday must be shorter than a year.');
   if(kind==='TERM'&&active&&data.calendar.some(r=>r.active&&r.event_id!==existing?.event_id&&same(r.scope_key,scopeKey)&&(r.calendar_kind==='TERM'||r.calendar_kind==='REFERENCE'&&r.event_type==='TERM')&&r.start_date<=endDate&&r.end_date>=startDate))throw managementError('Terms in the same calendar cannot overlap.');
@@ -95,13 +98,13 @@ export function academicCalendar(repository,auth) {
   if(!generated||active){
    const newYear=existing&&kind==='ISLAMIC_DAY'&&(annual||annualFlag(data.settings,existing))&&Number(startDate.slice(0,4))!==Number(existing.start_date.slice(0,4));
    if(newYear&&data.calendar.some(r=>r.active&&r.event_type==='ISLAMIC_DAY'&&r.description.toLocaleLowerCase()===description.toLocaleLowerCase()&&r.start_date.startsWith(startDate.slice(0,4)+'-')))throw managementError('This Hijri label already has a date for that year. Refresh and edit its saved entry.',409,'ROW_CHANGED');
-   const id=!newYear&&existing?.event_id||'ACEVT-'+crypto.randomUUID(),revision=newYear?1:(existing?.revision||0)+1;
+   const id=!newYear&&existing?.event_id||(creating?entry.id:'ACEVT-'+crypto.randomUUID()),revision=newYear?1:(existing?.revision||0)+1;
    const eventType=kind==='ACADEMY_HOLIDAY'?'TERM':kind,impact=kind==='PUBLIC_HOLIDAY'||kind==='ACADEMY_HOLIDAY'?'NO_TEACHING':'INFORMATION';
    statements.push(p(`INSERT INTO academy_calendar_events(event_id,event_type,description,start_date,end_date,alternate_date,teaching_impact,active,scope_key,calendar_kind,revision) VALUES(?,?,?,?,?,NULL,?,?,?,?,?) ON CONFLICT(event_id) DO UPDATE SET description=excluded.description,start_date=excluded.start_date,end_date=excluded.end_date,teaching_impact=excluded.teaching_impact,active=excluded.active,revision=excluded.revision`,id,eventType,description,startDate,endDate,impact,Number(active),scopeKey,kind==='ISLAMIC_DAY'?'REFERENCE':kind,revision));
    if(['ISLAMIC_DAY','ACADEMY_HOLIDAY'].includes(kind)){statements.push(annualStatement({event_id:id,event_type:kind==='ISLAMIC_DAY'?'ISLAMIC_DAY':'TERM',description},annual&&active));if(kind==='ISLAMIC_DAY'&&existing&&existing.description!==description)statements.push(annualStatement(existing,false));}
    result={id,kind,description,startDate,endDate,scopeKey,active,revision,annual};
   }
-  return {data,statements,result:{event:result,removed:!active},fields:['CalendarEntry'],authorityScopes:[scopeKey]};
+  return {data,statements,result:{event:result,removed:!active},fields:['CalendarEntry'],authorityScopes:[scopeKey],acceptScopes:['GLOBAL']};
  });}
  return {async run(action,input={}){if(action==='get')return get(input);if(action==='save')return save(input);throw managementError('Calendar action not found.',404);}};
 }

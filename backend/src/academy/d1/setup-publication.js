@@ -1,3 +1,4 @@
+import {calendarAnnualAuthority} from './calendar-change-authority.js';
 import {validateAcceptedSessionPdfs} from './session-pdf-policy.js';
 import {jsonRowSQL} from './json-row.js';
 import {setupSchema,setupForeignKeys} from './setup-schema.js';
@@ -168,7 +169,7 @@ export async function acceptFeatureChange(repository,auth,input){
   const read=(await db.batch([p('SELECT version,(SELECT head_id FROM setup_head_state WHERE singleton=1) head FROM academy_write_state WHERE singleton=1'),p('SELECT c.* FROM setup_head_components v JOIN setup_components c USING(component_id) WHERE v.head_id=(SELECT head_id FROM setup_head_state WHERE singleton=1)'),p(teacherAreasSQL)])).map(r=>r.results);
   const state=read[0][0],accepted=read[1];
   if(saved._acceptedHead)return {head:state.head,replayed:true,...(saved._acceptedPublic?{cacheRefreshPending:['public-timetable']}:{})};
-  const selected=new Map(),scopes=[],touchedRegisters=new Set();
+  const selected=new Map(),scopes=[],touchedRegisters=new Set(),calendarAuthorityScopes=[];let calendarMapped=false;
   for(const delta of change.tables){
    const spec=setupSchema[delta.table];if(!spec)throw fail('Saved change verification failed.',409,'CHANGE_INVALID');
    const identity=row=>stableJSON(spec.keys.map(k=>typeof row[k]==='string'&&spec.nocase?.includes(k)?row[k].toUpperCase():row[k]));
@@ -187,10 +188,19 @@ export async function acceptFeatureChange(repository,auth,input){
     if(!next){if(index>=0)rows.splice(index,1);}
     else if(index<0)rows.push(next.row);
     else{const row={...rows[index]};for(const field of changed)row[field]=next.row[field];rows[index]=row;}
-    component.rows_json=JSON.stringify(rows);if(!(delta.table==='assessment_registers'&&scope==='GLOBAL')&&!scopes.includes(scope))scopes.push(scope);
+    component.rows_json=JSON.stringify(rows);if(!(delta.table==='assessment_registers'&&scope==='GLOBAL')){
+      if(!scopes.includes(scope))scopes.push(scope);
+      const mapped=calendarAnnualAuthority({input,saved,change,table:delta.table,prior,next});if(mapped)calendarMapped=true;
+      if(!calendarAuthorityScopes.includes(mapped||scope))calendarAuthorityScopes.push(mapped||scope);
+     }
    }
   }
-  await includeRequiredDefinitions(db,accepted,selected,scopes,touchedRegisters,auth);includeSharedNames({accepted},selected,scopes);const authorityScopes=authorize(auth,scopes,read[2]);
+  const originalScopes=new Set(scopes),originalComponents=new Map([...selected].map(([k,c])=>[k,c.rows_json]));
+   await includeRequiredDefinitions(db,accepted,selected,scopes,touchedRegisters,auth);includeSharedNames({accepted},selected,scopes);
+   // Component scope and native authority differ only for the proven Calendar
+   // annual key. Any additionally selected GLOBAL material still needs GlobalAdmin.
+   if(calendarMapped){for(const s of scopes)if(!originalScopes.has(s)&&!calendarAuthorityScopes.includes(s))calendarAuthorityScopes.push(s);for(const[k,c]of selected)if(c.scope_key==='GLOBAL'&&c.rows_json!==originalComponents.get(k)&&!calendarAuthorityScopes.includes('GLOBAL'))calendarAuthorityScopes.push('GLOBAL');}
+   const authorityScopes=authorize(auth,calendarMapped?calendarAuthorityScopes:scopes,read[2]);
   validateReferences(accepted,selected);await validateAcceptedSessionPdfs(db,accepted,selected,repository.features?.noteRetention);
   const components=[];for(const c of selected.values()){
    const rows=canonicalRows(c.table_name,JSON.parse(c.rows_json)),digest=await payloadHash(rows),previous=accepted.find(v=>key(v)===key(c));

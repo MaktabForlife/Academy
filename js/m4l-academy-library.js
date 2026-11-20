@@ -19,7 +19,13 @@
   }
 
   const cache = window.M4L_LIBRARY_CACHE;
-  const publicMode=()=>new URLSearchParams(location.search).get('view')==='public'||!localStorage.getItem('m4l_account_token');
+  const v2=()=>window.M4L_ACADEMY_AUTH?.selected===true;let client=null,v2Public=false,lastPersonal=null,unregisterPrivate=null;
+  const owner=()=>v2()?window.M4L_ACADEMY_AUTH.ownerKey():localStorage.getItem('m4l_account_token');
+  const privateRoots=()=>[$('al-content'),$('al-manage-books'),$('al-preview')];
+  async function nativeClient(){client=await window.M4L_ACADEMY_AUTH.ready;return client;}
+  function privateView(){if(!unregisterPrivate){const unregister=privateRoots().map(root=>client.registerPrivateRoot(root));unregisterPrivate=()=>unregister.forEach(fn=>fn());}}
+  function publicView(){unregisterPrivate?.();unregisterPrivate=null;for(const root of privateRoots()){root.style.visibility='';root.inert=false;}}
+  const publicMode=()=>new URLSearchParams(location.search).get('view')==='public'||(v2()?v2Public:!localStorage.getItem('m4l_account_token'));
   function libraryTabs(){for(const [id,selected]of [['library-personal-tab',!publicMode()],['library-public-tab',publicMode()]]){const tab=$(id);if(!tab)continue;if(selected)tab.setAttribute('aria-current','page');else tab.removeAttribute('aria-current');}}
   let generation = 0;
   let personalOwner = '';
@@ -84,6 +90,7 @@
   }
 
   async function api(action, body = {}, revision) {
+    if(v2()){if(action!=='catalogue')throw Object.assign(Error('Private Academy media is not available yet.'),{code:'PRIVATE_MEDIA_NOT_ENABLED',status:403});const c=await nativeClient();return c.request('/api/academy/library/'+action,body,{headers:{'X-Academy-Workspace':window.M4L_ACADEMY_WORKSPACE?.current?.()||'LEARN'}});}
     const token = localStorage.getItem('m4l_account_token');
     if (!token) throw new Error('Sign in through your personal Academy account link.');
     const response = await fetch(`${window.M4L_CONFIG?.API_BASE || ''}/api/academy/library/${action}`, {
@@ -132,12 +139,12 @@
   }
 
   window.addEventListener('storage', event => {
-    if (event.key === 'm4l_account_token' || event.key === null) { showSignedOut(); void start(); }
+    if (!v2()&&(event.key === 'm4l_account_token' || event.key === null)) { showSignedOut(); void start(); }
   });
   window.addEventListener('pageshow', () => {
-    if (!localStorage.getItem('m4l_account_token')) {showSignedOut();void start();}
+    if (!v2()&&!localStorage.getItem('m4l_account_token')) {showSignedOut();void start();}
   });
-  window.addEventListener('m4l-academy-session', () => { showSignedOut(); void start(); });
+  window.addEventListener('m4l-academy-session', () => {if(!v2())showSignedOut();void start();});
 
   function card(row) {
     const cover = state.covers.get(row.id);
@@ -211,6 +218,7 @@
   }
 
   async function open(row) {
+    if(v2()&&!publicMode()&&(!lastPersonal||!client?.isCurrentResult(lastPersonal)))return;
     state.openRow = row;
     $('al-preview-source').textContent = `${row.sourceName} · ${row.subject}`;
     $('al-preview-title').textContent = row.name;
@@ -320,8 +328,23 @@
       apply(data);const snapshot=await cache.publicList(force);if(active())applyArchiveBooks(snapshot);
     }catch(error){if(active())$('al-status').textContent=error.message;}finally{if(active())$('al-refresh').disabled=false;}
   }
-  window.addEventListener('m4l-library-public-updated',event=>{if(publicMode()||localStorage.getItem('m4l_account_token'))applyArchiveBooks(event.detail);});
+  window.addEventListener('m4l-library-public-updated',event=>{if(v2()){if(publicMode()||lastPersonal&&client?.isCurrentResult(lastPersonal))applyArchiveBooks(event.detail);}else if(publicMode()||localStorage.getItem('m4l_account_token'))applyArchiveBooks(event.detail);});
+  async function startV2(force=false){
+    const current=++generation,c=await nativeClient();$('al-refresh').disabled=true;state.rows=[];state.learningAreaRefs.clear();state.covers.clear();$('al-results').replaceChildren();lastPersonal=null;clearMedia();
+    v2Public=new URLSearchParams(location.search).get('view')==='public';
+    try{if(!v2Public){try{await c.ensureFresh();}catch(error){if(error.code!=='PIN_REQUIRED'&&error.status!==401)throw error;v2Public=true;}}
+      if(current!==generation)return;libraryTabs();
+      if(v2Public){publicView();$('al-manage-books').hidden=true;const snapshot=await cache.publicList(force);if(current!==generation)return;$('al-content').hidden=false;applyArchiveBooks(snapshot);return;}
+      privateView();const data=await api('catalogue');if(current!==generation||!c.isCurrentResult(data))return;lastPersonal=data;applyPersonal(data);c.revealResult(data,{roots:privateRoots()});
+      const snapshot=await cache.publicList(force);if(current!==generation||!c.isCurrentResult(data))return;applyArchiveBooks(snapshot);c.revealResult(data,{roots:privateRoots()});
+    }catch(error){if(current===generation)$('al-status').textContent=error.message;}finally{if(current===generation)$('al-refresh').disabled=false;}
+  }
+  function maskPrivate(){if(!v2()||publicMode())return;lastPersonal=null;state.rows=[];state.learningAreaRefs.clear();state.covers.clear();$('al-results').replaceChildren();$('al-manage-books').hidden=true;clearMedia();if($('al-preview').open)$('al-preview').close();if(unregisterPrivate)for(const root of privateRoots()){root.style.visibility='hidden';root.inert=true;}}
+  window.addEventListener('academy-v2-mask',event=>{if(event.detail?.masked!==false)maskPrivate();});
+  window.addEventListener('m4l-academy-session-ended',maskPrivate);
+  window.addEventListener('academy-v2-revalidate',()=>{if(v2())void startV2();});
   async function start(force = false) {
+    if(v2())return startV2(force);
     const current = ++generation, session = localStorage.getItem('m4l_account_token');
     libraryTabs();
     if(publicMode()){

@@ -3,10 +3,11 @@
   'use strict';
   if(window.self!==window.top||window.M4L_ACADEMY_HISTORY)return;
   const storageKey='m4l_app_navigation_v1',markerKey='m4lAppNavigation';
+  const v2=()=>globalThis.document?.querySelector?.('meta[name="uaa-auth-version"]')?.content==='2',currentOwner=()=>v2()?window.M4L_ACADEMY_AUTH?.ownerKey()||'':localStorage.getItem('m4l_account_token')||'';
   const nativeReplace=history.replaceState.bind(history),nativePush=history.pushState.bind(history);
   const load=()=>{try{const value=JSON.parse(sessionStorage.getItem(storageKey));return value&&typeof value.trace==='string'&&Number.isInteger(value.index)&&value.index>=0&&Number.isInteger(value.max)&&value.max>=value.index?value:null;}catch{return null;}};
   const fresh=()=>({trace:crypto.randomUUID(),index:0,max:0});
-  let state=load()||fresh(),bar,owner=localStorage.getItem('m4l_account_token')||'';
+  let state=load()||fresh(),bar,owner=currentOwner();
   const save=()=>{try{sessionStorage.setItem(storageKey,JSON.stringify(state));}catch{/* Navigation still works without session storage. */}};
   const marked=data=>({...((data&&typeof data==='object'&&!Array.isArray(data))?data:{}),[markerKey]:{trace:state.trace,index:state.index}});
   function render(){
@@ -43,8 +44,9 @@
   window.addEventListener('m4l-academy-access',render);
   function reset(){state=fresh();nativeReplace(marked(history.state),'');save();render();}
   window.addEventListener('m4l-academy-session-ended',reset);
-  const accountChanged=()=>{const next=localStorage.getItem('m4l_account_token')||'';if(next!==owner){owner=next;reset();}};
+  const accountChanged=()=>{const next=currentOwner();if(next!==owner){owner=next;reset();}};
   window.addEventListener('m4l-academy-session',accountChanged);
+  window.addEventListener('academy-v2-context',accountChanged);
   window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)accountChanged();});
   function prepare(value){
     let url;try{url=new URL(value,location.href);}catch{return;}

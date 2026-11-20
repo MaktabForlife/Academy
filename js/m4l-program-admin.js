@@ -1,10 +1,11 @@
 /* Program management uses one document; existing tools mount only when opened. */
 (() => {'use strict';
+ const v2=location.origin==='https://ummabbadacademy.app'&&document.querySelector('meta[name="uaa-auth-version"]')?.content==='2',ownerKey=()=>v2?(window.M4L_ACADEMY_AUTH?.ownerKey()||''):localStorage.getItem('m4l_account_token')||'';
  const $=id=>document.getElementById(id),host=$('program-workspace');if(!$('pg-tabs'))return;
  const sections=[['list','List of programs'],['details','Details'],['curriculum','Curriculum'],['classes','Classes'],['participants','Participants'],['public-card','Public card'],['timetable','Timetable'],['review','Review & publish'],['media','Lesson media'],['enrolment','Enrolment requests']];
  const group=tab=>['curriculum','classes','public-card','timetable','review'].includes(tab)?'timetable':tab==='participants'?'people':tab==='media'?'media':'';
  const definitions={timetable:{page:'/programs/fragments/timetable.fragment',root:'timetable',scripts:['/js/vendor/pdf-lib-1.17.1.min.js','/js/m4l-time.js?v=109.17','/js/m4l-timetable-presentation.js?v=109.17','/js/m4l-timetable-blocks.js?v=109.17','/js/m4l-timetable-sync.js?v=109.17','/js/m4l-timetable-periods.js?v=109.17','/js/m4l-timetable-planner.js?v=109.17','/js/m4l-tafseer-cards.js?v=109.17','/js/m4l-website-card-table.js?v=109.17','/js/m4l-program-workspace.js?v=109.17','/js/m4l-program-timetable.js?v=109.17']},people:{page:'/programs/fragments/participants.fragment',root:'pm-main',scripts:['/js/m4l-program-overview.js?v=109.17','/js/m4l-time.js?v=109.17','/js/m4l-teacher-availability-dialog.js?v=109.17','/js/m4l-studio-access.js?v=eb34f1cdd3','/js/m4l-program-management.js?v=109.17']},media:{page:'/programs/fragments/lesson-media.fragment',root:'program-lesson-media-main',scripts:['/js/m4l-lesson-media-cache.js?v=109.17','/js/m4l-library-cache.js?v=109.17','/js/m4l-lesson-pdf-library.js?v=109.17','/js/m4l-lesson-media.js?v=109.17','/js/m4l-program-surahs.js?v=109.17','/js/m4l-program-lesson-media.js?v=109.17']}};
- const pending=new Map(),loaded=new Set(),scripts=new Map();let selected=null,available=false,current=new URLSearchParams(location.search).get('tab')||'list',revision='',owner=localStorage.getItem('m4l_account_token')||'',generation=0;
+ const pending=new Map(),loaded=new Set(),scripts=new Map();let selected=null,available=false,current=new URLSearchParams(location.search).get('tab')||'list',revision='',owner=ownerKey(),generation=0;
  if(!sections.some(([id])=>id===current))current='list';
  $('pg-tabs').innerHTML=sections.map(([id,label])=>`<button type="button" id="pg-tab-${id}" role="tab" data-pg-tab="${id}" aria-controls="${id==='list'?'pg-list':id==='details'?'program-detail':id==='enrolment'?'pg-enrolment-tool':'pg-'+group(id)+'-tool'}" aria-selected="false" tabindex="-1" ${id==='list'?'':'disabled'}>${label}</button>`).join('');
  function view(){
@@ -31,13 +32,13 @@
   const promise=(async()=>{
    const response=await fetch(definition.page,{cache:'no-cache'});if(!response.ok)throw Error('This Program tool is unavailable. Try again.');
    const doc=new DOMParser().parseFromString(await response.text(),'text/html'),source=doc.getElementById(definition.root);if(!source)throw Error('This Program tool is unavailable.');
-   if(version!==generation||account!==localStorage.getItem('m4l_account_token'))return;
+   if(version!==generation||account!==ownerKey())return;
    for(const link of doc.querySelectorAll('link[rel=stylesheet]')){const path=new URL(link.getAttribute('href'),location.origin).pathname;if(!/^\/css\/m4l-(?:program-(?:timetable|workspace|management|monthly-subscriptions)|timetable-blocks|teacher-availability-dialog|lesson-media|program-zoom-help)\.css$/.test(path))continue;if(![...document.querySelectorAll('link[rel=stylesheet]')].some(node=>new URL(node.getAttribute('href'),location.origin).pathname===path))document.head.append(link.cloneNode());}
    const panel=$('pg-'+name+'-tool');if(!panel.firstElementChild){const root=document.createElement('section');root.id=source.id;root.className=source.className;root.innerHTML=source.innerHTML;panel.append(root);}
    for(const aside of doc.body.querySelectorAll(':scope > aside[id]'))if(!$(aside.id))document.body.append(aside.cloneNode(true));
    if(name==='timetable'){$('pw-card-editor').open=true;$('tt-select-program').hidden=true;}
-   if(name==='people'){await script('/js/m4l-studio-access.js?v=eb34f1cdd3');const accessOwner=await window.M4L_STUDIO_ACCESS.ensure(panel.firstElementChild,'PROGRAM:'+selected.id);if(version!==generation||account!==localStorage.getItem('m4l_account_token'))return;if(accessOwner&&accessOwner!=='ACADEMY'){loaded.add(name);return;}}
-   for(const src of definition.scripts){if(version!==generation||account!==localStorage.getItem('m4l_account_token'))return;await script(src);}
+   if(name==='people'){await script('/js/m4l-studio-access.js?v=eb34f1cdd3');const accessOwner=await window.M4L_STUDIO_ACCESS.ensure(panel.firstElementChild,'PROGRAM:'+selected.id);if(version!==generation||account!==ownerKey())return;if(accessOwner&&accessOwner!=='ACADEMY'){loaded.add(name);return;}}
+   for(const src of definition.scripts){if(version!==generation||account!==ownerKey())return;await script(src);}
    loaded.add(name);
   })().finally(()=>pending.delete(name));pending.set(name,promise);await promise;
  }
@@ -72,7 +73,8 @@
  $('pg-tabs').onkeydown=event=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;const tabs=[...$('pg-tabs').querySelectorAll('button:not(:disabled)')],index=tabs.indexOf(event.target);if(index<0)return;event.preventDefault();tabs[event.key==='Home'?0:event.key==='End'?tabs.length-1:(index+(event.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length].focus();};
  $('pg-tool-retry').onclick=()=>void show(current);
  window.addEventListener('popstate',()=>void show(new URLSearchParams(location.search).get('tab')||'list'));
- const sessionChanged=()=>{const next=localStorage.getItem('m4l_account_token')||'';if(next===owner)return;generation++;host.hidden=true;location.reload();};
+ const sessionChanged=()=>{const next=ownerKey();if(next===owner)return;generation++;host.hidden=true;location.reload();};
+ if(v2)window.addEventListener('academy-v2-context',()=>{const next=ownerKey();if(!owner){owner=next;return;}if(next!==owner)sessionChanged();});
  window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)sessionChanged();});window.addEventListener('m4l-academy-session',sessionChanged);window.addEventListener('m4l-academy-session-ended',sessionChanged);
  window.M4L_PROGRAM_ADMIN={tab:()=>current,openTab:tab=>show(tab),hasMounted:()=>loaded.size>0||pending.size>0};
  window.M4L_PROGRAM_MANAGEMENT_NAV={setSelection,update:program=>window.M4L_PROGRAM_BUILDER_NAV?.update(program)};

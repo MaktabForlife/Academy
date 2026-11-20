@@ -98,10 +98,10 @@
   for(const data of pages){const png=await pdf.embedPng(data);pdf.addPage([595.28,841.89]).drawImage(png,{x:0,y:0,width:595.28,height:841.89});}
   return new Blob([await pdf.save()],{type:'application/pdf'});
  }
- function download(file){
+ function download(file,check=()=>{}){check();
   const url=URL.createObjectURL(file),link=document.createElement('a');link.href=url;link.download=file.name;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);return 'downloaded';
  }
- function shareFile(file){
+ function shareFile(file,check=()=>{}){check();
   return new Promise(resolve=>{
    const dialog=document.createElement('dialog');dialog.className='lp-dialog lp-root lp-share-dialog';dialog.setAttribute('aria-labelledby','lp-share-title');
    const heading=document.createElement('h2');heading.id='lp-share-title';heading.textContent='Share plan image';
@@ -112,19 +112,22 @@
    const save=document.createElement('button');save.type='button';save.className='lp-secondary';save.textContent='Download image';
    const close=document.createElement('button');close.type='button';close.className='lp-secondary academy-close';close.textContent='Close';close.title='Close';close.setAttribute('aria-label','Close share plan');
    let result='cancelled';
-   share.onclick=async()=>{share.disabled=true;try{await navigator.share({files:[file]});result='shared';dialog.close();}catch(error){if(error.name==='AbortError')dialog.close();else{message.textContent='The image could not be shared. Try again, or download it and attach the image yourself.';share.disabled=false;}}};
-   save.onclick=()=>{result=download(file);dialog.close();};close.onclick=()=>dialog.close();
+   share.onclick=async()=>{share.disabled=true;try{check();await navigator.share({files:[file]});result='shared';dialog.close();}catch(error){if(error.name==='AbortError')dialog.close();else{message.textContent='The image could not be shared. Try again, or download it and attach the image yourself.';share.disabled=false;}}};
+   save.onclick=()=>{try{result=download(file,check);}catch(error){message.textContent=error.message;}dialog.close();};close.onclick=()=>dialog.close();
    dialog.addEventListener('close',()=>{dialog.remove();resolve(result);},{once:true});const header=document.createElement('div');header.className='academy-close-heading';header.append(heading,close);actions.append(share,save);dialog.append(header,name,message,actions);document.body.appendChild(dialog);dialog.showModal();
   });
  }
- async function output(plan,share=false){
-  const owner=generation,blob=await create(plan,share);if(owner!==generation)return 'cancelled';
+ async function output(plan,share=false,provenance){
+  const selected=window.M4L_ACADEMY_AUTH?.selected===true,client=provenance?.client,source=provenance?.source,owner=generation;
+  const check=()=>{if(owner!==generation||selected&&(!client||!source||!client.isCurrentResult(source)))throw new DOMException('Check the current planning view before exporting.','AbortError');};
+  check();const snapshot=structuredClone(plan),blob=await create(snapshot,share);check();plan=snapshot;
   const name=(plan.activityName+' - '+plan.teacherName+' - '+(plan.weekStart||'entire-course')).replace(/[^\p{L}\p{N} ._-]/gu,'').slice(0,150)+(share?'.png':'.pdf'),file=new File([blob],name,{type:share?'image/png':'application/pdf'});
   let canShare=false;try{canShare=Boolean(navigator.share&&navigator.canShare?.({files:[file]}));}catch{}
   // Generation is asynchronous. A fresh click shares only the single image file,
   // without a text/title payload that some share targets send on its own.
-  if(share&&canShare)return shareFile(file);
-  return download(file);
+  if(share&&canShare)return shareFile(file,check);
+  return download(file,check);
  }
- window.M4L_PLANNING_PDF={create:plan=>create(plan),createImage:plan=>create(plan,true),output,reset};
+ const checkedCreate=async(plan,image,provenance)=>{const selected=window.M4L_ACADEMY_AUTH?.selected===true,owner=generation,check=()=>{if(owner!==generation||selected&&!provenance?.client?.isCurrentResult(provenance?.source))throw new DOMException('Check the current planning view before exporting.','AbortError');};check();const value=await create(structuredClone(plan),image);check();return value;};
+ window.M4L_PLANNING_PDF={create:(plan,provenance)=>checkedCreate(plan,false,provenance),createImage:(plan,provenance)=>checkedCreate(plan,true,provenance),output,reset};
 })();

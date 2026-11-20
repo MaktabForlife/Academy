@@ -12,7 +12,8 @@
       "required": false,
       "dependencies": [
         "A.schedule-lifecycle"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "academy_media_playlist_recordings": {
       "columns": [
@@ -25,7 +26,8 @@
       "required": false,
       "dependencies": [
         "A.resource-audience"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "academy_media_playlist_state": {
       "columns": [
@@ -37,7 +39,8 @@
       "required": false,
       "dependencies": [
         "A.resource-audience"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "academy_media_playlists": {
       "columns": [
@@ -53,7 +56,8 @@
       "required": false,
       "dependencies": [
         "A.resource-audience"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "academy_teacher_designations": {
       "columns": [
@@ -65,7 +69,12 @@
       "required": false,
       "dependencies": [
         "A.identity"
-      ]
+      ],
+      "canonicalOwner": {
+        "table": "accounts",
+        "key": "account_id"
+      },
+      "authorityRecipients": []
     },
     "account_credentials": {
       "columns": [
@@ -79,7 +88,12 @@
       "required": true,
       "dependencies": [
         "A.identity"
-      ]
+      ],
+      "canonicalOwner": {
+        "table": "accounts",
+        "key": "account_id"
+      },
+      "authorityRecipients": []
     },
     "account_sessions": {
       "columns": [
@@ -94,27 +108,36 @@
       "required": true,
       "dependencies": [
         "A.identity"
-      ]
+      ],
+      "canonicalOwner": {
+        "table": "accounts",
+        "key": "account_id"
+      },
+      "authorityRecipients": []
     },
     "accounts": {
       "columns": [
         "account_id",
         "active",
-        "login_link_id"
+        "login_link_id",
+        "display_name"
       ],
       "accountColumn": "account_id",
       "scope": "ACCOUNT",
       "required": true,
       "dependencies": [
         "A.identity"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "activities": {
       "columns": [
         "active",
         "activity_id",
+        "activity_key",
         "kind",
         "lifecycle",
+        "name",
         "revision",
         "website_visible"
       ],
@@ -123,7 +146,8 @@
       "required": false,
       "dependencies": [
         "A.setup-publication"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "activity_policy_imports": {
       "columns": [
@@ -135,7 +159,8 @@
       "required": false,
       "dependencies": [
         "A.course-access"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "assessment_collection": {
       "columns": [
@@ -147,7 +172,8 @@
       "required": false,
       "dependencies": [
         "A.object-audiences"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "assessment_files": {
       "columns": [
@@ -160,7 +186,8 @@
       "required": false,
       "dependencies": [
         "A.object-audiences"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "assessment_recipients": {
       "columns": [
@@ -173,7 +200,12 @@
       "required": false,
       "dependencies": [
         "A.object-audiences"
-      ]
+      ],
+      "canonicalOwner": {
+        "table": "accounts",
+        "key": "account_id"
+      },
+      "authorityRecipients": []
     },
     "assessment_registers": {
       "columns": [
@@ -185,7 +217,8 @@
       "required": false,
       "dependencies": [
         "A.object-audiences"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "assessment_reports": {
       "columns": [
@@ -198,7 +231,12 @@
       "required": false,
       "dependencies": [
         "A.object-audiences"
-      ]
+      ],
+      "canonicalOwner": {
+        "table": "accounts",
+        "key": "account_id"
+      },
+      "authorityRecipients": []
     },
     "assessment_submissions": {
       "columns": [
@@ -210,7 +248,12 @@
       "required": false,
       "dependencies": [
         "A.object-audiences"
-      ]
+      ],
+      "canonicalOwner": {
+        "table": "accounts",
+        "key": "account_id"
+      },
+      "authorityRecipients": []
     },
     "assessments": {
       "columns": [
@@ -224,7 +267,8 @@
       "required": false,
       "dependencies": [
         "A.object-audiences"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "attendance_delivery_members": {
       "columns": [
@@ -239,7 +283,12 @@
       "required": false,
       "dependencies": [
         "A.object-audiences"
-      ]
+      ],
+      "canonicalOwner": {
+        "table": "accounts",
+        "key": "account_id"
+      },
+      "authorityRecipients": []
     },
     "attendance_delivery_rosters": {
       "columns": [
@@ -252,7 +301,8 @@
       "required": false,
       "dependencies": [
         "A.object-audiences"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "attendance_substitutes": {
       "columns": [
@@ -272,7 +322,12 @@
       "required": false,
       "dependencies": [
         "A.membership-timed"
-      ]
+      ],
+      "canonicalOwner": {
+        "table": "accounts",
+        "key": "account_id"
+      },
+      "authorityRecipients": []
     },
     "class_memberships": {
       "columns": [
@@ -281,6 +336,7 @@
         "activity_key",
         "class_id",
         "end_date",
+        "enrollment_id",
         "start_date"
       ],
       "accountColumn": "account_id",
@@ -288,7 +344,12 @@
       "required": false,
       "dependencies": [
         "A.membership-timed"
-      ]
+      ],
+      "canonicalOwner": {
+        "table": "accounts",
+        "key": "account_id"
+      },
+      "authorityRecipients": []
     },
     "class_note_contexts": {
       "columns": [
@@ -302,7 +363,8 @@
       "required": false,
       "dependencies": [
         "A.object-audiences"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "class_note_versions": {
       "columns": [
@@ -314,7 +376,8 @@
       "required": false,
       "dependencies": [
         "A.object-audiences"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "class_notes": {
       "columns": [
@@ -327,7 +390,8 @@
       "required": false,
       "dependencies": [
         "A.object-audiences"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "class_teacher_assignments": {
       "columns": [
@@ -340,18 +404,26 @@
       "required": false,
       "dependencies": [
         "A.membership-timed"
-      ]
+      ],
+      "canonicalOwner": {
+        "table": "accounts",
+        "key": "account_id"
+      },
+      "authorityRecipients": []
     },
     "classes": {
       "columns": [
-        "active"
+        "active",
+        "activity_key",
+        "class_id"
       ],
       "accountColumn": null,
       "scope": "GLOBAL",
       "required": false,
       "dependencies": [
         "A.membership-timed"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "course_resources": {
       "columns": [
@@ -362,7 +434,8 @@
       "required": false,
       "dependencies": [
         "A.resource-audience"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "course_run_access": {
       "columns": [
@@ -375,7 +448,8 @@
       "required": false,
       "dependencies": [
         "A.course-access"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "course_run_state": {
       "columns": [
@@ -389,18 +463,23 @@
       "required": false,
       "dependencies": [
         "A.course-access"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "course_runs": {
       "columns": [
-        "active"
+        "active",
+        "activity_key",
+        "end_date",
+        "run_id"
       ],
       "accountColumn": null,
       "scope": "GLOBAL",
       "required": false,
       "dependencies": [
         "A.course-access"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "course_session_state": {
       "columns": [
@@ -414,7 +493,8 @@
       "required": false,
       "dependencies": [
         "A.course-access"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "course_settings": {
       "columns": [
@@ -428,7 +508,8 @@
       "required": false,
       "dependencies": [
         "A.course-access"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "course_subscription_decisions": {
       "columns": [
@@ -441,7 +522,12 @@
       "required": false,
       "dependencies": [
         "A.course-access"
-      ]
+      ],
+      "canonicalOwner": {
+        "table": "accounts",
+        "key": "account_id"
+      },
+      "authorityRecipients": []
     },
     "course_website_documents": {
       "columns": [
@@ -452,7 +538,8 @@
       "required": false,
       "dependencies": [
         "A.resource-audience"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "global_role_assignments": {
       "columns": [
@@ -466,7 +553,12 @@
       "required": true,
       "dependencies": [
         "A.identity"
-      ]
+      ],
+      "canonicalOwner": {
+        "table": "accounts",
+        "key": "account_id"
+      },
+      "authorityRecipients": []
     },
     "legacy_access_evidence": {
       "columns": [
@@ -481,7 +573,12 @@
       "required": false,
       "dependencies": [
         "A.roles"
-      ]
+      ],
+      "canonicalOwner": {
+        "table": "accounts",
+        "key": "account_id"
+      },
+      "authorityRecipients": []
     },
     "lesson_lifecycle": {
       "columns": [
@@ -494,7 +591,8 @@
       "required": false,
       "dependencies": [
         "A.schedule-lifecycle"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "lesson_media_lessons": {
       "columns": [
@@ -506,7 +604,8 @@
       "required": false,
       "dependencies": [
         "A.resource-audience"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "lesson_media_visibility": {
       "columns": [
@@ -518,7 +617,8 @@
       "required": false,
       "dependencies": [
         "A.resource-audience"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "lesson_note_entries": {
       "columns": [
@@ -531,7 +631,8 @@
       "required": false,
       "dependencies": [
         "A.object-audiences"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "lesson_note_versions": {
       "columns": [
@@ -542,7 +643,8 @@
       "required": false,
       "dependencies": [
         "A.object-audiences"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "library_access_policies": {
       "columns": [
@@ -553,7 +655,8 @@
       "required": false,
       "dependencies": [
         "A.resource-audience"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "memorisation_account_settings": {
       "columns": [
@@ -566,7 +669,12 @@
       "required": false,
       "dependencies": [
         "A.setup-publication"
-      ]
+      ],
+      "canonicalOwner": {
+        "table": "accounts",
+        "key": "account_id"
+      },
+      "authorityRecipients": []
     },
     "memorisation_activity_settings": {
       "columns": [
@@ -578,7 +686,8 @@
       "required": false,
       "dependencies": [
         "A.setup-publication"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "messaging_notices": {
       "columns": [
@@ -591,7 +700,8 @@
       "required": false,
       "dependencies": [
         "A.object-audiences"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "messaging_recipients": {
       "columns": [
@@ -602,7 +712,12 @@
       "required": false,
       "dependencies": [
         "A.object-audiences"
-      ]
+      ],
+      "canonicalOwner": {
+        "table": "accounts",
+        "key": "account_id"
+      },
+      "authorityRecipients": []
     },
     "modules": {
       "columns": [
@@ -613,7 +728,8 @@
       "required": false,
       "dependencies": [
         "A.setup-publication"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "note_retention_items": {
       "columns": [
@@ -628,7 +744,8 @@
       "required": false,
       "dependencies": [
         "A.resource-audience"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "note_retention_objects": {
       "columns": [
@@ -639,7 +756,8 @@
       "required": false,
       "dependencies": [
         "A.resource-audience"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "note_retention_policy": {
       "columns": [
@@ -651,7 +769,8 @@
       "required": false,
       "dependencies": [
         "A.resource-audience"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "program_historical_extensions": {
       "columns": [
@@ -665,7 +784,8 @@
       "required": false,
       "dependencies": [
         "A.schedule-lifecycle"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "program_library_destinations": {
       "columns": [
@@ -676,7 +796,8 @@
       "required": false,
       "dependencies": [
         "A.resource-audience"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "program_library_roots": {
       "columns": [
@@ -687,7 +808,8 @@
       "required": false,
       "dependencies": [
         "A.resource-audience"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "program_monthly_media_policies": {
       "columns": [
@@ -700,7 +822,8 @@
       "required": false,
       "dependencies": [
         "A.month-surah"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "program_monthly_subscriptions": {
       "columns": [
@@ -715,7 +838,12 @@
       "required": false,
       "dependencies": [
         "A.month-surah"
-      ]
+      ],
+      "canonicalOwner": {
+        "table": "accounts",
+        "key": "account_id"
+      },
+      "authorityRecipients": []
     },
     "program_publication_lifecycle": {
       "columns": [
@@ -728,7 +856,8 @@
       "required": false,
       "dependencies": [
         "A.schedule-lifecycle"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "program_publication_state": {
       "columns": [
@@ -740,7 +869,8 @@
       "required": false,
       "dependencies": [
         "A.schedule-lifecycle"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "program_resources": {
       "columns": [
@@ -751,7 +881,8 @@
       "required": false,
       "dependencies": [
         "A.resource-audience"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "program_subjects": {
       "columns": [
@@ -762,7 +893,8 @@
       "required": false,
       "dependencies": [
         "A.setup-publication"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "program_surah_grants": {
       "columns": [
@@ -776,7 +908,12 @@
       "required": false,
       "dependencies": [
         "A.month-surah"
-      ]
+      ],
+      "canonicalOwner": {
+        "table": "accounts",
+        "key": "account_id"
+      },
+      "authorityRecipients": []
     },
     "program_surah_website_documents": {
       "columns": [
@@ -787,7 +924,8 @@
       "required": false,
       "dependencies": [
         "A.resource-audience"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "program_surahs": {
       "columns": [
@@ -802,7 +940,8 @@
       "required": false,
       "dependencies": [
         "A.month-surah"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "published_lesson_classes": {
       "columns": [
@@ -815,7 +954,8 @@
       "required": false,
       "dependencies": [
         "A.schedule-lifecycle"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "published_lesson_teachers": {
       "columns": [
@@ -828,7 +968,12 @@
       "required": false,
       "dependencies": [
         "A.schedule-lifecycle"
-      ]
+      ],
+      "canonicalOwner": {
+        "table": "accounts",
+        "key": "account_id"
+      },
+      "authorityRecipients": []
     },
     "published_lessons": {
       "columns": [
@@ -845,7 +990,8 @@
       "required": false,
       "dependencies": [
         "A.schedule-lifecycle"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "role_assignments": {
       "columns": [
@@ -862,7 +1008,12 @@
       "required": true,
       "dependencies": [
         "A.roles"
-      ]
+      ],
+      "canonicalOwner": {
+        "table": "accounts",
+        "key": "account_id"
+      },
+      "authorityRecipients": []
     },
     "role_import_reviews": {
       "columns": [
@@ -876,7 +1027,12 @@
       "required": false,
       "dependencies": [
         "A.roles"
-      ]
+      ],
+      "canonicalOwner": {
+        "table": "accounts",
+        "key": "account_id"
+      },
+      "authorityRecipients": []
     },
     "role_mapping_decisions": {
       "columns": [
@@ -888,7 +1044,8 @@
       "required": false,
       "dependencies": [
         "A.roles"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "setup_head_state": {
       "columns": [
@@ -900,7 +1057,8 @@
       "required": true,
       "dependencies": [
         "A.setup-publication"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "subject_catalog": {
       "columns": [
@@ -911,7 +1069,8 @@
       "required": false,
       "dependencies": [
         "A.setup-publication"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "tasks": {
       "columns": [
@@ -922,7 +1081,8 @@
       "required": false,
       "dependencies": [
         "A.setup-publication"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "timetable_publications": {
       "columns": [
@@ -938,7 +1098,8 @@
       "required": false,
       "dependencies": [
         "A.schedule-lifecycle"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "website_platform_access_cancellations": {
       "columns": [
@@ -949,7 +1110,8 @@
       "required": false,
       "dependencies": [
         "A.website-ownership"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "website_platform_access_ownership": {
       "columns": [
@@ -963,12 +1125,14 @@
       "required": false,
       "dependencies": [
         "A.website-ownership"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "website_platform_access_scopes": {
       "columns": [
         "activity_key",
         "enabled",
+        "purchase_model",
         "revision"
       ],
       "accountColumn": null,
@@ -976,7 +1140,8 @@
       "required": false,
       "dependencies": [
         "A.website-ownership"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "website_platform_admissions": {
       "columns": [
@@ -988,12 +1153,20 @@
       "required": false,
       "dependencies": [
         "A.website-ownership"
-      ]
+      ],
+      "canonicalOwner": {
+        "table": "accounts",
+        "key": "account_id"
+      },
+      "authorityRecipients": []
     },
     "website_platform_completed_courses": {
       "columns": [
         "activity_key",
+        "package_sha256",
+        "registration_id",
         "timezone",
+        "title",
         "website_id"
       ],
       "accountColumn": null,
@@ -1001,7 +1174,8 @@
       "required": false,
       "dependencies": [
         "A.website-ownership"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "website_platform_control": {
       "columns": [
@@ -1012,7 +1186,8 @@
       "required": false,
       "dependencies": [
         "A.website-ownership"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "website_platform_course_policy_mirror": {
       "columns": [
@@ -1025,7 +1200,8 @@
       "required": false,
       "dependencies": [
         "A.website-ownership"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "website_platform_programmes": {
       "columns": [
@@ -1038,7 +1214,8 @@
       "required": false,
       "dependencies": [
         "A.website-ownership"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "website_platform_surah_maps": {
       "columns": [
@@ -1051,7 +1228,8 @@
       "required": false,
       "dependencies": [
         "A.website-ownership"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "website_platform_timetable_scopes": {
       "columns": [
@@ -1065,7 +1243,8 @@
       "required": false,
       "dependencies": [
         "A.website-ownership"
-      ]
+      ],
+      "authorityRecipients": []
     },
     "weekly_absentee_recipients": {
       "columns": [
@@ -1076,7 +1255,12 @@
       "required": false,
       "dependencies": [
         "A.object-audiences"
-      ]
+      ],
+      "canonicalOwner": {
+        "table": "accounts",
+        "key": "account_id"
+      },
+      "authorityRecipients": []
     },
     "academy_settings": {
       "columns": [
@@ -1093,7 +1277,58 @@
         "PersonalMemorisationCards",
         "ProgramWorkspace",
         "ProgramAccess:%"
+      ],
+      "authorityRecipients": []
+    },
+    "hifz_profile_sync": {
+      "columns": [
+        "account_id",
+        "revision",
+        "pin_reset_version"
+      ],
+      "accountColumn": "account_id",
+      "scope": "ACCOUNT",
+      "required": false,
+      "canonicalOwner": {
+        "table": "accounts",
+        "key": "account_id"
+      },
+      "recipients": [
+        "hifz"
+      ],
+      "dependencies": [
+        "A.identity"
+      ],
+      "authorityRecipients": [
+        "hifz"
       ]
+    },
+    "program_settings": {
+      "columns": [
+        "activity_key",
+        "timezone"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.website-ownership"
+      ],
+      "authorityRecipients": []
+    },
+    "website_platform_new_courses": {
+      "columns": [
+        "activity_key",
+        "published_title",
+        "published_timezone"
+      ],
+      "accountColumn": null,
+      "scope": "GLOBAL",
+      "required": false,
+      "dependencies": [
+        "A.website-ownership"
+      ],
+      "authorityRecipients": []
     }
   },
   "schemaColumns": {

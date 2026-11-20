@@ -2,9 +2,26 @@
 (() => {
  'use strict';
  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- const token=()=>localStorage.getItem('m4l_account_token')||'';
+ const v2=location.origin==='https://ummabbadacademy.app'&&document.querySelector('meta[name="uaa-auth-version"]')?.content==='2';let auth=null,unregisterPolicy=null,monthsForm=null,grantsForm=null,historicalForm=null,historicalVersion=null,historicalCheckpoint=Promise.resolve(),monthsReady=false,grantsReady=false,monthsVersion=0,grantsVersion=0,checkpoint=Promise.resolve(),grantCheckpoint=Promise.resolve();
+ const token=()=>v2?(window.M4L_ACADEMY_AUTH?.ownerKey()||''):localStorage.getItem('m4l_account_token')||'';
+ const nativeClient=async()=>auth||(auth=await window.M4L_ACADEMY_AUTH.ready);
+ const digest=async value=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(value))))].map(v=>v.toString(16).padStart(2,'0')).join('');
+ const monthsSnapshot=()=>({entries:[...drafts.values()].map(row=>structuredClone(row)),draftRevision,removalReason:host?.querySelector('[data-pms-removal-reason]')?.value||''});
+ const grantSnapshot=()=>({selected:[...grantEditor.selected],note:grantEditor.note});
+ function persist(grants=false){if(!v2)return;const form=grants?grantsForm:monthsForm;if(!form)return;const snapshot=grants?grantSnapshot():monthsSnapshot(),view=auth.getState().viewVersion;const work=form.checkpoint(snapshot).catch(error=>{if(auth.getState().viewVersion!==view)return;message(error.message,true);throw error;});work.catch(()=>{});if(grants)grantCheckpoint=work;else checkpoint=work;}
+ const historicalSnapshot=()=>{const form=host?.querySelector('[data-pms-history-form]');return {date:form?.elements.date.value||'',title:form?.elements.title.value||'',classIds:[...form?.querySelectorAll('[data-pms-class]:checked')||[]].map(field=>field.value)};};
+ async function historicalRead(){await (await nativeClient()).prepareBusiness();return api('feed',{contentFlow:true},true);}
+ async function installHistorical(){if(!v2||external||!data.prepared)return;historicalForm?.dispose();historicalForm=null;const result=await historicalRead();historicalVersion=result.cacheRevision;const root=host.querySelector('[data-pms-history-form]'),{createAcademyNativeForm}=await import('/js/m4l-v111-editor.mjs');historicalForm=await createAcademyNativeForm({client:auth,resource:{type:'academy-historical-media',activityKey:'PROGRAM:'+program},capture:historicalSnapshot,baseVersion:()=>historicalVersion,isDirty:()=>historicalDirty,applyRetained:saved=>{if(typeof saved?.date!=='string'||typeof saved?.title!=='string'||!Array.isArray(saved.classIds))throw Error('The retained original lesson is invalid.');root.elements.date.value=saved.date;root.elements.title.value=saved.title;for(const field of root.querySelectorAll('[data-pms-class]'))field.checked=saved.classIds.includes(field.value);historicalDirty=true;},applyCurrent:value=>{historicalVersion=value.cacheRevision;root.reset();historicalDirty=false;historyRequest=null;},readCurrent:historicalRead,roots:[root],host:document.body,status:message});await historicalForm.open(result);}
+ function persistHistorical(){if(!historicalForm)return;const snapshot=historicalSnapshot(),view=auth.getState().viewVersion;historicalCheckpoint=historicalForm.checkpoint(snapshot).catch(error=>{if(auth.getState().viewVersion!==view)return;message(error.message,true);throw error;});historicalCheckpoint.catch(()=>{});}
+ async function submitHistoricalV2(form){const stamp=generation;let attempt;busy=true;controls();try{if(!historicalForm)throw Error('Prepare protected original-lesson recovery before sending.');await historicalCheckpoint;const input={...historicalSnapshot(),operationId:crypto.randomUUID()};attempt=await historicalForm.beforeMutation({action:'historical-create',input},{sensitive:true});let result=await api('historical-create',input,true);if(stamp!==generation)return;result=await historicalForm.completeNativeMutation(attempt,result,{operationId:input.operationId});historicalDirty=false;historyRequest=null;form.reset();await historicalForm.saved();month=input.date.slice(0,7);await historicalRead();await history();message('Historical lesson created. Attach media deliberately from its checked native record.');}catch(error){if(stamp!==generation)return;if(attempt)await historicalForm.unknown(attempt);message(error.message,true);}finally{if(stamp===generation){busy=false;controls();}}}
+ async function policyForm(mode){if(policyForms.has(mode))return policyForms.get(mode);const root=document.createElement('section');document.body.append(root);const {createAcademyNativeForm}=await import('/js/m4l-v111-editor.mjs'),form=await createAcademyNativeForm({client:await nativeClient(),resource:{type:'academy-program-subscription-policy',activityKey:'PROGRAM:'+program,mode},capture:()=>({mode}),baseVersion:()=>data?.policy?.revision||0,isDirty:()=>false,applyRetained:()=>{},applyCurrent:value=>{data=value;},readCurrent:()=>gridRead(),roots:[root],host:document.body,status:message});const entry={form,root};policyForms.set(mode,entry);return entry;}
+ async function recoverPolicy(){if(!v2||!data?.canConfigure)return;for(const mode of ['prepare','activate']){const {form}=await policyForm(mode);if(await form.hasRetained())await form.open(data);}}
+ async function gridRead(input={}){const client=await nativeClient();await client.prepareBusiness();return api('grid',{years,search,...input});}
+ async function installMonths(result,{restore=true}={}){if(!v2||!result.prepared)return;monthsReady=false;monthsForm?.dispose();monthsForm=null;monthsVersion=await digest({policy:result.policy,students:result.students.map(row=>({accountId:row.accountId,months:row.months}))});const {createAcademyNativeForm}=await import('/js/m4l-v111-editor.mjs');monthsForm=await createAcademyNativeForm({client:await nativeClient(),resource:external?.v2Resource||{type:'academy-program-subscriptions',activityKey:'PROGRAM:'+program,editor:'months'},capture:monthsSnapshot,baseVersion:()=>monthsVersion,isDirty:()=>drafts.size>0,applyRetained:saved=>{if(!Array.isArray(saved?.entries))throw Error('The retained monthly register is invalid.');drafts.clear();for(const row of saved.entries)drafts.set(key(row.accountId,row.month),row);draftRevision=saved.draftRevision;renderGrid();if(saved.removalReason){review();const field=host.querySelector('[data-pms-removal-reason]');if(field)field.value=saved.removalReason;}},applyCurrent:async value=>{data=value;students.clear();for(const row of value.students||[])students.set(row.accountId,row);drafts.clear();draftRevision=null;pending=null;monthsVersion=await digest({policy:value.policy,students:value.students.map(row=>({accountId:row.accountId,months:row.months}))});host.querySelector('[data-pms-review]')?.replaceChildren();renderGrid();controls();},readCurrent:()=>gridRead(),roots:[...host.querySelectorAll('.pms-grid-toolbar,.pms-grid-help,[data-pms-grid],.pms-grid-footer,[data-pms-review]')],host:document.body,status:message});await monthsForm.open(result,{restore});monthsReady=true;}
+ async function installGrants(result){grantsReady=false;grantsForm?.dispose();grantsForm=null;grantsVersion=await digest({policy:result.policyRevision,surahs:result.surahs});const accountId=result.student.accountId,{createAcademyNativeForm}=await import('/js/m4l-v111-editor.mjs');grantsForm=await createAcademyNativeForm({client:await nativeClient(),resource:{type:'academy-program-surah-grants',activityKey:'PROGRAM:'+program,accountId},capture:grantSnapshot,baseVersion:()=>grantsVersion,isDirty:grantDirty,applyRetained:saved=>{if(!Array.isArray(saved?.selected)||typeof saved.note!=='string')throw Error('The retained Surah changes are invalid.');grantEditor.selected=new Map(saved.selected);grantEditor.note=saved.note;renderGrants();},applyCurrent:async value=>{grantEditor={data:value,selected:new Map(value.surahs.map(row=>[row.id,row.additional])),note:'',pending:null};grantsVersion=await digest({policy:value.policyRevision,surahs:value.surahs});renderGrants();},readCurrent:async()=>{await auth.prepareBusiness();return api('surah-grants',{accountId});},roots:[host.querySelector('[data-pms-grants-slot]')],host:document.body,status:message});await grantsForm.open(result);grantsReady=true;}
+
  let years=[2024,2025,2026];const shortMonths=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
- const expanded=new Set(),drafts=new Map(),students=new Map();
+ const expanded=new Set(),drafts=new Map(),students=new Map(),policyForms=new Map();
  let host=null,program='',owner='',generation=0,request=0,busy=false,mode='participants',data=null,search='',draftRevision=null,pending=null;
  let grantEditor=null,external=null;
  let month='',historyRows=[],historyAfter=null,historicalDirty=false,historyRequest=null,historySequence=0;
@@ -23,6 +40,7 @@
  function canLeave(allowHistory=false){if(!canBrowse(allowHistory))return false;if(drafts.size){message('Save or discard your month changes before leaving.',true);return false;}return true;}
  async function api(action,input={},media=false){
   const current=owner,stamp=generation;
+  if(v2){const client=await nativeClient();if(external&&!external.nativeSource&&(!external.v2Resource||typeof external.transport!=='function'))throw Error('The linked access editor is awaiting its own checked recovery integration.');const result=external&&!external.nativeSource?await external.transport(action,input):await client.request((media?'/api/academy/lesson-media/':'/api/admin/platform/program-monthly-subscriptions/')+action,{activityKey:'PROGRAM:'+program,...input},{headers:{'X-Academy-Workspace':'ADMIN'}});if(stamp!==generation||current!==token()||!client.isCurrentResult(result))throw Error('Your account or Program changed. Reopen this register.');return result;}
   if(external){const result=await external.transport(action,input);if(stamp!==generation||current!==token())throw Error('Your account or programme changed. Reopen this register.');return result;}
   const response=await fetch((window.M4L_CONFIG?.API_BASE||'')+(media?'/api/academy/lesson-media/':'/api/admin/platform/program-monthly-subscriptions/')+action,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+current,'X-Academy-Workspace':'ADMIN'},body:JSON.stringify({activityKey:'PROGRAM:'+program,...input})});
   const result=await response.json();if(stamp!==generation||current!==token())throw Error('Your account or Program changed. Reopen this register.');
@@ -39,7 +57,7 @@
    const tabs=[...host.querySelectorAll('[data-pms-tab]')].filter(t=>!t.hidden),i=tabs.indexOf(event.target);event.preventDefault();
    tabs[event.key==='Home'?0:event.key==='End'?tabs.length-1:(i+(event.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length]?.focus();
   });
-  host.addEventListener('input',e=>{if(e.target.closest('[data-pms-history-form]'))historicalDirty=true;if(e.target.matches('[data-pms-grant-note]')&&grantEditor)grantEditor.note=e.target.value;});
+  host.addEventListener('input',e=>{if(e.target.closest('[data-pms-history-form]')){historicalDirty=true;if(v2)persistHistorical();}if(e.target.matches('[data-pms-grant-note]')&&grantEditor)grantEditor.note=e.target.value;if(v2&&(e.target.matches('[data-pms-grant-note]')||e.target.matches('[data-pms-removal-reason]')))persist(e.target.matches('[data-pms-grant-note]'));});
   host.addEventListener('reset',e=>{if(!e.target.matches('[data-pms-history-form]'))return;if(historyRequest){e.preventDefault();message('Retry the pending historical lesson before clearing it.',true);return;}historicalDirty=false;delete e.target.dataset.operation;});
   host.addEventListener('toggle',e=>{if(e.target.matches('.pms-history')&&e.target.open)void history();},true);
  }
@@ -50,24 +68,25 @@
  }
  async function select(id){
   shell();if(!host)return;if(program===id&&owner===token())return;
-  reset();program=id;owner=token();if(external){mode='monthly';tabs();}const stamp=generation;
+  if(v2){await nativeClient();await auth.prepareBusiness();}reset();program=id;owner=token();if(external){mode='monthly';tabs();}const stamp=generation;
   try{await load();if(stamp!==generation)return;if(data?.available&&(external||new URLSearchParams(location.search).get('participants')==='monthly')){mode='monthly';tabs();}}
   catch(error){if(stamp===generation)message(error.message,true);}
  }
  async function load(more=false){
   const stamp=generation,sequence=++request;busy=true;controls();message('Loading subscriptions…');
   try{
-   const result=await api('grid',{years,search,...(more?{after:data.after}:{})});if(stamp!==generation||sequence!==request)return;
-   const rows=more?[...(data?.students||[]),...(result.students||[])]:result.students||[];
-   data={...result,students:[...new Map(rows.map(r=>[r.accountId,r])).values()]};for(const row of data.students)students.set(row.accountId,row);
+   const result=await (v2?gridRead(more?{after:data.after}:{}):api('grid',{years,search,...(more?{after:data.after}:{})}));if(stamp!==generation||sequence!==request)return;
+   const merge=more&&(!v2||auth.isCurrentResult(data)),rows=merge?[...(data?.students||[]),...(result.students||[])]:result.students||[];if(!merge)students.clear();
+   data={...result,students:[...new Map(rows.map(r=>[r.accountId,r])).values()]};if(v2)auth.trackResult(data,result);for(const row of data.students)students.set(row.accountId,row);
    month=month||data.currentMonth||'2026-10';host.querySelector('[data-pms-tab="monthly"]').hidden=!data.available;
-   render();message(drafts.size&&draftRevision!==data.policy?.revision?'The saved register changed while you were editing. Your draft is kept; save it or discard it before refreshing.':'',Boolean(drafts.size&&draftRevision!==data.policy?.revision));
+   render();if(v2){const beforePolicy=data;await recoverPolicy();if(data!==beforePolicy)render();const panel=host.querySelector('[data-pms-panel]');if(data.prepared){if(unregisterPolicy){unregisterPolicy();unregisterPolicy=null;panel.style.visibility='';panel.inert=false;}await installMonths(data);await installHistorical();}else {unregisterPolicy?.();unregisterPolicy=auth.registerPrivateRoot(panel);auth.revealResult(data,{roots:[panel]});}}message(drafts.size&&draftRevision!==data.policy?.revision?'The saved register changed while you were editing. Your draft is kept; save it or discard it before refreshing.':'',Boolean(drafts.size&&draftRevision!==data.policy?.revision));
   }catch(error){if(stamp===generation&&sequence===request)message(error.message,true);}
   finally{if(stamp===generation&&sequence===request){busy=false;controls();}}
  }
  function controls(){
+  if(v2)for(const tab of host?.querySelectorAll('[data-pms-tab]')||[])tab.disabled=busy;
   for(const c of host?.querySelectorAll('[data-pms-content] button,[data-pms-content] input,[data-pms-content] select,[data-pms-content] textarea')||[]){
-   c.disabled=busy||Boolean(grantEditor&&!c.closest('[data-pms-grant-editor]'))||Boolean(grantEditor?.pending&&c.dataset.pmsGrantAction!=='retry')||Boolean(c.dataset.pmsInactive==='true')||Boolean(historyRequest&&c.closest('[data-pms-history-form]')&&c.type!=='submit')||Boolean(pending&&c.dataset.pmsAction!=='retry');
+   c.disabled=busy||Boolean(v2&&data?.prepared&&(!monthsReady||c.closest('[data-pms-grant-editor]')&&!grantsReady))||Boolean(grantEditor&&!c.closest('[data-pms-grant-editor]'))||Boolean(grantEditor?.pending&&c.dataset.pmsGrantAction!=='retry')||Boolean(c.dataset.pmsInactive==='true')||Boolean(historyRequest&&c.closest('[data-pms-history-form]')&&c.type!=='submit')||Boolean(pending&&c.dataset.pmsAction!=='retry');
   }
  }
  const classOptions=ids=>(data?.classes||[]).map(c=>'<label><input type="checkbox" data-pms-class value="'+esc(c.class_id)+'"'+(ids.includes(c.class_id)?' checked':'')+'>'+esc(c.name)+(c.active?'':' (historical)')+'</label>').join('');
@@ -106,12 +125,12 @@
  function delta(){const node=host.querySelector('[data-pms-delta]');if(node)node.textContent=drafts.size?drafts.size+' unsaved month change(s)'+([...drafts.values()].some(e=>!data.students.some(r=>r.accountId===e.accountId))?', including students outside this search':''):'No unsaved changes';}
  function change(event){
   const control=event.target;
-  if(control.matches('[data-pms-grant]')){if(grantEditor&&!busy&&!grantEditor.pending)grantEditor.selected.set(control.dataset.pmsGrant,control.checked);return;}
+  if(control.matches('[data-pms-grant]')){if(grantEditor&&!busy&&!grantEditor.pending){grantEditor.selected.set(control.dataset.pmsGrant,control.checked);persist(true);}return;}
   if(control.matches('[data-pms-history-month]')){const next=control.value;if(!canLeave()){control.value=month;return;}if(!/^[1-9]\d{3}-(0[1-9]|1[0-2])$/.test(next)){message('Choose a month and year.',true);return;}month=next;historyRows=[];void history();return;}
   if(!control.matches('[data-pms-cell],[data-pms-year-cell]')||control.disabled||busy||pending)return;
   const row=students.get(control.dataset.account),wholeYear=control.hasAttribute('data-pms-year-cell');
   for(const m of wholeYear?monthsIn(Number(control.dataset.year)):[control.dataset.month])stageCell(row,m,control.checked);
-  if(!drafts.size)draftRevision=null;host.querySelector('[data-pms-review]').replaceChildren();renderGrid(key(row.accountId,wholeYear?'YEAR:'+control.dataset.year:control.dataset.month));
+  if(!drafts.size)draftRevision=null;host.querySelector('[data-pms-review]').replaceChildren();renderGrid(key(row.accountId,wholeYear?'YEAR:'+control.dataset.year:control.dataset.month));persist();
  }
  function stageCell(row,m,subscribed){
   const k=key(row.accountId,m),saved=savedCell(row,m),draft=drafts.get(k),original=draft?.wasSubscribed??saved.subscribed;
@@ -125,8 +144,9 @@
   if(!removals.length&&!unclear.length){void transact('grid-save',saveInput());return;}
   host.querySelector('[data-pms-review]').innerHTML='<p>Save '+entries.length+' month change(s).</p>'+(removals.length?'<label>Reason for removing '+removals.length+' paid month(s)<textarea data-pms-removal-reason maxlength="500" required></textarea></label>':'')+unclear.map(e=>'<fieldset data-pms-coverage-key="'+esc(key(e.accountId,e.month))+'"><legend>Classes for '+esc(students.get(e.accountId).name)+' · '+esc(monthLabel(e.month))+'</legend>'+classOptions(e.classIds)+'</fieldset>').join('')+'<button type="button" data-pms-action="confirm-save">Save these changes</button>';
  }
+ async function transactV2(action,input){const stamp=generation,client=await nativeClient();let attempt;const packet={...input,policyRevision:draftRevision??data?.policy?.revision??0,operationId:crypto.randomUUID()};busy=true;controls();message('Saving…');try{if(action==='grid-save'){await checkpoint;if(!monthsReady||!monthsForm)throw Error('Prepare protected monthly recovery before saving.');attempt=await monthsForm.beforeMutation({action,input:packet},{sensitive:true});}else if(action==='configure'){const {form}=await policyForm(input.mode);const opened=await form.open(data,{restore:false});if(opened?.manualReview)return;attempt=await form.beforeMutation({action,input:packet},{sensitive:true});}else throw Error('This monthly action has no protected native editor.');let result=await api(action,packet);if(stamp!==generation)return;if(attempt)result=await (action==='configure'?(await policyForm(input.mode)).form:monthsForm).completeNativeMutation(attempt,result,{operationId:packet.operationId});drafts.clear();draftRevision=null;pending=null;busy=false;await load();if(monthsForm)await monthsForm.saved();message('Saved.');}catch(error){if(stamp!==generation)return;busy=false;if(attempt)await (action==='configure'?(await policyForm(input.mode)).form:monthsForm).unknown(attempt);else message(action==='configure'?'The configuration outcome needs a fresh read before another deliberate action. '+error.message:error.message,true);pending=null;controls();}finally{if(stamp===generation){busy=false;controls();}}}
  async function transact(action,input){
-  if(busy)return;pending=pending||{action,input:{...input,policyRevision:draftRevision??data?.policy?.revision??0,operationId:crypto.randomUUID()}};
+  if(busy)return;if(v2)return transactV2(action,input);pending=pending||{action,input:{...input,policyRevision:draftRevision??data?.policy?.revision??0,operationId:crypto.randomUUID()}};
   busy=true;controls();message('Saving…');const stamp=generation;
   try{await api(pending.action,pending.input);if(stamp!==generation)return;drafts.clear();draftRevision=null;pending=null;busy=false;await load();message('Saved.');}
   catch(error){if(stamp!==generation)return;busy=false;if(error.status&&error.status<500)pending=null;message(error.message,true);if(pending){const button=document.createElement('button');button.type='button';button.dataset.pmsAction='retry';button.textContent='Retry this save';host.querySelector('[data-pms-review]')?.append(button);}controls();}
@@ -144,13 +164,14 @@
  }
  async function openGrants(accountId){
   if(!canLeave())return;const stamp=generation;busy=true;controls();message('Loading additional Surah access…');
-  try{const result=await api('surah-grants',{accountId});if(stamp!==generation)return;grantEditor={data:result,selected:new Map(result.surahs.map(r=>[r.id,r.additional])),note:'',pending:null};renderGrants();message('');host.querySelector('[data-pms-grant-editor] button')?.focus();}
+  try{if(v2)await (await nativeClient()).prepareBusiness();const result=await api('surah-grants',{accountId});if(stamp!==generation)return;grantEditor={data:result,selected:new Map(result.surahs.map(r=>[r.id,r.additional])),note:'',pending:null};renderGrants();if(v2)await installGrants(result);message('');host.querySelector('[data-pms-grant-editor] button')?.focus();}
   catch(error){if(stamp===generation)message(error.message,true);}
   finally{if(stamp===generation){busy=false;controls();}}
  }
+ async function saveGrantsV2(editor){let attempt;const stamp=generation;busy=true;controls();try{await grantCheckpoint;if(!grantsReady||!grantsForm)throw Error('Prepare protected Surah recovery before saving.');const input={accountId:editor.data.student.accountId,entries:editor.data.surahs.map(row=>({id:row.id,active:Boolean(editor.selected.get(row.id)),revision:row.revision})),note:editor.note,policyRevision:editor.data.policyRevision,operationId:crypto.randomUUID()};attempt=await grantsForm.beforeMutation({action:'surah-grants-save',input},{sensitive:true});let result=await api('surah-grants-save',input);if(stamp!==generation)return;result=await grantsForm.completeNativeMutation(attempt,result,{operationId:input.operationId});editor.note='';editor.pending=null;for(const row of editor.data.surahs)row.additional=Boolean(editor.selected.get(row.id));await grantsForm.saved();grantsForm.dispose();grantsForm=null;grantEditor=null;renderGrants();await load();message('Additional Surah access saved.');}catch(error){if(stamp!==generation)return;if(attempt)await grantsForm.unknown(attempt);message(error.message,true);}finally{if(stamp===generation){busy=false;controls();}}}
  async function saveGrants(){
   if(busy||!grantEditor)return;
-  const editor=grantEditor;
+  const editor=grantEditor;if(v2)return saveGrantsV2(editor);
   if(!editor.pending){
    const entries=editor.data.surahs.map(r=>({id:r.id,active:Boolean(editor.selected.get(r.id)),revision:r.revision}));
    if(!entries.some(e=>e.active!==editor.data.surahs.find(r=>r.id===e.id).additional)){message('No additional access changes to save.');return;}
@@ -170,14 +191,14 @@
  }
  async function click(event){
   const grantAction=event.target.closest('[data-pms-grant-action]')?.dataset.pmsGrantAction;
-  if(grantAction){if(busy)return;if(grantAction==='save'||grantAction==='retry'){await saveGrants();return;}if(grantAction==='close'&&grantEditor){if(grantEditor.pending){message('Retry the pending save before closing.',true);return;}grantEditor=null;renderGrants();controls();message('');}return;}
+  if(grantAction){if(busy)return;if(grantAction==='save'||grantAction==='retry'){await saveGrants();return;}if(grantAction==='close'&&grantEditor){if(grantEditor.pending){message('Retry the pending save before closing.',true);return;}if(v2){await grantsForm?.discard();grantsForm?.dispose();grantsForm=null;grantsReady=false;}grantEditor=null;renderGrants();controls();message('');}return;}
   const grant=event.target.closest('[data-pms-grants]');if(grant){if(!busy)await openGrants(grant.dataset.pmsGrants);return;}
-  const tab=event.target.closest('[data-pms-tab]');if(tab){if(tab.dataset.pmsTab===mode)return;if(!canLeave()||tab.dataset.pmsTab==='monthly'&&window.M4L_PROGRAM_PEOPLE?.canLeave()===false)return;mode=tab.dataset.pmsTab;tabs();if(mode==='monthly')await load();return;}
+  const tab=event.target.closest('[data-pms-tab]');if(tab){if(tab.dataset.pmsTab===mode)return;if((tab.dataset.pmsTab==='monthly'?!canBrowse(true):!canLeave())||tab.dataset.pmsTab==='monthly'&&window.M4L_PROGRAM_PEOPLE?.canLeave()===false)return;mode=tab.dataset.pmsTab;tabs();if(mode==='monthly')await load();return;}
   const year=event.target.closest('[data-pms-year]');if(year){if(busy||pending)return;const y=Number(year.dataset.pmsYear);expanded.has(y)?expanded.delete(y):expanded.add(y);renderGrid();host.querySelector('[data-pms-year="'+y+'"]')?.focus?.({preventScroll:true});return;}
   const edit=event.target.closest('[data-pms-edit]');if(edit){if(!canLeave())return;await window.M4L_LESSON_MEDIA.manage({hostId:'pms-media-editor',activityKey:'PROGRAM:'+program,lessonId:edit.dataset.pmsEdit});return;}
   const action=event.target.closest('[data-pms-action]')?.dataset.pmsAction;if(!action||busy)return;
-  if(action==='retry'){if(pending)await transact(pending.action,pending.input);return;}
-  if(action==='discard'){if(pending){message('Retry the pending save before discarding.',true);return;}drafts.clear();draftRevision=null;host.querySelector('[data-pms-review]').replaceChildren();renderGrid();message('Edits discarded.');return;}
+  if(action==='retry'){if(v2)return;if(pending)await transact(pending.action,pending.input);return;}
+  if(action==='discard'){if(v2){await monthsForm?.discard();renderGrid();return;}if(pending){message('Retry the pending save before discarding.',true);return;}drafts.clear();draftRevision=null;host.querySelector('[data-pms-review]').replaceChildren();renderGrid();message('Edits discarded.');return;}
   if(action==='save'){review();return;}
   if(action==='confirm-save'){
    if(!canBrowse())return;
@@ -195,6 +216,7 @@
  async function submit(event){
   if(event.target.matches('[data-pms-search-form]')){event.preventDefault();if(!canBrowse())return;search=host.querySelector('[data-pms-search]').value.trim();await load();return;}
   const form=event.target.closest('[data-pms-history-form]');if(!form)return;event.preventDefault();if(!canLeave(true))return;
+  if(v2){await submitHistoricalV2(form);return;}
   const values=new FormData(form),input=historyRequest||{date:values.get('date'),title:values.get('title'),classIds:[...form.querySelectorAll('[data-pms-class]:checked')].map(c=>c.value),operationId:form.dataset.operation||crypto.randomUUID()};
   form.dataset.operation=input.operationId;historyRequest=input;busy=true;controls();message('Creating historical lesson…');const stamp=generation;
   try{
@@ -204,13 +226,14 @@
   finally{if(stamp===generation){busy=false;controls();}}
  }
  function reset(){
-  generation++;request++;historySequence++;owner='';program='';grantEditor=null;drafts.clear();students.clear();expanded.clear();pending=null;draftRevision=null;historicalDirty=false;historyRequest=null;busy=false;data=null;search='';month='';historyRows=[];historyAfter=null;
+  for(const entry of policyForms.values()){entry.form.dispose();entry.root.remove();}policyForms.clear();unregisterPolicy?.();unregisterPolicy=null;historicalForm?.dispose();historicalForm=null;historicalVersion=null;historicalCheckpoint=Promise.resolve();monthsForm?.dispose();grantsForm?.dispose();monthsForm=null;grantsForm=null;monthsReady=false;grantsReady=false;checkpoint=Promise.resolve();grantCheckpoint=Promise.resolve();generation++;request++;historySequence++;owner='';program='';grantEditor=null;drafts.clear();students.clear();expanded.clear();pending=null;draftRevision=null;historicalDirty=false;historyRequest=null;busy=false;data=null;search='';month='';historyRows=[];historyAfter=null;
   if(host){host.querySelector('[data-pms-content]').replaceChildren();host.querySelector('[data-pms-tab="monthly"]').hidden=true;mode='participants';tabs();}
  }
  async function manageGrants(accountId){if(!canLeave()||window.M4L_PROGRAM_PEOPLE?.canLeave()===false)return;if(!data?.surahGrantsAvailable||!data?.prepared){message('Prepare the Tafseer monthly register before adding Surah access.',true);return;}mode='monthly';tabs();await openGrants(accountId);}
  async function mount(container,id,options){if(!canLeave())return false;unmount();external={...options,host:container};const year=new Date().getFullYear();years=[year-2,year-1,year];await select(id);return true;}
  function unmount(){reset();years=[2024,2025,2026];if(external){host?.remove();host=null;external=null;}}
  window.M4L_PROGRAM_MONTHLY={mount,unmount,select,manageGrants,canLeave,isOpen:()=>mode==='monthly',dirty:()=>grantDirty()||drafts.size>0||Boolean(pending)||historicalDirty||Boolean(historyRequest)||busy};
+ if(v2)window.addEventListener('academy-v2-revalidate',()=>{if(!program)return;void (async()=>{if(grantEditor&&grantsForm)await grantsForm.revalidate();else if(monthsForm){await monthsForm.revalidate();if(historicalForm)await historicalForm.revalidate();}else await load();controls();})().catch(error=>message(error.message,true));});
  window.addEventListener('beforeunload',e=>{if(grantDirty()||drafts.size||pending||historicalDirty||historyRequest||busy){e.preventDefault();e.returnValue='';}});
  window.addEventListener('m4l-academy-session',reset);window.addEventListener('m4l-academy-session-ended',reset);window.addEventListener('storage',e=>{if(e.key==='m4l_account_token'||e.key===null)reset();});
 })();

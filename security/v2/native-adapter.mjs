@@ -92,11 +92,14 @@ export class AcademyNativeAdapter {
    requireThat(state?.account?.active===1&&state.account.pin_setup===1,'NATIVE_ACCOUNT_INACTIVE',401);
    requireThat(state.account.credential_epoch===credentialEpoch,'CREDENTIAL_CHANGED',401);
    const canonicalSub=state.account.account_id;
-   const memberships=sequence((await this.db.prepare('SELECT account_id,activity_key,class_id,active,start_date,end_date FROM class_memberships WHERE account_id=? COLLATE NOCASE LIMIT 6001').bind(canonicalSub).all()).results);
+   const memberships=sequence((await this.db.prepare('SELECT enrollment_id,account_id,activity_key,class_id,active,start_date,end_date FROM class_memberships WHERE account_id=? COLLATE NOCASE LIMIT 6001').bind(canonicalSub).all()).results);
    const teachers=sequence((await this.db.prepare('SELECT account_id,activity_key,class_id FROM class_teacher_assignments WHERE account_id=? COLLATE NOCASE LIMIT 6001').bind(canonicalSub).all()).results);
+   const personalSetting=await this.db.prepare('SELECT active FROM memorisation_account_settings WHERE account_id=? COLLATE NOCASE').bind(canonicalSub).first(),disabledProgress=sequence((await this.db.prepare('SELECT activity_key FROM memorisation_activity_settings WHERE active=0 ORDER BY activity_key LIMIT 6001').all()).results);
+   const publishedTeacherClasses=sequence((await this.db.prepare('SELECT DISTINCT lc.activity_key,lc.class_id FROM published_lesson_teachers lt JOIN program_publication_state ps ON ps.activity_key=lt.activity_key AND ps.latest_publication_id=lt.publication_id JOIN published_lesson_classes lc ON lc.activity_key=lt.activity_key AND lc.publication_id=lt.publication_id AND lc.lesson_anchor=lt.lesson_anchor WHERE lt.account_id=? COLLATE NOCASE ORDER BY lc.activity_key,lc.class_id LIMIT 6001').bind(canonicalSub).all()).results);
    const timed=this.env.ACADEMY_LEARNING_OPERATIONS==='3'?sequence((await this.db.prepare("SELECT g.assignment_id,g.activity_key,g.attendance_date,g.stable_key,g.starts_at,g.first_until,g.correction_until,g.correction_reopen_until FROM attendance_substitutes g JOIN activities a USING(activity_key) WHERE g.account_id=? COLLATE NOCASE AND a.active=1 AND a.lifecycle='ACTIVE' AND g.revoked_at IS NULL AND g.starts_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now') AND max(g.correction_until,coalesce(g.correction_reopen_until,''))>strftime('%Y-%m-%dT%H:%M:%fZ','now') LIMIT 6001").bind(canonicalSub).all()).results):[];
    const rights=bounded({
     globalAdmin:state.account.global_admin===1,
+    nativeState:{memorisation:{personalActive:!personalSetting||personalSetting.active===1,disabledActivityKeys:disabledProgress.map(x=>x.activity_key)},publishedTeacherClasses:publishedTeacherClasses.map(r=>pick(r,['activity_key','class_id'])),acceptedHead:before.acceptedHead,account:pick(state.account,['account_id','login_link_id','display_name','active','global_admin','substitute_grants']),activities:state.activities.map(r=>pick(r,['activity_key','activity_id','kind','name','active','lifecycle','website_visible','legacy_access_model','policy_review_state'])),roles:state.roles.map(r=>pick(r,['activity_key','role'])),subscriptions:state.subscriptions.map(r=>pick(r,['activity_key'])),contexts:state.contexts.map(r=>pick(r,['scope','courseId','courseName','role','programLibrary','activityKind','activityKey','mediaOnly'])),myLinksAvailable:state.myLinksAvailable===true,monthlyMedia:state.monthlyMedia.map(r=>pick(r,['activity_key','lesson_month','revision','class_ids_json'])),monthlyMediaEnabled:state.monthlyMediaEnabled===true,surahGrants:state.surahGrants.map(r=>pick(r,['activity_key','surah_id','revision'])),surahGrantsEnabled:state.surahGrantsEnabled===true},
     activities:state.activities.map(r=>pick(r,['activity_key','activity_id','kind','name','active','lifecycle','website_visible','legacy_access_model','policy_review_state'])),
     roles:state.roles.map(r=>pick(r,['activity_key','role'])),
     subscriptions:state.subscriptions.map(r=>pick(r,['activity_key'])),
@@ -106,7 +109,7 @@ export class AcademyNativeAdapter {
     monthlyMediaEnabled:state.monthlyMediaEnabled===true,
     surahGrants:state.surahGrants.map(r=>pick(r,['activity_key','surah_id','revision'])),
     surahGrantsEnabled:state.surahGrantsEnabled===true,
-    classMemberships:memberships.map(r=>pick(r,['activity_key','class_id','active','start_date','end_date'])),
+    classMemberships:memberships.map(r=>pick(r,['enrollment_id','activity_key','class_id','active','start_date','end_date'])),
     classTeacherAssignments:teachers.map(r=>pick(r,['activity_key','class_id'])),
     substituteGrants:timed
    });
@@ -115,7 +118,7 @@ export class AcademyNativeAdapter {
    const ends=timed.map(g=>Math.max(Date.parse(g.correction_until),g.correction_reopen_until?Date.parse(g.correction_reopen_until):-Infinity)).map(n=>Math.floor(n/1000));
    requireThat(ends.every(n=>safeInt(n)),'NATIVE_TIMED_AUTHORITY_INVALID',503);
    const checkedAt=this.clock();requireThat(safeInt(checkedAt)&&checkedAt>=vat&&checkedAt<vat+900,'NATIVE_VALIDATION_EXPIRED',503);
-   return {app:'academy',sub:canonicalSub,credentialEpoch,globalAdmin:rights.globalAdmin,rights,ownerVector:vectorAfter.ownerVector,vectorGuards:vectorAfter.vectorGuards,pv:vectorAfter.pv,vat,primaryCheckedAt:checkedAt,fence:after,timedUntil:ends.length?Math.min(...ends):Number.MAX_SAFE_INTEGER};
+   return {app:'academy',sub:canonicalSub,credentialEpoch,globalAdmin:rights.globalAdmin,nativeIdentity:{sub:canonicalSub,ce:credentialEpoch,displayName:state.account.display_name,uniqueid:state.account.login_link_id,globalAdmin:rights.globalAdmin},rights,ownerVector:vectorAfter.ownerVector,vectorGuards:vectorAfter.vectorGuards,pv:vectorAfter.pv,vat,primaryCheckedAt:checkedAt,fence:after,timedUntil:ends.length?Math.min(...ends):Number.MAX_SAFE_INTEGER};
   }
   reject('NATIVE_AUTHORITY_CHANGED_DURING_CAPTURE',503);
  }

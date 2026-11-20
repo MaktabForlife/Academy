@@ -1,3 +1,4 @@
+import {nativeAuthContext,nativeRequestContext} from '../v111/native-context.js';
 // Native Academy homepage adapter. Cached display data never grants access.
 import {hosting} from '../hosting.mjs';
 import {bodyJSON,fail,id,random,signedHeaders,websiteServerOrigin,sha256} from './web-platform/protocol.mjs';
@@ -39,6 +40,7 @@ export async function synchronizePortalAccount(env,db,accountId,fetcher=fetch){
  throw fail('Older account changes are still being connected. Please retry.',503,'ACCOUNT_DELIVERY_PENDING');
 }
 export async function portalStudioSummary(env,auth,{action='bootstrap',websiteIds,offeringId,sessionId}={},fetcher=fetch){
+ if(nativeAuthContext(auth)){const {academyStudioPortal}=await import('../v111/studio-portal.mjs');return academyStudioPortal(env,auth,{operation:action==='join'?'join':'summary',input:{action,...(websiteIds?{websiteIds}:{}),...(offeringId?{offeringId,sessionId}: {})}});}
  const state=auth.authority||auth.state;
  const value={issuedAt:Date.now(),accountId:state.account.account_id,epoch:state.account.credential_epoch,globalAdmin:Boolean(state.account.global_admin),sessionId:auth.sid,...(action==='join'?{}:{action}),...(websiteIds?{websiteIds}:{}),...(offeringId?{offeringId,lessonSessionId:sessionId}:{})};
  const path=action==='join'?'/internal/studio/hub-join':'/internal/studio/hub-summary',signed=await signedHeaders(env.ACADEMY_TO_WEBSITE_SECRET,path,value);
@@ -52,7 +54,15 @@ export async function nativePortal(request,env,{repository,authenticate,read,min
  const conditionalGET=request.method==='GET'&&path==='/api/academy/hub/read';
  if(request.method!=='POST'&&!conditionalGET)throw fail('Use a POST request.',405);
  const origin=request.headers.get('Origin'),allowed=new Set([hosting().academyPortalOrigin,...hosting().academyLegacyOrigins]);
- if(!allowed.has(origin))throw fail('Reopen this action from Academy.',403,'ORIGIN_REQUIRED');
+ // Same-origin browser GET does not normally carry Origin. The selected V2
+ // wrapper has already verified the access cookie, current controls and the
+ // full-context business CSRF proof; neither an unbranded GET nor a POST uses
+ // this exception.
+ const native=conditionalGET&&env.UAA_V2_ENABLED==='1'&&!origin?nativeRequestContext(request):null;
+ const site=request.headers.get('Sec-Fetch-Site'),referer=request.headers.get('Referer');
+ let sameReferer=!referer;try{if(referer)sameReferer=new URL(referer).origin==='https://ummabbadacademy.app';}catch{}
+ const verifiedGET=Boolean(native&&native.runtime.assertCapability(native.cap).csrfValid===true&&request.headers.get('X-UAA-Request')==='2'&&request.headers.get('X-UAA-Expected-Context')&&(!site||site==='same-origin')&&sameReferer);
+ if(!allowed.has(origin)&&!verifiedGET)throw fail('Reopen this action from Academy.',403,'ORIGIN_REQUIRED');
  let input;if(conditionalGET){const raw=new URL(request.url).searchParams.get('request');if(!raw||raw.length>8192)throw fail('Choose a bounded Academy view.');try{input=JSON.parse(raw);}catch{throw fail('Invalid Academy request.');}if(!input||Array.isArray(input)||typeof input!=='object')throw fail('Invalid Academy request.');}else input=await bodyJSON(request.body,8192);
  if(path==='/api/academy/hub/login'){
   only(input,['uniqueid','pin','setup','pinConfirmation']);
@@ -88,8 +98,8 @@ export async function nativePortal(request,env,{repository,authenticate,read,min
   if(input.kind!=='bootstrap')throw fail('Choose a valid Academy view.');
   only(value,['mode','preferredMode','preferredAccount']);
   const mode=value.mode||value.preferredAccount===state.account.account_id&&value.preferredMode||undefined;
-  const claims=await verifySessionToken((request.headers.get('Authorization')||'').slice(7),env);
-  const account={accountId:state.account.account_id,displayName:state.account.display_name,globalAdmin:Boolean(state.account.global_admin),cacheSession:await sha256(auth.sid),verifiedAt:Math.min(Date.now(),claims.iat*1000),sessionExpiresAt:claims.exp*1000};
+  const local=nativeAuthContext(auth),claims=local?null:await verifySessionToken((request.headers.get('Authorization')||'').slice(7),env);
+  const account={accountId:state.account.account_id,displayName:state.account.display_name,globalAdmin:Boolean(state.account.global_admin),cacheSession:await sha256(auth.sid),...(local?{authVersion:2,validationDeadlineMs:local.cap.deadline*1000,originalExpiresAtMs:local.cap.binding.s_exp*1000}:{verifiedAt:Math.min(Date.now(),claims.iat*1000),sessionExpiresAt:claims.exp*1000})};
   const parts=await Promise.allSettled([studio({action:'bootstrap'}),dashboard(mode?{mode}:{})]),errors={};
   for(const [i,key]of ['navigation','dashboard'].entries())if(parts[i].status==='rejected'){const e=parts[i].reason;if(e.status===401||e.code==='ACCESS_REFRESH_REQUIRED')throw e;errors[key]={status:e.status||503,code:e.code||'UNAVAILABLE'};}
   await current();return {configuration:config,account,navigation:parts[0].status==='fulfilled'?parts[0].value.navigation:null,dashboard:parts[1].status==='fulfilled'?portalDashboardLinks(parts[1].value,parts[0].status==='fulfilled'?parts[0].value:null):null,errors};
@@ -97,7 +107,7 @@ export async function nativePortal(request,env,{repository,authenticate,read,min
  if(path==='/api/academy/hub/open'){
   only(input,['navigation','dashboard']);if(Boolean(input.navigation)===Boolean(input.dashboard))throw fail('Choose one destination.');
   const choice=input.dashboard?dashboardChoice(state,input.dashboard):programmeChoice(state,input.navigation,env);
-  await current();return {token:await mint(auth,choice.context||auth.context),destination:choice.destination,circles:{mode:input.dashboard?.mode||'learn',returnUrl:config.academyOrigin+'/?workspace='+(input.dashboard?.mode||'learn')}};
+  await current();return {...(nativeAuthContext(auth)?{authVersion:2}:{token:await mint(auth,choice.context||auth.context)}),destination:choice.destination,circles:{mode:input.dashboard?.mode||'learn',returnUrl:config.academyOrigin+'/?workspace='+(input.dashboard?.mode||'learn')}};
  }
  if(path==='/api/academy/hub/join'){
   const selected=dashboardJoinInput(state,input);await nativeJoinOwnership(repository.coreDb,state.account.account_id,selected.target);
@@ -131,6 +141,7 @@ export async function nativePortal(request,env,{repository,authenticate,read,min
 }
 async function admitted(repository,auth){
  const state=auth.authority||auth.state;
+ if(nativeAuthContext(auth))return;
  const row=await repository.coreDb.prepare('SELECT active,admitted,epoch,global_admin FROM website_platform_account_state WHERE account_id=?').bind(state.account.account_id).first();
  if(!row?.active||!row.admitted||row.epoch!==state.account.credential_epoch||Boolean(row.global_admin)!==Boolean(state.account.global_admin))throw fail('Your Academy account is unavailable or changed.',401,'SESSION_ENDED');
 }

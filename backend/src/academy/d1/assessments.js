@@ -1,3 +1,4 @@
+import {proposedAssessmentIds} from './assessment-identities.js';
 import {imtihaanPaperValidation} from './assessment-imtihaan-workflow.js';
 import {publishedAssessmentRows} from './published-assessments.js';
 import {assessmentTableStates,assessmentTablePlan,assessmentRegisterMarks} from './assessment-table.js';
@@ -178,7 +179,7 @@ export function d1Assessments(repository,auth){
      context.groupHasMarks=input.table&&members.some(a=>context.tableStates.get(a.assessment_id)?.entered);
      for(const a of members){const plan=input.table&&row.changes?await assessmentTablePlan(s,a,row,context):await mutationPlan('save',{...row,registerId:register.register_id,activityKey:a.activity_key,assessmentId:a.assessment_id,revision:a.revision},a,context);statements.push(...plan.statements);changed.push(a.assessment_id);}
     }else{
-     const v=await fields({...row,activityKey:classes[0].activityKey},null,choices,examiners,timezone),ids=classes.map(()=>crypto.randomUUID());
+     const v=await fields({...row,activityKey:classes[0].activityKey},null,choices,examiners,timezone),ids=await proposedAssessmentIds(s,row,classes)||classes.map(()=>crypto.randomUUID());
      for(const [i,c] of classes.entries()){
       const phaseId=await phaseFor(row.phaseId,c.activityKey,phases),id=ids[i];
       created.push({assessment_id:id,activity_key:c.activityKey,class_id:c.classId,title:v.title,subject:v.subject,exam_date:v.date,duration_minutes:v.duration,maximum_mark:v.maximum,phase_id:phaseId,subject_descriptor:v.descriptor,created_at:now,created_by:actor,updated_at:now,register_id:register.register_id,examiner_id:v.examinerId,...(native?{assessment_kind:v.timing.kind,timing_mode:v.timing.mode,timezone:v.timing.timezone,available_from:v.timing.opens,due_at:v.timing.due,exam_cutoff:v.timing.cutoff,allowance_minutes:v.timing.allowance}:{})});
@@ -198,7 +199,8 @@ export function d1Assessments(repository,auth){
   return s.change('create',input,input.activityKey,async()=>{
    await s.requireAdminClasses(targets);
    const selectedRegister=input.registerId?await requireRegisterClass(s,input.registerId,targets[0].activityKey,targets[0].classId):null;
-   const v=await fields(input),now=new Date().toISOString(),statements=[],ids=targets.map(()=>crypto.randomUUID()),registers=new Map(),phases=new Map();
+   if(s.selectedV2&&input.creating===true&&!input.registerId)throw fail('Choose an existing Imtihaan before creating stable assessment records.',400,'ASSESSMENT_REGISTER_REQUIRED');
+   const v=await fields(input),now=new Date().toISOString(),statements=[],ids=await proposedAssessmentIds(s,input,targets)||targets.map(()=>crypto.randomUUID()),registers=new Map(),phases=new Map();
    let shared=null;
    if(targets.length>1&&!input.registerId&&!input.phaseId){shared=crypto.randomUUID();statements.push(...newRegisterStatements(s,{id:shared,name:v.title,keys:[...new Set(targets.map(c=>c.activityKey))]}));}
    if(v.examinerId)for(const key of new Set(targets.map(t=>t.activityKey)))await s.examinerChoice(v.examinerId,key);

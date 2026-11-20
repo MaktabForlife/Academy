@@ -1,3 +1,4 @@
+import {nativeRequestContext,capturedAcademyState,bindNativeAuth} from '../v111/native-context.js';
 import {verifySessionToken} from '../../lib/auth-primitives.js';
 import {rehearsalError} from './repository.js';
 import {selectWorkspace} from './workspace-access.js';
@@ -12,6 +13,12 @@ export const findD1Context=(state,target)=>state?.contexts.find(c=>d1ContextEqua
 // Shared by the HTTP entrypoint and the Open Library coordinator. Every call
 // checks current D1 state; a signed token alone never confers current authority.
 export async function authenticatedD1Account(request,env,repository) {
+  if(env.UAA_V2_ENABLED==='1'){
+    const selected=nativeRequestContext(request);if(!selected)throw rehearsalError('Your Academy session has ended.',401,'SESSION_ENDED');
+    const state=capturedAcademyState(selected),context=state.contexts[0];
+    if(!context)throw rehearsalError('No authorised Academy context is available.',403,'NO_CONTEXT');
+    return bindNativeAuth(selectWorkspace(request,{state,sid:selected.cap.binding.sid,context,user:{type:'account',accountid:state.account.account_id,uniqueid:state.account.login_link_id,username:state.account.display_name,role:state.account.global_admin?'GLOBAL_ADMIN':context.role,scope:context.scope,courseid:context.courseId}}),selected);
+  }
   const header=request.headers.get('Authorization')||'';
   if(!header.startsWith('Bearer ')||header.length>4096)throw rehearsalError('Your Academy session has ended.',401,'SESSION_ENDED');
   const token=await verifySessionToken(header.slice(7),env);

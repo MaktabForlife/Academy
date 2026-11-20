@@ -11,5 +11,5 @@
  drawer.addEventListener('click',event=>{if(event.target===drawer||event.target.closest('nav a,nav button'))close();});
  const phone=matchMedia('(max-width:767px)');
  function layout(){button.hidden=!phone.matches;if(phone.matches)drawer.append(nav);else{close();position.after(nav);}}
- phone.addEventListener('change',layout);layout();window.addEventListener('m4l-academy-session',close);
+ phone.addEventListener('change',layout);layout();window.addEventListener('m4l-academy-session',close);window.addEventListener('academy-v2-context',close);window.addEventListener('academy-v2-mask',event=>{if(event.detail?.masked)close();});
 })();

@@ -1,9 +1,19 @@
 /* V105.3.4.13 — editable timetable boards share one draft across in-page and browser tabs. */
 (()=>{'use strict';
  if(window.M4L_PROGRAM_ADMIN_REDIRECT)return;
+ const v2=location.origin==='https://ummabbadacademy.app'&&document.querySelector('meta[name="uaa-auth-version"]')?.content==='2';let auth=null,protectedForm=null,protectedRevision=null,checkpoint=Promise.resolve();
+ const ownerKey=()=>v2?(window.M4L_ACADEMY_AUTH?.ownerKey()||''):localStorage.getItem('m4l_account_token')||'';
+ const nativeClient=async()=>auth||(auth=await window.M4L_ACADEMY_AUTH.ready);
+ const protectedSnapshot=()=>({draft:structuredClone(state.draft),effectiveFrom:state.effectiveFrom,converted:state.converted,conversion:structuredClone(state.conversion)});
+ const draftRevision=async value=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(value))))].map(v=>v.toString(16).padStart(2,'0')).join('');
+ const applyCurrent=async result=>{protectedRevision=await draftRevision(result.revision);state.data=result;state.draft=structuredClone(result.draft);state.baseline=JSON.stringify(result.draft);state.pending=null;state.conversion=result.conversion;state.converted=false;state.effectiveFrom=result.workspaceReady?nextDay(result.today):result.today;state.preview=null;render();};
+ const applyRetained=saved=>{if(!saved?.draft||!Array.isArray(saved.draft.rules))throw Error('The retained timetable is invalid.');state.draft=displayDraft(saved.draft);state.effectiveFrom=saved.effectiveFrom||state.data.today;state.converted=Boolean(saved.converted);state.conversion=saved.conversion||state.conversion;state.pending=null;render();};
+ async function prepareForm(result,restore){protectedRevision=await draftRevision(result.revision);if(!protectedForm){const {createAcademyNativeForm}=await import('/js/m4l-v111-editor.mjs');protectedForm=await createAcademyNativeForm({client:await nativeClient(),resource:{type:'academy-program-timetable',programId:id},capture:protectedSnapshot,baseVersion:()=>protectedRevision,isDirty:dirty,applyRetained,applyCurrent,readCurrent:()=>api('get'),roots:[$('tt-workspace')],status:message,host:document.body,onUnavailable:error=>message('Protected timetable storage is unavailable. '+error.message,true)});}await protectedForm.open(result,{restore});}
+ async function nativeAPI(action,body){const client=await nativeClient(),writing=['save','publish','copy','status','prepare','prepare-library'].includes(action)||action==='validate'&&Boolean(body.operationId);if(!writing){if(action==='get')await client.prepareBusiness();return client.request('/api/admin/platform/program-timetable/'+action,{id,...body},{headers:{'X-Academy-Workspace':'ADMIN'}});}if(!protectedForm)throw Error('Prepare the protected timetable before sending a change.');let attempt;try{await checkpoint;attempt=await protectedForm.beforeMutation({action,input:body},{sensitive:true});let result=await client.request('/api/admin/platform/program-timetable/'+action,{id,...body},{headers:{'X-Academy-Workspace':'ADMIN'}});result=await protectedForm.completeNativeMutation(attempt,result,{operationId:body.operationId});protectedForm.reveal(result);return result;}catch(error){if(attempt)await protectedForm.unknown(attempt);throw error;}}
+
   const $=id=>document.getElementById(id),esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const id=new URLSearchParams(location.search).get('program'),storageKey=`m4l-timetable-pending:${id}`,draftKey=`m4l-timetable-draft:${id}`,format='105.3.2.2-weekly';
-  const tokenHash=[...(localStorage.getItem('m4l_account_token')||'')].reduce((n,char)=>Math.imul(n^char.charCodeAt(0),16777619)>>>0,2166136261).toString(36);
+  const tokenHash=[...ownerKey()].reduce((n,char)=>Math.imul(n^char.charCodeAt(0),16777619)>>>0,2166136261).toString(36);
   const sharedKey=`m4l-timetable-shared:${id}:${tokenHash}`;
   let sharedSnapshot=null,sharedStamp=0,sharedConflict=false,revisionStamp=0;
   const timezone='Africa/Johannesburg';
@@ -15,9 +25,10 @@
   const dirty=()=>Boolean(state.draft)&&JSON.stringify(state.draft)!==state.baseline;
   const message=(text,error=false)=>{$('tt-message').textContent=text;$('tt-message').classList.toggle('is-error',error);};
   const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b),mergeValue=window.M4L_TIMETABLE_SYNC.merge;
-  function sharedRecord(){try{return JSON.parse(localStorage.getItem(sharedKey)||'null');}catch{return null;}}
+  function sharedRecord(){if(v2)return null;try{return JSON.parse(localStorage.getItem(sharedKey)||'null');}catch{return null;}}
   function showTabConflict(){sharedConflict=true;$('tt-tab-warning').hidden=false;controls();}
   function syncShared(preferLocalRevision=false){
+    if(v2)return true;
     if(!state.draft||!state.data||sharedConflict)return false;
     const latest=sharedRecord();
     if(latest?.draft&&latest.stamp>sharedStamp){
@@ -41,6 +52,7 @@
     return true;
   }
   function remember(preferLocalRevision=false){
+    if(v2){if(protectedForm&&state.draft){const version=auth?.getState().viewVersion;checkpoint=protectedForm.checkpoint(protectedSnapshot()).catch(error=>{if(auth?.getState().viewVersion!==version)return {cancelled:true};$('tt-workspace').inert=true;message(error.message,true);throw error;});checkpoint.catch(()=>{});}return;}
     if(!state.draft||!state.data)return;
     syncShared(preferLocalRevision);
     sessionStorage.setItem(draftKey,JSON.stringify({draft:state.draft,baseline:state.baseline,revision:state.data.revision,effectiveFrom:state.effectiveFrom,converted:state.converted,conversion:state.conversion,sharedSnapshot}));
@@ -51,11 +63,13 @@
     return {format,timezone,rules:raw.rules.filter(r=>r.kind!=='EXPLICIT').map(({startDate,endDate,kind,...rule})=>({...rule,startTime:inputTime(rule.startTime),endTime:inputTime(rule.endTime)}))};
   }
   async function api(action,body={}){
+    if(v2)return nativeAPI(action,body);
     const token=localStorage.getItem('m4l_account_token');if(!token)throw new Error('Sign in through your personal Academy account link first.');
     const response=await fetch(`${window.M4L_CONFIG?.API_BASE||''}/api/admin/platform/program-timetable/${action}`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({id,...body})});
     const result=await response.json();if(!response.ok||!result.success)throw Object.assign(new Error(result.error||'The request could not be confirmed.'),result,{status:response.status});if(action!=='publish')void window.M4L_REFRESH_AFTER_SAVE?.(result,token);return result;
   }
   async function listPrograms(){
+    if(v2){const client=await nativeClient(),result=await client.request('/api/admin/platform/programs/list',{}, {headers:{'X-Academy-Workspace':'ADMIN'}});return result.programs.filter(row=>row.mode==='PROGRAM'&&row.status!=='ARCHIVED'&&row.id);}
     const token=localStorage.getItem('m4l_account_token');if(!token)throw Error('Sign in through your personal Academy account link first.');
     const response=await fetch(`${String(window.M4L_CONFIG?.API_BASE||'').replace(/\/$/,'')}/api/admin/platform/programs/list`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:'{}'});
     const result=await response.json();if(!response.ok||!result.success)throw Error(result.error||'Programs could not be loaded.');
@@ -130,9 +144,9 @@
   async function load(restore=true){
     sharedConflict=false;sharedSnapshot=null;sharedStamp=0;revisionStamp=0;$('tt-tab-warning').hidden=true;
     let result=await api('get');state.data=result;
-    if(result.workspaceReady&&workspace?.ensureClass){result=await workspace.ensureClass();state.data=result;}
+    if(!v2&&result.workspaceReady&&workspace?.ensureClass){result=await workspace.ensureClass();state.data=result;}
     state.conversion=result.conversion;state.converted=false;state.draft=structuredClone(result.draft);state.baseline=JSON.stringify(result.draft);state.preview=null;state.effectiveFrom=result.workspaceReady?nextDay(result.today):result.today;
-    const shared=sharedRecord();
+    if(!v2){const shared=sharedRecord();
     if(shared?.draft&&shared.revision===result.revision){state.draft=displayDraft(shared.draft);state.baseline=shared.baseline;sharedSnapshot=structuredClone(shared.draft);sharedStamp=shared.stamp;revisionStamp=Number(shared.revisionStamp||0);}
     else if(shared?.draft){
       try{state.draft=mergeValue(JSON.parse(shared.baseline),shared.draft,result.draft);}catch{state.draft=displayDraft(shared.draft);showTabConflict();}
@@ -149,36 +163,37 @@
         state.effectiveFrom=saved.effectiveFrom||result.today;state.converted=saved.converted;state.conversion=saved.conversion||state.conversion;
       }
     }catch{}
-    if(state.pending)state.draft=displayDraft(state.pending.body.draft);
+    if(state.pending)state.draft=displayDraft(state.pending.body.draft);}
+    if(v2){await workspace?.openProtected?.(result,{restore});await prepareForm(result,restore);}
     planner?.reset?.();
     $('tt-workspace').hidden=!result.prepared;$('tt-prepare').hidden=result.prepared;$('tt-preview-panel').hidden=true;closePublishDialog();$('tt-validation').hidden=true;
     render();remember(true);message(!result.prepared?'Prepare the empty timetable tables to begin.':!result.coordinatorAvailable?'Saving is unavailable until the backend coordinator is configured.':dirty()?'Your unfinished timetable is kept.':!result.catalog.subjects.length?'No subjects yet. Open Program management to add subjects and classes.':'');
   }
-  function clearPending(){state.pending=null;sessionStorage.removeItem(storageKey);}
+  function clearPending(){state.pending=null;if(!v2)sessionStorage.removeItem(storageKey);}
   async function mutate(action,retried=false){
     if(sharedConflict)throw Error('Resolve the change from the other tab before saving.');
     const beforeSync=JSON.stringify(state.draft),beforeRevision=state.data.revision;
     if(!state.pending&&!syncShared())throw Error('The shared draft could not be updated. Keep this tab open and copy any unsaved details before reloading.');
     if(beforeSync!==JSON.stringify(state.draft)||beforeRevision!==state.data.revision){invalidate();render();if(action==='publish')throw Error('Another tab changed the timetable. Review the updated board and preview again before publishing.');}
-    if(!state.pending){state.pending={action,body:{revision:state.data.revision,draft:structuredClone(state.draft),operationId:crypto.randomUUID(),...(action==='publish'?{effectiveFrom:state.effectiveFrom||state.data.today}:{}),...(state.converted?{convertLegacy:true}:{})}};sessionStorage.setItem(storageKey,JSON.stringify(state.pending));}
+    if(!state.pending){state.pending={action,body:{revision:state.data.revision,draft:structuredClone(state.draft),operationId:crypto.randomUUID(),...(action==='publish'?{effectiveFrom:state.effectiveFrom||state.data.today}:{}),...(state.converted?{convertLegacy:true}:{})}};if(!v2)sessionStorage.setItem(storageKey,JSON.stringify(state.pending));}
     try{
       const result=await api(state.pending.action,state.pending.body),wasPublish=state.pending.action==='publish';
-      state.data.revision=result.revision;state.data.currentPublicationId=result.currentPublicationId;
+      state.data.revision=result.revision;if(v2)protectedRevision=await draftRevision(result.revision);state.data.currentPublicationId=result.currentPublicationId;
       if(result.program){state.data.program=result.program;window.M4L_PROGRAM_MANAGEMENT_NAV?.update(result.program);}
       revisionStamp=Math.max(Date.now(),revisionStamp+1);
       if(result.publications)state.data.publications=result.publications;
       if(state.data.workspaceReady){state.data.timetableStatus=wasPublish?'PUBLISHED':'DRAFT';state.data.timetableEditable=!wasPublish;}
-      state.baseline=JSON.stringify(state.draft);clearPending();state.conversion=null;state.converted=false;remember(true);invalidate();render();
+      state.baseline=JSON.stringify(state.draft);clearPending();if(v2)await protectedForm.saved();state.conversion=null;state.converted=false;remember(true);invalidate();render();
       let refreshNote='';
       if(wasPublish&&state.data.workspaceReady){
         message(`Version ${result.version} published. Refreshing the public timetable…`);
-        const refreshed=await window.M4L_REFRESH_AFTER_SAVE?.(result,localStorage.getItem('m4l_account_token'));
+        const refreshed=await window.M4L_REFRESH_AFTER_SAVE?.(result,ownerKey());
         refreshNote=refreshed&&!refreshed.pending?' Public timetable refreshed.':' Public timetable update is pending and will be retried.';
       }
       message(wasPublish?`Version ${result.version} published, effective ${result.effectiveFrom||'as originally recorded'}.${refreshNote}`:'Weekly draft saved. The timetable in effect is unchanged.');
     }catch(error){
       if(error.status&&error.status<500){clearPending();if(error.status!==409||action!=='save')remember();}
-      if(action==='save'&&!retried&&error.status===409&&error.code!=='TIMETABLE_READ_ONLY'&&!sharedConflict){
+      if(!v2&&action==='save'&&!retried&&error.status===409&&error.code!=='TIMETABLE_READ_ONLY'&&!sharedConflict){
         const latest=await api('get');
         try{state.draft=mergeValue(JSON.parse(state.baseline),state.draft,latest.draft);}catch{showTabConflict();throw Error('Another tab changed the same lesson. Copy any unsaved details before reloading the latest version.');}
         state.data=latest;state.baseline=JSON.stringify(latest.draft);revisionStamp=Math.max(Date.now(),revisionStamp+1);remember(true);render();
@@ -330,7 +345,7 @@
   };
   $('tt-review-classes').onclick=()=> $('pg-tab-classes')?.click();
   $('tt-review-card').onclick=()=> $('pg-tab-public-card')?.click();
-  $('tt-save').onclick=()=>work(()=>mutate('save'));$('tt-retry').onclick=()=>work(()=>mutate(state.pending.action));
+  $('tt-save').onclick=()=>work(()=>mutate('save'));$('tt-retry').onclick=()=>{if(v2){message('Review the previous outcome before another manual save.',true);return;}void work(()=>mutate(state.pending.action));};
   $('tt-prepare').onclick=()=>work(async()=>{await api('prepare');await load();});
   for(const action of ['validate','preview'])$(`tt-${action}`).onclick=()=>work(async()=>{if(action==='validate'&&state.data.workspaceReady&&dirty())await mutate('save');const result=await api(action,{draft:state.draft,effectiveFrom:state.effectiveFrom||state.data.today,...(action==='validate'&&state.data.workspaceReady?{revision:state.data.revision,operationId:crypto.randomUUID()}: {})});if(action==='validate'&&state.data.workspaceReady)state.data.timetableStatus=result.valid?'VALID':'DRAFT';showValidation(result);state.preview=result;if(action==='preview')showOccurrences(result,'Weekly timetable preview');else {$('tt-preview-panel').hidden=true;closePublishDialog();}message(result.valid?(action==='preview'?'Preview ready. Publish this timetable from the section below to choose the effective date.':'Validation passed. Preview to review the weekly pattern.'):'Resolve the listed issues before publishing.',!result.valid);});
   $('tt-publish').onclick=()=>work(async()=>{
@@ -361,7 +376,7 @@
   }
   async function reusePublication(publicationId){
     if(state.busy||state.pending)return;
-    if(state.data.workspaceReady){if(dirty()){message('Save or discard your draft before copying.',true);return;}await work(async()=>{await api('copy',{timetableId:publicationId,revision:state.data.revision,operationId:crypto.randomUUID()});localStorage.removeItem(sharedKey);sessionStorage.removeItem(draftKey);await load(false);message('Timetable draft ready to edit. The published timetable is unchanged.');});return;}
+    if(state.data.workspaceReady){if(dirty()){message('Save or discard your draft before copying.',true);return;}await work(async()=>{await api('copy',{timetableId:publicationId,revision:state.data.revision,operationId:crypto.randomUUID()});if(!v2)localStorage.removeItem(sharedKey);if(!v2)sessionStorage.removeItem(draftKey);await load(false);message('Timetable draft ready to edit. The published timetable is unchanged.');});return;}
     const publication=state.history.find(p=>p.id===publicationId);if(!publication)return;
     if(dirty()){
       state.reuseId=publicationId;$('tt-reuse-warning').hidden=false;return;
@@ -377,21 +392,21 @@
     });
   }
   if($('pw-copy'))$('pw-copy').onclick=()=>void reusePublication(state.draft.timetableId);
-  for(const status of ['ARCHIVED','CANCELLED'])if($('pw-'+(status==='ARCHIVED'?'archive':'cancel')))$('pw-'+(status==='ARCHIVED'?'archive':'cancel')).onclick=()=>work(async()=>{if(!window.confirm(`${status==='ARCHIVED'?'Archive':'Cancel'} this timetable? Its saved history is kept; scheduled lessons will stop appearing.`))return;await api('status',{timetableId:state.draft.timetableId,status,revision:state.data.revision,operationId:crypto.randomUUID()});localStorage.removeItem(sharedKey);sessionStorage.removeItem(draftKey);await load(false);message('Timetable '+status.toLowerCase()+'.');});
+  for(const status of ['ARCHIVED','CANCELLED'])if($('pw-'+(status==='ARCHIVED'?'archive':'cancel')))$('pw-'+(status==='ARCHIVED'?'archive':'cancel')).onclick=()=>work(async()=>{if(!window.confirm(`${status==='ARCHIVED'?'Archive':'Cancel'} this timetable? Its saved history is kept; scheduled lessons will stop appearing.`))return;await api('status',{timetableId:state.draft.timetableId,status,revision:state.data.revision,operationId:crypto.randomUUID()});if(!v2)localStorage.removeItem(sharedKey);if(!v2)sessionStorage.removeItem(draftKey);await load(false);message('Timetable '+status.toLowerCase()+'.');});
   $('tt-reuse-keep').onclick=()=>{$('tt-reuse-warning').hidden=true;state.reuseId=null;};
   $('tt-reuse-save').onclick=()=>work(async()=>{await mutate('save');const next=state.reuseId;state.reuseId=null;$('tt-reuse-warning').hidden=true;setTimeout(()=>void reusePublication(next),0);});
   async function openSavedDraft(){
     if(!window.confirm('Discard all unsaved timetable changes and return to the last saved draft? This cannot be undone.'))return;
-    localStorage.removeItem(sharedKey);
-    sessionStorage.removeItem(draftKey);
-    clearPending();
+    if(!v2)localStorage.removeItem(sharedKey);
+    if(!v2)sessionStorage.removeItem(draftKey);
+    clearPending();if(v2&&protectedForm){await protectedForm.discard();message('Unsaved timetable edits discarded. The saved draft is unchanged.');return;}
     $('tt-refresh-warning').hidden=true;
     await load(false);
     message('Unsaved timetable edits discarded. Your saved draft is unchanged.');
   }
   async function loadUnfinishedDraft(){
     const unfinished=structuredClone(state.draft),wasConverted=state.converted,latest=await api('get');
-    localStorage.removeItem(sharedKey);
+    if(!v2)localStorage.removeItem(sharedKey);
     clearPending();
     state.data=latest;state.baseline=JSON.stringify(latest.draft);state.draft=displayDraft(unfinished);
     state.conversion=latest.conversion;state.converted=wasConverted;
@@ -409,6 +424,7 @@
   $('tt-convert').onclick=()=>{state.converted=true;state.baseline='';invalidate();render();message('The weekly rows are ready to edit. Saving creates a new draft version; the previous dated draft stays preserved.');};
   document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key==='Enter'&&!$('tt-save').disabled&&(!window.M4L_PROGRAM_ADMIN||['timetable','review'].includes(window.M4L_PROGRAM_ADMIN.tab()))){event.preventDefault();void work(()=>mutate('save'));}});
   window.addEventListener('storage',event=>{
+    if(v2)return;
     if(event.key!==sharedKey||!state.data||!state.draft||sharedConflict)return;
     const before=JSON.stringify(state.draft),revision=state.data.revision;
     if(!syncShared())return;
@@ -416,5 +432,6 @@
   });
   window.addEventListener('beforeunload',event=>{if(dirty()||state.pending){remember();event.preventDefault();event.returnValue='';}});
   window.M4L_PROGRAM_TIMETABLE={hasEdits:()=>dirty()||Boolean(state.pending)||Boolean(workspace?.hasEdits()),updateProgram(program){if(state.data&&program.id===id&&program.revision!==state.data.program.revision){state.data.program=program;render();}}};
+  if(v2)window.addEventListener('academy-v2-revalidate',()=>{void protectedForm?.revalidate().catch(error=>message(error.message,true));});
   void work(load);
 })();

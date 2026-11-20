@@ -5,10 +5,11 @@ import {readCookies} from '../tokens.mjs';
 import {outboxSchemaSQL,retryDelaySeconds,deliverOutbox} from '../outbox.mjs';
 import {canonical,digest,bytes,opaque} from '../codec.mjs';
 import {serviceHeaders} from '../events.mjs';
-const now=1000000,zeroJitter=()=>0;
+const now=1000000,zeroJitter=()=>0,testSequences=new WeakMap();
 function setup(){const f=database('academy');f.raw.exec(outboxSchemaSQL);return f;}
 async function seed(f,{targetApp='studio',stream='account-security',attempts=0,nextAt=0}={}){
- const event={schema:2,env:'production',sourceApp:'academy',targetApp,eventId:crypto.randomUUID(),operationId:crypto.randomUUID(),stream,ownerEpoch:'synthetic-owner-epoch',sequence:1,sub:'synthetic-account',kind:'account-revoked',target:{type:'accountCutoff',sub:'synthetic-account',maxCe:4,maxAe:9,reason:'VOLUNTARY_LOGOUT',incidentId:null},committedAt:now,commitRef:crypto.randomUUID()};
+ const sequences=testSequences.get(f)||new Map(),name=targetApp+':'+stream,sequence=(sequences.get(name)||0)+1;sequences.set(name,sequence);testSequences.set(f,sequences);
+ const event={schema:2,env:'production',sourceApp:'academy',targetApp,eventId:crypto.randomUUID(),operationId:crypto.randomUUID(),stream,ownerEpoch:'synthetic-owner-epoch',sequence,sub:'synthetic-account',kind:'account-revoked',target:{type:'accountCutoff',sub:'synthetic-account',maxCe:4,maxAe:9,reason:'VOLUNTARY_LOGOUT',incidentId:null},committedAt:now,commitRef:crypto.randomUUID()};
  event.digest=await digest(event);
  f.raw.prepare("INSERT INTO jwt_v2_outbox(event_id,event_json,digest,target_app,attempts,next_attempt_at) VALUES(?,?,?,?,?,?)").run(event.eventId,canonical(event),event.digest,targetApp,attempts,nextAt);
  return event;

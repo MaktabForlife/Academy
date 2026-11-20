@@ -1,5 +1,6 @@
 (()=>{'use strict';
  if(!window.M4L_CONFIG?.MY_LINKS)return;
+ if(document.querySelector?.('meta[name="uaa-auth-version"]')?.content==='2'&&document.querySelector?.('meta[name="uaa-app"]')?.content==='academy'){void import('/js/m4l-personal-links-v2.mjs').then(m=>m.mountPersonalLinks()).catch(()=>{});return;}
  const nav=document.querySelector('.al-tabs');if(!nav)return;nav.classList.add('al-personal-tabs');
  const tab=document.createElement('button');tab.type='button';tab.className='button secondary';tab.textContent='My links';tab.hidden=true;nav.append(tab);
  const host=document.createElement('section');host.id='personal-links';host.className='card card-pad pl-panel';host.hidden=true;nav.after(host);

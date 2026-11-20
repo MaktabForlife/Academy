@@ -1,3 +1,4 @@
+import {proposedRegisterId} from './assessment-identities.js';
 import {assessmentResultsSQL} from './assessment-results.js';
 import {cleanText} from './assessment-store.js';
 import {managementError as fail} from './management-store.js';
@@ -66,7 +67,7 @@ async function fields(s,input,current=null){
  return {name,keys:[...keys].sort(),classMode:input.classMode,classActivityKey:classKey,classId,status:input.status};
 }
 export async function createRegister(s,input){return s.change('register-create',input,'REGISTER:'+s.actor,async()=>{
- const v=await fields(s,input),id=crypto.randomUUID();
+ const v=await fields(s,input),id=await proposedRegisterId(s,input)||crypto.randomUUID();
  requireValidStatus(await statusValidation(s,null,v.status));
  return {statements:[...newRegisterStatements(s,{id,...v}),s.event({activity_key:v.keys[0]},'register-create',{registerId:id,name:v.name})],result:{registerId:id}};
 });}

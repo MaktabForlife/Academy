@@ -9,7 +9,10 @@ const sampleUrl='/academy/pdf-compare/sample.pdf',params=new URLSearchParams(loc
 let embedded=false;try{embedded=params.get('embedded')==='1'&&parent!==window&&parent.location.origin===location.origin&&Boolean(parent.M4L_PDF_READER);}catch{}const host=embedded?parent.M4L_PDF_READER:null,paneIndex=Number(params.get('pane')||0);
 if(embedded)document.body.classList.add('embedded-editor');
 const state={pdf:null,bytes:null,name:'',page:1,viewport:null,marks:[],undo:[],redo:[],selected:null,tool:'hand',colour:'#292336',width:2.5,size:20,fill:false,fillColour:'#235dad',busy:true,rendering:false,exporting:false,generation:0,saved:'[]',gesture:null,text:null,sourceDirty:false,sourceFile:''};
-let pagePicker=null,textLayer=null,native=null,loading=null,pendingReplace=null,currentView='academy',viewSync=false,savedCopy=null;
+let draftListener=null,draftSuspended=false;
+ function draftChanged(){if(draftListener&&!draftSuspended)draftListener();}
+ document.addEventListener('input',draftChanged);document.addEventListener('change',draftChanged);
+ let pagePicker=null,textLayer=null,native=null,loading=null,pendingReplace=null,currentView='academy',viewSync=false,savedCopy=null;
 function nativePageChanged(event){if(!viewSync&&currentView!=='academy'&&$('link-pages').checked&&!state.busy&&event.pageNumber!==state.page)void showPage(event.pageNumber,false);}
 const serial=()=>JSON.stringify(state.marks),copy=value=>structuredClone(value),notice=(text,error=false)=>{$('status').textContent=text;$('status').classList.toggle('error',error);};
 const nativeReady=embedded?Promise.resolve(null):new Promise((resolve,reject)=>{
@@ -44,7 +47,7 @@ function commit(before){if(before===serial())return;state.undo.push(before);if(s
 function update(){
  const list=$('marks-list');list.replaceChildren();$('marks-summary').textContent=`My marks (${state.marks.length})`;
  for(const mark of state.marks){const row=document.createElement('li'),button=document.createElement('button');button.type='button';button.textContent=`Page ${mark.page} · ${names[mark.type]}${mark.type==='text'?' · '+mark.text.slice(0,55):''}`;button.setAttribute('aria-pressed',String(mark.id===state.selected));button.onclick=()=>{state.selected=mark.id;chooseTool('select');void showPage(mark.page);};row.append(button);list.append(row);}
- redraw();controls();
+ redraw();controls();draftChanged();
 }
 function redraw(){
  if(!state.viewport)return;const {width,height}=state.viewport,scale=canvas.width/width;
@@ -169,7 +172,7 @@ function finishText(save){
  state.text=null;$('text-form').hidden=true;if(save){state.tool='select';stage.dataset.tool='select';canvas.dataset.tool='select';$('quick-tool').value='select';for(const button of document.querySelectorAll('[data-tool]'))button.setAttribute('aria-pressed',String(button.dataset.tool==='select'));$('tool-hint').textContent=hints.select;commit(editing.before);}update();return true;
 }
 $('text-form').onsubmit=event=>{event.preventDefault();finishText(true);};$('text-cancel').onclick=()=>finishText(false);
-$('text-value').oninput=positionText;$('text-direction').onchange=()=>{if(state.text){state.text.draft.direction=$('text-direction').value;positionText();}};
+$('text-value').oninput=()=>{positionText();draftChanged();};$('text-direction').onchange=()=>{if(state.text){state.text.draft.direction=$('text-direction').value;positionText();draftChanged();}};
 $('text-value').onkeydown=event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();finishText(false);}else if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();finishText(true);}};
 function outsideText(event){if(state.text&&!event.target.closest('#text-form,#toolbox')){if(!finishText(true)){event.preventDefault();event.stopImmediatePropagation();}}}
  document.addEventListener('pointerdown',outsideText,true);document.addEventListener('focusin',outsideText,true);
@@ -227,15 +230,17 @@ for(const button of document.querySelectorAll('[data-view]'))button.onclick=()=>
 const compact=matchMedia('(max-width:900px)');compact.addEventListener('change',()=>{if(compact.matches&&currentView==='both')setView('academy');});if(compact.matches)setView('academy');
 new ResizeObserver(entries=>document.documentElement.style.setProperty('--header-height',entries[0].contentRect.height+'px')).observe(document.querySelector('.compare-header'));
 $('quick-tool').onchange=event=>{chooseTool(event.target.value);$('page-scroll').scrollIntoView({block:'start'});};$('show-tools').onclick=()=>$('toolbox').scrollIntoView({block:'start'});$('quick-undo').onclick=()=>history('undo');
-$('download').onclick=async()=>{
+async function downloadCopy({assertCurrent=()=>{}}={}){
+ assertCurrent();
  if(!state.pdf||state.exporting||state.busy||!finishText(true))return;cancelGesture();state.exporting=true;controls();notice('Preparing your editable PDF copy…');
  try{
   const snapshot=serial(),bytes=await exportEditable(state.bytes,state.marks,pdfjs,window.PDFLib,context),name=state.name.replace(/(-academy)*\.pdf$/i,'')+'-academy.pdf';
-  savedCopy={bytes:bytes.slice(),name};const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'})),link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);state.saved=snapshot;state.sourceDirty=false;
+  assertCurrent();savedCopy={bytes:bytes.slice(),name};const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'})),link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);state.saved=snapshot;state.sourceDirty=false;
   notice('Editable copy downloaded. Choose Reopen saved copy to continue editing, and keep using Academy’s tools.');
- }catch(error){console.warn('Editable PDF export failed',error);notice('This PDF could not be exported. Your marks are still here; try again or use the sample worksheet.',true);}
+ }catch(error){console.warn('Editable PDF export failed',error);notice('This PDF could not be exported. Your marks are still here; try again or use the sample worksheet.',true);throw error;}
  finally{state.exporting=false;controls();}
-};
+}
+$('download').onclick=()=>void downloadCopy().catch(()=>{});
 if(!embedded)window.addEventListener('beforeunload',event=>{if(dirty()){event.preventDefault();event.returnValue='';}});
 chooseTool('hand');setView('academy');
 if(embedded){
@@ -249,9 +254,20 @@ if(embedded){
   try{const bytes=await exportEditable(state.bytes,state.marks,pdfjs,window.PDFLib,context);previewCache={document:state.pdf,snapshot,bytes:bytes.slice()};return bytes;}finally{state.exporting=false;controls();}
  }
  function setEditing(open){if(!open&&!finishText(true))return false;toolbox.hidden=!open;document.body.classList.toggle('compare-editing',open);if(!open)chooseTool('hand');return true;}
+ function snapshotAnnotations(){
+  const active=state.text?{...copy(state.text),draft:{...copy(state.text.draft),text:$('text-value').value,direction:$('text-direction').value},selectionStart:$('text-value').selectionStart,selectionEnd:$('text-value').selectionEnd}:null;
+  const marks=copy(state.marks);if(state.gesture?.draft&&!state.gesture.hand)marks.push(copy(state.gesture.draft));
+  return {format:'ACADEMY_PDF_ANNOTATIONS_1',marks,activeText:active,page:state.page,sourceDirty:state.sourceDirty,saved:state.saved};
+ }
+ async function restoreAnnotations(value){
+  if(value?.format!=='ACADEMY_PDF_ANNOTATIONS_1'||!Array.isArray(value.marks)||value.marks.length>10000||!Number.isSafeInteger(value.page)||value.page<1||value.page>state.pdf.numPages)throw Error('This annotation draft does not match this PDF.');
+  const valid=mark=>mark&&typeof mark.id==='string'&&mark.id.length<=128&&Number.isSafeInteger(mark.page)&&mark.page>0&&mark.page<=state.pdf.numPages&&['pen','highlight','rectangle','ellipse','line','arrow','text'].includes(mark.type)&&(!mark.text||typeof mark.text==='string'&&mark.text.length<=200000);
+  if(!value.marks.every(valid)||value.activeText&&!valid(value.activeText.draft))throw Error('This annotation draft is invalid.');
+  draftSuspended=true;try{cancelGesture();if(state.text)finishText(false);state.marks=copy(value.marks);state.undo=[];state.redo=[];state.selected=null;state.sourceDirty=Boolean(value.sourceDirty);state.saved=typeof value.saved==='string'?value.saved:'[]';await showPage(value.page);if(value.activeText){const active=copy(value.activeText);state.text=active;$('text-value').value=active.draft.text;$('text-direction').value=active.draft.direction||'auto';$('text-form').hidden=false;syncSelection(active.draft);positionText();$('text-value').setSelectionRange(active.selectionStart||0,active.selectionEnd||0);}update();}finally{draftSuspended=false;}draftChanged();
+ }
  window.M4L_PDF_APP={
   load:async({bytes,name,page=1,file='',unsaved=false})=>{state.sourceFile=file;await loadPdf(bytes,name);state.sourceDirty=Boolean(unsaved);await showPage(page);notice('');},
-  setEditing,hasUnsaved:dirty,refresh,preview,navigate:page=>showPage(page),download:()=>$('download').click(),
+  setEditing,hasUnsaved:dirty,refresh,preview,snapshotAnnotations,restoreAnnotations,onAnnotationsChanged:listener=>{draftListener=listener;return ()=>{if(draftListener===listener)draftListener=null;};},navigate:page=>showPage(page),download:downloadCopy,
   position:()=>({document:state.pdf,page:state.page,top:$('page-scroll').scrollTop,left:$('page-scroll').scrollLeft}),
   restore:position=>{if(position.document===state.pdf){if(position.page!==state.page)void showPage(position.page);requestAnimationFrame(()=>{$('page-scroll').scrollTop=position.top;$('page-scroll').scrollLeft=position.left;});}},
   busy:()=>state.busy||state.exporting||state.rendering

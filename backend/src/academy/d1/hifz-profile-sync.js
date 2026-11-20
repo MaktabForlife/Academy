@@ -1,9 +1,11 @@
 import {isSharedPinHash} from '../../lib/shared-pin-credential.js';
 // The durable queue is written by D1 triggers in the Academy transaction.
 // Network delivery runs after the save or on the existing recovery schedule.
-export const hifzSyncEnabled=env=>Boolean(env.HIFZ_PROFILE_SYNC_URL&&env.HIFZ_PROFILE_SYNC_TARGET&&typeof env.HIFZ_PROFILE_SYNC_SECRET==='string'&&env.HIFZ_PROFILE_SYNC_SECRET.length>=32);
-export const hifzSyncChangePath=path=>['/api/account/login','/api/account/setup-pin'].includes(path)||/^\/api\/admin\/platform\/(user-profiles\/save|programs\/(save|create|copy)|courses\/(participants-save|participant-create))$/.test(path);
-export async function deliverHifzProfiles(env,{limit=8,fetcher=fetch,now=Date.now()}={}){
+export const hifzSyncEnabled=env=>env.UAA_V2_ENABLED==='1'?Boolean(env.UAA_V2_PROFILE_KEYS_JSON):Boolean(env.HIFZ_PROFILE_SYNC_URL&&env.HIFZ_PROFILE_SYNC_TARGET&&typeof env.HIFZ_PROFILE_SYNC_SECRET==='string'&&env.HIFZ_PROFILE_SYNC_SECRET.length>=32);
+export const hifzSyncChangePath=(path,env)=>env?.UAA_V2_ENABLED==='1'&&['/auth/v2/pin/setup','/auth/v2/login'].includes(path)||['/api/account/login','/api/account/setup-pin'].includes(path)||/^\/api\/admin\/platform\/(user-profiles\/save|programs\/(save|create|copy)|courses\/(participants-save|participant-create))$/.test(path);
+export async function deliverHifzProfiles(env,options={}){
+  if(env.UAA_V2_ENABLED==='1')return (await import('./hifz-profile-sync-v2.js')).deliverV2HifzProfiles(env,options);
+  const {limit=8,fetcher=fetch,now=Date.now()}=options;
   if(!hifzSyncEnabled(env))return {enabled:false,delivered:0};
   const url=new URL(env.HIFZ_PROFILE_SYNC_URL);
   if(url.protocol!=='https:'||url.pathname!=='/internal/academy/profile-sync'||url.username||url.password||url.search||url.hash)throw new Error('Invalid Hifz delivery target');

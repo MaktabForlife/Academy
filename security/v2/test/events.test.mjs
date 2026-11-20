@@ -42,7 +42,7 @@ test('later denial is captured despite a sequence gap; APPLIED waits for every S
 test('new SID committed after a restriction watermark cannot escape its floor',async()=>{
  const f=await fixture(),e=await event(f);await receiveBatch(options(f,[e],false));
  const next={...f.binding,sid:crypto.randomUUID()};
- await assert.rejects(f.store.createFamily({binding:next,projection:{...f.projection,binding:next},capture:f.capture,fingerprint:'b'.repeat(64),now:f.now,deadline:f.deadline,idleUntil:f.idleUntil,policyMinutes:90,vectorGuards:[['test:scope','ACCOUNT:SYNTHETIC-ACCOUNT','owner-epoch',1]]}));
+ await assert.rejects(f.store.createFamily({binding:next,projection:{...f.projection,binding:next},capture:f.capture,fingerprint:'b'.repeat(64),now:f.now,deadline:f.deadline,idleUntil:f.idleUntil,policyMinutes:90,vectorGuards:[['test:scope','ACCOUNT:synthetic-account','owner-epoch',1]]}));
 });
 test('one event semantic conflict does not block another independent denial',async()=>{
  const f=await fixture(),bad=await event(f,1),good=await event(f,2);bad.kind='unknown-kind';

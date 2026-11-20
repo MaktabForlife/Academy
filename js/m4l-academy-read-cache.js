@@ -1,5 +1,36 @@
 (() => {
  'use strict';
+ if(window.M4L_ACADEMY_AUTH?.selected){
+  const auth=window.M4L_ACADEMY_AUTH,values=new Map(),jobs=new Map();let generation=0;
+  const abort=()=>new DOMException('The Academy account, authority or workspace changed.','AbortError');
+  const realm=()=>JSON.stringify([auth.ownerKey(),window.M4L_ACADEMY_WORKSPACE?.current()||'LEARN',window.M4L_ACADEMY_WORKSPACE?.classView()||null]);
+  const invalidate=()=>{generation++;values.clear();jobs.clear();};
+  const headers=revision=>({'X-Academy-Read-Cache':'1',...(revision?{'X-Academy-Read-Revision':revision}:{})});
+  const publicUrl=(url,revision)=>url+(url.includes('?')?'&':'?')+'readCache=1'+(revision?'&readRevision='+encodeURIComponent(revision):'');
+  async function load({key,public:publicData=false,force=false,revalidate=false,fetcher,onUpdate,onError}){
+   if(!publicData){const client=await auth.ready;await client.ensureFresh();if(!auth.hasSession())throw abort();}
+   const context=publicData?'PUBLIC':realm(),ticket=generation,name=JSON.stringify([context,key]),current=()=>ticket===generation&&(publicData||context===realm()&&auth.hasSession());
+   const previous=values.get(name);if(previous&&(!publicData&&!auth.isCurrentResult(previous.data)||Date.now()-previous.at>60000)){values.delete(name);}
+   const entry=values.get(name);if(entry&&!force&&!revalidate)return entry.data;
+   let task=jobs.get(name);if(!task){task=(async()=>{
+    const result=await fetcher(entry?.data?.readRevision||'',entry?.data);if(!current()||!publicData&&!auth.isCurrentResult(result))throw abort();
+    const data=result.notModified?entry?.data:result;if(!data||data.success===false||!publicData&&!auth.isCurrentResult(data))throw Object.assign(Error('This Academy view could not be checked.'),{status:503});
+    const size=new TextEncoder().encode(JSON.stringify(data)).length;if(size<=2*1024*1024)values.set(name,{at:Date.now(),data,size});let total=[...values.values()].reduce((n,e)=>n+e.size,0);while(values.size>24||total>8*1024*1024){const first=values.keys().next().value;total-=values.get(first).size;values.delete(first);}return data;
+   })().finally(()=>{if(jobs.get(name)===task)jobs.delete(name);});jobs.set(name,task);}
+   try{const result=await task;if(!current())throw abort();onUpdate?.(result);return result;}catch(error){if(current())onError?.(error,false);throw error;}
+  }
+  window.M4L_ACADEMY_READ_CACHE={load,headers,publicUrl,invalidate,owner:async()=>auth.ownerKey()};
+  const refreshed=new WeakMap();window.M4L_REFRESH_AFTER_SAVE=result=>{
+   if(!auth.isCurrentResult(result)||result.success!==true||!Array.isArray(result.cacheRefreshPending)||!result.cacheRefreshPending.length)return Promise.resolve({completed:[],pending:false});
+   if(refreshed.has(result))return refreshed.get(result);const task=auth.request('/api/academy/cache/refresh',{}).then(value=>{if(!auth.isCurrentResult(value))throw abort();invalidate();return value;}).catch(()=>({completed:[],pending:true}));refreshed.set(result,task);return task;
+  };
+  // Same-context purpose bootstraps emit state without changing authority or
+  // the restored view; they must not cancel independently checked current reads.
+  const stateStamp=()=>{const state=auth.getState?.();return JSON.stringify([state?.state,state?.context,state?.viewVersion,state?.suspended,state?.validationRequired,state?.authorityReady,state?.replacementRequired]);};let lastStateStamp=stateStamp();
+  for(const name of ['academy-v2-context','academy-v2-mask','academy-v2-revalidate','m4l-academy-session-ended','m4l-academy-permissions-changed'])window.addEventListener(name,event=>{if(name==='academy-v2-mask'&&event.detail?.masked===false)return;const next=stateStamp();if(name==='academy-v2-context'&&next===lastStateStamp)return;lastStateStamp=next;invalidate();});
+  window.addEventListener('pagehide',invalidate);return;
+ }
+
  const prefix='m4l_read_v1:',memory=new Map(),pending=new Map(),maxAge=30*60*1000,freshFor=60000;
  const token=()=>localStorage.getItem('m4l_account_token')||'';
  let account=token(),epoch=0,privateEpoch=0,viewEpoch=0,lastDenial=null,publicationPending=null,publicationAt=0,publicationScope='';

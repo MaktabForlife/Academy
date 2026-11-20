@@ -29,6 +29,14 @@ export async function onRequestGet(context) {
 
   const hostname = targetUrl.hostname.toLowerCase();
   const isPrivateM4LDriveUrl = isAllowedPrivateM4LDriveUrl(targetUrl);
+  // The selected V111 app never forwards an old URL bearer to the preserved
+  // legacy service. Current protected files use the owning cookie API instead.
+  // The unselected historical path remains available to its existing callers.
+  if (context.env?.UAA_V2_ENABLED === '1' && PRIVATE_M4L_DRIVE_HOSTS.has(hostname)) {
+    return new Response('Open this protected file from the current Academy page.', {
+      status: 410, headers: { 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' }
+    });
+  }
   let isArchiveBook = false;
 
   if (hostname === 'archive.org') {

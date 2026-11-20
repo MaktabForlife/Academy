@@ -1,6 +1,8 @@
 (async function(){
  'use strict';
  const status=document.getElementById('hifz-signin-status');
+ if(globalThis.document?.querySelector?.('meta[name=\"uaa-auth-version\"]')?.content==='2'){status.textContent='Open Hifz using the current sign-in flow.';const link=document.createElement('a');link.href='https://mahadarwa-hifz.ummabbadacademy.app/';link.target='_blank';link.rel='noopener';link.textContent='Open Hifz';link.onclick=event=>{event.preventDefault();void window.M4L_ACADEMY_AUTH.navigate(link.href,{newTab:true}).catch(error=>{status.textContent=error.message;});};status.after(link);return;}
+
  try{
   const query=new URLSearchParams(location.search),state=query.get('state'),codeChallenge=query.get('challenge'),expectedLoginId=query.get('login'),environment=query.get('environment');
   // Remove the temporary request from browser history before doing any I/O.

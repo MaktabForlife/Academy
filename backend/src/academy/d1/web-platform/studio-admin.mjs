@@ -1,3 +1,7 @@
+import {ORIGINS} from '../../../../../security/v2/tokens.mjs';
+import {nativeAuthContext} from '../../v111/native-context.js';
+import {academyStudioPortal} from '../../v111/studio-portal.mjs';
+import {academyD1Repository} from '../repository.js';
 import {courseStudioEnabled} from './course-publication.mjs';
 import {mirrorCoursePolicy} from './course-policy.mjs';
 import {liveAllocation,saveLiveAllocation} from './studio-live.mjs';
@@ -8,7 +12,7 @@ import {studioAccessCatalogue} from './studio-catalogue.mjs';
 import {gridClassMetadata,validateGridClasses} from './studio-monthly-grid.mjs';
 import {courseUserSearch} from './course-user-search.mjs';
 
-const readAction=action=>['read','monthly-grid','access-table','mou-playlists','course-playlists','course-playlist-detail','course-playlist-candidates','course-playlist-recording','existing-playlist-review'].includes(action);
+const readAction=action=>['read','operation-status','monthly-grid','access-table','mou-playlists','course-playlists','course-playlist-detail','course-playlist-options','mou-playlist-card-options','mou-playlist-cover-preview','mou-playlist-correction','course-playlist-candidates','course-playlist-recording','existing-playlist-review'].includes(action);
 // Indexed stream heads bound this to the actor and offering. Known changes are
 // still queued/delivered below; this only avoids manufacturing a new proof on
 // every table read. Saves always rebuild current identity and scoped authority.
@@ -32,10 +36,14 @@ async function adminProof(db,auth,current){
 }
 
 export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_SERVICE?.fetch.bind(env.WEBSITE_PLATFORM_SERVICE)||fetch}={}){
- const db=env.ACADEMY_DB.withSession('first-primary');
+ const native=nativeAuthContext(auth);let db;
+ if(native){const repository=academyD1Repository(env);await repository.ready();repository.bindActor(auth);db=repository.db;}else db=env.ACADEMY_DB.withSession('first-primary');
  if(input.command?.action==='catalogue')return studioAccessCatalogue(db,auth,input.command);
  const activity=id(input.activityKey),mapping=await db.prepare(`SELECT t.offering_id,t.kind,s.enabled,s.revision generation,COALESCE(ps.timezone,'Africa/Johannesburg') timezone FROM website_platform_timetable_scopes t JOIN website_platform_access_scopes s USING(activity_key) LEFT JOIN program_settings ps ON ps.activity_key=t.activity_key WHERE t.activity_key=? COLLATE NOCASE`).bind(activity).first();if(!mapping)throw fail('This programme has no Studio access migration.',404,'STUDIO_SCOPE_UNMAPPED');
- const allowed=await db.prepare(`SELECT a.*,s.expires_at native_expires_at FROM website_platform_account_state a JOIN account_sessions s ON s.account_id=a.account_id COLLATE NOCASE WHERE s.session_id=? AND a.account_id=? COLLATE NOCASE AND a.active=1 AND a.admitted=1 AND a.epoch=? AND s.credential_epoch=a.epoch AND s.revoked_at IS NULL AND s.expires_at>? AND (a.global_admin=1 OR EXISTS(SELECT 1 FROM effective_activity_roles r WHERE r.account_id=a.account_id AND r.activity_key=? COLLATE NOCASE AND r.role='PROGRAM_ADMIN'))`).bind(auth.sid,auth.state.account.account_id,auth.state.account.credential_epoch,new Date().toISOString(),activity).first();
+ const capturedAdmin=!native||native.cap.rights.globalAdmin||native.cap.rights.nativeState.roles.some(r=>r.activity_key.toUpperCase()===activity.toUpperCase()&&r.role==='PROGRAM_ADMIN');
+ if(!capturedAdmin)throw fail('Current Admin authority is required for this programme.',403,'ADMIN_SCOPE_REQUIRED');
+ const allowed=native?await db.prepare("SELECT a.* FROM website_platform_account_state a WHERE a.account_id=? COLLATE NOCASE AND a.active=1 AND a.admitted=1 AND a.epoch=? AND (a.global_admin=1 OR EXISTS(SELECT 1 FROM effective_activity_roles r WHERE r.account_id=a.account_id AND r.activity_key=? COLLATE NOCASE AND r.role='PROGRAM_ADMIN'))").bind(native.cap.binding.sub,native.cap.binding.ce,activity).first():await db.prepare(`SELECT a.*,s.expires_at native_expires_at FROM website_platform_account_state a JOIN account_sessions s ON s.account_id=a.account_id COLLATE NOCASE WHERE s.session_id=? AND a.account_id=? COLLATE NOCASE AND a.active=1 AND a.admitted=1 AND a.epoch=? AND s.credential_epoch=a.epoch AND s.revoked_at IS NULL AND s.expires_at>? AND (a.global_admin=1 OR EXISTS(SELECT 1 FROM effective_activity_roles r WHERE r.account_id=a.account_id AND r.activity_key=? COLLATE NOCASE AND r.role='PROGRAM_ADMIN'))`).bind(auth.sid,auth.state.account.account_id,auth.state.account.credential_epoch,new Date().toISOString(),activity).first();
+ if(native&&allowed){allowed.global_admin=Number(native.cap.rights.globalAdmin&&Boolean(allowed.global_admin));allowed.native_expires_at=new Date(native.cap.binding.s_exp*1000).toISOString();}
  if(!allowed)throw fail('Current Admin authority is required for this programme.',403,'ADMIN_SCOPE_REQUIRED');
  const owner=await db.prepare('SELECT * FROM website_platform_access_ownership WHERE activity_key=? COLLATE NOCASE').bind(activity).first(),command=input.command||{action:'read'};
  if(command.action==='media-location'&&(!owner||owner.state==='ACADEMY'))return {success:true,monthly:false};
@@ -47,17 +55,23 @@ export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_S
   if(owner.state!=='STUDIO')throw fail('This media handover is locked. Reopen Media after it completes.',409,'STUDIO_MEDIA_MANAGED');
   if(!['TAFSEER','COURSE'].includes(mapping.kind))return {success:true,monthly:false,managed:false};
   const programme=await db.prepare('SELECT programme_key FROM website_platform_programmes WHERE activity_key=? COLLATE NOCASE').bind(activity).first();
-  const origin=new URL(env.WEBSITE_PLATFORM_ORIGIN);if(origin.origin!==env.WEBSITE_PLATFORM_ORIGIN||origin.protocol!=='https:'&&env.ENVIRONMENT!=='local')throw fail('Studio navigation is unavailable.',503);
+  const configuredOrigin=native?ORIGINS.studio:env.WEBSITE_PLATFORM_ORIGIN,origin=new URL(configuredOrigin);if(origin.origin!==configuredOrigin||origin.protocol!=='https:'&&env.ENVIRONMENT!=='local')throw fail('Studio navigation is unavailable.',503);
   return {success:true,monthly:mapping.kind==='TAFSEER',managed:true,kind:mapping.kind,activityKey:activity,offeringId:mapping.offering_id,programmeKey:programme?.programme_key||null,ownership:owner.state,destination:origin.origin+'/studio/?manage=1&offering='+encodeURIComponent(mapping.offering_id)+'&section=media'};
  }
  if(command.action==='course-user-search'){
   if(mapping.kind!=='COURSE'||owner?.state!=='STUDIO'||!allowed.global_admin)throw fail('Current Global Admin authority is required to add existing Course users.',403,'ADMIN_SCOPE_REQUIRED');
   return courseUserSearch(db,activity,command);
  }
- const proof=await adminProof(db,auth,allowed);
- const reuse=readAction(command.action)&&await reusableReadProof(db,proof,mapping);
+ const proof=native?{v2:true,accountId:allowed.account_id,epoch:allowed.epoch,verifiedAt:Date.now(),expiresAt:Math.min(Date.now()+55_000,native.cap.deadline*1000),globalAdmin:Boolean(allowed.global_admin)}:await adminProof(db,auth,allowed);
+ const reuse=!native&&readAction(command.action)&&await reusableReadProof(db,proof,mapping);
  const send=async command=>{
   if(['handover-begin','handover-page','handover-commit'].includes(command.action)&&!await db.prepare("SELECT 1 FROM website_platform_access_ownership WHERE activity_key=? AND transfer_id=? AND state='FROZEN'").bind(activity,command.transferId).first())throw fail('This handover is no longer frozen. Start a new transfer after cancellation.',409,'HANDOVER_NOT_FROZEN');
+  if(native){
+   const operation=command.action==='mou-playlist-cover-upload'?'admin-cover':readAction(command.action)?'admin-read':'admin';
+   const result=await academyStudioPortal(env,auth,{operation,input:{offeringId:mapping.offering_id,command}});
+   if(mapping.kind==='COURSE'&&owner?.state==='STUDIO')await mirrorCoursePolicy(db,auth,activity,mapping.offering_id,result.coursePolicy);
+   return result;
+  }
   if(!reuse)await enqueueAccount(db,proof.accountId,env);
   // Only this actor and offering; never sweep other participants for an Admin read.
   if(!owner||owner.state!=='FROZEN'){await queueAccess(db,{onlyScope:activity,onlyAccount:''});if(!reuse)await markAccess(db,activity,proof.accountId);await queueAccess(db,{onlyScope:activity,onlyAccount:proof.accountId.toLowerCase()});}
@@ -84,14 +98,14 @@ export async function studioAdmin(env,auth,input,{fetcher=env.WEBSITE_PLATFORM_S
  if(command.action==='live-allocation'){
   if(mapping.kind!=='TAFSEER'||owner?.state!=='STUDIO')throw fail('Complete the offering handover before using this allocation control.',409);
   const accountId=id(command.accountId),confirmed=await send({action:'read',accountId});if(confirmed.ownership?.authority!=='WEBSITE'||confirmed.ownership.phase!=='COMMITTED'||!confirmed.person)throw fail('This offering has not completed its Studio handover.',409);
-  return {success:true,...await saveLiveAllocation(db,env,proof,activity,command,confirmed.person,{fetcher})};
+  return {success:true,...await saveLiveAllocation(db,env,proof,activity,command,confirmed.person,{fetcher,nativeAuth:native?auth:null})};
  }
- if(!['read','save','provision','resume','monthly-grid','monthly-grid-save','access-table','access-table-save','mou-playlists','mou-playlist-correction','mou-playlist-save','mou-playlist-publication','mou-playlist-add','mou-playlist-order','mou-playlist-card-options','mou-playlist-cover-upload','mou-playlist-cover-preview','course-playlists','course-playlist-detail','course-playlist-options','course-playlist-candidates','course-playlist-recording','course-playlist-save','course-playlist-content-save','course-playlist-publish-card','course-playlist-publish-content','existing-playlist-review','existing-playlist-save'].includes(command.action))throw fail('Unknown Studio access action.');
+ if(!['read','operation-status','save','provision','resume','monthly-grid','monthly-grid-save','access-table','access-table-save','mou-playlists','mou-playlist-correction','mou-playlist-save','mou-playlist-publication','mou-playlist-add','mou-playlist-order','mou-playlist-card-options','mou-playlist-cover-upload','mou-playlist-cover-preview','course-playlists','course-playlist-detail','course-playlist-options','course-playlist-candidates','course-playlist-recording','course-playlist-save','course-playlist-content-save','course-playlist-publish-card','course-playlist-publish-content','existing-playlist-review','existing-playlist-save'].includes(command.action))throw fail('Unknown Studio access action.');
  if(['monthly-grid','monthly-grid-save','access-table','access-table-save'].includes(command.action)&&mapping.kind!=='TAFSEER')throw fail('Short courses use whole-course access, not monthly subscriptions.');
  // Forward only the narrow command. Supplied actor, roles and proof are ignored.
  let result=await send(command.action==='monthly-grid-save'?await validateGridClasses(db,activity,command):command);
  if(command.action==='monthly-grid')result=await gridClassMetadata(db,activity,result,{timezone:mapping.timezone});
- if(command.action==='read'&&command.accountId&&mapping.kind==='TAFSEER'&&owner?.state==='STUDIO')result.liveAllocation=await liveAllocation(db,activity,id(command.accountId));
+ if(command.action==='read'&&command.accountId&&mapping.kind==='TAFSEER'&&owner?.state==='STUDIO')result.liveAllocation=await liveAllocation(db,activity,id(command.accountId),native?{enrollmentId:command.enrollmentId||null}:{});
  return {success:true,...result};
 }
 

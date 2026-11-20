@@ -1,3 +1,5 @@
+import {nativeRequestContext,nativeAuthContext,inheritNativeRequest} from '../v111/native-context.js';
+import {authenticatedD1Account} from './session.js';
 import {managementError as fail} from './management-store.js';
 import {cleanText} from './assessment-store.js';
 import {createSessionToken,verifySessionToken} from '../../lib/auth-primitives.js';
@@ -26,6 +28,17 @@ async function verify(value,env,purpose){
 // A playback URL contains a narrow, short-lived grant, never the account token.
 // Re-resolve the live session and audience on every seek/range request.
 export async function authenticateVideo(request,env,repository){
+ if(env.UAA_V2_ENABLED==='1'){
+  if(!nativeRequestContext(request))throw fail('A verified Academy media request is required.',401,'ACADEMY_V2_CONTEXT_REQUIRED');
+  const url=new URL(request.url),allowed=new Set(['lessonId','assetId','workspace','activityKey','classId']);
+  if([...url.searchParams.keys()].some(k=>!allowed.has(k))||[...allowed].some(k=>url.searchParams.getAll(k).length>1))throw fail('Recording URL metadata is invalid.',400,'VIDEO_METADATA_INVALID');
+  const lessonId=url.searchParams.get('lessonId'),assetId=url.searchParams.get('assetId'),workspace=url.searchParams.get('workspace')||'LEARN';
+  if(!lessonId||!assetId||[lessonId,assetId].some(x=>x.length>200||/[\u0000-\u0020\u007f]/.test(x))||!['ADMIN','ADMIN_LEARN','ADMIN_TEACH','TEACH','LEARN'].includes(workspace))throw fail('Recording URL metadata is invalid.',400,'VIDEO_METADATA_INVALID');
+  const headers=new Headers(request.headers);headers.set('X-Academy-Workspace',workspace);headers.delete('X-Academy-Class');
+  if(url.searchParams.has('classId')){const activityKey=url.searchParams.get('activityKey'),classId=url.searchParams.get('classId');if(workspace!=='ADMIN_LEARN'||!/^PROGRAM:[^:]{1,160}$/.test(activityKey||'')||!classId||classId.length>200||/[\u0000-\u0020\u007f]/.test(classId))throw fail('Recording class view is invalid.',400,'VIDEO_METADATA_INVALID');headers.set('X-Academy-Class',encodeURIComponent(JSON.stringify({activityKey,classId})));}
+  const selected=inheritNativeRequest(request,new Request(request,{headers})),auth=await authenticatedD1Account(selected,env,repository);
+  return {auth,input:{lessonId,assetId}};
+ }
  const ticket=await verify(new URL(request.url).searchParams.get('ticket'),env,'playback');
  const state=await repository.session(ticket.sid,ticket.accountid,ticket.epoch);
  const context=findD1Context(state,{scope:ticket.scope,courseId:ticket.courseid,role:ticket.role});
@@ -38,7 +51,7 @@ export async function authenticateVideo(request,env,repository){
 export function sessionVideos({p,auth,env,lesson,staff,reader,revision,change,receipt,assets,scopeKey,retained=()=>false,retentionPrefix=()=>false}){
  function bucket(){const b=env.LESSON_MEDIA_BUCKET;if(!b?.createMultipartUpload||!b?.resumeMultipartUpload||!b?.head)throw fail('Recording storage is not configured.',503,'VIDEO_STORAGE_REQUIRED');return b;}
  async function uploadTicket(input){
-  const t=await verify(input.uploadToken,env,'upload');
+  const t=await verify(input.uploadToken,env,'upload');if(env.UAA_V2_ENABLED==='1'){const context=nativeAuthContext(auth);if(!context||t.epoch!==context.cap.binding.ce)throw fail('This upload belongs to an earlier credential.',403,'MEDIA_FORBIDDEN');}
   if(t.accountid!==auth.user.accountid||t.sid!==auth.sid||t.workspace!==(auth.workspaceContext||auth.workspace||'ADMIN')||t.lessonId!==input.lessonId)throw fail('This upload belongs to another session.',403,'MEDIA_FORBIDDEN');
   const row=await lesson(t.lessonId);staff(row);return {t,row};
  }
@@ -90,6 +103,11 @@ export function sessionVideos({p,auth,env,lesson,staff,reader,revision,change,re
  async function abort(input){const {t}=await uploadTicket(input);await bucket().resumeMultipartUpload(t.key,t.uploadId).abort();return {aborted:true};}
  async function watch(row,asset){
   if(videoExpiry(asset,Date.now(),retained(asset)).expired)throw fail('This recording expired 14 days after upload.',410,'VIDEO_EXPIRED');
+  if(env.UAA_V2_ENABLED==='1'){
+   if(!nativeAuthContext(auth))throw fail('A verified Academy media actor is required.',401,'ACADEMY_V2_CONTEXT_REQUIRED');
+   const query=new URLSearchParams({lessonId:row.lesson_id,assetId:asset.asset_id,workspace:auth.workspaceContext||auth.workspace||'LEARN'});if(auth.classView){query.set('activityKey',auth.classView.activityKey);query.set('classId',auth.classView.classId);}
+   return {kind:'MP4',playbackPath:'/api/academy/lesson-media/video?'+query,title:asset.display_name||asset.filename,...videoExpiry(asset,Date.now(),retained(asset))};
+  }
   const ticket=await issue(auth,env,'playback',{lessonId:row.lesson_id,assetId:asset.asset_id});
   return {kind:'MP4',playbackPath:'/api/academy/lesson-media/video?ticket='+encodeURIComponent(ticket),title:asset.display_name||asset.filename,...videoExpiry(asset,Date.now(),retained(asset))};
  }

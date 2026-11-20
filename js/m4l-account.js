@@ -2,6 +2,10 @@
 (function () {
   "use strict";
 
+  const v2 = location.origin === "https://ummabbadacademy.app" && document.querySelector('meta[name="uaa-auth-version"]')?.content === '2' && document.querySelector('meta[name="uaa-app"]')?.content === 'academy';
+  let auth = null;
+  let privateRoot = null;
+  const activeIdentity = () => v2 ? auth?.hasSession() === true : Boolean(state.token);
   const API_BASE = String(window.M4L_CONFIG?.API_BASE || "").replace(/\/$/, "");
   const TOKEN_KEY = "m4l_account_token";
   const CONTEXT_KEY = "m4l_account_context";
@@ -17,7 +21,7 @@
   const returnToAcademy = new URLSearchParams(window.location.search).get("academy") === "1";
   const switcherMode = new URLSearchParams(window.location.search).get("switch") === "1";
   const state = {
-    token: localStorage.getItem(TOKEN_KEY) || "",
+    token: v2 ? "" : localStorage.getItem(TOKEN_KEY) || "",
     account: null,
     context: null,
     contexts: [],
@@ -33,13 +37,13 @@
 
   document.addEventListener("DOMContentLoaded", init);
   window.addEventListener("storage", event => {
-    if (event.key === TOKEN_KEY && !event.newValue && state.token) {
+    if (!v2 && event.key === TOKEN_KEY && !event.newValue && state.token) {
       state.token = "";
       window.location.reload();
     }
   });
   window.addEventListener("pageshow", () => {
-    if (state.token && !localStorage.getItem(TOKEN_KEY)) {
+    if (!v2 && state.token && !localStorage.getItem(TOKEN_KEY)) {
       state.token = "";
       window.location.reload();
     }
@@ -48,12 +52,23 @@
   async function init() {
     bindEvents();
     restrictPinInputs();
-    if (!API_BASE || !uniqueId) {
+    if (v2) {
+      try { auth = await window.M4L_ACADEMY_AUTH.ready; privateRoot = byId('context-view'); auth.registerPrivateRoot(privateRoot); }
+      catch { showInvalid('Academy could not verify this browser. Refresh to try again.'); return; }
+      document.querySelector('.account-security-note span:last-child').textContent = 'Your PIN is checked by Academy. Each app checks its own current session.';
+      installSelectionControls();
+      window.addEventListener('academy-v2-mask', () => { state.academyData = null; });
+    }
+    if ((!v2 && !API_BASE) || !uniqueId) {
       showInvalid("Use the complete personal link ending in /account/<uniqueid>.");
       return;
     }
 
-    if (state.token) {
+    if (v2) {
+      const boot = await auth.bootstrap().catch(() => null);
+      if (!boot) { showInvalid('Academy could not verify your session. Refresh to try again.'); return; }
+    }
+    if (activeIdentity()) {
       const restored = await restoreSession();
       if (restored) return;
       clearStoredSession();
@@ -90,7 +105,11 @@
   async function restoreSession() {
     try {
       const result = await api("/api/account/session", {}, state.token);
-      if (!result.success || normalize(result.account?.uniqueid) !== normalize(uniqueId)) return false;
+      if (!result.success) return false;
+      if (normalize(result.account?.uniqueid) !== normalize(uniqueId)) {
+        if (v2) { offerAccountSwitch(); return true; }
+        return false;
+      }
       await acceptSession(result, false, { autoOpen: false });
       return true;
     } catch (error) {
@@ -101,6 +120,15 @@
   async function checkAccount() {
     showView("loading-view");
     try {
+      if (v2) {
+        const result = await auth.bootstrap({purpose:'pin',loginId:uniqueId});
+        if (result.setupRequired) await auth.bootstrap({purpose:'pin/setup',loginId:uniqueId});
+        byId('login-name').textContent = result.context ? 'Unlock the account already open in this browser, or switch to this personal link.' : uniqueId;
+        byId('setup-name').textContent = uniqueId;
+        showView(result.setupRequired ? 'setup-form' : 'login-form');
+        byId('v2-use-personal-link').classList.toggle('hidden', !result.context);
+        return;
+      }
       const result = await api("/api/account/check", { uniqueid: uniqueId });
       state.account = result.account;
       const displayName = result.account.displayName || "Account holder";
@@ -128,6 +156,14 @@
     showFormError("login-error", "");
     let loginFailed = false;
     try {
+      if (v2) {
+        await auth.submitPin({loginId:uniqueId,pin,remember:byId('v2-remember-selection').checked});
+        const result = await api('/api/account/session', {});
+        if (normalize(result.account?.uniqueid) !== normalize(uniqueId)) { offerAccountSwitch(); return; }
+        await acceptSession(result, false, {autoOpen:false,redirectingToAcademy:returnToAcademy});
+        if (returnToAcademy) await auth.navigate('/');
+        return;
+      }
       const result = await api("/api/account/login", { uniqueid: uniqueId, pin });
       await acceptSession(result, true, { autoOpen: false, redirectingToAcademy: returnToAcademy });
       window.M4L_ACADEMY_ACCOUNTS?.recordLogin(result.account, 'login-form');
@@ -140,6 +176,7 @@
       byId("login-pin").value = "";
       loginFailed = true;
     } finally {
+      if (v2) byId("login-pin").value = "";
       setBusy(form, false);
       if (loginFailed) {
         byId("login-pin").focus();
@@ -165,6 +202,14 @@
     setBusy(form, true);
     showFormError("setup-error", "");
     try {
+      if (v2) {
+        await auth.submitPin({loginId:uniqueId,pin,pinConfirmation,setup:true,remember:byId('v2-remember-selection').checked});
+        const result = await api('/api/account/session', {});
+        if (normalize(result.account?.uniqueid) !== normalize(uniqueId)) { offerAccountSwitch(); return; }
+        await acceptSession(result, false, {autoOpen:false,redirectingToAcademy:returnToAcademy});
+        if (returnToAcademy) await auth.navigate('/');
+        return;
+      }
       const result = await api("/api/account/setup-pin", {
         uniqueid: uniqueId,
         pin,
@@ -179,13 +224,14 @@
     } catch (error) {
       showFormError("setup-error", error.message);
     } finally {
+      if (v2) { byId("setup-pin").value = ""; byId("setup-pin-confirmation").value = ""; }
       setBusy(form, false);
     }
   }
 
   async function acceptSession(result, storeToken, options = {}) {
     const previousContext = readStoredContext();
-    if (storeToken && result.token) {
+    if (!v2 && storeToken && result.token) {
       state.token = result.token;
       localStorage.setItem(TOKEN_KEY, result.token);
     }
@@ -193,12 +239,15 @@
     state.context = result.context;
     state.contexts = Array.isArray(result.contexts) ? result.contexts : [];
     state.sessionStore = result.sessionStore || "";
-    localStorage.setItem(CONTEXT_KEY, JSON.stringify(state.context));
-    localStorage.setItem(CONTEXTS_KEY, JSON.stringify(state.contexts));
+    if (!v2) {
+      localStorage.setItem(CONTEXT_KEY, JSON.stringify(state.context));
+      localStorage.setItem(CONTEXTS_KEY, JSON.stringify(state.contexts));
+    } else if (!auth.isCurrentResult(result)) throw new DOMException('This account reply belongs to an earlier view.', 'AbortError');
     if (previousContext && !sameContext(previousContext, state.context)) {
       clearCourseDataCaches();
     }
     renderContextView();
+    if (v2) auth.revealResult(result, {root:privateRoot});
     if (!options.redirectingToAcademy) {
       void loadAvailableProgramLibraries();
       if(!/^PRG-[0-9a-f-]{36}$/i.test(String(state.context?.courseId||'')))await loadAcademyTimetable({ resetWeek: true });
@@ -240,7 +289,7 @@
 
   async function loadAvailableProgramLibraries(){
     const holder=byId('program-library-links');
-    if(!holder||!state.token)return;
+    if(!holder||!activeIdentity())return;
     holder.classList.add('hidden');holder.replaceChildren();
     try{
       const result=await api('/api/program-library/available',{},state.token);
@@ -325,7 +374,7 @@
   }
 
   async function openCurrentWorkspace() {
-    if (state.workspaceOpening || !["COURSE", "GLOBAL", "SUBSTITUTE", "OWN_LIBRARY"].includes(state.context?.scope) || !state.token) return false;
+    if (state.workspaceOpening || !["COURSE", "GLOBAL", "SUBSTITUTE", "OWN_LIBRARY"].includes(state.context?.scope) || !activeIdentity()) return false;
     if(/^PRG-[0-9a-f-]{36}$/i.test(String(state.context?.courseId||''))){
       window.location.assign(`/programs/library-view.html?program=${encodeURIComponent(state.context.courseId)}`);
       return true;
@@ -353,6 +402,7 @@
       if (!["admin", "student"].includes(portalType)) {
         throw new Error("The program workspace role is invalid.");
       }
+      if (v2) throw new Error('This workspace must open through its Academy route.');
       localStorage.setItem(APP_TOKEN_KEY, state.token);
       localStorage.setItem(APP_USER_TYPE_KEY, portalType);
       localStorage.setItem(WORKSPACE_KEY, "true");
@@ -370,7 +420,7 @@
 
 
   async function loadAcademyTimetable(options = {}) {
-    if (!state.token || state.academyLoading) return false;
+    if (!activeIdentity() || state.academyLoading) return false;
     const container = byId("academy-timetable");
     const message = byId("academy-timetable-message");
     if (options.resetWeek === true || options.resetView === true) {
@@ -799,7 +849,7 @@
   }
 
   async function prefetchAcademyTimetable(direction, options = {}) {
-    if (!state.token || state.academyPrefetching || !state.academyData) return false;
+    if (!activeIdentity() || state.academyPrefetching || !state.academyData) return false;
     const rangeStart = String(state.academyData.viewStart || "").trim();
     const rangeEnd = String(state.academyData.viewEnd || "").trim();
     if (!rangeStart || !rangeEnd) return false;
@@ -900,6 +950,7 @@
   }
 
   function readAcademyTimetableCache() {
+    if (v2) return null;
     const key = academyTimetableCacheKey();
     if (!key) return null;
     try {
@@ -919,6 +970,7 @@
   }
 
   function writeAcademyTimetableCache(data) {
+    if (v2) return;
     const key = academyTimetableCacheKey();
     if (!key || !data) return false;
     try {
@@ -999,6 +1051,7 @@
   }
 
   async function api(path, payload, token = "") {
+    if (v2) return auth.request(path, payload);
     const response = await fetch(`${API_BASE}${path}`, {
       method: "POST",
       ...(path === "/api/account/logout" ? { keepalive: true } : {}),
@@ -1022,6 +1075,12 @@
   }
 
   async function logout() {
+    if (v2) {
+      clearStoredSession(); showView('loading-view');
+      const result = await auth.logout();
+      if (result.outcome === 'GLOBAL_UNCONFIRMED') { showInvalid('You are signed out here. Other apps have not yet confirmed sign-out.'); return; }
+      await checkAccount(); return;
+    }
     const token = state.token;
     const revokeSession = state.sessionStore === "D1";
     clearStoredSession();
@@ -1038,6 +1097,7 @@
     state.token = "";
     state.context = null;
     state.contexts = [];
+    if (v2) { state.academyData = null; return; }
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(CONTEXT_KEY);
     localStorage.removeItem(CONTEXTS_KEY);
@@ -1048,6 +1108,7 @@
   }
 
   function readStoredContext() {
+    if (v2) return state.context;
     try {
       const value = JSON.parse(localStorage.getItem(CONTEXT_KEY) || "null");
       return value && typeof value === "object" ? value : null;
@@ -1057,6 +1118,7 @@
   }
 
   function clearCourseDataCaches() {
+    if (v2) { state.academyData = null; return; }
     try { sessionStorage.removeItem("m4l_account_view_v1"); } catch {}
     const prefixes = ["m4l_app_cache_", "maktab_timetable_cache_", ACADEMY_CACHE_PREFIX];
     try {
@@ -1132,6 +1194,25 @@
     if (normalized === "PLATFORM") return "Platform";
     if (normalized === "GLOBAL") return "Global Library";
     return "Program";
+  }
+
+  function installSelectionControls() {
+    const holder=document.createElement('p'),label=document.createElement('label'),check=document.createElement('input');
+    check.type='checkbox';check.id='v2-remember-selection';label.append(check,document.createTextNode(' Remember this account on this device'));holder.append(label);
+    const forget=document.createElement('button');forget.type='button';forget.textContent='Forget remembered account';forget.addEventListener('click',()=>{auth.forgetSelection();check.checked=false;});holder.append(forget);
+    const use=document.createElement('button');use.type='button';use.id='v2-use-personal-link';use.className='hidden';use.textContent='Switch to this personal link';use.addEventListener('click',switchPersonalLink);holder.append(use);
+    const help=document.createElement('p');help.textContent='Forgotten PIN: ask a Global Admin to reset it, then create a new PIN here.';
+    byId('service-message').before(holder,help);
+  }
+  function offerAccountSwitch() {
+    showInvalid('Another account is already open in this browser. Switch explicitly to use this personal link.');
+    byId('v2-use-personal-link').classList.remove('hidden');
+  }
+  async function switchPersonalLink() {
+    if(state.busy)return;state.busy=true;
+    try {const result=await auth.switchAccount({});clearStoredSession();if(result.outcome==='GLOBAL_UNCONFIRMED'){showInvalid('The account switch has not been confirmed. Retry when Academy is available.');return;}await checkAccount();}
+    catch(error){showInvalid(error.message||'The account switch could not be completed.');}
+    finally {state.busy=false;}
   }
 
   function getUniqueIdFromPath() {

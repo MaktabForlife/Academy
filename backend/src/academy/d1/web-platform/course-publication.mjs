@@ -20,9 +20,9 @@ export async function planCourseStudio(store,env,course,input,details){
   p("INSERT INTO website_platform_access_dirty(activity_key,account_id) VALUES(?,'')",course.activityKey),p('DELETE FROM website_platform_guards WHERE guard_id=?',guard)
  ]};
 }
-export async function courseStudioStatus(db,activity){
- const row=await db.prepare('SELECT j.phase,j.last_error,o.state FROM website_platform_course_jobs j JOIN website_platform_access_ownership o USING(activity_key) WHERE j.activity_key=?').bind(activity).first();
- return row?{state:row.state,pending:row.phase!=='COMPLETE',retryAvailable:row.phase!=='COMPLETE',message:row.phase==='COMPLETE'?'Studio manages enrolment and material access.':'Studio access setup is pending. Existing rights are preserved; access edits stay locked. You can resume setup.'}:null;
+export async function courseStudioStatus(db,activity,{v2=false}={}){
+ const row=await db.prepare('SELECT j.phase,j.last_error,o.state,'+(v2?'coalesce((SELECT release_done FROM studio_course_publication_progress v2 WHERE v2.activity_key=j.activity_key),0)':'1')+' release_done FROM website_platform_course_jobs j JOIN website_platform_access_ownership o USING(activity_key) WHERE j.activity_key=?').bind(activity).first();
+ return row?{state:row.state,pending:row.phase!=='COMPLETE'||!row.release_done,retryAvailable:row.phase!=='COMPLETE'||!row.release_done,message:row.phase==='COMPLETE'&&row.release_done?'Studio manages enrolment and material access.':'Studio access setup is pending. Existing rights are preserved; access edits stay locked. You can resume setup.'}:null;
 }
 const p=(db,sql,...args)=>db.prepare(sql).bind(...args);
 async function send(env,db,job,owner,command,fetcher){
@@ -41,8 +41,9 @@ async function finish(db,job,owner){
 }
 // One bounded step, for one accepted publication. Recovery never impersonates
 // the original publisher or depends on that person's expired credentials.
-export async function resumeCourseStudio(env,{activityKey,fetcher=env.WEBSITE_PLATFORM_SERVICE?.fetch.bind(env.WEBSITE_PLATFORM_SERVICE)||fetch}={}){
+export async function resumeCourseStudio(env,{activityKey,runtime,fetcher=env.WEBSITE_PLATFORM_SERVICE?.fetch.bind(env.WEBSITE_PLATFORM_SERVICE)||fetch}={}){
  if(!courseStudioEnabled(env))return;
+ if(env.UAA_V2_ENABLED==='1'){const [{runCoursePublicationStep},{runtimeFor}]=await Promise.all([import('../../v111/course-publication-source.mjs'),import('../../../../../security/v2/runtime.mjs')]);return runCoursePublicationStep(runtime||await runtimeFor(env,{app:'academy'}),{activityKey});}
  const db=env.ACADEMY_DB.withSession('first-primary');
  const job=activityKey?await p(db,"SELECT * FROM website_platform_course_jobs WHERE activity_key=? AND phase<>'COMPLETE'",activityKey).first():await p(db,"SELECT * FROM website_platform_course_jobs INDEXED BY website_platform_course_jobs_due WHERE phase<>'COMPLETE' AND next_attempt<=? ORDER BY next_attempt,activity_key LIMIT 1",Date.now()).first();
  if(!job)return;

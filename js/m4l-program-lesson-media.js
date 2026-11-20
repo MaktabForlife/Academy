@@ -2,6 +2,21 @@
 (() => {
  'use strict';
  if(window.M4L_PROGRAM_ADMIN_REDIRECT)return;
+ if(window.M4L_ACADEMY_AUTH?.selected){
+  const auth=window.M4L_ACADEMY_AUTH,$=id=>document.getElementById(id),valid=/^PRG-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;let client=null,program=new URLSearchParams(location.search).get('program'),generation=0,loading=false,owner=null;
+  const canLeave=()=>window.M4L_LESSON_MEDIA?.canLeave()!==false&&window.M4L_PROGRAM_SURAHS?.canLeave()!==false;
+  function clear(){generation++;loading=false;const historical=$('program-surahs'),target=$('program-lesson-media');if(historical?.closest?.('#program-lesson-media'))target.before(historical);window.M4L_LESSON_MEDIA?.reset();window.M4L_PROGRAM_SURAHS?.reset();target?.replaceChildren();$('program-media-retry').hidden=true;}
+  async function open(){if(!canLeave())return;clear();const run=generation;loading=true;try{client=await auth.ready;await client.ensureFresh();owner=client.ownerKey();if(!valid.test(program||''))throw Error('Select a Program from Program List.');
+   const same=()=>run===generation&&owner===client.ownerKey(),check=async()=>{const value=await client.request('/api/admin/platform/programs/list',{}, {headers:{'X-Academy-Workspace':'ADMIN'}});if(!same()||!client.isCurrentResult(value))throw new DOMException('The Program media view changed.','AbortError');if(value.store!=='D1'||!value.programs?.some(row=>row.id===program))throw Error('This Program is outside your management access.');return value;};
+   $('program-media-message').textContent='Loading lesson media…';let scope=await check();const module=window.M4L_MONTHLY_MEDIA_ENTRY||await import('./m4l-monthly-media-entry.mjs');if(!same())return;
+   const historical=container=>{if(!same())return;const surahs=$('program-surahs');if(surahs)container.append(surahs);const media=document.createElement('section');media.id='program-historical-media';container.append(media);void window.M4L_PROGRAM_SURAHS?.select(program,{readOnly:true});window.M4L_LESSON_MEDIA.open({hostId:media.id,programId:program,learnerView:true,legacy:true});};
+   const linked=await module.studioMonthlyMedia($('program-lesson-media'),'PROGRAM:'+program,{current:same,onHistorical:historical});if(!same())return;if(!client.isCurrentResult(scope))scope=await check();if(linked){$('program-media-message').textContent='';return;}
+   await window.M4L_PROGRAM_SURAHS?.select(program);if(!same())return;if(!client.isCurrentResult(scope))scope=await check();window.M4L_LESSON_MEDIA.open({hostId:'program-lesson-media',programId:program,legacy:true});$('program-media-message').textContent='';
+  }catch(error){if(run===generation){$('program-media-message').textContent=error.message;$('program-media-retry').hidden=false;}}finally{if(run===generation)loading=false;}}
+  const refresh=()=>{if(!loading&&canLeave())void open();};window.M4L_PROGRAM_LESSON_MEDIA={select(id){if(id===program)return;if(!canLeave())return;program=id;void open();}};$('program-media-refresh').addEventListener('click',refresh);$('program-media-retry').addEventListener('click',refresh);
+  window.addEventListener('academy-v2-context',()=>{if(owner!==null&&owner!==auth.ownerKey()){clear();owner=auth.ownerKey();$('program-media-message').textContent='Your Academy account changed. Open Lesson media again.';}});window.addEventListener('academy-v2-revalidate',refresh);window.addEventListener('m4l-academy-session',()=>{if(owner!==null&&owner!==auth.ownerKey())clear();});void open();return;
+ }
+
  const $=id=>document.getElementById(id),token=()=>localStorage.getItem('m4l_account_token')||'';
  let program=new URLSearchParams(location.search).get('program');
  let generation=0,loading=false;

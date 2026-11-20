@@ -1,3 +1,4 @@
+import {nativeAuthContext} from '../v111/native-context.js';
 import {prepareFeatureChange} from './feature-change.js';
 import {publishedAssessmentRows} from './published-assessments.js';
 import {assessmentBatch} from './assessment-batch.js';
@@ -5,8 +6,8 @@ import {managementError as fail,same} from './management-store.js';
 import {payloadHash} from '../../programs/timetable-model.js';
 import {isAdminWorkspace,administers,actualState,viewedClass,readerPreview} from './workspace-access.js';
 
-export const assessmentRolesSQL=`SELECT account_id,activity_key,role FROM effective_activity_roles UNION SELECT e.account_id,e.activity_key,m.target_role role FROM legacy_access_evidence e JOIN role_import_reviews v ON v.account_id=e.account_id AND v.activity_key=e.activity_key AND v.source_value=e.source_role JOIN role_mapping_decisions m ON m.source_role=e.source_role WHERE e.source_effective=1 AND v.status='REQUIRED'`;
-const globalSQL=`EXISTS(SELECT 1 FROM global_role_assignments WHERE account_id=? AND active=1 AND role='GLOBAL_ADMIN' AND review_state='CONFIRMED')`;
+export const assessmentRolesSQL=`SELECT canonical_role_account.account_id,r.activity_key,r.role FROM effective_activity_roles r JOIN accounts canonical_role_account ON canonical_role_account.account_id=r.account_id COLLATE NOCASE UNION SELECT canonical_role_account.account_id,e.activity_key,m.target_role role FROM legacy_access_evidence e JOIN accounts canonical_role_account ON canonical_role_account.account_id=e.account_id COLLATE NOCASE JOIN role_import_reviews v ON v.account_id=e.account_id COLLATE NOCASE AND v.activity_key=e.activity_key AND v.source_value=e.source_role JOIN role_mapping_decisions m ON m.source_role=e.source_role WHERE e.source_effective=1 AND v.status='REQUIRED'`;
+const globalSQL=`EXISTS(SELECT 1 FROM global_role_assignments g JOIN accounts global_owner ON global_owner.account_id=g.account_id COLLATE NOCASE WHERE global_owner.account_id=? COLLATE BINARY AND g.active=1 AND g.role='GLOBAL_ADMIN' AND g.review_state='CONFIRMED')`;
 export const adminClause=`(${globalSQL} OR EXISTS(SELECT 1 FROM (${assessmentRolesSQL}) r WHERE r.account_id=? AND r.activity_key=a.activity_key AND r.role='PROGRAM_ADMIN'))`;
 export const teacherClause=`(${adminClause} OR EXISTS(SELECT 1 FROM (${assessmentRolesSQL}) r WHERE r.account_id=? AND r.activity_key=a.activity_key AND r.role='TEACHER' AND (EXISTS(SELECT 1 FROM class_teacher_assignments t WHERE t.activity_key=c.activity_key AND t.class_id=c.class_id AND t.account_id=r.account_id) OR EXISTS(SELECT 1 FROM program_publication_state ps JOIN published_lesson_classes lc ON lc.activity_key=ps.activity_key AND lc.publication_id=ps.latest_publication_id JOIN published_lesson_teachers lt ON lt.activity_key=lc.activity_key AND lt.publication_id=lc.publication_id AND lt.lesson_anchor=lc.lesson_anchor WHERE lc.activity_key=c.activity_key AND lc.class_id=c.class_id AND lt.account_id=r.account_id))))`;
 export const learnerClause=`(EXISTS(SELECT 1 FROM (${assessmentRolesSQL}) r WHERE r.account_id=? AND r.activity_key=a.activity_key AND r.role='STUDENT') OR EXISTS(SELECT 1 FROM effective_course_subscriptions s WHERE s.account_id=? AND s.activity_key=a.activity_key))`;
@@ -113,5 +114,5 @@ export function assessmentStore(repository,auth){
   }
  }
  const touch=a=>p('UPDATE assessments SET revision=revision+1,updated_at=? WHERE assessment_id=?',new Date().toISOString(),a.assessment_id);
- return {db,p,actor,combine,classes,allowed,readStaff,canAssess,assessorRows,requireAssessor,requireAssessorGroup,isAssignedExaminer,canWork,requireAssessmentStaff,requireAssessmentStaffGroup,examinerTeachers,examinerChoice,requireClass,requireClasses,requireAdminClasses,assessment,assessments,recipient,requireReader,requireExaminer,moderator,roster,rosters,event,revision,recipientRevision,change,touch};
+ return {db,p,actor,selectedV2:Boolean(nativeAuthContext(auth)),combine,classes,allowed,readStaff,canAssess,assessorRows,requireAssessor,requireAssessorGroup,isAssignedExaminer,canWork,requireAssessmentStaff,requireAssessmentStaffGroup,examinerTeachers,examinerChoice,requireClass,requireClasses,requireAdminClasses,assessment,assessments,recipient,requireReader,requireExaminer,moderator,roster,rosters,event,revision,recipientRevision,change,touch};
 }

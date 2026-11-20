@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {fixture,Bucket} from './helpers.mjs';
 import {FixtureSecurityCache as SecurityCache} from './helpers.mjs';
 import {canonical} from '../codec.mjs';
+import {selector} from '../http-context.mjs';
 import {verifiedPolicyCoverage} from '../policy-coverage.mjs';
 import {restrictionPlan,markSessionCovered,markControlCovered,worksetApplied} from '../publication.mjs';
 import {stagePolicy,confirmPolicyHistory,applyFamilyPolicy,registerPolicySuccessor} from '../policy.mjs';
@@ -78,7 +79,7 @@ test('a claimed unlocked revival without a matching later unlock receipt cannot 
 });
 test('a matching authenticated local unlock can supersede a correctly preserved historical policy lock',async()=>{
  const f=await setup();await stagePolicy(f.store,{target:policy(2,15),now:f.now});await change(f,3,200,{now:f.now+1200});
- const expected=JSON.parse((await f.store.family(f.sid)).binding_json),binding={...expected,sv:2,ue:1},tx=crypto.randomUUID(),op=crypto.randomUUID(),at=f.now+1300;
+ const current=JSON.parse((await f.store.family(f.sid)).binding_json),expected=selector(current,'studio'),binding={...current,sv:2,ue:1},tx=crypto.randomUUID(),op=crypto.randomUUID(),at=f.now+1300;
  f.raw.prepare("UPDATE jwt_v2_families SET state='UNLOCKED',sv=2,ue=1,last_refresh=?,idle_until=?,authority_ready=0,cr=cr+1,binding_json=? WHERE sid=?").run(at,at+12000,canonical(binding),f.sid);
  f.raw.prepare("INSERT INTO jwt_v2_ceremony_pending(tx,purpose,expected_json,sub,expires_at,csrf_hash,operation_id,status) VALUES(?,'unlock',?,?,?,?,?,'COMMITTED')").run(tx,canonical(expected),f.sub,at+60,'synthetic-csrf',op);
  const result={status:'COMMITTED',state:'UNLOCKED',sid:f.sid,ue:1,sv:2,s_exp:f.binding.s_exp,operationId:op};

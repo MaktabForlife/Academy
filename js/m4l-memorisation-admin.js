@@ -2,36 +2,50 @@
   'use strict';
   const $=id=>document.getElementById(id),root=$('ma-root');
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const token=()=>localStorage.getItem('m4l_account_token')||'',KEY='m4l_memorisation_admin_pending_v1';
+  const v2=location.origin==='https://ummabbadacademy.app'&&document.querySelector('meta[name=uaa-auth-version]')?.content==='2';let auth=null,nativeForm=null,nativeModel=null,nativeReady=false,nativeReviewing=false,readUnregister=null,viewResult=null,checkpoint=Promise.resolve(),checkpointPending=false;const client=async()=>auth||(auth=await window.M4L_ACADEMY_AUTH.ready);
+  const token=()=>v2?(window.M4L_ACADEMY_AUTH?.ownerKey()||''):localStorage.getItem('m4l_account_token')||'',KEY='m4l_memorisation_admin_pending_v1';
   let epoch=0,session='',owner='',scope={},data=null,tab='sets',selected='',editor=null,dirty=false,upload=null,users=null,query='',offset=0,busy=false,loading=false,pending=null,conflict=false,message='',failed=false;
-  const locked=()=>busy||Boolean(pending)||conflict;
-  function reset(){epoch++;session='';owner='';data=null;editor=null;dirty=false;upload=null;users=null;query='';offset=0;selected='';tab='sets';busy=false;loading=false;pending=null;conflict=false;message='';root.replaceChildren();}
-  function canLeave(){if(busy||pending){status('Finish or retry the pending save before leaving administration.',true);return false;}return !(dirty||upload)||window.confirm('Discard your unsaved administration changes?');}
+  const locked=()=>busy||Boolean(pending)||conflict||nativeReviewing;
+  function reset(){clearNative();checkpoint=Promise.resolve();checkpointPending=false;nativeReviewing=false;epoch++;session='';owner='';data=null;editor=null;dirty=false;upload=null;users=null;query='';offset=0;selected='';tab='sets';busy=false;loading=false;pending=null;conflict=false;message='';root.replaceChildren();}
+  function canLeave(){if(v2&&checkpointPending){status('Finishing the encrypted draft. Please try leaving again in a moment.');return false;}if(busy||pending||nativeReviewing){status('Finish or retry the pending save before leaving administration.',true);return false;}return !(dirty||upload)||window.confirm(v2?'Leave these edits and keep their encrypted draft for this session?':'Discard your unsaved administration changes?');}
   function status(text,error=false){message=text;failed=error;const node=$('ma-status');if(node){node.textContent=text;node.dataset.error=String(error);}}
+  function clearNative(){nativeForm?.dispose();nativeForm=null;nativeModel=null;nativeReady=false;readUnregister?.();readUnregister=null;}
+  const cleanSet=e=>e?JSON.parse(JSON.stringify({id:e.id||'',name:e.name||'',subject:e.subject||'',level:e.level||'',tasks:(e.tasks||[]).map(t=>typeof t==='string'?t:{id:t.id,name:t.name,moduleId:t.moduleId}),activityKeys:[...(e.activityKeys||[])],restricted:Boolean(e.restricted)})):null;
+  function snapshot(model=nativeModel){return model?.kind==='catalogue'?{selected,editor:cleanSet(editor),sets:upload?upload.map(cleanSet):null,tab:['sets','upload'].includes(tab)?tab:'sets'}:{change:model?.change?structuredClone(model.change):null};}
+  function persist(){if(!v2||!nativeForm||!nativeModel)return;const saved=snapshot();nativeModel.last=structuredClone(saved);const model=nativeModel,pendingWrite=nativeForm.checkpoint(saved);checkpoint=pendingWrite;checkpointPending=true;pendingWrite.then(()=>{if(checkpoint===pendingWrite)checkpointPending=false;},e=>{if(checkpoint===pendingWrite)checkpointPending=false;if(nativeModel===model)status(e.message,true);});}
+  function reveal(value){if(!v2)return;if(!auth.isCurrentResult(value))throw Object.assign(Error('The administration view changed.'),{stale:true});if(!nativeForm){readUnregister?.();root.style.visibility='';root.inert=false;readUnregister=auth.registerPrivateRoot(root);}auth.revealResult(value,{root});window.M4L_ACADEMY_STARTUP?.complete?.();}
+  async function readNative(model){let result;if(model.kind==='card'){result=await request('card-get',{accountId:model.resource.accountId});model.row=result;model.version=result.revision;if(users){const row=users.users.find(x=>x.id===result.accountId);if(row)Object.assign(row,{active:result.active,revision:result.revision});}}else{result=await request('get',{view:'admin',...scope});data=result;if(tab==='users'&&data.canImport)users=await request('cards',{query,offset});if(model.kind==='activity'){model.row=result.activities.find(x=>x.id===model.resource.activityKey);if(!model.row)throw Error('This learning area is no longer available.');model.version=model.row.revision;}else model.version=data.revision;}viewResult=result;render();return result;}
+  async function prepareNative(kind='catalogue',change=null){const c=await client(),resource=kind==='card'?{type:'academy-memorisation-user-card',accountId:change.accountId}:kind==='activity'?{type:'academy-memorisation-activity',activityKey:change.activityKey}:{type:'academy-memorisation-catalogue'};
+   if(nativeForm&&JSON.stringify(nativeModel.resource)===JSON.stringify(resource)){if(change)nativeModel.change=structuredClone(change);return {};}
+   await c.prepareBusiness();clearNative();root.style.visibility='';root.inert=false;readUnregister=c.registerPrivateRoot(root);const model={kind,resource,epoch,change:change?structuredClone(change):null,row:null,version:0,last:null};nativeModel=model;const value=await readNative(model);model.last=snapshot(model);const {createAcademyNativeForm}=await import('/js/m4l-v111-editor.mjs');if(model.epoch!==epoch||nativeModel!==model)throw Object.assign(Error('The administration view changed.'),{stale:true});readUnregister?.();readUnregister=null;root.style.visibility='';root.inert=false;const candidate=await createAcademyNativeForm({client:c,resource,roots:[root],host:document.body,capture:()=>model.epoch===epoch?snapshot(model):model.last,baseVersion:()=>model.version,isDirty:()=>kind==='catalogue'?dirty||Boolean(upload):Boolean(model.change),readCurrent:()=>readNative(model),applyCurrent:async result=>{if(kind==='catalogue'){editor=selected?cleanSet(data.sets.find(x=>x.id===selected)):null;dirty=false;upload=null;}else model.change=null;viewResult=result;render();},applyRetained:saved=>{if(kind==='catalogue'){selected=typeof saved.selected==='string'?saved.selected:'';editor=cleanSet(saved.editor);upload=Array.isArray(saved.sets)?saved.sets.map(cleanSet):null;tab=saved.tab==='upload'?'upload':'sets';dirty=Boolean(editor);}else{model.change=saved.change?structuredClone(saved.change):null;if(model.change&&model.row)model.change.revision=model.row.revision;}render();},status});if(model.epoch!==epoch||nativeModel!==model){candidate.dispose();throw Object.assign(Error('The administration view changed.'),{stale:true});}nativeForm=candidate;const opened=await nativeForm.open(value);nativeReady=true;render();return opened;
+  }
+  async function saveNative(action,input){if(busy||nativeReviewing)return;const kind=action==='card-active'?'card':action==='activity-active'?'activity':'catalogue',g=epoch;busy=true;render();let attempt;try{await checkpoint;const opened=await prepareNative(kind,input);if(opened?.manualReview)return;if(!nativeReady)throw Error('Prepare protected native recovery before saving.');await checkpoint;const packet={...JSON.parse(JSON.stringify(input)),operationId:crypto.randomUUID()};attempt=await nativeForm.beforeMutation({action,input:packet},{sensitive:true});let result=await request(action,packet);if(g!==epoch)return;result=await nativeForm.completeNativeMutation(attempt,result,{operationId:packet.operationId});dirty=false;upload=null;nativeModel.change=null;await nativeForm.saved();if(['set-save','module-save'].includes(action))selected=result.moduleId;if(action==='card-active')window.dispatchEvent(new CustomEvent('m4l-memorisation-card-updated',{detail:{own:result.accountId===data.accountId,active:result.active}}));clearNative();await load();message=action==='activity-active'?'Class progress access updated.':action==='card-active'?'User card updated.':action==='import'?'Sets saved.':'Set saved.';failed=false;}catch(e){if(e.stale||g!==epoch)return;if(attempt){nativeReviewing=true;await nativeForm.unknown(attempt);nativeReviewing=false;}status(e.message,true);}finally{if(g===epoch){busy=false;nativeReviewing=false;render();}}
+  }
   async function request(action,input={}){
-    const s=session,g=epoch,response=await fetch(`${window.M4L_CONFIG?.API_BASE||''}/api/academy/progress/${action}`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${s}`},body:JSON.stringify(input)});
+    const s=session,g=epoch;if(v2){const c=await client(),result=await c.request('/api/academy/progress/'+action,input,{headers:{'X-Academy-Workspace':'ADMIN'}});if(g!==epoch||s!==token()||!c.isCurrentResult(result))throw Object.assign(Error('The administration view changed.'),{stale:true});return result;}const response=await fetch(`${window.M4L_CONFIG?.API_BASE||''}/api/academy/progress/${action}`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${s}`},body:JSON.stringify(input)});
     const result=await response.json();if(g!==epoch||s!==token())throw Object.assign(Error('The Academy account changed.'),{stale:true});
     if(!response.ok||!result.success){if(response.status===401)window.dispatchEvent(new Event('m4l-academy-session-ended'));throw Object.assign(Error(result.error||'Administration is temporarily unavailable.'),{status:response.status});}return result;
   }
   async function open(options={}){
+    if(v2){await client();await auth.ensureFresh();}
     if(session===token()&&(data||loading)&&JSON.stringify(scope)===JSON.stringify(options))return;
     reset();scope=options;session=token();if(!session){root.innerHTML='<p>Sign in with an administrator account.</p>';return;}
     const g=epoch;loading=true;root.innerHTML='<p role="status">Loading administration…</p>';
     try{
       owner=[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(session)))].map(b=>b.toString(16).padStart(2,'0')).join('');if(g!==epoch||session!==token())return;
-      try{const saved=JSON.parse(sessionStorage.getItem(KEY)||'null');if(saved?.owner===owner&&['set-save','module-save','import','card-active','activity-active'].includes(saved.action))pending=saved;else if(saved)sessionStorage.removeItem(KEY);}catch{}
+      if(!v2)try{const saved=JSON.parse(sessionStorage.getItem(KEY)||'null');if(saved?.owner===owner&&['set-save','module-save','import','card-active','activity-active'].includes(saved.action))pending=saved;else if(saved)sessionStorage.removeItem(KEY);}catch{}
       if(pending?.action==='activity-active')tab='areas';else if(pending?.action==='card-active')tab='users';else if(pending?.action==='import')tab='upload';
       await load();
     }catch(e){if(!e.stale&&g===epoch)root.innerHTML=`<p role="alert">${esc(e.message)}</p><button class="ma-secondary" data-ma="reload">Try again</button>`;}
     finally{if(g===epoch)loading=false;}
   }
   async function load(){
-    data=await request('get',{view:'admin',...scope});
+    data=await request('get',{view:'admin',...scope});viewResult=data;
     if(tab==='users'&&data.canImport)users=await request('cards',{query,offset});
     if(selected){const m=data.sets.find(m=>m.id===selected);editor=m?JSON.parse(JSON.stringify(m)):null;}
     if(['set-save','module-save'].includes(pending?.action)){editor=JSON.parse(JSON.stringify(pending.input));editor.id=editor.moduleId||'';selected=editor.id;}
     if(pending?.action==='import')upload=JSON.parse(JSON.stringify((pending.input.sets||pending.input.modules)));
-    render();
+    render();if(v2){if(data.canImport)await prepareNative();else reveal(data);}
   }
   function accessFields(model,index='set'){
     const keys=model.activityKeys||[],restricted=model.restricted??Boolean(keys.length);
@@ -59,16 +73,17 @@
   function render(){
     if(!data)return;
     const view=data.canImport?tab:'sets';
-    root.innerHTML=`<div class="ma-shell"><nav class="ma-navigation" aria-label="Memorisation administration"><div><span class="ma-eyebrow">Set catalogue</span><h2>Surahs<br>and Duas</h2></div>${[['sets','Sets'],['upload','Upload a list'],['users','User cards'],['areas','Programs and Courses']].filter(([t])=>data.canImport||t==='sets').map(([t,label])=>`<button data-tab="${t}" aria-current="${t===view?'page':'false'}">${label}</button>`).join('')}<p>Memorisation sets.<br>Personal journeys.</p></nav><div class="ma-content"><div class="ma-topline"><span>${data.sets.length} sets · ${data.sets.reduce((n,m)=>n+m.tasks.length,0)} items</span><button class="ma-secondary" data-ma="refresh" data-page-content-refresh>Refresh</button></div><p class="ma-status" id="ma-status" role="status" aria-live="polite" data-error="${failed}">${esc(message)}</p>${pending?'<div class="ma-recovery"><p>A save needs confirmation. Retry to check whether it was received.</p><button class="ma-primary" data-ma="retry">Retry save</button></div>':conflict?'<div class="ma-recovery"><p>Saved information changed. Refresh and review before editing again.</p></div>':''}${view==='sets'?modulesView():view==='upload'?uploadView():view==='areas'?areasView():usersView()}</div></div>`;
-    root.querySelectorAll('button,input,select,textarea').forEach(n=>{if(busy||(pending||conflict)&&!['retry','refresh'].includes(n.dataset.ma))n.disabled=true;});
+    root.innerHTML=`<div class="ma-shell"><nav class="ma-navigation" aria-label="Memorisation administration"><div><span class="ma-eyebrow">Set catalogue</span><h2>Surahs<br>and Duas</h2></div>${[['sets','Sets'],['upload','Upload a list'],['users','User cards'],['areas','Programs and Courses']].filter(([t])=>data.canImport||t==='sets').map(([t,label])=>`<button data-tab="${t}" aria-current="${t===view?'page':'false'}">${label}</button>`).join('')}<p>Memorisation sets.<br>Personal journeys.</p></nav><div class="ma-content"><div class="ma-topline"><span>${data.sets.length} sets · ${data.sets.reduce((n,m)=>n+m.tasks.length,0)} items</span><button class="ma-secondary" data-ma="refresh" data-page-content-refresh>Refresh</button></div><p class="ma-status" id="ma-status" role="status" aria-live="polite" data-error="${failed}">${esc(message)}</p>${v2&&nativeModel?.kind!=='catalogue'&&nativeModel?.change?'<p><button type="button" class="ma-primary" data-ma="save-reviewed-setting">Save reviewed setting</button></p>':''}${pending?'<div class="ma-recovery"><p>A save needs confirmation. Retry to check whether it was received.</p><button class="ma-primary" data-ma="retry">Retry save</button></div>':conflict?'<div class="ma-recovery"><p>Saved information changed. Refresh and review before editing again.</p></div>':''}${view==='sets'?modulesView():view==='upload'?uploadView():view==='areas'?areasView():usersView()}</div></div>`;
+    root.querySelectorAll('button,input,select,textarea').forEach(n=>{if(busy||v2&&data.canImport&&!nativeReady||(pending||conflict)&&!['retry','refresh'].includes(n.dataset.ma))n.disabled=true;});
   }
   async function save(action,input){
+    if(v2)return saveNative(action,input);
     if(locked())return;pending={owner,action,input:JSON.parse(JSON.stringify({...input,operationId:crypto.randomUUID()}))};
     try{sessionStorage.setItem(KEY,JSON.stringify(pending));}catch{pending=null;status('Allow tab storage so interrupted saves can be retried safely.',true);return;}
     await transmit();
   }
   async function transmit(){
-    if(!pending||busy)return;busy=true;render();status('Saving…');const g=epoch,operation=pending;
+    if(v2)return;if(!pending||busy)return;busy=true;render();status('Saving…');const g=epoch,operation=pending;
     try{
       const result=await request(operation.action,operation.input);if(g!==epoch)return;
       pending=null;sessionStorage.removeItem(KEY);dirty=false;conflict=false;upload=null;
@@ -78,22 +93,22 @@
     }catch(e){if(e.stale||g!==epoch)return;if(e.status&&e.status<500&&e.status!==429){pending=null;sessionStorage.removeItem(KEY);conflict=e.status===409;}status(e.message,true);}
     finally{if(g===epoch){busy=false;render();}}
   }
-  async function refresh(){if(busy||pending)return;if((dirty||upload)&&!window.confirm('Discard your edits and reload the saved information?'))return;dirty=false;upload=null;conflict=false;busy=true;render();try{await load();status('Saved information refreshed.');}catch(e){if(!e.stale)status(e.message,true);}finally{busy=false;render();}}
+  async function refresh(){if(v2&&nativeForm){if(!busy&&!nativeReviewing)await nativeForm.revalidate();render();return;}if(busy||pending)return;if((dirty||upload)&&!window.confirm('Discard your edits and reload the saved information?'))return;dirty=false;upload=null;conflict=false;busy=true;render();try{await load();status('Saved information refreshed.');}catch(e){if(!e.stale)status(e.message,true);}finally{busy=false;render();}}
   root.addEventListener('click',async event=>{
     const b=event.target.closest('button');if(!b||b.disabled)return;
     try{
       const action=b.dataset.ma;
-      if(action==='retry'){await transmit();return;}if(action==='reload'){session='';await open(scope);return;}if(action==='refresh'){await refresh();return;}
+      if(action==='retry'){if(!v2)await transmit();return;}if(action==='save-reviewed-setting'){if(nativeModel?.change)await saveNative(nativeModel.kind==='card'?'card-active':'activity-active',nativeModel.change);return;}if(action==='reload'){session='';await open(scope);return;}if(action==='refresh'){await refresh();return;}
       if(b.dataset.tab||b.dataset.editSet||action==='new'){
         if(!canLeave())return;dirty=false;upload=null;conflict=false;
         if(b.dataset.tab){tab=b.dataset.tab;if(tab==='users'){busy=true;render();users=await request('cards',{query,offset});busy=false;}}
         if(b.dataset.editSet){selected=b.dataset.editSet;editor=JSON.parse(JSON.stringify(data.sets.find(m=>m.id===selected)));}
         if(action==='new'){selected='';editor={id:'',name:'',subject:'DUAS',level:'',tasks:[{name:''}],activityKeys:[]};dirty=true;tab='sets';}
-        render();return;
+        render();persist();return;
       }
-      if(action==='add-item'){editor.tasks.push({name:''});dirty=true;render();root.querySelectorAll('[data-item-name]')[editor.tasks.length-1]?.focus();return;}
-      if(b.dataset.removeItem!==undefined){editor.tasks.splice(Number(b.dataset.removeItem),1);dirty=true;render();return;}
-      if(action==='paste-items'){const items=$('ma-paste-items').value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);if(editor.tasks.length+items.length>100)throw Error('Keep each set within 100 items.');editor.tasks.push(...items.map(name=>({name})));dirty=true;render();return;}
+      if(action==='add-item'){editor.tasks.push({name:''});dirty=true;render();persist();root.querySelectorAll('[data-item-name]')[editor.tasks.length-1]?.focus();return;}
+      if(b.dataset.removeItem!==undefined){editor.tasks.splice(Number(b.dataset.removeItem),1);dirty=true;render();persist();return;}
+      if(action==='paste-items'){const items=$('ma-paste-items').value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);if(editor.tasks.length+items.length>100)throw Error('Keep each set within 100 items.');editor.tasks.push(...items.map(name=>({name})));dirty=true;render();persist();return;}
       if(action==='save-set'){
         const old=data.sets.find(m=>m.id===editor.id),removed=old?.tasks.filter(t=>!editor.tasks.some(e=>e.id===t.id)).length||0;
         if(editor.restricted&&!editor.activityKeys?.length)throw Error('Choose at least one Program or Course for a restricted set.');
@@ -115,6 +130,7 @@
     if(n.dataset.field){editor[n.dataset.field]=n.value;dirty=true;}
     if(n.dataset.itemName!==undefined){editor.tasks[Number(n.dataset.itemName)].name=n.value;dirty=true;}
     if(n.dataset.uploadLevel!==undefined)upload[Number(n.dataset.uploadLevel)].level=n.value;
+    if(v2&&n.id!=='ma-set-search')persist();
     const saveButton=root.querySelector('[data-ma="save-set"]');if(saveButton)saveButton.disabled=!dirty;
   });
   root.addEventListener('change',async event=>{
@@ -127,11 +143,13 @@
       if(n.dataset.activityActive){const a=data.activities.find(a=>a.id===n.dataset.activityActive);await save('activity-active',{activityKey:a.id,active:n.checked,revision:a.revision});}
       if(n.dataset.itemSet!==undefined){editor.tasks[Number(n.dataset.itemSet)].moduleId=n.value;dirty=true;root.querySelector('[data-ma="save-set"]').disabled=false;}
       if(n.dataset.uploadSubject!==undefined)upload[Number(n.dataset.uploadSubject)].subject=n.value;
-      if(n.id==='ma-file'){const file=n.files[0];if(!file)return;const g=epoch;busy=true;status('Reading your list…');const parsed=await window.M4L_MEMORISATION_UPLOAD.read(file);if(g!==epoch)return;upload=parsed;busy=false;status('Review the subjects and levels before saving.');render();}
+      if(n.id==='ma-file'){const file=n.files[0];if(!file)return;const g=epoch;busy=true;status('Reading your list…');const version=v2?auth.getState().viewVersion:null,parsed=await window.M4L_MEMORISATION_UPLOAD.read(file);if(g!==epoch||v2&&(version!==auth.getState().viewVersion||!auth.isCurrentResult(viewResult)))return;upload=parsed;busy=false;status('Review the subjects and levels before saving.');render();persist();}
       if(n.dataset.userCard){const u=users.users.find(u=>u.id===n.dataset.userCard);await save('card-active',{accountId:u.id,revision:u.revision,active:n.checked});}
+      if(v2&&n.id!=='ma-file')persist();
     }catch(e){busy=false;if(!e.stale){status(e.message,true);render();}}
   });
   root.addEventListener('submit',async event=>{if(event.target.id!=='ma-user-search-form')return;event.preventDefault();if(locked())return;query=$('ma-user-search').value;offset=0;busy=true;render();try{users=await request('cards',{query,offset});}catch(e){if(!e.stale)status(e.message,true);}finally{busy=false;render();}});
+  if(v2){window.addEventListener('academy-v2-mask',e=>{if(e.detail?.masked)for(const n of root.querySelectorAll('input[type=file]'))n.value='';});window.addEventListener('academy-v2-revalidate',()=>{if(!session||busy)return;void (nativeForm?nativeForm.revalidate():load()).catch(e=>status(e.message,true));});window.addEventListener('m4l-academy-session-ended',reset);}
   window.addEventListener('beforeunload',e=>{if(dirty||upload||pending||busy){e.preventDefault();e.returnValue='';}});
   window.M4L_MEMORISATION_ADMIN={open,reset,canLeave};
 })();

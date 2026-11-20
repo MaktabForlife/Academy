@@ -7,12 +7,14 @@
   const configuredVersion=window.M4L_CONFIG?.RELEASE_VERSION;
   const releaseVersion=typeof configuredVersion==='string'&&/^\d+\.\d+$/.test(configuredVersion)?configuredVersion:'';
   const roles = (values = []) => values.includes('GLOBAL_ADMIN') ? 'Global Admin' : values.some(role=>['PROGRAM_ADMIN','ADMIN'].includes(role)) ? 'Program Admin' : values.some(role=>['TEACHER','SENIOR'].includes(role)) ? 'Teacher' : values.includes('STUDENT') ? 'Student' : '';
-  const token = () => localStorage.getItem('m4l_account_token') || '';
+  const v2=window.M4L_ACADEMY_AUTH?.selected===true,auth=v2?window.M4L_ACADEMY_AUTH:null,homeOrigin=v2?'https://ummabbadacademy.app':'https://maktab4life.org';let client=null,checkedSession=null;
+  // ownerKey is a display-only family selector in V2; it never becomes a bearer credential.
+  const ownerKey=()=>v2?auth.ownerKey():localStorage.getItem('m4l_account_token')||'';
   const side = document.createElement('aside');
   side.className = 'academy-connected-sidebar';
   side.setAttribute('aria-label', 'Academy');
-  side.innerHTML = `<a class="academy-connected-brand" href="https://maktab4life.org/" data-page-home data-workspace-exit><img src="/ummabbadacademy.png" alt=""><span><strong>Umm Abbad<br>Academy</strong><span class="site-version">${releaseVersion?'Website V'+esc(releaseVersion):''}</span></span></a>
-    <nav aria-label="Academy navigation"><a href="https://maktab4life.org/" data-page-home data-workspace-exit>Academy home</a><a href="/activities/surahs-in-my-heart/">Surahs in my Heart</a><a href="/activities/kaaba-puzzle/">Kaaba puzzle</a><a id="ac-recorder" data-recorder-link href="/recorder/?academy=1" hidden>Voice Recorder</a><a id="ac-library" href="/academy/library/?view=public">Library</a><a id="ac-calendar" href="/academy/calendar/" hidden>Academic Calendar</a></nav>
+  side.innerHTML = `<a class="academy-connected-brand" href="${homeOrigin}/" data-page-home data-workspace-exit><img src="/ummabbadacademy.png" alt=""><span><strong>Umm Abbad<br>Academy</strong><span class="site-version">${releaseVersion?'Website V'+esc(releaseVersion):''}</span></span></a>
+    <nav aria-label="Academy navigation"><a href="${homeOrigin}/" data-page-home data-workspace-exit>Academy home</a><a href="/activities/surahs-in-my-heart/">Surahs in my Heart</a><a href="/activities/kaaba-puzzle/">Kaaba puzzle</a><a id="ac-recorder" data-recorder-link href="/recorder/?academy=1" hidden>Voice Recorder</a><a id="ac-library" href="/academy/library/?view=public">Library</a><a id="ac-calendar" href="/academy/calendar/" hidden>Academic Calendar</a></nav>
     <div class="academy-connected-footer"><button id="ac-signout" type="button" hidden>Sign out</button></div>`;
   const strip = document.createElement('nav');
   strip.className = 'academy-connected-activities';
@@ -48,16 +50,16 @@
   }
 
   function useSession(result,session){
-    const next=sessionNavigation(result);if(!session||session!==token()||!next)return false;
+    const next=sessionNavigation(result);if(!session||session!==ownerKey()||!next||v2&&!client?.isCurrentResult(result))return false;if(v2)checkedSession=result;
     ++generation;render(next,session);return true;
   }
   async function accountSession(session){
-    if(!session||session!==token())throw Error('Your Academy account changed. Open this page again.');
+    if(v2){client=await auth.ready;await client.ensureFresh();const current=client.ownerKey();if(session&&session!==current)throw Error('Your Academy account changed. Open this page again.');session=current;}
+    if(!session||session!==ownerKey())throw Error('Your Academy account changed. Open this page again.');
     if(sessionRequests.has(session))return sessionRequests.get(session);
     const pending=(async()=>{
-      const response=await fetch(`${window.M4L_CONFIG?.API_BASE||''}/api/account/session`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session}`},body:'{}'});
-      const result=await response.json();
-      if(session!==token())throw Error('Your Academy account changed. Open this page again.');
+      let result,response;if(v2){result=await client.request('/api/account/session');response={ok:true};}else{response=await fetch(`${window.M4L_CONFIG?.API_BASE||''}/api/account/session`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session}`},body:'{}'});result=await response.json();}
+      if(session!==ownerKey())throw Error('Your Academy account changed. Open this page again.');
       if(!response.ok||!result.success||!sessionNavigation(result))throw Object.assign(Error(result.error||'Your Academy account could not load.'),{status:response.status,code:result.code});
       useSession(result,session);return result;
     })();
@@ -73,12 +75,12 @@
     $('ac-library').href = '/academy/library/?view=public';
     $('ac-recorder').hidden = true;
     if($('ac-calendar'))$('ac-calendar').hidden = true;
-    $('ac-signout').hidden = !token();
+    $('ac-signout').hidden = !ownerKey();
     if ($('library-for-you')) $('library-for-you').hidden = true;
   }
 
   function render(result,session){
-      d1Session = result.sessionStore === 'D1' ? session : '';
+      d1Session = !v2&&result.sessionStore === 'D1' ? session : '';
       $('ac-library').href = '/academy/library/';
     $('ac-recorder').hidden = !result.signedIn;
       if($('ac-calendar'))$('ac-calendar').hidden = false;
@@ -89,6 +91,7 @@
       const courses = activities.filter(row => row.kind === 'COURSE');
       strip.innerHTML = programs.map(row => {
         if(row.id===window.M4L_CONFIG?.HIFZ_PROGRAM_ID){
+          if(v2)return '<a data-v2-hifz href="https://mahadarwa-hifz.ummabbadacademy.app/" target="_blank" rel="noopener noreferrer">Hifz ↗</a>';
           const loginId=result.profile?.uniqueid||'',url=window.M4L_CONFIG?.HIFZHELPER_URL;
           if(!/^[A-Za-z0-9]+$/.test(loginId)||typeof url!=='string'||!/^https:\/\//.test(url))return '';
           return `<a href="${esc(url.replace(/\/$/,'')+'/'+encodeURIComponent(loginId)+'?academy='+encodeURIComponent(window.M4L_CONFIG?.HIFZ_ENTRY_SOURCE||'1'))}" target="_blank" rel="noopener noreferrer" aria-label="HifzHelper (opens in a new tab)">HifzHelper ↗</a>`;
@@ -97,11 +100,12 @@
       }).join('') +
         (result.signedIn && (result.globalAdmin || courses.some(row=>row.roles?.length)) ? `<a href="${window.M4L_ACADEMY_WORKSPACE?.adminRealm()?'/academy/admin/':'/academy/'}#workshops"><span>Courses</span><small>${esc(roles(result.globalAdmin ? ['GLOBAL_ADMIN','PROGRAM_ADMIN'] : [...new Set(courses.flatMap(row => row.roles))]) || 'None')}</small></a>` : '');
       strip.hidden = !result.signedIn;
-      window.M4L_ACADEMY_SHELL_DATA=result;window.M4L_ACADEMY_SHELL?.update(result);
+      window.M4L_ACADEMY_SHELL_DATA=result;window.M4L_ACADEMY_SHELL?.update(result);if(v2&&client.isCurrentResult(checkedSession))client.revealResult(checkedSession,{root:strip});
   }
 
   async function refresh() {
-    const pending = ++generation, session = token();
+    if(v2){try{client=await auth.ready;await client.ensureFresh();}catch{clear();return;}}
+    const pending = ++generation, session = ownerKey();
     if (d1Session !== session) d1Session = '';
     clear();
     if (!session) return;
@@ -111,13 +115,14 @@
         // Shared banners need account authority, not a complete timetable.
         await accountSession(session);return;
       }
-      if (pending !== generation || session !== token() || !result.success || !result.signedIn) return;
+      if (pending !== generation || session !== ownerKey() || !result.success || !result.signedIn) return;
       render(result,session);
     } catch { /* Public navigation stays available while account information is unavailable. */ }
   }
 
   $('ac-signout').addEventListener('click', () => {
-    const session = token(), revoke = session && d1Session === session;
+    if(v2){++generation;clear();void auth.logout().then(result=>{if(result.outcome==='GLOBAL_UNCONFIRMED'){const message=document.createElement('p');message.setAttribute('role','status');message.textContent='Signed out here. Global sign-out has not been confirmed.';side.append(message);}else location.assign(homeOrigin+'/?public=1');});return;}
+    const session = ownerKey(), revoke = session && d1Session === session;
     d1Session = '';
     ++generation;
     clear();
@@ -142,7 +147,7 @@
     window.dispatchEvent(new Event('m4l-academy-session'));
     window.M4L_CIRCLES_NATIVE?.openHome({publicPage:true},true);
   });
-  window.addEventListener('storage', event => { if (event.key === 'm4l_account_token' || event.key === null) void refresh(); });
+  window.addEventListener('storage', event => { if (!v2&&(event.key === 'm4l_account_token' || event.key === null)) void refresh(); });
   window.addEventListener('m4l-academy-session', () => { void refresh(); });
   window.addEventListener('m4l-program-selection', () => {
     currentProgram = new URLSearchParams(location.search).get('program');
@@ -152,5 +157,6 @@
     }
   });
   window.addEventListener('pageshow', event => { if (event.persisted) void refresh(); });
+  if(v2){auth.ready.then(value=>{client=value;client.registerPrivateRoot(strip);}).catch(()=>{});window.addEventListener('academy-v2-revalidate',()=>void refresh());window.addEventListener('m4l-academy-session-ended',()=>{checkedSession=null;clear();});const navigate=event=>{const link=event.target.closest?.('a[href]');if(!link||event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;const url=new URL(link.href,location.href);if(!['https://ummabbadacademy.app','https://mahadarwa-hifz.ummabbadacademy.app'].includes(url.origin))return;event.preventDefault();if(window.M4L_CIRCLES_NATIVE?.canLeave?.()===false)return;void auth.navigate(url.href,{newTab:link.hasAttribute('data-v2-hifz')}).catch(error=>{const message=document.createElement('p');message.setAttribute('role','status');message.textContent=error.message;side.append(message);});};side.addEventListener('click',navigate);strip.addEventListener('click',navigate);}
   void refresh();
 })();

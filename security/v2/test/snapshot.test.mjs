@@ -186,11 +186,11 @@ test('streaming final hash matches the exact canonical full-state digest without
 });
 test('large dependency records split by encoded bytes and an oversized single record fails',async()=>{
  const actions=Array.from({length:350},(_,i)=>'action-'+String(i).padStart(3,'0')+'-'+'x'.repeat(95)),dependencies=new Map();
- const entries=[0,1].map(i=>{const id='academy:large:'+i;dependencies.set(id,{ownerApp:'academy',recipients:['studio'],epoch,actions});return {bucket:'dependencyFloors',record:{type:'dependency',id,ownerEpoch:epoch,revision:1,effect:'DENY',deniedActions:actions}};});
+ const entries=[0,1].map(i=>{const id='academy:large:'+i;dependencies.set(id,{ownerApp:'academy',scope:'GLOBAL',recipients:['studio'],epoch,actions});return {bucket:'dependencyFloors',record:{type:'dependency',id,ownerEpoch:epoch,revision:1,effect:'DENY',deniedActions:actions}};});
  const f=await source(entries,{recordConfig:{dependencies}});
  assert.deepEqual(f.pages.map(p=>p.entries.length),[1,1]);assert(f.pages.every(p=>bytes(canonical(p)).length<=65536));
  assert.equal((await stageAll(receiver({recordConfig:{dependencies}}),f.pages)).status,'VERIFIED');
- const big=Array.from({length:650},(_,i)=>'action-'+String(i).padStart(3,'0')+'-'+'x'.repeat(95)),id='academy:oversized';dependencies.set(id,{ownerApp:'academy',recipients:['studio'],epoch,actions:big});
+ const big=Array.from({length:650},(_,i)=>'action-'+String(i).padStart(3,'0')+'-'+'x'.repeat(95)),id='academy:oversized';dependencies.set(id,{ownerApp:'academy',scope:'GLOBAL',recipients:['studio'],epoch,actions:big});
  await assert.rejects(source([{bucket:'dependencyFloors',record:{type:'dependency',id,ownerEpoch:epoch,revision:1,effect:'DENY',deniedActions:big}}],{recordConfig:{dependencies}}),/TOO_LARGE/);
 });
 async function replayEvent(sequence=1){

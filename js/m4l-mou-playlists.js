@@ -9,7 +9,7 @@
  function reset(){if(!state)return;state.closed=true;dispose(state);state.host.remove();state.drafts.clear();state=null;}
  async function mount(container,{transport,label='MOU playlists',itemLabel='playlist',accessModel='MONTHLY',onCreate,onEditContext,onLegacy,cardTools=null,cardKind='PROGRAM',cardUpload=null,cardPreview=null,cardTeacher=false,loadCardTeachers=null,cardPrepareImage=async file=>file,owner=token,allowCreate=true,purpose="all",initialData=null,onSaved=()=>{}}={}){
   if(!canLeave())return false;reset();const host=document.createElement('section');host.className='mou-playlist-admin';host.dataset.playlistPurpose=purpose;container.append(host);
-  const s={host,transport,owner:owner(),drafts:new Map(),data:null,busy:false,pending:null,review:null,closed:false,cardEditors:[]};state=s;
+  const s={host,transport,owner:owner(),ownerNow:owner,drafts:new Map(),data:null,busy:false,pending:null,review:null,closed:false,cardEditors:[]};state=s;
   const monthly=()=>((s.data?.accessModel)||accessModel)==='MONTHLY';
   const current=()=>state===s&&!s.closed&&s.owner===owner()&&host.isConnected;
   function locked(error){s.closed=true;s.busy=false;s.pending=null;s.review=null;s.data=null;s.drafts.clear();host.replaceChildren();const notice=document.createElement('p');notice.setAttribute('role','alert');notice.textContent=error.message+' Reopen Access Management to check your current permissions.';host.append(notice);}
@@ -68,5 +68,5 @@
  }
  window.M4L_RECORDING_PLAYLISTS=window.M4L_MOU_PLAYLISTS={mount,unmount:reset,canLeave,dirty,currentRevision:()=>state?.data?.revision};
  window.addEventListener('beforeunload',event=>{if(dirty()){event.preventDefault();event.returnValue='';}});
- window.addEventListener('m4l-academy-session-ended',reset);window.addEventListener('m4l-academy-session',reset);window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)reset();});
+ window.addEventListener('m4l-academy-session-ended',reset);window.addEventListener('m4l-academy-session',()=>{if(window.M4L_ACADEMY_AUTH?.selected!==true||state&&state.owner!==state.ownerNow())reset();});window.addEventListener('storage',event=>{if(window.M4L_ACADEMY_AUTH?.selected!==true&&(event.key==='m4l_account_token'||event.key===null))reset();});
 })();

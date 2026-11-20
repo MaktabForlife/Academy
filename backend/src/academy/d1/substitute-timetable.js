@@ -1,3 +1,4 @@
+import {capturedNativePermissionRows} from '../v111/native-context.js';
 import {publicationRecord,publicationSchedule} from '../../programs/weekly-timetable.js';
 import {localInstant} from './academy-clock.js';
 import {currentProgramZoom} from './program-zoom.js';
@@ -6,9 +7,9 @@ import {same} from './management-store.js';
 
 // A substitute grant is an exact dated session capability, never a Teacher role.
 export async function substituteTimetable(repository,auth,data,now){
- const actor=auth.user.accountid,timestamp=now.toISOString(),db=repository.db;
+ const captured=capturedNativePermissionRows(auth,'substituteGrants'),actor=auth.user.accountid,timestamp=now.toISOString(),db=repository.db;
  const [grants,classes,zoom]=(await db.batch([
-  db.prepare("SELECT g.*,a.activity_id,a.kind,a.name FROM attendance_substitutes g JOIN activities a USING(activity_key) WHERE g.account_id=? AND a.active=1 AND a.lifecycle='ACTIVE' AND g.revoked_at IS NULL AND g.starts_at<=? AND max(g.correction_until,coalesce(g.correction_reopen_until,''))>? AND g.attendance_date BETWEEN ? AND ?").bind(actor,timestamp,timestamp,data.start,data.end),
+  db.prepare("SELECT g.*,a.activity_id,a.kind,a.name FROM attendance_substitutes g JOIN activities a USING(activity_key) WHERE g.account_id=? AND a.active=1 AND a.lifecycle='ACTIVE' AND g.revoked_at IS NULL AND g.starts_at<=? AND max(g.correction_until,coalesce(g.correction_reopen_until,''))>? AND g.attendance_date BETWEEN ? AND ?"+(captured?" AND g.assignment_id IN(SELECT json_extract(value,'$.assignment_id') FROM json_each(?))":'')).bind(actor,timestamp,timestamp,data.start,data.end,...(captured?[JSON.stringify(captured)]:[])),
   db.prepare("SELECT c.* FROM classes c WHERE c.active=1 AND EXISTS(SELECT 1 FROM attendance_substitutes g WHERE g.activity_key=c.activity_key AND g.account_id=? AND g.revoked_at IS NULL)").bind(actor),
   db.prepare("SELECT setting_key,setting_value FROM academy_settings WHERE setting_key LIKE 'ProgramZoom:%'")
  ])).map(r=>r.results),rows=[],areas=[];

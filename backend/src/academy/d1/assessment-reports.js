@@ -1,3 +1,4 @@
+import {nativeAuthContext} from '../v111/native-context.js';
 import {assessmentResultsSQL} from './assessment-results.js';
 import {reportDefinitionHash} from './assessment-report-source.js';
 import {assessmentOperations} from './assessment-timing.js';
@@ -26,9 +27,12 @@ export function assessmentReports(repository,auth){
  async function saveTemplate(input){return s.change('template-save',input,input.activityKey,async()=>{
   await s.requireClass(input.activityKey,input.classId,'admin');const name=cleanText(input.name,160,'a template name'),layout=validateAssessmentLayout(input.layout);
   if(input.fileId&&!await p("SELECT 1 ok FROM assessment_files WHERE file_id=? AND activity_key=? AND kind='TEMPLATE'",input.fileId,input.activityKey).first())throw fail('Choose a report design in this learning area.',403);
+  const selected=Boolean(nativeAuthContext(auth)),proposed=input.proposedId,creating=selected&&input.creating===true&&/^ASTPL-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(proposed||'');
+  if(selected&&(input.creating!==undefined||proposed!==undefined)&&(!creating||input.templateId||input.revision!==0))throw fail('Choose a new report template with its original identity.',400,'INVALID_TEMPLATE_ID');
+  if(creating&&await p('SELECT 1 FROM assessment_report_templates WHERE template_id=?',proposed).first())throw fail('This report template already exists. Read its current version.',409,'ROW_CHANGED');
   const old=input.templateId?await p('SELECT * FROM assessment_report_templates WHERE template_id=? AND activity_key=?',input.templateId,input.activityKey).first():null;
   if(input.templateId&&!old)throw fail('Template not found.',404);if(old&&old.revision!==input.revision)throw fail('This template changed. Refresh before saving.',409,'ROW_CHANGED');
-  const id=old?.template_id||crypto.randomUUID(),now=new Date().toISOString();
+  const id=old?.template_id||(creating?proposed:crypto.randomUUID()),now=new Date().toISOString();
   return {statements:[p(`INSERT INTO assessment_report_templates VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(template_id) DO UPDATE SET name=excluded.name,file_id=excluded.file_id,layout_json=excluded.layout_json,revision=excluded.revision,updated_at=excluded.updated_at,updated_by=excluded.updated_by`,id,input.activityKey,name,input.fileId||null,JSON.stringify(layout),(old?.revision||0)+1,now,actor),s.event({activity_key:input.activityKey},'template-save',{templateId:id})],result:{templateId:id}};
  });}
  async function data(input){

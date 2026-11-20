@@ -28,7 +28,9 @@
   let restoringSession = null;
   let loginRequested = window.location.hash === "#login";
 
-  if (!form || !linkInput || !pinInput || !apiBase) return;
+  if (!form || !linkInput || !pinInput || (!apiBase&&!window.M4L_ACADEMY_AUTH?.selected)) return;
+
+  if(window.M4L_ACADEMY_AUTH?.selected){initV2Login();return;}
 
   // Reuse the identity from the existing login/session response; no extra lookup.
   window.M4L_ACADEMY_LOGIN = Object.freeze({
@@ -349,6 +351,22 @@
       throw error;
     }
     return result;
+  }
+
+  function initV2Login(){
+    const auth=window.M4L_ACADEMY_AUTH;let verified=null,generation=0,flight=null;
+    const current=()=>verified&&auth.isCurrentResult(verified);
+    window.M4L_ACADEMY_LOGIN=Object.freeze({currentId:()=>current()?String(verified.account?.uniqueid||''):'',contexts:()=>current()?(verified.contexts||[]).map(row=>({...row})):[]});
+    const signedOut=()=>{verified=null;headerName.textContent='';headerName.hidden=true;signOutButton.hidden=true;loginButton.hidden=false;sessionLoading.hidden=true;homeCard.hidden=false;document.body.classList.remove('academy-signed-in');window.M4L_ACADEMY_STARTUP?.complete();};
+    const render=result=>{if(!auth.isCurrentResult(result))throw new DOMException('Your Academy session changed.','AbortError');verified=result;const account=result.account;if(!account?.uniqueid)throw Error('The Academy account reply is incomplete.');const name=String(account.displayName||'Academy member');headerName.textContent=name;headerName.hidden=false;avatar.textContent=name.charAt(0).toUpperCase();avatar.setAttribute('aria-label','Signed in as '+name);signOutButton.hidden=false;loginButton.hidden=true;sessionLoading.hidden=true;homeCard.hidden=false;document.body.classList.add('academy-signed-in');closeLogin();auth.revealResult(result);window.dispatchEvent(new Event('m4l-academy-session'));};
+    const restore=()=>{if(flight)return flight;const version=++generation;sessionLoading.hidden=false;sessionMessage.textContent='Checking your sign-in…';flight=auth.ready.then(async client=>{const dto=await client.bootstrap();if(dto.state!=='UNLOCKED'){if(version===generation)signedOut();return;}const result=await client.request('/api/account/session');if(version===generation)render(result);}).catch(error=>{if(version!==generation||error.name==='AbortError')return;signedOut();if(!['PIN_REQUIRED','SESSION_ENDED'].includes(error.code)){sessionLoading.hidden=false;sessionMessage.textContent='The account service is unavailable. Please try again.';sessionRetry.hidden=false;}}).finally(()=>{flight=null;});return flight;};
+    form.addEventListener('submit',async event=>{event.preventDefault();const uniqueid=linkInput.value.trim(),pin=pinInput.value;if(!uniqueid||!/^\d{4}$/.test(pin)){showStatus('Enter your account ID and complete four-digit PIN.');return;}const version=++generation;setBusy(true);try{await auth.submitPin({uniqueid,pin});pinInput.value='';const result=await auth.request('/api/account/session');if(version===generation){render(result);if(['','#overview','#website','#login','#dashboard'].includes(location.hash)){await auth.prepareJourney();window.M4L_CIRCLES_NATIVE?.openHome({},true);}}}catch(error){pinInput.value='';if(error.code==='PIN_SETUP_REQUIRED'){await auth.prepareJourney();location.assign('/auth/v2/signin');}else showStatus(error.message||'Sign-in could not be completed.');}finally{setBusy(false);}});
+    loginButton.addEventListener('click',()=>{if(loginDialog.open)return;form.hidden=false;loginDialog.showModal();loginButton.setAttribute('aria-expanded','true');document.body.classList.add('academy-login-open');linkInput.focus();});
+    loginClose.addEventListener('click',()=>closeLogin(true));loginDialog.addEventListener('cancel',event=>{event.preventDefault();closeLogin(true);});
+    pinInput.addEventListener('input',()=>{pinInput.value=pinInput.value.replace(/\D/g,'').slice(0,4);});pinToggle.addEventListener('click',()=>{const showing=pinInput.type==='password';pinInput.type=showing?'text':'password';pinToggle.textContent=showing?'Hide':'Show';});
+    signOutButton.addEventListener('click',async()=>{generation++;signedOut();const result=await auth.logout();if(result.outcome==='GLOBAL_UNCONFIRMED'){sessionLoading.hidden=false;sessionMessage.textContent='Signed out on this device. Global sign-out has not been confirmed.';}});
+    sessionRetry.addEventListener('click',()=>void restore());window.addEventListener('academy-v2-revalidate',()=>void restore());window.addEventListener('m4l-academy-session-ended',()=>{generation++;signedOut();});
+    void restore();
   }
 
   function isTemporaryServiceError(error) {

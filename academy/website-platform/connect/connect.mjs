@@ -1,4 +1,5 @@
 import {academyDestination} from './destinations.mjs';
+if(globalThis.document?.querySelector?.('meta[name=\"uaa-auth-version\"]')?.content==='2'){const status=document.getElementById('status');if(status)status.textContent='Use the current Academy dashboard to open the connected app.';}else{
 const status=document.getElementById('status');
 const encode=bytes=>btoa(String.fromCharCode(...new Uint8Array(bytes))).replaceAll('+','-').replaceAll('/','_').replaceAll('=','');
 try{
@@ -17,3 +18,5 @@ try{
  sessionStorage.removeItem('m4l_website_library_return');
  if(session.library){sessionStorage.setItem('m4l_website_library_return',JSON.stringify({...session.library,websiteOrigin:config.websiteOrigin,expiresAt:Date.now()+8*3600_000}));location.replace('/academy/library/');}else if(session.destination){const destination=academyDestination(session.destination,location.origin);if(!destination)throw Error('Choose a valid Academy destination.');location.replace(destination);}else location.replace('/academy/');
 }catch(error){status.textContent=error.message;window.M4L_ACADEMY_STARTUP?.fail(error.message);}
+
+}

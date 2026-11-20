@@ -5,7 +5,7 @@ import {captureDDL} from '../capture.mjs';
 import {vectorFromGuards} from '../capture-receipt.mjs';
 import {vectorDigest,digest,fingerprint,opaque,canonical} from '../codec.mjs';
 test('native role withdrawal dirties authority and silently renews only remaining rights without moving original expiry',async()=>{
- const f=await fixture(),scope='ACCOUNT:SYNTHETIC-ACCOUNT',id='studio:native:role_assignments';
+ const f=await fixture(),scope='ACCOUNT:synthetic-account',id='studio:native:role_assignments';
  f.raw.function('unixepoch',()=>f.now);
  f.raw.exec('CREATE TABLE role_assignments(account_id TEXT PRIMARY KEY,role TEXT);');
  const registry={schema:2,app:'studio',rules:{role_assignments:{required:true,columns:['account_id','role'],accountColumn:'account_id'}}};

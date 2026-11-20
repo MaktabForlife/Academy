@@ -20,7 +20,9 @@ function acceptedRows(selection,table){
   const merged={...row};for(const column of spec.live||[])merged[column]=live[column];if(Object.hasOwn(live,'active'))merged.active=live.active;
   // The additive fields were absent from the original accepted bootstrap.
   // Defaults are explicit, never an unpublished source-field fallback.
-  if(table==='assessments')Object.assign(merged,{assessment_kind:row.assessment_kind||'EXAM',timing_mode:row.timing_mode||'TIMED',timezone:row.timezone||selection.timezone,available_from:row.available_from??null,due_at:row.due_at??null,exam_cutoff:row.exam_cutoff??null,allowance_minutes:row.allowance_minutes??15});
+  // Explicit NULL is part of the native UNTIMED contract, not a missing
+  // historical field. Preserve it; defaults apply only to absent JSON keys.
+  if(table==='assessments')Object.assign(merged,{assessment_kind:row.assessment_kind||'EXAM',timing_mode:row.timing_mode||'TIMED',timezone:row.timezone||selection.timezone,available_from:row.available_from??null,due_at:row.due_at??null,exam_cutoff:row.exam_cutoff??null,allowance_minutes:Object.hasOwn(row,'allowance_minutes')?row.allowance_minutes:(row.timing_mode==='UNTIMED'?null:15)});
   return [merged];
  });
 }

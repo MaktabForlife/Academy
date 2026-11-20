@@ -1,5 +1,16 @@
 (() => {
  'use strict';
+ if(window.M4L_ACADEMY_AUTH?.selected){
+  const auth=window.M4L_ACADEMY_AUTH,cache=new Map();let epoch=0,now=()=>Date.now();void auth.ready.then(client=>{now=()=>client.getServerNowMs();}).catch(()=>{});
+  const expired=data=>(data.lessons||[]).some(lesson=>(lesson.assets||[]).some(asset=>asset.expired===true||asset.expiresAt&&!asset.retained&&(!Number.isFinite(Date.parse(asset.expiresAt))||Date.parse(asset.expiresAt)<=now()))||(lesson.recordingCompanions||[]).some(c=>c.companionExpiresAt&&(!Number.isFinite(Date.parse(c.companionExpiresAt))||Date.parse(c.companionExpiresAt)<=now())));
+  const key=scope=>JSON.stringify([auth.ownerKey(),scope.workspace,scope.classView,scope.activityKey,scope.runId,scope.learnerView]);
+  const clear=()=>{epoch++;cache.clear();};
+  const read=(scope,head)=>{const name=key(scope),entry=cache.get(name);if(!entry||!auth.hasSession()||!auth.isCurrentResult(entry.data)||head&&entry.head!==head||Date.now()-entry.savedAt>60000||expired(entry.data)){cache.delete(name);return null;}return entry;};
+  const write=(scope,data,head,ticket=epoch)=>{if(ticket!==epoch||!auth.hasSession()||!auth.isCurrentResult(data)||!data?.cacheRevision||new TextEncoder().encode(JSON.stringify(data)).length>400*1024)return;cache.set(key(scope),{version:2,savedAt:Date.now(),head,scope,data});while(cache.size>20)cache.delete(cache.keys().next().value);};
+  window.M4L_LESSON_MEDIA_CACHE={owner:async()=>auth.ownerKey(),read,write,invalidate:clear,clear,ticket:()=>epoch};
+  for(const name of ['academy-v2-context','academy-v2-mask','academy-v2-revalidate','m4l-academy-session-ended'])window.addEventListener(name,event=>{if(name!=='academy-v2-mask'||event.detail?.masked!==false)clear();});window.addEventListener('pagehide',clear);return;
+ }
+
  // Session metadata only. Protected files, player URLs and editor drafts never enter this store.
  const prefix='m4l_media_rail_v1:',ttl=30*60*1000,maxEntries=20,maxBytes=2*1024*1024,memory=new Map();
  const currentToken=()=>localStorage.getItem('m4l_account_token')||'';

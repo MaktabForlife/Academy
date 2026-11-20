@@ -1,20 +1,26 @@
+import {libraryMetadataLocalSchemaSQL,saveLibraryMetadataV2,reconcileLibraryMetadata} from '../v111/library-metadata-v2.mjs';
 import {DurableObject} from 'cloudflare:workers';
 import {openLibraryMetadataUser} from './library-metadata.js';
 import {loadOpenLibraryTaxonomy,resolveOpenLibraryTaxonomySelection} from './library-taxonomy.js';
-import {validateOpenLibraryMetadata,publicOpenLibraryMetadata,isAcademyLinkId} from '../../lib/open-library-metadata.js';
+import {validateOpenLibraryMetadata,publicOpenLibraryMetadata,isAcademyLinkId,isOpenLibraryMetadataId} from '../../lib/open-library-metadata.js';
 import {problem} from '../../programs/model.js';
 // Preserve this deployed class identity and all existing records.
 export class ProgramTimetableCoordinator extends DurableObject {
-  constructor(ctx,env){super(ctx,env);ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS open_library_metadata (id TEXT PRIMARY KEY, metadata TEXT NOT NULL, revision INTEGER NOT NULL, updated_at TEXT NOT NULL, updated_by TEXT NOT NULL)');}
-  openLibraryMetadataList() {
+  constructor(ctx,env){super(ctx,env);ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS open_library_metadata (id TEXT PRIMARY KEY, metadata TEXT NOT NULL, revision INTEGER NOT NULL, updated_at TEXT NOT NULL, updated_by TEXT NOT NULL)');if(env.UAA_V2_ENABLED==='1')ctx.storage.sql.exec(libraryMetadataLocalSchemaSQL);}
+  async openLibraryMetadataList() {
+    if(this.env.UAA_V2_ENABLED==='1')await reconcileLibraryMetadata(this.ctx,this.env);
     return this.ctx.storage.sql.exec('SELECT metadata, revision FROM open_library_metadata ORDER BY id').toArray().map(publicOpenLibraryMetadata);
   }
-  openLibraryMetadataCoverKey(id) {
+  async openLibraryMetadataRecord(id) {if(!isOpenLibraryMetadataId(id))throw problem('Choose a Library resource.',400);if(this.env.UAA_V2_ENABLED==='1')await reconcileLibraryMetadata(this.ctx,this.env,id);const row=this.ctx.storage.sql.exec('SELECT metadata,revision FROM open_library_metadata WHERE id=?',id).toArray()[0];return row?publicOpenLibraryMetadata(row):null;}
+  async openLibraryMetadataSaveV2(input,proof,uploadedCoverKey=''){if(this.env.UAA_V2_ENABLED!=='1')throw problem('The JWT Library writer is not selected.',410);return saveLibraryMetadataV2(this.ctx,this.env,input,proof,uploadedCoverKey);}
+  async openLibraryMetadataCoverKey(id) {
+    if(this.env.UAA_V2_ENABLED==='1')await reconcileLibraryMetadata(this.ctx,this.env,id);
     const row = this.ctx.storage.sql.exec('SELECT metadata FROM open_library_metadata WHERE id = ?', id).toArray()[0];
     const record = row ? JSON.parse(row.metadata) : null;
     return record?.kind === 'LINK' && record.active === false ? '' : record?.coverKey || '';
   }
   async openLibraryMetadataSave(input, authorization, uploadedCoverKey = '') {
+    if(this.env.UAA_V2_ENABLED==='1')throw Object.assign(problem('Use the JWT Library writer.',410),{code:'V1_AUTH_RETIRED'});
     const request=new Request('https://internal.invalid/open-library-metadata', {
       headers: { Authorization: authorization, 'X-Academy-Workspace':'ADMIN' }
     });

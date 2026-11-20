@@ -3,7 +3,7 @@
   'use strict';
   if (window.M4L_CIRCLES_NATIVE) return;
   const local = ['localhost', '127.0.0.1'].includes(location.hostname);
-  const publicOrigin = local ? location.origin : window.M4L_CONFIG?.PORTAL_ORIGIN || location.origin;
+  const publicOrigin = window.M4L_ACADEMY_AUTH?.selected?location.origin:local ? location.origin : window.M4L_CONFIG?.PORTAL_ORIGIN || location.origin;
   const toolHosts = new Set(['/academy/', '/academy/index.html', '/academy/admin/', '/academy/admin/index.html']);
   const modes = new Set(['learn', 'teach', 'admin']);
   const publicSections = {about:'academy-story', contact:'contact', prospectus:'prospectus', learning:'programmes', workshops:'my-courses'};
@@ -38,6 +38,7 @@
     if (!canLeave()) return false;
     const href = home(options);
     window.M4L_ACADEMY_HISTORY?.prepare?.(href);
+    if(window.M4L_ACADEMY_AUTH?.selected){void window.M4L_ACADEMY_AUTH.prepareJourney().then(()=>location[replace?'replace':'assign'](href)).catch(error=>recovery(error.message||'Finish your current work before leaving.'));return true;}
     location[replace ? 'replace' : 'assign'](href);
     return true;
   }
@@ -67,7 +68,7 @@
     }
     panel.querySelector('[data-recovery-message]').textContent = message;
     panel.querySelector('[data-recovery-retry]').hidden = !retry;
-    let signed=false;try{signed=Boolean(localStorage.getItem('m4l_account_token'));}catch{}
+    let signed=false;try{signed=window.M4L_ACADEMY_AUTH?.selected?window.M4L_ACADEMY_AUTH.hasSession():Boolean(localStorage.getItem('m4l_account_token'));}catch{}
     panel.querySelector('[data-recovery-login]').hidden = retry||signed;
     panel.hidden = false;
     if (toolHosts.has(location.pathname)) document.querySelectorAll('.view.active').forEach(view => view.classList.remove('active'));
@@ -76,7 +77,7 @@
   function routeEntry() {
     if (!toolHosts.has(location.pathname)) return false;
     const destination = legacyDestination();
-    if (destination) { if(canLeave())location.replace(destination); return true; }
+    if (destination) { if(canLeave()){if(window.M4L_ACADEMY_AUTH?.selected)void window.M4L_ACADEMY_AUTH.prepareJourney().then(()=>location.replace(destination)).catch(error=>recovery(error.message));else location.replace(destination);}return true; }
     if (!nativeHash(location.hash)) { recovery('This link is no longer available. Open Home to choose your learning.'); return true; }
     protectedHost = true;
     return false;
@@ -93,11 +94,11 @@
         link.href = name==='workshops'?new URL('/studio/?view=collections&collection=courses',publicOrigin).href:name==='prospectus'?new URL('/prospectus-2027.html',publicOrigin).href:publicSections[name]?home({publicPage:true,section:publicSections[name]}):home();
       }
     }
-    if ((link.hasAttribute('data-workspace-exit') || link.hasAttribute('data-page-home')) && !canLeave()) event.preventDefault();
+    if(link.hasAttribute('data-workspace-exit')||link.hasAttribute('data-page-home')){if(!canLeave())event.preventDefault();else if(window.M4L_ACADEMY_AUTH?.selected){event.preventDefault();void window.M4L_ACADEMY_AUTH.prepareJourney().then(()=>location.assign(link.href)).catch(error=>recovery(error.message));}}
   }, true);
   window.addEventListener('m4l-academy-session', () => {
     const panel = document.getElementById('circles-native-recovery');
-    let signed = false; try { signed = Boolean(localStorage.getItem('m4l_account_token')); } catch {}
+    let signed = false; try { signed = window.M4L_ACADEMY_AUTH?.selected?window.M4L_ACADEMY_AUTH.hasSession():Boolean(localStorage.getItem('m4l_account_token')); } catch {}
     if (signed) { if (panel) panel.hidden = true; }
     else if (protectedHost) recovery();
   });

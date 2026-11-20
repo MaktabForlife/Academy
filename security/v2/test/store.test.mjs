@@ -5,7 +5,7 @@ import {fingerprint,opaque,canonical} from '../codec.mjs';
 import {targeted} from '../store.mjs';
 async function rotation(f,intent){
  const next={...f.binding,sv:2,vat:f.now+10};
- return {sid:f.sid,fingerprint:f.fp,intentId:intent.intent_id,csrfHash:'csrf-digest',expectedBinding:f.binding,successorFingerprint:await fingerprint(opaque(),f.config),nextBinding:next,capture:{...f.capture,vat:f.now+10,primaryCheckedAt:f.now+10},nextProjection:{...f.projection,binding:next},now:f.now+10,idleUntil:f.now+5410,deadline:f.now+910,qualifyingActivity:true,vectorGuards:[['test:scope','ACCOUNT:SYNTHETIC-ACCOUNT','owner-epoch',1]]};
+ return {sid:f.sid,fingerprint:f.fp,intentId:intent.intent_id,csrfHash:'csrf-digest',expectedBinding:f.binding,successorFingerprint:await fingerprint(opaque(),f.config),nextBinding:next,capture:{...f.capture,vat:f.now+10,primaryCheckedAt:f.now+10},nextProjection:{...f.projection,binding:next},now:f.now+10,idleUntil:f.now+5410,deadline:f.now+910,qualifyingActivity:true,vectorGuards:[['test:scope','ACCOUNT:synthetic-account','owner-epoch',1]]};
 }
 test('one guarded refresh wins concurrent requests, losers set no cookies',async()=>{
  const f=await fixture(),intent=await f.store.intent({sid:f.sid,csrfHash:'csrf-digest',now:f.now});
@@ -74,7 +74,7 @@ test('unrelated guards cannot clear dirty authority with stale rights/vector',as
  f.raw.prepare("INSERT INTO jwt_v2_dependencies VALUES('unrelated','GLOBAL','owner-epoch',1)").run();
  await assert.rejects(f.store.rotate({...p,vectorGuards:[['unrelated','GLOBAL','owner-epoch',1]]}),/COVERAGE_MISMATCH/);
  assert.equal((await f.store.family(f.sid)).authority_ready,0);
- await assert.rejects(f.store.rotate({...p,vectorGuards:[['test:scope','ACCOUNT:SYNTHETIC-ACCOUNT','owner-epoch',2]]}),/VECTOR_BINDING/);
+ await assert.rejects(f.store.rotate({...p,vectorGuards:[['test:scope','ACCOUNT:synthetic-account','owner-epoch',2]]}),/VECTOR_BINDING/);
 });
 
 test('global cutoff cancels pending PIN work without clearing wrong-PIN pause state',async()=>{

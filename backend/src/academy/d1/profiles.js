@@ -149,6 +149,7 @@ export function d1Profiles(repository,auth) {
   return {
     async run(action,input) {
       if(action==='recover')return {recovered:false}; // Every D1 save is atomic.
+      if(action==='options')return {prepared:true,store:'D1',currentAccountId:auth.user.accountid,adminDesignationEditable:Boolean(auth.state.account.global_admin)};
       if(action==='get')return directory(await load());
       if(action==='link') {
         const account=(await store.load()).accounts.find(a=>same(a.account_id,input.accountId));
@@ -170,7 +171,7 @@ export function d1Profiles(repository,auth) {
             p('UPDATE account_sessions SET revoked_at=? WHERE account_id=? AND revoked_at IS NULL',now,account.account_id),
             p('UPDATE accounts SET revision=revision+1 WHERE account_id=?',account.account_id),
             p('DELETE FROM academy_write_guards WHERE guard_id=?',guard)
-          ],result:{reset:true,accountId:account.account_id,loginPath:`/account/${encodeURIComponent(account.login_link_id)}`},fields:['AuthenticationCredential','AccountSessions']};
+          ],result:{reset:true,credentialEpoch:current.credentialEpoch+1,accountId:account.account_id,loginPath:`/account/${encodeURIComponent(account.login_link_id)}`},fields:['AuthenticationCredential','AccountSessions']};
         });
       }
       const courseRoles=action==='course-roles';

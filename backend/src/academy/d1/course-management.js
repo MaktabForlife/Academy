@@ -1,3 +1,4 @@
+import {nativeAuthContext} from '../v111/native-context.js';
 import {courseStudioEnabled,planCourseStudio,courseStudioStatus,resumeCourseStudio} from './web-platform/course-publication.mjs';
 import {planCompletedCourse} from './web-platform/completed-course.mjs';
 import {managedCoursePolicies,applyManagedCoursePolicy} from './web-platform/course-policy.mjs';
@@ -186,9 +187,9 @@ export function d1CourseManagement(repository,auth,env={}) {
       }
       const course=await selected(data,input);
       applyManagedCoursePolicy(course,await managedCoursePolicies(env,[course.activityKey]));
-      if(action==='studio-resume'){await resumeCourseStudio(env,{activityKey:course.activityKey});return {studioSetup:await courseStudioStatus(env.ACADEMY_DB.withSession('first-primary'),course.activityKey)};}
+      if(action==='studio-resume'){await resumeCourseStudio(env,{activityKey:course.activityKey,runtime:nativeAuthContext(auth)?.runtime});return {studioSetup:await courseStudioStatus(env.ACADEMY_DB.withSession('first-primary'),course.activityKey,{v2:env.UAA_V2_ENABLED==='1'})};}
       if(action==='get'){
-        if(courseStudioEnabled(env))course.studioSetup=await courseStudioStatus(env.ACADEMY_DB.withSession('first-primary'),course.activityKey);
+        if(courseStudioEnabled(env))course.studioSetup=await courseStudioStatus(env.ACADEMY_DB.withSession('first-primary'),course.activityKey,{v2:env.UAA_V2_ENABLED==='1'});
         if(course.stage==='DRAFT'&&course.validationToken)data.teaching=(await teachingQuery().all()).results;
         const checked=course.stage==='DRAFT'&&course.validationToken?await validate(data,course,course.details):null;
         return {course,validation:checked?.valid&&checked.token===course.validationToken?checked:null,calendarWarnings:holidayWarnings(data,course.details),media:data.resources.filter(r=>same(r.activity_key,course.activityKey)&&r.active).map(r=>({id:r.resource_id,name:r.name,type:r.resource_type||'Media'})),privateMedia:false};

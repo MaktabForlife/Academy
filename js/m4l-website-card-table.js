@@ -7,10 +7,10 @@
  const appearance=row=>row.appearance||(row.image?'upload':'plain');
  const picture=(row,urls)=>appearance(row)==='pdf'&&hasPdf(row.id)?'/academy/learning-images/tafseer-cards/'+row.id+'.jpg':appearance(row)==='upload'?(urls.get(row.id)||row.image?.url||''):'';
  window.M4L_WEBSITE_CARD_TABLE={mount({host,onSave,onChange=()=>{}}){
-  let owner='',base=[],rows=[],files=new Map(),urls=new Map(),disabled=false,saving=false,epoch=0;
+  let owner='',base=[],rows=[],files=new Map(),urls=new Map(),disabled=false,saving=false,epoch=0,requiredFiles=new Set();
   const dirty=()=>files.size>0||JSON.stringify(rows)!==JSON.stringify(base);
   const notify=(message,error=false)=>{const el=host.querySelector('[data-wct-message]');if(el){el.textContent=message;el.setAttribute('role',error?'alert':'status');}};
-  function release(){for(const url of urls.values())URL.revokeObjectURL(url);urls.clear();files.clear();}
+  function release(){for(const url of urls.values())URL.revokeObjectURL(url);urls.clear();files.clear();requiredFiles.clear();}
   function controls(){
    for(const el of host.querySelectorAll('input,textarea,select,button'))el.disabled=disabled||saving;
    for(const el of host.querySelectorAll('[data-wct-action="save"],[data-wct-action="discard"]'))el.disabled=disabled||saving||!dirty();
@@ -32,18 +32,19 @@
   host.addEventListener('change',event=>{
    const file=event.target.files?.[0],index=event.target.closest('[data-wct-row]')?.dataset.wctRow,row=rows[index];if(!event.target.hasAttribute('data-wct-file')||!file||!row||disabled||saving)return;
    if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>5*1024*1024){notify('Choose a PNG, JPEG or WebP image up to 5 MB.',true);event.target.value='';return;}
-   if(urls.has(row.id))URL.revokeObjectURL(urls.get(row.id));urls.set(row.id,URL.createObjectURL(file));files.set(row.id,file);row.appearance='upload';row.image={type:file.type,size:file.size,alt:row.image?.alt||row.title};render();changed();
+   if(urls.has(row.id))URL.revokeObjectURL(urls.get(row.id));urls.set(row.id,URL.createObjectURL(file));files.set(row.id,file);requiredFiles.delete(row.id);row.appearance='upload';row.image={type:file.type,size:file.size,alt:row.image?.alt||row.title};render();changed();
   });
   host.addEventListener('click',async event=>{
    const button=event.target.closest('[data-wct-action]');if(!button||disabled||saving)return;const action=button.dataset.wctAction,index=Number(button.closest('[data-wct-row]')?.dataset.wctRow),row=rows[index];
    if(action==='add'){if(rows.length>=160){notify('Keep up to 160 cards in this table.',true);return;}rows.push({id:'surah-'+crypto.randomUUID(),title:'New surah',arabic:'',summary:'',contactMessage:'Contact Admin to receive access.',tone:'plum',visible:false,appearance:'plain',image:null});render();host.querySelector('tbody tr:last-child input')?.focus();changed();}
    if(action==='template'){rows=copy(window.M4L_TAFSEER_CARDS?.defaults||window.M4L_TAFSEER_CARDS?.cards||[]).map(r=>({...r,contactMessage:r.contactMessage||'Contact Admin to receive access.',visible:true,appearance:'plain',image:null}));render();changed();}
    if(action==='discard'){epoch++;release();rows=copy(base);render();changed();}
-   if(action==='remove-image'&&row){if(urls.has(row.id))URL.revokeObjectURL(urls.get(row.id));urls.delete(row.id);files.delete(row.id);row.image=null;row.appearance='plain';render();changed();}
+   if(action==='remove-image'&&row){if(urls.has(row.id))URL.revokeObjectURL(urls.get(row.id));urls.delete(row.id);files.delete(row.id);requiredFiles.delete(row.id);row.image=null;row.appearance='plain';render();changed();}
    if((action==='up'||action==='down')&&row&&row.id!=='foundations'){
     const next=index+(action==='up'?-1:1);if(next>=0&&next<rows.length&&rows[next].id!=='foundations'){[rows[index],rows[next]]=[rows[next],rows[index]];render();changed();}
    }
    if(action==='save'&&dirty()){
+    if(requiredFiles.size){notify('Reselect the retained draft image files before saving, or remove those images.',true);return;}
     if(rows.some(r=>appearance(r)==='upload'&&!r.image)){notify('Upload an image or choose the plain card style.',true);return;}
     if(rows.some(r=>!r.title.trim()||!r.contactMessage.trim()||r.image&&!r.image.alt.trim())){notify('Enter a title, popup message and description for every uploaded image.',true);return;}
     const stamp=epoch;saving=true;controls();notify('Saving the card table…');
@@ -53,6 +54,6 @@
    }
   });
   render();
-  return {dirty,values:()=>copy(rows),sync(scope,value=[],locked=false){disabled=locked;if(scope!==owner){epoch++;owner=scope;saving=false;release();base=copy(value);rows=copy(value);render();}else if(!dirty()){base=copy(value);rows=copy(value);render();}else controls();},disable(value){disabled=value;controls();},reset(){epoch++;owner='';release();base=[];rows=[];saving=false;render();}};
+  return {dirty,values:()=>copy(rows),snapshotDraft:()=>({rows:copy(rows).map(row=>({...row,...row.image?{image:Object.fromEntries(Object.entries(row.image).filter(([key,value])=>key!=='url'||!String(value).startsWith('blob:')))}:{}})),pendingImageIds:[...new Set([...files.keys(),...requiredFiles])]}),restoreDraft(value){if(!value||!Array.isArray(value.rows)||value.rows.length>160||!Array.isArray(value.pendingImageIds))throw Error('The retained card table is invalid.');release();rows=copy(value.rows);requiredFiles=new Set(value.pendingImageIds.filter(id=>rows.some(row=>row.id===id)));render();if(requiredFiles.size)notify('Draft text restored. Reselect its original image files before saving.');},sync(scope,value=[],locked=false){disabled=locked;if(scope!==owner){epoch++;owner=scope;saving=false;release();base=copy(value);rows=copy(value);render();}else if(!dirty()){base=copy(value);rows=copy(value);render();}else controls();},disable(value){disabled=value;controls();},reset(){epoch++;owner='';release();base=[];rows=[];saving=false;render();}};
  }};
 })();

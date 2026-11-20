@@ -28,6 +28,15 @@ export async function enrolmentProfile(repository,auth){
  const row=await repository.db.prepare('SELECT whatsapp_number FROM account_contact_details WHERE account_id=?').bind(auth.user.accountid).first();
  return {name:auth.state.account.display_name,whatsapp:row?.whatsapp_number||'',uniqueId:auth.state.account.login_link_id};
 }
+// Read only a completed receipt belonging to this exact native account. A
+// missing receipt is UNKNOWN; it is never permission to replay an uncertain
+// original submission. No contact details or credential material are returned.
+export async function enrolmentSubmissionStatus(repository,auth,input){
+ await ready(repository);
+ if(!auth||!uuid(input.operationId)||Object.keys(input).some(k=>k!=='operationId'))throw fail('Choose your original enrolment request.',400,'ENROLMENT_STATUS_REQUIRED');
+ const row=await repository.db.prepare('SELECT request_id FROM academy_enrolment_requests WHERE submission_key=? AND account_id=? COLLATE BINARY').bind(input.operationId,auth.user.accountid).first();
+ return row?{outcome:'RECEIVED',received:true,id:row.request_id}:{outcome:'UNKNOWN',received:false};
+}
 export async function submitEnrolment(repository,auth,input,request,env){
  if(!auth)throw fail('Sign in to request enrolment. New users should contact Admin to join the Academy.',401,'SIGN_IN_REQUIRED');
  await ready(repository);

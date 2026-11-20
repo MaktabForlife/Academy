@@ -21,7 +21,7 @@ export function pdfTools(repository,auth){
    const data=await load(),row=data.pdfDefaults[0];
    if(input.revision!==await revision(row))throw managementError('PDF defaults changed elsewhere. Your choices are kept; reload before saving.',409,'ROW_CHANGED');
    const value=JSON.stringify(settings),now=new Date().toISOString();
-   return {data,statements:[p('INSERT INTO academy_settings(setting_key,setting_value,updated_at,updated_by_account_id) VALUES(?,?,?,?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value,updated_at=excluded.updated_at,updated_by_account_id=excluded.updated_by_account_id',key,value,now,auth.user.accountid)],result:{settings,revision:await payloadHash(value)},fields:['PdfToolDefaults']};
+   return {data,statements:[p('INSERT INTO academy_settings(setting_key,setting_value,updated_at,updated_by_account_id) VALUES(?,?,?,?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value,updated_at=excluded.updated_at,updated_by_account_id=excluded.updated_by_account_id',key,value,now,auth.user.accountid)],result:{settings,revision:await payloadHash(value)},acceptScopes:['GLOBAL'],fields:['PdfToolDefaults']};
   });
  }};
 }

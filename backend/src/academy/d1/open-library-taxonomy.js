@@ -2,8 +2,8 @@ import {academyD1Repository} from './repository.js';
 
 // Preserve existing public reference IDs, including GLOBAL for current Courses.
 // Only active Academy records enter these editor options; old Reboot is absent.
-export async function d1OpenLibraryTaxonomySource(env) {
-  const repository=academyD1Repository(env);await repository.ready();
+export async function d1OpenLibraryTaxonomySource(env,providedRepository=null) {
+  const repository=providedRepository||academyD1Repository(env);if(!providedRepository)await repository.ready();
   const result=await repository.db.batch([
     repository.db.prepare("SELECT * FROM subject_catalog WHERE active=1 AND source_namespace='ACADEMY'"),
     repository.db.prepare("SELECT * FROM activities WHERE active=1 AND lifecycle='ACTIVE' AND kind IN ('PROGRAM','COURSE')"),

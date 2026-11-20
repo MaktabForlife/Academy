@@ -1,5 +1,6 @@
 (() => {
  'use strict';
+ if(window.M4L_ACADEMY_AUTH?.selected===true){void import('/js/m4l-v111-monthly-media.mjs').then(module=>module.startMonthlyMedia()).catch(error=>{const node=document.getElementById('monthly-message');if(node)node.textContent=error.message;});return;}
  const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),token=()=>localStorage.getItem('m4l_account_token')||'';
  let owner=token(),generation=0,programs=[],surahs=[],lessons=[],before=null,busy=false;
  const label=value=>new Intl.DateTimeFormat('en-GB',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(value+'-01T12:00:00Z'));

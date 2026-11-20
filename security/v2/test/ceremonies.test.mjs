@@ -29,7 +29,7 @@ async function academy(options={}){
  const service=new AcademyCeremonies({
   store:f.store,config:f.config,callbacks,clock:()=>now,credentialSnapshot:snapshot,credentialGuard,
   verifyPin:async(pin,c)=>{checks++;return verifier(pin,c);},
-  setupPlan:async()=>({statements:[f.store.stmt('UPDATE synthetic_credentials SET pin_setup=1,revision=revision+1 WHERE sub=?',f.sub)]}),
+  setupPlan:async({credential})=>({postSetupCe:credential.ce+1,requiresFreshPostSetupParent:true,statements:[f.store.stmt('UPDATE synthetic_credentials SET pin_setup=1,ce=ce+1,generation=generation+1,revision=revision+1 WHERE sub=?',f.sub)]}),
   authorisePinRequest:async req=>req.headers.get('X-Test-CSRF')==='synthetic'?{csrfHash:'c'.repeat(64)}:null,
   attestedSource:async()=>({kind:'platform',address:options.address||'2001:0DB8:0:0:0:0:0:1'}),
   authoriseChild:async(req,target)=>req.headers.get('X-Test-Child')===target,parentEligibility,
@@ -102,7 +102,7 @@ test('initial/admin-reset PIN setup requires eligibility and matching four-digit
  const setupTx=await f.rootTx(),attemptId=await f.attempt(setupTx);
  await assert.rejects(f.service.verify({request:request(),tx:setupTx,attemptId,pin:'1234',confirmation:'1235',setup:true}),/MISMATCH/);
  assert.equal(f.raw.prepare('SELECT pin_setup FROM synthetic_credentials').get().pin_setup,0);
- const ok=await f.service.verify({request:request(),tx:setupTx,attemptId,pin:'1234',confirmation:'1234',setup:true});assert.equal(ok.status,'VERIFIED');assert.equal(f.raw.prepare('SELECT pin_setup FROM synthetic_credentials').get().pin_setup,1);
+ const ok=await f.service.verify({request:request(),tx:setupTx,attemptId,pin:'1234',confirmation:'1234',setup:true});assert.equal(ok.status,'VERIFIED');assert.equal(ok.setupCommittedCe,5);assert.equal(f.raw.prepare('SELECT pin_setup,ce FROM synthetic_credentials').get().ce,5);assert.equal(f.raw.prepare('SELECT pin_setup FROM synthetic_credentials').get().pin_setup,1);
 });
 test('admin reset plan fences old verifiers and cancels old ceremonies/intents at reset time',async()=>{
  let release,entered;const begun=new Promise(r=>{entered=r;}),wait=new Promise(r=>{release=r;});

@@ -74,7 +74,10 @@ test('Teachers read their own availability; scoped and Global Admins manage elig
 test('term breaks merge overlapping terms and unknown years produce no assumed holiday',()=>{
  assert.deepEqual(termBreaks([],2027),[]);const breaks=termBreaks([{active:true,startDate:'2026-01-01',endDate:'2026-03-01'},{active:true,startDate:'2026-02-01',endDate:'2026-12-31'}],2026);assert.deepEqual(breaks,[]);
 });
-test('teaching hours count overlapping lessons once and exclude cancelled Course sessions',()=>use(async({env,db})=>{
+test('teaching hours count overlapping lessons once and exclude cancelled Course sessions',t=>use(async({env,db})=>{
+ // Select November's first week even when the real current month is November.
+ // Its dated Course fixture is bounded to that publication, not a later week.
+ t.mock.timers.enable({apis:['Date'],now:Date.parse('2026-12-01T12:00:00Z')});
  const admin=await login(env),teacher='account-0003';db.prepare('DELETE FROM published_lesson_teachers WHERE account_id=?').run(teacher);
  // November's first week starts after the fixture's October publication,
  // including all seven weekdays even after the real month changes. Keep

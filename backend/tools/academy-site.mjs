@@ -1,3 +1,4 @@
+import {academyV2HTML} from '../src/academy/v111/html.mjs';
 import {servePortal} from './portal-site.mjs';
 import {assetPath} from './browser-site/worker.mjs';
 import {publicPdfTarget} from './academy-public-media.mjs';
@@ -8,9 +9,17 @@ export const siteVersion='109.25';
 export const siteBranch='development';
 export async function serveAcademySite(request,env,{pages=false,branch=siteBranch,syntheticOnly=false}={}){
   const url=new URL(request.url);
+  if(env.UAA_V2_ENABLED==='1'){
+    if(url.origin!=='https://ummabbadacademy.app')return new Response('Open Academy at its configured address.',{status:421});
+    if(url.pathname.startsWith('/auth/v2/')||url.pathname.startsWith('/internal/auth/v2/')||url.pathname.startsWith('/internal/website/')||url.pathname.startsWith('/api/')&&!url.pathname.startsWith('/api/public/')){
+      if(!env.ACADEMY_V2_SERVICE?.fetch)return Response.json({success:false,code:'ACADEMY_V2_SERVICE_REQUIRED'},{status:503,headers:{'Cache-Control':'no-store'}});
+      return env.ACADEMY_V2_SERVICE.fetch(request);
+    }
+  }
+  if(env.UAA_V2_ENABLED==='1'&&['GET','HEAD'].includes(request.method)){const headers=new Headers(request.headers);headers.delete('If-None-Match');headers.delete('If-Modified-Since');request=new Request(request,{headers});}
   if(['/api/feature-preview/health','/api/site/health'].includes(url.pathname))return Response.json({success:true,version:siteVersion,branch,syntheticOnly},{headers:{'Cache-Control':'no-store'}});
   if(!['GET','HEAD'].includes(request.method))return new Response('Method not allowed',{status:405});
-  const portal=await servePortal(request,env);if(portal)return portal;
+  const portal=await servePortal(request,env);if(portal)return academyV2HTML(request,env,portal);
   // The release builder copies only reviewed public scripts/styles/artwork to
   // this content-addressed namespace. Documents and private APIs never enter it.
   if(/^\/_assets\/[a-f0-9]{64}\//.test(url.pathname)){
@@ -41,6 +50,7 @@ export async function serveAcademySite(request,env,{pages=false,branch=siteBranc
   if(document&&response.status===404)return circlesPageUnavailable(request.method);
   const headers=new Headers(response.headers);headers.set('X-Robots-Tag','noindex, nofollow');headers.set('X-Content-Type-Options','nosniff');
   if(document)headers.set('Cache-Control','no-store');
+  if(env.UAA_V2_ENABLED==='1'&&['/js/m4l-v111-session.js','/js/m4l-v111-session.mjs'].includes(url.pathname))headers.set('Cache-Control','no-store');
   if(academyCirclesFragments.has(file)){headers.set('Content-Type','text/plain; charset=utf-8');headers.set('Cache-Control','no-cache');}
-  return new Response(request.method==='HEAD'?null:response.body,{status:response.status,headers});
+  return academyV2HTML(request,env,new Response(request.method==='HEAD'?null:response.body,{status:response.status,headers}));
 }

@@ -5,6 +5,39 @@
   const labels={USER:'None',STUDENT:'Student',TEACHER:'Teacher',PROGRAM_ADMIN:'Admin',GLOBAL_ADMIN:'Global Admin',SENIOR:'Senior',ADMIN:'Admin'};
   const state={data:null,selected:params.get('account')||'',edit:null,edits:[],pinned:[],pending:null,busy:false,waiting:false,timer:null,search:'',filter:'active',programStatus:'AVAILABLE',courseStatus:'AVAILABLE',conflict:null,loaded:false,globalAccount:'',globalSearch:'',activeScopes:false,tab:'details'};
   let pinResetPending=null;
+  const v2=()=>document.querySelector?.('meta[name="uaa-auth-version"]')?.content==='2'&&document.querySelector?.('meta[name="uaa-app"]')?.content==='academy';
+  let nativeClient=null,nativeForm=null,nativeInitialising=true,nativeOwner=null,nativeEpoch=0,volatileEdits=null;
+  const nativeRoots=()=>[$('up-users').closest('section'),$('up-conflict'),$('up-link'),$('up-profile-dialog'),$('up-global-dialog'),$('up-reset-dialog')].filter(Boolean);
+  async function nativeReady(){if(nativeClient)return nativeClient;const bridge=window.M4L_ACADEMY_AUTH;if(!bridge?.ready)throw Error('Academy is checking your sign-in.');nativeClient=await bridge.ready;for(const root of nativeRoots())nativeClient.registerPrivateRoot(root);return nativeClient;}
+  function volatileSnapshot(){return {owner:nativeClient.ownerKey(),edit:state.edit?structuredClone(state.edit):null,edits:structuredClone(state.edits),pinned:[...state.pinned]};}
+  function applyFreshUsers(value){state.data=value;state.edit=null;state.edits=[];state.pending=null;state.conflict=null;pinResetPending=null;render();}
+  async function usersRecovery(){
+   if(nativeForm)return nativeForm;const c=await nativeReady(),{createAcademyNativeForm}=await import('/js/m4l-v111-editor.mjs');
+   nativeForm=await createAcademyNativeForm({client:c,resource:{type:'academy-users'},roots:nativeRoots(),host:document.body,doc:document,
+    capture:()=>({kind:'private-account-operation'}),baseVersion:()=>0,isDirty:()=>Boolean(state.pending||pinResetPending||changedEntries().length),
+    applyCurrent:applyFreshUsers,
+    applyRetained:()=>{if(volatileEdits?.owner===c.ownerKey()){state.edit=volatileEdits.edit;state.edits=volatileEdits.edits;state.pinned=volatileEdits.pinned;for(const entry of entries()){const account=state.data.accounts.find(a=>a.accountId===entry.accountId);if(entry.mode==='profile'&&account){entry.baseRevision=account.revision;delete entry.creating;}if(entry.mode==='matrix-roles'&&account){const current=account.assignments.find(a=>a.scopeType===entry.scopeType&&a.scopeId===entry.scopeId);if(current)entry.baseRevision=current.revision;const scope=state.data.scopes.find(a=>a.type===entry.scopeType&&a.id===entry.scopeId);if(scope)entry.scopeRevision=scope.revision;}}render();message('Private edits in this tab were kept for review. Save only a deliberate new change.');}else message('Read current users and re-enter any private changes. Account details are not retained after reload.');},
+    readCurrent:async()=>{await c.ensureFresh();await c.prepareBusiness({activeWork:false});return api('get');},status:text=>message(text,true)});
+   return nativeForm;
+  }
+  async function prepareNativeMutation(body){
+   const epoch=nativeEpoch,owner=nativeClient?.ownerKey(),c=await nativeReady();await c.ensureFresh();await c.prepareSensitive({activeWork:true});if(epoch!==nativeEpoch||owner&&owner!==c.ownerKey())throw new DOMException('The Users account changed.','AbortError');
+   const latest=await api('get');state.data=latest;render();c.revealResult(latest,{roots:nativeRoots()});
+   const recovery=await usersRecovery();await recovery.open(latest,{restore:false});const attempt=await recovery.beforeMutation({operationId:body.operationId,kind:body.mode==='reset-pin'?'reset-pin':'users'},{sensitive:true});if(epoch!==nativeEpoch)throw new DOMException('The Users account changed.','AbortError');return {recovery,attempt,epoch};
+  }
+  async function reviewNativeUnknown(attempt=null){
+   try{const recovery=await usersRecovery();volatileEdits=volatileSnapshot();state.busy=false;
+   if(attempt)await recovery.unknown(attempt);else {const latest=await api('get');await recovery.open(latest,{restore:false});}
+   state.pending=null;pinResetPending=null;volatileEdits=null;await refresh();message('Current users were reviewed. The original change was not resent.');}catch(error){if(error.name==='AbortError'||['DRAFT_CONTEXT_CHANGED','DRAFT_BINDING_CHANGED','STALE_BROWSER_RESPONSE'].includes(error.code)){clearNativeUsers();return;}message(error.message,true);}
+  }
+  function clearNativeUsers(){
+   nativeEpoch++;if(state.timer)clearTimeout(state.timer);state.timer=null;state.data=null;state.edit=null;state.edits=[];state.pending=null;state.pinned=[];state.conflict=null;state.loaded=false;pinResetPending=null;volatileEdits=null;state.busy=false;state.waiting=false;state.globalAccount='';state.globalSearch='';state.search='';state.selected='';
+   for(const id of ['up-users','up-head','up-comparison','up-profile-body','up-global-results','up-global-selection'])$(id)?.replaceChildren();
+   for(const id of ['up-profile-dialog','up-global-dialog','up-reset-dialog'])if($(id)?.open)$(id).close();
+   for(const id of ['up-search','up-global-search'])if($(id))$(id).value='';
+   for(const root of nativeRoots()){root.style.visibility='hidden';root.inert=true;}
+  }
+
   const userTabs=()=>['details','programs','courses',...(state.data?.adminDesignationEditable||state.data?.teacherDesignationEditable?['globals']:[])];
   function scopeStatuses(scope){const lifecycle=String(scope.lifecycle||'').toUpperCase();return ['ARCHIVED','CANCELLED'].includes(lifecycle)?[lifecycle]:scope.runStages?.length?[...new Set(scope.runStages.map(value=>String(value).toUpperCase()))]:[lifecycle|| (scope.active===false?'INACTIVE':'ACTIVE')];}
   function matchesScope(scope){const filter=scope.type==='PROGRAM'?state.programStatus:state.courseStatus,statuses=scopeStatuses(scope);return filter==='ALL'||(filter==='AVAILABLE'?scope.active!==false&&statuses.some(value=>!['ARCHIVED','CANCELLED'].includes(value)):statuses.includes(filter));}
@@ -45,8 +78,9 @@
   }
   const icons={view:'<svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>',share:'<svg viewBox="0 0 24 24"><use href="/icons/share.svg?v=107.73#academy-share"/></svg>',copy:'<svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V3H3v13h5"/></svg>',save:'<svg viewBox="0 0 24 24"><path d="M4 3h13l4 4v14H3V3Zm3 0v7h10V3M7 21v-7h10v7"/></svg>'};
   const actionIcon=(action,id,label,disabled=false)=>`<button type="button" class="pb-secondary ${action==='reset-pin'?'up-reset-pin':'up-icon'}" data-${action}="${esc(id)}" title="${esc(label)}" aria-label="${esc(label)}" ${disabled?'disabled':''}>${action==='reset-pin'?'Reset PIN':icons[action]}</button>`;
-  function remember(){for(const key of ['edit','edits','pinned','pending']){if(state[key])sessionStorage.setItem(`${storageKey}:${key}`,JSON.stringify(state[key]));else sessionStorage.removeItem(`${storageKey}:${key}`);}}
+  function remember(){if(v2())return;for(const key of ['edit','edits','pinned','pending']){if(state[key])sessionStorage.setItem(`${storageKey}:${key}`,JSON.stringify(state[key]));else sessionStorage.removeItem(`${storageKey}:${key}`);}}
   async function api(action,input={}){
+    if(v2()){const epoch=nativeEpoch,owner=nativeClient?.ownerKey(),c=await nativeReady();await c.ensureFresh();if(epoch!==nativeEpoch||owner&&owner!==c.ownerKey())throw new DOMException('The Users account changed.','AbortError');const value=await c.request('/api/admin/platform/user-profiles/'+action,input,{headers:{'X-Academy-Workspace':'ADMIN'}});if(epoch!==nativeEpoch||!c.isCurrentResult(value))throw new DOMException('The Users view changed.','AbortError');return value;}
     const token=localStorage.getItem('m4l_account_token');if(!token)throw Object.assign(new Error('Sign in with your academy administrator account, then open User profiles.'),{status:401});
     const response=await fetch(`${base}/api/admin/platform/user-profiles/${action}`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify(input)});
     let result;try{result=await response.json();}catch{throw new Error('The response could not be read. Your entry is kept.');}
@@ -102,7 +136,7 @@
       }).join('')}${state.tab==='globals'?['academyAdmin','academyTeacher'].map(field=>{const value=Boolean(profileEdit?.[field]??a[field]),available=field==='academyAdmin'?state.data.adminDesignationEditable:state.data.teacherDesignationEditable,disabled=blocked||!available||profileEdit?.creating||field==='academyAdmin'&&a.accountId===state.data.currentAccountId&&a.academyAdmin||!active&&!a[field];return `<td data-global-column><input type="checkbox" data-global-role="${field}" data-account="${esc(a.accountId)}" aria-label="${field==='academyAdmin'?'Global Admin':'Global Teacher'} for ${esc(displayName)}"${value?' checked':''}${disabled?' disabled':''}></td>`;}).join(''):''}</tr>`;
     }).join('')||`<tr><td colspan="${scopes.length+5}" class="pm-empty">No matching users.</td></tr>`;
   }
-  function schedule(error,callback,attempt,kind){
+  function schedule(error,callback,attempt,kind){if(v2())return false;
     if(attempt>=2||error.retryable===false||error.status&&error.status<500)return false;
     const delay=error.code==='SHEETS_RATE_LIMITED'?Math.max(60000,error.retryAfterMs||0):Math.max(1500*(attempt+1),error.retryAfterMs||0);
     state.waiting=true;$('up-wait').hidden=false;$('up-wait').textContent=`${kind} automatically in ${Math.ceil(delay/1000)} seconds. Your entry is kept.${error.reference?' Reference: '+error.reference:''}`;
@@ -113,7 +147,7 @@
     try{
       state.data=await api('get');
       if(!state.loaded){
-        for(const key of ['edit','edits','pinned','pending'])try{state[key]=JSON.parse(sessionStorage.getItem(`${storageKey}:${key}`)||'null');}catch{sessionStorage.removeItem(`${storageKey}:${key}`);}
+        if(!v2())for(const key of ['edit','edits','pinned','pending'])try{state[key]=JSON.parse(sessionStorage.getItem(`${storageKey}:${key}`)||'null');}catch{sessionStorage.removeItem(`${storageKey}:${key}`);}
         state.edits=Array.isArray(state.edits)?state.edits:[];state.pinned=Array.isArray(state.pinned)?state.pinned:[];
         if(state.pending&&!entries().length){if(state.pending.mode==='batch')state.edits=structuredClone(state.pending.entries);else state.edit={...state.pending};}
         // Translate pre-migration draft roles only; uncertain saves retain their exact payload.
@@ -125,8 +159,9 @@
       }
       $('up-wait').hidden=true;message(entries().length?'Unfinished entries kept.':afterSave?'Saved.':'');
     }catch(error){message(`${afterSave?'Saved. The latest records could not be loaded. ':''}${error.message}`,true);if(!schedule(error,next=>refresh(next,afterSave),attempt,'Refreshing records')){$('up-wait').textContent='Automatic refresh has stopped. Your displayed records and entry are kept. Use Refresh to try again.';$('up-wait').hidden=false;}}
-    finally{state.busy=false;render();}
-    if(state.pending&&!state.waiting&&state.data)void save();
+    finally{state.busy=false;render();if(v2()&&state.data&&nativeClient?.isCurrentResult(state.data))nativeClient.revealResult(state.data,{roots:nativeRoots()});}
+    if(v2()&&state.data&&nativeClient?.isCurrentResult(state.data)){const recovery=await usersRecovery();await recovery.open(state.data,{restore:false});render();}
+    if(!v2()&&state.pending&&!state.waiting&&state.data)void save();
   }
   function applyAcknowledgement(result){
     if(result.results){result.results.forEach(applyAcknowledgement);return;}
@@ -147,7 +182,7 @@
     state.conflict=null;remember();return true;
   }
   async function save(attempt=0,selection=null){
-    if(state.busy||state.waiting||(!entries().length&&!state.pending))return;
+    if(state.busy||state.waiting||(!entries().length&&!state.pending))return;if(v2()&&state.pending?.nativeUnknown){await reviewNativeUnknown();return;}
     if(state.conflict){message('Review the changed record before saving.',true);return;}
     if(!state.pending){
       const selected=selection||changedEntries().filter(e=>state.edit?.accountId?e.accountId===state.edit.accountId:e===state.edit);
@@ -160,14 +195,15 @@
       }
       state.pending=selected.length===1?{...structuredClone(selected[0]),operationId:crypto.randomUUID()}:{mode:'batch',entries:structuredClone(selected.slice(0,80)),operationId:crypto.randomUUID()};
     }remember();state.busy=true;render();
-    let confirmed=false;
+    let confirmed=false,nativeMutation=null;
     try{
       const {needsRecovery,...body}=state.pending;if(needsRecovery)await api('recover');
-      const result=await api('save',body),savedEntries=body.entries||[body];const savedKeys=savedEntries.map(editKey);state.pending=null;removeEdits(savedKeys);
+      if(v2()){nativeMutation=await prepareNativeMutation(body);if(nativeMutation.epoch!==nativeEpoch)throw new DOMException('The Users account changed.','AbortError');}let result=await api('save',body);if(v2()){result=await nativeMutation.recovery.completeNativeMutation(nativeMutation.attempt,result,{operationId:body.operationId});await nativeMutation.recovery.saved();}const savedEntries=body.entries||[body];const savedKeys=savedEntries.map(editKey);state.pending=null;removeEdits(savedKeys);
       if(savedEntries.some(e=>e.mode==='profile'))try{localStorage.setItem('m4l_academy_profile_labels_revision',crypto.randomUUID());}catch{}
       closeCleanEditors(new Set(savedEntries.map(e=>e.accountId).filter(Boolean)));remember();confirmed=true;
       applyAcknowledgement(result);message('Saved.');
     }catch(error){
+      if(v2()&&nativeMutation?.attempt){if(state.pending)state.pending.nativeUnknown=true;await reviewNativeUnknown(nativeMutation.attempt);return false;}
       if(!state.pending){message('Saved. The display could not refresh; your save is confirmed.',true);}
       else if(error.code==='ROW_CHANGED'){const failed=entries().find(e=>editKey(e)===(error.entryKey||(state.pending.mode==='batch'?'':editKey(state.pending))))||state.edit||entries()[0];
         if(state.edit&&state.edit!==failed)state.edits.push(state.edit);
@@ -225,7 +261,7 @@
   $('up-save').onclick=()=>{if(state.conflict&&!acceptReviewedChange())return;void save();};$('up-cancel').onclick=discardAll;
   $('up-users').onkeydown=e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();void saveAll();}};
   $('up-refresh').onclick=()=>void refresh();
-  $('up-retry').onclick=async()=>{if(state.busy||state.waiting)return;if(state.pending?.needsRecovery){state.busy=true;render();try{await api('recover');delete state.pending.needsRecovery;}catch(error){message(error.message,true);state.busy=false;render();return;}state.busy=false;}void save();};
+  $('up-retry').onclick=async()=>{if(v2()){await reviewNativeUnknown();return;}if(state.busy||state.waiting)return;if(state.pending?.needsRecovery){state.busy=true;render();try{await api('recover');delete state.pending.needsRecovery;}catch(error){message(error.message,true);state.busy=false;render();return;}state.busy=false;}void save();};
   $('up-use-saved').onclick=()=>{cancel();void refresh();};
   async function saveAll(){
     if(state.busy||state.waiting||state.pending)return;
@@ -269,7 +305,7 @@
   $('up-global-discard').onclick=()=>{if($('up-global-discard').disabled)return;const account=state.data.accounts.find(a=>a.accountId===state.globalAccount),edit=findEdit('profile',state.globalAccount);if(!account||!edit)return;if(edit.academyAdmin!==undefined)edit.academyAdmin=Boolean(account.academyAdmin);if(edit.academyTeacher!==undefined)edit.academyTeacher=Boolean(account.academyTeacher);closeCleanEditors(new Set([account.accountId]));message('Global status changes discarded.');render();};
   $('up-global-save').onclick=async()=>{if($('up-global-save').disabled)return;const edit=findEdit('profile',state.globalAccount);await save(0,edit?[edit]:null);if(state.conflict)$('up-global-dialog').close();};
   const resetStorageKey=storageKey+':pin-reset';
-  function rememberPinReset(){if(pinResetPending)sessionStorage.setItem(resetStorageKey,JSON.stringify(pinResetPending));else sessionStorage.removeItem(resetStorageKey);}
+  function rememberPinReset(){if(v2())return;if(pinResetPending)sessionStorage.setItem(resetStorageKey,JSON.stringify(pinResetPending));else sessionStorage.removeItem(resetStorageKey);}
   function openPinReset(accountId){
     if(!state.data?.resetPinEditable||state.busy||state.pending)return;
     if(pinResetPending&&pinResetPending.owner!==state.data.currentAccountId){pinResetPending=null;rememberPinReset();}
@@ -278,28 +314,29 @@
     if(!pinResetPending&&changedEntries().some(e=>e.accountId===target)){message('Save or discard this user’s changes before resetting their PIN.',true);return;}
     $('up-reset-name').textContent=account.displayName+' · '+account.uniqueId;
     $('up-reset-confirm').dataset.account=target;
-    $('up-reset-confirm').textContent=pinResetPending?'Retry same reset':'Reset PIN';
+    $('up-reset-confirm').textContent=pinResetPending?(v2()?'Read current users':'Retry same reset'):'Reset PIN';
     $('up-reset-message').textContent=pinResetPending?'The last reset was not confirmed. Retry checks the same request.':'';
     $('up-reset-dialog').showModal();
   }
   $('up-reset-cancel').onclick=()=>$('up-reset-dialog').close();
   $('up-reset-confirm').onclick=async()=>{
-    if(state.busy||state.pending||!state.data?.resetPinEditable)return;
+    if(state.busy||state.pending||!state.data?.resetPinEditable)return;if(v2()&&pinResetPending?.nativeUnknown){await reviewNativeUnknown();return;}
     const account=state.data.accounts.find(a=>a.accountId===$('up-reset-confirm').dataset.account);
     if(!account||account.accountId===state.data.currentAccountId)return;
     if(!pinResetPending)pinResetPending={owner:state.data.currentAccountId,input:{mode:'reset-pin',accountId:account.accountId,baseRevision:account.revision,operationId:crypto.randomUUID()}};
     if(pinResetPending.owner!==state.data.currentAccountId){pinResetPending=null;rememberPinReset();$('up-reset-dialog').close();message('Your sign-in changed. Reload User profiles.',true);return;}
     rememberPinReset();state.busy=true;render();$('up-reset-confirm').disabled=true;$('up-reset-cancel').disabled=true;$('up-reset-message').textContent='Resetting PIN…';
-    let confirmed=false,failedRevision=false;
-    try{const result=await api('save',pinResetPending.input);pinResetPending=null;rememberPinReset();confirmed=true;$('up-reset-dialog').close();showLink(result.loginPath);}
+    let confirmed=false,failedRevision=false,nativeMutation=null,securityPending=false;
+    try{if(v2()){nativeMutation=await prepareNativeMutation(pinResetPending.input);if(nativeMutation.epoch!==nativeEpoch)throw new DOMException('The Users account changed.','AbortError');}let result=await api('save',pinResetPending.input);if(v2()){result=await nativeMutation.recovery.completeNativeMutation(nativeMutation.attempt,result,{operationId:pinResetPending.input.operationId});await nativeMutation.recovery.saved();}securityPending=result.securityPublication==='PENDING';if(securityPending)message('PIN reset was saved. Its security update is still being finished.',true);pinResetPending=null;rememberPinReset();confirmed=true;$('up-reset-dialog').close();showLink(result.loginPath);}
     catch(error){
+      if(v2()&&nativeMutation?.attempt){if(pinResetPending)pinResetPending.nativeUnknown=true;await reviewNativeUnknown(nativeMutation.attempt);return;}
       if(error.status&&error.status<500){pinResetPending=null;rememberPinReset();failedRevision=error.code==='ROW_CHANGED';}
       $('up-reset-message').textContent=error.message;$('up-reset-confirm').textContent=pinResetPending?'Retry same reset':'Reset PIN';
       if(failedRevision)$('up-reset-dialog').close();
     }finally{state.busy=false;render();$('up-reset-confirm').disabled=false;$('up-reset-cancel').disabled=false;}
-    if(confirmed||failedRevision){await refresh();message(confirmed?'PIN reset. The user has been signed out and can set a new PIN through their sign-in link.':'The user record changed. Review the refreshed record before resetting the PIN.',!confirmed);}
+    if(confirmed||failedRevision){await refresh();message(confirmed?(securityPending?'PIN reset was saved. Security notification delivery is still pending; do not repeat the reset.':'PIN reset. The user has been signed out and can set a new PIN through their sign-in link.'):'The user record changed. Review the refreshed record before resetting the PIN.',!confirmed||securityPending);}
   };
-  try{const saved=JSON.parse(sessionStorage.getItem(resetStorageKey)||'null');if(saved?.owner&&saved.input?.mode==='reset-pin')pinResetPending=saved;}catch{sessionStorage.removeItem(resetStorageKey);}
+  if(!v2())try{const saved=JSON.parse(sessionStorage.getItem(resetStorageKey)||'null');if(saved?.owner&&saved.input?.mode==='reset-pin')pinResetPending=saved;}catch{sessionStorage.removeItem(resetStorageKey);}
   $('up-profile-close').onclick=()=>$('up-profile-dialog').close();
   async function userLink(accountId,share,view=false){
     state.busy=true;render();
@@ -313,5 +350,11 @@
     }catch(error){message(error.message,true);}finally{state.busy=false;render();}
   }
   window.addEventListener('beforeunload',e=>{if(changedEntries().length||state.pending){e.preventDefault();e.returnValue='';}});
-  void refresh();
+  if(v2()){
+   $('up-retry').textContent='Read current users';$('up-draft-notice').querySelector('span').textContent='Unsaved private details stay only in this tab.';
+   window.addEventListener('academy-v2-mask',e=>{if(e.detail?.masked===true)for(const id of ['up-profile-dialog','up-global-dialog','up-reset-dialog'])if($(id).open)$(id).close();});
+   window.addEventListener('academy-v2-context',()=>{if(nativeInitialising)return;const owner=nativeClient?.ownerKey();if(owner!==nativeOwner){nativeForm?.dispose();nativeForm=null;clearNativeUsers();nativeOwner=owner;void refresh();}});
+   window.addEventListener('academy-v2-revalidate',()=>{if(!state.busy)void refresh();});
+  }
+  void refresh().finally(()=>{if(v2())nativeOwner=nativeClient?.ownerKey()||null;nativeInitialising=false;});
 })();

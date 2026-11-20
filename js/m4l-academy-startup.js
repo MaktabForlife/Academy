@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const root = document.documentElement;
-  const session = () => { try { return localStorage.getItem('m4l_account_token'); } catch { return ''; } };
+  const session = () => { if(window.M4L_ACADEMY_AUTH?.selected)return window.M4L_ACADEMY_AUTH.hasSession()?window.M4L_ACADEMY_AUTH.ownerKey():'';try { return localStorage.getItem('m4l_account_token'); } catch { return ''; } };
   const connector = /^\/academy\/website-platform\/connect\//.test(location.pathname);
   const programme = () => connector || /^#activity\/(?:PROGRAM|COURSE)\/[^/]+(?:\/|$)/.test(location.hash);
   const entry = () => programme() || /^(?:#(?:overview|login|dashboard|timetable\/(?:learn|teach)))?$/.test(location.hash) || /^#(?:administration|assessment-admin|progress-admin)(?:\/|$)/.test(location.hash);
@@ -47,7 +47,7 @@
       if (attempt === current && scope() === key) fail('Opening Academy is taking longer than expected. Please try again.');
     }, 30000);
   }
-  function complete() { stopTimer(); attempt = null; root.classList.remove('academy-opening', 'academy-opening-failed', 'academy-opening-programme'); }
+  function complete(result) { stopTimer(); attempt = null; root.classList.remove('academy-opening', 'academy-opening-failed', 'academy-opening-programme'); }
   function fail(message) {
     if (!root.classList.contains('academy-opening')) return;
     stopTimer();
@@ -58,5 +58,6 @@
   }
   window.M4L_ACADEMY_STARTUP = Object.freeze({ begin, complete, fail, entry, restoring });
   document.addEventListener('DOMContentLoaded', renderFailure, {once: true});
+  if(window.M4L_ACADEMY_AUTH?.selected){window.addEventListener('academy-v2-mask',event=>{if(event.detail?.masked===false||!window.M4L_ACADEMY_AUTH.hasSession())complete();else begin({force:true});});window.addEventListener('academy-v2-context',()=>{if(window.M4L_ACADEMY_AUTH.hasSession())begin({force:true});else complete();});}
   begin();
 })();

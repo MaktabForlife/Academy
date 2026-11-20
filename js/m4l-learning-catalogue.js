@@ -3,9 +3,40 @@
   const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const state={data:null,tab:'subjects',search:'',subject:'',status:'',edit:null,pending:null,conflict:false,busy:false,key:'',token:''};
   const tell=(text,error=false)=>{$('lc-message').textContent=text;$('lc-message').classList.toggle('is-error',error);};
-  const token=()=>localStorage.getItem('m4l_account_token')||'';
-  const remember=()=>{if(state.key)sessionStorage.setItem(state.key,JSON.stringify({edit:state.edit,pending:state.pending,tab:state.tab}));};
+  const v2=()=>window.M4L_ACADEMY_AUTH?.selected===true;
+  const nativeRowsBaseline={visibility:$('lc-rows').style.visibility||'',inert:$('lc-rows').inert===true};
+  let nativeClient=null,nativeForm=null,nativeKey='',nativeOwner=null,nativeEpoch=0,nativeProof=null,nativeCheckpoint=Promise.resolve(),nativeSetup=null;
+  async function nativeReady(){if(nativeSetup)return nativeSetup;nativeSetup=(async()=>{nativeClient=await window.M4L_ACADEMY_AUTH.ready;nativeClient.registerPrivateRoot($('lc-workspace'));await nativeClient.ensureFresh();nativeOwner=nativeClient.ownerKey();return nativeClient;})();return nativeSetup;}
+  const nativeCurrent=epoch=>epoch===nativeEpoch&&nativeOwner===nativeClient?.ownerKey();
+  const nativeDocument=()=>({edit:state.edit?{kind:state.edit.kind,id:state.edit.id,name:state.edit.name,...state.edit.kind==='module'?{subjectId:state.edit.subjectId}:{},active:state.edit.active,baseRevision:state.edit.baseRevision}:null});
+  const nativeResource=()=>({type:'academy-learning-catalogue',kind:state.tab==='subjects'?'subject':'module',recordId:state.edit?.id||null});
+  function nativeVersion(){const e=state.edit,row=e?(e.kind==='subject'?state.data.subjects.find(r=>r.SubjectID===e.id):state.data.modules.find(r=>r.id===e.id)):null;return row?.Revision||row?.revision||state.data?.emptyRevision||0;}
+  const nativeReveal=value=>{if(nativeClient.isCurrentResult(value))nativeClient.revealResult(value,{root:$('lc-workspace')});};
+  async function nativeRead(){const value=await api('learning-catalogue/get');nativeProof=value;return value;}
+  async function nativeRecovery(){const c=await nativeReady(),resource=nativeResource(),key=JSON.stringify(resource);if(nativeForm&&nativeKey===key)return nativeForm;nativeForm?.dispose();nativeForm=null;nativeKey=key;const outer=$('lc-workspace');outer.style.visibility='hidden';outer.inert=true;const{createAcademyNativeForm}=await import('/js/m4l-v111-editor.mjs');const body=$('lc-rows');body.style.visibility=nativeRowsBaseline.visibility;body.inert=nativeRowsBaseline.inert;
+   // The actual tbody owns the editor lease. The permanent outer workspace
+   // remains separately masked until our own checked catalogue reader releases it.
+   nativeForm=await createAcademyNativeForm({client:c,resource,roots:[body],host:document.body,doc:document,capture:nativeDocument,baseVersion:nativeVersion,isDirty:()=>Boolean(state.edit||state.pending),status:text=>tell(text),
+    readCurrent:async()=>{await c.prepareSensitive({activeWork:false});return nativeRead();},
+    applyCurrent:value=>{state.data=value;state.edit=null;state.pending=null;state.conflict=false;render();},
+    applyRetained:document=>{const saved=document?.edit;if(!saved||saved.kind!==resource.kind||String(saved.id||'')!==String(resource.recordId||''))throw Error('The retained catalogue record does not match this editor.');state.tab=saved.kind==='subject'?'subjects':'modules';state.edit={...saved};const row=currentRow();state.edit.baseRevision=row?.Revision||row?.revision||(saved.kind==='module'?state.data.emptyRevision:'');state.pending=null;state.conflict=false;render();}});return nativeForm;
+  }
+  function nativeRoute(){const query=new URLSearchParams(location.search);if(state.tab==='modules')query.set('section','modules');else query.delete('section');if(state.edit){query.set('edit','1');if(state.edit.id)query.set('record',state.edit.id);else query.delete('record');}else{query.delete('edit');query.delete('record');}const next=location.pathname+(query.size?'?'+query:'');if(next!==location.pathname+location.search)window.history.replaceState(null,'',next);}
+  function nativeRemember(){nativeRoute();if(!nativeForm)return;const epoch=nativeEpoch,document=nativeDocument();nativeCheckpoint=nativeCheckpoint.then(()=>{if(!nativeCurrent(epoch))throw new DOMException('The catalogue account changed.','AbortError');return nativeForm.checkpoint(document);}).catch(error=>{if(nativeCurrent(epoch))tell(error.message,true);});}
+  async function nativeLoad(){if(state.busy)return;state.busy=true;render();const epoch=nativeEpoch;try{const c=await nativeReady();if(!nativeCurrent(epoch))return;
+    if(!state.data){const{prepareInitialAdminForm}=await import('/js/m4l-native-admin-init.mjs');await prepareInitialAdminForm(c,{hasPrivateWork:()=>!!state.data||!!state.edit||!!nativeForm||!!state.pending});}
+    if(!nativeCurrent(epoch))return;const value=await nativeRead();if(!nativeCurrent(epoch))return;state.data=value;state.token=token();const query=new URLSearchParams(location.search),section=query.get('section');if(!state.edit&&['subjects','modules'].includes(section))state.tab=section;render();
+    if(!nativeForm&&(state.tab!=='modules'||value.modulesReady)){if(query.get('edit')==='1'&&query.get('record')){const id=query.get('record'),row=state.tab==='subjects'?value.subjects.find(r=>r.SubjectID===id):value.modules.find(r=>r.id===id);if(row)state.edit=draft(row);}const form=await nativeRecovery();await form.open(value);nativeRoute();}
+    else if(state.edit&&nativeForm)await nativeForm.revalidate();if(nativeCurrent(epoch)){nativeReveal(nativeProof);tell(state.edit?'Your unfinished entry is kept.':'');}
+   }catch(error){if(nativeCurrent(epoch)){if([401,403].includes(error.status)){state.data=null;state.edit=null;state.pending=null;state.conflict=false;render();}tell(error.message,true);}}finally{if(epoch===nativeEpoch){state.busy=false;render();}}}
+  async function nativeBegin(row){if(state.busy||state.edit)return;const epoch=nativeEpoch,tab=state.tab,id=tab==='subjects'?row?.SubjectID:row?.id;state.busy=true;render();try{const c=await nativeReady();await c.prepareSensitive({activeWork:true});const value=await nativeRead();if(!nativeCurrent(epoch)||tab!==state.tab)return;state.data=value;const current=id?(tab==='subjects'?value.subjects.find(s=>s.SubjectID===id):value.modules.find(s=>s.id===id)):null;if(id&&!current)throw Error('This catalogue record is no longer available.');state.edit=draft(current);state.conflict=false;nativeRoute();render();const form=await nativeRecovery();await form.open(value);if(nativeCurrent(epoch)){render();nativeReveal(nativeProof);$('lc-rows').querySelector('input')?.focus();}}catch(error){if(nativeCurrent(epoch))tell(error.message,true);}finally{if(epoch===nativeEpoch){state.busy=false;render();}}}
+  async function nativeSave(){if(state.busy||state.conflict||!state.edit)return;const epoch=nativeEpoch;state.busy=true;render();let attempt;try{const form=await nativeRecovery();await nativeCheckpoint;const operation=request();state.pending=operation;attempt=await form.beforeMutation({path:'/api/admin/platform/'+operation.path,body:operation.body},{sensitive:true});let value=await api(operation.path,operation.body);value=await form.completeNativeMutation(attempt,value,{operationId:operation.body.operationId});if(!nativeCurrent(epoch))return;state.edit=null;state.pending=null;state.conflict=false;nativeRoute();await form.saved();const fresh=await nativeRead();if(!nativeCurrent(epoch))return;state.data=fresh;render();nativeReveal(fresh);tell('Saved.');}
+   catch(error){if(!nativeCurrent(epoch))return;if(attempt){await nativeForm.unknown(attempt);state.pending=null;if(nativeCurrent(epoch)){render();nativeReveal(nativeProof);tell('Current records were reviewed. The original change was not resent. Choose an explicit Save for another change.');}}else{state.pending=null;tell(error.message,true);}}
+   finally{if(epoch===nativeEpoch){state.busy=false;render();}}}
+  const token=()=>v2()?nativeClient?.ownerKey()||'':localStorage.getItem('m4l_account_token')||'';
+  const remember=()=>{if(v2()){nativeRemember();return;}if(state.key)sessionStorage.setItem(state.key,JSON.stringify({edit:state.edit,pending:state.pending,tab:state.tab}));};
   async function api(path,input={}){
+    if(v2()){const epoch=nativeEpoch,c=await nativeReady();if(!nativeCurrent(epoch))throw new DOMException('The catalogue account changed.','AbortError');const value=await c.request('/api/admin/platform/'+path,input,{headers:{'X-Academy-Workspace':'ADMIN'}});if(!nativeCurrent(epoch)||!c.isCurrentResult(value))throw new DOMException('The catalogue view changed.','AbortError');return value;}
     const session=token();if(!session)throw Object.assign(Error('Sign in with a Global Admin account to manage Subjects and Modules.'),{status:401});
     const response=await fetch((window.M4L_CONFIG?.API_BASE||'')+'/api/admin/platform/'+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session},body:JSON.stringify(input)});
     let result;try{result=await response.json();}catch{throw Error('The response could not be read. Your entry is kept.');}
@@ -49,6 +80,7 @@
     $('lc-rows').innerHTML=html||'<tr><td class="lc-empty" colspan="'+(modules?5:4)+'">No matching records.</td></tr>';
   }
   async function load(restore=false){
+    if(v2())return nativeLoad();
     if(state.busy)return;state.busy=true;render();
     try{const result=await api('learning-catalogue/get');state.data=result;state.token=token();
       const key='m4l-learning-catalogue-v2:'+location.host+':'+result.viewerAccountId;
@@ -59,12 +91,13 @@
     }catch(error){if([401,403].includes(error.status)){state.data=null;state.edit=null;state.pending=null;state.conflict=false;state.key='';}tell(error.message,true);}
     finally{state.busy=false;render();}
   }
-  function begin(row){if(state.edit){tell('Save or discard your current entry first.',true);return;}state.edit=draft(row);state.conflict=false;remember();render();$('lc-rows').querySelector?.('input')?.focus();}
+  function begin(row){if(v2()){void nativeBegin(row);return;}if(state.edit){tell('Save or discard your current entry first.',true);return;}state.edit=draft(row);state.conflict=false;remember();render();$('lc-rows').querySelector?.('input')?.focus();}
   function request(){const e=state.edit,operationId=crypto.randomUUID();
     if(e.kind==='subject')return {path:'academy-subjects/save',body:{mode:e.id?'rename':'create',subjectId:e.id,subjectName:e.name,active:e.active,baseRevision:e.baseRevision,operationId}};
     return {path:'learning-catalogue/module/save',body:{id:e.id,name:e.name,subjectId:e.subjectId,active:e.active,baseRevision:e.baseRevision,operationId}};
   }
   async function save(){
+    if(v2())return nativeSave();
     if(state.busy||state.conflict||!state.edit)return;
     try{state.pending=state.pending||request();}catch(error){tell(error.message,true);return;}remember();state.busy=true;render();let confirmed=false;
     try{await api(state.pending.path,state.pending.body);state.edit=null;state.pending=null;state.conflict=false;remember();confirmed=true;tell('Saved.');}
@@ -72,7 +105,7 @@
     finally{state.busy=false;render();}
     if(confirmed||state.conflict){await load();if(confirmed&&!$('lc-message').classList.contains('is-error'))tell('Saved.');else if(state.conflict)tell('Records changed elsewhere. Compare the saved record with your entry before continuing.',true);}
   }
-  for(const tab of ['subjects','modules'])$('lc-'+tab).onclick=()=>{if(state.edit||state.pending){tell('Save or discard your current entry first.',true);return;}state.tab=tab;state.search='';$('lc-search').value='';const query=new URLSearchParams(location.search||'');if(tab==='modules')query.set('section','modules');else query.delete('section');window.history?.replaceState?.(null,'',location.pathname+(query.size?'?'+query:''));render();};
+  for(const tab of ['subjects','modules'])$('lc-'+tab).onclick=()=>{if(state.edit||state.pending){tell('Save or discard your current entry first.',true);return;}state.tab=tab;state.search='';$('lc-search').value='';const query=new URLSearchParams(location.search||'');if(tab==='modules')query.set('section','modules');else query.delete('section');if(v2()){query.delete('edit');query.delete('record');}window.history?.replaceState?.(null,'',location.pathname+(query.size?'?'+query:''));render();};
   $('lc-add').onclick=()=>begin();$('lc-refresh').onclick=()=>void load();$('lc-retry').onclick=()=>void save();
   $('lc-search').oninput=e=>{state.search=e.target.value;render();};$('lc-area').onchange=e=>{state.subject=e.target.value;render();};$('lc-status').onchange=e=>{state.status=e.target.value;render();};
   $('lc-rows').onclick=e=>{const d=e.target.closest('button')?.dataset;if(!d||state.busy||state.pending)return;if(d.edit!==undefined)begin((state.tab==='modules'?state.data.modules:state.data.subjects)[Number(d.edit)]);if(d.save!==undefined)void save();if(d.cancel!==undefined){state.edit=null;state.conflict=false;remember();render();tell('Entry discarded.');}};
@@ -81,6 +114,10 @@
   $('lc-use-saved').onclick=()=>{state.edit=null;state.conflict=false;remember();render();tell('Saved version kept.');};
   $('lc-keep').onclick=()=>{const current=currentRow();if(!current)return;state.edit.baseRevision=current.Revision||current.revision||state.data.emptyRevision;state.conflict=false;remember();render();tell('Reviewed. Select Save to apply your changes.');};
   window.addEventListener('beforeunload',e=>{if(state.edit||state.pending){e.preventDefault();e.returnValue='';}});
-  window.addEventListener('storage',e=>{if(e.key==='m4l_account_token'||e.key===null){state.data=null;state.edit=null;state.pending=null;state.conflict=false;state.key='';render();void load(true);}});
+  window.addEventListener('storage',e=>{if(v2())return;if(e.key==='m4l_account_token'||e.key===null){state.data=null;state.edit=null;state.pending=null;state.conflict=false;state.key='';render();void load(true);}});
+  if(v2()){
+   window.addEventListener('academy-v2-context',()=>{if(nativeOwner!==null&&nativeOwner!==nativeClient?.ownerKey()){nativeEpoch++;nativeForm?.dispose();nativeForm=null;nativeKey='';nativeProof=null;nativeOwner=nativeClient?.ownerKey()||null;state.data=null;state.edit=null;state.pending=null;state.conflict=false;state.busy=false;render();tell('The Academy account changed. Read the catalogue again.');}});
+   window.addEventListener('academy-v2-revalidate',()=>{if(state.busy)return;void (async()=>{try{if(nativeForm){const value=await nativeForm.revalidate();nativeReveal(value);}else await nativeLoad();}catch(error){tell(error.message,true);}})();});
+  }
   void load(true);
 })();

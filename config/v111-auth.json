@@ -1,6 +1,6 @@
 {
   "schema": 2,
-  "release": "V111-milestone2",
+  "release": "V111-milestone3",
   "app": "academy",
   "env": "production",
   "publicOrigin": "https://ummabbadacademy.app",
@@ -13,5 +13,9 @@
     "defaultInactivityMinutes": 90
   },
   "deploymentApproval": "REQUIRED",
-  "providerAlias": null
+  "providerAlias": null,
+  "snapshotSchema": 3,
+  "contractAmendments": [
+    "R7-A1"
+  ]
 }

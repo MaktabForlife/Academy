@@ -1,8 +1,13 @@
 /* Manual completion dates are the authority for Tafseer surah websites. */
 (() => {
  'use strict';
- let readOnly=false;
- const token=()=>localStorage.getItem('m4l_account_token')||'',esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ let readOnly=false;const v2=location.origin==='https://ummabbadacademy.app'&&document.querySelector('meta[name=uaa-auth-version]')?.content==='2';let auth=null,nativeForm=null,nativeReady=false,nativeVersion=0,checkpoint=Promise.resolve(),unregisterRead=null;const nativeClient=async()=>auth||(auth=await window.M4L_ACADEMY_AUTH.ready);const hash=async value=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(value))))].map(x=>x.toString(16).padStart(2,'0')).join('');
+ const snapshot=()=>({entries:[...drafts.values()].map(x=>structuredClone(x))});
+ function persist(){if(!v2||!nativeForm)return;const value=snapshot();checkpoint=checkpoint.then(()=>nativeForm.checkpoint(value));checkpoint.catch(error=>message(error.message,true));}
+ async function readCurrent(){await (await nativeClient()).prepareBusiness();return api('surahs');}
+ async function installNative(result){if(!v2)return;nativeForm?.dispose();nativeForm=null;unregisterRead?.();unregisterRead=null;nativeReady=false;if(!result.available)return;if(readOnly||!result.prepared){host.style.visibility='';host.inert=false;unregisterRead=auth.registerPrivateRoot(host);auth.revealResult(result,{root:host});return;}nativeVersion=await hash({policy:result.policyRevision,rows:result.surahs});const {createAcademyNativeForm}=await import('/js/m4l-v111-editor.mjs');host.style.visibility='';host.inert=false;nativeForm=await createAcademyNativeForm({client:auth,resource:external?.v2Resource||{type:'academy-program-surah-table',activityKey:'PROGRAM:'+program},capture:snapshot,baseVersion:()=>nativeVersion,isDirty:()=>drafts.size>0,applyCurrent:async value=>{data=value;drafts.clear();pending=null;nativeVersion=await hash({policy:value.policyRevision,rows:value.surahs});render();},applyRetained:value=>{if(!Array.isArray(value.entries))throw Error('Invalid retained Surah table.');drafts.clear();for(const x of value.entries)drafts.set(x.id,x);renderRows();},readCurrent,roots:[host],host:document.body,status:message});await nativeForm.open(result);nativeReady=true;controls();}
+ async function saveNative(){if(!nativeReady||!nativeForm)throw Error('Open the protected Surah table before saving.');if(!drafts.size){message('No table changes to save.');return;}const input={entries:[...drafts.values()].map(row=>({id:row.id,name:row.name.trim(),cardKey:row.cardKey||'',completionDate:row.completionDate,active:row.active,revision:row.revision})),policyRevision:data.policyRevision,operationId:crypto.randomUUID()},stamp=generation;let attempt;busy=true;controls();try{await checkpoint;attempt=await nativeForm.beforeMutation({action:'surah-save',input},{sensitive:true});let result=await api('surah-save',input);if(stamp!==generation)return;result=await nativeForm.completeNativeMutation(attempt,result,{operationId:input.operationId});drafts.clear();pending=null;await nativeForm.saved();busy=false;await load();message('Surah table saved. Current native dates were checked.');}catch(error){if(stamp!==generation)return;if(attempt){nativeReady=false;await nativeForm.unknown(attempt);nativeReady=true;}message(error.message,true);}finally{if(stamp===generation){busy=false;controls();}}}
+ const token=()=>v2?(window.M4L_ACADEMY_AUTH?.ownerKey()||''):localStorage.getItem('m4l_account_token')||'',esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  let external=null,host=null,program='',owner='',generation=0,busy=false,data=null,pending=null;
  const cards=[['yaseen','Surah Yaseen'],['saffat','Surah As-Saffat'],['ankabut','Surah Al-Ankabut'],['luqman','Surah Luqman'],['muzammil','Surah Al-Muzzammil'],['foundations','Foundations of Tafseer'],['qasas','Surah Al-Qasas'],['sajdah','Surah As-Sajdah']];
  const cardOptions=key=>{const choices=data?.websiteCards?.map(c=>[c.id,c.title])||cards;return [['','Not linked yet'],...choices,...(key&&!choices.some(c=>c[0]===key)?[[key,key]]:[])].map(([id,label])=>'<option value="'+esc(id)+'"'+(id===(key||'')?' selected':'')+'>'+esc(label+(id==='foundations'?' · Open to all':''))+'</option>').join('');};
@@ -12,6 +17,7 @@
  function canLeave(){if(dirty()){message('Save or discard the surah table changes before leaving.',true);return false;}return true;}
  async function api(action,input={}){
   const stamp=generation,current=owner;
+  if(v2){const c=await nativeClient(),result=external&&!external.nativeSource?await external.transport(action,input):await c.request('/api/admin/platform/program-monthly-subscriptions/'+action,{activityKey:'PROGRAM:'+program,...input},{headers:{'X-Academy-Workspace':'ADMIN'}});if(stamp!==generation||current!==token()||!c.isCurrentResult(result))throw Error('This Surah reply belongs to an earlier view.');return result;}
   if(external){const result=await external.transport(action,input);if(stamp!==generation||current!==token())throw Error('Your account or programme changed. Reopen the Surah table.');return result;}
   const response=await fetch((window.M4L_CONFIG?.API_BASE||'')+'/api/admin/platform/program-monthly-subscriptions/'+action,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+current,'X-Academy-Workspace':'ADMIN'},body:JSON.stringify({activityKey:'PROGRAM:'+program,...input})}),result=await response.json();
   if(stamp!==generation||current!==token())throw Error('Your account or Program changed. Reopen Lesson media.');
@@ -26,18 +32,18 @@
    const link=event.target.closest('[data-surah-editor]');if(link&&(readOnly||!canLeave()||window.M4L_LESSON_MEDIA?.canLeave?.()===false)){event.preventDefault();return;}
    const button=event.target.closest('[data-surah-action]');if(!button||busy)return;
    const action=button.dataset.surahAction;
-   if(action==='retry'){if(pending)await save();return;}if(pending)return;
+   if(action==='retry'){if(v2)return;if(pending)await save();return;}if(pending)return;
    if(action==='add'){
     if(window.M4L_LESSON_MEDIA?.canLeave?.()===false)return;
-    const id=crypto.randomUUID();drafts.set(id,{id,name:'',cardKey:'',completionDate:'',active:true,revision:0});renderRows();host.querySelector('[data-surah-row="'+id+'"] [data-surah-field="name"]')?.focus();return;
+    const id=crypto.randomUUID();drafts.set(id,{id,name:'',cardKey:'',completionDate:'',active:true,revision:0});renderRows();persist();host.querySelector('[data-surah-row="'+id+'"] [data-surah-field="name"]')?.focus();return;
    }
-   if(action==='remove'){drafts.delete(button.dataset.id);renderRows();return;}
-   if(action==='discard'){drafts.clear();renderRows();message('Surah edits discarded.');return;}
+   if(action==='remove'){drafts.delete(button.dataset.id);renderRows();persist();return;}
+   if(action==='discard'){if(v2){await nativeForm?.discard();return;}drafts.clear();renderRows();message('Surah edits discarded.');return;}
    if(action==='refresh'){if(canLeave()&&window.M4L_LESSON_MEDIA?.canLeave?.()!==false)await load();return;}
    if(action==='save'){if(window.M4L_LESSON_MEDIA?.canLeave?.()===false)return;await save();}
   });
  }
- function controls(){for(const node of host?.querySelectorAll('button,input,select')||[])node.disabled=readOnly||busy||Boolean(pending&&node.dataset.surahAction!=='retry');}
+ function controls(){for(const node of host?.querySelectorAll('button,input,select')||[])node.disabled=readOnly||busy||Boolean(v2&&data?.prepared&&!nativeReady)||Boolean(pending&&node.dataset.surahAction!=='retry');}
  function render(){
   host.hidden=!data?.available;if(host.hidden){host.replaceChildren();return;}
   host.innerHTML='<h2>Surah websites</h2><p>Enter the surah name and completion date manually. This table determines website access. Changing a completion date changes which subscription month qualifies. Students with that month checked in Monthly subscriptions keep access to the published website.</p><p data-surah-message role="status" aria-live="polite"></p>'+
@@ -58,15 +64,16 @@
   entry[control.dataset.surahField]=control.value;
   if(old&&entry.name===old.name&&(entry.cardKey||'')===(old.cardKey||'')&&entry.completionDate===old.completionDate)drafts.delete(id);else drafts.set(id,entry);
   control.closest('tr').classList.toggle('pms-surah-edited',drafts.has(id));control.closest('tr').children[3].textContent=drafts.has(id)?'After saving':old.eligibleStudents;
-  host.querySelector('[data-surah-delta]').textContent=drafts.size?drafts.size+' unsaved surah change(s)':'No unsaved table changes';
+  host.querySelector('[data-surah-delta]').textContent=drafts.size?drafts.size+' unsaved surah change(s)':'No unsaved table changes';persist();
  }
  async function load(){
   const stamp=generation;busy=true;controls();
-  try{data=await api('surahs');if(stamp!==generation)return;render();}
+  try{if(v2){await (await nativeClient()).ensureFresh();await auth.prepareBusiness();}data=await api('surahs');if(stamp!==generation)return;render();if(v2)await installNative(data);}
   catch(error){if(stamp===generation){host.hidden=false;if(!host.querySelector('[data-surah-message]'))host.innerHTML='<h2>Surah websites</h2><p data-surah-message role="alert"></p><button type="button" data-surah-action="refresh">Try again</button>';message(error.message,true);}}
   finally{if(stamp===generation){busy=false;controls();}}
  }
  async function save(){
+  if(v2)return saveNative();
   if(!pending&&!drafts.size){message('No table changes to save.');return;}
   if(!pending){
    const entries=[...drafts.values()].map(row=>({id:row.id,name:row.name.trim(),cardKey:row.cardKey||'',completionDate:row.completionDate,active:row.active,revision:row.revision}));
@@ -79,10 +86,10 @@
   finally{if(stamp===generation){busy=false;controls();}}
  }
  async function select(id,{readOnly:historical=false}={}){shell();if(!host)return;if(program===id&&owner===token()&&data&&readOnly===historical)return;reset();readOnly=historical;program=id;owner=token();await load();}
- function reset(){readOnly=false;generation++;program='';owner='';data=null;drafts.clear();pending=null;busy=false;if(host){host.hidden=true;host.replaceChildren();}}
+ function reset(){nativeForm?.dispose();nativeForm=null;nativeReady=false;unregisterRead?.();unregisterRead=null;checkpoint=Promise.resolve();readOnly=false;generation++;program='';owner='';data=null;drafts.clear();pending=null;busy=false;if(host){host.hidden=true;host.replaceChildren();}}
  async function mount(container,id,options){if(!canLeave())return false;unmount();const section=document.createElement('section');container.append(section);external={...options,host:section};await select(id);return true;}
  function unmount(){reset();if(external)host?.remove();external=null;host=null;}
  window.M4L_PROGRAM_SURAHS={mount,unmount,select,canLeave,dirty,reset};
  window.addEventListener('beforeunload',event=>{if(dirty()){event.preventDefault();event.returnValue='';}});
- window.addEventListener('m4l-academy-session',reset);window.addEventListener('m4l-academy-session-ended',reset);window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)reset();});
+ if(v2)window.addEventListener('academy-v2-revalidate',()=>{if(program)void (nativeForm?nativeForm.revalidate():load()).catch(error=>message(error.message,true));});window.addEventListener('m4l-academy-session',()=>{if(!v2||owner!==token())reset();});window.addEventListener('m4l-academy-session-ended',reset);window.addEventListener('storage',event=>{if(event.key==='m4l_account_token'||event.key===null)reset();});
 })();

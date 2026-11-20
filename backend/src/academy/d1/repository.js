@@ -1,3 +1,4 @@
+import {capturedNativePermissionRows} from '../v111/native-context.js';
 import {mediaPlaylistCursor} from './media-playlist-cursor.js';
 import {calendarFacts,holidaySettings} from './published-facts-cache.js';
 import {surahRightsSQL} from './surah-grants.js';
@@ -47,7 +48,7 @@ export function academyD1Repository(env) {
   }:null;
   const prepare=(sql,...values)=>db.prepare(sql).bind(...values);
   const configurationNamespace=[env.ENVIRONMENT,env.ACADEMY_D1_RUN_ID,env.ACADEMY_DB_GENERATION];
-  let schemas,activation;
+  let schemas,activation,boundAuth=null;
   async function schemaNames(){
     if(split)return ['role_mapping_decisions','effective_course_subscriptions'];
     schemas??=prepare("SELECT name FROM sqlite_schema WHERE name IN ('role_mapping_decisions','effective_course_subscriptions') AND type IN ('table','view')").all();
@@ -118,10 +119,10 @@ export function academyD1Repository(env) {
       SELECT ?,?,?,?,?,?,?,?,? ${conditional?'WHERE changes()=1':''}`,crypto.randomUUID(),new Date().toISOString(),actor,env.ACADEMY_D1_MODE==='ACTIVE'?'D1_ACCOUNT':'D1_REHEARSAL','ACADEMY',action,'USER_ACCOUNT',target,JSON.stringify(fields));
   }
   return {
-    mediaPlaylistSource:{db:compatible,cursor:mediaPlaylistCursor(env.SESSION_SECRET)},
+    mediaPlaylistSource:{db:env.UAA_V2_ENABLED==='1'?db:compatible,cursor:mediaPlaylistCursor(env.SESSION_SECRET)},
     publishedFactsSource:{db:raw,namespace:configurationNamespace,requests:new Map(),versionSQL:split?'(SELECT version FROM split_read_state WHERE singleton=1)':'(SELECT version FROM academy_write_state WHERE singleton=1)'},
     privateSnapshots,recordingEnv:{ACADEMY_OBJECT_NAMESPACE:env.ACADEMY_OBJECT_NAMESPACE},
-    bindActor:auth=>client?.bindActor(auth),
+    bindActor:auth=>{boundAuth=auth;return client?.bindActor(auth);},
     authoringRepository(){return client?{...this,db:client.admin}:this;},
     db,coreDb:db,noteSummaryCursor:classNoteSummaryCursor(env.SESSION_SECRET),adminDb:split?env.ACADEMY_ADMIN_DB.withSession('first-primary'):null,setup:{enabled:env.ACADEMY_ACCEPTED_SETUP==='1'},features:{noteRetention:env.ACADEMY_NOTE_RETENTION==='1',websiteStudio:env.ACADEMY_WEBSITE_STUDIO==='1',surahGrants:env.ACADEMY_SURAH_GRANTS==='1',weeklyAbsentees:env.ACADEMY_WEEKLY_ABSENTEES==='1',monthlySubscriptions:env.ACADEMY_MONTHLY_SUBSCRIPTIONS==='1',nativeAttendance:env.ACADEMY_LEARNING_OPERATIONS==='3',mediaSeparation:env.ACADEMY_MEDIA_SEPARATION==='1',splitDatabases:split},
     ownershipForNewActivity:activity=>newActivityOwnership(activity,env),
@@ -231,7 +232,7 @@ export function academyD1Repository(env) {
       return this.byId(row.account_id);
     },
     async homeData(state,start,end,courseWorkflows=false,programWorkspace=false,includeCalendar=true) {
-      const readDb=this.db,readPrepare=(sql,...values)=>readDb.prepare(sql).bind(...values);
+      const capturedMemberships=state&&boundAuth?capturedNativePermissionRows(boundAuth,'classMemberships'):null;const readDb=this.db,readPrepare=(sql,...values)=>readDb.prepare(sql).bind(...values);
       // Private curriculum is needed only for learning areas this account can
       // access. Anonymous previews need class destinations only for free joining.
       const privateKeys=state?[...new Set([
@@ -254,12 +255,12 @@ export function academyD1Repository(env) {
         `SELECT p.*,s.subject_id,s.name AS subject_name FROM program_subjects p JOIN subject_catalog s USING(subject_key) WHERE p.active=1 AND s.active=1 AND p.activity_key IN (SELECT value FROM json_each(?))`,
         `SELECT * FROM modules WHERE active=1 AND activity_key IN (SELECT value FROM json_each(?))`,
         `SELECT c.* FROM classes c WHERE c.active=1 AND ${classScope}`,
-        `SELECT * FROM class_memberships WHERE account_id=?`,
+        capturedMemberships?`SELECT json_extract(value,'$.enrollment_id') enrollment_id,json_extract(value,'$.activity_key') activity_key,? account_id,json_extract(value,'$.class_id') class_id,json_extract(value,'$.active') active,json_extract(value,'$.start_date') start_date,json_extract(value,'$.end_date') end_date FROM json_each(?)`:`SELECT * FROM class_memberships WHERE account_id=?`,
         `SELECT r.*${courseWorkflows?',ca.access_model AS run_access_model':''} FROM course_runs r JOIN activities a USING(activity_key) ${courseWorkflows?'JOIN course_run_access ca USING(activity_key,run_id)':''} WHERE r.active=1 AND a.active=1 AND a.lifecycle='ACTIVE'`,
         `SELECT s.* FROM course_run_state s JOIN course_runs r USING(activity_key,run_id) WHERE r.active=1`,
         `SELECT * FROM lesson_lifecycle`,
       ];
-      const results=await readDb.batch(queries.map((sql,i)=>i===0?readPrepare(sql,Number(Boolean(state?.account.global_admin)),staffScope):i===1?readPrepare(sql,end,start):[2,3].includes(i)||i===4&&state?readPrepare(sql,privateScope):i===5?readPrepare(sql,state?.account.account_id || ''):readPrepare(sql)));
+      const results=await readDb.batch(queries.map((sql,i)=>i===0?readPrepare(sql,Number(Boolean(state?.account.global_admin)),staffScope):i===1?readPrepare(sql,end,start):[2,3].includes(i)||i===4&&state?readPrepare(sql,privateScope):i===5?readPrepare(sql,state?.account.account_id || '',...(capturedMemberships?[JSON.stringify(capturedMemberships)]:[])):readPrepare(sql)));
       const rows=results.map(r=>r.results);
       if(courseWorkflows&&includeCalendar){const facts=await calendarFacts(this);rows.push(facts.calendar,facts.suppressions,holidaySettings(facts));}
       return rows;

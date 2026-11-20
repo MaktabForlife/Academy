@@ -1,3 +1,4 @@
+import {buildLibraryMetadataProof,libraryMetadataTaxonomy} from '../v111/library-metadata-v2.mjs';
 import {payloadHash} from '../../programs/timetable-model.js';
 import { json } from '../../lib/http.js';
 import { problem } from '../../programs/model.js';
@@ -58,8 +59,9 @@ export function openLibraryMetadataEndpoint(action) {
     try {
       if (!env.PROGRAM_TIMETABLE_COORDINATOR) throw problem('Open Library storage is unavailable.', 503);
       if (!publicRead) await openLibraryMetadataUser(request, env);
-      if (action === 'options') return json({ success: true, ...await loadOpenLibraryTaxonomy(env) });
+      if (action === 'options') return json({ success: true, ...(env.UAA_V2_ENABLED==='1'?(await libraryMetadataTaxonomy(env)).taxonomy:await loadOpenLibraryTaxonomy(env)) });
       const stub = env.PROGRAM_TIMETABLE_COORDINATOR.getByName(openLibraryStorageKey(env));
+      if (action === 'get') {const body=JSON.parse(new TextDecoder().decode(await limitedBytes(request,1024)));if(!body||Object.keys(body).join(',')!=='resourceId'||!isOpenLibraryMetadataId(body.resourceId))throw problem('Choose a Library resource.',400);const record=await stub.openLibraryMetadataRecord(body.resourceId);return json({success:true,record:record?openLibraryMetadataForClient(record,new URL(request.url).origin):null});}
       if (action === 'cover') {
         const id = new URL(request.url).searchParams.get('id');
         if (!isOpenLibraryMetadataId(id)) throw problem('This cover is unavailable.', 404);
@@ -118,18 +120,19 @@ export function openLibraryMetadataEndpoint(action) {
         await env.MEDIA_BUCKET.put(key, bytes, { httpMetadata: { contentType: type.mime } });
       }
       let result;
-      try { result = await stub.openLibraryMetadataSave(input, request.headers.get('Authorization') || '', key); }
+      try { result = env.UAA_V2_ENABLED==='1'?await stub.openLibraryMetadataSaveV2(input,await buildLibraryMetadataProof(request,input,key),key):await stub.openLibraryMetadataSave(input, request.headers.get('Authorization') || '', key); }
       catch (error) {
-        if (key) {
+        if (key&&env.UAA_V2_ENABLED!=='1') {
           try { await env.MEDIA_BUCKET.delete(key); } catch { /* Preserve the original save error. */ }
         }
         throw error;
       }
-      if (result.previousCoverKey) {
+      if (result.previousCoverKey&&env.UAA_V2_ENABLED!=='1') {
         try { await env.MEDIA_BUCKET?.delete(result.previousCoverKey); } catch { /* Saved details stay valid. */ }
       }
       return json({ success: true, record: openLibraryMetadataForClient(result, new URL(request.url).origin) });
     } catch (error) {
+      if(env.UAA_V2_ENABLED==='1'&&/^LIBRARY_[A-Z_]{1,70}$/.test(error.code||'')&&[400,401,403,409,410,413].includes(error.status)){error.publicMessage=error.code==='LIBRARY_ROW_CHANGED'?'This Library record changed. Read the current saved details before making another save.':'The Library action could not be confirmed. Check the current record and session.';if(error.code==='LIBRARY_ROW_CHANGED')error.code='ROW_CHANGED';}
       if(error.code==='SESSION_ENDED')return json({success:false,error:'Your Academy session has ended.',code:'SESSION_ENDED'},401);
       const result = programFailure(error, action, 'open-library-metadata');
       return json(result, result.status);

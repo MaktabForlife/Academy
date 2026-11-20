@@ -1,17 +1,22 @@
 // This file precedes the unchanged shared API client in the Academy portal build.
-// Credentials stay in the existing native Academy storage; never in links.
+// Selected V2 uses only the host cookies through the shared browser coordinator.
+// The original native transport remains for non-V2 releases.
+const academyV2Mode=()=>location.origin==='https://ummabbadacademy.app'&&document.querySelector('meta[name="uaa-auth-version"]')?.content==='2'&&document.querySelector('meta[name="uaa-app"]')?.content==='academy';
+const academyV2=async()=>{if(!globalThis.M4L_ACADEMY_AUTH?.selected)throw Object.assign(Error('The Academy session connection is unavailable.'),{status:503,code:'V2_CLIENT_UNAVAILABLE'});return globalThis.M4L_ACADEMY_AUTH.ready;};
 const hosting=Object.freeze(globalThis.AcademyHosting);
-const nativeToken=()=>localStorage.getItem('m4l_account_token')||'';
+const nativeToken=()=>academyV2Mode()?'':localStorage.getItem('m4l_account_token')||'';
 const jsonResponse=(value,status=200)=>Response.json(value,{status});
 async function nativeFetch(path,body,token=nativeToken(),conditions={}){
+ if(academyV2Mode()){const auth=await academyV2(),url=new URL(path,location.origin),read=path==='/api/academy/hub/read';if(read)url.searchParams.set('request',JSON.stringify(body));return auth.protectedFetch(url.pathname+url.search,{method:read?'GET':'POST',cache:'no-store',headers:read?{}:{'Content-Type':'application/json'},...(read?{}:{body:JSON.stringify(body)})});}
  const url=new URL(path,hosting.academyApiOrigin);
  if(url.origin!==hosting.academyApiOrigin||!url.pathname.startsWith('/api/'))throw Error('Invalid Academy connection.');
  const read=path==='/api/academy/hub/read';if(read)url.searchParams.set('request',JSON.stringify(body));
  return fetch(url.href,{method:read?'GET':'POST',credentials:'omit',cache:'no-store',headers:{...(read?{}:{'Content-Type':'application/json'}),...(token?{Authorization:'Bearer '+token}:{}),...(conditions['If-None-Match']?{'If-None-Match':conditions['If-None-Match']}:{})},...(read?{}:{body:JSON.stringify(body)})});
 }
 async function portalFetch(path,init){
- if(path==='/api/config')return jsonResponse({academyOrigin:location.origin,studioOrigin:hosting.studioOrigin,hifzOrigin:hosting.hifzOrigin,nativePortal:true,authorityMode:'ACADEMY'});
+ if(path==='/api/config')return jsonResponse({...academyV2Mode()?{authVersion:2,app:'academy'}:{},academyOrigin:location.origin,studioOrigin:hosting.studioOrigin,hifzOrigin:hosting.hifzOrigin,nativePortal:true,authorityMode:'ACADEMY'});
  if(path.startsWith('/api/public/'))return fetch(path,{...init,credentials:'omit'});
+ if(academyV2Mode()&&path.startsWith('/auth/')){const auth=await academyV2(),input=init.body?JSON.parse(init.body):{};if(path==='/auth/native-login'){await auth.submitPin(input);return jsonResponse({signedIn:true});}if(path==='/auth/logout')return jsonResponse(await auth.logout());if(path==='/auth/access'||path==='/auth/refresh')return jsonResponse(await auth.refresh({activeWork:document.visibilityState!=='hidden'}));if(path==='/auth/academy')throw Object.assign(Error('Open the current application sign-in journey.'),{status:409,code:'V1_CONNECTOR_RETIRED'});}
  let body=init.body?JSON.parse(init.body):{},endpoint='/api/academy/hub/read',payload,project=null;
  const url=new URL(path,location.origin),query=Object.fromEntries(url.searchParams),token=nativeToken();
  if(path==='/auth/native-login'){
@@ -43,18 +48,18 @@ async function portalFetch(path,init){
  else if(url.pathname==='/api/circles/navigation')payload={kind:'navigation',input:{}};
  else if(url.pathname==='/api/circles/access')payload={kind:'access',input:{websiteIds:url.searchParams.getAll('website')}};
  else throw Error('This action belongs in Studio. Open its current workspace.');
- if(!token){clearPrivateReads();return jsonResponse({error:'Sign in to Academy to continue.',code:'SIGN_IN_REQUIRED'},401);}
+ if(!token&&!academyV2Mode()){clearPrivateReads();return jsonResponse({error:'Sign in to Academy to continue.',code:'SIGN_IN_REQUIRED'},401);}
  const response=await nativeFetch(endpoint,payload,token,init.headers);
- if(nativeToken()!==token)throw new DOMException('Your account changed.','AbortError');
+ if(!academyV2Mode()&&nativeToken()!==token)throw new DOMException('Your account changed.','AbortError');
  if(!project||!response.ok)return response;
  return jsonResponse(project(await response.json()));
 }
 window.addEventListener('storage',event=>{
- if(event.key==='m4l_account_token'||event.key===null){changed(null);window.dispatchEvent(new CustomEvent('website-session-ended',{detail:{externalAccountChange:true}}));}
+ if(!academyV2Mode()&&(event.key==='m4l_account_token'||event.key===null)){changed(null);window.dispatchEvent(new CustomEvent('website-session-ended',{detail:{externalAccountChange:true}}));}
 });
 
 window.addEventListener('website-account-changed',event=>{
- if(!event.detail?.accountId)return;
+ if(academyV2Mode()||!event.detail?.accountId)return;
  const wanted=new URL(location.href).searchParams.get('studioResume');if(!wanted)return;
  let pending;try{pending=JSON.parse(sessionStorage.getItem('academy-studio-resume-v1'));}catch{return;}
  sessionStorage.removeItem('academy-studio-resume-v1');
@@ -62,6 +67,19 @@ window.addEventListener('website-account-changed',event=>{
  const url=new URL('/academy/studio-authorize/',location.origin);url.search=new URLSearchParams({state:pending.state,challenge:pending.challenge});location.replace(url);
 });
 
+// V2 bypasses the legacy display persistence and automatic replay paths entirely.
+async function v2PortalAPI(path,options={}){
+ const auth=await academyV2(),isMe=path==='/api/me',target=isMe?'/api/circles/bootstrap':path;
+ const {body,method=body===undefined?'GET':'POST',headers={},blob=false}=options;
+ const response=await portalFetch(target,{method,cache:'no-store',headers:{...(body!==undefined?{'Content-Type':'application/json'}:{}),...headers},...(body===undefined?{}:{body:JSON.stringify(body)})});
+ if(response.status===304)throw Object.assign(Error('Reload this view to obtain a current checked response.'),{status:409,code:'UNCHECKED_DISPLAY_REUSE'});
+ const value=blob&&response.ok?await response.blob():await response.json();
+ if(!response.ok)throw Object.assign(Error(value.error||'This action is unavailable.'),{status:response.status,code:value.code});
+ if((path.startsWith('/api/')&&!path.startsWith('/api/public/')&&path!=='/api/config')||path==='/auth/native-open')auth.trackResult(value,response);
+ return isMe?value.account:value;
+}
+
+// Academy-owned native portal client. Non-V2 behavior retained from the transferred portal source.
 export const identity={account:null,generation:0};
 let observedCoursePolicyEpoch=null;
 const channel=typeof BroadcastChannel==='function'?new BroadcastChannel('maktab-web-account'):null;
@@ -107,6 +125,7 @@ function renewStatus(){if(!refreshing){const run=renew(()=>api('/auth/refresh',{
 // are never stored here: returning later still reaches the current server gate.
 const sharedRead=path=>/^\/api\/(?:config|me|public\/circles|websites(?:\/[^/?]+)?|circles\/(?:classrooms\/mothers|dashboard|(?:reader-)?bootstrap|navigation))(?:\?|$)/.test(path)||privateRead(path);
 export function api(path,options={}){
+ if(academyV2Mode())return v2PortalAPI(path,options);
  const {body,method=body===undefined?'GET':'POST',headers={},blob=false,refreshed=false,accessRefreshed=false,statusRefreshed=false,optionalSession=false}=options;
  if(method!=='GET'||body!==undefined){
   readFlights.clear();const readonly=path.startsWith('/auth/')||path==='/api/circles/dashboard'||path==='/api/circles/lesson-join'||/^\/api\/offerings\/[-A-Za-z0-9_:]+\/join$/.test(path);
@@ -140,3 +159,6 @@ export async function mutate(path,body){const key=path+JSON.stringify(body);if(!
 window.addEventListener('website-session-ended',()=>pending.clear());
 window.addEventListener('website-account-changed',()=>pending.clear());
 export function downloadJSON(value,filename){const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+
+let academyV2ObservedFamily=null;
+window.addEventListener('academy-v2-context',event=>{if(!academyV2Mode())return;const state=event.detail,c=state?.context,family=c?JSON.stringify(['app','sub','sid','psid','bsid','bv','ce','ae','le'].map(k=>c[k])):null;if(identity.account&&(!family||academyV2ObservedFamily&&family!==academyV2ObservedFamily))changed(null);academyV2ObservedFamily=family;});

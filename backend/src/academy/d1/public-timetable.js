@@ -1,3 +1,4 @@
+import {nativeAuthContext} from '../v111/native-context.js';
 import {payloadHash} from '../../programs/timetable-model.js';
 import {setupEnabled,acceptedHead,acceptedRepository} from './setup-reader.js';
 import {academyD1Repository,rehearsalError} from './repository.js';
@@ -99,6 +100,14 @@ export async function refreshPublicTimetable(request,env,repository,auth,now=new
  return replaceSnapshot(request,env,repository,async()=>{
   const current=await authenticatedD1Account(request,env,repository);
   if(!current.state.account.global_admin)throw rehearsalError('Only a Global Admin can refresh the public timetable.',403,'FORBIDDEN');
+   if(env.UAA_V2_ENABLED==='1'){
+    const selected=nativeAuthContext(current);if(!selected||current.state.account.account_id!==selected.cap.binding.sub)throw rehearsalError('Your Academy session changed.',401,'SESSION_ENDED');
+    const {runtime,cap}=selected,guard=runtime.writeGuard(cap,{sensitive:true}),now=runtime.clock();
+    if(!Number.isSafeInteger(cap.binding.vat)||now>=cap.binding.vat+60)throw rehearsalError('Refresh your Admin authority before updating the public timetable.',409,'SENSITIVE_VALIDATION_REQUIRED');
+    const eligible=await runtime.store.first(`SELECT 1 WHERE EXISTS(${guard.sql}) AND EXISTS(SELECT 1 FROM accounts a JOIN account_credentials c USING(account_id) JOIN global_role_assignments g ON g.account_id=a.account_id COLLATE NOCASE WHERE a.account_id=? COLLATE BINARY AND a.active=1 AND c.credential_epoch=? AND c.pin_setup=1 AND g.role='GLOBAL_ADMIN' AND g.active=1 AND g.review_state='CONFIRMED')`,...guard.args,cap.binding.sub,cap.binding.ce);
+    if(!eligible)throw rehearsalError('Your current Global Admin authority changed.',403,'FORBIDDEN');
+   }
+
  },now,edgeCache);
 }
 // The Publish button follows its confirmed transaction with a separate request

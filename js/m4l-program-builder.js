@@ -2,6 +2,21 @@
 (function () {
   "use strict";
   const byId = id => document.getElementById(id);
+  const v2=location.origin==='https://ummabbadacademy.app'&&document.querySelector('meta[name="uaa-auth-version"]')?.content==='2';
+  let client=null,privateRoots=[],lastList=null,restoreBusy=false,lastContextStamp='';const recoveries=new Map(),prepared=new Set(),preparing=new Map();
+  const ownerKey=()=>v2?(client?.ownerKey()||''):localStorage.getItem('m4l_account_token')||'';
+  async function nativeClient(){if(client)return client;client=await window.M4L_ACADEMY_AUTH.ready;privateRoots=[byId('pg-list'),byId('pg-context')].filter(Boolean);for(const root of [...privateRoots,byId('program-detail')].filter(Boolean))client.registerPrivateRoot(root);return client;}
+  const programVersion=value=>{if(typeof value==='string'&&/^(0|[1-9][0-9]*)$/.test(value))value=Number(value);if(!Number.isSafeInteger(value)||value<0)throw Error('The native Program revision is unavailable.');return value;};
+  const recoveryResource=row=>({type:'academy-program',programId:row.saved?row.id:null,mode:row.saved?'edit':'create'});
+  const snapshot=row=>Object.fromEntries(['id',...fields,'publicCard'].map(key=>[key,structuredClone(row[key]??null)]));
+  async function rowRecovery(row){let controller=recoveries.get(row.id);if(!controller){const {createAcademyNativeRecovery}=await import('/js/m4l-v111-editor.mjs');controller=await createAcademyNativeRecovery({client:await nativeClient(),resource:recoveryResource(row),capture:()=>snapshot(row),baseVersion:()=>programVersion(row.saved?.revision??0),isDirty:()=>dirty(row),onUnavailable:error=>message('Protected draft unavailable. '+error.message,true)});if(!state.rows.includes(row)){controller.dispose();throw new DOMException('This Program view changed.','AbortError');}recoveries.set(row.id,controller);}return controller;}
+  async function prepareRow(row){if(!v2||prepared.has(row.id))return;if(preparing.has(row.id))return preparing.get(row.id);const promise=(async()=>{const recovery=await rowRecovery(row),retained=await recovery.prepare();if(!state.rows.includes(row))throw new DOMException('This Program view changed.','AbortError');if(retained.marker||retained.draft?.pendingAcceptance||retained.draft?.dirty&&retained.draft.baseVersion!==programVersion(row.saved?.revision??0)){await reviewRetained(row,retained);return;}if(retained.draft?.dirty){Object.assign(row,retained.draft.document);row.operationId=null;}prepared.add(row.id);render();if(lastList&&client.isCurrentResult(lastList)&&state.selected===row.id)client.revealResult(lastList,{root:byId('program-detail')});})();preparing.set(row.id,promise);try{return await promise;}finally{preparing.delete(row.id);}}
+  async function reviewRetained(row,retained){
+   const panel=document.createElement('section'),text=document.createElement('p'),read=document.createElement('button');panel.setAttribute('role','status');text.textContent='Your retained Program change needs review. It has not been sent again.';read.type='button';read.textContent='Read current Program records';panel.append(text,read);byId('program-message').after(panel);
+   await new Promise((resolve,reject)=>{read.onclick=async()=>{read.disabled=true;try{const current=await api('list');retained=await (await rowRecovery(row)).recoverNativeMutation({currentServerValue:current});const server=current.programs.find(p=>p.id===row.id);text.textContent=server?'Current Program revision '+server.revision+'. Choose what to edit; nothing will be sent automatically.':'No current row was found. Absence does not confirm whether the old change happened. Keep your retained copy for review.';if(!server&&retained.marker)return;const use=document.createElement('button'),keep=document.createElement('button');use.type=keep.type='button';use.textContent='Use current Program';keep.textContent='Continue retained Program edits';const choose=async restore=>{try{const fresh=await api('list'),actual=fresh.programs.find(p=>p.id===row.id);if(!actual)throw Error('The current Program must be checked before continuing.');if(!confirm('Discard only this local save marker and continue editing? This does not save or publish a Program.'))return;await (await rowRecovery(row)).discardRetained({confirmed:true,currentServerValue:fresh});Object.assign(row,draft(actual));if(restore&&retained.draft?.document)Object.assign(row,retained.draft.document);row.revision=actual.revision;row.operationId=null;prepared.add(row.id);await (await rowRecovery(row)).checkpoint(snapshot(row),{dirty:restore});panel.remove();render();resolve();}catch(error){text.textContent=error.message;}};use.onclick=()=>void choose(false);keep.onclick=()=>void choose(true);panel.append(use,keep);if(retained.draft?.pendingAcceptance){use.disabled=keep.disabled=true;const complete=document.createElement('button');complete.type='button';complete.textContent='Finish saved native change';complete.onclick=async()=>{complete.disabled=true;try{const fresh=await api('list');await (await rowRecovery(row)).resumeNativeAcceptance({currentServerValue:fresh});delete retained.draft.pendingAcceptance;complete.hidden=true;use.disabled=keep.disabled=false;text.textContent='The saved native change was completed. Read current records before choosing retained edits.';}catch(error){text.textContent=error.message;complete.disabled=false;}};panel.append(complete);}read.hidden=true;}catch(error){text.textContent=error.message;}finally{read.disabled=false;}};});
+  }
+  async function v2API(action,payload,account){const auth=await nativeClient(),path=account?'/api/account/session':'/api/admin/platform/programs/'+action,write=!account&&!['list','readiness'].includes(action);if(!write)return auth.request(path,payload,{headers:{'X-Academy-Workspace':account?'LEARN':'ADMIN'}});const row=state.rows.find(row=>row.id===payload.id),resource=action==='copy'?{type:'academy-program',programId:payload.id,mode:'copy'}:row?recoveryResource(row):null;if(!resource)throw Error('The exact Program edit scope is unavailable.');let recovery=row&&action!=='copy'?await rowRecovery(row):null;if(!recovery){const {createAcademyNativeRecovery}=await import('/js/m4l-v111-editor.mjs');recovery=await createAcademyNativeRecovery({client:auth,resource,capture:()=>payload,baseVersion:()=>programVersion(payload.revision??0)});}const retained=await recovery.prepare();if(retained.marker||retained.draft?.pendingAcceptance){if(row)void reviewRetained(row,retained);throw Object.assign(Error('Review the unknown Program save before another change.'),{code:'SAVE_OUTCOME_UNKNOWN'});}let attempt;try{attempt=await recovery.beforeMutation({action,input:payload},{sensitive:true});const result=await auth.request(path,payload,{headers:{'X-Academy-Workspace':'ADMIN'}});return await recovery.completeNativeMutation(attempt,result,{operationId:payload.operationId});}catch(error){if(attempt)await recovery.markUnknown(attempt).catch(()=>{});if(row)void recovery.prepare().then(retained=>(retained.marker||retained.draft?.pendingAcceptance)&&reviewRetained(row,retained));throw error;}finally{if(action==='copy')recovery.dispose();}}
+
   const escape = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[char]));
   const unified=Boolean(byId("pg-tabs"));
   let timezone = "Africa/Johannesburg";
@@ -16,6 +31,7 @@
     byId("program-message").classList.toggle("is-error", error);
   }
   async function api(action, payload = {}, account = false) {
+    if(v2)return v2API(action,payload,account);
     const token = localStorage.getItem("m4l_account_token");
     if (!token) throw new Error("Sign in using your personal Academy account link, then open Programs.");
     if(account&&window.M4L_ACADEMY_NAVIGATION?.session){
@@ -33,6 +49,7 @@
     void window.M4L_REFRESH_AFTER_SAVE?.(result,token);return result;
   }
   async function load() {
+    if(v2){for(const controller of recoveries.values())controller.dispose();recoveries.clear();prepared.clear();}
     state.busy = true;
     busyControls();
     byId("program-retry").hidden = true;
@@ -50,14 +67,14 @@
         byId("program-access-note").textContent = "Activating a Program does not publish its timetable.";
         byId("program-setup-note").textContent = "New Programs start as drafts. Timetable editing, Library and attendance are awaiting migration.";
       }
-      state.owner=localStorage.getItem("m4l_account_token");
+      state.owner=ownerKey();lastList=data;
       state.rows = data.programs.map(draft);
       state.selected = state.rows.some(row => row.id === state.selected) ? state.selected : (unified?"":state.rows.find(row => row.mode === "PROGRAM")?.id || "");
       state.readiness = {};
       byId("program-workspace").hidden = false;
       message("");
     } catch (error) { message(error.message, true); byId("program-retry").hidden = false; }
-    finally { state.busy = false; render(); }
+    finally { state.busy = false; render();if(v2&&lastList&&client?.isCurrentResult(lastList))client.revealResult(lastList,{roots:privateRoots}); }
   }
   function busyControls() {
     for (const id of ["program-refresh", "program-add"]) byId(id).disabled = state.busy;
@@ -93,6 +110,7 @@
       || !`${row.name} ${row.id}`.toLowerCase().includes(state.search.toLowerCase());
     window.M4L_PROGRAM_MANAGEMENT_NAV?.setSelection(selection());
     if (panel.hidden) return;
+    if(v2&&!prepared.has(row.id)){panel.inert=true;void prepareRow(row).then(()=>{panel.inert=false;}).catch(error=>message(error.message,true));}else {panel.inert=false;if(v2&&lastList&&client?.isCurrentResult(lastList))client.revealResult(lastList,{root:panel});}
     if(unified){
       const input=(field,label,extra='')=>`<label>${label}<input data-field="${field}" value="${escape(row[field])}" ${extra} ${state.busy?'disabled':''}></label>`;
       panel.innerHTML=`<div class="pg-details-form" data-id="${escape(row.id)}">${input('name','Program name','maxlength="160" required')}<label>Status<select data-field="status" ${state.busy?'disabled':''}>${state.statuses.map(value=>`<option value="${value}" ${value===row.status?'selected':''}>${value==='ACTIVE'?'Active':value==='ARCHIVED'?'Archived':'Draft'}</option>`).join('')}</select></label>${state.store==='D1'?`<label>Free / Paid<select data-field="accessModel" ${state.busy?'disabled':''}>${!['FREE','PAID'].includes(row.accessModel)?'<option value="UNKNOWN" disabled selected>Choose Free or Paid</option>':''}<option value="FREE" ${row.accessModel==='FREE'?'selected':''}>Free</option><option value="PAID" ${row.accessModel==='PAID'?'selected':''}>Paid</option></select></label>${input('programZoomLink','Program Zoom link · optional','type="url" maxlength="2048"')}`:input('spreadsheetId','Spreadsheet link or ID')}<div class="pg-detail-actions"><button type="button" data-action="save" ${state.busy||!dirty(row)?'disabled':''}>Save Program</button><button type="button" data-action="discard" class="pb-secondary" ${state.busy||!dirty(row)?'disabled':''}>Discard changes</button><small class="pb-state">${row.error?'Save failed':dirty(row)?'Unsaved changes':'Saved'}</small></div>${row.error?`<p role="alert" class="pb-row-error">${escape(row.error)}</p>`:''}</div>`;
@@ -129,6 +147,7 @@
   function add() {
     if (state.busy) return;
     if(unified&&window.M4L_PROGRAM_ADMIN?.hasMounted()){location.href="/programs/?new=1&tab=details";return;}
+    if(v2&&state.rows.some(row=>!row.saved)){message("Finish the existing new Program draft first.",true);return;}
     const id = `PRG-${crypto.randomUUID()}`;
     state.rows.push({ id, name: "", durationYears: "", timezone, status: "DRAFT", spreadsheetId: "", mode: "PROGRAM", saved: null, error: "" });
     state.selected = id;
@@ -150,8 +169,9 @@
       if(state.store!=='D1'||row.saved&&row.programZoomLink===row.saved.programZoomLink)delete payload.programZoomLink;
       payload.timezone=row.saved?row.saved.timezone:timezone;
       if (state.store === "D1") payload.operationId = row.operationId ||= crypto.randomUUID();
-      const result = await api(row.saved ? "save" : "create", payload);
-      Object.assign(row, draft(result.program));
+      const created=!row.saved,result = await api(created ? "create" : "save", payload);
+      const oldRecovery=v2?await rowRecovery(row):null;Object.assign(row, draft(result.program));
+      if(oldRecovery){if(created){await oldRecovery.discardRetained({confirmed:true,currentServerValue:result});oldRecovery.dispose();recoveries.delete(row.id);prepared.delete(row.id);}else await oldRecovery.checkpoint(snapshot(row),{dirty:false});}
       delete state.readiness[row.id];
       message(state.store === "D1" ? `${row.name} saved.` : `${row.name} saved. Teaching remains disabled.`);
     } catch (error) { row.error = error.message; message(`Save failed: ${error.message}`, true); }
@@ -173,7 +193,7 @@
     if (!row || row.mode !== "PROGRAM" || state.busy) return;
     row[control.dataset.field] = control.value;
     row.operationId = null;
-    row.error = "";
+    row.error = "";if(v2)void rowRecovery(row).then(recovery=>recovery.checkpoint(snapshot(row))).catch(error=>message(error.message,true));
     const tr = control.closest(unified?"[data-id]":"tr");
     if(unified){window.M4L_PROGRAM_MANAGEMENT_NAV?.setSelection(selection());const actions=tr.querySelector(".pg-detail-actions");actions.querySelector(".pb-state").textContent=dirty(row)?"Unsaved changes":"Saved";actions.querySelectorAll("button").forEach(button=>button.disabled=!dirty(row));return;}
     tr.querySelector(".pb-state").textContent = dirty(row) ? "Unsaved" : "Saved";
@@ -189,6 +209,8 @@
     renderDetail();
   }
   async function init() {
+    if(v2){await nativeClient();const protect=event=>{const control=event.target.closest?.('[data-field]'),row=state.rows.find(row=>row.id===control?.closest('[data-id]')?.dataset.id);if(row&&!prepared.has(row.id)){event.preventDefault();void prepareRow(row).catch(error=>message(error.message,true));}};byId('program-builder').addEventListener('beforeinput',protect,true);byId('program-builder').addEventListener('pointerdown',protect,true);byId('program-builder').addEventListener('focusin',protect,true);window.addEventListener('academy-v2-revalidate',()=>{prepared.clear();if(lastList)lastList=null;void api('list').then(data=>{if(!client.isCurrentResult(data))return;if(!hasEdits()){state.rows=data.programs.map(draft);render();}else renderDetail();client.revealResult(data,{roots:privateRoots});}).catch(error=>message(error.message,true));});}
+    if(v2){window.addEventListener('academy-v2-mask',event=>{if(event.detail.masked)prepared.clear();});window.addEventListener('academy-v2-context',()=>{const current=window.M4L_ACADEMY_AUTH.getState(),stamp=JSON.stringify([current?.context,current?.viewVersion,current?.state,current?.authorityReady,current?.replacementRequired]);if(stamp===lastContextStamp)return;lastContextStamp=stamp;if(!state.rows.length||state.busy||current?.state!=='UNLOCKED'||current?.authorityReady===false||current?.replacementRequired)return;void api('list').then(data=>{if(!client.isCurrentResult(data))return;lastList=data;renderDetail();client.revealResult(data,{roots:privateRoots});}).catch(error=>message(error.message,true));});}
     byId("program-add").addEventListener("click", beginNew);
     if(byId("program-new-dialog")){byId("program-copy-source").onchange=copySourceChanged;byId("program-copy-cancel").onclick=()=>{if(!state.busy)byId("program-new-dialog").close();};byId("program-copy-confirm").onclick=()=>void confirmNew();byId("program-new-dialog").addEventListener("cancel",event=>{if(state.busy)event.preventDefault();});}
     byId("program-refresh").addEventListener("click", () => {
@@ -231,7 +253,7 @@
   }
   function selection(){
     const row=state.rows.find(item=>item.id===state.selected&&item.mode==='PROGRAM'&&matchesStatus(item)&&`${item.name} ${item.id}`.toLowerCase().includes(state.search.toLowerCase()));
-    return {ready:state.store==='D1'&&Boolean(state.owner)&&state.owner===localStorage.getItem('m4l_account_token'),program:row?{...row,saved:undefined,error:undefined}:null,available:Boolean(row?.saved&&!dirty(row)&&!state.busy)};
+    return {ready:state.store==='D1'&&Boolean(state.owner)&&state.owner===ownerKey(),program:row?{...row,saved:undefined,error:undefined}:null,available:Boolean(row?.saved&&!dirty(row)&&!state.busy)};
   }
   window.M4L_PROGRAM_BUILDER_NAV={selection,hasEdits,showDetails:renderDetail,update(program){const row=state.rows.find(row=>row.id===program.id);if(!row||dirty(row)||row.revision===program.revision)return;Object.assign(row,draft(program));render();}};
   document.addEventListener("DOMContentLoaded", () => void init());

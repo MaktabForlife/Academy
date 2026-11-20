@@ -1,6 +1,8 @@
 /* V105.3.2 — preserve drafts, recover interrupted saves and review genuine conflicts. */
 (() => {
   'use strict';
+  const v2=location.origin==='https://ummabbadacademy.app'&&document.querySelector('meta[name="uaa-auth-version"]')?.content==='2';let protectedForm=null,protectedVersion=0,checkpoint=Promise.resolve();
+  const nativeClient=()=>window.M4L_ACADEMY_AUTH.ready;
  if(window.M4L_PROGRAM_ADMIN_REDIRECT)return;
   const $=id=>document.getElementById(id), esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const programId=new URLSearchParams(location.search).get('program'),storageKey=`m4l-management-pending:${programId}`;
@@ -25,6 +27,8 @@
   const enrolledAccountIds=()=>new Set((state.data?.accounts||[]).filter(account=>active(account.Active)&&(account.Roles||[]).includes('STUDENT')).map(account=>account.AccountID));
   const message=(text,error=false)=>{$('pm-message').textContent=text;$('pm-message').classList.toggle('is-error',error);};
   async function api(action,body={},shared=false){
+    if(v2){const client=await nativeClient();if(shared)throw Object.assign(Error('Open the current Academy catalogue to edit shared names.'),{code:'V2_LEGACY_CATALOGUE_NOT_SELECTED',status:503});const path='/api/admin/platform/program-timetable/'+action;if(['manage-get','get','preview'].includes(action)){if(action==='manage-get')await client.prepareBusiness();return client.request(path,{id:programId,...body},{headers:{'X-Academy-Workspace':'ADMIN'}});}if(action!=='manage-save'||!['student-class','student-classes'].includes(body.kind)||!protectedForm)throw Object.assign(Error('This retained management action is not selected by the current participant editor.'),{code:'V2_NATIVE_FORM_NOT_SELECTED',status:503});let attempt;try{await checkpoint;attempt=await protectedForm.beforeMutation({action,input:body},{sensitive:true});let result=await client.request(path,{id:programId,...body},{headers:{'X-Academy-Workspace':'ADMIN'}});result=await protectedForm.completeNativeMutation(attempt,result,{operationId:body.operationId});protectedForm.reveal(result);return result;}catch(error){if(attempt)await protectedForm.unknown(attempt);throw error;}}
+
     const token=localStorage.getItem('m4l_account_token');if(!token)throw Object.assign(new Error('Sign in through your personal Academy account link, then open Programs.'),{status:401,retryable:false});
     const response=await fetch(`${window.M4L_CONFIG?.API_BASE||''}/api/admin/platform/${shared?`academy-subjects/${action}`:`program-timetable/${action}`}`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify(shared?body:{id:programId,...body})});
     let result;try{result=await response.json();}catch{throw new Error('The response could not be read. Your edits are kept.');}
@@ -153,10 +157,11 @@
     const changed=Object.entries(state.classDrafts).filter(([id,draft])=>enrolled.has(id)&&draft.classId!==draft.baseClassId).length;
     $('pm-save-all').textContent=state.classPending?'Retry Save all':`Save all${changed?` (${changed})`:''}`;
   }
-  function rememberClassDrafts(){sessionStorage.setItem(storageKey+':classes',JSON.stringify(state.classDrafts));if(state.classPending)sessionStorage.setItem(storageKey+':class-pending',JSON.stringify(state.classPending));else sessionStorage.removeItem(storageKey+':class-pending');}
+  function rememberClassDrafts(){if(v2){if(protectedForm){const version=window.M4L_ACADEMY_AUTH.getState()?.viewVersion;checkpoint=protectedForm.checkpoint(captureProtected()).catch(error=>{if(window.M4L_ACADEMY_AUTH.getState()?.viewVersion!==version)return {cancelled:true};$('pm-workspace').inert=true;message(error.message,true);throw error;});checkpoint.catch(()=>{});}return;}sessionStorage.setItem(storageKey+':classes',JSON.stringify(state.classDrafts));if(state.classPending)sessionStorage.setItem(storageKey+':class-pending',JSON.stringify(state.classPending));else sessionStorage.removeItem(storageKey+':class-pending');}
   function replaceStudentEnrollments(accountId,rows){state.data.rows.enrollments=state.data.rows.enrollments.filter(row=>row.AccountID!==accountId).concat(rows||[]);}
   function savedStudentClassBaseline(rows){const activeRows=(rows||[]).filter(row=>active(row.Active));return activeRows.length>1?'__multiple__':activeRows[0]?.ClassID||'';}
   function rememberDraft(){
+    if(v2){rememberClassDrafts();return;}
     if(state.edit)sessionStorage.setItem(storageKey+':draft',JSON.stringify({kind:state.edit.kind||state.kind,edit:state.edit}));
     else sessionStorage.removeItem(storageKey+':draft');
   }
@@ -229,6 +234,7 @@
     }).join('')||`<tr><td colspan="${columns.length+2}" class="pm-empty">No ${def.label.toLowerCase()} yet. Add your first ${def.singular}.</td></tr>`;controls();
   }
   async function load(){state.data=await api('manage-get',{includeOverview:true});state.data.rows.progress||=[];
+    if(v2){if(!state.data.learningWorkflowsReady)throw Object.assign(Error('The prepared native learning baseline is required for this participant editor.'),{code:'V2_NATIVE_BASELINE_REQUIRED',retryable:false});state.overview=false;state.kind='profiles';state.dataLoaded=true;state.classDraftsLoaded=true;state.timetable=state.data.overview?.timetable||null;state.preview=state.data.overview?.preview||null;state.timetableError=false;await openProtected(state.data);render();message(Object.keys(state.classDrafts).length?'Your encrypted class choices are retained.':'');return;}
     if(!state.classDraftsLoaded){try{state.classDrafts=JSON.parse(sessionStorage.getItem(storageKey+':classes')||'{}')||{};state.classPending=JSON.parse(sessionStorage.getItem(storageKey+':class-pending')||'null');}catch{state.classDrafts={};state.classPending=null;}state.classDraftsLoaded=true;}
     state.timetable=null;state.preview=null;state.timetableError=false;
     if(state.data.overview){state.timetable=state.data.overview.timetable;state.preview=state.data.overview.preview;state.timetableError=state.data.overview.error;}
@@ -254,7 +260,7 @@
       if(savedMessage)message(savedMessage+(state.edit?' Your unfinished entry is kept.':''));
     }catch(error){
       const retryable=error.retryable!==false&&(!error.status||error.status>=500);
-      const retry=retryable&&attempt<2;
+      const retry=retryable&&attempt<2&&(!v2||document.visibilityState!=='hidden');
       const delay=Math.min(300000,error.code==='SHEETS_RATE_LIMITED'?Math.max(60000,Number(error.retryAfterMs)||0):Math.max(1500,Number(error.retryAfterMs)||0)*2**attempt);
       const reason=error.code==='SHEETS_RATE_LIMITED'?'Google Sheets is temporarily limiting requests.':error.message;
       const status=$('pm-refresh-status');status.hidden=false;
@@ -293,7 +299,7 @@
         if(error.code==='ROW_CHANGED'){
           draft.conflict={record:error.currentRecord,rowRevision:error.rowRevision};state.classPending=null;rememberClassDrafts();render();message('This student’s saved class changed elsewhere. Review the row before saving.',true);return false;
         }
-        if(error.code!=='SHEETS_RATE_LIMITED'&&error.retryable!==false&&(!error.status||error.status>=500||error.code==='RECOVERY_REQUIRED')){
+        if(!v2&&error.code!=='SHEETS_RATE_LIMITED'&&error.retryable!==false&&(!error.status||error.status>=500||error.code==='RECOVERY_REQUIRED')){
           await api('recover');result=await api('manage-save',state.classPending.body);
         }else throw error;
       }
@@ -495,8 +501,13 @@
     const result=await api('recover',{},true);
     message((result.recovered?'An interrupted catalogue save was completed.':'No interrupted catalogue save was found.')+' Recovery does not add subjects to this Program. '+(state.importPending?'Choose Retry same import to finish adding your subjects.':state.pending?'Choose Retry same change to finish your pending save.':'Review Reboot subjects, select names, then choose Import and add to this Program.'));
   });
+  const captureProtected=()=>({classDrafts:structuredClone(state.classDrafts),profileAccountId:state.profileAccountId});
+  const applyProtected=value=>{if(!value||!value.classDrafts||typeof value.classDrafts!=='object'||Array.isArray(value.classDrafts))throw Error('The retained participant class choices are invalid.');state.classDrafts=structuredClone(value.classDrafts);for(const [id,draft]of Object.entries(state.classDrafts)){draft.baseClassId=savedStudentClassBaseline(state.data.rows.enrollments.filter(row=>row.AccountID===id));draft.baseRowRevision=state.data.studentClassRevisions[id];delete draft.conflict;}state.classPending=null;state.pending=null;state.profileAccountId=value.profileAccountId||null;render();};
+  const protectedRevision=async value=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify([value.revision,value.studentClassRevisions]))))].map(v=>v.toString(16).padStart(2,'0')).join('');
+  async function openProtected(value){protectedVersion=await protectedRevision(value);if(!protectedForm){const client=await nativeClient(),{createAcademyNativeForm}=await import('/js/m4l-v111-editor.mjs');protectedForm=await createAcademyNativeForm({client,resource:{type:'academy-program-management',programId,kind:'student-classes'},capture:captureProtected,baseVersion:()=>protectedVersion,isDirty:()=>Boolean(Object.keys(state.classDrafts).length),applyRetained:applyProtected,applyCurrent:async current=>{protectedVersion=await protectedRevision(current);state.data=current;state.kind='profiles';state.overview=false;state.classDrafts={};state.classPending=null;state.pending=null;render();},readCurrent:()=>api('manage-get',{includeOverview:true}),roots:[$('pm-workspace')],host:document.body,status:message});}await protectedForm.open(value);}
+  if(v2){window.addEventListener('academy-v2-revalidate',()=>{void protectedForm?.revalidate().catch(error=>message(error.message,true));});window.addEventListener('pagehide',()=>{if(state.refreshTimer)clearTimeout(state.refreshTimer);state.refreshTimer=null;state.refreshWaiting=false;});}
   window.M4L_PROGRAM_PEOPLE={canLeave(){if(state.edit||state.pending||state.importPending){message('Finish or cancel the participant change before opening Monthly subscriptions.',true);return false;}return true;}};
   document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key==='Enter'&&!window.M4L_PROGRAM_MONTHLY?.isOpen?.()&&(!window.M4L_PROGRAM_ADMIN||window.M4L_PROGRAM_ADMIN.tab()==='participants')&&visibleEdit()&&!state.busy&&!state.pending){event.preventDefault();void work(save);}});
   window.addEventListener('beforeunload',event=>{if(state.edit||state.pending||state.importPending){event.preventDefault();event.returnValue='';}});
-  void work(async()=>{const accessOwner=await window.M4L_STUDIO_ACCESS?.ensure($('pm-main'),'PROGRAM:'+programId);if(accessOwner&&accessOwner!=='ACADEMY')return;await refresh();if(state.pending&&!state.refreshWaiting)await save();});
+  void work(async()=>{const accessOwner=await window.M4L_STUDIO_ACCESS?.ensure($('pm-main'),'PROGRAM:'+programId);if(accessOwner&&accessOwner!=='ACADEMY')return;await refresh();if(!v2&&state.pending&&!state.refreshWaiting)await save();});
 })();

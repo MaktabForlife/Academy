@@ -1,6 +1,8 @@
 (() => {
  'use strict';
- const token=()=>localStorage.getItem('m4l_account_token')||'';
+ const v2=location.origin==='https://ummabbadacademy.app'&&document.querySelector('meta[name="uaa-auth-version"]')?.content==='2',token=()=>v2?(window.M4L_ACADEMY_AUTH?.ownerKey()||''):localStorage.getItem('m4l_account_token')||'';
+ let privateDispose=null,recovery=null,recoveryKind=null,lastRead=null,recoveryHost=null,checkpoint=Promise.resolve();
+ const client=()=>window.M4L_ACADEMY_AUTH.ready;
  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const scope=()=>JSON.stringify([token(),window.M4L_ACADEMY_WORKSPACE?.current(),window.M4L_ACADEMY_WORKSPACE?.classView(),window.M4L_ACADEMY_WORKSPACE?.head()]);
  const ref=row=>JSON.stringify([row.activityKey||row.kind+':'+row.activityId,row.sourceDate||row.date,row.sessionKey||row.mediaSessionKey]);
@@ -13,6 +15,7 @@
  function checkOwner(){const next=scope();if(next!==owner){if(owner&&JSON.stringify(JSON.parse(owner).slice(0,3))===JSON.stringify(JSON.parse(next).slice(0,3)))invalidate();else reset();owner=next;}return next;}
  function invalidate(){tableEpoch++;batches.clear();lessons.clear();dashboardStatus='idle';dashboardMessage='';changed();}
  async function api(action,input){
+  if(v2){const auth=await client();await auth.ensureFresh();const captured=scope(),generation=epoch,response=await window.M4L_ACADEMY_WORKSPACE.fetch('/api/academy/class-notes/'+action,{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)}),result=await response.json();if(generation!==epoch||captured!==scope()||!auth.isCurrentResult(result))throw new DOMException('The Academy Class Notes view changed.','AbortError');if(!response.ok||!result.success)throw Object.assign(Error(result.error||'Class Notes unavailable.'),{status:response.status,code:result.code});if(!['post','revise','withdraw','relink'].includes(action))lastRead=result;return result;}
   const captured=scope(),generation=epoch,response=await fetch(`${window.M4L_CONFIG?.API_BASE||''}/api/academy/class-notes/${action}`,{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token()},body:JSON.stringify(input)});
   const result=await response.json();if(generation!==epoch||captured!==scope())throw new DOMException('The Academy account or workspace changed.','AbortError');
   if(!response.ok||!result.success){if(response.status===401)window.dispatchEvent(new Event('m4l-academy-session-ended'));throw Object.assign(Error(result.error||'Class Notes are unavailable. Please try again.'),{status:response.status,code:result.code});}return result;
@@ -21,14 +24,14 @@
  function close(force=false){
   if(!force&&busy){message('Please wait for this change to finish.');return false;}
   if(!force&&dirty&&!confirm('Discard your unfinished Class Note?'))return false;
-  dialogEpoch++;dueRequest++;dialog?.close();dialog?.remove();dialog=null;data=null;edit=null;pending=null;busy=false;dirty=false;review=false;return true;
+  recoveryHost?.remove();recoveryHost=null;recovery?.dispose();recovery=null;recoveryKind=null;privateDispose?.();privateDispose=null;dialogEpoch++;dueRequest++;dialog?.close();dialog?.remove();dialog=null;data=null;edit=null;pending=null;busy=false;dirty=false;review=false;return true;
  }
  function message(text,error=false){const el=dialog?.querySelector('[data-cn-message]');if(el){el.textContent=text;el.setAttribute('role',error?'alert':'status');}}
  function modal(){
   if(!close())return false;
   dialog=document.createElement('dialog');dialog.className='cn-dialog';dialog.setAttribute('aria-labelledby','cn-title');
   dialog.innerHTML='<header class="cn-heading"><h2 id="cn-title">Class Notes</h2><button type="button" class="button secondary academy-close" data-cn="close" title="Close">Close</button></header><p data-cn-message role="status" aria-live="polite"></p><div data-cn-body></div>';
-  dialog.addEventListener('cancel',event=>{event.preventDefault();close();});dialog.addEventListener('click',click);dialog.addEventListener('submit',submit);dialog.addEventListener('input',event=>{if(event.target.closest('form'))dirty=true;});dialog.addEventListener('change',change);document.body.append(dialog);dialog.showModal();return true;
+  dialog.addEventListener('cancel',event=>{event.preventDefault();close();});dialog.addEventListener('click',click);dialog.addEventListener('submit',submit);dialog.addEventListener('input',event=>{if(event.target.closest('form')){dirty=true;if(v2&&recovery){const value=formSnapshot();checkpoint=checkpoint.then(()=>recovery.checkpoint(value)).catch(error=>{dialog.inert=true;message(error.message,true);});}}});dialog.addEventListener('change',change);document.body.append(dialog);if(v2){try{privateDispose=window.M4L_ACADEMY_AUTH.registerPrivateRoot(dialog);}catch{dialog.inert=true;dialog.style.visibility='hidden';}}dialog.showModal();return true;
  }
  const body=html=>{if(dialog)dialog.querySelector('[data-cn-body]').innerHTML=html;};
  const context=source=>`<div class="cn-context"><strong>${esc(source.title)}</strong><p>${esc(date(source.date))} · ${esc(source.startTime)}–${esc(source.endTime)}</p><p>${esc(source.className)} · ${esc(source.teacherNames.join(', ')||'Teacher not listed')}</p>${source.unresolved?'<p class="cn-warning">This lesson needs staff review following a timetable change. Its saved record is retained.</p>':''}${source.contextChanged?'<p>Teaching details have changed since the original lesson record.</p>':''}${source.moved?`<p>Rescheduled from ${esc(date(source.originalDate))}.</p>`:''}</div>`;
@@ -38,13 +41,15 @@
    <div class="cn-actions">${note.canEdit?`<button type="button" class="button secondary" data-cn="edit" data-id="${esc(note.id)}">Correct note</button>`:''}${note.canRelink?`<button type="button" class="button secondary" data-cn="relink" data-id="${esc(note.id)}">Change linked lesson</button>`:''}${note.canWithdraw?`<button type="button" class="button secondary" data-cn="withdraw" data-id="${esc(note.id)}">Withdraw</button>`:''}${note.state==='ACTIVE'||data.source.canModerate?`<button type="button" class="button secondary" data-cn="history" data-id="${esc(note.id)}">History</button>`:''}</div></article>`;
  }
  function renderLesson(){
+  recovery?.dispose();recovery=null;recoveryKind=null;
   document.getElementById('cn-title').textContent='Class Notes';edit=null;pending=null;review=false;dirty=false;
   body(`${context(data.source)}<div class="cn-heading"><h3>Class Notes${data.notes.length?' ('+data.notes.length+')':''}</h3>${data.source.canPost?'<button type="button" class="button" data-cn="add">Add Class Note</button>':''}</div>${data.notes.map(noteHTML).join('')||'<p>No Class Notes yet.</p>'}${data.before?'<button type="button" class="button secondary" data-cn="more-notes">Load earlier notes</button>':''}`);
+  if(v2&&lastRead)void reveal(lastRead);
   if(data.focusNoteId)dialog.querySelector('#cn-note-'+CSS.escape(data.focusNoteId))?.scrollIntoView({block:'nearest'});
  }
  async function load(input,add=false,existing=false){
   if(!existing&&!modal())return;const generation=dialogEpoch;body('<p>Opening Class Notes…</p>');message('');
-  try{const result=await api('get',input);if(generation!==dialogEpoch)return;data=result;if(add&&data.source.canPost)editor();else renderLesson();}catch(error){if(generation===dialogEpoch){body('<button type="button" class="button secondary" data-cn="retry-open">Try again</button>');dialog.openInput=input;message(error.message,true);}}
+  try{const result=await api('get',input);if(generation!==dialogEpoch)return;data=result;if(add&&data.source.canPost)await editor();else renderLesson();}catch(error){if(generation===dialogEpoch){body('<button type="button" class="button secondary" data-cn="retry-open">Try again</button>');dialog.openInput=input;message(error.message,true);}}
  }
  async function openSources(sources,add=false){
   checkOwner();if(!sources.length)return;
@@ -52,14 +57,27 @@
   if(!modal())return;dialog.choices=sources;dialog.addChoice=add;
   body('<p>Choose the class for this lesson.</p><div class="cn-actions">'+sources.map((source,i)=>`<button type="button" class="button secondary" data-cn="choose" data-index="${i}">${esc(source.className)} · ${esc(source.title)}</button>`).join('')+'</div>');
  }
- function editor(note=null,relink=false){
+ async function editor(note=null,relink=false){
+  const generation=dialogEpoch,target=dialog;
   edit={note,relink,due:note?.due||data.nextDue,keep:Boolean(note&&!relink),choices:[]};pending=null;review=false;dirty=false;
   document.getElementById('cn-title').textContent=relink?'Change linked lesson':note?'Correct Class Note':'Add Class Note';
   body(`${context(data.source)}<form data-cn-form>${relink?`<label>New lesson date<input name="sourceDate" type="date" value="${esc(data.source.date)}" required></label><button type="button" class="button secondary" data-cn="find-sources">Find lessons</button><label>Linked lesson<select name="target" required><option value="">Choose a lesson</option></select></label><label>Reason<textarea name="reason" maxlength="1000" required rows="2"></textarea></label>`:`<label>Class Note<textarea name="body" rows="9" maxlength="12000" dir="auto" required placeholder="Type or paste the complete instructions…">${esc(note?.body||'')}</textarea></label>`}
    <fieldset><legend>Due date</legend><label class="cn-choice"><input name="dueMode" type="radio" value="NEXT" ${(!note||note.due.mode==='NEXT')?'checked':''}> Next session</label><label class="cn-choice"><input name="dueMode" type="radio" value="DATE" ${note?.due.mode==='DATE'?'checked':''}> Select a date</label><label data-cn-date-label${note?.due.mode==='DATE'?'':' hidden'}>Date<input name="dueDate" type="date" min="${esc(data.source.date)}" value="${esc(note?.due.date||'')}"></label><p data-cn-due-preview role="status"></p></fieldset>
    <p class="cn-audience">Visible to ${esc(data.source.className)} and its responsible Teachers.</p><div class="cn-actions"><button type="submit" class="button" data-cn-save>${relink?'Save linked lesson':note?'Save correction':'Post to class'}</button><button type="button" class="button secondary" data-cn="cancel">Cancel</button><button type="button" class="button secondary" data-cn="review" hidden>Review updated lesson</button></div></form>`);
+  if(v2){try{await prepareRecovery(note,relink);if(generation!==dialogEpoch||target!==dialog)return;await reveal(lastRead);}catch(error){if(generation!==dialogEpoch||target!==dialog)return;message(error.message,true);dialog.inert=true;}}
   preview(edit.due);if(!note&&!edit.due)message('No next matching session is available. Select a due date.');
   dialog.querySelector('textarea')?.focus();if(relink){edit.due=null;preview(null);}
+ }
+ async function reveal(value){const auth=await client();if(dialog&&auth.isCurrentResult(value))auth.revealResult(value,{root:dialog});}
+ function formSnapshot(){const form=dialog?.querySelector('form');return form?{fields:Object.fromEntries(new FormData(form)),noteId:edit?.note?.id||null,relink:Boolean(edit?.relink)}:null;}
+ function restoreFields(value){const form=dialog?.querySelector('form');if(!form||!value?.fields)return;for(const [name,value_] of Object.entries(value.fields)){const item=form.elements.namedItem(name);if(!item)continue;if(item instanceof RadioNodeList)item.value=value_;else item.value=value_;}dirty=true;}
+ async function prepareRecovery(note=edit?.note,relink=edit?.relink){
+  const generation=dialogEpoch,target=dialog;recovery?.dispose();recovery=null;const auth=await client(),source=relink?(formSource()||data.source):data.source,action=relink?'relink':note?'revise':'post',workspace=window.M4L_ACADEMY_WORKSPACE.current().startsWith('ADMIN')?'ADMIN':window.M4L_ACADEMY_WORKSPACE.current()==='TEACH'?'TEACH':'LEARN',resource={type:'academy-class-note',activityKey:data.source.activityKey,workspace,noteId:note?.id||null,action,sourceDate:!note||relink?source.date:null,sourceSessionKey:!note||relink?source.sessionKey:null,sourceClassId:!note||relink?source.classId:null},{createAcademyNativeRecovery}=await import('/js/m4l-v111-editor.mjs');
+  const controller=await createAcademyNativeRecovery({client:auth,resource,capture:formSnapshot,baseVersion:()=>note?.revision||0,isDirty:()=>dirty,onUnavailable:error=>message(error.message,true)});if(generation!==dialogEpoch||target!==dialog){controller.dispose();throw new DOMException('The Class Note editor changed.','AbortError');}recovery=controller;recoveryKind=JSON.stringify(resource);const retained=await controller.prepare();if(generation!==dialogEpoch||target!==dialog)throw new DOMException('The Class Note editor changed.','AbortError');if(retained.marker||retained.draft?.dirty&&retained.draft.baseVersion!==(note?.revision||0)){showUnknown(retained);return;}if(retained.draft?.dirty){restoreFields(retained.draft.document);await updateDue();}await recovery.checkpoint(formSnapshot(),{dirty});
+ }
+ function showUnknown(retained){
+  pending=null;review=true;formLock(true);message('The previous save is unknown. The retained text has not been sent again.',true);dialog.close();const generation=dialogEpoch,target=dialog,host=document.createElement('section'),warning=document.createElement('p'),button=document.createElement('button');warning.textContent='A Class Note save could not be confirmed. Read current records before continuing. The previous save will not be sent again.';button.type='button';button.textContent='Review current Class Notes';host.append(warning,button);document.body.append(host);recoveryHost=host;
+  button.onclick=async()=>{button.disabled=true;try{const actual=await api('get',{activityKey:data.source.activityKey,...edit?.note?{noteId:edit.note.id}:{source:data.source}}),available=await recovery.prepare(),area=document.createElement('section');if(generation!==dialogEpoch||target!==dialog)throw new DOMException('The Class Note editor changed.','AbortError');if(available.draft)retained=available;area.innerHTML='<h3>Current saved Class Notes</h3>'+actual.notes.map(noteHTML).join('');dialog.querySelector('[data-cn-body]').append(area);const resume=document.createElement('button');resume.type='button';resume.textContent='Continue retained Class Note as unsaved text';area.before(resume);resume.onclick=async()=>{try{const fresh=await api('get',{activityKey:data.source.activityKey,...edit?.note?{noteId:edit.note.id}:{source:data.source}});if(!confirm('Discard only the local save marker and continue retained text for manual review? This does not resend the previous save.'))return;await recovery.discardRetained({confirmed:true,currentServerValue:fresh});data=fresh;const old=retained.draft?.document,current=edit?.note?fresh.notes.find(row=>row.id===edit.note.id):null;if(edit?.note&&!current?.canEdit)throw Error('This note can no longer be corrected. Keep the retained copy.');await editor(current,edit?.relink);restoreFields(old);pending=null;review=false;button.remove();area.remove();resume.remove();await updateDue();message('Review the current notes, text and due date. Save only when ready.');}catch(error){message(error.message,true);}};host.remove();recoveryHost=null;dialog.showModal();await reveal(actual);}catch(error){warning.textContent=error.message;}finally{button.disabled=false;}};
  }
  function preview(due){const el=dialog?.querySelector('[data-cn-due-preview]');if(el)el.textContent=due?`${dueText(due)}${due.target?' · '+due.target.title:' · No matching lesson on this date'}`:'No next matching session is available. Select a date.';const save=dialog?.querySelector('[data-cn-save]');if(save)save.disabled=!due||review||busy;}
  const formSource=()=>edit?.relink?edit.choices[Number(dialog.querySelector('[name=target]')?.value)]||null:data?.source;
@@ -73,14 +91,14 @@
  function formLock(locked){dialog?.querySelectorAll('form input,form textarea,form select,form button').forEach(el=>el.disabled=locked);}
  async function commit(action,input){
   busy=true;const generation=dialogEpoch;formLock(true);message('Saving…');
-  try{await api(action,input);if(generation!==dialogEpoch)return;dirty=false;pending=null;busy=false;batches.clear();lessons.clear();refresh();window.dispatchEvent(new CustomEvent('m4l-class-note-saved',{detail:{activityKey:input.activityKey}}));await load({activityKey:data.source.activityKey,noteId:input.noteId||undefined,...(!input.noteId?{source:data.source}:{})},false,true);message(action==='withdraw'?'Class Note withdrawn.':'Class Note saved.');}
-  catch(error){if(generation!==dialogEpoch)return;busy=false;
+  let attempt;try{if(v2&&!recovery){const auth=await client(),note=data.notes.find(row=>row.id===input.noteId),{createAcademyNativeRecovery}=await import('/js/m4l-v111-editor.mjs');if(action!=='withdraw'||!note)throw Error('The exact Class Note edit scope is unavailable.');recovery=await createAcademyNativeRecovery({client:auth,resource:{type:'academy-class-note',activityKey:input.activityKey,workspace:window.M4L_ACADEMY_WORKSPACE.current().startsWith('ADMIN')?'ADMIN':window.M4L_ACADEMY_WORKSPACE.current()==='TEACH'?'TEACH':'LEARN',noteId:note.id,action:'withdraw',sourceDate:null,sourceSessionKey:null,sourceClassId:null},capture:()=>({noteId:note.id,body:note.body}),baseVersion:()=>note.revision,isDirty:()=>false});await recovery.prepare();}if(v2&&recovery){await checkpoint;attempt=await recovery.beforeMutation({action,input},{sensitive:window.M4L_ACADEMY_WORKSPACE.current().startsWith('ADMIN')});}let receipt=await api(action,input);if(v2&&attempt){receipt=await recovery.completeNativeMutation(attempt,receipt,{operationId:input.operationId});await recovery.checkpoint(formSnapshot(),{dirty:false});}if(generation!==dialogEpoch)return;dirty=false;pending=null;busy=false;batches.clear();lessons.clear();refresh();window.dispatchEvent(new CustomEvent('m4l-class-note-saved',{detail:{activityKey:input.activityKey}}));await load({activityKey:data.source.activityKey,noteId:input.noteId||undefined,...(!input.noteId?{source:data.source}:{})},false,true);message(action==='withdraw'?'Class Note withdrawn.':'Class Note saved.');}
+  catch(error){if(generation!==dialogEpoch)return;busy=false;if(v2&&attempt){await recovery.markUnknown(attempt).catch(()=>{});const retained=await recovery.prepare().catch(()=>null);showUnknown(retained||{draft:{document:formSnapshot()},marker:{manualRecoveryRequired:true}});return;}
    if(!error.status||error.status>=500){pending={action,input};message('The save could not be confirmed. Your text is kept. Retry this same change.',true);dialog.querySelector('[data-cn-save]')?.removeAttribute('disabled');if(!dialog.querySelector('[data-cn-save]'))body('<button type="button" class="button" data-cn="retry-save">Retry change</button>');}
    else {pending=null;formLock(false);message(error.message,true);if(error.status===409){review=true;const button=dialog.querySelector('[data-cn="review"]');if(button)button.hidden=false;preview(edit?.due);}if(error.status===403||error.status===401)dialog.querySelector('[data-cn-save]')?.setAttribute('disabled','');}
   }
  }
  async function submit(event){
-  if(!event.target.matches('[data-cn-form]'))return;event.preventDefault();if(busy)return;if(pending)return commit(pending.action,pending.input);if(review||!edit?.due)return;
+  if(!event.target.matches('[data-cn-form]'))return;event.preventDefault();if(busy)return;if(pending){if(v2){message('Review the previous save outcome before another save.',true);return;}return commit(pending.action,pending.input);}if(review||!edit?.due)return;
   const form=event.target,source=formSource();if(!source)return;const note=edit.note;
   const input={activityKey:data.source.activityKey,operationId:crypto.randomUUID(),...(note?{noteId:note.id,revision:note.revision}:{}),...(!note||edit.relink?{source,sourceToken:source.token}:{}),body:edit.relink?note.body:form.elements.body.value,due:edit.keep?{keep:true}:{mode:form.elements.dueMode.value,date:form.elements.dueDate.value,token:edit.due.token},...(edit.relink?{reason:form.elements.reason.value}:{})};
   pending={action:edit.relink?'relink':note?'revise':'post',input};return commit(pending.action,input);
@@ -89,7 +107,7 @@
   const button=event.target.closest('[data-cn]');if(!button)return;const action=button.dataset.cn,id=button.dataset.id,note=data?.notes.find(n=>n.id===id);
   if(action==='close')return close();if(busy)return;
   if(action==='retry-open')return load(dialog.openInput,false,true);
-  if(action==='retry-save'&&pending)return commit(pending.action,pending.input);
+  if(action==='retry-save'&&pending){if(v2){message('Review the previous save outcome first.',true);return;}return commit(pending.action,pending.input);}
   if(action==='choose'){const source=dialog.choices[Number(button.dataset.index)],add=dialog.addChoice;return load({activityKey:source.activityKey,source},add,true);}
   if(action==='add')return editor();if(action==='edit')return editor(note);if(action==='relink')return editor(note,true);
   if(action==='cancel'||action==='back'){if(dirty&&!confirm('Discard your unfinished Class Note?'))return;renderLesson();message('');return;}
@@ -147,6 +165,8 @@
    dialog.querySelectorAll('[data-cn-due-index]').forEach(el=>el.addEventListener('click',()=>void load({activityKey:source.activityKey,noteId:notes[Number(el.dataset.cnDueIndex)].id},false,true)));
   }else void openSources(lesson.sources);
  });
+ window.addEventListener('m4l-academy-session-ended',()=>{if(v2)reset();});
+ window.addEventListener('academy-v2-revalidate',()=>{if(!v2||!dialog||!data)return;void api('get',{activityKey:data.source.activityKey,...edit?.note?{noteId:edit.note.id}:{source:data.source}}).then(async current=>{if(recovery)await recovery.prepare();await reveal(current);}).catch(error=>message(error.message,true));});
  window.addEventListener('beforeunload',event=>{if(dirty||busy){event.preventDefault();event.returnValue='';}});
- window.M4L_CLASS_NOTES={snapshot:()=>scope()===owner?{sessions:[...lessons.values()],status:dashboardStatus,message:dashboardMessage}:{sessions:[],status:'idle'},open:input=>{checkOwner();return load(input);},summary:input=>{checkOwner();return api('summary',input);},timetable,buttons,visible:()=>visible,toggle:()=>{visible=!visible;return visible;},canLeave:()=>close(),invalidate,reset};
+ window.M4L_CLASS_NOTES={snapshot:()=>scope()===owner?{sessions:[...lessons.values()],status:dashboardStatus,message:dashboardMessage}:{sessions:[],status:'idle'},open:async input=>{if(v2)await client();checkOwner();return load(input);},summary:input=>{checkOwner();return api('summary',input);},timetable,buttons,visible:()=>visible,toggle:()=>{visible=!visible;return visible;},canLeave:()=>close(),invalidate,reset};
 })();

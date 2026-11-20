@@ -19,7 +19,7 @@ export function database(app='studio'){
    const r=st.run(...args);return {success:true,results:[],meta:{changes:Number(r.changes)}};
   },async first(){return stmt.execute('first');},async all(){return stmt.execute('all');},async run(){return stmt.execute('run');}};return stmt;
  },async batch(list){metrics.batches++;raw.exec('BEGIN IMMEDIATE');try{const results=list.map(s=>s.execute('run'));raw.exec('COMMIT');return results;}catch(e){raw.exec('ROLLBACK');throw e;}}};
- return {raw,db,store:new PrimaryStore(db,{app,env:'production',securityPrefix:'auth-private/v2/production/'+app+'/generation1/',dependencyManifest:[{id:'test:scope',scope:'ACCOUNT:SYNTHETIC-ACCOUNT',ownerEpoch:'owner-epoch'}]}),metrics};
+ return {raw,db,store:new PrimaryStore(db,{app,env:'production',securityPrefix:'auth-private/v2/production/'+app+'/generation1/',dependencyManifest:[{id:'test:scope',scope:'ACCOUNT:synthetic-account',ownerEpoch:'owner-epoch'}]}),metrics};
 }
 export class Bucket {
  constructor(){this.objects=new Map();this.gets=0;this.puts=0;this.beforePut=null;this.throwAfterPut=false;}
@@ -33,20 +33,22 @@ export class Bucket {
   if(this.throwAfterPut){this.throwAfterPut=false;throw Error('response lost');}return {etag};
  }
 }
-export async function fixture(app='studio',{policyEpoch='policy-epoch'}={}){
+export async function fixture(app='studio',{policyEpoch='policy-epoch',rightsKey=null}={}){
  const d=database(app),now=1000000,sub='synthetic-account',sid=crypto.randomUUID(),psid=app==='academy'?sid:crypto.randomUUID(),bsid=crypto.randomUUID();
- const config=profileConfig({app}),vectorGuards=[['test:scope','ACCOUNT:SYNTHETIC-ACCOUNT','owner-epoch',1]],ownerVector=await vectorFromGuards(vectorGuards),pv=await vectorDigest(ownerVector),rights={roles:['synthetic-student']};
+ // Synthetic family fixtures use their declared clock, not the host epoch.
+ d.raw.function('unixepoch',()=>now);
+ const config=profileConfig({app}),vectorGuards=[['test:scope','ACCOUNT:synthetic-account','owner-epoch',1]],ownerVector=await vectorFromGuards(vectorGuards),pv=await vectorDigest(ownerVector),rights={roles:['synthetic-student']};
  const binding={ver:2,env:'production',iss:config.origin,aud:'urn:uaa:production:'+app+':api:v2',sub,sid,psid,bsid,bv:1,ce:4,ae:9,le:0,sv:1,ue:0,pv,vat:now,s_iat:now,s_exp:now+604800};
  const refresh=opaque(),fp=await fingerprint(refresh,config),deadline=now+900,idleUntil=now+5400;
  for(const target of ['studio','hifz'])d.raw.prepare("INSERT INTO jwt_v2_sender_streams VALUES(?,'account-security','owner-epoch',1)").run(target);
- d.raw.prepare("INSERT INTO jwt_v2_dependencies VALUES('test:scope','ACCOUNT:SYNTHETIC-ACCOUNT','owner-epoch',1)").run();
+ d.raw.prepare("INSERT INTO jwt_v2_dependencies VALUES('test:scope','ACCOUNT:synthetic-account','owner-epoch',1)").run();
  d.raw.prepare('INSERT INTO jwt_v2_accounts VALUES(?,4,9,0,1,1)').run(sub);
  d.raw.prepare('INSERT INTO jwt_v2_browsers VALUES(?,1,?,?,0)').run(bsid,sub,psid);
  d.raw.prepare("INSERT INTO jwt_v2_parents VALUES(?,?,?,1,4,9,?,?,?,'UNLOCKED')").run(psid,sub,bsid,now,now+604800,now);
  await seedPolicy(d.store,{ownerEpoch:policyEpoch,receiptRef:'configured-genesis-receipt',now});
   const capture={app,sub,pv,vat:now,primaryCheckedAt:now,timedUntil:binding.s_exp,ownerVector,vectorGuards,rights};
- const projection={binding,timedUntil:binding.s_exp,ownerVector,rightsHash:await digest(rights),policyEpoch,policyRevision:1,inactivityMinutes:90,keyRegistryEpoch:'key-epoch',keyRegistryRevision:1,deniedActions:[]};
- await d.store.createFamily({binding,projection,capture,fingerprint:fp,now,deadline,idleUntil,policyMinutes:90,vectorGuards:[['test:scope','ACCOUNT:SYNTHETIC-ACCOUNT','owner-epoch',1]]});
+ const projection={binding,timedUntil:binding.s_exp,ownerVector,...rightsKey?{rightsKey}:{},rightsHash:await digest(rights),policyEpoch,policyRevision:1,inactivityMinutes:90,keyRegistryEpoch:'key-epoch',keyRegistryRevision:1,deniedActions:[]};
+ await d.store.createFamily({binding,projection,capture,fingerprint:fp,now,deadline,idleUntil,policyMinutes:90,vectorGuards:[['test:scope','ACCOUNT:synthetic-account','owner-epoch',1]]});
  return {...d,now,sub,sid,psid,bsid,config,binding,refresh,fp,deadline,idleUntil,ownerVector,rights,vectorGuards,capture,projection};
 }
 export async function signing(){return crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);}

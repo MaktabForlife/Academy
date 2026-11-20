@@ -98,13 +98,14 @@ test('fresh-memory native authority update records synthetic write amplification
   try{
    raw.exec('CREATE TABLE role_assignments('+columns.map(c=>'"'+c+'" '+(['active','revision'].includes(c)?'INTEGER':'TEXT')).join(',')+');');
    const subject='synthetic-cost-subject',values=columns.map(c=>c==='account_id'?subject:c==='active'||c==='revision'?1:c==='role'?'STUDENT':'synthetic-'+c);
+   raw.exec('CREATE TABLE accounts(account_id TEXT PRIMARY KEY COLLATE NOCASE);');raw.prepare('INSERT INTO accounts VALUES(?)').run(subject);
    raw.prepare('INSERT INTO role_assignments('+columns.map(c=>'"'+c+'"').join(',')+') VALUES('+columns.map(()=>'?').join(',')+')').run(...values);
    const now=raw.prepare('SELECT unixepoch() now').get().now;
    for(let i=0;i<sidCount;i++){
     const sid=crypto.randomUUID(),psid=crypto.randomUUID(),bsid=crypto.randomUUID(),binding={ver:2,env:'production',iss:'https://synthetic.invalid',aud:'urn:synthetic:no-authority',sub:subject,sid,psid,bsid,bv:1,ce:4,ae:9,le:0,sv:1,ue:0,pv:'synthetic-no-authority',vat:now,s_iat:now,s_exp:now+604800},fp=createHash('sha256').update('non-authorizing-synthetic-row-'+i).digest('hex');
     raw.prepare("INSERT INTO jwt_v2_families(sid,sub,psid,bsid,bv,ce,ae,le,sv,ue,cr,state,s_iat,s_exp,vat,deadline,idle_until,last_refresh,policy_minutes,fingerprint,fingerprint_generation,binding_json,projection_json,authority_ready) VALUES(?,?,?,?,1,4,9,0,1,0,1,'UNLOCKED',?,?,?,?,?, ?,90,?,1,?,'{}',0)").run(sid,subject,psid,bsid,now,now+604800,now,now+900,now+5400,now,fp,JSON.stringify(binding));
    }
-   const recipe=captureDDL({registry:{schema:2,app:'academy',rules:{role_assignments:rule}},available:{role_assignments:columns},ownerEpoch:'synthetic-cost-epoch'});raw.exec(recipe.sql);
+   const recipe=captureDDL({registry:{schema:2,app:'academy',rules:{role_assignments:rule}},available:{accounts:['account_id'],role_assignments:columns},ownerEpoch:'synthetic-cost-epoch'});raw.exec(recipe.sql);
    const metrics=new RequestMetrics({app:'academy'}),writer=instrumentD1(f.db,metrics,{scope:'business',metadataSource:'synthetic'});
    const before=raw.prepare('SELECT total_changes() n').get().n,start=performance.now();
    const result=await writer.prepare('UPDATE role_assignments SET role=? WHERE account_id=?').bind('TEACHER',subject).run();
