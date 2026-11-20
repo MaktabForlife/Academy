@@ -5,7 +5,7 @@
   "r6PolicySHA256": "b0efeaabf36d0f29c333002585d0fb7cd554c3f1ac9e408da2e986cce8b07e05",
   "hosting": {
     "status": "FROZEN_REVIEWED_SOURCE_ONLY",
-    "reviewId": "m4-source17-plus-source-ci-library-vm-20261120-r2",
+    "reviewId": "m4-v111-d1-guard-grouping-20261120-r1",
     "changes": [
       {
         "app": "Academy",
@@ -198,6 +198,30 @@
         "sha256": "46719574e3829f875b4ed2a7a7f481655975a7d3bc0c462b2cccb1b4e9408306",
         "bytes": 2495,
         "purpose": "HOSTING_TEST"
+      },
+      {
+        "app": "Academy",
+        "path": "security/v2/primary-write-guard.mjs",
+        "beforeSHA256": "e3445718a25c6a9b6d739973b3b89063bde50c9185879461976a840a2bc85d8e",
+        "sha256": "415a7736a2a8bfec51a75ec622fe2c8614cd538fdf0d1c2bc0513a56f1ae2dda",
+        "bytes": 1815,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "AcademyStudio",
+        "path": "security/v2/primary-write-guard.mjs",
+        "beforeSHA256": "e3445718a25c6a9b6d739973b3b89063bde50c9185879461976a840a2bc85d8e",
+        "sha256": "415a7736a2a8bfec51a75ec622fe2c8614cd538fdf0d1c2bc0513a56f1ae2dda",
+        "bytes": 1815,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Hifz",
+        "path": "security/v2/primary-write-guard.mjs",
+        "beforeSHA256": "e3445718a25c6a9b6d739973b3b89063bde50c9185879461976a840a2bc85d8e",
+        "sha256": "415a7736a2a8bfec51a75ec622fe2c8614cd538fdf0d1c2bc0513a56f1ae2dda",
+        "bytes": 1815,
+        "purpose": "HOSTING_WRAPPER"
       }
     ]
   },
@@ -1804,8 +1828,8 @@
         },
         {
           "path": "security/v2/primary-write-guard.mjs",
-          "sha256": "e3445718a25c6a9b6d739973b3b89063bde50c9185879461976a840a2bc85d8e",
-          "bytes": 1805
+          "sha256": "415a7736a2a8bfec51a75ec622fe2c8614cd538fdf0d1c2bc0513a56f1ae2dda",
+          "bytes": 1815
         },
         {
           "path": "security/v2/profile-service.mjs",
@@ -2831,8 +2855,8 @@
         },
         {
           "path": "security/v2/primary-write-guard.mjs",
-          "sha256": "e3445718a25c6a9b6d739973b3b89063bde50c9185879461976a840a2bc85d8e",
-          "bytes": 1805
+          "sha256": "415a7736a2a8bfec51a75ec622fe2c8614cd538fdf0d1c2bc0513a56f1ae2dda",
+          "bytes": 1815
         },
         {
           "path": "security/v2/profile-service.mjs",
@@ -3413,8 +3437,8 @@
         },
         {
           "path": "security/v2/primary-write-guard.mjs",
-          "sha256": "e3445718a25c6a9b6d739973b3b89063bde50c9185879461976a840a2bc85d8e",
-          "bytes": 1805
+          "sha256": "415a7736a2a8bfec51a75ec622fe2c8614cd538fdf0d1c2bc0513a56f1ae2dda",
+          "bytes": 1815
         },
         {
           "path": "security/v2/profile-service.mjs",
