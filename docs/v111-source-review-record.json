@@ -1,0 +1,32 @@
+{
+  "release": "V111.0",
+  "scope": "Independent source review for the separately operated Academy, AcademyStudio and Hifz cutover",
+  "reviewOutcome": "PASS",
+  "sourceCommits": {
+    "Academy": "8b1210e8cce2bfd1f1e1b7336ae876ccbae97707",
+    "AcademyStudio": "50b0010bbc279499277fefd2ceaa693c57b20212",
+    "Hifz": "4a7ae79498cee3191e4393ec38c9a1d5f9fd6a23"
+  },
+  "sourceOnlyCI": {
+    "url": "https://github.com/MaktabForlife/Academy/actions/runs/44700179509",
+    "checkedSourceFiles": 665,
+    "passingTestFiles": 148,
+    "verifiedRuntimeBundles": 5
+  },
+  "sha256": {
+    "sourceManifest": "6eb7d4f69128a90c2c45ff9a05ea83e99976a51f860f5f18d1cab61662faf9c7",
+    "buildManifest": "17d47aa01324d18804937081733ecf2d11aecfd76bd8326456afbac4af92bbb9",
+    "independentReview": "b0511760d1a6cdf34aa58a410e7c9007e1cfad0e2cd4cdaeb47bf4fe74791194",
+    "cutoverReviewPacket": "5db958991ccebc4c4e365cc5804030f233eba591941b3055777fbacaeeb7bd55",
+    "singleWriterPlan": "d2d36306807e02f25d99bb5ed1c2d9eba6b92dfbef7a49f728ffe3bd0d391b02"
+  },
+  "ownerDecision": "Use the protected documentation record for the source-review requirement of the separately operated V111.0 cutover.",
+  "protectedStatusScope": "Exact documentation pull request head and hashed approval comment",
+  "remainingCutoverChecks": [
+    "Verify completion or fencing of all old writers before any schema change.",
+    "Review and verify the hosted installation and auth genesis.",
+    "Verify that recovery preserves revocations and credential changes before reopening."
+  ],
+  "deploymentTarget": "none",
+  "hostedChangesAuthorizedByThisRecord": false
+}
