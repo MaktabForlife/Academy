@@ -31,7 +31,8 @@ async function academyAppLinks(db,state,env){
  const mappings=navigationMappings(env),studio=!admission||admission.active===1;
  return {
   academia:[],
-  studio:studio?'/studio/':null,
+  studioAdmitted:studio,
+  courses:studio?'/studio/?view=collections&collection=courses':null,
   tafseer:studio?'/studio/?view=collections&collection=tafseer':null,
   mothers:studio&&Boolean(mappedProgrammeContext(state,'mothers',mappings)),
   hifz:mappedProgrammeContext(state,'hifz',mappings)?ORIGINS.hifz+'/':null

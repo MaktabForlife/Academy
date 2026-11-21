@@ -37,18 +37,18 @@ export function circlesCourseRow(document){
   const section=document.querySelector('#programmes.academy-free-courses');if(!section)return;
   if(!templates.has(section)){inactiveCards(section);templates.set(section,section.innerHTML);}
   arrange(section,signedIn);
-  const signature=JSON.stringify([signedIn,mode,signedIn?navigation?.purchasedCourses:null,signedIn?navigation?.adminCourses:null,signedIn?navigation?.studio:null]);
+  const signature=JSON.stringify([signedIn,mode,signedIn?navigation?.purchasedCourses:null,signedIn?navigation?.adminCourses:null,signedIn?navigation?.studioAdmitted:null]);
   if(rendered.get(section)===signature){inactiveCards(section);return;}
   section.innerHTML=templates.get(section);
   if(signedIn){
    const publicTrack=section.querySelector('#free-course-reel');
    section.querySelector('.eyebrow').textContent='Your learning';
    section.querySelector('h2').textContent='My courses';
-   const academyLinks=navigation&&Object.hasOwn(navigation,'studio');
+   const academyLinks=navigation&&Object.hasOwn(navigation,'studioAdmitted');
    section.querySelector('.branch-programme-intro').textContent=academyLinks
-    ?(navigation.studio?'Open Studio to see your courses.':'Studio is unavailable for this account.')
+    ?(navigation.studioAdmitted?'Open Courses to see your courses.':'Studio is unavailable for this account.')
     :'Your current and recent courses.';
-   const all=document.createElement('a');all.href='/studio/?view=collections&collection=courses';all.className='circles-show-all-courses';all.textContent='Show all';all.setAttribute('aria-label','Show all courses');if(!academyLinks||navigation.studio)section.querySelector('.section-head').append(all);
+   const all=document.createElement('a');all.href='/studio/?view=collections&collection=courses';all.className='circles-show-all-courses';all.textContent='Show all';all.setAttribute('aria-label','Show all courses');if(!academyLinks||navigation.studioAdmitted)section.querySelector('.section-head').append(all);
    publicTrack.id='circles-purchased-course-row';publicTrack.classList.add('circles-purchased-course-row');publicTrack.setAttribute('aria-label','Your paid courses');
    const courses=learnCourses(navigation,mode);
    publicTrack.innerHTML=academyLinks?'':!courses?'<p role="status">Loading your courses…</p>':courses.length?purchasedCourseCards(coursePreview(courses)):'<p>No paid courses are linked to this account.</p>';
