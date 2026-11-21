@@ -5,7 +5,7 @@
   "r6PolicySHA256": "b0efeaabf36d0f29c333002585d0fb7cd554c3f1ac9e408da2e986cce8b07e05",
   "hosting": {
     "status": "FROZEN_REVIEWED_SOURCE_ONLY",
-    "reviewId": "V111-M4-P5-CHILD-BROWSER-AND-SERVICE-TRANSPORT-20261121-R2",
+    "reviewId": "V111-M4-P5-HIFZ-RETAINED-IMMUTABLE-PREFIX-20261121-R1",
     "changes": [
       {
         "app": "Academy",
@@ -621,6 +621,22 @@
         "beforeSHA256": "aec35d8233a40766b2c3566bc330376abd09b19ddc80a9f844214b90c0bb080b",
         "sha256": "d2236b8ff8b384f852f02f73722a8921cac46aee8c2d2bc672eaf418338e88d5",
         "bytes": 8711,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "path": "tests/v111-static-prefix.test.mjs",
+        "sha256": "7ede20d14e787fc12a3aa5c5d3c90bbaee6717d73f0aca32d040322ef72488a9",
+        "bytes": 4262,
+        "app": "Hifz",
+        "beforeSHA256": "07e047f2a9e33a77f2e2ab8b5124a4d4e6d432e210fefa81af92f27defddf5ed",
+        "purpose": "HOSTING_TEST"
+      },
+      {
+        "path": "worker/src/hifz-v2.js",
+        "sha256": "623aa6a8382257269e6c8866c3da359d4edcfc6ae494e6c5d76e2e14b6404000",
+        "bytes": 7644,
+        "app": "Hifz",
+        "beforeSHA256": "94ce93ecb2ed047f5000c8db0ef7813b270fb75ecb00a3bade39e859c8bb9c70",
         "purpose": "HOSTING_WRAPPER"
       },
       {
@@ -3990,8 +4006,8 @@
         },
         {
           "path": "tests/v111-static-prefix.test.mjs",
-          "sha256": "07e047f2a9e33a77f2e2ab8b5124a4d4e6d432e210fefa81af92f27defddf5ed",
-          "bytes": 3380
+          "sha256": "7ede20d14e787fc12a3aa5c5d3c90bbaee6717d73f0aca32d040322ef72488a9",
+          "bytes": 4262
         },
         {
           "path": "tests/verify_v111_client.mjs",
@@ -4010,8 +4026,8 @@
         },
         {
           "path": "worker/src/hifz-v2.js",
-          "sha256": "94ce93ecb2ed047f5000c8db0ef7813b270fb75ecb00a3bade39e859c8bb9c70",
-          "bytes": 7458
+          "sha256": "623aa6a8382257269e6c8866c3da359d4edcfc6ae494e6c5d76e2e14b6404000",
+          "bytes": 7644
         },
         {
           "path": "worker/src/index.js",
