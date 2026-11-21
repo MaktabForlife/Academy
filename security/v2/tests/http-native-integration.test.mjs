@@ -60,6 +60,23 @@ test('Studio retains Academy programme selections through the complete native ha
  }
 });
 
+test('peer HTTP redirects are rejected without following or replaying the signed request',async()=>{
+ const f=await createNativeHTTPFixture();
+ try{
+  const runtime=f.runtimes.studio;
+  const target=runtime.env.UAA_V2_PEERS.academy;
+  const observed=[];
+  runtime.env.UAA_V2_PEERS.academy={fetch(request){
+   observed.push({url:request.url,redirect:request.redirect});
+   return new Response(null,{status:307,headers:{Location:ORIGINS.academy+'/unexpected'}});
+  }};
+  try{
+   await assert.rejects(serviceFetch(runtime,{targetApp:'academy',path:'/internal/auth/v2/transactions',operationId:crypto.randomUUID(),body:{}}),{code:'SERVICE_REPLY_UNAVAILABLE'});
+  }finally{runtime.env.UAA_V2_PEERS.academy=target;}
+  assert.deepEqual(observed,[{url:ORIGINS.academy+'/internal/auth/v2/transactions',redirect:'manual'}]);
+ }finally{f.close();}
+});
+
 test('all three actual app refreshes retain original seven-day expiry and warm authorization uses zero SQL',async()=>{
  const f=await createNativeHTTPFixture();try{
  const sessions={academy:await signin(f)};for(const app of ['studio','hifz'])sessions[app]=await childJourney(f,app,{academyContext:sessions.academy.context});f.advance(30);

@@ -5,7 +5,7 @@
   "r6PolicySHA256": "b0efeaabf36d0f29c333002585d0fb7cd554c3f1ac9e408da2e986cce8b07e05",
   "hosting": {
     "status": "FROZEN_REVIEWED_SOURCE_ONLY",
-    "reviewId": "V111-M4-P5-PROGRAMME-RETURN-ANNOUNCEMENTS-ORIGIN-20261121-R2",
+    "reviewId": "V111-M4-P5-CHILD-BROWSER-AND-SERVICE-TRANSPORT-20261121-R1",
     "changes": [
       {
         "app": "Academy",
@@ -265,6 +265,14 @@
       },
       {
         "app": "Academy",
+        "path": "security/v2/http-service.mjs",
+        "beforeSHA256": "ead35cbb1f12fc50349a55712c56f912ec966fb4b83925648693b0058c3269a3",
+        "sha256": "6240f6b6a5265550080729cbc8d2a1ec660925c153421fad301545da6f1b2a57",
+        "bytes": 7779,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Academy",
         "path": "security/v2/native-schema.mjs",
         "beforeSHA256": "d79cf0704c85fdfbdb3f6a33d41e7c8e0654774406acb699f2f85d30ead3ba63",
         "sha256": "2bff8ef648bc9427602e51d13e03b83af28c279d36e3dc3043dd141008873326",
@@ -315,8 +323,8 @@
         "app": "Academy",
         "path": "security/v2/tests/http-native-integration.test.mjs",
         "beforeSHA256": "9245620b67cab9cede1c20ddee51f2d00a723c71ac57b138de4ef9fd1e564d6e",
-        "sha256": "316e1639ed073f39c2cd878b2bec78806bed865e19e2a119e77a9cc9822fac41",
-        "bytes": 29807,
+        "sha256": "d4de5f850a4769d74cdd86eb922ffe20c06e18488f43a8385b68eb6b42fbab6f",
+        "bytes": 30649,
         "purpose": "HOSTING_TEST"
       },
       {
@@ -385,6 +393,30 @@
       },
       {
         "app": "AcademyStudio",
+        "path": "public/v111/browser-session.mjs",
+        "beforeSHA256": "0d100564b51c83607450c250f0b9ae79249c163e1d9628a5a661c7c4360aadb0",
+        "sha256": "8d7515ed5590643c26cb0f22cb99bd003afd1ad7279e88c70ffc768a7effdc45",
+        "bytes": 40672,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "AcademyStudio",
+        "path": "security/v2/browser-assets.mjs",
+        "beforeSHA256": "80ee8c8a53a134e35d7122a12b8866130ade167831ea33f7284f087307a1e5d3",
+        "sha256": "a68a93ce3901e34beb9db2088e4092572c4f8692d1c2b8b161e227c38caab1e7",
+        "bytes": 59365,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "AcademyStudio",
+        "path": "security/v2/browser-session.mjs",
+        "beforeSHA256": "0d100564b51c83607450c250f0b9ae79249c163e1d9628a5a661c7c4360aadb0",
+        "sha256": "8d7515ed5590643c26cb0f22cb99bd003afd1ad7279e88c70ffc768a7effdc45",
+        "bytes": 40672,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "AcademyStudio",
         "path": "security/v2/child-security-tick.mjs",
         "beforeSHA256": null,
         "sha256": "ff7547e5fd9c479cfa937d4df69259cd6be41aa252424d8e830a3bf67ff54831",
@@ -397,6 +429,14 @@
         "beforeSHA256": null,
         "sha256": "228fb99e4117736bae7e2aab722dbb6e3ffc56a7039217255ae547c7e4420aca",
         "bytes": 794,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "AcademyStudio",
+        "path": "security/v2/http-service.mjs",
+        "beforeSHA256": "ead35cbb1f12fc50349a55712c56f912ec966fb4b83925648693b0058c3269a3",
+        "sha256": "6240f6b6a5265550080729cbc8d2a1ec660925c153421fad301545da6f1b2a57",
+        "bytes": 7779,
         "purpose": "HOSTING_WRAPPER"
       },
       {
@@ -441,6 +481,30 @@
       },
       {
         "app": "Hifz",
+        "path": "js/v111/browser-session.mjs",
+        "beforeSHA256": "0d100564b51c83607450c250f0b9ae79249c163e1d9628a5a661c7c4360aadb0",
+        "sha256": "8d7515ed5590643c26cb0f22cb99bd003afd1ad7279e88c70ffc768a7effdc45",
+        "bytes": 40672,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Hifz",
+        "path": "security/v2/browser-assets.mjs",
+        "beforeSHA256": "80ee8c8a53a134e35d7122a12b8866130ade167831ea33f7284f087307a1e5d3",
+        "sha256": "a68a93ce3901e34beb9db2088e4092572c4f8692d1c2b8b161e227c38caab1e7",
+        "bytes": 59365,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Hifz",
+        "path": "security/v2/browser-session.mjs",
+        "beforeSHA256": "0d100564b51c83607450c250f0b9ae79249c163e1d9628a5a661c7c4360aadb0",
+        "sha256": "8d7515ed5590643c26cb0f22cb99bd003afd1ad7279e88c70ffc768a7effdc45",
+        "bytes": 40672,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Hifz",
         "path": "security/v2/child-security-tick.mjs",
         "beforeSHA256": null,
         "sha256": "ff7547e5fd9c479cfa937d4df69259cd6be41aa252424d8e830a3bf67ff54831",
@@ -453,6 +517,14 @@
         "beforeSHA256": null,
         "sha256": "228fb99e4117736bae7e2aab722dbb6e3ffc56a7039217255ae547c7e4420aca",
         "bytes": 794,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Hifz",
+        "path": "security/v2/http-service.mjs",
+        "beforeSHA256": "ead35cbb1f12fc50349a55712c56f912ec966fb4b83925648693b0058c3269a3",
+        "sha256": "6240f6b6a5265550080729cbc8d2a1ec660925c153421fad301545da6f1b2a57",
+        "bytes": 7779,
         "purpose": "HOSTING_WRAPPER"
       },
       {
@@ -2046,8 +2118,8 @@
         },
         {
           "path": "security/v2/http-service.mjs",
-          "sha256": "ead35cbb1f12fc50349a55712c56f912ec966fb4b83925648693b0058c3269a3",
-          "bytes": 7778
+          "sha256": "6240f6b6a5265550080729cbc8d2a1ec660925c153421fad301545da6f1b2a57",
+          "bytes": 7779
         },
         {
           "path": "security/v2/http-shells.mjs",
@@ -2716,8 +2788,8 @@
         },
         {
           "path": "security/v2/tests/http-native-integration.test.mjs",
-          "sha256": "316e1639ed073f39c2cd878b2bec78806bed865e19e2a119e77a9cc9822fac41",
-          "bytes": 29807
+          "sha256": "d4de5f850a4769d74cdd86eb922ffe20c06e18488f43a8385b68eb6b42fbab6f",
+          "bytes": 30649
         },
         {
           "path": "security/v2/tests/http-publication-pending.test.mjs",
@@ -2963,13 +3035,13 @@
         },
         {
           "path": "public/v111/browser-session.mjs",
-          "sha256": "0d100564b51c83607450c250f0b9ae79249c163e1d9628a5a661c7c4360aadb0",
-          "bytes": 40646
+          "sha256": "8d7515ed5590643c26cb0f22cb99bd003afd1ad7279e88c70ffc768a7effdc45",
+          "bytes": 40672
         },
         {
           "path": "security/v2/browser-assets.mjs",
-          "sha256": "80ee8c8a53a134e35d7122a12b8866130ade167831ea33f7284f087307a1e5d3",
-          "bytes": 59339
+          "sha256": "a68a93ce3901e34beb9db2088e4092572c4f8692d1c2b8b161e227c38caab1e7",
+          "bytes": 59365
         },
         {
           "path": "security/v2/browser-drafts.mjs",
@@ -2983,8 +3055,8 @@
         },
         {
           "path": "security/v2/browser-session.mjs",
-          "sha256": "0d100564b51c83607450c250f0b9ae79249c163e1d9628a5a661c7c4360aadb0",
-          "bytes": 40646
+          "sha256": "8d7515ed5590643c26cb0f22cb99bd003afd1ad7279e88c70ffc768a7effdc45",
+          "bytes": 40672
         },
         {
           "path": "security/v2/cache.mjs",
@@ -3078,8 +3150,8 @@
         },
         {
           "path": "security/v2/http-service.mjs",
-          "sha256": "ead35cbb1f12fc50349a55712c56f912ec966fb4b83925648693b0058c3269a3",
-          "bytes": 7778
+          "sha256": "6240f6b6a5265550080729cbc8d2a1ec660925c153421fad301545da6f1b2a57",
+          "bytes": 7779
         },
         {
           "path": "security/v2/http-shells.mjs",
@@ -3540,13 +3612,13 @@
         },
         {
           "path": "js/v111/browser-session.mjs",
-          "sha256": "0d100564b51c83607450c250f0b9ae79249c163e1d9628a5a661c7c4360aadb0",
-          "bytes": 40646
+          "sha256": "8d7515ed5590643c26cb0f22cb99bd003afd1ad7279e88c70ffc768a7effdc45",
+          "bytes": 40672
         },
         {
           "path": "security/v2/browser-assets.mjs",
-          "sha256": "80ee8c8a53a134e35d7122a12b8866130ade167831ea33f7284f087307a1e5d3",
-          "bytes": 59339
+          "sha256": "a68a93ce3901e34beb9db2088e4092572c4f8692d1c2b8b161e227c38caab1e7",
+          "bytes": 59365
         },
         {
           "path": "security/v2/browser-drafts.mjs",
@@ -3560,8 +3632,8 @@
         },
         {
           "path": "security/v2/browser-session.mjs",
-          "sha256": "0d100564b51c83607450c250f0b9ae79249c163e1d9628a5a661c7c4360aadb0",
-          "bytes": 40646
+          "sha256": "8d7515ed5590643c26cb0f22cb99bd003afd1ad7279e88c70ffc768a7effdc45",
+          "bytes": 40672
         },
         {
           "path": "security/v2/cache.mjs",
@@ -3655,8 +3727,8 @@
         },
         {
           "path": "security/v2/http-service.mjs",
-          "sha256": "ead35cbb1f12fc50349a55712c56f912ec966fb4b83925648693b0058c3269a3",
-          "bytes": 7778
+          "sha256": "6240f6b6a5265550080729cbc8d2a1ec660925c153421fad301545da6f1b2a57",
+          "bytes": 7779
         },
         {
           "path": "security/v2/http-shells.mjs",
