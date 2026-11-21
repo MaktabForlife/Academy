@@ -5,7 +5,7 @@
   "r6PolicySHA256": "b0efeaabf36d0f29c333002585d0fb7cd554c3f1ac9e408da2e986cce8b07e05",
   "hosting": {
     "status": "FROZEN_REVIEWED_SOURCE_ONLY",
-    "reviewId": "V111-M4-P5-CHILD-BROWSER-AND-SERVICE-TRANSPORT-20261121-R1",
+    "reviewId": "V111-M4-P5-CHILD-BROWSER-AND-SERVICE-TRANSPORT-20261121-R2",
     "changes": [
       {
         "app": "Academy",
@@ -53,6 +53,14 @@
         "beforeSHA256": "2326787db5e7bba5b4ad5c0808058f477435494350bdbd0650e27c0627d06e5e",
         "sha256": "a5fc6d70ac9790c7e0e946b011c73b5484917a39b80773be268208c0aea01293",
         "bytes": 2916,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Academy",
+        "path": "backend/src/academy/v111/studio-authority-protocol.mjs",
+        "beforeSHA256": "85539be36733c2e9ff8b20c625aff282d6d3313f231ceb48f348e0045d198f78",
+        "sha256": "ce0e5f812de9cc956f1594e6819ac6d5682e5f7a2eae2869d023ea99bb744b34",
+        "bytes": 6734,
         "purpose": "HOSTING_WRAPPER"
       },
       {
@@ -273,6 +281,14 @@
       },
       {
         "app": "Academy",
+        "path": "security/v2/native-domain.mjs",
+        "beforeSHA256": "a16fa1d5abaf5ac0e7494225919134e68bb392ca2bfda49250ee617878f8c43f",
+        "sha256": "e6612aa988d583565281ddb482321aaba9b8cb386b66097c64eaf8a8f2c41968",
+        "bytes": 5321,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Academy",
         "path": "security/v2/native-schema.mjs",
         "beforeSHA256": "d79cf0704c85fdfbdb3f6a33d41e7c8e0654774406acb699f2f85d30ead3ba63",
         "sha256": "2bff8ef648bc9427602e51d13e03b83af28c279d36e3dc3043dd141008873326",
@@ -281,10 +297,26 @@
       },
       {
         "app": "Academy",
+        "path": "security/v2/portal-business.mjs",
+        "beforeSHA256": "60c37a688fc44d6ad81347ab90e2010d37fbcfdb83e1ad36e04b2719916ce9f2",
+        "sha256": "47ff63b49672e01adc0e4783594a5c726ef9fdec59e396105c94522acc5ac9ba",
+        "bytes": 9083,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Academy",
         "path": "security/v2/primary-write-guard.mjs",
         "beforeSHA256": "e3445718a25c6a9b6d739973b3b89063bde50c9185879461976a840a2bc85d8e",
         "sha256": "415a7736a2a8bfec51a75ec622fe2c8614cd538fdf0d1c2bc0513a56f1ae2dda",
         "bytes": 1815,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Academy",
+        "path": "security/v2/profile-service.mjs",
+        "beforeSHA256": "aec35d8233a40766b2c3566bc330376abd09b19ddc80a9f844214b90c0bb080b",
+        "sha256": "d2236b8ff8b384f852f02f73722a8921cac46aee8c2d2bc672eaf418338e88d5",
+        "bytes": 8711,
         "purpose": "HOSTING_WRAPPER"
       },
       {
@@ -441,10 +473,34 @@
       },
       {
         "app": "AcademyStudio",
+        "path": "security/v2/native-domain.mjs",
+        "beforeSHA256": "a16fa1d5abaf5ac0e7494225919134e68bb392ca2bfda49250ee617878f8c43f",
+        "sha256": "e6612aa988d583565281ddb482321aaba9b8cb386b66097c64eaf8a8f2c41968",
+        "bytes": 5321,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "AcademyStudio",
+        "path": "security/v2/portal-business.mjs",
+        "beforeSHA256": "60c37a688fc44d6ad81347ab90e2010d37fbcfdb83e1ad36e04b2719916ce9f2",
+        "sha256": "47ff63b49672e01adc0e4783594a5c726ef9fdec59e396105c94522acc5ac9ba",
+        "bytes": 9083,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "AcademyStudio",
         "path": "security/v2/primary-write-guard.mjs",
         "beforeSHA256": "e3445718a25c6a9b6d739973b3b89063bde50c9185879461976a840a2bc85d8e",
         "sha256": "415a7736a2a8bfec51a75ec622fe2c8614cd538fdf0d1c2bc0513a56f1ae2dda",
         "bytes": 1815,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "AcademyStudio",
+        "path": "security/v2/profile-service.mjs",
+        "beforeSHA256": "aec35d8233a40766b2c3566bc330376abd09b19ddc80a9f844214b90c0bb080b",
+        "sha256": "d2236b8ff8b384f852f02f73722a8921cac46aee8c2d2bc672eaf418338e88d5",
+        "bytes": 8711,
         "purpose": "HOSTING_WRAPPER"
       },
       {
@@ -461,6 +517,14 @@
         "beforeSHA256": "e613dd2f398770d8af9df0660d8197491721493a95c736e51476c8d7ae08841f",
         "sha256": "c8b30a90fa6504c2774c7c34d3a3a1e316c32a16667cdc9b01eaf296158cdaf4",
         "bytes": 10255,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "AcademyStudio",
+        "path": "src/v111-source-authority-protocol.mjs",
+        "beforeSHA256": "fd377034acfeccafaf6bc3fece87ca24f65a65fb5cf63ffa21decf4d3c1484ce",
+        "sha256": "993b2a249d143b53589dbde494b3426a0c44de32a6af98bef92e114512e13d5e",
+        "bytes": 6725,
         "purpose": "HOSTING_WRAPPER"
       },
       {
@@ -529,10 +593,34 @@
       },
       {
         "app": "Hifz",
+        "path": "security/v2/native-domain.mjs",
+        "beforeSHA256": "a16fa1d5abaf5ac0e7494225919134e68bb392ca2bfda49250ee617878f8c43f",
+        "sha256": "e6612aa988d583565281ddb482321aaba9b8cb386b66097c64eaf8a8f2c41968",
+        "bytes": 5321,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Hifz",
+        "path": "security/v2/portal-business.mjs",
+        "beforeSHA256": "60c37a688fc44d6ad81347ab90e2010d37fbcfdb83e1ad36e04b2719916ce9f2",
+        "sha256": "47ff63b49672e01adc0e4783594a5c726ef9fdec59e396105c94522acc5ac9ba",
+        "bytes": 9083,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Hifz",
         "path": "security/v2/primary-write-guard.mjs",
         "beforeSHA256": "e3445718a25c6a9b6d739973b3b89063bde50c9185879461976a840a2bc85d8e",
         "sha256": "415a7736a2a8bfec51a75ec622fe2c8614cd538fdf0d1c2bc0513a56f1ae2dda",
         "bytes": 1815,
+        "purpose": "HOSTING_WRAPPER"
+      },
+      {
+        "app": "Hifz",
+        "path": "security/v2/profile-service.mjs",
+        "beforeSHA256": "aec35d8233a40766b2c3566bc330376abd09b19ddc80a9f844214b90c0bb080b",
+        "sha256": "d2236b8ff8b384f852f02f73722a8921cac46aee8c2d2bc672eaf418338e88d5",
+        "bytes": 8711,
         "purpose": "HOSTING_WRAPPER"
       },
       {
@@ -933,8 +1021,8 @@
         },
         {
           "path": "backend/src/academy/v111/studio-authority-protocol.mjs",
-          "sha256": "85539be36733c2e9ff8b20c625aff282d6d3313f231ceb48f348e0045d198f78",
-          "bytes": 6581
+          "sha256": "ce0e5f812de9cc956f1594e6819ac6d5682e5f7a2eae2869d023ea99bb744b34",
+          "bytes": 6734
         },
         {
           "path": "backend/src/academy/v111/studio-authority-scheduled.mjs",
@@ -2153,8 +2241,8 @@
         },
         {
           "path": "security/v2/native-domain.mjs",
-          "sha256": "a16fa1d5abaf5ac0e7494225919134e68bb392ca2bfda49250ee617878f8c43f",
-          "bytes": 5275
+          "sha256": "e6612aa988d583565281ddb482321aaba9b8cb386b66097c64eaf8a8f2c41968",
+          "bytes": 5321
         },
         {
           "path": "security/v2/native-runtime.mjs",
@@ -2183,8 +2271,8 @@
         },
         {
           "path": "security/v2/portal-business.mjs",
-          "sha256": "60c37a688fc44d6ad81347ab90e2010d37fbcfdb83e1ad36e04b2719916ce9f2",
-          "bytes": 8934
+          "sha256": "47ff63b49672e01adc0e4783594a5c726ef9fdec59e396105c94522acc5ac9ba",
+          "bytes": 9083
         },
         {
           "path": "security/v2/portal-capability.mjs",
@@ -2198,8 +2286,8 @@
         },
         {
           "path": "security/v2/profile-service.mjs",
-          "sha256": "aec35d8233a40766b2c3566bc330376abd09b19ddc80a9f844214b90c0bb080b",
-          "bytes": 8710
+          "sha256": "d2236b8ff8b384f852f02f73722a8921cac46aee8c2d2bc672eaf418338e88d5",
+          "bytes": 8711
         },
         {
           "path": "security/v2/profile-source-triggers.mjs",
@@ -3185,8 +3273,8 @@
         },
         {
           "path": "security/v2/native-domain.mjs",
-          "sha256": "a16fa1d5abaf5ac0e7494225919134e68bb392ca2bfda49250ee617878f8c43f",
-          "bytes": 5275
+          "sha256": "e6612aa988d583565281ddb482321aaba9b8cb386b66097c64eaf8a8f2c41968",
+          "bytes": 5321
         },
         {
           "path": "security/v2/native-runtime.mjs",
@@ -3215,8 +3303,8 @@
         },
         {
           "path": "security/v2/portal-business.mjs",
-          "sha256": "60c37a688fc44d6ad81347ab90e2010d37fbcfdb83e1ad36e04b2719916ce9f2",
-          "bytes": 8934
+          "sha256": "47ff63b49672e01adc0e4783594a5c726ef9fdec59e396105c94522acc5ac9ba",
+          "bytes": 9083
         },
         {
           "path": "security/v2/portal-capability.mjs",
@@ -3230,8 +3318,8 @@
         },
         {
           "path": "security/v2/profile-service.mjs",
-          "sha256": "aec35d8233a40766b2c3566bc330376abd09b19ddc80a9f844214b90c0bb080b",
-          "bytes": 8710
+          "sha256": "d2236b8ff8b384f852f02f73722a8921cac46aee8c2d2bc672eaf418338e88d5",
+          "bytes": 8711
         },
         {
           "path": "security/v2/profile-source-triggers.mjs",
@@ -3490,8 +3578,8 @@
         },
         {
           "path": "src/v111-source-authority-protocol.mjs",
-          "sha256": "fd377034acfeccafaf6bc3fece87ca24f65a65fb5cf63ffa21decf4d3c1484ce",
-          "bytes": 6572
+          "sha256": "993b2a249d143b53589dbde494b3426a0c44de32a6af98bef92e114512e13d5e",
+          "bytes": 6725
         },
         {
           "path": "src/v111-source-authority.mjs",
@@ -3762,8 +3850,8 @@
         },
         {
           "path": "security/v2/native-domain.mjs",
-          "sha256": "a16fa1d5abaf5ac0e7494225919134e68bb392ca2bfda49250ee617878f8c43f",
-          "bytes": 5275
+          "sha256": "e6612aa988d583565281ddb482321aaba9b8cb386b66097c64eaf8a8f2c41968",
+          "bytes": 5321
         },
         {
           "path": "security/v2/native-profile-intake.mjs",
@@ -3797,8 +3885,8 @@
         },
         {
           "path": "security/v2/portal-business.mjs",
-          "sha256": "60c37a688fc44d6ad81347ab90e2010d37fbcfdb83e1ad36e04b2719916ce9f2",
-          "bytes": 8934
+          "sha256": "47ff63b49672e01adc0e4783594a5c726ef9fdec59e396105c94522acc5ac9ba",
+          "bytes": 9083
         },
         {
           "path": "security/v2/portal-capability.mjs",
@@ -3812,8 +3900,8 @@
         },
         {
           "path": "security/v2/profile-service.mjs",
-          "sha256": "aec35d8233a40766b2c3566bc330376abd09b19ddc80a9f844214b90c0bb080b",
-          "bytes": 8710
+          "sha256": "d2236b8ff8b384f852f02f73722a8921cac46aee8c2d2bc672eaf418338e88d5",
+          "bytes": 8711
         },
         {
           "path": "security/v2/profile-source-triggers.mjs",
