@@ -60,6 +60,32 @@ test('Studio retains Academy programme selections through the complete native ha
  }
 });
 
+test('delayed Academy registration retains the Studio and Hifz transaction deadline',async()=>{
+ const f=await createNativeHTTPFixture();
+ try{
+  const academy=await signin(f);
+  for(const app of ['studio','hifz']){
+   const env=f.runtimes[app].env,peer=env.UAA_V2_PEERS.academy;
+   let requestedDeadline;
+   env.UAA_V2_PEERS.academy={async fetch(request){
+    if(new URL(request.url).pathname==='/internal/auth/v2/transactions'){
+     requestedDeadline=(await request.clone().json()).expiresAt;
+     f.advance(2);
+    }
+    return peer.fetch(request);
+   }};
+   const local=await childJourney(f,app,{academyContext:academy.context});
+   assert.equal(local.state,'UNLOCKED');
+   const source=f.databases.academy.prepare('SELECT created_at,expires_at FROM jwt_v2_ceremonies WHERE target_app=? ORDER BY created_at DESC LIMIT 1').get(app);
+   const child=f.databases[app].prepare("SELECT created_at,expires_at FROM jwt_v2_http_transactions WHERE kind='admission/finalize' ORDER BY created_at DESC LIMIT 1").get();
+   assert.equal(source.created_at-child.created_at,2);
+   assert.equal(source.expires_at,child.expires_at);
+   assert.equal(requestedDeadline,child.expires_at);
+   assert.equal(child.expires_at-child.created_at,300);
+  }
+ }finally{f.close();}
+});
+
 test('peer HTTP redirects are rejected without following or replaying the signed request',async()=>{
  const f=await createNativeHTTPFixture();
  try{
